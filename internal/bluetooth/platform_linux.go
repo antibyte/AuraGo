@@ -174,7 +174,7 @@ func (a *bluezAdapter) Pair(ctx context.Context, address, pin string) error {
 	}
 
 	agentPath := dbus.ObjectPath(fmt.Sprintf("/com/aurago/bluetooth/agent_%d", time.Now().UnixNano()))
-	agent := &pairingAgent{pin: pin}
+	agent := &pairingAgent{pin: pin, devicePath: devicePath}
 	if err := conn.Export(agent, agentPath, "org.bluez.Agent1"); err != nil {
 		return fmt.Errorf("export BlueZ pairing agent: %w", err)
 	}
@@ -332,15 +332,22 @@ func variantInt16(properties map[string]dbus.Variant, key string) (int16, bool) 
 	return 0, false
 }
 
+// pairingAgent is the short-lived Just-Works/PIN agent of one Pair call. It
+// answers PIN, passkey, authorization and service requests only for
+// devicePath, the device that call pairs.
 type pairingAgent struct {
-	pin string
+	pin        string
+	devicePath dbus.ObjectPath
 }
 
 func (a *pairingAgent) Release() *dbus.Error {
 	return nil
 }
 
-func (a *pairingAgent) RequestPinCode(dbus.ObjectPath) (string, *dbus.Error) {
+func (a *pairingAgent) RequestPinCode(device dbus.ObjectPath) (string, *dbus.Error) {
+	if device != a.devicePath {
+		return "", pairingDeviceMismatchDBusError()
+	}
 	if a.pin == "" {
 		return "", pairingInteractionDBusError()
 	}
@@ -351,7 +358,10 @@ func (a *pairingAgent) DisplayPinCode(dbus.ObjectPath, string) *dbus.Error {
 	return nil
 }
 
-func (a *pairingAgent) RequestPasskey(dbus.ObjectPath) (uint32, *dbus.Error) {
+func (a *pairingAgent) RequestPasskey(device dbus.ObjectPath) (uint32, *dbus.Error) {
+	if device != a.devicePath {
+		return 0, pairingDeviceMismatchDBusError()
+	}
 	if a.pin == "" {
 		return 0, pairingInteractionDBusError()
 	}
@@ -370,11 +380,17 @@ func (a *pairingAgent) RequestConfirmation(dbus.ObjectPath, uint32) *dbus.Error 
 	return pairingInteractionDBusError()
 }
 
-func (a *pairingAgent) RequestAuthorization(dbus.ObjectPath) *dbus.Error {
+func (a *pairingAgent) RequestAuthorization(device dbus.ObjectPath) *dbus.Error {
+	if device != a.devicePath {
+		return pairingDeviceMismatchDBusError()
+	}
 	return nil
 }
 
-func (a *pairingAgent) AuthorizeService(dbus.ObjectPath, string) *dbus.Error {
+func (a *pairingAgent) AuthorizeService(device dbus.ObjectPath, _ string) *dbus.Error {
+	if device != a.devicePath {
+		return pairingDeviceMismatchDBusError()
+	}
 	return nil
 }
 
@@ -386,5 +402,14 @@ func pairingInteractionDBusError() *dbus.Error {
 	return &dbus.Error{
 		Name: "org.bluez.Error.Rejected",
 		Body: []interface{}{"PAIRING_INTERACTION_REQUIRED"},
+	}
+}
+
+// pairingDeviceMismatchDBusError rejects a request for a device other than the
+// one the per-call agent pairs.
+func pairingDeviceMismatchDBusError() *dbus.Error {
+	return &dbus.Error{
+		Name: "org.bluez.Error.Rejected",
+		Body: []interface{}{"PAIRING_DEVICE_MISMATCH"},
 	}
 }

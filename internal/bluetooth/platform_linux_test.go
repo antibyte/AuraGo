@@ -183,3 +183,48 @@ func TestBlueZPairAlwaysCleansUpAgent(t *testing.T) {
 		t.Fatalf("pairing exports = %#v", connection.exports)
 	}
 }
+
+func TestBlueZPairBindsTheAgentToTheResolvedDevice(t *testing.T) {
+	connection := &fakeBlueZConnection{objects: fakeBlueZObjects(false)}
+	if err := newFakeBlueZAdapter(connection).Pair(context.Background(), "aa:bb:cc:dd:ee:ff", ""); err != nil {
+		t.Fatalf("Pair: %v", err)
+	}
+	connection.mu.Lock()
+	defer connection.mu.Unlock()
+	if len(connection.exports) == 0 {
+		t.Fatal("Pair exported no agent")
+	}
+	agent, ok := connection.exports[0].(*pairingAgent)
+	if !ok || agent.devicePath != dbus.ObjectPath(testDevicePath) {
+		t.Fatalf("exported agent = %#v, want one bound to %s", connection.exports[0], testDevicePath)
+	}
+}
+
+func TestPairingAgentAnswersOnlyForTheBoundDevice(t *testing.T) {
+	const foreignDevice = dbus.ObjectPath("/org/bluez/hci0/dev_11_22_33_44_55_66")
+	agent := &pairingAgent{pin: "1234", devicePath: dbus.ObjectPath(testDevicePath)}
+	tests := []struct {
+		name string
+		call func(dbus.ObjectPath) (interface{}, *dbus.Error)
+		want interface{}
+	}{
+		{"RequestAuthorization", func(p dbus.ObjectPath) (interface{}, *dbus.Error) { return nil, agent.RequestAuthorization(p) }, nil},
+		{"AuthorizeService", func(p dbus.ObjectPath) (interface{}, *dbus.Error) {
+			return nil, agent.AuthorizeService(p, "0000110b-0000-1000-8000-00805f9b34fb")
+		}, nil},
+		{"RequestPinCode", func(p dbus.ObjectPath) (interface{}, *dbus.Error) { return agent.RequestPinCode(p) }, "1234"},
+		{"RequestPasskey", func(p dbus.ObjectPath) (interface{}, *dbus.Error) { return agent.RequestPasskey(p) }, uint32(1234)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := tt.call(foreignDevice); err == nil || err.Name != "org.bluez.Error.Rejected" ||
+				len(err.Body) != 1 || err.Body[0] != "PAIRING_DEVICE_MISMATCH" {
+				t.Fatalf("foreign device: err = %#v, want org.bluez.Error.Rejected PAIRING_DEVICE_MISMATCH", err)
+			}
+			got, err := tt.call(dbus.ObjectPath(testDevicePath))
+			if err != nil || got != tt.want {
+				t.Fatalf("bound device: got %#v, %v; want %#v, nil", got, err, tt.want)
+			}
+		})
+	}
+}

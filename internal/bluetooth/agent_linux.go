@@ -18,6 +18,7 @@ const interactiveAgentPath = dbus.ObjectPath("/com/aurago/bluetooth/agent")
 type linuxAgentHost struct {
 	logger     *slog.Logger
 	conn       *dbus.Conn
+	agent      *interactiveAgent
 	mu         sync.Mutex
 	registered int
 	defaults   int
@@ -33,12 +34,12 @@ func newPlatformAgentHost(broker *interactionBroker, devices deviceResolver, log
 	if err != nil {
 		return nil, fmt.Errorf("connect pairing agent to the system D-Bus: %w", err)
 	}
-	agent := &interactiveAgent{broker: broker, devices: devices}
+	agent := &interactiveAgent{broker: broker, devices: devices, logger: logger}
 	if err := conn.Export(agent, interactiveAgentPath, "org.bluez.Agent1"); err != nil {
 		_ = conn.Close()
 		return nil, fmt.Errorf("export BlueZ pairing agent: %w", err)
 	}
-	return &linuxAgentHost{logger: logger, conn: conn}, nil
+	return &linuxAgentHost{logger: logger, conn: conn, agent: agent}, nil
 }
 
 func (h *linuxAgentHost) call(ctx context.Context, method string, args ...interface{}) error {
@@ -94,7 +95,14 @@ func (h *linuxAgentHost) releaseLocked(asDefault bool) {
 	}
 }
 
+// Pair binds the interactive agent to devicePath while the pairing runs, so
+// requests for any other device are rejected instead of reaching the operator.
 func (h *linuxAgentHost) Pair(ctx context.Context, devicePath string) error {
+	release, err := h.agent.bind(dbus.ObjectPath(devicePath))
+	if err != nil {
+		return err
+	}
+	defer release()
 	return asBusError(h.conn.Object(bluezService, dbus.ObjectPath(devicePath)).CallWithContext(ctx, bluezDeviceInterface+".Pair", 0).Err)
 }
 
@@ -111,10 +119,55 @@ func (h *linuxAgentHost) Close() error {
 }
 
 // interactiveAgent implements org.bluez.Agent1 by asking the operator through
-// the broker. It never logs passkeys or PINs.
+// the broker. It never logs passkeys or PINs. While an operator's outgoing
+// pairing runs it is bound to that device; unbound (discoverable window) it
+// asks the operator for any device.
 type interactiveAgent struct {
 	broker  *interactionBroker
 	devices deviceResolver
+	logger  *slog.Logger
+
+	mu    sync.Mutex
+	bound dbus.ObjectPath
+	binds int
+}
+
+// bind restricts the answerable requests to device until release. Binding a
+// different device while one is bound fails as busy; release is idempotent.
+func (a *interactiveAgent) bind(device dbus.ObjectPath) (func(), error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.binds > 0 && a.bound != device {
+		return nil, &busError{Name: "org.bluez.Error.InProgress", Message: "Another interactive pairing is already running."}
+	}
+	a.bound = device
+	a.binds++
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			a.mu.Lock()
+			defer a.mu.Unlock()
+			if a.binds--; a.binds == 0 {
+				a.bound = ""
+			}
+		})
+	}, nil
+}
+
+// foreign reports whether device is not the device of the running outgoing
+// pairing. Such requests are rejected without asking the operator.
+func (a *interactiveAgent) foreign(device dbus.ObjectPath) bool {
+	a.mu.Lock()
+	foreign := a.binds > 0 && a.bound != device
+	a.mu.Unlock()
+	if foreign {
+		logger := a.logger
+		if logger == nil {
+			logger = slog.Default()
+		}
+		logger.Debug("[Bluetooth] Rejected a pairing request for a device other than the one being paired", "device", string(device))
+	}
+	return foreign
 }
 
 func agentRejected() *dbus.Error {
@@ -146,6 +199,9 @@ func (a *interactiveAgent) Cancel() *dbus.Error {
 }
 
 func (a *interactiveAgent) RequestPinCode(device dbus.ObjectPath) (string, *dbus.Error) {
+	if a.foreign(device) {
+		return "", agentRejected()
+	}
 	answer, ok := a.ask(a.view(InteractionEnterPIN, device))
 	if !ok {
 		return "", agentRejected()
@@ -161,6 +217,9 @@ func (a *interactiveAgent) DisplayPinCode(device dbus.ObjectPath, pin string) *d
 }
 
 func (a *interactiveAgent) RequestPasskey(device dbus.ObjectPath) (uint32, *dbus.Error) {
+	if a.foreign(device) {
+		return 0, agentRejected()
+	}
 	answer, ok := a.ask(a.view(InteractionEnterPasskey, device))
 	if !ok {
 		return 0, agentRejected()
@@ -181,6 +240,9 @@ func (a *interactiveAgent) DisplayPasskey(device dbus.ObjectPath, passkey uint32
 }
 
 func (a *interactiveAgent) RequestConfirmation(device dbus.ObjectPath, passkey uint32) *dbus.Error {
+	if a.foreign(device) {
+		return agentRejected()
+	}
 	view := a.view(InteractionConfirmPasskey, device)
 	view.Passkey = fmt.Sprintf("%06d", passkey)
 	if _, ok := a.ask(view); !ok {
@@ -190,6 +252,9 @@ func (a *interactiveAgent) RequestConfirmation(device dbus.ObjectPath, passkey u
 }
 
 func (a *interactiveAgent) RequestAuthorization(device dbus.ObjectPath) *dbus.Error {
+	if a.foreign(device) {
+		return agentRejected()
+	}
 	if _, ok := a.ask(a.view(InteractionAuthorizePairing, device)); !ok {
 		return agentRejected()
 	}
@@ -197,6 +262,9 @@ func (a *interactiveAgent) RequestAuthorization(device dbus.ObjectPath) *dbus.Er
 }
 
 func (a *interactiveAgent) AuthorizeService(device dbus.ObjectPath, uuid string) *dbus.Error {
+	if a.foreign(device) {
+		return agentRejected()
+	}
 	view := a.view(InteractionAuthorizeService, device)
 	view.Service = serviceName(uuid)
 	if _, ok := a.ask(view); !ok {
