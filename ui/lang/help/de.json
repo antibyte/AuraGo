@@ -243,6 +243,7 @@
   "help.mqtt.qos": "Standard Quality of Service Level: 0 = höchstens einmal, 1 = mindestens einmal, 2 = genau einmal.",
   "help.mqtt.read_only": "Wenn aktiviert, darf der Agent nur MQTT-Nachrichten lesen, aber nicht publizieren, subscriben oder unsubscriben.",
   "help.mqtt.relay_to_agent": "Wenn aktiv, werden eingehende MQTT-Nachrichten als Kontext an den Agenten weitergeleitet.",
+  "help.mqtt.allow_unauthenticated_relay": "Erlaubt, dass die Weiterleitung an den Agenten, die Frigate-Weiterleitungen und MQTT-ausgelöste Missionen Agentenläufe starten, obwohl sich AuraGo weder mit Benutzernamen noch mit Client-Zertifikat am Broker anmeldet. Dann kann jedes Gerät, das an den Broker veröffentlichen kann, Agentenläufe starten. Besser ausgeschaltet lassen und stattdessen Zugangsdaten für den Broker einrichten.",
   "help.mqtt.tls_ca_file": "Pfad zur CA-Zertifikatsdatei für TLS-Verifizierung (optional, für eigene CAs).",
   "help.mqtt.tls_cert_file": "Pfad zur Client-Zertifikatsdatei für gegenseitige TLS-Authentifizierung (optional).",
   "help.mqtt.tls_enabled": "Aktiviert TLS/SSL-Verschlüsselung für die MQTT-Verbindung.",

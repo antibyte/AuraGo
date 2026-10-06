@@ -15,6 +15,9 @@ func TestMQTTConfigModuleUsesTypedControlsAndPreservesSecrets(t *testing.T) {
 		`data-type="number" data-path="mqtt.availability.qos"`,
 		"mqtt-tls-transport-message",
 		"config.mqtt.tls_plaintext_error",
+		`data-path="mqtt.allow_unauthenticated_relay"`,
+		"config.mqtt.allow_unauthenticated_relay_label",
+		"help.mqtt.allow_unauthenticated_relay",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("mqtt.js missing %q", marker)
@@ -23,6 +26,8 @@ func TestMQTTConfigModuleUsesTypedControlsAndPreservesSecrets(t *testing.T) {
 	if strings.Contains(source, "input.value.trim()") {
 		t.Fatal("MQTT password must preserve leading and trailing whitespace")
 	}
+	englishConfig := mustReadJSONMap(t, "lang/config/mqtt/en.json")
+	englishHelp := mustReadJSONMap(t, "lang/help/en.json")
 	for _, lang := range []string{"en", "de", "fr", "es", "it", "ja", "zh", "nl", "pl", "cs", "da", "el", "hi", "no", "pt", "sv"} {
 		values := mustReadJSONMap(t, "lang/config/mqtt/"+lang+".json")
 		if strings.TrimSpace(values["config.mqtt.tls_plaintext_error"]) == "" {
@@ -30,6 +35,23 @@ func TestMQTTConfigModuleUsesTypedControlsAndPreservesSecrets(t *testing.T) {
 		}
 		if _, err := json.Marshal(values); err != nil {
 			t.Fatalf("lang/config/mqtt/%s.json is not JSON: %v", lang, err)
+		}
+		help := mustReadJSONMap(t, "lang/help/"+lang+".json")
+		for file, entry := range map[string][2]string{
+			"lang/config/mqtt/" + lang + ".json": {"config.mqtt.allow_unauthenticated_relay_label", values["config.mqtt.allow_unauthenticated_relay_label"]},
+			"lang/help/" + lang + ".json":        {"help.mqtt.allow_unauthenticated_relay", help["help.mqtt.allow_unauthenticated_relay"]},
+		} {
+			key, text := entry[0], entry[1]
+			if strings.TrimSpace(text) == "" || text == key {
+				t.Fatalf("%s missing %s", file, key)
+			}
+			english := englishConfig[key]
+			if english == "" {
+				english = englishHelp[key]
+			}
+			if lang != "en" && text == english {
+				t.Fatalf("%s copies the English %s instead of translating it", file, key)
+			}
 		}
 	}
 }
@@ -77,6 +99,19 @@ func TestMQTTConfigTopicsEditSaveReloadBrowser(t *testing.T) {
         return JSON.stringify((await response.json()).mqtt.qos);
 	}`).String(); got != `0` {
 		t.Fatalf("saved QoS0 = %s", got)
+	}
+	if got := page.MustEval(`async () => {
+        const toggle = document.querySelector('[data-path="mqtt.allow_unauthenticated_relay"]');
+        if (!toggle) return 'missing';
+        if (toggle.classList.contains('on')) return 'on before opt-in';
+        const label = toggle.closest('.field-group').querySelector('.field-label').textContent;
+        if (label.includes('config.mqtt.')) return 'untranslated label ' + label;
+        toggle.click();
+        await saveConfig();
+        const response = await fetch('/api/config');
+        return JSON.stringify((await response.json()).mqtt.allow_unauthenticated_relay);
+    }`).String(); got != `true` {
+		t.Fatalf("saved allow_unauthenticated_relay = %s", got)
 	}
 	page.MustEval(`async () => {
         configData.mqtt.availability.enabled = true;

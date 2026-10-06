@@ -32,6 +32,7 @@
   "config.mqtt.readonly_label": "Alleen-lezen modus",
   "config.mqtt.refresh_btn": "Vernieuwen",
   "config.mqtt.relay_to_agent_label": "Doorsturen naar agent",
+  "config.mqtt.allow_unauthenticated_relay_label": "Doorsturen zonder brokeraanmelding toestaan",
   "config.mqtt.save_vault": "Opslaan in kluis",
   "config.mqtt.status_connected": "Verbonden",
   "config.mqtt.status_disabled": "MQTT-integratie is uitgeschakeld",

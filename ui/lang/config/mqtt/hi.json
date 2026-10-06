@@ -32,6 +32,7 @@
   "config.mqtt.readonly_label": "केवल पढ़ने की मोड",
   "config.mqtt.refresh_btn": "रीफ्रेश करें",
   "config.mqtt.relay_to_agent_label": "एजेंट को रिले करें",
+  "config.mqtt.allow_unauthenticated_relay_label": "ब्रोकर लॉगिन के बिना रिले की अनुमति दें",
   "config.mqtt.save_vault": "Vault में सहेजें",
   "config.mqtt.status_connected": "कनेक्टेड",
   "config.mqtt.status_disabled": "MQTT एकीकरण अक्षम है",

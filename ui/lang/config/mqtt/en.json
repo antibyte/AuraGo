@@ -32,6 +32,7 @@
   "config.mqtt.readonly_label": "Read-only Mode",
   "config.mqtt.refresh_btn": "Refresh",
   "config.mqtt.relay_to_agent_label": "Relay to Agent",
+  "config.mqtt.allow_unauthenticated_relay_label": "Allow relay without broker login",
   "config.mqtt.save_vault": "Save to Vault",
   "config.mqtt.status_connected": "Connected",
   "config.mqtt.status_disabled": "MQTT integration is disabled",

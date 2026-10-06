@@ -32,6 +32,7 @@
   "config.mqtt.readonly_label": "只读模式",
   "config.mqtt.refresh_btn": "刷新",
   "config.mqtt.relay_to_agent_label": "转发至代理",
+  "config.mqtt.allow_unauthenticated_relay_label": "允许在未登录 MQTT 服务器时转发",
   "config.mqtt.save_vault": "保存至保险库",
   "config.mqtt.status_connected": "已连接",
   "config.mqtt.status_disabled": "MQTT集成已禁用",

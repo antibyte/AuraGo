@@ -1078,8 +1078,9 @@ func Start(opts StartOptions) error {
 	}
 
 	// Register desired mission filters even while MQTT is disabled. The
-	// controller activates them when the integration is enabled later.
-	s.MissionManagerV2.SetMQTTManager(&missionMQTTAdapter{logger: logger})
+	// controller activates them when the integration is enabled later; each
+	// delivery passes the relay gate against the live config.
+	s.MissionManagerV2.SetMQTTManager(&missionMQTTAdapter{logger: logger, config: s.ConfigSnapshot})
 
 	// Set cheatsheet DB for mission prompt expansion
 	if s.CheatsheetDB != nil {

@@ -3920,3 +3920,82 @@ func TestLoadGrandfathersUnsandboxedShellOnlyWhenFlagAbsent(t *testing.T) {
 		})
 	}
 }
+
+// Relays and MQTT-triggered missions on an anonymous broker keep working until
+// mqtt.allow_unauthenticated_relay is written. Mission triggers live in the
+// mission store, so an enabled anonymous broker is grandfathered even without a
+// relay flag; a null value counts as unwritten, as config-merger reads it.
+func TestLoadGrandfathersUnauthenticatedMQTTRelay(t *testing.T) {
+	const on = "mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n"
+	cases := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"relay on, no user, key absent", on + "  relay_to_agent: true\n", true},
+		{"frigate relay only, key absent", on + "frigate:\n  enabled: true\n  event_relay: true\n", true},
+		{"mission triggers only, key absent", on + "  relay_to_agent: false\n", true},
+		{"enabled as yes, key absent", "mqtt:\n  enabled: yes\n  broker: tcp://broker.lan:1883\n", true},
+		{"relay on, blank username", on + "  relay_to_agent: true\n  username: \"  \"\n", true},
+		{"relay on, key null", on + "  relay_to_agent: true\n  allow_unauthenticated_relay:\n", true},
+		{"relay on, key false", on + "  relay_to_agent: true\n  allow_unauthenticated_relay: false\n", false},
+		{"relay on, key true", on + "  relay_to_agent: true\n  allow_unauthenticated_relay: true\n", true},
+		{"relay on, user set", on + "  relay_to_agent: true\n  username: iot\n", false},
+		{"relay on, client certificate", on + "  relay_to_agent: true\n  tls:\n    cert_file: client.crt\n    key_file: client.key\n", false},
+		{"mqtt disabled", "mqtt:\n  enabled: false\n  relay_to_agent: true\n", false},
+		{"no mqtt section", "server:\n  port: 8088\n", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(configPath, []byte(tc.yaml), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if cfg.MQTT.AllowUnauthenticatedRelay != tc.want {
+				t.Fatalf("AllowUnauthenticatedRelay = %v, want %v", cfg.MQTT.AllowUnauthenticatedRelay, tc.want)
+			}
+		})
+	}
+}
+
+// A config written from the template (fresh install, or after config-merger
+// filled the key) carries allow_unauthenticated_relay: false, so enabling an
+// anonymous relay later is refused rather than grandfathered.
+func TestLoadTemplateDoesNotGrandfatherUnauthenticatedMQTTRelay(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatalf("read config_template.yaml: %v", err)
+	}
+	if !yamlHasPath(data, "mqtt", "allow_unauthenticated_relay") {
+		t.Fatal("config_template.yaml must write mqtt.allow_unauthenticated_relay explicitly")
+	}
+	tmpl := strings.ReplaceAll(string(data), "\r\n", "\n")
+	const header = "mqtt:\n    enabled: false\n    broker: \"\""
+	if !strings.Contains(tmpl, header) {
+		t.Fatalf("config_template.yaml mqtt block no longer starts with %q", header)
+	}
+	tmpl = strings.Replace(tmpl, header, "mqtt:\n    enabled: true\n    broker: tcp://broker.lan:1883", 1)
+	const relayOff = "    relay_to_agent: false\n    allow_unauthenticated_relay: false"
+	if !strings.Contains(tmpl, relayOff) {
+		t.Fatalf("config_template.yaml mqtt block no longer contains %q", relayOff)
+	}
+	tmpl = strings.Replace(tmpl, relayOff, "    relay_to_agent: true\n    allow_unauthenticated_relay: false", 1)
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(tmpl), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load(template with anonymous relay): %v", err)
+	}
+	if !cfg.MQTT.Enabled || !cfg.MQTT.RelayToAgent || cfg.MQTT.Username != "" {
+		t.Fatalf("fixture did not enable an anonymous relay: enabled=%v relay=%v username=%q", cfg.MQTT.Enabled, cfg.MQTT.RelayToAgent, cfg.MQTT.Username)
+	}
+	if cfg.MQTT.AllowUnauthenticatedRelay {
+		t.Fatal("template allow_unauthenticated_relay: false must not be grandfathered to true")
+	}
+}

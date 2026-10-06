@@ -243,6 +243,7 @@
   "help.mqtt.qos": "Výchozí úroveň Quality of Service: 0 = nejvýše jednou, 1 = alespoň jednou, 2 = přesně jednou.",
   "help.mqtt.read_only": "Pouze pro cteni pro mqtt.",
   "help.mqtt.relay_to_agent": "Vek pro mqtt.",
+  "help.mqtt.allow_unauthenticated_relay": "Umožní, aby přeposílání agentovi, přeposílání z Frigate a mise spouštěné přes MQTT spouštěly běhy agenta, přestože se AuraGo k brokeru nepřihlašuje uživatelským jménem ani klientským certifikátem. Běhy agenta pak může spustit každé zařízení, které může publikovat do brokeru. Nechte vypnuté a raději nastavte přihlašovací údaje k brokeru.",
   "help.mqtt.tls_ca_file": "Cesta k souboru CA certifikátu pro ověřování TLS (volitelné, pro vlastní CA).",
   "help.mqtt.tls_cert_file": "Cesta k souboru klientského certifikátu pro vzájemné TLS ověřování (volitelné).",
   "help.mqtt.tls_enabled": "Povolit TLS/SSL šifrování pro MQTT připojení.",

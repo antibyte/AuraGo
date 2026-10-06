@@ -32,6 +32,7 @@
   "config.mqtt.readonly_label": "Modo só de leitura",
   "config.mqtt.refresh_btn": "Atualizar",
   "config.mqtt.relay_to_agent_label": "Reencaminhar para o agente",
+  "config.mqtt.allow_unauthenticated_relay_label": "Permitir reencaminhamento sem início de sessão no broker",
   "config.mqtt.save_vault": "Guardar no cofre",
   "config.mqtt.status_connected": "Conectado",
   "config.mqtt.status_disabled": "A integração MQTT está desativada",

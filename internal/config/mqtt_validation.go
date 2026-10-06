@@ -49,6 +49,17 @@ func MQTTEffectiveTLS(cfg *Config) (bool, error) {
 	return false, fmt.Errorf("unsupported MQTT broker URL scheme %q", u.Scheme)
 }
 
+// MQTTBrokerAuthenticated reports whether AuraGo logs in to the broker with a
+// username or a client certificate, the signs that the broker authenticates
+// its publishers. Without either, broker traffic that starts agent runs needs
+// mqtt.allow_unauthenticated_relay.
+func MQTTBrokerAuthenticated(cfg *Config) bool {
+	if cfg == nil {
+		return false
+	}
+	return strings.TrimSpace(cfg.MQTT.Username) != "" || strings.TrimSpace(cfg.MQTT.TLS.CertFile) != ""
+}
+
 func mqttSecureScheme(scheme string) bool {
 	switch scheme {
 	case "ssl", "tls", "mqtts", "mqtt+ssl", "tcps", "wss":
@@ -151,7 +162,7 @@ func validateMQTTPatchField(key string, raw interface{}) error {
 		return fmt.Errorf("must not be null")
 	}
 	switch key {
-	case "enabled", "readonly", "relay_to_agent":
+	case "enabled", "readonly", "relay_to_agent", "allow_unauthenticated_relay":
 		if _, ok := raw.(bool); !ok {
 			return fmt.Errorf("must be a boolean")
 		}

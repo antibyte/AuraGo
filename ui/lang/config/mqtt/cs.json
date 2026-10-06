@@ -32,6 +32,7 @@
   "config.mqtt.readonly_label": "Režim pouze čtení",
   "config.mqtt.refresh_btn": "Obnovit",
   "config.mqtt.relay_to_agent_label": "Přeposlat agentovi",
+  "config.mqtt.allow_unauthenticated_relay_label": "Povolit přeposílání bez přihlášení k brokeru",
   "config.mqtt.save_vault": "Uložit do trezoru",
   "config.mqtt.status_connected": "Připojeno",
   "config.mqtt.status_disabled": "MQTT integrace je zakázána",

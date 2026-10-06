@@ -480,6 +480,7 @@ func assertMergeMatchesLoad(t *testing.T, userYAML string, merged map[string]int
 		{"auth.require_origin_header", before.Auth.RequireOriginHeader, after.Auth.RequireOriginHeader},
 		{"agent.allow_shell", before.Agent.AllowShell, after.Agent.AllowShell},
 		{"effective unsandboxed shell", unsandboxed(before), unsandboxed(after)},
+		{"mqtt.allow_unauthenticated_relay", before.MQTT.AllowUnauthenticatedRelay, after.MQTT.AllowUnauthenticatedRelay},
 	} {
 		if field.before != field.after {
 			t.Errorf("%s before upgrade %v, after %v", field.name, field.before, field.after)
@@ -566,6 +567,100 @@ func TestRepositoryTemplateMergeKeepsPreUpgradeBehaviour(t *testing.T) {
 	}
 }
 
+func TestApplyUpgradeSafetyDefaults_MaterialisesUnauthenticatedMQTTRelay(t *testing.T) {
+	template := map[string]interface{}{
+		"mqtt": map[string]interface{}{
+			"enabled":                     false,
+			"username":                    "",
+			"relay_to_agent":              false,
+			"allow_unauthenticated_relay": false,
+			"tls":                         map[string]interface{}{"cert_file": ""},
+		},
+	}
+	cases := []struct {
+		name        string
+		userMQTT    map[string]interface{}
+		want        bool
+		wantChanged bool
+	}{
+		{"anonymous relay, key absent", map[string]interface{}{"enabled": true, "relay_to_agent": true}, true, true},
+		{"anonymous broker without relay flag, key absent", map[string]interface{}{"enabled": true}, true, true},
+		{"enabled spelled on, key absent", map[string]interface{}{"enabled": "on"}, true, true},
+		{"key null", map[string]interface{}{"enabled": true, "allow_unauthenticated_relay": nil}, true, true},
+		{"username, key absent", map[string]interface{}{"enabled": true, "username": "iot"}, false, true},
+		{"numeric username, key absent", map[string]interface{}{"enabled": true, "username": 1234}, false, true},
+		{"blank username, key absent", map[string]interface{}{"enabled": true, "username": "  "}, true, true},
+		{"client certificate, key absent", map[string]interface{}{"enabled": true, "tls": map[string]interface{}{"cert_file": "client.crt"}}, false, true},
+		{"mqtt disabled, key absent", map[string]interface{}{"enabled": false, "relay_to_agent": true}, false, true},
+		{"key written false", map[string]interface{}{"enabled": true, "allow_unauthenticated_relay": false}, false, false},
+		{"key written true", map[string]interface{}{"enabled": true, "username": "iot", "allow_unauthenticated_relay": true}, true, false},
+		{"no mqtt section", nil, false, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			user := map[string]interface{}{}
+			if tc.userMQTT != nil {
+				user["mqtt"] = tc.userMQTT
+			}
+			base, _ := deepCopyYAML(template).(map[string]interface{})
+			merged := deepMerge(base, user)
+
+			changed := applyUpgradeSafetyDefaults(merged, user)
+
+			if changed != tc.wantChanged {
+				t.Fatalf("changed = %v, want %v", changed, tc.wantChanged)
+			}
+			if got := mergedValue(merged, "mqtt.allow_unauthenticated_relay"); got != tc.want {
+				t.Fatalf("mqtt.allow_unauthenticated_relay = %#v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// An existing config that relayed MQTT traffic (generic relay, Frigate relay or
+// mission triggers) from an anonymous broker keeps doing so after a merge with
+// the repository template: the merger writes the value config.Load
+// grandfathered. Explicit values stay, and a fresh install keeps the
+// template's false.
+func TestRepositoryTemplateMergeKeepsAnonymousMQTTRelay(t *testing.T) {
+	tmplData, _ := repositoryTemplate(t)
+	const on = "mqtt:\n    enabled: true\n    broker: tcp://broker.lan:1883\n"
+	cases := []struct {
+		name string
+		user string
+		want bool
+	}{
+		{"anonymous relay, key absent", on + "    relay_to_agent: true\n", true},
+		{"anonymous Frigate relay, key absent", on + "frigate:\n    enabled: true\n    event_relay: true\n", true},
+		{"anonymous mission triggers, key absent", on, true},
+		{"enabled yes, key absent", "mqtt:\n    enabled: yes\n    broker: tcp://broker.lan:1883\n", true},
+		{"key null", on + "    relay_to_agent: true\n    allow_unauthenticated_relay:\n", true},
+		{"null tls section", on + "    relay_to_agent: true\n    tls:\n", true},
+		{"username, key absent", on + "    relay_to_agent: true\n    username: iot\n", false},
+		{"client certificate, key absent", on + "    relay_to_agent: true\n    tls:\n        cert_file: client.crt\n        key_file: client.key\n", false},
+		{"mqtt disabled, key absent", "mqtt:\n    enabled: false\n    relay_to_agent: true\n", false},
+		{"null mqtt section", "mqtt:\n", false},
+		{"no mqtt section", "server:\n    port: 8088\n", false},
+		{"explicit false", on + "    relay_to_agent: true\n    allow_unauthenticated_relay: false\n", false},
+		{"explicit true", on + "    relay_to_agent: true\n    username: iot\n    allow_unauthenticated_relay: true\n", true},
+		{"fresh install from template", tmplData, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, tmplMap := repositoryTemplate(t)
+			srcMap, err := parseYAMLMap(tc.user)
+			if err != nil {
+				t.Fatalf("parse user config: %v", err)
+			}
+			res := mergeWithTemplate(tmplMap, srcMap)
+			if got := mergedValue(res.Config, "mqtt.allow_unauthenticated_relay"); got != tc.want {
+				t.Fatalf("mqtt.allow_unauthenticated_relay = %#v, want %v", got, tc.want)
+			}
+			assertMergeMatchesLoad(t, tc.user, res.Config)
+		})
+	}
+}
+
 // yamlBoolSpelling must agree with yaml.v3 decoding a scalar into a typed
 // bool, which is what config.Load does, so the list cannot drift.
 func TestYAMLBoolSpellingMatchesYAMLv3TypedBool(t *testing.T) {
@@ -611,6 +706,7 @@ func TestMergeWithTemplateIsStableAcrossRuns(t *testing.T) {
 	for _, user := range []string{
 		"server:\n    port: 8088\n",
 		"agent:\n    allow_web_scraper: no\n    allow_shell: yes\nauth:\n    enabled:\nwebhooks:\n",
+		"mqtt:\n    enabled: true\n    broker: tcp://broker.lan:1883\n    relay_to_agent: true\n",
 	} {
 		_, tmplMap := repositoryTemplate(t)
 		srcMap, err := parseYAMLMap(user)
@@ -647,7 +743,7 @@ func TestMergeWithTemplateIsStableAcrossRuns(t *testing.T) {
 func TestMergeWithTemplateLeavesTemplateUntouched(t *testing.T) {
 	_, tmplMap := repositoryTemplate(t)
 	_, pristine := repositoryTemplate(t)
-	srcMap, err := parseYAMLMap("tools:\nwebhooks:\nauth:\nagent:\n    allow_shell: yes\n")
+	srcMap, err := parseYAMLMap("tools:\nwebhooks:\nauth:\nagent:\n    allow_shell: yes\nmqtt:\n")
 	if err != nil {
 		t.Fatal(err)
 	}

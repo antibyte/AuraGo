@@ -1609,6 +1609,18 @@ func Load(path string) (*Config, error) {
 		cfg.Agent.LegacyUnsandboxedShell = true
 	}
 
+	// MQTT relays (relay_to_agent, the Frigate relays) and MQTT-triggered
+	// missions now need broker authentication or
+	// mqtt.allow_unauthenticated_relay. Existing setups on anonymous brokers
+	// keep working until the key is written; mission triggers live in the
+	// mission store, so every enabled anonymous broker counts. A null value
+	// counts as unwritten, as config-merger reads it. The security check
+	// reports the result as critical.
+	if cfg.MQTT.Enabled && !MQTTBrokerAuthenticated(&cfg) && !yamlHasValue(data, "mqtt", "allow_unauthenticated_relay") {
+		cfg.MQTT.AllowUnauthenticatedRelay = true
+		slog.Warn("[Config] mqtt relay runs without broker authentication; write mqtt.allow_unauthenticated_relay explicitly")
+	}
+
 	// Migrate legacy agent.personality_* fields → new personality section.
 	cfg.MigrateAgentToPersonality()
 
@@ -3386,6 +3398,22 @@ func yamlHasPath(data []byte, path ...string) bool {
 	}
 
 	return true
+}
+
+// yamlHasValue reports whether path is present with a non-null value. Unlike
+// yamlHasPath, a key written without a value (or as ~ / null) counts as unset.
+func yamlHasValue(data []byte, path ...string) bool {
+	var root yaml.Node
+	if len(path) == 0 || yaml.Unmarshal(data, &root) != nil {
+		return false
+	}
+	node := yamlDocumentRoot(&root)
+	for _, key := range path {
+		if node = yamlMappingValue(node, key); node == nil {
+			return false
+		}
+	}
+	return node.Kind != yaml.ScalarNode || node.ShortTag() != "!!null"
 }
 
 // splitLines splits a string into lines

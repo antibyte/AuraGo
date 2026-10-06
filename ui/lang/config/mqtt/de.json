@@ -32,6 +32,7 @@
   "config.mqtt.readonly_label": "Nur-Lesen-Modus",
   "config.mqtt.refresh_btn": "Aktualisieren",
   "config.mqtt.relay_to_agent_label": "An Agent weiterleiten",
+  "config.mqtt.allow_unauthenticated_relay_label": "Weiterleitung ohne Broker-Anmeldung erlauben",
   "config.mqtt.save_vault": "Im Tresor speichern",
   "config.mqtt.status_connected": "Verbunden",
   "config.mqtt.status_disabled": "MQTT-Integration ist deaktiviert",

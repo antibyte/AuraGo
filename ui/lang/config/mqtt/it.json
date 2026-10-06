@@ -32,6 +32,7 @@
   "config.mqtt.readonly_label": "Modalità sola lettura",
   "config.mqtt.refresh_btn": "Aggiorna",
   "config.mqtt.relay_to_agent_label": "Inoltra all'agente",
+  "config.mqtt.allow_unauthenticated_relay_label": "Consenti l'inoltro senza accesso al broker",
   "config.mqtt.save_vault": "Salva nel vault",
   "config.mqtt.status_connected": "Connesso",
   "config.mqtt.status_disabled": "L'integrazione MQTT è disabilitata",

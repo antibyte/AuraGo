@@ -243,6 +243,7 @@
   "help.mqtt.qos": "默认服务质量级别：0 = 最多一次，1 = 至少一次，2 = 恰好一次。",
   "help.mqtt.read_only": "启用后，代理只能读取 MQTT 消息，但无法发布、订阅或取消订阅。",
   "help.mqtt.relay_to_agent": "启用后，传入的 MQTT 消息将作为上下文中继到代理。",
+  "help.mqtt.allow_unauthenticated_relay": "即使 AuraGo 登录 MQTT 服务器时既没有用户名也没有客户端证书，也允许“转发至代理”、Frigate 转发和由 MQTT 触发的任务启动代理运行。此时，任何能向该服务器发布消息的设备都可以启动代理运行。建议保持关闭，并改为配置服务器登录凭据。",
   "help.mqtt.tls_ca_file": "用于 TLS 验证的 CA 证书文件路径（可选，用于自定义 CA）。",
   "help.mqtt.tls_cert_file": "用于双向 TLS 认证的客户端证书文件路径（可选）。",
   "help.mqtt.tls_enabled": "为 MQTT 连接启用 TLS/SSL 加密。",

@@ -32,6 +32,7 @@
   "config.mqtt.readonly_label": "Skrivebeskyttet modus",
   "config.mqtt.refresh_btn": "Oppdater",
   "config.mqtt.relay_to_agent_label": "Videresend til agent",
+  "config.mqtt.allow_unauthenticated_relay_label": "Tillat videresending uten broker-pålogging",
   "config.mqtt.save_vault": "Lagre i vault",
   "config.mqtt.status_connected": "Tilkoblet",
   "config.mqtt.status_disabled": "MQTT-integrasjon er deaktivert",

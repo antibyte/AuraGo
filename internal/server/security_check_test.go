@@ -595,6 +595,102 @@ func TestCheckSecuritySkipsFritzBoxPlaintextHintWithoutWritableGroup(t *testing.
 	}
 }
 
+func anonymousMQTTBrokerConfig() *config.Config {
+	cfg := &config.Config{}
+	cfg.MQTT.Enabled = true
+	cfg.MQTT.Broker = "tcp://broker.lan:1883"
+	return cfg
+}
+
+// allow_unauthenticated_relay on an anonymous broker (written or grandfathered)
+// is critical whatever relay flag is set: MQTT-triggered missions use it too.
+func TestCheckSecurityMQTTRelayNoAuthCriticalWhenAnonymousRelayAllowed(t *testing.T) {
+	t.Parallel()
+
+	for name, mutate := range map[string]func(*config.Config){
+		"relay_to_agent":        func(cfg *config.Config) { cfg.MQTT.RelayToAgent = true },
+		"frigate review relay":  func(cfg *config.Config) { cfg.Frigate.Enabled, cfg.Frigate.ReviewRelay = true, true },
+		"mission triggers only": func(*config.Config) {},
+		"blank username":        func(cfg *config.Config) { cfg.MQTT.RelayToAgent, cfg.MQTT.Username = true, "  " },
+	} {
+		cfg := anonymousMQTTBrokerConfig()
+		cfg.MQTT.AllowUnauthenticatedRelay = true
+		mutate(cfg)
+		hint := findSecurityHint(CheckSecurity(cfg), "mqtt_relay_no_auth")
+		if hint == nil {
+			t.Fatalf("%s: expected mqtt_relay_no_auth", name)
+		}
+		if hint.Severity != SevCritical {
+			t.Fatalf("%s: severity = %q, want %q", name, hint.Severity, SevCritical)
+		}
+		if hint.AutoFixable || len(hint.FixPatch) != 0 {
+			t.Fatalf("%s: mqtt_relay_no_auth must stay a manual hint, got %#v", name, hint)
+		}
+		for _, want := range []string{
+			"Set a broker username/password or a client certificate",
+			"allow_unauthenticated_relay: true accepts that any LAN host can start agent runs",
+			"MQTT-triggered missions",
+		} {
+			if !strings.Contains(hint.Description, want) {
+				t.Fatalf("%s: description must mention %q: %s", name, want, hint.Description)
+			}
+		}
+	}
+}
+
+// With the flag false the relay is refused; the hint stays a warning that
+// explains why a configured relay does nothing.
+func TestCheckSecurityMQTTRelayNoAuthWarnsWhenRelayRefused(t *testing.T) {
+	t.Parallel()
+
+	for name, mutate := range map[string]func(*config.Config){
+		"relay_to_agent":      func(cfg *config.Config) { cfg.MQTT.RelayToAgent = true },
+		"frigate event relay": func(cfg *config.Config) { cfg.Frigate.Enabled, cfg.Frigate.EventRelay = true, true },
+	} {
+		cfg := anonymousMQTTBrokerConfig()
+		mutate(cfg)
+		hint := findSecurityHint(CheckSecurity(cfg), "mqtt_relay_no_auth")
+		if hint == nil {
+			t.Fatalf("%s: expected mqtt_relay_no_auth", name)
+		}
+		if hint.Severity != SevWarning {
+			t.Fatalf("%s: severity = %q, want %q", name, hint.Severity, SevWarning)
+		}
+		for _, want := range []string{"does not start agent runs", "mqtt.allow_unauthenticated_relay is false"} {
+			if !strings.Contains(hint.Description, want) {
+				t.Fatalf("%s: description must mention %q: %s", name, want, hint.Description)
+			}
+		}
+	}
+}
+
+func TestCheckSecurityMQTTRelayNoAuthAbsentWhenAuthenticatedOrIdle(t *testing.T) {
+	t.Parallel()
+
+	for name, cfg := range map[string]*config.Config{
+		"username": func() *config.Config {
+			cfg := anonymousMQTTBrokerConfig()
+			cfg.MQTT.RelayToAgent, cfg.MQTT.AllowUnauthenticatedRelay, cfg.MQTT.Username = true, true, "iot"
+			return cfg
+		}(),
+		"client certificate": func() *config.Config {
+			cfg := anonymousMQTTBrokerConfig()
+			cfg.MQTT.RelayToAgent, cfg.MQTT.AllowUnauthenticatedRelay, cfg.MQTT.TLS.CertFile = true, true, "client.crt"
+			return cfg
+		}(),
+		"no relay and flag false": anonymousMQTTBrokerConfig(),
+		"mqtt disabled": func() *config.Config {
+			cfg := anonymousMQTTBrokerConfig()
+			cfg.MQTT.Enabled, cfg.MQTT.RelayToAgent, cfg.MQTT.AllowUnauthenticatedRelay = false, true, true
+			return cfg
+		}(),
+	} {
+		if hasSecurityHint(CheckSecurity(cfg), "mqtt_relay_no_auth") {
+			t.Fatalf("%s: did not expect mqtt_relay_no_auth", name)
+		}
+	}
+}
+
 func hasSecurityHint(hints []SecurityHint, id string) bool {
 	return findSecurityHint(hints, id) != nil
 }

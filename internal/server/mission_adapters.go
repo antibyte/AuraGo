@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
 	"aurago/internal/tools"
@@ -34,6 +35,11 @@ var _ tools.KeyedMQTTManagerInterface = (*missionMQTTAdapter)(nil)
 // missionMQTTAdapter adapts mqtt package to tools.MQTTManagerInterface
 type missionMQTTAdapter struct {
 	logger *slog.Logger
+	// config returns the live configuration. Every trigger delivery passes
+	// the MQTT relay gate against it, so reloads apply without
+	// re-registration; without a config source every delivery is refused.
+	config func() *config.Config
+	gate   mqttRelayGate
 }
 
 // RegisterMissionTrigger registers a callback for MQTT-triggered missions
@@ -41,15 +47,37 @@ func (a *missionMQTTAdapter) RegisterMissionTrigger(topicFilter string, payloadC
 	a.RegisterMissionTriggerForKey("", topicFilter, payloadContains, minIntervalSeconds, callback)
 }
 
+// gateMissionTrigger wraps a mission callback so that broker traffic starts
+// the mission only while the broker authenticates its publishers or the
+// operator allowed an anonymous broker (mqttRelayAuthorized).
+func (a *missionMQTTAdapter) gateMissionTrigger(callback func(topic, payload string)) func(topic, payload string) {
+	return func(topic, payload string) {
+		var cfg *config.Config
+		if a.config != nil {
+			cfg = a.config()
+		}
+		if !a.gate.admit(cfg, a.logger, "mission_trigger") {
+			return
+		}
+		callback(topic, payload)
+	}
+}
+
+// registerMQTTMissionTrigger installs a mission callback in the mqtt package
+// (keyed when key is set). Tests replace it to capture the installed callback.
+var registerMQTTMissionTrigger = func(key, topicFilter, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
+	if key != "" {
+		mqtt.RegisterMissionTriggerForKey(key, topicFilter, payloadContains, minIntervalSeconds, callback)
+		return
+	}
+	mqtt.RegisterMissionTrigger(topicFilter, payloadContains, minIntervalSeconds, callback)
+}
+
 // RegisterMissionTriggerForKey registers or replaces a keyed MQTT-triggered mission callback.
 func (a *missionMQTTAdapter) RegisterMissionTriggerForKey(key string, topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
 	// The controller resolves the default interval from its current snapshot.
 	// Capturing the startup config here would ignore later interval changes.
-	if key != "" {
-		mqtt.RegisterMissionTriggerForKey(key, topicFilter, payloadContains, minIntervalSeconds, callback)
-	} else {
-		mqtt.RegisterMissionTrigger(topicFilter, payloadContains, minIntervalSeconds, callback)
-	}
+	registerMQTTMissionTrigger(key, topicFilter, payloadContains, minIntervalSeconds, a.gateMissionTrigger(callback))
 	a.logger.Info("[MissionMQTTAdapter] Registered mission trigger", "key", key, "topic_filter", topicFilter, "payload_contains", payloadContains, "min_interval_seconds", minIntervalSeconds)
 }
 

@@ -32,6 +32,7 @@
   "config.mqtt.readonly_label": "Λειτουργία μόνο για ανάγνωση",
   "config.mqtt.refresh_btn": "Ανανέωση",
   "config.mqtt.relay_to_agent_label": "Προώθηση στον πράκτορα",
+  "config.mqtt.allow_unauthenticated_relay_label": "Να επιτρέπεται η προώθηση χωρίς σύνδεση στον broker",
   "config.mqtt.save_vault": "Αποθήκευση στο Vault",
   "config.mqtt.status_connected": "Συνδεδεμένο",
   "config.mqtt.status_disabled": "Η ενσωμάτωση MQTT είναι απενεργοποιημένη",

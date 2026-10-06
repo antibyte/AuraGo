@@ -84,8 +84,9 @@ func TestValidateMQTTPatchRequiresTypedMQTTValues(t *testing.T) {
 		t.Fatalf("unrelated patch rejected: %v", err)
 	}
 	valid := map[string]interface{}{"mqtt": map[string]interface{}{
-		"topics": []interface{}{"home/#", "sensors/+"},
-		"qos":    float64(0),
+		"topics":                      []interface{}{"home/#", "sensors/+"},
+		"qos":                         float64(0),
+		"allow_unauthenticated_relay": true,
 	}}
 	if err := ValidateMQTTPatch(valid); err != nil {
 		t.Fatalf("valid typed patch rejected: %v", err)
@@ -93,6 +94,7 @@ func TestValidateMQTTPatchRequiresTypedMQTTValues(t *testing.T) {
 	for _, patch := range []map[string]interface{}{
 		{"mqtt": map[string]interface{}{"topics": "home/#"}},
 		{"mqtt": map[string]interface{}{"qos": "0"}},
+		{"mqtt": map[string]interface{}{"allow_unauthenticated_relay": "true"}},
 		{"mqtt": map[string]interface{}{"tls": map[string]interface{}{"enabled": "true"}}},
 		{"mqtt": map[string]interface{}{"buffer": map[string]interface{}{"max_payload_bytes": float64(5)}}},
 	} {

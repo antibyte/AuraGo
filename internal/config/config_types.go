@@ -2049,10 +2049,11 @@ type Config struct {
 		ClientID                  string           `yaml:"client_id"`
 		Username                  string           `yaml:"username"`
 		Password                  string           `yaml:"-" json:"-"`
-		Topics                    []string         `yaml:"topics"`          // topics to subscribe to on connect
-		QoS                       int              `yaml:"qos"`             // 0, 1, or 2
-		RelayToAgent              bool             `yaml:"relay_to_agent"`  // forward incoming messages to agent
-		ConnectTimeout            int              `yaml:"connect_timeout"` // connection timeout in seconds (default: 15)
+		Topics                    []string         `yaml:"topics"`                      // topics to subscribe to on connect
+		QoS                       int              `yaml:"qos"`                         // 0, 1, or 2
+		RelayToAgent              bool             `yaml:"relay_to_agent"`              // forward incoming messages to agent
+		AllowUnauthenticatedRelay bool             `yaml:"allow_unauthenticated_relay"` // let relay_to_agent, the Frigate relays and mission triggers run without broker credentials or a client certificate
+		ConnectTimeout            int              `yaml:"connect_timeout"`             // connection timeout in seconds (default: 15)
 		CleanSession              *bool            `yaml:"clean_session,omitempty"`
 		TriggerMinIntervalSeconds int              `yaml:"trigger_min_interval_seconds"` // minimum seconds between MQTT-triggered mission starts (0 = disabled)
 		TLS                       MQTTTLS          `yaml:"tls"`

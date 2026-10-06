@@ -92,6 +92,16 @@ async function renderMQTTSection(section) {
         </div>
     </div>`;
 
+    // Relay without broker login (relays and MQTT mission triggers)
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.mqtt.allow_unauthenticated_relay_label')}</div>
+        <div class="field-help">${t('help.mqtt.allow_unauthenticated_relay')}</div>
+        <div class="toggle-wrap">
+            <div class="toggle${data.allow_unauthenticated_relay ? ' on' : ''}" data-path="mqtt.allow_unauthenticated_relay" onclick="toggleBool(this)"></div>
+            <span class="toggle-label">${data.allow_unauthenticated_relay ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
+        </div>
+    </div>`;
+
     // Read-only toggle
     html += `<div class="field-group">
         <div class="field-label">${t('config.mqtt.readonly_label')}</div>

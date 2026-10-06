@@ -243,6 +243,7 @@
   "help.mqtt.qos": "Standardnivå för servicekvalitet: 0 = högst en gång, 1 = minst en gång, 2 = exakt en gång.",
   "help.mqtt.read_only": "När aktiverad, kan agenten endast läsa MQTT-meddelanden men kan inte publicera, prenumerera eller avprenumerera.",
   "help.mqtt.relay_to_agent": "När aktiverad, vidarebefordras inkommande MQTT-meddelanden som kontext till agenten.",
+  "help.mqtt.allow_unauthenticated_relay": "Låter vidarebefordran till agenten, Frigate-vidarebefordringarna och MQTT-utlösta uppdrag starta agentkörningar trots att AuraGo loggar in på brokern utan användarnamn och utan klientcertifikat. Då kan varje enhet som kan publicera till brokern starta agentkörningar. Låt den vara avstängd och konfigurera hellre inloggningsuppgifter för brokern.",
   "help.mqtt.tls_ca_file": "Sökväg till certifikatfilen CA för TLS-verifiering (valfritt, för anpassade certifikatutfärdare).",
   "help.mqtt.tls_cert_file": "Sökväg till klientcertifikatfilen för ömsesidig TLS-autentisering (valfritt).",
   "help.mqtt.tls_enabled": "Aktivera TLS/SSL-kryptering för MQTT-anslutningen.",

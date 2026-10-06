@@ -243,6 +243,7 @@
   "help.mqtt.qos": "Standaard Quality of Service-niveau: 0 = maximaal één keer, 1 = minstens één keer, 2 = precies één keer.",
   "help.mqtt.read_only": "Indien ingeschakeld, kan de agent alleen MQTT-berichten lezen maar niet publiceren, abonneren of uitschrijven.",
   "help.mqtt.relay_to_agent": "Indien ingeschakeld, worden inkomende MQTT-berichten als context doorgestuurd naar de agent.",
+  "help.mqtt.allow_unauthenticated_relay": "Laat doorsturen naar de agent, de Frigate-doorsturingen en door MQTT getriggerde missies agentruns starten, ook al meldt AuraGo zich zonder gebruikersnaam of clientcertificaat aan bij de broker. Elk apparaat dat naar de broker kan publiceren, kan dan agentruns starten. Laat dit uit en stel liever inloggegevens voor de broker in.",
   "help.mqtt.tls_ca_file": "Pad naar het CA-certificaatbestand voor TLS-verificatie (optioneel, voor aangepaste CA's).",
   "help.mqtt.tls_cert_file": "Pad naar het clientcertificaatbestand voor wederzijdse TLS-authenticatie (optioneel).",
   "help.mqtt.tls_enabled": "TLS/SSL-versleuteling inschakelen voor de MQTT-verbinding.",

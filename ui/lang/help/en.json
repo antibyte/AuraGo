@@ -243,6 +243,7 @@
   "help.mqtt.qos": "Default Quality of Service level: 0 = at most once, 1 = at least once, 2 = exactly once.",
   "help.mqtt.read_only": "When enabled, the agent can only read MQTT messages but cannot publish, subscribe, or unsubscribe.",
   "help.mqtt.relay_to_agent": "When enabled, incoming MQTT messages are relayed as context to the agent.",
+  "help.mqtt.allow_unauthenticated_relay": "Lets Relay to Agent, the Frigate relays and MQTT-triggered missions start agent runs although AuraGo logs in to the broker with neither a username nor a client certificate. Any device that can publish to the broker can then start agent runs. Leave this off and set up broker credentials instead.",
   "help.mqtt.tls_ca_file": "Path to the CA certificate file for TLS verification (optional, for custom CAs).",
   "help.mqtt.tls_cert_file": "Path to the client certificate file for mutual TLS authentication (optional).",
   "help.mqtt.tls_enabled": "Enable TLS/SSL encryption for the MQTT connection.",

@@ -243,6 +243,7 @@
   "help.mqtt.qos": "Niveau de qualité de service par défaut : 0 = au plus une fois, 1 = au moins une fois, 2 = exactement une fois.",
   "help.mqtt.read_only": "Lorsqu'il est activé, l'agent peut uniquement lire les messages MQTT, mais ne peut pas publier, s'abonner ou se désabonner.",
   "help.mqtt.relay_to_agent": "Lorsqu'ils sont activés, les messages MQTT entrants sont relayés en tant que contexte vers l'agent.",
+  "help.mqtt.allow_unauthenticated_relay": "Permet au relais vers l'agent, aux relais Frigate et aux missions déclenchées par MQTT de lancer des exécutions de l'agent alors qu'AuraGo se connecte au broker sans nom d'utilisateur ni certificat client. Tout appareil capable de publier sur le broker peut alors lancer des exécutions de l'agent. Laissez cette option désactivée et configurez plutôt des identifiants pour le broker.",
   "help.mqtt.tls_ca_file": "Chemin vers le fichier de certificat CA pour la vérification TLS (optionnel, pour les CA personnalisés).",
   "help.mqtt.tls_cert_file": "Chemin vers le fichier de certificat client pour l'authentification TLS mutuelle (optionnel).",
   "help.mqtt.tls_enabled": "Activer le chiffrement TLS/SSL pour la connexion MQTT.",

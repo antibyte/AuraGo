@@ -261,6 +261,14 @@ Passwörter werden einschließlich Leerzeichen gespeichert. Die Reihenfolge ist
 Vault → `MQTT_PASSWORD` → leer; nach Löschen des Vault-Eintrags gilt wieder der
 Umgebungswert. Weitere Details: [MQTT-Betrieb](../../mqtt.md).
 
+Die Weiterleitung an den Agenten, die Frigate-Weiterleitungen und MQTT-ausgelöste
+Missionen starten Agentenläufe nur, wenn sich AuraGo mit Benutzernamen oder
+Client-Zertifikat (`tls.cert_file`) am Broker anmeldet oder
+`allow_unauthenticated_relay: true` ausdrücklich zulässt, dass jedes Gerät, das an
+den Broker veröffentlichen kann, Agentenläufe startet. Bestehende Setups mit Brokern
+ohne Authentifizierung laufen weiter (das Update schreibt
+`allow_unauthenticated_relay: true`) und erzeugen einen kritischen Sicherheitshinweis.
+
 ## Docker Integration
 
 Verwalte Docker-Container über AuraGo.

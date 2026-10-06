@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/mqtt"
 	"aurago/internal/sandbox"
 
 	"gopkg.in/yaml.v3"
@@ -584,16 +585,33 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
-	// 24. mqtt_relay_no_auth — MQTT relay to agent without broker authentication
-	if cfg.MQTT.Enabled && cfg.MQTT.RelayToAgent && cfg.MQTT.Username == "" {
-		hints = append(hints, SecurityHint{
-			ID: "mqtt_relay_no_auth", Severity: SevWarning,
-			Title: "MQTT: messages relayed to agent without broker authentication",
-			Description: "MQTT relay to the agent is enabled but no broker username is configured. " +
-				"Any MQTT client that can reach the broker can send commands to the agent. " +
-				"Configure mqtt.username and mqtt.password to restrict access.",
-			AutoFixable: false,
-		})
+	// 24. mqtt_relay_no_auth — broker traffic may start agent runs (relay_to_agent,
+	// Frigate relays, MQTT-triggered missions) although AuraGo logs in with
+	// neither a username nor a client certificate. Critical while
+	// allow_unauthenticated_relay (written or grandfathered at load) lets it run;
+	// with the flag false the relay is refused and a configured relay is
+	// reported as a warning.
+	if cfg.MQTT.Enabled && !config.MQTTBrokerAuthenticated(cfg) {
+		if cfg.MQTT.AllowUnauthenticatedRelay {
+			hints = append(hints, SecurityHint{
+				ID: "mqtt_relay_no_auth", Severity: SevCritical,
+				Title: "MQTT: agent runs accepted from an unauthenticated broker",
+				Description: "mqtt.allow_unauthenticated_relay is true and AuraGo connects to the broker with neither a username nor a client certificate. " +
+					"Any host that can publish to the broker can start agent runs through relay_to_agent, the Frigate relays and MQTT-triggered missions. " +
+					"Set a broker username/password or a client certificate; allow_unauthenticated_relay: true accepts that any LAN host can start agent runs. " +
+					"Configurations from before this check were allowed automatically; if you use none of these, set the key to false.",
+				AutoFixable: false,
+			})
+		} else if cfg.MQTT.RelayToAgent || mqtt.FrigateRelayEnabled(cfg) {
+			hints = append(hints, SecurityHint{
+				ID: "mqtt_relay_no_auth", Severity: SevWarning,
+				Title: "MQTT: relay refused without broker authentication",
+				Description: "relay_to_agent or a Frigate relay is enabled, but AuraGo connects to the broker with neither a username nor a client certificate " +
+					"and mqtt.allow_unauthenticated_relay is false, so AuraGo does not start agent runs from broker messages, MQTT-triggered missions included. " +
+					"Configure mqtt.username with the Vault password, or a client certificate (mqtt.tls.cert_file), to enable the relay.",
+				AutoFixable: false,
+			})
+		}
 	}
 
 	// 24b. sip_auto_answer_all_interfaces / sip_wildcard_callers_cidr_peers — an

@@ -309,7 +309,48 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 		}
 	}
 
+	// MQTT relays and MQTT-triggered missions now need broker authentication
+	// or mqtt.allow_unauthenticated_relay; the template ships false. A config
+	// without a value there (absent, null, or under a null mqtt section) ran
+	// them on any broker, so materialise what config.Load grandfathers: true
+	// for an enabled broker without username or client certificate (mission
+	// triggers live in the mission store, so no relay flag is needed), false
+	// otherwise. The mqtt_relay_no_auth security hint reports true as critical.
+	userMQTT, _ := asStringMap(user["mqtt"])
+	if userMQTT["allow_unauthenticated_relay"] == nil {
+		if mqttMap, ok := asStringMap(merged["mqtt"]); ok {
+			mqttMap["allow_unauthenticated_relay"] = mqttRanAnonymously(userMQTT)
+			merged["mqtt"] = mqttMap
+			changed = true
+		}
+	}
+
 	return changed
+}
+
+// mqttRanAnonymously mirrors the config.Load grandfather for
+// mqtt.allow_unauthenticated_relay: MQTT enabled (in any yaml.v3 bool
+// spelling) with neither a username nor a tls.cert_file.
+func mqttRanAnonymously(userMQTT map[string]interface{}) bool {
+	if enabled, _ := yamlBoolValue(userMQTT["enabled"]); !enabled {
+		return false
+	}
+	userTLS, _ := asStringMap(userMQTT["tls"])
+	return !yamlStringSet(userMQTT["username"]) && !yamlStringSet(userTLS["cert_file"])
+}
+
+// yamlStringSet reports whether a parsed user-config value reaches a string
+// field in config.Load as non-blank: a string with non-space content, or any
+// other scalar, which yaml.v3 decodes as written. Null is unset.
+func yamlStringSet(v interface{}) bool {
+	switch v := v.(type) {
+	case nil:
+		return false
+	case string:
+		return strings.TrimSpace(v) != ""
+	default:
+		return true
+	}
 }
 
 // legacyWebScraperEnabled returns the scraper state config.Load derived for a
