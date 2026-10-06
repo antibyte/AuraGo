@@ -639,6 +639,7 @@ function openTerminal(id, name, confirmed) {
     const query = confirmed ? `?${CONFIRM_PROTECTED_QUERY}` : '';
     terminalSocket = new WebSocket(`${scheme}://${window.location.host}/api/containers/${encodeURIComponent(id)}/terminal${query}`);
     terminalSocket.binaryType = 'arraybuffer';
+    let opened = false;
 
     terminal.onData(data => {
         if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) return;
@@ -647,6 +648,7 @@ function openTerminal(id, name, confirmed) {
 
     terminalSocket.onopen = () => {
         if (token !== terminalSessionToken) return;
+        opened = true;
         setTerminalStatus('containers.terminal_connected');
         writeTerminalNotice('containers.terminal_connected');
         scheduleTerminalFit();
@@ -661,11 +663,17 @@ function openTerminal(id, name, confirmed) {
     };
     terminalSocket.onerror = () => {
         if (token !== terminalSessionToken) return;
+        // A refused handshake also fires onclose, which explains the failure.
+        if (!opened) return;
         setTerminalStatus('containers.terminal_error');
         writeTerminalNotice('containers.terminal_error');
     };
     terminalSocket.onclose = () => {
         if (token !== terminalSessionToken) return;
+        if (!opened) {
+            explainTerminalHandshakeFailure(id, name, confirmed, token);
+            return;
+        }
         setTerminalStatus('containers.terminal_closed');
         if (terminal) terminal.write(`\r\n[${t('containers.terminal_closed')}]\r\n`);
     };
@@ -675,6 +683,29 @@ function openTerminal(id, name, confirmed) {
         terminalResizeObserver.observe(output);
     }
     window.addEventListener('resize', scheduleTerminalFit);
+}
+
+// explainTerminalHandshakeFailure runs when the terminal WebSocket closed
+// before it opened. Browsers hide the HTTP answer of a refused handshake, so
+// the page asks the server whether the container needs a confirmation (a list
+// older than the server's view, or ownership Docker did not confirm) and then
+// offers the confirmation modal. It never retries with the flag on its own.
+async function explainTerminalHandshakeFailure(id, name, confirmed, token) {
+    let report = null;
+    try {
+        const resp = await fetch(`/api/containers/${encodeURIComponent(id)}/protection`);
+        report = await resp.json();
+    } catch (e) {
+        report = null;
+    }
+    if (token !== terminalSessionToken) return;
+    if (!confirmed && report && report.status === 'ok' && report.protected && !report.read_only) {
+        closeTerminalModal();
+        showProtectedTerminalModal(id, name, report.owner || 'unverified');
+        return;
+    }
+    setTerminalStatus('containers.terminal_error');
+    writeTerminalNotice('containers.terminal_error');
 }
 
 // eslint-disable-next-line no-unused-vars

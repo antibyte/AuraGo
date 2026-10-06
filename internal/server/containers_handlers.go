@@ -180,6 +180,29 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 			}
 			handleContainerTerminal(s, cfg, containerID, w, r)
 
+		case "protection":
+			// Read-only report of the terminal/update/remove rules for this
+			// container. Browsers hide the HTTP answer of a refused WebSocket
+			// handshake; the Containers page asks here and then offers the
+			// confirmation. It never starts a shell.
+			if r.Method != http.MethodGet {
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			p := containerProtectionFor(r.Context(), s, cfg, containerID)
+			report := map[string]interface{}{
+				"status":             "ok",
+				"container_id":       containerID,
+				"owner":              p.label(),
+				"protected":          p.protected(),
+				"update_unsupported": p.updateCannotComplete(),
+				"read_only":          readOnly,
+			}
+			if p.protected() {
+				report["message"] = p.confirmationMessage()
+			}
+			containerJSON(w, http.StatusOK, report)
+
 		case "": // DELETE /api/containers/{id} — remove container
 			if r.Method != http.MethodDelete {
 				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)

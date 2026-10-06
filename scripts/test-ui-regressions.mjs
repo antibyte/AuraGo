@@ -2862,6 +2862,63 @@ async function testContainersResumeUnpausesAPausedContainer() {
   assert.deepEqual(page.requests.filter(r => r.method === 'POST').map(r => r.url), ['/api/containers/p1/unpause']);
 }
 
+async function testContainersTerminalOffersConfirmationAfterARefusedHandshake() {
+  const listed = [{ id: 'web1', names: ['/web'], image: 'nginx:1', state: 'running', status: 'Up 1 minute' }];
+  let report = { status: 'ok', container_id: 'web1', owner: 'unverified', protected: true, update_unsupported: false, read_only: false, message: 'Docker did not answer the ownership check for this container. Repeat the request with confirm=protected to continue.' };
+  const page = containersPage(request => {
+    if (request.url === '/api/containers') return { status: 200, body: { status: 'ok', containers: listed } };
+    if (request.url === '/api/containers/web1/protection') return { status: 200, body: report };
+    return { status: 200, body: { status: 'ok' } };
+  });
+  await page.start();
+  const checks = () => page.requests.filter(r => r.url === '/api/containers/web1/protection').length;
+
+  // The list shows no protection; the server refuses the handshake (409).
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[0].failHandshake();
+  await page.flush();
+  assert.equal(checks(), 1);
+  assert.equal(page.active('terminal-modal'), false);
+  assert.equal(page.active('protected-terminal-modal'), true);
+  assert.equal(page.node('protected-terminal-warning').textContent, 'containers.protected_unverified_warning');
+  assert.equal(page.sockets.length, 1, 'the page never retries with the flag on its own');
+
+  page.run('confirmProtectedTerminal()');
+  assert.equal(page.sockets[1].url, 'ws://aurago.test/api/containers/web1/terminal?confirm=protected');
+
+  // A confirmed attempt that still fails shows the error and asks no second time.
+  page.sockets[1].failHandshake();
+  await page.flush();
+  assert.equal(page.active('protected-terminal-modal'), false);
+  assert.equal(page.node('terminal-status').textContent, 'containers.terminal_error');
+
+  // A failure that needs no confirmation shows the error.
+  page.run('closeTerminalModal()');
+  report = { status: 'ok', container_id: 'web1', owner: '', protected: false, update_unsupported: false, read_only: false };
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[2].failHandshake();
+  await page.flush();
+  assert.equal(page.active('protected-terminal-modal'), false);
+  assert.equal(page.node('terminal-status').textContent, 'containers.terminal_error');
+
+  // Docker read-only: no pointless confirmation.
+  page.run('closeTerminalModal()');
+  report = { status: 'ok', container_id: 'web1', owner: 'go2rtc', protected: true, update_unsupported: false, read_only: true };
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[3].failHandshake();
+  await page.flush();
+  assert.equal(page.active('protected-terminal-modal'), false);
+
+  // A session that opened and closes later is a normal close, not a refusal.
+  page.run('closeTerminalModal()');
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[4].open();
+  page.sockets[4].closeFromServer();
+  await page.flush();
+  assert.equal(checks(), 4);
+  assert.equal(page.node('terminal-status').textContent, 'containers.terminal_closed');
+}
+
 function listDesktopMainBundleParts() {
   const script = read('scripts/build-ui-bundles.js');
   const start = script.indexOf('const desktopMainParts = [');
@@ -2980,6 +3037,7 @@ const tests = [
   ['Containers send confirm=protected only after the modal', testContainersSendConfirmProtectedOnlyAfterTheModal],
   ['Containers empty state follows the list', testContainersEmptyStateFollowsTheList],
   ['Containers Resume unpauses a paused container', testContainersResumeUnpausesAPausedContainer],
+  ['Containers terminal offers the confirmation after a refused handshake', testContainersTerminalOffersConfirmationAfterARefusedHandshake],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
