@@ -152,6 +152,10 @@ type Server struct {
 	lockdownLogOnce sync.Once
 	previewGrants   previewGrantRegistry
 	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
+
+	// serverLifetimeCancel cancels serverCtx; beginHTTPDrain calls it.
+	serverLifetimeCancel context.CancelFunc
+
 	// Setup wizard CSRF tokens (short-lived, multi-token support).
 	// These live on the Server so tests can construct independent Server
 	// instances without racing on a shared package-level map.
@@ -546,6 +550,9 @@ func Start(opts StartOptions) error {
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
 	s.integrationCtx = serverCtx
+	// The HTTP drain also ends serverCtx, so it ends when Serve stops on its
+	// own (listener failure) too, not only on shutdownCh.
+	s.setServerLifetimeCancel(serverCancel)
 	s.fritzLoopbackSem = loopbackSem
 	s.MQTTController = mqtt.NewMQTTController(logger)
 	mqtt.SetDefaultController(s.MQTTController)

@@ -323,6 +323,10 @@ func TestPullFailureTextIsByteStable(t *testing.T) {
 		{"engine JSON 404", http.StatusNotFound, `{"message":"manifest unknown"}`, "pull_image_failed: Docker returned 404: manifest unknown"},
 		{"HTML 502", http.StatusBadGateway, "<html>bad gateway</html>", "pull_image_failed: Docker returned 502: <html>bad gateway</html>"},
 		{"blank JSON message falls back to the body", http.StatusInternalServerError, `{"message":"  "}`, `pull_image_failed: Docker returned 500: {"message":"  "}`},
+		// A message of only zero-width runes has no printable text, so the
+		// sanitised body is the detail (since 2da310e39; before, no detail).
+		{"zero-width JSON message falls back to the sanitised body", http.StatusInternalServerError, "{\"message\":\"\u200b\"}", `pull_image_failed: Docker returned 500: {"message":" "}`},
+		{"escaped zero-width JSON message falls back to the body", http.StatusInternalServerError, `{"message":"` + "\\" + `u200b"}`, `pull_image_failed: Docker returned 500: {"message":"` + "\\" + `u200b"}`},
 		{"event with separators and NUL", http.StatusOK, `{"error":"denied\u2028token\u0000end"}` + "\n", "pull_image_failed: denied token end"},
 		{"long event cut at a rune boundary", http.StatusOK, `{"error":"` + strings.Repeat("a", 255) + `é tail"}` + "\n", "pull_image_failed: " + strings.Repeat("a", 255)},
 		{"event of only non-printable runes", http.StatusOK, `{"error":"\u0001\u202e"}` + "\n", "pull_image_failed"},
