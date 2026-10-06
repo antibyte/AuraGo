@@ -417,7 +417,7 @@
             const actionKey = path.concat(String(item.id || index)).join('/');
             const icon = `<span class="vd-context-icon">${iconMarkup(item.icon || 'tools', item.fallback || item.icon || '', 'vd-context-papirus-icon', 16)}</span>`;
             const label = `<span class="vd-context-label">${esc(item.label)}</span>`;
-            const shortcut = contextMenuShortcutMarkup(item.shortcut || '');
+            const shortcut = contextMenuShortcutMarkup(item.shortcut || item.shortcutHint || '');
             const disabled = item.disabled ? 'disabled' : '';
             const submenuItems = normalizeContextMenuItems(item.items || item.children || []);
             if (submenuItems.length) {
@@ -1259,6 +1259,8 @@ function modalDialog(options) {
         return translated && translated !== key ? translated : fallback;
     }
 
+    // A menu item's shortcut is drawn and dispatched by handleWindowMenuShortcut before the app
+    // sees the key. shortcutHint is only drawn: the app handles that key itself.
     function normalizeWindowMenuItems(items, menuId, actions, path) {
         return (Array.isArray(items) ? items : []).map((item, index) => {
             if (!item || item.hidden) return null;
@@ -1274,6 +1276,7 @@ function modalDialog(options) {
                 icon: item.icon || '',
                 fallback: item.fallback || '',
                 shortcut: item.shortcut || '',
+                shortcutHint: item.shortcutHint || '',
                 disabled: typeof item.disabled === 'function' ? !!item.disabled() : !!item.disabled,
                 checked: typeof item.checked === 'function' ? !!item.checked() : !!item.checked,
                 actionKey: ''
@@ -1343,8 +1346,9 @@ function modalDialog(options) {
                     <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(item.items)}</div>
                 </div>`;
             }
+            const keys = item.shortcut || item.shortcutHint;
             return `<button type="button" class="vd-window-menu-item${checked}" role="menuitem" data-menu-action="${esc(item.actionKey)}" ${disabled}>
-                ${icon}<span>${label}</span>${item.shortcut ? `<kbd>${esc(item.shortcut)}</kbd>` : '<kbd></kbd>'}
+                ${icon}<span>${label}</span>${keys ? `<kbd>${esc(keys)}</kbd>` : '<kbd></kbd>'}
             </button>`;
         }).join('');
     }

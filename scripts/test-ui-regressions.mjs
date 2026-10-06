@@ -2413,6 +2413,58 @@ function testDesktopMainBundlePartsEndAtFunctionBoundaries() {
   assert.deepEqual(failures, [], `desktop main bundle parts must start and end at function boundaries:\n${failures.join('\n')}`);
 }
 
+// A window menu item's shortcutHint is drawn in the key column like a shortcut, but the desktop
+// does not dispatch it: the app handles that key itself. Clicking the item still runs it.
+function testWindowMenuShortcutHintIsDrawnButNotDispatched() {
+  const routing = read('ui/js/desktop/core/menus-and-routing.js');
+  const source = [
+    read('ui/js/desktop/core/shortcut-runtime.js'),
+    sourceBetween(routing, 'function contextMenuShortcutMarkup(', 'function formatDesktopDate('),
+    sourceBetween(routing, 'function normalizeWindowMenuItems(', 'function normalizeWindowMenus('),
+    sourceBetween(routing, 'function renderWindowMenuItems(', 'function setWindowMenus('),
+    sourceBetween(routing, 'function runWindowMenuAction(', 'function renderAppContent(')
+  ].join('\n');
+  const ran = [];
+  const context = {
+    esc: value => String(value).replace(/[&<>"']/g, ch => `&#${ch.charCodeAt(0)};`),
+    menuLabel: item => item.label,
+    iconMarkup: () => '',
+    closeWindowMenu: () => {},
+    state: { activeWindowId: 'w1', windowMenus: new Map() }
+  };
+  vm.createContext(context);
+  vm.runInContext(`${source}; globalThis.menu = { contextMenuShortcutMarkup, normalizeWindowMenuItems, renderWindowMenuItems, handleWindowMenuShortcut, runWindowMenuAction };`, context);
+  const { menu } = context;
+  const actions = new Map();
+  const items = menu.normalizeWindowMenuItems([
+    { id: 'undo', label: 'Undo', shortcutHint: 'Ctrl+Z', action: () => ran.push('undo') },
+    { id: 'save', label: 'Save', shortcut: 'Ctrl+S', action: () => ran.push('save') },
+    { id: 'plain', label: 'Plain', action: () => ran.push('plain') }
+  ], 'edit', actions, ['w1', 'edit']);
+  context.state.windowMenus.set('w1', { renderedMenus: [{ id: 'edit', items }], actions });
+
+  const html = menu.renderWindowMenuItems(items);
+  assert.match(html, /<span>Undo<\/span><kbd>Ctrl\+Z<\/kbd>/, 'a shortcutHint is drawn in the key column');
+  assert.match(html, /<span>Save<\/span><kbd>Ctrl\+S<\/kbd>/, 'a shortcut is drawn in the key column');
+  assert.match(html, /<span>Plain<\/span><kbd><\/kbd>/, 'an item without keys keeps an empty key column');
+  assert.equal(routing.includes("contextMenuShortcutMarkup(item.shortcut || item.shortcutHint || '')"), true, 'context menus draw a shortcutHint too');
+  assert.equal(menu.contextMenuShortcutMarkup('Ctrl+Z'), '<kbd class="vd-context-shortcut">Ctrl+Z</kbd>');
+
+  const keydown = (key, extra) => Object.assign({
+    key, code: 'Key' + key.toUpperCase(), ctrlKey: false, metaKey: false, altKey: false, shiftKey: false,
+    defaultPrevented: false, target: { closest: () => null },
+    preventDefault() { this.defaultPrevented = true; }, stopPropagation() {}
+  }, extra);
+  const undo = keydown('z', { ctrlKey: true });
+  assert.equal(menu.handleWindowMenuShortcut(undo), false, 'the hinted key is left to the app');
+  assert.equal(undo.defaultPrevented, false, 'the hinted key is not prevented');
+  assert.deepEqual(ran, [], 'the hinted item does not run on its key');
+  const save = keydown('s', { ctrlKey: true });
+  assert.equal(menu.handleWindowMenuShortcut(save), true, 'a real shortcut is still dispatched');
+  menu.runWindowMenuAction('w1', items[0].actionKey);
+  assert.deepEqual(ran, ['save', 'undo'], 'a real shortcut runs its item, and a click runs the hinted item');
+}
+
 const tests = [
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
@@ -2459,6 +2511,7 @@ const tests = [
   ['Dashboard audit search ignores late responses', testDashboardAuditIgnoresLateResponses],
   ['Dashboard cronjob search ignores late responses', testDashboardCronjobsIgnoreLateResponses],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
+  ['Window menu shortcut hints are drawn but not dispatched', testWindowMenuShortcutHintIsDrawnButNotDispatched],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 
