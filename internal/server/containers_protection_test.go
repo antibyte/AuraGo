@@ -414,6 +414,8 @@ func TestContainerEndpointLookupFailureNeedsConfirmation(t *testing.T) {
 	defer replaceContainerSelfHostname("aurago-host")()
 	defer replaceContainerSelfProcFiles(nil)()
 	defer replaceContainerEndpointFailure()()
+	// No TCP connection observed: the endpoint cannot be identified at all.
+	t.Cleanup(replaceContainerConnIP(""))
 	s := testContainerServer(true, false)
 	s.Cfg.Runtime.IsDocker = true
 	s.Cfg.Docker.Host = host

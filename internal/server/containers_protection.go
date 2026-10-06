@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"regexp"
@@ -403,6 +404,114 @@ func (c *containerEndpointLookupCache) shouldWarn(host string) bool {
 	return true
 }
 
+// containerTraceConnIP returns a context that records the remote IP of the
+// connection the next Docker request uses, and a reader for it; tests replace it.
+var containerTraceConnIP = traceDockerConnRemoteIP
+
+func traceDockerConnRemoteIP(ctx context.Context) (context.Context, func() string) {
+	var mu sync.Mutex
+	var ip string
+	trace := &httptrace.ClientTrace{
+		GotConn: func(info httptrace.GotConnInfo) {
+			if info.Conn == nil {
+				return
+			}
+			addr, ok := info.Conn.RemoteAddr().(*net.TCPAddr)
+			if !ok || addr == nil {
+				return
+			}
+			mu.Lock()
+			ip = addr.IP.String()
+			mu.Unlock()
+		},
+	}
+	return httptrace.WithClientTrace(ctx, trace), func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		return ip
+	}
+}
+
+// dockerEndpointFromConnection turns the remote IP of the connection AuraGo's
+// Docker requests use into endpoint addresses. ok is false when no TCP
+// connection was observed; a loopback or unspecified address names no
+// container, as on the lookup path.
+func dockerEndpointFromConnection(ip string) (addrs []string, ok bool) {
+	parsed := net.ParseIP(strings.TrimSpace(ip))
+	if parsed == nil {
+		return nil, false
+	}
+	if parsed.IsLoopback() || parsed.IsUnspecified() {
+		return nil, true
+	}
+	return []string{parsed.String()}, true
+}
+
+// observedDockerEndpoint pings Docker and returns the endpoint addresses that
+// the ping's connection names; ok is false when it observed no TCP connection.
+func observedDockerEndpoint(ctx context.Context, cfg tools.DockerConfig) ([]string, bool) {
+	pingCtx, connIP := containerTraceConnIP(ctx)
+	if _, code, err := tools.DockerRequestContext(pingCtx, cfg, http.MethodGet, "/_ping", ""); err != nil || code != http.StatusOK {
+		return nil, false
+	}
+	return dockerEndpointFromConnection(connIP())
+}
+
+// containersAtAddresses returns the listed containers that have one of addrs.
+func containersAtAddresses(entries []tools.DockerContainerListEntry, addrs []string) []tools.DockerContainerListEntry {
+	var out []tools.DockerContainerListEntry
+	for _, entry := range entries {
+		if containerServesDockerEndpoint(addrs, entry.NetworkIPs) {
+			out = append(out, entry)
+		}
+	}
+	return out
+}
+
+// sameComposeService reports whether two containers are replicas of one
+// compose service, which answer under one DNS name.
+func sameComposeService(a, b map[string]string) bool {
+	const projectLabel, serviceLabel = "com.docker.compose.project", "com.docker.compose.service"
+	project, service := strings.TrimSpace(a[projectLabel]), strings.TrimSpace(a[serviceLabel])
+	return project != "" && service != "" &&
+		project == strings.TrimSpace(b[projectLabel]) && service == strings.TrimSpace(b[serviceLabel])
+}
+
+// dockerEndpointByConnection classifies a target against the Docker endpoint
+// when the docker.host lookup failed. The remote IP of AuraGo's own Docker
+// connection proves which container serves the endpoint only when the target
+// or a listed container has that address. verified is false in every other
+// case, so the target stays unverified exactly as without this fallback: no
+// TCP connection observed, a loopback or host address (a proxy behind a
+// published port stays unknown), a failed list, or another replica of the
+// connected container's compose service (it may answer the name too).
+func dockerEndpointByConnection(connIP, targetID string, targetIPs []string, targetLabels map[string]string, list func() ([]tools.DockerContainerListEntry, bool)) (endpoint, verified bool) {
+	observed, ok := dockerEndpointFromConnection(connIP)
+	if !ok || len(observed) == 0 {
+		return false, false
+	}
+	if containerServesDockerEndpoint(observed, targetIPs) {
+		return true, true
+	}
+	entries, ok := list()
+	if !ok {
+		return false, false
+	}
+	connected := containersAtAddresses(entries, observed)
+	if len(connected) == 0 {
+		return false, false
+	}
+	for _, entry := range connected {
+		if targetID != "" && strings.EqualFold(entry.FullID, targetID) {
+			return true, true
+		}
+		if sameComposeService(entry.Labels, targetLabels) {
+			return false, false
+		}
+	}
+	return false, true
+}
+
 // containerServesDockerEndpoint reports whether one of the container's network
 // addresses is an address AuraGo reaches its Docker endpoint at. Compose service
 // names and network aliases resolve alike; an endpoint reached through a
@@ -446,7 +555,11 @@ var containerProtectionFor = classifyContainerForAction
 func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.DockerConfig, containerID string) containerProtection {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	data, code, err := tools.DockerRequestContext(ctx, cfg, http.MethodGet, "/containers/"+url.PathEscape(containerID)+"/json", "")
+	// The inspect's connection names the address AuraGo's Docker requests
+	// reach; it stands in for the endpoint lookup when docker.host does not
+	// resolve (dockerEndpointByConnection).
+	inspectCtx, connIP := containerTraceConnIP(ctx)
+	data, code, err := tools.DockerRequestContext(inspectCtx, cfg, http.MethodGet, "/containers/"+url.PathEscape(containerID)+"/json", "")
 	if err == nil && code == http.StatusNotFound {
 		// No such container: the action reports it. A reserved name still
 		// names its owner, as on the error path below.
@@ -479,11 +592,29 @@ func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.Docker
 	for _, network := range info.NetworkSettings.Networks {
 		ips = append(ips, network.IPAddress, network.GlobalIPv6Address)
 	}
-	if endpoint, err := containerDockerEndpointAddresses(ctx, cfg.Host); err != nil {
-		// The endpoint container cannot be ruled out: ask instead of allowing.
-		p.Unverified = true
-	} else {
+	// At most one container list per request: the endpoint fallback and the
+	// self check share it.
+	var listEntries []tools.DockerContainerListEntry
+	listLoaded, listOK := false, false
+	listContainers := func() ([]tools.DockerContainerListEntry, bool) {
+		if !listLoaded {
+			var failure string
+			listEntries, failure = tools.DockerListContainerEntries(cfg, true)
+			listLoaded, listOK = true, failure == ""
+		}
+		return listEntries, listOK
+	}
+
+	if endpoint, err := containerDockerEndpointAddresses(ctx, cfg.Host); err == nil {
 		p.DockerEndpoint = containerServesDockerEndpoint(endpoint, ips)
+	} else if isEndpoint, verified := dockerEndpointByConnection(connIP(), info.ID, ips, info.Config.Labels, listContainers); verified {
+		// docker.host did not resolve, but AuraGo's own Docker connection
+		// names the endpoint container.
+		p.DockerEndpoint = isEndpoint
+	} else {
+		// Neither the lookup nor the connection rules the endpoint container
+		// out: ask instead of allowing.
+		p.Unverified = true
 	}
 
 	signals := readContainerSelfSignals(containerRuntimeIsDocker(s))
@@ -494,8 +625,8 @@ func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.Docker
 	}
 	// The signals name this container, or it joins another container's network
 	// namespace: one list request decides between self and a shared namespace.
-	entries, failure := tools.DockerListContainerEntries(cfg, true)
-	if failure != "" {
+	entries, ok := listContainers()
+	if !ok {
 		p.Unverified = true
 		return p
 	}
@@ -559,6 +690,14 @@ func adminContainerListJSON(ctx context.Context, s *Server, cfg tools.DockerConf
 	// shared between lists for containerEndpointCacheTTL.
 	self, shared := containerSelfInList(entries, readContainerSelfSignals(containerRuntimeIsDocker(s)))
 	endpoint, err := listEndpointLookup.addresses(ctx, cfg.Host)
+	if err != nil {
+		// docker.host did not resolve: a listed container at the address of
+		// AuraGo's own Docker connection is the endpoint. Loopback and host
+		// addresses name none.
+		if observed, ok := observedDockerEndpoint(ctx, cfg); ok && len(containersAtAddresses(entries, observed)) > 0 {
+			endpoint, err = observed, nil
+		}
+	}
 	if err != nil {
 		// No endpoint container is marked; terminal, update and remove still
 		// classify their target and ask for a confirmation.
