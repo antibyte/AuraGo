@@ -3,14 +3,13 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
-
-	"aurago/internal/dockerutil"
 )
 
 // DockerUpdateContainerImage pulls the container's configured image and
@@ -156,28 +155,25 @@ func validateDockerImageReferenceForUpdate(image string) error {
 }
 
 // pullDockerImageForUpdate pulls the container's image before the container is
-// touched. Progress events are parsed as they arrive, so memory stays bounded
-// by one line however long the pull runs; the caller's context bounds time.
+// touched, on the shared streaming pull helper; the caller's context bounds it.
 func pullDockerImageForUpdate(ctx context.Context, cfg DockerConfig, image string) error {
-	reqURL := "http://localhost/" + dockerAPIVersion + "/images/create?fromImage=" + url.QueryEscape(image)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
-	if err != nil {
-		return fmt.Errorf("create pull request: %w", err)
+	err := pullDockerImageStream(ctx, cfg, image)
+	var pullErr *dockerPullError
+	if err == nil || !errors.As(err, &pullErr) {
+		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := getPullDockerClient(cfg).Do(req)
-	if err != nil {
-		return fmt.Errorf("pull image: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		msg := dockerBodyMessage(resp.StatusCode, dockerutil.ReadErrorBody(resp.Body))
+	switch {
+	case pullErr.StatusCode != 0:
+		msg := pullErr.Message
 		if msg == "" {
-			msg = http.StatusText(resp.StatusCode)
+			msg = http.StatusText(pullErr.StatusCode)
 		}
-		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, msg)
+		return fmt.Errorf("HTTP %d: %s", pullErr.StatusCode, msg)
+	case pullErr.Stream:
+		return pullErr.Err
+	default:
+		return fmt.Errorf("pull image: %w", pullErr.Err)
 	}
-	return dockerutil.DrainJSONMessages(resp.Body)
 }
 
 func dockerReplacementCreatePayload(inspect map[string]interface{}, image string) (map[string]interface{}, error) {

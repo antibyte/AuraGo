@@ -102,6 +102,83 @@ func getPullDockerClient(cfg DockerConfig) *http.Client {
 	return dockerPullHTTPClient
 }
 
+// dockerPullFallbackTimeout bounds an image pull whose context has no deadline.
+const dockerPullFallbackTimeout = 15 * time.Minute
+
+// dockerPullError is a failed image pull. StatusCode is the Engine's non-2xx
+// answer (0 when the pull failed without one) and Message its text. Stream is
+// true when the Engine answered 2xx and the progress stream then failed (an
+// error event, a cut stream or a read error). Err is the transport, context or
+// stream failure when StatusCode is 0. Error() keeps the historic
+// "pull image <ref>: ..." wording of PullImageWait and PullImageForce.
+type dockerPullError struct {
+	Image      string
+	StatusCode int
+	Message    string
+	Stream     bool
+	Err        error
+}
+
+func (e *dockerPullError) Error() string {
+	switch {
+	case e.StatusCode != 0 && e.Message != "":
+		return fmt.Sprintf("pull image %s: HTTP %d: %s", e.Image, e.StatusCode, e.Message)
+	case e.StatusCode != 0:
+		return fmt.Sprintf("pull image %s: HTTP %d", e.Image, e.StatusCode)
+	default:
+		return fmt.Sprintf("pull image %s: %v", e.Image, e.Err)
+	}
+}
+
+func (e *dockerPullError) Unwrap() error { return e.Err }
+
+// pullDockerImageStream pulls image (a reference as the Engine accepts it in
+// fromImage) on the streaming pull client and reads the Engine's progress
+// stream to its end, so a nil result means the pull completed. It does not
+// check runtime permissions: every caller applies the gate it always had.
+// ctx bounds the pull; without a deadline it is bounded to
+// dockerPullFallbackTimeout. Every error is a *dockerPullError.
+func pullDockerImageStream(ctx context.Context, cfg DockerConfig, image string) error {
+	return pullDockerImageQuery(ctx, cfg, image, url.Values{"fromImage": {image}})
+}
+
+// pullDockerImageQuery is pullDockerImageStream with an explicit
+// /images/create query (fromImage plus tag); image names the pull in errors.
+func pullDockerImageQuery(ctx context.Context, cfg DockerConfig, image string, query url.Values) error {
+	ctx, cancel := dockerContextWithFallbackTimeout(ctx, dockerPullFallbackTimeout)
+	defer cancel()
+	reqURL := "http://localhost/" + dockerAPIVersion + "/images/create?" + query.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
+	if err != nil {
+		return &dockerPullError{Image: image, Err: fmt.Errorf("create pull request: %w", err)}
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := getPullDockerClient(cfg).Do(req)
+	if err != nil {
+		return &dockerPullError{Image: image, Err: err}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return &dockerPullError{Image: image, StatusCode: resp.StatusCode, Message: dockerBodyMessage(resp.StatusCode, dockerutil.ReadErrorBody(resp.Body))}
+	}
+	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
+		return &dockerPullError{Image: image, Stream: true, Err: err}
+	}
+	return nil
+}
+
+// detachedPullContext keeps ctx's values but drops its deadline and
+// cancellation. It is for pull sites that ran on the 60-second request client
+// and never honoured their caller's context: a short caller deadline must not
+// cut a pull that works today. The pull is then bounded by
+// dockerPullFallbackTimeout.
+func detachedPullContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return context.WithoutCancel(ctx)
+}
+
 // DockerPing checks if the Docker Engine is reachable at the given host.
 // Returns nil on success, or an error describing the failure.
 func DockerPing(host string) error {
@@ -1098,7 +1175,7 @@ func DockerListImages(cfg DockerConfig) string {
 // It returns nil if the image already exists locally. An error event in the
 // Engine's progress stream fails the pull even though the status was 200.
 func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *slog.Logger) error {
-	ctx, cancel := dockerContextWithFallbackTimeout(ctx, 15*time.Minute)
+	ctx, cancel := dockerContextWithFallbackTimeout(ctx, dockerPullFallbackTimeout)
 	defer cancel()
 
 	// Check if image already exists.
@@ -1118,28 +1195,10 @@ func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *
 		logger.Info("Pulling Docker image", "image", image)
 	}
 
-	// Build the pull request with the caller-supplied context so long pulls
-	// are not cut short by the 60-second client timeout.
-	client := getPullDockerClient(cfg)
-	reqURL := "http://localhost/" + dockerAPIVersion + "/images/create?fromImage=" + url.QueryEscape(image)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
-	if err != nil {
-		return fmt.Errorf("create pull request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("pull image %s: %w", image, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return dockerPullHTTPError(image, resp)
-	}
-	// Read the progress stream to its end so the call blocks until the pull
-	// is complete; an error event in it means the pull failed.
-	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
-		return fmt.Errorf("pull image %s: %w", image, err)
+	// The helper reads the progress stream to its end, so the call blocks
+	// until the pull is complete; an error event in it means the pull failed.
+	if err := pullDockerImageStream(ctx, cfg, image); err != nil {
+		return err
 	}
 
 	if logger != nil {
@@ -1154,7 +1213,7 @@ func PullImageForce(ctx context.Context, cfg DockerConfig, image string, logger 
 	if err := requireDockerMutationPermission(); err != nil {
 		return err
 	}
-	ctx, cancel := dockerContextWithFallbackTimeout(ctx, 15*time.Minute)
+	ctx, cancel := dockerContextWithFallbackTimeout(ctx, dockerPullFallbackTimeout)
 	defer cancel()
 	if strings.TrimSpace(image) == "" {
 		return fmt.Errorf("image is required")
@@ -1162,38 +1221,15 @@ func PullImageForce(ctx context.Context, cfg DockerConfig, image string, logger 
 	if logger != nil {
 		logger.Info("Pulling Docker image", "image", image, "force", true)
 	}
-	client := getPullDockerClient(cfg)
-	reqURL := "http://localhost/" + dockerAPIVersion + "/images/create?fromImage=" + url.QueryEscape(image)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
-	if err != nil {
-		return fmt.Errorf("create pull request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("pull image %s: %w", image, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return dockerPullHTTPError(image, resp)
-	}
-	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
-		return fmt.Errorf("pull image %s: %w", image, err)
+	// The helper reads the progress stream to its end, so the call blocks
+	// until the pull is complete; an error event in it means the pull failed.
+	if err := pullDockerImageStream(ctx, cfg, image); err != nil {
+		return err
 	}
 	if logger != nil {
 		logger.Info("Docker image pulled successfully", "image", image, "force", true)
 	}
 	return nil
-}
-
-// dockerPullHTTPError describes a non-200 image pull with the Engine's
-// message, reading at most dockerutil.MaxErrorBody bytes of the response.
-func dockerPullHTTPError(image string, resp *http.Response) error {
-	if msg := dockerBodyMessage(resp.StatusCode, dockerutil.ReadErrorBody(resp.Body)); msg != "" {
-		return fmt.Errorf("pull image %s: HTTP %d: %s", image, resp.StatusCode, msg)
-	}
-	return fmt.Errorf("pull image %s: HTTP %d", image, resp.StatusCode)
 }
 
 // BuildImageWait builds a Docker image through the Docker Engine API using a
@@ -1434,24 +1470,20 @@ func DockerPullImageContext(ctx context.Context, cfg DockerConfig, image string)
 	if err := requireDockerMutationPermission(); err != nil {
 		return errJSON("Failed to pull image: %v", err)
 	}
-	ctx, cancel := dockerContextWithFallbackTimeout(ctx, 15*time.Minute)
+	ctx, cancel := dockerContextWithFallbackTimeout(ctx, dockerPullFallbackTimeout)
 	defer cancel()
-	reqURL := "http://localhost/" + dockerAPIVersion + "/images/create?fromImage=" + url.QueryEscape(image)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
-	if err != nil {
-		return errJSON("Failed to pull image: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := getPullDockerClient(cfg).Do(req)
-	if err != nil {
-		return errJSON("Failed to pull image: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return dockerBodyErr(resp.StatusCode, dockerutil.ReadErrorBody(resp.Body))
-	}
-	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
-		return errJSON("Failed to pull image: %v", err)
+	if err := pullDockerImageStream(ctx, cfg, image); err != nil {
+		var pullErr *dockerPullError
+		if !errors.As(err, &pullErr) {
+			return errJSON("Failed to pull image: %v", err)
+		}
+		if pullErr.StatusCode != 0 {
+			if pullErr.Message != "" {
+				return errJSON("Docker error (HTTP %d): %s", pullErr.StatusCode, pullErr.Message)
+			}
+			return errJSON("Docker error (HTTP %d)", pullErr.StatusCode)
+		}
+		return errJSON("Failed to pull image: %v", pullErr.Err)
 	}
 	out, _ := json.Marshal(map[string]string{"status": "ok", "message": "Image '" + image + "' pulled successfully"})
 	return string(out)
