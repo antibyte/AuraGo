@@ -2,17 +2,23 @@ package tools
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"go/types"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/sandbox"
 )
 
@@ -121,15 +127,187 @@ func TestWithoutDockerClientEnvMatchesNamesCaseInsensitively(t *testing.T) {
 	}
 }
 
-// The Landlock sandbox (cmd/aurago/main.go) injects DOCKER_HOST through
-// ShellSandboxConfig.ExtraEnv only when the Docker integration is enabled.
-// The unsandboxed shell path must hide the same variable under the same gate.
+// The Landlock sandbox gets its Docker endpoint from the ExtraEnv slice built
+// in cmd/aurago/main.go. The unsandboxed shell filter must hide every name that
+// slice injects, under the same gate: main.go appends only inside
+// `if cfg.Docker.Enabled`, and RuntimePermissionsFromConfig copies that flag
+// into the DockerEnabled field requireDockerPermission reads.
 func TestDockerClientEnvNamesCoverTheLandlockExtraEnvVariable(t *testing.T) {
-	for _, name := range []string{"DOCKER_HOST", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH", "DOCKER_CONFIG", "DOCKER_CONTEXT", "DOCKER_API_VERSION"} {
-		if !dockerClientEnvNames[name] {
-			t.Fatalf("dockerClientEnvNames must contain %s", name)
+	mainPath := filepath.Join("..", "..", "cmd", "aurago", "main.go")
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, mainPath, nil, 0)
+	if err != nil {
+		t.Fatalf("parse %s: %v", mainPath, err)
+	}
+	scan := scanLandlockExtraEnv(fset, file)
+	for _, problem := range scan.problems {
+		t.Error(problem)
+	}
+	if scan.extraEnvFields != 1 {
+		t.Fatalf("expected exactly one ExtraEnv field in %s, found %d", mainPath, scan.extraEnvFields)
+	}
+	for _, name := range scan.injected {
+		if !dockerClientEnvNames[strings.ToUpper(name)] {
+			t.Errorf("main.go injects %s into the Landlock sandbox; add it to dockerClientEnvNames so unsandboxed shells hide it under the same gate", name)
 		}
 	}
+	if strings.Join(scan.injected, ",") != "DOCKER_HOST" {
+		t.Fatalf("Landlock ExtraEnv injects %v; expected only DOCKER_HOST (update dockerClientEnvNames and this test together)", scan.injected)
+	}
+
+	cfg := &config.Config{}
+	for _, enabled := range []bool{false, true} {
+		cfg.Docker.Enabled = enabled
+		if got := RuntimePermissionsFromConfig(cfg).DockerEnabled; got != enabled {
+			t.Fatalf("RuntimePermissionsFromConfig(docker.enabled=%v).DockerEnabled = %v; the shell filter gate must follow cfg.Docker.Enabled", enabled, got)
+		}
+	}
+}
+
+// The scanner above must flag what it guards against; checked on synthetic
+// sources so cmd/aurago/main.go itself is never weakened for the check.
+func TestScanLandlockExtraEnvFlagsUngatedAndUnreadableInjections(t *testing.T) {
+	cases := []struct {
+		name         string
+		body         string
+		wantInjected string
+		wantProblem  string
+	}{
+		{"gated", `if cfg.Docker.Enabled { extraEnv = append(extraEnv, "DOCKER_HOST="+host) }`, "DOCKER_HOST", ""},
+		{"other name is reported", `if cfg.Docker.Enabled { extraEnv = append(extraEnv, "DOCKER_TLS_VERIFY=1") }`, "DOCKER_TLS_VERIFY", ""},
+		{"ungated", `extraEnv = append(extraEnv, "DOCKER_HOST="+host)`, "DOCKER_HOST", "inside `if cfg.Docker.Enabled`"},
+		{"else branch", `if cfg.Docker.Enabled { } else { extraEnv = append(extraEnv, "DOCKER_HOST="+host) }`, "DOCKER_HOST", "inside `if cfg.Docker.Enabled`"},
+		{"other gate", `if cfg.Agent.AllowShell { extraEnv = append(extraEnv, "DOCKER_HOST="+host) }`, "DOCKER_HOST", "inside `if cfg.Docker.Enabled`"},
+		{"computed name", `if cfg.Docker.Enabled { extraEnv = append(extraEnv, name+"="+host) }`, "", "string literal"},
+		{"replaced slice", `if cfg.Docker.Enabled { extraEnv = other }`, "", "only grow through append"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			src := "package p\nfunc f() {\nvar extraEnv []string\n" + tc.body + "\nInit(Config{ExtraEnv: extraEnv})\n}\n"
+			fset := token.NewFileSet()
+			file, err := parser.ParseFile(fset, "synthetic.go", src, 0)
+			if err != nil {
+				t.Fatalf("parse synthetic source: %v", err)
+			}
+			scan := scanLandlockExtraEnv(fset, file)
+			if got := strings.Join(scan.injected, ","); got != tc.wantInjected {
+				t.Fatalf("injected = %q, want %q", got, tc.wantInjected)
+			}
+			problems := strings.Join(scan.problems, "\n")
+			if tc.wantProblem == "" && problems != "" {
+				t.Fatalf("unexpected problems: %s", problems)
+			}
+			if tc.wantProblem != "" && !strings.Contains(problems, tc.wantProblem) {
+				t.Fatalf("problems = %q, want one containing %q", problems, tc.wantProblem)
+			}
+		})
+	}
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "synthetic.go", "package p\nfunc f() { Init(Config{ExtraEnv: []string{\"DOCKER_HOST=x\"}}) }\n", 0)
+	if err != nil {
+		t.Fatalf("parse synthetic source: %v", err)
+	}
+	if scan := scanLandlockExtraEnv(fset, file); scan.extraEnvFields != 1 || !strings.Contains(strings.Join(scan.problems, "\n"), "must be the extraEnv slice") {
+		t.Fatalf("an inline ExtraEnv value must be flagged, got %+v", scan)
+	}
+}
+
+type landlockExtraEnvScan struct {
+	injected       []string
+	extraEnvFields int
+	problems       []string
+}
+
+// scanLandlockExtraEnv collects the names appended to extraEnv, counts the
+// ExtraEnv fields, and reports appends outside `if cfg.Docker.Enabled`, entries
+// without a "NAME=" literal prefix, and ExtraEnv values other than extraEnv.
+func scanLandlockExtraEnv(fset *token.FileSet, file *ast.File) landlockExtraEnvScan {
+	var scan landlockExtraEnvScan
+	var stack []ast.Node
+	ast.Inspect(file, func(n ast.Node) bool {
+		if n == nil {
+			stack = stack[:len(stack)-1]
+			return true
+		}
+		stack = append(stack, n)
+		if kv, ok := n.(*ast.KeyValueExpr); ok {
+			if key, ok := kv.Key.(*ast.Ident); ok && key.Name == "ExtraEnv" {
+				scan.extraEnvFields++
+				if value, ok := kv.Value.(*ast.Ident); !ok || value.Name != "extraEnv" {
+					scan.problems = append(scan.problems, fmt.Sprintf("%s: ExtraEnv must be the extraEnv slice, got %s", fset.Position(kv.Pos()), types.ExprString(kv.Value)))
+				}
+			}
+			return true
+		}
+		assign, ok := n.(*ast.AssignStmt)
+		if !ok || len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
+			return true
+		}
+		if target, ok := assign.Lhs[0].(*ast.Ident); !ok || target.Name != "extraEnv" {
+			return true
+		}
+		position := fset.Position(assign.Pos())
+		call, isCall := assign.Rhs[0].(*ast.CallExpr)
+		if !isCall {
+			scan.problems = append(scan.problems, fmt.Sprintf("%s: extraEnv may only grow through append(extraEnv, \"NAME=\"+value)", position))
+			return true
+		}
+		if fn, isIdent := call.Fun.(*ast.Ident); !isIdent || fn.Name != "append" || len(call.Args) < 2 {
+			scan.problems = append(scan.problems, fmt.Sprintf("%s: extraEnv may only grow through append(extraEnv, \"NAME=\"+value)", position))
+			return true
+		}
+		for _, arg := range call.Args[1:] {
+			literal, ok := leftmostStringLiteral(arg)
+			name, _, hasValue := strings.Cut(literal, "=")
+			if !ok || !hasValue || name == "" {
+				scan.problems = append(scan.problems, fmt.Sprintf("%s: extraEnv entry %s must start with a \"NAME=\" string literal", position, types.ExprString(arg)))
+				continue
+			}
+			scan.injected = append(scan.injected, name)
+		}
+		if !insideIfBody(stack, assign, "cfg.Docker.Enabled") {
+			scan.problems = append(scan.problems, fmt.Sprintf("%s: extraEnv must only be extended inside `if cfg.Docker.Enabled`", position))
+		}
+		return true
+	})
+	return scan
+}
+
+// leftmostStringLiteral returns the unquoted string literal that starts expr,
+// following "literal" + value concatenations.
+func leftmostStringLiteral(expr ast.Expr) (string, bool) {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		if e.Kind != token.STRING {
+			return "", false
+		}
+		value, err := strconv.Unquote(e.Value)
+		return value, err == nil
+	case *ast.BinaryExpr:
+		if e.Op != token.ADD {
+			return "", false
+		}
+		return leftmostStringLiteral(e.X)
+	case *ast.ParenExpr:
+		return leftmostStringLiteral(e.X)
+	}
+	return "", false
+}
+
+// insideIfBody reports whether node sits in the then-branch of an enclosing
+// if statement whose condition renders as cond.
+func insideIfBody(stack []ast.Node, node ast.Node, cond string) bool {
+	for _, ancestor := range stack {
+		ifStmt, ok := ancestor.(*ast.IfStmt)
+		if !ok || types.ExprString(ifStmt.Cond) != cond {
+			continue
+		}
+		if node.Pos() >= ifStmt.Body.Pos() && node.End() <= ifStmt.Body.End() {
+			return true
+		}
+	}
+	return false
 }
 
 func TestEnsureFilteredShellEnvDoesNotOverrideCallerEnv(t *testing.T) {
@@ -244,6 +422,17 @@ func TestExecuteShellBackgroundHidesDockerClientEnvWithoutDockerPermission(t *te
 
 func TestHostPythonHidesDockerClientEnvWithoutDockerPermission(t *testing.T) {
 	const secretValue = "d11-secret-value-7f3a9c2e5b81"
+	secrets := map[string]string{"d11": secretValue}
+	creds := []CredentialFields{{Name: "D11", Fields: map[string]string{"token": "d11-credential-token-4c8e1b6a92"}}}
+	// These runs inject AURAGO_SECRET_* / AURAGO_CRED_* after the shell filter;
+	// the child must see them while DOCKER_HOST stays hidden.
+	injecting := map[string]bool{
+		"ExecutePythonWithOptions":           true,
+		"ExecutePythonWithSecrets":           true,
+		"RunToolWithSecrets":                 true,
+		"ExecutePythonBackgroundWithSecrets": true,
+		"RunToolBackgroundWithSecrets":       true,
+	}
 	runs := []struct {
 		name string
 		run  func(t *testing.T, workspaceDir, toolsDir string) string
@@ -257,12 +446,13 @@ func TestHostPythonHidesDockerClientEnvWithoutDockerPermission(t *testing.T) {
 				Code:         `print("unused")`,
 				WorkspaceDir: workspaceDir,
 				ToolsDir:     toolsDir,
-				Secrets:      map[string]string{"d11": secretValue},
+				Secrets:      secrets,
+				Credentials:  creds,
 			})
 			return requireRunOutput(t, stdout, stderr, err)
 		}},
 		{"ExecutePythonWithSecrets", func(t *testing.T, workspaceDir, toolsDir string) string {
-			stdout, stderr, err := ExecutePythonWithSecrets(`print("unused")`, workspaceDir, toolsDir, map[string]string{"d11": secretValue}, nil)
+			stdout, stderr, err := ExecutePythonWithSecrets(`print("unused")`, workspaceDir, toolsDir, secrets, creds)
 			return requireRunOutput(t, stdout, stderr, err)
 		}},
 		{"RunTool", func(t *testing.T, workspaceDir, toolsDir string) string {
@@ -272,7 +462,7 @@ func TestHostPythonHidesDockerClientEnvWithoutDockerPermission(t *testing.T) {
 		}},
 		{"RunToolWithSecrets", func(t *testing.T, workspaceDir, toolsDir string) string {
 			writeFakeToolForTest(t, toolsDir)
-			stdout, stderr, err := RunToolWithSecrets("tool.py", nil, workspaceDir, toolsDir, map[string]string{"d11": secretValue}, nil)
+			stdout, stderr, err := RunToolWithSecrets("tool.py", nil, workspaceDir, toolsDir, secrets, creds)
 			return requireRunOutput(t, stdout, stderr, err)
 		}},
 		{"InstallPackage", func(t *testing.T, workspaceDir, toolsDir string) string {
@@ -290,7 +480,7 @@ func TestHostPythonHidesDockerClientEnvWithoutDockerPermission(t *testing.T) {
 		}},
 		{"ExecutePythonBackgroundWithSecrets", func(t *testing.T, workspaceDir, toolsDir string) string {
 			registry := NewProcessRegistry(testBackgroundTaskLogger())
-			pid, err := ExecutePythonBackgroundWithSecrets(`print("unused")`, workspaceDir, toolsDir, registry, map[string]string{"d11": secretValue}, nil)
+			pid, err := ExecutePythonBackgroundWithSecrets(`print("unused")`, workspaceDir, toolsDir, registry, secrets, creds)
 			if err != nil {
 				t.Fatalf("start error = %v", err)
 			}
@@ -310,7 +500,7 @@ func TestHostPythonHidesDockerClientEnvWithoutDockerPermission(t *testing.T) {
 		{"RunToolBackgroundWithSecrets", func(t *testing.T, workspaceDir, toolsDir string) string {
 			writeFakeToolForTest(t, toolsDir)
 			registry := NewProcessRegistry(testBackgroundTaskLogger())
-			pid, err := RunToolBackgroundWithSecrets("tool.py", nil, workspaceDir, toolsDir, registry, map[string]string{"d11": secretValue}, nil)
+			pid, err := RunToolBackgroundWithSecrets("tool.py", nil, workspaceDir, toolsDir, registry, secrets, creds)
 			if err != nil {
 				t.Fatalf("start error = %v", err)
 			}
@@ -328,14 +518,27 @@ func TestHostPythonHidesDockerClientEnvWithoutDockerPermission(t *testing.T) {
 			toolsDir := t.TempDir()
 			installFakePython(t, workspaceDir)
 
+			wantInjected := "injected-env:none"
+			if injecting[tc.name] {
+				wantInjected = "injected-env:AURAGO_CRED_D11_TOKEN,AURAGO_SECRET_D11"
+			}
+
 			configureDockerPermissionForTest(t, false)
-			if output := tc.run(t, workspaceDir, toolsDir); !strings.Contains(output, "docker-env:none") {
+			output := tc.run(t, workspaceDir, toolsDir)
+			if !strings.Contains(output, "docker-env:none") {
 				t.Fatalf("host Python saw the Docker client env without the Docker permission: %q", output)
+			}
+			if !strings.Contains(output, wantInjected) {
+				t.Fatalf("host Python child env with the Docker filter active: want %q in %q", wantInjected, output)
 			}
 
 			configureDockerPermissionForTest(t, true)
-			if output := tc.run(t, workspaceDir, toolsDir); !strings.Contains(output, "docker-env:DOCKER_CERT_PATH,DOCKER_HOST,DOCKER_TLS_VERIFY") {
+			output = tc.run(t, workspaceDir, toolsDir)
+			if !strings.Contains(output, "docker-env:DOCKER_CERT_PATH,DOCKER_HOST,DOCKER_TLS_VERIFY") {
 				t.Fatalf("host Python must keep the Docker client env when the Docker tool is permitted: %q", output)
+			}
+			if !strings.Contains(output, wantInjected) {
+				t.Fatalf("host Python child env with the Docker tool permitted: want %q in %q", wantInjected, output)
 			}
 		})
 	}
@@ -349,6 +552,24 @@ func reportDockerClientEnvForFake() string {
 		name, value, _ := strings.Cut(kv, "=")
 		if value != "" && dockerClientEnvNames[strings.ToUpper(name)] {
 			names = append(names, strings.ToUpper(name))
+		}
+	}
+	if len(names) == 0 {
+		return "none"
+	}
+	sort.Strings(names)
+	return strings.Join(names, ",")
+}
+
+// reportInjectedEnvForFake lists the AURAGO_SECRET_* and AURAGO_CRED_*
+// variables InjectSecretsEnv and InjectCredentialEnv gave the fake subprocess.
+func reportInjectedEnvForFake() string {
+	var names []string
+	for _, kv := range os.Environ() {
+		name, value, _ := strings.Cut(kv, "=")
+		upper := strings.ToUpper(name)
+		if value != "" && (strings.HasPrefix(upper, "AURAGO_SECRET_") || strings.HasPrefix(upper, "AURAGO_CRED_")) {
+			names = append(names, upper)
 		}
 	}
 	if len(names) == 0 {

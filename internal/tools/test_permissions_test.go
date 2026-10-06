@@ -47,6 +47,7 @@ func runFakePythonForEnvTests() {
 	}
 	if os.Getenv("AURAGO_FAKE_PYTHON_REPORT_DOCKER") == "1" {
 		fmt.Println("docker-env:" + reportDockerClientEnvForFake())
+		fmt.Println("injected-env:" + reportInjectedEnvForFake())
 	}
 	fmt.Println("env-clean")
 	if sleepMS, _ := strconv.Atoi(os.Getenv("AURAGO_FAKE_PYTHON_SLEEP_MS")); sleepMS > 0 {
