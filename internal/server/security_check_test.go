@@ -383,6 +383,7 @@ func TestCheckSecurityDockerTCPHintSkipsComposeSocketProxy(t *testing.T) {
 		{"LAN engine from a container", "tcp://192.168.1.10:2375", true, true},
 		{"credentials in the URL", "tcp://user:pass@docker-proxy:2375", true, true},
 		{"query in the URL", "tcp://docker-proxy:2375?x=1", true, true},
+		{"fragment in the URL", "tcp://docker-proxy:2375#x", true, true},
 		{"unix socket", "unix:///var/run/docker.sock", true, false},
 	}
 	for _, tc := range cases {

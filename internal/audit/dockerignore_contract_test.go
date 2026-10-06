@@ -24,7 +24,7 @@ func TestRootDockerignoreKeepsSecretsAndWorktreesOutOfTheBuildContext(t *testing
 		"Dockerfile", "Dockerfile.ansible", "Dockerfile.browser_automation", "Dockerfile.browser_egress",
 		"deploy/docker/Dockerfile.code-studio", "deploy/docker/Dockerfile.supertonic",
 		"internal/acestep/runtime/Dockerfile", "internal/acestep/runtime/Dockerfile.vulkan",
-		"internal/rtlsdr/runtime/Dockerfile",
+		"internal/rtlsdr/runtime/Dockerfile", "internal/rtlsdr/runtime/Dockerfile.fixtures",
 	} {
 		for _, line := range strings.Split(readRepoFile(t, dockerfile), "\n") {
 			fields := strings.Fields(line)

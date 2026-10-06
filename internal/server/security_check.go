@@ -198,7 +198,7 @@ func dockerHostIsComposeSocketProxy(cfg *config.Config) bool {
 		return false
 	}
 	u, err := url.Parse(strings.TrimSpace(cfg.Docker.Host))
-	if err != nil || !strings.EqualFold(u.Scheme, "tcp") || u.User != nil || u.RawQuery != "" {
+	if err != nil || !strings.EqualFold(u.Scheme, "tcp") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return false
 	}
 	return strings.EqualFold(u.Hostname(), "docker-proxy") && u.Port() == "2375" && (u.Path == "" || u.Path == "/")
