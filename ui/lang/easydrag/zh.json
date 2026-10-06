@@ -452,6 +452,7 @@
   "easydrag.ui.error_flows_disabled": "EasyDrag 已关闭。",
   "easydrag.ui.error_generic": "出了点问题。",
   "easydrag.ui.error_network": "当前无法连接 AuraGo。",
+  "easydrag.ui.error_node_type_unknown": "此模块不可用。",
   "easydrag.ui.field_name": "名称",
   "easydrag.ui.field_value": "值",
   "easydrag.ui.fields_add": "添加字段",

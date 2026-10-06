@@ -452,6 +452,7 @@
   "easydrag.ui.error_flows_disabled": "EasyDrag ist abgeschaltet.",
   "easydrag.ui.error_generic": "Etwas ist schiefgelaufen.",
   "easydrag.ui.error_network": "AuraGo ist gerade nicht erreichbar.",
+  "easydrag.ui.error_node_type_unknown": "Dieser Baustein ist nicht verfügbar.",
   "easydrag.ui.field_name": "Name",
   "easydrag.ui.field_value": "Wert",
   "easydrag.ui.fields_add": "Feld hinzufügen",

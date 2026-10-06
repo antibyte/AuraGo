@@ -452,6 +452,7 @@
   "easydrag.ui.error_flows_disabled": "O EasyDrag está desativado.",
   "easydrag.ui.error_generic": "Algo deu errado.",
   "easydrag.ui.error_network": "O AuraGo não está acessível no momento.",
+  "easydrag.ui.error_node_type_unknown": "Este bloco não está disponível.",
   "easydrag.ui.field_name": "Nome",
   "easydrag.ui.field_value": "Valor",
   "easydrag.ui.fields_add": "Adicionar campo",

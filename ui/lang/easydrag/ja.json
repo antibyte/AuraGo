@@ -452,6 +452,7 @@
   "easydrag.ui.error_flows_disabled": "EasyDrag はオフです。",
   "easydrag.ui.error_generic": "問題が発生しました。",
   "easydrag.ui.error_network": "現在 AuraGo に接続できません。",
+  "easydrag.ui.error_node_type_unknown": "このブロックは利用できません。",
   "easydrag.ui.field_name": "名前",
   "easydrag.ui.field_value": "値",
   "easydrag.ui.fields_add": "フィールドを追加",

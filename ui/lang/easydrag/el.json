@@ -452,6 +452,7 @@
   "easydrag.ui.error_flows_disabled": "Το EasyDrag είναι απενεργοποιημένο.",
   "easydrag.ui.error_generic": "Κάτι πήγε στραβά.",
   "easydrag.ui.error_network": "Το AuraGo δεν είναι προσβάσιμο αυτή τη στιγμή.",
+  "easydrag.ui.error_node_type_unknown": "Αυτό το δομικό στοιχείο δεν είναι διαθέσιμο.",
   "easydrag.ui.field_name": "Όνομα",
   "easydrag.ui.field_value": "Τιμή",
   "easydrag.ui.fields_add": "Προσθήκη πεδίου",

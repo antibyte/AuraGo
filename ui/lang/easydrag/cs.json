@@ -452,6 +452,7 @@
   "easydrag.ui.error_flows_disabled": "EasyDrag je vypnutý.",
   "easydrag.ui.error_generic": "Něco se pokazilo.",
   "easydrag.ui.error_network": "Server AuraGo teď není dostupný.",
+  "easydrag.ui.error_node_type_unknown": "Tento stavební blok není k dispozici.",
   "easydrag.ui.field_name": "Název",
   "easydrag.ui.field_value": "Hodnota",
   "easydrag.ui.fields_add": "Přidat pole",

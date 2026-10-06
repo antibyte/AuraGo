@@ -452,6 +452,7 @@
   "easydrag.ui.error_flows_disabled": "EasyDrag बंद है।",
   "easydrag.ui.error_generic": "कुछ गलत हो गया।",
   "easydrag.ui.error_network": "AuraGo अभी उपलब्ध नहीं है।",
+  "easydrag.ui.error_node_type_unknown": "यह ब्लॉक उपलब्ध नहीं है।",
   "easydrag.ui.field_name": "नाम",
   "easydrag.ui.field_value": "मान",
   "easydrag.ui.fields_add": "फ़ील्ड जोड़ें",

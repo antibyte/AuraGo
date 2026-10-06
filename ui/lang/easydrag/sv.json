@@ -452,6 +452,7 @@
   "easydrag.ui.error_flows_disabled": "EasyDrag är avstängt.",
   "easydrag.ui.error_generic": "Något gick fel.",
   "easydrag.ui.error_network": "AuraGo kan inte nås just nu.",
+  "easydrag.ui.error_node_type_unknown": "Det här byggblocket är inte tillgängligt.",
   "easydrag.ui.field_name": "Namn",
   "easydrag.ui.field_value": "Värde",
   "easydrag.ui.fields_add": "Lägg till fält",

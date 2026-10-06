@@ -452,6 +452,7 @@
   "easydrag.ui.error_flows_disabled": "EasyDrag er slått av.",
   "easydrag.ui.error_generic": "Noe gikk galt.",
   "easydrag.ui.error_network": "AuraGo kan ikke nås akkurat nå.",
+  "easydrag.ui.error_node_type_unknown": "Denne byggeklossen er ikke tilgjengelig.",
   "easydrag.ui.field_name": "Navn",
   "easydrag.ui.field_value": "Verdi",
   "easydrag.ui.fields_add": "Legg til felt",
