@@ -97,5 +97,5 @@
   "config.web_scraper.summary_mode": "Summary Mode",
   "config.webdav.secret_empty": "Value is empty",
   "config.security_proxy.action_pending": "Working on it… The first start with rate limiting builds a Caddy image and can take a few minutes.",
-  "config.security_proxy.rate_limit_build_hint": "The official Caddy image has no rate limiting. On the next start, AuraGo builds its own Caddy image with the caddy-ratelimit module once. This needs Docker image builds and internet access and takes a few minutes."
+  "config.security_proxy.rate_limit_build_hint": "The official Caddy image has no rate limiting. On the next start, AuraGo builds its own Caddy image with the caddy-ratelimit module once. This needs Docker image builds and internet access and takes a few minutes. Alternatively, the image can be built on the Docker host (see the manual)."
 }

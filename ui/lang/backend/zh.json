@@ -249,5 +249,6 @@
   "backend.proxy_config_rejected": "代理拒绝了新设置，继续使用之前的设置运行。代理日志会显示原因。",
   "backend.proxy_docker_placement_failed": "AuraGo 在 Docker 中运行，但代理无法使用 AuraGo 的数据卷。这需要 Docker Engine 26 或更高版本，并且 AuraGo 的数据目录必须位于 Docker 卷或绑定挂载上。详细信息见 AuraGo 日志。",
   "backend.proxy_not_running": "安全代理未运行。请先启动它。",
-  "backend.proxy_rate_limit_image_unavailable": "速率限制需要带 caddy-ratelimit 模块的 Caddy 镜像，但 AuraGo 无法构建它。Docker 必须允许构建镜像（Docker Compose 中：在 docker-proxy 服务上设置 BUILD=1）并能访问互联网。或者关闭速率限制。详细信息见 AuraGo 日志。"
+  "backend.proxy_rate_limit_image_read_only": "Docker 只读模式（docker.read_only）已开启，因此 AuraGo 无法构建速率限制所需的带 caddy-ratelimit 模块的 Caddy 镜像。在此模式下，AuraGo 也无法创建或更改代理容器。请关闭 Docker 只读模式，然后重新启动代理。详细信息见 AuraGo 日志。",
+  "backend.proxy_rate_limit_image_unavailable": "速率限制需要带 caddy-ratelimit 模块的 Caddy 镜像，但 AuraGo 无法构建它。Docker 必须允许构建镜像（Docker Compose 中：在 docker-proxy 服务上设置 BUILD=1）并能访问互联网。也可以在 Docker 主机上构建该镜像（参见手册），或者关闭速率限制。详细信息见 AuraGo 日志。"
 }

@@ -11,13 +11,15 @@ import (
 )
 
 // proxyErrorKeys maps security proxy failures the user can fix to their
-// backend translation.
+// backend translation. The first match wins: ErrRateLimitImageReadOnly comes
+// wrapped with ErrRateLimitImageUnavailable and must stay before it.
 var proxyErrorKeys = []struct {
 	err error
 	key string
 }{
 	{proxy.ErrBasicAuthCredentialsMissing, "backend.proxy_basic_auth_credentials_missing"},
 	{proxy.ErrBasicAuthCredentialsInvalid, "backend.proxy_basic_auth_credentials_invalid"},
+	{proxy.ErrRateLimitImageReadOnly, "backend.proxy_rate_limit_image_read_only"},
 	{proxy.ErrRateLimitImageUnavailable, "backend.proxy_rate_limit_image_unavailable"},
 	{proxy.ErrDockerPlacement, "backend.proxy_docker_placement_failed"},
 	{proxy.ErrCaddyExited, "backend.proxy_caddy_exited"},

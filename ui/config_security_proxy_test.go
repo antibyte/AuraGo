@@ -19,6 +19,7 @@ func TestSecurityProxyFeedbackTranslationsCoverAllLocales(t *testing.T) {
 			"backend.proxy_basic_auth_credentials_missing",
 			"backend.proxy_basic_auth_credentials_invalid",
 			"backend.proxy_rate_limit_image_unavailable",
+			"backend.proxy_rate_limit_image_read_only",
 			"backend.proxy_docker_placement_failed",
 			"backend.proxy_caddy_exited",
 			"backend.proxy_config_rejected",
@@ -39,6 +40,20 @@ func TestSecurityProxyFeedbackTranslationsCoverAllLocales(t *testing.T) {
 					t.Errorf("%s/%s.json copies the English text for %s", dir, locale, key)
 				}
 			}
+		}
+	}
+}
+
+func TestSecurityProxyReadOnlyMessageNamesReadOnlyInsteadOfBuilds(t *testing.T) {
+	locales := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	for _, locale := range locales {
+		values := readLocaleStrings(t, filepath.Join("lang", "backend", locale+".json"))
+		message := values["backend.proxy_rate_limit_image_read_only"]
+		if !strings.Contains(message, "docker.read_only") {
+			t.Errorf("backend/%s.json: the read-only message must name docker.read_only: %q", locale, message)
+		}
+		if strings.Contains(message, "BUILD=1") {
+			t.Errorf("backend/%s.json: the read-only message must not send the user to BUILD=1: %q", locale, message)
 		}
 	}
 }

@@ -25,6 +25,9 @@ type engine struct {
 	request        func(cfg tools.DockerConfig, method, endpoint, body string) ([]byte, int, error)
 	requestContext func(ctx context.Context, cfg tools.DockerConfig, method, endpoint, body string) ([]byte, int, error)
 	build          func(ctx context.Context, cfg tools.DockerConfig, image, dockerfileName string, dockerfile []byte, buildArgs map[string]string, logger *slog.Logger) error
+	// pull always pulls the image and fails on an error event in the Engine's
+	// progress stream.
+	pull func(ctx context.Context, cfg tools.DockerConfig, image string, logger *slog.Logger) error
 }
 
 var dockerEngine = engine{
@@ -32,6 +35,7 @@ var dockerEngine = engine{
 	request:        tools.DockerRequest,
 	requestContext: tools.DockerRequestContext,
 	build:          tools.BuildImageWait,
+	pull:           tools.PullImageForce,
 }
 
 // Manager manages the Caddy reverse proxy Docker container lifecycle.
@@ -40,7 +44,9 @@ type Manager struct {
 	cfg    *config.Config
 	logger *slog.Logger
 
-	// lifecycle serializes Start, Reload, Stop and Destroy.
+	// lifecycle serializes Start, Reload, Stop and Destroy. A first image
+	// build (up to rateLimitBuildTimeout) or pull holds it, and the others
+	// wait; Status and Logs do not take it.
 	lifecycle sync.Mutex
 	engine    engine
 	// settle is how long Start waits before checking that Caddy kept running.
@@ -144,7 +150,8 @@ func writeCaddyfile(path string, data []byte) error {
 	return f.Close()
 }
 
-// Start builds the image (if needed), generates the Caddyfile, and starts the container.
+// Start generates the Caddyfile, builds or pulls the image (if needed), then
+// writes the Caddyfile and recreates the container.
 func (m *Manager) Start() error {
 	m.lifecycle.Lock()
 	defer m.lifecycle.Unlock()
@@ -172,22 +179,26 @@ func (m *Manager) startLocked(cfg *config.Config) error {
 		return err
 	}
 
-	// Generate and write Caddyfile
+	// Generate the Caddyfile in memory first, so unusable credentials fail
+	// before any image build or pull.
 	caddyfile, err := GenerateCaddyfile(cfg, place.upstream)
 	if err != nil {
 		return err
 	}
+
+	// Build or pull the image before the Caddyfile is written: a failed build
+	// or pull must leave the running container and the file it loads as they
+	// are. Reload's recreate path comes through here too.
+	image, err := m.ensureImage(cfg)
+	if err != nil {
+		return fmt.Errorf("ensure proxy image: %w", err)
+	}
+
 	caddyfilePath := filepath.Join(dir, "Caddyfile")
 	if err := writeCaddyfile(caddyfilePath, []byte(caddyfile)); err != nil {
 		return fmt.Errorf("write Caddyfile: %w", err)
 	}
 	m.log().Info("Security proxy Caddyfile written", "path", caddyfilePath)
-
-	// Build or pull image
-	image, err := m.ensureImage(cfg)
-	if err != nil {
-		return fmt.Errorf("ensure proxy image: %w", err)
-	}
 
 	// Stop existing container if any
 	m.stopAndRemove(dockerCfg)

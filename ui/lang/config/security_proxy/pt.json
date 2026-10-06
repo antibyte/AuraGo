@@ -97,5 +97,5 @@
   "config.web_scraper.summary_mode": "Modo de resumo",
   "config.webdav.secret_empty": "O valor está vazio",
   "config.security_proxy.action_pending": "Em andamento… A primeira inicialização com limitação de taxa cria uma imagem do Caddy e pode levar alguns minutos.",
-  "config.security_proxy.rate_limit_build_hint": "A imagem oficial do Caddy não tem limitação de taxa. Na próxima inicialização, o AuraGo cria uma única vez sua própria imagem do Caddy com o módulo caddy-ratelimit. Para isso, o Docker precisa permitir builds de imagens e ter acesso à internet; leva alguns minutos."
+  "config.security_proxy.rate_limit_build_hint": "A imagem oficial do Caddy não tem limitação de taxa. Na próxima inicialização, o AuraGo cria uma única vez sua própria imagem do Caddy com o módulo caddy-ratelimit. Para isso, o Docker precisa permitir builds de imagens e ter acesso à internet; leva alguns minutos. Como alternativa, a imagem pode ser criada no host do Docker (veja o manual)."
 }

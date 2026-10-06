@@ -97,5 +97,5 @@
   "config.web_scraper.summary_mode": "摘要模式",
   "config.webdav.secret_empty": "值为空",
   "config.security_proxy.action_pending": "处理中… 启用速率限制后的首次启动会构建 Caddy 镜像，可能需要几分钟。",
-  "config.security_proxy.rate_limit_build_hint": "官方 Caddy 镜像不支持速率限制。下次启动时，AuraGo 会一次性构建带 caddy-ratelimit 模块的专用 Caddy 镜像。这需要 Docker 允许构建镜像并能访问互联网，耗时几分钟。"
+  "config.security_proxy.rate_limit_build_hint": "官方 Caddy 镜像不支持速率限制。下次启动时，AuraGo 会一次性构建带 caddy-ratelimit 模块的专用 Caddy 镜像。这需要 Docker 允许构建镜像并能访问互联网，耗时几分钟。也可以在 Docker 主机上构建该镜像（参见手册）。"
 }

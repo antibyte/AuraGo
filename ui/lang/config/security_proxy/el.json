@@ -97,5 +97,5 @@
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
   "config.webdav.secret_empty": "Η τιμή είναι κενή",
   "config.security_proxy.action_pending": "Σε εξέλιξη… Η πρώτη εκκίνηση με περιορισμό ρυθμού δημιουργεί ένα image του Caddy και μπορεί να διαρκέσει λίγα λεπτά.",
-  "config.security_proxy.rate_limit_build_hint": "Το επίσημο image του Caddy δεν υποστηρίζει περιορισμό ρυθμού. Στην επόμενη εκκίνηση, το AuraGo δημιουργεί μία φορά δικό του image του Caddy με το module caddy-ratelimit. Αυτό απαιτεί builds image στο Docker και πρόσβαση στο διαδίκτυο και διαρκεί λίγα λεπτά."
+  "config.security_proxy.rate_limit_build_hint": "Το επίσημο image του Caddy δεν υποστηρίζει περιορισμό ρυθμού. Στην επόμενη εκκίνηση, το AuraGo δημιουργεί μία φορά δικό του image του Caddy με το module caddy-ratelimit. Αυτό απαιτεί builds image στο Docker και πρόσβαση στο διαδίκτυο και διαρκεί λίγα λεπτά. Εναλλακτικά, το image μπορεί να δημιουργηθεί στον host του Docker (δείτε το εγχειρίδιο)."
 }

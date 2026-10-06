@@ -2034,7 +2034,7 @@ security_proxy:
     http_port: 80
     docker_host: ""                         # empty = inherit docker.host / automatic selection
     rate_limiting:
-        enabled: false                      # builds a Caddy image with caddy-ratelimit once (needs Docker build access)
+        enabled: false                      # builds a Caddy image with caddy-ratelimit once (needs Docker build access), or build it on the Docker host (see the manual)
         requests_per_second: 10
         burst: 50
     ip_filter:

@@ -14,6 +14,9 @@ var (
 	// ErrRateLimitImageUnavailable: rate limiting is enabled and the Caddy
 	// image with the caddy-ratelimit module could not be built.
 	ErrRateLimitImageUnavailable = errors.New("the Caddy image with the rate limit module is unavailable")
+	// ErrRateLimitImageReadOnly: docker.read_only refused the build of that
+	// image. It always comes wrapped together with ErrRateLimitImageUnavailable.
+	ErrRateLimitImageReadOnly = errors.New("docker.read_only refuses the image build")
 	// ErrDockerPlacement: AuraGo runs in Docker and its proxy files cannot be
 	// shared with the Caddy container.
 	ErrDockerPlacement = errors.New("the security proxy files cannot be shared with the Caddy container")

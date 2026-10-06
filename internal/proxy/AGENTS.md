@@ -27,14 +27,19 @@ section. Operator guidance lives in the Security Proxy section of
 - Rate limiting: the official image has no `rate_limit`. With rate limiting
   on, the proxy uses `rateLimitImageName`, built once from the pinned
   `caddy:<version>-builder` plus the pinned `caddy-ratelimit` pseudo-version;
-  without it, `caddy:latest` stays tagged `aurago-proxy:latest`. Bump the
-  Caddy and module pins together, re-check the generated `rate_limit` and
-  `basic_auth` syntax against the built image, and update the host-side
-  `docker build` recipe (tag and Dockerfile) in the Security Proxy section of
-  both manuals; no test pins that recipe. An existing image with the tag is
-  reused, so a host-built image works behind a socket proxy with `BUILD=0`.
-  A failed build returns `ErrRateLimitImageUnavailable` and does not stop or
-  remove a running container (see Lifecycle for the Caddyfile).
+  without it, `caddy:latest` stays tagged `aurago-proxy:latest`. When that
+  tag is missing, `engine.pull` (`tools.PullImageForce`) fetches the current
+  `caddy:latest`, never a stale local copy, and an error event in the pull
+  stream fails Start. Bump the Caddy and module pins together, re-check the
+  generated `rate_limit` and `basic_auth` syntax against the built image, and
+  update the host-side `docker build` recipe (tag and Dockerfile) in the
+  Security Proxy section of both manuals;
+  `TestManualRateLimitImageRecipeMatchesPins` fails until they match. An
+  existing image with the tag is reused, so a host-built image works behind a
+  socket proxy with `BUILD=0`. A failed build returns
+  `ErrRateLimitImageUnavailable`; when `docker.read_only` refused it
+  (`tools.ErrDockerReadOnly`), the error also wraps
+  `ErrRateLimitImageReadOnly`, whose message does not ask for image builds.
 - Placement: a native install binds host paths and reaches AuraGo through
   the host gateway. When AuraGo runs in Docker, the manager inspects its own
   container (mountinfo ID, then hostname), maps the proxy directory onto
@@ -44,20 +49,30 @@ section. Operator guidance lives in the Security Proxy section of
   name; otherwise it uses `host.docker.internal` and the published port. An
   engine that does not know the container (stray `/.dockerenv`) gets the
   native placement.
-- Lifecycle: Start removes the old container only after the image is ready
-  and reports `ErrCaddyExited` when Caddy stops within the settle time.
-  Known gap: `startLocked` still writes the new Caddyfile before
-  `ensureImage`, so after a failed build the running container keeps its
-  loaded config but the file on disk is already the new one; the next
-  container or daemon restart loads it, and the official image then fails on
-  `rate_limit`. Reload runs an attached `caddy reload` and
+- Lifecycle: `startLocked` generates the Caddyfile in memory first (credential
+  errors come before any build or pull), then runs `ensureImage`, and only
+  after that writes the Caddyfile and removes the old container. A failed
+  build or pull therefore leaves the running container and the Caddyfile it
+  loads untouched; Reload's recreate path goes through `startLocked` and
+  inherits this. Start reports `ErrCaddyExited` when Caddy stops within the
+  settle time. Reload runs an attached `caddy reload` and
   checks its exit code; a rejected config restores the previous Caddyfile
   (`ErrConfigRejected`). An image that no longer fits the config makes Reload
   recreate the container through `startLocked`. Ports, binds/mounts, network
   and `docker_host` change only through Start, which removes and recreates
   the container.
+- Lifecycle lock: Start, Reload, Stop and Destroy share `Manager.lifecycle`.
+  A first rate-limit build holds it for up to 30 minutes
+  (`rateLimitBuildTimeout`), a first `caddy:latest` pull for up to 15
+  minutes (the `tools.PullImageForce` fallback). Stop, Destroy, Reload,
+  another Start and the auto-start or auto-stop after a config save wait
+  until it ends; their API requests stay open meanwhile. Status and Logs do
+  not take the lock. This is accepted behaviour: do not release the lock
+  around the build without a design for a Destroy or Start that runs during
+  it.
 - Errors: the exported sentinel errors map to `backend.proxy_*` messages
-  through `proxyErrorKey`; keep all 16 backend locales in step.
+  through `proxyErrorKey`, first match wins: keep `ErrRateLimitImageReadOnly`
+  before `ErrRateLimitImageUnavailable`. Keep all 16 backend locales in step.
 
 ## Verification
 

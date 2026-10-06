@@ -97,5 +97,5 @@
   "config.web_scraper.summary_mode": "सारांश मोड",
   "config.webdav.secret_empty": "मान खाली है",
   "config.security_proxy.action_pending": "प्रक्रिया जारी है… दर सीमित करने के साथ पहली शुरुआत में Caddy इमेज बनती है और इसमें कुछ मिनट लग सकते हैं।",
-  "config.security_proxy.rate_limit_build_hint": "आधिकारिक Caddy इमेज में दर सीमित करने की सुविधा नहीं है। अगली बार शुरू करने पर AuraGo एक बार caddy-ratelimit मॉड्यूल के साथ अपनी Caddy इमेज बनाता है। इसके लिए Docker में इमेज बिल्ड की अनुमति और इंटरनेट पहुँच चाहिए, और इसमें कुछ मिनट लगते हैं।"
+  "config.security_proxy.rate_limit_build_hint": "आधिकारिक Caddy इमेज में दर सीमित करने की सुविधा नहीं है। अगली बार शुरू करने पर AuraGo एक बार caddy-ratelimit मॉड्यूल के साथ अपनी Caddy इमेज बनाता है। इसके लिए Docker में इमेज बिल्ड की अनुमति और इंटरनेट पहुँच चाहिए, और इसमें कुछ मिनट लगते हैं। वैकल्पिक रूप से, इमेज को Docker होस्ट पर भी बनाया जा सकता है (मैनुअल देखें)।"
 }

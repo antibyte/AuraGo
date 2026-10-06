@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -94,6 +95,31 @@ func TestPullImageWaitAllowsLocalImageButRejectsReadOnlyPull(t *testing.T) {
 			t.Fatal("read-only pull should be denied before POST /images/create")
 		}
 	})
+}
+
+func TestDockerSecurityReadOnlyRefusalIsErrDockerReadOnly(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, true)
+	var called bool
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	buildErr := BuildImageWait(context.Background(), DockerConfig{Host: host}, "aurago/read-only:test", "Dockerfile", []byte("FROM scratch\n"), nil, nil)
+	_, _, requestErr := DockerRequest(DockerConfig{Host: host}, http.MethodPost, "/containers/demo/start", "")
+	for name, err := range map[string]error{"BuildImageWait": buildErr, "DockerRequest": requestErr} {
+		if !errors.Is(err, ErrDockerReadOnly) {
+			t.Errorf("%s error = %v, want ErrDockerReadOnly", name, err)
+			continue
+		}
+		// Callers and tests match the text, so it must stay the same.
+		if err.Error() != "docker mutation is disabled by runtime permissions" {
+			t.Errorf("%s error text = %q, want the unchanged read-only denial", name, err.Error())
+		}
+	}
+	if called {
+		t.Fatal("read-only refusals must not reach the Docker API")
+	}
 }
 
 func TestVideoDownloadDockerRequestContextRejectsMutationWhenReadOnly(t *testing.T) {

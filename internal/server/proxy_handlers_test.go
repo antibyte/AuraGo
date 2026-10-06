@@ -27,3 +27,17 @@ func TestProxyErrorKeyExplainsActionableFailures(t *testing.T) {
 		}
 	}
 }
+
+func TestProxyErrorKeyExplainsRateLimitBuildRefusedByReadOnly(t *testing.T) {
+	// A read-only refusal is still an unavailable rate-limit image; its own
+	// key must win so the user is not told to allow image builds.
+	readOnly := fmt.Errorf("ensure proxy image: %w", fmt.Errorf("%w: %w: docker mutation is disabled by runtime permissions",
+		proxy.ErrRateLimitImageUnavailable, proxy.ErrRateLimitImageReadOnly))
+	if got, want := proxyErrorKey(readOnly), "backend.proxy_rate_limit_image_read_only"; got != want {
+		t.Errorf("proxyErrorKey(%v) = %q, want %q", readOnly, got, want)
+	}
+	other := fmt.Errorf("ensure proxy image: %w", fmt.Errorf("%w: HTTP 403", proxy.ErrRateLimitImageUnavailable))
+	if got, want := proxyErrorKey(other), "backend.proxy_rate_limit_image_unavailable"; got != want {
+		t.Errorf("proxyErrorKey(%v) = %q, want %q", other, got, want)
+	}
+}

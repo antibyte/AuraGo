@@ -1,11 +1,13 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -25,8 +27,10 @@ type fakeEngine struct {
 	calls  []string
 	bodies map[string]string
 	builds []string
+	pulls  []string
 	handle func(method, endpoint, body string) ([]byte, int, error)
 	build  func(image string, dockerfile []byte) error
+	pull   func(image string) error
 }
 
 func (f *fakeEngine) record(method, endpoint, body string) ([]byte, int, error) {
@@ -60,6 +64,18 @@ func (f *fakeEngine) engine() engine {
 			f.mu.Unlock()
 			if build != nil {
 				return build(image, dockerfile)
+			}
+			return nil
+		},
+		pull: func(_ context.Context, _ tools.DockerConfig, image string, _ *slog.Logger) error {
+			f.mu.Lock()
+			// Recorded like the Engine request it stands for.
+			f.calls = append(f.calls, "POST /images/create?fromImage="+url.QueryEscape(image))
+			f.pulls = append(f.pulls, image)
+			pull := f.pull
+			f.mu.Unlock()
+			if pull != nil {
+				return pull(image)
 			}
 			return nil
 		},
@@ -643,5 +659,135 @@ func TestManagerStartInComposeSharesVolumeAndNetwork(t *testing.T) {
 	}
 	if !strings.Contains(string(caddyfile), "reverse_proxy aurago:8088 {") {
 		t.Fatalf("Caddyfile upstream is not the AuraGo container:\n%s", caddyfile)
+	}
+}
+
+// writeRunningCaddyfile stands in for the Caddyfile the running proxy loaded.
+func writeRunningCaddyfile(t *testing.T, cfg *config.Config) (string, []byte) {
+	t.Helper()
+	path := filepath.Join(cfg.Directories.DataDir, "proxy", "Caddyfile")
+	previous := []byte("previous working config\n")
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, previous, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path, previous
+}
+
+// assertRunningProxyUntouched fails when the Caddyfile on disk changed or a
+// request stopped, removed, replaced or reloaded the running container.
+func assertRunningProxyUntouched(t *testing.T, fake *fakeEngine, path string, previous []byte) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read Caddyfile: %v", err)
+	}
+	if !bytes.Equal(data, previous) {
+		t.Fatalf("Caddyfile = %q, want the unchanged %q the running proxy loaded", data, previous)
+	}
+	for _, call := range []string{
+		"POST /containers/" + containerName + "/stop",
+		"DELETE /containers/" + containerName,
+		"POST /containers/create",
+		"POST /containers/" + containerName + "/start",
+		"POST /containers/" + containerName + "/exec",
+	} {
+		if fake.called(call) {
+			t.Fatalf("%s reached the engine although the image is unavailable", call)
+		}
+	}
+}
+
+// imageFailureCases make ensureImage fail: the rate-limit build, or the pull
+// of the official image.
+var imageFailureCases = []struct {
+	name      string
+	rateLimit bool
+	build     func(string, []byte) error
+	pull      func(string) error
+	want      error
+	reason    string
+}{
+	{
+		name:      "rate-limit build fails",
+		rateLimit: true,
+		build:     func(string, []byte) error { return errors.New("HTTP 403: build is disabled") },
+		want:      ErrRateLimitImageUnavailable,
+		reason:    "build is disabled",
+	},
+	{
+		name:   "official image pull fails",
+		pull:   func(string) error { return errors.New("failed to register layer: no space left on device") },
+		reason: "no space left on device",
+	},
+}
+
+func TestManagerStartKeepsRunningProxyWhenImageUnavailable(t *testing.T) {
+	for _, tc := range imageFailureCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := proxyConfig()
+			cfg.SecurityProxy.RateLimiting.Enabled = tc.rateLimit
+			// The running container uses the other image, so Start must make
+			// the new one available first.
+			runningImage := rateLimitImageName
+			if tc.rateLimit {
+				runningImage = imageName
+			}
+			running := runningEngine(runningImage)
+			fake := &fakeEngine{build: tc.build, pull: tc.pull}
+			fake.handle = func(method, endpoint, body string) ([]byte, int, error) {
+				if method == "GET" && strings.HasPrefix(endpoint, "/images/") {
+					return nil, 404, nil
+				}
+				return running(method, endpoint, body)
+			}
+			m := testManager(t, cfg, fake)
+			path, previous := writeRunningCaddyfile(t, cfg)
+
+			err := m.Start()
+			if err == nil || !strings.Contains(err.Error(), tc.reason) {
+				t.Fatalf("Start() error = %v, want the image failure %q", err, tc.reason)
+			}
+			if tc.want != nil && !errors.Is(err, tc.want) {
+				t.Fatalf("Start() error = %v, want %v", err, tc.want)
+			}
+			assertRunningProxyUntouched(t, fake, path, previous)
+		})
+	}
+}
+
+func TestManagerReloadKeepsRunningProxyWhenNewImageUnavailable(t *testing.T) {
+	for _, tc := range imageFailureCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := proxyConfig()
+			cfg.SecurityProxy.RateLimiting.Enabled = tc.rateLimit
+			// Toggling rate limiting changes the image, so Reload takes the
+			// recreate path through startLocked.
+			runningImage := rateLimitImageName
+			if tc.rateLimit {
+				runningImage = imageName
+			}
+			current := reloadEngine(runningImage, 0, "")
+			fake := &fakeEngine{build: tc.build, pull: tc.pull}
+			fake.handle = func(method, endpoint, body string) ([]byte, int, error) {
+				if method == "GET" && strings.HasPrefix(endpoint, "/images/") {
+					return nil, 404, nil
+				}
+				return current(method, endpoint, body)
+			}
+			m := testManager(t, cfg, fake)
+			path, previous := writeRunningCaddyfile(t, cfg)
+
+			err := m.Reload()
+			if err == nil || !strings.Contains(err.Error(), tc.reason) {
+				t.Fatalf("Reload() error = %v, want the image failure %q", err, tc.reason)
+			}
+			if tc.want != nil && !errors.Is(err, tc.want) {
+				t.Fatalf("Reload() error = %v, want %v", err, tc.want)
+			}
+			assertRunningProxyUntouched(t, fake, path, previous)
+		})
 	}
 }
