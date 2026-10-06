@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -28,10 +29,13 @@ type dockerComposePreflight struct {
 	// root is the absolute jail root the file was confined to: the agent
 	// workspace, or the process working directory when none is configured.
 	// Path checks of the host-access policy use the same root.
-	root     string
-	raw      string
-	resolved string
-	model    tools.DockerComposeModel
+	root string
+	// dockerCfg is the Docker config the file was resolved with (WorkspaceDir
+	// set to root), for the follow-up resolution of named profile services.
+	dockerCfg tools.DockerConfig
+	raw       string
+	resolved  string
+	model     tools.DockerComposeModel
 	// allProfilesModel is `--profile * config --no-env-resolution`: every
 	// service, including inactive profiles that `up <service>` activates, with
 	// env_file entries kept as paths; allProfilesRaw holds the same resolution
@@ -60,16 +64,19 @@ type dockerComposeEffectiveModel struct {
 	// `service:` build-context closure, and the top-level volumes, networks,
 	// secrets (including build secrets) and configs of those services.
 	// Definitions come from the all-profiles model when it exists (env_file
-	// kept as paths), otherwise from the default model.
+	// kept as paths), otherwise from the default model and, after
+	// resolveNamedProfileServices, from Compose's resolution of the named
+	// services.
 	model tools.DockerComposeModel
 	// profileServices lists the services added from inactive profiles, sorted.
 	profileServices []string
-	// unverified lists named services outside the default model that could not
-	// be checked because this Compose cannot produce the all-profiles model
-	// (never for config/convert, which create nothing).
+	// unverified lists named services outside the default model that are not
+	// resolved yet because this Compose cannot produce the all-profiles model;
+	// resolveNamedProfileServices resolves them.
 	unverified []string
 	// profileText is the lower-cased raw JSON of the added services and the
-	// resources they add, for the text token checks.
+	// resources they add, for the text token checks; after
+	// resolveNamedProfileServices it also holds their env-resolved JSON.
 	profileText string
 	// fromAllProfiles reports that the service definitions come from the
 	// all-profiles model, so their env_file entries are the real paths. In the
@@ -115,11 +122,12 @@ func loadDockerComposePreflight(ctx context.Context, cfg tools.DockerConfig, fil
 		return nil, err
 	}
 	preflight := &dockerComposePreflight{
-		file:     composeFile,
-		root:     filepath.Clean(root),
-		raw:      strings.ToLower(string(raw)),
-		resolved: strings.ToLower(resolved),
-		model:    model,
+		file:      composeFile,
+		root:      filepath.Clean(root),
+		dockerCfg: cfg,
+		raw:       strings.ToLower(string(raw)),
+		resolved:  strings.ToLower(resolved),
+		model:     model,
 	}
 	allResolved, err := resolveDockerComposeConfig(ctx, cfg, composeFile, tools.DockerComposeConfigOptions{AllProfiles: true})
 	if err == nil {
@@ -224,11 +232,7 @@ func (p *dockerComposePreflight) effectiveModel(command string) dockerComposeEff
 		}
 	}
 	if p.allProfilesModel == nil {
-		// config/convert only print the model and create nothing; without the
-		// all-profiles model they keep running as before, unchecked.
-		if !dockerComposeRendersModel(command) {
-			effective.unverified = missing
-		}
+		effective.unverified = missing
 		return effective
 	}
 	all, raw := p.allProfilesModel, p.allProfilesRaw
@@ -255,7 +259,7 @@ func (p *dockerComposePreflight) effectiveModel(command string) dockerComposeEff
 		_ = json.Unmarshal(raw.Services[name], &refs)
 		queue = append(queue, dockerComposeRefNames(refs.DependsOn)...)
 		if build := service.Build; build != nil {
-			for _, key := range sortedDockerComposeContextKeys(build.AdditionalContexts) {
+			for _, key := range sortedDockerComposeMapKeys(build.AdditionalContexts) {
 				if target, ok := strings.CutPrefix(strings.TrimSpace(build.AdditionalContexts[key]), "service:"); ok {
 					queue = append(queue, strings.TrimSpace(target))
 				}
@@ -313,6 +317,134 @@ func addDockerComposeResource[V any](target, source map[string]V, raw map[string
 	text.WriteByte('\n')
 }
 
+// dockerComposeNamedResolutionRounds bounds the repeated named resolution that
+// closes over `service:` build contexts.
+const dockerComposeNamedResolutionRounds = 8
+
+// resolveNamedProfileServices resolves the inactive-profile services the
+// command runs with `config --format json -- <names>` (Compose v2.0+), which
+// activates their profiles and returns them with their depends_on closure and
+// env files inlined; the call is repeated to close over `service:` build
+// contexts. Without the all-profiles model (Compose < v2.35) the result adds
+// the unverified services' definitions (env file paths stay unknown) and
+// clears unverified; with it, the result only adds the env-resolved text of
+// effective.profileServices for the text checks. It returns false when the
+// call fails, or, without the all-profiles model, when it does not return a
+// named service.
+func (p *dockerComposePreflight) resolveNamedProfileServices(ctx context.Context, effective *dockerComposeEffectiveModel) bool {
+	names := effective.profileServices
+	if p.allProfilesModel == nil {
+		names = effective.unverified
+	}
+	if len(names) == 0 {
+		return true
+	}
+	names = append([]string(nil), names...)
+	var model tools.DockerComposeModel
+	var raw dockerComposeRawModel
+	for round := 1; ; round++ {
+		resolved, err := resolveDockerComposeConfig(ctx, p.dockerCfg, p.file, tools.DockerComposeConfigOptions{Services: names})
+		if err == nil {
+			if model, err = tools.ParseDockerComposeModel(resolved); err == nil {
+				raw = dockerComposeRawModel{}
+				err = json.Unmarshal([]byte(resolved), &raw)
+			}
+		}
+		if err != nil {
+			slog.Default().Warn("Docker Compose could not resolve the named profile services", "file", p.file,
+				"services", strings.Join(names, ","), "error", dockerComposeErrorTail(err.Error(), 600))
+			return false
+		}
+		if p.allProfilesModel != nil {
+			break // the all-profiles closure already named every service
+		}
+		var more []string
+		for _, name := range names {
+			if _, ok := model.Services[name]; !ok {
+				return false
+			}
+		}
+		for _, name := range sortedDockerComposeMapKeys(model.Services) {
+			build := model.Services[name].Build
+			if build == nil {
+				continue
+			}
+			for _, key := range sortedDockerComposeMapKeys(build.AdditionalContexts) {
+				target, ok := strings.CutPrefix(strings.TrimSpace(build.AdditionalContexts[key]), "service:")
+				target = strings.TrimSpace(target)
+				if !ok || target == "" || slices.Contains(names, target) || slices.Contains(more, target) {
+					continue
+				}
+				if _, returned := model.Services[target]; returned {
+					continue
+				}
+				if _, isDefault := p.model.Services[target]; isDefault {
+					continue
+				}
+				more = append(more, target)
+			}
+		}
+		if len(more) == 0 {
+			break
+		}
+		if round >= dockerComposeNamedResolutionRounds {
+			return false
+		}
+		names = append(names, more...)
+	}
+
+	var text strings.Builder
+	if p.allProfilesModel != nil {
+		for _, name := range effective.profileServices {
+			text.Write(raw.Services[name])
+			text.WriteByte('\n')
+		}
+	} else {
+		for _, name := range sortedDockerComposeMapKeys(model.Services) {
+			if _, present := effective.model.Services[name]; present {
+				continue
+			}
+			effective.model.Services[name] = model.Services[name]
+			effective.profileServices = append(effective.profileServices, name)
+			text.Write(raw.Services[name])
+			text.WriteByte('\n')
+		}
+		sort.Strings(effective.profileServices)
+		effective.unverified = nil
+	}
+	addDockerComposeResources(effective.model.Volumes, model.Volumes, raw.Volumes, &text)
+	addDockerComposeResources(effective.model.Networks, model.Networks, raw.Networks, &text)
+	addDockerComposeResources(effective.model.Secrets, model.Secrets, raw.Secrets, &text)
+	addDockerComposeResources(effective.model.Configs, model.Configs, raw.Configs, &text)
+	if text.Len() > 0 {
+		effective.profileText += "\n" + strings.ToLower(text.String())
+	}
+	return true
+}
+
+// addDockerComposeResources adds the top-level resources of a named
+// resolution that the effective model lacks, and the raw JSON of every
+// resource to the token text (env-resolved values matter to the text checks).
+func addDockerComposeResources[V any](target, source map[string]V, raw map[string]json.RawMessage, text *strings.Builder) {
+	for _, key := range sortedDockerComposeMapKeys(source) {
+		if _, ok := target[key]; !ok {
+			target[key] = source[key]
+		}
+		text.Write(raw[key])
+		text.WriteByte('\n')
+	}
+}
+
+// sortedDockerComposeMapKeys returns the keys of a model map, sorted.
+func sortedDockerComposeMapKeys[V any](values map[string]V) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // dockerComposeRefNames reads the names a service reference lists: the keys of
 // a map, or the entries of a list of strings or of {"source": …} objects.
 func dockerComposeRefNames(raw json.RawMessage) []string {
@@ -353,17 +485,6 @@ func dockerComposeRefNames(raw json.RawMessage) []string {
 func dockerComposeRendersModel(command string) bool {
 	parts := strings.Fields(command)
 	return len(parts) > 0 && (parts[0] == "config" || parts[0] == "convert")
-}
-
-// sortedDockerComposeContextKeys returns the keys of a build's
-// additional_contexts in a stable order.
-func sortedDockerComposeContextKeys(contexts map[string]string) []string {
-	keys := make([]string, 0, len(contexts))
-	for key := range contexts {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
 }
 
 // dockerComposeStartedServiceNames returns the services command names as
@@ -523,18 +644,44 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 				". Fix the Compose file (for example a missing env_file or invalid YAML) or install the Docker Compose plugin.")
 	}
 	if preflight.allProfilesErr != nil {
-		slog.Default().Warn("Docker Compose could not resolve all profiles; commands naming a service of an inactive profile are denied and env_file paths are unknown",
+		slog.Default().Warn("Docker Compose could not resolve all profiles; named profile services are resolved by name and env_file paths are unknown",
 			"file", preflight.file, "error", dockerComposeErrorTail(preflight.allProfilesErr.Error(), 600))
 	}
 	effective := preflight.effectiveModel(req.Command)
+	if preflight.allProfilesModel == nil && len(effective.unverified) > 0 {
+		// Compose < v2.35 resolves the named profile services by name instead.
+		// config/convert create nothing and Compose reports the same failure
+		// itself, so they keep running unchecked when that fails.
+		if !preflight.resolveNamedProfileServices(ctx, &effective) && dockerComposeRendersModel(req.Command) {
+			effective.unverified = nil
+		}
+	}
 	if denied := dockerComposeOwnerDenial(preflight.protectedOwner(effective)); denied != "" {
 		return denied
 	}
 	if len(effective.unverified) > 0 {
-		return dockerAgentError("docker_compose_profile_service_unverified", fmt.Sprintf(
-			"Service %q is not part of the default Compose profiles, and this Docker Compose version cannot resolve services of inactive profiles for AuraGo's ownership check, so nothing was run. Profile checks need Docker Compose v2.35 or newer: update the Compose plugin, or start only services without a profile.", effective.unverified[0]))
+		return dockerComposeProfileServiceUnverified(effective.unverified[0])
+	}
+	if preflight.allProfilesModel != nil && len(effective.profileServices) > 0 {
+		// The all-profiles model keeps env files as paths; the named
+		// resolution adds the env-resolved text of the profile services.
+		resolvedFrom := len(effective.profileText)
+		if !preflight.resolveNamedProfileServices(ctx, &effective) {
+			if !dockerComposeRendersModel(req.Command) {
+				return dockerComposeProfileServiceUnverified(effective.profileServices[0])
+			}
+		} else if dockerComposePayloadReferencesProtectedLocalLLM(effective.profileText[resolvedFrom:]) {
+			return dockerComposeOwnerDenial(dockerutil.LocalLLMOwner)
+		}
 	}
 	return dockerComposeHostAccessPolicy(ctx, cfg, req, preflight, effective)
+}
+
+// dockerComposeProfileServiceUnverified denies a command naming a profile
+// service that Compose could not resolve for the policy checks.
+func dockerComposeProfileServiceUnverified(service string) string {
+	return dockerAgentError("docker_compose_profile_service_unverified", fmt.Sprintf(
+		"Service %q is not part of the default Compose profiles, and Docker Compose could not resolve it for AuraGo's ownership and host-access checks, so nothing was run. Check that the service exists and its env files are present; Docker Compose v2.35 or newer resolves profile services most reliably: update the Compose plugin, or start only services without a profile.", service))
 }
 
 // dockerComposeErrorTail bounds a preflight error and keeps its end: Compose
