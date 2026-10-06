@@ -7,8 +7,8 @@ OpenPets-compatible sprite artwork shipped in AuraGo's external resource set.
 ## Ownership
 
 - `service_pets.go:bundledDefaultPets` owns the selectable catalog.
-- Six original OpenPets sheets and fifteen `aurago-*` sheets (twelve personas
-  and three creature mascots) live here.
+- Six original OpenPets sheets and eighteen `aurago-*` sheets (twelve personas
+  and six mascots) live here.
 - Pet generation sources, prompts, export script and importable packages
   live in the sibling `personas/openpets/` project, outside runtime resources.
 
@@ -29,7 +29,9 @@ OpenPets-compatible sprite artwork shipped in AuraGo's external resource set.
 ## Work Guidance
 
 Re-export reviewed art with the sibling project's `pack-sprites.cjs`, then copy
-only final sheets here. Check transparent borders, full-body alignment and real
+only final sheets here. Native-alpha sources must contain 72 separate complete
+characters; the exporter locates their full silhouettes before grid packing.
+Check transparent borders, full-body alignment and real
 frame changes on both light and dark backgrounds before updating assets.
 
 ## Verification

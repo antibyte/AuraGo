@@ -10,6 +10,7 @@ use ratatui::{
 };
 
 use crate::app::{AppState, ConfirmAction};
+use crate::ui::containers::protection_reason_text;
 use crate::i18n;
 use crate::ui::theme::Theme;
 use crate::ui::utils::{self, truncate_str};
@@ -230,19 +231,37 @@ pub fn draw_toast_simple(f: &mut Frame, toast: &str, theme: &Theme) {
 }
 
 pub fn draw_confirm_dialog(f: &mut Frame, app: &AppState, theme: &Theme) {
-    let area = utils::centered_rect(50, 20, f.area());
+    let strings = i18n::current();
+    // Protected containers name their reason; every other dialog is unchanged.
+    let (action_text, detail): (&str, Option<String>) = match &app.confirm_action {
+        Some(ConfirmAction::DeleteMission { .. }) => (strings.confirm_delete_mission, None),
+        Some(ConfirmAction::DeleteContainer { id }) => {
+            match app.containers.iter().find(|c| &c.id == id).map(|c| c.protection()) {
+                Some(reason) if !reason.is_empty() => {
+                    (strings.confirm_remove_protected_container, Some(protection_reason_text(reason)))
+                }
+                _ => (strings.confirm_remove_container, None),
+            }
+        }
+        Some(ConfirmAction::RemoveProtectedContainer { owner, .. }) => {
+            (strings.confirm_remove_protected_container, Some(protection_reason_text(owner)))
+        }
+        Some(ConfirmAction::StopProtectedContainer { owner, .. }) => {
+            (strings.confirm_stop_protected_container, Some(protection_reason_text(owner)))
+        }
+        Some(ConfirmAction::DeleteKnowledge { .. }) => (strings.confirm_delete_knowledge, None),
+        Some(ConfirmAction::DeleteMedia { .. }) => (strings.confirm_delete_media, None),
+        Some(ConfirmAction::ClearChat) => (strings.confirm_clear_chat, None),
+        None => ("", None),
+    };
+    let area = if detail.is_some() {
+        utils::centered_rect(60, 30, f.area())
+    } else {
+        utils::centered_rect(50, 20, f.area())
+    };
     f.render_widget(Clear, area);
 
-    let action_text = match app.confirm_action {
-        Some(ConfirmAction::DeleteMission { .. }) => i18n::current().confirm_delete_mission,
-        Some(ConfirmAction::DeleteContainer { .. }) => i18n::current().confirm_remove_container,
-        Some(ConfirmAction::DeleteKnowledge { .. }) => i18n::current().confirm_delete_knowledge,
-        Some(ConfirmAction::DeleteMedia { .. }) => i18n::current().confirm_delete_media,
-        Some(ConfirmAction::ClearChat) => i18n::current().confirm_clear_chat,
-        None => "",
-    };
-
-    let text = vec![
+    let mut text = vec![
         Line::from(""),
         Line::from(Span::styled(
             format!(" ⚠️  Confirm: {}? ", action_text),
@@ -269,9 +288,17 @@ pub fn draw_confirm_dialog(f: &mut Frame, app: &AppState, theme: &Theme) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.warning))
         .style(Style::default().bg(theme.bg));
-    let para = Paragraph::new(text)
+    let has_detail = detail.is_some();
+    if let Some(detail) = detail {
+        text.insert(3, Line::from(Span::styled(detail, Style::default().fg(theme.fg))));
+        text.insert(4, Line::from(""));
+    }
+    let mut para = Paragraph::new(text)
         .block(block)
         .alignment(Alignment::Center);
+    if has_detail {
+        para = para.wrap(Wrap { trim: true });
+    }
     f.render_widget(para, area);
 }
 

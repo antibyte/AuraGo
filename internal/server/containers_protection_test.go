@@ -63,18 +63,20 @@ const selfMountinfoFixture = `1520 1351 0:132 / / rw,relatime master:612 - overl
 `
 
 func replaceContainerEndpointAddresses(addrs ...string) func() {
+	listEndpointLookup.reset()
 	old := containerDockerEndpointAddresses
 	containerDockerEndpointAddresses = func(context.Context, string) ([]string, error) { return addrs, nil }
-	return func() { containerDockerEndpointAddresses = old }
+	return func() { containerDockerEndpointAddresses = old; listEndpointLookup.reset() }
 }
 
 // replaceContainerEndpointFailure makes the Docker endpoint lookup fail.
 func replaceContainerEndpointFailure() func() {
+	listEndpointLookup.reset()
 	old := containerDockerEndpointAddresses
 	containerDockerEndpointAddresses = func(context.Context, string) ([]string, error) {
 		return nil, fmt.Errorf("lookup docker-proxy: server misbehaving")
 	}
-	return func() { containerDockerEndpointAddresses = old }
+	return func() { containerDockerEndpointAddresses = old; listEndpointLookup.reset() }
 }
 
 // newContainerDockerAPI serves a fake Docker Engine API and enables the Docker
@@ -412,6 +414,8 @@ func TestContainerEndpointLookupFailureNeedsConfirmation(t *testing.T) {
 	defer replaceContainerSelfHostname("aurago-host")()
 	defer replaceContainerSelfProcFiles(nil)()
 	defer replaceContainerEndpointFailure()()
+	// No TCP connection observed: the endpoint cannot be identified at all.
+	t.Cleanup(replaceContainerConnIP(""))
 	s := testContainerServer(true, false)
 	s.Cfg.Runtime.IsDocker = true
 	s.Cfg.Docker.Host = host
@@ -720,5 +724,50 @@ func TestContainerSelfNeedsTheListToRuleOutASharedNamespace(t *testing.T) {
 
 	if got, want := classifyContainerForAction(context.Background(), s, tools.DockerConfig{Host: host}, "aurago"), (containerProtection{Owner: dockerutil.AppOwner, Unverified: true}); got != want {
 		t.Fatalf("self without a list answer = %+v, want %+v", got, want)
+	}
+}
+
+// The security proxy is a protected AuraGo-managed container: terminal, update
+// and remove ask for a confirmation, also for an unlabeled container that an
+// older AuraGo created.
+func TestContainerProtectionCoversTheSecurityProxy(t *testing.T) {
+	labels := `{"aurago.managed":"security-proxy","aurago.component":"caddy","aurago.role":"proxy"}`
+	host := newContainerDockerAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/containers/aurago-security-proxy/json"):
+			_, _ = w.Write([]byte(`{"Id":"dddddddddddd4444","Name":"/aurago-security-proxy","Config":{"Labels":{}}}`))
+		case strings.HasSuffix(r.URL.Path, "/containers/renamed/json"):
+			_, _ = w.Write([]byte(`{"Id":"eeeeeeeeeeee5555","Name":"/renamed","Config":{"Labels":` + labels + `}}`))
+		case strings.HasSuffix(r.URL.Path, "/containers/json"):
+			_, _ = w.Write([]byte(`[
+				{"Id":"dddddddddddd4444","Names":["/aurago-security-proxy"],"Image":"aurago-proxy:latest","State":"running","Status":"Up","Labels":{}},
+				{"Id":"eeeeeeeeeeee5555","Names":["/renamed"],"Image":"aurago-proxy:latest","State":"running","Status":"Up","Labels":` + labels + `}
+			]`))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	defer replaceContainerSelfHostname("aurago-host")()
+	defer replaceContainerSelfProcFiles(nil)()
+	defer replaceContainerEndpointAddresses()()
+	s := testContainerServer(true, false)
+	s.Cfg.Docker.Host = host
+	cfg := tools.DockerConfig{Host: host}
+
+	for id, want := range map[string]containerProtection{
+		"aurago-security-proxy": {Owner: dockerutil.SecurityProxyOwner},
+		"renamed":               {Owner: dockerutil.SecurityProxyOwner},
+	} {
+		got := classifyContainerForAction(context.Background(), s, cfg, id)
+		if got != want {
+			t.Fatalf("classify %q = %+v, want %+v", id, got, want)
+		}
+		if !got.protected() || !strings.Contains(got.confirmationMessage(), "(security-proxy)") {
+			t.Fatalf("classify %q: protected = %v, message = %q", id, got.protected(), got.confirmationMessage())
+		}
+	}
+	list := adminContainerListJSON(context.Background(), s, cfg)
+	if strings.Count(list, `"protected_owner":"security-proxy"`) != 2 {
+		t.Fatalf("admin list = %s, want both proxy containers protected", list)
 	}
 }

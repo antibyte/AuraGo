@@ -99,6 +99,21 @@ func TestDispatchDockerCreateRunHardeningBlocksBeforeDocker(t *testing.T) {
 			code: "docker_managed_garage_resource",
 		},
 		{
+			name: "reserved security proxy create name",
+			call: ToolCall{Action: "docker", Operation: "create", Name: "aurago-security-proxy", Image: "caddy:latest"},
+			code: "docker_managed_security_proxy_resource",
+		},
+		{
+			name: "reserved security proxy run name behind decoy container_id",
+			call: ToolCall{Action: "docker", Operation: "run", ContainerID: "decoy", Name: "aurago-security-proxy", Image: "caddy:latest"},
+			code: "docker_managed_security_proxy_resource",
+		},
+		{
+			name: "reserved security proxy name with case and spaces",
+			call: ToolCall{Action: "docker", Operation: "create", Name: " AURAGO-SECURITY-PROXY ", Image: "caddy:latest"},
+			code: "docker_managed_security_proxy_resource",
+		},
+		{
 			name: "reserved homepage image",
 			call: ToolCall{Action: "docker", Operation: "run", Name: "test-homepage", Image: "registry.test/team/aurago-homepage:v1"},
 			code: "docker_managed_homepage_resource",
@@ -290,5 +305,46 @@ func TestValidateAgentDockerCreateRunAllowsNamedGenericContainers(t *testing.T) 
 				t.Fatalf("AutoRemove = %v, want %v", options.AutoRemove, tt.req.AutoRemove)
 			}
 		})
+	}
+}
+
+// Protecting the security proxy only reserves its name for create and run:
+// the agent keeps its access to the existing proxy container.
+func TestDispatchDockerKeepsSecurityProxyContainerAccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/version":
+			_, _ = w.Write([]byte(`{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`))
+		case strings.HasSuffix(r.URL.Path, "/containers/aurago-security-proxy/json"):
+			_, _ = w.Write([]byte(`{"Id":"dddddddddddd4444","Name":"/aurago-security-proxy","Config":{"Labels":{"aurago.managed":"security-proxy","aurago.component":"caddy","aurago.role":"proxy"}},"State":{"Status":"running","Running":true}}`))
+		case strings.HasSuffix(r.URL.Path, "/containers/aurago-security-proxy/logs"):
+			_, _ = w.Write([]byte("caddy serving localhost\n"))
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/containers/aurago-security-proxy/stop"):
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://" + strings.TrimPrefix(server.URL, "http://")
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	useRuntimePermissionsForTest(t, cfg)
+
+	for _, operation := range []string{"logs", "stop"} {
+		call := ToolCall{Action: "docker", Operation: operation, ContainerID: "aurago-security-proxy"}
+		output, ok := dispatchServices(context.Background(), call, &DispatchContext{Cfg: cfg, Logger: testLogger})
+		if !ok {
+			t.Fatal("expected docker operation to be handled")
+		}
+		if strings.Contains(output, `"status":"error"`) || strings.Contains(output, "docker_managed") {
+			t.Fatalf("%s on the security proxy = %s, want the existing access", operation, output)
+		}
+	}
+	for _, name := range []string{"caddy", "security-proxy", "aurago-security-proxy-test"} {
+		if dockerRequestCreatesReservedSecurityProxyName(decodeDockerArgs(ToolCall{Action: "docker", Operation: "run", Name: name, Image: "caddy:latest"})) {
+			t.Fatalf("generic name %q was treated as the reserved security proxy name", name)
+		}
 	}
 }

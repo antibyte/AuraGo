@@ -2446,6 +2446,7 @@ async function testContainersListFailureStateSurvivesFiltersUntilTheListLoads() 
     },
     t: key => key,
     esc: value => String(value ?? ''),
+    escAttr: value => String(value ?? '').replace(/'/g, '&#39;').replace(/"/g, '&quot;'),
     applyI18n() {},
     showToast() {},
     setInterval,
@@ -2575,6 +2576,455 @@ async function testContainersListFailureStateSurvivesFiltersUntilTheListLoads() 
   assert.equal(view().statusBar, '');
   assert.equal(view().cards, 0);
   assert.equal(timers.size, 0);
+}
+
+// containersPage loads ui/js/containers/main.js into a fake DOM with fake
+// fetch, WebSocket, xterm, timers and showModal. route({url, method}) answers
+// every fetch with {status, body}.
+function containersPage(route) {
+  const source = read('ui/js/containers/main.js');
+  const hiddenAtStart = new Set(['ct-empty', 'ct-disabled', 'ct-list-error', 'update-protected-warning', 'delete-protected-warning']);
+  const nodes = {};
+  function makeNode(id) {
+    const classes = new Set(hiddenAtStart.has(id) ? ['is-hidden'] : []);
+    return {
+      id, style: {}, value: '', checked: false, disabled: false, parentNode: null, children: [], cardHTML: '', _text: '', _html: '',
+      classList: {
+        add: name => classes.add(name),
+        remove: name => classes.delete(name),
+        contains: name => classes.has(name),
+        toggle(name, force) { if (force === undefined ? !classes.has(name) : force) classes.add(name); else classes.delete(name); }
+      },
+      addEventListener() {},
+      setAttribute() {},
+      get firstChild() { return this.children[0] || null; },
+      get textContent() { return this._text; },
+      set textContent(value) { this._text = String(value); },
+      get innerHTML() { return this._html; },
+      set innerHTML(value) { this._html = String(value); },
+      replaceChildren() { for (const child of this.children) child.parentNode = null; this.children = []; },
+      appendChild(child) { child.parentNode = this; this.children.push(child); },
+      insertBefore(child, ref) { child.parentNode = this; this.children.splice(ref ? this.children.indexOf(ref) : this.children.length, 0, child); },
+      remove() { const parent = this.parentNode; if (parent) parent.children.splice(parent.children.indexOf(this), 1); this.parentNode = null; },
+      after(child) { const parent = this.parentNode; child.parentNode = parent; parent.children.splice(parent.children.indexOf(this) + 1, 0, child); },
+      replaceWith(child) { const parent = this.parentNode; child.parentNode = parent; parent.children.splice(parent.children.indexOf(this), 1, child); this.parentNode = null; }
+    };
+  }
+  const node = id => nodes[id] || (nodes[id] = makeNode(id));
+  const requests = [];
+  const sockets = [];
+  const sse = {};
+  const timers = [];
+  const modals = [];
+  let modalAnswer = false;
+  let domReady = null;
+  class FakeWebSocket {
+    constructor(url) { this.url = String(url); this.readyState = FakeWebSocket.CONNECTING; this.sent = []; sockets.push(this); }
+    send(data) { this.sent.push(data); }
+    close() { this.readyState = FakeWebSocket.CLOSED; }
+    open() { this.readyState = FakeWebSocket.OPEN; if (this.onopen) this.onopen(); }
+    // A refused handshake (HTTP 409 etc.): browsers fire error and close, never open.
+    failHandshake() { this.readyState = FakeWebSocket.CLOSED; if (this.onerror) this.onerror(); if (this.onclose) this.onclose({ code: 1006 }); }
+    closeFromServer() { this.readyState = FakeWebSocket.CLOSED; if (this.onclose) this.onclose({ code: 1000 }); }
+  }
+  FakeWebSocket.CONNECTING = 0;
+  FakeWebSocket.OPEN = 1;
+  FakeWebSocket.CLOSING = 2;
+  FakeWebSocket.CLOSED = 3;
+  class FakeTerminal {
+    constructor() { this.lines = []; this.cols = 80; this.rows = 24; }
+    loadAddon() {}
+    open() {}
+    focus() {}
+    onData(handler) { this.dataHandler = handler; }
+    write(text) { this.lines.push(String(text)); }
+    writeln(text) { this.lines.push(String(text)); }
+    dispose() { this.disposed = true; }
+  }
+  const context = {
+    document: {
+      getElementById: node,
+      addEventListener(name, handler) { if (name === 'DOMContentLoaded') domReady = handler; },
+      querySelectorAll() { return []; },
+      createElement() {
+        return {
+          content: { firstElementChild: null },
+          set innerHTML(html) {
+            const card = makeNode('card');
+            card.cardHTML = String(html);
+            this.content = { firstElementChild: card };
+          }
+        };
+      }
+    },
+    window: {
+      AuraSSE: { on(name, handler) { sse[name] = handler; } },
+      location: { protocol: 'http:', host: 'aurago.test' },
+      Terminal: FakeTerminal,
+      addEventListener() {},
+      removeEventListener() {}
+    },
+    WebSocket: FakeWebSocket,
+    TextEncoder,
+    TextDecoder,
+    console: { error() {}, log() {} },
+    fetch: async (url, options = {}) => {
+      const request = { url: String(url), method: options.method || 'GET' };
+      requests.push(request);
+      const { status, body } = route(request);
+      return { status, ok: status >= 200 && status < 300, json: async () => body };
+    },
+    t: key => key,
+    esc: value => String(value ?? ''),
+    escAttr: value => String(value ?? '').replace(/'/g, '&#39;').replace(/"/g, '&quot;'),
+    applyI18n() {},
+    showToast() {},
+    showModal: async (title, message, isConfirm, options) => { modals.push({ title, message, isConfirm, options }); return modalAnswer; },
+    setTimeout(callback, ms) { timers.push({ callback, ms, fired: false }); return timers.length; },
+    clearTimeout(id) { if (timers[id - 1]) timers[id - 1].fired = true; },
+    setInterval,
+    clearInterval
+  };
+  vm.createContext(context);
+  vm.runInContext(source, context);
+  const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+  return {
+    node, requests, sockets, sse, modals, flush,
+    run: expression => vm.runInContext(expression, context),
+    async start() { domReady(); await flush(); },
+    active: id => node(id).classList.contains('active'),
+    setModalAnswer(answer) { modalAnswer = answer; },
+    fireTimer(ms) {
+      const timer = timers.find(entry => entry.ms === ms && !entry.fired);
+      assert.ok(timer, `no pending ${ms} ms timer`);
+      timer.fired = true;
+      timer.callback();
+    }
+  };
+}
+
+async function testContainersSSEMergeKeepsFlagsAndReloadsUnknownContainers() {
+  const listed = [
+    { id: 'cams1', names: ['/cams'], image: 'go2rtc:1', state: 'running', status: 'Up 1 minute', protected_owner: 'go2rtc' },
+    { id: 'app1', names: ['/aurago'], image: 'aurago:1', state: 'running', status: 'Up 1 minute', protected_owner: 'aurago-app', self: true }
+  ];
+  let list = listed;
+  const page = containersPage(request => request.url === '/api/containers'
+    ? { status: 200, body: { status: 'ok', containers: list } }
+    : { status: 200, body: { status: 'ok' } });
+  await page.start();
+  const listLoads = () => page.requests.filter(r => r.url === '/api/containers').length;
+  assert.equal(listLoads(), 1);
+
+  // A push of known containers carries no flags: the last list's flags stay
+  // and the changed state is shown without a reload.
+  page.sse.container_update([
+    { id: 'cams1', names: ['/cams'], image: 'go2rtc:1', state: 'exited', status: 'Exited (0)' },
+    { id: 'app1', names: ['/aurago'], image: 'aurago:1', state: 'running', status: 'Up 2 minutes' }
+  ]);
+  await page.flush();
+  assert.equal(listLoads(), 1, 'known containers merge without a reload');
+  assert.equal(page.run("findContainer('cams1').protected_owner"), 'go2rtc');
+  assert.equal(page.run("findContainer('cams1').state"), 'exited');
+  assert.equal(page.run("containerProtection(findContainer('app1'))"), 'self');
+
+  // An unknown container reloads the list, so its flags are known before any action.
+  list = [...listed, { id: 'proxy1', names: ['/docker-proxy'], image: 'proxy', state: 'running', status: 'Up', docker_endpoint: true }];
+  page.sse.container_update([
+    ...listed.map(c => ({ id: c.id, names: c.names, image: c.image, state: c.state, status: c.status })),
+    { id: 'proxy1', names: ['/docker-proxy'], image: 'proxy', state: 'running', status: 'Up' }
+  ]);
+  await page.flush();
+  assert.equal(listLoads(), 2, 'an unknown container reloads the list');
+  assert.equal(page.run("containerProtection(findContainer('proxy1'))"), 'docker-endpoint');
+
+  // The newly known protected container asks before its shell opens.
+  page.run("showTerminal('proxy1', 'docker-proxy')");
+  assert.equal(page.active('protected-terminal-modal'), true);
+  assert.equal(page.sockets.length, 0);
+}
+
+async function testContainersSendConfirmProtectedOnlyAfterTheModal() {
+  const listed = [
+    { id: 'web1', names: ['/web'], image: 'nginx:1', state: 'running', status: 'Up 1 minute' },
+    { id: 'cams1', names: ['/cams'], image: 'go2rtc:1', state: 'running', status: 'Up 1 minute', protected_owner: 'go2rtc' },
+    { id: 'app1', names: ['/aurago'], image: 'aurago:1', state: 'running', status: 'Up 1 minute', protected_owner: 'aurago-app', self: true }
+  ];
+  let actionReply = { status: 200, body: { status: 'ok' } };
+  const page = containersPage(request => request.url === '/api/containers'
+    ? { status: 200, body: { status: 'ok', containers: listed } }
+    : actionReply);
+  await page.start();
+  assert.equal(page.node('ct-grid').children.length, 3);
+
+  // Shell: unprotected opens at once without the flag.
+  page.run("showTerminal('web1', 'web')");
+  assert.equal(page.sockets.length, 1);
+  assert.equal(page.sockets[0].url, 'ws://aurago.test/api/containers/web1/terminal');
+  page.run('closeTerminalModal()');
+
+  // Protected: the modal comes first; cancelling opens nothing.
+  page.run("showTerminal('cams1', 'cams')");
+  assert.equal(page.active('protected-terminal-modal'), true);
+  assert.equal(page.node('protected-terminal-warning').textContent, 'containers.protected_warning');
+  assert.equal(page.sockets.length, 1, 'no WebSocket before the operator confirms');
+  page.run('closeProtectedTerminalModal()');
+  assert.equal(page.sockets.length, 1, 'cancelling opens no WebSocket');
+  page.run("showTerminal('cams1', 'cams')");
+  page.run('confirmProtectedTerminal()');
+  assert.equal(page.sockets.length, 2);
+  assert.equal(page.sockets[1].url, 'ws://aurago.test/api/containers/cams1/terminal?confirm=protected');
+  page.run('closeTerminalModal()');
+
+  // Update: the flag only from the protected modal; self is disabled.
+  page.run("showUpdateModal('web1', 'web')");
+  await page.run('confirmUpdate()');
+  page.run("showUpdateModal('cams1', 'cams')");
+  assert.equal(page.node('update-protected-warning').classList.contains('is-hidden'), false);
+  await page.run('confirmUpdate()');
+  page.run("showUpdateModal('app1', 'aurago')");
+  assert.equal(page.node('update-confirm-btn').disabled, true);
+  await page.run('confirmUpdate()');
+  page.run('closeUpdateModal()');
+  assert.deepEqual(page.requests.filter(r => r.method === 'POST' && r.url.includes('/update')).map(r => r.url),
+    ['/api/containers/web1/update', '/api/containers/cams1/update?confirm=protected']);
+
+  // A stale list: the server asks (409). The page shows the warning and waits;
+  // only the operator's second confirm sends the flag.
+  actionReply = { status: 409, body: { status: 'error', code: 'container_protected_confirmation_required', owner: 'unverified', message: 'x' } };
+  page.run("showUpdateModal('web1', 'web')");
+  await page.run('confirmUpdate()');
+  assert.equal(page.node('update-protected-warning').textContent, 'containers.protected_unverified_warning');
+  assert.equal(page.active('update-modal'), true);
+  actionReply = { status: 200, body: { status: 'ok' } };
+  await page.run('confirmUpdate()');
+  assert.deepEqual(page.requests.filter(r => r.method === 'POST' && r.url.startsWith('/api/containers/web1/update')).map(r => r.url),
+    ['/api/containers/web1/update', '/api/containers/web1/update', '/api/containers/web1/update?confirm=protected']);
+
+  // Remove follows the same rule.
+  page.run("showDeleteModal('web1', 'web')");
+  await page.run('confirmDelete()');
+  page.run("showDeleteModal('cams1', 'cams')");
+  await page.run('confirmDelete()');
+  actionReply = { status: 409, body: { status: 'error', code: 'container_protected_confirmation_required', owner: 'go2rtc', message: 'x' } };
+  page.run("showDeleteModal('web1', 'web')");
+  await page.run('confirmDelete()');
+  assert.equal(page.active('delete-modal'), true);
+  actionReply = { status: 200, body: { status: 'ok' } };
+  await page.run('confirmDelete()');
+  assert.deepEqual(page.requests.filter(r => r.method === 'DELETE').map(r => r.url), [
+    '/api/containers/web1?force=false',
+    '/api/containers/cams1?force=false&confirm=protected',
+    '/api/containers/web1?force=false',
+    '/api/containers/web1?force=false&confirm=protected'
+  ]);
+}
+
+async function testContainersEmptyStateFollowsTheList() {
+  let list = [];
+  let status = 200;
+  const page = containersPage(request => {
+    if (request.url !== '/api/containers') return { status: 200, body: { status: 'ok' } };
+    if (status === 200) return { status, body: { status: 'ok', containers: list } };
+    return { status, body: { status: 'error', message: status === 503 ? 'Docker is not enabled' : 'down' } };
+  });
+  const emptyShown = () => !page.node('ct-empty').classList.contains('is-hidden');
+  await page.start();
+  assert.equal(emptyShown(), true, 'an empty list shows the empty state');
+
+  list = [{ id: 'web1', names: ['/web'], image: 'nginx', state: 'running', status: 'Up' }];
+  await page.run('loadContainers()');
+  assert.equal(emptyShown(), false);
+
+  page.node('ct-search').value = 'nomatch';
+  page.run('filterContainers()');
+  assert.equal(emptyShown(), true, 'a filter without matches shows the empty state');
+  page.node('ct-search').value = '';
+  page.run('filterContainers()');
+  assert.equal(emptyShown(), false);
+
+  list = [];
+  await page.run('loadContainers()');
+  assert.equal(emptyShown(), true);
+  status = 502;
+  await page.run('loadContainers()');
+  assert.equal(emptyShown(), false, 'the list error replaces the empty state');
+  status = 200;
+  await page.run('loadContainers()');
+  assert.equal(emptyShown(), true, 'an empty list after the error shows the empty state');
+  status = 503;
+  await page.run('loadContainers()');
+  assert.equal(emptyShown(), false, 'Docker disabled replaces the empty state');
+}
+
+async function testContainersResumeUnpausesAPausedContainer() {
+  const listed = [{ id: 'p1', names: ['/paused'], image: 'nginx', state: 'paused', status: 'Up 1 minute (Paused)' }];
+  const page = containersPage(request => request.url === '/api/containers'
+    ? { status: 200, body: { status: 'ok', containers: listed } }
+    : { status: 200, body: { status: 'ok', action: 'unpause' } });
+  await page.start();
+  const card = page.node('ct-grid').children[0].cardHTML;
+  assert.match(card, /containerAction\([^)]*'unpause'\)" data-i18n="containers\.btn_unpause"/);
+  assert.doesNotMatch(card, /'start'\)" data-i18n="containers\.btn_unpause"/, 'Docker refuses start on a paused container');
+  await page.run("containerAction('p1', 'unpause')");
+  assert.deepEqual(page.requests.filter(r => r.method === 'POST').map(r => r.url), ['/api/containers/p1/unpause']);
+}
+
+async function testContainersTerminalOffersConfirmationAfterARefusedHandshake() {
+  const listed = [{ id: 'web1', names: ['/web'], image: 'nginx:1', state: 'running', status: 'Up 1 minute' }];
+  let report = { status: 'ok', container_id: 'web1', owner: 'unverified', protected: true, update_unsupported: false, read_only: false, message: 'Docker did not answer the ownership check for this container. Repeat the request with confirm=protected to continue.' };
+  const page = containersPage(request => {
+    if (request.url === '/api/containers') return { status: 200, body: { status: 'ok', containers: listed } };
+    if (request.url === '/api/containers/web1/protection') return { status: 200, body: report };
+    return { status: 200, body: { status: 'ok' } };
+  });
+  await page.start();
+  const checks = () => page.requests.filter(r => r.url === '/api/containers/web1/protection').length;
+
+  // The list shows no protection; the server refuses the handshake (409).
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[0].failHandshake();
+  await page.flush();
+  assert.equal(checks(), 1);
+  assert.equal(page.active('terminal-modal'), false);
+  assert.equal(page.active('protected-terminal-modal'), true);
+  assert.equal(page.node('protected-terminal-warning').textContent, 'containers.protected_unverified_warning');
+  assert.equal(page.sockets.length, 1, 'the page never retries with the flag on its own');
+
+  page.run('confirmProtectedTerminal()');
+  assert.equal(page.sockets[1].url, 'ws://aurago.test/api/containers/web1/terminal?confirm=protected');
+
+  // A confirmed attempt that still fails shows the error and asks no second time.
+  page.sockets[1].failHandshake();
+  await page.flush();
+  assert.equal(page.active('protected-terminal-modal'), false);
+  assert.equal(page.node('terminal-status').textContent, 'containers.terminal_error');
+
+  // A failure that needs no confirmation shows the error.
+  page.run('closeTerminalModal()');
+  report = { status: 'ok', container_id: 'web1', owner: '', protected: false, update_unsupported: false, read_only: false };
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[2].failHandshake();
+  await page.flush();
+  assert.equal(page.active('protected-terminal-modal'), false);
+  assert.equal(page.node('terminal-status').textContent, 'containers.terminal_error');
+
+  // Docker read-only: no pointless confirmation.
+  page.run('closeTerminalModal()');
+  report = { status: 'ok', container_id: 'web1', owner: 'go2rtc', protected: true, update_unsupported: false, read_only: true };
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[3].failHandshake();
+  await page.flush();
+  assert.equal(page.active('protected-terminal-modal'), false);
+
+  // A session that opened and closes later is a normal close, not a refusal.
+  page.run('closeTerminalModal()');
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[4].open();
+  page.sockets[4].closeFromServer();
+  await page.flush();
+  assert.equal(checks(), 4);
+  assert.equal(page.node('terminal-status').textContent, 'containers.terminal_closed');
+}
+
+async function testContainersEndSessionAsksTheServerAndCloseKeepsTheShell() {
+  const listed = [{ id: 'web1', names: ['/web'], image: 'nginx:1', state: 'running', status: 'Up' }];
+  const page = containersPage(request => request.url === '/api/containers'
+    ? { status: 200, body: { status: 'ok', containers: listed } }
+    : { status: 200, body: { status: 'ok' } });
+  await page.start();
+  const endMessages = socket => socket.sent.filter(m => m === JSON.stringify({ type: 'end' })).length;
+
+  // Close sends nothing to the shell (tmux and screen survive).
+  page.run("showTerminal('web1', 'web')");
+  assert.equal(page.node('terminal-end-btn').disabled, true, 'End session waits for the connection');
+  page.sockets[0].open();
+  assert.equal(page.node('terminal-end-btn').disabled, false);
+  page.run('closeTerminalModal()');
+  assert.equal(endMessages(page.sockets[0]), 0);
+
+  // End session sends one control message and closes the window once the shell exited.
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[1].open();
+  page.run('endTerminalSession()');
+  page.run('endTerminalSession()');
+  assert.equal(endMessages(page.sockets[1]), 1);
+  assert.equal(page.node('terminal-status').textContent, 'containers.terminal_ending');
+  page.sockets[1].closeFromServer();
+  assert.equal(page.active('terminal-modal'), false);
+
+  // A shell that does not end in time is reported; the session stays usable.
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[2].open();
+  page.run('endTerminalSession()');
+  page.fireTimer(5000);
+  assert.equal(page.node('terminal-status').textContent, 'containers.terminal_end_failed');
+  assert.equal(page.node('terminal-end-btn').disabled, false);
+  assert.equal(page.active('terminal-modal'), true);
+}
+
+async function testContainersProtectedBadgeIsNeutralWithTheReasonAsTooltip() {
+  const listed = [
+    { id: 'web1', names: ['/web'], image: 'nginx', state: 'running', status: 'Up' },
+    { id: 'cams1', names: ['/cams'], image: 'go2rtc', state: 'running', status: 'Up', protected_owner: 'go2rtc' },
+    { id: 'app1', names: ['/aurago'], image: 'aurago', state: 'running', status: 'Up', protected_owner: 'aurago-app', self: true },
+    { id: 'proxy1', names: ['/docker-proxy'], image: 'proxy', state: 'running', status: 'Up', docker_endpoint: true },
+    { id: 'ts1', names: ['/tailscale'], image: 'tailscale', state: 'running', status: 'Up', shared_network: true },
+    { id: 'odd1', names: ['/odd'], image: 'odd', state: 'running', status: 'Up', protected_owner: 'x"y' }
+  ];
+  const page = containersPage(request => request.url === '/api/containers'
+    ? { status: 200, body: { status: 'ok', containers: listed } }
+    : { status: 200, body: { status: 'ok' } });
+  await page.start();
+  const badges = Object.fromEntries(page.node('ct-grid').children.map(card => {
+    const id = /data-id="([^"]+)"/.exec(card.cardHTML)[1];
+    const badge = /<span class="ct-card-protected"[^>]*>[^<]*<\/span>/.exec(card.cardHTML);
+    return [id, badge ? badge[0] : ''];
+  }));
+  assert.equal(badges.web1, '');
+  for (const [id, kind, reason] of [
+    ['cams1', 'go2rtc', 'containers.protected_warning (go2rtc)'],
+    ['app1', 'self', 'containers.protected_self_warning'],
+    ['proxy1', 'docker-endpoint', 'containers.protected_endpoint_warning'],
+    ['ts1', 'shared-network', 'containers.protected_network_warning']
+  ]) {
+    assert.ok(badges[id].includes(`data-protection="${kind}"`), `${id}: ${badges[id]}`);
+    assert.ok(badges[id].includes(`title="${reason}"`), `${id} tooltip: ${badges[id]}`);
+    assert.ok(badges[id].endsWith('>containers.protected_badge</span>'), `${id} badge text: ${badges[id]}`);
+  }
+  // A quote in an owner label cannot end the attributes (esc covers & < >).
+  assert.ok(badges.odd1.includes('data-protection="x&quot;y"'), `odd1: ${badges.odd1}`);
+  assert.ok(badges.odd1.includes('title="containers.protected_warning (x&quot;y)"'), `odd1 tooltip: ${badges.odd1}`);
+}
+
+async function testContainersStopAsksOnlyForSelfEndpointAndSharedNetwork() {
+  const listed = [
+    { id: 'web1', names: ['/web'], state: 'running', status: 'Up', image: 'nginx' },
+    { id: 'cams1', names: ['/cams'], state: 'running', status: 'Up', image: 'go2rtc', protected_owner: 'go2rtc' },
+    { id: 'app1', names: ['/aurago'], state: 'running', status: 'Up', image: 'aurago', protected_owner: 'aurago-app', self: true },
+    { id: 'proxy1', names: ['/docker-proxy'], state: 'running', status: 'Up', image: 'proxy', docker_endpoint: true },
+    { id: 'ts1', names: ['/tailscale'], state: 'running', status: 'Up', image: 'tailscale', shared_network: true }
+  ];
+  const page = containersPage(request => request.url === '/api/containers'
+    ? { status: 200, body: { status: 'ok', containers: listed } }
+    : { status: 200, body: { status: 'ok', action: 'stop' } });
+  await page.start();
+  const stops = () => page.requests.filter(r => r.method === 'POST' && r.url.endsWith('/stop')).map(r => r.url);
+
+  page.setModalAnswer(false);
+  await page.run("containerAction('web1', 'stop')");
+  await page.run("containerAction('cams1', 'stop')");
+  await page.run("containerAction('app1', 'restart')");
+  assert.equal(page.modals.length, 0, 'unprotected, managed and restart do not ask');
+
+  for (const id of ['app1', 'proxy1', 'ts1']) await page.run(`containerAction('${id}', 'stop')`);
+  assert.deepEqual(page.modals.map(m => m.message), ['containers.stop_self_warning', 'containers.stop_endpoint_warning', 'containers.stop_network_warning']);
+  assert.ok(page.modals.every(m => m.title === 'containers.stop_protected_title' && m.isConfirm && m.options.confirmText === 'containers.stop_protected_confirm_btn'));
+  assert.deepEqual(stops(), ['/api/containers/web1/stop', '/api/containers/cams1/stop'], 'cancelling sends nothing');
+
+  page.setModalAnswer(true);
+  await page.run("containerAction('app1', 'stop')");
+  assert.equal(stops().at(-1), '/api/containers/app1/stop', 'confirming stops it; the API call is unchanged');
 }
 
 function listDesktopMainBundleParts() {
@@ -2752,6 +3202,14 @@ const tests = [
   ['Dashboard audit search ignores late responses', testDashboardAuditIgnoresLateResponses],
   ['Dashboard cronjob search ignores late responses', testDashboardCronjobsIgnoreLateResponses],
   ['Containers list failure stays visible until the list loads again', testContainersListFailureStateSurvivesFiltersUntilTheListLoads],
+  ['Containers SSE merge keeps flags and reloads unknown containers', testContainersSSEMergeKeepsFlagsAndReloadsUnknownContainers],
+  ['Containers send confirm=protected only after the modal', testContainersSendConfirmProtectedOnlyAfterTheModal],
+  ['Containers empty state follows the list', testContainersEmptyStateFollowsTheList],
+  ['Containers Resume unpauses a paused container', testContainersResumeUnpausesAPausedContainer],
+  ['Containers terminal offers the confirmation after a refused handshake', testContainersTerminalOffersConfirmationAfterARefusedHandshake],
+  ['Containers End session asks the server; Close keeps the shell', testContainersEndSessionAsksTheServerAndCloseKeepsTheShell],
+  ['Containers badge is neutral with the reason as tooltip', testContainersProtectedBadgeIsNeutralWithTheReasonAsTooltip],
+  ['Containers Stop asks only for self, endpoint and shared network', testContainersStopAsksOnlyForSelfEndpointAndSharedNetwork],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting],
   ['Invasion nest form sends export_nest_secret', testInvasionNestFormSendsExportNestSecret],

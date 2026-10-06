@@ -1,5 +1,5 @@
 /* AuraGo – Containers page JS */
-/* global I18N, t, applyI18n, esc */
+/* global I18N, t, applyI18n, esc, escAttr */
 'use strict';
 
 let allContainers = [];
@@ -13,6 +13,8 @@ let terminalSocket = null;
 let terminalResizeObserver = null;
 let terminalSessionToken = 0;
 let terminalFitScheduled = false;
+const TERMINAL_END_FALLBACK_MS = 5000;
+let terminalEndTimer = null;
 
 // Per-card render cache: id -> { html, el }.
 // Used by renderContainers() to update the grid in place instead of rebuilding
@@ -150,7 +152,7 @@ function showDisabledState() {
     listFailed = false;
     cancelListRetry();
     document.getElementById('ct-grid').style.display = 'none';
-    document.getElementById('ct-empty').style.display = 'none';
+    document.getElementById('ct-empty').classList.add('is-hidden');
     document.getElementById('ct-list-error').classList.add('is-hidden');
     document.getElementById('ct-disabled').classList.remove('is-hidden');
     document.getElementById('ct-status-bar').style.display = 'none';
@@ -161,7 +163,7 @@ function showListErrorState(message) {
     clearContainerList();
     listFailed = true;
     document.getElementById('ct-grid').style.display = 'none';
-    document.getElementById('ct-empty').style.display = 'none';
+    document.getElementById('ct-empty').classList.add('is-hidden');
     document.getElementById('ct-disabled').classList.add('is-hidden');
     document.getElementById('ct-list-error-message').textContent = message;
     document.getElementById('ct-list-error').classList.remove('is-hidden');
@@ -224,6 +226,15 @@ function protectionWarningKey(kind) {
     return 'containers.protected_warning';
 }
 
+// protectionReason is the badge tooltip: the warning the confirmation modals
+// show for this reason, plus the owner when AuraGo manages the container.
+function protectionReason(c) {
+    const kind = containerProtection(c);
+    if (!kind) return '';
+    const text = t(protectionWarningKey(kind));
+    return ['self', 'docker-endpoint', 'shared-network', 'unverified'].includes(kind) ? text : `${text} (${kind})`;
+}
+
 function renderContainers() {
     // The list is unavailable (Docker error or disabled): keep that state until
     // a list loads again.
@@ -243,11 +254,11 @@ function renderContainers() {
             cardRenderCache.clear();
         }
         if (grid.style.display !== 'none') grid.style.display = 'none';
-        if (empty.style.display !== '') empty.style.display = '';
+        empty.classList.remove('is-hidden');
         return;
     }
     if (grid.style.display !== '') grid.style.display = '';
-    if (empty.style.display !== 'none') empty.style.display = 'none';
+    empty.classList.add('is-hidden');
 
     // Diff the new filtered list against the cached DOM. Cards that haven't
     // changed are left untouched so scroll/focus/hover survive; only added,
@@ -329,8 +340,11 @@ function renderCard(c) {
     const deleteName = jsArg(name);
     const terminalName = jsArg(name);
     const updateName = jsArg(name);
-    const protectedBadge = containerProtection(c)
-        ? `<span class="ct-card-protected">${esc(t('containers.protected_badge'))}</span>`
+    // The badge text is neutral; its tooltip names the reason. escAttr
+    // (shared-core.js) keeps quotes from ending the attributes.
+    const protection = containerProtection(c);
+    const protectedBadge = protection
+        ? `<span class="ct-card-protected" data-protection="${escAttr(protection)}" title="${escAttr(protectionReason(c))}">${esc(t('containers.protected_badge'))}</span>`
         : '';
 
     let actionBtns = '';
@@ -341,7 +355,7 @@ function renderCard(c) {
             <button class="btn btn-sm btn-primary" onclick="showTerminal(${safeID}, ${terminalName})" data-i18n="containers.btn_shell">⌨ Shell</button>`;
     } else if (isPaused) {
         actionBtns = `
-            <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'start')" data-i18n="containers.btn_unpause">▶ Resume</button>`;
+            <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'unpause')" data-i18n="containers.btn_unpause">▶ Resume</button>`;
     } else {
         actionBtns = `
             <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'start')" data-i18n="containers.btn_start">▶ Start</button>`;
@@ -406,8 +420,29 @@ function setFilter(filter) {
 
 // ── Container Actions ───────────────────────────────────────────────────────
 
+// stopWarningKey names the warning for stopping a container whose stop takes
+// AuraGo itself, its Docker connection or its network down. Other containers
+// stop without a question, as before.
+function stopWarningKey(kind) {
+    if (kind === 'self') return 'containers.stop_self_warning';
+    if (kind === 'docker-endpoint') return 'containers.stop_endpoint_warning';
+    if (kind === 'shared-network') return 'containers.stop_network_warning';
+    return '';
+}
+
 // eslint-disable-next-line no-unused-vars
 async function containerAction(id, action) {
+    if (action === 'stop') {
+        // Asked in the page only: the API, System World and restart are unchanged.
+        const warningKey = stopWarningKey(containerProtection(findContainer(id)));
+        if (warningKey) {
+            const confirmed = await showModal(t('containers.stop_protected_title'), t(warningKey), true, {
+                confirmText: t('containers.stop_protected_confirm_btn'),
+                cancelText: t('common.btn_cancel')
+            });
+            if (!confirmed) return;
+        }
+    }
     try {
         const resp = await fetch(`/api/containers/${encodeURIComponent(id)}/${action}`, { method: 'POST' });
         const data = await resp.json();
@@ -639,6 +674,7 @@ function openTerminal(id, name, confirmed) {
     const query = confirmed ? `?${CONFIRM_PROTECTED_QUERY}` : '';
     terminalSocket = new WebSocket(`${scheme}://${window.location.host}/api/containers/${encodeURIComponent(id)}/terminal${query}`);
     terminalSocket.binaryType = 'arraybuffer';
+    let opened = false;
 
     terminal.onData(data => {
         if (!terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) return;
@@ -647,6 +683,8 @@ function openTerminal(id, name, confirmed) {
 
     terminalSocket.onopen = () => {
         if (token !== terminalSessionToken) return;
+        opened = true;
+        setTerminalEndAvailable(true);
         setTerminalStatus('containers.terminal_connected');
         writeTerminalNotice('containers.terminal_connected');
         scheduleTerminalFit();
@@ -661,11 +699,23 @@ function openTerminal(id, name, confirmed) {
     };
     terminalSocket.onerror = () => {
         if (token !== terminalSessionToken) return;
+        // A refused handshake also fires onclose, which explains the failure.
+        if (!opened) return;
         setTerminalStatus('containers.terminal_error');
         writeTerminalNotice('containers.terminal_error');
     };
     terminalSocket.onclose = () => {
         if (token !== terminalSessionToken) return;
+        if (!opened) {
+            explainTerminalHandshakeFailure(id, name, confirmed, token);
+            return;
+        }
+        setTerminalEndAvailable(false);
+        if (terminalEndTimer) {
+            // The shell ended on request: close the window.
+            closeTerminalModal();
+            return;
+        }
         setTerminalStatus('containers.terminal_closed');
         if (terminal) terminal.write(`\r\n[${t('containers.terminal_closed')}]\r\n`);
     };
@@ -677,6 +727,29 @@ function openTerminal(id, name, confirmed) {
     window.addEventListener('resize', scheduleTerminalFit);
 }
 
+// explainTerminalHandshakeFailure runs when the terminal WebSocket closed
+// before it opened. Browsers hide the HTTP answer of a refused handshake, so
+// the page asks the server whether the container needs a confirmation (a list
+// older than the server's view, or ownership Docker did not confirm) and then
+// offers the confirmation modal. It never retries with the flag on its own.
+async function explainTerminalHandshakeFailure(id, name, confirmed, token) {
+    let report = null;
+    try {
+        const resp = await fetch(`/api/containers/${encodeURIComponent(id)}/protection`);
+        report = await resp.json();
+    } catch (e) {
+        report = null;
+    }
+    if (token !== terminalSessionToken) return;
+    if (!confirmed && report && report.status === 'ok' && report.protected && !report.read_only) {
+        closeTerminalModal();
+        showProtectedTerminalModal(id, name, report.owner || 'unverified');
+        return;
+    }
+    setTerminalStatus('containers.terminal_error');
+    writeTerminalNotice('containers.terminal_error');
+}
+
 // eslint-disable-next-line no-unused-vars
 function closeTerminalModal() {
     document.getElementById('terminal-modal').classList.remove('active');
@@ -685,6 +758,8 @@ function closeTerminalModal() {
 
 function closeTerminalSession() {
     terminalSessionToken += 1;
+    clearTerminalEndTimer();
+    setTerminalEndAvailable(false);
     terminalFitScheduled = false;
     window.removeEventListener('resize', scheduleTerminalFit);
     if (terminalResizeObserver) {
@@ -706,6 +781,37 @@ function closeTerminalSession() {
         terminal = null;
     }
     terminalFitAddon = null;
+}
+
+function setTerminalEndAvailable(available) {
+    const btn = document.getElementById('terminal-end-btn');
+    if (btn) btn.disabled = !available;
+}
+
+function clearTerminalEndTimer() {
+    if (terminalEndTimer) {
+        clearTimeout(terminalEndTimer);
+        terminalEndTimer = null;
+    }
+}
+
+// endTerminalSession asks the server to end the shell (SIGHUP to the exec's
+// own process). Closing the window keeps the shell, so tmux and screen
+// sessions survive; only this button ends it.
+// eslint-disable-next-line no-unused-vars
+function endTerminalSession() {
+    if (terminalEndTimer || !terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) return;
+    const token = terminalSessionToken;
+    setTerminalEndAvailable(false);
+    setTerminalStatus('containers.terminal_ending');
+    terminalSocket.send(JSON.stringify({ type: 'end' }));
+    terminalEndTimer = setTimeout(() => {
+        terminalEndTimer = null;
+        if (token !== terminalSessionToken) return;
+        setTerminalStatus('containers.terminal_end_failed');
+        writeTerminalNotice('containers.terminal_end_failed');
+        setTerminalEndAvailable(true);
+    }, TERMINAL_END_FALLBACK_MS);
 }
 
 function fitTerminal() {

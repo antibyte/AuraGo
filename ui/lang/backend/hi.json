@@ -242,5 +242,13 @@
   "backend.budget_mode_full_en": "(अधिक होने पर सभी ब्लॉक कर दिए जाएंगे)",
   "backend.speech_lab_audio_warning": "Speech Lab ऑडियो बनाया नहीं जा सका। टेक्स्ट उत्तर उपलब्ध है।",
   "backend.auth_current_password_required": "इस बदलाव के लिए आपका वर्तमान पासवर्ड आवश्यक है।",
-  "backend.auth_current_totp_required": "इस बदलाव के लिए आपके ऑथेंटिकेटर ऐप का वर्तमान कोड आवश्यक है।"
+  "backend.auth_current_totp_required": "इस बदलाव के लिए आपके ऑथेंटिकेटर ऐप का वर्तमान कोड आवश्यक है।",
+  "backend.proxy_basic_auth_credentials_invalid": "Vault में मौजूद Basic Auth क्रेडेंशियल इस्तेमाल नहीं किए जा सकते। यूज़रनेम में ':', उद्धरण चिह्न, बैकस्लैश या कर्ली ब्रैकेट नहीं होने चाहिए, और पासवर्ड अधिकतम 72 बाइट का हो सकता है।",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth चालू है, लेकिन Vault में 'proxy_basic_auth_user' और 'proxy_basic_auth_pass' नहीं हैं। दोनों सीक्रेट सहेजें या Basic Auth बंद करें, फिर प्रॉक्सी को दोबारा शुरू करें।",
+  "backend.proxy_caddy_exited": "प्रॉक्सी शुरू होते ही बंद हो गया, आमतौर पर किसी अमान्य डोमेन, IP फ़िल्टर प्रविष्टि या पोर्ट के कारण। सटीक कारण प्रॉक्सी लॉग में दिखता है।",
+  "backend.proxy_config_rejected": "प्रॉक्सी ने नई सेटिंग्स अस्वीकार कर दीं और पिछली सेटिंग्स के साथ चल रहा है। कारण प्रॉक्सी लॉग में दिखता है।",
+  "backend.proxy_docker_placement_failed": "AuraGo Docker में चल रहा है, लेकिन प्रॉक्सी AuraGo का डेटा वॉल्यूम इस्तेमाल नहीं कर पा रहा। इसके लिए Docker Engine 26 या नया चाहिए, और AuraGo की डेटा डायरेक्टरी Docker वॉल्यूम या बाइंड माउंट पर होनी चाहिए। विवरण AuraGo लॉग में हैं।",
+  "backend.proxy_not_running": "सुरक्षा प्रॉक्सी नहीं चल रहा है। पहले इसे शुरू करें।",
+  "backend.proxy_rate_limit_image_read_only": "Docker का केवल-पढ़ने वाला मोड (docker.read_only) चालू है, इसलिए AuraGo दर सीमित करने के लिए ज़रूरी caddy-ratelimit मॉड्यूल वाली Caddy इमेज नहीं बना सकता। इस मोड में AuraGo प्रॉक्सी कंटेनर बना या बदल भी नहीं सकता। Docker का केवल-पढ़ने वाला मोड बंद करें और प्रॉक्सी को फिर से शुरू करें। विवरण AuraGo लॉग में हैं।",
+  "backend.proxy_rate_limit_image_unavailable": "दर सीमित करने के लिए caddy-ratelimit मॉड्यूल वाली Caddy इमेज चाहिए, जिसे AuraGo बना नहीं सका। Docker को इमेज बिल्ड की अनुमति देनी होगी (Docker Compose में: docker-proxy सेवा पर BUILD=1) और इंटरनेट तक पहुँच चाहिए। या इमेज को Docker होस्ट पर बनाएँ (मैनुअल देखें), या दर सीमित करना बंद करें। विवरण AuraGo लॉग में हैं।"
 }

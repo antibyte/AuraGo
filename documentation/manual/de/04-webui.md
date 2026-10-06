@@ -269,7 +269,11 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 
 ### Hinweise zum Software Store
 
-Der Software Store nutzt vollständig von AuraGo verwaltete Docker-Container. Apps können Zugangsdaten über den Vault bereitstellen, Operationsfortschritt anzeigen und Open-Links für konfigurierte Ports liefern. Arcane nutzt einen Docker-Socket-Proxy-Companion für Docker-Verwaltungszugriff. Termix bringt einen `guacd`-Companion-Container für RDP/VNC mit und unterstützt zusätzlich SSH- und Telnet-Verwaltung über die eigene Web-UI.
+Der Software Store nutzt vollständig von AuraGo verwaltete Docker-Container. Apps können Zugangsdaten über den Vault bereitstellen, Operationsfortschritt anzeigen und Open-Links für konfigurierte Ports liefern. Arcane nutzt einen Docker-Socket-Proxy-Companion für Docker-Verwaltungszugriff. Dozzle und der Beszel-Agent erreichen Docker nur über schreibgeschützte Socket-Proxy-Companions. Diese Proxys und der Proxy von Arcane laufen ohne Linux-Capabilities; das gilt ab ihrer nächsten Installation oder ihrem nächsten Update. Termix bringt einen `guacd`-Companion-Container für RDP/VNC mit und unterstützt zusätzlich SSH- und Telnet-Verwaltung über die eigene Web-UI.
+
+Ein **Update** im Store behält die bisherigen Container gestoppt und in `<name>.prev` umbenannt, bis die neue Version läuft. Schlägt das Update fehl, stellt AuraGo diese Container unverändert wieder her; nach einem erfolgreichen Update entfernt es sie.
+
+Eine fehlgeschlagene **Installation** entfernt nur, was diese Installation angelegt hat. Daten-Volumes, Vault-Geheimnisse und Workspace-Dateien, die eine frühere Deinstallation behalten hat, bleiben erhalten und werden bei der nächsten Installation wieder verwendet. Belegt ein Container, den der Software Store nicht angelegt hat, bereits den Namen, den die App braucht, stoppt die Installation, bevor sie einen Container anlegt, und nennt den Container; benenne ihn um (zum Beispiel `docker rename <name> <name>-old`) oder entferne ihn und installiere dann erneut.
 
 ### Sounds
 

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -305,13 +306,18 @@ func requireDockerPermission() error {
 	return requireRuntimePermission("docker", perms.DockerEnabled)
 }
 
+// ErrDockerReadOnly is the refusal of a Docker mutation under docker.read_only.
+// Callers match it with errors.Is to explain the refusal; its text is the
+// long-standing denial message.
+var ErrDockerReadOnly = errors.New("docker mutation is disabled by runtime permissions")
+
 func requireDockerMutationPermission() error {
 	if err := requireDockerPermission(); err != nil {
 		return err
 	}
 	perms, _ := currentRuntimePermissions()
 	if perms.DockerReadOnly {
-		return fmt.Errorf("docker mutation is disabled by runtime permissions")
+		return ErrDockerReadOnly
 	}
 	return nil
 }

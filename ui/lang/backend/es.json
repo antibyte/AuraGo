@@ -242,5 +242,13 @@
   "backend.budget_mode_full_en": "(todo bloqueado cuando se excede)",
   "backend.speech_lab_audio_warning": "No se pudo generar el audio de Speech Lab. La respuesta de texto sigue disponible.",
   "backend.auth_current_password_required": "Para este cambio se requiere tu contraseña actual.",
-  "backend.auth_current_totp_required": "Para este cambio se requiere el código actual de tu aplicación de autenticación."
+  "backend.auth_current_totp_required": "Para este cambio se requiere el código actual de tu aplicación de autenticación.",
+  "backend.proxy_basic_auth_credentials_invalid": "No se pueden usar las credenciales de Basic Auth del Vault. El nombre de usuario no puede contener ':', comillas, barras invertidas ni llaves, y la contraseña puede tener como máximo 72 bytes.",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth está activado, pero en el Vault faltan 'proxy_basic_auth_user' y 'proxy_basic_auth_pass'. Guarde ambos secretos o desactive Basic Auth y vuelva a iniciar el proxy.",
+  "backend.proxy_caddy_exited": "El proxy se detuvo justo después de iniciarse, normalmente por un dominio, una entrada del filtro de IP o un puerto no válidos. Los logs del proxy muestran el motivo exacto.",
+  "backend.proxy_config_rejected": "El proxy rechazó la nueva configuración y sigue funcionando con la anterior. Los logs del proxy muestran el motivo.",
+  "backend.proxy_docker_placement_failed": "AuraGo se ejecuta en Docker, pero el proxy no puede usar el volumen de datos de AuraGo. Se necesita Docker Engine 26 o posterior, y el directorio de datos de AuraGo debe estar en un volumen de Docker o en un bind mount. Los detalles están en el log de AuraGo.",
+  "backend.proxy_not_running": "El Security Proxy no se está ejecutando. Inícielo primero.",
+  "backend.proxy_rate_limit_image_read_only": "El modo de solo lectura de Docker (docker.read_only) está activado, por lo que AuraGo no puede construir la imagen de Caddy con el módulo caddy-ratelimit que necesita la limitación de tasa. En este modo AuraGo tampoco puede crear ni modificar el contenedor del proxy. Desactive el modo de solo lectura de Docker e inicie el proxy de nuevo. Los detalles están en el log de AuraGo.",
+  "backend.proxy_rate_limit_image_unavailable": "La limitación de tasa necesita una imagen de Caddy con el módulo caddy-ratelimit y AuraGo no pudo construirla. Docker debe permitir builds de imágenes (con Docker Compose: BUILD=1 en el servicio docker-proxy) y acceder a internet. También puede construir la imagen en el host de Docker (consulte el manual) o desactivar la limitación de tasa. Los detalles están en el log de AuraGo."
 }

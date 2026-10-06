@@ -242,5 +242,13 @@
   "backend.budget_mode_full_en": "(alle blokkert når overskredet)",
   "backend.speech_lab_audio_warning": "Speech Lab-lyden kunne ikke genereres. Tekstsvaret er fortsatt tilgjengelig.",
   "backend.auth_current_password_required": "Denne endringen krever ditt nåværende passord.",
-  "backend.auth_current_totp_required": "Denne endringen krever den gjeldende koden fra autentiseringsappen din."
+  "backend.auth_current_totp_required": "Denne endringen krever den gjeldende koden fra autentiseringsappen din.",
+  "backend.proxy_basic_auth_credentials_invalid": "Basic Auth-påloggingsdataene i Vault kan ikke brukes. Brukernavnet kan ikke inneholde ':', anførselstegn, omvendte skråstreker eller krøllparenteser, og passordet kan være høyst 72 byte langt.",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth er slått på, men Vault mangler 'proxy_basic_auth_user' og 'proxy_basic_auth_pass'. Lagre begge hemmelighetene eller slå av Basic Auth, og start deretter proxyen på nytt.",
+  "backend.proxy_caddy_exited": "Proxyen stoppet rett etter start, vanligvis på grunn av et ugyldig domene, en ugyldig IP-filteroppføring eller port. Proxy-loggene viser den nøyaktige årsaken.",
+  "backend.proxy_config_rejected": "Proxyen avviste de nye innstillingene og kjører videre med de forrige. Proxy-loggene viser årsaken.",
+  "backend.proxy_docker_placement_failed": "AuraGo kjører i Docker, men proxyen kan ikke bruke datavolumet til AuraGo. Det krever Docker Engine 26 eller nyere, og datamappen til AuraGo må ligge på et Docker-volum eller et bind mount. Detaljene står i AuraGo-loggen.",
+  "backend.proxy_not_running": "Sikkerhetsproxyen kjører ikke. Start den først.",
+  "backend.proxy_rate_limit_image_read_only": "Skrivebeskyttet Docker-modus (docker.read_only) er slått på, så AuraGo kan ikke bygge Caddy-imaget med modulen caddy-ratelimit som hastighetsbegrensning krever. I denne modusen kan AuraGo heller ikke opprette eller endre proxy-containeren. Slå av skrivebeskyttet Docker-modus og start proxyen på nytt. Detaljene står i AuraGo-loggen.",
+  "backend.proxy_rate_limit_image_unavailable": "Hastighetsbegrensning krever et Caddy-image med modulen caddy-ratelimit, og AuraGo klarte ikke å bygge det. Docker må tillate image-bygg (med Docker Compose: BUILD=1 på tjenesten docker-proxy) og nå internett. Du kan også bygge imaget på Docker-verten (se håndboken) eller slå av hastighetsbegrensning. Detaljene står i AuraGo-loggen."
 }
