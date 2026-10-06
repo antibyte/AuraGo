@@ -161,6 +161,31 @@
             styles: appStyles('/css/desktop-app-looper.css'),
             scripts: ['/js/desktop/apps/looper-monitor.js', '/js/desktop/apps/looper.js']
         },
+        'easydrag': {
+            styles: appStyles('/css/desktop-app-easydrag.css'),
+            modules: ['/js/vendor/pdf.min.js'],
+            scripts: [
+                '/js/desktop/apps/easydrag-core.js',
+                '/js/desktop/apps/easydrag-template.js',
+                '/js/desktop/apps/easydrag-model.js',
+                '/js/desktop/apps/easydrag-geometry.js',
+                '/js/desktop/apps/easydrag-saver.js',
+                '/js/desktop/apps/easydrag-canvas.js',
+                '/js/desktop/apps/easydrag-wires.js',
+                '/js/desktop/apps/easydrag-interact.js',
+                '/js/desktop/apps/easydrag-palette.js',
+                '/js/desktop/apps/easydrag-fields.js',
+                '/js/desktop/apps/easydrag-forms.js',
+                '/js/desktop/apps/easydrag-mapping.js',
+                '/js/desktop/apps/easydrag-detail.js',
+                '/js/desktop/apps/easydrag-runs.js',
+                '/js/desktop/apps/easydrag-publish.js',
+                '/js/desktop/apps/easydrag-home.js',
+                '/js/desktop/apps/easydrag-dialogs.js',
+                '/js/desktop/apps/easydrag-editor.js',
+                '/js/desktop/apps/easydrag.js'
+            ]
+        },
         'viewer': {
             styles: appStyles('/css/desktop-app-viewer.css'),
             modules: ['/js/vendor/pdf.min.js'],
@@ -488,6 +513,7 @@
     const APP_I18N_SECTIONS = {
         'agent-chat': ['chat'],
         'cheater': ['cheater'],
+        'easydrag': ['easydrag'],
         'chess': [],
         'code-studio': ['codeStudio'],
         'galaxa-deluxe': ['galaxa'],

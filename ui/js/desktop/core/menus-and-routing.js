@@ -1818,12 +1818,22 @@ if (appId === 'pixel') {
                 return window.PetPickerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, notify: showDesktopNotification }));
             }
         }
+        if (appId === 'easydrag' && window.EasyDragApp && typeof window.EasyDragApp.render === 'function') {
+            return window.EasyDragApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, api, t, iconMarkup, notify: showDesktopNotification,
+                readonly: desktopReadonly(), openApp, updateWindowContext,
+                setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
+                confirmDialog, promptDialog,
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                isActive: () => state.activeWindowId === id
+            }));
+        }
         if (appId === 'mission-control' && window.MissionControlApp && typeof window.MissionControlApp.render === 'function') {
             return window.MissionControlApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, api, t, iconMarkup, notify: showDesktopNotification,
                 readonly: desktopReadonly(), loadBootstrap, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
-                confirmDialog, promptDialog,
+                confirmDialog, promptDialog, openApp,
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));

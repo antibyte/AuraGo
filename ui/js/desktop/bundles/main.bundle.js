@@ -393,6 +393,7 @@
         'store-termix': 'termix',
         'store-commandcode': 'commandcode',
         looper: 'looper',
+        easydrag: 'easydrag',
         'system-info': 'monitor',
         'log-viewer': 'text',
         'virtual-computers': 'desktop',
@@ -598,6 +599,7 @@
             launchpad: 'LP',
             'software-store': 'SS',
             looper: 'Lp',
+            easydrag: 'ED',
             cheater: 'Ch',
             chess: 'Ch',
             pixel: 'Px',
@@ -824,6 +826,7 @@
             tresor: 'TresorApp',
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',
+            easydrag: 'EasyDragApp',
             camera: 'CameraApp',
             'network-cameras': 'NetworkCamerasApp',
             meshcore: 'MeshCoreApp',
@@ -6172,6 +6175,7 @@
             'log-viewer': { width: 920, height: 640 },
             'agent-chat': { width: 800, height: 620 },
             'looper': { width: 1120, height: 720 },
+            'easydrag': { width: 1320, height: 840 },
             camera: { width: 720, height: 600 },
             'network-cameras': { width: 1120, height: 720 },
             meshcore: { width: 1080, height: 720 },
@@ -6194,14 +6198,14 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { if (appId === 'ha-switchboard') return true; return !!{ meshcore: true, files: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, terminal: true, launchpad: true, looper: true, easydrag: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, noisemaker: true, 'log-viewer': true, 'homepage-studio': true }[appId]; }
 
     function appWindowMinSize(appId) {
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };
-        const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 } };
+        const mins = { 'system-info': { width: 560, height: 460 }, 'log-viewer': { width: 640, height: 420 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 340, height: 580 }, 'live-speech': { width: 340, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 }, easydrag: { width: 720, height: 480 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 
@@ -6414,6 +6418,7 @@
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
+            if (appId === 'easydrag' && context && window.EasyDragApp && typeof window.EasyDragApp.open === 'function') window.EasyDragApp.open(existing.id, context);
             if (context && context.path) recordRecentFile(context.path, appId, context.pathKind);
             return;
         }
@@ -8415,7 +8420,7 @@ function wireWindow(win, id) {
 ;
 /* ui/js/desktop/core/session-runtime.js */
     const SESSION_SKIP_APP_IDS = new Set(['sip-phone', 'live-speech', 'quick-connect', 'galaxa-deluxe', 'music-player']);
-    const SESSION_CONTEXT_KEYS = ['path', 'category'];
+    const SESSION_CONTEXT_KEYS = ['path', 'category', 'flowId'];
     let sessionPersistTimer = 0;
 
     function saveSetting(key, value, keepalive = false) {
@@ -9104,13 +9109,23 @@ function wireWindow(win, id) {
     state.notificationUnread = state.notificationUnread || 0;
     let windowSwitcherHold = null;
 
+    // notificationContext keeps the launch context an app receives when its notification is clicked.
+    function notificationContext(payload) {
+        const c = payload.context || {};
+        if (payload.appId === 'meshcore' && /^[a-f0-9]{64}$/.test(c.conversation_id || '')) return { conversation_id: c.conversation_id };
+        if (payload.appId === 'easydrag' && /^flow_[a-z0-9]{10}$/.test(c.flow_id || '')) {
+            return /^run_[a-z0-9]{12}$/.test(c.run_id || '') ? { flow_id: c.flow_id, run_id: c.run_id } : { flow_id: c.flow_id };
+        }
+        return undefined;
+    }
+
     function pushNotificationRecord(payload) {
         const entry = {
             id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
             title: String(payload.title || t('desktop.notification')),
             message: String(payload.message || ''),
             appId: payload.appId || '',
-            context: payload.appId === 'meshcore' && /^[a-f0-9]{64}$/.test(payload.context?.conversation_id || '') ? { conversation_id: payload.context.conversation_id } : undefined,
+            context: notificationContext(payload),
             ts: Date.now(),
             read: false
         };
@@ -15667,12 +15682,22 @@ if (appId === 'pixel') {
                 return window.PetPickerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, notify: showDesktopNotification }));
             }
         }
+        if (appId === 'easydrag' && window.EasyDragApp && typeof window.EasyDragApp.render === 'function') {
+            return window.EasyDragApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, api, t, iconMarkup, notify: showDesktopNotification,
+                readonly: desktopReadonly(), openApp, updateWindowContext,
+                setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
+                confirmDialog, promptDialog,
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                isActive: () => state.activeWindowId === id
+            }));
+        }
         if (appId === 'mission-control' && window.MissionControlApp && typeof window.MissionControlApp.render === 'function') {
             return window.MissionControlApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, api, t, iconMarkup, notify: showDesktopNotification,
                 readonly: desktopReadonly(), loadBootstrap, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
-                confirmDialog, promptDialog,
+                confirmDialog, promptDialog, openApp,
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));
@@ -18617,6 +18642,10 @@ if (appId === 'pixel') {
         if (event.type === 'rtl_sdr_recording_soon') {
             await window.AuraDesktopModules.loadAppI18nSections('rtl-sdr');
             showDesktopNotification({ title: 'RTL-SDR', message: t('rtlSdr.recording_soon'), appId: 'rtl-sdr' });
+            return;
+        }
+        if (event.type === 'flows_changed') {
+            document.dispatchEvent(new CustomEvent('aurago:flows-changed', { detail: event.payload || {} }));
             return;
         }
         if (event.type === 'bluetooth_changed') {

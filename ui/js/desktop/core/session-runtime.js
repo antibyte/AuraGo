@@ -1,5 +1,5 @@
     const SESSION_SKIP_APP_IDS = new Set(['sip-phone', 'live-speech', 'quick-connect', 'galaxa-deluxe', 'music-player']);
-    const SESSION_CONTEXT_KEYS = ['path', 'category'];
+    const SESSION_CONTEXT_KEYS = ['path', 'category', 'flowId'];
     let sessionPersistTimer = 0;
 
     function saveSetting(key, value, keepalive = false) {
