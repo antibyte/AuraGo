@@ -1320,14 +1320,9 @@ func BuildImageContextWait(ctx context.Context, cfg DockerConfig, image, dockerf
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
-		if err != nil {
-			return fmt.Errorf("build image %s (reading error response): %w", image, err)
-		}
-		msg := dockerBodyMessage(resp.StatusCode, data)
-		if msg == "" {
-			msg = strings.TrimSpace(string(data))
-		}
+		// dockerBodyMessage already trims and sanitises the body; when it is
+		// empty, the body has no printable text, so no raw fallback is added.
+		msg := dockerBodyMessage(resp.StatusCode, dockerutil.ReadErrorBody(resp.Body))
 		return fmt.Errorf("build image %s: HTTP %d: %s", image, resp.StatusCode, msg)
 	}
 	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
