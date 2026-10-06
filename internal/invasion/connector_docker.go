@@ -88,8 +88,9 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	// the normal case on a redeploy. That behaviour is kept when the Engine has
 	// the image: deployEgg has already stored the new shared key, so stopping
 	// here would leave the old egg running with a key the master no longer
-	// accepts. Without the image (audit S7a) the deploy stops here instead of
-	// renaming the running egg and then failing to create its replacement.
+	// accepts. Without the image (audit S7a), or when the image check itself
+	// fails, the deploy stops here instead of renaming the running egg and then
+	// failing to create its replacement.
 	if err := c.pullImage(ctx, nest, secret, image); err != nil {
 		var streamErr *dockerPullStreamError
 		if !errors.As(err, &streamErr) {

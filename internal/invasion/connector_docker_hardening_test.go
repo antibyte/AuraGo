@@ -257,6 +257,36 @@ func TestDockerConnector_Deploy_PullStreamFailureWithFailingImageCheckLeavesRunn
 	}
 }
 
+func TestDockerConnector_Deploy_HTTPPullFailureNeverFallsBackToCachedImage(t *testing.T) {
+	var imageChecks, containerCalls atomic.Int64
+	ts := mockDockerAPI(t, map[string]http.HandlerFunc{
+		"/images/create": func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = io.WriteString(w, `{"message":"manifest unknown"}`)
+		},
+		"/images/ghcr.io/antibyte/aurago:latest/json": func(w http.ResponseWriter, r *http.Request) {
+			imageChecks.Add(1)
+			_, _ = io.WriteString(w, `{"Id":"sha256:cached"}`)
+		},
+		"/containers/": func(w http.ResponseWriter, r *http.Request) {
+			containerCalls.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+		},
+	})
+	defer ts.Close()
+
+	err := (&DockerConnector{}).Deploy(context.Background(), nestForMock(ts), nil, EggDeployPayload{ConfigYAML: []byte("egg_mode: {}\n")})
+	if err == nil {
+		t.Fatal("Deploy succeeded although the pull failed with an HTTP error status")
+	}
+	if got := imageChecks.Load(); got != 0 {
+		t.Fatalf("Deploy checked for a cached image %d times after an HTTP pull failure, want 0: only in-stream failures fall back", got)
+	}
+	if got := containerCalls.Load(); got != 0 {
+		t.Fatalf("Deploy sent %d container requests after an HTTP pull failure, want 0: the running egg must stay untouched", got)
+	}
+}
+
 func TestDockerConnector_UnbuildableRequestsReturnErrorsInsteadOfPanicking(t *testing.T) {
 	nest := NestRecord{ID: "12345678-abcd-ef12-3456-7890abcdef12", Host: "bad host", DeployMethod: "docker_remote"}
 	c := &DockerConnector{}
