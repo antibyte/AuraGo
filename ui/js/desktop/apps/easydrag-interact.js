@@ -28,6 +28,7 @@
         let hoverTimer = 0;
         let pinch = null;
         let longPress = 0;
+        let gesture = null; // the pan, drag, connect or box select that follows a pointer now
 
         const readonly = () => !!(ed.readonly || ed.runView);
 
@@ -95,9 +96,10 @@
             if (event.target.closest('.ed-zoom, .ed-minimap, .ed-empty, .ed-wire-actions, .ed-node-tools')) return;
             el.focus({ preventScroll: true });
             pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-            if (pointers.size === 2) { startPinch(); return; }
+            // A second finger turns the gesture into a pinch; more fingers are ignored.
+            if (pointers.size > 1) { if (pointers.size === 2) startPinch(); return; }
             const addBtn = event.target.closest('[data-ed-port-add]');
-            if (addBtn) {
+            if (addBtn && !readonly()) {
                 event.preventDefault();
                 event.stopPropagation();
                 const card = addBtn.closest('.ed-node');
@@ -115,22 +117,18 @@
             if (!event.target.closest('.ed-edge')) startBoxSelect(event);
         }
 
+        // capture makes a gesture follow its pointer (core.capturePointer: a cancel, lost capture or a
+        // missed mouse release ends it as cancelled). The gesture's abort() cancels it early.
         function capture(event, onMove, onUp) {
-            const target = el;
-            try { target.setPointerCapture(event.pointerId); } catch (err) { /* pointer already released */ }
-            const move = ev => { if (ev.pointerId === event.pointerId) onMove(ev); };
-            const up = ev => {
-                if (ev.pointerId !== event.pointerId) return;
-                target.removeEventListener('pointermove', move);
-                target.removeEventListener('pointerup', up);
-                target.removeEventListener('pointercancel', up);
-                pointers.delete(ev.pointerId);
+            const g = core.capturePointer(el, event, onMove, (ev, cancelled) => {
+                if (gesture === g) gesture = null;
+                // An aborted gesture's finger stays down for the pinch; a missed release frees it.
+                if (ev.type !== 'abort') pointers.delete(ev.pointerId);
                 ed.dragging = false;
-                onUp(ev, ev.type === 'pointercancel');
-            };
-            target.addEventListener('pointermove', move);
-            target.addEventListener('pointerup', up);
-            target.addEventListener('pointercancel', up);
+                onUp(ev, cancelled);
+            });
+            gesture = g;
+            return g;
         }
 
         function startPan(event) {
@@ -138,11 +136,15 @@
             const start = { x: event.clientX, y: event.clientY, view: Object.assign({}, ed.view) };
             el.classList.add('is-panning');
             capture(event, ev => {
+                if (pinch) return;
                 canvas.setView({ x: start.view.x + ev.clientX - start.x, y: start.view.y + ev.clientY - start.y, zoom: start.view.zoom });
             }, () => { el.classList.remove('is-panning'); persistView(); });
         }
 
+        // startPinch ends the first finger's pan, drag or box select (a drag moves back) and zooms
+        // from the view as it is now.
         function startPinch() {
+            if (gesture) gesture.abort();
             const pts = Array.from(pointers.values());
             pinch = { dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), view: Object.assign({}, ed.view) };
         }
@@ -195,13 +197,12 @@
                     const near = edgeNear({ x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 }, nodeId);
                     dropEdge = near ? near.id : null;
                 }
-                el.querySelectorAll('.ed-edge.is-drop-target').forEach(g => g.classList.remove('is-drop-target'));
-                if (dropEdge) { const g = el.querySelector('.ed-edge[data-edge-id="' + dropEdge + '"]'); if (g) g.classList.add('is-drop-target'); }
+                wires.markDropTarget(dropEdge);
             }, (ev, cancelled) => {
                 clearTimeout(longPress);
                 el.classList.remove('is-dragging');
                 hideGuides();
-                el.querySelectorAll('.ed-edge.is-drop-target').forEach(g => g.classList.remove('is-drop-target'));
+                wires.markDropTarget(null);
                 if (!moved) return;
                 if (cancelled) { ed.model.moveNodes(ids, -applied.x, -applied.y); return; }
                 const n = ed.model.node(nodeId);
@@ -245,12 +246,18 @@
             event.stopPropagation();
             let from = { node: nodeId, port };
             let reverse = side === 'in';
+            // Pressing a wired input picks its wire up. A cancelled pick-up puts it back by undoing
+            // the disconnect, as long as nothing else changed the document since (undoTop).
+            let undoTop = false;
+            let stopWatch = null;
             if (reverse) {
                 const existing = ed.model.incoming(nodeId).filter(e => e.target.port === port).pop();
                 if (existing) {
                     ed.model.disconnect([existing.id]);
                     from = { node: existing.source.node, port: existing.source.port };
                     reverse = false;
+                    undoTop = true;
+                    stopWatch = ed.model.on(change => { if (change.kind !== 'viewport') undoTop = false; });
                 }
             }
             const anchorNode = ed.model.node(from.node);
@@ -277,7 +284,8 @@
             capture(event, update, (ev, cancelled) => {
                 el.classList.remove('is-connecting');
                 wires.preview(null, null);
-                if (cancelled) return;
+                if (stopWatch) stopWatch();
+                if (cancelled) { if (undoTop) ed.model.undo(); return; }
                 if (target && !target.invalid) {
                     if (reverse) ed.model.connect(target.node, target.port, from.node, from.port);
                     else ed.model.connect(from.node, from.port, target.node, target.port);
@@ -350,6 +358,7 @@
         }
 
         function runNodeTool(action, id) {
+            if (readonly()) return;
             if (action === 'test') ed.bus.emit('node-test', { nodeId: id });
             else if (action === 'disable') ed.model.toggleDisabled([id]);
             else if (action === 'duplicate') select(ed.model.duplicate([id]));
@@ -471,8 +480,12 @@
 
         // handleKey processes canvas shortcuts; it returns true when the event was used.
         function handleKey(event) {
-            const mod = core.isMod(event);
             const key = event.key;
+            const target = event.target;
+            // Tab, Space and Enter on a button inside the canvas (zoom, node list, card tools) keep their
+            // default: the button is pressed or focus moves on, so the canvas is no keyboard trap.
+            if ((key === 'Tab' || key === ' ' || key === 'Enter') && target && target !== el && target.closest && target.closest('button, a, input')) return false;
+            const mod = core.isMod(event);
             const one = ed.selection.size === 1 ? Array.from(ed.selection)[0] : null;
             if (key === ' ' && !event.repeat) { spaceDown = true; el.classList.add('is-space'); return true; }
             if (mod && key.toLowerCase() === 'z' && !event.shiftKey) { if (!readonly()) ed.model.undo(); return true; }
@@ -487,7 +500,8 @@
             if (key === 'Delete' || key === 'Backspace') { removeSelection(); return true; }
             if (key === 'Escape') { select([]); wires.highlight(null); return true; }
             if (key === 'Tab') {
-                if (readonly()) return true;
+                // Shift+Tab, and Tab on a read-only canvas, move focus on as usual.
+                if (event.shiftKey || readonly()) return false;
                 const src = one && ed.model.node(one);
                 const outs = src ? ed.model.outputs(src) : [];
                 if (src && outs.length) {
@@ -536,6 +550,7 @@
         bag.listen(el, 'pointermove', onPointerMoveAny);
         bag.listen(el, 'pointerup', onPointerUpAny);
         bag.listen(el, 'pointercancel', onPointerUpAny);
+        bag.listen(el, 'lostpointercapture', onPointerUpAny);
         bag.listen(el, 'pointerover', onHover);
         bag.listen(el, 'pointerleave', () => { clearTimeout(hoverTimer); wires.highlight(null); });
         bag.listen(el, 'wheel', onWheel, { passive: false });
@@ -544,6 +559,8 @@
         bag.listen(el, 'contextmenu', onContextMenu);
         bag.listen(el, 'focusout', () => { spaceDown = false; el.classList.remove('is-space'); });
         bag.add(() => { clearTimeout(hoverTimer); clearTimeout(longPress); persistViewSoon.cancel(); });
+        // Added last, so it runs first on dispose: a gesture still in progress is cancelled.
+        bag.add(() => { if (gesture) gesture.abort(); });
 
         return {
             select, selectAll, handleKey, handleKeyUp, copySelection, pasteAt, removeSelection,

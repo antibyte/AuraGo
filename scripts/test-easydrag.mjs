@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Runs the pure EasyDrag modules (template, model, geometry) in Node and checks their behaviour.
 // The c1d03 checks also run core and saver with fake timers, and the desktop shell's api() with a stub fetch.
-// The c1d04 checks run canvas, wires and interact on a small stub DOM.
+// The c1d04 checks (test-easydrag-extra.mjs) run canvas, wires and interact on a small stub DOM.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -850,10 +850,14 @@ function miniDom() {
         querySelectorAll(sel) { const out = []; const walk = n => n.children.forEach(c => { if (matches(c, sel)) out.push(c); walk(c); }); walk(this); return out; }
         querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
         addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+        removeEventListener(type, fn) { const list = this.listeners[type] || []; const i = list.indexOf(fn); if (i >= 0) list.splice(i, 1); }
+        setPointerCapture() {}
+        matches(sel) { return sel === ':hover' ? false : matches(this, sel); }
         focus() { active = this; }
+        // fire dispatches to a copy of each listener list, so a listener may remove itself.
         fire(type, init) {
             const event = Object.assign({ type, target: this, defaultPrevented: false, stopped: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.stopped = true; } }, init);
-            for (let x = this; x && !event.stopped; x = x.parentNode) (x.listeners[type] || []).forEach(fn => fn(event));
+            for (let x = this; x && !event.stopped; x = x.parentNode) (x.listeners[type] || []).slice().forEach(fn => fn(event));
             return event;
         }
     }
@@ -977,96 +981,9 @@ await guardAsync('c1d03 shell api errors', async () => {
     eq('c1d03 a non-JSON error body still gives a usable error', [proxy && proxy.message, JSON.stringify(proxy && proxy.body), core.errorText(t, proxy), core.errorText(t, limited)], ['HTTP 502', '{}', 'error_network', 'error_flow_rate_limited']);
 });
 
-// ── c1d04 extras: viewport coercion and paste refusal ──
-// canvasHarness runs core, the pure modules, canvas, wires and interact on miniDom with queued animation
-// frames, a stub localStorage and a stub navigator. It forwards model changes to the bus like the editor
-// does and records what interact announces. The sandbox's console.error lines land in h.logged.
-function canvasHarness() {
-    const dom = miniDom();
-    const frames = [];
-    const store = new Map();
-    const logged = [];
-    const navigator = { platform: 'Linux' };
-    const box = vm.createContext({
-        window: {}, navigator, crypto: webcrypto, document: dom.document,
-        console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
-        localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },
-        setTimeout: () => 0, clearTimeout() {},
-        requestAnimationFrame: fn => { frames.push(fn); return frames.length; }, cancelAnimationFrame() {},
-        matchMedia: () => ({ matches: false }),
-        ResizeObserver: class { observe() {} disconnect() {} }
-    });
-    for (const file of ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js', 'easydrag-wires.js', 'easydrag-interact.js']) {
-        const full = path.join(apps, file);
-        vm.runInContext(fs.readFileSync(full, 'utf8'), box, { filename: full });
-    }
-    const ED = box.window.EasyDrag;
-    const bus = ED.core.emitter();
-    const model = ED.model.create({ schema: 1, name: 'Canvas', nodes: [], edges: [] }, { types });
-    model.on(change => bus.emit('model', change));
-    const ed = {
-        ctx: {}, t, esc: ED.core.esc, catalog: { types }, readonly: false, model, bus, initialRender: true,
-        selection: new Set(), selectedEdge: null, view: { x: 0, y: 0, zoom: 1 }, run: null, issues: []
-    };
-    const canvas = ED.canvas.create(ed);
-    const wires = ED.wires.create(ed, canvas);
-    const announced = [];
-    const interact = ED.interact.create(ed, Object.assign({}, canvas, { announce: text => announced.push(text) }), wires);
-    return {
-        ed, canvas, interact, model, store, navigator, announced, logged,
-        flushFrames() { for (let i = 0; frames.length && i < 20; i++) frames.shift()(); }
-    };
-}
-await guardAsync('c1d04 viewport coercion', async () => {
-    const h = canvasHarness();
-    const grid = h.canvas.el.querySelector('.ed-grid');
-    const mini = h.canvas.el.querySelector('.ed-minimap-view');
-    const seen = [];
-    const drawn = [];
-    // A corrupt stored viewport (aurago.easydrag.view.<id>) or a NaN must not reach the transforms.
-    for (const view of [JSON.parse('{"x":"a","zoom":1}'), { x: NaN, y: Infinity, zoom: NaN }, { x: '12', y: null, zoom: '2' }, null, 'oops']) {
-        h.canvas.setView(view);
-        h.flushFrames();
-        seen.push([h.ed.view, h.canvas.world.style.transform]);
-        drawn.push(grid.style.backgroundSize, grid.style.backgroundPosition, ['x', 'y', 'width', 'height'].map(a => mini.getAttribute(a)));
-    }
-    const zero = [{ x: 0, y: 0, zoom: 1 }, 'translate(0px,0px) scale(1)'];
-    eq('c1d04 setView turns an x, y or zoom that is not a finite number into 0, 0 and 1', seen, [zero, zero, zero, zero, zero]);
-    check('c1d04 grid and minimap get no NaN from a bad view', !/NaN/.test(JSON.stringify(drawn)) && mini.getAttribute('width') !== null, JSON.stringify(drawn.slice(0, 3)));
-    h.canvas.setView({ x: 12.5, y: -40, zoom: 5 });
-    h.flushFrames();
-    eq('c1d04 setView keeps finite coordinates and clamps the zoom', [h.ed.view, h.canvas.world.style.transform], [{ x: 12.5, y: -40, zoom: 2 }, 'translate(12.5px,-40px) scale(2)']);
-    eq('c1d04 the viewport checks log no errors', h.logged, []);
-});
-await guardAsync('c1d04 paste refusal', async () => {
-    const h = canvasHarness();
-    const KEY = 'aurago.easydrag.clipboard';
-    const kept = h.model.addNode('web.search', { x: 0, y: 0 });
-    h.interact.select([kept]);
-    const tooMany = { easydrag: 1, nodes: Array.from({ length: 501 }, (_, i) => ({ id: 'n' + i, type: 'web.search' })), edges: [] };
-    h.store.set(KEY, JSON.stringify(tooMany));
-    await h.interact.pasteAt({ x: 0, y: 0 });
-    eq('c1d04 a refused fragment is announced and keeps the selection', [h.model.doc.nodes.length, h.announced, Array.from(h.ed.selection)], [1, ['paste_refused'], [kept]]);
-    h.store.set(KEY, JSON.stringify({ easydrag: 1, nodes: [{ id: 'a', type: 'evil.type' }], edges: [] }));
-    await h.interact.pasteAt({ x: 0, y: 0 });
-    eq('c1d04 a fragment without a known step is announced too', [h.model.doc.nodes.length, h.announced.length, Array.from(h.ed.selection)], [1, 2, [kept]]);
-    h.store.set(KEY, JSON.stringify({ easydrag: 1, nodes: [{ id: 'a', key: 'k', type: 'web.search', position: { x: 0, y: 0 } }, { id: 'b', key: 'l', type: 'web.search', position: { x: 300, y: 0 } }],
-        edges: [{ source: { node: 'a', port: 'out' }, target: { node: 'b', port: 'in' } }] }));
-    await h.interact.pasteAt({ x: 100, y: 200 });
-    const pasted = Array.from(h.ed.selection);
-    eq('c1d04 a good fragment is pasted, drawn and selected without an announcement',
-        [h.model.doc.nodes.length, pasted.length, h.model.incoming(pasted[1]).length, h.announced.length, !!h.canvas.nodeEl(pasted[0]), h.canvas.wiresSvg.querySelectorAll('.ed-edge').length],
-        [3, 2, 1, 2, true, 1]);
-    // readClipboard keeps the easydrag marker check: other JSON on the system clipboard is not pasted.
-    h.store.delete(KEY);
-    h.navigator.clipboard = { readText: async () => JSON.stringify({ nodes: [{ id: 'x', type: 'web.search' }], edges: [] }) };
-    await h.interact.pasteAt({ x: 0, y: 0 });
-    eq('c1d04 clipboard JSON without the easydrag marker is not pasted', [h.model.doc.nodes.length, h.announced.length], [3, 2]);
-    h.navigator.clipboard = { readText: async () => { h.ed.readonly = true; return JSON.stringify({ easydrag: 1, nodes: [{ id: 'x', type: 'web.search' }], edges: [] }); } };
-    await h.interact.pasteAt({ x: 0, y: 0 });
-    eq('c1d04 a canvas that turned read-only while the clipboard was read pastes nothing', [h.model.doc.nodes.length, h.announced.length], [3, 2]);
-    eq('c1d04 the paste checks log no errors', h.logged, []);
-});
+// ── c1d04: canvas, wires and interact ──
+// The checks live in test-easydrag-extra.mjs; they share this file's helpers and failure count.
+await (await import('./test-easydrag-extra.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
 
 if (failures) {
     console.log(failures + ' failure(s)');

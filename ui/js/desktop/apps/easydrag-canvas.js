@@ -45,6 +45,23 @@
         const listEl = el.querySelector('.ed-node-list');
         const liveEl = el.querySelector('[data-ed-live]');
 
+        // Every timeout the canvas starts is tracked, so dispose can clear the ones still pending.
+        const timers = new Set();
+        let animTimer = 0;
+        let announceTimer = 0;
+        let miniDrag = null;
+        // named holds the key and label each card was drawn with; a change to them can alter
+        // the summaries of other cards that reference the node.
+        const named = new Map();
+
+        function later(fn, ms) {
+            const id = setTimeout(() => { timers.delete(id); fn(); }, ms);
+            timers.add(id);
+            return id;
+        }
+
+        function cancel(id) { clearTimeout(id); timers.delete(id); }
+
         const viewFrame = core.frame(applyView);
         const minimapFrame = core.frame(drawMinimap);
         const listUpdate = core.debounce(drawList, 400);
@@ -85,7 +102,10 @@
             const v = view && typeof view === 'object' ? view : {};
             ed.view = { x: Number.isFinite(v.x) ? v.x : 0, y: Number.isFinite(v.y) ? v.y : 0, zoom: G.clampZoom(v.zoom) };
             el.classList.toggle('is-animating', !!(opts && opts.animate) && !matchMedia('(prefers-reduced-motion: reduce)').matches);
-            if (opts && opts.animate) setTimeout(() => el.classList.remove('is-animating'), 260);
+            if (opts && opts.animate) {
+                cancel(animTimer);
+                animTimer = later(() => el.classList.remove('is-animating'), 260);
+            }
             viewFrame.request();
             ed.bus.emit('view', ed.view);
         }
@@ -145,7 +165,7 @@
 
         function nodeIssues(id) { return (ed.issues || []).filter(is => is.node_id === id && is.severity === 'error'); }
 
-        function cardMarkup(n) {
+        function cardMarkup(n, sum) {
             const i = info(n);
             const ports = ed.model.outputs(n);
             const h = G.nodeHeight(ports.length);
@@ -178,7 +198,6 @@
                 toolButton('disable', 'eye-off', n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable')) +
                 toolButton('duplicate', 'copy', t('easydrag.ui.node_duplicate')) +
                 toolButton('delete', 'trash', t('easydrag.ui.node_delete')) + '</div>';
-            const sum = summary(n, i);
             return '<div class="ed-node-tile">' + core.icon(i ? i.icon : 'tool') + '</div>' +
                 '<div class="ed-node-body"><div class="ed-node-label">' + esc(n.label || (i && i.label) || n.type) + '</div>' +
                 (sum ? '<div class="ed-node-summary">' + esc(sum) + '</div>' : '<div class="ed-node-summary ed-node-summary--muted">' + esc(i ? i.label : n.type) + '</div>') + '</div>' +
@@ -205,7 +224,7 @@
             if (!i || (i.availability && i.availability.state !== 'available')) cls.push('is-unavailable');
             const status = statusOf(n.id);
             if (status) cls.push('status-' + status);
-            if (ed.runView) cls.push('is-readonly');
+            if (ed.readonly || ed.runView) cls.push('is-readonly');
             return cls.join(' ');
         }
 
@@ -219,7 +238,7 @@
                 nodesHost.appendChild(card);
                 if (!ed.initialRender) {
                     card.classList.add('is-new');
-                    setTimeout(() => card.classList.remove('is-new'), 400);
+                    later(() => card.classList.remove('is-new'), 400);
                 }
             }
             const i = info(n);
@@ -228,14 +247,27 @@
             card.setAttribute('aria-label', n.label || n.type);
             card.style.transform = 'translate(' + n.position.x + 'px,' + n.position.y + 'px)';
             card.style.height = G.nodeHeight(outCount(n)) + 'px';
+            named.set(n.id, n.key + '|' + n.label);
             const status = statusOf(n.id);
             const step = ed.run && ed.run.steps && ed.run.steps.get(n.id);
+            // The summary shows the labels of referenced nodes, so it is part of the signature.
+            const sum = summary(n, i);
             const sig = JSON.stringify([n.label, n.type, n.params, n.settings, ed.selection.has(n.id), status, step && step.duration_ms, step && step.error_code,
-                i && i.availability, nodeIssues(n.id).length, !!ed.runView, ed.readonly, ed.model.outputs(n)]);
+                i && i.availability, nodeIssues(n.id).length, !!ed.runView, ed.readonly, ed.model.outputs(n), sum]);
             if (signatures.get(n.id) !== sig) {
                 signatures.set(n.id, sig);
-                card.innerHTML = cardMarkup(n);
+                card.innerHTML = cardMarkup(n, sum);
             }
+        }
+
+        // relabelled reports whether a change added or removed one of these nodes or gave it a new key
+        // or label; each can change what the summaries of other cards show.
+        function relabelled(ids) {
+            return (ids || []).some(id => {
+                const n = ed.model.node(id);
+                const was = named.get(id);
+                return n ? was !== n.key + '|' + n.label : was !== undefined;
+            });
         }
 
         function renderNodes(ids) {
@@ -252,6 +284,7 @@
             if (card) card.remove();
             nodeEls.delete(id);
             signatures.delete(id);
+            named.delete(id);
         }
 
         function render() {
@@ -316,13 +349,11 @@
         bag.listen(minimap, 'pointerdown', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            minimap.setPointerCapture(event.pointerId);
+            if (miniDrag) miniDrag.detach();
             panMinimap(event);
-            const move = ev => panMinimap(ev);
-            const up = () => { minimap.removeEventListener('pointermove', move); minimap.removeEventListener('pointerup', up); };
-            minimap.addEventListener('pointermove', move);
-            minimap.addEventListener('pointerup', up);
+            miniDrag = core.capturePointer(minimap, event, panMinimap, () => { miniDrag = null; });
         });
+        bag.add(() => { if (miniDrag) miniDrag.detach(); });
 
         // ── accessible list and live region ─────────────────────────────────────
 
@@ -334,7 +365,13 @@
             }).join('');
         }
 
-        function announce(text) { liveEl.textContent = ''; setTimeout(() => { liveEl.textContent = text; }, 30); }
+        // announce clears the live region and sets the text a moment later, so a repeated text is read
+        // again; a newer text replaces one that is still waiting.
+        function announce(text) {
+            cancel(announceTimer);
+            liveEl.textContent = '';
+            announceTimer = later(() => { liveEl.textContent = text; }, 30);
+        }
 
         bag.listen(listEl, 'click', (event) => {
             const btn = event.target.closest('[data-ed-focus-node]');
@@ -358,7 +395,9 @@
 
         bag.add(ed.bus.on('model', change => {
             if (change.kind === 'viewport') return;
-            if (change.kind === 'reset' || change.kind === 'undo' || change.kind === 'redo' || change.meta) render();
+            // A node that comes, goes or gets a new key or label can change the summaries of other cards:
+            // check them all (signatures keep the markup of the unaffected ones).
+            if (change.kind === 'reset' || change.kind === 'undo' || change.kind === 'redo' || change.meta || relabelled(change.nodes)) render();
             else renderNodes(change.nodes.concat(affectedByEdges(change.edges)));
         }));
         bag.add(ed.bus.on('selection', refreshClasses));
@@ -377,7 +416,13 @@
         const resize = new ResizeObserver(() => { viewFrame.request(); });
         resize.observe(el);
         bag.add(() => resize.disconnect());
-        bag.add(() => { viewFrame.cancel(); minimapFrame.cancel(); listUpdate.cancel(); });
+        bag.add(() => {
+            viewFrame.cancel();
+            minimapFrame.cancel();
+            listUpdate.cancel();
+            timers.forEach(id => clearTimeout(id));
+            timers.clear();
+        });
 
         return {
             el, world, wiresSvg, nodesHost,

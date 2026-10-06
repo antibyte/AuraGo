@@ -388,6 +388,38 @@
         return dialog;
     }
 
+    // capturePointer follows one pointer on target. onEnd(event, cancelled) runs once: on pointerup
+    // (not cancelled), or on pointercancel, lost capture or a mouse move with no button down, which
+    // means the release was missed (cancelled). abort() ends it as cancelled; detach() ends it silently.
+    function capturePointer(target, event, onMove, onEnd) {
+        const id = event.pointerId;
+        const types = ['pointerup', 'pointercancel', 'lostpointercapture'];
+        let done = false;
+        const move = ev => {
+            if (ev.pointerId !== id) return;
+            if (ev.pointerType === 'mouse' && ev.buttons === 0) finish(ev, true);
+            else onMove(ev);
+        };
+        const end = ev => { if (ev.pointerId === id) finish(ev, ev.type !== 'pointerup'); };
+        function detach() {
+            done = true;
+            target.removeEventListener('pointermove', move);
+            types.forEach(type => target.removeEventListener(type, end));
+        }
+        function finish(ev, cancelled) {
+            if (done) return;
+            detach();
+            onEnd(ev, cancelled);
+        }
+        try { target.setPointerCapture(id); } catch (err) { /* the pointer is already released */ }
+        target.addEventListener('pointermove', move);
+        types.forEach(type => target.addEventListener(type, end));
+        return {
+            abort() { finish({ type: 'abort', pointerId: id, clientX: event.clientX, clientY: event.clientY }, true); },
+            detach
+        };
+    }
+
     // catOf returns the colour category of a node type (generic tools share "tool").
     function catOf(info) {
         if (!info) return 'tool';
@@ -396,6 +428,6 @@
 
     ED.core = {
         ICONS, icon, esc, tr, clamp, debounce, frame, emitter, bag, el, isEditable, isMod, shortcut, IS_MAC,
-        randomID, lang, fmt, storage, createApi, errorCode, errorText, issueText, stepErrorText, modal, catOf
+        randomID, lang, fmt, storage, createApi, errorCode, errorText, issueText, stepErrorText, modal, capturePointer, catOf
     };
 })();

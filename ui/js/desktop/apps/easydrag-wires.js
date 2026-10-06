@@ -19,6 +19,7 @@
         let hideTimer = 0;
         let pathNode = null;
         let pathSet = new Set();
+        let dropTarget = null;
 
         const actions = core.el('<div class="ed-wire-actions" hidden>' +
             '<button type="button" class="ed-wire-btn" data-ed-wire="insert" title="' + esc(t('easydrag.ui.wire_insert')) + '" aria-label="' + esc(t('easydrag.ui.wire_insert')) + '">' + core.icon('plus') + '</button>' +
@@ -69,6 +70,7 @@
             if (e.source.port === 'error') cls.push('is-error-port');
             if (geo.src.settings.disabled || geo.dst.settings.disabled) cls.push('is-disabled');
             if (ed.selectedEdge === e.id) cls.push('is-selected');
+            if (dropTarget === e.id) cls.push('is-drop-target');
             if (pathNode && pathSet.has(e.source.node) && pathSet.has(e.target.node)) cls.push('is-path');
             g.setAttribute('class', cls.join(' '));
             g.dataset.cat = core.catOf(ed.model.info(geo.src.type));
@@ -183,6 +185,18 @@
             ed.model.doc.edges.forEach(drawEdge);
         }
 
+        // markDropTarget marks the wire a dragged card would be inserted into (null clears it). It looks
+        // the wire up by id in groups: edge ids come from documents and never go into a selector.
+        function markDropTarget(edgeId) {
+            const next = edgeId || null;
+            if (next === dropTarget) return;
+            const prev = dropTarget && groups.get(dropTarget);
+            if (prev) prev.classList.remove('is-drop-target');
+            dropTarget = next;
+            const g = next && groups.get(next);
+            if (g) g.classList.add('is-drop-target');
+        }
+
         // preview draws the wire that follows the pointer while connecting.
         function preview(a, b, state) {
             if (!a || !b) { previewPath.hidden = true; return; }
@@ -201,7 +215,7 @@
         bag.add(ed.bus.on('view', () => { if (hoverEdge) placeActions(hoverEdge); }));
 
         return {
-            render, renderFor, highlight, preview,
+            render, renderFor, highlight, preview, markDropTarget,
             hideActions: () => hideActions(true),
             dispose() { clearTimeout(hideTimer); bag.dispose(); actions.remove(); }
         };
