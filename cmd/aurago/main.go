@@ -980,6 +980,10 @@ func main() {
 			appLog,
 		)
 		eggClient.TLSSkipVerify = cfg.EggMode.TLSSkipVerify
+		eggClient.TLSPinSHA256 = cfg.EggMode.TLSPinSHA256
+		if cfg.EggMode.TLSSkipVerify && strings.TrimSpace(cfg.EggMode.TLSPinSHA256) == "" {
+			appLog.Warn("[Egg] tls_skip_verify is deprecated; run a safe-reconfigure from the master to receive tls_pin_sha256")
+		}
 		internalHTTPClient := server.NewInternalHTTPClient(2 * time.Minute)
 		eggMissionAPI := func(method, path string, body interface{}) error {
 			var reader io.Reader

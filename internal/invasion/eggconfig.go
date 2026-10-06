@@ -3,8 +3,16 @@ package invasion
 import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -189,11 +197,23 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 		"egg_id":     egg.ID,
 		"nest_id":    nest.ID,
 	}
-	// When the master serves self-signed TLS, the egg must skip certificate
-	// verification. The server falls back to self-signed mode for "auto"/empty
-	// cert mode when no domain is configured, so mirror that runtime behavior.
+	// When the master serves self-signed TLS, the egg pins the master's leaf
+	// certificate (SHA-256 of its DER) instead of trusting any certificate. The
+	// server falls back to self-signed mode for "auto"/empty cert mode when no
+	// domain is configured, so mirror that runtime behavior.
 	if usesSelfSignedMasterTLS(masterCfg) {
-		eggModeCfg["tls_skip_verify"] = true
+		certPath := masterSelfSignedCertPath(masterCfg)
+		if pin, err := masterCertPin(certPath); err == nil {
+			eggModeCfg["tls_pin_sha256"] = pin
+		} else {
+			// No readable certificate (the master has not served HTTPS since it
+			// was enabled, or the file was deleted or is corrupt). Hatching must
+			// keep working, so fall back to the legacy skip-verify; a
+			// safe-reconfigure once the certificate exists delivers the pin.
+			slog.Warn("[Invasion] Master self-signed certificate unreadable; egg config falls back to tls_skip_verify",
+				"path", certPath, "error", err)
+			eggModeCfg["tls_skip_verify"] = true
+		}
 	}
 	cfg["egg_mode"] = eggModeCfg
 
@@ -214,6 +234,32 @@ func usesSelfSignedMasterTLS(masterCfg *config.Config) bool {
 		return true
 	}
 	return (certMode == "" || certMode == "auto") && strings.TrimSpace(masterCfg.Server.HTTPS.Domain) == ""
+}
+
+// masterSelfSignedCertPath mirrors server.NewTLSConfigFromConfig, which keeps
+// the self-signed certificate at <data_dir>/certs/selfsigned.crt (this package
+// must not import internal/server).
+func masterSelfSignedCertPath(masterCfg *config.Config) string {
+	return filepath.Join(masterCfg.Directories.DataDir, "certs", "selfsigned.crt")
+}
+
+// masterCertPin returns the lowercase SHA-256 hex of the DER leaf certificate
+// in the first PEM block of the file at path.
+func masterCertPin(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return "", errors.New("no PEM block found")
+	}
+	leaf, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return "", fmt.Errorf("parse certificate: %w", err)
+	}
+	sum := sha256.Sum256(leaf.Raw)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 // ApplySafeConfigPatch applies a SafeConfigPatch to an existing egg config YAML.

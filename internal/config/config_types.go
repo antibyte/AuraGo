@@ -1974,7 +1974,8 @@ type Config struct {
 		SharedKey     string `yaml:"-" json:"-"`      // vault-only: egg_shared_key (hex-encoded AES-256 shared key)
 		EggID         string `yaml:"egg_id"`          // UUID of this egg record on master
 		NestID        string `yaml:"nest_id"`         // UUID of the nest this egg is deployed in
-		TLSSkipVerify bool   `yaml:"tls_skip_verify"` // skip TLS certificate verification (for self-signed certs)
+		TLSSkipVerify bool   `yaml:"tls_skip_verify"` // legacy: skip TLS certificate verification (configs written by older masters)
+		TLSPinSHA256  string `yaml:"tls_pin_sha256"`  // SHA-256 hex of the master's DER leaf certificate; replaces tls_skip_verify for self-signed masters
 	} `yaml:"egg_mode"`
 
 	Indexing struct {

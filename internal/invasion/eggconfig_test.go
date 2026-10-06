@@ -2,8 +2,22 @@ package invasion
 
 import (
 	"aurago/internal/config"
+	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/hex"
+	"encoding/pem"
+	"log/slog"
+	"math/big"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -395,22 +409,75 @@ func TestResolveMasterURL_Custom_OverridesHTTPS(t *testing.T) {
 	}
 }
 
-func TestGenerateEggConfig_SelfSigned_TLSSkipVerify(t *testing.T) {
+// writeMasterSelfSignedCert writes a self-signed certificate where the master
+// keeps it (<data_dir>/certs/selfsigned.crt) and returns the lowercase SHA-256
+// hex of its DER leaf, i.e. the pin a generated egg config must carry.
+func writeMasterSelfSignedCert(t *testing.T, dataDir string) string {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{Organization: []string{"AuraGo Self-Signed"}, CommonName: "AuraGo"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("create certificate: %v", err)
+	}
+	writeMasterCertFile(t, dataDir, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
+	sum := sha256.Sum256(der)
+	return hex.EncodeToString(sum[:])
+}
+
+func writeMasterCertFile(t *testing.T, dataDir string, content []byte) {
+	t.Helper()
+	certDir := filepath.Join(dataDir, "certs")
+	if err := os.MkdirAll(certDir, 0o700); err != nil {
+		t.Fatalf("mkdir certs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(certDir, "selfsigned.crt"), content, 0o600); err != nil {
+		t.Fatalf("write certificate: %v", err)
+	}
+}
+
+func generatedEggMode(t *testing.T, masterCfg *config.Config) map[string]interface{} {
+	t.Helper()
+	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099}
+	nest := NestRecord{ID: "n1", Name: "S"}
+	data, err := GenerateEggConfig(masterCfg, egg, nest, "aa", "wss://localhost:8443", "bb")
+	if err != nil {
+		t.Fatalf("GenerateEggConfig: %v", err)
+	}
+	var parsed map[string]interface{}
+	if err := yaml.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("parse generated config: %v", err)
+	}
+	eggMode, ok := parsed["egg_mode"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("generated config has no egg_mode section:\n%s", data)
+	}
+	return eggMode
+}
+
+func TestGenerateEggConfig_SelfSigned_TLSPin(t *testing.T) {
 	masterCfg := minimalMasterCfg()
 	masterCfg.Server.HTTPS.Enabled = true
 	masterCfg.Server.HTTPS.CertMode = "selfsigned"
+	masterCfg.Directories.DataDir = t.TempDir()
+	want := writeMasterSelfSignedCert(t, masterCfg.Directories.DataDir)
 
-	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099}
-	nest := NestRecord{ID: "n1", Name: "S"}
-
-	data, _ := GenerateEggConfig(masterCfg, egg, nest, "aa", "wss://localhost:8443", "bb")
-
-	var parsed map[string]interface{}
-	yaml.Unmarshal(data, &parsed)
-
-	eggMode := parsed["egg_mode"].(map[string]interface{})
-	if eggMode["tls_skip_verify"] != true {
-		t.Error("self-signed cert mode should set tls_skip_verify: true")
+	eggMode := generatedEggMode(t, masterCfg)
+	if got := eggMode["tls_pin_sha256"]; got != want {
+		t.Errorf("tls_pin_sha256 = %v, want %s", got, want)
+	}
+	if _, exists := eggMode["tls_skip_verify"]; exists {
+		t.Error("self-signed cert mode with a readable certificate must not set tls_skip_verify")
 	}
 }
 
@@ -419,38 +486,77 @@ func TestGenerateEggConfig_AutoCert_NoTLSSkipVerify(t *testing.T) {
 	masterCfg.Server.HTTPS.Enabled = true
 	masterCfg.Server.HTTPS.CertMode = "auto" // Let's Encrypt
 	masterCfg.Server.HTTPS.Domain = "aurago.example.com"
+	// A stale self-signed certificate on disk must not be pinned for a
+	// publicly trusted (Let's Encrypt) master.
+	masterCfg.Directories.DataDir = t.TempDir()
+	writeMasterSelfSignedCert(t, masterCfg.Directories.DataDir)
 
-	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099}
-	nest := NestRecord{ID: "n1", Name: "S"}
-
-	data, _ := GenerateEggConfig(masterCfg, egg, nest, "aa", "wss://localhost:443", "bb")
-
-	var parsed map[string]interface{}
-	yaml.Unmarshal(data, &parsed)
-
-	eggMode := parsed["egg_mode"].(map[string]interface{})
+	eggMode := generatedEggMode(t, masterCfg)
 	if _, exists := eggMode["tls_skip_verify"]; exists {
 		t.Error("auto cert mode should NOT set tls_skip_verify")
 	}
+	if _, exists := eggMode["tls_pin_sha256"]; exists {
+		t.Error("auto cert mode should NOT set tls_pin_sha256")
+	}
 }
 
-func TestGenerateEggConfig_AutoCertWithoutDomain_TLSSkipVerify(t *testing.T) {
+func TestGenerateEggConfig_AutoCertWithoutDomain_TLSPin(t *testing.T) {
 	masterCfg := minimalMasterCfg()
 	masterCfg.Server.HTTPS.Enabled = true
 	masterCfg.Server.HTTPS.CertMode = "auto"
 	masterCfg.Server.HTTPS.Domain = ""
+	masterCfg.Directories.DataDir = t.TempDir()
+	want := writeMasterSelfSignedCert(t, masterCfg.Directories.DataDir)
 
-	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099}
-	nest := NestRecord{ID: "n1", Name: "S"}
+	eggMode := generatedEggMode(t, masterCfg)
+	if got := eggMode["tls_pin_sha256"]; got != want {
+		t.Errorf("auto cert mode without a domain falls back to self-signed TLS: tls_pin_sha256 = %v, want %s", got, want)
+	}
+	if _, exists := eggMode["tls_skip_verify"]; exists {
+		t.Error("auto cert mode without a domain must pin instead of setting tls_skip_verify")
+	}
+}
 
-	data, _ := GenerateEggConfig(masterCfg, egg, nest, "aa", "wss://localhost:8443", "bb")
+// Without a readable master certificate (HTTPS not started yet, file deleted
+// or corrupt) hatching keeps working: the generator falls back to the legacy
+// tls_skip_verify and warns once.
+func TestGenerateEggConfig_SelfSignedWithoutCertificate_FallsBackToTLSSkipVerify(t *testing.T) {
+	cases := map[string]func(t *testing.T, dataDir string){
+		"missing": func(*testing.T, string) {},
+		"not pem": func(t *testing.T, dataDir string) {
+			writeMasterCertFile(t, dataDir, []byte("not a certificate"))
+		},
+		"invalid der": func(t *testing.T, dataDir string) {
+			writeMasterCertFile(t, dataDir, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("garbage")}))
+		},
+	}
+	for name, prepare := range cases {
+		t.Run(name, func(t *testing.T) {
+			masterCfg := minimalMasterCfg()
+			masterCfg.Server.HTTPS.Enabled = true
+			masterCfg.Server.HTTPS.CertMode = "selfsigned"
+			masterCfg.Directories.DataDir = t.TempDir()
+			prepare(t, masterCfg.Directories.DataDir)
 
-	var parsed map[string]interface{}
-	yaml.Unmarshal(data, &parsed)
+			var logs bytes.Buffer
+			prev := slog.Default()
+			slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn})))
+			t.Cleanup(func() { slog.SetDefault(prev) })
 
-	eggMode := parsed["egg_mode"].(map[string]interface{})
-	if eggMode["tls_skip_verify"] != true {
-		t.Error("auto cert mode without a domain falls back to self-signed TLS and should set tls_skip_verify: true")
+			eggMode := generatedEggMode(t, masterCfg)
+			if eggMode["tls_skip_verify"] != true {
+				t.Errorf("tls_skip_verify = %v, want true as the fallback", eggMode["tls_skip_verify"])
+			}
+			if _, exists := eggMode["tls_pin_sha256"]; exists {
+				t.Error("fallback must not emit tls_pin_sha256")
+			}
+			if n := strings.Count(logs.String(), "level=WARN"); n != 1 {
+				t.Errorf("want exactly one warning, got %d:\n%s", n, logs.String())
+			}
+			if !strings.Contains(logs.String(), "selfsigned.crt") {
+				t.Errorf("warning should name the certificate path:\n%s", logs.String())
+			}
+		})
 	}
 }
 

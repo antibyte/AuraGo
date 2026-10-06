@@ -804,6 +804,7 @@ func newEggHTTPClient(cfg *config.Config, logger *slog.Logger) *bridge.EggClient
 		logger,
 	)
 	client.TLSSkipVerify = cfg.EggMode.TLSSkipVerify
+	client.TLSPinSHA256 = cfg.EggMode.TLSPinSHA256
 	return client
 }
 

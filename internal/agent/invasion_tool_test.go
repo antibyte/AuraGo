@@ -374,6 +374,21 @@ func TestResolveEggArtifactPathStaysInsideWorkspace(t *testing.T) {
 	}
 }
 
+func TestNewEggHTTPClientCarriesTLSPin(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.EggMode.MasterURL = "wss://master.local/api/invasion/ws"
+	cfg.EggMode.TLSPinSHA256 = strings.Repeat("ab", 32)
+	cfg.EggMode.TLSSkipVerify = true
+
+	client := newEggHTTPClient(cfg, slog.Default())
+	if client.TLSPinSHA256 != cfg.EggMode.TLSPinSHA256 {
+		t.Fatalf("TLSPinSHA256 = %q, want the configured pin", client.TLSPinSHA256)
+	}
+	if !client.TLSSkipVerify {
+		t.Fatal("TLSSkipVerify must still be passed through for legacy configs")
+	}
+}
+
 func parseToolOutputJSON(t *testing.T, raw string) map[string]interface{} {
 	t.Helper()
 	const prefix = "Tool Output: "

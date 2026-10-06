@@ -1600,7 +1600,8 @@ egg_mode:
     shared_key: ""         # hex-encoded AES-256 shared key (set via vault: egg_shared_key)
     egg_id: ""
     nest_id: ""
-    tls_skip_verify: false # skip TLS certificate verification (for self-signed certs)
+    tls_pin_sha256: ""     # SHA-256 hex of the master's certificate (written by the master for self-signed TLS)
+    tls_skip_verify: false # legacy: skip TLS certificate verification (only for configs written by older masters)
 github:
     enabled: false
     readonly: false

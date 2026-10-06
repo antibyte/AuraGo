@@ -3038,6 +3038,47 @@ egg_mode:
 	}
 }
 
+func TestLoadEggModeTLSPinRoundTrips(t *testing.T) {
+	const pin = "3f2a9c0d4b5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8"
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	configContent := `
+egg_mode:
+  enabled: true
+  master_url: wss://master.local/api/invasion/ws
+  tls_pin_sha256: ` + pin + `
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.EggMode.TLSPinSHA256 != pin {
+		t.Fatalf("TLSPinSHA256 = %q, want %q", cfg.EggMode.TLSPinSHA256, pin)
+	}
+	if cfg.EggMode.TLSSkipVerify {
+		t.Fatal("TLSSkipVerify must stay false when only the pin is configured")
+	}
+
+	out, err := yaml.Marshal(cfg.EggMode)
+	if err != nil {
+		t.Fatalf("marshal egg_mode: %v", err)
+	}
+	if !strings.Contains(string(out), "tls_pin_sha256: "+pin) {
+		t.Fatalf("marshalled egg_mode lacks the pin:\n%s", out)
+	}
+	again := cfg.EggMode
+	again.TLSPinSHA256 = ""
+	if err := yaml.Unmarshal(out, &again); err != nil {
+		t.Fatalf("unmarshal egg_mode: %v", err)
+	}
+	if again.TLSPinSHA256 != pin {
+		t.Fatalf("round-tripped TLSPinSHA256 = %q, want %q", again.TLSPinSHA256, pin)
+	}
+}
+
 func TestMigratePlaintextSecretsToVaultMovesProviderAndAccountSecrets(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

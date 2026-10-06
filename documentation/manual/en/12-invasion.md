@@ -480,8 +480,11 @@ egg_mode:
   shared_key: ""         # hex-encoded AES-256 key (set at deploy time)
   egg_id: ""
   nest_id: ""
-  tls_skip_verify: false # set true for self-signed master TLS
+  tls_pin_sha256: "<hex>" # written by the master for self-signed TLS
+  tls_skip_verify: false  # legacy; only for configs written by older masters
 ```
+
+For a master with self-signed TLS, the Egg pins the SHA-256 of the master's certificate and rejects any other certificate on HTTP and WebSocket connections. If the master had not written its certificate yet at hatch time, the Egg gets the legacy `tls_skip_verify: true` instead (the master logs a warning). The Egg also logs a warning while it runs with `tls_skip_verify` and no pin. In both cases a safe-reconfigure delivers the pin.
 
 The master generates this configuration during hatch. You do not edit `egg_mode` manually for managed Eggs.
 
@@ -565,7 +568,7 @@ See [Chapter 22: Internal Tools](22-internal-tools.md) for full parameter detail
 
 1. Verify `route` and `route_config` — the Egg must reach the master WebSocket
 2. For `docker_local`, ensure the container can reach `host.docker.internal`
-3. For HTTPS masters, check TLS/`tls_skip_verify` settings
+3. For HTTPS masters with self-signed TLS, check `tls_pin_sha256` in the Egg's config (the Egg logs "master certificate does not match the pinned fingerprint"). After regenerating the master certificate, run a safe-reconfigure for each Egg so it receives the new pin
 4. Check firewall rules on the master port
 
 ### Heartbeat timeout → `failed`

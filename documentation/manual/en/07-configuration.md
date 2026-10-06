@@ -1157,7 +1157,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `evomap` | EvoMap GEP/A2A integration. | `evomap:`<br>`  enabled: false`<br>`  readonly: true`<br>`  base_url: https://evomap.ai` |
 | `music_generation` | AI music generation. | `music_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  model: ""`<br>`  max_daily: 0` |
 | `security_proxy` | Public-facing protection layer. | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true`<br>`    requests_per_second: 10`<br>`  ip_filter:`<br>`    enabled: false`<br>`    mode: blocklist`<br>`  geo_blocking:`<br>`    enabled: false` |
-| `egg_mode` | Distributed cluster worker. | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_skip_verify: false` |
+| `egg_mode` | Distributed cluster worker. | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_pin_sha256: ""`<br>`  tls_skip_verify: false` |
 | `indexing` | File indexing for RAG. | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false`<br>`  directories: []` |
 | `co_agents` | Parallel sub-agents. | `co_agents:`<br>`  enabled: false`<br>`  max_concurrent: 3`<br>`  budget_quota_percent: 0`<br>`  llm:`<br>`    provider: ""`<br>`  retry_policy:`<br>`    max_retries: 1`<br>`  specialists:`<br>`    researcher:`<br>`      enabled: true` |
 | `tools.daemon_skills` | Background daemon tools. | `tools:`<br>`  daemon_skills:`<br>`    enabled: false`<br>`    max_concurrent_daemons: 5` |

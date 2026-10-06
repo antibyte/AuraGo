@@ -6,8 +6,10 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -31,7 +33,8 @@ type EggClient struct {
 	NestID        string
 	SharedKey     string // hex-encoded
 	Version       string
-	TLSSkipVerify bool // skip TLS certificate verification (for self-signed certs)
+	TLSSkipVerify bool   // legacy: skip TLS certificate verification (configs written by older masters)
+	TLSPinSHA256  string // SHA-256 hex of the master's DER leaf certificate; wins over TLSSkipVerify
 	HTTPClient    *http.Client
 
 	conn        *websocket.Conn
@@ -358,18 +361,46 @@ func (c *EggClient) httpClient() *http.Client {
 	if c.HTTPClient != nil {
 		return c.HTTPClient
 	}
-	tr := &http.Transport{}
-	if c.TLSSkipVerify {
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // user-opted self-signed cert
-	}
+	tr := &http.Transport{TLSClientConfig: c.masterTLSConfig()}
 	return &http.Client{Timeout: 10 * time.Minute, Transport: tr}
 }
 
-func (c *EggClient) connect() error {
-	dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second}
+// masterTLSConfig is the TLS configuration for every connection to the master
+// (HTTP and WebSocket). A pin wins over the legacy skip-verify; nil means the
+// default verification against the system roots.
+func (c *EggClient) masterTLSConfig() *tls.Config {
+	if pin := strings.TrimSpace(c.TLSPinSHA256); pin != "" {
+		return pinnedTLSConfig(pin)
+	}
 	if c.TLSSkipVerify {
-		dialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	} //nolint:gosec // explicit operator setting
+		return &tls.Config{InsecureSkipVerify: true} //nolint:gosec // legacy config from an older master; warned at startup
+	}
+	return nil
+}
+
+// pinnedTLSConfig accepts exactly the master certificate whose DER leaf has
+// the given SHA-256 hex fingerprint. InsecureSkipVerify only disables the
+// chain and hostname checks, which a self-signed master cannot pass (and the
+// egg may reach it under any address); VerifyPeerCertificate still runs and
+// is the actual check.
+func pinnedTLSConfig(pin string) *tls.Config {
+	return &tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // replaced by the fingerprint check below
+		VerifyPeerCertificate: func(raw [][]byte, _ [][]*x509.Certificate) error {
+			if len(raw) == 0 {
+				return errors.New("no certificate presented")
+			}
+			sum := sha256.Sum256(raw[0])
+			if !strings.EqualFold(hex.EncodeToString(sum[:]), pin) {
+				return errors.New("master certificate does not match the pinned fingerprint")
+			}
+			return nil
+		},
+	}
+}
+
+func (c *EggClient) connect() error {
+	dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second, TLSClientConfig: c.masterTLSConfig()}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	go func() {

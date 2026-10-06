@@ -419,8 +419,11 @@ egg_mode:
   shared_key: ""         # hex-codierter AES-256-Key (beim Deploy gesetzt)
   egg_id: ""
   nest_id: ""
-  tls_skip_verify: false # true bei selbstsigniertem Master-TLS
+  tls_pin_sha256: "<hex>" # vom Master bei selbstsigniertem TLS geschrieben
+  tls_skip_verify: false  # veraltet; nur für Configs älterer Master
 ```
+
+Bei selbstsigniertem Master-TLS pinnt das Egg den SHA-256 des Master-Zertifikats und lehnt jedes andere Zertifikat bei HTTP- und WebSocket-Verbindungen ab. Hatte der Master beim Hatch noch kein Zertifikat geschrieben, erhält das Egg stattdessen das veraltete `tls_skip_verify: true` (der Master protokolliert eine Warnung). Das Egg warnt ebenfalls, solange es mit `tls_skip_verify` ohne Pin läuft. In beiden Fällen liefert ein Safe-Reconfigure den Pin nach.
 
 Der Master generiert diese Konfiguration beim Hatch. Für verwaltete Eggs wird `egg_mode` nicht manuell bearbeitet.
 
@@ -502,7 +505,7 @@ Details: [Kapitel 22: Interne Tools](./22-interne-tools.md)
 
 1. `route` und `route_config` prüfen
 2. Bei `docker_local`: `host.docker.internal` erreichbar?
-3. Bei HTTPS-Master: TLS/`tls_skip_verify` prüfen
+3. Bei HTTPS-Master mit selbstsigniertem TLS: `tls_pin_sha256` in der Egg-Config prüfen (das Egg protokolliert "master certificate does not match the pinned fingerprint"). Nach dem Neuerzeugen des Master-Zertifikats für jedes Egg ein Safe-Reconfigure ausführen, damit es den neuen Pin erhält
 
 ### Heartbeat-Timeout → `failed`
 

@@ -17,6 +17,20 @@ the Egg runtime in `cmd/aurago`.
   `invasion_protocol_upgrade_required`; never add an unsigned/legacy fallback.
   HMAC authenticates traffic; use WSS or an authenticated encrypted network for
   transport confidentiality. Do not enable TLS exceptions automatically.
+- Eggs of a self-signed master pin its certificate: `GenerateEggConfig` writes
+  `egg_mode.tls_pin_sha256` (SHA-256 hex of the DER leaf in
+  `<data_dir>/certs/selfsigned.crt`, the path `server.NewTLSConfigFromConfig`
+  uses), and `EggClient` verifies that leaf fingerprint for HTTP and WebSocket
+  (`pinnedTLSConfig`; a pin wins over `tls_skip_verify`). The one automatic
+  exception: an unreadable certificate at generation time falls back to
+  `tls_skip_verify: true` with a warning so hatching keeps working.
+  `tls_skip_verify` from older configs is still honoured, with a startup
+  warning. Regenerating the master certificate locks pinned Eggs out until a
+  safe-reconfigure (which regenerates the whole config) delivers the new pin.
+  Tests: `TestGenerateEggConfig_*TLSPin`,
+  `TestGenerateEggConfig_SelfSignedWithoutCertificate_FallsBackToTLSSkipVerify`,
+  `TestEggClientAcceptsPinnedCertAndRejectsOthers`,
+  `TestEggClientConnectDialsOnlyThePinnedMaster`, `TestPinnedTLSConfigVerifier`.
 - Only an active Egg assigned to the active nest may authenticate. Apply the
   pre-authentication frame limit and finite handshake/write budgets.
 - Connection-owned cleanup, heartbeat expiry and acknowledgements bind to the
@@ -64,7 +78,7 @@ the Egg runtime in `cmd/aurago`.
   `TestInvasionHandshake*`, `TestInvasionRehatchRevokesRotationCandidates`,
   `TestInvasionRotateKey*`, `TestEggPrevKeyFreshBoundaries`,
   `TestInvasionSendSecretRefusesReservedNames` (server).
-- B6: the Egg's `config.yaml` must stay writable. The hatch-time
+- The Egg's `config.yaml` must stay writable. The hatch-time
   `egg_mode.shared_key` is migrated into the vault and removed from the file
   at startup; if it cannot be removed, the overwriting migration copies the
   hatch-time key over a persisted rotation at every restart and the Egg is
