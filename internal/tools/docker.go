@@ -456,6 +456,95 @@ func DockerListContainers(cfg DockerConfig, all bool, excludedOwners ...string) 
 	return string(out)
 }
 
+// DockerContainerListEntry is one compact container list entry. FullID,
+// Labels and NetworkIPs are never serialized; administrator surfaces use them
+// to classify the entry.
+type DockerContainerListEntry struct {
+	ID         string            `json:"id"`
+	Names      []string          `json:"names"`
+	Image      string            `json:"image"`
+	State      string            `json:"state"`
+	Status     string            `json:"status"`
+	Health     string            `json:"health,omitempty"`
+	FullID     string            `json:"-"`
+	Labels     map[string]string `json:"-"`
+	NetworkIPs []string          `json:"-"`
+}
+
+// DockerListContainerEntries returns the entries DockerListContainers
+// serializes, plus their full ID, labels and network addresses. On failure
+// entries is nil and failure holds the error JSON DockerListContainers returns.
+// Keep the parsing in step with DockerListContainers
+// (TestDockerListContainerEntriesMatchesDockerListContainers).
+func DockerListContainerEntries(cfg DockerConfig, all bool, excludedOwners ...string) (entries []DockerContainerListEntry, failure string) {
+	if err := requireDockerPermission(); err != nil {
+		return nil, errJSON("%v", err)
+	}
+	endpoint := "/containers/json"
+	if all {
+		endpoint += "?all=true"
+	}
+	data, code, err := dockerRequest(cfg, "GET", endpoint, "")
+	if err != nil {
+		return nil, errJSON("Failed to list containers: %v", err)
+	}
+	if code != 200 {
+		return nil, dockerBodyErr(code, data)
+	}
+
+	var containers []map[string]interface{}
+	if err := json.Unmarshal(data, &containers); err != nil {
+		return nil, errJSON("Failed to parse containers: %v", err)
+	}
+
+	for _, c := range containers {
+		labels := dockerStringLabels(c["Labels"])
+		names := dockerInterfaceStrings(c["Names"])
+		if dockerManagedResourceExcluded(labels, names, false, excludedOwners) {
+			continue
+		}
+		entry := DockerContainerListEntry{
+			Image:  fmt.Sprintf("%v", c["Image"]),
+			State:  fmt.Sprintf("%v", c["State"]),
+			Status: fmt.Sprintf("%v", c["Status"]),
+			Labels: labels,
+		}
+		if id, ok := c["Id"].(string); ok && len(id) > 12 {
+			entry.ID = id[:12]
+			entry.FullID = id
+		} else {
+			entry.ID = fmt.Sprintf("%v", c["Id"])
+			entry.FullID = entry.ID
+		}
+		entry.Names = append(entry.Names, names...)
+		// Extract health status from State object if available
+		if state, ok := c["State"].(map[string]interface{}); ok {
+			if health, ok := state["Health"].(map[string]interface{}); ok {
+				if status, ok := health["Status"].(string); ok {
+					entry.Health = status
+				}
+			}
+		}
+		if settings, ok := c["NetworkSettings"].(map[string]interface{}); ok {
+			if networks, ok := settings["Networks"].(map[string]interface{}); ok {
+				for _, raw := range networks {
+					network, ok := raw.(map[string]interface{})
+					if !ok {
+						continue
+					}
+					for _, key := range []string{"IPAddress", "GlobalIPv6Address"} {
+						if ip, ok := network[key].(string); ok && strings.TrimSpace(ip) != "" {
+							entry.NetworkIPs = append(entry.NetworkIPs, strings.TrimSpace(ip))
+						}
+					}
+				}
+			}
+		}
+		entries = append(entries, entry)
+	}
+	return entries, ""
+}
+
 // dockerInspectRedacted replaces secret values in Docker inspect output.
 const dockerInspectRedacted = "••••••••"
 
@@ -761,6 +850,26 @@ func DockerContainerOwnership(cfg DockerConfig, containerID string, owners ...st
 func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool {
 	owned, err := DockerContainerOwnership(cfg, containerID, owner)
 	return owned[owner] || err != nil
+}
+
+// DockerContainerOwnersFromMetadata applies the reserved-name and ownership
+// label rules of DockerContainerOwnership to names and labels the caller
+// already holds (a list entry or an inspect result). It sends no request.
+func DockerContainerOwnersFromMetadata(names []string, labels map[string]string, owners ...string) map[string]bool {
+	owned := make(map[string]bool, len(owners))
+	for _, owner := range owners {
+		if dockerOwnerMatches(owner, "", labels) {
+			owned[owner] = true
+			continue
+		}
+		for _, name := range names {
+			if dockerOwnerMatches(owner, strings.TrimPrefix(strings.TrimSpace(name), "/"), labels) {
+				owned[owner] = true
+				break
+			}
+		}
+	}
+	return owned
 }
 
 func dockerStringLabels(value any) map[string]string {
