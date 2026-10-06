@@ -409,6 +409,50 @@ func TestApplyUpgradeSafetyDefaults_PreservesUnsandboxedShellForEnabledShell(t *
 	}
 }
 
+// The template's web scraper and webhook rate-limit defaults apply only where
+// an existing config lacks the key; explicit user values survive a merge.
+func TestRepositoryTemplateMergeKeepsExplicitScraperAndRateLimit(t *testing.T) {
+	tmplData, err := readNormalized(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatalf("read template: %v", err)
+	}
+	cases := []struct {
+		name        string
+		user        string
+		wantScraper bool
+		wantRate    int
+	}{
+		{"explicit values", "tools:\n    web_scraper:\n        enabled: true\nwebhooks:\n    rate_limit: 0\n", true, 0},
+		{"absent keys", "server:\n    port: 8088\n", false, 60},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmplMap, err := parseYAMLMap(tmplData)
+			if err != nil {
+				t.Fatalf("parse template: %v", err)
+			}
+			srcMap, err := parseYAMLMap(tc.user)
+			if err != nil {
+				t.Fatalf("parse user config: %v", err)
+			}
+			merged := deepMerge(tmplMap, srcMap)
+			applyUpgradeSafetyDefaults(merged, srcMap)
+			enforceTemplateTypes(merged, tmplMap)
+			sanitizeMergedConfig(merged)
+
+			tools, _ := asStringMap(merged["tools"])
+			scraper, _ := asStringMap(tools["web_scraper"])
+			if scraper["enabled"] != tc.wantScraper {
+				t.Fatalf("tools.web_scraper.enabled = %v, want %v", scraper["enabled"], tc.wantScraper)
+			}
+			webhooks, _ := asStringMap(merged["webhooks"])
+			if webhooks["rate_limit"] != tc.wantRate {
+				t.Fatalf("webhooks.rate_limit = %v, want %v", webhooks["rate_limit"], tc.wantRate)
+			}
+		})
+	}
+}
+
 func TestConfigTemplateBudgetBlockUsesCanonicalRoot(t *testing.T) {
 	templatePath := filepath.Join("..", "..", "config_template.yaml")
 	content, err := readNormalized(templatePath)

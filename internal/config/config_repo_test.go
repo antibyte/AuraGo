@@ -33,6 +33,43 @@ func TestRepositoryConfigTemplateYAMLIsParseable(t *testing.T) {
 	}
 }
 
+// Fresh installs start with outbound page scraping off and a webhook rate
+// limit; both keys are written explicitly so config-merger fills them only
+// where an existing config lacks them and never overrides a user's value.
+func TestRepositoryConfigTemplateSafeDefaults(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatalf("read config_template.yaml: %v", err)
+	}
+	for _, keyPath := range [][]string{
+		{"tools", "web_scraper", "enabled"},
+		{"webhooks", "rate_limit"},
+	} {
+		if !yamlHasPath(data, keyPath...) {
+			t.Fatalf("config_template.yaml must write %s explicitly", strings.Join(keyPath, "."))
+		}
+	}
+
+	// Load a copy through the full pipeline so the legacy
+	// agent.allow_web_scraper migration and code defaults are applied too.
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load(config_template.yaml copy): %v", err)
+	}
+	if cfg.Tools.WebScraper.Enabled {
+		t.Fatal("template tools.web_scraper.enabled = true, want false")
+	}
+	if cfg.Webhooks.RateLimit != 60 {
+		t.Fatalf("template webhooks.rate_limit = %d, want 60", cfg.Webhooks.RateLimit)
+	}
+}
+
 func TestRepositoryConfigTemplateWebDAVSecretsStayVaultOnly(t *testing.T) {
 	t.Parallel()
 

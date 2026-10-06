@@ -78,7 +78,7 @@ agent:
     allow_package_manager: false  # enable structured OS package management (also requires package_manager.enabled)
     # ── Standard API access ── disabled by default for fresh installs (must be explicitly enabled)
     allow_mcp: false
-    allow_web_scraper: false
+    allow_web_scraper: false  # deprecated: migrated to tools.web_scraper.enabled (kept for old configs)
     # ── Adaptive tool filtering (reduces token usage for tool schemas) ──
     adaptive_tools:
         enabled: true                                               # enable adaptive filtering / progressive discovery (default: true)
@@ -591,7 +591,7 @@ tools:
     skill_timeout_seconds: 120                             # skill execution timeout
     background_timeout_seconds: 3600                       # background Python/shell/tool execution timeout before forced termination
     web_scraper:
-        enabled: true
+        enabled: false                                     # outbound page scraping into agent context; enable deliberately
         summary_mode: false
         summary_provider: ""                                 # deprecated compatibility field; helper-owned summaries now use llm.helper_*
     wikipedia:
@@ -1411,7 +1411,7 @@ webhooks:
     enabled: false
     readonly: false
     max_payload_size: 65536
-    rate_limit: 0                         # per-token token bucket (requests/minute and burst capacity; 0 = unlimited)
+    rate_limit: 60                        # token bucket per webhook token (signed-only webhooks: per webhook and source IP): requests per minute and burst capacity; 0 = unlimited
     # Outgoing webhook URLs, sensitive headers, and custom body templates are Vault-only.
     # Configure outgoing webhooks through the Web UI/API; do not add those secrets here.
 proxmox:

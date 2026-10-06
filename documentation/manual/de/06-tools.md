@@ -369,6 +369,8 @@ Die Danger Zone kontrolliert potenziell gefährliche Operationen:
 2. Öffne **Config → Tools → Web-Scraper** für Scraping (ersetzt `allow_web_scraper`).
 3. Speichern — ein Neustart kann erforderlich sein.
 
+Neue Installationen starten mit ausgeschaltetem Web-Scraper (`tools.web_scraper.enabled: false`), weil er externe Seiten in den Agent-Kontext lädt; bestehende Konfigurationen behalten ihren Wert.
+
 ### YAML-Referenz
 ```yaml
 agent:

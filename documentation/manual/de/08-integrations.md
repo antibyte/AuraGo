@@ -338,7 +338,7 @@ Webhooks ermöglichen es externen Diensten, AuraGo zu benachrichtigen.
 
 **Web-UI:** Config → Integrationen → Webhooks → aktivieren und Limits konfigurieren. Einzelne Webhooks werden über die API oder das Dashboard verwaltet.
 
-Nutze für eingehende Authentifizierung bevorzugt `Authorization: Bearer <Token>`. `?token=<Token>` bleibt für Provider ohne frei konfigurierbare Header kompatibel, kann aber in Zugriffslogs, Zwischenservern und im Browserverlauf erscheinen. Die Zustellung erfolgt asynchron. Das Rate-Limit arbeitet pro Token als Token-Bucket; der Wert pro Minute ist zugleich die Burst-Kapazität.
+Nutze für eingehende Authentifizierung bevorzugt `Authorization: Bearer <Token>`. `?token=<Token>` bleibt für Provider ohne frei konfigurierbare Header kompatibel, kann aber in Zugriffslogs, Zwischenservern und im Browserverlauf erscheinen. Die Zustellung erfolgt asynchron. Das Rate-Limit arbeitet pro Token als Token-Bucket; der Wert pro Minute ist zugleich die Burst-Kapazität. Neue Installationen starten mit 60 Anfragen pro Minute; bestehende Konfigurationen behalten ihren `rate_limit`-Wert (`0` = unbegrenzt).
 
 URLs ausgehender Webhooks, sensible Header und benutzerdefinierte Body-Templates werden verschlüsselt im Vault gespeichert und in API sowie Web-UI nur maskiert angezeigt. Sie dürfen nicht in `config.yaml` eingetragen werden.
 
