@@ -75,6 +75,7 @@ func TestDockerSelfIdentityReadsComposeProjectAndDataMounts(t *testing.T) {
 		Proven:           true,
 		StateVolumes:     []string{"aurago_aurago_data", "aurago_models"},
 		StateBindSources: []string{"/srv/aurago/extra"},
+		StateHostPaths:   []string{"/var/lib/docker/volumes/aurago_aurago_data/_data", "/var/lib/docker/volumes/aurago_models/_data"},
 	}
 	if got := tools.DockerSelfIdentityFor(context.Background(), cfg); !reflect.DeepEqual(got, want) {
 		t.Fatalf("identity = %+v, want %+v (the workdir volume and the secrets bind are not AuraGo state)", got, want)

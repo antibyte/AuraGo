@@ -133,3 +133,27 @@ func TestDockerComposePolicyProtectsTheHostDirectoryOfAuraGosData(t *testing.T) 
 		t.Fatalf("bind of the host directory behind /app/data allowed with host access: %s", got)
 	}
 }
+
+// The host path behind AuraGo's data volume (/var/lib/docker/volumes/<name>/_data)
+// is AuraGo state as well; host access never lifts that tier.
+func TestDockerComposePolicyProtectsTheHostPathOfAuraGosDataVolume(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "c/compose.yml", "services:\n  app:\n    image: alpine\n")
+	stubDockerComposeResolver(t, func(string) (string, error) {
+		return `{"services":{"app":{"image":"alpine","volumes":[{"type":"bind","source":"/var/lib/docker/volumes/aurago_aurago_data/_data/vault.bin","target":"/v"}]}}}`, nil
+	})
+	cfg := &config.Config{}
+	cfg.Runtime.IsDocker = true
+	cfg.Docker.AllowHostAccess = true
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func() string {
+		return dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "c/compose.yml", Command: "up -d"})
+	}
+	if got := policy(); got != "" {
+		t.Fatalf("without a proven identity the host path is not known, so it must stay allowed with host access: %s", got)
+	}
+	stubDockerSelfIdentity(t, tools.DockerSelfIdentity{Proven: true, StateVolumes: []string{"aurago_aurago_data"}, StateHostPaths: []string{"/var/lib/docker/volumes/aurago_aurago_data/_data"}})
+	if got := policy(); !strings.Contains(got, `"code":"docker_compose_protected_path_denied"`) {
+		t.Fatalf("bind of the host path behind AuraGo's data volume allowed with host access: %s", got)
+	}
+}

@@ -167,6 +167,9 @@ func resolveDockerSelfIdentity(ctx context.Context, cfg tools.DockerConfig, sign
 			if name := strings.TrimSpace(mount.Name); name != "" {
 				identity.StateVolumes = append(identity.StateVolumes, name)
 			}
+			if source := strings.TrimSpace(mount.Source); source != "" {
+				identity.StateHostPaths = append(identity.StateHostPaths, source)
+			}
 		case "bind":
 			if source := strings.TrimSpace(mount.Source); source != "" {
 				identity.StateBindSources = append(identity.StateBindSources, source)

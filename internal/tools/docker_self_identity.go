@@ -24,6 +24,10 @@ type DockerSelfIdentity struct {
 	StateVolumes []string
 	// StateBindSources are the host directories bound at or below it.
 	StateBindSources []string
+	// StateHostPaths are the host directories behind StateVolumes (the
+	// inspect's Source, e.g. /var/lib/docker/volumes/<name>/_data); a bind of
+	// them reaches the same files.
+	StateHostPaths []string
 }
 
 type dockerSelfIdentityResolverState struct {
@@ -53,6 +57,12 @@ func DockerSelfIdentityFor(ctx context.Context, cfg DockerConfig) DockerSelfIden
 		ctx = context.Background()
 	}
 	return state.resolve(ctx, cfg)
+}
+
+// StateHostRoots are the host paths that hold AuraGo's data directory: the
+// bind sources at it and the host directories behind its volumes.
+func (id DockerSelfIdentity) StateHostRoots() []string {
+	return append(append([]string(nil), id.StateBindSources...), id.StateHostPaths...)
 }
 
 // OwnsComposeProject reports whether a resolved Compose project name is the
@@ -90,7 +100,8 @@ func IsAuraGoStateVolume(name string, inContainer bool, self DockerSelfIdentity)
 }
 
 // DockerBindTouchesAuraGoState reports a create/run volume string that mounts
-// AuraGo's data volume, or a host directory bound at AuraGo's data directory.
+// AuraGo's data volume, a host directory bound at AuraGo's data directory, or
+// the host directory behind its data volume.
 func DockerBindTouchesAuraGoState(bind string, inContainer bool, self DockerSelfIdentity) bool {
 	if !inContainer {
 		return false
@@ -102,7 +113,7 @@ func DockerBindTouchesAuraGoState(bind string, inContainer bool, self DockerSelf
 	if !spec.isHostPath {
 		return IsAuraGoStateVolume(spec.hostPath, inContainer, self)
 	}
-	for _, root := range self.StateBindSources {
+	for _, root := range self.StateHostRoots() {
 		if dockerPathEqualOrWithin(spec.hostPath, root) {
 			return true
 		}

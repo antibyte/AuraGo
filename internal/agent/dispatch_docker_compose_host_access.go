@@ -100,8 +100,9 @@ func dockerComposeHostAccessPolicy(ctx context.Context, cfg *config.Config, req 
 	}
 	roots, files := tools.DockerComposeProtectedPaths(cfg)
 	// In a container AuraGo's data directory is also a host directory (a bind
-	// at /app/data); its host spelling is AuraGo state too.
-	roots = append(roots, preflight.self.StateBindSources...)
+	// at /app/data, or the directory behind its volume); its host spelling is
+	// AuraGo state too.
+	roots = append(roots, preflight.self.StateHostRoots()...)
 	policy := tools.DockerComposeHostPolicy{
 		WorkspaceDir:    preflight.root,
 		AllowHostAccess: dockerComposeHostAccessAllowed(ctx, cfg),
