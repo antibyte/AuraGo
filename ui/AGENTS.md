@@ -367,6 +367,11 @@ worker. Keep packaging, recovery and offline instructions in
   selectable profiles; otherwise use the available configured default or first
   available profile. Blocked storage keeps the selection in memory. Never start
   a session automatically when restoring a selection.
+- Live Speech audio selection lives in a native dialog opened by a labelled
+  speaker button, placed in the Desktop app header through the shared panel's
+  `audioControls` mount option. Keep browser/headset selection and storage shared
+  with Webchat; opening the dialog never starts audio. Preserve native Escape,
+  focus return and mount cleanup. Verify `TestRealtimeSpeechAudioPickerBrowser`.
 - Live Speech's shared panel owns one `AuraRealtimeSpeechAvatar` per mount.
   Webchat passes `visible: false` until its overlay opens and calls
   `AuraRealtimeSpeechUI.setVisible`; unmount disposes the avatar. Desktop

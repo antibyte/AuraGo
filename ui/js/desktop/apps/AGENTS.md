@@ -989,6 +989,9 @@ buttons and menu popovers remain excluded from those gestures.
 - `live-speech.js` mounts the shared realtime-speech panel on the desktop in a
   compact window (preset 440×520, min 340×460 in
   `window-shell-runtime.js`; panel mounted with `compact: true`).
+  The desktop header's speaker control lives beside the FX toggle and opens
+  the shared audio settings dialog; pass its `[data-live-speech-audio-controls]`
+  host through the mount `audioControls` option.
   The shared panel places its animated persona beside wrapping, scrollable
   captions; small windows scroll vertically. Avatar disposal uses the existing
   panel unmount and preserves `keepSession`. The decorative FX remain separate

@@ -140,6 +140,7 @@
     gap: 8px;
 }
 
+.realtime-speech-audio-button,
 .realtime-speech-controls button,
 .realtime-speech-modal-actions button {
     display: inline-flex;
@@ -161,6 +162,8 @@
 .realtime-speech-controls button:not(:disabled):hover { border-color: var(--rt-accent); }
 .realtime-speech-controls button:not(:disabled):active { transform: translateY(1px); }
 .realtime-speech-controls button:focus-visible,
+.realtime-speech-audio-button:focus-visible,
+.realtime-speech-modal-actions button:focus-visible,
 .realtime-speech-profile-label select:focus-visible,
 .realtime-speech-live-caption:focus-visible,
 .realtime-speech-webchat-titlebar button:focus-visible {
@@ -247,6 +250,23 @@
 .realtime-speech-modal h3 { margin: 0 0 8px; }
 .realtime-speech-modal p { color: var(--text-muted, #9dafb9); line-height: 1.55; }
 .realtime-speech-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+.realtime-speech-audio-toolbar { display: flex; justify-content: flex-end; }
+.realtime-speech-audio-button { width: 44px; min-height: 44px; padding: 0; }
+.realtime-speech-audio-button:hover { border-color: var(--rt-accent, var(--accent, #2fc5a9)); }
+
+.realtime-speech-audio-dialog {
+    --rt-surface: var(--bg-card, #17202a);
+    box-sizing: border-box;
+    width: min(440px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    background: var(--rt-surface);
+}
+
+.realtime-speech-audio-dialog::backdrop { background: rgb(4 9 13 / 65%); }
+.realtime-speech-audio-dialog select,
+.realtime-speech-audio-dialog button { min-height: 44px; }
 
 .realtime-speech-launcher {
     position: relative;
