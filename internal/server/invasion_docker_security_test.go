@@ -26,7 +26,7 @@ func TestInvasionSecurityHintsFlagActivePlaintextDockerRemoteNests(t *testing.T)
 			t.Fatal(err)
 		}
 	}
-	hints := invasionSecurityHints(db)
+	hints := invasionSecurityHints(db, nil)
 	if len(hints) != 1 || hints[0].ID != "invasion_docker_remote_plaintext" {
 		t.Fatalf("hints = %#v, want one invasion_docker_remote_plaintext hint", hints)
 	}
@@ -39,15 +39,31 @@ func TestInvasionSecurityHintsFlagActivePlaintextDockerRemoteNests(t *testing.T)
 }
 
 func TestInvasionSecurityHintsEmptyWithoutPlaintextNests(t *testing.T) {
-	if hints := invasionSecurityHints(nil); len(hints) != 0 {
+	if hints := invasionSecurityHints(nil, nil); len(hints) != 0 {
 		t.Fatalf("hints without an invasion DB = %#v, want none", hints)
 	}
 	db := setupInvasionTestDB(t)
 	if _, err := invasion.CreateNest(db, invasion.NestRecord{Name: "ssh-only", Active: true, DeployMethod: "ssh"}); err != nil {
 		t.Fatal(err)
 	}
-	if hints := invasionSecurityHints(db); len(hints) != 0 {
+	if hints := invasionSecurityHints(db, nil); len(hints) != 0 {
 		t.Fatalf("hints = %#v, want none for SSH nests", hints)
+	}
+}
+
+func TestInvasionSecurityHintsLogsFailedNestCheck(t *testing.T) {
+	db := setupInvasionTestDB(t)
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+	if hints := invasionSecurityHints(db, logger); hints != nil {
+		t.Fatalf("hints with a failing nest query = %#v, want nil", hints)
+	}
+	log := buf.String()
+	if !strings.Contains(log, "level=WARN") || !strings.Contains(log, "Invasion nest check for the security hints failed") || !strings.Contains(log, "database is closed") {
+		t.Fatalf("log = %q, want a warning with the failed nest query error", log)
 	}
 }
 

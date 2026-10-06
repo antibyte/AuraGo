@@ -14,13 +14,17 @@ const invasionDockerRemotePlaintextAdvice = "Use these nests only on an isolated
 
 // invasionSecurityHints reports nest settings that expose deployment secrets.
 // CheckSecurity only sees config.yaml; nests live in the invasion database,
-// so the hints endpoint appends these.
-func invasionSecurityHints(db *sql.DB) []SecurityHint {
+// so the hints endpoint appends these. A failed nest query is logged and
+// yields no hints, so the endpoint still answers.
+func invasionSecurityHints(db *sql.DB, logger *slog.Logger) []SecurityHint {
 	if db == nil {
 		return nil
 	}
 	nests, err := invasion.ListActiveNests(db)
 	if err != nil {
+		if logger != nil {
+			logger.Warn("[Security] Invasion nest check for the security hints failed", "error", err)
+		}
 		return nil
 	}
 	var names []string
