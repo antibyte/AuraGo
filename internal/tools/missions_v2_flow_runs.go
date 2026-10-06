@@ -116,8 +116,11 @@ func (m *MissionManagerV2) FlowRunStarted(missionID, triggerType, triggerData st
 	return runID
 }
 
-// FlowRunFinished records the result of a live flow run, releases the running state and
-// fires dependent missions and flows. It never touches the agent queue's running slot.
+// FlowRunFinishedAtDepth records the result of a live flow run, releases the running state
+// and fires dependent missions and flows. It never touches the agent queue's running slot.
+// depth is the run's mission_completed chain depth, CompletionChainDepth of the trigger type
+// and data that started it (the flow bridge reads them from the run record); the dependents
+// run one deeper, and none fire beyond maxCompletionChainDepth.
 //
 // Call it ONLY for runs whose FlowRunStarted was called: it releases one running slot. A
 // run that never started (queued and cancelled, or stopped by a shutdown) is not reported
@@ -126,7 +129,7 @@ func (m *MissionManagerV2) FlowRunStarted(missionID, triggerType, triggerData st
 //
 // The history entry historyID is completed even when the mission is gone, because deleting a
 // flow deletes its mission before it cancels the flow's runs.
-func (m *MissionManagerV2) FlowRunFinished(missionID, historyID, result, output string, outputs map[string]any) {
+func (m *MissionManagerV2) FlowRunFinishedAtDepth(missionID, historyID, result, output string, outputs map[string]any, depth int) {
 	// Outputs can reach 32 MiB: encode them before taking the lock.
 	var encodedOutputs json.RawMessage
 	if outputs != nil {
@@ -167,7 +170,7 @@ func (m *MissionManagerV2) FlowRunFinished(missionID, historyID, result, output 
 	mission.RunCount++
 	name := mission.Name
 	completeCB := m.onMissionComplete
-	queued := m.enqueueCompletionDependentsLocked(missionID, result, output, encodedOutputs)
+	queued := m.enqueueCompletionDependentsAtDepthLocked(missionID, result, output, encodedOutputs, depth)
 	if err := m.save(); err != nil {
 		slog.Error("[MissionV2] Failed to persist flow run result", "mission_id", missionID, "error", err)
 	}
@@ -211,14 +214,30 @@ func completeFlowRunHistory(historyDB *sql.DB, recorder func(memory.AuditEvent) 
 	}
 }
 
-// enqueueCompletionDependentsLocked queues prompt missions and starts flows that wait for
-// sourceID. The trigger data carries the output (≤ completionOutputMaxBytes, rune-safe) and,
-// for flow sources, the outputs of the flow's final nodes, already encoded and bounded by
-// boundedCompletionOutputs (prompt sources pass nil). It returns the number of prompt
+// enqueueCompletionDependentsAtDepthLocked queues prompt missions and starts flows that wait
+// for sourceID, whose finished run had the mission_completed chain depth depth. The trigger
+// data carries chain_depth (depth + 1), the output (≤ completionOutputMaxBytes, rune-safe)
+// and, for flow sources, the outputs of the flow's final nodes, already encoded and bounded
+// by boundedCompletionOutputs (prompt sources pass nil). It returns the number of prompt
 // missions it queued. Caller holds m.mu.
-func (m *MissionManagerV2) enqueueCompletionDependentsLocked(sourceID, result, output string, outputs json.RawMessage) int {
+//
+// This is the one place that bounds mission_completed chains, for prompt missions and flows
+// alike: when depth + 1 exceeds maxCompletionChainDepth nothing fires, and, when a
+// dependent waits, stopCompletionChainLocked warns and notes the stop on sourceID.
+func (m *MissionManagerV2) enqueueCompletionDependentsAtDepthLocked(sourceID, result, output string, outputs json.RawMessage, depth int) int {
+	ev := flowEvent{SourceMissionID: sourceID, Result: result}
+	next := depth + 1
+	if next > maxCompletionChainDepth {
+		for _, mission := range m.missions {
+			if isCompletionDependent(mission, ev) {
+				m.stopCompletionChainLocked(sourceID, depth)
+				break
+			}
+		}
+		return 0
+	}
 	data := map[string]any{"source_mission": sourceID, "result": result,
-		"output": cutWithMarker(output, completionOutputMaxBytes, completionTruncatedMarker)}
+		"output": cutWithMarker(output, completionOutputMaxBytes, completionTruncatedMarker), completionChainDepthKey: next}
 	if outputs != nil {
 		data["outputs"] = outputs
 	}
@@ -226,14 +245,7 @@ func (m *MissionManagerV2) enqueueCompletionDependentsLocked(sourceID, result, o
 	queued := 0
 	now := time.Now()
 	for _, mission := range m.missions {
-		if !mission.Enabled || mission.ExecutionType != ExecutionTriggered || mission.TriggerType != TriggerMissionCompleted {
-			continue
-		}
-		cfg := mission.TriggerConfig
-		if cfg == nil || cfg.SourceMissionID != sourceID {
-			continue
-		}
-		if cfg.RequireSuccess && result != MissionResultSuccess {
+		if isFlowMission(mission) || !isCompletionDependent(mission, ev) {
 			continue
 		}
 		if !m.shouldFireTriggerLocked(mission, string(TriggerMissionCompleted), now) {
@@ -243,8 +255,32 @@ func (m *MissionManagerV2) enqueueCompletionDependentsLocked(sourceID, result, o
 		mission.Status = MissionStatusQueued
 		queued++
 	}
-	m.notifyFlowsLocked(TriggerMissionCompleted, flowEvent{SourceMissionID: sourceID, Result: result}, json.RawMessage(raw))
+	m.notifyFlowsLocked(TriggerMissionCompleted, ev, json.RawMessage(raw))
 	return queued
+}
+
+// isCompletionDependent reports whether mission waits for the completion ev describes: an
+// enabled prompt mission with a matching mission_completed trigger, or an enabled flow
+// mission with a matching trigger node (the filter of notifyFlowsLocked). Min-interval
+// limits are not consulted.
+func isCompletionDependent(mission *MissionV2, ev flowEvent) bool {
+	if mission == nil || !mission.Enabled {
+		return false
+	}
+	if isFlowMission(mission) {
+		for _, spec := range mission.FlowTriggers {
+			if flowEventMatches(spec, TriggerMissionCompleted, ev) {
+				return true
+			}
+		}
+		return false
+	}
+	if mission.ExecutionType != ExecutionTriggered || mission.TriggerType != TriggerMissionCompleted {
+		return false
+	}
+	cfg := mission.TriggerConfig
+	return cfg != nil && cfg.SourceMissionID == ev.SourceMissionID &&
+		(!cfg.RequireSuccess || ev.Result == MissionResultSuccess)
 }
 
 // flowMissionRoute reports whether missionID is a flow mission and returns the hooks that

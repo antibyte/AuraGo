@@ -155,16 +155,22 @@ func (b flowMissionBridge) FlowRunStarted(missionID string, rec flows.RunRecord)
 // FlowRunFinished implements flows.MissionBridge: history, dependents, planner issue and
 // the failure notification chosen by settings.notify_on_error.
 //
-// Only a started run (info.Started) reaches Mission Control: mm.FlowRunFinished releases
-// one running slot, counts the run and fires dependents. A run that never started
+// Only a started run (info.Started) reaches Mission Control: mm.FlowRunFinishedAtDepth
+// releases one running slot, counts the run and fires dependents. A run that never started
 // (cancelled while queued, or ended by a shutdown) only tells open editors to refresh.
 // That path stays free of database, file and network work, because it runs synchronously
 // inside DeleteFlow (with the flow lock held), CancelMissionRuns and Runner.Shutdown, once
 // per queued run.
 //
+// The run's mission_completed chain depth comes from its record (tools.CompletionChainDepth
+// of info.Record's trigger type and data), not from the history copy that
+// boundFlowTriggerData makes. The record keeps trigger data whole up to
+// flows.MaxStoredOutputBytes, well above what mission_completed data can reach
+// (TestC19bChainDepthSurvivesTheRunRecord pins that).
+//
 // MissionID and HistoryID may be empty for a started run (its flow is gone, or no history
-// entry was made); mm.FlowRunFinished then completes what it can, and the planner issue
-// carries no mission reference.
+// entry was made); mm.FlowRunFinishedAtDepth then completes what it can, and the planner
+// issue carries no mission reference.
 func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 	if !info.Started {
 		b.s.Logger.Debug("Flow run ended before it started; Mission Control does not record it",
@@ -180,7 +186,8 @@ func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 	// and the success text; the work does not grow with the outputs (up to 32 MiB).
 	outputs := boundFlowOutputs(info.Outputs)
 	result, output := flowOutcome(info, outputs)
-	mm.FlowRunFinished(info.MissionID, info.HistoryID, result, output, outputs.mission)
+	depth := tools.CompletionChainDepth(info.Record.TriggerType, info.Record.TriggerData)
+	mm.FlowRunFinishedAtDepth(info.MissionID, info.HistoryID, result, output, outputs.mission, depth)
 	if info.Result.Status != flows.RunCancelled {
 		failed := result != tools.MissionResultSuccess
 		b.s.flowIssue(info, failed, output)

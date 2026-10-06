@@ -408,8 +408,13 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   in flight (stop the API first, close the store after `Shutdown`). DST: the Service sets
   `TimerService.SetLocation(Services.Loc())`; the spring-gap, Feb 29 and overlap rules are under Timers.
 - Self-trigger: a `trigger.mission_completed` on the flow's own mission is refused at publish and in the
-  preview (`PARAM_INVALID`, param `source`), because every run would start the next one. Loops across several
-  flows are not detected.
+  preview (`PARAM_INVALID`, param `source`), because every run would start the next one. Longer loops (flow A ↔
+  flow B, a flow and a prompt mission) are stopped at run time by Mission Control: `mission_completed` trigger
+  data carries `chain_depth`, and no dependent fires past depth 10 (`maxCompletionChainDepth`,
+  `internal/tools`), so such a loop ends after 11 runs and the last mission's `LastOutput` says why. The bridge
+  reads the depth from the run record (`tools.CompletionChainDepth`), which keeps trigger data whole up to
+  `MaxStoredOutputBytes`; `mission_completed` data stays below 80 KiB (`TestC19bChainDepthSurvivesTheRunRecord`
+  in `internal/server` pins that), so lowering that bound below it would reset every chain to depth 1.
 - Test runs (`StartTestRun`) execute the draft and are never reported to Mission Control (both run hooks return
   early for `ModeTest`). They validate with draft rules first (errors give a `*ValidationError`, an unknown
   `OnlyNode` gives `IssueNodeNotFound`); remembered sample data over `MaxStoredOutputBytes` is refused with

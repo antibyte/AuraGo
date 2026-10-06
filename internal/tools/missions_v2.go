@@ -198,6 +198,7 @@ type MissionManagerV2 struct {
 	historyDB          *sql.DB                                  // mission execution history database
 	auditRecorder      func(memory.AuditEvent) error            // central dashboard audit sink
 	activeRunID        map[string]string                        // missionID → history run ID for in-progress tracking
+	activeChainDepth   map[string]int                           // missionID → mission_completed chain depth of the running prompt mission (missing = 0)
 	onMissionComplete  func(completedID, result, output string) // callback for mission completion
 	missionGuards      map[string]context.CancelFunc            // per-mission timeout guardian cancel functions
 	remoteRunGuards    map[string]context.CancelFunc            // remote mission result timeout cancel functions
@@ -787,6 +788,7 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 					mission.LastResult = MissionResultError
 					mission.LastOutput = truncateString(fmt.Sprintf("mission dispatch panic: %v", r), 500)
 				}
+				delete(m.activeChainDepth, item.MissionID)
 				m.queue.Done()
 				if err := m.save(); err != nil {
 					slog.Error("[MissionV2] Failed to persist mission after dispatch panic", "mission_id", item.MissionID, "error", err)
@@ -800,6 +802,8 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 		}
 	}()
 
+	// Parsed before the lock: mission_completed trigger data can reach about 76 KiB.
+	chainDepth := completionChainDepthRaw(item.TriggerType, item.TriggerData)
 	m.mu.Lock()
 	muLocked = true
 	mission, exists := m.missions[item.MissionID]
@@ -815,6 +819,7 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 
 	mission.Status = MissionStatusRunning
 	mission.LastRun = time.Now()
+	m.setActiveChainDepthLocked(mission.ID, chainDepth)
 	m.save()
 	if err := m.saveQueueLocked(); err != nil {
 		slog.Error("[MissionV2] Failed to persist queue after starting mission", "mission_id", mission.ID, "error", err)
@@ -1036,6 +1041,8 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 	if mission, ok := m.missions[missionID]; ok && (mission.Status != MissionStatusRunning || isFlowMission(mission)) {
 		return
 	}
+	chainDepth := m.activeChainDepth[missionID]
+	delete(m.activeChainDepth, missionID)
 
 	// Record mission completion in history
 	if runID, ok := m.activeRunID[missionID]; ok {
@@ -1077,7 +1084,7 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 	}
 
 	// Queue prompt missions and start flows that wait for this completion.
-	m.enqueueCompletionDependentsLocked(missionID, result, output, nil)
+	m.enqueueCompletionDependentsAtDepthLocked(missionID, result, output, nil, chainDepth)
 	completeCB := m.onMissionComplete
 	m.save() // Second save: persist queued status of triggered dependents
 	if err := m.saveQueueLocked(); err != nil {
