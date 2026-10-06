@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -204,6 +205,22 @@ func TestLoadCatalogIncludesEmbeddedDockerRule(t *testing.T) {
 		if !strings.Contains(rule.Body, marker) {
 			t.Fatalf("docker rule body missing marker %q:\n%s", marker, rule.Body)
 		}
+	}
+}
+
+func TestEmbeddedDockerPromptsDoNotAdvertisePrune(t *testing.T) {
+	t.Parallel()
+
+	data, err := fs.ReadFile(promptsembed.FS, "tools_docker.md")
+	if err != nil {
+		t.Fatalf("read tools_docker.md: %v", err)
+	}
+	text := string(data)
+	if strings.Contains(text, "docker_system_prune") {
+		t.Fatal("tools_docker.md advertises docker_system_prune, but the docker tool has no prune operation")
+	}
+	if !strings.Contains(text, "There is no system prune operation") {
+		t.Fatal("tools_docker.md must state that no prune operation exists, matching the Docker rule")
 	}
 }
 

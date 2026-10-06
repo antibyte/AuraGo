@@ -46,9 +46,9 @@ The `docker` tool provides comprehensive Docker container, image, network, and v
 | Function | Purpose |
 |---|---|---|
 | `docker_system_info` | Get Docker engine information (version, containers, images count) |
-| `docker_system_prune` | Remove unused data (containers, networks, images, volumes) - **destructive** |
 
 #### Usage Notes
+- There is no system prune operation. Remove unused images and containers one at a time with `remove_image`/`remove` after checking `list_images`/`list_containers` (see the Docker rule).
 - All container/image names are validated for safety (no path traversal, special characters)
 - Docker API requests include automatic retry logic for transient failures
 - Container logs are truncated to 8000 characters max to prevent memory issues
