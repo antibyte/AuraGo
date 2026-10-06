@@ -344,7 +344,7 @@ func InstallPackageContext(ctx context.Context, pkgName, workspaceDir string) (s
 	pipCmd := GetPipBin(workspaceDir)
 	cmd := exec.CommandContext(ctx, pipCmd, "install", pkgName)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 
 	slog.Debug("[InstallPackage]", "cmd", pipCmd, "args", cmd.Args)
 
@@ -399,7 +399,7 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 	cmd := exec.Command(pythonCmd, cmdArgs...)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
 	SetupCmd(cmd)
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 
 	slog.Debug("[RunTool]", "cmd", pythonCmd, "args", cmd.Args)
 
@@ -436,7 +436,7 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 	cmd := exec.Command(pythonCmd, cmdArgs...)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
 	SetupCmd(cmd)
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
@@ -471,7 +471,7 @@ func RunToolBackground(name string, args []string, workspaceDir, toolsDir string
 	cmdArgs := append([]string{absToolPath}, args...)
 	cmd := exec.Command(pythonCmd, cmdArgs...)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 
 	slog.Debug("[RunToolBackground]", "cmd", pythonCmd, "args", cmd.Args)
 
@@ -504,7 +504,7 @@ func RunToolBackgroundWithSecrets(name string, args []string, workspaceDir, tool
 	cmdArgs := append([]string{absToolPath}, args...)
 	cmd := exec.Command(pythonCmd, cmdArgs...)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
@@ -541,7 +541,7 @@ func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) 
 	cmd := exec.Command(pythonCmd, scriptPath)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
 	SetupCmd(cmd)
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 
 	runner := NewForegroundRunner(cmd, ForegroundOptions{
 		Timeout:  GetForegroundTimeout(),
@@ -591,7 +591,7 @@ func ExecutePythonWithOptions(opts PythonExecutionOptions) (string, string, erro
 	cmd := exec.Command(pythonCmd, scriptPath)
 	cmd.Dir = getAbsWorkspace(opts.WorkspaceDir)
 	SetupCmd(cmd)
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 	InjectSecretsEnv(cmd, opts.Secrets)
 	InjectCredentialEnv(cmd, opts.Credentials)
 	if toolBridgeEnabled {
@@ -628,7 +628,7 @@ func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[s
 	cmd := exec.Command(pythonCmd, scriptPath)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
 	SetupCmd(cmd)
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
@@ -661,7 +661,7 @@ func ExecutePythonBackground(code, workspaceDir, toolsDir string, registry *Proc
 	pythonCmd := GetPythonBin(workspaceDir)
 	cmd := exec.Command(pythonCmd, scriptPath)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 
 	runner := NewBackgroundRunner(cmd, BackgroundOptions{
 		Registry: registry,
@@ -695,7 +695,7 @@ func ExecutePythonBackgroundWithSecrets(code, workspaceDir, toolsDir string, reg
 	pythonCmd := GetPythonBin(workspaceDir)
 	cmd := exec.Command(pythonCmd, scriptPath)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 

@@ -44,9 +44,11 @@ func runFakePythonForEnvTests() {
 	if len(leaked) > 0 {
 		fmt.Printf("leaked:%v\n", leaked)
 		os.Exit(42)
-	} else {
-		fmt.Println("env-clean")
 	}
+	if os.Getenv("AURAGO_FAKE_PYTHON_REPORT_DOCKER") == "1" {
+		fmt.Println("docker-env:" + reportDockerClientEnvForFake())
+	}
+	fmt.Println("env-clean")
 	if sleepMS, _ := strconv.Atoi(os.Getenv("AURAGO_FAKE_PYTHON_SLEEP_MS")); sleepMS > 0 {
 		time.Sleep(time.Duration(sleepMS) * time.Millisecond)
 	}

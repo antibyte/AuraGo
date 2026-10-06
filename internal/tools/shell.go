@@ -31,6 +31,8 @@ const shellKillWait = 8 * time.Second
 //   - Bounded stdout/stderr buffers prevent memory exhaustion.
 //   - PowerShell on Windows runs with -NoProfile -NonInteractive.
 //   - Dangerous commands are blocked via pattern matching.
+//   - Unsandboxed shells get ensureFilteredShellEnv: no host secrets, and no
+//     Docker client variables (DOCKER_HOST, ...) unless the Docker tool is permitted.
 //
 // IMPORTANT: The allow_shell config option controls whether shell execution is
 // permitted. It MUST be set to false by default (the config system enforces this).
@@ -77,7 +79,7 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 	}
 
 	cmd.Dir = absWorkDir
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 	SetupCmd(cmd)
 
 	slog.Debug("[ExecuteShell]", "command", command, "dir", cmd.Dir)
@@ -121,7 +123,7 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 	}
 
 	cmd.Dir = absWorkDir
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 	SetupCmd(cmd)
 
 	slog.Debug("[ExecuteShellBackground]", "command", command, "dir", cmd.Dir)
@@ -166,7 +168,7 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 	defer lease.Release()
 
 	cmd := newSudoRunCommand(command, absWorkDir)
-	ensureFilteredEnv(cmd)
+	ensureFilteredShellEnv(cmd)
 	SetupCmd(cmd)
 
 	slog.Debug("[ExecuteSudo]", "command", command, "dir", cmd.Dir)

@@ -371,7 +371,8 @@ services:
   #   2. Change DOCKER_HOST in aurago service to: unix:///var/run/docker.sock
   #   3. Comment out the docker-proxy service below and remove the depends_on.
   docker-proxy:
-    image: tecnativa/docker-socket-proxy
+    # Pinned release tag plus multi-arch index digest; update both together.
+    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
     container_name: aurago_docker_proxy
     restart: unless-stopped
     security_opt:

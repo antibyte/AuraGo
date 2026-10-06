@@ -2448,7 +2448,7 @@ Linux Landlock-based sandbox for shell commands. Restricts filesystem access, CP
 
 > 💡 Linux only. `shell_sandbox.enabled` defaults to `false` for compatibility. If shell execution is enabled without an effective shell sandbox, AuraGo warns in the security hints. On failure, an unsafe fallback can be allowed via `allow_unsafe_fallback`. Since this release the Linux/macOS host shell without an effective sandbox also requires `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`. Updates via `update.sh` and Docker write `agent.allow_unsandboxed_shell` (`true` for configurations that already had the shell enabled, `false` otherwise); configurations that never had the key written keep working and show the `shell_unsafe_host_legacy` hint. Inside Docker no shell sandbox exists, so a fresh Docker install that enables the shell must set `agent.allow_unsandboxed_shell: true` (or `allow_unsafe_host_execution: true`).
 
-Shell and Python child processes receive a filtered environment by default, so host secrets such as master keys, API keys, tokens, and passwords are not inherited by agent-controlled subprocesses.
+Shell and Python child processes receive a filtered environment by default, so host secrets such as master keys, API keys, tokens, and passwords are not inherited by agent-controlled subprocesses. `DOCKER_HOST` and the other Docker client variables (`DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `DOCKER_API_VERSION`) are only passed to shell commands and host Python while the Docker tool is enabled (`docker.enabled`).
 
 ### YAML Reference
 ```yaml

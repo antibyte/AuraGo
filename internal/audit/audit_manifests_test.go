@@ -960,6 +960,26 @@ func TestDockerComposeProxySidecarHasHardening(t *testing.T) {
 	}
 }
 
+// The socket proxy guards the Docker Engine, so compose pins a release tag and
+// its index digest; moving tags (latest, master, nightly) must not return.
+func TestDockerComposeProxyImageIsPinnedByTagAndDigest(t *testing.T) {
+	t.Parallel()
+
+	compose := readRepoFile(t, "docker-compose.yml")
+	proxyStart := strings.Index(compose, "\n  docker-proxy:")
+	if proxyStart < 0 {
+		t.Fatal("docker-compose.yml must define the docker-proxy sidecar")
+	}
+	proxyBlock := compose[proxyStart:]
+	if volumesStart := strings.Index(proxyBlock, "\nvolumes:"); volumesStart >= 0 {
+		proxyBlock = proxyBlock[:volumesStart]
+	}
+	pinned := regexp.MustCompile(`(?m)^    image: tecnativa/docker-socket-proxy:v\d+\.\d+\.\d+@sha256:[0-9a-f]{64}\s*$`)
+	if !pinned.MatchString(proxyBlock) {
+		t.Fatal("docker-proxy image must be pinned as tecnativa/docker-socket-proxy:vX.Y.Z@sha256:<digest>")
+	}
+}
+
 func TestDockerComposeProxyDoesNotRequireCodeStudioImageBuilds(t *testing.T) {
 	t.Parallel()
 

@@ -157,7 +157,11 @@ By default, the `docker-compose.yml` uses a **Docker socket proxy** (`tecnativa/
 | Risk if compromised | Limited to allowed operations | Complete host takeover |
 | Container management | Start, stop, inspect, exec | Everything (including privilege escalation) |
 
-The default proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. `IMAGES=1` and `POST=1` allow AuraGo to pull published managed sidecar images such as Code Studio, while `BUILD=0` keeps Docker build API access disabled by default. `EXEC=1` is enabled for DockerExec, Code Studio terminals, and security-proxy reloads. Keep the `docker-control` network private and do not attach unrelated sidecars to it.
+The default proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. `IMAGES=1` and `POST=1` allow AuraGo to pull published managed sidecar images such as Code Studio, while `BUILD=0` keeps Docker build API access disabled by default. `EXEC=1` lets AuraGo run commands inside containers through the Docker exec API: the Docker tool's `exec` operation, the Homepage tool (file access, builds, Git and deploys in the `aurago-homepage` dev container), Code Studio commands and terminals, the container terminals in the web UI, the code sandbox (`execute_sandbox`, whose llm-sandbox Docker backend runs code with Docker exec) and security-proxy reloads. `EXEC=1` can be set to `0` when none of these features are used. Keep the `docker-control` network private and do not attach unrelated sidecars to it.
+
+The proxy image is pinned to a release tag plus its multi-arch digest (`tecnativa/docker-socket-proxy:v0.5.0@sha256:…`); when upgrading the proxy, change tag and digest together.
+
+The AuraGo container receives `DOCKER_HOST=tcp://docker-proxy:2375` for its Docker integrations. Shell commands (`execute_shell`, `execute_sudo`) and host Python run by the agent only see `DOCKER_HOST` and the other Docker client variables (`DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `DOCKER_API_VERSION`) while the Docker tool is enabled (`docker.enabled`). This hides the endpoint from agents without the Docker permission; it is not a network boundary, because the proxy stays reachable on the `docker-control` network from inside the AuraGo container.
 
 ### Switching to Direct Socket Access (NOT recommended)
 
