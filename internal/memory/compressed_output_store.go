@@ -103,8 +103,9 @@ func (s *SQLiteMemory) ensureCompressedOutputColumn(name, ddl string) error {
 	return nil
 }
 
-// StoreCompressedOutput archives a tool output. The original content is scrubbed
-// for sensitive values before persistence.
+// StoreCompressedOutput archives a tool output. Every stored content column
+// (original, compressed, summary, view) is scrubbed for sensitive values
+// before persistence; the caller's struct keeps its unscrubbed content.
 func (s *SQLiteMemory) StoreCompressedOutput(ctx context.Context, out *CompressedToolOutput) error {
 	if out == nil {
 		return nil
@@ -112,6 +113,7 @@ func (s *SQLiteMemory) StoreCompressedOutput(ctx context.Context, out *Compresse
 	// Scrub secrets from the original before archiving.
 	original := security.Scrub(out.OriginalContent)
 	original = security.RedactSensitiveInfo(original)
+	compressed := security.RedactSensitiveInfo(security.Scrub(out.CompressedContent))
 	summary := security.RedactSensitiveInfo(security.Scrub(out.SummaryContent))
 	view := security.RedactSensitiveInfo(security.Scrub(out.ViewContent))
 	outputRef := strings.TrimSpace(out.OutputRef)
@@ -140,7 +142,7 @@ func (s *SQLiteMemory) StoreCompressedOutput(ctx context.Context, out *Compresse
 		outputRef,
 		out.ToolName,
 		original,
-		out.CompressedContent,
+		compressed,
 		summary,
 		view,
 		out.CompressionRatio,

@@ -6,8 +6,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+
+	"aurago/internal/security"
 )
 
 func TestCompressedOutputStore(t *testing.T) {
@@ -227,21 +230,40 @@ func TestCompressedOutputStore_Scrubbing(t *testing.T) {
 
 	ctx := context.Background()
 
+	const registered = "compressed-store-registered-secret-7f3a"
+	release := security.RegisterScopedSensitiveExact(registered)
+	defer release()
+	content := "password: secret12345\nbuild finished; token " + registered
+
 	out := &CompressedToolOutput{
 		SessionID:         "sess-1",
 		ToolCallID:        "call_1",
 		ToolName:          "shell",
-		OriginalContent:   "password: secret12345",
-		CompressedContent: "compressed",
+		OriginalContent:   content,
+		CompressedContent: content,
 		CompressionRatio:  0.5,
 	}
 	if err := stm.StoreCompressedOutput(ctx, out); err != nil {
 		t.Fatalf("StoreCompressedOutput: %v", err)
 	}
 
-	retrieved, _ := stm.RetrieveCompressedOutput(ctx, "sess-1", "call_1")
-	if retrieved.OriginalContent == "password: secret12345" {
-		t.Error("expected secrets to be scrubbed from archived output")
+	retrieved, err := stm.RetrieveCompressedOutput(ctx, "sess-1", "call_1")
+	if err != nil || retrieved == nil {
+		t.Fatalf("RetrieveCompressedOutput: %v", err)
+	}
+	for name, stored := range map[string]string{
+		"original":   retrieved.OriginalContent,
+		"compressed": retrieved.CompressedContent,
+	} {
+		if strings.Contains(stored, registered) || strings.Contains(stored, "secret12345") {
+			t.Errorf("expected secrets to be scrubbed from archived %s output, got %q", name, stored)
+		}
+		if !strings.Contains(stored, "build finished") {
+			t.Errorf("archived %s output lost its non-secret text: %q", name, stored)
+		}
+	}
+	if out.CompressedContent != content {
+		t.Errorf("StoreCompressedOutput must not rewrite the caller's compressed content")
 	}
 }
 
