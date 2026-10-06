@@ -3,7 +3,9 @@
 package remote
 
 import (
+	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -30,6 +32,33 @@ func TestInitDB(t *testing.T) {
 		}
 		if count != 1 {
 			t.Fatalf("table %s not found", table)
+		}
+	}
+}
+
+// The control database holds device records and enrollment lookups, so it and
+// its WAL/SHM sidecars must not be readable by other local users.
+func TestInitDBCreatesPrivateFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix file modes do not apply on Windows")
+	}
+	dbPath := filepath.Join(t.TempDir(), "remote_control.db")
+	db, err := InitDB(dbPath)
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	for _, path := range []string{dbPath, dbPath + "-wal", dbPath + "-shm"} {
+		info, err := os.Stat(path)
+		if path != dbPath && os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			t.Fatalf("stat %s: %v", filepath.Base(path), err)
+		}
+		if mode := info.Mode() & 0o777; mode != 0o600 {
+			t.Fatalf("%s mode = %#o, want 0600", filepath.Base(path), mode)
 		}
 	}
 }

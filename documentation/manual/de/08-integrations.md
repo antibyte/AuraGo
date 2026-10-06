@@ -1165,6 +1165,8 @@ remote_control:
 
 `allowed_paths` ist eine explizite Allowlist für Remote-Dateioperationen. Leer blockiert Remote-Dateilesen, -schreiben und Verzeichnislisten.
 
+Seit diesem Release benötigen Shell-Befehle auf einem Remote-Agenten (`shell_exec`, Shell-Sitzungen) außerdem mindestens einen erlaubten Pfad für dieses Gerät (`allowed_paths` über `PUT /api/remote/devices/{id}`): AuraGo lehnt sie vor dem Versand ab und der Agent lehnt sie erneut ab, sodass ein Gerät mit Schreibzugriff ohne erlaubte Pfade keine Shell hat, bis ein Pfad konfiguriert ist, während AgoDesk-Begleiter ihre eigenen lokalen Shell-Einstellungen behalten.
+
 > ⚠️ **Upgrade-Hinweis (getrennter Enrollment-Schlüssel):** Vor dem Upgrade ausgestellte Enrollment-Tokens sind ungültig; erstelle neue.
 > Vor dem Upgrade verteilte Remote-Agenten können sich nicht mehr verbinden und müssen durch einen Download vom aktualisierten AuraGo (**Remote Control**) ersetzt werden. Ihre Geräteschlüssel bleiben erhalten, ein erneutes Enrollment ist nicht nötig.
 > Der Supervisor protokolliert für jedes betroffene Gerät `unsupported frame version`.

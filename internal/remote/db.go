@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -124,6 +126,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to create remote_enrollments schema: %w", err)
 	}
+	restrictDBFileModes(dbPath)
 
 	// Trim old audit log entries on startup to prevent unbounded growth.
 	if err := TrimAuditLog(db, 10000); err != nil {
@@ -136,6 +139,19 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+// restrictDBFileModes makes the control database and its WAL/SHM sidecars
+// owner-only. It runs after the schema writes, when the sidecars exist; SQLite
+// gives sidecars it creates later the mode of the database file. Errors are
+// ignored: a missing sidecar or a non-file path has nothing to protect.
+func restrictDBFileModes(dbPath string) {
+	if runtime.GOOS == "windows" {
+		return
+	}
+	for _, path := range []string{dbPath, dbPath + "-wal", dbPath + "-shm"} {
+		_ = os.Chmod(path, 0o600)
+	}
 }
 
 func jsonStrings(ss []string) string {

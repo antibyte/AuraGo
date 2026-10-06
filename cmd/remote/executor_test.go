@@ -155,6 +155,38 @@ func TestExecutorShellExecBlocksDangerousCommands(t *testing.T) {
 	}
 }
 
+func TestExecutorShellExecDeniedWithoutAllowedPaths(t *testing.T) {
+	t.Parallel()
+
+	executor := NewExecutor(slog.Default(), remote.DefaultMaxFileSizeMB)
+	shellOps := []string{
+		remote.OpShellExec, remote.OpShellExecStream,
+		remote.OpShellSessionStart, remote.OpShellSessionRead, remote.OpShellSessionInput,
+		remote.OpShellSessionStop, remote.OpShellSessionList,
+	}
+	for name, allowedPaths := range map[string][]string{"nil": nil, "empty": {}} {
+		for _, op := range shellOps {
+			result := executor.Execute(remote.CommandPayload{
+				Operation: op,
+				Args:      map[string]interface{}{"command": "echo aurago-shell-ran"},
+			}, false, allowedPaths)
+			if result.Status != "denied" || !strings.Contains(result.Error, "allowed_paths") || result.Output != "" {
+				t.Fatalf("%s allowed paths, %s: status=%q error=%q output=%q, want allowed_paths denial",
+					name, op, result.Status, result.Error, result.Output)
+			}
+		}
+	}
+
+	result := executor.Execute(remote.CommandPayload{
+		Operation: remote.OpShellExec,
+		Args:      map[string]interface{}{"command": "echo aurago-shell-ran"},
+	}, false, []string{t.TempDir()})
+	if result.Status != "ok" || !strings.Contains(result.Output, "aurago-shell-ran") {
+		t.Fatalf("with an allowed path: status=%q error=%q output=%q, want the command to run",
+			result.Status, result.Error, result.Output)
+	}
+}
+
 func TestExecutorFileWriteRejectsOversizedPayload(t *testing.T) {
 	t.Parallel()
 

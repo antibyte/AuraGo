@@ -182,6 +182,60 @@ func TestRemoteDownloadUsesManualSupervisorURL(t *testing.T) {
 	}
 }
 
+func TestRemoteDownloadPrefersWSSWhenServerTLSEnabled(t *testing.T) {
+	cases := []struct {
+		name           string
+		httpsEnabled   bool
+		forwardedProto string
+		want           string
+	}{
+		// The TLS listener binds server.https.https_port; server.port is only
+		// the loopback listener then.
+		{name: "server TLS, plain request", httpsEnabled: true, want: "wss://aurago.lan:8443/api/remote/ws"},
+		{name: "no server TLS, plain request", want: "ws://aurago.lan:8090/api/remote/ws"},
+		{name: "no server TLS, forwarded https", forwardedProto: "https", want: "wss://aurago.lan:8090/api/remote/ws"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, cleanup := newRemoteDownloadTestServer(t, func(cfg *config.Config) {
+				cfg.Server.Port = 8090
+				cfg.Server.HTTPS.Enabled = tc.httpsEnabled
+				cfg.Server.HTTPS.HTTPSPort = 8443
+			})
+			defer cleanup()
+
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/api/remote/download/linux/amd64?name=nas", nil)
+			req.Host = "aurago.lan:8090"
+			if tc.forwardedProto != "" {
+				req.Header.Set("X-Forwarded-Proto", tc.forwardedProto)
+			}
+			handleRemoteDownload(s).ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
+			}
+			trailer, err := remote.ParseBinaryTrailer(rec.Body.Bytes())
+			if err != nil {
+				t.Fatalf("parse personalized binary trailer: %v", err)
+			}
+			if trailer.SupervisorURL != tc.want {
+				t.Fatalf("supervisor_url = %q, want %q", trailer.SupervisorURL, tc.want)
+			}
+		})
+	}
+
+	// Without a request host the fallback also prefers the TLS listener; an
+	// unset https_port means the 443 default.
+	cfg := &config.Config{}
+	cfg.Server.Port = 8090
+	cfg.Server.HTTPS.Enabled = true
+	req := httptest.NewRequest(http.MethodGet, "/api/remote/download/linux/amd64", nil)
+	req.Host = ""
+	if got := autoRemoteDownloadSupervisorURL(&Server{Cfg: cfg}, req); got != "wss://localhost:443/api/remote/ws" {
+		t.Fatalf("fallback supervisor_url = %q, want wss://localhost:443/api/remote/ws", got)
+	}
+}
+
 func newRemoteDownloadTestServer(t *testing.T, mutate func(*config.Config)) (*Server, func()) {
 	t.Helper()
 

@@ -545,21 +545,35 @@ func remoteDownloadSupervisorURL(s *Server, r *http.Request) (string, error) {
 }
 
 func autoRemoteDownloadSupervisorURL(s *Server, r *http.Request) string {
+	// When AuraGo serves HTTPS itself, agents get wss on the TLS listener
+	// (https_port) whatever scheme this request arrived with; server.port is
+	// then only the 127.0.0.1 internal listener.
+	serverTLS := s.Cfg.Server.HTTPS.Enabled
+	port := s.Cfg.Server.Port
+	if serverTLS {
+		port = s.Cfg.Server.HTTPS.HTTPSPort
+		if port <= 0 {
+			port = 443
+		}
+	}
 	if host := r.Host; host != "" {
 		// r.Host contains the hostname (and port) the client used to reach this server.
-		// Strip any existing port and re-attach the configured server port so the
+		// Strip any existing port and re-attach the server's listener port so the
 		// WebSocket URL is always correct regardless of proxies or port forwarding.
 		scheme := "ws"
-		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		if serverTLS || r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
 			scheme = "wss"
 		}
 		hostname := host
 		if h, _, err := net.SplitHostPort(host); err == nil {
 			hostname = h
 		}
-		return fmt.Sprintf("%s://%s:%d/api/remote/ws", scheme, hostname, s.Cfg.Server.Port)
+		return fmt.Sprintf("%s://%s:%d/api/remote/ws", scheme, hostname, port)
 	}
-	return fmt.Sprintf("ws://localhost:%d/api/remote/ws", s.Cfg.Server.Port)
+	if serverTLS {
+		return fmt.Sprintf("wss://localhost:%d/api/remote/ws", port)
+	}
+	return fmt.Sprintf("ws://localhost:%d/api/remote/ws", port)
 }
 
 func normalizeRemoteSupervisorURL(raw string, preferTailscale bool, serverPort int) (string, error) {

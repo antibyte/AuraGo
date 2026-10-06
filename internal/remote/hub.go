@@ -329,6 +329,14 @@ func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout tim
 			Error:     "device is in read-only mode",
 		}, nil
 	}
+	if h.commandBlockedByMissingAllowedPaths(deviceID, conn, cmd.Operation) {
+		return ResultPayload{
+			CommandID: cmd.CommandID,
+			Status:    "denied",
+			ErrorCode: "REMOTE_ALLOWED_PATHS_REQUIRED",
+			Error:     ShellRequiresAllowedPathsMessage,
+		}, nil
+	}
 	if conn == nil {
 		if transport := h.connectedCommandTransport(deviceID); transport != nil {
 			return transport.SendCommand(deviceID, cmd, timeout)
@@ -410,6 +418,29 @@ func (h *RemoteHub) commandBlockedByReadOnly(deviceID string, conn *RemoteConnec
 	}
 	device, err := GetDevice(h.db, deviceID)
 	return err == nil && device.ReadOnly
+}
+
+// commandBlockedByMissingAllowedPaths reports whether a shell operation must be
+// refused because the device has no allowed paths. An empty list, including
+// the explicit revocation of a full config snapshot, means no shell. A device
+// without a RemoteConnection is judged by its stored record, except when a
+// command transport (AgoDesk) carries the command: that client never receives
+// allowed_paths and gates shell access by its own advertised capability and
+// locally configured working directories.
+func (h *RemoteHub) commandBlockedByMissingAllowedPaths(deviceID string, conn *RemoteConnection, operation string) bool {
+	if !IsShellOperation(operation) {
+		return false
+	}
+	if conn != nil {
+		conn.mu.Lock()
+		defer conn.mu.Unlock()
+		return len(conn.AllowedPaths) == 0
+	}
+	if h == nil || h.db == nil || h.hasConnectedCommandTransport(deviceID) {
+		return false
+	}
+	device, err := GetDevice(h.db, deviceID)
+	return err == nil && len(device.AllowedPaths) == 0
 }
 
 func (h *RemoteHub) hasConnectedCommandTransport(deviceID string) bool {

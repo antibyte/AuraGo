@@ -85,6 +85,22 @@ func ReadOnlySafe(op string) bool {
 	}
 }
 
+// ShellRequiresAllowedPathsMessage refuses a shell operation for a device with
+// no allowed paths. A shell command can reach any path, so allowed_paths gates
+// shell access as a whole; the hub refuses before dispatch and the agent again.
+const ShellRequiresAllowedPathsMessage = "shell operations are disabled until allowed_paths is configured for this device"
+
+// IsShellOperation reports whether op runs a shell command or session.
+func IsShellOperation(op string) bool {
+	switch op {
+	case OpShellExec, OpShellExecStream, OpShellSessionStart, OpShellSessionRead,
+		OpShellSessionInput, OpShellSessionStop, OpShellSessionList:
+		return true
+	default:
+		return false
+	}
+}
+
 // ── Wire message ────────────────────────────────────────────────────────────
 
 // FrameVersion is the RemoteMessage wire version NewMessage emits and the only

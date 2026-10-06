@@ -164,6 +164,14 @@ func (e *Executor) executeOnce(cmd remote.CommandPayload, readOnly bool, allowed
 		return result
 	}
 
+	// A shell command can reach any path, so a device without allowed_paths
+	// gets no shell at all. The hub refuses these before dispatch as well.
+	if remote.IsShellOperation(cmd.Operation) && len(allowedPaths) == 0 {
+		result.Status = "denied"
+		result.Error = remote.ShellRequiresAllowedPathsMessage
+		return result
+	}
+
 	switch cmd.Operation {
 	case remote.OpSysinfo:
 		info := e.CollectSysinfo()
