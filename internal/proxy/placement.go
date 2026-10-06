@@ -166,7 +166,10 @@ func selfContainerIDs() ([]string, string) {
 
 // selfContainerIDsFrom is selfContainerIDs with the /proc reader and the
 // hostname lookup passed in; tests pass fixtures. customHostname is the
-// hostname when it is not Docker's default one, else "".
+// hostname when it is not Docker's default one and /proc names no container,
+// else "". When /proc names AuraGo's container and the engine answers 404 for
+// it, that engine does not run AuraGo: a container it finds by the hostname
+// is another one.
 func selfContainerIDsFrom(readFile func(string) ([]byte, error), hostname func() (string, error)) (ids []string, customHostname string) {
 	if id := dockerutil.OwnContainerID(readFile); id != "" {
 		ids = append(ids, id)
@@ -174,7 +177,7 @@ func selfContainerIDsFrom(readFile func(string) ([]byte, error), hostname func()
 	if name, err := hostname(); err == nil {
 		if id := dockerutil.DefaultContainerHostname(name); id != "" {
 			ids = append(ids, id)
-		} else {
+		} else if len(ids) == 0 {
 			customHostname = strings.TrimSpace(name)
 		}
 	}
@@ -184,11 +187,13 @@ func selfContainerIDsFrom(readFile func(string) ([]byte, error), hostname func()
 // inspectSelf inspects the AuraGo container. found is false when the engine
 // knows none of the identifiers.
 //
-// A custom hostname comes last and only when the IDs found nothing: a runtime
-// whose /proc names no container (gVisor, Kata) with a compose hostname equal
-// to AuraGo's container name still finds AuraGo, as before the shared self
-// detection. The engine resolves the hostname as a container name, so the
-// answer counts only when that container's own Config.Hostname is the same.
+// A custom hostname comes last: selfContainerIDs returns one only when /proc
+// names no container, and it is tried only when the IDs found nothing. A
+// runtime whose /proc names no container (gVisor, Kata) with a compose
+// hostname equal to AuraGo's container name still finds AuraGo, as before the
+// shared self detection. The engine resolves the hostname as a container
+// name, so the answer counts only when that container's own Config.Hostname
+// is the same.
 func (m *Manager) inspectSelf(dockerCfg tools.DockerConfig) (selfContainer, bool, error) {
 	ids, customHostname := selfContainerIDs()
 	if m.selfIDs != nil {
@@ -211,7 +216,7 @@ func (m *Manager) inspectSelf(dockerCfg tools.DockerConfig) (selfContainer, bool
 		m.log().Info("Security proxy: AuraGo's hostname names another container; not using it", "hostname", customHostname, "container", self.Name)
 		return selfContainer{}, false, nil
 	}
-	m.log().Warn("Security proxy: /proc names no container; found the AuraGo container by its custom hostname", "hostname", customHostname, "container", self.Name)
+	m.log().Warn("Security proxy: found the AuraGo container only by its custom hostname, confirmed by the container's own hostname", "hostname", customHostname, "container", self.Name)
 	return self, true, nil
 }
 

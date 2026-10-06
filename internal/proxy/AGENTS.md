@@ -44,9 +44,11 @@ section. Operator guidance lives in the Security Proxy section of
   the host gateway. When AuraGo runs in Docker, the manager inspects its own
   container (`dockerutil.OwnContainerID` from /proc, then
   `dockerutil.DefaultContainerHostname`; the server's container protection
-  uses the same helpers. Only when those find nothing, a custom hostname is
-  inspected as a last resort and accepted only if that container's
-  `Config.Hostname` equals it, with a warning), maps the proxy directory onto
+  uses the same helpers. Only when /proc names no container and the default
+  hostname finds nothing, a custom hostname is inspected as a last resort and
+  accepted only if that container's `Config.Hostname` equals it, with a
+  warning; a 404 for AuraGo's own /proc ID means the engine does not run
+  AuraGo, so the hostname is never tried then), maps the proxy directory onto
   that container's volume (`VolumeOptions.Subpath`, Engine API 1.45+) or bind
   source, joins the first non-internal user-defined network (prefer
   `*_default`, never the Docker control network) and proxies to the container

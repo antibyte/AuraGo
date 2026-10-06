@@ -1638,26 +1638,43 @@ func TestManagerFindsAuraGoByCustomHostnameAsLastResort(t *testing.T) {
 	}
 }
 
+// When /proc names AuraGo's container, a custom hostname is never inspected.
+// A 404 for that ID means the engine at docker_host does not run AuraGo, so a
+// container it finds by the hostname is another one, e.g. a second AuraGo from
+// the same compose template with the same Config.Hostname.
 func TestManagerNeverInspectsTheCustomHostnameWhenProcNamesAuraGo(t *testing.T) {
-	cfg := proxyConfig()
-	cfg.Directories.DataDir = t.TempDir()
-	fake := selfLookupEngine(cfg, proxySelfContainerID, "aurago")
-	m := testManager(t, cfg, fake)
-	m.inDocker = func() bool { return true }
-	mountinfo := etcMountinfo("/var/lib/docker/containers/" + proxySelfContainerID)
-	m.selfIDs = func() ([]string, string) {
-		return selfContainerIDsFrom(func(path string) ([]byte, error) {
-			if path == "/proc/self/mountinfo" {
-				return []byte(mountinfo), nil
+	for name, tc := range map[string]struct {
+		engineKnows string
+		wantDocker  bool
+	}{
+		"the engine knows the /proc ID":         {proxySelfContainerID, true},
+		"the engine does not know the /proc ID": {"aurago", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := proxyConfig()
+			cfg.Directories.DataDir = t.TempDir()
+			fake := selfLookupEngine(cfg, tc.engineKnows, "aurago")
+			m := testManager(t, cfg, fake)
+			m.inDocker = func() bool { return true }
+			mountinfo := etcMountinfo("/var/lib/docker/containers/" + proxySelfContainerID)
+			m.selfIDs = func() ([]string, string) {
+				return selfContainerIDsFrom(func(path string) ([]byte, error) {
+					if path == "/proc/self/mountinfo" {
+						return []byte(mountinfo), nil
+					}
+					return nil, errors.New("no such file")
+				}, hostnameIs("aurago"))
 			}
-			return nil, errors.New("no such file")
-		}, hostnameIs("aurago"))
-	}
 
-	if !startedInDockerPlacement(t, m, fake) {
-		t.Fatal("the /proc container ID did not give the Docker placement")
-	}
-	if got := countCalls(fake, "GET /containers/aurago/json"); got != 0 {
-		t.Fatalf("inspect of the custom hostname = %d, want none", got)
+			if got := startedInDockerPlacement(t, m, fake); got != tc.wantDocker {
+				t.Fatalf("Docker placement = %v, want %v", got, tc.wantDocker)
+			}
+			if got := countCalls(fake, "GET /containers/"+proxySelfContainerID+"/json"); got != 1 {
+				t.Fatalf("inspect of the /proc ID = %d, want 1", got)
+			}
+			if got := countCalls(fake, "GET /containers/aurago/json"); got != 0 {
+				t.Fatalf("inspect of the custom hostname = %d, want none", got)
+			}
+		})
 	}
 }

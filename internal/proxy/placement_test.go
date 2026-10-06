@@ -212,8 +212,9 @@ func etcMountinfo(root string) string {
 
 // TestSelfContainerIDsUseProcAndTheDefaultHostnameOnly pins the shared self
 // detection (dockerutil, M1) on the proxy side: the container ID from /proc
-// first, then Docker's default hostname. A custom hostname is returned apart:
-// inspectSelf tries it only as a verified last resort.
+// first, then Docker's default hostname. A custom hostname is returned apart,
+// and only when /proc names no container: inspectSelf tries it only as a
+// verified last resort.
 func TestSelfContainerIDsUseProcAndTheDefaultHostnameOnly(t *testing.T) {
 	standard := etcMountinfo("/var/lib/docker/containers/" + proxySelfContainerID)
 	for _, tc := range []struct {
@@ -227,11 +228,11 @@ func TestSelfContainerIDsUseProcAndTheDefaultHostnameOnly(t *testing.T) {
 		{"default hostname", map[string]string{"/proc/self/mountinfo": standard}, proxySelfContainerID[:12], []string{proxySelfContainerID, proxySelfContainerID[:12]}, ""},
 		{"default hostname without /proc", nil, proxySelfContainerID[:12], []string{proxySelfContainerID[:12]}, ""},
 		// Changed by the shared helper.
-		{"custom hostname", map[string]string{"/proc/self/mountinfo": standard}, "aurago", []string{proxySelfContainerID}, "aurago"},
+		{"custom hostname", map[string]string{"/proc/self/mountinfo": standard}, "aurago", []string{proxySelfContainerID}, ""},
 		{"native or LXC guest", nil, " lxc-host ", nil, "lxc-host"},
-		{"another container's file mounted first", map[string]string{"/proc/self/mountinfo": "1530 1520 8:1 /var/lib/docker/containers/" + proxyOtherContainerID + "/hostname /mnt/other-hostname ro - ext4 /dev/sda1 rw\n" + standard}, "aurago", []string{proxySelfContainerID}, "aurago"},
-		{"dedicated containers filesystem", map[string]string{"/proc/self/mountinfo": etcMountinfo("/" + proxySelfContainerID)}, "aurago", []string{proxySelfContainerID}, "aurago"},
-		{"cgroup v1 only", map[string]string{"/proc/self/cgroup": "12:memory:/docker/" + proxySelfContainerID + "\n"}, "aurago", []string{proxySelfContainerID}, "aurago"},
+		{"another container's file mounted first", map[string]string{"/proc/self/mountinfo": "1530 1520 8:1 /var/lib/docker/containers/" + proxyOtherContainerID + "/hostname /mnt/other-hostname ro - ext4 /dev/sda1 rw\n" + standard}, "aurago", []string{proxySelfContainerID}, ""},
+		{"dedicated containers filesystem", map[string]string{"/proc/self/mountinfo": etcMountinfo("/" + proxySelfContainerID)}, "aurago", []string{proxySelfContainerID}, ""},
+		{"cgroup v1 only", map[string]string{"/proc/self/cgroup": "12:memory:/docker/" + proxySelfContainerID + "\n"}, "aurago", []string{proxySelfContainerID}, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			readFile := func(path string) ([]byte, error) {
