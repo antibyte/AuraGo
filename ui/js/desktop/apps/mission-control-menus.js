@@ -56,9 +56,10 @@
     // Snapshot helpers – `m.s` is the shell's live state view.
     function sel(m) { return m.s && m.s.selected ? m.s.selected : null; }
     function isRemote(mission) { return !!mission && mission.runner_type === 'remote'; }
-    function isFlow(mission) { return !!mission && mission.execution_type === 'flow'; }
-    // The server refuses to run or switch on a flow that was never published (Resume and Run stay off).
-    function isUnpublishedFlow(mission) { return isFlow(mission) && !mission.flow_published; }
+    // Flow predicates live in MissionControlTriggers, which loads before this module.
+    function isFlow(mission) { return window.MissionControlTriggers.isFlow(mission); }
+    function isUnpublishedFlow(mission) { return window.MissionControlTriggers.isUnpublishedFlow(mission); }
+    // An unpublished flow cannot be switched on, so its Resume stays off.
     function blocksResume(mission) { return isUnpublishedFlow(mission) && mission.enabled === false; }
 
     function windowMenus(m) {

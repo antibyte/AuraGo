@@ -149,6 +149,18 @@
         return String(t(type.labelKey) || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
     }
 
+    // Flow missions (execution_type "flow") are EasyDrag flows. The server refuses to run or switch
+    // on a flow that was never published.
+    function isFlow(mission) { return !!mission && mission.execution_type === 'flow'; }
+    function isUnpublishedFlow(mission) { return isFlow(mission) && !mission.flow_published; }
+
+    // upcomingRun returns the next run of an enabled scheduled or flow mission, or ''. The server
+    // sends next_run for those only (a flow's earliest schedule or Date & time trigger).
+    function upcomingRun(mission) {
+        if (!mission || mission.enabled === false || !mission.next_run) return '';
+        return mission.execution_type === 'scheduled' || isFlow(mission) ? mission.next_run : '';
+    }
+
     // flowSummary lists the trigger nodes of an EasyDrag flow mission.
     function flowSummary(mission, t, ctx) {
         if (!mission.flow_published) return t('desktop.mc_flow_unpublished');
@@ -560,5 +572,5 @@
         };
     }
 
-    window.MissionControlTriggers = { GROUPS, TYPES, REMOTE_ALLOWED, FIELDS, byKey, label, summary, detail, createPicker, createConfigPanel };
+    window.MissionControlTriggers = { GROUPS, TYPES, REMOTE_ALLOWED, FIELDS, byKey, label, summary, detail, isFlow, isUnpublishedFlow, upcomingRun, createPicker, createConfigPanel };
 })();

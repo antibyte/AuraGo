@@ -237,7 +237,8 @@
             if (counts.waiting) parts.push(t('desktop.mc_status_waiting', { count: counts.waiting }));
             if (!counts.running && !counts.waiting && counts.total) parts.push(t('desktop.mc_status_idle'));
             $('[data-mc-status-counts]').textContent = parts.join(' · ');
-            const next = state.missions.filter(m => m.execution_type === 'scheduled' && m.enabled !== false && m.next_run)
+            // Scheduled and flow missions; the server sends a flow's earliest schedule or Date & time trigger.
+            const next = state.missions.filter(m => TR.upcomingRun(m))
                 .sort((a, b) => Date.parse(a.next_run) - Date.parse(b.next_run))[0];
             $('[data-mc-status-next]').textContent = next ? t('desktop.mc_status_next', { name: next.name, when: fmt.relative(next.next_run) }) : '';
             const live = $('[data-mc-status-live]');
@@ -333,8 +334,6 @@
         function openFlow(m) {
             if (m && typeof openApp === 'function') openApp('easydrag', m.flow_id ? { flowId: m.flow_id } : {});
         }
-        // The server refuses to run or switch on a flow that was never published.
-        function isUnpublishedFlow(m) { return !!m && m.execution_type === 'flow' && !m.flow_published; }
 
         // ── actions ──
         async function withBusy(name, fn) {
@@ -349,7 +348,8 @@
             newFlow: () => { if (typeof openApp === 'function') openApp('easydrag', {}); },
             openFlow: (id) => openFlow(byId(id)),
             edit: () => { const m = selected(); if (m) openEditor('edit', m); },
-            duplicate: () => { const m = selected(); if (m) openEditor('duplicate', m); },
+            // Flows are duplicated in EasyDrag; Duplicate does nothing for them (the menus disable it).
+            duplicate: () => { const m = selected(); if (m && !TR.isFlow(m)) openEditor('duplicate', m); },
             run: () => actions.runMission(state.selectedId),
             cancelRun: () => actions.cancelMission(state.selectedId),
             removeFromQueue: () => actions.removeMissionFromQueue(state.selectedId),
@@ -364,10 +364,10 @@
             toggleList: () => { state.listCollapsed = !state.listCollapsed; root.classList.toggle('is-list-collapsed', state.listCollapsed); const tb = $('[data-mc-list-toggle]'); tb.setAttribute('aria-pressed', String(!state.listCollapsed)); tb.title = t(state.listCollapsed ? 'desktop.mc_list_expand' : 'desktop.mc_list_collapse'); savePrefs(state); syncMenus(); },
             runMission: (id) => withBusy('run', async () => {
                 const m = byId(id);
-                if (isUnpublishedFlow(m)) { notify(t('desktop.mc_flow_publish_first')); return; }
+                if (TR.isUnpublishedFlow(m)) { notify(t('desktop.mc_flow_publish_first')); return; }
                 const data = await api('/api/missions/v2/' + encodeURIComponent(id) + '/run', { method: 'POST' });
                 // A flow run is not queued here: EasyDrag starts it, lets it wait for a slot or skips it.
-                notify(m && m.execution_type === 'flow' ? t('desktop.mc_toast_flow_run_requested') : toastForMissionDispatch(data || {}));
+                notify(TR.isFlow(m) ? t('desktop.mc_toast_flow_run_requested') : toastForMissionDispatch(data || {}));
                 await loadData();
             }),
             cancelMission: (id) => withBusy('cancel', async () => {
@@ -375,8 +375,10 @@
                 try {
                     await api('/api/missions/v2/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
                 } catch (err) {
-                    // 409 for a flow: no live run is running (waiting runs are not "running" here). EasyDrag cancels those.
-                    if (m && m.execution_type === 'flow' && err && err.status === 409) { notify(t('desktop.mc_flow_cancel_in_easydrag')); return; }
+                    // FLOW_NO_ACTIVE_RUN: nothing to cancel here. Runs of a flow mission that is not running (waiting
+                    // for a global slot) are cancelled in EasyDrag; while it runs, the cancel takes waiting runs too.
+                    // Every other answer (several flows hold the mission, the flow is gone, ...) stays an error.
+                    if (TR.isFlow(m) && err && err.body && err.body.code === 'FLOW_NO_ACTIVE_RUN') { notify(t('desktop.mc_flow_cancel_in_easydrag')); return; }
                     throw err;
                 }
                 state.cancelling.add(id);
@@ -389,7 +391,7 @@
             }),
             togglePauseMission: (id) => withBusy('pause', async () => {
                 const m = byId(id); if (!m) return;
-                if (m.enabled === false && isUnpublishedFlow(m)) { notify(t('desktop.mc_flow_publish_first')); return; }
+                if (m.enabled === false && TR.isUnpublishedFlow(m)) { notify(t('desktop.mc_flow_publish_first')); return; }
                 await putMission(m, { enabled: m.enabled === false });
                 notify(t(m.enabled === false ? 'desktop.mc_toast_resumed' : 'desktop.mc_toast_paused'));
                 await loadData();
@@ -403,7 +405,7 @@
             deleteMission: async (id) => {
                 const m = byId(id); if (!m || readonly) return;
                 // Deleting a flow mission deletes its flow in EasyDrag too (Service.DeleteFlowForMission).
-                const message = m.execution_type === 'flow' ? t('desktop.mc_delete_flow_message', { name: m.name }) : t('desktop.mc_delete_message', { name: m.name });
+                const message = TR.isFlow(m) ? t('desktop.mc_delete_flow_message', { name: m.name }) : t('desktop.mc_delete_message', { name: m.name });
                 const ok = await confirmDialog(t('desktop.mc_delete_title'), message);
                 if (!ok) return;
                 await withBusy('delete', async () => {
@@ -443,7 +445,7 @@
                 } catch (err) { failToast(err); }
             },
             editMission: (id) => { const m = byId(id); if (m) openEditor('edit', m); },
-            duplicateMission: (id) => { const m = byId(id); if (m) openEditor('duplicate', m); }
+            duplicateMission: (id) => { const m = byId(id); if (m && !TR.isFlow(m)) openEditor('duplicate', m); }
         };
         menuModel.actions = actions;
 

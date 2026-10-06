@@ -729,8 +729,9 @@ buttons and menu popovers remain excluded from those gestures.
   otherwise beat the UA hidden default; keep the stylesheet theme-native
   (`--vd-theme-*`, `--vd-accent`) and free of dark-only literals.
 - Verify with `go test ./ui -run 'MissionControl|RelTime'`,
-  `node scripts/test-mission-control-schedule.mjs` and the opt-in
-  `TestDesktopMissionControlBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
+  `npm run test:mission-control` (schedule, plus flow missions on a stub DOM in
+  `scripts/test-mission-control-flows.mjs`), `npm run test:dashboard-cron` and
+  the opt-in `TestDesktopMissionControlBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
 
 ### App theme bridge contract
 
@@ -1889,6 +1890,8 @@ registration lives in `internal/desktop/types.go`.
 - `go test ./ui/ -run 'TestDesktopMissionControl|TestMissionControlDispose'`
 - `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopMissionControlBrowser -count=1`
 - `node scripts/test-mission-control-schedule.mjs`
+- `node scripts/test-mission-control-flows.mjs` (or `npm run test:mission-control` for both)
+- `node scripts/test-dashboard-cronjobs.mjs` (`npm run test:dashboard-cron`)
 - `go test ./ui/ -run TestDesktopFileManagerTemplateI18n`
 - `go test ./ui/ -run TestDesktopWidgetDisplayTitle`
 - `go test ./ui/ -run 'LineBudget|GalaxaMode|DesktopAppAssets|AdaptiveMusic'`

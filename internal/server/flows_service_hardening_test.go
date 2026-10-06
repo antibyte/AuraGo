@@ -387,11 +387,27 @@ func TestC16MissionControlCancelMapsFlowErrors(t *testing.T) {
 		t.Fatalf("cancel without a flow = %d %s", w.Code, w.Body.String())
 	}
 
-	// The flow exists but has no live run.
+	// The flow exists but has no live run. Mission Control shows a hint for FLOW_NO_ACTIVE_RUN only.
 	idle := createTestFlow(t, s, greetFlowJSON)
 	mm.FlowRunStarted(idle.MissionID, "manual", "")
-	if w := c16Cancel(s, ctx, idle.MissionID); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "cannot be cancelled yet") {
+	if w := c16Cancel(s, ctx, idle.MissionID); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "cannot be cancelled yet") ||
+		!strings.Contains(w.Body.String(), `"code":"FLOW_NO_ACTIVE_RUN"`) {
 		t.Fatalf("cancel without runs = %d %s", w.Code, w.Body.String())
+	}
+
+	// A flow mission that is not running: its waiting runs are cancelled in EasyDrag.
+	still := createTestFlow(t, s, greetFlowJSON)
+	if w := c16Cancel(s, ctx, still.MissionID); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "not running") ||
+		!strings.Contains(w.Body.String(), `"code":"FLOW_NO_ACTIVE_RUN"`) {
+		t.Fatalf("cancel of a flow that is not running = %d %s", w.Code, w.Body.String())
+	}
+
+	// A prompt mission that is not running keeps its answer without a code.
+	if err := mm.Create(&tools.MissionV2{ID: "c16_prompt", Name: "Prompt", Prompt: "Fixture only", ExecutionType: tools.ExecutionManual, Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if w := c16Cancel(s, ctx, "c16_prompt"); w.Code != http.StatusConflict || strings.Contains(w.Body.String(), `"code"`) {
+		t.Fatalf("cancel of a prompt mission that is not running = %d %s", w.Code, w.Body.String())
 	}
 
 	// Two flows hold the same mission.
@@ -399,7 +415,8 @@ func TestC16MissionControlCancelMapsFlowErrors(t *testing.T) {
 	if err := s.Flows.Store().SetMissionID(ctx, twin.ID, idle.MissionID); err != nil {
 		t.Fatal(err)
 	}
-	if w := c16Cancel(s, ctx, idle.MissionID); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "several flows") {
+	if w := c16Cancel(s, ctx, idle.MissionID); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "several flows") ||
+		!strings.Contains(w.Body.String(), `"code":"FLOW_MISSION_AMBIGUOUS"`) {
 		t.Fatalf("cancel of an ambiguous mission = %d %s", w.Code, w.Body.String())
 	}
 }

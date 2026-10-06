@@ -40,7 +40,13 @@ function check(name, cond, detail) {
 }
 const hasEdit = (html) => html.includes('openCronEditModal');
 const hasDelete = (html) => html.includes('deleteCronJob');
-const hasManaged = (html) => html.includes('class="cronjobs-managed"') && html.includes('dashboard.cronjobs_managed_easydrag') && html.includes('title="dashboard.cronjobs_managed_easydrag_hint"');
+// The label carries its hint as a tooltip and as visually hidden text (screen readers, keyboard users).
+const hasManaged = (html) => html.includes('class="cronjobs-managed"') && html.includes('dashboard.cronjobs_managed_easydrag') && html.includes('title="dashboard.cronjobs_managed_easydrag_hint"') &&
+    html.includes('<span class="visually-hidden"> dashboard.cronjobs_managed_easydrag_hint</span>');
+// Hostile ids and expressions: nothing of them may become markup.
+const HOSTILE_ID = 'x<img src=y onerror=z>"&';
+const HOSTILE_EXPR = '*/5 "<b>"&';
+const escapedOnly = (html) => !html.includes('<img') && !html.includes('<b>') && html.includes('x&lt;img src=y onerror=z&gt;&quot;&amp;') && html.includes('*/5 &quot;&lt;b&gt;&quot;&amp;');
 
 // ── Cronjobs tab ──
 sandbox.renderCronjobs({
@@ -72,6 +78,28 @@ check('activity: renders both jobs', items.length === 2, String(items.length));
 check('activity: flow job has no Edit and no Delete', items[0] && !hasEdit(items[0]) && !hasDelete(items[0]));
 check('activity: flow job shows the EasyDrag label with its hint', items[0] && hasManaged(items[0]));
 check('activity: other jobs keep Edit and Delete', items[1] && hasEdit(items[1]) && hasDelete(items[1]) && !items[1].includes('cronjobs-managed'));
+
+// ── hostile ids and expressions, managed and not, in both renderers ──
+document.getElementById('cronjobs-tbody').children = [];
+sandbox.renderCronjobs({
+    jobs: [
+        { id: HOSTILE_ID, cron_expr: HOSTILE_EXPR, task_prompt: '', source: 'flow', status: 'enabled', registered: true, managed_by: 'easydrag' },
+        { id: HOSTILE_ID, cron_expr: HOSTILE_EXPR, task_prompt: 'p', source: 'agent', status: 'enabled', registered: true }
+    ],
+    total: 2, enabled: 2, disabled: 0, errors: 0
+});
+const hostileRows = document.getElementById('cronjobs-tbody').children.map(row => row.innerHTML);
+check('tab: a hostile id and expression render escaped (managed job)', hostileRows[0] && escapedOnly(hostileRows[0]));
+check('tab: a hostile id and expression render escaped (other job)', hostileRows[1] && escapedOnly(hostileRows[1]));
+sandbox.renderActivity({
+    cron_jobs: [
+        { id: HOSTILE_ID, cron_expr: HOSTILE_EXPR, task_prompt: '', source: 'flow' },
+        { id: HOSTILE_ID, cron_expr: HOSTILE_EXPR, task_prompt: 'p', source: 'agent' }
+    ]
+});
+const hostileItems = document.getElementById('activity-details').innerHTML.split('<div class="activity-item">').slice(1);
+check('activity: a hostile id and expression render escaped (flow job)', hostileItems.length === 2 && escapedOnly(hostileItems[0]));
+check('activity: a hostile id and expression render escaped (other job)', hostileItems.length === 2 && escapedOnly(hostileItems[1]));
 
 if (failures) { console.error(`${failures} check(s) failed`); process.exit(1); }
 console.log('all dashboard cron job checks passed');

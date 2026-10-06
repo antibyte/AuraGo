@@ -4316,6 +4316,7 @@ gray = hollow circle */
 }
 /* Flow schedules are managed in EasyDrag: a read-only label replaces Edit and Delete. */
 .pw-page[data-workspace-page="dashboard"] .cronjobs-managed {
+    position: relative;
     display: inline-flex;
     align-items: center;
     min-height: 1.75rem;
@@ -4327,7 +4328,6 @@ gray = hollow circle */
     font-weight: 600;
     line-height: 1.2;
     white-space: nowrap;
-    cursor: help;
 }
 .pw-page[data-workspace-page="dashboard"] #cronjobs-empty {
     padding: 1.25rem 0;

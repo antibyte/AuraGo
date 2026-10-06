@@ -395,3 +395,4 @@
 .vd-mc-card--flow .vd-mc-flow-desc { margin: 0 0 12px; color: var(--vd-theme-muted); line-height: 1.5; }
 .vd-mc-card--flow .vd-mc-flow-hint { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: var(--ds-type-size-sm); color: var(--vd-text); }
 .vd-mc-card--flow .vd-mc-flow-hint svg { color: var(--mc-info); }
+.vd-mc-row-state[data-state="unpublished"] { background: transparent; border: 2px dashed var(--vd-muted); }

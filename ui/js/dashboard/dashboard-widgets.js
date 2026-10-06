@@ -2021,9 +2021,11 @@
             });
         }
 
-        // cronjobManagedLabel replaces Edit and Delete of a job that EasyDrag owns (a flow's schedule).
+        // cronjobManagedLabel replaces Edit and Delete of a job that EasyDrag owns (a flow's schedule). The hint is
+        // a tooltip for the mouse and visually hidden text for screen readers.
         function cronjobManagedLabel() {
-            return `<span class="cronjobs-managed" title="${esc(t('dashboard.cronjobs_managed_easydrag_hint'))}">${esc(t('dashboard.cronjobs_managed_easydrag'))}</span>`;
+            const hint = esc(t('dashboard.cronjobs_managed_easydrag_hint'));
+            return `<span class="cronjobs-managed" title="${hint}">${esc(t('dashboard.cronjobs_managed_easydrag'))}<span class="visually-hidden"> ${hint}</span></span>`;
         }
 
         function cronjobSourceLabel(source) {

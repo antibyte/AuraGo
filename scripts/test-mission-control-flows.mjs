@@ -88,13 +88,19 @@ const svg = MN.ICONS;
 const fmt = { relative: () => 'rel', dateTime: () => 'date', duration: () => 'dur', clock: () => '00:00' };
 
 const agent = { id: 'agent-1', name: 'B agent', execution_type: 'manual', prompt: 'Do it', enabled: true, priority: 'medium' };
-const scheduled = { id: 'sched-1', name: 'C scheduled', execution_type: 'scheduled', schedule: '0 9 * * *', prompt: 'Daily', enabled: true };
+const scheduled = { id: 'sched-1', name: 'C scheduled', execution_type: 'scheduled', schedule: '0 9 * * *', prompt: 'Daily', enabled: true, next_run: '2026-10-08T09:00:00Z' };
 const flowLive = {
     id: 'flow-1', name: 'A flow', execution_type: 'flow', flow_id: 'f_live', flow_published: true, enabled: true, priority: 'medium', prompt: '',
     next_run: '2026-10-07T09:00:00Z',
     flow_triggers: [{ node_id: 'n1', trigger_type: 'schedule', schedule: '0 9 * * *' }, { node_id: 'n2', trigger_type: 'manual' }]
 };
 const flowDraft = { id: 'flow-2', name: 'D draft flow', execution_type: 'flow', flow_id: 'f_draft', enabled: false, priority: 'medium', prompt: '' };
+// Several flows hold this mission: its cancel answers FLOW_MISSION_AMBIGUOUS.
+const flowTwin = { id: 'flow-3', name: 'E twin flow', execution_type: 'flow', flow_id: 'f_twin', flow_published: true, enabled: true, priority: 'medium', prompt: '', flow_triggers: [{ node_id: 'm', trigger_type: 'manual' }] };
+// Hostile text from a trigger type and a name must render escaped.
+const flowOdd = { id: 'flow-4', name: 'F <i>odd</i> flow', execution_type: 'flow', flow_id: 'f_odd', flow_published: true, enabled: true, priority: 'medium', prompt: '', flow_triggers: [{ node_id: 'x', trigger_type: '<b>x</b>' }] };
+const agentPaused = { id: 'agent-2', name: 'G paused agent', execution_type: 'manual', prompt: 'Later', enabled: false, priority: 'medium' };
+const ALL = [agent, scheduled, flowLive, flowDraft, flowTwin, flowOdd, agentPaused];
 
 // ── flowSummary through MissionControlTriggers.summary ──
 const ctx = { schedule: S, lang: 'en' };
@@ -116,20 +122,31 @@ const mixed = {
 eq('summary: schedule, datetime, manual, other; duplicates removed', TR.summary(mixed, t, ctx),
     [S.describe('*/15 * * * *', t, 'en'), 'desktop.mc_flow_trigger_datetime', 'desktop.mc_filter_manual', TR.label(TR.byKey('webhook'), t), 'desktop.mc_filter_scheduled', 'custom_thing'].join(' · '));
 eq('summary: agent missions unchanged', TR.summary(scheduled, t, ctx), S.describe('0 9 * * *', t, 'en'));
+eq('summary: an unknown trigger type is passed on as text (renderers escape it)', TR.summary(flowOdd, t, ctx), '<b>x</b>');
 
-// ── list: Flows filter, badge, quick run ──
+// ── shared predicates ──
+check('isFlow / isUnpublishedFlow', TR.isFlow(flowLive) && !TR.isFlow(agent) && !TR.isFlow(null) && TR.isUnpublishedFlow(flowDraft) && !TR.isUnpublishedFlow(flowLive) && !TR.isUnpublishedFlow(agentPaused));
+eq('upcomingRun: enabled scheduled and flow missions only', [TR.upcomingRun(flowLive), TR.upcomingRun(scheduled), TR.upcomingRun(Object.assign({}, flowLive, { enabled: false })), TR.upcomingRun(Object.assign({}, agent, { next_run: '2026-10-07T09:00:00Z' }))],
+    ['2026-10-07T09:00:00Z', '2026-10-08T09:00:00Z', '', '']);
+
+// ── list: Flows filter, badge, quick run, states, next run ──
 const list = W.MissionControlList.create({ esc, t, lang: 'en', svg, triggers: TR, schedule: S, readonly: false, fmt });
-list.setData({ missions: [agent, scheduled, flowLive, flowDraft], queue: { items: [], running: '' } });
+list.setData({ missions: ALL, queue: { items: [], running: '' } });
 const rowsOf = (root) => root.children.flatMap(child => (child.dataset.mcId ? [child] : rowsOf(child)));
 const rowHtml = (id) => (rowsOf(list.element).find(r => r.dataset.mcId === id) || {}).innerHTML || '';
 check('list: flow row has the flow badge', rowHtml('flow-1').includes('vd-mc-row-badge--flow') && rowHtml('flow-1').includes('desktop.mc_badge_flow'));
 check('list: agent row has no flow badge', !rowHtml('agent-1').includes('vd-mc-row-badge--flow'));
 check('list: quick run disabled for an unpublished flow', /data-mc-quick="run"[^>]*disabled/.test(rowHtml('flow-2')));
 check('list: quick run enabled for a published flow', !/data-mc-quick="run"[^>]*disabled/.test(rowHtml('flow-1')));
+check('list: an unpublished flow reads "Not published yet", not Paused', rowHtml('flow-2').includes('data-state="unpublished"') && rowHtml('flow-2').includes('vd-mc-row-badge--text">desktop.mc_flow_unpublished<') && !rowHtml('flow-2').includes('desktop.mc_state_paused'));
+check('list: a paused agent mission still reads Paused', rowHtml('agent-2').includes('data-state="paused"') && rowHtml('agent-2').includes('desktop.mc_state_paused'));
+check('list: a flow row shows its next run', rowHtml('flow-1').includes('desktop.mc_next_run_in {&quot;when&quot;:&quot;rel&quot;}'));
+check('list: a scheduled row still shows its next run', rowHtml('sched-1').includes('desktop.mc_next_run_in {&quot;when&quot;:&quot;rel&quot;}'));
+check('list: hostile trigger type and name render escaped', rowHtml('flow-4').includes('&lt;b&gt;x&lt;/b&gt;') && rowHtml('flow-4').includes('F &lt;i&gt;odd&lt;/i&gt; flow') && !rowHtml('flow-4').includes('<b>') && !rowHtml('flow-4').includes('<i>'));
 list.setFilter('flow');
-eq('list: matchesFilter(flow) keeps only flow missions', list.visibleIds().slice().sort(), ['flow-1', 'flow-2']);
+eq('list: matchesFilter(flow) keeps only flow missions', list.visibleIds().slice().sort(), ['flow-1', 'flow-2', 'flow-3', 'flow-4']);
 list.setFilter('manual');
-eq('list: manual filter excludes flows', list.visibleIds(), ['agent-1']);
+eq('list: manual filter excludes flows', list.visibleIds().slice().sort(), ['agent-1', 'agent-2']);
 
 // ── menus ──
 function menuModel(selected, extra) {
@@ -176,24 +193,42 @@ check('detail: hero opens EasyDrag instead of the editor', hero.includes('data-m
 check('detail: Run disabled with the publish hint', /data-mc-action="run" disabled\s+title="desktop\.mc_flow_publish_first"/.test(hero), hero.match(/<button[^>]*data-mc-action="run"[^>]*>/));
 check('detail: flow card with the publish hint, no prompt, no preparation', overview.includes('vd-mc-card--flow') && overview.includes('vd-mc-flow-hint') && !overview.includes('vd-mc-prompt') && !overview.includes('vd-mc-card--prep'));
 check('detail: facts name the flow triggers, no priority', overview.includes('desktop.mc_flow_triggers') && !overview.includes('desktop.mc_exec_priority'));
+check('detail: an unpublished flow\'s pill reads "Not published yet", not Paused', hero.includes('data-state="unpublished">desktop.mc_flow_unpublished<') && !hero.includes('desktop.mc_state_paused'));
+check('detail: an unpublished flow\'s next run reads "Not published yet", not Paused', /desktop\.mc_overview_next_run<\/dt><dd>desktop\.mc_flow_unpublished</.test(overview) && !overview.includes('desktop.mc_overview_paused'));
 detail.setMission(flowLive, { running: false, queuePosition: 0, cancelling: false, busy: '' });
 hero = detail.element.querySelector('[data-mc-hero]').innerHTML;
 overview = detail.element.querySelector('[data-mc-panel="overview"]').innerHTML;
 check('detail: Run enabled for a published flow', /data-mc-action="run"\s+>/.test(hero), hero.match(/<button[^>]*data-mc-action="run"[^>]*>/));
 check('detail: no publish hint for a published flow', !overview.includes('vd-mc-flow-hint'));
 check('detail: a flow shows its next run', overview.includes('desktop.mc_overview_next_run'));
+detail.setMission(Object.assign({}, flowLive, { enabled: false, next_run: '' }), { running: false, queuePosition: 0, cancelling: false, busy: '' });
+check('detail: a paused published flow still reads Paused', detail.element.querySelector('[data-mc-hero]').innerHTML.includes('desktop.mc_state_paused') && detail.element.querySelector('[data-mc-panel="overview"]').innerHTML.includes('desktop.mc_overview_paused'));
+detail.setMission(agentPaused, { running: false, queuePosition: 0, cancelling: false, busy: '' });
+check('detail: a paused agent mission still reads Paused', detail.element.querySelector('[data-mc-hero]').innerHTML.includes('data-state="paused">desktop.mc_state_paused<'));
+detail.setMission(flowOdd, { running: false, queuePosition: 0, cancelling: false, busy: '' });
+hero = detail.element.querySelector('[data-mc-hero]').innerHTML;
+overview = detail.element.querySelector('[data-mc-panel="overview"]').innerHTML;
+check('detail: hostile trigger type and name render escaped', hero.includes('&lt;b&gt;x&lt;/b&gt;') && overview.includes('&lt;b&gt;x&lt;/b&gt;') && hero.includes('F &lt;i&gt;odd&lt;/i&gt; flow') && !(hero + overview).includes('<b>') && !(hero + overview).includes('<i>'));
 
 // ── the app shell ──
-const calls = { notify: [], confirm: [], openApp: [], editorOpen: [], api: [], menus: null };
+const calls = { notify: [], confirm: [], openApp: [], editorOpen: [], api: [], menus: null, context: null };
 let confirmAnswer = false;
-const missionsPayload = () => ({ missions: [agent, scheduled, flowLive, flowDraft].map(m => Object.assign({}, m)), queue: { items: [], running: '' } });
-function httpError(status, message) { const err = new Error(message); err.status = status; return err; }
+const missionsPayload = () => ({ missions: ALL.map(m => Object.assign({}, m)), queue: { items: [], running: '' } });
+// Like the shell's api(): the error carries the HTTP status and the parsed body ({error, code?}).
+function httpError(status, message, code) { const err = new Error(message); err.status = status; err.body = code ? { error: message, code } : { error: message }; return err; }
+// The cancel answers of handleMissionCancelV2 (internal/server/mission_v2_handlers.go).
+const CANCEL_ANSWERS = {
+    'flow-1': [409, 'mission run cannot be cancelled yet', 'FLOW_NO_ACTIVE_RUN'],
+    'flow-3': [409, 'several flows hold this mission; cancel their runs in EasyDrag', 'FLOW_MISSION_AMBIGUOUS'],
+    'flow-4': [409, 'mission run cannot be cancelled yet'],
+    'agent-1': [409, 'mission run cannot be cancelled yet']
+};
 async function api(url, options) {
     const method = (options && options.method) || 'GET';
     calls.api.push({ method, url, body: options && options.body ? JSON.parse(options.body) : undefined });
     if (url === '/api/missions/v2' && method === 'GET') return missionsPayload();
     if (url.endsWith('/run')) return { status: 'queued' };
-    if (url.endsWith('/cancel')) throw httpError(409, 'mission run cannot be cancelled yet');
+    if (url.endsWith('/cancel')) throw httpError(...CANCEL_ANSWERS[url.split('/')[4]]);
     if (method === 'PUT' || method === 'DELETE') return { status: 'ok' };
     return {};
 }
@@ -206,7 +241,7 @@ W.MissionControlApp.render(container, 'w-mc', {
     notify: (message, type) => calls.notify.push([message, type || 'info']),
     setWindowMenus: (_id, built) => { calls.menus = built; }, clearWindowMenus() {},
     confirmDialog: async (title, message) => { calls.confirm.push([title, message]); return confirmAnswer; },
-    showContextMenu() {}, setWindowBeforeClose() {}, isActive: () => true,
+    showContextMenu: (_x, _y, items) => { calls.context = items; }, setWindowBeforeClose() {}, isActive: () => true,
     openApp: (appId, launch) => calls.openApp.push([appId, launch])
 });
 await tick(); await tick();
@@ -219,15 +254,25 @@ async function selectRow(id) {
 const menuAction = async (id) => { item(calls.menus, id).action(); await tick(); await tick(); };
 const lastNotify = () => calls.notify[calls.notify.length - 1] || [];
 const apiCalls = (method, suffix) => calls.api.filter(c => c.method === method && (!suffix || c.url.endsWith(suffix)));
+// The detail's "more" button opens the selected mission's context menu.
+const detailEl = root.querySelector('[data-mc-main]').children[0];
+function openMoreMenu() {
+    const more = { dataset: { mcAction: 'more' }, disabled: false, getBoundingClientRect: () => ({ left: 0, bottom: 0 }) };
+    detailEl.fire('click', { target: { closest: (sel) => (sel === '[data-mc-action]' ? more : null) } });
+    return calls.context || [];
+}
 
+check('shell: the status bar names the earliest next run, a flow\'s included', String(root.querySelector('[data-mc-status-next]').textContent).startsWith('desktop.mc_status_next {"name":"A flow"'), root.querySelector('[data-mc-status-next]').textContent);
 await selectRow('flow-1');
 await menuAction('edit');
 eq('shell: Edit of a flow opens EasyDrag with its flow id', calls.openApp, [['easydrag', { flowId: 'f_live' }]]);
 eq('shell: the editor stays closed for a flow', calls.editorOpen, []);
 await menuAction('duplicate');
-eq('shell: openEditor(duplicate) of a flow redirects too', calls.openApp.length, 2);
+byLabel(openMoreMenu(), 'desktop.mc_action_duplicate').action();
+await tick();
+eq('shell: Duplicate of a flow (menu, Ctrl+D, context menu) opens neither EasyDrag nor the editor', [calls.openApp.length, calls.editorOpen.length], [1, 0]);
 await menuAction('new-flow');
-eq('shell: New flow opens EasyDrag without a flow', calls.openApp[2], ['easydrag', {}]);
+eq('shell: New flow opens EasyDrag without a flow', calls.openApp[1], ['easydrag', {}]);
 await selectRow('agent-1');
 await menuAction('edit');
 eq('shell: Edit of an agent mission opens the editor', calls.editorOpen, ['edit:agent-1']);
@@ -257,10 +302,16 @@ await selectRow('agent-1');
 await menuAction('run');
 eq('shell: agent missions keep the queue toast', lastNotify(), ['desktop.mc_toast_run_queued', 'info']);
 
-// Cancel answered 409.
+// Cancel answered 409: only FLOW_NO_ACTIVE_RUN ("nothing to cancel here") becomes the EasyDrag hint.
 await selectRow('flow-1');
 await menuAction('cancel-run');
-eq('shell: 409 on a flow cancel shows the EasyDrag hint', lastNotify(), ['desktop.mc_flow_cancel_in_easydrag', 'info']);
+eq('shell: FLOW_NO_ACTIVE_RUN on a flow cancel shows the EasyDrag hint', lastNotify(), ['desktop.mc_flow_cancel_in_easydrag', 'info']);
+await selectRow('flow-3');
+await menuAction('cancel-run');
+eq('shell: an ambiguous flow cancel (409) stays an error', lastNotify(), ['desktop.mc_toast_action_failed {"error":"several flows hold this mission; cancel their runs in EasyDrag"}', 'error']);
+await selectRow('flow-4');
+await menuAction('cancel-run');
+eq('shell: a flow cancel 409 without a code stays an error', lastNotify(), ['desktop.mc_toast_action_failed {"error":"mission run cannot be cancelled yet"}', 'error']);
 await selectRow('agent-1');
 await menuAction('cancel-run');
 eq('shell: 409 on an agent cancel stays an error', lastNotify(), ['desktop.mc_toast_action_failed {"error":"mission run cannot be cancelled yet"}', 'error']);

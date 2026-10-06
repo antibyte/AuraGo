@@ -61,6 +61,8 @@
         function stateOf(m) {
             if (isRunning(m)) return 'running';
             if (queuePosition(m)) return 'queued';
+            // A flow that was never published is off because it cannot be switched on, not paused.
+            if (triggers.isUnpublishedFlow(m)) return 'unpublished';
             if (m.enabled === false) return 'paused';
             if (m.last_result === 'error') return 'error';
             if (m.last_result === 'success') return 'ok';
@@ -70,7 +72,8 @@
         function timeText(m, state) {
             if (state === 'running') return t('desktop.mc_state_running');
             if (state === 'queued') return t('desktop.mc_state_queued');
-            if (m.execution_type === 'scheduled' && m.enabled !== false && m.next_run) return t('desktop.mc_next_run_in', { when: fmt.relative(m.next_run) });
+            const next = triggers.upcomingRun(m);
+            if (next) return t('desktop.mc_next_run_in', { when: fmt.relative(next) });
             if (m.last_run) return t('desktop.mc_last_run_ago', { when: fmt.relative(m.last_run) });
             return t('desktop.mc_state_never_run');
         }
@@ -84,7 +87,7 @@
             const summary = triggers.summary(m, t, { schedule, lang });
             const busy = state === 'running' || state === 'queued';
             // An unpublished flow cannot run (the server refuses it).
-            const unpublished = m.execution_type === 'flow' && !m.flow_published;
+            const unpublished = triggers.isUnpublishedFlow(m);
             return `
                 <span class="vd-mc-row-state" data-state="${esc(state)}" aria-hidden="true"></span>
                 <span class="vd-mc-row-main">
@@ -92,7 +95,7 @@
                         <span class="vd-mc-row-name">${esc(m.name || '')}</span>
                         ${m.locked ? `<span class="vd-mc-row-badge" title="${esc(t('desktop.mc_state_locked'))}">${ic('lock')}</span>` : ''}
                         ${m.runner_type === 'remote' ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(t('desktop.mc_state_remote'))}</span>` : ''}
-                        ${m.enabled === false ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(t('desktop.mc_state_paused'))}</span>` : ''}
+                        ${m.enabled === false ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(unpublished ? t('desktop.mc_flow_unpublished') : t('desktop.mc_state_paused'))}</span>` : ''}
                         ${m.execution_type === 'flow' ? `<span class="vd-mc-row-badge vd-mc-row-badge--text vd-mc-row-badge--flow">${esc(t('desktop.mc_badge_flow'))}</span>` : ''}
                     </span>
                     <span class="vd-mc-row-sub">${esc(summary)}</span>

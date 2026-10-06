@@ -2233,6 +2233,10 @@ func (m *MissionManagerV2) NextRun(id string) (time.Time, bool) {
 	return m.cron.NextRun("mission_" + id)
 }
 
+// ErrMissionNotRunning is CancelCheck's answer for a mission that is not running. Match it
+// with errors.Is; the text stays "mission is not running".
+var ErrMissionNotRunning = errors.New("mission is not running")
+
 // CancelCheck validates that a mission run may be cancelled: mutation
 // permission, existence, local runner and running state. It performs no
 // cancellation itself; the server owns the run context.
@@ -2258,7 +2262,7 @@ func (m *MissionManagerV2) CancelCheck(id string) error {
 		return fmt.Errorf("cancelling remote mission runs is not supported")
 	}
 	if !running {
-		return fmt.Errorf("mission is not running")
+		return ErrMissionNotRunning
 	}
 	return nil
 }

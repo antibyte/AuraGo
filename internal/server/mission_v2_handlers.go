@@ -392,6 +392,12 @@ func handleMissionRemoveFromQueue(s *Server, w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(map[string]string{"status": "removed"})
 }
 
+// flowNoActiveRunCode is the code of the 409 a flow mission's cancel answers when there is no
+// live run to cancel here: the mission is not running (CancelCheck), so runs that wait for a
+// global slot are cancelled in EasyDrag, or the flow has no live run at all. Mission Control
+// shows a hint for this code only; the flow mission's other errors carry their flows API code.
+const flowNoActiveRunCode = "FLOW_NO_ACTIVE_RUN"
+
 // handleMissionCancelV2 cancels the running local run of a mission. The run
 // itself is owned by the sync chat handler; we only cancel its registered
 // context and let the mission callback record the cancelled result.
@@ -401,6 +407,12 @@ func handleMissionCancelV2(s *Server, w http.ResponseWriter, r *http.Request, id
 		return
 	}
 	if err := s.MissionManagerV2.CancelCheck(id); err != nil {
+		if errors.Is(err, tools.ErrMissionNotRunning) {
+			if mission, ok := s.MissionManagerV2.Get(id); ok && mission.ExecutionType == tools.ExecutionFlow {
+				flowsError(w, http.StatusConflict, flowNoActiveRunCode, err.Error())
+				return
+			}
+		}
 		jsonError(w, err.Error(), missionErrorStatus(err))
 		return
 	}
@@ -409,7 +421,7 @@ func handleMissionCancelV2(s *Server, w http.ResponseWriter, r *http.Request, id
 	// goroutine, and that takes the manager's lock.
 	if mission, ok := s.MissionManagerV2.Get(id); ok && mission.ExecutionType == tools.ExecutionFlow {
 		if s.Flows == nil {
-			jsonError(w, tools.ErrFlowsUnavailable.Error(), http.StatusServiceUnavailable)
+			flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", tools.ErrFlowsUnavailable.Error())
 			return
 		}
 		// Detached: a client that goes away must not end the lookup half-way and get a
@@ -419,18 +431,19 @@ func handleMissionCancelV2(s *Server, w http.ResponseWriter, r *http.Request, id
 		n, err := s.Flows.CancelMissionRuns(ctx, id)
 		switch {
 		case errors.Is(err, flows.ErrNotFound):
-			jsonError(w, "the flow of this mission does not exist", http.StatusNotFound)
+			flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "the flow of this mission does not exist")
 			return
 		case errors.Is(err, flows.ErrMissionAmbiguous):
-			jsonError(w, "several flows hold this mission; cancel their runs in EasyDrag", http.StatusConflict)
+			flowsError(w, http.StatusConflict, "FLOW_MISSION_AMBIGUOUS", "several flows hold this mission; cancel their runs in EasyDrag")
 			return
 		case err != nil:
 			s.Logger.Warn("Flow runs of a mission could not be cancelled", "mission_id", id,
 				"error", flowBoundRunes(err.Error(), flowErrorRunes))
-			jsonError(w, "the flow runs could not be cancelled", http.StatusInternalServerError)
+			flowsError(w, http.StatusInternalServerError, "FLOW_INTERNAL", "the flow runs could not be cancelled")
 			return
 		case n == 0:
-			jsonError(w, "mission run cannot be cancelled yet", http.StatusConflict)
+			// CancelMissionRuns cancels waiting and queued live runs too, so none is left.
+			flowsError(w, http.StatusConflict, flowNoActiveRunCode, "mission run cannot be cancelled yet")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
