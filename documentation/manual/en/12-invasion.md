@@ -45,7 +45,7 @@ An **Egg** describes *how* the deployed worker behaves:
 | `allowed_tools` | JSON array of tool IDs, e.g. `["shell","python"]` (empty = shell + python) |
 | `egg_port` | HTTP port on the target (default: `8099`) |
 | `permanent` | Install as systemd service (`true`) or run once (`false`) |
-| `include_vault` | Ship an encrypted vault export to the target (use only on trusted hosts) |
+| `include_vault` | Ship an encrypted vault export to the target: the Egg's API key and, for nests with **Copy this nest's secret into the egg vault**, the nest's own secret (use only on trusted hosts) |
 | `active` | Whether the Egg can be assigned |
 
 ```
@@ -140,6 +140,7 @@ There is **no Deployments tab**. Deployment history is available via the REST AP
 | Access Type | `SSH`, `Docker API`, or `Local` |
 | Host / Port / Username | Required for SSH and Docker; hidden for Local unless the deploy method is `Docker (via SSH)` |
 | Secret | SSH key or password; stored in vault (not returned by API) |
+| Copy this nest's secret into the egg vault | Off for new nests. With an Egg that has `include_vault`, copies this nest's secret (`nest_<id>`) into the Egg's vault, where the Egg can read it. Nests created before this option keep it on |
 | Assign Egg | Select an Egg or leave empty |
 | Deploy Method | `SSH`, `Docker (Remote)`, `Docker (via SSH)`, or `Docker (Local)` |
 | Docker TLS | `Docker (Remote)` only: `Off`, `TLS` or `Mutual TLS`, plus CA / client certificate / key |
@@ -185,6 +186,8 @@ Response:
 ```
 
 > 💡 **Tip:** Store SSH keys and passwords in the vault via the UI/API at creation time. Secrets are never included in list/get responses (`has_secret: true` indicates a stored credential).
+
+REST field `export_nest_secret` (boolean): a create without it starts with `false`; an update without it keeps the current value. On the first start of this release, existing nests are set to `true`, so they keep copying their secret, and an `invasion.db` that already existed is first copied to `invasion.db.pre-export-nest-secret.bak` next to it.
 
 ### Transport security for Docker nests
 
@@ -644,6 +647,7 @@ and reconfiguration send private files over encrypted stdin and publish them ato
 > ⚠️ **Important:**
 > - Store SSH keys, passwords, and API keys in the vault — never in chat logs or plain config
 > - `include_vault` ships encrypted vault data to the target; use only on trusted hosts
+> - **Copy this nest's secret into the egg vault** gives the Egg the password or SSH key the master uses to log in to its host. It is off for new nests; switch it off for older nests whose Egg does not need it
 > - `inherit_llm` copies the master's API key into the Egg config — the Egg host must be trusted
 > - Use `invasion_control.readonly: true` for monitoring-only setups
 > - Rotate shared keys with `/rotate-key` if compromise is suspected

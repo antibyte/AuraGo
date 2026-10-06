@@ -2644,6 +2644,34 @@ async function testQuickConnectSFTPMutationsBindDevice() {
   assert.equal(refreshes.length, 6, 'successful actions refresh their SFTP listing');
 }
 
+async function testInvasionNestFormSendsExportNestSecret() {
+  const source = read('ui/js/invasion/main.js');
+  const saveSource = sourceBetween(source, 'async function saveNest()', 'async function saveEgg()');
+  const elements = new Map();
+  for (const id of ['nest-id', 'nest-deploy-method', 'nest-name', 'nest-notes', 'nest-access-type', 'nest-host', 'nest-port',
+    'nest-username', 'nest-secret', 'nest-active', 'nest-egg-id', 'nest-target-arch', 'nest-route', 'nest-route-config',
+    'nest-docker-tls', 'nest-docker-tls-ca', 'nest-docker-tls-cert', 'nest-docker-tls-key', 'nest-export-secret']) {
+    elements.set(id, { value: '', checked: false, focus() {} });
+  }
+  elements.get('nest-id').value = 'n1';
+  elements.get('nest-name').value = 'Nest';
+  elements.get('nest-deploy-method').value = 'ssh';
+  const calls = [];
+  const context = {
+    document: { getElementById: id => elements.get(id) || null },
+    api: async (path, options) => { calls.push(JSON.parse(options.body)); return {}; },
+    closeModal() {}, showToast() {}, loadNests: async () => {}, t: key => key
+  };
+  vm.createContext(context);
+  vm.runInContext(`${saveSource}; globalThis.saveNestForTest = saveNest;`, context);
+  elements.get('nest-export-secret').checked = true;
+  await context.saveNestForTest();
+  elements.get('nest-export-secret').checked = false;
+  await context.saveNestForTest();
+  assert.deepEqual(calls.map(body => body.export_nest_secret), [true, false]);
+  assert.match(source, /setChk\('nest-export-secret', isEdit && nest\?\.export_nest_secret === true\)/);
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -2692,7 +2720,8 @@ const tests = [
   ['Dashboard cronjob search ignores late responses', testDashboardCronjobsIgnoreLateResponses],
   ['Containers list failure stays visible until the list loads again', testContainersListFailureStateSurvivesFiltersUntilTheListLoads],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
-  ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
+  ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting],
+  ['Invasion nest form sends export_nest_secret', testInvasionNestFormSendsExportNestSecret]
 ];
 
 let failures = 0;

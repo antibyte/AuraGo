@@ -45,7 +45,7 @@ Ein **Egg** beschreibt, *wie* der deployte Worker arbeitet:
 | `allowed_tools` | JSON-Array, z. B. `["shell","python"]` (leer = Shell + Python) |
 | `egg_port` | HTTP-Port auf dem Ziel (Standard: `8099`) |
 | `permanent` | Als systemd-Service installieren (`true`) oder einmalig starten (`false`) |
-| `include_vault` | Verschlüsselten Vault-Export zum Ziel senden (nur auf vertrauenswürdigen Hosts) |
+| `include_vault` | Verschlüsselten Vault-Export zum Ziel senden: den API-Key des Eggs und bei Nests mit **Secret dieses Nests in den Egg-Vault kopieren** das Secret des Nests (nur auf vertrauenswürdigen Hosts) |
 | `active` | Ob das Egg zugewiesen werden kann |
 
 ```
@@ -140,6 +140,7 @@ Es gibt **keinen Deployments-Tab**. Deployment-Historie ist nur über die REST A
 | Access Type | `SSH`, `Docker API` oder `Local` |
 | Host / Port / Username | Für SSH und Docker; bei Local ausgeblendet, außer mit der Deploy-Methode `Docker (über SSH)` |
 | Secret | SSH-Key oder Passwort; wird im Vault gespeichert |
+| Secret dieses Nests in den Egg-Vault kopieren | Bei neuen Nests aus. Mit einem Egg mit `include_vault` kopiert es das Secret dieses Nests (`nest_<id>`) in den Vault des Eggs, wo das Egg es lesen kann. Nests von vor dieser Option behalten es eingeschaltet |
 | Assign Egg | Egg auswählen oder leer lassen |
 | Deploy Method | `SSH`, `Docker (Entfernt)`, `Docker (über SSH)` oder `Docker (Lokal)` |
 | Docker-TLS | Nur `Docker (Entfernt)`: `Aus`, `TLS` oder `Mutual TLS`, dazu CA / Client-Zertifikat / Schlüssel |
@@ -175,6 +176,8 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/validate
 ```
 
 > 💡 **Tipp:** SSH-Keys und Passwörter beim Erstellen über UI/API im Vault speichern. Secrets werden in API-Antworten nie zurückgegeben (`has_secret: true` zeigt ein gespeichertes Credential an).
+
+REST-Feld `export_nest_secret` (Boolean): Ein Anlegen ohne das Feld beginnt mit `false`; ein Update ohne das Feld behält den aktuellen Wert. Beim ersten Start dieses Releases werden bestehende Nests auf `true` gesetzt, sie kopieren ihr Secret also weiter, und eine bereits vorhandene `invasion.db` wird vorher nach `invasion.db.pre-export-nest-secret.bak` daneben kopiert.
 
 ### Transportsicherheit für Docker-Nests
 
@@ -582,6 +585,7 @@ Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
 > ⚠️ **Wichtig:**
 > - SSH-Keys, Passwörter und API-Keys im Vault speichern
 > - `include_vault` nur auf vertrauenswürdigen Hosts nutzen
+> - **Secret dieses Nests in den Egg-Vault kopieren** gibt dem Egg das Passwort oder den SSH-Key, mit dem sich der Master an seinem Host anmeldet. Bei neuen Nests ist es aus; schalte es bei älteren Nests ab, wenn ihr Egg es nicht braucht
 > - `inherit_llm` kopiert den Master-API-Key in die Egg-Config — Egg-Host muss vertrauenswürdig sein
 > - `invasion_control.readonly: true` für reine Monitoring-Setups
 > - Bei Verdacht auf Kompromittierung Shared Keys mit `/rotate-key` rotieren

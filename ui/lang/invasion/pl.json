@@ -65,6 +65,8 @@
   "invasion.egg_port": "Port Jaja",
   "invasion.eggs": "Jaja",
   "invasion.error": "Błąd",
+  "invasion.export_nest_secret": "Skopiuj sekret tego Gniazda do skarbca Egga",
+  "invasion.export_nest_secret_hint": "Działa tylko wtedy, gdy przypisany Egg ma włączone Przenoś skarbiec. Egg może wtedy odczytać hasło lub klucz SSH, którym AuraGo loguje się do tego hosta. Pozostaw wyłączone, chyba że Egg tego potrzebuje.",
   "invasion.hatch": "🥚 Wykluj",
   "invasion.hatch_failed": "Nieudane",
   "invasion.hatch_hatching": "Wykluwanie…",

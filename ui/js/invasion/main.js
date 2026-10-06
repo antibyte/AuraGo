@@ -310,6 +310,7 @@ function openNestModal(nest = null) {
         setVal('nest-username', nest?.username || '');
         setVal('nest-secret', '');
         setChk('nest-active', nest?.active !== false);
+        setChk('nest-export-secret', isEdit && nest?.export_nest_secret === true);
         setHidden('nest-secret-hint', !(isEdit && nest?.has_secret));
 
         const eggSelect = document.getElementById('nest-egg-id');
@@ -468,6 +469,7 @@ async function saveNest() {
         route: document.getElementById('nest-route').value,
         route_config: document.getElementById('nest-route-config').value.trim(),
         docker_tls: deployMethod === 'docker_remote' ? document.getElementById('nest-docker-tls').value : '',
+        export_nest_secret: document.getElementById('nest-export-secret').checked,
     };
     // Empty PEM fields keep the stored material, so only send what was entered.
     if (body.docker_tls) {

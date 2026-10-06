@@ -65,6 +65,8 @@
   "invasion.egg_port": "Egg पोर्ट",
   "invasion.eggs": "Eggs",
   "invasion.error": "त्रुटि",
+  "invasion.export_nest_secret": "इस Nest का secret Egg के vault में कॉपी करें",
+  "invasion.export_nest_secret_hint": "यह केवल तब लागू होता है जब असाइन किए गए Egg में Vault ट्रांसफर करें चालू हो। तब Egg वह पासवर्ड या SSH key पढ़ सकता है जिससे AuraGo इस होस्ट पर लॉग इन करता है। जब तक Egg को इसकी ज़रूरत न हो, इसे बंद रखें।",
   "invasion.hatch": "🥚 हैचिंग",
   "invasion.hatch_failed": "विफल",
   "invasion.hatch_hatching": "हैचिंग…",

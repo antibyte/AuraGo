@@ -65,6 +65,8 @@
   "invasion.egg_port": "Port vejce",
   "invasion.eggs": "Vejce",
   "invasion.error": "Chyba",
+  "invasion.export_nest_secret": "Zkopírovat secret tohoto Nestu do Vaultu Eggu",
+  "invasion.export_nest_secret_hint": "Platí jen tehdy, když má přiřazený Egg zapnuté Přenést Vault. Egg pak může číst heslo nebo SSH klíč, kterým se AuraGo přihlašuje k tomuto hostiteli. Ponechte vypnuté, pokud to Egg nepotřebuje.",
   "invasion.hatch": "🥚 Líhnutí",
   "invasion.hatch_failed": "Selhalo",
   "invasion.hatch_hatching": "Líhnutí…",

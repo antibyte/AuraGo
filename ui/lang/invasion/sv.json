@@ -65,6 +65,8 @@
   "invasion.egg_port": "Ägg-port",
   "invasion.eggs": "Ägg",
   "invasion.error": "Fel",
+  "invasion.export_nest_secret": "Kopiera detta Nests secret till Eggets vault",
+  "invasion.export_nest_secret_hint": "Gäller bara när det tilldelade Egget har Överför Vault påslaget. Egget kan då läsa lösenordet eller SSH-nyckeln som AuraGo använder för att logga in på den här värden. Låt det vara avstängt om inte Egget behöver det.",
   "invasion.hatch": "🥚 Kläckning",
   "invasion.hatch_failed": "Misslyckades",
   "invasion.hatch_hatching": "Kläckning…",
