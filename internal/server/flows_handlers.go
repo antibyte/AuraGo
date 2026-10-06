@@ -39,8 +39,8 @@ const (
 
 // flowsCollectionRoutes are the first path segments under /api/desktop/flows/ that
 // handleFlows dispatches as a collection route, not as a flow id. Only routes that exist
-// are listed: 1c-18 and 1c-19 add theirs here when they add them to handleFlows.
-var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true}
+// are listed: a new collection route in handleFlows adds its segment here.
+var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true}
 
 // flowIDPattern accepts what can be a flow id (flows.NewFlowID gives "flow_" and ten
 // characters); anything else is FLOW_NOT_FOUND before the store is asked.
@@ -374,6 +374,12 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 		s.flowsSecrets(w, r, parts[1:])
 	case parts[0] == "runs":
 		s.flowsRunRoute(w, r, parts[1:])
+	case parts[0] == "node-types":
+		s.flowsNodeTypes(w, r, parts[1:])
+	case parts[0] == "templates" && len(parts) == 1:
+		s.flowsTemplates(w, r)
+	case parts[0] == "validate" && len(parts) == 1:
+		s.flowsValidate(w, r)
 	default:
 		s.flowRoute(w, r, parts[0], parts[1:])
 	}
