@@ -19,6 +19,8 @@
         let lastRecord = null;
         // partialRevision is the live revision of the last partial publish (ed.publishIncomplete).
         let partialRevision = 0;
+        // restoring: the restore offer waits for an answer; the window menus change nothing meanwhile.
+        let restoring = false;
         let disposed = false;
 
         const el = core.el('<div class="ed-editor">' +
@@ -234,13 +236,15 @@
             app.openHome();
         }
 
+        // goHome and duplicateFlow stop when the editor was disposed while leave() waited (the
+        // window closed): nothing may be built on a closed window.
         async function goHome(opts) {
-            if (!(await leave())) return;
+            if (!(await leave()) || disposed) return;
             app.openHome(opts);
         }
 
         async function duplicateFlow() {
-            if (!(await leave())) return;
+            if (!(await leave()) || disposed) return;
             try {
                 const doc = ed.model.toJSON();
                 doc.name = t('easydrag.ui.copy_of', { name: doc.name });
@@ -275,55 +279,76 @@
 
         // ── window menus ────────────────────────────────────────────────────────
 
+        // The desktop runs a menu item's shortcut before the editor sees the key, past onKeyDown's
+        // guards (detail view, quick-add, dialogs). Keys the canvas handles itself (interact, "?")
+        // are therefore only named in the label; Ctrl+S, Ctrl+Enter and Ctrl+K stay real shortcuts
+        // (Ctrl+K so that the desktop's search does not take it), and their actions check for an
+        // open dialog themselves. Edits wait while a dialog, the detail view or quick-add covers
+        // the canvas, and while the restore offer waits for its answer.
+        function modalOpen() { return !!el.querySelector('.ed-modal-backdrop:not(.is-closing)'); }
+        function overlayOpen() { return !!(ed.detail || ed.quickAdd || modalOpen()); }
+        const unlessModal = fn => () => { if (!modalOpen()) fn(); };
+        const unlessOverlay = fn => () => { if (!overlayOpen() && !restoring) fn(); };
+
         function setMenus() {
             if (disposed || typeof ctx.setWindowMenus !== 'function') return;
-            const ro = !!(ed.readonly || ed.runView);
+            const ro = !!(ed.readonly || ed.runView || restoring);
+            const busy = overlayOpen();
             const sel = ed.selection.size > 0;
             const k = core.shortcut;
+            const hinted = (text, keys) => text + ' (' + k(keys) + ')';
             ctx.setWindowMenus(ed.windowId, [
                 {
                     id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: [
                         { id: 'home', labelKey: 'easydrag.ui.back_home', icon: 'list', action: goHome },
                         { type: 'separator' },
                         { id: 'save', labelKey: 'easydrag.ui.save_now', icon: 'save', shortcut: k('Ctrl+S'), disabled: ro, action: saveNow },
-                        { id: 'test', labelKey: 'easydrag.ui.test', icon: 'run', shortcut: k('Ctrl+Enter'), disabled: ro, action: test },
-                        { id: 'run', labelKey: 'easydrag.ui.run_now', icon: 'play', disabled: ro || !ed.flow.live, action: () => runs.runLive() },
-                        { id: 'publish', labelKey: 'easydrag.ui.publish', icon: 'upload', disabled: ro, action: () => publish.openDialog() },
+                        { id: 'test', labelKey: 'easydrag.ui.test', icon: 'run', shortcut: k('Ctrl+Enter'), disabled: ro, action: unlessModal(test) },
+                        { id: 'run', labelKey: 'easydrag.ui.run_now', icon: 'play', disabled: ro || !ed.flow.live, action: unlessModal(() => runs.runLive()) },
+                        { id: 'publish', labelKey: 'easydrag.ui.publish', icon: 'upload', disabled: ro, action: unlessModal(() => publish.openDialog()) },
                         { type: 'separator' },
-                        { id: 'settings', labelKey: 'easydrag.ui.flow_settings', icon: 'settings', action: () => ED.dialogs.flowSettings(ed) },
+                        { id: 'settings', labelKey: 'easydrag.ui.flow_settings', icon: 'settings', disabled: restoring, action: unlessModal(() => ED.dialogs.flowSettings(ed)) },
                         { id: 'export', labelKey: 'easydrag.ui.home_export', icon: 'download', action: exportFlow },
-                        { id: 'delete', labelKey: 'easydrag.ui.home_delete', icon: 'trash', disabled: !!ed.readonly, action: deleteFlow }
+                        { id: 'delete', labelKey: 'easydrag.ui.home_delete', icon: 'trash', disabled: !!ed.readonly || restoring, action: unlessModal(deleteFlow) }
                     ]
                 },
                 {
                     id: 'edit', labelKey: 'easydrag.ui.menu_edit', items: [
-                        { id: 'undo', labelKey: 'easydrag.ui.undo', icon: 'undo', shortcut: k('Ctrl+Z'), disabled: ro || !ed.model.canUndo(), action: () => ed.model.undo() },
-                        { id: 'redo', labelKey: 'easydrag.ui.redo', icon: 'redo', shortcut: k('Ctrl+Shift+Z'), disabled: ro || !ed.model.canRedo(), action: () => ed.model.redo() },
+                        { id: 'undo', label: hinted(t('easydrag.ui.undo'), 'Ctrl+Z'), icon: 'undo', disabled: ro || busy || !ed.model.canUndo(), action: unlessOverlay(() => ed.model.undo()) },
+                        { id: 'redo', label: hinted(t('easydrag.ui.redo'), 'Ctrl+Shift+Z'), icon: 'redo', disabled: ro || busy || !ed.model.canRedo(), action: unlessOverlay(() => ed.model.redo()) },
                         { type: 'separator' },
-                        { id: 'cut', labelKey: 'easydrag.ui.cut', icon: 'scissors', shortcut: k('Ctrl+X'), disabled: ro || !sel, action: () => { if (interact.copySelection()) interact.removeSelection(); } },
-                        { id: 'copy', labelKey: 'easydrag.ui.copy', icon: 'copy', shortcut: k('Ctrl+C'), disabled: !sel, action: () => interact.copySelection() },
-                        { id: 'paste', labelKey: 'easydrag.ui.paste', icon: 'clipboard', shortcut: k('Ctrl+V'), disabled: ro, action: () => interact.pasteAt(null) },
-                        { id: 'duplicate', labelKey: 'easydrag.ui.duplicate', icon: 'copy', shortcut: k('Ctrl+D'), disabled: ro || !sel, action: () => interact.select(ed.model.duplicate(Array.from(ed.selection))) },
-                        { id: 'delete-sel', labelKey: 'easydrag.ui.delete', icon: 'trash', shortcut: 'Del', disabled: ro || (!sel && !ed.selectedEdge), action: () => interact.removeSelection() },
+                        { id: 'cut', label: hinted(t('easydrag.ui.cut'), 'Ctrl+X'), icon: 'scissors', disabled: ro || busy || !sel, action: unlessOverlay(() => { if (interact.copySelection()) interact.removeSelection(); }) },
+                        { id: 'copy', label: hinted(t('easydrag.ui.copy'), 'Ctrl+C'), icon: 'copy', disabled: busy || !sel, action: unlessOverlay(() => interact.copySelection()) },
+                        { id: 'paste', label: hinted(t('easydrag.ui.paste'), 'Ctrl+V'), icon: 'clipboard', disabled: ro || busy, action: unlessOverlay(() => interact.pasteAt(null)) },
+                        { id: 'duplicate', label: hinted(t('easydrag.ui.duplicate'), 'Ctrl+D'), icon: 'copy', disabled: ro || busy || !sel, action: unlessOverlay(() => interact.select(ed.model.duplicate(Array.from(ed.selection)))) },
+                        { id: 'delete-sel', label: t('easydrag.ui.delete') + ' (Del)', icon: 'trash', disabled: ro || busy || (!sel && !ed.selectedEdge), action: unlessOverlay(() => interact.removeSelection()) },
                         { type: 'separator' },
-                        { id: 'select-all', labelKey: 'easydrag.ui.select_all', icon: 'check-square', shortcut: k('Ctrl+A'), action: () => interact.selectAll() }
+                        { id: 'select-all', label: hinted(t('easydrag.ui.select_all'), 'Ctrl+A'), icon: 'check-square', disabled: busy, action: unlessOverlay(() => interact.selectAll()) }
                     ]
                 },
                 {
                     id: 'view', labelKey: 'easydrag.ui.menu_view', items: [
-                        { id: 'zoom-in', labelKey: 'easydrag.ui.zoom_in', icon: 'zoom-in', shortcut: '+', action: () => canvas.zoomBy(1.2) },
-                        { id: 'zoom-out', labelKey: 'easydrag.ui.zoom_out', icon: 'zoom-out', shortcut: '−', action: () => canvas.zoomBy(1 / 1.2) },
-                        { id: 'zoom-fit', labelKey: 'easydrag.ui.zoom_fit', icon: 'maximize', shortcut: k('Shift+1'), action: () => canvas.fit({ animate: true }) },
+                        { id: 'zoom-in', label: t('easydrag.ui.zoom_in') + ' (+)', icon: 'zoom-in', action: () => canvas.zoomBy(1.2) },
+                        { id: 'zoom-out', label: t('easydrag.ui.zoom_out') + ' (−)', icon: 'zoom-out', action: () => canvas.zoomBy(1 / 1.2) },
+                        { id: 'zoom-fit', label: hinted(t('easydrag.ui.zoom_fit'), 'Shift+1'), icon: 'maximize', action: () => canvas.fit({ animate: true }) },
                         { type: 'separator' },
+                        { id: 'search', labelKey: 'easydrag.ui.keys_search', icon: 'search', shortcut: k('Ctrl+K'), action: unlessModal(() => palette.focusSearch()) },
                         { id: 'palette', labelKey: 'easydrag.ui.palette_title', icon: 'sidebar', checked: palette.isOpen(), action: () => palette.setOpen(!palette.isOpen()) },
                         { id: 'runs', labelKey: 'easydrag.ui.runs_title', icon: 'list', checked: runs.drawerOpen(), action: () => { runs.toggleDrawer(); renderHeader(); setMenus(); } },
                         { type: 'separator' },
-                        { id: 'keys', labelKey: 'easydrag.ui.keys_title', icon: 'help', shortcut: '?', action: () => ED.dialogs.shortcuts(ed) }
+                        { id: 'keys', label: t('easydrag.ui.keys_title') + ' (?)', icon: 'help', action: unlessModal(() => ED.dialogs.shortcuts(ed)) }
                     ]
                 }
             ]);
         }
         const setMenusSoon = core.debounce(setMenus, 120);
+        // Dialogs, the detail view, quick-add and the run drawer open as children of the editor:
+        // the menus follow them (disabled edits, checked drawer).
+        if (typeof MutationObserver === 'function') {
+            const overlays = new MutationObserver(() => setMenusSoon());
+            overlays.observe(el, { childList: true });
+            bag.add(() => overlays.disconnect());
+        }
 
         // ── events ──────────────────────────────────────────────────────────────
 
@@ -346,9 +371,9 @@
             if (ed.selection.size !== before) ed.bus.emit('selection', ed.selection);
         }
 
-        bag.add(ed.bus.on('quick-add', req => { if (!ed.readonly && !ed.runView) ED.palette.openQuickAdd(ed, canvas, req); }));
-        bag.add(ed.bus.on('open-detail', req => ED.detail.open(ed, req.nodeId, { param: req.param })));
-        bag.add(ed.bus.on('detail-closed', () => canvas.el.focus({ preventScroll: true })));
+        bag.add(ed.bus.on('quick-add', req => { if (!ed.readonly && !ed.runView) { ED.palette.openQuickAdd(ed, canvas, req); setMenus(); } }));
+        bag.add(ed.bus.on('open-detail', req => { ED.detail.open(ed, req.nodeId, { param: req.param }); setMenus(); }));
+        bag.add(ed.bus.on('detail-closed', () => { canvas.el.focus({ preventScroll: true }); setMenus(); }));
         bag.add(ed.bus.on('node-test', req => runs.startTest({ onlyNode: req.nodeId })));
         bag.add(ed.bus.on('focus-node', id => { interact.select([id]); canvas.centerOn(id, { animate: true }); }));
         bag.add(ed.bus.on('connect-picker', req => ED.dialogs.connectPicker(ed, canvas, req.nodeId)));
@@ -451,10 +476,15 @@
         async function start() {
             const copy = !ed.readonly && ED.saver.emergencyCopy(ed.flow.id, ed.flow.draft_revision);
             if (copy && differs(copy.doc, draftModel.toJSON())) {
-                const choice = await ED.dialogs.restore(ed, copy);
+                restoring = true;
+                const offer = ED.dialogs.restore(ed, copy);
+                setMenus();
+                const choice = await offer;
+                restoring = false;
                 if (choice === 'discard') ED.saver.dropEmergencyCopy(ed.flow.id);
                 if (disposed) return;
                 if (choice === 'restore') draftModel.replaceDoc(copy.doc);
+                setMenus();
             } else if (copy) {
                 ED.saver.dropEmergencyCopy(ed.flow.id);
             }

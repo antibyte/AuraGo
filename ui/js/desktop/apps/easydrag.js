@@ -7,6 +7,10 @@
     const CATALOG_MAX_AGE_MS = 60 * 1000;
     const instances = new Map();
 
+    // alive reports whether inst still owns its window: an answer that arrives after dispose (or
+    // after a new render of the window) must not build a screen on it.
+    function alive(inst) { return instances.get(inst.windowId) === inst; }
+
     function buildCatalog(res) {
         const list = (res && res.node_types) || [];
         return { types: new Map(list.map(info => [info.type, info])), list, categories: (res && res.categories) || [] };
@@ -68,6 +72,7 @@
     }
 
     function showHome(inst, opts) {
+        if (!alive(inst)) return;
         inst.nav += 1;
         clearScreen(inst);
         inst.lastRoute = {};
@@ -84,7 +89,7 @@
     async function showFlow(inst, flowId, opts) {
         const nav = ++inst.nav;
         if (inst.screen && inst.screen.leave && !(await inst.screen.leave())) return;
-        if (nav !== inst.nav) return;
+        if (nav !== inst.nav || !alive(inst)) return;
         inst.lastRoute = { flowId, runId: opts && opts.runId };
         showLoading(inst);
         let loaded;
@@ -92,7 +97,7 @@
             const [res] = await Promise.all([inst.api.get(flowId), ensureCatalog(inst)]);
             loaded = res;
         } catch (err) {
-            if (nav !== inst.nav) return;
+            if (nav !== inst.nav || !alive(inst)) return;
             if (ED.core.errorCode(err) === 'FLOW_NOT_FOUND') {
                 inst.ctx.notify({ title: 'EasyDrag', message: ED.core.errorText(inst.t, err), type: 'error' });
                 showHome(inst);
@@ -101,20 +106,23 @@
             }
             return;
         }
-        if (nav !== inst.nav || !instances.has(inst.windowId)) return;
+        if (nav !== inst.nav || !alive(inst)) return;
         clearScreen(inst);
         inst.screen = ED.editor.create(inst.app, loaded, opts || {});
         inst.root.appendChild(inst.screen.el);
     }
 
+    // start loads the catalog, then shows the route. A navigation or dispose during the load wins.
     async function start(inst, route) {
+        const nav = ++inst.nav;
         showLoading(inst);
         try {
             await ensureCatalog(inst, true);
         } catch (err) {
-            showError(inst, err);
+            if (nav === inst.nav && alive(inst)) showError(inst, err);
             return;
         }
+        if (nav !== inst.nav || !alive(inst)) return;
         if (route.flowId) showFlow(inst, route.flowId, { runId: route.runId });
         else showHome(inst);
     }

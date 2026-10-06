@@ -495,4 +495,98 @@ export async function run(env) {
         eq('c1d07 FLOWS_DISABLED while loading shows the disabled state and asks again only on Retry',
             [!!box, !!(box && box.querySelector('[data-ed-shell="config"]')), asked, quiet, d.requests.length], [true, true, 1, [1, []], 2]);
     });
+
+    // ── 1d-07 review (A): shell lifetime, window menus and keys ──
+
+    await guardAsync('c1d07 review no screen after the window closed', async () => {
+        const outcomes = [];
+        for (const ending of ['loads', 'fails']) {
+            const catalog = deferred();
+            const h = sandbox(req => {
+                if (req.url.startsWith('/api/desktop/flows/node-types')) return catalog.p;
+                if (req.url === '/api/desktop/flows') return { flows: [] };
+                if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+                return undefined;
+            });
+            const container = h.body.appendChild(new h.dom.El('div', {}));
+            h.win.EasyDragApp.render(container, 'w1', Object.assign({}, h.ctx, { api: h.transport }));
+            await settle();
+            const root = container.children[0];
+            h.win.EasyDragApp.dispose('w1');
+            if (ending === 'loads') catalog.resolve({ node_types: Array.from(types.values()), categories: [] });
+            else catalog.reject(apiError('FLOWS_DISABLED'));
+            await settle();
+            outcomes.push([ending, (h.docListeners['aurago:flows-changed'] || []).length, h.requests.filter(r => r.url === '/api/desktop/flows').length,
+                root.children.filter(c => !c.className.includes('ed-loading')).length, h.logged]);
+        }
+        eq('c1d07 a catalog answer after dispose builds no start page or error card and leaves no flows-changed listener',
+            outcomes, [['loads', 0, 0, 0, []], ['fails', 0, 0, 0, []]]);
+        // A home navigation that waited for leave() stops when the editor closed meanwhile.
+        const save = deferred();
+        const e = sandbox(req => (req.method === 'PUT' ? save.p : undefined));
+        const editor = openEditor(e);
+        await settle();
+        editor.ed.model.setFlow({ description: 'pending' });
+        const going = e.menus.find(m => m.id === 'flow').items.find(i => i.id === 'home').action();
+        await settle();
+        editor.dispose();
+        save.resolve({ draft_revision: 4, issues: [] });
+        await going;
+        await settle();
+        eq('c1d07 goHome after a leave() that outlived the editor opens nothing', [e.homes.length, e.logged], [0, []]);
+    });
+
+    await guardAsync('c1d07 review window menu shortcuts', async () => {
+        const h = sandbox(() => undefined);
+        const editor = openEditor(h);
+        await settle();
+        const all = () => h.menus.flatMap(m => m.items);
+        const item = id => all().find(i => i.id === id);
+        eq('c1d07 only Ctrl+S, Ctrl+Enter and Ctrl+K are dispatched by the desktop; the other keys are named in the label',
+            [all().filter(i => i.shortcut).map(i => i.id + '=' + i.shortcut), item('undo').label, item('delete-sel').label, item('keys').label],
+            [['save=Ctrl+S', 'test=Ctrl+Enter', 'search=Ctrl+K'], 'undo (Ctrl+Z)', 'delete (Del)', 'keys_title (?)']);
+        item('search').action();
+        const search = editor.el.querySelector('.ed-palette-search');
+        eq('c1d07 the Ctrl+K item focuses the palette search', h.dom.document.activeElement === search, true);
+        // Edits wait while the detail view covers the canvas, and work again once it closes.
+        item('select-all').action();
+        editor.ed.bus.emit('open-detail', { nodeId: A });
+        const under = [!!editor.ed.detail, ['undo', 'cut', 'copy', 'paste', 'duplicate', 'delete-sel', 'select-all'].map(id => item(id).disabled)];
+        item('delete-sel').action();
+        item('cut').action();
+        const nodes = editor.ed.model.doc.nodes.length;
+        h.ED.detail.close(editor.ed);
+        eq('c1d07 the detail view disables the Edit items and their actions change nothing',
+            [under, nodes, item('delete-sel').disabled], [[true, [true, true, true, true, true, true, true]], 3, false]);
+        eq('c1d07 the menu checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d07 review menus under the restore offer', async () => {
+        const h = sandbox(req => (req.method === 'PUT' ? { draft_revision: 4, issues: [] } : undefined));
+        h.store.set(DRAFT_KEY, JSON.stringify({ revision: 3, at: Date.now(), doc: flowDoc('Local work') }));
+        const editor = openEditor(h);
+        await settle();
+        const items = id => h.menus.find(m => m.id === id).items;
+        const disabled = [
+            ['undo', 'redo', 'cut', 'copy', 'paste', 'duplicate', 'delete-sel', 'select-all'].map(id => items('edit').find(i => i.id === id).disabled),
+            ['save', 'test', 'run', 'publish', 'settings', 'delete'].map(id => items('flow').find(i => i.id === id).disabled)
+        ];
+        // Run every Edit action anyway, in menu order (select all, then delete): a stale menu or a raced click.
+        for (const i of items('edit')) if (i.action) await i.action();
+        items('edit').find(i => i.id === 'select-all').action();
+        items('edit').find(i => i.id === 'delete-sel').action();
+        await settle();
+        h.runTimers(1000);
+        await settle();
+        const copy = JSON.parse(h.store.get(DRAFT_KEY));
+        eq('c1d07 under the restore offer the menus are disabled and change neither the draft nor the copy',
+            [disabled, editor.ed.model.doc.nodes.length, copy.doc.name, copy.doc.nodes.length, h.puts().length],
+            [[[true, true, true, true, true, true, true, true], [true, true, true, true, true, true]], 3, 'Local work', 3, 0]);
+        h.dialogs[0].el.querySelector('[data-ed-action="restore"]').fire('click');
+        await settle();
+        h.runTimers(140);
+        eq('c1d07 after the answer the draft is the copy and the menus work again',
+            [editor.ed.model.doc.name, items('edit').find(i => i.id === 'select-all').disabled, items('flow').find(i => i.id === 'save').disabled], ['Local work', false, false]);
+        eq('c1d07 the restore menu checks log no errors', h.logged, []);
+    });
 }
