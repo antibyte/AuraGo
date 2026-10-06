@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -329,7 +330,18 @@ func (d *NodeDef) Timeout(n *Node) time.Duration {
 type Registry struct {
 	mu   sync.RWMutex
 	defs map[string]*NodeDef
+	gen  atomic.Uint64 // see Generation
 }
+
+// Generation counts the changes of the registered set. Register, Replace, a RemoveWhere
+// that removed something and a ReplaceWhere that removed or added something each add one,
+// under the write lock and after the change; reads and failed calls add nothing.
+//
+// A cache of anything derived from the registry (the server keeps the encoded palette)
+// keys on it. Read the generation before reading the registry: a change that races the
+// read then leaves the cached value under the older generation, which the next lookup
+// misses, and a reader that sees the new generation also sees the new set.
+func (r *Registry) Generation() uint64 { return r.gen.Load() }
 
 // NewRegistry returns an empty registry.
 func NewRegistry() *Registry {
@@ -350,6 +362,7 @@ func (r *Registry) Register(def *NodeDef) error {
 		return fmt.Errorf("node type %q is already registered", def.Type)
 	}
 	r.defs[def.Type] = def
+	r.gen.Add(1)
 	return nil
 }
 
@@ -372,6 +385,7 @@ func (r *Registry) Replace(def *NodeDef) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.defs[def.Type] = def
+	r.gen.Add(1)
 }
 
 // RemoveWhere deletes all definitions matching pred and returns how many were removed.
@@ -385,6 +399,9 @@ func (r *Registry) RemoveWhere(pred func(*NodeDef) bool) int {
 			delete(r.defs, typ)
 			removed++
 		}
+	}
+	if removed > 0 {
+		r.gen.Add(1)
 	}
 	return removed
 }
@@ -422,6 +439,9 @@ func (r *Registry) ReplaceWhere(pred func(*NodeDef) bool, defs []*NodeDef) int {
 	}
 	for _, def := range defs {
 		r.defs[def.Type] = def
+	}
+	if len(stale) > 0 || len(defs) > 0 {
+		r.gen.Add(1)
 	}
 	return len(stale)
 }

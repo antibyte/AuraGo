@@ -205,6 +205,11 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   separate: `RefreshGenericTools(reg, tools, env)` replaces all of them in one atomic `Registry.ReplaceWhere`
   step (a concurrent `Lookup` never sees a half-built set) and returns how many it registered. Call it again
   when the tool configuration changes.
+- Registry generation: `Registry.Generation()` moves with every change of the registered set (`Register`,
+  `Replace`, a `RemoveWhere` that removed something, a `ReplaceWhere` that removed or added something, so every
+  `RefreshGenericTools`); reads and failed calls leave it. A cache of anything derived from the registry keys on
+  it and reads it before reading the registry (the server's palette answer, `flowNodeTypesCache`). A new
+  mutating method must move it too (`TestRegistryGenerationCountsEveryChange`).
 - Tool access: a node calls one tool per call (`callTool`, `AllowedTools = [tool]`; its limits are under
   "Writing a node") and reaches a model only through `Services.LLM`. Curated nodes call `requireSuccess(out,
   what)` on every answer whose success matters: it fails closed unless the tool said `"status":"success"`, so a
