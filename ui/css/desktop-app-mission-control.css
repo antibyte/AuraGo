@@ -389,3 +389,5 @@
     .vd-mc-btn { min-height: 38px; }
     .vd-mc-splitter { display: none; }
 }
+.vd-mc-row-badge--flow { color: var(--vd-accent); border-color: color-mix(in srgb, var(--vd-accent) 45%, var(--vd-theme-border)); }
+.vd-mc-card--flow .vd-mc-flow-desc { margin: 0 0 12px; color: var(--vd-theme-muted); line-height: 1.5; }

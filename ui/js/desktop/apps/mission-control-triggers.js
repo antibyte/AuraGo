@@ -149,9 +149,25 @@
         return String(t(type.labelKey) || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
     }
 
+    // flowSummary lists the trigger nodes of an EasyDrag flow mission.
+    function flowSummary(mission, t, ctx) {
+        if (!mission.flow_published) return t('desktop.mc_flow_unpublished');
+        const specs = Array.isArray(mission.flow_triggers) ? mission.flow_triggers : [];
+        if (!specs.length) return t('desktop.mc_flow_no_trigger');
+        const parts = specs.map(spec => {
+            if (spec.trigger_type === 'schedule') return spec.schedule && ctx.schedule ? ctx.schedule.describe(spec.schedule, t, ctx.lang) : t('desktop.mc_filter_scheduled');
+            if (spec.trigger_type === 'datetime') return t('desktop.mc_flow_trigger_datetime');
+            if (spec.trigger_type === 'manual') return t('desktop.mc_filter_manual');
+            const type = byKey(spec.trigger_type);
+            return type ? label(type, t) : String(spec.trigger_type || '');
+        });
+        return Array.from(new Set(parts.filter(Boolean))).join(' · ');
+    }
+
     function summary(mission, t, ctx) {
         ctx = ctx || {};
         if (!mission) return '';
+        if (mission.execution_type === 'flow') return flowSummary(mission, t, ctx);
         if (mission.execution_type === 'scheduled') {
             if (!mission.schedule) return t('desktop.mc_overview_not_scheduled');
             return ctx.schedule ? ctx.schedule.describe(mission.schedule, t, ctx.lang) : mission.schedule;
@@ -411,14 +427,14 @@
                     return appendAll(fieldWrap(field), [fieldLabel(field, id), select, fieldHint(field), fieldError(field)]);
                 }
                 case 'mission': {
-                    const list = (typeof missions === 'function' ? missions() : []).filter(m => m && m.id !== missionId && (m.execution_type === 'manual' || m.execution_type === 'scheduled'));
+                    const list = (typeof missions === 'function' ? missions() : []).filter(m => m && m.id !== missionId && (m.execution_type === 'manual' || m.execution_type === 'scheduled' || m.execution_type === 'flow'));
                     const group = make('div', 'vd-mc-mission-options', { role: 'radiogroup' });
                     if (list.length) {
                         list.forEach(m => {
                             const label = make('label', 'vd-mc-mission-option');
                             const radio = make('input', '', { type: 'radio', name: 'mc-source-mission', value: m.id, 'data-name': m.name, 'data-mc-field': field.name });
                             radio.checked = m.id === value;
-                            label.append(radio, textEl('span', 'vd-mc-mission-option-name', m.name), textEl('span', 'vd-mc-mission-option-meta', t(m.execution_type === 'scheduled' ? 'missions.filter_scheduled' : 'missions.filter_manual')));
+                            label.append(radio, textEl('span', 'vd-mc-mission-option-name', m.name), textEl('span', 'vd-mc-mission-option-meta', t(m.execution_type === 'flow' ? 'desktop.mc_badge_flow' : m.execution_type === 'scheduled' ? 'missions.filter_scheduled' : 'missions.filter_manual')));
                             group.append(label);
                         });
                     } else {

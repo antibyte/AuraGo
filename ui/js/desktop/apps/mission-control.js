@@ -8,7 +8,7 @@
     const COMPACT_BREAKPOINT = 720;
     const LIST_MIN = 260, LIST_MAX = 460, LIST_DEFAULT = 320;
     const HISTORY_PAGE = 25;
-    const FILTERS = ['all', 'manual', 'scheduled', 'triggered', 'errors'];
+    const FILTERS = ['all', 'manual', 'scheduled', 'triggered', 'flow', 'errors'];
     const SORTS = ['name', 'last_run', 'next_run', 'priority'];
 
     function clamp(n, lo, hi) { n = Number(n); if (Number.isNaN(n)) return lo; return Math.min(hi, Math.max(lo, n)); }
@@ -31,7 +31,7 @@
     function render(container, windowId, context) {
         dispose(windowId);
 
-        const { esc, t, api, notify, readonly, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, confirmDialog, showContextMenu, setWindowBeforeClose, isActive } = context;
+        const { esc, t, api, notify, readonly, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, confirmDialog, showContextMenu, setWindowBeforeClose, isActive, openApp } = context;
         const S = window.MissionControlSchedule, TR = window.MissionControlTriggers, MN = window.MissionControlMenus;
         if (!S || !TR || !MN || !window.MissionControlList || !window.MissionControlDetail || !window.MissionControlEditor) {
             container.innerHTML = `<div class="vd-mc vd-mc--fatal">${esc(t('desktop.mc_load_error'))}</div>`;
@@ -329,6 +329,11 @@
             }
         }
 
+        // Flow missions are edited in EasyDrag; Mission Control only opens them there.
+        function openFlow(m) {
+            if (m && typeof openApp === 'function') openApp('easydrag', m.flow_id ? { flowId: m.flow_id } : {});
+        }
+
         // ── actions ──
         async function withBusy(name, fn) {
             if (readonly) { notify(t('desktop.mc_toast_readonly'), 'error'); return; }
@@ -339,6 +344,8 @@
         const actions = {
             refresh: () => loadData(),
             newMission: () => openEditor('new', null),
+            newFlow: () => { if (typeof openApp === 'function') openApp('easydrag', {}); },
+            openFlow: (id) => openFlow(byId(id)),
             edit: () => { const m = selected(); if (m) openEditor('edit', m); },
             duplicate: () => { const m = selected(); if (m) openEditor('duplicate', m); },
             run: () => actions.runMission(state.selectedId),
@@ -433,6 +440,7 @@
 
         // ── editor ──
         async function openEditor(mode, mission) {
+            if (mission && mission.execution_type === 'flow') { openFlow(mission); return; }
             if (readonly) { notify(t('desktop.mc_toast_readonly'), 'error'); return; }
             if (state.editing && !(await closeEditor(false))) return;
             state.editing = { mode, id: mode === 'edit' && mission ? mission.id : '' };
@@ -508,7 +516,7 @@
         detail.on('historyRetry', () => loadHistory(true));
         detail.on('contextmenu', ({ x, y, missionId }) => { const m = byId(missionId); if (m && typeof showContextMenu === 'function') { syncMenus(); showContextMenu(x, y, MN.missionContextItems(menuModel, m)); } });
         detail.on('action', ({ name, missionId, x, y }) => {
-            const map = { run: 'runMission', cancel: 'cancelMission', removeQueue: 'removeMissionFromQueue', edit: 'editMission', duplicate: 'duplicateMission', delete: 'deleteMission', pause: 'togglePauseMission', resume: 'togglePauseMission', lock: 'toggleLockMission', unlock: 'toggleLockMission', prepare: 'prepareMission', invalidatePrep: 'invalidatePrepMission', viewPrep: 'viewPrep', copyOutput: 'copyOutput' };
+            const map = { run: 'runMission', cancel: 'cancelMission', removeQueue: 'removeMissionFromQueue', edit: 'editMission', duplicate: 'duplicateMission', delete: 'deleteMission', pause: 'togglePauseMission', resume: 'togglePauseMission', lock: 'toggleLockMission', unlock: 'toggleLockMission', prepare: 'prepareMission', invalidatePrep: 'invalidatePrepMission', viewPrep: 'viewPrep', copyOutput: 'copyOutput', openFlow: 'openFlow' };
             if (name === 'more') { const m = byId(missionId); if (m && typeof showContextMenu === 'function') { syncMenus(); showContextMenu(x, y, MN.missionContextItems(menuModel, m)); } return; }
             if (map[name]) actions[map[name]](missionId);
         });

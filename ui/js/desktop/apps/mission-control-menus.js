@@ -56,6 +56,7 @@
     // Snapshot helpers – `m.s` is the shell's live state view.
     function sel(m) { return m.s && m.s.selected ? m.s.selected : null; }
     function isRemote(mission) { return !!mission && mission.runner_type === 'remote'; }
+    function isFlow(mission) { return !!mission && mission.execution_type === 'flow'; }
 
     function windowMenus(m) {
         const t = m.t;
@@ -68,7 +69,8 @@
             {
                 id: 'file', labelKey: 'desktop.menu_file', items: [
                     { id: 'new-mission', labelKey: 'desktop.mc_new_mission', icon: 'plus', shortcut: 'Ctrl+N', disabled: ro, action: act(m, 'newMission') },
-                    { id: 'duplicate', labelKey: 'desktop.mc_action_duplicate', icon: 'copy', shortcut: 'Ctrl+D', disabled: () => ro() || none(), action: act(m, 'duplicate') },
+                    { id: 'new-flow', labelKey: 'desktop.mc_new_flow', icon: 'workflow', disabled: ro, action: act(m, 'newFlow') },
+                    { id: 'duplicate', labelKey: 'desktop.mc_action_duplicate', icon: 'copy', shortcut: 'Ctrl+D', disabled: () => ro() || none() || isFlow(sel(m)), action: act(m, 'duplicate') },
                     { type: 'separator' },
                     { id: 'run', labelKey: 'desktop.mc_action_run', icon: 'play', shortcut: 'Ctrl+Enter', disabled: () => ro() || none() || running() || queued(), action: act(m, 'run') },
                     { id: 'cancel-run', labelKey: 'desktop.mc_action_cancel', icon: 'stop', disabled: () => ro() || !(m.s && m.s.canCancel), action: act(m, 'cancelRun') },
@@ -76,10 +78,10 @@
                     { type: 'separator' },
                     { id: 'pause-resume', label: sel(m) && sel(m).enabled === false ? t('desktop.mc_action_resume') : t('desktop.mc_action_pause'), icon: sel(m) && sel(m).enabled === false ? 'play' : 'pause', disabled: () => ro() || none() || running(), action: act(m, 'togglePause') },
                     { id: 'lock-toggle', label: sel(m) && sel(m).locked ? t('desktop.mc_action_unlock') : t('desktop.mc_action_lock'), icon: 'key', disabled: () => ro() || none(), action: act(m, 'toggleLock') },
-                    { id: 'prepare', labelKey: 'desktop.mc_action_prepare', icon: 'star', disabled: () => ro() || none() || running() || prep() === 'preparing' || isRemote(sel(m)), action: act(m, 'prepare') },
-                    { id: 'invalidate-prep', labelKey: 'desktop.mc_action_invalidate_prep', icon: 'refresh', disabled: () => ro() || none() || prep() === 'none' || prep() === 'preparing', action: act(m, 'invalidatePrep') },
+                    { id: 'prepare', labelKey: 'desktop.mc_action_prepare', icon: 'star', disabled: () => ro() || none() || running() || prep() === 'preparing' || isRemote(sel(m)) || isFlow(sel(m)), action: act(m, 'prepare') },
+                    { id: 'invalidate-prep', labelKey: 'desktop.mc_action_invalidate_prep', icon: 'refresh', disabled: () => ro() || none() || prep() === 'none' || prep() === 'preparing' || isFlow(sel(m)), action: act(m, 'invalidatePrep') },
                     { type: 'separator' },
-                    { id: 'edit', labelKey: 'desktop.mc_action_edit', icon: 'edit', shortcut: 'Ctrl+E', disabled: () => ro() || none(), action: act(m, 'edit') },
+                    { id: 'edit', labelKey: isFlow(sel(m)) ? 'desktop.mc_action_open_easydrag' : 'desktop.mc_action_edit', icon: 'edit', shortcut: 'Ctrl+E', disabled: () => ro() || none(), action: act(m, 'edit') },
                     { id: 'delete', labelKey: 'desktop.mc_action_delete', icon: 'trash', shortcut: 'Del', disabled: () => ro() || none() || !!(sel(m) && sel(m).locked) || running(), action: act(m, 'delete') }
                 ]
             },
@@ -91,6 +93,7 @@
                     { id: 'filter-manual', labelKey: 'desktop.mc_filter_manual', checked: () => m.s.filter === 'manual', action: () => m.actions.setFilter('manual') },
                     { id: 'filter-scheduled', labelKey: 'desktop.mc_filter_scheduled', checked: () => m.s.filter === 'scheduled', action: () => m.actions.setFilter('scheduled') },
                     { id: 'filter-triggered', labelKey: 'desktop.mc_filter_triggered', checked: () => m.s.filter === 'triggered', action: () => m.actions.setFilter('triggered') },
+                    { id: 'filter-flow', labelKey: 'desktop.mc_filter_flow', checked: () => m.s.filter === 'flow', action: () => m.actions.setFilter('flow') },
                     { id: 'filter-errors', labelKey: 'desktop.mc_filter_errors', checked: () => m.s.filter === 'errors', action: () => m.actions.setFilter('errors') },
                     { type: 'separator' },
                     { id: 'sort-name', labelKey: 'desktop.mc_sort_name', checked: () => m.s.sort === 'name', action: () => m.actions.setSort('name') },
@@ -123,8 +126,10 @@
         if (running && !isRemote(mission)) items.push({ icon: 'stop', label: t('desktop.mc_action_cancel'), action: a('cancelMission'), disabled: ro });
         if (queued) items.push({ icon: 'list', label: t('desktop.mc_action_remove_queue'), action: a('removeMissionFromQueue'), disabled: ro });
         items.push({ separator: true });
-        items.push({ icon: 'edit', label: t('desktop.mc_action_edit'), action: a('editMission'), disabled: ro });
-        items.push({ icon: 'copy', label: t('desktop.mc_action_duplicate'), action: a('duplicateMission'), disabled: ro });
+        items.push(isFlow(mission)
+            ? { icon: 'edit', label: t('desktop.mc_action_open_easydrag'), action: a('openFlow') }
+            : { icon: 'edit', label: t('desktop.mc_action_edit'), action: a('editMission'), disabled: ro });
+        items.push({ icon: 'copy', label: t('desktop.mc_action_duplicate'), action: a('duplicateMission'), disabled: ro || isFlow(mission) });
         items.push({ icon: mission.enabled === false ? 'play' : 'pause', label: t(mission.enabled === false ? 'desktop.mc_action_resume' : 'desktop.mc_action_pause'), action: a('togglePauseMission'), disabled: ro || running });
         items.push({ icon: 'key', label: t(mission.locked ? 'desktop.mc_action_unlock' : 'desktop.mc_action_lock'), action: a('toggleLockMission'), disabled: ro });
         items.push({ separator: true });
@@ -144,6 +149,7 @@
         const t = m.t;
         return [
             { icon: 'plus', label: t('desktop.mc_new_mission'), action: act(m, 'newMission'), disabled: !!m.readonly },
+            { icon: 'workflow', label: t('desktop.mc_new_flow'), action: act(m, 'newFlow'), disabled: !!m.readonly },
             { icon: 'refresh', label: t('desktop.mc_toolbar_refresh'), action: act(m, 'refresh') }
         ];
     }

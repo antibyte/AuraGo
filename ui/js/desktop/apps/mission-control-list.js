@@ -39,7 +39,7 @@
         function queuePosition(m) { const idx = queue.items.findIndex(item => item.mission_id === m.id); return idx < 0 ? 0 : idx + 1; }
         function matchesFilter(m) {
             switch (filter) {
-                case 'manual': case 'scheduled': case 'triggered': return m.execution_type === filter;
+                case 'manual': case 'scheduled': case 'triggered': case 'flow': return m.execution_type === filter;
                 case 'errors': return m.last_result === 'error';
                 default: return true;
             }
@@ -77,7 +77,7 @@
 
         // Signature of everything a row renders; unchanged rows keep their DOM.
         function rowSignature(m, state) {
-            return [m.name, m.prompt ? m.prompt.length : 0, m.execution_type, m.schedule, m.trigger_type, JSON.stringify(m.trigger_config || null), m.enabled, m.locked, m.runner_type, m.priority, m.last_run, m.last_result, m.next_run, state, m.id === selectedId, readonly].join('|');
+            return [m.name, m.prompt ? m.prompt.length : 0, m.execution_type, m.schedule, m.trigger_type, JSON.stringify(m.trigger_config || null), m.enabled, m.locked, m.runner_type, m.priority, m.last_run, m.last_result, m.next_run, JSON.stringify(m.flow_triggers || null), m.flow_published, state, m.id === selectedId, readonly].join('|');
         }
 
         function rowMarkup(m, state) {
@@ -91,6 +91,7 @@
                         ${m.locked ? `<span class="vd-mc-row-badge" title="${esc(t('desktop.mc_state_locked'))}">${ic('lock')}</span>` : ''}
                         ${m.runner_type === 'remote' ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(t('desktop.mc_state_remote'))}</span>` : ''}
                         ${m.enabled === false ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(t('desktop.mc_state_paused'))}</span>` : ''}
+                        ${m.execution_type === 'flow' ? `<span class="vd-mc-row-badge vd-mc-row-badge--text vd-mc-row-badge--flow">${esc(t('desktop.mc_badge_flow'))}</span>` : ''}
                     </span>
                     <span class="vd-mc-row-sub">${esc(summary)}</span>
                 </span>

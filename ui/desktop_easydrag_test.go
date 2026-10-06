@@ -209,3 +209,20 @@ func TestEasyDragStylesheetUsesThemeTokens(t *testing.T) {
 		}
 	}
 }
+
+func TestMissionControlShowsFlowMissions(t *testing.T) {
+	for file, markers := range map[string][]string{
+		"js/desktop/apps/mission-control.js":          {"const FILTERS = ['all', 'manual', 'scheduled', 'triggered', 'flow', 'errors'];", "openApp('easydrag'", "if (mission && mission.execution_type === 'flow') { openFlow(mission); return; }", "openFlow: 'openFlow'"},
+		"js/desktop/apps/mission-control-list.js":     {"case 'flow':", "vd-mc-row-badge--flow", "JSON.stringify(m.flow_triggers || null)"},
+		"js/desktop/apps/mission-control-detail.js":   {"data-mc-action=\"openFlow\"", "desktop.mc_flow_card_desc", "mission.execution_type === 'flow' ? '' : prepMarkup()"},
+		"js/desktop/apps/mission-control-triggers.js": {"function flowSummary(mission, t, ctx)", "if (mission.execution_type === 'flow') return flowSummary(mission, t, ctx);", "m.execution_type === 'flow'"},
+		"js/desktop/apps/mission-control-menus.js":    {"desktop.mc_new_flow", "function isFlow(mission)", "desktop.mc_filter_flow"},
+	} {
+		text := readDesktopAssetText(t, file)
+		for _, marker := range markers {
+			if !strings.Contains(text, marker) {
+				t.Errorf("%s misses %q", file, marker)
+			}
+		}
+	}
+}
