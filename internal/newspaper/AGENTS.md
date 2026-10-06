@@ -14,6 +14,7 @@ Own the installation's personal daily publication, durable editions and delivery
 
 ## Local Contracts
 
+- `documentation/newspaper-yield-plan.md` specifies the proposed coverage and automatic-budget revision. It is not implemented behavior; preserve the current limits below until the coordinated runner, scheduler, config, retention and UI changes land.
 - The profile is installation-owned. Saving preferences does not send an edition; changing the email destination or account clears verification and daily email.
 - Up to ten profile-owned RSS/Atom feeds supplement permitted Brave News/Web or DuckDuckGo search. Each feed belongs to a selected section; only guarded public HTTP(S) retrieval is permitted. Up to 40 current feed entries are leads until their originals are fetched.
 - Research uses the bundled guide for open, international source discovery and validated topic/language plans with deterministic fallback. The server owns capability snapshots, retries and shared budgets: up to 200 queued candidates, 32 searches by default (1–64 including retries), two planning calls, four original-page reads (one per publisher domain) and two editors. Stop discovery at 80% of the deadline; one follow-up may widen 24 hours to seven days. Keep issue ceilings 6/12/16 and permit smaller, explicitly partial editions.
