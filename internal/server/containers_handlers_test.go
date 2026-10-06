@@ -64,6 +64,7 @@ func TestContainerTerminalRejectsStoppedContainerBeforeUpgrade(t *testing.T) {
 	fake := &fakeContainerTerminalBackend{running: false}
 	restore := replaceContainerTerminalBackend(fake)
 	defer restore()
+	defer replaceContainerProtection(containerProtection{})()
 
 	rec := httptest.NewRecorder()
 	req := newContainerTerminalUpgradeRequest("/api/containers/demo/terminal")
@@ -86,6 +87,7 @@ func TestContainerTerminalRejectsCrossOriginBeforeUpgrade(t *testing.T) {
 	fake := &fakeContainerTerminalBackend{running: true}
 	restore := replaceContainerTerminalBackend(fake)
 	defer restore()
+	defer replaceContainerProtection(containerProtection{})()
 
 	rec := httptest.NewRecorder()
 	req := newContainerTerminalUpgradeRequest("/api/containers/demo/terminal")
@@ -110,6 +112,7 @@ func TestContainerTerminalResizeControlCallsBackend(t *testing.T) {
 	fake := &fakeContainerTerminalBackend{running: true, session: session}
 	restore := replaceContainerTerminalBackend(fake)
 	defer restore()
+	defer replaceContainerProtection(containerProtection{})()
 
 	ts := httptest.NewServer(handleContainerAction(s))
 	defer ts.Close()
@@ -375,6 +378,7 @@ func TestContainerTerminalWebSocketWorksThroughAuthChain(t *testing.T) {
 	fake := &fakeContainerTerminalBackend{running: true}
 	restore := replaceContainerTerminalBackend(fake)
 	defer restore()
+	defer replaceContainerProtection(containerProtection{})()
 	ts := httptest.NewServer(chain)
 	defer ts.Close()
 

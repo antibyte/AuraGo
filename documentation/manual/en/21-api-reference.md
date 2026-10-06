@@ -745,6 +745,11 @@ POST /api/containers/{id}/unpause
 DELETE /api/containers/{id}
 ```
 
+### Protected Containers
+`GET /api/containers` marks containers that AuraGo manages (`protected_owner`: `aurago-app`, `acestep`, `homepage`, `go2rtc`, `local-llm`, `boring-garage`), the container AuraGo runs in (`self: true`) and the container that serves AuraGo's Docker endpoint (`docker_endpoint: true`).
+
+For these containers, `GET /api/containers/{id}/terminal` (WebSocket), `POST /api/containers/{id}/update` and `DELETE /api/containers/{id}` answer HTTP 409 with `code: "container_protected_confirmation_required"` unless the request carries `confirm=protected`. The same applies when Docker does not answer the ownership check. `POST /api/containers/{id}/update` on the AuraGo container itself or on the Docker endpoint container always answers HTTP 409 with `code: "container_self_update_unsupported"`: the update would stop AuraGo or its Docker connection before the replacement exists. Upgrade those with `docker compose pull && docker compose up -d` on the Docker host. Start, stop, restart, logs, inspect and stats need no confirmation.
+
 ### Runtime Information
 ```http
 GET /api/runtime

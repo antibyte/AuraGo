@@ -22,7 +22,8 @@ func containerDockerConfig(s *Server) (tools.DockerConfig, bool, bool) {
 	return tools.DockerConfig{Host: s.Cfg.Docker.Host}, s.Cfg.Docker.Enabled, s.Cfg.Docker.ReadOnly
 }
 
-// handleContainersList returns all containers (GET /api/containers).
+// handleContainersList returns all containers (GET /api/containers) with the
+// protection flags of adminContainerListJSON.
 func handleContainersList(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -34,13 +35,17 @@ func handleContainersList(s *Server) http.HandlerFunc {
 			containerJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "error", "message": "Docker is not enabled"})
 			return
 		}
-		result := tools.DockerListContainers(cfg, true)
+		result := adminContainerListJSON(r.Context(), s, cfg)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(result))
 	}
 }
 
 // handleContainerAction routes /api/containers/{id}/{action} requests.
+// Terminal, update and remove pass containerActionAllowed first. Start, stop,
+// restart, logs, inspect and stats never consult container protection: System
+// World calls this handler for start/stop/restart, and restarting the AuraGo
+// container itself works because dockerd performs the restart.
 func handleContainerAction(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cfg, enabled, readOnly := containerDockerConfig(s)
@@ -111,6 +116,9 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 				containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "Docker is in read-only mode"})
 				return
 			}
+			if !containerActionAllowed(s, cfg, containerID, "update", w, r) {
+				return
+			}
 			ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
 			defer cancel()
 			result := tools.DockerUpdateContainerImage(ctx, cfg, containerID, s.Logger)
@@ -159,6 +167,9 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 				containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "Docker is in read-only mode"})
 				return
 			}
+			if !containerActionAllowed(s, cfg, containerID, "terminal", w, r) {
+				return
+			}
 			handleContainerTerminal(s, cfg, containerID, w, r)
 
 		case "": // DELETE /api/containers/{id} — remove container
@@ -168,6 +179,9 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 			}
 			if readOnly {
 				containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "Docker is in read-only mode"})
+				return
+			}
+			if !containerActionAllowed(s, cfg, containerID, "remove", w, r) {
 				return
 			}
 			force := r.URL.Query().Get("force") == "true"
