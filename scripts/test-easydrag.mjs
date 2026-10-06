@@ -158,6 +158,31 @@ check('fit shows box', fitted.zoom > 0.6 && fitted.zoom < 0.8, JSON.stringify(fi
 eq('rect normalize', G.normalizeRect({ x: 10, y: 10 }, { x: 0, y: 5 }), { x: 0, y: 5, w: 10, h: 5 });
 eq('free spot avoids overlap', G.freeSpot({ x: 0, y: 0 }, [{ x: 0, y: 0, w: 232, h: 72 }]).y > 72, true);
 
+// ── c1d02 extras (controller requirements beyond the plan) ──
+{
+    // Merge node fields follow the mode (dynamic_fields "mode"), see internal/flows/nodes_logic.go mergeNodeDef.
+    const mergeTypes = new Map(types);
+    mergeTypes.set('logic.merge', { type: 'logic.merge', label: 'Zusammenführen', inputs: ['in'], outputs: ['out'], dynamic_fields: 'mode', params: [{ name: 'mode', kind: 'segmented', default: 'wait_all' }, { name: 'field', kind: 'text', default: 'items' }], output_fields: [] });
+    const mm = M.create({ schema: 1, name: 'Merge', nodes: [], edges: [] }, { types: mergeTypes });
+    const trg = mm.addNode('trigger.manual', { x: 0, y: 0 });
+    const s1 = mm.addNode('web.search', { x: 300, y: 0 }, null, { node: trg, port: 'out' });
+    const s2 = mm.addNode('web.search', { x: 300, y: 200 }, null, { node: trg, port: 'out' });
+    const merge = mm.addNode('logic.merge', { x: 600, y: 0 });
+    eq('c1d02 merge without upstream nodes has no fields', mm.fieldsOf(mm.node(merge)), []);
+    mm.connect(s1, 'out', merge, 'in');
+    mm.connect(s2, 'out', merge, 'in');
+    eq('c1d02 merge wait_all lists upstream keys in edge order', mm.fieldsOf(mm.node(merge)), [{ name: 'websuche', type: 'object' }, { name: 'websuche_2', type: 'object' }]);
+    mm.setParam(merge, 'mode', undefined);
+    eq('c1d02 merge without mode param lists upstream keys', mm.fieldsOf(mm.node(merge)).map(f => f.name), ['websuche', 'websuche_2']);
+    mm.setParam(merge, 'mode', 'append');
+    eq('c1d02 merge append outputs items and count', mm.fieldsOf(mm.node(merge)), [{ name: 'items', type: 'list', primary: true }, { name: 'count', type: 'number' }]);
+    const branch = mm.addNode('logic.if', { x: 300, y: 400 }, null, { node: trg, port: 'out' });
+    const merge2 = mm.addNode('logic.merge', { x: 600, y: 400 });
+    mm.connect(branch, 'true', merge2, 'in');
+    mm.connect(branch, 'false', merge2, 'in');
+    eq('c1d02 merge skips duplicate upstream nodes', mm.fieldsOf(mm.node(merge2)).map(f => f.name), ['wenn']);
+}
+
 if (failures) {
     console.log(failures + ' failure(s)');
     process.exit(1);

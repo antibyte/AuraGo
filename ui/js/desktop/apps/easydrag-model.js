@@ -103,10 +103,24 @@
             return ports;
         }
 
-        // fieldsOf lists the output fields of a node (dynamic fields of AI steps included).
+        // fieldsOf lists the output fields of a node (dynamic fields of AI steps and merges included).
         function fieldsOf(n) {
             const i = info(n.type);
             if (!i) return [];
+            if (i.dynamic_fields === 'mode') {
+                // logic.merge: "append" outputs items and count; every other mode outputs one
+                // entry per direct upstream node, keyed by that node's key (internal/flows/nodes_logic.go).
+                if (n.params && n.params.mode === 'append') return [{ name: 'items', type: 'list', primary: true }, { name: 'count', type: 'number' }];
+                const seen = new Set();
+                const out = [];
+                incoming(n.id).forEach(e => {
+                    const src = node(e.source.node);
+                    if (!src || !src.key || seen.has(src.key)) return;
+                    seen.add(src.key);
+                    out.push({ name: src.key, type: 'object' });
+                });
+                return out;
+            }
             if (i.dynamic_fields === 'fields') {
                 const defs = Array.isArray(n.params && n.params.fields) ? n.params.fields : [];
                 const own = defs.filter(f => f && f.name).map((f, idx) => ({ name: String(f.name), type: f.type || 'text', primary: idx === 0 }));
