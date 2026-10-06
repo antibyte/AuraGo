@@ -2578,6 +2578,72 @@ async function testEasyDragFlowsChangedIsForwarded() {
   ]);
 }
 
+function renderConfigFlowsSection({ flows, tools = {}, providers = [], loaded = true }) {
+  const strings = { ...JSON.parse(read('ui/lang/config/common/en.json')), ...JSON.parse(read('ui/lang/config/flows/en.json')) };
+  const content = { innerHTML: '' };
+  const context = {
+    configData: { flows, tools },
+    providersCache: providers,
+    providersLoaded: loaded,
+    t(key, params) {
+      assert.ok(Object.prototype.hasOwnProperty.call(strings, key), `missing English string ${key}`);
+      return strings[key].replace(/\{\{(\w+)\}\}/g, (_, name) => params[name]);
+    },
+    document: { getElementById: id => (id === 'content' ? content : null) },
+    attachChangeListeners() {}
+  };
+  vm.createContext(context);
+  vm.runInContext(sourceBetween(read('ui/js/config/utils.js'), 'function escapeAttr(', 'function formatKey('), context);
+  vm.runInContext(read('ui/cfg/flows.js'), context);
+  context.renderFlowsSection({ label: 'EasyDrag flows', desc: 'Visual automations' });
+  return content.innerHTML;
+}
+
+// Config section "EasyDrag flows": provider picker keeps unknown ids, numbers stay numbers,
+// the link opens EasyDrag, and the agent options (not enforced yet) cannot be switched.
+function testConfigFlowsSection() {
+  const providers = [
+    { id: 'main', name: 'Main', type: 'openai', model: 'gpt-x' },
+    { id: 'p<2>', name: 'Odd "name"', type: '', model: '' }
+  ];
+  const flows = { enabled: true, max_parallel_runs: 12, max_parallel_nodes_per_run: 3, run_retention_days: 60, max_runs_per_flow: 500, ai_provider: 'gone', agent: { read_only: true, allow_publish: false } };
+  let html = renderConfigFlowsSection({ flows, providers });
+  assert.match(html, /<select class="field-select" data-path="flows\.ai_provider"[^>]*><option value="">Main model<\/option><option value="gone" selected>gone \(missing\)<\/option><option value="main">Main \[openai\] — gpt-x<\/option><option value="p&lt;2&gt;">Odd &quot;name&quot;<\/option><\/select>/);
+  assert.match(renderConfigFlowsSection({ flows, providers: [], loaded: false }), /<option value="gone" selected>gone \(list unavailable\)<\/option>/);
+  assert.match(renderConfigFlowsSection({ flows: { ...flows, ai_provider: 'main' }, providers }), /<option value="">Main model<\/option><option value="main" selected>/);
+  assert.match(renderConfigFlowsSection({ flows: { ...flows, ai_provider: '' }, providers }), /<option value="" selected>Main model<\/option><option value="main">/);
+
+  const numberInputs = [...html.matchAll(/<input class="field-input" type="number"[^>]*value="(\d+)" data-path="(flows\.[a-z_]+)"/g)];
+  assert.deepEqual(numberInputs.map(match => match[2]), ['flows.max_parallel_runs', 'flows.max_parallel_nodes_per_run', 'flows.run_retention_days', 'flows.max_runs_per_flow']);
+  const stateContext = { window: {}, document: { dispatchEvent() {} }, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } } };
+  vm.createContext(stateContext);
+  vm.runInContext(read('ui/js/config/state.js'), stateContext);
+  const state = stateContext.window.AuraConfigState;
+  state.init({ flows });
+  const edited = { 'flows.max_parallel_runs': '16', 'flows.run_retention_days': '90' };
+  const elements = numberInputs.map(([, value, dataPath]) => ({ type: 'number', step: '', value: edited[dataPath] || value, dataset: { path: dataPath }, classList: { contains: () => false } }));
+  state.syncFromDOM({ querySelectorAll: () => elements });
+  assert.equal(JSON.stringify(state.buildPatch()), JSON.stringify({ flows: { max_parallel_runs: 16, run_retention_days: 90 } }), 'number inputs reach the patch as numbers');
+
+  assert.match(html, /<a class="btn-save dc-test-btn" href="\/desktop\?app=easydrag">Open EasyDrag<\/a>/);
+  assert.doesNotMatch(renderConfigFlowsSection({ flows: { ...flows, enabled: false }, providers }), /href="\/desktop/, 'no link while flows are off');
+  const missionsOff = renderConfigFlowsSection({ flows, providers, tools: { missions: { enabled: false } } });
+  assert.match(missionsOff, /cfg-note-banner-warning">Missions are switched off\./);
+  assert.doesNotMatch(missionsOff, /href="\/desktop/, 'no link while missions are off');
+
+  const toggle = dataPath => (html.match(new RegExp(`<div class="toggle[^"]*" data-path="${dataPath.replace(/\./g, '\\.')}"[^>]*>`)) || [''])[0];
+  assert.match(toggle('flows.enabled'), /onclick="toggleBool\(this\)"/);
+  for (const dataPath of ['flows.agent.read_only', 'flows.agent.allow_publish']) {
+    const markup = toggle(dataPath);
+    assert.match(markup, /cfg-toggle-disabled/, `${dataPath} looks disabled`);
+    assert.match(markup, /aria-disabled="true"/, `${dataPath} is announced as disabled`);
+    assert.match(markup, /aria-describedby="flows-agent-note"/);
+    assert.doesNotMatch(markup, /onclick/, `${dataPath} cannot be switched`);
+  }
+  assert.match(toggle('flows.agent.read_only'), /class="toggle on cfg-toggle-disabled"/, 'the saved value stays visible');
+  assert.match(html, /id="flows-agent-note">The agent options take effect once the agent can work with flows\.</);
+}
+
 const tests = [
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
@@ -2628,6 +2694,7 @@ const tests = [
   ['EasyDrag notifications keep only server-shaped flow and run ids', testEasyDragNotificationContextKeepsOnlyServerIds],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
+  ['Config EasyDrag flows section keeps providers, numbers and locked agent options', testConfigFlowsSection],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 

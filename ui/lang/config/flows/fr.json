@@ -3,7 +3,8 @@
   "config.flows.agent_note": "Les options de l’agent s’appliqueront dès que l’agent pourra gérer les flux.",
   "config.flows.agent_read_only": "L’agent peut seulement lire les flux",
   "config.flows.ai_provider": "Fournisseur d’IA pour les étapes IA",
-  "config.flows.ai_provider_placeholder": "Vide = modèle principal",
+  "config.flows.ai_provider_help": "Les étapes IA réglées sur « Modèle par défaut » utilisent ce fournisseur.",
+  "config.flows.ai_provider_main": "Modèle principal",
   "config.flows.enabled": "Activer les flux",
   "config.flows.intro": "Les flux s’exécutent hors de la file de l’agent. Ces limites protègent le serveur.",
   "config.flows.max_parallel_nodes_per_run": "Étapes simultanées par exécution (1–16)",
@@ -11,7 +12,7 @@
   "config.flows.max_runs_per_flow": "Exécutions conservées par flux (10–5000)",
   "config.flows.missions_off": "Les missions sont désactivées. Les flux ont besoin des missions pour s’exécuter.",
   "config.flows.open": "Ouvrir EasyDrag",
-  "config.flows.run_retention_days": "Conserver l’historique (jours, 1–365)",
+  "config.flows.run_retention_days": "Conserver l’historique des exécutions (jours, 1–365)",
   "config.section.flows.desc": "Automatisations visuelles de l’application EasyDrag",
   "config.section.flows.label": "Flux EasyDrag"
 }

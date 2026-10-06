@@ -3,7 +3,8 @@
   "config.flows.agent_note": "Agentalternativen gäller när agenten kan arbeta med flöden.",
   "config.flows.agent_read_only": "Agenten får bara läsa flöden",
   "config.flows.ai_provider": "AI-leverantör för AI-steg",
-  "config.flows.ai_provider_placeholder": "Tomt = huvudmodell",
+  "config.flows.ai_provider_help": "AI-steg som är inställda på ”Standardmodell” använder den här leverantören.",
+  "config.flows.ai_provider_main": "Huvudmodell",
   "config.flows.enabled": "Aktivera flöden",
   "config.flows.intro": "Flöden körs utanför agentens kö. De här gränserna skyddar servern.",
   "config.flows.max_parallel_nodes_per_run": "Samtidiga steg per körning (1–16)",
@@ -11,7 +12,7 @@
   "config.flows.max_runs_per_flow": "Sparade körningar per flöde (10–5000)",
   "config.flows.missions_off": "Uppdrag är avstängda. Flöden behöver uppdrag för att köras.",
   "config.flows.open": "Öppna EasyDrag",
-  "config.flows.run_retention_days": "Spara körhistorik (dagar, 1–365)",
+  "config.flows.run_retention_days": "Spara körningshistorik (dagar, 1–365)",
   "config.section.flows.desc": "Visuella automatiseringar från EasyDrag-appen",
   "config.section.flows.label": "EasyDrag-flöden"
 }

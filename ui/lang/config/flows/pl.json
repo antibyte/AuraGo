@@ -3,7 +3,8 @@
   "config.flows.agent_note": "Opcje agenta zaczną działać, gdy agent będzie mógł pracować z przepływami.",
   "config.flows.agent_read_only": "Agent może tylko odczytywać przepływy",
   "config.flows.ai_provider": "Dostawca AI dla kroków AI",
-  "config.flows.ai_provider_placeholder": "Puste = model główny",
+  "config.flows.ai_provider_help": "Kroki AI ustawione na „Model domyślny” korzystają z tego dostawcy.",
+  "config.flows.ai_provider_main": "Model główny",
   "config.flows.enabled": "Włącz przepływy",
   "config.flows.intro": "Przepływy działają poza kolejką agenta. Te limity chronią serwer.",
   "config.flows.max_parallel_nodes_per_run": "Równoległe kroki na uruchomienie (1–16)",
@@ -11,7 +12,7 @@
   "config.flows.max_runs_per_flow": "Zachowane uruchomienia na przepływ (10–5000)",
   "config.flows.missions_off": "Misje są wyłączone. Przepływy potrzebują misji, aby działać.",
   "config.flows.open": "Otwórz EasyDrag",
-  "config.flows.run_retention_days": "Przechowuj historię (dni, 1–365)",
+  "config.flows.run_retention_days": "Przechowuj historię uruchomień (dni, 1–365)",
   "config.section.flows.desc": "Wizualne automatyzacje z aplikacji EasyDrag",
   "config.section.flows.label": "Przepływy EasyDrag"
 }

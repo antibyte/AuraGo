@@ -3,7 +3,8 @@
   "config.flows.agent_note": "Agentvalgene gjelder når agenten kan jobbe med flyter.",
   "config.flows.agent_read_only": "Agenten kan bare lese flyter",
   "config.flows.ai_provider": "AI-leverandør for AI-trinn",
-  "config.flows.ai_provider_placeholder": "Tom = hovedmodell",
+  "config.flows.ai_provider_help": "AI-trinn som står på «Standardmodell», bruker denne leverandøren.",
+  "config.flows.ai_provider_main": "Hovedmodell",
   "config.flows.enabled": "Aktiver flyter",
   "config.flows.intro": "Flyter kjører utenom agentens kø. Disse grensene beskytter serveren.",
   "config.flows.max_parallel_nodes_per_run": "Samtidige trinn per kjøring (1–16)",
@@ -11,7 +12,7 @@
   "config.flows.max_runs_per_flow": "Lagrede kjøringer per flyt (10–5000)",
   "config.flows.missions_off": "Oppdrag er slått av. Flyter trenger oppdrag for å kjøre.",
   "config.flows.open": "Åpne EasyDrag",
-  "config.flows.run_retention_days": "Behold kjørehistorikk (dager, 1–365)",
+  "config.flows.run_retention_days": "Behold kjøringshistorikk (dager, 1–365)",
   "config.section.flows.desc": "Visuelle automatiseringer fra EasyDrag-appen",
   "config.section.flows.label": "EasyDrag-flyter"
 }
