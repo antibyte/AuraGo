@@ -254,10 +254,12 @@ func TestContainersProtectedActionTranslationsExist(t *testing.T) {
 	requireContainersTranslations(t, []string{
 		"containers.protected_badge",
 		"containers.protected_endpoint_warning",
+		"containers.protected_network_warning",
 		"containers.protected_self_warning",
 		"containers.protected_terminal_confirm",
 		"containers.protected_terminal_confirm_btn",
 		"containers.protected_terminal_title",
+		"containers.protected_unverified_warning",
 		"containers.protected_warning",
 		"containers.self_update_unsupported",
 	})
@@ -283,6 +285,9 @@ func TestContainersScriptConfirmsProtectedContainersBeforeSendingTheFlag(t *test
 		"data.code === 'container_protected_confirmation_required'",
 		"data.code === 'container_self_update_unsupported'",
 		"containers.protected_badge",
+		"if (c.shared_network) return 'shared-network';",
+		"if (kind === 'shared-network') return 'containers.protected_network_warning';",
+		"if (kind === 'unverified') return 'containers.protected_unverified_warning';",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("containers script missing protected-container marker %q", marker)

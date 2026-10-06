@@ -120,17 +120,20 @@ function rememberProtection(containers) {
         protectionById.set(c.id || '', {
             protected_owner: c.protected_owner || '',
             self: !!c.self,
-            docker_endpoint: !!c.docker_endpoint
+            docker_endpoint: !!c.docker_endpoint,
+            shared_network: !!c.shared_network
         });
     }
 }
 
 // containerProtection returns why AuraGo protects a container: 'self',
-// 'docker-endpoint', the managing owner, or '' when it is not protected.
+// 'docker-endpoint', 'shared-network', the managing owner, or '' when it is
+// not protected. The order matches the server's "owner" label.
 function containerProtection(c) {
     if (!c) return '';
     if (c.self) return 'self';
     if (c.docker_endpoint) return 'docker-endpoint';
+    if (c.shared_network) return 'shared-network';
     return c.protected_owner || '';
 }
 
@@ -141,6 +144,8 @@ function findContainer(id) {
 function protectionWarningKey(kind) {
     if (kind === 'self') return 'containers.protected_self_warning';
     if (kind === 'docker-endpoint') return 'containers.protected_endpoint_warning';
+    if (kind === 'shared-network') return 'containers.protected_network_warning';
+    if (kind === 'unverified') return 'containers.protected_unverified_warning';
     return 'containers.protected_warning';
 }
 
