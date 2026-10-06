@@ -589,6 +589,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if dockerRequestCreatesReservedGarageName(req) {
 				return dockerAgentError("docker_managed_garage_resource", "The container name is reserved for AuraGo's managed Boring Computers Garage. Choose another name.")
 			}
+			if dockerRequestCreatesReservedSecurityProxyName(req) {
+				return dockerAgentError("docker_managed_security_proxy_resource", "The container name is reserved for AuraGo's security proxy. Choose another name.")
+			}
 			var createCommand []string
 			var createRestart string
 			var createOptions tools.ContainerCreateOptions
@@ -614,7 +617,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 			containerID := req.targetContainerID()
 			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
-				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "local-llm", dockerutil.BoringGarageOwner, dockerutil.AppOwner)
+				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "local-llm", dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner)
 			if !localLLMDockerOperationSafe(req.Operation) && owned[acestep.Owner] {
 				return dockerAgentError("docker_managed_music_resource", "Managed ACE-Step resources are private. Use generate_music or the administrator Music Generation settings.")
 			}
@@ -1578,6 +1581,13 @@ func dockerRequestTargetsAuraGoApp(req dockerArgs) bool {
 // targetContainerID, which prefers container_id; this covers req.Name.
 func dockerRequestCreatesReservedGarageName(req dockerArgs) bool {
 	return dockerCreateRunOperation(req.Operation) && dockerutil.IsBoringGarageContainerName(req.Name)
+}
+
+// dockerRequestCreatesReservedSecurityProxyName blocks create/run of the
+// security proxy container name; like the Garage check it covers req.Name next
+// to a container_id. The agent keeps its access to the existing container.
+func dockerRequestCreatesReservedSecurityProxyName(req dockerArgs) bool {
+	return dockerCreateRunOperation(req.Operation) && dockerutil.IsSecurityProxyContainerName(req.Name)
 }
 
 func dockerRequestTargetsManagedHomepage(req dockerArgs) bool {

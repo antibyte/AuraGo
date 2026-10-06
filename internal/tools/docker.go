@@ -769,6 +769,8 @@ func dockerOwnerMatches(owner, name string, labels map[string]string) bool {
 		return true
 	case strings.EqualFold(trimmed, dockerutil.AppOwner) && dockerutil.IsAuraGoAppContainerName(name):
 		return true
+	case strings.EqualFold(trimmed, dockerutil.SecurityProxyOwner) && dockerutil.IsSecurityProxyContainerName(name):
+		return true
 	}
 	return len(labels) > 0 && dockerutil.ManagedBy(labels, owner)
 }
@@ -934,6 +936,10 @@ func dockerManagedResourceExcluded(labels map[string]string, names []string, vol
 			}
 			if !volume && strings.EqualFold(strings.TrimSpace(owner), dockerutil.AppOwner) &&
 				dockerutil.IsAuraGoAppContainerName(name) {
+				return true
+			}
+			if !volume && strings.EqualFold(strings.TrimSpace(owner), dockerutil.SecurityProxyOwner) &&
+				dockerutil.IsSecurityProxyContainerName(name) {
 				return true
 			}
 			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.BoringGarageOwner) {

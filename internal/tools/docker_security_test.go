@@ -591,3 +591,27 @@ func TestDockerCreateContainerStillRejectsDockerSocketBind(t *testing.T) {
 		t.Fatalf("result = %s (called=%v), want the agent-supplied socket bind rejected", result, called)
 	}
 }
+
+func TestDockerCreateContainerRejectsSecurityProxyName(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	created := 0
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/containers/create") {
+			created++
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	cfg := DockerConfig{Host: host}
+	for _, name := range []string{"aurago-security-proxy", "AURAGO-SECURITY-PROXY"} {
+		result := DockerCreateContainerWithOptions(cfg, name, "caddy:latest", nil, nil, nil, nil, "no", nil, ContainerCreateOptions{})
+		if !strings.Contains(result, "reserved AuraGo managed container name") {
+			t.Fatalf("%s: result = %s, want reserved-name denial", name, result)
+		}
+	}
+	if created != 0 {
+		t.Fatalf("the reserved security proxy name reached Docker %d times", created)
+	}
+}

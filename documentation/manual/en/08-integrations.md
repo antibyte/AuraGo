@@ -1929,6 +1929,8 @@ The proxy container keeps Caddy's root user and a writable root filesystem, but 
 
 Certificates an earlier proxy container stored stay in use. A proxy container created by an earlier AuraGo version gets this profile at the next **Start**; **Reload** keeps the existing container.
 
+The proxy counts as an AuraGo-managed container (owner `security-proxy`): on the **Containers** page, opening a terminal, updating or removing `aurago-security-proxy` asks for a confirmation, also for a container created by an earlier AuraGo version without AuraGo's labels. The agent's docker tool cannot create a container with this name; its other actions on the proxy container stay as they were. Use **Start**, **Stop**, **Reload** and **Destroy** in the proxy settings to manage it.
+
 ### Reload
 **Reload** rewrites the Caddyfile and runs `caddy reload` in the container. If Caddy rejects the new configuration, it keeps serving the previous one, AuraGo restores the previous Caddyfile, and the UI points to the proxy logs. Turning rate limiting on or off changes the image, so Reload then recreates the container. Otherwise Reload keeps the container as it is: port mappings, the Docker engine (`docker_host`) and the placement (mounts and network) only change when **Start** removes and recreates the container. Start works on the engine in the current `docker_host` (or `docker.host` while `docker_host` is empty). When a new value reaches a different Docker daemon, press **Destroy** before you switch; otherwise the old proxy keeps running on the previous engine. If you already switched, set the old value back, press **Destroy**, then switch again (or run `docker rm -f aurago-security-proxy` on the old engine).
 

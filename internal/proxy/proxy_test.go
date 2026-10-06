@@ -864,12 +864,12 @@ var homeInstallBinds = []string{
 
 // nativeHomeCreateBody is the create body of the /home/user/aurago install:
 // the bytes the proxy sent before the trusted-bind routing (PX3), plus the K20
-// hardening (CapAdd, CapDrop, SecurityOpt).
-const nativeHomeCreateBody = `{"ExposedPorts":{"443/tcp":{},"80/tcp":{}},"HostConfig":{"Binds":["/home/user/aurago/data/proxy/Caddyfile:/etc/caddy/Caddyfile","/home/user/aurago/data/proxy/caddy_data:/data","/home/user/aurago/data/proxy/caddy_config:/config"],"CapAdd":["NET_BIND_SERVICE","DAC_OVERRIDE","CHOWN","FOWNER"],"CapDrop":["ALL"],"ExtraHosts":["host.docker.internal:host-gateway"],"PortBindings":{"443/tcp":[{"HostIp":"0.0.0.0","HostPort":"443"}],"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]},"RestartPolicy":{"Name":"unless-stopped"},"SecurityOpt":["no-new-privileges:true"]},"Image":"aurago-proxy:latest"}`
+// hardening (CapAdd, CapDrop, SecurityOpt) and the I5 managed labels.
+const nativeHomeCreateBody = `{"ExposedPorts":{"443/tcp":{},"80/tcp":{}},"HostConfig":{"Binds":["/home/user/aurago/data/proxy/Caddyfile:/etc/caddy/Caddyfile","/home/user/aurago/data/proxy/caddy_data:/data","/home/user/aurago/data/proxy/caddy_config:/config"],"CapAdd":["NET_BIND_SERVICE","DAC_OVERRIDE","CHOWN","FOWNER"],"CapDrop":["ALL"],"ExtraHosts":["host.docker.internal:host-gateway"],"PortBindings":{"443/tcp":[{"HostIp":"0.0.0.0","HostPort":"443"}],"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]},"RestartPolicy":{"Name":"unless-stopped"},"SecurityOpt":["no-new-privileges:true"]},"Image":"aurago-proxy:latest","Labels":{"aurago.component":"caddy","aurago.managed":"security-proxy","aurago.role":"proxy"}}`
 
 // composeCreateBody is the create body of the default docker-compose.yml
-// deployment: the bytes before PX3, plus the K20 hardening.
-const composeCreateBody = `{"ExposedPorts":{"443/tcp":{},"80/tcp":{}},"HostConfig":{"CapAdd":["NET_BIND_SERVICE","DAC_OVERRIDE","CHOWN","FOWNER"],"CapDrop":["ALL"],"ExtraHosts":["host.docker.internal:host-gateway"],"Mounts":[{"ReadOnly":true,"Source":"aurago_aurago_data","Target":"/etc/caddy","Type":"volume","VolumeOptions":{"Subpath":"proxy"}},{"Source":"aurago_aurago_data","Target":"/data","Type":"volume","VolumeOptions":{"Subpath":"proxy/caddy_data"}},{"Source":"aurago_aurago_data","Target":"/config","Type":"volume","VolumeOptions":{"Subpath":"proxy/caddy_config"}}],"NetworkMode":"aurago_default","PortBindings":{"443/tcp":[{"HostIp":"0.0.0.0","HostPort":"443"}],"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]},"RestartPolicy":{"Name":"unless-stopped"},"SecurityOpt":["no-new-privileges:true"]},"Image":"aurago-proxy:latest","NetworkingConfig":{"EndpointsConfig":{"aurago_default":{}}}}`
+// deployment: the bytes before PX3, plus the K20 hardening and the I5 labels.
+const composeCreateBody = `{"ExposedPorts":{"443/tcp":{},"80/tcp":{}},"HostConfig":{"CapAdd":["NET_BIND_SERVICE","DAC_OVERRIDE","CHOWN","FOWNER"],"CapDrop":["ALL"],"ExtraHosts":["host.docker.internal:host-gateway"],"Mounts":[{"ReadOnly":true,"Source":"aurago_aurago_data","Target":"/etc/caddy","Type":"volume","VolumeOptions":{"Subpath":"proxy"}},{"Source":"aurago_aurago_data","Target":"/data","Type":"volume","VolumeOptions":{"Subpath":"proxy/caddy_data"}},{"Source":"aurago_aurago_data","Target":"/config","Type":"volume","VolumeOptions":{"Subpath":"proxy/caddy_config"}}],"NetworkMode":"aurago_default","PortBindings":{"443/tcp":[{"HostIp":"0.0.0.0","HostPort":"443"}],"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]},"RestartPolicy":{"Name":"unless-stopped"},"SecurityOpt":["no-new-privileges:true"]},"Image":"aurago-proxy:latest","Labels":{"aurago.component":"caddy","aurago.managed":"security-proxy","aurago.role":"proxy"},"NetworkingConfig":{"EndpointsConfig":{"aurago_default":{}}}}`
 
 func TestInstallBindFixturesMatchNativePlacement(t *testing.T) {
 	if runtime.GOOS == "windows" {
@@ -1330,5 +1330,52 @@ func TestManagerStartWritesCaddyfileBeforeCreate(t *testing.T) {
 	}
 	if !created {
 		t.Fatal("Start did not create the container")
+	}
+}
+
+// The proxy container carries AuraGo's managed labels, so the container API
+// and the agent docker tool treat it as a protected AuraGo container (I5).
+func TestSecurityProxyCreatePayloadCarriesManagedLabels(t *testing.T) {
+	want := dockerutil.ManagedLabels(dockerutil.SecurityProxyOwner, "caddy", "proxy", "")
+	for name, place := range map[string]placement{
+		"native":           {binds: homeInstallBinds},
+		"AuraGo in Docker": {mounts: []map[string]interface{}{{"Type": "volume", "Source": "aurago_aurago_data", "Target": "/etc/caddy"}}, network: "aurago_default"},
+	} {
+		payload := securityProxyCreatePayload(imageName, place, 443, 80)
+		if got := payload["Labels"]; !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: Labels = %#v, want %#v", name, got, want)
+		}
+	}
+	if containerName != dockerutil.SecurityProxyContainerName {
+		t.Fatalf("containerName = %q, want the reserved %q", containerName, dockerutil.SecurityProxyContainerName)
+	}
+}
+
+// A proxy container that an older AuraGo created without labels is still
+// found and managed by its name.
+func TestManagerManagesUnlabeledProxyContainerByName(t *testing.T) {
+	cfg := proxyConfig()
+	fake := &fakeEngine{handle: reloadEngine(imageName, 0, "")}
+	m := testManager(t, cfg, fake)
+
+	status, err := m.Status()
+	if err != nil || !status.Running {
+		t.Fatalf("Status() = %+v, %v; want the unlabeled container running", status, err)
+	}
+	if err := m.Reload(); err != nil {
+		t.Fatalf("Reload() error = %v", err)
+	}
+	if !fake.called("POST /containers/" + containerName + "/exec") {
+		t.Fatal("Reload did not exec caddy reload in the container by name")
+	}
+	if err := m.Start(); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if !fake.called("DELETE /containers/" + containerName + "?force=true&v=true") {
+		t.Fatal("Start did not remove the unlabeled container by name")
+	}
+	payload := decodeCreatePayload(t, fake.body("POST /containers/create?name="+containerName))
+	if labels, _ := payload["Labels"].(map[string]interface{}); labels["aurago.managed"] != dockerutil.SecurityProxyOwner {
+		t.Fatalf("recreated container Labels = %#v, want the managed labels", payload["Labels"])
 	}
 }

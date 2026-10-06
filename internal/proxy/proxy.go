@@ -14,10 +14,13 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/dockerutil"
 	"aurago/internal/tools"
 )
 
-const containerName = "aurago-security-proxy"
+// containerName is reserved: the agent docker tool cannot create a container
+// with it, and the container API treats it as AuraGo-managed.
+const containerName = dockerutil.SecurityProxyContainerName
 
 // createTimeout bounds the container create like the 60 s client timeout of
 // tools.DockerRequest, which created the container before.
@@ -308,6 +311,10 @@ func securityProxyCreatePayload(image string, place placement, httpsPort, httpPo
 			"80/tcp":  struct{}{},
 		},
 		"HostConfig": hostConfig,
+		// The managed labels make the container API ask for a confirmation
+		// before a terminal, update or remove. Older containers have none and
+		// are still recognized by their reserved name.
+		"Labels": dockerutil.ManagedLabels(dockerutil.SecurityProxyOwner, "caddy", "proxy", ""),
 	}
 	if place.binds != nil {
 		hostConfig["Binds"] = place.binds

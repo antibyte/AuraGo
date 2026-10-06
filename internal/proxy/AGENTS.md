@@ -68,6 +68,17 @@ section. Operator guidance lives in the Security Proxy section of
   and rate limiting. Re-run such a probe before changing the list or the
   image base. An existing container gets the profile only when Start (or
   Reload's image-change recreate) recreates it.
+- Ownership (I5): the container carries
+  `dockerutil.ManagedLabels(SecurityProxyOwner, "caddy", "proxy", "")`, and
+  `containerName` is `dockerutil.SecurityProxyContainerName`, which
+  `IsSecurityProxyContainerName` reserves. The server's
+  `containerProtectedOwners` and the agent docker tool's owner list include
+  the owner, so the admin container API asks for `confirm=protected` before
+  a terminal, update or remove, and agent create/run of the name is refused.
+  The manager itself addresses the container only by name through
+  `engine.request`, never by labels: containers that older versions created
+  without labels keep working, and none of these checks apply to its own
+  stop, remove, create, start and exec calls.
 - Lifecycle: `startLocked` generates the Caddyfile in memory first (credential
   errors come before any build or pull), then runs `ensureImage`, and only
   after that writes the Caddyfile and removes the old container. A failed

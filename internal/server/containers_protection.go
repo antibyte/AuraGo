@@ -36,6 +36,7 @@ var containerProtectedOwners = []string{
 	"go2rtc",
 	dockerutil.LocalLLMOwner,
 	dockerutil.BoringGarageOwner,
+	dockerutil.SecurityProxyOwner,
 }
 
 // containerProtection says why an administrator terminal, update or remove on
