@@ -130,8 +130,9 @@
 
         // startDrag follows one pointer from a palette item. A release adds the node (a click
         // appends it, a drop places it); a cancel (pointercancel, lost capture, a release
-        // missed outside the window, dispose) only cleans up.
-        function startDrag(event, type, item) {
+        // missed outside the window, dispose) only cleans up. The pointer is captured on the
+        // list, which outlives a re-render of its items (search, catalog refresh).
+        function startDrag(event, type) {
             if (drag || ed.readonly || ed.runView) return;
             const info = ed.catalog.types.get(type);
             const start = { x: event.clientX, y: event.clientY };
@@ -168,7 +169,7 @@
                 const p = canvas.clientToWorld(ev.clientX, ev.clientY);
                 place(ed, type, { x: p.x - G.NODE_W / 2, y: p.y - G.NODE_H / 2 }, { edge: overEdge });
             };
-            drag = core.capturePointer(item, event, move, up);
+            drag = core.capturePointer(list, event, move, up);
         }
 
         // addByClick appends after the single selected node, or places the node in free space.
@@ -190,6 +191,9 @@
 
         bag.listen(input, 'input', core.debounce(render, 80));
         bag.listen(list, 'click', (event) => {
+            // The setup chip opens on click: a popup opened on pointerdown is blocked on tablets.
+            const setup = event.target.closest('[data-ed-setup]');
+            if (setup) { event.preventDefault(); window.open('/config#' + setup.dataset.edSetup, '_blank', 'noopener'); return; }
             const head = event.target.closest('[data-ed-cat]');
             if (!head) return;
             const id = head.dataset.edCat;
@@ -198,12 +202,11 @@
             render();
         });
         bag.listen(list, 'pointerdown', (event) => {
-            const setup = event.target.closest('[data-ed-setup]');
-            if (setup) { event.preventDefault(); window.open('/config#' + setup.dataset.edSetup, '_blank', 'noopener'); return; }
+            if (event.target.closest('[data-ed-setup]')) return;
             const item = event.target.closest('[data-ed-type]');
             if (!item || event.button !== 0) return;
             event.preventDefault();
-            startDrag(event, item.dataset.edType, item);
+            startDrag(event, item.dataset.edType);
         });
         bag.listen(list, 'keydown', (event) => {
             const item = event.target.closest('[data-ed-type]');
@@ -309,7 +312,11 @@
             if (id) canvas.el.focus({ preventScroll: true });
         }
 
+        let closed = false;
+
         function close() {
+            if (closed) return;
+            closed = true;
             el.remove();
             document.removeEventListener('pointerdown', outside, true);
             if (ed.quickAdd && ed.quickAdd.el === el) ed.quickAdd = null;
@@ -319,6 +326,8 @@
 
         input.addEventListener('input', () => { active = 0; render(); });
         input.addEventListener('keydown', (event) => {
+            // Keys of an IME composition belong to the text; they stay off the canvas too.
+            if (event.isComposing || event.keyCode === 229) { event.stopPropagation(); return; }
             if (event.key === 'ArrowDown') { event.preventDefault(); active = Math.min(items.length - 1, active + 1); render(); }
             else if (event.key === 'ArrowUp') { event.preventDefault(); active = Math.max(0, active - 1); render(); }
             else if (event.key === 'Enter') { event.preventDefault(); choose(active); }
@@ -331,7 +340,9 @@
             event.preventDefault();
             choose(Number(item.dataset.edIndex));
         });
-        setTimeout(() => document.addEventListener('pointerdown', outside, true), 0);
+        // Listen for outside presses from the next task on (not the press that opened the popover),
+        // unless it was closed by then.
+        setTimeout(() => { if (!closed) document.addEventListener('pointerdown', outside, true); }, 0);
         position();
         render();
         input.focus({ preventScroll: true });

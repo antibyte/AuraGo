@@ -30,6 +30,17 @@
         return Object.prototype.hasOwnProperty.call(PLAINTEXT_VALUES, type) && PLAINTEXT_VALUES[type].includes(name);
     }
 
+    // GROUP_KINDS have no single input a <label for> could point at: the label names the
+    // control's group through aria-labelledby.
+    const GROUP_KINDS = new Set(['bool', 'segmented', 'multiselect', 'keyvalue', 'condition_group', 'cases', 'fields', 'tags']);
+
+    const REF_TYPE = 'application/x-easydrag-ref';
+
+    // carriesRef reports a drag from the input tree (other drops keep the browser's handling).
+    function carriesRef(event) {
+        return !!event.dataTransfer && Array.from(event.dataTransfer.types || []).includes(REF_TYPE);
+    }
+
     // render builds the form for one node. env:
     //   ed, node, info, upstream [{key, label, cat, fields}], roots {key: output}, issues [Issue]
     //   onChange(name, value), openFileDialog?
@@ -45,10 +56,18 @@
         const forced = new Set();
         let node = env.node;
         let roots = env.roots || {};
+        // The secret pickers of this form share one list request (dropped after a save).
+        const secretCache = {};
+        // lastTpl is the template field focused last: an insert from the input tree goes there
+        // when it belongs to the param (the condition row being edited, not the first one).
+        let lastTpl = null;
 
         function fieldEnv(name) {
             return {
-                t, esc, readonly, root: env.ed.root, api: env.ed.api, upstream: env.upstream, roots,
+                t, esc, readonly, root: env.ed.root, api: env.ed.api, secretCache,
+                // Read on use: refresh() brings new run data while a field keeps its env.
+                get upstream() { return env.upstream; },
+                get roots() { return roots; },
                 openFileDialog: env.openFileDialog,
                 change: value => { env.onChange(name, value); }
             };
@@ -110,29 +129,32 @@
 
         function templated(param, value) { return isTemplate(value) || forced.has(param.name); }
 
-        function controlFor(param, value, id) {
+        // controlFor builds the control of a param; labelId is the id of its label, which names
+        // template fields (their view is what gets focus).
+        function controlFor(param, value, id, labelId) {
             const fenv = fieldEnv(param.name);
             const set = v => fenv.change(v);
             const asTemplate = param.templatable && templated(param, value);
+            const tpl = extra => F.templateField(fenv, value, Object.assign({ id, labelledBy: labelId }, extra)).el;
             switch (param.kind) {
                 case 'textarea':
-                    return F.templateField(fenv, value, { multiline: true, id }).el;
+                    return tpl({ multiline: true });
                 case 'text':
                 case 'cron':
-                    return asTemplate || param.kind === 'text' ? F.templateField(fenv, value, { id }).el : plainInput(param, value, id, set);
+                    return asTemplate || param.kind === 'text' ? tpl() : plainInput(param, value, id, set);
                 case 'number':
-                    return templated(param, value) ? F.templateField(fenv, value, { id }).el : numberInput(value, id, set);
+                    return templated(param, value) ? tpl() : numberInput(value, id, set);
                 case 'bool':
                     return F.toggle(fenv, value === undefined ? param.default : value, set, param.label);
                 case 'segmented':
                     return F.segmented(fenv, param.options || [], value === undefined ? param.default : value, set);
                 case 'select':
-                    if (templated(param, value)) return F.templateField(fenv, value, { id }).el;
+                    if (templated(param, value)) return tpl();
                     return selectControl(param, value, id, set);
                 case 'multiselect':
                     return multiSelect(param, value, set);
                 case 'file':
-                    return F.fileField(fenv, value, set, id);
+                    return F.fileField(fenv, value, set, id, { labelledBy: labelId });
                 case 'json':
                     return F.jsonEditor(fenv, value, set, id);
                 case 'keyvalue':
@@ -144,13 +166,13 @@
                 case 'cases':
                     return F.cases(fenv, value, set);
                 case 'datetime':
-                    return templated(param, value) ? F.templateField(fenv, value, { id }).el : F.dateTime(fenv, value, set, id);
+                    return templated(param, value) ? tpl() : F.dateTime(fenv, value, set, id);
                 case 'fields':
                     return F.fieldList(fenv, param, value, set);
                 case 'tags':
                     return F.tags(fenv, value, set);
                 default:
-                    return F.templateField(fenv, value, { id }).el;
+                    return tpl();
             }
         }
 
@@ -213,11 +235,13 @@
             params.forEach(param => {
                 if (!visible(param, node.params)) return;
                 const id = 'ed-p-' + env.ed.windowId + '-' + node.id + '-' + param.name;
+                const labelId = id + '-label';
+                const grouped = GROUP_KINDS.has(param.kind);
                 const value = node.params[param.name];
                 const issue = issueFor(param.name);
                 const canToggle = param.templatable && !['text', 'textarea', 'condition_group', 'cases', 'fields', 'keyvalue', 'file', 'json'].includes(param.kind) && !readonly;
                 const field = core.el('<div class="ed-field' + (param.required ? ' is-required' : '') + (issue ? ' has-issue' : '') + '" data-param="' + esc(param.name) + '" data-kind="' + esc(param.kind) + '">' +
-                    '<div class="ed-field-head"><label for="' + esc(id) + '">' + esc(param.label) + (param.required ? '<span class="ed-required" aria-hidden="true">*</span>' : '') + '</label>' +
+                    '<div class="ed-field-head"><label id="' + esc(labelId) + '"' + (grouped ? '' : ' for="' + esc(id) + '"') + '>' + esc(param.label) + (param.required ? '<span class="ed-required" aria-hidden="true">*</span>' : '') + '</label>' +
                     (canToggle ? '<button type="button" class="ed-mode" data-ed-mode="' + esc(param.name) + '" aria-pressed="' + templated(param, value) + '" title="' + esc(t('easydrag.ui.mode_hint')) + '">' +
                         esc(templated(param, value) ? t('easydrag.ui.mode_data') : t('easydrag.ui.mode_fixed')) + '</button>' : '') +
                     (param.help ? '<span class="ed-help" tabindex="0" role="note" aria-label="' + esc(param.help) + '" title="' + esc(param.help) + '">' + core.icon('info') + '</span>' : '') +
@@ -225,7 +249,11 @@
                     (plaintextValue(env.info.type, param.name) ? '<p class="ed-hint ed-field-plaintext">' + esc(t('easydrag.ui.hint_plaintext_value')) + '</p>' : '') +
                     '<div class="ed-field-preview" hidden></div>' +
                     (issue ? '<div class="ed-field-issue">' + core.icon('alert') + '<span>' + esc(core.issueText(t, issue)) + '</span></div>' : '') + '</div>');
-                const control = controlFor(param, value, id);
+                const control = controlFor(param, value, id, labelId);
+                if (grouped) {
+                    if (control.getAttribute('role') === null) control.setAttribute('role', 'group');
+                    control.setAttribute('aria-labelledby', labelId);
+                }
                 field.querySelector('.ed-field-control').appendChild(control);
                 if (param.sensitive_sink) field.classList.add('is-sink');
                 controls.set(param.name, { field, control, param });
@@ -253,10 +281,15 @@
             });
         });
 
+        el.addEventListener('focusin', (event) => {
+            const tpl = event.target.closest('.ed-tpl');
+            if (tpl) lastTpl = tpl;
+        });
+
         // Drop targets for fields dragged from the input tree.
         el.addEventListener('dragover', (event) => {
             const target = event.target.closest('.ed-field');
-            if (!target || readonly || !event.dataTransfer.types.includes('application/x-easydrag-ref')) return;
+            if (!target || readonly || !carriesRef(event)) return;
             event.preventDefault();
             el.querySelectorAll('.is-drop').forEach(n => n.classList.remove('is-drop'));
             target.classList.add('is-drop');
@@ -267,10 +300,13 @@
         });
         el.addEventListener('drop', (event) => {
             const target = event.target.closest('.ed-field');
-            if (!target) return;
+            // Plain text dropped into a field being edited keeps the browser's handling.
+            if (!target || !carriesRef(event)) return;
             event.preventDefault();
             target.classList.remove('is-drop');
-            const ref = event.dataTransfer.getData('application/x-easydrag-ref');
+            // The tree's dragend may never come (its row was redrawn during the drag).
+            if (env.ed.root) env.ed.root.classList.remove('is-mapping');
+            const ref = event.dataTransfer.getData(REF_TYPE);
             if (!ref || readonly) return;
             // A param with several template fields (condition rows, key/value pairs, field
             // lists) takes the drop in the field under the pointer; insert picks the first one.
@@ -279,12 +315,13 @@
             else insert(target.dataset.param, ref);
         });
 
-        // insert adds {{ref}} to a parameter (switching it to "from data" when needed). A
-        // read-only form (read-only flow or run view) changes nothing.
+        // insert adds {{ref}} to a parameter (switching it to "from data" when needed): into its
+        // template field focused last, else its first one. A read-only form (read-only flow or
+        // run view) changes nothing.
         function insert(name, ref) {
             const entry = controls.get(name);
             if (!entry || readonly) return;
-            const tpl = entry.field.querySelector('.ed-tpl');
+            const tpl = lastTpl && lastTpl.edTemplate && entry.field.contains(lastTpl) ? lastTpl : entry.field.querySelector('.ed-tpl');
             if (tpl && tpl.edTemplate) { tpl.edTemplate.insert(ref); return; }
             const value = node.params[name];
             const kind = entry.param.kind;

@@ -56,6 +56,7 @@ export async function run(env) {
         proto.removeAttribute = function (name) { this.attrs.delete(name); };
         proto.setSelectionRange = function (start, end) { this.selectionStart = start; this.selectionEnd = end; };
         proto.scrollIntoView = function () {};
+        proto.click = function () { this.fire('click'); };
         // The constructor's "this.style = {}" goes through this setter, which adds setProperty.
         Object.defineProperty(proto, 'style', {
             configurable: true,
@@ -120,7 +121,7 @@ export async function run(env) {
         const announce = canvas.announce;
         const interact = ED.interact.create(ed, Object.assign({}, canvas, { announce: text => { announced.push(text); announce(text); } }), wires);
         const h = {
-            ED, ed, canvas, wires, interact, model, bus, el: canvas.el, dom, store, navigator, announced, logged, counts, timers, frames,
+            ED, ed, canvas, wires, interact, model, bus, el: canvas.el, dom, win: box.window, store, navigator, announced, logged, counts, timers, frames,
             observers, subscriptions, quickAdds, details, selections: () => selections,
             card: id => canvas.nodeEl(id),
             pos: id => Object.assign({}, model.node(id).position),
@@ -548,7 +549,11 @@ export async function run(env) {
         const answers = (o.answers || []).slice();
         h.changes = [];
         h.calls = [];
-        h.ed.api = { options: (type, param) => { h.calls.push(type + '|' + param); const next = answers.shift(); return next ? next() : Promise.resolve({ options: [] }); } };
+        h.secretCalls = 0;
+        h.ed.api = {
+            options: (type, param) => { h.calls.push(type + '|' + param); const next = answers.shift(); return next ? next() : Promise.resolve({ options: [] }); },
+            secrets: () => { h.secretCalls++; return Promise.resolve({ secrets: ['api_key'] }); }
+        };
         h.ed.root = h.ED.core.el('<div class="ed-editor"></div>');
         h.ed.windowId = 'w1';
         h.ed.readonly = !!o.readonly;
@@ -563,13 +568,15 @@ export async function run(env) {
         const G = h.ED.geometry;
         const nodes = () => h.model.doc.nodes.length;
         const ghost = () => !!h.ed.root.querySelector('.ed-drag-ghost');
-        const listening = item => ['pointermove', 'pointerup', 'pointercancel', 'lostpointercapture'].reduce((n, type) => n + (item.listeners[type] || []).length, 0);
+        // The drag captures its pointer on the list, which outlives a re-render of the items.
+        const list = h.panel.el.querySelector('.ed-palette-list');
+        const listening = () => ['pointermove', 'pointerup', 'pointercancel', 'lostpointercapture'].reduce((n, type) => n + (list.listeners[type] || []).length, 0);
         const item = h.item('web.search');
         // A touch the browser turns into a scroll of the palette is cancelled: a later release adds nothing.
         item.fire('pointerdown', h.pe(1, 10, 10, { pointerType: 'touch' }));
         item.fire('pointercancel', h.pe(1, 10, 10, { pointerType: 'touch' }));
         item.fire('pointerup', h.pe(1, 10, 10, { pointerType: 'touch' }));
-        const cancelled = [nodes(), listening(item)];
+        const cancelled = [nodes(), listening()];
         // A release missed outside the window: the next mouse move without a button ends the drag.
         item.fire('pointerdown', h.pe(2, 10, 10));
         item.fire('pointermove', h.pe(2, 200, 200));
@@ -577,7 +584,7 @@ export async function run(env) {
         item.fire('pointermove', h.pe(2, 220, 220, { buttons: 0 }));
         item.fire('pointerup', h.pe(2, 220, 220));
         eq('c1d05 a cancelled or missed palette drag adds nothing and leaves no ghost or listeners',
-            [cancelled, dragging, nodes(), ghost(), h.ed.dragging, listening(item)], [[2, 0], [true, true], 2, false, false, 0]);
+            [cancelled, dragging, nodes(), ghost(), h.ed.dragging, listening()], [[2, 0], [true, true], 2, false, false, 0]);
         // A click still adds the step; a drop on the canvas places it under the pointer.
         item.fire('pointerdown', h.pe(3, 10, 10));
         item.fire('pointerup', h.pe(3, 10, 10));
@@ -594,7 +601,7 @@ export async function run(env) {
         item.fire('pointermove', h.pe(5, 200, 200));
         const before = [ghost(), h.ed.dragging];
         h.panel.dispose();
-        eq('c1d05 dispose ends a palette drag', [before, ghost(), h.ed.dragging, listening(item), nodes()], [[true, true], false, false, 0, 4]);
+        eq('c1d05 dispose ends a palette drag', [before, ghost(), h.ed.dragging, listening(), nodes()], [[true, true], false, false, 0, 4]);
         eq('c1d05 the palette checks log no errors', h.logged, []);
     });
 
@@ -627,7 +634,7 @@ export async function run(env) {
 
     await guardAsync('c1d05 mapping references', async () => {
         const h = harness();
-        const { pathJoin } = h.ED.mapping;
+        const { pathJoin } = h.ED.template;
         const keys = ['plain', 'two words', 'a"b', 'back\\slash', 'line\nbreak', 'tab\there', '0', '$type', '}}', 'gr' + String.fromCharCode(0xfc) + 'n'];
         const value = {};
         keys.forEach((k, i) => { value[k] = i; });
@@ -906,5 +913,147 @@ export async function run(env) {
         const chip = F.templateField(env, '{{alpha.x}}', {}).el.querySelector('.ed-tpl-view').html;
         check('c1d05 a chip escapes the category of its step', chip.includes('cat-x&quot; onclick=&quot;evil') && !chip.includes('cat-x" onclick'), chip);
         eq('c1d05 the param checks log no errors', h.logged, []);
+    });
+
+    // ── c1d05 review: palette, forms and mapping ──
+
+    await guardAsync('c1d05 review palette', async () => {
+        const h = paletteHarness();
+        const nodes = () => h.model.doc.nodes.length;
+        const ghost = () => !!h.ed.root.querySelector('.ed-drag-ghost');
+        const list = h.panel.el.querySelector('.ed-palette-list');
+        const captured = () => (list.listeners.pointermove || []).length;
+        // M3: a re-render of the items during a drag (search, catalog refresh) keeps the drag.
+        h.at = h.el;
+        h.item('web.search').fire('pointerdown', h.pe(1, 10, 10));
+        list.fire('pointermove', h.pe(1, 300, 200));
+        h.panel.render();
+        list.fire('pointermove', h.pe(1, 320, 220));
+        const during = [ghost(), h.ed.dragging, captured()];
+        list.fire('pointerup', h.pe(1, 320, 220));
+        eq('c1d05 a palette drag survives a re-render of the items', [during, nodes(), ghost(), captured()], [[true, true, 1], 3, false, 0]);
+        // M4: the setup chip opens on click, and a press on it starts no drag.
+        const opened = [];
+        h.win.open = (...args) => opened.push(args);
+        h.ed.catalog.list.push(Object.assign({}, h.ed.catalog.list.find(i => i.type === 'web.search'), { type: 'mail.send', label: 'Mail', availability: { state: 'needs_setup', config_section: 'mail' } }));
+        h.panel.render();
+        const chip = h.panel.el.querySelector('[data-ed-setup]');
+        const press = chip.fire('pointerdown', h.pe(2, 5, 5));
+        const onPress = [press.defaultPrevented, captured(), opened.length];
+        chip.fire('click');
+        eq('c1d05 the setup chip opens the config section on click, not on pointerdown', [onPress, opened], [[false, 0, 0], [['/config#mail', '_blank', 'noopener']]]);
+        // M12 and 6: quick-add filters, chooses with the keys and ignores IME keys.
+        const quick = h.ED.palette.openQuickAdd(h.ed, h.canvas, { x: 100, y: 100 });
+        const search = quick.el.querySelector('.ed-quick-search');
+        const focused = h.dom.document.activeElement === search;
+        search.value = 'Wenn';
+        search.fire('input');
+        const composing = search.fire('keydown', { key: 'Enter', isComposing: true });
+        const whileComposing = [nodes(), !!quick.el.parentNode, composing.stopped];
+        search.fire('keydown', { key: 'Enter' });
+        const chosen = h.model.node(Array.from(h.ed.selection)[0]);
+        eq('c1d05 quick-add focuses its search, ignores IME keys and adds the step chosen with Enter',
+            [focused, whileComposing, nodes(), chosen.type, !!quick.el.parentNode, h.ed.quickAdd], [true, [3, true, true], 4, 'logic.if', false, null]);
+        const next = h.ED.palette.openQuickAdd(h.ed, h.canvas, { x: 100, y: 100 });
+        const nextSearch = next.el.querySelector('.ed-quick-search');
+        const listed = next.el.querySelectorAll('[data-ed-index]').map(n => n.getAttribute('data-ed-type'));
+        nextSearch.fire('keydown', { key: 'ArrowDown' });
+        const pointed = [nextSearch.getAttribute('aria-activedescendant').endsWith('-1'), next.el.querySelectorAll('[data-ed-index]').map(n => n.getAttribute('aria-selected')).slice(0, 2)];
+        nextSearch.fire('keydown', { key: 'Enter' });
+        eq('c1d05 quick-add lists recent steps first and ArrowDown and Enter choose the next one',
+            [listed.slice(0, 2), pointed, h.model.node(Array.from(h.ed.selection)[0]).type], [['logic.if', 'web.search'], [true, ['false', 'true']], 'web.search']);
+        // M2: a quick-add closed before its timeout adds no outside listener; an open one removes its own.
+        const outside = () => (h.dom.document.listeners.pointerdown || []).length;
+        h.runTimers(0);
+        const early = h.ED.palette.openQuickAdd(h.ed, h.canvas, { x: 100, y: 100 });
+        early.el.querySelector('.ed-quick-search').fire('keydown', { key: 'Escape' });
+        h.runTimers(0);
+        const afterEarly = outside();
+        h.ED.palette.openQuickAdd(h.ed, h.canvas, { x: 100, y: 100 });
+        h.runTimers(0);
+        const whileOpen = outside();
+        h.dom.document.listeners.pointerdown[0]({ target: h.el });
+        eq('c1d05 quick-add adds its outside listener only while open and removes it on close', [afterEarly, whileOpen, outside(), h.ed.quickAdd], [0, 1, 0, null]);
+        eq('c1d05 the palette review checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d05 review forms', async () => {
+        const blank = () => ({ left: '', op: 'eq', right: '', type: 'auto' });
+        const info = { type: 'logic.if', params: [{ name: 'query', kind: 'text', label: 'Query', templatable: true }, { name: 'condition', kind: 'condition_group', label: 'Condition' },
+            { name: 'flag', kind: 'bool', label: 'Flag' }, { name: 'token', kind: 'secret_ref', label: 'Token' }, { name: 'backup', kind: 'secret_ref', label: 'Backup' }] };
+        const h = formHarness(info, { params: { condition: { match: 'all', rows: [blank(), blank()] } } });
+        await settle();
+        // 4: an insert from the tree goes into the param's template field focused last.
+        h.form.el.querySelectorAll('.ed-cond-left .ed-tpl-view')[1].fire('focusin');
+        h.form.insert('condition', 'alpha.results');
+        h.field('query').querySelector('.ed-tpl-view').fire('focusin');
+        h.form.insert('condition', 'alpha.count');
+        eq('c1d05 an insert goes into the template field of the param focused last, else its first one',
+            h.changes.map(([name, value]) => [name, value.rows.map(r => r.left)]), [['condition', ['', '{{alpha.results}}']], ['condition', ['{{alpha.count}}', '{{alpha.results}}']]]);
+        // M5 and M7: a plain-text drop keeps the browser's handling; a reference drop clears the mapping look.
+        const queryTpl = h.field('query').querySelector('.ed-tpl');
+        const textDrop = queryTpl.fire('drop', { dataTransfer: { types: ['text/plain'], getData: () => 'hello' } });
+        h.ed.root.classList.add('is-mapping');
+        queryTpl.fire('drop', { dataTransfer: { types: ['application/x-easydrag-ref'], getData: type => (type === 'application/x-easydrag-ref' ? 'alpha.x' : '') } });
+        eq('c1d05 a plain-text drop is left to the browser; a reference drop is inserted and ends the mapping look',
+            [textDrop.defaultPrevented, h.changes.length, h.changes[2], h.ed.root.classList.contains('is-mapping')], [false, 3, ['query', '{{alpha.x}}'], false]);
+        // M10: labels point at an input only where there is one; groups and switches are named by the label.
+        const label = name => h.field(name).querySelector('label');
+        const byLabel = (node, name) => label(name).getAttribute('id') !== null && node.getAttribute('aria-labelledby') === label(name).getAttribute('id');
+        const cond = h.field('condition').querySelector('.ed-cond');
+        const flag = h.field('flag').querySelector('.ed-switch');
+        eq('c1d05 every form control is named by its label',
+            [[label('query').getAttribute('for') !== null, byLabel(h.field('query').querySelector('.ed-tpl-view'), 'query')], [label('condition').getAttribute('for'), cond.getAttribute('role'), byLabel(cond, 'condition')],
+                [label('flag').getAttribute('for'), flag.getAttribute('role'), byLabel(flag, 'flag')], label('token').getAttribute('for') === h.field('token').querySelector('select').getAttribute('id')],
+            [[true, true], [null, 'group', true], [null, 'switch', true], true]);
+        // M8: the secret pickers of a form share one list request.
+        eq('c1d05 the secret pickers of a form share one list request', h.secretCalls, 1);
+        // M11: a field reads run data that arrived after it was built.
+        const tpl = h.field('query').querySelector('.ed-tpl');
+        tpl.edTemplate.focus();
+        h.form.refresh(h.node, { alpha: { fresh: 1 } });
+        const input = tpl.querySelector('.ed-tpl-input');
+        input.value = '{{alpha.';
+        input.selectionStart = input.selectionEnd = input.value.length;
+        input.fire('input');
+        const offered = tpl.querySelector('.ed-suggest');
+        eq('c1d05 a field built before a refresh suggests from the new run data', [h.form.el.contains(tpl), offered ? offered.items.map(i => i.text) : null], [true, ['alpha.fresh']]);
+        eq('c1d05 the form review checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d05 review mapping tree', async () => {
+        const h = harness();
+        const root = h.ED.core.el('<div class="ed-editor"></div>');
+        const inserted = [];
+        const tree = h.ED.mapping.create({
+            ed: { t, esc: h.ED.core.esc, readonly: false, root }, sourceId: 'run', onInsert: ref => inserted.push(ref),
+            sources: [{ id: 'run', label: 'Run', roots: { alpha: { list: Array.from({ length: 150 }, (_, i) => i), obj: { a: 1 } } } }],
+            upstream: [{ key: 'alpha', label: 'Alpha', icon: 'search', cat: 'web', fields: [] }]
+        });
+        const items = () => tree.el.querySelectorAll('.ed-tree-row, .ed-tree-more');
+        const row = ref => items().find(n => n.getAttribute('data-ref') === ref);
+        const stops = () => items().filter(n => n.getAttribute('tabindex') === '0').map(n => n.getAttribute('data-ref') || 'more');
+        const focused = () => h.dom.document.activeElement && h.dom.document.activeElement.getAttribute('data-ref');
+        const first = stops();
+        row('alpha.list').fire('focusin');
+        const moved = stops();
+        // 3: expand with the keyboard, "more" and collapse with the mouse keep focus in the tree.
+        row('alpha.list').fire('keydown', { key: 'ArrowRight' });
+        const expanded = [focused(), stops(), items().length];
+        const more = items().find(n => n.classList.contains('ed-tree-more'));
+        more.fire('click');
+        const paged = [focused(), stops(), items().some(n => n.classList.contains('ed-tree-more'))];
+        row('alpha.list').querySelector('[data-ed-toggle]').fire('click');
+        const collapsed = [focused(), stops()];
+        row('alpha.list').fire('keydown', { key: 'ArrowDown' });
+        row('alpha.obj').fire('keydown', { key: 'Enter' });
+        eq('c1d05 the input tree is one tab stop and keeps focus on expand, more and collapse',
+            [first, moved, expanded, paged, collapsed, focused(), inserted], [['alpha'], ['alpha.list'], ['alpha.list', ['alpha.list'], 107], ['alpha.list[100]', ['alpha.list[100]'], false], ['alpha.list', ['alpha.list']], 'alpha.obj', ['alpha.obj']]);
+        // M7: one dragend on the document ends the mapping look.
+        row('alpha.obj').fire('dragstart', { dataTransfer: { setData() {}, effectAllowed: '' } });
+        const during = [root.classList.contains('is-mapping'), (h.dom.document.listeners.dragend || []).length];
+        h.dom.document.listeners.dragend[0]({ type: 'dragend' });
+        eq('c1d05 a document dragend ends the mapping look once', [during, root.classList.contains('is-mapping'), h.dom.document.listeners.dragend.length], [[true, 1], false, 0]);
+        eq('c1d05 the tree review checks log no errors', h.logged, []);
     });
 }
