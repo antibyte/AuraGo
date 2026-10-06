@@ -2824,6 +2824,7 @@
   "desktop.store.open": "Öppna",
   "desktop.store.open_commandcode": "Öppna CommandCode",
   "desktop.store.operation_failed": "Misslyckades",
+  "desktop.store.error_container_name_in_use": "Containern {{name}} finns redan och skapades inte av Programvarubutiken. Byt namn på den (docker rename {{name}} {{name}}-old) eller ta bort den och installera sedan igen.",
   "desktop.store.operation_pending": "I kö",
   "desktop.store.operation_running": "Körs",
   "desktop.store.operation_succeeded": "Klar",

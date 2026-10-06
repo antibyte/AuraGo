@@ -2824,6 +2824,7 @@
   "desktop.store.open": "Otevřít",
   "desktop.store.open_commandcode": "Otevřít CommandCode",
   "desktop.store.operation_failed": "Selhalo",
+  "desktop.store.error_container_name_in_use": "Kontejner {{name}} už existuje a nevytvořil ho Obchod softwaru. Přejmenujte ho (docker rename {{name}} {{name}}-old) nebo ho odstraňte a potom instalaci spusťte znovu.",
   "desktop.store.operation_pending": "Ve frontě",
   "desktop.store.operation_running": "Probíhá",
   "desktop.store.operation_succeeded": "Dokončeno",

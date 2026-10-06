@@ -2824,6 +2824,7 @@
   "desktop.store.open": "Openen",
   "desktop.store.open_commandcode": "CommandCode openen",
   "desktop.store.operation_failed": "Mislukt",
+  "desktop.store.error_container_name_in_use": "De container {{name}} bestaat al en is niet door de Softwarewinkel aangemaakt. Geef hem een andere naam (docker rename {{name}} {{name}}-old) of verwijder hem en installeer daarna opnieuw.",
   "desktop.store.operation_pending": "In wachtrij",
   "desktop.store.operation_running": "Wordt uitgevoerd",
   "desktop.store.operation_succeeded": "Voltooid",

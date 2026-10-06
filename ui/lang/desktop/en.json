@@ -2824,6 +2824,7 @@
   "desktop.store.open": "Open",
   "desktop.store.open_commandcode": "Open CommandCode",
   "desktop.store.operation_failed": "Failed",
+  "desktop.store.error_container_name_in_use": "Container {{name}} already exists and was not created by the Software Store. Rename it (docker rename {{name}} {{name}}-old) or remove it, then install again.",
   "desktop.store.operation_pending": "Queued",
   "desktop.store.operation_running": "Running",
   "desktop.store.operation_succeeded": "Finished",

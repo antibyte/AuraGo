@@ -2824,6 +2824,7 @@
   "desktop.store.open": "Åbn",
   "desktop.store.open_commandcode": "Åbn CommandCode",
   "desktop.store.operation_failed": "Mislykkedes",
+  "desktop.store.error_container_name_in_use": "Containeren {{name}} findes allerede og blev ikke oprettet af Softwarebutikken. Omdøb den (docker rename {{name}} {{name}}-old) eller fjern den, og installer derefter igen.",
   "desktop.store.operation_pending": "I kø",
   "desktop.store.operation_running": "Kører",
   "desktop.store.operation_succeeded": "Færdig",

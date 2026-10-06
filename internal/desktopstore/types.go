@@ -208,6 +208,8 @@ type ContainerState struct {
 	Restarting   bool   `json:"restarting,omitempty"`
 	ExitCode     int    `json:"exit_code,omitempty"`
 	RestartCount int    `json:"restart_count,omitempty"`
+	// Labels are the container's Config.Labels.
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // NativeManagedStatus is returned by store runtimes that do not expose a web
@@ -268,16 +270,20 @@ type InstalledApp struct {
 
 // Operation is one background lifecycle operation.
 type Operation struct {
-	ID          string     `json:"id"`
-	Type        string     `json:"type"`
-	AppID       string     `json:"app_id"`
-	Status      string     `json:"status"`
-	Message     string     `json:"message,omitempty"`
-	Error       string     `json:"error,omitempty"`
-	RequestJSON string     `json:"-"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	AppID   string `json:"app_id"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
+	// ErrorCode and ErrorParams let the Desktop translate known failures
+	// (desktop.store.error_<code>); Error stays the English text.
+	ErrorCode   string            `json:"error_code,omitempty"`
+	ErrorParams map[string]string `json:"error_params,omitempty"`
+	RequestJSON string            `json:"-"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+	CompletedAt *time.Time        `json:"completed_at,omitempty"`
 }
 
 // InstallRequest is the public request for installing a catalog app.
@@ -328,6 +334,13 @@ type DockerAdapter interface {
 	CreateNetwork(ctx context.Context, name string) error
 	RemoveNetwork(ctx context.Context, name string) error
 	InspectContainer(ctx context.Context, name string) (ContainerState, error)
+	// FindContainer is InspectContainer for an existence check: a missing
+	// container reports found=false instead of an error.
+	FindContainer(ctx context.Context, name string) (state ContainerState, found bool, err error)
+	// VolumeExists reports whether a named volume exists.
+	VolumeExists(ctx context.Context, name string) (bool, error)
+	// NetworkExists reports whether a network exists.
+	NetworkExists(ctx context.Context, name string) (bool, error)
 }
 
 // DockerImageBuilder is an optional DockerAdapter extension for catalog apps

@@ -236,7 +236,10 @@ func (a ToolsDockerAdapter) InspectContainer(ctx context.Context, name string) (
 	var raw struct {
 		Name         string `json:"Name"`
 		RestartCount int    `json:"RestartCount"`
-		State        struct {
+		Config       struct {
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
+		State struct {
 			Running    bool   `json:"Running"`
 			Restarting bool   `json:"Restarting"`
 			Status     string `json:"Status"`
@@ -256,11 +259,48 @@ func (a ToolsDockerAdapter) InspectContainer(ctx context.Context, name string) (
 		Status:       raw.State.Status,
 		ExitCode:     raw.State.ExitCode,
 		RestartCount: raw.RestartCount,
+		Labels:       raw.Config.Labels,
 	}
 	if raw.State.Health != nil {
 		state.Health = raw.State.Health.Status
 	}
 	return state, nil
+}
+
+// FindContainer inspects a container; a missing one is found=false.
+func (a ToolsDockerAdapter) FindContainer(ctx context.Context, name string) (ContainerState, bool, error) {
+	state, err := a.InspectContainer(ctx, name)
+	if errors.Is(err, errContainerNotFound) {
+		return ContainerState{}, false, nil
+	}
+	if err != nil {
+		return ContainerState{}, false, err
+	}
+	return state, true, nil
+}
+
+// VolumeExists reports whether a named volume exists (GET /volumes/{name}).
+func (a ToolsDockerAdapter) VolumeExists(ctx context.Context, name string) (bool, error) {
+	return a.resourceExists(ctx, "/volumes/"+url.PathEscape(strings.TrimSpace(name)), "inspect volume")
+}
+
+// NetworkExists reports whether a network exists (GET /networks/{name}).
+func (a ToolsDockerAdapter) NetworkExists(ctx context.Context, name string) (bool, error) {
+	return a.resourceExists(ctx, "/networks/"+url.PathEscape(strings.TrimSpace(name)), "inspect network")
+}
+
+func (a ToolsDockerAdapter) resourceExists(ctx context.Context, endpoint, action string) (bool, error) {
+	data, code, err := tools.DockerRequestContext(ctx, a.Config, http.MethodGet, endpoint, "")
+	if err != nil {
+		return false, err
+	}
+	switch code {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	}
+	return false, dockerHTTPError(action, code, data)
 }
 
 func (a ToolsDockerAdapter) containerAction(ctx context.Context, name, method, action string) error {

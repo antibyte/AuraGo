@@ -273,6 +273,8 @@ The Software Store uses AuraGo-managed Docker containers. Apps can expose creden
 
 A Store **Update** keeps the previous containers, stopped and renamed to `<name>.prev`, until the new version runs. If the update fails, AuraGo restores those containers as they were; after a successful update it removes them.
 
+A failed **Install** removes only what that install created. Data volumes, Vault secrets and workspace files that an earlier uninstall kept stay in place and are used again by the next install. If a container that the Software Store did not create already uses the name the app needs, the install stops before it creates anything and names the container; rename it (for example `docker rename <name> <name>-old`) or remove it, then install again.
+
 ### Sounds
 
 UI sounds for the Virtual Desktop are **opt-in** and **off by default**. Open **Settings → Sound** to enable them, pick one of five synthesized themes (Crystal, Wood, Analog, Workshop, Water), adjust master volume, and toggle categories for windows, notifications, navigation, and files/dialogs. Use **Preview** on a theme card to listen without changing your saved selection. Sounds require a normal user gesture in the browser tab before the first playback; they stay silent during session restore and while the tab is hidden.

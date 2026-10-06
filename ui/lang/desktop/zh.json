@@ -2824,6 +2824,7 @@
   "desktop.store.open": "打开",
   "desktop.store.open_commandcode": "打开 CommandCode",
   "desktop.store.operation_failed": "失败",
+  "desktop.store.error_container_name_in_use": "容器 {{name}} 已存在，且不是由软件商店创建的。请将其重命名（docker rename {{name}} {{name}}-old）或删除，然后重新安装。",
   "desktop.store.operation_pending": "已排队",
   "desktop.store.operation_running": "运行中",
   "desktop.store.operation_succeeded": "已完成",

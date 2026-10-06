@@ -2824,6 +2824,7 @@
   "desktop.store.open": "開く",
   "desktop.store.open_commandcode": "CommandCodeを開く",
   "desktop.store.operation_failed": "失敗",
+  "desktop.store.error_container_name_in_use": "コンテナ {{name}} は既に存在し、ソフトウェアストアが作成したものではありません。名前を変更する（docker rename {{name}} {{name}}-old）か削除してから、もう一度インストールしてください。",
   "desktop.store.operation_pending": "待機中",
   "desktop.store.operation_running": "実行中",
   "desktop.store.operation_succeeded": "完了",

@@ -2824,6 +2824,7 @@
   "desktop.store.open": "Abrir",
   "desktop.store.open_commandcode": "Abrir CommandCode",
   "desktop.store.operation_failed": "Falhou",
+  "desktop.store.error_container_name_in_use": "O contentor {{name}} já existe e não foi criado pela Loja de software. Muda-lhe o nome (docker rename {{name}} {{name}}-old) ou remove-o e volta a instalar.",
   "desktop.store.operation_pending": "Na fila",
   "desktop.store.operation_running": "Em execução",
   "desktop.store.operation_succeeded": "Concluído",

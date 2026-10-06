@@ -2824,6 +2824,7 @@
   "desktop.store.open": "Apri",
   "desktop.store.open_commandcode": "Apri CommandCode",
   "desktop.store.operation_failed": "Non riuscita",
+  "desktop.store.error_container_name_in_use": "Il container {{name}} esiste già e non è stato creato dal Negozio software. Rinominalo (docker rename {{name}} {{name}}-old) o rimuovilo, poi ripeti l’installazione.",
   "desktop.store.operation_pending": "In coda",
   "desktop.store.operation_running": "In esecuzione",
   "desktop.store.operation_succeeded": "Completata",

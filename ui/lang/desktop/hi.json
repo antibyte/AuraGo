@@ -2824,6 +2824,7 @@
   "desktop.store.open": "खोलें",
   "desktop.store.open_commandcode": "CommandCode खोलें",
   "desktop.store.operation_failed": "विफल",
+  "desktop.store.error_container_name_in_use": "कंटेनर {{name}} पहले से मौजूद है और इसे सॉफ़्टवेयर स्टोर ने नहीं बनाया है। इसका नाम बदलें (docker rename {{name}} {{name}}-old) या इसे हटाएँ, फिर दोबारा इंस्टॉल करें।",
   "desktop.store.operation_pending": "कतार में",
   "desktop.store.operation_running": "चल रहा है",
   "desktop.store.operation_succeeded": "पूरा हुआ",

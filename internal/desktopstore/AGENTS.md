@@ -197,6 +197,32 @@ Store app configuration, runtime, assets, and publication.
   `TestUninstallRemovesParkedLeftovers`; the four remove-and-recreate tests set
   `renameErr` and pin the fallback.
 
+### Store Install Cleanup
+
+- An install records what it creates in `desktop_store_install_resources`
+  (`install_journal.go`): an attempt marker, workspace dirs and generated-secret
+  Vault keys that did not exist, volumes and the private network that did not
+  exist, and every container it creates. A failed install removes only those;
+  the journal is cleared after a successful install and on uninstall.
+- The preflight runs after `prepareAutoCompanions`, before the record is saved
+  and before any Docker create. A container with a target name stops the install
+  (`ContainerNameConflictError`, operation `error_code`
+  `container_name_in_use`, translated as `desktop.store.error_container_name_in_use`
+  in all 16 Desktop locales) unless its labels are exactly this app's or
+  companion's Store labels; such a leftover of an earlier attempt is removed, so
+  it never blocks a retry. A blocked install removes its secrets and workspace
+  dirs but no Docker resource.
+- Pre-existing volumes, secrets and workspace files (an uninstall without
+  `delete_data` keeps them) are reused and never removed by a failed install; do
+  not turn them into a blocker, the reinstall that reuses them is a feature
+  (`TestUninstallRemovesVolumesOnlyWhenRequested`).
+- Installing records without an attempt marker (written before the journal)
+  keep the old remove-by-record cleanup (`TestInstallReplacesFailedInstallingRecord`,
+  `TestInitRecoversInterruptedInstallingOperation`). The interrupted-install
+  recovery removes the journaled Docker resources in the background.
+- Verify `install_journal_test.go` and `TestSoftwareStoreTranslatesStructuredOperationErrors`
+  (`ui`).
+
 ## Verification
 
 - Desktop Store jobs inherit the Desktop revocation context. Stop remains an

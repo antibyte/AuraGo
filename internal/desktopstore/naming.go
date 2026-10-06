@@ -169,3 +169,12 @@ func (missingDockerAdapter) RemoveNetwork(context.Context, string) error {
 func (missingDockerAdapter) InspectContainer(context.Context, string) (ContainerState, error) {
 	return ContainerState{}, fmt.Errorf("Docker adapter is not configured")
 }
+func (missingDockerAdapter) FindContainer(context.Context, string) (ContainerState, bool, error) {
+	return ContainerState{}, false, fmt.Errorf("Docker adapter is not configured")
+}
+func (missingDockerAdapter) VolumeExists(context.Context, string) (bool, error) {
+	return false, fmt.Errorf("Docker adapter is not configured")
+}
+func (missingDockerAdapter) NetworkExists(context.Context, string) (bool, error) {
+	return false, fmt.Errorf("Docker adapter is not configured")
+}

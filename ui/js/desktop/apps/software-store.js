@@ -617,6 +617,17 @@
             }
         }
 
+        // Known failures carry error_code/error_params; the translated text
+        // replaces the backend's English error, which stays the fallback.
+        function operationErrorText(op) {
+            if (op && op.error_code) {
+                const key = 'desktop.store.error_' + op.error_code;
+                const text = t(key, op.error_params || {});
+                if (typeof text === 'string' && text && text !== key) return text;
+            }
+            return op ? op.error : '';
+        }
+
         function showOperationError(appId, message) {
             message = message || t('desktop.store.operation_failed');
             operationErrors.set(appId, message);
@@ -661,7 +672,7 @@
                     renderCards();
                     if (op.status === 'succeeded' || op.status === 'failed') {
                         busy.delete(appId);
-                        if (op.status === 'failed') showOperationError(appId, appId === 'gods-eye-view' && op.type === 'configure' ? t('desktop.store.gev_pending') : op.error);
+                        if (op.status === 'failed') showOperationError(appId, appId === 'gods-eye-view' && op.type === 'configure' ? t('desktop.store.gev_pending') : operationErrorText(op));
                         scheduleLoad(true, true);
                         // A shell refresh failure must not hide the operation result.
                         try { await loadBootstrap(); } catch (_) {}

@@ -2824,6 +2824,7 @@
   "desktop.store.open": "Άνοιγμα",
   "desktop.store.open_commandcode": "Άνοιγμα CommandCode",
   "desktop.store.operation_failed": "Απέτυχε",
+  "desktop.store.error_container_name_in_use": "Το container {{name}} υπάρχει ήδη και δεν δημιουργήθηκε από το Κατάστημα λογισμικού. Μετονομάστε το (docker rename {{name}} {{name}}-old) ή αφαιρέστε το και, στη συνέχεια, εγκαταστήστε ξανά.",
   "desktop.store.operation_pending": "Σε ουρά",
   "desktop.store.operation_running": "Εκτελείται",
   "desktop.store.operation_succeeded": "Ολοκληρώθηκε",
