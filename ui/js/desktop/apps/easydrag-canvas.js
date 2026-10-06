@@ -79,8 +79,11 @@
             minimapFrame.request();
         }
 
+        // setView coerces the view: an x or y that is not a finite number becomes 0 and clampZoom
+        // maps a bad zoom to 1, so a corrupt stored viewport or a NaN cannot reach the transforms.
         function setView(view, opts) {
-            ed.view = { x: view.x, y: view.y, zoom: G.clampZoom(view.zoom) };
+            const v = view && typeof view === 'object' ? view : {};
+            ed.view = { x: Number.isFinite(v.x) ? v.x : 0, y: Number.isFinite(v.y) ? v.y : 0, zoom: G.clampZoom(v.zoom) };
             el.classList.toggle('is-animating', !!(opts && opts.animate) && !matchMedia('(prefers-reduced-motion: reduce)').matches);
             if (opts && opts.animate) setTimeout(() => el.classList.remove('is-animating'), 260);
             viewFrame.request();

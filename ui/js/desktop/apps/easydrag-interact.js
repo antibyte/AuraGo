@@ -429,9 +429,17 @@
         async function pasteAt(point) {
             if (readonly()) return;
             const frag = await readClipboard();
-            if (!frag) return;
+            // Reading the clipboard can wait on a permission prompt; the canvas may be read-only by then.
+            if (!frag || readonly()) return;
             const at = point || (lastPointer ? canvas.clientToWorld(lastPointer.x, lastPointer.y) : centerWorld());
-            select(ed.model.paste(frag, { x: G.snap(at.x), y: G.snap(at.y) }));
+            const ids = ed.model.paste(frag, { x: G.snap(at.x), y: G.snap(at.y) });
+            // paste returns no ids when it refuses the fragment (over 500 steps or 2000 wires) or
+            // keeps none of its steps (unknown types); say so and keep the selection.
+            if (!ids.length) {
+                canvas.announce(core.tr(t, 'easydrag.ui.paste_refused', t('easydrag.ui.error_generic')));
+                return;
+            }
+            select(ids);
         }
 
         function centerWorld() {
