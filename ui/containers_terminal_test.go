@@ -216,3 +216,92 @@ func TestContainersUpdateTranslationsExist(t *testing.T) {
 		}
 	}
 }
+
+// requireContainersTranslations checks every key in all 16 locales and refuses
+// English copies outside en.json (AGENTS.md: translate, never fill with English).
+func requireContainersTranslations(t *testing.T, required []string) {
+	t.Helper()
+	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	bundles := make(map[string]map[string]string, len(langs))
+	for _, lang := range langs {
+		path := filepath.Join("lang", "containers", lang+".json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(data, &values); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		bundles[lang] = values
+	}
+	for _, lang := range langs {
+		for _, key := range required {
+			value := strings.TrimSpace(bundles[lang][key])
+			if value == "" {
+				t.Fatalf("lang/containers/%s.json missing non-empty translation for %s", lang, key)
+			}
+			if lang != "en" && value == strings.TrimSpace(bundles["en"][key]) {
+				t.Fatalf("lang/containers/%s.json copies the English text for %s", lang, key)
+			}
+		}
+	}
+}
+
+func TestContainersProtectedActionTranslationsExist(t *testing.T) {
+	t.Parallel()
+
+	requireContainersTranslations(t, []string{
+		"containers.protected_badge",
+		"containers.protected_endpoint_warning",
+		"containers.protected_self_warning",
+		"containers.protected_terminal_confirm",
+		"containers.protected_terminal_confirm_btn",
+		"containers.protected_terminal_title",
+		"containers.protected_warning",
+		"containers.self_update_unsupported",
+	})
+}
+
+func TestContainersScriptConfirmsProtectedContainersBeforeSendingTheFlag(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/containers/main.js")
+	for _, marker := range []string{
+		"const CONFIRM_PROTECTED_QUERY = 'confirm=protected';",
+		"const protectionById = new Map();",
+		"function rememberProtection(containers)",
+		"function containerProtection(c)",
+		"function showProtectedTerminalModal(id, name, protection)",
+		"function confirmProtectedTerminal()",
+		"if (target) openTerminal(target.id, target.name, true);",
+		"function openTerminal(id, name, confirmed)",
+		"const query = confirmed ? `?${CONFIRM_PROTECTED_QUERY}` : '';",
+		"const query = updateProtection ? `?${CONFIRM_PROTECTED_QUERY}` : '';",
+		"const confirmQuery = deleteProtection ? `&${CONFIRM_PROTECTED_QUERY}` : '';",
+		"if (!updateTarget || updateInFlight || updateBlocked()) return;",
+		"data.code === 'container_protected_confirmation_required'",
+		"data.code === 'container_self_update_unsupported'",
+		"containers.protected_badge",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("containers script missing protected-container marker %q", marker)
+		}
+	}
+	if strings.Count(source, "confirm=protected") != 1 {
+		t.Fatal("the confirmation query must come from CONFIRM_PROTECTED_QUERY only")
+	}
+	html := rawDesktopAssetText(t, "containers.html")
+	for _, marker := range []string{
+		`id="protected-terminal-modal"`,
+		`aria-labelledby="protected-terminal-modal-title"`,
+		`onclick="confirmProtectedTerminal()"`,
+		`data-i18n="containers.protected_terminal_confirm"`,
+		`id="update-protected-warning"`,
+		`id="delete-protected-warning"`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("containers page missing protected-container marker %q", marker)
+		}
+	}
+}
