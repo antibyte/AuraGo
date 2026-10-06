@@ -8,6 +8,13 @@
     // Step output is untrusted data (web pages, webhooks, model text) and the server accepts
     // JSON nested 10000 levels deep: the recursive renderers stop at MAX_DEPTH levels.
     const MAX_DEPTH = 24;
+    // The output tree draws at most TREE_BUDGET entries, and at most MAX_FILES file cards.
+    const TREE_BUDGET = 1500;
+    const MAX_FILES = 50;
+    // THUMBS caches PDF thumbnails by URL: a promise of a PNG data URL ('' when it failed; a
+    // failed one is dropped, so a later render tries again). It keeps THUMB_CACHE entries.
+    const THUMBS = new Map();
+    const THUMB_CACHE = 24;
 
     function sortedNodes(model) {
         return model.doc.nodes.slice().sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y);
@@ -35,20 +42,29 @@
         return out;
     }
 
-    // jsonTree renders a value as nested <details>; large lists are cut with a counter.
-    function jsonTree(value, esc, depth) {
+    // jsonTree renders a value as nested <details>. A list or object shows 200 entries and
+    // counts the rest; all in all TREE_BUDGET entries and MAX_DEPTH levels are drawn, and what
+    // is left reads "…" (budget: {left}, shared by the whole tree).
+    function jsonTree(value, esc, depth, budget) {
         const d = depth || 0;
+        const b = budget || { left: TREE_BUDGET };
         if (value === null || value === undefined) return '<span class="ed-json-null">null</span>';
         if (typeof value !== 'object') {
             const cls = typeof value === 'string' ? 'ed-json-str' : typeof value === 'number' ? 'ed-json-num' : 'ed-json-bool';
             return '<span class="' + cls + '">' + esc(typeof value === 'string' ? '"' + value + '"' : String(value)) + '</span>';
         }
-        if (d >= MAX_DEPTH) return '<span class="ed-json-more">…</span>';
-        const entries = Array.isArray(value) ? value.map((v, i) => [i, v]) : Object.entries(value);
-        const shown = entries.slice(0, 200);
-        const body = shown.map(([k, v]) => '<li><span class="ed-json-key">' + esc(String(k)) + '</span>: ' + jsonTree(v, esc, d + 1) + '</li>').join('') +
-            (entries.length > shown.length ? '<li class="ed-json-more">… ' + (entries.length - shown.length) + '</li>' : '');
-        const summary = Array.isArray(value) ? '[' + entries.length + ']' : '{' + entries.length + '}';
+        if (d >= MAX_DEPTH || b.left <= 0) return '<span class="ed-json-more">…</span>';
+        const keys = Array.isArray(value) ? null : Object.keys(value);
+        const total = keys ? keys.length : value.length;
+        const items = [];
+        let i = 0;
+        for (; i < Math.min(total, 200) && b.left > 0; i++) {
+            b.left--;
+            const k = keys ? keys[i] : i;
+            items.push('<li><span class="ed-json-key">' + esc(String(k)) + '</span>: ' + jsonTree(value[k], esc, d + 1, b) + '</li>');
+        }
+        const body = items.join('') + (total > i ? '<li class="ed-json-more">… ' + (total - i) + '</li>' : '');
+        const summary = Array.isArray(value) ? '[' + total + ']' : '{' + total + '}';
         return '<details' + (d < 2 ? ' open' : '') + '><summary>' + summary + '</summary><ul>' + body + '</ul></details>';
     }
 
@@ -64,11 +80,44 @@
     function files(value, out, depth) {
         const list = out || [];
         const d = depth || 0;
-        if (value && typeof value === 'object' && d < MAX_DEPTH) {
+        if (value && typeof value === 'object' && d < MAX_DEPTH && list.length < MAX_FILES) {
             if (value.$type === 'file') list.push(value);
             else Object.values(value).forEach(v => files(v, list, d + 1));
         }
         return list;
+    }
+
+    // renderThumb draws page 1 of a PDF with pdf.js; the loading task owns a worker and is
+    // always destroyed.
+    async function renderThumb(url) {
+        const pdfjs = window.pdfjsLib;
+        if (!pdfjs) return '';
+        let task = null;
+        try {
+            task = pdfjs.getDocument({ url });
+            const doc = await task.promise;
+            const page = await doc.getPage(1);
+            const viewport = page.getViewport({ scale: 0.5 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            return canvas.toDataURL('image/png');
+        } catch (err) {
+            return '';
+        } finally {
+            if (task) Promise.resolve().then(() => task.destroy()).catch(() => { /* already gone */ });
+        }
+    }
+
+    function pdfThumb(url) {
+        const cached = THUMBS.get(url);
+        if (cached) return cached;
+        const job = renderThumb(url);
+        THUMBS.set(url, job);
+        if (THUMBS.size > THUMB_CACHE) THUMBS.delete(THUMBS.keys().next().value);
+        job.then(src => { if (!src && THUMBS.get(url) === job) THUMBS.delete(url); });
+        return job;
     }
 
     function open(ed, nodeId, opts) {
@@ -86,6 +135,12 @@
         let form = null;
         let mapping = null;
         let lastField = null;
+        // What the columns show: run events re-render the output only for a new step object of
+        // this node (step_started and step_finished replace it), the input and the form
+        // previews only for new run data.
+        let shownStep;
+        let shownNode = null;
+        let shownData = null;
 
         const el = core.el('<div class="ed-detail-backdrop"><div class="ed-detail" role="dialog" aria-modal="true">' +
             '<header class="ed-detail-head">' +
@@ -119,9 +174,14 @@
             });
         }
 
+        function runData() { return ed.lastRunData || null; }
+
+        function currentStep() { return (ed.run && ed.run.steps && ed.run.steps.get(node.id)) || null; }
+
         function sources() {
             const list = [];
-            if (ed.lastRunData) list.push({ id: 'last', label: ed.lastRunData.label, roots: ed.lastRunData.roots });
+            const data = runData();
+            if (data) list.push({ id: 'last', label: data.label, roots: data.roots });
             list.push({ id: 'schema', label: t('easydrag.ui.input_schema'), roots: {} });
             if (!list.some(s => s.id === sourceId)) sourceId = list[0].id;
             return list;
@@ -153,6 +213,7 @@
 
         function renderInput() {
             const host = el.querySelector('[data-col="input"]');
+            shownData = runData();
             // The run view is read-only: its input tree gets a read-only ed (rows are neither
             // draggable nor clickable inserts) and no insert callback.
             const locked = !!ed.runView;
@@ -255,9 +316,13 @@
         }
 
         function renderOutput() {
-            const step = ed.run && ed.run.steps && ed.run.steps.get(node.id);
+            const step = currentStep();
             const status = el.querySelector('.ed-output-status');
             const out = el.querySelector('.ed-output');
+            // A new result of the same node keeps the scroll position; another node starts at the top.
+            const scroll = shownNode === node.id ? out.scrollTop || 0 : 0;
+            shownStep = step;
+            shownNode = node.id;
             el.querySelectorAll('[data-ed-view]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.edView === outputView)));
             if (!step) {
                 status.innerHTML = '';
@@ -281,7 +346,7 @@
                 const url = safeFileUrl(f.web_path);
                 const media = !url ? '' : mime.startsWith('image/') ? '<img src="' + esc(url) + '" alt="" loading="lazy">'
                     : mime.startsWith('audio/') ? '<audio controls preload="none" src="' + esc(url) + '"></audio>'
-                    : mime === 'application/pdf' ? '<canvas class="ed-pdf-thumb" data-pdf="' + esc(url) + '"></canvas>' : '';
+                    : mime === 'application/pdf' ? '<img class="ed-pdf-thumb" data-pdf="' + esc(url) + '" alt="" hidden>' : '';
                 return '<div class="ed-file-card">' + media + '<div class="ed-file-meta">' + core.icon('file-text') + '<span>' + esc(f.name || f.path || '') + '</span>' +
                     (f.size ? '<span class="ed-muted">' + esc(core.fmt.bytes(f.size)) + '</span>' : '') +
                     (url ? '<a class="ed-link" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(t('easydrag.ui.output_open')) + '</a>' : '') + '</div></div>';
@@ -295,22 +360,18 @@
                     : '<p class="ed-hint">' + esc(t('easydrag.ui.output_no_table')) + '</p>';
             } else html += '<div class="ed-json-tree">' + jsonTree(output, esc) + '</div>';
             out.innerHTML = html;
-            out.querySelectorAll('canvas[data-pdf]').forEach(renderPdfThumb);
-        }
-
-        // renderPdfThumb draws page 1 of a PDF with pdf.js. Without pdf.js the card keeps its
-        // "open" link only (no embedded frame for files from step output).
-        async function renderPdfThumb(canvas) {
-            const pdfjs = window.pdfjsLib;
-            if (!pdfjs) { canvas.remove(); return; }
-            try {
-                const doc = await pdfjs.getDocument({ url: canvas.dataset.pdf }).promise;
-                const page = await doc.getPage(1);
-                const viewport = page.getViewport({ scale: 0.5 });
-                canvas.width = viewport.width;
-                canvas.height = viewport.height;
-                await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-            } catch (err) { canvas.remove(); }
+            out.scrollTop = scroll;
+            // PDF thumbnails come from the cache (pdf.js renders each URL once). Without pdf.js,
+            // or when it fails, the card keeps its "open" link only (no embedded frame for files
+            // from step output).
+            out.querySelectorAll('img[data-pdf]').forEach(img => {
+                pdfThumb(img.dataset.pdf).then(src => {
+                    if (!out.contains(img)) return; // redrawn meanwhile
+                    if (!src) { img.remove(); return; }
+                    img.src = src;
+                    img.hidden = false;
+                });
+            });
         }
 
         function applyPane() {
@@ -391,7 +452,18 @@
             if (form && (change.nodes.includes(node.id) || change.kind !== 'change')) form.refresh(node, roots(), ed.issues);
             if (pane === 'settings' && change.nodes.includes(node.id) && !el.querySelector('[data-pane="settings"]').contains(document.activeElement)) renderSettings();
         }));
-        bag.add(ed.bus.on('run', () => { renderHead(); renderOutput(); if (mapping) renderInput(); if (form) form.refresh(node, roots(), ed.issues); }));
+        // refreshData shows new run data in the input tree and the form previews.
+        function refreshData() {
+            if (runData() === shownData) return;
+            if (mapping) renderInput();
+            if (form) form.refresh(node, roots(), ed.issues);
+        }
+        bag.add(ed.bus.on('run', () => {
+            renderHead();
+            if (currentStep() !== shownStep) renderOutput();
+            refreshData();
+        }));
+        bag.add(ed.bus.on('last-run', refreshData));
         bag.add(ed.bus.on('issues', () => { if (form) form.refresh(node, roots(), ed.issues); }));
         const ro = new ResizeObserver(applyNarrow);
         ro.observe(ed.root);

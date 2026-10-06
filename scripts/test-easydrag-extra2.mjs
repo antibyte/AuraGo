@@ -138,7 +138,7 @@ export async function run(env) {
             selection: new Set(), run: null, runView: null, issues: [], lastRunData: null, detail: null, effectsConfirmed: false, bus
         };
         return {
-            ED, ed, model, bus, dom, sources, requests, notes, announced, logged, timers, store,
+            ED, ed, model, bus, dom, sources, requests, notes, announced, logged, timers, store, win: box.window,
             canvas: { announce: text => announced.push(text) },
             // timer returns the delay of the one pending timer (all delays when there are more).
             timer() { const list = Array.from(timers.values()).map(x => x.ms); return list.length === 1 ? list[0] : list; },
@@ -515,5 +515,71 @@ export async function run(env) {
         const old = await runs.startTest({ onlyNode: A, quick: true });
         eq('c1d06 an old flow-wide confirmation asks again', [!!old, old ? html(old).includes('effect_sends_message') : false], [true, true]);
         eq('c1d06 the effects checks log no errors', h.logged, []);
+    });
+
+    // ── review fixes: performance and leaks ──
+
+    // counting wraps the innerHTML setter of node and counts its rebuilds.
+    function counting(node) {
+        const set = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(node), 'innerHTML').set;
+        const counter = { n: 0 };
+        Object.defineProperty(node, 'innerHTML', { configurable: true, set(v) { counter.n++; set.call(this, v); } });
+        return counter;
+    }
+
+    await guardAsync('c1d06 review run events', async () => {
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        const rows = Array.from({ length: 200 }, (_, i) => Object.fromEntries(Array.from({ length: 40 }, (_, j) => ['f' + j, 'v' + i + '_' + j])));
+        h.ed.run = outputRun({ items: rows });
+        h.ed.run.status = 'running';
+        h.ed.lastRunData = { runId: 'r0', label: 'Last run', roots: { alpha: { items: [] } } };
+        h.ED.detail.open(h.ed, A);
+        const out = h.ed.root.querySelector('.ed-output');
+        const lis = (out.html.match(/<li/g) || []).length;
+        const outputs = counting(out);
+        const trees = counting(h.ed.root.querySelector('.ed-tree'));
+        // Events of other steps change neither this step nor the run data.
+        for (let i = 0; i < 20; i++) {
+            h.ed.run.steps.set(B, { node_id: B, status: 'running' });
+            h.bus.emit('run', h.ed.run);
+        }
+        const quiet = [outputs.n, trees.n];
+        out.scrollTop = 120;
+        h.ed.run.steps.set(A, { node_id: A, status: 'success', output: { items: rows.slice(0, 2) } });
+        h.bus.emit('run', h.ed.run);
+        const newStep = [outputs.n, out.scrollTop];
+        h.ed.lastRunData = { runId: 'r1', label: 'Last run', roots: { alpha: { items: [1] } } };
+        h.bus.emit('last-run', {});
+        eq('c1d06 run events redraw the output only for a new step of the node, the input only for new run data',
+            [lis <= 1700, quiet, newStep, trees.n], [true, [0, 0], [1, 120], 1]);
+        h.ED.detail.close(h.ed);
+        eq('c1d06 the run event checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d06 review pdf thumbnails', async () => {
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        h.dom.El.prototype.getContext = () => ({});
+        h.dom.El.prototype.toDataURL = () => 'data:image/png;base64,UERG';
+        const pdf = { created: 0, destroyed: 0 };
+        h.win.pdfjsLib = {
+            getDocument: ({ url }) => {
+                pdf.created++;
+                const page = { getViewport: () => ({ width: 10, height: 20 }), render: () => ({ promise: Promise.resolve() }) };
+                return { promise: url.includes('broken') ? Promise.reject(new Error('bad pdf')) : Promise.resolve({ getPage: async () => page }), destroy: () => { pdf.destroyed++; return Promise.resolve(); } };
+            }
+        };
+        h.ed.run = outputRun({ doc: { $type: 'file', name: 'doc.pdf', mime: 'application/pdf', web_path: '/files/doc.pdf' }, bad: { $type: 'file', name: 'b.pdf', mime: 'application/pdf', web_path: '/files/broken.pdf' } });
+        h.ED.detail.open(h.ed, A);
+        await settle();
+        const thumbs = () => h.ed.root.querySelectorAll('img[data-pdf]').map(i => [i.getAttribute('data-pdf'), i.src, i.hidden]);
+        const first = [thumbs(), pdf.created, pdf.destroyed];
+        h.ed.root.querySelector('[data-ed-view="table"]').fire('click');
+        h.ed.root.querySelector('[data-ed-view="tree"]').fire('click');
+        await settle();
+        eq('c1d06 pdf.js renders each thumbnail once and always destroys its loading task; a failed one is retried',
+            [first, [thumbs(), pdf.created, pdf.destroyed]],
+            [[[['/files/doc.pdf', 'data:image/png;base64,UERG', false]], 2, 2], [[['/files/doc.pdf', 'data:image/png;base64,UERG', false]], 3, 3]]);
+        h.ED.detail.close(h.ed);
+        eq('c1d06 the thumbnail checks log no errors', h.logged, []);
     });
 }
