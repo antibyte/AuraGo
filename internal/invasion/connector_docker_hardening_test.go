@@ -185,3 +185,85 @@ func TestDockerConnector_StatusBoundsInspectBody(t *testing.T) {
 		t.Fatalf("Status = %q, %v; want unknown with a decode error for an inspect body beyond %d bytes", status, err, dockerInspectBodyLimit)
 	}
 }
+
+func TestDockerConnector_Deploy_PullStreamFailureFallsBackToCachedImage(t *testing.T) {
+	var inspected, created atomic.Bool
+	ts := mockDockerAPI(t, map[string]http.HandlerFunc{
+		"/images/create": func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(w, "{\"status\":\"Pulling from antibyte/aurago\"}\n{\"errorDetail\":{\"message\":\"unexpected EOF\"},\"error\":\"unexpected EOF\"}\n")
+		},
+		"/images/ghcr.io/antibyte/aurago:latest/json": func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet {
+				t.Errorf("image inspect method = %s, want GET", r.Method)
+			}
+			inspected.Store(true)
+			_, _ = io.WriteString(w, `{"Id":"sha256:cached"}`)
+		},
+		"/containers/create": func(w http.ResponseWriter, r *http.Request) {
+			created.Store(true)
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{"Id":"abc123"}`)
+		},
+		"/containers/": func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPut {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		},
+	})
+	defer ts.Close()
+
+	err := (&DockerConnector{}).Deploy(context.Background(), nestForMock(ts), nil, EggDeployPayload{ConfigYAML: []byte("egg_mode: {}\n")})
+	if err != nil {
+		t.Fatalf("Deploy = %v; want the pre-K15 behaviour of deploying the image the Engine already holds", err)
+	}
+	if !inspected.Load() {
+		t.Fatal("Deploy did not check whether the Engine already holds the image")
+	}
+	if !created.Load() {
+		t.Fatal("Deploy did not create the egg container from the cached image")
+	}
+}
+
+func TestDockerConnector_Deploy_PullStreamFailureWithFailingImageCheckLeavesRunningEggUntouched(t *testing.T) {
+	var containerCalls atomic.Int64
+	ts := mockDockerAPI(t, map[string]http.HandlerFunc{
+		"/images/create": func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(w, "{\"errorDetail\":{\"message\":\"unexpected EOF\"},\"error\":\"unexpected EOF\"}\n")
+		},
+		"/images/ghcr.io/antibyte/aurago:latest/json": func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = io.WriteString(w, "engine busy")
+		},
+		"/containers/": func(w http.ResponseWriter, r *http.Request) {
+			containerCalls.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+		},
+	})
+	defer ts.Close()
+
+	err := (&DockerConnector{}).Deploy(context.Background(), nestForMock(ts), nil, EggDeployPayload{ConfigYAML: []byte("egg_mode: {}\n")})
+	if err == nil {
+		t.Fatal("Deploy succeeded although the pull stream failed and the image check failed")
+	}
+	if !strings.Contains(err.Error(), "unexpected EOF") {
+		t.Fatalf("error = %v, want the stream's pull error", err)
+	}
+	if got := containerCalls.Load(); got != 0 {
+		t.Fatalf("Deploy sent %d container requests, want 0: the running egg must stay untouched", got)
+	}
+}
+
+func TestDockerConnector_UnbuildableRequestsReturnErrorsInsteadOfPanicking(t *testing.T) {
+	nest := NestRecord{ID: "12345678-abcd-ef12-3456-7890abcdef12", Host: "bad host", DeployMethod: "docker_remote"}
+	c := &DockerConnector{}
+	if err := c.Rollback(context.Background(), nest, nil); err == nil || !strings.Contains(err.Error(), "failed to create backup check request") {
+		t.Fatalf("Rollback error = %v, want a backup check request error", err)
+	}
+	if err := c.renameContainer(context.Background(), nest, nil, "aurago-egg-12345678", "aurago-egg-12345678-prev"); err == nil {
+		t.Fatal("renameContainer succeeded with an unbuildable request URL")
+	}
+}

@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -77,11 +79,30 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	// TODO: derive image tag from master version when build version is available at runtime
 	image := "ghcr.io/antibyte/aurago:latest"
 
-	// 1. Pull image. A failed pull (HTTP error, error event inside the HTTP 200
-	// progress stream, truncated stream) returns here, before step 2 stops and
-	// renames the running egg.
+	// 1. Pull image. A pull that fails with an HTTP error status returns here,
+	// before step 2 stops and renames the running egg.
+	//
+	// A failure inside the HTTP 200 progress stream (error event, truncated
+	// stream, read error) counted as success before the K15 hardening, and
+	// Deploy went on with the image the Engine already held under this tag,
+	// the normal case on a redeploy. That behaviour is kept when the Engine has
+	// the image: deployEgg has already stored the new shared key, so stopping
+	// here would leave the old egg running with a key the master no longer
+	// accepts. Without the image (audit S7a) the deploy stops here instead of
+	// renaming the running egg and then failing to create its replacement.
 	if err := c.pullImage(ctx, nest, secret, image); err != nil {
-		return fmt.Errorf("failed to pull image: %w", err)
+		var streamErr *dockerPullStreamError
+		if !errors.As(err, &streamErr) {
+			return fmt.Errorf("failed to pull image: %w", err)
+		}
+		present, checkErr := c.imagePresent(ctx, nest, secret, image)
+		if checkErr != nil {
+			return fmt.Errorf("failed to pull image: %w (checking for the image on the Engine also failed: %v)", err, checkErr)
+		}
+		if !present {
+			return fmt.Errorf("failed to pull image: %w", err)
+		}
+		slog.Warn("Invasion image pull failed; deploying the image already on the Engine", "nest_id", nest.ID, "image", image, "error", err)
 	}
 
 	// 2. Remove any stale backup, then rename current container as backup
@@ -390,12 +411,56 @@ func (c *DockerConnector) pullImage(ctx context.Context, nest NestRecord, secret
 		body := dockerutil.ReadErrorBody(resp.Body)
 		return fmt.Errorf("pull failed with HTTP %d: %s", resp.StatusCode, string(body))
 	}
-	// The Engine reports pull failures (unknown tag, registry auth, rate limit)
-	// as error events inside the HTTP 200 progress stream.
+	// Registry resolution errors (unknown tag, auth, rate limit, DNS) arrive as
+	// an HTTP error status above. Failures after the Engine started streaming
+	// (layer download, verification, extraction, disk full, platform mismatch
+	// on the graphdriver store) arrive as error events inside the HTTP 200 stream.
 	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
-		return fmt.Errorf("pull %s: %w", image, err)
+		return &dockerPullStreamError{image: image, err: err}
 	}
 	return nil
+}
+
+// dockerPullStreamError is a pull failure reported inside the HTTP 200
+// progress stream: an error event, a truncated stream or a read error. Deploy
+// tells it apart from an HTTP error status to keep using an image the Engine
+// already holds.
+type dockerPullStreamError struct {
+	image string
+	err   error
+}
+
+func (e *dockerPullStreamError) Error() string {
+	return fmt.Sprintf("pull %s: %v", e.image, e.err)
+}
+
+func (e *dockerPullStreamError) Unwrap() error {
+	return e.err
+}
+
+// imagePresent reports whether the Engine holds image. The reference stays
+// unescaped: the Engine route is /images/{name:.*}/json, as the Docker CLI
+// sends it.
+func (c *DockerConnector) imagePresent(ctx context.Context, nest NestRecord, secret []byte, image string) (bool, error) {
+	client := c.httpClient(nest, secret)
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL(nest, "/images/"+image+"/json"), nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to create image inspect request: %w", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("image inspect request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	default:
+		body := dockerutil.ReadErrorBody(resp.Body)
+		return false, fmt.Errorf("image inspect failed with HTTP %d: %s", resp.StatusCode, string(body))
+	}
 }
 
 func (c *DockerConnector) removeContainer(ctx context.Context, nest NestRecord, secret []byte, name string) error {
@@ -424,11 +489,14 @@ func dockerRemoveContainerPath(name string) string {
 
 func (c *DockerConnector) renameContainer(ctx context.Context, nest NestRecord, secret []byte, oldName, newName string) error {
 	client := c.httpClient(nest, secret)
-	// Stop the container first so it can be renamed cleanly
+	// Stop the container first so it can be renamed cleanly. The stop is best
+	// effort: a request that cannot be built or sent skips it, and the rename
+	// below still runs.
 	stopURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/stop?t=5", oldName))
-	stopReq, _ := http.NewRequestWithContext(ctx, "POST", stopURL, nil)
-	if resp, err := client.Do(stopReq); err == nil {
-		resp.Body.Close()
+	if stopReq, err := http.NewRequestWithContext(ctx, "POST", stopURL, nil); err == nil {
+		if resp, err := client.Do(stopReq); err == nil {
+			resp.Body.Close()
+		}
 	}
 
 	renameURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/rename?name=%s", oldName, newName))
@@ -535,7 +603,10 @@ func (c *DockerConnector) Rollback(ctx context.Context, nest NestRecord, secret 
 	// Check if backup container exists
 	client := c.httpClient(nest, secret)
 	checkURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/json", backupName))
-	checkReq, _ := http.NewRequestWithContext(ctx, "GET", checkURL, nil)
+	checkReq, err := http.NewRequestWithContext(ctx, "GET", checkURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create backup check request: %w", err)
+	}
 	resp, err := client.Do(checkReq)
 	if err != nil {
 		return fmt.Errorf("failed to check backup container: %w", err)
@@ -555,7 +626,10 @@ func (c *DockerConnector) Rollback(ctx context.Context, nest NestRecord, secret 
 
 	// Start the restored container
 	startURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/start", containerName))
-	startReq, _ := http.NewRequestWithContext(ctx, "POST", startURL, nil)
+	startReq, err := http.NewRequestWithContext(ctx, "POST", startURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create start request for restored container: %w", err)
+	}
 	startResp, err := client.Do(startReq)
 	if err != nil {
 		return fmt.Errorf("failed to start restored container: %w", err)
