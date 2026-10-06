@@ -345,7 +345,8 @@
         const actions = {
             refresh: () => loadData(),
             newMission: () => openEditor('new', null),
-            newFlow: () => { if (typeof openApp === 'function') openApp('easydrag', {}); },
+            // section "home": an EasyDrag window that is open already shows its start page (New flow).
+            newFlow: () => { if (typeof openApp === 'function') openApp('easydrag', { section: 'home' }); },
             openFlow: (id) => openFlow(byId(id)),
             edit: () => { const m = selected(); if (m) openEditor('edit', m); },
             // Flows are duplicated in EasyDrag; Duplicate does nothing for them (the menus disable it).

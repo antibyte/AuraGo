@@ -132,9 +132,23 @@
         else showHome(inst);
     }
 
+    // goHome is a second launch's way to the start page (Mission Control's New flow). Like showFlow
+    // it waits for the editor's leave(): a pending change is saved first, a failed save asks, and
+    // "stay" keeps the editor. A start page that is shown already stays; New flow gets the focus.
+    async function goHome(inst) {
+        const nav = ++inst.nav;
+        if (inst.screen && inst.screen.leave && !(await inst.screen.leave())) return;
+        if (nav !== inst.nav || !alive(inst)) return;
+        if (!inst.screen || inst.screen.ed) showHome(inst);
+        const add = inst.root.querySelector('.ed-home [data-ed-new]');
+        if (add && !add.disabled && typeof add.focus === 'function') add.focus();
+    }
+
+    // routeOf reads a launch context: a flow (and run) wins over section "home".
     function routeOf(context) {
         const c = context || {};
-        return { flowId: c.flowId || c.flow_id || '', runId: c.runId || c.run_id || '' };
+        const flowId = c.flowId || c.flow_id || '';
+        return { flowId, runId: c.runId || c.run_id || '', home: !flowId && c.section === 'home' };
     }
 
     function render(container, windowId, context) {
@@ -152,15 +166,23 @@
             openFlow: (id, opts) => showFlow(inst, id, opts)
         };
         instances.set(windowId, inst);
+        // A new window keeps its launch context, so section "home" is dropped once read: a later
+        // render from that context must not lead back to the start page (the start page is the
+        // default without a flow anyway).
+        if (ctx.section && typeof ctx.updateWindowContext === 'function') ctx.updateWindowContext(windowId, { section: null });
         start(inst, routeOf(ctx));
     }
 
     // open handles a second launch into an existing window (notification click, Mission Control).
+    // The shell does not store this context; section "home" shows the start page.
     function open(windowId, context) {
         const inst = instances.get(windowId);
         if (!inst) return;
         const route = routeOf(context);
-        if (!route.flowId) return;
+        if (!route.flowId) {
+            if (route.home) goHome(inst);
+            return;
+        }
         const editor = inst.screen && inst.screen.ed;
         if (editor && editor.flow.id === route.flowId) {
             if (route.runId) inst.screen.showRun(route.runId);

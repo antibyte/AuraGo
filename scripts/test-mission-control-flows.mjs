@@ -273,7 +273,7 @@ byLabel(openMoreMenu(), 'desktop.mc_action_duplicate').action();
 await tick();
 eq('shell: Duplicate of a flow (menu, Ctrl+D, context menu) opens neither EasyDrag nor the editor', [calls.openApp.length, calls.editorOpen.length], [1, 0]);
 await menuAction('new-flow');
-eq('shell: New flow opens EasyDrag without a flow', calls.openApp[1], ['easydrag', {}]);
+eq('shell: New flow opens EasyDrag on its start page (section home, no flow)', calls.openApp[1], ['easydrag', { section: 'home' }]);
 await selectRow('agent-1');
 await menuAction('edit');
 eq('shell: Edit of an agent mission opens the editor', calls.editorOpen, ['edit:agent-1']);

@@ -999,4 +999,71 @@ export async function run(env) {
             [[[true, false], [true, false]], ['error_flow_not_found', 'error_flow_not_found'], [cleared, cleared],
                 JSON.stringify({ flowId: 'f1', flow_id: null, run_id: null }), []]);
     });
+
+    // ── 1d-11: Mission Control's New flow launches EasyDrag with section "home" ──
+
+    await guardAsync('c1d11 section home', async () => {
+        const record = id => ({ flow: { id, name: 'F', draft: flowDoc(), draft_revision: 3, published_draft_revision: 0, live_revision: 0 }, enabled: false, issues: [] });
+        const answerWith = put => req => {
+            if (req.url.startsWith('/api/desktop/flows/node-types')) return { node_types: Array.from(types.values()), categories: [] };
+            if (req.url === '/api/desktop/flows') return { flows: [] };
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            if (req.method === 'GET' && (req.url === '/api/desktop/flows/f1' || req.url === '/api/desktop/flows/f2')) return record(req.url.slice(-2));
+            if (req.method === 'PUT') return put();
+            return undefined;
+        };
+        // stored is the context the shell keeps for a new window; updateWindowContext merges into it.
+        async function windowWith(put, launch) {
+            const h = sandbox(answerWith(put));
+            const stored = Object.assign({}, launch);
+            h.ctx.updateWindowContext = (id, patch) => { Object.assign(stored, patch); };
+            const container = h.body.appendChild(new h.dom.El('div', {}));
+            h.win.EasyDragApp.render(container, 'w1', Object.assign({}, h.ctx, { api: h.transport }, stored));
+            await settle();
+            h.flushFrames();
+            return { h, stored, container, App: h.win.EasyDragApp };
+        }
+        const screenOf = w => {
+            const inst = w.App._instances.get('w1');
+            if (!inst || !inst.screen) return 'none';
+            return inst.screen.ed ? 'editor:' + inst.screen.ed.flow.id : (w.container.querySelector('.ed-home') ? 'home' : 'other');
+        };
+        const lists = w => w.h.requests.filter(r => r.method === 'GET' && r.url === '/api/desktop/flows').length;
+
+        // A pending change is saved before the start page shows; New flow gets the focus.
+        const saved = await windowWith(() => ({ draft_revision: 4, issues: [] }), { flowId: 'f1' });
+        const before = screenOf(saved);
+        saved.App._instances.get('w1').screen.ed.model.setFlow({ description: 'pending' });
+        saved.App.open('w1', { section: 'home' });
+        await settle();
+        const put = saved.h.puts()[0];
+        eq('c1d11 open({section: "home"}) on an editor with a pending change saves it, then shows the start page with New flow focused',
+            [before, put && put.body.doc.description, screenOf(saved), saved.h.dom.document.activeElement === saved.container.querySelector('.ed-home [data-ed-new]'), saved.h.confirms.length, saved.h.logged],
+            ['editor:f1', 'pending', 'home', true, 0, []]);
+
+        // A refused leave keeps the editor: the save fails, leave() asks and the answer is "stay".
+        const refused = await windowWith(() => { throw apiError('FLOW_LOCKED'); }, { flowId: 'f1' });
+        refused.App._instances.get('w1').screen.ed.model.setFlow({ description: 'pending' });
+        refused.App.open('w1', { section: 'home' });
+        await settle();
+        eq('c1d11 a refused leave keeps the editor and shows no start page',
+            [screenOf(refused), refused.h.confirms.length, !!refused.container.querySelector('.ed-home'), refused.h.logged], ['editor:f1', 1, false, []]);
+
+        // Re-render safety: a new window drops section "home" from its stored context once read, a start
+        // page that is shown already is kept, and a flow opened afterwards wins a later render.
+        const launched = await windowWith(() => ({ draft_revision: 4, issues: [] }), { section: 'home' });
+        const first = [screenOf(launched), launched.stored.section, lists(launched)];
+        launched.App.open('w1', { section: 'home' });
+        await settle();
+        const again = [screenOf(launched), lists(launched)];
+        launched.App.open('w1', { flowId: 'f2' });
+        await settle();
+        launched.h.flushFrames();
+        const opened = [screenOf(launched), launched.stored.flowId];
+        launched.App.render(launched.container, 'w1', Object.assign({}, launched.h.ctx, { api: launched.h.transport }, launched.stored));
+        await settle();
+        launched.h.flushFrames();
+        eq('c1d11 section "home" is dropped from the stored context, a shown start page stays, and a re-render after opening a flow stays on that flow',
+            [first, again, opened, screenOf(launched), launched.h.logged], [['home', null, 1], ['home', 1], ['editor:f2', 'f2'], 'editor:f2', []]);
+    });
 }
