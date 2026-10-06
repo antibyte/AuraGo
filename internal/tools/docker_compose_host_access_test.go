@@ -408,6 +408,13 @@ func TestEvaluateDockerComposeHostAccessAcceptsWorkspacesUnderSensitiveLocations
 	// Unraid keeps app data under /mnt/user, root installs under /root: binds
 	// inside such a workspace stay allowed without host access.
 	for _, workspace := range []string{"/mnt/user/appdata/aurago/workdir", "/root/aurago/agent_workspace/workdir"} {
+		// A non-root test user cannot stat below /root (mode 0700), so the jail
+		// root does not resolve and the evaluation fails closed. AuraGo only has
+		// a workspace under /root when it runs as root, which can resolve it.
+		if _, err := secureResolveFinalPath(filepath.Clean(workspace)); err != nil {
+			t.Logf("%s: skipped, the test user cannot resolve it: %v", workspace, err)
+			continue
+		}
 		policy := DockerComposeHostPolicy{WorkspaceDir: workspace}
 		model := DockerComposeModel{
 			Services: map[string]DockerComposeService{"app": {Image: "x",
