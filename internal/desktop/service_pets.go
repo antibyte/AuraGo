@@ -173,32 +173,6 @@ func (s *Service) DeletePet(ctx context.Context, id string) error {
 	return nil
 }
 
-// PetSpritesheetPath returns the absolute filesystem path to a pet's spritesheet.
-func (s *Service) PetSpritesheetPath(id string) (string, error) {
-	if !petIDPattern.MatchString(id) {
-		return "", fmt.Errorf("invalid pet id %q", id)
-	}
-	cfg := s.Config()
-	petDir := filepath.Join(cfg.WorkspaceDir, petsDirName, id)
-	data, err := os.ReadFile(filepath.Join(petDir, "pet.json"))
-	if err != nil {
-		return "", fmt.Errorf("read pet.json: %w", err)
-	}
-	var pet PetJSON
-	if err := json.Unmarshal(data, &pet); err != nil {
-		return "", fmt.Errorf("parse pet.json: %w", err)
-	}
-	spritesheet := strings.TrimSpace(pet.SpritesheetPath)
-	if spritesheet == "" {
-		spritesheet = "spritesheet.webp"
-	}
-	cleanSpritesheet := filepath.ToSlash(filepath.Clean(spritesheet))
-	if strings.Contains(cleanSpritesheet, "..") {
-		return "", fmt.Errorf("invalid spritesheet path")
-	}
-	return filepath.Join(petDir, cleanSpritesheet), nil
-}
-
 func listPetsInDir(workspaceDir string) ([]PetManifest, error) {
 	petsDir := filepath.Join(workspaceDir, petsDirName)
 	entries, err := os.ReadDir(petsDir)
@@ -228,8 +202,9 @@ func listPetsInDir(workspaceDir string) ([]PetManifest, error) {
 
 func (s *Service) listPetsWithDefaultRepair(workspaceDir string) ([]PetManifest, error) {
 	// The check is cheap when each default already loads (getPetInDir only).
-	// Only take the mutation lock when a bundled pet is genuinely missing;
-	// a refused entry (link, special file, invalid manifest) is never repaired.
+	// Only take the mutation lock when a bundled pet has a missing file or an
+	// unparseable manifest; an entry refused for another reason (link, special
+	// file, missing custom spritesheet) is never repaired.
 	needRepair := false
 	for _, pet := range bundledDefaultPets() {
 		if bundledPetNeedsRepair(workspaceDir, pet.Manifest.ID, false) {
@@ -306,7 +281,7 @@ func getPetInDir(workspaceDir, id string) (PetManifest, error) {
 	}
 	var pet PetJSON
 	if err := json.Unmarshal(data, &pet); err != nil {
-		return PetManifest{}, fmt.Errorf("parse pet %q: %w", id, err)
+		return PetManifest{}, fmt.Errorf("parse pet %q: %w: %v", id, errPetManifestInvalid, err)
 	}
 	spritesheet := strings.TrimSpace(pet.SpritesheetPath)
 	if spritesheet == "" {
@@ -480,6 +455,10 @@ var bundledPetFiles = []string{"pet.json", "spritesheet.webp"}
 // junction or special file; bundled-pet installs never write through one.
 var errPetEntryLinked = errors.New("pet entry is a link or special file")
 
+// errPetManifestInvalid marks a pet.json that is a regular file but cannot be
+// parsed; bundled-pet repair replaces such a manifest.
+var errPetManifestInvalid = errors.New("pet manifest cannot be parsed")
+
 // bundledPetEntryState inspects Pets/<id> and its bundledPetFiles with Lstat
 // through root (the Pets directory), following nothing. It reports whether
 // any of them is absent, or errPetEntryLinked when one that exists is not a
@@ -509,13 +488,15 @@ func bundledPetEntryState(root *os.Root, id string) (missing bool, err error) {
 	return missing, nil
 }
 
-// bundledPetNeedsRepair reports whether the bundled pet id must be
-// reinstalled: it does not load, and its directory or a bundled file is
-// genuinely absent while every entry that exists is real. A pet that exists
-// but is refused (a link anywhere in it, a special file, an invalid manifest)
-// is left alone, logged when logSkip is set.
+// bundledPetNeedsRepair reports whether the bundled pet id must be repaired:
+// it does not load, every entry that exists is a real directory or regular
+// file, and its directory or a bundled file is absent or its pet.json cannot
+// be parsed. A pet refused for another reason (a link anywhere in it, a
+// special file, a valid manifest naming a missing custom spritesheet) is left
+// alone, so customisations survive; it is logged when logSkip is set.
 func bundledPetNeedsRepair(workspaceDir, id string, logSkip bool) bool {
-	if _, err := getPetInDir(workspaceDir, id); err == nil {
+	_, loadErr := getPetInDir(workspaceDir, id)
+	if loadErr == nil {
 		return false
 	}
 	root, err := os.OpenRoot(filepath.Join(workspaceDir, petsDirName))
@@ -530,11 +511,11 @@ func bundledPetNeedsRepair(workspaceDir, id string, logSkip bool) bool {
 	}
 	defer root.Close()
 	missing, err := bundledPetEntryState(root, id)
-	if err == nil && missing {
+	if err == nil && (missing || errors.Is(loadErr, errPetManifestInvalid)) {
 		return true
 	}
 	if logSkip {
-		reason := "existing files do not load (invalid manifest or spritesheet path)"
+		reason := loadErr.Error()
 		if err != nil {
 			reason = err.Error()
 		}
@@ -548,7 +529,7 @@ func ensureBundledDefaultPets(workspaceDir string) error {
 		if !bundledPetNeedsRepair(workspaceDir, pet.Manifest.ID, true) {
 			continue
 		}
-		if err := installBundledPet(workspaceDir, pet); err != nil {
+		if err := installBundledPet(workspaceDir, pet, true); err != nil {
 			if errors.Is(err, webassets.ErrUnavailable) {
 				return nil
 			}
@@ -566,7 +547,7 @@ func ensureBundledDefaultPets(workspaceDir string) error {
 // InstallBundledDefaultPets installs all OpenPets pets bundled with AuraGo.
 func InstallBundledDefaultPets(workspaceDir string) error {
 	for _, pet := range bundledDefaultPets() {
-		if err := installBundledPet(workspaceDir, pet); err != nil {
+		if err := installBundledPet(workspaceDir, pet, false); err != nil {
 			return err
 		}
 	}
@@ -577,34 +558,93 @@ func InstallBundledDefaultPets(workspaceDir string) error {
 func InstallBundledDefaultPet(workspaceDir string, spritesheet []byte) error {
 	pet := bundledDefaultPets()[0]
 	pet.Spritesheet = spritesheet
-	return installBundledPet(workspaceDir, pet)
+	return installBundledPet(workspaceDir, pet, false)
 }
 
 // bundledPetError logs the underlying error server-side and returns one that
 // names only the pet and step, keeping webassets.ErrUnavailable detectable.
+// Unavailable web assets are an expected state (repair retries on every
+// listing), so they are logged at debug level only.
 func bundledPetError(id, step string, err error) error {
-	slog.Warn("desktop: bundled pet install failed", "pet", id, "step", step, "error", err)
 	if errors.Is(err, webassets.ErrUnavailable) {
+		slog.Debug("desktop: bundled pet assets unavailable", "pet", id, "step", step, "error", err)
 		return fmt.Errorf("bundled pet %q: %s: %w", id, step, webassets.ErrUnavailable)
 	}
+	slog.Warn("desktop: bundled pet install failed", "pet", id, "step", step, "error", err)
 	return fmt.Errorf("bundled pet %q: %s failed", id, step)
+}
+
+// rootEntryAbsent reports whether name does not exist under root (Lstat, so a
+// dangling link counts as present).
+func rootEntryAbsent(root *os.Root, name string) bool {
+	_, err := root.Lstat(name)
+	return errors.Is(err, fs.ErrNotExist)
+}
+
+// bundledPetManifestUnparseable reports whether Pets/<id>/pet.json is a file
+// whose content does not parse as a pet manifest.
+func bundledPetManifestUnparseable(root *os.Root, id string) bool {
+	data, err := root.ReadFile(id + "/pet.json")
+	if err != nil {
+		return false
+	}
+	var pet PetJSON
+	return json.Unmarshal(data, &pet) != nil
+}
+
+// createRootFileExclusive creates name under root with O_EXCL, so it never
+// opens an existing file or link; an entry created meanwhile is left alone.
+func createRootFileExclusive(root *os.Root, name string, data []byte) error {
+	f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if errors.Is(err, fs.ErrExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+// replaceRootFile replaces name under root by writing a sibling temporary
+// file exclusively and renaming it over name, so the old entry itself is
+// replaced and nothing is written through it.
+func replaceRootFile(root *os.Root, name string, data []byte) error {
+	tmp := name + ".repair-tmp"
+	if err := root.Remove(tmp); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	f, err := root.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	_, werr := f.Write(data)
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	if werr == nil {
+		werr = root.Rename(tmp, name)
+	}
+	if werr != nil {
+		_ = root.Remove(tmp)
+	}
+	return werr
 }
 
 // installBundledPet writes the bundled pet.json and spritesheet.webp into
 // Pets/<id> through an os.Root at Pets. It refuses (errPetEntryLinked) when
 // the pet directory or a target file exists as a link, junction or special
-// file, so it never writes through a link.
-func installBundledPet(workspaceDir string, pet bundledPet) error {
+// file, so it never writes through a link. With repairOnly it creates only
+// the absent files (O_EXCL) and replaces pet.json only when it cannot be
+// parsed, so user customisations of a bundled pet survive; otherwise it
+// rewrites both files.
+func installBundledPet(workspaceDir string, pet bundledPet, repairOnly bool) error {
 	id := pet.Manifest.ID
 	if !petIDPattern.MatchString(id) {
 		return fmt.Errorf("invalid bundled pet id %q", id)
-	}
-	if len(pet.Spritesheet) == 0 {
-		data, err := petAssets.ReadFile("pets_assets/" + id + "/spritesheet.webp")
-		if err != nil {
-			return bundledPetError(id, "load bundled assets", err)
-		}
-		pet.Spritesheet = data
 	}
 	manifest, err := json.MarshalIndent(pet.Manifest, "", "  ")
 	if err != nil {
@@ -625,14 +665,45 @@ func installBundledPet(workspaceDir string, pet bundledPet) error {
 		}
 		return bundledPetError(id, "inspect pet directory", err)
 	}
+
+	manifestPath, sheetPath := id+"/pet.json", id+"/spritesheet.webp"
+	createManifest, replaceManifest, writeSheet := true, false, true
+	if repairOnly {
+		createManifest = rootEntryAbsent(root, manifestPath)
+		replaceManifest = !createManifest && bundledPetManifestUnparseable(root, id)
+		writeSheet = rootEntryAbsent(root, sheetPath)
+	}
+	if writeSheet && len(pet.Spritesheet) == 0 {
+		data, err := petAssets.ReadFile("pets_assets/" + id + "/spritesheet.webp")
+		if err != nil {
+			return bundledPetError(id, "load bundled assets", err)
+		}
+		pet.Spritesheet = data
+	}
 	if err := root.Mkdir(id, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
 		return bundledPetError(id, "create pet directory", err)
 	}
-	if err := root.WriteFile(id+"/pet.json", manifest, 0o600); err != nil {
-		return bundledPetError(id, "write pet.json", err)
+
+	write := func(name string, data []byte) error {
+		if repairOnly {
+			return createRootFileExclusive(root, name, data)
+		}
+		return root.WriteFile(name, data, 0o600)
 	}
-	if err := root.WriteFile(id+"/spritesheet.webp", pet.Spritesheet, 0o600); err != nil {
-		return bundledPetError(id, "write spritesheet", err)
+	switch {
+	case replaceManifest:
+		if err := replaceRootFile(root, manifestPath, manifest); err != nil {
+			return bundledPetError(id, "replace pet.json", err)
+		}
+	case createManifest:
+		if err := write(manifestPath, manifest); err != nil {
+			return bundledPetError(id, "write pet.json", err)
+		}
+	}
+	if writeSheet {
+		if err := write(sheetPath, pet.Spritesheet); err != nil {
+			return bundledPetError(id, "write spritesheet", err)
+		}
 	}
 	return nil
 }

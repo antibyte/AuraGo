@@ -510,7 +510,7 @@ func (s petFileSnapshot) assertUnchanged(t *testing.T) {
 		t.Fatalf("read %s: %v", filepath.Base(s.path), err)
 	}
 	if !bytes.Equal(data, s.data) {
-		t.Fatalf("%s was overwritten through a link", filepath.Base(s.path))
+		t.Fatalf("%s was overwritten", filepath.Base(s.path))
 	}
 	info, err := os.Stat(s.path)
 	if err != nil {
@@ -621,6 +621,127 @@ func TestBundledPetRepairNeverWritesThroughLinks(t *testing.T) {
 		listPetsTwice(t, svc)
 		manifest.assertUnchanged(t)
 		sheet.assertUnchanged(t)
+	})
+}
+
+func findPet(pets []PetManifest, id string) (PetManifest, bool) {
+	for _, pet := range pets {
+		if pet.ID == id {
+			return pet, true
+		}
+	}
+	return PetManifest{}, false
+}
+
+func TestBundledPetRepairReplacesOnlyBrokenOrMissingFiles(t *testing.T) {
+	t.Run("unparseable manifest is repaired once", func(t *testing.T) {
+		svc := testService(t)
+		ws := svc.Config().WorkspaceDir
+		petDir := filepath.Join(ws, petsDirName, "dobby")
+		manifestPath := filepath.Join(petDir, "pet.json")
+		if err := os.WriteFile(manifestPath, []byte("{not json"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		sheet := snapshotPetFile(t, filepath.Join(petDir, "spritesheet.webp"))
+
+		pets, err := svc.ListPets(context.Background())
+		if err != nil {
+			t.Fatalf("ListPets: %v", err)
+		}
+		if _, ok := findPet(pets, "dobby"); !ok {
+			t.Fatalf("pet with an unparseable manifest was not repaired: %+v", pets)
+		}
+		sheet.assertUnchanged(t)
+		var repaired PetJSON
+		data, err := os.ReadFile(manifestPath)
+		if err != nil || json.Unmarshal(data, &repaired) != nil || repaired.ID != "dobby" {
+			t.Fatalf("manifest not replaced with the bundled one: %q (%v)", data, err)
+		}
+		if _, err := os.Lstat(manifestPath + ".repair-tmp"); !os.IsNotExist(err) {
+			t.Fatalf("repair left its temporary file behind: %v", err)
+		}
+		manifest := snapshotPetFile(t, manifestPath)
+		listPetsTwice(t, svc)
+		manifest.assertUnchanged(t)
+		sheet.assertUnchanged(t)
+	})
+
+	t.Run("customised manifest survives a missing spritesheet", func(t *testing.T) {
+		svc := testService(t)
+		ws := svc.Config().WorkspaceDir
+		petDir := filepath.Join(ws, petsDirName, "snoopy")
+		manifestPath := filepath.Join(petDir, "pet.json")
+		custom := `{"id":"snoopy","displayName":"My Custom Snoopy","spritesheetPath":"spritesheet.webp"}`
+		if err := os.WriteFile(manifestPath, []byte(custom), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		manifest := snapshotPetFile(t, manifestPath)
+		sheetPath := filepath.Join(petDir, "spritesheet.webp")
+		if err := os.Remove(sheetPath); err != nil {
+			t.Fatal(err)
+		}
+
+		pets := listPetsTwice(t, svc)
+		manifest.assertUnchanged(t)
+		pet, ok := findPet(pets, "snoopy")
+		if !ok || pet.DisplayName != "My Custom Snoopy" {
+			t.Fatalf("customised pet = %+v (found %v), want My Custom Snoopy", pet, ok)
+		}
+		if info, err := os.Lstat(sheetPath); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+			t.Fatalf("missing spritesheet was not restored: %v", err)
+		}
+	})
+
+	t.Run("manifest that is a directory stays refused", func(t *testing.T) {
+		svc := testService(t)
+		ws := svc.Config().WorkspaceDir
+		petDir := filepath.Join(ws, petsDirName, "wall-e")
+		manifestPath := filepath.Join(petDir, "pet.json")
+		if err := os.Remove(manifestPath); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(manifestPath, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		sheet := snapshotPetFile(t, filepath.Join(petDir, "spritesheet.webp"))
+
+		pets := listPetsTwice(t, svc)
+		if _, ok := findPet(pets, "wall-e"); ok {
+			t.Fatal("a pet whose pet.json is a directory must not be listed")
+		}
+		if info, err := os.Lstat(manifestPath); err != nil || !info.IsDir() {
+			t.Fatalf("pet.json directory was replaced: %v", err)
+		}
+		sheet.assertUnchanged(t)
+		if bundledPetNeedsRepair(ws, "wall-e", false) {
+			t.Fatal("a pet.json directory must not trigger the repair")
+		}
+	})
+
+	t.Run("linked manifest stays refused", func(t *testing.T) {
+		svc := testService(t)
+		ws := svc.Config().WorkspaceDir
+		targetPath := filepath.Join(t.TempDir(), "elsewhere.json")
+		if err := os.WriteFile(targetPath, []byte("{not json"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		manifestPath := filepath.Join(ws, petsDirName, "tux", "pet.json")
+		if err := os.Remove(manifestPath); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(targetPath, manifestPath); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+		target := snapshotPetFile(t, targetPath)
+
+		listPetsTwice(t, svc)
+		target.assertUnchanged(t)
+		if info, err := os.Lstat(manifestPath); err != nil || info.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("pet.json link was replaced: %v", err)
+		}
+		if bundledPetNeedsRepair(ws, "tux", false) {
+			t.Fatal("a linked pet.json must not trigger the repair")
+		}
 	})
 }
 
