@@ -371,16 +371,37 @@ async function guardAsync(name, fn) {
     try { await fn(); } catch (err) { failures++; console.log('FAIL ' + name + ' threw: ' + (err && err.message)); }
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
+const settle = async () => { for (let i = 0; i < 10; i++) await tick(); };
+const deferred = () => { let resolve, reject; const p = new Promise((a, b) => { resolve = a; reject = b; }); return { p, resolve, reject }; };
+// within reports whether p settled while the queued work ran, so a saver that waits forever fails a check instead of hanging.
+async function within(p) {
+    let out = { done: false };
+    Promise.resolve(p).then(value => { out = { done: true, value }; }, err => { out = { done: true, error: err }; });
+    await settle();
+    return out;
+}
+// A rejection nobody handles is a failure, not a crash of the runner.
+process.on('unhandledRejection', err => { failures++; console.log('FAIL unhandled rejection: ' + (err && err.message)); });
 const apiError = code => Object.assign(new Error('text ' + code), { body: { error: 'text ' + code, code } });
+const DRAFT_KEY = 'aurago.easydrag.draft.f1';
 // saverHarness runs core and saver with fake timers (recorded, fired by hand), a stub localStorage and a
-// stub api whose save() answers with the next entry of responses (an Error is thrown; the last one repeats).
-function saverHarness(responses) {
+// stub api. With a responses array, save() answers with its next entry (an Error rejects; the last one
+// repeats); with null, each save() stays open until the test settles h.saves[i].df. get() and the conflict
+// dialog stay open until the test settles h.gets[i] and h.conflicts[i]. opts: store, onSaved, onState,
+// onInvalid, onConflict. The sandbox's console.error lines land in h.logged.
+function saverHarness(responses, opts = {}) {
     const timers = new Map();
     let nextTimer = 1;
-    const store = new Map();
+    const store = opts.store || new Map();
+    const logged = [];
     const box = vm.createContext({
-        window: {}, navigator: { platform: 'Linux' }, crypto: webcrypto, console,
-        localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },
+        window: {}, navigator: { platform: 'Linux' }, crypto: webcrypto,
+        console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
+        localStorage: {
+            get length() { return store.size; },
+            key: i => Array.from(store.keys())[i] ?? null,
+            getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); }
+        },
         setTimeout: (fn, ms) => { const id = nextTimer++; timers.set(id, { fn, ms }); return id; },
         clearTimeout: id => { timers.delete(id); }
     });
@@ -388,31 +409,52 @@ function saverHarness(responses) {
         const full = path.join(apps, file);
         vm.runInContext(fs.readFileSync(full, 'utf8'), box, { filename: full });
     }
+    const ED = box.window.EasyDrag;
     let version = 1;
-    const model = { get version() { return version; }, toJSON: () => ({ schema: 1, name: 'Flow', nodes: [], edges: [] }), replaceDoc() { version++; } };
+    let doc = { schema: 1, name: 'v1', nodes: [], edges: [] };
+    const model = {
+        get version() { return version; },
+        toJSON: () => JSON.parse(JSON.stringify(doc)),
+        replaceDoc(next) { doc = JSON.parse(JSON.stringify(next)); version++; }
+    };
+    const saves = [];
+    const gets = [];
+    const conflicts = [];
     const api = {
         calls: 0,
-        async save() {
+        save(id, sent, rev) {
             api.calls++;
-            const next = responses.length > 1 ? responses.shift() : responses[0];
-            if (next instanceof Error) throw next;
-            return next;
-        }
+            const entry = { doc: sent, rev, df: deferred() };
+            saves.push(entry);
+            if (responses) {
+                const next = responses.length > 1 ? responses.shift() : responses[0];
+                if (next instanceof Error) entry.df.reject(next); else entry.df.resolve(next);
+            }
+            return entry.df.p;
+        },
+        get() { const df = deferred(); gets.push(df); return df.p; }
     };
-    const saver = box.window.EasyDrag.saver.create({ api, flowId: 'f1', model, revision: 1 });
+    const states = [];
+    const saver = ED.saver.create({
+        api, flowId: 'f1', model, revision: 1,
+        onState: s => { states.push(s); if (opts.onState) opts.onState(s); },
+        onSaved: opts.onSaved,
+        onInvalid: opts.onInvalid,
+        onConflict: opts.onConflict || (() => { const df = deferred(); conflicts.push(df); return df.p; })
+    });
     return {
-        saver, api, store, timers, core: box.window.EasyDrag.core,
-        change() { version++; saver.schedule(); },
+        saver, api, store, timers, saves, gets, conflicts, states, logged, model, ED, core: ED.core,
+        change(name) { version++; doc = Object.assign({}, doc, { name: name || ('v' + version) }); saver.schedule(); },
+        copy() { const raw = store.get(DRAFT_KEY); return raw ? JSON.parse(raw) : null; },
         delays: () => Array.from(timers.values()).map(entry => entry.ms),
         async fire(ms) {
             for (const [id, entry] of timers) {
-                if (entry.ms === ms) { timers.delete(id); entry.fn(); await tick(); return; }
+                if (entry.ms === ms) { timers.delete(id); entry.fn(); await settle(); return; }
             }
             throw new Error('no timer of ' + ms + ' ms');
         }
     };
 }
-const DRAFT_KEY = 'aurago.easydrag.draft.f1';
 await guardAsync('c1d03 permanent save errors', async () => {
     for (const code of ['FLOW_TOO_LARGE', 'FLOW_NOT_FOUND', 'FLOW_PERMISSION_DENIED', 'FLOW_LOCKED', 'FLOW_BAD_REQUEST']) {
         const h = saverHarness([apiError(code)]);
@@ -462,6 +504,227 @@ await guardAsync('c1d03 transient save errors', async () => {
     d.saver.dispose();
     await attempt;
     eq('c1d03 a disposed saver schedules no retry', d.timers.size, 0);
+});
+// The 1d-03 quality review: emergency-copy revisions, FLOW_INVALID, conflicts, callbacks, answers and sweep.
+const CONFLICT = () => apiError('FLOW_REVISION_CONFLICT');
+const NETWORK = () => new TypeError('Failed to fetch');
+const serverFlow = (revision, name) => ({ flow: { draft_revision: revision, draft: { schema: 1, name, nodes: [], edges: [] } } });
+await guardAsync('c1d03 review emergency copy revision', async () => {
+    // An edit during save #1, #1 succeeds, #2 fails: the copy must build on revision 2.
+    const h = saverHarness(null);
+    h.change('A');
+    h.saver.save();
+    h.change('B');
+    h.saves[0].df.resolve({ draft_revision: 2, issues: [] });
+    await settle();
+    h.saves[1].df.reject(NETWORK());
+    await settle();
+    const c = h.copy();
+    eq('c1d03 a copy written while a save raced an edit is offered again', [h.saver.state, h.saves[1].rev, c && c.revision, c && c.doc.name, !!h.ED.saver.emergencyCopy('f1', 2)], ['offline', 2, 2, 'B', true]);
+    // Conflict, keep, the overwrite fails: the copy must build on the server's revision.
+    const k = saverHarness(null);
+    k.change('mine');
+    k.saver.save();
+    k.saves[0].df.reject(CONFLICT());
+    await settle();
+    k.conflicts[0].resolve('keep');
+    await settle();
+    k.gets[0].resolve(serverFlow(7, 'theirs'));
+    await settle();
+    k.saves[1].df.reject(NETWORK());
+    await settle();
+    const kc = k.copy();
+    eq('c1d03 a kept draft whose overwrite fails is offered against the server revision', [k.saves[1].rev, kc && kc.revision, kc && kc.doc.name, !!k.ED.saver.emergencyCopy('f1', 7)], [7, 7, 'mine', true]);
+});
+await guardAsync('c1d03 review invalid documents', async () => {
+    const invalid = Object.assign(new Error('bad'), { body: { error: 'bad', code: 'FLOW_INVALID', issues: [{ code: 'X' }] } });
+    let reported = null;
+    const h = saverHarness([NETWORK(), invalid, { draft_revision: 2, issues: [] }], { onInvalid: issues => { reported = issues; } });
+    h.change('bad');
+    await h.saver.save();
+    await h.fire(5000);
+    eq('c1d03 FLOW_INVALID keeps the draft unsaved, clears the error and reports the issues', [h.saver.state, h.saver.isDirty(), h.saver.error, h.timers.size, reported && reported[0].code], ['invalid', true, null, 0, 'X']);
+    await h.saver.save();
+    const flushed = await within(h.saver.flush());
+    eq('c1d03 the refused document is not sent again and flush() reports it unsaved', [h.saver.state, h.api.calls, flushed.value, !!h.copy()], ['invalid', 2, false, true]);
+    h.change('fixed');
+    await h.fire(1000);
+    eq('c1d03 a changed document is sent again', [h.saver.state, h.api.calls, h.saves[2].doc.name, h.copy()], ['saved', 3, 'fixed', null]);
+});
+await guardAsync('c1d03 review conflict paths', async () => {
+    const r = saverHarness(null);
+    r.change('mine');
+    r.saver.save();
+    r.saves[0].df.reject(CONFLICT());
+    await settle();
+    eq('c1d03 a conflict asks the user once', [r.saver.state, r.conflicts.length, r.gets.length], ['conflict', 1, 0]);
+    r.conflicts[0].resolve('reload');
+    await settle();
+    r.gets[0].resolve(serverFlow(9, 'server'));
+    await settle();
+    eq('c1d03 reload takes the server draft and drops the copy', [r.saver.state, r.saver.revision, r.model.toJSON().name, r.copy(), r.saves.length, r.saver.isDirty()], ['saved', 9, 'server', null, 1, false]);
+    const k = saverHarness(null);
+    k.change('mine');
+    k.saver.save();
+    k.saves[0].df.reject(CONFLICT());
+    await settle();
+    k.conflicts[0].resolve('keep');
+    await settle();
+    k.gets[0].resolve(serverFlow(7, 'theirs'));
+    await settle();
+    k.saves[1].df.resolve({ draft_revision: 8, issues: [] });
+    await settle();
+    eq('c1d03 keep overwrites the server draft with the local one', [k.saves[1].rev, k.saves[1].doc.name, k.saver.state, k.saver.revision, k.model.toJSON().name, k.copy()], [7, 'mine', 'saved', 8, 'mine', null]);
+});
+await guardAsync('c1d03 review conflict fetch failure', async () => {
+    // The fetch after the answer fails: offline with the error; only the fetch is retried, with the shared backoff.
+    const g = saverHarness(null);
+    g.change('mine');
+    g.saver.save();
+    g.saves[0].df.reject(CONFLICT());
+    await settle();
+    g.conflicts[0].resolve('keep');
+    await settle();
+    g.gets[0].reject(NETWORK());
+    await settle();
+    eq('c1d03 a failed conflict fetch goes offline with its error and a retry', [g.saver.state, g.saver.error && g.saver.error.message, g.delays(), g.saves.length], ['offline', 'Failed to fetch', [5000], 1]);
+    await g.fire(5000);
+    g.gets[1] && g.gets[1].reject(NETWORK());
+    await settle();
+    eq('c1d03 the retry fetches again without asking or saving, with the next backoff step', [g.gets.length, g.conflicts.length, g.saves.length, g.delays()], [2, 1, 1, [10000]]);
+    await g.fire(10000);
+    g.gets[2] && g.gets[2].resolve(serverFlow(5, 'theirs'));
+    await settle();
+    eq('c1d03 the remembered keep overwrites on the fetched revision', [g.conflicts.length, g.saves.length, g.saves[1] && g.saves[1].rev, g.saves[1] && g.saves[1].doc.name, g.saver.error], [1, 2, 5, 'mine', null]);
+});
+await guardAsync('c1d03 review conflict fetch failure with reload', async () => {
+    const rr = saverHarness(null);
+    rr.change('mine');
+    rr.saver.save();
+    rr.saves[0].df.reject(CONFLICT());
+    await settle();
+    rr.conflicts[0].resolve('reload');
+    await settle();
+    rr.gets[0].reject(NETWORK());
+    await settle();
+    const flushing = rr.saver.flush();
+    await settle();
+    rr.gets[1] && rr.gets[1].resolve(serverFlow(4, 'server'));
+    const flushed = await within(flushing);
+    eq('c1d03 the remembered reload applies after a failed fetch', [flushed.value, rr.conflicts.length, rr.saves.length, rr.model.toJSON().name, rr.saver.revision], [true, 1, 1, 'server', 4]);
+});
+await guardAsync('c1d03 review conflict after dispose and failing dialog', async () => {
+    // A conflict on a disposed saver opens no dialog, and its save settles.
+    const d = saverHarness(null);
+    d.change('closing');
+    const closing = d.saver.save();
+    d.saver.dispose();
+    d.saves[0].df.reject(CONFLICT());
+    const settled = await within(closing);
+    eq('c1d03 a conflict after dispose opens no dialog and the save settles', [d.conflicts.length, d.gets.length, settled.done], [0, 0, true]);
+    const late = saverHarness(null);
+    late.change('mine');
+    const answered = late.saver.save();
+    late.saves[0].df.reject(CONFLICT());
+    await settle();
+    late.saver.dispose();
+    late.conflicts[0].resolve('reload');
+    const lateSettled = await within(answered);
+    eq('c1d03 a dialog answered after dispose loads nothing', [late.gets.length, late.model.toJSON().name, lateSettled.done], [0, 'mine', true]);
+    // A failing conflict dialog: offline with its error and a retry; the retry asks again.
+    let asked = 0;
+    const cr = saverHarness([CONFLICT()], { onConflict: () => { asked++; return Promise.reject(new Error('dialog failed')); } });
+    cr.change('x');
+    cr.saver.save();
+    await settle();
+    eq('c1d03 a failing conflict dialog goes offline with its error and a retry', [cr.saver.state, cr.saver.error && cr.saver.error.message, cr.delays(), cr.gets.length], ['offline', 'dialog failed', [5000], 0]);
+    await cr.fire(5000);
+    eq('c1d03 the retry saves and asks again', [cr.api.calls, asked, cr.delays()], [2, 2, [10000]]);
+});
+await guardAsync('c1d03 review callbacks and answers', async () => {
+    const h = saverHarness([{ draft_revision: 2, issues: [] }], { onSaved: () => { throw new Error('render failed'); }, onState: s => { if (s === 'saved') throw new Error('state render failed'); } });
+    h.change('x');
+    await within(h.saver.save());
+    eq('c1d03 throwing callbacks do not turn a success into offline', [h.saver.state, h.timers.size, h.copy(), h.saver.revision, h.logged.length], ['saved', 0, null, 2, 2]);
+    const e = saverHarness([{}]);
+    e.change('x');
+    await within(e.saver.save());
+    eq('c1d03 a 200 without draft_revision is transient and keeps the copy', [e.saver.state, e.saver.revision, !!e.copy(), e.delays()], ['offline', 1, true, [5000]]);
+    const statusError = status => Object.assign(new Error('HTTP ' + status), { body: {}, status });
+    const states = [401, 403, 404, 413, 408, 429, 500, 502].map(status => {
+        const s = saverHarness([statusError(status)]);
+        s.change('x');
+        s.saver.save();
+        return s;
+    });
+    await settle();
+    eq('c1d03 an answer without a code fails on 4xx except 408 and 429', states.map(s => s.saver.state), ['failed', 'failed', 'failed', 'failed', 'offline', 'offline', 'offline', 'offline']);
+});
+await guardAsync('c1d03 review backoff and errors', async () => {
+    const LOCKED = () => apiError('FLOW_LOCKED');
+    const invalid = () => Object.assign(new Error('bad'), { body: { error: 'bad', code: 'FLOW_INVALID', issues: [] } });
+    const p = saverHarness([NETWORK(), NETWORK(), LOCKED(), NETWORK()]);
+    p.change('x');
+    await within(p.saver.save());
+    await p.fire(5000);
+    await p.fire(10000);
+    p.change('y');
+    await within(p.saver.save());
+    eq('c1d03 a permanent answer resets the backoff', p.delays(), [5000]);
+    const v = saverHarness([NETWORK(), NETWORK(), invalid(), NETWORK()]);
+    v.change('x');
+    await within(v.saver.save());
+    await v.fire(5000);
+    await v.fire(10000);
+    v.change('y');
+    await within(v.saver.save());
+    eq('c1d03 an invalid answer resets the backoff', v.delays(), [5000]);
+    const c = saverHarness([NETWORK(), CONFLICT()]);
+    c.change('x');
+    await within(c.saver.save());
+    await c.fire(5000);
+    eq('c1d03 entering a conflict clears the error', [c.saver.state, c.saver.error], ['conflict', null]);
+});
+await guardAsync('c1d03 review save during a failing request', async () => {
+    // A save() during a request that then fails waits for the retry timer instead of sending again at once.
+    const q = saverHarness(null);
+    q.change('a');
+    q.saver.save();
+    q.change('b');
+    q.saver.save();
+    q.saves[0].df.reject(NETWORK());
+    await settle();
+    eq('c1d03 a save() during a failing request sends no second request at once', [q.saves.length, q.saver.state, q.delays()], [1, 'offline', [5000]]);
+    await q.fire(5000);
+    eq('c1d03 the retry sends the latest document', [q.saves.length, q.saves[1] && q.saves[1].doc.name], [2, 'b']);
+});
+await guardAsync('c1d03 review flush', async () => {
+    const f = saverHarness(null);
+    f.change('a');
+    f.saver.save();
+    f.change('b');
+    f.saver.save();
+    const flushing = f.saver.flush();
+    f.saves[0].df.resolve({ draft_revision: 2, issues: [] });
+    await settle();
+    f.saves[1] && f.saves[1].df.resolve({ draft_revision: 3, issues: [] });
+    const flushed = await within(flushing);
+    eq('c1d03 flush() waits for the queued save and reports saved', [flushed.value, f.saves.length, f.saves[1] && f.saves[1].rev, f.saver.state, f.copy()], [true, 2, 2, 'saved', null]);
+    const o = saverHarness([NETWORK()]);
+    o.change('a');
+    const offline = await within(o.saver.flush());
+    eq('c1d03 flush() reports an offline draft as unsaved', [offline.value, o.saver.state, !!o.copy()], [false, 'offline', true]);
+});
+await guardAsync('c1d03 review sweep', async () => {
+    const day = 24 * 60 * 60 * 1000;
+    const store = new Map([
+        ['aurago.easydrag.draft.old', JSON.stringify({ revision: 1, at: Date.now() - 31 * day, doc: {} })],
+        ['aurago.easydrag.draft.fresh', JSON.stringify({ revision: 1, at: Date.now() - 29 * day, doc: {} })],
+        ['aurago.easydrag.draft.broken', '{not json'],
+        ['aurago.easydrag.view.old', JSON.stringify({ x: 0, at: 0 })]
+    ]);
+    saverHarness([{}], { store });
+    eq('c1d03 creating a saver sweeps emergency copies older than 30 days', Array.from(store.keys()).sort(), ['aurago.easydrag.draft.fresh', 'aurago.easydrag.view.old']);
 });
 await guardAsync('c1d03 shell api errors', async () => {
     // api() of desktop-foundation.js is the ctx.api that createApi wraps; it runs here with a stub fetch.
