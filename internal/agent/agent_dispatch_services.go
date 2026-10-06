@@ -616,6 +616,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 			containerID := req.targetContainerID()
+			// SecurityProxyOwner is listed only to keep this list in sync with the
+			// server's containerProtectedOwners. Its flag is deliberately never
+			// checked: the agent keeps its access to the proxy container, and
+			// dockerRequestCreatesReservedSecurityProxyName refuses create/run.
 			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
 				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "local-llm", dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner)
 			if !localLLMDockerOperationSafe(req.Operation) && owned[acestep.Owner] {

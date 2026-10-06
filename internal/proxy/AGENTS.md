@@ -86,6 +86,14 @@ section. Operator guidance lives in the Security Proxy section of
   `engine.request`, never by labels: containers that older versions created
   without labels keep working, and none of these checks apply to its own
   stop, remove, create, start and exec calls.
+  Open follow-up: the agent's Docker Compose path does not check the name, so
+  a stack with `container_name: aurago-security-proxy` can still create one.
+  Start force-removes any container with the reserved name before it
+  creates its own, so such a squatter does not survive a Start. If the
+  Compose check is added, test only `service.ContainerName`: the shared
+  owner lookup (`tools.dockerComposeContainerOwner`) also covers
+  `network_mode`, `pid`, `ipc` and `volumes_from` references, which would
+  newly block stacks that join the proxy's namespaces.
 - Lifecycle: `startLocked` generates the Caddyfile in memory first (credential
   errors come before any build or pull), then runs `ensureImage`, and only
   after that writes the Caddyfile and removes the old container. A failed

@@ -26,9 +26,12 @@ const (
 	containerCodeSelfUpdateUnsupported = "container_self_update_unsupported"
 )
 
-// containerProtectedOwners is the owner list the agent docker tool protects
-// (internal/agent/agent_dispatch_services.go, tools.DockerContainerOwnership
-// call). The app owner comes first so the app container names itself.
+// containerProtectedOwners are the owners whose containers need a
+// confirmation for terminal, update and remove. The agent docker tool keeps
+// the same list (internal/agent/agent_dispatch_services.go,
+// tools.DockerContainerOwnership call), but it does not block every owner the
+// same way: for security-proxy it only refuses create/run of the reserved
+// name. The app owner comes first so the app container names itself.
 var containerProtectedOwners = []string{
 	dockerutil.AppOwner,
 	acestep.Owner,
