@@ -275,7 +275,7 @@ powershell -nologo -noprofile -command ^
   "  'deploy\\aurago-remote_windows_arm64.exe'" ^
   ");" ^
   "$out = foreach ($file in $files) { if (Test-Path $file) { $hash = Get-Sha256Hex $file; '{0}  {1}' -f $hash, [IO.Path]::GetFileName($file) } };" ^
-  "$out | Set-Content 'deploy\\SHA256SUMS'"
+  "[IO.File]::WriteAllText((Join-Path (Get-Location).Path 'deploy\\SHA256SUMS'), ((@($out) -join [char]10) + [char]10), (New-Object System.Text.UTF8Encoding($false)))"
 if errorlevel 1 (
     echo [ERROR] Failed to generate SHA256SUMS.
     exit /b 1
@@ -326,8 +326,34 @@ REM -- [4/5] Create GitHub Release
 echo [4/5] Creating GitHub Release !VERSION! ...
 echo.
 
-gh release create "!VERSION!" --title "AuraGo !VERSION!" --notes "## AuraGo !VERSION!"
-if errorlevel 1 (
+REM Release notes go through a file because they span several lines.
+set "NOTES_FILE=%TEMP%\aurago-release-notes-!VERSION!.md"
+(
+    echo ## AuraGo !VERSION!
+    echo.
+    echo ### Installation
+    echo.
+    echo **Verified install ^(recommended^):**
+    echo ```bash
+    echo curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
+    echo curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
+    echo sha256sum -c --ignore-missing SHA256SUMS ^&^& bash install.sh
+    echo ```
+    echo.
+    echo **Quick install ^(runs the script from the main branch^):**
+    echo ```bash
+    echo curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh ^| bash
+    echo ```
+    echo.
+    echo **Update existing install:**
+    echo ```bash
+    echo ./update.sh
+    echo ```
+) > "!NOTES_FILE!"
+gh release create "!VERSION!" --title "AuraGo !VERSION!" --notes-file "!NOTES_FILE!"
+set "GH_RELEASE_RC=!errorlevel!"
+del "!NOTES_FILE!" >nul 2>&1
+if not "!GH_RELEASE_RC!"=="0" (
     echo [ERROR] gh release create failed.
     echo         Check: gh auth status  ^(must be logged in^)
     echo         Tag !VERSION! may already exist: gh release delete !VERSION!

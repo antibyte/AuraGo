@@ -29,7 +29,7 @@ Three roads, same gopher: installer, Docker, or build it yourself. The full UI a
 
 ## Installation Methods
 
-### Option A: Installer script (recommended for Linux/macOS)
+### Option A: Installer script (recommended for Linux)
 
 **Verified install (recommended).** Download the installer and its checksum list from the latest release, and run the script only if the checksum matches:
 
@@ -52,15 +52,16 @@ The script will:
 4. Create a systemd service for auto-start
 5. Ask whether AuraGo should use Bluetooth and, on "yes", prepare the server for it
 
-**With custom directory:**
+**With custom directory** (the installer reads `AURAGO_DIR`, default `~/aurago`):
 ```bash
-curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_INSTALL_DIR=/opt/aurago bash
+AURAGO_DIR=/opt/aurago bash install.sh
+```
+With the quick install, set the variable on the `bash` side of the pipe:
+```bash
+curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_DIR=/opt/aurago bash
 ```
 
-**Install specific version:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_VERSION=v1.0.0 bash
-```
+**Older versions:** the installer always installs the latest release. For an older version, use the manual install (Option C) with the assets of `https://github.com/antibyte/AuraGo/releases/tag/<tag>`.
 
 **Answer the Bluetooth question in advance:**
 ```bash
@@ -95,7 +96,7 @@ Download from GitHub Releases:
 
 | File | Description |
 |------|-------------|
-| `aurago_<os>_<arch>` | The AuraGo executable (must be pinned to the same resource set) |
+| `aurago_<os>_<arch>` | The AuraGo executable (must be pinned to the same resource set). Linux amd64 is `aurago_linux`, without an arch suffix |
 | `aurago-web-assets-<id>.tar.gz` | Full web UI, desktop, Game Maker runtimes |
 | `resources.dat` | Prompts, skills and other backend resources — **not a UI replacement** |
 
@@ -295,10 +296,18 @@ You should see the login screen or chat (depending on auth configuration).
 
 ## Updating
 
-### One-Liner Installation:
+### Installer script (Option A):
+Run the updater from the install directory. The installer put `update.sh` there; the binary is `bin/aurago_linux`:
 ```bash
 cd ~/aurago
-curl -fSL -o aurago https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux_amd64
+./update.sh
+```
+
+### Manual installation (Option C):
+Replace the executable (on arm64 download `aurago_linux_arm64`):
+```bash
+cd ~/aurago
+curl -fSL -o aurago https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux
 chmod +x aurago
 sudo systemctl restart aurago
 ```

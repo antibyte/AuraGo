@@ -275,3 +275,46 @@ func TestMakeDeployWritesEachChecksumBasenameOnlyOnce(t *testing.T) {
 		}
 	}
 }
+
+// The documented verified install runs `sha256sum -c --ignore-missing
+// SHA256SUMS`. GNU coreutils 8.x (Ubuntu 22.04, Debian 11, RHEL 8/9) treats the
+// CR of a CRLF manifest as part of the file name and then verifies nothing, so
+// the Windows release scripts must write the manifest with LF line endings and
+// no BOM. PowerShell's Set-Content writes CRLF.
+func TestWindowsReleaseScriptsWriteLFChecksumManifest(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		path    string
+		writers []string
+	}{
+		{
+			path: "make_release.ps1",
+			writers: []string{
+				`[IO.File]::WriteAllText((Join-Path $scriptDir 'deploy\SHA256SUMS')`,
+				"-join \"`n\"",
+				`[Text.UTF8Encoding]::new($false)`,
+			},
+		},
+		{
+			path: "make_release.bat",
+			writers: []string{
+				`[IO.File]::WriteAllText((Join-Path (Get-Location).Path 'deploy\\SHA256SUMS')`,
+				`-join [char]10`,
+				`New-Object System.Text.UTF8Encoding($false)`,
+			},
+		},
+	} {
+		script := readRepoFile(t, tc.path)
+		for _, line := range strings.Split(script, "\n") {
+			if strings.Contains(line, "Set-Content") && strings.Contains(line, "SHA256SUMS") {
+				t.Fatalf("%s must not write SHA256SUMS with Set-Content (CRLF breaks sha256sum -c --ignore-missing): %q", tc.path, strings.TrimSpace(line))
+			}
+		}
+		for _, want := range tc.writers {
+			if !strings.Contains(script, want) {
+				t.Fatalf("%s must write SHA256SUMS as LF-only UTF-8 without BOM; missing %q", tc.path, want)
+			}
+		}
+	}
+}

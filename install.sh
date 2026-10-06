@@ -1526,6 +1526,68 @@ latest_release_tag_via_redirect() {
     basename "$effective_url"
 }
 
+# Downloads the RPM Fusion Free signing key, checks it against a pinned
+# fingerprint and imports it into the RPM keyring. Returns 1 after one warning
+# that names the cause; never leaves the temporary key file behind.
+#
+# RPM Fusion signs its Free release packages for Fedora 33-46 with one
+# year-named key, not a per-release one (source: https://rpmfusion.org/keys,
+# "RPM-GPG-KEY-rpmfusion-free-fedora-2020", uid "RPM Fusion free repository for
+# Fedora (2020)"). When RPM Fusion rotates keys, change the two values below.
+import_rpmfusion_free_key() {
+    local key_url="https://rpmfusion.org/keys?action=AttachFile&do=get&target=RPM-GPG-KEY-rpmfusion-free-fedora-2020"
+    local key_fpr="E9A491A3DE247814E7E067EAE06F8ECDD651FF2E"
+    local key_id keyfile gpg_out pub_count
+    # rpm names an imported key gpg-pubkey-<last 8 fingerprint digits, lowercase>.
+    key_id="$(printf '%s' "${key_fpr: -8}" | tr 'A-F' 'a-f')"
+
+    keyfile="$(mktemp "${TMPDIR:-/tmp}/aurago-rpmfusion-key.XXXXXX")" || {
+        warn "Could not create a temporary file for the RPM Fusion signing key; skipping RPM Fusion"
+        return 1
+    }
+    if ! _download_optional "$key_url" "$keyfile"; then
+        rm -f "$keyfile"
+        warn "Could not download the RPM Fusion signing key; skipping RPM Fusion"
+        return 1
+    fi
+
+    if command -v gpg >/dev/null 2>&1; then
+        # Verify before importing. --show-keys needs gnupg 2.1+; older gpg lists
+        # a key file when it is simply given as the argument.
+        gpg_out="$(gpg --show-keys --with-colons --with-fingerprint "$keyfile" 2>/dev/null ||
+            gpg --with-colons --with-fingerprint "$keyfile" 2>/dev/null || true)"
+        # A file holding a second key next to the pinned one would import both.
+        pub_count="$(printf '%s\n' "$gpg_out" | grep -c '^pub:' || true)"
+        if ! printf '%s\n' "$gpg_out" | grep -q "^fpr:::::::::${key_fpr}:" || [ "${pub_count:-0}" -gt 1 ]; then
+            rm -f "$keyfile"
+            warn "The downloaded RPM Fusion signing key is not the pinned key (fingerprint ${key_fpr}); skipping RPM Fusion"
+            return 1
+        fi
+        if ! $SUDO rpm --import "$keyfile" 2>/dev/null; then
+            rm -f "$keyfile"
+            warn "Could not import the RPM Fusion signing key; skipping RPM Fusion"
+            return 1
+        fi
+    else
+        # Without gpg the fingerprint cannot be read before the import, so import
+        # first and then require the pinned 8-digit key id in the RPM keyring.
+        # That is a weaker check than the fingerprint (short key ids can be
+        # forged), accepted here for a home-lab installer without gnupg.
+        if ! $SUDO rpm --import "$keyfile" 2>/dev/null; then
+            rm -f "$keyfile"
+            warn "Could not import the RPM Fusion signing key; skipping RPM Fusion"
+            return 1
+        fi
+        if ! rpm -q "gpg-pubkey-${key_id}" >/dev/null 2>&1; then
+            rm -f "$keyfile"
+            warn "RPM Fusion signing key ${key_id} is not in the RPM keyring after the import; skipping RPM Fusion"
+            return 1
+        fi
+    fi
+    rm -f "$keyfile"
+    return 0
+}
+
 install_ffmpeg() {
     case "$PKG_MGR" in
         apt)
@@ -1539,17 +1601,13 @@ install_ffmpeg() {
                 local fedora_release
                 fedora_release="$(rpm -E %fedora 2>/dev/null || true)"
                 if printf '%s' "$fedora_release" | grep -Eq '^[0-9]+$'; then
-                    # Import the RPM Fusion signing key first, then let dnf check the
-                    # downloaded release RPM against it instead of trusting the bare URL.
-                    # A failure returns 1; ensure_ffmpeg turns that into the "install
+                    # Import the pinned RPM Fusion signing key first, then let dnf check
+                    # the downloaded release RPM against it instead of trusting the bare
+                    # URL. A failure returns 1; ensure_ffmpeg turns that into the "install
                     # manually" warning, so the warnings here only name the cause.
-                    local rpmfusion_key="https://rpmfusion.org/keys?action=AttachFile&do=get&target=RPM-GPG-KEY-rpmfusion-free-fedora-${fedora_release}"
-                    if ! $SUDO rpm --import "$rpmfusion_key" 2>/dev/null; then
-                        warn "Could not import the RPM Fusion signing key; skipping RPM Fusion (ffmpeg may be unavailable)"
-                        return 1
-                    fi
+                    import_rpmfusion_free_key || return 1
                     if ! $SUDO dnf install -y --setopt=localpkg_gpgcheck=1 "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-${fedora_release}.noarch.rpm" 2>/dev/null; then
-                        warn "RPM Fusion release package failed its signature check or install; skipping RPM Fusion (ffmpeg may be unavailable)"
+                        warn "RPM Fusion release package failed its signature check or install; skipping RPM Fusion"
                         return 1
                     fi
                     $SUDO dnf install -y ffmpeg

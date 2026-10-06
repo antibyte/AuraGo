@@ -220,9 +220,9 @@ Before each commit, review the exact staged diff (`git diff --cached` and `git d
 ## Deployment
 
 - Docker deployment is recommended: use `docker-compose up -d` from Build Commands; `docker-compose -f docker-compose.yml up -d` explicitly selects the same default file.
-- Verified Linux install: download `install.sh` and `SHA256SUMS` from the latest release, `sha256sum -c --ignore-missing SHA256SUMS && bash install.sh`.
-- Quick Linux install: `curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash`.
-- Manual Linux binary install: `wget https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux_amd64`, then `chmod +x aurago_linux_amd64` and `./aurago_linux_amd64`.
+- Verified Linux install: download `install.sh` and `SHA256SUMS` from `https://github.com/antibyte/AuraGo/releases/latest/download/`, then `sha256sum -c --ignore-missing SHA256SUMS && bash install.sh`.
+- Quick Linux install (runs the script from the main branch): `curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash`.
+- Manual Linux binary install: `wget https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux` (arm64: `aurago_linux_arm64`), then `chmod +x aurago_linux` and `./aurago_linux`.
 - Systemd service: `sudo ./install_service_linux.sh`.
 
 ## Key Architecture Patterns

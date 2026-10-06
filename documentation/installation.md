@@ -1,6 +1,8 @@
 # AuraGo — Installation Guide
 
-## Quick Install (Linux / macOS)
+## Installer script (Linux)
+
+The installer is a Linux script (x86_64 and arm64). macOS and Windows use the [manual install](#manual-install-all-platforms) below.
 
 ### Verified install (recommended)
 
@@ -28,15 +30,21 @@ This will:
 
 ### Custom install directory
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_INSTALL_DIR=/opt/aurago bash
-```
-
-### Specific version
+The installer reads the target directory from `AURAGO_DIR` (default `~/aurago`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_VERSION=v1.0.0 bash
+AURAGO_DIR=/opt/aurago bash install.sh
 ```
+
+With the quick install, set the variable on the `bash` side of the pipe:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_DIR=/opt/aurago bash
+```
+
+### Older versions
+
+The installer always installs the latest release. For an older version, use the [manual install](#manual-install-all-platforms) with the assets of `https://github.com/antibyte/AuraGo/releases/tag/<tag>`.
 
 ---
 
@@ -61,7 +69,7 @@ Download two files from the [GitHub Releases](https://github.com/antibyte/AuraGo
 
 | OS | amd64 (Intel/AMD) | arm64 (Apple M/ARM) |
 |---|---|---|
-| Linux | `aurago_linux_amd64` | `aurago_linux_arm64` |
+| Linux | `aurago_linux` | `aurago_linux_arm64` |
 | macOS | `aurago_darwin_amd64` | `aurago_darwin_arm64` |
 | Windows | `aurago_windows_amd64.exe` | `aurago_windows_arm64.exe` |
 
@@ -200,11 +208,18 @@ On the same machine the setup wizard opens directly. If AuraGo is reachable from
 
 ## Updating
 
-To update AuraGo, simply replace the executable:
+**Installed with the installer script:** run the updater from the install directory (the installer put `update.sh` there; the binary is `bin/aurago_linux`):
 
 ```bash
 cd ~/aurago
-curl -fSL -o aurago https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux_amd64
+./update.sh
+```
+
+**Manual install:** replace the executable (on arm64 download `aurago_linux_arm64`):
+
+```bash
+cd ~/aurago
+curl -fSL -o aurago https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux
 chmod +x aurago
 # Restart
 sudo systemctl restart aurago   # or just ./aurago
@@ -262,12 +277,12 @@ cd AuraGo
 # or
 make_deploy.bat         # Windows
 
-# Output in deploy/
-ls deploy/
-#   aurago_linux_amd64   aurago_darwin_arm64   resources.dat
-#   aurago_linux_arm64   aurago_windows_amd64.exe  ...
+# Output: Linux binaries in bin/, everything else in deploy/
+ls bin/ deploy/
+#   bin/aurago_linux          deploy/aurago_darwin_arm64   deploy/resources.dat
+#   bin/aurago_linux_arm64    deploy/aurago_windows_amd64.exe  ...
 ```
 
-Upload the contents of `deploy/` to a GitHub Release.
+Upload the contents of `deploy/` and the Linux binaries from `bin/` to a GitHub Release.
 
 Full browser resources are supplied by the version-bound local asset set. The installer and Docker image include it; bare executables retain a small recovery/login page. See [resource packaging and offline installation](web-assets.md).

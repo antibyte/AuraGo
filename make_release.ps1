@@ -302,7 +302,9 @@ $checksumLines = foreach ($file in $checksumFiles) {
         "{0}  {1}" -f $hash, [IO.Path]::GetFileName($file)
     }
 }
-Set-Content -Path "deploy\SHA256SUMS" -Value $checksumLines
+# Write LF-only, BOM-less text: Set-Content emits CRLF, and GNU coreutils 8.x
+# `sha256sum -c --ignore-missing` then verifies nothing on the user's machine.
+[IO.File]::WriteAllText((Join-Path $scriptDir 'deploy\SHA256SUMS'), (($checksumLines -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
 Write-Host "    -> deploy\SHA256SUMS" -ForegroundColor Green
 
 # Reset env
@@ -369,7 +371,14 @@ $notes = @'
 
 ### Installation
 
-**One-liner (no Go required):**
+**Verified install (recommended, no Go required):**
+```bash
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
+```
+
+**Quick install (runs the script from the main branch):**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
 ```

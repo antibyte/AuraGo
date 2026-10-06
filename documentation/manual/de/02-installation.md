@@ -29,7 +29,7 @@ Drei Wege, derselbe Gopher: Installer, Docker oder selbst bauen. Die volle UI ko
 
 ## Installationsmethoden
 
-### Option A: Installer-Skript (empfohlen für Linux/macOS)
+### Option A: Installer-Skript (empfohlen für Linux)
 
 **Geprüfte Installation (empfohlen).** Lade den Installer und die Prüfsummenliste aus dem neuesten Release herunter und führe das Skript nur aus, wenn die Prüfsumme stimmt:
 
@@ -45,22 +45,23 @@ sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
 curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
 ```
 
-Das Script:
+Das Skript:
 1. Erkennt dein Betriebssystem und Architektur
 2. Lädt die passende Binary + Ressourcen herunter
 3. Extrahiert alles nach `~/aurago/`
 4. Erstellt einen systemd-Service für Autostart
 5. Fragt, ob AuraGo Bluetooth nutzen soll, und richtet den Server bei „ja“ dafür ein
 
-**Mit benutzerdefiniertem Verzeichnis:**
+**Mit benutzerdefiniertem Verzeichnis** (der Installer liest `AURAGO_DIR`, Standard `~/aurago`):
 ```bash
-curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_INSTALL_DIR=/opt/aurago bash
+AURAGO_DIR=/opt/aurago bash install.sh
+```
+Bei der Schnellinstallation setzt du die Variable auf der `bash`-Seite der Pipe:
+```bash
+curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_DIR=/opt/aurago bash
 ```
 
-**Bestimmte Version installieren:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_VERSION=v1.0.0 bash
-```
+**Ältere Versionen:** Der Installer installiert immer das neueste Release. Für eine ältere Version nutzt du die manuelle Installation (Option C) mit den Assets von `https://github.com/antibyte/AuraGo/releases/tag/<tag>`.
 
 **Bluetooth-Frage vorab beantworten:**
 ```bash
@@ -95,7 +96,7 @@ Lade von GitHub Releases:
 
 | Datei | Beschreibung |
 |-------|--------------|
-| `aurago_<os>_<arch>` | Die AuraGo-Executable (muss auf dasselbe Ressourcen-Set gepinnt sein) |
+| `aurago_<os>_<arch>` | Die AuraGo-Executable (muss auf dasselbe Ressourcen-Set gepinnt sein). Linux amd64 heißt `aurago_linux`, ohne Architektur-Suffix |
 | `aurago-web-assets-<id>.tar.gz` | Volle Web-UI, Desktop, Game-Maker-Runtimes |
 | `resources.dat` | Prompts, Skills und andere Backend-Ressourcen — **ersetzt die UI nicht** |
 
@@ -289,10 +290,18 @@ Du solltest den Login-Screen oder den Chat sehen (je nach Auth-Konfiguration).
 
 ## Update durchführen
 
-### One-Liner Installation:
+### Installer-Skript (Option A):
+Starte den Updater im Installationsverzeichnis. Der Installer hat dort `update.sh` abgelegt; das Binary ist `bin/aurago_linux`:
 ```bash
 cd ~/aurago
-curl -fSL -o aurago https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux_amd64
+./update.sh
+```
+
+### Manuelle Installation (Option C):
+Ersetze die Executable (auf arm64 lädst du `aurago_linux_arm64`):
+```bash
+cd ~/aurago
+curl -fSL -o aurago https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux
 chmod +x aurago
 sudo systemctl restart aurago
 ```
