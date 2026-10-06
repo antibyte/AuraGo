@@ -179,30 +179,35 @@ func (s *Server) invasionTransportSecret(nest invasion.NestRecord) ([]byte, erro
 }
 
 // nestDockerTLSSnapshot is the raw vault entry a nest update is about to
-// replace. taken is false when it could not be read; nothing is restored then.
+// replace, and the material the update replaces it with. taken is false when
+// the entry could not be read; nothing is restored then.
 type nestDockerTLSSnapshot struct {
 	taken, exists bool
 	raw           string
+	stored        invasion.DockerTLSMaterial
 }
 
-func (s *Server) snapshotNestDockerTLS(nestID string) nestDockerTLSSnapshot {
+// snapshotNestDockerTLS reads the entry before next is stored over it.
+func (s *Server) snapshotNestDockerTLS(nestID string, next invasion.DockerTLSMaterial) nestDockerTLSSnapshot {
 	if s.Vault == nil {
 		return nestDockerTLSSnapshot{}
 	}
 	raw, err := s.Vault.ReadSecret(invasion.DockerTLSVaultKey(nestID))
 	switch {
 	case err == nil:
-		return nestDockerTLSSnapshot{taken: true, exists: true, raw: raw}
+		return nestDockerTLSSnapshot{taken: true, exists: true, raw: raw, stored: next}
 	case errors.Is(err, security.ErrSecretNotFound):
-		return nestDockerTLSSnapshot{taken: true}
+		return nestDockerTLSSnapshot{taken: true, stored: next}
 	}
 	return nestDockerTLSSnapshot{}
 }
 
 // restoreNestDockerTLSSnapshot puts back the entry a failed nest update
-// replaced, so the unchanged mode keeps the material it was saved with. Best
-// effort: on failure the nest keeps the new material and fails closed if it
-// does not fit the mode.
+// replaced, so the unchanged mode keeps the material it was saved with. An
+// earlier entry is written back only while the vault still holds the material
+// this update stored (compare-and-swap), so a later save wins. Best effort: on
+// failure the nest keeps the new material and fails closed if it does not fit
+// the mode.
 func (s *Server) restoreNestDockerTLSSnapshot(nestID string, snap nestDockerTLSSnapshot) {
 	if !snap.taken || s.Vault == nil {
 		return
@@ -210,7 +215,13 @@ func (s *Server) restoreNestDockerTLSSnapshot(nestID string, snap nestDockerTLSS
 	key := invasion.DockerTLSVaultKey(nestID)
 	var err error
 	if snap.exists {
-		err = s.Vault.WriteSecret(key, snap.raw)
+		var stored []byte
+		if stored, err = json.Marshal(snap.stored); err == nil {
+			err = s.Vault.CompareAndSwapSecret(key, string(stored), snap.raw)
+			if errors.Is(err, security.ErrSecretChanged) {
+				return // a later save replaced this update's material; it wins
+			}
+		}
 	} else {
 		err = s.Vault.DeleteSecret(key)
 	}

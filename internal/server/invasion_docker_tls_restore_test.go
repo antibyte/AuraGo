@@ -118,3 +118,64 @@ func TestUpdateNestFailedEarlyLeftoverDeleteKeepsThePlainNest(t *testing.T) {
 		t.Fatalf("nest = mode %q port %d, want it unchanged (plain, 2375)", n.DockerTLS, n.Port)
 	}
 }
+
+func TestRestoreNestDockerTLSSnapshotLeavesALaterWriteAlone(t *testing.T) {
+	s := newInvasionTLSTestServer(t)
+	const id = "12345678-abcd-ef12-3456-7890abcdef12"
+	key := invasion.DockerTLSVaultKey(id)
+	oldCA, _, _ := testDockerTLSPEMs(t)
+	newCA, _, _ := testDockerTLSPEMs(t)
+	if err := s.storeNestDockerTLS(id, invasion.DockerTLSMaterial{CA: strings.TrimSpace(oldCA)}); err != nil {
+		t.Fatal(err)
+	}
+	previous, _ := s.Vault.ReadSecret(key)
+	stored := invasion.DockerTLSMaterial{CA: strings.TrimSpace(newCA)}
+
+	snap := s.snapshotNestDockerTLS(id, stored)
+	if err := s.storeNestDockerTLS(id, stored); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Vault.WriteSecret(key, "written by a later save"); err != nil {
+		t.Fatal(err)
+	}
+	s.restoreNestDockerTLSSnapshot(id, snap)
+	if raw, _ := s.Vault.ReadSecret(key); raw != "written by a later save" {
+		t.Fatalf("vault = %q, want the later write kept: the restore may only replace what this request stored", raw)
+	}
+
+	if err := s.storeNestDockerTLS(id, stored); err != nil {
+		t.Fatal(err)
+	}
+	s.restoreNestDockerTLSSnapshot(id, snap)
+	if raw, _ := s.Vault.ReadSecret(key); raw != previous {
+		t.Fatalf("vault = %q, want the snapshot back while the entry still holds this request's material", raw)
+	}
+}
+
+func TestUpdateNestDeletesALeftoverOnAPlainNestWhenDBUpdateFails(t *testing.T) {
+	s := newInvasionTLSTestServer(t)
+	created := invasionTLSRequest(t, handleInvasionNests(s), http.MethodPost, "/api/invasion/nests", map[string]any{
+		"name": "plain", "access_type": "docker", "host": "10.0.0.5", "deploy_method": "docker_remote", "active": true})
+	var body struct {
+		ID string `json:"id"`
+	}
+	if created.Code != http.StatusOK || json.Unmarshal(created.Body.Bytes(), &body) != nil {
+		t.Fatalf("create: %d %s", created.Code, created.Body.String())
+	}
+	leftoverCA, _, _ := testDockerTLSPEMs(t)
+	if err := s.storeNestDockerTLS(body.ID, invasion.DockerTLSMaterial{CA: strings.TrimSpace(leftoverCA)}); err != nil {
+		t.Fatal(err)
+	}
+	ca, _, _ := testDockerTLSPEMs(t)
+	failNestUpdates(t, s)
+	rec := invasionTLSRequest(t, handleInvasionNest(s), http.MethodPut, "/api/invasion/nests/"+body.ID, tlsPut(map[string]any{"docker_tls": "tls", "docker_tls_ca": ca}))
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", rec.Code)
+	}
+	if n, _ := invasion.GetNest(s.InvasionDB, body.ID); n.DockerTLS != "" {
+		t.Fatalf("mode = %q, want plain", n.DockerTLS)
+	}
+	if raw, err := s.Vault.ReadSecret(invasion.DockerTLSVaultKey(body.ID)); err != security.ErrSecretNotFound {
+		t.Fatalf("vault = %q, %v; want the entry deleted: a leftover on a plain nest must not come back", raw, err)
+	}
+}
