@@ -465,4 +465,31 @@ export async function run(env) {
         check('c1d04 the node list names where each step leads', h.el.querySelector('.ed-node-list').html.includes('Alpha ' + String.fromCharCode(0x2192) + ' Changed'));
         eq('c1d04 the frame checks log no errors', h.logged, []);
     });
+
+    await guardAsync('c1d04 model swap', async () => {
+        // Entering a run view swaps in a new model that starts at version 0 like the untouched draft:
+        // caches keyed on the version alone would keep showing the draft.
+        const h = harness(twoNodes('e1', { nodes: [{ id: C, key: 'gamma', type: 'web.search', label: 'Gamma', position: { x: 0, y: 300 }, params: {}, settings: {} }] }));
+        const nodes = h.el.querySelector('.ed-minimap-nodes');
+        const G = h.ED.geometry;
+        h.wires.highlight(A);
+        const draft = [h.model.version, nodes.children.length, h.card(B).html.includes('Alpha')];
+        const run = h.ED.model.create({ schema: 1, name: 'Run', nodes: [
+            { id: A, key: 'alpha', type: 'web.search', label: 'Renamed in run', position: { x: 0, y: 0 }, params: {}, settings: {} },
+            { id: B, key: 'beta', type: 'web.search', label: 'Beta', position: { x: 600, y: 0 }, params: { query: '{{alpha.results}}' }, settings: {} }
+        ], edges: [{ id: 'e1', source: { node: A, port: 'out' }, target: { node: B, port: 'in' } }] }, { types: h.ed.catalog.types });
+        h.ed.model = run;
+        h.ed.selection = new Set();
+        h.ed.runView = { run: {}, doc: {} };
+        h.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
+        h.flushFrames();
+        let paths = 0;
+        const wirePath = G.wirePath;
+        G.wirePath = (a, b) => { paths++; return wirePath(a, b); };
+        h.wires.highlight(A);
+        G.wirePath = wirePath;
+        eq('c1d04 a swapped-in model at the same version redraws the minimap, summaries and path',
+            [draft, run.version, nodes.children.length, h.card(B).html.includes('Renamed in run'), h.card(B).html.includes('Alpha'), paths], [[0, 3, true], 0, 2, true, false, 1]);
+        eq('c1d04 the swap checks log no errors', h.logged, []);
+    });
 }

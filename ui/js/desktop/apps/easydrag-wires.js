@@ -20,6 +20,8 @@
         let hideTimer = 0;
         let pathNode = null;
         let pathSet = new Set();
+        // highlight's path is valid for this model and version (a run view brings its own model).
+        let pathModel = null;
         let pathVersion = -1;
         let markedEdge = null;
         let dropTarget = null;
@@ -101,7 +103,8 @@
         // renderFor redraws the wires of moved or edited nodes; their pills only move.
         function renderFor(nodeIds) {
             const set = new Set(nodeIds || []);
-            ed.model.doc.edges.forEach(e => { if (set.has(e.source.node) || set.has(e.target.node)) drawEdge(e); });
+            const byId = nodeMap();
+            ed.model.doc.edges.forEach(e => { if (set.has(e.source.node) || set.has(e.target.node)) drawEdge(e, byId); });
             if (hoverEdge) placeActions(hoverEdge);
         }
 
@@ -206,8 +209,9 @@
         // an unchanged document needs no redraw (hovering fires it for every element of a card).
         function highlight(nodeId) {
             const next = nodeId || null;
-            if (next === pathNode && pathVersion === ed.model.version) return;
+            if (next === pathNode && pathModel === ed.model && pathVersion === ed.model.version) return;
             pathNode = next;
+            pathModel = ed.model;
             pathVersion = ed.model.version;
             pathSet = new Set();
             if (pathNode && ed.model.node(pathNode)) {
@@ -240,6 +244,7 @@
 
         bag.add(ed.bus.on('model', change => {
             if (change.kind === 'viewport') return;
+            if (change.kind === 'reset') { pathModel = null; pathVersion = -1; }
             if (change.structural || change.kind !== 'change' || change.meta) render();
             else renderFor(change.nodes);
         }));

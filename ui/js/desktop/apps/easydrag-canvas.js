@@ -54,13 +54,24 @@
         // named holds the key and label each card was drawn with; a change to them can alter
         // the summaries of other cards that reference the node.
         const named = new Map();
-        // keyIndex maps node keys to nodes for summaries; it is rebuilt when the model version changes.
+        // keyIndex maps node keys to nodes for summaries; it is rebuilt when the model or its version
+        // changes (a run view brings its own model, which starts at version 0 again).
         let keyIndex = new Map();
+        let keyIndexModel = null;
         let keyIndexVersion = -1;
-        // The minimap node layer is redrawn only when minimapKey changes (document, selection or a
-        // scale so small that cards need their minimum size).
+        // The minimap node layer is redrawn only when the model, minimapKey (document version,
+        // selection, or a scale so small that cards need their minimum size) changes.
         let minimapKey = '';
+        let minimapModel = null;
         let selectionTick = 0;
+
+        // forgetCaches drops what was cached for the current document (on a reset).
+        function forgetCaches() {
+            keyIndexModel = null;
+            keyIndexVersion = -1;
+            minimapModel = null;
+            minimapKey = '';
+        }
 
         function later(fn, ms) {
             const id = setTimeout(() => { timers.delete(id); fn(); }, ms);
@@ -162,9 +173,10 @@
 
         // byKey looks a node up by key like model.byKey (the first node wins), without a scan per call.
         function byKey(key) {
-            if (keyIndexVersion !== ed.model.version) {
+            if (keyIndexModel !== ed.model || keyIndexVersion !== ed.model.version) {
                 keyIndex = new Map();
                 ed.model.doc.nodes.forEach(n => { if (!keyIndex.has(n.key)) keyIndex.set(n.key, n); });
+                keyIndexModel = ed.model;
                 keyIndexVersion = ed.model.version;
             }
             return keyIndex.get(key) || null;
@@ -354,7 +366,8 @@
             // Cards stay at least 2 px; that size only matters when the scale is tiny.
             const minSize = 2 / scale;
             const key = ed.model.version + ':' + selectionTick + ':' + (minSize > G.NODE_H ? minSize.toFixed(1) : '');
-            if (key !== minimapKey) {
+            if (minimapModel !== ed.model || key !== minimapKey) {
+                minimapModel = ed.model;
                 minimapKey = key;
                 minimapNodes.innerHTML = ed.model.doc.nodes.map(n => {
                     const rc = G.nodeRect(n.position, outCount(n));
@@ -442,6 +455,7 @@
 
         bag.add(ed.bus.on('model', change => {
             if (change.kind === 'viewport') return;
+            if (change.kind === 'reset') forgetCaches();
             // A node that comes, goes or gets a new key or label can change the summaries of other cards:
             // check them all (signatures keep the markup of the unaffected ones).
             if (change.kind === 'reset' || change.kind === 'undo' || change.kind === 'redo' || change.meta || relabelled(change.nodes)) render();
