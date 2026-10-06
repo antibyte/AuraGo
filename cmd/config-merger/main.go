@@ -160,6 +160,9 @@ func mergeUserConfig(tmplMap, srcMap map[string]interface{}) mergeResult {
 	if applyUpgradeGrandfathers(result.merged, srcMap) {
 		result.safetyAdjusted = true
 	}
+	if preserveNewspaperLegacyDefaults(result.merged, srcMap) {
+		result.safetyAdjusted = true
+	}
 	result.sanitized = sanitizeMergedConfig(result.merged)
 	return result
 }
@@ -174,14 +177,50 @@ func recoverCorruptedConfig(tmplMap, salvaged map[string]interface{}) map[string
 	if len(salvaged) == 0 {
 		merged := deepMerge(tmplMap, nil)
 		applyUpgradeGrandfathers(merged, nil)
+		preserveNewspaperLegacyDefaults(merged, nil)
 		return merged
 	}
 	merged := deepMerge(tmplMap, salvaged)
 	applyUpgradeSafetyDefaults(merged, salvaged)
 	enforceTemplateTypes(merged, tmplMap)
 	applyUpgradeGrandfathers(merged, salvaged)
+	preserveNewspaperLegacyDefaults(merged, salvaged)
 	sanitizeMergedConfig(merged)
 	return merged
+}
+
+// preserveNewspaperLegacyDefaults keeps template opt-ins from silently
+// affecting an existing installation whose config predates those choices.
+// Fresh installs that copy the template directly retain its auto preset.
+func preserveNewspaperLegacyDefaults(merged, user map[string]interface{}) bool {
+	newspaperMap, ok := asStringMap(merged["newspaper"])
+	if !ok {
+		return false
+	}
+	userNewspaper, _ := asStringMap(user["newspaper"])
+	changed := false
+	if mode, exists := userNewspaper["budget_mode"]; !exists || mode == nil {
+		newspaperMap = maps.Clone(newspaperMap)
+		newspaperMap["budget_mode"] = config.NewspaperBudgetFixed
+		changed = true
+	} else if _, valid := mode.(string); !valid {
+		newspaperMap = maps.Clone(newspaperMap)
+		newspaperMap["budget_mode"] = config.NewspaperBudgetFixed
+		changed = true
+	}
+	if sources, exists := userNewspaper["overview_sources"]; !exists {
+		newspaperMap = maps.Clone(newspaperMap)
+		newspaperMap["overview_sources"] = []interface{}{}
+		changed = true
+	} else if _, valid := sources.([]interface{}); !valid {
+		newspaperMap = maps.Clone(newspaperMap)
+		newspaperMap["overview_sources"] = []interface{}{}
+		changed = true
+	}
+	if changed {
+		merged["newspaper"] = newspaperMap
+	}
+	return changed
 }
 
 // ── YAML Helpers ─────────────────────────────────────────────────────────────

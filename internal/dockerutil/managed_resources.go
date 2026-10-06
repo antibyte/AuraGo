@@ -29,6 +29,11 @@ const (
 	// AppOwner is the AuraGo application container from docker-compose.yml.
 	AppOwner         = "aurago-app"
 	AppContainerName = "aurago"
+
+	// SecurityProxyOwner is the canonical owner of the managed Caddy security
+	// proxy container (internal/proxy).
+	SecurityProxyOwner         = "security-proxy"
+	SecurityProxyContainerName = "aurago-security-proxy"
 )
 
 // ManagedBy recognizes both the canonical AuraGo label and the legacy labels
@@ -93,6 +98,13 @@ func IsBoringGarageContainerName(name string) bool {
 func IsHomepageContainerName(name string) bool {
 	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
 	return name == HomepageContainerName || name == HomepageWebContainerName
+}
+
+// IsSecurityProxyContainerName recognizes the reserved security proxy
+// container. Older AuraGo versions created it without labels, so the name alone
+// identifies it.
+func IsSecurityProxyContainerName(name string) bool {
+	return strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/") == SecurityProxyContainerName
 }
 
 // IsAuraGoAppContainerName recognizes the compose AuraGo application container

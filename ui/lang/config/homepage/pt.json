@@ -2,7 +2,7 @@
   "config.homepage.allow_container": "Permitir gerenciamento de containers (iniciar/parar/reconstruir)",
   "config.homepage.allow_deploy": "Permitir implantação em servidores remotos",
   "config.homepage.allow_temporary_token_budget_overflow": "Permitir estouro temporário do orçamento de token para fluxos da página inicial",
-  "config.homepage.allow_temporary_token_budget_overflow_desc": "Aumenta temporariamente o orçamento imediato do sistema da página inicial em relação às chamadas máximas do disjuntor da página inicial enquanto a cadeia de ação da página inicial atual está ativa.",
+  "config.homepage.allow_temporary_token_budget_overflow_desc": "Aumenta temporariamente o orçamento do prompt de sistema da página inicial em relação às chamadas máximas do disjuntor da página inicial enquanto a cadeia de ação da página inicial atual está ativa.",
   "config.homepage.circuit_breaker_desc": "A ferramenta da página inicial geralmente precisa de muitas chamadas de ferramenta consecutivas. Isso define um limite superior e separado que se aplica temporariamente desde a primeira chamada da página inicial até o final da cadeia de ação atual.",
   "config.homepage.circuit_breaker_max_calls": "Máx. chamadas de ferramentas",
   "config.homepage.circuit_breaker_title": "Disjuntor",
@@ -35,7 +35,7 @@
   "config.homepage.save_credentials": "Salvar no cofre",
   "config.homepage.saving": "Salvando...",
   "config.homepage.status_active": "Ferramenta Homepage ativa",
-  "config.homepage.status_inactive": "Ferramenta Homepage — containers não estão em execução",
+  "config.homepage.status_inactive": "Ferramenta Homepage — container de desenvolvimento não está em execução",
   "config.homepage.test_btn": "Testar conexão",
   "config.homepage.test_desc": "Teste a conexão SFTP/SCP com o destino de implantação usando as configurações atuais.",
   "config.homepage.test_failed": "Conexão falhou",
@@ -57,6 +57,6 @@
   "config.homepage.workspace_desc": "Configure o caminho absoluto do host montado no contêiner da página inicial como /workspace.",
   "config.homepage.workspace_path": "Caminho do espaço de trabalho",
   "config.homepage.workspace_path_missing_warning": "O servidor web está habilitado mas nenhum caminho de espaço de trabalho foi definido. Insira o caminho absoluto do host (ex. /home/aurago/aurago/agent_workspace/homepage) ou use a detecção automática.",
-  "config.homepage.workspace_relative_hint": "Nas chamadas da ferramenta da página inicial, mantenha project_dir e caminho relativos a este espaço de trabalho, por exemplo 'meu-site' ou ' my-site/src / app/page.tsx '.",
+  "config.homepage.workspace_relative_hint": "Nas chamadas da ferramenta da página inicial, mantenha project_dir e caminho relativos a este espaço de trabalho, por exemplo 'my-site' ou 'my-site/src/app/page.tsx'.",
   "config.homepage.workspace_title": "Espaço de trabalho"
 }

@@ -42,6 +42,13 @@ func CompanionContainerName(appID, companionID string) string {
 	return ContainerName(appID) + "-" + normalizeAppID(companionID)
 }
 
+// parkedContainerName is the name a Store update gives a container it replaces
+// until the replacement runs (see parkContainer). Store app and companion names
+// use only [a-z0-9-], so the dot cannot collide with them.
+func parkedContainerName(name string) string {
+	return strings.TrimSpace(name) + ".prev"
+}
+
 // ManagedLaunchpadLinkID returns the stable Launchpad link ID for a store app.
 func ManagedLaunchpadLinkID(appID string) string {
 	return "store-" + normalizeAppID(appID)
@@ -147,6 +154,9 @@ func (missingDockerAdapter) RestartContainer(context.Context, string) error {
 func (missingDockerAdapter) RemoveContainer(context.Context, string, bool) error {
 	return fmt.Errorf("Docker adapter is not configured")
 }
+func (missingDockerAdapter) RenameContainer(context.Context, string, string) error {
+	return fmt.Errorf("Docker adapter is not configured")
+}
 func (missingDockerAdapter) RemoveVolume(context.Context, string, bool) error {
 	return fmt.Errorf("Docker adapter is not configured")
 }
@@ -158,4 +168,13 @@ func (missingDockerAdapter) RemoveNetwork(context.Context, string) error {
 }
 func (missingDockerAdapter) InspectContainer(context.Context, string) (ContainerState, error) {
 	return ContainerState{}, fmt.Errorf("Docker adapter is not configured")
+}
+func (missingDockerAdapter) FindContainer(context.Context, string) (ContainerState, bool, error) {
+	return ContainerState{}, false, fmt.Errorf("Docker adapter is not configured")
+}
+func (missingDockerAdapter) VolumeExists(context.Context, string) (bool, error) {
+	return false, fmt.Errorf("Docker adapter is not configured")
+}
+func (missingDockerAdapter) NetworkExists(context.Context, string) (bool, error) {
+	return false, fmt.Errorf("Docker adapter is not configured")
 }

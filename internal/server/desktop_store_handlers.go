@@ -78,15 +78,18 @@ func (s *Server) getDesktopStoreService(ctx context.Context) (*desktopstore.Serv
 		}
 	}
 	store, err := desktopstore.NewService(desktopstore.Config{
-		DBPath:        filepath.Join(desktopCfg.DataDir, "desktop_store.db"),
-		DockerHost:    desktopCfg.DockerHost,
-		DataDir:       desktopCfg.DataDir,
-		WorkspaceDir:  desktopCfg.WorkspaceDir,
-		Docker:        desktopstore.NewToolsDockerAdapter(desktopCfg.DockerHost, desktopCfg.WorkspaceDir, s.Logger),
-		Desktop:       desktopSvc,
-		Launchpad:     launchpadAdapter,
-		Secrets:       s.Vault,
-		NativeManaged: newDesktopStoreNativeRuntime(desktopSvc),
+		DBPath:           filepath.Join(desktopCfg.DataDir, "desktop_store.db"),
+		DockerHost:       desktopCfg.DockerHost,
+		DataDir:          desktopCfg.DataDir,
+		WorkspaceDir:     desktopCfg.WorkspaceDir,
+		Docker:           desktopstore.NewToolsDockerAdapter(desktopCfg.DockerHost, desktopCfg.WorkspaceDir, s.Logger),
+		Desktop:          desktopSvc,
+		Launchpad:        launchpadAdapter,
+		Secrets:          s.Vault,
+		NativeManaged:    newDesktopStoreNativeRuntime(desktopSvc),
+		Logger:           s.Logger,
+		CompanionSettle:  desktopstore.DefaultCompanionSettle,
+		CompanionRecheck: desktopstore.DefaultCompanionRecheck,
 	})
 	if err != nil {
 		return nil, err

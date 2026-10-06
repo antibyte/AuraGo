@@ -89,10 +89,10 @@
   "config.speech_lab.hardware_pending": "Den valgte profil bliver aktiv, når du anvender den.",
   "config.speech_lab.hardware_auto_fallback": "Automatisk profil kunne ikke få adgang til en GPU og bruger CPU som fallback. Kontrollér GPU-passthrough, eller vælg CPU-testtilstand.",
   "config.speech_lab.hardware_apply": "Gem og anvend hardwareprofil",
-  "config.speech_lab.hardware_save_first": "Gem andre ventende konfigurationsændringer først.",
+  "config.speech_lab.hardware_save_first": "Gem andre ventende konfigurationsændringer først. Hardwareprofilen gemmes ikke sammen med dem.",
   "config.speech_lab.external_hardware_title": "Eksternt administreret Speech Lab",
   "config.speech_lab.external_hardware_help": "AuraGo kan ikke ændre en eksternt startet s2s-stack. Indstil profilen i dens Compose- eller startkonfiguration.",
-  "config.speech_lab.external_hardware_unset": "skal være fjernet",
+  "config.speech_lab.external_hardware_unset": "skal ikke være sat",
   "config.speech_lab.external_hardware_linux": "For AMD på Linux: brug S2S_GPU=auto eller S2S_GPU=vulkan, fjern GGML_BACKEND=CPU, og aktivér Linux GPU Compose-overlayet.",
   "config.speech_lab.browser_backend_url": "Adresse til browserbackend",
   "config.speech_lab.browser_backend_url_help": "Adresse til den eksterne Speech Labs webgrænseflade. Bruges kun af AuraGo-serveren."

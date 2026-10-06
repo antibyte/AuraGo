@@ -18,13 +18,13 @@
   "config.jellyfin.test_fail": "Verbinding mislukt",
   "config.jellyfin.apikey_empty": "Voer eerst een API-sleutel in.",
   "config.jellyfin.apikey_saved": "API-sleutel opgeslagen in vault.",
-  "config.jellyfin.apikey_save_failed": "Opslaan van API-sleutel in vault mislukt.",
+  "config.jellyfin.apikey_save_failed": "De API-sleutel kon niet in de kluis worden opgeslagen.",
   "help.jellyfin.enabled": "Activeert de Jellyfin-integratie. De agent kan bibliotheken doorzoeken, media zoeken, afspelen besturen en de mediaserver beheren.",
   "help.jellyfin.readonly": "In alleen-lezen modus kan de agent alleen gegevens bekijken. Afspeelbediening en bibliotheek vernieuwen zijn geblokkeerd.",
   "help.jellyfin.allow_destructive": "Staat het verwijderen van media-items van de Jellyfin-server toe.",
   "help.jellyfin.use_https": "Gebruikt HTTPS voor de verbinding met de Jellyfin-server.",
   "help.jellyfin.insecure_ssl": "Accepteert zelfondertekende of ongeldige certificaten (alleen voor testomgevingen).",
-  "help.jellyfin.host": "Hostnaam of IP-adres van uw Jellyfin-server (bijv. jellyfin.local of 192.168.1.100).",
+  "help.jellyfin.host": "Hostnaam of IP-adres van je Jellyfin-server (bijv. jellyfin.local of 192.168.1.100).",
   "help.jellyfin.port": "Poort van de Jellyfin-server (standaard: 8096).",
   "help.jellyfin.api_key": "API-sleutel voor de Jellyfin API. Maak er een aan onder Dashboard → API-sleutels in Jellyfin."
 }

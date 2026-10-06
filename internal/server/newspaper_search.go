@@ -48,7 +48,13 @@ func (r *newspaperResearchRun) search(ctx context.Context, query newspaperQuery,
 			if !r.canSearch(ctx) {
 				return nil
 			}
-			if err := r.io.Wait(ctx, time.Until(r.nextSearch[tool])); err != nil {
+			wait := time.Until(r.nextSearch[tool])
+			if deadline, ok := ctx.Deadline(); ok && wait >= time.Until(deadline) {
+				// A cooldown that outlives this phase cannot produce a retry.
+				// Preserve the remaining time for an independent backend.
+				break
+			}
+			if err := r.io.Wait(ctx, wait); err != nil {
 				return nil
 			}
 			// Check again after pacing: a permission or limit may have changed.
@@ -56,6 +62,7 @@ func (r *newspaperResearchRun) search(ctx context.Context, query newspaperQuery,
 				break
 			}
 			r.stats.Searches++
+			r.count(query.Topic, round, "searches")
 			batch, err := r.io.Search(ctx, backend, query, freshness)
 			delay := batch.NextRequestAfter
 			if delay < time.Second {
@@ -65,8 +72,16 @@ func (r *newspaperResearchRun) search(ctx context.Context, query newspaperQuery,
 			if err == nil {
 				r.stats.Tools[tool] = "ready"
 				r.report("finding", nil)
-				if len(batch.Hits) > 0 {
-					return batch.Hits
+				originals := make([]newspaperHit, 0, len(batch.Hits))
+				for _, hit := range batch.Hits {
+					if newspaperAggregatorURL(hit.URL) {
+						r.reject("overview")
+						continue
+					}
+					originals = append(originals, hit)
+				}
+				if len(originals) > 0 {
+					return originals
 				}
 				break
 			}
@@ -91,6 +106,11 @@ func (r *newspaperResearchRun) search(ctx context.Context, query newspaperQuery,
 			if delay < time.Second {
 				delay = time.Second
 			}
+			if code == "rate_limited" && attempt > 0 && delay < 45*time.Second {
+				// Brave News/Web share the key's quota. After one failed retry,
+				// leave a useful attempt for the independent search backend.
+				delay = 45 * time.Second
+			}
 			r.nextSearch[tool] = time.Now().Add(delay)
 			if !temporary || attempt != 0 || delay > 30*time.Second || ctx.Err() != nil {
 				break
@@ -101,6 +121,23 @@ func (r *newspaperResearchRun) search(ctx context.Context, query newspaperQuery,
 }
 
 func (r *newspaperResearchRun) discover(ctx context.Context, topics []newspaperTopic, round int) {
+	if round == 0 {
+		// Read direct feed originals before paying for searches on those topics.
+		missing := make([]newspaperTopic, 0, len(topics))
+		for _, topic := range topics {
+			hasOriginal := false
+			for _, candidate := range r.pending {
+				if candidate.Query.Topic == topic.ID {
+					hasOriginal = true
+					break
+				}
+			}
+			if !hasOriginal {
+				missing = append(missing, topic)
+			}
+		}
+		topics = missing
+	}
 	if !r.canSearch(ctx) || len(topics) == 0 {
 		return
 	}
@@ -110,7 +147,7 @@ func (r *newspaperResearchRun) discover(ctx context.Context, topics []newspaperT
 	if r.io.Spending != nil {
 		remaining.Spending = r.io.Spending()
 	}
-	queries := planNewspaperSearch(ctx, r.profile, topics, r.initial, r.cutoff, round, remaining, r.stats, r.complete)
+	queries := planNewspaperSearch(ctx, r.profile, topics, r.initial, r.cutoff, round, remaining, r.stats, r.complete, r.overviewLeads)
 	for _, query := range queries {
 		if !r.canSearch(ctx) {
 			break
@@ -118,38 +155,6 @@ func (r *newspaperResearchRun) discover(ctx context.Context, topics []newspaperT
 		hits := r.search(ctx, query, round)
 		for rank, hit := range hits {
 			r.admit(newspaperCandidate{Hit: hit, Query: query, Rank: rank})
-		}
-		r.report("finding", nil)
-	}
-}
-
-func (r *newspaperResearchRun) feeds(ctx context.Context) {
-	for _, feed := range r.profile.RSSFeeds {
-		if !r.allowed("rss") || !r.canRead(ctx) {
-			return
-		}
-		r.stats.Pages++
-		hits, err := r.io.Feed(ctx, feed.URL)
-		if err != nil {
-			r.reject("feed_failed")
-			r.stats.Tools["rss"] = "failed"
-			continue
-		}
-		r.stats.Tools["rss"] = "ready"
-		for rank, hit := range hits {
-			// Interest feeds are leads for each matching interest, not automatic
-			// evidence that every free-text topic has been covered.
-			topic := feed.Section
-			if topic == "interests" {
-				for _, t := range r.topics {
-					if t.Section != "interests" || !newspaperMatchesInterest(hit.Title+" "+hit.Description, t.Label) {
-						continue
-					}
-					r.admit(newspaperCandidate{Hit: hit, Query: newspaperQuery{Section: "interests", Topic: t.ID, Text: t.Label, Language: r.profile.Language}, Rank: rank})
-				}
-				continue
-			}
-			r.admit(newspaperCandidate{Hit: hit, Query: newspaperQuery{Section: feed.Section, Topic: topic, Language: r.profile.Language}, Rank: rank})
 		}
 		r.report("finding", nil)
 	}
@@ -220,6 +225,15 @@ func cloneNewspaperStats(stats newspaper.ResearchStats) *newspaper.ResearchStats
 	}
 	for k, v := range stats.Tools {
 		copy.Tools[k] = v
+	}
+	copy.Rounds = append([]newspaper.ResearchCounts(nil), stats.Rounds...)
+	copy.Topics = map[string]newspaper.ResearchCounts{}
+	for k, v := range stats.Topics {
+		copy.Topics[k] = v
+	}
+	if stats.Budget != nil {
+		b := *stats.Budget
+		copy.Budget = &b
 	}
 	copy.Gaps = append([]string(nil), stats.Gaps...)
 	return &copy

@@ -8,7 +8,7 @@
   "config.uptime_kuma.checking": "正在检查连接…",
   "config.uptime_kuma.connected": "已连接到 Uptime Kuma",
   "config.uptime_kuma.connection_failed": "连接失败",
-  "config.uptime_kuma.down_monitors": "个监控器离线",
+  "config.uptime_kuma.down_monitors": "离线监控器",
   "config.uptime_kuma.enabled_label": "已启用",
   "config.uptime_kuma.insecure_ssl_label": "允许自签名 TLS",
   "config.uptime_kuma.loading": "加载中…",

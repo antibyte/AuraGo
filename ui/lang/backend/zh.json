@@ -242,5 +242,13 @@
   "backend.budget_mode_full_de": "（超出时全部阻止）",
   "backend.speech_lab_audio_warning": "无法生成 Speech Lab 音频。文本回复仍然可用。",
   "backend.auth_current_password_required": "此更改需要提供当前密码。",
-  "backend.auth_current_totp_required": "此更改需要提供身份验证器应用中的当前验证码。"
+  "backend.auth_current_totp_required": "此更改需要提供身份验证器应用中的当前验证码。",
+  "backend.proxy_basic_auth_credentials_invalid": "Vault 中的 Basic Auth 凭据无法使用。用户名不能包含 ':'、引号、反斜杠或花括号，密码最长 72 字节。",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth 已启用，但 Vault 中缺少 'proxy_basic_auth_user' 和 'proxy_basic_auth_pass'。请保存这两个密钥或关闭 Basic Auth，然后重新启动代理。",
+  "backend.proxy_caddy_exited": "代理启动后立即停止，通常是因为域名、IP 过滤条目或端口无效。代理日志会显示确切原因。",
+  "backend.proxy_config_rejected": "代理拒绝了新设置，继续使用之前的设置运行。代理日志会显示原因。",
+  "backend.proxy_docker_placement_failed": "AuraGo 在 Docker 中运行，但代理无法使用 AuraGo 的数据卷。这需要 Docker Engine 26 或更高版本，并且 AuraGo 的数据目录必须位于 Docker 卷或绑定挂载上。详细信息见 AuraGo 日志。",
+  "backend.proxy_not_running": "安全代理未运行。请先启动它。",
+  "backend.proxy_rate_limit_image_read_only": "Docker 只读模式（docker.read_only）已开启，因此 AuraGo 无法构建速率限制所需的带 caddy-ratelimit 模块的 Caddy 镜像。在此模式下，AuraGo 也无法创建或更改代理容器。请关闭 Docker 只读模式，然后重新启动代理。详细信息见 AuraGo 日志。",
+  "backend.proxy_rate_limit_image_unavailable": "速率限制需要带 caddy-ratelimit 模块的 Caddy 镜像，但 AuraGo 无法构建它。Docker 必须允许构建镜像（Docker Compose 中：在 docker-proxy 服务上设置 BUILD=1）并能访问互联网。也可以在 Docker 主机上构建该镜像（参见手册），或者关闭速率限制。详细信息见 AuraGo 日志。"
 }

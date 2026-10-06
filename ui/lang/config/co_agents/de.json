@@ -26,7 +26,7 @@
   "config.co_agents.spec_researcher_name": "Forscher",
   "config.co_agents.spec_security_desc": "Sicherheitsaudits, OWASP/CIS/NIST-Prüfungen. Nur-Lese-Dateisystemzugriff.",
   "config.co_agents.spec_security_name": "Sicherheitsexperte",
-  "config.co_agents.spec_writer_desc": "Dokumentation, Inhalte, Berichte. Speicher- und Dateisystemzugriff, keine Code-Ausführung.",
+  "config.co_agents.spec_writer_desc": "Dokumentation, Inhalte, Berichte. Gedächtnis- und Dateisystemzugriff, keine Code-Ausführung.",
   "config.co_agents.spec_writer_name": "Autor",
   "config.co_agents.specialists_desc": "Spezialisten-Co-Agents haben rollenspezifische Prompts, Tool-Einschränkungen und optionale dedizierte LLM-Provider. Jeder Spezialist kann unabhängig aktiviert werden.",
   "config.co_agents.specialists_title": "Spezialisten",

@@ -1,7 +1,7 @@
 {
   "config.homepage.allow_container": "允许容器管理（启动/停止/重建）",
   "config.homepage.allow_deploy": "允许部署到远程服务器",
-  "config.homepage.allow_temporary_token_budget_overflow": "允许主页流量临时代币预算溢出",
+  "config.homepage.allow_temporary_token_budget_overflow": "允许主页流程临时令牌预算溢出",
   "config.homepage.allow_temporary_token_budget_overflow_desc": "当当前主页操作链处于活动状态时，暂时提高相对于主页断路器最大调用的主页系统提示预算。",
   "config.homepage.circuit_breaker_desc": "主页工具通常需要许多连续的工具调用。这里设置一个独立的、更高的限制，从第一次主页调用开始临时生效，直到当前操作链结束。",
   "config.homepage.circuit_breaker_max_calls": "最大工具调用数",
@@ -57,6 +57,6 @@
   "config.homepage.workspace_desc": "将安装到主页容器中的绝对主机路径设置为/workspace。",
   "config.homepage.workspace_path": "工作区路径",
   "config.homepage.workspace_path_missing_warning": "Web服务器已启用，但未设置工作区路径。请输入项目的绝对主机路径（例如 /home/aurago/aurago/agent_workspace/homepage），或使用自动检测。",
-  "config.homepage.workspace_relative_hint": "在主页工具调用内部，保留相对于该工作区的 project_dir 和路径，例如“my-site”或“my-site/src / app/page.tsx”。",
+  "config.homepage.workspace_relative_hint": "在主页工具调用内部，保留相对于该工作区的 project_dir 和路径，例如“my-site”或“my-site/src/app/page.tsx”。",
   "config.homepage.workspace_title": "工作区"
 }

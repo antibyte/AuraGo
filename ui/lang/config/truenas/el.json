@@ -46,7 +46,7 @@
   "config.truenas.apikey_saved": "Κλειδί API αποθηκεύτηκε",
   "config.truenas.checking": "Έλεγχος…",
   "config.truenas.connection_failed": "Η σύνδεση απέτυχε",
-  "config.truenas.destructive_label": "Επιτροπή καταστροφικών λειτουργιών",
+  "config.truenas.destructive_label": "Να επιτρέπονται καταστροφικές λειτουργίες",
   "config.truenas.enabled_label": "Ενεργοποιημένο",
   "config.truenas.host_label": "Host του TrueNAS",
   "config.truenas.https_label": "Χρήση HTTPS",

@@ -1,5 +1,5 @@
 {
-  "config.backup.create_desc": "Tworzy archiwum <strong>.ago</strong> (ZIP) z konfiguracją, promptami, danymi i umiejętnościami. Z hasłem wszystkie sekrety vault (klucze API, tokeny) są również bezpiecznie dołączane — idealne do migracji na nowe wdrożenie (np. z iniekcją systemd).",
+  "config.backup.create_desc": "Tworzy archiwum <strong>.ago</strong> (ZIP) z konfiguracją, promptami, danymi i umiejętnościami. Po ustawieniu hasła wszystkie sekrety vault (klucze API, tokeny) są również bezpiecznie dołączane — idealne do migracji na nową instancję (np. z kluczem głównym wstrzykniętym przez systemd).",
   "config.backup.card_create_title": "Zawartość kopii zapasowej",
   "config.backup.card_encryption_title": "Szyfrowanie",
   "config.backup.card_import_title": "Przywróć kopię zapasową",

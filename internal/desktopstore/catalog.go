@@ -314,6 +314,13 @@ func DefaultCatalog() []CatalogEntry {
 					HostBinds: []HostBindTemplate{
 						{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true},
 					},
+					// Live-verified on aurago-test (F-S3 probe, 2026-10-06, image
+					// digest sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459):
+					// haproxy serves the read-only monitoring profile on its
+					// 127.0.0.1 port with no capabilities and refuses every
+					// mutation. The :latest tag floats, so re-verify when upstream
+					// changes (see AGENTS.md, Store Container Hardening).
+					Hardening: &ContainerHardening{CapDrop: []string{"ALL"}},
 				},
 				{
 					ID:          "agent",
@@ -367,6 +374,14 @@ func DefaultCatalog() []CatalogEntry {
 					HostBinds: []HostBindTemplate{
 						{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true},
 					},
+					// Live-verified on aurago-test (F-S3 probe, 2026-10-06, image
+					// digest sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459):
+					// haproxy serves the read-only monitoring profile on the
+					// private Dozzle network with no host port and no capabilities,
+					// and refuses every mutation. The :latest tag floats, so
+					// re-verify when upstream changes (see AGENTS.md, Store
+					// Container Hardening).
+					Hardening: &ContainerHardening{CapDrop: []string{"ALL"}},
 				},
 			},
 		},

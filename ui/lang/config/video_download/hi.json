@@ -12,7 +12,7 @@
   "config.video_download.download_dir_label": "डाउनलोड डायरेक्टरी",
   "config.video_download.default_format_label": "डिफ़ॉल्ट फ़ॉर्मैट",
   "config.video_download.max_file_size_label": "अधिकतम फ़ाइल आकार (MB)",
-  "config.video_download.timeout_label": "Timeout (सेकंड)",
+  "config.video_download.timeout_label": "टाइमआउट (सेकंड)",
   "config.video_download.max_search_results_label": "अधिकतम खोज परिणाम",
   "config.video_download.yt_dlp_path_label": "yt-dlp पथ",
   "config.video_download.container_image_label": "कंटेनर इमेज",

@@ -18,6 +18,7 @@ type Policy struct {
 	MaxEditions int
 	Email       bool
 	Telegram    bool
+	Budget      BudgetConfig
 }
 
 type Progress struct {
@@ -121,6 +122,14 @@ func (s *Service) Store() *Store { return s.store }
 
 func (s *Service) canWrite() bool { p := s.policy(); return p.Enabled && !p.ReadOnly }
 
+func (p Policy) budgetConfig() BudgetConfig {
+	cfg := p.Budget
+	if cfg.MaxMinutes == 0 {
+		cfg.MaxMinutes = p.MaxMinutes
+	}
+	return cfg
+}
+
 func (s *Service) Start(ctx context.Context, newRevision bool) (Run, error) {
 	return s.StartWithCorrection(ctx, newRevision, "")
 }
@@ -162,12 +171,10 @@ func (s *Service) startForDate(ctx context.Context, date string, newRevision boo
 		return Run{}, err
 	}
 	policy := s.policy()
-	minutes := policy.MaxMinutes
-	if minutes < 1 || minutes > 60 {
-		minutes = 30
-	}
+	budget := ResolveBudget(profile, policy.budgetConfig())
 	work, cancel := context.WithCancel(s.ctx)
-	researchCtx, cancelResearch := context.WithTimeout(work, time.Duration(minutes)*time.Minute)
+	researchCtx, cancelResearch := context.WithTimeout(work, time.Duration(budget.Minutes)*time.Minute)
+	researchCtx = WithBudget(researchCtx, budget)
 	s.running = cancel
 	s.wg.Add(1)
 	go func() {
@@ -204,17 +211,49 @@ func (s *Service) Stop(ctx context.Context, id string) error {
 
 func (s *Service) execute(ctx, researchCtx context.Context, r Run, p Profile) {
 	started := s.now().UTC()
+	budget, hasBudget := BudgetFromContext(researchCtx)
+	if hasBudget {
+		stats := ResearchStats{Budget: &budget}
+		if r.Research != nil {
+			stats = *r.Research
+			stats.Budget = &budget
+		}
+		r.Research = &stats
+	}
+	sourceTruncation := 0
 	progress := func(v Progress) {
 		progressCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		truncatedSource := false
 		if v.Source != nil {
-			_ = s.store.RecordRunSource(progressCtx, r.ID, *v.Source)
+			limit := maxResearchSources
+			if hasBudget {
+				limit = budget.Pages
+			}
+			_, truncatedSource, _ = s.store.RecordRunSource(progressCtx, r.ID, *v.Source, limit)
 		}
 		r.Phase = v.Phase
 		r.Sources = v.Sources
 		r.Stories = v.Stories
 		if v.Research != nil {
-			r.Research = v.Research
+			stats := *v.Research
+			if hasBudget {
+				stats.Budget = &budget
+			}
+			r.Research = &stats
+		}
+		if truncatedSource {
+			sourceTruncation++
+		}
+		if sourceTruncation > 0 {
+			if r.Research == nil {
+				r.Research = &ResearchStats{}
+			}
+			if r.Research.SourceTruncation < sourceTruncation {
+				stats := *r.Research
+				stats.SourceTruncation = sourceTruncation
+				r.Research = &stats
+			}
 		}
 		_ = s.store.UpdateRun(progressCtx, r, v.Message)
 	}
@@ -386,11 +425,8 @@ func (s *Service) tick() {
 		if err != nil {
 			continue
 		}
-		minutes := s.policy().MaxMinutes
-		if minutes < 1 || minutes > 60 {
-			minutes = 30
-		}
-		due := ready.Add(-time.Duration(minutes+10) * time.Minute)
+		budget := ResolveBudget(p, s.policy().budgetConfig())
+		due := ready.Add(-time.Duration(budget.Minutes+10) * time.Minute)
 		if now.Before(due) || now.After(ready.Add(3*time.Hour)) {
 			continue
 		}

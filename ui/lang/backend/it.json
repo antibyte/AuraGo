@@ -177,7 +177,7 @@
   "backend.stream_error_recovery_invalid_native": "Chiamata strumento nativa non valida rilevata, richiesta chiamata corretta...",
   "backend.stream_error_recovery_incomplete_tool_call": "Chiamata strumento incompleta rilevata, richiesta chiamata di funzione corretta...",
   "backend.stream_error_recovery_announcement_no_action": "Annuncio senza azione rilevato, richiesta chiamata strumento...",
-  "backend.stream_error_recovery_fence_json": "Chiamata strumento racchiusa in recinto, richiesta JSON raw...",
+  "backend.stream_error_recovery_fence_json": "Chiamata allo strumento racchiusa in un blocco di codice, richiesta di JSON grezzo...",
   "backend.stream_error_recovery_incomplete_tag": "Tag chiamata strumento incompleto rilevato, richiesta chiamata strumento corretta...",
   "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML rilevato in modalità nativa, richiesta di chiamata di funzione...",
   "backend.stream_coding_executing": "Esecuzione script Python...",
@@ -242,5 +242,13 @@
   "backend.budget_mode_full_en": "(tutto bloccato una volta superato)",
   "backend.speech_lab_audio_warning": "Non è stato possibile generare l’audio di Speech Lab. La risposta testuale resta disponibile.",
   "backend.auth_current_password_required": "Per questa modifica è richiesta la tua password attuale.",
-  "backend.auth_current_totp_required": "Per questa modifica è richiesto il codice attuale della tua app di autenticazione."
+  "backend.auth_current_totp_required": "Per questa modifica è richiesto il codice attuale della tua app di autenticazione.",
+  "backend.proxy_basic_auth_credentials_invalid": "Le credenziali Basic Auth nel Vault non sono utilizzabili. Il nome utente non deve contenere ':', virgolette, barre rovesciate o parentesi graffe e la password può essere lunga al massimo 72 byte.",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth è attivo, ma nel Vault mancano 'proxy_basic_auth_user' e 'proxy_basic_auth_pass'. Salva entrambi i segreti oppure disattiva Basic Auth, poi riavvia il proxy.",
+  "backend.proxy_caddy_exited": "Il proxy si è fermato subito dopo l'avvio, di solito per un dominio, una voce del filtro IP o una porta non validi. Il motivo esatto è nei log del proxy.",
+  "backend.proxy_config_rejected": "Il proxy ha rifiutato le nuove impostazioni e continua con quelle precedenti. Il motivo è nei log del proxy.",
+  "backend.proxy_docker_placement_failed": "AuraGo è in esecuzione in Docker, ma il proxy non può usare il volume dati di AuraGo. Serve Docker Engine 26 o successivo e la directory dati di AuraGo deve trovarsi su un volume Docker o un bind mount. I dettagli sono nel log di AuraGo.",
+  "backend.proxy_not_running": "Il Security Proxy non è in esecuzione. Avvialo prima.",
+  "backend.proxy_rate_limit_image_read_only": "La modalità di sola lettura di Docker (docker.read_only) è attiva, quindi AuraGo non può creare l'immagine Caddy con il modulo caddy-ratelimit necessaria per la limitazione del traffico. In questa modalità AuraGo non può nemmeno creare o modificare il container del proxy. Disattiva la modalità di sola lettura di Docker e riavvia il proxy. I dettagli sono nel log di AuraGo.",
+  "backend.proxy_rate_limit_image_unavailable": "La limitazione del traffico richiede un'immagine Caddy con il modulo caddy-ratelimit, che AuraGo non è riuscito a creare. Docker deve consentire la build di immagini (con Docker Compose: BUILD=1 nel servizio docker-proxy) e raggiungere Internet. In alternativa crea l'immagine sull'host Docker (vedi il manuale) oppure disattiva la limitazione del traffico. I dettagli sono nel log di AuraGo."
 }

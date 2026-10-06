@@ -603,6 +603,8 @@ func Load(path string) (*Config, error) {
 	// read-only until an administrator enables the required mutation scopes.
 	cfg.GameMaker.ReadOnly = true
 	cfg.Detective.Enabled = true
+	cfg.Newspaper.BudgetMode = "fixed"
+	cfg.Newspaper.OverviewSources = []string{}
 	cfg.Newspaper.MaxMinutes = 30
 	cfg.Newspaper.MaxPages = 60
 	cfg.Newspaper.MaxSearches = 32
@@ -962,6 +964,9 @@ func Load(path string) (*Config, error) {
 	// defaulted value here and let normalization preserve legacy endpoint-based S3.
 	if !yamlHasPath(data, "virtual_computers", "storage", "mode") {
 		cfg.VirtualComputers.Storage.Mode = ""
+	}
+	if err := NormalizeNewspaperConfig(&cfg.Newspaper); err != nil {
+		return nil, err
 	}
 	if err := ValidateLLMRouterConfig(&cfg, false); err != nil {
 		return nil, err

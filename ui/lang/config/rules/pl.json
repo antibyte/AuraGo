@@ -13,7 +13,7 @@
   "config.rules.disabled_hint": "Automatyczne wstrzykiwanie reguł jest wyłączone w config.yaml.",
   "config.rules.restore_failed": "Nie udało się przywrócić reguły",
   "config.rules.deleted": "Reguła usunięta",
-  "config.rules.editor_hint": "Reguły to Markdownowe guardraile ładowane przed pasującymi zadaniami.",
+  "config.rules.editor_hint": "Reguły to bariery ochronne w Markdown, wstrzykiwane przed rozpoczęciem pasujących zadań.",
   "config.rules.restore": "Przywróć",
   "config.rules.delete_failed": "Nie udało się usunąć reguły",
   "config.rules.confirm_delete": "Usunąć nadpisanie reguły {id}?",

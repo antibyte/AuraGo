@@ -10,8 +10,8 @@
   "config.tokens.deactivated": "Token deaktivován",
   "config.tokens.delete_confirm": "Smazat token:",
   "config.tokens.deleted": "Token smazán",
-  "config.tokens.scopes_label": "Rozsah:",
+  "config.tokens.scopes_label": "Rozsahy:",
   "config.tokens.toggle_disable": "Zakázat",
-  "config.tokens.toggle_enable": "Umožnit",
+  "config.tokens.toggle_enable": "Povolit",
   "config.tokens.delete_confirm_title": "Smazat token?"
 }

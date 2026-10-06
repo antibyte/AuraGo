@@ -2,9 +2,50 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
+
+	"aurago/internal/i18n"
+	"aurago/internal/proxy"
 )
+
+// proxyErrorKeys maps security proxy failures the user can fix to their
+// backend translation. The first match wins: ErrRateLimitImageReadOnly comes
+// wrapped with ErrRateLimitImageUnavailable and must stay before it.
+var proxyErrorKeys = []struct {
+	err error
+	key string
+}{
+	{proxy.ErrBasicAuthCredentialsMissing, "backend.proxy_basic_auth_credentials_missing"},
+	{proxy.ErrBasicAuthCredentialsInvalid, "backend.proxy_basic_auth_credentials_invalid"},
+	{proxy.ErrRateLimitImageReadOnly, "backend.proxy_rate_limit_image_read_only"},
+	{proxy.ErrRateLimitImageUnavailable, "backend.proxy_rate_limit_image_unavailable"},
+	{proxy.ErrDockerPlacement, "backend.proxy_docker_placement_failed"},
+	{proxy.ErrCaddyExited, "backend.proxy_caddy_exited"},
+	{proxy.ErrConfigRejected, "backend.proxy_config_rejected"},
+	{proxy.ErrNotRunning, "backend.proxy_not_running"},
+}
+
+// proxyErrorKey returns the translation key explaining err, or "" for
+// failures without a specific explanation.
+func proxyErrorKey(err error) string {
+	for _, known := range proxyErrorKeys {
+		if errors.Is(err, known.err) {
+			return known.key
+		}
+	}
+	return ""
+}
+
+// proxyErrorMessage explains a known proxy failure in the UI language and
+// keeps fallback for everything else.
+func proxyErrorMessage(s *Server, err error, fallback string) string {
+	if key := proxyErrorKey(err); key != "" {
+		return i18n.T(s.Cfg.Server.UILanguage, key)
+	}
+	return fallback
+}
 
 // handleProxyStatus returns the current status of the security proxy container.
 func handleProxyStatus(s *Server) http.HandlerFunc {
@@ -54,7 +95,7 @@ func handleProxyStart(s *Server) http.HandlerFunc {
 			s.Logger.Error("Failed to start security proxy", "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": "Failed to start security proxy",
+				"message": proxyErrorMessage(s, err, "Failed to start security proxy"),
 			})
 			return
 		}
@@ -129,7 +170,7 @@ func handleProxyReload(s *Server) http.HandlerFunc {
 			s.Logger.Error("Failed to reload security proxy", "error", err)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": "Failed to reload security proxy",
+				"message": proxyErrorMessage(s, err, "Failed to reload security proxy"),
 			})
 			return
 		}

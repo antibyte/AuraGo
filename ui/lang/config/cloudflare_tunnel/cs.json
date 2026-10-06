@@ -1,5 +1,5 @@
 {
-  "config.cloudflare_tunnel.quick_project": "Web pro rychlý tunel",
+  "config.cloudflare_tunnel.quick_project": "Homepage pro rychlý tunel",
   "config.cloudflare_tunnel.quick_project_help": "Zveřejní kopii posledních sestavených statických souborů vybraného projektu. Zapni Homepage a Cloudflare. AuraGo přidělí port automaticky.",
   "config.cloudflare_tunnel.quick_project_select": "Vyber projekt",
   "config.cloudflare_tunnel.quick_project_error": "Projekt není dostupný. Zkontroluj nastavení Homepage a registraci projektu.",
@@ -12,7 +12,7 @@
   "config.cloudflare_tunnel.account_id": "ID účtu",
   "config.cloudflare_tunnel.metrics_port": "Port metrik",
   "config.cloudflare_tunnel.log_level": "Úroveň logování",
-  "config.cloudflare_tunnel.exposure_heading": "Vysílání služeb",
+  "config.cloudflare_tunnel.exposure_heading": "Vystavení služeb",
   "config.cloudflare_tunnel.expose_web_ui": "Vystavit AuraGo Web UI",
   "config.cloudflare_tunnel.expose_homepage": "Vystavit Homepage webserver",
   "config.cloudflare_tunnel.info": "Bezpečně vystavte lokální služby na internetu prostřednictvím globální sítě Cloudflare pomocí cloudflared. Podporuje Docker i nativní binárku.",

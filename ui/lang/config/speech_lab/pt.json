@@ -89,7 +89,7 @@
   "config.speech_lab.hardware_pending": "O perfil selecionado fica ativo depois de ser aplicado.",
   "config.speech_lab.hardware_auto_fallback": "O modo automático não conseguiu acessar uma GPU e está usando a CPU como fallback. Verifique o passthrough da GPU ou escolha o modo de teste da CPU.",
   "config.speech_lab.hardware_apply": "Guardar e aplicar perfil de hardware",
-  "config.speech_lab.hardware_save_first": "Guarde primeiro as outras alterações de configuração pendentes.",
+  "config.speech_lab.hardware_save_first": "Guarde primeiro as outras alterações de configuração pendentes. O perfil de hardware não será guardado com elas.",
   "config.speech_lab.external_hardware_title": "Speech Lab gerido externamente",
   "config.speech_lab.external_hardware_help": "O AuraGo não pode alterar uma stack s2s iniciada externamente. Defina o perfil na configuração Compose ou de arranque.",
   "config.speech_lab.external_hardware_unset": "deve estar ausente",

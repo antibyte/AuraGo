@@ -49,7 +49,7 @@
   "config.meshcore.max_messages": "Μέγιστος αριθμός μηνυμάτων",
   "config.meshcore.peer_runs_per_minute": "Εκτελέσεις ανά κόμβο/κανάλι το λεπτό",
   "config.meshcore.runs_per_minute": "Συνολικές εκτελέσεις το λεπτό",
-  "config.meshcore.disabled": "Ανενεργό",
+  "config.meshcore.disabled": "Απενεργοποιημένο",
   "config.meshcore.connecting": "Σύνδεση σε εξέλιξη",
   "config.meshcore.connected": "Συνδεδεμένο",
   "config.meshcore.disconnected": "Αποσυνδεδεμένο",

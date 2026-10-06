@@ -7921,10 +7921,11 @@ pre,
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M 60 0 L 0 0 0 60' fill='none' stroke='rgba(0, 240, 255, 0.022)' stroke-width='1'/%3E%3Ccircle cx='0' cy='0' r='1.2' fill='rgba(0, 240, 255, 0.12)'/%3E%3C/svg%3E"),
         radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.02) 0%, transparent 40%),
         radial-gradient(circle at 90% 80%, rgba(255, 0, 92, 0.02) 0%, transparent 45%),
-        linear-gradient(180deg, rgba(2, 5, 15, 0.78) 0%, rgba(3, 7, 20, 0.88) 50%, rgba(5, 12, 33, 0.94) 100%);
-    background-position: 0 -14px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
-    background-size: 100% 1px, 100% 100%, 100% 100%, 60px 60px, 100% 100%, 100% 100%, 100% 100%;
-    background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat, no-repeat;
+        linear-gradient(180deg, rgba(2, 5, 15, 0.76) 0%, rgba(3, 7, 20, 0.8) 50%, rgba(5, 12, 33, 0.86) 100%),
+        url('/img/cyberwar-city.webp');
+    background-position: 0 -14px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, center;
+    background-size: 100% 1px, 100% 100%, 100% 100%, 60px 60px, 100% 100%, 100% 100%, 100% 100%, cover;
+    background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat;
     animation: cyberwarScanlineScan 10s linear infinite;
 }
 
@@ -8418,10 +8419,10 @@ pre,
 
 @keyframes cyberwarScanlineScan {
     0% {
-        background-position: 0 -14px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
+        background-position: 0 -14px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, center;
     }
     100% {
-        background-position: 0 calc(100dvh + 14px), 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
+        background-position: 0 calc(100dvh + 14px), 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, center;
     }
 }
 
@@ -8483,6 +8484,10 @@ pre,
 }
 
 @media (max-width: 767px) {
+    [data-theme="cyberwar"] #chat-content {
+        padding-inline: 0.75rem;
+    }
+
     [data-theme="cyberwar"] .bubble {
         max-width: min(92%, 36rem);
     }

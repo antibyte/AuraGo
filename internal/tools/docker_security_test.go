@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -94,6 +95,31 @@ func TestPullImageWaitAllowsLocalImageButRejectsReadOnlyPull(t *testing.T) {
 			t.Fatal("read-only pull should be denied before POST /images/create")
 		}
 	})
+}
+
+func TestDockerSecurityReadOnlyRefusalIsErrDockerReadOnly(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, true)
+	var called bool
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	buildErr := BuildImageWait(context.Background(), DockerConfig{Host: host}, "aurago/read-only:test", "Dockerfile", []byte("FROM scratch\n"), nil, nil)
+	_, _, requestErr := DockerRequest(DockerConfig{Host: host}, http.MethodPost, "/containers/demo/start", "")
+	for name, err := range map[string]error{"BuildImageWait": buildErr, "DockerRequest": requestErr} {
+		if !errors.Is(err, ErrDockerReadOnly) {
+			t.Errorf("%s error = %v, want ErrDockerReadOnly", name, err)
+			continue
+		}
+		// Callers and tests match the text, so it must stay the same.
+		if err.Error() != "docker mutation is disabled by runtime permissions" {
+			t.Errorf("%s error text = %q, want the unchanged read-only denial", name, err.Error())
+		}
+	}
+	if called {
+		t.Fatal("read-only refusals must not reach the Docker API")
+	}
 }
 
 func TestVideoDownloadDockerRequestContextRejectsMutationWhenReadOnly(t *testing.T) {
@@ -563,5 +589,29 @@ func TestDockerCreateContainerStillRejectsDockerSocketBind(t *testing.T) {
 		[]string{"/var/run/docker.sock:/var/run/docker.sock:ro"}, nil, "no", nil, ContainerCreateOptions{})
 	if !strings.Contains(result, "mounting sensitive host path") || called {
 		t.Fatalf("result = %s (called=%v), want the agent-supplied socket bind rejected", result, called)
+	}
+}
+
+func TestDockerCreateContainerRejectsSecurityProxyName(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	created := 0
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/containers/create") {
+			created++
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	cfg := DockerConfig{Host: host}
+	for _, name := range []string{"aurago-security-proxy", "AURAGO-SECURITY-PROXY"} {
+		result := DockerCreateContainerWithOptions(cfg, name, "caddy:latest", nil, nil, nil, nil, "no", nil, ContainerCreateOptions{})
+		if !strings.Contains(result, "reserved AuraGo managed container name") {
+			t.Fatalf("%s: result = %s, want reserved-name denial", name, result)
+		}
+	}
+	if created != 0 {
+		t.Fatalf("the reserved security proxy name reached Docker %d times", created)
 	}
 }

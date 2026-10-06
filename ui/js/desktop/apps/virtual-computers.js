@@ -352,15 +352,16 @@
 
     function detailPane(state) {
         const c = state.context;
-        if (state.resourceLoading.machines && !state.machines.length) return `<div class="vc-detail-skeleton">${skeletonRows()}</div>`;
+        const placeholderArt = '<img class="vc-placeholder-art" src="/img/virtual-computers/placeholder.png" width="1254" height="1254" alt="" aria-hidden="true" draggable="false">';
         const machine = state.machines.find(item => item.id === state.selectedMachineId);
         if (!machine) {
-            return `<div class="vc-empty-state vc-empty-detail"><span class="vc-empty-icon">${icon(state, 'monitor', '▣')}</span><strong>${esc(tx(c, 'desktop.virtual_computers_select_machine'))}</strong><p>${esc(tx(c, 'desktop.virtual_computers_status'))}</p></div>`;
+            const loading = state.resourceLoading.machines && !state.machines.length;
+            return `<div class="vc-empty-state vc-empty-detail">${placeholderArt}<strong>${esc(tx(c, loading ? 'desktop.loading' : 'desktop.virtual_computers_select_machine'))}</strong><p>${esc(tx(c, 'desktop.virtual_computers_status'))}</p></div>`;
         }
         const mutable = isMutable(state);
         const ports = Array.isArray(machine.web_ports) ? machine.web_ports : [];
         const portLinks = ports.length ? ports.map(port => `<a class="vc-link" href="/api/virtual-computers/machines/${encodeURIComponent(machine.id)}/web/${Number(port)}/" target="_blank" rel="noopener">${icon(state, 'external', '↗')} ${esc(String(port))}</a>`).join('') : '—';
-        let viewer = `<div class="vc-machine-hero"><span class="vc-machine-hero-icon">${icon(state, machine.display ? 'monitor' : 'server', '▣')}</span><p>${esc(machine.display ? tx(c, 'desktop.virtual_computers_vnc_live') : tx(c, 'desktop.virtual_computers_headless'))}</p></div>`;
+        let viewer = `<div class="vc-machine-hero">${placeholderArt}<p>${esc(machine.display ? tx(c, 'desktop.virtual_computers_vnc_live') : tx(c, 'desktop.virtual_computers_headless'))}</p></div>`;
         if (state.detailMode === 'screenshot') {
             if (state.screenshotLoading) viewer = skeletonRows();
             else if (state.selectedShot) viewer = `<img class="vc-shot" src="data:${esc(state.selectedShot.mime_type || 'image/png')};base64,${esc(state.selectedShot.data_base64 || '')}" alt="${esc(tx(c, 'desktop.virtual_computers_screenshot'))}">`;

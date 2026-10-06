@@ -66,7 +66,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	p.EmailAccountID = "agentmail"
 	now := time.Date(2026, 9, 25, 8, 0, 0, 0, time.UTC)
 	e := newspaper.Edition{ID: "issue_1", LocalDate: "2026-09-25", Revision: 1, Title: p.Name, Language: "de", Place: "Berlin", CreatedAt: now, CutoffAt: now}
-	for i := 0; i < 8; i++ {
+	for i := 0; i < 31; i++ {
 		id := fmt.Sprintf("src-%d", i)
 		headline := fmt.Sprintf("Die Stadt plant eine neue öffentliche Bibliothek im Bezirk %d", i)
 		if i == 0 {
@@ -88,7 +88,17 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/desktop/newspaper/")
 		switch path {
 		case "capabilities":
-			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "research_tools": []any{map[string]string{"id": "brave_search", "state": "needs_setup", "reason": "key_missing"}, map[string]string{"id": "ddg_search", "state": "ready", "last_error": "rate_limited"}, map[string]string{"id": "rss", "state": "needs_setup", "reason": "feeds_missing"}, map[string]string{"id": "web_scraper", "state": "ready"}}, "email_ready": false, "telegram_ready": false, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{map[string]string{"id": "agentmail", "name": "AgentMail"}, map[string]string{"id": "gmx_personal", "name": "GMX"}}, "daily": false, "local_date": localDate})
+			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "research_tools": []any{map[string]string{"id": "brave_search", "state": "needs_setup", "reason": "key_missing"}, map[string]string{"id": "ddg_search", "state": "ready", "last_error": "rate_limited"}, map[string]string{"id": "rss", "state": "needs_setup", "reason": "feeds_missing"}, map[string]string{"id": "web_scraper", "state": "ready"}}, "email_ready": false, "telegram_ready": false, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{map[string]string{"id": "agentmail", "name": "AgentMail"}, map[string]string{"id": "gmx_personal", "name": "GMX"}}, "daily": false, "local_date": localDate, "budget_mode": "auto", "effective_budget": newspaper.ResolveBudget(p, newspaper.BudgetConfig{Mode: "auto"}), "monetary_budget_enabled": false})
+		case "budget-preview":
+			var req struct {
+				Profile    newspaper.Profile `json:"profile"`
+				BudgetMode string            `json:"budget_mode"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Error(err)
+			}
+			budget := newspaper.ResolveBudget(req.Profile, newspaper.BudgetConfig{Mode: req.BudgetMode})
+			json.NewEncoder(w).Encode(map[string]any{"effective_budget": budget, "monetary_budget_enabled": false})
 		case "profile":
 			if r.Method == http.MethodPut {
 				if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
@@ -109,7 +119,8 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 				json.NewEncoder(w).Encode(newspaper.Run{ID: "run-2", Status: "running"})
 				return
 			}
-			json.NewEncoder(w).Encode(map[string]any{"editions": []any{map[string]any{"id": e.ID, "local_date": e.LocalDate, "revision": 1, "title": e.Title, "lead": e.Stories[0].Headline, "headlines": []string{e.Stories[0].Headline}, "sections": []string{"culture"}, "stories": len(e.Stories)}}, "latest_run": newspaper.Run{Status: "published", Research: &newspaper.ResearchStats{Candidates: 84, Read: 25, Accepted: 12, Gaps: []string{"science", "<script>window.injected=true</script>"}}}})
+			budget := newspaper.Budget{Mode: "auto", Topics: 31, Pages: 396, Searches: 128, Overviews: 64, Minutes: 60, Candidates: 800, Stories: 31, EditorCalls: 124}
+			json.NewEncoder(w).Encode(map[string]any{"editions": []any{map[string]any{"id": e.ID, "local_date": e.LocalDate, "revision": 1, "title": e.Title, "lead": e.Stories[0].Headline, "headlines": []string{e.Stories[0].Headline}, "sections": []string{"culture"}, "stories": len(e.Stories)}}, "latest_run": newspaper.Run{Status: "published", Research: &newspaper.ResearchStats{Searches: 24, Candidates: 84, Pages: 40, Read: 25, Accepted: 12, Overviews: 3, EditorCalls: 10, Budget: &budget, Coverage: map[string]int{"culture": 4, "politics": 8}, Gaps: []string{"science", "<script>window.injected=true</script>"}}}})
 		case "editions/issue_1":
 			json.NewEncoder(w).Encode(e)
 		case "editions/issue_1/deliveries":
@@ -125,7 +136,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	})
 	mux.HandleFunc("/newspaper-fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, `<!doctype html><html lang="de"><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-app-newspaper.css"><style>html,body{margin:0;height:100%}body{--vd-theme-app-bg:#e4e4e4;--vd-theme-panel-bg:#eee;--vd-theme-chrome-bg:#ddd;--vd-theme-border:#5555;--vd-theme-accent-soft:#b99b9b33;--vd-theme-muted:#555;--vd-accent:#8b3338;--vd-text:#222}#host{height:100%}</style><body class="desktop-body" data-theme="fruity" data-fruity-mode="light"><div id="host"></div><script>window.errors=[];window.calls=0;addEventListener('error',e=>errors.push(e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));</script><script src="/js/desktop/apps/newspaper.js"></script><script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/de.json')).json();window.ctx={t:k=>labels[k]||k,confirmDialog:async()=>true,api:async(path,opts)=>{calls++;const r=await fetch(path,opts);const j=await r.json();if(!r.ok){const err=new Error(j.error);err.body=j;throw err;}return j}};NewspaperApp.render(document.querySelector('#host'),'test',ctx)})();</script></html>`)
+		fmt.Fprint(w, `<!doctype html><html lang="de"><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-app-newspaper.css"><style>html,body{margin:0;height:100%}body{--vd-theme-app-bg:#e4e4e4;--vd-theme-panel-bg:#eee;--vd-theme-chrome-bg:#ddd;--vd-theme-border:#5555;--vd-theme-accent-soft:#b99b9b33;--vd-theme-muted:#555;--vd-accent:#8b3338;--vd-text:#222}#host{height:100%}</style><body class="desktop-body" data-theme="fruity" data-fruity-mode="light"><div id="host"></div><script>window.errors=[];window.calls=0;addEventListener('error',e=>errors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason?.stack||e.reason)));</script><script src="/js/desktop/apps/newspaper.js"></script><script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/de.json')).json();window.ctx={t:k=>labels[k]||k,confirmDialog:async()=>true,api:async(path,opts)=>{calls++;const r=await fetch(path,opts);const j=await r.json();if(!r.ok){const err=new Error(j.error);err.body=j;throw err;}return j}};NewspaperApp.render(document.querySelector('#host'),'test',ctx)})();</script></html>`)
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -137,11 +148,19 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	defer page.Close()
 	page.MustSetViewport(1440, 900, 1, false)
 	page.MustElement(".np-teaser")
+	if got := page.MustEval(`()=>document.querySelectorAll('.np-teaser[data-story]').length`).Int(); got != 31 {
+		t.Fatalf("edition rendered %d story links, want 31", got)
+	}
+	page.MustElement(`[data-story="story-30"]`).MustClick()
+	if title := page.MustElement(".np-article h2").MustText(); !strings.Contains(title, "Bezirk 30") {
+		t.Fatalf("last story did not open from a 31-story edition: %q", title)
+	}
+	page.MustElement(".np-article-paper .np-back").MustClick()
 	page.MustElement(".np-tools summary").MustClick()
 	if text := page.MustElement(".np-tools").MustText(); !strings.Contains(text, "Brave-API-Schlüssel") || !strings.Contains(text, "DuckDuckGo") || !strings.Contains(text, "Letzter Versuch") {
 		t.Fatalf("missing capability guidance: %s", text)
 	}
-	if text := page.MustElement(".np-progress").MustText(); !strings.Contains(text, "84 Treffer gefunden · 25 Seiten gelesen · 12 Artikel übernommen") || !strings.Contains(text, "Wissenschaft") {
+	if text := page.MustElement(".np-progress").MustText(); !strings.Contains(text, "12 von 31 Artikeln übernommen · Themen abgedeckt: 2 von 31.") || !strings.Contains(text, "Übersichten 3 · Suchen 24 · Ladeversuche 40 · Seiten gelesen 25 · Kandidaten 84") || !strings.Contains(text, "Wissenschaft") {
 		t.Fatalf("missing research counters: %s", text)
 	}
 	dir := filepath.Join("..", "reports", "newspaper")
@@ -185,6 +204,18 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	page.MustElement(`[data-view=archive]`).MustClick()
 	page.MustElement(".np-archive-list button")
 	page.MustElement(`[data-view=preferences]`).MustClick()
+	page.MustWait(`() => document.querySelector('.np-budget-panel')?.innerText.includes('Themen 6') && document.querySelector('.np-budget-panel')?.innerText.includes('Artikel 12')`)
+	page.MustEval(`(sections)=>{for(const input of document.querySelectorAll('[name=sections]'))input.checked=sections.includes(input.value);document.querySelector('[name=sections]').dispatchEvent(new Event('change',{bubbles:true}))}`, []string{"regional", "national", "international", "politics", "economy", "culture", "technology", "science", "environment", "health", "sport"})
+	for i := 0; i < 20; i++ {
+		page.MustElement(`[name=interests_input]`).MustInput(fmt.Sprintf("Topic %02d", i+1))
+		page.MustElement(`[data-add=interests]`).MustClick()
+	}
+	page.Timeout(20 * time.Second).MustWait(`() => document.querySelector('.np-budget-panel')?.innerText.includes('Themen 31') && document.querySelector('.np-budget-panel')?.innerText.includes('Artikel 31')`)
+	page.MustEval(`(sections)=>{for(const input of document.querySelectorAll('[name=sections]'))input.checked=sections.includes(input.value);document.querySelector('[name=sections]').dispatchEvent(new Event('change',{bubbles:true}))}`, p.Sections)
+	for i := 0; i < 20; i++ {
+		page.MustElement(`[data-remove=interests]`).MustClick()
+	}
+	page.Timeout(20 * time.Second).MustWait(`() => document.querySelector('.np-budget-panel')?.innerText.includes('Themen 6')`)
 	page.MustEval(`()=>{document.querySelector('[name=name]').value='Der Neue Morgen';document.querySelector('[name=rss_url]').value='https://example.org/culture.xml'}`)
 	page.MustElement(`[name=interests_input]`).MustInput("Lokales Theater")
 	page.MustElement(`[data-add=interests]`).MustClick()
@@ -206,7 +237,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 		t.Fatal("RSS feed was not added")
 	}
 	page.MustElement(".np-prefs [type=submit]").MustClick()
-	page.MustElement(".np-banner")
+	page.MustElementR(".np-banner", "Einstellungen gespeichert.")
 	mu.Lock()
 	saved := p.Name == "Der Neue Morgen" && len(p.Interests) == 1 && p.Interests[0] == "Lokales Theater" && len(p.RSSFeeds) == 1 && p.RSSFeeds[0].Section == "culture"
 	gotInterests := append([]string(nil), p.Interests...)
@@ -214,7 +245,6 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	if !saved {
 		t.Fatalf("interests were not saved: %#v, banner=%q", gotInterests, page.MustElement(".np-banner").MustText())
 	}
-	page.MustElementR(".np-banner", "Einstellungen gespeichert.")
 	page.MustElement(`[data-action=email-challenge]`).MustClick()
 	page.MustElement(".np-banner.np-error")
 	if text := page.MustElement(".np-banner.np-error").MustText(); !strings.Contains(text, "AgentMail hat die Bestätigungsmail abgelehnt (HTTP 403)") || strings.Contains(text, "raw server error") {
@@ -260,10 +290,12 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	if page.MustEval(`()=>document.querySelector('[data-action=email-challenge]').disabled`).Bool() {
 		t.Fatal("send code did not enable after selecting a sender and recipient")
 	}
+	page.MustEval(`()=>document.querySelector('.np-budget-panel').scrollIntoView({block:'start'})`)
 	for _, mode := range []string{"light", "dark"} {
 		page.MustEval(`mode=>document.body.dataset.fruityMode=mode`, mode)
 		for _, width := range []int{1440, 420} {
 			page.MustSetViewport(width, 900, 1, false)
+			page.MustEval(`()=>document.querySelector('.np-budget-panel').scrollIntoView({block:'start'})`)
 			page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("newspaper-%s-%d.png", mode, width)))
 			if page.MustEval(`()=>document.querySelector('.np-app').scrollWidth>document.querySelector('#host').clientWidth+1`).Bool() {
 				t.Fatalf("horizontal overflow at %d %s", width, mode)
@@ -284,7 +316,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	if page.MustEval(`()=>calls`).Int() != before {
 		t.Fatal("polling leaked after disposal")
 	}
-	if errs := page.MustEval(`()=>errors`).Arr(); len(errs) != 0 {
-		t.Fatal(errs)
+	if errs := page.MustEval(`()=>JSON.stringify(window.errors)`).Str(); errs != "[]" {
+		t.Fatalf("browser errors: %s", errs)
 	}
 }

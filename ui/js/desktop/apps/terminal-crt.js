@@ -28,6 +28,12 @@
         'uniform float u_motion;',
         'uniform float u_scan;',
         'uniform float u_mono;',
+        'uniform float u_intensity;',
+        'uniform float u_brightness;',
+        'uniform float u_vignette;',
+        'uniform float u_jitter;',
+        'uniform float u_interference;',
+        'uniform float u_chromatic;',
         'uniform vec2 u_size;',
         'float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
         'vec3 phosphor(vec3 c) {',
@@ -35,32 +41,49 @@
         '    return mix(c, u_phosphor * light, u_mono);',
         '}',
         'void main() {',
+        '    float intensity = clamp(u_intensity, 0.0, 1.0);',
         '    vec2 cc = v_uv - 0.5;',
-        '    vec2 curved = cc * (1.0 + cc.yx * cc.yx * u_curve) + 0.5;',
-        '    if (curved.x < 0.0 || curved.x > 1.0 || curved.y < 0.0 || curved.y > 1.0) {',
-        '        gl_FragColor = vec4(0.0, 0.0, 0.0, u_alpha);',
-        '        return;',
-        '    }',
-        '    vec3 src = texture2D(u_tex, curved).rgb;',
+        '    float row = floor(v_uv.y * u_size.y);',
+        '    float bandY = fract(u_time * 0.14);',
+        '    float bandDistance = abs(v_uv.y - bandY);',
+        '    bandDistance = min(bandDistance, 1.0 - bandDistance);',
+        '    float band = 1.0 - smoothstep(0.0, 0.022, bandDistance);',
+        '    float interferenceStrength = clamp(u_interference, 0.0, 1.0) * u_motion * intensity;',
+        '    float jitter = (hash(vec2(row, floor(u_time * 30.0))) - 0.5) * 0.008 * clamp(u_jitter, 0.0, 1.0) * u_motion * intensity;',
+        '    float interferenceShift = band * interferenceStrength * (hash(vec2(row, floor(u_time * 24.0))) - 0.5) * 0.006;',
+        '    vec2 curved = cc * (1.0 + cc.yx * cc.yx * u_curve * intensity) + 0.5;',
+        '    curved.x += jitter + interferenceShift;',
+        '    float inside = step(0.0, curved.x) * step(curved.x, 1.0) * step(0.0, curved.y) * step(curved.y, 1.0);',
+        '    vec3 centerSrc = texture2D(u_tex, curved).rgb;',
+        '    vec3 src = centerSrc;',
+        '    float chromatic = clamp(u_chromatic, 0.0, 1.0) * intensity * 1.75 / max(u_res.x, 1.0);',
+        '    src = vec3(texture2D(u_tex, curved + vec2(chromatic, 0.0)).r, centerSrc.g, texture2D(u_tex, curved - vec2(chromatic, 0.0)).b);',
+        '    vec3 original = texture2D(u_tex, v_uv).rgb;',
         '    vec3 prev = texture2D(u_prev, curved).rgb;',
         '    vec3 bloom = prev;',
         '    float scan = 1.0 - u_scan * (0.14 + 0.14 * cos(curved.y * u_size.y * 3.14159));',
         '    float flicker = 1.0 - u_flicker * u_motion * (0.5 + 0.5 * sin(u_time * 47.0));',
         '    float grain = (hash(floor(v_uv * u_res) + floor(u_time * 24.0)) - 0.5) * u_noise;',
         '    float mask = 1.0 - u_mask * 0.12 * (0.5 + 0.5 * cos(curved.x * u_size.x * 3.14159));',
+        '    float interference = 1.0 + band * interferenceStrength * 0.18;',
         '    vec3 light = max(src, prev * u_burn * u_motion);',
         '    vec3 color = phosphor(light) * 1.18 + phosphor(bloom) * u_bloom * 1.35;',
         '    color += pow(max(light.r, max(light.g, light.b)), 3.0) * u_phosphor * 0.12;',
-        '    color *= scan * flicker * mask;',
-        '    float vignette = 1.0 - 0.48 * smoothstep(0.15, 0.72, length(cc));',
+        '    color += vec3(src.r - centerSrc.r, 0.0, src.b - centerSrc.b) * u_mono * 0.65;',
+        '    color *= scan * flicker * mask * interference;',
+        '    float vignette = 1.0 - clamp(u_vignette, 0.0, 1.0) * smoothstep(0.15, 0.72, length(cc));',
         '    float edge = min(min(curved.x, 1.0 - curved.x), min(curved.y, 1.0 - curved.y));',
         '    color += u_phosphor * (0.018 + grain * 0.35);',
-        '    color *= vignette * smoothstep(0.0, 0.018, edge);',
-        '    gl_FragColor = vec4(color, u_alpha);',
+        '    float bandNoise = hash(floor(v_uv * u_res) + vec2(floor(u_time * 24.0), 0.0));',
+        '    color += u_phosphor * band * interferenceStrength * (0.035 + bandNoise * 0.065);',
+        '    color *= vignette * smoothstep(0.0, 0.018, edge) * inside;',
+        '    color = mix(original, color * clamp(u_brightness, 0.5, 1.5), intensity);',
+        '    gl_FragColor = vec4(color, mix(1.0, u_alpha, intensity));',
         '}'
     ].join('\n');
 
     const SOURCE_WAIT_MS = 2000;
+    const DEFAULT_PROFILE = { phosphor: [1, 1, 1], curve: 0, bloom: 0, burn: 0, noise: 0, flicker: 0, mask: 0, alpha: 1, scan: 0, intensity: 1, brightness: 1, vignette: 0.48, jitter: 0, interference: 0, chromatic: 0 };
 
     function reducedMotion() {
         return (document.body && document.body.dataset.animations === 'false')
@@ -88,7 +111,7 @@
             let enabled = false;
             let disposed = false;
             let fallback = false;
-            let profile = { phosphor: [1, 1, 1], curve: 0, bloom: 0, burn: 0, noise: 0, flicker: 0, mask: 0, alpha: 1, scan: 0 };
+            let profile = Object.assign({}, DEFAULT_PROFILE);
             let background = '#000000';
             let monochrome = true;
             let raf = 0;
@@ -200,7 +223,7 @@
                 burnCtx.globalCompositeOperation = 'source-over';
                 burnCtx.filter = 'none';
                 burnCtx.fillStyle = background;
-                burnCtx.globalAlpha = motion ? 1 - Math.exp(-elapsed / (45 + profile.burn * 220)) : 1;
+                burnCtx.globalAlpha = motion && profile.burn > 0 ? 1 - Math.exp(-elapsed / (45 + profile.burn * 220)) : 1;
                 burnCtx.fillRect(0, 0, burnW, burnH);
                 burnCtx.globalAlpha = 1;
                 burnCtx.globalCompositeOperation = 'lighten';
@@ -310,6 +333,12 @@
                 gl.uniform1f(loc('u_alpha'), profile.alpha);
                 gl.uniform1f(loc('u_motion'), motion);
                 gl.uniform1f(loc('u_scan'), profile.scan);
+                gl.uniform1f(loc('u_intensity'), profile.intensity);
+                gl.uniform1f(loc('u_brightness'), profile.brightness);
+                gl.uniform1f(loc('u_vignette'), profile.vignette);
+                gl.uniform1f(loc('u_jitter'), profile.jitter);
+                gl.uniform1f(loc('u_interference'), profile.interference);
+                gl.uniform1f(loc('u_chromatic'), profile.chromatic);
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                 if (host) host.setAttribute('data-terminal-renderer', 'webgl');
                 startLoop();
@@ -344,7 +373,7 @@
 
             function setProfile(next) {
                 if (next && next.crt) {
-                    profile = next.crt;
+                    profile = Object.assign({}, DEFAULT_PROFILE, next.crt);
                     background = next.theme.background;
                     monochrome = next.id !== 'commodore64';
                     if (burnCtx) burnCtx.clearRect(0, 0, burnW, burnH);

@@ -1,5 +1,5 @@
 {
-  "config.memory_analysis.auto_desc": "Die Gedächtnisanalyse verwendet das zentrale Helper-LLM, sofern verfügbar. Der Provider wird in den Helper-Einstellungen gewählt. Hier werden Konfidenzschwelle und Reflexionstag festgelegt.",
+  "config.memory_analysis.auto_desc": "Die Gedächtnisanalyse verwendet das zentrale Hilfs-LLM, sofern verfügbar. Der Provider wird in den Helper-Einstellungen gewählt. Hier werden Konfidenzschwelle und Reflexionstag festgelegt.",
   "config.memory_analysis.auto_notice": "Gedächtnisanalyse und Reflexion",
   "config.memory_analysis.day_friday": "Freitag",
   "config.memory_analysis.day_monday": "Montag",
@@ -21,7 +21,7 @@
   "config.memory_analysis.preset_custom": "Benutzerdefiniert",
   "config.memory_analysis.preset_desc": "Wähle eine sichere Rollout-Stufe, statt alle Memory-Analysis-Pfade sofort gleichzeitig zu aktivieren.",
   "config.memory_analysis.preset_full": "Voll: Reflexion + Query Expansion + Re-Ranking + Echtzeit",
-  "config.memory_analysis.preset_hint": "custom = manuelle Flags beibehalten",
+  "config.memory_analysis.preset_hint": "Benutzerdefiniert = manuelle Flags beibehalten",
   "config.memory_analysis.preset_label": "Voreinstellung",
   "config.memory_analysis.preset_normal": "Normal: Reflexion + Query Expansion",
   "config.memory_analysis.preset_title": "Rollout-Preset",
@@ -30,7 +30,7 @@
   "config.memory_analysis.provider_title": "Hilfs-LLM",
   "config.memory_analysis.query_expansion_help": "Bevor Erinnerungen abgerufen werden, erweitert das LLM die Suchanfrage um semantisch verwandte Begriffe. Verbessert die Trefferquote, wenn der Nutzer Dinge mit anderen Worten beschreibt als ursprünglich gespeichert.",
   "config.memory_analysis.query_expansion_label": "Query-Erweiterung",
-  "config.memory_analysis.realtime_desc": "Jede Nutzernachricht wird im Hintergrund auf merkwürdige Inhalte analysiert (Präferenzen, Fakten, Korrekturen). Läuft asynchron und verlangsamt keine Antworten.",
+  "config.memory_analysis.realtime_desc": "Jede Nutzernachricht wird im Hintergrund auf speicherwürdige Inhalte analysiert (Präferenzen, Fakten, Korrekturen). Läuft asynchron und verlangsamt keine Antworten.",
   "config.memory_analysis.realtime_help": "Analysiert jede eingehende Nachricht kontinuierlich. Sobald speicherwürdige Inhalte wie Präferenzen, Fakten oder Korrekturen erkannt werden, werden sie sofort gespeichert, ohne auf einen Batch-Prozess zu warten.",
   "config.memory_analysis.realtime_label": "Echtzeit-Extraktion aktiviert:",
   "config.memory_analysis.realtime_title": "Echtzeit-Analyse",
@@ -43,5 +43,5 @@
   "config.memory_analysis.threshold_label": "Schwellenwert",
   "config.memory_analysis.threshold_title": "Auto-Bestätigungs-Schwelle",
   "config.memory_analysis.unified_block_help": "Wichtige Erinnerungen werden zu einem kompakten Kontextblock zusammengefasst, statt einzeln aufgelistet zu werden. Reduziert den Token-Verbrauch, ohne wichtige Informationen zu verbergen.",
-  "config.memory_analysis.unified_block_label": "Einheitlicher Speicherblock"
+  "config.memory_analysis.unified_block_label": "Einheitlicher Gedächtnisblock"
 }

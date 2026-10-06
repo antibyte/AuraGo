@@ -550,7 +550,10 @@ func (f *serverStoreDockerAdapter) RestartContainer(context.Context, string) err
 	return nil
 }
 func (f *serverStoreDockerAdapter) RemoveContainer(context.Context, string, bool) error { return nil }
-func (f *serverStoreDockerAdapter) RemoveVolume(context.Context, string, bool) error    { return nil }
+func (f *serverStoreDockerAdapter) RenameContainer(context.Context, string, string) error {
+	return nil
+}
+func (f *serverStoreDockerAdapter) RemoveVolume(context.Context, string, bool) error { return nil }
 func (f *serverStoreDockerAdapter) CreateNetwork(_ context.Context, name string) error {
 	f.createdNetworks = append(f.createdNetworks, name)
 	return nil
@@ -561,6 +564,15 @@ func (f *serverStoreDockerAdapter) RemoveNetwork(_ context.Context, name string)
 }
 func (f *serverStoreDockerAdapter) InspectContainer(_ context.Context, name string) (desktopstore.ContainerState, error) {
 	return desktopstore.ContainerState{Name: name, Running: true, Status: "running"}, nil
+}
+func (f *serverStoreDockerAdapter) FindContainer(context.Context, string) (desktopstore.ContainerState, bool, error) {
+	return desktopstore.ContainerState{}, false, nil
+}
+func (f *serverStoreDockerAdapter) VolumeExists(context.Context, string) (bool, error) {
+	return false, nil
+}
+func (f *serverStoreDockerAdapter) NetworkExists(context.Context, string) (bool, error) {
+	return false, nil
 }
 
 type serverStoreSecretStore struct {

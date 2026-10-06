@@ -58,11 +58,63 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := s.ConfigSnapshot()
-	if cfg == nil || !cfg.VirtualDesktop.Enabled || s.Newspaper == nil {
+	if cfg == nil {
 		newspaperJSON(w, 503, map[string]string{"error": "Newspaper unavailable"})
 		return
 	}
 	path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/desktop/newspaper/"), "/")
+	if path == "budget-preview" && r.Method == http.MethodPost {
+		var input struct {
+			Profile         *newspaper.Profile `json:"profile"`
+			BudgetMode      *string            `json:"budget_mode"`
+			MaxPages        *int               `json:"max_pages"`
+			MaxSearches     *int               `json:"max_searches"`
+			MaxMinutes      *int               `json:"max_minutes"`
+			OverviewSources *[]string          `json:"overview_sources"`
+		}
+		if err := detectiveDecode(w, r, &input); err != nil {
+			newspaperError(w, err)
+			return
+		}
+		p := newspaper.DefaultProfile()
+		if s.Newspaper != nil {
+			var err error
+			p, err = s.Newspaper.Profile(r.Context())
+			if err != nil {
+				newspaperError(w, err)
+				return
+			}
+		}
+		if input.Profile != nil {
+			p = *input.Profile
+		}
+		preview := cfg.Clone()
+		if input.BudgetMode != nil {
+			if *input.BudgetMode != "auto" && *input.BudgetMode != "fixed" {
+				newspaperError(w, errors.New("invalid budget mode"))
+				return
+			}
+			preview.Newspaper.BudgetMode = *input.BudgetMode
+		}
+		if input.MaxPages != nil {
+			preview.Newspaper.MaxPages = *input.MaxPages
+		}
+		if input.MaxSearches != nil {
+			preview.Newspaper.MaxSearches = *input.MaxSearches
+		}
+		if input.MaxMinutes != nil {
+			preview.Newspaper.MaxMinutes = *input.MaxMinutes
+		}
+		if input.OverviewSources != nil {
+			preview.Newspaper.OverviewSources = *input.OverviewSources
+		}
+		newspaperJSON(w, 200, map[string]any{"effective_budget": newspaperBudget(preview, p), "monetary_budget_enabled": cfg.Budget.Enabled, "overview_sources": preview.Newspaper.OverviewSources})
+		return
+	}
+	if !cfg.VirtualDesktop.Enabled || s.Newspaper == nil {
+		newspaperJSON(w, 503, map[string]string{"error": "Newspaper unavailable"})
+		return
+	}
 	if path == "capabilities" && r.Method == http.MethodGet {
 		p, _ := s.Newspaper.Profile(r.Context())
 		accounts := []map[string]string{}
@@ -99,7 +151,7 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		newspaperJSON(w, 200, map[string]any{"enabled": cfg.Newspaper.Enabled, "read_only": cfg.Newspaper.ReadOnly || cfg.VirtualDesktop.ReadOnly, "research_ready": researchCaps.Ready, "research_tools": researchCaps.Tools, "research_reason": researchCaps.Reason, "max_searches": cfg.Newspaper.EffectiveMaxSearches(), "email_allowed": cfg.Newspaper.AllowEmail, "email_ready": cfg.Newspaper.AllowEmail && p.EmailVerified && p.EmailTo != "" && accountReady, "telegram_allowed": cfg.Newspaper.AllowTelegram, "telegram_ready": cfg.Newspaper.AllowTelegram && cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0, "email_accounts": accounts, "daily": p.Daily, "local_date": localDate, "next_run": next, "max_minutes": cfg.Newspaper.MaxMinutes, "max_pages": cfg.Newspaper.MaxPages, "max_editions": cfg.Newspaper.MaxEditions})
+		newspaperJSON(w, 200, map[string]any{"enabled": cfg.Newspaper.Enabled, "read_only": cfg.Newspaper.ReadOnly || cfg.VirtualDesktop.ReadOnly, "research_ready": researchCaps.Ready, "research_tools": researchCaps.Tools, "research_reason": researchCaps.Reason, "effective_budget": newspaperBudget(cfg, p), "budget_mode": newspaperBudget(cfg, p).Mode, "overview_sources": cfg.Newspaper.OverviewSources, "monetary_budget_enabled": cfg.Budget.Enabled, "max_searches": newspaperBudget(cfg, p).Searches, "email_allowed": cfg.Newspaper.AllowEmail, "email_ready": cfg.Newspaper.AllowEmail && p.EmailVerified && p.EmailTo != "" && accountReady, "telegram_allowed": cfg.Newspaper.AllowTelegram, "telegram_ready": cfg.Newspaper.AllowTelegram && cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0, "email_accounts": accounts, "daily": p.Daily, "local_date": localDate, "next_run": next, "max_minutes": newspaperBudget(cfg, p).Minutes, "max_pages": newspaperBudget(cfg, p).Pages, "max_editions": cfg.Newspaper.MaxEditions})
 		return
 	}
 	if path == "profile" {

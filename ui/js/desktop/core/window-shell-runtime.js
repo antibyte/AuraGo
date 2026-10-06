@@ -1510,7 +1510,7 @@
                 if (window.FileManager && typeof window.FileManager.navigateTo === 'function') window.FileManager.navigateTo(existing.id, context.path);
                 else renderFiles(existing.id, context.path);
             }
-            if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content || '');
+            if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content);
             if (appId === 'writer' && context && context.path != null && window.WriterApp && window.WriterApp.instances.has(existing.id)) window.WriterApp.instances.get(existing.id).reloadIfChanged();
             if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openPath === 'function') window.CodeStudio.openPath(context.path, true, existing.id);
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);

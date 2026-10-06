@@ -388,7 +388,7 @@ The German security chapter contains a more detailed public-exposure checklist; 
 | Login protection | Enable auth before exposing AuraGo beyond localhost |
 | TOTP | Enable 2FA for all internet-facing deployments |
 | Proxy trust | Set `behind_proxy` + `trusted_proxy_cidrs`, otherwise forwarding headers are ignored |
-| Security Proxy | Use the managed Caddy proxy for rate limiting, TLS termination, IP filtering, and geo-blocking |
+| Security Proxy | Use the managed Caddy proxy for TLS termination, rate limiting, IP filtering and Basic Auth; geo-blocking is not implemented yet |
 | Cloudflare Tunnel / Tailscale | Prefer private tunnels or VPN access over direct port forwarding |
 | Webhooks | Require tokens/HMAC, narrow scopes, and rate limits |
 | Tool permissions | Keep Danger Zone toggles disabled until a feature is actually needed |

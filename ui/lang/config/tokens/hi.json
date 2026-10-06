@@ -1,5 +1,5 @@
 {
-  "config.tokens.expires": "समाप्त हो रहा है",
+  "config.tokens.expires": "समाप्ति",
   "config.tokens.never": "कभी नहीं",
   "config.tokens.new_token": "नया टोकन",
   "config.tokens.empty": "अभी तक कोई टोकन नहीं बनाया गया.",

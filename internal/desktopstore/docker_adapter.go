@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -15,6 +16,13 @@ import (
 
 	"aurago/internal/tools"
 )
+
+// errContainerNotFound marks an Engine 404 for a container. Wrapped as
+// "container <name> not found", the historical message stays unchanged.
+var errContainerNotFound = errors.New("not found")
+
+// errContainerNameConflict marks an Engine 409 for a container name in use.
+var errContainerNameConflict = errors.New("name already in use")
 
 // ToolsDockerAdapter implements DockerAdapter through AuraGo's Docker Engine
 // API helpers.
@@ -143,6 +151,24 @@ func (a ToolsDockerAdapter) RemoveContainer(ctx context.Context, name string, fo
 	return dockerHTTPError("remove container", code, data)
 }
 
+// RenameContainer renames a container through POST /containers/{name}/rename.
+func (a ToolsDockerAdapter) RenameContainer(ctx context.Context, name, newName string) error {
+	endpoint := "/containers/" + url.PathEscape(name) + "/rename?name=" + url.QueryEscape(newName)
+	data, code, err := tools.DockerRequestContext(ctx, a.Config, http.MethodPost, endpoint, "")
+	if err != nil {
+		return err
+	}
+	switch code {
+	case http.StatusNoContent, http.StatusOK:
+		return nil
+	case http.StatusNotFound:
+		return fmt.Errorf("container %s %w", name, errContainerNotFound)
+	case http.StatusConflict:
+		return fmt.Errorf("rename container %s to %s: %w", name, newName, errContainerNameConflict)
+	}
+	return dockerHTTPError("rename container", code, data)
+}
+
 func (a ToolsDockerAdapter) RemoveVolume(ctx context.Context, name string, force bool) error {
 	endpoint := "/volumes/" + url.PathEscape(name)
 	if force {
@@ -202,17 +228,23 @@ func (a ToolsDockerAdapter) InspectContainer(ctx context.Context, name string) (
 		return ContainerState{}, err
 	}
 	if code == http.StatusNotFound {
-		return ContainerState{}, fmt.Errorf("container %s not found", name)
+		return ContainerState{}, fmt.Errorf("container %s %w", name, errContainerNotFound)
 	}
 	if code != http.StatusOK {
 		return ContainerState{}, dockerHTTPError("inspect container", code, data)
 	}
 	var raw struct {
-		Name  string `json:"Name"`
+		Name         string `json:"Name"`
+		RestartCount int    `json:"RestartCount"`
+		Config       struct {
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
 		State struct {
-			Running bool   `json:"Running"`
-			Status  string `json:"Status"`
-			Health  *struct {
+			Running    bool   `json:"Running"`
+			Restarting bool   `json:"Restarting"`
+			Status     string `json:"Status"`
+			ExitCode   int    `json:"ExitCode"`
+			Health     *struct {
 				Status string `json:"Status"`
 			} `json:"Health"`
 		} `json:"State"`
@@ -221,14 +253,54 @@ func (a ToolsDockerAdapter) InspectContainer(ctx context.Context, name string) (
 		return ContainerState{}, fmt.Errorf("parse docker inspect: %w", err)
 	}
 	state := ContainerState{
-		Name:    strings.TrimPrefix(raw.Name, "/"),
-		Running: raw.State.Running,
-		Status:  raw.State.Status,
+		Name:         strings.TrimPrefix(raw.Name, "/"),
+		Running:      raw.State.Running,
+		Restarting:   raw.State.Restarting,
+		Status:       raw.State.Status,
+		ExitCode:     raw.State.ExitCode,
+		RestartCount: raw.RestartCount,
+		Labels:       raw.Config.Labels,
 	}
 	if raw.State.Health != nil {
 		state.Health = raw.State.Health.Status
 	}
 	return state, nil
+}
+
+// FindContainer inspects a container; a missing one is found=false.
+func (a ToolsDockerAdapter) FindContainer(ctx context.Context, name string) (ContainerState, bool, error) {
+	state, err := a.InspectContainer(ctx, name)
+	if errors.Is(err, errContainerNotFound) {
+		return ContainerState{}, false, nil
+	}
+	if err != nil {
+		return ContainerState{}, false, err
+	}
+	return state, true, nil
+}
+
+// VolumeExists reports whether a named volume exists (GET /volumes/{name}).
+func (a ToolsDockerAdapter) VolumeExists(ctx context.Context, name string) (bool, error) {
+	return a.resourceExists(ctx, "/volumes/"+url.PathEscape(strings.TrimSpace(name)), "inspect volume")
+}
+
+// NetworkExists reports whether a network exists (GET /networks/{name}).
+func (a ToolsDockerAdapter) NetworkExists(ctx context.Context, name string) (bool, error) {
+	return a.resourceExists(ctx, "/networks/"+url.PathEscape(strings.TrimSpace(name)), "inspect network")
+}
+
+func (a ToolsDockerAdapter) resourceExists(ctx context.Context, endpoint, action string) (bool, error) {
+	data, code, err := tools.DockerRequestContext(ctx, a.Config, http.MethodGet, endpoint, "")
+	if err != nil {
+		return false, err
+	}
+	switch code {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	}
+	return false, dockerHTTPError(action, code, data)
 }
 
 func (a ToolsDockerAdapter) containerAction(ctx context.Context, name, method, action string) error {
@@ -241,7 +313,7 @@ func (a ToolsDockerAdapter) containerAction(ctx context.Context, name, method, a
 		return nil
 	}
 	if code == http.StatusNotFound {
-		return fmt.Errorf("container %s not found", name)
+		return fmt.Errorf("container %s %w", name, errContainerNotFound)
 	}
 	return dockerHTTPError("container action", code, data)
 }

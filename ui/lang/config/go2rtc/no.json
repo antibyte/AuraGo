@@ -16,7 +16,7 @@
   "config.go2rtc.restart": "Start på nytt",
   "config.go2rtc.open_web_ui": "Åpne webgrensesnitt",
   "config.go2rtc.streams_title": "Kamerastreamer",
-  "config.go2rtc.stream": "Strøm",
+  "config.go2rtc.stream": "Stream",
   "config.go2rtc.stream_enabled": "Stream aktivert",
   "config.go2rtc.stream_id": "Stabil stream-ID",
   "config.go2rtc.stream_name": "Visningsnavn",
@@ -57,7 +57,7 @@
   "help.go2rtc.image": "Gjennomgått standard: go2rtc 1.9.14 med uforanderlig digest. Endre bare etter kontroll av en annen versjon.",
   "help.go2rtc.container_name": "Navnet på Docker-containeren som bare administreres av AuraGo.",
   "help.go2rtc.url": "Intern sidecar-URL. La stå tomt for Docker- eller loopbackstandarden.",
-  "help.go2rtc.api_host_port": "Bare for nativ AuraGo; port 1984 bindes alltid til 127.0.0.1.",
+  "help.go2rtc.api_host_port": "Bare for AuraGo på verten; port 1984 bindes alltid til 127.0.0.1.",
   "help.go2rtc.webrtc_enabled": "Publiserer port 8555 via TCP og UDP for direkte nettlesermedier. HTTP-proxyvisning forblir tilgjengelig.",
   "help.go2rtc.webrtc_bind": "Krever en konkret privat LAN-IP for Docker-publisering og WebRTC-kandidat.",
   "help.go2rtc.webrtc_port": "Verts-port for WebRTC TCP og UDP. Standard: 8555."
