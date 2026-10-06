@@ -98,7 +98,7 @@
   "invasion.ph_nest_notes": "Optionale Notizen...",
   "invasion.ph_secret": "Passwort oder SSH Private Key...",
   "invasion.ph_username": "deploy",
-  "invasion.port": "Hafen",
+  "invasion.port": "Port",
   "invasion.provider": "Anbieter",
   "invasion.reconfigure": "Rekonfigurieren",
   "invasion.reconfigure_allow_filesystem": "Dateisystem-Schreibzugriff",

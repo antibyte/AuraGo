@@ -2189,7 +2189,7 @@
   "desktop.qc_no_devices": "Keine SSH- oder VNC-Geräte gefunden. Geräte im Bereich Wissen hinzufügen.",
   "desktop.qc_password": "Passwort",
   "desktop.qc_password_stored": "Passwort im Vault gespeichert",
-  "desktop.qc_port": "Hafen",
+  "desktop.qc_port": "Port",
   "desktop.qc_protocol": "Protokoll",
   "desktop.qc_protocol_ssh": "SSH",
   "desktop.qc_protocol_vnc": "VNC",
