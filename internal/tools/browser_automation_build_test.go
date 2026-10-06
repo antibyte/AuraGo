@@ -12,12 +12,16 @@ import (
 )
 
 type recordingBuildLogger struct {
-	warns []string
+	warns    []string
+	warnArgs [][]any
 }
 
-func (l *recordingBuildLogger) Info(string, ...any)       {}
-func (l *recordingBuildLogger) Warn(msg string, _ ...any) { l.warns = append(l.warns, msg) }
-func (l *recordingBuildLogger) Error(string, ...any)      {}
+func (l *recordingBuildLogger) Info(string, ...any) {}
+func (l *recordingBuildLogger) Warn(msg string, args ...any) {
+	l.warns = append(l.warns, msg)
+	l.warnArgs = append(l.warnArgs, args)
+}
+func (l *recordingBuildLogger) Error(string, ...any) {}
 
 func browserAutomationEnvValues(env []string, name string) []string {
 	var values []string
@@ -140,6 +144,8 @@ func TestBrowserAutomationRemoteBuildEndpoint(t *testing.T) {
 		{"tcp://[::1]:2375", false, false},
 		{"tcp://192.168.1.10:2375", false, true},
 		{"192.168.1.10:2375", false, true},
+		{"ssh://user@host", false, false},
+		{"fd://", false, false},
 		{"tcp://docker-proxy:2375", true, false},
 		{"tcp://192.168.1.10:2375", true, false},
 	} {

@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -77,7 +78,7 @@ type BrowserAutomationSidecarConfig struct {
 	EgressNetwork         string
 	AllowedPrivateOrigins []string
 	CloakFingerprintSeed  string
-	RuntimeIsDocker       bool // cfg.Runtime.IsDocker; only words the remote-build warning
+	RuntimeIsDocker       bool // cfg.Runtime.IsDocker or /.dockerenv; only words the remote-build warning
 }
 
 var browserAutomationDefaultHTTPClient = &http.Client{Timeout: 60 * time.Second}
@@ -548,7 +549,7 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 		EgressNetwork:         cfg.BrowserAutomation.EgressNetwork,
 		AllowedPrivateOrigins: cfg.BrowserAutomation.AllowedPrivateOrigins,
 		CloakFingerprintSeed:  cfg.BrowserAutomation.CloakFingerprintSeed,
-		RuntimeIsDocker:       cfg.Runtime.IsDocker,
+		RuntimeIsDocker:       runningInDocker,
 	}, nil
 }
 
@@ -877,7 +878,13 @@ type browserAutomationBuildInvocation struct {
 	Env        []string
 	ContextDir string
 	Dockerfile string
-	DockerHost string
+	ConfigDir  string // DOCKER_CONFIG of the child
+	DockerHost string // the engine this invocation targets (a label for Fallback)
+	// Fallback is the pre-K19 invocation: the inherited environment with only
+	// DOCKER_CONFIG overridden. It is set only when that environment would reach
+	// a different engine than DockerHost, and only used when docker.host refuses
+	// the build (see browserAutomationBuildFallback).
+	Fallback *browserAutomationBuildInvocation
 }
 
 // browserAutomationBuildCommand derives the docker CLI arguments and
@@ -890,6 +897,10 @@ type browserAutomationBuildInvocation struct {
 // Ansible and Space Agent builds: systemd's ProtectHome makes the service
 // user's home read-only, and AuraGo never logs in to a registry, so no
 // credentials are written there.
+//
+// The returned invocation also carries Fallback, the pre-K19 call, for a socket
+// proxy that serves docker.host with BUILD=0 while the CLI's own default engine
+// can still build (see browserAutomationBuildFallback).
 func browserAutomationBuildCommand(baseEnv []string, image, dockerfileDir, dockerHost string) (browserAutomationBuildInvocation, error) {
 	dir := dockerfileDir
 	if strings.TrimSpace(dir) == "" {
@@ -900,39 +911,109 @@ func browserAutomationBuildCommand(baseEnv []string, image, dockerfileDir, docke
 		return browserAutomationBuildInvocation{}, fmt.Errorf("resolve browser_automation.dockerfile_dir %q: %w", dockerfileDir, err)
 	}
 	host := dockerutil.NormalizeHost(dockerHost)
+	configDir := filepath.Join(contextDir, "data", ".docker")
 	env := make([]string, 0, len(baseEnv)+2)
+	legacyEnv := make([]string, 0, len(baseEnv)+1)
 	for _, kv := range baseEnv {
 		name, _, _ := strings.Cut(kv, "=")
 		switch strings.ToUpper(strings.TrimSpace(name)) {
-		case "DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_CONFIG":
+		case "DOCKER_HOST", "DOCKER_CONTEXT":
+			legacyEnv = append(legacyEnv, kv)
+			continue
+		case "DOCKER_CONFIG":
 			continue
 		}
 		env = append(env, kv)
+		legacyEnv = append(legacyEnv, kv)
 	}
-	env = append(env,
-		"DOCKER_HOST="+host,
-		"DOCKER_CONFIG="+filepath.Join(contextDir, "data", ".docker"),
-	)
+	env = append(env, "DOCKER_HOST="+host, "DOCKER_CONFIG="+configDir)
+	legacyEnv = append(legacyEnv, "DOCKER_CONFIG="+configDir)
 	dockerfile := filepath.Join(contextDir, browserAutomationDockerfileName)
-	return browserAutomationBuildInvocation{
-		Args:       []string{"build", "-f", dockerfile, "-t", image, contextDir},
+	args := []string{"build", "-f", dockerfile, "-t", image, contextDir}
+	inv := browserAutomationBuildInvocation{
+		Args:       args,
 		Env:        env,
 		ContextDir: contextDir,
 		Dockerfile: dockerfile,
+		ConfigDir:  configDir,
 		DockerHost: host,
-	}, nil
+	}
+	if inherited := browserAutomationInheritedEngine(baseEnv); inherited != host {
+		inv.Fallback = &browserAutomationBuildInvocation{
+			Args:       args,
+			Env:        legacyEnv,
+			ContextDir: contextDir,
+			Dockerfile: dockerfile,
+			ConfigDir:  configDir,
+			DockerHost: inherited,
+		}
+	}
+	return inv, nil
+}
+
+// browserAutomationInheritedEngine names the engine that the docker CLI reaches
+// with the inherited environment: the DOCKER_CONTEXT it selects (the CLI lets it
+// override DOCKER_HOST), else DOCKER_HOST, else the platform default socket.
+// Variable names match case-insensitively, as on Windows.
+func browserAutomationInheritedEngine(env []string) string {
+	var host, contextName string
+	for _, kv := range env {
+		name, value, ok := strings.Cut(kv, "=")
+		if !ok {
+			continue
+		}
+		switch strings.ToUpper(strings.TrimSpace(name)) {
+		case "DOCKER_HOST":
+			host = strings.TrimSpace(value)
+		case "DOCKER_CONTEXT":
+			contextName = strings.TrimSpace(value)
+		}
+	}
+	if contextName != "" && !strings.EqualFold(contextName, "default") {
+		return "docker context " + contextName
+	}
+	return dockerutil.NormalizeHost(host)
+}
+
+// browserAutomationBuildRefused reports whether a failed build's output shows
+// that the engine endpoint refused the build API, which is what a socket proxy
+// with BUILD=0 answers (HTTP 403 Forbidden).
+func browserAutomationBuildRefused(output string) bool {
+	lower := strings.ToLower(output)
+	return strings.Contains(lower, "403") || strings.Contains(lower, "forbidden")
+}
+
+// browserAutomationBuildFallback returns the invocation to retry once after a
+// failed build, or nil. Before K19 the build ignored docker.host and used the
+// CLI's inherited environment. A native install can point docker.host at a
+// socket proxy with BUILD=0 (the sidecar is created through it) and still
+// build through the default local socket, so a refused build, and only a
+// refused build, is retried on that old path when it reaches another engine.
+func browserAutomationBuildFallback(inv browserAutomationBuildInvocation, buildErr error, output string) *browserAutomationBuildInvocation {
+	if buildErr == nil || inv.Fallback == nil || !browserAutomationBuildRefused(output) {
+		return nil
+	}
+	return inv.Fallback
 }
 
 // browserAutomationCheckBuildContext stops before docker runs when the
 // Dockerfile is missing, which the docker CLI rejects anyway. Release archives
 // ship neither the Dockerfile nor browser_automation_sidecar/, so the error
-// names the fix instead of the CLI's context error.
+// names the cause and then the fix instead of the CLI's context error.
 func browserAutomationCheckBuildContext(inv browserAutomationBuildInvocation, image string) error {
 	info, err := os.Stat(inv.Dockerfile)
-	if err == nil && info.Mode().IsRegular() {
+	var cause string
+	switch {
+	case err == nil && info.Mode().IsRegular():
 		return nil
+	case err == nil:
+		cause = fmt.Sprintf("%s is not a regular file", inv.Dockerfile)
+	case errors.Is(err, os.ErrNotExist):
+		cause = fmt.Sprintf("%s was not found", inv.Dockerfile)
+	default:
+		cause = fmt.Sprintf("%s cannot be read: %v", inv.Dockerfile, err)
 	}
-	return fmt.Errorf("browser automation auto-build needs %s: release installs do not ship the sidecar sources, so set browser_automation.dockerfile_dir to an AuraGo source checkout or build the image %s manually", inv.Dockerfile, image)
+	return fmt.Errorf("browser automation auto-build cannot continue because %s. Release installs do not ship the sidecar sources, so set browser_automation.dockerfile_dir to an AuraGo source checkout or build the image %s manually", cause, image)
 }
 
 // browserAutomationRemoteBuildEndpoint reports a native install whose build
@@ -979,13 +1060,29 @@ func buildBrowserAutomationImage(image, dockerfileDir, dockerHost string, runtim
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "docker", inv.Args...)
-	_ = os.MkdirAll(filepath.Join(inv.ContextDir, "data", ".docker"), 0o700)
-	cmd.Env = inv.Env
-	out, err := cmd.CombinedOutput()
+	if err := os.MkdirAll(inv.ConfigDir, 0o700); err != nil {
+		logger.Warn("[BrowserAutomation] Could not create the docker CLI config directory; the build may fail on a read-only home", "dir", inv.ConfigDir, "error", err)
+	}
+	out, err := browserAutomationRunBuild(ctx, inv)
 	if err != nil {
-		return fmt.Errorf("docker build: %w\n%s", err, strings.TrimSpace(string(out)))
+		retry := browserAutomationBuildFallback(inv, err, string(out))
+		if retry == nil || ctx.Err() != nil {
+			return fmt.Errorf("docker build: %w\n%s", err, strings.TrimSpace(string(out)))
+		}
+		out, err = browserAutomationRunBuild(ctx, *retry)
+		if err != nil {
+			return fmt.Errorf("docker build: docker.host %s refused the build and the retry on %s failed too: %w\n%s", inv.DockerHost, retry.DockerHost, err, strings.TrimSpace(string(out)))
+		}
+		logger.Warn("[BrowserAutomation] docker.host refused the build (socket proxy with BUILD=0?); built through the default engine instead", "docker_host", inv.DockerHost, "built_on", retry.DockerHost)
 	}
 	logger.Info("[BrowserAutomation] Image built successfully", "image", image)
 	return nil
+}
+
+// browserAutomationRunBuild runs one docker build invocation and returns its
+// combined output.
+func browserAutomationRunBuild(ctx context.Context, inv browserAutomationBuildInvocation) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "docker", inv.Args...)
+	cmd.Env = inv.Env
+	return cmd.CombinedOutput()
 }
