@@ -2,6 +2,8 @@ package invasion
 
 import (
 	"context"
+	"fmt"
+	"strings"
 )
 
 // EggDeployPayload contains all data needed to deploy an egg to a nest.
@@ -46,4 +48,25 @@ type NestConnector interface {
 	// It writes the new config YAML and restarts the egg process/container.
 	// The configYAML parameter contains the fully patched config.
 	Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte) error
+}
+
+// eggIDPrefix returns the first eight characters of a nest ID. Egg service
+// names, SSH directories, Docker container names and Docker volume names all
+// use it, so it must stay identical for existing nests: nest IDs are UUIDs and
+// their prefix is the first eight hex digits. Shorter IDs and characters
+// outside [A-Za-z0-9-] are rejected instead of panicking or reaching a shell
+// path or a Docker name.
+func eggIDPrefix(nestID string) (string, error) {
+	id := strings.TrimSpace(nestID)
+	if len(id) < 8 {
+		return "", fmt.Errorf("invalid nest ID %q: expected at least 8 safe characters", nestID)
+	}
+	prefix := id[:8]
+	for _, r := range prefix {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' {
+			continue
+		}
+		return "", fmt.Errorf("invalid nest ID %q: unsafe character %q in egg name prefix", nestID, r)
+	}
+	return prefix, nil
 }

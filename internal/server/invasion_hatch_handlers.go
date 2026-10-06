@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -67,26 +68,42 @@ func handleInvasionNestHatch(s *Server) http.HandlerFunc {
 		// Mark hatching status
 		_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "hatching", "")
 
-		// Run deployment in background
-		go func() {
-			if err := s.deployEgg(nest, egg); err != nil {
-				s.Logger.Error("Egg deployment failed", "nest_id", id, "error", err)
-				_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "failed", err.Error())
-			} else {
-				s.Logger.Info("Egg deployed successfully", "nest_id", id, "egg_id", egg.ID)
-				_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "running", "")
-				// Fire mission trigger: egg hatched
-				if s.MissionManagerV2 != nil {
-					s.MissionManagerV2.NotifyInvasionEvent("egg_hatched", id, nest.Name, egg.ID, egg.Name)
-				}
-			}
-		}()
+		// Run deployment in background. runEggHatch records a panic as a failed
+		// hatch: the HTTP recovery middleware does not cover this goroutine.
+		go s.runEggHatch(nest, egg, s.deployEgg)
 
 		writeJSON(w, map[string]interface{}{
 			"status":  "hatching",
 			"nest_id": id,
 			"egg_id":  egg.ID,
 		})
+	}
+}
+
+// runEggHatch deploys an egg and records the outcome on the nest. A panic in
+// the deploy path is logged with its stack and recorded as a failed hatch
+// instead of terminating the process.
+func (s *Server) runEggHatch(nest invasion.NestRecord, egg invasion.EggRecord, deploy func(invasion.NestRecord, invasion.EggRecord) error) {
+	id := nest.ID
+	err := func() (err error) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				s.Logger.Error("Egg deployment panicked", "nest_id", id, "panic", recovered, "stack", string(debug.Stack()))
+				err = fmt.Errorf("deployment panicked: %v", recovered)
+			}
+		}()
+		return deploy(nest, egg)
+	}()
+	if err != nil {
+		s.Logger.Error("Egg deployment failed", "nest_id", id, "error", err)
+		_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "failed", err.Error())
+		return
+	}
+	s.Logger.Info("Egg deployed successfully", "nest_id", id, "egg_id", egg.ID)
+	_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "running", "")
+	// Fire mission trigger: egg hatched
+	if s.MissionManagerV2 != nil {
+		s.MissionManagerV2.NotifyInvasionEvent("egg_hatched", id, nest.Name, egg.ID, egg.Name)
 	}
 }
 

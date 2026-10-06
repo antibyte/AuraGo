@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -28,6 +29,21 @@ const dockerEggConfigUser = "aurago"
 const dockerEggConfigGroup = "aurago"
 const dockerEggDefaultHTTPPort = 8099
 
+// dockerInspectBodyLimit bounds container-inspect decoding, matching
+// dockerutil.Client.DoJSON.
+const dockerInspectBodyLimit = 8 << 20
+
+// dockerEggContainerName derives the egg container name from the nest ID.
+// UUID nest IDs keep the historic "aurago-egg-<first 8 characters>" name, so
+// existing containers, their "-prev" backups and "-log" volumes stay attached.
+func dockerEggContainerName(nestID string) (string, error) {
+	prefix, err := eggIDPrefix(nestID)
+	if err != nil {
+		return "", err
+	}
+	return "aurago-egg-" + prefix, nil
+}
+
 const dockerConfigAwareHealthcheckPython = `import pathlib,re,urllib.request; data=pathlib.Path('/app/data/config.yaml').read_text(encoding='utf-8', errors='ignore'); m=re.search(r'(?m)^server:\s*(?:\n[ \t]+[^\n]*)*?\n[ \t]+port:\s*[\"\']?(\d+)', data); port=int(m.group(1)) if m else 8088; urllib.request.urlopen('http://127.0.0.1:%d/api/ready' % port, timeout=5)`
 
 // DockerConnector deploys eggs as Docker containers, either on a remote host
@@ -35,7 +51,7 @@ const dockerConfigAwareHealthcheckPython = `import pathlib,re,urllib.request; da
 type DockerConnector struct{}
 
 func (c *DockerConnector) Validate(ctx context.Context, nest NestRecord, secret []byte) error {
-	client := c.httpClient(nest)
+	client := c.httpClient(nest, secret)
 	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL(nest, "/version"), nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
@@ -46,26 +62,31 @@ func (c *DockerConnector) Validate(ctx context.Context, nest NestRecord, secret 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body := dockerutil.ReadErrorBody(resp.Body)
 		return fmt.Errorf("docker API returned %d: %s", resp.StatusCode, string(body))
 	}
 	return nil
 }
 
 func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
-	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	containerName, err := dockerEggContainerName(nest.ID)
+	if err != nil {
+		return err
+	}
 	backupName := containerName + "-prev"
 	// TODO: derive image tag from master version when build version is available at runtime
 	image := "ghcr.io/antibyte/aurago:latest"
 
-	// 1. Pull image
-	if err := c.pullImage(ctx, nest, image); err != nil {
+	// 1. Pull image. A failed pull (HTTP error, error event inside the HTTP 200
+	// progress stream, truncated stream) returns here, before step 2 stops and
+	// renames the running egg.
+	if err := c.pullImage(ctx, nest, secret, image); err != nil {
 		return fmt.Errorf("failed to pull image: %w", err)
 	}
 
 	// 2. Remove any stale backup, then rename current container as backup
-	_ = c.removeContainer(ctx, nest, backupName)
-	_ = c.renameContainer(ctx, nest, containerName, backupName)
+	_ = c.removeContainer(ctx, nest, secret, backupName)
+	_ = c.renameContainer(ctx, nest, secret, containerName, backupName)
 
 	// 3. Create container with minimal env vars.
 	// The full configuration (including secrets like the shared key and API keys)
@@ -74,29 +95,29 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	createBody := dockerEggCreateBody(image, nest.ID, payload)
 
 	bodyJSON, _ := json.Marshal(createBody)
-	url := c.apiURL(nest, fmt.Sprintf("/containers/create?name=%s", containerName))
-	req, err := http.NewRequestWithContext(ctx, "POST", url, strings.NewReader(string(bodyJSON)))
+	createURL := c.apiURL(nest, fmt.Sprintf("/containers/create?name=%s", containerName))
+	req, err := http.NewRequestWithContext(ctx, "POST", createURL, strings.NewReader(string(bodyJSON)))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := c.httpClient(nest)
+	client := c.httpClient(nest, secret)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to create container: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
+		body := dockerutil.ReadErrorBody(resp.Body)
 		return fmt.Errorf("container creation failed (%d): %s", resp.StatusCode, string(body))
 	}
 
 	// 4. Copy config.yaml into the container via the Docker Archive API.
 	// This ensures secrets (shared key, API keys) are not visible in "docker inspect".
-	if err := c.copyConfigToContainer(ctx, nest, containerName, payload.ConfigYAML); err != nil {
+	if err := c.copyConfigToContainer(ctx, nest, secret, containerName, payload.ConfigYAML); err != nil {
 		// Clean up the created container on failure
-		_ = c.removeContainer(ctx, nest, containerName)
+		_ = c.removeContainer(ctx, nest, secret, containerName)
 		return fmt.Errorf("failed to copy config to container: %w", err)
 	}
 
@@ -112,7 +133,7 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	}
 	defer startResp.Body.Close()
 	if startResp.StatusCode != http.StatusNoContent && startResp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(startResp.Body)
+		body := dockerutil.ReadErrorBody(startResp.Body)
 		return fmt.Errorf("container start failed (%d): %s", startResp.StatusCode, string(body))
 	}
 
@@ -187,7 +208,7 @@ func extractServerPort(cfgYAML []byte) int {
 // copyConfigToContainer copies the egg config YAML into a container via the
 // Docker Engine Archive API (PUT /containers/{id}/archive). The config is
 // written to /app/data/config.yaml with mode 0600 (owner read/write only).
-func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRecord, containerName string, configYAML []byte) error {
+func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRecord, secret []byte, containerName string, configYAML []byte) error {
 	archive, err := buildDockerEggConfigArchive(configYAML)
 	if err != nil {
 		return err
@@ -195,21 +216,21 @@ func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRe
 	buf := bytes.NewReader(archive)
 
 	// Upload to the persisted config path read by docker-entrypoint.sh.
-	url := c.apiURL(nest, fmt.Sprintf("/containers/%s/archive?path=%s", containerName, dockerEggConfigArchivePath))
-	req, err := http.NewRequestWithContext(ctx, "PUT", url, buf)
+	archiveURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/archive?path=%s", containerName, dockerEggConfigArchivePath))
+	req, err := http.NewRequestWithContext(ctx, "PUT", archiveURL, buf)
 	if err != nil {
 		return fmt.Errorf("failed to create archive request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-tar")
 
-	uploadClient := c.httpClient(nest)
+	uploadClient := c.httpClient(nest, secret)
 	resp, err := uploadClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to upload config: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		body, _ := io.ReadAll(resp.Body)
+		body := dockerutil.ReadErrorBody(resp.Body)
 		return fmt.Errorf("config upload failed (%d): %s", resp.StatusCode, string(body))
 	}
 	return nil
@@ -240,8 +261,11 @@ func buildDockerEggConfigArchive(configYAML []byte) ([]byte, error) {
 }
 
 func (c *DockerConnector) Stop(ctx context.Context, nest NestRecord, secret []byte) error {
-	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
-	client := c.httpClient(nest)
+	containerName, err := dockerEggContainerName(nest.ID)
+	if err != nil {
+		return err
+	}
+	client := c.httpClient(nest, secret)
 
 	// Stop container
 	stopURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/stop?t=10", containerName))
@@ -256,18 +280,21 @@ func (c *DockerConnector) Stop(ctx context.Context, nest NestRecord, secret []by
 	defer resp.Body.Close()
 	// 204 = stopped, 304 = already stopped are both acceptable
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotModified {
-		body, _ := io.ReadAll(resp.Body)
+		body := dockerutil.ReadErrorBody(resp.Body)
 		return fmt.Errorf("stop container failed with HTTP %d: %s", resp.StatusCode, string(body))
 	}
 	return nil
 }
 
 func (c *DockerConnector) Status(ctx context.Context, nest NestRecord, secret []byte) (string, error) {
-	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
-	client := c.httpClient(nest)
+	containerName, err := dockerEggContainerName(nest.ID)
+	if err != nil {
+		return "unknown", err
+	}
+	client := c.httpClient(nest, secret)
 
-	url := c.apiURL(nest, fmt.Sprintf("/containers/%s/json", containerName))
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	inspectURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/json", containerName))
+	req, err := http.NewRequestWithContext(ctx, "GET", inspectURL, nil)
 	if err != nil {
 		return "unknown", err
 	}
@@ -290,7 +317,7 @@ func (c *DockerConnector) Status(ctx context.Context, nest NestRecord, secret []
 			Running bool   `json:"Running"`
 		} `json:"State"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, dockerInspectBodyLimit)).Decode(&info); err != nil {
 		return "unknown", err
 	}
 
@@ -300,7 +327,10 @@ func (c *DockerConnector) Status(ctx context.Context, nest NestRecord, secret []
 	return "stopped", nil
 }
 
-func (c *DockerConnector) httpClient(nest NestRecord) *http.Client {
+// httpClient returns the Engine client for one request. secret is the
+// operation's transport credential; the docker_remote and docker_local
+// transports do not need it.
+func (c *DockerConnector) httpClient(nest NestRecord, secret []byte) *http.Client {
 	isLocal := nest.DeployMethod == "docker_local"
 	if isLocal {
 		dockerHost := dockerLocalHost()
@@ -336,18 +366,18 @@ func (c *DockerConnector) apiURL(nest NestRecord, path string) string {
 
 // pullClient returns an HTTP client with an extended timeout suitable for
 // image pull operations, which can take minutes on slow connections.
-func (c *DockerConnector) pullClient(nest NestRecord) *http.Client {
-	base := c.httpClient(nest)
+func (c *DockerConnector) pullClient(nest NestRecord, secret []byte) *http.Client {
+	base := c.httpClient(nest, secret)
 	return &http.Client{
 		Timeout:   10 * time.Minute,
 		Transport: base.Transport,
 	}
 }
 
-func (c *DockerConnector) pullImage(ctx context.Context, nest NestRecord, image string) error {
-	client := c.pullClient(nest)
-	url := c.apiURL(nest, fmt.Sprintf("/images/create?fromImage=%s", image))
-	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+func (c *DockerConnector) pullImage(ctx context.Context, nest NestRecord, secret []byte, image string) error {
+	client := c.pullClient(nest, secret)
+	pullURL := c.apiURL(nest, "/images/create?fromImage="+url.QueryEscape(image))
+	req, err := http.NewRequestWithContext(ctx, "POST", pullURL, nil)
 	if err != nil {
 		return err
 	}
@@ -357,18 +387,21 @@ func (c *DockerConnector) pullImage(ctx context.Context, nest NestRecord, image 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
+		body := dockerutil.ReadErrorBody(resp.Body)
 		return fmt.Errorf("pull failed with HTTP %d: %s", resp.StatusCode, string(body))
 	}
-	// Drain the response (Docker streams progress)
-	_, _ = io.Copy(io.Discard, resp.Body)
+	// The Engine reports pull failures (unknown tag, registry auth, rate limit)
+	// as error events inside the HTTP 200 progress stream.
+	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
+		return fmt.Errorf("pull %s: %w", image, err)
+	}
 	return nil
 }
 
-func (c *DockerConnector) removeContainer(ctx context.Context, nest NestRecord, name string) error {
-	client := c.httpClient(nest)
-	url := c.apiURL(nest, dockerRemoveContainerPath(name))
-	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+func (c *DockerConnector) removeContainer(ctx context.Context, nest NestRecord, secret []byte, name string) error {
+	client := c.httpClient(nest, secret)
+	removeURL := c.apiURL(nest, dockerRemoveContainerPath(name))
+	req, err := http.NewRequestWithContext(ctx, "DELETE", removeURL, nil)
 	if err != nil {
 		return err
 	}
@@ -379,7 +412,7 @@ func (c *DockerConnector) removeContainer(ctx context.Context, nest NestRecord, 
 	defer resp.Body.Close()
 	// 204 = deleted, 404 = not found (already gone) are both acceptable
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotFound {
-		body, _ := io.ReadAll(resp.Body)
+		body := dockerutil.ReadErrorBody(resp.Body)
 		return fmt.Errorf("remove container failed with HTTP %d: %s", resp.StatusCode, string(body))
 	}
 	return nil
@@ -389,8 +422,8 @@ func dockerRemoveContainerPath(name string) string {
 	return fmt.Sprintf("/containers/%s?force=true&v=true", name)
 }
 
-func (c *DockerConnector) renameContainer(ctx context.Context, nest NestRecord, oldName, newName string) error {
-	client := c.httpClient(nest)
+func (c *DockerConnector) renameContainer(ctx context.Context, nest NestRecord, secret []byte, oldName, newName string) error {
+	client := c.httpClient(nest, secret)
 	// Stop the container first so it can be renamed cleanly
 	stopURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/stop?t=5", oldName))
 	stopReq, _ := http.NewRequestWithContext(ctx, "POST", stopURL, nil)
@@ -398,8 +431,8 @@ func (c *DockerConnector) renameContainer(ctx context.Context, nest NestRecord, 
 		resp.Body.Close()
 	}
 
-	url := c.apiURL(nest, fmt.Sprintf("/containers/%s/rename?name=%s", oldName, newName))
-	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+	renameURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/rename?name=%s", oldName, newName))
+	req, err := http.NewRequestWithContext(ctx, "POST", renameURL, nil)
 	if err != nil {
 		return err
 	}
@@ -409,18 +442,21 @@ func (c *DockerConnector) renameContainer(ctx context.Context, nest NestRecord, 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
-		body, _ := io.ReadAll(resp.Body)
+		body := dockerutil.ReadErrorBody(resp.Body)
 		return fmt.Errorf("rename container failed with HTTP %d: %s", resp.StatusCode, string(body))
 	}
 	return nil
 }
 
 func (c *DockerConnector) HealthCheck(ctx context.Context, nest NestRecord, secret []byte) error {
-	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
-	client := c.httpClient(nest)
+	containerName, err := dockerEggContainerName(nest.ID)
+	if err != nil {
+		return err
+	}
+	client := c.httpClient(nest, secret)
 
-	url := c.apiURL(nest, fmt.Sprintf("/containers/%s/json", containerName))
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	inspectURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/json", containerName))
+	req, err := http.NewRequestWithContext(ctx, "GET", inspectURL, nil)
 	if err != nil {
 		return fmt.Errorf("health check request failed: %w", err)
 	}
@@ -442,7 +478,7 @@ func (c *DockerConnector) HealthCheck(ctx context.Context, nest NestRecord, secr
 			Running bool `json:"Running"`
 		} `json:"State"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, dockerInspectBodyLimit)).Decode(&info); err != nil {
 		return fmt.Errorf("failed to decode container state: %w", err)
 	}
 	if !info.State.Running {
@@ -454,7 +490,10 @@ func (c *DockerConnector) HealthCheck(ctx context.Context, nest NestRecord, secr
 // Reconfigure writes a patched config.yaml into the running egg container and restarts it.
 // The container is stopped, the config is replaced via the archive API, then restarted.
 func (c *DockerConnector) Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte) error {
-	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	containerName, err := dockerEggContainerName(nest.ID)
+	if err != nil {
+		return err
+	}
 
 	// 1. Stop the container
 	if err := c.Stop(ctx, nest, secret); err != nil {
@@ -462,12 +501,12 @@ func (c *DockerConnector) Reconfigure(ctx context.Context, nest NestRecord, secr
 	}
 
 	// 2. Copy the patched config into the container
-	if err := c.copyConfigToContainer(ctx, nest, containerName, configYAML); err != nil {
+	if err := c.copyConfigToContainer(ctx, nest, secret, containerName, configYAML); err != nil {
 		return fmt.Errorf("failed to copy patched config to container: %w", err)
 	}
 
 	// 3. Start the container
-	client := c.httpClient(nest)
+	client := c.httpClient(nest, secret)
 	startURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/start", containerName))
 	startReq, err := http.NewRequestWithContext(ctx, "POST", startURL, nil)
 	if err != nil {
@@ -479,7 +518,7 @@ func (c *DockerConnector) Reconfigure(ctx context.Context, nest NestRecord, secr
 	}
 	defer startResp.Body.Close()
 	if startResp.StatusCode != http.StatusNoContent && startResp.StatusCode != http.StatusOK && startResp.StatusCode != http.StatusNotModified {
-		body, _ := io.ReadAll(startResp.Body)
+		body := dockerutil.ReadErrorBody(startResp.Body)
 		return fmt.Errorf("container start failed after reconfigure (%d): %s", startResp.StatusCode, string(body))
 	}
 
@@ -487,11 +526,14 @@ func (c *DockerConnector) Reconfigure(ctx context.Context, nest NestRecord, secr
 }
 
 func (c *DockerConnector) Rollback(ctx context.Context, nest NestRecord, secret []byte) error {
-	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	containerName, err := dockerEggContainerName(nest.ID)
+	if err != nil {
+		return err
+	}
 	backupName := containerName + "-prev"
 
 	// Check if backup container exists
-	client := c.httpClient(nest)
+	client := c.httpClient(nest, secret)
 	checkURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/json", backupName))
 	checkReq, _ := http.NewRequestWithContext(ctx, "GET", checkURL, nil)
 	resp, err := client.Do(checkReq)
@@ -504,10 +546,10 @@ func (c *DockerConnector) Rollback(ctx context.Context, nest NestRecord, secret 
 	}
 
 	// Remove the failed new container
-	_ = c.removeContainer(ctx, nest, containerName)
+	_ = c.removeContainer(ctx, nest, secret, containerName)
 
 	// Rename backup back to primary name
-	if err := c.renameContainer(ctx, nest, backupName, containerName); err != nil {
+	if err := c.renameContainer(ctx, nest, secret, backupName, containerName); err != nil {
 		return fmt.Errorf("failed to restore backup container: %w", err)
 	}
 
@@ -520,7 +562,7 @@ func (c *DockerConnector) Rollback(ctx context.Context, nest NestRecord, secret 
 	}
 	defer startResp.Body.Close()
 	if startResp.StatusCode != http.StatusNoContent && startResp.StatusCode != http.StatusOK && startResp.StatusCode != http.StatusNotModified {
-		body, _ := io.ReadAll(startResp.Body)
+		body := dockerutil.ReadErrorBody(startResp.Body)
 		return fmt.Errorf("failed to start restored container (%d): %s", startResp.StatusCode, string(body))
 	}
 
