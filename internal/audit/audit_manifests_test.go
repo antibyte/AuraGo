@@ -843,30 +843,71 @@ type githubWorkflowFile struct {
 	text string
 }
 
-// githubWorkflowFiles returns every workflow under .github/workflows in
-// directory order.
+// githubWorkflowFiles returns the workflows GitHub can run: the *.yml and
+// *.yaml files tracked directly under .github/workflows. Untracked strays in a
+// local checkout never run in CI, so they are not audited. The directory
+// listing is used only when git cannot list tracked files (no git binary or no
+// repository).
 func githubWorkflowFiles(t *testing.T) []githubWorkflowFile {
 	t.Helper()
-	entries, err := os.ReadDir(repoPath(".github", "workflows"))
+	paths, err := trackedGitHubWorkflowPaths()
 	if err != nil {
-		t.Fatalf("read workflows: %v", err)
-	}
-	var files []githubWorkflowFile
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
+		t.Logf("git cannot list tracked workflows (%v); auditing the directory listing instead", err)
+		if paths, err = onDiskGitHubWorkflowPaths(); err != nil {
+			t.Fatalf("read workflows: %v", err)
 		}
-		ext := filepath.Ext(entry.Name())
-		if ext != ".yml" && ext != ".yaml" {
-			continue
-		}
-		path := filepath.ToSlash(filepath.Join(".github", "workflows", entry.Name()))
-		files = append(files, githubWorkflowFile{path: path, text: readRepoFile(t, path)})
 	}
-	if len(files) == 0 {
+	if len(paths) == 0 {
 		t.Fatal("no GitHub workflows found under .github/workflows")
 	}
+	files := make([]githubWorkflowFile, 0, len(paths))
+	for _, path := range paths {
+		files = append(files, githubWorkflowFile{path: path, text: readRepoFile(t, path)})
+	}
 	return files
+}
+
+func isGitHubWorkflowPath(path string) bool {
+	name, ok := strings.CutPrefix(path, ".github/workflows/")
+	if !ok || name == "" || strings.Contains(name, "/") {
+		return false
+	}
+	ext := filepath.Ext(name)
+	return ext == ".yml" || ext == ".yaml"
+}
+
+func trackedGitHubWorkflowPaths() ([]string, error) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		return nil, err
+	}
+	out, err := exec.Command(git, "-C", repoPath("."), "ls-files", "--cached", "-z", "--", ".github/workflows").Output()
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, path := range strings.Split(string(out), "\x00") {
+		if isGitHubWorkflowPath(path) {
+			paths = append(paths, path)
+		}
+	}
+	slices.Sort(paths)
+	return paths, nil
+}
+
+func onDiskGitHubWorkflowPaths() ([]string, error) {
+	entries, err := os.ReadDir(repoPath(".github", "workflows"))
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, entry := range entries {
+		path := ".github/workflows/" + entry.Name()
+		if !entry.IsDir() && isGitHubWorkflowPath(path) {
+			paths = append(paths, path)
+		}
+	}
+	return paths, nil
 }
 
 func combinedGitHubWorkflowText(t *testing.T) string {
@@ -877,6 +918,105 @@ func combinedGitHubWorkflowText(t *testing.T) string {
 		combined.WriteByte('\n')
 	}
 	return combined.String()
+}
+
+// githubActionRef is one `uses:` line of a tracked workflow.
+type githubActionRef struct {
+	file    string // repository-relative workflow path
+	line    int    // 1-based line number
+	source  string // trimmed source line, for messages
+	action  string // owner/repo[/path], ./local or docker://image; empty when unparsable
+	ref     string // text after the last '@' of a remote action
+	comment string // trailing comment after '#', trimmed
+}
+
+func (r githubActionRef) location() string {
+	return fmt.Sprintf("%s:%d", r.file, r.line)
+}
+
+func (r githubActionRef) remote() bool {
+	return r.action != "" && !strings.HasPrefix(r.action, "./") && !strings.HasPrefix(r.action, "docker://")
+}
+
+var (
+	githubUsesKey   = regexp.MustCompile(`^\s*(?:-\s+)?uses:(.*)$`)
+	githubUsesValue = regexp.MustCompile(`^\s+(?:"([^"]*)"|'([^']*)'|([^\s"'#]+))(?:\s+#\s*(.*?))?\s*$`)
+)
+
+// githubActionRefs parses every `uses:` line of the tracked workflows. Quoted
+// refs and extra spaces after `uses:` are parsed, not skipped; a value that
+// cannot be parsed is returned with an empty action so callers report it.
+func githubActionRefs(t *testing.T) []githubActionRef {
+	t.Helper()
+	var refs []githubActionRef
+	for _, file := range githubWorkflowFiles(t) {
+		refs = append(refs, parseGitHubActionRefs(file.path, file.text)...)
+	}
+	if len(refs) == 0 {
+		t.Fatal("found no `uses:` lines in the tracked workflows; the parser no longer matches them")
+	}
+	return refs
+}
+
+func parseGitHubActionRefs(path, text string) []githubActionRef {
+	var refs []githubActionRef
+	for index, line := range strings.Split(text, "\n") {
+		line = strings.TrimRight(line, "\r")
+		key := githubUsesKey.FindStringSubmatch(line)
+		if key == nil {
+			continue
+		}
+		entry := githubActionRef{file: path, line: index + 1, source: strings.TrimSpace(line)}
+		if value := githubUsesValue.FindStringSubmatch(key[1]); value != nil {
+			entry.action = value[1] + value[2] + value[3]
+			entry.comment = value[4]
+			if at := strings.LastIndex(entry.action, "@"); entry.remote() && at >= 0 {
+				entry.action, entry.ref = entry.action[:at], entry.action[at+1:]
+			}
+		}
+		refs = append(refs, entry)
+	}
+	return refs
+}
+
+func TestParseGitHubActionRefsAuditsQuotedAndSpacedForms(t *testing.T) {
+	t.Parallel()
+
+	const sha = "3d3c42e5aac5ba805825da76410c181273ba90b1"
+	text := strings.Join([]string{
+		"jobs:",
+		"  build:",
+		"    steps:",
+		`      - uses: "actions/checkout@` + sha + `" # v6`,
+		"      - uses:  actions/setup-go@v7",
+		"      - uses: 'docker/login-action@" + sha + "'",
+		"        uses: owner/repo/path@" + sha + " #  v1.2.3  ",
+		"      - uses: ./.github/actions/local",
+		"      - uses: docker://alpine:3.22",
+		"      - uses: actions/checkout@v7 trailing",
+		"      # uses: commented/out@v1",
+		"      - run: echo uses: not/a-key@v1",
+	}, "\r\n")
+	want := []githubActionRef{
+		{line: 4, action: "actions/checkout", ref: sha, comment: "v6"},
+		{line: 5, action: "actions/setup-go", ref: "v7"},
+		{line: 6, action: "docker/login-action", ref: sha},
+		{line: 7, action: "owner/repo/path", ref: sha, comment: "v1.2.3"},
+		{line: 8, action: "./.github/actions/local"},
+		{line: 9, action: "docker://alpine:3.22"},
+		{line: 10},
+	}
+	got := parseGitHubActionRefs("wf.yml", text)
+	if len(got) != len(want) {
+		t.Fatalf("parsed %d `uses:` lines, want %d: %+v", len(got), len(want), got)
+	}
+	for index, ref := range got {
+		w := want[index]
+		if ref.file != "wf.yml" || ref.line != w.line || ref.action != w.action || ref.ref != w.ref || ref.comment != w.comment {
+			t.Errorf("line %d parsed as {line:%d action:%q ref:%q comment:%q}, want {line:%d action:%q ref:%q comment:%q}",
+				w.line, ref.line, ref.action, ref.ref, ref.comment, w.line, w.action, w.ref, w.comment)
+		}
+	}
 }
 
 func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
@@ -896,8 +1036,11 @@ func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
 			t.Fatalf("CI workflows must include %q", needle)
 		}
 	}
-	if strings.Contains(workflowText, "govulncheck@latest") {
-		t.Fatal("CI workflows must install a pinned govulncheck release, not @latest")
+	exactRelease := regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
+	for _, match := range regexp.MustCompile(`govulncheck@(\S+)`).FindAllStringSubmatch(workflowText, -1) {
+		if !exactRelease.MatchString(match[1]) {
+			t.Errorf("CI workflows must install govulncheck at an exact vX.Y.Z release, not @%s", match[1])
+		}
 	}
 }
 
@@ -911,6 +1054,14 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 	if strings.Contains(workflowText, "golang/govulncheck-action") {
 		t.Fatal("workflows must install govulncheck directly instead of using golang/govulncheck-action")
 	}
+	refsByAction := map[string][]githubActionRef{}
+	for _, ref := range githubActionRefs(t) {
+		refsByAction[ref.action] = append(refsByAction[ref.action], ref)
+	}
+	commitSHA := regexp.MustCompile(`^[0-9a-f]{40}$`)
+	// Full versions keep Dependabot's comment rewriting in step with the SHA;
+	// a major-only comment stops matching once that major's tag moves.
+	fullVersion := regexp.MustCompile(`^v([0-9]+)\.[0-9]+\.[0-9]+(?:\s|$)`)
 	// Every reference is pinned to a commit SHA whose version comment names
 	// the first major that runs natively on Node 24, or a newer one.
 	for _, action := range []struct {
@@ -920,6 +1071,7 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 		{"actions/checkout", 7},
 		{"actions/setup-go", 7},
 		{"actions/setup-node", 7},
+		{"actions/setup-python", 6},
 		{"actions/upload-artifact", 7},
 		{"actions/download-artifact", 8},
 		{"docker/setup-qemu-action", 4},
@@ -927,23 +1079,25 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 		{"docker/login-action", 4},
 		{"docker/metadata-action", 6},
 		{"docker/build-push-action", 7},
+		{"softprops/action-gh-release", 3},
 	} {
-		quoted := regexp.QuoteMeta(action.name)
-		if regexp.MustCompile(`uses: ` + quoted + `@v`).MatchString(workflowText) {
-			t.Fatalf("workflow references %s by a floating version tag; pin it to a commit SHA with a `# vN` comment", action.name)
+		refs := refsByAction[action.name]
+		if len(refs) == 0 {
+			t.Errorf("workflows missing SHA-pinned Node 24 action %s (want `uses: %s@<40-hex sha> # vX.Y.Z` with X >= %d)", action.name, action.name, action.minMajor)
+			continue
 		}
-		pinned := regexp.MustCompile(`uses: ` + quoted + `@[0-9a-f]{40} # v([0-9]+)`)
-		matches := pinned.FindAllStringSubmatch(workflowText, -1)
-		if len(matches) == 0 {
-			t.Fatalf("workflow missing SHA-pinned Node 24 action %s (want `uses: %s@<40-hex sha> # v%d`)", action.name, action.name, action.minMajor)
-		}
-		if refs := strings.Count(workflowText, "uses: "+action.name+"@"); refs != len(matches) {
-			t.Fatalf("%d of %d references to %s are not pinned as `@<40-hex sha> # vN`", refs-len(matches), refs, action.name)
-		}
-		for _, match := range matches {
-			major, err := strconv.Atoi(match[1])
-			if err != nil || major < action.minMajor {
-				t.Fatalf("%s is pinned to v%s; native Node 24 requires v%d or newer", action.name, match[1], action.minMajor)
+		for _, ref := range refs {
+			if !commitSHA.MatchString(ref.ref) {
+				t.Errorf("%s: %s must be pinned to a 40-hex commit SHA, not @%s: %s", ref.location(), action.name, ref.ref, ref.source)
+				continue
+			}
+			version := fullVersion.FindStringSubmatch(ref.comment)
+			if version == nil {
+				t.Errorf("%s: %s needs a full ` # vX.Y.Z` version comment: %s", ref.location(), action.name, ref.source)
+				continue
+			}
+			if major, err := strconv.Atoi(version[1]); err != nil || major < action.minMajor {
+				t.Errorf("%s: %s is pinned to v%s; native Node 24 requires v%d or newer", ref.location(), action.name, version[1], action.minMajor)
 			}
 		}
 	}
@@ -952,31 +1106,26 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 func TestGitHubWorkflowsHaveNoFloatingActionRefs(t *testing.T) {
 	t.Parallel()
 
-	floating := regexp.MustCompile(`uses: [^@\n]+@(v[0-9]+(\.[0-9]+)*|main|master|stable|latest)\s*$`)
-	usesLine := regexp.MustCompile(`^\s*(?:-\s+)?uses:\s*["']?([^"'\s]+)["']?(.*)$`)
-	pinnedRef := regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[^@\s]+)?@[0-9a-f]{40}$`)
-	versionComment := regexp.MustCompile(`^ # \S`)
+	floatingRef := regexp.MustCompile(`^(v[0-9]+(\.[0-9]+)*|main|master|stable|latest)$`)
+	actionName := regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[^@\s]+)?$`)
+	commitSHA := regexp.MustCompile(`^[0-9a-f]{40}$`)
 	remoteRefs := 0
-	for _, file := range githubWorkflowFiles(t) {
-		for index, line := range strings.Split(file.text, "\n") {
-			line = strings.TrimRight(line, "\r")
-			location := fmt.Sprintf("%s:%d", file.path, index+1)
-			isFloating := floating.MatchString(line)
-			if isFloating {
-				t.Errorf("%s uses a floating action ref: %s", location, strings.TrimSpace(line))
-			}
-			match := usesLine.FindStringSubmatch(line)
-			if match == nil {
-				continue
-			}
-			ref, rest := match[1], match[2]
-			if strings.HasPrefix(ref, "./") || strings.HasPrefix(ref, "docker://") {
-				continue
-			}
-			remoteRefs++
-			if !isFloating && (!pinnedRef.MatchString(ref) || !versionComment.MatchString(rest)) {
-				t.Errorf("%s must pin the action to a 40-hex commit SHA followed by ` # <version>`: %s", location, strings.TrimSpace(line))
-			}
+	for _, ref := range githubActionRefs(t) {
+		if ref.action == "" {
+			t.Errorf("%s: cannot parse the `uses:` value: %s", ref.location(), ref.source)
+			continue
+		}
+		if !ref.remote() {
+			continue
+		}
+		remoteRefs++
+		switch {
+		case floatingRef.MatchString(ref.ref):
+			t.Errorf("%s uses a floating action ref @%s: %s", ref.location(), ref.ref, ref.source)
+		case !actionName.MatchString(ref.action) || !commitSHA.MatchString(ref.ref):
+			t.Errorf("%s must pin owner/repo to a 40-hex commit SHA: %s", ref.location(), ref.source)
+		case ref.comment == "":
+			t.Errorf("%s must follow the commit SHA with a ` # <version>` comment: %s", ref.location(), ref.source)
 		}
 	}
 	if remoteRefs == 0 {

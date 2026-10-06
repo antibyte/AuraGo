@@ -150,11 +150,10 @@ disposable/
 # Versioned training-pipeline exceptions.
 !/.github/
 /.github/*
+!/.github/dependabot.yml
 !/.github/workflows/
 /.github/workflows/*
-!/.github/workflows/web-assets.yml
-!/.github/workflows/training-dataset.yml
-!/.github/workflows/rtl-sdr.yml
+!/.github/workflows/*.yml
 !/disposable/
 /disposable/*
 !/disposable/export_tools/

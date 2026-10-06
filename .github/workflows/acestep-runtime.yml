@@ -24,16 +24,16 @@ jobs:
       matrix:
         backend: ${{ fromJSON((inputs.backend == 'vulkan' || github.ref_name == 'codex/acestep-vulkan-runtime') && '["vulkan"]' || '["cuda","rocm","xpu","cpu","vulkan"]') }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish pinned runtime
         id: build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ${{ matrix.backend == 'vulkan' && 'internal/acestep/runtime/Dockerfile.vulkan' || 'internal/acestep/runtime/Dockerfile' }}
@@ -54,7 +54,7 @@ jobs:
         run: |
           cosign sign --yes "$IMAGE@$DIGEST"
           python -c 'import json,os; json.dump({os.environ["BACKEND"]:os.environ["IMAGE"]+"@"+os.environ["DIGEST"]},open("image.json","w"))'
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: acestep-${{ matrix.backend }}-digest
           path: image.json
@@ -62,8 +62,8 @@ jobs:
     needs: publish
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: acestep-*-digest
           path: digests
@@ -79,7 +79,7 @@ jobs:
           release['images']=images
           pathlib.Path('acestep-release.json').write_text(json.dumps(release,indent=2)+'\n')
           PY
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: acestep-release-manifest
           path: acestep-release.json

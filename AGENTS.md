@@ -375,7 +375,8 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - **docker-publish.yml**: Builds and publishes Docker images to GHCR
 - Triggered by `v*` tags or manual dispatch (`image=all` or `image=gods-eye-view`)
 - Multi-arch builds: linux/amd64, linux/arm64
-- Every workflow `uses:` ref is pinned to a full commit SHA with a ` # <version>` comment, refreshed monthly by Dependabot (`.github/dependabot.yml`); `internal/audit` tests reject floating tags. Workflows default to `permissions: contents: read` and grant write scopes per job.
+
+Every workflow `uses:` ref is pinned to a full commit SHA with a ` # vX.Y.Z` comment, and workflows default to `permissions: contents: read` with write scopes granted per job; `internal/audit` tests reject floating refs in tracked workflows. Dependabot (`.github/dependabot.yml`) refreshes the action pins monthly except `dtolnay/rust-toolchain`, which is refreshed by hand; `govulncheck@v1.8.0` (`security-gates.yml`) and `uv==0.11.15` (`training-dataset.yml`, kept in step with `training/needle3/bootstrap_runpod.sh`) are also bumped by hand.
 
 ### Release Process
 1. `./make_deploy.sh` builds cross-platform artifacts; by default it may commit/push `main` (`--no-publish` suppresses that). It does not create a tag or GitHub Release.
