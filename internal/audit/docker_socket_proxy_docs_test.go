@@ -20,6 +20,7 @@ func TestDockerInstallationDocStatesSocketProxyResidualRisk(t *testing.T) {
 		"the agent's Docker `exec` operation",
 		"the Homepage tool",
 		"CommandCode Store terminal",
+		"OpenSCAD",
 		"security proxy reload",
 		"is no security gain",
 	} {
@@ -41,9 +42,20 @@ func TestDockerInstallationDocStatesSocketProxyResidualRisk(t *testing.T) {
 		"does not contain a compromised AuraGo",
 		":ro is no security gain",
 		"Homepage tool",
+		"OpenSCAD",
 	} {
 		if !strings.Contains(compose, want) {
 			t.Fatalf("docker-compose.yml proxy comments are missing %q", want)
+		}
+	}
+
+	const dockerGuideLink = "../../docker_installation.md#4-docker-socket-security"
+	for _, manual := range []string{
+		"documentation/manual/en/02-installation.md",
+		"documentation/manual/de/02-installation.md",
+	} {
+		if !strings.Contains(readRepoFile(t, manual), dockerGuideLink) {
+			t.Fatalf("%s must link to %s", manual, dockerGuideLink)
 		}
 	}
 }

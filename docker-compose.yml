@@ -365,10 +365,12 @@ services:
   #   - POST=1 allows create/start/stop/remove (managed sidecars, Software Store, Invasion Control)
   #   - IMAGES=1 + POST=1 allow AuraGo to pull pinned managed sidecar images
   #     such as go2rtc, Code Studio, and the optional llama.cpp GPU embedding probes
-  #   - BUILD=0 keeps Docker build API access disabled by default; prefer published images
+  #   - BUILD=0 keeps Docker build API access disabled; Code Studio and the managed
+  #     sidecars use published images (the optional browser-automation auto-build
+  #     runs the Docker CLI on the host, not through this proxy)
   #   - EXEC=1 is used by the agent's Docker exec, the Homepage tool, Code Studio
-  #     terminals, Web UI container terminals (including the CommandCode Store
-  #     terminal) and security-proxy reloads
+  #     terminals, the built-in OpenSCAD compiler container, Web UI container
+  #     terminals (including the CommandCode Store terminal) and security-proxy reloads
   #
   # To switch to direct socket access (NOT recommended):
   #   1. Uncomment the docker.sock volume mount in the aurago service above.
@@ -391,10 +393,10 @@ services:
       - VOLUMES=1
       - INFO=1          # passive runtime inventory (including NVIDIA container runtime availability)
       - VERSION=1       # negotiate a mutually supported Engine API before operations
-      - POST=1          # allow start/stop/restart/create (needed for managed sidecars and Invasion Control)
-      - BUILD=0          # keep Docker build API access disabled by default; prefer published images
+      - POST=1          # allow create/start/stop/remove (managed sidecars, Software Store, Invasion Control)
+      - BUILD=0          # Docker build API stays disabled; Code Studio and managed sidecars use published images
       - COMMIT=0
-      - EXEC=1          # agent Docker exec, Homepage tool, Code Studio and container terminals, security-proxy reloads
+      - EXEC=1          # agent Docker exec, Homepage tool, Code Studio, OpenSCAD compiler, container terminals, security-proxy reloads
       - SWARM=0
     healthcheck:
       # Enhanced healthcheck: verify both ping and container list API work

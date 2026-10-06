@@ -165,10 +165,10 @@ The default proxy is attached to an internal `docker-control` network that is sh
 - `IMAGES=1` with `POST=1`: pull and tag published images such as Code Studio, go2rtc, the local LLM runtime, Software Store apps and the security proxy.
 - `VOLUMES=1` and `NETWORKS=1`: model and app volumes, private Software Store networks and the browser automation network check.
 - `INFO=1` and `VERSION=1`: runtime inventory (including NVIDIA container runtime detection) and Engine API version negotiation.
-- `EXEC=1`: the agent's Docker `exec` operation, the Homepage tool (file editing, git, build and deploy run inside the Homepage container), Code Studio exec and terminals, container terminals in the Web UI including the CommandCode Store terminal, and the security proxy reload.
-- `BUILD=0`: Docker build API access stays disabled; managed sidecars use published images.
+- `EXEC=1`: the agent's Docker `exec` operation, the Homepage tool (file editing, git, build and deploy run inside the Homepage container), Code Studio exec and terminals, the built-in OpenSCAD compiler container, container terminals in the Web UI including the CommandCode Store terminal, and the security proxy reload.
+- `BUILD=0`: Docker build API access stays disabled; Code Studio and the managed sidecars use published images. The optional browser automation auto-build runs the Docker CLI on the host, not through this proxy.
 
-`EXEC=1` can be set to `0` only if you use none of these features: the agent's Docker `exec` operation, the Homepage tool, Code Studio terminals, container terminals (including the CommandCode Store terminal) and the security proxy reload stop working without it.
+`EXEC=1` can be set to `0` only if you use none of these features: the agent's Docker `exec` operation, the Homepage tool, Code Studio terminals, the built-in OpenSCAD compiler container, container terminals (including the CommandCode Store terminal) and the security proxy reload stop working without it.
 
 The `:ro` flag on the socket mount (`/var/run/docker.sock:/var/run/docker.sock:ro`) is no security gain: it does not stop API calls through the socket. Access control comes only from the proxy's filters and the private `docker-control` network.
 
