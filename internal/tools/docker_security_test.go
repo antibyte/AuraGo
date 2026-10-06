@@ -440,6 +440,116 @@ func TestDockerCreateRequestContextWithTrustedBindsRejectsReadOnlyBeforeBindChec
 	}
 }
 
+func TestDockerCreateBindCheckMatchesDecodedCreatePaths(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	var requests []string
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.RequestURI())
+		if strings.HasSuffix(r.URL.Path, "/start") {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+	})
+	cfg := DockerConfig{Host: host, WorkspaceDir: t.TempDir()}
+	payload := func(binds ...string) string {
+		data, _ := json.Marshal(map[string]any{"Image": "alpine:latest", "HostConfig": map[string]any{"Binds": binds}})
+		return string(data)
+	}
+	hostRoot := payload("/:/host")
+	senders := map[string]func(endpoint, body string) error{
+		"dockerRequest": func(endpoint, body string) error {
+			_, _, err := dockerRequest(cfg, http.MethodPost, endpoint, body)
+			return err
+		},
+		"DockerRequestContext": func(endpoint, body string) error {
+			_, _, err := DockerRequestContext(context.Background(), cfg, http.MethodPost, endpoint, body)
+			return err
+		},
+		"video download dockerRequestContext": func(endpoint, body string) error {
+			_, _, err := dockerRequestContext(context.Background(), cfg, http.MethodPost, endpoint, body)
+			return err
+		},
+	}
+
+	// Spellings the Engine routes to container create after decoding and
+	// cleaning the path, plus an endpoint that does not parse (fail closed).
+	for _, endpoint := range []string{
+		"/containers/%63reate",
+		"/containers%2Fcreate",
+		"//containers/create",
+		"/containers/./create",
+		"/containers/create/",
+		"/containers/x/../create",
+		"/x/../containers/create",
+		"/../v1.40/containers/create",
+		"/containers/%63reate?name=x",
+		"/containers/%zz",
+	} {
+		for name, send := range senders {
+			if err := send(endpoint, hostRoot); err == nil || !strings.Contains(err.Error(), `mounting sensitive host path "/"`) {
+				t.Fatalf("%s %q: error = %v, want the host-root bind rejected", name, endpoint, err)
+			}
+		}
+	}
+	if len(requests) != 0 {
+		t.Fatalf("bind-violating creates reached Docker: %v", requests)
+	}
+
+	// Unchanged: a normal create is checked and a valid one is sent; an
+	// unrelated POST is not a create and skips the bind check as before.
+	for name, send := range senders {
+		if err := send("/containers/create?name=x", hostRoot); err == nil || !strings.Contains(err.Error(), "mounting sensitive host path") {
+			t.Fatalf("%s: normal create error = %v, want the host-root bind rejected", name, err)
+		}
+		if err := send("/containers/create?name=x", payload("data:/data")); err != nil {
+			t.Fatalf("%s: normal create with a named volume: %v", name, err)
+		}
+		if err := send("/containers/x/start", hostRoot); err != nil {
+			t.Fatalf("%s: unrelated POST: %v", name, err)
+		}
+	}
+	if len(requests) != 2*len(senders) {
+		t.Fatalf("requests = %v, want one valid create and one start per sender", requests)
+	}
+}
+
+func TestDockerEndpointMayCreateContainerOnlyWidensDetection(t *testing.T) {
+	for endpoint, want := range map[string]bool{
+		// Matched by the raw prefix before; still matched.
+		"/containers/create":          true,
+		"/containers/create?name=x":   true,
+		"/containers/createx":         true,
+		"/containers/create/../start": true,
+		" /containers/create":         true,
+		// Decoded and cleaned spellings of the create route.
+		"/containers/%63reate":         true,
+		"/containers%2Fcreate":         true,
+		"//containers/create":          true,
+		"/containers/./create":         true,
+		"/a/../containers/create":      true,
+		"/../v1.40/containers/create":  true,
+		"/containers/%63reate#section": true,
+		// Unparsable: treated as create (fail closed).
+		"/containers/%zz": true,
+		// Not the create route: the bind check stays skipped as before.
+		"/containers/x/start":     false,
+		"/containers/json":        false,
+		"/containers/%63reated":   false,
+		"/images/create":          false,
+		"/networks/create":        false,
+		"/exec/abc/start":         false,
+		"containers/create":       false,
+		"/v1.40/containers/start": false,
+		"":                        false,
+	} {
+		if got := dockerEndpointMayCreateContainer(endpoint); got != want {
+			t.Errorf("dockerEndpointMayCreateContainer(%q) = %v, want %v", endpoint, got, want)
+		}
+	}
+}
+
 func TestDockerCreateContainerStillRejectsDockerSocketBind(t *testing.T) {
 	configureDockerSecurityTestPermissions(t, false)
 	var called bool

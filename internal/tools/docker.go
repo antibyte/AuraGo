@@ -1208,7 +1208,7 @@ func validateDockerCreateRequestBindsTrusted(cfg DockerConfig, method, endpoint,
 	if strings.ToUpper(strings.TrimSpace(method)) != http.MethodPost {
 		return nil
 	}
-	if !strings.HasPrefix(strings.TrimSpace(endpoint), "/containers/create") {
+	if !dockerEndpointMayCreateContainer(endpoint) {
 		return nil
 	}
 	if strings.TrimSpace(body) == "" {
@@ -1219,6 +1219,38 @@ func validateDockerCreateRequestBindsTrusted(cfg DockerConfig, method, endpoint,
 		return fmt.Errorf("invalid Docker create payload: %w", err)
 	}
 	return validateDockerCreatePayloadBindsTrusted(cfg, payload, trusted)
+}
+
+// reDockerVersionedPath splits an Engine API path into its /vX.Y version
+// segment and the route below it, like the Engine's own /v{version:[0-9.]+}
+// route prefix.
+var reDockerVersionedPath = regexp.MustCompile(`^/v[0-9.]+(/.*)$`)
+
+// dockerEndpointMayCreateContainer reports whether a POST to endpoint can
+// reach the Engine's container create route, so its binds must be checked.
+// It keeps the raw "/containers/create" prefix match and adds every spelling
+// the Engine routes to create after decoding and cleaning the request path
+// (/containers/%63reate, /containers%2Fcreate, //containers/create,
+// /containers/./create, /x/../containers/create, /../v1.40/containers/create).
+// The endpoint is parsed exactly as the request URL is built
+// ("http://localhost/" + dockerAPIVersion + endpoint); the decoded path is
+// cleaned and one leading /vX.Y segment is removed. An endpoint that does not
+// parse is treated as a create request (fail closed); such a request cannot
+// be sent anyway. Any other path still skips the bind check, so detection
+// only widens.
+func dockerEndpointMayCreateContainer(endpoint string) bool {
+	if strings.HasPrefix(strings.TrimSpace(endpoint), "/containers/create") {
+		return true
+	}
+	parsed, err := url.Parse("http://localhost/" + dockerAPIVersion + endpoint)
+	if err != nil {
+		return true
+	}
+	route := pathpkg.Clean(parsed.Path)
+	if match := reDockerVersionedPath.FindStringSubmatch(route); match != nil {
+		route = match[1]
+	}
+	return route == "/containers/create"
 }
 
 // validateDockerCreatePayloadBindsTrusted validates every HostConfig.Binds
