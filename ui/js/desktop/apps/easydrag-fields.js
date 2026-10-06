@@ -92,7 +92,8 @@
             const rootKey = base.split(/[.[]/)[0];
             const src = env.upstream.find(u => u.key === rootKey);
             let names = [];
-            if (src && base === rootKey) names = src.fields.slice();
+            // Output fields come as names or as {name, type} (the shape the input tree uses).
+            if (src && base === rootKey) names = (src.fields || []).map(f => (f && typeof f === 'object' ? f.name : f)).filter(n => typeof n === 'string');
             const sample = sampleAt(env, base);
             if (sample && typeof sample === 'object' && !Array.isArray(sample)) names = Array.from(new Set(names.concat(Object.keys(sample))));
             if (rootKey === 'trigger' && base === 'trigger') names = ['data', 'fired_at', 'type', 'node'];
@@ -189,12 +190,14 @@
         return api;
     }
 
+    // sampleAt reads the sample data at path ("key.list[-1]") like the engine: through the
+    // shared resolver, so only own fields count, a negative index counts from the end and
+    // anything missing (or a path that does not parse) is null.
     function sampleAt(env, path) {
         try {
             const p = ED.template.parseExpr(path);
-            let v = env.roots[p.root];
-            for (const seg of p.path) { if (v == null) return null; v = v[seg]; }
-            return v;
+            const roots = env.roots || {};
+            return ED.template.resolvePath(Object.prototype.hasOwnProperty.call(roots, p.root) ? roots[p.root] : undefined, p.path);
         } catch (err) { return null; }
     }
 
@@ -479,5 +482,5 @@
         return el;
     }
 
-    ED.fields = { templateField, chipsMarkup, segmented, toggle, selectBox, conditionGroup, cases, fieldList, keyValue, jsonEditor, tags, dateTime, fileField, secretRef, OPS, UNARY };
+    ED.fields = { templateField, chipsMarkup, sampleAt, segmented, toggle, selectBox, conditionGroup, cases, fieldList, keyValue, jsonEditor, tags, dateTime, fileField, secretRef, OPS, UNARY };
 })();

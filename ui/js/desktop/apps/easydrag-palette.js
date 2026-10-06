@@ -126,8 +126,13 @@
 
         // ── drag from palette ───────────────────────────────────────────────────
 
-        function startDrag(event, type) {
-            if (ed.readonly || ed.runView) return;
+        let drag = null; // the drag in progress (core.capturePointer handle)
+
+        // startDrag follows one pointer from a palette item. A release adds the node (a click
+        // appends it, a drop places it); a cancel (pointercancel, lost capture, a release
+        // missed outside the window, dispose) only cleans up.
+        function startDrag(event, type, item) {
+            if (drag || ed.readonly || ed.runView) return;
             const info = ed.catalog.types.get(type);
             const start = { x: event.clientX, y: event.clientY };
             let ghost = null;
@@ -151,11 +156,11 @@
                     if (target) { overEdge = target.dataset.edgeId; target.classList.add('is-drop-target'); }
                 }
             };
-            const up = ev => {
-                document.removeEventListener('pointermove', move);
-                document.removeEventListener('pointerup', up);
+            const up = (ev, cancelled) => {
+                drag = null;
                 ed.dragging = false;
                 canvas.el.querySelectorAll('.ed-edge.is-drop-target').forEach(g => g.classList.remove('is-drop-target'));
+                if (cancelled) { if (ghost) ghost.remove(); return; }
                 if (!ghost) { addByClick(type); return; }
                 ghost.remove();
                 const hit = document.elementFromPoint(ev.clientX, ev.clientY);
@@ -163,8 +168,7 @@
                 const p = canvas.clientToWorld(ev.clientX, ev.clientY);
                 place(ed, type, { x: p.x - G.NODE_W / 2, y: p.y - G.NODE_H / 2 }, { edge: overEdge });
             };
-            document.addEventListener('pointermove', move);
-            document.addEventListener('pointerup', up);
+            drag = core.capturePointer(item, event, move, up);
         }
 
         // addByClick appends after the single selected node, or places the node in free space.
@@ -199,7 +203,7 @@
             const item = event.target.closest('[data-ed-type]');
             if (!item || event.button !== 0) return;
             event.preventDefault();
-            startDrag(event, item.dataset.edType);
+            startDrag(event, item.dataset.edType, item);
         });
         bag.listen(list, 'keydown', (event) => {
             const item = event.target.closest('[data-ed-type]');
@@ -214,7 +218,7 @@
             el, render, setOpen,
             isOpen: () => !el.classList.contains('is-collapsed'),
             focusSearch() { setOpen(true); input.focus(); input.select(); },
-            dispose() { bag.dispose(); }
+            dispose() { if (drag) drag.abort(); bag.dispose(); }
         };
     }
 

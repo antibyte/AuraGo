@@ -1,11 +1,13 @@
-// c1d04 checks: canvas, wires and interact on the stub DOM of test-easydrag.mjs. That runner calls
-// run(env) with its helpers (check, eq, guardAsync, miniDom, ...); failures are counted there.
+// c1d04 checks: canvas, wires and interact; c1d05 checks: palette, fields, forms and mapping. Both
+// run on the stub DOM of test-easydrag.mjs. That runner calls run(env) with its helpers (check, eq,
+// guardAsync, miniDom, ...); failures are counted there.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
-const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js', 'easydrag-wires.js', 'easydrag-interact.js'];
+const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js', 'easydrag-wires.js', 'easydrag-interact.js',
+    'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-mapping.js'];
 const A = 'n_aaaaaaaa';
 const B = 'n_bbbbbbbb';
 const C = 'n_cccccccc';
@@ -24,7 +26,7 @@ function twoNodes(edgeId, more) {
 }
 
 export async function run(env) {
-    const { apps, types, t, miniDom, check, eq, guardAsync } = env;
+    const { apps, types, t, miniDom, check, eq, guardAsync, settle } = env;
     // A summary makes card markup show the labels of referenced steps.
     const canvasTypes = new Map(types);
     canvasTypes.set('web.search', Object.assign({}, types.get('web.search'), { summary: '{query}' }));
@@ -65,6 +67,7 @@ export async function run(env) {
             requestAnimationFrame: fn => { const id = nextId++; frames.set(id, fn); return id; },
             cancelAnimationFrame: id => { frames.delete(id); },
             matchMedia: () => ({ matches: false }),
+            CSS: { escape: value => String(value) },
             ResizeObserver: class { observe() { observers.observed++; } disconnect() { observers.disconnected++; } }
         });
         for (const file of MODULES) {
@@ -100,7 +103,7 @@ export async function run(env) {
         const announce = canvas.announce;
         const interact = ED.interact.create(ed, Object.assign({}, canvas, { announce: text => { announced.push(text); announce(text); } }), wires);
         const h = {
-            ED, ed, canvas, wires, interact, model, bus, el: canvas.el, store, navigator, announced, logged, counts, timers, frames,
+            ED, ed, canvas, wires, interact, model, bus, el: canvas.el, dom, store, navigator, announced, logged, counts, timers, frames,
             observers, subscriptions, quickAdds, details, selections: () => selections,
             card: id => canvas.nodeEl(id),
             pos: id => Object.assign({}, model.node(id).position),
@@ -491,5 +494,188 @@ export async function run(env) {
         eq('c1d04 a swapped-in model at the same version redraws the minimap, summaries and path',
             [draft, run.version, nodes.children.length, h.card(B).html.includes('Renamed in run'), h.card(B).html.includes('Alpha'), paths], [[0, 3, true], 0, 2, true, false, 1]);
         eq('c1d04 the swap checks log no errors', h.logged, []);
+    });
+
+    // ── c1d05: palette, fields, forms and mapping ──
+
+    // paletteHarness adds a palette panel to the canvas harness: a catalog list with categories, the
+    // editor root holding canvas and panel, and elementFromPoint returning h.at.
+    function paletteHarness() {
+        const h = harness(twoNodes());
+        // The palette reads its search box at render: inputs get a value (the attribute until set).
+        Object.defineProperty(h.dom.El.prototype, 'value', {
+            configurable: true,
+            get() { return this.typed !== undefined ? this.typed : (this.attrs.get('value') || ''); },
+            set(v) { this.typed = String(v); }
+        });
+        const list =Array.from(canvasTypes.values()).map(info => Object.assign({ category: info.trigger ? 'trigger' : 'web', availability: { state: 'available' } }, info));
+        Object.assign(h.ed.catalog, { list, categories: [{ id: 'trigger', label: 'Trigger' }, { id: 'web', label: 'Web' }] });
+        h.ed.root = h.ED.core.el('<div class="ed-editor"></div>');
+        h.ed.root.appendChild(h.el);
+        h.ed.windowId = 'w1';
+        h.at = null;
+        h.dom.document.elementFromPoint = () => h.at;
+        h.panel = h.ED.palette.createPanel(h.ed, h.canvas);
+        h.ed.root.appendChild(h.panel.el);
+        h.item = type => h.panel.el.querySelectorAll('[data-ed-type]').find(n => n.getAttribute('data-ed-type') === type);
+        return h;
+    }
+
+    // formHarness renders the parameter form of one node of info. opts: params (the node's), answers
+    // (functions answering the options requests in turn), readonly. Changes land in h.changes, options
+    // requests in h.calls; h.field(name) is the .ed-field of a param.
+    function formHarness(info, opts) {
+        const o = opts || {};
+        const h = harness();
+        Object.defineProperty(h.dom.El.prototype, 'tagName', { configurable: true, get() { return String(this.localName).toUpperCase(); } });
+        const answers = (o.answers || []).slice();
+        h.changes = [];
+        h.calls = [];
+        h.ed.api = { options: (type, param) => { h.calls.push(type + '|' + param); const next = answers.shift(); return next ? next() : Promise.resolve({ options: [] }); } };
+        h.ed.root = h.ED.core.el('<div class="ed-editor"></div>');
+        h.ed.windowId = 'w1';
+        h.ed.readonly = !!o.readonly;
+        h.node = { id: A, key: 'alpha', type: info.type, label: 'Alpha', position: { x: 0, y: 0 }, params: o.params || {}, settings: {} };
+        h.form = h.ED.forms.render({ ed: h.ed, node: h.node, info, upstream: [], roots: {}, issues: [], onChange: (name, value) => h.changes.push([name, value]) });
+        h.field = name => h.form.el.querySelectorAll('.ed-field').find(f => f.getAttribute('data-param') === name);
+        return h;
+    }
+
+    await guardAsync('c1d05 palette drag', async () => {
+        const h = paletteHarness();
+        const G = h.ED.geometry;
+        const nodes = () => h.model.doc.nodes.length;
+        const ghost = () => !!h.ed.root.querySelector('.ed-drag-ghost');
+        const listening = item => ['pointermove', 'pointerup', 'pointercancel', 'lostpointercapture'].reduce((n, type) => n + (item.listeners[type] || []).length, 0);
+        const item = h.item('web.search');
+        // A touch the browser turns into a scroll of the palette is cancelled: a later release adds nothing.
+        item.fire('pointerdown', h.pe(1, 10, 10, { pointerType: 'touch' }));
+        item.fire('pointercancel', h.pe(1, 10, 10, { pointerType: 'touch' }));
+        item.fire('pointerup', h.pe(1, 10, 10, { pointerType: 'touch' }));
+        const cancelled = [nodes(), listening(item)];
+        // A release missed outside the window: the next mouse move without a button ends the drag.
+        item.fire('pointerdown', h.pe(2, 10, 10));
+        item.fire('pointermove', h.pe(2, 200, 200));
+        const dragging = [ghost(), h.ed.dragging];
+        item.fire('pointermove', h.pe(2, 220, 220, { buttons: 0 }));
+        item.fire('pointerup', h.pe(2, 220, 220));
+        eq('c1d05 a cancelled or missed palette drag adds nothing and leaves no ghost or listeners',
+            [cancelled, dragging, nodes(), ghost(), h.ed.dragging, listening(item)], [[2, 0], [true, true], 2, false, false, 0]);
+        // A click still adds the step; a drop on the canvas places it under the pointer.
+        item.fire('pointerdown', h.pe(3, 10, 10));
+        item.fire('pointerup', h.pe(3, 10, 10));
+        const clicked = [nodes(), h.ed.selection.size];
+        h.at = h.el;
+        item.fire('pointerdown', h.pe(4, 10, 10));
+        item.fire('pointermove', h.pe(4, 300, 200));
+        item.fire('pointerup', h.pe(4, 300, 200));
+        const dropped = h.model.node(Array.from(h.ed.selection)[0]);
+        eq('c1d05 a palette click adds a step and a drop on the canvas places one there',
+            [clicked, nodes(), dropped && dropped.position, ghost()], [[3, 1], 4, { x: G.snap(300 - G.NODE_W / 2), y: G.snap(200 - G.NODE_H / 2) }, false]);
+        // Closing the editor during a drag ends it.
+        item.fire('pointerdown', h.pe(5, 10, 10));
+        item.fire('pointermove', h.pe(5, 200, 200));
+        const before = [ghost(), h.ed.dragging];
+        h.panel.dispose();
+        eq('c1d05 dispose ends a palette drag', [before, ghost(), h.ed.dragging, listening(item), nodes()], [[true, true], false, false, 0, 4]);
+        eq('c1d05 the palette checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d05 sample lookups', async () => {
+        const h = harness();
+        const F = h.ED.fields;
+        const roots = { x: { a: 1 }, list: [{ p: 1 }, { q: 2 }] };
+        // fields.sampleAt walks paths through template.resolvePath, like the engine's stepInto.
+        eq('c1d05 sample lookups read own fields only and count negative indexes from the end',
+            ['x.constructor', 'constructor', 'x.__proto__', 'list[-1]', 'list[-3]', 'x.a', 'x..'].map(p => F.sampleAt({ roots }, p)),
+            [null, null, null, { q: 2 }, null, 1, null]);
+        const env = {
+            t, esc: h.ED.core.esc, readonly: false, roots, change() {},
+            upstream: [{ key: 'list', label: 'List', cat: 'web', fields: [{ name: 'items', type: 'list' }] }, { key: 'x', label: 'X', cat: 'web', fields: ['a', 'b'] }]
+        };
+        const field = F.templateField(env, '', {});
+        const input = field.el.querySelector('.ed-tpl-input');
+        const suggest = text => {
+            input.value = text;
+            input.selectionStart = text.length;
+            input.fire('input');
+            const list = field.el.querySelector('.ed-suggest');
+            return list ? list.items.map(it => it.text) : [];
+        };
+        field.focus();
+        eq('c1d05 autocomplete offers the fields of the sample at a path and output fields given as names or objects',
+            [suggest('{{list[-1].'), suggest('{{list.'), suggest('{{x.'), suggest('{{x.constructor.')], [['list[-1].q'], ['list.items'], ['x.a', 'x.b'], []]);
+        eq('c1d05 the sample checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d05 mapping references', async () => {
+        const h = harness();
+        const { pathJoin } = h.ED.mapping;
+        const keys = ['plain', 'two words', 'a"b', 'back\\slash', 'line\nbreak', 'tab\there', '0', '$type', '}}', 'gr' + String.fromCharCode(0xfc) + 'n'];
+        const value = {};
+        keys.forEach((k, i) => { value[k] = i; });
+        // A reference from the input tree must read back its own field through the shared parser and resolver.
+        eq('c1d05 every input tree reference reads back its own field',
+            keys.map(k => h.ED.template.evaluate('{{' + pathJoin('x', k) + '}}', { x: value })), keys.map((k, i) => i));
+        eq('c1d05 indexes and plain names stay short', [pathJoin('x', 2), pathJoin('x', 'name'), pathJoin('x', 'a"b'), pathJoin('x', 'a\\b')], ['x[2]', 'x.name', 'x["a\\"b"]', 'x["a\\\\b"]']);
+        eq('c1d05 the mapping checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d05 option lists', async () => {
+        const failing = () => Promise.reject(Object.assign(new Error('down'), { body: { error: 'down', code: 'FLOW_OPTIONS_UNAVAILABLE' } }));
+        const missions = () => Promise.resolve({ options: [{ value: 'm1', label: 'One' }, { value: 'm2', label: 'Two' }] });
+        const info = { type: 'mission.run', params: [{ name: 'mission', kind: 'select', label: 'Mission', options_source: 'missions', required: true }] };
+        const h = formHarness(info, { params: { mission: 'm2' }, answers: [failing, missions] });
+        const select = () => h.field('mission').querySelector('select');
+        const values = () => select().querySelectorAll('option').map(n => n.getAttribute('value') + (n.attrs.has('selected') ? '*' : ''));
+        await settle();
+        const failed = [select().getAttribute('data-error'), values()];
+        h.form.refresh(h.node);
+        await settle();
+        const loaded = values();
+        h.form.refresh(h.node);
+        await settle();
+        eq('c1d05 a failed options request is not cached: the next build asks again and reuses the answer',
+            [failed, loaded, values(), h.calls], [['error_flow_options_unavailable', ['m2*']], ['m1', 'm2*'], ['m1', 'm2*'], ['mission.run|mission', 'mission.run|mission']]);
+        // Home Assistant entities are cut at 2000; the combo box says so, also when it is rebuilt from the cache.
+        const haInfo = { type: 'home.state', params: [{ name: 'entity', kind: 'select', label: 'Entity', options_source: 'ha_entities' }] };
+        const cut = formHarness(haInfo, { answers: [() => Promise.resolve({ options: [{ value: 'light.a', label: 'A', hint: 'on' }], truncated: true })] });
+        const whole = formHarness(haInfo, { answers: [() => Promise.resolve({ options: [{ value: 'light.a', label: 'A' }] })] });
+        await settle();
+        const hints = f => f.field('entity').querySelectorAll('.ed-combo .ed-options-truncated').length;
+        const shown = [hints(cut), cut.field('entity').querySelectorAll('datalist option').length, hints(whole)];
+        cut.form.refresh(cut.node);
+        eq('c1d05 a cut Home Assistant list shows one hint under the combo box, a whole list none',
+            [shown, hints(cut), cut.calls.length], [[1, 1, 0], 1, 1]);
+        eq('c1d05 the option checks log no errors', [h.logged, cut.logged, whole.logged], [[], [], []]);
+    });
+
+    await guardAsync('c1d05 plain-text hint', async () => {
+        const hinted = f => f.form.el.querySelectorAll('.ed-field').filter(n => n.querySelector('.ed-field-plaintext')).map(n => n.getAttribute('data-param'));
+        const ldap = formHarness({ type: 'tool.ldap', params: [{ name: 'base_dn', kind: 'text', label: 'Base DN', templatable: true },
+            { name: 'changes', kind: 'json', label: 'Changes', templatable: true }, { name: 'entry_attributes', kind: 'json', label: 'Entry attributes', templatable: true }] });
+        const hooks = formHarness({ type: 'tool.manage_outgoing_webhooks', params: [{ name: 'headers', kind: 'keyvalue', label: 'Headers', templatable: true },
+            { name: 'parameters', kind: 'json', label: 'Parameters', templatable: true }] });
+        const other = formHarness({ type: 'tool.other', params: [{ name: 'headers', kind: 'keyvalue', label: 'Headers', templatable: true }] });
+        eq('c1d05 generic tool params saved as plain text carry a hint, others none', [hinted(ldap), hinted(hooks), hinted(other)], [['changes', 'entry_attributes'], ['headers'], []]);
+        eq('c1d05 the hint checks log no errors', [ldap.logged, hooks.logged, other.logged], [[], [], []]);
+    });
+
+    await guardAsync('c1d05 drops', async () => {
+        const blank = () => ({ left: '', op: 'eq', right: '', type: 'auto' });
+        const info = { type: 'logic.if', params: [{ name: 'condition', kind: 'condition_group', label: 'Condition' }] };
+        const transfer = ref => ({ types: ['application/x-easydrag-ref'], getData: type => (type === 'application/x-easydrag-ref' ? ref : '') });
+        const h = formHarness(info, { params: { condition: { match: 'all', rows: [blank(), blank()] } } });
+        const lefts = () => h.form.el.querySelectorAll('.ed-cond-left .ed-tpl');
+        lefts()[1].fire('drop', { dataTransfer: transfer('alpha.results') });
+        // A drop on the param outside its template fields still goes into the first one.
+        h.field('condition').fire('drop', { dataTransfer: transfer('alpha.count') });
+        eq('c1d05 a drop goes into the template field under the pointer',
+            h.changes.map(([name, value]) => [name, value.rows.map(r => r.left)]), [['condition', ['', '{{alpha.results}}']], ['condition', ['{{alpha.count}}', '{{alpha.results}}']]]);
+        const ro = formHarness(info, { params: { condition: { match: 'all', rows: [blank(), blank()] } }, readonly: true });
+        ro.form.el.querySelectorAll('.ed-cond-left .ed-tpl')[1].fire('drop', { dataTransfer: transfer('alpha.results') });
+        ro.form.insert('condition', 'alpha.results');
+        eq('c1d05 a read-only form takes no drop or insert', ro.changes, []);
+        eq('c1d05 the drop checks log no errors', [h.logged, ro.logged], [[], []]);
     });
 }

@@ -13,9 +13,14 @@
         return typeof value === 'string' ? 'text' : typeof value === 'number' ? 'number' : typeof value === 'boolean' ? 'bool' : 'text';
     }
 
+    // pathJoin appends a field or an index to a reference. Other names go in quotes, escaped
+    // for the template lexer: a backslash keeps the next character, \n and \t are a newline
+    // and a tab. The reference then reads back the same own field (template.resolvePath).
     function pathJoin(base, seg) {
         if (typeof seg === 'number') return base + '[' + seg + ']';
-        return /^[A-Za-z_][A-Za-z0-9_]*$/.test(seg) ? base + '.' + seg : base + '["' + String(seg).replace(/"/g, '\\"') + '"]';
+        if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(seg)) return base + '.' + seg;
+        const quoted = String(seg).replace(/[\\"]/g, ch => '\\' + ch).replace(/\n/g, '\\n').replace(/\t/g, '\\t');
+        return base + '["' + quoted + '"]';
     }
 
     function preview(value) {

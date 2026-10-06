@@ -14,6 +14,22 @@
         return (rule.equals || []).map(String).includes(String(value == null ? '' : value));
     }
 
+    // PLAINTEXT_VALUES lists generic tool params whose values can hold credentials (header
+    // maps, LDAP attribute maps) but are saved in the flow as plain text: generic tools have
+    // no secret picker, and the catalog drops only params named like credentials. The
+    // catalog drops netlify and vercel env_value with their set_env operation today; they
+    // stay listed so the hint is there if that operation comes back.
+    const PLAINTEXT_VALUES = {
+        'tool.manage_outgoing_webhooks': ['headers'],
+        'tool.ldap': ['entry_attributes', 'changes'],
+        'tool.netlify': ['env_value'],
+        'tool.vercel': ['env_value']
+    };
+
+    function plaintextValue(type, name) {
+        return Object.prototype.hasOwnProperty.call(PLAINTEXT_VALUES, type) && PLAINTEXT_VALUES[type].includes(name);
+    }
+
     // render builds the form for one node. env:
     //   ed, node, info, upstream [{key, label, cat, fields}], roots {key: output}, issues [Issue]
     //   onChange(name, value), openFileDialog?
@@ -57,18 +73,33 @@
             }
         }
 
+        // loadOptions fills a select (or the datalist of a combo box) with the param's dynamic
+        // options. Only an answer is cached: after a failed request the next build asks again.
         async function loadOptions(param, select, value) {
             const key = env.info.type + '|' + param.name;
-            let options = optionCache.get(key);
-            if (!options) {
+            let answer = optionCache.get(key);
+            if (!answer) {
                 select.disabled = true;
-                try { options = (await env.ed.api.options(env.info.type, param.name)).options || []; } catch (err) { options = []; select.dataset.error = core.errorText(t, err); }
-                optionCache.set(key, options);
+                try {
+                    const res = await env.ed.api.options(env.info.type, param.name);
+                    answer = { options: res && Array.isArray(res.options) ? res.options : [], truncated: !!(res && res.truncated) };
+                    optionCache.set(key, answer);
+                } catch (err) {
+                    answer = { options: [], truncated: false };
+                    select.dataset.error = core.errorText(t, err);
+                }
                 select.disabled = readonly;
             }
+            const options = answer.options;
             const list = select.tagName === 'DATALIST' ? select : null;
             if (list) {
                 list.innerHTML = options.map(o => '<option value="' + esc(o.value) + '">' + esc(o.label + (o.hint ? ' · ' + o.hint : '')) + '</option>').join('');
+                // Home Assistant entities are cut at 2000 (the only list the server cuts); the
+                // combo box still takes any entity id typed in.
+                const wrap = list.parentNode;
+                if (answer.truncated && wrap && !wrap.querySelector('.ed-options-truncated')) {
+                    wrap.appendChild(core.el('<p class="ed-hint ed-options-truncated">' + esc(t('easydrag.ui.options_truncated')) + '</p>'));
+                }
                 return;
             }
             const present = options.some(o => String(o.value) === String(value == null ? '' : value));
@@ -190,7 +221,9 @@
                     (canToggle ? '<button type="button" class="ed-mode" data-ed-mode="' + esc(param.name) + '" aria-pressed="' + templated(param, value) + '" title="' + esc(t('easydrag.ui.mode_hint')) + '">' +
                         esc(templated(param, value) ? t('easydrag.ui.mode_data') : t('easydrag.ui.mode_fixed')) + '</button>' : '') +
                     (param.help ? '<span class="ed-help" tabindex="0" role="note" aria-label="' + esc(param.help) + '" title="' + esc(param.help) + '">' + core.icon('info') + '</span>' : '') +
-                    '</div><div class="ed-field-control"></div><div class="ed-field-preview" hidden></div>' +
+                    '</div><div class="ed-field-control"></div>' +
+                    (plaintextValue(env.info.type, param.name) ? '<p class="ed-hint ed-field-plaintext">' + esc(t('easydrag.ui.hint_plaintext_value')) + '</p>' : '') +
+                    '<div class="ed-field-preview" hidden></div>' +
                     (issue ? '<div class="ed-field-issue">' + core.icon('alert') + '<span>' + esc(core.issueText(t, issue)) + '</span></div>' : '') + '</div>');
                 const control = controlFor(param, value, id);
                 field.querySelector('.ed-field-control').appendChild(control);
@@ -238,13 +271,19 @@
             event.preventDefault();
             target.classList.remove('is-drop');
             const ref = event.dataTransfer.getData('application/x-easydrag-ref');
-            if (ref) insert(target.dataset.param, ref);
+            if (!ref || readonly) return;
+            // A param with several template fields (condition rows, key/value pairs, field
+            // lists) takes the drop in the field under the pointer; insert picks the first one.
+            const tpl = event.target.closest('.ed-tpl');
+            if (tpl && tpl.edTemplate && target.contains(tpl)) tpl.edTemplate.insert(ref);
+            else insert(target.dataset.param, ref);
         });
 
-        // insert adds {{ref}} to a parameter (switching it to "from data" when needed).
+        // insert adds {{ref}} to a parameter (switching it to "from data" when needed). A
+        // read-only form (read-only flow or run view) changes nothing.
         function insert(name, ref) {
             const entry = controls.get(name);
-            if (!entry) return;
+            if (!entry || readonly) return;
             const tpl = entry.field.querySelector('.ed-tpl');
             if (tpl && tpl.edTemplate) { tpl.edTemplate.insert(ref); return; }
             const value = node.params[name];
