@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -502,7 +503,13 @@ func (c *DockerConnector) apiURL(nest NestRecord, path string) string {
 	if port == 0 {
 		port = 2375
 	}
-	return fmt.Sprintf("%s://%s:%d/%s%s", scheme, nest.Host, port, dockerAPIVersion, path)
+	host := nest.Host
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		host = host[1 : len(host)-1] // a bracketed IPv6 literal keeps working
+	}
+	// JoinHostPort brackets only hosts with a colon, so IPv4 addresses and
+	// host names give exactly the URL they gave before.
+	return fmt.Sprintf("%s://%s/%s%s", scheme, net.JoinHostPort(host, strconv.Itoa(port)), dockerAPIVersion, path)
 }
 
 // pullClient returns an HTTP client with an extended timeout suitable for
