@@ -579,12 +579,28 @@ func dockerComposeStartedServiceNames(command string) []string {
 		if strings.Contains(arg, "=") {
 			continue
 		}
-		if valueFlags[arg] ||
-			(!strings.HasPrefix(arg, "--") && len(arg) > 2 && shortValueFlags[arg[len(arg)-1]]) {
+		if valueFlags[arg] || dockerComposeShortFlagTakesNext(arg, shortValueFlags) {
 			i++ // the flag's value, e.g. `-t 5` or the combined `-dt 5`
 		}
 	}
 	return names
+}
+
+// dockerComposeShortFlagTakesNext reports whether a short flag cluster such as
+// `-dt` or `-qo` ends in a value-taking flag, whose value is then the next
+// argument. A value-taking letter earlier in the cluster has its value
+// attached (`-ofile.yml`, `-t5`), so the next argument is a positional one,
+// even when the attached value happens to end in the flag letter (`-ologo`).
+func dockerComposeShortFlagTakesNext(arg string, valueFlags map[byte]bool) bool {
+	if strings.HasPrefix(arg, "--") {
+		return false
+	}
+	for i := 1; i < len(arg); i++ {
+		if valueFlags[arg[i]] {
+			return i == len(arg)-1
+		}
+	}
+	return false
 }
 
 // dockerComposeValueFlags are the up/create flags whose value is a separate

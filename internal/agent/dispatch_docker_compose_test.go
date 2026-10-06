@@ -571,3 +571,58 @@ func TestDockerComposePolicyReadsOnlyBoundedRegularFiles(t *testing.T) {
 		t.Fatalf("resolver ran for an unreadable compose file: %q", *seen)
 	}
 }
+
+func TestDockerComposeStartedServiceNamesSkipConfigOutputTargets(t *testing.T) {
+	// Every -o/--output form that tools.DockerCompose accepts must be parsed so
+	// that the target is never a service name and the services after it are
+	// still named, whatever the target ends with (-ologo ends in the flag
+	// letter itself).
+	for command, want := range map[string][]string{
+		"config -o rendered/stack.yml":                 nil,
+		"config -o rendered/stack.yml hidden":          {"hidden"},
+		"config --output rendered/stack.yml hidden":    {"hidden"},
+		"config --output=rendered/stack.yml hidden":    {"hidden"},
+		"config -o=rendered/stack.yml hidden":          {"hidden"},
+		"config -orendered/stack.yml hidden":           {"hidden"},
+		"config -ologo hidden":                         {"hidden"},
+		"config -qologo hidden":                        {"hidden"},
+		"config -qo rendered/stack.yml hidden":         {"hidden"},
+		"config --format json -o out.yml hidden other": {"hidden", "other"},
+		"convert -o out.yml hidden":                    {"hidden"},
+		"config -q -o out.yml -- hidden":               {"hidden"},
+		"up -d -t5 hidden":                             {"hidden"},
+		"up -dt 5 hidden":                              {"hidden"},
+		"build -qm 1g hidden":                          {"hidden"},
+	} {
+		got := dockerComposeStartedServiceNames(command)
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("%q: service names = %q, want %q", command, got, want)
+		}
+	}
+}
+
+func TestDockerComposePolicyChecksServicesNamedAfterConfigOutputTargets(t *testing.T) {
+	workspace := t.TempDir()
+	file := writeComposeFixture(t, workspace, "prof/compose.yml", profileComposeFixture)
+	stubDockerComposeResolverByMode(t, `{"services":{"web":{"image":"alpine"}}}`,
+		`{"services":{"web":{"image":"alpine"},"hidden":{"image":"alpine","profiles":["later"],"container_name":"aurago-boring-garage"}}}`)
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace}
+	for _, command := range []string{
+		"config -o rendered/stack.yml hidden",
+		"config --output=rendered/stack.yml hidden",
+		"config -qo rendered/stack.yml hidden",
+		"config -ologo hidden",
+		"convert -o=rendered/stack.yml hidden",
+	} {
+		got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: file, Command: command})
+		if !strings.Contains(got, "Boring Computers Garage") {
+			t.Fatalf("%s: profile-gated garage container was not checked: %s", command, got)
+		}
+	}
+	// The output target is not a service: it must not be looked up as one.
+	for _, command := range []string{"config -o rendered/stack.yml", "config --output=rendered/stack.yml web"} {
+		if got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: file, Command: command}); got != "" {
+			t.Fatalf("%s: blocked: %s", command, got)
+		}
+	}
+}

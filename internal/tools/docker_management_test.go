@@ -359,9 +359,195 @@ func TestValidateDockerComposeArgsRejectsHighRiskSubcommands(t *testing.T) {
 		"exec app sh -c whoami",
 		"cp app:/etc/passwd ./passwd",
 		"push app",
+		"config --environment",
+		"config --environment=true",
+		"up -d --env-file /etc/aurago/master.key",
+		"config --env-file=/home/aurago/aurago/.env",
 	} {
 		if err := validateDockerComposeArgs(command); err == nil {
 			t.Fatalf("expected compose command %q to be rejected", command)
+		}
+	}
+}
+
+func TestDockerComposeOutputArgsStayInWorkspace(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	if err := os.MkdirAll(filepath.Join(workspace, "rendered"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := DockerConfig{WorkspaceDir: workspace}
+	resolvedWorkspace, err := secureResolveFinalPath(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "--output=" + filepath.Join(resolvedWorkspace, "rendered", "stack.yml")
+	for _, command := range []string{
+		"config -o rendered/stack.yml",
+		"config --output rendered/stack.yml",
+		"config --output=rendered/stack.yml",
+		"config -o=rendered/stack.yml",
+		"config -orendered/stack.yml",
+		"config -qo rendered/stack.yml",
+		"config --format json -o " + filepath.Join(workspace, "rendered", "stack.yml"),
+		"convert -o rendered/stack.yml",
+	} {
+		parts, err := dockerComposeParts(command)
+		if err != nil {
+			t.Fatalf("%s: dockerComposeParts() error = %v", command, err)
+		}
+		got, err := dockerComposeRewriteOutputArgs(cfg, parts)
+		if err != nil {
+			t.Fatalf("%s: rewrite error = %v", command, err)
+		}
+		if strings.Join(got, " ") == strings.Join(parts, " ") || !strings.Contains(strings.Join(got, "\x00"), want) {
+			t.Fatalf("%s: rewritten = %q, want %s", command, got, want)
+		}
+		if strings.HasPrefix(command, "config -qo") && got[1] != "-q" {
+			t.Fatalf("%s: quiet flag lost: %q", command, got)
+		}
+	}
+	for _, command := range []string{
+		"config -o ../outside.yml",
+		"config --output=" + filepath.Join(root, "outside.yml"),
+		"config -qo ../../etc/cron.d/aurago",
+		"config -o",
+		"config -o rendered",
+		"config -o .env",
+		"config --output rendered/vault.bin",
+	} {
+		parts, err := dockerComposeParts(command)
+		if err != nil {
+			t.Fatalf("%s: dockerComposeParts() error = %v", command, err)
+		}
+		if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err == nil {
+			t.Fatalf("%s: accepted as %q", command, got)
+		}
+	}
+	link := filepath.Join(workspace, "link")
+	if err := os.Symlink(root, link); err == nil {
+		// Skipped where symlinks cannot be created (Windows without the privilege;
+		// Go does not resolve Windows junctions, as for every other jail check).
+		for _, command := range []string{"config -o link/escape.yml", "config --output=link"} {
+			parts, _ := dockerComposeParts(command)
+			if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err == nil {
+				t.Fatalf("%s: symlink to the workspace parent escaped as %q", command, got)
+			}
+		}
+	}
+	parts, _ := dockerComposeParts("logs -f --tail 20")
+	if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err != nil || strings.Join(got, " ") != "logs -f --tail 20" {
+		t.Fatalf("other subcommands must stay unchanged: %q, %v", got, err)
+	}
+	parts, _ = dockerComposeParts("config --format json --services")
+	if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err != nil || strings.Join(got, " ") != "config --format json --services" {
+		t.Fatalf("config without -o must stay unchanged: %q, %v", got, err)
+	}
+	// After `--` Compose reads service names, so nothing there is an output flag.
+	parts, _ = dockerComposeParts("config -- -o ../outside.yml")
+	if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err != nil || strings.Join(got, " ") != "config -- -o ../outside.yml" {
+		t.Fatalf("arguments after -- must stay unchanged: %q, %v", got, err)
+	}
+	parts, _ = dockerComposeParts("config -qo rendered/stack.yml -- web")
+	if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err != nil ||
+		strings.Join(got, "\x00") != "config\x00-q\x00"+want+"\x00--\x00web" {
+		t.Fatalf("output before -- must be rewritten and the service kept: %q, %v", got, err)
+	}
+	if result := DockerCompose(cfg, "compose.yml", "config -o ../outside.yml"); !strings.Contains(result, "must stay within the configured workspace") {
+		t.Fatalf("DockerCompose() = %s, want the workspace denial before the CLI runs", result)
+	}
+	if result := DockerCompose(cfg, "compose.yml", "config --environment"); !strings.Contains(result, "is not allowed") {
+		t.Fatalf("DockerCompose() = %s, want --environment rejected before the CLI runs", result)
+	}
+	// Writing a rendered file stays a read-only Compose command, so it keeps
+	// working in Docker read-only mode.
+	if DockerComposeCommandMutates("config -o rendered/stack.yml") {
+		t.Fatal("config -o must stay a read-only Compose command")
+	}
+}
+
+func TestDockerComposeOutputArgsRejectAuraGoState(t *testing.T) {
+	// Inside the workspace is not enough: AuraGo's own data directory, config,
+	// vault and the protected Desktop Notes stay untouchable, like for the file
+	// tools, while any other file of the workspace is a valid target.
+	workspace := t.TempDir()
+	dataDir := filepath.Join(workspace, "data")
+	notes := filepath.Join(workspace, "Documents", "Notes")
+	for _, dir := range []string{dataDir, notes, filepath.Join(workspace, "rendered")} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	configPath := filepath.Join(workspace, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	previous, configured := currentRuntimePermissions()
+	ConfigureRuntimePermissions(RuntimePermissions{
+		ProtectedDataDir:     dataDir,
+		ProtectedSystemFiles: []string{configPath},
+		ProtectedNotesRoots:  []string{notes},
+	})
+	t.Cleanup(func() {
+		if configured {
+			ConfigureRuntimePermissions(previous)
+		} else {
+			ClearRuntimePermissionsForTest()
+		}
+	})
+	cfg := DockerConfig{WorkspaceDir: workspace}
+	for _, command := range []string{
+		"config -o data/short_term.db",
+		"config --output=data/new/stack.yml",
+		"config -o config.yaml",
+		"config -qo CONFIG.YAML",
+		"config -o Documents/Notes/rendered.md",
+		"config -o rendered/prod.env",
+	} {
+		parts, err := dockerComposeParts(command)
+		if err != nil {
+			t.Fatalf("%s: dockerComposeParts() error = %v", command, err)
+		}
+		if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err == nil {
+			t.Fatalf("%s: accepted as %q", command, got)
+		}
+	}
+	// An existing rendered file may be overwritten.
+	if err := os.WriteFile(filepath.Join(workspace, "rendered", "stack.yml"), []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parts, _ := dockerComposeParts("config -o rendered/stack.yml")
+	if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err != nil || len(got) != 2 || !strings.HasPrefix(got[1], "--output=") {
+		t.Fatalf("existing workspace file rejected: %q, %v", got, err)
+	}
+}
+
+func TestDockerComposeOutputArgsWithoutWorkspaceStayInWorkingDirectory(t *testing.T) {
+	// Without a configured workspace the agent Compose preflight confines the
+	// compose file to the process working directory; -o uses the same root.
+	workdir := t.TempDir()
+	t.Chdir(workdir)
+	resolvedWorkdir, err := secureResolveFinalPath(workdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := DockerConfig{}
+	parts, _ := dockerComposeParts("config -o rendered/stack.yml")
+	got, err := dockerComposeRewriteOutputArgs(cfg, parts)
+	if err != nil {
+		t.Fatalf("rewrite error = %v", err)
+	}
+	want := "--output=" + filepath.Join(resolvedWorkdir, "rendered", "stack.yml")
+	if strings.Join(got, "\x00") != "config\x00"+want {
+		t.Fatalf("rewritten = %q, want config %s", got, want)
+	}
+	for _, command := range []string{
+		"config -o ../outside.yml",
+		"config --output=" + filepath.Join(filepath.Dir(resolvedWorkdir), "outside.yml"),
+	} {
+		parts, _ := dockerComposeParts(command)
+		if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err == nil {
+			t.Fatalf("%s: accepted as %q", command, got)
 		}
 	}
 }
