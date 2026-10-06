@@ -2225,6 +2225,7 @@ V1 unterstützt G.711 PCMA/PCMU und bietet kein STUN, ICE, keine automatische Ro
 - `classic` verwendet die ausgewählten ASR-, Agent-LLM- und zentralen TTS-Provider. `gemini_live` nutzt eine serverseitige Gemini-Live-Verbindung und gibt deren Zugangsdaten nie an den Browser. Beide verwenden explizite Tool-Allowlisten; eine leere Liste erlaubt keine nativen Tools.
 - RTP/Audio, vollständige SIP-Header, Authentifizierungsdaten und rohe Transcripts werden weder geloggt noch gespeichert. Transcripts sind standardmäßig flüchtig; Telefon-Sessions erzeugen keine Aufnahmen und keine abgeleiteten Memory-Artefakte.
 - `readonly: true` erlaubt weiterhin Registrierung, Status, Historie und Verbindungstests, blockiert aber Answer und ausgehende Anrufe.
+- Die Sicherheitsprüfung warnt mit `sip_auto_answer_all_interfaces`, wenn `inbound.route: agent` auf einer Wildcard-`bind_host` (`0.0.0.0` oder `::`) automatisch annimmt. Mit `sip_wildcard_callers_cidr_peers` warnt sie, wenn `allowed_callers` `*` enthält und `trusted_peer_cidrs` ein ganzes Subnetz nennt; Einträge mit `/32` oder `/128` gelten als exakte Peers.
 
 Siehe [Native SIP-Telefonie](../../sip_telephony.md) für Netzwerkregeln, Fehlercodes, Provider-Einrichtung und die vollständige API-Liste.
 

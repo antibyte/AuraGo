@@ -2609,6 +2609,7 @@ V1 supports G.711 PCMA/PCMU and does not provide STUN, ICE, automatic router con
 - `classic` uses the selected ASR, agent LLM, and central TTS. `gemini_live` uses a server-side Gemini Live connection and never exposes its provider credential to the browser. Both use explicit tool allowlists; an empty list means no native tools.
 - RTP/audio, complete SIP headers, authentication data, and raw transcripts are not logged or stored. Transcripts are transient by default and telephone sessions do not create recordings or derived memory artifacts.
 - `readonly: true` still permits registration, status, history, and connection tests, but blocks answering and originating calls.
+- The security check warns with `sip_auto_answer_all_interfaces` when `inbound.route: agent` auto-answers on a wildcard `bind_host` (`0.0.0.0` or `::`). It warns with `sip_wildcard_callers_cidr_peers` when `allowed_callers` contains `*` and `trusted_peer_cidrs` lists a subnet; `/32` and `/128` entries count as exact peers.
 
 See [Native SIP telephony](../../sip_telephony.md) for network policies, failure codes, provider setup, and the complete API list.
 

@@ -358,6 +358,123 @@ func TestPublicHostnameLikelyTreatsTailnetAndPrivateHostsAsNonPublic(t *testing.
 	}
 }
 
+// sipAutoAnswerConfig returns an answering SIP endpoint that trips both SIP hints.
+func sipAutoAnswerConfig() *config.Config {
+	cfg := &config.Config{}
+	cfg.SIP.Enabled = true
+	cfg.SIP.ReadOnly = false
+	cfg.SIP.Permissions.AnswerInbound = true
+	cfg.SIP.Inbound.Route = "agent"
+	cfg.SIP.BindHost = "0.0.0.0"
+	cfg.SIP.Inbound.AllowedCallers = []string{"*"}
+	cfg.SIP.Inbound.TrustedPeerCIDRs = []string{"192.168.178.0/24"}
+	return cfg
+}
+
+var sipHintIDs = []string{"sip_auto_answer_all_interfaces", "sip_wildcard_callers_cidr_peers"}
+
+func TestCheckSecurityWarnsOnSIPAutoAnswerAndWildcardCallers(t *testing.T) {
+	t.Parallel()
+
+	hints := CheckSecurity(sipAutoAnswerConfig())
+	for _, id := range sipHintIDs {
+		hint := findSecurityHint(hints, id)
+		if hint == nil {
+			t.Fatalf("expected %s hint, got %#v", id, hints)
+		}
+		if hint.Severity != SevWarning {
+			t.Fatalf("%s severity = %q, want %q", id, hint.Severity, SevWarning)
+		}
+		if hint.AutoFixable || len(hint.FixPatch) != 0 {
+			t.Fatalf("%s must stay a manual hint, got %#v", id, hint)
+		}
+	}
+
+	precise := sipAutoAnswerConfig()
+	precise.SIP.Inbound.Route = "manual"
+	precise.SIP.Inbound.TrustedPeerCIDRs = []string{"192.168.178.1"}
+	hints = CheckSecurity(precise)
+	for _, id := range sipHintIDs {
+		if hasSecurityHint(hints, id) {
+			t.Fatalf("did not expect %s for a manual route with an exact peer, got %#v", id, hints)
+		}
+	}
+}
+
+func TestCheckSecuritySIPAutoAnswerDependsOnBindHostAndRoute(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		bind  string
+		route string
+		want  bool
+	}{
+		{bind: "0.0.0.0", route: "agent", want: true},
+		{bind: "::", route: "agent", want: true},
+		{bind: "", route: "agent", want: true},
+		{bind: " 0.0.0.0 ", route: " Agent ", want: true},
+		{bind: "192.168.178.5", route: "agent", want: false},
+		{bind: "127.0.0.1", route: "agent", want: false},
+		{bind: "0.0.0.0", route: "manual", want: false},
+		{bind: "0.0.0.0", route: "reject", want: false},
+	} {
+		cfg := sipAutoAnswerConfig()
+		cfg.SIP.BindHost = tc.bind
+		cfg.SIP.Inbound.Route = tc.route
+		if got := hasSecurityHint(CheckSecurity(cfg), "sip_auto_answer_all_interfaces"); got != tc.want {
+			t.Fatalf("bind %q route %q: sip_auto_answer_all_interfaces = %v, want %v", tc.bind, tc.route, got, tc.want)
+		}
+	}
+}
+
+func TestCheckSecuritySIPWildcardCallersNeedSubnetPeer(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		peers   []string
+		callers []string
+		route   string
+		want    bool
+	}{
+		{name: "ipv4 subnet", peers: []string{"192.168.178.0/24"}, callers: []string{"*"}, route: "agent", want: true},
+		{name: "ipv6 subnet", peers: []string{"fd00::/64"}, callers: []string{"*"}, route: "agent", want: true},
+		{name: "subnet among exact peers", peers: []string{"192.168.178.1", "10.0.0.0/8"}, callers: []string{"*"}, route: "manual", want: true},
+		{name: "ipv4 host in cidr form", peers: []string{"192.168.178.1/32"}, callers: []string{"*"}, route: "agent", want: false},
+		{name: "ipv6 host in cidr form", peers: []string{"fd00::1/128"}, callers: []string{"*"}, route: "agent", want: false},
+		{name: "exact peer", peers: []string{"192.168.178.1"}, callers: []string{"*"}, route: "agent", want: false},
+		{name: "named callers", peers: []string{"192.168.178.0/24"}, callers: []string{"alice", "**610"}, route: "agent", want: false},
+		{name: "reject route", peers: []string{"192.168.178.0/24"}, callers: []string{"*"}, route: "reject", want: false},
+	} {
+		cfg := sipAutoAnswerConfig()
+		cfg.SIP.Inbound.TrustedPeerCIDRs = tc.peers
+		cfg.SIP.Inbound.AllowedCallers = tc.callers
+		cfg.SIP.Inbound.Route = tc.route
+		if got := hasSecurityHint(CheckSecurity(cfg), "sip_wildcard_callers_cidr_peers"); got != tc.want {
+			t.Fatalf("%s: sip_wildcard_callers_cidr_peers = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestCheckSecuritySIPHintsRequireAnAnsweringEndpoint(t *testing.T) {
+	t.Parallel()
+
+	for name, mutate := range map[string]func(*config.Config){
+		"readonly":           func(cfg *config.Config) { cfg.SIP.ReadOnly = true },
+		"answer inbound off": func(cfg *config.Config) { cfg.SIP.Permissions.AnswerInbound = false },
+		"sip disabled":       func(cfg *config.Config) { cfg.SIP.Enabled = false },
+	} {
+		cfg := sipAutoAnswerConfig()
+		mutate(cfg)
+		hints := CheckSecurity(cfg)
+		for _, id := range sipHintIDs {
+			if hasSecurityHint(hints, id) {
+				t.Fatalf("%s: did not expect %s, got %#v", name, id, hints)
+			}
+		}
+	}
+}
+
 func hasSecurityHint(hints []SecurityHint, id string) bool {
 	return findSecurityHint(hints, id) != nil
 }

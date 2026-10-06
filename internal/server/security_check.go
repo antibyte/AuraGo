@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 
 	"aurago/internal/config"
@@ -595,6 +596,34 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
+	// 24b. sip_auto_answer_all_interfaces / sip_wildcard_callers_cidr_peers — an
+	// auto-answering agent route reachable on every interface, or a wildcard caller
+	// list whose only network check is a whole subnet.
+	if cfg.SIP.Enabled && !cfg.SIP.ReadOnly && cfg.SIP.Permissions.AnswerInbound {
+		route := strings.ToLower(strings.TrimSpace(cfg.SIP.Inbound.Route))
+		if route == "agent" && sipBindsAllInterfaces(cfg.SIP.BindHost) {
+			hints = append(hints, SecurityHint{
+				ID: "sip_auto_answer_all_interfaces", Severity: SevWarning,
+				Title: "SIP auto-answers on all interfaces",
+				Description: "sip.inbound.route is \"agent\" and the SIP socket binds to every interface. " +
+					"Any host that can reach the socket and pass the peer and caller lists is answered automatically. " +
+					"Set sip.bind_host to the concrete LAN address that reaches your phone system unless NAT or Tailscale needs the wildcard, " +
+					"or use route \"manual\" until auto-answer is intended.",
+				AutoFixable: false,
+			})
+		}
+		if route != "reject" && sipCallersWildcard(cfg.SIP.Inbound.AllowedCallers) && sipPeersIncludeSubnet(cfg.SIP.Inbound.TrustedPeerCIDRs) {
+			hints = append(hints, SecurityHint{
+				ID: "sip_wildcard_callers_cidr_peers", Severity: SevWarning,
+				Title: "SIP accepts every caller from a whole subnet",
+				Description: "sip.inbound.allowed_callers contains \"*\" and sip.inbound.trusted_peer_cidrs lists a subnet. " +
+					"Caller identity then rests on the UDP source address alone. " +
+					"List the exact registrar or PBX IP instead of a subnet, or name the callers.",
+				AutoFixable: false,
+			})
+		}
+	}
+
 	// 25. telnyx_no_allowed_numbers — Telnyx has no permitted inbound/outbound numbers
 	if cfg.Telnyx.Enabled && len(cfg.Telnyx.AllowedNumbers) == 0 {
 		hints = append(hints, SecurityHint{
@@ -730,6 +759,38 @@ func countDangerZoneCapabilities(cfg *config.Config) int {
 		}
 	}
 	return count
+}
+
+// sipBindsAllInterfaces reports whether the SIP socket listens on every interface.
+func sipBindsAllInterfaces(bindHost string) bool {
+	bindHost = strings.TrimSpace(bindHost)
+	if bindHost == "" {
+		return true
+	}
+	ip := net.ParseIP(strings.Trim(bindHost, "[]"))
+	return ip != nil && ip.IsUnspecified()
+}
+
+// sipCallersWildcard reports whether the caller allowlist admits every caller.
+func sipCallersWildcard(callers []string) bool {
+	return slices.ContainsFunc(callers, func(caller string) bool {
+		return strings.TrimSpace(caller) == "*"
+	})
+}
+
+// sipPeersIncludeSubnet reports whether a trusted peer entry covers more than one
+// address. A /32 or /128 entry names a single host and does not count.
+func sipPeersIncludeSubnet(peers []string) bool {
+	for _, peer := range peers {
+		_, network, err := net.ParseCIDR(strings.TrimSpace(peer))
+		if err != nil {
+			continue
+		}
+		if ones, bits := network.Mask.Size(); ones < bits {
+			return true
+		}
+	}
+	return false
 }
 
 func pythonSandboxReady(cfg *config.Config) bool {
