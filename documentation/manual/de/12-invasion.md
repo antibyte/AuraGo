@@ -585,7 +585,7 @@ Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
 > ⚠️ **Wichtig:**
 > - SSH-Keys, Passwörter und API-Keys im Vault speichern
 > - `include_vault` nur auf vertrauenswürdigen Hosts nutzen
-> - **Secret dieses Nests in den Egg-Vault kopieren** gibt dem Egg das Passwort oder den SSH-Key, mit dem sich der Master an seinem Host anmeldet. Bei neuen Nests ist es aus; schalte es bei älteren Nests ab, wenn ihr Egg es nicht braucht
+> - **Secret dieses Nests in den Egg-Vault kopieren** gibt dem Egg das Passwort oder den SSH-Key, mit dem sich der Master an seinem Host anmeldet. Bei neuen Nests ist es aus; schalte es bei älteren Nests ab, wenn ihr Egg es nicht braucht. Das Abschalten wirkt beim nächsten Hatch; ein bereits ausgerolltes Egg behält seine Kopie bis dahin.
 > - `inherit_llm` kopiert den Master-API-Key in die Egg-Config — Egg-Host muss vertrauenswürdig sein
 > - `invasion_control.readonly: true` für reine Monitoring-Setups
 > - Bei Verdacht auf Kompromittierung Shared Keys mit `/rotate-key` rotieren

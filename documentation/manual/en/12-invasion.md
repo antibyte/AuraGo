@@ -647,7 +647,7 @@ and reconfiguration send private files over encrypted stdin and publish them ato
 > ⚠️ **Important:**
 > - Store SSH keys, passwords, and API keys in the vault — never in chat logs or plain config
 > - `include_vault` ships encrypted vault data to the target; use only on trusted hosts
-> - **Copy this nest's secret into the egg vault** gives the Egg the password or SSH key the master uses to log in to its host. It is off for new nests; switch it off for older nests whose Egg does not need it
+> - **Copy this nest's secret into the egg vault** gives the Egg the password or SSH key the master uses to log in to its host. It is off for new nests; switch it off for older nests whose Egg does not need it. Switching it off takes effect at the next hatch; a deployed Egg keeps its copy until then.
 > - `inherit_llm` copies the master's API key into the Egg config — the Egg host must be trusted
 > - Use `invasion_control.readonly: true` for monitoring-only setups
 > - Rotate shared keys with `/rotate-key` if compromise is suspected
