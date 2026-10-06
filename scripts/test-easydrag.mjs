@@ -198,6 +198,27 @@ eq('free spot avoids overlap', G.freeSpot({ x: 0, y: 0 }, [{ x: 0, y: 0, w: 232,
     eq('c1d02 upper keeps sharp s', T.applyFilter('upper', 'straße', []), 'STRAßE');
     eq('c1d02 lower maps one letter at a time', [T.applyFilter('lower', 'ΟΔΟΣ', []), T.applyFilter('lower', 'İstanbul', [])], ['οδοσ', 'istanbul']);
 }
+{
+    // Template syntax follows ParseTemplate and parseExpr (internal/flows/template.go); each check states Go's behaviour.
+    const data = { v: { s: 'a-b-c', list: [1, 2, 3], obj: { b: 1, a: { d: 2, c: 3 } }, ik: { a: 3, 9: 2, 10: 1 } } };
+    // template.go:282-291 accepts a negative index; template_eval.go:101-107 counts it from the end.
+    eq('c1d02 negative index counts from the end', [T.evaluate('{{v.list[-1]}}', data), T.evaluate('{{v.list[-4]}}', data)], [3, null]);
+    check('c1d02 negative index is no syntax error', !T.refs('{{v.list[-1]}}')[0].error);
+    // template.go:114-137 (findExprEnd) skips quoted strings when it looks for "}}".
+    eq('c1d02 quoted }} does not end the expression', T.evaluate('a {{v.nope | default("}}")}} b', data), 'a }} b');
+    // template.go:136: a "{{" without its "}}" fails the template.
+    let unclosedThrew = false;
+    try { T.evaluate('x {{v.s', data); } catch (err) { unclosedThrew = true; }
+    check('c1d02 unclosed braces are an error', unclosedThrew && T.refs('x {{v.s')[0].error === 'unclosed {{' && T.refs('{{v.s | default("x}}')[0].error === 'unclosed {{');
+    // template.go:167-169: the lexer skips blanks between tokens.
+    eq('c1d02 blanks inside paths are allowed', [T.evaluate('{{ v . s }}', data), T.parseExpr('v [ 0 ] . x').path], ['a-b-c', [0, 'x']]);
+    // template.go:264-270: the step after "." must be a name.
+    check('c1d02 a number or dash after a dot is an error', !!T.refs('{{v.0}}')[0].error && !!T.refs('{{v.content-type}}')[0].error);
+    // template.go:327-329 runs checkFilterCall (filters.go:67-79) while parsing.
+    check('c1d02 refs flags unknown filters and argument counts', ['{{v | nope}}', '{{v | truncate}}', '{{v | upper(1)}}', '{{v | toString}}'].every(s => !!T.refs(s)[0].error));
+    // values.go:57-66 and filters.go:285-291 use encoding/json, which sorts object keys by their bytes.
+    eq('c1d02 json and text sort object keys', [T.applyFilter('json', data.v.obj, []), T.evaluate('x {{v.ik}}', data)], ['{"a":{"c":3,"d":2},"b":1}', 'x {"10":1,"9":2,"a":3}']);
+}
 
 if (failures) {
     console.log(failures + ' failure(s)');
