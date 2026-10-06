@@ -48,6 +48,11 @@ Store app configuration, runtime, assets, and publication.
   Startup and status reads do not recreate containers; migrate only when the
   operator invokes the existing Store Update action, which replaces the
   app/companion configuration through the normal update and rollback path.
+- Catalog host binds (the read-only Docker socket of the Dozzle, Beszel and
+  Arcane socket proxies) are trusted only while the record's image names the
+  catalog image's repository; tag and digest are ignored so rollbacks to older
+  tags recreate (`catalogTrustedBinds`, `storeImageRepository`,
+  `TestToolsDockerAdapterTrustsCatalogBindsOnlyForTheCatalogImageRepository`).
 - Verify catalog config, loopback port allocation against all app and companion
   ports, and legacy migration behavior with `go test ./internal/desktopstore`.
   A local Docker proxy smoke test should cover successful logs, events and stats
