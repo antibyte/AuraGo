@@ -2,6 +2,7 @@
 // Runs the pure EasyDrag modules (template, model, geometry) in Node and checks their behaviour.
 // The c1d03 checks also run core and saver with fake timers, and the desktop shell's api() with a stub fetch.
 // The c1d04 checks (test-easydrag-extra.mjs) run canvas, wires and interact on a small stub DOM.
+// The c1d06 checks (test-easydrag-extra2.mjs) run detail, runs and publish with a stub EventSource.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -984,6 +985,9 @@ await guardAsync('c1d03 shell api errors', async () => {
 // ── c1d04: canvas, wires and interact ──
 // The checks live in test-easydrag-extra.mjs; they share this file's helpers and failure count.
 await (await import('./test-easydrag-extra.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
+
+// ── c1d06: detail view, test runs and publishing (test-easydrag-extra2.mjs) ──
+await (await import('./test-easydrag-extra2.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
 
 if (failures) {
     console.log(failures + ' failure(s)');

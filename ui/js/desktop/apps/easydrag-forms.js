@@ -42,7 +42,8 @@
     }
 
     // render builds the form for one node. env:
-    //   ed, node, info, upstream [{key, label, cat, fields}], roots {key: output}, issues [Issue]
+    //   ed, node, info, upstream [{key, label, cat, fields: [{name, type}]}] (model.fieldsOf),
+    //   roots {key: output}, issues [Issue]
     //   onChange(name, value), openFileDialog?
     // Returns {el, focus(param), insert(param, ref), refresh(node, roots), dispose()}.
     function render(env) {

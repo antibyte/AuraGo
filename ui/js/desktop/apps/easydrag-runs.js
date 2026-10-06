@@ -5,6 +5,11 @@
 
     const ED = window.EasyDrag = window.EasyDrag || {};
     const EFFECTS_KEY = 'aurago.easydrag.effects-ok.';
+    // A failed or refused stream (429 FLOW_RUN_LIMIT) reconnects after 1.5 s, doubling up to 15 s.
+    const RETRY_MS = 1500;
+    const RETRY_MAX_MS = 15000;
+    // REDACTED is the server's placeholder for secret values in scrubbed test data.
+    const REDACTED = '[redacted]';
     const EFFECT_ICONS = { sends_message: 'brand-telegram', writes_files: 'file-pencil', controls_devices: 'home', runs_code: 'api', deletes: 'trash', system_change: 'settings' };
 
     function triggers(ed) {
@@ -47,6 +52,7 @@
         let source = null;
         let lastSeq = 0;
         let reconnectTimer = 0;
+        let retryDelay = RETRY_MS;
         let drawer = null;
         let drawerFilter = 'all';
 
@@ -82,6 +88,7 @@
         function attach(runId, meta) {
             closeStream();
             lastSeq = 0;
+            retryDelay = RETRY_MS;
             setRun({ id: runId, status: 'queued', mode: (meta && meta.mode) || 'test', steps: new Map(), record: null, error: '' });
             connect(runId);
         }
@@ -90,7 +97,10 @@
             if (!ed.run || ed.run.id !== runId) return;
             const es = new EventSource(ed.api.eventsUrl(runId, lastSeq || undefined));
             source = es;
+            // Every message shows the stream works: the next failure waits RETRY_MS again.
+            const alive = () => { retryDelay = RETRY_MS; };
             es.addEventListener('snapshot', (event) => {
+                alive();
                 const detail = JSON.parse(event.data);
                 if (!ed.run || ed.run.id !== runId) return;
                 ed.run.record = detail.run;
@@ -99,17 +109,34 @@
                 setRun(ed.run);
             });
             es.addEventListener('event', (event) => {
+                alive();
                 const ev = JSON.parse(event.data);
                 if (!ed.run || ed.run.id !== runId) return;
                 lastSeq = Math.max(lastSeq, ev.seq || 0);
                 applyEvent(ev);
             });
-            es.addEventListener('end', () => { es.close(); source = null; finish(runId); });
+            // resync: the server dropped this stream (a slow client), but the run goes on. A new
+            // stream continues at once after the last event; a finished run answers it with "end".
+            es.addEventListener('resync', (event) => {
+                alive();
+                es.close();
+                if (source === es) source = null;
+                if (!ed.run || ed.run.id !== runId) return;
+                let after = NaN;
+                try { after = Number(JSON.parse(event.data).after); } catch (err) { /* keep lastSeq */ }
+                if (Number.isFinite(after)) lastSeq = Math.max(lastSeq, after);
+                connect(runId);
+            });
+            es.addEventListener('end', () => { alive(); es.close(); source = null; finish(runId); });
             es.onerror = () => {
                 es.close();
                 source = null;
-                if (!ed.run || ed.run.id !== runId || isFinal(ed.run.status)) return;
-                reconnectTimer = setTimeout(() => connect(runId), 1500);
+                if (!ed.run || ed.run.id !== runId) return;
+                // The stream broke after run_finished but before "end": load the result now.
+                if (isFinal(ed.run.status)) { finish(runId); return; }
+                clearTimeout(reconnectTimer);
+                reconnectTimer = setTimeout(() => connect(runId), retryDelay);
+                retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
             };
         }
 
@@ -128,10 +155,11 @@
             setRun(ed.run);
         }
 
-        async function finish(runId) {
+        // finish loads the stored result of a run (known: a detail fetched already) and announces it.
+        async function finish(runId, known) {
             if (!ed.run || ed.run.id !== runId) return;
             try {
-                const detail = await ed.api.run(runId, false);
+                const detail = known || await ed.api.run(runId, false);
                 ed.run.record = detail.run;
                 ed.run.status = detail.run.status;
                 (detail.steps || []).forEach(s => ed.run.steps.set(s.node_id, s));
@@ -168,11 +196,14 @@
             if (o.quick && !needConfirm) { await run(trigger.id, null, o.onlyNode, false); return; }
             let sample = {};
             try { sample = (await ed.api.testData(ed.flow.id, trigger.id)).data || {}; } catch (err) { sample = {}; }
+            // The sample comes scrubbed (secret values read "[redacted]") and must never be saved
+            // back: unchanged text runs without trigger_data, so the server uses the stored sample.
+            let shown = JSON.stringify(sample, null, 2);
             const dialog = core.modal(ed.root, {
                 title: o.onlyNode ? t('easydrag.ui.test_node_title') : t('easydrag.ui.test_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--test',
                 body: (list.length > 1 ? '<label class="ed-label">' + esc(t('easydrag.ui.test_trigger')) + '<select class="ed-input" data-ed-test-trigger>' +
                     list.map(n => '<option value="' + esc(n.id) + '"' + (n.id === trigger.id ? ' selected' : '') + '>' + esc(n.label) + '</option>').join('') + '</select></label>' : '') +
-                    '<label class="ed-label">' + esc(t('easydrag.ui.test_data')) + '<textarea class="ed-input ed-code" rows="9" spellcheck="false" data-ed-test-data>' + esc(JSON.stringify(sample, null, 2)) + '</textarea></label>' +
+                    '<label class="ed-label">' + esc(t('easydrag.ui.test_data')) + '<textarea class="ed-input ed-code" rows="9" spellcheck="false" data-ed-test-data>' + esc(shown) + '</textarea></label>' +
                     '<p class="ed-hint">' + esc(t('easydrag.ui.test_data_hint')) + '</p><p class="ed-error" hidden></p>' +
                     '<label class="ed-check"><input type="checkbox" data-ed-test-remember checked> ' + esc(t('easydrag.ui.test_remember')) + '</label>' +
                     (needConfirm ? effectsMarkup(fx) : ''),
@@ -180,17 +211,42 @@
                 onAction: async (action, d) => {
                     if (action !== 'run') return true;
                     const err = d.body.querySelector('.ed-error');
-                    let data;
-                    try { data = JSON.parse(d.body.querySelector('[data-ed-test-data]').value || '{}'); } catch (e) { err.hidden = false; err.textContent = t('easydrag.ui.json_invalid'); return false; }
-                    if (!data || typeof data !== 'object' || Array.isArray(data)) { err.hidden = false; err.textContent = t('easydrag.ui.test_data_object'); return false; }
+                    const text = d.body.querySelector('[data-ed-test-data]').value;
+                    const edited = text !== shown;
+                    let data = null;
+                    if (edited) {
+                        try { data = JSON.parse(text || '{}'); } catch (e) { err.hidden = false; err.textContent = t('easydrag.ui.json_invalid'); return false; }
+                        if (!data || typeof data !== 'object' || Array.isArray(data)) { err.hidden = false; err.textContent = t('easydrag.ui.test_data_object'); return false; }
+                    }
                     const sel = d.body.querySelector('[data-ed-test-trigger]');
                     if (sel) trigger = ed.model.node(sel.value) || trigger;
                     const skip = d.body.querySelector('[data-ed-effects-skip]');
                     if (needConfirm) { ed.effectsConfirmed = true; if (skip && skip.checked) core.storage.set(EFFECTS_KEY + ed.flow.id, true); }
                     core.storage.set('aurago.easydrag.test-trigger.' + ed.flow.id, trigger.id);
-                    return run(trigger.id, data, o.onlyNode, d.body.querySelector('[data-ed-test-remember]').checked).then(ok => ok ? true : false);
+                    // Edited data that still holds a placeholder runs, but is not remembered: it
+                    // would replace the stored secret values with "[redacted]".
+                    const remember = edited && d.body.querySelector('[data-ed-test-remember]').checked;
+                    const redacted = remember && text.includes(REDACTED);
+                    return run(trigger.id, data, o.onlyNode, remember && !redacted).then(ok => {
+                        if (ok && redacted) ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: t('easydrag.ui.test_data_redacted') });
+                        return ok ? true : false;
+                    });
                 }
             });
+            // Another trigger shows its own sample, unless the text was edited.
+            const select = dialog.body.querySelector('[data-ed-test-trigger]');
+            if (select) {
+                select.addEventListener('change', async () => {
+                    const area = dialog.body.querySelector('[data-ed-test-data]');
+                    const id = select.value;
+                    if (area.value !== shown) return;
+                    let next = {};
+                    try { next = (await ed.api.testData(ed.flow.id, id)).data || {}; } catch (err) { next = {}; }
+                    if (select.value !== id || area.value !== shown) return;
+                    shown = JSON.stringify(next, null, 2);
+                    area.value = shown;
+                });
+            }
             return dialog;
         }
 
@@ -218,7 +274,24 @@
 
         async function cancel() {
             if (!ed.run || isFinal(ed.run.status)) return;
-            try { await ed.api.cancel(ed.run.id); } catch (err) { ed.ctx.notify({ title: t('easydrag.ui.run_cancel'), message: core.errorText(t, err), type: 'error' }); }
+            const runId = ed.run.id;
+            try { await ed.api.cancel(runId); } catch (err) {
+                // The run ended before the cancel arrived: show its result, not an error.
+                if (core.errorCode(err) === 'FLOW_RUN_FINISHED') { await settleFinished(runId); return; }
+                ed.ctx.notify({ title: t('easydrag.ui.run_cancel'), message: core.errorText(t, err), type: 'error' });
+            }
+        }
+
+        // settleFinished shows the stored result of a run that ended before its stream said so:
+        // the stream closes and finish() applies the final state. While the stored run is not
+        // final yet (or cannot be read), the stream stays open and brings the end itself.
+        async function settleFinished(runId) {
+            let detail = null;
+            try { detail = await ed.api.run(runId, false); } catch (err) { return; }
+            if (!detail || !detail.run || !isFinal(detail.run.status)) return;
+            if (!ed.run || ed.run.id !== runId || isFinal(ed.run.status)) return;
+            closeStream();
+            await finish(runId, detail);
         }
 
         // loadLast fills "Last run" data for the input tree when the editor opens.

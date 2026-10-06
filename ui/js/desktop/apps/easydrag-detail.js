@@ -124,10 +124,13 @@
 
         function renderInput() {
             const host = el.querySelector('[data-col="input"]');
+            // The run view is read-only: its input tree gets a read-only ed (rows are neither
+            // draggable nor clickable inserts) and no insert callback.
+            const locked = !!ed.runView;
             const env = {
-                ed, sources: sources(), sourceId, upstream: upstreamList(),
+                ed: locked && !ed.readonly ? Object.assign(Object.create(ed), { readonly: true }) : ed, sources: sources(), sourceId, upstream: upstreamList(),
                 onSource: id => { sourceId = id; if (form) form.refresh(node, roots()); },
-                onInsert: ref => { if (form && lastField) form.insert(lastField, ref); else if (form) firstTemplatable(ref); }
+                onInsert: locked ? () => {} : ref => { if (form && lastField) form.insert(lastField, ref); else if (form) firstTemplatable(ref); }
             };
             if (!mapping) { mapping = ED.mapping.create(env); host.appendChild(mapping.el); }
             else mapping.refresh(env);

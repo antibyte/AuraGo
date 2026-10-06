@@ -70,6 +70,14 @@
             if (popover) { popover.remove(); popover = null; }
         }
 
+        // partialText explains a partial publish: the revision is live, but Mission Control or
+        // the timers were not updated. An unknown code shows the server's text.
+        function partialText(code, serverText) {
+            if (code === 'FLOW_MISSION_MISSING') return t('easydrag.ui.error_flow_mission_missing');
+            if (!code || code === 'FLOW_PUBLISH_INCOMPLETE') return t('easydrag.ui.error_flow_publish_incomplete');
+            return core.tr(t, 'easydrag.ui.error_' + String(code).toLowerCase(), serverText || t('easydrag.ui.error_flow_publish_incomplete'));
+        }
+
         function diffText(diff) {
             if (!diff || diff.first_publish) return t('easydrag.ui.diff_first');
             const parts = [];
@@ -98,6 +106,12 @@
             const warnings = ed.issues.filter(is => is.severity !== 'error' && is.code !== 'UNTRUSTED_DATA_TO_SINK');
             const enabled = !!ed.flowEnabled;
             let body = '';
+            // After a partial publish the dialog says why publishing the same revision again helps
+            // (or, for a missing Mission Control entry, what to do instead).
+            if (ed.publishIncomplete) {
+                body += '<div class="ed-callout ed-callout--warn">' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.publish_partial')) + '</strong><p>' +
+                    esc(partialText(ed.publishIncomplete)) + '</p></div></div>';
+            }
             if (errors.length) {
                 body += '<div class="ed-callout ed-callout--error">' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.publish_blocked', { count: errors.length })) + '</strong>' + issuesMarkup(errors) + '</div></div>';
             } else {
@@ -137,10 +151,20 @@
             return dialog;
         }
 
+        // publish makes the saved draft live. A partial answer (200 with partial: true) is live too,
+        // but Mission Control or the timers were not updated: ed.publishIncomplete keeps its code
+        // until a full publish, so the editor keeps offering Publish, and "activate now" waits.
         async function publish(activate) {
             try {
                 const res = await ed.api.publish(ed.flow.id, ed.saver ? ed.saver.revision : ed.flow.draft_revision);
                 ed.flow = res.flow;
+                if (res.partial) {
+                    ed.publishIncomplete = res.code || 'FLOW_PUBLISH_INCOMPLETE';
+                    ed.bus.emit('published', ed.flow);
+                    ed.ctx.notify({ title: t('easydrag.ui.publish_partial'), message: partialText(res.code, res.error), type: 'warning', duration: 12000 });
+                    return true;
+                }
+                ed.publishIncomplete = '';
                 if (activate) await setActive(true, true);
                 ed.bus.emit('published', ed.flow);
                 ed.ctx.notify({ title: t('easydrag.ui.publish'), message: t('easydrag.ui.publish_done', { name: ed.model.doc.name }) });
@@ -176,7 +200,7 @@
 
         bag.add(() => { refreshIssues.cancel(); closeIssues(); });
 
-        return { refreshIssues, openIssues, closeIssues, openDialog, publish, setActive, focusIssue, dispose() { bag.dispose(); } };
+        return { refreshIssues, openIssues, closeIssues, openDialog, publish, setActive, focusIssue, partialText, dispose() { bag.dispose(); } };
     }
 
     ED.publish = { create };
