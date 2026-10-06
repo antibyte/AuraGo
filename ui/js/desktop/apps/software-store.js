@@ -617,17 +617,6 @@
             }
         }
 
-        // Known failures carry error_code/error_params; the translated text
-        // replaces the backend's English error, which stays the fallback.
-        function operationErrorText(op) {
-            if (op && op.error_code) {
-                const key = 'desktop.store.error_' + op.error_code;
-                const text = t(key, op.error_params || {});
-                if (typeof text === 'string' && text && text !== key) return text;
-            }
-            return op ? op.error : '';
-        }
-
         function showOperationError(appId, message) {
             message = message || t('desktop.store.operation_failed');
             operationErrors.set(appId, message);
@@ -654,6 +643,17 @@
             } catch (err) {
                 if (!instance.disposed) showOperationError(appId, err.message);
             }
+        }
+
+        // Known failures carry error_code/error_params; the translated text
+        // replaces the backend's English error, which stays the fallback.
+        function operationErrorText(op) {
+            if (op && op.error_code) {
+                const key = 'desktop.store.error_' + op.error_code;
+                const text = t(key, op.error_params || {});
+                if (typeof text === 'string' && text && text !== key) return text;
+            }
+            return op ? op.error : '';
         }
 
         async function pollOperation(appId, operationId) {
