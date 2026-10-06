@@ -58,17 +58,6 @@ func TestSSHShellPathPreservesHomeExpansion(t *testing.T) {
 	}
 }
 
-func TestSSHEggProcessPatternAvoidsTildeLiteral(t *testing.T) {
-	got, err := sshEggProcessPattern("12345678-abcd")
-	if err != nil {
-		t.Fatalf("sshEggProcessPattern: %v", err)
-	}
-	want := ".aurago-egg-12345678/aurago"
-	if got != want {
-		t.Fatalf("sshEggProcessPattern = %q, want %q", got, want)
-	}
-}
-
 func TestDockerConnector_apiURL_Remote(t *testing.T) {
 	c := &DockerConnector{}
 	n := NestRecord{Host: "10.0.0.5", Port: 2376, DeployMethod: "docker_remote"}

@@ -516,7 +516,7 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/rotate-key
 
 If a health check fails after deploy, the system attempts **automatic rollback**.
 
-On an SSH nest the Egg lives in `~/.aurago-egg-<first 8 characters of the nest ID>` of the SSH user. The health check, the status and **Stop** look for a process of that user whose executable is that directory's `aurago`; an Egg that has exited fails the health check. A `permanent` Egg is the user unit `aurago-egg-<…>`, whose paths use `%h` (the user's home directory).
+On an SSH nest the Egg lives in `~/.aurago-egg-<first 8 characters of the nest ID>` of the SSH user. The health check, the status and **Stop** look for a process of that user whose executable is that directory's `aurago`; an Egg that has exited fails the health check. A `permanent` Egg is the user unit `aurago-egg-<…>`, whose paths use `%h` (the user's home directory). Without `loginctl enable-linger <ssh-user>` (needs root), the user manager and a permanent Egg stop about 10 seconds after the user's last session ends, and start again with the next login.
 
 ---
 

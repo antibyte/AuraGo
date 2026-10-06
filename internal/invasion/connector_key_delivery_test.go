@@ -521,3 +521,18 @@ func TestSSHEggStopScriptRechecksTheExecutableWhileWaiting(t *testing.T) {
 		}
 	}
 }
+
+func TestSSHConnectorProcessModeHatchDisablesAPermanentEggUnit(t *testing.T) {
+	cmds := sshDeployCommands(t, sshDeployTestPayload()) // Permanent false
+	start := cmds[len(cmds)-1]
+	// A unit left enabled by an earlier permanent hatch would start a second
+	// egg with the next user manager start; disabling it is a no-op without
+	// a unit or without systemd.
+	const disable = "systemctl --user disable --now aurago-egg-12345678 >/dev/null 2>&1; "
+	if !strings.HasPrefix(start, disable) {
+		t.Fatalf("process-mode start = %q, want it to begin with %q", start, disable)
+	}
+	if strings.Index(start, "kill -TERM") < len(disable) || !strings.Contains(start, "nohup ./aurago") {
+		t.Fatalf("process-mode start = %q, want disable, then the stop script, then nohup", start)
+	}
+}

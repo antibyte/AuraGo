@@ -32,14 +32,6 @@ func sshEggBaseDir(nestID string) (string, error) {
 	return "~/.aurago-egg-" + prefix, nil
 }
 
-func sshEggProcessPattern(nestID string) (string, error) {
-	prefix, err := sshEggIDPrefix(nestID)
-	if err != nil {
-		return "", err
-	}
-	return ".aurago-egg-" + prefix + "/aurago", nil
-}
-
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
 }
@@ -304,8 +296,15 @@ func (c *SSHConnector) startProcess(ctx context.Context, nest NestRecord, secret
 	// Only nohup runs in the background, with stdin from /dev/null: a
 	// backgrounded "cd && ... && nohup" list kept the SSH session's
 	// stdout/stderr open, so the command never returned until the deploy
-	// context expired.
-	startCmd := sshEggStopRunningScript(baseDir) +
+	// context expired. A unit an earlier permanent hatch enabled is disabled
+	// (and stopped) first: otherwise the next user manager start would run a
+	// second egg next to this one. Without a unit or systemd it is a no-op.
+	prefix, err := sshEggIDPrefix(nest.ID)
+	if err != nil {
+		return err
+	}
+	startCmd := fmt.Sprintf("systemctl --user disable --now aurago-egg-%s >/dev/null 2>&1; ", prefix) +
+		sshEggStopRunningScript(baseDir) +
 		fmt.Sprintf("cd %s && set -a && . ./.env && set +a && { nohup ./aurago > log/egg.log 2>&1 < /dev/null & echo $!; }", shellPath(baseDir))
 	output, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, startCmd)
 	if err != nil {
