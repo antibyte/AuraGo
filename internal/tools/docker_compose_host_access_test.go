@@ -3,10 +3,12 @@ package tools
 import (
 	"encoding/json"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/dockerutil"
 )
 
 func composeBind(source, target string, readOnly bool) DockerComposeMount {
@@ -587,6 +589,44 @@ func TestDockerComposeSubcommand(t *testing.T) {
 	for command, want := range map[string]string{"up -d": "up", "  build --pull app": "build", "config": "config", "exec web sh": "", "": "", "up --volume x": ""} {
 		if got := DockerComposeSubcommand(command); got != want {
 			t.Fatalf("DockerComposeSubcommand(%q) = %q, want %q", command, got, want)
+		}
+	}
+}
+
+func TestEvaluateDockerComposeHostAccessSeesDockerDesktopHostAliases(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	policy := DockerComposeHostPolicy{WorkspaceDir: filepath.Join(root, "ws"), AllowHostAccess: true, ProtectedRoots: []string{dataDir}}
+	slashData := dockerutil.NormalizeHostPathForBind(dataDir)
+	var aliases []string
+	if isWindowsAbsolutePath(slashData) {
+		drive := strings.ToLower(slashData[:1])
+		aliases = []string{"/run/desktop/mnt/host/" + drive + slashData[2:] + "/vault.bin", "/mnt/host/" + drive + slashData[2:]}
+	} else {
+		aliases = []string{"/host_mnt" + slashData, "/host_mnt" + slashData + "/vault.bin"}
+	}
+	for _, alias := range aliases {
+		model := composeServices(map[string]DockerComposeService{"app": {Image: "x", Volumes: []DockerComposeMount{composeBind(alias, "/d", false)}}})
+		violations := EvaluateDockerComposeHostAccess(model, nil, DockerComposeScopeRun, policy)
+		if len(violations) != 1 || !violations[0].Always {
+			t.Fatalf("%s: violations = %+v, want one always-tier violation", alias, violations)
+		}
+	}
+}
+
+func TestEvaluateDockerComposeHostAccessFoldsCaseOnCaseInsensitiveHosts(t *testing.T) {
+	previous := dockerHostPathsFoldCase
+	t.Cleanup(func() { dockerHostPathsFoldCase = previous })
+	policy := DockerComposeHostPolicy{WorkspaceDir: "/Users/me/ws", AllowHostAccess: true, ProtectedRoots: []string{"/Users/me/AuraGo/data"}}
+	model := composeServices(map[string]DockerComposeService{"app": {Image: "x", Volumes: []DockerComposeMount{composeBind("/users/me/aurago/DATA/vault.bin", "/v", true)}}})
+	dockerHostPathsFoldCase = true
+	if violations := EvaluateDockerComposeHostAccess(model, nil, DockerComposeScopeRun, policy); len(violations) != 1 || !violations[0].Always {
+		t.Fatalf("case-folded AuraGo state allowed on a case-insensitive host: %+v", violations)
+	}
+	if runtime.GOOS != "windows" { // Windows compares drive paths case-insensitively anyway
+		dockerHostPathsFoldCase = false
+		if violations := EvaluateDockerComposeHostAccess(model, nil, DockerComposeScopeRun, policy); len(violations) != 0 {
+			t.Fatalf("case-sensitive hosts changed: %+v", violations)
 		}
 	}
 }

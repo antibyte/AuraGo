@@ -3,6 +3,7 @@ package tools
 import (
 	pathpkg "path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -254,7 +255,7 @@ func (e *dockerComposeEvaluation) isProtected(variants []string) bool {
 			return true
 		}
 		for _, protected := range e.protected {
-			if dockerPathEqualOrWithin(candidate, protected) {
+			if dockerPathEqualOrWithin(dockerComposeFoldCase(candidate), dockerComposeFoldCase(protected)) {
 				return true
 			}
 		}
@@ -266,7 +267,7 @@ func (e *dockerComposeEvaluation) isProtected(variants []string) bool {
 func (e *dockerComposeEvaluation) containsProtected(variants []string) bool {
 	for _, candidate := range variants {
 		for _, protected := range e.protected {
-			if dockerComposePathContains(candidate, protected) {
+			if dockerComposePathContains(dockerComposeFoldCase(candidate), dockerComposeFoldCase(protected)) {
 				return true
 			}
 		}
@@ -594,9 +595,53 @@ func dockerComposeVolumeIsLocalBind(volume DockerComposeNamedVolume) bool {
 	return strings.EqualFold(strings.TrimSpace(volume.DriverOpts["type"]), "none")
 }
 
+// dockerHostPathsFoldCase is true where host paths compare case-insensitively
+// by default (macOS APFS/HFS+). Windows drive paths are folded by
+// dockerPathEqualOrWithin already. Tests flip it.
+var dockerHostPathsFoldCase = runtime.GOOS == "darwin"
+
+func dockerComposeFoldCase(path string) string {
+	if dockerHostPathsFoldCase {
+		return strings.ToLower(path)
+	}
+	return path
+}
+
+// dockerDesktopHostAlias returns the host path a Docker Desktop VM spelling
+// names: /host_mnt/<path> (macOS, Docker Desktop for Linux) and
+// /run/desktop/mnt/host/<drive>/<path> or /mnt/host/<drive>/<path> (Windows).
+func dockerDesktopHostAlias(path string) (string, bool) {
+	p := strings.ReplaceAll(strings.TrimSpace(path), `\`, "/")
+	if rest, ok := strings.CutPrefix(p, "/host_mnt/"); ok {
+		return "/" + rest, true
+	}
+	for _, prefix := range []string{"/run/desktop/mnt/host/", "/mnt/host/"} {
+		rest, ok := strings.CutPrefix(p, prefix)
+		if !ok {
+			continue
+		}
+		drive, tail, _ := strings.Cut(rest, "/")
+		if len(drive) == 1 && (drive[0] >= 'a' && drive[0] <= 'z' || drive[0] >= 'A' && drive[0] <= 'Z') {
+			return drive + ":/" + tail, true
+		}
+	}
+	return "", false
+}
+
 // dockerComposePathVariants returns the cleaned, absolute and symlink-resolved
-// spellings of path in Docker bind notation.
+// spellings of path in Docker bind notation and, for a Docker Desktop VM
+// spelling (dockerDesktopHostAlias), those of the host path it names.
 func dockerComposePathVariants(path string) []string {
+	variants := dockerComposePathSpellings(path)
+	if alias, ok := dockerDesktopHostAlias(path); ok {
+		variants = append(variants, dockerComposePathSpellings(alias)...)
+	}
+	return variants
+}
+
+// dockerComposePathSpellings returns the cleaned, absolute and
+// symlink-resolved spellings of path in Docker bind notation.
+func dockerComposePathSpellings(path string) []string {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return nil
