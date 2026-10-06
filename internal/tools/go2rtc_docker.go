@@ -190,7 +190,7 @@ func (m *Go2RTCManager) startContainerLocked(ctx context.Context) error {
 		return fmt.Errorf("inspect go2rtc container returned HTTP %d", code)
 	}
 
-	if err := ensureGo2RTCImage(ctx, dockerCfg, cfg.Image); err != nil {
+	if err := ensureGo2RTCImage(ctx, m.pullLifetime(), dockerCfg, cfg.Image); err != nil {
 		return err
 	}
 
@@ -226,15 +226,19 @@ func (m *Go2RTCManager) startContainerLocked(ctx context.Context) error {
 // progress stream to its end. The pull keeps the caller's context values but
 // not its deadline or cancellation: it ran on the 60-second request client
 // before and never honoured them, so a start request that ends early must not
-// abort a pull that works today. dockerPullFallbackTimeout bounds it.
-func ensureGo2RTCImage(ctx context.Context, dockerCfg DockerConfig, image string) error {
+// abort a pull that works today. It stops when lifetime ends (the manager's
+// background lifetime, cancelled at server shutdown), so shutdown never waits
+// for it; dockerPullFallbackTimeout bounds it otherwise.
+func ensureGo2RTCImage(ctx, lifetime context.Context, dockerCfg DockerConfig, image string) error {
 	if _, imageCode, imageErr := dockerRequest(dockerCfg, http.MethodGet, "/images/"+url.PathEscape(image)+"/json", ""); imageErr == nil && imageCode == http.StatusOK {
 		return nil
 	}
 	if err := requireDockerMutationPermission(); err != nil {
 		return fmt.Errorf("pull go2rtc image: %w", err)
 	}
-	err := pullDockerImageStream(detachedPullContext(ctx), dockerCfg, image)
+	pullCtx, cancel := lifetimePullContext(ctx, lifetime)
+	defer cancel()
+	err := pullDockerImageStream(pullCtx, dockerCfg, image)
 	var pullErr *dockerPullError
 	switch {
 	case err == nil:

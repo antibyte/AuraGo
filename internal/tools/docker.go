@@ -179,6 +179,23 @@ func detachedPullContext(ctx context.Context) context.Context {
 	return context.WithoutCancel(ctx)
 }
 
+// lifetimePullContext is detachedPullContext bound to an owner's lifetime: the
+// pull ignores ctx's deadline and cancellation but stops as soon as lifetime
+// ends (server shutdown), so shutdown never waits for it. A nil lifetime
+// leaves only dockerPullFallbackTimeout. Call the returned cancel when the
+// pull is done.
+func lifetimePullContext(ctx, lifetime context.Context) (context.Context, context.CancelFunc) {
+	pullCtx, cancel := context.WithCancel(detachedPullContext(ctx))
+	if lifetime == nil {
+		return pullCtx, cancel
+	}
+	stop := context.AfterFunc(lifetime, cancel)
+	return pullCtx, func() {
+		stop()
+		cancel()
+	}
+}
+
 // pullImageBestEffort pulls image for a sidecar whose container create runs
 // even when the pull fails (an image that already exists still works). It
 // checks the Docker mutation gate first, like the request client it replaces,

@@ -2,12 +2,16 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"aurago/internal/config"
 )
 
 const go2rtcTestImage = "alexxit/go2rtc:1.9.10"
@@ -34,7 +38,7 @@ func TestEnsureGo2RTCImageFailsOnPullStreamError(t *testing.T) {
 	configureDockerSecurityTestPermissions(t, false)
 	var pulls atomic.Int32
 	host := go2rtcImageDockerHost(t, http.StatusOK, pullStreamFailure, &pulls)
-	err := ensureGo2RTCImage(context.Background(), DockerConfig{Host: host}, go2rtcTestImage)
+	err := ensureGo2RTCImage(context.Background(), context.Background(), DockerConfig{Host: host}, go2rtcTestImage)
 	if err == nil || err.Error() != "pull go2rtc image: failed to register layer: no space left on device" || pulls.Load() != 1 {
 		t.Fatalf("ensureGo2RTCImage() = %v after %d pulls, want the stream error", err, pulls.Load())
 	}
@@ -44,7 +48,7 @@ func TestEnsureGo2RTCImageKeepsStatusText(t *testing.T) {
 	configureDockerSecurityTestPermissions(t, false)
 	var pulls atomic.Int32
 	host := go2rtcImageDockerHost(t, http.StatusNotFound, `{"message":"manifest unknown"}`, &pulls)
-	err := ensureGo2RTCImage(context.Background(), DockerConfig{Host: host}, go2rtcTestImage)
+	err := ensureGo2RTCImage(context.Background(), context.Background(), DockerConfig{Host: host}, go2rtcTestImage)
 	if err == nil || err.Error() != "pull go2rtc image returned HTTP 404: manifest unknown" {
 		t.Fatalf("ensureGo2RTCImage() = %v", err)
 	}
@@ -58,7 +62,7 @@ func TestEnsureGo2RTCImageSkipsPresentImage(t *testing.T) {
 		}
 		_, _ = io.WriteString(w, `{"Id":"sha256:go2rtc"}`)
 	})
-	if err := ensureGo2RTCImage(context.Background(), DockerConfig{Host: host}, go2rtcTestImage); err != nil {
+	if err := ensureGo2RTCImage(context.Background(), context.Background(), DockerConfig{Host: host}, go2rtcTestImage); err != nil {
 		t.Fatalf("ensureGo2RTCImage() = %v, want nil", err)
 	}
 }
@@ -85,8 +89,103 @@ func TestEnsureGo2RTCImageOutlivesShortCallerDeadline(t *testing.T) {
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	if err := ensureGo2RTCImage(ctx, DockerConfig{Host: host}, go2rtcTestImage); err != nil {
+	if err := ensureGo2RTCImage(ctx, context.Background(), DockerConfig{Host: host}, go2rtcTestImage); err != nil {
 		t.Fatalf("ensureGo2RTCImage() = %v, want the pull to finish as it did on the request client", err)
+	}
+}
+
+// stalledPullHost answers the image check with 404 and a pull that never ends
+// on its own; pullStarted closes once the pull is in flight.
+func stalledPullHost(t *testing.T, pullStarted chan struct{}) string {
+	t.Helper()
+	release := make(chan struct{})
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{"status":"Pulling fs layer"}`+"\n")
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		close(pullStarted)
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	})
+	t.Cleanup(func() { close(release) })
+	return host
+}
+
+func TestEnsureGo2RTCImageIgnoresCallerCancellation(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		slowPullHandler(w)
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(50*time.Millisecond, cancel) // the start request ends early
+	defer cancel()
+	if err := ensureGo2RTCImage(ctx, context.Background(), DockerConfig{Host: host}, go2rtcTestImage); err != nil {
+		t.Fatalf("ensureGo2RTCImage() = %v, want the pull to finish after the caller gave up", err)
+	}
+}
+
+func TestEnsureGo2RTCImageStopsWhenTheManagerLifetimeEnds(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	pullStarted := make(chan struct{})
+	host := stalledPullHost(t, pullStarted)
+	lifetime, shutdown := context.WithCancel(context.Background())
+	defer shutdown()
+	go func() {
+		<-pullStarted
+		shutdown() // server shutdown begins
+	}()
+	done := make(chan error, 1)
+	go func() {
+		done <- ensureGo2RTCImage(context.Background(), lifetime, DockerConfig{Host: host}, go2rtcTestImage)
+	}()
+	select {
+	case err := <-done:
+		if err == nil || !errors.Is(err, context.Canceled) {
+			t.Fatalf("ensureGo2RTCImage() = %v, want the pull cancelled by the manager lifetime", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the pull kept running after the manager lifetime ended")
+	}
+}
+
+func TestGo2RTCManagerPullLifetimeEndsWithServerAndClose(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	for name, stop := range map[string]func(m *Go2RTCManager, cancelServer context.CancelFunc){
+		"server context cancelled": func(_ *Go2RTCManager, cancelServer context.CancelFunc) { cancelServer() },
+		"manager closed":           func(m *Go2RTCManager, _ context.CancelFunc) { m.Close() },
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := NewGo2RTCManager(&config.Config{}, nil, nil, logger)
+			if lifetime := m.pullLifetime(); lifetime != nil {
+				t.Fatalf("pullLifetime() before StartBackground = %v, want nil (only the 15-min bound)", lifetime)
+			}
+			serverCtx, cancelServer := context.WithCancel(context.Background())
+			defer cancelServer()
+			m.StartBackground(serverCtx)
+			defer m.Close()
+			lifetime := m.pullLifetime()
+			if lifetime == nil || lifetime.Err() != nil {
+				t.Fatalf("pullLifetime() = %v, want a live context", lifetime)
+			}
+			stop(m, cancelServer)
+			select {
+			case <-lifetime.Done():
+			case <-time.After(2 * time.Second):
+				t.Fatal("the pull lifetime did not end")
+			}
+		})
 	}
 }
 
