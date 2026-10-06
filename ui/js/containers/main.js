@@ -150,7 +150,7 @@ function showDisabledState() {
     listFailed = false;
     cancelListRetry();
     document.getElementById('ct-grid').style.display = 'none';
-    document.getElementById('ct-empty').style.display = 'none';
+    document.getElementById('ct-empty').classList.add('is-hidden');
     document.getElementById('ct-list-error').classList.add('is-hidden');
     document.getElementById('ct-disabled').classList.remove('is-hidden');
     document.getElementById('ct-status-bar').style.display = 'none';
@@ -161,7 +161,7 @@ function showListErrorState(message) {
     clearContainerList();
     listFailed = true;
     document.getElementById('ct-grid').style.display = 'none';
-    document.getElementById('ct-empty').style.display = 'none';
+    document.getElementById('ct-empty').classList.add('is-hidden');
     document.getElementById('ct-disabled').classList.add('is-hidden');
     document.getElementById('ct-list-error-message').textContent = message;
     document.getElementById('ct-list-error').classList.remove('is-hidden');
@@ -243,11 +243,11 @@ function renderContainers() {
             cardRenderCache.clear();
         }
         if (grid.style.display !== 'none') grid.style.display = 'none';
-        if (empty.style.display !== '') empty.style.display = '';
+        empty.classList.remove('is-hidden');
         return;
     }
     if (grid.style.display !== '') grid.style.display = '';
-    if (empty.style.display !== 'none') empty.style.display = 'none';
+    empty.classList.add('is-hidden');
 
     // Diff the new filtered list against the cached DOM. Cards that haven't
     // changed are left untouched so scroll/focus/hover survive; only added,

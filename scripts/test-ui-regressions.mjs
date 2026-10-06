@@ -2818,6 +2818,37 @@ async function testContainersSendConfirmProtectedOnlyAfterTheModal() {
   ]);
 }
 
+async function testContainersEmptyStateFollowsTheList() {
+  let list = [];
+  let status = 200;
+  const page = containersPage(request => {
+    if (request.url !== '/api/containers') return { status: 200, body: { status: 'ok' } };
+    if (status === 200) return { status, body: { status: 'ok', containers: list } };
+    return { status, body: { status: 'error', message: status === 503 ? 'Docker is not enabled' : 'down' } };
+  });
+  const emptyShown = () => !page.node('ct-empty').classList.contains('is-hidden');
+  await page.start();
+  assert.equal(emptyShown(), true, 'an empty list shows the empty state');
+
+  list = [{ id: 'web1', names: ['/web'], image: 'nginx', state: 'running', status: 'Up' }];
+  await page.run('loadContainers()');
+  assert.equal(emptyShown(), false);
+
+  page.node('ct-search').value = 'nomatch';
+  page.run('filterContainers()');
+  assert.equal(emptyShown(), true, 'a filter without matches shows the empty state');
+  page.node('ct-search').value = '';
+  page.run('filterContainers()');
+  assert.equal(emptyShown(), false);
+
+  status = 502;
+  await page.run('loadContainers()');
+  assert.equal(emptyShown(), false, 'the list error replaces the empty state');
+  status = 503;
+  await page.run('loadContainers()');
+  assert.equal(emptyShown(), false, 'Docker disabled replaces the empty state');
+}
+
 function listDesktopMainBundleParts() {
   const script = read('scripts/build-ui-bundles.js');
   const start = script.indexOf('const desktopMainParts = [');
@@ -2934,6 +2965,7 @@ const tests = [
   ['Containers list failure stays visible until the list loads again', testContainersListFailureStateSurvivesFiltersUntilTheListLoads],
   ['Containers SSE merge keeps flags and reloads unknown containers', testContainersSSEMergeKeepsFlagsAndReloadsUnknownContainers],
   ['Containers send confirm=protected only after the modal', testContainersSendConfirmProtectedOnlyAfterTheModal],
+  ['Containers empty state follows the list', testContainersEmptyStateFollowsTheList],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
