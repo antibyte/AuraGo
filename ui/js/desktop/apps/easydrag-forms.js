@@ -354,7 +354,7 @@
             focus(name) {
                 const entry = controls.get(name);
                 if (!entry) return;
-                entry.field.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                entry.field.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
                 entry.field.classList.add('is-flash');
                 setTimeout(() => entry.field.classList.remove('is-flash'), 1200);
                 const target = entry.field.querySelector('.ed-tpl-view, input, select, textarea, button');
