@@ -22,7 +22,7 @@
   "config.danger.sudo_unrestricted.title": "系统级Sudo写入权限",
   "config.danger.sudo_unrestricted.desc": "允许代理使用sudo在安装目录之外写入（例如 /etc/）。需要从systemd服务单元中移除ProtectSystem=strict。",
   "config.danger.unsafe_host_execution.title": "不安全的主机执行",
-  "config.danger.unsafe_host_execution.desc": "允许在未隔离的主机上运行 Python 和 Windows 命令行。每次使用都会记录安全警告。",
+  "config.danger.unsafe_host_execution.desc": "允许在未隔离的主机上运行 Python 和 Windows 命令行。每次使用都会记录安全警告。请仅在有意时启用。",
   "config.danger.docker_host_access.title": "代理 Compose 栈的 Docker 主机访问",
   "config.danger.docker_host_access.desc": "允许代理在 docker compose up/create/build 中使用其工作区之外的主机路径（例如 /var/run/docker.sock、/srv/media 或 /）、设备、特权模式、主机网络/PID/IPC/UTS/用户/cgroup 命名空间、cap_add 以及不受限制的安全选项。AuraGo 自身的数据、配置、.env 和主密钥仍被阻止，但挂载 / 这样的上级路径仍会暴露它们。"
 }

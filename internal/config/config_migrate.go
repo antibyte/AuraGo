@@ -904,6 +904,8 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 		}
 	}
 	apply(Go2RTCAPIPasswordVaultKey, &c.Go2RTC.APIPassword)
+	apply(ProxyBasicAuthUserVaultKey, &c.SecurityProxy.BasicAuth.Username)
+	apply(ProxyBasicAuthPasswordVaultKey, &c.SecurityProxy.BasicAuth.Password)
 	apply(LocalLLMRuntimeAPIKeyVaultKey, &c.LocalLLM.RuntimeAPIKey)
 	for i := range c.Go2RTC.Streams {
 		key := Go2RTCStreamSourceVaultKey(c.Go2RTC.Streams[i].ID)

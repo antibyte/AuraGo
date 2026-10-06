@@ -54,9 +54,9 @@
   "config.homepage.workspace_autodetect_loading": "पहचान हो रही है…",
   "config.homepage.workspace_autodetect_success": "कार्यक्षेत्र पथ सफलतापूर्वक पहचाना गया।",
   "config.homepage.workspace_autodetect_title": "चल रहे homepage कंटेनर से कार्यस्थान पथ स्वतः पहचानें",
-  "config.homepage.workspace_desc": "संपूर्ण होस्ट पथ सेट करें जो होमपेज कंटेनर में /वर्कस्पेस के रूप में माउंट किया गया है।",
+  "config.homepage.workspace_desc": "वह पूर्ण होस्ट पथ सेट करें जिसे होमपेज कंटेनर में /workspace के रूप में माउंट किया जाता है।",
   "config.homepage.workspace_path": "कार्यस्थान पथ",
   "config.homepage.workspace_path_missing_warning": "वेब सर्वर सक्षम है लेकिन कार्यस्थान पथ सेट नहीं है। अपने प्रोजेक्ट का पूर्ण होस्ट पथ दर्ज करें (जैसे /home/aurago/aurago/agent_workspace/homepage) या स्वतः पहचान का उपयोग करें।",
-  "config.homepage.workspace_relative_hint": "होमपेज टूल कॉल के अंदर, इस कार्यक्षेत्र से संबंधित प्रोजेक्ट_डीआईआर और पथ रखें, उदाहरण के लिए 'मेरी-साइट' या 'my-site/src / app/page.tsx'।",
+  "config.homepage.workspace_relative_hint": "होमपेज टूल कॉल के अंदर, project_dir और path इस वर्कस्पेस के सापेक्ष रखें, उदाहरण के लिए 'my-site' या 'my-site/src/app/page.tsx'।",
   "config.homepage.workspace_title": "कार्यस्थान"
 }

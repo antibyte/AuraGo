@@ -168,7 +168,7 @@
   "setup.step2_personality_v2_desc": "Used for internal analysis, maintenance and other helper features. If disabled, many dependent features will not work fully and AuraGo cannot use its full potential.",
   "setup.step2_personality_v2_label": "Helper LLM",
   "setup.step2_title": "Personality & Helper Features",
-  "setup.step2_v2_apikey_hint": "Only needed if V2 uses a different provider than the main LLM.",
+  "setup.step2_v2_apikey_hint": "Only needed if the Helper LLM uses a different provider than the main LLM.",
   "setup.step2_v2_apikey_label": "API Key",
   "setup.step2_v2_apikey_placeholder": "Leave empty to use main API key",
   "setup.step2_v2_model_hint": "A smaller, cheaper model is usually the right choice here. The Guardian uses its own model separately.",

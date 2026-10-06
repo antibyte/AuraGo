@@ -1,8 +1,9 @@
 # Newspaper: coverage-driven research
 
-Status: implementation plan, 2026-10-06. This document specifies the next change;
-it does not describe deployed behavior. The current implementation remains in
-`newspaper.md`; the original product design remains in `newspaper-plan.md`.
+Status: implemented locally, 2026-10-06. This document records the coverage and
+budget contract. Operator guidance is in `newspaper.md`; the original product
+design remains in `newspaper-plan.md`. Deployment and live yield acceptance are
+separate from local fixture validation.
 
 ## Intended result
 

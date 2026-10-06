@@ -3,7 +3,7 @@
   "config.telnyx.read_only_label": "Skrivskyddad",
   "config.telnyx.api_key_label": "API Nyckel (valv)",
   "config.telnyx.webhook_public_key_label": "Offentlig webhooknyckel",
-  "config.telnyx.api_key_placeholder": "Ange nyckeln API...",
+  "config.telnyx.api_key_placeholder": "Ange API-nyckel…",
   "config.telnyx.save_vault": "Spara i Vault",
   "config.telnyx.vault_empty": "Ange ett värde först.",
   "config.telnyx.vault_saved": "Sparad i vault.",

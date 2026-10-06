@@ -9,7 +9,7 @@
   "config.image_generation.model_label": "Modell",
   "config.image_generation.model_hint": "leer = Anbieter-Standard",
   "config.image_generation.defaults_title": "Standardeinstellungen",
-  "config.image_generation.defaults_desc": "Standardwerte, die verwendet werden, wenn der Agent keine im Tool-Aufruf angibt.",
+  "config.image_generation.defaults_desc": "Standardwerte, die verwendet werden, wenn der Agent sie im Tool-Aufruf nicht angibt.",
   "config.image_generation.size_label": "Standardgröße",
   "config.image_generation.quality_label": "Standardqualität",
   "config.image_generation.style_label": "Standardstil",

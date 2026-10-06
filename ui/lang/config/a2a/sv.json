@@ -11,7 +11,7 @@
   "config.a2a.agent_version": "Agentversion",
   "config.a2a.agent_version_placeholder": "1.0.0",
   "config.a2a.api_key_auth": "API Nyckelautentisering",
-  "config.a2a.api_key_placeholder": "Ange nyckeln API...",
+  "config.a2a.api_key_placeholder": "Ange API-nyckel…",
   "config.a2a.auth_title": "Autentisering",
   "config.a2a.base_path": "Bassökväg",
   "config.a2a.bearer_auth": "Bearer-tokenautentisering",

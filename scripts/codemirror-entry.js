@@ -23,6 +23,7 @@ export {
 } from '@codemirror/lang-javascript';
 export { python } from '@codemirror/lang-python';
 export { go } from '@codemirror/lang-go';
+export { cpp } from '@codemirror/lang-cpp';
 export { rust } from '@codemirror/lang-rust';
 export { json } from '@codemirror/lang-json';
 export { html } from '@codemirror/lang-html';

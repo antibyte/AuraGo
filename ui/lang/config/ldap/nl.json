@@ -28,7 +28,7 @@
   "help.ldap.enabled": "Schakelt de LDAP/AD-integratie in. De agent kan dan gebruikers en groepen zoeken, inloggegevens verifiëren en meer.",
   "help.ldap.bind_password": "Bind-wachtwoord voor LDAP-authenticatie. Veilig opgeslagen in de versleutelde vault.",
   "help.ldap.readonly": "In alleen-lezen modus kan de agent alleen uit LDAP lezen. Alle schrijf-/wijzigingsbewerkingen worden geblokkeerd.",
-  "help.ldap.host": "Hostnaam of IP-adres van uw LDAP/Active Directory-server (bijv. ldap.example.com of 192.168.1.10).",
+  "help.ldap.host": "Hostnaam of IP-adres van je LDAP/Active Directory-server (bijv. ldap.example.com of 192.168.1.10).",
   "help.ldap.port": "LDAPS-poort (standaard: 636). Gebruik 389 voor onversleuteld LDAP zonder TLS.",
   "help.ldap.use_tls": "LDAPS gebruiken (aanbevolen). Alleen uitschakelen voor onversleuteld LDAP op poort 389.",
   "help.ldap.insecure_skip_verify": "TLS-certificaatverificatie overslaan. Alleen inschakelen voor zelfondertekende certificaten.",

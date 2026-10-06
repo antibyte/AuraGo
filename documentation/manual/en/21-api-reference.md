@@ -746,7 +746,7 @@ DELETE /api/containers/{id}
 ```
 
 ### Protected Containers
-`GET /api/containers` marks containers that AuraGo manages (`protected_owner`: `aurago-app`, `acestep`, `homepage`, `go2rtc`, `local-llm`, `boring-garage`), the container AuraGo runs in (`self: true`) and the container that serves AuraGo's Docker endpoint (`docker_endpoint: true`). When AuraGo shares another container's network namespace (`network_mode: service:…` or `container:…`, for example a Tailscale or Gluetun sidecar), AuraGo cannot tell its own container from that provider; both are marked `shared_network: true` instead of `self`. The same applies when another container joins AuraGo's own network namespace, and to every container that shares one provider.
+`GET /api/containers` marks containers that AuraGo manages (`protected_owner`: `aurago-app`, `acestep`, `homepage`, `go2rtc`, `local-llm`, `boring-garage`, `security-proxy`), the container AuraGo runs in (`self: true`) and the container that serves AuraGo's Docker endpoint (`docker_endpoint: true`). When AuraGo shares another container's network namespace (`network_mode: service:…` or `container:…`, for example a Tailscale or Gluetun sidecar), AuraGo cannot tell its own container from that provider; both are marked `shared_network: true` instead of `self`. The same applies when another container joins AuraGo's own network namespace, and to every container that shares one provider.
 
 For these containers, `GET /api/containers/{id}/terminal` (WebSocket), `POST /api/containers/{id}/update` and `DELETE /api/containers/{id}` answer HTTP 409 with `code: "container_protected_confirmation_required"` unless the request carries `confirm=protected`. The `owner` field names the reason (`self`, `docker-endpoint`, `shared-network`, the managing owner or `unverified`). The same applies when Docker does not answer the ownership check or the Docker endpoint host cannot be resolved (`owner: "unverified"`). `POST /api/containers/{id}/update` on the AuraGo container itself or on the Docker endpoint container always answers HTTP 409 with `code: "container_self_update_unsupported"`: the update would stop AuraGo or its Docker connection before the replacement exists. Upgrade those with `docker compose pull && docker compose up -d` on the Docker host. Under Podman, AuraGo cannot identify its own container; the app container then needs only the confirmation (by its reserved name or owner label). Start, stop, restart, logs, inspect and stats need no confirmation.
 
@@ -1706,7 +1706,7 @@ POST /api/proxy/reload
 GET /api/proxy/logs
 ```
 
-The Security Proxy API controls the managed Caddy protection layer used for rate limiting, TLS termination, IP filtering, geo-blocking, and public-facing hardening.
+The Security Proxy API controls the managed Caddy protection layer in front of AuraGo: TLS termination, rate limiting, IP filtering and Basic Auth. Geo-blocking is not implemented yet.
 
 ---
 

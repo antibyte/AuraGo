@@ -11,7 +11,7 @@
   "config.a2a.agent_version": "Agentversion",
   "config.a2a.agent_version_placeholder": "1.0.0",
   "config.a2a.api_key_auth": "API Nøglegodkendelse",
-  "config.a2a.api_key_placeholder": "Indtast nøglen API...",
+  "config.a2a.api_key_placeholder": "Indtast API-nøgle…",
   "config.a2a.auth_title": "Autentificering",
   "config.a2a.base_path": "Basissti",
   "config.a2a.bearer_auth": "Bearer-token-godkendelse",

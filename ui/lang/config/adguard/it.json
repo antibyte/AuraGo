@@ -28,5 +28,5 @@
   "help.adguard.password": "Password per l'autenticazione. Conservata in modo sicuro nel vault crittografato.",
   "help.adguard.readonly": "In modalità sola lettura, l'agente può solo leggere dati. Tutte le operazioni di scrittura sono bloccate.",
   "help.adguard.url": "URL base della tua istanza AdGuard Home (es: http://192.168.1.1:3000).",
-  "help.adguard.username": "Nome utente per l'autenticazione. Lasciare vuoto se l'autenticazione è disabilitata."
+  "help.adguard.username": "Nome utente per l'autenticazione AdGuard Home. Lascia vuoto se l'autenticazione è disabilitata."
 }

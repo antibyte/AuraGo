@@ -22,6 +22,10 @@ type newspaperFeedDocument struct {
 			Link        string `xml:"link"`
 			Date        string `xml:"pubDate"`
 			Description string `xml:"description"`
+			Source      struct {
+				Name string `xml:",chardata"`
+				URL  string `xml:"url,attr"`
+			} `xml:"source"`
 		} `xml:"item"`
 	} `xml:"channel"`
 	Entries []struct {
@@ -33,6 +37,9 @@ type newspaperFeedDocument struct {
 			Href string `xml:"href,attr"`
 			Rel  string `xml:"rel,attr"`
 		} `xml:"link"`
+		Source struct {
+			Title string `xml:"title"`
+		} `xml:"source"`
 	} `xml:"entry"`
 }
 
@@ -46,7 +53,7 @@ func parseNewspaperFeed(feedURL string, body []byte) ([]newspaperHit, error) {
 		return nil, err
 	}
 	hits := make([]newspaperHit, 0, 40)
-	appendHit := func(title, link, published, description string) {
+	appendHit := func(title, link, published, description, publisher string) {
 		if strings.TrimSpace(title) == "" || strings.TrimSpace(link) == "" {
 			return
 		}
@@ -58,10 +65,10 @@ func parseNewspaperFeed(feedURL string, body []byte) ([]newspaperHit, error) {
 		if err != nil {
 			return
 		}
-		hits = append(hits, newspaperHit{Title: newspaperBound(title, 180), URL: absolute, Published: strings.TrimSpace(published), Description: newspaperBound(description, 500)})
+		hits = append(hits, newspaperHit{Title: newspaperBound(title, 180), URL: absolute, Published: strings.TrimSpace(published), Description: newspaperBound(description, 500), Publisher: newspaperBound(publisher, 80)})
 	}
 	for _, item := range feed.Channel.Items {
-		appendHit(item.Title, item.Link, item.Date, item.Description)
+		appendHit(item.Title, item.Link, item.Date, item.Description, item.Source.Name)
 	}
 	for _, entry := range feed.Entries {
 		link := ""
@@ -75,7 +82,7 @@ func parseNewspaperFeed(feedURL string, body []byte) ([]newspaperHit, error) {
 		if published == "" {
 			published = entry.Updated
 		}
-		appendHit(entry.Title, link, published, entry.Summary)
+		appendHit(entry.Title, link, published, entry.Summary, entry.Source.Title)
 	}
 	if len(hits) == 0 {
 		return nil, errors.New("RSS feed has no article links")

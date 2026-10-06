@@ -24,7 +24,7 @@
   "config.cloudflare_tunnel.token_placeholder": "Indtast dit Cloudflare-forbindelsestoken",
   "config.cloudflare_tunnel.save_vault": "Gem i Vault",
   "config.cloudflare_tunnel.token_empty": "Token må ikke være tomt",
-  "config.cloudflare_tunnel.token_saved": "Token blev gemt i boksen",
+  "config.cloudflare_tunnel.token_saved": "Token blev gemt i Vaulten",
   "config.cloudflare_tunnel.start_tunnel": "Start tunnel",
   "config.cloudflare_tunnel.expose_target_label": "Tunnelens måltjeneste",
   "config.cloudflare_tunnel.expose_single_hint": "Token- og Quick-tunneler bruger en enkelt oprindelse URL. Kun én tjeneste kan være tunneldestinationen. Brug Named Tunnel til multi-service routing via separate værtsnavne.",

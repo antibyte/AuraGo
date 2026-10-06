@@ -32,7 +32,7 @@ func (s *Server) initNewspaper() {
 			if cfg == nil {
 				return newspaper.Policy{}
 			}
-			return newspaper.Policy{Enabled: cfg.VirtualDesktop.Enabled && cfg.Newspaper.Enabled, ReadOnly: cfg.VirtualDesktop.ReadOnly || cfg.Newspaper.ReadOnly, MaxMinutes: cfg.Newspaper.MaxMinutes, MaxEditions: cfg.Newspaper.MaxEditions, Email: cfg.Newspaper.AllowEmail, Telegram: cfg.Newspaper.AllowTelegram}
+			return newspaper.Policy{Enabled: cfg.VirtualDesktop.Enabled && cfg.Newspaper.Enabled, ReadOnly: cfg.VirtualDesktop.ReadOnly || cfg.Newspaper.ReadOnly, MaxMinutes: cfg.Newspaper.MaxMinutes, Budget: newspaper.BudgetConfig{Mode: cfg.Newspaper.BudgetMode, MaxPages: cfg.Newspaper.MaxPages, MaxSearches: cfg.Newspaper.MaxSearches, MaxMinutes: cfg.Newspaper.MaxMinutes}, MaxEditions: cfg.Newspaper.MaxEditions, Email: cfg.Newspaper.AllowEmail, Telegram: cfg.Newspaper.AllowTelegram}
 		},
 		Research: func(ctx context.Context, p newspaper.Profile, cutoff time.Time, progress func(newspaper.Progress)) (newspaper.Draft, error) {
 			return s.newspaperResearch(ctx, p, cutoff, progress)

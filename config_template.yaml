@@ -1139,6 +1139,8 @@ detective:
 newspaper:
   enabled: false                                         # opt in to daily research
   readonly: false                                       # preserve archive but block research and delivery
+  budget_mode: auto                                     # topic-scaled allowances; fixed preserves absolute limits
+  overview_sources: []                                  # approved IDs; empty disables overview providers
   max_minutes: 30                                       # cumulative run deadline, 1-60
   max_pages: 60                                         # fetched page ceiling, 1-60
   max_searches: 32                                      # search requests including retries/fallbacks, 1-64
@@ -2034,7 +2036,7 @@ security_proxy:
     http_port: 80
     docker_host: ""                         # empty = inherit docker.host / automatic selection
     rate_limiting:
-        enabled: false
+        enabled: false                      # builds a Caddy image with caddy-ratelimit once (needs Docker build access), or build it on the Docker host (see the manual)
         requests_per_second: 10
         burst: 50
     ip_filter:
@@ -2043,7 +2045,7 @@ security_proxy:
         addresses: []
     basic_auth:
         enabled: false                      # Vault: proxy_basic_auth_user / proxy_basic_auth_pass
-    geo_blocking:
+    geo_blocking:                           # not implemented yet: the security proxy ignores these keys
         enabled: false
         allowed_countries: []               # ISO 3166-1 alpha-2 codes
     additional_routes: []

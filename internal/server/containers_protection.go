@@ -26,9 +26,12 @@ const (
 	containerCodeSelfUpdateUnsupported = "container_self_update_unsupported"
 )
 
-// containerProtectedOwners is the owner list the agent docker tool protects
-// (internal/agent/agent_dispatch_services.go, tools.DockerContainerOwnership
-// call). The app owner comes first so the app container names itself.
+// containerProtectedOwners are the owners whose containers need a
+// confirmation for terminal, update and remove. The agent docker tool keeps
+// the same list (internal/agent/agent_dispatch_services.go,
+// tools.DockerContainerOwnership call), but it does not block every owner the
+// same way: for security-proxy it only refuses create/run of the reserved
+// name. The app owner comes first so the app container names itself.
 var containerProtectedOwners = []string{
 	dockerutil.AppOwner,
 	acestep.Owner,
@@ -36,6 +39,7 @@ var containerProtectedOwners = []string{
 	"go2rtc",
 	dockerutil.LocalLLMOwner,
 	dockerutil.BoringGarageOwner,
+	dockerutil.SecurityProxyOwner,
 }
 
 // containerProtection says why an administrator terminal, update or remove on
@@ -101,20 +105,6 @@ var containerSelfHostname = os.Hostname
 // tests replace it with fixtures.
 var containerSelfProcFile = os.ReadFile
 
-// dockerDefaultHostnamePattern matches the hostname Docker assigns by default:
-// the first twelve hex characters of the container ID.
-var dockerDefaultHostnamePattern = regexp.MustCompile(`^[0-9a-f]{12,64}$`)
-
-// mountinfoContainerIDPattern matches the mount root of the files Docker
-// bind-mounts into every container from <data-root>/containers/<id>/. The
-// root is /<id>/... when that containers directory is its own filesystem.
-// containerIDFromMountinfo only applies it to mounts at the three /etc files.
-var mountinfoContainerIDPattern = regexp.MustCompile(`(?:^|/)([0-9a-f]{64})/(?:hostname|hosts|resolv\.conf)$`)
-
-// cgroupContainerIDPattern matches the cgroup v1 path of a Docker container,
-// both the cgroupfs (/docker/<id>) and the systemd (docker-<id>.scope) form.
-var cgroupContainerIDPattern = regexp.MustCompile(`(?:/docker/|/docker-)([0-9a-f]{64})(?:\.scope)?$`)
-
 // containerSelfSignals are the two facts that can name the container this
 // process runs in: Docker's default hostname (a prefix of the container ID)
 // and AuraGo's own container ID read from /proc, which survives a compose
@@ -138,10 +128,7 @@ func readContainerSelfSignals(isDocker bool) containerSelfSignals {
 	}
 	var signals containerSelfSignals
 	if hostname, err := containerSelfHostname(); err == nil {
-		hostname = strings.ToLower(strings.TrimSpace(hostname))
-		if dockerDefaultHostnamePattern.MatchString(hostname) {
-			signals.hostname = hostname
-		}
+		signals.hostname = dockerutil.DefaultContainerHostname(hostname)
 	}
 	signals.ownID = ownContainerID()
 	return signals
@@ -167,68 +154,10 @@ func containerIsSelf(isDocker bool, fullID string) bool {
 }
 
 // ownContainerID returns the 64-hex ID of the container this process runs in,
-// or "" when /proc does not name exactly one. mountinfo comes first because it
-// works for cgroup v1 and v2; /proc/self/cgroup names the container only on
-// cgroup v1.
+// or "" when /proc does not name exactly one (dockerutil.OwnContainerID, shared
+// with the security proxy placement).
 func ownContainerID() string {
-	if data, err := containerSelfProcFile("/proc/self/mountinfo"); err == nil {
-		if id := containerIDFromMountinfo(string(data)); id != "" {
-			return id
-		}
-	}
-	if data, err := containerSelfProcFile("/proc/self/cgroup"); err == nil {
-		return containerIDFromCgroup(string(data))
-	}
-	return ""
-}
-
-// containerIDFromMountinfo reads the container ID from the /etc/hostname,
-// /etc/hosts and /etc/resolv.conf bind mounts (mount point = field 5, mount
-// root = field 4 of /proc/self/mountinfo). Other mounts are ignored; lines that
-// disagree on the ID prove nothing.
-func containerIDFromMountinfo(text string) string {
-	found := ""
-	for _, line := range strings.Split(text, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 5 {
-			continue
-		}
-		switch fields[4] {
-		case "/etc/hostname", "/etc/hosts", "/etc/resolv.conf":
-		default:
-			continue
-		}
-		match := mountinfoContainerIDPattern.FindStringSubmatch(fields[3])
-		if match == nil {
-			continue
-		}
-		if found != "" && found != match[1] {
-			return ""
-		}
-		found = match[1]
-	}
-	return found
-}
-
-// containerIDFromCgroup reads the container ID from cgroup v1 lines
-// (hierarchy:controllers:path); lines that disagree prove nothing.
-func containerIDFromCgroup(text string) string {
-	found := ""
-	for _, line := range strings.Split(text, "\n") {
-		parts := strings.SplitN(strings.TrimSpace(line), ":", 3)
-		if len(parts) != 3 {
-			continue
-		}
-		match := cgroupContainerIDPattern.FindStringSubmatch(parts[2])
-		if match == nil {
-			continue
-		}
-		if found != "" && found != match[1] {
-			return ""
-		}
-		found = match[1]
-	}
-	return found
+	return dockerutil.OwnContainerID(containerSelfProcFile)
 }
 
 // containerIDPrefixPattern is the shortest ID prefix a network-mode reference

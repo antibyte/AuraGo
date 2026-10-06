@@ -143,14 +143,19 @@
         const runtime = state.data && state.data.integration;
         const canManage = !!(state.data && state.data.can_manage);
         const error = state.error ? '<div class="nc-modal-error">' + ctx.esc(state.error) + '</div>' : '';
+        const noCameras = allStreams(state).length === 0;
+        const onboardingClass = 'nc-onboarding' + (noCameras ? ' has-artwork' : '');
+        const illustration = noCameras
+            ? '<img class="nc-onboarding-art" src="/img/network-cameras/placeholder.png" width="1254" height="1254" alt="" aria-hidden="true" draggable="false">'
+            : '<div class="nc-onboarding-icon">' + appIcon(ctx, 'camera', 'C', 34) + '</div>';
         if (runtime && !runtime.enabled) {
-            return '<div class="nc-onboarding"><div class="nc-onboarding-icon">' + appIcon(ctx, 'camera', 'C', 34) + '</div><h2>' + ctx.esc(text(ctx, canManage ? 'enable_title' : 'disabled_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'enable_description' : 'disabled_description')) + '</p>' +
+            return '<div class="' + onboardingClass + '">' + illustration + '<h2>' + ctx.esc(text(ctx, canManage ? 'enable_title' : 'disabled_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'enable_description' : 'disabled_description')) + '</p>' +
                 error + (canManage ? '<div class="nc-onboarding-actions"><button class="nc-primary" type="button" data-action="enable">' + ctx.esc(text(ctx, 'enable_action')) + '</button><a href="/config#go2rtc" target="_blank" rel="noopener">' + ctx.esc(text(ctx, 'open_settings')) + '</a></div>' : '') + '</div>';
         }
         if (runtime && !runtime.api_usable) {
             return '<div class="nc-onboarding"><div class="nc-onboarding-icon is-warning">!</div><h2>' + ctx.esc(text(ctx, 'unavailable_title')) + '</h2><p>' + ctx.esc(runtime.last_error || text(ctx, 'unavailable_description')) + '</p><div class="nc-onboarding-actions"><button class="nc-primary" type="button" data-action="refresh">' + ctx.esc(text(ctx, 'retry')) + '</button>' + (canManage ? '<a href="/config#go2rtc" target="_blank" rel="noopener">' + ctx.esc(text(ctx, 'open_settings')) + '</a>' : '') + '</div></div>';
         }
-        return '<div class="nc-onboarding"><div class="nc-onboarding-icon">' + appIcon(ctx, 'camera', 'C', 34) + '</div><h2>' + ctx.esc(text(ctx, 'empty_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'empty_admin_description' : 'empty_viewer_description')) + '</p>' + error + (canManage ? '<button class="nc-primary" type="button" data-action="add">' + ctx.esc(text(ctx, 'setup_camera')) + '</button>' : '') + '</div>';
+        return '<div class="' + onboardingClass + '">' + illustration + '<h2>' + ctx.esc(text(ctx, 'empty_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'empty_admin_description' : 'empty_viewer_description')) + '</p>' + error + (canManage ? '<button class="nc-primary" type="button" data-action="add">' + ctx.esc(text(ctx, 'setup_camera')) + '</button>' : '') + '</div>';
     }
 
     function liveGridIDs(state, streams) {

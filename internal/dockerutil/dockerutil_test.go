@@ -152,3 +152,24 @@ func TestParseNumericGroupIDs(t *testing.T) {
 		t.Fatalf("ParseNumericGroupIDs() = %#v, want %#v", got, want)
 	}
 }
+
+func TestSecurityProxyReservedName(t *testing.T) {
+	t.Parallel()
+
+	if SecurityProxyOwner != "security-proxy" || SecurityProxyContainerName != "aurago-security-proxy" {
+		t.Fatalf("owner = %q, name = %q", SecurityProxyOwner, SecurityProxyContainerName)
+	}
+	for _, name := range []string{"aurago-security-proxy", "/aurago-security-proxy", " AURAGO-SECURITY-PROXY "} {
+		if !IsSecurityProxyContainerName(name) {
+			t.Fatalf("security proxy container name %q was not recognized", name)
+		}
+	}
+	for _, name := range []string{"", "aurago", "caddy", "security-proxy", "aurago-security-proxy-2", "my-aurago-security-proxy"} {
+		if IsSecurityProxyContainerName(name) {
+			t.Fatalf("unrelated container %q was recognized as the security proxy", name)
+		}
+	}
+	if !ManagedBy(ManagedLabels(SecurityProxyOwner, "caddy", "proxy", ""), SecurityProxyOwner) {
+		t.Fatal("the security proxy labels do not name their owner")
+	}
+}

@@ -12,7 +12,7 @@
   "config.bluetooth.default_device": "डिफ़ॉल्ट डिवाइस",
   "config.bluetooth.default_automatic": "स्वचालित",
   "config.bluetooth.devices": "Bluetooth डिवाइस",
-  "config.bluetooth.devices_desc": "सहेजी गई Bluetooth सेटिंग से डिवाइस खोजें, पेयर करें, जोड़ें और परीक्षण करें।",
+  "config.bluetooth.devices_desc": "सहेजी गई Bluetooth सेटिंग से डिवाइस खोजें, पेयर करें, कनेक्ट करें और परीक्षण करें।",
   "config.bluetooth.reprobe": "फिर से पहचानें",
   "config.bluetooth.discover": "डिवाइस खोजें",
   "config.bluetooth.test_audio": "परीक्षण ध्वनि चलाएँ",

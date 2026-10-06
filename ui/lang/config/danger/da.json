@@ -7,7 +7,7 @@
   "config.danger.shell.desc": "Tillader agenten at køre vilkårlige shell-kommandoer på værtssystemet.",
   "config.danger.python.title": "Python-/skill-kørsel (execute_python / execute_skill / save_tool)",
   "config.danger.python.desc": "Tillader agenten at køre vilkårlig Python-kode og skills <strong>lokalt uden sandbox</strong> og gemme nye værktøjer. Koden køres direkte på værtssystemet — brug sandboxen til isoleret kørsel.",
-  "config.danger.filesystem.title": "Skriveadgang til filsystemet (filesystem write ops)",
+  "config.danger.filesystem.title": "Skriveadgang til filsystemet (skriveoperationer i filsystemet)",
   "config.danger.filesystem.desc": "Tillader agenten at skrive, slette, flytte filer og oprette mapper via filsystemværktøjet.",
   "config.danger.network.title": "Netværksanmodninger (api_request)",
   "config.danger.network.desc": "Tillader agenten at sende vilkårlige HTTP-anmodninger til eksterne URL'er.",

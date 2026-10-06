@@ -52,9 +52,9 @@
   "config.web_scraper.disabled_notice": "Web Scraper är inaktiverad",
   "config.web_scraper.empty_main_llm": "tomt = huvud-LLM",
   "config.web_scraper.enabled_label": "Web Scraper aktiverad:",
-  "config.web_scraper.summary_desc": "Skrapade webbsidor sammanfattas via den centrala Helper-LLM när den är aktiverad. Agenten tar emot den rensade sammanfattningen istället för det fullständiga sidinnehållet.<br><strong>Fördelar:</strong> sparar tokens, minskar duplicerade helper-anrop och härdar systemet mot prompt-injektion från externt innehåll.",
+  "config.web_scraper.summary_desc": "Skrapade webbsidor sammanfattas via den centrala hjälpar-LLM när den är aktiverad. Agenten tar emot den rensade sammanfattningen istället för det fullständiga sidinnehållet.<br><strong>Fördelar:</strong> sparar tokens, minskar duplicerade hjälparanrop och härdar systemet mot prompt-injektion från externt innehåll.",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
-  "config.web_scraper.summary_provider": "Hjälp-LLM",
+  "config.web_scraper.summary_provider": "Hjälpar-LLM",
   "config.web_scraper.use_main_llm": "— Använd huvud-LLM —",
   "config.webdav.secret_empty": "Värdet är tomt"
 }

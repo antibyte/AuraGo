@@ -3,7 +3,7 @@
   "config.co_agents.cb_max_tokens": "Max. token (0 = illimitato)",
   "config.co_agents.cb_max_tool_calls": "Max. chiamate strumenti",
   "config.co_agents.cb_timeout": "Timeout (secondi)",
-  "config.co_agents.cb_title": "Interruttore di circuito",
+  "config.co_agents.cb_title": "Interruttore automatico",
   "config.co_agents.disabled_desc": "Attiva per consentire all'agente di delegare compiti a sotto-agenti paralleli e co-agenti specialisti.",
   "config.co_agents.disabled_notice": "I Co-Agents sono disattivati",
   "config.co_agents.enabled_desc": "Consenti all'agente di avviare sotto-agenti paralleli per compiti complessi.",
