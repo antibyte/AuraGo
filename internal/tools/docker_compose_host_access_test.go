@@ -601,15 +601,63 @@ func TestEvaluateDockerComposeHostAccessSeesDockerDesktopHostAliases(t *testing.
 	var aliases []string
 	if isWindowsAbsolutePath(slashData) {
 		drive := strings.ToLower(slashData[:1])
-		aliases = []string{"/run/desktop/mnt/host/" + drive + slashData[2:] + "/vault.bin", "/mnt/host/" + drive + slashData[2:]}
+		rest := drive + slashData[2:]
+		aliases = []string{
+			"/run/desktop/mnt/host/" + rest + "/vault.bin", "/mnt/host/" + rest,
+			// Non-canonical spellings name the same host path once cleaned.
+			"/run/desktop/mnt/host/../host/" + rest, "//run/desktop/mnt/host/" + rest, "/run/desktop/mnt/host//" + rest,
+			"/run/desktop/mnt/./host/" + rest, "/x/../run/desktop/mnt/host/" + rest, "/mnt/host/./" + rest + "/vault.bin",
+		}
 	} else {
-		aliases = []string{"/host_mnt" + slashData, "/host_mnt" + slashData + "/vault.bin"}
+		aliases = []string{
+			"/host_mnt" + slashData, "/host_mnt" + slashData + "/vault.bin",
+			"/host_mnt/../host_mnt" + slashData, "//host_mnt" + slashData, "/host_mnt/" + slashData,
+			"/host_mnt/." + slashData, "/x/../host_mnt" + slashData + "/vault.bin",
+		}
 	}
 	for _, alias := range aliases {
 		model := composeServices(map[string]DockerComposeService{"app": {Image: "x", Volumes: []DockerComposeMount{composeBind(alias, "/d", false)}}})
 		violations := EvaluateDockerComposeHostAccess(model, nil, DockerComposeScopeRun, policy)
 		if len(violations) != 1 || !violations[0].Always {
 			t.Fatalf("%s: violations = %+v, want one always-tier violation", alias, violations)
+		}
+	}
+}
+
+// Binding user rule: with host access on, an alias spelling that does not name
+// AuraGo state stays allowed, and AuraGo's own protected paths are not
+// de-aliased (on a native host /host_mnt/... is an ordinary directory).
+func TestEvaluateDockerComposeHostAccessKeepsUnrelatedDockerDesktopAliasesAllowed(t *testing.T) {
+	root := t.TempDir()
+	policy := DockerComposeHostPolicy{WorkspaceDir: filepath.Join(root, "ws"), AllowHostAccess: true, ProtectedRoots: []string{filepath.Join(root, "data")}}
+	for _, bind := range []string{"/host_mnt/srv/app", "/run/desktop/mnt/host/c/unrelated", "/mnt/host/c/srv/app", "/mnt/host/cdrive/x", "/host_mnt"} {
+		model := composeServices(map[string]DockerComposeService{"app": {Image: "x", Volumes: []DockerComposeMount{composeBind(bind, "/d", false)}}})
+		if violations := EvaluateDockerComposeHostAccess(model, nil, DockerComposeScopeRun, policy); len(violations) != 0 {
+			t.Fatalf("%s: violations = %+v, want none with host access", bind, violations)
+		}
+	}
+	policy.ProtectedRoots = []string{"/host_mnt/srv/aurago"}
+	model := composeServices(map[string]DockerComposeService{"app": {Image: "x", Volumes: []DockerComposeMount{composeBind("/srv/aurago", "/d", false)}}})
+	if violations := EvaluateDockerComposeHostAccess(model, nil, DockerComposeScopeRun, policy); len(violations) != 0 {
+		t.Fatalf("a protected path spelled /host_mnt/... protected its de-aliased twin: %+v", violations)
+	}
+}
+
+func TestDockerDesktopHostAliasReadsCleanedSpellings(t *testing.T) {
+	cases := map[string]string{
+		"/host_mnt":                    "/",
+		"/host_mnt/Users/me":           "/Users/me",
+		"/run/desktop/mnt/host/c":      "c:/",
+		"/run/desktop/mnt/host/D/data": "D:/data",
+		"/mnt/host/c/srv":              "c:/srv",
+		"/mnt/host/cdrive/x":           "",
+		"/run/desktop/mnt/host":        "",
+		"/srv/host_mnt/x":              "",
+	}
+	for path, want := range cases {
+		got, ok := dockerDesktopHostAlias(path)
+		if ok != (want != "") || got != want {
+			t.Fatalf("dockerDesktopHostAlias(%q) = %q, %v; want %q", path, got, ok, want)
 		}
 	}
 }

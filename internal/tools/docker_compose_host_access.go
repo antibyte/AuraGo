@@ -186,7 +186,9 @@ func newDockerComposeEvaluation(policy DockerComposeHostPolicy, scope DockerComp
 	}
 	seen := map[string]bool{}
 	for _, entry := range append(append([]string(nil), policy.ProtectedRoots...), policy.ProtectedFiles...) {
-		for _, variant := range dockerComposePathVariants(entry) {
+		// Spellings only: de-aliasing AuraGo's own paths would protect other
+		// directories on a native host, where /host_mnt/... is an ordinary path.
+		for _, variant := range dockerComposePathSpellings(entry) {
 			if !seen[variant] {
 				seen[variant] = true
 				e.protected = append(e.protected, variant)
@@ -610,8 +612,13 @@ func dockerComposeFoldCase(path string) string {
 // dockerDesktopHostAlias returns the host path a Docker Desktop VM spelling
 // names: /host_mnt/<path> (macOS, Docker Desktop for Linux) and
 // /run/desktop/mnt/host/<drive>/<path> or /mnt/host/<drive>/<path> (Windows).
+// Callers pass a cleaned path (cleanDockerHostPath), so `..`, `.` and doubled
+// slashes cannot hide the prefix; /host_mnt itself names the host root.
 func dockerDesktopHostAlias(path string) (string, bool) {
 	p := strings.ReplaceAll(strings.TrimSpace(path), `\`, "/")
+	if p == "/host_mnt" {
+		return "/", true
+	}
 	if rest, ok := strings.CutPrefix(p, "/host_mnt/"); ok {
 		return "/" + rest, true
 	}
@@ -630,10 +637,15 @@ func dockerDesktopHostAlias(path string) (string, bool) {
 
 // dockerComposePathVariants returns the cleaned, absolute and symlink-resolved
 // spellings of path in Docker bind notation and, for a Docker Desktop VM
-// spelling (dockerDesktopHostAlias), those of the host path it names.
+// spelling (dockerDesktopHostAlias, read from the cleaned path), those of the
+// host path it names. Only candidate paths get the alias; AuraGo's own
+// protected paths use dockerComposePathSpellings.
 func dockerComposePathVariants(path string) []string {
 	variants := dockerComposePathSpellings(path)
-	if alias, ok := dockerDesktopHostAlias(path); ok {
+	if strings.TrimSpace(path) == "" {
+		return variants
+	}
+	if alias, ok := dockerDesktopHostAlias(cleanDockerHostPath(path)); ok {
 		variants = append(variants, dockerComposePathSpellings(alias)...)
 	}
 	return variants
