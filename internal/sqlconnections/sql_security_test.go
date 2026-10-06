@@ -1,6 +1,9 @@
 package sqlconnections
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestSQLLexicalBoundary(t *testing.T) {
 	for _, q := range []string{
@@ -124,19 +127,68 @@ func TestWriteStatementsRejectFileAndAdminSQL(t *testing.T) {
 		"CREATE DEFINER=`u`@`h` FUNCTION f() RETURNS INT RETURN 1",
 		// PostgreSQL unicode-escaped identifier hiding a function name.
 		"INSERT INTO t SELECT U&\"pg_read_fil!0065\" UESCAPE '!' ('/etc/passwd')",
+		// --- Neighbour / lexical evasion forms (review). ---
+		// SQLite bracket-quoted identifier (driver-specific; asserted on sqlite below).
+		"INSERT INTO t SELECT [pg_read_file]('/x')",
+		// Doubled double-quote inside a quoted identifier resolves to one char.
+		"INSERT INTO t SELECT \"pg_read\"\"file\"('/x')",
+		// E'…' escape-string arg glued near the call.
+		"INSERT INTO t SELECT pg_read_file(E'/etc/passwd')",
+		// A comment between CREATE and FUNCTION.
+		"CREATE/**/FUNCTION f() RETURNS int AS 'x' LANGUAGE c",
+		// Spaced DEFINER = CURRENT_USER.
+		"CREATE DEFINER = CURRENT_USER FUNCTION f() RETURNS INT RETURN 1",
+		// FUNCTION keyword is not an object-name position, so the call is still caught.
+		"GRANT ALL ON FUNCTION pg_read_file(text) TO bob",
+		// CREATE OPERATOR binds a function without call parentheses.
+		"CREATE OPERATOR === (LEFTARG = text, RIGHTARG = text, FUNCTION = pg_read_file)",
+		// GRANT of a whole-data role.
+		"GRANT pg_read_all_data TO bob",
 	}
 	for _, q := range denied {
-		for _, driver := range drivers {
-			if _, err := detectStatementType(q, driver); err == nil {
-				t.Fatalf("%s (%s): expected rejection", q, driver)
+		q := q
+		t.Run("denied/"+q, func(t *testing.T) {
+			for _, driver := range drivers {
+				// The SQLite bracket form only quotes on the sqlite dialect; on
+				// other dialects '[' is ordinary syntax, so only assert sqlite.
+				if strings.Contains(q, "[pg_read_file]") && driver != "sqlite" {
+					continue
+				}
+				if _, err := detectStatementType(q, driver); err == nil {
+					t.Errorf("%s (%s): expected rejection", q, driver)
+				}
 			}
-		}
+		})
+	}
+
+	// Every denylist entry must be provably live: embed each function and phrase
+	// in a minimal write statement that reaches validateWriteStructure and assert
+	// it is refused. New entries are then covered automatically.
+	for name := range sqlWriteDeniedFunctions {
+		name := name
+		t.Run("fn/"+name, func(t *testing.T) {
+			q := "UPDATE zz SET c = " + strings.ToLower(name) + "('x')"
+			if err := validateWriteStructure(q, "postgres"); err == nil {
+				t.Errorf("denied function %q not refused in %q", name, q)
+			}
+		})
+	}
+	for _, phrase := range sqlWriteDeniedPhrases {
+		phrase := phrase
+		t.Run("phrase/"+phrase, func(t *testing.T) {
+			// Prefixed with INSERT INTO zz so the CREATE-prefix modifier strip does
+			// not apply; the phrase then stands as whole words in the token stream.
+			q := "INSERT INTO zz " + strings.ToLower(phrase) + " zz"
+			if err := validateWriteStructure(q, "postgres"); err == nil {
+				t.Errorf("denied phrase %q not refused in %q", phrase, q)
+			}
+		})
 	}
 
 	// Top-level-only forms: these never classify as a write/DDL branch — the
 	// statement classifier rejects them outright at its default/LOAD/COPY/INSTALL
 	// handling. The matching write-denylist phrases are defence in depth for any
-	// embedded occurrence (e.g. OUTFILE above, which does reach a write branch).
+	// embedded occurrence (e.g. INTO OUTFILE above, which does reach a write branch).
 	topLevelRejected := []string{
 		"LOAD DATA INFILE '/etc/passwd' INTO TABLE t",
 		"LOAD XML INFILE '/etc/passwd' INTO TABLE t",
@@ -145,11 +197,14 @@ func TestWriteStatementsRejectFileAndAdminSQL(t *testing.T) {
 		"INSTALL COMPONENT 'file://component'",
 	}
 	for _, q := range topLevelRejected {
-		for _, driver := range drivers {
-			if _, err := detectStatementType(q, driver); err == nil {
-				t.Fatalf("%s (%s): expected top-level rejection", q, driver)
+		q := q
+		t.Run("toplevel/"+q, func(t *testing.T) {
+			for _, driver := range drivers {
+				if _, err := detectStatementType(q, driver); err == nil {
+					t.Errorf("%s (%s): expected top-level rejection", q, driver)
+				}
 			}
-		}
+		})
 	}
 
 	allowed := map[string]StatementType{
@@ -163,28 +218,57 @@ func TestWriteStatementsRejectFileAndAdminSQL(t *testing.T) {
 		// A trigger-shaped DDL stays allowed by the denylist. The lexer rejects
 		// embedded ';' (multi-statement) independently, so the body carries none.
 		"CREATE TRIGGER trg AFTER INSERT ON t BEGIN UPDATE t SET n = 1 END": StmtDDL,
+		// PostgreSQL trigger referencing an ordinary function (not denied).
+		"CREATE TRIGGER trg BEFORE UPDATE ON t FOR EACH ROW EXECUTE FUNCTION set_updated()": StmtDDL,
+		"CREATE VIEW v AS SELECT id, lower(name) FROM t":                                    StmtDDL,
+		"CREATE OR REPLACE VIEW v AS SELECT 1":                                              StmtDDL,
+		"CREATE DEFINER = CURRENT_USER VIEW v AS SELECT 1":                                  StmtDDL,
 		// A denied name inside a string literal must NOT trigger (literals are
 		// stripped before matching).
-		"INSERT INTO t VALUES ('pg_read_file')": StmtInsert,
-		// Identifiers that merely contain a denied phrase as a substring.
+		"INSERT INTO t VALUES ('pg_read_file')":  StmtInsert,
+		"INSERT INTO t VALUES (N'pg_read_file')": StmtInsert,
+		// Identifiers that merely contain a denied phrase/word as a substring.
 		"UPDATE t SET outfile_count = outfile_count + 1": StmtUpdate,
 		"INSERT INTO copy_jobs (n) VALUES (1)":           StmtInsert,
+		// Ordinary columns/options named copy / outfile / dumpfile / definer now
+		// write fine (COPY is position-restricted; OUTFILE/DUMPFILE need INTO).
+		"UPDATE docs SET copy = 'x' WHERE id = 1":  StmtUpdate,
+		"INSERT INTO docs (copy) VALUES ('x')":     StmtInsert,
+		"ALTER TABLE docs ADD COLUMN copy text":    StmtDDL,
+		"CREATE TABLE jobs (id int, outfile text)": StmtDDL,
+		// A table literally named outfile/dumpfile is the INSERT target, not a
+		// MySQL file export, so it stays writable.
+		"INSERT INTO outfile (n) VALUES (1)":                      StmtInsert,
+		"INSERT INTO dumpfile (n) VALUES (1)":                     StmtInsert,
+		"UPDATE t SET definer = 'x' WHERE id = 1":                 StmtUpdate,
+		"INSERT INTO t (definer, n) VALUES ('x', 1)":              StmtInsert,
+		"UPDATE t SET c = c + 1 WHERE REPLACE(n, 'a', 'b') = 'c'": StmtUpdate,
 		// 'edit' as a bare column (not a function call) is fine.
 		"UPDATE t SET edit = 1 WHERE id = 2": StmtUpdate,
-		// A table or index literally named 'edit' is an object name, not the
-		// SQLite edit() function, so it is not treated as a denied call.
-		"INSERT INTO edit (n) VALUES (1)": StmtInsert,
-		"CREATE TABLE edit (id int)":      StmtDDL,
+		"UPDATE edit SET n = 1":              StmtUpdate,
+		// A table/view/index/constraint literally named 'edit' is an object name,
+		// not the SQLite edit() function, so it is not treated as a denied call.
+		"INSERT INTO edit (n) VALUES (1)":                               StmtInsert,
+		"INSERT INTO \"edit\" (n) VALUES (1)":                           StmtInsert,
+		"CREATE TABLE edit (id int)":                                    StmtDDL,
+		"CREATE TABLE IF NOT EXISTS edit (id int)":                      StmtDDL,
+		"CREATE VIEW edit (a) AS SELECT 1":                              StmtDDL,
+		"CREATE INDEX idx_edit_n ON edit (n)":                           StmtDDL,
+		"CREATE TABLE notes (id int, edit_id int REFERENCES edit (id))": StmtDDL,
+		"CREATE TABLE tt (id int, KEY edit (id))":                       StmtDDL,
 		// Ordinary CTE write with normal functions keeps working.
 		"WITH r AS (SELECT id FROM s) INSERT INTO t SELECT COALESCE(id, 0) FROM r":  StmtInsert,
 		"WITH r AS (SELECT id FROM s) DELETE FROM t WHERE id IN (SELECT id FROM r)": StmtDelete,
 	}
 	for q, want := range allowed {
-		for _, driver := range drivers {
-			got, err := detectStatementType(q, driver)
-			if err != nil || got != want {
-				t.Fatalf("%s (%s): got %v/%v, want %v", q, driver, got, err, want)
+		q, want := q, want
+		t.Run("allowed/"+q, func(t *testing.T) {
+			for _, driver := range drivers {
+				got, err := detectStatementType(q, driver)
+				if err != nil || got != want {
+					t.Errorf("%s (%s): got %v/%v, want %v", q, driver, got, err, want)
+				}
 			}
-		}
+		})
 	}
 }

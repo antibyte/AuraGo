@@ -87,7 +87,8 @@ func sqlStructureDialectMode(s, driver string, pad bool) (string, error) {
 		// an arbitrary name through their escape sequences. They have no legitimate
 		// use in an agent write, so refuse them in write mode rather than let one
 		// hide a denied function name.
-		if pad && (c == 'u' || c == 'U') && i+2 < len(s) && s[i+1] == '&' && (s[i+2] == '"' || s[i+2] == '\'') {
+		if pad && (c == 'u' || c == 'U') && (i == 0 || !isSQLIdentChar(rune(s[i-1]))) &&
+			i+2 < len(s) && s[i+1] == '&' && (s[i+2] == '"' || s[i+2] == '\'') {
 			return "", fmt.Errorf("unicode-escaped identifiers are not allowed in write statements")
 		}
 		if c == '$' {
@@ -183,127 +184,5 @@ func validateReadStructure(s string) error {
 	return nil
 }
 
-// sqlWriteDeniedFunctions name functions that reach the database server's file
-// system, dynamic loader, large-object store or operating system. The read path
-// refuses every non-allowlisted function; writes keep all ordinary functions but
-// never these. Grouped by the engine they belong to and retained for defence in
-// depth even on dialects where a given name is not callable. Matching strips any
-// schema/catalog prefix (comparing the last dotted segment) and keeps a
-// full-name entry for the one dotted builtin (DBMS_SCHEDULER.CREATE_JOB).
-var sqlWriteDeniedFunctions = map[string]bool{
-	// PostgreSQL: server-side file reads, large-object import/export, server
-	// program execution and configuration reload.
-	"PG_READ_FILE": true, "PG_READ_BINARY_FILE": true, "PG_LS_DIR": true, "PG_STAT_FILE": true,
-	"PG_EXECUTE_SERVER_PROGRAM": true, "LO_IMPORT": true, "LO_EXPORT": true, "PG_RELOAD_CONF": true,
-	// MySQL/MariaDB file read, and SQLite extension loading, file read/write,
-	// directory listing and the external-editor hook.
-	"LOAD_FILE": true, "LOAD_EXTENSION": true, "READFILE": true, "WRITEFILE": true, "FSDIR": true, "EDIT": true,
-	// MSSQL / Oracle defence in depth: shell-out and OS job scheduling.
-	"XP_CMDSHELL": true, "SYS_EXEC": true, "SYS_EVAL": true, "DBMS_SCHEDULER.CREATE_JOB": true,
-}
-
-// sqlWriteDeniedPhrases name statement forms that export data off the server,
-// bulk-import into it, or extend/administer the engine, plus the PostgreSQL
-// predefined roles that grant file/program access. Matched as whole,
-// space-delimited words against the normalised, literal-stripped, write-padded
-// upper text so identifiers such as OUTFILE_COUNT or a COPY_JOBS table never
-// trigger. (Tables or columns named exactly COPY, OUTFILE or DUMPFILE are a
-// documented residual false positive.)
-var sqlWriteDeniedPhrases = []string{
-	// MySQL/MariaDB file export and bulk import.
-	"OUTFILE", "DUMPFILE", "LOAD DATA", "LOAD XML",
-	// PostgreSQL bulk copy (also refused as a leading keyword by the classifier).
-	"COPY",
-	// Extension / procedural-language / aggregate / foreign-data / server and
-	// system administration. OR REPLACE and DEFINER=… clauses are stripped before
-	// matching so the contiguous CREATE … FUNCTION/PROCEDURE phrase still catches
-	// e.g. CREATE OR REPLACE FUNCTION and CREATE DEFINER=`u`@`h` PROCEDURE.
-	"CREATE EXTENSION", "ALTER EXTENSION", "CREATE FUNCTION", "CREATE OR REPLACE FUNCTION",
-	"CREATE PROCEDURE", "CREATE OR REPLACE PROCEDURE", "CREATE LANGUAGE", "CREATE AGGREGATE",
-	"CREATE SERVER", "CREATE FOREIGN DATA WRAPPER", "ALTER SYSTEM",
-	// MySQL/MariaDB plugin and component loading.
-	"INSTALL PLUGIN", "INSTALL COMPONENT",
-	// PostgreSQL predefined roles that confer server file / program access when
-	// granted, so a GRANT of them is refused. PG_EXECUTE_SERVER_PROGRAM is also a
-	// function above; as a bare role name it has no call parens, so it is listed
-	// here too.
-	"PG_READ_SERVER_FILES", "PG_WRITE_SERVER_FILES", "PG_READ_ALL_DATA", "PG_WRITE_ALL_DATA",
-	"PG_EXECUTE_SERVER_PROGRAM",
-}
-
-// sqlWriteObjectNameContext lists keywords after which the next identifier is an
-// object name being defined or targeted, not a function call. A denied function
-// name in one of these positions (e.g. a table literally named edit in
-// INSERT INTO edit (…) or CREATE TABLE edit (…)) is not a file/loader call, so
-// its match is skipped. FROM/JOIN/ON are deliberately excluded because a
-// table-valued function such as fsdir('/') lives there and must stay denied.
-var sqlWriteObjectNameContext = map[string]bool{"INTO": true, "TABLE": true, "UPDATE": true}
-
-// sqlWriteDefinerStop marks the keywords that end a stripped DEFINER=… clause.
-var sqlWriteDefinerStop = map[string]bool{
-	"FUNCTION": true, "PROCEDURE": true, "TRIGGER": true, "EVENT": true, "AGGREGATE": true, "VIEW": true,
-}
-
-// stripWriteModifierClauses removes the optional CREATE modifiers that would
-// otherwise split a denied phrase: a leading-position OR REPLACE and a
-// MySQL DEFINER=<principal> clause. Operates on the space-delimited upper tokens.
-func stripWriteModifierClauses(tokens []string) []string {
-	noDefiner := make([]string, 0, len(tokens))
-	for i := 0; i < len(tokens); i++ {
-		t := tokens[i]
-		if t == "DEFINER" || strings.HasPrefix(t, "DEFINER=") {
-			for i+1 < len(tokens) && !sqlWriteDefinerStop[tokens[i+1]] {
-				i++
-			}
-			continue
-		}
-		noDefiner = append(noDefiner, t)
-	}
-	res := make([]string, 0, len(noDefiner))
-	for i := 0; i < len(noDefiner); i++ {
-		if noDefiner[i] == "OR" && i+1 < len(noDefiner) && noDefiner[i+1] == "REPLACE" {
-			i++
-			continue
-		}
-		res = append(res, noDefiner[i])
-	}
-	return res
-}
-
-// validateWriteStructure rejects file, loader and administrative SQL in write
-// and DDL statements without constraining ordinary functions. Unlike the read
-// path it is a denylist: every ordinary write function and statement form keeps
-// working; only server-reaching names and forms are refused. It re-normalises
-// the original query in write-padded mode so that quoted/glued tokens, schema
-// prefixes and DEFINER clauses cannot smuggle a denied name past the check.
-func validateWriteStructure(query, driver string) error {
-	ps, err := sqlStructureWrite(query, driver)
-	if err != nil {
-		return err
-	}
-	tokens := stripWriteModifierClauses(strings.Fields(strings.ToUpper(ps)))
-	phrase := " " + strings.Join(tokens, " ") + " "
-	for _, p := range sqlWriteDeniedPhrases {
-		if strings.Contains(phrase, " "+p+" ") {
-			return fmt.Errorf("file, loader or administrative SQL is not allowed: %s", p)
-		}
-	}
-	for _, m := range sqlFunctionPattern.FindAllStringSubmatchIndex(ps, -1) {
-		raw := ps[m[2]:m[3]]
-		name := strings.ToUpper(raw)
-		prev := ""
-		if fields := strings.Fields(strings.ToUpper(ps[:m[2]])); len(fields) > 0 {
-			prev = fields[len(fields)-1]
-		}
-		if sqlWriteObjectNameContext[prev] {
-			continue
-		}
-		if sqlWriteDeniedFunctions[name] {
-			return fmt.Errorf("function %q is not allowed in write statements", raw)
-		}
-		if idx := strings.LastIndex(name, "."); idx >= 0 && sqlWriteDeniedFunctions[name[idx+1:]] {
-			return fmt.Errorf("function %q is not allowed in write statements", raw)
-		}
-	}
-	return nil
-}
+// The write denylist (validateWriteStructure and its data) lives in
+// sql_write_denylist.go. This file is lexing plus read validation only.
