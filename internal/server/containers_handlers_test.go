@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -217,4 +218,153 @@ func (s *fakeContainerTerminalSession) Close() error {
 func (s *fakeContainerTerminalSession) Resize(ctx context.Context, cols, rows int) error {
 	s.resizeCalls <- terminalResizeCall{cols: cols, rows: rows}
 	return nil
+}
+
+// newContainerAuthChain builds the production route table behind the real
+// authMiddleware with session auth enabled.
+func newContainerAuthChain(t *testing.T) (s *Server, chain http.Handler, adminToken, desktopToken, readToken string) {
+	t.Helper()
+	s, adminToken, desktopToken, readToken = newBearerSchemeTestServer(t)
+	s.Cfg.WebConfig.Enabled = true
+	s.Logger = slog.Default()
+	mux := http.NewServeMux()
+	s.registerToolAPIRoutes(mux)
+	return s, authMiddleware(s, mux), adminToken, desktopToken, readToken
+}
+
+// TestContainerRoutesKeepAdminScopeThroughAuthMiddleware pins today's gate:
+// read and desktop:admin tokens are refused with invalid_bearer_scope, a
+// browser session and an admin token reach the handler, anonymous gets 401.
+func TestContainerRoutesKeepAdminScopeThroughAuthMiddleware(t *testing.T) {
+	_, chain, adminToken, desktopToken, readToken := newContainerAuthChain(t)
+
+	requests := []func() *http.Request{
+		func() *http.Request { return httptest.NewRequest(http.MethodGet, "/api/containers", nil) },
+		func() *http.Request { return newContainerTerminalUpgradeRequest("/api/containers/demo/terminal") },
+		func() *http.Request { return httptest.NewRequest(http.MethodPost, "/api/containers/demo/restart", nil) },
+	}
+	for _, build := range requests {
+		for _, tc := range []struct {
+			name  string
+			token string
+			want  int
+		}{
+			{"read scope", readToken, http.StatusForbidden},
+			{"desktop admin scope", desktopToken, http.StatusForbidden},
+			// Docker is disabled in this fixture: an admitted request reaches
+			// the handler's own 503.
+			{"admin scope", adminToken, http.StatusServiceUnavailable},
+		} {
+			req := build()
+			req.Header.Set("Authorization", "Bearer "+tc.token)
+			rec := httptest.NewRecorder()
+			chain.ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("%s %s with %s: status = %d, want %d; body=%s", req.Method, req.URL.Path, tc.name, rec.Code, tc.want, rec.Body.String())
+			}
+			if tc.want == http.StatusForbidden && !strings.Contains(rec.Body.String(), "invalid_bearer_scope") {
+				t.Fatalf("%s %s with %s: body = %s, want invalid_bearer_scope", req.Method, req.URL.Path, tc.name, rec.Body.String())
+			}
+		}
+
+		session := &http.Cookie{Name: sessionCookieName, Value: createSessionValue(bearerSchemeTestSessionSecret, time.Now().Add(time.Hour))}
+		req := build()
+		req.AddCookie(session)
+		if req.Method != http.MethodGet {
+			req.Header.Set("Origin", "http://example.com")
+		}
+		rec := httptest.NewRecorder()
+		chain.ServeHTTP(rec, req)
+		if rec.Code != http.StatusServiceUnavailable {
+			t.Fatalf("%s %s with a browser session: status = %d, want 503 from the handler; body=%s", req.Method, req.URL.Path, rec.Code, rec.Body.String())
+		}
+
+		req = build()
+		rec = httptest.NewRecorder()
+		chain.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("anonymous %s %s: status = %d, want 401", req.Method, req.URL.Path, rec.Code)
+		}
+	}
+}
+
+// TestContainerRoutesStayInTheAdminBearerCatchAll fails when a future change
+// moves the container paths into a list that would admit weaker credentials.
+func TestContainerRoutesStayInTheAdminBearerCatchAll(t *testing.T) {
+	s, _, adminToken, desktopToken, readToken := newContainerAuthChain(t)
+	tokens := map[string]string{"read": readToken, desktopScopeAdmin: desktopToken}
+	for _, scope := range []string{desktopScopeRead, desktopScopeWrite, go2RTCViewScope, "cyd"} {
+		raw, _, err := s.TokenManager.Create(scope, []string{scope}, nil)
+		if err != nil {
+			t.Fatalf("create %s token: %v", scope, err)
+		}
+		tokens[scope] = raw
+	}
+
+	for _, path := range []string{"/api/containers", "/api/containers/", "/api/containers/demo/terminal", "/api/containers/demo/update", "/api/containers/demo"} {
+		if isDesktopScopedAPIPath(path) {
+			t.Fatalf("%s must not become a desktop-scoped path: desktop:read/write tokens would reach Docker", path)
+		}
+		if isAuthBypassed(path) {
+			t.Fatalf("%s must not bypass session authentication", path)
+		}
+		if isAllowedWithoutPassword(path) {
+			t.Fatalf("%s must not be reachable during the password lockdown", path)
+		}
+		if isDesktopEmbedResourcePath(path) {
+			t.Fatalf("%s must not accept desktop embed tickets", path)
+		}
+		for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodDelete} {
+			if !validRouteBearer(s, adminToken, path, method) {
+				t.Fatalf("%s %s: admin token refused", method, path)
+			}
+			for scope, raw := range tokens {
+				if validRouteBearer(s, raw, path, method) {
+					t.Fatalf("%s %s: a %q token is admitted; container routes require the admin scope", method, path, scope)
+				}
+			}
+		}
+	}
+}
+
+// TestContainerRoutesStayOpenWhenAuthIsDisabled pins installs without login:
+// a request without credentials still reaches the handler.
+func TestContainerRoutesStayOpenWhenAuthIsDisabled(t *testing.T) {
+	s := testContainerServer(false, false)
+	s.Cfg.WebConfig.Enabled = true
+	mux := http.NewServeMux()
+	s.registerToolAPIRoutes(mux)
+
+	rec := httptest.NewRecorder()
+	authMiddleware(s, mux).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/containers", nil))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("auth-disabled status = %d, want 503 from the handler; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestContainerTerminalWebSocketWorksThroughAuthChain pins that a browser
+// session opens the terminal WebSocket through the production chain.
+func TestContainerTerminalWebSocketWorksThroughAuthChain(t *testing.T) {
+	s, chain, _, _, _ := newContainerAuthChain(t)
+	s.Cfg.Docker.Enabled = true
+	fake := &fakeContainerTerminalBackend{running: true}
+	restore := replaceContainerTerminalBackend(fake)
+	defer restore()
+	ts := httptest.NewServer(chain)
+	defer ts.Close()
+
+	header := http.Header{}
+	header.Set("Cookie", sessionCookieName+"="+createSessionValue(bearerSchemeTestSessionSecret, time.Now().Add(time.Hour)))
+	conn, resp, err := websocket.DefaultDialer.Dial("ws"+ts.URL[len("http"):]+"/api/containers/demo/terminal", header)
+	if err != nil {
+		status := 0
+		if resp != nil {
+			status = resp.StatusCode
+		}
+		t.Fatalf("session terminal through the auth chain: %v (HTTP %d)", err, status)
+	}
+	_ = conn.Close()
+	if fake.createCalls != 1 {
+		t.Fatalf("terminal sessions created = %d, want 1", fake.createCalls)
+	}
 }

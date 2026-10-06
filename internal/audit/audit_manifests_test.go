@@ -100,6 +100,9 @@ func TestRouteContractManifestCoversRegisteredServerRoutes(t *testing.T) {
 	if !routeContractExists(contracts, "/api/cron", "session-admin") {
 		t.Fatal("/api/cron must have an explicit session-admin route contract")
 	}
+	if !routeContractExists(contracts, "/api/containers", "session-admin") {
+		t.Fatal("/api/containers must have an explicit session-admin route contract")
+	}
 	if !routeContractExists(contracts, "/api/manus/", "session") {
 		t.Fatal("/api/manus/ must have an explicit session route contract")
 	}

@@ -25,6 +25,9 @@ Server-owned HTTP and cross-component integration contracts.
 - Cast LAN listeners require a file-specific ticket, reject listing and keep bounded header/idle/stream-write budgets. Store preview calls a configured loopback origin with no redirects; request Host cannot choose it.
 - Verify codequality boundary/lifecycle tests, Remote handshake tests and the existing Desktop token/proxy matrix. A local fixture does not establish external delivery or device acceptance.
 
+### Administrator container API
+- `/api/containers` and `/api/containers/` stay in `validRouteBearer`'s admin catch-all: browser sessions or Bearer tokens with the `admin` scope; every other scope gets 403 `invalid_bearer_scope`. Do not add the paths to desktop, go2rtc, bypass or lockdown lists, and do not wrap them in `requireAdmin` (it would refuse non-admin tokens on auth-disabled installs, which reach the handler today). System World calls `handleContainerAction` directly for start/stop/restart under its own `desktop:admin` gate. Verify `TestContainerRoutesKeepAdminScopeThroughAuthMiddleware`, `TestContainerRoutesStayInTheAdminBearerCatchAll` and `TestContainerRoutesStayOpenWhenAuthIsDisabled`.
+
 ### Code Studio
 
 - Save and upload share `code_studio_files.go`: bounded file bytes travel as a

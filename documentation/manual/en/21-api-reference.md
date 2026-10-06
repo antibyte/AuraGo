@@ -721,6 +721,8 @@ GET /api/missions/v2/dependencies
 
 ## Container API
 
+With authentication enabled, all container routes require a browser session or an API token with the `admin` scope.
+
 ### List Containers
 ```http
 GET /api/containers

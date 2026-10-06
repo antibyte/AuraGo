@@ -714,6 +714,8 @@ GET /api/missions/v2/dependencies
 
 ## Container API
 
+Bei aktivierter Anmeldung erfordern alle Container-Routen eine Browser-Sitzung oder ein API-Token mit dem Scope `admin`.
+
 ### Container auflisten
 ```http
 GET /api/containers
