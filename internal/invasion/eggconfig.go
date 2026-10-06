@@ -244,15 +244,22 @@ func masterSelfSignedCertPath(masterCfg *config.Config) string {
 }
 
 // masterCertPin returns the lowercase SHA-256 hex of the DER leaf certificate
-// in the first PEM block of the file at path.
+// in the first CERTIFICATE PEM block of the file at path (other block types
+// are skipped, as tls.X509KeyPair does).
 func masterCertPin(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return "", errors.New("no PEM block found")
+	var block *pem.Block
+	for {
+		block, data = pem.Decode(data)
+		if block == nil {
+			return "", errors.New("no CERTIFICATE PEM block found")
+		}
+		if block.Type == "CERTIFICATE" {
+			break
+		}
 	}
 	leaf, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {

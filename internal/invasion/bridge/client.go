@@ -37,6 +37,8 @@ type EggClient struct {
 	TLSPinSHA256  string // SHA-256 hex of the master's DER leaf certificate; wins over TLSSkipVerify
 	HTTPClient    *http.Client
 
+	rootCAs *x509.CertPool // trust store for the chain fallback of a pinned client; nil = system roots (tests inject a CA)
+
 	conn        *websocket.Conn
 	mu          sync.Mutex
 	logger      *slog.Logger
@@ -370,7 +372,7 @@ func (c *EggClient) httpClient() *http.Client {
 // default verification against the system roots.
 func (c *EggClient) masterTLSConfig() *tls.Config {
 	if pin := strings.TrimSpace(c.TLSPinSHA256); pin != "" {
-		return pinnedTLSConfig(pin)
+		return pinnedTLSConfig(pin, c.masterHost(), c.rootCAs)
 	}
 	if c.TLSSkipVerify {
 		return &tls.Config{InsecureSkipVerify: true} //nolint:gosec // legacy config from an older master; warned at startup
@@ -378,21 +380,60 @@ func (c *EggClient) masterTLSConfig() *tls.Config {
 	return nil
 }
 
-// pinnedTLSConfig accepts exactly the master certificate whose DER leaf has
-// the given SHA-256 hex fingerprint. InsecureSkipVerify only disables the
-// chain and hostname checks, which a self-signed master cannot pass (and the
-// egg may reach it under any address); VerifyPeerCertificate still runs and
-// is the actual check.
-func pinnedTLSConfig(pin string) *tls.Config {
+// masterHost is the host name or IP address of MasterURL ("" if unparseable).
+// The HTTP base URL is derived from MasterURL, so it is the host of every
+// connection to the master.
+func (c *EggClient) masterHost() string {
+	u, err := url.Parse(strings.TrimSpace(c.MasterURL))
+	if err != nil {
+		return ""
+	}
+	return u.Hostname()
+}
+
+// ValidTLSPin reports whether pin has the tls_pin_sha256 format: the SHA-256
+// of a DER certificate as 64 hexadecimal characters.
+func ValidTLSPin(pin string) bool {
+	pin = strings.TrimSpace(pin)
+	if len(pin) != 2*sha256.Size {
+		return false
+	}
+	_, err := hex.DecodeString(pin)
+	return err == nil
+}
+
+// pinnedTLSConfig accepts the master certificate whose DER leaf has the given
+// SHA-256 hex fingerprint (direct routes to a self-signed master) or, failing
+// that, a chain that verifies for host against roots (nil = system roots), as
+// presented by a TLS-terminating proxy on a custom route (e.g. Cloudflare
+// Tunnel). InsecureSkipVerify only switches off Go's built-in verification,
+// which a self-signed master can never pass; VerifyConnection still runs on
+// every handshake (resumed sessions included) and does both checks itself.
+//
+// The hostname check uses host (from MasterURL), not ConnectionState.ServerName:
+// that is the SNI value, which is empty for IP addresses and would make
+// x509.Verify skip the hostname check.
+func pinnedTLSConfig(pin, host string, roots *x509.CertPool) *tls.Config {
 	return &tls.Config{
-		InsecureSkipVerify: true, //nolint:gosec // replaced by the fingerprint check below
-		VerifyPeerCertificate: func(raw [][]byte, _ [][]*x509.Certificate) error {
-			if len(raw) == 0 {
+		InsecureSkipVerify: true, //nolint:gosec // VerifyConnection below does the verification
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			if len(cs.PeerCertificates) == 0 {
 				return errors.New("no certificate presented")
 			}
-			sum := sha256.Sum256(raw[0])
-			if !strings.EqualFold(hex.EncodeToString(sum[:]), pin) {
-				return errors.New("master certificate does not match the pinned fingerprint")
+			leaf := cs.PeerCertificates[0]
+			sum := sha256.Sum256(leaf.Raw)
+			if strings.EqualFold(hex.EncodeToString(sum[:]), pin) {
+				return nil
+			}
+			if host == "" {
+				return errors.New("master certificate matches neither the pinned fingerprint nor a trusted chain (master host unknown)")
+			}
+			opts := x509.VerifyOptions{DNSName: host, Roots: roots, Intermediates: x509.NewCertPool()}
+			for _, cert := range cs.PeerCertificates[1:] {
+				opts.Intermediates.AddCert(cert)
+			}
+			if _, err := leaf.Verify(opts); err != nil {
+				return fmt.Errorf("master certificate matches neither the pinned fingerprint nor a trusted chain for %s: %w", host, err)
 			}
 			return nil
 		},

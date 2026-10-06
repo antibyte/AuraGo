@@ -71,11 +71,13 @@ func handleCertRegenerate(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to regenerate certificate"})
 			return
 		}
+		// Eggs pin the certificate's fingerprint (egg_mode.tls_pin_sha256).
+		s.Logger.Warn("Self-signed certificate regenerated; Eggs pinned to the old certificate cannot connect until each receives a safe-reconfigure after the restart")
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
 			"status":  "ok",
-			"message": "Self-signed certificate regenerated. Restart AuraGo to use the new certificate.",
+			"message": "Self-signed certificate regenerated. Restart AuraGo to use the new certificate, then run a safe-reconfigure for each Egg so it receives the new certificate pin.",
 		})
 	}
 }

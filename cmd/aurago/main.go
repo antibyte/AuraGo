@@ -984,6 +984,9 @@ func main() {
 		if cfg.EggMode.TLSSkipVerify && strings.TrimSpace(cfg.EggMode.TLSPinSHA256) == "" {
 			appLog.Warn("[Egg] tls_skip_verify is deprecated; run a safe-reconfigure from the master to receive tls_pin_sha256")
 		}
+		if pin := strings.TrimSpace(cfg.EggMode.TLSPinSHA256); pin != "" && !bridge.ValidTLSPin(pin) {
+			appLog.Error("[Egg] tls_pin_sha256 is malformed: expected 64 hexadecimal characters (SHA-256 of the master's DER certificate); connections to a self-signed master will be rejected", "length", len(pin))
+		}
 		internalHTTPClient := server.NewInternalHTTPClient(2 * time.Minute)
 		eggMissionAPI := func(method, path string, body interface{}) error {
 			var reader io.Reader

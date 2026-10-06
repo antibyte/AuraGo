@@ -423,7 +423,7 @@ egg_mode:
   tls_skip_verify: false  # veraltet; nur für Configs älterer Master
 ```
 
-Bei selbstsigniertem Master-TLS pinnt das Egg den SHA-256 des Master-Zertifikats und lehnt jedes andere Zertifikat bei HTTP- und WebSocket-Verbindungen ab. Hatte der Master beim Hatch noch kein Zertifikat geschrieben, erhält das Egg stattdessen das veraltete `tls_skip_verify: true` (der Master protokolliert eine Warnung). Das Egg warnt ebenfalls, solange es mit `tls_skip_verify` ohne Pin läuft. In beiden Fällen liefert ein Safe-Reconfigure den Pin nach.
+Bei selbstsigniertem Master-TLS pinnt das Egg den SHA-256 des Master-Zertifikats für HTTP- und WebSocket-Verbindungen. Der Pin gilt für direkte Routen. Eine `custom`-Route über einen TLS-terminierenden Proxy (z. B. Cloudflare Tunnel) zeigt stattdessen das Zertifikat des Proxys; das Egg akzeptiert es, wenn der Egg-Host diesem Zertifikat für den Hostnamen der Route vertraut (öffentliche CA oder eine private CA im Trust Store des Hosts). Jedes andere Zertifikat wird abgelehnt. Hatte der Master beim Hatch noch kein Zertifikat geschrieben, erhält das Egg stattdessen das veraltete `tls_skip_verify: true` (der Master protokolliert eine Warnung). Das Egg protokolliert beim Start eine Warnung, wenn es `tls_skip_verify` ohne Pin hat. In beiden Fällen liefert ein Safe-Reconfigure den Pin nach.
 
 Der Master generiert diese Konfiguration beim Hatch. Für verwaltete Eggs wird `egg_mode` nicht manuell bearbeitet.
 
@@ -505,7 +505,7 @@ Details: [Kapitel 22: Interne Tools](./22-interne-tools.md)
 
 1. `route` und `route_config` prüfen
 2. Bei `docker_local`: `host.docker.internal` erreichbar?
-3. Bei HTTPS-Master mit selbstsigniertem TLS: `tls_pin_sha256` in der Egg-Config prüfen (das Egg protokolliert "master certificate does not match the pinned fingerprint"). Nach dem Neuerzeugen des Master-Zertifikats für jedes Egg ein Safe-Reconfigure ausführen, damit es den neuen Pin erhält
+3. Bei HTTPS-Master mit selbstsigniertem TLS: `tls_pin_sha256` in der Egg-Config prüfen (das Egg protokolliert "master certificate matches neither the pinned fingerprint nor a trusted chain"). Nach dem Neuerzeugen des Master-Zertifikats: Master neu starten, dann für jedes Egg ein Safe-Reconfigure ausführen, damit es den neuen Pin erhält. Eine `custom`-Route über einen TLS-terminierenden Proxy wird nur akzeptiert, wenn der Egg-Host dem Zertifikat des Proxys vertraut (öffentliche CA oder die private CA im Trust Store des Hosts); der Pin gilt für die direkten Routen
 
 ### Heartbeat-Timeout → `failed`
 

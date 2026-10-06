@@ -484,7 +484,7 @@ egg_mode:
   tls_skip_verify: false  # legacy; only for configs written by older masters
 ```
 
-For a master with self-signed TLS, the Egg pins the SHA-256 of the master's certificate and rejects any other certificate on HTTP and WebSocket connections. If the master had not written its certificate yet at hatch time, the Egg gets the legacy `tls_skip_verify: true` instead (the master logs a warning). The Egg also logs a warning while it runs with `tls_skip_verify` and no pin. In both cases a safe-reconfigure delivers the pin.
+For a master with self-signed TLS, the Egg pins the SHA-256 of the master's certificate on HTTP and WebSocket connections. The pin covers direct routes. A `custom` route through a TLS-terminating proxy (for example Cloudflare Tunnel) presents the proxy's certificate instead; the Egg accepts it when that certificate is trusted by the Egg host for the route's host name (a public CA, or a private CA installed in the host's trust store). Any other certificate is rejected. If the master had not written its certificate yet at hatch time, the Egg gets the legacy `tls_skip_verify: true` instead (the master logs a warning). The Egg logs a warning at startup when it has `tls_skip_verify` and no pin. In both cases a safe-reconfigure delivers the pin.
 
 The master generates this configuration during hatch. You do not edit `egg_mode` manually for managed Eggs.
 
@@ -568,7 +568,7 @@ See [Chapter 22: Internal Tools](22-internal-tools.md) for full parameter detail
 
 1. Verify `route` and `route_config` — the Egg must reach the master WebSocket
 2. For `docker_local`, ensure the container can reach `host.docker.internal`
-3. For HTTPS masters with self-signed TLS, check `tls_pin_sha256` in the Egg's config (the Egg logs "master certificate does not match the pinned fingerprint"). After regenerating the master certificate, run a safe-reconfigure for each Egg so it receives the new pin
+3. For HTTPS masters with self-signed TLS, check `tls_pin_sha256` in the Egg's config (the Egg logs "master certificate matches neither the pinned fingerprint nor a trusted chain"). After regenerating the master certificate: restart the master, then run a safe-reconfigure for each Egg so it receives the new pin. A `custom` route through a TLS-terminating proxy is accepted only when the proxy's certificate is trusted by the Egg host (public CA, or the private CA installed in the host's trust store); the pin covers the direct routes
 4. Check firewall rules on the master port
 
 ### Heartbeat timeout → `failed`

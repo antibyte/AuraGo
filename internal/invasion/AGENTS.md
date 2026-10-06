@@ -16,21 +16,31 @@ the Egg runtime in `cmd/aurago`.
 - Update Master and Eggs together. Legacy connections fail with
   `invasion_protocol_upgrade_required`; never add an unsigned/legacy fallback.
   HMAC authenticates traffic; use WSS or an authenticated encrypted network for
-  transport confidentiality. Do not enable TLS exceptions automatically.
+  transport confidentiality. Do not add automatic TLS exceptions beyond the
+  missing-certificate fallback below.
 - Eggs of a self-signed master pin its certificate: `GenerateEggConfig` writes
-  `egg_mode.tls_pin_sha256` (SHA-256 hex of the DER leaf in
-  `<data_dir>/certs/selfsigned.crt`, the path `server.NewTLSConfigFromConfig`
-  uses), and `EggClient` verifies that leaf fingerprint for HTTP and WebSocket
-  (`pinnedTLSConfig`; a pin wins over `tls_skip_verify`). The one automatic
-  exception: an unreadable certificate at generation time falls back to
-  `tls_skip_verify: true` with a warning so hatching keeps working.
-  `tls_skip_verify` from older configs is still honoured, with a startup
-  warning. Regenerating the master certificate locks pinned Eggs out until a
-  safe-reconfigure (which regenerates the whole config) delivers the new pin.
-  Tests: `TestGenerateEggConfig_*TLSPin`,
+  `egg_mode.tls_pin_sha256` (SHA-256 hex of the DER leaf in the first
+  CERTIFICATE block of `<data_dir>/certs/selfsigned.crt`, the path
+  `server.NewTLSConfigFromConfig` uses). `EggClient` checks every HTTP and
+  WebSocket handshake in `pinnedTLSConfig`'s `VerifyConnection` (a pin wins
+  over `tls_skip_verify`): the leaf matches the pin (direct routes), or its
+  chain verifies against the Egg host's trust store for the host of
+  `master_url` (never the SNI, which is empty for IP addresses). The second
+  branch accepts a `custom` route through a TLS-terminating proxy only when the
+  proxy's certificate is trusted by the Egg host (public CA, or a private CA in
+  the host trust store). The one automatic exception: an unreadable
+  certificate at generation time falls back to `tls_skip_verify: true` with a
+  warning so hatching keeps working. `tls_skip_verify` from older configs is
+  still honoured, with a startup warning; a malformed pin is logged as an
+  error at startup. Regenerating the master certificate locks pinned Eggs out
+  until the master restarts and a safe-reconfigure (which regenerates the
+  whole config) delivers the new pin. Tests: `TestGenerateEggConfig_*TLSPin*`,
   `TestGenerateEggConfig_SelfSignedWithoutCertificate_FallsBackToTLSSkipVerify`,
   `TestEggClientAcceptsPinnedCertAndRejectsOthers`,
-  `TestEggClientConnectDialsOnlyThePinnedMaster`, `TestPinnedTLSConfigVerifier`.
+  `TestEggClientAcceptsTrustedChainWhenPinDiffers`,
+  `TestEggClientRejectsTrustedChainForAnotherHost`,
+  `TestEggClientConnectDialsOnlyThePinnedMaster`, `TestPinnedTLSConfigVerifier`
+  (bridge) and `TestCertRegenerateTellsOperatorToSafeReconfigureEggs` (server).
 - Only an active Egg assigned to the active nest may authenticate. Apply the
   pre-authentication frame limit and finite handshake/write budgets.
 - Connection-owned cleanup, heartbeat expiry and acknowledgements bind to the

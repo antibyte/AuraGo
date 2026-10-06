@@ -11,6 +11,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/hex"
 	"encoding/pem"
+	"log"
 	"log/slog"
 	"math/big"
 	"os"
@@ -414,6 +415,15 @@ func TestResolveMasterURL_Custom_OverridesHTTPS(t *testing.T) {
 // hex of its DER leaf, i.e. the pin a generated egg config must carry.
 func writeMasterSelfSignedCert(t *testing.T, dataDir string) string {
 	t.Helper()
+	certPEM, _, pin := newMasterSelfSignedCertPEM(t)
+	writeMasterCertFile(t, dataDir, certPEM)
+	return pin
+}
+
+// newMasterSelfSignedCertPEM returns a self-signed certificate and its key as
+// PEM plus the SHA-256 hex of the DER leaf.
+func newMasterSelfSignedCertPEM(t *testing.T) (certPEM, keyPEM []byte, pin string) {
+	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("generate key: %v", err)
@@ -430,9 +440,33 @@ func writeMasterSelfSignedCert(t *testing.T, dataDir string) string {
 	if err != nil {
 		t.Fatalf("create certificate: %v", err)
 	}
-	writeMasterCertFile(t, dataDir, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		t.Fatalf("marshal key: %v", err)
+	}
 	sum := sha256.Sum256(der)
-	return hex.EncodeToString(sum[:])
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
+		pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}),
+		hex.EncodeToString(sum[:])
+}
+
+// Like tls.X509KeyPair, the pin is taken from the first CERTIFICATE block,
+// skipping blocks of other types in front of it.
+func TestGenerateEggConfig_SelfSigned_TLSPinSkipsNonCertificateBlocks(t *testing.T) {
+	masterCfg := minimalMasterCfg()
+	masterCfg.Server.HTTPS.Enabled = true
+	masterCfg.Server.HTTPS.CertMode = "selfsigned"
+	masterCfg.Directories.DataDir = t.TempDir()
+	certPEM, keyPEM, want := newMasterSelfSignedCertPEM(t)
+	writeMasterCertFile(t, masterCfg.Directories.DataDir, append(append([]byte{}, keyPEM...), certPEM...))
+
+	eggMode := generatedEggMode(t, masterCfg)
+	if got := eggMode["tls_pin_sha256"]; got != want {
+		t.Errorf("tls_pin_sha256 = %v, want %s (the certificate after the key block)", got, want)
+	}
+	if _, exists := eggMode["tls_skip_verify"]; exists {
+		t.Error("a readable certificate must not set tls_skip_verify")
+	}
 }
 
 func writeMasterCertFile(t *testing.T, dataDir string, content []byte) {
@@ -521,6 +555,7 @@ func TestGenerateEggConfig_AutoCertWithoutDomain_TLSPin(t *testing.T) {
 // or corrupt) hatching keeps working: the generator falls back to the legacy
 // tls_skip_verify and warns once.
 func TestGenerateEggConfig_SelfSignedWithoutCertificate_FallsBackToTLSSkipVerify(t *testing.T) {
+	origLogWriter, origLogFlags := log.Writer(), log.Flags()
 	cases := map[string]func(t *testing.T, dataDir string){
 		"missing": func(*testing.T, string) {},
 		"not pem": func(t *testing.T, dataDir string) {
@@ -528,6 +563,10 @@ func TestGenerateEggConfig_SelfSignedWithoutCertificate_FallsBackToTLSSkipVerify
 		},
 		"invalid der": func(t *testing.T, dataDir string) {
 			writeMasterCertFile(t, dataDir, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("garbage")}))
+		},
+		"no certificate block": func(t *testing.T, dataDir string) {
+			_, keyPEM, _ := newMasterSelfSignedCertPEM(t)
+			writeMasterCertFile(t, dataDir, keyPEM)
 		},
 	}
 	for name, prepare := range cases {
@@ -538,10 +577,17 @@ func TestGenerateEggConfig_SelfSignedWithoutCertificate_FallsBackToTLSSkipVerify
 			masterCfg.Directories.DataDir = t.TempDir()
 			prepare(t, masterCfg.Directories.DataDir)
 
+			// slog.SetDefault with a custom handler also redirects the standard
+			// log package and resets its flags; restoring the previous slog
+			// default does not undo that, so restore log explicitly too.
 			var logs bytes.Buffer
-			prev := slog.Default()
+			prev, prevWriter, prevFlags := slog.Default(), log.Writer(), log.Flags()
 			slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn})))
-			t.Cleanup(func() { slog.SetDefault(prev) })
+			t.Cleanup(func() {
+				slog.SetDefault(prev)
+				log.SetOutput(prevWriter)
+				log.SetFlags(prevFlags)
+			})
 
 			eggMode := generatedEggMode(t, masterCfg)
 			if eggMode["tls_skip_verify"] != true {
@@ -557,6 +603,9 @@ func TestGenerateEggConfig_SelfSignedWithoutCertificate_FallsBackToTLSSkipVerify
 				t.Errorf("warning should name the certificate path:\n%s", logs.String())
 			}
 		})
+	}
+	if log.Writer() != origLogWriter || log.Flags() != origLogFlags {
+		t.Error("the standard log package was left redirected to the test handler")
 	}
 }
 
