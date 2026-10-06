@@ -331,6 +331,16 @@ func TestEffectiveAllowedPathsForDevice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// AgoDesk companions are stored with the "agodesk" tag; the global default
+	// does not apply to them.
+	agodeskID, err := CreateDevice(db, DeviceRecord{Name: "desk", Status: "approved", Tags: []string{"agodesk", "desktop-client"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	agodeskOwnID, err := CreateDevice(db, DeviceRecord{Name: "desk-own", Status: "approved", Tags: []string{"agodesk", "desktop-client"}, AllowedPaths: []string{"/w"}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	hub := NewRemoteHub(db, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	connected := connectRemoteAgent(t, hub, "live-1", []string{"/live"})
 
@@ -345,6 +355,8 @@ func TestEffectiveAllowedPathsForDevice(t *testing.T) {
 		{offlineID, []string{"/srv"}},
 		{ownID, []string{"/data"}},
 		{connected.id, []string{"/live"}},
+		{agodeskID, []string{}},
+		{agodeskOwnID, []string{"/w"}},
 	} {
 		if got := hub.EffectiveAllowedPaths(tc.deviceID); !reflect.DeepEqual(got, tc.want) {
 			t.Fatalf("EffectiveAllowedPaths(%s) = %q, want %q", tc.deviceID, got, tc.want)

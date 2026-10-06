@@ -2,7 +2,9 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -205,9 +207,11 @@ func TestRemoteDownloadPrefersWSSWhenServerTLSEnabled(t *testing.T) {
 		{name: "server TLS, plain LAN request", httpsEnabled: true, want: "wss://aurago.lan:8443/api/remote/ws"},
 		{name: "server TLS, TLS request uses https_port", httpsEnabled: true, tlsRequest: true, want: "wss://aurago.lan:8443/api/remote/ws"},
 		// A plain request from and to loopback came through the internal
-		// listener: an agent on the host itself keeps ws on server.port.
+		// listener, which binds tcp4 127.0.0.1 only: an agent on the host
+		// itself keeps ws there, whatever loopback name the Host header uses.
 		{name: "server TLS, plain loopback request", httpsEnabled: true, host: "127.0.0.1:8090", remoteAddr: "127.0.0.1:50000", want: "ws://127.0.0.1:8090/api/remote/ws"},
-		{name: "server TLS, plain IPv6 loopback request", httpsEnabled: true, host: "[::1]:8090", remoteAddr: "[::1]:50000", want: "ws://[::1]:8090/api/remote/ws"},
+		{name: "server TLS, plain loopback request via localhost", httpsEnabled: true, host: "localhost:8090", remoteAddr: "127.0.0.1:50000", want: "ws://127.0.0.1:8090/api/remote/ws"},
+		{name: "server TLS, plain loopback request via IPv6 host", httpsEnabled: true, host: "[::1]:8090", remoteAddr: "127.0.0.1:50000", want: "ws://127.0.0.1:8090/api/remote/ws"},
 		{name: "server TLS, localhost host from a LAN peer", httpsEnabled: true, host: "localhost:8090", remoteAddr: "192.168.1.20:50000", want: "wss://localhost:8443/api/remote/ws"},
 		{name: "server TLS, loopback TLS request", httpsEnabled: true, tlsRequest: true, host: "127.0.0.1:8443", remoteAddr: "127.0.0.1:50000", want: "wss://127.0.0.1:8443/api/remote/ws"},
 		{name: "server TLS, IPv6 LAN host", httpsEnabled: true, host: "[fd00::5]:8090", want: "wss://[fd00::5]:8443/api/remote/ws"},
@@ -350,8 +354,7 @@ func TestReplaceConfigSnapshotPushesChangedDefaultAllowedPaths(t *testing.T) {
 	changed.RemoteControl.AllowedPaths = []string{"/data"}
 	s.replaceConfigSnapshot(changed)
 
-	// The first frame the agent sees is the push for the changed list, so the
-	// unchanged reload sent nothing.
+	// The changed list is pushed.
 	_ = agentConn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	var msg remote.RemoteMessage
 	if err := agentConn.ReadJSON(&msg); err != nil {
@@ -362,6 +365,18 @@ func TestReplaceConfigSnapshotPushesChangedDefaultAllowedPaths(t *testing.T) {
 	}
 	if msg.Type != remote.MsgConfigUpdate || json.Unmarshal(msg.Payload, &update) != nil || !reflect.DeepEqual(update.AllowedPaths, []string{"/data"}) {
 		t.Fatalf("agent received %s %s, want a config update with allowed_paths [/data]", msg.Type, msg.Payload)
+	}
+
+	// Reloading the same list again pushes nothing. A push from either
+	// unchanged reload would arrive here.
+	same := &config.Config{}
+	same.RemoteControl.AllowedPaths = []string{"/data"}
+	s.replaceConfigSnapshot(same)
+	_ = agentConn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	err = agentConn.ReadJSON(&msg)
+	var netErr net.Error
+	if !errors.As(err, &netErr) || !netErr.Timeout() {
+		t.Fatalf("unchanged reload: agent read = %s %s (err %v), want no frame", msg.Type, msg.Payload, err)
 	}
 }
 

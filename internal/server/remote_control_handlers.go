@@ -557,8 +557,10 @@ func autoRemoteDownloadSupervisorURL(s *Server, r *http.Request) string {
 	plainRequest := r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https"
 
 	// With HTTPS on, a plain request from and to loopback came through the
-	// 127.0.0.1 internal listener (normally server.port): an agent on this
-	// host keeps ws there, which also works with a self-signed certificate.
+	// internal listener (normally server.port): an agent on this host keeps ws
+	// there, which also works with a self-signed certificate. That listener
+	// binds tcp4 127.0.0.1 only, so the URL names that address whatever
+	// loopback name the Host header used.
 	loopbackPort := 0
 	if s.Cfg.Server.HTTPS.Enabled && plainRequest && hostname != "" &&
 		isLoopbackHostname(hostname) && isLoopbackRemoteAddr(r.RemoteAddr) {
@@ -568,7 +570,7 @@ func autoRemoteDownloadSupervisorURL(s *Server, r *http.Request) string {
 	scheme, port := "ws", s.Cfg.Server.Port
 	switch {
 	case loopbackPort > 0:
-		port = loopbackPort
+		hostname, port = "127.0.0.1", loopbackPort
 	case s.Cfg.Server.HTTPS.Enabled:
 		// AuraGo serves HTTPS itself: agents get wss on the TLS listener
 		// (https_port) whatever scheme this request arrived with; server.port

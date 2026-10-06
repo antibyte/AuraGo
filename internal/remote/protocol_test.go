@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -42,11 +43,17 @@ func TestReadOnlySafe(t *testing.T) {
 	}
 }
 
+// protocolSource is embedded so the test binary also works outside the
+// package directory.
+//
+//go:embed protocol.go
+var protocolSource string
+
 // IsShellOperation must cover every Op* constant whose value starts with
 // "shell_", including ones added later, and nothing else. The constants are
 // read from protocol.go itself.
 func TestIsShellOperationCoversEveryShellOp(t *testing.T) {
-	file, err := parser.ParseFile(token.NewFileSet(), "protocol.go", nil, 0)
+	file, err := parser.ParseFile(token.NewFileSet(), "protocol.go", protocolSource, 0)
 	if err != nil {
 		t.Fatalf("parse protocol.go: %v", err)
 	}

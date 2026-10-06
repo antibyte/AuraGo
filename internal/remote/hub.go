@@ -447,7 +447,8 @@ func (h *RemoteHub) commandBlockedByMissingAllowedPaths(conn *RemoteConnection, 
 
 // EffectiveAllowedPaths returns the allowed paths that apply to deviceID: its
 // own list (from the live connection, else the stored record), or the global
-// default when that is empty. It never returns nil.
+// default when that is empty. AgoDesk records get only their own list. It
+// never returns nil.
 func (h *RemoteHub) EffectiveAllowedPaths(deviceID string) []string {
 	if h == nil {
 		return []string{}
@@ -459,10 +460,26 @@ func (h *RemoteHub) EffectiveAllowedPaths(deviceID string) []string {
 		conn.mu.Unlock()
 	} else if h.db != nil {
 		if device, err := GetDevice(h.db, deviceID); err == nil {
+			// An AgoDesk companion never receives allowed_paths, so the
+			// global default does not apply to it.
+			if isAgodeskDevice(device) {
+				return cleanAllowedPaths(device.AllowedPaths)
+			}
 			ownPaths = device.AllowedPaths
 		}
 	}
 	return h.effectiveAllowedPaths(ownPaths)
+}
+
+// isAgodeskDevice reports whether the record is an AgoDesk desktop companion,
+// which pairing stores with the "agodesk" tag.
+func isAgodeskDevice(device DeviceRecord) bool {
+	for _, tag := range device.Tags {
+		if strings.EqualFold(strings.TrimSpace(tag), "agodesk") {
+			return true
+		}
+	}
+	return false
 }
 
 // PushDefaultAllowedPaths sends a full allowed_paths snapshot to every
