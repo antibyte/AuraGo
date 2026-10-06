@@ -91,7 +91,7 @@ func GetSSHConfig(user string, secret []byte) (*ssh.ClientConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("SSH host key verification failed: %w. "+
 				"Add the host key with 'ssh-keyscan <host> >> ~/.ssh/known_hosts' or enable "+
-				"'ssh.insecure_host_key: true' in config to disable host verification (not recommended)", err)
+				"'remote_control.ssh_insecure_host_key: true' in config to disable host verification (not recommended)", err)
 		}
 		hostKeyCallback = cb
 	}

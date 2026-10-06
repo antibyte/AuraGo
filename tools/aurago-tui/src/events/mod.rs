@@ -54,6 +54,7 @@ pub enum AppEvent {
     ContainersLoaded(Result<Vec<Container>, String>),
     ContainerActionDone(Result<serde_json::Value, String>),
     ContainerLogsLoaded(Result<serde_json::Value, String>),
+    ContainerRemoveDone { id: String, result: Result<ContainerRemoveOutcome, String> },
 
     // ── Config ────────────────────────────────────────────────────────────
     ConfigLoaded(Result<serde_json::Value, String>),

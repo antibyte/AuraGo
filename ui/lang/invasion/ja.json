@@ -65,6 +65,8 @@
   "invasion.egg_port": "エッグポート",
   "invasion.eggs": "エッグ",
   "invasion.error": "エラー",
+  "invasion.export_nest_secret": "このネストのシークレットをエッグの Vault にコピー",
+  "invasion.export_nest_secret_hint": "割り当てたエッグで「Vault を転送」がオンの場合にのみ適用されます。エッグは、AuraGo がこのホストへのログインに使うパスワードまたは SSH キーを読み取れるようになります。エッグに必要な場合以外はオフのままにしてください。",
   "invasion.hatch": "🥚 孵化",
   "invasion.hatch_failed": "失敗",
   "invasion.hatch_hatching": "孵化中…",

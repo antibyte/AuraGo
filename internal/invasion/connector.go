@@ -2,6 +2,7 @@ package invasion
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -69,4 +70,27 @@ func eggIDPrefix(nestID string) (string, error) {
 		return "", fmt.Errorf("invalid nest ID %q: unsafe character %q in egg name prefix", nestID, r)
 	}
 	return prefix, nil
+}
+
+// ErrEggConfigNotDelivered marks a Deploy failure that happened before any
+// request carrying the new egg configuration, and with it the hatch's new
+// shared key, left the master. No egg on the nest can hold the new key, and
+// the egg that ran before the hatch still has its own configuration. Test it
+// with errors.Is; a marked error keeps its text and chain.
+var ErrEggConfigNotDelivered = errors.New("egg configuration not delivered")
+
+// configNotDeliveredError adds ErrEggConfigNotDelivered to an error's chain
+// without changing its text.
+type configNotDeliveredError struct{ err error }
+
+func (e *configNotDeliveredError) Error() string        { return e.err.Error() }
+func (e *configNotDeliveredError) Unwrap() error        { return e.err }
+func (e *configNotDeliveredError) Is(target error) bool { return target == ErrEggConfigNotDelivered }
+
+// configNotDelivered marks err with ErrEggConfigNotDelivered; nil stays nil.
+func configNotDelivered(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &configNotDeliveredError{err: err}
 }

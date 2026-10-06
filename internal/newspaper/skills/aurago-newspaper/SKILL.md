@@ -21,7 +21,10 @@ The capability snapshot is authoritative. Brave Search is usable only when
 enabled and configured with a key. Prefer Brave News with the server's freshness
 filter, then targeted Web searches. DuckDuckGo is a fallback under the existing
 network permission, with no separate activation switch. Configured RSS/Atom
-feeds provide additional leads. Enabled web scraping reads original pages.
+feeds and selected Google News, Hacker News and Techmeme overviews provide
+additional leads. Use server-provided headline/publisher IDs to plan targeted
+original-source searches. Aggregator links and submission dates are never
+article evidence or original publication dates. Enabled web scraping reads original pages.
 Disabled, unconfigured, blocked and failed capabilities differ: do not request
 unavailable tools, credentials, new permissions, or a browser workaround.
 The server checks permissions again, meters each attempt and controls execution.
@@ -58,9 +61,9 @@ How to search:
   Only a fetched original article supports publication. Overview links may be
   followed one level. Do not fill missing coverage with unread snippets.
 - Return the requested bounded JSON search plan. The server balances topics,
-  deduplicates URLs/content, limits candidates to 200, reads at most four pages
+  deduplicates URLs/content, bounds the candidate queue by the supplied effective budget, reads at most four pages
   concurrently (one per publisher domain), and runs at most two editors.
-  It reserves the final 20% of time for editing/checking and never expands a
+  It reserves 40% of page/search attempts for follow-up and the final 20% of time for editing/checking and never expands a
   permission during a run. Stop requesting discovery when budgets are exhausted.
 
 ## Editorial phase
@@ -76,7 +79,8 @@ How to search:
   news. Skip copied or thin material.
 - Write concise original prose in the requested language. Do not reproduce a
   source article. Every substantive paragraph needs an exact supporting quote
-  from a server-recorded source. Keep the quote short and verbatim.
+  from a server-recorded source. Use one to four paragraphs as the evidence permits. Keep each quote an exact
+  20-500-character passage from the decoded source text.
 - A single-source report remains explicitly labeled. Do not imply independent
   confirmation. Do not invent dates, statistics, quotations or background.
 - Return only the requested structured JSON. If evidence is insufficient,

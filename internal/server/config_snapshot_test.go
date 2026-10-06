@@ -1,10 +1,29 @@
 package server
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/proxy"
 )
+
+func TestReplaceConfigSnapshotUpdatesSecurityProxyManager(t *testing.T) {
+	startup := &config.Config{}
+	startup.SecurityProxy.Domain = "old.example.com"
+	s := &Server{Cfg: startup, ProxyManager: proxy.NewManager(startup, slog.New(slog.NewTextHandler(io.Discard, nil)))}
+	s.initConfigSnapshot()
+
+	saved := &config.Config{}
+	saved.SecurityProxy.Domain = "new.example.com"
+	saved.SecurityProxy.HTTPSPort = 8443
+	s.replaceConfigSnapshot(saved)
+
+	if got := s.ProxyManager.Config(); got != saved {
+		t.Fatalf("security proxy manager config = %p, want the published snapshot %p", got, saved)
+	}
+}
 
 func TestReplaceConfigStoresNewSnapshotWithoutMutatingOldConfig(t *testing.T) {
 	oldCfg := &config.Config{}

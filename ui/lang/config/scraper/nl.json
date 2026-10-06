@@ -54,7 +54,7 @@
   "config.web_scraper.enabled_label": "Web Scraper ingeschakeld:",
   "config.web_scraper.summary_desc": "Gescrapte webpagina's worden samengevat via de centrale Helper-LLM indien deze is ingeschakeld. De agent ontvangt de opgeschoonde samenvatting in plaats van de volledige pagina-inhoud.<br><strong>Voordelen:</strong> bespaart tokens, vermindert dubbele helper-aanroepen en verhardt het systeem tegen prompt-injectie vanuit externe inhoud.",
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
-  "config.web_scraper.summary_provider": "Hulp-LLM",
+  "config.web_scraper.summary_provider": "Helper-LLM",
   "config.web_scraper.use_main_llm": "— Hoofd-LLM gebruiken —",
   "config.webdav.secret_empty": "Waarde is leeg"
 }

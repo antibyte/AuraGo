@@ -1,7 +1,7 @@
 {
   "config.llm_guardian.enabled_label": "LLM Guardian ingeschakeld:",
   "config.llm_guardian.disabled_notice": "LLM Guardian is uitgeschakeld",
-  "config.llm_guardian.disabled_desc": "Schakel dit in om een ​​op LLM gebaseerde beveiligingslaag toe te voegen die toolaanroepen evalueert vóór uitvoering. Gebruikt een snel, goedkoop model om verdachte handelingen te detecteren. Valt terug naar de belangrijkste LLM als er geen provider is geselecteerd.",
+  "config.llm_guardian.disabled_desc": "Schakel dit in om een op LLM gebaseerde beveiligingslaag toe te voegen die toolaanroepen evalueert vóór uitvoering. Gebruikt een snel, goedkoop model om verdachte handelingen te detecteren. Valt terug op de hoofd-LLM als er geen provider is geselecteerd.",
   "config.llm_guardian.provider_title": "Aanbieder",
   "config.llm_guardian.provider_desc": "Selecteer een provider voor de Guardian LLM. Een snel, goedkoop model (bijv. Gemini Flash, GPT -4o-mini, lokaal 3B) wordt aanbevolen voor beslissingen in minder dan een seconde.",
   "config.llm_guardian.provider_label": "Aanbieder",

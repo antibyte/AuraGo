@@ -15,7 +15,7 @@
   "config.a2a.auth_title": "Uwierzytelnianie",
   "config.a2a.base_path": "Ścieżka bazowa",
   "config.a2a.bearer_auth": "Uwierzytelnianie tokenem Bearer",
-  "config.a2a.bearer_placeholder": "Wprowadź bearer secret…",
+  "config.a2a.bearer_placeholder": "Wprowadź sekret tokena Bearer…",
   "config.a2a.bindings_title": "Wiązania protokołu",
   "config.a2a.capabilities_title": "Możliwości",
   "config.a2a.checking": "Sprawdzanie statusu A2A…",

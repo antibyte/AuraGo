@@ -50,6 +50,13 @@ func startDockerSSHFixture(t *testing.T, backend string) *dockerSSHFixture {
 
 func startDockerSSHFixtureWith(t *testing.T, backend string, holdChannels bool) *dockerSSHFixture {
 	t.Helper()
+	return startDockerSSHFixtureOptions(t, backend, holdChannels, 0)
+}
+
+// startDockerSSHFixtureOptions also delays every password check by
+// authDelay, like a slow sshd login.
+func startDockerSSHFixtureOptions(t *testing.T, backend string, holdChannels bool, authDelay time.Duration) *dockerSSHFixture {
+	t.Helper()
 	_, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -60,6 +67,7 @@ func startDockerSSHFixtureWith(t *testing.T, backend string, holdChannels bool) 
 	}
 	config := &ssh.ServerConfig{
 		PasswordCallback: func(meta ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+			time.Sleep(authDelay)
 			if meta.User() == "fixture" && string(password) == "fixture" {
 				return nil, nil
 			}
@@ -380,4 +388,32 @@ func TestDockerConnectorSSHRejectsWrongCredential(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "ssh") {
 		t.Fatalf("Validate with a wrong password = %v, want an SSH authentication error", err)
 	}
+}
+
+func TestDockerSSHProbeBudgetCoversTheSSHDialBudget(t *testing.T) {
+	useInsecureHostKeyForTest(t)
+	cfg, err := remote.GetSSHConfig("fixture", []byte("fixture"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Overview decision: 20 s for docker_ssh, so the 10 s SSH login leaves
+	// more than the default 5 s for the socket open and the /version answer.
+	if cfg.Timeout != dockerSSHDialBudget || dockerSSHProbeTimeout != 20*time.Second || dockerSSHProbeTimeout < dockerSSHDialBudget+5*time.Second {
+		t.Fatalf("SSH dial budget %v (GetSSHConfig %v), docker_ssh probe %v; want 20s covering the SSH login plus at least the default 5s",
+			dockerSSHDialBudget, cfg.Timeout, dockerSSHProbeTimeout)
+	}
+}
+
+func TestDockerConnectorSSHProbeWaitsForASlowSSHLogin(t *testing.T) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]string{"ApiVersion": "1.45", "MinAPIVersion": "1.25"})
+	}))
+	defer ts.Close()
+	fixture := startDockerSSHFixtureOptions(t, strings.TrimPrefix(ts.URL, "http://"), false, 7*time.Second)
+	useInsecureHostKeyForTest(t)
+	nest := NestRecord{ID: "12345678-abcd-ef12-3456-7890abcdef12", Host: fixture.host, Port: fixture.port, Username: "fixture", DeployMethod: "docker_ssh"}
+	if err := (&DockerConnector{}).Validate(context.Background(), nest, []byte("fixture")); err != nil {
+		t.Fatalf("Validate with a 7s SSH login: %v (the probe must not give up before the SSH dial budget)", err)
+	}
+	fixture.waitForClosedSSHConnections(t)
 }

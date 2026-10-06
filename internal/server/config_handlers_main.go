@@ -525,6 +525,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.NormalizeNewspaperConfig(&validateCfg.Newspaper); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		if meshErr := validateCfg.MeshCore.Normalize(); meshErr != nil {
 			jsonError(w, meshErr.Error(), http.StatusBadRequest)

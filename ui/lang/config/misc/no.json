@@ -3,7 +3,7 @@
   "config.budget.model_cost_updated": "💰 Modellkostnader for «{model}» oppdatert i budsjettstyring.",
   "config.embeddings.reset_cancel": "Avbryt",
   "config.embeddings.reset_cancelled": "Embedding-endring avbrutt. Ingenting ble lagret.",
-  "config.embeddings.reset_confirm_final": "Vil du virkelig slette the existing embeddings and rebuild them after restart?",
+  "config.embeddings.reset_confirm_final": "Vil du virkelig slette de eksisterende embeddingene og bygge dem opp på nytt etter omstart?",
   "config.embeddings.reset_continue": "Slett gamle embeddinger",
   "config.embeddings.reset_desc": "Denne endringen vil sannsynligvis gjøre eksisterende embeddings inkompatible. AuraGo kan slette gamle embeddings og bygge opp kunnskapsindeksen på nytt etter omstart.",
   "config.embeddings.reset_desc_postsave": "Konfigurasjonen er allerede lagret. For å unngå mismatchede embeddings bør AuraGo nå slette gamle embeddings og bygge dem opp igjen etter omstart.",

@@ -5,6 +5,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use reqwest::Method;
 
 use crate::api::{ApiClient, auth};
+use crate::api::types::{Container, ContainerRemoveOutcome};
 use crate::app::{AppState, ConfirmAction, DashTab, MediaTab, Screen, char_len, char_to_byte};
 use crate::events::AppEvent;
 use crate::events::keybindings::Action;
@@ -905,28 +906,100 @@ fn execute_primary_action(app: &mut AppState, client: &ApiClient, tx: &Unbounded
             }
         }
         Screen::Containers => {
-            if let Some(idx) = app.containers_selected {
-                if let Some(container) = app.containers.get(idx) {
-                    let action_str = if container.state == "running" {
-                        "stop"
-                    } else {
-                        "start"
-                    };
-                    let id = container.id.clone();
-                    let c = client.clone();
-                    let t = tx.clone();
-                    let a = action_str.to_string();
-                    let h = tokio::spawn(async move {
-                        let result = auth::container_action(&c, &id, &a)
-                            .await
-                            .map_err(|e| e.to_string());
-                        let _ = t.send(AppEvent::ContainerActionDone(result));
-                    });
-                    app.spawn_tracked(h);
+            if let Some(idx) = app.containers_selected
+                && let Some(container) = app.containers.get(idx)
+            {
+                let id = container.id.clone();
+                let owner = container.protection().to_string();
+                match primary_container_action(container) {
+                    PrimaryContainerAction::ConfirmStop => {
+                        app.confirm_action = Some(ConfirmAction::StopProtectedContainer { id, owner });
+                    }
+                    PrimaryContainerAction::Run(action) => spawn_container_action(app, client, tx, id, action),
                 }
             }
         }
         _ => {}
+    }
+}
+
+/// What the primary action does for a container. Docker refuses `start` on a
+/// paused container ("cannot start a paused container, try unpause instead").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PrimaryContainerAction {
+    /// POST /api/containers/{id}/{action}.
+    Run(&'static str),
+    /// Ask first: stopping it stops AuraGo, its Docker connection or its network.
+    ConfirmStop,
+}
+
+pub(crate) fn primary_container_action(container: &Container) -> PrimaryContainerAction {
+    match container.state.as_str() {
+        "running" if container.stop_needs_confirmation() => PrimaryContainerAction::ConfirmStop,
+        "running" => PrimaryContainerAction::Run("stop"),
+        "paused" => PrimaryContainerAction::Run("unpause"),
+        _ => PrimaryContainerAction::Run("start"),
+    }
+}
+
+fn spawn_container_action(
+    app: &mut AppState,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+    id: String,
+    action: &'static str,
+) {
+    let c = client.clone();
+    let t = tx.clone();
+    let h = tokio::spawn(async move {
+        let result = auth::container_action(&c, &id, action)
+            .await
+            .map_err(|e| e.to_string());
+        let _ = t.send(AppEvent::ContainerActionDone(result));
+    });
+    app.spawn_tracked(h);
+}
+
+fn spawn_container_remove(
+    app: &mut AppState,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+    id: String,
+    confirm_protected: bool,
+) {
+    let c = client.clone();
+    let t = tx.clone();
+    let h = tokio::spawn(async move {
+        let result = auth::remove_container(&c, &id, false, confirm_protected)
+            .await
+            .map_err(|e| e.to_string());
+        let _ = t.send(AppEvent::ContainerRemoveDone { id, result });
+    });
+    app.spawn_tracked(h);
+}
+
+/// Applies a remove answer and reports whether the list should reload. A 409
+/// from a stale list opens the dialog again for that container; only the
+/// operator's next 'y' sends confirm=protected.
+pub(crate) fn on_container_remove_done(
+    app: &mut AppState,
+    id: String,
+    result: Result<ContainerRemoveOutcome, String>,
+) -> bool {
+    match result {
+        Ok(ContainerRemoveOutcome::Removed) => {
+            app.status_message = "Container removed".to_string();
+            true
+        }
+        Ok(ContainerRemoveOutcome::NeedsConfirmation { owner, .. }) => {
+            app.confirm_action = Some(ConfirmAction::RemoveProtectedContainer { id, owner });
+            false
+        }
+        Err(e) => {
+            app.toast = Some(format!("Container action failed: {}", e));
+            app.toast_ticks = 10;
+            false
+        }
     }
 }
 
@@ -959,7 +1032,8 @@ fn show_delete_confirmation(app: &mut AppState) {
             .map(|i| ConfirmAction::DeleteMission { index: i }),
         Screen::Containers => app
             .containers_selected
-            .map(|i| ConfirmAction::DeleteContainer { index: i }),
+            .and_then(|i| app.containers.get(i))
+            .map(|c| ConfirmAction::DeleteContainer { id: c.id.clone() }),
         Screen::Knowledge => app
             .knowledge_selected
             .map(|i| ConfirmAction::DeleteKnowledge { index: i }),
@@ -995,20 +1069,19 @@ pub fn execute_confirmed_action(
                 app.spawn_tracked(h);
             }
         }
-        ConfirmAction::DeleteContainer { index } => {
-            if let Some(container) = app.containers.get(index) {
-                let id = container.id.clone();
-                let c = client.clone();
-                let t = tx.clone();
-                let h = tokio::spawn(async move {
-                    let result = auth::remove_container(&c, &id, false)
-                        .await
-                        .map_err(|e| e.to_string());
-                    let _ = t.send(AppEvent::ContainerActionDone(result));
-                });
-                app.spawn_tracked(h);
+        ConfirmAction::DeleteContainer { id } => {
+            // The dialog showed this container's protection reason, so 'y' is
+            // the operator's confirmation for a protected container.
+            match app.containers.iter().find(|c| c.id == id).map(|c| c.is_protected()) {
+                Some(confirm) => spawn_container_remove(app, client, tx, id, confirm),
+                None => {
+                    app.toast = Some(i18n::current().container_left_list.to_string());
+                    app.toast_ticks = 10;
+                }
             }
         }
+        ConfirmAction::RemoveProtectedContainer { id, .. } => spawn_container_remove(app, client, tx, id, true),
+        ConfirmAction::StopProtectedContainer { id, .. } => spawn_container_action(app, client, tx, id, "stop"),
         ConfirmAction::DeleteKnowledge { index } => {
             if let Some(file) = app.knowledge_files.get(index) {
                 let name = file.name.clone();
@@ -1097,5 +1170,111 @@ fn set_nested_config_value(
         if let Some(obj) = section_data.as_object_mut() {
             obj.insert(field_key.to_string(), new_val);
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn container(state: &str) -> Container {
+        Container { id: "c1".to_string(), state: state.to_string(), ..Default::default() }
+    }
+
+    #[test]
+    fn primary_container_action_asks_before_stopping_aurago_its_proxy_or_its_network() {
+        let mut own = container("running");
+        own.is_self = true;
+        assert_eq!(primary_container_action(&own), PrimaryContainerAction::ConfirmStop);
+        let mut proxy = container("running");
+        proxy.docker_endpoint = true;
+        assert_eq!(primary_container_action(&proxy), PrimaryContainerAction::ConfirmStop);
+        let mut sidecar = container("running");
+        sidecar.shared_network = true;
+        assert_eq!(primary_container_action(&sidecar), PrimaryContainerAction::ConfirmStop);
+        let mut managed = container("running");
+        managed.protected_owner = "go2rtc".to_string();
+        assert_eq!(primary_container_action(&managed), PrimaryContainerAction::Run("stop"));
+        own.state = "exited".to_string();
+        assert_eq!(primary_container_action(&own), PrimaryContainerAction::Run("start"));
+    }
+
+    #[test]
+    fn delete_opens_the_confirmation_for_the_selected_container() {
+        let mut app = AppState {
+            screen: Screen::Containers,
+            containers_selected: Some(0),
+            containers: vec![container("running")],
+            ..Default::default()
+        };
+        show_delete_confirmation(&mut app);
+        assert_eq!(app.confirm_action, Some(ConfirmAction::DeleteContainer { id: "c1".to_string() }));
+    }
+
+    /// 'y' in the dialog: a protected container (by the list's flags) gets
+    /// confirm=protected, an unprotected one does not, and a container that
+    /// left the list in the meantime is not touched.
+    #[tokio::test]
+    async fn the_confirmed_remove_sends_the_flag_only_for_protected_containers() {
+        use crate::api::test_server::{self, Route};
+        let server = test_server::start(vec![
+            Route { method: "DELETE", target: "/api/containers/web?force=false", status: 200, body: r#"{"status":"ok"}"# },
+            Route { method: "DELETE", target: "/api/containers/cams?force=false&confirm=protected", status: 200, body: r#"{"status":"ok"}"# },
+        ]);
+        let client = ApiClient::new(&server.base_url, false).expect("client");
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut cams = container("running");
+        cams.id = "cams".to_string();
+        cams.protected_owner = "go2rtc".to_string();
+        let mut web = container("running");
+        web.id = "web".to_string();
+        let mut app = AppState { screen: Screen::Containers, containers: vec![web, cams], ..Default::default() };
+
+        for id in ["web", "cams"] {
+            execute_confirmed_action(ConfirmAction::DeleteContainer { id: id.to_string() }, &mut app, &client, &tx);
+            match rx.recv().await {
+                Some(AppEvent::ContainerRemoveDone { id: done, result }) => {
+                    assert_eq!(done, id);
+                    assert_eq!(result, Ok(ContainerRemoveOutcome::Removed));
+                }
+                _ => panic!("no remove result for {id}"),
+            }
+        }
+        execute_confirmed_action(ConfirmAction::DeleteContainer { id: "gone".to_string() }, &mut app, &client, &tx);
+        assert!(rx.try_recv().is_err(), "a container that left the list must not be removed");
+        assert!(app.toast.is_some());
+        assert_eq!(
+            server.seen(),
+            vec!["DELETE /api/containers/web?force=false".to_string(), "DELETE /api/containers/cams?force=false&confirm=protected".to_string()]
+        );
+    }
+
+    /// A 409 from a stale list opens the dialog again for that container; only
+    /// the operator's next 'y' sends confirm=protected. Removed reloads.
+    #[test]
+    fn a_remove_that_needs_confirmation_asks_again() {
+        let mut app = AppState { screen: Screen::Containers, ..Default::default() };
+        let reload = on_container_remove_done(
+            &mut app,
+            "web".to_string(),
+            Ok(ContainerRemoveOutcome::NeedsConfirmation { owner: "unverified".to_string(), message: String::new() }),
+        );
+        assert!(!reload);
+        assert_eq!(
+            app.confirm_action,
+            Some(ConfirmAction::RemoveProtectedContainer { id: "web".to_string(), owner: "unverified".to_string() })
+        );
+        app.confirm_action = None;
+        assert!(on_container_remove_done(&mut app, "web".to_string(), Ok(ContainerRemoveOutcome::Removed)));
+        assert!(app.confirm_action.is_none());
+        assert!(!on_container_remove_done(&mut app, "web".to_string(), Err("HTTP 502: engine refused".to_string())));
+        assert!(app.toast.as_deref().unwrap_or_default().contains("engine refused"));
+    }
+
+    #[test]
+    fn primary_container_action_unpauses_a_paused_container() {
+        assert_eq!(primary_container_action(&container("running")), PrimaryContainerAction::Run("stop"));
+        assert_eq!(primary_container_action(&container("paused")), PrimaryContainerAction::Run("unpause"));
+        assert_eq!(primary_container_action(&container("exited")), PrimaryContainerAction::Run("start"));
+        assert_eq!(primary_container_action(&container("created")), PrimaryContainerAction::Run("start"));
     }
 }

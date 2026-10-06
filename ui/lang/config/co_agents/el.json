@@ -3,7 +3,7 @@
   "config.co_agents.cb_max_tokens": "Μέγιστα διακριτικά (0 = απεριόριστα)",
   "config.co_agents.cb_max_tool_calls": "Μέγ. κλήσεις εργαλείων",
   "config.co_agents.cb_timeout": "Timeout (δευτερόλεπτα)",
-  "config.co_agents.cb_title": "Ασφαλής διακοπή",
+  "config.co_agents.cb_title": "Circuit Breaker",
   "config.co_agents.disabled_desc": "Ενεργοποιήστε για να αφήσετε τον agent να αναθέτει εργασίες σε παράλληλους sub-agents και ειδικευμένους co-agents.",
   "config.co_agents.disabled_notice": "Οι Co-Agents είναι απενεργοποιημένοι",
   "config.co_agents.enabled_desc": "Επιτρέπει στον agent να εκκινεί παράλληλους sub-agents για πολύπλοκες εργασίες.",
@@ -33,12 +33,12 @@
   "config.co_agents.spec_extra_title": "Πρόσθετες οδηγίες",
   "config.co_agents.spec_additional_prompt_label": "Επιπλέον prompt",
   "config.co_agents.spec_additional_prompt_placeholder": "Προαιρετικές οδηγίες που προσαρτώνται στο prompt του ειδικού…",
-  "config.co_agents.spec_cheatsheet_label": "Φύλλο εξαπάτησης",
+  "config.co_agents.spec_cheatsheet_label": "Σημείωση",
   "config.co_agents.spec_cheatsheet_none": "Καμία επιλογή",
   "config.co_agents.spec_cheatsheet_pick": "Επιλογή",
   "config.co_agents.spec_cheatsheet_remove": "Αφαίρεση",
-  "config.co_agents.spec_cheatsheet_modal_title": "Επιλογή Cheat Sheet",
+  "config.co_agents.spec_cheatsheet_modal_title": "Επιλογή σημείωσης",
   "config.co_agents.spec_cheatsheet_loading": "Φόρτωση…",
-  "config.co_agents.spec_cheatsheet_empty": "Δεν υπάρχουν διαθέσιμα ενεργά cheat sheets.",
-  "config.co_agents.spec_cheatsheet_error": "Αποτυχία φόρτωσης cheat sheets."
+  "config.co_agents.spec_cheatsheet_empty": "Δεν υπάρχουν διαθέσιμες ενεργές σημειώσεις.",
+  "config.co_agents.spec_cheatsheet_error": "Αποτυχία φόρτωσης σημειώσεων."
 }

@@ -45,7 +45,7 @@ Ein **Egg** beschreibt, *wie* der deployte Worker arbeitet:
 | `allowed_tools` | JSON-Array, z. B. `["shell","python"]` (leer = Shell + Python) |
 | `egg_port` | HTTP-Port auf dem Ziel (Standard: `8099`) |
 | `permanent` | Als systemd-Service installieren (`true`) oder einmalig starten (`false`) |
-| `include_vault` | Verschlüsselten Vault-Export zum Ziel senden (nur auf vertrauenswürdigen Hosts) |
+| `include_vault` | Verschlüsselten Vault-Export zum Ziel senden: den API-Key des Eggs und bei Nests mit **Secret dieses Nests in den Egg-Vault kopieren** das Secret des Nests (nur auf vertrauenswürdigen Hosts) |
 | `active` | Ob das Egg zugewiesen werden kann |
 
 ```
@@ -139,7 +139,8 @@ Es gibt **keinen Deployments-Tab**. Deployment-Historie ist nur über die REST A
 | Notes | Optional |
 | Access Type | `SSH`, `Docker API` oder `Local` |
 | Host / Port / Username | Für SSH und Docker; bei Local ausgeblendet, außer mit der Deploy-Methode `Docker (über SSH)` |
-| Secret | SSH-Key oder Passwort; wird im Vault gespeichert |
+| Secret | SSH-Key oder Passwort; wird im Vault gespeichert. `Docker (Entfernt)` und `Docker (Lokal)` nutzen es nicht; dort ist das Feld ausgeblendet, außer ein Secret ist gespeichert, **Secret dieses Nests in den Egg-Vault kopieren** ist an oder Du hast etwas eingegeben |
+| Secret dieses Nests in den Egg-Vault kopieren | Bei neuen Nests aus. Mit einem Egg mit `include_vault` kopiert es das Secret dieses Nests (`nest_<id>`) in den Vault des Eggs, wo das Egg es lesen kann. Nests von vor dieser Option behalten es eingeschaltet |
 | Assign Egg | Egg auswählen oder leer lassen |
 | Deploy Method | `SSH`, `Docker (Entfernt)`, `Docker (über SSH)` oder `Docker (Lokal)` |
 | Docker-TLS | Nur `Docker (Entfernt)`: `Aus`, `TLS` oder `Mutual TLS`, dazu CA / Client-Zertifikat / Schlüssel |
@@ -175,6 +176,8 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/validate
 ```
 
 > 💡 **Tipp:** SSH-Keys und Passwörter beim Erstellen über UI/API im Vault speichern. Secrets werden in API-Antworten nie zurückgegeben (`has_secret: true` zeigt ein gespeichertes Credential an).
+
+REST-Feld `export_nest_secret` (Boolean): Ein Anlegen ohne das Feld beginnt mit `false`; ein Update ohne das Feld behält den aktuellen Wert. Beim ersten Start dieses Releases werden bestehende Nests auf `true` gesetzt, sie kopieren ihr Secret also weiter, und eine bereits vorhandene `invasion.db` wird vorher nach `invasion.db.pre-export-nest-secret.bak` daneben kopiert.
 
 ### Transportsicherheit für Docker-Nests
 
@@ -218,7 +221,7 @@ Wähle für solche Nests den Zugriffstyp `SSH`. `Docker (über SSH)` ignoriert `
 | Fehler bei Test Connection oder in `hatch_error` | Ursache |
 |--------------------------------------------------|---------|
 | `open /var/run/docker.sock: ssh: rejected: connect failed ("open failed")` | Entweder hat eine Forwarding-Richtlinie den Socket abgelehnt (`AllowStreamLocalForwarding no`, `DisableForwarding yes` oder `restrict` / `no-port-forwarding` in `authorized_keys`), oder der Socket fehlt (Docker läuft nicht, Rootless Docker) bzw. der SSH-Benutzer darf ihn nicht öffnen. OpenSSH antwortet in beiden Fällen gleich; nur bei einer Ablehnung durch eine Richtlinie steht im `sshd`-Log des Ziels `refused streamlocal port forward` |
-| `negotiate Docker API: context deadline exceeded` | Die SSH-Anmeldung oder das Öffnen des Sockets war nicht innerhalb von 5 Sekunden fertig, siehe [Troubleshooting](#verbindung-verweigert--timeout) |
+| `negotiate Docker API: context deadline exceeded` | SSH-Anmeldung, Öffnen des Sockets und Versionsantwort waren nicht innerhalb von 20 Sekunden fertig (die SSH-Anmeldung allein darf bis zu 10 dauern), siehe [Troubleshooting](#verbindung-verweigert--timeout) |
 
 > ⚠️ Ältere AuraGo-Versionen behandeln unbekannte Deploy-Methoden als `SSH`. Nach einem Downgrade würde ein `docker_ssh`-Nest das Binary per SSH statt des Containers deployen. Stelle solche Nests vor einem Downgrade auf eine andere Methode um.
 
@@ -275,7 +278,7 @@ curl -X PUT http://localhost:8088/api/invasion/nests/{nest-id} \
 
 1. Master generiert Shared HMAC-Key und Egg-`config.yaml` (mit aktiviertem `egg_mode`)
 2. Binary (`linux/amd64` oder `linux/arm64`), `resources.dat` und Config werden übertragen
-3. Egg-Prozess startet auf dem Ziel (systemd bei `permanent`, sonst einmalig)
+3. Egg-Prozess startet auf dem Ziel (systemd bei `permanent`, sonst einmalig). Auf einem SSH-Nest wird ein Egg, das von einem früheren Hatch noch läuft, ersetzt: Der systemd-Service wird neu gestartet, und ein einmalig gestarteter Prozess bekommt SIGTERM und bis zu 10 Sekunden zum Beenden (danach SIGKILL), bevor der neue startet
 4. Egg verbindet sich mit `ws[s]://<master>/api/invasion/ws` und authentifiziert sich
 5. Master setzt den Nest-Status auf `running`, wenn die WebSocket-Verbindung steht
 
@@ -451,6 +454,8 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/rotate-key
 
 Bei fehlgeschlagenem Health-Check nach Deploy versucht das System einen **automatischen Rollback**.
 
+Auf einem SSH-Nest liegt das Egg in `~/.aurago-egg-<erste 8 Zeichen der Nest-ID>` des SSH-Benutzers. Health-Check, Status und **Stop** suchen einen Prozess dieses Benutzers, dessen Programmdatei das `aurago` in diesem Verzeichnis ist; ein beendetes Egg lässt den Health-Check scheitern. Ein `permanent`-Egg ist die User-Unit `aurago-egg-<…>`, deren Pfade `%h` (das Home-Verzeichnis des Benutzers) nutzen. Ohne `loginctl enable-linger <SSH-Benutzer>` (braucht root) beenden sich der User-Manager und ein `permanent`-Egg etwa 10 Sekunden nach der letzten Sitzung des Benutzers und starten erst mit der nächsten Anmeldung wieder.
+
 ---
 
 ## Egg Mode (Worker-Konfiguration)
@@ -531,7 +536,7 @@ Details: [Kapitel 22: Interne Tools](./22-interne-tools.md)
 2. Firewall und Port prüfen (22 für SSH und Docker über SSH, 2375 für Docker API, 2376 für Docker API mit TLS)
 3. **Test Connection** oder `POST .../validate` ausführen
 4. Bei SSH-Nests: Secret muss konfiguriert sein
-5. `Docker (über SSH)` scheitert mit `negotiate Docker API: context deadline exceeded`: Die SSH-Anmeldung oder das Öffnen des Sockets war nicht innerhalb von 5 Sekunden fertig. Die Prüfung der Docker-API-Version zu Beginn jeder Operation hat dieses Budget, und es schließt die SSH-Anmeldung und das Öffnen des Sockets ein. Reverse-DNS-Abfragen (`UseDNS yes`), Verzögerungen durch PAM oder LDAP oder eine Verbindung mit hoher Latenz können die Anmeldung verlangsamen. Beschleunige die Anmeldung auf dem Ziel, zum Beispiel mit `UseDNS no`, oder nutze eine andere Deploy-Methode.
+5. `Docker (über SSH)` scheitert mit `negotiate Docker API: context deadline exceeded`: Die Prüfung der Docker-API-Version zu Beginn jeder Operation schließt die SSH-Anmeldung und das Öffnen des Sockets ein. Sie hat 20 Sekunden; die SSH-Anmeldung allein darf bis zu 10 davon dauern. Reverse-DNS-Abfragen (`UseDNS yes`), Verzögerungen durch PAM oder LDAP oder eine Verbindung mit hoher Latenz können die Anmeldung verlangsamen. Beschleunige die Anmeldung auf dem Ziel, zum Beispiel mit `UseDNS no`, oder nutze eine andere Deploy-Methode.
 
 ### Authentifizierung fehlgeschlagen
 
@@ -544,6 +549,7 @@ Details: [Kapitel 22: Interne Tools](./22-interne-tools.md)
 1. `hatch_error` am Nest prüfen (UI oder `GET /api/invasion/nests/{id}`)
 2. Korrektes `target_arch`-Binary auf dem Master vorhanden?
 3. Bei Docker: Daemon-Zugriff und `deploy_method` prüfen
+4. Scheitert ein Hatch, bevor AuraGo die neue Egg-Konfiguration gesendet hat, behält AuraGo den bisherigen Shared Key des Eggs, und ein Egg, das noch läuft, verbindet sich weiter. Das gilt für einen fehlgeschlagenen Image-Pull, ein abgelehntes Anlegen des Containers und bei SSH-Nests für Fehler bis zum Hochladen des Binarys. Scheitert der Hatch später, oder schlägt sein Health-Check fehl und AuraGo kehrt zum vorherigen Egg zurück, kann sich dieses Egg erst nach einem erfolgreichen Hatch wieder verbinden.
 
 ### Egg verbindet nicht (`running`, aber `ws_connected: false`)
 
@@ -581,6 +587,7 @@ Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
 > ⚠️ **Wichtig:**
 > - SSH-Keys, Passwörter und API-Keys im Vault speichern
 > - `include_vault` nur auf vertrauenswürdigen Hosts nutzen
+> - **Secret dieses Nests in den Egg-Vault kopieren** gibt dem Egg das Passwort oder den SSH-Key, mit dem sich der Master an seinem Host anmeldet. Bei neuen Nests ist es aus; schalte es bei älteren Nests ab, wenn ihr Egg es nicht braucht. Das Abschalten wirkt beim nächsten Hatch; ein bereits ausgerolltes Egg behält seine Kopie bis dahin.
 > - `inherit_llm` kopiert den Master-API-Key in die Egg-Config — Egg-Host muss vertrauenswürdig sein
 > - `invasion_control.readonly: true` für reine Monitoring-Setups
 > - Bei Verdacht auf Kompromittierung Shared Keys mit `/rotate-key` rotieren

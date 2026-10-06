@@ -20,6 +20,7 @@ const expectedExports = [
   '@codemirror/lang-javascript',
   '@codemirror/lang-python',
   '@codemirror/lang-go',
+  '@codemirror/lang-cpp',
   '@codemirror/lang-rust',
   '@codemirror/lang-json',
   '@codemirror/lang-html',

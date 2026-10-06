@@ -288,20 +288,34 @@ func (s *Store) Run(ctx context.Context, id string) (Run, error) {
 	return r, err
 }
 
-func (s *Store) RecordRunSource(ctx context.Context, runID string, source Source) error {
+const maxResearchSources = 400
+
+// RecordRunSource returns whether the source was inserted and whether a new
+// source was dropped by a retention bound. Duplicate source IDs are not truncation.
+func (s *Store) RecordRunSource(ctx context.Context, runID string, source Source, limit int) (inserted, truncated bool, err error) {
 	b, err := json.Marshal(source)
 	if err != nil {
-		return err
+		return false, false, err
 	}
 	if len(b) > 10_000 {
-		return errors.New("research source exceeds retention bound")
+		return false, true, errors.New("research source exceeds retention bound")
 	}
-	_, err = s.db.ExecContext(ctx, "INSERT OR IGNORE INTO newspaper_run_sources(run_id,id,body) SELECT ?,?,? WHERE (SELECT COUNT(*) FROM newspaper_run_sources WHERE run_id=?)<60", runID, source.ID, b, runID)
-	return err
+	limit = max(1, min(maxResearchSources, limit))
+	result, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO newspaper_run_sources(run_id,id,body) SELECT ?,?,? WHERE (SELECT COUNT(*) FROM newspaper_run_sources WHERE run_id=?)<?", runID, source.ID, b, runID, limit)
+	if err != nil {
+		return false, false, err
+	}
+	count, err := result.RowsAffected()
+	if err != nil || count > 0 {
+		return count > 0, false, err
+	}
+	var exists bool
+	err = s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM newspaper_run_sources WHERE run_id=? AND id=?)", runID, source.ID).Scan(&exists)
+	return false, !exists, err
 }
 
 func (s *Store) RunSources(ctx context.Context, runID string) ([]Source, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT body FROM newspaper_run_sources WHERE run_id=? ORDER BY id LIMIT 60", runID)
+	rows, err := s.db.QueryContext(ctx, "SELECT body FROM newspaper_run_sources WHERE run_id=? ORDER BY id LIMIT ?", runID, maxResearchSources)
 	if err != nil {
 		return nil, err
 	}

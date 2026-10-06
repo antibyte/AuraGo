@@ -179,7 +179,8 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		MasterKey:    eggMasterKey,
 	}
 
-	if err := s.storeEggSharedKey(nest.ID, sharedKey); err != nil {
+	restorePreviousKey, err := s.replaceEggSharedKey(nest.ID, sharedKey)
+	if err != nil {
 		return err
 	}
 
@@ -201,6 +202,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		if deployID != "" {
 			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "failed")
 		}
+		restorePreviousKey(err)
 		return err
 	}
 
@@ -250,7 +252,12 @@ func eggVaultExportKeys(egg invasion.EggRecord, nest invasion.NestRecord) []stri
 		keys = append(keys, key)
 	}
 	add(egg.APIKeyRef)
-	add(nest.VaultSecretID)
+	// The nest's own secret logs the master in to the egg's host. It reaches
+	// the egg vault only for nests that opt in; nests from before the option
+	// were migrated with it on.
+	if nest.ExportNestSecret {
+		add(nest.VaultSecretID)
+	}
 	return keys
 }
 

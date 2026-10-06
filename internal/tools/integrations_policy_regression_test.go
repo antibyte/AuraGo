@@ -52,7 +52,7 @@ func TestAdGuardFilteringTogglePreservesInterval(t *testing.T) {
 }
 
 func TestPythonIntegrationSecretNamesCannotBeExported(t *testing.T) {
-	for _, key := range []string{"cloudflared_token", "cloudflared_credentials", "cloudflare_api_token", "three_d_printer_klipper_fixture", "sql_fixture_password", " SQL_FIXTURE_PASSWORD "} {
+	for _, key := range []string{"cloudflared_token", "cloudflared_credentials", "cloudflare_api_token", "three_d_printer_klipper_fixture", "sql_fixture_password", " SQL_FIXTURE_PASSWORD ", "proxy_basic_auth_user", "proxy_basic_auth_pass"} {
 		if IsPythonAccessibleSecret(key) {
 			t.Errorf("system secret allowed: %s", key)
 		}

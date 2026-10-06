@@ -171,22 +171,61 @@ pub async fn toggle_daemon(client: &ApiClient, skill_id: &str, action: &str) -> 
 // ── Containers ────────────────────────────────────────────────────────────────
 
 pub async fn fetch_containers(client: &ApiClient) -> Result<Vec<Container>> {
-    client.request(Method::GET, "/api/containers", None::<&()>).await
+    let list: ContainerList = client.request(Method::GET, "/api/containers", None::<&()>).await?;
+    list.into_containers()
 }
 
 pub async fn container_action(client: &ApiClient, id: &str, action: &str) -> Result<serde_json::Value> {
-    let path = format!("/api/containers/{}/{}", id, action);
+    let path = format!("/api/containers/{}/{}", urlencoding::encode(id), action);
     client.request(Method::POST, &path, None::<&()>).await
 }
 
 pub async fn fetch_container_logs(client: &ApiClient, id: &str) -> Result<serde_json::Value> {
-    let path = format!("/api/containers/{}/logs?tail=200", id);
+    let path = format!("/api/containers/{}/logs?tail=200", urlencoding::encode(id));
     client.request(Method::GET, &path, None::<&()>).await
 }
 
-pub async fn remove_container(client: &ApiClient, id: &str, force: bool) -> Result<serde_json::Value> {
-    let path = format!("/api/containers/{}?force={}", id, force);
-    client.request(Method::DELETE, &path, None::<&()>).await
+/// Path of DELETE /api/containers/{id}; `confirm_protected` is set only after
+/// the operator confirmed a protected container in the dialog.
+pub fn remove_container_path(id: &str, force: bool, confirm_protected: bool) -> String {
+    let mut path = format!("/api/containers/{}?force={}", urlencoding::encode(id), force);
+    if confirm_protected {
+        path.push_str("&confirm=protected");
+    }
+    path
+}
+
+/// 2xx is removed; 409 container_protected_confirmation_required asks for the
+/// confirmation; anything else is an error carrying the server's message. An
+/// older AuraGo never sends the 409 and removes at once.
+pub fn parse_remove_answer(status: reqwest::StatusCode, body: &serde_json::Value) -> Result<ContainerRemoveOutcome> {
+    if status.is_success() {
+        return Ok(ContainerRemoveOutcome::Removed);
+    }
+    let field = |key: &str| body.get(key).and_then(|v| v.as_str()).unwrap_or("").to_string();
+    if status == reqwest::StatusCode::CONFLICT && field("code") == "container_protected_confirmation_required" {
+        let owner = field("owner");
+        return Ok(ContainerRemoveOutcome::NeedsConfirmation {
+            owner: if owner.is_empty() { "unverified".to_string() } else { owner },
+            message: field("message"),
+        });
+    }
+    let message = match body {
+        serde_json::Value::String(text) => text.trim().to_string(),
+        _ => field("message"),
+    };
+    anyhow::bail!(
+        "HTTP {}: {}",
+        status.as_u16(),
+        if message.is_empty() { body.to_string() } else { message }
+    )
+}
+
+pub async fn remove_container(client: &ApiClient, id: &str, force: bool, confirm_protected: bool) -> Result<ContainerRemoveOutcome> {
+    let (status, body) = client
+        .request_json_with_status(Method::DELETE, &remove_container_path(id, force, confirm_protected))
+        .await?;
+    parse_remove_answer(status, &body)
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -253,4 +292,160 @@ pub fn delete_session_cookie(path: &std::path::Path) -> Result<()> {
         std::fs::remove_file(path)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::test_server::{self, Route};
+    use reqwest::StatusCode;
+
+    #[test]
+    fn remove_path_adds_the_confirmation_only_when_asked() {
+        assert_eq!(remove_container_path("web", false, false), "/api/containers/web?force=false");
+        assert_eq!(remove_container_path("web", true, true), "/api/containers/web?force=true&confirm=protected");
+        assert_eq!(remove_container_path("a b", false, false), "/api/containers/a%20b?force=false");
+    }
+
+    #[test]
+    fn remove_answer_maps_the_409_to_a_confirmation_request() {
+        let body = serde_json::json!({"status":"error","code":"container_protected_confirmation_required","owner":"go2rtc","message":"AuraGo manages this container (go2rtc)."});
+        assert_eq!(
+            parse_remove_answer(StatusCode::CONFLICT, &body).unwrap(),
+            ContainerRemoveOutcome::NeedsConfirmation { owner: "go2rtc".to_string(), message: "AuraGo manages this container (go2rtc).".to_string() }
+        );
+        let unnamed = serde_json::json!({"status":"error","code":"container_protected_confirmation_required"});
+        assert!(matches!(parse_remove_answer(StatusCode::CONFLICT, &unnamed).unwrap(), ContainerRemoveOutcome::NeedsConfirmation { owner, .. } if owner == "unverified"));
+        assert_eq!(parse_remove_answer(StatusCode::OK, &serde_json::json!({"status":"ok"})).unwrap(), ContainerRemoveOutcome::Removed);
+    }
+
+    #[test]
+    fn remove_answer_reports_other_failures() {
+        let err = parse_remove_answer(StatusCode::BAD_GATEWAY, &serde_json::json!({"status":"error","message":"engine refused"})).unwrap_err();
+        assert!(err.to_string().contains("502") && err.to_string().contains("engine refused"));
+        let other409 = serde_json::json!({"status":"error","message":"Container is not running"});
+        assert!(parse_remove_answer(StatusCode::CONFLICT, &other409).is_err());
+        // A proxy's HTML page is reported, not decoded.
+        let html = serde_json::Value::String("<html>Bad Gateway</html>".to_string());
+        assert!(parse_remove_answer(StatusCode::BAD_GATEWAY, &html).unwrap_err().to_string().contains("Bad Gateway"));
+    }
+
+    /// The real request path: a protected container answers 409 until the
+    /// request carries confirm=protected; an older AuraGo removes at once.
+    #[tokio::test]
+    async fn remove_asks_and_then_confirms_over_http() {
+        let server = test_server::start(vec![
+            Route {
+                method: "DELETE",
+                target: "/api/containers/cams?force=false",
+                status: 409,
+                body: r#"{"status":"error","code":"container_protected_confirmation_required","owner":"go2rtc","message":"AuraGo manages this container (go2rtc). Repeat the request with confirm=protected to continue."}"#,
+            },
+            Route {
+                method: "DELETE",
+                target: "/api/containers/cams?force=false&confirm=protected",
+                status: 200,
+                body: r#"{"status":"ok","action":"remove","container_id":"cams"}"#,
+            },
+            Route {
+                method: "DELETE",
+                target: "/api/containers/old?force=false",
+                status: 200,
+                body: r#"{"status":"ok","action":"remove","container_id":"old"}"#,
+            },
+        ]);
+        let client = client_for(&server);
+        assert!(matches!(
+            remove_container(&client, "cams", false, false).await.expect("answer"),
+            ContainerRemoveOutcome::NeedsConfirmation { owner, .. } if owner == "go2rtc"
+        ));
+        assert_eq!(remove_container(&client, "cams", false, true).await.expect("answer"), ContainerRemoveOutcome::Removed);
+        assert_eq!(remove_container(&client, "old", false, false).await.expect("answer"), ContainerRemoveOutcome::Removed);
+        let err = remove_container(&client, "missing", false, false).await.unwrap_err();
+        assert!(err.to_string().contains("404"), "{err}");
+    }
+
+    fn client_for(server: &test_server::CannedServer) -> ApiClient {
+        ApiClient::new(&server.base_url, false).expect("client")
+    }
+
+    /// An AuraGo from before the protection flags and the pause routes: the
+    /// list has no protection fields and "containers": null when empty, logs
+    /// are {"logs": "..."}, and unpause is an unknown action (404). The TUI
+    /// loads, shows logs and reports the refusal; nothing panics.
+    #[tokio::test]
+    async fn an_older_server_still_works() {
+        let server = test_server::start(vec![
+            Route {
+                method: "GET",
+                target: "/api/containers",
+                status: 200,
+                body: r#"{"status":"ok","count":2,"containers":[{"id":"cccccccccccc","names":["/web"],"image":"nginx","state":"paused","status":"Up 1 hour (Paused)"},{"id":"dddddddddddd","names":null,"image":"redis","state":"exited","status":"Exited (0)","health":"unhealthy"}]}"#,
+            },
+            Route {
+                method: "GET",
+                target: "/api/containers/cccccccccccc/logs?tail=200",
+                status: 200,
+                body: r#"{"status":"ok","container_id":"cccccccccccc","logs":"2026-10-06T10:00:00Z ready\n"}"#,
+            },
+            Route {
+                method: "POST",
+                target: "/api/containers/cccccccccccc/unpause",
+                status: 404,
+                body: r#"{"message":"unknown action: unpause","status":"error"}"#,
+            },
+        ]);
+        let client = client_for(&server);
+        let containers = fetch_containers(&client).await.expect("older list loads");
+        assert_eq!(containers.len(), 2);
+        assert_eq!(containers[0].name, "web");
+        assert_eq!(containers[1].name, "dddddddddddd");
+        assert!(containers.iter().all(|c| !c.is_protected()));
+        let logs = fetch_container_logs(&client, "cccccccccccc").await.expect("logs");
+        assert!(container_logs_tail(&logs, 500).contains("ready"));
+        let err = container_action(&client, "cccccccccccc", "unpause").await.unwrap_err();
+        assert!(err.to_string().contains("404") && err.to_string().contains("unknown action"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn the_current_server_list_and_its_failures_decode() {
+        let server = test_server::start(vec![Route {
+            method: "GET",
+            target: "/api/containers",
+            status: 200,
+            body: r#"{"status":"ok","count":0,"containers":null}"#,
+        }]);
+        assert!(fetch_containers(&client_for(&server)).await.expect("empty list").is_empty());
+
+        let failing = test_server::start(vec![Route {
+            method: "GET",
+            target: "/api/containers",
+            status: 502,
+            body: r#"{"status":"error","message":"Docker error (HTTP 409): engine refused"}"#,
+        }]);
+        let err = fetch_containers(&client_for(&failing)).await.unwrap_err();
+        assert!(err.to_string().contains("engine refused"), "{err}");
+
+        // An older AuraGo answers 200 with an error envelope.
+        let old_failing = test_server::start(vec![Route {
+            method: "GET",
+            target: "/api/containers",
+            status: 200,
+            body: r#"{"status":"error","message":"Docker is not reachable"}"#,
+        }]);
+        let err = fetch_containers(&client_for(&old_failing)).await.unwrap_err();
+        assert!(err.to_string().contains("Docker is not reachable"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn container_ids_are_path_escaped() {
+        let server = test_server::start(vec![]);
+        let client = client_for(&server);
+        let _ = container_action(&client, "a b/c", "unpause").await;
+        let _ = fetch_container_logs(&client, "a b/c").await;
+        assert_eq!(
+            server.seen(),
+            vec!["POST /api/containers/a%20b%2Fc/unpause".to_string(), "GET /api/containers/a%20b%2Fc/logs?tail=200".to_string()]
+        );
+    }
 }

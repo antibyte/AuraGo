@@ -1,5 +1,5 @@
 {
-  "config.backup.create_desc": "Vytvoří <strong>.ago</strong> archiv (ZIP) s konfigurací, prompty, daty a skilly. S heslem jsou také bezpečně zařazeny všechny vault-secrets (API klíče, tokeny) — ideální pro migraci na novou instanci (např. s injekcemi systemd).",
+  "config.backup.create_desc": "Vytvoří <strong>.ago</strong> archiv (ZIP) s konfigurací, prompty, daty a skilly. S heslem jsou také bezpečně zařazeny všechny vault-secrets (API klíče, tokeny) — ideální pro migraci na novou instanci (např. s master klíčem vloženým přes systemd).",
   "config.backup.card_create_title": "Obsah zálohy",
   "config.backup.card_encryption_title": "Šifrování",
   "config.backup.card_import_title": "Obnovit zálohu",
@@ -22,11 +22,11 @@
   "config.backup.password_required": "Zašifrovaná záloha — zadejte heslo.",
   "config.backup.restart_now": "Restartovat nyní",
   "config.backup.select_file": "Vyberte .ago soubor",
-  "config.backup.select_file_warning": "Vyberte soubor.ago.",
+  "config.backup.select_file_warning": "Vyberte soubor .ago.",
   "config.backup.status_error": "❌",
   "config.backup.status_success": "✅",
   "config.backup.status_warning": "⚠️",
   "config.backup.tab_create": "📦 Vytvořit zálohu",
   "config.backup.tab_import": "📥 Importovat zálohu",
-  "config.backup.vault_included_hint": "🔐 Vault secrets (API klíče, přihlašovací heslo, tokeny) budou zahrnuty."
+  "config.backup.vault_included_hint": "🔐 Tajemství Vaultu (API klíče, přihlašovací heslo, tokeny) budou zahrnuta."
 }

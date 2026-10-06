@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -76,11 +77,17 @@ func (c *DockerConnector) Validate(ctx context.Context, nest NestRecord, secret 
 func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
 	containerName, err := dockerEggContainerName(nest.ID)
 	if err != nil {
-		return err
+		return configNotDelivered(err)
 	}
 	backupName := containerName + "-prev"
 	// TODO: derive image tag from master version when build version is available at runtime
 	image := "ghcr.io/antibyte/aurago:latest"
+
+	// Every return before step 4 (copyConfigToContainer) is marked
+	// configNotDelivered: the new egg configuration, which carries the hatch's
+	// shared key, has not left the master, so the hatch puts the previous key
+	// back. From step 4 on, a lost response does not prove that the Engine
+	// did not store or start the new configuration; those failures stay unmarked.
 
 	// 1. Pull image. A pull that fails with an HTTP error status returns here,
 	// before step 2 stops and renames the running egg.
@@ -89,22 +96,21 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	// stream, read error) counted as success before the K15 hardening, and
 	// Deploy went on with the image the Engine already held under this tag,
 	// the normal case on a redeploy. That behaviour is kept when the Engine has
-	// the image: deployEgg has already stored the new shared key, so stopping
-	// here would leave the old egg running with a key the master no longer
-	// accepts. Without the image (audit S7a), or when the image check itself
+	// the image, so redeploys keep working when only the progress stream broke.
+	// Without the image (audit S7a), or when the image check itself
 	// fails, the deploy stops here instead of renaming the running egg and then
 	// failing to create its replacement.
 	if err := c.pullImage(ctx, nest, secret, image); err != nil {
 		var streamErr *dockerPullStreamError
 		if !errors.As(err, &streamErr) {
-			return fmt.Errorf("failed to pull image: %w", err)
+			return configNotDelivered(fmt.Errorf("failed to pull image: %w", err))
 		}
 		present, checkErr := c.imagePresent(ctx, nest, secret, image)
 		if checkErr != nil {
-			return fmt.Errorf("failed to pull image: %w (checking for the image on the Engine also failed: %v)", err, checkErr)
+			return configNotDelivered(fmt.Errorf("failed to pull image: %w (checking for the image on the Engine also failed: %v)", err, checkErr))
 		}
 		if !present {
-			return fmt.Errorf("failed to pull image: %w", err)
+			return configNotDelivered(fmt.Errorf("failed to pull image: %w", err))
 		}
 		slog.Warn("Invasion image pull failed; deploying the image already on the Engine", "nest_id", nest.ID, "image", image, "error", err)
 	}
@@ -123,19 +129,19 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	createURL := c.apiURL(nest, fmt.Sprintf("/containers/create?name=%s", containerName))
 	req, err := http.NewRequestWithContext(ctx, "POST", createURL, strings.NewReader(string(bodyJSON)))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return configNotDelivered(fmt.Errorf("failed to create request: %w", err))
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	client := c.httpClient(nest, secret)
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to create container: %w", err)
+		return configNotDelivered(fmt.Errorf("failed to create container: %w", err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		body := dockerutil.ReadErrorBody(resp.Body)
-		return fmt.Errorf("container creation failed (%d): %s", resp.StatusCode, string(body))
+		return configNotDelivered(fmt.Errorf("container creation failed (%d): %s", resp.StatusCode, string(body)))
 	}
 
 	// 4. Copy config.yaml into the container via the Docker Archive API.
@@ -199,9 +205,14 @@ func dockerEggCreateBody(image, nestID string, payload EggDeployPayload) map[str
 }
 
 func dockerEggBinds(nestID string) []string {
-	shortID := nestID
-	if len(shortID) > 8 {
-		shortID = shortID[:8]
+	shortID, err := eggIDPrefix(nestID)
+	if err != nil {
+		// Deploy validated the ID through dockerEggContainerName, so this is
+		// only reached by other callers; keep the historic slice for them.
+		shortID = nestID
+		if len(shortID) > 8 {
+			shortID = shortID[:8]
+		}
 	}
 	return []string{
 		fmt.Sprintf("aurago-egg-%s-log:/app/log", shortID),
@@ -361,25 +372,23 @@ func (c *DockerConnector) httpClient(nest NestRecord, secret []byte) *http.Clien
 	if isLocal {
 		dockerHost := dockerLocalHost()
 		return &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: dockerutil.NewVersionTransport(&http.Transport{
-				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					return dockerutil.DialContext(ctx, dockerHost)
-				},
-			}),
+			Timeout:   30 * time.Second,
+			Transport: dockerutil.NewVersionTransport(dockerLocalTransport(dockerHost)),
 		}
 	}
 	if nest.DeployMethod == "docker_ssh" {
 		// One SSH connection per Engine connection. Keep-alives are off so every
 		// connection, and with it its SSH client, closes after its response.
+		// The version probe's first dial includes the SSH login, so it gets
+		// dockerSSHProbeTimeout instead of the default probe budget.
 		return &http.Client{
 			Timeout: 30 * time.Second,
-			Transport: dockerutil.NewVersionTransport(&http.Transport{
+			Transport: dockerutil.NewVersionTransportWithProbeTimeout(&http.Transport{
 				DisableKeepAlives: true,
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 					return dialDockerEngineOverSSH(ctx, nest, secret)
 				},
-			}),
+			}, dockerSSHProbeTimeout),
 		}
 	}
 	if DockerRemoteUsesTLS(nest) {
@@ -430,6 +439,15 @@ func (t failingDockerTransport) RoundTrip(req *http.Request) (*http.Response, er
 	return nil, t.err
 }
 
+// dockerSSHDialBudget is remote.DialSSH's dial and handshake budget
+// (GetSSHConfig's ClientConfig.Timeout); a test keeps both equal.
+const dockerSSHDialBudget = 10 * time.Second
+
+// dockerSSHProbeTimeout bounds the Engine version probe for docker_ssh. Its
+// first dial includes a full SSH login, so it covers the SSH dial budget and
+// leaves 10 s for the socket open and /version (other transports: 5 s total).
+const dockerSSHProbeTimeout = 20 * time.Second
+
 // dockerSSHEngineSocket is the Engine socket a docker_ssh nest reaches through SSH.
 const dockerSSHEngineSocket = "/var/run/docker.sock"
 
@@ -437,7 +455,8 @@ const dockerSSHEngineSocket = "/var/run/docker.sock"
 // socket when no version probe precedes it, and after the probe gave up:
 // net/http detaches the dial from the request, so without it an authenticated
 // sshd that never answers the open would keep the SSH client and its
-// goroutines alive forever. Operators see the probe's 5 s timeout first.
+// goroutines alive forever. The 20 s version probe (dockerSSHProbeTimeout)
+// usually ends first.
 const dockerSSHSocketOpenBudget = 10 * time.Second
 
 // dockerSSHSocketOpenTimeout is the budget in use; tests shorten it.
@@ -485,6 +504,20 @@ func dockerLocalHost() string {
 	return dockerutil.DefaultHost()
 }
 
+// dockerLocalIdleConnTimeout bounds idle connections of the docker_local
+// transport. httpClient builds a new transport for every operation, so
+// nothing reuses them; without a timeout they were never reaped.
+const dockerLocalIdleConnTimeout = 5 * time.Second
+
+func dockerLocalTransport(dockerHost string) *http.Transport {
+	return &http.Transport{
+		IdleConnTimeout: dockerLocalIdleConnTimeout,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return dockerutil.DialContext(ctx, dockerHost)
+		},
+	}
+}
+
 func (c *DockerConnector) apiURL(nest NestRecord, path string) string {
 	switch nest.DeployMethod {
 	case "docker_local", "docker_ssh":
@@ -502,7 +535,13 @@ func (c *DockerConnector) apiURL(nest NestRecord, path string) string {
 	if port == 0 {
 		port = 2375
 	}
-	return fmt.Sprintf("%s://%s:%d/%s%s", scheme, nest.Host, port, dockerAPIVersion, path)
+	host := nest.Host
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		host = host[1 : len(host)-1] // a bracketed IPv6 literal keeps working
+	}
+	// JoinHostPort brackets only hosts with a colon, so IPv4 addresses and
+	// host names give exactly the URL they gave before.
+	return fmt.Sprintf("%s://%s/%s%s", scheme, net.JoinHostPort(host, strconv.Itoa(port)), dockerAPIVersion, path)
 }
 
 // pullClient returns an HTTP client with an extended timeout suitable for

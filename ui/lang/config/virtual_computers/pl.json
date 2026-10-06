@@ -64,7 +64,7 @@
   "help.virtual_computers.allow_persistent": "Zezwala na trwałe maszyny. Pozostaw wyłączone, chyba że host jest zaufany.",
   "help.virtual_computers.allow_publish": "Zezwala na operacje publikowania/zapisu wystawiane przez boringd.",
   "help.virtual_computers.allow_volumes": "Zezwala na tworzenie i podłączanie woluminów.",
-  "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
+  "help.virtual_computers.allow_agent_tasks": "Włącza tylko przestarzałe kanały agenta boringd. Główny agent AuraGo korzysta z obszarów roboczych agenta i nie potrzebuje tutaj dodatkowego dostawcy.",
   "help.virtual_computers.boring_token": "Zostaw puste, gdy AuraGo instaluje boringd; AuraGo automatycznie tworzy token i zapisuje go w Vault. Wpisz wartość tylko przy podłączaniu istniejącego boringd; musi odpowiadać BORING_TOKEN na tym hoście.",
   "config.virtual_computers.mode_local_host": "Lokalnie na tym hoście",
   "config.virtual_computers.local_host_note": "Instalacja lokalna wymaga Ubuntu/Linux z /dev/kvm, systemd oraz root lub sudo bez hasła. boringd pozostaje na 127.0.0.1:18082.",

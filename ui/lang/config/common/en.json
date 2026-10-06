@@ -57,7 +57,7 @@
   "config.precision.recent_empty": "Your recently opened areas will appear here.",
   "config.precision.groups_title": "All areas",
   "config.precision.restart_save_first": "Save or discard your changes before restarting.",
-  "config.precision.changed_fields": "{count} changed fields",
+  "config.precision.changed_fields": "{count} changed field(s)",
   "config.precision.validation_ready": "Ready to validate",
   "config.precision.validation_valid": "Validation passed",
   "config.precision.validation_invalid": "Check the highlighted fields",

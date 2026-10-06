@@ -1889,30 +1889,71 @@ tools:
 
 ## Security Proxy
 
-Protection layer for publicly reachable AuraGo instances with rate limiting, IP filtering, and geo-blocking. AuraGo manages the proxy as a Caddy-based Docker container, reloads the generated configuration, and exposes logs and lifecycle actions via API.
+Protection layer for publicly reachable AuraGo instances: TLS (Let's Encrypt for a domain), rate limiting, an IP filter and Basic Auth in front of AuraGo. AuraGo manages the proxy as a Caddy Docker container (`aurago-security-proxy`), writes its Caddyfile to `data/proxy/`, and exposes logs and lifecycle actions via API. Geo-blocking is planned but not implemented yet.
 
 ### Web UI Setup
 1. Open **Config → Integrations → Security Proxy**.
-2. Enable the proxy.
-3. Configure rate limiting (requests per minute).
-4. Optionally define allowed/blocked IPs or countries.
-5. Save and restart.
+2. Enable the proxy and enter the domain, ACME e-mail and ports.
+3. Optionally enable rate limiting, the IP filter or Basic Auth.
+4. Save. Enabling starts the proxy. Settings saved in the Config UI or the Vault apply to the next start or reload without restarting AuraGo. After changes to the domain, e-mail, rate-limit values, IP filter, Basic Auth or additional routes, press **Reload**. After changes to the ports or the container placement, press **Start**. To move the proxy to another `docker_host`, press **Destroy** first, then save the new `docker_host` and press **Start**. Reload only reapplies the Caddyfile and does not recreate the container (see [Reload](#reload)).
+
+### Basic Auth
+Store the account in the Vault as `proxy_basic_auth_user` and `proxy_basic_auth_pass`. AuraGo writes only a bcrypt hash of the password into the Caddyfile (file mode 0600). With Basic Auth enabled but either secret missing, the proxy does not start and the UI names the missing secrets. User names must not contain `:`, quotes, backslashes or braces; passwords may be at most 72 bytes long.
+
+### Rate Limiting
+The official Caddy image has no rate limiting. With rate limiting enabled, AuraGo builds the image `aurago-proxy:ratelimit-<version>` once from a pinned Caddy release and a pinned `caddy-ratelimit` module (Go module checksums are verified). The build needs Docker image-build access and internet access and takes a few minutes; later starts reuse the image. Each client IP may send `burst` requests within `burst / requests_per_second` seconds (sliding window), so short bursts pass and the average stays at `requests_per_second`. Rate limiting runs before Basic Auth and therefore also slows down password guessing. If the build fails, the proxy does not start, an already running proxy keeps running with its current Caddyfile, and the UI explains what is missing. With Docker read-only mode (`docker.read_only`) on, AuraGo can neither build the image nor create or change the proxy container; turn read-only mode off first.
+
+While the first build of the rate-limit image or the first pull of the official Caddy image runs, the proxy's other actions wait for it: **Stop**, **Destroy**, **Reload**, another **Start** and the automatic start or stop after saving the config only run once it has finished or failed. The first build may hold these actions for up to 30 minutes, the first pull for up to 15 minutes. The status and the logs stay available.
+
+### AuraGo in Docker (Compose)
+When AuraGo itself runs in a container, its paths and its container name only exist inside Docker. The proxy then mounts AuraGo's data volume (Docker Engine 26 or newer, for volume subpaths) or its bind-mounted data directory, joins AuraGo's non-internal network (in Compose the project's `default` network) and reaches AuraGo by container name. Without such a network it falls back to `host.docker.internal` and AuraGo's published port. Because the proxy container is attached to the Compose network, press **Destroy** before `docker compose down` removes that network.
+
+The default Compose socket proxy keeps `BUILD=0`, so AuraGo cannot build the rate-limit image there. Either set `BUILD=1` on the `docker-proxy` service, or build the image once on the Docker host. AuraGo reuses an existing image with exactly this tag, which belongs to the pinned Caddy and module versions of this AuraGo release:
+
+```bash
+docker build -t aurago-proxy:ratelimit-2.11.6-5625512f24f6 - <<'EOF'
+FROM caddy:2.11.6-builder AS builder
+RUN xcaddy build --with github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6
+FROM caddy:2.11.6
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+EOF
+```
+
+A later AuraGo release that changes the pins needs a new image: the manual of that release shows the matching command, and the AuraGo log names the tag it expects.
+
+### Container Hardening
+The proxy container keeps Caddy's root user and a writable root filesystem, but drops every Linux capability except the four Caddy needs and sets `no-new-privileges`:
+- `NET_BIND_SERVICE`: the `caddy` binary of the official image and of the rate-limit image carries this file capability and does not start without it. It also allows ports 80 and 443 on older Docker engines.
+- `DAC_OVERRIDE`: the Caddyfile (mode 0600) and `caddy_data` and `caddy_config` (mode 0750) belong to AuraGo's user. Without it Caddy can neither read its configuration nor store certificates.
+- `CHOWN` and `FOWNER`: ownership changes on files Caddy did not create itself, for example certificates copied into `caddy_data`.
+
+Certificates an earlier proxy container stored stay in use. A proxy container created by an earlier AuraGo version gets this profile at the next **Start**; **Reload** keeps the existing container.
+
+The proxy counts as an AuraGo-managed container (owner `security-proxy`): on the **Containers** page, opening a terminal, updating or removing `aurago-security-proxy` asks for a confirmation, also for a container created by an earlier AuraGo version without AuraGo's labels. The agent's docker tool refuses `create` and `run` with this name; its other actions on the proxy container stay as they were. Use **Start**, **Stop**, **Reload** and **Destroy** in the proxy settings to manage it.
+
+### Reload
+**Reload** rewrites the Caddyfile and runs `caddy reload` in the container. If Caddy rejects the new configuration, it keeps serving the previous one, AuraGo restores the previous Caddyfile, and the UI points to the proxy logs. Turning rate limiting on or off changes the image, so Reload then recreates the container. Otherwise Reload keeps the container as it is: port mappings, the Docker engine (`docker_host`) and the placement (mounts and network) only change when **Start** removes and recreates the container. Start works on the engine in the current `docker_host` (or `docker.host` while `docker_host` is empty). When a new value reaches a different Docker daemon, press **Destroy** before you switch; otherwise the old proxy keeps running on the previous engine. If you already switched, set the old value back, press **Destroy**, then switch again (or run `docker rm -f aurago-security-proxy` on the old engine).
 
 ### YAML Reference
 ```yaml
 security_proxy:
     enabled: true
     domain: "aurago.example.com"
+    email: "admin@example.com"     # ACME contact
+    https_port: 443
+    http_port: 80
+    docker_host: ""                # empty = docker.host
     rate_limiting:
         enabled: true
-        requests_per_minute: 60
+        requests_per_second: 10
+        burst: 50
     ip_filter:
         enabled: false
-        allowed_ips: []
-        blocked_ips: []
-    geo_blocking:
-        enabled: false
-        blocked_countries: []
+        mode: "blocklist"          # or "allowlist"
+        addresses: []              # IP addresses or CIDR ranges
+    basic_auth:
+        enabled: false             # Vault: proxy_basic_auth_user / proxy_basic_auth_pass
+    additional_routes: []          # entries with name, domain and upstream
 ```
 
 ### Runtime API

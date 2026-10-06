@@ -398,3 +398,49 @@ func containersJSFunctionBody(t *testing.T, source, name string) string {
 	t.Fatalf("function %s has an unbalanced body", name)
 	return ""
 }
+
+func TestContainersTerminalEndSessionTranslationsExist(t *testing.T) {
+	t.Parallel()
+	requireContainersTranslations(t, []string{
+		"containers.terminal_end_btn",
+		"containers.terminal_end_failed",
+		"containers.terminal_end_hint",
+		"containers.terminal_ending",
+	})
+	html := rawDesktopAssetText(t, "containers.html")
+	for _, marker := range []string{`id="terminal-end-btn"`, `onclick="endTerminalSession()"`, `data-i18n="containers.terminal_end_btn"`, `data-i18n-title="containers.terminal_end_hint"`} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("terminal modal missing End session marker %q", marker)
+		}
+	}
+}
+
+func TestContainersProtectedBadgeIsNeutral(t *testing.T) {
+	t.Parallel()
+	want := map[string]string{"en": "Protected", "de": "Geschützt", "el": "Προστατευμένο", "hi": "संरक्षित"}
+	for lang, text := range want {
+		data, err := os.ReadFile(filepath.Join("lang", "containers", lang+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(data, &values); err != nil {
+			t.Fatal(err)
+		}
+		if values["containers.protected_badge"] != text {
+			t.Fatalf("%s badge = %q, want %q: the badge names no reason; the tooltip does", lang, values["containers.protected_badge"], text)
+		}
+	}
+	requireContainersTranslations(t, []string{"containers.protected_badge"})
+}
+
+func TestContainersStopConfirmationTranslationsExist(t *testing.T) {
+	t.Parallel()
+	requireContainersTranslations(t, []string{
+		"containers.stop_endpoint_warning",
+		"containers.stop_network_warning",
+		"containers.stop_protected_confirm_btn",
+		"containers.stop_protected_title",
+		"containers.stop_self_warning",
+	})
+}

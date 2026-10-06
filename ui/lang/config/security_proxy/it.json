@@ -95,5 +95,7 @@
   "config.updates.installing": "Installazione…",
   "config.updates.running": "In esecuzione…",
   "config.web_scraper.summary_mode": "Modalità riepilogo",
-  "config.webdav.secret_empty": "Il valore è vuoto"
+  "config.webdav.secret_empty": "Il valore è vuoto",
+  "config.security_proxy.action_pending": "In corso… Il primo avvio con la limitazione del traffico crea un'immagine Caddy e può richiedere qualche minuto.",
+  "config.security_proxy.rate_limit_build_hint": "L'immagine ufficiale di Caddy non supporta la limitazione del traffico. Al prossimo avvio AuraGo crea una sola volta una propria immagine Caddy con il modulo caddy-ratelimit. Docker deve consentire la build di immagini e raggiungere Internet; richiede qualche minuto. In alternativa, l'immagine può essere creata sull'host Docker (vedi il manuale)."
 }

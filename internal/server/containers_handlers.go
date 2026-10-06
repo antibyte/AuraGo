@@ -41,10 +41,10 @@ func handleContainersList(s *Server) http.HandlerFunc {
 
 // handleContainerAction routes /api/containers/{id}/{action} requests.
 // Terminal, update and remove pass containerActionAllowed first. Start, stop,
-// restart, logs, inspect and stats never consult container protection: System
-// World calls this handler for start/stop/restart, and restarting the AuraGo
-// container itself works because dockerd performs the restart. Tool errors
-// answer 502 with their unchanged JSON body.
+// restart, pause, unpause, logs, inspect and stats never consult container
+// protection: System World calls this handler for start/stop/restart, and
+// restarting the AuraGo container itself works because dockerd performs the
+// restart. Tool errors answer 502 with their unchanged JSON body.
 func handleContainerAction(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cfg, enabled, readOnly := containerDockerConfig(s)
@@ -99,6 +99,17 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 				return
 			}
 			writeContainerToolResult(w, tools.DockerContainerAction(cfg, containerID, "restart", false))
+
+		case "pause", "unpause":
+			if r.Method != http.MethodPost {
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			if readOnly {
+				containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "Docker is in read-only mode"})
+				return
+			}
+			writeContainerToolResult(w, tools.DockerContainerAction(cfg, containerID, action, false))
 
 		case "update":
 			if r.Method != http.MethodPost {
@@ -168,6 +179,29 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 				return
 			}
 			handleContainerTerminal(s, cfg, containerID, w, r)
+
+		case "protection":
+			// Read-only report of the terminal/update/remove rules for this
+			// container. Browsers hide the HTTP answer of a refused WebSocket
+			// handshake; the Containers page asks here and then offers the
+			// confirmation. It never starts a shell.
+			if r.Method != http.MethodGet {
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			p := containerProtectionFor(r.Context(), s, cfg, containerID)
+			report := map[string]interface{}{
+				"status":             "ok",
+				"container_id":       containerID,
+				"owner":              p.label(),
+				"protected":          p.protected(),
+				"update_unsupported": p.updateCannotComplete(),
+				"read_only":          readOnly,
+			}
+			if p.protected() {
+				report["message"] = p.confirmationMessage()
+			}
+			containerJSON(w, http.StatusOK, report)
 
 		case "": // DELETE /api/containers/{id} — remove container
 			if r.Method != http.MethodDelete {

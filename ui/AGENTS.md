@@ -525,6 +525,10 @@ worker. Keep packaging, recovery and offline instructions in
   Helix volleys and damage-triggered EMP counterpulses reuse projectile/effect
   cleanup and respect the existing 18-projectile limit. EMP must not interrupt
   a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
+- Cyberwar uses the generated `img/cyberwar-city.webp` as a static, centered
+  cover background in `#chat-box`, beneath a navy dimming gradient and the HUD.
+  Keep the image position fixed in the scanline keyframes and retain readable
+  message surfaces, including on narrow screens and with reduced motion.
 - Dark Sun is an eclipse scene. `body` paints the violet-black sky, star specks
   and the horizon glow; `body::before` carries the static eclipse and lava
   horizon SVG (the no-JS, reduced-motion and narrow-screen baseline) and fades

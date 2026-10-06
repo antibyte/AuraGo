@@ -97,7 +97,7 @@
   "config.webhooks.preset_label": "Preset",
   "config.webhooks.prompt_placeholder": "Puste = domyślny szablon",
   "config.webhooks.prompt_template_label": "Szablon promptu",
-  "config.webhooks.rate_limit_label": "Limit rate (req/min, 0 = nieograniczony)",
+  "config.webhooks.rate_limit_label": "Limit żądań (żądań/min, 0 = nieograniczony)",
   "config.webhooks.readonly_label": "Tylko do odczytu",
   "config.webhooks.readonly_hint": "Blokuje tworzenie, edycję i usuwanie webhooków oraz tokenów.",
   "config.webhooks.rate_limit_unlimited": "nieograniczony",

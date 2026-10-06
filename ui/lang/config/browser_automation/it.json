@@ -16,7 +16,7 @@
   "help.browser_automation.viewport.width": "Larghezza del viewport del browser in pixel. Influenza il rendering delle pagine. Predefinito: 1280.",
   "help.browser_automation.viewport.height": "Altezza del viewport del browser in pixel. Influenza il rendering delle pagine. Predefinito: 720.",
   "help.browser_automation.auto_build": "Costruisce automaticamente l'immagine Docker se non esiste all'avvio del sidecar. Disabilitare per gestire l'immagine manualmente.",
-  "config.browser_automation.cloak_info": "Modalità stealth powered by CloakBrowser – supera il rilevamento bot con patch di fingerprint a livello di codice sorgente.",
+  "config.browser_automation.cloak_info": "Modalità stealth basata su CloakBrowser – supera il rilevamento bot con patch di fingerprint a livello di codice sorgente.",
   "config.browser_automation.cloak_humanize_label": "Umanizzare comportamento",
   "help.browser_automation.cloak_humanize": "Simula movimenti del mouse, digitazione e scorrimento umani. Aiuta a superare il rilevamento bot comportamentale.",
   "config.browser_automation.cloak_human_preset_label": "Preset comportamento",

@@ -6,7 +6,7 @@
   "gallery.loading": "Načítání...",
   "gallery.empty": "Zatím žádné obrázky. Vygenerujte svůj první obrázek přes chat!",
   "gallery.images": "obrázky",
-  "gallery.prompt": "Výzva",
+  "gallery.prompt": "Prompt",
   "gallery.enhanced_prompt": "Vylepšený prompt",
   "gallery.provider": "Poskytovatel",
   "gallery.model": "Model AI",

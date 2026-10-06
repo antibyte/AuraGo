@@ -6,7 +6,7 @@
   "config.game_maker.disabled_desc": "Activa primero la integración. Los permisos de escritura seguirán bloqueados hasta que los concedas.",
   "config.game_maker.restart_note": "Activar el servicio o cambiar sus rutas requiere reiniciar AuraGo después de guardar.",
   "config.game_maker.permissions_title": "Permisos del agente",
-  "config.game_maker.permissions_desc": "Para crear juegos, desactiva el modo de solo lectura y permite crear y editar. El borrado y los medios son opcionales.",
+  "config.game_maker.permissions_desc": "Para crear juegos, desactiva el modo de solo lectura y permite crear y editar. El borrado y la generación de medios son opcionales.",
   "config.game_maker.readonly_label": "Modo seguro de solo lectura",
   "config.game_maker.allow_create_label": "Permitir crear proyectos",
   "config.game_maker.allow_edit_label": "Permitir cambios y revisiones del agente",

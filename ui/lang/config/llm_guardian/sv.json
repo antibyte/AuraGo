@@ -3,7 +3,7 @@
   "config.llm_guardian.disabled_notice": "LLM Guardian är inaktiverad",
   "config.llm_guardian.disabled_desc": "Aktivera för att lägga till ett LLM-baserat säkerhetslager som utvärderar verktygsanrop före exekvering. Använder en snabb, billig modell för att upptäcka misstänkta operationer. Faller tillbaka till den huvudsakliga LLM om ingen leverantör väljs.",
   "config.llm_guardian.provider_title": "Leverantör",
-  "config.llm_guardian.provider_desc": "Välj en leverantör för Guardian LLM. En snabb, billig modell (t.ex. Gemini Flash, GPT -4o-mini, lokal 3B) rekommenderas för undersekundsbeslut.",
+  "config.llm_guardian.provider_desc": "Välj en leverantör för Guardian LLM. En snabb, billig modell (t.ex. Gemini Flash, GPT-4o-mini, lokal 3B) rekommenderas för undersekundsbeslut.",
   "config.llm_guardian.provider_label": "Leverantör",
   "config.llm_guardian.select_provider": "— Huvud-LLM (standard) —",
   "config.llm_guardian.model_label": "Modell",
@@ -33,7 +33,7 @@
   "config.llm_guardian.clarification_desc": "Om aktiverat kan agenten ge en motivering om ett verktygsanrop blockeras. Guardian omvärderar begäran en gång med motiveringen innan ett slutgiltigt beslut fattas.",
   "config.llm_guardian.clarification_label": "Tillåt agentförtydligande",
   "config.llm_guardian.scan_title": "Innehållsskanning",
-  "config.llm_guardian.scan_desc": "Använd Guardian LLM för att skanna inkommande innehåll (e-postmeddelanden, webhooks) efter snabba injektioner, nätfiske och sociala ingenjörsattacker – utöver de inbyggda regexmönstren.",
+  "config.llm_guardian.scan_desc": "Använd Guardian LLM för att skanna inkommande innehåll (e-postmeddelanden, webhooks) efter promptinjektion, nätfiske och social ingenjörskonst – utöver de inbyggda regexmönstren.",
   "config.llm_guardian.scan_emails_label": "Skanna inkommande e-post",
   "config.llm_guardian.scan_documents_label": "Skanna webhook-payloads"
 }

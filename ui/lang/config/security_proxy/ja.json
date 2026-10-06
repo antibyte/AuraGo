@@ -95,5 +95,7 @@
   "config.updates.installing": "インストール中…",
   "config.updates.running": "実行中…",
   "config.web_scraper.summary_mode": "サマリーモード",
-  "config.webdav.secret_empty": "値が空です"
+  "config.webdav.secret_empty": "値が空です",
+  "config.security_proxy.action_pending": "処理中… レート制限を有効にした初回の起動では Caddy イメージをビルドするため、数分かかることがあります。",
+  "config.security_proxy.rate_limit_build_hint": "公式の Caddy イメージにはレート制限がありません。次回の起動時に、AuraGo は caddy-ratelimit モジュール入りの独自の Caddy イメージを一度だけビルドします。Docker でイメージのビルドが許可され、インターネットに接続できる必要があり、数分かかります。代わりに、Docker ホスト上でイメージをビルドすることもできます (マニュアルを参照)。"
 }

@@ -65,6 +65,8 @@
   "invasion.egg_port": "Egg Port",
   "invasion.eggs": "Eggs",
   "invasion.error": "Error",
+  "invasion.export_nest_secret": "Copy this nest's secret into the egg vault",
+  "invasion.export_nest_secret_hint": "Only applies when the assigned egg has Transfer Vault on. The egg can then read the password or SSH key AuraGo uses to log in to this host. Leave this off unless the egg needs it.",
   "invasion.hatch": "🥚 Hatch",
   "invasion.hatch_failed": "Failed",
   "invasion.hatch_hatching": "Hatching…",

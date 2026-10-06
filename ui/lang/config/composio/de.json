@@ -14,7 +14,7 @@
   "config.composio.cache_ttl": "Cache-TTL (Sekunden)",
   "config.composio.close": "Schließen",
   "config.composio.connect": "Verbinden",
-  "config.composio.connect_failed": "Verbindungslink konnte nicht geöffnet werden",
+  "config.composio.connect_failed": "Verbindungslink fehlgeschlagen",
   "config.composio.connect_opened": "Verbindungslink geöffnet",
   "config.composio.detail_failed": "Toolkit-Details konnten nicht geladen werden",
   "config.composio.disable_toolkit": "Toolkit deaktivieren",

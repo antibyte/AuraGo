@@ -65,6 +65,8 @@
   "invasion.egg_port": "Egg 端口",
   "invasion.eggs": "蛋",
   "invasion.error": "错误",
+  "invasion.export_nest_secret": "将此 Nest 的密钥复制到 Egg 的 Vault",
+  "invasion.export_nest_secret_hint": "仅当所分配的 Egg 开启了“传输 Vault”时生效。之后 Egg 可以读取 AuraGo 登录此主机所用的密码或 SSH 密钥。除非 Egg 需要，否则请保持关闭。",
   "invasion.hatch": "🥚 孵化",
   "invasion.hatch_failed": "失败",
   "invasion.hatch_hatching": "孵化中…",

@@ -33,7 +33,7 @@
   "config.rules.load_failed": "Échec du chargement des règles",
   "config.rules.save_failed": "Échec de l enregistrement",
   "config.rules.restored": "Règle restaurée",
-  "config.rules.design_title": "DESIGN.md de la page d’accueil",
+  "config.rules.design_title": "DESIGN.md de Homepage",
   "config.rules.enabled": "Activé",
   "config.rules.rule_title": "Titre",
   "config.rules.inactive": "Inactif",

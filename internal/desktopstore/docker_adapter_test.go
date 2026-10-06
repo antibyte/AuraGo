@@ -3,6 +3,7 @@ package desktopstore
 import (
 	"archive/tar"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -201,5 +202,201 @@ func TestToolsDockerAdapterTrustsOnlyCatalogHostBinds(t *testing.T) {
 	}
 	if len(created) != len(catalogSpecs) {
 		t.Fatalf("created = %v, want only the %d catalog containers", created, len(catalogSpecs))
+	}
+}
+
+func TestToolsDockerAdapterRenameContainerMapsEngineAnswers(t *testing.T) {
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+
+	status := map[string]int{
+		"aurago-store-ok":       http.StatusNoContent,
+		"aurago-store-missing":  http.StatusNotFound,
+		"aurago-store-conflict": http.StatusConflict,
+		"aurago-store-broken":   http.StatusInternalServerError,
+	}
+	var renames []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/version" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`)
+			return
+		}
+		name := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v1.45/containers/"), "/rename")
+		code, ok := status[name]
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/rename") || !ok {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.String())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		renames = append(renames, name+"->"+r.URL.Query().Get("name"))
+		w.WriteHeader(code)
+		if code >= 400 {
+			_, _ = io.WriteString(w, `{"message":"engine says no"}`)
+		}
+	}))
+	defer server.Close()
+	adapter := NewToolsDockerAdapter("tcp://"+strings.TrimPrefix(server.URL, "http://"), "", nil)
+	ctx := context.Background()
+
+	if err := adapter.RenameContainer(ctx, "aurago-store-ok", parkedContainerName("aurago-store-ok")); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if err := adapter.RenameContainer(ctx, "aurago-store-missing", "x"); !errors.Is(err, errContainerNotFound) {
+		t.Fatalf("404 rename error = %v, want errContainerNotFound", err)
+	}
+	if err := adapter.RenameContainer(ctx, "aurago-store-conflict", "x"); !errors.Is(err, errContainerNameConflict) {
+		t.Fatalf("409 rename error = %v, want errContainerNameConflict", err)
+	}
+	err := adapter.RenameContainer(ctx, "aurago-store-broken", "x")
+	if err == nil || errors.Is(err, errContainerNotFound) || errors.Is(err, errContainerNameConflict) || !strings.Contains(err.Error(), "engine says no") {
+		t.Fatalf("500 rename error = %v, want a plain engine error", err)
+	}
+	if len(renames) == 0 || renames[0] != "aurago-store-ok->aurago-store-ok.prev" {
+		t.Fatalf("renames = %#v", renames)
+	}
+}
+
+func TestToolsDockerAdapterMarksMissingContainers(t *testing.T) {
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/version" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, `{"message":"No such container: aurago-store-gone"}`)
+	}))
+	defer server.Close()
+	adapter := NewToolsDockerAdapter("tcp://"+strings.TrimPrefix(server.URL, "http://"), "", nil)
+	ctx := context.Background()
+
+	if _, err := adapter.InspectContainer(ctx, "aurago-store-gone"); !errors.Is(err, errContainerNotFound) || err.Error() != "container aurago-store-gone not found" {
+		t.Fatalf("inspect error = %v, want errContainerNotFound with the historical message", err)
+	}
+	if err := adapter.StartContainer(ctx, "aurago-store-gone"); !errors.Is(err, errContainerNotFound) || err.Error() != "container aurago-store-gone not found" {
+		t.Fatalf("start error = %v, want errContainerNotFound with the historical message", err)
+	}
+}
+
+func TestToolsDockerAdapterInspectReportsExitAndRestartState(t *testing.T) {
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/version" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`)
+			return
+		}
+		if r.Method == http.MethodGet && r.URL.Path == "/v1.45/containers/aurago-store-demo-db/json" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"Name":"/aurago-store-demo-db","RestartCount":4,"State":{"Running":true,"Restarting":true,"Status":"restarting","ExitCode":1}}`)
+			return
+		}
+		t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+	adapter := NewToolsDockerAdapter("tcp://"+strings.TrimPrefix(server.URL, "http://"), "", nil)
+	state, err := adapter.InspectContainer(context.Background(), "aurago-store-demo-db")
+	if err != nil {
+		t.Fatalf("inspect: %v", err)
+	}
+	want := ContainerState{Name: "aurago-store-demo-db", Running: true, Restarting: true, Status: "restarting", ExitCode: 1, RestartCount: 4}
+	if !reflect.DeepEqual(state, want) {
+		t.Fatalf("state = %#v, want %#v", state, want)
+	}
+}
+
+// TestToolsDockerAdapterTrustsCatalogBindsOnlyForTheCatalogImageRepository:
+// the read-only Docker socket of a socket-proxy companion is trusted only for
+// the catalog's image repository (final review M3). Tag and digest do not
+// matter, so a rollback to a record with an older tag still recreates.
+func TestToolsDockerAdapterTrustsCatalogBindsOnlyForTheCatalogImageRepository(t *testing.T) {
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/version" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`)
+			return
+		}
+		if r.Method == http.MethodPost && r.URL.Path == "/v1.45/containers/create" {
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{"Id":"created-id"}`)
+			return
+		}
+		t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+	adapter := NewToolsDockerAdapter("tcp://"+strings.TrimPrefix(server.URL, "http://"), t.TempDir(), nil)
+	ctx := context.Background()
+
+	// All three trusted socket proxies (Arcane, Dozzle, Beszel) take the same
+	// path through catalogTrustedBinds.
+	for _, appID := range []string{"arcane", "dozzle", "beszel"} {
+		var proxy CompanionTemplate
+		for _, entry := range DefaultCatalog() {
+			if entry.ID != appID {
+				continue
+			}
+			for _, companion := range entry.Companions {
+				if companion.ID == "socket-proxy" {
+					proxy = companion
+				}
+			}
+		}
+		if proxy.ID == "" || len(proxy.HostBinds) == 0 {
+			t.Fatalf("catalog has no %s socket proxy with a host bind", appID)
+		}
+		binds := resolveHostBinds(proxy.HostBinds)
+		spec := func(image string) ContainerSpec {
+			return companionContainerSpec(InstalledApp{AppID: appID, ContainerName: "aurago-store-" + appID}, CompanionApp{
+				ID: proxy.ID, Name: proxy.Name, ContainerName: "aurago-store-" + appID + "-socket-proxy",
+				Image: image, NetworkMode: proxy.NetworkMode, HostBinds: append([]HostBinding(nil), binds...),
+			})
+		}
+		socketDenial := fmt.Sprintf("mounting sensitive host path %q", binds[0].HostPath)
+		for _, image := range []string{
+			proxy.Image,
+			"tecnativa/docker-socket-proxy:0.1.2", // a record from an older catalog tag (rollback)
+			"tecnativa/docker-socket-proxy@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459",
+			"tecnativa/docker-socket-proxy:latest@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459",
+			"docker.io/tecnativa/docker-socket-proxy:latest",
+			"tecnativa/docker-socket-proxy",
+		} {
+			if _, err := adapter.CreateContainer(ctx, spec(image)); err != nil {
+				t.Fatalf("%s %s: catalog socket bind rejected for the catalog repository: %v", appID, image, err)
+			}
+		}
+		for _, image := range []string{
+			"evil/docker-socket-proxy:latest",
+			"tecnativa/docker-socket-proxy-fork:latest",
+			"ghcr.io/tecnativa/docker-socket-proxy:latest",
+			"alpine:latest",
+			"",
+		} {
+			if _, err := adapter.CreateContainer(ctx, spec(image)); err == nil || !strings.Contains(err.Error(), socketDenial) {
+				t.Fatalf("%s %q: error = %v, want %s", appID, image, err, socketDenial)
+			}
+		}
+	}
+	for ref, want := range map[string]string{
+		"tecnativa/docker-socket-proxy:latest":          "tecnativa/docker-socket-proxy",
+		"docker.io/library/nginx:1":                     "nginx",
+		"index.docker.io/tecnativa/docker-socket-proxy": "tecnativa/docker-socket-proxy",
+		"registry-1.docker.io/library/alpine@sha256:ab": "alpine",
+		"localhost:5000/proxy:2":                        "localhost:5000/proxy",
+		"localhost:5000/proxy":                          "localhost:5000/proxy",
+		"ghcr.io/x/y@sha256:abc":                        "ghcr.io/x/y",
+		"  TECNATIVA/Docker-Socket-Proxy:Latest ":       "tecnativa/docker-socket-proxy",
+		"": "",
+	} {
+		if got := storeImageRepository(ref); got != want {
+			t.Fatalf("storeImageRepository(%q) = %q, want %q", ref, got, want)
+		}
 	}
 }

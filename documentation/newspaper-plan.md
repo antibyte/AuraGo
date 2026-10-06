@@ -2,7 +2,7 @@
 
 Status: initial implementation completed locally, 2026-09-25. This document
 preserves its original design targets; current behavior and limitations are in
-`documentation/newspaper.md`. The next, not yet implemented revision is specified
+`documentation/newspaper.md`. The coverage revision implemented locally on 2026-10-06 is specified
 in [Coverage-driven research](newspaper-yield-plan.md): aggregator overviews,
 topic-scaled budgets, preserved follow-up capacity and measurable yield gates.
 Historical resource ceilings below describe the initial implementation; the new
