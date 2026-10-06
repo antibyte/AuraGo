@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,11 +11,14 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/dockerutil"
 )
 
-const browserAutomationRefusedBuildText = "request returned 403 Forbidden for API route and version http://127.0.0.1:2375/v1.45/build"
+// browserAutomationRefusedBuildText is what docker prints when a socket proxy
+// with BUILD=0 (HAProxy) denies the build API.
+const browserAutomationRefusedBuildText = "Error response from daemon: <html><body><h1>403 Forbidden</h1>\nRequest forbidden by administrative rules.\n</body></html>"
 
 func TestBrowserAutomationBuildCommandCarriesPreK19Fallback(t *testing.T) {
 	dir := t.TempDir()
@@ -89,13 +93,49 @@ func TestBrowserAutomationBuildCommandFallbackTargets(t *testing.T) {
 			wantFallback: false,
 		},
 		{
-			name:         "context selects another engine",
-			base:         []string{"DOCKER_CONTEXT=remote", "DOCKER_HOST=tcp://elsewhere:2375"},
+			name:         "the default context does not hide DOCKER_HOST",
+			base:         []string{"DOCKER_CONTEXT=default", "DOCKER_HOST=tcp://elsewhere:2375"},
 			configured:   "tcp://localhost:2375",
 			wantFallback: true,
-			wantTarget:   "docker context remote",
+			wantTarget:   "tcp://elsewhere:2375",
 			wantEnvHost:  []string{"tcp://elsewhere:2375"},
-			wantContext:  []string{"remote"},
+			wantContext:  []string{"default"},
+		},
+		{
+			name:         "a context cannot be resolved with the DOCKER_CONFIG override",
+			base:         []string{"DOCKER_CONTEXT=remote", "DOCKER_HOST=tcp://elsewhere:2375"},
+			configured:   "tcp://localhost:2375",
+			wantFallback: false,
+		},
+		{
+			name:         "a context alone gets no fallback either",
+			base:         []string{"docker_context=remote"},
+			configured:   "tcp://localhost:2375",
+			wantFallback: false,
+		},
+		{
+			name:         "bare host and port equal the tcp URL",
+			base:         []string{"DOCKER_HOST=192.168.1.10:2375"},
+			configured:   "tcp://192.168.1.10:2375",
+			wantFallback: false,
+		},
+		{
+			name:         "tcp URL equals the bare host and port",
+			base:         []string{"DOCKER_HOST=tcp://192.168.1.10:2375"},
+			configured:   " 192.168.1.10:2375 ",
+			wantFallback: false,
+		},
+		{
+			name:         "surrounding space in the inherited value is ignored",
+			base:         []string{"DOCKER_HOST= tcp://localhost:2375 "},
+			configured:   "tcp://localhost:2375",
+			wantFallback: false,
+		},
+		{
+			name:         "an empty DOCKER_HOST is the default engine",
+			base:         []string{"DOCKER_HOST="},
+			configured:   "",
+			wantFallback: false,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -158,19 +198,37 @@ func TestBrowserAutomationBuildFallbackDecision(t *testing.T) {
 
 	for _, output := range []string{
 		browserAutomationRefusedBuildText,
-		"error: forbidden",
-		"Request FORBIDDEN by administrative rules.",
-		"HTTP 403",
+		"Request FORBIDDEN BY ADMINISTRATIVE RULES.",
+		"error during connect: Post \"http://127.0.0.1:2375/v1.45/build\": 403 Forbidden",
 	} {
 		if got := browserAutomationBuildFallback(inv, failed, output); got != retry {
 			t.Fatalf("output %q: fallback = %#v, want the retry invocation", output, got)
 		}
 	}
+
+	buildKitDigests := "#1 [internal] load build definition from Dockerfile.browser_automation\n" +
+		"#1 transferring dockerfile: 1.2kB done\n" +
+		"#5 0.403 Temporary failure resolving 'deb.debian.org'\n" +
+		"#6 sha256:4034f61a0b3a4c0e1c8f0a7c9a0c1e1f0a2a3b4c5d6e7f8091a2b3c4d5e6f708 10.2MB / 10.2MB 0.4s\n"
+	npmStepFailure := "#7 [4/6] RUN npm ci\n" +
+		"#7 2.114 npm ERR! 403 Forbidden - GET https://registry.npmjs.org/playwright\n" +
+		"#7 ERROR: process \"/bin/sh -c npm ci\" did not complete successfully: exit code: 1\n"
+	aptStepFailure := "Step 4/6 : RUN apt-get update\n" +
+		"E: Failed to fetch http://deb.debian.org/debian/dists/bookworm/InRelease  403  Forbidden\n" +
+		"W: Some index files failed to download\n" +
+		"The command '/bin/sh -c apt-get update' returned a non-zero code: 100\n" +
+		"403 Forbidden\n"
 	for _, output := range []string{
 		"",
 		"no space left on device",
 		"failed to solve: pull access denied for aurago-base",
 		"dial tcp 127.0.0.1:2375: connect: connection refused",
+		"HTTP 403",
+		"error: forbidden",
+		buildKitDigests,
+		npmStepFailure,
+		aptStepFailure,
+		browserAutomationRefusedBuildText + "\n" + npmStepFailure,
 	} {
 		if got := browserAutomationBuildFallback(inv, failed, output); got != nil {
 			t.Fatalf("output %q: fallback = %#v, want no retry", output, got)
@@ -295,126 +353,230 @@ func TestBuildBrowserAutomationImageRetriesOnceWhenDockerHostRefusesBuilds(t *te
 		t.Skip("the fake docker CLI is a POSIX shell script")
 	}
 	configureDockerSecurityTestPermissions(t, false)
-	const configured = "tcp://127.0.0.1:2375"
 
+	const stepFailureText = "npm ERR! 403 Forbidden - GET https://registry.npmjs.org/playwright\n" +
+		"process \"/bin/sh -c npm ci\" did not complete successfully: exit code: 1"
+
+	// @HOST@ stands for the fake Docker API host that serves as docker.host.
 	for _, tc := range []struct {
-		name          string
-		inheritedHost string
-		inheritedCtx  string
-		configured    string
-		failHost      string
-		failText      string
-		wantCalls     []string
-		wantErr       string
-		wantWarns     int
-		wantWarnNames []string
+		name              string
+		inheritedHost     string
+		inheritedCtx      string
+		defaultEngine     bool // docker.host is empty, i.e. the platform default
+		failHost          string
+		failText          string
+		imageStatus       int // GET /images/<image>/json on docker.host after the build; 0 means 200
+		buildTimeout      time.Duration
+		wantCalls         []string
+		wantErrs          []string
+		wantRefusalCopies int
+		wantWarnMsgs      []string // one substring per expected warning, in order
+		wantBuiltOn       string   // the engine named by the last warning's arguments
+		wantImageChecks   int
 	}{
 		{
 			name:          "refusal retries once on the inherited engine",
-			inheritedHost: "tcp://elsewhere:2375",
-			configured:    configured,
-			failHost:      configured,
+			inheritedHost: "tcp://127.0.0.1:2376",
+			failHost:      "@HOST@",
 			failText:      browserAutomationRefusedBuildText,
-			wantCalls:     []string{"host=" + configured + " context=unset", "host=tcp://elsewhere:2375 context=unset"},
-			wantWarns:     1,
-			wantWarnNames: []string{configured, "tcp://elsewhere:2375"},
+			wantCalls:     []string{"host=@HOST@ context=unset", "host=tcp://127.0.0.1:2376 context=unset"},
+			wantWarnMsgs: []string{
+				"docker.host refused the build with a 403-style response; built through tcp://127.0.0.1:2376 instead",
+			},
+			wantBuiltOn:     "tcp://127.0.0.1:2376",
+			wantImageChecks: 1,
 		},
 		{
-			name:          "refusal retries on the CLI default when nothing is inherited",
-			inheritedHost: "",
-			configured:    configured,
-			failHost:      configured,
-			failText:      browserAutomationRefusedBuildText,
-			wantCalls:     []string{"host=" + configured + " context=unset", "host=unset context=unset"},
-			wantWarns:     1,
-			wantWarnNames: []string{configured, dockerutil.DefaultHost()},
+			name:      "refusal retries on the CLI default when nothing is inherited",
+			failHost:  "@HOST@",
+			failText:  browserAutomationRefusedBuildText,
+			wantCalls: []string{"host=@HOST@ context=unset", "host=unset context=unset"},
+			wantWarnMsgs: []string{
+				"built through " + dockerutil.DefaultHost() + " instead",
+			},
+			wantBuiltOn:     dockerutil.DefaultHost(),
+			wantImageChecks: 1,
 		},
 		{
-			name:          "the retry keeps an inherited context",
-			inheritedHost: "",
-			inheritedCtx:  "remote",
-			configured:    configured,
-			failHost:      configured,
-			failText:      "Forbidden",
-			wantCalls:     []string{"host=" + configured + " context=unset", "host=unset context=remote"},
-			wantWarns:     1,
-			wantWarnNames: []string{configured, "docker context remote"},
+			name:          "a remote retry endpoint warns about plain TCP",
+			inheritedHost: "tcp://192.168.1.10:2375",
+			failHost:      "@HOST@",
+			failText:      browserAutomationRefusedBuildText,
+			wantCalls:     []string{"host=@HOST@ context=unset", "host=tcp://192.168.1.10:2375 context=unset"},
+			wantWarnMsgs: []string{
+				"Retrying on a remote Docker engine over plain TCP",
+				"built through tcp://192.168.1.10:2375 instead",
+			},
+			wantBuiltOn:     "tcp://192.168.1.10:2375",
+			wantImageChecks: 1,
+		},
+		{
+			name:            "the image must be visible on docker.host after the fallback build",
+			inheritedHost:   "tcp://127.0.0.1:2376",
+			failHost:        "@HOST@",
+			failText:        browserAutomationRefusedBuildText,
+			imageStatus:     http.StatusNotFound,
+			wantCalls:       []string{"host=@HOST@ context=unset", "host=tcp://127.0.0.1:2376 context=unset"},
+			wantErrs:        []string{"the fallback built on tcp://127.0.0.1:2376", "still has no image aurago-browser:test"},
+			wantImageChecks: 1,
+		},
+		{
+			name:         "an inherited context disables the retry",
+			inheritedCtx: "remote",
+			failHost:     "@HOST@",
+			failText:     browserAutomationRefusedBuildText,
+			wantCalls:    []string{"host=@HOST@ context=unset"},
+			wantErrs:     []string{"403 Forbidden"},
 		},
 		{
 			name:          "other failures do not retry",
-			inheritedHost: "tcp://elsewhere:2375",
-			configured:    configured,
-			failHost:      configured,
+			inheritedHost: "tcp://127.0.0.1:2376",
+			failHost:      "@HOST@",
 			failText:      "no space left on device",
-			wantCalls:     []string{"host=" + configured + " context=unset"},
-			wantErr:       "no space left on device",
+			wantCalls:     []string{"host=@HOST@ context=unset"},
+			wantErrs:      []string{"no space left on device"},
+		},
+		{
+			name:          "a failed step with a 403 does not retry",
+			inheritedHost: "tcp://127.0.0.1:2376",
+			failHost:      "@HOST@",
+			failText:      stepFailureText,
+			wantCalls:     []string{"host=@HOST@ context=unset"},
+			wantErrs:      []string{"did not complete successfully"},
 		},
 		{
 			name:          "success does not retry",
-			inheritedHost: "tcp://elsewhere:2375",
-			configured:    configured,
-			wantCalls:     []string{"host=" + configured + " context=unset"},
+			inheritedHost: "tcp://127.0.0.1:2376",
+			wantCalls:     []string{"host=@HOST@ context=unset"},
 		},
 		{
 			name:          "refusal on the same engine does not retry",
-			inheritedHost: configured,
-			configured:    configured,
-			failHost:      configured,
+			inheritedHost: "@HOST@",
+			failHost:      "@HOST@",
 			failText:      browserAutomationRefusedBuildText,
-			wantCalls:     []string{"host=" + configured + " context=unset"},
-			wantErr:       "403 Forbidden",
+			wantCalls:     []string{"host=@HOST@ context=unset"},
+			wantErrs:      []string{"403 Forbidden"},
 		},
 		{
-			name:       "refusal on the default engine does not retry",
-			configured: "",
-			failHost:   dockerutil.DefaultHost(),
-			failText:   browserAutomationRefusedBuildText,
-			wantCalls:  []string{"host=" + dockerutil.DefaultHost() + " context=unset"},
-			wantErr:    "403 Forbidden",
+			name:          "refusal on the default engine does not retry",
+			defaultEngine: true,
+			failHost:      dockerutil.DefaultHost(),
+			failText:      browserAutomationRefusedBuildText,
+			wantCalls:     []string{"host=" + dockerutil.DefaultHost() + " context=unset"},
+			wantErrs:      []string{"403 Forbidden"},
 		},
 		{
-			name:          "a refused retry fails after exactly two calls",
-			inheritedHost: "tcp://elsewhere:2375",
-			configured:    configured,
-			failHost:      "*",
+			name:              "a refused retry fails after exactly two calls and keeps both outputs",
+			inheritedHost:     "tcp://127.0.0.1:2376",
+			failHost:          "*",
+			failText:          browserAutomationRefusedBuildText,
+			wantCalls:         []string{"host=@HOST@ context=unset", "host=tcp://127.0.0.1:2376 context=unset"},
+			wantErrs:          []string{"the retry on tcp://127.0.0.1:2376 failed too", "first attempt on docker.host:"},
+			wantRefusalCopies: 2,
+		},
+		{
+			name:          "too little build time left skips the retry",
+			inheritedHost: "tcp://127.0.0.1:2376",
+			failHost:      "@HOST@",
 			failText:      browserAutomationRefusedBuildText,
-			wantCalls:     []string{"host=" + configured + " context=unset", "host=tcp://elsewhere:2375 context=unset"},
-			wantErr:       "retry on tcp://elsewhere:2375 failed",
+			buildTimeout:  time.Minute,
+			wantCalls:     []string{"host=@HOST@ context=unset"},
+			wantErrs:      []string{"too little to retry on tcp://127.0.0.1:2376", "403 Forbidden"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			logFile := fakeBuildDockerCLI(t, tc.failHost, tc.failText)
-			setInheritedDockerEnv(t, "DOCKER_HOST", tc.inheritedHost)
+			var imageChecks int
+			dockerHost := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/"+dockerAPIVersion+"/images/") {
+					imageChecks++
+					if tc.imageStatus != 0 {
+						w.WriteHeader(tc.imageStatus)
+						return
+					}
+					_, _ = w.Write([]byte(`{}`))
+					return
+				}
+				w.WriteHeader(http.StatusInternalServerError)
+			})
+			resolve := strings.NewReplacer("@HOST@", dockerHost).Replace
+			configured := dockerHost
+			if tc.defaultEngine {
+				configured = ""
+			}
+			if tc.buildTimeout != 0 {
+				previous := browserAutomationBuildTimeout
+				browserAutomationBuildTimeout = tc.buildTimeout
+				t.Cleanup(func() { browserAutomationBuildTimeout = previous })
+			}
+			logFile := fakeBuildDockerCLI(t, resolve(tc.failHost), tc.failText)
+			setInheritedDockerEnv(t, "DOCKER_HOST", resolve(tc.inheritedHost))
 			setInheritedDockerEnv(t, "DOCKER_CONTEXT", tc.inheritedCtx)
 
 			logger := &recordingBuildLogger{}
-			err := buildBrowserAutomationImage("aurago-browser:test", browserAutomationBuildContextDir(t), tc.configured, false, logger)
+			err := buildBrowserAutomationImage("aurago-browser:test", browserAutomationBuildContextDir(t), configured, false, logger)
 
-			if got := fakeBuildDockerCalls(t, logFile); !reflect.DeepEqual(got, tc.wantCalls) {
-				t.Fatalf("docker calls = %#v, want %#v", got, tc.wantCalls)
+			var wantCalls []string
+			for _, call := range tc.wantCalls {
+				wantCalls = append(wantCalls, resolve(call))
 			}
-			if tc.wantErr == "" {
+			if got := fakeBuildDockerCalls(t, logFile); !reflect.DeepEqual(got, wantCalls) {
+				t.Fatalf("docker calls = %#v, want %#v", got, wantCalls)
+			}
+			if len(tc.wantErrs) == 0 {
 				if err != nil {
 					t.Fatalf("buildBrowserAutomationImage() error = %v", err)
 				}
-			} else if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
-				t.Fatalf("buildBrowserAutomationImage() error = %v, want it to contain %q", err, tc.wantErr)
-			}
-			if len(logger.warns) != tc.wantWarns {
-				t.Fatalf("warnings = %#v, want %d", logger.warns, tc.wantWarns)
-			}
-			if tc.wantWarns == 1 {
-				if !strings.Contains(logger.warns[0], "docker.host refused the build") {
-					t.Fatalf("warning = %q, want it to explain the refused build", logger.warns[0])
+			} else {
+				if err == nil {
+					t.Fatalf("buildBrowserAutomationImage() succeeded, want an error containing %q", tc.wantErrs)
 				}
-				args := fmt.Sprint(logger.warnArgs[0]...)
-				for _, name := range tc.wantWarnNames {
+				for _, want := range tc.wantErrs {
+					if !strings.Contains(err.Error(), want) {
+						t.Fatalf("buildBrowserAutomationImage() error = %v, want it to contain %q", err, want)
+					}
+				}
+				if tc.wantRefusalCopies > 0 {
+					if got := strings.Count(err.Error(), "Request forbidden by administrative rules"); got != tc.wantRefusalCopies {
+						t.Fatalf("error holds %d copies of the refusal output, want %d: %v", got, tc.wantRefusalCopies, err)
+					}
+				}
+			}
+			if imageChecks != tc.wantImageChecks {
+				t.Fatalf("image checks on docker.host = %d, want %d", imageChecks, tc.wantImageChecks)
+			}
+			if len(logger.warns) != len(tc.wantWarnMsgs) {
+				t.Fatalf("warnings = %#v, want %d", logger.warns, len(tc.wantWarnMsgs))
+			}
+			for i, want := range tc.wantWarnMsgs {
+				if !strings.Contains(logger.warns[i], resolve(want)) {
+					t.Fatalf("warning %d = %q, want it to contain %q", i, logger.warns[i], resolve(want))
+				}
+			}
+			if tc.wantBuiltOn != "" {
+				args := fmt.Sprint(logger.warnArgs[len(logger.warnArgs)-1]...)
+				for _, name := range []string{dockerHost, tc.wantBuiltOn} {
 					if !strings.Contains(args, name) {
 						t.Fatalf("warning arguments %q do not name %q", args, name)
 					}
 				}
 			}
 		})
+	}
+}
+
+func TestBrowserAutomationBuildTimeLeft(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if left := browserAutomationBuildTimeLeft(ctx); left <= 0 || left > 30*time.Second {
+		t.Fatalf("time left = %v, want within (0, 30s]", left)
+	}
+	if left := browserAutomationBuildTimeLeft(context.Background()); left < 24*time.Hour {
+		t.Fatalf("time left without a deadline = %v, want effectively unlimited", left)
+	}
+	expired, cancelExpired := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancelExpired()
+	if left := browserAutomationBuildTimeLeft(expired); left >= browserAutomationRetryMinRemaining {
+		t.Fatalf("time left on an expired context = %v, want below the retry minimum", left)
 	}
 }
 
