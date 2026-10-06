@@ -2455,6 +2455,7 @@ type fakeDockerAdapter struct {
 	removeFailOnce map[string]error // per-name RemoveContainer error, returned once
 	honourContext  bool             // container calls fail with ctx.Err() once ctx is done
 	startHook      func(name string)
+	pullHook       func(image string)
 	stoppedNames   map[string]bool // tracked containers that are not running
 }
 
@@ -2592,6 +2593,9 @@ func (f *fakeSecretStore) DeleteSecret(key string) error {
 func (f *fakeDockerAdapter) PullImage(_ context.Context, image string) error {
 	f.pulled = append(f.pulled, image)
 	f.events = append(f.events, "pull:"+image)
+	if f.pullHook != nil {
+		f.pullHook(image)
+	}
 	return f.pullErr
 }
 
@@ -2749,14 +2753,14 @@ func (f *fakeDockerAdapter) RenameContainer(ctx context.Context, name, newName s
 		}
 		delete(f.containers, name)
 		f.containers[newName] = true
-		if spec, ok := f.containerSpecs[name]; ok {
-			delete(f.containerSpecs, name)
-			f.containerSpecs[newName] = spec
-		}
 		if f.stoppedNames[name] {
 			delete(f.stoppedNames, name)
 			f.stoppedNames[newName] = true
 		}
+	}
+	if spec, ok := f.containerSpecs[name]; ok {
+		delete(f.containerSpecs, name)
+		f.containerSpecs[newName] = spec
 	}
 	f.renamed = append(f.renamed, name+"->"+newName)
 	f.events = append(f.events, "rename:"+name+"->"+newName)
@@ -2812,6 +2816,9 @@ func (f *fakeDockerAdapter) FindContainer(_ context.Context, name string) (Conta
 			state.Labels = spec.Labels
 		}
 		return state, true, nil
+	}
+	if spec, ok := f.containerSpecs[name]; ok && !f.trackContainers {
+		return ContainerState{Name: name, Status: "running", Running: true, Labels: spec.Labels}, true, nil
 	}
 	if labels, ok := f.existingContainers[name]; ok {
 		return ContainerState{Name: name, Status: "running", Running: true, Labels: labels}, true, nil
@@ -2899,13 +2906,15 @@ func (f *fakeDockerAdapter) trackCreated(spec ContainerSpec) {
 	f.setContainer(spec.Name, true)
 	f.cleanupMu.Lock()
 	defer f.cleanupMu.Unlock()
-	if !f.trackContainers {
-		return
-	}
+	// Specs are kept even without trackContainers, so FindContainer sees the
+	// containers this fake created, with their labels.
 	if f.containerSpecs == nil {
 		f.containerSpecs = map[string]ContainerSpec{}
 	}
 	f.containerSpecs[spec.Name] = spec
+	if !f.trackContainers {
+		return
+	}
 	// Docker creates a missing named volume with the container.
 	for _, volume := range spec.Volumes {
 		if f.volumes == nil {

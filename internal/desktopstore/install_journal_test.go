@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -394,7 +395,8 @@ func TestInterruptedInstallRecoveryRemovesOnlyJournaledResources(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	recoveryDocker := &fakeDockerAdapter{}
+	// The container the interrupted attempt created carries its Store labels.
+	recoveryDocker := &fakeDockerAdapter{existingContainers: map[string]map[string]string{record.ContainerName: storeLabels("node-red", "")}}
 	recovered := newTestServiceAtPath(t, dbPath, recoveryDocker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19925), nil)
 	deadline := time.Now().Add(2 * time.Second)
 	for {
@@ -417,8 +419,147 @@ func TestInterruptedInstallRecoveryRemovesOnlyJournaledResources(t *testing.T) {
 	if _, ok, err := recovered.GetInstalled(ctx, "node-red"); err != nil || ok {
 		t.Fatalf("recovery kept the installing record: ok=%v err=%v", ok, err)
 	}
-	if resources, err := recovered.installResources(ctx, "node-red"); err != nil || len(resources) != 0 {
-		t.Fatalf("journal after recovery = %v (%v), want empty", resources, err)
+	waitForJournal(t, recovered, "node-red", nil)
+}
+
+// waitForJournal waits until the app's journal holds exactly want (the
+// interrupted-install recovery updates it in the background).
+func waitForJournal(t *testing.T, svc *Service, appID string, want []installResource) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		got, err := svc.installResources(context.Background(), appID)
+		if err == nil && len(got) == len(want) && (len(want) == 0 || reflect.DeepEqual(sortedResources(got), sortedResources(want))) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("journal of %s = %v (%v), want %v", appID, got, err, want)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+func sortedResources(items []installResource) []installResource {
+	out := append([]installResource(nil), items...)
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Kind != out[j].Kind {
+			return out[i].Kind < out[j].Kind
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
+}
+
+// F-S5 review, minor 6: the recovery keeps the rows whose removal failed (and
+// the attempt marker), so the next failed attempt's cleanup retries them.
+func TestInterruptedInstallRecoveryKeepsRowsItCouldNotRemove(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+	svc := newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19927), nil)
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "node-red", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.updateOperation(ctx, op.ID, OperationRunning, "running", ""); err != nil {
+		t.Fatal(err)
+	}
+	record := svc.buildInstallRecord(svc.catalogByID["node-red"], op, BindModeLocal, "127.0.0.1", 19927, false)
+	for _, item := range []installResource{
+		{installResourceAttempt, op.ID},
+		{installResourceContainer, record.ContainerName},
+		{installResourceVolume, "created-by-the-attempt"},
+	} {
+		if err := svc.recordInstallResource(ctx, "node-red", item.Kind, item.Name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := svc.saveInstalled(ctx, record); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	recoveryDocker := &fakeDockerAdapter{
+		existingContainers: map[string]map[string]string{record.ContainerName: storeLabels("node-red", "")},
+		removeErrors:       map[string]error{record.ContainerName: errors.New("engine busy")},
+	}
+	recovered := newTestServiceAtPath(t, dbPath, recoveryDocker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19928), nil)
+	waitForJournal(t, recovered, "node-red", []installResource{
+		{installResourceAttempt, op.ID},
+		{installResourceContainer, record.ContainerName},
+	})
+	if _, ok := recoveryDocker.existingContainers[record.ContainerName]; !ok {
+		t.Fatal("the container whose removal failed is gone")
+	}
+}
+
+// F-S5 review, important 2: the preflight journals a free name before the
+// create; a foreign container that takes the name in between (here during
+// the image pull) is never removed by the failed install's cleanup.
+func TestFailedInstallNeverRemovesAForeignContainerThatTookTheName(t *testing.T) {
+	ctx := context.Background()
+	for i, tracked := range []bool{false, true} {
+		docker := &fakeDockerAdapter{trackContainers: tracked}
+		const name = "aurago-store-uptime-kuma"
+		docker.pullHook = func(string) {
+			// A foreign container appears after the preflight.
+			if tracked {
+				docker.addContainer(name)
+				return
+			}
+			docker.existingContainers = map[string]map[string]string{name: {"com.example.owner": "someone"}}
+			docker.createErr = errors.New("create container " + name + ": name already in use")
+		}
+		svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19930+i))
+		op, err := svc.StartInstall(ctx, InstallRequest{AppID: "uptime-kuma", BindMode: BindModeLocal})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := svc.RunOperation(ctx, op.ID); err == nil || !strings.Contains(err.Error(), "name already in use") {
+			t.Fatalf("tracked=%v: install error = %v, want the name conflict of the create", tracked, err)
+		}
+		if docker.removedContainers[name] != 0 {
+			t.Fatalf("tracked=%v: the failed install removed the foreign container: %v", tracked, docker.removedContainers)
+		}
+		if _, found, _ := docker.FindContainer(ctx, name); !found {
+			t.Fatalf("tracked=%v: the foreign container is gone", tracked)
+		}
+		if len(docker.removedVolumes) == 0 {
+			t.Fatalf("tracked=%v: the failed install kept the volume it created", tracked)
+		}
+		if resources, err := svc.installResources(ctx, "uptime-kuma"); err != nil || len(resources) != 0 {
+			t.Fatalf("tracked=%v: journal = %v (%v), want empty", tracked, resources, err)
+		}
+	}
+}
+
+// A journaled container name whose lookup fails stays in the journal.
+func TestInstallCleanupKeepsAContainerRowItCouldNotCheck(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{startErrors: []error{errors.New("start failed")}}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19933))
+	docker.findErrors = map[string]error{}
+	docker.pullHook = func(string) {
+		docker.findErrors["aurago-store-uptime-kuma"] = errors.New("engine busy")
+	}
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "uptime-kuma", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err == nil {
+		t.Fatal("install succeeded, want the start failure")
+	}
+	if docker.removedContainers["aurago-store-uptime-kuma"] != 0 {
+		t.Fatal("removed a container whose lookup failed")
+	}
+	resources, err := svc.installResources(ctx, "uptime-kuma")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []installResource{{installResourceAttempt, op.ID}, {installResourceContainer, "aurago-store-uptime-kuma"}}
+	if !reflect.DeepEqual(sortedResources(resources), sortedResources(want)) {
+		t.Fatalf("journal = %v, want %v", resources, want)
 	}
 }
 

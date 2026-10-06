@@ -440,11 +440,11 @@ func (s *Service) recoverInterruptedInstall(ctx context.Context, app InstalledAp
 	}
 	journaled := hasInstallAttempt(resources)
 	if journaled {
-		s.removeJournaledLocalResources(ctx, app.AppID, resources)
-		// The Docker cleanup below runs in the background and does not touch
-		// the database; a container it fails to remove carries the Store labels,
-		// so the next install attempt removes it.
-		if err := s.clearInstallResources(ctx, app.AppID); err != nil {
+		// The Docker part runs in the background (Init must not wait for it)
+		// and forgets only the rows it settled; the rest stay for the next
+		// failed attempt's cleanup.
+		localRemoved, _ := s.removeJournaledLocalResources(ctx, app.AppID, resources)
+		if err := s.forgetInstallResources(ctx, app.AppID, localRemoved); err != nil {
 			return err
 		}
 	} else {
@@ -468,11 +468,20 @@ func (s *Service) scheduleInterruptedInstallDockerCleanup(app InstalledApp, reso
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
-		if journaled {
-			s.removeJournaledDockerResources(ctx, app.AppID, resources)
+		if !journaled {
+			s.cleanupInstallDockerResources(ctx, app)
 			return
 		}
-		s.cleanupInstallDockerResources(ctx, app)
+		removed, failed := s.removeJournaledDockerResources(ctx, app.AppID, resources)
+		if !failed {
+			// The interrupted attempt is settled; its marker goes too.
+			for _, item := range resources {
+				if item.Kind == installResourceAttempt {
+					removed = append(removed, item)
+				}
+			}
+		}
+		s.forgetInstallResourcesIfOpen(ctx, app.AppID, removed)
 	}()
 }
 

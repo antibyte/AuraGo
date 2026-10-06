@@ -98,6 +98,23 @@ func (s *Service) forgetInstallResources(ctx context.Context, appID string, reso
 	return nil
 }
 
+// forgetInstallResourcesIfOpen is forgetInstallResources for background work:
+// it holds the service lock, so it never races Close, and does nothing once
+// the service is closed.
+func (s *Service) forgetInstallResourcesIfOpen(ctx context.Context, appID string, resources []installResource) {
+	if len(resources) == 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed || s.db == nil {
+		return
+	}
+	if err := s.forgetInstallResources(ctx, appID, resources); err != nil {
+		s.logger().Warn("Store install cleanup could not update its journal", "app_id", appID, "error", err)
+	}
+}
+
 func (s *Service) clearInstallResources(ctx context.Context, appID string) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM desktop_store_install_resources WHERE app_id = ?`, appID); err != nil {
 		return fmt.Errorf("clear desktop store install resources: %w", err)
@@ -320,7 +337,9 @@ func (s *Service) cleanupBlockedInstall(ctx context.Context, appID string) {
 
 // removeJournaledDockerResources removes the journaled containers first, then
 // volumes and networks. It does not touch the database, so the interrupted
-// install recovery can run it in the background.
+// install recovery can run it in the background. removed lists the rows that
+// are settled: removed, already gone, or a container name that now belongs to
+// another container, which is never removed.
 func (s *Service) removeJournaledDockerResources(ctx context.Context, appID string, resources []installResource) (removed []installResource, failed bool) {
 	docker := s.requireDocker()
 	for _, kind := range []string{installResourceContainer, installResourceVolume, installResourceNetwork} {
@@ -331,8 +350,19 @@ func (s *Service) removeJournaledDockerResources(ctx context.Context, appID stri
 			var err error
 			switch kind {
 			case installResourceContainer:
-				_ = docker.StopContainer(ctx, item.Name)
-				err = docker.RemoveContainer(ctx, item.Name, true)
+				// The preflight journals a free name before the create; another
+				// container can take it in between (image pulls take a while).
+				state, found, findErr := docker.FindContainer(ctx, item.Name)
+				switch {
+				case findErr != nil:
+					err = fmt.Errorf("check container %s: %w", item.Name, findErr)
+				case !found:
+				case !isAppStoreContainer(state.Labels, appID):
+					s.logger().Warn("Store install cleanup leaves a container it did not create", "app_id", appID, "container", item.Name)
+				default:
+					_ = docker.StopContainer(ctx, item.Name)
+					err = docker.RemoveContainer(ctx, item.Name, true)
+				}
 			case installResourceVolume:
 				err = docker.RemoveVolume(ctx, item.Name, true)
 			case installResourceNetwork:
