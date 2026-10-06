@@ -167,7 +167,7 @@ func (c *SSHConnector) Stop(ctx context.Context, nest NestRecord, secret []byte)
 	if err != nil {
 		return err
 	}
-	processPattern, err := sshEggProcessPattern(nest.ID)
+	baseDir, err := sshEggBaseDir(nest.ID)
 	if err != nil {
 		return err
 	}
@@ -179,8 +179,8 @@ func (c *SSHConnector) Stop(ctx context.Context, nest NestRecord, secret []byte)
 		return fmt.Errorf("failed to stop service: %w", err)
 	}
 
-	// Also kill any running process
-	killCmd := fmt.Sprintf("pkill -f %s 2>/dev/null || true", shellQuote(processPattern))
+	// Also stop a process-mode egg (SIGTERM, then SIGKILL after 10 s)
+	killCmd := sshEggStopRunningScript(baseDir) + "true"
 	_, _ = sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, killCmd)
 
 	return nil
@@ -191,7 +191,7 @@ func (c *SSHConnector) Status(ctx context.Context, nest NestRecord, secret []byt
 	if err != nil {
 		return "unknown", err
 	}
-	processPattern, err := sshEggProcessPattern(nest.ID)
+	baseDir, err := sshEggBaseDir(nest.ID)
 	if err != nil {
 		return "unknown", err
 	}
@@ -204,9 +204,9 @@ func (c *SSHConnector) Status(ctx context.Context, nest NestRecord, secret []byt
 		return "running", nil
 	}
 
-	// Check for running process
+	// Check for a running egg process
 	output, err = sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret,
-		fmt.Sprintf("pgrep -f %s >/dev/null 2>&1 && echo running || echo stopped", shellQuote(processPattern)))
+		sshEggFindProcessesScript(baseDir)+`if [ -n "$pids" ]; then echo running; else echo stopped; fi`)
 	if err != nil {
 		return "unknown", err
 	}
@@ -254,18 +254,31 @@ WantedBy=multi-user.target
 	return nil
 }
 
-// sshEggStopRunningScript stops the egg process a previous hatch started from
-// baseDir before a new one starts: SIGTERM, up to 10 s to exit, then SIGKILL.
-// It finds the process by its executable (<baseDir>/aurago, or "(deleted)"
-// once the upload replaced the file), not by command line: a process-mode egg
-// runs as "./aurago", and the remote shell's own command line would match.
-func sshEggStopRunningScript(baseDir string) string {
+// sshEggFindProcessesScript sets $pids to the SSH user's egg processes
+// started from baseDir, in process mode or by the systemd unit. It matches by
+// executable (<baseDir>/aurago, or "(deleted)" once an upload replaced the
+// file), never by command line: a process-mode egg runs as "./aurago", and
+// pgrep -f/pkill -f also match the remote shell that carries the pattern.
+func sshEggFindProcessesScript(baseDir string) string {
 	return "dir=" + shellPath(baseDir) + "; pids=; " +
 		`for p in $(pgrep -u "$(id -u)" -x aurago 2>/dev/null); do ` +
-		`case "$(readlink "/proc/$p/exe" 2>/dev/null)" in "$dir/aurago"|"$dir/aurago (deleted)") pids="$pids $p";; esac; done; ` +
+		`case "$(readlink "/proc/$p/exe" 2>/dev/null)" in "$dir/aurago"|"$dir/aurago (deleted)") pids="$pids $p";; esac; done; `
+}
+
+// sshEggStopRunningScript stops the egg processes sshEggFindProcessesScript
+// finds: SIGTERM, up to 10 s to exit, then SIGKILL.
+func sshEggStopRunningScript(baseDir string) string {
+	return sshEggFindProcessesScript(baseDir) +
 		`if [ -n "$pids" ]; then kill -TERM $pids 2>/dev/null; alive=1; i=0; ` +
 		`while [ $i -lt 50 ]; do alive=; for p in $pids; do kill -0 "$p" 2>/dev/null && alive=1; done; [ -z "$alive" ] && break; sleep 0.2; i=$((i+1)); done; ` +
 		`if [ -n "$alive" ]; then kill -KILL $pids 2>/dev/null; fi; fi; `
+}
+
+// sshEggDetachedStart starts the egg from baseDir in process mode. Only nohup
+// runs in the background, with stdin from /dev/null, so the SSH command
+// returns: a backgrounded "cd && ... && nohup" list kept the session open.
+func sshEggDetachedStart(baseDir string) string {
+	return fmt.Sprintf("cd %s && set -a && . ./.env && set +a && { nohup ./aurago > log/egg.log 2>&1 < /dev/null & }", shellPath(baseDir))
 }
 
 func (c *SSHConnector) startProcess(ctx context.Context, nest NestRecord, secret []byte, baseDir string) error {
@@ -287,12 +300,12 @@ func (c *SSHConnector) startProcess(ctx context.Context, nest NestRecord, secret
 }
 
 func (c *SSHConnector) HealthCheck(ctx context.Context, nest NestRecord, secret []byte) error {
-	processPattern, err := sshEggProcessPattern(nest.ID)
+	baseDir, err := sshEggBaseDir(nest.ID)
 	if err != nil {
 		return err
 	}
-	// Check if the egg process is running
-	checkCmd := fmt.Sprintf("pgrep -f %s >/dev/null 2>&1 && echo ok || echo fail", shellQuote(processPattern))
+	// Check that an egg process (process mode or the unit's) is running
+	checkCmd := sshEggFindProcessesScript(baseDir) + `if [ -n "$pids" ]; then echo ok; else echo fail; fi`
 	output, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, checkCmd)
 	if err != nil {
 		return fmt.Errorf("health check failed: %w", err)
@@ -328,7 +341,7 @@ func (c *SSHConnector) Reconfigure(ctx context.Context, nest NestRecord, secret 
 		return err
 	}
 	serviceName := fmt.Sprintf("aurago-egg-%s", prefix)
-	restartCmd := fmt.Sprintf("systemctl --user restart %s 2>/dev/null || (cd %s && set -a && . ./.env && set +a && nohup ./aurago > log/egg.log 2>&1 &)", serviceName, shellPath(baseDir))
+	restartCmd := fmt.Sprintf("systemctl --user restart %s 2>/dev/null || (%s)", serviceName, sshEggDetachedStart(baseDir))
 	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, restartCmd); err != nil {
 		return fmt.Errorf("failed to restart egg after reconfigure: %w", err)
 	}
@@ -368,7 +381,7 @@ func (c *SSHConnector) Rollback(ctx context.Context, nest NestRecord, secret []b
 		return err
 	}
 	serviceName := fmt.Sprintf("aurago-egg-%s", prefix)
-	startCmd := fmt.Sprintf("systemctl --user restart %s 2>/dev/null || (cd %s && set -a && source .env && set +a && nohup ./aurago > log/egg.log 2>&1 &)", serviceName, baseDir)
+	startCmd := fmt.Sprintf("systemctl --user restart %s 2>/dev/null || (%s)", serviceName, sshEggDetachedStart(baseDir))
 	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, startCmd); err != nil {
 		return fmt.Errorf("failed to restart after rollback: %w", err)
 	}

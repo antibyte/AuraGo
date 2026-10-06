@@ -370,3 +370,97 @@ func TestSSHConnectorServiceUnitUsesSystemdHomeSpecifier(t *testing.T) {
 		t.Fatalf("the unit must be written through a quoted heredoc so the shell keeps %%h: %s", unit)
 	}
 }
+
+// sshCommandsWithOutput fakes every remote call with output and records the
+// commands.
+func sshCommandsWithOutput(t *testing.T, output func(cmd string) string) *[]string {
+	t.Helper()
+	var cmds []string
+	priorCommand, priorTransfer := sshRemoteCommand, sshTransferFile
+	t.Cleanup(func() { sshRemoteCommand, sshTransferFile = priorCommand, priorTransfer })
+	sshRemoteCommand = func(ctx context.Context, host string, port int, user string, secret []byte, cmd string, input ...io.Reader) (string, error) {
+		cmds = append(cmds, cmd)
+		return output(cmd), nil
+	}
+	sshTransferFile = func(ctx context.Context, host string, port int, user string, secret []byte, localPath, remotePath, direction string, allowedRoot ...string) error {
+		return nil
+	}
+	return &cmds
+}
+
+func assertEggExecutableMatch(t *testing.T, name, cmd string) {
+	t.Helper()
+	if strings.Contains(cmd, "pgrep -f") || strings.Contains(cmd, "pkill -f") {
+		t.Fatalf("%s matches command lines, which never match a process-mode egg (./aurago) and do match the remote shell: %s", name, cmd)
+	}
+	for _, want := range []string{`dir=$HOME/'.aurago-egg-12345678'`, `pgrep -u "$(id -u)" -x aurago`, `"$dir/aurago"|"$dir/aurago (deleted)")`} {
+		if !strings.Contains(cmd, want) {
+			t.Fatalf("%s lacks %q: %s", name, want, cmd)
+		}
+	}
+}
+
+func TestSSHConnectorProcessChecksMatchTheEggExecutable(t *testing.T) {
+	c, nest := &SSHConnector{}, sshDeployTestNest()
+	ctx := context.Background()
+
+	cmds := sshCommandsWithOutput(t, func(string) string { return "" })
+	if err := c.Stop(ctx, nest, nil); err != nil {
+		t.Fatalf("Stop: %v", err)
+	}
+	if len(*cmds) != 2 || !strings.HasPrefix((*cmds)[0], "systemctl --user stop aurago-egg-12345678") {
+		t.Fatalf("Stop commands = %q, want the unchanged service stop first", *cmds)
+	}
+	assertEggExecutableMatch(t, "Stop", (*cmds)[1])
+	if !strings.Contains((*cmds)[1], "kill -TERM") || !strings.Contains((*cmds)[1], "kill -KILL") {
+		t.Fatalf("Stop must send SIGTERM and fall back to SIGKILL: %s", (*cmds)[1])
+	}
+
+	for _, tc := range []struct {
+		remote, want string
+	}{{"running\n", "running"}, {"stopped\n", "stopped"}} {
+		remoteOut := tc.remote
+		cmds = sshCommandsWithOutput(t, func(cmd string) string {
+			if strings.Contains(cmd, "is-active") {
+				return "inactive\n"
+			}
+			return remoteOut
+		})
+		got, err := c.Status(ctx, nest, nil)
+		if err != nil || got != tc.want {
+			t.Fatalf("Status = %q, %v; want %q", got, err, tc.want)
+		}
+		assertEggExecutableMatch(t, "Status", (*cmds)[len(*cmds)-1])
+	}
+
+	cmds = sshCommandsWithOutput(t, func(string) string { return "fail\n" })
+	if err := c.HealthCheck(ctx, nest, nil); err == nil || err.Error() != "egg process not running" {
+		t.Fatalf("HealthCheck with no egg process = %v, want egg process not running", err)
+	}
+	assertEggExecutableMatch(t, "HealthCheck", (*cmds)[0])
+	sshCommandsWithOutput(t, func(string) string { return "ok\n" })
+	if err := c.HealthCheck(ctx, nest, nil); err != nil {
+		t.Fatalf("HealthCheck with a running egg: %v", err)
+	}
+}
+
+func TestSSHConnectorRestartFallbacksDetachTheEggFromTheSession(t *testing.T) {
+	const detached = "{ nohup ./aurago > log/egg.log 2>&1 < /dev/null & }"
+	c, nest := &SSHConnector{}, sshDeployTestNest()
+	cmds := sshCommandsWithOutput(t, func(string) string { return "ok\n" })
+	if err := c.Reconfigure(context.Background(), nest, nil, []byte("egg_mode: {}\n")); err != nil {
+		t.Fatalf("Reconfigure: %v", err)
+	}
+	restart := (*cmds)[len(*cmds)-1]
+	if !strings.HasPrefix(restart, "systemctl --user restart aurago-egg-12345678 2>/dev/null || (") || !strings.Contains(restart, detached) {
+		t.Fatalf("Reconfigure restart = %q, want the service restart with a detached nohup fallback", restart)
+	}
+	cmds = sshCommandsWithOutput(t, func(string) string { return "ok\n" })
+	if err := c.Rollback(context.Background(), nest, nil); err != nil {
+		t.Fatalf("Rollback: %v", err)
+	}
+	restart = (*cmds)[len(*cmds)-1]
+	if !strings.HasPrefix(restart, "systemctl --user restart aurago-egg-12345678 2>/dev/null || (") || !strings.Contains(restart, detached) {
+		t.Fatalf("Rollback restart = %q, want the service restart with a detached nohup fallback", restart)
+	}
+}
