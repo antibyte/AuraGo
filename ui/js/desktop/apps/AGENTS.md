@@ -1305,6 +1305,10 @@ registration lives in `internal/desktop/types.go`.
   window owns its engine/worker, requests, panels, chart canvases, operation
   journal and save queue. Load OfficeSession, data, panels and charts before
   sheets.js. The local vendor build imports only Apache-2.0 Univer OSS 1.0.3.
+- Failed workbook loads release the editor/save queue and show New, Open and
+  Retry actions with an error status. A confirmed 404 clears the shell's stored
+  path; temporary failures retain it for retry. New uses a fresh create-only
+  path and never recreates the missing file. Verify `TestDesktopSheetsLoadRecoveryBrowser`.
 - Use the engine's formula, selection, clipboard, structural-reference and undo
   APIs. Do not restore the removed HTML grid or browser formula evaluator.
   Expand shared formulas before persistence, preserve forced strings, and parse
