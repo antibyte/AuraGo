@@ -180,7 +180,7 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 
 	setSupertonicLifecycle("pulling")
 	logSupertonic(logger, slog.LevelInfo, "Pulling image", "image", image)
-	if err := pullImageBestEffort(dockerCfg, image); err != nil {
+	if err := pullImageBestEffort(context.Background(), dockerCfg, image); err != nil {
 		var pullErr *dockerPullError
 		if errors.As(err, &pullErr) && pullErr.StatusCode != 0 {
 			logSupertonic(logger, slog.LevelWarn, "Image pull returned unexpected status", "code", pullErr.StatusCode, "error", err)

@@ -1575,6 +1575,11 @@ func resolveMode(cfg CloudflareTunnelConfig) string {
 	}
 }
 
+// cloudflaredPullTimeout bounds the cloudflared image pull. Every caller holds
+// tunnelMu, which config saves, status requests and shutdown also take, so the
+// pull keeps the 60-second bound of the request client it ran on before.
+var cloudflaredPullTimeout = 60 * time.Second
+
 // pullImage pulls image unless it is already present. A failed pull is logged
 // and returned; callers still create the container, as before, and the create
 // reports a missing image itself.
@@ -1590,7 +1595,9 @@ func pullImage(dockerCfg DockerConfig, image string, logger *slog.Logger) error 
 	}
 
 	logger.Info("[CloudflareTunnel] Pulling image", "image", image)
-	if err := pullImageBestEffort(dockerCfg, image); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), cloudflaredPullTimeout)
+	defer cancel()
+	if err := pullImageBestEffort(ctx, dockerCfg, image); err != nil {
 		logger.Warn("[CloudflareTunnel] Image pull failed; trying to create the container anyway", "image", image, "error", err)
 		return err
 	}

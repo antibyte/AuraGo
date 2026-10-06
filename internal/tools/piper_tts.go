@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -98,7 +99,7 @@ func EnsurePiperRunning(cfg *config.Config, logger *slog.Logger) {
 
 	// Container does not exist — pull image if needed, then create and start
 	logger.Info("[Piper TTS] Pulling image", "image", image)
-	if err := pullImageBestEffort(dockerCfg, image); err != nil {
+	if err := pullImageBestEffort(context.Background(), dockerCfg, image); err != nil {
 		var pullErr *dockerPullError
 		if errors.As(err, &pullErr) && pullErr.StatusCode != 0 {
 			logger.Warn("[Piper TTS] Image pull returned unexpected status", "code", pullErr.StatusCode, "error", err)
