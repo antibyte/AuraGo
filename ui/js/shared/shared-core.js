@@ -390,6 +390,15 @@ function injectRadialMenu() {
     const trigger = document.getElementById('radialTrigger');
     if (trigger) trigger.dataset.initialized = '';
     initRadialMenu();
+
+    // A menu injected again after initShared (Desktop, Plans) needs its own
+    // Logout binding (initLogoutLinks never binds twice) and, once checkAuth
+    // has seen auth enabled, a visible Logout item.
+    initLogoutLinks();
+    if (window._auragoAuthEnabled === true) {
+        const radialLogout = document.getElementById('radialLogout');
+        if (radialLogout) radialLogout.classList.remove('is-hidden');
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -616,6 +625,8 @@ async function checkAuth() {
         if (resp.ok) {
             const data = await resp.json();
             window.AuraAuth.observeSessionStatus(data);
+            // injectRadialMenu reveals Logout in a menu injected after this check.
+            window._auragoAuthEnabled = !!data.enabled;
             if (data.enabled) {
                 if (data.authenticated === false) {
                     window.AuraAuth.redirectToLogin();
