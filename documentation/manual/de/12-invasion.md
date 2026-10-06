@@ -401,6 +401,8 @@ Shared Key rotieren:
 curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/rotate-key
 ```
 
+Das Egg speichert den neuen Schlüssel in seinem Vault und bestätigt ihn, bevor der Master die Rotation übernimmt. Lehnt das Egg ab oder bestätigt es nicht rechtzeitig, liefert der Aufruf `502` und der bisherige Schlüssel bleibt aktiv; ein Egg, das den Schlüssel trotzdem gespeichert hat, wird beim nächsten Verbindungsaufbau akzeptiert. Master und alle Eggs für dieses Release gemeinsam aktualisieren.
+
 Bei fehlgeschlagenem Health-Check nach Deploy versucht das System einen **automatischen Rollback**.
 
 ---

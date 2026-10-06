@@ -1084,6 +1084,15 @@ func main() {
 				appLog.Error("Failed to store received secret", "key", secret.Key, "error", err)
 			}
 		}
+		// Persist a rotated key where startup reads it (ApplyVaultSecrets loads
+		// egg_shared_key) before the client switches and acks.
+		eggClient.OnRekey = func(newKey string, version int) error {
+			if err := vault.WriteSecret("egg_shared_key", newKey); err != nil {
+				return err
+			}
+			appLog.Info("Rotated shared key persisted", "version", version)
+			return nil
+		}
 		eggClient.OnStop = func() {
 			appLog.Warn("Stop command from master -- initiating shutdown")
 			close(shutdownCh)

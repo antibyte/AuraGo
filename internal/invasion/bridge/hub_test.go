@@ -3,11 +3,13 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -508,6 +510,268 @@ func TestEggConnection_GetTelemetry(t *testing.T) {
 	if tel.Status != "busy" {
 		t.Errorf("status = %q, want %q", tel.Status, "busy")
 	}
+}
+
+// ── Key rotation ────────────────────────────────────────────────────────────
+
+// rekeyFixture wires a registered hub connection to a live EggClient over a
+// real socket pair, like TestHeartbeatAndRekeyRemainOrderedUnderConcurrentTraffic.
+type rekeyFixture struct {
+	hub    *EggHub
+	conn   *EggConnection
+	client *EggClient
+	oldKey string
+}
+
+// newRekeyFixture runs configure before the read loops start so callbacks are
+// installed without racing the readers.
+func newRekeyFixture(t *testing.T, configure func(*EggHub, *EggClient)) rekeyFixture {
+	t.Helper()
+	hub := NewEggHub(testLogger())
+	s, c, cleanup := wsPair(t)
+	key := validKey(t)
+	conn := &EggConnection{Conn: s, EggID: "egg", NestID: "nest", SharedKey: key}
+	if err := registerTestConnection(t, hub, "nest", conn); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+	client := NewEggClient("", "egg", "nest", key, "fixture", testLogger())
+	client.conn, client.session = c, testSession(t, "egg", "nest", "egg")
+	if configure != nil {
+		configure(hub, client)
+	}
+	var readers sync.WaitGroup
+	readers.Add(2)
+	go func() { defer readers.Done(); hub.HandleMessages(conn) }()
+	go func() { defer readers.Done(); client.readLoop() }()
+	t.Cleanup(func() {
+		client.Stop()
+		cleanup()
+		readers.Wait()
+	})
+	return rekeyFixture{hub: hub, conn: conn, client: client, oldKey: key}
+}
+
+func (f rekeyFixture) hubKeys() (current, previous string, version int) {
+	f.conn.mu.Lock()
+	defer f.conn.mu.Unlock()
+	return f.conn.SharedKey, f.conn.PreviousKey, f.conn.KeyVersion
+}
+
+// sendAsEgg writes a frame on the egg's session signed with an arbitrary key.
+func sendAsEgg(t *testing.T, c *EggClient, key, kind string, payload interface{}) {
+	t.Helper()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	msg, err := NewMessage(kind, c.EggID, c.NestID, key, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.session.Prepare(msg, key); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.conn.WriteJSON(msg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func waitForBridge(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+func TestSendRekeyWaitsForAckAndPersistsOnEgg(t *testing.T) {
+	persisted := make(chan string, 1)
+	f := newRekeyFixture(t, func(_ *EggHub, c *EggClient) {
+		c.OnRekey = func(newKey string, version int) error {
+			if version != 1 {
+				t.Errorf("version = %d, want 1", version)
+			}
+			persisted <- newKey
+			return nil
+		}
+	})
+	newKey := validKey(t)
+	if err := f.hub.SendRekey(context.Background(), "nest", newKey); err != nil {
+		t.Fatalf("SendRekey: %v", err)
+	}
+	select {
+	case got := <-persisted:
+		if got != newKey {
+			t.Fatalf("egg persisted %q, want the new key", got)
+		}
+	default:
+		t.Fatal("egg must persist the key before acking")
+	}
+	current, previous, version := f.hubKeys()
+	if f.client.SharedKeySnapshot() != newKey || current != newKey || version != 1 {
+		t.Fatal("both sides must hold the new key after the ack")
+	}
+	if previous != "" {
+		t.Fatal("the grace key must be cleared once the egg confirmed the new key")
+	}
+}
+
+func TestSendRekeyRollsBackWhenEggCannotPersist(t *testing.T) {
+	heartbeats := make(chan struct{}, 1)
+	f := newRekeyFixture(t, func(h *EggHub, c *EggClient) {
+		c.OnRekey = func(string, int) error { return errors.New("disk full at /secret/path") }
+		h.OnHeartbeat = func(string, HeartbeatPayload) { heartbeats <- struct{}{} }
+	})
+	err := f.hub.SendRekey(context.Background(), "nest", validKey(t))
+	if err == nil {
+		t.Fatal("SendRekey must fail when the egg rejects")
+	}
+	if strings.Contains(err.Error(), "/secret/path") {
+		t.Fatalf("egg rejection leaked its local error: %v", err)
+	}
+	current, previous, version := f.hubKeys()
+	if current != f.oldKey || previous != "" || version != 0 || f.client.SharedKeySnapshot() != f.oldKey {
+		t.Fatal("rejected rotation must leave both sides on the old key")
+	}
+	if f.hub.RekeyUnresolved("nest") {
+		t.Fatal("an explicit rejection resolves the rotation")
+	}
+	if err := f.client.send(MsgHeartbeat, HeartbeatPayload{Status: "idle"}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-heartbeats:
+	case <-time.After(2 * time.Second):
+		t.Fatal("old-key traffic must keep flowing after a rejected rotation")
+	}
+}
+
+func TestEggRejectsRekeyWithUnexpectedVersion(t *testing.T) {
+	var called atomic.Bool
+	f := newRekeyFixture(t, func(_ *EggHub, c *EggClient) {
+		c.OnRekey = func(string, int) error { called.Store(true); return nil }
+	})
+	f.conn.mu.Lock()
+	f.conn.KeyVersion = 5 // the egg expects version 1 on this session
+	f.conn.mu.Unlock()
+	if err := f.hub.SendRekey(context.Background(), "nest", validKey(t)); err == nil {
+		t.Fatal("egg must reject a rekey that skips versions")
+	}
+	if called.Load() {
+		t.Fatal("egg must not persist a rekey with an unexpected version")
+	}
+	current, _, version := f.hubKeys()
+	if current != f.oldKey || version != 5 || f.client.SharedKeySnapshot() != f.oldKey {
+		t.Fatal("version mismatch must leave both sides on the old key and version")
+	}
+}
+
+func TestSendRekeyTimeoutRollsBackAndKeepsOldKeyUsable(t *testing.T) {
+	release := make(chan error)
+	heartbeats := make(chan struct{}, 4)
+	f := newRekeyFixture(t, func(h *EggHub, c *EggClient) {
+		c.OnRekey = func(string, int) error { return <-release }
+		h.OnHeartbeat = func(string, HeartbeatPayload) { heartbeats <- struct{}{} }
+	})
+	newKey := validKey(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	if err := f.hub.SendRekey(ctx, "nest", newKey); err == nil {
+		close(release)
+		t.Fatal("SendRekey must fail when the egg never acks")
+	}
+	current, previous, version := f.hubKeys()
+	if current != f.oldKey || previous != "" || version != 0 {
+		close(release)
+		t.Fatal("unconfirmed rotation must roll the hub back to the old key")
+	}
+	// The egg may still adopt the key, so a second rotation must not start.
+	if !f.hub.RekeyUnresolved("nest") {
+		close(release)
+		t.Fatal("a timed-out rotation stays unresolved until the egg answers")
+	}
+	if _, err := f.hub.BeginKeyRotation("nest"); err == nil {
+		close(release)
+		t.Fatal("a new rotation must wait for the unresolved one")
+	}
+	if err := f.hub.SendRekey(context.Background(), "nest", validKey(t)); err == nil {
+		close(release)
+		t.Fatal("SendRekey must refuse while an earlier rotation is unresolved")
+	}
+
+	release <- errors.New("late persist failure")
+	waitForBridge(t, "late rejection to resolve the rotation", func() bool { return !f.hub.RekeyUnresolved("nest") })
+	sendAsEgg(t, f.client, f.oldKey, MsgHeartbeat, HeartbeatPayload{Status: "idle"})
+	select {
+	case <-heartbeats:
+	case <-time.After(2 * time.Second):
+		t.Fatal("a frame signed with the old key must be accepted after the rollback")
+	}
+	sendAsEgg(t, f.client, newKey, MsgHeartbeat, HeartbeatPayload{Status: "idle"})
+	waitForBridge(t, "new-key frame to drop the connection", func() bool { return !f.hub.IsConnected("nest") })
+	select {
+	case <-heartbeats:
+		t.Fatal("a frame signed with the rolled-back key must be rejected")
+	default:
+	}
+}
+
+func TestSendRekeyLostAckLeavesEggOnPersistedKey(t *testing.T) {
+	persisted := make(chan string, 1)
+	f := newRekeyFixture(t, func(_ *EggHub, c *EggClient) {
+		c.OnRekey = func(newKey string, _ int) error {
+			persisted <- newKey
+			// Cut the socket after the key is durable: the ack never arrives.
+			c.mu.Lock()
+			_ = c.conn.Close()
+			c.mu.Unlock()
+			return nil
+		}
+	})
+	newKey := validKey(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	if err := f.hub.SendRekey(ctx, "nest", newKey); err == nil {
+		t.Fatal("SendRekey must fail without an ack")
+	}
+	if current, previous, _ := f.hubKeys(); current != f.oldKey || previous != "" {
+		t.Fatal("hub must roll back to the old key when the ack is lost")
+	}
+	select {
+	case got := <-persisted:
+		if got != newKey {
+			t.Fatal("egg persisted the wrong key")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("egg never persisted the key")
+	}
+	// The egg switches after persisting; its reconnect presents the new key,
+	// which the master's handshake accepts from the staged _next candidate.
+	waitForBridge(t, "egg to hold the persisted key", func() bool { return f.client.SharedKeySnapshot() == newKey })
+}
+
+func TestBeginKeyRotationSerializesRotationsPerNest(t *testing.T) {
+	hub := NewEggHub(testLogger())
+	done, err := hub.BeginKeyRotation("nest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := hub.BeginKeyRotation("nest"); err == nil {
+		t.Fatal("a second rotation for the same nest must be refused")
+	}
+	other, err := hub.BeginKeyRotation("other")
+	if err != nil {
+		t.Fatalf("rotations for other nests stay independent: %v", err)
+	}
+	other()
+	done()
+	again, err := hub.BeginKeyRotation("nest")
+	if err != nil {
+		t.Fatalf("finished rotation must release the nest: %v", err)
+	}
+	again()
 }
 
 func registerTestConnection(t *testing.T, hub *EggHub, nestID string, conn *EggConnection) error {

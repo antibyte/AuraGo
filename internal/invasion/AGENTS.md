@@ -22,9 +22,25 @@ the Egg runtime in `cmd/aurago`.
 - Connection-owned cleanup, heartbeat expiry and acknowledgements bind to the
   exact socket generation. Replacement must survive an old reader's exit.
 - Signing, sequencing, socket writes and key rotation are serialized. Heartbeat
-  state and HTTP signing read keys under the owning lock. The Master permits one
-  previous key for sixty seconds for messages already in flight. Preserve these
-  bounds; protocol checks still apply under the previous key.
+  state and HTTP signing read keys under the owning lock. The Master accepts the
+  previous key only while a rotation awaits the Egg's ack (at most sixty
+  seconds) and drops it on commit or rollback. Preserve these bounds; protocol
+  checks still apply under the previous key.
+- Key rotation is two-phase. The handler reserves the nest
+  (`EggHub.BeginKeyRotation`), stages `egg_shared_<nest>_next`, and
+  `SendRekey` sends under the current key. The Egg persists the key
+  (`EggClient.OnRekey` → vault `egg_shared_key`) before switching and acking
+  under the new key; no handler, a version other than current+1, or a persist
+  error is a signed rejection under the old key. The Master commits current +
+  `_prev` and drops `_next` only after the ack and rolls back otherwise; a
+  timed-out rotation stays unresolved (no new rotation) until the Egg's
+  rejection arrives or the socket ends. The handshake tries current, `_next`,
+  `_prev`; a `_next`/`_prev` match is promoted and the others removed, and a
+  current-key match retires `_prev`. The `egg_shared_` vault prefix is
+  reserved. Tests: `TestSendRekey*`, `TestEggRejectsRekeyWithUnexpectedVersion`,
+  `TestBeginKeyRotationSerializesRotationsPerNest`,
+  `TestHeartbeatAndRekeyRemainOrderedUnderConcurrentTraffic` (bridge) and
+  `TestInvasionHandshake*`, `TestInvasionRotateKey*` (server).
 - SSH deployment and reconfiguration transmit secret-bearing file content over
   encrypted stdin with a fixed exec command. Publish private mode-0600 temporary
   files atomically as the configured SSH user; keep the last valid file on error.

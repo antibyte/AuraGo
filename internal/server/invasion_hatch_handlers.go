@@ -15,6 +15,7 @@ import (
 
 	"aurago/internal/invasion"
 	"aurago/internal/invasion/bridge"
+	"aurago/internal/security"
 
 	"github.com/gorilla/websocket"
 )
@@ -255,6 +256,77 @@ func (s *Server) storeEggSharedKey(nestID, sharedKey string) error {
 		return fmt.Errorf("failed to store egg shared key in vault: %w", err)
 	}
 	return nil
+}
+
+// Key rotation keeps up to three vault entries per nest: the current key, a
+// staged _next written before the egg is asked to rotate, and _prev, the key
+// replaced by the last committed rotation. The egg_shared_ prefix is reserved
+// (tools.IsPythonAccessibleSecret, vaultprompt.NormalizeVaultKey) so only the
+// master writes these candidates.
+const (
+	eggSharedKeyNextSuffix = "_next"
+	eggSharedKeyPrevSuffix = "_prev"
+)
+
+func eggSharedKeyName(nestID, suffix string) string {
+	return "egg_shared_" + nestID + suffix
+}
+
+type eggKeyCandidate struct {
+	suffix string // "", eggSharedKeyNextSuffix or eggSharedKeyPrevSuffix
+	key    string
+}
+
+// eggHandshakeKeyCandidates returns the stored keys an egg may present, in the
+// order current, _next, _prev, skipping empty and duplicate values.
+func eggHandshakeKeyCandidates(vault *security.Vault, nestID string) []eggKeyCandidate {
+	candidates := make([]eggKeyCandidate, 0, 3)
+	for _, suffix := range []string{"", eggSharedKeyNextSuffix, eggSharedKeyPrevSuffix} {
+		key, err := vault.ReadSecret(eggSharedKeyName(nestID, suffix))
+		if err != nil || key == "" {
+			continue
+		}
+		duplicate := false
+		for _, seen := range candidates {
+			duplicate = duplicate || seen.key == key
+		}
+		if !duplicate {
+			candidates = append(candidates, eggKeyCandidate{suffix: suffix, key: key})
+		}
+	}
+	return candidates
+}
+
+// reconcileEggSharedKeys records what a successful handshake proved. A staged
+// or previous key the egg authenticated with becomes current and the other
+// candidates are dropped. A handshake under the current key retires _prev,
+// which bounds the old key to the egg's next connection; _next stays, because
+// a rotation may have staged it and be waiting for this egg's ack.
+func (s *Server) reconcileEggSharedKeys(nestID string, matched eggKeyCandidate, candidates []eggKeyCandidate) {
+	if matched.suffix == "" {
+		for _, candidate := range candidates {
+			if candidate.suffix == eggSharedKeyPrevSuffix {
+				if err := s.Vault.DeleteSecret(eggSharedKeyName(nestID, eggSharedKeyPrevSuffix)); err != nil {
+					s.Logger.Warn("Failed to retire previous egg key", "nest_id", nestID, "error", err)
+				}
+				break
+			}
+		}
+		return
+	}
+	err := s.Vault.WriteSecrets(
+		map[string]string{eggSharedKeyName(nestID, ""): matched.key},
+		[]string{eggSharedKeyName(nestID, eggSharedKeyNextSuffix), eggSharedKeyName(nestID, eggSharedKeyPrevSuffix)},
+	)
+	if err != nil {
+		s.Logger.Error("Failed to promote egg key candidate; the connection uses it until the next handshake", "nest_id", nestID, "candidate", matched.suffix, "error", err)
+		return
+	}
+	if matched.suffix == eggSharedKeyPrevSuffix {
+		s.Logger.Warn("Egg authenticated with the pre-rotation key; the rotation was reverted (is the egg running an older binary?)", "nest_id", nestID)
+		return
+	}
+	s.Logger.Info("Promoted staged egg key after handshake", "nest_id", nestID)
 }
 
 // hashFile returns the SHA-256 hex hash of a file using streaming to avoid
@@ -600,18 +672,33 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Read shared key from vault
-		sharedKey, err := s.Vault.ReadSecret("egg_shared_" + nest.ID)
-		if err != nil {
+		candidates := eggHandshakeKeyCandidates(s.Vault, nest.ID)
+		if len(candidates) == 0 {
 			s.Logger.Warn("Auth failed: shared key not found", "nest_id", nest.ID)
 			conn.Close()
 			return
 		}
-
-		session, err := bridge.NewSession(challenge, authMsg.EggID, authMsg.NestID, "master")
-		if err != nil || session.Accept(authMsg, sharedKey, "") != nil {
+		// The challenge is unique to this socket, so trying each stored key
+		// against the one auth frame grants no replay; a fresh session per
+		// attempt keeps a failed Accept from leaving sequence state behind.
+		var session *bridge.Session
+		var matched eggKeyCandidate
+		for _, candidate := range candidates {
+			sess, err := bridge.NewSession(challenge, authMsg.EggID, authMsg.NestID, "master")
+			if err != nil {
+				return
+			}
+			if sess.Accept(authMsg, candidate.key, "") == nil {
+				session, matched = sess, candidate
+				break
+			}
+		}
+		if session == nil {
+			s.Logger.Warn("Auth failed: handshake matches no stored shared key", "nest_id", nest.ID)
 			return
 		}
+		sharedKey := matched.key
+		s.reconcileEggSharedKeys(nest.ID, matched, candidates)
 		ackMsg, err := bridge.NewMessage(bridge.MsgAck, authMsg.EggID, authMsg.NestID, sharedKey, bridge.AckPayload{RefID: authMsg.ID, Success: true, Detail: "authenticated"})
 		if err != nil || session.Prepare(ackMsg, sharedKey) != nil || conn.WriteJSON(ackMsg) != nil {
 			return
@@ -741,23 +828,46 @@ func handleInvasionNestRotateKey(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Generate new key
+		// One rotation per nest at a time, and none while the egg may still
+		// adopt an earlier staged key: replacing that candidate could lock it out.
+		finishRotation, err := s.EggHub.BeginKeyRotation(id)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusConflict, "A key rotation for this nest is in progress or still unconfirmed; retry once the egg has answered or reconnected", "Key rotation refused", err, "nest_id", id)
+			return
+		}
+		defer finishRotation()
+
+		currentKey, _ := s.Vault.ReadSecret(eggSharedKeyName(id, ""))
 		newKey, err := invasion.GenerateSharedKey()
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to generate key", "Key generation failed", err, "nest_id", id)
 			return
 		}
 
-		// Send rekey to egg via hub (encrypts with current key, rotates)
-		if err := s.EggHub.SendRekey(id, newKey); err != nil {
-			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to send rekey", "Rekey message failed", err, "nest_id", id)
+		// Stage before asking the egg: it persists the key before acking, so
+		// if the ack is lost the handshake still finds the staged candidate.
+		if err := s.Vault.WriteSecret(eggSharedKeyName(id, eggSharedKeyNextSuffix), newKey); err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to stage key", "Vault write failed", err, "nest_id", id)
+			return
+		}
+		if err := s.EggHub.SendRekey(r.Context(), id, newKey); err != nil {
+			// The egg may still have persisted the key (ack lost); the handshake
+			// accepts the _next candidate and promotes it on first success.
+			jsonLoggedError(w, s.Logger, http.StatusBadGateway, "Egg did not confirm the rotation; previous key remains active", "Rekey not confirmed", err, "nest_id", id)
 			return
 		}
 
-		// Update vault with new key
-		if err := s.Vault.WriteSecret("egg_shared_"+id, newKey); err != nil {
-			s.Logger.Error("Failed to update vault after rekey — key mismatch possible!", "nest_id", id, "error", err)
-			jsonError(w, "Key rotated on egg but vault update failed — check logs", http.StatusInternalServerError)
+		// Commit atomically: new key current, replaced key kept as _prev.
+		commit := map[string]string{eggSharedKeyName(id, ""): newKey}
+		remove := []string{eggSharedKeyName(id, eggSharedKeyNextSuffix)}
+		if currentKey != "" {
+			commit[eggSharedKeyName(id, eggSharedKeyPrevSuffix)] = currentKey
+		} else {
+			remove = append(remove, eggSharedKeyName(id, eggSharedKeyPrevSuffix))
+		}
+		if err := s.Vault.WriteSecrets(commit, remove); err != nil {
+			s.Logger.Error("Failed to commit rotated key; _next candidate remains", "nest_id", id, "error", err)
+			jsonError(w, "Key rotated on egg but vault commit failed — the next handshake promotes it", http.StatusInternalServerError)
 			return
 		}
 

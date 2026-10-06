@@ -123,6 +123,7 @@ func TestHeartbeatAndRekeyRemainOrderedUnderConcurrentTraffic(t *testing.T) {
 	}
 	client := NewEggClient("", "egg", "nest", key, "fixture", testLogger())
 	client.conn, client.session = c, testSession(t, "egg", "nest", "egg")
+	client.OnRekey = func(string, int) error { return nil }
 	errCh := make(chan error, 1)
 	client.OnTask = func(task TaskPayload) {
 		if err := client.SendResult(ResultPayload{TaskID: task.TaskID}); err != nil {
@@ -157,7 +158,7 @@ func TestHeartbeatAndRekeyRemainOrderedUnderConcurrentTraffic(t *testing.T) {
 		}
 	}()
 	for i := 0; i < 10; i++ {
-		if err := hub.SendRekey("nest", validKey(t)); err != nil {
+		if err := hub.SendRekey(context.Background(), "nest", validKey(t)); err != nil {
 			t.Fatal(err)
 		}
 		if err := hub.SendTask("nest", TaskPayload{TaskID: fmt.Sprint(i)}); err != nil {

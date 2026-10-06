@@ -51,6 +51,11 @@ type EggClient struct {
 	OnMissionSync   func(payload MissionSyncPayload) error
 	OnMissionRun    func(payload MissionRunPayload) error
 	OnMissionDelete func(payload MissionDeletePayload) error
+
+	// OnRekey must store the rotated key durably (where startup reads it)
+	// before returning nil; the egg switches and acks only afterwards. An
+	// error, or no handler, rejects the rotation and keeps the current key.
+	OnRekey func(newKeyHex string, version int) error
 }
 
 type EggArtifactUpload struct {
@@ -551,10 +556,27 @@ func (c *EggClient) readLoop() {
 			}
 			c.mu.Lock()
 			decoded, decodeErr := hex.DecodeString(string(newKey))
-			if decodeErr != nil || len(decoded) != 32 || rekey.KeyVersion != c.keyVersion+1 {
-				c.mu.Unlock()
-				return
+			versionOK := rekey.KeyVersion == c.keyVersion+1
+			c.mu.Unlock()
+			if decodeErr != nil || len(decoded) != 32 || !versionOK {
+				c.logger.Warn("Rejected rekey", "version", rekey.KeyVersion)
+				c.sendAck(msg.ID, false, "rekey version or key invalid")
+				continue
 			}
+			// Persist before switching: a restart must come back with the key
+			// the master commits once it sees this ack. The ack below is
+			// signed with the new key; a rejection keeps the current one.
+			if c.OnRekey == nil {
+				c.logger.Warn("Rejected rekey: no handler persists the rotated key")
+				c.sendAck(msg.ID, false, "rekey handler unavailable")
+				continue
+			}
+			if err := c.OnRekey(string(newKey), rekey.KeyVersion); err != nil {
+				c.logger.Error("Failed to persist rotated key; keeping the current key", "error", err)
+				c.sendAck(msg.ID, false, "persist failed")
+				continue
+			}
+			c.mu.Lock()
 			c.SharedKey = string(newKey)
 			c.keyVersion = rekey.KeyVersion
 			c.mu.Unlock()
