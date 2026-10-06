@@ -105,17 +105,34 @@
             el.querySelector('[data-ed-import]').disabled = !!app.readonly;
         }
 
+        // loadSeq numbers the list requests: only the newest answer is shown, none after dispose.
+        let loadSeq = 0;
+
+        // reload fetches the flow list (and the templates once). A failure is shown and not retried
+        // by itself: the next flows_changed or the user (Reload) asks again. Flows switched off
+        // (FLOWS_DISABLED, possible at any time) show a calm state instead of an error.
         async function reload() {
+            reloadSoon.cancel();
+            const mine = ++loadSeq;
+            let list;
+            let tpl;
             try {
-                const [list, tpl] = await Promise.all([app.api.list(), templates.length ? Promise.resolve({ templates }) : app.api.templates()]);
-                flows = list.flows || [];
-                templates = tpl.templates || [];
+                [list, tpl] = await Promise.all([app.api.list(), templates.length ? Promise.resolve({ templates }) : app.api.templates()]);
             } catch (err) {
-                grid.innerHTML = '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>';
+                if (mine !== loadSeq) return;
+                grid.innerHTML = core.errorCode(err) === 'FLOWS_DISABLED'
+                    ? '<div class="ed-home-empty">' + core.icon('lock') + '<h3>' + esc(t('easydrag.ui.disabled_title')) + '</h3><p>' + esc(t('easydrag.ui.disabled_text')) + '</p></div>'
+                    : '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>';
                 return;
             }
+            if (mine !== loadSeq) return;
+            flows = list.flows || [];
+            templates = tpl.templates || [];
             render();
         }
+        // Every autosave broadcasts flows_changed "saved", and listing parses every flow on the
+        // server: those refreshes wait until saving pauses for 1.5 s.
+        const reloadSoon = core.debounce(reload, 1500);
 
         async function create(body) {
             try {
@@ -228,6 +245,11 @@
             event.target.value = '';
             if (file) importFile(file);
         });
+        bag.listen(document, 'aurago:flows-changed', (event) => {
+            const d = event.detail || {};
+            if (d.reason === 'saved') reloadSoon(); else reload();
+        });
+        bag.add(() => { loadSeq++; reloadSoon.cancel(); });
 
         render();
         reload();

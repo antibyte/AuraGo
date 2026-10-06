@@ -454,9 +454,11 @@
             const at = point || (lastPointer ? canvas.clientToWorld(lastPointer.x, lastPointer.y) : centerWorld());
             const ids = ed.model.paste(frag, { x: G.snap(at.x), y: G.snap(at.y) });
             // paste returns no ids when it refuses the fragment (over 500 steps or 2000 wires) or
-            // keeps none of its steps (unknown types); say so and keep the selection.
+            // keeps none of its steps (unknown types); say so and keep the selection. The editor
+            // shows "paste-refused" visibly as well.
             if (!ids.length) {
                 canvas.announce(core.tr(t, 'easydrag.ui.paste_refused', t('easydrag.ui.error_generic')));
+                ed.bus.emit('paste-refused');
                 return;
             }
             select(ids);
@@ -576,6 +578,8 @@
         return {
             select, selectAll, handleKey, handleKeyUp, copySelection, pasteAt, removeSelection,
             lastPointer: () => lastPointer,
+            // abortGesture cancels a pan, drag, connect or box select in progress (a drag moves back).
+            abortGesture() { if (gesture) gesture.abort(); },
             dispose() { bag.dispose(); guides.remove(); }
         };
     }

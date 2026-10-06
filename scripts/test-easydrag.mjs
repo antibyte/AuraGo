@@ -3,6 +3,7 @@
 // The c1d03 checks also run core and saver with fake timers, and the desktop shell's api() with a stub fetch.
 // The c1d04 checks (test-easydrag-extra.mjs) run canvas, wires and interact on a small stub DOM.
 // The c1d06 checks (test-easydrag-extra2.mjs) run detail, runs and publish with a stub EventSource.
+// The c1d07 checks (test-easydrag-extra3.mjs) run the start page, the editor and the window shell on every module.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -988,6 +989,9 @@ await (await import('./test-easydrag-extra.mjs')).run({ apps, types, t, miniDom,
 
 // ── c1d06: detail view, test runs and publishing (test-easydrag-extra2.mjs) ──
 await (await import('./test-easydrag-extra2.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
+
+// ── c1d07: start page, dialogs, editor screen and window shell (test-easydrag-extra3.mjs) ──
+await (await import('./test-easydrag-extra3.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
 
 // ── start page preview and shortcut table ──
 const H = ED.home;

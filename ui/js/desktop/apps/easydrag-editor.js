@@ -5,7 +5,7 @@
 
     const ED = window.EasyDrag = window.EasyDrag || {};
     const VIEW_KEY = 'aurago.easydrag.view.';
-    const SAVE_ICONS = { saved: 'check', dirty: 'pencil', saving: 'refresh', invalid: 'alert', offline: 'alert', conflict: 'alert' };
+    const SAVE_ICONS = { saved: 'check', dirty: 'pencil', saving: 'refresh', invalid: 'alert', offline: 'alert', failed: 'alert', conflict: 'alert' };
 
     // create builds the editor for a loaded flow. app: {ctx, t, esc, api, catalog, windowId,
     // readonly, openHome(), openFlow(id)}; loaded: GET /flows/{id} response.
@@ -17,6 +17,8 @@
         let savedView = null;
         let contentDirty = false;
         let lastRecord = null;
+        // partialRevision is the live revision of the last partial publish (ed.publishIncomplete).
+        let partialRevision = 0;
         let disposed = false;
 
         const el = core.el('<div class="ed-editor">' +
@@ -55,7 +57,7 @@
             root: el, flow: loaded.flow, flowEnabled: !!loaded.enabled, model: draftModel,
             selection: new Set(), selectedEdge: null, hoverNode: null, hoverEdge: null, view: { x: 0, y: 0, zoom: 1 },
             run: null, runView: null, issues: loaded.issues || [], lastRunData: null, detail: null, quickAdd: null,
-            dragging: false, initialRender: true, effectsConfirmed: false, bus: core.emitter(), saver: null,
+            dragging: false, initialRender: true, effectsConfirmed: new Set(), publishIncomplete: '', bus: core.emitter(), saver: null,
             enterRunView, exitRunView
         };
 
@@ -71,7 +73,8 @@
         ed.saver = ED.saver.create({
             api: ed.api, flowId: ed.flow.id, model: draftModel, revision: ed.flow.draft_revision,
             onState: renderSaveState,
-            onSaved: ({ revision }) => { ed.flow.draft_revision = revision; contentDirty = false; renderHeader(); },
+            // An edit made while the request ran is still unsaved: the saver sends it next.
+            onSaved: ({ revision }) => { ed.flow.draft_revision = revision; contentDirty = ed.saver.isDirty(); renderHeader(); },
             onInvalid: issues => { ed.issues = issues; ed.bus.emit('issues', issues); },
             onConflict: () => ED.dialogs.conflict(ed)
         });
@@ -79,6 +82,9 @@
         // ── header and footer ───────────────────────────────────────────────────
 
         function stateOf() {
+            // A partial publish is live, but Mission Control or the timers were not updated: the chip
+            // says why and Publish stays offered (publishing again finishes it).
+            if (ed.publishIncomplete && !ed.runView) return { cls: 'warn', key: 'easydrag.ui.state_publish_incomplete', title: publish.partialText(ed.publishIncomplete) };
             if (ed.runView) return { cls: 'muted', key: 'easydrag.ui.state_run_view' };
             if (!ed.flow.live) return { cls: 'muted', key: 'easydrag.ui.state_draft' };
             if (ed.flow.draft_revision !== ed.flow.published_draft_revision) return { cls: 'accent', key: 'easydrag.ui.state_changes' };
@@ -86,11 +92,13 @@
         }
 
         function renderHeader() {
+            // A save answered after dispose must not point the window context at this flow again.
+            if (disposed) return;
             if (document.activeElement !== nameInput) nameInput.value = ed.model.doc.name || '';
             nameInput.readOnly = !!(ed.readonly || ed.runView);
             const s = stateOf();
             const inactive = ed.flow.live && !ed.flowEnabled && !ed.runView;
-            el.querySelector('[data-ed-state]').innerHTML = '<span class="ed-chip ed-chip--' + s.cls + '">' + esc(t(s.key)) + '</span>' +
+            el.querySelector('[data-ed-state]').innerHTML = '<span class="ed-chip ed-chip--' + s.cls + '"' + (s.title ? ' title="' + esc(s.title) + '"' : '') + '>' + esc(t(s.key)) + '</span>' +
                 (inactive ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '');
             const ro = !!(ed.readonly || ed.runView);
             const running = runs.isRunning();
@@ -108,12 +116,20 @@
             ctx.updateWindowContext && ctx.updateWindowContext(ed.windowId, { flowId: ed.flow.id });
         }
 
+        // renderSaveState shows the saver's state. A failed or offline save names its error (an
+        // offline one without an error keeps the retry hint). A failed save is not retried by
+        // itself, so its chip is a button that tries again (saveNow).
         function renderSaveState(state) {
             const s = state || ed.saver.state;
             const node = el.querySelector('[data-ed-save]');
+            const err = ed.saver && ed.saver.error;
+            const title = s === 'failed' || (s === 'offline' && err) ? core.errorText(t, err) : s === 'offline' ? t('easydrag.ui.save_offline_hint') : '';
+            const label = core.icon(SAVE_ICONS[s] || 'check') + '<span>' + esc(t('easydrag.ui.save_' + s)) + '</span>';
             node.className = 'ed-foot-item ed-save ed-save--' + s;
-            node.innerHTML = core.icon(SAVE_ICONS[s] || 'check') + '<span>' + esc(t('easydrag.ui.save_' + s)) + '</span>';
-            node.title = s === 'offline' ? t('easydrag.ui.save_offline_hint') : '';
+            node.innerHTML = s === 'failed'
+                ? '<button type="button" class="ed-save-retry" data-ed-cmd="save" title="' + esc(title) + '">' + label + '<span class="ed-save-action">' + esc(t('easydrag.ui.retry')) + '</span></button>'
+                : label;
+            node.title = s === 'failed' ? '' : title;
         }
 
         function renderIssues() {
@@ -202,12 +218,20 @@
         async function deleteFlow() {
             const ok = await ctx.confirmDialog(t('easydrag.ui.delete_title'), t('easydrag.ui.delete_text', { name: ed.model.doc.name }));
             if (!ok) return;
+            const id = ed.flow.id;
             try {
-                ed.saver.dispose();
-                await ed.api.remove(ed.flow.id);
-                ED.saver.dropEmergencyCopy(ed.flow.id);
-                app.openHome();
-            } catch (err) { ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); }
+                await ed.api.remove(id);
+            } catch (err) {
+                // The flow still exists and the editor stays usable: its saver keeps running.
+                ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
+                return;
+            }
+            ED.saver.dropEmergencyCopy(id);
+            if (disposed) return;
+            // Nothing may be saved any more: a save would only answer FLOW_NOT_FOUND.
+            contentDirty = false;
+            ed.saver.dispose();
+            app.openHome();
         }
 
         async function goHome(opts) {
@@ -225,8 +249,10 @@
             } catch (err) { ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); }
         }
 
-        // leave saves pending content before the editor closes; false keeps it open.
+        // leave saves pending content before the editor closes; false keeps it open. A drag still in
+        // progress is cancelled first (its nodes move back), so no mid-drag state is saved.
         async function leave() {
+            interact.abortGesture();
             if (ed.readonly || !contentDirty) return true;
             const ok = await ed.saver.flush();
             if (ok) return true;
@@ -331,8 +357,16 @@
         bag.add(ed.bus.on('issues', renderIssues));
         bag.add(ed.bus.on('run', () => { renderHeader(); renderLastRun(); }));
         bag.add(ed.bus.on('last-run', record => { lastRecord = record; renderLastRun(); }));
-        bag.add(ed.bus.on('published', flow => { ed.flow = Object.assign(ed.flow, flow); renderHeader(); setMenus(); }));
+        bag.add(ed.bus.on('published', flow => {
+            ed.flow = Object.assign(ed.flow, flow);
+            // A partial publish remembers its live revision: only a higher one finishes it (refreshRecord).
+            partialRevision = ed.publishIncomplete ? Number(ed.flow.live_revision) || 0 : 0;
+            renderHeader();
+            setMenus();
+        }));
         bag.add(ed.bus.on('enabled', () => renderHeader()));
+        // A refused paste is announced to screen readers by interact; this shows it to everyone.
+        bag.add(ed.bus.on('paste-refused', () => ctx.notify({ title: t('easydrag.ui.paste'), message: t('easydrag.ui.paste_refused') })));
         bag.add(ed.bus.on('view', () => { if (!ed.runView) core.storage.set(VIEW_KEY + ed.flow.id, ed.view); }));
 
         bag.listen(el, 'click', (event) => {
@@ -352,6 +386,7 @@
             else if (cmd === 'keys') ED.dialogs.shortcuts(ed);
             else if (cmd === 'palette') palette.setOpen(!palette.isOpen());
             else if (cmd === 'templates') goHome({ section: 'templates' });
+            else if (cmd === 'save') saveNow();
         });
 
         bag.listen(nameInput, 'keydown', (event) => {
@@ -391,11 +426,15 @@
         });
 
         // refreshRecord re-reads publication state changed elsewhere (another window, the agent).
+        // "published" is broadcast for partial publishes too, and publishing the same revision
+        // again changes nothing in the store: only a higher live revision finishes a partial one.
         async function refreshRecord() {
             try {
                 const res = await ed.api.get(ed.flow.id);
                 ed.flow.live = res.flow.live;
                 ed.flow.published_draft_revision = res.flow.published_draft_revision;
+                ed.flow.live_revision = res.flow.live_revision;
+                if (ed.publishIncomplete && Number(res.flow.live_revision) > partialRevision) ed.publishIncomplete = '';
                 ed.flowEnabled = !!res.enabled;
                 renderHeader();
             } catch (err) { /* keep the current state */ }
@@ -405,11 +444,16 @@
 
         // ── start ───────────────────────────────────────────────────────────────
 
+        // start offers an emergency copy that differs from the server draft. Only an explicit
+        // "discard" drops it; any other answer (null: the dialog closed with the editor) keeps the
+        // copy and the draft as they are, so the offer comes again when the flow opens next.
         async function start() {
             const copy = !ed.readonly && ED.saver.emergencyCopy(ed.flow.id, ed.flow.draft_revision);
             if (copy && differs(copy.doc, draftModel.toJSON())) {
-                if (await ED.dialogs.restore(ed, copy)) draftModel.replaceDoc(copy.doc);
-                else ED.saver.dropEmergencyCopy(ed.flow.id);
+                const choice = await ED.dialogs.restore(ed, copy);
+                if (choice === 'discard') ED.saver.dropEmergencyCopy(ed.flow.id);
+                if (disposed) return;
+                if (choice === 'restore') draftModel.replaceDoc(copy.doc);
             } else if (copy) {
                 ED.saver.dropEmergencyCopy(ed.flow.id);
             }
@@ -444,13 +488,17 @@
         return {
             el, ed, leave,
             showRun(runId) { runs.openRunView(runId); },
+            // dispose saves pending content last: the detail view flushes its note on close, and
+            // interact cancels a drag in progress (its nodes move back), so neither is lost nor
+            // saved in a mid-drag state.
             dispose() {
                 if (disposed) return;
                 disposed = true;
-                if (contentDirty) ed.saver.save();
                 ED.detail.close(ed);
                 ED.palette.closeQuickAdd(ed);
-                [interact, wires, canvas, palette, runs, publish].forEach(m => m.dispose());
+                interact.dispose();
+                if (contentDirty) ed.saver.save();
+                [wires, canvas, palette, runs, publish].forEach(m => m.dispose());
                 ed.saver.dispose();
                 setMenusSoon.cancel();
                 bag.dispose();

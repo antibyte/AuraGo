@@ -140,7 +140,11 @@
         });
     }
 
-    // conflict asks whether to load the server's newer draft or keep the local one.
+    // conflict asks whether to load the server's newer draft or keep the local one. Only an explicit
+    // "keep" overwrites the server and only an explicit "reload" drops the local edits. Any other
+    // result (null when the dialog closed without an answer, e.g. with its window) rejects: the
+    // saver then goes offline with this error, keeps the emergency copy and asks again on its next
+    // attempt. "reload" would lose the local edits and "keep" the server's, both without a choice.
     function conflict(ed) {
         const { t, esc } = ed;
         const dialog = ED.core.modal(ed.root, {
@@ -148,10 +152,16 @@
             body: '<p>' + esc(t('easydrag.ui.conflict_text')) + '</p>',
             actions: [{ id: 'reload', label: t('easydrag.ui.conflict_reload'), icon: 'refresh' }, { id: 'keep', label: t('easydrag.ui.conflict_keep'), primary: true }]
         });
-        return dialog.done.then(result => (result === 'reload' ? 'reload' : 'keep'));
+        return dialog.done.then(result => {
+            if (result === 'reload' || result === 'keep') return result;
+            const text = 'the save conflict was not resolved';
+            throw Object.assign(new Error(text), { body: { error: text, code: 'FLOW_REVISION_CONFLICT' } });
+        });
     }
 
-    // restore offers a local emergency copy that the server never received.
+    // restore offers a local emergency copy that the server never received. It resolves to
+    // "restore" or "discard"; anything else (null when the dialog closed without an answer, e.g.
+    // with its window) resolves to null: keep the copy and decide when the flow opens again.
     function restore(ed, copy) {
         const { t, esc } = ed;
         const dialog = ED.core.modal(ed.root, {
@@ -159,7 +169,7 @@
             body: '<p>' + esc(t('easydrag.ui.restore_text', { time: ED.core.fmt.dateTime(copy.at) })) + '</p>',
             actions: [{ id: 'discard', label: t('easydrag.ui.restore_discard'), danger: true }, { id: 'restore', label: t('easydrag.ui.restore_apply'), primary: true, icon: 'history' }]
         });
-        return dialog.done.then(result => result === 'restore');
+        return dialog.done.then(result => (result === 'restore' || result === 'discard' ? result : null));
     }
 
     ED.dialogs = { shortcuts, connectPicker, flowSettings, conflict, restore, SHORTCUTS };
