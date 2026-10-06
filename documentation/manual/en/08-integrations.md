@@ -1288,7 +1288,7 @@ Connect to external SQL databases (PostgreSQL, MySQL/MariaDB, SQLite).
 ### Web UI Setup
 1. Open **Config → Integrations → SQL Connections**.
 2. Enable the integration.
-3. Add a connection with **Driver**, **Host**, **Port**, and **Database**. New PostgreSQL/MySQL connections need an explicit **SSL Mode** (`ssl_mode`; the form pre-selects **Require**); use **Disable** only for local containers. Connections that are already stored keep their mode.
+3. Add a connection with **Driver**, **Host**, **Port**, and **Database**. New PostgreSQL/MySQL connections need an explicit **SSL Mode** (`ssl_mode`; the form pre-selects **Require**); use **Disable** only for local containers. Connections that are already stored keep their mode. For MySQL, **Require** (like the verify modes) also verifies the server certificate against the AuraGo host's trust store, so a self-signed MySQL server needs its CA in that trust store or a different mode.
 4. Store credentials in the Vault.
 5. Adjust `max_result_rows` and timeouts as needed.
 6. Save and restart.

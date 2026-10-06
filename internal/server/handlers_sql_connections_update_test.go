@@ -255,6 +255,24 @@ func TestHandleSQLConnectionCreateRequiresExplicitSSLMode(t *testing.T) {
 		t.Fatal("connection without ssl_mode was stored")
 	}
 
+	for mode, wantMessage := range map[string]string{
+		" ":        "ssl_mode is required for mysql connections",
+		"required": "ssl_mode must be one of disable, require, verify-ca, verify-full",
+	} {
+		name := "Bad TLS " + strings.TrimSpace(mode)
+		bad := post(map[string]interface{}{
+			"name": name, "driver": "mysql", "host": "db.example.lan", "port": 3306, "database_name": "app", "ssl_mode": mode,
+		})
+		var badFailure map[string]string
+		_ = json.Unmarshal(bad.Body.Bytes(), &badFailure)
+		if bad.Code != http.StatusBadRequest || !strings.Contains(badFailure["error"], wantMessage) {
+			t.Fatalf("ssl_mode %q: status = %d, body = %s; want 400 with %q", mode, bad.Code, bad.Body.String(), wantMessage)
+		}
+		if _, err := sqlconnections.GetByName(metaDB, name); err == nil {
+			t.Fatalf("connection with ssl_mode %q was stored", mode)
+		}
+	}
+
 	created := post(map[string]interface{}{
 		"name": "Explicit TLS", "driver": "postgres", "host": "db.example.lan", "port": 5432, "database_name": "app", "ssl_mode": "require",
 	})
@@ -277,6 +295,44 @@ func TestHandleSQLConnectionCreateRequiresExplicitSSLMode(t *testing.T) {
 	sqliteRec, err := sqlconnections.GetByName(metaDB, "Local SQLite")
 	if err != nil || sqliteRec.SSLMode != "disable" {
 		t.Fatalf("sqlite ssl_mode = %q (%v), want disable", sqliteRec.SSLMode, err)
+	}
+}
+
+func TestHandleSQLConnectionUpdateValidatesChangedSSLMode(t *testing.T) {
+	t.Parallel()
+
+	metaDB, err := sqlconnections.InitDB(filepath.Join(t.TempDir(), "sqlconnections.db"))
+	if err != nil {
+		t.Fatalf("InitDB() error = %v", err)
+	}
+	defer metaDB.Close()
+	id, err := sqlconnections.Create(metaDB, "Legacy", "mysql", "db.example.lan", 3306, "app", "old", true, false, false, false, "", "prefer")
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	s := &Server{SQLConnectionsDB: metaDB}
+	put := func(payload map[string]interface{}) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(payload)
+		rec := httptest.NewRecorder()
+		handleSQLConnectionByID(s)(rec, httptest.NewRequest(http.MethodPut, "/api/sql-connections/"+id, bytes.NewReader(body)))
+		return rec
+	}
+
+	bogus := put(map[string]interface{}{"ssl_mode": "bogus"})
+	if bogus.Code != http.StatusBadRequest || !strings.Contains(bogus.Body.String(), "ssl_mode must be one of disable, require, verify-ca, verify-full") {
+		t.Fatalf("bogus ssl_mode: status = %d, body = %s", bogus.Code, bogus.Body.String())
+	}
+	if stored, err := sqlconnections.GetByID(metaDB, id); err != nil || stored.SSLMode != "prefer" {
+		t.Fatalf("ssl_mode after rejected update = %q (%v), want prefer", stored.SSLMode, err)
+	}
+
+	edited := put(map[string]interface{}{"description": "edited"})
+	if edited.Code != http.StatusOK {
+		t.Fatalf("description edit: status = %d, body = %s", edited.Code, edited.Body.String())
+	}
+	stored, err := sqlconnections.GetByID(metaDB, id)
+	if err != nil || stored.SSLMode != "prefer" || stored.Description != "edited" {
+		t.Fatalf("stored after description edit = %+v (%v), want ssl_mode prefer kept", stored, err)
 	}
 }
 

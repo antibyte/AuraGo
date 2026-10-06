@@ -1164,7 +1164,7 @@ Content-Type: application/json
 }
 ```
 
-`ssl_mode` (`disable`, `require`, `verify-ca`, `verify-full`) is required for `postgres` and `mysql`; a request without it is rejected with `400`.
+For `postgres` and `mysql`, `ssl_mode` is required and must be one of `disable`, `require`, `verify-ca`, `verify-full`; a missing or other value is rejected with `400`. A `PUT` that changes `ssl_mode` is checked against the same four values.
 
 ### Test Connection
 ```http

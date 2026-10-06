@@ -307,7 +307,7 @@ function sqlConnShowModal(id) {
         document.getElementById('sqlconn-field-port').value = (c.port !== undefined && c.port !== null) ? c.port : '';
         document.getElementById('sqlconn-field-database').value = c.database_name || '';
         document.getElementById('sqlconn-field-desc').value = c.description || '';
-        // Connections stored without a mode were saved as "disable" by the server.
+        // An empty stored mode connects as "disable" (pool default); show that equivalent.
         document.getElementById('sqlconn-field-ssl').value = c.ssl_mode || 'disable';
         document.getElementById('sqlconn-field-username').value = '';
         document.getElementById('sqlconn-field-password').value = '';

@@ -56,6 +56,15 @@ func newSQLConnectionService(s *Server) *sqlconnections.Service {
 	})
 }
 
+// sqlConnectionClientMessage shows TLS-mode validation errors verbatim (they
+// only echo the administrator's input) and keeps every other error generic.
+func sqlConnectionClientMessage(err error, fallback string) string {
+	if errors.Is(err, sqlconnections.ErrSSLModeRequired) || errors.Is(err, sqlconnections.ErrSSLModeInvalid) {
+		return err.Error()
+	}
+	return fallback
+}
+
 func buildSQLConnectionCreateRequest(req sqlConnectionRequest) sqlconnections.CreateRequest {
 	allowRead, allowWrite, allowChange, allowDelete := resolveSQLConnectionCreatePermissions(req)
 	// No default TLS mode here: the service rejects PostgreSQL/MySQL connections
@@ -157,11 +166,7 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 
 			result, err := service.Create(buildSQLConnectionCreateRequest(req))
 			if err != nil {
-				clientMessage := "Failed to create SQL connection"
-				if errors.Is(err, sqlconnections.ErrSSLModeRequired) {
-					clientMessage = err.Error()
-				}
-				jsonLoggedError(w, s.Logger, http.StatusBadRequest, clientMessage, "Failed to create SQL connection", err, "connection_name", req.Name)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, sqlConnectionClientMessage(err, "Failed to create SQL connection"), "Failed to create SQL connection", err, "connection_name", req.Name)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -217,7 +222,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 			}
 
 			if err := service.Update(buildSQLConnectionUpdateRequest(req, existing)); err != nil {
-				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to update SQL connection", "Failed to update SQL connection", err, "connection_id", id)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, sqlConnectionClientMessage(err, "Failed to update SQL connection"), "Failed to update SQL connection", err, "connection_id", id)
 				return
 			}
 

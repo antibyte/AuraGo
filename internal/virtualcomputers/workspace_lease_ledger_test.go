@@ -242,7 +242,10 @@ func TestReconcileLeasesReleasesExpiredControlWithoutOverwritingConcurrentChange
 	}
 	// An expired shell grant that cannot be cleaned up without a transport makes
 	// the reconciler report an issue for "raced" after it has read the row; the
-	// reporter uses that moment to renew the human lease concurrently.
+	// reporter uses that moment to renew the human lease concurrently. This
+	// deliberately relies on reconcileLeases running the credential-expiry
+	// cleanup (and its reportIssue) before the control-release block for the
+	// same workspace; if that order changes, inject the race elsewhere.
 	if err := ledger.UpsertCredentialGrant(ctx, CredentialGrant{ID: "grant-raced", WorkspaceID: "raced", CredentialID: "cred",
 		UsageType: GrantUsageShell, JobID: "job-raced", Status: GrantActive, ExpiresAt: now.Add(-time.Minute)}); err != nil {
 		t.Fatal(err)

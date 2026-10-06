@@ -629,6 +629,85 @@ func TestService_UpdateWithoutSSLModeKeepsStoredMode(t *testing.T) {
 	}
 }
 
+func TestService_CreateRejectsUnknownSSLMode(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	vault := &mockVault{}
+	svc := NewService(ServiceConfig{DB: db, Vault: vault, Logger: slogDefault()})
+
+	for _, driver := range []string{"postgres", "mysql"} {
+		for _, tc := range []struct {
+			mode string
+			want error
+		}{
+			{" ", ErrSSLModeRequired},
+			{"required", ErrSSLModeInvalid},
+			{"prefer", ErrSSLModeInvalid},
+		} {
+			name := driver + "-" + strings.TrimSpace(tc.mode)
+			_, err := svc.Create(CreateRequest{Name: name, Driver: driver, Host: "db.example.lan", DatabaseName: "app",
+				Username: "reader", Password: "secret", SSLMode: tc.mode})
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("%s with ssl_mode %q: err = %v, want %v", driver, tc.mode, err, tc.want)
+			}
+			if tc.want == ErrSSLModeInvalid && !strings.Contains(err.Error(), "ssl_mode must be one of disable, require, verify-ca, verify-full") {
+				t.Fatalf("%s with ssl_mode %q: message = %q", driver, tc.mode, err.Error())
+			}
+			if _, err := GetByName(db, name); err == nil {
+				t.Fatalf("%s with ssl_mode %q was stored", driver, tc.mode)
+			}
+		}
+	}
+	if len(vault.secrets) != 0 {
+		t.Fatalf("rejected creates left %d vault secrets behind", len(vault.secrets))
+	}
+
+	res, err := svc.Create(CreateRequest{Name: "trimmed", Driver: "mysql", Host: "db.example.lan", DatabaseName: "app", SSLMode: " verify-ca "})
+	if err != nil {
+		t.Fatalf("mysql with padded verify-ca: %v", err)
+	}
+	if stored, err := GetByID(db, res.ID); err != nil || stored.SSLMode != "verify-ca" {
+		t.Fatalf("padded ssl_mode stored = %q (%v), want verify-ca", stored.SSLMode, err)
+	}
+}
+
+func TestService_UpdateValidatesChangedSSLModeOnly(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	svc := NewService(ServiceConfig{DB: db, Vault: &mockVault{}, Logger: slogDefault()})
+	res, err := svc.Create(CreateRequest{Name: "pg", Driver: "postgres", Host: "db.example.lan", DatabaseName: "app", SSLMode: "verify-full"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = svc.Update(UpdateRequest{ID: res.ID, Name: "pg", SSLMode: "bogus", AllowRead: true})
+	if !errors.Is(err, ErrSSLModeInvalid) {
+		t.Fatalf("Update(bogus) error = %v, want ErrSSLModeInvalid", err)
+	}
+	if stored, err := GetByID(db, res.ID); err != nil || stored.SSLMode != "verify-full" {
+		t.Fatalf("ssl_mode after rejected update = %q (%v), want verify-full", stored.SSLMode, err)
+	}
+	if err := svc.Update(UpdateRequest{ID: res.ID, Name: "pg", SSLMode: " require ", AllowRead: true}); err != nil {
+		t.Fatalf("Update(require) error = %v", err)
+	}
+	if stored, err := GetByID(db, res.ID); err != nil || stored.SSLMode != "require" {
+		t.Fatalf("ssl_mode after update = %q (%v), want require", stored.SSLMode, err)
+	}
+
+	// The admin API passes the stored mode back on every edit; an old row with a
+	// mode outside the allow-list must stay editable and keep its value.
+	legacyID, err := Create(db, "legacy", "mysql", "db.example.lan", 3306, "app", "", true, false, false, false, "", "prefer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Update(UpdateRequest{ID: legacyID, Name: "legacy", Description: "edited", SSLMode: "prefer", AllowRead: true}); err != nil {
+		t.Fatalf("Update(legacy) error = %v", err)
+	}
+	legacy, err := GetByID(db, legacyID)
+	if err != nil || legacy.SSLMode != "prefer" || legacy.Description != "edited" {
+		t.Fatalf("legacy after update = %+v (%v), want unchanged ssl_mode prefer", legacy, err)
+	}
+}
+
 // slogDefault returns a logger for tests
 func slogDefault() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))

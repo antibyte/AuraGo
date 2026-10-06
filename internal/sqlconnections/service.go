@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"aurago/internal/uid"
@@ -77,6 +78,26 @@ type CreateRequest struct {
 // state its TLS mode. Its wrapped message is safe to show to administrators.
 var ErrSSLModeRequired = errors.New("ssl_mode is required")
 
+// ErrSSLModeInvalid rejects a PostgreSQL/MySQL TLS mode outside the supported
+// set; BuildDSN would otherwise turn an unknown value into plaintext MySQL.
+// Its wrapped message is safe to show to administrators.
+var ErrSSLModeInvalid = errors.New("ssl_mode must be one of disable, require, verify-ca, verify-full")
+
+// validSSLMode reports whether mode is one of the TLS modes BuildDSN supports.
+func validSSLMode(mode string) bool {
+	switch mode {
+	case "disable", "require", "verify-ca", "verify-full":
+		return true
+	}
+	return false
+}
+
+// networkDriver reports whether a driver connects over the network and
+// therefore needs a validated TLS mode.
+func networkDriver(driver string) bool {
+	return driver == "postgres" || driver == "mysql"
+}
+
 // CreateResult returns the ID of the newly created connection.
 type CreateResult struct {
 	ID   string `json:"id"`
@@ -92,10 +113,16 @@ func (s *Service) Create(req CreateRequest) (*CreateResult, error) {
 	if req.Driver != "postgres" && req.Driver != "mysql" && req.Driver != "sqlite" {
 		return nil, fmt.Errorf("unsupported driver: %s (must be postgres, mysql, or sqlite)", req.Driver)
 	}
-	// Network databases need an explicit TLS mode; validate before the vault
-	// write so a rejected request never leaves an orphaned secret behind.
-	if req.SSLMode == "" && (req.Driver == "postgres" || req.Driver == "mysql") {
-		return nil, fmt.Errorf("%w for %s connections (use disable only for local containers)", ErrSSLModeRequired, req.Driver)
+	// Network databases need an explicit, supported TLS mode; validate before
+	// the vault write so a rejected request never leaves an orphaned secret.
+	req.SSLMode = strings.TrimSpace(req.SSLMode)
+	if networkDriver(req.Driver) {
+		if req.SSLMode == "" {
+			return nil, fmt.Errorf("%w for %s connections (use disable only for local containers)", ErrSSLModeRequired, req.Driver)
+		}
+		if !validSSLMode(req.SSLMode) {
+			return nil, fmt.Errorf("%w (got %q)", ErrSSLModeInvalid, req.SSLMode)
+		}
 	}
 	if req.SSLMode == "" {
 		// SQLite ignores the TLS mode; keep the value it was always stored with.
@@ -195,8 +222,13 @@ func (s *Service) Update(req UpdateRequest) error {
 	if req.Description != "" {
 		existing.Description = req.Description
 	}
-	if req.SSLMode != "" {
-		existing.SSLMode = req.SSLMode
+	// Only a changed TLS mode is validated: callers echo the stored value on
+	// every edit, and stored rows must stay editable and untouched.
+	if mode := strings.TrimSpace(req.SSLMode); mode != "" && mode != existing.SSLMode {
+		if networkDriver(existing.Driver) && !validSSLMode(mode) {
+			return fmt.Errorf("%w (got %q)", ErrSSLModeInvalid, mode)
+		}
+		existing.SSLMode = mode
 	}
 	// Permission flags - only update if explicitly set (allow false to be intentional)
 	existing.AllowRead = req.AllowRead
