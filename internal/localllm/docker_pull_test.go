@@ -311,3 +311,28 @@ func TestLogPullFailureWritesReasonAndToleratesMissingLogger(t *testing.T) {
 	// the default logger instead of panicking.
 	(&Manager{}).logPullFailure(testRuntimeImage, errors.New("pull_image_failed"))
 }
+
+func TestPullFailureTextIsByteStable(t *testing.T) {
+	cases := []struct {
+		name   string
+		status int
+		body   string
+		want   string
+	}{
+		{"engine JSON 404", http.StatusNotFound, `{"message":"manifest unknown"}`, "pull_image_failed: Docker returned 404: manifest unknown"},
+		{"HTML 502", http.StatusBadGateway, "<html>bad gateway</html>", "pull_image_failed: Docker returned 502: <html>bad gateway</html>"},
+		{"blank JSON message falls back to the body", http.StatusInternalServerError, `{"message":"  "}`, `pull_image_failed: Docker returned 500: {"message":"  "}`},
+		{"event with separators and NUL", http.StatusOK, `{"error":"denied\u2028token\u0000end"}` + "\n", "pull_image_failed: denied token end"},
+		{"long event cut at a rune boundary", http.StatusOK, `{"error":"` + strings.Repeat("a", 255) + `é tail"}` + "\n", "pull_image_failed: " + strings.Repeat("a", 255)},
+		{"event of only non-printable runes", http.StatusOK, `{"error":"\u0001\u202e"}` + "\n", "pull_image_failed"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			manager := &Manager{docker: &pullTestEngine{client: pullStreamClient(tc.status, strings.NewReader(tc.body))}}
+			err := manager.pullImage(context.Background(), testRuntimeImage)
+			if err == nil || err.Error() != tc.want {
+				t.Fatalf("pullImage() = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}

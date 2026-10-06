@@ -17,8 +17,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
-	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/dockerutil"
@@ -429,7 +427,7 @@ func (m *Manager) pullImage(ctx context.Context, reference string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		if detail := engineErrorDetail(dockerutil.ReadErrorBody(resp.Body)); detail != "" {
+		if detail := dockerutil.SanitizeOneLine(dockerutil.EngineErrorMessage(dockerutil.ReadErrorBody(resp.Body)), maxPullFailureDetail); detail != "" {
 			return fmt.Errorf("pull_image_failed: Docker returned %d: %s", resp.StatusCode, detail)
 		}
 		return fmt.Errorf("pull_image_failed: Docker returned %d", resp.StatusCode)
@@ -437,7 +435,7 @@ func (m *Manager) pullImage(ctx context.Context, reference string) error {
 	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
 		var event *dockerutil.JSONMessageError
 		if errors.As(err, &event) {
-			if detail := pullFailureDetail(event.Message); detail != "" {
+			if detail := dockerutil.SanitizeOneLine(event.Message, maxPullFailureDetail); detail != "" {
 				return fmt.Errorf("pull_image_failed: %s", detail)
 			}
 			return fmt.Errorf("pull_image_failed")
@@ -445,18 +443,6 @@ func (m *Manager) pullImage(ctx context.Context, reference string) error {
 		return fmt.Errorf("pull_image_failed: %w", err)
 	}
 	return nil
-}
-
-// engineErrorDetail extracts the Engine's {"message": ...} text from a non-2xx
-// body, falling back to the raw text.
-func engineErrorDetail(body []byte) string {
-	var payload struct {
-		Message string `json:"message"`
-	}
-	if json.Unmarshal(body, &payload) == nil && strings.TrimSpace(payload.Message) != "" {
-		return pullFailureDetail(payload.Message)
-	}
-	return pullFailureDetail(string(body))
 }
 
 // logPullFailure writes the sanitised Docker reason of a failed runtime pull to
@@ -467,26 +453,6 @@ func (m *Manager) logPullFailure(reference string, err error) {
 		logger = slog.Default()
 	}
 	logger.Warn("[LocalLLM] runtime image pull failed", "image", reference, "error", err)
-}
-
-// pullFailureDetail keeps the Docker reason on one bounded line of printable
-// runes so a registry response cannot inject control characters, line or
-// paragraph separators, bidi overrides or unbounded text into logs.
-func pullFailureDetail(message string) string {
-	message = strings.TrimSpace(strings.Map(func(r rune) rune {
-		if !unicode.IsPrint(r) {
-			return ' '
-		}
-		return r
-	}, message))
-	if len(message) > maxPullFailureDetail {
-		cut := maxPullFailureDetail
-		for cut > 0 && !utf8.RuneStart(message[cut]) {
-			cut--
-		}
-		message = message[:cut]
-	}
-	return message
 }
 
 func (m *Manager) ensureImageAvailable(ctx context.Context, reference string) error {
