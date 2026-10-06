@@ -69,6 +69,18 @@ type Manager struct {
 	// native replaces nativePlacement in tests, e.g. with host paths under
 	// /root that a test can neither write nor produce on Windows.
 	native func(cfg *config.Config, proxyDir string) placement
+	// writeConfig replaces writeCaddyfile for the new Caddyfile in tests, e.g.
+	// with a write that fails after the truncation.
+	writeConfig func(path string, data []byte) error
+}
+
+// writeNewCaddyfile writes the new Caddyfile with writeCaddyfile, or with the
+// test replacement.
+func (m *Manager) writeNewCaddyfile(path string, data []byte) error {
+	if m.writeConfig != nil {
+		return m.writeConfig(path, data)
+	}
+	return writeCaddyfile(path, data)
 }
 
 // NewManager creates a new proxy manager.
@@ -214,7 +226,10 @@ func (m *Manager) startLocked(cfg *config.Config) error {
 	// the new one cannot be created.
 	caddyfilePath := filepath.Join(dir, "Caddyfile")
 	restore := m.caddyfileRestorer(caddyfilePath)
-	if err := writeCaddyfile(caddyfilePath, []byte(caddyfile)); err != nil {
+	if err := m.writeNewCaddyfile(caddyfilePath, []byte(caddyfile)); err != nil {
+		// writeCaddyfile truncates first: a failed write or sync leaves a
+		// partial file the old container would load on its next restart.
+		restore()
 		return fmt.Errorf("write Caddyfile: %w", err)
 	}
 	m.log().Info("Security proxy Caddyfile written", "path", caddyfilePath)
@@ -522,7 +537,9 @@ func (m *Manager) Reload() error {
 	}
 	caddyfilePath := filepath.Join(dir, "Caddyfile")
 	restore := m.caddyfileRestorer(caddyfilePath)
-	if err := writeCaddyfile(caddyfilePath, []byte(caddyfile)); err != nil {
+	if err := m.writeNewCaddyfile(caddyfilePath, []byte(caddyfile)); err != nil {
+		// A partial file must not replace the configuration Caddy runs.
+		restore()
 		return fmt.Errorf("write Caddyfile: %w", err)
 	}
 

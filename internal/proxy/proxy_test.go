@@ -383,18 +383,12 @@ func TestWriteCaddyfileTightensModeAndKeepsFileIdentity(t *testing.T) {
 	if err := os.WriteFile(path, []byte("old config that is longer than the new one\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	before, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	before := statWithFileID(t, path)
 
 	if err := writeCaddyfile(path, []byte("new\n")); err != nil {
 		t.Fatalf("writeCaddyfile() error = %v", err)
 	}
-	after, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	after := statWithFileID(t, path)
 	// A single-file bind mount follows the inode; a rename would leave Caddy
 	// reading the old file.
 	if !os.SameFile(before, after) {
@@ -886,8 +880,10 @@ func TestInstallBindFixturesMatchNativePlacement(t *testing.T) {
 }
 
 // proxyDaemon is a fake Docker daemon behind the production engine wiring:
-// the proxy image exists, no proxy container exists yet, and the created one
-// starts and keeps running. It records every request and every create body.
+// the proxy image exists, stop and remove of the proxy container answer 404,
+// inspect always reports the proxy container as running (an old one before
+// the create, the new one after the start), and create and start succeed. It
+// records every request and every create body.
 type proxyDaemon struct {
 	host     string
 	mu       sync.Mutex
@@ -1121,16 +1117,26 @@ func TestManagerStartComposeCreateIsUnchanged(t *testing.T) {
 	}
 }
 
+// statWithFileID stats path and loads its file ID at once. On Windows
+// os.Stat reads the volume serial number and file index lazily, by path, on
+// the first os.SameFile: an identity check against a file that was replaced in
+// between would compare the replacement with itself and always pass.
+func statWithFileID(t *testing.T, path string) os.FileInfo {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.SameFile(info, info) // load the file ID now, see above
+	return info
+}
+
 // runningCaddyfile writes the Caddyfile the running proxy loaded and returns
 // its file identity.
 func runningCaddyfile(t *testing.T, cfg *config.Config) (string, []byte, os.FileInfo) {
 	t.Helper()
 	path, previous := writeRunningCaddyfile(t, cfg)
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return path, previous, info
+	return path, previous, statWithFileID(t, path)
 }
 
 // assertCaddyfileRestored fails unless the Caddyfile holds previous again, in
@@ -1144,10 +1150,7 @@ func assertCaddyfileRestored(t *testing.T, path string, previous []byte, before 
 	if !bytes.Equal(data, previous) {
 		t.Fatalf("Caddyfile = %q, want the restored %q the old container loads", data, previous)
 	}
-	after, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	after := statWithFileID(t, path)
 	if !os.SameFile(before, after) {
 		t.Fatal("the Caddyfile was replaced instead of rewritten in place")
 	}
@@ -1179,8 +1182,8 @@ func TestManagerStartRestoresCaddyfileWhenReadOnlyRefusesRemoval(t *testing.T) {
 	path, previous, before := runningCaddyfile(t, cfg)
 
 	err := m.Start()
-	if !errors.Is(err, tools.ErrDockerReadOnly) {
-		t.Fatalf("Start() error = %v, want the read-only refusal", err)
+	if !errors.Is(err, tools.ErrDockerReadOnly) || !strings.Contains(err.Error(), "remove the old container") {
+		t.Fatalf("Start() error = %v, want the read-only refusal of the removal", err)
 	}
 	assertCaddyfileRestored(t, path, previous, before)
 	if got := daemon.mutations(); len(got) != 0 {
@@ -1281,24 +1284,31 @@ func TestManagerStartRestoresCaddyfileWhenCreateFails(t *testing.T) {
 }
 
 func TestManagerStartRefusesBasicAuthBeforeAnyImageWork(t *testing.T) {
-	cfg := proxyConfig()
-	cfg.SecurityProxy.RateLimiting.Enabled = true
-	cfg.SecurityProxy.BasicAuth.Enabled = true
-	fake := &fakeEngine{handle: missingImagesEngine(rateLimitImageName)}
-	m := testManager(t, cfg, fake)
+	for name, rateLimit := range map[string]bool{
+		"rate-limit image build": true,
+		"official image pull":    false,
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := proxyConfig()
+			cfg.SecurityProxy.RateLimiting.Enabled = rateLimit
+			cfg.SecurityProxy.BasicAuth.Enabled = true
+			fake := &fakeEngine{handle: missingImagesEngine(proxyImage(cfg))}
+			m := testManager(t, cfg, fake)
 
-	if err := m.Start(); !errors.Is(err, ErrBasicAuthCredentialsMissing) {
-		t.Fatalf("Start() error = %v, want ErrBasicAuthCredentialsMissing", err)
-	}
-	fake.mu.Lock()
-	defer fake.mu.Unlock()
-	if len(fake.builds) != 0 || len(fake.pulls) != 0 {
-		t.Fatalf("builds = %#v, pulls = %#v, want none before the credentials are usable", fake.builds, fake.pulls)
-	}
-	for _, call := range fake.calls {
-		if !strings.HasPrefix(call, "GET ") {
-			t.Fatalf("Docker mutation %q before the credentials are usable", call)
-		}
+			if err := m.Start(); !errors.Is(err, ErrBasicAuthCredentialsMissing) {
+				t.Fatalf("Start() error = %v, want ErrBasicAuthCredentialsMissing", err)
+			}
+			fake.mu.Lock()
+			defer fake.mu.Unlock()
+			if len(fake.builds) != 0 || len(fake.pulls) != 0 {
+				t.Fatalf("builds = %#v, pulls = %#v, want none before the credentials are usable", fake.builds, fake.pulls)
+			}
+			for _, call := range fake.calls {
+				if !strings.HasPrefix(call, "GET ") {
+					t.Fatalf("Docker mutation %q before the credentials are usable", call)
+				}
+			}
+		})
 	}
 }
 
@@ -1439,5 +1449,98 @@ func TestManagerStartDoesNotTrustASymlinkedNativeBind(t *testing.T) {
 	}
 	if creates := daemon.createRequests(); len(creates) != 0 {
 		t.Fatalf("the create reached Docker: %#v", creates)
+	}
+}
+
+// failingCaddyfileWrite stands in for a write that fails after writeCaddyfile
+// truncated the file, e.g. on a full disk: half of the new content is left.
+func failingCaddyfileWrite(path string, data []byte) error {
+	f, err := os.OpenFile(path, os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := f.Truncate(0); err != nil {
+		return err
+	}
+	_, _ = f.Write(data[:len(data)/2])
+	return errors.New("no space left on device")
+}
+
+func TestManagerStartRestoresCaddyfileWhenWriteFails(t *testing.T) {
+	cfg := proxyConfig()
+	fake := &fakeEngine{handle: runningEngine(imageName)}
+	m := testManager(t, cfg, fake)
+	m.writeConfig = failingCaddyfileWrite
+	path, previous, before := runningCaddyfile(t, cfg)
+
+	if err := m.Start(); err == nil || !strings.Contains(err.Error(), "no space left on device") {
+		t.Fatalf("Start() error = %v, want the failed write", err)
+	}
+	assertCaddyfileRestored(t, path, previous, before)
+	assertNotCalled(t, fake, "POST /containers/"+containerName+"/stop", "DELETE /containers/"+containerName, "POST /containers/create")
+}
+
+func TestManagerReloadRestoresCaddyfileWhenWriteFails(t *testing.T) {
+	cfg := proxyConfig()
+	fake := &fakeEngine{handle: reloadEngine(imageName, 0, "")}
+	m := testManager(t, cfg, fake)
+	m.writeConfig = failingCaddyfileWrite
+	path, previous, before := runningCaddyfile(t, cfg)
+
+	if err := m.Reload(); err == nil || !strings.Contains(err.Error(), "no space left on device") {
+		t.Fatalf("Reload() error = %v, want the failed write", err)
+	}
+	assertCaddyfileRestored(t, path, previous, before)
+	assertNotCalled(t, fake, "POST /containers/"+containerName+"/exec")
+}
+
+// Docker answers 409 while another removal of the container runs; once it has
+// finished, inspect no longer knows the container and Start goes on.
+func TestManagerStartProceedsWhenRemovalIsAlreadyInProgress(t *testing.T) {
+	cfg := proxyConfig()
+	running := runningEngine(imageName)
+	var mu sync.Mutex
+	removed, started := false, false
+	fake := &fakeEngine{handle: func(method, endpoint, body string) ([]byte, int, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch {
+		case method == "DELETE":
+			removed = true
+			return []byte(`{"message":"removal of container aurago-security-proxy is already in progress"}`), 409, nil
+		case method == "GET" && endpoint == "/containers/"+containerName+"/json" && removed && !started:
+			return []byte(`{"message":"No such container: aurago-security-proxy"}`), 404, nil
+		case method == "POST" && strings.HasSuffix(endpoint, "/start"):
+			started = true
+		}
+		return running(method, endpoint, body)
+	}}
+	m := testManager(t, cfg, fake)
+
+	if err := m.Start(); err != nil {
+		t.Fatalf("Start() error = %v, want the start to go on once the removal finished", err)
+	}
+	if !fake.called("POST /containers/create") {
+		t.Fatal("Start did not create the new container")
+	}
+}
+
+func TestManagerDestroyReportsSuccessWhenRemovalIsRefused(t *testing.T) {
+	cfg := proxyConfig()
+	running := runningEngine(imageName)
+	fake := &fakeEngine{handle: func(method, endpoint, body string) ([]byte, int, error) {
+		if method == "DELETE" {
+			return []byte(`{"message":"driver \"overlay2\" failed to remove root filesystem: device or resource busy"}`), 500, nil
+		}
+		return running(method, endpoint, body)
+	}}
+	m := testManager(t, cfg, fake)
+
+	if err := m.Destroy(); err != nil {
+		t.Fatalf("Destroy() error = %v, want nil as before; the refused removal is only logged", err)
+	}
+	if !fake.called("DELETE /containers/" + containerName) {
+		t.Fatal("Destroy did not try to remove the container")
 	}
 }

@@ -92,13 +92,15 @@ section. Operator guidance lives in the Security Proxy section of
   loads untouched; Reload's recreate path goes through `startLocked` and
   inherits this. When the old container cannot be removed (`stopAndRemove`
   returns nil only once the engine no longer knows the container, e.g. a
-  refused DELETE under `docker.read_only`) or the new one cannot be created,
-  `startLocked` writes the previous Caddyfile back in place
+  refused DELETE under `docker.read_only`), the new one cannot be created, or
+  the write of the new Caddyfile itself fails (`writeCaddyfile` truncates
+  first), `startLocked` writes the previous Caddyfile back in place
   (`caddyfileRestorer`, shared with Reload) and fails, so the old container
-  never restarts into the new file. Destroy still reports success and only
-  logs a failed removal. Start reports `ErrCaddyExited` when Caddy stops within the
-  settle time. Reload runs an attached `caddy reload` and
-  checks its exit code; a rejected config restores the previous Caddyfile
+  never restarts into a new or partial file. Destroy still reports success
+  and only logs a failed removal. Start reports `ErrCaddyExited` when Caddy
+  stops within the settle time. Reload runs an attached `caddy reload` and
+  checks its exit code; a failed write or a rejected config restores the
+  previous Caddyfile
   (`ErrConfigRejected`). An image that no longer fits the config makes Reload
   recreate the container through `startLocked`. Ports, binds/mounts, network
   and `docker_host` change only through Start, which removes and recreates

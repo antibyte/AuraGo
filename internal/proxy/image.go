@@ -84,7 +84,12 @@ func (m *Manager) ensureImage(cfg *config.Config) (string, error) {
 	}
 
 	// Tag the official image as imageName.
-	repo, tag, _ := strings.Cut(imageName, ":")
+	// The tag follows the last colon after the last slash; a registry port
+	// (host:5000/name) has an earlier one.
+	repo, tag := imageName, "latest"
+	if i := strings.LastIndex(imageName, ":"); i > strings.LastIndex(imageName, "/") {
+		repo, tag = imageName[:i], imageName[i+1:]
+	}
 	tagEndpoint := "/images/" + url.PathEscape(officialImage) + "/tag?" + url.Values{"repo": {repo}, "tag": {tag}}.Encode()
 	_, tagCode, tagErr := m.engine.request(dockerCfg, "POST", tagEndpoint, "")
 	if tagErr != nil {
