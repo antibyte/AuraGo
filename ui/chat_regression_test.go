@@ -3195,11 +3195,12 @@ func TestCyberwarThemeScanlineRadarAndShaderStayBalanced(t *testing.T) {
 		"rgba(13, 242, 114, 0.07) 0 0.38rem",
 		"[data-theme=\"cyberwar\"] #cyberwar-overlay {",
 		"filter: saturate(1.5) brightness(1.22) contrast(1.06) !important;",
-		"background-position: 0 -14px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;",
-		"background-size: 100% 1px, 100% 100%, 100% 100%, 60px 60px, 100% 100%, 100% 100%, 100% 100%;",
-		"background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat, no-repeat;",
+		"url('/img/cyberwar-city.webp')",
+		"background-position: 0 -14px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, center;",
+		"background-size: 100% 1px, 100% 100%, 100% 100%, 60px 60px, 100% 100%, 100% 100%, 100% 100%, cover;",
+		"background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat;",
 		"animation: cyberwarScanlineScan 10s linear infinite;",
-		"background-position: 0 calc(100dvh + 14px), 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;",
+		"background-position: 0 calc(100dvh + 14px), 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, center;",
 	} {
 		if !strings.Contains(cyberwarCSS, marker) {
 			t.Fatalf("cyberwar CSS missing balanced radar/scanline marker %q", marker)
