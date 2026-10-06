@@ -79,8 +79,8 @@
     };
 
     function icon(name, cls) {
-        const body = ICONS[name] || ICONS.tool;
-        return '<svg class="ed-icon' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + body + '</svg>';
+        const body = Object.prototype.hasOwnProperty.call(ICONS, name) ? ICONS[name] : ICONS.tool;
+        return '<svg class="ed-icon' + (cls ? ' ' + esc(cls) : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + body + '</svg>';
     }
 
     function esc(value) {
@@ -125,6 +125,7 @@
                 const set = map.get(type);
                 if (!set) return;
                 Array.from(set).forEach(fn => {
+                    if (!set.has(fn)) return; // removed by an earlier handler of this emit
                     try { fn(payload); } catch (err) { console.error('EasyDrag event handler failed', type, err); }
                 });
             },
@@ -184,10 +185,11 @@
         duration(ms) {
             const n = Number(ms) || 0;
             if (n < 1000) return Math.round(n) + ' ms';
-            if (n < 60000) return (n / 1000).toFixed(n < 10000 ? 1 : 0) + ' s';
-            const minutes = Math.floor(n / 60000);
-            const seconds = Math.round((n % 60000) / 1000);
-            return minutes + ':' + String(seconds).padStart(2, '0') + ' min';
+            if (n < 10000) return (n / 1000).toFixed(1) + ' s';
+            // Whole seconds first, then minutes: 119 999 ms reads 2:00 min, not 1:60 min.
+            const total = Math.round(n / 1000);
+            if (total < 60) return total + ' s';
+            return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0') + ' min';
         },
         dateTime(iso) {
             const date = iso instanceof Date ? iso : new Date(iso);
@@ -225,9 +227,21 @@
         remove(key) { try { localStorage.removeItem(key); } catch (err) { /* storage may be blocked */ } }
     };
 
+    // pathSegment encodes one URL path segment. "", "." and ".." would leave the route after URL
+    // normalisation, so they throw a FLOW_BAD_REQUEST error instead.
+    function pathSegment(value) {
+        const s = String(value == null ? '' : value);
+        if (s === '' || s === '.' || s === '..') {
+            throw Object.assign(new Error('invalid path segment'), { body: { error: 'invalid path segment', code: 'FLOW_BAD_REQUEST' } });
+        }
+        return encodeURIComponent(s);
+    }
+
+    // createApi wraps the desktop api() for every flows route. A bad id or name rejects the request
+    // (the *Url builders throw) before anything is sent.
     function createApi(api) {
         const base = '/api/desktop/flows';
-        const enc = encodeURIComponent;
+        const enc = pathSegment;
         const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
         const query = params => {
             const p = new URLSearchParams();
@@ -236,7 +250,7 @@
             return s ? '?' + s : '';
         };
         const flow = id => base + '/' + enc(id);
-        return {
+        const client = {
             list: () => api(base),
             create: body => api(base, json('POST', body)),
             get: id => api(flow(id)),
@@ -262,6 +276,12 @@
             saveSecret: (name, value) => api(base + '/secrets/' + enc(name), json('PUT', { value })),
             deleteSecret: name => api(base + '/secrets/' + enc(name), { method: 'DELETE' })
         };
+        Object.keys(client).forEach(name => {
+            if (name.endsWith('Url')) return;
+            const call = client[name];
+            client[name] = (...args) => { try { return call(...args); } catch (err) { return Promise.reject(err); } };
+        });
+        return client;
     }
 
     function errorCode(err) { return (err && err.body && err.body.code) || ''; }
@@ -286,22 +306,27 @@
         return step.error_message ? code + ': ' + step.error_message : code;
     }
 
+    let modalCount = 0;
+
     // modal opens a dialog inside host. actions: [{id, label, primary, danger}].
-    // onAction(id, dialog) may return false (keep open) or a promise.
+    // onAction(id, dialog) may return false (keep open) or a promise; a rejected one keeps it open.
+    // dismissible: false shows no close button and ignores Escape and backdrop clicks. cancel is the
+    // id that Escape, the close button and a backdrop click resolve to (null without it).
     function modal(host, options) {
         const opts = options || {};
+        const dismissible = opts.dismissible !== false;
+        const cancelId = opts.cancel == null ? null : opts.cancel;
+        const titleId = 'ed-modal-title-' + (++modalCount);
         const previous = document.activeElement;
         const overlay = el('<div class="ed-modal-backdrop" role="presentation"></div>');
         const actions = (opts.actions || []).map(a =>
             '<button type="button" class="ed-btn' + (a.primary ? ' ed-btn--primary' : '') + (a.danger ? ' ed-btn--danger' : '') +
             '" data-ed-action="' + esc(a.id) + '">' + (a.icon ? icon(a.icon) : '') + '<span>' + esc(a.label) + '</span></button>').join('');
-        overlay.innerHTML = '<div class="ed-modal ' + esc(opts.className || '') + '" role="dialog" aria-modal="true" aria-labelledby="ed-modal-title-' + Date.now() + '">' +
-            '<header class="ed-modal-head"><h2 class="ed-modal-title">' + esc(opts.title || '') + '</h2>' +
-            '<button type="button" class="ed-icon-btn" data-ed-action="close" aria-label="' + esc(opts.closeLabel || '') + '">' + icon('x') + '</button></header>' +
+        overlay.innerHTML = '<div class="ed-modal ' + esc(opts.className || '') + '" role="dialog" aria-modal="true" aria-labelledby="' + titleId + '">' +
+            '<header class="ed-modal-head"><h2 class="ed-modal-title" id="' + titleId + '">' + esc(opts.title || '') + '</h2>' +
+            (dismissible ? '<button type="button" class="ed-icon-btn" data-ed-action="close" aria-label="' + esc(opts.closeLabel || '') + '">' + icon('x') + '</button>' : '') + '</header>' +
             '<div class="ed-modal-body">' + (opts.body || '') + '</div>' +
             (actions ? '<footer class="ed-modal-foot">' + actions + '</footer>' : '') + '</div>';
-        const title = overlay.querySelector('.ed-modal-title');
-        title.id = overlay.querySelector('.ed-modal').getAttribute('aria-labelledby');
         host.appendChild(overlay);
         let closed = false;
         let resolveDone;
@@ -320,23 +345,36 @@
             done,
             setBusy(busy) { overlay.querySelectorAll('[data-ed-action]').forEach(b => { if (b.dataset.edAction !== 'close') b.disabled = !!busy; }); }
         };
+        const dismiss = () => { if (dismissible) dialog.close(cancelId); };
+        const focusFirst = () => {
+            const focus = dialog.el.querySelector('[autofocus], .ed-modal-body input, .ed-modal-body textarea, .ed-btn--primary') || dialog.el.querySelector('button');
+            if (focus) focus.focus({ preventScroll: true });
+        };
+        // A press on the backdrop must not move focus out of the dialog.
+        overlay.addEventListener('mousedown', (event) => { if (event.target === overlay) event.preventDefault(); });
         overlay.addEventListener('click', async (event) => {
+            if (event.target === overlay) {
+                if (dismissible) dismiss();
+                else if (!dialog.el.contains(document.activeElement)) focusFirst();
+                return;
+            }
             const button = event.target.closest('[data-ed-action]');
-            if (event.target === overlay && opts.dismissible !== false) { dialog.close(null); return; }
             if (!button) return;
             const id = button.dataset.edAction;
-            if (id === 'close') { dialog.close(null); return; }
+            if (id === 'close') { dismiss(); return; }
             if (!opts.onAction) { dialog.close(id); return; }
             dialog.setBusy(true);
             try {
                 const keep = await opts.onAction(id, dialog);
                 if (keep !== false) dialog.close(id);
+            } catch (err) {
+                console.error('EasyDrag dialog action failed', err);
             } finally {
                 if (!closed) dialog.setBusy(false);
             }
         });
         overlay.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') { event.stopPropagation(); dialog.close(null); return; }
+            if (event.key === 'Escape') { event.stopPropagation(); dismiss(); return; }
             if (event.key !== 'Tab') return;
             const focusables = Array.from(dialog.el.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter(n => !n.disabled && n.offsetParent !== null);
             if (!focusables.length) return;
@@ -345,8 +383,7 @@
             if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
             else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
         });
-        const focus = dialog.el.querySelector('[autofocus], .ed-modal-body input, .ed-modal-body textarea, .ed-btn--primary') || dialog.el.querySelector('button');
-        if (focus) focus.focus({ preventScroll: true });
+        focusFirst();
         requestAnimationFrame(() => overlay.classList.add('is-open'));
         return dialog;
     }

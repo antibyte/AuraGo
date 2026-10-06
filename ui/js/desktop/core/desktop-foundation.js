@@ -1037,8 +1037,9 @@
         if (!resp.ok) {
             const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
             err.body = body;
-            const retryAfter = parseInt(resp.headers.get('retry-after'), 10);
-            if (resp.status === 429 && retryAfter >= 0) err.retryAfter = retryAfter;
+            err.status = resp.status;
+            const retryAfter = String(resp.headers.get('retry-after') || '');
+            if (resp.status === 429 && /^\s*\d+\s*$/.test(retryAfter)) err.retryAfter = Number(retryAfter);
             throw err;
         }
         return body;

@@ -726,6 +726,172 @@ await guardAsync('c1d03 review sweep', async () => {
     saverHarness([{}], { store });
     eq('c1d03 creating a saver sweeps emergency copies older than 30 days', Array.from(store.keys()).sort(), ['aurago.easydrag.draft.fresh', 'aurago.easydrag.view.old']);
 });
+// miniDom is just enough DOM for core.modal: it parses the markup the modal builds, matches the simple
+// selectors the modal uses (tag, .class, [attr], [attr="v"], :not(), descendant, lists), tracks focus
+// and dispatches bubbling events through el.fire(type, init).
+function miniDom() {
+    const VOID = new Set(['input', 'br', 'img', 'hr']);
+    let active = null;
+    function matchCompound(node, compound) {
+        const not = /:not\((.*)\)$/.exec(compound);
+        if (not) {
+            if (matchCompound(node, not[1])) return false;
+            compound = compound.slice(0, not.index);
+        }
+        const re = /([a-z][a-z0-9-]*)|\.([\w-]+)|\[([\w-]+)(?:="([^"]*)")?\]/y;
+        for (let pos = 0; pos < compound.length; pos = re.lastIndex) {
+            re.lastIndex = pos;
+            const m = re.exec(compound);
+            if (!m) throw new Error('unsupported selector ' + compound);
+            if (m[1] && node.localName !== m[1]) return false;
+            if (m[2] && !node.className.split(/\s+/).includes(m[2])) return false;
+            if (m[3] && (!node.attrs.has(m[3]) || (m[4] !== undefined && node.attrs.get(m[3]) !== m[4]))) return false;
+        }
+        return true;
+    }
+    function matches(node, list) {
+        return list.split(',').some(sel => {
+            const parts = sel.trim().split(/\s+/);
+            if (!matchCompound(node, parts[parts.length - 1])) return false;
+            let i = parts.length - 2;
+            for (let x = node.parentNode; x && i >= 0; x = x.parentNode) if (matchCompound(x, parts[i])) i--;
+            return i < 0;
+        });
+    }
+    class El {
+        constructor(tag, attrs) {
+            this.localName = tag;
+            this.attrs = new Map(Object.entries(attrs || {}));
+            this.children = [];
+            this.parentNode = null;
+            this.listeners = {};
+            this.disabled = this.attrs.has('disabled');
+            this.offsetParent = {};
+            const self = this;
+            this.classList = {
+                add(...names) { self.attrs.set('class', Array.from(new Set(self.className.split(/\s+/).filter(Boolean).concat(names))).join(' ')); },
+                contains: name => self.className.split(/\s+/).includes(name)
+            };
+            this.dataset = new Proxy({}, { get: (_, key) => { const v = self.attrs.get('data-' + String(key).replace(/[A-Z]/g, c => '-' + c.toLowerCase())); return v === undefined ? undefined : v; } });
+        }
+        get className() { return this.attrs.get('class') || ''; }
+        get id() { return this.attrs.get('id') || ''; }
+        set id(value) { this.attrs.set('id', String(value)); }
+        get content() { return this; }
+        get firstElementChild() { return this.children[0] || null; }
+        set innerHTML(html) {
+            this.children.forEach(c => { c.parentNode = null; });
+            this.children = [];
+            const re = /<\/([a-zA-Z][\w-]*)\s*>|<([a-zA-Z][\w-]*)((?:\s+[\w:-]+(?:="[^"]*")?)*)\s*(\/?)>|[^<]+/g;
+            let cur = this;
+            let m;
+            while ((m = re.exec(String(html)))) {
+                if (m[1]) { if (cur !== this) cur = cur.parentNode; continue; }
+                if (!m[2]) continue;
+                const attrs = {};
+                m[3].replace(/([\w:-]+)(?:="([^"]*)")?/g, (_, k, v) => { attrs[k] = v === undefined ? '' : v; return ''; });
+                const node = cur.appendChild(new El(m[2].toLowerCase(), attrs));
+                if (!m[4] && !VOID.has(node.localName)) cur = node;
+            }
+        }
+        getAttribute(name) { return this.attrs.has(name) ? this.attrs.get(name) : null; }
+        setAttribute(name, value) { this.attrs.set(name, String(value)); }
+        appendChild(child) { child.remove(); child.parentNode = this; this.children.push(child); return child; }
+        remove() { if (!this.parentNode) return; const list = this.parentNode.children; list.splice(list.indexOf(this), 1); this.parentNode = null; }
+        contains(node) { for (let x = node; x; x = x.parentNode) if (x === this) return true; return false; }
+        closest(sel) { for (let x = this; x; x = x.parentNode) if (matches(x, sel)) return x; return null; }
+        querySelectorAll(sel) { const out = []; const walk = n => n.children.forEach(c => { if (matches(c, sel)) out.push(c); walk(c); }); walk(this); return out; }
+        querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
+        addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+        focus() { active = this; }
+        fire(type, init) {
+            const event = Object.assign({ type, target: this, defaultPrevented: false, stopped: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.stopped = true; } }, init);
+            for (let x = this; x && !event.stopped; x = x.parentNode) (x.listeners[type] || []).forEach(fn => fn(event));
+            return event;
+        }
+    }
+    return { El, document: { get activeElement() { return active; }, createElement: tag => new El(String(tag).toLowerCase(), {}) } };
+}
+// modalHarness loads core with miniDom, a frozen Date.now (dialogs open "in the same millisecond") and a
+// host that holds a focused opener button.
+function modalHarness() {
+    const dom = miniDom();
+    const logged = [];
+    const FrozenDate = class extends Date {};
+    FrozenDate.now = () => 1767225600000;
+    const box = vm.createContext({
+        window: {}, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, Date: FrozenDate,
+        console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
+        requestAnimationFrame: fn => { fn(); return 1; },
+        setTimeout: () => 0, clearTimeout() {}
+    });
+    vm.runInContext(fs.readFileSync(path.join(apps, 'easydrag-core.js'), 'utf8'), box, { filename: 'easydrag-core.js' });
+    const host = new dom.El('div', { class: 'ed-editor' });
+    const opener = host.appendChild(new dom.El('button', {}));
+    opener.focus();
+    return { core: box.window.EasyDrag.core, host, opener, document: dom.document, logged };
+}
+// outcome is what dialog.done resolved to once the queued work ran, or "open".
+async function outcome(dialog) {
+    let result = 'open';
+    dialog.done.then(value => { result = value; });
+    await settle();
+    return result;
+}
+await guardAsync('c1d03 review modal dismissal', async () => {
+    const h = modalHarness();
+    const actions = [{ id: 'reload', label: 'Reload' }, { id: 'keep', label: 'Keep', primary: true }];
+    const locked = h.core.modal(h.host, { title: 'T', closeLabel: 'Close', dismissible: false, actions });
+    const overlay = locked.el.parentNode;
+    const hasClose = !!locked.el.querySelector('[data-ed-action="close"]');
+    locked.el.fire('keydown', { key: 'Escape' });
+    overlay.fire('click');
+    eq('c1d03 a non-dismissible dialog has no close button and ignores Escape and the backdrop', [hasClose, await outcome(locked)], [false, 'open']);
+    overlay.querySelector('[data-ed-action="reload"]').fire('click');
+    eq('c1d03 an action still closes a non-dismissible dialog', await outcome(locked), 'reload');
+    const viaEscape = h.core.modal(h.host, { title: 'T', closeLabel: 'Close', cancel: 'keep', actions });
+    viaEscape.el.fire('keydown', { key: 'Escape' });
+    const viaClose = h.core.modal(h.host, { title: 'T', closeLabel: 'Close', cancel: 'keep', actions });
+    viaClose.el.querySelector('[data-ed-action="close"]').fire('click');
+    const plain = h.core.modal(h.host, { title: 'T', closeLabel: 'Close', actions });
+    plain.el.fire('keydown', { key: 'Escape' });
+    eq('c1d03 cancel names what Escape and the close button resolve to', [await outcome(viaEscape), await outcome(viaClose), await outcome(plain)], ['keep', 'keep', null]);
+});
+await guardAsync('c1d03 review modal focus, ids and failing actions', async () => {
+    const h = modalHarness();
+    const actions = [{ id: 'discard', label: 'Discard', danger: true }, { id: 'restore', label: 'Restore', primary: true }];
+    const locked = h.core.modal(h.host, { title: 'T', closeLabel: 'Close', dismissible: false, actions });
+    const overlay = locked.el.parentNode;
+    h.opener.focus(); // the browser moved focus out of the dialog
+    const press = overlay.fire('mousedown');
+    overlay.fire('click');
+    eq('c1d03 a backdrop press keeps focus in the dialog', [press.defaultPrevented, locked.el.contains(h.document.activeElement)], [true, true]);
+    const dialogs = [h.core.modal(h.host, { title: 'A', actions }), h.core.modal(h.host, { title: 'B', actions })];
+    const ids = dialogs.map(d => d.el.getAttribute('aria-labelledby'));
+    eq('c1d03 dialogs opened in the same millisecond get distinct title ids', [ids[0] !== ids[1], dialogs.map(d => d.el.querySelector('.ed-modal-title').id)], [true, ids]);
+    const failing = h.core.modal(h.host, { title: 'T', actions, onAction: () => Promise.reject(new Error('restore failed')) });
+    failing.el.querySelector('[data-ed-action="restore"]').fire('click');
+    eq('c1d03 a rejected action keeps the dialog open and usable', [await outcome(failing), failing.el.querySelector('[data-ed-action="restore"]').disabled, h.logged.some(line => line.includes('restore failed'))], ['open', false, true]);
+});
+await guardAsync('c1d03 review core helpers', async () => {
+    const core = modalHarness().core;
+    eq('c1d03 duration rounds to whole seconds before splitting', [119999, 59999, 61000, 12345, 1500].map(core.fmt.duration), ['2:00 min', '1:00 min', '1:01 min', '12 s', '1.5 s']);
+    eq('c1d03 icon reads own entries only and escapes the class', [core.icon('constructor').includes(core.ICONS.tool), core.icon('x', 'a"><b').includes('class="ed-icon a&quot;&gt;&lt;b"')], [true, true]);
+    const em = core.emitter();
+    const seen = [];
+    let offSecond = null;
+    em.on('x', () => { seen.push(1); offSecond(); });
+    offSecond = em.on('x', () => seen.push(2));
+    em.emit('x');
+    eq('c1d03 a handler removed during emit does not run', seen, [1]);
+    const sent = [];
+    const client = core.createApi(url => { sent.push(url); return Promise.resolve({}); });
+    const results = await Promise.all([client.get('..'), client.deleteSecret('.'), client.testData('f1', '..'), client.save('', {}, 1), client.get('a.b')]
+        .map(p => p.then(() => 'sent', err => core.errorCode(err))));
+    let urlThrew = false;
+    try { client.eventsUrl('..'); } catch (err) { urlThrew = true; }
+    eq('c1d03 createApi rejects empty, . and .. segments before sending', [results, sent, urlThrew], [['FLOW_BAD_REQUEST', 'FLOW_BAD_REQUEST', 'FLOW_BAD_REQUEST', 'FLOW_BAD_REQUEST', 'sent'], ['/api/desktop/flows/a.b'], true]);
+});
 await guardAsync('c1d03 shell api errors', async () => {
     // api() of desktop-foundation.js is the ctx.api that createApi wraps; it runs here with a stub fetch.
     const foundation = fs.readFileSync(path.join(here, '..', 'ui', 'js', 'desktop', 'core', 'desktop-foundation.js'), 'utf8').replace(/\r\n/g, '\n');
@@ -743,8 +909,14 @@ await guardAsync('c1d03 shell api errors', async () => {
     for (const [status, code] of [[413, 'FLOW_TOO_LARGE'], [429, 'FLOW_RATE_LIMITED'], [503, 'FLOWS_DISABLED']]) {
         respond(status, JSON.stringify({ error: 'text ' + code, code }), JSON_TYPE);
         const err = await fail();
-        eq('c1d03 api keeps the JSON body of a ' + status, [err && err.message, err && err.body && err.body.code], ['text ' + code, code]);
+        eq('c1d03 api keeps the JSON body and status of a ' + status, [err && err.message, err && err.body && err.body.code, err && err.status], ['text ' + code, code, status]);
     }
+    const retryAfter = [];
+    for (const value of ['60abc', '1e3', '1.5', '-5', ' 7 ', '0']) {
+        respond(429, '{"error":"slow","code":"FLOW_RATE_LIMITED"}', Object.assign({ 'retry-after': value }, JSON_TYPE));
+        retryAfter.push((await fail()).retryAfter);
+    }
+    eq('c1d03 api reads Retry-After only as whole seconds', retryAfter, [undefined, undefined, undefined, undefined, 7, 0]);
     respond(429, '{"error":"slow","code":"FLOW_RATE_LIMITED"}', Object.assign({ 'retry-after': '60' }, JSON_TYPE));
     const limited = await fail();
     respond(503, '{"error":"off","code":"FLOWS_DISABLED"}', Object.assign({ 'retry-after': '60' }, JSON_TYPE));
