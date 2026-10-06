@@ -200,4 +200,4 @@ Use `direction: "from_container"` or `"to_container"`. Path maps to the host's a
 - `force: true` on remove will kill a running container before removing it
 - Port mapping format: `{"container_port": "host_port"}` — both as strings
 - Volume bind format: `"/host/path:/container/path"` or `"/host/path:/container/path:ro"`
-- When AuraGo runs in Docker, its data volume (`<project>_aurago_data` or the volume behind `/app/data`) cannot be mounted (`create`/`run`), created or removed, and no Compose stack may use it (`docker_managed_aurago_resource`). The workdir volume stays usable.
+- When AuraGo runs in Docker, its data volume (`<project>_aurago_data` or the volume behind `/app/data`) cannot be mounted (`create`/`run`), created or removed, and no Compose stack may use it (`docker_managed_aurago_resource`). When AuraGo cannot confirm its own volume, every volume named `aurago_data` or ending in `_aurago_data` is refused, even one of another stack: use a different volume name. The workdir volume stays usable.
