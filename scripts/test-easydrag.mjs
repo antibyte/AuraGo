@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs the pure EasyDrag modules (template, model, geometry) in Node and checks their behaviour.
+// Runs the pure EasyDrag modules (template, model, geometry, preview, shortcut table) in Node and checks them.
 // The c1d03 checks also run core and saver with fake timers, and the desktop shell's api() with a stub fetch.
 // The c1d04 checks (test-easydrag-extra.mjs) run canvas, wires and interact on a small stub DOM.
 // The c1d06 checks (test-easydrag-extra2.mjs) run detail, runs and publish with a stub EventSource.
@@ -14,7 +14,7 @@ const apps = path.join(here, '..', 'ui', 'js', 'desktop', 'apps');
 const sandbox = { window: {}, Intl, Number, String, Array, Object, Math, Set, Map, RegExp, Date, JSON, console, Uint8Array, crypto: webcrypto };
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
-for (const file of ['easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js']) {
+for (const file of ['easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-home.js', 'easydrag-dialogs.js']) {
     const full = path.join(apps, file);
     vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
 }
@@ -988,6 +988,17 @@ await (await import('./test-easydrag-extra.mjs')).run({ apps, types, t, miniDom,
 
 // ── c1d06: detail view, test runs and publishing (test-easydrag-extra2.mjs) ──
 await (await import('./test-easydrag-extra2.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
+
+// ── start page preview and shortcut table ──
+const H = ED.home;
+const escHTML = v => String(v).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
+const mini = H.previewSVG([{ x: 0, y: 0, category: 'trigger' }, { x: 320, y: 40, category: 'tool:files' }], escHTML);
+eq('preview draws every node', (mini.match(/<rect /g) || []).length, 2);
+eq('preview draws one wire', (mini.match(/<path /g) || []).length, 1);
+check('preview maps tool categories', mini.includes('data-cat="tool"'));
+check('empty preview placeholder', H.previewSVG([], escHTML).includes('ed-mini-empty'));
+const shortcutKeys = ED.dialogs.SHORTCUTS.flatMap(([group, rows]) => [group].concat(rows.map(r => r[1])));
+check('shortcut labels use full keys', shortcutKeys.every(k => /^easydrag.ui.[a-z0-9_]+$/.test(k)), shortcutKeys.join(' '));
 
 if (failures) {
     console.log(failures + ' failure(s)');

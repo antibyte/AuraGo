@@ -1,0 +1,464 @@
+// EasyDrag editor screen: header (name, state, actions), palette + canvas, footer (last run,
+// issues, save state), window menus, keyboard shortcuts, run view and the wiring of all modules.
+(function () {
+    'use strict';
+
+    const ED = window.EasyDrag = window.EasyDrag || {};
+    const VIEW_KEY = 'aurago.easydrag.view.';
+    const SAVE_ICONS = { saved: 'check', dirty: 'pencil', saving: 'refresh', invalid: 'alert', offline: 'alert', conflict: 'alert' };
+
+    // create builds the editor for a loaded flow. app: {ctx, t, esc, api, catalog, windowId,
+    // readonly, openHome(), openFlow(id)}; loaded: GET /flows/{id} response.
+    function create(app, loaded, opts) {
+        const core = ED.core;
+        const { t, esc, ctx } = app;
+        const bag = core.bag();
+        const draftModel = ED.model.create(loaded.flow.draft, app.catalog);
+        let savedView = null;
+        let contentDirty = false;
+        let lastRecord = null;
+        let disposed = false;
+
+        const el = core.el('<div class="ed-editor">' +
+            '<header class="ed-head">' +
+            '<button type="button" class="ed-icon-btn ed-back" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + core.icon('arrow-left') + '</button>' +
+            '<div class="ed-title"><input class="ed-title-input" data-ed-name maxlength="120" spellcheck="false" aria-label="' + esc(t('easydrag.ui.flow_name')) + '"><span class="ed-state" data-ed-state></span></div>' +
+            '<div class="ed-head-actions">' +
+            '<button type="button" class="ed-btn ed-btn--ghost" data-ed-cmd="runs" aria-pressed="false">' + core.icon('history') + '<span>' + esc(t('easydrag.ui.runs_title')) + '</span></button>' +
+            '<button type="button" class="ed-btn" data-ed-cmd="test" title="' + esc(t('easydrag.ui.test') + ' (' + core.shortcut('Ctrl+Enter') + ')') + '">' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.test')) + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--primary" data-ed-cmd="publish">' + core.icon('rocket') + '<span>' + esc(t('easydrag.ui.publish')) + '</span></button>' +
+            '<button type="button" class="ed-switch-btn" role="switch" aria-checked="false" data-ed-cmd="active"><span class="ed-switch" aria-hidden="true"><span></span></span><span>' + esc(t('easydrag.ui.active')) + '</span></button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="more" aria-label="' + esc(t('easydrag.ui.more')) + '" title="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button>' +
+            '</div></header>' +
+            '<div class="ed-runview-banner" role="status" hidden>' + core.icon('history') + '<span data-ed-runview-text></span>' +
+            '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="exit-run-view">' + core.icon('arrow-left') + '<span>' + esc(t('easydrag.ui.run_view_exit')) + '</span></button></div>' +
+            '<div class="ed-body"><nav class="ed-rail" aria-label="' + esc(t('easydrag.ui.rail_label')) + '">' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="palette" aria-pressed="true" title="' + esc(t('easydrag.ui.palette_title')) + ' (' + core.shortcut('Ctrl+K') + ')" aria-label="' + esc(t('easydrag.ui.palette_title')) + '">' + core.icon('plus') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + core.icon('grid') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="templates" title="' + esc(t('easydrag.ui.home_templates')) + '" aria-label="' + esc(t('easydrag.ui.home_templates')) + '">' + core.icon('sparkles') + '</button>' +
+            '<span class="ed-rail-spacer"></span>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="keys" title="' + esc(t('easydrag.ui.keys_title')) + ' (?)" aria-label="' + esc(t('easydrag.ui.keys_title')) + '">' + core.icon('keyboard') + '</button>' +
+            '</nav></div>' +
+            '<footer class="ed-foot">' +
+            '<button type="button" class="ed-foot-item" data-ed-cmd="last-run"><span class="ed-run-dot" data-ed-last-dot></span><span data-ed-last-run></span></button>' +
+            '<span class="ed-foot-spacer"></span>' +
+            '<button type="button" class="ed-foot-item" data-ed-cmd="issues" aria-haspopup="dialog"><span data-ed-issues></span></button>' +
+            '<span class="ed-foot-item ed-save" data-ed-save aria-live="polite"></span>' +
+            '</footer></div>');
+        const nameInput = el.querySelector('[data-ed-name]');
+        const body = el.querySelector('.ed-body');
+        const banner = el.querySelector('.ed-runview-banner');
+
+        const ed = {
+            ctx, t, esc, api: app.api, catalog: app.catalog, windowId: app.windowId, readonly: !!app.readonly,
+            root: el, flow: loaded.flow, flowEnabled: !!loaded.enabled, model: draftModel,
+            selection: new Set(), selectedEdge: null, hoverNode: null, hoverEdge: null, view: { x: 0, y: 0, zoom: 1 },
+            run: null, runView: null, issues: loaded.issues || [], lastRunData: null, detail: null, quickAdd: null,
+            dragging: false, initialRender: true, effectsConfirmed: false, bus: core.emitter(), saver: null,
+            enterRunView, exitRunView
+        };
+
+        const canvas = ED.canvas.create(ed);
+        const wires = ED.wires.create(ed, canvas);
+        const interact = ED.interact.create(ed, canvas, wires);
+        const palette = ED.palette.createPanel(ed, canvas);
+        const runs = ED.runs.create(ed, canvas);
+        const publish = ED.publish.create(ed);
+        body.appendChild(palette.el);
+        body.appendChild(canvas.el);
+
+        ed.saver = ED.saver.create({
+            api: ed.api, flowId: ed.flow.id, model: draftModel, revision: ed.flow.draft_revision,
+            onState: renderSaveState,
+            onSaved: ({ revision }) => { ed.flow.draft_revision = revision; contentDirty = false; renderHeader(); },
+            onInvalid: issues => { ed.issues = issues; ed.bus.emit('issues', issues); },
+            onConflict: () => ED.dialogs.conflict(ed)
+        });
+
+        // ── header and footer ───────────────────────────────────────────────────
+
+        function stateOf() {
+            if (ed.runView) return { cls: 'muted', key: 'easydrag.ui.state_run_view' };
+            if (!ed.flow.live) return { cls: 'muted', key: 'easydrag.ui.state_draft' };
+            if (ed.flow.draft_revision !== ed.flow.published_draft_revision) return { cls: 'accent', key: 'easydrag.ui.state_changes' };
+            return { cls: 'ok', key: 'easydrag.ui.state_published' };
+        }
+
+        function renderHeader() {
+            if (document.activeElement !== nameInput) nameInput.value = ed.model.doc.name || '';
+            nameInput.readOnly = !!(ed.readonly || ed.runView);
+            const s = stateOf();
+            const inactive = ed.flow.live && !ed.flowEnabled && !ed.runView;
+            el.querySelector('[data-ed-state]').innerHTML = '<span class="ed-chip ed-chip--' + s.cls + '">' + esc(t(s.key)) + '</span>' +
+                (inactive ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '');
+            const ro = !!(ed.readonly || ed.runView);
+            const running = runs.isRunning();
+            const btn = cmd => el.querySelector('[data-ed-cmd="' + cmd + '"]');
+            btn('test').disabled = ro || running;
+            btn('test').classList.toggle('is-busy', running);
+            btn('cancel').hidden = !running;
+            btn('publish').disabled = ro;
+            btn('publish').classList.toggle('has-changes', s.cls !== 'ok' && !ro);
+            const sw = btn('active');
+            sw.setAttribute('aria-checked', String(!!ed.flowEnabled));
+            sw.disabled = !!ed.readonly || !!ed.runView;
+            btn('runs').setAttribute('aria-pressed', String(runs.drawerOpen()));
+            btn('palette').setAttribute('aria-pressed', String(palette.isOpen()));
+            ctx.updateWindowContext && ctx.updateWindowContext(ed.windowId, { flowId: ed.flow.id });
+        }
+
+        function renderSaveState(state) {
+            const s = state || ed.saver.state;
+            const node = el.querySelector('[data-ed-save]');
+            node.className = 'ed-foot-item ed-save ed-save--' + s;
+            node.innerHTML = core.icon(SAVE_ICONS[s] || 'check') + '<span>' + esc(t('easydrag.ui.save_' + s)) + '</span>';
+            node.title = s === 'offline' ? t('easydrag.ui.save_offline_hint') : '';
+        }
+
+        function renderIssues() {
+            const list = ed.issues || [];
+            const errors = list.filter(i => i.severity === 'error').length;
+            const warnings = list.length - errors;
+            const node = el.querySelector('[data-ed-issues]');
+            node.parentElement.className = 'ed-foot-item' + (errors ? ' has-errors' : warnings ? ' has-warnings' : ' is-clean');
+            node.parentElement.title = list.length ? t('easydrag.ui.issues_count', { errors, warnings }) : '';
+            node.innerHTML = list.length
+                ? (errors ? '<span class="ed-count-badge ed-count-badge--error">' + core.icon('alert') + errors + '</span>' : '') +
+                  (warnings ? '<span class="ed-count-badge ed-count-badge--warn">' + core.icon('info') + warnings + '</span>' : '')
+                : core.icon('check') + esc(t('easydrag.ui.issues_none_short'));
+        }
+
+        function renderLastRun() {
+            const r = ed.run && ed.run.record ? ed.run.record : (ed.run ? { status: ed.run.status, started_at: null } : lastRecord);
+            const dot = el.querySelector('[data-ed-last-dot]');
+            const text = el.querySelector('[data-ed-last-run]');
+            dot.className = 'ed-run-dot' + (r ? ' ed-run-dot--' + r.status : '');
+            const failed = r && r.status === 'error' && ed.run && ed.run.steps ? Array.from(ed.run.steps.values()).find(s => s.status === 'error') : null;
+            const failedNode = failed && ed.model.node(failed.node_id);
+            const head = failedNode ? t('easydrag.ui.run_failed_at', { node: failedNode.label || failedNode.type }) : r ? core.tr(t, 'easydrag.ui.status_' + r.status, r.status) : '';
+            text.textContent = r
+                ? head + (r.started_at ? ' · ' + core.fmt.relative(r.started_at) : '') + (r.duration_ms ? ' · ' + core.fmt.duration(r.duration_ms) : '')
+                : t('easydrag.ui.home_never_ran');
+        }
+
+        // ── run view ────────────────────────────────────────────────────────────
+
+        function enterRunView(detail) {
+            ED.detail.close(ed);
+            ED.palette.closeQuickAdd(ed);
+            if (!ed.runView) savedView = Object.assign({}, ed.view);
+            ed.runView = { run: detail.run, doc: detail.doc };
+            ed.model = ED.model.create(detail.doc, ed.catalog);
+            ed.selection = new Set();
+            el.classList.add('is-run-view');
+            banner.hidden = false;
+            banner.querySelector('[data-ed-runview-text]').textContent = t('easydrag.ui.run_view_banner', {
+                status: core.tr(t, 'easydrag.ui.status_' + detail.run.status, detail.run.status),
+                time: core.fmt.dateTime(detail.run.started_at),
+                revision: detail.run.revision
+            });
+            ed.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
+            runs.applyRunView(detail);
+            canvas.fit({ animate: true });
+            renderHeader();
+            setMenus();
+        }
+
+        function exitRunView() {
+            if (!ed.runView) return;
+            ED.detail.close(ed);
+            ed.runView = null;
+            ed.model = draftModel;
+            ed.selection = new Set();
+            el.classList.remove('is-run-view');
+            banner.hidden = true;
+            runs.clearRun();
+            ed.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
+            if (savedView) canvas.setView(savedView, { animate: true });
+            renderHeader();
+            setMenus();
+        }
+
+        // ── commands ────────────────────────────────────────────────────────────
+
+        async function saveNow() {
+            if (ed.readonly || ed.runView) return;
+            await ed.saver.save();
+            if (ed.saver.state === 'saved') canvas.announce(t('easydrag.ui.save_saved'));
+        }
+
+        function test() { if (!runs.isRunning()) runs.startTest({}); }
+
+        function exportFlow() {
+            const a = document.createElement('a');
+            a.href = ed.api.exportUrl(ed.flow.id);
+            a.download = (ed.model.doc.name || 'flow') + '.easydrag.json';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        async function deleteFlow() {
+            const ok = await ctx.confirmDialog(t('easydrag.ui.delete_title'), t('easydrag.ui.delete_text', { name: ed.model.doc.name }));
+            if (!ok) return;
+            try {
+                ed.saver.dispose();
+                await ed.api.remove(ed.flow.id);
+                ED.saver.dropEmergencyCopy(ed.flow.id);
+                app.openHome();
+            } catch (err) { ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); }
+        }
+
+        async function goHome(opts) {
+            if (!(await leave())) return;
+            app.openHome(opts);
+        }
+
+        async function duplicateFlow() {
+            if (!(await leave())) return;
+            try {
+                const doc = ed.model.toJSON();
+                doc.name = t('easydrag.ui.copy_of', { name: doc.name });
+                const res = await ed.api.create({ import: doc });
+                app.openFlow(res.flow.id);
+            } catch (err) { ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); }
+        }
+
+        // leave saves pending content before the editor closes; false keeps it open.
+        async function leave() {
+            if (ed.readonly || !contentDirty) return true;
+            const ok = await ed.saver.flush();
+            if (ok) return true;
+            return ctx.confirmDialog(t('easydrag.ui.leave_title'), t('easydrag.ui.leave_text'));
+        }
+
+        function moreMenu(anchor) {
+            const r = anchor.getBoundingClientRect();
+            const ro = !!(ed.readonly || ed.runView);
+            ctx.showContextMenu(r.left, r.bottom + 4, [
+                { icon: 'play', label: t('easydrag.ui.run_now'), disabled: ro || !ed.flow.live, action: () => runs.runLive() },
+                { icon: 'settings', label: t('easydrag.ui.flow_settings'), action: () => ED.dialogs.flowSettings(ed) },
+                { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: !!ed.readonly, action: duplicateFlow },
+                { icon: 'download', label: t('easydrag.ui.home_export'), action: exportFlow },
+                { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },
+                { separator: true },
+                { icon: 'trash', label: t('easydrag.ui.home_delete'), disabled: !!ed.readonly, action: deleteFlow }
+            ]);
+        }
+
+        // ── window menus ────────────────────────────────────────────────────────
+
+        function setMenus() {
+            if (disposed || typeof ctx.setWindowMenus !== 'function') return;
+            const ro = !!(ed.readonly || ed.runView);
+            const sel = ed.selection.size > 0;
+            const k = core.shortcut;
+            ctx.setWindowMenus(ed.windowId, [
+                {
+                    id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: [
+                        { id: 'home', labelKey: 'easydrag.ui.back_home', icon: 'list', action: goHome },
+                        { type: 'separator' },
+                        { id: 'save', labelKey: 'easydrag.ui.save_now', icon: 'save', shortcut: k('Ctrl+S'), disabled: ro, action: saveNow },
+                        { id: 'test', labelKey: 'easydrag.ui.test', icon: 'run', shortcut: k('Ctrl+Enter'), disabled: ro, action: test },
+                        { id: 'run', labelKey: 'easydrag.ui.run_now', icon: 'play', disabled: ro || !ed.flow.live, action: () => runs.runLive() },
+                        { id: 'publish', labelKey: 'easydrag.ui.publish', icon: 'upload', disabled: ro, action: () => publish.openDialog() },
+                        { type: 'separator' },
+                        { id: 'settings', labelKey: 'easydrag.ui.flow_settings', icon: 'settings', action: () => ED.dialogs.flowSettings(ed) },
+                        { id: 'export', labelKey: 'easydrag.ui.home_export', icon: 'download', action: exportFlow },
+                        { id: 'delete', labelKey: 'easydrag.ui.home_delete', icon: 'trash', disabled: !!ed.readonly, action: deleteFlow }
+                    ]
+                },
+                {
+                    id: 'edit', labelKey: 'easydrag.ui.menu_edit', items: [
+                        { id: 'undo', labelKey: 'easydrag.ui.undo', icon: 'undo', shortcut: k('Ctrl+Z'), disabled: ro || !ed.model.canUndo(), action: () => ed.model.undo() },
+                        { id: 'redo', labelKey: 'easydrag.ui.redo', icon: 'redo', shortcut: k('Ctrl+Shift+Z'), disabled: ro || !ed.model.canRedo(), action: () => ed.model.redo() },
+                        { type: 'separator' },
+                        { id: 'cut', labelKey: 'easydrag.ui.cut', icon: 'scissors', shortcut: k('Ctrl+X'), disabled: ro || !sel, action: () => { if (interact.copySelection()) interact.removeSelection(); } },
+                        { id: 'copy', labelKey: 'easydrag.ui.copy', icon: 'copy', shortcut: k('Ctrl+C'), disabled: !sel, action: () => interact.copySelection() },
+                        { id: 'paste', labelKey: 'easydrag.ui.paste', icon: 'clipboard', shortcut: k('Ctrl+V'), disabled: ro, action: () => interact.pasteAt(null) },
+                        { id: 'duplicate', labelKey: 'easydrag.ui.duplicate', icon: 'copy', shortcut: k('Ctrl+D'), disabled: ro || !sel, action: () => interact.select(ed.model.duplicate(Array.from(ed.selection))) },
+                        { id: 'delete-sel', labelKey: 'easydrag.ui.delete', icon: 'trash', shortcut: 'Del', disabled: ro || (!sel && !ed.selectedEdge), action: () => interact.removeSelection() },
+                        { type: 'separator' },
+                        { id: 'select-all', labelKey: 'easydrag.ui.select_all', icon: 'check-square', shortcut: k('Ctrl+A'), action: () => interact.selectAll() }
+                    ]
+                },
+                {
+                    id: 'view', labelKey: 'easydrag.ui.menu_view', items: [
+                        { id: 'zoom-in', labelKey: 'easydrag.ui.zoom_in', icon: 'zoom-in', shortcut: '+', action: () => canvas.zoomBy(1.2) },
+                        { id: 'zoom-out', labelKey: 'easydrag.ui.zoom_out', icon: 'zoom-out', shortcut: '−', action: () => canvas.zoomBy(1 / 1.2) },
+                        { id: 'zoom-fit', labelKey: 'easydrag.ui.zoom_fit', icon: 'maximize', shortcut: k('Shift+1'), action: () => canvas.fit({ animate: true }) },
+                        { type: 'separator' },
+                        { id: 'palette', labelKey: 'easydrag.ui.palette_title', icon: 'sidebar', checked: palette.isOpen(), action: () => palette.setOpen(!palette.isOpen()) },
+                        { id: 'runs', labelKey: 'easydrag.ui.runs_title', icon: 'list', checked: runs.drawerOpen(), action: () => { runs.toggleDrawer(); renderHeader(); setMenus(); } },
+                        { type: 'separator' },
+                        { id: 'keys', labelKey: 'easydrag.ui.keys_title', icon: 'help', shortcut: '?', action: () => ED.dialogs.shortcuts(ed) }
+                    ]
+                }
+            ]);
+        }
+        const setMenusSoon = core.debounce(setMenus, 120);
+
+        // ── events ──────────────────────────────────────────────────────────────
+
+        bag.add(draftModel.on(change => {
+            if (ed.model !== draftModel) return;
+            ed.bus.emit('model', change);
+            if (change.kind === 'viewport') return;
+            contentDirty = true;
+            ed.saver.schedule();
+            publish.refreshIssues();
+            if (change.meta || change.kind !== 'change') renderHeader();
+            if (change.structural || change.kind !== 'change') pruneSelection();
+            setMenusSoon();
+        }));
+
+        function pruneSelection() {
+            const before = ed.selection.size;
+            ed.selection.forEach(id => { if (!ed.model.node(id)) ed.selection.delete(id); });
+            if (ed.selectedEdge && !ed.model.edge(ed.selectedEdge)) ed.selectedEdge = null;
+            if (ed.selection.size !== before) ed.bus.emit('selection', ed.selection);
+        }
+
+        bag.add(ed.bus.on('quick-add', req => { if (!ed.readonly && !ed.runView) ED.palette.openQuickAdd(ed, canvas, req); }));
+        bag.add(ed.bus.on('open-detail', req => ED.detail.open(ed, req.nodeId, { param: req.param })));
+        bag.add(ed.bus.on('detail-closed', () => canvas.el.focus({ preventScroll: true })));
+        bag.add(ed.bus.on('node-test', req => runs.startTest({ onlyNode: req.nodeId })));
+        bag.add(ed.bus.on('focus-node', id => { interact.select([id]); canvas.centerOn(id, { animate: true }); }));
+        bag.add(ed.bus.on('connect-picker', req => ED.dialogs.connectPicker(ed, canvas, req.nodeId)));
+        bag.add(ed.bus.on('selection', setMenusSoon));
+        bag.add(ed.bus.on('palette', () => { renderHeader(); setMenusSoon(); }));
+        bag.add(ed.bus.on('issues', renderIssues));
+        bag.add(ed.bus.on('run', () => { renderHeader(); renderLastRun(); }));
+        bag.add(ed.bus.on('last-run', record => { lastRecord = record; renderLastRun(); }));
+        bag.add(ed.bus.on('published', flow => { ed.flow = Object.assign(ed.flow, flow); renderHeader(); setMenus(); }));
+        bag.add(ed.bus.on('enabled', () => renderHeader()));
+        bag.add(ed.bus.on('view', () => { if (!ed.runView) core.storage.set(VIEW_KEY + ed.flow.id, ed.view); }));
+
+        bag.listen(el, 'click', (event) => {
+            const b = event.target.closest('[data-ed-cmd]');
+            if (!b || b.disabled) return;
+            const cmd = b.dataset.edCmd;
+            if (cmd === 'home') goHome();
+            else if (cmd === 'runs') { runs.toggleDrawer(); renderHeader(); setMenus(); }
+            else if (cmd === 'test') test();
+            else if (cmd === 'cancel') runs.cancel();
+            else if (cmd === 'publish') publish.openDialog();
+            else if (cmd === 'active') publish.setActive(!ed.flowEnabled);
+            else if (cmd === 'more') moreMenu(b);
+            else if (cmd === 'exit-run-view') exitRunView();
+            else if (cmd === 'last-run') { if (ed.run || lastRecord) runs.toggleDrawer(true); renderHeader(); }
+            else if (cmd === 'issues') publish.openIssues(b);
+            else if (cmd === 'keys') ED.dialogs.shortcuts(ed);
+            else if (cmd === 'palette') palette.setOpen(!palette.isOpen());
+            else if (cmd === 'templates') goHome({ section: 'templates' });
+        });
+
+        bag.listen(nameInput, 'keydown', (event) => {
+            if (event.key === 'Enter') { event.preventDefault(); nameInput.blur(); }
+            if (event.key === 'Escape') { nameInput.value = ed.model.doc.name || ''; nameInput.blur(); }
+        });
+        bag.listen(nameInput, 'change', () => {
+            const name = nameInput.value.trim();
+            if (!name) { nameInput.value = ed.model.doc.name || ''; return; }
+            if (name !== ed.model.doc.name && !ed.readonly && !ed.runView) ed.model.setFlow({ name });
+        });
+
+        function onKeyDown(event) {
+            if (disposed || event.defaultPrevented || !el.isConnected) return;
+            if (typeof ctx.isActive === 'function' && !ctx.isActive()) return;
+            if (el.querySelector('.ed-modal-backdrop') || document.querySelector('.vd-context-menu')) return;
+            const mod = core.isMod(event);
+            const key = event.key.toLowerCase();
+            if (mod && key === 's') { event.preventDefault(); saveNow(); return; }
+            if (mod && event.key === 'Enter') { event.preventDefault(); test(); return; }
+            if (mod && key === 'k') { event.preventDefault(); palette.focusSearch(); return; }
+            if (core.isEditable(event.target) || ed.detail || ed.quickAdd) return;
+            const active = document.activeElement;
+            const onCanvas = canvas.el.contains(active) || active === document.body || active === el;
+            if (event.key === '?' && onCanvas) { event.preventDefault(); ED.dialogs.shortcuts(ed); return; }
+            if (event.key === 'Escape' && ed.runView) { event.preventDefault(); exitRunView(); return; }
+            if (onCanvas && interact.handleKey(event)) event.preventDefault();
+        }
+        bag.listen(document, 'keydown', onKeyDown);
+        bag.listen(document, 'keyup', event => interact.handleKeyUp(event));
+        bag.listen(document, 'aurago:flows-changed', (event) => {
+            const d = event.detail || {};
+            if (d.flow_id !== ed.flow.id) return;
+            if (d.reason === 'deleted') { ctx.notify({ title: ed.model.doc.name, message: t('easydrag.ui.flow_deleted_elsewhere') }); app.openHome(); return; }
+            if (d.reason === 'run_finished' && !runs.isRunning()) runs.loadLast();
+            if (d.reason === 'enabled' || d.reason === 'published') refreshRecord();
+        });
+
+        // refreshRecord re-reads publication state changed elsewhere (another window, the agent).
+        async function refreshRecord() {
+            try {
+                const res = await ed.api.get(ed.flow.id);
+                ed.flow.live = res.flow.live;
+                ed.flow.published_draft_revision = res.flow.published_draft_revision;
+                ed.flowEnabled = !!res.enabled;
+                renderHeader();
+            } catch (err) { /* keep the current state */ }
+        }
+
+        if (typeof ctx.setWindowBeforeClose === 'function') ctx.setWindowBeforeClose(ed.windowId, leave);
+
+        // ── start ───────────────────────────────────────────────────────────────
+
+        async function start() {
+            const copy = !ed.readonly && ED.saver.emergencyCopy(ed.flow.id, ed.flow.draft_revision);
+            if (copy && differs(copy.doc, draftModel.toJSON())) {
+                if (await ED.dialogs.restore(ed, copy)) draftModel.replaceDoc(copy.doc);
+                else ED.saver.dropEmergencyCopy(ed.flow.id);
+            } else if (copy) {
+                ED.saver.dropEmergencyCopy(ed.flow.id);
+            }
+            if (opts && opts.runId) runs.openRunView(opts.runId);
+            else runs.loadLast();
+        }
+
+        function differs(a, b) {
+            const strip = d => JSON.stringify(Object.assign({}, d, { viewport: null }));
+            return strip(a) !== strip(b);
+        }
+
+        renderHeader();
+        renderSaveState('saved');
+        renderIssues();
+        renderLastRun();
+        canvas.render();
+        wires.render();
+        requestAnimationFrame(() => {
+            if (disposed) return;
+            const local = core.storage.get(VIEW_KEY + ed.flow.id, null);
+            const v = local || ed.model.doc.viewport;
+            if (v && v.zoom && ed.model.doc.nodes.length) canvas.setView(v);
+            else canvas.fit();
+            ed.initialRender = false;
+            canvas.el.focus({ preventScroll: true });
+        });
+        setMenus();
+        if (!ed.issues.length) publish.refreshIssues();
+        start();
+
+        return {
+            el, ed, leave,
+            showRun(runId) { runs.openRunView(runId); },
+            dispose() {
+                if (disposed) return;
+                disposed = true;
+                if (contentDirty) ed.saver.save();
+                ED.detail.close(ed);
+                ED.palette.closeQuickAdd(ed);
+                [interact, wires, canvas, palette, runs, publish].forEach(m => m.dispose());
+                ed.saver.dispose();
+                setMenusSoon.cancel();
+                bag.dispose();
+                if (typeof ctx.setWindowBeforeClose === 'function') ctx.setWindowBeforeClose(ed.windowId, null);
+                el.remove();
+            }
+        };
+    }
+
+    ED.editor = { create };
+})();
