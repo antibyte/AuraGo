@@ -24,6 +24,16 @@ function missionIsRunning(mission, queueState = queue) {
     return mission.id === queueState.running || mission.status === 'running';
 }
 
+// Flow missions (execution_type "flow") are EasyDrag flows: read-only here, and the server refuses to run one that
+// was never published.
+function missionIsFlow(mission) {
+    return !!mission && mission.execution_type === 'flow';
+}
+
+function missionIsUnpublishedFlow(mission) {
+    return missionIsFlow(mission) && !mission.flow_published;
+}
+
 function getRunningMissions(missionsList = missions, queueState = queue) {
     const seen = new Set();
     const running = [];
@@ -101,6 +111,7 @@ const svgIcons = {
     calendar: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/></svg>`,
     bolt: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.983 1.907a.75.75 0 00-1.292-.657l-8.5 9.5A.75.75 0 002.75 12h6.572l-1.305 6.093a.75.75 0 001.292.657l8.5-9.5A.75.75 0 0017.25 8h-6.572l1.305-6.093z" clip-rule="evenodd"/></svg>`,
     hand: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M7 2a1 1 0 00-1 1v8.5L4.78 10.28a1 1 0 10-1.56 1.44l3 4A1 1 0 007 16h6a3 3 0 003-3V8a1 1 0 10-2 0V6a1 1 0 10-2 0V4a1 1 0 10-2 0V3a1 1 0 10-2 0v8a.5.5 0 11-1 0V3a1 1 0 00-1-1z"/></svg>`,
+    flow: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="5" height="5" rx="1.25"/><rect x="12.5" y="12.5" width="5" height="5" rx="1.25"/><path d="M7.5 5h3.25a1.75 1.75 0 011.75 1.75v5.75"/></svg>`,
     checkCircle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>`,
     xCircle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg>`,
     fileText: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>`,
@@ -454,6 +465,21 @@ function renderMissions() {
     }
 }
 
+// missionCardActions returns the title and disabled attributes of a card's Run, Duplicate and Edit buttons. Flow
+// missions are edited in EasyDrag (Edit only explains that), cannot be duplicated here, and cannot run before
+// they are published.
+function missionCardActions(mission, isRunning) {
+    const flow = missionIsFlow(mission);
+    const managed = escapeAttr(t('missions.flow_managed'));
+    return {
+        run: missionIsUnpublishedFlow(mission)
+            ? `title="${escapeAttr(t('missions.flow_publish_first'))}" disabled`
+            : `title="${t('missions.card_btn_run_title')}"${isRunning ? ' disabled' : ''}`,
+        duplicate: flow ? `title="${managed}" disabled` : `title="${t('missions.card_btn_duplicate_title')}"`,
+        edit: flow ? `title="${managed}"` : `title="${t('missions.card_btn_edit_title')}"`
+    };
+}
+
 // Compact List View Card
 function renderMissionCompact(mission) {
     const isRunning = missionIsRunning(mission);
@@ -467,6 +493,7 @@ function renderMissionCompact(mission) {
         : '';
 
     const mid = escapeAttr(mission.id);
+    const acts = missionCardActions(mission, isRunning);
     return `
         <div class="card-compact" data-mission-id="${mid}" data-mission-action="open-edit">
             <span class="card-icon" title="${escapeAttr(mission.execution_type)}">${typeIcon}</span>
@@ -474,10 +501,10 @@ function renderMissionCompact(mission) {
             ${mission.locked ? `<span class="card-icon" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>` : ''}
             <div class="card-badges">${statusBadge}${prepBadge}${runnerBadge}</div>
             <div class="card-actions">
-                <button class="mc-btn mc-btn-run" data-mission-action="run" data-mission-id="${mid}" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${svgIcons.play}</button>
+                <button class="mc-btn mc-btn-run" data-mission-action="run" data-mission-id="${mid}" ${acts.run}>${svgIcons.play}</button>
                 ${renderPrepButton(mission, isRunning)}
-                <button class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
-                <button class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
+                <button class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" ${acts.duplicate}>${svgIcons.copy}</button>
+                <button class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" ${acts.edit}>${svgIcons.edit}</button>
                 <button class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
             </div>
         </div>
@@ -498,6 +525,7 @@ function renderMissionGrid(mission, isFirstRender) {
     const hasError = !isRunning && mission.last_result === 'error';
 
     const mid = escapeAttr(mission.id);
+    const acts = missionCardActions(mission, isRunning);
     const statusChip = renderStatusChip(mission, isRunning, isQueued, isWaiting);
     const remoteBadge = mission.runner_type === 'remote'
         ? `<span class="badge badge-remote mc-remote-badge">${escapeHtml(mission.remote_egg_name || mission.remote_nest_name || t('missions.card_remote_badge'))}</span>`
@@ -568,8 +596,7 @@ function renderMissionGrid(mission, isFirstRender) {
                             class="mc-cta-run"
                             data-mission-action="run"
                             data-mission-id="${mid}"
-                            title="${t('missions.card_btn_run_title')}"
-                            ${isRunning ? 'disabled' : ''}>
+                            ${acts.run}>
                         ${svgIcons.play}
                         <span class="mc-cta-label">${t('missions.card_run_label')}</span>
                     </button>
@@ -589,8 +616,8 @@ function renderMissionGrid(mission, isFirstRender) {
                         </div>` : ''}
                     <div class="mc-actions-secondary">
                         ${renderPrepButton(mission, isRunning)}
-                        <button type="button" class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
-                        <button type="button" class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
+                        <button type="button" class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" ${acts.duplicate}>${svgIcons.copy}</button>
+                        <button type="button" class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" ${acts.edit}>${svgIcons.edit}</button>
                         <button type="button" class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
                     </div>
                 </div>
@@ -622,6 +649,9 @@ function renderStatusChip(mission, isRunning, isQueued, isWaiting) {
         } else if (kind === 'triggered') {
             label = t('missions.filter_triggered');
             icon = svgIcons.bolt;
+        } else if (kind === 'flow') {
+            label = t('missions.filter_flow');
+            icon = svgIcons.flow;
         } else {
             label = t('missions.filter_manual');
             icon = svgIcons.hand;
@@ -882,12 +912,13 @@ function loadMissionSelector() {
         return;
     }
 
+    const typeLabels = { manual: t('missions.filter_manual'), scheduled: t('missions.filter_scheduled'), flow: t('missions.filter_flow') };
     container.innerHTML = manualMissions.map(m => `
                 <label class="mission-option">
                     <input type="radio" name="source-mission" value="${m.id}" data-name="${escapeHtml(m.name)}">
                     <div class="mission-option-info">
                         <div class="mission-option-name">${escapeHtml(m.name)}</div>
-                        <div class="mission-option-meta">${m.execution_type} • ${m.priority} • ${t('missions.meta_run_count', { count: m.run_count })}</div>
+                        <div class="mission-option-meta">${escapeHtml(typeLabels[m.execution_type] || m.execution_type)} • ${m.priority} • ${t('missions.meta_run_count', { count: m.run_count })}</div>
                     </div>
                 </label>
             `).join('');
@@ -1222,12 +1253,22 @@ function buildTriggerConfig(type) {
 
 // Actions
 async function runMission(id) {
+    const mission = missions.find(m => m.id === id);
+    if (missionIsUnpublishedFlow(mission)) {
+        showToast(t('missions.flow_publish_first'), 'info');
+        return;
+    }
     try {
         const response = await fetch(`/api/missions/v2/${id}/run`, { method: 'POST' });
         if (!response.ok) throw new Error(await response.text());
         const data = await response.json().catch(() => ({}));
-        const toastType = data.status === 'skipped' ? 'info' : 'success';
-        showToast(toastForMissionDispatch(data), toastType);
+        if (missionIsFlow(mission)) {
+            // A flow run is not queued here: EasyDrag starts it, lets it wait for a slot or skips it.
+            showToast(t('missions.toast_flow_run_requested'), 'success');
+        } else {
+            const toastType = data.status === 'skipped' ? 'info' : 'success';
+            showToast(toastForMissionDispatch(data), toastType);
+        }
         loadData();
     } catch (err) {
         showToast(t('missions.toast_error_prefix') + err.message, 'error');
@@ -1288,7 +1329,10 @@ async function deleteMission(id) {
     const mission = missions.find(m => m.id === id);
     if (!mission) return;
 
-    const confirmed = await showConfirm(t('common.confirm_title'), t('missions.confirm_delete', { name: mission.name }));
+    // Deleting a flow mission deletes its EasyDrag flow too (Service.DeleteFlowForMission).
+    const confirmed = missionIsFlow(mission)
+        ? await showConfirm(t('common.confirm_title'), t('missions.confirm_delete_flow', { name: mission.name }))
+        : await showConfirm(t('common.confirm_title'), t('missions.confirm_delete', { name: mission.name }));
     if (!confirmed) {
         return;
     }
@@ -1371,6 +1415,8 @@ function renderPrepBadge(mission) {
 }
 
 function renderPrepButton(mission, isRunning) {
+    // Preparation belongs to agent missions; flows have no prompt to prepare.
+    if (missionIsFlow(mission)) return '';
     const status = mission.preparation_status || 'none';
     const isPreparing = status === 'preparing';
     const mid = escapeAttr(mission.id);
