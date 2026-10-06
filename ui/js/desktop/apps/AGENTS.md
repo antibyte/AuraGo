@@ -2466,7 +2466,8 @@ registration lives in `internal/desktop/types.go`.
 - `terminal.js` - Standalone workspace terminal: one xterm.js session to
   `/api/code-studio/terminal`. Style catalog in `terminal-styles.js`
   (`window.TerminalStyles`: `ids`, `normalize`, `load`, `save`, `profile`,
-  `applyXterm`). IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
+  `applyXterm`, `effectControls`, `loadEffects`, `saveEffects`, `resetEffects`).
+  IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
   `ibm3278`, `vintage`, `mono-green`, `transparent-green`. Persist
   `aurago.desktop.terminal.style` and audio mute
   `aurago.desktop.terminal.audioMuted`. Retro styles use vendored
@@ -2479,6 +2480,19 @@ registration lives in `internal/desktop/types.go`.
   Load order: xterm.css, desktop-app-terminal.css, xterm, fit, WebGL addon,
   styles, crt, audio, terminal.js. Scope is this app only. Reduced motion
   and `dataset.animations === 'false'` disable flicker, burn-in, animated grain, and audio.
+  The native Effects dialog applies bounded sliders to the existing renderer,
+  without recreating xterm or its socket. Preferences live per style in
+  `aurago.desktop.terminal.effects.v1`; malformed/blocked storage falls back
+  to presets, and reset affects only the selected style. Overall intensity zero
+  restores unwarped source output and removes reflection. Brightness, bloom,
+  scanlines, curvature, afterglow, phosphor mask, vignette, glass reflection,
+  noise, flicker, jitter, rolling interference and color fringing are independent.
+  Reduced motion also pauses jitter/interference; static adjustments remain.
+  Glass reflection is a pointer-transparent CSS layer, available in fallback.
+  CSS fallback supports intensity/brightness/bloom/scanlines/vignette/reflection;
+  the dialog disables unsupported effects and explains the limitation. Dispose
+  closes the dialog and releases its media-query/mutation observers. Zero burn
+  removes temporal persistence even when instantaneous bloom remains enabled.
   Retro appearance follows cool-retro-term's luminous phosphor, scanlines,
   subtly curved glass and recessed bezel using original rendering code. Keep
   profile curvature gentle so text rows remain nearly straight. Share Tech

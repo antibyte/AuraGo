@@ -35,6 +35,14 @@
         const styles = window.TerminalStyles;
         const initial = styles ? styles.load() : 'modern';
         const muted = window.TerminalAudio ? window.TerminalAudio.loadMuted() : false;
+        const effectMarkup = styles.effectControls.map(function (effect, index) {
+            const heading = index === 0 ? 'image' : index === 8 ? 'glass' : '';
+            return (heading ? '<h3>' + ctx.t('desktop.terminal_effects_' + heading) + '</h3>' : '') +
+                '<label class="vd-terminal-effect"><span>' + ctx.t('desktop.terminal_effects_' + effect.key) + '</span>' +
+                '<output aria-hidden="true" data-terminal-effect-output="' + effect.key + '"></output>' +
+                '<input type="range" data-terminal-effect="' + effect.key + '" min="' + (effect.min || 0) +
+                '" max="' + (effect.max || 100) + '" step="1"></label>';
+        }).join('');
         host.innerHTML = '<div class="vd-terminal-app" data-terminal-state="desktop.loading" data-terminal-style="' + initial + '">' +
             '<div class="vd-terminal-toolbar">' +
             '<span class="vd-terminal-status vd-terminal-toolbar-status" data-terminal-status role="status">' + ctx.t('desktop.loading') + '</span>' +
@@ -43,25 +51,39 @@
             '<span class="vd-sr-only">' + ctx.t('desktop.terminal_style') + '</span>' +
             '<select data-terminal-style aria-label="' + ctx.t('desktop.terminal_style') + '">' + optionMarkup(ctx) + '</select>' +
             '</label>' +
+            '<button type="button" data-terminal-effects aria-haspopup="dialog">' + ctx.t('desktop.terminal_effects') + '</button>' +
             '<button type="button" data-terminal-audio aria-pressed="' + (muted ? 'false' : 'true') + '">' +
             ctx.t(muted ? 'desktop.terminal_audio_off' : 'desktop.terminal_audio_on') +
             '</button>' +
             '</div></div>' +
             '<div class="vd-terminal-stage">' +
             '<div class="vd-terminal-bezel" data-terminal-bezel>' +
-            '<div class="vd-terminal-screen" data-terminal-screen></div>' +
+            '<div class="vd-terminal-screen" data-terminal-screen><div class="vd-terminal-reflection" aria-hidden="true"></div></div>' +
             '<div class="vd-terminal-hardware" aria-hidden="true">' +
             '<span class="vd-terminal-maker">AuraGo</span>' +
             '<span class="vd-terminal-vents"></span>' +
             '<span class="vd-terminal-power"><span class="vd-terminal-led"></span><span>⏻</span></span>' +
             '</div>' +
-            '</div></div></div>';
+            '</div></div>' +
+            '<dialog class="vd-terminal-effects-dialog" data-terminal-effects-dialog aria-label="' + ctx.t('desktop.terminal_effects') + '">' +
+            '<header><div><h2>' + ctx.t('desktop.terminal_effects') + '</h2><p data-terminal-effects-style></p></div>' +
+            '<button type="button" data-terminal-effects-close aria-label="' + ctx.t('desktop.close') + '">×</button></header>' +
+            '<p data-terminal-effects-retro hidden>' + ctx.t('desktop.terminal_effects_retro_hint') + '</p>' +
+            '<p data-terminal-effects-fallback hidden>' + ctx.t('desktop.terminal_effects_fallback_hint') + '</p>' +
+            '<p data-terminal-effects-motion hidden>' + ctx.t('desktop.terminal_effects_motion_hint') + '</p>' +
+            '<fieldset class="vd-terminal-effects-grid">' + effectMarkup + '</fieldset>' +
+            '<footer><p>' + ctx.t('desktop.terminal_effects_saved_hint') + '</p>' +
+            '<button type="button" data-terminal-effects-reset>' + ctx.t('desktop.terminal_effects_reset') + '</button></footer></dialog></div>';
 
         const root = host.querySelector('.vd-terminal-app');
         const screen = host.querySelector('[data-terminal-screen]');
         const status = host.querySelector('[data-terminal-status]');
         const select = host.querySelector('select[data-terminal-style]');
         const audioBtn = host.querySelector('[data-terminal-audio]');
+        const effectsBtn = host.querySelector('[data-terminal-effects]');
+        const effectsDialog = host.querySelector('[data-terminal-effects-dialog]');
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        let effectValues = styles.loadEffects(initial);
         let ws = null;
         let term = null;
         let fit = null;
@@ -81,7 +103,39 @@
         }
 
         function currentProfile() {
-            return styles ? styles.profile(root.getAttribute('data-terminal-style')) : { id: 'modern', retro: false };
+            return styles.profile(root.getAttribute('data-terminal-style'), effectValues);
+        }
+
+        function syncEffectsMenu() {
+            const profile = currentProfile();
+            const fallback = root.getAttribute('data-terminal-fallback') === 'css';
+            effectsDialog.querySelector('[data-terminal-effects-style]').textContent = styleLabel(ctx, profile.id);
+            effectsDialog.querySelector('fieldset').disabled = !profile.retro;
+            effectsDialog.querySelector('[data-terminal-effects-reset]').disabled = !profile.retro;
+            effectsDialog.querySelector('[data-terminal-effects-retro]').hidden = profile.retro;
+            effectsDialog.querySelector('[data-terminal-effects-fallback]').hidden = !profile.retro || !fallback;
+            effectsDialog.querySelector('[data-terminal-effects-motion]').hidden = !profile.retro || !(motionQuery.matches || document.body.dataset.animations === 'false');
+            styles.effectControls.forEach(function (effect) {
+                const input = effectsDialog.querySelector('[data-terminal-effect="' + effect.key + '"]');
+                input.value = effectValues[effect.key];
+                input.setAttribute('aria-valuetext', effectValues[effect.key] + '%');
+                input.disabled = fallback && !!effect.advanced;
+                effectsDialog.querySelector('[data-terminal-effect-output="' + effect.key + '"]').textContent = effectValues[effect.key] + '%';
+            });
+        }
+
+        function applyEffects() {
+            const profile = currentProfile();
+            const c = profile.crt;
+            const strength = profile.retro ? c.intensity : 0;
+            root.style.setProperty('--vd-term-reflection', c.reflection * strength);
+            root.style.setProperty('--vd-term-brightness', 1 + (c.brightness - 1) * strength);
+            root.style.setProperty('--vd-term-bloom', c.bloom * strength * 4 + 'px');
+            root.style.setProperty('--vd-term-bloom-color', c.bloom * strength ? 'var(--vd-term-ink)' : 'transparent');
+            root.style.setProperty('--vd-term-scan', c.scan * strength * 0.23);
+            root.style.setProperty('--vd-term-vignette', c.vignette * strength);
+            if (crt) crt.setProfile(profile);
+            syncEffectsMenu();
         }
 
         function syncAudioButton() {
@@ -117,9 +171,10 @@
         async function applyStyle(id) {
             const revision = ++styleRevision;
             const next = styles.save(id);
+            effectValues = styles.loadEffects(next);
             root.setAttribute('data-terminal-style', next);
             root.removeAttribute('data-terminal-fallback');
-            const profile = styles.profile(next);
+            let profile = currentProfile();
             if (document.fonts && typeof document.fonts.load === 'function') {
                 const family = String(profile.fontFamily || '').split(',')[0].trim() || 'monospace';
                 const spec = String(profile.fontSize || 13) + 'px ' + family;
@@ -128,6 +183,7 @@
                 }
             }
             if (!term || revision !== styleRevision) return;
+            profile = currentProfile();
             styles.applyXterm(term, profile);
             ensureCanvas(profile.retro);
             if (profile.retro) {
@@ -154,19 +210,23 @@
                 root.removeAttribute('data-terminal-fallback');
             }
             if (audio) audio.setProfile(profile);
+            applyEffects();
             syncAudioButton();
             if (fit && typeof fit.fit === 'function') fit.fit();
             if (crt && typeof crt.resize === 'function') crt.resize();
         }
 
         function onKeyDown(event) {
-            if (!audio || !host.contains(document.activeElement)) return;
+            if (!audio || effectsDialog.open || !host.contains(document.activeElement)) return;
             audio.playKey(event);
         }
 
         function cleanup() {
             document.removeEventListener('keydown', onKeyDown, true);
             if (observer) observer.disconnect();
+            effectsObserver.disconnect();
+            motionQuery.removeEventListener('change', syncEffectsMenu);
+            if (effectsDialog.open) effectsDialog.close();
             if (ws && ws.readyState !== WebSocket.CLOSED) ws.close();
             if (crt) crt.dispose();
             if (audio) audio.dispose();
@@ -201,6 +261,24 @@
             });
         }
         document.addEventListener('keydown', onKeyDown, true);
+        const effectsObserver = new MutationObserver(syncEffectsMenu);
+        effectsObserver.observe(root, { attributes: true, attributeFilter: ['data-terminal-fallback'] });
+        effectsObserver.observe(document.body, { attributes: true, attributeFilter: ['data-animations'] });
+        motionQuery.addEventListener('change', syncEffectsMenu);
+        effectsBtn.addEventListener('click', function () { syncEffectsMenu(); effectsDialog.showModal(); });
+        effectsDialog.querySelector('[data-terminal-effects-close]').addEventListener('click', function () { effectsDialog.close(); });
+        effectsDialog.addEventListener('input', function (event) {
+            const key = event.target.dataset.terminalEffect;
+            if (!key || event.target.disabled || !currentProfile().retro) return;
+            effectValues[key] = Number(event.target.value);
+            effectValues = styles.saveEffects(root.dataset.terminalStyle, effectValues);
+            applyEffects();
+        });
+        effectsDialog.querySelector('[data-terminal-effects-reset]').addEventListener('click', function () {
+            effectValues = styles.resetEffects(root.dataset.terminalStyle);
+            applyEffects();
+        });
+        applyEffects();
 
         if (!window.Terminal) {
             setStatus('desktop.terminal_unavailable');
