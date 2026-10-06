@@ -268,13 +268,13 @@ func (p *dockerComposePreflight) effectiveModel(command string) dockerComposeEff
 				addDockerComposeResource(effective.model.Volumes, all.Volumes, raw.Volumes, mount.Source, &text)
 			}
 		}
-		for _, key := range dockerComposeRefNames(refs.Networks) {
+		for _, key := range tools.DockerComposeRefNames(refs.Networks) {
 			addDockerComposeResource(effective.model.Networks, all.Networks, raw.Networks, key, &text)
 		}
-		for _, key := range dockerComposeRefNames(refs.Secrets) {
+		for _, key := range tools.DockerComposeRefNames(refs.Secrets) {
 			addDockerComposeResource(effective.model.Secrets, all.Secrets, raw.Secrets, key, &text)
 		}
-		for _, key := range dockerComposeRefNames(refs.Configs) {
+		for _, key := range tools.DockerComposeRefNames(refs.Configs) {
 			addDockerComposeResource(effective.model.Configs, all.Configs, raw.Configs, key, &text)
 		}
 	}
@@ -292,9 +292,9 @@ func dockerComposeServiceDependencies(raw json.RawMessage, service tools.DockerC
 		DependsOn json.RawMessage `json:"depends_on"`
 	}
 	_ = json.Unmarshal(raw, &refs)
-	names := dockerComposeRefNames(refs.DependsOn)
+	names := tools.DockerComposeRefNames(refs.DependsOn)
 	if build := service.Build; build != nil {
-		for _, key := range sortedDockerComposeMapKeys(build.AdditionalContexts) {
+		for _, key := range tools.SortedDockerComposeKeys(build.AdditionalContexts) {
 			if target, ok := strings.CutPrefix(strings.TrimSpace(build.AdditionalContexts[key]), "service:"); ok {
 				names = append(names, strings.TrimSpace(target))
 			}
@@ -379,12 +379,12 @@ func (p *dockerComposePreflight) resolveNamedProfileServices(ctx context.Context
 				return false
 			}
 		}
-		for _, name := range sortedDockerComposeMapKeys(model.Services) {
+		for _, name := range tools.SortedDockerComposeKeys(model.Services) {
 			build := model.Services[name].Build
 			if build == nil {
 				continue
 			}
-			for _, key := range sortedDockerComposeMapKeys(build.AdditionalContexts) {
+			for _, key := range tools.SortedDockerComposeKeys(build.AdditionalContexts) {
 				target, ok := strings.CutPrefix(strings.TrimSpace(build.AdditionalContexts[key]), "service:")
 				target = strings.TrimSpace(target)
 				if !ok || target == "" || slices.Contains(names, target) || slices.Contains(more, target) {
@@ -415,7 +415,7 @@ func (p *dockerComposePreflight) resolveNamedProfileServices(ctx context.Context
 			text.WriteByte('\n')
 		}
 	} else {
-		for _, name := range sortedDockerComposeMapKeys(model.Services) {
+		for _, name := range tools.SortedDockerComposeKeys(model.Services) {
 			if _, present := effective.model.Services[name]; present {
 				continue
 			}
@@ -441,59 +441,13 @@ func (p *dockerComposePreflight) resolveNamedProfileServices(ctx context.Context
 // resolution that the effective model lacks, and the raw JSON of every
 // resource to the token text (env-resolved values matter to the text checks).
 func addDockerComposeResources[V any](target, source map[string]V, raw map[string]json.RawMessage, text *strings.Builder) {
-	for _, key := range sortedDockerComposeMapKeys(source) {
+	for _, key := range tools.SortedDockerComposeKeys(source) {
 		if _, ok := target[key]; !ok {
 			target[key] = source[key]
 		}
 		text.Write(raw[key])
 		text.WriteByte('\n')
 	}
-}
-
-// sortedDockerComposeMapKeys returns the keys of a model map, sorted.
-func sortedDockerComposeMapKeys[V any](values map[string]V) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-// dockerComposeRefNames reads the names a service reference lists: the keys of
-// a map, or the entries of a list of strings or of {"source": …} objects.
-func dockerComposeRefNames(raw json.RawMessage) []string {
-	if len(raw) == 0 {
-		return nil
-	}
-	var byName map[string]json.RawMessage
-	if json.Unmarshal(raw, &byName) == nil {
-		names := make([]string, 0, len(byName))
-		for name := range byName {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		return names
-	}
-	var items []json.RawMessage
-	if json.Unmarshal(raw, &items) != nil {
-		return nil
-	}
-	var names []string
-	for _, item := range items {
-		var name string
-		if json.Unmarshal(item, &name) == nil {
-			names = append(names, name)
-			continue
-		}
-		var ref struct {
-			Source string `json:"source"`
-		}
-		if json.Unmarshal(item, &ref) == nil && ref.Source != "" {
-			names = append(names, ref.Source)
-		}
-	}
-	return names
 }
 
 // dockerComposeLifecycleServiceNames returns the services a `down`, `stop`,
