@@ -2178,6 +2178,8 @@ AuraGo kann **statische Sites / Homepages** per Agent-Tools anlegen, bearbeiten,
 | Build & Deploy | `homepage_deploy`, `homepage_quality` |
 | Design-Regeln | Globales `prompts/rules/homepage/DESIGN.md`; projekt-eigenes `DESIGN.md` nur als Design-Kontext |
 
+**Docker-Socket-Proxy:** Das Homepage-Tool baut sein Dev-Image `aurago-homepage:latest` bei der ersten Nutzung. Der Standard-Socket-Proxy aus Compose lehnt Builds ab (`BUILD=0`); `init` scheitert dann mit `homepage_image_build_forbidden`, und **Config → Homepage** zeigt den Befehl, mit dem Du das Image auf dem Docker-Host baust: `docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -`. Siehe [Docker-Socket-Sicherheit](../../docker_installation.md#4-docker-socket-security).
+
 Vor größeren Änderungen `list_history`, danach `add_history`. Bei `init_project` automatische Registrierung.
 
 ### YAML-Referenz

@@ -2562,6 +2562,8 @@ AuraGo can scaffold, edit, build, deploy, and track **static site / homepage** p
 | Build & deploy | `homepage_deploy`, `homepage_quality` |
 | Design rules | Global `prompts/rules/homepage/DESIGN.md`; per-project `DESIGN.md` adds design context only |
 
+**Docker socket proxy:** the Homepage tool builds its dev image `aurago-homepage:latest` on first use. The default Compose socket proxy refuses builds (`BUILD=0`); `init` then fails with `homepage_image_build_forbidden`, and **Config → Homepage** shows the command that builds the image on the Docker host: `docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -`. See [Docker Socket Security](../../docker_installation.md#4-docker-socket-security).
+
 Call `list_history` before major edits and `add_history` after meaningful changes. New projects are registered automatically on `init_project`.
 
 ### YAML Reference

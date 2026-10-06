@@ -167,7 +167,7 @@ The default proxy is attached to an internal `docker-control` network that is sh
 - `INFO=1` and `VERSION=1`: runtime inventory (including NVIDIA container runtime detection) and Engine API version negotiation.
 - `EXEC=1`: the agent's Docker `exec` operation, the Homepage tool (file editing, git, build and deploy run inside the Homepage container), Code Studio exec and terminals, the built-in OpenSCAD compiler container, container terminals in the Web UI including the CommandCode Store terminal, and the security proxy reload.
 - `BUILD=0`: Docker build API access stays disabled. Code Studio and most managed sidecars pull published images. Images that AuraGo builds through the Engine API need `BUILD=1` or must already exist on the host:
-  - the Homepage dev container image `aurago-homepage:latest`, which the Homepage tool builds on first use;
+  - the Homepage dev container image `aurago-homepage:latest`, which the Homepage tool builds on first use. Without `BUILD=1`, build it once on the Docker host: `docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -` (native installs run the AuraGo binary with `--print-homepage-dockerfile`). `homepage rebuild` deletes this image before it builds, so run the command again afterwards;
   - the bundled CommandCode Store image, built only when its pull fails;
   - local Code Studio runtime images, used instead of the default published image.
 
