@@ -31,6 +31,7 @@ function flowDoc() {
 }
 
 const apiError = code => Object.assign(new Error('text ' + code), { body: { error: 'text ' + code, code } });
+const deferred = () => { let resolve, reject; const p = new Promise((a, b) => { resolve = a; reject = b; }); return { p, resolve, reject }; };
 
 // textareaValue is what a browser shows in the test dialog's textarea: its markup, unescaped.
 function textareaValue(html) {
@@ -48,7 +49,8 @@ export async function run(env) {
     // data) delivers a message and es.fail() an error, both only while the stream is open. The api
     // is core.createApi over a transport that records each request in h.requests and answers with
     // answer({url, method, body}) (a throw rejects). Notifications land in h.notes, canvas
-    // announcements in h.announced, console.error lines in h.logged.
+    // announcements in h.announced, console.error lines in h.logged. opts: types (the catalog),
+    // doc (the flow, default flowDoc()). The page's origin is https://aurago.test.
     function harness(answer, opts) {
         const o = opts || {};
         const dom = miniDom();
@@ -102,7 +104,7 @@ export async function run(env) {
             fail() { if (!this.closed && this.onerror) this.onerror({ type: 'error' }); }
         }
         const box = vm.createContext({
-            window: { SYSTEM_LANG: 'en' }, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, EventSource, URLSearchParams,
+            window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' } }, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, EventSource, URLSearchParams, URL,
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },
             setTimeout: (fn, ms) => { const id = nextId++; timers.set(id, { fn, ms }); return id; },
@@ -124,7 +126,7 @@ export async function run(env) {
             return Promise.resolve().then(() => answer(req));
         };
         const catalogTypes = o.types || types;
-        const model = ED.model.create(flowDoc(), { types: catalogTypes });
+        const model = ED.model.create(o.doc || flowDoc(), { types: catalogTypes });
         const bus = ED.core.emitter();
         model.on(change => bus.emit('model', change));
         const notes = [];
@@ -278,9 +280,11 @@ export async function run(env) {
             area.value = textareaValue(dialog.el.parentNode.html);
             return { dialog, area, select: dialog.body.querySelector('[data-ed-test-trigger]') };
         }
+        // runIt starts the run; the next dialog opens once it is gone (one run at a time).
         async function runIt(dialog) {
             dialog.el.querySelector('[data-ed-action="run"]').fire('click');
             await settle();
+            runs.clearRun();
         }
         const a = await open();
         const shown = a.area.value;
@@ -341,5 +345,175 @@ export async function run(env) {
             [true, '{{alpha.results}}', true, true, '{{alpha.results}}']);
         h.ED.detail.close(h.ed);
         eq('c1d06 the detail checks log no errors', h.logged, []);
+    });
+
+    // ── review fixes: security and data integrity ──
+
+    const outputRun = output => ({ id: 'r1', status: 'success', mode: 'test', steps: new Map([[A, { node_id: A, status: 'success', output }]]), record: null });
+
+    await guardAsync('c1d06 review hostile output', async () => {
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        eq('c1d06 file links allow only same-origin paths under /files/',
+            ['javascript:alert(1)', '//evil.example/files/x.png', 'https://evil.example/files/x.png', '/files/../x', '/files/%2e%2e/x', '/\\evil.example/files/x', 'data:image/png;base64,AA', '/api/x', '', null,
+                '/files/a b.pdf', 'https://aurago.test/files/ok.png', '/files/doc.pdf?v=2#p'].map(h.ED.detail.safeFileUrl),
+            ['', '', '', '', '', '', '', '', '', '', '/files/a%20b.pdf', '/files/ok.png', '/files/doc.pdf?v=2']);
+        // Step output is untrusted (web pages, webhooks, model text): file objects can be forged.
+        h.ed.run = outputRun({
+            a: { $type: 'file', name: 'x.pdf', mime: 'application/pdf', web_path: 'javascript:alert(document.domain)//' },
+            b: { $type: 'file', name: 'p.png', mime: 'image/png', web_path: 'https://tracker.example/p.png' },
+            c: { $type: 'file', name: 'q.mp3', mime: 'audio/mpeg', web_path: '//evil.example/files/q.mp3' },
+            d: { $type: 'file', name: 'r.png', mime: 'image/png', web_path: '/files/../etc/r.png' },
+            ok: { $type: 'file', name: 'ok.png', mime: 'image/png', web_path: '/files/ok.png' },
+            pdf: { $type: 'file', name: 'doc.pdf', mime: 'application/pdf', web_path: '/files/doc.pdf' }
+        });
+        h.ED.detail.open(h.ed, A);
+        await settle();
+        const out = h.ed.root.querySelector('.ed-output');
+        eq('c1d06 forged file objects get no links, media or frames; without pdf.js a PDF keeps its link only',
+            [out.querySelectorAll('a').map(a => a.getAttribute('href')), out.querySelectorAll('img').map(i => i.getAttribute('src')), out.querySelectorAll('audio, iframe, canvas').length, out.querySelectorAll('.ed-file-card').length],
+            [['/files/ok.png', '/files/doc.pdf'], ['/files/ok.png'], 0, 6]);
+        eq('c1d06 the hostile output checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d06 review deep output', async () => {
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        let list = 1;
+        let obj = 'x';
+        for (let i = 0; i < 10000; i++) { list = [list]; obj = { a: obj, file: { $type: 'file', name: 'f' + i, web_path: '/files/f' + i } }; }
+        h.ed.run = outputRun({ list, obj });
+        const detail = h.ED.detail.open(h.ed, A);
+        const tree = h.ed.root.querySelector('.ed-output').html;
+        const cards = h.ed.root.querySelectorAll('.ed-file-card').length;
+        h.ed.root.querySelector('[data-ed-view="json"]').fire('click');
+        const json = h.ed.root.querySelector('.ed-output').html;
+        eq('c1d06 output nested 10000 levels deep renders, cut at 24 levels',
+            [!!detail, h.ed.detail === detail, (tree.match(/<details/g) || []).length < 100, tree.includes('ed-json-more'), cards < 30, json.includes('…')], [true, true, true, true, true, true]);
+        h.ED.detail.close(h.ed);
+        h.runTimers();
+        // A render that throws closes the overlay instead of leaving it stuck.
+        const render = h.ED.forms.render;
+        h.ED.forms.render = () => { throw new Error('boom'); };
+        const failed = h.ED.detail.open(h.ed, B);
+        h.ED.forms.render = render;
+        h.runTimers();
+        eq('c1d06 a detail view that fails to render closes and leaves no overlay',
+            [failed, h.ed.detail, h.ed.root.querySelectorAll('.ed-detail-backdrop').length, h.logged.length], [null, null, 0, 1]);
+    });
+
+    await guardAsync('c1d06 review notes', async () => {
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        h.ED.detail.open(h.ed, A);
+        const root = h.ed.root;
+        const note = () => root.querySelector('[data-pane="note"] textarea');
+        root.querySelector('[data-ed-pane="note"]').fire('click');
+        note().value = 'for alpha';
+        note().fire('input');
+        root.querySelector('[data-ed-nav="1"]').fire('click');
+        const afterNav = [h.ed.detail.nodeId(), h.model.node(A).settings.notes, h.model.node(B).settings.notes];
+        note().value = 'for beta';
+        note().fire('input');
+        h.ED.detail.close(h.ed);
+        h.runTimers();
+        eq('c1d06 a note typed before moving on or closing is saved on its own node',
+            [afterNav, h.model.node(A).settings.notes, h.model.node(B).settings.notes], [[B, 'for alpha', undefined], 'for alpha', 'for beta']);
+    });
+
+    await guardAsync('c1d06 review finish race', async () => {
+        const late = deferred();
+        const slow = deferred();
+        let r3Fetches = 0;
+        const h = harness(req => {
+            if (req.url === '/api/desktop/flows/runs/r1') return late.p;
+            if (req.url === '/api/desktop/flows/runs/r3/cancel') throw apiError('FLOW_RUN_FINISHED');
+            if (req.url === '/api/desktop/flows/runs/r3') return ++r3Fetches === 1 ? slow.p : { run: { id: 'r3', status: 'cancelled', mode: 'test', started_at: '2026-10-06T10:00:00Z' }, steps: [] };
+            throw apiError('FLOW_RUN_NOT_FOUND');
+        });
+        const runs = h.ED.runs.create(h.ed, h.canvas);
+        runs.attach('r1', { mode: 'test' });
+        h.last().emit('end', {});
+        await settle();
+        runs.attach('r2', { mode: 'test' });
+        h.last().emit('snapshot', { run: { id: 'r2', status: 'running' }, steps: [] });
+        late.resolve({ run: { id: 'r1', status: 'error', mode: 'test', started_at: '2026-10-06T10:00:00Z' }, steps: [{ node_id: A, status: 'error', error_code: 'X' }] });
+        await settle();
+        eq('c1d06 an older run\'s late result leaves the current run alone',
+            [h.ed.run.id, h.ed.run.status, h.ed.run.record && h.ed.run.record.id, h.ed.run.steps.has(A), h.ed.lastRunData, h.announced, runs.isRunning()], ['r2', 'running', 'r2', false, null, [], true]);
+        // "end" and a cancel answered FLOW_RUN_FINISHED both finish r3: one result, one announcement.
+        runs.attach('r3', { mode: 'test' });
+        h.last().emit('snapshot', { run: { id: 'r3', status: 'running' }, steps: [] });
+        h.last().emit('end', {});
+        await runs.cancel();
+        slow.resolve({ run: { id: 'r3', status: 'cancelled', mode: 'test', started_at: '2026-10-06T10:00:00Z' }, steps: [] });
+        await settle();
+        eq('c1d06 a run finishes once when "end" races a finished cancel', [h.ed.run.status, h.announced, h.notes], ['cancelled', ['run_failed'], []]);
+        eq('c1d06 the finish race checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d06 review one run at a time', async () => {
+        const h = harness(req => {
+            if (/\/test-data\//.test(req.url)) return { data: {} };
+            if (req.url === '/api/desktop/flows/f1/test' || req.url === '/api/desktop/flows/f1/run') return { run_id: 'r9' };
+            throw apiError('FLOW_RUN_NOT_FOUND');
+        });
+        const runs = h.ED.runs.create(h.ed, h.canvas);
+        const posts = () => h.requests.filter(r => r.method === 'POST').length;
+        runs.attach('r1', { mode: 'test' });
+        h.last().emit('snapshot', { run: { id: 'r1', status: 'running' }, steps: [] });
+        h.ED.detail.open(h.ed, A);
+        const button = () => h.ed.root.querySelector('[data-ed-detail-test]');
+        const whileRunning = [await runs.startTest({ onlyNode: A, quick: true }), await runs.startTest({}), posts(), button().disabled];
+        await runs.runLive();
+        h.last().emit('event', { seq: 1, type: 'run_finished', run: { status: 'success' } });
+        const afterRun = [button().disabled, posts(), h.ed.run.id];
+        h.ED.detail.close(h.ed);
+        // A second start while the first one's dialog is open is ignored.
+        const first = runs.startTest({});
+        const second = await runs.startTest({});
+        const dialog = await first;
+        dialog.el.querySelector('[data-ed-action="cancel"]').fire('click');
+        await settle();
+        const again = await runs.startTest({});
+        eq('c1d06 no test or live run starts while a run or a test dialog is active',
+            [whileRunning, afterRun, second, !!dialog, !!again], [[undefined, undefined, 0, true], [false, 0, 'r1'], undefined, true, true]);
+    });
+
+    await guardAsync('c1d06 review effects scope', async () => {
+        const fxTypes = new Map(types);
+        fxTypes.set('web.search', Object.assign({}, types.get('web.search'), { effects: ['sends_message'] }));
+        fxTypes.set('files.delete', { type: 'files.delete', label: 'Delete', inputs: ['in'], outputs: ['out'], params: [], effects: ['deletes'] });
+        const doc = flowDoc();
+        doc.nodes[3].type = 'files.delete';
+        const h = harness(req => {
+            if (/\/test-data\//.test(req.url)) return { data: {} };
+            if (req.url === '/api/desktop/flows/f1/test') return { run_id: 'r' + h.requests.length };
+            throw apiError('FLOW_RUN_NOT_FOUND');
+        }, { types: fxTypes, doc });
+        const runs = h.ED.runs.create(h.ed, h.canvas);
+        const html = d => d.el.parentNode.html;
+        const tests = () => h.requests.filter(r => r.url === '/api/desktop/flows/f1/test').length;
+        // Testing one step asks for its own effect only; "remember" stores that effect as a list.
+        const one = await runs.startTest({ onlyNode: A });
+        const oneHtml = html(one);
+        one.body.querySelector('[data-ed-effects-skip]').checked = true;
+        one.el.querySelector('[data-ed-action="run"]').fire('click');
+        await settle();
+        runs.clearRun();
+        const stored = h.store.get('aurago.easydrag.effects-ok.f1');
+        const quickStep = await runs.startTest({ onlyNode: A, quick: true });
+        runs.clearRun();
+        // The whole flow has another effect: it still asks (also for a quick test), for that one only.
+        const all = await runs.startTest({ quick: true });
+        const allHtml = all ? html(all) : '';
+        all.el.querySelector('[data-ed-action="cancel"]').fire('click');
+        await settle();
+        eq('c1d06 confirming one step\'s effects covers those effects only',
+            [oneHtml.includes('effect_sends_message'), oneHtml.includes('effect_deletes'), stored, quickStep, tests(), !!all, allHtml.includes('effect_deletes'), allHtml.includes('effect_sends_message')],
+            [true, false, '["sends_message"]', undefined, 2, true, true, false]);
+        // An older stored `true` (one switch for the whole flow) confirms nothing.
+        h.store.set('aurago.easydrag.effects-ok.f1', 'true');
+        h.ed.effectsConfirmed = false;
+        const old = await runs.startTest({ onlyNode: A, quick: true });
+        eq('c1d06 an old flow-wide confirmation asks again', [!!old, old ? html(old).includes('effect_sends_message') : false], [true, true]);
+        eq('c1d06 the effects checks log no errors', h.logged, []);
     });
 }

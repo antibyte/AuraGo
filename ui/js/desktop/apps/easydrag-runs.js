@@ -12,6 +12,8 @@
     const REDACTED = '[redacted]';
     const EFFECT_ICONS = { sends_message: 'brand-telegram', writes_files: 'file-pencil', controls_devices: 'home', runs_code: 'api', deletes: 'trash', system_change: 'settings' };
 
+    function isFinal(status) { return ['success', 'error', 'cancelled'].includes(status); }
+
     function triggers(ed) {
         return ed.model.doc.nodes.filter(n => { const i = ed.model.info(n.type); return i && i.trigger && !n.settings.disabled; });
     }
@@ -140,7 +142,7 @@
             };
         }
 
-        function isFinal(status) { return ['success', 'error', 'cancelled'].includes(status); }
+        function isRunning() { return !!(ed.run && !isFinal(ed.run.status)); }
 
         function applyEvent(ev) {
             if (ev.type === 'run_started') ed.run.status = 'running';
@@ -155,16 +157,24 @@
             setRun(ed.run);
         }
 
-        // finish loads the stored result of a run (known: a detail fetched already) and announces it.
+        // finish loads the stored result of a run (known: a detail fetched already) and announces
+        // it, once per run: "end" and a cancel that found the run finished may both get here. A
+        // run that another run (or a run view) replaced during the fetch is left alone.
         async function finish(runId, known) {
-            if (!ed.run || ed.run.id !== runId) return;
-            try {
-                const detail = known || await ed.api.run(runId, false);
-                ed.run.record = detail.run;
-                ed.run.status = detail.run.status;
-                (detail.steps || []).forEach(s => ed.run.steps.set(s.node_id, s));
+            const current = ed.run;
+            if (!current || current.id !== runId || current.finished) return;
+            current.finished = true;
+            let detail = known || null;
+            if (!detail) {
+                try { detail = await ed.api.run(runId, false); } catch (err) { detail = null; /* keep the streamed state */ }
+            }
+            if (ed.run !== current) return;
+            if (detail && detail.run) {
+                current.record = detail.run;
+                current.status = detail.run.status;
+                (detail.steps || []).forEach(s => current.steps.set(s.node_id, s));
                 rememberRun(detail.run, detail.steps || []);
-            } catch (err) { /* keep the streamed state */ }
+            }
             setRun(ed.run);
             const failed = Array.from(ed.run.steps.values()).find(s => s.status === 'error');
             const node = failed && ed.model.node(failed.node_id);
@@ -174,7 +184,26 @@
 
         // ── starting runs ───────────────────────────────────────────────────────
 
-        function effectsConfirmed() { return !!core.storage.get(EFFECTS_KEY + ed.flow.id, false) || !!ed.effectsConfirmed; }
+        // Real effects are confirmed one by one (sends_message, deletes, …): confirming the effects
+        // of one step does not cover other effects of the flow. ed.effectsConfirmed holds this
+        // session's set; "remember" stores the list under EFFECTS_KEY. An older stored `true` (one
+        // switch for the whole flow) counts as nothing confirmed, so the warning comes once more.
+        function storedEffects() {
+            const stored = core.storage.get(EFFECTS_KEY + ed.flow.id, []);
+            return Array.isArray(stored) ? stored.filter(x => typeof x === 'string') : [];
+        }
+
+        function confirmedEffects() {
+            const set = new Set(storedEffects());
+            if (ed.effectsConfirmed instanceof Set) ed.effectsConfirmed.forEach(x => set.add(x));
+            return set;
+        }
+
+        function confirmEffects(list, remember) {
+            if (!(ed.effectsConfirmed instanceof Set)) ed.effectsConfirmed = new Set();
+            list.forEach(x => ed.effectsConfirmed.add(x));
+            if (remember) core.storage.set(EFFECTS_KEY + ed.flow.id, Array.from(new Set(storedEffects().concat(list))));
+        }
 
         function effectsMarkup(list) {
             if (!list.size) return '';
@@ -183,17 +212,33 @@
                 '</ul><label class="ed-check"><input type="checkbox" data-ed-effects-skip> ' + esc(t('easydrag.ui.effects_remember')) + '</label></div></div>';
         }
 
+        // starting is true from a startTest call until its run was posted or its dialog closed:
+        // one test at a time, and none while a run is active (it would orphan that run's stream).
+        let starting = false;
+
         async function startTest(opts) {
-            if (ed.readonly || ed.runView) return;
-            const o = opts || {};
+            if (ed.readonly || ed.runView || starting || isRunning()) return undefined;
+            starting = true;
+            let dialog;
+            try {
+                dialog = await openTest(opts || {});
+            } finally {
+                if (!dialog) starting = false;
+            }
+            if (dialog) dialog.done.then(() => { starting = false; });
+            return dialog;
+        }
+
+        async function openTest(o) {
             if (ed.saver) await ed.saver.flush();
             const list = triggers(ed);
-            if (!list.length) { ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: t('easydrag.ui.test_no_trigger'), type: 'error' }); return; }
+            if (!list.length) { ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: t('easydrag.ui.test_no_trigger'), type: 'error' }); return undefined; }
             const remembered = core.storage.get('aurago.easydrag.test-trigger.' + ed.flow.id, '');
             let trigger = list.find(n => n.id === (o.triggerNode || remembered)) || list.find(n => n.type === 'trigger.manual') || list[0];
-            const fx = effects(ed, o.onlyNode);
-            const needConfirm = fx.size && !effectsConfirmed();
-            if (o.quick && !needConfirm) { await run(trigger.id, null, o.onlyNode, false); return; }
+            const confirmed = confirmedEffects();
+            const fx = new Map(Array.from(effects(ed, o.onlyNode)).filter(([effect]) => !confirmed.has(effect)));
+            const needConfirm = fx.size > 0;
+            if (o.quick && !needConfirm) { await run(trigger.id, null, o.onlyNode, false); return undefined; }
             let sample = {};
             try { sample = (await ed.api.testData(ed.flow.id, trigger.id)).data || {}; } catch (err) { sample = {}; }
             // The sample comes scrubbed (secret values read "[redacted]") and must never be saved
@@ -221,7 +266,7 @@
                     const sel = d.body.querySelector('[data-ed-test-trigger]');
                     if (sel) trigger = ed.model.node(sel.value) || trigger;
                     const skip = d.body.querySelector('[data-ed-effects-skip]');
-                    if (needConfirm) { ed.effectsConfirmed = true; if (skip && skip.checked) core.storage.set(EFFECTS_KEY + ed.flow.id, true); }
+                    if (needConfirm) confirmEffects(Array.from(fx.keys()), !!(skip && skip.checked));
                     core.storage.set('aurago.easydrag.test-trigger.' + ed.flow.id, trigger.id);
                     // Edited data that still holds a placeholder runs, but is not remembered: it
                     // would replace the stored secret values with "[redacted]".
@@ -264,6 +309,7 @@
         }
 
         async function runLive() {
+            if (ed.runView || starting || isRunning()) return;
             try {
                 const res = await ed.api.runNow(ed.flow.id);
                 if (res.run_id) attach(res.run_id, { mode: 'live' });
@@ -374,11 +420,11 @@
             stepsFrom: (steps, record) => { const map = new Map(); (steps || []).forEach(s => map.set(s.node_id, s)); return { id: record.id, status: record.status, mode: record.mode, steps: map, record }; },
             applyRunView(detail) { setRun(this.stepsFrom(detail.steps, detail.run)); },
             clearRun() { closeStream(); setRun(null); },
-            isRunning: () => !!(ed.run && !isFinal(ed.run.status)),
+            isRunning,
             drawerOpen: () => !!drawer,
             dispose() { bag.dispose(); }
         };
     }
 
-    ED.runs = { create, effects, triggers, edgeStates };
+    ED.runs = { create, effects, triggers, edgeStates, isFinal };
 })();

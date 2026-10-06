@@ -5,9 +5,34 @@
 
     const ED = window.EasyDrag = window.EasyDrag || {};
     const NARROW = 900;
+    // Step output is untrusted data (web pages, webhooks, model text) and the server accepts
+    // JSON nested 10000 levels deep: the recursive renderers stop at MAX_DEPTH levels.
+    const MAX_DEPTH = 24;
 
     function sortedNodes(model) {
         return model.doc.nodes.slice().sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y);
+    }
+
+    // safeFileUrl returns the same-origin path of a file under /files/, or '' for anything else.
+    // File objects in step output can be forged ({"$type": "file", "web_path": "javascript:…"}).
+    function safeFileUrl(path) {
+        const origin = window.location && window.location.origin;
+        if (typeof path !== 'string' || !path || !origin) return '';
+        let url;
+        try { url = new URL(path, origin); } catch (err) { return ''; }
+        if (url.origin !== origin || !url.pathname.startsWith('/files/')) return '';
+        return url.pathname + url.search;
+    }
+
+    // capped copies value down to MAX_DEPTH levels; deeper values read "…" (for the JSON view).
+    function capped(value, depth) {
+        const d = depth || 0;
+        if (!value || typeof value !== 'object') return value;
+        if (d >= MAX_DEPTH) return '…';
+        if (Array.isArray(value)) return value.map(v => capped(v, d + 1));
+        const out = Object.create(null);
+        Object.keys(value).forEach(k => { out[k] = capped(value[k], d + 1); });
+        return out;
     }
 
     // jsonTree renders a value as nested <details>; large lists are cut with a counter.
@@ -18,6 +43,7 @@
             const cls = typeof value === 'string' ? 'ed-json-str' : typeof value === 'number' ? 'ed-json-num' : 'ed-json-bool';
             return '<span class="' + cls + '">' + esc(typeof value === 'string' ? '"' + value + '"' : String(value)) + '</span>';
         }
+        if (d >= MAX_DEPTH) return '<span class="ed-json-more">…</span>';
         const entries = Array.isArray(value) ? value.map((v, i) => [i, v]) : Object.entries(value);
         const shown = entries.slice(0, 200);
         const body = shown.map(([k, v]) => '<li><span class="ed-json-key">' + esc(String(k)) + '</span>: ' + jsonTree(v, esc, d + 1) + '</li>').join('') +
@@ -35,11 +61,12 @@
         return { listKey, rows, cols, total: output[listKey].length };
     }
 
-    function files(value, out) {
+    function files(value, out, depth) {
         const list = out || [];
-        if (value && typeof value === 'object') {
+        const d = depth || 0;
+        if (value && typeof value === 'object' && d < MAX_DEPTH) {
             if (value.$type === 'file') list.push(value);
-            else Object.values(value).forEach(v => files(v, list));
+            else Object.values(value).forEach(v => files(v, list, d + 1));
         }
         return list;
     }
@@ -114,7 +141,9 @@
             el.querySelector('.ed-detail-type').textContent = (info ? info.label : node.type) + ' · ' + node.key;
             const step = ed.run && ed.run.steps && ed.run.steps.get(node.id);
             el.querySelector('.ed-detail-status').innerHTML = step ? '<span class="ed-status-pill ed-status-pill--' + esc(step.status) + '">' + esc(core.tr(t, 'easydrag.ui.status_' + step.status, step.status)) + '</span>' : '';
-            el.querySelector('[data-ed-detail-test]').disabled = !!(ed.readonly || ed.runView || (info && info.trigger));
+            // One run at a time: "test this step" waits until the active run ended.
+            const busy = !!(ed.run && ED.runs && !ED.runs.isFinal(ed.run.status));
+            el.querySelector('[data-ed-detail-test]').disabled = !!(ed.readonly || ed.runView || (info && info.trigger) || busy);
             const list = sortedNodes(ed.model);
             const idx = list.findIndex(n => n.id === node.id);
             el.querySelector('[data-ed-nav="-1"]').disabled = idx <= 0;
@@ -162,8 +191,11 @@
             if (opts && opts.param) { const p = opts.param; opts = null; requestAnimationFrame(() => form.focus(p)); }
         }
 
+        // The settings and the note belong to the node they were drawn for (id), not to the
+        // node shown when a change event fires.
         function renderSettings() {
             const host = el.querySelector('[data-pane="settings"]');
+            const id = node.id;
             const s = node.settings || {};
             const ro = !!(ed.readonly || ed.runView);
             const fenv = { t, esc, readonly: ro };
@@ -171,16 +203,17 @@
             const keyField = core.el('<div class="ed-field"><div class="ed-field-head"><label>' + esc(t('easydrag.ui.settings_key')) + '</label></div>' +
                 '<input class="ed-input ed-code" value="' + esc(node.key) + '"' + (ro ? ' disabled' : '') + ' spellcheck="false"><p class="ed-hint">' + esc(t('easydrag.ui.settings_key_hint')) + '</p><p class="ed-error" hidden></p></div>');
             keyField.querySelector('input').addEventListener('change', (event) => {
-                const res = ed.model.setKey(node.id, event.target.value.trim());
+                const res = ed.model.setKey(id, event.target.value.trim());
                 const err = keyField.querySelector('.ed-error');
                 err.hidden = res.ok;
-                if (!res.ok) { err.textContent = core.tr(t, 'easydrag.ui.key_' + res.reason, t('easydrag.ui.key_invalid')); event.target.value = node.key; }
+                const current = ed.model.node(id);
+                if (!res.ok) { err.textContent = core.tr(t, 'easydrag.ui.key_' + res.reason, t('easydrag.ui.key_invalid')); if (current) event.target.value = current.key; }
             });
             host.appendChild(keyField);
             const onError = core.el('<div class="ed-field"><div class="ed-field-head"><label>' + esc(t('easydrag.ui.settings_on_error')) + '</label></div></div>');
             onError.appendChild(ED.fields.segmented(fenv, [
                 { value: 'stop', label: t('easydrag.ui.on_error_stop') }, { value: 'continue', label: t('easydrag.ui.on_error_continue') }, { value: 'error_port', label: t('easydrag.ui.on_error_port') }
-            ], s.on_error || 'stop', v => ed.model.setSettings(node.id, { on_error: v === 'stop' ? undefined : v })));
+            ], s.on_error || 'stop', v => ed.model.setSettings(id, { on_error: v === 'stop' ? undefined : v })));
             onError.appendChild(core.el('<p class="ed-hint">' + esc(t('easydrag.ui.settings_on_error_hint')) + '</p>'));
             host.appendChild(onError);
             const retry = core.el('<div class="ed-field ed-field--row"><label>' + esc(t('easydrag.ui.settings_retries')) +
@@ -191,20 +224,34 @@
                 const count = core.clamp(Number(retry.querySelector('[data-k="count"]').value) || 0, 0, 5);
                 const delay = core.clamp(Number(retry.querySelector('[data-k="delay_seconds"]').value) || 0, 0, 600);
                 const timeout = Number(retry.querySelector('[data-k="timeout"]').value) || undefined;
-                ed.model.setSettings(node.id, { retry: count ? { count, delay_seconds: delay } : undefined, timeout_seconds: timeout });
+                ed.model.setSettings(id, { retry: count ? { count, delay_seconds: delay } : undefined, timeout_seconds: timeout });
             });
             host.appendChild(retry);
             const disabled = core.el('<div class="ed-field ed-field--inline"><label>' + esc(t('easydrag.ui.settings_disabled')) + '</label></div>');
-            disabled.appendChild(ED.fields.toggle(fenv, !!s.disabled, () => ed.model.toggleDisabled([node.id]), t('easydrag.ui.settings_disabled')));
+            disabled.appendChild(ED.fields.toggle(fenv, !!s.disabled, () => ed.model.toggleDisabled([id]), t('easydrag.ui.settings_disabled')));
             host.appendChild(disabled);
+        }
+
+        // A typed note is saved 400 ms after the last key, or at once when the view moves to
+        // another node or closes (flushNote).
+        let pendingNote = null;
+        const saveNote = core.debounce(() => flushNote(), 400);
+
+        function flushNote() {
+            saveNote.cancel();
+            if (!pendingNote) return;
+            const { id, value } = pendingNote;
+            pendingNote = null;
+            if (ed.model.node(id)) ed.model.setSettings(id, { notes: value || undefined });
         }
 
         function renderNote() {
             const host = el.querySelector('[data-pane="note"]');
             const ro = !!(ed.readonly || ed.runView);
             if (host.querySelector('textarea') && document.activeElement === host.querySelector('textarea')) return;
+            const id = node.id;
             host.innerHTML = '<textarea class="ed-input ed-note" rows="10" placeholder="' + esc(t('easydrag.ui.note_placeholder')) + '"' + (ro ? ' disabled' : '') + '>' + esc((node.settings || {}).notes || '') + '</textarea>';
-            host.querySelector('textarea').addEventListener('input', core.debounce(event => ed.model.setSettings(node.id, { notes: event.target.value || undefined }), 400));
+            host.querySelector('textarea').addEventListener('input', (event) => { pendingNote = { id, value: event.target.value }; saveNote(); });
         }
 
         function renderOutput() {
@@ -231,7 +278,7 @@
             const fileList = files(output);
             let html = fileList.map(f => {
                 const mime = String(f.mime || '');
-                const url = f.web_path || '';
+                const url = safeFileUrl(f.web_path);
                 const media = !url ? '' : mime.startsWith('image/') ? '<img src="' + esc(url) + '" alt="" loading="lazy">'
                     : mime.startsWith('audio/') ? '<audio controls preload="none" src="' + esc(url) + '"></audio>'
                     : mime === 'application/pdf' ? '<canvas class="ed-pdf-thumb" data-pdf="' + esc(url) + '"></canvas>' : '';
@@ -239,7 +286,7 @@
                     (f.size ? '<span class="ed-muted">' + esc(core.fmt.bytes(f.size)) + '</span>' : '') +
                     (url ? '<a class="ed-link" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(t('easydrag.ui.output_open')) + '</a>' : '') + '</div></div>';
             }).join('');
-            if (outputView === 'json') html += '<pre class="ed-code ed-output-json">' + esc(JSON.stringify(output, null, 2)) + '</pre>';
+            if (outputView === 'json') html += '<pre class="ed-code ed-output-json">' + esc(JSON.stringify(capped(output), null, 2)) + '</pre>';
             else if (outputView === 'table') {
                 const table = tableOf(output);
                 html += table ? '<div class="ed-table-wrap"><table class="ed-table"><thead><tr>' + table.cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>' +
@@ -251,9 +298,11 @@
             out.querySelectorAll('canvas[data-pdf]').forEach(renderPdfThumb);
         }
 
+        // renderPdfThumb draws page 1 of a PDF with pdf.js. Without pdf.js the card keeps its
+        // "open" link only (no embedded frame for files from step output).
         async function renderPdfThumb(canvas) {
             const pdfjs = window.pdfjsLib;
-            if (!pdfjs) { canvas.replaceWith(core.el('<iframe class="ed-pdf-frame" src="' + esc(canvas.dataset.pdf) + '#toolbar=0" title="PDF"></iframe>')); return; }
+            if (!pdfjs) { canvas.remove(); return; }
             try {
                 const doc = await pdfjs.getDocument({ url: canvas.dataset.pdf }).promise;
                 const page = await doc.getPage(1);
@@ -292,6 +341,7 @@
             const idx = list.findIndex(n => n.id === node.id);
             const next = list[idx + delta];
             if (!next) return;
+            flushNote();
             node = next;
             lastField = null;
             mapping = null;
@@ -347,13 +397,11 @@
         ro.observe(ed.root);
         bag.add(() => ro.disconnect());
 
-        renderAll();
-        if (!(opts && opts.param)) labelInput.focus({ preventScroll: true });
-        requestAnimationFrame(() => el.classList.add('is-open'));
-
+        // ed.detail exists before the first render, so a render that throws still closes cleanly.
         ed.detail = {
             nodeId: () => node.id,
             close: () => {
+                flushNote();
                 bag.dispose();
                 el.classList.add('is-closing');
                 setTimeout(() => el.remove(), 160);
@@ -361,10 +409,19 @@
                 ed.bus.emit('detail-closed', node.id);
             }
         };
+        try {
+            renderAll();
+        } catch (err) {
+            console.error('EasyDrag detail view failed', err);
+            ed.detail.close();
+            return null;
+        }
+        if (!(opts && opts.param)) labelInput.focus({ preventScroll: true });
+        requestAnimationFrame(() => el.classList.add('is-open'));
         return ed.detail;
     }
 
     function close(ed) { if (ed.detail) ed.detail.close(); }
 
-    ED.detail = { open, close, jsonTree };
+    ED.detail = { open, close, jsonTree, safeFileUrl };
 })();
