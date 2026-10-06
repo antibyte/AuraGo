@@ -342,3 +342,31 @@ func TestSSHConnectorDeployUploadsToHomeRelativeSFTPPaths(t *testing.T) {
 		t.Fatalf("SFTP remote paths = %v, want %v", remotePaths, want)
 	}
 }
+
+func TestSSHConnectorServiceUnitUsesSystemdHomeSpecifier(t *testing.T) {
+	payload := sshDeployTestPayload()
+	payload.Permanent = true
+	cmds := sshDeployCommands(t, payload)
+	var unit string
+	for _, cmd := range cmds {
+		if strings.Contains(cmd, "[Service]") {
+			unit = cmd
+		}
+	}
+	// systemd does not expand "~"; %h is the user manager's home directory.
+	for _, want := range []string{
+		"WorkingDirectory=%h/.aurago-egg-12345678\n",
+		"EnvironmentFile=%h/.aurago-egg-12345678/.env\n",
+		"ExecStart=%h/.aurago-egg-12345678/aurago\n",
+	} {
+		if !strings.Contains(unit, want) {
+			t.Fatalf("unit lacks %q:\n%s", want, unit)
+		}
+	}
+	if strings.Contains(unit, "=~") {
+		t.Fatalf("unit still uses ~ paths:\n%s", unit)
+	}
+	if !strings.Contains(unit, "<< 'EOF'") {
+		t.Fatalf("the unit must be written through a quoted heredoc so the shell keeps %%h: %s", unit)
+	}
+}

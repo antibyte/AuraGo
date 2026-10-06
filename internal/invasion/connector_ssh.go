@@ -219,6 +219,10 @@ func (c *SSHConnector) installService(ctx context.Context, nest NestRecord, secr
 		return err
 	}
 	serviceName := fmt.Sprintf("aurago-egg-%s", prefix)
+	// systemd does not expand "~"; %h is the home directory of the user
+	// manager that runs the unit, the $HOME the deploy steps write to. The
+	// quoted heredoc below keeps %h literal.
+	unitDir := "%h/" + strings.TrimPrefix(baseDir, "~/")
 	unitFile := fmt.Sprintf(`[Unit]
 Description=AuraGo Egg Worker (%s)
 After=network.target
@@ -233,7 +237,7 @@ RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
-`, prefix, baseDir, baseDir, baseDir)
+`, prefix, unitDir, unitDir, unitDir)
 
 	writeCmd := fmt.Sprintf("mkdir -p ~/.config/systemd/user && cat > ~/.config/systemd/user/%s.service << 'EOF'\n%s\nEOF", serviceName, unitFile)
 	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, writeCmd); err != nil {
