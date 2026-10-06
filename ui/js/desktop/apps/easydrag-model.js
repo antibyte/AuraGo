@@ -65,12 +65,14 @@
     function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
     function isEmpty(v) { return v === undefined || v === null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && !v.length); }
 
+    // normalize fills in defaults. It keeps only plain-object nodes and edges whose ends are
+    // plain objects, because a tampered or corrupt emergency copy can reach replaceDoc.
     function normalize(doc) {
-        const d = doc || {};
+        const d = isPlainObject(doc) ? doc : {};
         d.schema = d.schema || 1;
         d.kind = d.kind || 'flow';
-        d.nodes = Array.isArray(d.nodes) ? d.nodes : [];
-        d.edges = Array.isArray(d.edges) ? d.edges : [];
+        d.nodes = Array.isArray(d.nodes) ? d.nodes.filter(isPlainObject) : [];
+        d.edges = Array.isArray(d.edges) ? d.edges.filter(e => isPlainObject(e) && isPlainObject(e.source) && isPlainObject(e.target)) : [];
         d.settings = d.settings || {};
         d.nodes.forEach(n => { n.params = n.params || {}; n.settings = n.settings || {}; n.position = n.position || { x: 0, y: 0 }; });
         return d;

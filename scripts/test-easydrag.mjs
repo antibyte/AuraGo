@@ -352,6 +352,16 @@ guard('c1d02 model review fixes', () => {
     br.connect(b1, 'out', b3, 'in');
     br.removeNodes([b2], { bridge: true });
     eq('c1d02 bridge skips an existing edge', br.outgoing(b1).filter(e => e.target.node === b3).length, 1);
+    // A tampered or corrupt document (emergency copy -> replaceDoc) loses malformed nodes and edges instead of throwing.
+    const corrupt = () => ({ nodes: [null, 'x', [], { id: 'n1', key: 'a', type: 'web.search' }], edges: [{ id: 'bad' }, null, { id: 'e1', source: 'n1', target: {} },
+        { id: 'ok', source: { node: 'n1', port: 'out' }, target: { node: 'n1', port: 'in' } }] });
+    const loaded = M.create(corrupt(), { types });
+    const replaced = M.create({ nodes: [], edges: [] }, { types });
+    replaced.replaceDoc(corrupt());
+    const emptied = M.create({ nodes: [], edges: [] }, { types });
+    emptied.replaceDoc(null);
+    eq('c1d02 malformed nodes and edges are dropped on load', [loaded.doc.nodes.length, loaded.doc.edges.map(e => e.id), loaded.incoming('n1').length,
+        replaced.doc.nodes.length, replaced.incoming('n1').length, emptied.doc.nodes.length], [1, ['ok'], 1, 1, 1, 0]);
     eq('c1d02 clampZoom maps non-finite values to 1', [G.clampZoom(NaN), G.clampZoom(Infinity), G.clampZoom(undefined), G.zoomAt({ x: 0, y: 0, zoom: 1 }, NaN, { x: 10, y: 10 }).zoom], [1, 1, 1, 1]);
 });
 
