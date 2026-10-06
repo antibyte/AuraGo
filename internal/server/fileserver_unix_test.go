@@ -13,7 +13,7 @@ import (
 )
 
 // Opening a FIFO blocks until a writer appears, so openRegularFileInRoot must
-// refuse it from Lstat, before any open.
+// refuse it from Lstat before any open (and its open is non-blocking besides).
 func TestOpenRegularFileInRootRefusesFIFOWithoutOpeningIt(t *testing.T) {
 	dir := t.TempDir()
 	if err := unix.Mkfifo(filepath.Join(dir, "pipe.mp3"), 0o600); err != nil {
@@ -33,8 +33,9 @@ func TestOpenRegularFileInRootRefusesFIFOWithoutOpeningIt(t *testing.T) {
 			t.Fatalf("err = %v, want os.ErrNotExist", err)
 		}
 	case <-time.After(5 * time.Second):
-		// Unblock the stuck open so the test binary can exit.
-		if w, err := os.OpenFile(filepath.Join(dir, "pipe.mp3"), os.O_WRONLY, 0); err == nil {
+		// Unblock a stuck open so the test binary can exit. Non-blocking, so
+		// this fails with ENXIO instead of hanging when no reader is waiting.
+		if w, err := os.OpenFile(filepath.Join(dir, "pipe.mp3"), os.O_WRONLY|unix.O_NONBLOCK, 0); err == nil {
 			w.Close()
 		}
 		t.Fatal("openRegularFileInRoot blocked opening a FIFO")

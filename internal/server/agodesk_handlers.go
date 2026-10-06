@@ -1350,17 +1350,27 @@ func handleAgodeskMediaAsset(s *Server) http.HandlerFunc {
 			if r.URL.Query().Get("inline") == "1" {
 				disposition = "inline"
 			}
-			w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, disposition, filename))
+			// FormatMediaType quotes and escapes the name (a document name may
+			// contain '"' on Linux) and RFC 2231-encodes non-ASCII names.
+			w.Header().Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": filename}))
 		}
 		http.ServeContent(w, r, filename, info.ModTime(), f)
 	}
 }
 
+// agodeskMediaAssetSniffedTypes lists the sniffed type prefixes a signed media
+// asset without an extension type may be served as. Audio and video stay
+// allowed because genuinely unknown media extensions still sniff usefully
+// (.mkv sniffs as video/webm); HTML and XML are left out.
+var agodeskMediaAssetSniffedTypes = []string{"image/", "audio/", "video/", "text/plain;", "application/pdf", "application/ogg"}
+
 // agodeskMediaAssetContentType returns the extension's type, else the type
-// sniffed from the first 512 bytes when it is passive media, PDF or plain text
-// (minimal Linux images ship no mime.types, so .mp3 or .mp4 have no extension
-// type there), else application/octet-stream: a signed URL never serves a file
-// without a known extension as HTML or XML. content is rewound afterwards.
+// sniffed from the first 512 bytes when agodeskMediaAssetSniffedTypes allows
+// it, else application/octet-stream: a signed URL never serves a file without
+// a known extension as HTML or XML. Go's built-in table (plus registerUIRoutes'
+// additions) already covers the common media and office extensions, so
+// sniffing is reached only for genuinely unknown ones such as .mkv, .aac, .3gp,
+// .heic, .md or no extension at all. content is rewound afterwards.
 func agodeskMediaAssetContentType(filename string, content io.ReadSeeker) (string, error) {
 	if contentType := mime.TypeByExtension(strings.ToLower(pathpkg.Ext(filename))); contentType != "" {
 		return contentType, nil
@@ -1371,7 +1381,7 @@ func agodeskMediaAssetContentType(filename string, content io.ReadSeeker) (strin
 		return "", err
 	}
 	sniffed := http.DetectContentType(head[:n])
-	for _, prefix := range []string{"image/", "audio/", "video/", "text/plain;", "application/pdf", "application/ogg"} {
+	for _, prefix := range agodeskMediaAssetSniffedTypes {
 		if strings.HasPrefix(sniffed, prefix) {
 			return sniffed, nil
 		}

@@ -12,6 +12,7 @@ import (
 	"image/color"
 	"image/png"
 	"log/slog"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -1455,6 +1456,13 @@ func TestAgodeskTTSAssetBypassesSessionAuthAndServesCachedAudio(t *testing.T) {
 		}
 		expectNotServed(t, "/api/agodesk/tts/escape.mp3", outsideSecret)
 	})
+	t.Run("relative file symlink inside the tts directory", func(t *testing.T) {
+		// os.Root follows a relative in-root link; only the Lstat loop refuses it.
+		if err := os.Symlink("voice.mp3", filepath.Join(ttsDir, "alias.mp3")); err != nil {
+			t.Skipf("file symlinks unavailable: %v", err)
+		}
+		expectNotServed(t, "/api/agodesk/tts/alias.mp3", "mp3-data")
+	})
 	t.Run("directory link leaving the tts directory", func(t *testing.T) {
 		linkDirForTest(t, outsideDir, filepath.Join(ttsDir, "escdir.mp3"))
 		expectNotServed(t, "/api/agodesk/tts/escdir.mp3", outsideSecret, "secret.mp3")
@@ -1578,15 +1586,19 @@ func TestAgodeskMediaAssetRequiresSignedURLForAllowedFiles(t *testing.T) {
 		t.Fatalf("unsigned traversal status = %d, want 401", traversalRec.Code)
 	}
 
-	getSigned := func(t *testing.T, assetPath string, header http.Header) *httptest.ResponseRecorder {
+	serveSigned := func(t *testing.T, method, assetPath string, header http.Header) *httptest.ResponseRecorder {
 		t.Helper()
-		req := httptest.NewRequest(http.MethodGet, signAgodeskMediaAssetPath(s, assetPath, time.Now()), nil)
+		req := httptest.NewRequest(method, signAgodeskMediaAssetPath(s, assetPath, time.Now()), nil)
 		for key, values := range header {
 			req.Header[key] = values
 		}
 		rec := httptest.NewRecorder()
 		authMiddleware(s, mux).ServeHTTP(rec, req)
 		return rec
+	}
+	getSigned := func(t *testing.T, assetPath string, header http.Header) *httptest.ResponseRecorder {
+		t.Helper()
+		return serveSigned(t, http.MethodGet, assetPath, header)
 	}
 	expectNotServed := func(t *testing.T, assetPath string, leaks ...string) {
 		t.Helper()
@@ -1615,9 +1627,23 @@ func TestAgodeskMediaAssetRequiresSignedURLForAllowedFiles(t *testing.T) {
 	t.Run("directory links", func(t *testing.T) {
 		linkDirForTest(t, outsideDir, filepath.Join(imageDir, "esc"))
 		expectNotServed(t, "/api/agodesk/media/images/esc/x.png", outsideSecret)
-		// No link is followed, even one that stays inside the bucket.
+		// These links carry absolute targets (or are junctions), which os.Root
+		// refuses on its own even when they stay inside the bucket; relative
+		// in-bucket links are covered below.
 		linkDirForTest(t, filepath.Join(imageDir, "album"), filepath.Join(imageDir, "inlink"))
 		expectNotServed(t, "/api/agodesk/media/images/inlink/listed.png", "listed-data")
+	})
+	t.Run("relative links inside the bucket", func(t *testing.T) {
+		// os.Root follows relative links that stay inside the bucket; only the
+		// per-component Lstat check refuses them.
+		if err := os.Symlink("album", filepath.Join(imageDir, "reldir")); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+		expectNotServed(t, "/api/agodesk/media/images/reldir/listed.png", "listed-data")
+		if err := os.Symlink("cat.jpeg", filepath.Join(imageDir, "rel.jpeg")); err != nil {
+			t.Skipf("file symlinks unavailable: %v", err)
+		}
+		expectNotServed(t, "/api/agodesk/media/images/rel.jpeg", "image-data")
 	})
 	t.Run("directory inside the bucket", func(t *testing.T) {
 		expectNotServed(t, "/api/agodesk/media/images/album/", "listed.png")
@@ -1633,7 +1659,7 @@ func TestAgodeskMediaAssetRequiresSignedURLForAllowedFiles(t *testing.T) {
 			"Content-Type":           "application/pdf",
 			"X-Content-Type-Options": "nosniff",
 			"Cache-Control":          "private, max-age=900",
-			"Content-Disposition":    `attachment; filename="report.pdf"`,
+			"Content-Disposition":    "attachment; filename=report.pdf",
 			"Accept-Ranges":          "bytes",
 		} {
 			if got := rec.Header().Get(header); got != want {
@@ -1641,12 +1667,41 @@ func TestAgodeskMediaAssetRequiresSignedURLForAllowedFiles(t *testing.T) {
 			}
 		}
 		rec = getSigned(t, "/api/agodesk/media/documents/report.pdf?inline=1", nil)
-		if got := rec.Header().Get("Content-Disposition"); rec.Code != http.StatusOK || got != `inline; filename="report.pdf"` {
+		if got := rec.Header().Get("Content-Disposition"); rec.Code != http.StatusOK || got != "inline; filename=report.pdf" {
 			t.Fatalf("inline document status = %d, Content-Disposition = %q; want 200 inline", rec.Code, got)
 		}
 		rec = getSigned(t, "/api/agodesk/media/documents/report.pdf", http.Header{"Range": {"bytes=0-3"}})
 		if rec.Code != http.StatusPartialContent || rec.Body.String() != "%PDF" || rec.Header().Get("Content-Range") != "bytes 0-3/15" {
 			t.Fatalf("range status = %d, body = %q, Content-Range = %q; want 206 %%PDF bytes 0-3/15", rec.Code, rec.Body.String(), rec.Header().Get("Content-Range"))
+		}
+		rec = serveSigned(t, http.MethodHead, "/api/agodesk/media/documents/report.pdf", nil)
+		if rec.Code != http.StatusOK || rec.Body.Len() != 0 {
+			t.Fatalf("HEAD status = %d, body = %q; want 200 with an empty body", rec.Code, rec.Body.String())
+		}
+		for header, want := range map[string]string{
+			"Content-Type":           "application/pdf",
+			"Content-Length":         "15",
+			"X-Content-Type-Options": "nosniff",
+			"Cache-Control":          "private, max-age=900",
+			"Content-Disposition":    "attachment; filename=report.pdf",
+		} {
+			if got := rec.Header().Get(header); got != want {
+				t.Fatalf("HEAD %s = %q, want %q", header, got, want)
+			}
+		}
+	})
+	t.Run("document names with quotes stay a well-formed header", func(t *testing.T) {
+		if err := os.WriteFile(filepath.Join(dataDir, "documents", `a"b.pdf`), []byte("%PDF-1.7 quoted"), 0o600); err != nil {
+			t.Skipf("file names with quotes unavailable: %v", err)
+		}
+		rec := getSigned(t, "/api/agodesk/media/documents/a%22b.pdf", nil)
+		disposition := rec.Header().Get("Content-Disposition")
+		if rec.Code != http.StatusOK || rec.Body.String() != "%PDF-1.7 quoted" {
+			t.Fatalf("quoted document status = %d, body = %q; want 200 with the file", rec.Code, rec.Body.String())
+		}
+		mediaType, params, err := mime.ParseMediaType(disposition)
+		if err != nil || mediaType != "attachment" || params["filename"] != `a"b.pdf` {
+			t.Fatalf("Content-Disposition = %q parses to %q %v (%v); want attachment with filename a\"b.pdf", disposition, mediaType, params, err)
 		}
 	})
 	t.Run("unknown extensions are never served as markup", func(t *testing.T) {
@@ -1659,6 +1714,11 @@ func TestAgodeskMediaAssetRequiresSignedURLForAllowedFiles(t *testing.T) {
 		rec = getSigned(t, "/api/agodesk/media/audio/clip.zzsound", nil)
 		if got := rec.Header().Get("Content-Type"); rec.Code != http.StatusOK || got != "audio/mpeg" {
 			t.Fatalf("sniffed audio status = %d, Content-Type = %q; want 200 audio/mpeg", rec.Code, got)
+		}
+		writeRootBoundFixture(t, filepath.Join(dataDir, "documents", "empty.zzdoc"), "")
+		rec = getSigned(t, "/api/agodesk/media/documents/empty.zzdoc", nil)
+		if rec.Code != http.StatusOK || rec.Body.Len() != 0 || rec.Header().Get("Content-Length") != "0" || rec.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
+			t.Fatalf("empty file status = %d, body = %q, Content-Length = %q, Content-Type = %q; want 200, empty, 0, text/plain", rec.Code, rec.Body.String(), rec.Header().Get("Content-Length"), rec.Header().Get("Content-Type"))
 		}
 	})
 }

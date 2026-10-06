@@ -146,8 +146,12 @@ func (i requestNamedInfo) Name() string { return i.name }
 // is checked with Lstat through an os.Root. Symlinks are refused, intermediate
 // components must be directories (Windows junctions report as irregular files,
 // not directories) and the last component must pass isServableMode BEFORE it
-// is opened, so a FIFO is never opened (that would block). The opened file is
-// checked again with Stat. Names filepath.Localize rejects (NUL; on Windows
+// is opened, so a FIFO is never opened (that would block). The open itself
+// uses openRegularFileFlags (non-blocking on Unix), so a FIFO swapped in after
+// the check cannot block either, and the opened file is checked again with
+// Stat. Absolute links are refused by os.Root anyway; relative ones, which
+// os.Root follows while they stay inside dir, only by the Lstat loop. Names
+// filepath.Localize rejects (NUL; on Windows
 // also backslashes, colons and reserved names such as CON) are refused too.
 // Every failure is os.ErrNotExist, so callers answer 404 without revealing
 // what exists. The root is closed on return; the caller closes the file.
@@ -170,7 +174,7 @@ func openRegularFileInRoot(dir, rel string) (*os.File, fs.FileInfo, error) {
 			return nil, nil, os.ErrNotExist
 		}
 	}
-	f, err := root.Open(rel)
+	f, err := root.OpenFile(rel, openRegularFileFlags, 0)
 	if err != nil {
 		return nil, nil, os.ErrNotExist
 	}
