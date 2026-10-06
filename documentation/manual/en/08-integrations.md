@@ -1895,7 +1895,7 @@ Protection layer for publicly reachable AuraGo instances: TLS (Let's Encrypt for
 1. Open **Config → Integrations → Security Proxy**.
 2. Enable the proxy and enter the domain, ACME e-mail and ports.
 3. Optionally enable rate limiting, the IP filter or Basic Auth.
-4. Save. Enabling starts the proxy. Settings saved in the Config UI or the Vault apply to the next start or reload without restarting AuraGo. After changes to the domain, e-mail, rate-limit values, IP filter, Basic Auth or additional routes, press **Reload**. After changes to the ports, `docker_host` or the container placement (AuraGo's data volume, bind mount or network), press **Start**: Reload only reapplies the Caddyfile and does not recreate the container (see [Reload](#reload)).
+4. Save. Enabling starts the proxy. Settings saved in the Config UI or the Vault apply to the next start or reload without restarting AuraGo. After changes to the domain, e-mail, rate-limit values, IP filter, Basic Auth or additional routes, press **Reload**. After changes to the ports or the container placement, press **Start**. To move the proxy to another `docker_host`, press **Destroy** first, then save the new `docker_host` and press **Start**. Reload only reapplies the Caddyfile and does not recreate the container (see [Reload](#reload)).
 
 ### Basic Auth
 Store the account in the Vault as `proxy_basic_auth_user` and `proxy_basic_auth_pass`. AuraGo writes only a bcrypt hash of the password into the Caddyfile (file mode 0600). With Basic Auth enabled but either secret missing, the proxy does not start and the UI names the missing secrets. User names must not contain `:`, quotes, backslashes or braces; passwords may be at most 72 bytes long.
@@ -1922,7 +1922,7 @@ EOF
 A later AuraGo release that changes the pins needs a new image: the manual of that release shows the matching command, and the AuraGo log names the tag it expects.
 
 ### Reload
-**Reload** rewrites the Caddyfile and runs `caddy reload` in the container. If Caddy rejects the new configuration, it keeps serving the previous one, AuraGo restores the previous Caddyfile, and the UI points to the proxy logs. Turning rate limiting on or off changes the image, so Reload then recreates the container. Otherwise Reload keeps the container as it is: port mappings, the Docker engine (`docker_host`) and the placement (mounts and network) only change when **Start** removes and recreates the container. Start works on the engine in the current `docker_host`, so press **Destroy** before you switch `docker_host`; otherwise the old proxy keeps running on the previous engine.
+**Reload** rewrites the Caddyfile and runs `caddy reload` in the container. If Caddy rejects the new configuration, it keeps serving the previous one, AuraGo restores the previous Caddyfile, and the UI points to the proxy logs. Turning rate limiting on or off changes the image, so Reload then recreates the container. Otherwise Reload keeps the container as it is: port mappings, the Docker engine (`docker_host`) and the placement (mounts and network) only change when **Start** removes and recreates the container. Start works on the engine in the current `docker_host` (or `docker.host` while `docker_host` is empty). When a new value reaches a different Docker daemon, press **Destroy** before you switch; otherwise the old proxy keeps running on the previous engine. If you already switched, set the old value back, press **Destroy**, then switch again (or run `docker rm -f aurago-security-proxy` on the old engine).
 
 ### YAML Reference
 ```yaml

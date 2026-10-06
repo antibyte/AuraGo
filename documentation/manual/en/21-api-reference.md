@@ -1706,7 +1706,7 @@ POST /api/proxy/reload
 GET /api/proxy/logs
 ```
 
-The Security Proxy API controls the managed Caddy protection layer used for rate limiting, TLS termination, IP filtering, geo-blocking, and public-facing hardening.
+The Security Proxy API controls the managed Caddy protection layer in front of AuraGo: TLS termination, rate limiting, IP filtering and Basic Auth. Geo-blocking is not implemented yet.
 
 ---
 
