@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -476,7 +477,7 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 		http.NotFound(w, r)
 		return true
 	}
-	content = inlineDesktopAppSiblingScripts(content, fullAbs)
+	content = inlineDesktopAppSiblingScripts(content, desktopDir, relPath)
 	embedToken := desktopTicketFromRequest(r)
 	content = prepareDesktopHTMLContentForEmbed(content, cfg, embedToken)
 	content = rewriteDesktopAppResourceURLs(content, info.ModTime(), embedToken)
@@ -488,11 +489,16 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 	return true
 }
 
-func inlineDesktopAppSiblingScripts(content []byte, indexFilePath string) []byte {
+// inlineDesktopAppSiblingScripts inlines the plain sibling scripts of the
+// index.html at the slash-separated indexRelPath inside desktopDir. A sibling
+// must name a path inside the index's folder; it is read root-bound to
+// desktopDir, so links that stay inside the desktop directory keep working.
+func inlineDesktopAppSiblingScripts(content []byte, desktopDir, indexRelPath string) []byte {
 	if len(content) == 0 || !bytes.Contains(content, []byte(`<script`)) {
 		return content
 	}
-	indexDir := filepath.Dir(indexFilePath)
+	indexRelDir := pathpkg.Dir(indexRelPath)
+	indexDir := filepath.Join(desktopDir, filepath.FromSlash(indexRelDir))
 	indexDirAbs, err := filepath.Abs(indexDir)
 	if err != nil {
 		return content
@@ -511,7 +517,7 @@ func inlineDesktopAppSiblingScripts(content []byte, indexFilePath string) []byte
 		if err != nil || !desktopPathWithinRoot(indexDirAbs, assetAbs) {
 			return match
 		}
-		data, _, err := readRootBoundFile(indexDirAbs, src)
+		data, _, err := readRootBoundFile(desktopDir, pathpkg.Join(indexRelDir, src))
 		if err != nil || len(data) == 0 {
 			return match
 		}

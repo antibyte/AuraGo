@@ -125,6 +125,73 @@ func TestRootBoundFileSystemServesAbsoluteInRootSymlink(t *testing.T) {
 	expectRootBoundStatus(t, rootBoundHandler(ws), "/files/absinroot.txt", http.StatusOK, "fine")
 }
 
+// The resolve fallback opens the link target; the served name (and so the
+// Content-Type) must still come from the requested path, as with http.Dir.
+func TestRootBoundFileSystemNamesFallbackFilesAfterTheRequest(t *testing.T) {
+	t.Parallel()
+	ws := t.TempDir()
+	writeRootBoundFixture(t, filepath.Join(ws, "evil.html"), "<script>alert(1)</script>")
+	if err := os.Symlink(filepath.Join(ws, "evil.html"), filepath.Join(ws, "report.txt")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	rec := rootBoundGet(t, rootBoundHandler(ws), "/files/report.txt", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200 (body %q)", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/plain") {
+		t.Fatalf("Content-Type %q, want text/plain from the requested name", ct)
+	}
+}
+
+// Windows variant through a directory junction: a differently cased request
+// reaches the file through the fallback, which must report the requested name.
+func TestRootBoundFileSystemNamesFallbackFilesAfterTheRequestThroughJunction(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS != "windows" {
+		t.Skip("needs a case-insensitive file system")
+	}
+	ws := t.TempDir()
+	writeRootBoundFixture(t, filepath.Join(ws, "inner", "report.txt"), "fine")
+	linkDirForTest(t, filepath.Join(ws, "inner"), filepath.Join(ws, "docs"))
+	f, err := rootBoundFileSystem(ws).Open("/docs/REPORT.TXT")
+	if err != nil {
+		t.Fatalf("open through junction: %v", err)
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Name() != "REPORT.TXT" {
+		t.Fatalf("served name %q, want the requested %q", info.Name(), "REPORT.TXT")
+	}
+}
+
+// A link out of the served directory into an unreadable directory must not
+// answer 403: that would reveal what exists outside.
+func TestRootBoundFileSystemHidesUnreadableLinkTargets(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("directory modes do not restrict access on Windows")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory modes")
+	}
+	locked := filepath.Join(t.TempDir(), "locked")
+	writeRootBoundFixture(t, filepath.Join(locked, "secret.txt"), rootBoundSecret)
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	ws := t.TempDir()
+	if err := os.Symlink(locked, filepath.Join(ws, "esc")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	h := rootBoundHandler(ws)
+	expectRootBoundStatus(t, h, "/files/esc/secret.txt", http.StatusNotFound, "")
+	expectRootBoundStatus(t, h, "/files/esc/missing.txt", http.StatusNotFound, "")
+}
+
 func TestRootBoundFileSystemFollowsDirectoryLinksOnlyInsideRoot(t *testing.T) {
 	t.Parallel()
 	outside := t.TempDir()
@@ -226,18 +293,21 @@ func TestRootBoundFileSystemServesDirectoryCreatedOrRecreatedLater(t *testing.T)
 	expectRootBoundStatus(t, h, "/files/a.txt", http.StatusOK, "two")
 }
 
-type modeTestFileSystem struct{ mode fs.FileMode }
+type modeTestFileSystem struct {
+	mode   fs.FileMode
+	closed *bool
+}
 
 func (m modeTestFileSystem) Open(string) (http.File, error) {
-	return &modeTestFile{info: modeTestInfo{mode: m.mode}}, nil
+	return &modeTestFile{info: modeTestInfo{mode: m.mode}, closed: m.closed}, nil
 }
 
 type modeTestFile struct {
 	info   modeTestInfo
-	closed bool
+	closed *bool
 }
 
-func (f *modeTestFile) Close() error                       { f.closed = true; return nil }
+func (f *modeTestFile) Close() error                       { *f.closed = true; return nil }
 func (f *modeTestFile) Read([]byte) (int, error)           { return 0, io.EOF }
 func (f *modeTestFile) Seek(int64, int) (int64, error)     { return 0, nil }
 func (f *modeTestFile) Readdir(int) ([]fs.FileInfo, error) { return nil, nil }
@@ -254,20 +324,38 @@ func (i modeTestInfo) Sys() any           { return nil }
 
 func TestNeuteredFileSystemServesRegularFilesOnly(t *testing.T) {
 	t.Parallel()
-	if f, err := (neuteredFileSystem{modeTestFileSystem{mode: 0o644}}).Open("/file"); err != nil {
-		t.Fatalf("regular file refused: %v", err)
+	served := []fs.FileMode{0o644}
+	refused := []fs.FileMode{fs.ModeDir | 0o755, fs.ModeNamedPipe, fs.ModeDevice | fs.ModeCharDevice, fs.ModeDevice, fs.ModeSocket, fs.ModeSymlink}
+	if runtime.GOOS == "windows" {
+		// Cloud placeholders and WOF-compressed files carry non-link reparse
+		// tags that Go reports as irregular; http.Dir served them.
+		served = append(served, fs.ModeIrregular|0o644)
 	} else {
+		refused = append(refused, fs.ModeIrregular)
+	}
+	for _, mode := range served {
+		closed := false
+		f, err := neuteredFileSystem{modeTestFileSystem{mode: mode, closed: &closed}}.Open("/file")
+		if err != nil {
+			t.Fatalf("mode %v refused: %v", mode, err)
+		}
+		if closed {
+			t.Fatalf("mode %v: served file was closed", mode)
+		}
 		f.Close()
 	}
-	for _, mode := range []fs.FileMode{fs.ModeDir | 0o755, fs.ModeNamedPipe, fs.ModeDevice | fs.ModeCharDevice, fs.ModeDevice, fs.ModeSocket, fs.ModeIrregular} {
-		inner := modeTestFileSystem{mode: mode}
-		f, err := neuteredFileSystem{inner}.Open("/entry")
+	for _, mode := range refused {
+		closed := false
+		f, err := neuteredFileSystem{modeTestFileSystem{mode: mode, closed: &closed}}.Open("/entry")
 		if err == nil {
 			f.Close()
 			t.Fatalf("mode %v served, want not found", mode)
 		}
 		if !os.IsNotExist(err) {
 			t.Fatalf("mode %v: error %v, want not found", mode, err)
+		}
+		if !closed {
+			t.Fatalf("mode %v: refused entry was not closed", mode)
 		}
 	}
 }
@@ -343,6 +431,36 @@ func TestServeDesktopExactIndexFileRefusesIndexOutsideDesktopDir(t *testing.T) {
 	}
 	if strings.Contains(body, rootBoundSecret) {
 		t.Fatalf("sibling script outside desktop dir was inlined: %q", body)
+	}
+}
+
+// Sibling scripts behind links that stay inside the desktop directory (the
+// desktop symlink API writes relative ones) are still inlined.
+func TestServeDesktopExactIndexFileInlinesSiblingBehindInDesktopLink(t *testing.T) {
+	t.Parallel()
+	desktopDir := t.TempDir()
+	writeRootBoundFixture(t, filepath.Join(desktopDir, "shared", "lib.js"), "window.SHARED_LIB=1;")
+	writeRootBoundFixture(t, filepath.Join(desktopDir, "Apps", "app", "index.html"), `<html><head><script src="vendor/lib.js"></script><script src="rel.js"></script></head><body>OK</body></html>`)
+	linkDirForTest(t, filepath.Join(desktopDir, "shared"), filepath.Join(desktopDir, "Apps", "app", "vendor"))
+
+	serve := func() string {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/app/index.html", nil)
+		rec := httptest.NewRecorder()
+		if !serveDesktopExactIndexFile(rec, req, desktopDir, nil) || rec.Code != http.StatusOK {
+			t.Fatalf("index not served: status %d", rec.Code)
+		}
+		return rec.Body.String()
+	}
+	if body := serve(); strings.Contains(body, `src="vendor/lib.js`) || !strings.Contains(body, "window.SHARED_LIB=1;") {
+		t.Fatalf("sibling behind directory link was not inlined: %q", body)
+	}
+
+	if err := os.Symlink(filepath.Join("..", "..", "shared", "lib.js"), filepath.Join(desktopDir, "Apps", "app", "rel.js")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if body := serve(); strings.Contains(body, `src="rel.js`) {
+		t.Fatalf("sibling behind relative file link was not inlined: %q", body)
 	}
 }
 

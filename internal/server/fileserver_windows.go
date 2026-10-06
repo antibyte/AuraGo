@@ -3,11 +3,21 @@
 package server
 
 import (
+	"io/fs"
 	"os"
 	"strings"
 
 	"golang.org/x/sys/windows"
 )
+
+// isServableMode reports whether neuteredFileSystem may serve a file of mode
+// m: regular files, plus files Go reports as irregular because they carry a
+// reparse tag that is not a link (cloud placeholders, WOF-compressed files),
+// which http.Dir served. os.Root has already refused link reparse points, and
+// directories, pipes, devices and sockets carry their own type bits.
+func isServableMode(m fs.FileMode) bool {
+	return m.IsRegular() || m.Type() == fs.ModeIrregular
+}
 
 // resolveServedPath returns the final path of p with every symlink and
 // junction resolved. filepath.EvalSymlinks cannot be used here: since Go 1.23
