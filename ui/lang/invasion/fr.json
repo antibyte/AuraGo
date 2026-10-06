@@ -65,6 +65,8 @@
   "invasion.egg_port": "Port de l'Egg",
   "invasion.eggs": "Œufs",
   "invasion.error": "Erreur",
+  "invasion.export_nest_secret": "Copier le secret de ce Nest dans le coffre de l'Egg",
+  "invasion.export_nest_secret_hint": "S'applique uniquement si l'Egg attribué a l'option Transférer le Coffre activée. L'Egg peut alors lire le mot de passe ou la clé SSH qu'AuraGo utilise pour se connecter à cet hôte. Laissez désactivé sauf si l'Egg en a besoin.",
   "invasion.hatch": "🥚 Éclore",
   "invasion.hatch_failed": "Échoué",
   "invasion.hatch_hatching": "Éclosion…",

@@ -804,7 +804,7 @@ hmac = SHA256(secret + payload)
 | Login | Auth an, bevor irgendetwas nicht mehr nur localhost ist |
 | TOTP | 2FA für jeden internetseitigen Zugriff |
 | Proxy-Vertrauen | `behind_proxy` + `trusted_proxy_cidrs` setzen, sonst Forward-Header ignorieren |
-| Security Proxy | Verwaltetes Caddy für TLS, Rate-Limit, IP-Filter |
+| Security Proxy | Verwaltetes Caddy für TLS, Ratenbegrenzung, IP-Filter und Basic Auth |
 | Tunnel / VPN | Cloudflare Tunnel oder Tailscale statt Port-Forward |
 | Webhooks | Token oder HMAC, enge Scopes, Rate-Limits |
 | Danger Zone | Aus, bis du das Feature wirklich brauchst |

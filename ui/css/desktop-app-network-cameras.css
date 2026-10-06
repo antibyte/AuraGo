@@ -275,6 +275,8 @@
 .nc-onboarding p { line-height: 1.55; margin: 0; max-width: 540px; }
 .nc-onboarding-icon { align-items: center; background: color-mix(in srgb, var(--nc-accent) 14%, transparent); border: 1px solid color-mix(in srgb, var(--nc-accent) 32%, transparent); border-radius: 18px; color: var(--nc-accent); display: flex; height: 68px; justify-content: center; width: 68px; }
 .nc-onboarding-icon.is-warning { color: #fbbf24; font-size: 26px; font-weight: 800; }
+.nc-onboarding.has-artwork { display: grid; grid-template-rows: minmax(160px, 1fr); grid-auto-rows: max-content; align-content: start; justify-content: stretch; justify-items: center; min-height: 0; overflow: auto; }
+.nc-onboarding-art { display: block; width: min(100%, 520px); height: 100%; min-height: 0; max-height: 520px; object-fit: contain; pointer-events: none; user-select: none; }
 .nc-onboarding-actions { gap: 8px; margin-top: 4px; }
 .nc-spinner { animation: nc-spin .8s linear infinite; border: 2px solid color-mix(in srgb, var(--nc-muted) 25%, transparent); border-radius: 999px; border-top-color: var(--nc-accent); height: 24px; width: 24px; }
 .nc-spinner.is-small { border-width: 1.5px; height: 14px; width: 14px; }

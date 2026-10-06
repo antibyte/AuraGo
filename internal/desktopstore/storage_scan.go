@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -98,9 +99,16 @@ func scanOperation(scanner interface{ Scan(dest ...any) error }) (Operation, err
 	var op Operation
 	var createdAt, updatedAt string
 	var completed sql.NullString
-	err := scanner.Scan(&op.ID, &op.Type, &op.AppID, &op.Status, &op.Message, &op.Error, &op.RequestJSON, &createdAt, &updatedAt, &completed)
+	var errorParamsJSON string
+	err := scanner.Scan(&op.ID, &op.Type, &op.AppID, &op.Status, &op.Message, &op.Error, &op.ErrorCode, &errorParamsJSON,
+		&op.RequestJSON, &createdAt, &updatedAt, &completed)
 	if err != nil {
 		return Operation{}, err
+	}
+	if op.ErrorCode != "" && strings.TrimSpace(errorParamsJSON) != "" {
+		if err := json.Unmarshal([]byte(errorParamsJSON), &op.ErrorParams); err != nil {
+			op.ErrorParams = nil
+		}
 	}
 	op.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
 	op.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)

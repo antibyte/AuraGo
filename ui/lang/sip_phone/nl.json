@@ -29,7 +29,7 @@
   "desktop.sip_phone_dial_example": "Bijvoorbeeld 102, sip:102@example.local of +31 20 1234567",
   "desktop.sip_phone_dial_prompt": "Voer een SIP-nummer of naam in",
   "desktop.sip_phone_disabled": "Uitgeschakeld",
-  "desktop.sip_phone_disabled_detail": "Schakel het SIP-eindpunt in voordat u de telefoon gebruikt.",
+  "desktop.sip_phone_disabled_detail": "Schakel het SIP-eindpunt in voordat je de telefoon gebruikt.",
   "desktop.sip_phone_error_audio_busy": "Live-spraak of een ander telefoontabblad gebruikt de microfoon.",
   "desktop.sip_phone_error_audio_lease": "De gedeelde audiosessie is niet beschikbaar.",
   "desktop.sip_phone_error_call_missing": "De inkomende oproep is niet meer beschikbaar.",

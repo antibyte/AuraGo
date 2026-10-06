@@ -2,7 +2,7 @@
   "config.agentmail.api_key_empty": "Voer eerst een API-sleutel in.",
   "config.agentmail.api_key_label": "API-sleutel (Vault)",
   "config.agentmail.api_key_placeholder": "Voer AgentMail API-sleutel in…",
-  "config.agentmail.api_key_save_failed": "API-sleutel kon niet in de Vault worden opgeslagen.",
+  "config.agentmail.api_key_save_failed": "De API-sleutel kon niet in de kluis worden opgeslagen.",
   "config.agentmail.api_key_saved": "AgentMail API-sleutel opgeslagen in de Vault.",
   "config.agentmail.auto_create_label": "Inbox automatisch maken",
   "config.agentmail.base_url_label": "REST API-URL",

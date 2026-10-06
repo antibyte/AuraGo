@@ -7,8 +7,8 @@
   "config.adguard.password_empty": "Indtast først en adgangskode.",
   "config.adguard.password_label": "Adgangskode (Vault)",
   "config.adguard.password_placeholder": "Indtast adgangskode…",
-  "config.adguard.password_save_failed": "Kunne ikke gemme adgangskode i vault.",
-  "config.adguard.password_saved": "Adgangskode gemt i vault.",
+  "config.adguard.password_save_failed": "Kunne ikke gemme adgangskoden i Vault.",
+  "config.adguard.password_saved": "Adgangskode gemt i Vault.",
   "config.adguard.readonly_label": "Skrivebeskyttet tilstand",
   "config.adguard.running": "Kører",
   "config.adguard.save_icon": "💾",
@@ -27,6 +27,6 @@
   "help.adguard.enabled": "Aktiverer AdGuard Home-integrationen. Agenten kan derefter forespørge DNS-statistikker, administrere filtre, omskrivninger, blokerede tjenester og mere.",
   "help.adguard.password": "Adgangskode til godkendelse. Opbevares sikkert i den krypterede vault.",
   "help.adguard.readonly": "I skrivebeskyttet tilstand kan agenten kun læse data. Alle skriveoperationer blokeres.",
-  "help.adguard.url": "Baser URL af din AdGuard Home-instans (f.eks. http://192.168.1.1:3000 ).",
+  "help.adguard.url": "Basis-URL til din AdGuard Home-instans (f.eks. http://192.168.1.1:3000).",
   "help.adguard.username": "Brugernavn til godkendelse. Lad stå tomt, hvis godkendelse er deaktiveret."
 }

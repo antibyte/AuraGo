@@ -6,7 +6,7 @@
   "config.danger.shell.title": "Wykonanie Shell (execute_shell)",
   "config.danger.shell.desc": "Pozwala agentowi uruchamiać dowolne polecenia shell na systemie hosta.",
   "config.danger.python.title": "Python / Wykonanie Umiejętności (execute_python / execute_skill / save_tool)",
-  "config.danger.python.desc": "Pozwala agentowi wykonywać dowolny kod Python i umiejętności <strong>lokalnie bez sandbox</strong> oraz persistować nowe narzędzia. Kod działa bezpośrednio na systemie hosta — użyj sandboxa dla izolowanego wykonania.",
+  "config.danger.python.desc": "Pozwala agentowi wykonywać dowolny kod Python i umiejętności <strong>lokalnie bez sandbox</strong> oraz utrwalać nowe narzędzia. Kod działa bezpośrednio na systemie hosta — użyj sandboxa dla izolowanego wykonania.",
   "config.danger.filesystem.title": "Dostęp Zapisu do Systemu Plików (filesystem write ops)",
   "config.danger.filesystem.desc": "Pozwala agentowi zapisywać, usuwać, przenosić pliki i tworzyć katalogi przez narzędzie filesystem.",
   "config.danger.network.title": "Żądania Sieciowe (api_request)",

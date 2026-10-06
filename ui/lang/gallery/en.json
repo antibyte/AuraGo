@@ -5,7 +5,7 @@
   "gallery.all_providers": "All Providers",
   "gallery.loading": "Loading...",
   "gallery.empty": "No images yet. Generate your first image via chat!",
-  "gallery.images": "images",
+  "gallery.images": "image(s)",
   "gallery.prompt": "Prompt",
   "gallery.enhanced_prompt": "Enhanced Prompt",
   "gallery.provider": "Provider",

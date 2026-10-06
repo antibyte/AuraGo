@@ -17,7 +17,7 @@
   "config.netlify.test_success": "Connexion réussie",
   "config.onedrive.auth_connected": "Connecté",
   "config.onedrive.auth_declined": "Refusé",
-  "config.onedrive.auth_desc": "OneDrive utilise le flux de code d'appareil Microsoft pour l'authentification. Enregistrez une application client publique dans les inscriptions d'applications Azure et collez l'ID client ci-dessous.",
+  "config.onedrive.auth_desc": "OneDrive utilise le flux de code d'appareil Microsoft pour l'authentification. Enregistrez une application client publique dans les inscriptions d'applications Azure et collez l'ID client ci-dessous. Aucun secret client n'est requis pour les clients publics.",
   "config.onedrive.auth_disconnected": "Déconnecté",
   "config.onedrive.auth_failed": "Échec",
   "config.onedrive.auth_instructions": "Cliquez sur Connecter, puis entrez le code sur la page de connexion Microsoft.",

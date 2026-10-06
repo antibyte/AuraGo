@@ -13,7 +13,7 @@
   "config.mcp_server.disabled_desc": "Włącz, aby udostępnić narzędzia AuraGo przez MCP.",
   "config.mcp_server.info": "Udostępnia narzędzia AuraGo jako zdalny serwer MCP przez Streamable HTTP.",
   "config.mcp_server.vscode_bridge": "Most debugowania VS Code",
-  "config.mcp_server.vscode_bridge_desc": "Przygotowuje AuraGo do debugowania na zywo z VS Code i podobnych klientow MCP za pomoca bezpiecznego presetu i narzedzi bridge.",
+  "config.mcp_server.vscode_bridge_desc": "Przygotowuje AuraGo do debugowania na żywo z VS Code i podobnych klientów MCP za pomocą bezpiecznego presetu i narzędzi bridge.",
   "config.mcp_server.vscode_bridge_notice": "Aktywuje preset MCP skupiony na debugowaniu z zalecanymi narzędziami i pomocnikami konfiguracji klienta.",
   "config.mcp_server.vscode_config": "Konfiguracja klienta",
   "config.mcp_server.vscode_config_desc": "Użyj tego fragmentu, aby połączyć klienta MCP z aktywną instancją AuraGo.",

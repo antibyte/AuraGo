@@ -4,7 +4,7 @@
   "config.danger.sudo.title": "Εκτέλεση sudo (execute_sudo)",
   "config.danger.sudo.desc": "Επιτρέπει στον πράκτορα να εκτελεί εντολές με δικαιώματα sudo. Ο κωδικός Sudo πρέπει να αποθηκευτεί στο θησαυροφυλάκιο.",
   "config.danger.shell.title": "Εκτέλεση Shell (execute_shell)",
-  "config.danger.shell.desc": "Επιτρέπει στον πράκτορα να εκτελεί αυθαίρετες εντολές φλοιού στο κεντρικό σύστημα.",
+  "config.danger.shell.desc": "Επιτρέπει στον πράκτορα να εκτελεί αυθαίρετες εντολές κελύφους στο κεντρικό σύστημα.",
   "config.danger.python.title": "Εκτέλεση Python / δεξιοτήτων (execute_python / execute_skill / save_tool)",
   "config.danger.python.desc": "Επιτρέπει στον πράκτορα να εκτελεί αυθαίρετο κώδικα Python και δεξιότητες <strong>τοπικά χωρίς sandbox</strong> και να αποθηκεύει νέα εργαλεία. Ο κώδικας εκτελείται απευθείας στο σύστημα host — χρησιμοποιήστε το sandbox για απομονωμένη εκτέλεση.",
   "config.danger.filesystem.title": "Πρόσβαση εγγραφής στο σύστημα αρχείων (filesystem write ops)",
@@ -12,7 +12,7 @@
   "config.danger.network.title": "Αιτήματα δικτύου (api_request)",
   "config.danger.network.desc": "Επιτρέπει στον πράκτορα να στέλνει αυθαίρετα HTTP αιτήματα σε εξωτερικές διευθύνσεις URL.",
   "config.danger.remote_shell.title": "Απομακρυσμένο κέλυφος (execute_remote_shell)",
-  "config.danger.remote_shell.desc": "Επιτρέπει στον πράκτορα να εκτελεί εντολές φλοιού σε απομακρυσμένους διακομιστές μέσω SSH.",
+  "config.danger.remote_shell.desc": "Επιτρέπει στον πράκτορα να εκτελεί εντολές κελύφους σε απομακρυσμένους διακομιστές μέσω SSH.",
   "config.danger.self_update.title": "Αυτο-ενημέρωση (manage_updates)",
   "config.danger.self_update.desc": "Επιτρέπει στον πράκτορα να ενημερωθεί και να επανεκκινήσει τη διαδικασία.",
   "config.danger.package_manager.title": "Διαχείριση πακέτων (package_manager)",
@@ -22,7 +22,7 @@
   "config.danger.sudo_unrestricted.title": "Καθολική πρόσβαση εγγραφής μέσω sudo",
   "config.danger.sudo_unrestricted.desc": "Επιτρέπει στον πράκτορα να γράφει εκτός του καταλόγου εγκατάστασης χρησιμοποιώντας sudo (π.χ. /etc/). Απαιτεί την αφαίρεση του ProtectSystem=strict από τη μονάδα υπηρεσίας systemd.",
   "config.danger.unsafe_host_execution.title": "Μη ασφαλής εκτέλεση στον κεντρικό υπολογιστή",
-  "config.danger.unsafe_host_execution.desc": "Επιτρέπει Python στον κεντρικό υπολογιστή και κέλυφος Windows χωρίς απομόνωση. Κάθε εκτέλεση καταγράφεται ως προειδοποίηση ασφαλείας.",
+  "config.danger.unsafe_host_execution.desc": "Επιτρέπει Python στον κεντρικό υπολογιστή και κέλυφος Windows χωρίς απομόνωση. Κάθε εκτέλεση καταγράφεται ως προειδοποίηση ασφαλείας. Ενεργοποιήστε το μόνο σκόπιμα.",
   "config.danger.docker_host_access.title": "Πρόσβαση Docker στον κεντρικό υπολογιστή για στοίβες Compose του πράκτορα",
   "config.danger.docker_host_access.desc": "Επιτρέπει στον πράκτορα να χρησιμοποιεί στα docker compose up/create/build διαδρομές του κεντρικού υπολογιστή εκτός του χώρου εργασίας του (π.χ. /var/run/docker.sock, /srv/media ή /), συσκευές, λειτουργία privileged, χώρους ονομάτων δικτύου/PID/IPC/UTS/χρηστών/cgroup του κεντρικού υπολογιστή, cap_add και μη περιορισμένες επιλογές ασφαλείας. Τα δεδομένα, η διαμόρφωση, το .env και το κύριο κλειδί του AuraGo παραμένουν αποκλεισμένα, αλλά η προσάρτηση ενός γονικού καταλόγου όπως το / τα εκθέτει παρ' όλα αυτά. Όταν είναι ενεργή, το docker compose βλέπει επίσης τις μεταβλητές περιβάλλοντος του AuraGo· χωρίς αυτήν, το Compose λαμβάνει μόνο τα PATH, HOME και τις ρυθμίσεις Docker, διακομιστή μεσολάβησης και γλώσσας."
 }

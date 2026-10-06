@@ -269,7 +269,11 @@ The widget drawer pins widgets such as system monitor, clock, weather, and chat.
 
 ### Software Store Notes
 
-The Software Store uses AuraGo-managed Docker containers. Apps can expose credentials through the Vault, show operation progress, and provide open links for their configured ports. Arcane uses a Docker socket proxy companion for Docker management access. Termix includes a `guacd` companion container for RDP/VNC support and also supports SSH and Telnet management from its own Web UI.
+The Software Store uses AuraGo-managed Docker containers. Apps can expose credentials through the Vault, show operation progress, and provide open links for their configured ports. Arcane uses a Docker socket proxy companion for Docker management access. Dozzle and the Beszel agent reach Docker only through read-only socket-proxy companions. These proxies and Arcane's proxy run with all Linux capabilities dropped, starting with their next install or update. Termix includes a `guacd` companion container for RDP/VNC support and also supports SSH and Telnet management from its own Web UI.
+
+A Store **Update** keeps the previous containers, stopped and renamed to `<name>.prev`, until the new version runs. If the update fails, AuraGo restores those containers as they were; after a successful update it removes them.
+
+A failed **Install** removes only what that install created. Data volumes, Vault secrets and workspace files that an earlier uninstall kept stay in place and are used again by the next install. If a container that the Software Store did not create already uses the name the app needs, the install stops before it creates any container and names the container; rename it (for example `docker rename <name> <name>-old`) or remove it, then install again.
 
 ### Sounds
 

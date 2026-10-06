@@ -37,7 +37,7 @@
   "config.agentmail.summary_transport": "Transport",
   "config.agentmail.test_btn": "Test Connection",
   "config.agentmail.test_fail": "Connection failed",
-  "config.agentmail.test_ok": "Connection successful ({count} inboxes)",
+  "config.agentmail.test_ok": "Connection successful ({count} inbox(es))",
   "config.agentmail.username_label": "Username",
   "config.agentmail.websocket_label": "Use WebSocket",
   "config.agentmail.websocket_url_label": "WebSocket URL",

@@ -23,6 +23,7 @@ func TestDockerInstallationDocStatesSocketProxyResidualRisk(t *testing.T) {
 		"OpenSCAD",
 		"security proxy reload",
 		"is no security gain",
+		"docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -",
 	} {
 		if !strings.Contains(section, want) {
 			t.Fatalf("docker_installation.md section 4 is missing %q", want)

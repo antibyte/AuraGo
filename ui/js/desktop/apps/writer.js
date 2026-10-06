@@ -36,7 +36,7 @@
             '<div class="writer-toolgroup">' + slotButton('list.bullet','bullets','•') + slotButton('list.numbered','numbering','1.') + slotButton('list.outdent','outdent','⇤') + slotButton('list.indent','indent','⇥') + '</div>' +
             button('insert','insert','＋') + '</div>' +
             '<div class="writer-notice" data-notice role="alert" hidden><span data-notice-text></span><button data-action="retry">' + esc(tr('retry')) + '</button><button data-action="saveAs">' + esc(tr('save_as')) + '</button><button data-action="dismiss" aria-label="' + esc(tr('close')) + '">×</button></div>' +
-            '<div class="writer-workspace"><aside class="writer-left" data-left hidden></aside><main class="writer-canvas"><div class="writer-ruler" aria-hidden="true"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span><span>12</span><span>14</span><span>16</span></div><div class="writer-viewport docx-editor__scroll-container" data-scroll><div class="writer-editor docx-editor" data-editor></div></div><div class="writer-loading" data-loading>' + esc(tr('loading')) + '</div></main><aside class="writer-right" data-right hidden></aside></div>' +
+            '<div class="writer-workspace"><aside class="writer-left" data-left hidden></aside><main class="writer-canvas"><div class="writer-ruler" aria-hidden="true"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span><span>12</span><span>14</span><span>16</span></div><div class="writer-viewport docx-editor__scroll-container" data-scroll><div class="writer-editor docx-editor" data-editor></div></div><div class="writer-loading" data-loading><div class="writer-load-message"><p data-load-status role="status">' + esc(tr('loading')) + '</p><div class="writer-load-actions" data-load-actions hidden><button data-action="new"' + (ctx.readonly?' disabled':'') + '>' + esc(tr('new')) + '</button><button data-action="open">' + esc(tr('open')) + '</button></div></div></div></main><aside class="writer-right" data-right hidden></aside></div>' +
             '<footer class="writer-statusbar"><button data-action="page" data-page></button><span data-count></span><span class="writer-status-spacer"></span><span data-language></span>' +
             button('focus','focus_mode','⛶') + '<button data-action="zoomOut" aria-label="' + esc(tr('zoom_out')) + '">−</button><button data-action="fit" data-zoom title="' + esc(tr('fit')) + '">100%</button><button data-action="zoomIn" aria-label="' + esc(tr('zoom_in')) + '">+</button></footer><input data-image type="file" accept="image/png,image/jpeg,image/webp" hidden></div>';
         const root = host.firstElementChild, find = selector => root.querySelector(selector), mount = find('[data-editor]');
@@ -135,9 +135,10 @@
             clearTimeout(updateTimer);clearTimeout(draftTimer);clearTimeout(draftDeadline);
             draftTimer=draftDeadline=null;lastDraft=null;statsRevision=-1;rulerSignature='';
             mount.replaceChildren();path=target;etag=null;loading=true;loadFailed=false;pin=null;
-            find('[data-loading]').hidden=false;find('[data-loading]').textContent=tr('loading');
+            find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('loading');find('[data-load-actions]').hidden=true;
+            find('[data-notice] [data-action="saveAs"]').hidden=false;
             find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;notice('');
-            find('[data-save-state]').textContent=tr('loading');
+            find('[data-save-state]').textContent=tr('loading');delete find('[data-save-state]').dataset.state;
             ctx.updateWindowContext?.(windowId,{path});
             try {
                 enginePromise ||= import('/js/vendor/writer/engine.js').catch(error=>{enginePromise=null;throw error;});lib=await enginePromise;
@@ -214,8 +215,11 @@
                 if(warnings.length)notice(warnings.join(' · '));
             } catch(error) {
                 if(disposed || token!==generation || error.name==='AbortError')return;
-                loading=true;loadFailed=true;editor?.destroy();editor=null;queue?.dispose();queue=null;mount.replaceChildren();
-                find('[data-loading]').textContent=tr('load_failed');find('[data-save-state]').textContent=tr('load_failed');
+                loading=false;loadFailed=true;editor?.destroy();editor=null;queue?.dispose();queue=null;mount.replaceChildren();
+                find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('load_failed');find('[data-load-actions]').hidden=false;
+                find('[data-save-state]').textContent=tr('load_failed');find('[data-save-state]').dataset.state='error';
+                find('[data-notice] [data-action="saveAs"]').hidden=true;
+                if(error.status===404)ctx.updateWindowContext?.(windowId,{path:''});
                 fail(error);setMenus();
             }
         }

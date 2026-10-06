@@ -105,6 +105,31 @@ func (client *dockerAPIClient) requestURL(
 	return raw, response.StatusCode, nil
 }
 
+// pullImage pulls image and reads the Engine's progress stream to its end:
+// an error event after the HTTP 200 status, a stream cut inside a message or
+// a non-2xx answer fails the pull. Memory stays bounded by one line however
+// long the stream runs; ctx bounds the time.
+func (client *dockerAPIClient) pullImage(ctx context.Context, image string) error {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		"http://docker/"+client.apiVersion+"/images/create?fromImage="+url.QueryEscape(image), nil)
+	if err != nil {
+		return fmt.Errorf("build Docker request: %w", err)
+	}
+	response, err := client.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("call Docker API: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		detail := dockerutil.SanitizeOneLine(dockerutil.EngineErrorMessage(dockerutil.ReadErrorBody(response.Body)), 512)
+		if detail == "" {
+			return fmt.Errorf("Docker returned HTTP %d", response.StatusCode)
+		}
+		return fmt.Errorf("Docker returned HTTP %d: %s", response.StatusCode, detail)
+	}
+	return dockerutil.DrainJSONMessages(response.Body)
+}
+
 type dockerLlamaEmbedder struct {
 	mu          sync.Mutex
 	docker      *dockerAPIClient
@@ -504,17 +529,8 @@ func (embedder *dockerLlamaEmbedder) ensureImageLocked(ctx context.Context) erro
 	if err == nil && code == http.StatusOK {
 		return nil
 	}
-	_, code, err = embedder.docker.request(
-		ctx,
-		http.MethodPost,
-		"/images/create?fromImage="+url.QueryEscape(embedder.image),
-		nil,
-	)
-	if err != nil {
+	if err := embedder.docker.pullImage(ctx, embedder.image); err != nil {
 		return fmt.Errorf("pull pinned llama.cpp image: %w", err)
-	}
-	if code != http.StatusOK {
-		return fmt.Errorf("pull pinned llama.cpp image returned HTTP %d", code)
 	}
 	return nil
 }

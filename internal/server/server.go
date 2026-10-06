@@ -152,6 +152,10 @@ type Server struct {
 	lockdownLogOnce sync.Once
 	previewGrants   previewGrantRegistry
 	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
+
+	// serverLifetimeCancel cancels serverCtx; beginHTTPDrain calls it.
+	serverLifetimeCancel context.CancelFunc
+
 	// Setup wizard CSRF tokens (short-lived, multi-token support).
 	// These live on the Server so tests can construct independent Server
 	// instances without racing on a shared package-level map.
@@ -418,6 +422,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s.MaintenanceScheduler != nil {
 		s.MaintenanceScheduler.UpdateConfig(cfg)
 	}
+	if s.ProxyManager != nil {
+		// The next proxy Start/Reload uses the saved domain, ports, filters and
+		// Vault credentials instead of the startup config.
+		s.ProxyManager.UpdateConfig(cfg)
+	}
 	if s.LocalMusic != nil {
 		s.LocalMusic.Configure(cfg)
 	}
@@ -545,7 +554,13 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	// The self marker proves AuraGo's own container behind a network sidecar
+	// (containers_self_proof.go); outside a container it does nothing.
+	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
+	// The HTTP drain also ends serverCtx, so it ends when Serve stops on its
+	// own (listener failure) too, not only on shutdownCh.
+	s.setServerLifetimeCancel(serverCancel)
 	s.fritzLoopbackSem = loopbackSem
 	s.MQTTController = mqtt.NewMQTTController(logger)
 	mqtt.SetDefaultController(s.MQTTController)

@@ -7,9 +7,9 @@ import (
 )
 
 func TestNewspaperFeedParsingAndPublicURLGate(t *testing.T) {
-	rss := `<rss><channel><item><title>Regional library opens</title><link>https://news.example/library?utm_source=feed</link><pubDate>Fri, 25 Sep 2026 06:00:00 GMT</pubDate></item></channel></rss>`
+	rss := `<rss><channel><item><title>Regional library opens</title><link>https://news.example/library?utm_source=feed</link><pubDate>Fri, 25 Sep 2026 06:00:00 GMT</pubDate><source url="https://news.example">Regional Gazette</source></item></channel></rss>`
 	hits, err := parseNewspaperFeed("https://news.example/feed.xml", []byte(rss))
-	if err != nil || len(hits) != 1 || hits[0].Title != "Regional library opens" || hits[0].URL != "https://news.example/library" {
+	if err != nil || len(hits) != 1 || hits[0].Title != "Regional library opens" || hits[0].URL != "https://news.example/library" || hits[0].Publisher != "Regional Gazette" {
 		t.Fatalf("RSS parsing: %+v, %v", hits, err)
 	}
 	atom := `<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Science update</title><link rel="alternate" href="/science"/><updated>2026-09-25T05:00:00Z</updated></entry></feed>`

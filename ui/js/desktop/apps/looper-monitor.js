@@ -214,6 +214,13 @@
         const errorEl = h('p', 'vd-looper-error');
         errorEl.setAttribute('role', 'alert');
         const empty = h('div', 'vd-looper-empty');
+        const emptyArt = h('img', 'vd-looper-empty-art');
+        emptyArt.src = '/img/looper-empty.png';
+        emptyArt.alt = '';
+        emptyArt.width = 320;
+        emptyArt.height = 320;
+        emptyArt.draggable = false;
+        empty.appendChild(emptyArt);
         empty.appendChild(h('p', 'vd-looper-log-empty', t('desktop.looper_no_run')));
         empty.appendChild(h('p', 'vd-looper-help', t('desktop.looper_how_it_works')));
         const timeline = h('div', 'vd-looper-timeline');

@@ -44,7 +44,7 @@
   "config.security_proxy.disabled_desc": "Ενεργοποιήστε την ανάπτυξη ενός διαχειριζόμενου αντιστροφικού διακομιστή μεσολάβησης Caddy στο Docker με αυτόματο TLS, περιορισμό ρυθμού, IP φιλτράρισμα και άλλα.",
   "config.security_proxy.disabled_notice": "Ο διακομιστής μεσολάβησης ασφαλείας είναι απενεργοποιημένος",
   "config.security_proxy.docker_host_hint": "αφήστε κενό για αυτόματη ανίχνευση",
-  "config.security_proxy.docker_host_label": "Κεντρικός Docker",
+  "config.security_proxy.docker_host_label": "Κεντρικός υπολογιστής Docker",
   "config.security_proxy.docker_title": "Docker",
   "config.security_proxy.domain_label": "Τομέας",
   "config.security_proxy.email_label": "ACME Email (Ας κρυπτογραφήσουμε)",
@@ -95,5 +95,7 @@
   "config.updates.installing": "Εγκατάσταση…",
   "config.updates.running": "Εκτελείται…",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
-  "config.webdav.secret_empty": "Η τιμή είναι κενή"
+  "config.webdav.secret_empty": "Η τιμή είναι κενή",
+  "config.security_proxy.action_pending": "Σε εξέλιξη… Η πρώτη εκκίνηση με περιορισμό ρυθμού δημιουργεί ένα image του Caddy και μπορεί να διαρκέσει λίγα λεπτά.",
+  "config.security_proxy.rate_limit_build_hint": "Το επίσημο image του Caddy δεν υποστηρίζει περιορισμό ρυθμού. Στην επόμενη εκκίνηση, το AuraGo δημιουργεί μία φορά δικό του image του Caddy με το module caddy-ratelimit. Αυτό απαιτεί builds image στο Docker και πρόσβαση στο διαδίκτυο και διαρκεί λίγα λεπτά. Εναλλακτικά, το image μπορεί να δημιουργηθεί στον host του Docker (δείτε το εγχειρίδιο)."
 }

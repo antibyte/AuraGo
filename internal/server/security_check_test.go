@@ -365,3 +365,34 @@ func TestCheckSecurityDockerHostAccessHintNamesWhenToSwitchOff(t *testing.T) {
 		t.Fatalf("hint must not be auto-fixable: %+v", hint)
 	}
 }
+
+func TestCheckSecurityDockerTCPHintSkipsComposeSocketProxy(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		host     string
+		isDocker bool
+		want     bool
+	}{
+		{"compose socket proxy", "tcp://docker-proxy:2375", true, false},
+		{"compose socket proxy with trailing slash", "tcp://docker-proxy:2375/", true, false},
+		{"compose socket proxy, other case", "tcp://Docker-Proxy:2375", true, false},
+		{"same name on a native install", "tcp://docker-proxy:2375", false, true},
+		{"other port", "tcp://docker-proxy:2376", true, true},
+		{"qualified host name", "tcp://docker-proxy.example.net:2375", true, true},
+		{"LAN engine from a container", "tcp://192.168.1.10:2375", true, true},
+		{"credentials in the URL", "tcp://user:pass@docker-proxy:2375", true, true},
+		{"query in the URL", "tcp://docker-proxy:2375?x=1", true, true},
+		{"fragment in the URL", "tcp://docker-proxy:2375#x", true, true},
+		{"unix socket", "unix:///var/run/docker.sock", true, false},
+	}
+	for _, tc := range cases {
+		cfg := &config.Config{}
+		cfg.Docker.Enabled = true
+		cfg.Docker.Host = tc.host
+		cfg.Runtime.IsDocker = tc.isDocker
+		if got := hasSecurityHint(CheckSecurity(cfg), "docker_tcp_socket"); got != tc.want {
+			t.Fatalf("%s: docker_tcp_socket present = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

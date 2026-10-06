@@ -15,7 +15,7 @@
   "config.co_agents.provider_label": "Poskytovatel",
   "config.co_agents.select_provider": "— Hlavní LLM (výchozí) —",
   "config.co_agents.spec_cb_hint": "0 = zdědit z výchozích hodnot co-agenta",
-  "config.co_agents.spec_cb_overrides": "Přepsání Circuit Breakeru",
+  "config.co_agents.spec_cb_overrides": "Překrytí Circuit Breakeru",
   "config.co_agents.spec_coder_desc": "Shell, Python, souborový systém a Git operace. Bez generování obrázků.",
   "config.co_agents.spec_coder_name": "Kodér",
   "config.co_agents.spec_designer_desc": "Generování obrázků a kreativní assety. Bez shellu nebo spouštění kódu.",

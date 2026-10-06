@@ -71,6 +71,7 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 						DeployMethod:     n.DeployMethod,
 						TargetArch:       n.TargetArch,
 						DockerTLS:        n.DockerTLS,
+						ExportNestSecret: n.ExportNestSecret,
 						Route:            n.Route,
 						RouteConfig:      n.RouteConfig,
 						DesiredConfigRev: n.DesiredConfigRev,
@@ -100,6 +101,9 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 				TargetArch   string `json:"target_arch"`
 				Route        string `json:"route"`
 				RouteConfig  string `json:"route_config"`
+				// A pointer, so an update that omits it (an older client) keeps
+				// the nest's setting.
+				ExportNestSecret *bool `json:"export_nest_secret"`
 				nestDockerTLSRequest
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -179,6 +183,8 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 				Route:        req.Route,
 				RouteConfig:  req.RouteConfig,
 				DockerTLS:    tlsMode,
+				// New nests copy their secret into the egg vault only when asked.
+				ExportNestSecret: req.ExportNestSecret != nil && *req.ExportNestSecret,
 			}
 
 			id, err := invasion.CreateNest(s.InvasionDB, nest)
@@ -258,26 +264,27 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 				}
 			}
 			writeJSON(w, map[string]interface{}{
-				"id":            nest.ID,
-				"name":          nest.Name,
-				"notes":         nest.Notes,
-				"access_type":   nest.AccessType,
-				"host":          nest.Host,
-				"port":          nest.Port,
-				"username":      nest.Username,
-				"active":        nest.Active,
-				"egg_id":        nest.EggID,
-				"has_secret":    nest.VaultSecretID != "",
-				"hatch_status":  nest.HatchStatus,
-				"hatch_error":   nest.HatchError,
-				"deploy_method": nest.DeployMethod,
-				"target_arch":   nest.TargetArch,
-				"docker_tls":    nest.DockerTLS,
-				"route":         nest.Route,
-				"route_config":  nest.RouteConfig,
-				"created_at":    nest.CreatedAt,
-				"updated_at":    nest.UpdatedAt,
-				"egg_name":      eggName,
+				"id":                 nest.ID,
+				"name":               nest.Name,
+				"notes":              nest.Notes,
+				"access_type":        nest.AccessType,
+				"host":               nest.Host,
+				"port":               nest.Port,
+				"username":           nest.Username,
+				"active":             nest.Active,
+				"egg_id":             nest.EggID,
+				"has_secret":         nest.VaultSecretID != "",
+				"hatch_status":       nest.HatchStatus,
+				"hatch_error":        nest.HatchError,
+				"deploy_method":      nest.DeployMethod,
+				"target_arch":        nest.TargetArch,
+				"docker_tls":         nest.DockerTLS,
+				"export_nest_secret": nest.ExportNestSecret,
+				"route":              nest.Route,
+				"route_config":       nest.RouteConfig,
+				"created_at":         nest.CreatedAt,
+				"updated_at":         nest.UpdatedAt,
+				"egg_name":           eggName,
 			})
 
 		case http.MethodPut:
@@ -295,6 +302,9 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 				TargetArch   string `json:"target_arch"`
 				Route        string `json:"route"`
 				RouteConfig  string `json:"route_config"`
+				// A pointer, so an update that omits it (an older client) keeps
+				// the nest's setting.
+				ExportNestSecret *bool `json:"export_nest_secret"`
 				nestDockerTLSRequest
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -384,6 +394,9 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			existing.Route = req.Route
 			existing.RouteConfig = req.RouteConfig
 			existing.DockerTLS = tlsMode
+			if req.ExportNestSecret != nil {
+				existing.ExportNestSecret = *req.ExportNestSecret
+			}
 
 			// Update secret if provided (non-empty)
 			if req.Secret != "" {
@@ -404,7 +417,15 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			//     leftover never comes into use when TLS is re-enabled without PEMs.
 			//   - Material the current nest uses is deleted only after UpdateNest
 			//     succeeded, so a failed DB update never leaves a TLS nest without it.
+			//   - Stored material is snapshotted first and put back when UpdateNest
+			//     fails, so the unchanged mode keeps the material it was saved with.
+			//     A plain nest uses no material, so its leftover is deleted instead.
+			var tlsSnapshot nestDockerTLSSnapshot
 			if tlsMaterial != nil && *tlsMaterial != previousTLS {
+				tlsSnapshot = s.snapshotNestDockerTLS(id, *tlsMaterial)
+				if originalTLSMode == invasion.DockerTLSOff {
+					tlsSnapshot.exists, tlsSnapshot.raw = false, ""
+				}
 				if err := s.storeNestDockerTLS(id, *tlsMaterial); err != nil {
 					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store nest TLS material", "Invasion nest Docker TLS write failed", err, "nest_id", id)
 					return
@@ -421,6 +442,7 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			}
 
 			if err := invasion.UpdateNest(s.InvasionDB, existing); err != nil {
+				s.restoreNestDockerTLSSnapshot(id, tlsSnapshot)
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to update nest", "Failed to update invasion nest", err, "nest_id", id)
 				return
 			}

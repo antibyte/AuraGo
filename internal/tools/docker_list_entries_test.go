@@ -90,3 +90,30 @@ func TestDockerContainerOwnersFromMetadataMatchesReservedNamesAndLabels(t *testi
 		}
 	}
 }
+
+// The security proxy is managed by its labels and, for containers that older
+// AuraGo versions created without labels, by its reserved name.
+func TestDockerContainerOwnersFromMetadataMatchesSecurityProxy(t *testing.T) {
+	labels := dockerutil.ManagedLabels(dockerutil.SecurityProxyOwner, "caddy", "proxy", "")
+	for _, tc := range []struct {
+		name   string
+		names  []string
+		labels map[string]string
+		want   bool
+	}{
+		{"unlabeled container of an older AuraGo", []string{"/aurago-security-proxy"}, nil, true},
+		{"labeled container", []string{"/aurago-security-proxy"}, labels, true},
+		{"labels alone", []string{"/renamed"}, labels, true},
+		{"another caddy", []string{"/caddy"}, map[string]string{"com.docker.compose.service": "caddy"}, false},
+	} {
+		owned := DockerContainerOwnersFromMetadata(tc.names, tc.labels, dockerutil.SecurityProxyOwner)
+		if owned[dockerutil.SecurityProxyOwner] != tc.want {
+			t.Fatalf("%s: owners = %v, want security-proxy %v", tc.name, owned, tc.want)
+		}
+	}
+	// The reserved name decides without asking Docker.
+	owned, err := DockerContainerOwnership(DockerConfig{Host: "tcp://127.0.0.1:1"}, "aurago-security-proxy", dockerutil.SecurityProxyOwner)
+	if err != nil || !owned[dockerutil.SecurityProxyOwner] {
+		t.Fatalf("ownership of aurago-security-proxy = %v, %v; want security-proxy without a request", owned, err)
+	}
+}

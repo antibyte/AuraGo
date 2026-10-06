@@ -11,5 +11,6 @@
   "config.security.severity.critical": "KRITISK",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "VARNING",
-  "config.security.status_success": "✅"
+  "config.security.status_success": "✅",
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests med Docker (Fjärr) driftsätter via okrypterad HTTP"
 }

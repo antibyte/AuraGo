@@ -292,6 +292,10 @@ const (
 	Go2RTCDefaultImage = "alexxit/go2rtc:1.9.14@sha256:675c318b23c06fd862a61d262240c9a63436b4050d177ffc68a32710d9e05bae"
 	// Go2RTCAPIPasswordVaultKey stores the internal API credential used only by AuraGo.
 	Go2RTCAPIPasswordVaultKey = "go2rtc_api_password"
+	// ProxyBasicAuthUserVaultKey and ProxyBasicAuthPasswordVaultKey hold the
+	// security proxy's Basic Auth account (security_proxy.basic_auth).
+	ProxyBasicAuthUserVaultKey     = "proxy_basic_auth_user"
+	ProxyBasicAuthPasswordVaultKey = "proxy_basic_auth_pass"
 )
 
 // Go2RTCStreamConfig describes one stable, user-visible stream. Source is vault-only.
@@ -1952,8 +1956,9 @@ type Config struct {
 			Addresses []string `yaml:"addresses"` // IP addresses or CIDR ranges
 		} `yaml:"ip_filter"`
 		BasicAuth struct {
-			Enabled bool `yaml:"enabled"`
-			// Username/password stored in vault as proxy_basic_auth_user / proxy_basic_auth_pass
+			Enabled  bool   `yaml:"enabled"`
+			Username string `yaml:"-" json:"-"` // vault-only: proxy_basic_auth_user
+			Password string `yaml:"-" json:"-"` // vault-only: proxy_basic_auth_pass (plaintext; the proxy writes only its bcrypt hash)
 		} `yaml:"basic_auth"`
 		GeoBlocking struct {
 			Enabled          bool     `yaml:"enabled"`

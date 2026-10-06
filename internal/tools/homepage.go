@@ -39,6 +39,24 @@ const (
 	homepageWorkspaceMount = "/workspace"
 )
 
+// homepageHostBuildCommand builds the Homepage dev image on the Docker host of
+// a Compose install whose Engine endpoint refuses image builds.
+const homepageHostBuildCommand = "docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t " + homepageImageName + " -"
+
+// HomepageDockerfile returns the Dockerfile of the Homepage dev image;
+// `aurago --print-homepage-dockerfile` prints it.
+func HomepageDockerfile() string { return homepageDockerfile }
+
+// homepageImageExists reports whether the Engine has the Homepage dev image.
+func homepageImageExists(dockerCfg DockerConfig) bool {
+	data, code, err := dockerRequest(dockerCfg, "GET", "/images/json?filters=%7B%22reference%22%3A%5B%22"+homepageImageName+"%22%5D%7D", "")
+	if err != nil || code != 200 {
+		return false
+	}
+	var images []interface{}
+	return json.Unmarshal(data, &images) == nil && len(images) > 0
+}
+
 var homepageDockerExecFunc = DockerExec
 var homepageDockerExecInternalFunc = dockerExecInternal
 var homepageWebCaptureFunc = WebCapture
@@ -280,13 +298,9 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 	}
 
 	// Check if image exists
-	imageExists := false
-	data, code, err := dockerRequest(dockerCfg, "GET", "/images/json?filters=%7B%22reference%22%3A%5B%22"+homepageImageName+"%22%5D%7D", "")
-	if err == nil && code == 200 {
-		var images []interface{}
-		if json.Unmarshal(data, &images) == nil && len(images) > 0 {
-			imageExists = true
-		}
+	imageExists := homepageImageExists(dockerCfg)
+	if imageExists {
+		homepageBuildRefused.Store(false)
 	}
 
 	if !imageExists {
@@ -648,6 +662,17 @@ func HomepageStatus(cfg HomepageConfig, logger *slog.Logger) string {
 	// Web container status
 	webStatus := containerStatus(dockerCfg, homepageWebContainer)
 	result["web_container"] = json.RawMessage(webStatus)
+
+	// A refused image build (socket proxy with BUILD=0) explains why the dev
+	// container is missing, until the image exists.
+	if homepageBuildRefused.Load() {
+		if homepageImageExists(dockerCfg) {
+			homepageBuildRefused.Store(false)
+		} else {
+			result["image_build_refused"] = true
+			result["image_build_command"] = homepageHostBuildCommand
+		}
+	}
 
 	out, _ := json.Marshal(result)
 	return string(out)

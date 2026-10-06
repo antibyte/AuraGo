@@ -269,7 +269,8 @@
                     <div class="vd-store-terminal-onboarding">
                         <div class="vd-store-terminal-onboarding-step"><span>1</span><p>${esc(t('desktop.store_terminal_onboarding_cmd'))}</p></div>
                         <div class="vd-store-terminal-onboarding-step"><span>2</span><p>${esc(t('desktop.store_terminal_onboarding_api_key'))}</p></div>
-                        <div class="vd-store-terminal-onboarding-step"><span>3</span><p>${esc(t('desktop.store_terminal_onboarding_dev_server'))}</p></div>
+                        <div class="vd-store-terminal-onboarding-step"><span>3</span><p>${esc(t('desktop.store_terminal_onboarding_agent_preview'))}</p></div>
+                        <div class="vd-store-terminal-onboarding-step"><span>4</span><p>${esc(t('desktop.store_terminal_onboarding_dev_server'))}</p></div>
                     </div>
                     <div class="vd-store-preview-placeholder-code">
                         <button type="button" class="vd-store-preview-command" data-copy-command="npm run dev -- --host 0.0.0.0"><code>npm run dev -- --host 0.0.0.0</code><span>${esc(t('desktop.store_terminal_copy_command'))}</span></button>

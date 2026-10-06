@@ -19,6 +19,12 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Work Guidance
 
+- Code Studio's managed image includes GCC, libc development headers and make;
+  the runtime probe requires GCC alongside Go, Python and Node. The shared
+  sample map seeds `hello.go`, `hello.py` and `hello.c`. Existing workspaces with
+  both original samples gain only a missing `hello.c`; host and container seeds
+  use exclusive creation and preserve existing files and symlinks.
+
 - Desktop authority consists of scopes, readonly and runtime/tool grants.
   `control_level` is retired; old YAML remains readable and normal config saves
   remove that unused key. Never derive permissions from a UI confirmation mode.

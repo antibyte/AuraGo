@@ -27,6 +27,6 @@
   "help.adguard.enabled": "Schakelt de AdGuard Home-integratie in. De agent kan vervolgens DNS statistieken opvragen, filters beheren, herschrijven, geblokkeerde services en meer.",
   "help.adguard.password": "Wachtwoord voor authenticatie. Veilig opgeslagen in de versleutelde vault.",
   "help.adguard.readonly": "In alleen-lezen modus kan de agent alleen gegevens lezen. Alle schrijfbewerkingen worden geblokkeerd.",
-  "help.adguard.url": "Basis URL van uw AdGuard Home-instantie (bijvoorbeeld http://192.168.1.1:3000).",
+  "help.adguard.url": "Basis URL van je AdGuard Home-instantie (bijvoorbeeld http://192.168.1.1:3000).",
   "help.adguard.username": "Gebruikersnaam voor authenticatie. Laat leeg als authenticatie is uitgeschakeld."
 }

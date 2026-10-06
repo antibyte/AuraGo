@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -39,6 +41,11 @@ type NestRecord struct {
 	DeployMethod string `json:"deploy_method"` // "ssh" | "docker_remote" | "docker_ssh" | "docker_local"
 	TargetArch   string `json:"target_arch"`   // "linux/amd64" | "linux/arm64" | etc.
 	DockerTLS    string `json:"docker_tls"`    // docker_remote only: "" (plain HTTP, default) | "tls" | "mtls"
+	// ExportNestSecret copies the nest's own secret (nest_<id>, the credential
+	// the master uses for this host) into the egg vault when the egg has
+	// include_vault. Rows from before the column migrate to true; new nests
+	// start false.
+	ExportNestSecret bool `json:"export_nest_secret"`
 
 	// ── Config revision tracking (safe reconfigure) ──
 	DesiredConfigRev string `json:"desired_config_rev"` // ID of the pending desired revision
@@ -71,6 +78,8 @@ type EggRecord struct {
 
 // InitDB initializes the invasion SQLite database with nests and eggs tables.
 func InitDB(dbPath string) (*sql.DB, error) {
+	info, statErr := os.Stat(dbPath)
+	existingDB := statErr == nil && info.Size() > 0
 	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open invasion database: %w", err)
@@ -256,6 +265,19 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to create safe_config_revisions schema: %w", err)
 	}
 
+	// Root AGENTS.md: back up before a schema migration. A database that
+	// existed before this start and still lacks export_nest_secret is copied
+	// once. A failed copy is logged and the additive ALTER still runs:
+	// refusing it would disable Invasion Control, because every nests query
+	// lists the column.
+	if existingDB {
+		if backup, err := backupBeforeExportNestSecretMigration(db, dbPath); err != nil {
+			slog.Warn("Invasion database backup before the export_nest_secret migration failed; migrating without a backup", "error", err)
+		} else if backup != "" {
+			slog.Info("Invasion database backed up before adding export_nest_secret", "backup", backup)
+		}
+	}
+
 	// ── Migrations — add columns that may be missing on older DBs ──
 	migrations := []string{
 		"ALTER TABLE nests ADD COLUMN hatch_status TEXT DEFAULT 'idle'",
@@ -268,6 +290,9 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE nests ADD COLUMN desired_config_rev TEXT DEFAULT ''",
 		"ALTER TABLE nests ADD COLUMN applied_config_rev TEXT DEFAULT ''",
 		"ALTER TABLE nests ADD COLUMN docker_tls TEXT DEFAULT ''",
+		// Existing nests keep exporting their secret (DEFAULT 1); insertNest
+		// writes the record's value, so new nests start without.
+		"ALTER TABLE nests ADD COLUMN export_nest_secret INTEGER NOT NULL DEFAULT 1",
 		"ALTER TABLE eggs ADD COLUMN permanent INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE eggs ADD COLUMN include_vault INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE eggs ADD COLUMN inherit_llm INTEGER NOT NULL DEFAULT 0",
@@ -297,7 +322,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 // nestColumns lists every nests column in scanNestRow order.
 const nestColumns = `id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
 	hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
-	desired_config_rev, applied_config_rev, docker_tls, created_at, updated_at`
+	desired_config_rev, applied_config_rev, docker_tls, export_nest_secret, created_at, updated_at`
 
 // CreateNest generates a UUID and inserts a new nest record.
 func CreateNest(db *sql.DB, n NestRecord) (string, error) {
@@ -313,7 +338,7 @@ func CreateNest(db *sql.DB, n NestRecord) (string, error) {
 
 func insertNest(db *sql.DB, n NestRecord) error {
 	query := `INSERT INTO nests (` + nestColumns + `)
-	           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	if n.HatchStatus == "" {
 		n.HatchStatus = "idle"
 	}
@@ -328,7 +353,7 @@ func insertNest(db *sql.DB, n NestRecord) error {
 	}
 	_, err := db.Exec(query, n.ID, n.Name, n.Notes, n.AccessType, n.Host, n.Port, n.Username, n.VaultSecretID,
 		dbutil.BoolToInt(n.Active), n.EggID, n.HatchStatus, n.LastHatchAt, n.HatchError, n.Route, n.RouteConfig, n.DeployMethod, n.TargetArch,
-		n.DesiredConfigRev, n.AppliedConfigRev, n.DockerTLS, n.CreatedAt, n.UpdatedAt)
+		n.DesiredConfigRev, n.AppliedConfigRev, n.DockerTLS, dbutil.BoolToInt(n.ExportNestSecret), n.CreatedAt, n.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to insert nest: %w", err)
 	}
@@ -347,9 +372,10 @@ func scanNestRow(s nestScanner) (NestRecord, error) {
 	var notesNull, hostNull, userNull, secretNull, eggNull sql.NullString
 	var hatchStatusNull, lastHatchNull, hatchErrNull, routeNull, routeCfgNull, deployNull, archNull sql.NullString
 	var desiredCfgRevNull, appliedCfgRevNull, dockerTLSNull sql.NullString
+	var exportNestSecret sql.NullInt64
 	if err := s.Scan(&n.ID, &n.Name, &notesNull, &n.AccessType, &hostNull, &n.Port, &userNull, &secretNull, &active, &eggNull,
 		&hatchStatusNull, &lastHatchNull, &hatchErrNull, &routeNull, &routeCfgNull, &deployNull, &archNull,
-		&desiredCfgRevNull, &appliedCfgRevNull, &dockerTLSNull, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		&desiredCfgRevNull, &appliedCfgRevNull, &dockerTLSNull, &exportNestSecret, &n.CreatedAt, &n.UpdatedAt); err != nil {
 		return NestRecord{}, err
 	}
 	n.Notes = nullStr(notesNull)
@@ -367,6 +393,7 @@ func scanNestRow(s nestScanner) (NestRecord, error) {
 	n.DesiredConfigRev = nullStr(desiredCfgRevNull)
 	n.AppliedConfigRev = nullStr(appliedCfgRevNull)
 	n.DockerTLS = nullStr(dockerTLSNull)
+	n.ExportNestSecret = exportNestSecret.Valid && exportNestSecret.Int64 != 0
 	n.Active = active != 0
 	if n.HatchStatus == "" {
 		n.HatchStatus = "idle"
@@ -423,10 +450,10 @@ func UpdateNest(db *sql.DB, n NestRecord) error {
 	n.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	query := `UPDATE nests SET name=?, notes=?, access_type=?, host=?, port=?, username=?, vault_secret_id=?, active=?, egg_id=?,
 	          hatch_status=?, last_hatch_at=?, hatch_error=?, route=?, route_config=?, deploy_method=?, target_arch=?,
-	          desired_config_rev=?, applied_config_rev=?, docker_tls=?, updated_at=? WHERE id=?`
+	          desired_config_rev=?, applied_config_rev=?, docker_tls=?, export_nest_secret=?, updated_at=? WHERE id=?`
 	res, err := db.Exec(query, n.Name, n.Notes, n.AccessType, n.Host, n.Port, n.Username, n.VaultSecretID, dbutil.BoolToInt(n.Active), n.EggID,
 		n.HatchStatus, n.LastHatchAt, n.HatchError, n.Route, n.RouteConfig, n.DeployMethod, n.TargetArch,
-		n.DesiredConfigRev, n.AppliedConfigRev, n.DockerTLS, n.UpdatedAt, n.ID)
+		n.DesiredConfigRev, n.AppliedConfigRev, n.DockerTLS, dbutil.BoolToInt(n.ExportNestSecret), n.UpdatedAt, n.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update nest: %w", err)
 	}
@@ -1156,4 +1183,32 @@ func Close(db *sql.DB) error {
 		return db.Close()
 	}
 	return nil
+}
+
+// exportNestSecretBackupSuffix names the copy InitDB writes before it adds the
+// export_nest_secret column to a database that existed before this start.
+const exportNestSecretBackupSuffix = ".pre-export-nest-secret.bak"
+
+// backupBeforeExportNestSecretMigration copies the database next to dbPath
+// with VACUUM INTO while the nests table still lacks export_nest_secret. It
+// never overwrites an earlier copy. Returns the path written ("" when the
+// column already exists).
+func backupBeforeExportNestSecretMigration(db *sql.DB, dbPath string) (string, error) {
+	var hasColumn int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('nests') WHERE name = 'export_nest_secret'`).Scan(&hasColumn); err != nil {
+		return "", fmt.Errorf("inspect nests columns: %w", err)
+	}
+	if hasColumn > 0 {
+		return "", nil
+	}
+	target := dbPath + exportNestSecretBackupSuffix
+	if _, err := os.Stat(target); err == nil {
+		target += "." + time.Now().UTC().Format("20060102T150405.000000000Z")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("check backup path: %w", err)
+	}
+	if _, err := db.Exec(`VACUUM INTO ?`, target); err != nil {
+		return "", fmt.Errorf("copy invasion database to %s: %w", target, err)
+	}
+	return target, nil
 }

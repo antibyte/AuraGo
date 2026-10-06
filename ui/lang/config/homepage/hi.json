@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Docker एकीकरण आवश्यक",
   "config.homepage.docker_required_desc": "होमपेज टूल के लिए Docker सक्षम होना आवश्यक है। कृपया पहले Docker एकीकरण सक्रिय करें।",
   "config.homepage.enabled_label": "होमपेज टूल सक्षम:",
+  "config.homepage.image_build_refused": "Docker ने Homepage इमेज बनाने से मना कर दिया",
+  "config.homepage.image_build_refused_desc": "AuraGo Homepage डेवलपमेंट इमेज नहीं बना सका, क्योंकि Docker ने 403 लौटाया। डिफ़ॉल्ट सॉकेट प्रॉक्सी इमेज बिल्ड को रोकता है (BUILD=0)। नीचे दिए गए कमांड से Docker होस्ट पर एक बार इमेज बनाएँ, या docker-proxy सेवा के लिए BUILD=1 सेट करें। इसके बाद एजेंट से homepage init चलाने को कहें या AuraGo को पुनः आरंभ करें।",
   "config.homepage.optional": "वैकल्पिक",
   "config.homepage.permissions_desc": "नियंत्रित करें कि एजेंट को कौन सी होमपेज कार्रवाइयाँ करने की अनुमति है।",
   "config.homepage.permissions_title": "अनुमतियाँ",
@@ -54,9 +56,9 @@
   "config.homepage.workspace_autodetect_loading": "पहचान हो रही है…",
   "config.homepage.workspace_autodetect_success": "कार्यक्षेत्र पथ सफलतापूर्वक पहचाना गया।",
   "config.homepage.workspace_autodetect_title": "चल रहे homepage कंटेनर से कार्यस्थान पथ स्वतः पहचानें",
-  "config.homepage.workspace_desc": "संपूर्ण होस्ट पथ सेट करें जो होमपेज कंटेनर में /वर्कस्पेस के रूप में माउंट किया गया है।",
+  "config.homepage.workspace_desc": "वह पूर्ण होस्ट पथ सेट करें जिसे होमपेज कंटेनर में /workspace के रूप में माउंट किया जाता है।",
   "config.homepage.workspace_path": "कार्यस्थान पथ",
   "config.homepage.workspace_path_missing_warning": "वेब सर्वर सक्षम है लेकिन कार्यस्थान पथ सेट नहीं है। अपने प्रोजेक्ट का पूर्ण होस्ट पथ दर्ज करें (जैसे /home/aurago/aurago/agent_workspace/homepage) या स्वतः पहचान का उपयोग करें।",
-  "config.homepage.workspace_relative_hint": "होमपेज टूल कॉल के अंदर, इस कार्यक्षेत्र से संबंधित प्रोजेक्ट_डीआईआर और पथ रखें, उदाहरण के लिए 'मेरी-साइट' या 'my-site/src / app/page.tsx'।",
+  "config.homepage.workspace_relative_hint": "होमपेज टूल कॉल के अंदर, project_dir और path इस वर्कस्पेस के सापेक्ष रखें, उदाहरण के लिए 'my-site' या 'my-site/src/app/page.tsx'।",
   "config.homepage.workspace_title": "कार्यस्थान"
 }

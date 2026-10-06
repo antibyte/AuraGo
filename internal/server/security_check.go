@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -186,6 +187,21 @@ func stripHostPort(host string) string {
 // weakAuth returns true when no effective authentication is configured.
 func weakAuth(cfg *config.Config) bool {
 	return !cfg.Auth.Enabled || cfg.Auth.PasswordHash == ""
+}
+
+// dockerHostIsComposeSocketProxy reports the docker-compose.yml default: AuraGo
+// runs in a container and reaches the bundled socket proxy as
+// tcp://docker-proxy:2375. That proxy publishes no port; only containers on the
+// internal docker-control network reach it.
+func dockerHostIsComposeSocketProxy(cfg *config.Config) bool {
+	if cfg == nil || !cfg.Runtime.IsDocker {
+		return false
+	}
+	u, err := url.Parse(strings.TrimSpace(cfg.Docker.Host))
+	if err != nil || !strings.EqualFold(u.Scheme, "tcp") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return false
+	}
+	return strings.EqualFold(u.Hostname(), "docker-proxy") && u.Port() == "2375" && (u.Path == "" || u.Path == "/")
 }
 
 // CheckSecurity evaluates the current config and returns a list of security hints.
@@ -472,7 +488,7 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 	}
 
 	// 19. docker_tcp_socket — Docker exposed over unencrypted TCP
-	if cfg.Docker.Enabled && strings.HasPrefix(cfg.Docker.Host, "tcp://") {
+	if cfg.Docker.Enabled && strings.HasPrefix(cfg.Docker.Host, "tcp://") && !dockerHostIsComposeSocketProxy(cfg) {
 		hints = append(hints, SecurityHint{
 			ID: "docker_tcp_socket", Severity: SevWarning,
 			Title: "Docker: using unencrypted TCP socket",

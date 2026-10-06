@@ -51,9 +51,11 @@ func TestVersionTransportNegotiatesBeforeMutations(t *testing.T) {
 
 func TestVersionTransportCancellationDoesNotCacheFailure(t *testing.T) {
 	var count atomic.Int32
+	firstProbe := make(chan struct{})
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/version" {
 			if count.Add(1) == 1 {
+				close(firstProbe)
 				<-r.Context().Done()
 				return
 			}
@@ -63,15 +65,25 @@ func TestVersionTransportCancellationDoesNotCacheFailure(t *testing.T) {
 		w.WriteHeader(204)
 	}))
 	defer s.Close()
-	c := NewClient("tcp://"+strings.TrimPrefix(s.URL, "http://"), time.Second)
+	c := NewClient("tcp://"+strings.TrimPrefix(s.URL, "http://"), 5*time.Second)
 	defer c.CloseIdleConnections()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	go func() {
+		select {
+		case <-firstProbe: // the probe is in flight; now the caller gives up
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
 	if _, err := c.DoJSON(ctx, "POST", "/containers/create", nil, nil); err == nil {
 		t.Fatal("cancelled negotiation succeeded")
 	}
 	if _, err := c.DoJSON(context.Background(), "POST", "/containers/create", nil, nil); err != nil {
 		t.Fatal(err)
+	}
+	if got := count.Load(); got != 2 {
+		t.Fatalf("version probes = %d, want 2 (the cancelled probe is not cached)", got)
 	}
 }
 

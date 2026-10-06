@@ -14,6 +14,9 @@ import (
 // live check. Add an entry only together with the live evidence.
 var verifiedCatalogHardening = map[string]ContainerHardening{
 	"arcane/socket-proxy": {CapDrop: []string{"ALL"}},
+	// F-S3 probe on aurago-test; date and digest are in the catalog comments.
+	"beszel/socket-proxy": {CapDrop: []string{"ALL"}},
+	"dozzle/socket-proxy": {CapDrop: []string{"ALL"}},
 }
 
 func TestDockerCreatePayloadAppliesOptInHardening(t *testing.T) {
@@ -372,9 +375,12 @@ func TestCatalogHardeningReachesAppsInstalledBeforeTheOptIn(t *testing.T) {
 	assertSpecHardening(t, "update after opt-in", docker.created[2], ContainerName("hardened-demo"), demoAppHardening())
 }
 
-// Rollback recreates the previous record's image with the current catalog's
-// hardening (the record stores none). The first three specs are the failed
-// update, the last three are restorePreviousCompanions and rollbackPrevious.
+// On an engine that cannot rename, the update falls back to removing the
+// previous containers, and the rollback recreates the previous record's images
+// with the current catalog's hardening (the record stores none). The first
+// three specs are the failed update, the last three the recreated previous
+// containers. The parked path restores the previous containers instead, see
+// TestRollbackRestoresParkedContainersWithoutReapplyingHardening.
 func TestCatalogHardeningAppliesOnRollbackWithCurrentCatalog(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
@@ -391,6 +397,7 @@ func TestCatalogHardeningAppliesOnRollbackWithCurrentCatalog(t *testing.T) {
 	// Starts: sidecar, plain, then the updated app fails; the rollback starts
 	// sidecar, plain and the previous app again.
 	docker.startErrors = []error{nil, nil, errors.New("updated app start failed")}
+	docker.renameErr = errRenameUnsupported // engines without rename keep remove-and-recreate
 	svc = newTestServiceAtPath(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19604), hardenedDemoCatalog("new", true))
 	op, err := svc.StartAppOperation(ctx, "hardened-demo", OperationUpdate, OperationRequest{})
 	if err != nil {
@@ -464,4 +471,57 @@ func TestCatalogHardeningAppliesToBeszelAgentCompanion(t *testing.T) {
 	assertSpecHardening(t, "beszel socket proxy", docker.created[0], CompanionContainerName("beszel", "socket-proxy"), proxyHardening)
 	assertSpecHardening(t, "beszel hub", docker.created[1], ContainerName("beszel"), nil)
 	assertSpecHardening(t, "beszel agent", docker.created[2], CompanionContainerName("beszel", "agent"), demoSidecarHardening())
+}
+
+// The monitoring proxies keep their read-only profile and only gain the
+// verified capability drop.
+func TestInstallMonitoringProxiesApplyOnlyVerifiedHardening(t *testing.T) {
+	for _, tc := range []struct {
+		appID string
+		ports PortAllocator
+	}{
+		{appID: "dozzle", ports: fixedPorts(18081)},
+		{appID: "beszel", ports: fixedPorts(18093, 23753)},
+	} {
+		t.Run(tc.appID, func(t *testing.T) {
+			ctx := context.Background()
+			docker := &fakeDockerAdapter{}
+			svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, tc.ports, &fakeSecretStore{data: map[string]string{}})
+			op, err := svc.StartInstall(ctx, InstallRequest{AppID: tc.appID, BindMode: BindModeLocal})
+			if err != nil {
+				t.Fatalf("start install: %v", err)
+			}
+			if err := svc.RunOperation(ctx, op.ID); err != nil {
+				t.Fatalf("run install: %v", err)
+			}
+			if len(docker.created) != 2 {
+				t.Fatalf("created containers = %d, want the socket proxy and %s: %#v", len(docker.created), tc.appID, docker.created)
+			}
+			proxy, app := docker.created[0], docker.created[1]
+			var want *ContainerHardening
+			if verified, ok := verifiedCatalogHardening[tc.appID+"/socket-proxy"]; ok {
+				want = &verified
+			}
+			if want == nil {
+				t.Fatalf("%s/socket-proxy is not opted in", tc.appID)
+			}
+			assertSpecHardening(t, "install", proxy, CompanionContainerName(tc.appID, "socket-proxy"), want)
+			assertSpecHardening(t, "install", app, ContainerName(tc.appID), nil)
+			if !reflect.DeepEqual(proxy.Env, monitoringProxyEnv()) || len(proxy.HostBinds) != 1 || !proxy.HostBinds[0].ReadOnly {
+				t.Fatalf("%s proxy profile changed: env %#v binds %#v", tc.appID, proxy.Env, proxy.HostBinds)
+			}
+			hostConfig, _ := dockerCreatePayload(proxy)["HostConfig"].(map[string]any)
+			if !reflect.DeepEqual(hostConfig["CapDrop"], want.CapDrop) {
+				t.Fatalf("%s proxy CapDrop = %#v, want %#v", tc.appID, hostConfig["CapDrop"], want.CapDrop)
+			}
+			if !reflect.DeepEqual(hostConfig["SecurityOpt"], []string{"no-new-privileges:true"}) {
+				t.Fatalf("%s proxy SecurityOpt = %#v", tc.appID, hostConfig["SecurityOpt"])
+			}
+			for _, key := range []string{"CapAdd", "ReadonlyRootfs", "Tmpfs", "PidsLimit"} {
+				if _, ok := hostConfig[key]; ok {
+					t.Fatalf("%s proxy gained %s, which the probe did not verify", tc.appID, key)
+				}
+			}
+		})
+	}
 }

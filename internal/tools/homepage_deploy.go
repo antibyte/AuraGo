@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/dockerutil"
@@ -1078,6 +1079,28 @@ func copyAssetsToBuildDir(buildPath, dataDir string, logger *slog.Logger) {
 	}
 }
 
+// homepageBuildRefused is set when the Docker endpoint refused the Homepage
+// image build with HTTP 403 (a socket proxy with BUILD=0, or an authorization
+// plugin). HomepageStatus reports it until the image exists.
+var homepageBuildRefused atomic.Bool
+
+const homepageBuildForbiddenMessage = "Docker refused to build the Homepage dev image " + homepageImageName + " (HTTP 403). " +
+	"The default Docker socket proxy in docker-compose.yml blocks image builds (BUILD=0). " +
+	"Build the image once on the Docker host: " + homepageHostBuildCommand + " " +
+	"(native installs: run the AuraGo binary with --print-homepage-dockerfile instead of docker exec). " +
+	"Or set BUILD=1 for the docker-proxy service and run: docker compose up -d docker-proxy. " +
+	"Then run homepage init again. Do not run homepage rebuild: it deletes the image before it builds."
+
+func homepageBuildForbiddenResult() string {
+	out, _ := json.Marshal(map[string]string{
+		"status":        "error",
+		"code":          "homepage_image_build_forbidden",
+		"message":       homepageBuildForbiddenMessage,
+		"build_command": homepageHostBuildCommand,
+	})
+	return string(out)
+}
+
 func homepageBuildImage(dockerCfg DockerConfig) string {
 	if err := requireDockerMutationPermission(); err != nil {
 		return errJSON("%v", err)
@@ -1115,6 +1138,10 @@ func homepageBuildImage(dockerCfg DockerConfig) string {
 		return errJSON("Image build request failed: %v", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusForbidden {
+		homepageBuildRefused.Store(true)
+		return homepageBuildForbiddenResult()
+	}
 
 	// Docker streams JSON progress lines; drain and check final line for errors.
 	var lastLine string
@@ -1135,6 +1162,7 @@ func homepageBuildImage(dockerCfg DockerConfig) string {
 		return errJSON("Image build failed with status %d", resp.StatusCode)
 	}
 
+	homepageBuildRefused.Store(false)
 	res, _ := json.Marshal(map[string]interface{}{"status": "ok", "output": "Image built successfully"})
 	return string(res)
 }

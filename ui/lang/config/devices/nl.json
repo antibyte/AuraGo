@@ -61,7 +61,7 @@
   "config.devices.protocol_none": "Geen externe toegang",
   "config.devices.protocol_ssh": "SSH",
   "config.devices.protocol_vnc": "VNC",
-  "config.devices.credential_label": "Referentie",
-  "config.devices.credential_none": "Geen gekoppelde referentie",
-  "config.devices.credential_unavailable": "Referentielijst niet beschikbaar"
+  "config.devices.credential_label": "Inloggegeven",
+  "config.devices.credential_none": "Geen gekoppeld inloggegeven",
+  "config.devices.credential_unavailable": "Lijst met inloggegevens niet beschikbaar"
 }

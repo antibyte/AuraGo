@@ -8,7 +8,7 @@
   "config.tokens.created_notice": "Token skapad! Kopiera nu – visas endast en gång.",
   "config.tokens.activated": "Token aktiverat",
   "config.tokens.deactivated": "Token inaktiverat",
-  "config.tokens.delete_confirm": "Delete token:",
+  "config.tokens.delete_confirm": "Ta bort token: ",
   "config.tokens.deleted": "Token borttaget",
   "config.tokens.scopes_label": "Omfattningar:",
   "config.tokens.toggle_disable": "Inaktivera",

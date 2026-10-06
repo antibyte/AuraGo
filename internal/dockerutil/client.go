@@ -74,7 +74,7 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, requestBody, r
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return resp.StatusCode, fmt.Errorf("Docker API returned %d: %s", resp.StatusCode, sanitizeDockerError(detail))
+		return resp.StatusCode, fmt.Errorf("Docker API returned %d: %s", resp.StatusCode, SanitizeOneLine(string(detail), 512))
 	}
 	if responseBody != nil {
 		if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(responseBody); err != nil && err != io.EOF {
@@ -118,12 +118,4 @@ func (c *Client) CloseIdleConnections() {
 	if c != nil && c.httpClient != nil {
 		c.httpClient.CloseIdleConnections()
 	}
-}
-
-func sanitizeDockerError(value []byte) string {
-	text := strings.TrimSpace(string(value))
-	if len(text) > 512 {
-		text = text[:512]
-	}
-	return text
 }

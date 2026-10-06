@@ -12,7 +12,7 @@
   "config.here_now.allow_publish": "允许发布",
   "config.here_now.allow_publish_help": "允许创建、更新、复制和恢复永久 Site。",
   "config.here_now.allow_site_management": "允许 Site 管理",
-  "config.here_now.allow_site_management_help": "允许修改所有者和查看器元数据以及 SPA 模式。",
+  "config.here_now.allow_site_management_help": "允许修改所有者和查看器元数据以及 SPA 路由。",
   "config.here_now.allow_access_management": "允许访问管理",
   "config.here_now.allow_access_management_help": "允许更改访问策略和密码。",
   "config.here_now.allow_delete": "允许删除",

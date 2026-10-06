@@ -1,9 +1,9 @@
 {
   "config.co_agents.cb_desc": "Säkerhetsgränser för co-agent-körning.",
   "config.co_agents.cb_max_tokens": "Max tokens (0 = obegränsat)",
-  "config.co_agents.cb_max_tool_calls": "Max. verktygskall",
+  "config.co_agents.cb_max_tool_calls": "Max. verktygsanrop",
   "config.co_agents.cb_timeout": "Timeout (sekunder)",
-  "config.co_agents.cb_title": "Strömbrytare",
+  "config.co_agents.cb_title": "Kretsbrytare",
   "config.co_agents.disabled_desc": "Aktivera för att låta agenten delegera uppgifter till parallella sub-agenter och specialist-co-agenter.",
   "config.co_agents.disabled_notice": "Co-Agents är inaktiverade",
   "config.co_agents.enabled_desc": "Tillåt agenten att starta parallella sub-agenter för komplexa uppgifter.",

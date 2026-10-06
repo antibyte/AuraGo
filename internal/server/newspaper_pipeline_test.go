@@ -234,13 +234,39 @@ func TestNewspaperRetryFallbackAndSharedSearchBudget(t *testing.T) {
 		if err != nil || stats.Searches > 5 {
 			t.Fatalf("fallback: %v %+v %v", calls, stats, err)
 		}
-		want := "brave_news,brave_news,brave_web,brave_web,ddg_search"
+		want := "brave_news,brave_news,ddg_search,ddg_search"
 		if longWait {
 			want = "brave_news,ddg_search,ddg_search"
 		}
 		if strings.Join(calls, ",") != want {
 			t.Fatalf("attempts = %v; want %s", calls, want)
 		}
+	}
+}
+
+func TestNewspaperCooldownBeyondPhaseUsesIndependentSearch(t *testing.T) {
+	p := newspaper.DefaultProfile()
+	p.Sections = []string{"science"}
+	deps := newspaperFixtureIO(p)
+	calls := []string{}
+	deps.Wait = func(_ context.Context, delay time.Duration) error {
+		if delay > 0 {
+			t.Fatal("waited for a cooldown beyond the phase deadline")
+		}
+		return nil
+	}
+	deps.Search = func(_ context.Context, backend string, _ newspaperQuery, _ string) (newspaperSearchBatch, error) {
+		calls = append(calls, backend)
+		if backend == "ddg_search" {
+			return newspaperSearchBatch{Hits: []newspaperHit{{Title: "Science news", URL: "https://science.example/report"}}}, nil
+		}
+		return newspaperSearchBatch{}, &tools.BraveSearchError{StatusCode: 429, Code: "rate_limited", Temporary: true, RetryAfter: 2 * time.Second}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	draft, err := runNewspaperResearch(ctx, p, time.Now(), 10, 10, deps, nil)
+	if err != nil || len(draft.Stories) != 1 || strings.Join(calls, ",") != "brave_news,ddg_search" {
+		t.Fatalf("fallback near deadline: calls=%v stories=%d err=%v", calls, len(draft.Stories), err)
 	}
 }
 
@@ -277,7 +303,7 @@ func TestNewspaperFollowUpDatesAndEvidence(t *testing.T) {
 		return `{"headline":"Unsubstantiated","paragraphs":[{"text":"An invented claim.","evidence_quote":"This quotation was never present in the original article."}]}`, nil
 	}
 	draft, err = runNewspaperResearch(context.Background(), p, time.Now(), 10, 10, deps, func(v newspaper.Progress) { stats = v.Research })
-	if err == nil || len(draft.Stories) != 0 || stats.Rejected["invalid_draft"] == 0 {
+	if err == nil || len(draft.Stories) != 0 || stats.Rejected["quote_mismatch"] == 0 {
 		t.Fatalf("unproven story accepted: %+v %+v %v", draft, stats, err)
 	}
 }

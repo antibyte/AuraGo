@@ -126,8 +126,15 @@ func TestResolveManifestSidecarConfigNormalizesExternalEndpoint(t *testing.T) {
 }
 
 func TestStopManifestSidecarsDoesNotRequireManagedSecrets(t *testing.T) {
+	previous, configured := currentRuntimePermissions()
 	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true})
-	defer ClearRuntimePermissionsForTest()
+	t.Cleanup(func() {
+		if configured {
+			ConfigureRuntimePermissions(previous)
+		} else {
+			ClearRuntimePermissionsForTest()
+		}
+	})
 
 	var calls []string
 	api := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

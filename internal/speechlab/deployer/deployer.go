@@ -5,7 +5,6 @@ package deployer
 // supplied Compose file or arbitrary Docker command.
 
 import (
-	"bufio"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
@@ -35,7 +34,6 @@ const (
 	ManifestURL             = "https://github.com/antibyte/s2s/releases/latest/download/speech-lab-bundle.json"
 	PublisherPrefix         = "ghcr.io/antibyte/"
 	ManifestMaxBytes        = 1 << 20
-	DockerPullMaxBytes      = 8 << 20
 	DockerPullTimeout       = 30 * time.Minute
 	DefaultReadinessTimeout = 180 * time.Second
 	OwnerLabel              = "speech-lab"
@@ -1400,6 +1398,9 @@ func imageByKey(images ImageSet, key string) string {
 	}
 }
 
+// speechLabPullDetailMax bounds the Docker reason kept in a pull error.
+const speechLabPullDetailMax = 256
+
 func (m *Manager) pull(ctx context.Context, op operationSnapshot, image string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, dockerutil.Endpoint("images/create?fromImage="+url.QueryEscape(image)), nil)
 	if err != nil {
@@ -1415,40 +1416,21 @@ func (m *Manager) pull(ctx context.Context, op operationSnapshot, image string) 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if detail := dockerutil.SanitizeOneLine(dockerutil.EngineErrorMessage(dockerutil.ReadErrorBody(resp.Body)), speechLabPullDetailMax); detail != "" {
+			return &Error{Code: "speech_lab_pull_failed", Err: fmt.Errorf("Docker pull returned HTTP %d: %s", resp.StatusCode, detail)}
+		}
 		return &Error{Code: "speech_lab_pull_failed", Err: fmt.Errorf("Docker pull returned HTTP %d", resp.StatusCode)}
 	}
-	scanner := bufio.NewScanner(io.LimitReader(resp.Body, DockerPullMaxBytes))
-	scanner.Buffer(make([]byte, 64<<10), 1<<20)
-	for scanner.Scan() {
-		var event struct {
-			Error       string `json:"error"`
-			ErrorDetail struct {
-				Message string `json:"message"`
-			} `json:"errorDetail"`
+	// Read the stream to its end: the Engine reports failures after the 200
+	// status as error events, and a stream cut inside a message is a failure.
+	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
+		var event *dockerutil.JSONMessageError
+		if errors.As(err, &event) {
+			return &Error{Code: "speech_lab_pull_failed", Err: fmt.Errorf("Docker pull failed: %s", dockerutil.SanitizeOneLine(event.Message, speechLabPullDetailMax))}
 		}
-		if json.Unmarshal(scanner.Bytes(), &event) != nil {
-			continue
-		}
-		message := strings.TrimSpace(event.ErrorDetail.Message)
-		if message == "" {
-			message = strings.TrimSpace(event.Error)
-		}
-		if message != "" {
-			return &Error{Code: "speech_lab_pull_failed", Err: fmt.Errorf("Docker pull failed: %s", safeDockerDetail(message))}
-		}
-	}
-	if err := scanner.Err(); err != nil {
 		return &Error{Code: "speech_lab_pull_failed", Err: err}
 	}
 	return nil
-}
-
-func safeDockerDetail(value string) string {
-	value = strings.TrimSpace(value)
-	if len(value) > 256 {
-		value = value[:256]
-	}
-	return value
 }
 
 type networkCreateResponse struct {

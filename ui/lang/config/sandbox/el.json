@@ -21,7 +21,7 @@
   "config.sandbox.backend_docker": "Docker",
   "config.sandbox.backend_podman": "Podman",
   "config.sandbox.image_label": "Εικόνα Container",
-  "config.sandbox.docker_host_label": "Κεντρικός Docker",
+  "config.sandbox.docker_host_label": "Κεντρικός υπολογιστής Docker",
   "config.sandbox.timeout_label_full": "Timeout (δευτερόλεπτα)",
   "config.sandbox.pool_size_label": "Μέγεθος Pool",
   "config.sandbox.auto_install_label": "Αυτόματη-Εγκατάσταση llm-sandbox",

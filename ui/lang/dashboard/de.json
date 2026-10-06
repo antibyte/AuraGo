@@ -229,7 +229,7 @@
   "dashboard.integration_s3": "S3-Speicher",
   "dashboard.integration_sandbox": "Sandkasten",
   "dashboard.integration_security_proxy": "Security-Proxy",
-  "dashboard.integration_skill_manager": "Fähigkeiten-Manager",
+  "dashboard.integration_skill_manager": "Skill-Manager",
   "dashboard.integration_tailscale": "Tailscale",
   "dashboard.integration_telegram": "Telegram",
   "dashboard.integration_tts": "TTS",

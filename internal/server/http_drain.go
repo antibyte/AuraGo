@@ -86,17 +86,32 @@ func (s *Server) trackHTTP(next http.Handler) http.Handler {
 	})
 }
 
+// setServerLifetimeCancel records the cancel function of the server context
+// (serverCtx in Start). beginHTTPDrain calls it, so background lifetimes end
+// when shutdown begins on either path: shutdownCh, or Serve ending on its own.
+func (s *Server) setServerLifetimeCancel(cancel context.CancelFunc) {
+	s.httpDrainMu.Lock()
+	s.serverLifetimeCancel = cancel
+	s.httpDrainMu.Unlock()
+}
+
 func (s *Server) beginHTTPDrain() {
 	s.httpDrainMu.Lock()
 	s.httpDraining = true
 	if s.httpDrainCancel != nil {
 		s.httpDrainCancel()
 	}
+	endLifetime := s.serverLifetimeCancel
 	connections := make([]*drainHTTPConn, 0, len(s.httpHijacked))
 	for conn := range s.httpHijacked {
 		connections = append(connections, conn)
 	}
 	s.httpDrainMu.Unlock()
+	// A handler can wait on the server lifetime instead of its request context
+	// (a detached sidecar image pull); end it so httpRequests.Wait returns.
+	if endLifetime != nil {
+		endLifetime()
+	}
 	for _, conn := range connections {
 		_ = conn.Close()
 	}

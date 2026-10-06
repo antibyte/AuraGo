@@ -11,5 +11,6 @@
   "config.security.severity.critical": "重大",
   "config.security.severity.info": "情報",
   "config.security.severity.warning": "警告",
-  "config.security.status_success": "✅"
+  "config.security.status_success": "✅",
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Docker (リモート) のネストが暗号化されていない HTTP でデプロイしています"
 }

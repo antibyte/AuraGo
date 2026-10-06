@@ -54,6 +54,20 @@ func TestDockerEggContainerNameKeepsHistoricUUIDNames(t *testing.T) {
 	}
 }
 
+func TestDockerEggBindsTrimTheNestIDLikeTheContainerName(t *testing.T) {
+	const padded = "  7680f451-bad4-4908-92da-e286eb5f7c2a"
+	name, err := dockerEggContainerName(padded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := dockerEggBinds(padded); len(got) != 1 || got[0] != name+"-log:/app/log" {
+		t.Fatalf("binds = %v, want %s-log:/app/log", got, name)
+	}
+	if got := dockerEggBinds("short"); len(got) != 1 || got[0] != "aurago-egg-short-log:/app/log" {
+		t.Fatalf("fallback binds = %v, want the historic slice for IDs eggIDPrefix rejects", got)
+	}
+}
+
 func TestDockerConnectorRejectsShortNestIDBeforeAnyEngineRequest(t *testing.T) {
 	var requests atomic.Int64
 	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

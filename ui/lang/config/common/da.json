@@ -45,7 +45,7 @@
   "config.unsaved_changes.save_and_continue": "Gem og skift",
   "config.precision.action_save_first": "Gem dine ændringer, før du tester.",
   "config.precision.action_missing_fields": "Udfyld og gem først de obligatoriske felter.",
-  "config.precision.action_missing_credential": "Gem først de nødvendige loginoplysninger i boksen.",
+  "config.precision.action_missing_credential": "Gem først den nødvendige hemmelighed i Vault.",
   "config.precision.density_toggle": "Skift grænsefladens tæthed",
   "config.precision.density_comfortable": "Komfortabel",
   "config.precision.density_compact": "Kompakt",

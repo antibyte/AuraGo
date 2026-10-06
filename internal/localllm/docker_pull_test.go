@@ -21,11 +21,10 @@ import (
 var testRuntimeImage = "ghcr.io/example/aurago-llm-cuda@sha256:" + strings.Repeat("a", 64)
 
 // pullTestEngine answers DoJSON through respond and serves image pulls from
-// client, recording every streaming timeout requested.
+// client.
 type pullTestEngine struct {
-	client   *http.Client
-	respond  func(method, path string) (int, error)
-	timeouts []time.Duration
+	client  *http.Client
+	respond func(method, path string) (int, error)
 }
 
 func (engine *pullTestEngine) DoJSON(_ context.Context, method, path string, _, _ any) (int, error) {
@@ -37,8 +36,7 @@ func (engine *pullTestEngine) DoJSON(_ context.Context, method, path string, _, 
 
 func (engine *pullTestEngine) HTTPClient() *http.Client { return engine.client }
 
-func (engine *pullTestEngine) HTTPClientWithTimeout(timeout time.Duration) *http.Client {
-	engine.timeouts = append(engine.timeouts, timeout)
+func (engine *pullTestEngine) HTTPClientWithTimeout(time.Duration) *http.Client {
 	return engine.client
 }
 
@@ -54,17 +52,6 @@ func codeOrEmpty(err error) string {
 		return ""
 	}
 	return errorCode(err)
-}
-
-func TestPullImageRequestsLongStreamingTimeout(t *testing.T) {
-	engine := &pullTestEngine{client: pullStreamClient(http.StatusOK, strings.NewReader(`{"status":"Status: Downloaded newer image"}`+"\n"))}
-	manager := &Manager{docker: engine}
-	if err := manager.pullImage(context.Background(), testRuntimeImage); err != nil {
-		t.Fatalf("pullImage() error = %v", err)
-	}
-	if len(engine.timeouts) != 1 || engine.timeouts[0] != 2*time.Hour {
-		t.Fatalf("streaming timeouts = %v, want one 2h pull client", engine.timeouts)
-	}
 }
 
 func TestPullImageOutlivesShortEngineTimeout(t *testing.T) {
@@ -310,4 +297,47 @@ func TestLogPullFailureWritesReasonAndToleratesMissingLogger(t *testing.T) {
 	// A Manager built without NewManager has no logger; it must fall back to
 	// the default logger instead of panicking.
 	(&Manager{}).logPullFailure(testRuntimeImage, errors.New("pull_image_failed"))
+}
+
+func TestLogPullFailureKeepsCancellationAtDebug(t *testing.T) {
+	var logged bytes.Buffer
+	manager := &Manager{logger: slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelDebug}))}
+	manager.logPullFailure(testRuntimeImage, fmt.Errorf("pull_image_failed: %w", context.Canceled))
+	if !strings.Contains(logged.String(), "level=DEBUG") || strings.Contains(logged.String(), "level=WARN") {
+		t.Fatalf("log = %q, want a debug record for an intended cancellation", logged.String())
+	}
+	logged.Reset()
+	manager.logPullFailure(testRuntimeImage, fmt.Errorf("pull_image_failed: %w", context.DeadlineExceeded))
+	if !strings.Contains(logged.String(), "level=WARN") {
+		t.Fatalf("log = %q, want a warning: a deadline is a real failure", logged.String())
+	}
+}
+
+func TestPullFailureTextIsByteStable(t *testing.T) {
+	cases := []struct {
+		name   string
+		status int
+		body   string
+		want   string
+	}{
+		{"engine JSON 404", http.StatusNotFound, `{"message":"manifest unknown"}`, "pull_image_failed: Docker returned 404: manifest unknown"},
+		{"HTML 502", http.StatusBadGateway, "<html>bad gateway</html>", "pull_image_failed: Docker returned 502: <html>bad gateway</html>"},
+		{"blank JSON message falls back to the body", http.StatusInternalServerError, `{"message":"  "}`, `pull_image_failed: Docker returned 500: {"message":"  "}`},
+		// A message of only zero-width runes has no printable text, so the
+		// sanitised body is the detail (since 2da310e39; before, no detail).
+		{"zero-width JSON message falls back to the sanitised body", http.StatusInternalServerError, "{\"message\":\"\u200b\"}", `pull_image_failed: Docker returned 500: {"message":" "}`},
+		{"escaped zero-width JSON message falls back to the body", http.StatusInternalServerError, `{"message":"` + "\\" + `u200b"}`, `pull_image_failed: Docker returned 500: {"message":"` + "\\" + `u200b"}`},
+		{"event with separators and NUL", http.StatusOK, `{"error":"denied\u2028token\u0000end"}` + "\n", "pull_image_failed: denied token end"},
+		{"long event cut at a rune boundary", http.StatusOK, `{"error":"` + strings.Repeat("a", 255) + `é tail"}` + "\n", "pull_image_failed: " + strings.Repeat("a", 255)},
+		{"event of only non-printable runes", http.StatusOK, `{"error":"\u0001\u202e"}` + "\n", "pull_image_failed"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			manager := &Manager{docker: &pullTestEngine{client: pullStreamClient(tc.status, strings.NewReader(tc.body))}}
+			err := manager.pullImage(context.Background(), testRuntimeImage)
+			if err == nil || err.Error() != tc.want {
+				t.Fatalf("pullImage() = %v, want %q", err, tc.want)
+			}
+		})
+	}
 }

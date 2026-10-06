@@ -36,7 +36,7 @@
   "config.onedrive.has_refresh": "διαθέσιμο διακριτικό ανανέωσης",
   "config.onedrive.readonly_hint": "Όταν είναι ενεργή, επιτρέπονται μόνο λειτουργίες ανάγνωσης (χωρίς μεταφόρτωση, διαγραφή, μετακίνηση, αντιγραφή ή κοινή χρήση)",
   "config.onedrive.readonly_label": "Λειτουργία μόνο για ανάγνωση",
-  "config.onedrive.tenant_id_hint": "Χρησιμοποιήστε 'common' για προσωπικούς + εργασιακούς λογαριασμούς, 'consumers' μόνο για προσωπικούς, 'organizations' μόνο για εργασιακούς",
+  "config.onedrive.tenant_id_hint": "Χρησιμοποιήστε 'common' για προσωπικούς + εργασιακούς λογαριασμούς, 'consumers' μόνο για προσωπικούς, 'organizations' μόνο για εργασιακούς ή ένα συγκεκριμένο UUID tenant",
   "config.onedrive.tenant_id_label": "ID μισθωτή",
   "config.onedrive.test_btn": "Δοκιμή σύνδεσης",
   "config.onedrive.test_failed": "Αποτυχία",
