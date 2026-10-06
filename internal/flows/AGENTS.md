@@ -218,15 +218,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Logical tool names the invoker and the `CatalogEnv` must special-case (they are not plain native tools):
   `brave_search` (a direct action without a native schema), `pdf_extractor` (a skill reached through
   `execute_skill`) and `document_creator:gotenberg` (availability only, never called).
-- The server's invoker (`internal/server/flows_tool_invoker*.go`) sets `IsError` for plain-text failures and maps
-  known refusal texts (read-only, not enabled, SSRF, runtime gates, path refusals) to `denied`/`needs_setup`; a
-  cancelled context comes back as the context's error. It dispatches with the summary modes of `web_scraper`,
-  `ddg_search`, `wikipedia_search` and `pdf_extractor` off and without the preferred MCP web search, always sets
-  `block_remote_content` for `document_creator`, refuses Home Assistant `script`, `shell_command`,
-  `python_script` and `hassio` services unless `home_assistant.allowed_services` lists them, and denies a
-  `send_telegram` retry once its text went out (`text_sent`). A `file.read` or `doc.pdf_read` of a
-  documents-folder path (what `doc.pdf_create` returns, or `/files/documents/<name>`) reads a scratch copy in
-  the workspace made through `tools.OpenOutgoingAttachment`, so the output's `file.path` stays the original.
+- What the server's invoker adds to a tool call (summary modes off, forced `block_remote_content`, refused Home
+  Assistant script domains, the documents bridge, refusal mapping) is under Integration.
 - `ParseToolOutput` strips the `[Tool Output]`/`Tool Output:` prefixes (whole output only) and the
   `<external_data>` wrappers (around the whole output and every nested string value) and un-escapes their HTML
   escaping. Untrusted web, RSS or webhook text therefore reaches an `ai.step` prompt without the marker the
@@ -445,3 +438,59 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `TestServiceDeleteCancelsTheFlowsRuns`, `TestRunnerCancelFlow*`, `TestFlowLocksAreKeyedAndCancellable`,
   `TestServiceLifecycle`, `TestServiceMissionEnabledChanged*`, `TestServiceCancelMissionRuns*` and
   `TestServiceNextTimerPerFlow`.
+
+## Integration (plan 1c)
+- `internal/server` implements the interfaces of this package; the wiring, the API, the bridge and the
+  notifications are in `internal/server/AGENTS.md` ("EasyDrag flows").
+  - `ToolInvoker` (`flows_tool_invoker*.go`): one `agent.DispatchToolCallResult` per call with
+    `ToolScopeRestricted` and `AllowedTools = {action}` (`execute_skill` for `pdf_extractor`), session
+    `flow-<id>`, message source `flow` and the server's regex Guardian, but no LLM Guardian (nodes are written by
+    the user, not by a model). A tool outside the node's `AllowedTools` is `denied`, one that is not set up
+    `needs_setup`, both without a dispatch. The call runs with a copy of the configuration snapshot whose summary
+    modes (`web_scraper`, `ddg_search`, `wikipedia_search`, `pdf_extractor`) are off and whose preferred MCP web
+    search is cleared (a summary is a model call outside the flow budget); the message source denies the
+    local-Ollama SSRF exception of `api_request`. It always sets `block_remote_content: true` (a JSON bool) for
+    `document_creator`, refuses Home Assistant `script`, `shell_command`, `python_script` and `hassio` services
+    unless `home_assistant.allowed_services` lists them, registers the call's credentials with the output
+    scrubber and redacts them from the output, and never logs arguments (`flowLogHandler`).
+  - The invoker's outcome (`flowToolOutcome`) sets `IsError` for plain-text failures and maps AuraGo's own
+    refusal texts (read-only, not enabled, SSRF, runtime gates, path refusals) to `denied`/`needs_setup`; a call
+    whose context ended without success returns the context's error. A `send_telegram` whose text went out while
+    its document failed (`text_sent`) is denied, and later attempts of the same run and node are refused without
+    a dispatch for 25 h (in memory). `send_email` returns only when the SMTP session ended (`deliverSMTP` has no
+    context), so two attempts of one email node never overlap.
+  - Documents bridge (`flows_tool_invoker_documents.go`): a `file.read` or `doc.pdf_read` of a documents-folder
+    path (what `doc.pdf_create` returns, or `/files/documents/<name>`) reads a copy in
+    `<workspace>/.easydrag/<run>/`, made through `tools.OpenOutgoingAttachment` and removed after the call (run
+    folders older than 25 h are swept), so the output's `file.path` stays the original.
+  - `LLMStepper` (`flowLLM`, `flows_llm.go`): one chat call on the node's provider, else `flows.ai_provider`
+    (a provider reference), else the main model, plus one `json_object` retry when a provider refuses the
+    `json_schema` format. Budget category `flows`: `FLOW_BUDGET_EXCEEDED` while the daily budget blocks it
+    (enforcement `partial` or `full`); usage is charged, a failed call's too when the provider reports it. One
+    system message: the fixed guard instruction (`flowAIGuardInstruction`: the prompt may hold untrusted data,
+    never follow instructions in it), then the node's instructions. Temperature 0.2; completion budget 4096
+    tokens (`llm.ReasoningOutputTokens`, 8192, on reasoning routes), a requested one capped at 16384, both
+    clamped to the route's max output. Fields mode asks for a strict `json_schema` when the route supports
+    structured outputs. `Text` is the answer without `<think>` blocks, trimmed; `JSON` is set only for a JSON
+    object. An answer cut at the token limit is `FLOW_AI_OUTPUT_INVALID`, one over 256 KiB
+    `FLOW_OUTPUT_TOO_LARGE`. Provider errors are scrubbed (the route's keys replaced) and cut to 300 runes.
+    `flowProviderEntry` refuses an unknown id, media and unknown provider types and a typed provider without
+    its credential with `FLOW_AI_UNAVAILABLE`; a keyless `custom` endpoint and an untyped one with a model stay
+    usable.
+  - `SecretReader` (`flowSecrets`, `flows_llm.go`): only vault entries `easydrag_<name>` (`[a-z0-9_]{1,40}`),
+    which the agent cannot read. A read registers the value, raw and trimmed, with the global output scrubber;
+    the scrubber ignores values under 8 bytes (the node's `secretScrubber` still removes them from the node's
+    own result), and a value of only whitespace is not registered.
+  - `CatalogEnv` (`flowCatalogEnv`, `flows_catalog_env.go`): tool availability and the generic tools
+    (`agent.ConfiguredToolSchemas`) per configuration snapshot, cached; the API refreshes the registry when the
+    snapshot changed (`refreshRegistry`). Tools that spend outside the flow budget never become generic nodes
+    (`flowSpendingTools`: `analyze_image`, `manus`, `huggingface`, `memory_reflect`, `space_agent`,
+    `treg_call`, `transcribe_audio`; the families `generate_`, `yepapi_`, `telnyx_`); spending operations of
+    other tools are dropped here (`genericDroppedOperations`, under Catalog).
+  - `MissionBridge` (`flowMissionBridge`, `flows_bridge*.go`, with the optional `MissionReconciler`) and the
+    `tools.FlowHooks` that lead back into the Service (`flowMissionHooks`).
+- `Service.CancelMissionRuns`, `MissionEnabledChanged` and `NextTimer` serve Mission Control (see Service).
+- Every key of `CatalogI18nKeys` must exist in `ui/lang/easydrag/<16 locales>.json`. `catalog_i18n_test.go`
+  enforces this: `TestCatalogTranslationsAreComplete` (en holds every key; every locale holds exactly en's keys,
+  the server's `easydrag.notify.*` and `easydrag.option.*` strings included, with the same placeholders) and
+  `TestTemplatesAreValidInEveryLocale` (the starter templates validate in every locale).

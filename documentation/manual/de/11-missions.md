@@ -185,6 +185,14 @@ AuraGo akzeptiert **Cron-Ausdrücke** mit 5 Feldern und optional 6 Feldern mit S
 
 Für ereignisgesteuerte Missionen setze `execution_type: triggered` und wähle einen `trigger_type` (z. B. `webhook`, `email_received`, `mqtt_message`, `home_assistant_state`, `budget_warning`, `mission_completed`). Filter konfigurierst du in `trigger_config`.
 
+### Flow-Missionen (EasyDrag)
+
+Flows, die du in der Desktop-App **EasyDrag** baust, erscheinen in Mission Control als Missionen vom Typ **Flow**.
+- Ihre Auslöser sind die Auslöser-Knoten des Flows (Zeitpläne, Datum und Uhrzeit, Webhooks, E-Mail, MQTT, Home Assistant, Geräte, Fritz!Box-Anrufe, Planer, Budget, AuraGo-Start, andere Missionen). Ein Flow kann mehrere haben.
+- Flow-Läufe warten nicht in der Missions-Warteschlange. Sie laufen auf einer eigenen Engine (standardmäßig 8 gleichzeitig, `flows.max_parallel_runs`), deshalb hält eine lange Agenten-Mission einen Flow nie auf.
+- In Mission Control kannst du eine Flow-Mission aktivieren (sobald der Flow veröffentlicht ist), pausieren, sperren, ausführen und löschen, ihren laufenden Lauf abbrechen und ihren Verlauf ansehen. Wenn du die Mission löschst, löschst du auch den Flow. Die Schritte änderst du in EasyDrag.
+- Wenn eine Mission endet, erhalten `mission_completed`-Auslöser ihre Antwort als `output` (auf 2000 Bytes gekürzt). Flows als Quelle liefern zusätzlich `outputs`: die Ergebnisse ihrer letzten Schritte.
+
 ---
 
 ## Manuelle Ausführung

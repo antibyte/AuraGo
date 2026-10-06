@@ -202,6 +202,14 @@ Set `execution_type: triggered` and choose a `trigger_type`:
 
 Configure filters in `trigger_config` (e.g. email subject, MQTT topic, HA entity).
 
+### Flow missions (EasyDrag)
+
+Flows that you build in the **EasyDrag** desktop app appear in Mission Control as missions of the type **flow**.
+- Their triggers are the flow's trigger nodes (schedules, date and time, webhooks, email, MQTT, Home Assistant, devices, Fritz!Box calls, planner, budget, AuraGo start, other missions). One flow can have several.
+- Flow runs do not wait in the mission queue. They run on their own engine (8 runs at once by default, `flows.max_parallel_runs`), so a long agent mission never delays a flow.
+- In Mission Control you can activate (once the flow is published), pause, lock, run and delete a flow mission, cancel its running run and see its history. Deleting the mission deletes the flow too. Changing its steps happens in EasyDrag.
+- When a mission finishes, `mission_completed` triggers receive its answer as `output` (cut to 2000 bytes). Flow sources also pass `outputs`: the results of their final steps.
+
 ---
 
 ## Manual Execution
