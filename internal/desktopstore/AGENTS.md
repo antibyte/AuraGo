@@ -64,6 +64,17 @@ Store app configuration, runtime, assets, and publication.
   Verify with Store/handler/Tailscale `TestGodsEye*`, the UI browser contract,
   and anonymous image pulls for both architectures before claiming publication.
 
+### Catalog Host Binds
+
+- Host binds declared in `DefaultCatalog()` (`HostBinds` of an entry or a
+  companion, such as the read-only Docker socket of Dozzle, the Beszel agent
+  and the Arcane socket proxy) are the only binds the Store passes as trusted
+  to `tools.DockerCreateRequestContextWithTrustedBinds`, matched by exact host
+  path, container path and read-only flag against the code catalog at create
+  time. Persisted records, managed workspace binds and every other bind keep
+  the generic Docker bind policy. Verify
+  `TestToolsDockerAdapterTrustsOnlyCatalogHostBinds`.
+
 ## Verification
 
 - Desktop Store jobs inherit the Desktop revocation context. Stop remains an

@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 
-	"aurago/internal/dockerutil"
 	"aurago/internal/tools"
 )
 
@@ -50,7 +49,7 @@ func (a ToolsDockerAdapter) CreateContainer(ctx context.Context, spec ContainerS
 	if strings.TrimSpace(spec.Name) != "" {
 		endpoint += "?name=" + url.QueryEscape(spec.Name)
 	}
-	data, code, err := tools.DockerRequestContext(ctx, a.Config, http.MethodPost, endpoint, string(body))
+	data, code, err := tools.DockerCreateRequestContextWithTrustedBinds(ctx, a.Config, endpoint, string(body), catalogTrustedBinds(spec))
 	if err != nil {
 		return "", err
 	}
@@ -277,11 +276,7 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 		if strings.TrimSpace(bind.HostPath) == "" || strings.TrimSpace(bind.ContainerPath) == "" {
 			continue
 		}
-		mode := "rw"
-		if bind.ReadOnly {
-			mode = "ro"
-		}
-		binds = append(binds, dockerutil.FormatBindMount(bind.HostPath, bind.ContainerPath, mode))
+		binds = append(binds, dockerHostBindString(bind))
 	}
 	restart := strings.TrimSpace(spec.Restart)
 	if restart == "" {

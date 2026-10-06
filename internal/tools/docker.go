@@ -261,6 +261,30 @@ func DockerRequestContext(ctx context.Context, cfg DockerConfig, method, endpoin
 	if err := validateDockerCreateRequestBinds(cfg, method, endpoint, body); err != nil {
 		return nil, 0, err
 	}
+	return dockerRequestContextValidated(ctx, cfg, method, endpoint, body)
+}
+
+// DockerCreateRequestContextWithTrustedBinds posts a /containers/create body
+// like DockerRequestContext, but HostConfig.Binds strings listed exactly in
+// trusted skip validateDockerBindMount. Only code-pinned callers use it (the
+// Software Store adapter passes its catalog's own host binds); agent dispatch
+// and every other caller keep the full bind policy.
+func DockerCreateRequestContextWithTrustedBinds(ctx context.Context, cfg DockerConfig, endpoint, body string, trusted []string) ([]byte, int, error) {
+	if !strings.HasPrefix(strings.TrimSpace(endpoint), "/containers/create") {
+		return nil, 0, fmt.Errorf("trusted Docker binds apply only to /containers/create")
+	}
+	if err := requireDockerMutationPermission(); err != nil {
+		return nil, 0, err
+	}
+	if err := validateDockerCreateRequestBindsTrusted(cfg, http.MethodPost, endpoint, body, trusted); err != nil {
+		return nil, 0, err
+	}
+	return dockerRequestContextValidated(ctx, cfg, http.MethodPost, endpoint, body)
+}
+
+// dockerRequestContextValidated sends a request whose gates and bind checks
+// already ran.
+func dockerRequestContextValidated(ctx context.Context, cfg DockerConfig, method, endpoint, body string) ([]byte, int, error) {
 	client := getPullDockerClient(cfg)
 	var reqBody io.Reader
 	if body != "" {
@@ -1162,6 +1186,12 @@ func dockerContextWithFallbackTimeout(ctx context.Context, timeout time.Duration
 }
 
 func validateDockerCreateRequestBinds(cfg DockerConfig, method, endpoint, body string) error {
+	return validateDockerCreateRequestBindsTrusted(cfg, method, endpoint, body, nil)
+}
+
+// validateDockerCreateRequestBindsTrusted validates the binds of a
+// /containers/create body; binds listed exactly in trusted are skipped.
+func validateDockerCreateRequestBindsTrusted(cfg DockerConfig, method, endpoint, body string, trusted []string) error {
 	if strings.ToUpper(strings.TrimSpace(method)) != http.MethodPost {
 		return nil
 	}
@@ -1175,10 +1205,14 @@ func validateDockerCreateRequestBinds(cfg DockerConfig, method, endpoint, body s
 	if err := json.Unmarshal([]byte(body), &payload); err != nil {
 		return fmt.Errorf("invalid Docker create payload: %w", err)
 	}
-	return validateDockerCreatePayloadBinds(cfg, payload)
+	return validateDockerCreatePayloadBindsTrusted(cfg, payload, trusted)
 }
 
 func validateDockerCreatePayloadBinds(cfg DockerConfig, payload map[string]interface{}) error {
+	return validateDockerCreatePayloadBindsTrusted(cfg, payload, nil)
+}
+
+func validateDockerCreatePayloadBindsTrusted(cfg DockerConfig, payload map[string]interface{}, trusted []string) error {
 	hostConfig, ok := payload["HostConfig"].(map[string]interface{})
 	if !ok {
 		return nil
@@ -1187,10 +1221,16 @@ func validateDockerCreatePayloadBinds(cfg DockerConfig, payload map[string]inter
 	if !ok || rawBinds == nil {
 		return nil
 	}
+	validate := func(bind string) error {
+		if dockerBindTrusted(bind, trusted) {
+			return nil
+		}
+		return validateDockerBindMount(cfg, bind)
+	}
 	switch binds := rawBinds.(type) {
 	case []string:
 		for _, bind := range binds {
-			if err := validateDockerBindMount(cfg, bind); err != nil {
+			if err := validate(bind); err != nil {
 				return err
 			}
 		}
@@ -1200,7 +1240,7 @@ func validateDockerCreatePayloadBinds(cfg DockerConfig, payload map[string]inter
 			if !ok {
 				return fmt.Errorf("invalid Docker create payload HostConfig.Binds entry type %T", raw)
 			}
-			if err := validateDockerBindMount(cfg, bind); err != nil {
+			if err := validate(bind); err != nil {
 				return err
 			}
 		}
@@ -1208,6 +1248,16 @@ func validateDockerCreatePayloadBinds(cfg DockerConfig, payload map[string]inter
 		return fmt.Errorf("invalid Docker create payload HostConfig.Binds type %T", rawBinds)
 	}
 	return nil
+}
+
+// dockerBindTrusted reports whether bind is listed exactly in trusted.
+func dockerBindTrusted(bind string, trusted []string) bool {
+	for _, candidate := range trusted {
+		if candidate != "" && candidate == bind {
+			return true
+		}
+	}
+	return false
 }
 
 // DockerPullImage pulls an image from a registry.

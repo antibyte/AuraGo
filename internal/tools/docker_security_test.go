@@ -326,3 +326,65 @@ func TestDockerCreateContainerRejectsReservedManagedNames(t *testing.T) {
 		t.Fatalf("created = %v, want the two desktop containers", created)
 	}
 }
+
+func TestDockerCreateRequestContextWithTrustedBindsTrustsOnlyExactBinds(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	created := 0
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/containers/create") {
+			created++
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	cfg := DockerConfig{Host: host, WorkspaceDir: t.TempDir()}
+	socketRO := "/var/run/docker.sock:/var/run/docker.sock:ro"
+	body := func(binds ...string) string {
+		payload, _ := json.Marshal(map[string]any{"Image": "ghcr.io/amir20/dozzle:latest", "HostConfig": map[string]any{"Binds": binds}})
+		return string(payload)
+	}
+	ctx := context.Background()
+
+	if _, code, err := DockerCreateRequestContextWithTrustedBinds(ctx, cfg, "/containers/create?name=aurago-store-dozzle", body(socketRO), []string{socketRO}); err != nil || code != http.StatusCreated {
+		t.Fatalf("trusted catalog bind: code=%d err=%v", code, err)
+	}
+	for name, tc := range map[string]struct {
+		binds   []string
+		trusted []string
+	}{
+		"untrusted socket":        {[]string{socketRO}, nil},
+		"writable socket differs": {[]string{"/var/run/docker.sock:/var/run/docker.sock"}, []string{socketRO}},
+		"extra host root next to": {[]string{socketRO, "/:/host"}, []string{socketRO}},
+	} {
+		if _, _, err := DockerCreateRequestContextWithTrustedBinds(ctx, cfg, "/containers/create?name=x", body(tc.binds...), tc.trusted); err == nil || !strings.Contains(err.Error(), "mounting sensitive host path") {
+			t.Fatalf("%s: error = %v, want sensitive-path denial", name, err)
+		}
+	}
+	if _, _, err := DockerRequestContext(ctx, cfg, http.MethodPost, "/containers/create?name=x", body(socketRO)); err == nil {
+		t.Fatal("DockerRequestContext must keep rejecting the socket bind")
+	}
+	if _, _, err := DockerCreateRequestContextWithTrustedBinds(ctx, cfg, "/containers/x/start", "", []string{socketRO}); err == nil {
+		t.Fatal("trusted binds must apply to /containers/create only")
+	}
+	if created != 1 {
+		t.Fatalf("created = %d, want only the trusted create", created)
+	}
+}
+
+func TestDockerCreateContainerStillRejectsDockerSocketBind(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	var called bool
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+	})
+	// The agent's docker create/run path: binds supplied by the model.
+	result := DockerCreateContainerWithOptions(DockerConfig{Host: host, WorkspaceDir: t.TempDir()}, "dozzle", "ghcr.io/amir20/dozzle:latest", nil, nil,
+		[]string{"/var/run/docker.sock:/var/run/docker.sock:ro"}, nil, "no", nil, ContainerCreateOptions{})
+	if !strings.Contains(result, "mounting sensitive host path") || called {
+		t.Fatalf("result = %s (called=%v), want the agent-supplied socket bind rejected", result, called)
+	}
+}
