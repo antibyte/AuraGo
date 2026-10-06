@@ -464,3 +464,55 @@ func TestSSHConnectorRestartFallbacksDetachTheEggFromTheSession(t *testing.T) {
 		t.Fatalf("Rollback restart = %q, want the service restart with a detached nohup fallback", restart)
 	}
 }
+
+func TestSSHConnectorPermanentHatchStopsAProcessModeEggFirst(t *testing.T) {
+	payload := sshDeployTestPayload()
+	payload.Permanent = true
+	cmds := sshDeployCommands(t, payload)
+	start := cmds[len(cmds)-1]
+	stop := strings.Index(start, "kill -TERM")
+	restart := strings.Index(start, "systemctl --user restart aurago-egg-12345678")
+	if stop < 0 || restart < 0 || stop > restart {
+		t.Fatalf("service start = %q, want an egg left running in process mode stopped before the unit restarts", start)
+	}
+	assertEggExecutableMatch(t, "service start", start)
+}
+
+func TestSSHEggProcessScriptsAcceptTheCanonicalBaseDir(t *testing.T) {
+	// /proc/PID/exe is canonical; $HOME may be a symlink (for example
+	// /home -> /var/home), so the resolved base directory must match too.
+	find := sshEggFindProcessesScript("~/.aurago-egg-12345678")
+	for _, want := range []string{
+		`rdir=$(cd "$dir" 2>/dev/null && pwd -P)`,
+		`"$rdir/aurago"|"$rdir/aurago (deleted)")`,
+		`[ -n "$rdir" ]`, // a missing directory must not match "/aurago"
+	} {
+		if !strings.Contains(find, want) {
+			t.Fatalf("process lookup lacks %q: %s", want, find)
+		}
+	}
+	if !strings.HasPrefix(sshEggStopRunningScript("~/.aurago-egg-12345678"), find) {
+		t.Fatal("the stop script must use the same lookup")
+	}
+}
+
+func TestSSHEggStopScriptRechecksTheExecutableWhileWaiting(t *testing.T) {
+	stop := strings.TrimPrefix(sshEggStopRunningScript("~/.aurago-egg-12345678"), sshEggFindProcessesScript("~/.aurago-egg-12345678"))
+	// A PID can be reused by another process during the wait, so liveness
+	// is the executable check again, never kill -0, and SIGKILL only goes
+	// to the re-checked list.
+	if strings.Contains(stop, "kill -0") {
+		t.Fatalf("the wait uses kill -0, which a reused PID passes: %s", stop)
+	}
+	for _, want := range []string{
+		`for p in $pids; do isegg "$p" && left="$left $p"; done; pids=$left;`,
+		`kill -KILL $left`,
+		// a sleep without fractions must not spin; the cap stays 10 s either way
+		`if sleep 0.2 2>/dev/null; then i=$((i+1)); else sleep 1; i=$((i+5)); fi`,
+		`while [ $i -lt 50 ]`,
+	} {
+		if !strings.Contains(stop, want) {
+			t.Fatalf("stop script lacks %q: %s", want, stop)
+		}
+	}
+}

@@ -244,9 +244,12 @@ WantedBy=multi-user.target
 		return fmt.Errorf("failed to write service unit: %w", err)
 	}
 
-	// restart, not start: start does nothing for an active unit, so a hatch
-	// over a running egg service would keep the old process and its old key.
-	startCmd := fmt.Sprintf("systemctl --user daemon-reload && systemctl --user enable %s && systemctl --user restart %s", serviceName, serviceName)
+	// An egg a previous hatch started in process mode is stopped first, so a
+	// switch to permanent never leaves it running with the old key. restart,
+	// not start: start does nothing for an active unit, so a hatch over a
+	// running egg service would keep the old process and its old key.
+	startCmd := sshEggStopRunningScript(baseDir) +
+		fmt.Sprintf("systemctl --user daemon-reload && systemctl --user enable %s && systemctl --user restart %s", serviceName, serviceName)
 	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, startCmd); err != nil {
 		return fmt.Errorf("failed to start service: %w", err)
 	}
@@ -254,24 +257,35 @@ WantedBy=multi-user.target
 	return nil
 }
 
-// sshEggFindProcessesScript sets $pids to the SSH user's egg processes
-// started from baseDir, in process mode or by the systemd unit. It matches by
-// executable (<baseDir>/aurago, or "(deleted)" once an upload replaced the
-// file), never by command line: a process-mode egg runs as "./aurago", and
-// pgrep -f/pkill -f also match the remote shell that carries the pattern.
+// sshEggFindProcessesScript defines isegg (is PID $1 an egg from baseDir?)
+// and sets $pids to the SSH user's egg processes started from baseDir, in
+// process mode or by the systemd unit. It matches by executable
+// (<baseDir>/aurago, or "(deleted)" once an upload replaced the file), never
+// by command line: a process-mode egg runs as "./aurago", and pgrep -f/pkill
+// -f also match the remote shell that carries the pattern. /proc/PID/exe is
+// canonical, so the resolved directory (rdir) matches too when $HOME is a
+// symlink; a missing directory never matches.
 func sshEggFindProcessesScript(baseDir string) string {
-	return "dir=" + shellPath(baseDir) + "; pids=; " +
-		`for p in $(pgrep -u "$(id -u)" -x aurago 2>/dev/null); do ` +
-		`case "$(readlink "/proc/$p/exe" 2>/dev/null)" in "$dir/aurago"|"$dir/aurago (deleted)") pids="$pids $p";; esac; done; `
+	return "dir=" + shellPath(baseDir) + `; rdir=$(cd "$dir" 2>/dev/null && pwd -P); ` +
+		`isegg() { e=$(readlink "/proc/$1/exe" 2>/dev/null) || return 1; ` +
+		`case "$e" in "$dir/aurago"|"$dir/aurago (deleted)") return 0;; esac; ` +
+		`[ -n "$rdir" ] || return 1; ` +
+		`case "$e" in "$rdir/aurago"|"$rdir/aurago (deleted)") return 0;; esac; return 1; }; ` +
+		`pids=; for p in $(pgrep -u "$(id -u)" -x aurago 2>/dev/null); do isegg "$p" && pids="$pids $p"; done; `
 }
 
 // sshEggStopRunningScript stops the egg processes sshEggFindProcessesScript
-// finds: SIGTERM, up to 10 s to exit, then SIGKILL.
+// finds: SIGTERM, up to 10 s to exit, then SIGKILL. While waiting it keeps
+// only PIDs that are still this egg's executable, so a PID the kernel reused
+// for another process is never killed. Without fractional sleep it sleeps 1 s
+// and counts 5 rounds, keeping the 10 s cap.
 func sshEggStopRunningScript(baseDir string) string {
 	return sshEggFindProcessesScript(baseDir) +
-		`if [ -n "$pids" ]; then kill -TERM $pids 2>/dev/null; alive=1; i=0; ` +
-		`while [ $i -lt 50 ]; do alive=; for p in $pids; do kill -0 "$p" 2>/dev/null && alive=1; done; [ -z "$alive" ] && break; sleep 0.2; i=$((i+1)); done; ` +
-		`if [ -n "$alive" ]; then kill -KILL $pids 2>/dev/null; fi; fi; `
+		`if [ -n "$pids" ]; then kill -TERM $pids 2>/dev/null; i=0; ` +
+		`while [ $i -lt 50 ]; do left=; for p in $pids; do isegg "$p" && left="$left $p"; done; pids=$left; [ -z "$pids" ] && break; ` +
+		`if sleep 0.2 2>/dev/null; then i=$((i+1)); else sleep 1; i=$((i+5)); fi; done; ` +
+		`left=; for p in $pids; do isegg "$p" && left="$left $p"; done; ` +
+		`if [ -n "$left" ]; then kill -KILL $left 2>/dev/null; fi; fi; `
 }
 
 // sshEggDetachedStart starts the egg from baseDir in process mode. Only nohup
