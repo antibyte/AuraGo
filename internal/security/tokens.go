@@ -233,13 +233,21 @@ func generateCYDToken() (string, error) {
 	return tokenPrefix + string(body), nil
 }
 
-func scopesIncludeCYD(scopes []string) bool {
+// scopesExactlyCYD reports whether the scope set is the single device scope
+// "cyd". Only that set may use the short on-glass token.
+func scopesExactlyCYD(scopes []string) bool {
+	seen := false
 	for _, s := range scopes {
-		if strings.EqualFold(strings.TrimSpace(s), "cyd") {
-			return true
+		switch strings.ToLower(strings.TrimSpace(s)) {
+		case "":
+			continue
+		case "cyd":
+			seen = true
+		default:
+			return false
 		}
 	}
-	return false
+	return seen
 }
 
 // NormalizeAPIToken strips grouping and ensures the aura_ prefix.
@@ -277,7 +285,13 @@ func FormatCYDTokenDisplay(raw string) string {
 	return body[:3] + " " + body[3:6] + " " + body[6:]
 }
 
+// visibleTokenPrefix is the stored display hint for a token. A short CYD body
+// is shown as "aura_..." because every revealed character would cut its
+// already limited entropy.
 func visibleTokenPrefix(raw string) string {
+	if len(raw) == len(tokenPrefix)+CYDTokenBodyLen && strings.HasPrefix(raw, tokenPrefix) {
+		return tokenPrefix + "..."
+	}
 	if len(raw) >= len(tokenPrefix)+3 && strings.HasPrefix(raw, tokenPrefix) {
 		return raw[:len(tokenPrefix)+3] + "..."
 	}
@@ -300,7 +314,7 @@ func (tm *TokenManager) Create(name string, scopes []string, expiresAt *time.Tim
 
 	var raw string
 	var err error
-	if scopesIncludeCYD(scopes) {
+	if scopesExactlyCYD(scopes) {
 		raw, err = generateCYDToken()
 	} else {
 		raw, err = generateToken()

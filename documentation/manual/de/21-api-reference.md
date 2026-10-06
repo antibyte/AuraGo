@@ -1626,9 +1626,11 @@ Content-Type: application/json
 
 {
   "name": "API-Zugriff",
-  "scopes": ["read", "write"]
+  "scopes": ["desktop:read"]
 }
 ```
+
+`scopes` ist standardmäßig `["webhook"]`. Erlaubt sind `admin`, `webhook`, `cyd`, `go2rtc.view`, `desktop:read`, `desktop:write`, `desktop:admin`, `desktop:remote`, `desktop:remote:device:<id>` und `desktop:remote:tag:<tag>`; unbekannte Scopes werden mit 400 abgelehnt, und `cyd` (der kurze Code für das Display-Glas) gilt nur für das Gerät und lässt sich nicht mit anderen Scopes kombinieren.
 
 **Antwort:**
 ```json

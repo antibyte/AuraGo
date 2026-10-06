@@ -19,6 +19,7 @@ This package owns reusable primitives; server owns session and HTTP policy.
 - Cache only completed valid Guardian verdicts. Provider failures are unavailable scans, never cached domain decisions.
 - Imported backup metadata cannot grant agent readability. Retain existing local grants only under the Vault's matching-value rules; new imported secrets default hidden.
 - Token files use synced private temporary files and `fileutil` replacement. Cast media tickets expire, bind one path and invalidate after process restart; they grant GET/HEAD media reads only.
+- Only a scope set that is exactly `cyd` gets the short on-glass token (`scopesExactlyCYD`); `cyd` mixed with any other scope gets a full-entropy token. A short token's stored prefix is `aura_...` and reveals no body characters. Verify `TestCreateMixedScopesNeverUsesShortToken` and `TestCYDTokenPrefixHidesBody`.
 
 ## Work Guidance
 

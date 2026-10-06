@@ -77,8 +77,8 @@ func TestCreateCYDScopeUsesShortToken(t *testing.T) {
 	if _, ok := tm.Validate(grouped, "cyd"); !ok {
 		t.Fatalf("grouped %q should validate", grouped)
 	}
-	if !strings.HasPrefix(meta.Prefix, "aura_") {
-		t.Fatalf("meta prefix %q", meta.Prefix)
+	if meta.Prefix != tokenPrefix+"..." {
+		t.Fatalf("meta prefix %q must not reveal CYD body characters", meta.Prefix)
 	}
 
 	long, _, err := tm.Create("webhook", []string{"webhook"}, nil)
@@ -87,5 +87,73 @@ func TestCreateCYDScopeUsesShortToken(t *testing.T) {
 	}
 	if len(long) != 37 {
 		t.Fatalf("webhook token should stay long, got %q", long)
+	}
+}
+
+func newCYDTestTokenManager(t *testing.T) *TokenManager {
+	t.Helper()
+	dir := t.TempDir()
+	tm, err := NewTokenManager(newTokenStoreTestVault(t, dir, "c"), filepath.Join(dir, "tokens.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tm
+}
+
+func TestCreateMixedScopesNeverUsesShortToken(t *testing.T) {
+	tm := newCYDTestTokenManager(t)
+	for _, scopes := range [][]string{{"cyd", "admin"}, {"admin", "cyd"}, {"cyd", "webhook"}, {"desktop:admin", " CYD "}} {
+		raw, meta, err := tm.Create("mixed", scopes, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(raw) != len(tokenPrefix)+32 {
+			t.Fatalf("scopes %q must get a full-entropy token, got %d chars", scopes, len(raw))
+		}
+		if _, ok := tm.Validate(raw, scopes[0]); !ok {
+			t.Fatalf("scopes %q: long token must still validate for %q", scopes, scopes[0])
+		}
+		if meta.Prefix != raw[:len(tokenPrefix)+3]+"..." {
+			t.Fatalf("scopes %q: long token prefix = %q", scopes, meta.Prefix)
+		}
+	}
+}
+
+func TestScopesExactlyCYD(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		scopes []string
+		want   bool
+	}{
+		{[]string{"cyd"}, true},
+		{[]string{" CYD "}, true},
+		{[]string{"cyd", ""}, true},
+		{[]string{"cyd", "cyd"}, true},
+		{nil, false},
+		{[]string{""}, false},
+		{[]string{"admin"}, false},
+		{[]string{"cyd", "admin"}, false},
+		{[]string{"webhook", "cyd"}, false},
+		{[]string{"cyd", "desktop:read"}, false},
+	}
+	for _, tc := range cases {
+		if got := scopesExactlyCYD(tc.scopes); got != tc.want {
+			t.Errorf("scopesExactlyCYD(%q) = %v, want %v", tc.scopes, got, tc.want)
+		}
+	}
+}
+
+func TestCYDTokenPrefixHidesBody(t *testing.T) {
+	t.Parallel()
+	short := "aura_K7M2PQ9XH"
+	if len(short) != len(tokenPrefix)+CYDTokenBodyLen {
+		t.Fatalf("fixture length %d, want %d", len(short), len(tokenPrefix)+CYDTokenBodyLen)
+	}
+	if got := visibleTokenPrefix(short); got != tokenPrefix+"..." {
+		t.Fatalf("CYD prefix = %q, want %q", got, tokenPrefix+"...")
+	}
+	legacy := "aura_0123456789abcdef0123456789abcdef"
+	if got := visibleTokenPrefix(legacy); got != "aura_012..." {
+		t.Fatalf("long token prefix = %q, want aura_012...", got)
 	}
 }
