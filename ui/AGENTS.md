@@ -578,11 +578,21 @@ worker. Keep packaging, recovery and offline instructions in
   Reduced motion, unavailable WebGL, missing textures and context loss expose
   the complete local poster. Keep posters aligned with the rendered scene and
   preserve source provenance in `img/galaxy/CREDITS.md`.
-  Galaxy chat follows the supplied orbital-glass reference: a violet/cyan/gold
-  outlined header, local orbit wordmark, left navigation rail, orb welcome card
-  and a floating composer ordered Voice, Live, File, Tools, input, Send.
-  Desktop header/composer share width and resting height, with 16px edge gaps;
-  narrow touch views retain the input above the controls and 12px edge gaps.
+  Galaxy chat is an orbital-glass cockpit: a violet/cyan/gold outlined header
+  with the local orbit wordmark and a clock segment at its right end, a footer
+  composer ordered Voice, Live, File, Tools, input, Send, and two equal glass
+  rails between them: navigation on the left (Desktop, Integrations,
+  Conversations, Dashboard, Missions, Config as icon + caption) and the live
+  status pills (connection, tokens, budget, credits, debug) on the right, moved
+  there by `galaxy-interface.js` and restored on exit. Header and footer span
+  the full width with 16px gaps on every side and share their resting height;
+  the rails sit 16px below/above them with the same width (`--galaxy-rail-width`)
+  and the chat lane is centered between them (`--galaxy-lane-inset`). The orb
+  welcome card is a centered column with a connection chip. No floating clock
+  plate, no mottos, no horizontal offsets. Narrow touch views hide logo, clock
+  and status rail, keep a 46px icon-only navigation rail, retain the input above
+  the controls and use 12px edge gaps. Static contract:
+  `TestChatFrontend_GalaxyFrameStaysSymmetric`.
   Keep its styles scoped to `[data-theme="galaxy"]` in `css/chat-themes.css`.
   `galaxy-interface.js` lazily relocates the real composer/drawer controls;
   comment anchors restore the exact original order on theme exit. Do not clone
