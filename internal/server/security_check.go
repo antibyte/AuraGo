@@ -604,7 +604,7 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		if route == "agent" && sipBindsAllInterfaces(cfg.SIP.BindHost) {
 			hints = append(hints, SecurityHint{
 				ID: "sip_auto_answer_all_interfaces", Severity: SevWarning,
-				Title: "SIP auto-answers on all interfaces",
+				Title: "SIP: agent auto-answers on all interfaces",
 				Description: "sip.inbound.route is \"agent\" and the SIP socket binds to every interface. " +
 					"Any host that can reach the socket and pass the peer and caller lists is answered automatically. " +
 					"Set sip.bind_host to the concrete LAN address that reaches your phone system unless NAT or Tailscale needs the wildcard, " +
@@ -615,26 +615,28 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		if route != "reject" && sipCallersWildcard(cfg.SIP.Inbound.AllowedCallers) && sipPeersIncludeSubnet(cfg.SIP.Inbound.TrustedPeerCIDRs) {
 			hints = append(hints, SecurityHint{
 				ID: "sip_wildcard_callers_cidr_peers", Severity: SevWarning,
-				Title: "SIP accepts every caller from a whole subnet",
-				Description: "sip.inbound.allowed_callers contains \"*\" and sip.inbound.trusted_peer_cidrs lists a subnet. " +
-					"Caller identity then rests on the UDP source address alone. " +
+				Title: "SIP: every caller accepted from a whole subnet",
+				Description: "sip.inbound.allowed_callers contains a pattern that matches every caller (such as \"*\" or \"*@*\") and sip.inbound.trusted_peer_cidrs lists a subnet. " +
+					"Caller identity then rests on the source address alone. " +
 					"List the exact registrar or PBX IP instead of a subnet, or name the callers.",
 				AutoFixable: false,
 			})
 		}
 	}
 
-	// 24c. fritzbox_plaintext_sessions — Fritz!Box session IDs travel in clear text
-	// over HTTP; harmless for reads, but a writable feature group lets a LAN sniffer
-	// replay the SID.
+	// 24c. fritzbox_plaintext_sessions — over HTTP, Fritz!Box session IDs travel in
+	// clear text on read and write paths alike, and a sniffed SID carries the
+	// Fritz!Box account's rights, not AuraGo's readonly limits. The hint fires once
+	// AuraGo itself is allowed to write.
 	if cfg.FritzBox.Enabled && !cfg.FritzBox.HTTPS && fritzBoxAnyGroupWritable(cfg) {
 		hints = append(hints, SecurityHint{
 			ID: "fritzbox_plaintext_sessions", Severity: SevWarning,
 			Title: "Fritz!Box control over plain HTTP",
 			Description: "fritzbox.https is false while at least one feature group allows writes. " +
-				"Session IDs and digest exchanges cross the LAN unencrypted. " +
-				"Set fritzbox.https: true (TR-064 moves from port 49000 to 49443; set fritzbox.insecure_skip_verify for the box's self-signed certificate) " +
-				"or keep the writable groups read-only.",
+				"Session IDs and digest exchanges cross the LAN unencrypted on reads and writes alike. " +
+				"AuraGo's readonly flags limit AuraGo, not a captured session, which carries the rights of the Fritz!Box account. " +
+				"Set fritzbox.https: true first (TR-064 moves from port 49000 to 49443; set fritzbox.insecure_skip_verify for the box's self-signed certificate), " +
+				"and log in with a Fritz!Box user restricted to the rights AuraGo needs.",
 			AutoFixable: false,
 		})
 	}
@@ -787,9 +789,24 @@ func sipBindsAllInterfaces(bindHost string) bool {
 }
 
 // sipCallersWildcard reports whether the caller allowlist admits every caller.
+// It mirrors the wildcardMatch syntax in internal/sipphone/policy.go, where '*'
+// matches any sequence and '?' one character, and patterns are matched against
+// the canonical "sip:user@host" form: a pattern (optionally "sip:"-prefixed)
+// whose user and domain parts each hold only wildcards with at least one '*',
+// such as "*", "**", "*@*" or "sip:*@*", matches every caller.
 func sipCallersWildcard(callers []string) bool {
 	return slices.ContainsFunc(callers, func(caller string) bool {
-		return strings.TrimSpace(caller) == "*"
+		caller = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(caller)), "sip:")
+		parts := strings.Split(caller, "@")
+		if len(parts) > 2 {
+			return false
+		}
+		for _, part := range parts {
+			if !strings.Contains(part, "*") || strings.Trim(part, "*?") != "" {
+				return false
+			}
+		}
+		return true
 	})
 }
 

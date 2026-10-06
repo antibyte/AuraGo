@@ -388,6 +388,23 @@ func TestCheckSecurityWarnsOnSIPAutoAnswerAndWildcardCallers(t *testing.T) {
 		if hint.AutoFixable || len(hint.FixPatch) != 0 {
 			t.Fatalf("%s must stay a manual hint, got %#v", id, hint)
 		}
+		if !strings.HasPrefix(hint.Title, "SIP: ") {
+			t.Fatalf("%s title must carry the SIP: prefix, got %q", id, hint.Title)
+		}
+		if strings.Contains(hint.Description, "UDP") {
+			t.Fatalf("%s must not assume UDP transport: %s", id, hint.Description)
+		}
+	}
+	for id, want := range map[string][]string{
+		"sip_auto_answer_all_interfaces":  {"sip.inbound.route", "sip.bind_host", "\"manual\""},
+		"sip_wildcard_callers_cidr_peers": {"sip.inbound.allowed_callers", "sip.inbound.trusted_peer_cidrs", "source address"},
+	} {
+		hint := findSecurityHint(hints, id)
+		for _, fragment := range want {
+			if !strings.Contains(hint.Description, fragment) {
+				t.Fatalf("%s description must mention %q: %s", id, fragment, hint.Description)
+			}
+		}
 	}
 
 	precise := sipAutoAnswerConfig()
@@ -444,6 +461,16 @@ func TestCheckSecuritySIPWildcardCallersNeedSubnetPeer(t *testing.T) {
 		{name: "ipv6 host in cidr form", peers: []string{"fd00::1/128"}, callers: []string{"*"}, route: "agent", want: false},
 		{name: "exact peer", peers: []string{"192.168.178.1"}, callers: []string{"*"}, route: "agent", want: false},
 		{name: "named callers", peers: []string{"192.168.178.0/24"}, callers: []string{"alice", "**610"}, route: "agent", want: false},
+		{name: "wildcard user at wildcard domain", peers: []string{"192.168.178.0/24"}, callers: []string{"*@*"}, route: "agent", want: true},
+		{name: "sip uri wildcard", peers: []string{"192.168.178.0/24"}, callers: []string{"sip:*@*"}, route: "agent", want: true},
+		{name: "uppercase sip uri wildcard", peers: []string{"192.168.178.0/24"}, callers: []string{" SIP:*@* "}, route: "agent", want: true},
+		{name: "repeated stars", peers: []string{"192.168.178.0/24"}, callers: []string{"**"}, route: "agent", want: true},
+		{name: "star with single-character wildcard", peers: []string{"192.168.178.0/24"}, callers: []string{"alice", "*?"}, route: "agent", want: true},
+		{name: "wildcard user at fixed domain", peers: []string{"192.168.178.0/24"}, callers: []string{"*@pbx.example.com"}, route: "agent", want: false},
+		{name: "fixed user at wildcard domain", peers: []string{"192.168.178.0/24"}, callers: []string{"alice@*"}, route: "agent", want: false},
+		{name: "number prefix", peers: []string{"192.168.178.0/24"}, callers: []string{"+49*"}, route: "agent", want: false},
+		{name: "single-character wildcard only", peers: []string{"192.168.178.0/24"}, callers: []string{"?"}, route: "agent", want: false},
+		{name: "fritz internal number", peers: []string{"192.168.178.0/24"}, callers: []string{"**610"}, route: "agent", want: false},
 		{name: "reject route", peers: []string{"192.168.178.0/24"}, callers: []string{"*"}, route: "reject", want: false},
 	} {
 		cfg := sipAutoAnswerConfig()
@@ -518,9 +545,18 @@ func TestCheckSecurityWarnsOnWritableFritzBoxGroupsOverHTTP(t *testing.T) {
 		if hint.AutoFixable || len(hint.FixPatch) != 0 {
 			t.Fatalf("fritzbox_plaintext_sessions must stay a manual hint, got %#v", hint)
 		}
-		for _, want := range []string{"fritzbox.https: true", "49443", "insecure_skip_verify"} {
+		for _, want := range []string{
+			"fritzbox.https: true", "49443", "fritzbox.insecure_skip_verify",
+			"readonly flags limit AuraGo, not a captured session",
+			"restricted to the rights AuraGo needs",
+		} {
 			if !strings.Contains(hint.Description, want) {
 				t.Fatalf("description must mention %q: %s", want, hint.Description)
+			}
+		}
+		for _, misleading := range []string{"keep the writable groups read-only", "harmless for reads"} {
+			if strings.Contains(hint.Description, misleading) {
+				t.Fatalf("description must not suggest %q clears the sniffing risk: %s", misleading, hint.Description)
 			}
 		}
 

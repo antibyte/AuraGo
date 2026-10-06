@@ -666,7 +666,7 @@ fritzbox:
   username: "admin"
 ```
 
-Mit `https: true` wird der Standard-TR-064-Port 49000 automatisch auf AVMs TLS-Port 49443 umgestellt (für das selbstsignierte Zertifikat der Box `insecure_skip_verify: true` setzen), und die Sicherheitsprüfung warnt mit `fritzbox_plaintext_sessions`, solange eine aktivierte Funktionsgruppe `readonly: false` über unverschlüsseltes HTTP nutzt.
+Mit `https: true` wird der Standard-TR-064-Port 49000 automatisch auf AVMs TLS-Port 49443 umgestellt (für das selbstsignierte Zertifikat der Box `insecure_skip_verify: true` setzen). Die Sicherheitsprüfung warnt mit `fritzbox_plaintext_sessions`, solange eine aktivierte Funktionsgruppe mit `readonly: false` über unverschlüsseltes HTTP läuft. Session-IDs gehen auch beim Lesen im Klartext über das LAN, und AuraGos `readonly`-Schalter begrenzen nur AuraGo, nicht eine mitgeschnittene Session, die die Rechte des Fritz!Box-Kontos trägt. Aktiviere deshalb zuerst `https` und melde dich mit einem Fritz!Box-Benutzer an, der nur die Rechte hat, die AuraGo braucht.
 
 ### Widget im Virtuellen Desktop
 Der Virtuelle Desktop bringt ein standardmäßig ausgeblendetes **Fritz!Box**-Widget mit, das du über die Widget-Leiste hinzufügst. Es ist rein lesend und zeigt die wichtigsten Router-Daten auf blätterbaren Seiten (Punkte, Pfeile, Pfeiltasten, horizontale Trackpad-Geste oder Wischen auf Touch-Geräten; mit der Maus verschiebst du wie gewohnt das Widget):
@@ -2227,7 +2227,7 @@ V1 unterstützt G.711 PCMA/PCMU und bietet kein STUN, ICE, keine automatische Ro
 - `classic` verwendet die ausgewählten ASR-, Agent-LLM- und zentralen TTS-Provider. `gemini_live` nutzt eine serverseitige Gemini-Live-Verbindung und gibt deren Zugangsdaten nie an den Browser. Beide verwenden explizite Tool-Allowlisten; eine leere Liste erlaubt keine nativen Tools.
 - RTP/Audio, vollständige SIP-Header, Authentifizierungsdaten und rohe Transcripts werden weder geloggt noch gespeichert. Transcripts sind standardmäßig flüchtig; Telefon-Sessions erzeugen keine Aufnahmen und keine abgeleiteten Memory-Artefakte.
 - `readonly: true` erlaubt weiterhin Registrierung, Status, Historie und Verbindungstests, blockiert aber Answer und ausgehende Anrufe.
-- Die Sicherheitsprüfung warnt mit `sip_auto_answer_all_interfaces`, wenn `inbound.route: agent` auf einer Wildcard-`bind_host` (`0.0.0.0` oder `::`) automatisch annimmt. Mit `sip_wildcard_callers_cidr_peers` warnt sie, wenn `allowed_callers` `*` enthält und `trusted_peer_cidrs` ein ganzes Subnetz nennt; Einträge mit `/32` oder `/128` gelten als exakte Peers.
+- Die Sicherheitsprüfung warnt mit `sip_auto_answer_all_interfaces`, wenn `inbound.route: agent` auf einer Wildcard-`bind_host` (`0.0.0.0` oder `::`) automatisch annimmt. Mit `sip_wildcard_callers_cidr_peers` warnt sie, wenn `allowed_callers` ein Muster enthält, das jeden Anrufer erfasst (etwa `*` oder `*@*`), und `trusted_peer_cidrs` ein ganzes Subnetz nennt; Einträge mit `/32` oder `/128` gelten als exakte Peers.
 
 Siehe [Native SIP-Telefonie](../../sip_telephony.md) für Netzwerkregeln, Fehlercodes, Provider-Einrichtung und die vollständige API-Liste.
 

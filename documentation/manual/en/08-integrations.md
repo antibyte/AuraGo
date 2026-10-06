@@ -578,7 +578,7 @@ fritzbox:
     username: "admin"
 ```
 
-With `https: true` the default TR-064 port 49000 is remapped to AVM's TLS port 49443 (set `insecure_skip_verify: true` for the box's self-signed certificate), and the security check warns with `fritzbox_plaintext_sessions` while an enabled feature group with `readonly: false` runs over plain HTTP.
+With `https: true` the default TR-064 port 49000 is remapped to AVM's TLS port 49443 (set `insecure_skip_verify: true` for the box's self-signed certificate). The security check warns with `fritzbox_plaintext_sessions` while an enabled feature group with `readonly: false` runs over plain HTTP. Session IDs cross the LAN in clear text on reads too, and AuraGo's `readonly` flags limit AuraGo, not a captured session, which carries the rights of the Fritz!Box account. Enable `https` first and log in with a Fritz!Box user restricted to the rights AuraGo needs.
 
 ### Virtual Desktop Widget
 The Virtual Desktop ships a hidden **Fritz!Box** widget that you can add from the widget drawer. It is read-only and shows the most important router facts on pages you can flip through (dots, arrows, arrow keys, a horizontal trackpad gesture, or swiping on touch devices; with a mouse you keep dragging the widget itself):
@@ -2611,7 +2611,7 @@ V1 supports G.711 PCMA/PCMU and does not provide STUN, ICE, automatic router con
 - `classic` uses the selected ASR, agent LLM, and central TTS. `gemini_live` uses a server-side Gemini Live connection and never exposes its provider credential to the browser. Both use explicit tool allowlists; an empty list means no native tools.
 - RTP/audio, complete SIP headers, authentication data, and raw transcripts are not logged or stored. Transcripts are transient by default and telephone sessions do not create recordings or derived memory artifacts.
 - `readonly: true` still permits registration, status, history, and connection tests, but blocks answering and originating calls.
-- The security check warns with `sip_auto_answer_all_interfaces` when `inbound.route: agent` auto-answers on a wildcard `bind_host` (`0.0.0.0` or `::`). It warns with `sip_wildcard_callers_cidr_peers` when `allowed_callers` contains `*` and `trusted_peer_cidrs` lists a subnet; `/32` and `/128` entries count as exact peers.
+- The security check warns with `sip_auto_answer_all_interfaces` when `inbound.route: agent` auto-answers on a wildcard `bind_host` (`0.0.0.0` or `::`). It warns with `sip_wildcard_callers_cidr_peers` when `allowed_callers` contains a pattern that matches every caller (such as `*` or `*@*`) and `trusted_peer_cidrs` lists a subnet; `/32` and `/128` entries count as exact peers.
 
 See [Native SIP telephony](../../sip_telephony.md) for network policies, failure codes, provider setup, and the complete API list.
 
