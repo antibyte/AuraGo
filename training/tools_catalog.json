@@ -3590,7 +3590,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/discover_tools.md",
-      "manual_snippet": "# discover_tools\n\nBrowse and search the full tool catalog, including active, hidden, and disabled tools.\n\n## When to use\n- You need a tool that is **not in your current tool list** (hidden by adaptive filtering)\n- You want to find the right tool for a task but aren't sure which one exists\n- You need to see the **exact parameters** and the correct call method before calling a hidden tool\n\n## Output\n\n`discover_tools` returns a JSON envelope under `Tool Output:`. Read the machine-readable fields first:\n\n- `status`: request status\n- `results[]` or `tool`: catalog entries\n- `kind`: `native`, `skill`, `custom`, or `mcp`\n- `status`: `active`, `hidden`, or `disabled`\n- `call_method`: `direct`, `invoke_tool`, `execute_skill`, `run_tool`, or `disabled`\n- `callable_now`: whether the tool can be used …"
+      "manual_snippet": "# discover_tools\n\nBrowse and search the full tool catalog, including active, hidden, and disabled tools.\n\n## When to use\n- You need a tool that is **not in your current tool list** (hidden by adaptive filtering)\n- You want to find the right tool for a task but aren't sure which one exists\n- You need to see the **exact parameters** and the correct call method before calling a hidden tool\n\n## Output\n\n`discover_tools` returns a JSON envelope under `Tool Output:`. Read the machine-readable fields first:\n\n- `status`: request status\n- `results[]` or `tool`: catalog entries; `categories[]` for category lists, `manual` for a guide\n- `kind`: catalog tool kind; `status`: `active`, `hidden`, or `disabled`\n- `call_method`: `direct`, `invoke_tool`, `execute_skill`, `run_tool`, `activate_agent_skill`, `…"
     },
     {
       "name": "dns_lookup",
@@ -3934,6 +3934,10 @@
             "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
             "type": "string"
           },
+          "block_remote_content": {
+            "description": "Blocks remote resources, scripts, meta refresh and connection hints while rendering HTML or Markdown; embed images and fonts as data: URLs, inline CSS works. Recommended for untrusted HTML (default: false). Refused for url_to_pdf, screenshot_url and convert_document",
+            "type": "boolean"
+          },
           "content": {
             "description": "HTML content (for html_to_pdf, screenshot_html), Markdown content (for markdown_to_pdf), or text content (for create_pdf without sections)",
             "type": "string"
@@ -4002,6 +4006,10 @@
         "_todo": {
           "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
           "type": "string"
+        },
+        "block_remote_content": {
+          "description": "Blocks remote resources, scripts, meta refresh and connection hints while rendering HTML or Markdown; embed images and fonts as data: URLs, inline CSS works. Recommended for untrusted HTML (default: false). Refused for url_to_pdf, screenshot_url and convert_document",
+          "type": "boolean"
         },
         "content": {
           "description": "HTML content (for html_to_pdf, screenshot_html), Markdown content (for markdown_to_pdf), or text content (for create_pdf without sections)",
@@ -18676,7 +18684,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/manage_missions.md",
-      "manual_snippet": "# Mission Control Tool (`manage_missions`)\n\nCreate and manage background automation tasks (missions) with scheduling, triggers, and chaining.\n\n## Operations\n\n| Operation | Description | Parameters |\n|-----------|-------------|------------|\n| `list` | List all missions | — |\n| `add` | Create a mission | `title`, `command`, `cron_expr`, `priority`, `locked` |\n| `update` | Update a mission | `id`, `title`, `command`, `cron_expr`, `priority`, `locked` |\n| `delete` | Delete a mission | `id` |\n| `run` | Execute a mission now | `id` |\n\n## Execution Types\n\nMissions support three execution types (set via the V2 API):\n- **manual** — Run on demand via `run` operation\n- **scheduled** — Run on a cron schedule\n- **triggered** — Run automatically when an event occurs (webhook, mission completed, …"
+      "manual_snippet": "# Mission Control Tool (`manage_missions`)\n\nCreate and manage background automation tasks (missions) with scheduling, triggers, and chaining.\n\n## Operations\n\n| Operation | Description | Parameters |\n|-----------|-------------|------------|\n| `list` | List all missions | — |\n| `add` | Create a mission | `title`, `command`, `cron_expr`, `priority`, `locked` |\n| `update` | Update a mission | `id`, `title`, `command`, `cron_expr`, `priority`, `locked` |\n| `delete` | Delete a mission | `id` |\n| `run` | Execute a mission now | `id` |\n\n## Execution Types\n\nMissions support four execution types (set via the V2 API):\n- **manual** — Run on demand via `run` operation\n- **scheduled** — Run on a cron schedule\n- **triggered** — Run automatically when an event occurs (webhook, mission completed, e…"
     },
     {
       "name": "manage_notes",
@@ -23618,7 +23626,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/process_management.md",
-      "manual_snippet": "# Process Management (`manage_processes`)\n\nPlatform-independent management of system processes: listing, killing, and resource inspection.\n\n## Operations\n\n| Operation | Description |\n|-----------|-------------|\n| `list` | Returns the top 50 processes sorted by CPU usage |\n| `kill` | Terminates a process by PID |\n| `stats` | Returns detailed memory and CPU info for a specific PID |\n\n## Parameters\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `operation` | string | yes | One of: list, kill, stats |\n| `pid` | integer | for kill/stats | Process ID to target |\n\n## Examples\n\n**List top processes:**\n```json\n{\"action\": \"manage_processes\", \"operation\": \"list\"}\n```\n\n**Kill a process:**\n```json\n{\"action\": \"manage_processes\", \"operation\": \"kill\", \"pid\":…"
+      "manual_snippet": "# Process Management (`manage_processes`)\n\nPlatform-independent process listing and resource inspection. Termination is limited to live processes owned by AuraGo's background-process registry.\n\n## Operations\n\n| Operation | Description |\n|-----------|-------------|\n| `list` | Returns the top 50 processes sorted by CPU usage |\n| `kill` | Terminates an AuraGo-owned live background process by PID; requires `allow_shell` |\n| `stats` | Returns detailed memory and CPU info for a specific PID |\n\n## Parameters\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `operation` | string | yes | One of: list, kill, stats |\n| `pid` | integer | for kill/stats | Process ID to target |\n\n## Examples\n\n**List top processes:**\n```json\n{\"action\": \"manage_processes\", \"ope…"
     },
     {
       "name": "proxmox",
@@ -26353,6 +26361,13 @@
             "description": "Email account ID to send from (omit for default)",
             "type": "string"
           },
+          "attachments": {
+            "description": "Optional file paths in the workspace or the documents folder to attach (max 10 files, 20 MB together)",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "body": {
             "description": "Email body (plain text)",
             "type": "string"
@@ -26382,6 +26397,13 @@
         "account": {
           "description": "Email account ID to send from (omit for default)",
           "type": "string"
+        },
+        "attachments": {
+          "description": "Optional file paths in the workspace or the documents folder to attach (max 10 files, 20 MB together)",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "body": {
           "description": "Email body (plain text)",
@@ -26542,6 +26564,10 @@
             "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
             "type": "string"
           },
+          "file_path": {
+            "description": "Optional file in the workspace or the documents folder to send as a document; message and title become its caption",
+            "type": "string"
+          },
           "message": {
             "description": "Message text to send",
             "type": "string"
@@ -26566,6 +26592,10 @@
       "properties": {
         "_todo": {
           "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+          "type": "string"
+        },
+        "file_path": {
+          "description": "Optional file in the workspace or the documents folder to send as a document; message and title become its caption",
           "type": "string"
         },
         "message": {

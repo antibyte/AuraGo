@@ -42,4 +42,4 @@ Missions support four execution types (set via the V2 API):
 - Heartbeat wake-ups are read-only for Mission Control. During heartbeat checks, use `list` or history/status-style inspection only; do not `add`, `update`, `delete`, or `run` missions.
 - Triggered missions are configured via the V2 REST API. Use `trigger_config.min_interval_seconds` to debounce any trigger type; MQTT can additionally use `mqtt_min_interval_seconds` as a topic-specific override.
 - Planner triggers use `planner_appointment_due`, `planner_todo_overdue`, or `planner_operational_issue`. They can be filtered with appointment/todo IDs, `planner_title_contains`, or operational issue `planner_issue_source` / `planner_issue_severity`.
-- `mission_completed` trigger data contains `output` (the source's final answer, up to 2000 characters); flow sources add `outputs` (the results of the flow's final nodes by node key).
+- `mission_completed` trigger data contains `output` (the source's final answer, up to 2000 bytes); flow sources add `outputs` (the results of the flow's final nodes by node key).

@@ -638,6 +638,7 @@ Create/convert PDFs, merge PDFs, or capture webpage screenshots/PDFs through the
 | Parameter | Type | Description |
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
+| `block_remote_content` | `boolean` | Blocks remote resources, scripts, meta refresh and connection hints while rendering HTML or Markdown; embed images and fonts as data: URLs, inline CSS works. Recommended for untrusted HTML (default: false). Refused for url_to_pdf, screenshot_url and convert_document |
 | `content` | `string` | HTML content (for html_to_pdf, screenshot_html), Markdown content (for markdown_to_pdf), or text content (for create_pdf without sections) |
 | `filename` | `string` | Output filename without extension (auto-generated if omitted) |
 | `landscape` | `boolean` | Landscape orientation (default: false) |
@@ -3123,6 +3124,7 @@ Send an email via SMTP.
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
 | `account` | `string` | Email account ID to send from (omit for default) |
+| `attachments` | `array` | Optional file paths in the workspace or the documents folder to attach (max 10 files, 20 MB together) |
 | `body` | `string` | Email body (plain text) |
 | `subject` | `string` | Email subject |
 | `to` | `string` | Recipient email address |
@@ -3168,6 +3170,7 @@ Send a Telegram message to the configured default chat (telegram_user_id).
 | Parameter | Type | Description |
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
+| `file_path` | `string` | Optional file in the workspace or the documents folder to send as a document; message and title become its caption |
 | `message` | `string` | Message text to send |
 | `priority` | `string` | Priority label (normal/high) |
 | `title` | `string` | Optional title prefix |
