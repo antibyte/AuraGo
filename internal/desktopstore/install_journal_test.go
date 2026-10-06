@@ -2,6 +2,7 @@ package desktopstore
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"io"
 	"net/http"
@@ -659,4 +660,194 @@ func TestBlockedInstallNeverRemovesJournaledContainers(t *testing.T) {
 	if len(docker.removedContainers) != 0 || len(docker.stopped) != 0 {
 		t.Fatalf("blocked install touched containers: removed=%v stopped=%v", docker.removedContainers, docker.stopped)
 	}
+}
+
+// createPreJournalStoreDB writes a Store database with the schema before F-S5
+// (no install journal, no operation error code columns) and some data.
+func createPreJournalStoreDB(t *testing.T, dbPath string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, stmt := range []string{
+		`CREATE TABLE desktop_store_apps (
+			app_id TEXT PRIMARY KEY,
+			desktop_app_id TEXT NOT NULL,
+			launchpad_link_id TEXT,
+			container_name TEXT NOT NULL,
+			container_id TEXT,
+			image TEXT NOT NULL,
+			status TEXT NOT NULL,
+			error TEXT NOT NULL DEFAULT '',
+			bind_mode TEXT NOT NULL,
+			host_ip TEXT NOT NULL,
+			host_port INTEGER NOT NULL,
+			container_port INTEGER NOT NULL,
+			protocol TEXT NOT NULL,
+			tailscale_enabled INTEGER NOT NULL DEFAULT 0,
+			tailscale_status TEXT NOT NULL DEFAULT 'disabled',
+			tailscale_port INTEGER NOT NULL DEFAULT 0,
+			logo_path TEXT NOT NULL DEFAULT '',
+			ports_json TEXT NOT NULL DEFAULT '[]',
+			volumes_json TEXT NOT NULL DEFAULT '[]',
+			host_binds_json TEXT NOT NULL DEFAULT '[]',
+			env_json TEXT NOT NULL DEFAULT '[]',
+			extra_hosts_json TEXT NOT NULL DEFAULT '[]',
+			secret_refs_json TEXT NOT NULL DEFAULT '[]',
+			companions_json TEXT NOT NULL DEFAULT '[]',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			last_operation_id TEXT NOT NULL DEFAULT '',
+			last_operation_type TEXT NOT NULL DEFAULT '',
+			last_operation_state TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE TABLE desktop_store_operations (
+			id TEXT PRIMARY KEY,
+			type TEXT NOT NULL,
+			app_id TEXT NOT NULL,
+			status TEXT NOT NULL,
+			message TEXT NOT NULL DEFAULT '',
+			error TEXT NOT NULL DEFAULT '',
+			request_json TEXT NOT NULL DEFAULT '{}',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			completed_at TEXT
+		)`,
+		`CREATE INDEX idx_desktop_store_operations_app ON desktop_store_operations(app_id, created_at)`,
+		`INSERT INTO desktop_store_apps(app_id, desktop_app_id, launchpad_link_id, container_name, container_id, image, status,
+			bind_mode, host_ip, host_port, container_port, protocol, volumes_json, created_at, updated_at,
+			last_operation_id, last_operation_type, last_operation_state)
+			VALUES('excalidraw', 'store-excalidraw', 'store-excalidraw', 'aurago-store-excalidraw', 'old-id', 'excalidraw/excalidraw:latest', 'running',
+			'local', '127.0.0.1', 19941, 80, 'tcp', '[]', '2026-05-22T10:00:00Z', '2026-05-22T10:00:00Z', 'op-old-install', 'install', 'succeeded')`,
+		`INSERT INTO desktop_store_operations(id, type, app_id, status, message, error, request_json, created_at, updated_at, completed_at)
+			VALUES('op-old-install', 'install', 'excalidraw', 'succeeded', 'completed', '', '{}', '2026-05-22T10:00:00Z', '2026-05-22T10:01:00Z', '2026-05-22T10:01:00Z')`,
+		`INSERT INTO desktop_store_operations(id, type, app_id, status, message, error, request_json, created_at, updated_at, completed_at)
+			VALUES('op-old-failed', 'install', 'n8n', 'failed', '', 'pull image failed', '{}', '2026-05-23T10:00:00Z', '2026-05-23T10:01:00Z', '2026-05-23T10:01:00Z')`,
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			t.Fatalf("pre-journal schema: %v", err)
+		}
+	}
+}
+
+func sqliteTableExists(t *testing.T, dbPath, table string) bool {
+	t.Helper()
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var count int
+	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	return count > 0
+}
+
+// F-S5 review, important 3: a Store database from before F-S5 migrates, keeps
+// its data, gets a backup first, and the journaled install works on it.
+func TestStoreMigrationFromThePreJournalSchema(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+	createPreJournalStoreDB(t, dbPath)
+	docker := &fakeDockerAdapter{trackContainers: true}
+	svc := newTestServiceAtPath(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19942), nil)
+
+	old, err := svc.Operation(ctx, "op-old-failed")
+	if err != nil {
+		t.Fatalf("old operation after the migration: %v", err)
+	}
+	if old.Status != OperationFailed || old.Error != "pull image failed" || old.ErrorCode != "" || old.ErrorParams != nil {
+		t.Fatalf("old operation = %#v, want the failed row with an empty error code", old)
+	}
+	app, ok, err := svc.GetInstalled(ctx, "excalidraw")
+	if err != nil || !ok || app.Status != AppStatusRunning || app.ContainerID != "old-id" {
+		t.Fatalf("old app after the migration = %#v ok=%v err=%v", app, ok, err)
+	}
+
+	backup := dbPath + storeMigrationBackupSuffix
+	if _, err := os.Stat(backup); err != nil {
+		t.Fatalf("no backup before the migration: %v", err)
+	}
+	if sqliteTableExists(t, backup, "desktop_store_install_resources") || !sqliteTableExists(t, backup, "desktop_store_operations") {
+		t.Fatal("the backup is not the pre-migration database")
+	}
+
+	// A journaled install works on the migrated database: a failure cleans up
+	// what it created, a retry succeeds.
+	docker.startErrors = []error{errors.New("start failed")}
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "uptime-kuma", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err == nil {
+		t.Fatal("install succeeded, want the start failure")
+	}
+	if got := docker.containerNames(); len(got) != 0 || len(docker.removedVolumes) == 0 {
+		t.Fatalf("after the failed install: containers %v, removed volumes %v", got, docker.removedVolumes)
+	}
+	runStoreInstall(t, svc, "uptime-kuma")
+	if resources, err := svc.installResources(ctx, "uptime-kuma"); err != nil || len(resources) != 0 {
+		t.Fatalf("journal after the install = %v (%v)", resources, err)
+	}
+
+	// An up-to-date database takes no new backup.
+	if err := svc.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(backup); err != nil {
+		t.Fatal(err)
+	}
+	newTestServiceAtPath(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19943), nil)
+	if _, err := os.Stat(backup); !os.IsNotExist(err) {
+		t.Fatalf("an up-to-date database wrote a backup: %v", err)
+	}
+}
+
+func TestStoreMigrationBackupRules(t *testing.T) {
+	t.Run("fresh database takes no backup", func(t *testing.T) {
+		dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+		newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19944), nil)
+		if _, err := os.Stat(dbPath + storeMigrationBackupSuffix); !os.IsNotExist(err) {
+			t.Fatalf("fresh database wrote a backup: %v", err)
+		}
+	})
+	t.Run("an existing backup is never overwritten", func(t *testing.T) {
+		dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+		createPreJournalStoreDB(t, dbPath)
+		backup := dbPath + storeMigrationBackupSuffix
+		if err := os.WriteFile(backup, []byte("earlier backup"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		svc := newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19945), nil)
+		if data, err := os.ReadFile(backup); err != nil || string(data) != "earlier backup" {
+			t.Fatalf("existing backup = %q (%v), want it unchanged", data, err)
+		}
+		if _, err := svc.Operation(context.Background(), "op-old-failed"); err != nil {
+			t.Fatalf("migration did not run: %v", err)
+		}
+	})
+	t.Run("a failed backup still migrates", func(t *testing.T) {
+		dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+		createPreJournalStoreDB(t, dbPath)
+		original := storeMigrationBackup
+		t.Cleanup(func() { storeMigrationBackup = original })
+		calls := 0
+		storeMigrationBackup = func(context.Context, *sql.DB, string) error {
+			calls++
+			return errors.New("disk full")
+		}
+		svc := newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19946), nil)
+		if calls != 1 {
+			t.Fatalf("backup attempts = %d, want 1", calls)
+		}
+		if op, err := svc.Operation(context.Background(), "op-old-failed"); err != nil || op.ErrorCode != "" {
+			t.Fatalf("migration did not run: %#v (%v)", op, err)
+		}
+		if !sqliteTableExists(t, dbPath, "desktop_store_install_resources") {
+			t.Fatal("the install journal table is missing")
+		}
+	})
 }

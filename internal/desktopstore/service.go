@@ -247,7 +247,34 @@ func (s *Service) Catalog() []CatalogEntry {
 	return append([]CatalogEntry(nil), s.catalog...)
 }
 
+// storeColumnMigrations are the columns added to existing Store databases.
+var storeColumnMigrations = []struct {
+	table string
+	name  string
+	def   string
+}{
+	{"desktop_store_apps", "ports_json", "TEXT NOT NULL DEFAULT '[]'"},
+	{"desktop_store_apps", "host_binds_json", "TEXT NOT NULL DEFAULT '[]'"},
+	{"desktop_store_apps", "secret_refs_json", "TEXT NOT NULL DEFAULT '[]'"},
+	{"desktop_store_apps", "companions_json", "TEXT NOT NULL DEFAULT '[]'"},
+	{"desktop_store_operations", "error_code", "TEXT NOT NULL DEFAULT ''"},
+	{"desktop_store_operations", "error_params_json", "TEXT NOT NULL DEFAULT '{}'"},
+}
+
+// storeMigrationBackupSuffix names the copy of an existing Store database
+// taken before a schema migration step runs (F-S5: install journal and
+// operation error codes). An existing copy is never overwritten.
+const storeMigrationBackupSuffix = ".before-install-journal.bak"
+
+// storeMigrationBackup writes the backup; tests replace it to simulate a
+// failure.
+var storeMigrationBackup = func(ctx context.Context, db *sql.DB, path string) error {
+	_, err := db.ExecContext(ctx, `VACUUM INTO ?`, path)
+	return err
+}
+
 func (s *Service) migrateLocked(ctx context.Context) error {
+	s.backupBeforeMigrationLocked(ctx)
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS desktop_store_apps (
 			app_id TEXT PRIMARY KEY,
@@ -306,37 +333,102 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			return fmt.Errorf("migrate desktop store database: %w", err)
 		}
 	}
-	for _, column := range []struct {
-		name string
-		def  string
-	}{
-		{"ports_json", "TEXT NOT NULL DEFAULT '[]'"},
-		{"host_binds_json", "TEXT NOT NULL DEFAULT '[]'"},
-		{"secret_refs_json", "TEXT NOT NULL DEFAULT '[]'"},
-		{"companions_json", "TEXT NOT NULL DEFAULT '[]'"},
-	} {
-		if err := s.ensureColumn(ctx, "desktop_store_apps", column.name, column.def); err != nil {
-			return err
-		}
-	}
-	for _, column := range []struct {
-		name string
-		def  string
-	}{
-		{"error_code", "TEXT NOT NULL DEFAULT ''"},
-		{"error_params_json", "TEXT NOT NULL DEFAULT '{}'"},
-	} {
-		if err := s.ensureColumn(ctx, "desktop_store_operations", column.name, column.def); err != nil {
+	for _, column := range storeColumnMigrations {
+		if err := s.ensureColumn(ctx, column.table, column.name, column.def); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+// backupBeforeMigrationLocked copies an existing Store database before a
+// migration step changes its schema. A fresh database, an up-to-date one and
+// an existing backup are left alone; a failed backup is logged and the
+// migration goes on.
+func (s *Service) backupBeforeMigrationLocked(ctx context.Context) {
+	pending, err := s.pendingMigrationStepsLocked(ctx)
+	if err != nil {
+		s.logger().Warn("Desktop store could not check its schema before migrating; no backup taken", "error", err)
+		return
+	}
+	if len(pending) == 0 {
+		return
+	}
+	backup := s.cfg.DBPath + storeMigrationBackupSuffix
+	if _, err := os.Lstat(backup); err == nil {
+		s.logger().Info("Desktop store migration keeps the existing backup", "backup", backup, "steps", pending)
+		return
+	} else if !os.IsNotExist(err) {
+		s.logger().Warn("Desktop store could not check its migration backup; migrating without a new one", "backup", backup, "error", err)
+		return
+	}
+	if err := storeMigrationBackup(ctx, s.db, backup); err != nil {
+		s.logger().Warn("Desktop store migration backup failed; migrating anyway", "backup", backup, "steps", pending, "error", err)
+		return
+	}
+	_ = os.Chmod(backup, 0o600)
+	s.logger().Info("Desktop store backed up before migrating", "backup", backup, "steps", pending)
+}
+
+// pendingMigrationStepsLocked lists the schema steps migrateLocked will run on
+// an existing Store database; a fresh database has none worth a backup.
+func (s *Service) pendingMigrationStepsLocked(ctx context.Context) ([]string, error) {
+	hasApps, err := s.tableExists(ctx, "desktop_store_apps")
+	if err != nil || !hasApps {
+		return nil, err
+	}
+	var pending []string
+	for _, table := range []string{"desktop_store_operations", "desktop_store_install_resources"} {
+		exists, err := s.tableExists(ctx, table)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			pending = append(pending, table)
+		}
+	}
+	for _, column := range storeColumnMigrations {
+		exists, err := s.tableExists(ctx, column.table)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			continue // created complete
+		}
+		has, err := s.columnExists(ctx, column.table, column.name)
+		if err != nil {
+			return nil, err
+		}
+		if !has {
+			pending = append(pending, column.table+"."+column.name)
+		}
+	}
+	return pending, nil
+}
+
+func (s *Service) tableExists(ctx context.Context, table string) (bool, error) {
+	var count int
+	if err := s.db.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&count); err != nil {
+		return false, fmt.Errorf("inspect desktop store table %s: %w", table, err)
+	}
+	return count > 0, nil
+}
+
 func (s *Service) ensureColumn(ctx context.Context, table, name, def string) error {
+	has, err := s.columnExists(ctx, table, name)
+	if err != nil || has {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, name, def)); err != nil {
+		return fmt.Errorf("add desktop store column %s.%s: %w", table, name, err)
+	}
+	return nil
+}
+
+func (s *Service) columnExists(ctx context.Context, table, name string) (bool, error) {
 	rows, err := s.db.QueryContext(ctx, "PRAGMA table_info("+table+")")
 	if err != nil {
-		return fmt.Errorf("inspect desktop store table %s: %w", table, err)
+		return false, fmt.Errorf("inspect desktop store table %s: %w", table, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -346,19 +438,16 @@ func (s *Service) ensureColumn(ctx context.Context, table, name, def string) err
 		var defaultValue any
 		var pk int
 		if err := rows.Scan(&cid, &colName, &colType, &notNull, &defaultValue, &pk); err != nil {
-			return fmt.Errorf("scan desktop store table %s column: %w", table, err)
+			return false, fmt.Errorf("scan desktop store table %s column: %w", table, err)
 		}
 		if strings.EqualFold(colName, name) {
-			return nil
+			return true, nil
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("read desktop store table %s columns: %w", table, err)
+		return false, fmt.Errorf("read desktop store table %s columns: %w", table, err)
 	}
-	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, name, def)); err != nil {
-		return fmt.Errorf("add desktop store column %s.%s: %w", table, name, err)
-	}
-	return nil
+	return false, nil
 }
 
 func (s *Service) recoverInterruptedOperationsLocked(ctx context.Context) error {
