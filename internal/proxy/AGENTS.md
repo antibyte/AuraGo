@@ -42,7 +42,10 @@ section. Operator guidance lives in the Security Proxy section of
   `ErrRateLimitImageReadOnly`, whose message does not ask for image builds.
 - Placement: a native install binds host paths and reaches AuraGo through
   the host gateway. When AuraGo runs in Docker, the manager inspects its own
-  container (mountinfo ID, then hostname), maps the proxy directory onto
+  container (`dockerutil.OwnContainerID` from /proc, then
+  `dockerutil.DefaultContainerHostname`; the server's container protection
+  uses the same helpers, and a custom hostname is never looked up), maps the
+  proxy directory onto
   that container's volume (`VolumeOptions.Subpath`, Engine API 1.45+) or bind
   source, joins the first non-internal user-defined network (prefer
   `*_default`, never the Docker control network) and proxies to the container

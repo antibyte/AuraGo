@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -133,22 +132,26 @@ func parseSelfContainer(data []byte) (selfContainer, error) {
 	return self, nil
 }
 
-// containerIDPattern finds the container ID in the mountinfo entries Docker
-// creates for /etc/hostname, /etc/hosts and /etc/resolv.conf.
-var containerIDPattern = regexp.MustCompile(`/containers/([0-9a-f]{64})/`)
-
-// selfContainerIDs lists identifiers of the current container: the full ID
-// from /proc/self/mountinfo, which is exact and survives a custom hostname,
-// then the hostname (Docker's default is the short ID).
+// selfContainerIDs lists identifiers of the current container with the
+// server's self detection (dockerutil): the full ID from /proc, which is exact
+// and survives a custom hostname, then Docker's default hostname (a prefix of
+// the ID). A custom hostname is skipped: inspectSelf would look it up as a
+// container name.
 func selfContainerIDs() []string {
+	return selfContainerIDsFrom(os.ReadFile, os.Hostname)
+}
+
+// selfContainerIDsFrom is selfContainerIDs with the /proc reader and the
+// hostname lookup passed in; tests pass fixtures.
+func selfContainerIDsFrom(readFile func(string) ([]byte, error), hostname func() (string, error)) []string {
 	var ids []string
-	if data, err := os.ReadFile("/proc/self/mountinfo"); err == nil {
-		if match := containerIDPattern.FindSubmatch(data); match != nil {
-			ids = append(ids, string(match[1]))
-		}
+	if id := dockerutil.OwnContainerID(readFile); id != "" {
+		ids = append(ids, id)
 	}
-	if hostname, err := os.Hostname(); err == nil && strings.TrimSpace(hostname) != "" {
-		ids = append(ids, strings.TrimSpace(hostname))
+	if name, err := hostname(); err == nil {
+		if id := dockerutil.DefaultContainerHostname(name); id != "" {
+			ids = append(ids, id)
+		}
 	}
 	return ids
 }
