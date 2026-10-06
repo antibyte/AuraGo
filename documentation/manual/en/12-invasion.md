@@ -288,7 +288,7 @@ curl -X PUT http://localhost:8088/api/invasion/nests/{nest-id} \
 
 1. Master generates a shared HMAC key and Egg `config.yaml` (with `egg_mode` enabled)
 2. Binary (`linux/amd64` or `linux/arm64`), `resources.dat`, and config are transferred
-3. Egg process starts on the target (systemd if `permanent`, otherwise one-shot)
+3. Egg process starts on the target (systemd if `permanent`, otherwise one-shot). On an SSH nest, an Egg that still runs from an earlier hatch is replaced: the systemd service is restarted, and a one-shot process gets SIGTERM and up to 10 seconds to exit (then SIGKILL) before the new one starts
 4. Egg connects to `ws[s]://<master>/api/invasion/ws` and authenticates
 5. Master marks the nest `running` when the WebSocket connects
 

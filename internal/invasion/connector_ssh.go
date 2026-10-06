@@ -233,7 +233,9 @@ WantedBy=multi-user.target
 		return fmt.Errorf("failed to write service unit: %w", err)
 	}
 
-	startCmd := fmt.Sprintf("systemctl --user daemon-reload && systemctl --user enable %s && systemctl --user start %s", serviceName, serviceName)
+	// restart, not start: start does nothing for an active unit, so a hatch
+	// over a running egg service would keep the old process and its old key.
+	startCmd := fmt.Sprintf("systemctl --user daemon-reload && systemctl --user enable %s && systemctl --user restart %s", serviceName, serviceName)
 	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, startCmd); err != nil {
 		return fmt.Errorf("failed to start service: %w", err)
 	}
@@ -241,10 +243,30 @@ WantedBy=multi-user.target
 	return nil
 }
 
+// sshEggStopRunningScript stops the egg process a previous hatch started from
+// baseDir before a new one starts: SIGTERM, up to 10 s to exit, then SIGKILL.
+// It finds the process by its executable (<baseDir>/aurago, or "(deleted)"
+// once the upload replaced the file), not by command line: a process-mode egg
+// runs as "./aurago", and the remote shell's own command line would match.
+func sshEggStopRunningScript(baseDir string) string {
+	return "dir=" + shellPath(baseDir) + "; pids=; " +
+		`for p in $(pgrep -u "$(id -u)" -x aurago 2>/dev/null); do ` +
+		`case "$(readlink "/proc/$p/exe" 2>/dev/null)" in "$dir/aurago"|"$dir/aurago (deleted)") pids="$pids $p";; esac; done; ` +
+		`if [ -n "$pids" ]; then kill -TERM $pids 2>/dev/null; alive=1; i=0; ` +
+		`while [ $i -lt 50 ]; do alive=; for p in $pids; do kill -0 "$p" 2>/dev/null && alive=1; done; [ -z "$alive" ] && break; sleep 0.2; i=$((i+1)); done; ` +
+		`if [ -n "$alive" ]; then kill -KILL $pids 2>/dev/null; fi; fi; `
+}
+
 func (c *SSHConnector) startProcess(ctx context.Context, nest NestRecord, secret []byte, baseDir string) error {
-	// Start in background with nohup, redirect output to log.
-	// set -a exports all sourced variables to child processes.
-	startCmd := fmt.Sprintf("cd %s && set -a && . ./.env && set +a && nohup ./aurago > log/egg.log 2>&1 & echo $!", shellPath(baseDir))
+	// Stop an egg a previous hatch left running, so only the new process (with
+	// the new config and shared key) runs. Then start it in the background
+	// with nohup, output to the log. set -a exports the sourced .env to it.
+	// Only nohup runs in the background, with stdin from /dev/null: a
+	// backgrounded "cd && ... && nohup" list kept the SSH session's
+	// stdout/stderr open, so the command never returned until the deploy
+	// context expired.
+	startCmd := sshEggStopRunningScript(baseDir) +
+		fmt.Sprintf("cd %s && set -a && . ./.env && set +a && { nohup ./aurago > log/egg.log 2>&1 < /dev/null & echo $!; }", shellPath(baseDir))
 	output, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, startCmd)
 	if err != nil {
 		return fmt.Errorf("failed to start egg process: %w", err)

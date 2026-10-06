@@ -41,6 +41,7 @@ the Egg runtime in `cmd/aurago`.
   to the SSH binary deploy. Its version probe allows 20 s (the 10 s SSH dial
   budget plus the socket open and `/version`); other transports keep the default probe.
 - A hatch stores the new `egg_shared_<id>` before Deploy and puts the previous key back (vault compare-and-swap) only when Deploy returns `ErrEggConfigNotDelivered`: Docker before `copyConfigToContainer`, SSH before the config write. Never after a possible delivery or a rollback; marked errors keep their text.
+- An SSH hatch replaces a running egg: `systemctl --user restart` for a service; in process mode the egg whose executable is `<base dir>/aurago` (also "(deleted)") gets SIGTERM, 10 s, then SIGKILL before the new start. Never match by command line (`pgrep -f`/`pkill -f` also match the remote shell); only `nohup` runs in the background, detached from the SSH session's streams, so the start command returns.
 - `export_nest_secret` decides whether `include_vault` copies the nest secret (`nest_<id>`) into the egg vault. Rows from before the column migrate to 1, new nests start at 0, and updates without the field keep it. `InitDB` copies a pre-existing database to `<db>.pre-export-nest-secret.bak` (VACUUM INTO, never overwritten) before adding the column; a failed copy is logged and the migration still runs.
 
 ## Verification

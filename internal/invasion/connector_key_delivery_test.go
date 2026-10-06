@@ -259,3 +259,64 @@ func TestSSHConnectorDeployMarksRejectedInputWithoutRemoteCalls(t *testing.T) {
 		t.Fatalf("rejected input reached the nest: %v", *steps)
 	}
 }
+
+// sshDeployCommands records every remote command of an SSH deploy.
+func sshDeployCommands(t *testing.T, payload EggDeployPayload) []string {
+	t.Helper()
+	var cmds []string
+	priorCommand, priorTransfer := sshRemoteCommand, sshTransferFile
+	t.Cleanup(func() { sshRemoteCommand, sshTransferFile = priorCommand, priorTransfer })
+	sshRemoteCommand = func(ctx context.Context, host string, port int, user string, secret []byte, cmd string, input ...io.Reader) (string, error) {
+		cmds = append(cmds, cmd)
+		return "ok\n", nil
+	}
+	sshTransferFile = func(ctx context.Context, host string, port int, user string, secret []byte, localPath, remotePath, direction string, allowedRoot ...string) error {
+		return nil
+	}
+	if err := (&SSHConnector{}).Deploy(context.Background(), sshDeployTestNest(), []byte("secret"), payload); err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	return cmds
+}
+
+func TestSSHConnectorDeployStopsTheRunningEggProcessBeforeTheNewOneStarts(t *testing.T) {
+	cmds := sshDeployCommands(t, sshDeployTestPayload())
+	start := cmds[len(cmds)-1]
+	stop := strings.Index(start, "kill -TERM")
+	launch := strings.Index(start, "nohup ./aurago")
+	if stop < 0 || launch < 0 || stop > launch {
+		t.Fatalf("start command = %q, want the running egg stopped (SIGTERM) before nohup starts the new one", start)
+	}
+	// Only processes of this nest's binary: exe is <base dir>/aurago, also
+	// after the upload replaced the file ("(deleted)"). Never a pattern the
+	// command line of the remote shell itself contains.
+	for _, want := range []string{`dir=$HOME/'.aurago-egg-12345678'`, `pgrep -u "$(id -u)" -x aurago`, `"$dir/aurago"|"$dir/aurago (deleted)")`, "kill -KILL"} {
+		if !strings.Contains(start, want) {
+			t.Fatalf("start command lacks %q: %s", want, start)
+		}
+	}
+	if strings.Contains(start, "pkill -f") || strings.Contains(start, "pgrep -f") {
+		t.Fatalf("start command matches command lines, which includes its own shell: %s", start)
+	}
+	// Only nohup is backgrounded, detached from the SSH session's streams, so
+	// the command returns instead of holding the session until the deploy
+	// context expires.
+	if !strings.HasSuffix(start, "{ nohup ./aurago > log/egg.log 2>&1 < /dev/null & echo $!; }") {
+		t.Fatalf("start command = %q, want only nohup backgrounded with stdin from /dev/null", start)
+	}
+}
+
+func TestSSHConnectorDeployRestartsAPermanentEggService(t *testing.T) {
+	payload := sshDeployTestPayload()
+	payload.Permanent = true
+	cmds := sshDeployCommands(t, payload)
+	start := cmds[len(cmds)-1]
+	if !strings.Contains(start, "systemctl --user restart aurago-egg-12345678") || strings.Contains(start, "systemctl --user start ") {
+		t.Fatalf("service start = %q, want systemctl --user restart so a running egg service picks up the new deploy", start)
+	}
+	for _, want := range []string{"systemctl --user daemon-reload", "systemctl --user enable aurago-egg-12345678"} {
+		if !strings.Contains(start, want) {
+			t.Fatalf("service start lacks %q: %s", want, start)
+		}
+	}
+}
