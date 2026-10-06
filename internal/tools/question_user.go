@@ -14,18 +14,35 @@ type QuestionOption struct {
 	Description string `json:"description,omitempty"`
 }
 
+// QuestionSource names the surface that completed a pending question.
+type QuestionSource string
+
+// Every CompleteQuestion caller labels its answer with one of these.
+const (
+	// QuestionSourceWeb is the owner's web chat: the question modal or a reply
+	// on /v1/chat/completions.
+	QuestionSourceWeb QuestionSource = "web"
+	// QuestionSourceDesktop is the owner's desktop chat question modal.
+	QuestionSourceDesktop QuestionSource = "desktop"
+	// QuestionSourceTelegram is a Telegram chat reply.
+	QuestionSourceTelegram QuestionSource = "telegram"
+	// QuestionSourceDiscord is a Discord chat reply.
+	QuestionSourceDiscord QuestionSource = "discord"
+	// QuestionSourceTelnyx is an SMS reply received through Telnyx.
+	QuestionSourceTelnyx QuestionSource = "telnyx"
+	// QuestionSourceInternal is a loopback follow-up or mission turn relayed
+	// by AuraGo itself, which may carry webhook, call or scheduler text.
+	QuestionSourceInternal QuestionSource = "internal"
+)
+
 // QuestionResponse is returned to the agent after the user answers or the wait times out.
 type QuestionResponse struct {
 	Status   string `json:"status"`
 	Selected string `json:"selected"`
 	FreeText string `json:"free_text,omitempty"`
-	// Source names the surface that completed the question and is never sent
-	// to the model. The completer sets it: "web" (web chat modal or an owner
-	// reply on /v1/chat/completions), "desktop" (desktop chat modal),
-	// "telegram", "discord", "telnyx" (SMS), or "internal" (a loopback
-	// follow-up or mission turn on /v1/chat/completions). Empty means unknown
-	// and is treated as untrusted.
-	Source string `json:"-"`
+	// Source is set by the completer and never sent to the model. Empty means
+	// unknown and is treated as untrusted.
+	Source QuestionSource `json:"-"`
 }
 
 // PendingQuestion tracks a blocking user question for a single session.

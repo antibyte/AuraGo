@@ -363,7 +363,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 	sessionID := "default"
 	if tools.HasPendingQuestion(sessionID) {
 		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
-			response.Source = "telegram"
+			response.Source = tools.QuestionSourceTelegram
 			tools.CompleteQuestion(sessionID, response)
 			return
 		}

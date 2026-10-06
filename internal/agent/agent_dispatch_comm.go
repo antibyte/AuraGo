@@ -226,55 +226,14 @@ func dispatchQuestionUser(tc ToolCall, dc *DispatchContext) string {
 
 	select {
 	case response := <-responseCh:
-		// The answer is chat text from Telegram, Discord, the web UI or SMS
-		// and bypasses the per-channel guardian path; scan and isolate it here.
-		// Like ordinary chat text, a high-threat answer is withheld unless an
-		// admin surface sent it, where the scan only logs (ScanUserInput).
-		// Selected options are model-authored values and pass through unchanged.
-		if strings.TrimSpace(response.FreeText) != "" {
-			if dc.Guardian != nil {
-				if scan := dc.Guardian.ScanForInjection(response.FreeText); scan.Level >= security.ThreatHigh {
-					if questionAnswerFromAdminSurface(response.Source) {
-						if dc.Logger != nil {
-							dc.Logger.Warn("[Guardian] High-threat free-text answer to question_user from an admin surface, isolating without blocking",
-								"session_id", sessionID, "source", response.Source, "threat", scan.Level.String(), "patterns", scan.Patterns)
-						}
-					} else {
-						if dc.Logger != nil {
-							dc.Logger.Warn("[Guardian] Blocked free-text answer to question_user",
-								"session_id", sessionID, "source", response.Source, "threat", scan.Level.String(), "patterns", scan.Patterns)
-						}
-						b, _ := json.Marshal(struct {
-							tools.QuestionResponse
-							Message string `json:"message"`
-						}{tools.QuestionResponse{Status: "blocked"}, "answer withheld by the guardian: the free-text reply matched prompt-injection patterns"})
-						return "Tool Output: " + string(b)
-					}
-				}
-			}
-			// json.Marshal HTML-escapes the angle brackets of the boundary
-			// tags, so the StripThinkingTags pass on tool output keeps them.
-			response.FreeText = security.IsolateExternalData(response.FreeText)
-		}
-		b, _ := json.Marshal(response)
-		return "Tool Output: " + string(b)
+		// Free text from the web or desktop chat, a chat channel or an
+		// internal relay is scanned and isolated in screenQuestionFreeText.
+		out, _ := screenQuestionFreeText(dc, sessionID, response)
+		return out
 	case <-time.After(timeout):
 		tools.CancelQuestion(sessionID)
 		b, _ := json.Marshal(tools.QuestionResponse{Status: "timeout"})
 		return "Tool Output: " + string(b)
-	}
-}
-
-// questionAnswerFromAdminSurface reports whether a question_user answer was
-// completed from an owner-only surface (see tools.QuestionResponse.Source).
-// Those surfaces only log high-threat chat text, so their answers are isolated
-// but never withheld. Every other source, including an empty one, is untrusted.
-func questionAnswerFromAdminSurface(source string) bool {
-	switch source {
-	case "web", "desktop":
-		return true
-	default:
-		return false
 	}
 }
 

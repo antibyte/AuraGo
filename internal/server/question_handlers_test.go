@@ -53,11 +53,65 @@ func TestQuestionResponseCompletesQuestion(t *testing.T) {
 		if resp.Selected != "a" {
 			t.Fatalf("selected = %q, want a", resp.Selected)
 		}
-		if resp.Source != "web" {
+		if resp.Source != tools.QuestionSourceWeb {
 			t.Fatalf("source = %q, want web", resp.Source)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for completion")
+	}
+}
+
+// A loopback call with valid internal headers on the question-response route
+// is labelled like the same call on /v1/chat/completions.
+func TestQuestionResponseLabelsInternalLoopbackAnswers(t *testing.T) {
+	s := newOperatorCommandTestServer(t)
+	const sessionID = "server-question-response-internal"
+	ch := tools.RegisterQuestion(sessionID, &tools.PendingQuestion{Question: "Pick", AllowFreeText: true, Options: []tools.QuestionOption{{Label: "A", Value: "a"}, {Label: "B", Value: "b"}}})
+	defer tools.CancelQuestion(sessionID)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/agent/question-response", bytes.NewBufferString(`{"session_id":"`+sessionID+`","free_text":"blue"}`))
+	req.RemoteAddr = "127.0.0.1:43210"
+	req.Header.Set("X-Internal-FollowUp", "true")
+	req.Header.Set("X-Internal-Token", s.internalToken)
+	handleQuestionResponse(s)(httptest.NewRecorder(), req)
+	select {
+	case resp := <-ch:
+		if resp.Source != tools.QuestionSourceInternal {
+			t.Fatalf("source = %q, want internal", resp.Source)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for completion")
+	}
+}
+
+// The real /v1/chat/completions call site labels an owner reply as web and a
+// loopback follow-up or mission turn as internal.
+func TestChatCompletionsLabelsQuestionAnswerSource(t *testing.T) {
+	s := newOperatorCommandTestServer(t)
+	followUp := map[string]string{"X-Internal-FollowUp": "true", "X-Internal-Token": s.internalToken}
+	mission := map[string]string{"X-Internal-FollowUp": "true", "X-Internal-Token": s.internalToken, "X-Mission-ID": "m1", "X-Session-ID": "default"}
+	for _, tc := range []struct {
+		name    string
+		headers map[string]string
+		want    tools.QuestionSource
+	}{
+		{"follow-up", followUp, tools.QuestionSourceInternal},
+		{"mission", mission, tools.QuestionSourceInternal},
+		{"owner", nil, tools.QuestionSourceWeb},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ch := tools.RegisterQuestion("default", &tools.PendingQuestion{Question: "Pick", AllowFreeText: true, Options: []tools.QuestionOption{{Label: "A", Value: "a"}, {Label: "B", Value: "b"}}})
+			defer tools.CancelQuestion("default")
+			postChatCommand(t, s, "blue", tc.headers)
+			select {
+			case resp := <-ch:
+				if resp.FreeText != "blue" || resp.Source != tc.want {
+					t.Fatalf("response = %+v, want free text blue from %q", resp, tc.want)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("pending question was not completed")
+			}
+		})
 	}
 }
 
@@ -71,7 +125,7 @@ func TestQuestionResponseLabelsDesktopChatAnswers(t *testing.T) {
 	handleQuestionResponse(nil)(rec, req)
 	select {
 	case resp := <-ch:
-		if resp.FreeText != "blue" || resp.Source != "desktop" {
+		if resp.FreeText != "blue" || resp.Source != tools.QuestionSourceDesktop {
 			t.Fatalf("response = %+v, want free text from desktop", resp)
 		}
 	case <-time.After(time.Second):
@@ -83,12 +137,12 @@ func TestChatCompletionQuestionAnswerSource(t *testing.T) {
 	for _, tc := range []struct {
 		followUp  bool
 		missionID string
-		want      string
+		want      tools.QuestionSource
 	}{
-		{false, "", "web"},
-		{true, "", "internal"},
-		{true, "mission-1", "internal"},
-		{false, "mission-1", "internal"},
+		{false, "", tools.QuestionSourceWeb},
+		{true, "", tools.QuestionSourceInternal},
+		{true, "mission-1", tools.QuestionSourceInternal},
+		{false, "mission-1", tools.QuestionSourceInternal},
 	} {
 		if got := chatCompletionQuestionAnswerSource(tc.followUp, tc.missionID); got != tc.want {
 			t.Errorf("chatCompletionQuestionAnswerSource(%v, %q) = %q, want %q", tc.followUp, tc.missionID, got, tc.want)
@@ -121,7 +175,7 @@ func TestPendingQuestionChatMessageCompletesBeforeAgentRun(t *testing.T) {
 	defer tools.CancelQuestion(sessionID)
 
 	rec := httptest.NewRecorder()
-	handled := handlePendingQuestionChatMessage(rec, openai.ChatCompletionRequest{}, sessionID, "2", "web", nil)
+	handled := handlePendingQuestionChatMessage(rec, openai.ChatCompletionRequest{}, sessionID, "2", tools.QuestionSourceWeb, nil)
 	if !handled {
 		t.Fatal("expected pending question chat message to be handled")
 	}
@@ -133,7 +187,7 @@ func TestPendingQuestionChatMessageCompletesBeforeAgentRun(t *testing.T) {
 		if resp.Selected != "no" {
 			t.Fatalf("selected = %q, want no", resp.Selected)
 		}
-		if resp.Source != "web" {
+		if resp.Source != tools.QuestionSourceWeb {
 			t.Fatalf("source = %q, want web", resp.Source)
 		}
 	case <-time.After(time.Second):
@@ -153,7 +207,7 @@ func TestPendingQuestionChatMessageBlocksNewTaskWhenAnswerInvalid(t *testing.T) 
 	defer tools.CancelQuestion(sessionID)
 
 	rec := httptest.NewRecorder()
-	handled := handlePendingQuestionChatMessage(rec, openai.ChatCompletionRequest{}, sessionID, "aktualisiere die ki news webseite", "web", nil)
+	handled := handlePendingQuestionChatMessage(rec, openai.ChatCompletionRequest{}, sessionID, "aktualisiere die ki news webseite", tools.QuestionSourceWeb, nil)
 	if !handled {
 		t.Fatal("expected invalid chat message to be blocked while a question is pending")
 	}

@@ -51,7 +51,7 @@ func handleQuestionResponse(s *Server) http.HandlerFunc {
 		if strings.TrimSpace(req.SessionID) == "" {
 			req.SessionID = "default"
 		}
-		resp := tools.QuestionResponse{Status: "ok", Selected: strings.TrimSpace(req.SelectedValue), FreeText: strings.TrimSpace(req.FreeText), Source: questionModalAnswerSource(req.SessionID)}
+		resp := tools.QuestionResponse{Status: "ok", Selected: strings.TrimSpace(req.SelectedValue), FreeText: strings.TrimSpace(req.FreeText), Source: questionModalAnswerSource(s, r, req.SessionID)}
 		if !tools.CompleteQuestion(req.SessionID, resp) {
 			writeJSON(w, map[string]interface{}{"status": "not_found"})
 			return
@@ -60,28 +60,35 @@ func handleQuestionResponse(s *Server) http.HandlerFunc {
 	}
 }
 
-// questionModalAnswerSource labels an answer posted by the question modal. The
-// route is admin-only: the web chat calls it directly and the desktop chat
-// reaches it through the admin-scoped desktop integration proxy, which rewrites
-// the path, so the desktop chat's fixed session ID tells the two apart.
-func questionModalAnswerSource(sessionID string) string {
-	if sessionID == desktopChatSessionID {
-		return "desktop"
+// questionModalAnswerSource labels an answer posted to the question-response
+// route. The route is admin-only: the web chat calls it directly and the
+// desktop chat reaches it through the admin-scoped desktop integration proxy,
+// which rewrites the path, so the desktop chat's fixed session ID tells the two
+// apart. A loopback call with valid internal headers is labelled like the same
+// call on /v1/chat/completions.
+func questionModalAnswerSource(s *Server, r *http.Request, sessionID string) tools.QuestionSource {
+	if s != nil {
+		if followUp, missionID, ok := validateInternalChatHeaders(r, s); ok && (followUp || missionID != "") {
+			return chatCompletionQuestionAnswerSource(followUp, missionID)
+		}
 	}
-	return "web"
+	if sessionID == desktopChatSessionID {
+		return tools.QuestionSourceDesktop
+	}
+	return tools.QuestionSourceWeb
 }
 
 // chatCompletionQuestionAnswerSource labels a reply that answers a pending
 // question on /v1/chat/completions. Loopback follow-ups and mission turns
 // relay webhook, call and scheduler text, so they are not the owner speaking.
-func chatCompletionQuestionAnswerSource(isFollowUp bool, missionID string) string {
+func chatCompletionQuestionAnswerSource(isFollowUp bool, missionID string) tools.QuestionSource {
 	if isFollowUp || missionID != "" {
-		return "internal"
+		return tools.QuestionSourceInternal
 	}
-	return "web"
+	return tools.QuestionSourceWeb
 }
 
-func handlePendingQuestionChatMessage(w http.ResponseWriter, req openai.ChatCompletionRequest, sessionID, message, source string, logger *slog.Logger) bool {
+func handlePendingQuestionChatMessage(w http.ResponseWriter, req openai.ChatCompletionRequest, sessionID, message string, source tools.QuestionSource, logger *slog.Logger) bool {
 	if !tools.HasPendingQuestion(sessionID) {
 		return false
 	}
