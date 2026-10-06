@@ -177,6 +177,15 @@ Store app configuration, runtime, assets, and publication.
   Vault secrets) are left alone by the update and its rollback.
 - Startup never touches parked containers. The next Update adopts or replaces
   them, and Uninstall removes them.
+- Install and update check the companions they started once the app is ready.
+  Only `exited`/`dead` with a non-zero exit code fails the operation. Restarting,
+  health `starting`/`unhealthy`, exit 0 and inspect errors are logged, and
+  companions an update did not replace are never checked. Do not turn this into a
+  must-be-running or health check: RomM's MariaDB initializes slowly, Termix's
+  guacd reports health `starting` until its first probe, and the optional Beszel
+  agent may crash-loop on a bad key without breaking the hub. Verify
+  `TestInstallFailsWhenACompanionExitedWithAnError`,
+  `TestCompanionStatesThatDoNotFailAnInstall` and `TestUpdate*Companion*`.
 - Verify `TestParkContainerHandlesEveryEngineAnswer`, `TestLegacy*UpdateFailure*`,
   `TestUpdate*Parked*`, `TestUpdateOfAStoppedAppRestoresItStopped`,
   `TestFailedUpdateRestoresPreviousCompanionsWithTheirEnv`,

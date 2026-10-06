@@ -234,11 +234,14 @@ func (a ToolsDockerAdapter) InspectContainer(ctx context.Context, name string) (
 		return ContainerState{}, dockerHTTPError("inspect container", code, data)
 	}
 	var raw struct {
-		Name  string `json:"Name"`
-		State struct {
-			Running bool   `json:"Running"`
-			Status  string `json:"Status"`
-			Health  *struct {
+		Name         string `json:"Name"`
+		RestartCount int    `json:"RestartCount"`
+		State        struct {
+			Running    bool   `json:"Running"`
+			Restarting bool   `json:"Restarting"`
+			Status     string `json:"Status"`
+			ExitCode   int    `json:"ExitCode"`
+			Health     *struct {
 				Status string `json:"Status"`
 			} `json:"Health"`
 		} `json:"State"`
@@ -247,9 +250,12 @@ func (a ToolsDockerAdapter) InspectContainer(ctx context.Context, name string) (
 		return ContainerState{}, fmt.Errorf("parse docker inspect: %w", err)
 	}
 	state := ContainerState{
-		Name:    strings.TrimPrefix(raw.Name, "/"),
-		Running: raw.State.Running,
-		Status:  raw.State.Status,
+		Name:         strings.TrimPrefix(raw.Name, "/"),
+		Running:      raw.State.Running,
+		Restarting:   raw.State.Restarting,
+		Status:       raw.State.Status,
+		ExitCode:     raw.State.ExitCode,
+		RestartCount: raw.RestartCount,
 	}
 	if raw.State.Health != nil {
 		state.Health = raw.State.Health.Status

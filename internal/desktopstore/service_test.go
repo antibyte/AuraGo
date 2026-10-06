@@ -2432,13 +2432,15 @@ type fakeDockerAdapter struct {
 	removeContainerBlock   <-chan struct{}
 	// The fields below are off by default, so older tests keep treating every
 	// name as an existing, running container.
-	trackContainers         bool                     // model existence: create adds, remove deletes, rename moves
-	containers              map[string]bool          // existing names while trackContainers is set
-	containerSpecs          map[string]ContainerSpec // the spec each tracked container was created with
-	traceLifecycle          bool                     // also record "stop:" and "remove:" events
-	renamed                 []string                 // "old->new" for every successful rename
-	renameErr               error                    // every rename fails, like an engine without rename support
-	enforceCatalogBindTrust bool                     // refuse untrusted docker.sock binds like the real create path (K10)
+	trackContainers         bool                      // model existence: create adds, remove deletes, rename moves
+	containers              map[string]bool           // existing names while trackContainers is set
+	containerSpecs          map[string]ContainerSpec  // the spec each tracked container was created with
+	traceLifecycle          bool                      // also record "stop:" and "remove:" events
+	renamed                 []string                  // "old->new" for every successful rename
+	renameErr               error                     // every rename fails, like an engine without rename support
+	enforceCatalogBindTrust bool                      // refuse untrusted docker.sock binds like the real create path (K10)
+	inspectStates           map[string]ContainerState // per-name state, wins over inspectState
+	inspectErrors           map[string]error          // per-name inspect error
 }
 
 type fakeNativeManagedRuntime struct {
@@ -2692,8 +2694,15 @@ func (f *fakeDockerAdapter) InspectContainer(_ context.Context, name string) (Co
 	if f.inspectErr != nil {
 		return ContainerState{}, f.inspectErr
 	}
+	if err := f.inspectErrors[name]; err != nil {
+		return ContainerState{}, err
+	}
 	if !f.hasContainer(name) {
 		return ContainerState{}, fmt.Errorf("container %s %w", name, errContainerNotFound)
+	}
+	if state, ok := f.inspectStates[name]; ok {
+		state.Name = name
+		return state, nil
 	}
 	if f.inspectState.Name != "" || f.inspectState.Status != "" || f.inspectState.Health != "" {
 		if f.inspectState.Name == "" {

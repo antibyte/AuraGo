@@ -280,3 +280,32 @@ func TestToolsDockerAdapterMarksMissingContainers(t *testing.T) {
 		t.Fatalf("start error = %v, want errContainerNotFound with the historical message", err)
 	}
 }
+
+func TestToolsDockerAdapterInspectReportsExitAndRestartState(t *testing.T) {
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/version" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`)
+			return
+		}
+		if r.Method == http.MethodGet && r.URL.Path == "/v1.45/containers/aurago-store-demo-db/json" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"Name":"/aurago-store-demo-db","RestartCount":4,"State":{"Running":true,"Restarting":true,"Status":"restarting","ExitCode":1}}`)
+			return
+		}
+		t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+	adapter := NewToolsDockerAdapter("tcp://"+strings.TrimPrefix(server.URL, "http://"), "", nil)
+	state, err := adapter.InspectContainer(context.Background(), "aurago-store-demo-db")
+	if err != nil {
+		t.Fatalf("inspect: %v", err)
+	}
+	want := ContainerState{Name: "aurago-store-demo-db", Running: true, Restarting: true, Status: "restarting", ExitCode: 1, RestartCount: 4}
+	if !reflect.DeepEqual(state, want) {
+		t.Fatalf("state = %#v, want %#v", state, want)
+	}
+}

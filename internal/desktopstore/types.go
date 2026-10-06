@@ -201,10 +201,13 @@ type ContainerSpec struct {
 
 // ContainerState is the health/status subset returned by Docker inspect.
 type ContainerState struct {
-	Name    string `json:"name"`
-	Running bool   `json:"running"`
-	Status  string `json:"status"`
-	Health  string `json:"health,omitempty"`
+	Name         string `json:"name"`
+	Running      bool   `json:"running"`
+	Status       string `json:"status"`
+	Health       string `json:"health,omitempty"`
+	Restarting   bool   `json:"restarting,omitempty"`
+	ExitCode     int    `json:"exit_code,omitempty"`
+	RestartCount int    `json:"restart_count,omitempty"`
 }
 
 // NativeManagedStatus is returned by store runtimes that do not expose a web

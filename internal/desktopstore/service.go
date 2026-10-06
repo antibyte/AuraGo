@@ -64,6 +64,10 @@ type Config struct {
 	PortProbe     PortProbe
 	// Logger receives Store warnings; nil uses slog.Default().
 	Logger *slog.Logger
+	// CompanionSettle is the minimum time between the last companion start
+	// and the companion state check (DefaultCompanionSettle in production).
+	// Zero checks at once.
+	CompanionSettle time.Duration
 }
 
 // Service owns the software store catalog, persistent install records and
@@ -1033,6 +1037,7 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	if err := s.createAutoCompanions(ctx, &record); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
+	companionsStarted := time.Now()
 	spec, err := s.runtimeContainerSpec(record)
 	if err != nil {
 		return s.failInstall(ctx, record, err)
@@ -1049,6 +1054,9 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 		return s.failInstall(ctx, record, err)
 	}
 	if err := s.waitContainerReady(ctx, record, appReadinessTimeout); err != nil {
+		return s.failInstall(ctx, record, err)
+	}
+	if err := s.checkStartedCompanions(ctx, record, companionContainerNames(record.Companions), companionsStarted); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
 	record.Status = AppStatusRunning
@@ -1208,6 +1216,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	if err := s.replaceAutoCompanions(ctx, &record, autoCompanions, &replaced); err != nil {
 		return rollback(err)
 	}
+	companionsStarted := time.Now()
 	if err := s.parkForReplacement(ctx, &replaced, record.ContainerName, ""); err != nil {
 		return rollback(err)
 	}
@@ -1227,6 +1236,9 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		if err := s.waitContainerReady(ctx, record, appReadinessTimeout); err != nil {
 			return rollback(fmt.Errorf("updated container readiness: %w", err))
 		}
+	}
+	if err := s.checkStartedCompanions(ctx, record, replacedCompanionNames(replaced), companionsStarted); err != nil {
+		return rollback(err)
 	}
 	record.Status = previous.Status
 	record.Error = ""
