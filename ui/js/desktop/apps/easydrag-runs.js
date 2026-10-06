@@ -222,6 +222,9 @@
                 current.status = detail.run.status;
                 (detail.steps || []).forEach(s => current.steps.set(s.node_id, s));
                 rememberRun(detail.run, detail.steps || []);
+                // The finished run is the last run now: the footer keeps naming it once the run
+                // state is cleared (leaving a run view), as after loadLast.
+                ed.bus.emit('last-run', detail.run);
             }
             setRun(ed.run);
             const failed = Array.from(ed.run.steps.values()).find(s => s.status === 'error');

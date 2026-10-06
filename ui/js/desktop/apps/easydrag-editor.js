@@ -556,6 +556,9 @@
         wires.render();
         requestAnimationFrame(() => {
             if (disposed) return;
+            // A palette that floats over the canvas (narrow windows, phones) starts closed: open, it
+            // would hide the flow. The stored choice of wide windows stays.
+            if (palette.isOpen() && palette.isOverlay()) palette.setOpen(false, true);
             const local = core.storage.get(VIEW_KEY + ed.flow.id, null);
             const v = local || ed.model.doc.viewport;
             if (v && v.zoom && ed.model.doc.nodes.length) canvas.setView(v);

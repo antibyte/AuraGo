@@ -88,6 +88,10 @@
 .ed-code { font-family: var(--ds-font-mono, ui-monospace, SFMono-Regular, Consolas, monospace); font-size: 12px; }
 /* the second selector out-ranks the shell's .vd-shell button:focus-visible rings, so the ring uses the user's accent */
 .ed-app :focus-visible, .vd-shell .ed-app :focus-visible { outline: 2px solid var(--ed-focus); outline-offset: 2px; }
+/* shared-components.css adds a box-shadow ring to every focused button, link and field (:where(…):focus-visible). EasyDrag
+   draws its own ring (the outline above, or a field's border and shadow), so that second ring goes; on the template field it
+   showed inside the field's own ring. Same specificity in a later sheet: a control's own shadow (.ed-btn--primary, .ed-input:focus) wins. */
+:where(.ed-app) :where(button, a, input, textarea, select):focus-visible { box-shadow: none; }
 .ed-app ::placeholder { color: var(--ed-muted); opacity: 1; }
 
 /* ── controls ───────────────────────────────────────────────────────────────── */
@@ -321,6 +325,10 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 }
 .ed-title-input:hover:not(:read-only) { border-color: var(--ed-border); }
 .ed-title-input:focus { outline: none; border-color: var(--ed-focus); background: var(--ed-control); }
+/* the name field is as wide as the name, so the state chips follow it instead of floating mid-header */
+@supports (field-sizing: content) {
+    .ed-title-input { field-sizing: content; width: auto; }
+}
 .ed-state { display: flex; gap: 6px; flex: none; }
 .ed-head-actions { display: flex; align-items: center; gap: 6px; flex: none; }
 .ed-body { position: relative; flex: 1; display: flex; min-height: 0; }
@@ -441,7 +449,6 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     content: ""; position: absolute; left: -1px; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--ed-cat); opacity: 0.9;
 }
 .ed-node:hover { border-color: var(--ed-border-strong); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 10px 26px rgba(0, 0, 0, 0.24); }
-.ed-node.is-selected { border-color: var(--ed-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-accent) 30%, transparent), 0 12px 30px rgba(0, 0, 0, 0.26); }
 .ed-node.is-trigger { border-radius: 30px 14px 14px 30px; }
 .ed-node.is-trigger::before { display: none; }
 .ed-node.is-disabled { opacity: 0.55; background-image: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--ed-text) 6%, transparent) 8px 10px); }
@@ -476,8 +483,16 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-node.status-success { border-color: color-mix(in srgb, var(--ed-ok) 60%, var(--ed-border)); }
 .ed-node.status-error { border-color: var(--ed-danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-danger) 25%, transparent); }
 .ed-node.status-skipped { opacity: 0.55; }
+/* selection comes after the status rules, so a selected step that ran still shows it. --ed-focus reaches 3:1 on light and
+   dark cards; the raw accent does not on light ones, and its 30% ring alone was faint there. */
+.ed-node.is-selected {
+    border-color: var(--ed-focus);
+    box-shadow: 0 0 0 1px var(--ed-focus), 0 0 0 5px color-mix(in srgb, var(--ed-accent) 22%, transparent), 0 12px 30px rgba(0, 0, 0, 0.26);
+}
+/* the vertical space comes from a transparent border, not padding: line-clamp clips at the padding edge, and bottom padding
+   let the top of a third line show */
 .ed-node-error {
-    position: absolute; left: 6px; right: 6px; top: calc(100% + 6px); padding: 5px 8px; border-radius: 8px;
+    position: absolute; left: 6px; right: 6px; top: calc(100% + 6px); padding: 0 8px; border-block: 5px solid transparent; border-radius: 8px;
     background: color-mix(in srgb, var(--ed-danger) 16%, var(--ed-panel-strong)); color: var(--ed-danger-ink); font-size: 11px; line-height: 1.35;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; pointer-events: none;
 }
@@ -510,9 +525,9 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-port-add:hover { color: white; background: var(--ed-accent); border-color: var(--ed-accent); }
 .ed-node.is-readonly .ed-port-add { display: none; }
 
-/* node toolbar */
+/* node toolbar: on the left, so it never covers the status and warning badges at the top right */
 .ed-node-tools {
-    position: absolute; right: 6px; top: -36px; display: flex; gap: 2px; padding: 3px; border-radius: 10px;
+    position: absolute; left: 6px; top: -36px; display: flex; gap: 2px; padding: 3px; border-radius: 10px;
     background: var(--ed-glass); border: 1px solid var(--ed-border); box-shadow: var(--ed-shadow); backdrop-filter: blur(10px);
     opacity: 0; transform: translateY(4px); pointer-events: none;
     transition: opacity var(--ed-fast) var(--ed-ease), transform var(--ed-fast) var(--ed-ease);

@@ -301,11 +301,12 @@
         return tr(t, 'easydrag.ui.issue_' + String(issue.code || '').toLowerCase(), issue.message || issue.code || '');
     }
 
-    // stepErrorText describes a failed step: translated code plus the tool's own message.
+    // stepErrorText describes a failed step: translated code plus the tool's own message. The
+    // translation is a sentence; its final full stop goes before the colon.
     function stepErrorText(t, step) {
         if (!step || !step.error_code) return '';
         const code = tr(t, 'easydrag.ui.error_' + step.error_code.toLowerCase(), step.error_code);
-        return step.error_message ? code + ': ' + step.error_message : code;
+        return step.error_message ? code.replace(/[.。।]\s*$/, '') + ': ' + step.error_message : code;
     }
 
     let modalCount = 0;

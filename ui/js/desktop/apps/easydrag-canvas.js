@@ -140,8 +140,29 @@
 
         function allRects() { return ed.model.doc.nodes.map(n => G.nodeRect(n.position, outCount(n))); }
 
+        // visibleArea is the part of the canvas that the run drawer (right) and a palette floating over
+        // the canvas (left, narrow windows) leave free; with too little left, the whole canvas.
+        function visibleArea() {
+            const s = size();
+            const find = sel => (ed.root && typeof ed.root.querySelector === 'function' ? ed.root.querySelector(sel) : null);
+            let left = 0;
+            let right = 0;
+            const drawer = find('.ed-drawer');
+            if (drawer) right = clampCover(s.left + s.w - drawer.getBoundingClientRect().left, s.w);
+            const palette = find('.ed-palette:not(.is-collapsed)');
+            if (palette && typeof getComputedStyle === 'function' && getComputedStyle(palette).position === 'absolute') {
+                left = clampCover(palette.getBoundingClientRect().right - s.left, s.w);
+            }
+            if (s.w - left - right < 240) return { left: 0, w: s.w, h: s.h };
+            return { left, w: s.w - left - right, h: s.h };
+        }
+
+        function clampCover(value, max) { return Number.isFinite(value) ? Math.min(max, Math.max(0, value)) : 0; }
+
         function fit(opts) {
-            setView(G.fit(G.bounds(allRects()), size(), 72, 1), opts);
+            const area = visibleArea();
+            const v = G.fit(G.bounds(allRects()), { w: area.w, h: area.h }, 72, 1);
+            setView({ x: v.x + area.left, y: v.y, zoom: v.zoom }, opts);
         }
 
         function zoomBy(factor, center) {
@@ -237,9 +258,12 @@
                 toolButton('disable', 'eye-off', n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable')) +
                 toolButton('duplicate', 'copy', t('easydrag.ui.node_duplicate')) +
                 toolButton('delete', 'trash', t('easydrag.ui.node_delete')) + '</div>';
+            // Without a summary the second line names the type, or, while the step still carries the
+            // type's own label, describes it: the card does not say the same thing twice.
+            const typeLine = !i ? n.type : n.label && n.label !== i.label ? i.label : (i.description || '');
             return '<div class="ed-node-tile">' + core.icon(i ? i.icon : 'tool') + '</div>' +
                 '<div class="ed-node-body"><div class="ed-node-label">' + esc(n.label || (i && i.label) || n.type) + '</div>' +
-                (sum ? '<div class="ed-node-summary">' + esc(sum) + '</div>' : '<div class="ed-node-summary ed-node-summary--muted">' + esc(i ? i.label : n.type) + '</div>') + '</div>' +
+                (sum ? '<div class="ed-node-summary">' + esc(sum) + '</div>' : typeLine ? '<div class="ed-node-summary ed-node-summary--muted">' + esc(typeLine) + '</div>' : '') + '</div>' +
                 '<div class="ed-node-badges">' + badges.join('') + '</div>' + inPorts + outPorts + tools +
                 (status === 'error' && step ? '<div class="ed-node-error">' + esc(core.stepErrorText(t, step)) + '</div>' : '');
         }

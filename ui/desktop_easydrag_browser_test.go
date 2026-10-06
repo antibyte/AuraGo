@@ -42,6 +42,9 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s.shot("editor-standard")
 	s.failOnPageErrors("open editor")
 	s.noRawKeys("editor")
+	// The state chip follows the flow name, and no card repeats its label on the second line.
+	s.wait(`()=>{const name=document.querySelector('[data-ed-name]').getBoundingClientRect();const chip=document.querySelector('[data-ed-state] .ed-chip').getBoundingClientRect();return chip.left-name.right>=0 && chip.left-name.right<=16}`)
+	s.wait(`()=>[...document.querySelectorAll('.ed-node')].every(c=>{const sub=c.querySelector('.ed-node-summary');return !sub || sub.textContent!==c.querySelector('.ed-node-label').textContent})`)
 
 	// Keyboard focus: an arrow key on the focused canvas selects the first step; the canvas shows
 	// its focus ring and the step its selection ring.
@@ -81,6 +84,8 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s.wait(`()=>!!document.querySelector('.ed-detail .ed-field[data-param="message"] .ed-tpl-view')`)
 	page.MustElement(`.ed-detail .ed-field[data-param="message"] .ed-tpl-view`).MustClick()
 	page.MustElement(`.ed-detail .ed-field[data-param="message"] textarea`).MustInput("Neu: ")
+	// One focus ring: the field's own; the text area inside draws none.
+	s.wait(`()=>{const ta=document.querySelector('.ed-detail .ed-field[data-param="message"] textarea');const cs=getComputedStyle(ta);return document.activeElement===ta && !!ta.closest('.ed-tpl.is-editing') && cs.boxShadow==='none' && cs.outlineStyle==='none'}`)
 	s.shot("detail-editing")
 	page.MustElement(`.ed-detail .ed-tree-row[data-ref="ki.text"]`).MustClick()
 	s.wait(`()=>edFixture.editor().model.doc.nodes.find(n=>n.type==='notify.telegram').params.message==='Neu: {{ki.text}}'`)
@@ -131,11 +136,15 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	page.MustElement(`.ed-run-row`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-runview-banner').hidden && document.querySelectorAll('.ed-node.is-readonly').length===5`)
 	s.settle()
+	// The run view fits the flow into the part of the canvas the drawer leaves free.
+	s.wait(`()=>{const d=document.querySelector('.ed-drawer').getBoundingClientRect();return [...document.querySelectorAll('.ed-node')].every(n=>n.getBoundingClientRect().right<=d.left)}`)
 	s.shot("run-view")
 	s.noRawKeys("run view")
 	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
 	page.Keyboard.MustType(input.Escape)
 	s.wait(`()=>document.querySelector('.ed-runview-banner').hidden && !edFixture.editor().runView`)
+	// The footer still names the last run once the run view is left.
+	s.wait(`()=>!document.querySelector('[data-ed-last-run]').textContent.includes(edFixture.editor().t('easydrag.ui.home_never_ran'))`)
 	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-drawer')`)
 
@@ -390,6 +399,9 @@ func (s *easyDragSmoke) failingRun() {
 	s.settle()
 	s.fit()
 	s.wait(`()=>document.querySelectorAll('.ed-node.is-selected').length===1`)
+	// The step's error reads as one sentence, and the selected step's toolbar leaves its status badge free.
+	s.wait(`()=>!/[.。।]:/.test(document.querySelector('.ed-node-error').textContent)`)
+	s.wait(`()=>{const sel=document.querySelector('.ed-node.is-selected');const a=sel.querySelector('.ed-node-tools').getBoundingClientRect();const b=sel.querySelector('.ed-status').getBoundingClientRect();return a.right<=b.left || b.right<=a.left || a.bottom<=b.top || b.bottom<=a.top}`)
 	s.shot("run-error")
 	s.noRawKeys("run error")
 	s.failOnPageErrors("failing run")
@@ -416,6 +428,8 @@ func (s *easyDragSmoke) phone() {
 	s.noRawKeys("phone home")
 	page.MustElement(".ed-flow-card h3").MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-node').length===5`)
+	// The palette floats over the canvas here, so it starts closed and leaves the flow in view.
+	s.wait(`()=>document.querySelector('.ed-palette').classList.contains('is-collapsed')`)
 	s.wait(`()=>{
 		const head=document.querySelector('.ed-head');
 		const box=head.getBoundingClientRect();

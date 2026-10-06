@@ -117,10 +117,11 @@
             }).join('');
         }
 
-        function setOpen(open) {
+        // setOpen shows or hides the panel; transient leaves the stored choice as it is.
+        function setOpen(open, transient) {
             el.classList.toggle('is-collapsed', !open);
             ed.root.classList.toggle('has-palette', open);
-            core.storage.set(OPEN_KEY, open);
+            if (!transient) core.storage.set(OPEN_KEY, open);
             ed.bus.emit('palette', open);
         }
 
@@ -220,6 +221,8 @@
         return {
             el, render, setOpen,
             isOpen: () => !el.classList.contains('is-collapsed'),
+            // isOverlay: the panel floats over the canvas (narrow windows) instead of beside it.
+            isOverlay: () => !!el.isConnected && typeof getComputedStyle === 'function' && getComputedStyle(el).position === 'absolute',
             focusSearch() { setOpen(true); input.focus(); input.select(); },
             dispose() { if (drag) drag.abort(); bag.dispose(); }
         };
