@@ -177,3 +177,44 @@ func (s *Server) invasionTransportSecret(nest invasion.NestRecord) ([]byte, erro
 	}
 	return []byte(secret), nil
 }
+
+// nestDockerTLSSnapshot is the raw vault entry a nest update is about to
+// replace. taken is false when it could not be read; nothing is restored then.
+type nestDockerTLSSnapshot struct {
+	taken, exists bool
+	raw           string
+}
+
+func (s *Server) snapshotNestDockerTLS(nestID string) nestDockerTLSSnapshot {
+	if s.Vault == nil {
+		return nestDockerTLSSnapshot{}
+	}
+	raw, err := s.Vault.ReadSecret(invasion.DockerTLSVaultKey(nestID))
+	switch {
+	case err == nil:
+		return nestDockerTLSSnapshot{taken: true, exists: true, raw: raw}
+	case errors.Is(err, security.ErrSecretNotFound):
+		return nestDockerTLSSnapshot{taken: true}
+	}
+	return nestDockerTLSSnapshot{}
+}
+
+// restoreNestDockerTLSSnapshot puts back the entry a failed nest update
+// replaced, so the unchanged mode keeps the material it was saved with. Best
+// effort: on failure the nest keeps the new material and fails closed if it
+// does not fit the mode.
+func (s *Server) restoreNestDockerTLSSnapshot(nestID string, snap nestDockerTLSSnapshot) {
+	if !snap.taken || s.Vault == nil {
+		return
+	}
+	key := invasion.DockerTLSVaultKey(nestID)
+	var err error
+	if snap.exists {
+		err = s.Vault.WriteSecret(key, snap.raw)
+	} else {
+		err = s.Vault.DeleteSecret(key)
+	}
+	if err != nil && s.Logger != nil {
+		s.Logger.Warn("Failed to restore invasion nest Docker TLS material after a failed update", "nest_id", nestID, "error", err)
+	}
+}

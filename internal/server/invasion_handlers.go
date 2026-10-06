@@ -404,7 +404,11 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			//     leftover never comes into use when TLS is re-enabled without PEMs.
 			//   - Material the current nest uses is deleted only after UpdateNest
 			//     succeeded, so a failed DB update never leaves a TLS nest without it.
+			//   - Stored material is snapshotted first and put back when UpdateNest
+			//     fails, so the unchanged mode keeps the material it was saved with.
+			var tlsSnapshot nestDockerTLSSnapshot
 			if tlsMaterial != nil && *tlsMaterial != previousTLS {
+				tlsSnapshot = s.snapshotNestDockerTLS(id)
 				if err := s.storeNestDockerTLS(id, *tlsMaterial); err != nil {
 					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store nest TLS material", "Invasion nest Docker TLS write failed", err, "nest_id", id)
 					return
@@ -421,6 +425,7 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			}
 
 			if err := invasion.UpdateNest(s.InvasionDB, existing); err != nil {
+				s.restoreNestDockerTLSSnapshot(id, tlsSnapshot)
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to update nest", "Failed to update invasion nest", err, "nest_id", id)
 				return
 			}
