@@ -38,18 +38,36 @@ func TestDesktopSDKUsesDocumentBoundMessageChannel(t *testing.T) {
 func TestDesktopShellPostsToSandboxedOpaqueFrames(t *testing.T) {
 	t.Parallel()
 
-	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	mainSource, err := Content.ReadFile("js/desktop/core/sdk-events-bootstrap.js")
+	if err != nil {
+		t.Fatalf("desktop keyboard runtime missing from embedded UI: %v", err)
+	}
+	mainText := string(mainSource)
 	for _, want := range []string{
 		"document.addEventListener('keyup', handleDesktopKeyup)",
 		"function relayGeneratedFrameKeyboardEvent(event)",
 		"type: 'aurago.desktop.key-event'",
 		"key: event.key",
 		"code: event.code",
+		"const client = sdkFrameClients.get(frame)",
+		"if (!isCurrentSDKClient(client)) return false;",
+		"client.port.postMessage({",
 		"if (relayGeneratedFrameKeyboardEvent(event)) return;",
 	} {
 		if !strings.Contains(mainText, want) {
 			t.Fatalf("desktop shell must post menu events to opaque sandbox frames, missing %q", want)
 		}
+	}
+	start := strings.Index(mainText, "function relayGeneratedFrameKeyboardEvent(event)")
+	if start < 0 {
+		t.Fatal("could not find generated-frame keyboard relay")
+	}
+	end := strings.Index(mainText[start:], "\n    function selectedDesktopIcon()")
+	if end < 0 {
+		t.Fatal("could not isolate generated-frame keyboard relay")
+	}
+	if strings.Contains(mainText[start:start+end], "frame.contentWindow.postMessage") {
+		t.Fatal("generated-frame keyboard relay must not send keys through WindowProxy")
 	}
 	quickconnect, err := Content.ReadFile("js/desktop/apps/quickconnect-launchpad-chat.js")
 	if err != nil {

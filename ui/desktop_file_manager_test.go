@@ -274,9 +274,14 @@ func TestDesktopClipboardPastePreservesFileManagerRootPath(t *testing.T) {
 			want:   "normalizeDesktopPath(destBase == null ? 'Desktop' : destBase)",
 		},
 		{
-			name:   "file manager paste passes empty root path through",
+			name:   "file manager paste snapshots and preserves an empty root path",
 			source: fileManagerSource,
-			want:   "await ops.paste(destBase == null ? fm.currentPath : destBase)",
+			want:   "const targetBase = destBase == null ? instance.currentPath : destBase;",
+		},
+		{
+			name:   "file manager paste passes the captured destination to shared operations",
+			source: fileManagerSource,
+			want:   "await ops.paste(targetBase, {",
 		},
 	} {
 		if !strings.Contains(marker.source, marker.want) {

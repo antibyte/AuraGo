@@ -2259,37 +2259,55 @@
     }
 
     async function pasteClipboard(destBase) {
+        const instance = fm;
         if (isReadonly()) return;
+        const targetBase = destBase == null ? instance.currentPath : destBase;
+        if (!isLiveInstance(instance)) return;
+
         const ops = sharedFileOps();
         if (ops && typeof ops.paste === 'function') {
-            await ops.paste(destBase == null ? fm.currentPath : destBase);
-            fm.clipboard = null;
-            refresh();
+            await ops.paste(targetBase, {
+                shouldContinue: () => isLiveInstance(instance),
+                refreshActiveFileManager: false
+            });
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                instance.clipboard = sharedFileClipboard();
+                refresh();
+            });
             return;
         }
         const clipboard = sharedFileClipboard();
         if (!clipboard || !clipboard.paths.length) return;
-        const targetBase = destBase || fm.currentPath;
+        const localClipboard = instance.clipboard;
+        const sourcePaths = clipboard.paths.slice();
+        const mode = clipboard.mode;
+        const files = instance.files.slice();
+        const destination = targetBase;
 
         let progress = null;
-        if (clipboard.paths.length > 1) {
-            const title = clipboard.mode === 'copy'
+        if (sourcePaths.length > 1) {
+            const title = mode === 'copy'
                 ? t('desktop.fm.copying')
                 : t('desktop.fm.moving');
-            progress = showProgressOverlay(title, clipboard.paths.length);
+            progress = showProgressOverlay(title, sourcePaths.length);
         }
 
         let count = 0;
         const undoItems = [];
 
-        for (const srcPath of clipboard.paths) {
+        for (const srcPath of sourcePaths) {
+            if (!isLiveInstance(instance)) {
+                if (progress) progress.close();
+                return;
+            }
             count++;
             const name = baseName(srcPath);
-            let destPath = joinPath(targetBase, name);
-            const exists = fm.files.some(f => f.name === name);
-            if (exists && clipboard.mode === 'copy') {
+            let destPath = joinPath(destination, name);
+            const exists = files.some(f => f.name === name);
+            if (exists && mode === 'copy') {
                 const newName = name + ' (' + t('desktop.fm.copy_of') + ')';
-                destPath = joinPath(targetBase, newName);
+                destPath = joinPath(destination, newName);
             }
 
             if (progress) {
@@ -2297,7 +2315,7 @@
             }
 
             try {
-                if (clipboard.mode === 'copy') {
+                if (mode === 'copy') {
                     await api('/api/desktop/copy', {
                         method: 'POST',
                         body: JSON.stringify({ source_path: srcPath, dest_path: destPath })
@@ -2310,23 +2328,32 @@
                     undoItems.push({ oldPath: srcPath, newPath: moved.path || destPath });
                 }
             } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
+                if (!isLiveInstance(instance)) {
+                    if (progress) progress.close();
+                    return;
+                }
+                withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
             }
         }
 
+        if (!isLiveInstance(instance)) {
+            if (progress) progress.close();
+            return;
+        }
         if (progress) {
             progress.close();
         }
 
-        if (undoItems.length > 0) {
-            pushToUndo({
-                type: 'move',
-                items: undoItems
-            });
-        }
-
-        if (clipboard.mode === 'cut') fm.clipboard = null;
-        refresh();
+        withInstance(instance, () => {
+            if (undoItems.length > 0) {
+                pushToUndo({
+                    type: 'move',
+                    items: undoItems
+                });
+            }
+            if (mode === 'cut' && instance.clipboard === localClipboard) instance.clipboard = null;
+            refresh();
+        });
     }
 
 ;
@@ -3743,8 +3770,10 @@
     }
 
     async function compressSelectionToZip() {
-        const selected = getSelectedFiles();
+        const instance = fm;
+        const selected = getSelectedFiles().map(file => ({ path: file.path, name: file.name }));
         if (selected.length === 0) return;
+        const currentPath = instance.currentPath;
 
         let defaultName = 'archive.zip';
         if (selected.length === 1) {
@@ -3753,12 +3782,12 @@
         }
 
         const zipName = await promptDialog(t('desktop.fm.compress_zip'), defaultName);
-        if (!zipName) return;
+        if (!zipName || !isLiveInstance(instance)) return;
 
-        const destPath = joinPath(fm.currentPath, zipName);
+        const destPath = joinPath(currentPath, zipName);
 
         try {
-            showNotification({ type: 'info', message: t('desktop.fm.copy_progress') });
+            withInstance(instance, () => showNotification({ type: 'info', message: t('desktop.fm.copy_progress') }));
             await api('/api/desktop/archive', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -3766,33 +3795,44 @@
                     dest: destPath
                 })
             });
-            showNotification({ type: 'success', message: t('desktop.fm.zip_created') });
-            refresh();
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                showNotification({ type: 'success', message: t('desktop.fm.zip_created') });
+                refresh();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: err.message || String(err) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: err.message || String(err) }));
         }
     }
 
     async function extractZip(file, extractHere = true) {
-        let dest = fm.currentPath;
+        const instance = fm;
+        const zipPath = file && file.path;
+        const currentPath = instance.currentPath;
+        if (!zipPath) return;
+        let dest = currentPath;
         if (!extractHere) {
-            const destPrompt = await promptDialog(t('desktop.fm.extract_zip_to'), fm.currentPath);
-            if (!destPrompt) return;
+            const destPrompt = await promptDialog(t('desktop.fm.extract_zip_to'), currentPath);
+            if (!destPrompt || !isLiveInstance(instance)) return;
             dest = destPrompt;
         }
+        if (!isLiveInstance(instance)) return;
 
         try {
             await api('/api/desktop/extract', {
                 method: 'POST',
                 body: JSON.stringify({
-                    path: file.path,
+                    path: zipPath,
                     dest: dest
                 })
             });
-            showNotification({ type: 'success', message: t('desktop.fm.zip_extracted') });
-            refresh();
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                showNotification({ type: 'success', message: t('desktop.fm.zip_extracted') });
+                refresh();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: err.message || String(err) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: err.message || String(err) }));
         }
     }
 
@@ -4012,19 +4052,23 @@
     }
 
     async function executeBatchRename() {
+        const instance = fm;
         if (isReadonly()) return;
-        const payload = await showBatchRenameDialog();
-        if (!payload || !payload.length) return;
+        const payload = await withInstance(instance, () => showBatchRenameDialog());
+        if (!payload || !payload.length || !isLiveInstance(instance)) return;
 
         try {
             await api('/api/desktop/batch-rename', {
                 method: 'POST',
                 body: JSON.stringify({ operations: payload })
             });
-            showNotification({ type: 'success', message: t('desktop.fm.batch_rename_success') });
-            refresh();
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                showNotification({ type: 'success', message: t('desktop.fm.batch_rename_success') });
+                refresh();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: err.message || String(err) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: err.message || String(err) }));
         }
     }
 

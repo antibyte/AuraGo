@@ -939,7 +939,7 @@
                     formData.append('device_id', deviceId);
                     formData.append('remote_path', joinSFTPPath(remoteDir, file.name));
                     formData.append('file', file);
-                    const resp = await fetch('/api/desktop/sftp/upload', { method: 'POST', body: formData });
+                    const resp = await fetch('/api/desktop/sftp/upload?device_id=' + encodeURIComponent(deviceId), { method: 'POST', body: formData });
                     if (!resp.ok) {
                         const err = await resp.json().catch(() => ({ error: 'Upload failed' }));
                         showNotify(err.error || t('desktop.qc_sftp_error'));
@@ -955,7 +955,7 @@
             const ok = await showConfirmModal(t('desktop.qc_sftp_delete'), t('desktop.qc_sftp_delete_confirm').replace('{{name}}', name));
             if (!ok) return;
             try {
-                await api('/api/desktop/sftp/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
+                await api('/api/desktop/sftp/delete?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -969,7 +969,7 @@
             const dir = oldPath.substring(0, oldPath.lastIndexOf('/')) || '/';
             const newPath = joinSFTPPath(dir, newName);
             try {
-                await api('/api/desktop/sftp/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
+                await api('/api/desktop/sftp/rename?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -981,7 +981,7 @@
             if (!dirName) return;
             const newPath = joinSFTPPath(currentPath, dirName);
             try {
-                await api('/api/desktop/sftp/mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
+                await api('/api/desktop/sftp/mkdir?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -992,7 +992,7 @@
             const dstPath = await promptDialog(t('desktop.qc_sftp_copy_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
-                await api('/api/desktop/sftp/copy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                await api('/api/desktop/sftp/copy?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -1003,7 +1003,7 @@
             const dstPath = await promptDialog(t('desktop.qc_sftp_move_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
-                await api('/api/desktop/sftp/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                await api('/api/desktop/sftp/move?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));

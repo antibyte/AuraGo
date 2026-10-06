@@ -886,37 +886,55 @@
     }
 
     async function pasteClipboard(destBase) {
+        const instance = fm;
         if (isReadonly()) return;
+        const targetBase = destBase == null ? instance.currentPath : destBase;
+        if (!isLiveInstance(instance)) return;
+
         const ops = sharedFileOps();
         if (ops && typeof ops.paste === 'function') {
-            await ops.paste(destBase == null ? fm.currentPath : destBase);
-            fm.clipboard = null;
-            refresh();
+            await ops.paste(targetBase, {
+                shouldContinue: () => isLiveInstance(instance),
+                refreshActiveFileManager: false
+            });
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                instance.clipboard = sharedFileClipboard();
+                refresh();
+            });
             return;
         }
         const clipboard = sharedFileClipboard();
         if (!clipboard || !clipboard.paths.length) return;
-        const targetBase = destBase || fm.currentPath;
+        const localClipboard = instance.clipboard;
+        const sourcePaths = clipboard.paths.slice();
+        const mode = clipboard.mode;
+        const files = instance.files.slice();
+        const destination = targetBase;
 
         let progress = null;
-        if (clipboard.paths.length > 1) {
-            const title = clipboard.mode === 'copy' 
+        if (sourcePaths.length > 1) {
+            const title = mode === 'copy'
                 ? t('desktop.fm.copying')
                 : t('desktop.fm.moving');
-            progress = showProgressOverlay(title, clipboard.paths.length);
+            progress = showProgressOverlay(title, sourcePaths.length);
         }
 
         let count = 0;
         const undoItems = [];
 
-        for (const srcPath of clipboard.paths) {
+        for (const srcPath of sourcePaths) {
+            if (!isLiveInstance(instance)) {
+                if (progress) progress.close();
+                return;
+            }
             count++;
             const name = baseName(srcPath);
-            let destPath = joinPath(targetBase, name);
-            const exists = fm.files.some(f => f.name === name);
-            if (exists && clipboard.mode === 'copy') {
+            let destPath = joinPath(destination, name);
+            const exists = files.some(f => f.name === name);
+            if (exists && mode === 'copy') {
                 const newName = name + ' (' + t('desktop.fm.copy_of') + ')';
-                destPath = joinPath(targetBase, newName);
+                destPath = joinPath(destination, newName);
             }
 
             if (progress) {
@@ -924,7 +942,7 @@
             }
 
             try {
-                if (clipboard.mode === 'copy') {
+                if (mode === 'copy') {
                     await api('/api/desktop/copy', {
                         method: 'POST',
                         body: JSON.stringify({ source_path: srcPath, dest_path: destPath })
@@ -937,21 +955,30 @@
                     undoItems.push({ oldPath: srcPath, newPath: moved.path || destPath });
                 }
             } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
+                if (!isLiveInstance(instance)) {
+                    if (progress) progress.close();
+                    return;
+                }
+                withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
             }
         }
 
+        if (!isLiveInstance(instance)) {
+            if (progress) progress.close();
+            return;
+        }
         if (progress) {
             progress.close();
         }
 
-        if (undoItems.length > 0) {
-            pushToUndo({
-                type: 'move',
-                items: undoItems
-            });
-        }
-
-        if (clipboard.mode === 'cut') fm.clipboard = null;
-        refresh();
+        withInstance(instance, () => {
+            if (undoItems.length > 0) {
+                pushToUndo({
+                    type: 'move',
+                    items: undoItems
+                });
+            }
+            if (mode === 'cut' && instance.clipboard === localClipboard) instance.clipboard = null;
+            refresh();
+        });
     }

@@ -750,18 +750,24 @@
             ? document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(state.activeWindowId)}"]`)
             : null;
         if (!frame || !frame.contentWindow) return false;
-        frame.contentWindow.postMessage({
-            type: 'aurago.desktop.key-event',
-            eventType: event.type === 'keyup' ? 'keyup' : 'keydown',
-            key: event.key,
-            code: event.code,
-            location: event.location || 0,
-            repeat: !!event.repeat,
-            ctrlKey: !!event.ctrlKey,
-            shiftKey: !!event.shiftKey,
-            altKey: !!event.altKey,
-            metaKey: !!event.metaKey
-        }, '*');
+        const client = sdkFrameClients.get(frame);
+        if (!isCurrentSDKClient(client)) return false;
+        try {
+            client.port.postMessage({
+                type: 'aurago.desktop.key-event',
+                eventType: event.type === 'keyup' ? 'keyup' : 'keydown',
+                key: event.key,
+                code: event.code,
+                location: event.location || 0,
+                repeat: !!event.repeat,
+                ctrlKey: !!event.ctrlKey,
+                shiftKey: !!event.shiftKey,
+                altKey: !!event.altKey,
+                metaKey: !!event.metaKey
+            });
+        } catch (_) {
+            return false;
+        }
         if (event.cancelable && (event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar' || String(event.key || '').indexOf('Arrow') === 0)) {
             event.preventDefault();
         }

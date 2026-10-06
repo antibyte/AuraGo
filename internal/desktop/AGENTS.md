@@ -28,6 +28,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   on cancellation and never install a late SSH client. Verify
   `TestDesktopSSHDialCancelsStalledHandshake` and the proxy/RFB suites.
 - SFTP mutation JSON `device_id` must match the query ID authorized by the server guard before Vault access or dialing; multipart uploads keep the same query/body consistency check.
+- Quick Connect sends that same URL-encoded query device ID for every SFTP write,
+  including multipart uploads. Device binding does not add a remote home jail.
 
 Keep temporary files private and clean them on failure.
 

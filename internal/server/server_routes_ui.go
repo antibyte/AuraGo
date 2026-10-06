@@ -243,15 +243,12 @@ window.addEventListener=function(type,handler,options){
 if((type==='keydown'||type==='keyup')&&typeof handler==='function')keyboardHandlers[type].push(handler);
 return originalWindowAddEventListener(type,handler,options);
 };
-window.addEventListener('message',function(event){
-var msg=event&&event.data;
-if(!msg||msg.type!=='aurago.desktop.key-event')return;
+function dispatchKeyboardEvent(msg){
 var eventType=msg.eventType==='keyup'?'keyup':'keydown';
 var key=String(msg.key||''),code=String(msg.code||'');
 if(!code&&(key===' '||key==='Spacebar'))code='Space';
 if(!key&&code==='Space')key=' ';
-var prevented=false;
-var eventObject={key:key,code:code,location:Number(msg.location)||0,ctrlKey:!!msg.ctrlKey,shiftKey:!!msg.shiftKey,altKey:!!msg.altKey,metaKey:!!msg.metaKey,repeat:!!msg.repeat,type:eventType,defaultPrevented:false,preventDefault:function(){prevented=true;this.defaultPrevented=true;},stopPropagation:function(){}};
+var eventObject={key:key,code:code,location:Number(msg.location)||0,ctrlKey:!!msg.ctrlKey,shiftKey:!!msg.shiftKey,altKey:!!msg.altKey,metaKey:!!msg.metaKey,repeat:!!msg.repeat,type:eventType,defaultPrevented:false,preventDefault:function(){this.defaultPrevented=true;},stopPropagation:function(){}};
 keyboardHandlers[eventType].slice().forEach(function(handler){try{handler.call(window,eventObject);}catch(_){}});
 var init={key:key,code:code,location:eventObject.location,ctrlKey:eventObject.ctrlKey,shiftKey:eventObject.shiftKey,altKey:eventObject.altKey,metaKey:eventObject.metaKey,repeat:eventObject.repeat,bubbles:true,cancelable:true};
 function dispatch(target){
@@ -263,6 +260,16 @@ if(active&&active!==document.body&&active!==document.documentElement)dispatch(ac
 try{document.querySelectorAll('canvas,[tabindex]').forEach(dispatch);}catch(_){}
 document.dispatchEvent(new KeyboardEvent(eventType,init));
 window.dispatchEvent(new KeyboardEvent(eventType,init));
+}
+var channelBridge=window.__AURAGO_DESKTOP_SDK_CHANNEL__;
+if(channelBridge&&typeof channelBridge.onPort==='function')channelBridge.onPort(function(port){
+if(!port||typeof port.addEventListener!=='function')return;
+port.addEventListener('message',function(event){
+var msg=event&&event.data;
+if(!msg||msg.type!=='aurago.desktop.key-event'||(msg.eventType!=='keydown'&&msg.eventType!=='keyup'))return;
+dispatchKeyboardEvent(msg);
+});
+port.start();
 });
 })();</script>`
 
@@ -304,6 +311,16 @@ func injectDesktopAppKeyBridgeHTML(content []byte) []byte {
 		return content
 	}
 	lower := bytes.ToLower(content)
+	if channel := bytes.Index(lower, []byte(desktopSDKChannelMarker)); channel >= 0 {
+		if end := bytes.Index(lower[channel:], []byte("</script>")); end >= 0 {
+			insertAt := channel + end + len("</script>")
+			out := make([]byte, 0, len(content)+len(desktopAppKeyBridgeScript))
+			out = append(out, content[:insertAt]...)
+			out = append(out, desktopAppKeyBridgeScript...)
+			out = append(out, content[insertAt:]...)
+			return out
+		}
+	}
 	if idx := bytes.Index(lower, []byte("<head")); idx >= 0 {
 		if end := bytes.IndexByte(content[idx:], '>'); end >= 0 {
 			insertAt := idx + end + 1

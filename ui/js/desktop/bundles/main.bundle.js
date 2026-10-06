@@ -10220,8 +10220,9 @@ function wireWindow(win, id) {
         return desktopDropJoinPath(destBase, fallback);
     }
 
-    async function refreshAfterDesktopFileDrop() {
+    async function refreshAfterDesktopFileDrop(options) {
         await loadBootstrap();
+        if (options && options.refreshActiveFileManager === false) return;
         const active = state.windows.get(state.activeWindowId);
         if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
     }
@@ -10296,6 +10297,7 @@ function wireWindow(win, id) {
     }
 
     async function pasteDesktopFileClipboard(destBase, options) {
+        const clipboardState = window.AuraDesktopFileClipboard;
         const clipboard = desktopFileClipboard();
         if (!clipboard) return;
         const targetBase = normalizeDesktopPath(destBase == null ? 'Desktop' : destBase);
@@ -10311,6 +10313,7 @@ function wireWindow(win, id) {
             const naturalPath = desktopDropJoinPath(targetBase, desktopDropBaseName(src) || 'item');
             if (clipboard.mode === 'cut' && naturalPath === src) continue;
             const newPath = await uniqueDestinationInFolder(src, targetBase, existingNames);
+            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
             if (newPath === src) continue;
             if (clipboard.mode === 'copy') {
                 await api('/api/desktop/copy', {
@@ -10325,15 +10328,17 @@ function wireWindow(win, id) {
                     body: JSON.stringify({ old_path: src, new_path: newPath })
                 });
             }
+            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
             if (targetBase.toLowerCase() === 'desktop') {
                 const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
                 saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
                 offset += 18;
             }
         }
-        if (clipboard.mode === 'cut') window.AuraDesktopFileClipboard = null;
+        if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
+        if (clipboard.mode === 'cut' && window.AuraDesktopFileClipboard === clipboardState) window.AuraDesktopFileClipboard = null;
         desktopSound('file.drop');
-        await refreshAfterDesktopFileDrop();
+        await refreshAfterDesktopFileDrop(options);
     }
 
     function wireDesktopFileIconDrag(btn) {
@@ -18144,7 +18149,7 @@ if (appId === 'pixel') {
                     formData.append('device_id', deviceId);
                     formData.append('remote_path', joinSFTPPath(remoteDir, file.name));
                     formData.append('file', file);
-                    const resp = await fetch('/api/desktop/sftp/upload', { method: 'POST', body: formData });
+                    const resp = await fetch('/api/desktop/sftp/upload?device_id=' + encodeURIComponent(deviceId), { method: 'POST', body: formData });
                     if (!resp.ok) {
                         const err = await resp.json().catch(() => ({ error: 'Upload failed' }));
                         showNotify(err.error || t('desktop.qc_sftp_error'));
@@ -18160,7 +18165,7 @@ if (appId === 'pixel') {
             const ok = await showConfirmModal(t('desktop.qc_sftp_delete'), t('desktop.qc_sftp_delete_confirm').replace('{{name}}', name));
             if (!ok) return;
             try {
-                await api('/api/desktop/sftp/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
+                await api('/api/desktop/sftp/delete?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -18174,7 +18179,7 @@ if (appId === 'pixel') {
             const dir = oldPath.substring(0, oldPath.lastIndexOf('/')) || '/';
             const newPath = joinSFTPPath(dir, newName);
             try {
-                await api('/api/desktop/sftp/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
+                await api('/api/desktop/sftp/rename?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -18186,7 +18191,7 @@ if (appId === 'pixel') {
             if (!dirName) return;
             const newPath = joinSFTPPath(currentPath, dirName);
             try {
-                await api('/api/desktop/sftp/mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
+                await api('/api/desktop/sftp/mkdir?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -18197,7 +18202,7 @@ if (appId === 'pixel') {
             const dstPath = await promptDialog(t('desktop.qc_sftp_copy_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
-                await api('/api/desktop/sftp/copy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                await api('/api/desktop/sftp/copy?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -18208,7 +18213,7 @@ if (appId === 'pixel') {
             const dstPath = await promptDialog(t('desktop.qc_sftp_move_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
-                await api('/api/desktop/sftp/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                await api('/api/desktop/sftp/move?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -19749,18 +19754,24 @@ if (appId === 'pixel') {
             ? document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(state.activeWindowId)}"]`)
             : null;
         if (!frame || !frame.contentWindow) return false;
-        frame.contentWindow.postMessage({
-            type: 'aurago.desktop.key-event',
-            eventType: event.type === 'keyup' ? 'keyup' : 'keydown',
-            key: event.key,
-            code: event.code,
-            location: event.location || 0,
-            repeat: !!event.repeat,
-            ctrlKey: !!event.ctrlKey,
-            shiftKey: !!event.shiftKey,
-            altKey: !!event.altKey,
-            metaKey: !!event.metaKey
-        }, '*');
+        const client = sdkFrameClients.get(frame);
+        if (!isCurrentSDKClient(client)) return false;
+        try {
+            client.port.postMessage({
+                type: 'aurago.desktop.key-event',
+                eventType: event.type === 'keyup' ? 'keyup' : 'keydown',
+                key: event.key,
+                code: event.code,
+                location: event.location || 0,
+                repeat: !!event.repeat,
+                ctrlKey: !!event.ctrlKey,
+                shiftKey: !!event.shiftKey,
+                altKey: !!event.altKey,
+                metaKey: !!event.metaKey
+            });
+        } catch (_) {
+            return false;
+        }
         if (event.cancelable && (event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar' || String(event.key || '').indexOf('Arrow') === 0)) {
             event.preventDefault();
         }

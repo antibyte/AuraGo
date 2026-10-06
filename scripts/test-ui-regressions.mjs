@@ -2413,7 +2413,46 @@ function testDesktopMainBundlePartsEndAtFunctionBoundaries() {
   assert.deepEqual(failures, [], `desktop main bundle parts must start and end at function boundaries:\n${failures.join('\n')}`);
 }
 
+async function testQuickConnectSFTPMutationsBindDevice() {
+  const source = read('ui/js/desktop/apps/quickconnect-launchpad-chat.js');
+  const actions = sourceBetween(source, '        async function sftpUploadFiles(', '\n    function setQuickConnectMenus(');
+  const requests = [], errors = [], refreshes = [];
+  const context = {
+    FormData, Blob, encodeURIComponent,
+    t: key => key,
+    showConfirmModal: async () => true,
+    promptDialog: async () => 'renamed',
+    joinSFTPPath: (dir, name) => `${dir}/${name}`,
+    loadSFTPList: (_nav, device) => refreshes.push(device),
+    showNotify: message => errors.push(message),
+    api: async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); },
+    fetch: async (url, options) => {
+      requests.push({ url, body: { device_id: options.body.get('device_id'), path: options.body.get('remote_path') } });
+      return { ok: true };
+    }
+  };
+  // The functions are nested in renderQuickConnect; remove that enclosing close.
+  vm.runInNewContext(actions.slice(0, actions.lastIndexOf('    }')), context);
+  const device = 'device & secondary/ä', nav = { path: 'home' }, els = {};
+  await context.sftpDelete(nav, device, 'home/file', 'file', els);
+  await context.sftpRename(nav, device, 'home/file', els);
+  await context.sftpMkdir(nav, device, 'home', els);
+  await context.sftpCopy(nav, device, 'home/file', els);
+  await context.sftpMove(nav, device, 'home/file', els);
+  const file = new Blob(['upload']);
+  Object.defineProperty(file, 'name', { value: 'file.txt' });
+  await context.sftpUploadFiles(nav, device, 'home', [file], els);
+  assert.deepEqual(errors, []);
+  assert.equal(requests.length, 6);
+  for (const request of requests) {
+    assert.equal(new URL(request.url, 'http://desktop.test').searchParams.get('device_id'), device);
+    assert.equal(request.body.device_id, device);
+  }
+  assert.equal(refreshes.length, 6, 'successful actions refresh their SFTP listing');
+}
+
 const tests = [
+  ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
   ['Desktop Chat separates streamed tool rounds and final text', testDesktopChatSeparatesStreamedToolRounds],
