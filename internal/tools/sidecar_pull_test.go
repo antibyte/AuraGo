@@ -231,7 +231,7 @@ func TestEnsureManifestContainerStillCreatesAfterFailedPull(t *testing.T) {
 		case r.Method == http.MethodGet && path == "/containers/"+manifestTestName+"/json":
 			w.WriteHeader(http.StatusNotFound)
 		case r.Method == http.MethodGet && path == "/images/"+manifestTestImage+"/json":
-			w.WriteHeader(http.StatusInternalServerError) // the image check failed; the image may still exist
+			w.WriteHeader(http.StatusForbidden) // the image check failed; the image may still exist
 		case r.Method == http.MethodPost && path == "/images/create":
 			writeDockerJSON(w, http.StatusNotFound, map[string]string{"message": "registry unreachable"})
 		case r.Method == http.MethodPost && path == "/containers/create":

@@ -18,6 +18,8 @@ func TestPullDockerImageKeepsTagSplit(t *testing.T) {
 	for image, want := range map[string]string{
 		"ollama/ollama": "fromImage=ollama%2Follama&tag=latest",
 		gotenbergImage:  "fromImage=gotenberg%2Fgotenberg&tag=8",
+		// Today's naive split at the first ':' (a registry port included) is kept as is.
+		"registry.example:5000/team/ollama": "fromImage=registry.example&tag=5000%2Fteam%2Follama",
 	} {
 		if err := pullDockerImage(cfg, image); err != nil {
 			t.Fatalf("pullDockerImage(%q) = %v", image, err)
