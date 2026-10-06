@@ -67,12 +67,14 @@ Store app configuration, runtime, assets, and publication.
 ### Catalog Host Binds
 
 - Host binds declared in `DefaultCatalog()` (`HostBinds` of an entry or a
-  companion, such as the read-only Docker socket of Dozzle, the Beszel agent
-  and the Arcane socket proxy) are the only binds the Store passes as trusted
-  to `tools.DockerCreateRequestContextWithTrustedBinds`, matched by exact host
+  companion, such as the read-only Docker socket of the socket-proxy
+  companions) are the only binds the Store passes as trusted to
+  `tools.DockerCreateRequestContextWithTrustedBinds`, matched by exact host
   path, container path and read-only flag against the code catalog at create
-  time. Persisted records, managed workspace binds and every other bind keep
-  the generic Docker bind policy. Verify
+  time. Persisted record binds are trusted only while they still equal the
+  current catalog; managed workspace binds and every other bind keep the
+  generic Docker bind policy. A new catalog `HostBinds` entry is trusted
+  automatically, so review it like a policy exemption. Verify
   `TestToolsDockerAdapterTrustsOnlyCatalogHostBinds`.
 
 ## Verification

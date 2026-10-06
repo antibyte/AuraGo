@@ -3,6 +3,7 @@ package desktopstore
 import (
 	"archive/tar"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -88,56 +89,86 @@ func TestToolsDockerAdapterTrustsOnlyCatalogHostBinds(t *testing.T) {
 	}))
 	defer server.Close()
 	adapter := NewToolsDockerAdapter("tcp://"+strings.TrimPrefix(server.URL, "http://"), t.TempDir(), nil)
-	socket := HostBinding{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true}
-	labels := func(appID, companion string) map[string]string {
-		out := map[string]string{"aurago.desktop_store": "true", "aurago.desktop_store.app_id": appID}
-		if companion != "" {
-			out["aurago.desktop_store.companion"] = companion
-		}
-		return out
-	}
 	ctx := context.Background()
 
+	// Specs come from the production record builders, so the labels the trust
+	// check reads are the labels install, update and rollback write.
+	appSpec := func(appID, image string, binds []HostBinding) ContainerSpec {
+		return containerSpecFromRecord(InstalledApp{AppID: appID, ContainerName: "aurago-store-" + appID, Image: image, HostBinds: append([]HostBinding(nil), binds...)})
+	}
+	companionSpec := func(appID string, companion CompanionTemplate, binds []HostBinding) ContainerSpec {
+		return companionContainerSpec(InstalledApp{AppID: appID, ContainerName: "aurago-store-" + appID}, CompanionApp{
+			ID:            companion.ID,
+			Name:          companion.Name,
+			ContainerName: "aurago-store-" + appID + "-" + companion.ID,
+			Image:         companion.Image,
+			NetworkMode:   companion.NetworkMode,
+			HostBinds:     append([]HostBinding(nil), binds...),
+		})
+	}
+
 	// Every host bind the code catalog declares, resolved the way install and
-	// update resolve them, must create (Dozzle, the Beszel agent and the Arcane
-	// socket proxy mount the read-only Docker socket).
+	// update resolve them, must create. The Arcane socket proxy (read-only
+	// Docker socket) is the companion that failed on aurago-test and keeps its
+	// catalog socket bind on main, so the negative cases below start from it.
 	var catalogSpecs []ContainerSpec
+	var arcaneProxy CompanionTemplate
 	for _, entry := range DefaultCatalog() {
 		if len(entry.HostBinds) > 0 {
-			catalogSpecs = append(catalogSpecs, ContainerSpec{Name: "aurago-store-" + entry.ID, Image: entry.Image, HostBinds: resolveHostBinds(entry.HostBinds), Labels: labels(entry.ID, "")})
+			catalogSpecs = append(catalogSpecs, appSpec(entry.ID, entry.Image, resolveHostBinds(entry.HostBinds)))
 		}
 		for _, companion := range entry.Companions {
-			if len(companion.HostBinds) > 0 {
-				catalogSpecs = append(catalogSpecs, ContainerSpec{Name: "aurago-store-" + entry.ID + "-" + companion.ID, Image: companion.Image, HostBinds: resolveHostBinds(companion.HostBinds), Labels: labels(entry.ID, companion.ID)})
+			if len(companion.HostBinds) == 0 {
+				continue
+			}
+			catalogSpecs = append(catalogSpecs, companionSpec(entry.ID, companion, resolveHostBinds(companion.HostBinds)))
+			if entry.ID == "arcane" && companion.ID == "socket-proxy" {
+				arcaneProxy = companion
 			}
 		}
 	}
-	sawArcaneProxy := false
+	if len(arcaneProxy.HostBinds) == 0 {
+		t.Fatal("catalog has no Arcane socket-proxy host bind")
+	}
 	for _, spec := range catalogSpecs {
-		if spec.Name == "aurago-store-arcane-socket-proxy" {
-			sawArcaneProxy = true
-		}
 		if _, err := adapter.CreateContainer(ctx, spec); err != nil {
 			t.Fatalf("%s: catalog host bind rejected: %v", spec.Name, err)
 		}
 	}
-	if !sawArcaneProxy {
-		t.Fatalf("catalog specs %v do not include the Arcane socket proxy that failed on aurago-test", catalogSpecs)
-	}
 
-	writable := socket
-	writable.ReadOnly = false
-	for name, spec := range map[string]ContainerSpec{
-		"app without catalog bind":    {Name: "aurago-store-excalidraw", Image: "excalidraw/excalidraw:latest", HostBinds: []HostBinding{socket}, Labels: labels("excalidraw", "")},
-		"writable socket":             {Name: "aurago-store-dozzle", Image: "ghcr.io/amir20/dozzle:latest", HostBinds: []HostBinding{writable}, Labels: labels("dozzle", "")},
-		"extra host root":             {Name: "aurago-store-dozzle", Image: "ghcr.io/amir20/dozzle:latest", HostBinds: []HostBinding{socket, {HostPath: "/", ContainerPath: "/host"}}, Labels: labels("dozzle", "")},
-		"arcane main app has none":    {Name: "aurago-store-arcane", Image: "ghcr.io/getarcaneapp/manager:latest", HostBinds: []HostBinding{socket}, Labels: labels("arcane", "")},
-		"managed flag is not trusted": {Name: "aurago-store-dozzle", Image: "ghcr.io/amir20/dozzle:latest", HostBinds: []HostBinding{{HostPath: socket.HostPath, ContainerPath: socket.ContainerPath, ReadOnly: true, Managed: true}}, Labels: labels("dozzle", "")},
-		"unknown companion":           {Name: "aurago-store-arcane-other", Image: "tecnativa/docker-socket-proxy:latest", HostBinds: []HostBinding{socket}, Labels: labels("arcane", "other")},
-		"no app label":                {Name: "aurago-store-dozzle", Image: "ghcr.io/amir20/dozzle:latest", HostBinds: []HostBinding{socket}, Labels: map[string]string{"aurago.desktop_store": "true"}},
+	proxyBinds := resolveHostBinds(arcaneProxy.HostBinds)
+	socketDenial := fmt.Sprintf("mounting sensitive host path %q", proxyBinds[0].HostPath)
+	variant := func(change func([]HostBinding) []HostBinding) []HostBinding {
+		return change(append([]HostBinding(nil), proxyBinds...))
+	}
+	for name, tc := range map[string]struct {
+		spec ContainerSpec
+		want string
+	}{
+		"writable socket": {companionSpec("arcane", arcaneProxy, variant(func(b []HostBinding) []HostBinding {
+			b[0].ReadOnly = false
+			return b
+		})), socketDenial},
+		"other container path": {companionSpec("arcane", arcaneProxy, variant(func(b []HostBinding) []HostBinding {
+			b[0].ContainerPath = "/sock"
+			return b
+		})), socketDenial},
+		"managed flag is not trusted": {companionSpec("arcane", arcaneProxy, variant(func(b []HostBinding) []HostBinding {
+			b[0].Managed = true
+			return b
+		})), socketDenial},
+		"extra host root": {companionSpec("arcane", arcaneProxy, variant(func(b []HostBinding) []HostBinding {
+			return append(b, HostBinding{HostPath: "/", ContainerPath: "/host"})
+		})), `mounting sensitive host path "/"`},
+		"arcane main app has none":    {appSpec("arcane", "ghcr.io/getarcaneapp/manager:latest", proxyBinds), socketDenial},
+		"app without catalog bind":    {appSpec("excalidraw", "excalidraw/excalidraw:latest", proxyBinds), socketDenial},
+		"unknown companion":           {companionSpec("arcane", CompanionTemplate{ID: "other", Image: arcaneProxy.Image}, proxyBinds), socketDenial},
+		"companion of another app":    {companionSpec("excalidraw", arcaneProxy, proxyBinds), socketDenial},
+		"record without an app id":    {appSpec("", arcaneProxy.Image, proxyBinds), socketDenial},
+		"companion without an app id": {companionSpec("", arcaneProxy, proxyBinds), socketDenial},
 	} {
-		if _, err := adapter.CreateContainer(ctx, spec); err == nil || !strings.Contains(err.Error(), "mounting sensitive host path") {
-			t.Fatalf("%s: error = %v, want sensitive-path denial", name, err)
+		if _, err := adapter.CreateContainer(ctx, tc.spec); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("%s: error = %v, want %s", name, err, tc.want)
 		}
 	}
 	if len(created) != len(catalogSpecs) {

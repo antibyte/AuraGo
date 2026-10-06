@@ -268,9 +268,10 @@ func DockerRequestContext(ctx context.Context, cfg DockerConfig, method, endpoin
 // like DockerRequestContext, but HostConfig.Binds strings listed exactly in
 // trusted skip validateDockerBindMount. Only code-pinned callers use it (the
 // Software Store adapter passes its catalog's own host binds); agent dispatch
-// and every other caller keep the full bind policy.
+// and every other caller keep the full bind policy. The endpoint path must be
+// exactly /containers/create; a query such as ?name= is allowed.
 func DockerCreateRequestContextWithTrustedBinds(ctx context.Context, cfg DockerConfig, endpoint, body string, trusted []string) ([]byte, int, error) {
-	if !strings.HasPrefix(strings.TrimSpace(endpoint), "/containers/create") {
+	if !dockerEndpointIsContainerCreate(endpoint) {
 		return nil, 0, fmt.Errorf("trusted Docker binds apply only to /containers/create")
 	}
 	if err := requireDockerMutationPermission(); err != nil {
@@ -280,6 +281,18 @@ func DockerCreateRequestContextWithTrustedBinds(ctx context.Context, cfg DockerC
 		return nil, 0, err
 	}
 	return dockerRequestContextValidated(ctx, cfg, http.MethodPost, endpoint, body)
+}
+
+// dockerEndpointIsContainerCreate reports whether endpoint is a relative
+// reference whose path is exactly /containers/create, spelled without
+// percent-encoding, with an optional query and no fragment.
+func dockerEndpointIsContainerCreate(endpoint string) bool {
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return false
+	}
+	return parsed.Scheme == "" && parsed.Opaque == "" && parsed.User == nil && parsed.Host == "" &&
+		parsed.Fragment == "" && parsed.Path == "/containers/create" && parsed.EscapedPath() == "/containers/create"
 }
 
 // dockerRequestContextValidated sends a request whose gates and bind checks
@@ -1208,10 +1221,8 @@ func validateDockerCreateRequestBindsTrusted(cfg DockerConfig, method, endpoint,
 	return validateDockerCreatePayloadBindsTrusted(cfg, payload, trusted)
 }
 
-func validateDockerCreatePayloadBinds(cfg DockerConfig, payload map[string]interface{}) error {
-	return validateDockerCreatePayloadBindsTrusted(cfg, payload, nil)
-}
-
+// validateDockerCreatePayloadBindsTrusted validates every HostConfig.Binds
+// entry with validateDockerBindMount, except entries listed exactly in trusted.
 func validateDockerCreatePayloadBindsTrusted(cfg DockerConfig, payload map[string]interface{}, trusted []string) error {
 	hostConfig, ok := payload["HostConfig"].(map[string]interface{})
 	if !ok {

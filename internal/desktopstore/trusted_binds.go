@@ -8,9 +8,11 @@ import (
 
 // catalogTrustedBinds returns the HostConfig.Binds strings of spec that the
 // code-pinned DefaultCatalog declares for spec's app or companion (exact host
-// path, container path and read-only flag). Only these skip the generic Docker
-// bind policy; binds from persisted records, workspace binds and every other
-// source are still validated by internal/tools.
+// path, container path and read-only flag), such as the read-only Docker
+// socket of the socket-proxy companions. Only these skip the generic Docker
+// bind policy. A bind from a persisted record is trusted only while it still
+// equals the current catalog; managed workspace binds and every other bind
+// are still validated by internal/tools.
 func catalogTrustedBinds(spec ContainerSpec) []string {
 	appID := normalizeAppID(spec.Labels["aurago.desktop_store.app_id"])
 	if appID == "" {

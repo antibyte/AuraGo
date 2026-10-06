@@ -373,6 +373,73 @@ func TestDockerCreateRequestContextWithTrustedBindsTrustsOnlyExactBinds(t *testi
 	}
 }
 
+func TestDockerCreateRequestContextWithTrustedBindsRequiresExactCreatePath(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	var requests []string
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.URL.RequestURI())
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+	})
+	cfg := DockerConfig{Host: host, WorkspaceDir: t.TempDir()}
+	socketRO := "/var/run/docker.sock:/var/run/docker.sock:ro"
+	payload, _ := json.Marshal(map[string]any{"Image": "tecnativa/docker-socket-proxy:latest", "HostConfig": map[string]any{"Binds": []string{socketRO}}})
+	ctx := context.Background()
+
+	for _, endpoint := range []string{
+		"/containers/createx",
+		"/containers/create/",
+		"/containers/create/../../images/create",
+		"/containers/%63reate",
+		"/containers/create#fragment",
+		" /containers/create",
+		"//evil/containers/create",
+		"http://evil/containers/create",
+		"containers/create",
+		"/containers/x/start",
+	} {
+		if _, _, err := DockerCreateRequestContextWithTrustedBinds(ctx, cfg, endpoint, string(payload), []string{socketRO}); err == nil || !strings.Contains(err.Error(), "apply only to /containers/create") {
+			t.Fatalf("endpoint %q: error = %v, want the create-only denial", endpoint, err)
+		}
+	}
+	if len(requests) != 0 {
+		t.Fatalf("rejected endpoints reached Docker: %v", requests)
+	}
+	for _, endpoint := range []string{"/containers/create", "/containers/create?name=aurago-store-arcane-socket-proxy"} {
+		if _, code, err := DockerCreateRequestContextWithTrustedBinds(ctx, cfg, endpoint, string(payload), []string{socketRO}); err != nil || code != http.StatusCreated {
+			t.Fatalf("endpoint %q: code=%d err=%v, want created", endpoint, code, err)
+		}
+	}
+	if len(requests) != 2 {
+		t.Fatalf("requests = %v, want the two exact creates", requests)
+	}
+}
+
+func TestDockerCreateRequestContextWithTrustedBindsRejectsReadOnlyBeforeBindCheck(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, true)
+	var called bool
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+	})
+	cfg := DockerConfig{Host: host, WorkspaceDir: t.TempDir()}
+	socketRO := "/var/run/docker.sock:/var/run/docker.sock:ro"
+	for name, binds := range map[string][]string{
+		"trusted bind only":       {socketRO},
+		"bind the policy rejects": {socketRO, "/:/host"},
+	} {
+		payload, _ := json.Marshal(map[string]any{"Image": "tecnativa/docker-socket-proxy:latest", "HostConfig": map[string]any{"Binds": binds}})
+		_, _, err := DockerCreateRequestContextWithTrustedBinds(context.Background(), cfg, "/containers/create?name=x", string(payload), []string{socketRO})
+		if err == nil || !strings.Contains(err.Error(), "docker mutation is disabled") || strings.Contains(err.Error(), "mounting sensitive host path") {
+			t.Fatalf("%s: error = %v, want the read-only denial before the bind check", name, err)
+		}
+	}
+	if called {
+		t.Fatal("read-only trusted create reached Docker")
+	}
+}
+
 func TestDockerCreateContainerStillRejectsDockerSocketBind(t *testing.T) {
 	configureDockerSecurityTestPermissions(t, false)
 	var called bool
