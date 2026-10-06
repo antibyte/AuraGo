@@ -15,10 +15,13 @@
         const pills = canvas.wiresSvg.querySelector('.ed-wires-pills');
         const previewPath = canvas.wiresSvg.querySelector('.ed-wire-preview');
         const groups = new Map();
+        const pillEls = new Map(); // edge id -> { g, w } of its run pill
         let hoverEdge = null;
         let hideTimer = 0;
         let pathNode = null;
         let pathSet = new Set();
+        let pathVersion = -1;
+        let markedEdge = null;
         let dropTarget = null;
 
         const actions = core.el('<div class="ed-wire-actions" hidden>' +
@@ -26,9 +29,12 @@
             '<button type="button" class="ed-wire-btn ed-wire-btn--danger" data-ed-wire="delete" title="' + esc(t('easydrag.ui.wire_delete')) + '" aria-label="' + esc(t('easydrag.ui.wire_delete')) + '">' + core.icon('x') + '</button></div>');
         canvas.world.appendChild(actions);
 
-        function ends(e) {
-            const src = ed.model.node(e.source.node);
-            const dst = ed.model.node(e.target.node);
+        // nodeMap is an id -> node Map for passes over every wire (one lookup each instead of a scan).
+        function nodeMap() { return new Map(ed.model.doc.nodes.map(n => [n.id, n])); }
+
+        function ends(e, byId) {
+            const src = byId ? byId.get(e.source.node) : ed.model.node(e.source.node);
+            const dst = byId ? byId.get(e.target.node) : ed.model.node(e.target.node);
             if (!src || !dst) return null;
             const outs = ed.model.outputs(src);
             const idx = Math.max(0, outs.indexOf(e.source.port));
@@ -44,10 +50,16 @@
             return run ? run.state : '';
         }
 
-        function drawEdge(e) {
-            const geo = ends(e);
+        function drawEdge(e, byId) {
+            const geo = ends(e, byId);
             let g = groups.get(e.id);
-            if (!geo) { if (g) { g.remove(); groups.delete(e.id); } return; }
+            const pill = pillEls.get(e.id);
+            if (!geo) {
+                if (g) { g.remove(); groups.delete(e.id); }
+                if (pill) { pill.g.remove(); pillEls.delete(e.id); }
+                return;
+            }
+            if (pill) placePill(pill, geo);
             if (!g) {
                 g = document.createElementNS(SVG, 'g');
                 g.setAttribute('class', 'ed-edge');
@@ -69,45 +81,52 @@
             if (state) cls.push('is-' + state);
             if (e.source.port === 'error') cls.push('is-error-port');
             if (geo.src.settings.disabled || geo.dst.settings.disabled) cls.push('is-disabled');
-            if (ed.selectedEdge === e.id) cls.push('is-selected');
+            if (ed.selectedEdge === e.id) { cls.push('is-selected'); markedEdge = e.id; }
             if (dropTarget === e.id) cls.push('is-drop-target');
             if (pathNode && pathSet.has(e.source.node) && pathSet.has(e.target.node)) cls.push('is-path');
             g.setAttribute('class', cls.join(' '));
             g.dataset.cat = core.catOf(ed.model.info(geo.src.type));
         }
 
+        // render redraws every wire and rebuilds the run pills (after a run or a structural change).
         function render() {
+            const byId = nodeMap();
             const present = new Set(ed.model.doc.edges.map(e => e.id));
             Array.from(groups.keys()).forEach(id => { if (!present.has(id)) { groups.get(id).remove(); groups.delete(id); } });
-            ed.model.doc.edges.forEach(drawEdge);
-            drawPills();
+            buildPills();
+            ed.model.doc.edges.forEach(e => drawEdge(e, byId));
             if (hoverEdge && !present.has(hoverEdge)) hideActions(true);
         }
 
+        // renderFor redraws the wires of moved or edited nodes; their pills only move.
         function renderFor(nodeIds) {
             const set = new Set(nodeIds || []);
             ed.model.doc.edges.forEach(e => { if (set.has(e.source.node) || set.has(e.target.node)) drawEdge(e); });
-            drawPills();
             if (hoverEdge) placeActions(hoverEdge);
         }
 
-        function drawPills() {
+        // buildPills makes one item-count pill per wire with a count in the current run; drawEdge
+        // places it at the wire's midpoint.
+        function buildPills() {
             pills.innerHTML = '';
+            pillEls.clear();
             if (!ed.run || !ed.run.edges) return;
             ed.model.doc.edges.forEach(e => {
                 const info = ed.run.edges.get(e.id);
                 if (!info || !info.count) return;
-                const geo = ends(e);
-                if (!geo) return;
-                const mid = G.wireMidpoint(geo.a, geo.b);
                 const text = String(info.count);
                 const w = 14 + text.length * 7;
                 const g = document.createElementNS(SVG, 'g');
                 g.setAttribute('class', 'ed-pill');
-                g.setAttribute('transform', 'translate(' + (mid.x - w / 2).toFixed(1) + ',' + (mid.y - 9).toFixed(1) + ')');
                 g.innerHTML = '<rect width="' + w + '" height="18" rx="9"></rect><text x="' + (w / 2) + '" y="13" text-anchor="middle">' + esc(text) + '</text>';
                 pills.appendChild(g);
+                pillEls.set(e.id, { g, w });
             });
+        }
+
+        function placePill(pill, geo) {
+            const mid = G.wireMidpoint(geo.a, geo.b);
+            pill.g.setAttribute('transform', 'translate(' + (mid.x - pill.w / 2).toFixed(1) + ',' + (mid.y - 9).toFixed(1) + ')');
         }
 
         // ── hover actions ───────────────────────────────────────────────────────
@@ -170,19 +189,33 @@
             event.stopPropagation();
             ed.selectedEdge = g.dataset.edgeId;
             ed.selection.clear();
-            ed.bus.emit('selection', ed.selection);
-            render();
+            ed.bus.emit('selection', ed.selection); // marks the wire through markSelected
         });
 
-        // highlight marks the whole path through a node (ancestors and descendants).
+        // markSelected moves the is-selected class to ed.selectedEdge without redrawing any wire.
+        function markSelected() {
+            const next = ed.selectedEdge || null;
+            const prev = markedEdge && markedEdge !== next ? groups.get(markedEdge) : null;
+            if (prev) prev.classList.remove('is-selected');
+            const g = next && groups.get(next);
+            if (g) g.classList.add('is-selected');
+            markedEdge = next;
+        }
+
+        // highlight marks the whole path through a node (ancestors and descendants). The same node in
+        // an unchanged document needs no redraw (hovering fires it for every element of a card).
         function highlight(nodeId) {
-            pathNode = nodeId || null;
+            const next = nodeId || null;
+            if (next === pathNode && pathVersion === ed.model.version) return;
+            pathNode = next;
+            pathVersion = ed.model.version;
             pathSet = new Set();
             if (pathNode && ed.model.node(pathNode)) {
                 pathSet = new Set([pathNode, ...ed.model.upstream(pathNode), ...ed.model.downstream(pathNode)]);
             }
             canvas.el.classList.toggle('has-path', !!pathNode);
-            ed.model.doc.edges.forEach(drawEdge);
+            const byId = nodeMap();
+            ed.model.doc.edges.forEach(e => drawEdge(e, byId));
         }
 
         // markDropTarget marks the wire a dragged card would be inserted into (null clears it). It looks
@@ -211,7 +244,7 @@
             else renderFor(change.nodes);
         }));
         bag.add(ed.bus.on('run', render));
-        bag.add(ed.bus.on('selection', () => { if (ed.selection.size) { ed.selectedEdge = null; } render(); }));
+        bag.add(ed.bus.on('selection', () => { if (ed.selection.size) { ed.selectedEdge = null; } markSelected(); }));
         bag.add(ed.bus.on('view', () => { if (hoverEdge) placeActions(hoverEdge); }));
 
         return {

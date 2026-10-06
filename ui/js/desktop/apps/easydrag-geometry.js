@@ -49,6 +49,14 @@
 
     function wireMidpoint(a, b) { return bezierPoint(a, b, 0.5); }
 
+    // wireBounds is the box around a wire's control points; the curve never leaves it.
+    function wireBounds(a, b) {
+        const dx = controlOffset(a, b);
+        const x1 = Math.min(a.x, b.x - dx);
+        const x2 = Math.max(a.x + dx, b.x);
+        return { x: x1, y: Math.min(a.y, b.y), w: x2 - x1, h: Math.abs(b.y - a.y) };
+    }
+
     function distanceToSegment(p, a, b) {
         const vx = b.x - a.x;
         const vy = b.y - a.y;
@@ -137,7 +145,7 @@
 
     ED.geometry = {
         NODE_W, NODE_H, PORT_TOP, PORT_PITCH, GRID, MIN_ZOOM, MAX_ZOOM,
-        nodeHeight, portPoint, wirePath, bezierPoint, wireMidpoint, distanceToWire, nodeRect, contains, intersects,
+        nodeHeight, portPoint, wirePath, bezierPoint, wireMidpoint, wireBounds, distanceToWire, nodeRect, contains, intersects,
         normalizeRect, bounds, clampZoom, fit, zoomAt, toWorld, toScreen, snap, freeSpot
     };
 })();

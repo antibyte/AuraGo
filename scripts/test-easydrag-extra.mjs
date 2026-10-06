@@ -323,7 +323,7 @@ export async function run(env) {
         // A card drawn before the switch still has its tools: they must do nothing.
         h.card(A).querySelector('[data-ed-node-tool="delete"]').fire('click');
         h.card(A).querySelector('[data-ed-node-tool="test"]').fire('click');
-        h.bus.emit('selection', h.ed.selection);
+        h.canvas.render(); // the editor redraws after switching the mode
         h.card(A).querySelector('[data-ed-port-add]').fire('pointerdown', h.pe(1, 232, 36));
         h.el.fire('pointerup', h.pe(1, 232, 36));
         eq('c1d04 a read-only canvas marks its cards and ignores card tools and port +',
@@ -369,5 +369,100 @@ export async function run(env) {
         eq('c1d04 dispose cancels a drag and leaves no listeners, timeouts, frames or bus subscriptions',
             [busy, h.pos(B), listening, h.timers.size, h.frames.size, h.subscriptions.size, h.observers], [[true, true, 8], origin, [], 0, 0, 0, { observed: 1, disconnected: 1 }]);
         eq('c1d04 the dispose checks log no errors', h.logged, []);
+    });
+
+    // ── performance: work that must not happen on selection, drag and pan frames ──
+
+    await guardAsync('c1d04 selection cost', async () => {
+        const h = harness(twoNodes());
+        const rebuilt = h.counts.cards;
+        h.interact.handleKey(h.key('a', h.el, { ctrlKey: true }));
+        const marked = [h.card(A).classList.contains('is-selected'), h.card(B).classList.contains('is-selected')];
+        h.interact.handleKey(h.key('Escape'));
+        eq('c1d04 Ctrl+A and Escape rebuild no card markup', [h.counts.cards - rebuilt, marked, h.card(A).classList.contains('is-selected')], [0, [true, true], false]);
+        const wire = h.canvas.wiresSvg.querySelector('.ed-edge');
+        wire.firstChild.fire('click');
+        const picked = [wire.classList.contains('is-selected'), h.ed.selectedEdge];
+        h.interact.select([A]);
+        eq('c1d04 a wire click marks the wire and selecting a step unmarks it', [picked, wire.classList.contains('is-selected'), h.ed.selectedEdge], [[true, 'e1'], false, null]);
+        eq('c1d04 the selection checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d04 run pills', async () => {
+        const h = harness(twoNodes());
+        h.ed.run = { steps: new Map(), edges: new Map([['e1', { state: 'done', count: 3 }]]) };
+        h.bus.emit('run');
+        const layer = h.canvas.wiresSvg.querySelector('.ed-wires-pills');
+        const pill = layer.children[0];
+        const placed = pill && pill.getAttribute('transform');
+        h.card(A).fire('pointerdown', h.pe(1, 10, 10));
+        h.el.fire('pointermove', h.pe(1, 10, 110));
+        h.el.fire('pointermove', h.pe(1, 10, 160));
+        const during = [layer.children.length, layer.children[0] === pill, pill.getAttribute('transform') !== placed];
+        h.el.fire('pointerup', h.pe(1, 10, 160));
+        h.bus.emit('run');
+        eq('c1d04 drag frames only move the run pills; a run event rebuilds them', [during, layer.children[0] !== pill, layer.children.length], [[1, true, true], true, 1]);
+        eq('c1d04 the pill checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d04 frame work', async () => {
+        const h = harness(twoNodes());
+        const G = h.ED.geometry;
+        // highlight: hovering fires it for every element of a card; the same node redraws nothing.
+        let paths = 0;
+        const wirePath = G.wirePath;
+        G.wirePath = (a, b) => { paths++; return wirePath(a, b); };
+        h.wires.highlight(A);
+        const first = paths;
+        h.wires.highlight(A);
+        const again = paths - first;
+        h.model.setLabel(B, 'Changed');
+        const edited = paths;
+        h.wires.highlight(A);
+        G.wirePath = wirePath;
+        eq('c1d04 highlighting the same node again redraws no wire until the document changes', [first, again, paths - edited, h.el.classList.contains('has-path')], [1, 0, 1, true]);
+        // box select: the selection changes only when the hit set does.
+        const grid = h.el.querySelector('.ed-grid');
+        const s0 = h.selections();
+        grid.fire('pointerdown', h.pe(2, -50, -50));
+        h.el.fire('pointermove', h.pe(2, 100, 100));
+        h.el.fire('pointermove', h.pe(2, 120, 100));
+        h.el.fire('pointermove', h.pe(2, 140, 110));
+        const one = [h.selections() - s0, Array.from(h.ed.selection)];
+        h.el.fire('pointermove', h.pe(2, 700, 100));
+        h.el.fire('pointerup', h.pe(2, 700, 100));
+        eq('c1d04 box select emits a selection only when the hit set changes', [one, h.selections() - s0, Array.from(h.ed.selection)], [[1, [A]], 2, [A, B]]);
+        // minimap: the node layer sits in world coordinates; a pan or zoom only moves it.
+        h.flushFrames();
+        const nodes = h.el.querySelector('.ed-minimap-nodes');
+        const view = h.el.querySelector('.ed-minimap-view');
+        const drawn = h.counts.minimapNodes;
+        const x0 = view.getAttribute('x');
+        h.canvas.setView({ x: -300, y: 40, zoom: 1 });
+        h.flushFrames();
+        h.canvas.setView({ x: 200, y: -90, zoom: 0.5 });
+        h.flushFrames();
+        const panned = [h.counts.minimapNodes - drawn, view.getAttribute('x') !== x0, /^matrix\(/.test(nodes.getAttribute('transform') || ''), nodes.children[1].getAttribute('x')];
+        h.interact.select([A]);
+        h.flushFrames();
+        eq('c1d04 a pan or zoom moves the minimap layer without redrawing it; a selection redraws it once',
+            [panned, h.counts.minimapNodes - drawn, nodes.html.includes('is-selected')], [[0, true, true, '600'], 1, true]);
+        // A click on the minimap still centres the view on the point under it.
+        const mini = h.el.querySelector('.ed-minimap svg');
+        mini.getBoundingClientRect = () => ({ left: 0, top: 0, right: 200, bottom: 130, width: 200, height: 130 });
+        const scale = Number(mini.dataset.scale);
+        mini.fire('pointerdown', h.pe(3, 716 * scale + Number(mini.dataset.ox), 36 * scale + Number(mini.dataset.oy)));
+        mini.fire('pointerup', h.pe(3, 0, 0));
+        check('c1d04 a minimap click centres the view on the step under it', Math.abs(h.ed.view.x - (400 - 716 * h.ed.view.zoom)) < 0.01 && Math.abs(h.ed.view.y - (300 - 36 * h.ed.view.zoom)) < 0.01, JSON.stringify(h.ed.view));
+        // edgeNear skips wires by their control-point box: the curve never leaves it.
+        const inside = [[{ x: 0, y: 0 }, { x: 300, y: 100 }], [{ x: 500, y: 0 }, { x: 100, y: 200 }], [{ x: 0, y: 0 }, { x: 10, y: -50 }]].every(([a, b]) => {
+            const box = G.wireBounds(a, b);
+            return Array.from({ length: 41 }, (_, i) => G.bezierPoint(a, b, i / 40)).every(p => p.x >= box.x - 1e-9 && p.x <= box.x + box.w + 1e-9 && p.y >= box.y - 1e-9 && p.y <= box.y + box.h + 1e-9);
+        });
+        check('c1d04 wireBounds holds the whole wire, backwards wires included', inside);
+        // The node list is built in one pass over nodes and edges.
+        h.runTimers(400);
+        check('c1d04 the node list names where each step leads', h.el.querySelector('.ed-node-list').html.includes('Alpha ' + String.fromCharCode(0x2192) + ' Changed'));
+        eq('c1d04 the frame checks log no errors', h.logged, []);
     });
 }

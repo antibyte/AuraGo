@@ -42,6 +42,7 @@
         const emptyEl = el.querySelector('.ed-empty');
         const zoomValue = el.querySelector('.ed-zoom-value');
         const minimap = el.querySelector('.ed-minimap svg');
+        const minimapNodes = minimap.querySelector('.ed-minimap-nodes');
         const listEl = el.querySelector('.ed-node-list');
         const liveEl = el.querySelector('[data-ed-live]');
 
@@ -53,6 +54,13 @@
         // named holds the key and label each card was drawn with; a change to them can alter
         // the summaries of other cards that reference the node.
         const named = new Map();
+        // keyIndex maps node keys to nodes for summaries; it is rebuilt when the model version changes.
+        let keyIndex = new Map();
+        let keyIndexVersion = -1;
+        // The minimap node layer is redrawn only when minimapKey changes (document, selection or a
+        // scale so small that cards need their minimum size).
+        let minimapKey = '';
+        let selectionTick = 0;
 
         function later(fn, ms) {
             const id = setTimeout(() => { timers.delete(id); fn(); }, ms);
@@ -143,13 +151,23 @@
             }
             if (typeof value === 'object') return Array.isArray(value) ? t('easydrag.ui.summary_items', { count: value.length }) : '';
             let text = String(value).replace(/\{\{\s*([a-z][a-z0-9_]*)([^}]*)\}\}/g, (m, root, rest) => {
-                const src = ed.model.byKey(root);
+                const src = byKey(root);
                 const label = src ? src.label : root;
                 const field = rest.replace(/\|.*$/, '').trim().replace(/^\./, '');
                 return '‹' + label + (field ? ' › ' + field : '') + '›';
             });
             text = text.replace(/\s+/g, ' ').trim();
             return text.length > 56 ? text.slice(0, 55) + '…' : text;
+        }
+
+        // byKey looks a node up by key like model.byKey (the first node wins), without a scan per call.
+        function byKey(key) {
+            if (keyIndexVersion !== ed.model.version) {
+                keyIndex = new Map();
+                ed.model.doc.nodes.forEach(n => { if (!keyIndex.has(n.key)) keyIndex.set(n.key, n); });
+                keyIndexVersion = ed.model.version;
+            }
+            return keyIndex.get(key) || null;
         }
 
         function summary(n, i) {
@@ -250,9 +268,10 @@
             named.set(n.id, n.key + '|' + n.label);
             const status = statusOf(n.id);
             const step = ed.run && ed.run.steps && ed.run.steps.get(n.id);
-            // The summary shows the labels of referenced nodes, so it is part of the signature.
+            // The summary shows the labels of referenced nodes, so it is part of the signature. The
+            // selection is not: it only sets the is-selected class.
             const sum = summary(n, i);
-            const sig = JSON.stringify([n.label, n.type, n.params, n.settings, ed.selection.has(n.id), status, step && step.duration_ms, step && step.error_code,
+            const sig = JSON.stringify([n.label, n.type, n.params, n.settings, status, step && step.duration_ms, step && step.error_code,
                 i && i.availability, nodeIssues(n.id).length, !!ed.runView, ed.readonly, ed.model.outputs(n), sum]);
             if (signatures.get(n.id) !== sig) {
                 signatures.set(n.id, sig);
@@ -307,8 +326,20 @@
             });
         }
 
+        // refreshSelection updates the card classes only: card markup does not show the selection.
+        function refreshSelection() {
+            ed.model.doc.nodes.forEach(n => {
+                const card = nodeEls.get(n.id);
+                if (card) card.className = classesFor(n) + (card.classList.contains('is-new') ? ' is-new' : '');
+            });
+            selectionTick++;
+            minimapFrame.request();
+        }
+
         // ── minimap ─────────────────────────────────────────────────────────────
 
+        // drawMinimap draws the node layer in world coordinates and places it with a transform, so a
+        // pan or zoom only moves the layer and the view rectangle.
         function drawMinimap() {
             const rects = allRects();
             const s = size();
@@ -320,11 +351,18 @@
             minimap.dataset.scale = scale;
             minimap.dataset.ox = ox;
             minimap.dataset.oy = oy;
-            minimap.querySelector('.ed-minimap-nodes').innerHTML = ed.model.doc.nodes.map(n => {
-                const rc = G.nodeRect(n.position, outCount(n));
-                return '<rect x="' + (rc.x * scale + ox).toFixed(1) + '" y="' + (rc.y * scale + oy).toFixed(1) + '" width="' + Math.max(2, rc.w * scale).toFixed(1) +
-                    '" height="' + Math.max(2, rc.h * scale).toFixed(1) + '" rx="1.5" data-cat="' + esc(core.catOf(info(n))) + '"' + (ed.selection.has(n.id) ? ' class="is-selected"' : '') + '></rect>';
-            }).join('');
+            // Cards stay at least 2 px; that size only matters when the scale is tiny.
+            const minSize = 2 / scale;
+            const key = ed.model.version + ':' + selectionTick + ':' + (minSize > G.NODE_H ? minSize.toFixed(1) : '');
+            if (key !== minimapKey) {
+                minimapKey = key;
+                minimapNodes.innerHTML = ed.model.doc.nodes.map(n => {
+                    const rc = G.nodeRect(n.position, outCount(n));
+                    return '<rect x="' + rc.x + '" y="' + rc.y + '" width="' + Math.max(minSize, rc.w).toFixed(1) + '" height="' + Math.max(minSize, rc.h).toFixed(1) +
+                        '" rx="12" data-cat="' + esc(core.catOf(info(n))) + '"' + (ed.selection.has(n.id) ? ' class="is-selected"' : '') + '></rect>';
+                }).join('');
+            }
+            minimapNodes.setAttribute('transform', 'matrix(' + scale + ' 0 0 ' + scale + ' ' + ox.toFixed(1) + ' ' + oy.toFixed(1) + ')');
             const v = minimap.querySelector('.ed-minimap-view');
             v.setAttribute('x', (viewRect.x * scale + ox).toFixed(1));
             v.setAttribute('y', (viewRect.y * scale + oy).toFixed(1));
@@ -358,8 +396,17 @@
         // ── accessible list and live region ─────────────────────────────────────
 
         function drawList() {
+            // One pass over nodes and edges: the labels each node leads to, in edge order.
+            const byId = new Map(ed.model.doc.nodes.map(n => [n.id, n]));
+            const leadsTo = new Map();
+            ed.model.doc.edges.forEach(e => {
+                const other = byId.get(e.target.node);
+                if (!other || !other.label) return;
+                if (!leadsTo.has(e.source.node)) leadsTo.set(e.source.node, []);
+                leadsTo.get(e.source.node).push(other.label);
+            });
             listEl.innerHTML = ed.model.doc.nodes.map(n => {
-                const targets = ed.model.outgoing(n.id).map(e => { const other = ed.model.node(e.target.node); return other ? other.label : ''; }).filter(Boolean);
+                const targets = leadsTo.get(n.id) || [];
                 const text = (n.label || n.type) + (targets.length ? ' → ' + targets.join(', ') : '');
                 return '<li><button type="button" data-ed-focus-node="' + esc(n.id) + '">' + esc(text) + '</button></li>';
             }).join('');
@@ -400,7 +447,7 @@
             if (change.kind === 'reset' || change.kind === 'undo' || change.kind === 'redo' || change.meta || relabelled(change.nodes)) render();
             else renderNodes(change.nodes.concat(affectedByEdges(change.edges)));
         }));
-        bag.add(ed.bus.on('selection', refreshClasses));
+        bag.add(ed.bus.on('selection', refreshSelection));
         bag.add(ed.bus.on('run', refreshClasses));
         bag.add(ed.bus.on('issues', refreshClasses));
 

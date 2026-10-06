@@ -74,18 +74,24 @@
             return null;
         }
 
+        // edgeNear finds the wire closest to worldPoint within reach. It runs on every drag frame, so it
+        // looks nodes up in a Map and skips wires whose control-point box is out of reach.
         function edgeNear(worldPoint, exceptNode) {
+            const byId = new Map(ed.model.doc.nodes.map(n => [n.id, n]));
+            const reach = 18 / ed.view.zoom;
             let best = null;
             ed.model.doc.edges.forEach(e => {
                 if (e.source.node === exceptNode || e.target.node === exceptNode) return;
-                const src = ed.model.node(e.source.node);
-                const dst = ed.model.node(e.target.node);
+                const src = byId.get(e.source.node);
+                const dst = byId.get(e.target.node);
                 if (!src || !dst) return;
                 const outs = ed.model.outputs(src);
                 const a = G.portPoint(src.position, 'out', Math.max(0, outs.indexOf(e.source.port)), outs.length);
                 const b = G.portPoint(dst.position, 'in', 0, ed.model.outputs(dst).length);
+                const box = G.wireBounds(a, b);
+                if (worldPoint.x < box.x - reach || worldPoint.x > box.x + box.w + reach || worldPoint.y < box.y - reach || worldPoint.y > box.y + box.h + reach) return;
                 const d = G.distanceToWire(worldPoint, a, b);
-                if (d < 18 / ed.view.zoom && (!best || d < best.d)) best = { id: e.id, d };
+                if (d < reach && (!best || d < best.d)) best = { id: e.id, d };
             });
             return best;
         }
@@ -301,6 +307,7 @@
             const additive = event.shiftKey || core.isMod(event);
             const base = additive ? new Set(ed.selection) : new Set();
             let active = false;
+            let lastHit = null;
             capture(event, ev => {
                 if (!active && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < DRAG_THRESHOLD) return;
                 active = true;
@@ -313,7 +320,11 @@
                 selectBox.style.width = box.w + 'px';
                 selectBox.style.height = box.h + 'px';
                 const worldBox = G.normalizeRect(G.toWorld(ed.view, a), G.toWorld(ed.view, b));
-                const hit = ed.model.doc.nodes.filter(n => G.intersects(worldBox, canvas.nodeRect(n.id))).map(n => n.id);
+                // Rects come from the nodes themselves; the selection changes only when the hit set does.
+                const hit = ed.model.doc.nodes.filter(n => G.intersects(worldBox, G.nodeRect(n.position, ed.model.outputs(n).length))).map(n => n.id);
+                const key = hit.join(' ');
+                if (key === lastHit) return;
+                lastHit = key;
                 select(Array.from(new Set([...base, ...hit])));
             }, () => {
                 selectBox.hidden = true;
