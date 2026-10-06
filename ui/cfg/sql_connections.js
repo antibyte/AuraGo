@@ -120,7 +120,6 @@ function renderSQLConnectionsSection(section) {
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.ssl_mode_label')}</div>
                     <select id="sqlconn-field-ssl" class="field-input sql-select-compact">
-                        <option value="">${t('config.sql_connections.ssl_default')}</option>
                         <option value="disable">${t('config.sql_connections.ssl_disable')}</option>
                         <option value="require">${t('config.sql_connections.ssl_require')}</option>
                         <option value="verify-ca">${t('config.sql_connections.ssl_verify_ca')}</option>
@@ -308,7 +307,8 @@ function sqlConnShowModal(id) {
         document.getElementById('sqlconn-field-port').value = (c.port !== undefined && c.port !== null) ? c.port : '';
         document.getElementById('sqlconn-field-database').value = c.database_name || '';
         document.getElementById('sqlconn-field-desc').value = c.description || '';
-        document.getElementById('sqlconn-field-ssl').value = c.ssl_mode || '';
+        // Connections stored without a mode were saved as "disable" by the server.
+        document.getElementById('sqlconn-field-ssl').value = c.ssl_mode || 'disable';
         document.getElementById('sqlconn-field-username').value = '';
         document.getElementById('sqlconn-field-password').value = '';
         document.getElementById('sqlconn-field-password').placeholder = c.vault_secret_id ? t('config.providers.key_placeholder_existing') : t('config.sql_connections.password_placeholder');
@@ -325,7 +325,7 @@ function sqlConnShowModal(id) {
         document.getElementById('sqlconn-field-port').value = '';
         document.getElementById('sqlconn-field-database').value = '';
         document.getElementById('sqlconn-field-desc').value = '';
-        document.getElementById('sqlconn-field-ssl').value = '';
+        document.getElementById('sqlconn-field-ssl').value = 'require';
         document.getElementById('sqlconn-field-username').value = '';
         document.getElementById('sqlconn-field-password').value = '';
         document.getElementById('sqlconn-field-password').placeholder = t('config.sql_connections.password_placeholder');
@@ -373,7 +373,8 @@ async function sqlConnSave() {
         port: parseInt(document.getElementById('sqlconn-field-port').value) || 0,
         database_name: database,
         description: document.getElementById('sqlconn-field-desc').value.trim(),
-        ssl_mode: document.getElementById('sqlconn-field-ssl').value,
+        // SQLite hides the TLS field; leave it to the server default.
+        ssl_mode: isSQLite ? '' : document.getElementById('sqlconn-field-ssl').value,
         username: document.getElementById('sqlconn-field-username').value.trim(),
         password: document.getElementById('sqlconn-field-password').value,
         allow_read: document.getElementById('sqlconn-perm-read').checked,

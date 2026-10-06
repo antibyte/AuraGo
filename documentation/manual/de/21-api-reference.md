@@ -1149,12 +1149,15 @@ Content-Type: application/json
 
 {
   "name": "Produktions-DB",
-  "type": "postgres",
-  "host": "localhost",
+  "driver": "postgres",
+  "host": "db.example.lan",
   "port": 5432,
-  "database": "mydb"
+  "database_name": "mydb",
+  "ssl_mode": "require"
 }
 ```
+
+`ssl_mode` (`disable`, `require`, `verify-ca`, `verify-full`) ist für `postgres` und `mysql` Pflicht; eine Anfrage ohne den Wert wird mit `400` abgelehnt.
 
 **Antwort:**
 ```json

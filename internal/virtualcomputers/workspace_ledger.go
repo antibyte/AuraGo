@@ -160,6 +160,33 @@ func (l *Ledger) ClaimExpiredWorkspace(ctx context.Context, id string, now time.
 	return rows == 1, err
 }
 
+// ReleaseExpiredControlLease hands control of a workspace back to the agent when
+// its human control lease has run out. It only touches the control columns and
+// updated_at, and only while the row still holds an expired human lease, so a
+// concurrent takeover, renewal or any other column change is never overwritten.
+// It reports whether this call released the lease. Lease times are stored as
+// RFC3339Nano text, which does not sort chronologically (trailing zero
+// fractions are dropped), so the comparison goes through julianday() like
+// ClaimExpiredWorkspace. A missing lease is stored as an empty string because
+// the column is NOT NULL.
+func (l *Ledger) ReleaseExpiredControlLease(ctx context.Context, id string, now time.Time) (bool, error) {
+	if l == nil || l.db == nil {
+		return false, fmt.Errorf("virtual computers ledger is not open")
+	}
+	result, err := l.db.ExecContext(ctx, `UPDATE workspaces SET control_owner = ?, control_lease_expires_at = '', updated_at = ?
+		WHERE id = ? AND control_owner = ? AND control_lease_expires_at <> ''
+		AND julianday(control_lease_expires_at) <= julianday(?)`,
+		ControlOwnerAgent, timeText(now), strings.TrimSpace(id), ControlOwnerHuman, timeText(now))
+	if err != nil {
+		return false, fmt.Errorf("release expired control lease: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("check control lease release: %w", err)
+	}
+	return rows == 1, nil
+}
+
 func (l *Ledger) UpdateWorkspaceActivity(ctx context.Context, id string, activity, lease time.Time) error {
 	result, err := l.db.ExecContext(ctx, `UPDATE workspaces
 		SET last_activity_at=?, updated_at=?, lease_expires_at=?

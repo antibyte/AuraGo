@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/sqlconnections"
@@ -217,6 +218,65 @@ func TestHandleSQLConnectionCreate(t *testing.T) {
 	}
 	if rec2.DatabaseName != "/tmp/test.db" {
 		t.Errorf("database = %q, want %q", rec2.DatabaseName, "/tmp/test.db")
+	}
+}
+
+func TestHandleSQLConnectionCreateRequiresExplicitSSLMode(t *testing.T) {
+	t.Parallel()
+
+	metaDB, err := sqlconnections.InitDB(filepath.Join(t.TempDir(), "sqlconnections.db"))
+	if err != nil {
+		t.Fatalf("InitDB() error = %v", err)
+	}
+	defer metaDB.Close()
+	s := &Server{SQLConnectionsDB: metaDB}
+
+	post := func(payload map[string]interface{}) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(payload)
+		rec := httptest.NewRecorder()
+		handleSQLConnections(s)(rec, httptest.NewRequest(http.MethodPost, "/api/sql-connections", bytes.NewReader(body)))
+		return rec
+	}
+
+	missing := post(map[string]interface{}{
+		"name": "Implicit TLS", "driver": "postgres", "host": "db.example.lan", "port": 5432, "database_name": "app",
+	})
+	if missing.Code != http.StatusBadRequest {
+		t.Fatalf("status without ssl_mode = %d, want %d; body=%s", missing.Code, http.StatusBadRequest, missing.Body.String())
+	}
+	var failure map[string]string
+	if err := json.Unmarshal(missing.Body.Bytes(), &failure); err != nil {
+		t.Fatalf("decode error body: %v", err)
+	}
+	if !strings.Contains(failure["error"], "ssl_mode is required for postgres connections") {
+		t.Fatalf("error = %q, want the ssl_mode validation message", failure["error"])
+	}
+	if _, err := sqlconnections.GetByName(metaDB, "Implicit TLS"); err == nil {
+		t.Fatal("connection without ssl_mode was stored")
+	}
+
+	created := post(map[string]interface{}{
+		"name": "Explicit TLS", "driver": "postgres", "host": "db.example.lan", "port": 5432, "database_name": "app", "ssl_mode": "require",
+	})
+	if created.Code != http.StatusCreated {
+		t.Fatalf("status with ssl_mode = %d, want %d; body=%s", created.Code, http.StatusCreated, created.Body.String())
+	}
+	var result map[string]string
+	if err := json.Unmarshal(created.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode create body: %v", err)
+	}
+	stored, err := sqlconnections.GetByID(metaDB, result["id"])
+	if err != nil || stored.SSLMode != "require" {
+		t.Fatalf("stored ssl_mode = %q (%v), want require", stored.SSLMode, err)
+	}
+
+	sqlite := post(map[string]interface{}{"name": "Local SQLite", "driver": "sqlite", "database_name": "managed"})
+	if sqlite.Code != http.StatusCreated {
+		t.Fatalf("sqlite without ssl_mode = %d; body=%s", sqlite.Code, sqlite.Body.String())
+	}
+	sqliteRec, err := sqlconnections.GetByName(metaDB, "Local SQLite")
+	if err != nil || sqliteRec.SSLMode != "disable" {
+		t.Fatalf("sqlite ssl_mode = %q (%v), want disable", sqliteRec.SSLMode, err)
 	}
 }
 

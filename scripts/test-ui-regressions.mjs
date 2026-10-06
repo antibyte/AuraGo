@@ -2384,6 +2384,78 @@ async function testDashboardCronjobsIgnoreLateResponses() {
   assert.equal(cardEvents.some(event => event.startsWith('error:')), false, 'a stale failure must not show an error over current data');
 }
 
+function createSQLConnectionsFormContext(source) {
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) {
+      const classes = new Set();
+      elements.set(id, {
+        id, value: '', checked: false, disabled: false, readOnly: false, placeholder: '', textContent: '', files: [],
+        classList: {
+          add: name => classes.add(name),
+          remove: name => classes.delete(name),
+          contains: name => classes.has(name),
+          toggle: (name, force) => {
+            const on = force === undefined ? !classes.has(name) : !!force;
+            if (on) classes.add(name); else classes.delete(name);
+            return on;
+          }
+        },
+        closest: () => element(`${id}::group`)
+      });
+    }
+    return elements.get(id);
+  };
+  const requests = [];
+  const context = {
+    window: { addEventListener() {} },
+    document: { getElementById: element },
+    t: key => key,
+    configData: {},
+    fetch: async (url, opts = {}) => {
+      requests.push({ url: String(url), method: opts.method || 'GET', body: typeof opts.body === 'string' ? JSON.parse(opts.body) : null });
+      return { ok: true, json: async () => (opts.method ? { id: 'sql-new' } : []) };
+    }
+  };
+  vm.createContext(context);
+  vm.runInContext(`${source}\nglobalThis.setSQLConnCacheForTest = list => { sqlConnCache = list; };`, context);
+  return { context, element, requests };
+}
+
+async function testSQLConnectionsRequireExplicitTLSMode() {
+  const source = read('ui/cfg/sql_connections.js');
+  const select = sourceBetween(source, '<select id="sqlconn-field-ssl"', '</select>');
+  assert.deepEqual([...select.matchAll(/<option value="([^"]*)"/g)].map(match => match[1]),
+    ['disable', 'require', 'verify-ca', 'verify-full'], 'the TLS select offers no implicit default');
+
+  const { context, element, requests } = createSQLConnectionsFormContext(source);
+  context.sqlConnShowModal();
+  assert.equal(element('sqlconn-field-ssl').value, 'require', 'new connections pre-select TLS');
+  element('sqlconn-field-name').value = 'Warehouse';
+  element('sqlconn-field-database').value = 'warehouse';
+  await context.sqlConnSave();
+  const created = requests.find(request => request.method === 'POST');
+  assert.equal(created?.body?.ssl_mode, 'require', 'the create request states the TLS mode');
+
+  context.setSQLConnCacheForTest([
+    { id: 'legacy', name: 'Legacy', driver: 'postgres', ssl_mode: '' },
+    { id: 'pinned', name: 'Pinned', driver: 'mysql', ssl_mode: 'verify-full' }
+  ]);
+  context.sqlConnShowModal('legacy');
+  assert.equal(element('sqlconn-field-ssl').value, 'disable', 'a stored connection without a mode shows what the server applied');
+  context.sqlConnShowModal('pinned');
+  assert.equal(element('sqlconn-field-ssl').value, 'verify-full');
+
+  requests.length = 0;
+  context.sqlConnShowModal();
+  element('sqlconn-field-driver').value = 'sqlite';
+  context.sqlConnDriverChanged();
+  element('sqlconn-field-name').value = 'Local file';
+  await context.sqlConnSave();
+  assert.equal(requests.find(request => request.method === 'POST')?.body?.ssl_mode, '',
+    'SQLite keeps the server-side default for the hidden TLS field');
+}
+
 function listDesktopMainBundleParts() {
   const script = read('scripts/build-ui-bundles.js');
   const start = script.indexOf('const desktopMainParts = [');
@@ -2458,6 +2530,7 @@ const tests = [
   ['Quick Connect SFTP navigator ignores stale listings', testQuickConnectSFTPNavigatorIgnoresStaleListings],
   ['Dashboard audit search ignores late responses', testDashboardAuditIgnoresLateResponses],
   ['Dashboard cronjob search ignores late responses', testDashboardCronjobsIgnoreLateResponses],
+  ['SQL connections require an explicit TLS mode', testSQLConnectionsRequireExplicitTLSMode],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];

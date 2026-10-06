@@ -1,9 +1,11 @@
 package sqlconnections
 
 import (
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -89,6 +91,7 @@ func TestService_Create(t *testing.T) {
 			req: CreateRequest{
 				Name:         "test-mysql",
 				Driver:       "mysql",
+				SSLMode:      "disable",
 				Host:         "localhost",
 				Port:         3306,
 				DatabaseName: "mydb",
@@ -227,6 +230,7 @@ func TestService_Update_CredentialRotation(t *testing.T) {
 	res, err := svc.Create(CreateRequest{
 		Name:         "test-pg",
 		Driver:       "postgres",
+		SSLMode:      "disable",
 		Host:         "localhost",
 		Port:         5432,
 		DatabaseName: "mydb",
@@ -300,6 +304,7 @@ func TestService_Update_CredentialDelete(t *testing.T) {
 	res, err := svc.Create(CreateRequest{
 		Name:     "test-pg",
 		Driver:   "postgres",
+		SSLMode:  "disable",
 		Host:     "localhost",
 		Username: "user",
 		Password: "pass",
@@ -341,6 +346,7 @@ func TestService_UpdateReplaceCleansNewSecretWhenMetadataUpdateFails(t *testing.
 	first, err := svc.Create(CreateRequest{
 		Name:         "first",
 		Driver:       "postgres",
+		SSLMode:      "disable",
 		DatabaseName: "app",
 		Username:     "old",
 		Password:     "oldpass",
@@ -351,6 +357,7 @@ func TestService_UpdateReplaceCleansNewSecretWhenMetadataUpdateFails(t *testing.
 	if _, err := svc.Create(CreateRequest{
 		Name:         "second",
 		Driver:       "postgres",
+		SSLMode:      "disable",
 		DatabaseName: "app",
 		Username:     "other",
 		Password:     "otherpass",
@@ -387,6 +394,7 @@ func TestService_UpdateDeleteKeepsOldSecretWhenMetadataUpdateFails(t *testing.T)
 	first, err := svc.Create(CreateRequest{
 		Name:         "first",
 		Driver:       "postgres",
+		SSLMode:      "disable",
 		DatabaseName: "app",
 		Username:     "old",
 		Password:     "oldpass",
@@ -401,6 +409,7 @@ func TestService_UpdateDeleteKeepsOldSecretWhenMetadataUpdateFails(t *testing.T)
 	if _, err := svc.Create(CreateRequest{
 		Name:         "second",
 		Driver:       "postgres",
+		SSLMode:      "disable",
 		DatabaseName: "app",
 	}); err != nil {
 		t.Fatalf("Create(second) error = %v", err)
@@ -458,6 +467,7 @@ func TestService_Delete(t *testing.T) {
 	res, err := svc.Create(CreateRequest{
 		Name:     "test-pg",
 		Driver:   "postgres",
+		SSLMode:  "disable",
 		Host:     "localhost",
 		Username: "user",
 		Password: "pass",
@@ -533,6 +543,89 @@ func TestService_PolicyFlags(t *testing.T) {
 
 	if !svc.CanManage() {
 		t.Error("expected CanManage to return true after update")
+	}
+}
+
+func TestService_CreateRequiresExplicitSSLModeForNetworkDrivers(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	vault := &mockVault{}
+	svc := NewService(ServiceConfig{DB: db, Vault: vault, Logger: slogDefault()})
+
+	for _, driver := range []string{"postgres", "mysql"} {
+		_, err := svc.Create(CreateRequest{
+			Name:         "implicit-" + driver,
+			Driver:       driver,
+			Host:         "db.example.lan",
+			DatabaseName: "app",
+			Username:     "reader",
+			Password:     "secret",
+		})
+		if err == nil || !strings.Contains(err.Error(), "ssl_mode is required for "+driver+" connections") {
+			t.Fatalf("%s without ssl_mode: err = %v, want ssl_mode is required", driver, err)
+		}
+		if !errors.Is(err, ErrSSLModeRequired) {
+			t.Fatalf("%s without ssl_mode: err = %v, want ErrSSLModeRequired", driver, err)
+		}
+		if _, err := GetByName(db, "implicit-"+driver); err == nil {
+			t.Fatalf("%s without ssl_mode was stored", driver)
+		}
+	}
+	if len(vault.secrets) != 0 {
+		t.Fatalf("rejected creates left %d vault secrets behind", len(vault.secrets))
+	}
+
+	for _, mode := range []string{"disable", "require", "verify-ca", "verify-full"} {
+		res, err := svc.Create(CreateRequest{Name: "pg-" + mode, Driver: "postgres", Host: "db.example.lan", DatabaseName: "app", SSLMode: mode})
+		if err != nil {
+			t.Fatalf("postgres with ssl_mode %q: %v", mode, err)
+		}
+		stored, err := GetByID(db, res.ID)
+		if err != nil || stored.SSLMode != mode {
+			t.Fatalf("postgres ssl_mode stored = %q (%v), want %q", stored.SSLMode, err, mode)
+		}
+	}
+	if _, err := svc.Create(CreateRequest{Name: "mysql-require", Driver: "mysql", Host: "db.example.lan", DatabaseName: "app", SSLMode: "require"}); err != nil {
+		t.Fatalf("mysql with ssl_mode require: %v", err)
+	}
+
+	res, err := svc.Create(CreateRequest{Name: "local-sqlite", Driver: "sqlite", DatabaseName: "managed-id"})
+	if err != nil {
+		t.Fatalf("sqlite without ssl_mode: %v", err)
+	}
+	stored, err := GetByID(db, res.ID)
+	if err != nil || stored.SSLMode != "disable" {
+		t.Fatalf("sqlite ssl_mode stored = %q (%v), want the previous default disable", stored.SSLMode, err)
+	}
+}
+
+func TestService_UpdateWithoutSSLModeKeepsStoredMode(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	svc := NewService(ServiceConfig{DB: db, Vault: &mockVault{}, Logger: slogDefault()})
+	res, err := svc.Create(CreateRequest{Name: "pg", Driver: "postgres", Host: "db.example.lan", DatabaseName: "app", SSLMode: "verify-full"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Update(UpdateRequest{ID: res.ID, Name: "pg-renamed", AllowRead: true}); err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+	stored, err := GetByID(db, res.ID)
+	if err != nil || stored.Name != "pg-renamed" || stored.SSLMode != "verify-full" {
+		t.Fatalf("stored after update = %+v (%v), want ssl_mode verify-full", stored, err)
+	}
+
+	// A legacy row stored without a TLS mode stays untouched by unrelated edits.
+	legacyID, err := Create(db, "legacy", "postgres", "db.example.lan", 5432, "app", "", true, false, false, false, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Update(UpdateRequest{ID: legacyID, Name: "legacy", Description: "edited", AllowRead: true}); err != nil {
+		t.Fatalf("Update(legacy) error = %v", err)
+	}
+	legacy, err := GetByID(db, legacyID)
+	if err != nil || legacy.SSLMode != "" || legacy.Description != "edited" {
+		t.Fatalf("legacy after update = %+v (%v), want unchanged empty ssl_mode", legacy, err)
 	}
 }
 

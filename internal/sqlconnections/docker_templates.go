@@ -31,6 +31,7 @@ type DockerDBRequest struct {
 	DatabaseName string
 	Username     string
 	Password     string
+	SSLMode      string // "disable": template databases are local containers on localhost
 }
 
 var templates = map[string]DockerTemplate{
@@ -126,6 +127,7 @@ func PrepareDockerDB(templateName, connectionName, databaseName string) (*Docker
 		DatabaseName:  databaseName,
 		Username:      "aurago",
 		Password:      password,
+		SSLMode:       "disable",
 	}, nil
 }
 

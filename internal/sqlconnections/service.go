@@ -2,6 +2,7 @@ package sqlconnections
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -72,6 +73,10 @@ type CreateRequest struct {
 	AllowDelete  bool
 }
 
+// ErrSSLModeRequired rejects a new PostgreSQL/MySQL connection that does not
+// state its TLS mode. Its wrapped message is safe to show to administrators.
+var ErrSSLModeRequired = errors.New("ssl_mode is required")
+
 // CreateResult returns the ID of the newly created connection.
 type CreateResult struct {
 	ID   string `json:"id"`
@@ -86,6 +91,15 @@ func (s *Service) Create(req CreateRequest) (*CreateResult, error) {
 	}
 	if req.Driver != "postgres" && req.Driver != "mysql" && req.Driver != "sqlite" {
 		return nil, fmt.Errorf("unsupported driver: %s (must be postgres, mysql, or sqlite)", req.Driver)
+	}
+	// Network databases need an explicit TLS mode; validate before the vault
+	// write so a rejected request never leaves an orphaned secret behind.
+	if req.SSLMode == "" && (req.Driver == "postgres" || req.Driver == "mysql") {
+		return nil, fmt.Errorf("%w for %s connections (use disable only for local containers)", ErrSSLModeRequired, req.Driver)
+	}
+	if req.SSLMode == "" {
+		// SQLite ignores the TLS mode; keep the value it was always stored with.
+		req.SSLMode = "disable"
 	}
 
 	// Store credentials in vault if provided
@@ -104,10 +118,6 @@ func (s *Service) Create(req CreateRequest) (*CreateResult, error) {
 			return nil, fmt.Errorf("failed to store credentials: %w", err)
 		}
 		s.logger.Info("SQL connection credentials stored in vault", "secret_id", vaultSecretID, "connection", req.Name)
-	}
-
-	if req.SSLMode == "" {
-		req.SSLMode = "disable"
 	}
 
 	id, err := Create(s.db, req.Name, req.Driver, req.Host, req.Port, req.DatabaseName, req.Description,

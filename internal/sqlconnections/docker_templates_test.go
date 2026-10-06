@@ -50,6 +50,11 @@ func TestPrepareDockerDBUsesOfficialDataPaths(t *testing.T) {
 			if req.Volumes[0] != tt.wantVolume {
 				t.Fatalf("volume = %q, want %q", req.Volumes[0], tt.wantVolume)
 			}
+			// Template databases run as local containers on localhost, so the
+			// derived connection states its TLS mode explicitly.
+			if req.Host != "localhost" || req.SSLMode != "disable" {
+				t.Fatalf("derived connection host/ssl_mode = %q/%q, want localhost/disable", req.Host, req.SSLMode)
+			}
 		})
 	}
 }

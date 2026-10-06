@@ -878,7 +878,7 @@ Verbinde AuraGo mit PostgreSQL, MySQL/MariaDB oder SQLite.
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Integrationen → SQL Connections**.
 2. Aktiviere die Integration.
-3. Lege Verbindungen an: Name, Datenbank-Typ, Host, Port, Datenbank, Benutzer.
+3. Lege Verbindungen an: Name, Datenbank-Typ, Host, Port, Datenbank, Benutzer. Neue PostgreSQL-/MySQL-Verbindungen brauchen einen ausdrücklichen **SSL-Modus** (`ssl_mode`; das Formular wählt **Erforderlich** vor); **Deaktiviert** ist nur für lokale Container gedacht. Bereits gespeicherte Verbindungen behalten ihren Modus.
 4. Speichere Passwörter im Vault.
 5. Passe bei Bedarf `max_result_rows` und Timeouts an.
 

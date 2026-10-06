@@ -24,11 +24,16 @@ func TestSQLManagedImportBrowser(t *testing.T) {
 		};
 		await selectSection('sql_connections',{scrollBehavior:'auto'});
 		sqlConnShowModal();
+		const tls=document.getElementById('sqlconn-field-ssl');
+		window.sqlTLSState=tls.value+'|'+Array.from(tls.options,o=>o.value).join(',');
 		document.getElementById('sqlconn-field-driver').value='sqlite';sqlConnDriverChanged();
 		document.getElementById('sqlconn-field-name').value='Imported database';
 		const transfer=new DataTransfer();transfer.items.add(new File(['SQLite fixture'],'backup.sqlite'));
 		document.getElementById('sqlconn-import-file').files=transfer.files;
 	}`)
+	if got := page.MustEval(`() => window.sqlTLSState`).Str(); got != "require|disable,require,verify-ca,verify-full" {
+		t.Fatalf("new connection TLS select = %q, want require pre-selected and no implicit default", got)
+	}
 	for _, width := range []int{390, 1440} {
 		for _, theme := range []string{"dark", "light"} {
 			page.MustSetViewport(width, 900, 1, false)

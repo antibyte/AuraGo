@@ -1279,11 +1279,18 @@ func (m *WorkspaceManager) reconcileLeases(ctx context.Context) {
 				}
 			}
 			if workspace.ControlOwner == ControlOwnerHuman && workspace.ControlLeaseExpiresAt != nil && !workspace.ControlLeaseExpiresAt.After(m.now()) {
-				workspace.ControlOwner = ControlOwnerAgent
-				workspace.ControlLeaseExpiresAt = nil
-				workspace.UpdatedAt = m.now()
-				_ = m.ledger.UpsertWorkspace(ctx, workspace)
-				m.syncBrowserControl(ctx, workspace)
+				// Scoped release: a full upsert of this snapshot could overwrite a
+				// takeover, renewal or other change made since the page was read.
+				now := m.now()
+				released, releaseErr := m.ledger.ReleaseExpiredControlLease(ctx, workspace.ID, now)
+				if releaseErr != nil {
+					m.logger.Warn("[VirtualWorkspace] control lease release failed", "workspace_id", workspace.ID, "error", releaseErr)
+				} else if released {
+					workspace.ControlOwner = ControlOwnerAgent
+					workspace.ControlLeaseExpiresAt = nil
+					workspace.UpdatedAt = now
+					m.syncBrowserControl(ctx, workspace)
+				}
 			}
 			hasActiveJob := m.refreshWorkspaceJobs(ctx, workspace, transport)
 			if hasActiveJob && clientErr == nil && workspace.MaxExpiresAt.After(m.now()) {

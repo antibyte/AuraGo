@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -57,11 +58,8 @@ func newSQLConnectionService(s *Server) *sqlconnections.Service {
 
 func buildSQLConnectionCreateRequest(req sqlConnectionRequest) sqlconnections.CreateRequest {
 	allowRead, allowWrite, allowChange, allowDelete := resolveSQLConnectionCreatePermissions(req)
-	sslMode := req.SSLMode
-	if sslMode == "" {
-		sslMode = "disable"
-	}
-
+	// No default TLS mode here: the service rejects PostgreSQL/MySQL connections
+	// without an explicit ssl_mode and applies the SQLite default itself.
 	return sqlconnections.CreateRequest{
 		Name:         req.Name,
 		Driver:       req.Driver,
@@ -71,7 +69,7 @@ func buildSQLConnectionCreateRequest(req sqlConnectionRequest) sqlconnections.Cr
 		Description:  req.Description,
 		Username:     req.Username,
 		Password:     req.Password,
-		SSLMode:      sslMode,
+		SSLMode:      req.SSLMode,
 		AllowRead:    allowRead,
 		AllowWrite:   allowWrite,
 		AllowChange:  allowChange,
@@ -159,7 +157,11 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 
 			result, err := service.Create(buildSQLConnectionCreateRequest(req))
 			if err != nil {
-				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create SQL connection", "Failed to create SQL connection", err, "connection_name", req.Name)
+				clientMessage := "Failed to create SQL connection"
+				if errors.Is(err, sqlconnections.ErrSSLModeRequired) {
+					clientMessage = err.Error()
+				}
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, clientMessage, "Failed to create SQL connection", err, "connection_name", req.Name)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
