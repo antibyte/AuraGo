@@ -434,9 +434,10 @@ func (t failingDockerTransport) RoundTrip(req *http.Request) (*http.Response, er
 const dockerSSHEngineSocket = "/var/run/docker.sock"
 
 // dockerSSHSocketOpenBudget bounds the direct-streamlocal open of the Engine
-// socket. net/http dials with a context that never ends, so without it an
-// authenticated sshd that never answers the open would keep the SSH client
-// and its goroutines alive forever.
+// socket when no version probe precedes it, and after the probe gave up:
+// net/http detaches the dial from the request, so without it an authenticated
+// sshd that never answers the open would keep the SSH client and its
+// goroutines alive forever. Operators see the probe's 5 s timeout first.
 const dockerSSHSocketOpenBudget = 10 * time.Second
 
 // dockerSSHSocketOpenTimeout is the budget in use; tests shorten it.

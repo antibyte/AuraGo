@@ -93,8 +93,9 @@ func (f *dockerSSHFixture) serve(raw net.Conn, config *ssh.ServerConfig, backend
 	if err != nil {
 		return
 	}
-	f.accepted.Add(1)
+	// open first: a caller that saw accepted >= 1 also sees this connection in open.
 	f.open.Add(1)
+	f.accepted.Add(1)
 	defer f.open.Add(-1)
 	go ssh.DiscardRequests(requests)
 	var held []ssh.NewChannel
@@ -351,6 +352,17 @@ func TestDockerConnectorSSHClosesClientAfterAStalledSocketOpenThroughHTTP(t *tes
 	defer cancel()
 	if err := (&DockerConnector{}).Validate(ctx, nest, []byte("fixture")); err == nil {
 		t.Fatal("Validate against a stalled socket open succeeded")
+	}
+	// net/http keeps dialling after Validate returned. Wait until that dial
+	// reached the server (open is counted before accepted), then until it
+	// closed its SSH client: only then has the detached dial read the
+	// overridden globals, so the t.Cleanup restores cannot race with it.
+	deadline := time.Now().Add(3 * time.Second)
+	for fixture.accepted.Load() < 1 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if fixture.accepted.Load() < 1 {
+		t.Fatal("the detached dial never completed its SSH handshake, so the stalled open was not exercised")
 	}
 	fixture.waitForClosedSSHConnections(t)
 }

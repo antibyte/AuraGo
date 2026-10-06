@@ -227,10 +227,8 @@ Choose access type `SSH` for such nests. `Docker (via SSH)` ignores `HTTP_PROXY`
 
 | Error in Test Connection or `hatch_error` | Cause |
 |-------------------------------------------|-------|
-| `open /var/run/docker.sock: ssh: rejected: administratively prohibited` | A forwarding policy refused the socket: `AllowStreamLocalForwarding no`, `DisableForwarding yes`, or `restrict` / `no-port-forwarding` in `authorized_keys` |
-| `open /var/run/docker.sock: ssh: rejected: connect failed` | The socket is missing (Docker not running, rootless Docker) or the SSH user may not use it |
-| `open /var/run/docker.sock: context deadline exceeded` | `sshd` accepted the login but did not answer the socket request within 10 seconds |
-| `negotiate Docker API: context deadline exceeded` | The SSH login took longer than 5 seconds, see [Troubleshooting](#connection-refused--timeout) |
+| `open /var/run/docker.sock: ssh: rejected: connect failed ("open failed")` | Either a forwarding policy refused the socket (`AllowStreamLocalForwarding no`, `DisableForwarding yes`, or `restrict` / `no-port-forwarding` in `authorized_keys`), or the socket is missing (Docker not running, rootless Docker) or the SSH user may not open it. OpenSSH answers both the same way; the target's `sshd` log shows `refused streamlocal port forward` only for a policy refusal |
+| `negotiate Docker API: context deadline exceeded` | The SSH login or the socket open did not finish within 5 seconds, see [Troubleshooting](#connection-refused--timeout) |
 
 > ⚠️ Older AuraGo versions treat unknown deploy methods as `SSH`. After a downgrade, a `docker_ssh` nest would deploy the binary over SSH instead of the container. Switch these nests to another method before downgrading.
 
@@ -595,7 +593,7 @@ See [Chapter 22: Internal Tools](22-internal-tools.md) for full parameter detail
 2. Check firewall rules and correct port (22 for SSH and Docker via SSH, 2375 for Docker API, 2376 for Docker API with TLS)
 3. Run **Test Connection** or `POST .../validate`
 4. For SSH nests, ensure a secret is configured
-5. `Docker (via SSH)` fails with `negotiate Docker API: context deadline exceeded`: the Docker API version check at the start of every operation must finish within 5 seconds, and that includes the SSH login. Reverse DNS lookups (`UseDNS yes`), PAM or LDAP delays or a high-latency link can make the login slower. Speed up the login on the target, for example with `UseDNS no`, or use another deploy method.
+5. `Docker (via SSH)` fails with `negotiate Docker API: context deadline exceeded`: the SSH login or the socket open did not finish within 5 seconds. The Docker API version check at the start of every operation has that budget, and it includes the SSH login and the socket open. Reverse DNS lookups (`UseDNS yes`), PAM or LDAP delays or a high-latency link can make the login slower. Speed up the login on the target, for example with `UseDNS no`, or use another deploy method.
 
 ### Authentication failed
 
