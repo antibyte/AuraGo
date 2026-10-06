@@ -179,6 +179,17 @@ func detachedPullContext(ctx context.Context) context.Context {
 	return context.WithoutCancel(ctx)
 }
 
+// pullImageBestEffort pulls image for a sidecar whose container create runs
+// even when the pull fails (an image that already exists still works). It
+// checks the Docker mutation gate first, like the request client it replaces,
+// and runs on the streaming pull client bounded to dockerPullFallbackTimeout.
+func pullImageBestEffort(dockerCfg DockerConfig, image string) error {
+	if err := requireDockerMutationPermission(); err != nil {
+		return err
+	}
+	return pullDockerImageStream(context.Background(), dockerCfg, image)
+}
+
 // DockerPing checks if the Docker Engine is reachable at the given host.
 // Returns nil on success, or an error describing the failure.
 func DockerPing(host string) error {

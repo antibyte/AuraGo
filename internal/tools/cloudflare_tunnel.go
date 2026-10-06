@@ -1575,21 +1575,26 @@ func resolveMode(cfg CloudflareTunnelConfig) string {
 	}
 }
 
-func pullImage(dockerCfg DockerConfig, image string, logger *slog.Logger) {
+// pullImage pulls image unless it is already present. A failed pull is logged
+// and returned; callers still create the container, as before, and the create
+// reports a missing image itself.
+func pullImage(dockerCfg DockerConfig, image string, logger *slog.Logger) error {
 	// Check if image exists
 	filterURL := fmt.Sprintf("/images/json?filters=%%7B%%22reference%%22%%3A%%5B%%22%s%%22%%5D%%7D", image)
 	data, code, err := dockerRequest(dockerCfg, "GET", filterURL, "")
 	if err == nil && code == 200 {
 		var images []interface{}
 		if json.Unmarshal(data, &images) == nil && len(images) > 0 {
-			return // Image already exists
+			return nil // Image already exists
 		}
 	}
 
 	logger.Info("[CloudflareTunnel] Pulling image", "image", image)
-	_, _, _ = dockerRequest(dockerCfg, "POST", "/images/create?fromImage="+image, "")
-	// Wait a bit for pull to complete
-	time.Sleep(3 * time.Second)
+	if err := pullImageBestEffort(dockerCfg, image); err != nil {
+		logger.Warn("[CloudflareTunnel] Image pull failed; trying to create the container anyway", "image", image, "error", err)
+		return err
+	}
+	return nil
 }
 
 func removeContainer(dockerCfg DockerConfig, name string) {
