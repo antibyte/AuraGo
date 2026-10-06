@@ -218,7 +218,7 @@
   "config.output_compression.preserve_errors_desc": "Saídas com marcadores de erro nunca serão comprimidas.",
   "config.output_compression.preserve_errors_label": "Preservar erros",
   "config.output_compression.python_desc": "Filtros Python",
-  "config.output_compression.python_label": "Git, Docker, kubectl, go test, pytest, grep, find, ls/tree.",
+  "config.output_compression.python_label": "Git, Docker, kubectl, go test, pytest, grep, find, filtros de ls/tree.",
   "config.output_compression.shell_desc": "Filtros Shell",
   "config.output_compression.shell_label": "Selecione quais categorias de filtros estão ativas.",
   "config.save_bar.restarting": "A reiniciar…",

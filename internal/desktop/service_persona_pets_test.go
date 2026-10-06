@@ -14,16 +14,25 @@ import (
 // Exercise the actual shipped pixels, including every frame the runtime selects.
 func TestBundledPersonaSprites(t *testing.T) {
 	counts := []int{6, 8, 8, 4, 5, 8, 6, 6, 6}
-	personas := 0
+	personas, mascots := 0, 0
 	for _, pet := range bundledDefaultPets() {
 		if !strings.HasPrefix(pet.Manifest.ID, "aurago-") {
 			continue
 		}
-		personas++
+		wantCategory := "persona"
+		switch pet.Manifest.ID {
+		case "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-indiana-jones", "aurago-manga-girl":
+			wantCategory = "mascot"
+		}
+		if pet.Manifest.Category != wantCategory {
+			t.Fatalf("category for %s = %q, want %q", pet.Manifest.ID, pet.Manifest.Category, wantCategory)
+		}
+		if wantCategory == "mascot" {
+			mascots++
+		} else {
+			personas++
+		}
 		t.Run(pet.Manifest.ID, func(t *testing.T) {
-			if pet.Manifest.Category != "persona" {
-				t.Fatal("persona missing from catalog category")
-			}
 			file, err := os.Open(filepath.Join("pets_assets", pet.Manifest.ID, "spritesheet.webp"))
 			if err != nil {
 				t.Fatal(err)
@@ -66,5 +75,8 @@ func TestBundledPersonaSprites(t *testing.T) {
 	}
 	if personas != 12 {
 		t.Fatalf("got %d persona pets, want 12", personas)
+	}
+	if mascots != 6 {
+		t.Fatalf("got %d mascot pets, want 6", mascots)
 	}
 }

@@ -7,7 +7,7 @@
   "config.backup.creating": "⏳ Creazione backup in corso…",
   "config.backup.decryption_failed": "Decrittazione fallita — password errata?",
   "config.backup.decryption_placeholder": "Password decrittazione…",
-  "config.backup.downloaded": "Scaricato:",
+  "config.backup.downloaded": "Scaricato: ",
   "config.backup.encryption_placeholder": "Password crittografia…",
   "config.backup.import_button": "📥 Importa Backup",
   "config.backup.import_password_label": "🔒 Password (solo per backup crittografati)",

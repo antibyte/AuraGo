@@ -73,6 +73,7 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
 <link rel="stylesheet" href="/js/vendor/writer/engine.css"><link rel="stylesheet" href="/css/desktop-app-writer.css">
 <style>html,body{margin:0;height:100%;font-family:system-ui}body{--vd-text:#e4e8f0;--vd-theme-app-bg:#141922;--vd-theme-panel-bg:#1b202a;--vd-theme-chrome-bg:#1d2430;--vd-theme-control-bg:#252d3a;--vd-theme-border:#ffffff1a;--vd-theme-muted:#a7b1c3;--vd-accent:#9abfff}body[data-fruity-mode=light]{--vd-text:#212b3c;--vd-theme-app-bg:#e2e7ee;--vd-theme-panel-bg:#e5e9ef;--vd-theme-chrome-bg:#d7dfe9;--vd-theme-control-bg:#f8fafc;--vd-theme-border:#65748c40;--vd-theme-muted:#536279;--vd-accent:#2169bd}#host{height:100%}</style></head><body class="desktop-body" data-theme="default"><div id="host"></div>
 <script src="/js/vendor/purify.min.js"></script><script src="/js/vendor/marked.min.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/writer-panels.js"></script><script src="/js/desktop/apps/writer.js"></script>
+<script src="/js/desktop/core/print-runtime.js"></script>
 <script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();window.writerContext={t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>window.promptAnswer??value,confirmDialog:async()=>true,setWindowBeforeClose:(id,fn)=>window.closeGuard=fn,setWindowMenus:(id,menus)=>window.menus=menus,saveFileDialog:async()=>({path:'Documents/copy.docx'}),openFileDialog:async()=>({path:WriterApp.instances.get('test').path})};WriterApp.render(document.getElementById('host'),'test',writerContext);})();</script></body></html>`)
 	})
 	srv := httptest.NewServer(mux)
@@ -86,6 +87,11 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
 	page.MustSetViewport(1366, 768, 1, false)
 	page.MustWaitLoad()
 	page.Timeout(90 * time.Second).MustWait(`()=>WriterApp.instances.get('test')?.editor && !document.querySelector('[data-loading]').offsetHeight`)
+	verifyWriterDocumentStart(t, page, "test")
+	page.MustEval(`async()=>await WriterApp.instances.get('test').act('report')`)
+	verifyWriterDocumentStart(t, page, "test")
+	page.MustEval(`async()=>await WriterApp.instances.get('test').act('blank')`)
+	verifyWriterDocumentStart(t, page, "test")
 	verifyWriterPointerFocus(t, page, "test", "")
 	result := page.MustEval(`async()=>{
         const app=WriterApp.instances.get('test'),editor=app.editor;
@@ -192,6 +198,7 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
         document.body.appendChild(host);WriterApp.render(host,'second',{...writerContext,path:app.path});
     }`)
 	page.Timeout(20 * time.Second).MustWait(`()=>WriterApp.instances.get('second')?.editor && document.querySelector('#second-host [data-loading]').hidden`)
+	verifyWriterDocumentStart(t, page, "second")
 	page.MustEval(`async()=>{
         const first=WriterApp.instances.get('test'),second=WriterApp.instances.get('second');
         first.editor.exec({type:'paste',text:'First window edit'});await first.session.save();
@@ -405,6 +412,17 @@ func TestDesktopWriterEngineBrowser(t *testing.T) {
         if(openMs>15000 || editMs>2000)throw Error('Long document unresponsive: '+JSON.stringify({openMs,editMs}));
         output.remove();long.destroy();return {pages:100,current,materialized,openMs:Math.round(openMs),editMs:Math.round(editMs)};
     }`).JSON("", ""))
+}
+
+func verifyWriterDocumentStart(t *testing.T, page *rod.Page, instanceID string) {
+	t.Helper()
+	page.MustEval(`async id=>{
+        await new Promise(resolve=>setTimeout(resolve,150));
+        const editor=WriterApp.instances.get(id).editor,root=document.querySelector('[data-writer="'+id+'"]'),scroll=root.querySelector('[data-scroll]');
+        const selection=editor.surface.state().selection,first=editor.surface.session.paragraphIds()[0];
+        if(scroll.scrollTop>1 || selection.anchor.paragraphId!==first || selection.anchor.offset!==0 || selection.head.paragraphId!==first || selection.head.offset!==0 || !root.querySelector('[data-editor]').contains(document.activeElement))
+            throw Error('Writer did not open ready to type at the start: '+JSON.stringify({scrollTop:scroll.scrollTop,selection,first,active:document.activeElement.outerHTML.slice(0,200)}));
+    }`, instanceID)
 }
 
 func verifyWriterPointerFocus(t *testing.T, page *rod.Page, instanceID, needle string) {

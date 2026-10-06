@@ -177,7 +177,7 @@
   "backend.stream_error_recovery_invalid_native": "Chiamata strumento nativa non valida rilevata, richiesta chiamata corretta...",
   "backend.stream_error_recovery_incomplete_tool_call": "Chiamata strumento incompleta rilevata, richiesta chiamata di funzione corretta...",
   "backend.stream_error_recovery_announcement_no_action": "Annuncio senza azione rilevato, richiesta chiamata strumento...",
-  "backend.stream_error_recovery_fence_json": "Chiamata strumento racchiusa in recinto, richiesta JSON raw...",
+  "backend.stream_error_recovery_fence_json": "Chiamata allo strumento racchiusa in un blocco di codice, richiesta di JSON grezzo...",
   "backend.stream_error_recovery_incomplete_tag": "Tag chiamata strumento incompleto rilevato, richiesta chiamata strumento corretta...",
   "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML rilevato in modalità nativa, richiesta di chiamata di funzione...",
   "backend.stream_coding_executing": "Esecuzione script Python...",

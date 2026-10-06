@@ -47,7 +47,7 @@
   "truenas.label_https": "Použít HTTPS",
   "truenas.label_insecure": "Přijmout certifikáty s vlastním podpisem (nebezpečné)",
   "truenas.label_name": "Název",
-  "truenas.label_name_example": "Název (např. tank/sdílení)",
+  "truenas.label_name_example": "Název (např. tank/share)",
   "truenas.label_name_optional": "Název (volitelné, automaticky generováno)",
   "truenas.label_networks_optional": "Sítě (volitelné)",
   "truenas.label_nfs_readonly": "NFS sdílení jen pro čtení",
@@ -105,7 +105,7 @@
   "truenas.status_connection_error": "Chyba připojení",
   "truenas.status_disabled": "Zakázáno",
   "truenas.status_error_prefix": "Chyba:",
-  "truenas.status_offline": "Odpojeno",
-  "truenas.status_online": "Připojeno",
+  "truenas.status_offline": "Offline",
+  "truenas.status_online": "Online",
   "truenas.subtitle": "TrueNAS úložiště"
 }

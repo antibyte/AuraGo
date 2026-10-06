@@ -24,9 +24,12 @@
             <div class="vd-live-speech-content">
                 <header class="vd-live-speech-header">
                     <h2 data-i18n="desktop.live_speech_title">Live Speech</h2>
-                    <button type="button" class="vd-live-speech-fx-toggle" data-live-speech-fx-toggle aria-pressed="true">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.7 4.6L18 9.3l-4.3 1.7L12 15.6l-1.7-4.6L6 9.3l4.3-1.7z"/><path d="M18.5 14.5l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z"/></svg>
-                    </button>
+                    <div class="vd-live-speech-header-actions">
+                        <span data-live-speech-audio-controls></span>
+                        <button type="button" class="vd-live-speech-fx-toggle" data-live-speech-fx-toggle aria-pressed="true">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.7 4.6L18 9.3l-4.3 1.7L12 15.6l-1.7-4.6L6 9.3l4.3-1.7z"/><path d="M18.5 14.5l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z"/></svg>
+                        </button>
+                    </div>
                 </header>
                 <div class="vd-live-speech-lab" data-live-speech-lab hidden>
                     <p data-live-speech-lab-status></p>
@@ -63,6 +66,7 @@
         const unmount = window.AuraRealtimeSpeechUI.mount(panel, {
             surface: 'desktop',
             compact: true,
+            audioControls: host.querySelector('[data-live-speech-audio-controls]'),
             chatSessionId: 'virtual-desktop'
         });
         const stopLab = bindSpeechLabStatus(host);

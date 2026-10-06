@@ -12,8 +12,11 @@ import (
 
 func verifyWriterShell(t *testing.T, page *rod.Page, dir string) {
 	t.Helper()
-	page.MustEval(`async()=>{await fixtureOpen('writer');window.writerWindow=[...aurora.state.windows.values()].at(-1);aurora.toggleMaximizeWindow(writerWindow.id);}`)
+	page.MustEval(`async()=>{await fixtureOpen('writer');window.writerWindow=[...aurora.state.windows.values()].at(-1);}`)
 	page.Timeout(60 * time.Second).MustWait(`()=>WriterApp.instances.get(writerWindow.id)?.editor && document.querySelector('[data-loading]')?.hidden`)
+	verifyWriterDocumentStart(t, page, page.MustEval(`()=>writerWindow.id`).Str())
+	page.MustScreenshot(filepath.Join(dir, "writer-initial.png"))
+	page.MustEval(`()=>aurora.toggleMaximizeWindow(writerWindow.id)`)
 	page.MustEval(`async()=>{
         const app=WriterApp.instances.get(writerWindow.id),editor=app.editor;window.actualWriter=app;
         editor.exec({type:'paste',text:'',html:'<h1>Raum für gute Gedanken.</h1><p>Ein Dokument ist mehr als eine Sammlung von Wörtern. Es ist der Ort, an dem aus einer ersten Idee etwas Greifbares wird.</p><h2>Ein klarer Anfang</h2><p>Autor verbindet konzentriertes Schreiben mit den Werkzeugen, die du im richtigen Moment brauchst. Echte Seiten geben deinen Gedanken Struktur.</p><h2>Gemeinsam weiterdenken</h2><p>Kommentare halten Rückfragen direkt am Text. Vorschläge bleiben nachvollziehbar, bis du sie bewusst übernimmst.</p>'});

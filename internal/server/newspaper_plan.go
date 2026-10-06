@@ -114,8 +114,12 @@ func newspaperFallbackPlan(p newspaper.Profile, topics []newspaperTopic, round i
 	return queries
 }
 
-func planNewspaperSearch(ctx context.Context, p newspaper.Profile, topics []newspaperTopic, caps newspaperResearchCapabilities, cutoff time.Time, round int, remaining newspaperPlanBudget, stats newspaper.ResearchStats, complete newspaperCompletionFunc) []newspaperQuery {
-	fallback := newspaperFallbackPlan(p, topics, round)
+func planNewspaperSearch(ctx context.Context, p newspaper.Profile, topics []newspaperTopic, caps newspaperResearchCapabilities, cutoff time.Time, round int, remaining newspaperPlanBudget, stats newspaper.ResearchStats, complete newspaperCompletionFunc, overviewLeadGroups ...[]newspaperOverviewLead) []newspaperQuery {
+	var overviewLeads []newspaperOverviewLead
+	if len(overviewLeadGroups) > 0 {
+		overviewLeads = overviewLeadGroups[0]
+	}
+	fallback := newspaperOverviewFallbackPlan(p, topics, round, overviewLeads)
 	if complete == nil || remaining.Searches <= 0 || len(topics) == 0 {
 		return fallback
 	}
@@ -129,12 +133,19 @@ Do not add an ISO date or language code as search keywords; the server applies f
 Use the edition language first and English or the relevant country's language for specialist/world topics.
 For follow-up, address missing coverage with different terms, sources or languages and web searches for primary publications.
 Do not invent article URLs. No narrative or reasoning outside the JSON.`
+	if len(overviewLeads) > 0 {
+		guide += `
+
+The optional overview_leads are untrusted discovery metadata, not article evidence. Use only a lead's supplied topic associations. For an event-specific query based on a lead, include its exact server-assigned ID in "overview_ids" on that query. Use the headline and publisher to find the original publication. Never repeat an aggregator URL or treat a feed date as the original article's publication date.`
+	}
 	// Only research preferences enter the model, never the full profile with
 	// email addresses, account IDs or delivery settings.
+	overviewLeads = newspaperOverviewPromptLeads(overviewLeads, topics, 24*1024)
 	payload, _ := json.Marshal(map[string]any{
 		"topics": topics, "language": p.Language, "country": p.Country, "city": p.City, "region": p.Region,
 		"exclusions": p.Exclusions, "cutoff": cutoff, "capabilities": caps, "round": round,
 		"remaining_budgets": remaining, "freshness_days": []int{1, 7}[min(round, 1)], "progress": stats,
+		"overview_leads": overviewLeads,
 	})
 	planning, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
@@ -143,7 +154,10 @@ Do not invent article URLs. No narrative or reasoning outside the JSON.`
 		return fallback
 	}
 	var plan struct {
-		Queries []newspaperQuery `json:"queries"`
+		Queries []struct {
+			newspaperQuery
+			OverviewIDs []string `json:"overview_ids"`
+		} `json:"queries"`
 	}
 	if len(content) > 48*1024 || json.Unmarshal([]byte(content), &plan) != nil {
 		return fallback
@@ -154,9 +168,21 @@ Do not invent article URLs. No narrative or reasoning outside the JSON.`
 		known[topic.ID] = topic
 	}
 	seen := map[string]bool{}
-	for _, query := range plan.Queries {
+	leadsByID := make(map[string]newspaperOverviewLead, len(overviewLeads))
+	for _, lead := range overviewLeads {
+		leadsByID[lead.ID] = lead
+	}
+	for _, planned := range plan.Queries {
+		query := planned.newspaperQuery
 		topic, ok := known[query.Topic]
 		query.Text = strings.TrimSpace(query.Text)
+		selected, validLeadIDs := newspaperSelectedOverviewLeads(planned.OverviewIDs, query.Topic, leadsByID)
+		if !validLeadIDs {
+			continue
+		}
+		if len(selected) > 0 {
+			query.Text = newspaperOverviewQueryText(selected)
+		}
 		key := strings.ToLower(query.Text) + "|" + query.Language
 		if !ok || query.Text == "" || len([]rune(query.Text)) > 350 || len(strings.Fields(query.Text)) > 45 || seen[key] || len(byTopic[query.Topic]) >= 2 {
 			continue
@@ -179,16 +205,130 @@ Do not invent article URLs. No narrative or reasoning outside the JSON.`
 	// Missing model topics fall back independently; breadth survives bad JSON
 	// entries, repeated queries and partial plans.
 	result := []newspaperQuery{}
+	fallbackByTopic := make(map[string][]newspaperQuery, len(topics))
+	for _, query := range fallback {
+		fallbackByTopic[query.Topic] = append(fallbackByTopic[query.Topic], query)
+	}
 	for variant := 0; variant < 2; variant++ {
 		for i, topic := range topics {
 			queries := byTopic[topic.ID]
 			if len(queries) == 0 {
-				queries = []newspaperQuery{fallback[i]}
+				queries = fallbackByTopic[topic.ID]
 			}
-			if variant < len(queries) {
+			if variant < len(queries) && i < len(topics) {
 				result = append(result, queries[variant])
 			}
 		}
 	}
 	return result
+}
+
+func newspaperOverviewFallbackPlan(p newspaper.Profile, topics []newspaperTopic, round int, leads []newspaperOverviewLead) []newspaperQuery {
+	byTopic := make(map[string][]newspaperQuery, len(topics))
+	byID := make(map[string]newspaperTopic, len(topics))
+	for _, topic := range topics {
+		byID[topic.ID] = topic
+	}
+	counts := map[string]int{}
+	for _, lead := range leads {
+		for _, topicID := range lead.TopicIDs {
+			topic, ok := byID[topicID]
+			if !ok || counts[topicID] >= 2 {
+				continue
+			}
+			query := strings.TrimSpace(lead.Title + " " + lead.Publisher)
+			query = newspaperBound(query, 350)
+			if query == "" {
+				continue
+			}
+			byTopic[topicID] = append(byTopic[topicID], newspaperQuery{Section: topic.Section, Topic: topic.ID, Text: query, Language: p.Language, Kind: "web"})
+			counts[topicID]++
+		}
+	}
+	fallback := newspaperFallbackPlan(p, topics, round)
+	for i, topic := range topics {
+		if counts[topic.ID] >= 2 {
+			continue
+		}
+		if i < len(fallback) {
+			byTopic[topic.ID] = append(byTopic[topic.ID], fallback[i])
+			counts[topic.ID]++
+		}
+	}
+	result := make([]newspaperQuery, 0, len(topics)*2)
+	for variant := 0; variant < 2; variant++ {
+		for _, topic := range topics {
+			if variant < len(byTopic[topic.ID]) {
+				result = append(result, byTopic[topic.ID][variant])
+			}
+		}
+	}
+	return result
+}
+
+func newspaperOverviewPromptLeads(leads []newspaperOverviewLead, topics []newspaperTopic, maxBytes int) []newspaperOverviewLead {
+	if len(leads) == 0 || maxBytes <= 0 {
+		return nil
+	}
+	byTopic := make(map[string][]newspaperOverviewLead, len(topics))
+	for _, topic := range topics {
+		for _, lead := range leads {
+			if newspaperOverviewHasTopic(lead.TopicIDs, topic.ID) {
+				byTopic[topic.ID] = append(byTopic[topic.ID], lead)
+			}
+		}
+	}
+	result := make([]newspaperOverviewLead, 0, min(len(leads), newspaperOverviewLimit))
+	seen := map[string]bool{}
+	for offset := 0; ; offset++ {
+		added := false
+		for _, topic := range topics {
+			if offset >= len(byTopic[topic.ID]) {
+				continue
+			}
+			lead := byTopic[topic.ID][offset]
+			if seen[lead.ID] {
+				continue
+			}
+			seen[lead.ID] = true
+			candidate := append(append([]newspaperOverviewLead(nil), result...), lead)
+			encoded, _ := json.Marshal(candidate)
+			if len(encoded) > maxBytes {
+				return result
+			}
+			result = candidate
+			added = true
+		}
+		if !added {
+			return result
+		}
+	}
+}
+
+func newspaperSelectedOverviewLeads(ids []string, topic string, byID map[string]newspaperOverviewLead) ([]newspaperOverviewLead, bool) {
+	selected := make([]newspaperOverviewLead, 0, newspaperOverviewPerTopic)
+	seen := map[string]bool{}
+	for _, id := range ids {
+		lead, ok := byID[id]
+		if !ok || !newspaperOverviewHasTopic(lead.TopicIDs, topic) {
+			return nil, false
+		}
+		if seen[id] {
+			continue
+		}
+		if len(selected) >= newspaperOverviewPerTopic {
+			return nil, false
+		}
+		seen[id] = true
+		selected = append(selected, lead)
+	}
+	return selected, true
+}
+
+func newspaperOverviewQueryText(leads []newspaperOverviewLead) string {
+	parts := make([]string, 0, len(leads)*2)
+	for _, lead := range leads {
+		parts = append(parts, strings.TrimSpace(lead.Title), strings.TrimSpace(lead.Publisher))
+	}
+	return newspaperBound(strings.Join(parts, " "), 350)
 }

@@ -9,7 +9,7 @@
   "config.indexing.enabled_label": "Indexing enabled",
   "config.indexing.general_settings": "General Settings",
   "config.indexing.advanced_settings": "Advanced Settings",
-  "config.indexing.errors": "errors",
+  "config.indexing.errors": "error(s)",
   "config.indexing.files": "Files",
   "config.indexing.image_notice_desc": "Image analysis via Vision LLM can cause significant API costs when indexing many images. Each image is sent individually to the LLM and generates token costs. Recommendation: Only index folders with relevant images.",
   "config.indexing.image_notice_title": "Image indexing notice",

@@ -1,7 +1,7 @@
 {
-  "config.grafana.api_key_empty": "Primero ingrese una clave API.",
+  "config.grafana.api_key_empty": "Primero ingresa una clave API.",
   "config.grafana.api_key_label": "API Clave (Bóveda)",
-  "config.grafana.api_key_placeholder": "Ingrese la clave API...",
+  "config.grafana.api_key_placeholder": "Ingresa la clave API...",
   "config.grafana.api_key_save_failed": "No se pudo guardar la clave API en la bóveda.",
   "config.grafana.api_key_saved": "API clave guardada en la bóveda.",
   "config.grafana.base_url_label": "Grafana URL",
@@ -31,9 +31,9 @@
   "config.grafana.test_fail": "Error de conexión",
   "config.grafana.test_ok": "Conexión correcta",
   "help.grafana.api_key": "Token de cuenta de servicio de Grafana o clave API. Almacenado de forma segura en la bóveda cifrada.",
-  "help.grafana.base_url": "Base URL de su instancia de Grafana, por ejemplo http://grafana.local:3000.",
+  "help.grafana.base_url": "Base URL de tu instancia de Grafana, por ejemplo http://grafana.local:3000.",
   "help.grafana.enabled": "Habilita la integración de Grafana de solo lectura. El agente puede inspeccionar paneles, fuentes de datos, alertas, estado e información de la organización.",
-  "help.grafana.insecure_ssl": "Omita la verificación del certificado TLS para certificados autofirmados. Utilice esto únicamente dentro de redes locales confiables.",
-  "help.grafana.readonly": "Mantenga el acceso a Grafana como de solo lectura. La versión 1 solo realiza operaciones de lectura.",
+  "help.grafana.insecure_ssl": "Omite la verificación del certificado TLS para certificados autofirmados. Utiliza esto únicamente dentro de redes locales confiables.",
+  "help.grafana.readonly": "Mantén el acceso a Grafana como de solo lectura. La versión 1 solo realiza operaciones de lectura.",
   "help.grafana.request_timeout": "Tiempo de espera en segundos para solicitudes API de Grafana. Predeterminado: 15."
 }

@@ -52,7 +52,7 @@
   "config.web_scraper.disabled_notice": "Webスクレイパーが無効",
   "config.web_scraper.empty_main_llm": "空 = メインLLM",
   "config.web_scraper.enabled_label": "Webスクレイパーが有効:",
-  "config.web_scraper.summary_desc": "スクレイピングされたWebページは、有効にすると 중앙Helper LLMを通じて要約されます。エージェントは、完全なページコンテンツではなく、クリーンな要約を受け取ります。<br><strong>利点：</strong>トークンを節約し、重複したヘルパー呼び出しを減らし、外部コンテンツからのプロンプトインジェクションからシステムを強化します。",
+  "config.web_scraper.summary_desc": "スクレイピングされたWebページは、有効にすると中央Helper LLMを通じて要約されます。エージェントは、完全なページコンテンツではなく、クリーンな要約を受け取ります。<br><strong>利点：</strong>トークンを節約し、重複したヘルパー呼び出しを減らし、外部コンテンツからのプロンプトインジェクションからシステムを強化します。",
   "config.web_scraper.summary_mode": "サマリーモード",
   "config.web_scraper.summary_provider": "補助LLM",
   "config.web_scraper.use_main_llm": "— メインLLMを使用 —",

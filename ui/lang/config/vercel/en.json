@@ -14,7 +14,7 @@
   "config.vercel.permissions_title": "Permissions",
   "config.vercel.project_config_desc": "Optional defaults for Vercel API calls.",
   "config.vercel.project_config_title": "Project Configuration",
-  "config.vercel.projects": "projects",
+  "config.vercel.projects": "project(s)",
   "config.vercel.readonly": "Read-only mode (no mutations)",
   "config.vercel.save_token": "Save to Vault",
   "config.vercel.saving": "Saving...",

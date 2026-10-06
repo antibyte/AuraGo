@@ -902,12 +902,36 @@
     stroke: var(--vd-text);
 }
 
+.vd-looper-run:has(> .vd-looper-empty:not([hidden])) {
+    min-height: 100%;
+    box-sizing: border-box;
+    justify-content: center;
+}
+
 .vd-looper-empty {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    align-items: center;
+    gap: 16px;
     padding: 24px 12px;
     text-align: center;
+}
+
+.vd-looper-empty-art {
+    display: block;
+    width: min(100%, 320px);
+    height: auto;
+    pointer-events: none;
+    user-select: none;
+}
+
+.vd-looper-empty .vd-looper-log-empty {
+    margin: 0;
+    padding: 0;
+}
+
+.vd-looper--compact .vd-looper-empty-art {
+    width: min(100%, 240px);
 }
 
 .vd-looper-empty .vd-looper-help {

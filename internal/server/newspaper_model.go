@@ -34,7 +34,14 @@ func (s *Server) newspaperWriteStory(ctx context.Context, p newspaper.Profile, s
 type newspaperCompletionFunc func(context.Context, string, string) (string, error)
 
 func writeNewspaperStory(ctx context.Context, p newspaper.Profile, section, topic string, source newspaper.Source, complete newspaperCompletionFunc) (newspaper.Story, error) {
-	guide := newspaper.Skill + "\nReturn exactly one JSON object with headline, deck and paragraphs (2-4). Each paragraph has text and evidence_quote. The evidence_quote must be an exact consecutive substring of at least 20 characters from the source text that supports that paragraph. If the page lacks enough substantiated news, return {\"headline\":\"\",\"deck\":\"\",\"paragraphs\":[]}."
+	return writeNewspaperStoryRepair(ctx, p, section, topic, source, complete, "")
+}
+
+func writeNewspaperStoryRepair(ctx context.Context, p newspaper.Profile, section, topic string, source newspaper.Source, complete newspaperCompletionFunc, reason string) (newspaper.Story, error) {
+	guide := newspaper.Skill + "\nReturn exactly one JSON object with headline, deck and paragraphs (1-4, only as the evidence supports). Each paragraph has text and evidence_quote. The evidence_quote must be an exact consecutive substring of 20-500 characters from the decoded source text that supports that paragraph. If the page lacks enough substantiated news, return {\"declined\":true,\"headline\":\"\",\"deck\":\"\",\"paragraphs\":[]}."
+	if reason != "" {
+		guide += "\nRegenerate from the same source. The previous response failed validation: " + reason + ". Preserve exact evidence quotes and return complete JSON; do not invent facts."
+	}
 	loc, err := time.LoadLocation(p.TimeZone)
 	if err != nil {
 		loc = time.UTC
@@ -45,6 +52,7 @@ func writeNewspaperStory(ctx context.Context, p newspaper.Profile, section, topi
 		return newspaper.Story{}, err
 	}
 	var raw struct {
+		Declined   bool   `json:"declined"`
 		Headline   string `json:"headline"`
 		Deck       string `json:"deck"`
 		Paragraphs []struct {
@@ -52,8 +60,14 @@ func writeNewspaperStory(ctx context.Context, p newspaper.Profile, section, topi
 			EvidenceQuote string `json:"evidence_quote"`
 		} `json:"paragraphs"`
 	}
+	if strings.TrimSpace(content) == "" {
+		return newspaper.Story{}, llm.ErrJSONCompletionEmpty
+	}
 	if err = json.Unmarshal([]byte(content), &raw); err != nil {
 		return newspaper.Story{}, fmt.Errorf("%w: newspaper story schema", llm.ErrJSONCompletionInvalid)
+	}
+	if raw.Declined || (raw.Headline == "" && len(raw.Paragraphs) == 0 && strings.Contains(content, "\"paragraphs\"")) {
+		return newspaper.Story{}, errNewspaperDeclined
 	}
 	story := newspaper.Story{Headline: newspaperBound(raw.Headline, 180), Deck: newspaperBound(raw.Deck, 350), Paragraphs: []newspaper.Paragraph{}}
 	for _, para := range raw.Paragraphs {
@@ -82,10 +96,11 @@ func (s *Server) newspaperCompletion(ctx context.Context, cfg *config.Config, cl
 			routes = candidates
 		}
 	}
-	request.MaxTokens = llm.ReasoningOutputTokens
 	if strings.Contains(guide, "Task: PLAN RESEARCH") {
-		request.MaxTokens = min(request.MaxTokens, 8192)
+		input = newspaperTrimPlanInput(guide, input, routes, cfg.Agent.ContextWindow)
+		request.Messages[1].Content = input
 	}
+	request.MaxTokens = min(llm.ReasoningOutputTokens, 8192)
 	for _, candidate := range routes {
 		limits := llm.ResolveModelLimitsCached(candidate, cfg.Agent.ContextWindow)
 		inputTokens := prompts.CountTokensForModel(guide, candidate.Model) + prompts.CountTokensForModel(input, candidate.Model) + 32
@@ -108,4 +123,39 @@ func (s *Server) newspaperCompletion(ctx context.Context, cfg *config.Config, cl
 		return "", fmt.Errorf("complete newspaper request: %w", err)
 	}
 	return llm.JSONContentFromResponse(response)
+}
+
+// Trim overview metadata evenly across topics before allocating model output.
+// Other trusted planning fields are retained; normal context validation still
+// rejects a model too small for the resulting base request.
+func newspaperTrimPlanInput(guide, input string, routes []llm.ModelRoute, contextWindow int) string {
+	var payload map[string]json.RawMessage
+	if json.Unmarshal([]byte(newspaperUnwrap(input)), &payload) != nil {
+		return input
+	}
+	var leads []newspaperOverviewLead
+	var topics []newspaperTopic
+	if json.Unmarshal(payload["overview_leads"], &leads) != nil || json.Unmarshal(payload["topics"], &topics) != nil {
+		return input
+	}
+	ceiling := 24 * 1024
+	for len(leads) > 0 {
+		fits := true
+		for _, route := range routes {
+			limits := llm.ResolveModelLimitsCached(route, contextWindow)
+			if prompts.CountTokensForModel(guide, route.Model)+prompts.CountTokensForModel(input, route.Model)+32 > limits.ContextWindow/2 {
+				fits = false
+				break
+			}
+		}
+		if fits {
+			break
+		}
+		ceiling = ceiling * 3 / 4
+		leads = newspaperOverviewPromptLeads(leads, topics, ceiling)
+		payload["overview_leads"], _ = json.Marshal(leads)
+		body, _ := json.Marshal(payload)
+		input = security.IsolateExternalData(string(body))
+	}
+	return input
 }

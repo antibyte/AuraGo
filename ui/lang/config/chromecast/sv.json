@@ -26,7 +26,7 @@
   "config.chromecast.field_name": "Enhetsnamn",
   "config.chromecast.field_name_help": "Ett beskrivande namn för denna enhet (t.ex. \"Vardagsrum\", \"Kökshögtalare\"). Agenten använder detta namn för att identifiera enheten.",
   "config.chromecast.found_devices": "{{count}} enhet(er) hittade",
-  "config.chromecast.ip_placeholder": "e.g. 192.168.1.50",
+  "config.chromecast.ip_placeholder": "t.ex. 192.168.1.50",
   "config.chromecast.ip_required": "En IP-adress krävs.",
   "config.chromecast.loading": "⏳ Laddar enheter…",
   "config.chromecast.name_placeholder": "t.ex. Vardagsrum",

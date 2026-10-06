@@ -367,6 +367,11 @@ worker. Keep packaging, recovery and offline instructions in
   selectable profiles; otherwise use the available configured default or first
   available profile. Blocked storage keeps the selection in memory. Never start
   a session automatically when restoring a selection.
+- Live Speech audio selection lives in a native dialog opened by a labelled
+  speaker button, placed in the Desktop app header through the shared panel's
+  `audioControls` mount option. Keep browser/headset selection and storage shared
+  with Webchat; opening the dialog never starts audio. Preserve native Escape,
+  focus return and mount cleanup. Verify `TestRealtimeSpeechAudioPickerBrowser`.
 - Live Speech's shared panel owns one `AuraRealtimeSpeechAvatar` per mount.
   Webchat passes `visible: false` until its overlay opens and calls
   `AuraRealtimeSpeechUI.setVisible`; unmount disposes the avatar. Desktop
@@ -520,6 +525,10 @@ worker. Keep packaging, recovery and offline instructions in
   Helix volleys and damage-triggered EMP counterpulses reuse projectile/effect
   cleanup and respect the existing 18-projectile limit. EMP must not interrupt
   a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
+- Cyberwar uses the generated `img/cyberwar-city.webp` as a static, centered
+  cover background in `#chat-box`, beneath a navy dimming gradient and the HUD.
+  Keep the image position fixed in the scanline keyframes and retain readable
+  message surfaces, including on narrow screens and with reduced motion.
 - Dark Sun is an eclipse scene. `body` paints the violet-black sky, star specks
   and the horizon glow; `body::before` carries the static eclipse and lava
   horizon SVG (the no-JS, reduced-motion and narrow-screen baseline) and fades
@@ -578,11 +587,21 @@ worker. Keep packaging, recovery and offline instructions in
   Reduced motion, unavailable WebGL, missing textures and context loss expose
   the complete local poster. Keep posters aligned with the rendered scene and
   preserve source provenance in `img/galaxy/CREDITS.md`.
-  Galaxy chat follows the supplied orbital-glass reference: a violet/cyan/gold
-  outlined header, local orbit wordmark, left navigation rail, orb welcome card
-  and a floating composer ordered Voice, Live, File, Tools, input, Send.
-  Desktop header/composer share width and resting height, with 16px edge gaps;
-  narrow touch views retain the input above the controls and 12px edge gaps.
+  Galaxy chat is an orbital-glass cockpit: a violet/cyan/gold outlined header
+  with the local orbit wordmark and a clock segment at its right end, a footer
+  composer ordered Voice, Live, File, Tools, input, Send, and two equal glass
+  rails between them: navigation on the left (Desktop, Integrations,
+  Conversations, Dashboard, Missions, Config as icon + caption) and the live
+  status pills (connection, tokens, budget, credits, debug) on the right, moved
+  there by `galaxy-interface.js` and restored on exit. Header and footer span
+  the full width with 16px gaps on every side and share their resting height;
+  the rails sit 16px below/above them with the same width (`--galaxy-rail-width`)
+  and the chat lane is centered between them (`--galaxy-lane-inset`). The orb
+  welcome card is a centered column with a connection chip. No floating clock
+  plate, no mottos, no horizontal offsets. Narrow touch views hide logo, clock
+  and status rail, keep a 46px icon-only navigation rail, retain the input above
+  the controls and use 12px edge gaps. Static contract:
+  `TestChatFrontend_GalaxyFrameStaysSymmetric`.
   Keep its styles scoped to `[data-theme="galaxy"]` in `css/chat-themes.css`.
   `galaxy-interface.js` lazily relocates the real composer/drawer controls;
   comment anchors restore the exact original order on theme exit. Do not clone

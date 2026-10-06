@@ -18,7 +18,7 @@
   "config.ollama.managed_checking": "Έλεγχος…",
   "config.ollama.managed_recreate_started": "Ξεκίνησε",
   "config.ollama.managed_recreating": "Αναδημιουργία…",
-  "config.ollama.managed_status_disabled": "Απενεργοποιήθηκε",
+  "config.ollama.managed_status_disabled": "Απενεργοποιημένο",
   "config.ollama.managed_status_running": "Εκτελείται",
   "config.ollama.managed_status_stopped": "Σταμάτησε",
   "config.onedrive.auth_connected": "Συνδεδεμένο",

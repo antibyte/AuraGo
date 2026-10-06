@@ -2,7 +2,7 @@
   "config.mission_preparation.enabled_label": "सक्रिय",
   "config.mission_preparation.provider_label": "LLM प्रदाता",
   "config.mission_preparation.provider_placeholder": "मुख्य प्रदाता के लिए खाली छोड़ें",
-  "config.mission_preparation.timeout_seconds_label": "समय सीमा (सेकंड)",
+  "config.mission_preparation.timeout_seconds_label": "टाइमआउट (सेकंड)",
   "config.mission_preparation.max_essential_tools_label": "अधिकतम आवश्यक टूल",
   "config.mission_preparation.cache_expiry_hours_label": "कैश समाप्ति (घंटे)",
   "config.mission_preparation.min_confidence_label": "न्यूनतम विश्वास",

@@ -132,7 +132,7 @@
   "config.tailscale.tsnet_serve_http_hint": "Se abilitato, AuraGo ascolta sulla porta 443 (HTTPS) o 80 (HTTP di riserva) sull'interfaccia Tailscale in modo che altri dispositivi nel tailnet possano accedere all'interfaccia web. Se disabilitato, il nodo si connette solo alla rete senza esporre alcun server.",
   "config.tailscale.tsnet_serve_http_label": "Esponi la Web UI tramite Tailscale",
   "config.tailscale.tsnet_starting_toast": "Avvio nodo tsnet…",
-  "config.tailscale.tsnet_state_dir_hint": "Directory per i file di stato tsnet. Lasciare vuoto per il valore predefinito.",
+  "config.tailscale.tsnet_state_dir_hint": "Directory per i file di stato tsnet. Lascia vuoto per il valore predefinito.",
   "config.tailscale.tsnet_state_dir_label": "Directory di stato",
   "config.tailscale.tsnet_status_error": "Impossibile caricare lo stato",
   "config.tailscale.tsnet_status_loading": "Caricamento stato...",

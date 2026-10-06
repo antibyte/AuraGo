@@ -6,7 +6,7 @@
   "config.video_download.send_enabled_label": "Send YouTube-spiller til chat",
   "config.video_download.mode_label": "Kjøremodus",
   "config.video_download.mode_docker": "Docker-sidecar",
-  "config.video_download.mode_native": "Innebygd yt-dlp",
+  "config.video_download.mode_native": "Native yt-dlp",
   "config.video_download.allow_download_label": "Tillat nedlastinger",
   "config.video_download.allow_transcribe_label": "Tillat transkribering",
   "config.video_download.download_dir_label": "Nedlastingsmappe",
@@ -27,7 +27,7 @@
   "help.video_download.max_file_size_mb": "Maksimal størrelse på en nedlastet fil. 0 betyr ubegrenset.",
   "help.video_download.timeout_seconds": "Maksimal kjøretid for én yt-dlp-operasjon.",
   "help.video_download.max_search_results": "Maksimalt antall søkeresultater returnert til agenten.",
-  "help.video_download.yt_dlp_path": "Valgfri sti til yt-dlp i native mode. La stå tom for PATH.",
+  "help.video_download.yt_dlp_path": "Valgfri sti til yt-dlp-binærfilen på verten. La stå tom for å bruke PATH.",
   "help.video_download.container_image": "Docker-image brukt i Docker-modus.",
   "help.video_download.auto_pull": "Henter yt-dlp-imaget automatisk hvis det mangler lokalt."
 }

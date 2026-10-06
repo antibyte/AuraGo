@@ -1,5 +1,5 @@
 {
-  "config.cloudflare_tunnel.quick_project": "Webbplats för tillfällig tunnel",
+  "config.cloudflare_tunnel.quick_project": "Homepage för tillfällig tunnel",
   "config.cloudflare_tunnel.quick_project_help": "Publicerar en kopia av det valda projektets senast byggda statiska filer. Aktivera Homepage och Cloudflare. AuraGo tilldelar porten automatiskt.",
   "config.cloudflare_tunnel.quick_project_select": "Välj ett projekt",
   "config.cloudflare_tunnel.quick_project_error": "Projektet är inte tillgängligt. Kontrollera Homepage-inställningarna och projektregistreringen.",
@@ -30,7 +30,7 @@
   "config.cloudflare_tunnel.expose_single_hint": "Token- och Quick-tunnlar använder ett enda ursprung URL. Endast en tjänst kan vara tunneldestinationen. Använd Named Tunnel för routing med flera tjänster via separata värdnamn.",
   "config.cloudflare_tunnel.expose_named_hint": "Named Tunnels stöder flera ingress-regler. Båda tjänsterna kan exponeras samtidigt genom att konfigurera separata värdnamn i Custom Ingress-reglerna nedan.",
   "config.cloudflare_tunnel.loopback_label": "Loopback HTTP port för cloudflared (undviker TLS )",
-  "config.cloudflare_tunnel.loopback_hint": "Öppnar endast en vanlig HTTP port på 127.0.0.1. cloudflared ansluter till denna istället för porten HTTPS — ingen certifikatverifiering behövs. Porten tilldelas automatiskt.",
+  "config.cloudflare_tunnel.loopback_hint": "Öppnar endast en vanlig HTTP-port på 127.0.0.1. cloudflared ansluter till den i stället för HTTPS-porten — ingen certifikatverifiering behövs. Porten tilldelas automatiskt.",
   "config.cloudflare_tunnel.error_prefix": "Fel",
   "config.cloudflare_tunnel.restarting": "Startar om tunnel...",
   "config.cloudflare_tunnel.restart_success": "Tunnel startades om framgångsrikt",

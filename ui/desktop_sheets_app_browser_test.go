@@ -17,6 +17,15 @@ import (
 )
 
 func TestDesktopSheetsAppBrowser(t *testing.T) {
+	testSheetsAppBrowser(t, testSheetsAppWorkflows)
+}
+
+func TestDesktopSheetsLoadRecoveryBrowser(t *testing.T) {
+	testSheetsAppBrowser(t, testSheetsLoadRecovery)
+}
+
+func testSheetsAppBrowser(t *testing.T, check func(*testing.T, *rod.Page)) {
+	t.Helper()
 	requirePrecisionBrowserSmoke(t)
 	bin, ok := browserExecutable()
 	if !ok {
@@ -99,10 +108,10 @@ func TestDesktopSheetsAppBrowser(t *testing.T) {
 	})
 	mux.HandleFunc("/sheets-app-fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/js/vendor/sheets/engine.css"><link rel="stylesheet" href="/css/desktop-app-sheets.css">
+		fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/js/vendor/sheets/engine.css"><link rel="stylesheet" href="/css/desktop-app-sheets.css">
 <style>html,body{margin:0;height:100%;font-family:system-ui}body{--vd-text:#e4e8f0;--vd-theme-app-bg:#141922;--vd-theme-panel-bg:#1b202a;--vd-theme-chrome-bg:#1d2430;--vd-theme-control-bg:#252d3a;--vd-theme-border:#ffffff1a;--vd-theme-muted:#a7b1c3;--vd-accent:#9abfff}body[data-fruity-mode=light]{--vd-text:#212b3c;--vd-theme-app-bg:#e2e7ee;--vd-theme-panel-bg:#e5e9ef;--vd-theme-chrome-bg:#d7dfe9;--vd-theme-control-bg:#f8fafc;--vd-theme-border:#65748c40;--vd-theme-muted:#536279;--vd-accent:#2169bd}#host{height:100%}</style></head><body class="desktop-body" data-theme="default"><div id="host"></div>
 <script>window.sheetErrors=[];addEventListener('error',e=>sheetErrors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>sheetErrors.push(e.reason?.stack||String(e.reason)));</script>
-<script src="/chart.min.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/sheets-data.js"></script><script src="/js/desktop/apps/sheets-panels.js"></script><script src="/js/desktop/apps/sheets-charts.js"></script><script src="/js/desktop/apps/sheets.js"></script>
+<script src="/chart.min.js"></script><script src="/js/desktop/core/print-runtime.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/sheets-data.js"></script><script src="/js/desktop/apps/sheets-panels.js"></script><script src="/js/desktop/apps/sheets-charts.js"></script><script src="/js/desktop/apps/sheets.js"></script>
 <script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();window.sheetsContext={t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>value,confirmDialog:async()=>true,setWindowBeforeClose:(id,fn)=>window.closeGuard=fn,setWindowMenus:(id,menus)=>window.menus=menus,saveFileDialog:async()=>({path:'Documents/copy.xlsx'}),openFileDialog:async()=>({path:SheetsApp.instances.get('test').path})};SheetsApp.render(document.getElementById('host'),'test',sheetsContext);})();</script></body></html>`)
 	})
 	srv := httptest.NewServer(mux)
@@ -116,6 +125,11 @@ func TestDesktopSheetsAppBrowser(t *testing.T) {
 	page.MustSetViewport(1366, 768, 1, false)
 	page.MustWaitLoad()
 	page.MustWait(`()=>!!SheetsApp.instances.get('test')?.session||document.querySelector('[data-notice]')?.dataset.error==='true'`)
+	check(t, page)
+}
+
+func testSheetsAppWorkflows(t *testing.T, page *rod.Page) {
+	t.Helper()
 	result := page.MustEval(`async()=>{
   const app=SheetsApp.instances.get('test');if(!app.session)throw Error(document.querySelector('[data-notice-text]').textContent);
   const sheet=app.book.getActiveSheet();sheet.getRange('A1:B3').setValues([['Name','Amount'],['Rent',1250.5],['Food',400]]);
@@ -174,6 +188,72 @@ func TestDesktopSheetsAppBrowser(t *testing.T) {
 	testSheetsNativeTyping(t, page)
 	testSheetsLargeWorkbook(t, page)
 	page.MustEval(`()=>SheetsApp.dispose('test')`)
+}
+
+func testSheetsLoadRecovery(t *testing.T, page *rod.Page) {
+	t.Helper()
+	page.MustEval(`async()=>{
+  const app=SheetsApp.instances.get('test');await app.state.save();window.savedSheetPath=app.path;
+  SheetsApp.dispose('test');window.restoredSheetContext={path:'Documents/deleted.xlsx'};
+  SheetsApp.render(document.getElementById('host'),'test',{...sheetsContext,...restoredSheetContext,
+    updateWindowContext:(id,patch)=>Object.assign(restoredSheetContext,patch),
+    openFileDialog:async()=>({path:savedSheetPath})});
+ }`)
+	page.MustWait(`()=>document.querySelector('[data-notice]')?.dataset.error==='true'`)
+	page.MustEval(`()=>{
+  const check=(yes,message)=>{if(!yes)throw Error(message)},app=SheetsApp.instances.get('test');
+  check(!app.book&&!app.session,'Failed load must not keep an editor or save queue');
+  check(document.querySelector('[data-save-state]').dataset.state==='error','Failed load still reports loading');
+  check(restoredSheetContext.path==='','Deleted path must not be restored again');
+  check(!document.querySelector('[data-load-actions]').hidden,'New and Open must be reachable after a load failure');
+  check(document.querySelector('[data-notice] [data-action="saveAs"]').hidden,'Failed load offers Save As without a workbook');
+ }`)
+	out := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
+	if out == "" {
+		out = "../reports/sheets"
+	}
+	if err := os.MkdirAll(out, 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, width := range []int{1366, 390} {
+		page.MustSetViewport(width, 768, 1, width < 821)
+		for _, theme := range []string{"default", "fruity"} {
+			page.MustEval(`theme=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=theme==='fruity'?'light':'';}`, theme)
+			page.MustEval(`()=>{
+  for(const button of document.querySelectorAll('[data-load-actions] button')){
+    const r=button.getBoundingClientRect();
+    if(r.width<=0||r.height<44||r.left<0||r.right>innerWidth||r.bottom>innerHeight)throw Error('Load recovery action is unreachable');
+  }
+ }`)
+			page.MustScreenshot(fmt.Sprintf("%s/load-recovery-%s-%d.png", out, theme, width))
+		}
+	}
+	page.MustElement(`[data-load-actions] [data-action="new"]`).MustClick()
+	page.MustWait(`()=>!!SheetsApp.instances.get('test')?.session&&document.querySelector('[data-loading]').hidden`)
+	page.MustEval(`async()=>{
+  const app=SheetsApp.instances.get('test'),check=(yes,message)=>{if(!yes)throw Error(message)};
+  check(app.path!=='Documents/deleted.xlsx'&&restoredSheetContext.path===app.path,'New workbook reused deleted path');
+  app.book.getActiveSheet().getRange('A1').setValue('Recovered');await app.state.save();
+  check(!app.session.dirty,'New workbook could not be saved');
+  check((await fetch('/api/desktop/office/workbook?path=Documents/deleted.xlsx')).status===404,'Deleted file was recreated');
+  await app.state.load('Documents/deleted.xlsx');
+ }`)
+	page.MustElement(`[data-load-actions] [data-action="open"]`).MustClick()
+	page.MustWait(`()=>SheetsApp.instances.get('test')?.path===savedSheetPath&&!!SheetsApp.instances.get('test')?.session`)
+	page.MustEval(`async()=>{
+  const app=SheetsApp.instances.get('test'),nativeFetch=window.fetch;
+  window.fetch=async(input,options)=>String(input).includes('representation=editor-v2')&&options?.method!=='PATCH'
+    ?new Response(JSON.stringify({error:'Temporarily unavailable'}),{status:503,headers:{'Content-Type':'application/json'}}):nativeFetch(input,options);
+  try{await app.state.load(savedSheetPath);}finally{window.fetch=nativeFetch;}
+  if(restoredSheetContext.path!==savedSheetPath)throw Error('Temporary errors must retain the retry path');
+ }`)
+	page.MustElement(`[data-notice] [data-action="retry"]`).MustClick()
+	page.MustWait(`()=>!!SheetsApp.instances.get('test')?.session&&document.querySelector('[data-loading]').hidden`)
+	page.MustEval(`()=>{
+  if(!document.querySelector('[data-notice]').hidden)throw Error('Retry left a stale error');
+  if(sheetErrors.length)throw Error(sheetErrors.join('\n'));
+ }`)
+	t.Log("Sheets load recovery: missing startup file, New/save, Open and retry passed")
 }
 
 func testSheetsAppInteractions(t *testing.T, page *rod.Page) {
@@ -270,7 +350,7 @@ func testSheetsClipboardAIPrint(t *testing.T, page *rod.Page) {
   const apply=root.querySelector('[data-panel-action="applyAI"]');check(apply&&!apply.disabled,'AI preview');apply.click();await a.state.prepareOutput();check(s.getRange('B5').getRawValue()===5,'AI apply');await a.api.undo();check(s.getRange('B5').getRawValue()===before,'AI one-step undo');
   root.querySelector('[data-panel-action="askAI"]').click();await wait();s.getRange('A30').setValue('changed');await wait();check(root.querySelector('[data-panel-action="applyAI"]').disabled,'AI stale proposal');
   await a.act('print');root.querySelector('[data-field="printArea"]').value='A1:J12';root.querySelector('[data-field="repeatRows"]').value='1';
-  window.printProbe=null;const observer=new MutationObserver(()=>{const frame=document.querySelector('.sheets-print-frame');if(frame){frame.contentWindow.print=()=>{window.printProbe={text:frame.contentDocument.body.textContent,rows:frame.contentDocument.querySelectorAll('tr').length,headers:frame.contentDocument.querySelectorAll('thead tr').length,charts:frame.contentDocument.querySelectorAll('figure img').length};};}});observer.observe(root,{subtree:true,childList:true});
+  window.printProbe=null;const observer=new MutationObserver(records=>{for(const record of records)for(const frame of record.addedNodes)if(frame.matches?.('.sheets-print-frame')){const hook=()=>{frame.contentWindow.print=()=>{window.printProbe={text:frame.contentDocument.body.textContent,rows:frame.contentDocument.querySelectorAll('tr').length,headers:frame.contentDocument.querySelectorAll('thead tr').length,charts:frame.contentDocument.querySelectorAll('figure img').length};};};hook();frame.addEventListener('load',hook);}});observer.observe(document.body,{childList:true});
   root.querySelector('[data-panel-action="printNow"]').click();for(let i=0;i<30&&!window.printProbe;i++)await wait();observer.disconnect();check(window.printProbe?.rows===12&&window.printProbe.headers===1,'Print rows and headers: '+JSON.stringify(window.printProbe));check(window.printProbe.charts===1,'Print chart');check(window.printProbe.text.includes('Monthly budget'),'Print current document');document.querySelector('.sheets-print-frame')?.remove();
   await a.act('closeRight');a.session.resume();await a.state.save();return {clipboard:true,transpose:true,cutUndo:true,aiUndo:true,aiStale:true,print:window.printProbe};
  }`)

@@ -18,7 +18,7 @@
   "config.auth.password_label": "パスワード",
   "config.auth.password_min_length": "パスワードは 8 文字以上である必要があります。",
   "config.auth.password_not_set": "⚠️ パスワードが設定されていません - ログイン ガードを有効にできません。",
-  "config.auth.session_hours": "⏱ セッション (時間)",
+  "config.auth.session_hours": "⏱ 自動サインアウト (時間)",
   "config.auth.session_validity": "ログインからの初期有効期間。操作中は残り時間が最低10分に延長され、操作がないまま残り時間が過ぎるとログアウトします。設定の変更は次回以降のログインに適用されます。",
   "config.auth.set_password": "設定",
   "config.auth.status_success": "✅",

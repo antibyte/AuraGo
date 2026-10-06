@@ -1,7 +1,7 @@
 {
   "media.audio_type_audio": "Αρχείο ήχου",
   "media.audio_type_music": "Μουσική",
-  "media.audio_type_tts": "Ομιλία",
+  "media.audio_type_tts": "Κείμενο σε ομιλία",
   "media.bulk_clear_selection": "Εκκαθάριση επιλογής",
   "media.bulk_confirm_delete": "Να διαγραφούν {count} επιλεγμένα στοιχεία;",
   "media.bulk_delete_selected": "Διαγραφή επιλεγμένων",
