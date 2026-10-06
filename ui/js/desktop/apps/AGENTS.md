@@ -2470,13 +2470,13 @@ registration lives in `internal/desktop/types.go`.
   `ibm3278`, `vintage`, `mono-green`, `transparent-green`. Persist
   `aurago.desktop.terminal.style` and audio mute
   `aurago.desktop.terminal.audioMuted`. Retro styles use vendored
-  `xterm-addon-canvas`, original WebGL CRT in `terminal-crt.js`
+  xterm 6 with its WebGL addon, original WebGL CRT in `terminal-crt.js`
   (`window.TerminalCrt.create` → `setProfile`/`setEnabled`/`resize`/`dispose`/`usesFallback`;
-  captures only `xterm-*-layer` canvases at their CSS offsets and scale;
+  captures every `.xterm-screen` canvas at its CSS offset and scale;
   output is capped at DPR 1.25 and 30 fps, never stretches text to fill the tube),
   CSS bezels, and Web Audio key-clicks in `terminal-audio.js`
   (`window.TerminalAudio.create` → `setProfile`/`setMuted`/`playKey`/`dispose`).
-  Load order: xterm.css, desktop-app-terminal.css, xterm, fit, canvas,
+  Load order: xterm.css, desktop-app-terminal.css, xterm, fit, WebGL addon,
   styles, crt, audio, terminal.js. Scope is this app only. Reduced motion
   and `dataset.animations === 'false'` disable flicker, burn-in, animated grain, and audio.
   Retro appearance follows cool-retro-term's luminous phosphor, scanlines,
@@ -2486,8 +2486,12 @@ registration lives in `internal/desktop/types.go`.
   Additive bloom and decaying persistence share a half-resolution blurred
   source buffer; never feed warped output back into the source. The native
   xterm layer stays interactive and is visually hidden only after a WebGL frame.
-  Keep canvas addon 0.5.0 paired with xterm 5.3.0; provenance and license are
-  beside `js/vendor/xterm-addon-canvas.min.js`. Browser verification is
+  Housing materials, seams, vents and localized wear live in the app CSS;
+  older Apple II/Vintage cases show more wear. Decorative hardware is hidden
+  from accessibility and pointer input. Its LED follows the existing localized
+  socket status via `data-terminal-state`; Modern stays frameless. Keep compact
+  cases inside the app without changing xterm's measured screen padding.
+  Browser verification is
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopTerminalRetroBrowser -count=1`.
   WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Style
   changes wait for `document.fonts.load` before changing xterm options or

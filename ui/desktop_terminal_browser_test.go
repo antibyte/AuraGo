@@ -180,6 +180,10 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 			page.MustEval(`async id=>{fixtureStyle(id);await document.fonts.ready;await new Promise(r=>setTimeout(r,120));await fixtureWrite();await new Promise(r=>setTimeout(r,100));}`, style)
 			check(t, "live CRT", `()=>!fixtureCrt.at(-1).usesFallback() && document.querySelector('[data-terminal-renderer="webgl"]')!==null`)
 			check(t, "one session", `()=>fixtureSockets.length===1 && fixtureSockets[0].readyState===1 && fixtureTerms.length===1`)
+			check(t, "housing details leave the glass usable", `()=>{
+                const root=document.querySelector('.vd-terminal-app'),glass=root.querySelector('.vd-terminal-screen').getBoundingClientRect(),panel=root.querySelector('.vd-terminal-hardware'),r=panel.getBoundingClientRect(),led=panel.querySelector('.vd-terminal-led');
+                return root.dataset.terminalState==='desktop.terminal_running' && panel.getAttribute('aria-hidden')==='true' && getComputedStyle(panel).pointerEvents==='none' && r.top>glass.bottom && r.width>150 && led.getBoundingClientRect().width>=7 && getComputedStyle(led).boxShadow.includes('6px');
+            }`)
 			check(t, "visible phosphor", `async()=>(await fixtureCapture()).lit>500`)
 			check(t, "text inset inside glass", `()=>{const s=document.querySelector('.vd-terminal-screen').getBoundingClientRect(),x=document.querySelector('.xterm-screen').getBoundingClientRect();return x.left>=s.left+15 && x.top>=s.top+15 && x.right<=s.right-10 && x.bottom<=s.bottom-10;}`)
 			snapshot("terminal-" + style)
@@ -201,8 +205,10 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 	page.MustEval(`()=>fixtureTerms[0].clearSelection()`)
 	check(t, "keyboard focus cannot scroll the glass overlay", `()=>{const s=document.querySelector('.vd-terminal-screen'),a=document.querySelector('.vd-terminal-crt-overlay'),r=s.getBoundingClientRect(),c=a.getBoundingClientRect();return s.scrollTop===0 && Math.abs(r.top-c.top)<1 && Math.abs(r.bottom-c.bottom)<1;}`)
 	snapshot("terminal-compact-dpr2")
+	check(t, "compact housing stays inside the app", `()=>{const root=document.querySelector('.vd-terminal-app'),r=root.getBoundingClientRect(),p=root.querySelector('.vd-terminal-hardware').getBoundingClientRect();return root.scrollWidth<=root.clientWidth+1 && p.left>=r.left && p.right<=r.right && p.bottom<=r.bottom;}`)
 	page.MustEval(`()=>fixtureStyle('modern')`)
 	check(t, "modern restores xterm", `()=>!document.querySelector('.vd-terminal-crt-overlay') && getComputedStyle(document.querySelector('.xterm-screen')).opacity==='1' && fixtureTerms[0].options.fontSize===13`)
+	check(t, "modern keeps its full screen", `()=>getComputedStyle(document.querySelector('.vd-terminal-hardware')).display==='none' && getComputedStyle(document.querySelector('.vd-terminal-bezel')).paddingTop==='0px'`)
 	page.MustEval(`()=>{window.fixtureNoGL=true;fixtureStyle('green');}`)
 	check(t, "CSS fallback keeps session and readable text", `()=>fixtureCrt.at(-1).usesFallback() && document.querySelector('[data-terminal-fallback="css"]')!==null && getComputedStyle(document.querySelector('.xterm-screen')).opacity==='1' && fixtureSockets.length===1`)
 	snapshot("terminal-css-fallback")
@@ -210,6 +216,13 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>document.querySelector('[data-terminal-renderer="webgl"]')!==null`)
 	page.MustEval(`()=>document.querySelector('.vd-terminal-crt-overlay').dispatchEvent(new Event('webglcontextlost',{cancelable:true}))`)
 	check(t, "context loss reveals native terminal", `()=>document.querySelector('[data-terminal-fallback="css"]')!==null && !document.querySelector('.vd-terminal-crt-overlay') && getComputedStyle(document.querySelector('.xterm-screen')).opacity==='1'`)
+	check(t, "LED follows socket failure and closure", `()=>{
+        const root=document.querySelector('.vd-terminal-app'),led=root.querySelector('.vd-terminal-led'),status=root.querySelector('[data-terminal-status]'),socket=fixtureSockets[0],running=getComputedStyle(led).color;
+        socket.onerror();const failed=getComputedStyle(led).color;
+        if(root.dataset.terminalState!=='desktop.terminal_unavailable' || status.textContent!==t('desktop.terminal_unavailable') || failed===running)return false;
+        socket.close();
+        return root.dataset.terminalState==='desktop.terminal_stopped' && status.textContent===t('desktop.terminal_stopped') && getComputedStyle(led).color!==failed && !getComputedStyle(led).boxShadow.includes('6px');
+    }`)
 	page.MustEval(`()=>TerminalApp.dispose()`)
 	check(t, "disposed session", `async()=>{const n=fixtureDraws;await new Promise(r=>setTimeout(r,100));return n===fixtureDraws && fixtureSockets[0].readyState===3 && !document.querySelector('.vd-terminal-crt-overlay');}`)
 	for _, viewport := range [][2]int{{1366, 768}, {1024, 600}, {900, 700}} {
@@ -229,6 +242,14 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
                 if(!ok)throw Error(JSON.stringify({rect:r,style:w.style.cssText,viewport:[innerWidth,innerHeight],workspace:document.getElementById('vd-workspace').getBoundingClientRect()}));
                 return ok;
             }`)
+			if viewport[0] == 1366 {
+				page.MustEval(`async()=>{fixtureStyle('apple2');await document.fonts.ready;await new Promise(r=>setTimeout(r,150));await fixtureWrite();}`)
+				snapshot("terminal-apple2-" + theme)
+				if theme == "fruity" {
+					page.MustEval(`()=>{terminalTest.state.bootstrap.settings['appearance.fruity_mode']='light';terminalTest.applyDesktopSettings();}`)
+					snapshot("terminal-apple2-fruity-light")
+				}
+			}
 		}
 	}
 	page.MustEval(`async()=>{

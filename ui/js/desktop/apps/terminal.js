@@ -35,9 +35,9 @@
         const styles = window.TerminalStyles;
         const initial = styles ? styles.load() : 'modern';
         const muted = window.TerminalAudio ? window.TerminalAudio.loadMuted() : false;
-        host.innerHTML = '<div class="vd-terminal-app" data-terminal-style="' + initial + '">' +
+        host.innerHTML = '<div class="vd-terminal-app" data-terminal-state="desktop.loading" data-terminal-style="' + initial + '">' +
             '<div class="vd-terminal-toolbar">' +
-            '<span class="vd-terminal-status vd-terminal-toolbar-status" data-terminal-status>' + ctx.t('desktop.loading') + '</span>' +
+            '<span class="vd-terminal-status vd-terminal-toolbar-status" data-terminal-status role="status">' + ctx.t('desktop.loading') + '</span>' +
             '<div class="vd-terminal-toolbar-actions">' +
             '<label class="vd-terminal-style-label">' +
             '<span class="vd-sr-only">' + ctx.t('desktop.terminal_style') + '</span>' +
@@ -50,6 +50,11 @@
             '<div class="vd-terminal-stage">' +
             '<div class="vd-terminal-bezel" data-terminal-bezel>' +
             '<div class="vd-terminal-screen" data-terminal-screen></div>' +
+            '<div class="vd-terminal-hardware" aria-hidden="true">' +
+            '<span class="vd-terminal-maker">AuraGo</span>' +
+            '<span class="vd-terminal-vents"></span>' +
+            '<span class="vd-terminal-power"><span class="vd-terminal-led"></span><span>⏻</span></span>' +
+            '</div>' +
             '</div></div></div>';
 
         const root = host.querySelector('.vd-terminal-app');
@@ -71,6 +76,7 @@
         if (audio) audio.setMuted(muted);
 
         function setStatus(key) {
+            root.setAttribute('data-terminal-state', key);
             if (status) status.textContent = ctx.t(key);
         }
 
