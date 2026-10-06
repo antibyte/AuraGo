@@ -80,8 +80,13 @@
         function actionButton(name, labelKey, iconName, opts) {
             opts = opts || {};
             const disabled = opts.disabled || readonly || (ctx.busy && ctx.busy !== name);
-            return `<button type="button" class="vd-mc-btn${opts.primary ? ' vd-mc-btn--primary' : ''}${opts.danger ? ' vd-mc-btn--danger' : ''}" data-mc-action="${esc(name)}" ${disabled ? 'disabled' : ''} ${opts.title ? `title="${esc(opts.title)}" aria-label="${esc(opts.title)}"` : ''}>${ic(iconName)}${opts.iconOnly ? '' : `<span>${esc(opts.label || t(labelKey))}</span>`}</button>`;
+            // hint is a tooltip only; title also names the button (for icon-only buttons).
+            const tip = opts.title ? `title="${esc(opts.title)}" aria-label="${esc(opts.title)}"` : opts.hint ? `title="${esc(opts.hint)}"` : '';
+            return `<button type="button" class="vd-mc-btn${opts.primary ? ' vd-mc-btn--primary' : ''}${opts.danger ? ' vd-mc-btn--danger' : ''}" data-mc-action="${esc(name)}" ${disabled ? 'disabled' : ''} ${tip}>${ic(iconName)}${opts.iconOnly ? '' : `<span>${esc(opts.label || t(labelKey))}</span>`}</button>`;
         }
+
+        // The server refuses to run or switch on a flow that was never published.
+        function unpublishedFlow() { return !!mission && mission.execution_type === 'flow' && !mission.flow_published; }
 
         // openFlowButton stays enabled in read-only mode: EasyDrag itself opens flows read-only.
         function openFlowButton(extraClass) {
@@ -94,6 +99,7 @@
                 return `<article class="vd-mc-card vd-mc-card--task vd-mc-card--flow">
                     <h3 class="vd-mc-card-title">${ic('workflow')}<span>${esc(t('desktop.mc_flow_card_title'))}</span></h3>
                     <p class="vd-mc-flow-desc">${esc(t('desktop.mc_flow_card_desc'))}</p>
+                    ${unpublishedFlow() ? `<p class="vd-mc-flow-hint">${ic('info')}<span>${esc(t('desktop.mc_flow_publish_first'))}</span></p>` : ''}
                     <div class="vd-mc-card-actions">${openFlowButton(' vd-mc-btn--primary')}</div>
                 </article>`;
             }
@@ -109,6 +115,7 @@
             let primary;
             if (ctx.running && !remote) primary = actionButton('cancel', 'desktop.mc_action_cancel', 'stop', { danger: true, disabled: ctx.cancelling, label: ctx.cancelling ? t('desktop.mc_action_cancelling') : t('desktop.mc_action_cancel') });
             else if (ctx.queuePosition) primary = actionButton('removeQueue', 'desktop.mc_action_remove_queue', 'queue', {});
+            else if (unpublishedFlow()) primary = actionButton('run', 'desktop.mc_action_run', 'play', { primary: true, disabled: true, hint: t('desktop.mc_flow_publish_first') });
             else primary = actionButton('run', 'desktop.mc_action_run', 'play', { primary: true, disabled: ctx.running });
             q('[data-mc-hero]').innerHTML = `
                 <div class="vd-mc-hero-main">

@@ -389,5 +389,9 @@
     .vd-mc-btn { min-height: 38px; }
     .vd-mc-splitter { display: none; }
 }
-.vd-mc-row-badge--flow { color: var(--vd-accent); border-color: color-mix(in srgb, var(--vd-accent) 45%, var(--vd-theme-border)); }
+/* Accent ink: the accent mixed with the text colour. Raw accents fall to 1.3:1 on light panels; this mix
+   keeps 5.7:1 or more on the row, hover and selected backgrounds for every theme and accent. */
+.vd-mc-row-badge--flow { color: color-mix(in srgb, var(--vd-accent) 30%, var(--vd-text)); border-color: color-mix(in srgb, var(--vd-accent) 45%, var(--vd-theme-border)); }
 .vd-mc-card--flow .vd-mc-flow-desc { margin: 0 0 12px; color: var(--vd-theme-muted); line-height: 1.5; }
+.vd-mc-card--flow .vd-mc-flow-hint { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: var(--ds-type-size-sm); color: var(--vd-text); }
+.vd-mc-card--flow .vd-mc-flow-hint svg { color: var(--mc-info); }

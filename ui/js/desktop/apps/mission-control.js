@@ -256,7 +256,7 @@
                 canCancel: !!(m && running && m.runner_type !== 'remote' && !state.cancelling.has(m.id)),
                 filter: state.filter, sort: state.sort, tab: state.tab, listCollapsed: state.listCollapsed, editing: !!state.editing
             };
-            const sig = JSON.stringify([m && m.id, m && m.enabled, m && m.locked, m && m.preparation_status, m && m.runner_type, running, menuModel.s.queued, menuModel.s.canCancel, state.filter, state.sort, state.tab, state.listCollapsed, !!state.editing]);
+            const sig = JSON.stringify([m && m.id, m && m.enabled, m && m.locked, m && m.preparation_status, m && m.runner_type, m && !!m.flow_published, running, menuModel.s.queued, menuModel.s.canCancel, state.filter, state.sort, state.tab, state.listCollapsed, !!state.editing]);
             if (sig === state.menuSignature) return;
             state.menuSignature = sig;
             setWindowMenus(windowId, MN.windowMenus(menuModel));
@@ -333,6 +333,8 @@
         function openFlow(m) {
             if (m && typeof openApp === 'function') openApp('easydrag', m.flow_id ? { flowId: m.flow_id } : {});
         }
+        // The server refuses to run or switch on a flow that was never published.
+        function isUnpublishedFlow(m) { return !!m && m.execution_type === 'flow' && !m.flow_published; }
 
         // ── actions ──
         async function withBusy(name, fn) {
@@ -361,12 +363,22 @@
             setTab,
             toggleList: () => { state.listCollapsed = !state.listCollapsed; root.classList.toggle('is-list-collapsed', state.listCollapsed); const tb = $('[data-mc-list-toggle]'); tb.setAttribute('aria-pressed', String(!state.listCollapsed)); tb.title = t(state.listCollapsed ? 'desktop.mc_list_expand' : 'desktop.mc_list_collapse'); savePrefs(state); syncMenus(); },
             runMission: (id) => withBusy('run', async () => {
+                const m = byId(id);
+                if (isUnpublishedFlow(m)) { notify(t('desktop.mc_flow_publish_first')); return; }
                 const data = await api('/api/missions/v2/' + encodeURIComponent(id) + '/run', { method: 'POST' });
-                notify(toastForMissionDispatch(data || {}));
+                // A flow run is not queued here: EasyDrag starts it, lets it wait for a slot or skips it.
+                notify(m && m.execution_type === 'flow' ? t('desktop.mc_toast_flow_run_requested') : toastForMissionDispatch(data || {}));
                 await loadData();
             }),
             cancelMission: (id) => withBusy('cancel', async () => {
-                await api('/api/missions/v2/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
+                const m = byId(id);
+                try {
+                    await api('/api/missions/v2/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
+                } catch (err) {
+                    // 409 for a flow: no live run is running (waiting runs are not "running" here). EasyDrag cancels those.
+                    if (m && m.execution_type === 'flow' && err && err.status === 409) { notify(t('desktop.mc_flow_cancel_in_easydrag')); return; }
+                    throw err;
+                }
                 state.cancelling.add(id);
                 notify(t('desktop.mc_toast_cancel_requested'));
             }),
@@ -377,6 +389,7 @@
             }),
             togglePauseMission: (id) => withBusy('pause', async () => {
                 const m = byId(id); if (!m) return;
+                if (m.enabled === false && isUnpublishedFlow(m)) { notify(t('desktop.mc_flow_publish_first')); return; }
                 await putMission(m, { enabled: m.enabled === false });
                 notify(t(m.enabled === false ? 'desktop.mc_toast_resumed' : 'desktop.mc_toast_paused'));
                 await loadData();
@@ -389,7 +402,9 @@
             }),
             deleteMission: async (id) => {
                 const m = byId(id); if (!m || readonly) return;
-                const ok = await confirmDialog(t('desktop.mc_delete_title'), t('desktop.mc_delete_message', { name: m.name }));
+                // Deleting a flow mission deletes its flow in EasyDrag too (Service.DeleteFlowForMission).
+                const message = m.execution_type === 'flow' ? t('desktop.mc_delete_flow_message', { name: m.name }) : t('desktop.mc_delete_message', { name: m.name });
+                const ok = await confirmDialog(t('desktop.mc_delete_title'), message);
                 if (!ok) return;
                 await withBusy('delete', async () => {
                     await api('/api/missions/v2/' + encodeURIComponent(id), { method: 'DELETE' });

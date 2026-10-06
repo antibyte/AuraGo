@@ -57,6 +57,9 @@
     function sel(m) { return m.s && m.s.selected ? m.s.selected : null; }
     function isRemote(mission) { return !!mission && mission.runner_type === 'remote'; }
     function isFlow(mission) { return !!mission && mission.execution_type === 'flow'; }
+    // The server refuses to run or switch on a flow that was never published (Resume and Run stay off).
+    function isUnpublishedFlow(mission) { return isFlow(mission) && !mission.flow_published; }
+    function blocksResume(mission) { return isUnpublishedFlow(mission) && mission.enabled === false; }
 
     function windowMenus(m) {
         const t = m.t;
@@ -72,16 +75,17 @@
                     { id: 'new-flow', labelKey: 'desktop.mc_new_flow', icon: 'workflow', disabled: ro, action: act(m, 'newFlow') },
                     { id: 'duplicate', labelKey: 'desktop.mc_action_duplicate', icon: 'copy', shortcut: 'Ctrl+D', disabled: () => ro() || none() || isFlow(sel(m)), action: act(m, 'duplicate') },
                     { type: 'separator' },
-                    { id: 'run', labelKey: 'desktop.mc_action_run', icon: 'play', shortcut: 'Ctrl+Enter', disabled: () => ro() || none() || running() || queued(), action: act(m, 'run') },
+                    { id: 'run', labelKey: 'desktop.mc_action_run', icon: 'play', shortcut: 'Ctrl+Enter', disabled: () => ro() || none() || running() || queued() || isUnpublishedFlow(sel(m)), action: act(m, 'run') },
                     { id: 'cancel-run', labelKey: 'desktop.mc_action_cancel', icon: 'stop', disabled: () => ro() || !(m.s && m.s.canCancel), action: act(m, 'cancelRun') },
                     { id: 'remove-from-queue', labelKey: 'desktop.mc_action_remove_queue', icon: 'list', disabled: () => ro() || !queued(), action: act(m, 'removeFromQueue') },
                     { type: 'separator' },
-                    { id: 'pause-resume', label: sel(m) && sel(m).enabled === false ? t('desktop.mc_action_resume') : t('desktop.mc_action_pause'), icon: sel(m) && sel(m).enabled === false ? 'play' : 'pause', disabled: () => ro() || none() || running(), action: act(m, 'togglePause') },
+                    { id: 'pause-resume', label: sel(m) && sel(m).enabled === false ? t('desktop.mc_action_resume') : t('desktop.mc_action_pause'), icon: sel(m) && sel(m).enabled === false ? 'play' : 'pause', disabled: () => ro() || none() || running() || blocksResume(sel(m)), action: act(m, 'togglePause') },
                     { id: 'lock-toggle', label: sel(m) && sel(m).locked ? t('desktop.mc_action_unlock') : t('desktop.mc_action_lock'), icon: 'key', disabled: () => ro() || none(), action: act(m, 'toggleLock') },
                     { id: 'prepare', labelKey: 'desktop.mc_action_prepare', icon: 'star', disabled: () => ro() || none() || running() || prep() === 'preparing' || isRemote(sel(m)) || isFlow(sel(m)), action: act(m, 'prepare') },
                     { id: 'invalidate-prep', labelKey: 'desktop.mc_action_invalidate_prep', icon: 'refresh', disabled: () => ro() || none() || prep() === 'none' || prep() === 'preparing' || isFlow(sel(m)), action: act(m, 'invalidatePrep') },
                     { type: 'separator' },
-                    { id: 'edit', labelKey: isFlow(sel(m)) ? 'desktop.mc_action_open_easydrag' : 'desktop.mc_action_edit', icon: 'edit', shortcut: 'Ctrl+E', disabled: () => ro() || none(), action: act(m, 'edit') },
+                    // Opening a flow stays possible read-only: EasyDrag opens it read-only itself.
+                    { id: 'edit', labelKey: isFlow(sel(m)) ? 'desktop.mc_action_open_easydrag' : 'desktop.mc_action_edit', icon: 'edit', shortcut: 'Ctrl+E', disabled: () => none() || (ro() && !isFlow(sel(m))), action: act(m, 'edit') },
                     { id: 'delete', labelKey: 'desktop.mc_action_delete', icon: 'trash', shortcut: 'Del', disabled: () => ro() || none() || !!(sel(m) && sel(m).locked) || running(), action: act(m, 'delete') }
                 ]
             },
@@ -121,7 +125,7 @@
         const queued = !!(m.s && m.s.queuedIds && m.s.queuedIds.has(mission.id));
         const a = (name) => () => m.actions[name] && m.actions[name](mission.id);
         const items = [
-            { icon: 'play', label: t('desktop.mc_action_run'), action: a('runMission'), disabled: ro || running || queued }
+            { icon: 'play', label: t('desktop.mc_action_run'), action: a('runMission'), disabled: ro || running || queued || isUnpublishedFlow(mission) }
         ];
         if (running && !isRemote(mission)) items.push({ icon: 'stop', label: t('desktop.mc_action_cancel'), action: a('cancelMission'), disabled: ro });
         if (queued) items.push({ icon: 'list', label: t('desktop.mc_action_remove_queue'), action: a('removeMissionFromQueue'), disabled: ro });
@@ -130,7 +134,7 @@
             ? { icon: 'edit', label: t('desktop.mc_action_open_easydrag'), action: a('openFlow') }
             : { icon: 'edit', label: t('desktop.mc_action_edit'), action: a('editMission'), disabled: ro });
         items.push({ icon: 'copy', label: t('desktop.mc_action_duplicate'), action: a('duplicateMission'), disabled: ro || isFlow(mission) });
-        items.push({ icon: mission.enabled === false ? 'play' : 'pause', label: t(mission.enabled === false ? 'desktop.mc_action_resume' : 'desktop.mc_action_pause'), action: a('togglePauseMission'), disabled: ro || running });
+        items.push({ icon: mission.enabled === false ? 'play' : 'pause', label: t(mission.enabled === false ? 'desktop.mc_action_resume' : 'desktop.mc_action_pause'), action: a('togglePauseMission'), disabled: ro || running || blocksResume(mission) });
         items.push({ icon: 'key', label: t(mission.locked ? 'desktop.mc_action_unlock' : 'desktop.mc_action_lock'), action: a('toggleLockMission'), disabled: ro });
         items.push({ separator: true });
         items.push({ icon: 'trash', label: t('desktop.mc_action_delete'), action: a('deleteMission'), disabled: ro || !!mission.locked || running });

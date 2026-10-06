@@ -83,6 +83,8 @@
         function rowMarkup(m, state) {
             const summary = triggers.summary(m, t, { schedule, lang });
             const busy = state === 'running' || state === 'queued';
+            // An unpublished flow cannot run (the server refuses it).
+            const unpublished = m.execution_type === 'flow' && !m.flow_published;
             return `
                 <span class="vd-mc-row-state" data-state="${esc(state)}" aria-hidden="true"></span>
                 <span class="vd-mc-row-main">
@@ -97,7 +99,7 @@
                 </span>
                 <span class="vd-mc-row-meta">
                     <span class="vd-mc-row-time">${esc(timeText(m, state))}</span>
-                    <button type="button" class="vd-mc-row-quick" data-mc-quick="run" tabindex="-1" title="${esc(t('desktop.mc_action_run'))}" aria-label="${esc(t('desktop.mc_action_run'))}" ${busy || readonly ? 'disabled' : ''}>${ic('play')}</button>
+                    <button type="button" class="vd-mc-row-quick" data-mc-quick="run" tabindex="-1" title="${esc(t('desktop.mc_action_run'))}" aria-label="${esc(t('desktop.mc_action_run'))}" ${busy || unpublished || readonly ? 'disabled' : ''}>${ic('play')}</button>
                 </span>`;
         }
 
