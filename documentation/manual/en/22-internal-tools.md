@@ -773,6 +773,8 @@ HTTP request to external APIs.
 | `headers` | object | HTTP headers |
 | `body` | string | Request body |
 
+Redirects: the headers you set (for example `Authorization` or an API key header) go along only while a redirect stays on the same host with the same scheme and port, or upgrades from `http` on port 80 to `https` on port 443. Any other redirect removes them for the rest of the chain; only `Accept`, `Content-Type` and `User-Agent` stay. A 307 or 308 redirect still sends the body again. EasyDrag flows follow the same rule.
+
 ### `github`
 Manage GitHub repositories, issues, PRs, branches, files, commits, workflow runs, and local project tracking (`github.enabled`).
 

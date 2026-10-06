@@ -752,6 +752,8 @@ HTTP-Request an externe APIs.
 | `headers` | object | HTTP-Header |
 | `body` | string | Request-Body |
 
+Weiterleitungen: Die Header, die du setzt (etwa `Authorization` oder ein API-Key-Header), gehen nur mit, solange eine Weiterleitung beim selben Host mit gleichem Schema und Port bleibt oder von `http` auf Port 80 zu `https` auf Port 443 wechselt. Jede andere Weiterleitung entfernt sie für den Rest der Kette; nur `Accept`, `Content-Type` und `User-Agent` bleiben. Eine 307- oder 308-Weiterleitung sendet den Body trotzdem erneut. EasyDrag-Flows folgen derselben Regel.
+
 ### `github`
 GitHub Repositories, Issues, PRs, Branches, Dateien, Commits, Workflow-Runs und lokales Projekt-Tracking verwalten (`github.enabled`).
 

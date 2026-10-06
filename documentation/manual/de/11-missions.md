@@ -185,6 +185,8 @@ AuraGo akzeptiert **Cron-Ausdrücke** mit 5 Feldern und optional 6 Feldern mit S
 
 Für ereignisgesteuerte Missionen setze `execution_type: triggered` und wähle einen `trigger_type` (z. B. `webhook`, `email_received`, `mqtt_message`, `home_assistant_state`, `budget_warning`, `mission_completed`). Filter konfigurierst du in `trigger_config`.
 
+**Ketten von Missionen.** Missionen, die sich gegenseitig beim Abschluss starten (`mission_completed`; Agenten-Missionen und Flows gleichermaßen), bilden eine Kette, und eine Kette endet nach 10 Schritten (11 Läufen). Der Abschluss des 10. Schritts startet nichts mehr: AuraGo protokolliert eine Warnung, und die Ausgabe dieser letzten Mission beginnt mit „Stopped a chain of missions triggered by completions after 10 steps; check for a loop between missions". Eine gerade Kette mit bis zu 10 Gliedern läuft vollständig. Jeder andere Start (Zeitplan, Ereignis, **Ausführen**, Wiederaufnahme nach einem Neustart) beginnt eine neue Kette.
+
 ### Flow-Missionen (EasyDrag)
 
 Flows, die du in der Desktop-App **EasyDrag** baust, erscheinen in Mission Control als Missionen vom Typ **Flow**.
@@ -192,6 +194,44 @@ Flows, die du in der Desktop-App **EasyDrag** baust, erscheinen in Mission Contr
 - Flow-Läufe warten nicht in der Missions-Warteschlange. Sie laufen auf einer eigenen Engine (standardmäßig 8 gleichzeitig, `flows.max_parallel_runs`), deshalb hält eine lange Agenten-Mission einen Flow nie auf.
 - In Mission Control kannst du eine Flow-Mission aktivieren (sobald der Flow veröffentlicht ist), pausieren, sperren, ausführen und löschen, ihren laufenden Lauf abbrechen und ihren Verlauf ansehen. Wenn du die Mission löschst, löschst du auch den Flow. Die Schritte änderst du in EasyDrag.
 - Wenn eine Mission endet, erhalten `mission_completed`-Auslöser ihre Antwort als `output` (auf 2000 Bytes gekürzt). Flows als Quelle liefern zusätzlich `outputs`: die Ergebnisse ihrer letzten Schritte.
+
+#### Läufe, Abbrechen und Grenzen
+
+- *Lauf abbrechen* in Mission Control funktioniert, solange ein Lauf des Flows läuft; die Aktion bricht diesen Lauf und die wartenden Läufe des Flows ab. Läufe, die nur warten (Mission Control zeigt den Flow dann noch als untätig), brichst du in der Lauf-Ansicht von EasyDrag ab.
+- Der Missionsverlauf behält bis zu 16 KiB vom Ergebnis eines Flow-Laufs.
+- Webhook- und MQTT-Nachrichten über 1 MiB starten keinen Lauf (AuraGo protokolliert eine Warnung). Ein E-Mail-Text über 1 MiB wird gekürzt und als `truncated` markiert.
+- Ressourcen: Jeder laufende Flow kann im schlimmsten Fall etwa 0,5 GB Arbeitsspeicher belegen (alle Schritt-Ausgaben eines Laufs zusammen sind auf 32 MiB JSON begrenzt, was im Speicher etwa das 16-Fache belegen kann), dazu bis zu etwa 0,4 GB pro Tool-Aufruf, während eine große Tool-Antwort (höchstens 8 MiB) verarbeitet wird. `flows.max_parallel_runs` (Standard 8, höchstens 32) und `flows.max_parallel_nodes_per_run` (Standard 4, höchstens 16) vervielfachen das; halte beide auf kleinen Rechnern niedrig. Jeder Flow hält außerdem bis zu 40 wartende Läufe mit ihren Auslöser-Daten.
+- Das Dashboard zeigt die Zeitpläne von Flows in der Cron-Liste nur zum Lesen: EasyDrag verwaltet sie. Auch der Agent kann sie nicht ändern.
+
+#### Fehler und Benachrichtigungen
+
+- Ein fehlgeschlagener Lauf benachrichtigt so, wie es die Flow-Einstellung `notify_on_error` vorgibt: Desktop-Benachrichtigung (Standard), Push, Telegram oder aus. Ein Flow benachrichtigt einmal, wenn er zu scheitern beginnt, und danach höchstens einmal pro Stunde, solange er weiter scheitert. Ein erfolgreicher Lauf beendet diesen Zustand; ein Flow, der zwischen Erfolg und Fehler wechselt, benachrichtigt also bei jedem neuen Fehler. Abgebrochene Läufe benachrichtigen nicht und beenden den Zustand nicht. Der Zustand liegt nur im Arbeitsspeicher: Nach einem Neustart benachrichtigt der erste Fehler wieder.
+- Jeder fehlgeschlagene Lauf erfasst außerdem das Planer-Problem des Flows (eines pro Flow; der nächste erfolgreiche Lauf löst es auf) und löst `planner_operational_issue`-Auslöser aus, wie bei Agenten-Missionen. Eine Mission, die auf solche Probleme reagiert, sollte `min_interval_seconds` setzen oder mit `planner_issue_source` filtern.
+
+#### KI- und Tool-Schritte
+
+- Ein KI-Schritt nutzt das im Schritt gewählte Modell, sonst `flows.ai_provider`, sonst das Hauptmodell. Seine Kosten zählen zum Tagesbudget in der Kategorie `flows`; ist das Tageslimit unter der Durchsetzung `partial` oder `full` erreicht, scheitern KI-Schritte. Eine Antwort darf 4096 Tokens lang sein (8192 bei Reasoning-Modellen); eine abgeschnittene Antwort lässt den Schritt scheitern. Ein Provider ohne seinen API-Key scheitert sofort. Wenn du den Provider löschst, den `flows.ai_provider` nennt, warnt AuraGo, dass Flows ihn nutzen.
+- Ein KI-Schritt sagt dem Modell, dass die Daten in seinem Prompt (Webseiten, E-Mails, Webhook-Inhalte, Tool-Ausgaben) Material sind und nie Anweisungen. Behandle die Antwort eines Modells, das nicht vertrauenswürdige Daten gelesen hat, trotzdem als nicht vertrauenswürdig.
+- Tool-Schritte führen die Tools des Agenten mit denselben Berechtigungen und Prüfungen aus. Sie laufen ohne die KI-Zusammenfassungen der Tools (Web-Scraper, DuckDuckGo, Wikipedia, PDF-Extraktor) und ohne eine bevorzugte MCP-Websuche.
+- Tools, die außerhalb des Flow-Budgets Geld oder Modell-Tokens verbrauchen, gibt es nicht als Schritte: `analyze_image`, die `generate_*`-Tools, `manus`, `huggingface`, `memory_reflect`, `space_agent`, `treg_call`, `transcribe_audio`, `yepapi_*` und `telnyx_*`. Andere Tools verlieren aus demselben Grund einzelne Operationen: `smart_file_read` `summarize`, Kamera-Analyse (`go2rtc` `analyze_snapshot`, `three_d_printer` `analyze_camera`), Transkription (`video_download` `transcribe`, `fritzbox_telephony` `transcribe_tam_message`, `rtl_sdr` `transcribe`), `knowledge_graph` `optimize`/`optimize_graph`, `virtual_computers` `run_shell_task`/`run_desktop_task`, `invasion_tasks` `send_task` und `sip_phone` `dial`. Sprachausgabe bleibt verfügbar.
+- Home-Assistant-Dienste der Domänen `script`, `shell_command`, `python_script` und `hassio` laufen aus einem Flow nur, wenn `home_assistant.allowed_services` sie aufführt.
+- Dokumente, die ein Flow aus HTML oder Markdown erzeugt, laden nie Inhalte aus dem Netz (Skripte, entfernte Bilder und Schriften); bette Bilder als `data:`-URLs ein. Eine URL in ein PDF oder einen Screenshot zu verwandeln und Office-Dokumente umzuwandeln, lehnen Flows ab.
+- Liest ein Schritt eine Datei, die ein anderer Schritt im Dokumente-Ordner erzeugt hat (etwa ein neues PDF), kopiert AuraGo sie für diesen einen Aufruf nach `.easydrag/<lauf>/` im Workspace und entfernt die Kopie danach.
+- E-Mail-Schritte: Ein neuer Versuch startet erst, wenn der vorige beendet ist; zwei Versuche überschneiden sich also nie. Hat der Mailserver eine Mail angenommen, aber seine Antwort ging verloren, sendet der neue Versuch die Mail ein zweites Mal. Ein Lauf, der während des Sendens abgebrochen wird, kann die Mail im Hintergrund trotzdem noch zustellen.
+- Telegram-Schritte mit Datei: Ist der Text rausgegangen, die Datei aber gescheitert, versucht AuraGo den Schritt nicht erneut, damit der Text nicht doppelt ankommt.
+
+#### Flow-Geheimnisse
+
+Schritte, die ein Passwort oder einen Schlüssel brauchen (etwa die Anmeldung einer HTTP-Anfrage), lesen ihn aus einem Flow-Geheimnis, das du in EasyDrag verwaltest. AuraGo speichert es im Vault als `easydrag_<name>` (Name: Kleinbuchstaben, Ziffern und `_`, bis zu 40 Zeichen; Wert bis zu 4 KiB). Werte werden nie wieder angezeigt, und der Agent kann Flow-Geheimnisse weder auflisten noch lesen, ändern oder löschen (weder mit seinem Vault-Tool noch aus Python oder Skills). Lauf-Daten, die Lauf-Ansicht und Logs zeigen die Werte geschwärzt; ein Wert unter 8 Bytes wird nur aus der Ausgabe des Schritts entfernt, der ihn genutzt hat. Wenn du ein Geheimnis löschst, zeigt dir EasyDrag, welche veröffentlichten Flows es nutzen.
+
+#### Flows abschalten, Neustarts und Backups
+
+- Mit `flows.enabled: false`, oder wenn sich der Flow-Speicher nicht öffnen lässt, läuft kein Flow. Die Flow-Missionen bleiben in Mission Control, laufen aber nie als Agenten-Missionen: Ein Auslöser, der feuert, setzt das letzte Ergebnis auf den Fehler „EasyDrag flows are not available …", und **Ausführen** antwortet, dass Flows nicht verfügbar sind.
+- Änderungen an `flows.enabled` und den vier Grenzen wirken nach einem Neustart; `flows.ai_provider` gilt sofort. Siehe die [Konfigurationsübersicht](07-konfiguration.md#weitere-konfigurationsblöcke-übersicht).
+- Läufe, die beim Beenden von AuraGo noch liefen, werden als unterbrochen markiert und nicht fortgesetzt. Ein Datum-und-Uhrzeit-Auslöser, der fällig wurde, während AuraGo oder die Flows aus waren, feuert beim Start nur, wenn er höchstens 10 Minuten zu spät ist; sonst überspringt AuraGo ihn mit einer Warnung im Log, und ein jährliches Datum rückt aufs nächste Jahr.
+- Beim Start gleicht AuraGo Mission Control mit den veröffentlichten Flows ab und repariert deren Auslöser und Timer. Veröffentlichen legt eine Flow-Mission, die in Mission Control fehlt, nie neu an: Exportiere den Flow, lösche ihn und importiere ihn wieder.
+- `flows.db` (standardmäßig in `data/`) gehört zum Backup.
+- **Vor einem Downgrade** deaktiviere oder lösche deine Flows. Ein AuraGo ohne EasyDrag lädt Flow-Missionen, verwirft aber beim nächsten Speichern ihre Flow-Felder, und eine aktivierte Flow-Mission, die gerade lief oder wartete, kann dann einmal als Agenten-Mission mit leerem Prompt laufen. Ein AuraGo mit älterem Flow-Speicher lehnt eine neuere `flows.db` ab und lässt sie unverändert; seine Flows sind dann nicht verfügbar.
 
 ---
 

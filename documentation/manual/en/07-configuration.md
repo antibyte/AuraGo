@@ -1167,6 +1167,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `treg` | treg catalog gateway (three agent tools). | `treg:`<br>`  enabled: false`<br>`  readonly: true`<br>`  max_call_cost_micro: 1000000`<br>`  allowed_endpoints: []` |
 | `model_catalog` | Bundled provider/model catalog for UI and capability detection. | `model_catalog:`<br>`  enabled: true`<br>`  disabled_providers: []`<br>`  catalog_only_visible: true` |
 | `detective` | Bounded desktop research cases (effort profiles). | `detective:`<br>`  enabled: true`<br>`  readonly: false`<br>`  profiles:`<br>`    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}` |
+| `flows` | EasyDrag visual flows: missions with their own engine ([chapter 11](11-missions.md#flow-missions-easydrag)). Limits: runs 1–32, branches per run 1–16, retention 1–365 days, 10–5000 runs per flow; `ai_provider` empty = main model. Changing `enabled` or a limit needs a restart. | `flows:`<br>`  enabled: true`<br>`  max_parallel_runs: 8`<br>`  max_parallel_nodes_per_run: 4`<br>`  run_retention_days: 30`<br>`  max_runs_per_flow: 200`<br>`  ai_provider: ""` |
 
 ---
 

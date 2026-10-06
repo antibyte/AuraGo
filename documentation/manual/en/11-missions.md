@@ -202,6 +202,8 @@ Set `execution_type: triggered` and choose a `trigger_type`:
 
 Configure filters in `trigger_config` (e.g. email subject, MQTT topic, HA entity).
 
+**Chains of missions.** Missions that start each other on completion (`mission_completed`; agent missions and flows alike) form a chain, and a chain stops after 10 steps (11 runs). The completion of the 10th step starts nothing: a warning is logged, and the output of that last mission starts with "Stopped a chain of missions triggered by completions after 10 steps; check for a loop between missions". A straight chain of up to 10 links runs whole. Every other start (schedule, event, **Run**, recovery after a restart) begins a new chain.
+
 ### Flow missions (EasyDrag)
 
 Flows that you build in the **EasyDrag** desktop app appear in Mission Control as missions of the type **flow**.
@@ -209,6 +211,44 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 - Flow runs do not wait in the mission queue. They run on their own engine (8 runs at once by default, `flows.max_parallel_runs`), so a long agent mission never delays a flow.
 - In Mission Control you can activate (once the flow is published), pause, lock, run and delete a flow mission, cancel its running run and see its history. Deleting the mission deletes the flow too. Changing its steps happens in EasyDrag.
 - When a mission finishes, `mission_completed` triggers receive its answer as `output` (cut to 2000 bytes). Flow sources also pass `outputs`: the results of their final steps.
+
+#### Runs, cancelling and limits
+
+- *Cancel run* in Mission Control works while a run of the flow is running; it cancels that run and the flow's waiting runs. Runs that only wait (Mission Control still shows the flow as idle) are cancelled in the runs view of EasyDrag.
+- The mission history keeps up to 16 KiB of a flow run's result.
+- Webhook and MQTT messages over 1 MiB start no run (a warning is logged). An email body over 1 MiB is cut and marked `truncated`.
+- Resources: each running flow can hold up to about 0.5 GB of memory in the worst case (all step outputs of a run together are capped at 32 MiB of JSON, which can take about 16 times that in memory), plus up to about 0.4 GB per tool call while a large tool answer (at most 8 MiB) is parsed. `flows.max_parallel_runs` (default 8, at most 32) and `flows.max_parallel_nodes_per_run` (default 4, at most 16) multiply this, so keep both low on small machines. Each flow also keeps up to 40 waiting runs with their trigger data.
+- The dashboard lists flow schedules among the cron jobs, read-only: they are managed by EasyDrag. The agent cannot change them either.
+
+#### Failures and notifications
+
+- A failed run notifies as the flow's setting `notify_on_error` says: desktop notification (the default), push, Telegram, or off. A flow notifies once when it starts failing and then at most once an hour while it keeps failing. A successful run ends the failing state, so a flow that alternates between success and failure notifies at every new failure. Cancelled runs neither notify nor end the failing state. The state lives in memory: after a restart the first failure notifies again.
+- Every failed run also records the flow's planner issue (one per flow; the next successful run resolves it) and fires `planner_operational_issue` triggers, as agent missions do. A mission that reacts to such issues should set `min_interval_seconds` or filter with `planner_issue_source`.
+
+#### AI and tool steps
+
+- An AI step uses the model chosen in the step, else `flows.ai_provider`, else the main model. Its costs count towards the daily budget under the category `flows`; once the daily limit is reached under the enforcement `partial` or `full`, AI steps fail. An answer may be 4096 tokens long (8192 on reasoning models); an answer that is cut off fails the step. A provider without its API key fails at once. Deleting the provider named in `flows.ai_provider` warns that flows use it.
+- An AI step tells the model that the data in its prompt (web pages, mails, webhook bodies, tool output) is material, never instructions. Still treat the answer of a model that read untrusted data as untrusted.
+- Tool steps run the agent's tools with the same permissions and checks. They run without the tools' AI summaries (web scraper, DuckDuckGo, Wikipedia, PDF extractor) and without a preferred MCP web search.
+- Tools that spend money or model tokens outside the flow budget are not offered as steps: `analyze_image`, the `generate_*` tools, `manus`, `huggingface`, `memory_reflect`, `space_agent`, `treg_call`, `transcribe_audio`, `yepapi_*` and `telnyx_*`. Other tools lose single operations for the same reason: `smart_file_read` `summarize`, camera analysis (`go2rtc` `analyze_snapshot`, `three_d_printer` `analyze_camera`), transcription (`video_download` `transcribe`, `fritzbox_telephony` `transcribe_tam_message`, `rtl_sdr` `transcribe`), `knowledge_graph` `optimize`/`optimize_graph`, `virtual_computers` `run_shell_task`/`run_desktop_task`, `invasion_tasks` `send_task` and `sip_phone` `dial`. Text-to-speech stays available.
+- Home Assistant services of the domains `script`, `shell_command`, `python_script` and `hassio` run from a flow only when `home_assistant.allowed_services` lists them.
+- Documents that a flow renders from HTML or Markdown never load remote content (scripts, remote images and fonts); embed images as `data:` URLs. Turning a URL into a PDF or screenshot, and converting office documents, is refused in flows.
+- When a step reads a file that another step created in the documents folder (a new PDF, for example), AuraGo copies it to `.easydrag/<run>/` in the workspace for that one call and removes the copy afterwards.
+- Email steps: a retry starts only after the previous attempt has ended, so two attempts never overlap. If the mail server accepted a mail but its answer got lost, the retry sends the mail a second time. A run that is cancelled during a send may still deliver the mail in the background.
+- Telegram steps with a file: when the text went out but the file failed, the step is not tried again, so the text is not sent twice.
+
+#### Flow secrets
+
+Steps that need a password or key (the authentication of an HTTP request, for example) read it from a flow secret, which you manage in EasyDrag. AuraGo stores it in the Vault as `easydrag_<name>` (name: lower-case letters, digits and `_`, up to 40 characters; value up to 4 KiB). Values are never shown again, and the agent cannot list, read, change or delete flow secrets (neither with its Vault tool nor from Python or skills). Run data, the run view and logs show values redacted; a value shorter than 8 bytes is redacted only from the output of the step that used it. Deleting a secret tells you which published flows use it.
+
+#### Switching flows off, restarts and backups
+
+- With `flows.enabled: false`, or when the flow store cannot be opened, no flow runs. The flow missions stay in Mission Control but never run as agent missions: a trigger that fires sets the last result to the error "EasyDrag flows are not available …", and **Run** answers that flows are not available.
+- Changes to `flows.enabled` and the four limits take effect after a restart; `flows.ai_provider` applies at once. See the [configuration reference](07-configuration.md#compact-yaml-reference).
+- Runs that were in progress when AuraGo stopped are marked interrupted; they do not resume. A Date/Time trigger that came due while AuraGo or flows were off fires at start-up only when it is at most 10 minutes late; otherwise it is skipped with a warning in the log, and a yearly date moves on to the next year.
+- At start-up AuraGo checks Mission Control against the published flows and repairs their triggers and timers. Publishing never re-creates a flow mission that is missing from Mission Control: export the flow, delete it and import it again.
+- `flows.db` (by default in `data/`) is part of the backup.
+- **Before a downgrade**, disable or delete your flows. An AuraGo without EasyDrag loads flow missions but drops their flow fields on its next save, and an enabled flow mission that was running or queued may then run once as an agent mission with an empty prompt. An AuraGo with an older flow store refuses a newer `flows.db` and leaves it untouched; its flows are then unavailable.
 
 ---
 
