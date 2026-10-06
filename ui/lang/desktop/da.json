@@ -1254,7 +1254,7 @@
   "desktop.mc_flow_card_desc": "Denne mission er et flow. Dets trin, udløsere og testkørsler redigeres i EasyDrag.",
   "desktop.mc_flow_trigger_datetime": "Dato og klokkeslæt",
   "desktop.mc_flow_no_trigger": "Ingen aktiv udløser",
-  "desktop.mc_flow_unpublished": "Endnu ikke udgivet",
+  "desktop.mc_flow_unpublished": "Ikke udgivet endnu",
   "desktop.mc_flow_triggers": "Udløsere i flowet",
   "desktop.mc_delete_flow_message": "Slet “{{name}}”? Det sletter også flowet i EasyDrag med kladden, alle udgivne versioner, de gemte udløserdata og kørselshistorikken. Dette kan ikke fortrydes.",
   "desktop.mc_flow_publish_first": "Udgiv først flowet i EasyDrag.",

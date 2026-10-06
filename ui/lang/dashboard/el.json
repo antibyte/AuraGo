@@ -804,7 +804,7 @@
   "dashboard.cronjobs_source_system": "Σύστημα",
   "dashboard.cronjobs_source_flow": "EasyDrag",
   "dashboard.cronjobs_managed_easydrag": "Διαχείριση από το EasyDrag",
-  "dashboard.cronjobs_managed_easydrag_hint": "Άλλαξε αυτό το χρονοδιάγραμμα στη ροή στο EasyDrag.",
+  "dashboard.cronjobs_managed_easydrag_hint": "Αλλάξτε αυτό το χρονοδιάγραμμα στη ροή στο EasyDrag.",
   "dashboard.cronjobs_status_enabled": "Ενεργό",
   "dashboard.cronjobs_status_disabled": "Ανενεργό",
   "dashboard.cronjobs_status_error": "Σφάλμα",

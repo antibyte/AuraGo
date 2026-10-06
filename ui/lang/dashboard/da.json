@@ -804,7 +804,7 @@
   "dashboard.cronjobs_source_system": "System",
   "dashboard.cronjobs_source_flow": "EasyDrag",
   "dashboard.cronjobs_managed_easydrag": "Styres af EasyDrag",
-  "dashboard.cronjobs_managed_easydrag_hint": "Skift denne tidsplan i flowet i EasyDrag.",
+  "dashboard.cronjobs_managed_easydrag_hint": "Ændr denne tidsplan i flowet i EasyDrag.",
   "dashboard.cronjobs_status_enabled": "Aktiveret",
   "dashboard.cronjobs_status_disabled": "Deaktiveret",
   "dashboard.cronjobs_status_error": "Fejl",

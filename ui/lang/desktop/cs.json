@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Spouštěče v toku",
   "desktop.mc_delete_flow_message": "Smazat „{{name}}“? Tím se smaže i tok v EasyDrag včetně konceptu, všech publikovaných verzí, uložených dat spouštěče a historie běhů. Tuto akci nejde vrátit zpět.",
   "desktop.mc_flow_publish_first": "Nejdřív tok publikuj v EasyDrag.",
-  "desktop.mc_flow_cancel_in_easydrag": "Nebyl nalezen žádný běžící běh toku. Čekající běhy zruš v EasyDrag.",
+  "desktop.mc_flow_cancel_in_easydrag": "Nebyl nalezen žádný probíhající běh toku. Čekající běhy zruš v EasyDrag.",
   "desktop.mc_toast_flow_run_requested": "Běh toku byl vyžádán. Sledovat ho můžeš v EasyDrag.",
   "desktop.mc_sort_label": "Seřadit podle",
   "desktop.mc_sort_name": "Název",

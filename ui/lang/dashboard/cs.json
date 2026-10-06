@@ -804,7 +804,7 @@
   "dashboard.cronjobs_source_system": "Systém",
   "dashboard.cronjobs_source_flow": "EasyDrag",
   "dashboard.cronjobs_managed_easydrag": "Spravuje EasyDrag",
-  "dashboard.cronjobs_managed_easydrag_hint": "Tento časový plán změníš v toku v EasyDrag.",
+  "dashboard.cronjobs_managed_easydrag_hint": "Tento časový plán změníte v toku v EasyDrag.",
   "dashboard.cronjobs_status_enabled": "Povoleno",
   "dashboard.cronjobs_status_disabled": "Zakázáno",
   "dashboard.cronjobs_status_error": "Chyba",
