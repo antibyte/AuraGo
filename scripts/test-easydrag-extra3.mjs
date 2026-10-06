@@ -894,7 +894,8 @@ export async function run(env) {
             const shortcuts = h.menus.flatMap(m => m.items).filter(i => i.shortcut).map(i => i.id + '=' + i.shortcut);
             const dispatched = [];
             const desktop = desktopMenus(h.menus, dispatched);
-            // The editor's own handler: core.isMod is consulted only once onKeyDown got past its guards.
+            // The editor's own handler: a key the desktop already ran (prevented) returns before
+            // core.isMod is consulted, so the count says whether onKeyDown looked at it.
             let editorKeys = 0;
             const isMod = h.ED.core.isMod;
             h.ED.core.isMod = event => { editorKeys++; return isMod(event); };
@@ -924,6 +925,52 @@ export async function run(env) {
         }
         eq('c1d10 the menu keys are canonical, the desktop dispatches each one once and the editor does not run it again',
             outcomes, ['MacIntel', 'Win32'].map(p => [p, ['save=Ctrl+S', 'test=Ctrl+Enter', 'search=Ctrl+K'], ['search', 'save', 'test'], 0, 1, 1, []]));
+    });
+
+    await guardAsync('c1d10 mod+S never reaches the browser and saves nothing under a dialog or while Save is disabled', async () => {
+        const answer = req => {
+            if (req.method === 'PUT') return { draft_revision: 4, issues: [] };
+            if (req.url === '/api/desktop/flows/runs/r1?include=doc') return { run: { id: 'r1', status: 'success', mode: 'test', started_at: '2026-10-06T10:00:00Z', revision: 2 }, steps: [], doc: flowDoc('Run') };
+            return undefined;
+        };
+        // dialog: the shortcut list covers the canvas, Save itself is enabled; run view: Save is
+        // disabled and no dialog is open; restore: the restore offer is a dialog and disables Save.
+        const states = {
+            dialog: (h, editor) => { h.ED.dialogs.shortcuts(editor.ed); },
+            'run view': async (h, editor) => { editor.showRun('r1'); await settle(); },
+            restore: () => {}
+        };
+        const outcomes = [];
+        for (const [platform, modifier] of [['MacIntel', 'metaKey'], ['Win32', 'ctrlKey']]) {
+            for (const [name, enter] of Object.entries(states)) {
+                const h = sandbox(answer, platform);
+                if (name === 'restore') h.store.set(DRAFT_KEY, JSON.stringify({ revision: 3, at: Date.now(), doc: flowDoc('Local') }));
+                const editor = openEditor(h);
+                await settle();
+                await enter(h, editor);
+                let saves = 0;
+                const save = editor.ed.saver.save;
+                editor.ed.saver.save = (...args) => { saves++; return save.apply(editor.ed.saver, args); };
+                const dispatched = [];
+                const desktop = desktopMenus(h.menus, dispatched);
+                // Focus sits in the dialog when one is open, else on the canvas.
+                const target = editor.el.querySelector('.ed-modal button') || editor.el.querySelector('.ed-canvas');
+                const event = {
+                    type: 'keydown', key: 's', code: 'KeyS', target, repeat: false,
+                    ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, defaultPrevented: false,
+                    preventDefault() { this.defaultPrevented = true; }, stopPropagation() {}
+                };
+                event[modifier] = true;
+                desktop.handleWindowMenuShortcut(event);
+                const seen = h.fireDoc('keydown', event);
+                await settle();
+                const saveItem = h.menus.flatMap(m => m.items).find(i => i.id === 'save');
+                outcomes.push([platform, name, !!saveItem.disabled, !!editor.el.querySelector('.ed-modal-backdrop'), seen.defaultPrevented, saves, h.logged]);
+                editor.dispose();
+            }
+        }
+        eq('c1d10 under a dialog, in the run view and under the restore offer mod+S is prevented on macOS and Windows and saves nothing',
+            outcomes, ['MacIntel', 'Win32'].flatMap(p => [[p, 'dialog', false, true, true, 0, []], [p, 'run view', true, false, true, 0, []], [p, 'restore', true, true, true, 0, []]]));
     });
 
     await guardAsync('c1d10 a malformed or unknown route opens the start page and the window context drops the notification ids', async () => {

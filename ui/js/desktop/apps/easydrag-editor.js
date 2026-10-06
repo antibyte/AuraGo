@@ -301,9 +301,8 @@
         // does not run it a second time. Keys the canvas handles itself (interact, "?") are
         // therefore a shortcutHint, which the desktop draws but does not dispatch. Ctrl+S,
         // Ctrl+Enter and Ctrl+K are real shortcuts (Ctrl+K so that the desktop's search does not
-        // take it): Ctrl+S saves even under a dialog, Ctrl+Enter and Ctrl+K wait until no dialog
-        // is open. Edits wait while a dialog, the detail view or quick-add covers the canvas, and
-        // while the restore offer waits for its answer.
+        // take it); they do nothing while a dialog is open. Edits wait while a dialog, the detail
+        // view or quick-add covers the canvas, and while the restore offer waits for its answer.
         function modalOpen() { return !!el.querySelector('.ed-modal-backdrop:not(.is-closing)'); }
         function overlayOpen() { return !!(ed.detail || ed.quickAdd || modalOpen()); }
         const unlessModal = fn => () => { if (!modalOpen()) fn(); };
@@ -319,7 +318,7 @@
                     id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: [
                         { id: 'home', labelKey: 'easydrag.ui.back_home', icon: 'list', action: goHome },
                         { type: 'separator' },
-                        { id: 'save', labelKey: 'easydrag.ui.save_now', icon: 'save', shortcut: 'Ctrl+S', disabled: ro, action: saveNow },
+                        { id: 'save', labelKey: 'easydrag.ui.save_now', icon: 'save', shortcut: 'Ctrl+S', disabled: ro, action: unlessModal(saveNow) },
                         { id: 'test', labelKey: 'easydrag.ui.test', icon: 'run', shortcut: 'Ctrl+Enter', disabled: ro, action: unlessModal(test) },
                         { id: 'run', labelKey: 'easydrag.ui.run_now', icon: 'play', disabled: ro || !ed.flow.live, action: unlessModal(() => runs.runLive()) },
                         { id: 'publish', labelKey: 'easydrag.ui.publish', icon: 'upload', disabled: ro, action: unlessModal(() => publish.openDialog()) },
@@ -463,10 +462,15 @@
             const target = typeof event.composedPath === 'function' ? event.composedPath()[0] : event.target;
             if (!target || (target !== document.body && !el.contains(target))) return;
             if (typeof ctx.isActive === 'function' && !ctx.isActive()) return;
-            if (el.querySelector('.ed-modal-backdrop') || document.querySelector('.vd-context-menu')) return;
             const mod = core.isMod(event);
             const key = event.key.toLowerCase();
-            if (mod && key === 's') { event.preventDefault(); saveNow(); return; }
+            // Mod+S belongs to the editor even when it cannot save (a dialog or context menu is
+            // open, or Save is disabled): the browser's "Save Page" never opens from here. It saves
+            // only when the desktop did not run the Save item (prevented keys return above) and
+            // Save is enabled (saveNow checks read-only and the run view; the restore offer here).
+            if (mod && key === 's') event.preventDefault();
+            if (el.querySelector('.ed-modal-backdrop') || document.querySelector('.vd-context-menu')) return;
+            if (mod && key === 's') { if (!restoring) saveNow(); return; }
             if (mod && event.key === 'Enter') { event.preventDefault(); test(); return; }
             if (mod && key === 'k') { event.preventDefault(); palette.focusSearch(); return; }
             if (core.isEditable(target) || ed.detail || ed.quickAdd) return;
