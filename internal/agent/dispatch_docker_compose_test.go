@@ -688,3 +688,24 @@ func TestDockerComposePolicyLogsTheAllProfilesFailureOncePerFile(t *testing.T) {
 		t.Fatalf("warnings after a second file = %d, want 2", n)
 	}
 }
+
+func TestDispatchDockerComposeChecksTheOutputTargetBeforeResolving(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n")
+	seen := stubDockerComposeResolver(t, func(string) (string, error) { return `{"services":{"web":{"image":"alpine"}}}`, nil })
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	cfg.Directories.WorkspaceDir = workspace
+	useRuntimePermissionsForTest(t, cfg)
+	output, ok := dispatchServices(context.Background(), ToolCall{Action: "docker", Operation: "compose", File: "compose.yml", Command: "config -o ../outside.yml"}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	if !ok {
+		t.Fatal("expected docker operation to be handled")
+	}
+	if !strings.Contains(output, `"code":"docker_compose_output_denied"`) {
+		t.Fatalf("output = %s, want the coded output denial", output)
+	}
+	if len(*seen) != 0 {
+		t.Fatalf("Compose resolved the file %d times before the cheap output check", len(*seen))
+	}
+}

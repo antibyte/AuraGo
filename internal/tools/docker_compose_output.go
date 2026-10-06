@@ -52,6 +52,24 @@ func DockerComposeArgumentsDenial(command string) string {
 	return ""
 }
 
+// DockerComposeOutputDenial returns the coded denial DockerCompose would give
+// a `config -o`/`convert -o` target, or "" (also for commands without an
+// output flag and for arguments DockerComposeArgumentsDenial reports). Agent
+// dispatch calls it before the preflight, which resolves the file.
+func DockerComposeOutputDenial(cfg DockerConfig, command string) string {
+	parts, err := dockerComposeParts(command)
+	if err != nil {
+		return ""
+	}
+	if _, err := planDockerComposeOutput(cfg, parts); err != nil {
+		var denied *dockerComposeDeniedError
+		if errors.As(err, &denied) {
+			return dockerComposeErrorJSON(err)
+		}
+	}
+	return ""
+}
+
 // dockerComposeOutputPlan is what one Compose command does with `config -o`.
 // Compose never receives the validated workspace path: it writes the rendered
 // file into a private staging directory and the file is published afterwards

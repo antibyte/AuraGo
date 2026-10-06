@@ -647,6 +647,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`
 			}
 			if req.Operation == "compose" {
+				// A refused `config -o` target is cheap to find; check it before
+				// the preflight resolves the Compose file (up to three resolutions).
+				if denied := tools.DockerComposeOutputDenial(dockerCfg, req.Command); denied != "" {
+					return "Tool Output: " + denied
+				}
 				if denied := dockerComposePolicy(ctx, cfg, dockerCfg, req); denied != "" {
 					return denied
 				}
