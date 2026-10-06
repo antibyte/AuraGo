@@ -5,8 +5,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+
+	"aurago/internal/dockerutil"
 )
 
 func TestDockerMutationsDenyWhenRuntimeReadOnly(t *testing.T) {
@@ -828,6 +831,37 @@ func TestDockerComposeConvertIsReadOnlyLikeConfig(t *testing.T) {
 	for _, command := range []string{"up -d", "down", "build", "pull", "create"} {
 		if !DockerComposeCommandMutates(command) {
 			t.Fatalf("%s must stay mutating", command)
+		}
+	}
+}
+
+func TestValidateDockerBindMountAcceptsBindsInsideAWorkspaceUnderASensitiveLocation(t *testing.T) {
+	workspaces := []string{"/mnt/user/appdata/aurago/workdir", "/root/aurago/agent_workspace/workdir"}
+	if runtime.GOOS == "windows" {
+		workspaces = []string{`C:\ProgramData\AuraGo\agent_workspace\workdir`}
+	}
+	for _, workspace := range workspaces {
+		if _, err := secureResolveFinalPath(filepath.Clean(workspace)); err != nil {
+			t.Logf("%s: skipped, the test user cannot resolve it: %v", workspace, err)
+			continue
+		}
+		cfg := DockerConfig{WorkspaceDir: workspace}
+		inside := strings.TrimRight(dockerutil.NormalizeHostPathForBind(workspace), "/") + "/stack/data:/data"
+		if err := validateDockerBindMount(cfg, inside); err != nil {
+			t.Fatalf("%s: bind inside the workspace rejected: %v", workspace, err)
+		}
+	}
+	// Outside the workspace, a sensitive location below it, and a workspace that
+	// is itself a sensitive location keep today's rejection.
+	for _, tc := range []struct{ workspace, bind string }{
+		{"/mnt/user/appdata/aurago/workdir", "/mnt/user/other:/o"},
+		{"/var/lib", "/var/lib/docker/volumes:/v"},
+		{"/var/run", "/var/run/docker.sock:/s"},
+		{"/", "/:/host"},
+		{"/etc", "/etc/shadow:/s"},
+	} {
+		if err := validateDockerBindMount(DockerConfig{WorkspaceDir: tc.workspace}, tc.bind); err == nil {
+			t.Fatalf("workspace %s accepted %s", tc.workspace, tc.bind)
 		}
 	}
 }

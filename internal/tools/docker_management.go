@@ -1051,6 +1051,56 @@ func dockerComposeReadOnlySubcommand(subcommand string) bool {
 	}
 }
 
+// dockerBindWithinWorkspace reports a bind host path inside the configured
+// workspace with no sensitive host location between it and the workspace, the
+// rule of the Compose policy (dockerComposeEvaluation.withinRoot). A workspace
+// under /mnt (Unraid), /root or C:\ProgramData then accepts its own binds
+// before the sensitive list would reject them. An empty workspace, one that is
+// itself a sensitive location (/, /etc, a drive root), or a path that does
+// not resolve accepts nothing early; the caller's checks run as before.
+func dockerBindWithinWorkspace(workspace, hostPath string) bool {
+	workspace = strings.TrimSpace(workspace)
+	if workspace == "" {
+		return false
+	}
+	resolvedWorkspace, err := secureResolveFinalPath(filepath.Clean(workspace))
+	if err != nil {
+		return false
+	}
+	root := cleanDockerHostPath(resolvedWorkspace)
+	rootClean := cleanDockerHostPath(workspace)
+	if dockerHostPathIsSensitiveLocation(root) || dockerHostPathIsSensitiveLocation(rootClean) {
+		return false
+	}
+	resolvedHost, err := secureResolveFinalPath(filepath.FromSlash(hostPath))
+	if err != nil {
+		return false
+	}
+	candidate := cleanDockerHostPath(resolvedHost)
+	if !dockerPathEqualOrWithin(candidate, root) {
+		return false
+	}
+	return !dockerSensitiveLocationBelow(hostPath, rootClean) && !dockerSensitiveLocationBelow(candidate, root)
+}
+
+// dockerHostPathIsSensitiveLocation reports a path that is exactly a sensitive
+// host location or a sensitive Windows location (a drive root included), not
+// merely inside one.
+func dockerHostPathIsSensitiveLocation(path string) bool {
+	trimmed := strings.TrimRight(path, "/")
+	for _, sensitive := range sensitiveDockerHostPaths {
+		if trimmed == strings.TrimRight(sensitive, "/") {
+			return true
+		}
+	}
+	location := sensitiveWindowsHostLocation(path)
+	if location == "drive root" {
+		return true
+	}
+	normalized := strings.ToLower(strings.TrimRight(dockerutil.NormalizeHostPathForBind(path), "/"))
+	return location != "" && len(normalized) > 2 && normalized[2:] == location
+}
+
 func validateDockerBindMount(cfg DockerConfig, bind string) error {
 	spec, ok := parseDockerBindMount(bind)
 	if !ok {
@@ -1064,6 +1114,9 @@ func validateDockerBindMount(cfg DockerConfig, bind string) error {
 	}
 	hostPath := cleanDockerHostPath(spec.hostPath)
 	if hostPath == "." || hostPath == "" {
+		return nil
+	}
+	if dockerBindWithinWorkspace(cfg.WorkspaceDir, hostPath) {
 		return nil
 	}
 	if isSensitiveDockerHostPath(hostPath) {
