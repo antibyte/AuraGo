@@ -23,6 +23,10 @@ type DockerComposeModel struct {
 
 // DockerComposeService is one resolved service.
 type DockerComposeService struct {
+	// Profiles are the service's profiles (only in the all-profiles model the
+	// list matters: it decides which optional dependencies a named service
+	// activates).
+	Profiles      []string              `json:"profiles"`
 	ContainerName string                `json:"container_name"`
 	Image         string                `json:"image"`
 	Labels        map[string]string     `json:"labels"`

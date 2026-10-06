@@ -268,15 +268,8 @@ func (p *dockerComposePreflight) effectiveModel(command string) dockerComposeEff
 	}
 	all, raw := p.allProfilesModel, p.allProfilesRaw
 	var text strings.Builder
-	for queue := missing; len(queue) > 0; queue = queue[1:] {
-		name := queue[0]
-		if _, done := effective.model.Services[name]; done {
-			continue
-		}
-		service, ok := all.Services[name]
-		if !ok {
-			continue // Compose itself rejects a service no profile defines.
-		}
+	for _, name := range p.activatedProfileServices(missing) {
+		service := all.Services[name]
 		effective.model.Services[name] = service
 		effective.profileServices = append(effective.profileServices, name)
 		text.Write(raw.Services[name])
@@ -287,7 +280,6 @@ func (p *dockerComposePreflight) effectiveModel(command string) dockerComposeEff
 			Configs  json.RawMessage `json:"configs"`
 		}
 		_ = json.Unmarshal(raw.Services[name], &refs)
-		queue = append(queue, dockerComposeServiceDependencies(raw.Services[name], service)...)
 		if build := service.Build; build != nil {
 			for _, key := range build.Secrets {
 				addDockerComposeResource(effective.model.Secrets, all.Secrets, raw.Secrets, key, &text)
@@ -331,6 +323,100 @@ func dockerComposeServiceDependencies(raw json.RawMessage, service tools.DockerC
 		}
 	}
 	return names
+}
+
+// dockerComposeServiceActivations splits what a service enables into required
+// services (depends_on without required: false, service: build contexts) and
+// optional ones (depends_on with required: false). Compose starts an optional
+// dependency only when it is available, i.e. its profile is active anyway
+// (live-verified with docker compose v5.6.0 --dry-run: `up -d tool` started
+// tool's optional dependency of the same profile, not the one of another).
+func dockerComposeServiceActivations(raw json.RawMessage, service tools.DockerComposeService) (required, optional []string) {
+	var refs struct {
+		DependsOn json.RawMessage `json:"depends_on"`
+	}
+	_ = json.Unmarshal(raw, &refs)
+	var conditions map[string]struct {
+		Required *bool `json:"required"`
+	}
+	optionalSet := map[string]bool{}
+	if json.Unmarshal(refs.DependsOn, &conditions) == nil {
+		for name, dependency := range conditions {
+			if dependency.Required != nil && !*dependency.Required {
+				optionalSet[name] = true
+			}
+		}
+	}
+	for _, name := range tools.DockerComposeRefNames(refs.DependsOn) {
+		if optionalSet[name] {
+			optional = append(optional, name)
+		} else {
+			required = append(required, name)
+		}
+	}
+	if build := service.Build; build != nil {
+		for _, key := range tools.SortedDockerComposeKeys(build.AdditionalContexts) {
+			if target, ok := strings.CutPrefix(strings.TrimSpace(build.AdditionalContexts[key]), "service:"); ok {
+				required = append(required, strings.TrimSpace(target))
+			}
+		}
+	}
+	return required, optional
+}
+
+// activatedProfileServices returns, in order, the inactive-profile services a
+// command that names services enables: the named ones, their required
+// dependencies, and optional dependencies whose profile one of them activates
+// (a fixed point, so the result is a superset of what Compose starts).
+// Default-model services are never returned; they are always checked. Without
+// the all-profiles model it returns nil.
+func (p *dockerComposePreflight) activatedProfileServices(named []string) []string {
+	all, raw := p.allProfilesModel, p.allProfilesRaw
+	if all == nil {
+		return nil
+	}
+	var order, deferred []string
+	added, profiles := map[string]bool{}, map[string]bool{}
+	for queue := append([]string(nil), named...); ; {
+		for ; len(queue) > 0; queue = queue[1:] {
+			name := queue[0]
+			if _, isDefault := p.model.Services[name]; isDefault || added[name] {
+				continue
+			}
+			service, ok := all.Services[name]
+			if !ok {
+				continue // Compose itself rejects a service no profile defines.
+			}
+			added[name] = true
+			order = append(order, name)
+			for _, profile := range service.Profiles {
+				profiles[profile] = true
+			}
+			required, optional := dockerComposeServiceActivations(raw.Services[name], service)
+			queue = append(queue, required...)
+			deferred = append(deferred, optional...)
+		}
+		var next, still []string
+		for _, name := range deferred {
+			if added[name] {
+				continue
+			}
+			dependency, ok := all.Services[name]
+			activated := false
+			for _, profile := range dependency.Profiles {
+				activated = activated || profiles[profile]
+			}
+			if ok && activated {
+				next = append(next, name)
+			} else {
+				still = append(still, name)
+			}
+		}
+		if len(next) == 0 {
+			return order
+		}
+		deferred, queue = still, next
+	}
 }
 
 // copyDockerComposeResources copies the default model's top-level resources,

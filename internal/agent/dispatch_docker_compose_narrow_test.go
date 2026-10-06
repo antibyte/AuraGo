@@ -142,3 +142,29 @@ func TestDockerComposeServiceReferencesFollowEveryStartedService(t *testing.T) {
 		t.Fatal("an unreadable service must disable narrowing")
 	}
 }
+
+func TestDockerComposePolicySkipsOptionalDependenciesOfInactiveProfiles(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n")
+	all := `{"services":{"web":{"image":"alpine"},` +
+		`"tool":{"image":"alpine","profiles":["p1"],"depends_on":{"db":{"condition":"service_started","required":false},"cache":{"condition":"service_started","required":false}}},` +
+		`"tool2":{"image":"alpine","profiles":["p1"],"depends_on":{"helper":{"condition":"service_started","required":false}}},` +
+		`"strict":{"image":"alpine","profiles":["p1"],"depends_on":{"db":{"condition":"service_started","required":true}}},` +
+		`"db":{"image":"alpine","profiles":["p2"],"privileged":true},` +
+		`"cache":{"image":"alpine","profiles":["p1"]},` +
+		`"helper":{"image":"alpine","profiles":["p1"],"privileged":true}}}`
+	stubDockerComposeResolverByMode(t, `{"services":{"web":{"image":"alpine"}}}`, all)
+	cfg := &config.Config{}
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func(command string) string {
+		return dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: command})
+	}
+	if got := policy("up -d tool"); got != "" {
+		t.Fatalf("an optional dependency in an inactive profile was checked: %s", got)
+	}
+	for _, command := range []string{"up -d strict", "up -d tool2", "up -d tool db"} {
+		if got := policy(command); !strings.Contains(got, `"code":"docker_compose_host_access_denied"`) {
+			t.Fatalf("%s: got %s, want the dependency checked", command, got)
+		}
+	}
+}

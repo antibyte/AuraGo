@@ -61,17 +61,11 @@ func dockerComposeLifecycleModel(effective tools.DockerComposeModel, preflight *
 	for name, service := range effective.Services {
 		model.Services[name] = service
 	}
-	for queue := names; len(queue) > 0; queue = queue[1:] {
-		name := queue[0]
+	for _, name := range preflight.activatedProfileServices(names) {
 		if _, present := model.Services[name]; present {
 			continue
 		}
-		service, ok := all.Services[name]
-		if !ok {
-			continue
-		}
-		model.Services[name] = service
-		queue = append(queue, dockerComposeServiceDependencies(preflight.allProfilesRaw.Services[name], service)...)
+		model.Services[name] = all.Services[name]
 	}
 	return model
 }
