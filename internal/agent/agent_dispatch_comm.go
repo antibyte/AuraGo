@@ -226,6 +226,28 @@ func dispatchQuestionUser(tc ToolCall, dc *DispatchContext) string {
 
 	select {
 	case response := <-responseCh:
+		// The answer is chat text from Telegram, Discord, the web UI or SMS
+		// and bypasses the per-channel guardian path; scan and isolate it here
+		// so every channel gets the same treatment. Selected options are
+		// model-authored values and pass through unchanged.
+		if strings.TrimSpace(response.FreeText) != "" {
+			if dc.Guardian != nil {
+				if scan := dc.Guardian.ScanForInjection(response.FreeText); scan.Level >= security.ThreatHigh {
+					if dc.Logger != nil {
+						dc.Logger.Warn("[Guardian] Blocked free-text answer to question_user",
+							"session_id", sessionID, "threat", scan.Level.String(), "patterns", scan.Patterns)
+					}
+					b, _ := json.Marshal(struct {
+						tools.QuestionResponse
+						Message string `json:"message"`
+					}{tools.QuestionResponse{Status: "blocked"}, "answer withheld by the guardian: the free-text reply matched prompt-injection patterns"})
+					return "Tool Output: " + string(b)
+				}
+			}
+			// json.Marshal HTML-escapes the angle brackets of the boundary
+			// tags, so the StripThinkingTags pass on tool output keeps them.
+			response.FreeText = security.IsolateExternalData(response.FreeText)
+		}
 		b, _ := json.Marshal(response)
 		return "Tool Output: " + string(b)
 	case <-time.After(timeout):
