@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -677,8 +678,7 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 				". Fix the Compose file (for example a missing env_file or invalid YAML) or install the Docker Compose plugin.")
 	}
 	if preflight.allProfilesErr != nil {
-		slog.Default().Warn("Docker Compose could not resolve all profiles; named profile services are resolved by name and env_file paths are unknown",
-			"file", preflight.file, "error", dockerComposeErrorTail(preflight.allProfilesErr.Error(), 600))
+		logDockerComposeAllProfilesFailure(preflight.file, preflight.allProfilesErr)
 	}
 	subcommand := dockerComposeCommandName(req.Command)
 	effective := preflight.effectiveModel(req.Command)
@@ -723,6 +723,39 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 		}
 	}
 	return dockerComposeHostAccessPolicy(ctx, cfg, req, preflight, effective)
+}
+
+// dockerComposeAllProfilesWarned remembers the (file, error) pairs whose
+// all-profiles failure was logged at warning level; later calls log at debug.
+// The set is bounded and starts over when full.
+var dockerComposeAllProfilesWarned = struct {
+	sync.Mutex
+	seen map[string]bool
+}{seen: map[string]bool{}}
+
+const dockerComposeAllProfilesWarnLimit = 256
+
+// logDockerComposeAllProfilesFailure logs that this Compose cannot produce the
+// all-profiles model (Compose < v2.35 fails on every call) at warning level
+// once per file and error, and at debug level afterwards.
+func logDockerComposeAllProfilesFailure(file string, err error) {
+	const message = "Docker Compose could not resolve all profiles; named profile services are resolved by name and env_file paths are unknown"
+	detail := dockerComposeErrorTail(err.Error(), 600)
+	key := file + "\x00" + detail
+	dockerComposeAllProfilesWarned.Lock()
+	first := !dockerComposeAllProfilesWarned.seen[key]
+	if first {
+		if len(dockerComposeAllProfilesWarned.seen) >= dockerComposeAllProfilesWarnLimit {
+			dockerComposeAllProfilesWarned.seen = map[string]bool{}
+		}
+		dockerComposeAllProfilesWarned.seen[key] = true
+	}
+	dockerComposeAllProfilesWarned.Unlock()
+	if first {
+		slog.Default().Warn(message, "file", file, "error", detail)
+		return
+	}
+	slog.Default().Debug(message, "file", file, "error", detail)
 }
 
 // dockerComposePreflightTimeout bounds all Compose resolutions of one policy

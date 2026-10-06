@@ -657,3 +657,34 @@ func TestDockerComposeLifecycleServiceNamesSkipShortFlagValues(t *testing.T) {
 		}
 	}
 }
+
+func TestDockerComposePolicyLogsTheAllProfilesFailureOncePerFile(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "one/compose.yml", "services:\n  web:\n    image: alpine\n")
+	writeComposeFixture(t, workspace, "two/compose.yml", "services:\n  web:\n    image: alpine\n")
+	stubDockerComposeResolverModes(t, func(_ context.Context, _ string, opts tools.DockerComposeConfigOptions) (string, error) {
+		if opts.AllProfiles {
+			return "", errors.New("resolve Compose config: exit status 1: unknown flag: --no-env-resolution")
+		}
+		return `{"services":{"web":{"image":"alpine"}}}`, nil
+	})
+	var logged strings.Builder
+	original := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logged, nil)))
+	t.Cleanup(func() { slog.SetDefault(original) })
+	call := func(file string) {
+		if got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: file, Command: "ps"}); got != "" {
+			t.Fatalf("%s: %s", file, got)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		call("one/compose.yml")
+	}
+	if n := strings.Count(logged.String(), "could not resolve all profiles"); n != 1 {
+		t.Fatalf("warnings for one file = %d, want 1:\n%s", n, logged.String())
+	}
+	call("two/compose.yml")
+	if n := strings.Count(logged.String(), "could not resolve all profiles"); n != 2 {
+		t.Fatalf("warnings after a second file = %d, want 2", n)
+	}
+}
