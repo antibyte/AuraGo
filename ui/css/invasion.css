@@ -145,7 +145,8 @@
     display: block;
 }
 
-/* The scoped display: block above outranks the global .is-hidden utility. */
+/* The scoped display: block rules above outrank the global .is-hidden utility. */
+.pw-page[data-workspace-page="invasion"] .hint-subtle.is-hidden,
 .pw-page[data-workspace-page="invasion"] .hint-warning.is-hidden {
     display: none;
 }
