@@ -454,6 +454,8 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/rotate-key
 
 Bei fehlgeschlagenem Health-Check nach Deploy versucht das System einen **automatischen Rollback**.
 
+Auf einem SSH-Nest liegt das Egg in `~/.aurago-egg-<erste 8 Zeichen der Nest-ID>` des SSH-Benutzers. Health-Check, Status und **Stop** suchen einen Prozess dieses Benutzers, dessen Programmdatei das `aurago` in diesem Verzeichnis ist; ein beendetes Egg lässt den Health-Check scheitern. Ein `permanent`-Egg ist die User-Unit `aurago-egg-<…>`, deren Pfade `%h` (das Home-Verzeichnis des Benutzers) nutzen.
+
 ---
 
 ## Egg Mode (Worker-Konfiguration)
