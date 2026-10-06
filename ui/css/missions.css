@@ -1253,11 +1253,12 @@
     border-color: color-mix(in srgb, var(--pw-warning) 25%, transparent);
 }
 
-/* EasyDrag flow missions */
+/* EasyDrag flow missions: a stronger accent fill with text-coloured ink sets them apart from Manual (light tint,
+   accent ink); the ink keeps 4.5:1 or more on the fill in both themes. */
 .pw-page[data-workspace-page="missions"] .mc-status-chip--flow {
-    background: color-mix(in srgb, var(--pw-accent) 10%, transparent);
-    color: var(--pw-accent-strong);
-    border-color: color-mix(in srgb, var(--pw-accent) 30%, transparent);
+    background: color-mix(in srgb, var(--pw-accent) 24%, transparent);
+    color: var(--pw-text);
+    border-color: color-mix(in srgb, var(--pw-accent) 60%, transparent);
 }
 
 /* A flow that cannot run (not published yet, or paused): muted, with a dashed border. */
@@ -1271,6 +1272,13 @@
 /* Its label is a phrase ("Not published yet"), not a single word: keep the translated casing. */
 .pw-page[data-workspace-page="missions"] .mc-status-chip--flow-off .mc-status-chip__label {
     text-transform: none;
+}
+
+/* The list view's flow state badge: the shared .badge-idle grey falls to 2.3:1 in the light theme. */
+.pw-page[data-workspace-page="missions"] .card-badges .badge-idle {
+    color: var(--pw-muted);
+    background: var(--pw-surface-soft);
+    border-color: var(--pw-line-strong);
 }
 
 /* Remote badge inside header — kept compact */

@@ -57,6 +57,7 @@ const modals = [];
 const confirms = [];
 const requests = [];
 let confirmAnswer = false;
+const confirmQueue = []; // answers for the next confirmations, before confirmAnswer
 const responses = { '/api/missions/v2': { missions: [], queue: { items: [], running: '' } } };
 // failing maps "METHOD url" to a refused answer { status, body }; body is sent as JSON text unless it is a string.
 const failing = new Map();
@@ -79,7 +80,7 @@ const sandbox = {
     localStorage: { getItem: () => null, setItem() {} },
     fetch: fetchStub, t,
     showToast: (message, type) => toasts.push({ message, type }),
-    showConfirm: (title, message) => { confirms.push({ title, message }); return Promise.resolve(confirmAnswer); },
+    showConfirm: (title, message) => { confirms.push({ title, message }); return Promise.resolve(confirmQueue.length ? confirmQueue.shift() : confirmAnswer); },
     openModal: (id) => modals.push(id),
     closeModal() {}
 };
@@ -102,7 +103,7 @@ function check(name, cond, detail) {
     console.log('FAIL ' + name + (detail ? ' — ' + detail : ''));
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
-function reset() { toasts.length = 0; modals.length = 0; confirms.length = 0; requests.length = 0; failing.clear(); }
+function reset() { toasts.length = 0; modals.length = 0; confirms.length = 0; requests.length = 0; confirmQueue.length = 0; failing.clear(); }
 const refreshed = () => requests.some(r => r.url === '/api/missions/v2' && r.method === 'GET');
 // buttonFor returns the opening tag of the button with data-mission-action="action" in html, or ''.
 function buttonFor(html, action) {
@@ -125,7 +126,6 @@ function startTags(html) {
 function eventHandlerAttrs(html) {
     return startTags(html).flatMap(tag => tag.attrs.filter(a => a.name.startsWith('on')).map(a => `${tag.tag}[${a.name}]`));
 }
-const has = (html, text) => html.includes(text);
 
 const agent = { id: 'agent-1', name: 'Agent', execution_type: 'manual', prompt: 'Do it', priority: 'medium', run_count: 2, preparation_status: 'none', enabled: true };
 const preparedAgent = { ...agent, id: 'agent-2', name: 'Prepared agent', preparation_status: 'prepared' };
@@ -239,6 +239,7 @@ const stateCases = [
 for (const [mission, label] of stateCases) {
     const chip = P.renderStatusChip(mission, false, false, false);
     check(`status chip: ${mission.id} reads ${label}`, chip.includes(`mc-status-chip__label">${label}</span>`) && chip.includes('mc-status-chip--flow-off'), chip);
+    check(`status chip: ${mission.id} keeps the whole label in its title`, chip.includes(`mc-status-chip--flow-off" title="${label}"`), chip);
     const grid = P.renderMissionGrid(mission, false);
     check(`grid: ${mission.id} shows ${label} and keeps the Flow pill`, grid.includes(`>${label}</span>`) && grid.includes('🧩<span>missions.filter_flow</span>'));
     const list = P.renderMissionCompact(mission);
@@ -246,6 +247,7 @@ for (const [mission, label] of stateCases) {
 }
 const liveChip = P.renderStatusChip(flowLive, false, false, false);
 check('status chip: a runnable flow is labelled Flow, not Manual', liveChip.includes('mc-status-chip--flow"') && liveChip.includes('missions.filter_flow') && !liveChip.includes('missions.filter_manual'), liveChip);
+check('status chip: one-word chips carry no title', !liveChip.includes(' title=') && !P.renderStatusChip(agent, false, false, false).includes(' title='));
 check('list: a runnable flow has no state badge', !P.renderMissionCompact(flowLive).includes('badge-idle'));
 const runningChip = P.renderStatusChip(flowRunning, true, false, false);
 check('status chip: a running flow shows the running state', runningChip.includes('missions.card_badge_running') && runningChip.includes('mc-status-chip--running'));
@@ -314,6 +316,22 @@ await P.deleteMission('flow-4');
 await tick();
 check('delete refused: the server message, not raw JSON', toasts.length === 1 && toasts[0].message === 'missions.toast_error_prefixmission is locked' && toasts[0].type === 'error', JSON.stringify(toasts));
 check('delete refused: no refresh', !refreshed(), JSON.stringify(requests));
+// A remote mission whose egg is offline: the page offers to remove it locally only (?force=true).
+const remoteAgent = { id: 'remote-1', name: 'Remote agent', execution_type: 'manual', runner_type: 'remote', remote_nest_id: 'n1', prompt: 'Far away', priority: 'low', run_count: 0, enabled: true };
+setMissions([...ALL, remoteAgent]);
+reset();
+confirmAnswer = true;
+failing.set('DELETE /api/missions/v2/remote-1', { status: 409, body: { error: 'remote nest n1 is not connected' } });
+await P.deleteMission('remote-1');
+await tick();
+check('delete remote: a second confirmation offers the local removal', confirms.length === 2 && confirms[1].message === 'missions.confirm_force_delete_remote {"name":"Remote agent"}', JSON.stringify(confirms));
+check('delete remote: the forced delete is sent', requests.some(r => r.url === '/api/missions/v2/remote-1?force=true' && r.method === 'DELETE'), JSON.stringify(requests));
+check('delete remote: the forced delete is announced and refreshes', toasts.length === 1 && toasts[0].message === 'missions.toast_mission_deleted' && refreshed(), JSON.stringify({ toasts, requests }));
+reset();
+confirmQueue.push(true, false);
+failing.set('DELETE /api/missions/v2/remote-1', { status: 409, body: { error: 'remote nest n1 is not connected' } });
+await P.deleteMission('remote-1');
+check('delete remote: declining the local removal sends no forced delete', confirms.length === 2 && !requests.some(r => r.url.includes('force=true')) && !refreshed(), JSON.stringify({ confirms, requests }));
 confirmAnswer = false;
 setMissions(ALL);
 
@@ -349,6 +367,51 @@ for (const m of [flowEvil, agentEvil, triggeredEvil]) {
     rendered[`grid ${m.id}`] = P.renderMissionGrid(m, false);
     rendered[`list ${m.id}`] = P.renderMissionCompact(m);
     rendered[`chip ${m.id}`] = P.renderStatusChip(m, false, false, false);
+}
+// Every trigger type renderTriggerText describes, with hostile text in each field it shows.
+const H = `x" onmouseover="alert(20)" <img src=x onerror=alert(21)> &`;
+const H_ESCAPED = '&lt;img src=x onerror=alert(21)&gt; &amp;';
+const hostileTriggers = {
+    mission_completed: { source_mission_name: H, require_success: true },
+    email_received: { email_folder: H, email_subject_contains: H, email_from_contains: H },
+    webhook: { webhook_slug: H },
+    egg_hatched: { egg_name: H, nest_name: H },
+    nest_cleared: { nest_name: H },
+    mqtt_message: { mqtt_topic: H, mqtt_payload_contains: H, mqtt_min_interval_seconds: H },
+    system_startup: { min_interval_seconds: H },
+    home_assistant_state: { ha_entity_id: H, ha_state_equals: H },
+    device_connected: { device_name: H },
+    device_disconnected: { device_id: H },
+    fritzbox_call: { call_type: H },
+    budget_warning: { min_interval_seconds: H },
+    budget_exceeded: { min_interval_seconds: H },
+    planner_appointment_due: { planner_appointment_id: H, planner_title_contains: H },
+    planner_todo_overdue: { planner_todo_id: H, planner_title_contains: H },
+    planner_operational_issue: { planner_issue_source: H, planner_issue_severity: H, planner_title_contains: H },
+};
+// The id-only fallbacks of webhook and egg/nest triggers.
+const hostileFallbacks = { webhook: { webhook_id: H }, egg_hatched: { egg_id: H, nest_id: H }, nest_cleared: { nest_id: H } };
+for (const [type, cfg] of [...Object.entries(hostileTriggers), ...Object.entries(hostileFallbacks).map(([k, v]) => [k, v])]) {
+    const m = { id: `trig-${type}`, name: type, execution_type: 'triggered', trigger_type: type, trigger_config: cfg, priority: 'low', run_count: 0, enabled: true, prompt: '' };
+    const label = `${type} ${Object.keys(cfg).join('+')}`;
+    rendered[`grid ${label}`] = P.renderMissionGrid(m, false);
+    rendered[`info ${label}`] = P.renderTriggerInfo(m);
+    check(`escaping: ${label} shows its hostile value escaped`, P.renderTriggerText(m).includes(H_ESCAPED), P.renderTriggerText(m));
+}
+// Options filled from other APIs: invasion eggs/nests, cheat sheets, webhooks and remote targets.
+responses['/api/invasion/eggs'] = { eggs: [{ id: H, name: H }] };
+responses['/api/invasion/nests'] = { nests: [{ id: H, name: H }] };
+responses['/api/cheatsheets?active=true&created_by=user'] = [{ id: H, name: H, abstract: H }];
+responses['/api/webhooks'] = [{ id: H, slug: H, name: H }];
+responses['/api/missions/v2/remote-targets'] = { targets: [{ nest_id: H, egg_id: H, nest_name: H, egg_name: H }] };
+await P.loadInvasionData();
+await P.loadCheatsheetPicker([H]);
+await P.loadWebhooks();
+await P.loadRemoteTargets(null);
+for (const id of ['egg-hatched-egg-select', 'egg-hatched-nest-select', 'nest-cleared-nest-select', 'cheatsheet-picker', 'webhook-select', 'remote-target-select']) {
+    const markup = document.getElementById(id).innerHTML;
+    rendered[`options ${id}`] = markup;
+    check(`escaping: ${id} received the hostile option`, markup.includes(H_ESCAPED), markup);
 }
 for (const [where, markup] of Object.entries(rendered)) {
     // A value that breaks out of its quotes leaves a tag the parser cannot read; count those too.

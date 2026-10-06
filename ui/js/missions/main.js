@@ -60,7 +60,10 @@ async function requestError(response) {
     return err;
 }
 
-// flowRunErrorText returns the page's own text for a refused flow run, or '' to show the server's message.
+// flowRunErrorText returns the page's own text for a refused flow run, or '' to show the server's message. The
+// answers carry no code, so it matches the server's English texts: "mission is disabled"
+// (internal/tools/missions_v2_flow_runs.go:296) and "the flow has not been published yet" (internal/flows/service.go:111).
+// Any other or reworded answer falls back to the server's text.
 function flowRunErrorText(err) {
     const status = err && err.status;
     const message = (err && err.message) || '';
@@ -716,7 +719,9 @@ function renderStatusChip(mission, isRunning, isQueued, isWaiting) {
         }
     }
     const priorityDot = `<span class="mc-status-chip__priority" data-priority="${escapeAttr(mission.priority)}" aria-hidden="true"></span>`;
-    return `<span class="mc-status-chip mc-status-chip--${escapeAttr(kind)}">${priorityDot}<span class="mc-status-chip__icon">${icon}</span><span class="mc-status-chip__label">${escapeHtml(label)}</span></span>`;
+    // A flow's state is a phrase that narrow cards cut off; its title keeps it readable.
+    const title = kind === 'flow-off' ? ` title="${escapeAttr(label)}"` : '';
+    return `<span class="mc-status-chip mc-status-chip--${escapeAttr(kind)}"${title}>${priorityDot}<span class="mc-status-chip__icon">${icon}</span><span class="mc-status-chip__label">${escapeHtml(label)}</span></span>`;
 }
 
 function renderTriggerText(mission) {
