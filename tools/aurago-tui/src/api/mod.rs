@@ -7,6 +7,8 @@ use std::time::Duration;
 pub mod auth;
 pub mod sse;
 pub mod types;
+#[cfg(test)]
+pub(crate) mod test_server;
 
 #[derive(Debug, Clone)]
 pub struct ApiClient {

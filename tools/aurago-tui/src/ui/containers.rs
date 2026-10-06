@@ -180,7 +180,7 @@ fn draw_containers_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Re
 fn draw_containers_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let left = format!("⚡ {} ", app.status_message);
     let right =
-        " j/k: navigate │ Enter: start/stop │ Del: remove │ r: refresh │ F1: nav │ ?: help ";
+        " j/k: navigate │ Enter: logs │ Del: remove │ r: refresh │ F1: nav │ ?: help ";
     let total = area.width as usize;
     let spacer = total.saturating_sub(left.len() + right.len());
     let text = format!("{}{}{}", left, " ".repeat(spacer), right);

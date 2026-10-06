@@ -5,6 +5,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use reqwest::Method;
 
 use crate::api::{ApiClient, auth};
+use crate::api::types::Container;
 use crate::app::{AppState, ConfirmAction, DashTab, MediaTab, Screen, char_len, char_to_byte};
 use crate::events::AppEvent;
 use crate::events::keybindings::Action;
@@ -905,29 +906,50 @@ fn execute_primary_action(app: &mut AppState, client: &ApiClient, tx: &Unbounded
             }
         }
         Screen::Containers => {
-            if let Some(idx) = app.containers_selected {
-                if let Some(container) = app.containers.get(idx) {
-                    let action_str = if container.state == "running" {
-                        "stop"
-                    } else {
-                        "start"
-                    };
-                    let id = container.id.clone();
-                    let c = client.clone();
-                    let t = tx.clone();
-                    let a = action_str.to_string();
-                    let h = tokio::spawn(async move {
-                        let result = auth::container_action(&c, &id, &a)
-                            .await
-                            .map_err(|e| e.to_string());
-                        let _ = t.send(AppEvent::ContainerActionDone(result));
-                    });
-                    app.spawn_tracked(h);
-                }
+            if let Some(idx) = app.containers_selected
+                && let Some(container) = app.containers.get(idx)
+            {
+                let id = container.id.clone();
+                let PrimaryContainerAction::Run(action) = primary_container_action(container);
+                spawn_container_action(app, client, tx, id, action);
             }
         }
         _ => {}
     }
+}
+
+/// What the primary action does for a container. Docker refuses `start` on a
+/// paused container ("cannot start a paused container, try unpause instead").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PrimaryContainerAction {
+    /// POST /api/containers/{id}/{action}.
+    Run(&'static str),
+}
+
+pub(crate) fn primary_container_action(container: &Container) -> PrimaryContainerAction {
+    match container.state.as_str() {
+        "running" => PrimaryContainerAction::Run("stop"),
+        "paused" => PrimaryContainerAction::Run("unpause"),
+        _ => PrimaryContainerAction::Run("start"),
+    }
+}
+
+fn spawn_container_action(
+    app: &mut AppState,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+    id: String,
+    action: &'static str,
+) {
+    let c = client.clone();
+    let t = tx.clone();
+    let h = tokio::spawn(async move {
+        let result = auth::container_action(&c, &id, action)
+            .await
+            .map_err(|e| e.to_string());
+        let _ = t.send(AppEvent::ContainerActionDone(result));
+    });
+    app.spawn_tracked(h);
 }
 
 /// Execute toggle action (enable/disable) for the selected item
@@ -1097,5 +1119,21 @@ fn set_nested_config_value(
         if let Some(obj) = section_data.as_object_mut() {
             obj.insert(field_key.to_string(), new_val);
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn container(state: &str) -> Container {
+        Container { id: "c1".to_string(), state: state.to_string(), ..Default::default() }
+    }
+
+    #[test]
+    fn primary_container_action_unpauses_a_paused_container() {
+        assert_eq!(primary_container_action(&container("running")), PrimaryContainerAction::Run("stop"));
+        assert_eq!(primary_container_action(&container("paused")), PrimaryContainerAction::Run("unpause"));
+        assert_eq!(primary_container_action(&container("exited")), PrimaryContainerAction::Run("start"));
+        assert_eq!(primary_container_action(&container("created")), PrimaryContainerAction::Run("start"));
     }
 }

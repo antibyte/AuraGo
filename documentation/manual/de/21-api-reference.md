@@ -724,7 +724,11 @@ GET /api/containers
 **Antwort:**
 ```json
 {
-  "containers": []
+  "status": "ok",
+  "count": 1,
+  "containers": [
+    {"id": "0123456789ab", "names": ["/aurago"], "image": "ghcr.io/antibyte/aurago:latest", "state": "running", "status": "Up 2 hours", "protected_owner": "aurago-app", "self": true}
+  ]
 }
 ```
 

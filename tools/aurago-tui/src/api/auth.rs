@@ -171,16 +171,17 @@ pub async fn toggle_daemon(client: &ApiClient, skill_id: &str, action: &str) -> 
 // ── Containers ────────────────────────────────────────────────────────────────
 
 pub async fn fetch_containers(client: &ApiClient) -> Result<Vec<Container>> {
-    client.request(Method::GET, "/api/containers", None::<&()>).await
+    let list: ContainerList = client.request(Method::GET, "/api/containers", None::<&()>).await?;
+    list.into_containers()
 }
 
 pub async fn container_action(client: &ApiClient, id: &str, action: &str) -> Result<serde_json::Value> {
-    let path = format!("/api/containers/{}/{}", id, action);
+    let path = format!("/api/containers/{}/{}", urlencoding::encode(id), action);
     client.request(Method::POST, &path, None::<&()>).await
 }
 
 pub async fn fetch_container_logs(client: &ApiClient, id: &str) -> Result<serde_json::Value> {
-    let path = format!("/api/containers/{}/logs?tail=200", id);
+    let path = format!("/api/containers/{}/logs?tail=200", urlencoding::encode(id));
     client.request(Method::GET, &path, None::<&()>).await
 }
 
@@ -253,4 +254,94 @@ pub fn delete_session_cookie(path: &std::path::Path) -> Result<()> {
         std::fs::remove_file(path)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::test_server::{self, Route};
+
+    fn client_for(server: &test_server::CannedServer) -> ApiClient {
+        ApiClient::new(&server.base_url, false).expect("client")
+    }
+
+    /// An AuraGo from before the protection flags and the pause routes: the
+    /// list has no protection fields and "containers": null when empty, logs
+    /// are {"logs": "..."}, and unpause is an unknown action (404). The TUI
+    /// loads, shows logs and reports the refusal; nothing panics.
+    #[tokio::test]
+    async fn an_older_server_still_works() {
+        let server = test_server::start(vec![
+            Route {
+                method: "GET",
+                target: "/api/containers",
+                status: 200,
+                body: r#"{"status":"ok","count":2,"containers":[{"id":"cccccccccccc","names":["/web"],"image":"nginx","state":"paused","status":"Up 1 hour (Paused)"},{"id":"dddddddddddd","names":null,"image":"redis","state":"exited","status":"Exited (0)","health":"unhealthy"}]}"#,
+            },
+            Route {
+                method: "GET",
+                target: "/api/containers/cccccccccccc/logs?tail=200",
+                status: 200,
+                body: r#"{"status":"ok","container_id":"cccccccccccc","logs":"2026-10-06T10:00:00Z ready\n"}"#,
+            },
+            Route {
+                method: "POST",
+                target: "/api/containers/cccccccccccc/unpause",
+                status: 404,
+                body: r#"{"message":"unknown action: unpause","status":"error"}"#,
+            },
+        ]);
+        let client = client_for(&server);
+        let containers = fetch_containers(&client).await.expect("older list loads");
+        assert_eq!(containers.len(), 2);
+        assert_eq!(containers[0].name, "web");
+        assert_eq!(containers[1].name, "dddddddddddd");
+        assert!(containers.iter().all(|c| !c.is_protected()));
+        let logs = fetch_container_logs(&client, "cccccccccccc").await.expect("logs");
+        assert!(container_logs_tail(&logs, 500).contains("ready"));
+        let err = container_action(&client, "cccccccccccc", "unpause").await.unwrap_err();
+        assert!(err.to_string().contains("404") && err.to_string().contains("unknown action"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn the_current_server_list_and_its_failures_decode() {
+        let server = test_server::start(vec![Route {
+            method: "GET",
+            target: "/api/containers",
+            status: 200,
+            body: r#"{"status":"ok","count":0,"containers":null}"#,
+        }]);
+        assert!(fetch_containers(&client_for(&server)).await.expect("empty list").is_empty());
+
+        let failing = test_server::start(vec![Route {
+            method: "GET",
+            target: "/api/containers",
+            status: 502,
+            body: r#"{"status":"error","message":"Docker error (HTTP 409): engine refused"}"#,
+        }]);
+        let err = fetch_containers(&client_for(&failing)).await.unwrap_err();
+        assert!(err.to_string().contains("engine refused"), "{err}");
+
+        // An older AuraGo answers 200 with an error envelope.
+        let old_failing = test_server::start(vec![Route {
+            method: "GET",
+            target: "/api/containers",
+            status: 200,
+            body: r#"{"status":"error","message":"Docker is not reachable"}"#,
+        }]);
+        let err = fetch_containers(&client_for(&old_failing)).await.unwrap_err();
+        assert!(err.to_string().contains("Docker is not reachable"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn container_ids_are_path_escaped() {
+        let server = test_server::start(vec![]);
+        let client = client_for(&server);
+        let _ = container_action(&client, "a b/c", "unpause").await;
+        let _ = fetch_container_logs(&client, "a b/c").await;
+        assert_eq!(
+            server.seen(),
+            vec!["POST /api/containers/a%20b%2Fc/unpause".to_string(), "GET /api/containers/a%20b%2Fc/logs?tail=200".to_string()]
+        );
+    }
 }
