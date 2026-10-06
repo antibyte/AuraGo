@@ -11,10 +11,17 @@
     // The output tree draws at most TREE_BUDGET entries, and at most MAX_FILES file cards.
     const TREE_BUDGET = 1500;
     const MAX_FILES = 50;
-    // THUMBS caches PDF thumbnails by URL: a promise of a PNG data URL ('' when it failed; a
+    // THUMBS caches PDF thumbnails by URL plus the file's size and step finish time (an
+    // overwritten file gets a new thumbnail): a promise of a PNG data URL ('' when it failed; a
     // failed one is dropped, so a later render tries again). It keeps THUMB_CACHE entries.
+    // pdf.js renders at most THUMB_PARALLEL at a time, each at most THUMB_W × THUMB_H pixels.
     const THUMBS = new Map();
     const THUMB_CACHE = 24;
+    const THUMB_PARALLEL = 6;
+    const THUMB_W = 240;
+    const THUMB_H = 480;
+    const thumbQueue = [];
+    let thumbsActive = 0;
 
     function sortedNodes(model) {
         return model.doc.nodes.slice().sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y);
@@ -22,12 +29,13 @@
 
     // safeFileUrl returns the same-origin path of a file under /files/, or '' for anything else.
     // File objects in step output can be forged ({"$type": "file", "web_path": "javascript:…"}).
+    // Encoded separators (%2f, %5c) are refused: a server that decodes them could leave /files/.
     function safeFileUrl(path) {
         const origin = window.location && window.location.origin;
         if (typeof path !== 'string' || !path || !origin) return '';
         let url;
         try { url = new URL(path, origin); } catch (err) { return ''; }
-        if (url.origin !== origin || !url.pathname.startsWith('/files/')) return '';
+        if (url.origin !== origin || !url.pathname.startsWith('/files/') || /%(2f|5c)/i.test(url.pathname)) return '';
         return url.pathname + url.search;
     }
 
@@ -97,10 +105,13 @@
             task = pdfjs.getDocument({ url });
             const doc = await task.promise;
             const page = await doc.getPage(1);
-            const viewport = page.getViewport({ scale: 0.5 });
+            // Any page size gives a thumbnail of at most THUMB_W × THUMB_H pixels.
+            const size = page.getViewport({ scale: 1 });
+            if (!(size.width > 0 && size.height > 0)) return '';
+            const viewport = page.getViewport({ scale: Math.min(THUMB_W / size.width, THUMB_H / size.height) });
             const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
+            canvas.width = Math.max(1, Math.floor(viewport.width));
+            canvas.height = Math.max(1, Math.floor(viewport.height));
             await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
             return canvas.toDataURL('image/png');
         } catch (err) {
@@ -110,13 +121,30 @@
         }
     }
 
-    function pdfThumb(url) {
-        const cached = THUMBS.get(url);
+    // queuedThumb renders a thumbnail once a slot of THUMB_PARALLEL is free.
+    function queuedThumb(url) {
+        return new Promise(resolve => {
+            const start = () => {
+                thumbsActive++;
+                renderThumb(url).catch(() => '').then(src => {
+                    thumbsActive--;
+                    const next = thumbQueue.shift();
+                    if (next) next();
+                    resolve(src);
+                });
+            };
+            if (thumbsActive < THUMB_PARALLEL) start(); else thumbQueue.push(start);
+        });
+    }
+
+    function pdfThumb(url, version) {
+        const key = url + '\n' + (version || '');
+        const cached = THUMBS.get(key);
         if (cached) return cached;
-        const job = renderThumb(url);
-        THUMBS.set(url, job);
+        const job = queuedThumb(url);
+        THUMBS.set(key, job);
         if (THUMBS.size > THUMB_CACHE) THUMBS.delete(THUMBS.keys().next().value);
-        job.then(src => { if (!src && THUMBS.get(url) === job) THUMBS.delete(url); });
+        job.then(src => { if (!src && THUMBS.get(key) === job) THUMBS.delete(key); });
         return job;
     }
 
@@ -349,7 +377,7 @@
                 const url = safeFileUrl(f.web_path);
                 const media = !url ? '' : mime.startsWith('image/') ? '<img src="' + esc(url) + '" alt="" loading="lazy">'
                     : mime.startsWith('audio/') ? '<audio controls preload="none" src="' + esc(url) + '"></audio>'
-                    : mime === 'application/pdf' ? '<img class="ed-pdf-thumb" data-pdf="' + esc(url) + '" alt="" hidden>' : '';
+                    : mime === 'application/pdf' ? '<img class="ed-pdf-thumb" data-pdf="' + esc(url) + '" data-pdf-version="' + esc((f.size || '') + '|' + (step.finished_at || '')) + '" alt="" hidden>' : '';
                 return '<div class="ed-file-card">' + media + '<div class="ed-file-meta">' + core.icon('file-text') + '<span>' + esc(f.name || f.path || '') + '</span>' +
                     (f.size ? '<span class="ed-muted">' + esc(core.fmt.bytes(f.size)) + '</span>' : '') +
                     (url ? '<a class="ed-link" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(t('easydrag.ui.output_open')) + '</a>' : '') + '</div></div>';
@@ -364,11 +392,11 @@
             } else html += '<div class="ed-json-tree">' + jsonTree(output, esc) + '</div>';
             out.innerHTML = html;
             out.scrollTop = scroll;
-            // PDF thumbnails come from the cache (pdf.js renders each URL once). Without pdf.js,
-            // or when it fails, the card keeps its "open" link only (no embedded frame for files
-            // from step output).
+            // PDF thumbnails come from the cache (pdf.js renders each file version once). Without
+            // pdf.js, or when it fails, the card keeps its "open" link only (no embedded frame for
+            // files from step output).
             out.querySelectorAll('img[data-pdf]').forEach(img => {
-                pdfThumb(img.dataset.pdf).then(src => {
+                pdfThumb(img.dataset.pdf, img.dataset.pdfVersion).then(src => {
                     if (!out.contains(img)) return; // redrawn meanwhile
                     if (!src) { img.remove(); return; }
                     img.src = src;

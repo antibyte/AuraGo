@@ -793,4 +793,91 @@ export async function run(env) {
         eq('c1d06 nothing lands after dispose: validation, test dialog, run view',
             [results, issues, h.ed.issues, entered, h.notes, h.requests.filter(r => /\/test-data\//.test(r.url)).length, h.sources.length], [[undefined, undefined], [], [], [], [], 0, 0]);
     });
+
+    // ── re-review follow-ups ──
+
+    await guardAsync('c1d06 review viewed run', async () => {
+        const probe = deferred();
+        const h = harness(req => {
+            if (req.url === '/api/desktop/flows/runs/r1') return probe.p;
+            throw apiError('FLOW_RUN_NOT_FOUND');
+        });
+        const runs = h.ED.runs.create(h.ed, h.canvas);
+        runs.attach('r1', { mode: 'live' });
+        for (let i = 0; i < 5; i++) { if (i) h.runTimers(); h.last().fail(); await settle(); }
+        const streams = h.sources.length;
+        // The run view opens the same run while the probe of its failing stream is in flight.
+        const stored = { run: { id: 'r1', status: 'running', mode: 'live', started_at: '2026-10-06T10:00:00Z' }, steps: [{ node_id: A, node_key: 'alpha', status: 'success', output: { n: 1 } }], doc: flowDoc() };
+        h.ed.runView = { run: stored.run, doc: stored.doc };
+        runs.applyRunView(stored);
+        probe.resolve({ run: { id: 'r1', status: 'running' }, steps: [] });
+        await settle();
+        h.runTimers();
+        const viewed = [h.sources.length - streams, h.timers.size, h.ed.run.view, h.ed.run.steps.get(A).status];
+        h.ed.runView = null;
+        runs.clearRun();
+        eq('c1d06 a probe of a live run never streams into a run view of the same run',
+            [viewed, h.sources.length - streams, h.ed.run.view, runs.isRunning()], [[0, 0, true, 'success'], 1, undefined, true]);
+    });
+
+    await guardAsync('c1d06 review thumbnail versions', async () => {
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        h.dom.El.prototype.getContext = () => ({});
+        h.dom.El.prototype.toDataURL = function () { return 'data:' + this.width + 'x' + this.height; };
+        const calls = [];
+        const gates = [];
+        let running = 0;
+        let most = 0;
+        h.win.pdfjsLib = {
+            getDocument: ({ url }) => {
+                calls.push(url);
+                running++;
+                most = Math.max(most, running);
+                const gate = deferred();
+                gates.push(gate);
+                // A huge page: 2000 × 3000 points.
+                const page = { getViewport: ({ scale }) => ({ width: 2000 * scale, height: 3000 * scale }), render: () => ({ promise: Promise.resolve() }) };
+                return { promise: gate.p.then(() => { running--; return { getPage: async () => page }; }), destroy: () => Promise.resolve() };
+            }
+        };
+        const open = () => { gates.forEach(g => g.resolve()); };
+        const pdfStep = (size, finished) => ({ node_id: A, status: 'success', finished_at: finished, output: { doc: { $type: 'file', name: 'r.pdf', mime: 'application/pdf', size, web_path: '/files/r.pdf' } } });
+        h.ed.run = { id: 'r1', status: 'success', mode: 'test', steps: new Map([[A, pdfStep(100, '2026-10-06T10:00:00Z')]]), record: null };
+        h.ED.detail.open(h.ed, A);
+        open();
+        await settle();
+        const src = () => { const img = h.ed.root.querySelector('img[data-pdf]'); return img ? img.src : null; };
+        const first = [calls.length, src()];
+        h.ed.root.querySelector('[data-ed-view="json"]').fire('click');
+        h.ed.root.querySelector('[data-ed-view="tree"]').fire('click');
+        await settle();
+        const again = calls.length;
+        // The file was overwritten: same URL, new size and finish time.
+        h.ed.run.steps.set(A, pdfStep(200, '2026-10-06T11:00:00Z'));
+        h.bus.emit('run', h.ed.run);
+        open();
+        await settle();
+        const rewritten = calls.length;
+        h.ED.detail.close(h.ed);
+        // Many PDFs: at most six render at once, the rest wait their turn.
+        h.ed.run = { id: 'r2', status: 'success', mode: 'test', record: null,
+            steps: new Map([[A, { node_id: A, status: 'success', output: Object.fromEntries(Array.from({ length: 8 }, (_, i) => ['f' + i, { $type: 'file', name: i + '.pdf', mime: 'application/pdf', web_path: '/files/many' + i + '.pdf' }])) }]]) };
+        most = 0;
+        const before = calls.length;
+        h.ED.detail.open(h.ed, A);
+        await settle();
+        const startedAtOnce = calls.length - before;
+        for (let i = 0; i < 3; i++) { open(); await settle(); }
+        eq('c1d06 PDF thumbnails are keyed by file version, at most 240 px wide and six at a time',
+            [first, again, rewritten, startedAtOnce, calls.length - before, most], [[1, 'data:240x360'], 1, 2, 6, 8, 6]);
+        h.ED.detail.close(h.ed);
+        eq('c1d06 the thumbnail version checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d06 review encoded separators', async () => {
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        eq('c1d06 file links refuse encoded slashes and backslashes in any case',
+            ['/files/a%2fb.pdf', '/files/a%2Fb.pdf', '/files/a%5cb.pdf', '/files/%5C..%5Cx', '/files/%2e%2e%2fsecret', '/files/ok%20name.pdf', '/files/a.pdf?next=%2f'].map(h.ED.detail.safeFileUrl),
+            ['', '', '', '', '', '/files/ok%20name.pdf', '/files/a.pdf?next=%2f']);
+    });
 }

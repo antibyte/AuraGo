@@ -110,8 +110,12 @@
             connect(runId);
         }
 
+        // streamed reports whether runId is the live run shown. A run view of the same run (the
+        // live run parked) does not count: nothing may stream into the viewed run.
+        function streamed(runId) { return !!(ed.run && ed.run.id === runId && !ed.run.view); }
+
         function connect(runId) {
-            if (!ed.run || ed.run.id !== runId) return;
+            if (!streamed(runId)) return;
             const es = new EventSource(ed.api.eventsUrl(runId, lastSeq || undefined));
             source = es;
             // Every message shows the stream works: the next failure waits RETRY_MS again.
@@ -119,7 +123,7 @@
             es.addEventListener('snapshot', (event) => {
                 alive();
                 const detail = JSON.parse(event.data);
-                if (!ed.run || ed.run.id !== runId) return;
+                if (!streamed(runId)) return;
                 ed.run.record = detail.run;
                 ed.run.status = detail.run.status;
                 (detail.steps || []).forEach(s => ed.run.steps.set(s.node_id, s));
@@ -128,7 +132,7 @@
             es.addEventListener('event', (event) => {
                 alive();
                 const ev = JSON.parse(event.data);
-                if (!ed.run || ed.run.id !== runId) return;
+                if (!streamed(runId)) return;
                 lastSeq = Math.max(lastSeq, ev.seq || 0);
                 applyEvent(ev);
             });
@@ -138,7 +142,7 @@
                 alive();
                 es.close();
                 if (source === es) source = null;
-                if (!ed.run || ed.run.id !== runId) return;
+                if (!streamed(runId)) return;
                 let after = NaN;
                 try { after = Number(JSON.parse(event.data).after); } catch (err) { /* keep lastSeq */ }
                 if (Number.isFinite(after)) lastSeq = Math.max(lastSeq, after);
@@ -148,7 +152,7 @@
             es.onerror = () => {
                 es.close();
                 source = null;
-                if (!ed.run || ed.run.id !== runId) return;
+                if (!streamed(runId)) return;
                 // The stream broke after run_finished but before "end": load the result now.
                 if (isFinal(ed.run.status)) { finish(runId); return; }
                 failures++;
@@ -170,7 +174,7 @@
             let detail = null;
             let failure = null;
             try { detail = await ed.api.run(runId, false); } catch (err) { failure = err; }
-            if (disposed || !ed.run || ed.run.id !== runId) return;
+            if (disposed || !streamed(runId)) return;
             if (detail && detail.run && isFinal(detail.run.status)) { finish(runId, detail); return; }
             const status = Number(failure && failure.status) || 0;
             const code = core.errorCode(failure);
