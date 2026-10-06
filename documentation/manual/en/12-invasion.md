@@ -23,7 +23,7 @@ A **Nest** describes *where* an Egg is deployed:
 | Field | Values | Description |
 |-------|--------|-------------|
 | `access_type` | `ssh`, `docker`, `local` | How the master reaches the target |
-| `deploy_method` | `ssh`, `docker_remote`, `docker_local` | How the Egg binary is deployed |
+| `deploy_method` | `ssh`, `docker_remote`, `docker_ssh`, `docker_local` | How the Egg binary is deployed |
 | `docker_tls` | `""` (off), `tls`, `mtls` | `docker_remote` only: plain HTTP (default), TLS or mutual TLS to the Docker Engine |
 | `route` | `direct`, `ssh_tunnel`, `tailscale`, `wireguard`, `custom` | How the Egg reaches the master WebSocket |
 | `target_arch` | `linux/amd64`, `linux/arm64` | Binary architecture to deploy |
@@ -138,10 +138,10 @@ There is **no Deployments tab**. Deployment history is available via the REST AP
 | Name | Required |
 | Notes | Optional |
 | Access Type | `SSH`, `Docker API`, or `Local` |
-| Host / Port / Username | Required for SSH and Docker; hidden for Local |
+| Host / Port / Username | Required for SSH and Docker; hidden for Local unless the deploy method is `Docker (via SSH)` |
 | Secret | SSH key or password; stored in vault (not returned by API) |
 | Assign Egg | Select an Egg or leave empty |
-| Deploy Method | `SSH`, `Docker (Remote)`, or `Docker (Local)` |
+| Deploy Method | `SSH`, `Docker (Remote)`, `Docker (via SSH)`, or `Docker (Local)` |
 | Docker TLS | `Docker (Remote)` only: `Off`, `TLS` or `Mutual TLS`, plus CA / client certificate / key |
 | Target Architecture | `linux/amd64` or `linux/arm64` |
 | Route | How the Egg reaches the master WebSocket |
@@ -212,6 +212,16 @@ REST fields: `docker_tls` (`""`, `"tls"`, `"mtls"`), `docker_tls_ca`, `docker_tl
 An empty CA field keeps a stored CA. To go back to the system certificates while staying on TLS, save twice: first with **Docker TLS** set to `Off`, which deletes the stored material, then with `TLS` and an empty CA field.
 
 Before downgrading to a release without Docker TLS, switch TLS nests off or delete them. An older release ignores `docker_tls` and sends plain HTTP to the TLS port, so these nests stop working.
+
+**Docker over SSH.** The deploy method `Docker (via SSH)` (`docker_ssh`) runs the same Egg container as `Docker (Remote)`. It reaches the Engine socket `/var/run/docker.sock` through an SSH connection built from the nest's host, port (default `22`), username and secret. Every request, including the config copy, is encrypted, and host keys are verified against `known_hosts` exactly as for SSH deploys.
+
+Requirements on the target:
+- the SSH user may use the Docker socket (for example as a member of the `docker` group)
+- `sshd` allows stream-local forwarding (`AllowStreamLocalForwarding`, default `yes`)
+
+Choose access type `SSH` for such nests.
+
+> ⚠️ Older AuraGo versions treat unknown deploy methods as `SSH`. After a downgrade, a `docker_ssh` nest would deploy the binary over SSH instead of the container. Switch these nests to another method before downgrading.
 
 ---
 
@@ -571,7 +581,7 @@ See [Chapter 22: Internal Tools](22-internal-tools.md) for full parameter detail
 ### Connection refused / timeout
 
 1. Verify the target is reachable (`ping`, `ssh`)
-2. Check firewall rules and correct port (22 for SSH, 2375 for Docker API, 2376 for Docker API with TLS)
+2. Check firewall rules and correct port (22 for SSH and Docker via SSH, 2375 for Docker API, 2376 for Docker API with TLS)
 3. Run **Test Connection** or `POST .../validate`
 4. For SSH nests, ensure a secret is configured
 

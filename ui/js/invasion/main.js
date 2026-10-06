@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function bindInvasionUI() {
     document.getElementById('btn-create')?.addEventListener('click', openCreateModal);
     document.getElementById('nest-access-type')?.addEventListener('change', onAccessTypeChange);
-    document.getElementById('nest-deploy-method')?.addEventListener('change', onDeployMethodChange);
+    document.getElementById('nest-deploy-method')?.addEventListener('change', onDeployMethodSelect);
     document.getElementById('nest-docker-tls')?.addEventListener('change', onDockerTLSSelect);
     document.getElementById('btn-validate')?.addEventListener('click', validateNest);
     document.getElementById('nest-save-btn')?.addEventListener('click', saveNest);
@@ -388,11 +388,33 @@ function onDeployMethodChange() {
     const remote = method === 'docker_remote';
     const tlsStored = document.getElementById('nest-docker-tls-stored-hint')?.dataset.stored === 'true';
     setHiddenById('deploy-docker-local-hint', method !== 'docker_local');
+    setHiddenById('deploy-docker-ssh-hint', method !== 'docker_ssh');
     setHiddenById('nest-docker-tls-fields', !remote);
     setHiddenById('nest-docker-tls-stored-hint', !(remote && tlsMode !== '' && tlsStored));
     setHiddenById('nest-docker-tls-ca-group', !(remote && tlsMode !== ''));
     setHiddenById('nest-docker-tls-client-group', !(remote && tlsMode === 'mtls'));
     setHiddenById('deploy-docker-remote-plaintext-hint', !(remote && tlsMode === ''));
+    updateNestRemoteFields();
+}
+
+// User changed the deploy method: move the port between the SSH default and
+// the Docker API defaults, then refresh the dependent fields.
+function onDeployMethodSelect() {
+    const method = document.getElementById('nest-deploy-method').value;
+    const port = document.getElementById('nest-port');
+    if (method === 'docker_ssh' && (port.value == 2375 || port.value == 2376)) port.value = 22;
+    if (method === 'docker_remote' && port.value == 22 && document.getElementById('nest-access-type').value === 'docker') {
+        port.value = document.getElementById('nest-docker-tls')?.value ? 2376 : 2375;
+    }
+    onDeployMethodChange();
+}
+
+// Host, port, username and secret are needed for every remote access type
+// and for docker_ssh, even when the access type says local.
+function updateNestRemoteFields() {
+    const type = document.getElementById('nest-access-type').value;
+    const method = document.getElementById('nest-deploy-method').value;
+    setHiddenById('nest-remote-fields', type === 'local' && method !== 'docker_ssh');
 }
 
 // User changed the TLS mode: move the port between the Docker plain and TLS
@@ -407,17 +429,16 @@ function onDockerTLSSelect() {
 
 function onAccessTypeChange() {
     const type = document.getElementById('nest-access-type').value;
-    const remoteFields = document.getElementById('nest-remote-fields');
-    if (type === 'local') {
-        remoteFields.classList.add('is-hidden');
-    } else {
-        remoteFields.classList.remove('is-hidden');
+    const method = document.getElementById('nest-deploy-method').value;
+    // docker_ssh nests keep their SSH port whatever access type is shown.
+    if (type !== 'local' && method !== 'docker_ssh') {
         if (type === 'docker') {
             document.getElementById('nest-port').value = document.getElementById('nest-port').value == 22 ? 2375 : document.getElementById('nest-port').value;
         } else {
             document.getElementById('nest-port').value = document.getElementById('nest-port').value == 2375 ? 22 : document.getElementById('nest-port').value;
         }
     }
+    updateNestRemoteFields();
 }
 
 // ── Save ─────────────────────────────────────────────────

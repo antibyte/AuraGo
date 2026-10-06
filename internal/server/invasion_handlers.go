@@ -122,9 +122,9 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 			}
 			if req.DeployMethod != "" {
 				switch req.DeployMethod {
-				case "ssh", "docker_remote", "docker_local":
+				case "ssh", "docker_remote", "docker_local", "docker_ssh":
 				default:
-					jsonError(w, "Invalid deploy_method (must be ssh, docker_remote, or docker_local)", http.StatusBadRequest)
+					jsonError(w, "Invalid deploy_method (must be ssh, docker_remote, docker_local, or docker_ssh)", http.StatusBadRequest)
 					return
 				}
 			}
@@ -155,6 +155,8 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 			}
 			if req.Port <= 0 {
 				switch {
+				case deployMethod == "docker_ssh":
+					req.Port = 22
 				case tlsMode != invasion.DockerTLSOff:
 					req.Port = 2376
 				case req.AccessType == "docker":
@@ -311,9 +313,9 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			}
 			if req.DeployMethod != "" {
 				switch req.DeployMethod {
-				case "ssh", "docker_remote", "docker_local":
+				case "ssh", "docker_remote", "docker_local", "docker_ssh":
 				default:
-					jsonError(w, "Invalid deploy_method (must be ssh, docker_remote, or docker_local)", http.StatusBadRequest)
+					jsonError(w, "Invalid deploy_method (must be ssh, docker_remote, docker_local, or docker_ssh)", http.StatusBadRequest)
 					return
 				}
 			}
@@ -536,8 +538,8 @@ func handleInvasionNestValidate(s *Server) http.HandlerFunc {
 // validateNestConnection tests connectivity to a nest using the appropriate
 // connector based on the nest's deploy_method.
 func validateNestConnection(nest invasion.NestRecord, s *Server) error {
-	// SSH deployments require credentials.
-	if nest.VaultSecretID == "" && nest.DeployMethod == "ssh" {
+	// SSH-based transports require credentials.
+	if nest.VaultSecretID == "" && (nest.DeployMethod == "ssh" || nest.DeployMethod == "docker_ssh") {
 		return fmt.Errorf("no SSH secret configured for this nest")
 	}
 	secret, err := s.invasionTransportSecret(nest)

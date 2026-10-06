@@ -14,9 +14,12 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/dockerutil"
+	"aurago/internal/remote"
+	"golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v3"
 )
 
@@ -351,7 +354,8 @@ func (c *DockerConnector) Status(ctx context.Context, nest NestRecord, secret []
 
 // httpClient returns the Engine client for one request. secret is the
 // operation's transport credential: the Docker TLS material (JSON) for an
-// encrypted docker_remote nest; plain docker_remote and docker_local ignore it.
+// encrypted docker_remote nest, the SSH key or password for docker_ssh;
+// plain docker_remote and docker_local ignore it.
 func (c *DockerConnector) httpClient(nest NestRecord, secret []byte) *http.Client {
 	isLocal := nest.DeployMethod == "docker_local"
 	if isLocal {
@@ -361,6 +365,19 @@ func (c *DockerConnector) httpClient(nest NestRecord, secret []byte) *http.Clien
 			Transport: dockerutil.NewVersionTransport(&http.Transport{
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 					return dockerutil.DialContext(ctx, dockerHost)
+				},
+			}),
+		}
+	}
+	if nest.DeployMethod == "docker_ssh" {
+		// One SSH connection per Engine connection. Keep-alives are off so every
+		// connection, and with it its SSH client, closes after its response.
+		return &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: dockerutil.NewVersionTransport(&http.Transport{
+				DisableKeepAlives: true,
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					return dialDockerEngineOverSSH(ctx, nest, secret)
 				},
 			}),
 		}
@@ -413,6 +430,42 @@ func (t failingDockerTransport) RoundTrip(req *http.Request) (*http.Response, er
 	return nil, t.err
 }
 
+// dockerSSHEngineSocket is the Engine socket a docker_ssh nest reaches through SSH.
+const dockerSSHEngineSocket = "/var/run/docker.sock"
+
+// dialDockerEngineOverSSH opens one SSH connection (known_hosts verification
+// and finite dial/handshake budget via remote.DialSSH) and forwards a stream
+// to the remote Engine socket. Closing the returned conn closes the SSH client.
+func dialDockerEngineOverSSH(ctx context.Context, nest NestRecord, secret []byte) (net.Conn, error) {
+	port := nest.Port
+	if port <= 0 {
+		port = 22
+	}
+	client, err := remote.DialSSH(ctx, nest.Host, port, nest.Username, secret)
+	if err != nil {
+		return nil, fmt.Errorf("docker over SSH: %w", err)
+	}
+	conn, err := client.DialContext(ctx, "unix", dockerSSHEngineSocket)
+	if err != nil {
+		_ = client.Close()
+		return nil, fmt.Errorf("docker over SSH: open %s: %w", dockerSSHEngineSocket, err)
+	}
+	return &sshTunnelConn{Conn: conn, client: client}, nil
+}
+
+// sshTunnelConn is a forwarded Engine stream that owns its SSH client.
+type sshTunnelConn struct {
+	net.Conn
+	client *ssh.Client
+	once   sync.Once
+}
+
+func (c *sshTunnelConn) Close() error {
+	err := c.Conn.Close()
+	c.once.Do(func() { _ = c.client.Close() })
+	return err
+}
+
 func dockerLocalHost() string {
 	if dh := strings.TrimSpace(os.Getenv("DOCKER_HOST")); dh != "" {
 		return dh
@@ -421,7 +474,10 @@ func dockerLocalHost() string {
 }
 
 func (c *DockerConnector) apiURL(nest NestRecord, path string) string {
-	if nest.DeployMethod == "docker_local" {
+	switch nest.DeployMethod {
+	case "docker_local", "docker_ssh":
+		// The Engine is reached through a dialled socket; "localhost" is only
+		// the request's Host header.
 		return fmt.Sprintf("http://localhost/%s%s", dockerAPIVersion, path)
 	}
 	scheme, port := "http", nest.Port
@@ -726,9 +782,12 @@ func extractYAMLField(data []byte, field string) string {
 }
 
 // GetConnector returns the appropriate NestConnector for the given nest.
+// docker_ssh is listed explicitly: the default branch maps every unknown
+// method to the SSH binary deploy, which is what an older AuraGo does with a
+// docker_ssh nest after a downgrade.
 func GetConnector(nest NestRecord) NestConnector {
 	switch nest.DeployMethod {
-	case "docker_remote", "docker_local":
+	case "docker_remote", "docker_local", "docker_ssh":
 		return &DockerConnector{}
 	default: // "ssh" and everything else
 		return &SSHConnector{}

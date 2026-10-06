@@ -23,7 +23,7 @@ Ein **Nest** beschreibt, *wo* ein Egg deployed wird:
 | Feld | Werte | Beschreibung |
 |------|-------|--------------|
 | `access_type` | `ssh`, `docker`, `local` | Wie der Master das Ziel erreicht |
-| `deploy_method` | `ssh`, `docker_remote`, `docker_local` | Wie das Egg-Binary deployt wird |
+| `deploy_method` | `ssh`, `docker_remote`, `docker_ssh`, `docker_local` | Wie das Egg-Binary deployt wird |
 | `docker_tls` | `""` (aus), `tls`, `mtls` | Nur `docker_remote`: unverschlüsseltes HTTP (Standard), TLS oder Mutual TLS zur Docker-Engine |
 | `route` | `direct`, `ssh_tunnel`, `tailscale`, `wireguard`, `custom` | Wie das Egg den Master-WebSocket erreicht |
 | `target_arch` | `linux/amd64`, `linux/arm64` | Ziel-Architektur des Binaries |
@@ -138,10 +138,10 @@ Es gibt **keinen Deployments-Tab**. Deployment-Historie ist nur über die REST A
 | Name | Pflichtfeld |
 | Notes | Optional |
 | Access Type | `SSH`, `Docker API` oder `Local` |
-| Host / Port / Username | Für SSH und Docker; bei Local ausgeblendet |
+| Host / Port / Username | Für SSH und Docker; bei Local ausgeblendet, außer mit der Deploy-Methode `Docker (über SSH)` |
 | Secret | SSH-Key oder Passwort; wird im Vault gespeichert |
 | Assign Egg | Egg auswählen oder leer lassen |
-| Deploy Method | `SSH`, `Docker (Remote)` oder `Docker (Local)` |
+| Deploy Method | `SSH`, `Docker (Remote)`, `Docker (über SSH)` oder `Docker (Local)` |
 | Docker TLS | Nur `Docker (Remote)`: `Aus`, `TLS` oder `Mutual TLS`, dazu CA / Client-Zertifikat / Schlüssel |
 | Target Architecture | `linux/amd64` oder `linux/arm64` |
 | Route | Wie das Egg den Master-WebSocket erreicht |
@@ -202,6 +202,16 @@ REST-Felder: `docker_tls` (`""`, `"tls"`, `"mtls"`), `docker_tls_ca`, `docker_tl
 Ein leeres CA-Feld behält eine gespeicherte CA. Um bei TLS wieder die Systemzertifikate zu nutzen, speichere zweimal: zuerst mit **Docker-TLS** auf `Aus`, was das gespeicherte Material löscht, dann mit `TLS` und leerem CA-Feld.
 
 Bevor Du auf ein Release ohne Docker-TLS zurückgehst, schalte TLS bei den Nests ab oder lösche sie. Ein älteres Release ignoriert `docker_tls` und spricht den TLS-Port mit unverschlüsseltem HTTP an, diese Nests funktionieren dann nicht mehr.
+
+**Docker über SSH.** Die Deploy-Methode `Docker (über SSH)` (`docker_ssh`) startet denselben Egg-Container wie `Docker (Entfernt)`. Sie erreicht den Engine-Socket `/var/run/docker.sock` über eine SSH-Verbindung mit Host, Port (Standard `22`), Benutzername und Secret des Nests. Jede Anfrage, auch die Kopie der Konfiguration, ist verschlüsselt, und Host-Keys werden wie bei SSH-Deploys gegen `known_hosts` geprüft.
+
+Voraussetzungen auf dem Ziel:
+- der SSH-Benutzer darf den Docker-Socket nutzen (zum Beispiel als Mitglied der Gruppe `docker`)
+- `sshd` erlaubt Stream-Local-Forwarding (`AllowStreamLocalForwarding`, Standard `yes`)
+
+Wähle für solche Nests den Zugriffstyp `SSH`.
+
+> ⚠️ Ältere AuraGo-Versionen behandeln unbekannte Deploy-Methoden als `SSH`. Nach einem Downgrade würde ein `docker_ssh`-Nest das Binary per SSH statt des Containers deployen. Stelle solche Nests vor einem Downgrade auf eine andere Methode um.
 
 ---
 
@@ -509,7 +519,7 @@ Details: [Kapitel 22: Interne Tools](./22-interne-tools.md)
 ### Verbindung verweigert / Timeout
 
 1. Ziel erreichbar? (`ping`, `ssh`)
-2. Firewall und Port prüfen (22 für SSH, 2375 für Docker API, 2376 für Docker API mit TLS)
+2. Firewall und Port prüfen (22 für SSH und Docker über SSH, 2375 für Docker API, 2376 für Docker API mit TLS)
 3. **Test Connection** oder `POST .../validate` ausführen
 4. Bei SSH-Nests: Secret muss konfiguriert sein
 
@@ -576,7 +586,7 @@ Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
 | **REST API** | ✅ Vollständig |
 | **CLI-Befehle** | ❌ Nicht implementiert |
 | **SSH Deployment** | ✅ `access_type: ssh`, `deploy_method: ssh` |
-| **Docker Deployment** | ✅ `docker_remote`, `docker_local` |
+| **Docker Deployment** | ✅ `docker_remote`, `docker_ssh`, `docker_local` |
 | **Kubernetes** | ❌ Nicht implementiert |
 | **Deployments-Tab** | ❌ Nur API (`/deployments`) |
 
