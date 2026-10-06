@@ -55,7 +55,7 @@
   "invasion.docker_tls_key": "Clé privée du client (PEM)",
   "invasion.docker_tls_mtls": "TLS mutuel (avec certificat client)",
   "invasion.docker_tls_off": "Désactivé (HTTP non chiffré)",
-  "invasion.docker_tls_stored": "Le matériel TLS enregistré est conservé si ces champs restent vides.",
+  "invasion.docker_tls_stored": "Les éléments TLS enregistrés sont conservés si ces champs restent vides.",
   "invasion.docker_tls_tls": "TLS (vérifier le certificat de l'Engine)",
   "invasion.edit": "Modifier",
   "invasion.edit_egg": "Modifier l'Egg",

@@ -71,27 +71,39 @@ func resolveNestDockerTLS(deployMethod, currentMode string, stored invasion.Dock
 	return mode, &material, nil
 }
 
+// errDockerTLSMaterialUnreadable reports a vault entry that does not decode as
+// Docker TLS material. The decoder's own error can quote stored bytes, so it is
+// never wrapped.
+var errDockerTLSMaterialUnreadable = errors.New("stored Docker TLS material is unreadable")
+
+// dockerTLSUnreadableMessage is the client message for an update that would
+// keep relying on unreadable stored material.
+const dockerTLSUnreadableMessage = "stored Docker TLS material is unreadable; paste the CA again or switch Docker TLS off"
+
 // dockerTLSUpdateReplacesStoredMaterial reports whether an update can proceed
-// although the stored Docker TLS material is unreadable: the request switches
-// TLS off (docker_tls "" or a method other than docker_remote), or it names a
-// TLS mode and brings every PEM that mode needs (tls: none; mtls: client
-// certificate and key). The material is then rewritten or removed. Requests
-// that omit docker_tls on a docker_remote nest would keep relying on the
-// unreadable material, so they still fail.
-func dockerTLSUpdateReplacesStoredMaterial(deployMethod string, req nestDockerTLSRequest) bool {
+// although the stored Docker TLS material is unreadable. A tls nest has a vault
+// entry only when a CA was pinned, so the update must not silently fall back to
+// the system roots. It proceeds only when it switches Docker TLS off, moves the
+// nest away from docker_remote, or sends docker_tls_ca (plus the client
+// certificate and key for mtls); the entry is then removed or rewritten.
+func dockerTLSUpdateReplacesStoredMaterial(deployMethod, currentMode string, req nestDockerTLSRequest) bool {
 	if deployMethod != "docker_remote" {
 		return true
 	}
-	if req.DockerTLS == nil {
+	mode := strings.TrimSpace(currentMode)
+	if req.DockerTLS != nil {
+		mode = strings.TrimSpace(*req.DockerTLS)
+	}
+	if mode == invasion.DockerTLSOff {
+		return true
+	}
+	if strings.TrimSpace(req.DockerTLSCA) == "" {
 		return false
 	}
-	switch strings.TrimSpace(*req.DockerTLS) {
-	case invasion.DockerTLSOff, invasion.DockerTLSServer:
-		return true
-	case invasion.DockerTLSMutual:
+	if mode == invasion.DockerTLSMutual {
 		return strings.TrimSpace(req.DockerTLSCert) != "" && strings.TrimSpace(req.DockerTLSKey) != ""
 	}
-	return false
+	return true // tls; resolveNestDockerTLS rejects unknown modes
 }
 
 // loadNestDockerTLS reads a nest's Docker TLS material; a missing entry is
@@ -108,9 +120,8 @@ func (s *Server) loadNestDockerTLS(nestID string) (invasion.DockerTLSMaterial, e
 	if err != nil {
 		return material, err
 	}
-	// The JSON decoder's error can quote stored bytes, so it is not wrapped.
 	if err := json.Unmarshal([]byte(raw), &material); err != nil {
-		return invasion.DockerTLSMaterial{}, errors.New("stored Docker TLS material is unreadable")
+		return invasion.DockerTLSMaterial{}, errDockerTLSMaterialUnreadable
 	}
 	return material, nil
 }

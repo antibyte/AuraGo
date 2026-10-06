@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -342,15 +343,22 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			if deployMethod == "" {
 				deployMethod = "ssh" // scanNestRow reads an empty method as ssh
 			}
+			originalTLSMode := existing.DockerTLS
 			previousTLS := invasion.DockerTLSMaterial{}
 			previousTLSUnreadable := false
-			if existing.DockerTLS != invasion.DockerTLSOff {
+			if originalTLSMode != invasion.DockerTLSOff {
 				if previousTLS, err = s.loadNestDockerTLS(id); err != nil {
-					if !dockerTLSUpdateReplacesStoredMaterial(deployMethod, req.nestDockerTLSRequest) {
-						jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest TLS material", "Invasion nest Docker TLS read failed", err, "nest_id", id)
+					if !dockerTLSUpdateReplacesStoredMaterial(deployMethod, originalTLSMode, req.nestDockerTLSRequest) {
+						message := "Failed to read nest TLS material"
+						if errors.Is(err, errDockerTLSMaterialUnreadable) {
+							message = dockerTLSUnreadableMessage
+						}
+						jsonLoggedError(w, s.Logger, http.StatusInternalServerError, message, "Invasion nest Docker TLS read failed", err, "nest_id", id)
 						return
 					}
-					s.Logger.Warn("Invasion nest Docker TLS material is unreadable; this update replaces or removes it", "nest_id", id, "error", err)
+					if s.Logger != nil {
+						s.Logger.Warn("Invasion nest Docker TLS material is unreadable; this update replaces or removes it", "nest_id", id, "error", err)
+					}
 					previousTLS = invasion.DockerTLSMaterial{}
 					previousTLSUnreadable = true
 				}
@@ -384,18 +392,31 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 				}
 				existing.VaultSecretID = vaultKey
 			}
-			// Docker TLS material: new or changed material is stored before
-			// UpdateNest, like the nest secret. Removal (TLS switched off, or the
-			// method moved away from docker_remote) waits until UpdateNest has
-			// succeeded, so a failed DB update never leaves a TLS nest without
-			// its material.
+			// Docker TLS material. New or changed material is stored before
+			// UpdateNest, like the nest secret. When the new settings need no
+			// material and TLS was or becomes active, the entry is deleted
+			// (a missing entry is a no-op); plain and SSH updates never touch
+			// the vault.
+			//   - Material the current nest does not use (a leftover on a plain
+			//     nest, or nothing stored) is deleted before UpdateNest, so a
+			//     leftover never comes into use when TLS is re-enabled without PEMs.
+			//   - Material the current nest uses is deleted only after UpdateNest
+			//     succeeded, so a failed DB update never leaves a TLS nest without it.
 			if tlsMaterial != nil && *tlsMaterial != previousTLS {
 				if err := s.storeNestDockerTLS(id, *tlsMaterial); err != nil {
 					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store nest TLS material", "Invasion nest Docker TLS write failed", err, "nest_id", id)
 					return
 				}
 			}
-			removeTLSMaterial := tlsMaterial == nil && (previousTLS != (invasion.DockerTLSMaterial{}) || previousTLSUnreadable)
+			removeTLSMaterial := tlsMaterial == nil && (originalTLSMode != invasion.DockerTLSOff || tlsMode != invasion.DockerTLSOff)
+			storedTLSInUse := originalTLSMode != invasion.DockerTLSOff && (previousTLS != (invasion.DockerTLSMaterial{}) || previousTLSUnreadable)
+			if removeTLSMaterial && tlsMode != invasion.DockerTLSOff && !storedTLSInUse {
+				if err := s.deleteNestDockerTLS(id); err != nil {
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to remove stale nest TLS material", "Invasion nest Docker TLS leftover removal failed", err, "nest_id", id)
+					return
+				}
+				removeTLSMaterial = false
+			}
 
 			if err := invasion.UpdateNest(s.InvasionDB, existing); err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to update nest", "Failed to update invasion nest", err, "nest_id", id)
@@ -403,8 +424,12 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			}
 			if removeTLSMaterial {
 				if err := s.deleteNestDockerTLS(id); err != nil {
-					// The nest no longer uses the entry; nest deletion removes it later.
-					s.Logger.Warn("Failed to remove unused invasion nest Docker TLS material", "nest_id", id, "error", err)
+					// The update itself succeeded. Until a later save or the nest
+					// deletion removes the entry, a nest with TLS off ignores it, and
+					// a tls nest fails closed on a leftover client certificate.
+					if s.Logger != nil {
+						s.Logger.Warn("Failed to remove invasion nest Docker TLS material the nest no longer needs", "nest_id", id, "error", err)
+					}
 				}
 			}
 			writeJSON(w, map[string]string{"status": "updated"})

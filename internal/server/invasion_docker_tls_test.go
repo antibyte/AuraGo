@@ -14,6 +14,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -303,28 +304,58 @@ func TestUpdateNestKeepsDockerTLSMaterialWhenDBUpdateFails(t *testing.T) {
 	}
 }
 
+// createServerTLSNest creates a tls nest pinned to ca and returns its ID.
+func createServerTLSNest(t *testing.T, s *Server, ca string) string {
+	t.Helper()
+	rec := invasionTLSRequest(t, handleInvasionNests(s), http.MethodPost, "/api/invasion/nests", map[string]any{
+		"name": "tls-nest", "access_type": "docker", "host": "10.0.0.5", "deploy_method": "docker_remote", "active": true,
+		"docker_tls": "tls", "docker_tls_ca": ca,
+	})
+	var created struct {
+		ID string `json:"id"`
+	}
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &created) != nil {
+		t.Fatalf("create status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	return created.ID
+}
+
 func TestUpdateNestWithUnreadableDockerTLSMaterial(t *testing.T) {
-	_, cert, key := testDockerTLSPEMs(t)
+	ca, cert, key := testDockerTLSPEMs(t)
 	base := map[string]any{"name": "tls-nest", "access_type": "docker", "host": "10.0.0.5", "port": 2376, "active": true,
 		"target_arch": "linux/amd64", "route": "direct"}
+	const unreadable = "{not json"
+	const unreadableMessage = "stored Docker TLS material is unreadable; paste the CA again or switch Docker TLS off"
 	cases := []struct {
 		name       string
+		mode       string // mode of the nest before the update
 		fields     map[string]any
 		wantStatus int
 		wantMode   string
-		wantStored bool // a readable entry remains in the vault
+		want       *invasion.DockerTLSMaterial // stored material after a successful update; nil = entry removed
 	}{
-		{name: "switch off", fields: map[string]any{"deploy_method": "docker_remote", "docker_tls": ""}, wantStatus: http.StatusOK, wantMode: ""},
-		{name: "method away from docker_remote", fields: map[string]any{"deploy_method": "ssh"}, wantStatus: http.StatusOK, wantMode: ""},
-		{name: "mtls with a new client pair", fields: map[string]any{"deploy_method": "docker_remote", "docker_tls": "mtls", "docker_tls_cert": cert, "docker_tls_key": key},
-			wantStatus: http.StatusOK, wantMode: "mtls", wantStored: true},
-		{name: "mtls without a new client pair", fields: map[string]any{"deploy_method": "docker_remote", "docker_tls": "mtls"}, wantStatus: http.StatusInternalServerError, wantMode: "mtls"},
-		{name: "older client without docker_tls", fields: map[string]any{"deploy_method": "docker_remote"}, wantStatus: http.StatusInternalServerError, wantMode: "mtls"},
+		{name: "switch off", mode: "mtls", fields: map[string]any{"deploy_method": "docker_remote", "docker_tls": ""}, wantStatus: http.StatusOK, wantMode: ""},
+		{name: "method away from docker_remote", mode: "mtls", fields: map[string]any{"deploy_method": "ssh"}, wantStatus: http.StatusOK, wantMode: ""},
+		{name: "mtls with CA and client pair", mode: "mtls", fields: map[string]any{"deploy_method": "docker_remote", "docker_tls": "mtls", "docker_tls_ca": ca, "docker_tls_cert": cert, "docker_tls_key": key},
+			wantStatus: http.StatusOK, wantMode: "mtls", want: &invasion.DockerTLSMaterial{CA: strings.TrimSpace(ca), Cert: strings.TrimSpace(cert), Key: strings.TrimSpace(key)}},
+		{name: "mtls with client pair but no CA", mode: "mtls", fields: map[string]any{"deploy_method": "docker_remote", "docker_tls": "mtls", "docker_tls_cert": cert, "docker_tls_key": key},
+			wantStatus: http.StatusInternalServerError, wantMode: "mtls"},
+		{name: "mtls without new PEMs", mode: "mtls", fields: map[string]any{"deploy_method": "docker_remote", "docker_tls": "mtls"}, wantStatus: http.StatusInternalServerError, wantMode: "mtls"},
+		{name: "older client without docker_tls", mode: "mtls", fields: map[string]any{"deploy_method": "docker_remote"}, wantStatus: http.StatusInternalServerError, wantMode: "mtls"},
+		{name: "tls switch off", mode: "tls", fields: map[string]any{"deploy_method": "docker_remote", "docker_tls": ""}, wantStatus: http.StatusOK, wantMode: ""},
+		{name: "tls without CA keeps the pinned CA", mode: "tls", fields: map[string]any{"deploy_method": "docker_remote", "docker_tls": "tls"}, wantStatus: http.StatusInternalServerError, wantMode: "tls"},
+		{name: "tls with CA", mode: "tls", fields: map[string]any{"deploy_method": "docker_remote", "docker_tls": "tls", "docker_tls_ca": ca},
+			wantStatus: http.StatusOK, wantMode: "tls", want: &invasion.DockerTLSMaterial{CA: strings.TrimSpace(ca)}},
 	}
 	for _, tc := range cases {
 		s := newInvasionTLSTestServer(t)
-		id, _, _, _ := createMutualTLSNest(t, s)
-		if err := s.Vault.WriteSecret(invasion.DockerTLSVaultKey(id), "{not json"); err != nil {
+		var id string
+		if tc.mode == "mtls" {
+			id, _, _, _ = createMutualTLSNest(t, s)
+		} else {
+			id = createServerTLSNest(t, s, ca)
+		}
+		if err := s.Vault.WriteSecret(invasion.DockerTLSVaultKey(id), unreadable); err != nil {
 			t.Fatal(err)
 		}
 		body := map[string]any{}
@@ -344,17 +375,137 @@ func TestUpdateNestWithUnreadableDockerTLSMaterial(t *testing.T) {
 		raw, err := s.Vault.ReadSecret(invasion.DockerTLSVaultKey(id))
 		switch {
 		case tc.wantStatus != http.StatusOK:
-			if raw != "{not json" {
+			if !strings.Contains(rec.Body.String(), unreadableMessage) {
+				t.Fatalf("%s: body = %s, want %q", tc.name, rec.Body.String(), unreadableMessage)
+			}
+			if raw != unreadable {
 				t.Fatalf("%s: a rejected update changed the stored material", tc.name)
 			}
-		case tc.wantStored:
-			if material, err := s.loadNestDockerTLS(id); err != nil || material.Cert != strings.TrimSpace(cert) {
-				t.Fatalf("%s: material = %+v, %v; want the new client pair", tc.name, material, err)
+		case tc.want != nil:
+			if material, err := s.loadNestDockerTLS(id); err != nil || material != *tc.want {
+				t.Fatalf("%s: material = %+v, %v; want the submitted PEMs", tc.name, material, err)
 			}
 		default:
 			if err != security.ErrSecretNotFound {
 				t.Fatalf("%s: vault read = %v, want the unreadable entry removed", tc.name, err)
 			}
 		}
+	}
+}
+
+func TestUpdateNestReenablingDockerTLSRemovesLeftoverMaterial(t *testing.T) {
+	s := newInvasionTLSTestServer(t)
+	ca, _, _ := testDockerTLSPEMs(t)
+	created := invasionTLSRequest(t, handleInvasionNests(s), http.MethodPost, "/api/invasion/nests", map[string]any{
+		"name": "plain", "access_type": "docker", "host": "10.0.0.5", "deploy_method": "docker_remote", "active": true,
+	})
+	var body struct {
+		ID string `json:"id"`
+	}
+	if created.Code != http.StatusOK || json.Unmarshal(created.Body.Bytes(), &body) != nil {
+		t.Fatalf("create status = %d, body %s", created.Code, created.Body.String())
+	}
+	// A leftover entry, as a failed removal after switching TLS off leaves it.
+	if err := s.storeNestDockerTLS(body.ID, invasion.DockerTLSMaterial{CA: strings.TrimSpace(ca)}); err != nil {
+		t.Fatal(err)
+	}
+	rec := invasionTLSRequest(t, handleInvasionNest(s), http.MethodPut, "/api/invasion/nests/"+body.ID, map[string]any{
+		"name": "plain", "access_type": "docker", "host": "10.0.0.5", "port": 2376, "active": true,
+		"deploy_method": "docker_remote", "target_arch": "linux/amd64", "route": "direct", "docker_tls": "tls",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if _, err := s.Vault.ReadSecret(invasion.DockerTLSVaultKey(body.ID)); err != security.ErrSecretNotFound {
+		t.Fatalf("vault read = %v, want the leftover entry removed", err)
+	}
+	nest, err := invasion.GetNest(s.InvasionDB, body.ID)
+	if err != nil || nest.DockerTLS != "tls" {
+		t.Fatalf("nest DockerTLS = %q, %v; want tls", nest.DockerTLS, err)
+	}
+	secret, err := s.invasionTransportSecret(nest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var material invasion.DockerTLSMaterial
+	if err := json.Unmarshal(secret, &material); err != nil || material != (invasion.DockerTLSMaterial{}) {
+		t.Fatalf("transport material = %+v, %v; want none (system roots)", material, err)
+	}
+}
+
+func TestDockerTLSTwoSavePathBackToSystemRoots(t *testing.T) {
+	s := newInvasionTLSTestServer(t)
+	ca, _, _ := testDockerTLSPEMs(t)
+	id := createServerTLSNest(t, s, ca)
+	for _, mode := range []string{"", "tls"} {
+		rec := invasionTLSRequest(t, handleInvasionNest(s), http.MethodPut, "/api/invasion/nests/"+id, map[string]any{
+			"name": "tls-nest", "access_type": "docker", "host": "10.0.0.5", "port": 2376, "active": true,
+			"deploy_method": "docker_remote", "target_arch": "linux/amd64", "route": "direct", "docker_tls": mode,
+		})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("save with docker_tls %q: status = %d, body %s", mode, rec.Code, rec.Body.String())
+		}
+		if _, err := s.Vault.ReadSecret(invasion.DockerTLSVaultKey(id)); err != security.ErrSecretNotFound {
+			t.Fatalf("save with docker_tls %q: vault read = %v, want no stored CA", mode, err)
+		}
+	}
+	if nest, _ := invasion.GetNest(s.InvasionDB, id); nest.DockerTLS != "tls" {
+		t.Fatalf("DockerTLS = %q, want tls against the system roots", nest.DockerTLS)
+	}
+}
+
+func TestPlainAndSSHNestUpdatesLeaveTheVaultAlone(t *testing.T) {
+	vaultPath := filepath.Join(t.TempDir(), "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("b", 64), vaultPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var logs bytes.Buffer
+	s := &Server{InvasionDB: setupInvasionTestDB(t), Vault: vault, Logger: slog.New(slog.NewTextHandler(&logs, nil))}
+	ids := map[string]string{}
+	for name, fields := range map[string]map[string]any{
+		"plain": {"access_type": "docker", "deploy_method": "docker_remote"},
+		"ssh":   {"access_type": "ssh", "deploy_method": "ssh", "username": "deploy", "secret": "ssh-password"},
+	} {
+		body := map[string]any{"name": name, "host": "10.0.0.5", "active": true}
+		for k, v := range fields {
+			body[k] = v
+		}
+		rec := invasionTLSRequest(t, handleInvasionNests(s), http.MethodPost, "/api/invasion/nests", body)
+		var created struct {
+			ID string `json:"id"`
+		}
+		if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &created) != nil {
+			t.Fatalf("create %s: status = %d, body %s", name, rec.Code, rec.Body.String())
+		}
+		ids[name] = created.ID
+	}
+	// From here on every vault read, write or delete fails or rewrites the file.
+	const broken = "not a vault"
+	if err := os.WriteFile(vaultPath, []byte(broken), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	updates := []struct {
+		name, nest string
+		body       map[string]any
+	}{
+		{"plain, current UI", "plain", map[string]any{"name": "plain", "access_type": "docker", "host": "10.0.0.5", "port": 2375, "active": true,
+			"deploy_method": "docker_remote", "target_arch": "linux/amd64", "route": "direct", "docker_tls": ""}},
+		{"plain, older client", "plain", map[string]any{"name": "plain", "access_type": "docker", "host": "10.0.0.5", "port": 2375, "active": true,
+			"deploy_method": "docker_remote", "target_arch": "linux/amd64", "route": "direct"}},
+		{"ssh", "ssh", map[string]any{"name": "ssh", "access_type": "ssh", "host": "10.0.0.5", "port": 22, "username": "deploy", "active": true,
+			"deploy_method": "ssh", "target_arch": "linux/amd64", "route": "direct", "docker_tls": ""}},
+	}
+	for _, u := range updates {
+		rec := invasionTLSRequest(t, handleInvasionNest(s), http.MethodPut, "/api/invasion/nests/"+ids[u.nest], u.body)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, body %s", u.name, rec.Code, rec.Body.String())
+		}
+	}
+	if raw, err := os.ReadFile(vaultPath); err != nil || string(raw) != broken {
+		t.Fatalf("plain or SSH updates rewrote the vault file (%v)", err)
+	}
+	if logs.Len() != 0 {
+		t.Fatalf("plain or SSH updates touched the vault: %s", logs.String())
 	}
 }
