@@ -115,6 +115,8 @@
   "missions.filter_manual": "Manuel",
   "missions.filter_scheduled": "Planlagt",
   "missions.filter_triggered": "Udløst",
+  "missions.filter_flow": "Flow",
+  "missions.flow_managed": "Denne mission er et EasyDrag-flow. Rediger den i EasyDrag-appen på skrivebordet.",
   "missions.form_cheatsheets_hint": "Valgte cheat sheets inkluderes som kontekst, når missionen kører.",
   "missions.form_cheatsheets_label": "Snydeark",
   "missions.form_cheatsheets_loading": "Indlæser...",

@@ -76,6 +76,7 @@ const icons = {
     manual: '👆',
     scheduled: '📅',
     triggered: '⚡',
+    flow: '🧩',
     running: '🔄',
     queued: '⏳',
     waiting: '⏸️',
@@ -512,6 +513,9 @@ function renderMissionGrid(mission, isFirstRender) {
     } else if (mission.execution_type === 'triggered') {
         execIcon = icons.triggered;
         execText = renderTriggerText(mission) || t('missions.filter_triggered');
+    } else if (mission.execution_type === 'flow') {
+        execIcon = icons.flow;
+        execText = t('missions.filter_flow');
     }
     const execPillTitle = execText.replace(/<[^>]+>/g, '');
     const triggerPill = `<div class="mc-trigger-pill" title="${escapeAttr(execPillTitle)}">${execIcon}<span>${execText}</span></div>`;
@@ -871,7 +875,7 @@ function selectTriggerType(type) {
 // Load mission selector
 function loadMissionSelector() {
     const container = document.getElementById('mission-selector');
-    const manualMissions = missions.filter(m => m.execution_type === 'manual' || m.execution_type === 'scheduled');
+    const manualMissions = missions.filter(m => m.execution_type === 'manual' || m.execution_type === 'scheduled' || m.execution_type === 'flow');
 
     if (manualMissions.length === 0) {
         container.innerHTML = '<div class="mission-trigger-empty">' + t('missions.trigger_no_suitable_missions') + '</div>';
@@ -1241,11 +1245,21 @@ async function removeFromQueue(id) {
     }
 }
 
+// isFlowMission explains that flows are edited in EasyDrag and reports whether id is one.
+function isFlowMission(id) {
+    const m = missions.find(x => x.id === id);
+    if (!m || m.execution_type !== 'flow') return false;
+    showToast(t('missions.flow_managed'), 'info');
+    return true;
+}
+
 function editMission(id) {
+    if (isFlowMission(id)) return;
     openMissionModal(id);
 }
 
 function duplicateMission(id) {
+    if (isFlowMission(id)) return;
     const m = missions.find(x => x.id === id);
     if (!m) return;
     openMissionModal(); // Opens in 'new' mode

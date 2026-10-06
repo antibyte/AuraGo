@@ -115,6 +115,8 @@
   "missions.filter_manual": "Manuální",
   "missions.filter_scheduled": "Plánované",
   "missions.filter_triggered": "Spouštěné",
+  "missions.filter_flow": "Flow",
+  "missions.flow_managed": "Tato mise je flow EasyDrag. Upravíte ji v aplikaci EasyDrag na ploše.",
   "missions.form_cheatsheets_hint": "Vybrané taháky budou zahrnuty jako kontext při spuštění mise.",
   "missions.form_cheatsheets_label": "Taháky",
   "missions.form_cheatsheets_loading": "Načítání...",

@@ -115,6 +115,8 @@
   "missions.filter_manual": "Χειροκίνητες",
   "missions.filter_scheduled": "Προγραμματισμένες",
   "missions.filter_triggered": "Ενεργοποιημένες",
+  "missions.filter_flow": "Ροή",
+  "missions.flow_managed": "Αυτή η αποστολή είναι ροή EasyDrag. Επεξεργαστείτε την στην εφαρμογή EasyDrag στην επιφάνεια εργασίας.",
   "missions.form_cheatsheets_hint": "Τα επιλεγμένα cheat sheets θα συμπεριληφθούν ως πλαίσιο κατά την εκτέλεση της αποστολής.",
   "missions.form_cheatsheets_label": "Φύλλα Αναφοράς",
   "missions.form_cheatsheets_loading": "Φόρτωση...",

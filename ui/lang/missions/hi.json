@@ -115,6 +115,8 @@
   "missions.filter_manual": "मैनुअल",
   "missions.filter_scheduled": "अनुसूचित",
   "missions.filter_triggered": "ट्रिगर",
+  "missions.filter_flow": "फ़्लो",
+  "missions.flow_managed": "यह मिशन एक EasyDrag फ़्लो है। इसे डेस्कटॉप पर EasyDrag ऐप में संपादित करें।",
   "missions.form_cheatsheets_hint": "चयनित चीट शीट्स मिशन चलने पर संदर्भ के रूप में शामिल की जाएंगी।",
   "missions.form_cheatsheets_label": "चीट शीट्स",
   "missions.form_cheatsheets_loading": "लोड हो रहा है...",

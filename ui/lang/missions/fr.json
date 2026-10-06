@@ -115,6 +115,8 @@
   "missions.filter_manual": "Manuelles",
   "missions.filter_scheduled": "Planifiées",
   "missions.filter_triggered": "Déclenchées",
+  "missions.filter_flow": "Flux",
+  "missions.flow_managed": "Cette mission est un flux EasyDrag. Modifiez-la dans l’application EasyDrag du bureau.",
   "missions.form_cheatsheets_hint": "Les aide-mémoire sélectionnés seront inclus comme contexte lors de l'exécution de la mission.",
   "missions.form_cheatsheets_label": "Aide-mémoire",
   "missions.form_cheatsheets_loading": "Chargement...",

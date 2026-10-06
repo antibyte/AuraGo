@@ -115,6 +115,8 @@
   "missions.filter_manual": "Handmatig",
   "missions.filter_scheduled": "Gepland",
   "missions.filter_triggered": "Getriggerd",
+  "missions.filter_flow": "Flow",
+  "missions.flow_managed": "Deze missie is een EasyDrag-flow. Bewerk hem in de EasyDrag-app op het bureaublad.",
   "missions.form_cheatsheets_hint": "Geselecteerde cheat sheets worden als context meegestuurd wanneer de missie wordt uitgevoerd.",
   "missions.form_cheatsheets_label": "Spiekbriefjes",
   "missions.form_cheatsheets_loading": "Laden...",

@@ -226,3 +226,12 @@ func TestMissionControlShowsFlowMissions(t *testing.T) {
 		}
 	}
 }
+
+func TestStandaloneMissionsPageShowsFlowsReadOnly(t *testing.T) {
+	text := readDesktopAssetText(t, "js/missions/main.js")
+	for _, marker := range []string{"function isFlowMission(id)", "missions.flow_managed", "icons.flow", "m.execution_type === 'flow'"} {
+		if !strings.Contains(text, marker) {
+			t.Errorf("js/missions/main.js misses %q", marker)
+		}
+	}
+}

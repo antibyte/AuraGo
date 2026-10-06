@@ -115,6 +115,8 @@
   "missions.filter_manual": "手动",
   "missions.filter_scheduled": "已计划",
   "missions.filter_triggered": "已触发",
+  "missions.filter_flow": "流程",
+  "missions.flow_managed": "此任务是一个 EasyDrag 流程。请在桌面上的 EasyDrag 应用中编辑。",
   "missions.form_cheatsheets_hint": "选定的备忘录将在任务运行时作为上下文包含。",
   "missions.form_cheatsheets_label": "备忘录",
   "missions.form_cheatsheets_loading": "加载中...",

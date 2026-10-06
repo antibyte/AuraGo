@@ -115,6 +115,8 @@
   "missions.filter_manual": "Manual",
   "missions.filter_scheduled": "Agendada",
   "missions.filter_triggered": "Acionada",
+  "missions.filter_flow": "Fluxo",
+  "missions.flow_managed": "Esta missão é um fluxo do EasyDrag. Edite-a no app EasyDrag da área de trabalho.",
   "missions.form_cheatsheets_hint": "As cheat sheets selecionadas serão incluídas como contexto quando a missão for executada.",
   "missions.form_cheatsheets_label": "Folhas de dicas",
   "missions.form_cheatsheets_loading": "Carregando...",

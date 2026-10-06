@@ -115,6 +115,8 @@
   "missions.filter_manual": "Manual",
   "missions.filter_scheduled": "Scheduled",
   "missions.filter_triggered": "Triggered",
+  "missions.filter_flow": "Flow",
+  "missions.flow_managed": "This mission is an EasyDrag flow. Edit it in the EasyDrag app on the desktop.",
   "missions.form_cheatsheets_hint": "Selected cheat sheets will be included as context when the mission runs.",
   "missions.form_cheatsheets_label": "Cheat Sheets",
   "missions.form_cheatsheets_loading": "Loading...",

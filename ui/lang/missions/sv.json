@@ -115,6 +115,8 @@
   "missions.filter_manual": "Manuell",
   "missions.filter_scheduled": "Schemalagt",
   "missions.filter_triggered": "Utlöst",
+  "missions.filter_flow": "Flöde",
+  "missions.flow_managed": "Det här uppdraget är ett EasyDrag-flöde. Redigera det i EasyDrag-appen på skrivbordet.",
   "missions.form_cheatsheets_hint": "Valda fusklappar inkluderas som kontext när uppdraget körs.",
   "missions.form_cheatsheets_label": "Fusklappar",
   "missions.form_cheatsheets_loading": "Laddar...",

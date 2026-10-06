@@ -115,6 +115,8 @@
   "missions.filter_manual": "Manuell",
   "missions.filter_scheduled": "Geplant",
   "missions.filter_triggered": "Ausgelöst",
+  "missions.filter_flow": "Flow",
+  "missions.flow_managed": "Diese Mission ist ein EasyDrag-Flow. Bearbeite sie in der EasyDrag-App auf dem Desktop.",
   "missions.form_cheatsheets_hint": "Ausgewählte Spickzettel werden als Kontext eingebunden, wenn die Mission ausgeführt wird.",
   "missions.form_cheatsheets_label": "Spickzettel",
   "missions.form_cheatsheets_loading": "Laden...",
