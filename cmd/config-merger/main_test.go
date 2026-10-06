@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"aurago/internal/config"
 )
 
 func TestDeepMerge_BasicOverlay(t *testing.T) {
@@ -419,6 +421,7 @@ func TestRepositoryTemplateMergeKeepsScraperAndRateLimitBehaviour(t *testing.T) 
 	if err != nil {
 		t.Fatalf("read template: %v", err)
 	}
+	const legacyScraper = "agent:\n    allow_web_scraper: "
 	cases := []struct {
 		name        string
 		user        string
@@ -427,11 +430,27 @@ func TestRepositoryTemplateMergeKeepsScraperAndRateLimitBehaviour(t *testing.T) 
 		wantChanged bool
 	}{
 		{"absent keys, no legacy key", "server:\n    port: 8088\n", true, 0, true},
-		{"absent scraper key, legacy false", "agent:\n    allow_web_scraper: false\ntools:\n    web_scraper:\n        summary_mode: true\nwebhooks:\n    enabled: true\n", false, 0, true},
-		{"absent scraper key, legacy true", "agent:\n    allow_web_scraper: true\n", true, 0, true},
-		{"absent scraper key, legacy string false", "agent:\n    allow_web_scraper: \"false\"\n", false, 0, true},
+		{"absent scraper key, legacy false", legacyScraper + "false\ntools:\n    web_scraper:\n        summary_mode: true\nwebhooks:\n    enabled: true\n", false, 0, true},
+		{"absent scraper key, legacy true", legacyScraper + "true\n", true, 0, true},
+		{"legacy quoted false", legacyScraper + "\"false\"\n", false, 0, true},
+		{"legacy quoted False", legacyScraper + "\"False\"\n", false, 0, true},
+		{"legacy no", legacyScraper + "no\n", false, 0, true},
+		{"legacy off", legacyScraper + "off\n", false, 0, true},
+		{"legacy N", legacyScraper + "N\n", false, 0, true},
+		{"legacy yes", legacyScraper + "yes\n", true, 0, true},
+		{"legacy On", legacyScraper + "On\n", true, 0, true},
+		{"legacy unrecognised string", legacyScraper + "maybe\n", false, 0, true},
+		{"legacy null", legacyScraper + "\n", true, 0, true},
+		{"null enabled", "tools:\n    web_scraper:\n        enabled:\n", true, 0, true},
+		{"null enabled keeps code default over legacy false", legacyScraper + "false\ntools:\n    web_scraper:\n        enabled:\n", true, 0, true},
+		{"null web_scraper section", "tools:\n    web_scraper:\n", true, 0, true},
+		{"null web_scraper section, legacy false", legacyScraper + "false\ntools:\n    web_scraper:\n", false, 0, true},
+		{"null tools section", "tools:\n", true, 0, true},
+		{"null rate_limit", "webhooks:\n    rate_limit:\n", true, 0, true},
+		{"null webhooks section", "webhooks:\n", true, 0, true},
+		{"null agent section", "agent:\n", true, 0, true},
 		{"explicit false and 60", "tools:\n    web_scraper:\n        enabled: false\nwebhooks:\n    rate_limit: 60\n", false, 60, true},
-		{"explicit true and 0, legacy false", "agent:\n    allow_web_scraper: false\ntools:\n    web_scraper:\n        enabled: true\nwebhooks:\n    rate_limit: 0\n", true, 0, true},
+		{"explicit true and 0, legacy false", legacyScraper + "false\ntools:\n    web_scraper:\n        enabled: true\nwebhooks:\n    rate_limit: 0\n", true, 0, true},
 		{"fresh install from template", tmplData, false, 60, false},
 	}
 	for _, tc := range cases {
@@ -444,10 +463,7 @@ func TestRepositoryTemplateMergeKeepsScraperAndRateLimitBehaviour(t *testing.T) 
 			if err != nil {
 				t.Fatalf("parse user config: %v", err)
 			}
-			merged := deepMerge(tmplMap, srcMap)
-			changed := applyUpgradeSafetyDefaults(merged, srcMap)
-			enforceTemplateTypes(merged, tmplMap)
-			sanitizeMergedConfig(merged)
+			merged, _, changed, _ := mergeWithTemplate(tmplMap, srcMap)
 
 			// Every case except the template copy lacks allow_unsandboxed_shell,
 			// which the shell rule materialises; the template writes it.
@@ -463,7 +479,69 @@ func TestRepositoryTemplateMergeKeepsScraperAndRateLimitBehaviour(t *testing.T) 
 			if webhooks["rate_limit"] != tc.wantRate {
 				t.Fatalf("webhooks.rate_limit = %v, want %v", webhooks["rate_limit"], tc.wantRate)
 			}
+			if _, ok := scraper["summary_mode"]; !ok {
+				t.Fatal("merged web_scraper section lost its template keys")
+			}
+
+			// The merged file must load to the same behaviour config.Load
+			// gave the user's file before the upgrade (when that loaded).
+			dir := t.TempDir()
+			srcPath := filepath.Join(dir, "source.yaml")
+			if err := os.WriteFile(srcPath, []byte(tc.user), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			outPath := filepath.Join(dir, "merged.yaml")
+			atomicWriteYAML(outPath, merged)
+			after, err := config.Load(outPath)
+			if err != nil {
+				t.Fatalf("Load(merged): %v", err)
+			}
+			if after.Tools.WebScraper.Enabled != tc.wantScraper || after.Webhooks.RateLimit != tc.wantRate {
+				t.Fatalf("merged config loads scraper %v, rate_limit %d; want %v, %d", after.Tools.WebScraper.Enabled, after.Webhooks.RateLimit, tc.wantScraper, tc.wantRate)
+			}
+			before, err := config.Load(srcPath)
+			if err != nil {
+				t.Logf("source config does not load on its own (%v); merged values checked only", err)
+				return
+			}
+			if before.Tools.WebScraper.Enabled != after.Tools.WebScraper.Enabled {
+				t.Fatalf("scraper before upgrade %v, after %v", before.Tools.WebScraper.Enabled, after.Tools.WebScraper.Enabled)
+			}
+			if before.Webhooks.RateLimit != after.Webhooks.RateLimit {
+				t.Fatalf("webhook rate limit before upgrade %d, after %d", before.Webhooks.RateLimit, after.Webhooks.RateLimit)
+			}
+			if before.Auth.Enabled != after.Auth.Enabled {
+				t.Fatalf("auth before upgrade %v, after %v", before.Auth.Enabled, after.Auth.Enabled)
+			}
+			if b, a := before.Agent.AllowUnsandboxedShell || before.Agent.LegacyUnsandboxedShell, after.Agent.AllowUnsandboxedShell || after.Agent.LegacyUnsandboxedShell; b != a {
+				t.Fatalf("unsandboxed shell before upgrade %v, after %v", b, a)
+			}
 		})
+	}
+}
+
+// A null auth section loads with auth off; the merge keeps it off instead of
+// letting the template's auth.enabled: true fill the null section.
+func TestMergeWithTemplateNullAuthSectionKeepsAuthOff(t *testing.T) {
+	tmplData, err := readNormalized(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatalf("read template: %v", err)
+	}
+	tmplMap, err := parseYAMLMap(tmplData)
+	if err != nil {
+		t.Fatalf("parse template: %v", err)
+	}
+	srcMap, err := parseYAMLMap("auth:\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	merged, _, _, _ := mergeWithTemplate(tmplMap, srcMap)
+	auth, ok := asStringMap(merged["auth"])
+	if !ok || auth["enabled"] != false {
+		t.Fatalf("auth = %#v, want a template section with enabled false", merged["auth"])
+	}
+	if _, ok := auth["session_timeout_hours"]; !ok {
+		t.Fatal("auth section lost its template keys")
 	}
 }
 

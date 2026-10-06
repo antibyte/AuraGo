@@ -455,7 +455,7 @@ tools:
     skill_timeout_seconds: 120
     background_timeout_seconds: 3600
     web_scraper:
-        enabled: true
+        enabled: false                                     # outbound page scraping into agent context; enable deliberately
         summary_mode: false
     wikipedia:
         summary_mode: false

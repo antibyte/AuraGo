@@ -385,7 +385,7 @@ agent:
 
 tools:
   web_scraper:
-    enabled: true                # ersetzt veraltetes allow_web_scraper
+    enabled: false               # lädt externe Seiten in den Agent-Kontext; bewusst aktivieren (ersetzt veraltetes allow_web_scraper)
 ```
 
 > ⚠️ **Tipp:** In Produktionsumgebungen nur das aktivieren, was wirklich benötigt wird.

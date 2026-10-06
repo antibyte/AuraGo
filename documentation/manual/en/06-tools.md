@@ -394,7 +394,7 @@ agent:
 
 tools:
   web_scraper:
-    enabled: true                # replaces deprecated allow_web_scraper (**Config → Agent Tools → Web Scraper**)
+    enabled: false               # outbound page scraping into agent context; enable deliberately (replaces deprecated allow_web_scraper, **Config → Agent Tools → Web Scraper**)
 ```
 
 > ⚠️ **Tip:** In production environments, only enable what you really need.

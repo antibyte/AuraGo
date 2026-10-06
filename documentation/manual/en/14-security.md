@@ -165,7 +165,7 @@ home_assistant:
   readonly: true     # get_states only
 tools:
   web_scraper:
-    enabled: true    # replaces deprecated agent.allow_web_scraper
+    enabled: false   # outbound page scraping into agent context; enable deliberately (replaces deprecated agent.allow_web_scraper)
 ```
 
 ### Integration Capabilities

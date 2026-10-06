@@ -320,7 +320,7 @@ tools:
     max_wakeups_per_hour: 10
     max_budget_per_hour_usd: 1.0
   web_scraper:
-    enabled: true
+    enabled: false                # lädt externe Seiten in den Agent-Kontext; bewusst aktivieren
     summary_mode: false
     summary_provider: ""
   document_creator:

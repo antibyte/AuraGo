@@ -75,10 +75,7 @@ func main() {
 	if parseErr == nil && srcMap != nil {
 		// ── Happy path: user config is valid YAML ──
 		missing := findMissingTopKeys(tmplMap, srcMap)
-		merged := deepMerge(tmplMap, srcMap)
-		safetyAdjusted := applyUpgradeSafetyDefaults(merged, srcMap)
-		typeFixed := enforceTemplateTypes(merged, tmplMap)
-		sanitized := sanitizeMergedConfig(merged)
+		merged, typeFixed, safetyAdjusted, sanitized := mergeWithTemplate(tmplMap, srcMap)
 
 		if len(missing) == 0 && !sanitized && !typeFixed && !safetyAdjusted {
 			fmt.Println("Config is up to date")
@@ -114,10 +111,7 @@ func main() {
 
 	var merged map[string]interface{}
 	if len(salvaged) > 0 {
-		merged = deepMerge(tmplMap, salvaged)
-		applyUpgradeSafetyDefaults(merged, salvaged)
-		enforceTemplateTypes(merged, tmplMap)
-		sanitizeMergedConfig(merged)
+		merged, _, _, _ = mergeWithTemplate(tmplMap, salvaged)
 		total := countTopLevelKeys(srcData)
 		log.Printf("Recovered %d/%d section(s); template defaults used for the rest", len(salvaged), total)
 	} else {
@@ -158,6 +152,19 @@ func parseYAMLMap(content string) (map[string]interface{}, error) {
 }
 
 // ── Deep Merge ───────────────────────────────────────────────────────────────
+
+// mergeWithTemplate overlays user onto tmpl and applies the fixes in order:
+// enforceTemplateTypes first, so a null or mistyped user value or section
+// falls back to the template's shape; then applyUpgradeSafetyDefaults, which
+// decides from the raw user config and can therefore still see such a null
+// and keep the pre-upgrade behaviour; then sanitizeMergedConfig.
+func mergeWithTemplate(tmpl, user map[string]interface{}) (merged map[string]interface{}, typeFixed, safetyAdjusted, sanitized bool) {
+	merged = deepMerge(tmpl, user)
+	typeFixed = enforceTemplateTypes(merged, tmpl)
+	safetyAdjusted = applyUpgradeSafetyDefaults(merged, user)
+	sanitized = sanitizeMergedConfig(merged)
+	return merged, typeFixed, safetyAdjusted, sanitized
+}
 
 // deepMerge recursively merges overlay into base and returns a new map.
 //   - Keys in both: overlay wins (recurse for nested maps).
@@ -227,16 +234,19 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 		}
 	}
 
-	// The template ships tools.web_scraper.enabled: false. A config without the
-	// key ran with the scraper on unless the legacy agent.allow_web_scraper said
-	// otherwise (config.Load: code default true, legacy key wins when the
-	// canonical key is absent), so write that effective value.
+	// The template ships tools.web_scraper.enabled: false. A config without a
+	// value there ran with the scraper on unless the legacy
+	// agent.allow_web_scraper said otherwise, so write that effective value,
+	// mirroring config.Load: the code default is true, a null enabled leaves
+	// it (and, being present, skips the legacy migration), and the legacy key
+	// wins only when enabled is absent, including under a null tools or
+	// web_scraper section.
 	userTools, _ := asStringMap(user["tools"])
 	userScraper, _ := asStringMap(userTools["web_scraper"])
-	if _, userSetScraper := userScraper["enabled"]; !userSetScraper {
+	if enabled, hasEnabled := userScraper["enabled"]; enabled == nil {
 		if toolsMap, ok := asStringMap(merged["tools"]); ok {
 			if scraperMap, ok := asStringMap(toolsMap["web_scraper"]); ok {
-				scraperMap["enabled"] = legacyWebScraperEnabled(userAgent)
+				scraperMap["enabled"] = hasEnabled || legacyWebScraperEnabled(userAgent)
 				toolsMap["web_scraper"] = scraperMap
 				merged["tools"] = toolsMap
 				changed = true
@@ -244,11 +254,12 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 		}
 	}
 
-	// The template ships webhooks.rate_limit: 60. A config without the key ran
-	// unlimited (0); keep that, the webhooks_no_rate_limit security hint still
-	// reports it on internet-facing instances.
+	// The template ships webhooks.rate_limit: 60. A config without a value
+	// there (absent, null, or under a null webhooks section) ran unlimited (0);
+	// keep that, the webhooks_no_rate_limit security hint still reports it on
+	// internet-facing instances.
 	userWebhooks, _ := asStringMap(user["webhooks"])
-	if _, userSetRateLimit := userWebhooks["rate_limit"]; !userSetRateLimit {
+	if userWebhooks["rate_limit"] == nil {
 		if webhooksMap, ok := asStringMap(merged["webhooks"]); ok {
 			webhooksMap["rate_limit"] = 0
 			merged["webhooks"] = webhooksMap
@@ -260,17 +271,26 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 }
 
 // legacyWebScraperEnabled returns the scraper state config.Load derived for a
-// config without tools.web_scraper.enabled: the legacy agent.allow_web_scraper
-// value when set (a "true"/"false" string counts, as enforceTemplateTypes
-// converts it), otherwise the code default true.
+// config without tools.web_scraper.enabled: the code default true when the
+// legacy agent.allow_web_scraper is absent or null, else its value. Strings
+// follow yaml.v3's typed-bool spellings (the YAML 1.1 y/yes/on and n/no/off
+// forms the generic map keeps as strings) plus quoted true/false; any other
+// value counts as false, the safe side, as enforceTemplateTypes falls back to
+// the template's false for it.
 func legacyWebScraperEnabled(userAgent map[string]interface{}) bool {
 	switch v := userAgent["allow_web_scraper"].(type) {
+	case nil:
+		return true
 	case bool:
 		return v
 	case string:
-		return strings.ToLower(v) != "false"
+		switch v {
+		case "y", "Y", "yes", "Yes", "YES", "on", "On", "ON", "true", "True", "TRUE":
+			return true
+		}
+		return false
 	default:
-		return true
+		return false
 	}
 }
 
