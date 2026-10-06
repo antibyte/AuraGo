@@ -34,7 +34,15 @@ func TestPreparePayloadKeepsJSONValidInsideIsolationBoundary(t *testing.T) {
 func TestPreparePayloadKeepsEscapedClosingTagInsideJSONBoundary(t *testing.T) {
 	t.Parallel()
 
-	prepared, err := PreparePayload([]byte(`{"m":"</external_data>"}`), "application/json", nil, 4000)
+	// Built from a backslash rune so the source cannot lose the escapes: the
+	// body is {"m":"<backslash>u003c/external_data<backslash>u003e"}.
+	backslash := string(rune(0x5c))
+	body := []byte(`{"m":"` + backslash + `u003c/external_data` + backslash + `u003e"}`)
+	if strings.ContainsAny(string(body), "<>") || strings.Count(string(body), backslash+"u003") != 2 {
+		t.Fatalf("test body must spell the tag only with JSON escapes: %s", body)
+	}
+
+	prepared, err := PreparePayload(body, "application/json", nil, 4000)
 	if err != nil {
 		t.Fatalf("PreparePayload() error = %v", err)
 	}

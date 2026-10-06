@@ -111,21 +111,23 @@ func (m *Manager) MigrateSignatureSecrets(vault *security.Vault) error {
 // manage_webhooks tool builds a fresh Manager (and loads the file) per call.
 var sha1WebhookWarnings sync.Map
 
-// warnDeprecatedSHA1Webhooks logs once per webhook ID that sha1 signatures no
-// longer authenticate a request on their own; such webhooks need their bearer
-// token (the signature is still verified) or a switch to sha256.
-func warnDeprecatedSHA1Webhooks(logger *slog.Logger, list []Webhook) {
-	if logger == nil {
-		logger = slog.Default()
-	}
+// warnDeprecatedSHA1Webhooks logs once per webhook ID (tracked in seen) that
+// sha1 signatures no longer authenticate a request on their own; such webhooks
+// need their bearer token (the signature is still verified) or sha256. The
+// token advice is only given when no token is bound yet.
+func warnDeprecatedSHA1Webhooks(logger *slog.Logger, list []Webhook, seen *sync.Map) {
 	for _, wh := range list {
 		if strings.ToLower(strings.TrimSpace(wh.Format.SignatureAlgo)) != "sha1" {
 			continue
 		}
-		if _, alreadyWarned := sha1WebhookWarnings.LoadOrStore(wh.ID, struct{}{}); alreadyWarned {
+		if _, alreadyWarned := seen.LoadOrStore(wh.ID, struct{}{}); alreadyWarned {
 			continue
 		}
-		logger.Warn("[Webhooks] sha1 signatures are deprecated; add a bearer token or switch to sha256", "webhook", wh.ID)
+		if strings.TrimSpace(wh.TokenID) == "" {
+			logger.Warn("[Webhooks] sha1 signatures are deprecated; add a bearer token or switch to sha256", "webhook", wh.ID)
+		} else {
+			logger.Warn("[Webhooks] sha1 signatures are deprecated; switch to sha256", "webhook", wh.ID)
+		}
 	}
 }
 
@@ -172,7 +174,7 @@ func (m *Manager) load() error {
 	if err := json.Unmarshal(data, &m.webhooks); err != nil {
 		return err
 	}
-	warnDeprecatedSHA1Webhooks(slog.Default(), m.webhooks)
+	warnDeprecatedSHA1Webhooks(slog.Default(), m.webhooks, &sha1WebhookWarnings)
 	return nil
 }
 

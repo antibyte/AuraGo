@@ -287,16 +287,28 @@ func oauthProviderMissingFields(prov *config.ProviderEntry) []string {
 	return missing
 }
 
+// applyOAuthTokenToRuntime publishes freshly stored OAuth access tokens the
+// same way the background refresher does: copy the current snapshot, apply the
+// tokens, publish through replaceConfigSnapshot (which also registers the new
+// token for log scrubbing), then rebuild the LLM clients.
 func applyOAuthTokenToRuntime(s *Server) {
 	if s == nil || s.Vault == nil {
 		return
 	}
 	s.CfgMu.Lock()
-	s.Cfg.ApplyOAuthTokens(s.Vault)
-	if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
-		fm.Reconfigure(s.Cfg)
+	current := s.ConfigSnapshot()
+	if current == nil {
+		s.CfgMu.Unlock()
+		return
 	}
-	s.LLMGuardian = security.NewLLMGuardian(s.Cfg, s.Logger)
+	updatedConfig := *current
+	updatedConfig.Providers = append([]config.ProviderEntry(nil), current.Providers...)
+	updatedConfig.ApplyOAuthTokens(s.Vault)
+	s.replaceConfigSnapshot(&updatedConfig)
+	if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
+		fm.Reconfigure(&updatedConfig)
+	}
+	s.LLMGuardian = security.NewLLMGuardian(&updatedConfig, s.Logger)
 	s.CfgMu.Unlock()
 	agent.ResetGlobalHelperLLMManager()
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -98,5 +99,32 @@ func TestRateLimitAwareTransportBoundsRateLimitBody(t *testing.T) {
 	}
 	if got := GetRetryAfter(err); got != 11*time.Second {
 		t.Fatalf("GetRetryAfter() = %v, want 11s", got)
+	}
+}
+
+func TestRateLimitAwareTransportKeepsCutBodyValidUTF8(t *testing.T) {
+	// One ASCII byte shifts the two-byte runes so the 4 KiB cut splits one.
+	payload := "x" + strings.Repeat("é", 4<<10)
+	transport := &rateLimitAwareTransport{base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusTooManyRequests,
+			Header:     http.Header{},
+			Body:       io.NopCloser(strings.NewReader(payload)),
+		}, nil
+	})}
+	req, err := http.NewRequest(http.MethodPost, "https://example.invalid/v1/chat/completions", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("http.NewRequest() error = %v", err)
+	}
+	_, err = transport.RoundTrip(req)
+	var apiErr *openai.APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("RoundTrip() error = %v, want *openai.APIError inside", err)
+	}
+	if !utf8.ValidString(apiErr.Message) {
+		t.Fatalf("APIError message is not valid UTF-8 after the cut: %q", apiErr.Message[len(apiErr.Message)-4:])
+	}
+	if len(apiErr.Message) > 4<<10 {
+		t.Fatalf("APIError message length = %d, want <= %d", len(apiErr.Message), 4<<10)
 	}
 }

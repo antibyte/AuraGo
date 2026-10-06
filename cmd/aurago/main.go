@@ -658,6 +658,8 @@ func main() {
 
 	// Apply OAuth2 access tokens from vault into provider API keys
 	cfg.ApplyOAuthTokens(vault)
+	// Mask the resolved LLM keys in logs before the LLM client is built.
+	server.RegisterLLMSecrets(cfg)
 
 	// Initialize GitHub Copilot auth manager if a token is stored in the vault
 	if copilotToken, err := vault.ReadSecret("copilot_github_token"); err == nil && copilotToken != "" {

@@ -279,14 +279,14 @@ func detectContextWindowOllama(baseURL, model string, logger *slog.Logger) int {
 	client := newProbeHTTPClient(10 * time.Second)
 	req, err := http.NewRequest("POST", showURL, bytes.NewReader(payloadBytes))
 	if err != nil {
-		logger.Debug("[ContextDetect/Ollama] Failed to create request", "error", err)
+		logger.Debug("[ContextDetect/Ollama] Failed to create request", "error", redactProviderErr(err))
 		return 0
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Debug("[ContextDetect/Ollama] Failed to query /api/show", "error", err, "url", redactProviderURL(showURL))
+		logger.Debug("[ContextDetect/Ollama] Failed to query /api/show", "error", redactProviderErr(err), "url", redactProviderURL(showURL))
 		return 0
 	}
 	defer resp.Body.Close()
@@ -375,7 +375,7 @@ func queryModelsEndpoint(client *http.Client, modelsURL, apiKey, model string, l
 	logURL := redactProviderURL(modelsURL)
 	req, err := http.NewRequest("GET", modelsURL, nil)
 	if err != nil {
-		logger.Debug("[ContextDetect] Failed to create request", "error", err, "url", logURL)
+		logger.Debug("[ContextDetect] Failed to create request", "error", redactProviderErr(err), "url", logURL)
 		return 0
 	}
 	if apiKey != "" {
@@ -384,7 +384,7 @@ func queryModelsEndpoint(client *http.Client, modelsURL, apiKey, model string, l
 
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Debug("[ContextDetect] Failed to query models API", "error", err, "url", logURL)
+		logger.Debug("[ContextDetect] Failed to query models API", "error", redactProviderErr(err), "url", logURL)
 		return 0
 	}
 	defer resp.Body.Close()

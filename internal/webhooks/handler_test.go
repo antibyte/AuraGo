@@ -593,22 +593,38 @@ func TestWarnDeprecatedSHA1WebhooksLogsOncePerWebhook(t *testing.T) {
 	t.Parallel()
 
 	var logs lockedLogBuffer
+	var seen sync.Map
 	logger := slog.New(slog.NewTextHandler(&logs, nil))
 	list := []Webhook{
-		{ID: "sha1-warn-test-7f3a9c", Format: WebhookFormat{SignatureAlgo: " SHA1 "}},
-		{ID: "sha256-warn-test-7f3a9c", Format: WebhookFormat{SignatureAlgo: "sha256"}},
-		{ID: "plain-warn-test-7f3a9c"},
+		{ID: "sha1-unbound", Format: WebhookFormat{SignatureAlgo: " SHA1 "}},
+		{ID: "sha1-bound", TokenID: "token-1", Format: WebhookFormat{SignatureAlgo: "sha1"}},
+		{ID: "sha256-hook", Format: WebhookFormat{SignatureAlgo: "sha256"}},
+		{ID: "unsigned-hook"},
 	}
 
-	warnDeprecatedSHA1Webhooks(logger, list)
-	warnDeprecatedSHA1Webhooks(logger, list)
+	warnDeprecatedSHA1Webhooks(logger, list, &seen)
+	warnDeprecatedSHA1Webhooks(logger, list, &seen)
 
-	got := logs.String()
-	if count := strings.Count(got, "sha1 signatures are deprecated"); count != 1 {
-		t.Fatalf("deprecation warnings = %d, want exactly 1; logs=%s", count, got)
+	lines := strings.Split(strings.TrimSpace(logs.String()), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("deprecation warnings = %d, want one per sha1 webhook; logs=%q", len(lines), lines)
 	}
-	if !strings.Contains(got, "webhook=sha1-warn-test-7f3a9c") || strings.Contains(got, "sha256-warn-test") {
-		t.Fatalf("warning names the wrong webhook: %s", got)
+	var unbound, bound string
+	for _, line := range lines {
+		switch {
+		case strings.Contains(line, "webhook=sha1-unbound"):
+			unbound = line
+		case strings.Contains(line, "webhook=sha1-bound"):
+			bound = line
+		default:
+			t.Fatalf("warning names an unexpected webhook: %s", line)
+		}
+	}
+	if !strings.Contains(unbound, "sha1 signatures are deprecated; add a bearer token or switch to sha256") {
+		t.Fatalf("webhook without a bound token got the wrong advice: %s", unbound)
+	}
+	if !strings.Contains(bound, "sha1 signatures are deprecated; switch to sha256") || strings.Contains(bound, "add a bearer token") {
+		t.Fatalf("webhook with a bound token got the wrong advice: %s", bound)
 	}
 }
 
@@ -617,7 +633,11 @@ func TestNewManagerFlagsLoadedSHA1WebhooksForDeprecationWarning(t *testing.T) {
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "webhooks.json")
-	const id = "sha1-load-test-2b8e41"
+	// load() uses the process-wide guard, so a fresh ID keeps reruns meaningful.
+	id := "sha1-load-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	if _, already := sha1WebhookWarnings.Load(id); already {
+		t.Fatalf("webhook ID %q is already flagged before loading", id)
+	}
 	data := `[{"id":"` + id + `","name":"Legacy","slug":"legacy-hook","enabled":true,"format":{"signature_header":"X-Hub-Signature","signature_algo":"sha1"}}]`
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)

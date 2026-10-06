@@ -34,7 +34,8 @@ func (t *rateLimitAwareTransport) RoundTrip(req *http.Request) (*http.Response, 
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxRateLimitBodyBytes))
 	resp.Body.Close()
 
-	msg := strings.TrimSpace(string(body))
+	// The cap can split a multi-byte rune; drop the partial tail.
+	msg := strings.TrimSpace(strings.ToValidUTF8(string(body), ""))
 	if msg == "" {
 		msg = "rate limit exceeded"
 	}
