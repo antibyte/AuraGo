@@ -123,22 +123,22 @@ func detectStatementType(query, driver string) (StatementType, error) {
 			}
 			return StmtSelect, nil
 		case "INSERT", "REPLACE":
-			if err := validateWriteStructure(trimmed); err != nil {
+			if err := validateWriteStructure(query, driver); err != nil {
 				return StmtUnknown, err
 			}
 			return StmtInsert, nil
 		case "UPDATE":
-			if err := validateWriteStructure(trimmed); err != nil {
+			if err := validateWriteStructure(query, driver); err != nil {
 				return StmtUnknown, err
 			}
 			return StmtUpdate, nil
 		case "DELETE":
-			if err := validateWriteStructure(trimmed); err != nil {
+			if err := validateWriteStructure(query, driver); err != nil {
 				return StmtUnknown, err
 			}
 			return StmtDelete, nil
 		case "CREATE", "DROP", "ALTER", "TRUNCATE", "VACUUM", "ANALYZE", "REINDEX", "OPTIMIZE", "CHECK", "REPAIR", "GRANT", "REVOKE", "DENY":
-			if err := validateWriteStructure(trimmed); err != nil {
+			if err := validateWriteStructure(query, driver); err != nil {
 				return StmtUnknown, err
 			}
 			return StmtDDL, nil
@@ -150,35 +150,35 @@ func detectStatementType(query, driver string) (StatementType, error) {
 		}
 
 	case "INSERT", "REPLACE":
-		if err := validateWriteStructure(trimmed); err != nil {
+		if err := validateWriteStructure(query, driver); err != nil {
 			return StmtUnknown, err
 		}
 		return StmtInsert, nil
 	case "UPDATE":
-		if err := validateWriteStructure(trimmed); err != nil {
+		if err := validateWriteStructure(query, driver); err != nil {
 			return StmtUnknown, err
 		}
 		return StmtUpdate, nil
 	case "DELETE":
-		if err := validateWriteStructure(trimmed); err != nil {
+		if err := validateWriteStructure(query, driver); err != nil {
 			return StmtUnknown, err
 		}
 		return StmtDelete, nil
 	case "TRUNCATE":
 		// TRUNCATE is DDL (not just DML) — requires allow_write AND allow_change
-		if err := validateWriteStructure(trimmed); err != nil {
+		if err := validateWriteStructure(query, driver); err != nil {
 			return StmtUnknown, err
 		}
 		return StmtDDL, nil
 	case "CREATE", "DROP", "ALTER":
-		if err := validateWriteStructure(trimmed); err != nil {
+		if err := validateWriteStructure(query, driver); err != nil {
 			return StmtUnknown, err
 		}
 		return StmtDDL, nil
 
 		// Administrative commands — block these as they are not typical SQL queries
 	case "VACUUM", "ANALYZE", "REINDEX", "OPTIMIZE", "CHECK", "REPAIR":
-		if err := validateWriteStructure(trimmed); err != nil {
+		if err := validateWriteStructure(query, driver); err != nil {
 			return StmtUnknown, err
 		}
 		return StmtDDL, nil
@@ -193,7 +193,7 @@ func detectStatementType(query, driver string) (StatementType, error) {
 
 	case "GRANT", "REVOKE", "DENY":
 		// Permission changes are DDL-like
-		if err := validateWriteStructure(trimmed); err != nil {
+		if err := validateWriteStructure(query, driver); err != nil {
 			return StmtUnknown, err
 		}
 		return StmtDDL, nil

@@ -37,7 +37,7 @@ Each connection has four independent permission flags:
 
 **Security note**: `PRAGMA` statements are blocked for safety because some variants can mutate database state.
 
-**Security note**: File, loader and administrative SQL is refused in write and DDL statements (for example `pg_read_file`, `LOAD_FILE`, `load_extension`, `INTO OUTFILE`, `CREATE EXTENSION`, `ALTER SYSTEM`); ordinary write functions are unaffected.
+**Security note**: File, loader and administrative SQL is refused in write and DDL statements (for example `pg_read_file`, `LOAD_FILE`, `load_extension`, `INTO OUTFILE`, `CREATE EXTENSION`, `ALTER SYSTEM`); ordinary write functions are unaffected. As a side effect, tables or columns named exactly `copy`, `outfile` or `dumpfile` cannot be written through this tool.
 
 ## Best Practices
 - Always use `list_tables` first to discover available tables.
