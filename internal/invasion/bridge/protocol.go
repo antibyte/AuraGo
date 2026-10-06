@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -157,6 +158,14 @@ type AckPayload struct {
 type ErrorPayload struct {
 	Code    string `json:"code"` // "auth_failed" | "invalid_hmac" | "unknown_type" | "internal"
 	Message string `json:"message"`
+}
+
+// IsReservedEggSecretName reports vault names a SecretPayload must never carry:
+// the egg's shared key (egg_shared_key) changes only through a rekey, and the
+// egg_shared_/egg_master_key_ families hold invasion key material.
+func IsReservedEggSecretName(key string) bool {
+	lower := strings.ToLower(strings.TrimSpace(key))
+	return strings.HasPrefix(lower, "egg_shared_") || strings.HasPrefix(lower, "egg_master_key_")
 }
 
 // ReconfigurePayload carries a safe config patch from master to egg.

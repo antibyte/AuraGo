@@ -27,29 +27,48 @@ the Egg runtime in `cmd/aurago`.
   seconds) and drops it on commit or rollback. Preserve these bounds; protocol
   checks still apply under the previous key.
 - Key rotation is two-phase. The handler reserves the nest
-  (`EggHub.BeginKeyRotation`), stages `egg_shared_<nest>_next`, and
-  `SendRekey` sends under the current key. The Egg persists the key
+  (`EggHub.BeginKeyRotation`) and first checks that the vault's current key is
+  the live connection's (`EggHub.ConnectionKeyMatches`): if only `_next`
+  matches (a failed commit or promotion) it commits `_next` as persisted,
+  otherwise it answers 409 without staging. It then stages
+  `egg_shared_<nest>_next`, and `SendRekey` sends under the current key. The Egg persists the key
   (`EggClient.OnRekey` → vault `egg_shared_key`) before switching and acking
   under the new key with `AckPayload.Persisted` set; no handler, a version
   other than current+1, or a persist error is a signed rejection under the old
   key. The Master commits only after the ack and rolls back otherwise. With
   `Persisted` the commit is the new key alone (the old key dies at commit);
   an ack without it (an Egg predating the flag, key possibly only in memory)
-  also keeps the old key as dated `_prev`. `_next` is dropped either way. A
+  also keeps the replaced live key as dated `_prev`, unless a still-fresh
+  `_prev` exists (that older key is what such an Egg's disk holds).
+  `_next` is dropped either way (`commitEggKeyRotation`). A
   timed-out rotation stays unresolved (no new rotation) until the Egg's
-  rejection arrives or the socket ends. The handshake tries current, `_next`,
+  rejection arrives or the socket ends; `awaitAck` also stops when the socket
+  closes. Frames the Master sends while a rekey is in flight are signed with
+  the new key, so an Egg that rejects (or adopts late) drops the socket and
+  those commands are lost (`TestCommandSentDuringRejectedRekeyIsLost`). The
+  handshake reads all slots from one vault snapshot (a read error changes
+  nothing) and tries current, `_next`,
   `_prev`; a `_next`/`_prev` match is promoted and the others removed, and a
   current-key match retires `_prev`. `_prev` is dated by `_prev_at` (written
   in the commit) and honoured only within `eggPrevKeyGrace` (one hour); an
   undated, expired or future-dated `_prev` is deleted at the next handshake.
   Re-hatching (`storeEggSharedKey`) replaces the key and drops every
   candidate atomically. The `egg_shared_` and `egg_master_key_` vault
-  prefixes are reserved. Tests: `TestSendRekey*`,
+  prefixes are reserved, and secrets sent to an Egg may not use them
+  (send-secret handler and `EggClient` both refuse; `IsReservedEggSecretName`).
+  Tests: `TestSendRekey*`, `TestEggRekeyAckCarriesPersistedFlagOnlyOnSuccess`,
+  `TestEggRejectsSecretsWithReservedNames`,
   `TestEggRejectsRekeyWithUnexpectedVersion`,
   `TestBeginKeyRotationSerializesRotationsPerNest`,
   `TestHeartbeatAndRekeyRemainOrderedUnderConcurrentTraffic` (bridge) and
   `TestInvasionHandshake*`, `TestInvasionRehatchRevokesRotationCandidates`,
-  `TestInvasionRotateKey*` (server).
+  `TestInvasionRotateKey*`, `TestEggPrevKeyFreshBoundaries`,
+  `TestInvasionSendSecretRefusesReservedNames` (server).
+- B6: the Egg's `config.yaml` must stay writable. The hatch-time
+  `egg_mode.shared_key` is migrated into the vault and removed from the file
+  at startup; if it cannot be removed, the overwriting migration copies the
+  hatch-time key over a persisted rotation at every restart and the Egg is
+  locked out.
 - SSH deployment and reconfiguration transmit secret-bearing file content over
   encrypted stdin with a fixed exec command. Publish private mode-0600 temporary
   files atomically as the configured SSH user; keep the last valid file on error.

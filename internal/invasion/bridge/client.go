@@ -538,51 +538,17 @@ func (c *EggClient) readLoop() {
 		case MsgSecret:
 			var secret SecretPayload
 			if err := json.Unmarshal(msg.Payload, &secret); err == nil && c.OnSecret != nil {
+				if IsReservedEggSecretName(secret.Key) {
+					// The shared key must change only through a rekey.
+					c.logger.Warn("Rejected secret with a reserved name", "key", secret.Key)
+					c.sendAck(msg.ID, false, "reserved secret name")
+					continue
+				}
 				c.OnSecret(secret)
 				c.sendAck(msg.ID, true, "secret stored")
 			}
 		case MsgRekey:
-			var rekey RekeyPayload
-			if err := json.Unmarshal(msg.Payload, &rekey); err != nil {
-				c.logger.Warn("Invalid rekey payload", "error", err)
-				c.sendAck(msg.ID, false, "invalid payload")
-				continue
-			}
-			newKey, err := DecryptWithSharedKey(rekey.NewKeyEncrypted, c.SharedKeySnapshot())
-			if err != nil {
-				c.logger.Warn("Failed to decrypt new key", "error", err)
-				c.sendAck(msg.ID, false, "decryption failed")
-				continue
-			}
-			c.mu.Lock()
-			decoded, decodeErr := hex.DecodeString(string(newKey))
-			versionOK := rekey.KeyVersion == c.keyVersion+1
-			c.mu.Unlock()
-			if decodeErr != nil || len(decoded) != 32 || !versionOK {
-				c.logger.Warn("Rejected rekey", "version", rekey.KeyVersion)
-				c.sendAck(msg.ID, false, "rekey version or key invalid")
-				continue
-			}
-			// Persist before switching: a restart must come back with the key
-			// the master commits once it sees this ack. The ack below is
-			// signed with the new key; a rejection keeps the current one.
-			if c.OnRekey == nil {
-				c.logger.Warn("Rejected rekey: no handler persists the rotated key")
-				c.sendAck(msg.ID, false, "rekey handler unavailable")
-				continue
-			}
-			if err := c.OnRekey(string(newKey), rekey.KeyVersion); err != nil {
-				c.logger.Error("Failed to persist rotated key; keeping the current key", "error", err)
-				c.sendAck(msg.ID, false, "persist failed")
-				continue
-			}
-			c.mu.Lock()
-			c.SharedKey = string(newKey)
-			c.keyVersion = rekey.KeyVersion
-			c.mu.Unlock()
-			c.logger.Info("Shared key rotated", "version", rekey.KeyVersion)
-			// Persisted tells the master the old key can be retired at commit.
-			c.sendAckPayload(AckPayload{RefID: msg.ID, Success: true, Detail: fmt.Sprintf("key rotated to v%d", rekey.KeyVersion), Persisted: true})
+			c.handleRekey(msg)
 		case MsgSafeReconfigure:
 			var reconfigPayload ReconfigurePayload
 			if err := json.Unmarshal(msg.Payload, &reconfigPayload); err != nil {
@@ -611,6 +577,52 @@ func (c *EggClient) readLoop() {
 			c.logger.Warn("Unknown message type from master", "type", msg.Type)
 		}
 	}
+}
+
+// handleRekey runs on the read loop, so no later master frame (signed with the
+// new key) is read before the rotation is decided.
+func (c *EggClient) handleRekey(msg Message) {
+	var rekey RekeyPayload
+	if err := json.Unmarshal(msg.Payload, &rekey); err != nil {
+		c.logger.Warn("Invalid rekey payload", "error", err)
+		c.sendAck(msg.ID, false, "invalid payload")
+		return
+	}
+	newKey, err := DecryptWithSharedKey(rekey.NewKeyEncrypted, c.SharedKeySnapshot())
+	if err != nil {
+		c.logger.Warn("Failed to decrypt new key", "error", err)
+		c.sendAck(msg.ID, false, "decryption failed")
+		return
+	}
+	c.mu.Lock()
+	decoded, decodeErr := hex.DecodeString(string(newKey))
+	versionOK := rekey.KeyVersion == c.keyVersion+1
+	c.mu.Unlock()
+	if decodeErr != nil || len(decoded) != 32 || !versionOK {
+		c.logger.Warn("Rejected rekey", "version", rekey.KeyVersion)
+		c.sendAck(msg.ID, false, "rekey version or key invalid")
+		return
+	}
+	// Persist before switching: a restart must come back with the key the
+	// master commits once it sees this ack. The ack below is signed with the
+	// new key; a rejection keeps the current one.
+	if c.OnRekey == nil {
+		c.logger.Warn("Rejected rekey: no handler persists the rotated key")
+		c.sendAck(msg.ID, false, "rekey handler unavailable")
+		return
+	}
+	if err := c.OnRekey(string(newKey), rekey.KeyVersion); err != nil {
+		c.logger.Error("Failed to persist rotated key; keeping the current key", "error", err)
+		c.sendAck(msg.ID, false, "persist failed")
+		return
+	}
+	c.mu.Lock()
+	c.SharedKey = string(newKey)
+	c.keyVersion = rekey.KeyVersion
+	c.mu.Unlock()
+	c.logger.Info("Shared key rotated", "version", rekey.KeyVersion)
+	// Persisted tells the master the old key can be retired at commit.
+	c.sendAckPayload(AckPayload{RefID: msg.ID, Success: true, Detail: fmt.Sprintf("key rotated to v%d", rekey.KeyVersion), Persisted: true})
 }
 
 func (c *EggClient) runAckedHandler(refID, successDetail string, handler func() error) {

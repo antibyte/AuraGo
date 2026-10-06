@@ -607,12 +607,12 @@ func TestSendRekeyWaitsForAckAndPersistsOnEgg(t *testing.T) {
 		}
 	})
 	newKey := validKey(t)
-	confirmed, err := f.hub.SendRekey(context.Background(), "nest", newKey)
+	result, err := f.hub.SendRekey(context.Background(), "nest", newKey)
 	if err != nil {
 		t.Fatalf("SendRekey: %v", err)
 	}
-	if !confirmed {
-		t.Fatal("the egg's success ack must carry persisted:true")
+	if !result.Persisted || result.ReplacedKey != f.oldKey {
+		t.Fatal("the egg's success ack must carry persisted:true and the hub must report the replaced key")
 	}
 	select {
 	case got := <-persisted:
@@ -637,12 +637,12 @@ func TestSendRekeyRollsBackWhenEggCannotPersist(t *testing.T) {
 		c.OnRekey = func(string, int) error { return errors.New("disk full at /secret/path") }
 		h.OnHeartbeat = func(string, HeartbeatPayload) { heartbeats <- struct{}{} }
 	})
-	confirmed, err := f.hub.SendRekey(context.Background(), "nest", validKey(t))
+	_, err := f.hub.SendRekey(context.Background(), "nest", validKey(t))
 	if err == nil {
 		t.Fatal("SendRekey must fail when the egg rejects")
 	}
-	if confirmed {
-		t.Fatal("a rejection must not carry persisted:true")
+	if !IsAckRejected(err) {
+		t.Fatalf("an explicit rejection must be reported as such: %v", err)
 	}
 	if strings.Contains(err.Error(), "/secret/path") {
 		t.Fatalf("egg rejection leaked its local error: %v", err)
@@ -747,10 +747,15 @@ func TestSendRekeyLostAckLeavesEggOnPersistedKey(t *testing.T) {
 		}
 	})
 	newKey := validKey(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-	defer cancel()
-	if _, err := f.hub.SendRekey(ctx, "nest", newKey); err == nil {
-		t.Fatal("SendRekey must fail without an ack")
+	// No deadline: the wait must end when the socket closes, long before the
+	// hub's 15 s ack timeout.
+	started := time.Now()
+	_, err := f.hub.SendRekey(context.Background(), "nest", newKey)
+	if err == nil || IsAckRejected(err) {
+		t.Fatalf("SendRekey must fail without an ack: %v", err)
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("SendRekey waited %v on a closed connection", elapsed)
 	}
 	if current, previous, _ := f.hubKeys(); current != f.oldKey || previous != "" {
 		t.Fatal("hub must roll back to the old key when the ack is lost")
@@ -817,18 +822,153 @@ func TestSendRekeyReportsLegacyAckWithoutPersistence(t *testing.T) {
 	}()
 
 	newKey := validKey(t)
-	confirmed, err := hub.SendRekey(context.Background(), "nest", newKey)
+	result, err := hub.SendRekey(context.Background(), "nest", newKey)
 	if legacyErr := <-legacy; legacyErr != nil {
 		t.Fatal(legacyErr)
 	}
 	if err != nil {
 		t.Fatalf("a legacy success ack still commits the rotation: %v", err)
 	}
-	if confirmed {
+	if result.Persisted || result.ReplacedKey != oldKey {
 		t.Fatal("an ack without the persisted field must not count as persisted")
 	}
 	if current, previous, _ := (rekeyFixture{conn: conn}).hubKeys(); current != newKey || previous != "" {
 		t.Fatal("hub must commit the new key")
+	}
+}
+
+// The egg's own ack carries the flag only when it stored the key; checked on
+// the wire against a raw master socket.
+func TestEggRekeyAckCarriesPersistedFlagOnlyOnSuccess(t *testing.T) {
+	s, c, cleanup := wsPair(t)
+	defer cleanup()
+	oldKey, newKey := validKey(t), validKey(t)
+	client := NewEggClient("", "egg", "nest", oldKey, "fixture", testLogger())
+	client.conn, client.session = c, testSession(t, "egg", "nest", "egg")
+	client.OnRekey = func(string, int) error { return nil }
+	done := make(chan struct{})
+	go func() { defer close(done); client.readLoop() }()
+	defer func() { client.Stop(); <-done }()
+
+	master := testSession(t, "egg", "nest", "master")
+	exchange := func(version int, ackKey string) AckPayload {
+		t.Helper()
+		encrypted, err := EncryptWithSharedKey([]byte(newKey), oldKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		msg, err := NewMessage(MsgRekey, "egg", "nest", oldKey, RekeyPayload{NewKeyEncrypted: encrypted, KeyVersion: version})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := master.Prepare(msg, oldKey); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.WriteJSON(msg); err != nil {
+			t.Fatal(err)
+		}
+		_ = s.SetReadDeadline(time.Now().Add(2 * time.Second))
+		var reply Message
+		if err := s.ReadJSON(&reply); err != nil {
+			t.Fatal(err)
+		}
+		if err := master.Accept(reply, ackKey, ""); err != nil {
+			t.Fatalf("ack not signed with the expected key: %v", err)
+		}
+		var ack AckPayload
+		if err := json.Unmarshal(reply.Payload, &ack); err != nil || ack.RefID != msg.ID {
+			t.Fatalf("unexpected ack %s: %v", reply.Payload, err)
+		}
+		return ack
+	}
+	if ack := exchange(7, oldKey); ack.Success || ack.Persisted {
+		t.Fatalf("a rejected rekey must carry success:false, persisted:false: %+v", ack)
+	}
+	if ack := exchange(1, newKey); !ack.Success || !ack.Persisted {
+		t.Fatalf("a stored rekey must carry success:true, persisted:true: %+v", ack)
+	}
+}
+
+func TestSendRekeyHonoursHubAckTimeout(t *testing.T) {
+	release := make(chan error, 1)
+	f := newRekeyFixture(t, func(h *EggHub, c *EggClient) {
+		h.ackTimeout = 100 * time.Millisecond
+		c.OnRekey = func(string, int) error { return <-release }
+	})
+	defer func() { release <- errors.New("test ended") }()
+	started := time.Now()
+	_, err := f.hub.SendRekey(context.Background(), "nest", validKey(t))
+	if err == nil || !strings.Contains(err.Error(), "timed out waiting for ack") {
+		t.Fatalf("SendRekey must give up at the hub's ack timeout: %v", err)
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("ack timeout ignored: waited %v", elapsed)
+	}
+	if current, _, _ := f.hubKeys(); current != f.oldKey || !f.hub.rekeyUnresolved("nest") {
+		t.Fatal("a timed-out rotation rolls back and stays unresolved")
+	}
+}
+
+// Documents a known loss: a command sent while the rekey is in flight is
+// signed with the new key, so an egg that rejects the rotation cannot verify
+// it and drops the socket. The command is not delivered; the egg reconnects.
+func TestCommandSentDuringRejectedRekeyIsLost(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan error, 1)
+	var tasks atomic.Int32
+	f := newRekeyFixture(t, func(_ *EggHub, c *EggClient) {
+		c.OnRekey = func(string, int) error { close(started); return <-release }
+		c.OnTask = func(TaskPayload) { tasks.Add(1) }
+	})
+	newKey := validKey(t)
+	result := make(chan error, 1)
+	go func() {
+		_, err := f.hub.SendRekey(context.Background(), "nest", newKey)
+		result <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		release <- nil
+		t.Fatal("egg never received the rekey")
+	}
+	if err := f.hub.SendTask("nest", TaskPayload{TaskID: "in-flight"}); err != nil {
+		release <- nil
+		t.Fatal(err)
+	}
+	release <- errors.New("persist failed")
+	if err := <-result; !IsAckRejected(err) {
+		t.Fatalf("the rejection still reaches the master first: %v", err)
+	}
+	waitForBridge(t, "egg to drop the socket on the new-key frame", func() bool { return !f.hub.IsConnected("nest") })
+	if tasks.Load() != 0 {
+		t.Fatal("the in-flight command cannot have been delivered")
+	}
+}
+
+func TestEggRejectsSecretsWithReservedNames(t *testing.T) {
+	stored := make(chan string, 4)
+	f := newRekeyFixture(t, func(_ *EggHub, c *EggClient) {
+		c.OnSecret = func(secret SecretPayload) { stored <- secret.Key }
+	})
+	for _, key := range []string{"egg_shared_key", "EGG_SHARED_KEY", "egg_master_key_x"} {
+		if err := f.hub.SendSecret("nest", key, "00"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := f.hub.SendSecret("nest", "api_token", "00"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case got := <-stored:
+		if got != "api_token" {
+			t.Fatalf("reserved secret %q reached OnSecret", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ordinary secret was not delivered")
+	}
+	if !IsReservedEggSecretName(" Egg_Shared_Key ") || IsReservedEggSecretName("egg_notes") {
+		t.Fatal("reserved-name check must be case-insensitive and prefix-exact")
 	}
 }
 

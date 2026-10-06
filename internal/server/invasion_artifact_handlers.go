@@ -276,7 +276,7 @@ func verifyEggSignedRequest(s *Server, r *http.Request, body []byte) (string, st
 	if delta := time.Since(when); delta > 5*time.Minute || delta < -5*time.Minute {
 		return "", "", fmt.Errorf("timestamp outside allowed window")
 	}
-	sharedKey, err := s.Vault.ReadSecret("egg_shared_" + nestID)
+	sharedKey, err := s.Vault.ReadSecret(eggSharedKeyName(nestID))
 	if err != nil {
 		return "", "", fmt.Errorf("shared key unavailable")
 	}

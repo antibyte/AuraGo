@@ -491,8 +491,8 @@ func TestInvasionRotateKeyKeepsPreviousKeyWhenEggRejects(t *testing.T) {
 	f := newInvasionKeyFixture(t, map[string]string{"": oldKey})
 	client := f.startEgg(t, oldKey, func(string, int) error { return errors.New("read-only vault") })
 	rec := f.rotate(t, context.Background())
-	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "reconciled at its next connection") {
-		t.Fatalf("status = %d, want 502 with the reconcile notice; body %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "Egg rejected the rotation") {
+		t.Fatalf("status = %d, want 502 naming the rejection; body %s", rec.Code, rec.Body.String())
 	}
 	if f.secret(t, "") != oldKey || client.SharedKeySnapshot() != oldKey || f.hub.GetConnection(f.nestID).SharedKey != oldKey {
 		t.Fatal("a rejected rotation must leave the previous key active on both sides")
@@ -524,8 +524,8 @@ func TestInvasionRotateKeyRecoversWhenAckIsLost(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	rec := f.rotate(t, ctx)
-	if rec.Code != http.StatusBadGateway {
-		t.Fatalf("status = %d, want 502; body %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "reconciled at its next connection") {
+		t.Fatalf("status = %d, want 502 with the reconcile notice; body %s", rec.Code, rec.Body.String())
 	}
 	staged := f.secret(t, "_next")
 	if staged == "" || f.secret(t, "") != oldKey {
@@ -553,5 +553,171 @@ func TestInvasionRotateKeyRecoversWhenAckIsLost(t *testing.T) {
 	}
 	if f.secret(t, "") != staged || f.secret(t, "_next") != "" || client.SharedKeySnapshot() != staged {
 		t.Fatal("the reconnect handshake must promote the key the egg persisted")
+	}
+}
+
+// simulateFailedCommit puts the vault in the state a failed rotation commit
+// (or a failed handshake promotion) leaves: the live key only in _next.
+func (f invasionKeyFixture) simulateFailedCommit(t *testing.T, staleCurrent, liveKey string) {
+	t.Helper()
+	if err := f.vault.WriteSecrets(map[string]string{
+		"egg_shared_" + f.nestID:           staleCurrent,
+		"egg_shared_" + f.nestID + "_next": liveKey,
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInvasionRotateKeyHealsVaultAfterFailedCommit(t *testing.T) {
+	staleKey, liveKey := strings.Repeat("1", 64), strings.Repeat("5", 64)
+
+	t.Run("egg rejects the next rotation", func(t *testing.T) {
+		f := newInvasionKeyFixture(t, map[string]string{"": liveKey})
+		client := f.startEgg(t, liveKey, func(string, int) error { return errors.New("persist failed") })
+		f.simulateFailedCommit(t, staleKey, liveKey)
+		rec := f.rotate(t, context.Background())
+		if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "Egg rejected the rotation") {
+			t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+		}
+		if f.secret(t, "") != liveKey || f.secret(t, "_prev") != "" || client.SharedKeySnapshot() != liveKey {
+			t.Fatal("the retry must first commit the key the egg uses")
+		}
+		if staged := f.secret(t, "_next"); staged == "" || staged == liveKey {
+			t.Fatal("the new rotation stages its own candidate after healing")
+		}
+		if err := f.handshake(t, liveKey); err != nil {
+			t.Fatalf("the egg must stay authenticable with its key: %v", err)
+		}
+	})
+
+	t.Run("egg accepts the next rotation", func(t *testing.T) {
+		f := newInvasionKeyFixture(t, map[string]string{"": liveKey})
+		client := f.startEgg(t, liveKey, func(string, int) error { return nil })
+		f.simulateFailedCommit(t, staleKey, liveKey)
+		rec := f.rotate(t, context.Background())
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+		}
+		newKey := client.SharedKeySnapshot()
+		if newKey == liveKey || f.secret(t, "") != newKey || f.secret(t, "_next") != "" || f.secret(t, "_prev") != "" {
+			t.Fatal("after healing, the persisted rotation commits only the new key")
+		}
+		if err := f.handshake(t, staleKey); err == nil {
+			t.Fatal("the stale vault key must not authenticate")
+		}
+	})
+}
+
+func TestInvasionRotateKeyRefusesWhenVaultAndLiveKeyDiffer(t *testing.T) {
+	staleKey, liveKey := strings.Repeat("1", 64), strings.Repeat("5", 64)
+	f := newInvasionKeyFixture(t, map[string]string{"": liveKey})
+	client := f.startEgg(t, liveKey, func(string, int) error { return nil })
+	if err := f.vault.WriteSecret("egg_shared_"+f.nestID, staleKey); err != nil {
+		t.Fatal(err)
+	}
+	rec := f.rotate(t, context.Background())
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "reconnect the egg before rotating") {
+		t.Fatalf("status = %d, want 409; body %s", rec.Code, rec.Body.String())
+	}
+	if f.secret(t, "") != staleKey || f.secret(t, "_next") != "" || client.SharedKeySnapshot() != liveKey {
+		t.Fatal("a refused rotation stages nothing and changes no key")
+	}
+}
+
+// A legacy egg's _prev is the key the live connection replaced, not a stale
+// vault value.
+func TestInvasionRotateKeyLegacyPrevIsTheReplacedLiveKey(t *testing.T) {
+	staleKey, liveKey := strings.Repeat("1", 64), strings.Repeat("5", 64)
+	f := newInvasionKeyFixture(t, map[string]string{"": liveKey})
+	rotated := f.startLegacyEgg(t, liveKey)
+	f.simulateFailedCommit(t, staleKey, liveKey)
+	if rec := f.rotate(t, context.Background()); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	newKey := <-rotated
+	if f.secret(t, "") != newKey || f.secret(t, "_prev") != liveKey || f.secret(t, "_next") != "" {
+		t.Fatal("_prev must hold the key the rotation replaced on the live connection")
+	}
+}
+
+// A legacy egg's disk still holds the key from before a fresh _prev; a further
+// rotation within the hour must not replace it with an intermediate key.
+func TestInvasionRotateKeyKeepsFreshPrevForLegacyEgg(t *testing.T) {
+	diskKey, liveKey := strings.Repeat("1", 64), strings.Repeat("5", 64)
+	for name, tc := range map[string]struct {
+		prevAt   string
+		wantPrev string
+	}{
+		"fresh _prev is kept":       {rotatedAt(10 * time.Minute), diskKey},
+		"expired _prev is replaced": {rotatedAt(2 * time.Hour), liveKey},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newInvasionKeyFixture(t, map[string]string{"": liveKey})
+			rotated := f.startLegacyEgg(t, liveKey)
+			// Written after the handshake, which would retire it.
+			if err := f.vault.WriteSecrets(map[string]string{
+				"egg_shared_" + f.nestID + "_prev":    diskKey,
+				"egg_shared_" + f.nestID + "_prev_at": tc.prevAt,
+			}, nil); err != nil {
+				t.Fatal(err)
+			}
+			if rec := f.rotate(t, context.Background()); rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+			}
+			newKey := <-rotated
+			if f.secret(t, "") != newKey || f.secret(t, "_prev") != tc.wantPrev {
+				t.Fatalf("_prev = %v, want %v", f.secret(t, "_prev") == diskKey, tc.wantPrev == diskKey)
+			}
+			if tc.wantPrev == diskKey && f.secret(t, "_prev_at") != tc.prevAt {
+				t.Fatal("a kept _prev keeps its original date")
+			}
+			if tc.wantPrev == liveKey && !eggPrevKeyFresh(f.secret(t, "_prev_at"), time.Now()) {
+				t.Fatal("a replaced _prev is dated by this rotation")
+			}
+		})
+	}
+}
+
+func TestEggPrevKeyFreshBoundaries(t *testing.T) {
+	now := time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC)
+	stamp := func(offset time.Duration) string { return now.Add(offset).Format(time.RFC3339) }
+	for name, tc := range map[string]struct {
+		rotatedAt string
+		want      bool
+	}{
+		"just rotated":                      {stamp(0), true},
+		"exactly one hour":                  {stamp(-eggPrevKeyGrace), true},
+		"one second past the hour":          {stamp(-eggPrevKeyGrace - time.Second), false},
+		"small future skew":                 {stamp(30 * time.Second), true},
+		"future skew at the tolerance":      {stamp(eggPrevKeyClockSkew), true},
+		"future skew beyond the tolerance":  {stamp(eggPrevKeyClockSkew + time.Second), false},
+		"undated":                           {"", false},
+		"unparseable":                       {"yesterday", false},
+		"surrounding whitespace is ignored": {" " + stamp(-time.Minute) + "\n", true},
+	} {
+		if got := eggPrevKeyFresh(tc.rotatedAt, now); got != tc.want {
+			t.Errorf("%s: eggPrevKeyFresh = %v, want %v", name, got, tc.want)
+		}
+	}
+}
+
+// The egg's shared key changes only through a rekey, so the master refuses to
+// send a secret under a reserved name.
+func TestInvasionSendSecretRefusesReservedNames(t *testing.T) {
+	s := &Server{InvasionDB: setupInvasionTestDB(t), EggHub: bridge.NewEggHub(slog.New(slog.NewTextHandler(io.Discard, nil)))}
+	for _, key := range []string{"egg_shared_key", "EGG_SHARED_KEY", "egg_shared_nest_next", "egg_master_key_nest"} {
+		body := strings.NewReader(`{"key":"` + key + `","value":"x"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/invasion/nests/n1/send-secret", body)
+		rec := httptest.NewRecorder()
+		handleInvasionNestSendSecret(s).ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "reserved") {
+			t.Errorf("%s: status = %d, body %s", key, rec.Code, rec.Body.String())
+		}
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/invasion/nests/n1/send-secret", strings.NewReader(`{"key":"api_token","value":"x"}`))
+	rec := httptest.NewRecorder()
+	handleInvasionNestSendSecret(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("an ordinary key passes the name check (then needs a connection): %d %s", rec.Code, rec.Body.String())
 	}
 }

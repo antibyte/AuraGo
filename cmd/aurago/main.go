@@ -1074,6 +1074,12 @@ func main() {
 		}
 		eggClient.OnSecret = func(secret bridge.SecretPayload) {
 			appLog.Info("Secret received from master", "key", secret.Key)
+			// The shared key changes only through a rekey (the client already
+			// refuses these names; checked again before any vault write).
+			if bridge.IsReservedEggSecretName(secret.Key) {
+				appLog.Warn("Refused secret with a reserved name", "key", secret.Key)
+				return
+			}
 			// Decrypt the value with the shared key, then store in local vault
 			plaintext, err := bridge.DecryptWithSharedKey(secret.EncryptedValue, eggClient.SharedKeySnapshot())
 			if err != nil {
