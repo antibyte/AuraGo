@@ -193,6 +193,9 @@ func TestDockerBodyMessageOutputs(t *testing.T) {
 		{"long plain text cut at 500 with ellipsis", []byte(long), strings.Repeat("y", 500) + "..."},
 		{"empty", nil, ""},
 		{"whitespace", []byte(" \n "), ""},
+		{"padded engine message trimmed", []byte(`{"message":"  padded  "}`), "padded"},
+		{"blank engine message falls back to the body", []byte(`{"message":"   "}`), `{"message":"   "}`},
+		{"zero-width engine message falls back to the body", []byte(`{"message":"\u200b"}`), `{"message":"\u200b"}`},
 		// New: one printable line, bounded, never a split rune.
 		{"engine message on one line", []byte(`{"message":"line one\nline two\u001b[31m"}`), "line one line two [31m"},
 		{"long engine message bounded", []byte(`{"message":"` + long + `"}`), strings.Repeat("y", 500) + "..."},

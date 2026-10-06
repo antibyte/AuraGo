@@ -100,6 +100,7 @@ func TestDoJSONErrorTextIsOneBoundedLine(t *testing.T) {
 		{"engine JSON body", `{"message":"No such container: x"}` + "\n", `Docker API returned 404: {"message":"No such container: x"}`},
 		{"long ASCII body cut at 512 bytes", strings.Repeat("x", 600), "Docker API returned 404: " + strings.Repeat("x", 512)},
 		{"empty body", "", "Docker API returned 404: "},
+		{"non-ASCII printable body", "Container läuft nicht\n", "Docker API returned 404: Container läuft nicht"},
 		// New: one printable line, never a split rune.
 		{"line breaks become spaces", "<html>\n403 Forbidden\n</html>", "Docker API returned 404: <html> 403 Forbidden </html>"},
 		{"rune at the cut is not split", strings.Repeat("x", 511) + "é", "Docker API returned 404: " + strings.Repeat("x", 511)},

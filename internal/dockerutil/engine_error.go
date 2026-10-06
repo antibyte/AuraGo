@@ -8,8 +8,8 @@ import (
 )
 
 // EngineErrorMessage returns the text of a Docker Engine error body: the
-// "message" field of the Engine's JSON error object when it is not blank,
-// otherwise the whole body. Socket proxies and reverse proxies answer with
+// "message" field of the Engine's JSON error object when it has a printable
+// character, otherwise the whole body. Socket proxies and reverse proxies answer with
 // HTML or plain text, which is returned unchanged. The result is neither
 // shortened nor cleaned; pass it through SanitizeOneLine before it reaches a
 // log, an API answer or the agent.
@@ -17,7 +17,7 @@ func EngineErrorMessage(body []byte) string {
 	var payload struct {
 		Message string `json:"message"`
 	}
-	if json.Unmarshal(body, &payload) == nil && strings.TrimSpace(payload.Message) != "" {
+	if json.Unmarshal(body, &payload) == nil && SanitizeOneLine(payload.Message, 0) != "" {
 		return payload.Message
 	}
 	return string(body)
