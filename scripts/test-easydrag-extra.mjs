@@ -51,6 +51,23 @@ export async function run(env) {
             }
         });
         dom.document.elementFromPoint = () => null;
+        // Element and document methods the 1d-05 modules use; document listeners land in
+        // dom.document.listeners.
+        proto.removeAttribute = function (name) { this.attrs.delete(name); };
+        proto.setSelectionRange = function (start, end) { this.selectionStart = start; this.selectionEnd = end; };
+        proto.scrollIntoView = function () {};
+        // The constructor's "this.style = {}" goes through this setter, which adds setProperty.
+        Object.defineProperty(proto, 'style', {
+            configurable: true,
+            get() { return this.styles; },
+            set(value) { this.styles = Object.assign(value, { setProperty(name, v) { this[name] = String(v); } }); }
+        });
+        const docListeners = {};
+        Object.assign(dom.document, {
+            listeners: docListeners,
+            addEventListener(type, fn) { (docListeners[type] = docListeners[type] || []).push(fn); },
+            removeEventListener(type, fn) { const list = docListeners[type] || []; const i = list.indexOf(fn); if (i >= 0) list.splice(i, 1); }
+        });
         const timers = new Map();
         const frames = new Map();
         let nextId = 1;
@@ -677,5 +694,217 @@ export async function run(env) {
         ro.form.insert('condition', 'alpha.results');
         eq('c1d05 a read-only form takes no drop or insert', ro.changes, []);
         eq('c1d05 the drop checks log no errors', [h.logged, ro.logged], [[], []]);
+    });
+
+    // ── c1d05 review: template field and secrets ──
+
+    // tplHarness is one template field. opts: field (its options), roots, upstream, readonly;
+    // saved values land in h.changes. h.type sets the text with the caret at its end.
+    function tplHarness(opts, value) {
+        const o = opts || {};
+        const h = harness();
+        h.changes = [];
+        const env = { t, esc: h.ED.core.esc, readonly: !!o.readonly, change: v => h.changes.push(v), roots: o.roots || {}, upstream: o.upstream || [] };
+        h.field = h.ED.fields.templateField(env, value || '', o.field || {});
+        h.view = h.field.el.querySelector('.ed-tpl-view');
+        h.input = h.field.el.querySelector('.ed-tpl-input');
+        h.list = () => h.field.el.querySelector('.ed-suggest');
+        h.offered = () => (h.list() ? h.list().items.map(i => i.text) : null);
+        h.type = text => { h.input.value = text; h.input.selectionStart = h.input.selectionEnd = text.length; h.input.fire('input'); };
+        h.press = (key, extra) => h.input.fire('keydown', Object.assign({ key }, extra));
+        h.editing = () => h.field.el.classList.contains('is-editing');
+        h.onView = () => h.dom.document.activeElement === h.view;
+        return h;
+    }
+    const sampleRoots = { alpha: { results: [1], meta: { n: 1 } }, http: { headers: { 'content-type': 'text/html' } } };
+    const sampleUpstream = [{ key: 'alpha', label: 'Alpha', cat: 'web', fields: ['results'] }, { key: 'http', label: 'HTTP', cat: 'web', fields: ['headers'] }];
+
+    await guardAsync('c1d05 review autocomplete', async () => {
+        const h = tplHarness({ roots: sampleRoots, upstream: sampleUpstream });
+        h.field.focus();
+        h.type('{{alp');
+        const offered = h.offered();
+        h.press('Enter');
+        const step = [h.input.value, h.input.selectionStart, h.offered()];
+        h.press('ArrowDown');
+        h.press('Enter');
+        const object = [h.input.value, h.offered()];
+        h.press('Enter');
+        const leaf = [h.input.value, h.offered(), h.editing()];
+        const tab = h.press('Tab').defaultPrevented;
+        h.press('Enter');
+        eq('c1d05 autocomplete goes on from a step or object to its fields and closes after a value; then Tab leaves and Enter saves',
+            [offered, step, object, leaf, tab, h.changes, h.editing(), h.onView()],
+            [['alpha'], ['{{alpha.}}', 8, ['alpha.results', 'alpha.meta']], ['{{alpha.meta.}}', ['alpha.meta.n']], ['{{alpha.meta.n}}', null, true], false, ['{{alpha.meta.n}}'], false, true]);
+        h.field.focus();
+        h.type('{{alpha');
+        const same = h.offered();
+        h.type('{{alpha | up');
+        const filter = h.offered();
+        h.press('Enter');
+        eq('c1d05 autocomplete offers nothing that repeats the text and closes after a filter', [same, filter, h.input.value, h.offered()], [null, ['alpha | upper'], '{{alpha | upper}}', null]);
+        eq('c1d05 the autocomplete checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d05 review template field accessibility', async () => {
+        const h = tplHarness({ roots: sampleRoots, upstream: sampleUpstream, field: { labelledBy: 'lbl-1', id: 'f-1' } });
+        const named = [h.view.getAttribute('aria-labelledby'), h.input.getAttribute('aria-labelledby'), h.view.getAttribute('aria-readonly'), h.input.getAttribute('role'), h.input.getAttribute('aria-expanded')];
+        const ro = tplHarness({ readonly: true, field: { label: 'Query' } });
+        h.field.focus();
+        h.type('{{alpha.');
+        const listId = h.list().getAttribute('id');
+        const options = h.list().querySelectorAll('li');
+        const open = [h.input.getAttribute('aria-expanded'), h.input.getAttribute('aria-controls') === listId, h.input.getAttribute('aria-activedescendant') === options[0].getAttribute('id'),
+            options.map(li => li.getAttribute('role') + ':' + li.getAttribute('aria-selected'))];
+        h.press('ArrowDown');
+        const moved = [h.input.getAttribute('aria-activedescendant') === options[1].getAttribute('id'), options.map(li => li.getAttribute('aria-selected'))];
+        h.press('Escape');
+        const closed = [h.input.getAttribute('aria-expanded'), h.input.getAttribute('aria-activedescendant'), h.input.getAttribute('aria-controls'), h.editing()];
+        h.type('changed');
+        h.press('Escape');
+        eq('c1d05 a template field is named, read-only only when it is, and its suggestion list is a listbox the input points at',
+            [named, [ro.view.getAttribute('aria-label'), ro.view.getAttribute('aria-readonly')], open, moved, closed],
+            [['lbl-1', 'lbl-1', null, 'combobox', 'false'], ['Query', 'true'], ['true', true, true, ['option:true', 'option:false']], [true, ['false', 'true']], ['false', null, null, true]]);
+        eq('c1d05 Escape in a single line undoes the edit and puts focus on the chips', [h.editing(), h.changes, h.onView(), h.input.value], [false, [], true, '']);
+        // M6: Escape in a multi-line text saves it like leaving the field; Enter stays a new line.
+        const m = tplHarness({ field: { multiline: true, label: 'Text' } }, 'old');
+        m.field.focus();
+        m.type('new text');
+        const newline = m.press('Enter').defaultPrevented;
+        m.press('Escape');
+        eq('c1d05 Escape in a multi-line field saves the text and puts focus on the chips',
+            [newline, m.changes, m.editing(), m.onView(), m.input.getAttribute('role'), m.view.getAttribute('aria-multiline')], [false, ['new text'], false, true, null, 'true']);
+        eq('c1d05 the accessibility checks log no errors', [h.logged, ro.logged, m.logged], [[], [], []]);
+    });
+
+    await guardAsync('c1d05 review references in autocomplete', async () => {
+        const h = tplHarness({ roots: sampleRoots, upstream: sampleUpstream });
+        h.field.focus();
+        h.type('{{http.headers.');
+        const offered = h.offered();
+        h.press('Enter');
+        eq('c1d05 autocomplete quotes a field name that is no identifier, so the reference parses and resolves',
+            [offered, h.ED.template.parseExpr(offered[0]).path, h.ED.template.evaluate(h.input.value, sampleRoots), typeof h.ED.template.pathJoin],
+            [['http.headers["content-type"]'], ['headers', 'content-type'], 'text/html', 'function']);
+        eq('c1d05 the reference checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d05 review IME composition', async () => {
+        const h = tplHarness();
+        h.field.focus();
+        h.type('abc');
+        const composing = [h.press('Enter', { isComposing: true }).defaultPrevented, h.press('Enter', { keyCode: 229 }).defaultPrevented, h.press('Escape', { isComposing: true }).defaultPrevented];
+        const kept = [h.editing(), h.changes];
+        const added = [];
+        const tags = h.ED.fields.tags({ t, esc: h.ED.core.esc, readonly: false }, ['a'], v => added.push(v));
+        const tagInput = tags.querySelector('.ed-tags-input');
+        tagInput.value = 'b';
+        tagInput.fire('keydown', { key: 'Enter', isComposing: true });
+        const whileComposing = added.length;
+        tagInput.fire('keydown', { key: 'Enter' });
+        eq('c1d05 keys of an IME composition neither save a template field nor add a tag',
+            [composing, kept, whileComposing, added], [[false, false, false], [true, []], 0, [['a', 'b']]]);
+        eq('c1d05 the IME checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d05 review secrets', async () => {
+        const h = harness();
+        const F = h.ED.fields;
+        const host = h.ED.core.el('<div class="ed-editor"></div>');
+        const saved = [];
+        let lists = 0;
+        let listAnswer = () => Promise.resolve({ secrets: ['api_key'] });
+        let saveAnswer = () => Promise.resolve({ status: 'saved' });
+        const api = { secrets: () => { lists++; return listAnswer(); }, saveSecret: (name, value) => { saved.push([name, value]); return saveAnswer(); } };
+        const picked = [];
+        const env = { t, esc: h.ED.core.esc, readonly: false, root: host, api, secretCache: {} };
+        const picker = F.secretRef(env, 'api_key', v => picked.push(v), 'sec-a');
+        F.secretRef(env, undefined, v => picked.push(v), 'sec-b');
+        await settle();
+        const shared = [lists, picker.querySelectorAll('option').map(o => o.getAttribute('value'))];
+        const open = () => host.querySelectorAll('.ed-modal-backdrop').filter(o => !o.classList.contains('is-closing'));
+        const top = () => open()[open().length - 1];
+        const fill = (dialog, name, value) => { dialog.querySelector('[data-ed-secret-name]').value = name; dialog.querySelector('[data-ed-secret-value]').value = value; };
+        const act = async (id, dialog) => { (dialog || top()).querySelector('[data-ed-action="' + id + '"]').fire('click'); await settle(); };
+        const error = dialog => dialog.querySelector('.ed-error').textContent;
+        // 7: a taken name is saved only after the replace confirmation.
+        picker.querySelector('[data-ed-secret-new]').fire('click');
+        const dialog = top();
+        fill(dialog, 'api_key', 'v2');
+        await act('save', dialog);
+        const taken = [error(dialog), open().length, saved.length];
+        await act('keep');
+        const kept = [open().length, top() === dialog, saved.length];
+        await act('save', dialog);
+        await act('replace');
+        eq('c1d05 a new secret with a taken name asks before it replaces the value; pickers of a form share one list request',
+            [shared, taken, kept, saved, picked, open().length, lists], [[1, ['', 'api_key']], ['secret_name_taken:api_key', 2, 0], [1, true, 0], [['api_key', 'v2']], ['api_key'], 0, 2]);
+        // 8: the server's checks run before sending; a 429 holds Save for Retry-After seconds.
+        picker.querySelector('[data-ed-secret-new]').fire('click');
+        const second = top();
+        const e = String.fromCharCode(0xe9); // 2 bytes in UTF-8
+        const tries = [];
+        for (const [name, value] of [['Bad Name', 'x'], ['fresh', '  \n '], ['fresh', 'x'.repeat(4097)], ['fresh', e.repeat(2049)]]) {
+            fill(second, name, value);
+            await act('save', second);
+            tries.push(error(second));
+        }
+        const sentBefore = saved.length;
+        saveAnswer = () => Promise.reject(Object.assign(new Error('slow'), { status: 429, retryAfter: 60, body: { error: 'slow', code: 'FLOW_RATE_LIMITED' } }));
+        fill(second, 'fresh', e.repeat(2048));
+        await act('save', second);
+        const save = second.querySelector('[data-ed-action="save"]');
+        const limited = [saved.length - sentBefore, error(second), save.disabled];
+        h.runTimers(0);
+        const held = save.disabled;
+        h.runTimers(60000);
+        eq('c1d05 the secret dialog checks the name, a blank value and 4096 bytes before sending and holds Save after a 429',
+            [tries, limited, held, save.disabled], [['secret_invalid', 'secret_empty', 'secret_too_large', 'secret_too_large'], [1, 'error_flow_rate_limited secret_retry:60', false], true, false]);
+        // 8: a secret list that cannot be loaded shows a hint; the next picker asks again.
+        listAnswer = () => Promise.reject(Object.assign(new Error('vault'), { body: { error: 'vault', code: 'FLOWS_DISABLED' } }));
+        const failingEnv = { t, esc: h.ED.core.esc, readonly: false, root: host, api, secretCache: {} };
+        const failing = F.secretRef(failingEnv, 'old', () => {}, 'sec-c');
+        await settle();
+        const failed = [failing.querySelector('.ed-secret-unavailable').hidden, failing.querySelector('select').getAttribute('data-error'), failing.querySelectorAll('option').map(o => o.getAttribute('value'))];
+        failing.querySelector('[data-ed-secret-new]').fire('click');
+        const third = top();
+        fill(third, 'brand_new', 'value');
+        const sentNow = saved.length;
+        await act('save', third);
+        const blocked = [error(third), saved.length - sentNow];
+        await act('cancel', third);
+        listAnswer = () => Promise.resolve({ secrets: ['old'] });
+        const listsBefore = lists;
+        const again = F.secretRef(failingEnv, 'old', () => {}, 'sec-d');
+        await settle();
+        eq('c1d05 a secret list that cannot be loaded shows a hint, blocks a new secret and is asked for again',
+            [failed, blocked, again.querySelector('.ed-secret-unavailable').hidden, lists - listsBefore], [[false, 'error_flows_disabled', ['', 'old']], ['secrets_unavailable', 0], true, 1]);
+        eq('c1d05 the secret checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d05 review malformed params and labels', async () => {
+        const h = harness();
+        const F = h.ED.fields;
+        const env = { t, esc: h.ED.core.esc, readonly: false, roots: {}, change() {}, upstream: [{ key: 'alpha', label: 'Alpha', cat: 'x" onclick="evil', fields: [] }] };
+        const cond = F.conditionGroup(env, { match: 'any', rows: 'oops' }, () => {});
+        const cases = F.cases(env, [null, 5, { label: 'x' }, ['y']], () => {});
+        const list = F.fieldList(env, {}, { not: 'a list' }, () => {});
+        const kv = F.keyValue(env, ['a', 'b'], () => {});
+        const tags = F.tags(env, [{}, 'a', null, 3], () => {});
+        eq('c1d05 malformed rows, cases, field lists, pairs and tags become valid lists',
+            [cond.querySelectorAll('.ed-cond-row').length, cases.querySelectorAll('.ed-case').length, list.querySelectorAll('.ed-fieldlist-row').length, kv.querySelectorAll('.ed-kv-row').length, tags.querySelectorAll('.ed-tag').length],
+            [1, 1, 0, 0, 2]);
+        const row = cond.querySelector('.ed-cond-row');
+        const pair = F.keyValue(env, { k: 'v' }, () => {}).querySelector('.ed-kv-row');
+        eq('c1d05 every condition, case, pair and tag control has a name; remove buttons name their row',
+            [row.querySelector('.ed-cond-op select').getAttribute('aria-label'), row.querySelector('.ed-cond-type select').getAttribute('aria-label'),
+                row.querySelector('[data-ed-cond-remove]').getAttribute('aria-label'), row.querySelector('.ed-cond-left .ed-tpl-view').getAttribute('aria-label'),
+                cond.querySelector('.ed-seg').getAttribute('aria-label'), cases.querySelector('.ed-case-label').getAttribute('aria-label'),
+                pair.querySelector('input').getAttribute('aria-label'), pair.querySelector('.ed-tpl-view').getAttribute('aria-label'), pair.querySelector('[data-ed-kv-remove]').getAttribute('aria-label'),
+                tags.querySelector('.ed-tags-input').getAttribute('aria-label'), tags.querySelector('[data-ed-tag-remove]').getAttribute('aria-label')],
+            ['cond_op', 'cond_type', 'remove_row:1', 'cond_left', 'cond_match', 'case_label', 'kv_key', 'kv_value', 'remove_row:1', 'tags_add', 'remove_tag:a']);
+        const chip = F.templateField(env, '{{alpha.x}}', {}).el.querySelector('.ed-tpl-view').html;
+        check('c1d05 a chip escapes the category of its step', chip.includes('cat-x&quot; onclick=&quot;evil') && !chip.includes('cat-x" onclick'), chip);
+        eq('c1d05 the param checks log no errors', h.logged, []);
     });
 }

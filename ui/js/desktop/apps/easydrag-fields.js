@@ -9,8 +9,31 @@
     const OPS = ['eq', 'ne', 'contains', 'not_contains', 'starts_with', 'ends_with', 'matches', 'gt', 'gte', 'lt', 'lte', 'before', 'after', 'empty', 'not_empty', 'is_true', 'is_false'];
     const UNARY = new Set(['empty', 'not_empty', 'is_true', 'is_false']);
     const COND_TYPES = ['auto', 'text', 'number', 'date', 'bool'];
+    // SECRET_MAX_BYTES is the server's limit for a flow secret value (UTF-8 bytes).
+    const SECRET_MAX_BYTES = 4096;
+    let fieldCount = 0;
 
     function core() { return ED.core; }
+
+    // nameAttrs names a control: aria-labelledby (a.labelledBy, an element id) or aria-label
+    // (a.label, a text).
+    function nameAttrs(esc, a) {
+        if (a && a.labelledBy) return ' aria-labelledby="' + esc(a.labelledBy) + '"';
+        if (a && a.label) return ' aria-label="' + esc(a.label) + '"';
+        return '';
+    }
+
+    // withChange returns env with its own change handler. Everything else (roots, upstream)
+    // is still read through env, so a sub-field sees data that arrives later.
+    function withChange(env, change) { return Object.assign(Object.create(env), { change }); }
+
+    // objects keeps the object items of a list; a malformed param becomes an empty list.
+    function objects(list) { return Array.isArray(list) ? list.filter(x => x && typeof x === 'object' && !Array.isArray(x)) : []; }
+
+    function blankRow() { return { left: '', op: 'eq', right: '', type: 'auto' }; }
+
+    // composing reports a key event that belongs to an IME composition (Enter picks a word).
+    function composing(event) { return event.isComposing || event.keyCode === 229; }
 
     // ── template field ──────────────────────────────────────────────────────────
 
@@ -28,28 +51,35 @@
                 else if (['trigger', 'run', 'flow'].includes(p.root)) label = core().tr(env.t, 'easydrag.ui.root_' + p.root, p.root) + (p.path.length ? ' › ' + p.path.join(' › ') : '');
                 else cls += ' is-unknown';
                 if (p.filters.length) label += ' | ' + p.filters.map(f => f.name).join(' | ');
-                if (src) cls += ' cat-' + src.cat;
+                if (src) cls += ' cat-' + esc(src.cat);
             } catch (err) { cls += ' is-broken'; }
             return '<span class="' + cls + '" title="' + esc('{{' + seg.expr + '}}') + '">' + esc(label) + '</span>';
         }).join('');
     }
 
-    // templateField returns {el, get, set, insert, focus}. opts: {multiline, placeholder, id}.
+    // templateField returns {el, get, set, insert, focus}. opts: {multiline, placeholder, id,
+    // labelledBy, label}; labelledBy (an element id) or label (a text) names the field.
     function templateField(env, value, opts) {
         const c = core();
         const { t, esc } = env;
-        const multiline = !!(opts && opts.multiline);
+        const o = opts || {};
+        const multiline = !!o.multiline;
+        const listId = 'ed-suggest-' + (++fieldCount);
+        const named = nameAttrs(esc, o);
+        // A single line edits like a combo box; a multi-line field stays a text box that
+        // points at its suggestion list.
         const el = c.el('<div class="ed-tpl' + (multiline ? ' ed-tpl--multi' : '') + '" data-ed-drop="1">' +
-            '<div class="ed-tpl-view" tabindex="0" role="textbox" aria-readonly="true"></div>' +
+            '<div class="ed-tpl-view" tabindex="0" role="textbox"' + named + (multiline ? ' aria-multiline="true"' : '') + (env.readonly ? ' aria-readonly="true"' : '') + '></div>' +
             '<textarea class="ed-tpl-input" rows="' + (multiline ? 4 : 1) + '" spellcheck="' + (multiline ? 'true' : 'false') + '"' +
-            (opts && opts.id ? ' id="' + esc(opts.id) + '"' : '') + ' placeholder="' + esc((opts && opts.placeholder) || '') + '"></textarea></div>');
+            (o.id ? ' id="' + esc(o.id) + '"' : '') + named + (multiline ? '' : ' role="combobox" aria-expanded="false"') +
+            ' aria-autocomplete="list" placeholder="' + esc(o.placeholder || '') + '"></textarea></div>');
         const view = el.querySelector('.ed-tpl-view');
         const input = el.querySelector('.ed-tpl-input');
         let current = value == null ? '' : String(value);
         let suggest = null;
 
         function syncView() {
-            view.innerHTML = current ? chipsMarkup(current, env) : '<span class="ed-tpl-placeholder">' + esc((opts && opts.placeholder) || '') + '</span>';
+            view.innerHTML = current ? chipsMarkup(current, env) : '<span class="ed-tpl-placeholder">' + esc(o.placeholder || '') + '</span>';
             el.classList.toggle('has-refs', current.indexOf('{{') >= 0);
         }
 
@@ -73,7 +103,32 @@
             }
         }
 
-        function closeSuggest() { if (suggest) { suggest.remove(); suggest = null; } }
+        // leave ends editing from the keyboard and moves focus to the chips, so it never drops
+        // to the page. save false undoes the edit.
+        function leave(save) {
+            closeSuggest();
+            if (save) commit(); else input.value = current;
+            el.classList.remove('is-editing');
+            syncView();
+            view.focus();
+        }
+
+        function closeSuggest() {
+            if (!suggest) return;
+            suggest.remove();
+            suggest = null;
+            if (!multiline) input.setAttribute('aria-expanded', 'false');
+            input.removeAttribute('aria-controls');
+            input.removeAttribute('aria-activedescendant');
+        }
+
+        function markActive() {
+            suggest.querySelectorAll('li').forEach((li, i) => {
+                li.classList.toggle('is-active', i === suggest.active);
+                li.setAttribute('aria-selected', String(i === suggest.active));
+            });
+            input.setAttribute('aria-activedescendant', listId + '-' + suggest.active);
+        }
 
         function suggestions(prefix) {
             const p = prefix.replace(/^\s+/, '');
@@ -99,7 +154,8 @@
             if (rootKey === 'trigger' && base === 'trigger') names = ['data', 'fired_at', 'type', 'node'];
             if (rootKey === 'run' && base === 'run') names = ['id', 'started_at', 'mode', 'revision'];
             if (rootKey === 'flow' && base === 'flow') names = ['id', 'name'];
-            return names.filter(n => n.startsWith(q)).map(n => ({ text: base + '.' + n, label: n, kind: 'field' }));
+            // Names that are no plain identifiers ("content-type") go in quotes.
+            return names.filter(n => n.startsWith(q)).map(n => ({ text: ED.template.pathJoin(base, n), label: n, kind: 'field' }));
         }
 
         function showSuggest() {
@@ -107,15 +163,24 @@
             const before = input.value.slice(0, input.selectionStart);
             const m = /\{\{([^{}]*)$/.exec(before);
             if (!m) return;
-            const items = suggestions(m[1]).slice(0, 12);
+            // Only what differs from the text typed so far is worth offering: a list that
+            // repeats it would take Enter and Tab away from the field.
+            const typed = m[1].replace(/^\s+/, '');
+            const items = suggestions(m[1]).filter(it => it.text !== typed).slice(0, 12);
             if (!items.length) return;
-            suggest = c.el('<ul class="ed-suggest" role="listbox"></ul>');
-            suggest.innerHTML = items.map((it, i) => '<li role="option" data-ed-sug="' + i + '" class="' + (i === 0 ? 'is-active' : '') + '"><span class="ed-suggest-kind" data-kind="' + esc(it.kind) + '"></span>' + esc(it.label) + '</li>').join('');
+            suggest = c.el('<ul class="ed-suggest" role="listbox" id="' + listId + '"></ul>');
+            suggest.innerHTML = items.map((it, i) => '<li role="option" id="' + listId + '-' + i + '" aria-selected="' + (i === 0) + '" data-ed-sug="' + i + '" class="' + (i === 0 ? 'is-active' : '') + '">' +
+                '<span class="ed-suggest-kind" data-kind="' + esc(it.kind) + '"></span>' + esc(it.label) + '</li>').join('');
             suggest.items = items;
             suggest.active = 0;
             el.appendChild(suggest);
+            if (!multiline) input.setAttribute('aria-expanded', 'true');
+            input.setAttribute('aria-controls', listId);
+            input.setAttribute('aria-activedescendant', listId + '-0');
         }
 
+        // applySuggest puts a suggestion at the caret. A step or an object value goes on to its
+        // fields ("alpha." and the list of them); anything else closes the list.
         function applySuggest(idx) {
             const it = suggest && suggest.items[idx];
             if (!it) return;
@@ -124,30 +189,35 @@
             const after = input.value.slice(pos);
             const start = before.lastIndexOf('{{') + 2;
             const closing = after.trimStart().startsWith('}}') ? '' : '}}';
-            input.value = before.slice(0, start) + it.text + closing + after;
-            const caret = start + it.text.length;
+            const deeper = it.kind === 'filter' ? [] : suggestions(it.text + '.');
+            const text = deeper.length ? it.text + '.' : it.text;
+            input.value = before.slice(0, start) + text + closing + after;
+            const caret = start + text.length;
             input.setSelectionRange(caret, caret);
             closeSuggest();
             grow();
-            if (it.kind !== 'filter') showSuggest();
+            if (deeper.length) showSuggest();
         }
 
         view.addEventListener('click', edit);
         view.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === 'F2') { event.preventDefault(); edit(); } });
         input.addEventListener('input', () => { grow(); showSuggest(); });
         input.addEventListener('keydown', (event) => {
+            if (composing(event)) return;
             if (suggest) {
                 if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                     event.preventDefault();
                     suggest.active = (suggest.active + (event.key === 'ArrowDown' ? 1 : -1) + suggest.items.length) % suggest.items.length;
-                    suggest.querySelectorAll('li').forEach((li, i) => li.classList.toggle('is-active', i === suggest.active));
+                    markActive();
                     return;
                 }
                 if (event.key === 'Enter' || event.key === 'Tab') { event.preventDefault(); applySuggest(suggest.active); return; }
-                if (event.key === 'Escape') { event.stopPropagation(); closeSuggest(); return; }
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeSuggest(); return; }
             }
-            if (event.key === 'Enter' && !multiline) { event.preventDefault(); input.blur(); }
-            if (event.key === 'Escape') { event.stopPropagation(); input.value = current; input.blur(); }
+            // Enter saves a single line; Escape saves a multi-line text (like leaving it) and
+            // undoes a single line.
+            if (event.key === 'Enter' && !multiline) { event.preventDefault(); leave(true); }
+            else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); leave(multiline); }
         });
         el.addEventListener('pointerdown', (event) => {
             const li = event.target.closest('[data-ed-sug]');
@@ -203,9 +273,10 @@
 
     // ── simple controls ─────────────────────────────────────────────────────────
 
-    function segmented(env, options, value, onChange) {
+    // segmented, selectBox: aria ({labelledBy} or {label}) names the control.
+    function segmented(env, options, value, onChange, aria) {
         const { esc } = env;
-        const el = core().el('<div class="ed-seg" role="radiogroup">' + options.map(o =>
+        const el = core().el('<div class="ed-seg" role="radiogroup"' + nameAttrs(esc, aria) + '>' + options.map(o =>
             '<button type="button" role="radio" aria-checked="' + (String(o.value) === String(value)) + '" data-value="' + esc(o.value) + '"' + (env.readonly ? ' disabled' : '') + '>' + esc(o.label) + '</button>').join('') + '</div>');
         el.addEventListener('click', (event) => {
             const b = event.target.closest('button');
@@ -227,9 +298,9 @@
         return el;
     }
 
-    function selectBox(env, options, value, onChange, id) {
+    function selectBox(env, options, value, onChange, id, aria) {
         const { esc } = env;
-        const el = core().el('<select class="ed-input"' + (id ? ' id="' + esc(id) + '"' : '') + (env.readonly ? ' disabled' : '') + '>' +
+        const el = core().el('<select class="ed-input"' + (id ? ' id="' + esc(id) + '"' : '') + nameAttrs(esc, aria) + (env.readonly ? ' disabled' : '') + '>' +
             options.map(o => '<option value="' + esc(o.value) + '"' + (String(o.value) === String(value == null ? '' : value) ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('') + '</select>');
         el.addEventListener('change', () => onChange(el.value));
         return el;
@@ -240,37 +311,41 @@
     function conditionGroup(env, value, onChange) {
         const c = core();
         const { t, esc } = env;
-        const group = Object.assign({ match: 'all', rows: [] }, value && typeof value === 'object' ? JSON.parse(JSON.stringify(value)) : {});
-        if (!group.rows.length) group.rows.push({ left: '', op: 'eq', right: '', type: 'auto' });
+        const group = Object.assign({ match: 'all' }, value && typeof value === 'object' && !Array.isArray(value) ? JSON.parse(JSON.stringify(value)) : {});
+        group.rows = objects(group.rows);
+        if (!group.rows.length) group.rows.push(blankRow());
         const el = c.el('<div class="ed-cond"><div class="ed-cond-head"></div><div class="ed-cond-rows"></div>' +
             (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-cond-add>' + c.icon('plus') + '<span>' + esc(t('easydrag.ui.cond_add')) + '</span></button>') + '</div>');
         const head = el.querySelector('.ed-cond-head');
         const rows = el.querySelector('.ed-cond-rows');
         const emit = () => onChange(JSON.parse(JSON.stringify(group)));
 
-        head.appendChild(segmented(env, [{ value: 'all', label: t('easydrag.ui.cond_all') }, { value: 'any', label: t('easydrag.ui.cond_any') }], group.match, v => { group.match = v; emit(); }));
+        head.appendChild(segmented(env, [{ value: 'all', label: t('easydrag.ui.cond_all') }, { value: 'any', label: t('easydrag.ui.cond_any') }], group.match, v => { group.match = v; emit(); },
+            { label: t('easydrag.ui.cond_match') }));
 
         function renderRows() {
             rows.innerHTML = '';
             group.rows.forEach((row, idx) => {
                 const r = c.el('<div class="ed-cond-row"><div class="ed-cond-left"></div><div class="ed-cond-op"></div><div class="ed-cond-right"></div><div class="ed-cond-type"></div>' +
-                    (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-cond-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove')) + '">' + c.icon('x') + '</button>') + '</div>');
-                const left = templateField(Object.assign({}, env, { change: v => { row.left = v; emit(); } }), row.left, { placeholder: t('easydrag.ui.cond_left') });
+                    (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-cond-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: idx + 1 })) + '">' + c.icon('x') + '</button>') + '</div>');
+                const left = templateField(withChange(env, v => { row.left = v; emit(); }), row.left, { placeholder: t('easydrag.ui.cond_left'), label: t('easydrag.ui.cond_left') });
                 r.querySelector('.ed-cond-left').appendChild(left.el);
-                r.querySelector('.ed-cond-op').appendChild(selectBox(env, OPS.map(op => ({ value: op, label: c.tr(t, 'easydrag.ui.op_' + op, op) })), row.op, v => { row.op = v; emit(); renderRows(); }));
+                r.querySelector('.ed-cond-op').appendChild(selectBox(env, OPS.map(op => ({ value: op, label: c.tr(t, 'easydrag.ui.op_' + op, op) })), row.op, v => { row.op = v; emit(); renderRows(); },
+                    null, { label: t('easydrag.ui.cond_op') }));
                 if (!UNARY.has(row.op)) {
-                    const right = templateField(Object.assign({}, env, { change: v => { row.right = v; emit(); } }), row.right, { placeholder: t('easydrag.ui.cond_right') });
+                    const right = templateField(withChange(env, v => { row.right = v; emit(); }), row.right, { placeholder: t('easydrag.ui.cond_right'), label: t('easydrag.ui.cond_right') });
                     r.querySelector('.ed-cond-right').appendChild(right.el);
                 }
-                r.querySelector('.ed-cond-type').appendChild(selectBox(env, COND_TYPES.map(ty => ({ value: ty, label: c.tr(t, 'easydrag.ui.cond_type_' + ty, ty) })), row.type || 'auto', v => { row.type = v; emit(); }));
+                r.querySelector('.ed-cond-type').appendChild(selectBox(env, COND_TYPES.map(ty => ({ value: ty, label: c.tr(t, 'easydrag.ui.cond_type_' + ty, ty) })), row.type || 'auto', v => { row.type = v; emit(); },
+                    null, { label: t('easydrag.ui.cond_type') }));
                 rows.appendChild(r);
             });
         }
 
         el.addEventListener('click', (event) => {
-            if (event.target.closest('[data-ed-cond-add]')) { group.rows.push({ left: '', op: 'eq', right: '', type: 'auto' }); emit(); renderRows(); return; }
+            if (event.target.closest('[data-ed-cond-add]')) { group.rows.push(blankRow()); emit(); renderRows(); return; }
             const rm = event.target.closest('[data-ed-cond-remove]');
-            if (rm) { group.rows.splice(Number(rm.dataset.edCondRemove), 1); if (!group.rows.length) group.rows.push({ left: '', op: 'eq', right: '', type: 'auto' }); emit(); renderRows(); }
+            if (rm) { group.rows.splice(Number(rm.dataset.edCondRemove), 1); if (!group.rows.length) group.rows.push(blankRow()); emit(); renderRows(); }
         });
         renderRows();
         return el;
@@ -279,7 +354,7 @@
     function cases(env, value, onChange) {
         const c = core();
         const { t, esc } = env;
-        const list = Array.isArray(value) ? JSON.parse(JSON.stringify(value)) : [];
+        const list = objects(Array.isArray(value) ? JSON.parse(JSON.stringify(value)) : []);
         const el = c.el('<div class="ed-cases"><div class="ed-cases-list"></div>' +
             (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-case-add>' + c.icon('plus') + '<span>' + esc(t('easydrag.ui.case_add')) + '</span></button>') + '</div>');
         const host = el.querySelector('.ed-cases-list');
@@ -288,16 +363,16 @@
             host.innerHTML = '';
             list.forEach((cs, idx) => {
                 const card = c.el('<div class="ed-case"><div class="ed-case-head"><span class="ed-case-port">' + esc(t('easydrag.ui.port_case', { n: idx + 1 })) + '</span>' +
-                    '<input class="ed-input ed-case-label" placeholder="' + esc(t('easydrag.ui.case_label')) + '" value="' + esc(cs.label || '') + '"' + (env.readonly ? ' disabled' : '') + '>' +
+                    '<input class="ed-input ed-case-label" placeholder="' + esc(t('easydrag.ui.case_label')) + '" aria-label="' + esc(t('easydrag.ui.case_label')) + '" value="' + esc(cs.label || '') + '"' + (env.readonly ? ' disabled' : '') + '>' +
                     (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-case-up="' + idx + '" aria-label="' + esc(t('easydrag.ui.move_up')) + '"' + (idx === 0 ? ' disabled' : '') + '>' + c.icon('chevron-down', 'ed-rot180') + '</button>' +
-                        '<button type="button" class="ed-icon-btn" data-ed-case-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove')) + '">' + c.icon('trash') + '</button>') + '</div></div>');
+                        '<button type="button" class="ed-icon-btn" data-ed-case-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: idx + 1 })) + '">' + c.icon('trash') + '</button>') + '</div></div>');
                 card.querySelector('.ed-case-label').addEventListener('change', (event) => { cs.label = event.target.value; emit(); });
                 card.appendChild(conditionGroup(env, cs.condition, v => { cs.condition = v; emit(); }));
                 host.appendChild(card);
             });
         }
         el.addEventListener('click', (event) => {
-            if (event.target.closest('[data-ed-case-add]')) { list.push({ label: '', condition: { match: 'all', rows: [{ left: '', op: 'eq', right: '', type: 'auto' }] } }); emit(); render(); return; }
+            if (event.target.closest('[data-ed-case-add]')) { list.push({ label: '', condition: { match: 'all', rows: [blankRow()] } }); emit(); render(); return; }
             const up = event.target.closest('[data-ed-case-up]');
             if (up) { const i = Number(up.dataset.edCaseUp); list.splice(i - 1, 0, list.splice(i, 1)[0]); emit(); render(); return; }
             const rm = event.target.closest('[data-ed-case-remove]');
@@ -311,8 +386,8 @@
     function fieldList(env, spec, value, onChange) {
         const c = core();
         const { t, esc } = env;
-        const list = Array.isArray(value) ? JSON.parse(JSON.stringify(value)) : [];
-        const subs = spec.fields && spec.fields.length ? spec.fields : [{ name: 'name', kind: 'text', label: t('easydrag.ui.field_name') }, { name: 'value', kind: 'text', label: t('easydrag.ui.field_value'), templatable: true }];
+        const list = objects(Array.isArray(value) ? JSON.parse(JSON.stringify(value)) : []);
+        const subs = spec.fields && spec.fields.length ? spec.fields :[{ name: 'name', kind: 'text', label: t('easydrag.ui.field_name') }, { name: 'value', kind: 'text', label: t('easydrag.ui.field_value'), templatable: true }];
         const el = c.el('<div class="ed-fieldlist"><div class="ed-fieldlist-head">' + subs.map(s => '<span>' + esc(s.label) + '</span>').join('') + '<span></span></div><div class="ed-fieldlist-rows"></div>' +
             (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-fl-add>' + c.icon('plus') + '<span>' + esc(t('easydrag.ui.fields_add')) + '</span></button>') + '</div>');
         el.style.setProperty('--ed-fl-cols', subs.length);
@@ -325,8 +400,8 @@
                 subs.forEach(s => {
                     const cell = c.el('<div class="ed-fieldlist-cell"></div>');
                     const set = v => { item[s.name] = v; emit(); };
-                    if (s.options && s.options.length) cell.appendChild(selectBox(env, s.options, item[s.name] == null ? s.default : item[s.name], set));
-                    else if (s.templatable) cell.appendChild(templateField(Object.assign({}, env, { change: set }), item[s.name], { placeholder: s.label }).el);
+                    if (s.options && s.options.length) cell.appendChild(selectBox(env, s.options, item[s.name] == null ? s.default : item[s.name], set, null, { label: s.label }));
+                    else if (s.templatable) cell.appendChild(templateField(withChange(env, set), item[s.name], { placeholder: s.label, label: s.label }).el);
                     else {
                         const input = c.el('<input class="ed-input" value="' + esc(item[s.name] == null ? '' : item[s.name]) + '" placeholder="' + esc(s.label) + '" aria-label="' + esc(s.label) + '"' + (env.readonly ? ' disabled' : '') + '>');
                         input.addEventListener('change', () => set(input.value));
@@ -334,7 +409,7 @@
                     }
                     row.appendChild(cell);
                 });
-                if (!env.readonly) row.appendChild(c.el('<button type="button" class="ed-icon-btn" data-ed-fl-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove')) + '">' + c.icon('x') + '</button>'));
+                if (!env.readonly) row.appendChild(c.el('<button type="button" class="ed-icon-btn" data-ed-fl-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: idx + 1 })) + '">' + c.icon('x') + '</button>'));
                 rows.appendChild(row);
             });
         }
@@ -354,7 +429,8 @@
     function keyValue(env, value, onChange) {
         const c = core();
         const { t, esc } = env;
-        const pairs = Object.entries(value && typeof value === 'object' ? value : {}).map(([k, v]) => ({ k, v: v == null ? '' : String(v) }));
+        const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+        const pairs = Object.entries(source).map(([k, v]) => ({ k, v: v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v) }));
         const el = c.el('<div class="ed-kv"><div class="ed-kv-rows"></div>' +
             (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-kv-add>' + c.icon('plus') + '<span>' + esc(t('easydrag.ui.kv_add')) + '</span></button>') + '</div>');
         const rows = el.querySelector('.ed-kv-rows');
@@ -366,10 +442,10 @@
         function render() {
             rows.innerHTML = '';
             pairs.forEach((p, idx) => {
-                const row = c.el('<div class="ed-kv-row"><input class="ed-input" placeholder="' + esc(t('easydrag.ui.kv_key')) + '" value="' + esc(p.k) + '"' + (env.readonly ? ' disabled' : '') + '><div class="ed-kv-value"></div>' +
-                    (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-kv-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove')) + '">' + c.icon('x') + '</button>') + '</div>');
+                const row = c.el('<div class="ed-kv-row"><input class="ed-input" placeholder="' + esc(t('easydrag.ui.kv_key')) + '" aria-label="' + esc(t('easydrag.ui.kv_key')) + '" value="' + esc(p.k) + '"' + (env.readonly ? ' disabled' : '') + '><div class="ed-kv-value"></div>' +
+                    (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-kv-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: idx + 1 })) + '">' + c.icon('x') + '</button>') + '</div>');
                 row.querySelector('input').addEventListener('change', (event) => { p.k = event.target.value; emit(); });
-                row.querySelector('.ed-kv-value').appendChild(templateField(Object.assign({}, env, { change: v => { p.v = v; emit(); } }), p.v, { placeholder: t('easydrag.ui.kv_value') }).el);
+                row.querySelector('.ed-kv-value').appendChild(templateField(withChange(env, v => { p.v = v; emit(); }), p.v, { placeholder: t('easydrag.ui.kv_value'), label: t('easydrag.ui.kv_value') }).el);
                 rows.appendChild(row);
             });
         }
@@ -400,14 +476,15 @@
     function tags(env, value, onChange) {
         const c = core();
         const { t, esc } = env;
-        const list = Array.isArray(value) ? value.map(String) : [];
-        const el = c.el('<div class="ed-tags"><div class="ed-tags-list"></div><input class="ed-input ed-tags-input" placeholder="' + esc(t('easydrag.ui.tags_add')) + '" enterkeyhint="done"' + (env.readonly ? ' disabled' : '') + '></div>');
+        const list = Array.isArray(value) ? value.filter(v => v != null && typeof v !== 'object').map(String) : [];
+        const el = c.el('<div class="ed-tags"><div class="ed-tags-list"></div><input class="ed-input ed-tags-input" placeholder="' + esc(t('easydrag.ui.tags_add')) + '" aria-label="' + esc(t('easydrag.ui.tags_add')) + '" enterkeyhint="done"' + (env.readonly ? ' disabled' : '') + '></div>');
         const host = el.querySelector('.ed-tags-list');
         const input = el.querySelector('input');
         function render() {
-            host.innerHTML = list.map((v, i) => '<span class="ed-tag">' + esc(v) + (env.readonly ? '' : '<button type="button" data-ed-tag-remove="' + i + '" aria-label="' + esc(t('easydrag.ui.remove')) + '">' + c.icon('x') + '</button>') + '</span>').join('');
+            host.innerHTML = list.map((v, i) => '<span class="ed-tag">' + esc(v) + (env.readonly ? '' : '<button type="button" data-ed-tag-remove="' + i + '" aria-label="' + esc(t('easydrag.ui.remove_tag', { name: v })) + '">' + c.icon('x') + '</button>') + '</span>').join('');
         }
         input.addEventListener('keydown', (event) => {
+            if (composing(event)) return;
             if ((event.key === 'Enter' || event.key === ',') && input.value.trim()) {
                 event.preventDefault();
                 list.push(input.value.trim());
@@ -435,25 +512,75 @@
 
     // fileField accepts a file reference ({{pdf.file}}) or a path in the workspace or the
     // documents folder; the server checks the path before anything leaves AuraGo.
-    function fileField(env, value, onChange, id) {
+    function fileField(env, value, onChange, id, aria) {
         const text = typeof value === 'object' && value ? (value.path || '') : value;
-        const field = templateField(Object.assign({}, env, { change: onChange }), text, { id, placeholder: env.t('easydrag.ui.file_placeholder') });
+        const field = templateField(withChange(env, onChange), text, Object.assign({ id, placeholder: env.t('easydrag.ui.file_placeholder') }, aria));
         field.el.classList.add('ed-file');
         return field.el;
     }
 
-    // secretRef picks a flow secret (vault entry easydrag_<name>) or creates a new one.
+    // utf8Bytes counts the UTF-8 bytes of s, the unit of the server's secret limit (a lone
+    // surrogate arrives there as U+FFFD, 3 bytes).
+    function utf8Bytes(s) {
+        let n = 0;
+        for (const ch of String(s)) { const cp = ch.codePointAt(0); n += cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4; }
+        return n;
+    }
+
+    // secretNames lists the flow secret names. The pickers of one form share the answer through
+    // env.secretCache; a failed request is not kept, so the next picker asks again.
+    function secretNames(env) {
+        const cache = env.secretCache || {};
+        if (!cache.names) {
+            const names = Promise.resolve().then(() => env.api.secrets())
+                .then(res => (res && Array.isArray(res.secrets) ? res.secrets : []).filter(n => typeof n === 'string'));
+            cache.names = names;
+            names.catch(() => { if (cache.names === names) cache.names = null; });
+        }
+        return cache.names;
+    }
+
+    // holdAction keeps a dialog button disabled for seconds (a 429 with Retry-After). The dialog
+    // enables its buttons once the action returns, so the hold starts after that.
+    function holdAction(dialog, id, seconds) {
+        const button = dialog.el.querySelector('[data-ed-action="' + id + '"]');
+        if (!button || !(seconds > 0)) return;
+        setTimeout(() => { button.disabled = true; }, 0);
+        setTimeout(() => { button.disabled = false; }, Math.min(seconds, 3600) * 1000);
+    }
+
+    // secretRef picks a flow secret (vault entry easydrag_<name>) or creates a new one. A name
+    // that exists is replaced only after a confirmation.
     function secretRef(env, value, onChange, id) {
         const c = core();
         const { t, esc } = env;
         const el = c.el('<div class="ed-secret"><select class="ed-input"' + (id ? ' id="' + esc(id) + '"' : '') + (env.readonly ? ' disabled' : '') + '></select>' +
-            (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-secret-new>' + c.icon('key') + '<span>' + esc(t('easydrag.ui.secret_new')) + '</span></button>') + '</div>');
+            (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-secret-new>' + c.icon('key') + '<span>' + esc(t('easydrag.ui.secret_new')) + '</span></button>') +
+            '<p class="ed-hint ed-secret-unavailable" hidden>' + esc(t('easydrag.ui.secrets_unavailable')) + '</p></div>');
         const select = el.querySelector('select');
+        const unavailable = el.querySelector('.ed-secret-unavailable');
         async function load(selected) {
             let names = [];
-            try { names = (await env.api.secrets()).secrets || []; } catch (err) { names = []; }
+            try {
+                names = (await secretNames(env)).slice();
+                unavailable.hidden = true;
+                select.removeAttribute('data-error');
+            } catch (err) {
+                // Like a failed option list: the reason on the select, a visible hint under it.
+                unavailable.hidden = false;
+                select.dataset.error = c.errorText(t, err);
+            }
             if (selected && !names.includes(selected)) names.push(selected);
             select.innerHTML = '<option value="">' + esc(t('easydrag.ui.secret_none')) + '</option>' + names.map(n => '<option value="' + esc(n) + '"' + (n === selected ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+        }
+        // confirmReplace asks before the value of an existing secret is overwritten.
+        async function confirmReplace(name) {
+            const answer = await c.modal(env.root, {
+                title: t('easydrag.ui.secret_replace_title'), closeLabel: t('easydrag.ui.close'),
+                body: '<p>' + esc(t('easydrag.ui.secret_replace_text', { name })) + '</p>',
+                actions: [{ id: 'keep', label: t('easydrag.ui.cancel') }, { id: 'replace', label: t('easydrag.ui.secret_replace'), danger: true }]
+            }).done;
+            return answer === 'replace';
         }
         select.addEventListener('change', () => onChange(select.value || undefined));
         const newBtn = el.querySelector('[data-ed-secret-new]');
@@ -462,15 +589,33 @@
                 title: t('easydrag.ui.secret_new'), closeLabel: t('easydrag.ui.close'),
                 body: '<label class="ed-label">' + esc(t('easydrag.ui.secret_name')) + '<input class="ed-input" data-ed-secret-name pattern="[a-z0-9_]{1,40}" autofocus></label>' +
                     '<label class="ed-label">' + esc(t('easydrag.ui.secret_value')) + '<input class="ed-input" type="password" data-ed-secret-value autocomplete="new-password"></label>' +
-                    '<p class="ed-hint">' + esc(t('easydrag.ui.secret_hint')) + '</p><p class="ed-error" hidden></p>',
+                    '<p class="ed-hint">' + esc(t('easydrag.ui.secret_hint')) + '</p><p class="ed-error" role="alert" hidden></p>',
                 actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'save', label: t('easydrag.ui.save'), primary: true }],
                 onAction: async (action, d) => {
                     if (action !== 'save') return true;
-                    const name = d.body.querySelector('[data-ed-secret-name]').value.trim();
+                    const nameInput = d.body.querySelector('[data-ed-secret-name]');
+                    const name = nameInput.value.trim();
                     const secret = d.body.querySelector('[data-ed-secret-value]').value;
                     const error = d.body.querySelector('.ed-error');
-                    if (!/^[a-z0-9_]{1,40}$/.test(name) || !secret) { error.hidden = false; error.textContent = t('easydrag.ui.secret_invalid'); return false; }
-                    try { await env.api.saveSecret(name, secret); } catch (err) { error.hidden = false; error.textContent = c.errorText(t, err); return false; }
+                    const fail = text => { error.hidden = false; error.textContent = text; return false; };
+                    // The server's own checks, before anything is sent.
+                    if (!/^[a-z0-9_]{1,40}$/.test(name)) return fail(t('easydrag.ui.secret_invalid'));
+                    if (!secret.trim()) return fail(t('easydrag.ui.secret_empty'));
+                    if (utf8Bytes(secret) > SECRET_MAX_BYTES) return fail(t('easydrag.ui.secret_too_large'));
+                    let names;
+                    try { names = await secretNames(env); } catch (err) { return fail(t('easydrag.ui.secrets_unavailable')); }
+                    if (names.includes(name)) {
+                        fail(t('easydrag.ui.secret_name_taken', { name }));
+                        if (!(await confirmReplace(name))) { nameInput.focus(); return false; }
+                    }
+                    try {
+                        await env.api.saveSecret(name, secret);
+                    } catch (err) {
+                        const wait = err && err.retryAfter > 0 ? err.retryAfter : 0;
+                        if (wait) holdAction(d, 'save', wait);
+                        return fail(c.errorText(t, err) + (wait ? ' ' + t('easydrag.ui.secret_retry', { seconds: wait }) : ''));
+                    }
+                    if (env.secretCache) env.secretCache.names = null;
                     await load(name);
                     onChange(name);
                     return true;

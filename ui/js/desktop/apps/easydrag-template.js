@@ -664,6 +664,16 @@
         return v === undefined ? null : v;
     }
 
+    // pathJoin appends a field or an index to a reference. Other names go in quotes, escaped
+    // for lexExpr: a backslash keeps the next character, \n and \t are a newline and a tab.
+    // The reference then reads back the same own field (resolvePath).
+    function pathJoin(base, seg) {
+        if (typeof seg === 'number') return base + '[' + seg + ']';
+        if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(seg)) return base + '.' + seg;
+        const quoted = String(seg).replace(/[\\"]/g, ch => '\\' + ch).replace(/\n/g, '\\n').replace(/\t/g, '\\t');
+        return base + '["' + quoted + '"]';
+    }
+
     function resolve(root, path, roots) {
         return resolvePath(Object.prototype.hasOwnProperty.call(roots, root) ? roots[root] : undefined, path);
     }
@@ -720,6 +730,6 @@
 
     ED.template = {
         segments, parseExpr, refs, refsInValue, renameRoot, renameRoots, renameInValue, renameRootsInValue,
-        evaluate, resolvePath, stringify, describe, applyFilter, toDate, formatDate, FILTER_LIST
+        evaluate, resolvePath, pathJoin, stringify, describe, applyFilter, toDate, formatDate, FILTER_LIST
     };
 })();
