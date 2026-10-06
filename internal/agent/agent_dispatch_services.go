@@ -658,6 +658,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if dockerProtectedLocalLLMVolumeName(req.Name) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`
 			}
+			var composeChecked *dockerComposePreflight
 			if req.Operation == "compose" {
 				// Without host access Compose and its preflight see only the
 				// variables they need, never AuraGo's environment (user decision
@@ -672,9 +673,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if denied := tools.DockerComposeOutputDenial(dockerCfg, req.Command); denied != "" {
 					return "Tool Output: " + denied
 				}
-				if denied := dockerComposePolicy(ctx, cfg, dockerCfg, req); denied != "" {
+				denied, checked := dockerComposePolicyChecked(ctx, cfg, dockerCfg, req)
+				if denied != "" {
 					return denied
 				}
+				composeChecked = checked
 			}
 			switch req.Operation {
 			case "list_containers", "ps":
@@ -773,6 +776,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerRemoveVolume(dockerCfg, req.Name, req.Force)
 			case "compose":
 				logger.Info("LLM requested Docker compose", "file", req.File, "cmd", req.Command)
+				if !cfg.Docker.AllowHostAccess {
+					// Check-then-run: repeat the checked resolutions right before
+					// the run and refuse when the input changed (controller
+					// decision 2026-10-06, only while host access is off).
+					if changed := composeChecked.inputChanged(ctx); changed != "" {
+						return changed
+					}
+				}
 				return "Tool Output: " + tools.DockerCompose(dockerCfg, req.File, req.Command)
 			default:
 				return `Tool Output: {"status": "error", "message": "Unknown docker operation. Use: list_containers, inspect, start, stop, restart, pause, unpause, remove, logs, create, run, list_images, pull, remove_image, list_networks, create_network, remove_network, connect, disconnect, list_volumes, create_volume, remove_volume, exec, stats, top, port, cp, compose, info"}`

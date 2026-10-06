@@ -55,6 +55,22 @@ type dockerComposePreflight struct {
 	// self is AuraGo's own container (zero on native installs), read once per
 	// call by dockerComposePolicy.
 	self tools.DockerSelfIdentity
+	// resolutions are the Compose resolutions the checks read, in order, so
+	// inputChanged can repeat them right before the run.
+	resolutions []dockerComposeResolution
+}
+
+// dockerComposeResolution is one `docker compose config` run of a preflight:
+// its variant and its output, or that it failed.
+type dockerComposeResolution struct {
+	opts   tools.DockerComposeConfigOptions
+	output string
+	failed bool
+}
+
+func (p *dockerComposePreflight) recordResolution(opts tools.DockerComposeConfigOptions, output string, err error) {
+	opts.Services = append([]string(nil), opts.Services...)
+	p.resolutions = append(p.resolutions, dockerComposeResolution{opts: opts, output: output, failed: err != nil})
 }
 
 // dockerComposeRawModel is a resolved Compose model as raw JSON per entry.
@@ -142,7 +158,9 @@ func loadDockerComposePreflight(ctx context.Context, cfg tools.DockerConfig, fil
 	if json.Unmarshal([]byte(resolved), &preflight.defaultRaw) != nil {
 		preflight.defaultRaw = dockerComposeRawModel{}
 	}
+	preflight.recordResolution(tools.DockerComposeConfigOptions{}, resolved, nil)
 	allResolved, err := resolveDockerComposeConfig(ctx, cfg, composeFile, tools.DockerComposeConfigOptions{AllProfiles: true})
+	preflight.recordResolution(tools.DockerComposeConfigOptions{AllProfiles: true}, allResolved, err)
 	if err == nil {
 		var allModel tools.DockerComposeModel
 		if allModel, err = tools.ParseDockerComposeModel(allResolved); err == nil {
@@ -371,6 +389,7 @@ func (p *dockerComposePreflight) resolveNamedProfileServices(ctx context.Context
 	var raw dockerComposeRawModel
 	for round := 1; ; round++ {
 		resolved, err := resolveDockerComposeConfig(ctx, p.dockerCfg, p.file, tools.DockerComposeConfigOptions{Services: names})
+		p.recordResolution(tools.DockerComposeConfigOptions{Services: names}, resolved, err)
 		if err == nil {
 			if model, err = tools.ParseDockerComposeModel(resolved); err == nil {
 				raw = dockerComposeRawModel{}
@@ -666,6 +685,22 @@ func dockerComposeReferencesProtectedLocalLLMVolume(cfg tools.DockerConfig, file
 // checks apply to every subcommand; the host-access policy only to
 // up/create/build and, for AuraGo state, config/convert.
 func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tools.DockerConfig, req dockerArgs) string {
+	denied, _ := dockerComposePolicyChecked(ctx, cfg, dockerCfg, req)
+	return denied
+}
+
+// dockerComposePolicyChecked is dockerComposePolicy that also returns the
+// preflight an allowed call was checked against, for inputChanged right
+// before the run; it is nil when the call is refused.
+func dockerComposePolicyChecked(ctx context.Context, cfg *config.Config, dockerCfg tools.DockerConfig, req dockerArgs) (string, *dockerComposePreflight) {
+	var checked *dockerComposePreflight
+	if denied := dockerComposePolicyRun(ctx, cfg, dockerCfg, req, &checked); denied != "" {
+		return denied, nil
+	}
+	return "", checked
+}
+
+func dockerComposePolicyRun(ctx context.Context, cfg *config.Config, dockerCfg tools.DockerConfig, req dockerArgs, checked **dockerComposePreflight) string {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -674,6 +709,7 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 	ctx, cancel := context.WithTimeout(ctx, dockerComposePreflightTimeout)
 	defer cancel()
 	preflight, err := loadDockerComposePreflight(ctx, dockerCfg, req.File)
+	*checked = preflight
 	var outside *dockerComposeOutsideJailError
 	if errors.As(err, &outside) {
 		if !outside.workspaceConfigured {
