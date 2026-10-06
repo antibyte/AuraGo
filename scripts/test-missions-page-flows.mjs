@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 // Runs the standalone missions page (ui/js/missions/main.js) in Node on a small stub DOM and checks how it treats
 // EasyDrag flow missions (execution_type "flow"): Edit, Duplicate and the compact row only explain that flows are
-// edited in EasyDrag, cards show no preparation buttons and a disabled Duplicate, Run waits for a published flow,
-// the delete confirmation says that the flow goes too, the Flow filter, the status chip and the mission selector.
+// edited in EasyDrag, cards show no preparation state or buttons and a disabled Duplicate, Run waits for a published
+// and switched-on flow and says why (visible state, title, toast), icon buttons keep their action names, refused
+// runs and deletes show the server's message (or the page's own text), the delete confirmation says that the flow
+// goes too, the Flow filter, the status chip, the mission selector, and that mission fields cannot break out of
+// the attributes they are written into.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -55,10 +58,18 @@ const confirms = [];
 const requests = [];
 let confirmAnswer = false;
 const responses = { '/api/missions/v2': { missions: [], queue: { items: [], running: '' } } };
+// failing maps "METHOD url" to a refused answer { status, body }; body is sent as JSON text unless it is a string.
+const failing = new Map();
 function fetchStub(url, opts = {}) {
-    requests.push({ url, method: opts.method || 'GET' });
+    const method = opts.method || 'GET';
+    requests.push({ url, method });
+    const refused = failing.get(`${method} ${url}`);
+    if (refused) {
+        const text = typeof refused.body === 'string' ? refused.body : JSON.stringify(refused.body);
+        return Promise.resolve({ ok: false, status: refused.status, json: () => Promise.resolve(refused.body), text: () => Promise.resolve(text) });
+    }
     const body = Object.prototype.hasOwnProperty.call(responses, url) ? responses[url] : (/\/run$/.test(url) ? { status: 'queued' } : []);
-    return Promise.resolve({ ok: true, json: () => Promise.resolve(body), text: () => Promise.resolve('') });
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body), text: () => Promise.resolve('') });
 }
 
 // The translator returns the key, plus the params as JSON.
@@ -91,21 +102,57 @@ function check(name, cond, detail) {
     console.log('FAIL ' + name + (detail ? ' — ' + detail : ''));
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
-function reset() { toasts.length = 0; modals.length = 0; confirms.length = 0; requests.length = 0; }
+function reset() { toasts.length = 0; modals.length = 0; confirms.length = 0; requests.length = 0; failing.clear(); }
+const refreshed = () => requests.some(r => r.url === '/api/missions/v2' && r.method === 'GET');
 // buttonFor returns the opening tag of the button with data-mission-action="action" in html, or ''.
 function buttonFor(html, action) {
     const m = html.match(new RegExp(`<button[^>]*data-mission-action="${action}"[^>]*>`));
     return m ? m[0] : '';
 }
+// startTags parses every start tag of html into { tag, attrs: [{ name, value }] }. Attribute values must be quoted
+// or plain; a value that breaks out of its quotes shows up as an extra attribute.
+function startTags(html) {
+    const tags = [];
+    for (const m of html.matchAll(/<([a-zA-Z][a-zA-Z0-9-]*)((?:\s+[^\s"'>\/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*)\s*\/?>/g)) {
+        const attrs = [];
+        for (const a of m[2].matchAll(/\s+([^\s"'>\/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g)) {
+            attrs.push({ name: a[1].toLowerCase(), value: a[2] ?? a[3] ?? a[4] ?? '' });
+        }
+        tags.push({ tag: m[1].toLowerCase(), attrs });
+    }
+    return tags;
+}
+function eventHandlerAttrs(html) {
+    return startTags(html).flatMap(tag => tag.attrs.filter(a => a.name.startsWith('on')).map(a => `${tag.tag}[${a.name}]`));
+}
+const has = (html, text) => html.includes(text);
 
-const agent = { id: 'agent-1', name: 'Agent', execution_type: 'manual', prompt: 'Do it', priority: 'medium', run_count: 2, preparation_status: 'none' };
+const agent = { id: 'agent-1', name: 'Agent', execution_type: 'manual', prompt: 'Do it', priority: 'medium', run_count: 2, preparation_status: 'none', enabled: true };
 const preparedAgent = { ...agent, id: 'agent-2', name: 'Prepared agent', preparation_status: 'prepared' };
-const scheduled = { id: 'sched-1', name: 'Daily', execution_type: 'scheduled', schedule: '0 9 * * *', prompt: 'Daily', priority: 'low', run_count: 0 };
-const triggered = { id: 'trig-1', name: 'Hook', execution_type: 'triggered', trigger_type: 'webhook', trigger_config: {}, prompt: 'Hook', priority: 'high', run_count: 0 };
+const scheduled = { id: 'sched-1', name: 'Daily', execution_type: 'scheduled', schedule: '0 9 * * *', prompt: 'Daily', priority: 'low', run_count: 0, enabled: true };
+const triggered = { id: 'trig-1', name: 'Hook', execution_type: 'triggered', trigger_type: 'webhook', trigger_config: {}, prompt: 'Hook', priority: 'high', run_count: 0, enabled: true };
 const flowLive = { id: 'flow-1', name: 'Live <b>flow</b>', execution_type: 'flow', flow_id: 'f1', flow_published: true, enabled: true, prompt: '', priority: 'medium', run_count: 4 };
-// A flow that was never published; a stale preparation status must not bring back the preparation buttons.
+// A flow that was never published (always switched off); a stale preparation status must not show anything.
 const flowDraft = { id: 'flow-2', name: 'Draft flow', execution_type: 'flow', flow_id: 'f2', enabled: false, prompt: '', priority: 'medium', run_count: 0, preparation_status: 'prepared' };
-const ALL = [agent, preparedAgent, scheduled, triggered, flowLive, flowDraft];
+// Published, but switched off: the server refuses its runs ("mission is disabled").
+const flowPaused = { id: 'flow-3', name: 'Paused flow', execution_type: 'flow', flow_id: 'f3', flow_published: true, enabled: false, prompt: '', priority: 'medium', run_count: 1 };
+const flowLocked = { id: 'flow-4', name: 'Locked flow', execution_type: 'flow', flow_id: 'f4', flow_published: true, enabled: true, locked: true, prompt: '', priority: 'medium', run_count: 1 };
+const flowRunning = { id: 'flow-5', name: 'Busy flow', execution_type: 'flow', flow_id: 'f5', flow_published: true, enabled: true, status: 'running', prompt: '', priority: 'high', run_count: 9 };
+// Hostile text in every field that reaches an attribute or the markup.
+const EVIL = `Evil" onmouseover="alert(1)" x='y' <img src=x onerror=alert(2)> & co`;
+const flowEvil = {
+    id: `evil" onmouseover="alert(3)`, name: EVIL, execution_type: 'flow', flow_id: 'f6', flow_published: true, enabled: true,
+    prompt: EVIL, priority: `high" onmouseover="alert(4)`, run_count: 1, preparation_status: `x" onmouseover="alert(5)`
+};
+const agentEvil = {
+    id: `agent" onfocus="alert(6)`, name: EVIL, execution_type: 'scheduled', schedule: `<img src=x onerror=alert(7)>`, prompt: EVIL,
+    priority: `low" onclick="alert(8)`, run_count: 0, enabled: true, preparation_status: `none" onclick="alert(9)`
+};
+const triggeredEvil = {
+    id: 'trig-evil', name: 'Evil trigger', execution_type: 'triggered', trigger_type: 'email_received', priority: 'low', run_count: 0, enabled: true, prompt: '',
+    trigger_config: { email_folder: '<img src=x onerror=alert(10)>', email_subject_contains: `" onmouseover="alert(11)`, min_interval_seconds: '<b>9</b>' }
+};
+const ALL = [agent, preparedAgent, scheduled, triggered, flowLive, flowDraft, flowPaused, flowLocked, flowRunning];
 setMissions(ALL);
 
 // ── guard: Edit, Duplicate and the compact row's open-edit ──
@@ -142,50 +189,106 @@ reset();
 clickAction('duplicate', 'flow-1');
 check('click: duplicate of a flow reaches the guard', toasts.length === 1 && modals.length === 0, JSON.stringify({ toasts, modals }));
 
-// ── cards: no preparation buttons, Duplicate disabled, Edit explains, Run waits for publishing ──
-for (const [view, render] of [['grid', (m) => P.renderMissionGrid(m, false)], ['list', (m) => P.renderMissionCompact(m)]]) {
-    for (const flow of [flowLive, flowDraft]) {
+// ── cards: no preparation state or buttons, Duplicate disabled, Edit explains, icon buttons keep their names ──
+const views = [['grid', (m) => P.renderMissionGrid(m, false)], ['list', (m) => P.renderMissionCompact(m)]];
+for (const [view, render] of views) {
+    for (const flow of [flowLive, flowDraft, flowPaused]) {
         const html = render(flow);
         for (const action of ['prepare', 'view-prepared', 'invalidate-prepared']) {
             check(`${view}: ${flow.id} has no ${action} button`, !html.includes(`data-mission-action="${action}"`));
         }
+        check(`${view}: ${flow.id} shows no preparation badge`, !html.includes('badge-prep-'));
         const dup = buttonFor(html, 'duplicate');
         check(`${view}: ${flow.id} Duplicate is disabled with the flow hint`, / disabled/.test(dup) && dup.includes('title="missions.flow_managed"'), dup);
+        check(`${view}: ${flow.id} Duplicate keeps its action name`, dup.includes('aria-label="missions.card_btn_duplicate_title"'), dup);
         const edit = buttonFor(html, 'open-edit');
         check(`${view}: ${flow.id} Edit stays clickable and explains`, !/ disabled/.test(edit) && edit.includes('title="missions.flow_managed"'), edit);
-        check(`${view}: ${flow.id} name is escaped`, !html.includes('<b>flow</b>'));
+        check(`${view}: ${flow.id} Edit keeps its action name`, edit.includes('aria-label="missions.card_btn_edit_title"'), edit);
     }
-    const live = buttonFor(render(flowLive), 'run');
-    check(`${view}: a published flow can run`, !/ disabled/.test(live) && live.includes('title="missions.card_btn_run_title"'), live);
-    const draft = buttonFor(render(flowDraft), 'run');
-    check(`${view}: an unpublished flow cannot run and says why`, / disabled/.test(draft) && draft.includes('title="missions.flow_publish_first"'), draft);
+    check(`${view}: names are escaped`, !render(flowLive).includes('<b>flow</b>'));
     const agentHtml = render(agent);
     check(`${view}: agent missions keep Prepare`, agentHtml.includes('data-mission-action="prepare"'));
-    check(`${view}: agent missions keep an enabled Duplicate`, !/ disabled/.test(buttonFor(agentHtml, 'duplicate')) && buttonFor(agentHtml, 'duplicate').includes('missions.card_btn_duplicate_title'));
-    check(`${view}: prepared agent missions keep view/invalidate`, render(preparedAgent).includes('data-mission-action="view-prepared"') && render(preparedAgent).includes('data-mission-action="invalidate-prepared"'));
+    check(`${view}: agent missions keep an enabled Duplicate`, !/ disabled/.test(buttonFor(agentHtml, 'duplicate')) && buttonFor(agentHtml, 'duplicate').includes('title="missions.card_btn_duplicate_title"'));
+    check(`${view}: prepared agent missions keep view/invalidate and their badge`, ['view-prepared', 'invalidate-prepared'].every(a => render(preparedAgent).includes(`data-mission-action="${a}"`)) && render(preparedAgent).includes('badge-prep-prepared'));
+    const lockedDelete = buttonFor(render(flowLocked), 'delete');
+    check(`${view}: a locked flow cannot be deleted`, / disabled/.test(lockedDelete), lockedDelete);
+    check(`${view}: an unlocked flow can be deleted`, !/ disabled/.test(buttonFor(render(flowLive), 'delete')));
 }
+
+// ── Run: disabled with the reason while unpublished, switched off or running ──
+const runCases = [
+    ['a published flow can run', flowLive, false, 'missions.card_btn_run_title'],
+    ['an unpublished flow cannot run and says why', flowDraft, true, 'missions.flow_publish_first'],
+    ['a switched-off flow cannot run and says why', flowPaused, true, 'missions.flow_switch_on_first'],
+    ['a running flow cannot run again', flowRunning, true, 'missions.card_btn_run_title'],
+];
+for (const [name, mission, disabled, title] of runCases) {
+    const grid = buttonFor(P.renderMissionGrid(mission, false), 'run');
+    check(`grid: ${name}`, / disabled/.test(grid) === disabled && grid.includes(`title="${title}"`), grid);
+    check(`grid: Run of ${mission.id} keeps its visible label as name`, !grid.includes('aria-label='), grid);
+    const list = buttonFor(P.renderMissionCompact(mission), 'run');
+    check(`list: ${name}`, / disabled/.test(list) === disabled && list.includes(`title="${title}"`), list);
+    check(`list: Run of ${mission.id} keeps its action name`, list.includes('aria-label="missions.card_btn_run_title"'), list);
+}
+
+// ── visible state: the chip (grid) and a badge (list) say why a flow does not run ──
+const stateCases = [
+    [flowDraft, 'missions.flow_unpublished'],
+    [flowPaused, 'missions.flow_paused'],
+];
+for (const [mission, label] of stateCases) {
+    const chip = P.renderStatusChip(mission, false, false, false);
+    check(`status chip: ${mission.id} reads ${label}`, chip.includes(`mc-status-chip__label">${label}</span>`) && chip.includes('mc-status-chip--flow-off'), chip);
+    const grid = P.renderMissionGrid(mission, false);
+    check(`grid: ${mission.id} shows ${label} and keeps the Flow pill`, grid.includes(`>${label}</span>`) && grid.includes('🧩<span>missions.filter_flow</span>'));
+    const list = P.renderMissionCompact(mission);
+    check(`list: ${mission.id} shows ${label} as a badge`, list.includes(`<span class="badge badge-idle">${label}</span>`), list.match(/card-badges">[^]*?<\/div>/)?.[0]);
+}
+const liveChip = P.renderStatusChip(flowLive, false, false, false);
+check('status chip: a runnable flow is labelled Flow, not Manual', liveChip.includes('mc-status-chip--flow"') && liveChip.includes('missions.filter_flow') && !liveChip.includes('missions.filter_manual'), liveChip);
+check('list: a runnable flow has no state badge', !P.renderMissionCompact(flowLive).includes('badge-idle'));
+const runningChip = P.renderStatusChip(flowRunning, true, false, false);
+check('status chip: a running flow shows the running state', runningChip.includes('missions.card_badge_running') && runningChip.includes('mc-status-chip--running'));
+check('list: a running flow shows the running badge', P.renderMissionCompact(flowRunning).includes('badge-running'));
+check('status chip: manual missions keep their label', P.renderStatusChip(agent, false, false, false).includes('missions.filter_manual'));
 const flowGrid = P.renderMissionGrid(flowLive, false);
 check('grid: the execution pill names the flow type', flowGrid.includes('🧩<span>missions.filter_flow</span>'), flowGrid.match(/mc-trigger-pill[^]*?<\/div>/)?.[0]);
 check('grid: data-status is flow', flowGrid.includes('data-status="flow"'));
 check('list: the type icon is the flow icon', P.renderMissionCompact(flowLive).includes('🧩'));
 
-// ── status chip ──
-const chip = P.renderStatusChip(flowLive, false, false, false);
-check('status chip: a flow is labelled Flow, not Manual', chip.includes('mc-status-chip--flow') && chip.includes('missions.filter_flow') && !chip.includes('missions.filter_manual'), chip);
-check('status chip: a running flow shows the running state', P.renderStatusChip(flowLive, true, false, false).includes('missions.card_badge_running'));
-check('status chip: manual missions keep their label', P.renderStatusChip(agent, false, false, false).includes('missions.filter_manual'));
-
-// ── Run ──
+// ── Run: requests, toasts and refused runs ──
 reset();
 await P.runMission('flow-2');
-check('run: an unpublished flow sends no request and says why', requests.length === 0 && toasts.length === 1 && toasts[0].message === 'missions.flow_publish_first', JSON.stringify({ requests, toasts }));
+check('run: an unpublished flow sends no request and says why', requests.length === 0 && toasts.length === 1 && toasts[0].message === 'missions.flow_publish_first' && toasts[0].type === 'info', JSON.stringify({ requests, toasts }));
+reset();
+await P.runMission('flow-3');
+check('run: a switched-off flow sends no request and says why', requests.length === 0 && toasts.length === 1 && toasts[0].message === 'missions.flow_switch_on_first' && toasts[0].type === 'info', JSON.stringify({ requests, toasts }));
 reset();
 await P.runMission('flow-1');
 check('run: a published flow is started through the mission API', requests.some(r => r.url === '/api/missions/v2/flow-1/run' && r.method === 'POST'), JSON.stringify(requests));
 check('run: a flow run says it runs in EasyDrag, not that it was queued', toasts.length === 1 && toasts[0].message === 'missions.toast_flow_run_requested', JSON.stringify(toasts));
+check('run: the list is refreshed after a run', refreshed(), JSON.stringify(requests));
 reset();
 await P.runMission('agent-1');
 check('run: agent missions keep the dispatch toast', toasts.length === 1 && toasts[0].message === 'missions.toast_queued', JSON.stringify(toasts));
+const refusedRuns = [
+    ['400 "mission is disabled"', 400, { error: 'mission is disabled' }, 'missions.flow_switch_on_first', 'info'],
+    ['409 not published', 409, { error: 'the flow has not been published yet' }, 'missions.flow_publish_first', 'info'],
+    ['503 flows unavailable', 503, { error: 'flows are not available' }, 'missions.flows_unavailable', 'info'],
+    ['429 queue full', 429, { error: "the flow's run queue is full" }, "missions.toast_error_prefixthe flow's run queue is full", 'error'],
+    ['500 plain text', 500, 'boom', 'missions.toast_error_prefixboom', 'error'],
+];
+for (const [name, status, body, message, type] of refusedRuns) {
+    reset();
+    failing.set('POST /api/missions/v2/flow-1/run', { status, body });
+    await P.runMission('flow-1');
+    check(`run refused (${name}): ${message}`, toasts.length === 1 && toasts[0].message === message && toasts[0].type === type, JSON.stringify(toasts));
+    check(`run refused (${name}): no refresh`, !refreshed(), JSON.stringify(requests));
+}
+reset();
+failing.set('POST /api/missions/v2/agent-1/run', { status: 400, body: { error: 'mission is disabled' } });
+await P.runMission('agent-1');
+check('run refused (agent): the server message, not raw JSON', toasts.length === 1 && toasts[0].message === 'missions.toast_error_prefixmission is disabled' && toasts[0].type === 'error', JSON.stringify(toasts));
 
 // ── delete ──
 reset();
@@ -201,13 +304,23 @@ confirmAnswer = true;
 await P.deleteMission('flow-2');
 await tick();
 check('delete: a confirmed flow delete goes to the mission API', requests.some(r => r.url === '/api/missions/v2/flow-2' && r.method === 'DELETE'), JSON.stringify(requests));
+check('delete: a deleted flow is announced', toasts.length === 1 && toasts[0].message === 'missions.toast_mission_deleted' && toasts[0].type === 'success', JSON.stringify(toasts));
+check('delete: the list is refreshed after a delete', refreshed(), JSON.stringify(requests));
+setMissions(ALL);
+reset();
+confirmAnswer = true;
+failing.set('DELETE /api/missions/v2/flow-4', { status: 500, body: { error: 'mission is locked' } });
+await P.deleteMission('flow-4');
+await tick();
+check('delete refused: the server message, not raw JSON', toasts.length === 1 && toasts[0].message === 'missions.toast_error_prefixmission is locked' && toasts[0].type === 'error', JSON.stringify(toasts));
+check('delete refused: no refresh', !refreshed(), JSON.stringify(requests));
 confirmAnswer = false;
 setMissions(ALL);
 
 // ── Flow filter ──
 P.filterMissions('flow');
 const grid = document.getElementById('missions-grid').innerHTML;
-check('filter: Flow shows flow missions', grid.includes('data-mission-id="flow-1"') && grid.includes('data-mission-id="flow-2"'));
+check('filter: Flow shows flow missions', ['flow-1', 'flow-2', 'flow-3'].every(id => grid.includes(`data-mission-id="${id}"`)));
 check('filter: Flow hides other missions', !grid.includes('data-mission-id="agent-1"') && !grid.includes('data-mission-id="sched-1"') && !grid.includes('data-mission-id="trig-1"'));
 P.filterMissions('all');
 const html = fs.readFileSync(path.join(uiDir, 'missions_v2.html'), 'utf8');
@@ -223,9 +336,43 @@ check('selector: a flow option reads Flow', /value="flow-1"[^]*?mission-option-m
 check('selector: manual and scheduled options read their type', /value="agent-1"[^]*?mission-option-meta">missions\.filter_manual •/.test(selector) && /value="sched-1"[^]*?mission-option-meta">missions\.filter_scheduled •/.test(selector));
 check('selector: triggered missions stay out', !selector.includes('value="trig-1"'));
 
+// ── hostile names, ids and fields stay inside their attributes ──
+setMissions([flowEvil, agentEvil, triggeredEvil]);
+vm.runInContext(`queue = { items: [{ mission_id: ${JSON.stringify(agentEvil.id)}, priority: 1, trigger_type: '<img src=x onerror=alert(12)>', enqueued_at: '' }], running: ${JSON.stringify(flowEvil.id)} };`, sandbox);
+P.loadMissionSelector();
+P.renderQueue();
+const rendered = {
+    selector: document.getElementById('mission-selector').innerHTML,
+    queue: document.getElementById('queue-items').innerHTML,
+};
+for (const m of [flowEvil, agentEvil, triggeredEvil]) {
+    rendered[`grid ${m.id}`] = P.renderMissionGrid(m, false);
+    rendered[`list ${m.id}`] = P.renderMissionCompact(m);
+    rendered[`chip ${m.id}`] = P.renderStatusChip(m, false, false, false);
+}
+for (const [where, markup] of Object.entries(rendered)) {
+    // A value that breaks out of its quotes leaves a tag the parser cannot read; count those too.
+    const unparsed = (markup.match(/<[a-zA-Z]/g) || []).length - startTags(markup).length;
+    check(`escaping: ${where} has only well-formed tags`, unparsed === 0, `${unparsed} tag(s) did not parse`);
+    const handlers = eventHandlerAttrs(markup);
+    check(`escaping: ${where} has no injected event handler`, handlers.length === 0, handlers.join(', '));
+    check(`escaping: ${where} has no injected tag`, !/<img/i.test(markup), (markup.match(/<img[^>]*>/i) || [])[0]);
+}
+check('escaping: the selector keeps the id and name as escaped attribute values',
+    rendered.selector.includes('value="evil&quot; onmouseover=&quot;alert(3)"') && rendered.selector.includes('data-name="Evil&quot; onmouseover=&quot;alert(1)&quot; x=&#39;y&#39; &lt;img src=x onerror=alert(2)&gt; &amp; co"'),
+    rendered.selector);
+const nameTitle = startTags(rendered[`grid ${flowEvil.id}`]).find(tag => tag.tag === 'h3')?.attrs.find(a => a.name === 'title')?.value;
+check('escaping: the card title attribute holds the whole name', nameTitle === EVIL.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'), nameTitle);
+const pillTitle = startTags(rendered[`grid ${triggeredEvil.id}`]).find(tag => tag.attrs.some(a => a.name === 'class' && a.value === 'mc-trigger-pill'))?.attrs.find(a => a.name === 'title')?.value || '';
+check('escaping: the trigger pill title is escaped once', pillTitle.includes('&lt;img src=x onerror=alert(10)&gt;') && !pillTitle.includes('&amp;lt;'), pillTitle);
+setMissions(ALL);
+
 // ── strings: every key the flow paths use exists in all 16 locales ──
 const langs = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
-const keys = ['missions.filter_flow', 'missions.flow_managed', 'missions.flow_publish_first', 'missions.confirm_delete_flow', 'missions.toast_flow_run_requested'];
+const keys = ['missions.filter_flow', 'missions.flow_managed', 'missions.flow_publish_first', 'missions.confirm_delete_flow', 'missions.toast_flow_run_requested',
+    'missions.flow_unpublished', 'missions.flow_paused', 'missions.flow_switch_on_first', 'missions.flows_unavailable'];
+const source = fs.readFileSync(mainFile, 'utf8');
+for (const key of keys) check(`strings: main.js uses ${key} literally`, source.includes(`'${key}'`));
 for (const lang of langs) {
     const bundle = JSON.parse(fs.readFileSync(path.join(uiDir, 'lang', 'missions', `${lang}.json`), 'utf8'));
     const missing = keys.filter(k => typeof bundle[k] !== 'string' || !bundle[k].trim());
