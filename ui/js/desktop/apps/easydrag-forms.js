@@ -358,7 +358,7 @@
                 entry.field.classList.add('is-flash');
                 setTimeout(() => entry.field.classList.remove('is-flash'), 1200);
                 const target = entry.field.querySelector('.ed-tpl-view, input, select, textarea, button');
-                if (target) target.focus();
+                if (target) target.focus({ preventScroll: true });
             },
             dispose() { el.remove(); }
         };
