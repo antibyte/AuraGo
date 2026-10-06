@@ -1425,6 +1425,12 @@ registration lives in `internal/desktop/types.go`.
   `desktop.fm.paste_exists` message. Save retains overwrite semantics.
 - Code Studio Git commands run via Docker exec in the container workspace (`/workspace`).
   Git API endpoints are in `internal/server/code_studio_handlers.go`.
+- Code Studio recognizes C source/header files and reuses the bundled CodeMirror
+  C/C++ parser. Run compiles `.c` as C17 with GCC into a private temporary
+  directory, executes only a successful build and cleans up afterward. Headers
+  remain editable, not standalone programs. With no restored tabs or launch
+  path, open available `hello.go`, `hello.py` and `hello.c` samples as tabs.
+  Verify `TestDesktopCodeStudioC` and the CodeContainer sample/runtime tests.
 - System World loads `sysworld-data.js`, `sysworld-hud.js`, `sysworld-controls.js`,
   then `sysworld.js`.
   The first two expose `window.SysWorld.data/createHud`; the entry owns per-window
