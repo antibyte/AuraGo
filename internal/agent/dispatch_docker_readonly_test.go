@@ -45,3 +45,41 @@ func TestDispatchDockerReadOnlyBlocksMutatingOperations(t *testing.T) {
 		})
 	}
 }
+
+func TestDispatchDockerReadOnlyReportsRejectedComposeArguments(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.ReadOnly = true
+
+	// An argument that is never allowed counts as mutating, which used to hide
+	// the real reason behind the read-only message.
+	for command, wantInOutput := range map[string]string{
+		"config --environment":         `"code":"docker_compose_argument_denied"`,
+		"up -d --env-file /etc/x":      `"code":"docker_compose_argument_denied"`,
+		"exec app sh":                  "not allowed by the safe compose policy",
+		"config --host tcp://remote:1": "is not allowed",
+	} {
+		output, ok := dispatchServices(context.Background(), ToolCall{
+			Action:    "docker",
+			Operation: "compose",
+			File:      "compose.yml",
+			Command:   command,
+		}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+		if !ok {
+			t.Fatalf("%s: expected docker operation to be handled", command)
+		}
+		if strings.Contains(output, "read-only") || !strings.Contains(output, wantInOutput) {
+			t.Fatalf("%s: output = %s, want the argument rejection (%s), not the read-only denial", command, output, wantInOutput)
+		}
+	}
+	// A valid mutating command is still stopped by the read-only gate.
+	output, _ := dispatchServices(context.Background(), ToolCall{
+		Action:    "docker",
+		Operation: "compose",
+		File:      "compose.yml",
+		Command:   "up -d",
+	}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	if !strings.Contains(output, "read-only") {
+		t.Fatalf("up -d: output = %s, want the read-only denial", output)
+	}
+}

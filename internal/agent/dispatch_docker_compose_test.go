@@ -583,6 +583,10 @@ func TestDockerComposeStartedServiceNamesSkipConfigOutputTargets(t *testing.T) {
 		"config --output rendered/stack.yml hidden":    {"hidden"},
 		"config --output=rendered/stack.yml hidden":    {"hidden"},
 		"config -o=rendered/stack.yml hidden":          {"hidden"},
+		"config -o= hidden":                            {"hidden"},
+		"config --output= hidden":                      {"hidden"},
+		"config -qo= hidden":                           {"hidden"},
+		"config -o -- hidden":                          {"hidden"},
 		"config -orendered/stack.yml hidden":           {"hidden"},
 		"config -ologo hidden":                         {"hidden"},
 		"config -qologo hidden":                        {"hidden"},
@@ -593,6 +597,9 @@ func TestDockerComposeStartedServiceNamesSkipConfigOutputTargets(t *testing.T) {
 		"up -d -t5 hidden":                             {"hidden"},
 		"up -dt 5 hidden":                              {"hidden"},
 		"build -qm 1g hidden":                          {"hidden"},
+		"build -m512m hidden":                          {"hidden"},
+		"build -qm512m hidden":                         {"hidden"},
+		"up -dt5 hidden":                               {"hidden"},
 	} {
 		got := dockerComposeStartedServiceNames(command)
 		if strings.Join(got, ",") != strings.Join(want, ",") {
@@ -623,6 +630,30 @@ func TestDockerComposePolicyChecksServicesNamedAfterConfigOutputTargets(t *testi
 	for _, command := range []string{"config -o rendered/stack.yml", "config --output=rendered/stack.yml web"} {
 		if got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: file, Command: command}); got != "" {
 			t.Fatalf("%s: blocked: %s", command, got)
+		}
+	}
+}
+
+func TestDockerComposeLifecycleServiceNamesSkipShortFlagValues(t *testing.T) {
+	// The lifecycle parser reads short flag clusters like the other parsers: the
+	// value of a trailing -t is the next argument, an attached one is not.
+	for command, want := range map[string][]string{
+		"down -t 5 hidden":       {"hidden"},
+		"down -t5 hidden":        {"hidden"},
+		"down -vt 5 hidden":      {"hidden"},
+		"rm -fvt 5 hidden":       {"hidden"},
+		"stop -t 5 -- hidden":    {"hidden"},
+		"restart -t=5 hidden":    {"hidden"},
+		"down --timeout 5 a b":   {"a", "b"},
+		"down -v":                nil,
+		"rm -sf hidden":          {"hidden"},
+		"start hidden other":     {"hidden", "other"},
+		"down --rmi all hidden":  {"hidden"},
+		"stop -ft5 hidden other": {"hidden", "other"},
+	} {
+		got := dockerComposeLifecycleServiceNames(command)
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("%q: service names = %q, want %q", command, got, want)
 		}
 	}
 }

@@ -526,8 +526,7 @@ func dockerComposeLifecycleServiceNames(command string) []string {
 		if strings.Contains(arg, "=") {
 			continue
 		}
-		if dockerComposeLifecycleValueFlags[arg] ||
-			(!strings.HasPrefix(arg, "--") && len(arg) > 2 && arg[len(arg)-1] == 't') {
+		if dockerComposeLifecycleValueFlags[arg] || dockerComposeShortFlagTakesNext(arg, dockerComposeLifecycleShortValueFlags) {
 			i++
 		}
 	}
@@ -539,6 +538,10 @@ func dockerComposeLifecycleServiceNames(command string) []string {
 var dockerComposeLifecycleValueFlags = map[string]bool{
 	"-t": true, "--timeout": true, "--rmi": true, "--wait-timeout": true,
 }
+
+// dockerComposeLifecycleShortValueFlags are their short flags that take a
+// value; in a cluster such as `-vt 5` the last letter takes the next argument.
+var dockerComposeLifecycleShortValueFlags = map[byte]bool{'t': true}
 
 // dockerComposeStartedServiceNames returns the services command names as
 // positional arguments of `up`, `create`, `build`, `pull`, `config` or

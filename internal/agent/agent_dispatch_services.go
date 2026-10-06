@@ -596,6 +596,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return validationError
 				}
 			}
+			if cfg.Docker.ReadOnly && strings.EqualFold(strings.TrimSpace(req.Operation), "compose") && strings.TrimSpace(req.Command) != "" {
+				// Invalid Compose arguments count as mutating, which would hide the
+				// real reason behind "disable docker.read_only".
+				if denied := tools.DockerComposeArgumentsDenial(req.Command); denied != "" {
+					return "Tool Output: " + denied
+				}
+			}
 			if cfg.Docker.ReadOnly && (dockerOperationMutates(req.Operation) ||
 				strings.EqualFold(strings.TrimSpace(req.Operation), "compose") &&
 					tools.DockerComposeCommandMutates(req.Command)) {
