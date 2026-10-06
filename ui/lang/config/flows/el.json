@@ -1,0 +1,17 @@
+{
+  "config.flows.agent_allow_publish": "Ο πράκτορας μπορεί να δημοσιεύει ροές",
+  "config.flows.agent_note": "Οι επιλογές του πράκτορα ισχύουν μόλις ο πράκτορας μπορεί να δουλεύει με ροές.",
+  "config.flows.agent_read_only": "Ο πράκτορας μπορεί μόνο να διαβάζει ροές",
+  "config.flows.ai_provider": "Πάροχος AI για βήματα AI",
+  "config.flows.ai_provider_placeholder": "Κενό = κύριο μοντέλο",
+  "config.flows.enabled": "Ενεργοποίηση ροών",
+  "config.flows.intro": "Οι ροές εκτελούνται εκτός της ουράς του πράκτορα. Αυτά τα όρια προστατεύουν τον διακομιστή.",
+  "config.flows.max_parallel_nodes_per_run": "Ταυτόχρονα βήματα ανά εκτέλεση (1–16)",
+  "config.flows.max_parallel_runs": "Ταυτόχρονες εκτελέσεις (1–32)",
+  "config.flows.max_runs_per_flow": "Αποθηκευμένες εκτελέσεις ανά ροή (10–5000)",
+  "config.flows.missions_off": "Οι αποστολές είναι απενεργοποιημένες. Οι ροές χρειάζονται αποστολές για να εκτελεστούν.",
+  "config.flows.open": "Άνοιγμα EasyDrag",
+  "config.flows.run_retention_days": "Διατήρηση ιστορικού εκτελέσεων (ημέρες, 1–365)",
+  "config.section.flows.desc": "Οπτικοί αυτοματισμοί από την εφαρμογή EasyDrag",
+  "config.section.flows.label": "Ροές EasyDrag"
+}

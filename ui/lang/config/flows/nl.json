@@ -1,0 +1,17 @@
+{
+  "config.flows.agent_allow_publish": "Agent mag flows publiceren",
+  "config.flows.agent_note": "De agentopties gelden zodra de agent met flows kan werken.",
+  "config.flows.agent_read_only": "Agent mag flows alleen lezen",
+  "config.flows.ai_provider": "AI-provider voor AI-stappen",
+  "config.flows.ai_provider_placeholder": "Leeg = hoofdmodel",
+  "config.flows.enabled": "Flows inschakelen",
+  "config.flows.intro": "Flows draaien buiten de wachtrij van de agent. Deze limieten beschermen de server.",
+  "config.flows.max_parallel_nodes_per_run": "Gelijktijdige stappen per run (1–16)",
+  "config.flows.max_parallel_runs": "Gelijktijdige runs (1–32)",
+  "config.flows.max_runs_per_flow": "Bewaarde runs per flow (10–5000)",
+  "config.flows.missions_off": "Missies staan uit. Flows hebben missies nodig om te draaien.",
+  "config.flows.open": "EasyDrag openen",
+  "config.flows.run_retention_days": "Runhistorie bewaren (dagen, 1–365)",
+  "config.section.flows.desc": "Visuele automatiseringen uit de EasyDrag-app",
+  "config.section.flows.label": "EasyDrag-flows"
+}
