@@ -383,16 +383,23 @@ func TestC16MissionControlCancelMapsFlowErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	mm.FlowRunStarted(orphan, "manual", "")
-	if w := c16Cancel(s, ctx, orphan); w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), "does not exist") {
+	if w := c16Cancel(s, ctx, orphan); w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), "does not exist") ||
+		!strings.Contains(w.Body.String(), `"code":"FLOW_NOT_FOUND"`) {
 		t.Fatalf("cancel without a flow = %d %s", w.Code, w.Body.String())
+	}
+
+	// Without a flow service (flows off) a running flow mission's cancel is 503 FLOWS_DISABLED.
+	if w := c16Cancel(&Server{MissionManagerV2: mm}, ctx, orphan); w.Code != http.StatusServiceUnavailable ||
+		!strings.Contains(w.Body.String(), `"code":"FLOWS_DISABLED"`) {
+		t.Fatalf("cancel without a flow service = %d %s", w.Code, w.Body.String())
 	}
 
 	// The flow exists but has no live run. Mission Control shows a hint for FLOW_NO_ACTIVE_RUN only.
 	idle := createTestFlow(t, s, greetFlowJSON)
 	mm.FlowRunStarted(idle.MissionID, "manual", "")
 	if w := c16Cancel(s, ctx, idle.MissionID); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "cannot be cancelled yet") ||
-		!strings.Contains(w.Body.String(), `"code":"FLOW_NO_ACTIVE_RUN"`) {
-		t.Fatalf("cancel without runs = %d %s", w.Code, w.Body.String())
+		!strings.Contains(w.Body.String(), `"code":"FLOW_NO_ACTIVE_RUN"`) || w.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("cancel without runs = %d %v %s", w.Code, w.Header(), w.Body.String())
 	}
 
 	// A flow mission that is not running: its waiting runs are cancelled in EasyDrag.
@@ -418,6 +425,21 @@ func TestC16MissionControlCancelMapsFlowErrors(t *testing.T) {
 	if w := c16Cancel(s, ctx, idle.MissionID); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "several flows") ||
 		!strings.Contains(w.Body.String(), `"code":"FLOW_MISSION_AMBIGUOUS"`) {
 		t.Fatalf("cancel of an ambiguous mission = %d %s", w.Code, w.Body.String())
+	}
+
+	// A store that fails is 500 FLOW_INTERNAL with a generic message. Last: it closes the flow store
+	// (the cleanup's second Close is a no-op).
+	if err := s.Flows.Store().Close(); err != nil {
+		t.Fatal(err)
+	}
+	if w := c16Cancel(s, ctx, still.MissionID); w.Code != http.StatusConflict {
+		// still is not running: CancelCheck answers before the store is asked.
+		t.Fatalf("cancel of a flow that is not running, store closed = %d %s", w.Code, w.Body.String())
+	}
+	mm.FlowRunStarted(still.MissionID, "manual", "")
+	if w := c16Cancel(s, ctx, still.MissionID); w.Code != http.StatusInternalServerError ||
+		!strings.Contains(w.Body.String(), `"code":"FLOW_INTERNAL"`) || !strings.Contains(w.Body.String(), "the flow runs could not be cancelled") {
+		t.Fatalf("cancel with a failing store = %d %s", w.Code, w.Body.String())
 	}
 }
 

@@ -269,8 +269,15 @@
         }
 
         // leave saves pending content before the editor closes; false keeps it open. A drag still in
-        // progress is cancelled first (its nodes move back), so no mid-drag state is saved.
-        async function leave() {
+        // progress is cancelled first (its nodes move back), so no mid-drag state is saved. Calls that
+        // overlap (two navigations waiting on a failed save) share one answer: at most one dialog asks.
+        let leaving = null;
+        function leave() {
+            if (!leaving) leaving = leaveOnce().finally(() => { leaving = null; });
+            return leaving;
+        }
+
+        async function leaveOnce() {
             interact.abortGesture();
             if (ed.readonly || !contentDirty) return true;
             const ok = await ed.saver.flush();

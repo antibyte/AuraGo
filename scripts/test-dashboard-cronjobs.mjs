@@ -40,9 +40,10 @@ function check(name, cond, detail) {
 }
 const hasEdit = (html) => html.includes('openCronEditModal');
 const hasDelete = (html) => html.includes('deleteCronJob');
-// The label carries its hint as a tooltip and as visually hidden text (screen readers, keyboard users).
-const hasManaged = (html) => html.includes('class="cronjobs-managed"') && html.includes('dashboard.cronjobs_managed_easydrag') && html.includes('title="dashboard.cronjobs_managed_easydrag_hint"') &&
-    html.includes('<span class="visually-hidden"> dashboard.cronjobs_managed_easydrag_hint</span>');
+// The visible label carries its hint as a tooltip and is hidden from screen readers; they read the visually
+// hidden label and hint instead, so nothing is read twice.
+const hasManaged = (html) => html.includes('<span class="cronjobs-managed" title="dashboard.cronjobs_managed_easydrag_hint" aria-hidden="true">dashboard.cronjobs_managed_easydrag</span>') &&
+    html.includes('<span class="visually-hidden">dashboard.cronjobs_managed_easydrag dashboard.cronjobs_managed_easydrag_hint</span>');
 // Hostile ids and expressions: nothing of them may become markup.
 const HOSTILE_ID = 'x<img src=y onerror=z>"&';
 const HOSTILE_EXPR = '*/5 "<b>"&';

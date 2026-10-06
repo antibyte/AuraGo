@@ -1254,7 +1254,7 @@
   "desktop.mc_flow_card_desc": "Esta misión es un flujo. Sus pasos, activadores y ejecuciones de prueba se editan en EasyDrag.",
   "desktop.mc_flow_trigger_datetime": "Fecha y hora",
   "desktop.mc_flow_no_trigger": "Ningún activador habilitado",
-  "desktop.mc_flow_unpublished": "Aún no publicado",
+  "desktop.mc_flow_unpublished": "Aún sin publicar",
   "desktop.mc_flow_triggers": "Activadores del flujo",
   "desktop.mc_delete_flow_message": "¿Eliminar «{{name}}»? También se eliminará su flujo en EasyDrag, junto con el borrador, todas las versiones publicadas, los datos guardados del activador y el historial de ejecuciones. Esta acción no se puede deshacer.",
   "desktop.mc_flow_publish_first": "Publica primero el flujo en EasyDrag.",

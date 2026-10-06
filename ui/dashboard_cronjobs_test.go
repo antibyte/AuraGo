@@ -66,8 +66,8 @@ func TestDashboardCronjobsFlowJobsAreReadOnly(t *testing.T) {
 		"job.managed_by === 'easydrag' ? cronjobManagedLabel() :",
 		"job.source === 'flow' ? cronjobManagedLabel() :",
 		"t('dashboard.cronjobs_managed_easydrag_hint')",
-		// The hint is a tooltip and visually hidden text for screen readers.
-		`<span class="visually-hidden"> ${hint}</span>`,
+		// The visible label (tooltip) is hidden from screen readers; they read the hidden label and hint once.
+		`<span class="cronjobs-managed" title="${hint}" aria-hidden="true">${label}</span><span class="visually-hidden">${label} ${hint}</span>`,
 	} {
 		if !strings.Contains(widgetsJS, marker) {
 			t.Errorf("dashboard widgets JS misses %q", marker)

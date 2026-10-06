@@ -1065,5 +1065,24 @@ export async function run(env) {
         launched.h.flushFrames();
         eq('c1d11 section "home" is dropped from the stored context, a shown start page stays, and a re-render after opening a flow stays on that flow',
             [first, again, opened, screenOf(launched), launched.h.logged], [['home', null, 1], ['home', 1], ['editor:f2', 'f2'], 'editor:f2', []]);
+
+        // Overlapping navigations on a failed save share one leave(): one dialog, and the newest navigation wins.
+        const overlaps = [];
+        for (const answer of [false, true]) {
+            const w = await windowWith(() => { throw apiError('FLOW_LOCKED'); }, { flowId: 'f1' });
+            w.h.confirmAnswer = answer;
+            const editor = w.App._instances.get('w1').screen;
+            editor.ed.model.setFlow({ description: 'pending' });
+            w.App.open('w1', { section: 'home' });
+            w.App.open('w1', { flowId: 'f2' });
+            const viaMenu = editor.leave();
+            await settle();
+            await viaMenu;
+            await settle();
+            w.h.flushFrames();
+            overlaps.push([answer, w.h.confirms.length, screenOf(w), w.h.logged]);
+        }
+        eq('c1d11 overlapping goHome, showFlow and leave() calls ask at most once; "stay" keeps the editor, "leave" opens the newest route',
+            overlaps, [[false, 1, 'editor:f1', []], [true, 1, 'editor:f2', []]]);
     });
 }

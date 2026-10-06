@@ -114,7 +114,7 @@
             let primary;
             if (ctx.running && !remote) primary = actionButton('cancel', 'desktop.mc_action_cancel', 'stop', { danger: true, disabled: ctx.cancelling, label: ctx.cancelling ? t('desktop.mc_action_cancelling') : t('desktop.mc_action_cancel') });
             else if (ctx.queuePosition) primary = actionButton('removeQueue', 'desktop.mc_action_remove_queue', 'queue', {});
-            else if (triggers.isUnpublishedFlow(mission)) primary =actionButton('run', 'desktop.mc_action_run', 'play', { primary: true, disabled: true, hint: t('desktop.mc_flow_publish_first') });
+            else if (triggers.isUnpublishedFlow(mission)) primary = actionButton('run', 'desktop.mc_action_run', 'play', { primary: true, disabled: true, hint: t('desktop.mc_flow_publish_first') });
             else primary = actionButton('run', 'desktop.mc_action_run', 'play', { primary: true, disabled: ctx.running });
             q('[data-mc-hero]').innerHTML = `
                 <div class="vd-mc-hero-main">
