@@ -420,8 +420,29 @@ function setFilter(filter) {
 
 // ── Container Actions ───────────────────────────────────────────────────────
 
+// stopWarningKey names the warning for stopping a container whose stop takes
+// AuraGo itself, its Docker connection or its network down. Other containers
+// stop without a question, as before.
+function stopWarningKey(kind) {
+    if (kind === 'self') return 'containers.stop_self_warning';
+    if (kind === 'docker-endpoint') return 'containers.stop_endpoint_warning';
+    if (kind === 'shared-network') return 'containers.stop_network_warning';
+    return '';
+}
+
 // eslint-disable-next-line no-unused-vars
 async function containerAction(id, action) {
+    if (action === 'stop') {
+        // Asked in the page only: the API, System World and restart are unchanged.
+        const warningKey = stopWarningKey(containerProtection(findContainer(id)));
+        if (warningKey) {
+            const confirmed = await showModal(t('containers.stop_protected_title'), t(warningKey), true, {
+                confirmText: t('containers.stop_protected_confirm_btn'),
+                cancelText: t('common.btn_cancel')
+            });
+            if (!confirmed) return;
+        }
+    }
     try {
         const resp = await fetch(`/api/containers/${encodeURIComponent(id)}/${action}`, { method: 'POST' });
         const data = await resp.json();

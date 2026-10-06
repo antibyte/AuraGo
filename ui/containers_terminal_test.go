@@ -433,3 +433,14 @@ func TestContainersProtectedBadgeIsNeutral(t *testing.T) {
 	}
 	requireContainersTranslations(t, []string{"containers.protected_badge"})
 }
+
+func TestContainersStopConfirmationTranslationsExist(t *testing.T) {
+	t.Parallel()
+	requireContainersTranslations(t, []string{
+		"containers.stop_endpoint_warning",
+		"containers.stop_network_warning",
+		"containers.stop_protected_confirm_btn",
+		"containers.stop_protected_title",
+		"containers.stop_self_warning",
+	})
+}
