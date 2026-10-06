@@ -526,7 +526,7 @@ func TestDockerComposePolicyChecksHostProgramsOnLifecycleCommands(t *testing.T) 
 	policy := func(command string) string {
 		return dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: command})
 	}
-	for _, command := range []string{"up -d", "create", "down", "start", "stop", "restart", "pull"} {
+	for _, command := range []string{"up -d", "create", "down", "start", "stop", "restart", "pull", "rm -f", "rm -s -f"} {
 		got := policy(command)
 		if !strings.Contains(got, `"code":"docker_compose_host_access_denied"`) || !strings.Contains(got, `"field":"provider"`) {
 			t.Fatalf("%s: provider allowed without host access: %s", command, got)
@@ -535,13 +535,13 @@ func TestDockerComposePolicyChecksHostProgramsOnLifecycleCommands(t *testing.T) 
 			t.Fatalf("%s: lifecycle command checked container attributes: %s", command, got)
 		}
 	}
-	for _, command := range []string{"ps", "logs", "rm -f", "kill", "pause", "unpause", "config", "build", "top", "images"} {
+	for _, command := range []string{"ps", "logs", "kill", "pause", "unpause", "config", "build", "top", "images"} {
 		if got := policy(command); got != "" {
 			t.Fatalf("%s: blocked by a provider: %s", command, got)
 		}
 	}
 	cfg.Docker.AllowHostAccess = true
-	for _, command := range []string{"up -d", "down", "start", "stop", "restart", "pull"} {
+	for _, command := range []string{"up -d", "down", "start", "stop", "restart", "pull", "rm -s -f"} {
 		if got := policy(command); got != "" {
 			t.Fatalf("%s: blocked with host access: %s", command, got)
 		}

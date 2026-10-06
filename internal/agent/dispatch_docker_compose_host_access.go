@@ -25,7 +25,7 @@ func dockerComposeHostAccessAllowed(ctx context.Context, cfg *config.Config) boo
 }
 
 // dockerComposeHostAccessScope maps a Compose subcommand to the scope of the
-// host-access policy. rm, kill, pause, unpause, ps, logs and the other
+// host-access policy. kill, pause, unpause, ps, logs and the other
 // inspection commands are never checked by it.
 func dockerComposeHostAccessScope(subcommand string) (tools.DockerComposeHostAccessScope, bool) {
 	switch subcommand {
@@ -37,10 +37,35 @@ func dockerComposeHostAccessScope(subcommand string) (tools.DockerComposeHostAcc
 		return tools.DockerComposeScopeRender, true
 	case "pull":
 		return tools.DockerComposeScopePull, true
-	case "down", "start", "stop", "restart":
+	case "down", "start", "stop", "restart", "rm":
+		// rm -s stops the containers first (pre_stop hooks, providers).
 		return tools.DockerComposeScopeLifecycle, true
 	}
 	return 0, false
+}
+
+// dockerComposeLifecycleModel adds the inactive-profile services a lifecycle
+// command names (from the all-profiles model; without it only default
+// services can be named) to the model the host-program check reads.
+func dockerComposeLifecycleModel(effective tools.DockerComposeModel, allProfiles *tools.DockerComposeModel, command string) tools.DockerComposeModel {
+	names := dockerComposeLifecycleServiceNames(command)
+	if allProfiles == nil || len(names) == 0 {
+		return effective
+	}
+	model := effective
+	model.Services = make(map[string]tools.DockerComposeService, len(effective.Services)+len(names))
+	for name, service := range effective.Services {
+		model.Services[name] = service
+	}
+	for _, name := range names {
+		if _, present := model.Services[name]; present {
+			continue
+		}
+		if service, ok := allProfiles.Services[name]; ok {
+			model.Services[name] = service
+		}
+	}
+	return model
 }
 
 // dockerComposeMasterKey is the master key the policy protects: the run
@@ -57,8 +82,9 @@ func dockerComposeMasterKey(cfg *config.Config) string {
 // dockerComposeHostAccessPolicy checks the command's effective model with the
 // preflight's jail root as the workspace: up/create everything, build the
 // build sections, config/convert AuraGo state only, pull the master key and
-// host programs, down/start/stop/restart host programs only. It runs after
-// the ownership checks and the unverified-profile denial.
+// host programs, down/start/stop/restart/rm host programs only (including the
+// profile services they name). It runs after the ownership checks and the
+// unverified-profile denial.
 func dockerComposeHostAccessPolicy(ctx context.Context, cfg *config.Config, req dockerArgs, preflight *dockerComposePreflight, effective dockerComposeEffectiveModel) string {
 	scope, checked := dockerComposeHostAccessScope(tools.DockerComposeSubcommand(req.Command))
 	if !checked {
@@ -83,8 +109,12 @@ func dockerComposeHostAccessPolicy(ctx context.Context, cfg *config.Config, req 
 		envFilesKnown = !dockerComposeMayUseEnvFiles(preflight.raw)
 	}
 	envFilesUnknown := !envFilesKnown && scope == tools.DockerComposeScopeRun && !policy.AllowHostAccess
+	model := effective.model
+	if scope == tools.DockerComposeScopeLifecycle && !policy.AllowHostAccess {
+		model = dockerComposeLifecycleModel(model, preflight.allProfilesModel, req.Command)
+	}
 	violations := dockerComposeCommandViolations(req.Command, scope, policy)
-	violations = append(violations, tools.EvaluateDockerComposeHostAccess(effective.model, envFiles, scope, policy)...)
+	violations = append(violations, tools.EvaluateDockerComposeHostAccess(model, envFiles, scope, policy)...)
 	if scope != tools.DockerComposeScopeLifecycle && !dockerComposeHasAlwaysViolation(violations) &&
 		(tools.DockerComposeLowerTextCarriesMasterKey(preflight.resolved, policy.MasterKey) ||
 			tools.DockerComposeLowerTextCarriesMasterKey(effective.profileText, policy.MasterKey)) {

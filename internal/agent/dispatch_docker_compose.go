@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"aurago/internal/acestep"
@@ -481,10 +482,48 @@ func dockerComposeRefNames(raw json.RawMessage) []string {
 	return names
 }
 
-// dockerComposeRendersModel reports a `config` or `convert` command.
-func dockerComposeRendersModel(command string) bool {
+// dockerComposeLifecycleServiceNames returns the services a `down`, `stop`,
+// `start`, `restart` or `rm` command names as positional arguments. Naming a
+// service activates its profiles, so the host-access policy checks what these
+// commands run on the host for them (providers, privileged hooks); they never
+// feed the ownership or unverified-profile checks.
+func dockerComposeLifecycleServiceNames(command string) []string {
 	parts := strings.Fields(command)
-	return len(parts) > 0 && (parts[0] == "config" || parts[0] == "convert")
+	if len(parts) == 0 {
+		return nil
+	}
+	switch parts[0] {
+	case "down", "stop", "start", "restart", "rm":
+	default:
+		return nil
+	}
+	var names []string
+	positional := false
+	for i := 1; i < len(parts); i++ {
+		arg := parts[i]
+		if positional || !strings.HasPrefix(arg, "-") {
+			names = append(names, arg)
+			continue
+		}
+		if arg == "--" {
+			positional = true
+			continue
+		}
+		if strings.Contains(arg, "=") {
+			continue
+		}
+		if dockerComposeLifecycleValueFlags[arg] ||
+			(!strings.HasPrefix(arg, "--") && len(arg) > 2 && arg[len(arg)-1] == 't') {
+			i++
+		}
+	}
+	return names
+}
+
+// dockerComposeLifecycleValueFlags are the down/stop/start/restart/rm flags
+// whose value is a separate argument.
+var dockerComposeLifecycleValueFlags = map[string]bool{
+	"-t": true, "--timeout": true, "--rmi": true, "--wait-timeout": true,
 }
 
 // dockerComposeStartedServiceNames returns the services command names as
@@ -628,6 +667,13 @@ func dockerComposeReferencesProtectedLocalLLMVolume(cfg tools.DockerConfig, file
 // checks apply to every subcommand; the host-access policy only to
 // up/create/build and, for AuraGo state, config/convert.
 func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tools.DockerConfig, req dockerArgs) string {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	// One deadline for every Compose resolution of this call (default,
+	// all-profiles and the named rounds); each call is also bounded by 20 s.
+	ctx, cancel := context.WithTimeout(ctx, dockerComposePreflightTimeout)
+	defer cancel()
 	preflight, err := loadDockerComposePreflight(ctx, dockerCfg, req.File)
 	var outside *dockerComposeOutsideJailError
 	if errors.As(err, &outside) {
@@ -647,13 +693,21 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 		slog.Default().Warn("Docker Compose could not resolve all profiles; named profile services are resolved by name and env_file paths are unknown",
 			"file", preflight.file, "error", dockerComposeErrorTail(preflight.allProfilesErr.Error(), 600))
 	}
+	subcommand := dockerComposeCommandName(req.Command)
 	effective := preflight.effectiveModel(req.Command)
 	if preflight.allProfilesModel == nil && len(effective.unverified) > 0 {
 		// Compose < v2.35 resolves the named profile services by name instead.
-		// config/convert create nothing and Compose reports the same failure
-		// itself, so they keep running unchecked when that fails.
-		if !preflight.resolveNamedProfileServices(ctx, &effective) && dockerComposeRendersModel(req.Command) {
-			effective.unverified = nil
+		// That resolution reads env files, which build and pull never need.
+		if !preflight.resolveNamedProfileServices(ctx, &effective) {
+			switch {
+			case subcommand == "config" || subcommand == "convert":
+				// They create nothing and Compose reports the same failure.
+				effective.unverified = nil
+			case (subcommand == "build" || subcommand == "pull") && dockerComposeHostAccessAllowed(ctx, cfg):
+				slog.Default().Warn("Docker Compose could not resolve the named profile services; running the command unchecked because docker.allow_host_access is on",
+					"file", preflight.file, "command", subcommand, "services", strings.Join(effective.unverified, ","))
+				effective.unverified = nil
+			}
 		}
 	}
 	if denied := dockerComposeOwnerDenial(preflight.protectedOwner(effective)); denied != "" {
@@ -662,12 +716,15 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 	if len(effective.unverified) > 0 {
 		return dockerComposeProfileServiceUnverified(effective.unverified[0])
 	}
-	if preflight.allProfilesModel != nil && len(effective.profileServices) > 0 {
+	if preflight.allProfilesModel != nil && len(effective.profileServices) > 0 &&
+		(subcommand == "up" || subcommand == "create" || subcommand == "config" || subcommand == "convert") {
 		// The all-profiles model keeps env files as paths; the named
-		// resolution adds the env-resolved text of the profile services.
+		// resolution adds the env-resolved text of the profile services that
+		// up/create start and config/convert print. build and pull never read
+		// env files, so they keep the all-profiles definitions only.
 		resolvedFrom := len(effective.profileText)
 		if !preflight.resolveNamedProfileServices(ctx, &effective) {
-			if !dockerComposeRendersModel(req.Command) {
+			if subcommand == "up" || subcommand == "create" {
 				return dockerComposeProfileServiceUnverified(effective.profileServices[0])
 			}
 		} else if dockerComposePayloadReferencesProtectedLocalLLM(effective.profileText[resolvedFrom:]) {
@@ -675,6 +732,19 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 		}
 	}
 	return dockerComposeHostAccessPolicy(ctx, cfg, req, preflight, effective)
+}
+
+// dockerComposePreflightTimeout bounds all Compose resolutions of one policy
+// call together.
+const dockerComposePreflightTimeout = 60 * time.Second
+
+// dockerComposeCommandName returns the first word of a Compose command.
+func dockerComposeCommandName(command string) string {
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[0]
 }
 
 // dockerComposeProfileServiceUnverified denies a command naming a profile
