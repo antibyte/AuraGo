@@ -12,9 +12,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/flows"
+	"aurago/internal/llm/catalog"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -57,12 +60,24 @@ func (s *Server) flowsNodeTypes(w http.ResponseWriter, r *http.Request, rest []s
 			flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "the parameter has no dynamic options")
 			return
 		}
-		opts, err := s.flowOptions(r.Context(), source, lang)
+		list, err := s.flowOptionList(r.Context(), source, lang)
 		if err != nil {
-			flowsError(w, http.StatusBadGateway, "FLOW_OPTIONS_UNAVAILABLE", err.Error())
+			if ctxErr := r.Context().Err(); ctxErr != nil {
+				s.flowsErrorFrom(w, r, ctxErr)
+				return
+			}
+			// The cause can be a remote service's answer (Home Assistant's error text):
+			// untrusted and of any length.
+			msg := flowCapRunes(security.RedactSensitiveInfo(security.Scrub(err.Error())), flowOptionsErrorRunes)
+			s.Logger.Debug("Flow parameter options are unavailable", "source", source, "error", msg)
+			flowsError(w, http.StatusBadGateway, "FLOW_OPTIONS_UNAVAILABLE", msg)
 			return
 		}
-		flowsJSON(w, http.StatusOK, map[string]any{"options": opts})
+		answer := map[string]any{"options": list.options}
+		if list.truncated {
+			answer["truncated"] = true
+		}
+		flowsJSON(w, http.StatusOK, answer)
 	default:
 		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown node type route")
 	}
@@ -230,23 +245,78 @@ func flowETagMatches(header, etag string) bool {
 	return false
 }
 
-// flowOptions returns the choices of a dynamic select parameter.
+// Options of dynamic select parameters (GET node-types/{type}/options/{param}).
+const (
+	// flowOptionTextRunes bounds the label and the hint of an option, the ellipsis of a cut
+	// included. Names come from the configuration, from Mission Control (the agent names
+	// missions) and from Home Assistant (integrations name entities), so they can be of any
+	// length.
+	flowOptionTextRunes = 120
+	// flowOptionsErrorRunes bounds the reason of a FLOW_OPTIONS_UNAVAILABLE answer.
+	flowOptionsErrorRunes = 200
+	// flowHAEntitiesMax caps the Home Assistant entities of one answer (the first ones by
+	// entity id); a longer list is cut and the answer says "truncated": true.
+	flowHAEntitiesMax = 2000
+	// flowHAEntitiesTTL is how long an entity list is reused for the same configuration
+	// snapshot, so a flow with several Home Assistant selects asks Home Assistant once.
+	flowHAEntitiesTTL = 30 * time.Second
+	// flowHAEntitiesTimeout bounds one request to Home Assistant.
+	flowHAEntitiesTimeout = 10 * time.Second
+)
+
+// flowOptionList is the answer of an options route: the choices, and whether the list
+// was cut.
+type flowOptionList struct {
+	options   []flowOption
+	truncated bool
+}
+
+// flowOptions returns the choices of a dynamic select parameter (flowOptionList without
+// the truncated flag).
 func (s *Server) flowOptions(ctx context.Context, source, lang string) ([]flowOption, error) {
+	list, err := s.flowOptionList(ctx, source, lang)
+	return list.options, err
+}
+
+// flowOptionList returns the choices of a dynamic select parameter from the current
+// configuration, every label and hint bounded to flowOptionTextRunes runes. Each source
+// offers only values its node can use:
+//
+//   - webhooks: every webhook, as Mission Control's webhook picker lists them; the hint of a
+//     disabled one says so (its trigger fires only once the webhook is enabled again).
+//   - email_accounts: the default account, then the accounts that may send (neither
+//     disabled nor read-only).
+//   - notification_channels: "all" and "push", then the channels tools.SendNotification
+//     sends to: Telegram with a bot token and a user, Discord when it is enabled, not
+//     read-only and has a default channel (SendNotification refuses the others), ntfy and
+//     Pushover when enabled.
+//   - ai_models: the default route (flows.ai_provider, else the main model), then the
+//     providers that can answer an ai.step (flowChatProvider).
+//   - missions: every Mission Control mission; the hint is its execution type ("flow",
+//     "manual", "scheduled", "triggered"), "agent" for an older agent mission without one.
+//     A flow's own mission is offered too: publishing refuses it as its own trigger.
+//   - ha_entities: flowHAEntities.
+func (s *Server) flowOptionList(ctx context.Context, source, lang string) (flowOptionList, error) {
 	cfg := s.ConfigSnapshot()
 	if cfg == nil {
-		return nil, errors.New("the configuration is not ready")
+		return flowOptionList{}, errors.New("the configuration is not ready")
 	}
 	tr := flowsTranslator(lang)
 	out := []flowOption{}
 	switch source {
 	case "webhooks":
 		if s.WebhookManager != nil {
+			disabled := tr("easydrag.option.webhook_disabled")
 			for _, h := range s.WebhookManager.List() {
 				label := h.Name
 				if label == "" {
 					label = h.Slug
 				}
-				out = append(out, flowOption{Value: h.ID, Label: label, Hint: h.Slug})
+				hint := h.Slug
+				if !h.Enabled {
+					hint = strings.TrimPrefix(hint+" · "+disabled, " · ")
+				}
+				out = append(out, flowOption{Value: h.ID, Label: label, Hint: hint})
 			}
 		}
 	case "email_accounts":
@@ -267,7 +337,7 @@ func (s *Server) flowOptions(ctx context.Context, source, lang string) ([]flowOp
 		if cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0 {
 			out = append(out, flowOption{Value: "telegram", Label: "Telegram"})
 		}
-		if cfg.Discord.Enabled {
+		if cfg.Discord.Enabled && !cfg.Discord.ReadOnly && strings.TrimSpace(cfg.Discord.DefaultChannelID) != "" {
 			out = append(out, flowOption{Value: "discord", Label: "Discord"})
 		}
 		if cfg.Notifications.Ntfy.Enabled {
@@ -278,11 +348,15 @@ func (s *Server) flowOptions(ctx context.Context, source, lang string) ([]flowOp
 		}
 	case "ai_models":
 		label := tr("easydrag.option.ai_model_default")
-		if cfg.LLM.Model != "" {
-			label += " (" + cfg.LLM.Model + ")"
+		if model := flowDefaultAIModel(cfg); model != "" {
+			label += " (" + model + ")"
 		}
 		out = append(out, flowOption{Value: "", Label: label})
-		for _, p := range cfg.Providers {
+		for i := range cfg.Providers {
+			p := &cfg.Providers[i]
+			if !flowChatProvider(p) {
+				continue
+			}
 			name := p.Name
 			if name == "" {
 				name = p.ID
@@ -296,24 +370,143 @@ func (s *Server) flowOptions(ctx context.Context, source, lang string) ([]flowOp
 				if label == "" {
 					label = m.ID
 				}
-				out = append(out, flowOption{Value: m.ID, Label: label, Hint: string(m.ExecutionType)})
+				kind := string(m.ExecutionType)
+				if kind == "" {
+					kind = "agent"
+				}
+				out = append(out, flowOption{Value: m.ID, Label: label, Hint: kind})
 			}
 		}
 	case "ha_entities":
-		return s.flowHAEntities(ctx, cfg)
+		list, err := s.flowHAEntities(ctx, cfg)
+		if err != nil {
+			return flowOptionList{}, err
+		}
+		return flowBoundOptions(list), nil
 	default:
-		return nil, fmt.Errorf("unknown options source %q", source)
+		return flowOptionList{}, fmt.Errorf("unknown options source %q", source)
 	}
-	return out, nil
+	return flowBoundOptions(flowOptionList{options: out}), nil
 }
 
-// flowHAEntities lists Home Assistant entities (empty when Home Assistant is not set up).
-func (s *Server) flowHAEntities(ctx context.Context, cfg *config.Config) ([]flowOption, error) {
+// flowBoundOptions returns a copy of list with every label and hint bounded to
+// flowOptionTextRunes runes. It never writes into list, whose options may be shared
+// (flowHACache).
+func flowBoundOptions(list flowOptionList) flowOptionList {
+	out := make([]flowOption, len(list.options))
+	for i, o := range list.options {
+		out[i] = flowOption{Value: o.Value, Label: flowOptionText(o.Label), Hint: flowOptionText(o.Hint)}
+	}
+	return flowOptionList{options: out, truncated: list.truncated}
+}
+
+// flowOptionText bounds an option text to flowOptionTextRunes runes (flowCapRunes).
+func flowOptionText(text string) string {
+	return flowCapRunes(text, flowOptionTextRunes)
+}
+
+// flowCapRunes cuts text to at most maxRunes runes, the ellipsis that marks a cut included
+// (flowBoundRunes adds it after maxRunes runes), so a capped text is never longer than
+// maxRunes and capping it again changes nothing.
+func flowCapRunes(text string, maxRunes int) string {
+	if utf8.RuneCountInString(text) <= maxRunes {
+		return text
+	}
+	return flowBoundRunes(text, maxRunes-1)
+}
+
+// flowDefaultAIModel names the model an ai.step without a model uses (flowLLM.route): the
+// model of the flows.ai_provider entry when one is set ("" when it names no entry), else
+// the main model. It reads cfg.Providers directly, because cfg.FindProvider writes into the
+// configuration for one synthetic id.
+func flowDefaultAIModel(cfg *config.Config) string {
+	id := strings.TrimSpace(cfg.Flows.AIProvider)
+	if id == "" {
+		return cfg.LLM.Model
+	}
+	for i := range cfg.Providers {
+		if cfg.Providers[i].ID == id {
+			return cfg.Providers[i].Model
+		}
+	}
+	return ""
+}
+
+// flowChatProvider reports whether a provider entry can answer an ai.step: what
+// flowProviderEntry accepts before it looks at credentials. ProviderEntry has no purpose
+// field, but its type can rule chat out: media providers (image generation, vision-only,
+// Agnes image and video models) and unknown types are left out, as are an entry without
+// a model, Workers AI without an account id, an entry without an id (its value would be
+// the default route's) and the reserved managed local provider (cfg.FindProvider refuses
+// it). Credentials are not checked: a missing key is fixed in the configuration, not in the
+// flow, and the run reports it (FLOW_AI_UNAVAILABLE). An embedding or speech model on a chat
+// provider type cannot be told apart and fails at run time with the provider's error.
+func flowChatProvider(p *config.ProviderEntry) bool {
+	id := strings.TrimSpace(p.ID)
+	if id == "" || strings.EqualFold(id, config.LocalLLMProviderID) {
+		return false
+	}
+	if strings.TrimSpace(p.Type) == "" {
+		return strings.TrimSpace(p.Model) != ""
+	}
+	if ok, _ := config.SpeechLabChatProviderEligibility(p); !ok {
+		return false
+	}
+	return catalog.NormalizeProviderID(p.Type) != "workers-ai" || strings.TrimSpace(p.AccountID) != ""
+}
+
+// flowHACache keeps the last Home Assistant entity list (flowHAEntities) for
+// flowHAEntitiesTTL, for one configuration snapshot. Only lists Home Assistant answered are
+// kept; after an error the next request asks again. The cached options are shared and
+// read-only. The zero value is ready to use; Server.flowHACache holds the one of the API.
+type flowHACache struct {
+	mu   sync.Mutex
+	cfg  *config.Config
+	at   time.Time
+	list flowOptionList
+	now  func() time.Time // nil means time.Now; tests set it
+}
+
+func (c *flowHACache) clock() time.Time {
+	if c.now != nil {
+		return c.now()
+	}
+	return time.Now()
+}
+
+// get returns the cached list of cfg while it is younger than flowHAEntitiesTTL.
+func (c *flowHACache) get(cfg *config.Config) (flowOptionList, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.cfg == nil || c.cfg != cfg {
+		return flowOptionList{}, false
+	}
+	if age := c.clock().Sub(c.at); age < 0 || age >= flowHAEntitiesTTL {
+		return flowOptionList{}, false
+	}
+	return c.list, true
+}
+
+// put caches the list Home Assistant answered for cfg.
+func (c *flowHACache) put(cfg *config.Config, list flowOptionList) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cfg, c.at, c.list = cfg, c.clock(), list
+}
+
+// flowHAEntities lists Home Assistant entities (empty when Home Assistant is not set up),
+// sorted by entity id and cut to flowHAEntitiesMax. tools.HAGetStatesContext reads at most
+// 10 MiB of states (readHTTPResponseBody); a larger answer is an error. The list is reused
+// for flowHAEntitiesTTL (flowHACache); two requests that miss at the same time both ask.
+func (s *Server) flowHAEntities(ctx context.Context, cfg *config.Config) (flowOptionList, error) {
 	ha := cfg.HomeAssistant
 	if !ha.Enabled || strings.TrimSpace(ha.URL) == "" || ha.AccessToken == "" {
-		return []flowOption{}, nil
+		return flowOptionList{options: []flowOption{}}, nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	if list, ok := s.flowHACache.get(cfg); ok {
+		return list, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, flowHAEntitiesTimeout)
 	defer cancel()
 	raw := tools.HAGetStatesContext(ctx, tools.HAConfig{URL: ha.URL, AccessToken: ha.AccessToken, ReadOnly: true}, "")
 	var res struct {
@@ -330,7 +523,7 @@ func (s *Server) flowHAEntities(ctx context.Context, cfg *config.Config) ([]flow
 		if msg == "" {
 			msg = "Home Assistant did not answer"
 		}
-		return nil, errors.New(msg)
+		return flowOptionList{}, errors.New(msg)
 	}
 	out := make([]flowOption, 0, len(res.States))
 	for _, st := range res.States {
@@ -341,10 +534,12 @@ func (s *Server) flowHAEntities(ctx context.Context, cfg *config.Config) ([]flow
 		out = append(out, flowOption{Value: st.EntityID, Label: label, Hint: st.EntityID + " · " + st.State})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Value < out[j].Value })
-	if len(out) > 2000 {
-		out = out[:2000]
+	list := flowOptionList{options: out}
+	if len(out) > flowHAEntitiesMax {
+		list = flowOptionList{options: out[:flowHAEntitiesMax], truncated: true}
 	}
-	return out, nil
+	s.flowHACache.put(cfg, list)
+	return list, nil
 }
 
 func (s *Server) flowsTemplates(w http.ResponseWriter, r *http.Request) {
@@ -373,14 +568,20 @@ func (s *Server) flowsValidate(w http.ResponseWriter, r *http.Request) {
 	if !flowsDecode(w, r, &body, flowsDocBodyLimit, false) {
 		return
 	}
-	doc, err := flows.ParseFlow(body.Doc)
-	if err != nil {
-		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", err.Error())
+	var mode flows.ValidationMode
+	switch body.Mode {
+	case "", "draft":
+		mode = flows.ModeDraft
+	case "publish":
+		mode = flows.ModePublish
+	default:
+		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", `mode must be "draft" or "publish"`)
 		return
 	}
-	mode := flows.ModeDraft
-	if body.Mode == "publish" {
-		mode = flows.ModePublish
+	doc, err := flows.ParseFlow(body.Doc)
+	if err != nil {
+		flowsDocumentError(w, err)
+		return
 	}
 	issues := nonNilIssues(s.Flows.Validate(doc, mode))
 	flowsJSON(w, http.StatusOK, map[string]any{"valid": !flows.HasErrors(issues), "issues": issues})

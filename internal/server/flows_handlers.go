@@ -361,12 +361,13 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := s.ConfigSnapshot()
-	if r.Method != http.MethodGet && r.Method != http.MethodHead && (cfg.Tools.Missions.ReadOnly || cfg.VirtualDesktop.ReadOnly) {
+	parts := flowsPathParts(r.URL.Path)
+	if r.Method != http.MethodGet && r.Method != http.MethodHead && !flowsReadOnlySafe(r, parts) &&
+		(cfg.Tools.Missions.ReadOnly || cfg.VirtualDesktop.ReadOnly) {
 		flowsError(w, http.StatusForbidden, "FLOW_PERMISSION_DENIED", "flows are read-only")
 		return
 	}
 	s.flowsCatalog.refreshRegistry(s.Flows.Registry(), cfg)
-	parts := flowsPathParts(r.URL.Path)
 	switch {
 	case len(parts) == 0:
 		s.flowsCollection(w, r)
@@ -380,9 +381,20 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 		s.flowsTemplates(w, r)
 	case parts[0] == "validate" && len(parts) == 1:
 		s.flowsValidate(w, r)
+	case flowsCollectionRoutes[parts[0]]:
+		// templates/… and validate/…: a collection name is never a flow id.
+		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
 	default:
 		s.flowRoute(w, r, parts[0], parts[1:])
 	}
+}
+
+// flowsReadOnlySafe reports whether a request other than GET or HEAD changes nothing, so
+// the read-only modes of missions and the desktop let it through: POST validate only
+// checks the document it is sent. The desktop permission (desktop:write for every method
+// but GET and HEAD) and the same-origin check still apply.
+func flowsReadOnlySafe(r *http.Request, parts []string) bool {
+	return r.Method == http.MethodPost && len(parts) == 1 && parts[0] == "validate"
 }
 
 type flowCreateBody struct {

@@ -174,6 +174,7 @@
   "easydrag.option.type_text": "Texto",
   "easydrag.option.wait_duration": "Duración",
   "easydrag.option.wait_until": "Hasta una hora concreta",
+  "easydrag.option.webhook_disabled": "desactivado",
   "easydrag.option.weekday_fri": "Vie",
   "easydrag.option.weekday_mon": "Lun",
   "easydrag.option.weekday_sat": "Sáb",

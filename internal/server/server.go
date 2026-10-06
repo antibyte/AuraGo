@@ -264,6 +264,7 @@ type Server struct {
 	flowStreams             flowStreamLimiter   // open flow run event streams, per run and in total
 	flowStreamBeat          time.Duration       // heartbeat of flow run streams; 0 means flowStreamHeartbeat (tests shorten it)
 	flowNodeTypes           flowNodeTypesCache  // encoded GET /api/desktop/flows/node-types answers, per language
+	flowHACache             flowHACache         // Home Assistant entity options of the flow editor, reused for 30 s
 	newspaperSkillReady     bool
 	PersonalRadio           *personalradio.Service
 	RTLSDR                  *rtlsdr.Service

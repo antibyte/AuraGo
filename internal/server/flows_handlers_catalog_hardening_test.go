@@ -3,18 +3,29 @@ package server
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"reflect"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/flows"
 	"aurago/internal/i18n"
+	"aurago/internal/tools"
+	"aurago/internal/webhooks"
 	"aurago/ui"
 )
 
@@ -282,5 +293,360 @@ func TestC19NodeTypesConcurrentRequests(t *testing.T) {
 	final := c19NodeTypes(t, s, token, "en", "")
 	if !strings.Contains(final.Body.String(), `"c19.concurrent"`) {
 		t.Fatal("the answer after the changes misses the last definition")
+	}
+}
+
+// c19HAToken is the Home Assistant token of the tests (long enough for the scrubber).
+const c19HAToken = "c19-home-assistant-token-0123456789"
+
+// c19UseHomeAssistant points the configuration at a fake Home Assistant.
+func c19UseHomeAssistant(s *Server, url string) {
+	s.Cfg.HomeAssistant.Enabled = true
+	s.Cfg.HomeAssistant.URL = url
+	s.Cfg.HomeAssistant.AccessToken = c19HAToken
+}
+
+// c19OptionValues returns the values of an options answer.
+func c19OptionValues(opts []flowOption) []string {
+	out := make([]string, 0, len(opts))
+	for _, o := range opts {
+		out = append(out, o.Value)
+	}
+	return out
+}
+
+// B4: FLOW_OPTIONS_UNAVAILABLE carries Home Assistant's error text scrubbed and bounded.
+func TestC19OptionErrorsAreBoundedAndScrubbed(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	ha := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = io.WriteString(w, "invalid token "+c19HAToken+" "+strings.Repeat("x", 10<<10))
+	}))
+	defer ha.Close()
+	c19UseHomeAssistant(s, ha.URL)
+	w := flowsCall(t, s, http.MethodGet, "/api/desktop/flows/node-types/home.assistant/options/entity", token, "")
+	body := flowsBody(t, w)
+	msg, _ := body["error"].(string)
+	if w.Code != http.StatusBadGateway || body["code"] != "FLOW_OPTIONS_UNAVAILABLE" || !strings.Contains(msg, "401") {
+		t.Fatalf("answer = %d %.300s", w.Code, w.Body.String())
+	}
+	if n := utf8.RuneCountInString(msg); n > flowOptionsErrorRunes || !strings.HasSuffix(msg, "…") {
+		t.Fatalf("the reason has %d runes, the bound is %d", n, flowOptionsErrorRunes)
+	}
+	if strings.Contains(w.Body.String(), c19HAToken) {
+		t.Fatal("the Home Assistant token reached the answer")
+	}
+}
+
+// B5: Home Assistant entities are cut at flowHAEntitiesMax (with "truncated"), bounded per
+// label and hint, reused for flowHAEntitiesTTL per configuration snapshot, and an error is
+// not reused.
+func TestC19HomeAssistantEntitiesAreCachedBoundedAndTruncated(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	var hits, count atomic.Int32
+	var failing atomic.Bool
+	count.Store(flowHAEntitiesMax + 5)
+	long := strings.Repeat("Ä", 130)
+	ha := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		if r.URL.Path != "/api/states" || r.Header.Get("Authorization") != "Bearer "+c19HAToken {
+			http.NotFound(w, r)
+			return
+		}
+		if failing.Load() {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		states := []map[string]any{}
+		for i := int32(0); i < count.Load(); i++ {
+			// Reverse order: the answer must sort by entity id.
+			id := fmt.Sprintf("sensor.c19_%04d", count.Load()-1-i)
+			states = append(states, map[string]any{"entity_id": id, "state": long, "attributes": map[string]any{"friendly_name": long}})
+		}
+		_ = json.NewEncoder(w).Encode(states)
+	}))
+	defer ha.Close()
+	c19UseHomeAssistant(s, ha.URL)
+	now := time.Now()
+	s.flowHACache.now = func() time.Time { return now }
+	get := func(node string) (*httptest.ResponseRecorder, map[string]any) {
+		t.Helper()
+		w := flowsCall(t, s, http.MethodGet, "/api/desktop/flows/node-types/"+node+"/options/entity", token, "")
+		return w, flowsBody(t, w)
+	}
+
+	w, body := get("trigger.ha_state")
+	opts, _ := body["options"].([]any)
+	if w.Code != http.StatusOK || len(opts) != flowHAEntitiesMax || body["truncated"] != true || hits.Load() != 1 {
+		t.Fatalf("first answer = %d, %d options, truncated %v, %d requests", w.Code, len(opts), body["truncated"], hits.Load())
+	}
+	first, _ := opts[0].(map[string]any)
+	if first["value"] != "sensor.c19_0000" {
+		t.Fatalf("the first option is %v, want the smallest entity id", first["value"])
+	}
+	for _, raw := range opts {
+		o, _ := raw.(map[string]any)
+		label, _ := o["label"].(string)
+		hint, _ := o["hint"].(string)
+		if utf8.RuneCountInString(label) > flowOptionTextRunes || utf8.RuneCountInString(hint) > flowOptionTextRunes ||
+			!strings.HasSuffix(label, "…") {
+			t.Fatalf("option not bounded: label %d runes, hint %d runes", utf8.RuneCountInString(label), utf8.RuneCountInString(hint))
+		}
+	}
+
+	if w, _ := get("home.assistant"); w.Code != http.StatusOK || hits.Load() != 1 {
+		t.Fatalf("a second select within the TTL asked Home Assistant again (%d requests)", hits.Load())
+	}
+	now = now.Add(flowHAEntitiesTTL)
+	if get("home.assistant"); hits.Load() != 2 {
+		t.Fatalf("an expired list was reused (%d requests)", hits.Load())
+	}
+	next := *s.Cfg
+	s.cfgSnapshot.Store(&next)
+	if get("home.assistant"); hits.Load() != 3 {
+		t.Fatalf("a new configuration snapshot reused the old list (%d requests)", hits.Load())
+	}
+
+	failing.Store(true)
+	now = now.Add(flowHAEntitiesTTL)
+	if w, _ := get("home.assistant"); w.Code != http.StatusBadGateway || hits.Load() != 4 {
+		t.Fatalf("Home Assistant failing = %d, %d requests", w.Code, hits.Load())
+	}
+	failing.Store(false)
+	count.Store(3)
+	w, body = get("home.assistant")
+	if opts, _ := body["options"].([]any); w.Code != http.StatusOK || hits.Load() != 5 || len(opts) != 3 {
+		t.Fatalf("after an error = %d, %d requests, %d options", w.Code, hits.Load(), len(opts))
+	}
+	if _, cut := body["truncated"]; cut {
+		t.Fatal("a complete list must not say truncated")
+	}
+}
+
+// B7: AI model options list only providers that can answer an ai.step, and the default
+// names the model the default route uses.
+func TestC19AIModelOptionsAreChatProviders(t *testing.T) {
+	c19LoadTranslations()
+	s, _ := newFlowsTestServer(t)
+	s.Cfg.LLM.Model = "main-llm"
+	s.Cfg.Providers = []config.ProviderEntry{
+		{ID: "main", Name: "Main", Type: "openai", Model: "gpt-c19"},
+		{ID: "images", Type: "stability", Model: "sd3"},
+		{ID: "eyes", Type: "vision", Model: "v1"},
+		{ID: "art", Type: "agnes", Model: "agnes-image-1"},
+		{ID: "chatty", Type: "agnes", Model: "agnes-chat"},
+		{ID: "nomodel", Type: "openai"},
+		{ID: "generic", Model: "local-model"},
+		{ID: "cf", Type: "workers-ai", Model: "@cf/a"},
+		{ID: "cf2", Type: "workers-ai", Model: "@cf/b", AccountID: "acc"},
+		{ID: config.LocalLLMProviderID, Type: "openai", Model: "qwen"},
+		{ID: "mystery", Type: "no-such-type", Model: "m"},
+		{ID: " ", Type: "openai", Model: "m"},
+	}
+	ctx := context.Background()
+	opts, err := s.flowOptions(ctx, "ai_models", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := c19OptionValues(opts), []string{"", "main", "chatty", "generic", "cf2"}; !slices.Equal(got, want) {
+		t.Fatalf("AI model options = %v, want %v", got, want)
+	}
+	defaultLabel := i18n.T("en", "easydrag.option.ai_model_default")
+	if opts[0].Label != defaultLabel+" (main-llm)" {
+		t.Fatalf("default without flows.ai_provider = %q", opts[0].Label)
+	}
+	s.Cfg.Flows.AIProvider = "main"
+	if opts, _ := s.flowOptions(ctx, "ai_models", "en"); opts[0].Label != defaultLabel+" (gpt-c19)" {
+		t.Fatalf("default with flows.ai_provider = %q", opts[0].Label)
+	}
+	s.Cfg.Flows.AIProvider = "gone"
+	if opts, _ := s.flowOptions(ctx, "ai_models", "en"); opts[0].Label != defaultLabel {
+		t.Fatalf("default with an unknown flows.ai_provider = %q", opts[0].Label)
+	}
+}
+
+// B8: notification channel options are channels tools.SendNotification sends to; a
+// read-only Discord, or one without a default channel, is not offered.
+func TestC19NotificationChannelOptions(t *testing.T) {
+	s, _ := newFlowsTestServer(t)
+	accepted := []string{string(tools.ChannelAll), string(tools.ChannelPush), string(tools.ChannelTelegram), string(tools.ChannelDiscord),
+		string(tools.ChannelNtfy), string(tools.ChannelPushover), string(tools.ChannelTelnyx), string(tools.ChannelCYD)}
+	channels := func() []string {
+		t.Helper()
+		opts, err := s.flowOptions(context.Background(), "notification_channels", "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		values := c19OptionValues(opts)
+		for _, v := range values {
+			if !slices.Contains(accepted, v) {
+				t.Fatalf("channel %q is no channel SendNotification accepts", v)
+			}
+		}
+		return values
+	}
+	s.Cfg.Telegram.BotToken, s.Cfg.Telegram.UserID = "1:x", 7
+	s.Cfg.Notifications.Ntfy.Enabled, s.Cfg.Notifications.Pushover.Enabled = true, true
+	s.Cfg.Discord.Enabled, s.Cfg.Discord.ReadOnly, s.Cfg.Discord.DefaultChannelID = true, true, "123"
+	if got := channels(); slices.Contains(got, "discord") || !slices.Equal(got, []string{"all", "push", "telegram", "ntfy", "pushover"}) {
+		t.Fatalf("read-only Discord: %v", got)
+	}
+	s.Cfg.Discord.ReadOnly, s.Cfg.Discord.DefaultChannelID = false, " "
+	if got := channels(); slices.Contains(got, "discord") {
+		t.Fatalf("Discord without a default channel: %v", got)
+	}
+	s.Cfg.Discord.DefaultChannelID = "123"
+	if got := channels(); !slices.Contains(got, "discord") {
+		t.Fatalf("usable Discord: %v", got)
+	}
+}
+
+// B9: webhook options list every webhook, as Mission Control's picker does; a disabled one
+// says so in its hint.
+func TestC19WebhookOptionsMarkDisabledWebhooks(t *testing.T) {
+	c19LoadTranslations()
+	s, _ := newFlowsTestServer(t)
+	dir := t.TempDir()
+	mgr, err := webhooks.NewManager(filepath.Join(dir, "webhooks.json"), filepath.Join(dir, "webhook_log.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	on, err := mgr.Create(webhooks.Webhook{Name: "Door", Slug: "c19-door", Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	off, err := mgr.Create(webhooks.Webhook{Name: "Old", Slug: "c19-old", Enabled: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.WebhookManager = mgr
+	opts, err := s.flowOptions(context.Background(), "webhooks", "de")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hints := map[string]string{}
+	for _, o := range opts {
+		hints[o.Value] = o.Hint
+	}
+	if len(opts) != 2 || hints[on.ID] != "c19-door" || hints[off.ID] != "c19-old · "+i18n.T("de", "easydrag.option.webhook_disabled") {
+		t.Fatalf("webhook options = %+v", opts)
+	}
+	if hints[off.ID] == "c19-old · easydrag.option.webhook_disabled" {
+		t.Fatal("the disabled hint is not translated")
+	}
+}
+
+// B6: mission options name their kind; an older agent mission without an execution type
+// is "agent". Labels are bounded (the agent names missions).
+func TestC19MissionOptionsNameTheirKind(t *testing.T) {
+	dir := t.TempDir()
+	long := strings.Repeat("m", 300)
+	missions := `[{"id":"m_legacy","name":"Legacy","prompt":"x","enabled":true},
+ {"id":"m_sched","name":"` + long + `","prompt":"y","execution_type":"scheduled","enabled":true},
+ {"id":"m_flow","name":"Flow","execution_type":"flow","flow_id":"flow_c19","enabled":true}]`
+	if err := os.WriteFile(filepath.Join(dir, "missions_v2.json"), []byte(missions), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mm := tools.NewMissionManagerV2(dir, nil)
+	if err := mm.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(mm.Stop)
+	s := &Server{Cfg: &config.Config{}, MissionManagerV2: mm}
+	opts, err := s.flowOptions(context.Background(), "missions", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hints := map[string]string{}
+	for _, o := range opts {
+		hints[o.Value] = o.Hint
+		if utf8.RuneCountInString(o.Label) > flowOptionTextRunes {
+			t.Fatalf("label of %s has %d runes", o.Value, utf8.RuneCountInString(o.Label))
+		}
+	}
+	if want := map[string]string{"m_legacy": "agent", "m_sched": "scheduled", "m_flow": "flow"}; !reflect.DeepEqual(hints, want) {
+		t.Fatalf("mission hints = %v, want %v", hints, want)
+	}
+}
+
+// B10: validate works in read-only mode behind the desktop permission and the origin
+// check, takes only draft or publish (empty means draft) and maps a document refusal.
+func TestC19ValidateRules(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	const doc = `{"schema":1,"name":"","nodes":[],"edges":[]}`
+	validate := func(tok, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		return flowsCall(t, s, http.MethodPost, "/api/desktop/flows/validate", tok, body)
+	}
+	if w := validate(token, `{"doc":`+doc+`,"mode":"live"}`); w.Code != http.StatusBadRequest || flowsBody(t, w)["code"] != "FLOW_BAD_REQUEST" {
+		t.Fatalf("unknown mode = %d %s", w.Code, w.Body.String())
+	}
+	empty := flowsBody(t, validate(token, `{"doc":`+doc+`}`))
+	draft := flowsBody(t, validate(token, `{"doc":`+doc+`,"mode":"draft"}`))
+	publish := flowsBody(t, validate(token, `{"doc":`+doc+`,"mode":"publish"}`))
+	if !reflect.DeepEqual(empty, draft) || reflect.DeepEqual(draft, publish) {
+		t.Fatalf("empty mode = %v, draft = %v, publish = %v", empty, draft, publish)
+	}
+	big := `{"doc":{"schema":1,"name":"x","nodes":[],"edges":[],"description":"` + strings.Repeat("a", flows.MaxDocumentBytes) + `"}}`
+	if w := validate(token, big); w.Code != http.StatusRequestEntityTooLarge || flowsBody(t, w)["code"] != "FLOW_TOO_LARGE" {
+		t.Fatalf("oversized document = %d %.200s", w.Code, w.Body.String())
+	}
+
+	for _, readOnly := range []func(bool){
+		func(on bool) { s.Cfg.Tools.Missions.ReadOnly = on },
+		func(on bool) { s.Cfg.VirtualDesktop.ReadOnly = on },
+	} {
+		readOnly(true)
+		if w := validate(token, `{"doc":`+doc+`}`); w.Code != http.StatusOK {
+			t.Fatalf("validate while read-only = %d %s", w.Code, w.Body.String())
+		}
+		if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows", token, `{"name":"x"}`); w.Code != http.StatusForbidden {
+			t.Fatalf("create while read-only = %d", w.Code)
+		}
+		readOnly(false)
+	}
+
+	s.Cfg.Tools.Missions.ReadOnly = true
+	readToken, _, err := s.TokenManager.Create("c19 read", []string{desktopScopeRead}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := validate(readToken, `{"doc":`+doc+`}`); w.Code != http.StatusForbidden {
+		t.Fatalf("validate with a read-only token = %d", w.Code)
+	}
+	session := func(origin string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodPost, "/api/desktop/flows/validate", strings.NewReader(`{"doc":`+doc+`}`))
+		r.AddCookie(&http.Cookie{Name: sessionCookieName, Value: createSessionValue(s.Cfg.Auth.SessionSecret, time.Now().Add(time.Hour))})
+		r.Header.Set("Origin", origin)
+		w := httptest.NewRecorder()
+		s.handleFlows(w, r)
+		return w
+	}
+	if w := session("https://evil.example"); w.Code != http.StatusForbidden || flowsBody(t, w)["code"] != "FLOW_PERMISSION_DENIED" {
+		t.Fatalf("cross-origin session validate = %d %s", w.Code, w.Body.String())
+	}
+	if w := session("http://example.com"); w.Code != http.StatusOK {
+		t.Fatalf("same-origin session validate = %d %s", w.Code, w.Body.String())
+	}
+}
+
+// B11: unknown catalog routes are a clean 404 FLOW_NOT_FOUND.
+func TestC19UnknownCatalogRoutes(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	for _, c := range []struct{ method, path string }{
+		{http.MethodGet, "/api/desktop/flows/node-types/notify.push/options/channel/extra"},
+		{http.MethodGet, "/api/desktop/flows/node-types/notify.push"},
+		{http.MethodGet, "/api/desktop/flows/node-types/notify.push/fields/channel"},
+		{http.MethodGet, "/api/desktop/flows/templates/x"},
+		{http.MethodPost, "/api/desktop/flows/templates/publish"},
+		{http.MethodPost, "/api/desktop/flows/validate/x"},
+	} {
+		w := flowsCall(t, s, c.method, c.path, token, "")
+		if w.Code != http.StatusNotFound || flowsBody(t, w)["code"] != "FLOW_NOT_FOUND" {
+			t.Fatalf("%s %s = %d %s", c.method, c.path, w.Code, w.Body.String())
+		}
+	}
+	if w := flowsCall(t, s, http.MethodDelete, "/api/desktop/flows/templates", token, ""); w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("DELETE templates = %d", w.Code)
 	}
 }

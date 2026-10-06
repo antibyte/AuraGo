@@ -174,6 +174,7 @@
   "easydrag.option.type_text": "Tekst",
   "easydrag.option.wait_duration": "Varighed",
   "easydrag.option.wait_until": "Til et klokkeslæt",
+  "easydrag.option.webhook_disabled": "deaktiveret",
   "easydrag.option.weekday_fri": "Fre",
   "easydrag.option.weekday_mon": "Man",
   "easydrag.option.weekday_sat": "Lør",
