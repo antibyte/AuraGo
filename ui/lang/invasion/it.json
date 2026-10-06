@@ -55,7 +55,7 @@
   "invasion.docker_tls_key": "Chiave privata del client (PEM)",
   "invasion.docker_tls_mtls": "TLS reciproco (con certificato client)",
   "invasion.docker_tls_off": "Disattivato (HTTP non cifrato)",
-  "invasion.docker_tls_stored": "I certificati TLS sono salvati nel vault. Lascia vuoti i campi per mantenerli.",
+  "invasion.docker_tls_stored": "Il materiale TLS salvato viene mantenuto se lasci vuoti questi campi.",
   "invasion.docker_tls_tls": "TLS (verifica il certificato dell'Engine)",
   "invasion.edit": "Modifica",
   "invasion.edit_egg": "Modifica Egg",

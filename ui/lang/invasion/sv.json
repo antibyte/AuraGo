@@ -55,7 +55,7 @@
   "invasion.docker_tls_key": "Klientens privata nyckel (PEM)",
   "invasion.docker_tls_mtls": "Ömsesidig TLS (med klientcertifikat)",
   "invasion.docker_tls_off": "Av (okrypterad HTTP)",
-  "invasion.docker_tls_stored": "TLS-certifikaten är sparade i valvet. Lämna fälten tomma för att behålla dem.",
+  "invasion.docker_tls_stored": "Sparat TLS-material behålls när de här fälten lämnas tomma.",
   "invasion.docker_tls_tls": "TLS (verifiera Engine-certifikatet)",
   "invasion.edit": "Redigera",
   "invasion.edit_egg": "Redigera Egg",

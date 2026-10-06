@@ -24,6 +24,7 @@ Ein **Nest** beschreibt, *wo* ein Egg deployed wird:
 |------|-------|--------------|
 | `access_type` | `ssh`, `docker`, `local` | Wie der Master das Ziel erreicht |
 | `deploy_method` | `ssh`, `docker_remote`, `docker_local` | Wie das Egg-Binary deployt wird |
+| `docker_tls` | `""` (aus), `tls`, `mtls` | Nur `docker_remote`: unverschlüsseltes HTTP (Standard), TLS oder Mutual TLS zur Docker-Engine |
 | `route` | `direct`, `ssh_tunnel`, `tailscale`, `wireguard`, `custom` | Wie das Egg den Master-WebSocket erreicht |
 | `target_arch` | `linux/amd64`, `linux/arm64` | Ziel-Architektur des Binaries |
 | `egg_id` | UUID | Zugewiesene Egg-Vorlage (für Hatch erforderlich) |
@@ -194,9 +195,13 @@ Nutze `Docker (Entfernt)` ohne TLS nur in einem isolierten Netz, setze **Docker-
 | TLS | HTTPS. AuraGo prüft das Engine-Zertifikat gegen die eingefügte CA oder, wenn das CA-Feld leer ist, gegen die Systemzertifikate. Standardport `2376` |
 | Mutual TLS | Wie TLS, zusätzlich legt AuraGo ein Client-Zertifikat mit Schlüssel vor: das Setup von `dockerd --tlsverify` |
 
-CA, Client-Zertifikat und Schlüssel liegen im Vault (`nest_docker_tls_<nest-id>`), nie in der Invasion-Datenbank, und die API gibt sie nie zurück. Sie werden mit dem Nest oder beim Abschalten von TLS gelöscht. AuraGo überspringt die Zertifikatsprüfung nie. `HTTPS_PROXY`/`HTTP_PROXY` gelten wie bisher; TLS läuft dann Ende-zu-Ende durch den Proxy.
+CA, Client-Zertifikat und Schlüssel liegen im Vault (`nest_docker_tls_<nest-id>`), nie in der Invasion-Datenbank, und die API gibt sie nie zurück. Sie werden mit dem Nest oder beim Abschalten von TLS gelöscht. AuraGo überspringt die Zertifikatsprüfung nie. `HTTP_PROXY` gilt für unverschlüsselte Nests, `HTTPS_PROXY` für TLS-Nests und `NO_PROXY` für beide; durch einen Proxy läuft TLS Ende-zu-Ende.
 
 REST-Felder: `docker_tls` (`""`, `"tls"`, `"mtls"`), `docker_tls_ca`, `docker_tls_cert`, `docker_tls_key`. Ein Update ohne `docker_tls` behält den aktuellen Modus; leere PEM-Felder behalten das gespeicherte Material.
+
+Ein leeres CA-Feld behält eine gespeicherte CA. Um bei TLS wieder die Systemzertifikate zu nutzen, speichere zweimal: zuerst mit **Docker-TLS** auf `Aus`, was das gespeicherte Material löscht, dann mit `TLS` und leerem CA-Feld.
+
+Bevor Du auf ein Release ohne Docker-TLS zurückgehst, schalte TLS bei den Nests ab oder lösche sie. Ein älteres Release ignoriert `docker_tls` und spricht den TLS-Port mit unverschlüsseltem HTTP an, diese Nests funktionieren dann nicht mehr.
 
 ---
 

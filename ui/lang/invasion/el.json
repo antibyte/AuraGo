@@ -55,7 +55,7 @@
   "invasion.docker_tls_key": "Ιδιωτικό κλειδί πελάτη (PEM)",
   "invasion.docker_tls_mtls": "Αμοιβαίο TLS (με πιστοποιητικό πελάτη)",
   "invasion.docker_tls_off": "Απενεργοποιημένο (μη κρυπτογραφημένο HTTP)",
-  "invasion.docker_tls_stored": "Τα πιστοποιητικά TLS είναι αποθηκευμένα στο vault. Αφήστε τα πεδία κενά για να τα διατηρήσετε.",
+  "invasion.docker_tls_stored": "Το αποθηκευμένο υλικό TLS διατηρείται όταν αφήνετε αυτά τα πεδία κενά.",
   "invasion.docker_tls_tls": "TLS (επαλήθευση πιστοποιητικού Engine)",
   "invasion.edit": "Επεξεργασία",
   "invasion.edit_egg": "Επεξεργασία Egg",

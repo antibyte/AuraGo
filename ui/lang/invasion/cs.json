@@ -55,7 +55,7 @@
   "invasion.docker_tls_key": "Soukromý klíč klienta (PEM)",
   "invasion.docker_tls_mtls": "Vzájemné TLS (s klientským certifikátem)",
   "invasion.docker_tls_off": "Vypnuto (nešifrované HTTP)",
-  "invasion.docker_tls_stored": "Certifikáty TLS jsou uloženy v trezoru. Ponechte pole prázdná, abyste je zachovali.",
+  "invasion.docker_tls_stored": "Uložený materiál TLS zůstane zachován, pokud tato pole ponecháte prázdná.",
   "invasion.docker_tls_tls": "TLS (ověřit certifikát Engine)",
   "invasion.edit": "Upravit",
   "invasion.edit_egg": "Upravit Egg",

@@ -55,7 +55,7 @@
   "invasion.docker_tls_key": "クライアント秘密鍵（PEM）",
   "invasion.docker_tls_mtls": "相互 TLS（クライアント証明書あり）",
   "invasion.docker_tls_off": "オフ（暗号化なし HTTP）",
-  "invasion.docker_tls_stored": "TLS 証明書は Vault に保存されています。保持する場合は空欄のままにしてください。",
+  "invasion.docker_tls_stored": "これらの欄を空のままにすると、保存済みの TLS データは保持されます。",
   "invasion.docker_tls_tls": "TLS（Engine 証明書を検証）",
   "invasion.edit": "編集",
   "invasion.edit_egg": "エッグを編集",

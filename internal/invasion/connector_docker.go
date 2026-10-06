@@ -371,6 +371,12 @@ func (c *DockerConnector) httpClient(nest NestRecord, secret []byte) *http.Clien
 	return &http.Client{Timeout: 30 * time.Second, Transport: dockerutil.NewVersionTransport(http.DefaultTransport)}
 }
 
+// dockerRemoteTLSIdleConnTimeout bounds how long a TLS nest transport keeps
+// idle connections. httpClient builds a new transport for every operation, so
+// nothing reuses them later; a short timeout closes them and their goroutines
+// soon after the operation instead of after the default 90 seconds.
+const dockerRemoteTLSIdleConnTimeout = 5 * time.Second
+
 // dockerRemoteTLSTransport clones the default transport (keeping proxy-from-
 // environment exactly like plain docker_remote; CONNECT keeps TLS end to end)
 // and adds the nest's TLS settings. Unusable material yields a transport that
@@ -393,6 +399,7 @@ func dockerRemoteTLSTransport(nest NestRecord, secret []byte) http.RoundTripper 
 		base = &http.Transport{Proxy: http.ProxyFromEnvironment}
 	}
 	base.TLSClientConfig = cfg
+	base.IdleConnTimeout = dockerRemoteTLSIdleConnTimeout
 	return base
 }
 

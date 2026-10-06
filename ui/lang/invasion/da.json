@@ -55,7 +55,7 @@
   "invasion.docker_tls_key": "Klientens private nøgle (PEM)",
   "invasion.docker_tls_mtls": "Gensidig TLS (med klientcertifikat)",
   "invasion.docker_tls_off": "Fra (ukrypteret HTTP)",
-  "invasion.docker_tls_stored": "TLS-certifikater er gemt i vaulten. Lad felterne stå tomme for at beholde dem.",
+  "invasion.docker_tls_stored": "Gemt TLS-materiale bevares, når disse felter efterlades tomme.",
   "invasion.docker_tls_tls": "TLS (bekræft Engine-certifikatet)",
   "invasion.edit": "Rediger",
   "invasion.edit_egg": "Rediger Egg",

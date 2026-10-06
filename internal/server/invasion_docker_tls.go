@@ -71,6 +71,29 @@ func resolveNestDockerTLS(deployMethod, currentMode string, stored invasion.Dock
 	return mode, &material, nil
 }
 
+// dockerTLSUpdateReplacesStoredMaterial reports whether an update can proceed
+// although the stored Docker TLS material is unreadable: the request switches
+// TLS off (docker_tls "" or a method other than docker_remote), or it names a
+// TLS mode and brings every PEM that mode needs (tls: none; mtls: client
+// certificate and key). The material is then rewritten or removed. Requests
+// that omit docker_tls on a docker_remote nest would keep relying on the
+// unreadable material, so they still fail.
+func dockerTLSUpdateReplacesStoredMaterial(deployMethod string, req nestDockerTLSRequest) bool {
+	if deployMethod != "docker_remote" {
+		return true
+	}
+	if req.DockerTLS == nil {
+		return false
+	}
+	switch strings.TrimSpace(*req.DockerTLS) {
+	case invasion.DockerTLSOff, invasion.DockerTLSServer:
+		return true
+	case invasion.DockerTLSMutual:
+		return strings.TrimSpace(req.DockerTLSCert) != "" && strings.TrimSpace(req.DockerTLSKey) != ""
+	}
+	return false
+}
+
 // loadNestDockerTLS reads a nest's Docker TLS material; a missing entry is
 // empty material (TLS against the system roots).
 func (s *Server) loadNestDockerTLS(nestID string) (invasion.DockerTLSMaterial, error) {

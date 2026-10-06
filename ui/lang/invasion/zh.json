@@ -55,7 +55,7 @@
   "invasion.docker_tls_key": "客户端私钥（PEM）",
   "invasion.docker_tls_mtls": "双向 TLS（使用客户端证书）",
   "invasion.docker_tls_off": "关闭（未加密 HTTP）",
-  "invasion.docker_tls_stored": "TLS 证书已保存在保险库中。留空以保持不变。",
+  "invasion.docker_tls_stored": "这些字段留空时，将保留已保存的 TLS 数据。",
   "invasion.docker_tls_tls": "TLS（验证 Engine 证书）",
   "invasion.edit": "编辑",
   "invasion.edit_egg": "编辑 Egg",

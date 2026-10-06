@@ -24,6 +24,7 @@ A **Nest** describes *where* an Egg is deployed:
 |-------|--------|-------------|
 | `access_type` | `ssh`, `docker`, `local` | How the master reaches the target |
 | `deploy_method` | `ssh`, `docker_remote`, `docker_local` | How the Egg binary is deployed |
+| `docker_tls` | `""` (off), `tls`, `mtls` | `docker_remote` only: plain HTTP (default), TLS or mutual TLS to the Docker Engine |
 | `route` | `direct`, `ssh_tunnel`, `tailscale`, `wireguard`, `custom` | How the Egg reaches the master WebSocket |
 | `target_arch` | `linux/amd64`, `linux/arm64` | Binary architecture to deploy |
 | `egg_id` | UUID | Assigned Egg template (required for hatch) |
@@ -204,9 +205,13 @@ Use `Docker (Remote)` without TLS only on an isolated network, set **Docker TLS*
 | TLS | HTTPS. AuraGo verifies the Engine certificate against the CA you paste, or against the system certificates when the CA field is empty. Default port `2376` |
 | Mutual TLS | As TLS, and AuraGo also presents a client certificate and key: the `dockerd --tlsverify` setup |
 
-CA, client certificate and key are stored in the vault (`nest_docker_tls_<nest-id>`), never in the Invasion database, and the API never returns them. They are deleted with the nest or when TLS is switched off. AuraGo never skips certificate verification. `HTTPS_PROXY`/`HTTP_PROXY` apply as before; TLS then runs end to end through the proxy.
+CA, client certificate and key are stored in the vault (`nest_docker_tls_<nest-id>`), never in the Invasion database, and the API never returns them. They are deleted with the nest or when TLS is switched off. AuraGo never skips certificate verification. `HTTP_PROXY` applies to plain nests, `HTTPS_PROXY` to TLS nests and `NO_PROXY` to both; through a proxy, TLS runs end to end.
 
 REST fields: `docker_tls` (`""`, `"tls"`, `"mtls"`), `docker_tls_ca`, `docker_tls_cert`, `docker_tls_key`. An update without `docker_tls` keeps the current mode; empty PEM fields keep the stored material.
+
+An empty CA field keeps a stored CA. To go back to the system certificates while staying on TLS, save twice: first with **Docker TLS** set to `Off`, which deletes the stored material, then with `TLS` and an empty CA field.
+
+Before downgrading to a release without Docker TLS, switch TLS nests off or delete them. An older release ignores `docker_tls` and sends plain HTTP to the TLS port, so these nests stop working.
 
 ---
 

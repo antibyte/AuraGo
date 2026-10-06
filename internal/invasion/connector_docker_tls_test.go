@@ -244,3 +244,14 @@ func TestDockerRemotePlaintextSkipsTLSNests(t *testing.T) {
 		t.Fatal("a plain docker_remote nest was not reported")
 	}
 }
+
+func TestDockerRemoteTLSTransportReleasesIdleConnectionsQuickly(t *testing.T) {
+	nest := NestRecord{ID: "12345678-abcd-ef12-3456-7890abcdef12", Host: "10.0.0.5", DeployMethod: "docker_remote", DockerTLS: DockerTLSServer}
+	transport, ok := dockerRemoteTLSTransport(nest, dockerTLSSecret(t, DockerTLSMaterial{})).(*http.Transport)
+	if !ok {
+		t.Fatal("TLS transport is not an *http.Transport")
+	}
+	if transport.IdleConnTimeout != dockerRemoteTLSIdleConnTimeout || dockerRemoteTLSIdleConnTimeout != 5*time.Second {
+		t.Fatalf("IdleConnTimeout = %v, want 5s", transport.IdleConnTimeout)
+	}
+}

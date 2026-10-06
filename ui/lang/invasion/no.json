@@ -55,7 +55,7 @@
   "invasion.docker_tls_key": "Klientens private nøkkel (PEM)",
   "invasion.docker_tls_mtls": "Gjensidig TLS (med klientsertifikat)",
   "invasion.docker_tls_off": "Av (ukryptert HTTP)",
-  "invasion.docker_tls_stored": "TLS-sertifikatene er lagret i vaulten. La feltene stå tomme for å beholde dem.",
+  "invasion.docker_tls_stored": "Lagret TLS-materiale beholdes når disse feltene står tomme.",
   "invasion.docker_tls_tls": "TLS (bekreft Engine-sertifikatet)",
   "invasion.edit": "Rediger",
   "invasion.edit_egg": "Rediger Egg",

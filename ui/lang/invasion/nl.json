@@ -55,7 +55,7 @@
   "invasion.docker_tls_key": "Privésleutel van de client (PEM)",
   "invasion.docker_tls_mtls": "Wederzijdse TLS (met clientcertificaat)",
   "invasion.docker_tls_off": "Uit (onversleutelde HTTP)",
-  "invasion.docker_tls_stored": "TLS-certificaten zijn opgeslagen in de vault. Laat de velden leeg om ze te behouden.",
+  "invasion.docker_tls_stored": "Opgeslagen TLS-materiaal blijft behouden als je deze velden leeg laat.",
   "invasion.docker_tls_tls": "TLS (Engine-certificaat controleren)",
   "invasion.edit": "Bewerken",
   "invasion.edit_egg": "Egg Bewerken",

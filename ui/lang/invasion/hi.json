@@ -55,7 +55,7 @@
   "invasion.docker_tls_key": "क्लाइंट निजी कुंजी (PEM)",
   "invasion.docker_tls_mtls": "म्यूचुअल TLS (क्लाइंट प्रमाणपत्र के साथ)",
   "invasion.docker_tls_off": "बंद (बिना एन्क्रिप्शन HTTP)",
-  "invasion.docker_tls_stored": "TLS प्रमाणपत्र vault में संग्रहीत हैं। उन्हें रखने के लिए फ़ील्ड खाली छोड़ दें।",
+  "invasion.docker_tls_stored": "इन फ़ील्ड को खाली छोड़ने पर संग्रहीत TLS सामग्री बनी रहती है।",
   "invasion.docker_tls_tls": "TLS (Engine प्रमाणपत्र सत्यापित करें)",
   "invasion.edit": "संपादित करें",
   "invasion.edit_egg": "Egg संपादित करें",
