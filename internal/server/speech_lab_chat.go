@@ -45,18 +45,30 @@ func speechLabRuntimeChatProvider(provider *config.ProviderEntry, vault config.S
 	})
 }
 
-func speechLabRuntimeChatProviderWithAuth(provider *config.ProviderEntry, vault config.SecretReader, now func() time.Time, copilotConfigured func() bool) (speechLabRuntimeChatStatus, string) {
-	eligible, reason := config.SpeechLabChatProviderEligibility(provider)
-	status := speechLabRuntimeChatStatus{Eligible: eligible, Reason: reason}
+// chatProviderEntryCheck is the part of the chat-provider check that reads only the entry
+// (no vault, no clock, no Copilot login): config.SpeechLabChatProviderEligibility decides
+// eligible, and an eligible Workers AI entry without an account id is not usable
+// ("missing_account_id"). speechLabRuntimeChatProviderWithAuth and flowChatProviderEntryOK
+// share it.
+func chatProviderEntryCheck(provider *config.ProviderEntry) (eligible, usable bool, reason string) {
+	eligible, reason = config.SpeechLabChatProviderEligibility(provider)
 	if !eligible || provider == nil {
+		return eligible, false, reason
+	}
+	if catalog.NormalizeProviderID(provider.Type) == "workers-ai" && strings.TrimSpace(provider.AccountID) == "" {
+		return true, false, "missing_account_id"
+	}
+	return true, true, reason
+}
+
+func speechLabRuntimeChatProviderWithAuth(provider *config.ProviderEntry, vault config.SecretReader, now func() time.Time, copilotConfigured func() bool) (speechLabRuntimeChatStatus, string) {
+	eligible, usable, reason := chatProviderEntryCheck(provider)
+	status := speechLabRuntimeChatStatus{Eligible: eligible, Reason: reason}
+	if !usable {
 		return status, ""
 	}
 
 	providerType := catalog.NormalizeProviderID(provider.Type)
-	if providerType == "workers-ai" && strings.TrimSpace(provider.AccountID) == "" {
-		status.Reason = "missing_account_id"
-		return status, ""
-	}
 	if providerType == "copilot" {
 		status.Configured = copilotConfigured != nil && copilotConfigured()
 		if status.Configured {

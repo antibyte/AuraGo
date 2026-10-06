@@ -361,7 +361,9 @@ func (f *flowLLM) route(cfg *config.Config, providerID string) (flowAIRoute, err
 }
 
 // flowProviderEntry returns the provider id names, with the credential its client needs,
-// or FLOW_AI_UNAVAILABLE. cfg.FindProvider refuses the reserved managed local provider.
+// or FLOW_AI_UNAVAILABLE. cfg.FindProvider refuses the reserved managed local provider; the
+// checks of the entry alone come first (flowChatProviderEntryOK, shared with the editor's
+// AI model options).
 //
 // Every auth type goes through speechLabRuntimeChatProvider, the resolver for chat providers
 // chosen by id that the telephone agent shares (resolveTelephoneProvider,
@@ -383,10 +385,10 @@ func flowProviderEntry(cfg *config.Config, id string, vault config.SecretReader)
 	unavailable := func(reason string) (config.ProviderEntry, error) {
 		return config.ProviderEntry{}, flows.NewNodeError("FLOW_AI_UNAVAILABLE", "the AI model %s cannot be used (%s)", flowQuoteName(entry.ID), reason)
 	}
+	if ok, reason := flowChatProviderEntryOK(&entry); !ok {
+		return unavailable(reason)
+	}
 	if strings.TrimSpace(entry.Type) == "" {
-		if strings.TrimSpace(entry.Model) == "" {
-			return unavailable("missing_model")
-		}
 		return entry, nil
 	}
 	status, key := speechLabRuntimeChatProvider(&entry, vault)
@@ -401,6 +403,32 @@ func flowProviderEntry(cfg *config.Config, id string, vault config.SecretReader)
 		return unavailable(status.Reason)
 	}
 	return entry, nil
+}
+
+// flowChatProviderEntryOK is the part of flowProviderEntry that reads only the entry, with
+// the reason of a refusal. The editor's AI model options use it too (flowChatProvider), so
+// they offer exactly the providers a run can use once their credentials are in place
+// (TestC19AIModelOptionsMatchTheRunTimeCheck pins the two together). It refuses an empty id,
+// an id with surrounding blanks (flowLLM.route trims the node's value, so cfg.FindProvider
+// would not find the entry), the reserved managed local provider (cfg.FindProvider refuses
+// it), an entry without a type and without a model, and what chatProviderEntryCheck refuses
+// (media and unknown provider types, an empty model, Workers AI without an account id).
+func flowChatProviderEntryOK(p *config.ProviderEntry) (bool, string) {
+	if p == nil {
+		return false, "unknown_provider"
+	}
+	id := strings.TrimSpace(p.ID)
+	if id == "" || id != p.ID || strings.EqualFold(id, config.LocalLLMProviderID) {
+		return false, "unknown_provider"
+	}
+	if strings.TrimSpace(p.Type) == "" {
+		if strings.TrimSpace(p.Model) == "" {
+			return false, "missing_model"
+		}
+		return true, "available"
+	}
+	_, usable, reason := chatProviderEntryCheck(p)
+	return usable, reason
 }
 
 // Flow secrets live in the vault as "easydrag_<name>". The editor manages them through

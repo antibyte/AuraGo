@@ -9,14 +9,16 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
 
+	"golang.org/x/sync/singleflight"
+
 	"aurago/internal/config"
 	"aurago/internal/flows"
-	"aurago/internal/llm/catalog"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
@@ -35,8 +37,10 @@ type flowOption struct {
 // set. What a flow does is shown at publish time from the real parameters
 // (flows.CollectEffects), and at run time each tool call passes the tool's own gates
 // (read-only modes, permissions, allowed services); those are the guarantee.
+//
+// HEAD is served for the palette only: the answer of GET without the body.
 func (s *Server) flowsNodeTypes(w http.ResponseWriter, r *http.Request, rest []string) {
-	if r.Method != http.MethodGet {
+	if r.Method != http.MethodGet && (r.Method != http.MethodHead || len(rest) != 0) {
 		flowsMethodNotAllowed(w)
 		return
 	}
@@ -127,7 +131,7 @@ const flowNodeTypesCacheLangs = 17
 //   - Locking: mu guards all fields and is never held across a describe or an encode.
 //     Two requests that miss at the same time both build the answer; the later put wins.
 //
-// The zero value is ready to use; Server.flowNodeTypes holds the one of the API.
+// The zero value is ready to use; Server.flowNodeTypesCache holds the one of the API.
 type flowNodeTypesCache struct {
 	mu      sync.Mutex
 	gen     uint64
@@ -201,20 +205,21 @@ func flowNodeTypesBody(reg *flows.Registry, lang string) (flowNodeTypesAnswer, e
 // serveFlowNodeTypes answers GET /node-types from flowNodeTypesCache, with an ETag and
 // "Cache-Control: private, no-cache" (a browser may keep the answer but must revalidate
 // it; flowsJSON's no-store does not apply here). A request whose If-None-Match names the
-// current tag gets 304 without a body.
+// current tag gets 304 without a body. HEAD gets the headers of GET (with the Content-Length
+// of the plain body) and no body.
 func (s *Server) serveFlowNodeTypes(w http.ResponseWriter, r *http.Request, lang string) {
 	reg := s.Flows.Registry()
 	gen := reg.Generation() // before the registry is described
 	cfg := s.ConfigSnapshot()
-	answer, ok := s.flowNodeTypes.get(gen, cfg, lang)
+	answer, ok := s.flowNodeTypesCache.get(gen, cfg, lang)
 	if !ok {
 		var err error
-		if answer, err = s.flowNodeTypes.build(reg, lang); err != nil {
+		if answer, err = s.flowNodeTypesCache.build(reg, lang); err != nil {
 			s.Logger.Warn("The flow node catalog could not be encoded", "lang", lang, "error", flowsErrorText(err))
 			flowsWriteEncodeFailure(w)
 			return
 		}
-		s.flowNodeTypes.put(gen, cfg, s.ConfigSnapshot(), lang, answer)
+		s.flowNodeTypesCache.put(gen, cfg, s.ConfigSnapshot(), lang, answer)
 	}
 	h := w.Header()
 	h.Set("Cache-Control", "private, no-cache")
@@ -224,6 +229,11 @@ func (s *Server) serveFlowNodeTypes(w http.ResponseWriter, r *http.Request, lang
 		return
 	}
 	h.Set("Content-Type", "application/json; charset=utf-8")
+	if r.Method == http.MethodHead {
+		h.Set("Content-Length", strconv.Itoa(len(answer.body)))
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(answer.body)
 }
@@ -260,6 +270,9 @@ const (
 	// flowHAEntitiesTTL is how long an entity list is reused for the same configuration
 	// snapshot, so a flow with several Home Assistant selects asks Home Assistant once.
 	flowHAEntitiesTTL = 30 * time.Second
+	// flowHAEntitiesErrorTTL is how long a failed Home Assistant request is reused, so an
+	// unreachable Home Assistant is not asked (and waited for) once per select.
+	flowHAEntitiesErrorTTL = 5 * time.Second
 	// flowHAEntitiesTimeout bounds one request to Home Assistant.
 	flowHAEntitiesTimeout = 10 * time.Second
 )
@@ -378,11 +391,8 @@ func (s *Server) flowOptionList(ctx context.Context, source, lang string) (flowO
 			}
 		}
 	case "ha_entities":
-		list, err := s.flowHAEntities(ctx, cfg)
-		if err != nil {
-			return flowOptionList{}, err
-		}
-		return flowBoundOptions(list), nil
+		// Bounded once, before it was cached; the options are shared and read-only.
+		return s.flowHAEntities(ctx, cfg)
 	default:
 		return flowOptionList{}, fmt.Errorf("unknown options source %q", source)
 	}
@@ -390,8 +400,7 @@ func (s *Server) flowOptionList(ctx context.Context, source, lang string) (flowO
 }
 
 // flowBoundOptions returns a copy of list with every label and hint bounded to
-// flowOptionTextRunes runes. It never writes into list, whose options may be shared
-// (flowHACache).
+// flowOptionTextRunes runes. It never writes into list.
 func flowBoundOptions(list flowOptionList) flowOptionList {
 	out := make([]flowOption, len(list.options))
 	for i, o := range list.options {
@@ -433,38 +442,31 @@ func flowDefaultAIModel(cfg *config.Config) string {
 }
 
 // flowChatProvider reports whether a provider entry can answer an ai.step: what
-// flowProviderEntry accepts before it looks at credentials. ProviderEntry has no purpose
-// field, but its type can rule chat out: media providers (image generation, vision-only,
-// Agnes image and video models) and unknown types are left out, as are an entry without
-// a model, Workers AI without an account id, an entry without an id (its value would be
-// the default route's) and the reserved managed local provider (cfg.FindProvider refuses
-// it). Credentials are not checked: a missing key is fixed in the configuration, not in the
-// flow, and the run reports it (FLOW_AI_UNAVAILABLE). An embedding or speech model on a chat
-// provider type cannot be told apart and fails at run time with the provider's error.
+// flowProviderEntry accepts before it looks at credentials (flowChatProviderEntryOK, the
+// same function). ProviderEntry has no purpose field, but its type can rule chat out:
+// media providers (image generation, vision-only, Agnes image and video models) and
+// unknown types are left out. Credentials are not checked: a missing key is fixed in the
+// configuration, not in the flow, and the run reports it (FLOW_AI_UNAVAILABLE). An
+// embedding or speech model on a chat provider type cannot be told apart and fails at run
+// time with the provider's error.
 func flowChatProvider(p *config.ProviderEntry) bool {
-	id := strings.TrimSpace(p.ID)
-	if id == "" || strings.EqualFold(id, config.LocalLLMProviderID) {
-		return false
-	}
-	if strings.TrimSpace(p.Type) == "" {
-		return strings.TrimSpace(p.Model) != ""
-	}
-	if ok, _ := config.SpeechLabChatProviderEligibility(p); !ok {
-		return false
-	}
-	return catalog.NormalizeProviderID(p.Type) != "workers-ai" || strings.TrimSpace(p.AccountID) != ""
+	ok, _ := flowChatProviderEntryOK(p)
+	return ok
 }
 
-// flowHACache keeps the last Home Assistant entity list (flowHAEntities) for
-// flowHAEntitiesTTL, for one configuration snapshot. Only lists Home Assistant answered are
-// kept; after an error the next request asks again. The cached options are shared and
-// read-only. The zero value is ready to use; Server.flowHACache holds the one of the API.
+// flowHACache keeps the last Home Assistant entity answer (flowHAEntities) of one
+// configuration snapshot: a list for flowHAEntitiesTTL, an error for flowHAEntitiesErrorTTL.
+// The cached options are bounded (flowBoundOptions), shared and read-only. fetches coalesces
+// the requests that miss at the same time into one Home Assistant request per configuration
+// snapshot. The zero value is ready to use; Server.flowHACache holds the one of the API.
 type flowHACache struct {
-	mu   sync.Mutex
-	cfg  *config.Config
-	at   time.Time
-	list flowOptionList
-	now  func() time.Time // nil means time.Now; tests set it
+	mu      sync.Mutex
+	cfg     *config.Config
+	at      time.Time
+	list    flowOptionList
+	err     error
+	now     func() time.Time // nil means time.Now; tests set it
+	fetches singleflight.Group
 }
 
 func (c *flowHACache) clock() time.Time {
@@ -474,40 +476,74 @@ func (c *flowHACache) clock() time.Time {
 	return time.Now()
 }
 
-// get returns the cached list of cfg while it is younger than flowHAEntitiesTTL.
-func (c *flowHACache) get(cfg *config.Config) (flowOptionList, bool) {
+// get returns the cached answer of cfg (a list, or the error of the last request) while it
+// is younger than its time to live; ok is false on a miss.
+func (c *flowHACache) get(cfg *config.Config) (list flowOptionList, err error, ok bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.cfg == nil || c.cfg != cfg {
-		return flowOptionList{}, false
+		return flowOptionList{}, nil, false
 	}
-	if age := c.clock().Sub(c.at); age < 0 || age >= flowHAEntitiesTTL {
-		return flowOptionList{}, false
+	ttl := flowHAEntitiesTTL
+	if c.err != nil {
+		ttl = flowHAEntitiesErrorTTL
 	}
-	return c.list, true
+	if age := c.clock().Sub(c.at); age < 0 || age >= ttl {
+		return flowOptionList{}, nil, false
+	}
+	return c.list, c.err, true
 }
 
-// put caches the list Home Assistant answered for cfg.
-func (c *flowHACache) put(cfg *config.Config, list flowOptionList) {
+// put caches the answer Home Assistant gave for cfg, unless cfg is no longer the current
+// configuration (as flowNodeTypesCache.put does).
+func (c *flowHACache) put(cfg, current *config.Config, list flowOptionList, err error) {
+	if cfg == nil || cfg != current {
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cfg, c.at, c.list = cfg, c.clock(), list
+	c.cfg, c.at, c.list, c.err = cfg, c.clock(), list, err
 }
 
 // flowHAEntities lists Home Assistant entities (empty when Home Assistant is not set up),
-// sorted by entity id and cut to flowHAEntitiesMax. tools.HAGetStatesContext reads at most
-// 10 MiB of states (readHTTPResponseBody); a larger answer is an error. The list is reused
-// for flowHAEntitiesTTL (flowHACache); two requests that miss at the same time both ask.
+// sorted by entity id, cut to flowHAEntitiesMax and bounded (flowBoundOptions).
+// tools.HAGetStatesContext reads at most 10 MiB of states (readHTTPResponseBody); a larger
+// answer is an error. Answers are reused (flowHACache). Requests that miss at the same time
+// share one Home Assistant request, which is detached from the request that started it
+// (context.WithoutCancel, bounded by flowHAEntitiesTimeout), so a caller that goes away does
+// not fail the others; such a caller gets its own context's error at once.
 func (s *Server) flowHAEntities(ctx context.Context, cfg *config.Config) (flowOptionList, error) {
 	ha := cfg.HomeAssistant
 	if !ha.Enabled || strings.TrimSpace(ha.URL) == "" || ha.AccessToken == "" {
 		return flowOptionList{options: []flowOption{}}, nil
 	}
-	if list, ok := s.flowHACache.get(cfg); ok {
-		return list, nil
+	if list, err, ok := s.flowHACache.get(cfg); ok {
+		return list, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, flowHAEntitiesTimeout)
-	defer cancel()
+	detached := context.WithoutCancel(ctx)
+	results := s.flowHACache.fetches.DoChan(fmt.Sprintf("%p", cfg), func() (any, error) {
+		// A request that finished between the miss above and this call has filled the cache.
+		if list, err, ok := s.flowHACache.get(cfg); ok {
+			return list, err
+		}
+		fetchCtx, cancel := context.WithTimeout(detached, flowHAEntitiesTimeout)
+		defer cancel()
+		list, err := fetchFlowHAEntities(fetchCtx, cfg)
+		s.flowHACache.put(cfg, s.ConfigSnapshot(), list, err)
+		return list, err
+	})
+	select {
+	case <-ctx.Done():
+		return flowOptionList{}, ctx.Err()
+	case res := <-results:
+		list, _ := res.Val.(flowOptionList)
+		return list, res.Err
+	}
+}
+
+// fetchFlowHAEntities asks Home Assistant for its entities (see flowHAEntities).
+func fetchFlowHAEntities(ctx context.Context, cfg *config.Config) (flowOptionList, error) {
+	ha := cfg.HomeAssistant
 	raw := tools.HAGetStatesContext(ctx, tools.HAConfig{URL: ha.URL, AccessToken: ha.AccessToken, ReadOnly: true}, "")
 	var res struct {
 		Status  string `json:"status"`
@@ -538,8 +574,7 @@ func (s *Server) flowHAEntities(ctx context.Context, cfg *config.Config) (flowOp
 	if len(out) > flowHAEntitiesMax {
 		list = flowOptionList{options: out[:flowHAEntitiesMax], truncated: true}
 	}
-	s.flowHACache.put(cfg, list)
-	return list, nil
+	return flowBoundOptions(list), nil
 }
 
 func (s *Server) flowsTemplates(w http.ResponseWriter, r *http.Request) {

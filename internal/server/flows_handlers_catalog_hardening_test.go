@@ -44,9 +44,9 @@ func c19NodeTypes(t *testing.T, s *Server, token, lang, ifNoneMatch string) *htt
 
 // c19Builds returns how many palette answers the server built.
 func c19Builds(s *Server) int {
-	s.flowNodeTypes.mu.Lock()
-	defer s.flowNodeTypes.mu.Unlock()
-	return s.flowNodeTypes.builds
+	s.flowNodeTypesCache.mu.Lock()
+	defer s.flowNodeTypesCache.mu.Unlock()
+	return s.flowNodeTypesCache.builds
 }
 
 var c19I18nOnce sync.Once
@@ -414,6 +414,10 @@ func TestC19HomeAssistantEntitiesAreCachedBoundedAndTruncated(t *testing.T) {
 	}
 	failing.Store(false)
 	count.Store(3)
+	if w, _ := get("home.assistant"); w.Code != http.StatusBadGateway || hits.Load() != 4 {
+		t.Fatalf("an error within flowHAEntitiesErrorTTL must be reused: %d, %d requests", w.Code, hits.Load())
+	}
+	now = now.Add(flowHAEntitiesErrorTTL)
 	w, body = get("home.assistant")
 	if opts, _ := body["options"].([]any); w.Code != http.StatusOK || hits.Load() != 5 || len(opts) != 3 {
 		t.Fatalf("after an error = %d, %d requests, %d options", w.Code, hits.Load(), len(opts))
@@ -425,11 +429,11 @@ func TestC19HomeAssistantEntitiesAreCachedBoundedAndTruncated(t *testing.T) {
 
 // B7: AI model options list only providers that can answer an ai.step, and the default
 // names the model the default route uses.
-func TestC19AIModelOptionsAreChatProviders(t *testing.T) {
-	c19LoadTranslations()
-	s, _ := newFlowsTestServer(t)
-	s.Cfg.LLM.Model = "main-llm"
-	s.Cfg.Providers = []config.ProviderEntry{
+// c19ProviderFixtures are provider entries of every kind the AI model options must sort
+// out: chat providers, media types, missing models and account ids, the reserved local
+// provider, unknown types, a blank and a padded id, and OAuth2.
+func c19ProviderFixtures() []config.ProviderEntry {
+	return []config.ProviderEntry{
 		{ID: "main", Name: "Main", Type: "openai", Model: "gpt-c19"},
 		{ID: "images", Type: "stability", Model: "sd3"},
 		{ID: "eyes", Type: "vision", Model: "v1"},
@@ -437,18 +441,29 @@ func TestC19AIModelOptionsAreChatProviders(t *testing.T) {
 		{ID: "chatty", Type: "agnes", Model: "agnes-chat"},
 		{ID: "nomodel", Type: "openai"},
 		{ID: "generic", Model: "local-model"},
+		{ID: "generic_nomodel"},
 		{ID: "cf", Type: "workers-ai", Model: "@cf/a"},
 		{ID: "cf2", Type: "workers-ai", Model: "@cf/b", AccountID: "acc"},
 		{ID: config.LocalLLMProviderID, Type: "openai", Model: "qwen"},
 		{ID: "mystery", Type: "no-such-type", Model: "m"},
 		{ID: " ", Type: "openai", Model: "m"},
+		{ID: " padded", Type: "openai", Model: "m"},
+		{ID: "oauth", Type: "openai", Model: "m", AuthType: "oauth2"},
+		{ID: "keyless", Type: "custom", BaseURL: "http://127.0.0.1:1", Model: "m"},
 	}
+}
+
+func TestC19AIModelOptionsAreChatProviders(t *testing.T) {
+	c19LoadTranslations()
+	s, _ := newFlowsTestServer(t)
+	s.Cfg.LLM.Model = "main-llm"
+	s.Cfg.Providers = c19ProviderFixtures()
 	ctx := context.Background()
 	opts, err := s.flowOptions(ctx, "ai_models", "en")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := c19OptionValues(opts), []string{"", "main", "chatty", "generic", "cf2"}; !slices.Equal(got, want) {
+	if got, want := c19OptionValues(opts), []string{"", "main", "chatty", "generic", "cf2", "oauth", "keyless"}; !slices.Equal(got, want) {
 		t.Fatalf("AI model options = %v, want %v", got, want)
 	}
 	defaultLabel := i18n.T("en", "easydrag.option.ai_model_default")
@@ -648,5 +663,135 @@ func TestC19UnknownCatalogRoutes(t *testing.T) {
 	}
 	if w := flowsCall(t, s, http.MethodDelete, "/api/desktop/flows/templates", token, ""); w.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("DELETE templates = %d", w.Code)
+	}
+}
+
+// c19Secrets is a vault that has a credential for every provider: an API key, and a
+// valid OAuth2 token.
+type c19Secrets struct{}
+
+func (c19Secrets) ReadSecret(key string) (string, error) {
+	if strings.HasPrefix(key, "oauth_") {
+		return `{"access_token":"c19-access-token","expiry":"2999-01-01T00:00:00Z"}`, nil
+	}
+	return "c19-api-key", nil
+}
+
+// Review item 1: the AI model options offer exactly the providers a run can use once the
+// credentials are there; flowChatProvider and flowProviderEntry share one entry check.
+func TestC19AIModelOptionsMatchTheRunTimeCheck(t *testing.T) {
+	cfg := &config.Config{Providers: c19ProviderFixtures()}
+	for i := range cfg.Providers {
+		p := &cfg.Providers[i]
+		_, err := flowProviderEntry(cfg, p.ID, c19Secrets{})
+		if offered, usable := flowChatProvider(p), err == nil; offered != usable {
+			t.Errorf("provider %q (type %q): offered %v, but the run-time check says %v (%v)", p.ID, p.Type, offered, usable, err)
+		}
+	}
+}
+
+// Review item 2: the HA cache keeps an answer only for the current configuration.
+func TestC19HACacheKeepsOnlyTheCurrentConfiguration(t *testing.T) {
+	var c flowHACache
+	cfgA, cfgB := &config.Config{}, &config.Config{}
+	list := flowOptionList{options: []flowOption{{Value: "a"}}}
+	c.put(cfgB, cfgA, list, nil)
+	if _, _, ok := c.get(cfgB); ok {
+		t.Fatal("an answer for a replaced configuration must not be kept")
+	}
+	c.put(cfgA, cfgA, list, nil)
+	c.put(cfgB, cfgA, flowOptionList{}, nil)
+	if got, _, ok := c.get(cfgA); !ok || len(got.options) != 1 {
+		t.Fatal("a refused put must not replace the current answer")
+	}
+}
+
+// Review item 3: requests that miss the HA cache at the same time share one Home
+// Assistant request.
+func TestC19HomeAssistantFetchesAreCoalesced(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	var hits atomic.Int32
+	release := make(chan struct{})
+	ha := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		<-release
+		_ = json.NewEncoder(w).Encode([]map[string]any{{"entity_id": "light.c19", "state": "on"}})
+	}))
+	defer ha.Close()
+	var releaseOnce sync.Once
+	open := func() { releaseOnce.Do(func() { close(release) }) }
+	defer open() // before ha.Close, so no handler stays blocked
+	c19UseHomeAssistant(s, ha.URL)
+
+	const callers = 8
+	codes := make(chan int, callers)
+	var wg sync.WaitGroup
+	for range callers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			codes <- flowsCall(t, s, http.MethodGet, "/api/desktop/flows/node-types/home.assistant/options/entity", token, "").Code
+		}()
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for hits.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	time.Sleep(100 * time.Millisecond) // the other callers reach the shared fetch meanwhile
+	open()
+	wg.Wait()
+	close(codes)
+	for code := range codes {
+		if code != http.StatusOK {
+			t.Fatalf("a caller got %d", code)
+		}
+	}
+	if n := hits.Load(); n != 1 {
+		t.Fatalf("%d concurrent cold requests made %d Home Assistant requests, want 1", callers, n)
+	}
+}
+
+// Review item 7: HEAD /node-types is GET without the body, revalidation included.
+func TestC19NodeTypesAnswerHead(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	get := c19NodeTypes(t, s, token, "en", "")
+	head := func(path, ifNoneMatch string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodHead, path, nil)
+		r.Header.Set("Authorization", "Bearer "+token)
+		if ifNoneMatch != "" {
+			r.Header.Set("If-None-Match", ifNoneMatch)
+		}
+		w := httptest.NewRecorder()
+		s.handleFlows(w, r)
+		return w
+	}
+	w := head("/api/desktop/flows/node-types?lang=en", "")
+	if w.Code != http.StatusOK || w.Body.Len() != 0 || w.Header().Get("ETag") != get.Header().Get("ETag") ||
+		w.Header().Get("Content-Length") != fmt.Sprint(get.Body.Len()) || !strings.HasPrefix(w.Header().Get("Content-Type"), "application/json") {
+		t.Fatalf("HEAD = %d, %d bytes, headers %v", w.Code, w.Body.Len(), w.Header())
+	}
+	if w := head("/api/desktop/flows/node-types?lang=en", get.Header().Get("ETag")); w.Code != http.StatusNotModified || w.Body.Len() != 0 {
+		t.Fatalf("HEAD with a matching If-None-Match = %d", w.Code)
+	}
+	if w := head("/api/desktop/flows/node-types/notify.push/options/channel", ""); w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("HEAD on an options route = %d", w.Code)
+	}
+	if c19Builds(s) != 1 {
+		t.Fatalf("HEAD must use the cache; builds = %d", c19Builds(s))
+	}
+}
+
+// Review item 8: a new configuration snapshot rebuilds the palette once.
+func TestC19NodeTypesRebuildOnceAfterAConfigSwap(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	first := c19NodeTypes(t, s, token, "en", "")
+	before := c19Builds(s)
+	next := *s.ConfigSnapshot()
+	s.cfgSnapshot.Store(&next)
+	if w := c19NodeTypes(t, s, token, "en", first.Header().Get("ETag")); w.Code != http.StatusNotModified || c19Builds(s) != before+1 {
+		t.Fatalf("after a config swap = %d, builds %d (before %d); want one rebuild with the same content", w.Code, c19Builds(s), before)
+	}
+	if c19NodeTypes(t, s, token, "en", ""); c19Builds(s) != before+1 {
+		t.Fatalf("the rebuilt answer was not cached; builds %d", c19Builds(s))
 	}
 }

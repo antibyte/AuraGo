@@ -82,6 +82,7 @@ func newFlowToolInvoker(s *Server, env *flowCatalogEnv) *flowToolInvoker {
 const flowLogRunes = 200
 
 // flowBoundRunes cuts s to at most maxRunes runes, marking a cut with an ellipsis.
+// The ellipsis comes on top (a cut text has maxRunes+1 runes); flowCapRunes counts it in.
 func flowBoundRunes(s string, maxRunes int) string {
 	if utf8.RuneCountInString(s) <= maxRunes {
 		return s
