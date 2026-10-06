@@ -854,3 +854,64 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     }
     .ed-edge.is-flowing .ed-wire { stroke-dasharray: none; }
 }
+
+/* ── additions for markup that tasks 1d-03 to 1d-07 added after this stylesheet was planned ───────────── */
+/* ink: a status hue mixed with the text colour, like --ed-cat-ink. The status tokens are the same in light and
+   dark themes (desktop-base.css), so as a plain text colour they fall below 4.5:1 on light surfaces; ink does not. */
+.ed-app {
+    --ed-danger-ink: color-mix(in srgb, var(--ed-danger) 35%, var(--ed-text));
+    --ed-warn-ink: color-mix(in srgb, var(--ed-warn) 30%, var(--ed-text));
+}
+
+/* forms and fields */
+.ed-field-plaintext { margin: -2px 0 0; }
+.ed-options-truncated { margin: 4px 0 0; }
+.ed-field-preview.is-error { color: var(--ed-danger-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ed-danger) 35%, transparent); }
+.ed-json-error { margin: 6px 0 0; color: var(--ed-danger-ink); font-size: 12px; }
+.ed-secret { flex-wrap: wrap; align-items: center; }
+.ed-secret > .ed-input { flex: 1 1 0; width: auto; min-width: 0; }
+.ed-secret-unavailable { flex: 0 0 100%; margin: 0; }
+.ed-rot180 { transform: rotate(180deg); }
+.ed-suggest li[aria-selected="true"] { background: color-mix(in srgb, var(--ed-accent) 15%, transparent); box-shadow: inset 0 0 0 2px var(--ed-accent); }
+.ed-quick .ed-palette-item[aria-selected="true"] { box-shadow: inset 0 0 0 2px var(--ed-accent); }
+.ed-seg button:disabled, .ed-chip-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+.ed-search input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* detail */
+.ed-file-card .ed-pdf-thumb { width: auto; max-width: 100%; height: auto; max-height: 240px; margin: 0 auto; object-fit: contain; }
+.ed-detail-label:disabled:hover { border-color: transparent; }
+
+/* callouts: the text column takes the rest of the row and wraps long server messages */
+.ed-callout > div { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+
+/* editor: the state chip (a partial publish is not a button) and the save chip, a retry button once a save failed */
+.ed-chip--warn:not([role="link"]) { cursor: default; }
+.ed-state .ed-chip--warn { color: var(--ed-warn-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ed-warn) 45%, transparent); }
+.ed-save--failed { padding: 0; color: var(--ed-danger-ink); }
+.ed-save-retry {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 2px 8px;
+    border: 0; border-radius: var(--ds-radius-sm); background: transparent; color: inherit; font: inherit; cursor: pointer;
+    transition: background var(--ed-fast) var(--ed-ease);
+}
+.ed-save-retry:hover { background: var(--ed-control-hover); }
+.ed-save-action { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+
+/* home: a load error or an empty filter result takes the whole row of the flow grid, the error as a card */
+.ed-flow-grid > .ed-hint, .ed-flow-grid > .ed-error { grid-column: 1 / -1; }
+.ed-flow-grid > .ed-error {
+    margin: 0; padding: 12px 14px; font-size: 13px; line-height: 1.45; color: var(--ed-text);
+    border: 1px solid color-mix(in srgb, var(--ed-danger) 40%, transparent); border-left: 3px solid var(--ed-danger);
+    border-radius: var(--ed-radius); background: color-mix(in srgb, var(--ed-danger) 9%, transparent);
+}
+
+/* focus: the ring of a control that sits flush in a scrolling or clipped container is drawn inside it, so no edge is cut off */
+.ed-app .ed-palette-cat-head:focus-visible,
+.ed-app .ed-palette-item:focus-visible,
+.ed-app .ed-tree-row:focus-visible,
+.ed-app .ed-tree-more:focus-visible,
+.ed-app .ed-run-row:focus-visible,
+.ed-app .ed-pick-row:focus-visible,
+.ed-app .ed-issue:focus-visible,
+.ed-app .ed-foot-item:focus-visible,
+.ed-app .ed-save-retry:focus-visible { outline-offset: -2px; }
+.ed-app .ed-canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--ed-accent); }
