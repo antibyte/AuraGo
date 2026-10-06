@@ -613,6 +613,41 @@ await guardAsync('c1d03 review conflict fetch failure with reload', async () => 
     const flushed = await within(flushing);
     eq('c1d03 the remembered reload applies after a failed fetch', [flushed.value, rr.conflicts.length, rr.saves.length, rr.model.toJSON().name, rr.saver.revision], [true, 1, 1, 'server', 4]);
 });
+await guardAsync('c1d03 review edit cancels a remembered reload', async () => {
+    // Reload is chosen, the fetch fails, the user edits, then the retry: the edit survives and the user is asked again.
+    const h = saverHarness(null);
+    h.change('mine');
+    h.saver.save();
+    h.saves[0].df.reject(CONFLICT());
+    await settle();
+    h.conflicts[0].resolve('reload');
+    await settle();
+    h.gets[0].reject(NETWORK());
+    await settle();
+    h.change('later');
+    await h.fire(5000);
+    eq('c1d03 the retry after an edit saves the edit on the old revision instead of reloading', [h.gets.length, h.saves.length, h.saves[1] && h.saves[1].rev, h.saves[1] && h.saves[1].doc.name, h.model.toJSON().name, h.copy() && h.copy().doc.name], [1, 2, 1, 'later', 'later', 'later']);
+    h.saves[1] && h.saves[1].df.reject(CONFLICT());
+    await settle();
+    eq('c1d03 the 409 asks the user again', [h.conflicts.length, h.saver.state], [2, 'conflict']);
+    h.conflicts[1] && h.conflicts[1].resolve('keep');
+    await settle();
+    h.gets[1] && h.gets[1].resolve(serverFlow(5, 'theirs'));
+    await settle();
+    eq('c1d03 keeping then overwrites with the edit', [h.saves.length, h.saves[2] && h.saves[2].rev, h.saves[2] && h.saves[2].doc.name], [3, 5, 'later']);
+    // The same edit while the first fetch is still open: the fetched draft must not replace it.
+    const f = saverHarness(null);
+    f.change('mine');
+    f.saver.save();
+    f.saves[0].df.reject(CONFLICT());
+    await settle();
+    f.conflicts[0].resolve('reload');
+    await settle();
+    f.change('later');
+    f.gets[0].resolve(serverFlow(5, 'server'));
+    await settle();
+    eq('c1d03 an edit during the reload fetch survives and is saved on the old revision', [f.model.toJSON().name, f.saves.length, f.saves[1] && f.saves[1].rev, f.saves[1] && f.saves[1].doc.name, !!f.copy()], ['later', 2, 1, 'later', true]);
+});
 await guardAsync('c1d03 review conflict after dispose and failing dialog', async () => {
     // A conflict on a disposed saver opens no dialog, and its save settles.
     const d = saverHarness(null);

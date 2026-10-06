@@ -98,6 +98,10 @@
 
         function schedule() {
             if (disposed) return;
+            // An edit cancels a remembered "reload": loading the server draft would discard it. The next
+            // save sends the old revision, gets the 409 and asks again. A remembered "keep" stays: it
+            // overwrites the server with the current model, edits included, so nothing is lost.
+            if (conflictChoice === 'reload') conflictChoice = null;
             if (o.model.version === savedVersion) return;
             setState(state === 'conflict' ? 'conflict' : 'dirty');
             writeEmergency();
@@ -219,9 +223,14 @@
             }
             const choice = conflictChoice;
             conflictChoice = null;
-            revision = server.flow.draft_revision;
             error = null;
             retryDelay = RETRY_MS;
+            if (!choice) {
+                // An edit during this fetch cancelled the reload: save on the old revision, so the 409 asks again.
+                setState('dirty');
+                return true;
+            }
+            revision = server.flow.draft_revision;
             if (choice === 'keep') {
                 writeEmergency(); // the kept draft now builds on the server's revision
                 savedVersion = -1;
