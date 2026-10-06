@@ -5,6 +5,9 @@
 
     const ED = window.EasyDrag = window.EasyDrag || {};
     const FILTER_KEY = 'aurago.easydrag.home.filter';
+    const VIEW_PREFIX = 'aurago.easydrag.view.';
+    // IMPORT_MAX_BYTES is the server's document limit (4 MiB, FLOW_TOO_LARGE).
+    const IMPORT_MAX_BYTES = 4 * 1024 * 1024;
 
     function previewSVG(nodes, esc) {
         if (!nodes || !nodes.length) return '<svg viewBox="0 0 240 110" aria-hidden="true"><rect class="ed-mini-empty" x="94" y="39" width="52" height="32" rx="8"></rect></svg>';
@@ -80,9 +83,22 @@
             });
         }
 
+        // loadError is the error of the last failed list request. While it is set the flow grid shows
+        // it (a calm lock card for FLOWS_DISABLED) instead of cards that may be gone, and search and
+        // filters wait; the templates still show.
+        let loadError = null;
+
+        function errorCard(err) {
+            return core.errorCode(err) === 'FLOWS_DISABLED'
+                ? '<div class="ed-home-empty">' + core.icon('lock') + '<h3>' + esc(t('easydrag.ui.disabled_title')) + '</h3><p>' + esc(t('easydrag.ui.disabled_text')) + '</p></div>'
+                : '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>';
+        }
+
         function render() {
             const list = visibleFlows();
-            if (!flows.length) {
+            if (loadError) {
+                grid.innerHTML = errorCard(loadError);
+            } else if (!flows.length) {
                 grid.innerHTML = '<div class="ed-home-empty">' + core.icon('sparkles') + '<h3>' + esc(t('easydrag.ui.home_empty_title')) + '</h3><p>' + esc(t('easydrag.ui.home_empty_text')) + '</p>' +
                     '<button type="button" class="ed-btn ed-btn--primary" data-ed-new>' + core.icon('plus') + '<span>' + esc(t('easydrag.ui.home_new')) + '</span></button></div>';
             } else if (!list.length) {
@@ -103,6 +119,8 @@
                 '<h3>' + esc(tp.name) + '</h3><p>' + esc(tp.description) + '</p><span class="ed-template-use">' + esc(t('easydrag.ui.home_use_template')) + core.icon('chevron-right') + '</span></article>').join('');
             el.querySelectorAll('[data-ed-new]').forEach(b => { b.disabled = !!app.readonly; });
             el.querySelector('[data-ed-import]').disabled = !!app.readonly;
+            el.querySelector('[data-ed-home-search]').disabled = !!loadError;
+            el.querySelectorAll('[data-ed-filter]').forEach(b => { b.disabled = !!loadError; });
         }
 
         // loadSeq numbers the list requests: only the newest answer is shown, none after dispose.
@@ -120,12 +138,13 @@
                 [list, tpl] = await Promise.all([app.api.list(), templates.length ? Promise.resolve({ templates }) : app.api.templates()]);
             } catch (err) {
                 if (mine !== loadSeq) return;
-                grid.innerHTML = core.errorCode(err) === 'FLOWS_DISABLED'
-                    ? '<div class="ed-home-empty">' + core.icon('lock') + '<h3>' + esc(t('easydrag.ui.disabled_title')) + '</h3><p>' + esc(t('easydrag.ui.disabled_text')) + '</p></div>'
-                    : '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>';
+                flows = [];
+                loadError = err;
+                render();
                 return;
             }
             if (mine !== loadSeq) return;
+            loadError = null;
             flows = list.flows || [];
             templates = tpl.templates || [];
             render();
@@ -134,12 +153,19 @@
         // server: those refreshes wait until saving pauses for 1.5 s.
         const reloadSoon = core.debounce(reload, 1500);
 
+        // creating allows one create at a time (a held Enter on a template card, a double click).
+        let creating = false;
+
         async function create(body) {
+            if (creating) return;
+            creating = true;
             try {
                 const res = await app.api.create(body);
                 app.openFlow(res.flow.id);
             } catch (err) {
                 ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
+            } finally {
+                creating = false;
             }
         }
 
@@ -150,7 +176,12 @@
             create({ name: String(name).trim() || t('easydrag.ui.new_flow_name') });
         }
 
+        // importFile reads a flow file; one over the server's document limit is not read at all.
         async function importFile(file) {
+            if (Number(file.size) > IMPORT_MAX_BYTES) {
+                ctx.notify({ title: t('easydrag.ui.home_import'), message: t('easydrag.ui.error_flow_too_large'), type: 'error' });
+                return;
+            }
             let doc;
             try { doc = JSON.parse(await file.text()); } catch (err) {
                 ctx.notify({ title: t('easydrag.ui.home_import'), message: t('easydrag.ui.import_invalid'), type: 'error' });
@@ -180,7 +211,11 @@
         async function remove(f) {
             const ok = await ctx.confirmDialog(t('easydrag.ui.delete_title'), t('easydrag.ui.delete_text', { name: f.name }));
             if (!ok) return;
-            try { await app.api.remove(f.id); reload(); } catch (err) { ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); }
+            try { await app.api.remove(f.id); } catch (err) { ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); return; }
+            // The flow's local leftovers go with it: its emergency copy and its viewport.
+            ED.saver.dropEmergencyCopy(f.id);
+            core.storage.remove(VIEW_PREFIX + f.id);
+            reload();
         }
 
         async function toggle(f, button) {
@@ -227,7 +262,7 @@
             if (card) app.openFlow(card.dataset.edFlow);
         });
         bag.listen(el, 'keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
+            if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
             const card = event.target.closest('[data-ed-flow], [data-ed-template]');
             if (!card || event.target !== card) return;
             event.preventDefault();

@@ -153,9 +153,11 @@
         return tpl.content.firstElementChild;
     }
 
+    // isEditable: target takes typing (isContentEditable also covers contenteditable="" and
+    // "plaintext-only" and inherited editing). Callers pass event.composedPath()[0] where they can.
     function isEditable(target) {
         if (!target || !target.closest) return false;
-        return !!target.closest('input, textarea, select, [contenteditable="true"], .ed-code');
+        return !!(target.isContentEditable || target.closest('input, textarea, select, [contenteditable="true"], .ed-code'));
     }
 
     const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || '');

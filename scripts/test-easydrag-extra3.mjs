@@ -589,4 +589,244 @@ export async function run(env) {
             [editor.ed.model.doc.name, items('edit').find(i => i.id === 'select-all').disabled, items('flow').find(i => i.id === 'save').disabled], ['Local work', false, false]);
         eq('c1d07 the restore menu checks log no errors', h.logged, []);
     });
+
+    // ── 1d-07 review (B): start page, import and the minor items ──
+
+    // hostile is markup that must stay text wherever a name or label appears.
+    const hostile = '"><img src=x onerror=alert(1)><script>x</script>';
+    // injected lists elements and on* attributes that only unescaped markup can create.
+    const injected = root => {
+        const out = [];
+        const walk = node => {
+            if (node.localName === 'img' || node.localName === 'script') out.push(node.localName);
+            node.attrs.forEach((v, k) => { if (k.startsWith('on')) out.push(k); });
+            node.children.forEach(walk);
+        };
+        walk(root);
+        return out;
+    };
+
+    await guardAsync('c1d07 review start page states, import and cards', async () => {
+        let listAnswer = () => ({ flows: [{ id: 'f1', name: 'One', triggers: [], preview: [] }] });
+        const created = deferred();
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') return listAnswer();
+            if (req.url === '/api/desktop/flows' && req.method === 'POST') return created.p;
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [{ id: 't1', name: 'Tpl', description: 'd', categories: [] }] };
+            if (req.url === '/api/desktop/flows/f1' && req.method === 'DELETE') return { status: 'deleted', used_by: [] };
+            return undefined;
+        });
+        let menu = null;
+        h.ctx.showContextMenu = (x, y, items) => { menu = items; };
+        const home = h.ED.home.create({ ctx: h.ctx, t, esc: h.ED.core.esc, api: h.api, catalog: h.catalog, readonly: false, openFlow: id => h.opened.push(id) });
+        h.body.appendChild(home.el);
+        await settle();
+        const grid = home.el.querySelector('.ed-flow-grid');
+        const search = home.el.querySelector('[data-ed-home-search]');
+        const changed = reason => h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason } });
+        const shown = () => [grid.html.includes('data-ed-flow="f1"'), grid.html.includes('disabled_title'), grid.html.includes('ed-error'),
+            home.el.querySelector('.ed-template-grid').html.includes('data-ed-template="t1"'), !!search.disabled];
+        const states = [shown()];
+        listAnswer = () => { throw apiError('FLOWS_DISABLED'); };
+        changed('enabled');
+        await settle();
+        home.el.querySelector('[data-ed-filter="active"]').fire('click');
+        states.push(shown());
+        listAnswer = () => { throw apiError('FLOW_INTERNAL'); };
+        changed('enabled');
+        await settle();
+        home.el.querySelector('[data-ed-filter="all"]').fire('click');
+        states.push(shown());
+        listAnswer = () => ({ flows: [{ id: 'f1', name: 'One', triggers: [], preview: [] }] });
+        changed('enabled');
+        await settle();
+        states.push(shown());
+        eq('c1d07 a failed list load clears the cards, keeps its card on repaints and the templates, and pauses search until a load succeeds',
+            states, [[true, false, false, true, false], [false, true, false, true, true], [false, false, true, true, true], [true, false, false, true, false]]);
+        // Import: a file over the 4 MiB document limit is not read.
+        let read = 0;
+        const file = size => ({ size, text: async () => { read++; return '{"schema":1,"name":"X","nodes":[],"edges":[]}'; } });
+        const input = home.el.querySelector('[data-ed-import-file]');
+        input.fire('change', { target: { files: [file(4 * 1024 * 1024 + 1)], value: 'big.json' } });
+        await settle();
+        const posts = () => h.requests.filter(r => r.method === 'POST').length;
+        const big = [read, posts(), h.notes.map(n => n.message)];
+        input.fire('change', { target: { files: [file(1024)], value: 'small.json' } });
+        await settle();
+        eq('c1d07 an import over 4 MiB is refused unread; a small one is read and sent', [big, read, posts()], [[0, 0, ['error_flow_too_large']], 1, 1]);
+        // While that create runs, a held Enter and a second click on a template create nothing more.
+        const card = home.el.querySelector('[data-ed-template="t1"]');
+        card.fire('keydown', { key: 'Enter', repeat: true });
+        card.fire('click');
+        card.fire('click');
+        await settle();
+        const during = posts();
+        created.resolve({ flow: { id: 'f9' } });
+        await settle();
+        card.fire('click');
+        await settle();
+        eq('c1d07 one create at a time: repeats and clicks during a create send nothing, a later click creates again', [during, h.opened, posts()], [1, ['f9', 'f9'], 2]);
+        // Deleting from the card menu drops the flow's emergency copy and viewport.
+        h.store.set(DRAFT_KEY, JSON.stringify({ revision: 3, at: Date.now(), doc: flowDoc() }));
+        h.store.set('aurago.easydrag.view.f1', JSON.stringify({ x: 1, y: 2, zoom: 1 }));
+        h.confirmAnswer = true;
+        home.el.querySelector('[data-ed-card-menu="f1"]').fire('click');
+        await menu.find(i => i.label === 'home_delete').action();
+        await settle();
+        eq('c1d07 deleting a flow on the start page drops its emergency copy and viewport',
+            [h.requests.some(r => r.method === 'DELETE'), h.store.has(DRAFT_KEY), h.store.has('aurago.easydrag.view.f1')], [true, false, false]);
+        home.dispose();
+        eq('c1d07 the start page review checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d07 review delete paths', async () => {
+        const outcomes = [];
+        for (const ending of ['fails', 'succeeds']) {
+            const del = deferred();
+            const h = sandbox(req => {
+                if (req.method === 'DELETE') return del.p;
+                if (req.method === 'PUT') return { draft_revision: 4, issues: [] };
+                return undefined;
+            });
+            h.confirmAnswer = true;
+            const editor = openEditor(h);
+            await settle();
+            h.runTimers(400);
+            editor.ed.model.setFlow({ description: 'unsaved' });
+            const had = [h.store.has(DRAFT_KEY), h.store.has('aurago.easydrag.view.f1')];
+            const deleting = h.menus.find(m => m.id === 'flow').items.find(i => i.id === 'delete').action();
+            await settle();
+            // The server's broadcast of this very delete arrives before its answer.
+            h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason: 'deleted' } });
+            if (ending === 'fails') del.reject(apiError('FLOW_LOCKED')); else del.resolve({ status: 'deleted', used_by: [] });
+            await deleting;
+            await settle();
+            if (ending === 'succeeds') editor.dispose(); // the shell disposes the editor for the start page
+            h.runTimers(1000);
+            await settle();
+            outcomes.push([ending, had, h.store.has(DRAFT_KEY), h.store.has('aurago.easydrag.view.f1'), h.homes.length, h.puts().length,
+                h.notes.map(n => n.message), h.logged]);
+        }
+        eq('c1d07 a failed delete keeps the saver; a done one drops copy and viewport, saves nothing and ignores its own broadcast', outcomes, [
+            ['fails', [true, true], false, true, 0, 1, ['error_flow_locked'], []],
+            ['succeeds', [true, true], false, false, 1, 0, [], []]
+        ]);
+    });
+
+    await guardAsync('c1d07 review hostile names stay text', async () => {
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') {
+                return { flows: [{ id: 'f1' + hostile, name: hostile, description: hostile, triggers: [hostile], preview: [{ x: 0, y: 0, category: hostile }],
+                    published: true, enabled: true, last_run: { status: hostile, started_at: hostile } }] };
+            }
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [{ id: hostile, name: hostile, description: hostile, categories: [hostile] }] };
+            return undefined;
+        });
+        const home = h.ED.home.create({ ctx: h.ctx, t, esc: h.ED.core.esc, api: h.api, catalog: h.catalog, readonly: false, openFlow: () => {} });
+        h.body.appendChild(home.el);
+        await settle();
+        const homeHits = injected(home.el);
+        const cards = home.el.querySelectorAll('[data-ed-flow]').length;
+        const doc = flowDoc(hostile);
+        doc.nodes.forEach(n => { n.label = hostile + n.label; });
+        const editor = openEditor(h, { flow: { draft: doc } });
+        await settle();
+        editor.ed.bus.emit('connect-picker', { nodeId: T1 });
+        h.ED.dialogs.flowSettings(editor.ed);
+        eq('c1d07 hostile flow, step, trigger, status and template names render as text on the start page, in the editor and its dialogs',
+            [cards, homeHits, injected(editor.el), editor.el.querySelectorAll('.ed-modal').length], [1, [], [], 2]);
+    });
+
+    await guardAsync('c1d07 review editor minors', async () => {
+        // View storage: written once a pan pauses, and on dispose.
+        const h = sandbox(req => (req.method === 'PUT' ? { draft_revision: 4, issues: [] } : undefined));
+        let beforeClose = 'unset';
+        h.ctx.setWindowBeforeClose = (id, fn) => { beforeClose = fn; };
+        const editor = openEditor(h);
+        await settle();
+        h.runTimers(400);
+        let writes = 0;
+        const set = h.store.set.bind(h.store);
+        h.store.set = (k, v) => { if (String(k).startsWith('aurago.easydrag.view.')) writes++; return set(k, v); };
+        const canvasEl = editor.el.querySelector('.ed-canvas');
+        const wheel = () => canvasEl.fire('wheel', { deltaX: 0, deltaY: 4, deltaMode: 0, ctrlKey: false, metaKey: false, shiftKey: false, clientX: 500, clientY: 300, preventDefault() {} });
+        for (let i = 0; i < 60; i++) wheel();
+        const during = writes;
+        h.runTimers(400);
+        const paused = writes;
+        // Keys: only from inside the editor (or the body), never from a content-editable target.
+        const outside = h.body.appendChild(new h.dom.El('div', {}));
+        const ctrlS = target => h.fireDoc('keydown', h.key('s', target, { ctrlKey: true }));
+        editor.ed.model.setFlow({ description: 'keys' });
+        ctrlS(outside);
+        await settle();
+        const fromOutside = h.puts().length;
+        ctrlS(h.body);
+        await settle();
+        const fromBody = h.puts().length;
+        h.menus.find(m => m.id === 'edit').items.find(i => i.id === 'select-all').action();
+        const editable = canvasEl.appendChild(new h.dom.El('span', {}));
+        editable.isContentEditable = true;
+        h.fireDoc('keydown', h.key('Delete', editable));
+        const kept = editor.ed.model.doc.nodes.length;
+        eq('c1d07 the view is stored once a pan pauses; keys from outside the editor or a content-editable target do nothing',
+            [during, paused, fromOutside, fromBody, kept], [0, 1, 0, 1, 3]);
+        // Focus stays with the failed-save chip's button flow: after a retry it lands on the canvas.
+        // Dispose: one module that throws does not keep the rest from being released; a pending view is stored.
+        wheel();
+        const close = h.ED.detail.close;
+        h.ED.detail.close = () => { throw new Error('detail cleanup failed'); };
+        editor.dispose();
+        h.ED.detail.close = close;
+        eq('c1d07 dispose survives a throwing step, releases listeners and the close guard, and stores a pending view',
+            [writes, beforeClose, (h.docListeners.keydown || []).length, (h.docListeners['aurago:flows-changed'] || []).length, h.logged.length, h.logged[0] && h.logged[0].includes('detail cleanup failed')],
+            [2, null, 0, 0, 1, true]);
+    });
+
+    await guardAsync('c1d07 review retry focus, run view restore and duplicate', async () => {
+        const saves = [apiError('FLOW_LOCKED')];
+        const h = sandbox(req => {
+            if (req.method === 'PUT') { const next = saves.shift() || { draft_revision: 4, issues: [] }; if (next instanceof Error) throw next; return next; }
+            if (req.url === '/api/desktop/flows/runs/r1?include=doc') return { run: { id: 'r1', status: 'success', mode: 'test', started_at: '2026-10-06T10:00:00Z', revision: 2 }, steps: [], doc: flowDoc('Run') };
+            if (req.url === '/api/desktop/flows' && req.method === 'POST') return { flow: { id: 'f2' } };
+            return undefined;
+        });
+        let menu = null;
+        h.ctx.showContextMenu = (x, y, items) => { menu = items; };
+        const editor = openEditor(h);
+        await settle();
+        editor.ed.model.setFlow({ description: 'x' });
+        h.runTimers(1000);
+        await settle();
+        const retry = editor.el.querySelector('[data-ed-save] [data-ed-cmd="save"]');
+        retry.focus();
+        retry.fire('click');
+        await settle();
+        eq('c1d07 a retried save keeps keyboard focus in the editor (on the canvas)', [editor.ed.saver.state, h.dom.document.activeElement === editor.el.querySelector('.ed-canvas')], ['saved', true]);
+        // A restore answered while the run view shows a stored run is still saved; duplicate copies the draft.
+        const r = sandbox(req => {
+            if (req.method === 'PUT') return { draft_revision: 4, issues: [] };
+            if (req.url === '/api/desktop/flows/runs/r1?include=doc') return { run: { id: 'r1', status: 'success', mode: 'test', started_at: '2026-10-06T10:00:00Z', revision: 2 }, steps: [], doc: flowDoc('Run') };
+            if (req.url === '/api/desktop/flows' && req.method === 'POST') return { flow: { id: 'f2' } };
+            return undefined;
+        });
+        r.ctx.showContextMenu = (x, y, items) => { menu = items; };
+        r.store.set(DRAFT_KEY, JSON.stringify({ revision: 3, at: Date.now(), doc: flowDoc('Local') }));
+        const viewer = openEditor(r);
+        await settle();
+        viewer.showRun('r1');
+        await settle();
+        r.dialogs[0].el.querySelector('[data-ed-action="restore"]').fire('click');
+        await settle();
+        r.runTimers(1000);
+        await settle();
+        const put = r.puts()[0];
+        viewer.el.querySelector('[data-ed-cmd="more"]').fire('click');
+        await menu.find(i => i.label === 'home_duplicate').action();
+        await settle();
+        const post = r.requests.find(q => q.method === 'POST' && q.url === '/api/desktop/flows');
+        eq('c1d07 a restore answered in the run view is saved, and duplicate copies the draft, not the run',
+            [!!viewer.ed.runView, viewer.ed.model.doc.name, put && put.body.doc.name, post && post.body.import.name, r.opened], [true, 'Run', 'Local', 'copy_of:Local', ['f2']]);
+        eq('c1d07 the retry and run view checks log no errors', [h.logged, r.logged], [[], []]);
+    });
 }

@@ -21,6 +21,7 @@
         let partialRevision = 0;
         // restoring: the restore offer waits for an answer; the window menus change nothing meanwhile.
         let restoring = false;
+        let deleting = false;
         let disposed = false;
 
         const el = core.el('<div class="ed-editor">' +
@@ -127,11 +128,15 @@
             const err = ed.saver && ed.saver.error;
             const title = s === 'failed' || (s === 'offline' && err) ? core.errorText(t, err) : s === 'offline' ? t('easydrag.ui.save_offline_hint') : '';
             const label = core.icon(SAVE_ICONS[s] || 'check') + '<span>' + esc(t('easydrag.ui.save_' + s)) + '</span>';
+            const hadFocus = node.contains(document.activeElement);
             node.className = 'ed-foot-item ed-save ed-save--' + s;
             node.innerHTML = s === 'failed'
                 ? '<button type="button" class="ed-save-retry" data-ed-cmd="save" title="' + esc(title) + '">' + label + '<span class="ed-save-action">' + esc(t('easydrag.ui.retry')) + '</span></button>'
                 : label;
             node.title = s === 'failed' ? '' : title;
+            // Each state replaces the retry button: keyboard focus moves to the new one or, once the
+            // save went through, to the canvas.
+            if (hadFocus && !disposed) (node.querySelector('[data-ed-cmd="save"]') || canvas.el).focus({ preventScroll: true });
         }
 
         function renderIssues() {
@@ -217,18 +222,25 @@
             a.remove();
         }
 
+        // deleteFlow deletes the flow; while the request runs, its own "deleted" broadcast is not
+        // news (deleting).
         async function deleteFlow() {
             const ok = await ctx.confirmDialog(t('easydrag.ui.delete_title'), t('easydrag.ui.delete_text', { name: ed.model.doc.name }));
-            if (!ok) return;
+            if (!ok || deleting) return;
             const id = ed.flow.id;
+            deleting = true;
             try {
                 await ed.api.remove(id);
             } catch (err) {
                 // The flow still exists and the editor stays usable: its saver keeps running.
+                deleting = false;
                 ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
                 return;
             }
             ED.saver.dropEmergencyCopy(id);
+            storeView.cancel();
+            pendingView = null;
+            core.storage.remove(VIEW_KEY + id);
             if (disposed) return;
             // Nothing may be saved any more: a save would only answer FLOW_NOT_FOUND.
             contentDirty = false;
@@ -246,7 +258,8 @@
         async function duplicateFlow() {
             if (!(await leave()) || disposed) return;
             try {
-                const doc = ed.model.toJSON();
+                // The draft, also in the run view (whose model is a stored run's document).
+                const doc = draftModel.toJSON();
                 doc.name = t('easydrag.ui.copy_of', { name: doc.name });
                 const res = await ed.api.create({ import: doc });
                 app.openFlow(res.flow.id);
@@ -352,12 +365,16 @@
 
         // ── events ──────────────────────────────────────────────────────────────
 
+        // Every content change of the draft is saved, also one made while the run view shows
+        // another document (a restore answered there); the rest follows the model shown.
         bag.add(draftModel.on(change => {
+            if (change.kind !== 'viewport') {
+                contentDirty = true;
+                ed.saver.schedule();
+            }
             if (ed.model !== draftModel) return;
             ed.bus.emit('model', change);
             if (change.kind === 'viewport') return;
-            contentDirty = true;
-            ed.saver.schedule();
             publish.refreshIssues();
             if (change.meta || change.kind !== 'change') renderHeader();
             if (change.structural || change.kind !== 'change') pruneSelection();
@@ -392,7 +409,18 @@
         bag.add(ed.bus.on('enabled', () => renderHeader()));
         // A refused paste is announced to screen readers by interact; this shows it to everyone.
         bag.add(ed.bus.on('paste-refused', () => ctx.notify({ title: t('easydrag.ui.paste'), message: t('easydrag.ui.paste_refused') })));
-        bag.add(ed.bus.on('view', () => { if (!ed.runView) core.storage.set(VIEW_KEY + ed.flow.id, ed.view); }));
+        // The viewport is stored per flow once panning or zooming pauses for 400 ms, not on every
+        // frame; dispose stores one still pending.
+        let pendingView = null;
+        const storeView = core.debounce(() => {
+            if (pendingView) core.storage.set(VIEW_KEY + ed.flow.id, pendingView);
+            pendingView = null;
+        }, 400);
+        bag.add(ed.bus.on('view', () => {
+            if (ed.runView) return;
+            pendingView = Object.assign({}, ed.view);
+            storeView();
+        }));
 
         bag.listen(el, 'click', (event) => {
             const b = event.target.closest('[data-ed-cmd]');
@@ -427,6 +455,9 @@
         function onKeyDown(event) {
             // Some keydown events carry no key (Chrome's autofill): there is nothing to handle.
             if (disposed || event.defaultPrevented || !el.isConnected || typeof event.key !== 'string') return;
+            // The editor's keys come from inside it, or from the body when nothing has focus.
+            const target = typeof event.composedPath === 'function' ? event.composedPath()[0] : event.target;
+            if (!target || (target !== document.body && !el.contains(target))) return;
             if (typeof ctx.isActive === 'function' && !ctx.isActive()) return;
             if (el.querySelector('.ed-modal-backdrop') || document.querySelector('.vd-context-menu')) return;
             const mod = core.isMod(event);
@@ -434,7 +465,7 @@
             if (mod && key === 's') { event.preventDefault(); saveNow(); return; }
             if (mod && event.key === 'Enter') { event.preventDefault(); test(); return; }
             if (mod && key === 'k') { event.preventDefault(); palette.focusSearch(); return; }
-            if (core.isEditable(event.target) || ed.detail || ed.quickAdd) return;
+            if (core.isEditable(target) || ed.detail || ed.quickAdd) return;
             const active = document.activeElement;
             const onCanvas = canvas.el.contains(active) || active === document.body || active === el;
             if (event.key === '?' && onCanvas) { event.preventDefault(); ED.dialogs.shortcuts(ed); return; }
@@ -446,7 +477,12 @@
         bag.listen(document, 'aurago:flows-changed', (event) => {
             const d = event.detail || {};
             if (d.flow_id !== ed.flow.id) return;
-            if (d.reason === 'deleted') { ctx.notify({ title: ed.model.doc.name, message: t('easydrag.ui.flow_deleted_elsewhere') }); app.openHome(); return; }
+            if (d.reason === 'deleted') {
+                if (deleting) return;
+                ctx.notify({ title: ed.model.doc.name, message: t('easydrag.ui.flow_deleted_elsewhere') });
+                app.openHome();
+                return;
+            }
             if (d.reason === 'run_finished' && !runs.isRunning()) runs.loadLast();
             if (d.reason === 'enabled' || d.reason === 'published') refreshRecord();
         });
@@ -521,19 +557,22 @@
             showRun(runId) { runs.openRunView(runId); },
             // dispose saves pending content last: the detail view flushes its note on close, and
             // interact cancels a drag in progress (its nodes move back), so neither is lost nor
-            // saved in a mid-drag state.
+            // saved in a mid-drag state. Each step runs on its own: one that throws cannot keep
+            // the saver, the listeners or the window's close guard from being released.
             dispose() {
                 if (disposed) return;
                 disposed = true;
-                ED.detail.close(ed);
-                ED.palette.closeQuickAdd(ed);
-                interact.dispose();
-                if (contentDirty) ed.saver.save();
-                [wires, canvas, palette, runs, publish].forEach(m => m.dispose());
-                ed.saver.dispose();
+                const safely = fn => { try { fn(); } catch (err) { console.error('EasyDrag editor cleanup failed', err); } };
+                safely(() => ED.detail.close(ed));
+                safely(() => ED.palette.closeQuickAdd(ed));
+                safely(() => interact.dispose());
+                safely(() => { if (contentDirty) ed.saver.save(); });
+                safely(() => storeView.flush());
+                [wires, canvas, palette, runs, publish].forEach(m => safely(() => m.dispose()));
+                safely(() => ed.saver.dispose());
                 setMenusSoon.cancel();
-                bag.dispose();
-                if (typeof ctx.setWindowBeforeClose === 'function') ctx.setWindowBeforeClose(ed.windowId, null);
+                safely(() => bag.dispose());
+                if (typeof ctx.setWindowBeforeClose === 'function') safely(() => ctx.setWindowBeforeClose(ed.windowId, null));
                 el.remove();
             }
         };
