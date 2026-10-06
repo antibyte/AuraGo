@@ -1256,7 +1256,7 @@
   "desktop.mc_flow_no_trigger": "有効なトリガーなし",
   "desktop.mc_flow_unpublished": "未公開",
   "desktop.mc_flow_triggers": "フロー内のトリガー",
-  "desktop.mc_delete_flow_message": "「{{name}}」を削除しますか? EasyDrag のフローも、下書き、公開済みのすべてのバージョン、保存したトリガーのデータ、実行履歴とともに削除されます。この操作は元に戻せません。",
+  "desktop.mc_delete_flow_message": "「{{name}}」を削除しますか？EasyDrag のフローも、下書き、公開済みのすべてのバージョン、保存したトリガーのデータ、実行履歴とともに削除されます。この操作は元に戻せません。",
   "desktop.mc_flow_publish_first": "先に EasyDrag でフローを公開してください。",
   "desktop.mc_flow_cancel_in_easydrag": "実行中のフローの実行は見つかりませんでした。待機中の実行は EasyDrag でキャンセルしてください。",
   "desktop.mc_toast_flow_run_requested": "フローの実行を要求しました。EasyDrag で進行状況を確認できます。",
