@@ -45,11 +45,15 @@ func dockerComposeHostAccessScope(subcommand string) (tools.DockerComposeHostAcc
 }
 
 // dockerComposeLifecycleModel adds the inactive-profile services a lifecycle
-// command names (from the all-profiles model; without it only default
-// services can be named) to the model the host-program check reads.
-func dockerComposeLifecycleModel(effective tools.DockerComposeModel, allProfiles *tools.DockerComposeModel, command string) tools.DockerComposeModel {
+// command names, with the services Compose enables together with them
+// (depends_on and `service:` build contexts, as effectiveModel follows them),
+// to the model the host-program check reads. The definitions come from the
+// all-profiles model; without it (Compose < v2.35) named profile services
+// cannot be checked here.
+func dockerComposeLifecycleModel(effective tools.DockerComposeModel, preflight *dockerComposePreflight, command string) tools.DockerComposeModel {
 	names := dockerComposeLifecycleServiceNames(command)
-	if allProfiles == nil || len(names) == 0 {
+	all := preflight.allProfilesModel
+	if all == nil || len(names) == 0 {
 		return effective
 	}
 	model := effective
@@ -57,13 +61,17 @@ func dockerComposeLifecycleModel(effective tools.DockerComposeModel, allProfiles
 	for name, service := range effective.Services {
 		model.Services[name] = service
 	}
-	for _, name := range names {
+	for queue := names; len(queue) > 0; queue = queue[1:] {
+		name := queue[0]
 		if _, present := model.Services[name]; present {
 			continue
 		}
-		if service, ok := allProfiles.Services[name]; ok {
-			model.Services[name] = service
+		service, ok := all.Services[name]
+		if !ok {
+			continue
 		}
+		model.Services[name] = service
+		queue = append(queue, dockerComposeServiceDependencies(preflight.allProfilesRaw.Services[name], service)...)
 	}
 	return model
 }
@@ -111,7 +119,7 @@ func dockerComposeHostAccessPolicy(ctx context.Context, cfg *config.Config, req 
 	envFilesUnknown := !envFilesKnown && scope == tools.DockerComposeScopeRun && !policy.AllowHostAccess
 	model := effective.model
 	if scope == tools.DockerComposeScopeLifecycle && !policy.AllowHostAccess {
-		model = dockerComposeLifecycleModel(model, preflight.allProfilesModel, req.Command)
+		model = dockerComposeLifecycleModel(model, preflight, req.Command)
 	}
 	violations := dockerComposeCommandViolations(req.Command, scope, policy)
 	violations = append(violations, tools.EvaluateDockerComposeHostAccess(model, envFiles, scope, policy)...)
@@ -133,6 +141,62 @@ func dockerComposeHostAccessPolicy(ctx context.Context, cfg *config.Config, req 
 			"Docker Compose stack rejected before anything ran: this Docker Compose version cannot list env_file paths, so AuraGo cannot check that they stay inside the agent workspace (that needs Docker Compose v2.35 or newer). Update the Docker Compose plugin, move the variables into the Compose file, or enable Config → Danger Zone → \"Docker host access for agent Compose stacks\" (docker.allow_host_access). Do not retry unchanged.", nil)
 	}
 	return ""
+}
+
+// dockerComposeRawStateReference is a coarse check of the lower-cased main
+// Compose file for commands whose profile services cannot be resolved: it
+// reports an absolute AuraGo state path the text names (data directory,
+// /etc/aurago, config, the .env next to it, vault, SQLite files, the
+// master-key secret, an aurago_master.key file) or the master key value.
+// Relative paths and included files are not seen.
+func dockerComposeRawStateReference(lowerRaw string, cfg *config.Config) (string, bool) {
+	if tools.DockerComposeLowerTextCarriesMasterKey(lowerRaw, dockerComposeMasterKey(cfg)) {
+		return "", true
+	}
+	text := dockerComposeSlashPath(lowerRaw)
+	roots, files := tools.DockerComposeProtectedPaths(cfg)
+	for _, path := range append(append([]string(nil), roots...), files...) {
+		needle := strings.TrimRight(dockerComposeSlashPath(strings.ToLower(strings.TrimSpace(path))), "/")
+		absolute := strings.HasPrefix(needle, "/") || (len(needle) > 2 && needle[1] == ':' && needle[2] == '/')
+		if absolute && dockerComposeTextNamesPath(text, needle) {
+			return path, true
+		}
+	}
+	for _, name := range []string{"aurago_master.key", "aurago_master_key"} {
+		if strings.Contains(text, name) {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+// dockerComposeSlashPath turns backslashes into slashes and collapses runs of
+// slashes, so Windows paths written either way compare equal.
+func dockerComposeSlashPath(text string) string {
+	text = strings.ReplaceAll(text, `\`, "/")
+	for strings.Contains(text, "//") {
+		text = strings.ReplaceAll(text, "//", "/")
+	}
+	return text
+}
+
+// dockerComposeTextNamesPath reports needle in text as a whole path (or a
+// parent of the path written there), not as part of a longer name.
+func dockerComposeTextNamesPath(text, needle string) bool {
+	nameByte := func(b byte) bool {
+		return b >= 'a' && b <= 'z' || b >= '0' && b <= '9' || b == '.' || b == '_' || b == '-'
+	}
+	for offset := 0; ; {
+		index := strings.Index(text[offset:], needle)
+		if index < 0 {
+			return false
+		}
+		start, end := offset+index, offset+index+len(needle)
+		if (start == 0 || !nameByte(text[start-1])) && (end == len(text) || !nameByte(text[end])) {
+			return true
+		}
+		offset = start + 1
+	}
 }
 
 // dockerComposeMayUseEnvFiles reports a lower-cased main Compose file that

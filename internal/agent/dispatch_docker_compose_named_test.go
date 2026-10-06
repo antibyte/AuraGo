@@ -253,6 +253,94 @@ func TestDockerComposePolicyChecksHostProgramsOfNamedLifecycleServices(t *testin
 	}
 }
 
+func TestDockerComposePolicyChecksDependenciesOfNamedLifecycleServices(t *testing.T) {
+	// p1 layout: hidden depends_on helper (both profile later); after
+	// `up -d hidden`, helper gained a privileged post_start hook. `start hidden`
+	// also starts helper and runs that hook.
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", p1ComposeFile)
+	all := `{"services":{"web":{"image":"alpine"},` +
+		`"hidden":{"image":"alpine","profiles":["later"],"depends_on":{"helper":{"condition":"service_started","required":true}}},` +
+		`"helper":{"image":"alpine","profiles":["later"],"post_start":[{"command":["true"],"privileged":true}]},` +
+		`"builder":{"image":"alpine","profiles":["tools"],"build":{"context":` + jsonPath(t, workspace) + `,"additional_contexts":{"base":"service:hooked"}}},` +
+		`"hooked":{"image":"alpine","profiles":["base"],"pre_stop":[{"command":["true"],"privileged":true}]},` +
+		`"other":{"image":"alpine","profiles":["unrelated"]}}}`
+	stubDockerComposeResolverNamed(t, `{"services":{"web":{"image":"alpine"}}}`, all, func([]string) (string, error) {
+		return "", errors.New("named resolution must not run for lifecycle commands")
+	})
+	cfg := &config.Config{}
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func(command string) string {
+		return dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: command})
+	}
+	for _, command := range []string{"start hidden", "restart hidden", "down hidden", "rm -s hidden", "stop builder"} {
+		got := policy(command)
+		if !strings.Contains(got, `"code":"docker_compose_host_access_denied"`) || !(strings.Contains(got, `"service":"helper"`) || strings.Contains(got, `"service":"hooked"`)) {
+			t.Fatalf("%s: privileged hook of a dependency allowed without host access: %s", command, got)
+		}
+	}
+	for _, command := range []string{"start other", "down other", "start web"} {
+		if got := policy(command); got != "" {
+			t.Fatalf("%s: blocked: %s", command, got)
+		}
+	}
+	cfg.Docker.AllowHostAccess = true
+	for _, command := range []string{"start hidden", "restart hidden", "down hidden", "rm -s hidden"} {
+		if got := policy(command); got != "" {
+			t.Fatalf("%s: blocked with host access: %s", command, got)
+		}
+	}
+}
+
+func TestDockerComposePolicyOldComposeUncheckedBuildRejectsAuraGoStateInTheFile(t *testing.T) {
+	// Compose < v2.35, host access on, the named service cannot be resolved:
+	// build and pull run unchecked unless the main file itself names AuraGo
+	// state or the master key.
+	root := t.TempDir()
+	workspace := filepath.Join(root, "agent_workspace", "workdir")
+	dataDir := filepath.Join(root, "data")
+	masterKey := strings.Repeat("5d", 32)
+	failing := func([]string) (string, error) {
+		return "", errors.New("resolve Compose config: exit status 1: env file tool.env not found")
+	}
+	stubDockerComposeResolverNamed(t, `{"services":{"web":{"image":"alpine"}}}`, "", failing)
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = dataDir
+	cfg.ConfigPath = filepath.Join(root, "config.yaml")
+	cfg.Server.MasterKey = masterKey
+	cfg.Docker.AllowHostAccess = true
+	useRuntimePermissionsForTest(t, cfg)
+	service := func(extra string) string {
+		return "include:\n  - other.yml\nservices:\n  web:\n    image: alpine\n  tool:\n    profiles: [tools]\n    image: example.invalid/tool\n    env_file: [tool.env]\n" + extra
+	}
+	cases := map[string]struct {
+		file   string
+		denied bool
+	}{
+		"data dir bind":       {service("    volumes:\n      - " + dataDir + ":/state\n"), true},
+		"vault in the data":   {service("    volumes:\n      - " + filepath.Join(dataDir, "vault.bin") + ":/v\n"), true},
+		"aurago env file":     {service("    build:\n      context: .\n      secrets: [env]\nsecrets:\n  env:\n    file: " + filepath.Join(root, ".env") + "\n"), true},
+		"master key value":    {service("    labels:\n      k: " + strings.ToUpper(masterKey) + "\n"), true},
+		"master key file":     {service("    volumes:\n      - /opt/keys/aurago_master.key:/k\n"), true},
+		"sibling of data dir": {service("    volumes:\n      - " + dataDir + "2:/state\n"), false},
+		"plain host path":     {service("    volumes:\n      - /srv/data:/data\n"), false},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			writeComposeFixture(t, workspace, "compose.yml", tc.file)
+			for _, command := range []string{"build tool", "pull tool", "build --push tool"} {
+				got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: command})
+				if tc.denied && (!strings.Contains(got, `"code":"docker_compose_protected_path_denied"`) || strings.Contains(strings.ToLower(got), masterKey)) {
+					t.Fatalf("%s: got %s, want a protected-path denial without the key", command, got)
+				}
+				if !tc.denied && got != "" {
+					t.Fatalf("%s: unresolvable profile service blocked with host access: %s", command, got)
+				}
+			}
+		})
+	}
+}
+
 func TestDockerComposePolicyLifecycleNamesNeverDenyOnOldCompose(t *testing.T) {
 	workspace := t.TempDir()
 	writeComposeFixture(t, workspace, "prof/compose.yml", profileComposeFixture)

@@ -252,19 +252,13 @@ func (p *dockerComposePreflight) effectiveModel(command string) dockerComposeEff
 		text.Write(raw.Services[name])
 		text.WriteByte('\n')
 		var refs struct {
-			DependsOn json.RawMessage `json:"depends_on"`
-			Networks  json.RawMessage `json:"networks"`
-			Secrets   json.RawMessage `json:"secrets"`
-			Configs   json.RawMessage `json:"configs"`
+			Networks json.RawMessage `json:"networks"`
+			Secrets  json.RawMessage `json:"secrets"`
+			Configs  json.RawMessage `json:"configs"`
 		}
 		_ = json.Unmarshal(raw.Services[name], &refs)
-		queue = append(queue, dockerComposeRefNames(refs.DependsOn)...)
+		queue = append(queue, dockerComposeServiceDependencies(raw.Services[name], service)...)
 		if build := service.Build; build != nil {
-			for _, key := range sortedDockerComposeMapKeys(build.AdditionalContexts) {
-				if target, ok := strings.CutPrefix(strings.TrimSpace(build.AdditionalContexts[key]), "service:"); ok {
-					queue = append(queue, strings.TrimSpace(target))
-				}
-			}
 			for _, key := range build.Secrets {
 				addDockerComposeResource(effective.model.Secrets, all.Secrets, raw.Secrets, key, &text)
 			}
@@ -287,6 +281,26 @@ func (p *dockerComposePreflight) effectiveModel(command string) dockerComposeEff
 	sort.Strings(effective.profileServices)
 	effective.profileText = strings.ToLower(text.String())
 	return effective
+}
+
+// dockerComposeServiceDependencies returns the services Compose enables
+// together with service: its depends_on entries (resolved depends_on already
+// includes links, volumes_from and network_mode service: references) and the
+// services it names as additional build contexts (`service:b`).
+func dockerComposeServiceDependencies(raw json.RawMessage, service tools.DockerComposeService) []string {
+	var refs struct {
+		DependsOn json.RawMessage `json:"depends_on"`
+	}
+	_ = json.Unmarshal(raw, &refs)
+	names := dockerComposeRefNames(refs.DependsOn)
+	if build := service.Build; build != nil {
+		for _, key := range sortedDockerComposeMapKeys(build.AdditionalContexts) {
+			if target, ok := strings.CutPrefix(strings.TrimSpace(build.AdditionalContexts[key]), "service:"); ok {
+				names = append(names, strings.TrimSpace(target))
+			}
+		}
+	}
+	return names
 }
 
 // copyDockerComposeResources copies the default model's top-level resources,
@@ -704,6 +718,10 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 				// They create nothing and Compose reports the same failure.
 				effective.unverified = nil
 			case (subcommand == "build" || subcommand == "pull") && dockerComposeHostAccessAllowed(ctx, cfg):
+				if path, found := dockerComposeRawStateReference(preflight.raw, cfg); found {
+					return dockerComposeViolationOutput([]tools.DockerComposeViolation{{Field: "compose file", Value: path, Always: true,
+						Reason: "the file names AuraGo's own data, configuration or master key, and this Docker Compose cannot resolve the named profile services for a full check"}})
+				}
 				slog.Default().Warn("Docker Compose could not resolve the named profile services; running the command unchecked because docker.allow_host_access is on",
 					"file", preflight.file, "command", subcommand, "services", strings.Join(effective.unverified, ","))
 				effective.unverified = nil
