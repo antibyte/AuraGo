@@ -5,6 +5,15 @@
 
     const ED = window.EasyDrag = window.EasyDrag || {};
 
+    // portLabel names the output port of node n: a switch case by its label or number, any other port
+    // by its translation. The connect picker uses it too.
+    function portLabel(t, n, port) {
+        if (!port.startsWith('case_')) return ED.core.tr(t, 'easydrag.ui.port_' + port, port);
+        const idx = Number(port.slice(5)) - 1;
+        const c = n && n.params && Array.isArray(n.params.cases) ? n.params.cases[idx] : null;
+        return (c && c.label) || t('easydrag.ui.port_case', { n: idx + 1 });
+    }
+
     function create(ed) {
         const core = ED.core;
         const G = ED.geometry;
@@ -217,7 +226,7 @@
             const outPorts = ports.map((p, idx) => {
                 const y = ports.length > 1 ? G.PORT_TOP + idx * G.PORT_PITCH : h / 2;
                 const showLabel = ports.length > 1 || p !== 'out';
-                const label = p.startsWith('case_') ? portCaseLabel(n, p) : core.tr(t, 'easydrag.ui.port_' + p, p);
+                const label = portLabel(t, n, p);
                 return '<span class="ed-port ed-port--out" data-ed-port="' + esc(p) + '" data-ed-side="out" style="top:' + y + 'px">' +
                     (showLabel ? '<span class="ed-port-label">' + esc(label) + '</span>' : '') +
                     '<button type="button" class="ed-port-add" tabindex="-1" data-ed-port-add="' + esc(p) + '" aria-label="' + esc(t('easydrag.ui.port_add')) + '">' + core.icon('plus') + '</button></span>';
@@ -233,12 +242,6 @@
                 (sum ? '<div class="ed-node-summary">' + esc(sum) + '</div>' : '<div class="ed-node-summary ed-node-summary--muted">' + esc(i ? i.label : n.type) + '</div>') + '</div>' +
                 '<div class="ed-node-badges">' + badges.join('') + '</div>' + inPorts + outPorts + tools +
                 (status === 'error' && step ? '<div class="ed-node-error">' + esc(core.stepErrorText(t, step)) + '</div>' : '');
-        }
-
-        function portCaseLabel(n, port) {
-            const idx = Number(port.slice(5)) - 1;
-            const c = Array.isArray(n.params.cases) ? n.params.cases[idx] : null;
-            return (c && c.label) || t('easydrag.ui.port_case', { n: idx + 1 });
         }
 
         function toolButton(id, iconName, label) {
@@ -493,5 +496,5 @@
         };
     }
 
-    ED.canvas = { create };
+    ED.canvas = { create, portLabel };
 })();

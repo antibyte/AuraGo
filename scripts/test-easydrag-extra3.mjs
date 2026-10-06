@@ -542,9 +542,13 @@ export async function run(env) {
         await settle();
         const all = () => h.menus.flatMap(m => m.items);
         const item = id => all().find(i => i.id === id);
-        eq('c1d07 only Ctrl+S, Ctrl+Enter and Ctrl+K are dispatched by the desktop; the other keys are named in the label',
-            [all().filter(i => i.shortcut).map(i => i.id + '=' + i.shortcut), item('undo').label, item('delete-sel').label, item('keys').label],
-            [['save=Ctrl+S', 'test=Ctrl+Enter', 'search=Ctrl+K'], 'undo (Ctrl+Z)', 'delete (Del)', 'keys_title (?)']);
+        eq('c1d10 only Ctrl+S, Ctrl+Enter and Ctrl+K are dispatched by the desktop; the other keys are shortcut hints and every label is a translation key',
+            [all().filter(i => i.shortcut).map(i => i.id + '=' + i.shortcut), all().filter(i => i.shortcutHint).map(i => i.id + '=' + i.shortcutHint),
+                all().filter(i => i.type !== 'separator' && (i.label || !i.labelKey)).map(i => i.id)],
+            [['save=Ctrl+S', 'test=Ctrl+Enter', 'search=Ctrl+K'],
+                ['undo=Ctrl+Z', 'redo=Ctrl+Shift+Z', 'cut=Ctrl+X', 'copy=Ctrl+C', 'paste=Ctrl+V', 'duplicate=Ctrl+D', 'delete-sel=Del', 'select-all=Ctrl+A',
+                    'zoom-in=+', 'zoom-out=−', 'zoom-fit=Shift+1', 'keys=?'],
+                []]);
         item('search').action();
         const search = editor.el.querySelector('.ed-palette-search');
         eq('c1d07 the Ctrl+K item focuses the palette search', h.dom.document.activeElement === search, true);
@@ -828,5 +832,28 @@ export async function run(env) {
         eq('c1d07 a restore answered in the run view is saved, and duplicate copies the draft, not the run',
             [!!viewer.ed.runView, viewer.ed.model.doc.name, put && put.body.doc.name, post && post.body.import.name, r.opened], [true, 'Run', 'Local', 'copy_of:Local', ['f2']]);
         eq('c1d07 the retry and run view checks log no errors', [h.logged, r.logged], [[], []]);
+    });
+
+    // ── 1d-10: connect picker port names ──
+
+    await guardAsync('c1d10 the connect picker names switch cases like the canvas', async () => {
+        // Switch S (cases "Big" and an unnamed one) already sends case_1 to alpha, so alpha is
+        // offered on case_2 and beta on case_1; start is upstream of S and not offered.
+        const S = 'n_ssssssss';
+        const doc = flowDoc();
+        doc.nodes.push({ id: S, key: 'route', type: 'logic.switch', label: 'Route', position: { x: 300, y: 200 }, params: { cases: [{ label: 'Big' }, {}] }, settings: {} });
+        doc.edges.push({ id: 'e3', source: { node: T1, port: 'out' }, target: { node: S, port: 'in' } });
+        doc.edges.push({ id: 'e4', source: { node: S, port: 'case_1' }, target: { node: A, port: 'in' } });
+        const h = sandbox(() => undefined);
+        const editor = openEditor(h, { flow: { draft: doc } });
+        await settle();
+        editor.ed.bus.emit('connect-picker', { nodeId: S });
+        const picker = editor.el.querySelector('.ed-modal--picker');
+        const html = picker ? picker.parentNode.html : '';
+        const chips = Array.from(html.matchAll(/data-ed-pick="([^"]+)"[\s\S]*?<span class="ed-chip ed-chip--muted">([^<]*)<\/span>/g)).map(m => m[1] + '=' + m[2]);
+        const node = editor.ed.model.node(S);
+        eq('c1d10 the picker shows a case by its label or number, the same text as the canvas port',
+            [chips, ['case_1', 'case_2', 'default'].map(p => h.ED.canvas.portLabel(t, node, p)), h.logged],
+            [[A + '=port_case:2', B + '=Big'], ['Big', 'port_case:2', 'port_default'], []]);
     });
 }

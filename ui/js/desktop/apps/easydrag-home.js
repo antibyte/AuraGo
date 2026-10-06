@@ -6,7 +6,9 @@
     const ED = window.EasyDrag = window.EasyDrag || {};
     const FILTER_KEY = 'aurago.easydrag.home.filter';
     const VIEW_PREFIX = 'aurago.easydrag.view.';
-    // IMPORT_MAX_BYTES is the server's document limit (4 MiB, FLOW_TOO_LARGE).
+    // IMPORT_MAX_BYTES is the server's request-body limit for flow documents (4 MiB). The document
+    // itself may be at most 2 MiB (flows.MaxDocumentBytes); the server answers a larger one with
+    // FLOW_TOO_LARGE.
     const IMPORT_MAX_BYTES = 4 * 1024 * 1024;
 
     function previewSVG(nodes, esc) {
@@ -176,7 +178,7 @@
             create({ name: String(name).trim() || t('easydrag.ui.new_flow_name') });
         }
 
-        // importFile reads a flow file; one over the server's document limit is not read at all.
+        // importFile reads a flow file; one over the server's request-body limit is not read at all.
         async function importFile(file) {
             if (Number(file.size) > IMPORT_MAX_BYTES) {
                 ctx.notify({ title: t('easydrag.ui.home_import'), message: t('easydrag.ui.error_flow_too_large'), type: 'error' });

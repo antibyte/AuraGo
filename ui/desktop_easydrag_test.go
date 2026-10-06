@@ -130,8 +130,9 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 		"easydrag.ui.effect_":      {"sends_message", "writes_files", "controls_devices", "runs_code", "deletes", "system_change"},
 		"easydrag.ui.port_":        {"in", "out", "error", "true", "false", "default"},
 		"easydrag.ui.connect_":     {"missing", "self", "port", "duplicate", "cycle"},
-		"easydrag.ui.key_":         {"invalid", "reserved", "taken"},
-		"easydrag.ui.save_":        {"saved", "dirty", "saving", "invalid", "offline", "conflict"},
+		"easydrag.ui.key_":         {"invalid", "reserved", "taken", "missing"},
+		"easydrag.ui.save_":        {"saved", "dirty", "saving", "invalid", "offline", "failed", "conflict"},
+		"easydrag.ui.state_":       {"draft", "published", "changes", "inactive", "run_view", "publish_incomplete"},
 		"easydrag.ui.view_":        {"tree", "table", "json"},
 		"easydrag.ui.type_":        {"text", "number", "bool", "list", "object", "file", "null"},
 		"easydrag.ui.root_":        {"trigger", "run", "flow"},
@@ -145,11 +146,19 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 		"easydrag.ui.issue_": {"edge_duplicate", "edge_id_duplicate", "edge_node_missing", "edge_port_invalid", "edge_self", "flow_cycle", "flow_name_required",
 			"flow_no_trigger", "flow_schema", "flow_too_many_nodes", "node_id_duplicate", "node_id_invalid", "node_key_duplicate", "node_key_invalid",
 			"node_key_reserved", "node_type_unknown", "node_unavailable", "node_unreachable", "param_invalid", "param_required", "template_not_upstream",
-			"template_root_unavailable", "template_syntax", "template_unknown_field", "template_unknown_root", "untrusted_data_to_sink"},
+			"template_root_unavailable", "template_syntax", "template_unknown_field", "template_unknown_root", "untrusted_data_to_sink",
+			"flow_too_many_issues", "flow_node_not_found"},
+		// error_ lists every code the flows API and the engine send (internal/flows, internal/server/flows*).
 		"easydrag.ui.error_": {"flows_disabled", "flow_bad_request", "flow_cancelled", "flow_internal", "flow_invalid", "flow_locked", "flow_not_found",
 			"flow_not_published", "flow_no_trigger", "flow_options_unavailable", "flow_permission_denied", "flow_revision_conflict", "flow_run_limit",
 			"flow_run_not_found", "flow_run_timeout", "flow_node_timeout", "flow_tool_error", "flow_tool_denied", "flow_ai_unavailable", "flow_budget_exceeded",
-			"flow_secret_unavailable", "flow_restarted", "generic", "network"},
+			"flow_secret_unavailable", "flow_restarted", "generic", "network",
+			"flow_exists", "flow_mission_ambiguous", "flow_mission_missing", "flow_too_large", "flow_rate_limited", "flow_run_finished", "flow_publish_incomplete",
+			"flow_too_many_issues", "flow_port_invalid", "flow_run_output_too_large", "flow_node_abandoned", "flow_runner_panic", "flow_tools_unavailable",
+			"node_type_unknown", "flow_ai_output_invalid", "flow_condition_failed", "flow_condition_invalid", "flow_cycle", "flow_file_exists",
+			"flow_http_status", "flow_name_required", "flow_node_failed", "flow_node_not_found", "flow_node_panic", "flow_node_unavailable",
+			"flow_notify_failed", "flow_output_invalid", "flow_output_too_large", "flow_param_invalid", "flow_schema", "flow_shutdown", "flow_stopped",
+			"flow_template_error", "flow_too_many_nodes", "flow_trigger_disabled", "flow_trigger_invalid", "flow_value_type", "flow_wait_too_long"},
 	}
 	for prefix := range prefixes {
 		if _, ok := families[prefix]; !ok {

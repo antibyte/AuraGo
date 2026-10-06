@@ -72,7 +72,7 @@
         });
         const row = c => {
             const info = ed.model.info(c.node.type);
-            const portLabel = outs.length > 1 ? '<span class="ed-chip ed-chip--muted">' + esc(core.tr(t, 'easydrag.ui.port_' + c.port, c.port)) + '</span>' : '';
+            const portLabel = outs.length > 1 ? '<span class="ed-chip ed-chip--muted">' + esc(ED.canvas.portLabel(t, src, c.port)) + '</span>' : '';
             return '<button type="button" class="ed-pick-row" data-ed-pick="' + esc(c.node.id) + '" data-cat="' + esc(core.catOf(info)) + '">' +
                 '<span class="ed-tile">' + core.icon(info ? info.icon : 'tool') + '</span><span class="ed-pick-label">' + esc(c.node.label || c.node.type) + '</span>' + portLabel + '</button>';
         };
