@@ -273,7 +273,7 @@ The Software Store uses AuraGo-managed Docker containers. Apps can expose creden
 
 A Store **Update** keeps the previous containers, stopped and renamed to `<name>.prev`, until the new version runs. If the update fails, AuraGo restores those containers as they were; after a successful update it removes them.
 
-A failed **Install** removes only what that install created. Data volumes, Vault secrets and workspace files that an earlier uninstall kept stay in place and are used again by the next install. If a container that the Software Store did not create already uses the name the app needs, the install stops before it creates anything and names the container; rename it (for example `docker rename <name> <name>-old`) or remove it, then install again.
+A failed **Install** removes only what that install created. Data volumes, Vault secrets and workspace files that an earlier uninstall kept stay in place and are used again by the next install. If a container that the Software Store did not create already uses the name the app needs, the install stops before it creates any container and names the container; rename it (for example `docker rename <name> <name>-old`) or remove it, then install again.
 
 ### Sounds
 

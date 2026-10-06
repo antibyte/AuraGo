@@ -747,10 +747,7 @@ func (s *Service) RunOperation(ctx context.Context, operationID string) error {
 		if op.Type == OperationConfigure {
 			runErr = fmt.Errorf("configuration saved but not active: %w", runErr)
 		}
-		_ = s.updateOperation(ctx, op.ID, OperationFailed, "", runErr.Error())
-		if errorCode != "" {
-			_ = s.setOperationErrorCode(ctx, op.ID, errorCode, errorParams)
-		}
+		_ = s.failOperation(ctx, op.ID, runErr.Error(), errorCode, errorParams)
 		return runErr
 	}
 	return s.updateOperation(ctx, op.ID, OperationSucceeded, "completed", "")
@@ -784,16 +781,24 @@ func (s *Service) updateOperation(ctx context.Context, id, status, message, errT
 	return nil
 }
 
-// setOperationErrorCode stores the UI error code and parameters of a failed
-// operation next to its English error text.
-func (s *Service) setOperationErrorCode(ctx context.Context, id, code string, params map[string]string) error {
-	paramsJSON, err := json.Marshal(params)
-	if err != nil {
-		return fmt.Errorf("encode desktop store operation error params: %w", err)
+// failOperation marks an operation failed with its English error text and,
+// for failures the Desktop translates, the error code and parameters, in one
+// statement, so a poll never sees the failed status without its code.
+func (s *Service) failOperation(ctx context.Context, id, errText, code string, params map[string]string) error {
+	paramsJSON := []byte("{}")
+	if code != "" && len(params) > 0 {
+		encoded, err := json.Marshal(params)
+		if err != nil {
+			return fmt.Errorf("encode desktop store operation error params: %w", err)
+		}
+		paramsJSON = encoded
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE desktop_store_operations SET error_code = ?, error_params_json = ? WHERE id = ?`,
-		code, string(paramsJSON), id); err != nil {
-		return fmt.Errorf("update desktop store operation error code: %w", err)
+	now := formatTime(time.Now().UTC())
+	if _, err := s.db.ExecContext(ctx, `UPDATE desktop_store_operations
+		SET status = ?, message = '', error = ?, error_code = ?, error_params_json = ?, updated_at = ?, completed_at = ?
+		WHERE id = ?`,
+		OperationFailed, errText, code, string(paramsJSON), now, now, id); err != nil {
+		return fmt.Errorf("update desktop store operation: %w", err)
 	}
 	return nil
 }

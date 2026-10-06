@@ -273,7 +273,7 @@ Der Software Store nutzt vollständig von AuraGo verwaltete Docker-Container. Ap
 
 Ein **Update** im Store behält die bisherigen Container gestoppt und in `<name>.prev` umbenannt, bis die neue Version läuft. Schlägt das Update fehl, stellt AuraGo diese Container unverändert wieder her; nach einem erfolgreichen Update entfernt es sie.
 
-Eine fehlgeschlagene **Installation** entfernt nur, was diese Installation angelegt hat. Daten-Volumes, Vault-Geheimnisse und Workspace-Dateien, die eine frühere Deinstallation behalten hat, bleiben erhalten und werden bei der nächsten Installation wieder verwendet. Belegt ein Container, den der Software Store nicht angelegt hat, bereits den Namen, den die App braucht, stoppt die Installation, bevor sie etwas anlegt, und nennt den Container; benenne ihn um (zum Beispiel `docker rename <name> <name>-old`) oder entferne ihn und installiere dann erneut.
+Eine fehlgeschlagene **Installation** entfernt nur, was diese Installation angelegt hat. Daten-Volumes, Vault-Geheimnisse und Workspace-Dateien, die eine frühere Deinstallation behalten hat, bleiben erhalten und werden bei der nächsten Installation wieder verwendet. Belegt ein Container, den der Software Store nicht angelegt hat, bereits den Namen, den die App braucht, stoppt die Installation, bevor sie einen Container anlegt, und nennt den Container; benenne ihn um (zum Beispiel `docker rename <name> <name>-old`) oder entferne ihn und installiere dann erneut.
 
 ### Sounds
 

@@ -851,3 +851,54 @@ func TestStoreMigrationBackupRules(t *testing.T) {
 		}
 	})
 }
+
+// F-S5 review, minor 5: a poll must never see a failed operation without its
+// error code. A trigger records every row state in which the status is
+// already failed but the code of a blocked install is still missing.
+func TestFailedOperationStatusAndErrorCodeAreWrittenTogether(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{existingContainers: map[string]map[string]string{"aurago-store-uptime-kuma": nil}}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19950))
+	for _, stmt := range []string{
+		`CREATE TABLE fs5_failed_without_code (id TEXT)`,
+		`CREATE TRIGGER fs5_failed_without_code_probe AFTER UPDATE ON desktop_store_operations
+			WHEN NEW.status = 'failed' AND NEW.error_code = '' AND NEW.error LIKE '%already exists%'
+			BEGIN INSERT INTO fs5_failed_without_code(id) VALUES (NEW.id); END`,
+	} {
+		if _, err := svc.db.ExecContext(ctx, stmt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "uptime-kuma", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var conflict *ContainerNameConflictError
+	if err := svc.RunOperation(ctx, op.ID); !errors.As(err, &conflict) {
+		t.Fatalf("install error = %v, want the name conflict", err)
+	}
+	var seen int
+	if err := svc.db.QueryRowContext(ctx, `SELECT count(*) FROM fs5_failed_without_code`).Scan(&seen); err != nil {
+		t.Fatal(err)
+	}
+	if seen != 0 {
+		t.Fatalf("the operation was visible %d time(s) as failed without its error code", seen)
+	}
+	stored, err := svc.Operation(ctx, op.ID)
+	if err != nil || stored.Status != OperationFailed || stored.ErrorCode != OperationErrorContainerNameInUse || stored.CompletedAt == nil {
+		t.Fatalf("operation = %#v (%v)", stored, err)
+	}
+	// An error without a code stores an empty code.
+	docker.existingContainers = nil
+	docker.startErrors = []error{errors.New("start failed")}
+	second, err := svc.StartInstall(ctx, InstallRequest{AppID: "uptime-kuma", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RunOperation(ctx, second.ID); err == nil {
+		t.Fatal("install succeeded, want the start failure")
+	}
+	if stored, err := svc.Operation(ctx, second.ID); err != nil || stored.Status != OperationFailed || stored.ErrorCode != "" || stored.Error == "" {
+		t.Fatalf("operation = %#v (%v), want failed without a code", stored, err)
+	}
+}
