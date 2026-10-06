@@ -10,6 +10,10 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+// maxRateLimitBodyBytes bounds how much of a 429 response body is read into
+// the resulting RateLimitError message.
+const maxRateLimitBodyBytes = 4 << 10
+
 type rateLimitAwareTransport struct {
 	base http.RoundTripper
 }
@@ -25,7 +29,9 @@ func (t *rateLimitAwareTransport) RoundTrip(req *http.Request) (*http.Response, 
 	}
 
 	retryAfter := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
-	body, _ := io.ReadAll(resp.Body)
+	// The body only feeds the error message; cap it so a hostile or broken
+	// endpoint cannot buffer megabytes into memory, errors and logs.
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxRateLimitBodyBytes))
 	resp.Body.Close()
 
 	msg := strings.TrimSpace(string(body))

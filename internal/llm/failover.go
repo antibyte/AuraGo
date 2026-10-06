@@ -187,7 +187,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	if startProbe {
 		go fm.probeLoop(newStopCh)
 	}
-	fm.logger.Info("[LLM] FailoverManager reconfigured", "model", cfg.LLM.Model, "provider", cfg.LLM.ProviderType, "base_url", cfg.LLM.BaseURL)
+	fm.logger.Info("[LLM] FailoverManager reconfigured", "model", cfg.LLM.Model, "provider", cfg.LLM.ProviderType, "base_url", redactProviderURL(cfg.LLM.BaseURL))
 }
 
 func (fm *FailoverManager) Stop() {

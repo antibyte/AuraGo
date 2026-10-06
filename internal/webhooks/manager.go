@@ -106,6 +106,29 @@ func (m *Manager) MigrateSignatureSecrets(vault *security.Vault) error {
 	return nil
 }
 
+// sha1WebhookWarnings records the webhook IDs that already logged the sha1
+// deprecation warning. The guard is process-wide because the agent's
+// manage_webhooks tool builds a fresh Manager (and loads the file) per call.
+var sha1WebhookWarnings sync.Map
+
+// warnDeprecatedSHA1Webhooks logs once per webhook ID that sha1 signatures no
+// longer authenticate a request on their own; such webhooks need their bearer
+// token (the signature is still verified) or a switch to sha256.
+func warnDeprecatedSHA1Webhooks(logger *slog.Logger, list []Webhook) {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	for _, wh := range list {
+		if strings.ToLower(strings.TrimSpace(wh.Format.SignatureAlgo)) != "sha1" {
+			continue
+		}
+		if _, alreadyWarned := sha1WebhookWarnings.LoadOrStore(wh.ID, struct{}{}); alreadyWarned {
+			continue
+		}
+		logger.Warn("[Webhooks] sha1 signatures are deprecated; add a bearer token or switch to sha256", "webhook", wh.ID)
+	}
+}
+
 func isMissingVaultSecretError(err error) bool {
 	return err != nil && strings.EqualFold(strings.TrimSpace(err.Error()), "secret not found")
 }
@@ -146,7 +169,11 @@ func (m *Manager) load() error {
 	if len(strings.TrimSpace(string(data))) == 0 || strings.TrimSpace(string(data)) == "null" {
 		return fmt.Errorf("webhook configuration is empty or null")
 	}
-	return json.Unmarshal(data, &m.webhooks)
+	if err := json.Unmarshal(data, &m.webhooks); err != nil {
+		return err
+	}
+	warnDeprecatedSHA1Webhooks(slog.Default(), m.webhooks)
+	return nil
 }
 
 func (m *Manager) saveWebhooks(next []Webhook) error {

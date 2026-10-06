@@ -194,9 +194,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rawToken := extractToken(r)
+	// Only HMAC-SHA256 may stand in for the bearer token. sha1 webhooks still
+	// verify their signature below, but they must also present their token.
 	signatureAlgo := strings.ToLower(strings.TrimSpace(wh.Format.SignatureAlgo))
 	signedOnly := rawToken == "" && wh.Format.SignatureHeader != "" &&
-		wh.Format.SignatureSecret != "" && (signatureAlgo == "sha256" || signatureAlgo == "sha1")
+		wh.Format.SignatureSecret != "" && signatureAlgo == "sha256"
 	if rawToken == "" && !signedOnly {
 		h.logEvent(wh.ID, wh.Name, 401, sourceIP, 0, false, "no token provided")
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)

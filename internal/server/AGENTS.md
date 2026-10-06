@@ -14,6 +14,7 @@ Server-owned HTTP and cross-component integration contracts.
 - The incoming MCP endpoint checks Host against configured names/local addresses independently of Origin. Configure server.host or server.https.domain for an external name. Never resolve a request-supplied hostname as authority. MCP sessions are random, signed, expire after 24 hours and bind to the authenticated credential; stateless requests get independent sessions. The MCP allowlist is a hard scope for direct, wrapped and ask_aurago calls; enabling the IDE preset must not widen an explicitly selected list.
 
 - Integration connection tests bind stored credentials to saved targets. A Dograh target override requires an explicit credential. YepAPI tests accept POST only, use the saved base URL and read the free model catalog; they never create a paid search or claim that a public catalog proves key validity.
+- `registerLLMSecrets` (`llm_secrets.go`) runs at the top of `Start` and in every `replaceConfigSnapshot`: static LLM/provider keys and OAuth client secrets go to the permanent `security.RegisterSensitive` registry, OAuth access tokens in LLM slots use scoped registrations released on rotation (bounded registry), and placeholder keys (shorter than 24 characters without both letters and digits, e.g. `lm-studio`) are skipped so words are not redacted. Verify `TestRegisterLLMSecrets*` and `TestLLMSecret*`.
 
 ### HTTP trust and shutdown boundaries
 
@@ -211,6 +212,7 @@ Server-owned HTTP and cross-component integration contracts.
 - Mission webhook registrations use stable mission keys, replacing the old callback and removing it on disable, delete, manager replacement or shutdown. A-B-A trigger changes must not accumulate callbacks.
 - Incoming webhook handlers obtain current immutable config and Guardian services together under the server config lock. Disabled integrations reject new deliveries; scan policy changes take effect without restart.
 - Webhook config load errors fail closed and preserve the source. Validate a detached candidate, persist atomically, then publish; failed create/update/delete and signature migration must preserve the last valid in-memory state. Return detached read values.
+- Only an HMAC-SHA256 signature authenticates an incoming webhook without its bearer token. A sha1 webhook must also present its token (the signature is still verified); loading one logs a deprecation warning once per webhook ID. Verify `TestHandlerSHA1Signature*` and `TestHandlerSHA256SignedOnly*` in `internal/webhooks`.
 - Verify webhook transaction, callback roundtrip and live policy regression tests plus mission suites.
 
 ## Desktop invocation ownership

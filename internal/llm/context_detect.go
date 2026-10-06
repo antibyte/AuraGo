@@ -286,7 +286,7 @@ func detectContextWindowOllama(baseURL, model string, logger *slog.Logger) int {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Debug("[ContextDetect/Ollama] Failed to query /api/show", "error", err, "url", showURL)
+		logger.Debug("[ContextDetect/Ollama] Failed to query /api/show", "error", err, "url", redactProviderURL(showURL))
 		return 0
 	}
 	defer resp.Body.Close()
@@ -362,15 +362,20 @@ func detectContextWindowOpenRouter(baseURL, apiKey, model string, logger *slog.L
 		}
 	}
 
-	logger.Debug("[ContextDetect] All candidate URLs exhausted, model not found", "model", model, "tried", candidates)
+	tried := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		tried = append(tried, redactProviderURL(candidate))
+	}
+	logger.Debug("[ContextDetect] All candidate URLs exhausted, model not found", "model", model, "tried", tried)
 	return 0
 }
 
 // queryModelsEndpoint performs GET <url> and looks for the model's context_length.
 func queryModelsEndpoint(client *http.Client, modelsURL, apiKey, model string, logger *slog.Logger) int {
+	logURL := redactProviderURL(modelsURL)
 	req, err := http.NewRequest("GET", modelsURL, nil)
 	if err != nil {
-		logger.Debug("[ContextDetect] Failed to create request", "error", err, "url", modelsURL)
+		logger.Debug("[ContextDetect] Failed to create request", "error", err, "url", logURL)
 		return 0
 	}
 	if apiKey != "" {
@@ -379,13 +384,13 @@ func queryModelsEndpoint(client *http.Client, modelsURL, apiKey, model string, l
 
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Debug("[ContextDetect] Failed to query models API", "error", err, "url", modelsURL)
+		logger.Debug("[ContextDetect] Failed to query models API", "error", err, "url", logURL)
 		return 0
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		logger.Debug("[ContextDetect] Models API returned non-200", "status", resp.StatusCode, "url", modelsURL)
+		logger.Debug("[ContextDetect] Models API returned non-200", "status", resp.StatusCode, "url", logURL)
 		return 0
 	}
 
@@ -404,20 +409,20 @@ func queryModelsEndpoint(client *http.Client, modelsURL, apiKey, model string, l
 		// Some providers wrap data at the top level as an array.
 	}
 	if err := json.Unmarshal(body, &result); err != nil {
-		logger.Debug("[ContextDetect] Failed to parse models response", "error", err, "url", modelsURL)
+		logger.Debug("[ContextDetect] Failed to parse models response", "error", err, "url", logURL)
 		return 0
 	}
 
 	for _, m := range result.Data {
 		if m.ID == model {
 			if m.ContextLength > 0 {
-				logger.Info("[ContextDetect] Detected model context window", "model", model, "context_length", m.ContextLength, "url", modelsURL)
+				logger.Info("[ContextDetect] Detected model context window", "model", model, "context_length", m.ContextLength, "url", logURL)
 				return m.ContextLength
 			}
 		}
 	}
 
-	logger.Debug("[ContextDetect] Model not found or context_length=0 in API response", "model", model, "total_models", len(result.Data), "url", modelsURL)
+	logger.Debug("[ContextDetect] Model not found or context_length=0 in API response", "model", model, "total_models", len(result.Data), "url", logURL)
 	return 0
 }
 

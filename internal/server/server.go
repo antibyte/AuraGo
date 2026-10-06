@@ -409,6 +409,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	s.bindConfigAuthorization(cfg)
 	s.syncPersonalityConfig(cfg)
+	registerLLMSecrets(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
 	if s.MQTTController != nil {
@@ -521,6 +522,9 @@ func firewallGuardNeedsSudoPassword(cfg *config.Config) bool {
 
 func Start(opts StartOptions) error {
 	cfg := opts.Cfg
+	// Register LLM keys for log scrubbing before any subsystem starts logging;
+	// replaceConfigSnapshot repeats this for every reloaded config.
+	registerLLMSecrets(cfg)
 	if err := validateRemoteAuthExposure(cfg); err != nil {
 		return err
 	}

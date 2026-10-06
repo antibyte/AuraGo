@@ -3,6 +3,7 @@ package webhooks
 import (
 	"bytes"
 	"crypto/hmac"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -12,9 +13,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -494,5 +497,135 @@ func TestRateLimiterTokenBucketRefillsContinuously(t *testing.T) {
 	now = now.Add(time.Minute)
 	if !limiter.Allow("token") || !limiter.Allow("token") || limiter.Allow("token") {
 		t.Fatal("bucket should refill to, but not beyond, burst capacity")
+	}
+}
+
+func signedWebhookRequest(body []byte, signatureHeader, signature, rawToken string) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "/webhook/test-hook", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(signatureHeader, signature)
+	if rawToken != "" {
+		req.Header.Set("Authorization", "Bearer "+rawToken)
+	}
+	return req
+}
+
+func TestHandlerSHA1SignatureNoLongerAuthenticatesWithoutToken(t *testing.T) {
+	t.Parallel()
+
+	const secret = "sha1-signing-secret"
+	handler, rawToken, _ := newSilentWebhookHandler(t, WebhookFormat{
+		AcceptedContentTypes: []string{"application/json"},
+		SignatureHeader:      "X-Hub-Signature",
+		SignatureAlgo:        "sha1",
+		SignatureSecret:      secret,
+	})
+	body := []byte(`{"event":"push"}`)
+	mac := hmac.New(sha1.New, []byte(secret))
+	_, _ = mac.Write(body)
+	signature := "sha1=" + hex.EncodeToString(mac.Sum(nil))
+
+	signedOnly := httptest.NewRecorder()
+	handler.ServeHTTP(signedOnly, signedWebhookRequest(body, "X-Hub-Signature", signature, ""))
+	if signedOnly.Code != http.StatusUnauthorized {
+		t.Fatalf("sha1 signed-only status = %d, want 401; body=%s", signedOnly.Code, signedOnly.Body.String())
+	}
+
+	withToken := httptest.NewRecorder()
+	handler.ServeHTTP(withToken, signedWebhookRequest(body, "X-Hub-Signature", signature, rawToken))
+	if withToken.Code != http.StatusOK {
+		t.Fatalf("sha1 with bearer token status = %d, want 200; body=%s", withToken.Code, withToken.Body.String())
+	}
+
+	badSignature := httptest.NewRecorder()
+	handler.ServeHTTP(badSignature, signedWebhookRequest(body, "X-Hub-Signature", "sha1=deadbeef", rawToken))
+	if badSignature.Code != http.StatusForbidden {
+		t.Fatalf("sha1 with token but bad signature status = %d, want 403; body=%s", badSignature.Code, badSignature.Body.String())
+	}
+}
+
+func TestHandlerSHA256SignedOnlyStillAuthenticatesWithoutToken(t *testing.T) {
+	t.Parallel()
+
+	const secret = "sha256-signing-secret"
+	handler, _, _ := newSilentWebhookHandler(t, WebhookFormat{
+		AcceptedContentTypes: []string{"application/json"},
+		SignatureHeader:      "X-Signature-256",
+		SignatureAlgo:        "sha256",
+		SignatureSecret:      secret,
+	})
+	body := []byte(`{"event":"push"}`)
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write(body)
+	signature := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+
+	signedOnly := httptest.NewRecorder()
+	handler.ServeHTTP(signedOnly, signedWebhookRequest(body, "X-Signature-256", signature, ""))
+	if signedOnly.Code != http.StatusOK {
+		t.Fatalf("sha256 signed-only status = %d, want 200; body=%s", signedOnly.Code, signedOnly.Body.String())
+	}
+
+	forged := httptest.NewRecorder()
+	handler.ServeHTTP(forged, signedWebhookRequest(body, "X-Signature-256", "sha256=deadbeef", ""))
+	if forged.Code != http.StatusForbidden {
+		t.Fatalf("sha256 signed-only forged status = %d, want 403; body=%s", forged.Code, forged.Body.String())
+	}
+}
+
+type lockedLogBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedLogBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedLogBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func TestWarnDeprecatedSHA1WebhooksLogsOncePerWebhook(t *testing.T) {
+	t.Parallel()
+
+	var logs lockedLogBuffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	list := []Webhook{
+		{ID: "sha1-warn-test-7f3a9c", Format: WebhookFormat{SignatureAlgo: " SHA1 "}},
+		{ID: "sha256-warn-test-7f3a9c", Format: WebhookFormat{SignatureAlgo: "sha256"}},
+		{ID: "plain-warn-test-7f3a9c"},
+	}
+
+	warnDeprecatedSHA1Webhooks(logger, list)
+	warnDeprecatedSHA1Webhooks(logger, list)
+
+	got := logs.String()
+	if count := strings.Count(got, "sha1 signatures are deprecated"); count != 1 {
+		t.Fatalf("deprecation warnings = %d, want exactly 1; logs=%s", count, got)
+	}
+	if !strings.Contains(got, "webhook=sha1-warn-test-7f3a9c") || strings.Contains(got, "sha256-warn-test") {
+		t.Fatalf("warning names the wrong webhook: %s", got)
+	}
+}
+
+func TestNewManagerFlagsLoadedSHA1WebhooksForDeprecationWarning(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "webhooks.json")
+	const id = "sha1-load-test-2b8e41"
+	data := `[{"id":"` + id + `","name":"Legacy","slug":"legacy-hook","enabled":true,"format":{"signature_header":"X-Hub-Signature","signature_algo":"sha1"}}]`
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	if _, err := NewManager(path, filepath.Join(dir, "webhooks.log")); err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	if _, warned := sha1WebhookWarnings.Load(id); !warned {
+		t.Fatal("loading a sha1 webhook did not emit the deprecation warning")
 	}
 }
