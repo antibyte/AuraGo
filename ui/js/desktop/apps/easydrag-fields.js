@@ -35,6 +35,20 @@
     // composing reports a key event that belongs to an IME composition (Enter picks a word).
     function composing(event) { return event.isComposing || event.keyCode === 229; }
 
+    // trimTrailingDots drops a "." left at the end of an expression ("{{alpha.}}" once a step
+    // was picked from the suggestions), so the saved text parses. Only a dot right before the
+    // closing braces and after a name or "]" goes; literal text and quoted strings stay.
+    function trimTrailingDots(text) {
+        let out = text;
+        const exprs = ED.template.segments(text).filter(s => s.expr !== undefined);
+        for (let i = exprs.length - 1; i >= 0; i--) {
+            const s = exprs[i];
+            const fixed = s.expr.replace(/([A-Za-z0-9_\]])\.(\s*)$/, '$1$2');
+            if (fixed !== s.expr) out = out.slice(0, s.start + 2) + fixed + out.slice(s.end - 2);
+        }
+        return out;
+    }
+
     // ── template field ──────────────────────────────────────────────────────────
 
     // chipsMarkup renders text with {{…}} expressions as chips labelled with the node label.
@@ -97,8 +111,9 @@
         }
 
         function commit() {
-            if (input.value !== current) {
-                current = multiline ? input.value : input.value.replace(/\n/g, ' ');
+            const next = trimTrailingDots(multiline ? input.value : input.value.replace(/\n/g, ' '));
+            if (next !== current) {
+                current = next;
                 env.change(current);
             }
         }
@@ -602,6 +617,8 @@
                     if (!/^[a-z0-9_]{1,40}$/.test(name)) return fail(t('easydrag.ui.secret_invalid'));
                     if (!secret.trim()) return fail(t('easydrag.ui.secret_empty'));
                     if (utf8Bytes(secret) > SECRET_MAX_BYTES) return fail(t('easydrag.ui.secret_too_large'));
+                    // A fresh list: another window may have created the name since the form was built.
+                    if (env.secretCache) env.secretCache.names = null;
                     let names;
                     try { names = await secretNames(env); } catch (err) { return fail(t('easydrag.ui.secrets_unavailable')); }
                     if (names.includes(name)) {

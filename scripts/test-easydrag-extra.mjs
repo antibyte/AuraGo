@@ -782,6 +782,24 @@ export async function run(env) {
         eq('c1d05 Escape in a multi-line field saves the text and puts focus on the chips',
             [newline, m.changes, m.editing(), m.onView(), m.input.getAttribute('role'), m.view.getAttribute('aria-multiline')], [false, ['new text'], false, true, null, 'true']);
         eq('c1d05 the accessibility checks log no errors', [h.logged, ro.logged, m.logged], [[], [], []]);
+        // A picked step leaves "alpha." in the text; saving it (Escape in a multi-line text, a click
+        // away from a line) drops the dangling dot. Other dots, in literals and strings, stay.
+        const saved = [true, false].map(multiline => {
+            const d = tplHarness({ roots: sampleRoots, upstream: sampleUpstream, field: { multiline, label: 'Text' } });
+            d.field.focus();
+            d.type('{{alp');
+            d.press('Enter');
+            const picked = d.input.value;
+            d.press('Escape');
+            if (multiline) d.press('Escape'); else { d.el.focus(); d.input.fire('blur'); d.runTimers(120); }
+            return [picked, d.changes, d.logged];
+        });
+        const kept = tplHarness();
+        kept.field.focus();
+        kept.type('a. {{alpha.meta | default("x.")}}. {{run.}} {{list[0].}}');
+        kept.press('Enter');
+        eq('c1d05 a step picked from the suggestions is saved as {{alpha}}, and only a dot that ends an expression goes',
+            [saved, kept.changes], [[['{{alpha.}}', ['{{alpha}}'], []], ['{{alpha.}}', ['{{alpha}}'], []]], ['a. {{alpha.meta | default("x.")}}. {{run}} {{list[0]}}']]);
     });
 
     await guardAsync('c1d05 review references in autocomplete', async () => {
@@ -845,7 +863,18 @@ export async function run(env) {
         await act('save', dialog);
         await act('replace');
         eq('c1d05 a new secret with a taken name asks before it replaces the value; pickers of a form share one list request',
-            [shared, taken, kept, saved, picked, open().length, lists], [[1, ['', 'api_key']], ['secret_name_taken:api_key', 2, 0], [1, true, 0], [['api_key', 'v2']], ['api_key'], 0, 2]);
+            [shared, taken, kept, saved, picked, open().length, lists], [[1, ['', 'api_key']], ['secret_name_taken:api_key', 2, 0], [1, true, 0], [['api_key', 'v2']], ['api_key'], 0, 4]);
+        // Another window creates "other" after the form was built: every save checks a fresh list.
+        listAnswer = () => Promise.resolve({ secrets: ['api_key', 'other'] });
+        picker.querySelector('[data-ed-secret-new]').fire('click');
+        const elsewhere = top();
+        fill(elsewhere, 'other', 'v3');
+        await act('save', elsewhere);
+        const asked = [error(elsewhere), open().length];
+        await act('keep');
+        await act('cancel', elsewhere);
+        listAnswer = () => Promise.resolve({ secrets: ['api_key'] });
+        eq('c1d05 a secret created elsewhere after the form was built still asks before it is replaced', [asked, saved.length], [['secret_name_taken:other', 2], 1]);
         // 8: the server's checks run before sending; a 429 holds Save for Retry-After seconds.
         picker.querySelector('[data-ed-secret-new]').fire('click');
         const second = top();
