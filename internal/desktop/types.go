@@ -349,6 +349,7 @@ var desktopPreferredIconNames = []string{
 	"dozzle",
 	"download",
 	"downloads",
+	"easydrag",
 	"editor",
 	"eye",
 	"eye-off",
