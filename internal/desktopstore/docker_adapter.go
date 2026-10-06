@@ -288,6 +288,7 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 		"RestartPolicy": map[string]any{"Name": restart},
 		"SecurityOpt":   []string{"no-new-privileges:true"},
 	}
+	applyContainerHardening(hostConfig, spec.Hardening)
 	if len(spec.ExtraHosts) > 0 {
 		hostConfig["ExtraHosts"] = append([]string(nil), spec.ExtraHosts...)
 	}
@@ -302,6 +303,33 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 		"Labels":       spec.Labels,
 	}
 	return payload
+}
+
+// applyContainerHardening adds the catalog's opt-in hardening for one image.
+// A nil value leaves Docker's defaults untouched.
+func applyContainerHardening(hostConfig map[string]any, hardening *ContainerHardening) {
+	if hardening == nil {
+		return
+	}
+	if len(hardening.CapDrop) > 0 {
+		hostConfig["CapDrop"] = append([]string(nil), hardening.CapDrop...)
+	}
+	if len(hardening.CapAdd) > 0 {
+		hostConfig["CapAdd"] = append([]string(nil), hardening.CapAdd...)
+	}
+	if hardening.ReadonlyRootfs {
+		hostConfig["ReadonlyRootfs"] = true
+	}
+	if len(hardening.Tmpfs) > 0 {
+		tmpfs := make(map[string]string, len(hardening.Tmpfs))
+		for path, options := range hardening.Tmpfs {
+			tmpfs[path] = options
+		}
+		hostConfig["Tmpfs"] = tmpfs
+	}
+	if hardening.PidsLimit > 0 {
+		hostConfig["PidsLimit"] = hardening.PidsLimit
+	}
 }
 
 func dockerHTTPError(action string, code int, data []byte) error {

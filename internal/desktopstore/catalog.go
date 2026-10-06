@@ -392,6 +392,10 @@ func DefaultCatalog() []CatalogEntry {
 					HostBinds: []HostBindTemplate{
 						{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true},
 					},
+					// Live-verified on aurago-test (K21 probe): haproxy starts and
+					// reads the root-owned socket with no capabilities, the same
+					// profile as docker-compose.yml's docker-proxy service.
+					Hardening: &ContainerHardening{CapDrop: []string{"ALL"}},
 				},
 			},
 		},

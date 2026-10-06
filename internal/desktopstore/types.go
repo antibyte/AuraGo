@@ -63,6 +63,18 @@ type CatalogEntry struct {
 	Companions       []CompanionTemplate `json:"companions,omitempty"`
 	SeedFiles        []SeedFile          `json:"-"`
 	Metadata         map[string]string   `json:"metadata,omitempty"`
+	Hardening        *ContainerHardening `json:"-"`
+}
+
+// ContainerHardening is Docker hardening that the catalog enables for one image
+// only after that image was verified to run with it. Images without it keep
+// Docker's defaults plus no-new-privileges.
+type ContainerHardening struct {
+	CapDrop        []string          `json:"cap_drop,omitempty"`
+	CapAdd         []string          `json:"cap_add,omitempty"`
+	ReadonlyRootfs bool              `json:"readonly_rootfs,omitempty"`
+	Tmpfs          map[string]string `json:"tmpfs,omitempty"`
+	PidsLimit      int64             `json:"pids_limit,omitempty"`
 }
 
 // PortSpec describes the container-side web UI port.
@@ -128,13 +140,14 @@ type SecretRef struct {
 
 // CompanionTemplate describes an allowlisted sidecar container for a Store app.
 type CompanionTemplate struct {
-	ID          string             `json:"id"`
-	Name        string             `json:"name"`
-	Image       string             `json:"image"`
-	Env         []string           `json:"env,omitempty"`
-	Volumes     []VolumeTemplate   `json:"volumes,omitempty"`
-	HostBinds   []HostBindTemplate `json:"host_binds,omitempty"`
-	NetworkMode string             `json:"network_mode,omitempty"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Image       string              `json:"image"`
+	Env         []string            `json:"env,omitempty"`
+	Volumes     []VolumeTemplate    `json:"volumes,omitempty"`
+	HostBinds   []HostBindTemplate  `json:"host_binds,omitempty"`
+	NetworkMode string              `json:"network_mode,omitempty"`
+	Hardening   *ContainerHardening `json:"-"`
 }
 
 // CompanionApp is the persisted runtime state for a companion container.
@@ -170,16 +183,17 @@ type PortBinding struct {
 
 // ContainerSpec is the Docker create contract used by the store.
 type ContainerSpec struct {
-	Name         string            `json:"name"`
-	Image        string            `json:"image"`
-	Env          []string          `json:"env,omitempty"`
-	PortBindings []PortBinding     `json:"port_bindings,omitempty"`
-	Volumes      []VolumeBinding   `json:"volumes,omitempty"`
-	HostBinds    []HostBinding     `json:"host_binds,omitempty"`
-	ExtraHosts   []string          `json:"extra_hosts,omitempty"`
-	NetworkMode  string            `json:"network_mode,omitempty"`
-	Restart      string            `json:"restart,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty"`
+	Name         string              `json:"name"`
+	Image        string              `json:"image"`
+	Env          []string            `json:"env,omitempty"`
+	PortBindings []PortBinding       `json:"port_bindings,omitempty"`
+	Volumes      []VolumeBinding     `json:"volumes,omitempty"`
+	HostBinds    []HostBinding       `json:"host_binds,omitempty"`
+	ExtraHosts   []string            `json:"extra_hosts,omitempty"`
+	NetworkMode  string              `json:"network_mode,omitempty"`
+	Restart      string              `json:"restart,omitempty"`
+	Labels       map[string]string   `json:"labels,omitempty"`
+	Hardening    *ContainerHardening `json:"hardening,omitempty"`
 }
 
 // ContainerState is the health/status subset returned by Docker inspect.

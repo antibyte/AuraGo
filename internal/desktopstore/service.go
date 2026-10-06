@@ -850,7 +850,7 @@ func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (
 	if err := s.requireDocker().PullImage(ctx, companion.Image); err != nil {
 		return InstalledApp{}, err
 	}
-	containerID, err := s.requireDocker().CreateContainer(ctx, companionContainerSpec(app, companion))
+	containerID, err := s.requireDocker().CreateContainer(ctx, s.companionRuntimeSpec(app, companion))
 	if err != nil {
 		return InstalledApp{}, err
 	}
@@ -2033,7 +2033,7 @@ func (s *Service) createCompanionAt(ctx context.Context, app *InstalledApp, inde
 	if err := s.requireDocker().PullImage(ctx, companion.Image); err != nil {
 		return fmt.Errorf("pull companion image %s: %w", companion.Image, err)
 	}
-	containerID, err := s.requireDocker().CreateContainer(ctx, companionContainerSpec(*app, *companion))
+	containerID, err := s.requireDocker().CreateContainer(ctx, s.companionRuntimeSpec(*app, *companion))
 	if err != nil {
 		return fmt.Errorf("create companion container %s: %w", companion.ContainerName, err)
 	}
@@ -2578,6 +2578,53 @@ func companionContainerSpec(app InstalledApp, companion CompanionApp) ContainerS
 			"aurago.desktop_store.companion": companion.ID,
 		},
 	}
+}
+
+// companionRuntimeSpec is companionContainerSpec plus the catalog's opt-in
+// hardening for that companion image.
+func (s *Service) companionRuntimeSpec(app InstalledApp, companion CompanionApp) ContainerSpec {
+	spec := companionContainerSpec(app, companion)
+	spec.Hardening = s.catalogHardening(app.AppID, companion.ID)
+	return spec
+}
+
+// catalogHardening returns a copy of the opt-in hardening the catalog declares
+// for an app (companionID == "") or one of its companions. Installed records
+// do not store it, so a catalog change applies on the next create without a
+// record migration.
+func (s *Service) catalogHardening(appID, companionID string) *ContainerHardening {
+	entry, ok := s.catalogByID[normalizeAppID(appID)]
+	if !ok {
+		return nil
+	}
+	if strings.TrimSpace(companionID) == "" {
+		return cloneContainerHardening(entry.Hardening)
+	}
+	for _, template := range entry.Companions {
+		if normalizeAppID(template.ID) == normalizeAppID(companionID) {
+			return cloneContainerHardening(template.Hardening)
+		}
+	}
+	return nil
+}
+
+func cloneContainerHardening(hardening *ContainerHardening) *ContainerHardening {
+	if hardening == nil {
+		return nil
+	}
+	out := &ContainerHardening{
+		CapDrop:        append([]string(nil), hardening.CapDrop...),
+		CapAdd:         append([]string(nil), hardening.CapAdd...),
+		ReadonlyRootfs: hardening.ReadonlyRootfs,
+		PidsLimit:      hardening.PidsLimit,
+	}
+	if len(hardening.Tmpfs) > 0 {
+		out.Tmpfs = make(map[string]string, len(hardening.Tmpfs))
+		for path, options := range hardening.Tmpfs {
+			out.Tmpfs[path] = options
+		}
+	}
+	return out
 }
 
 func replaceCompanion(companions []CompanionApp, companion CompanionApp) []CompanionApp {
