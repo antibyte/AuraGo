@@ -285,6 +285,7 @@
   "config.providers.role_embeddings": "Innbygginger",
   "config.providers.role_llm_guardian": "LLM Guardian",
   "config.providers.role_mission_preparation": "Oppdragsforberedelse",
+  "config.providers.role_flows": "EasyDrag-flyter",
   "config.providers.role_image_generation": "Bildegenerering",
   "config.providers.role_music_generation": "Musikkgenerering",
   "config.providers.role_video_generation": "Videogenerering",

@@ -285,6 +285,7 @@
   "config.providers.role_embeddings": "嵌入",
   "config.providers.role_llm_guardian": "LLM 守卫",
   "config.providers.role_mission_preparation": "任务准备",
+  "config.providers.role_flows": "EasyDrag 流程",
   "config.providers.role_image_generation": "图像生成",
   "config.providers.role_music_generation": "音乐生成",
   "config.providers.role_video_generation": "视频生成",

@@ -285,6 +285,7 @@
   "config.providers.role_embeddings": "Osadzenia",
   "config.providers.role_llm_guardian": "Strażnik LLM",
   "config.providers.role_mission_preparation": "Przygotowanie misji",
+  "config.providers.role_flows": "Przepływy EasyDrag",
   "config.providers.role_image_generation": "Generowanie obrazów",
   "config.providers.role_music_generation": "Generowanie muzyki",
   "config.providers.role_video_generation": "Generowanie wideo",

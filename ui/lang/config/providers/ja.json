@@ -285,6 +285,7 @@
   "config.providers.role_embeddings": "埋め込み",
   "config.providers.role_llm_guardian": "LLM ガーディアン",
   "config.providers.role_mission_preparation": "ミッション準備",
+  "config.providers.role_flows": "EasyDrag フロー",
   "config.providers.role_image_generation": "画像生成",
   "config.providers.role_music_generation": "音楽生成",
   "config.providers.role_video_generation": "動画生成",
