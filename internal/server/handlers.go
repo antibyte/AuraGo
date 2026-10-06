@@ -357,7 +357,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		lastUserMsg := req.Messages[len(req.Messages)-1]
 		sessionID := speechLabSessionID
 		if lastUserMsg.Role == openai.ChatMessageRoleUser &&
-			handlePendingQuestionChatMessage(w, req, sessionID, lastUserMsg.Content, s.Logger) {
+			handlePendingQuestionChatMessage(w, req, sessionID, lastUserMsg.Content, chatCompletionQuestionAnswerSource(isFollowUp, missionID), s.Logger) {
 			return
 		}
 		unlockSession := lockSessionRequestWithLogger(sessionID, s.Logger)

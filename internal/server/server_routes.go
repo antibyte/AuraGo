@@ -728,6 +728,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			telnyxHandler := telnyx.NewWebhookHandler(s.Cfg, s.Logger, func(from, text string, mediaURLs []string) {
 				if tools.HasPendingQuestion("default") {
 					if response, ok := tools.ResolveQuestionReply("default", text); ok {
+						response.Source = "telnyx"
 						tools.CompleteQuestion("default", response)
 						return
 					}

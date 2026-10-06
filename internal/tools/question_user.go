@@ -19,6 +19,13 @@ type QuestionResponse struct {
 	Status   string `json:"status"`
 	Selected string `json:"selected"`
 	FreeText string `json:"free_text,omitempty"`
+	// Source names the surface that completed the question and is never sent
+	// to the model. The completer sets it: "web" (web chat modal or an owner
+	// reply on /v1/chat/completions), "desktop" (desktop chat modal),
+	// "telegram", "discord", "telnyx" (SMS), or "internal" (a loopback
+	// follow-up or mission turn on /v1/chat/completions). Empty means unknown
+	// and is treated as untrusted.
+	Source string `json:"-"`
 }
 
 // PendingQuestion tracks a blocking user question for a single session.

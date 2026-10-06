@@ -51,7 +51,7 @@ func handleQuestionResponse(s *Server) http.HandlerFunc {
 		if strings.TrimSpace(req.SessionID) == "" {
 			req.SessionID = "default"
 		}
-		resp := tools.QuestionResponse{Status: "ok", Selected: strings.TrimSpace(req.SelectedValue), FreeText: strings.TrimSpace(req.FreeText)}
+		resp := tools.QuestionResponse{Status: "ok", Selected: strings.TrimSpace(req.SelectedValue), FreeText: strings.TrimSpace(req.FreeText), Source: questionModalAnswerSource(req.SessionID)}
 		if !tools.CompleteQuestion(req.SessionID, resp) {
 			writeJSON(w, map[string]interface{}{"status": "not_found"})
 			return
@@ -60,11 +60,33 @@ func handleQuestionResponse(s *Server) http.HandlerFunc {
 	}
 }
 
-func handlePendingQuestionChatMessage(w http.ResponseWriter, req openai.ChatCompletionRequest, sessionID, message string, logger *slog.Logger) bool {
+// questionModalAnswerSource labels an answer posted by the question modal. The
+// route is admin-only: the web chat calls it directly and the desktop chat
+// reaches it through the admin-scoped desktop integration proxy, which rewrites
+// the path, so the desktop chat's fixed session ID tells the two apart.
+func questionModalAnswerSource(sessionID string) string {
+	if sessionID == desktopChatSessionID {
+		return "desktop"
+	}
+	return "web"
+}
+
+// chatCompletionQuestionAnswerSource labels a reply that answers a pending
+// question on /v1/chat/completions. Loopback follow-ups and mission turns
+// relay webhook, call and scheduler text, so they are not the owner speaking.
+func chatCompletionQuestionAnswerSource(isFollowUp bool, missionID string) string {
+	if isFollowUp || missionID != "" {
+		return "internal"
+	}
+	return "web"
+}
+
+func handlePendingQuestionChatMessage(w http.ResponseWriter, req openai.ChatCompletionRequest, sessionID, message, source string, logger *slog.Logger) bool {
 	if !tools.HasPendingQuestion(sessionID) {
 		return false
 	}
 	if response, ok := tools.ResolveQuestionReply(sessionID, message); ok {
+		response.Source = source
 		tools.CompleteQuestion(sessionID, response)
 		if logger != nil {
 			logger.Info("[QuestionUser] Completed pending question from chat message", "session_id", sessionID)

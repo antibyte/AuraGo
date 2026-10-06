@@ -525,6 +525,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	sessionID := discordConversationID(m)
 	if tools.HasPendingQuestion(sessionID) {
 		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
+			response.Source = "discord"
 			tools.CompleteQuestion(sessionID, response)
 			return
 		}

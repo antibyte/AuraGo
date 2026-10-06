@@ -53,8 +53,46 @@ func TestQuestionResponseCompletesQuestion(t *testing.T) {
 		if resp.Selected != "a" {
 			t.Fatalf("selected = %q, want a", resp.Selected)
 		}
+		if resp.Source != "web" {
+			t.Fatalf("source = %q, want web", resp.Source)
+		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for completion")
+	}
+}
+
+func TestQuestionResponseLabelsDesktopChatAnswers(t *testing.T) {
+	ch := tools.RegisterQuestion(desktopChatSessionID, &tools.PendingQuestion{Question: "Pick", AllowFreeText: true, Options: []tools.QuestionOption{{Label: "A", Value: "a"}, {Label: "B", Value: "b"}}})
+	defer tools.CancelQuestion(desktopChatSessionID)
+
+	body := bytes.NewBufferString(`{"session_id":"` + desktopChatSessionID + `","free_text":"blue"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/agent/question-response", body)
+	rec := httptest.NewRecorder()
+	handleQuestionResponse(nil)(rec, req)
+	select {
+	case resp := <-ch:
+		if resp.FreeText != "blue" || resp.Source != "desktop" {
+			t.Fatalf("response = %+v, want free text from desktop", resp)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for completion")
+	}
+}
+
+func TestChatCompletionQuestionAnswerSource(t *testing.T) {
+	for _, tc := range []struct {
+		followUp  bool
+		missionID string
+		want      string
+	}{
+		{false, "", "web"},
+		{true, "", "internal"},
+		{true, "mission-1", "internal"},
+		{false, "mission-1", "internal"},
+	} {
+		if got := chatCompletionQuestionAnswerSource(tc.followUp, tc.missionID); got != tc.want {
+			t.Errorf("chatCompletionQuestionAnswerSource(%v, %q) = %q, want %q", tc.followUp, tc.missionID, got, tc.want)
+		}
 	}
 }
 
@@ -83,7 +121,7 @@ func TestPendingQuestionChatMessageCompletesBeforeAgentRun(t *testing.T) {
 	defer tools.CancelQuestion(sessionID)
 
 	rec := httptest.NewRecorder()
-	handled := handlePendingQuestionChatMessage(rec, openai.ChatCompletionRequest{}, sessionID, "2", nil)
+	handled := handlePendingQuestionChatMessage(rec, openai.ChatCompletionRequest{}, sessionID, "2", "web", nil)
 	if !handled {
 		t.Fatal("expected pending question chat message to be handled")
 	}
@@ -94,6 +132,9 @@ func TestPendingQuestionChatMessageCompletesBeforeAgentRun(t *testing.T) {
 	case resp := <-ch:
 		if resp.Selected != "no" {
 			t.Fatalf("selected = %q, want no", resp.Selected)
+		}
+		if resp.Source != "web" {
+			t.Fatalf("source = %q, want web", resp.Source)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for pending question completion")
@@ -112,7 +153,7 @@ func TestPendingQuestionChatMessageBlocksNewTaskWhenAnswerInvalid(t *testing.T) 
 	defer tools.CancelQuestion(sessionID)
 
 	rec := httptest.NewRecorder()
-	handled := handlePendingQuestionChatMessage(rec, openai.ChatCompletionRequest{}, sessionID, "aktualisiere die ki news webseite", nil)
+	handled := handlePendingQuestionChatMessage(rec, openai.ChatCompletionRequest{}, sessionID, "aktualisiere die ki news webseite", "web", nil)
 	if !handled {
 		t.Fatal("expected invalid chat message to be blocked while a question is pending")
 	}
