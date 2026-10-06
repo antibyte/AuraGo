@@ -312,6 +312,20 @@ func TestLogPullFailureWritesReasonAndToleratesMissingLogger(t *testing.T) {
 	(&Manager{}).logPullFailure(testRuntimeImage, errors.New("pull_image_failed"))
 }
 
+func TestLogPullFailureKeepsCancellationAtDebug(t *testing.T) {
+	var logged bytes.Buffer
+	manager := &Manager{logger: slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelDebug}))}
+	manager.logPullFailure(testRuntimeImage, fmt.Errorf("pull_image_failed: %w", context.Canceled))
+	if !strings.Contains(logged.String(), "level=DEBUG") || strings.Contains(logged.String(), "level=WARN") {
+		t.Fatalf("log = %q, want a debug record for an intended cancellation", logged.String())
+	}
+	logged.Reset()
+	manager.logPullFailure(testRuntimeImage, fmt.Errorf("pull_image_failed: %w", context.DeadlineExceeded))
+	if !strings.Contains(logged.String(), "level=WARN") {
+		t.Fatalf("log = %q, want a warning: a deadline is a real failure", logged.String())
+	}
+}
+
 func TestPullFailureTextIsByteStable(t *testing.T) {
 	cases := []struct {
 		name   string

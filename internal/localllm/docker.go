@@ -446,11 +446,16 @@ func (m *Manager) pullImage(ctx context.Context, reference string) error {
 }
 
 // logPullFailure writes the sanitised Docker reason of a failed runtime pull to
-// the server log. The API and status expose only the error code.
+// the server log. The API and status expose only the error code. An intended
+// cancellation (Configure, shutdown) is not a failure and is logged at Debug.
 func (m *Manager) logPullFailure(reference string, err error) {
 	logger := m.logger
 	if logger == nil {
 		logger = slog.Default()
+	}
+	if errors.Is(err, context.Canceled) {
+		logger.Debug("[LocalLLM] runtime image pull cancelled", "image", reference, "error", err)
+		return
 	}
 	logger.Warn("[LocalLLM] runtime image pull failed", "image", reference, "error", err)
 }
