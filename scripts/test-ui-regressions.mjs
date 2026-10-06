@@ -2841,9 +2841,15 @@ async function testContainersEmptyStateFollowsTheList() {
   page.run('filterContainers()');
   assert.equal(emptyShown(), false);
 
+  list = [];
+  await page.run('loadContainers()');
+  assert.equal(emptyShown(), true);
   status = 502;
   await page.run('loadContainers()');
   assert.equal(emptyShown(), false, 'the list error replaces the empty state');
+  status = 200;
+  await page.run('loadContainers()');
+  assert.equal(emptyShown(), true, 'an empty list after the error shows the empty state');
   status = 503;
   await page.run('loadContainers()');
   assert.equal(emptyShown(), false, 'Docker disabled replaces the empty state');
