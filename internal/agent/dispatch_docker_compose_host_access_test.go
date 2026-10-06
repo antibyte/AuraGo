@@ -664,3 +664,42 @@ func TestDispatchDockerComposeUsesTheMinimalEnvironmentOnlyWithoutHostAccess(t *
 		t.Fatalf("with host access (grandfathered) Compose must keep AuraGo's environment: %v", minimal)
 	}
 }
+
+// The minimal environment follows the config flag only (user decision
+// 2026-10-06): a grandfathered install (docker.allow_host_access true) keeps
+// AuraGo's environment even for a run that withholds the runtime grant, while
+// that run still gets the host-access policy as before.
+func TestDispatchDockerComposeKeepsTheFullEnvironmentForGrandfatheredRunsWithoutTheGrant(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n")
+	var minimal []bool
+	model := `{"services":{"web":{"image":"alpine","container_name":"aurago"}}}`
+	original := resolveDockerComposeConfig
+	t.Cleanup(func() { resolveDockerComposeConfig = original })
+	resolveDockerComposeConfig = func(_ context.Context, dockerCfg tools.DockerConfig, _ string, _ tools.DockerComposeConfigOptions) (string, error) {
+		minimal = append(minimal, dockerCfg.MinimalCLIEnvironment)
+		return model, nil
+	}
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	cfg.Docker.AllowHostAccess = true
+	cfg.Directories.WorkspaceDir = workspace
+	useRuntimePermissionsForTest(t, cfg)
+	narrowed := tools.WithRuntimePermissions(context.Background(), tools.RuntimePermissions{DockerEnabled: true})
+	call := func() string {
+		output, _ := dispatchServices(narrowed, ToolCall{Action: "docker", Operation: "compose", File: "compose.yml", Command: "up -d"}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+		return output
+	}
+	if got := call(); !strings.Contains(got, "docker_managed_aurago_resource") {
+		t.Fatalf("dispatch output = %s", got)
+	}
+	if len(minimal) == 0 || slices.Contains(minimal, true) {
+		t.Fatalf("a grandfathered install lost AuraGo's environment for a run without the grant: %v", minimal)
+	}
+	// The host-access policy still follows the run's grant.
+	model = traefikComposeModel
+	if got := call(); !strings.Contains(got, "docker_compose_host_access_denied") {
+		t.Fatalf("run without the grant skipped the host-access policy: %s", got)
+	}
+}

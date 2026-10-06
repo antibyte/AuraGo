@@ -661,8 +661,12 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if req.Operation == "compose" {
 				// Without host access Compose and its preflight see only the
 				// variables they need, never AuraGo's environment (user decision
-				// 2026-10-06); grandfathered installs keep today's environment.
-				dockerCfg.MinimalCLIEnvironment = !dockerComposeHostAccessAllowed(ctx, cfg)
+				// 2026-10-06). This follows the config flag only: grandfathered
+				// installs (docker.allow_host_access true) keep today's
+				// environment for every run, also for runs that withhold the
+				// AllowDockerHostAccess grant (those still get the host-access
+				// policy through dockerComposeHostAccessAllowed).
+				dockerCfg.MinimalCLIEnvironment = !cfg.Docker.AllowHostAccess
 				// A refused `config -o` target is cheap to find; check it before
 				// the preflight resolves the Compose file (up to three resolutions).
 				if denied := tools.DockerComposeOutputDenial(dockerCfg, req.Command); denied != "" {
