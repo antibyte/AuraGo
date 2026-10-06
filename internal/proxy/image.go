@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"aurago/internal/config"
@@ -82,8 +83,10 @@ func (m *Manager) ensureImage(cfg *config.Config) (string, error) {
 		return "", fmt.Errorf("pull caddy image: %w", err)
 	}
 
-	// Tag as our image name
-	_, tagCode, tagErr := m.engine.request(dockerCfg, "POST", "/images/caddy:latest/tag?repo=aurago-proxy&tag=latest", "")
+	// Tag the official image as imageName.
+	repo, tag, _ := strings.Cut(imageName, ":")
+	tagEndpoint := "/images/" + url.PathEscape(officialImage) + "/tag?" + url.Values{"repo": {repo}, "tag": {tag}}.Encode()
+	_, tagCode, tagErr := m.engine.request(dockerCfg, "POST", tagEndpoint, "")
 	if tagErr != nil {
 		return "", fmt.Errorf("tag image: %w", tagErr)
 	}

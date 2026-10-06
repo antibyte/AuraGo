@@ -60,7 +60,13 @@ section. Operator guidance lives in the Security Proxy section of
   after that writes the Caddyfile and removes the old container. A failed
   build or pull therefore leaves the running container and the Caddyfile it
   loads untouched; Reload's recreate path goes through `startLocked` and
-  inherits this. Start reports `ErrCaddyExited` when Caddy stops within the
+  inherits this. When the old container cannot be removed (`stopAndRemove`
+  returns nil only once the engine no longer knows the container, e.g. a
+  refused DELETE under `docker.read_only`) or the new one cannot be created,
+  `startLocked` writes the previous Caddyfile back in place
+  (`caddyfileRestorer`, shared with Reload) and fails, so the old container
+  never restarts into the new file. Destroy still reports success and only
+  logs a failed removal. Start reports `ErrCaddyExited` when Caddy stops within the
   settle time. Reload runs an attached `caddy reload` and
   checks its exit code; a rejected config restores the previous Caddyfile
   (`ErrConfigRejected`). An image that no longer fits the config makes Reload

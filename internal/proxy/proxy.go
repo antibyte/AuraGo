@@ -206,14 +206,20 @@ func (m *Manager) startLocked(cfg *config.Config) error {
 		return fmt.Errorf("ensure proxy image: %w", err)
 	}
 
+	// Until the new container exists, the old one may still run (or restart)
+	// with this file: restore it when the old container cannot be removed or
+	// the new one cannot be created.
 	caddyfilePath := filepath.Join(dir, "Caddyfile")
+	restore := m.caddyfileRestorer(caddyfilePath)
 	if err := writeCaddyfile(caddyfilePath, []byte(caddyfile)); err != nil {
 		return fmt.Errorf("write Caddyfile: %w", err)
 	}
 	m.log().Info("Security proxy Caddyfile written", "path", caddyfilePath)
 
-	// Stop existing container if any
-	m.stopAndRemove(dockerCfg)
+	if err := m.stopAndRemove(dockerCfg); err != nil {
+		restore()
+		return err
+	}
 
 	// Create container. The binds of a native placement are the proxy's own
 	// directory, so they are trusted: an install under /root, /mnt, /etc or
@@ -226,9 +232,11 @@ func (m *Manager) startLocked(cfg *config.Config) error {
 	data, code, err := m.engine.createTrusted(createCtx, dockerCfg, "/containers/create?name="+url.QueryEscape(containerName), string(body), place.binds)
 	cancelCreate()
 	if err != nil {
+		restore()
 		return fmt.Errorf("create container: %w", err)
 	}
 	if code != 201 {
+		restore()
 		return fmt.Errorf("create container: HTTP %d: %s", code, string(data))
 	}
 
@@ -406,14 +414,47 @@ func (m *Manager) Stop() error {
 func (m *Manager) Destroy() error {
 	m.lifecycle.Lock()
 	defer m.lifecycle.Unlock()
-	m.stopAndRemove(m.dockerCfg())
+	if err := m.stopAndRemove(m.dockerCfg()); err != nil {
+		// Destroy has always reported success; the warning keeps the cause.
+		m.log().Warn("Security proxy container could not be removed", "error", err)
+		return nil
+	}
 	m.log().Info("Security proxy destroyed")
 	return nil
 }
 
-func (m *Manager) stopAndRemove(cfg tools.DockerConfig) {
+// stopAndRemove stops and removes the proxy container. It returns nil once
+// the container is gone, including when there was none.
+func (m *Manager) stopAndRemove(cfg tools.DockerConfig) error {
 	m.engine.request(cfg, "POST", "/containers/"+url.QueryEscape(containerName)+"/stop?t=5", "")
-	m.engine.request(cfg, "DELETE", "/containers/"+url.QueryEscape(containerName)+"?force=true&v=true", "")
+	data, code, err := m.engine.request(cfg, "DELETE", "/containers/"+url.QueryEscape(containerName)+"?force=true&v=true", "")
+	if err == nil && (code == 204 || code == 404) {
+		return nil
+	}
+	// The removal failed, was refused or its answer was lost: the container
+	// is gone only when the engine no longer knows it.
+	if _, found, inspectErr := m.inspectContainer(cfg); inspectErr == nil && !found {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("remove the old container: %w", err)
+	}
+	return fmt.Errorf("remove the old container: HTTP %d: %s", code, string(data))
+}
+
+// caddyfileRestorer reads the Caddyfile the running container loaded and
+// returns a func that writes it back in place (same inode, mode 0600). It does
+// nothing when there was no previous file.
+func (m *Manager) caddyfileRestorer(path string) func() {
+	previous, err := os.ReadFile(path)
+	return func() {
+		if err != nil {
+			return
+		}
+		if err := writeCaddyfile(path, previous); err != nil {
+			m.log().Warn("Failed to restore the previous security proxy Caddyfile", "error", err)
+		}
+	}
 }
 
 // Reload writes a new Caddyfile and reloads Caddy's config via the admin API.
@@ -449,15 +490,7 @@ func (m *Manager) Reload() error {
 		return err
 	}
 	caddyfilePath := filepath.Join(dir, "Caddyfile")
-	previous, previousErr := os.ReadFile(caddyfilePath)
-	restore := func() {
-		if previousErr != nil {
-			return
-		}
-		if err := writeCaddyfile(caddyfilePath, previous); err != nil {
-			m.log().Warn("Failed to restore the previous security proxy Caddyfile", "error", err)
-		}
-	}
+	restore := m.caddyfileRestorer(caddyfilePath)
 	if err := writeCaddyfile(caddyfilePath, []byte(caddyfile)); err != nil {
 		return fmt.Errorf("write Caddyfile: %w", err)
 	}
