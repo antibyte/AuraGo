@@ -302,7 +302,7 @@ mqtt:
   topics: []                  # Topics to subscribe
   qos: 0                      # Quality of Service
   relay_to_agent: false       # Forward to agent
-  allow_unauthenticated_relay: false  # Relays/MQTT mission triggers need username or tls.cert_file unless true
+  allow_unauthenticated_relay: false  # Relays/MQTT mission triggers need a username or a client certificate over TLS unless true
 
 # MeshCentral Integration
 # -----------------------

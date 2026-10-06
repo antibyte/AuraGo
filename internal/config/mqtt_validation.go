@@ -50,14 +50,23 @@ func MQTTEffectiveTLS(cfg *Config) (bool, error) {
 }
 
 // MQTTBrokerAuthenticated reports whether AuraGo logs in to the broker with a
-// username or a client certificate, the signs that the broker authenticates
-// its publishers. Without either, broker traffic that starts agent runs needs
-// mqtt.allow_unauthenticated_relay.
+// username or a client certificate over TLS, the signs that the broker
+// authenticates its publishers. The client presents its certificate only when
+// the broker URL selects TLS (MQTTEffectiveTLS); on a plaintext URL it
+// connects anonymously. Without either login, broker traffic that starts
+// agent runs needs mqtt.allow_unauthenticated_relay.
 func MQTTBrokerAuthenticated(cfg *Config) bool {
 	if cfg == nil {
 		return false
 	}
-	return strings.TrimSpace(cfg.MQTT.Username) != "" || strings.TrimSpace(cfg.MQTT.TLS.CertFile) != ""
+	if strings.TrimSpace(cfg.MQTT.Username) != "" {
+		return true
+	}
+	if strings.TrimSpace(cfg.MQTT.TLS.CertFile) == "" {
+		return false
+	}
+	tlsOn, err := MQTTEffectiveTLS(cfg)
+	return err == nil && tlsOn
 }
 
 func mqttSecureScheme(scheme string) bool {

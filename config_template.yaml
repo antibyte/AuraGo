@@ -1273,7 +1273,7 @@ mqtt:
     topics: []
     qos: 0
     relay_to_agent: false
-    allow_unauthenticated_relay: false  # relays and MQTT mission triggers need username or tls.cert_file unless true
+    allow_unauthenticated_relay: false  # relays and MQTT mission triggers need a username or a client certificate over TLS unless true
     connect_timeout: 15             # connection timeout in seconds
     clean_session: true             # true = broker does not keep a persistent session for this client
     trigger_min_interval_seconds: 0  # minimum seconds between MQTT-triggered mission starts (0 = disabled)

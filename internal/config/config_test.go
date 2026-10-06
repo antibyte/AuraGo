@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -3941,7 +3942,12 @@ func TestLoadGrandfathersUnauthenticatedMQTTRelay(t *testing.T) {
 		{"relay on, key false", on + "  relay_to_agent: true\n  allow_unauthenticated_relay: false\n", false},
 		{"relay on, key true", on + "  relay_to_agent: true\n  allow_unauthenticated_relay: true\n", true},
 		{"relay on, user set", on + "  relay_to_agent: true\n  username: iot\n", false},
-		{"relay on, client certificate", on + "  relay_to_agent: true\n  tls:\n    cert_file: client.crt\n    key_file: client.key\n", false},
+		// The client presents its certificate only over TLS; on tcp:// it
+		// connects anonymously.
+		{"relay on, client certificate over tcp", on + "  relay_to_agent: true\n  tls:\n    cert_file: client.crt\n    key_file: client.key\n", true},
+		{"relay on, client certificate, tls.enabled on tcp", on + "  relay_to_agent: true\n  tls:\n    enabled: true\n    cert_file: client.crt\n    key_file: client.key\n", true},
+		{"relay on, client certificate over ssl", "mqtt:\n  enabled: true\n  broker: ssl://broker.lan:8883\n  relay_to_agent: true\n  tls:\n    cert_file: client.crt\n    key_file: client.key\n", false},
+		{"relay on, client certificate over mqtts", "mqtt:\n  enabled: true\n  broker: mqtts://broker.lan:8883\n  relay_to_agent: true\n  tls:\n    enabled: true\n    cert_file: client.crt\n    key_file: client.key\n", false},
 		{"mqtt disabled", "mqtt:\n  enabled: false\n  relay_to_agent: true\n", false},
 		{"no mqtt section", "server:\n  port: 8088\n", false},
 	}
@@ -3959,6 +3965,34 @@ func TestLoadGrandfathersUnauthenticatedMQTTRelay(t *testing.T) {
 				t.Fatalf("AllowUnauthenticatedRelay = %v, want %v", cfg.MQTT.AllowUnauthenticatedRelay, tc.want)
 			}
 		})
+	}
+}
+
+// Every config save, health check and bootstrap reloads the config; the
+// grandfather warning appears once per process, not on every load.
+func TestLoadWarnsAboutGrandfatheredMQTTRelayOncePerProcess(t *testing.T) {
+	var logs strings.Builder
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	mqttRelayGrandfatherWarning = sync.Once{}
+
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		cfg, err := Load(configPath)
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if !cfg.MQTT.AllowUnauthenticatedRelay {
+			t.Fatal("anonymous enabled broker must stay grandfathered on every load")
+		}
+	}
+	const want = "anonymous MQTT broker grandfathered"
+	if got := strings.Count(logs.String(), want); got != 1 {
+		t.Fatalf("grandfather warning logged %d times, want once:\n%s", got, logs.String())
 	}
 }
 

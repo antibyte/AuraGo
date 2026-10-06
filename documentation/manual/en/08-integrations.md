@@ -288,7 +288,7 @@ mqtt:
 
 `trigger_min_interval_seconds` limits how often MQTT events can start missions (0 = disabled).
 
-Relay to Agent, the Frigate relays and MQTT-triggered missions start agent runs only when AuraGo logs in to the broker with a username or a client certificate (`tls.cert_file`), or when `allow_unauthenticated_relay: true` accepts that any host that can publish to the broker can start agent runs. Existing setups on brokers without authentication keep working (the upgrade writes `allow_unauthenticated_relay: true`) and show a critical security hint.
+Relay to Agent, the Frigate relays and MQTT-triggered missions start agent runs only when AuraGo logs in to the broker with a username or a client certificate over TLS (`tls.cert_file` with a secure broker URL such as `mqtts://`; on `tcp://` the certificate is never sent), or when `allow_unauthenticated_relay: true` accepts that any host that can publish to the broker can start agent runs. Existing setups on brokers without authentication keep working (the upgrade writes `allow_unauthenticated_relay: true`) and show a critical security hint. A username protects the relay only when the broker rejects anonymous clients (for Mosquitto, `allow_anonymous false`).
 
 Secure broker URL schemes always use TLS. Enabling TLS with a plaintext URL is
 rejected; AuraGo never rewrites the scheme or port. Explicit CA and client

@@ -79,6 +79,22 @@ memory extraction, personality changes or planner reminders. Their existing
 tools remain available under the current configuration and the run's own
 restrictions. Background operational failures remain recorded for diagnosis.
 
+Broker messages start agent runs (Relay to Agent, the Frigate event and review
+relays, MQTT-triggered missions) only while AuraGo logs in to the broker with a
+username or a client certificate over TLS, or `mqtt.allow_unauthenticated_relay`
+is true. A client certificate counts only with a secure broker URL such as
+`mqtts://` or `ssl://`; over `tcp://` it is never sent. A username protects the
+relay only when the broker rejects anonymous clients (for Mosquitto,
+`allow_anonymous false`). The check reads the live configuration for every
+delivery, so saving credentials or the flag takes effect without a restart.
+Refused deliveries are logged once until a delivery is admitted again; a
+refused mission trigger still consumes its trigger interval, because the
+interval is claimed before the check runs. Configurations from before this
+check that used an enabled broker without login keep working: loading them and
+the next upgrade set `allow_unauthenticated_relay: true`, and the security
+hints report that as critical. Set the key to `false` once credentials are in
+place or if you use no relays or MQTT-triggered missions.
+
 The controller runs one relay worker with at most 100 waiting messages. Disabling
 MQTT or stopping the server cancels its current relay and joins the workers.
 `/api/mqtt/status` exposes subscription failures and dropped relay/mission work

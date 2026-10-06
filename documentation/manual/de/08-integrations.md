@@ -263,11 +263,14 @@ Umgebungswert. Weitere Details: [MQTT-Betrieb](../../mqtt.md).
 
 Die Weiterleitung an den Agenten, die Frigate-Weiterleitungen und MQTT-ausgelöste
 Missionen starten Agentenläufe nur, wenn sich AuraGo mit Benutzernamen oder
-Client-Zertifikat (`tls.cert_file`) am Broker anmeldet oder
+Client-Zertifikat über TLS am Broker anmeldet (`tls.cert_file` mit einer sicheren
+Broker-URL wie `mqtts://`; über `tcp://` wird das Zertifikat nie gesendet) oder
 `allow_unauthenticated_relay: true` ausdrücklich zulässt, dass jedes Gerät, das an
 den Broker veröffentlichen kann, Agentenläufe startet. Bestehende Setups mit Brokern
 ohne Authentifizierung laufen weiter (das Update schreibt
 `allow_unauthenticated_relay: true`) und erzeugen einen kritischen Sicherheitshinweis.
+Ein Benutzername schützt die Weiterleitung nur, wenn der Broker anonyme Clients
+ablehnt (bei Mosquitto `allow_anonymous false`).
 
 ## Docker Integration
 

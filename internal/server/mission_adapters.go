@@ -39,7 +39,10 @@ type missionMQTTAdapter struct {
 	// the MQTT relay gate against it, so reloads apply without
 	// re-registration; without a config source every delivery is refused.
 	config func() *config.Config
-	gate   mqttRelayGate
+	// register installs the gated callback in the mqtt package; nil uses
+	// registerMQTTMissionTrigger. Tests set it to capture the callback.
+	register func(key, topicFilter, payloadContains string, minIntervalSeconds int, callback func(topic, payload string))
+	gate     mqttRelayGate
 }
 
 // RegisterMissionTrigger registers a callback for MQTT-triggered missions
@@ -56,16 +59,16 @@ func (a *missionMQTTAdapter) gateMissionTrigger(callback func(topic, payload str
 		if a.config != nil {
 			cfg = a.config()
 		}
-		if !a.gate.admit(cfg, a.logger, "mission_trigger") {
+		if !a.gate.admit(cfg, a.logger, mqttRelayPathMissionTrigger) {
 			return
 		}
 		callback(topic, payload)
 	}
 }
 
-// registerMQTTMissionTrigger installs a mission callback in the mqtt package
-// (keyed when key is set). Tests replace it to capture the installed callback.
-var registerMQTTMissionTrigger = func(key, topicFilter, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
+// registerMQTTMissionTrigger installs a mission callback in the mqtt package,
+// keyed when key is set.
+func registerMQTTMissionTrigger(key, topicFilter, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
 	if key != "" {
 		mqtt.RegisterMissionTriggerForKey(key, topicFilter, payloadContains, minIntervalSeconds, callback)
 		return
@@ -75,9 +78,13 @@ var registerMQTTMissionTrigger = func(key, topicFilter, payloadContains string, 
 
 // RegisterMissionTriggerForKey registers or replaces a keyed MQTT-triggered mission callback.
 func (a *missionMQTTAdapter) RegisterMissionTriggerForKey(key string, topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
+	register := a.register
+	if register == nil {
+		register = registerMQTTMissionTrigger
+	}
 	// The controller resolves the default interval from its current snapshot.
 	// Capturing the startup config here would ignore later interval changes.
-	registerMQTTMissionTrigger(key, topicFilter, payloadContains, minIntervalSeconds, a.gateMissionTrigger(callback))
+	register(key, topicFilter, payloadContains, minIntervalSeconds, a.gateMissionTrigger(callback))
 	a.logger.Info("[MissionMQTTAdapter] Registered mission trigger", "key", key, "topic_filter", topicFilter, "payload_contains", payloadContains, "min_interval_seconds", minIntervalSeconds)
 }
 

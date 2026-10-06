@@ -147,6 +147,10 @@ var defaultWorkspaceSearchExcludes = []string{
 }
 var configSaveMu sync.Mutex
 
+// mqttRelayGrandfatherWarning limits the Load warning about a grandfathered
+// anonymous MQTT broker to once per process.
+var mqttRelayGrandfatherWarning sync.Once
+
 // DefaultWorkspaceSearchExcludes returns the safe default skip list for the resident workspace index.
 func DefaultWorkspaceSearchExcludes() []string {
 	return append([]string(nil), defaultWorkspaceSearchExcludes...)
@@ -1610,15 +1614,18 @@ func Load(path string) (*Config, error) {
 	}
 
 	// MQTT relays (relay_to_agent, the Frigate relays) and MQTT-triggered
-	// missions now need broker authentication or
-	// mqtt.allow_unauthenticated_relay. Existing setups on anonymous brokers
-	// keep working until the key is written; mission triggers live in the
-	// mission store, so every enabled anonymous broker counts. A null value
-	// counts as unwritten, as config-merger reads it. The security check
-	// reports the result as critical.
+	// missions now need a broker login (username or client certificate over
+	// TLS) or mqtt.allow_unauthenticated_relay. Existing setups on anonymous
+	// brokers keep working until the key is written; mission triggers live in
+	// the mission store, so every enabled anonymous broker counts. A null
+	// value counts as unwritten, as config-merger reads it. The security check
+	// reports the result as critical; the warning appears once per process,
+	// as every config save and health check reloads the config.
 	if cfg.MQTT.Enabled && !MQTTBrokerAuthenticated(&cfg) && !yamlHasValue(data, "mqtt", "allow_unauthenticated_relay") {
 		cfg.MQTT.AllowUnauthenticatedRelay = true
-		slog.Warn("[Config] mqtt relay runs without broker authentication; write mqtt.allow_unauthenticated_relay explicitly")
+		mqttRelayGrandfatherWarning.Do(func() {
+			slog.Warn("[Config] anonymous MQTT broker grandfathered: relays and MQTT mission triggers stay allowed until mqtt.allow_unauthenticated_relay is written")
+		})
 	}
 
 	// Migrate legacy agent.personality_* fields → new personality section.
@@ -3362,58 +3369,35 @@ func normalizeDockerWorkspaceDir(configDir, workspaceDir string, runningInDocker
 	}
 }
 
-func yamlHasPath(data []byte, path ...string) bool {
+// yamlLookup returns the node at path in data, or nil when data does not
+// parse, path is empty or a key along it is missing.
+func yamlLookup(data []byte, path ...string) *yaml.Node {
 	if len(path) == 0 {
-		return false
+		return nil
 	}
-
 	var root yaml.Node
 	if err := yaml.Unmarshal(data, &root); err != nil {
-		return false
+		return nil
 	}
-
-	node := &root
-	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
-		node = node.Content[0]
-	}
-
+	node := yamlDocumentRoot(&root)
 	for _, key := range path {
-		if node == nil || node.Kind != yaml.MappingNode {
-			return false
-		}
-
-		found := false
-		for i := 0; i+1 < len(node.Content); i += 2 {
-			k := node.Content[i]
-			v := node.Content[i+1]
-			if k.Value == key {
-				node = v
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
+		if node = yamlMappingValue(node, key); node == nil {
+			return nil
 		}
 	}
+	return node
+}
 
-	return true
+// yamlHasPath reports whether path is present, whatever its value (null too).
+func yamlHasPath(data []byte, path ...string) bool {
+	return yamlLookup(data, path...) != nil
 }
 
 // yamlHasValue reports whether path is present with a non-null value. Unlike
 // yamlHasPath, a key written without a value (or as ~ / null) counts as unset.
 func yamlHasValue(data []byte, path ...string) bool {
-	var root yaml.Node
-	if len(path) == 0 || yaml.Unmarshal(data, &root) != nil {
-		return false
-	}
-	node := yamlDocumentRoot(&root)
-	for _, key := range path {
-		if node = yamlMappingValue(node, key); node == nil {
-			return false
-		}
-	}
-	return node.Kind != yaml.ScalarNode || node.ShortTag() != "!!null"
+	node := yamlLookup(data, path...)
+	return node != nil && (node.Kind != yaml.ScalarNode || node.ShortTag() != "!!null")
 }
 
 // splitLines splits a string into lines

@@ -49,6 +49,7 @@ func TestMQTTRelayAuthorizedRequiresCredentialsOrExplicitFlag(t *testing.T) {
 	}
 	cfg := &config.Config{}
 	cfg.MQTT.Enabled, cfg.MQTT.RelayToAgent = true, true
+	cfg.MQTT.Broker = "tcp://broker.lan:1883"
 	if mqttRelayAuthorized(cfg) {
 		t.Fatal("anonymous relay must be refused by default")
 	}
@@ -62,9 +63,14 @@ func TestMQTTRelayAuthorizedRequiresCredentialsOrExplicitFlag(t *testing.T) {
 	}
 	cfg.MQTT.Username = ""
 	cfg.MQTT.TLS.CertFile = "client.crt"
-	if !mqttRelayAuthorized(cfg) {
-		t.Fatal("client certificate must authorize the relay")
+	if mqttRelayAuthorized(cfg) {
+		t.Fatal("a client certificate on a tcp:// broker is never presented and must not authorize the relay")
 	}
+	cfg.MQTT.Broker = "mqtts://broker.lan:8883"
+	if !mqttRelayAuthorized(cfg) {
+		t.Fatal("client certificate over TLS must authorize the relay")
+	}
+	cfg.MQTT.Broker = "tcp://broker.lan:1883"
 	cfg.MQTT.TLS.CertFile = ""
 	cfg.MQTT.AllowUnauthenticatedRelay = true
 	if !mqttRelayAuthorized(cfg) {
@@ -84,10 +90,15 @@ func (b *syncBuffer) Write(p []byte) (int, error) {
 	return b.buf.Write(p)
 }
 
-func (b *syncBuffer) refusals() int {
+func (b *syncBuffer) String() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return strings.Count(b.buf.String(), mqttRelayRefusedMessage)
+	return b.buf.String()
+}
+
+// refusals counts logged refusals of either path.
+func (b *syncBuffer) refusals() int {
+	return strings.Count(b.String(), " delivery refused: ")
 }
 
 func newMQTTRelayTestLogger() (*slog.Logger, *syncBuffer) {
@@ -105,6 +116,23 @@ func anonymousMQTTRelayConfig() *config.Config {
 	return cfg
 }
 
+func TestMQTTRelayRefusalMessagesNamePathAndReason(t *testing.T) {
+	for _, tc := range []struct {
+		path       string
+		haveConfig bool
+		want       string
+	}{
+		{mqttRelayPathRelay, true, "[MQTT] relay delivery refused: broker has no login (username or TLS client certificate) and mqtt.allow_unauthenticated_relay is false"},
+		{mqttRelayPathMissionTrigger, true, "[MQTT] mission trigger delivery refused: broker has no login (username or TLS client certificate) and mqtt.allow_unauthenticated_relay is false"},
+		{mqttRelayPathRelay, false, "[MQTT] relay delivery refused: no config source"},
+		{mqttRelayPathMissionTrigger, false, "[MQTT] mission trigger delivery refused: no config source"},
+	} {
+		if got := mqttRelayRefusalMessage(tc.path, tc.haveConfig); got != tc.want {
+			t.Fatalf("mqttRelayRefusalMessage(%q, %v) = %q, want %q", tc.path, tc.haveConfig, got, tc.want)
+		}
+	}
+}
+
 func TestMQTTRelayRouteRefusesAnonymousBrokerAndLogsOnce(t *testing.T) {
 	logger, logs := newMQTTRelayTestLogger()
 	gate := &mqttRelayGate{}
@@ -117,6 +145,9 @@ func TestMQTTRelayRouteRefusesAnonymousBrokerAndLogsOnce(t *testing.T) {
 	}
 	if got := logs.refusals(); got != 1 {
 		t.Fatalf("refusal logged %d times, want once", got)
+	}
+	if want := mqttRelayRefusalMessage(mqttRelayPathRelay, true); !strings.Contains(logs.String(), want) {
+		t.Fatalf("relay refusal must log %q:\n%s", want, logs.String())
 	}
 
 	cfg.MQTT.Username = "iot"
@@ -147,6 +178,7 @@ func TestMQTTRelayRouteFrigateOnlyAndClientCertificate(t *testing.T) {
 	gate := &mqttRelayGate{}
 	cfg := anonymousMQTTRelayConfig()
 	cfg.MQTT.RelayToAgent = false
+	cfg.Frigate.ReviewRelay = true
 
 	if _, _, ok := gate.route(cfg, "frigate/events", logger); ok {
 		t.Fatal("anonymous Frigate-only relay must be refused")
@@ -159,9 +191,18 @@ func TestMQTTRelayRouteFrigateOnlyAndClientCertificate(t *testing.T) {
 		t.Fatalf("refusal logged %d times, want once", got)
 	}
 
+	// On tcp:// the client certificate is never presented.
 	cfg.MQTT.TLS.CertFile = "client.crt"
+	if _, _, ok := gate.route(cfg, "frigate/reviews", logger); ok {
+		t.Fatal("Frigate relay with a client certificate over tcp:// must be refused")
+	}
+
+	cfg.MQTT.Broker = "ssl://broker.lan:8883"
 	if source, kind, ok := gate.route(cfg, "frigate/events", logger); !ok || source != "frigate" || kind != "event" {
-		t.Fatalf("Frigate relay with client certificate = (%q, %q, %v), want (frigate, event, true)", source, kind, ok)
+		t.Fatalf("Frigate event relay with client certificate over TLS = (%q, %q, %v), want (frigate, event, true)", source, kind, ok)
+	}
+	if source, kind, ok := gate.route(cfg, "frigate/reviews", logger); !ok || source != "frigate" || kind != "review" {
+		t.Fatalf("Frigate review relay with client certificate over TLS = (%q, %q, %v), want (frigate, review, true)", source, kind, ok)
 	}
 
 	cfg.MQTT.Enabled = false
@@ -227,6 +268,9 @@ func TestMissionMQTTAdapterGatesTriggersOnLiveConfig(t *testing.T) {
 	if got := logs.refusals(); got != 1 {
 		t.Fatalf("refusal logged %d times, want once", got)
 	}
+	if want := mqttRelayRefusalMessage(mqttRelayPathMissionTrigger, true); !strings.Contains(logs.String(), want) {
+		t.Fatalf("mission trigger refusal must log %q:\n%s", want, logs.String())
+	}
 
 	withUser := current.Clone()
 	withUser.MQTT.Username = "iot"
@@ -245,10 +289,14 @@ func TestMissionMQTTAdapterGatesTriggersOnLiveConfig(t *testing.T) {
 		t.Fatalf("explicitly allowed anonymous broker started %d missions, want 2", fired)
 	}
 
-	unconfigured := &missionMQTTAdapter{logger: logger}
+	unconfiguredLogger, unconfiguredLogs := newMQTTRelayTestLogger()
+	unconfigured := &missionMQTTAdapter{logger: unconfiguredLogger}
 	unconfigured.gateMissionTrigger(func(string, string) { fired++ })("home/door", "open")
 	if fired != 2 {
 		t.Fatal("an adapter without a config source must refuse mission triggers")
+	}
+	if want := mqttRelayRefusalMessage(mqttRelayPathMissionTrigger, false); !strings.Contains(unconfiguredLogs.String(), want) {
+		t.Fatalf("refusal without config source must log %q:\n%s", want, unconfiguredLogs.String())
 	}
 }
 
@@ -260,15 +308,15 @@ func TestMissionMQTTAdapterRegistersGatedCallbacks(t *testing.T) {
 		callback func(topic, payload string)
 	}
 	var installed []registration
-	original := registerMQTTMissionTrigger
-	registerMQTTMissionTrigger = func(key, _, _ string, _ int, callback func(topic, payload string)) {
-		installed = append(installed, registration{key: key, callback: callback})
-	}
-	t.Cleanup(func() { registerMQTTMissionTrigger = original })
-
 	logger, logs := newMQTTRelayTestLogger()
 	current := anonymousMQTTRelayConfig()
-	adapter := &missionMQTTAdapter{logger: logger, config: func() *config.Config { return current }}
+	adapter := &missionMQTTAdapter{
+		logger: logger,
+		config: func() *config.Config { return current },
+		register: func(key, _, _ string, _ int, callback func(topic, payload string)) {
+			installed = append(installed, registration{key: key, callback: callback})
+		},
+	}
 	fired := 0
 	adapter.RegisterMissionTriggerForKey("mission-1|mqtt_message", "home/#", "", 0, func(string, string) { fired++ })
 	adapter.RegisterMissionTrigger("garage/#", "", 0, func(string, string) { fired++ })
@@ -287,12 +335,13 @@ func TestMissionMQTTAdapterRegistersGatedCallbacks(t *testing.T) {
 	}
 
 	authorized := current.Clone()
+	authorized.MQTT.Broker = "mqtts://broker.lan:8883"
 	authorized.MQTT.TLS.CertFile = "client.crt"
 	current = authorized
 	for _, reg := range installed {
 		reg.callback("home/door", "open")
 	}
 	if fired != 2 {
-		t.Fatalf("authenticated broker started %d missions, want 2", fired)
+		t.Fatalf("broker with client certificate over TLS started %d missions, want 2", fired)
 	}
 }

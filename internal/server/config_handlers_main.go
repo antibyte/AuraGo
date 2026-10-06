@@ -124,7 +124,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
 		injectGameMakerDefaults(rawCfg, s.Cfg)
 		injectHereNowDefaults(rawCfg, s.Cfg)
-		injectMQTTRelayDefaults(rawCfg, s.Cfg)
+		injectMQTTRelayDefaults(rawCfg, s.ConfigSnapshot())
 		injectTregDefaults(rawCfg, s.Cfg)
 
 		// Mask sensitive fields

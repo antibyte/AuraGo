@@ -313,7 +313,7 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 	// or mqtt.allow_unauthenticated_relay; the template ships false. A config
 	// without a value there (absent, null, or under a null mqtt section) ran
 	// them on any broker, so materialise what config.Load grandfathers: true
-	// for an enabled broker without username or client certificate (mission
+	// for an enabled broker without username or client certificate over TLS (mission
 	// triggers live in the mission store, so no relay flag is needed), false
 	// otherwise. The mqtt_relay_no_auth security hint reports true as critical.
 	userMQTT, _ := asStringMap(user["mqtt"])
@@ -330,13 +330,26 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 
 // mqttRanAnonymously mirrors the config.Load grandfather for
 // mqtt.allow_unauthenticated_relay: MQTT enabled (in any yaml.v3 bool
-// spelling) with neither a username nor a tls.cert_file.
+// spelling) with neither a username nor a client certificate over TLS
+// (config.MQTTBrokerAuthenticated). Whether the certificate is presented
+// depends on mqtt.broker and mqtt.tls.enabled, so it asks
+// config.MQTTEffectiveTLS with exactly those values.
 func mqttRanAnonymously(userMQTT map[string]interface{}) bool {
 	if enabled, _ := yamlBoolValue(userMQTT["enabled"]); !enabled {
 		return false
 	}
+	if yamlStringSet(userMQTT["username"]) {
+		return false
+	}
 	userTLS, _ := asStringMap(userMQTT["tls"])
-	return !yamlStringSet(userMQTT["username"]) && !yamlStringSet(userTLS["cert_file"])
+	if !yamlStringSet(userTLS["cert_file"]) {
+		return true
+	}
+	var probe config.Config
+	probe.MQTT.Broker, _ = userMQTT["broker"].(string)
+	probe.MQTT.TLS.Enabled, _ = yamlBoolValue(userTLS["enabled"])
+	tlsOn, err := config.MQTTEffectiveTLS(&probe)
+	return err != nil || !tlsOn
 }
 
 // yamlStringSet reports whether a parsed user-config value reaches a string

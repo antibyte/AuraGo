@@ -158,3 +158,37 @@ func TestApplyVaultSecretsUsesMQTTResolver(t *testing.T) {
 	}
 	_ = os.Getenv("MQTT_PASSWORD")
 }
+
+// A client certificate authenticates only when the broker URL selects TLS:
+// the client presents it nowhere else.
+func TestMQTTBrokerAuthenticatedNeedsUsernameOrCertificateOverTLS(t *testing.T) {
+	tests := []struct {
+		name, broker, username, certFile string
+		tlsEnabled                       bool
+		want                             bool
+	}{
+		{name: "anonymous", broker: "tcp://broker.lan:1883"},
+		{name: "blank username", broker: "tcp://broker.lan:1883", username: "  "},
+		{name: "username", broker: "tcp://broker.lan:1883", username: "iot", want: true},
+		{name: "certificate over tcp", broker: "tcp://broker.lan:1883", certFile: "client.crt"},
+		{name: "certificate over tcp with tls.enabled", broker: "tcp://broker.lan:1883", certFile: "client.crt", tlsEnabled: true},
+		{name: "certificate without broker", certFile: "client.crt"},
+		{name: "certificate over ssl", broker: "ssl://broker.lan:8883", certFile: "client.crt", want: true},
+		{name: "certificate over mqtts", broker: "mqtts://broker.lan:8883", certFile: "client.crt", tlsEnabled: true, want: true},
+		{name: "certificate over wss", broker: "wss://broker.lan/mqtt", certFile: "client.crt", want: true},
+		{name: "blank certificate over mqtts", broker: "mqtts://broker.lan:8883", certFile: " "},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &Config{}
+			cfg.MQTT.Broker, cfg.MQTT.Username = tc.broker, tc.username
+			cfg.MQTT.TLS.CertFile, cfg.MQTT.TLS.Enabled = tc.certFile, tc.tlsEnabled
+			if got := MQTTBrokerAuthenticated(cfg); got != tc.want {
+				t.Fatalf("MQTTBrokerAuthenticated = %v, want %v", got, tc.want)
+			}
+		})
+	}
+	if MQTTBrokerAuthenticated(nil) {
+		t.Fatal("a missing config must not count as authenticated")
+	}
+}
