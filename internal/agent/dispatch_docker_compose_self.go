@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 
+	"aurago/internal/config"
 	"aurago/internal/tools"
 )
 
@@ -25,4 +26,20 @@ func dockerComposeSelfProjectDenial(project, subcommand string, self tools.Docke
 	}
 	return dockerAgentError("docker_managed_aurago_resource", fmt.Sprintf(
 		"This Compose file resolves to the project name %q, which is the Compose project AuraGo itself runs in, so `%s` would act on AuraGo's own containers. Nothing was run. Give the stack its own top-level name: or move it into a folder with another name.", project, subcommand))
+}
+
+// dockerComposeAuraGoStateVolume returns the first volume of the models that
+// holds AuraGo's data directory, or "" (always "" on native installs).
+func dockerComposeAuraGoStateVolume(cfg *config.Config, self tools.DockerSelfIdentity, models ...tools.DockerComposeModel) string {
+	if cfg == nil || !cfg.Runtime.IsDocker {
+		return ""
+	}
+	for _, model := range models {
+		for _, name := range tools.DockerComposeModelVolumeNames(model) {
+			if tools.IsAuraGoStateVolume(name, true, self) {
+				return name
+			}
+		}
+	}
+	return ""
 }

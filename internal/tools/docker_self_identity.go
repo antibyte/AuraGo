@@ -54,3 +54,77 @@ func (id DockerSelfIdentity) OwnsComposeProject(project string) bool {
 	own := strings.TrimSpace(id.ComposeProject)
 	return own != "" && strings.EqualFold(own, strings.TrimSpace(project))
 }
+
+// auraGoDataVolumeKey is the data volume of the shipped docker-compose.yml;
+// Compose names it <project>_aurago_data.
+const auraGoDataVolumeKey = "aurago_data"
+
+// IsAuraGoStateVolume reports a named volume that holds AuraGo's data
+// directory. Native installs (inContainer false) keep it in a host directory,
+// so no volume is. In a container it is one of self.StateVolumes when Docker
+// proved the mounts of the data directory, otherwise the shipped name
+// (aurago_data, <project>_aurago_data). The workdir volume is the agent
+// workspace itself and never matches.
+func IsAuraGoStateVolume(name string, inContainer bool, self DockerSelfIdentity) bool {
+	name = strings.TrimSpace(name)
+	if !inContainer || name == "" {
+		return false
+	}
+	if len(self.StateVolumes) > 0 || len(self.StateBindSources) > 0 {
+		for _, volume := range self.StateVolumes {
+			if strings.EqualFold(strings.TrimSpace(volume), name) {
+				return true
+			}
+		}
+		return false
+	}
+	lower := strings.ToLower(name)
+	return lower == auraGoDataVolumeKey || strings.HasSuffix(lower, "_"+auraGoDataVolumeKey)
+}
+
+// DockerBindTouchesAuraGoState reports a create/run volume string that mounts
+// AuraGo's data volume, or a host directory bound at AuraGo's data directory.
+func DockerBindTouchesAuraGoState(bind string, inContainer bool, self DockerSelfIdentity) bool {
+	if !inContainer {
+		return false
+	}
+	spec, ok := parseDockerBindMount(bind)
+	if !ok {
+		return false
+	}
+	if !spec.isHostPath {
+		return IsAuraGoStateVolume(spec.hostPath, inContainer, self)
+	}
+	for _, root := range self.StateBindSources {
+		if dockerPathEqualOrWithin(spec.hostPath, root) {
+			return true
+		}
+	}
+	return false
+}
+
+// DockerComposeModelVolumeNames lists the named volumes a resolved model uses
+// or declares: each service mount of type volume (its source and the name of
+// the top-level volume it refers to) and each top-level volume (key and name).
+func DockerComposeModelVolumeNames(model DockerComposeModel) []string {
+	var names []string
+	for _, service := range SortedDockerComposeKeys(model.Services) {
+		for _, mount := range model.Services[service].Volumes {
+			source := strings.TrimSpace(mount.Source)
+			if !strings.EqualFold(strings.TrimSpace(mount.Type), "volume") || source == "" {
+				continue
+			}
+			names = append(names, source)
+			if volume, ok := model.Volumes[source]; ok && strings.TrimSpace(volume.Name) != "" {
+				names = append(names, volume.Name)
+			}
+		}
+	}
+	for _, key := range SortedDockerComposeKeys(model.Volumes) {
+		names = append(names, key)
+		if name := strings.TrimSpace(model.Volumes[key].Name); name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}

@@ -711,6 +711,9 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 	if denied := dockerComposeOwnerDenial(preflight.protectedOwner(effective)); denied != "" {
 		return denied
 	}
+	if volume := dockerComposeAuraGoStateVolume(cfg, preflight.self, preflight.model, effective.model); volume != "" {
+		return dockerAgentError("docker_managed_aurago_resource", fmt.Sprintf("Docker Compose access to AuraGo's own data volume %q is blocked.", volume))
+	}
 	if len(effective.unverified) > 0 {
 		return dockerComposeProfileServiceUnverified(effective.unverified[0])
 	}

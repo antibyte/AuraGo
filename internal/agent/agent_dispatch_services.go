@@ -643,6 +643,18 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if dockerRequestMountsProtectedGaragePath(req.Volumes) {
 				return dockerAgentError("docker_managed_garage_resource", "AuraGo's managed Boring Computers Garage data paths cannot be mounted through the Docker agent tool.")
 			}
+			if cfg.Runtime.IsDocker && (len(req.Volumes) > 0 || dockerVolumeOperation(req.Operation)) {
+				// In a container AuraGo's data directory is a volume or a host
+				// directory; native installs never reach this check.
+				self := tools.DockerSelfIdentityFor(ctx, dockerCfg)
+				refused := dockerVolumeOperation(req.Operation) && tools.IsAuraGoStateVolume(req.Name, true, self)
+				for _, volume := range req.Volumes {
+					refused = refused || tools.DockerBindTouchesAuraGoState(volume, true, self)
+				}
+				if refused {
+					return dockerAgentError("docker_managed_aurago_resource", "AuraGo's own data volume and data directory cannot be mounted, created or removed through the Docker agent tool.")
+				}
+			}
 			if dockerProtectedLocalLLMVolumeName(req.Name) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`
 			}
@@ -1678,6 +1690,15 @@ func dockerRequestMountsProtectedGaragePath(volumes []string) bool {
 
 func dockerProtectedLocalLLMVolumeName(name string) bool {
 	return acestep.IsResourceName(name) || dockerutil.IsLocalLLMVolumeName(name)
+}
+
+// dockerVolumeOperation reports the volume operations whose name is a volume.
+func dockerVolumeOperation(operation string) bool {
+	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "create_volume", "remove_volume":
+		return true
+	}
+	return false
 }
 
 func dockerComposePayloadReferencesProtectedLocalLLM(payload string) bool {
