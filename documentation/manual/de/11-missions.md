@@ -198,7 +198,7 @@ Flows, die du in der Desktop-App **EasyDrag** baust, erscheinen in Mission Contr
 #### Läufe, Abbrechen und Grenzen
 
 - *Lauf abbrechen* in Mission Control funktioniert, solange ein Lauf des Flows läuft; die Aktion bricht diesen Lauf und die wartenden Läufe des Flows ab. Läufe, die nur warten (Mission Control zeigt den Flow dann noch als untätig), brichst du in der Lauf-Ansicht von EasyDrag ab.
-- Der Missionsverlauf behält bis zu 16 KiB vom Ergebnis eines Flow-Laufs.
+- Der Missionsverlauf behält bis zu 2000 Bytes vom Ergebnis eines Flow-Laufs (500 Bytes einer Fehlermeldung) und bis zu 16 KiB seiner Auslöser-Daten.
 - Webhook- und MQTT-Nachrichten über 1 MiB starten keinen Lauf (AuraGo protokolliert eine Warnung). Ein E-Mail-Text über 1 MiB wird gekürzt und als `truncated` markiert.
 - Ressourcen: Jeder laufende Flow kann im schlimmsten Fall etwa 0,5 GB Arbeitsspeicher belegen (alle Schritt-Ausgaben eines Laufs zusammen sind auf 32 MiB JSON begrenzt, was im Speicher etwa das 16-Fache belegen kann), dazu bis zu etwa 0,4 GB pro Tool-Aufruf, während eine große Tool-Antwort (höchstens 8 MiB) verarbeitet wird. `flows.max_parallel_runs` (Standard 8, höchstens 32) und `flows.max_parallel_nodes_per_run` (Standard 4, höchstens 16) vervielfachen das; halte beide auf kleinen Rechnern niedrig. Jeder Flow hält außerdem bis zu 40 wartende Läufe mit ihren Auslöser-Daten.
 - Das Dashboard zeigt die Zeitpläne von Flows in der Cron-Liste nur zum Lesen: EasyDrag verwaltet sie. Auch der Agent kann sie nicht ändern.

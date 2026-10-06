@@ -215,7 +215,7 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 #### Runs, cancelling and limits
 
 - *Cancel run* in Mission Control works while a run of the flow is running; it cancels that run and the flow's waiting runs. Runs that only wait (Mission Control still shows the flow as idle) are cancelled in the runs view of EasyDrag.
-- The mission history keeps up to 16 KiB of a flow run's result.
+- The mission history keeps up to 2000 bytes of a flow run's result (500 bytes of an error message) and up to 16 KiB of its trigger data.
 - Webhook and MQTT messages over 1 MiB start no run (a warning is logged). An email body over 1 MiB is cut and marked `truncated`.
 - Resources: each running flow can hold up to about 0.5 GB of memory in the worst case (all step outputs of a run together are capped at 32 MiB of JSON, which can take about 16 times that in memory), plus up to about 0.4 GB per tool call while a large tool answer (at most 8 MiB) is parsed. `flows.max_parallel_runs` (default 8, at most 32) and `flows.max_parallel_nodes_per_run` (default 4, at most 16) multiply this, so keep both low on small machines. Each flow also keeps up to 40 waiting runs with their trigger data.
 - The dashboard lists flow schedules among the cron jobs, read-only: they are managed by EasyDrag. The agent cannot change them either.
