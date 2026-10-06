@@ -159,14 +159,11 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		}
 	}
 
-	// 7. Get nest secret from vault
-	var secretBytes []byte
-	if nest.VaultSecretID != "" {
-		secretStr, err := s.Vault.ReadSecret(nest.VaultSecretID)
-		if err != nil {
-			return fmt.Errorf("failed to read nest secret: %w", err)
-		}
-		secretBytes = []byte(secretStr)
+	// 7. Get the transport credential from the vault: the nest secret, or the
+	// Docker TLS material of an encrypted docker_remote nest
+	secretBytes, err := s.invasionTransportSecret(nest)
+	if err != nil {
+		return fmt.Errorf("failed to read nest secret: %w", err)
 	}
 
 	// 8. Build deployment payload
@@ -419,11 +416,7 @@ func handleInvasionNestStop(s *Server) http.HandlerFunc {
 		}
 
 		// Also stop via connector (process/container level)
-		var secretBytes []byte
-		if nest.VaultSecretID != "" {
-			secretStr, _ := s.Vault.ReadSecret(nest.VaultSecretID)
-			secretBytes = []byte(secretStr)
-		}
+		secretBytes, _ := s.invasionTransportSecret(nest)
 
 		connector := invasion.GetConnector(nest)
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -862,11 +855,7 @@ func handleInvasionNestRollback(s *Server) http.HandlerFunc {
 			return
 		}
 
-		var secretBytes []byte
-		if nest.VaultSecretID != "" {
-			secretStr, _ := s.Vault.ReadSecret(nest.VaultSecretID)
-			secretBytes = []byte(secretStr)
-		}
+		secretBytes, _ := s.invasionTransportSecret(nest)
 
 		connector := invasion.GetConnector(nest)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -1013,16 +1002,12 @@ func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
 		// Mark revision as applying
 		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "applying", "")
 
-		// Get nest secret for connector
-		var secretBytes []byte
-		if nest.VaultSecretID != "" {
-			secretStr, err := s.Vault.ReadSecret(nest.VaultSecretID)
-			if err != nil {
-				_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "failed", "failed to read nest secret")
-				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest secret", "Safe reconfigure secret read failed", err, "nest_id", id)
-				return
-			}
-			secretBytes = []byte(secretStr)
+		// Get the transport credential for the connector
+		secretBytes, err := s.invasionTransportSecret(nest)
+		if err != nil {
+			_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "failed", "failed to read nest secret")
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest secret", "Safe reconfigure secret read failed", err, "nest_id", id)
+			return
 		}
 
 		warnPlaintextDockerRemote(s.Logger, nest, "safe_reconfigure")
@@ -1199,16 +1184,12 @@ func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 
 		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "applying", "")
 
-		// Get nest secret
-		var secretBytes []byte
-		if nest.VaultSecretID != "" {
-			secretStr, err := s.Vault.ReadSecret(nest.VaultSecretID)
-			if err != nil {
-				_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "failed", "failed to read nest secret")
-				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest secret", "Config rollback secret read failed", err, "nest_id", id)
-				return
-			}
-			secretBytes = []byte(secretStr)
+		// Get the transport credential for the connector
+		secretBytes, err := s.invasionTransportSecret(nest)
+		if err != nil {
+			_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "failed", "failed to read nest secret")
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest secret", "Config rollback secret read failed", err, "nest_id", id)
+			return
 		}
 
 		warnPlaintextDockerRemote(s.Logger, nest, "config_rollback")

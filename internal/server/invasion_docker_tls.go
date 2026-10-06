@@ -1,0 +1,145 @@
+package server
+
+import (
+	"encoding/json"
+	"errors"
+	"strings"
+
+	"aurago/internal/invasion"
+	"aurago/internal/security"
+)
+
+// nestDockerTLSRequest is embedded in the nest create and update requests.
+// DockerTLS is a pointer so an update that omits the field (an older client)
+// keeps the nest's current mode instead of downgrading it to plain HTTP.
+type nestDockerTLSRequest struct {
+	DockerTLS     *string `json:"docker_tls"`
+	DockerTLSCA   string  `json:"docker_tls_ca"`
+	DockerTLSCert string  `json:"docker_tls_cert"`
+	DockerTLSKey  string  `json:"docker_tls_key"`
+}
+
+// resolveNestDockerTLS decides a nest's TLS mode and vault material after a
+// create or update. Non-docker_remote nests always end in plain mode. Empty
+// PEM fields keep stored values. A nil material means "nothing to store".
+// Errors are client errors (HTTP 400).
+func resolveNestDockerTLS(deployMethod, currentMode string, stored invasion.DockerTLSMaterial, req nestDockerTLSRequest) (string, *invasion.DockerTLSMaterial, error) {
+	mode := strings.TrimSpace(currentMode)
+	if req.DockerTLS != nil {
+		mode = strings.TrimSpace(*req.DockerTLS)
+	}
+	ca := strings.TrimSpace(req.DockerTLSCA)
+	cert := strings.TrimSpace(req.DockerTLSCert)
+	key := strings.TrimSpace(req.DockerTLSKey)
+	if deployMethod != "docker_remote" {
+		if req.DockerTLS != nil && mode != invasion.DockerTLSOff {
+			return "", nil, errors.New("docker_tls requires deploy_method docker_remote")
+		}
+		if ca != "" || cert != "" || key != "" {
+			return "", nil, errors.New("docker_tls_ca, docker_tls_cert and docker_tls_key require deploy_method docker_remote")
+		}
+		return invasion.DockerTLSOff, nil, nil
+	}
+	if mode == invasion.DockerTLSOff {
+		if ca != "" || cert != "" || key != "" {
+			return "", nil, errors.New("docker_tls_ca, docker_tls_cert and docker_tls_key require docker_tls tls or mtls")
+		}
+		return invasion.DockerTLSOff, nil, nil
+	}
+	material := stored
+	if ca != "" {
+		material.CA = ca
+	}
+	if cert != "" {
+		material.Cert = cert
+	}
+	if key != "" {
+		material.Key = key
+	}
+	if mode == invasion.DockerTLSServer {
+		if cert != "" || key != "" {
+			return "", nil, errors.New("a client certificate requires docker_tls mtls")
+		}
+		material.Cert, material.Key = "", ""
+	}
+	if err := invasion.ValidateDockerTLS(mode, material); err != nil {
+		return "", nil, err
+	}
+	if material == (invasion.DockerTLSMaterial{}) {
+		return mode, nil, nil
+	}
+	return mode, &material, nil
+}
+
+// loadNestDockerTLS reads a nest's Docker TLS material; a missing entry is
+// empty material (TLS against the system roots).
+func (s *Server) loadNestDockerTLS(nestID string) (invasion.DockerTLSMaterial, error) {
+	var material invasion.DockerTLSMaterial
+	if s.Vault == nil {
+		return material, errors.New("vault is not available")
+	}
+	raw, err := s.Vault.ReadSecret(invasion.DockerTLSVaultKey(nestID))
+	if errors.Is(err, security.ErrSecretNotFound) {
+		return material, nil
+	}
+	if err != nil {
+		return material, err
+	}
+	// The JSON decoder's error can quote stored bytes, so it is not wrapped.
+	if err := json.Unmarshal([]byte(raw), &material); err != nil {
+		return invasion.DockerTLSMaterial{}, errors.New("stored Docker TLS material is unreadable")
+	}
+	return material, nil
+}
+
+func (s *Server) storeNestDockerTLS(nestID string, material invasion.DockerTLSMaterial) error {
+	if s.Vault == nil {
+		return errors.New("vault is not available")
+	}
+	raw, err := json.Marshal(material)
+	if err != nil {
+		return err
+	}
+	return s.Vault.WriteSecret(invasion.DockerTLSVaultKey(nestID), string(raw))
+}
+
+func (s *Server) deleteNestDockerTLS(nestID string) error {
+	if s.Vault == nil {
+		return nil
+	}
+	return s.Vault.DeleteSecret(invasion.DockerTLSVaultKey(nestID))
+}
+
+// applyNestDockerTLS writes changed material or removes material that is no
+// longer used. previous is what the vault held before the request.
+func (s *Server) applyNestDockerTLS(nestID string, previous invasion.DockerTLSMaterial, next *invasion.DockerTLSMaterial) error {
+	switch {
+	case next != nil && *next != previous:
+		return s.storeNestDockerTLS(nestID, *next)
+	case next == nil && previous != (invasion.DockerTLSMaterial{}):
+		return s.deleteNestDockerTLS(nestID)
+	}
+	return nil
+}
+
+// invasionTransportSecret returns the credential a nest's deploy transport
+// uses: the Docker TLS material for an encrypted docker_remote nest,
+// otherwise the nest's vault secret exactly as before (nil when none is
+// stored). Vault errors are returned unwrapped so callers keep their messages.
+func (s *Server) invasionTransportSecret(nest invasion.NestRecord) ([]byte, error) {
+	if invasion.DockerRemoteUsesTLS(nest) {
+		material, err := s.loadNestDockerTLS(nest.ID)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(material)
+	}
+	if nest.VaultSecretID == "" {
+		return nil, nil
+	}
+	secret, err := s.Vault.ReadSecret(nest.VaultSecretID)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(secret), nil
+}

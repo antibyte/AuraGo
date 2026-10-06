@@ -28,6 +28,12 @@ the Egg runtime in `cmd/aurago`.
 - SSH deployment and reconfiguration transmit secret-bearing file content over
   encrypted stdin with a fixed exec command. Publish private mode-0600 temporary
   files atomically as the configured SSH user; keep the last valid file on error.
+- `docker_remote` nests with an empty `docker_tls` keep plain HTTP (default port
+  2375). `tls`/`mtls` use HTTPS (default 2376), TLS 1.2+, the stored CA or system
+  roots and never skip verification; unusable material fails every request
+  instead of falling back to HTTP. PEMs live only in the vault under
+  `nest_docker_tls_<id>` (never DB, API responses or logs) and are removed with
+  the nest or when TLS is switched off. Updates without `docker_tls` keep the mode.
 
 ## Verification
 

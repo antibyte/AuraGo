@@ -141,6 +141,7 @@ There is **no Deployments tab**. Deployment history is available via the REST AP
 | Secret | SSH key or password; stored in vault (not returned by API) |
 | Assign Egg | Select an Egg or leave empty |
 | Deploy Method | `SSH`, `Docker (Remote)`, or `Docker (Local)` |
+| Docker TLS | `Docker (Remote)` only: `Off`, `TLS` or `Mutual TLS`, plus CA / client certificate / key |
 | Target Architecture | `linux/amd64` or `linux/arm64` |
 | Route | How the Egg reaches the master WebSocket |
 | Route Config | JSON, e.g. `{"tunnel_port":8443}` or a full WebSocket URL for `custom` |
@@ -186,14 +187,26 @@ Response:
 
 ### Transport security for Docker nests
 
-`Docker (Remote)` (`docker_remote`) talks to the Docker Engine API of the target over **plain HTTP** (default port `2375`). Every hatch and reconfigure copies the Egg's `config.yaml` into the container over that connection. The file contains the Egg shared key, the Egg vault key and, with `inherit_llm`, the master's LLM API key. Anyone who can read the traffic gets those secrets. Anyone who can reach the Engine port controls the remote Docker daemon, because an Engine without TLS does not authenticate callers.
+Without **Docker TLS** (the default, see below), `Docker (Remote)` (`docker_remote`) talks to the Docker Engine API of the target over **plain HTTP** (default port `2375`). Every hatch and reconfigure copies the Egg's `config.yaml` into the container over that connection. The file contains the Egg shared key, the Egg vault key and, with `inherit_llm`, the master's LLM API key. Anyone who can read the traffic gets those secrets. Anyone who can reach the Engine port controls the remote Docker daemon, because an Engine without TLS does not authenticate callers.
 
 Existing nests keep working. AuraGo warns about it in three places:
 - in the nest form
 - in the **Security Audit** panel of the configuration, as hint `invasion_docker_remote_plaintext`
 - in the log, on every hatch and reconfigure
 
-Use `Docker (Remote)` only on an isolated network, or deploy with the `SSH` method, which sends every file through the encrypted SSH connection.
+Use `Docker (Remote)` without TLS only on an isolated network, set **Docker TLS** on the nest, or deploy with the `SSH` method, which sends every file through the encrypted SSH connection.
+
+**Encrypted Docker (Remote).** Set **Docker TLS** on the nest:
+
+| Docker TLS | Effect |
+|------------|--------|
+| Off (default) | Plain HTTP as before, default port `2375` |
+| TLS | HTTPS. AuraGo verifies the Engine certificate against the CA you paste, or against the system certificates when the CA field is empty. Default port `2376` |
+| Mutual TLS | As TLS, and AuraGo also presents a client certificate and key: the `dockerd --tlsverify` setup |
+
+CA, client certificate and key are stored in the vault (`nest_docker_tls_<nest-id>`), never in the Invasion database, and the API never returns them. They are deleted with the nest or when TLS is switched off. AuraGo never skips certificate verification. `HTTPS_PROXY`/`HTTP_PROXY` apply as before; TLS then runs end to end through the proxy.
+
+REST fields: `docker_tls` (`""`, `"tls"`, `"mtls"`), `docker_tls_ca`, `docker_tls_cert`, `docker_tls_key`. An update without `docker_tls` keeps the current mode; empty PEM fields keep the stored material.
 
 ---
 
@@ -553,7 +566,7 @@ See [Chapter 22: Internal Tools](22-internal-tools.md) for full parameter detail
 ### Connection refused / timeout
 
 1. Verify the target is reachable (`ping`, `ssh`)
-2. Check firewall rules and correct port (22 for SSH, 2375 for Docker API)
+2. Check firewall rules and correct port (22 for SSH, 2375 for Docker API, 2376 for Docker API with TLS)
 3. Run **Test Connection** or `POST .../validate`
 4. For SSH nests, ensure a secret is configured
 
@@ -608,7 +621,7 @@ and reconfiguration send private files over encrypted stdin and publish them ato
 > - `inherit_llm` copies the master's API key into the Egg config — the Egg host must be trusted
 > - Use `invasion_control.readonly: true` for monitoring-only setups
 > - Rotate shared keys with `/rotate-key` if compromise is suspected
-> - `Docker (Remote)` over plain HTTP sends Egg secrets in clear text; use it only on isolated networks
+> - `Docker (Remote)` over plain HTTP sends Egg secrets in clear text; use it only on isolated networks or set Docker TLS
 
 ---
 

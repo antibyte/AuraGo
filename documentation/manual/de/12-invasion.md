@@ -141,6 +141,7 @@ Es gibt **keinen Deployments-Tab**. Deployment-Historie ist nur über die REST A
 | Secret | SSH-Key oder Passwort; wird im Vault gespeichert |
 | Assign Egg | Egg auswählen oder leer lassen |
 | Deploy Method | `SSH`, `Docker (Remote)` oder `Docker (Local)` |
+| Docker TLS | Nur `Docker (Remote)`: `Aus`, `TLS` oder `Mutual TLS`, dazu CA / Client-Zertifikat / Schlüssel |
 | Target Architecture | `linux/amd64` oder `linux/arm64` |
 | Route | Wie das Egg den Master-WebSocket erreicht |
 | Route Config | JSON, z. B. `{"tunnel_port":8443}` oder volle WebSocket-URL bei `custom` |
@@ -176,14 +177,26 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/validate
 
 ### Transportsicherheit für Docker-Nests
 
-`Docker (Entfernt)` (`docker_remote`) spricht die Docker-Engine-API des Ziels über **unverschlüsseltes HTTP** an (Standardport `2375`). Jeder Hatch und jedes Reconfigure kopiert die `config.yaml` des Eggs über diese Verbindung in den Container. Die Datei enthält den Egg-Shared-Key, den Egg-Vault-Schlüssel und mit `inherit_llm` den LLM-API-Key des Masters. Wer den Verkehr mitlesen kann, erhält diese Secrets. Wer den Engine-Port erreicht, steuert den entfernten Docker-Daemon, weil eine Engine ohne TLS Aufrufer nicht authentifiziert.
+Ohne **Docker-TLS** (Standard, siehe unten) spricht `Docker (Entfernt)` (`docker_remote`) die Docker-Engine-API des Ziels über **unverschlüsseltes HTTP** an (Standardport `2375`). Jeder Hatch und jedes Reconfigure kopiert die `config.yaml` des Eggs über diese Verbindung in den Container. Die Datei enthält den Egg-Shared-Key, den Egg-Vault-Schlüssel und mit `inherit_llm` den LLM-API-Key des Masters. Wer den Verkehr mitlesen kann, erhält diese Secrets. Wer den Engine-Port erreicht, steuert den entfernten Docker-Daemon, weil eine Engine ohne TLS Aufrufer nicht authentifiziert.
 
 Bestehende Nests funktionieren weiter. AuraGo warnt an drei Stellen:
 - im Nest-Formular
 - im Bereich **Sicherheitsaudit** der Konfiguration, als Hinweis `invasion_docker_remote_plaintext`
 - im Log, bei jedem Hatch und Reconfigure
 
-Nutze `Docker (Entfernt)` nur in einem isolierten Netz oder deploye mit der Methode `SSH`, die alle Dateien über die verschlüsselte SSH-Verbindung überträgt.
+Nutze `Docker (Entfernt)` ohne TLS nur in einem isolierten Netz, setze **Docker-TLS** am Nest oder deploye mit der Methode `SSH`, die alle Dateien über die verschlüsselte SSH-Verbindung überträgt.
+
+**Verschlüsseltes Docker (Entfernt).** Setze **Docker-TLS** am Nest:
+
+| Docker-TLS | Wirkung |
+|------------|---------|
+| Aus (Standard) | Unverschlüsseltes HTTP wie bisher, Standardport `2375` |
+| TLS | HTTPS. AuraGo prüft das Engine-Zertifikat gegen die eingefügte CA oder, wenn das CA-Feld leer ist, gegen die Systemzertifikate. Standardport `2376` |
+| Mutual TLS | Wie TLS, zusätzlich legt AuraGo ein Client-Zertifikat mit Schlüssel vor: das Setup von `dockerd --tlsverify` |
+
+CA, Client-Zertifikat und Schlüssel liegen im Vault (`nest_docker_tls_<nest-id>`), nie in der Invasion-Datenbank, und die API gibt sie nie zurück. Sie werden mit dem Nest oder beim Abschalten von TLS gelöscht. AuraGo überspringt die Zertifikatsprüfung nie. `HTTPS_PROXY`/`HTTP_PROXY` gelten wie bisher; TLS läuft dann Ende-zu-Ende durch den Proxy.
+
+REST-Felder: `docker_tls` (`""`, `"tls"`, `"mtls"`), `docker_tls_ca`, `docker_tls_cert`, `docker_tls_key`. Ein Update ohne `docker_tls` behält den aktuellen Modus; leere PEM-Felder behalten das gespeicherte Material.
 
 ---
 
@@ -491,7 +504,7 @@ Details: [Kapitel 22: Interne Tools](./22-interne-tools.md)
 ### Verbindung verweigert / Timeout
 
 1. Ziel erreichbar? (`ping`, `ssh`)
-2. Firewall und Port prüfen (22 für SSH, 2375 für Docker API)
+2. Firewall und Port prüfen (22 für SSH, 2375 für Docker API, 2376 für Docker API mit TLS)
 3. **Test Connection** oder `POST .../validate` ausführen
 4. Bei SSH-Nests: Secret muss konfiguriert sein
 
@@ -546,7 +559,7 @@ Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
 > - `inherit_llm` kopiert den Master-API-Key in die Egg-Config — Egg-Host muss vertrauenswürdig sein
 > - `invasion_control.readonly: true` für reine Monitoring-Setups
 > - Bei Verdacht auf Kompromittierung Shared Keys mit `/rotate-key` rotieren
-> - `Docker (Entfernt)` über unverschlüsseltes HTTP sendet Egg-Secrets im Klartext; nutze es nur in isolierten Netzen
+> - `Docker (Entfernt)` über unverschlüsseltes HTTP sendet Egg-Secrets im Klartext; nutze es nur in isolierten Netzen oder setze Docker-TLS
 
 ---
 

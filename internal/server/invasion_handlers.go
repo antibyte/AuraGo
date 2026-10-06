@@ -69,6 +69,7 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 						LastHatchAt:      n.LastHatchAt,
 						DeployMethod:     n.DeployMethod,
 						TargetArch:       n.TargetArch,
+						DockerTLS:        n.DockerTLS,
 						Route:            n.Route,
 						RouteConfig:      n.RouteConfig,
 						DesiredConfigRev: n.DesiredConfigRev,
@@ -98,6 +99,7 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 				TargetArch   string `json:"target_arch"`
 				Route        string `json:"route"`
 				RouteConfig  string `json:"route_config"`
+				nestDockerTLSRequest
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
@@ -141,9 +143,20 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 					return
 				}
 			}
+			deployMethod := req.DeployMethod
+			if deployMethod == "" {
+				deployMethod = "ssh" // insertNest's default
+			}
+			tlsMode, tlsMaterial, err := resolveNestDockerTLS(deployMethod, invasion.DockerTLSOff, invasion.DockerTLSMaterial{}, req.nestDockerTLSRequest)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			if req.Port <= 0 {
-				switch req.AccessType {
-				case "docker":
+				switch {
+				case tlsMode != invasion.DockerTLSOff:
+					req.Port = 2376
+				case req.AccessType == "docker":
 					req.Port = 2375
 				default:
 					req.Port = 22
@@ -162,15 +175,17 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 				TargetArch:   req.TargetArch,
 				Route:        req.Route,
 				RouteConfig:  req.RouteConfig,
+				DockerTLS:    tlsMode,
 			}
 
+			id, err := invasion.CreateNest(s.InvasionDB, nest)
+			if err != nil {
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create nest", "Failed to create invasion nest", err)
+				return
+			}
+			hasSecret := false
 			// Store secret in vault if provided
 			if req.Secret != "" {
-				id, err := invasion.CreateNest(s.InvasionDB, nest)
-				if err != nil {
-					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create nest", "Failed to create invasion nest", err)
-					return
-				}
 				vaultKey := "nest_" + id
 				if err := s.Vault.WriteSecret(vaultKey, req.Secret); err != nil {
 					// Rollback: delete the nest
@@ -182,32 +197,25 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 				created, _ := invasion.GetNest(s.InvasionDB, id)
 				created.VaultSecretID = vaultKey
 				_ = invasion.UpdateNest(s.InvasionDB, created)
-
-				writeJSON(w, map[string]interface{}{
-					"id":          id,
-					"name":        req.Name,
-					"access_type": req.AccessType,
-					"host":        req.Host,
-					"port":        req.Port,
-					"has_secret":  true,
-					"active":      req.Active,
-				})
-			} else {
-				id, err := invasion.CreateNest(s.InvasionDB, nest)
-				if err != nil {
-					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create nest", "Failed to create invasion nest", err)
-					return
-				}
-				writeJSON(w, map[string]interface{}{
-					"id":          id,
-					"name":        req.Name,
-					"access_type": req.AccessType,
-					"host":        req.Host,
-					"port":        req.Port,
-					"has_secret":  false,
-					"active":      req.Active,
-				})
+				hasSecret = true
 			}
+			if err := s.applyNestDockerTLS(id, invasion.DockerTLSMaterial{}, tlsMaterial); err != nil {
+				if hasSecret {
+					_ = s.Vault.DeleteSecret("nest_" + id)
+				}
+				_ = invasion.DeleteNest(s.InvasionDB, id)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store nest TLS material", "Failed to store invasion nest Docker TLS material", err, "nest_id", id)
+				return
+			}
+			writeJSON(w, map[string]interface{}{
+				"id":          id,
+				"name":        req.Name,
+				"access_type": req.AccessType,
+				"host":        req.Host,
+				"port":        req.Port,
+				"has_secret":  hasSecret,
+				"active":      req.Active,
+			})
 
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -261,6 +269,7 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 				"hatch_error":   nest.HatchError,
 				"deploy_method": nest.DeployMethod,
 				"target_arch":   nest.TargetArch,
+				"docker_tls":    nest.DockerTLS,
 				"route":         nest.Route,
 				"route_config":  nest.RouteConfig,
 				"created_at":    nest.CreatedAt,
@@ -283,6 +292,7 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 				TargetArch   string `json:"target_arch"`
 				Route        string `json:"route"`
 				RouteConfig  string `json:"route_config"`
+				nestDockerTLSRequest
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
@@ -328,6 +338,22 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Nest not found", "Invasion nest lookup failed", err, "nest_id", id)
 				return
 			}
+			previousTLS := invasion.DockerTLSMaterial{}
+			if existing.DockerTLS != invasion.DockerTLSOff {
+				if previousTLS, err = s.loadNestDockerTLS(id); err != nil {
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest TLS material", "Invasion nest Docker TLS read failed", err, "nest_id", id)
+					return
+				}
+			}
+			deployMethod := req.DeployMethod
+			if deployMethod == "" {
+				deployMethod = "ssh" // scanNestRow reads an empty method as ssh
+			}
+			tlsMode, tlsMaterial, err := resolveNestDockerTLS(deployMethod, existing.DockerTLS, previousTLS, req.nestDockerTLSRequest)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 
 			existing.Name = req.Name
 			existing.Notes = req.Notes
@@ -341,6 +367,7 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			existing.TargetArch = req.TargetArch
 			existing.Route = req.Route
 			existing.RouteConfig = req.RouteConfig
+			existing.DockerTLS = tlsMode
 
 			// Update secret if provided (non-empty)
 			if req.Secret != "" {
@@ -350,6 +377,10 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 					return
 				}
 				existing.VaultSecretID = vaultKey
+			}
+			if err := s.applyNestDockerTLS(id, previousTLS, tlsMaterial); err != nil {
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store nest TLS material", "Invasion nest Docker TLS write failed", err, "nest_id", id)
+				return
 			}
 
 			if err := invasion.UpdateNest(s.InvasionDB, existing); err != nil {
@@ -368,6 +399,7 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 			if nest.VaultSecretID != "" {
 				_ = s.Vault.DeleteSecret(nest.VaultSecretID)
 			}
+			_ = s.deleteNestDockerTLS(id)
 			if err := invasion.DeleteNest(s.InvasionDB, id); err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete nest", "Failed to delete invasion nest", err, "nest_id", id)
 				return
@@ -459,16 +491,13 @@ func handleInvasionNestValidate(s *Server) http.HandlerFunc {
 // validateNestConnection tests connectivity to a nest using the appropriate
 // connector based on the nest's deploy_method.
 func validateNestConnection(nest invasion.NestRecord, s *Server) error {
-	// Read vault secret if needed (SSH deployments require credentials)
-	var secret []byte
-	if nest.VaultSecretID != "" {
-		sec, err := s.Vault.ReadSecret(nest.VaultSecretID)
-		if err != nil {
-			return fmt.Errorf("failed to read secret from vault: %w", err)
-		}
-		secret = []byte(sec)
-	} else if nest.DeployMethod == "ssh" {
+	// SSH deployments require credentials.
+	if nest.VaultSecretID == "" && nest.DeployMethod == "ssh" {
 		return fmt.Errorf("no SSH secret configured for this nest")
+	}
+	secret, err := s.invasionTransportSecret(nest)
+	if err != nil {
+		return fmt.Errorf("failed to read secret from vault: %w", err)
 	}
 
 	connector := invasion.GetConnector(nest)

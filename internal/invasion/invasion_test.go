@@ -1,10 +1,13 @@
 package invasion
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"aurago/internal/dbutil"
 )
 
 func tempDB(t *testing.T) string {
@@ -870,5 +873,93 @@ func TestPatchToJSON_JSONToPatch(t *testing.T) {
 	}
 	if got.Model == nil || *got.Model != "gpt-4o" {
 		t.Errorf("model = %+v, want 'gpt-4o'", got.Model)
+	}
+}
+
+func TestNestDockerTLSPersistsThroughEveryQuery(t *testing.T) {
+	db, err := InitDB(tempDB(t))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	plainID, err := CreateNest(db, NestRecord{Name: "plain", Active: true, DeployMethod: "docker_remote", Host: "10.0.0.5", Port: 2375})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tlsID, err := CreateNest(db, NestRecord{Name: "secure", Active: true, DeployMethod: "docker_remote", Host: "10.0.0.6", Port: 2376, DockerTLS: "tls"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := GetNest(db, plainID)
+	if err != nil || plain.DockerTLS != "" {
+		t.Fatalf("plain nest DockerTLS = %q, %v; want empty", plain.DockerTLS, err)
+	}
+	secure, err := GetNest(db, tlsID)
+	if err != nil || secure.DockerTLS != "tls" {
+		t.Fatalf("GetNest DockerTLS = %q, %v; want tls", secure.DockerTLS, err)
+	}
+	byName, err := GetNestByName(db, "secure")
+	if err != nil || byName.DockerTLS != "tls" {
+		t.Fatalf("GetNestByName DockerTLS = %q, %v; want tls", byName.DockerTLS, err)
+	}
+	for name, list := range map[string]func(*sql.DB) ([]NestRecord, error){"ListNests": ListNests, "ListActiveNests": ListActiveNests} {
+		nests, err := list(db)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		found := false
+		for _, n := range nests {
+			if n.ID == tlsID && n.DockerTLS == "tls" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("%s lost docker_tls for the TLS nest", name)
+		}
+	}
+	secure.DockerTLS = "mtls"
+	if err := UpdateNest(db, secure); err != nil {
+		t.Fatal(err)
+	}
+	if updated, _ := GetNest(db, tlsID); updated.DockerTLS != "mtls" {
+		t.Fatalf("UpdateNest DockerTLS = %q, want mtls", updated.DockerTLS)
+	}
+}
+
+func TestInitDBAddsDockerTLSToLegacyNests(t *testing.T) {
+	path := tempDB(t)
+	legacy, err := dbutil.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := legacy.Exec(`CREATE TABLE nests (
+		id TEXT PRIMARY KEY, name TEXT NOT NULL, notes TEXT DEFAULT '', access_type TEXT NOT NULL DEFAULT 'ssh',
+		host TEXT NOT NULL DEFAULT '', port INTEGER NOT NULL DEFAULT 22, username TEXT DEFAULT '',
+		vault_secret_id TEXT DEFAULT '', active INTEGER NOT NULL DEFAULT 1, egg_id TEXT DEFAULT '',
+		hatch_status TEXT DEFAULT 'idle', last_hatch_at TEXT DEFAULT '', hatch_error TEXT DEFAULT '',
+		route TEXT DEFAULT 'direct', route_config TEXT DEFAULT '', deploy_method TEXT DEFAULT 'ssh',
+		target_arch TEXT DEFAULT 'linux/amd64', created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := legacy.Exec(`INSERT INTO nests (id, name, host, port, deploy_method, created_at, updated_at)
+		VALUES ('12345678-abcd-ef12-3456-7890abcdef12', 'legacy', '10.0.0.5', 2375, 'docker_remote', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := legacy.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	db, err := InitDB(path)
+	if err != nil {
+		t.Fatalf("InitDB on a legacy DB: %v", err)
+	}
+	defer db.Close()
+	nest, err := GetNest(db, "12345678-abcd-ef12-3456-7890abcdef12")
+	if err != nil {
+		t.Fatalf("GetNest after migration: %v", err)
+	}
+	if nest.DockerTLS != "" || nest.DeployMethod != "docker_remote" || nest.Port != 2375 {
+		t.Fatalf("migrated nest = %+v, want plain docker_remote on 2375", nest)
 	}
 }

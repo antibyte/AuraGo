@@ -350,8 +350,8 @@ func (c *DockerConnector) Status(ctx context.Context, nest NestRecord, secret []
 }
 
 // httpClient returns the Engine client for one request. secret is the
-// operation's transport credential; the docker_remote and docker_local
-// transports do not need it.
+// operation's transport credential: the Docker TLS material (JSON) for an
+// encrypted docker_remote nest; plain docker_remote and docker_local ignore it.
 func (c *DockerConnector) httpClient(nest NestRecord, secret []byte) *http.Client {
 	isLocal := nest.DeployMethod == "docker_local"
 	if isLocal {
@@ -365,7 +365,45 @@ func (c *DockerConnector) httpClient(nest NestRecord, secret []byte) *http.Clien
 			}),
 		}
 	}
+	if DockerRemoteUsesTLS(nest) {
+		return &http.Client{Timeout: 30 * time.Second, Transport: dockerutil.NewVersionTransport(dockerRemoteTLSTransport(nest, secret))}
+	}
 	return &http.Client{Timeout: 30 * time.Second, Transport: dockerutil.NewVersionTransport(http.DefaultTransport)}
+}
+
+// dockerRemoteTLSTransport clones the default transport (keeping proxy-from-
+// environment exactly like plain docker_remote; CONNECT keeps TLS end to end)
+// and adds the nest's TLS settings. Unusable material yields a transport that
+// fails every request, so a TLS nest never falls back to plain HTTP.
+func dockerRemoteTLSTransport(nest NestRecord, secret []byte) http.RoundTripper {
+	var material DockerTLSMaterial
+	if len(bytes.TrimSpace(secret)) > 0 {
+		if err := json.Unmarshal(secret, &material); err != nil {
+			return failingDockerTransport{err: fmt.Errorf("docker TLS material for nest %s is unreadable", nest.ID)}
+		}
+	}
+	cfg, err := dockerTLSClientConfig(nest.DockerTLS, material)
+	if err != nil {
+		return failingDockerTransport{err: err}
+	}
+	var base *http.Transport
+	if defaultTransport, ok := http.DefaultTransport.(*http.Transport); ok {
+		base = defaultTransport.Clone()
+	} else {
+		base = &http.Transport{Proxy: http.ProxyFromEnvironment}
+	}
+	base.TLSClientConfig = cfg
+	return base
+}
+
+// failingDockerTransport refuses every request with a fixed error.
+type failingDockerTransport struct{ err error }
+
+func (t failingDockerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.Body != nil {
+		_ = req.Body.Close()
+	}
+	return nil, t.err
 }
 
 func dockerLocalHost() string {
@@ -379,11 +417,17 @@ func (c *DockerConnector) apiURL(nest NestRecord, path string) string {
 	if nest.DeployMethod == "docker_local" {
 		return fmt.Sprintf("http://localhost/%s%s", dockerAPIVersion, path)
 	}
-	port := nest.Port
+	scheme, port := "http", nest.Port
+	if DockerRemoteUsesTLS(nest) {
+		scheme = "https"
+		if port == 0 {
+			port = 2376
+		}
+	}
 	if port == 0 {
 		port = 2375
 	}
-	return fmt.Sprintf("http://%s:%d/%s%s", nest.Host, port, dockerAPIVersion, path)
+	return fmt.Sprintf("%s://%s:%d/%s%s", scheme, nest.Host, port, dockerAPIVersion, path)
 }
 
 // pullClient returns an HTTP client with an extended timeout suitable for
@@ -688,5 +732,5 @@ func GetConnector(nest NestRecord) NestConnector {
 // Docker Engine API over unencrypted HTTP. Hatch and reconfigure then send
 // the egg configuration, including its secrets, in clear text.
 func DockerRemotePlaintext(nest NestRecord) bool {
-	return nest.DeployMethod == "docker_remote"
+	return nest.DeployMethod == "docker_remote" && !DockerRemoteUsesTLS(nest)
 }
