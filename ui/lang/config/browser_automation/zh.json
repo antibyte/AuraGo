@@ -8,7 +8,7 @@
   "help.browser_automation.url": "CloakBrowser sidecar 服务的内部 URL。使用 Docker 容器名称或服务名称作为主机名（例如 http://browser-automation:7331）。",
   "help.browser_automation.container_name": "浏览器自动化边车的 Docker 容器名称。在您的 Docker 主机上必须唯一。",
   "help.browser_automation.image": "浏览器自动化边车的 Docker 镜像。从配置目录中的 Dockerfile 自动构建。",
-  "help.browser_automation.dockerfile_dir": "包含用于构建浏览器自动化镜像的 Dockerfile 的目录。默认为 AuraGo 安装目录。",
+  "help.browser_automation.dockerfile_dir": "包含 Dockerfile.browser_automation 和 browser_automation_sidecar 文件夹的目录，即 AuraGo 源码检出目录。相对路径以 AuraGo 的工作目录为基准。发布版安装不包含这些文件。请在此指定源码检出目录，或自行构建镜像。",
   "help.browser_automation.allowed_download_dir": "下载文件存储的目录。相对路径从 AuraGo 数据目录解析。",
   "help.browser_automation.screenshots_dir": "浏览器截图保存的目录。相对路径从 AuraGo 数据目录解析。",
   "help.browser_automation.session_ttl_minutes": "空闲浏览器会话自动关闭前的分钟数。默认：30 分钟。",

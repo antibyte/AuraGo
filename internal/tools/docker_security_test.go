@@ -241,7 +241,7 @@ func TestCLIBuildsRejectReadOnlyBeforeRunningDocker(t *testing.T) {
 	if err := buildAnsibleImage("aurago-ansible:test", t.TempDir(), logger); err == nil || !strings.Contains(err.Error(), "docker mutation is disabled") {
 		t.Fatalf("buildAnsibleImage() error = %v, want docker read-only denial", err)
 	}
-	if err := buildBrowserAutomationImage("aurago-browser:test", t.TempDir(), logger); err == nil || !strings.Contains(err.Error(), "docker mutation is disabled") {
+	if err := buildBrowserAutomationImage("aurago-browser:test", t.TempDir(), "", false, logger); err == nil || !strings.Contains(err.Error(), "docker mutation is disabled") {
 		t.Fatalf("buildBrowserAutomationImage() error = %v, want docker read-only denial", err)
 	}
 	sourcePath := filepath.Join(t.TempDir(), "space-agent")
