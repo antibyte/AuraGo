@@ -2849,6 +2849,19 @@ async function testContainersEmptyStateFollowsTheList() {
   assert.equal(emptyShown(), false, 'Docker disabled replaces the empty state');
 }
 
+async function testContainersResumeUnpausesAPausedContainer() {
+  const listed = [{ id: 'p1', names: ['/paused'], image: 'nginx', state: 'paused', status: 'Up 1 minute (Paused)' }];
+  const page = containersPage(request => request.url === '/api/containers'
+    ? { status: 200, body: { status: 'ok', containers: listed } }
+    : { status: 200, body: { status: 'ok', action: 'unpause' } });
+  await page.start();
+  const card = page.node('ct-grid').children[0].cardHTML;
+  assert.match(card, /containerAction\([^)]*'unpause'\)" data-i18n="containers\.btn_unpause"/);
+  assert.doesNotMatch(card, /'start'\)" data-i18n="containers\.btn_unpause"/, 'Docker refuses start on a paused container');
+  await page.run("containerAction('p1', 'unpause')");
+  assert.deepEqual(page.requests.filter(r => r.method === 'POST').map(r => r.url), ['/api/containers/p1/unpause']);
+}
+
 function listDesktopMainBundleParts() {
   const script = read('scripts/build-ui-bundles.js');
   const start = script.indexOf('const desktopMainParts = [');
@@ -2966,6 +2979,7 @@ const tests = [
   ['Containers SSE merge keeps flags and reloads unknown containers', testContainersSSEMergeKeepsFlagsAndReloadsUnknownContainers],
   ['Containers send confirm=protected only after the modal', testContainersSendConfirmProtectedOnlyAfterTheModal],
   ['Containers empty state follows the list', testContainersEmptyStateFollowsTheList],
+  ['Containers Resume unpauses a paused container', testContainersResumeUnpausesAPausedContainer],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];

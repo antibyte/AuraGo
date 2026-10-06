@@ -341,7 +341,7 @@ function renderCard(c) {
             <button class="btn btn-sm btn-primary" onclick="showTerminal(${safeID}, ${terminalName})" data-i18n="containers.btn_shell">⌨ Shell</button>`;
     } else if (isPaused) {
         actionBtns = `
-            <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'start')" data-i18n="containers.btn_unpause">▶ Resume</button>`;
+            <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'unpause')" data-i18n="containers.btn_unpause">▶ Resume</button>`;
     } else {
         actionBtns = `
             <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'start')" data-i18n="containers.btn_start">▶ Start</button>`;
