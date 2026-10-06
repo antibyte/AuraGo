@@ -9,7 +9,9 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/acestep"
@@ -340,6 +342,67 @@ func dockerEndpointAddresses(ctx context.Context, dockerHost string) ([]string, 
 	return out, nil
 }
 
+// The list path (GET /api/containers) reuses one Docker endpoint lookup for
+// containerEndpointCacheTTL and warns about a failed lookup once per failure
+// streak, then at most every containerEndpointWarnInterval. Terminal, update
+// and remove (classifyContainerForAction) always resolve again.
+const (
+	containerEndpointCacheTTL     = 30 * time.Second
+	containerEndpointWarnInterval = 10 * time.Minute
+)
+
+// containerEndpointNow is time.Now; tests move the clock.
+var containerEndpointNow = time.Now
+
+type containerEndpointLookupCache struct {
+	mu       sync.Mutex
+	host     string
+	addrs    []string
+	err      error
+	expires  time.Time
+	warnHost string
+	warnedAt time.Time
+}
+
+// listEndpointLookup is the lookup cache of the administrator list.
+var listEndpointLookup containerEndpointLookupCache
+
+// addresses returns the cached lookup for host, or resolves and caches it. A
+// lookup cut short by the caller's cancellation is not cached.
+func (c *containerEndpointLookupCache) addresses(ctx context.Context, host string) ([]string, error) {
+	now := containerEndpointNow()
+	c.mu.Lock()
+	if c.host == host && now.Before(c.expires) {
+		addrs, err := slices.Clone(c.addrs), c.err
+		c.mu.Unlock()
+		return addrs, err
+	}
+	c.mu.Unlock()
+	addrs, err := containerDockerEndpointAddresses(ctx, host)
+	if err != nil && ctx.Err() != nil {
+		return addrs, err
+	}
+	c.mu.Lock()
+	c.host, c.addrs, c.err, c.expires = host, slices.Clone(addrs), err, now.Add(containerEndpointCacheTTL)
+	if err == nil && c.warnHost == host {
+		c.warnHost = "" // the next failure starts a new streak and warns at once
+	}
+	c.mu.Unlock()
+	return addrs, err
+}
+
+// shouldWarn reports whether a failed lookup for host is logged now.
+func (c *containerEndpointLookupCache) shouldWarn(host string) bool {
+	now := containerEndpointNow()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.warnHost == host && now.Sub(c.warnedAt) < containerEndpointWarnInterval {
+		return false
+	}
+	c.warnHost, c.warnedAt = host, now
+	return true
+}
+
 // containerServesDockerEndpoint reports whether one of the container's network
 // addresses is an address AuraGo reaches its Docker endpoint at. Compose service
 // names and network aliases resolve alike; an endpoint reached through a
@@ -492,15 +555,16 @@ func adminContainerListJSON(ctx context.Context, s *Server, cfg tools.DockerConf
 	if failure != "" {
 		return failure
 	}
-	// Hostname, /proc and the endpoint lookup are read once per request.
+	// Hostname and /proc are read once per request; the endpoint lookup is
+	// shared between lists for containerEndpointCacheTTL.
 	self, shared := containerSelfInList(entries, readContainerSelfSignals(containerRuntimeIsDocker(s)))
-	endpoint, err := containerDockerEndpointAddresses(ctx, cfg.Host)
+	endpoint, err := listEndpointLookup.addresses(ctx, cfg.Host)
 	if err != nil {
 		// No endpoint container is marked; terminal, update and remove still
 		// classify their target and ask for a confirmation.
 		endpoint = nil
-		if s.Logger != nil {
-			s.Logger.Warn("[Containers] Docker endpoint lookup failed; no endpoint container marked", "error", err)
+		if s.Logger != nil && listEndpointLookup.shouldWarn(cfg.Host) {
+			s.Logger.Warn("[Containers] Docker endpoint lookup failed; no endpoint container marked", "error", err, "repeat_after", containerEndpointWarnInterval.String())
 		}
 	}
 	var out []adminContainerEntry

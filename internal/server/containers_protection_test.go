@@ -63,18 +63,20 @@ const selfMountinfoFixture = `1520 1351 0:132 / / rw,relatime master:612 - overl
 `
 
 func replaceContainerEndpointAddresses(addrs ...string) func() {
+	listEndpointLookup.reset()
 	old := containerDockerEndpointAddresses
 	containerDockerEndpointAddresses = func(context.Context, string) ([]string, error) { return addrs, nil }
-	return func() { containerDockerEndpointAddresses = old }
+	return func() { containerDockerEndpointAddresses = old; listEndpointLookup.reset() }
 }
 
 // replaceContainerEndpointFailure makes the Docker endpoint lookup fail.
 func replaceContainerEndpointFailure() func() {
+	listEndpointLookup.reset()
 	old := containerDockerEndpointAddresses
 	containerDockerEndpointAddresses = func(context.Context, string) ([]string, error) {
 		return nil, fmt.Errorf("lookup docker-proxy: server misbehaving")
 	}
-	return func() { containerDockerEndpointAddresses = old }
+	return func() { containerDockerEndpointAddresses = old; listEndpointLookup.reset() }
 }
 
 // newContainerDockerAPI serves a fake Docker Engine API and enables the Docker
