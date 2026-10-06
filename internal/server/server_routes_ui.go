@@ -356,11 +356,7 @@ func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, de
 		http.NotFound(w, r)
 		return true
 	}
-	info, err := os.Stat(fullAbs)
-	if err != nil || info.IsDir() {
-		return false
-	}
-	content, err := os.ReadFile(fullAbs)
+	content, info, err := readRootBoundFile(desktopDir, relPath)
 	if err != nil {
 		return false
 	}
@@ -475,12 +471,7 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 		http.NotFound(w, r)
 		return true
 	}
-	info, err := os.Stat(fullAbs)
-	if err != nil || info.IsDir() {
-		http.NotFound(w, r)
-		return true
-	}
-	content, err := os.ReadFile(fullAbs)
+	content, info, err := readRootBoundFile(desktopDir, relPath)
 	if err != nil {
 		http.NotFound(w, r)
 		return true
@@ -520,7 +511,7 @@ func inlineDesktopAppSiblingScripts(content []byte, indexFilePath string) []byte
 		if err != nil || !desktopPathWithinRoot(indexDirAbs, assetAbs) {
 			return match
 		}
-		data, err := os.ReadFile(assetAbs)
+		data, _, err := readRootBoundFile(indexDirAbs, src)
 		if err != nil || len(data) == 0 {
 			return match
 		}
@@ -1011,7 +1002,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		docDir = filepath.Join(s.Cfg.Directories.DataDir, "documents")
 	}
 	os.MkdirAll(docDir, 0755) // ensure directory exists
-	docHandler := http.StripPrefix("/files/documents/", http.FileServer(neuteredFileSystem{http.Dir(docDir)}))
+	docHandler := http.StripPrefix("/files/documents/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(docDir)}))
 	mux.HandleFunc("/files/documents/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "public, max-age=3600")
@@ -1028,7 +1019,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	// Serve agent audio files from data/audio directory
 	audioDir := filepath.Join(s.Cfg.Directories.DataDir, "audio")
 	os.MkdirAll(audioDir, 0755) // ensure directory exists
-	audioHandler := http.StripPrefix("/files/audio/", http.FileServer(neuteredFileSystem{http.Dir(audioDir)}))
+	audioHandler := http.StripPrefix("/files/audio/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(audioDir)}))
 	mux.HandleFunc("/files/audio/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -1037,7 +1028,8 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 
 	// Serve generated images from data directory
 	genImgDir := filepath.Join(s.Cfg.Directories.DataDir, "generated_images")
-	genImgHandler := http.StripPrefix("/files/generated_images/", http.FileServer(neuteredFileSystem{http.Dir(genImgDir)}))
+	_ = os.MkdirAll(genImgDir, 0o755)
+	genImgHandler := http.StripPrefix("/files/generated_images/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(genImgDir)}))
 	mux.HandleFunc("/files/generated_images/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -1047,7 +1039,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	// Serve generated videos from data directory
 	genVideoDir := filepath.Join(s.Cfg.Directories.DataDir, "generated_videos")
 	os.MkdirAll(genVideoDir, 0755)
-	genVideoHandler := http.StripPrefix("/files/generated_videos/", http.FileServer(neuteredFileSystem{http.Dir(genVideoDir)}))
+	genVideoHandler := http.StripPrefix("/files/generated_videos/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(genVideoDir)}))
 	mux.HandleFunc("/files/generated_videos/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -1057,7 +1049,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	// Serve launchpad icons from data directory
 	launchpadIconDir := filepath.Join(s.Cfg.Directories.DataDir, "launchpad_icons")
 	os.MkdirAll(launchpadIconDir, 0755)
-	launchpadIconHandler := http.StripPrefix("/files/launchpad_icons/", http.FileServer(neuteredFileSystem{http.Dir(launchpadIconDir)}))
+	launchpadIconHandler := http.StripPrefix("/files/launchpad_icons/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(launchpadIconDir)}))
 	mux.HandleFunc("/files/launchpad_icons/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -1067,7 +1059,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	// Serve stored Frigate snapshots, frames, and clips from data/frigate_media.
 	frigateMediaDir := filepath.Join(s.Cfg.Directories.DataDir, "frigate_media")
 	os.MkdirAll(frigateMediaDir, 0755)
-	frigateMediaHandler := http.StripPrefix("/files/frigate_media/", http.FileServer(neuteredFileSystem{http.Dir(frigateMediaDir)}))
+	frigateMediaHandler := http.StripPrefix("/files/frigate_media/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(frigateMediaDir)}))
 	mux.HandleFunc("/files/frigate_media/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -1077,7 +1069,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	// Serve only stored go2rtc snapshots; the adjacent sidecar config is never web-accessible.
 	go2RTCMediaDir := filepath.Join(s.Cfg.Directories.DataDir, "go2rtc", "snapshots")
 	os.MkdirAll(go2RTCMediaDir, 0750)
-	go2RTCMediaHandler := http.StripPrefix("/files/go2rtc/snapshots/", http.FileServer(neuteredFileSystem{http.Dir(go2RTCMediaDir)}))
+	go2RTCMediaHandler := http.StripPrefix("/files/go2rtc/snapshots/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(go2RTCMediaDir)}))
 	mux.HandleFunc("/files/go2rtc/snapshots/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=60")
@@ -1087,7 +1079,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	// Serve stored 3D printer snapshots from data/3d_printer_media.
 	threeDPrinterMediaDir := filepath.Join(s.Cfg.Directories.DataDir, "3d_printer_media")
 	os.MkdirAll(threeDPrinterMediaDir, 0755)
-	threeDPrinterMediaHandler := http.StripPrefix("/files/3d_printer_media/", http.FileServer(neuteredFileSystem{http.Dir(threeDPrinterMediaDir)}))
+	threeDPrinterMediaHandler := http.StripPrefix("/files/3d_printer_media/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(threeDPrinterMediaDir)}))
 	mux.HandleFunc("/files/3d_printer_media/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -1100,7 +1092,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		downloadsDir = filepath.Join(s.Cfg.Directories.DataDir, "downloads")
 	}
 	os.MkdirAll(downloadsDir, 0755)
-	downloadsHandler := http.StripPrefix("/files/downloads/", http.FileServer(neuteredFileSystem{http.Dir(downloadsDir)}))
+	downloadsHandler := http.StripPrefix("/files/downloads/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(downloadsDir)}))
 	mux.HandleFunc("/files/downloads/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -1113,7 +1105,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		desktopDir = filepath.Join(s.Cfg.Directories.WorkspaceDir, "virtual_desktop")
 	}
 	os.MkdirAll(desktopDir, 0755)
-	desktopFileHandler := http.StripPrefix("/files/desktop/", http.FileServer(neuteredFileSystem{http.Dir(desktopDir)}))
+	desktopFileHandler := http.StripPrefix("/files/desktop/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(desktopDir)}))
 	mux.HandleFunc("/files/desktop/", func(w http.ResponseWriter, r *http.Request) {
 		if !s.Cfg.VirtualDesktop.Enabled {
 			http.NotFound(w, r)
@@ -1150,7 +1142,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		desktopFileHandler.ServeHTTP(w, r)
 	})
 
-	fsHandler := http.StripPrefix("/files/", http.FileServer(neuteredFileSystem{http.Dir(s.Cfg.Directories.WorkspaceDir)}))
+	fsHandler := http.StripPrefix("/files/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(s.Cfg.Directories.WorkspaceDir)}))
 	mux.HandleFunc("/files/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		if isActiveContentExtension(r.URL.Path) {
