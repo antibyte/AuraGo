@@ -127,7 +127,8 @@ func TestRequestRejectsReservedKeyWithoutPrompt(t *testing.T) {
 }
 
 // System-managed vault prefixes can never be chosen for a prompted secret; the
-// remote enrollment sweep deletes anything under remote_enroll_key_.
+// remote enrollment sweep deletes anything under remote_enroll_key_, and the
+// egg handshake trusts egg_shared_<nest>_next/_prev as key candidates.
 func TestNormalizeVaultKeyRejectsReservedPrefixes(t *testing.T) {
 	for _, key := range []string{
 		"provider_main_api_key",
@@ -136,6 +137,9 @@ func TestNormalizeVaultKeyRejectsReservedPrefixes(t *testing.T) {
 		"REMOTE_ENROLL_KEY_0123456789ABCDEF",
 		"remote_enroll_key_x",
 		"__AURAGO_INTERNAL",
+		"egg_shared_key",
+		"EGG_SHARED_NEST1_NEXT",
+		"egg_shared_nest1_prev",
 	} {
 		if got, err := NormalizeVaultKey(key); err == nil {
 			t.Errorf("NormalizeVaultKey(%q) = %q, want a reserved-key error", key, got)

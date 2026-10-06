@@ -160,7 +160,7 @@ func NormalizeVaultKey(raw string) (string, error) {
 		return "", &OperationError{Code: ErrorKeyInvalid}
 	}
 	lower := strings.ToLower(key)
-	for _, prefix := range []string{"provider_", "oauth_", "remote_shared_key_", "remote_enroll_key_", "__aurago_"} {
+	for _, prefix := range []string{"provider_", "oauth_", "remote_shared_key_", "remote_enroll_key_", "egg_shared_", "__aurago_"} {
 		if strings.HasPrefix(lower, prefix) {
 			return "", &OperationError{Code: ErrorKeyInvalid}
 		}
