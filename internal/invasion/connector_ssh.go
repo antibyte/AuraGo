@@ -51,6 +51,13 @@ func shellPath(path string) string {
 	return shellQuote(path)
 }
 
+// sftpPath is the SFTP form of a "~/" path. SFTP does not expand "~"; a
+// relative path resolves against the directory the SFTP session starts in,
+// the login's home directory for OpenSSH, which shellPath writes as $HOME.
+func sftpPath(path string) string {
+	return strings.TrimPrefix(path, "~/")
+}
+
 func (c *SSHConnector) Validate(ctx context.Context, nest NestRecord, secret []byte) error {
 	output, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "echo ok")
 	if err != nil {
@@ -86,7 +93,7 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 
 	// 2. Transfer binary
 	remoteBinary := baseDir + "/aurago"
-	if err := sshTransferFile(ctx, nest.Host, nest.Port, nest.Username, secret, payload.BinaryPath, remoteBinary, "upload"); err != nil {
+	if err := sshTransferFile(ctx, nest.Host, nest.Port, nest.Username, secret, payload.BinaryPath, sftpPath(remoteBinary), "upload"); err != nil {
 		return configNotDelivered(fmt.Errorf("failed to transfer binary: %w", err))
 	}
 
@@ -107,7 +114,7 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 	// 4. Transfer resources.dat if available
 	if payload.ResourcesPkg != "" {
 		remoteRes := baseDir + "/resources.dat"
-		if err := sshTransferFile(ctx, nest.Host, nest.Port, nest.Username, secret, payload.ResourcesPkg, remoteRes, "upload"); err != nil {
+		if err := sshTransferFile(ctx, nest.Host, nest.Port, nest.Username, secret, payload.ResourcesPkg, sftpPath(remoteRes), "upload"); err != nil {
 			return fmt.Errorf("failed to transfer resources: %w", err)
 		}
 		// Unpack resources

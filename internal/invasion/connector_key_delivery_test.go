@@ -320,3 +320,25 @@ func TestSSHConnectorDeployRestartsAPermanentEggService(t *testing.T) {
 		}
 	}
 }
+
+func TestSSHConnectorDeployUploadsToHomeRelativeSFTPPaths(t *testing.T) {
+	var remotePaths []string
+	priorCommand, priorTransfer := sshRemoteCommand, sshTransferFile
+	t.Cleanup(func() { sshRemoteCommand, sshTransferFile = priorCommand, priorTransfer })
+	sshRemoteCommand = func(ctx context.Context, host string, port int, user string, secret []byte, cmd string, input ...io.Reader) (string, error) {
+		return "ok\n", nil
+	}
+	sshTransferFile = func(ctx context.Context, host string, port int, user string, secret []byte, localPath, remotePath, direction string, allowedRoot ...string) error {
+		remotePaths = append(remotePaths, remotePath)
+		return nil
+	}
+	if err := (&SSHConnector{}).Deploy(context.Background(), sshDeployTestNest(), []byte("secret"), sshDeployTestPayload()); err != nil {
+		t.Fatalf("Deploy: %v", err)
+	}
+	// SFTP does not expand "~"; OpenSSH's sftp-server resolves relative paths
+	// against the login's home directory, which the shell steps use as $HOME.
+	want := []string{".aurago-egg-12345678/aurago", ".aurago-egg-12345678/resources.dat"}
+	if strings.Join(remotePaths, ",") != strings.Join(want, ",") {
+		t.Fatalf("SFTP remote paths = %v, want %v", remotePaths, want)
+	}
+}
