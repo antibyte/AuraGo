@@ -163,8 +163,8 @@ The default proxy is attached to an internal `docker-control` network that is sh
 
 - `CONTAINERS=1` with `POST=1`: create, start, stop and remove managed sidecars, Software Store apps, Invasion Control eggs and the security proxy, and copy files into containers.
 - `IMAGES=1` with `POST=1`: pull and tag published images such as Code Studio, go2rtc, the local LLM runtime, Software Store apps and the security proxy.
-- `VOLUMES=1` and `NETWORKS=1`: model and app volumes, private Software Store networks and the browser automation network check.
-- `INFO=1` and `VERSION=1`: runtime inventory (including NVIDIA container runtime detection) and Engine API version negotiation.
+- `VOLUMES=1` and `NETWORKS=1`: model and app volumes, private Software Store networks, the browser automation network check and the security proxy's lookup of the network it shares with AuraGo.
+- `INFO=1` and `VERSION=1`: runtime inventory (including NVIDIA container runtime detection), Engine API version negotiation and the security proxy's Engine version check (Docker Engine 26 or newer for volume subpaths).
 - `EXEC=1`: the agent's Docker `exec` operation, the Homepage tool (file editing, git, build and deploy run inside the Homepage container), Code Studio exec and terminals, the built-in OpenSCAD compiler container, container terminals in the Web UI including the CommandCode Store terminal, and the security proxy reload.
 - `BUILD=0`: Docker build API access stays disabled. Code Studio and most managed sidecars pull published images. Images that AuraGo builds through the Engine API need `BUILD=1` or must already exist on the host:
   - the Homepage dev container image `aurago-homepage:latest`, which the Homepage tool builds on first use;

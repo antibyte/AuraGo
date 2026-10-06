@@ -1547,7 +1547,7 @@ Schutzschicht für öffentlich erreichbare AuraGo-Instanzen: TLS (Let's Encrypt 
 1. Öffne **Config → Integrationen → Security Proxy**.
 2. Aktiviere den Proxy und trage Domain, ACME-E-Mail und Ports ein.
 3. Aktiviere bei Bedarf Ratenbegrenzung, IP-Filter oder Basic Auth.
-4. Speichere. Das Aktivieren startet den Proxy. Nach späteren Änderungen drückst du **Neu laden** (oder **Starten**): Einstellungen aus der Config-UI oder dem Vault gelten beim nächsten Start oder Neuladen, ohne AuraGo neu zu starten.
+4. Speichere. Das Aktivieren startet den Proxy. Einstellungen aus der Config-UI oder dem Vault gelten beim nächsten Start oder Neuladen, ohne AuraGo neu zu starten. Nach Änderungen an Domain, E-Mail, Werten der Ratenbegrenzung, IP-Filter, Basic Auth oder zusätzlichen Routen drückst Du **Neu laden**. Nach Änderungen an den Ports, an `docker_host` oder an der Platzierung des Containers (Datenvolume, Bind-Mount oder Netzwerk von AuraGo) drückst Du **Starten**: Neu laden wendet nur das Caddyfile neu an und erstellt den Container nicht neu (siehe [Neu laden](#neu-laden)).
 
 ### Basic Auth
 Hinterlege das Konto im Vault als `proxy_basic_auth_user` und `proxy_basic_auth_pass`. AuraGo schreibt nur einen bcrypt-Hash des Passworts ins Caddyfile (Dateimodus 0600). Ist Basic Auth aktiv, fehlt aber eines der Secrets, startet der Proxy nicht und die UI nennt die fehlenden Secrets. Benutzernamen dürfen weder `:`, Anführungszeichen, Backslashes noch geschweifte Klammern enthalten; Passwörter dürfen höchstens 72 Byte lang sein.
@@ -1556,10 +1556,23 @@ Hinterlege das Konto im Vault als `proxy_basic_auth_user` und `proxy_basic_auth_
 Das offizielle Caddy-Image kennt keine Ratenbegrenzung. Ist sie aktiv, baut AuraGo einmalig das Image `aurago-proxy:ratelimit-<Version>` aus einem festen Caddy-Release und einem festen Modul `caddy-ratelimit` (Go-Modul-Prüfsummen werden verifiziert). Der Build braucht Docker-Build-Rechte und Internetzugang und dauert ein paar Minuten; spätere Starts verwenden das Image wieder. Jede Client-IP darf `burst` Anfragen innerhalb von `burst / requests_per_second` Sekunden senden (gleitendes Fenster): kurze Spitzen gehen durch, im Mittel bleibt es bei `requests_per_second`. Die Ratenbegrenzung greift vor Basic Auth und bremst so auch Passwortraten aus. Scheitert der Build, startet der Proxy nicht, ein laufender Proxy läuft weiter, und die UI erklärt, was fehlt.
 
 ### AuraGo in Docker (Compose)
-Läuft AuraGo selbst in einem Container, existieren seine Pfade und sein Containername nur innerhalb von Docker. Der Proxy bindet dann das Datenvolume von AuraGo ein (Docker Engine 26 oder neuer, für Volume-Unterpfade) oder dessen Bind-Mount-Datenverzeichnis, tritt dem nicht-internen Netzwerk von AuraGo bei (bei Compose das `default`-Netzwerk des Projekts) und erreicht AuraGo über den Containernamen. Ohne ein solches Netzwerk nutzt er `host.docker.internal` und den veröffentlichten Port von AuraGo. Der Socket-Proxy aus der Standard-Compose-Datei behält `BUILD=0`; für die Ratenbegrenzung setzt du dort `BUILD=1` beim Dienst `docker-proxy`. Da der Proxy-Container am Compose-Netzwerk hängt, drückst du **Entfernen**, bevor `docker compose down` dieses Netzwerk löscht.
+Läuft AuraGo selbst in einem Container, existieren seine Pfade und sein Containername nur innerhalb von Docker. Der Proxy bindet dann das Datenvolume von AuraGo ein (Docker Engine 26 oder neuer, für Volume-Unterpfade) oder dessen Bind-Mount-Datenverzeichnis, tritt dem nicht-internen Netzwerk von AuraGo bei (bei Compose das `default`-Netzwerk des Projekts) und erreicht AuraGo über den Containernamen. Ohne ein solches Netzwerk nutzt er `host.docker.internal` und den veröffentlichten Port von AuraGo. Da der Proxy-Container am Compose-Netzwerk hängt, drückst Du **Entfernen**, bevor `docker compose down` dieses Netzwerk löscht.
+
+Der Socket-Proxy aus der Standard-Compose-Datei behält `BUILD=0`, dort kann AuraGo das Image für die Ratenbegrenzung also nicht bauen. Entweder setzt Du `BUILD=1` beim Dienst `docker-proxy`, oder Du baust das Image einmalig auf dem Docker-Host. AuraGo verwendet ein vorhandenes Image mit genau diesem Tag wieder; er gehört zu den festen Caddy- und Modulversionen dieses AuraGo-Release:
+
+```bash
+docker build -t aurago-proxy:ratelimit-2.11.6-5625512f24f6 - <<'EOF'
+FROM caddy:2.11.6-builder AS builder
+RUN xcaddy build --with github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6
+FROM caddy:2.11.6
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+EOF
+```
+
+Ändert ein späteres AuraGo-Release diese Versionen, braucht es ein neues Image: Das Handbuch dieses Release zeigt den passenden Befehl, und das AuraGo-Log nennt den erwarteten Tag.
 
 ### Neu laden
-**Neu laden** schreibt das Caddyfile neu und führt `caddy reload` im Container aus. Lehnt Caddy die neue Konfiguration ab, arbeitet es mit der bisherigen weiter, AuraGo stellt das vorherige Caddyfile wieder her, und die UI verweist auf die Proxy-Logs. Das Ein- oder Ausschalten der Ratenbegrenzung wechselt das Image; Neu laden erstellt den Container dann neu.
+**Neu laden** schreibt das Caddyfile neu und führt `caddy reload` im Container aus. Lehnt Caddy die neue Konfiguration ab, arbeitet es mit der bisherigen weiter, AuraGo stellt das vorherige Caddyfile wieder her, und die UI verweist auf die Proxy-Logs. Das Ein- oder Ausschalten der Ratenbegrenzung wechselt das Image; Neu laden erstellt den Container dann neu. Sonst lässt Neu laden den Container, wie er ist: Portfreigaben, die Docker-Engine (`docker_host`) und die Platzierung (Mounts und Netzwerk) ändern sich erst, wenn **Starten** den Container entfernt und neu erstellt. Starten arbeitet mit der Engine aus dem aktuellen `docker_host`. Drücke deshalb **Entfernen**, bevor Du `docker_host` wechselst; sonst läuft der alte Proxy auf der bisherigen Engine weiter.
 
 ### YAML-Referenz
 ```yaml

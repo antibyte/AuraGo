@@ -249,5 +249,5 @@
   "backend.proxy_config_rejected": "Der Proxy hat die neuen Einstellungen abgelehnt und läuft mit den bisherigen weiter. Den Grund zeigen die Proxy-Logs.",
   "backend.proxy_docker_placement_failed": "AuraGo läuft in Docker, aber der Proxy kann das Datenvolume von AuraGo nicht nutzen. Dafür ist Docker Engine 26 oder neuer nötig, und das Datenverzeichnis von AuraGo muss auf einem Docker-Volume oder Bind-Mount liegen. Details stehen im AuraGo-Log.",
   "backend.proxy_not_running": "Der Security Proxy läuft nicht. Starte ihn zuerst.",
-  "backend.proxy_rate_limit_image_unavailable": "Für die Ratenbegrenzung braucht der Proxy ein Caddy-Image mit dem Modul caddy-ratelimit, das AuraGo nicht bauen konnte. Docker muss Image-Builds erlauben (bei Docker Compose: BUILD=1 beim Dienst docker-proxy) und das Internet erreichen. Alternativ schaltest du die Ratenbegrenzung aus. Details stehen im AuraGo-Log."
+  "backend.proxy_rate_limit_image_unavailable": "Für die Ratenbegrenzung braucht der Proxy ein Caddy-Image mit dem Modul caddy-ratelimit, das AuraGo nicht bauen konnte. Docker muss Image-Builds erlauben (bei Docker Compose: BUILD=1 beim Dienst docker-proxy) und das Internet erreichen. Alternativ schaltest Du die Ratenbegrenzung aus. Details stehen im AuraGo-Log."
 }
