@@ -233,21 +233,11 @@ func generateCYDToken() (string, error) {
 	return tokenPrefix + string(body), nil
 }
 
-// scopesExactlyCYD reports whether the scope set is the single device scope
-// "cyd". Only that set may use the short on-glass token.
+// scopesExactlyCYD reports whether the stored scope set is exactly ["cyd"].
+// Only that set may use the short on-glass token. The comparison is exact,
+// like Validate's scope check, so no other spelling gets a short token.
 func scopesExactlyCYD(scopes []string) bool {
-	seen := false
-	for _, s := range scopes {
-		switch strings.ToLower(strings.TrimSpace(s)) {
-		case "":
-			continue
-		case "cyd":
-			seen = true
-		default:
-			return false
-		}
-	}
-	return seen
+	return len(scopes) == 1 && scopes[0] == "cyd"
 }
 
 // NormalizeAPIToken strips grouping and ensures the aura_ prefix.

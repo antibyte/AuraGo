@@ -126,9 +126,10 @@ func TestScopesExactlyCYD(t *testing.T) {
 		want   bool
 	}{
 		{[]string{"cyd"}, true},
-		{[]string{" CYD "}, true},
-		{[]string{"cyd", ""}, true},
-		{[]string{"cyd", "cyd"}, true},
+		{[]string{" CYD "}, false},
+		{[]string{"CYD"}, false},
+		{[]string{"cyd", ""}, false},
+		{[]string{"cyd", "cyd"}, false},
 		{nil, false},
 		{[]string{""}, false},
 		{[]string{"admin"}, false},

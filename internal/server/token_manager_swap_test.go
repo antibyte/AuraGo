@@ -98,9 +98,9 @@ func TestCreateTokenValidatesScopes(t *testing.T) {
 		body    string
 		wantMsg string
 	}{
-		{`{"name":"x","scopes":["cyd","admin"]}`, "cyd scope cannot be combined"},
-		{`{"name":"x","scopes":["webhook","cyd"]}`, "cyd scope cannot be combined"},
-		{`{"name":"x","scopes":["cyd","cyd"]}`, "cyd scope cannot be combined"},
+		{`{"name":"x","scopes":["cyd","admin"]}`, "cyd scope must be the token's only scope"},
+		{`{"name":"x","scopes":["webhook","cyd"]}`, "cyd scope must be the token's only scope"},
+		{`{"name":"x","scopes":["cyd","cyd"]}`, "cyd scope must be the token's only scope"},
 		{`{"name":"x","scopes":["root"]}`, `unknown token scope "root"`},
 		{`{"name":"x","scopes":["read","write"]}`, `unknown token scope "read"`},
 		{`{"name":"x","scopes":["Admin"]}`, `unknown token scope "Admin"`},

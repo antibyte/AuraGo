@@ -1630,15 +1630,24 @@ Content-Type: application/json
 }
 ```
 
-`scopes` ist standardmäßig `["webhook"]`. Erlaubt sind `admin`, `webhook`, `cyd`, `go2rtc.view`, `desktop:read`, `desktop:write`, `desktop:admin`, `desktop:remote`, `desktop:remote:device:<id>` und `desktop:remote:tag:<tag>`; unbekannte Scopes werden mit 400 abgelehnt, und `cyd` (der kurze Code für das Display-Glas) gilt nur für das Gerät und lässt sich nicht mit anderen Scopes kombinieren.
+`scopes` ist standardmäßig `["webhook"]`. Erlaubt sind `admin`, `webhook`, `cyd`, `go2rtc.view`, `desktop:read`, `desktop:write`, `desktop:admin`, `desktop:remote`, `desktop:remote:device:<id>` und `desktop:remote:tag:<tag>`; unbekannte Scopes werden mit 400 abgelehnt, und `cyd` (der kurze Code für das Display-Glas) gilt nur für das Gerät und muss der einzige Scope des Tokens sein.
 
-**Antwort:**
+**Antwort** (`201 Created`):
 ```json
 {
-  "id": "token-001",
-  "token": "agt_xxxxxxxxxxxxxxxx"
+  "token": "aura_<32 Hex-Zeichen>",
+  "meta": {
+    "id": "7e9df65a-9677-482d-a0ab-5588a3ba8069",
+    "name": "API-Zugriff",
+    "prefix": "aura_3f2...",
+    "scopes": ["desktop:read"],
+    "created_at": "2026-10-06T06:35:08Z",
+    "enabled": true
+  }
 }
 ```
+
+`token` wird nur einmal angezeigt. `meta.expires_at` erscheint, wenn `expires_at` gesetzt wurde. Ein `cyd`-Code liefert zusätzlich `display` (die neun Zeichen als `XXX XXX XXX`) und `prefix` (`"aura_"`); sein `meta.prefix` ist `aura_...`.
 
 ### Token verwalten
 ```http
