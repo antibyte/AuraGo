@@ -675,7 +675,7 @@
   "easydrag.ui.run_cancel": "Ferma",
   "easydrag.ui.run_done": "Esecuzione completata correttamente",
   "easydrag.ui.run_failed": "Esecuzione non riuscita",
-  "easydrag.ui.run_failed_at": "Fallita al passo {node}",
+  "easydrag.ui.run_failed_at": "Non riuscita al passo {node}",
   "easydrag.ui.run_mode_live": "Reale",
   "easydrag.ui.run_mode_test": "Prova",
   "easydrag.ui.run_now": "Esegui ora",

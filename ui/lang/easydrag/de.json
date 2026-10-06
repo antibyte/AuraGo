@@ -410,7 +410,7 @@
   "easydrag.ui.error_flow_name_required": "Gib dem Flow einen Namen.",
   "easydrag.ui.error_flow_no_trigger": "Der Flow hat keinen Auslöser.",
   "easydrag.ui.error_flow_node_abandoned": "Der Schritt hat nach dem Ende des Laufs nicht aufgehört.",
-  "easydrag.ui.error_flow_node_failed": "Der Schritt schlug fehl.",
+  "easydrag.ui.error_flow_node_failed": "Der Schritt ist fehlgeschlagen.",
   "easydrag.ui.error_flow_node_not_found": "Den Schritt gibt es nicht.",
   "easydrag.ui.error_flow_node_panic": "Der Schritt ist abgestürzt.",
   "easydrag.ui.error_flow_node_timeout": "Der Schritt hat zu lange gedauert.",
@@ -458,7 +458,7 @@
   "easydrag.ui.fields_add": "Feld hinzufügen",
   "easydrag.ui.file_placeholder": "Pfad im Workspace oder eine Datei aus einem früheren Schritt hineinziehen",
   "easydrag.ui.flow_concurrency": "Wenn ein Auslöser während eines Laufs feuert",
-  "easydrag.ui.flow_concurrency_help": "„Warteschlange“ wartet auf den laufenden Lauf, „Parallel ausführen“ startet einen weiteren, „Überspringen“ ignoriert den Auslöser.",
+  "easydrag.ui.flow_concurrency_help": "„Warteschlange“ wartet, bis der aktuelle Lauf fertig ist, „Parallel ausführen“ startet einen weiteren, „Überspringen“ ignoriert den Auslöser.",
   "easydrag.ui.flow_deleted_elsewhere": "Dieser Flow wurde gelöscht.",
   "easydrag.ui.flow_description": "Beschreibung",
   "easydrag.ui.flow_max_run": "Maximale Laufzeit",
@@ -772,8 +772,8 @@
   "easydrag.ui.wire_delete": "Verbindung entfernen",
   "easydrag.ui.wire_insert": "Schritt einfügen",
   "easydrag.ui.zoom_fit": "Alles zeigen",
-  "easydrag.ui.zoom_in": "Hineinzoomen",
+  "easydrag.ui.zoom_in": "Vergrößern",
   "easydrag.ui.zoom_label": "Zoom",
-  "easydrag.ui.zoom_out": "Herauszoomen",
+  "easydrag.ui.zoom_out": "Verkleinern",
   "easydrag.ui.zoom_reset": "Auf 100 % zoomen"
 }

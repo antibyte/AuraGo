@@ -696,7 +696,7 @@
   "easydrag.ui.save_failed": "Échec de l’enregistrement",
   "easydrag.ui.save_invalid": "Non enregistré – corrigez les erreurs",
   "easydrag.ui.save_now": "Enregistrer maintenant",
-  "easydrag.ui.save_offline": "Hors ligne – nouvelle tentative",
+  "easydrag.ui.save_offline": "Hors ligne – nouvel essai",
   "easydrag.ui.save_offline_hint": "Vos modifications restent sur cet appareil jusqu’à ce qu’AuraGo soit à nouveau joignable.",
   "easydrag.ui.save_saved": "Enregistré",
   "easydrag.ui.save_saving": "Enregistrement…",
