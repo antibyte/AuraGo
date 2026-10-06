@@ -266,6 +266,25 @@ func (m *Manager) startLocked(cfg *config.Config) error {
 // A native install bind-mounts host paths. When AuraGo runs in Docker the
 // proxy mounts AuraGo's own data volume or bind source and joins AuraGo's
 // network, because AuraGo's paths and container name mean nothing outside it.
+//
+// The official caddy image and the rate-limit image built FROM it have no
+// USER line, so Caddy runs as root; the container keeps root and only the
+// capabilities Caddy uses:
+//   - NET_BIND_SERVICE: /usr/bin/caddy in both images carries the file
+//     capability cap_net_bind_service=ep; without it in the bounding set the
+//     exec fails ("operation not permitted") on every engine. It also lets
+//     Caddy listen on 80/443 on engines that keep ip_unprivileged_port_start
+//     at 1024 (Docker before 20.10).
+//   - DAC_OVERRIDE: the Caddyfile (0600) and caddy_data/caddy_config (0750)
+//     belong to the AuraGo service user; without it container root can neither
+//     read the Caddyfile nor store certificates or autosave.json there.
+//   - CHOWN, FOWNER: keep root's ownership operations on files Caddy did not
+//     create itself, for example files an operator copied into caddy_data.
+//
+// no-new-privileges blocks setuid and file-capability gains; Caddy already
+// holds the capabilities above, so it loses nothing. The root filesystem stays
+// writable and no User is set: certificates written by earlier root containers
+// are root-owned 0600 and must stay readable.
 func securityProxyCreatePayload(image string, place placement, httpsPort, httpPort int) map[string]interface{} {
 	hostConfig := map[string]interface{}{
 		"PortBindings": map[string]interface{}{
@@ -278,6 +297,9 @@ func securityProxyCreatePayload(image string, place placement, httpsPort, httpPo
 		},
 		"RestartPolicy": map[string]string{"Name": "unless-stopped"},
 		"ExtraHosts":    []string{"host.docker.internal:host-gateway"},
+		"SecurityOpt":   []string{"no-new-privileges:true"},
+		"CapDrop":       []string{"ALL"},
+		"CapAdd":        []string{"NET_BIND_SERVICE", "DAC_OVERRIDE", "CHOWN", "FOWNER"},
 	}
 	payload := map[string]interface{}{
 		"Image": image,

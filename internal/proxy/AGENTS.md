@@ -55,6 +55,19 @@ section. Operator guidance lives in the Security Proxy section of
   `/etc` or `/hostfs` passes the create bind policy. Never trust any other
   bind; the Docker placement has only `Mounts`, so it trusts nothing. Every
   other proxy request stays on `engine.request` (`tools.DockerRequest`).
+- Hardening (K20): `securityProxyCreatePayload` keeps root, a writable root
+  filesystem and no `User` (earlier root containers left root-owned 0600
+  certificates), and sets `no-new-privileges:true`, `CapDrop: ALL` and
+  `CapAdd: NET_BIND_SERVICE, DAC_OVERRIDE, CHOWN, FOWNER` in every placement.
+  `NET_BIND_SERVICE` is needed even where unprivileged ports are allowed:
+  `/usr/bin/caddy` carries the file capability `cap_net_bind_service=ep` in
+  both images, and without it the exec fails. `DAC_OVERRIDE` reads the 0600
+  Caddyfile and writes the service user's 0750 `caddy_data`/`caddy_config`.
+  Verified live (Docker 29.8, `caddy:latest` v2.11.7 and the rate-limit
+  image): serving, certificate reuse after the old profile, `caddy reload`
+  and rate limiting. Re-run such a probe before changing the list or the
+  image base. An existing container gets the profile only when Start (or
+  Reload's image-change recreate) recreates it.
 - Lifecycle: `startLocked` generates the Caddyfile in memory first (credential
   errors come before any build or pull), then runs `ensureImage`, and only
   after that writes the Caddyfile and removes the old container. A failed

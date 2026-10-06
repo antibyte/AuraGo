@@ -1573,6 +1573,14 @@ EOF
 
 Ändert ein späteres AuraGo-Release diese Versionen, braucht es ein neues Image: Das Handbuch dieses Release zeigt den passenden Befehl, und das AuraGo-Log nennt den erwarteten Tag.
 
+### Container-Härtung
+Der Proxy-Container behält den root-Benutzer von Caddy und ein beschreibbares Root-Dateisystem, verwirft aber alle Linux-Capabilities außer den vier, die Caddy braucht, und setzt `no-new-privileges`:
+- `NET_BIND_SERVICE`: Das Programm `caddy` im offiziellen Image und im Image mit Ratenbegrenzung trägt diese Datei-Capability und startet ohne sie nicht. Außerdem erlaubt sie auf älteren Docker-Engines die Ports 80 und 443.
+- `DAC_OVERRIDE`: Das Caddyfile (Modus 0600) sowie `caddy_data` und `caddy_config` (Modus 0750) gehören dem Benutzer von AuraGo. Ohne sie kann Caddy weder seine Konfiguration lesen noch Zertifikate speichern.
+- `CHOWN` und `FOWNER`: Besitzänderungen an Dateien, die Caddy nicht selbst angelegt hat, zum Beispiel in `caddy_data` kopierte Zertifikate.
+
+Zertifikate, die ein früherer Proxy-Container gespeichert hat, bleiben in Gebrauch. Drückst Du **Starten**, bekommt ein Proxy-Container aus einer älteren AuraGo-Version dieses Profil; **Neu laden** behält den bestehenden Container.
+
 ### Neu laden
 **Neu laden** schreibt das Caddyfile neu und führt `caddy reload` im Container aus. Lehnt Caddy die neue Konfiguration ab, arbeitet es mit der bisherigen weiter, AuraGo stellt das vorherige Caddyfile wieder her, und die UI verweist auf die Proxy-Logs. Das Ein- oder Ausschalten der Ratenbegrenzung wechselt das Image; Neu laden erstellt den Container dann neu. Sonst lässt Neu laden den Container, wie er ist: Portfreigaben, die Docker-Engine (`docker_host`) und die Platzierung (Mounts und Netzwerk) ändern sich erst, wenn **Starten** den Container entfernt und neu erstellt. Starten arbeitet mit der Engine aus dem aktuellen `docker_host` (oder aus `docker.host`, solange `docker_host` leer ist). Erreicht ein neuer Wert einen anderen Docker-Daemon, drückst Du vor dem Wechsel **Entfernen**; sonst läuft der alte Proxy auf der bisherigen Engine weiter. Hast Du schon gewechselt, stellst Du den alten Wert wieder ein, drückst **Entfernen** und wechselst dann erneut (oder Du führst `docker rm -f aurago-security-proxy` auf der alten Engine aus).
 

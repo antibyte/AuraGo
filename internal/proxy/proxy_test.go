@@ -236,6 +236,47 @@ func TestSecurityProxyCreatePayloadNativeIsUnchanged(t *testing.T) {
 	}
 }
 
+// TestSecurityProxyCreatePayloadIsHardened: Caddy keeps root and a writable
+// root filesystem but only the capabilities it uses, in every placement (K20).
+func TestSecurityProxyCreatePayloadIsHardened(t *testing.T) {
+	binds := []string{
+		"/srv/aurago/data/proxy/Caddyfile:/etc/caddy/Caddyfile",
+		"/srv/aurago/data/proxy/caddy_data:/data",
+		"/srv/aurago/data/proxy/caddy_config:/config",
+	}
+	mounts := []map[string]interface{}{
+		{"Type": "volume", "Source": "aurago_aurago_data", "Target": "/etc/caddy", "VolumeOptions": map[string]interface{}{"Subpath": "proxy"}},
+	}
+	for name, place := range map[string]placement{
+		"native":           {binds: binds, upstream: "172.17.0.1:8088"},
+		"AuraGo in Docker": {mounts: mounts, network: "aurago_default", upstream: "aurago:8088"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, image := range []string{imageName, rateLimitImageName} {
+				payload := securityProxyCreatePayload(image, place, 8443, 8080)
+				if _, ok := payload["User"]; ok {
+					t.Fatal("User must stay unset: certificates from earlier root containers are root-owned 0600")
+				}
+				hostConfig := payload["HostConfig"].(map[string]interface{})
+				if got := hostConfig["SecurityOpt"]; !reflect.DeepEqual(got, []string{"no-new-privileges:true"}) {
+					t.Fatalf("SecurityOpt = %#v", got)
+				}
+				if got := hostConfig["CapDrop"]; !reflect.DeepEqual(got, []string{"ALL"}) {
+					t.Fatalf("CapDrop = %#v", got)
+				}
+				if got := hostConfig["CapAdd"]; !reflect.DeepEqual(got, []string{"NET_BIND_SERVICE", "DAC_OVERRIDE", "CHOWN", "FOWNER"}) {
+					t.Fatalf("CapAdd = %#v", got)
+				}
+				for _, key := range []string{"ReadonlyRootfs", "Privileged"} {
+					if _, ok := hostConfig[key]; ok {
+						t.Fatalf("%s must stay unset", key)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestSecurityProxyCreatePayloadDockerJoinsAuraGoNetwork(t *testing.T) {
 	mounts := []map[string]interface{}{
 		{"Type": "volume", "Source": "aurago_aurago_data", "Target": "/etc/caddy", "VolumeOptions": map[string]interface{}{"Subpath": "proxy"}},
@@ -821,13 +862,14 @@ var homeInstallBinds = []string{
 	"/home/user/aurago/data/proxy/caddy_config:/config",
 }
 
-// nativeHomeCreateBody is the create body the proxy has always sent for the
-// /home/user/aurago install.
-const nativeHomeCreateBody = `{"ExposedPorts":{"443/tcp":{},"80/tcp":{}},"HostConfig":{"Binds":["/home/user/aurago/data/proxy/Caddyfile:/etc/caddy/Caddyfile","/home/user/aurago/data/proxy/caddy_data:/data","/home/user/aurago/data/proxy/caddy_config:/config"],"ExtraHosts":["host.docker.internal:host-gateway"],"PortBindings":{"443/tcp":[{"HostIp":"0.0.0.0","HostPort":"443"}],"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]},"RestartPolicy":{"Name":"unless-stopped"}},"Image":"aurago-proxy:latest"}`
+// nativeHomeCreateBody is the create body of the /home/user/aurago install:
+// the bytes the proxy sent before the trusted-bind routing (PX3), plus the K20
+// hardening (CapAdd, CapDrop, SecurityOpt).
+const nativeHomeCreateBody = `{"ExposedPorts":{"443/tcp":{},"80/tcp":{}},"HostConfig":{"Binds":["/home/user/aurago/data/proxy/Caddyfile:/etc/caddy/Caddyfile","/home/user/aurago/data/proxy/caddy_data:/data","/home/user/aurago/data/proxy/caddy_config:/config"],"CapAdd":["NET_BIND_SERVICE","DAC_OVERRIDE","CHOWN","FOWNER"],"CapDrop":["ALL"],"ExtraHosts":["host.docker.internal:host-gateway"],"PortBindings":{"443/tcp":[{"HostIp":"0.0.0.0","HostPort":"443"}],"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]},"RestartPolicy":{"Name":"unless-stopped"},"SecurityOpt":["no-new-privileges:true"]},"Image":"aurago-proxy:latest"}`
 
-// composeCreateBody is the create body the proxy has always sent for the
-// default docker-compose.yml deployment.
-const composeCreateBody = `{"ExposedPorts":{"443/tcp":{},"80/tcp":{}},"HostConfig":{"ExtraHosts":["host.docker.internal:host-gateway"],"Mounts":[{"ReadOnly":true,"Source":"aurago_aurago_data","Target":"/etc/caddy","Type":"volume","VolumeOptions":{"Subpath":"proxy"}},{"Source":"aurago_aurago_data","Target":"/data","Type":"volume","VolumeOptions":{"Subpath":"proxy/caddy_data"}},{"Source":"aurago_aurago_data","Target":"/config","Type":"volume","VolumeOptions":{"Subpath":"proxy/caddy_config"}}],"NetworkMode":"aurago_default","PortBindings":{"443/tcp":[{"HostIp":"0.0.0.0","HostPort":"443"}],"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]},"RestartPolicy":{"Name":"unless-stopped"}},"Image":"aurago-proxy:latest","NetworkingConfig":{"EndpointsConfig":{"aurago_default":{}}}}`
+// composeCreateBody is the create body of the default docker-compose.yml
+// deployment: the bytes before PX3, plus the K20 hardening.
+const composeCreateBody = `{"ExposedPorts":{"443/tcp":{},"80/tcp":{}},"HostConfig":{"CapAdd":["NET_BIND_SERVICE","DAC_OVERRIDE","CHOWN","FOWNER"],"CapDrop":["ALL"],"ExtraHosts":["host.docker.internal:host-gateway"],"Mounts":[{"ReadOnly":true,"Source":"aurago_aurago_data","Target":"/etc/caddy","Type":"volume","VolumeOptions":{"Subpath":"proxy"}},{"Source":"aurago_aurago_data","Target":"/data","Type":"volume","VolumeOptions":{"Subpath":"proxy/caddy_data"}},{"Source":"aurago_aurago_data","Target":"/config","Type":"volume","VolumeOptions":{"Subpath":"proxy/caddy_config"}}],"NetworkMode":"aurago_default","PortBindings":{"443/tcp":[{"HostIp":"0.0.0.0","HostPort":"443"}],"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]},"RestartPolicy":{"Name":"unless-stopped"},"SecurityOpt":["no-new-privileges:true"]},"Image":"aurago-proxy:latest","NetworkingConfig":{"EndpointsConfig":{"aurago_default":{}}}}`
 
 func TestInstallBindFixturesMatchNativePlacement(t *testing.T) {
 	if runtime.GOOS == "windows" {

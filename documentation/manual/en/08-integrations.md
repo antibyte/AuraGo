@@ -1921,6 +1921,14 @@ EOF
 
 A later AuraGo release that changes the pins needs a new image: the manual of that release shows the matching command, and the AuraGo log names the tag it expects.
 
+### Container Hardening
+The proxy container keeps Caddy's root user and a writable root filesystem, but drops every Linux capability except the four Caddy needs and sets `no-new-privileges`:
+- `NET_BIND_SERVICE`: the `caddy` binary of the official image and of the rate-limit image carries this file capability and does not start without it. It also allows ports 80 and 443 on older Docker engines.
+- `DAC_OVERRIDE`: the Caddyfile (mode 0600) and `caddy_data` and `caddy_config` (mode 0750) belong to AuraGo's user. Without it Caddy can neither read its configuration nor store certificates.
+- `CHOWN` and `FOWNER`: ownership changes on files Caddy did not create itself, for example certificates copied into `caddy_data`.
+
+Certificates an earlier proxy container stored stay in use. A proxy container created by an earlier AuraGo version gets this profile at the next **Start**; **Reload** keeps the existing container.
+
 ### Reload
 **Reload** rewrites the Caddyfile and runs `caddy reload` in the container. If Caddy rejects the new configuration, it keeps serving the previous one, AuraGo restores the previous Caddyfile, and the UI points to the proxy logs. Turning rate limiting on or off changes the image, so Reload then recreates the container. Otherwise Reload keeps the container as it is: port mappings, the Docker engine (`docker_host`) and the placement (mounts and network) only change when **Start** removes and recreates the container. Start works on the engine in the current `docker_host` (or `docker.host` while `docker_host` is empty). When a new value reaches a different Docker daemon, press **Destroy** before you switch; otherwise the old proxy keeps running on the previous engine. If you already switched, set the old value back, press **Destroy**, then switch again (or run `docker rm -f aurago-security-proxy` on the old engine).
 
