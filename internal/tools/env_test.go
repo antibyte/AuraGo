@@ -5,20 +5,17 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"go/types"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"aurago/internal/config"
 	"aurago/internal/sandbox"
 )
 
@@ -127,187 +124,39 @@ func TestWithoutDockerClientEnvMatchesNamesCaseInsensitively(t *testing.T) {
 	}
 }
 
-// The Landlock sandbox gets its Docker endpoint from the ExtraEnv slice built
-// in cmd/aurago/main.go. The unsandboxed shell filter must hide every name that
-// slice injects, under the same gate: main.go appends only inside
-// `if cfg.Docker.Enabled`, and RuntimePermissionsFromConfig copies that flag
-// into the DockerEnabled field requireDockerPermission reads.
-func TestDockerClientEnvNamesCoverTheLandlockExtraEnvVariable(t *testing.T) {
-	mainPath := filepath.Join("..", "..", "cmd", "aurago", "main.go")
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, mainPath, nil, 0)
-	if err != nil {
-		t.Fatalf("parse %s: %v", mainPath, err)
-	}
-	scan := scanLandlockExtraEnv(fset, file)
-	for _, problem := range scan.problems {
-		t.Error(problem)
-	}
-	if scan.extraEnvFields != 1 {
-		t.Fatalf("expected exactly one ExtraEnv field in %s, found %d", mainPath, scan.extraEnvFields)
-	}
-	for _, name := range scan.injected {
-		if !dockerClientEnvNames[strings.ToUpper(name)] {
-			t.Errorf("main.go injects %s into the Landlock sandbox; add it to dockerClientEnvNames so unsandboxed shells hide it under the same gate", name)
+// Agent-controlled shells (shell.go: ExecuteShell, ExecuteShellBackground,
+// ExecuteSudo) and host Python (python.go) must stay on the shell env; the
+// integration env from ensureFilteredEnv or a direct sandbox.FilterEnv would
+// hand them the Docker endpoint again.
+func TestShellAndPythonEntryPointsDoNotUseIntegrationEnv(t *testing.T) {
+	for _, path := range []string{"shell.go", "python.go"} {
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", path, err)
 		}
-	}
-	if strings.Join(scan.injected, ",") != "DOCKER_HOST" {
-		t.Fatalf("Landlock ExtraEnv injects %v; expected only DOCKER_HOST (update dockerClientEnvNames and this test together)", scan.injected)
-	}
-
-	cfg := &config.Config{}
-	for _, enabled := range []bool{false, true} {
-		cfg.Docker.Enabled = enabled
-		if got := RuntimePermissionsFromConfig(cfg).DockerEnabled; got != enabled {
-			t.Fatalf("RuntimePermissionsFromConfig(docker.enabled=%v).DockerEnabled = %v; the shell filter gate must follow cfg.Docker.Enabled", enabled, got)
-		}
-	}
-}
-
-// The scanner above must flag what it guards against; checked on synthetic
-// sources so cmd/aurago/main.go itself is never weakened for the check.
-func TestScanLandlockExtraEnvFlagsUngatedAndUnreadableInjections(t *testing.T) {
-	cases := []struct {
-		name         string
-		body         string
-		wantInjected string
-		wantProblem  string
-	}{
-		{"gated", `if cfg.Docker.Enabled { extraEnv = append(extraEnv, "DOCKER_HOST="+host) }`, "DOCKER_HOST", ""},
-		{"other name is reported", `if cfg.Docker.Enabled { extraEnv = append(extraEnv, "DOCKER_TLS_VERIFY=1") }`, "DOCKER_TLS_VERIFY", ""},
-		{"ungated", `extraEnv = append(extraEnv, "DOCKER_HOST="+host)`, "DOCKER_HOST", "inside `if cfg.Docker.Enabled`"},
-		{"else branch", `if cfg.Docker.Enabled { } else { extraEnv = append(extraEnv, "DOCKER_HOST="+host) }`, "DOCKER_HOST", "inside `if cfg.Docker.Enabled`"},
-		{"other gate", `if cfg.Agent.AllowShell { extraEnv = append(extraEnv, "DOCKER_HOST="+host) }`, "DOCKER_HOST", "inside `if cfg.Docker.Enabled`"},
-		{"computed name", `if cfg.Docker.Enabled { extraEnv = append(extraEnv, name+"="+host) }`, "", "string literal"},
-		{"replaced slice", `if cfg.Docker.Enabled { extraEnv = other }`, "", "only grow through append"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			src := "package p\nfunc f() {\nvar extraEnv []string\n" + tc.body + "\nInit(Config{ExtraEnv: extraEnv})\n}\n"
-			fset := token.NewFileSet()
-			file, err := parser.ParseFile(fset, "synthetic.go", src, 0)
-			if err != nil {
-				t.Fatalf("parse synthetic source: %v", err)
-			}
-			scan := scanLandlockExtraEnv(fset, file)
-			if got := strings.Join(scan.injected, ","); got != tc.wantInjected {
-				t.Fatalf("injected = %q, want %q", got, tc.wantInjected)
-			}
-			problems := strings.Join(scan.problems, "\n")
-			if tc.wantProblem == "" && problems != "" {
-				t.Fatalf("unexpected problems: %s", problems)
-			}
-			if tc.wantProblem != "" && !strings.Contains(problems, tc.wantProblem) {
-				t.Fatalf("problems = %q, want one containing %q", problems, tc.wantProblem)
-			}
-		})
-	}
-
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "synthetic.go", "package p\nfunc f() { Init(Config{ExtraEnv: []string{\"DOCKER_HOST=x\"}}) }\n", 0)
-	if err != nil {
-		t.Fatalf("parse synthetic source: %v", err)
-	}
-	if scan := scanLandlockExtraEnv(fset, file); scan.extraEnvFields != 1 || !strings.Contains(strings.Join(scan.problems, "\n"), "must be the extraEnv slice") {
-		t.Fatalf("an inline ExtraEnv value must be flagged, got %+v", scan)
-	}
-}
-
-type landlockExtraEnvScan struct {
-	injected       []string
-	extraEnvFields int
-	problems       []string
-}
-
-// scanLandlockExtraEnv collects the names appended to extraEnv, counts the
-// ExtraEnv fields, and reports appends outside `if cfg.Docker.Enabled`, entries
-// without a "NAME=" literal prefix, and ExtraEnv values other than extraEnv.
-func scanLandlockExtraEnv(fset *token.FileSet, file *ast.File) landlockExtraEnvScan {
-	var scan landlockExtraEnvScan
-	var stack []ast.Node
-	ast.Inspect(file, func(n ast.Node) bool {
-		if n == nil {
-			stack = stack[:len(stack)-1]
-			return true
-		}
-		stack = append(stack, n)
-		if kv, ok := n.(*ast.KeyValueExpr); ok {
-			if key, ok := kv.Key.(*ast.Ident); ok && key.Name == "ExtraEnv" {
-				scan.extraEnvFields++
-				if value, ok := kv.Value.(*ast.Ident); !ok || value.Name != "extraEnv" {
-					scan.problems = append(scan.problems, fmt.Sprintf("%s: ExtraEnv must be the extraEnv slice, got %s", fset.Position(kv.Pos()), types.ExprString(kv.Value)))
+		shellEnvCalls := 0
+		ast.Inspect(file, func(n ast.Node) bool {
+			switch node := n.(type) {
+			case *ast.Ident:
+				if node.Name == "ensureFilteredEnv" {
+					t.Errorf("%s: %s must use ensureFilteredShellEnv, not ensureFilteredEnv", fset.Position(node.Pos()), path)
+				}
+			case *ast.SelectorExpr:
+				if pkg, ok := node.X.(*ast.Ident); ok && pkg.Name == "sandbox" && node.Sel.Name == "FilterEnv" {
+					t.Errorf("%s: %s must use ensureFilteredShellEnv, not sandbox.FilterEnv", fset.Position(node.Pos()), path)
+				}
+			case *ast.CallExpr:
+				if fn, ok := node.Fun.(*ast.Ident); ok && fn.Name == "ensureFilteredShellEnv" {
+					shellEnvCalls++
 				}
 			}
 			return true
-		}
-		assign, ok := n.(*ast.AssignStmt)
-		if !ok || len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
-			return true
-		}
-		if target, ok := assign.Lhs[0].(*ast.Ident); !ok || target.Name != "extraEnv" {
-			return true
-		}
-		position := fset.Position(assign.Pos())
-		call, isCall := assign.Rhs[0].(*ast.CallExpr)
-		if !isCall {
-			scan.problems = append(scan.problems, fmt.Sprintf("%s: extraEnv may only grow through append(extraEnv, \"NAME=\"+value)", position))
-			return true
-		}
-		if fn, isIdent := call.Fun.(*ast.Ident); !isIdent || fn.Name != "append" || len(call.Args) < 2 {
-			scan.problems = append(scan.problems, fmt.Sprintf("%s: extraEnv may only grow through append(extraEnv, \"NAME=\"+value)", position))
-			return true
-		}
-		for _, arg := range call.Args[1:] {
-			literal, ok := leftmostStringLiteral(arg)
-			name, _, hasValue := strings.Cut(literal, "=")
-			if !ok || !hasValue || name == "" {
-				scan.problems = append(scan.problems, fmt.Sprintf("%s: extraEnv entry %s must start with a \"NAME=\" string literal", position, types.ExprString(arg)))
-				continue
-			}
-			scan.injected = append(scan.injected, name)
-		}
-		if !insideIfBody(stack, assign, "cfg.Docker.Enabled") {
-			scan.problems = append(scan.problems, fmt.Sprintf("%s: extraEnv must only be extended inside `if cfg.Docker.Enabled`", position))
-		}
-		return true
-	})
-	return scan
-}
-
-// leftmostStringLiteral returns the unquoted string literal that starts expr,
-// following "literal" + value concatenations.
-func leftmostStringLiteral(expr ast.Expr) (string, bool) {
-	switch e := expr.(type) {
-	case *ast.BasicLit:
-		if e.Kind != token.STRING {
-			return "", false
-		}
-		value, err := strconv.Unquote(e.Value)
-		return value, err == nil
-	case *ast.BinaryExpr:
-		if e.Op != token.ADD {
-			return "", false
-		}
-		return leftmostStringLiteral(e.X)
-	case *ast.ParenExpr:
-		return leftmostStringLiteral(e.X)
-	}
-	return "", false
-}
-
-// insideIfBody reports whether node sits in the then-branch of an enclosing
-// if statement whose condition renders as cond.
-func insideIfBody(stack []ast.Node, node ast.Node, cond string) bool {
-	for _, ancestor := range stack {
-		ifStmt, ok := ancestor.(*ast.IfStmt)
-		if !ok || types.ExprString(ifStmt.Cond) != cond {
-			continue
-		}
-		if node.Pos() >= ifStmt.Body.Pos() && node.End() <= ifStmt.Body.End() {
-			return true
+		})
+		if shellEnvCalls == 0 {
+			t.Errorf("%s no longer calls ensureFilteredShellEnv; update this guard together with its entry points", path)
 		}
 	}
-	return false
 }
 
 func TestEnsureFilteredShellEnvDoesNotOverrideCallerEnv(t *testing.T) {

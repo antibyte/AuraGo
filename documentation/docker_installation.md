@@ -169,9 +169,21 @@ The default proxy is attached to an internal `docker-control` network that is sh
 
 `EXEC=1` can be set to `0` only when none of these features are used. Keep the `docker-control` network private and do not attach unrelated sidecars to it.
 
-The proxy image is pinned to a release tag plus its multi-arch digest (`tecnativa/docker-socket-proxy:v0.5.0@sha256:…`); when upgrading the proxy, change tag and digest together.
+The proxy image is pinned to a release tag plus its multi-arch index digest (`tecnativa/docker-socket-proxy:<tag>@sha256:<digest>`, the version pinned in `docker-compose.yml`); tag and digest always change together. The first `docker compose up -d` after an AuraGo upgrade that changes this image string recreates the `aurago_docker_proxy` container once; that is expected.
+
+To refresh the pin (maintainers):
+
+1. Pick the release tag (`vX.Y.Z`; never the moving `latest`, `master` or `nightly` tags) and read its index digest with `docker buildx imagetools inspect tecnativa/docker-socket-proxy:vX.Y.Z` (the `Digest:` line; no running Docker daemon is needed).
+2. Put `tecnativa/docker-socket-proxy:vX.Y.Z@sha256:<digest>` into the `docker-proxy` service in `docker-compose.yml` and run `docker compose -f docker-compose.yml config -q`.
+
+If the pinned digest ever disappears from Docker Hub, new installs fail to pull it with `manifest unknown`, while existing installs keep running from their cached image (only `docker compose pull` fails) until the pin is refreshed.
 
 The AuraGo container receives `DOCKER_HOST=tcp://docker-proxy:2375` for its Docker integrations. Shell commands (`execute_shell`, `execute_sudo`) and host Python run by the agent only see `DOCKER_HOST` and the other Docker client variables (`DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `DOCKER_API_VERSION`) while the Docker tool is enabled (`docker.enabled`). This hides the endpoint from agents without the Docker permission; it is not a network boundary, because the proxy stays reachable on the `docker-control` network from inside the AuraGo container. Skills (Python skills, daemon skills and Agent Skill scripts) still receive `DOCKER_HOST`: installed skills are treated as trusted, and the Docker manager skill template depends on it.
+
+Two caveats:
+
+- `docker.readonly` only restricts the Docker tool. With the Docker tool enabled in read-only mode, shells still see `DOCKER_HOST` and can do whatever the proxy allows (including `POST` and `EXEC` calls).
+- In direct-socket mode (below) hiding the variables achieves nothing: the docker CLI and Docker SDKs default to the mounted `/var/run/docker.sock` without any `DOCKER_HOST`.
 
 ### Switching to Direct Socket Access (NOT recommended)
 

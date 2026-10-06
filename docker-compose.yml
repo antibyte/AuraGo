@@ -363,7 +363,9 @@ services:
   #   - IMAGES=1 + POST=1 allow AuraGo to pull pinned managed sidecar images
   #     such as go2rtc, Code Studio, and the optional llama.cpp GPU embedding probes
   #   - BUILD=0 keeps Docker build API access disabled by default; prefer published images
-  #   - EXEC=1 allows DockerExec, Code Studio terminals, and security-proxy reloads
+  #   - EXEC=1 allows exec into AuraGo-managed containers (Docker tool exec, Homepage,
+  #     Code Studio, OpenSCAD, container terminals, code sandbox, proxy reloads);
+  #     see documentation/docker_installation.md §4 before setting 0
   #   - Together these grant significant control — keep the docker-control network private
   #
   # To switch to direct socket access (NOT recommended):
@@ -371,7 +373,8 @@ services:
   #   2. Change DOCKER_HOST in aurago service to: unix:///var/run/docker.sock
   #   3. Comment out the docker-proxy service below and remove the depends_on.
   docker-proxy:
-    # Pinned release tag plus multi-arch index digest; update both together.
+    # Pinned release tag plus multi-arch index digest; update both together
+    # (refresh procedure: documentation/docker_installation.md §4).
     image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
     container_name: aurago_docker_proxy
     restart: unless-stopped
@@ -391,7 +394,7 @@ services:
       - POST=1          # allow start/stop/restart/create (needed for managed sidecars and Invasion Control)
       - BUILD=0          # keep Docker build API access disabled by default; prefer published images
       - COMMIT=0
-      - EXEC=1          # allow DockerExec, Code Studio terminals, and security-proxy reloads
+      - EXEC=1          # exec into AuraGo-managed containers (Docker tool exec, Homepage, Code Studio, OpenSCAD, container terminals, code sandbox, proxy reloads); see documentation/docker_installation.md §4 before setting 0
       - SWARM=0
     healthcheck:
       # Enhanced healthcheck: verify both ping and container list API work

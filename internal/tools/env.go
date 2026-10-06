@@ -9,8 +9,8 @@ import (
 )
 
 // ensureFilteredEnv prevents child processes from inheriting host secrets by default.
-// Integrations that drive Docker themselves (Ansible local runs, MCP stdio,
-// image builds) use it and keep the Docker endpoint variables.
+// Default for integration and fixed-command subprocesses; agent-controlled
+// shells and host Python use ensureFilteredShellEnv.
 func ensureFilteredEnv(cmd *exec.Cmd) {
 	if cmd == nil || cmd.Env != nil {
 		return
@@ -57,6 +57,8 @@ func withoutDockerClientEnv(env []string) []string {
 }
 
 // ensureFilteredShellEnv applies filteredShellEnv unless the caller set cmd.Env.
+// Call it before Inject*Env; the injectors only set up their own env (the
+// integration env from ensureFilteredEnv) when cmd.Env is still nil.
 func ensureFilteredShellEnv(cmd *exec.Cmd) {
 	if cmd == nil || cmd.Env != nil {
 		return

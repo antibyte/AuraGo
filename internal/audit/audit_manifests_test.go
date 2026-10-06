@@ -936,14 +936,9 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 func TestDockerComposeProxySidecarHasHardening(t *testing.T) {
 	t.Parallel()
 
-	compose := readRepoFile(t, "docker-compose.yml")
-	proxyStart := strings.Index(compose, "\n  docker-proxy:")
-	if proxyStart < 0 {
+	proxyBlock := composeServiceBlock(readRepoFile(t, "docker-compose.yml"), "docker-proxy")
+	if proxyBlock == "" {
 		t.Fatal("docker-compose.yml must define the docker-proxy sidecar")
-	}
-	proxyBlock := compose[proxyStart:]
-	if volumesStart := strings.Index(proxyBlock, "\nvolumes:"); volumesStart >= 0 {
-		proxyBlock = proxyBlock[:volumesStart]
 	}
 	for _, needle := range []string{
 		"security_opt:",
@@ -965,32 +960,92 @@ func TestDockerComposeProxySidecarHasHardening(t *testing.T) {
 func TestDockerComposeProxyImageIsPinnedByTagAndDigest(t *testing.T) {
 	t.Parallel()
 
-	compose := readRepoFile(t, "docker-compose.yml")
-	proxyStart := strings.Index(compose, "\n  docker-proxy:")
-	if proxyStart < 0 {
+	proxyBlock := composeServiceBlock(readRepoFile(t, "docker-compose.yml"), "docker-proxy")
+	if proxyBlock == "" {
 		t.Fatal("docker-compose.yml must define the docker-proxy sidecar")
 	}
-	proxyBlock := compose[proxyStart:]
-	if volumesStart := strings.Index(proxyBlock, "\nvolumes:"); volumesStart >= 0 {
-		proxyBlock = proxyBlock[:volumesStart]
-	}
-	pinned := regexp.MustCompile(`(?m)^    image: tecnativa/docker-socket-proxy:v\d+\.\d+\.\d+@sha256:[0-9a-f]{64}\s*$`)
-	if !pinned.MatchString(proxyBlock) {
+	if !composeProxyImagePinned(proxyBlock) {
 		t.Fatal("docker-proxy image must be pinned as tecnativa/docker-socket-proxy:vX.Y.Z@sha256:<digest>")
+	}
+}
+
+var composeProxyPinnedImage = regexp.MustCompile(`(?m)^    image: tecnativa/docker-socket-proxy:v\d+\.\d+\.\d+@sha256:[0-9a-f]{64}\s*$`)
+
+func composeProxyImagePinned(serviceBlock string) bool {
+	return composeProxyPinnedImage.MatchString(serviceBlock)
+}
+
+// composeServiceBlock returns the named top-level compose service (key at
+// two-space indentation) up to the next line indented two spaces or less: the
+// next service, its header comment, or a top-level key such as volumes:. It
+// returns "" when the service is missing.
+func composeServiceBlock(compose, name string) string {
+	lines := strings.Split(strings.ReplaceAll(compose, "\r\n", "\n"), "\n")
+	start := -1
+	for i, line := range lines {
+		if strings.TrimRight(line, " \t") == "  "+name+":" {
+			start = i
+			break
+		}
+	}
+	if start < 0 {
+		return ""
+	}
+	end := len(lines)
+	for i := start + 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "" {
+			continue
+		}
+		if indent := len(lines[i]) - len(strings.TrimLeft(lines[i], " ")); indent <= 2 {
+			end = i
+			break
+		}
+	}
+	return strings.Join(lines[start:end], "\n")
+}
+
+func TestComposeServiceBlockStopsAtTheNextService(t *testing.T) {
+	t.Parallel()
+
+	const digest = "1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459"
+	compose := strings.Join([]string{
+		"services:",
+		"  docker-proxy:",
+		"    image: tecnativa/docker-socket-proxy",
+		"    environment:",
+		"      - EXEC=1",
+		"",
+		"  # a later service pins the same image",
+		"  other:",
+		"    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:" + digest,
+		"volumes:",
+		"  data:",
+	}, "\r\n")
+
+	proxyBlock := composeServiceBlock(compose, "docker-proxy")
+	if !strings.Contains(proxyBlock, "- EXEC=1") || strings.Contains(proxyBlock, "other:") {
+		t.Fatalf("docker-proxy block must end before the next service, got %q", proxyBlock)
+	}
+	if composeProxyImagePinned(proxyBlock) {
+		t.Fatal("a pinned image in a later service must not satisfy the docker-proxy pin check")
+	}
+	if !composeProxyImagePinned(composeServiceBlock(compose, "other")) {
+		t.Fatal("the later service's own block must still match the pin pattern")
+	}
+	if strings.Contains(composeServiceBlock(compose, "other"), "data:") {
+		t.Fatal("the last service block must end before top-level keys")
+	}
+	if composeServiceBlock(compose, "missing") != "" {
+		t.Fatal("a missing service must return an empty block")
 	}
 }
 
 func TestDockerComposeProxyDoesNotRequireCodeStudioImageBuilds(t *testing.T) {
 	t.Parallel()
 
-	compose := readRepoFile(t, "docker-compose.yml")
-	proxyStart := strings.Index(compose, "\n  docker-proxy:")
-	if proxyStart < 0 {
+	proxyBlock := composeServiceBlock(readRepoFile(t, "docker-compose.yml"), "docker-proxy")
+	if proxyBlock == "" {
 		t.Fatal("docker-compose.yml must define the docker-proxy sidecar")
-	}
-	proxyBlock := compose[proxyStart:]
-	if volumesStart := strings.Index(proxyBlock, "\nvolumes:"); volumesStart >= 0 {
-		proxyBlock = proxyBlock[:volumesStart]
 	}
 	if strings.Contains(proxyBlock, "- BUILD=1") {
 		t.Fatal("docker-proxy must not require Docker build API calls for the managed Code Studio image")

@@ -297,7 +297,7 @@ func createVenvContext(ctx context.Context, workspaceDir string, logger *slog.Lo
 		}
 		cmd := exec.CommandContext(ctx, pyCmd, "-m", "venv", "venv")
 		cmd.Dir = workspaceDir
-		ensureFilteredEnv(cmd)
+		ensureFilteredShellEnv(cmd)
 		runner := NewForegroundRunner(cmd, ForegroundOptions{Timeout: 2 * time.Minute, ScrubOutput: true})
 		out, errOut, err := runner.Run(ctx)
 		if err == nil {
