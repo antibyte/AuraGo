@@ -218,6 +218,15 @@ eq('free spot avoids overlap', G.freeSpot({ x: 0, y: 0 }, [{ x: 0, y: 0, w: 232,
     check('c1d02 refs flags unknown filters and argument counts', ['{{v | nope}}', '{{v | truncate}}', '{{v | upper(1)}}', '{{v | toString}}'].every(s => !!T.refs(s)[0].error));
     // values.go:57-66 and filters.go:285-291 use encoding/json, which sorts object keys by their bytes.
     eq('c1d02 json and text sort object keys', [T.applyFilter('json', data.v.obj, []), T.evaluate('x {{v.ik}}', data)], ['{"a":{"c":3,"d":2},"b":1}', 'x {"10":1,"9":2,"a":3}']);
+    // values.go:138-146 parses with time.ParseInLocation, which rejects impossible fields (filters.go:337-340 "not a date").
+    const notDate = s => { try { T.applyFilter('date', s, ['DD.MM.YYYY', 'UTC']); return false; } catch (err) { return /not a date/.test(err.message); } };
+    check('c1d02 date rejects impossible calendar fields', ['2026-02-30', '2026-02-29T07:30:00Z', '2026-04-31 10:00', '2026-01-01T24:00:00Z', '2026-13-01'].every(notDate));
+    eq('c1d02 date keeps real leap days', T.applyFilter('date', '2028-02-29T07:30:00Z', ['DD.MM.YYYY', 'UTC']), '29.02.2028');
+    // values.go:72-85 (encoding/json) escapes U+2028 and U+2029 even without HTML escaping.
+    const LS = String.fromCharCode(0x2028);
+    const PS = String.fromCharCode(0x2029);
+    const BS = String.fromCharCode(92);
+    eq('c1d02 json escapes line and paragraph separators', [T.applyFilter('json', { ['k' + LS]: 'a' + PS + 'b' }, []), T.evaluate('x {{v.o}}', { v: { o: ['a' + LS] } })], ['{"k' + BS + 'u2028":"a' + BS + 'u2029b"}', 'x ["a' + BS + 'u2028"]']);
 }
 
 if (failures) {

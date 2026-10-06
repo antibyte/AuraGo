@@ -257,6 +257,13 @@
         return a.length - b.length;
     }
 
+    // Go's encoder escapes the line and paragraph separators (U+2028, U+2029); JSON.stringify does not.
+    const LINE_SEPARATORS = new RegExp('[' + String.fromCharCode(0x2028, 0x2029) + ']', 'g');
+
+    function jsonString(s) {
+        return JSON.stringify(s).replace(LINE_SEPARATORS, ch => '\\' + 'u' + ch.charCodeAt(0).toString(16));
+    }
+
     // goJSON encodes lists and objects like Go's encoding/json (internal/flows/values.go
     // compactJSON): compact, no HTML escaping and object keys sorted.
     function goJSON(value) {
@@ -264,9 +271,9 @@
         if (Array.isArray(value)) return '[' + value.map(goJSON).join(',') + ']';
         if (typeof value === 'object') {
             return '{' + Object.keys(value).filter(k => value[k] !== undefined).sort(byCodePoint)
-                .map(k => JSON.stringify(k) + ':' + goJSON(value[k])).join(',') + '}';
+                .map(k => jsonString(k) + ':' + goJSON(value[k])).join(',') + '}';
         }
-        return JSON.stringify(value);
+        return typeof value === 'string' ? jsonString(value) : JSON.stringify(value);
     }
 
     function stringify(value) {
@@ -284,11 +291,23 @@
         return NaN;
     }
 
+    // validCalendar rejects impossible fields like Go's time.Parse ("2026-02-30", hour 24)
+    // instead of letting Date roll them over: the date must round-trip through a UTC Date
+    // (UTC has no DST gaps) and the time fields must be in range.
+    function validCalendar(s) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})(?:[Tt ](\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(s);
+        if (!m) return true;
+        const check = new Date(Date.UTC(2000, 0, 1));
+        check.setUTCFullYear(+m[1], +m[2] - 1, +m[3]);
+        return check.getUTCFullYear() === +m[1] && check.getUTCMonth() === +m[2] - 1 && check.getUTCDate() === +m[3]
+            && +(m[4] || 0) <= 23 && +(m[5] || 0) <= 59 && +(m[6] || 0) <= 59;
+    }
+
     function toDate(value) {
         if (value instanceof Date) return value;
         if (typeof value === 'number') return new Date(value > 1e12 ? value : value * 1000);
         const s = String(value || '').trim();
-        if (!s) return null;
+        if (!s || !validCalendar(s)) return null;
         const local = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(s);
         const date = local ? new Date(+local[1], +local[2] - 1, +local[3], +(local[4] || 0), +(local[5] || 0), +(local[6] || 0)) : new Date(s);
         return isNaN(date.getTime()) ? null : date;
@@ -309,6 +328,9 @@
         return String(pattern).replace(/YYYY|MM|DD|HH|mm|ss/g, tok => tokens[tok]);
     }
 
+    // strip_html decodes numeric entities and only these named ones: amp, lt, gt, quot, apos, nbsp.
+    // Go's html.UnescapeString also decodes all HTML5 names, the forms without ";", the
+    // windows-1252 mapping for &#128;-&#159;, and turns "&#x;" into U+FFFD.
     const NAMED_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 
     function decodeEntities(s) {
@@ -385,6 +407,7 @@
         // trim uses JavaScript's whitespace set, which differs from Go's strings.TrimSpace in U+0085 and U+FEFF.
         trim: { min: 0, max: 0, hint: '', fn: v => stringify(v).trim() },
         join: { min: 0, max: 1, hint: '(", ")', fn: (v, a) => Array.isArray(v) ? v.map(stringify).join(strArg(a, 0, ', ')) : stringify(v) },
+        // Other known, exotic differences: upper on polytonic Greek, truncate beyond 2^31, round on strings like "0x10" or "1_0", and long s (U+017F) or Kelvin sign (U+212A) case folding in strip_html.
         // split("") splits UTF-16 code units, so it breaks emoji apart; Go splits into whole characters.
         split: { min: 1, max: 1, hint: '(",")', fn: (v, a) => stringify(v).split(strArg(a, 0, ',')) },
         first: { min: 0, max: 0, hint: '', fn: v => Array.isArray(v) ? (v.length ? v[0] : null) : (typeof v === 'string' ? Array.from(v)[0] || '' : null) },
