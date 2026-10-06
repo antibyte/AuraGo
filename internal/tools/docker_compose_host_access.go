@@ -49,8 +49,8 @@ const (
 	// without host access, programs Compose runs on the host (providers,
 	// privileged hooks).
 	DockerComposeScopePull
-	// DockerComposeScopeLifecycle is `down`, `start`, `stop` and `restart`:
-	// without host access only the programs Compose runs on the host
+	// DockerComposeScopeLifecycle is `down`, `start`, `stop`, `restart` and
+	// `rm`: without host access only the programs Compose runs on the host
 	// (providers, privileged hooks).
 	DockerComposeScopeLifecycle
 )
@@ -558,9 +558,16 @@ func (e *dockerComposeEvaluation) checkLocalVolume(key string, volume DockerComp
 	field := "volumes." + key + ".driver_opts"
 	device := strings.TrimSpace(volume.DriverOpts["device"])
 	fsType := strings.ToLower(strings.TrimSpace(volume.DriverOpts["type"]))
-	switch {
-	case dockerComposeVolumeIsLocalBind(volume):
+	if dockerComposeVolumeIsLocalBind(volume) {
 		e.checkPath("", field+".device", device)
+		return
+	}
+	// Whatever the mount type, a device path inside AuraGo state is rejected.
+	if device != "" && dockerBindHostLooksLikePath(device) && e.isProtected(dockerComposePathVariants(device)) {
+		e.add("", field+".device", device, dockerComposeStateReason, true)
+		return
+	}
+	switch {
 	case device != "" && dockerComposePathContains("/dev", device):
 		e.host("", field+".device", device, "the volume mounts a host block device")
 	case fsType != "" && fsType != "none" && !dockerComposeNetworkFilesystems[fsType]:
@@ -569,7 +576,7 @@ func (e *dockerComposeEvaluation) checkLocalVolume(key string, volume DockerComp
 }
 
 // dockerComposeVolumeIsLocalBind reports a local-driver volume that binds a
-// host directory (driver_opts o=bind or type=none with a device).
+// host directory (driver_opts o=bind or rbind, or type=none with a device).
 func dockerComposeVolumeIsLocalBind(volume DockerComposeNamedVolume) bool {
 	driver := strings.ToLower(strings.TrimSpace(volume.Driver))
 	if driver != "" && driver != "local" {
@@ -579,7 +586,8 @@ func dockerComposeVolumeIsLocalBind(volume DockerComposeNamedVolume) bool {
 		return false
 	}
 	for _, option := range strings.Split(volume.DriverOpts["o"], ",") {
-		if strings.EqualFold(strings.TrimSpace(option), "bind") {
+		option = strings.TrimSpace(option)
+		if strings.EqualFold(option, "bind") || strings.EqualFold(option, "rbind") {
 			return true
 		}
 	}

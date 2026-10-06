@@ -53,8 +53,11 @@ func homeLabComposeFixtures() map[string]homeLabComposeFixture {
 			Privileged: true, Uts: "host", Cgroup: "host", Ipc: "host", UsernsMode: "host"}}), []string{"privileged", "uts", "cgroup", "ipc", "userns_mode"}},
 		"local bind volume": {DockerComposeModel{
 			Services: map[string]DockerComposeService{"backup": {Image: "restic/restic:0.17.1", Volumes: []DockerComposeMount{{Type: "volume", Source: "hostdata", Target: "/source"}}}},
-			Volumes:  map[string]DockerComposeNamedVolume{"hostdata": {Name: "backup_hostdata", Driver: "local", DriverOpts: map[string]string{"type": "none", "o": "bind", "device": "/srv/data"}}},
-		}, []string{"volumes.hostdata.driver_opts.device"}},
+			Volumes: map[string]DockerComposeNamedVolume{
+				"hostdata": {Name: "backup_hostdata", Driver: "local", DriverOpts: map[string]string{"type": "none", "o": "bind", "device": "/srv/data"}},
+				"photos":   {Name: "backup_photos", Driver: "local", DriverOpts: map[string]string{"o": "rbind", "device": "/srv/photos"}},
+			},
+		}, []string{"volumes.hostdata.driver_opts.device", "volumes.photos.driver_opts.device"}},
 		"cloud provider service": {composeServices(map[string]DockerComposeService{"database": {Provider: &DockerComposeProvider{Type: "awesomecloud"}}}), []string{"provider"}},
 		"watch outside the workspace": {composeServices(map[string]DockerComposeService{"web": {Image: "node:22",
 			Develop: &DockerComposeDevelop{Watch: []DockerComposeWatch{{Path: "/srv/src/web", Action: "sync"}}}}}), []string{"develop.watch"}},
@@ -215,6 +218,8 @@ func TestEvaluateDockerComposeHostAccessAlwaysRejectsAuraGoState(t *testing.T) {
 		"master key in label":  {model: single(DockerComposeService{Image: "x", Labels: map[string]string{"k": "prefix-" + masterKey}}), field: "labels.k"},
 		"master key build arg": {model: single(DockerComposeService{Image: "x", Build: &DockerComposeBuild{Context: "/srv/app", Args: map[string]*string{"K": &masterKey}}}), field: "build.args.K"},
 		"local bind of data":   {model: DockerComposeModel{Services: map[string]DockerComposeService{"app": {Image: "x"}}, Volumes: map[string]DockerComposeNamedVolume{"state": {Name: "s", Driver: "local", DriverOpts: map[string]string{"type": "none", "o": "bind", "device": dataDir}}}}, field: "volumes.state.driver_opts.device"},
+		"local rbind of data":  {model: DockerComposeModel{Services: map[string]DockerComposeService{"app": {Image: "x"}}, Volumes: map[string]DockerComposeNamedVolume{"state": {Name: "s", DriverOpts: map[string]string{"o": "rbind,ro", "device": dataDir}}}}, field: "volumes.state.driver_opts.device"},
+		"ext4 image in data":   {model: DockerComposeModel{Services: map[string]DockerComposeService{"app": {Image: "x"}}, Volumes: map[string]DockerComposeNamedVolume{"state": {Name: "s", Driver: "local", DriverOpts: map[string]string{"type": "ext4", "device": filepath.Join(dataDir, "disk.img")}}}}, field: "volumes.state.driver_opts.device"},
 		"watch of data dir":    {model: single(DockerComposeService{Image: "x", Develop: &DockerComposeDevelop{Watch: []DockerComposeWatch{{Path: dataDir, Action: "sync"}}}}), field: "develop.watch"},
 		"secret from env key":  {model: DockerComposeModel{Services: map[string]DockerComposeService{"app": {Image: "x"}}, Secrets: map[string]DockerComposeFileResource{"mk": {Environment: "AURAGO_MASTER_KEY"}}}, field: "secrets.mk.environment"},
 		"config content key":   {model: DockerComposeModel{Services: map[string]DockerComposeService{"app": {Image: "x"}}, Configs: map[string]DockerComposeFileResource{"c": {Content: "key=" + masterKey}}}, field: "configs.c.content"},
