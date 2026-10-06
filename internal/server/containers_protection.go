@@ -723,6 +723,10 @@ func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.Docker
 	self, shared := containerSelfInList(entries, signals)
 	p.Self = self[id]
 	p.SharedNetwork = shared[id]
+	if p.SharedNetwork && proveSelfInSharedGroup(ctx, cfg, containerRuntimeIsDocker(s), shared) == id {
+		// Proven by a signal that survives network sharing (containers_self_proof.go).
+		p.Self, p.SharedNetwork = true, false
+	}
 	return p
 }
 

@@ -33,6 +33,8 @@ func TestOwnOverlayUpperDirReadsTheRootOverlayMount(t *testing.T) {
 
 func upperDirSidecarAPI(t *testing.T, providerID, appID, providerDriver, appDriver string) string {
 	t.Helper()
+	resetContainerSelfProofCache()
+	t.Cleanup(resetContainerSelfProofCache)
 	provider := `{"Id":"` + providerID + `","Name":"/tailscale","Config":{"Labels":{}},"HostConfig":{"NetworkMode":"bridge"},` + providerDriver + `}`
 	app := `{"Id":"` + appID + `","Name":"/aurago","Config":{"Labels":{}},"HostConfig":{"NetworkMode":"container:` + providerID + `"},` + appDriver + `}`
 	return newContainerDockerAPI(t, func(w http.ResponseWriter, r *http.Request) {

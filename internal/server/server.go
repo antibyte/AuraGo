@@ -545,6 +545,9 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	// The self marker proves AuraGo's own container behind a network sidecar
+	// (containers_self_proof.go); outside a container it does nothing.
+	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
 	s.fritzLoopbackSem = loopbackSem
 	s.MQTTController = mqtt.NewMQTTController(logger)
