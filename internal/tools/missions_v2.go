@@ -1032,7 +1032,8 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 	defer m.mu.Unlock()
 
 	// Cancel timeout guardian if active
-	if cancel, ok := m.missionGuards[missionID]; ok {
+	cancel, guarded := m.missionGuards[missionID]
+	if guarded {
 		cancel()
 		delete(m.missionGuards, missionID)
 	}
@@ -1040,10 +1041,13 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 	// Guard against double completion (e.g. timeout + normal completion race). A run that
 	// still holds the agent queue completes even when the mission was queued again while it
 	// ran (RunNow, a trigger or a completion dependent set it to queued); refusing it would
-	// keep the queue occupied for good. Flow missions never occupy the agent queue; their
-	// runs finish through FlowRunFinishedAtDepth.
+	// keep the queue occupied for good. Such a run has its timeout guard: dispatch sets it
+	// before the callback starts, and the first completion removes it. So a late callback of
+	// an earlier run, landing after TryStartNext claimed the queue for the next run but
+	// before the dispatch, is refused. Flow missions never occupy the agent queue; their runs
+	// finish through FlowRunFinishedAtDepth.
 	if mission, ok := m.missions[missionID]; ok && (isFlowMission(mission) ||
-		(mission.Status != MissionStatusRunning && m.queue.GetRunning() != missionID)) {
+		(mission.Status != MissionStatusRunning && !(guarded && m.queue.GetRunning() == missionID))) {
 		return
 	}
 	chainDepth := m.activeChainDepth[missionID]
