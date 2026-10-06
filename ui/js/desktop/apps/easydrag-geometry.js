@@ -97,7 +97,8 @@
         return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
     }
 
-    function clampZoom(z) { return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z)); }
+    // clampZoom keeps the zoom in range; a value that is not a finite number becomes 1.
+    function clampZoom(z) { return typeof z === 'number' && isFinite(z) ? Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z)) : 1; }
 
     // fit returns the view that shows box inside a viewport of size, with padding.
     function fit(box, size, padding, maxZoom) {

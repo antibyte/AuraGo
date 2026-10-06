@@ -10,6 +10,8 @@
     const ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
     const COALESCE_MS = 1200;
     const MAX_HISTORY = 300;
+    const MAX_PASTE_NODES = 500; // flows.MaxNodes
+    const MAX_PASTE_EDGES = 2000; // flows.MaxEdges
 
     function randomSuffix(n) {
         const bytes = new Uint8Array(n);
@@ -50,6 +52,16 @@
     }
 
     function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
+    function isPlainObject(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+    function finite(v) { return typeof v === 'number' && isFinite(v) ? v : 0; }
+
+    // minPosition takes the smallest x and y of nodes with a loop (a spread can overflow the stack).
+    function minPosition(nodes) {
+        let x = Infinity;
+        let y = Infinity;
+        nodes.forEach(n => { x = Math.min(x, n.position.x); y = Math.min(y, n.position.y); });
+        return { x: isFinite(x) ? x : 0, y: isFinite(y) ? y : 0 };
+    }
     function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
     function isEmpty(v) { return v === undefined || v === null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && !v.length); }
 
@@ -254,6 +266,15 @@
             if (set.meta) Object.assign(state.doc, clone(dir === 'after' ? set.meta.after : set.meta.before));
         }
 
+        // restoreOrder puts list back into the id order recorded before a change; items the
+        // snapshot does not know keep their relative order at the end.
+        function restoreOrder(list, ids) {
+            const rank = new Map(ids.map((id, i) => [id, i]));
+            const ranked = list.map((item, i) => ({ item, r: rank.has(item.id) ? rank.get(item.id) : ids.length + i }));
+            ranked.sort((a, b) => a.r - b.r);
+            ranked.forEach((x, i) => { list[i] = x.item; });
+        }
+
         function emit(change) {
             state.version += 1;
             listeners.forEach(fn => { try { fn(change); } catch (err) { console.error('EasyDrag model listener failed', err); } });
@@ -276,6 +297,8 @@
             const result = fn(rec);
             const set = rec.finish();
             if (!set) return result;
+            // The id order before the change lets undo restore the exact document order.
+            set.order = { nodes: state.doc.nodes.map(n => n.id), edges: state.doc.edges.map(e => e.id) };
             applySet(set, 'after');
             const now = Date.now();
             const top = undoStack[undoStack.length - 1];
@@ -292,6 +315,7 @@
             return result;
         }
 
+        // mergeInto folds a coalesced change into the top undo step; top keeps its own (earliest) order snapshot.
         function mergeInto(top, set) {
             set.nodes.forEach(e => {
                 const prev = top.nodes.find(x => x.id === e.id);
@@ -314,6 +338,10 @@
             const set = undoStack.pop();
             if (!set) return false;
             applySet(set, 'before');
+            if (set.order) {
+                restoreOrder(state.doc.nodes, set.order.nodes);
+                restoreOrder(state.doc.edges, set.order.edges);
+            }
             redoStack.push(set);
             emit(describeSet(set, 'undo'));
             return true;
@@ -383,7 +411,9 @@
                     if (ins.length === 1 && outs.length === 1) bridge = { src: ins[0].source, dst: outs[0].target };
                 }
                 list.forEach(id => rec.removeNode(id));
-                if (bridge && bridge.src.node !== bridge.dst.node && !downstream(bridge.dst.node).has(bridge.src.node)) {
+                const exists = bridge && state.doc.edges.some(e => e.source.node === bridge.src.node && e.source.port === bridge.src.port
+                    && e.target.node === bridge.dst.node && e.target.port === bridge.dst.port);
+                if (bridge && !exists && bridge.src.node !== bridge.dst.node && !downstream(bridge.dst.node).has(bridge.src.node)) {
                     rec.addEdge({ id: newEdgeID(), source: clone(bridge.src), target: clone(bridge.dst) });
                 }
             });
@@ -522,45 +552,106 @@
             };
         }
 
+        // sanitizeFragment keeps what paste can trust from clipboard JSON: at most 500 object
+        // nodes of a known type with unique ids, plain params and settings and finite positions,
+        // and at most 2000 edges between kept nodes on existing ports, without duplicates or
+        // cycles. A fragment over either limit is refused (null).
+        function sanitizeFragment(frag) {
+            if (!isPlainObject(frag) || frag.easydrag !== 1 || !Array.isArray(frag.nodes)) return null;
+            const rawEdges = Array.isArray(frag.edges) ? frag.edges : [];
+            if (frag.nodes.length > MAX_PASTE_NODES || rawEdges.length > MAX_PASTE_EDGES) return null;
+            const nodes = [];
+            const byRef = new Map();
+            frag.nodes.forEach(n => {
+                if (!isPlainObject(n) || typeof n.type !== 'string' || !info(n.type)) return;
+                const ref = typeof n.id === 'string' ? n.id : null;
+                if (ref !== null && byRef.has(ref)) return;
+                const pos = isPlainObject(n.position) ? n.position : {};
+                const clean = {
+                    ref, key: typeof n.key === 'string' ? n.key : '', type: n.type,
+                    type_version: Number.isInteger(n.type_version) && n.type_version > 0 ? n.type_version : 1,
+                    label: typeof n.label === 'string' && n.label ? n.label.slice(0, 80) : (info(n.type).label || n.type),
+                    position: { x: finite(pos.x), y: finite(pos.y) },
+                    params: isPlainObject(n.params) ? clone(n.params) : {},
+                    settings: isPlainObject(n.settings) ? clone(n.settings) : {}
+                };
+                if (ref !== null) byRef.set(ref, clean);
+                nodes.push(clean);
+            });
+            const edges = [];
+            const seen = new Set();
+            const next = new Map();
+            const reaches = (from, to) => {
+                const queue = [from];
+                const visited = new Set(queue);
+                while (queue.length) {
+                    const cur = queue.shift();
+                    if (cur === to) return true;
+                    (next.get(cur) || []).forEach(x => { if (!visited.has(x)) { visited.add(x); queue.push(x); } });
+                }
+                return false;
+            };
+            rawEdges.forEach(e => {
+                if (!isPlainObject(e) || !isPlainObject(e.source) || !isPlainObject(e.target)) return;
+                const a = byRef.get(e.source.node);
+                const b = byRef.get(e.target.node);
+                if (!a || !b || a === b) return;
+                if (!outputs(a).includes(e.source.port) || !inputs(b).includes(e.target.port)) return;
+                const id = JSON.stringify([a.ref, e.source.port, b.ref, e.target.port]);
+                if (seen.has(id) || reaches(b, a)) return;
+                seen.add(id);
+                if (!next.has(a)) next.set(a, []);
+                next.get(a).push(b);
+                edges.push({ a, port: e.source.port, b, inPort: e.target.port });
+            });
+            return { nodes, edges };
+        }
+
         // paste inserts a clipboard fragment with fresh ids and keys; references between
         // pasted nodes follow the new keys. Returns the new node ids.
         function paste(frag, at) {
-            if (!frag || frag.easydrag !== 1 || !Array.isArray(frag.nodes) || !frag.nodes.length) return [];
-            const minX = Math.min(...frag.nodes.map(n => (n.position || {}).x || 0));
-            const minY = Math.min(...frag.nodes.map(n => (n.position || {}).y || 0));
-            const ids = new Map();
-            const keyMap = new Map();
+            const clean = sanitizeFragment(frag);
+            if (!clean || !clean.nodes.length) return [];
+            const min = minPosition(clean.nodes);
+            const ax = finite(at && at.x);
+            const ay = finite(at && at.y);
             const taken = keys();
-            frag.nodes.forEach(n => {
-                ids.set(n.id, newNodeID());
-                const key = keyFromLabel(n.key || n.label, taken);
-                taken.add(key);
-                keyMap.set(n.key, key);
+            const usedOld = new Set();
+            // renames maps each fragment key that changes to its new key; renameRoots applies it
+            // once per expression, so a -> a_2 and a_2 -> a_2_2 cannot chain.
+            const renames = new Map();
+            clean.nodes.forEach(n => {
+                const own = n.key && !keyProblem(n.key) && !usedOld.has(n.key);
+                // Keyless, invalid or duplicate keys get a fresh key from the label, like addNode.
+                n.newKey = keyFromLabel(own ? n.key : n.label, taken);
+                taken.add(n.newKey);
+                n.newId = newNodeID();
+                if (own) {
+                    usedOld.add(n.key);
+                    if (n.newKey !== n.key) renames.set(n.key, n.newKey);
+                }
             });
             change('paste', rec => {
-                frag.nodes.forEach(n => {
-                    let params = clone(n.params || {});
-                    keyMap.forEach((nk, ok) => { if (ok !== nk) params = ED.template.renameInValue(params, ok, nk); });
+                clean.nodes.forEach(n => {
                     rec.addNode({
-                        id: ids.get(n.id), key: keyMap.get(n.key), type: n.type, type_version: n.type_version || 1, label: n.label || n.type,
-                        position: { x: Math.round(at.x + ((n.position || {}).x || 0) - minX), y: Math.round(at.y + ((n.position || {}).y || 0) - minY) },
-                        params, settings: clone(n.settings || {})
+                        id: n.newId, key: n.newKey, type: n.type, type_version: n.type_version, label: n.label,
+                        position: { x: Math.round(ax + n.position.x - min.x), y: Math.round(ay + n.position.y - min.y) },
+                        params: renames.size ? ED.template.renameRootsInValue(n.params, renames) : n.params,
+                        settings: n.settings
                     });
                 });
-                (frag.edges || []).forEach(e => {
-                    if (!ids.has(e.source.node) || !ids.has(e.target.node)) return;
-                    rec.addEdge({ id: newEdgeID(), source: { node: ids.get(e.source.node), port: e.source.port }, target: { node: ids.get(e.target.node), port: e.target.port } });
+                clean.edges.forEach(e => {
+                    rec.addEdge({ id: newEdgeID(), source: { node: e.a.newId, port: e.port }, target: { node: e.b.newId, port: e.inPort } });
                 });
             });
-            return Array.from(ids.values());
+            return clean.nodes.map(n => n.newId);
         }
 
         function duplicate(idList) {
             const frag = fragment(idList);
             if (!frag.nodes.length) return [];
-            const minX = Math.min(...frag.nodes.map(n => n.position.x));
-            const minY = Math.min(...frag.nodes.map(n => n.position.y));
-            return paste(frag, { x: minX + 40, y: minY + 40 });
+            const min = minPosition(frag.nodes.map(n => ({ position: { x: finite(n.position.x), y: finite(n.position.y) } })));
+            return paste(frag, { x: min.x + 40, y: min.y + 40 });
         }
 
         // replaceDoc swaps in a document from the server (conflict reload) and clears history.

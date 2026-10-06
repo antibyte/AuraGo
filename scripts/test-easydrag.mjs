@@ -284,6 +284,76 @@ guard('c1d02 bare vm context', () => {
     const id = bm.addNode('web.search', { x: 0, y: 0 });
     eq('c1d02 modules run without host intrinsics', [BED.template.evaluate('{{a.b | upper}}', { a: { b: 'x' } }), bm.node(id).key, BED.geometry.nodeHeight(1)], ['X', 'websuche', 72]);
 });
+guard('c1d02 model review fixes', () => {
+    // Paste renames each reference once: nodes a and a_2 plus c using both, pasted into a flow that already has a.
+    const f1 = M.create({ nodes: [], edges: [] }, { types });
+    const na = f1.addNode('web.search', { x: 0, y: 0 });
+    f1.setKey(na, 'a');
+    const na2 = f1.addNode('web.search', { x: 0, y: 100 });
+    f1.setKey(na2, 'a_2');
+    const nc = f1.addNode('web.search', { x: 300, y: 0 });
+    f1.setParam(nc, 'query', '{{a.results}} + {{a_2.results}}');
+    const f2 = M.create({ nodes: [], edges: [] }, { types });
+    f2.setKey(f2.addNode('web.search', { x: 0, y: 0 }), 'a');
+    const chain = f2.paste(JSON.parse(JSON.stringify(f1.fragment([na, na2, nc]))), { x: 0, y: 300 });
+    eq('c1d02 paste renames each reference once', [chain.slice(0, 2).map(id => f2.node(id).key), f2.node(chain[2]).params.query], [['a_2', 'a_2_2'], '{{a_2.results}} + {{a_2_2.results}}']);
+    // Undo restores the exact document order, edges included.
+    const u = M.create({ nodes: [], edges: [] }, { types });
+    const [ua, ub, uc, ud] = [0, 1, 2, 3].map(i => u.addNode('web.search', { x: i * 300, y: 0 }));
+    u.connect(ua, 'out', ub, 'in');
+    u.connect(ua, 'out', ud, 'in');
+    u.connect(ub, 'out', uc, 'in');
+    u.connect(uc, 'out', ud, 'in');
+    const docBefore = JSON.stringify(u.doc);
+    u.removeNodes([ub]);
+    u.undo();
+    eq('c1d02 undo of a node delete restores the document', JSON.stringify(u.doc), docBefore);
+    const fan = M.create({ nodes: [], edges: [] }, { types });
+    const sink = fan.addNode('logic.if', { x: 900, y: 0 });
+    [0, 1, 2].forEach(i => fan.connect(fan.addNode('web.search', { x: 300, y: i * 100 }), 'out', sink, 'in'));
+    const fanBefore = JSON.stringify(fan.doc);
+    fan.disconnect(fan.incoming(sink).slice(0, 2).map(e => e.id));
+    fan.undo();
+    eq('c1d02 undo of a two-edge disconnect restores the document', JSON.stringify(fan.doc), fanBefore);
+    u.removeNodes([ub, uc]);
+    u.undo();
+    eq('c1d02 undo of a two-node delete restores the document', JSON.stringify(u.doc), docBefore);
+    // Paste trusts nothing from clipboard JSON.
+    const p = M.create({ nodes: [], edges: [] }, { types });
+    const frag = (nodes, edges) => ({ easydrag: 1, nodes, edges: edges || [] });
+    const keysOf = ids => ids.map(id => p.node(id).key);
+    eq('c1d02 paste gives keyless nodes keys from their labels', keysOf(p.paste(frag([{ id: 'a', type: 'web.search', label: 'Foo' }, { id: 'b', type: 'web.search', label: 'Bar' }]), { x: 0, y: 0 })), ['foo', 'bar']);
+    const keyless = p.paste(frag([{ id: 'a', type: 'web.search', label: 'Foo', params: { query: '{{x.y}}' } }]), { x: 0, y: 0 });
+    eq('c1d02 paste of a keyless node keeps its references', [keysOf(keyless), p.node(keyless[0]).params.query], [['foo_2'], '{{x.y}}']);
+    eq('c1d02 paste gives duplicate keys a fresh key', keysOf(p.paste(frag([{ id: 'a', key: 'k', type: 'web.search' }, { id: 'b', key: 'k', type: 'web.search' }]), { x: 0, y: 0 })), ['k', 'websuche']);
+    const nodeCount = p.doc.nodes.length;
+    eq('c1d02 paste drops duplicate ids', [p.paste(frag([{ id: 'a', key: 'p1', type: 'web.search' }, { id: 'a', key: 'p2', type: 'web.search' }]), { x: 0, y: 0 }).length, p.doc.nodes.length - nodeCount], [1, 1]);
+    eq('c1d02 paste drops unknown types, typeless and non-object nodes', [p.paste(frag([{ id: 'a', key: 'zz', type: 'evil.type' }]), { x: 0, y: 0 }), p.paste(frag([{ id: 'a', key: 'zz2' }]), { x: 0, y: 0 }), p.paste(frag([null, 'x', 5]), { x: 0, y: 0 })], [[], [], []]);
+    const protoFrag = JSON.parse('{"easydrag":1,"nodes":[{"id":"a","key":"k","type":"web.search","params":{"__proto__":{"polluted":1},"query":"{{k.results}}"}}],"edges":[]}');
+    const protoNode = p.node(p.paste(protoFrag, { x: 0, y: 0 })[0]);
+    eq('c1d02 paste keeps an own __proto__ param as data', [Object.keys(protoNode.params), protoNode.params.query, ({}).polluted], [['__proto__', 'query'], '{{k_2.results}}', undefined]);
+    const odd = p.paste(frag([{ id: 'a', key: 'str', type: 'web.search', params: 'oops', settings: 'oops', position: { x: 'abc', y: Infinity } }]), { x: 10, y: 20 })[0];
+    p.setParam(odd, 'query', 'x');
+    p.toggleDisabled([odd]);
+    eq('c1d02 paste coerces params, settings and positions', [p.node(odd).params, p.node(odd).settings, p.node(odd).position], [{ query: 'x' }, { disabled: true }, { x: 10, y: 20 }]);
+    const wired = p.paste(frag([{ id: 'a', key: 'cy1', type: 'web.search' }, { id: 'b', key: 'cy2', type: 'web.search' }], [{}, null, { source: 'a', target: 'b' },
+        { source: { node: 'a', port: 'out' }, target: { node: 'b', port: 'in' } }, { source: { node: 'a', port: 'out' }, target: { node: 'b', port: 'in' } },
+        { source: { node: 'b', port: 'out' }, target: { node: 'a', port: 'in' } }, { source: { node: 'a', port: 'bogus' }, target: { node: 'b', port: 'in' } },
+        { source: { node: 'a', port: 'out' }, target: { node: 'a', port: 'in' } }, { source: { node: 'a', port: 'out' }, target: { node: 'ghost', port: 'in' } }]), { x: 0, y: 0 });
+    eq('c1d02 paste keeps only valid, unique, acyclic edges', [p.incoming(wired[0]).length, p.incoming(wired[1]).length], [0, 1]);
+    const tooManyNodes = frag(Array.from({ length: 501 }, (_, i) => ({ id: 'n' + i, type: 'web.search' })));
+    const tooManyEdges = frag([{ id: 'a', type: 'web.search' }], Array.from({ length: 2001 }, () => ({})));
+    eq('c1d02 paste refuses fragments over 500 nodes or 2000 edges', [p.paste(tooManyNodes, { x: 0, y: 0 }).length, p.paste(tooManyEdges, { x: 0, y: 0 }).length], [0, 0]);
+    // A bridge on delete does not duplicate an edge that already exists (no EDGE_DUPLICATE).
+    const br = M.create({ nodes: [], edges: [] }, { types });
+    const b1 = br.addNode('web.search', { x: 0, y: 0 });
+    const b2 = br.addNode('web.search', { x: 300, y: 0 }, null, { node: b1, port: 'out' });
+    const b3 = br.addNode('web.search', { x: 600, y: 0 }, null, { node: b2, port: 'out' });
+    br.connect(b1, 'out', b3, 'in');
+    br.removeNodes([b2], { bridge: true });
+    eq('c1d02 bridge skips an existing edge', br.outgoing(b1).filter(e => e.target.node === b3).length, 1);
+    eq('c1d02 clampZoom maps non-finite values to 1', [G.clampZoom(NaN), G.clampZoom(Infinity), G.clampZoom(undefined), G.zoomAt({ x: 0, y: 0, zoom: 1 }, NaN, { x: 10, y: 10 }).zoom], [1, 1, 1, 1]);
+});
 
 if (failures) {
     console.log(failures + ' failure(s)');
