@@ -136,3 +136,49 @@ func TestCompanionCheckWaitsForTheSettleTimeAndHonoursCancellation(t *testing.T)
 		t.Fatalf("inspect calls = %d, want 1", docker.inspectCalls)
 	}
 }
+
+// F-S5 review, minor 4: an engine without restart policies in the inspect
+// state (Podman) can report a companion as exited while it restarts it. The
+// check inspects again after CompanionRecheck and fails only when the
+// companion is still exited with an error and has not been restarted.
+func TestCompanionCheckInspectsAnExitedCompanionAgain(t *testing.T) {
+	for i, tc := range []struct {
+		name     string
+		sequence []ContainerState
+		wantErr  bool
+	}{
+		{name: "restarted and running", sequence: []ContainerState{{Status: "exited", ExitCode: 1}, {Running: true, Status: "running", RestartCount: 1}}},
+		{name: "restarted and exited again", sequence: []ContainerState{{Status: "exited", ExitCode: 1}, {Status: "exited", ExitCode: 1, RestartCount: 1}}},
+		{name: "exited cleanly on the second look", sequence: []ContainerState{{Status: "dead", ExitCode: 137}, {Status: "exited", ExitCode: 0}}},
+		{name: "still exited and not restarted", sequence: []ContainerState{{Status: "exited", ExitCode: 1}, {Status: "exited", ExitCode: 1}}, wantErr: true},
+		{name: "dead and not restarted", sequence: []ContainerState{{Status: "dead", ExitCode: 137, RestartCount: 2}, {Status: "dead", ExitCode: 137, RestartCount: 2}}, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			docker := &fakeDockerAdapter{inspectSequence: map[string][]ContainerState{"aurago-store-termix-guacd": tc.sequence}}
+			svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19840+i))
+			svc.cfg.CompanionRecheck = 20 * time.Millisecond
+			started := time.Now()
+			err := svc.checkStartedCompanions(context.Background(), InstalledApp{AppID: "termix"}, []string{"aurago-store-termix-guacd"}, started)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("check error = %v, want error %v", err, tc.wantErr)
+			}
+			if docker.inspectCalls != 2 {
+				t.Fatalf("inspect calls = %d, want 2", docker.inspectCalls)
+			}
+			if time.Since(started) < svc.cfg.CompanionRecheck {
+				t.Fatal("the second inspect did not wait for CompanionRecheck")
+			}
+		})
+	}
+	t.Run("a cancelled operation stops the recheck", func(t *testing.T) {
+		docker := &fakeDockerAdapter{inspectStates: map[string]ContainerState{"aurago-store-termix-guacd": {Status: "exited", ExitCode: 1}}}
+		svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19849))
+		svc.cfg.CompanionRecheck = time.Hour
+		ctx, cancel := context.WithCancel(context.Background())
+		docker.inspectHook = func(string) { cancel() }
+		err := svc.checkStartedCompanions(ctx, InstalledApp{AppID: "termix"}, []string{"aurago-store-termix-guacd"}, time.Now())
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("check error = %v, want context.Canceled", err)
+		}
+	})
+}

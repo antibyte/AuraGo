@@ -194,7 +194,10 @@ Store app configuration, runtime, assets, and publication.
 - Startup never touches parked containers. The next Update adopts or replaces
   them, and Uninstall removes them.
 - Install and update check the companions they started once the app is ready.
-  Only `exited`/`dead` with a non-zero exit code fails the operation. Restarting,
+  Only `exited`/`dead` with a non-zero exit code fails the operation, and only
+  when a second inspect after `CompanionRecheck` (1.5 s in production; Podman
+  can show a companion as exited while it restarts it) finds it still exited
+  with an unchanged restart count. Restarting,
   health `starting`/`unhealthy`, exit 0 and inspect errors are logged, and
   companions an update did not replace are never checked. Do not turn this into a
   must-be-running or health check: RomM's MariaDB initializes slowly, Termix's

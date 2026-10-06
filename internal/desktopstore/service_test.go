@@ -2432,15 +2432,17 @@ type fakeDockerAdapter struct {
 	removeContainerBlock   <-chan struct{}
 	// The fields below are off by default, so older tests keep treating every
 	// name as an existing, running container.
-	trackContainers         bool                      // model existence of containers, volumes and networks: create adds, remove deletes, rename moves
-	containers              map[string]bool           // existing names while trackContainers is set
-	containerSpecs          map[string]ContainerSpec  // the spec each tracked container was created with
-	traceLifecycle          bool                      // also record "stop:" and "remove:" events
-	renamed                 []string                  // "old->new" for every successful rename
-	renameErr               error                     // every rename fails, like an engine without rename support
-	enforceCatalogBindTrust bool                      // refuse untrusted docker.sock binds like the real create path (K10)
-	inspectStates           map[string]ContainerState // per-name state, wins over inspectState
-	inspectErrors           map[string]error          // per-name inspect error
+	trackContainers         bool                        // model existence of containers, volumes and networks: create adds, remove deletes, rename moves
+	containers              map[string]bool             // existing names while trackContainers is set
+	containerSpecs          map[string]ContainerSpec    // the spec each tracked container was created with
+	traceLifecycle          bool                        // also record "stop:" and "remove:" events
+	renamed                 []string                    // "old->new" for every successful rename
+	renameErr               error                       // every rename fails, like an engine without rename support
+	enforceCatalogBindTrust bool                        // refuse untrusted docker.sock binds like the real create path (K10)
+	inspectStates           map[string]ContainerState   // per-name state, wins over inspectState
+	inspectErrors           map[string]error            // per-name inspect error
+	inspectSequence         map[string][]ContainerState // per-name states returned one per call, before inspectStates
+	inspectHook             func(name string)
 	// existingContainers are containers that exist before the test, with their
 	// labels; FindContainer reports them, and a remove deletes them.
 	existingContainers map[string]map[string]string
@@ -2849,8 +2851,17 @@ func (f *fakeDockerAdapter) InspectContainer(ctx context.Context, name string) (
 	if err := f.inspectErrors[name]; err != nil {
 		return ContainerState{}, err
 	}
+	if f.inspectHook != nil {
+		f.inspectHook(name)
+	}
 	if !f.hasContainer(name) {
 		return ContainerState{}, fmt.Errorf("container %s %w", name, errContainerNotFound)
+	}
+	if states := f.inspectSequence[name]; len(states) > 0 {
+		state := states[0]
+		f.inspectSequence[name] = states[1:]
+		state.Name = name
+		return state, nil
 	}
 	if state, ok := f.inspectStates[name]; ok {
 		state.Name = name

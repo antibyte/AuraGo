@@ -68,6 +68,9 @@ type Config struct {
 	// and the companion state check (DefaultCompanionSettle in production).
 	// Zero checks at once.
 	CompanionSettle time.Duration
+	// CompanionRecheck is the wait before an exited companion is inspected
+	// again (DefaultCompanionRecheck in production). Zero inspects at once.
+	CompanionRecheck time.Duration
 }
 
 // Service owns the software store catalog, persistent install records and
