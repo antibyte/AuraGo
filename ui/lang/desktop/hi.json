@@ -2845,6 +2845,8 @@
   "desktop.store.update": "अपडेट करें",
   "desktop.store.update_required": "सुरक्षा अपडेट आवश्यक है। Docker मॉनिटरिंग को केवल-पढ़ने वाले प्रॉक्सी पर बदलने के लिए इस ऐप को अपडेट करें।",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "desktop.store_terminal_show_shell": "टर्मिनल दिखाएँ",
+  "desktop.store_terminal_hide_shell": "टर्मिनल छिपाएँ",
   "desktop.store_terminal_copy_command": "कॉपी करें",
   "desktop.store_terminal_header_subtitle": "कंसोल पहले",
   "desktop.store_terminal_header_title": "CommandCode",

@@ -2845,6 +2845,8 @@
   "desktop.store.update": "Bijwerken",
   "desktop.store.update_required": "Beveiligingsupdate vereist. Werk deze app bij om Docker-bewaking over te zetten naar een alleen-lezenproxy.",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "desktop.store_terminal_show_shell": "Terminal tonen",
+  "desktop.store_terminal_hide_shell": "Terminal verbergen",
   "desktop.store_terminal_copy_command": "Kopiëren",
   "desktop.store_terminal_header_subtitle": "Console eerst",
   "desktop.store_terminal_header_title": "CommandCode",

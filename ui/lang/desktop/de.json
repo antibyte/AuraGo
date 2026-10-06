@@ -2845,6 +2845,8 @@
   "desktop.store.update": "Aktualisieren",
   "desktop.store.update_required": "Sicherheitsupdate erforderlich. Aktualisiere diese App, um die Docker-Überwachung auf einen schreibgeschützten Proxy umzustellen.",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "desktop.store_terminal_show_shell": "Terminal einblenden",
+  "desktop.store_terminal_hide_shell": "Terminal ausblenden",
   "desktop.store_terminal_copy_command": "Kopieren",
   "desktop.store_terminal_header_subtitle": "Konsole zuerst",
   "desktop.store_terminal_header_title": "CommandCode",

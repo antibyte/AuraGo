@@ -2845,6 +2845,8 @@
   "desktop.store.update": "Ενημέρωση",
   "desktop.store.update_required": "Απαιτείται ενημέρωση ασφαλείας. Ενημερώστε αυτήν την εφαρμογή για να χρησιμοποιεί η παρακολούθηση Docker διακομιστή μεσολάβησης μόνο για ανάγνωση.",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "desktop.store_terminal_show_shell": "Εμφάνιση τερματικού",
+  "desktop.store_terminal_hide_shell": "Απόκρυψη τερματικού",
   "desktop.store_terminal_copy_command": "Αντιγραφή",
   "desktop.store_terminal_header_subtitle": "Κονσόλα πρώτα",
   "desktop.store_terminal_header_title": "CommandCode",

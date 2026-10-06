@@ -2845,6 +2845,8 @@
   "desktop.store.update": "Oppdater",
   "desktop.store.update_required": "Sikkerhetsoppdatering kreves. Oppdater appen for å bytte Docker-overvåking til en skrivebeskyttet proxy.",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "desktop.store_terminal_show_shell": "Vis terminal",
+  "desktop.store_terminal_hide_shell": "Skjul terminal",
   "desktop.store_terminal_copy_command": "Kopier",
   "desktop.store_terminal_header_subtitle": "Konsoll først",
   "desktop.store_terminal_header_title": "CommandCode",

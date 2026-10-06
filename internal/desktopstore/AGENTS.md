@@ -18,6 +18,13 @@ Store app configuration, runtime, assets, and publication.
   Verify `command-code --version` as the unprivileged image user after updates.
 - The Store pulls `ghcr.io/antibyte/aurago-commandcode:latest`. Source updates
   require image publication and a Store update before installed apps change.
+- The entrypoint adds one absolute import of image-owned
+  `/usr/local/share/aurago/commandcode-preview.md` to user memory
+  `~/.commandcode/AGENTS.md`, including existing home volumes. Preserve all
+  personal/project instructions and never duplicate the import on restart.
+  Keep the guide in both published and embedded fallback build contexts; it
+  explains `/workspace`, preview ports/gateway and shell lifecycle. Verify
+  `TestCommandCodePreviewMemoryPreservesInstructions` with Bash available.
 - CommandCode preview HTTP and WebSocket requests strip reserved AuraGo cookies
   and internal credential headers. Preserve guest Authorization, CSRF and login
   cookies; verify `TestCommandCodePreviewPreservesGuestAuthWithoutAuraGoCredentials`.

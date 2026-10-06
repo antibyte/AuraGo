@@ -2845,6 +2845,8 @@
   "desktop.store.update": "Aktualizuj",
   "desktop.store.update_required": "Wymagana jest aktualizacja zabezpieczeń. Zaktualizuj aplikację, aby przełączyć monitorowanie Dockera na serwer proxy tylko do odczytu.",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "desktop.store_terminal_show_shell": "Pokaż terminal",
+  "desktop.store_terminal_hide_shell": "Ukryj terminal",
   "desktop.store_terminal_copy_command": "Kopiuj",
   "desktop.store_terminal_header_subtitle": "Konsola na pierwszym miejscu",
   "desktop.store_terminal_header_title": "CommandCode",

@@ -2845,6 +2845,8 @@
   "desktop.store.update": "Aktualizovat",
   "desktop.store.update_required": "Je vyžadována bezpečnostní aktualizace. Aktualizuj aplikaci a přepni monitorování Dockeru na proxy pouze pro čtení.",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "desktop.store_terminal_show_shell": "Zobrazit terminál",
+  "desktop.store_terminal_hide_shell": "Skrýt terminál",
   "desktop.store_terminal_copy_command": "Kopírovat",
   "desktop.store_terminal_header_subtitle": "Konsole na prvním místě",
   "desktop.store_terminal_header_title": "CommandCode",

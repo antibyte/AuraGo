@@ -2845,6 +2845,8 @@
   "desktop.store.update": "Mettre à jour",
   "desktop.store.update_required": "Mise à jour de sécurité requise. Mettez cette application à jour pour passer la surveillance Docker à un proxy en lecture seule.",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "desktop.store_terminal_show_shell": "Afficher le terminal",
+  "desktop.store_terminal_hide_shell": "Masquer le terminal",
   "desktop.store_terminal_copy_command": "Copier",
   "desktop.store_terminal_header_subtitle": "Console d'abord",
   "desktop.store_terminal_header_title": "CommandCode",

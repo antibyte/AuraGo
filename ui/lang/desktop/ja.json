@@ -2845,6 +2845,8 @@
   "desktop.store.update": "更新",
   "desktop.store.update_required": "セキュリティ更新が必要です。Docker の監視を読み取り専用プロキシに切り替えるには、このアプリを更新してください。",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
+  "desktop.store_terminal_show_shell": "ターミナルを表示",
+  "desktop.store_terminal_hide_shell": "ターミナルを非表示",
   "desktop.store_terminal_copy_command": "コピー",
   "desktop.store_terminal_header_subtitle": "コンソール優先",
   "desktop.store_terminal_header_title": "CommandCode",
