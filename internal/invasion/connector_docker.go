@@ -77,11 +77,17 @@ func (c *DockerConnector) Validate(ctx context.Context, nest NestRecord, secret 
 func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
 	containerName, err := dockerEggContainerName(nest.ID)
 	if err != nil {
-		return err
+		return configNotDelivered(err)
 	}
 	backupName := containerName + "-prev"
 	// TODO: derive image tag from master version when build version is available at runtime
 	image := "ghcr.io/antibyte/aurago:latest"
+
+	// Every return before step 4 (copyConfigToContainer) is marked
+	// configNotDelivered: the new egg configuration, which carries the hatch's
+	// shared key, has not left the master, so the hatch puts the previous key
+	// back. From step 4 on, a lost response does not prove that the Engine
+	// did not store or start the new configuration; those failures stay unmarked.
 
 	// 1. Pull image. A pull that fails with an HTTP error status returns here,
 	// before step 2 stops and renames the running egg.
@@ -90,22 +96,21 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	// stream, read error) counted as success before the K15 hardening, and
 	// Deploy went on with the image the Engine already held under this tag,
 	// the normal case on a redeploy. That behaviour is kept when the Engine has
-	// the image: deployEgg has already stored the new shared key, so stopping
-	// here would leave the old egg running with a key the master no longer
-	// accepts. Without the image (audit S7a), or when the image check itself
+	// the image, so redeploys keep working when only the progress stream broke.
+	// Without the image (audit S7a), or when the image check itself
 	// fails, the deploy stops here instead of renaming the running egg and then
 	// failing to create its replacement.
 	if err := c.pullImage(ctx, nest, secret, image); err != nil {
 		var streamErr *dockerPullStreamError
 		if !errors.As(err, &streamErr) {
-			return fmt.Errorf("failed to pull image: %w", err)
+			return configNotDelivered(fmt.Errorf("failed to pull image: %w", err))
 		}
 		present, checkErr := c.imagePresent(ctx, nest, secret, image)
 		if checkErr != nil {
-			return fmt.Errorf("failed to pull image: %w (checking for the image on the Engine also failed: %v)", err, checkErr)
+			return configNotDelivered(fmt.Errorf("failed to pull image: %w (checking for the image on the Engine also failed: %v)", err, checkErr))
 		}
 		if !present {
-			return fmt.Errorf("failed to pull image: %w", err)
+			return configNotDelivered(fmt.Errorf("failed to pull image: %w", err))
 		}
 		slog.Warn("Invasion image pull failed; deploying the image already on the Engine", "nest_id", nest.ID, "image", image, "error", err)
 	}
@@ -124,19 +129,19 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	createURL := c.apiURL(nest, fmt.Sprintf("/containers/create?name=%s", containerName))
 	req, err := http.NewRequestWithContext(ctx, "POST", createURL, strings.NewReader(string(bodyJSON)))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return configNotDelivered(fmt.Errorf("failed to create request: %w", err))
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	client := c.httpClient(nest, secret)
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to create container: %w", err)
+		return configNotDelivered(fmt.Errorf("failed to create container: %w", err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		body := dockerutil.ReadErrorBody(resp.Body)
-		return fmt.Errorf("container creation failed (%d): %s", resp.StatusCode, string(body))
+		return configNotDelivered(fmt.Errorf("container creation failed (%d): %s", resp.StatusCode, string(body)))
 	}
 
 	// 4. Copy config.yaml into the container via the Docker Archive API.

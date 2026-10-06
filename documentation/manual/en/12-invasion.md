@@ -607,6 +607,7 @@ See [Chapter 22: Internal Tools](22-internal-tools.md) for full parameter detail
 2. Ensure the correct `target_arch` binary exists on the master
 3. For Docker deployments, verify daemon access and `deploy_method`
 4. Review server logs for deployment details
+5. If a hatch fails before AuraGo sent the new egg configuration, AuraGo keeps the egg's previous shared key, so an egg that still runs keeps reconnecting. This covers a failed image pull, a refused container create and, for SSH nests, failures up to the binary upload. If the hatch fails later, or its health check fails and AuraGo rolls back to the previous egg, that egg cannot reconnect until a hatch succeeds.
 
 ### Egg not connecting (stuck at `running` but `ws_connected: false`)
 

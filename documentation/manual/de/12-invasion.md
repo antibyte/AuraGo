@@ -544,6 +544,7 @@ Details: [Kapitel 22: Interne Tools](./22-interne-tools.md)
 1. `hatch_error` am Nest prüfen (UI oder `GET /api/invasion/nests/{id}`)
 2. Korrektes `target_arch`-Binary auf dem Master vorhanden?
 3. Bei Docker: Daemon-Zugriff und `deploy_method` prüfen
+4. Scheitert ein Hatch, bevor AuraGo die neue Egg-Konfiguration gesendet hat, behält AuraGo den bisherigen Shared Key des Eggs, und ein Egg, das noch läuft, verbindet sich weiter. Das gilt für einen fehlgeschlagenen Image-Pull, ein abgelehntes Anlegen des Containers und bei SSH-Nests für Fehler bis zum Hochladen des Binarys. Scheitert der Hatch später, oder schlägt sein Health-Check fehl und AuraGo kehrt zum vorherigen Egg zurück, kann sich dieses Egg erst nach einem erfolgreichen Hatch wieder verbinden.
 
 ### Egg verbindet nicht (`running`, aber `ws_connected: false`)
 

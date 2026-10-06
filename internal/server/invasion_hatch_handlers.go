@@ -179,7 +179,8 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		MasterKey:    eggMasterKey,
 	}
 
-	if err := s.storeEggSharedKey(nest.ID, sharedKey); err != nil {
+	restorePreviousKey, err := s.replaceEggSharedKey(nest.ID, sharedKey)
+	if err != nil {
 		return err
 	}
 
@@ -201,6 +202,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		if deployID != "" {
 			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "failed")
 		}
+		restorePreviousKey(err)
 		return err
 	}
 

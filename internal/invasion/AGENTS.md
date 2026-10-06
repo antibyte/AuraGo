@@ -39,6 +39,7 @@ the Egg runtime in `cmd/aurago`.
   Engine connection, closed with it (`DisableKeepAlives` must stay on); the
   credential is the nest's SSH secret, never TLS material; older binaries map it
   to the SSH binary deploy.
+- A hatch stores the new `egg_shared_<id>` before Deploy and puts the previous key back (vault compare-and-swap) only when Deploy returns `ErrEggConfigNotDelivered`: Docker before `copyConfigToContainer`, SSH before the config write. Never after a possible delivery or a rollback; marked errors keep their text.
 
 ## Verification
 
