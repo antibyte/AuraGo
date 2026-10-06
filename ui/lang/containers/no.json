@@ -27,7 +27,7 @@
   "containers.logs_title": "Container-logger",
   "containers.page_description": "Overvåk og administrer Docker-containere.",
   "containers.page_title": "AuraGo – Containere",
-  "containers.protected_badge": "Administrert av AuraGo",
+  "containers.protected_badge": "Beskyttet",
   "containers.protected_endpoint_warning": "AuraGo når Docker gjennom denne containeren. Endringer kan kutte AuraGos tilgang til Docker.",
   "containers.protected_network_warning": "AuraGo kjører i denne containeren eller deler nettverk med den. Endringer kan stoppe denne AuraGo-instansen eller kutte nettverket.",
   "containers.protected_self_warning": "AuraGo kjører i denne containeren. Hvis du fjerner eller endrer den, kan denne AuraGo-instansen stoppe.",

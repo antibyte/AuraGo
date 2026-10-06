@@ -414,3 +414,22 @@ func TestContainersTerminalEndSessionTranslationsExist(t *testing.T) {
 		}
 	}
 }
+
+func TestContainersProtectedBadgeIsNeutral(t *testing.T) {
+	t.Parallel()
+	want := map[string]string{"en": "Protected", "de": "Geschützt", "el": "Προστατευμένο", "hi": "संरक्षित"}
+	for lang, text := range want {
+		data, err := os.ReadFile(filepath.Join("lang", "containers", lang+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(data, &values); err != nil {
+			t.Fatal(err)
+		}
+		if values["containers.protected_badge"] != text {
+			t.Fatalf("%s badge = %q, want %q: the badge names no reason; the tooltip does", lang, values["containers.protected_badge"], text)
+		}
+	}
+	requireContainersTranslations(t, []string{"containers.protected_badge"})
+}

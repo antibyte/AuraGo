@@ -27,7 +27,7 @@
   "containers.logs_title": "Logy kontejneru",
   "containers.page_description": "Sleduj a spravuj Docker kontejnery.",
   "containers.page_title": "AuraGo – Kontejnery",
-  "containers.protected_badge": "Spravováno AuraGo",
+  "containers.protected_badge": "Chráněno",
   "containers.protected_endpoint_warning": "AuraGo se k Dockeru připojuje přes tento kontejner. Změny mohou AuraGo od Dockeru odpojit.",
   "containers.protected_network_warning": "AuraGo běží v tomto kontejneru nebo s ním sdílí síť. Změny mohou ukončit tuto instanci AuraGo nebo přerušit její síťové připojení.",
   "containers.protected_self_warning": "AuraGo běží v tomto kontejneru. Jeho odebrání nebo změna může ukončit tuto instanci AuraGo.",

@@ -27,7 +27,7 @@
   "containers.logs_title": "Registos do contentor",
   "containers.page_description": "Monitoriza e gere contentores Docker.",
   "containers.page_title": "AuraGo – Contêineres",
-  "containers.protected_badge": "Gerido pelo AuraGo",
+  "containers.protected_badge": "Protegido",
   "containers.protected_endpoint_warning": "O AuraGo acede ao Docker através deste contentor. As alterações podem cortar o acesso do AuraGo ao Docker.",
   "containers.protected_network_warning": "O AuraGo é executado neste contentor ou partilha a rede com ele. As alterações podem terminar esta instância do AuraGo ou cortar a sua rede.",
   "containers.protected_self_warning": "O AuraGo é executado neste contentor. Removê-lo ou alterá-lo pode terminar esta instância do AuraGo.",

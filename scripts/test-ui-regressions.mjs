@@ -2961,6 +2961,40 @@ async function testContainersEndSessionAsksTheServerAndCloseKeepsTheShell() {
   assert.equal(page.active('terminal-modal'), true);
 }
 
+async function testContainersProtectedBadgeIsNeutralWithTheReasonAsTooltip() {
+  const listed = [
+    { id: 'web1', names: ['/web'], image: 'nginx', state: 'running', status: 'Up' },
+    { id: 'cams1', names: ['/cams'], image: 'go2rtc', state: 'running', status: 'Up', protected_owner: 'go2rtc' },
+    { id: 'app1', names: ['/aurago'], image: 'aurago', state: 'running', status: 'Up', protected_owner: 'aurago-app', self: true },
+    { id: 'proxy1', names: ['/docker-proxy'], image: 'proxy', state: 'running', status: 'Up', docker_endpoint: true },
+    { id: 'ts1', names: ['/tailscale'], image: 'tailscale', state: 'running', status: 'Up', shared_network: true },
+    { id: 'odd1', names: ['/odd'], image: 'odd', state: 'running', status: 'Up', protected_owner: 'x"y' }
+  ];
+  const page = containersPage(request => request.url === '/api/containers'
+    ? { status: 200, body: { status: 'ok', containers: listed } }
+    : { status: 200, body: { status: 'ok' } });
+  await page.start();
+  const badges = Object.fromEntries(page.node('ct-grid').children.map(card => {
+    const id = /data-id="([^"]+)"/.exec(card.cardHTML)[1];
+    const badge = /<span class="ct-card-protected"[^>]*>[^<]*<\/span>/.exec(card.cardHTML);
+    return [id, badge ? badge[0] : ''];
+  }));
+  assert.equal(badges.web1, '');
+  for (const [id, kind, reason] of [
+    ['cams1', 'go2rtc', 'containers.protected_warning (go2rtc)'],
+    ['app1', 'self', 'containers.protected_self_warning'],
+    ['proxy1', 'docker-endpoint', 'containers.protected_endpoint_warning'],
+    ['ts1', 'shared-network', 'containers.protected_network_warning']
+  ]) {
+    assert.ok(badges[id].includes(`data-protection="${kind}"`), `${id}: ${badges[id]}`);
+    assert.ok(badges[id].includes(`title="${reason}"`), `${id} tooltip: ${badges[id]}`);
+    assert.ok(badges[id].endsWith('>containers.protected_badge</span>'), `${id} badge text: ${badges[id]}`);
+  }
+  // A quote in an owner label cannot end the attributes (esc covers & < >).
+  assert.ok(badges.odd1.includes('data-protection="x&quot;y"'), `odd1: ${badges.odd1}`);
+  assert.ok(badges.odd1.includes('title="containers.protected_warning (x&quot;y)"'), `odd1 tooltip: ${badges.odd1}`);
+}
+
 function listDesktopMainBundleParts() {
   const script = read('scripts/build-ui-bundles.js');
   const start = script.indexOf('const desktopMainParts = [');
@@ -3081,6 +3115,7 @@ const tests = [
   ['Containers Resume unpauses a paused container', testContainersResumeUnpausesAPausedContainer],
   ['Containers terminal offers the confirmation after a refused handshake', testContainersTerminalOffersConfirmationAfterARefusedHandshake],
   ['Containers End session asks the server; Close keeps the shell', testContainersEndSessionAsksTheServerAndCloseKeepsTheShell],
+  ['Containers badge is neutral with the reason as tooltip', testContainersProtectedBadgeIsNeutralWithTheReasonAsTooltip],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];

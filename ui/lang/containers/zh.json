@@ -27,7 +27,7 @@
   "containers.logs_title": "容器日志",
   "containers.page_description": "监控并管理 Docker 容器。",
   "containers.page_title": "AuraGo – 容器",
-  "containers.protected_badge": "由AuraGo管理",
+  "containers.protected_badge": "受保护",
   "containers.protected_endpoint_warning": "AuraGo通过此容器访问Docker。更改可能会使AuraGo无法访问Docker。",
   "containers.protected_network_warning": "AuraGo正在此容器中运行，或与此容器共享网络。更改可能会终止此AuraGo实例或切断其网络。",
   "containers.protected_self_warning": "AuraGo正在此容器中运行。删除或更改它可能会终止此AuraGo实例。",

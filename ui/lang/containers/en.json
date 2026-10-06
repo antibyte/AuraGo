@@ -27,7 +27,7 @@
   "containers.logs_title": "Container Logs",
   "containers.page_description": "Monitor and manage Docker containers.",
   "containers.page_title": "AuraGo – Containers",
-  "containers.protected_badge": "Managed by AuraGo",
+  "containers.protected_badge": "Protected",
   "containers.protected_endpoint_warning": "AuraGo reaches Docker through this container. Changes can cut AuraGo off from Docker.",
   "containers.protected_network_warning": "AuraGo runs in this container or shares its network with it. Changes can end this AuraGo instance or cut its network.",
   "containers.protected_self_warning": "AuraGo runs in this container. Removing or changing it can end this AuraGo instance.",

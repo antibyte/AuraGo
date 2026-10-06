@@ -27,7 +27,7 @@
   "containers.logs_title": "コンテナログ",
   "containers.page_description": "Dockerコンテナを監視・管理します。",
   "containers.page_title": "AuraGo – コンテナ",
-  "containers.protected_badge": "AuraGoが管理",
+  "containers.protected_badge": "保護対象",
   "containers.protected_endpoint_warning": "AuraGoはこのコンテナを経由してDockerに接続しています。変更するとAuraGoがDockerに接続できなくなる可能性があります。",
   "containers.protected_network_warning": "AuraGoはこのコンテナ内で動作しているか、このコンテナとネットワークを共有しています。変更すると、このAuraGoインスタンスが終了するか、ネットワークが切断される可能性があります。",
   "containers.protected_self_warning": "AuraGoはこのコンテナ内で動作しています。削除または変更すると、このAuraGoインスタンスが終了する可能性があります。",

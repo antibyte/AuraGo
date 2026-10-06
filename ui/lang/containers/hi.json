@@ -27,7 +27,7 @@
   "containers.logs_title": "कंटेनर लॉग",
   "containers.page_description": "Docker कंटेनरों की निगरानी और प्रबंधन करो।",
   "containers.page_title": "AuraGo – कंटेनर",
-  "containers.protected_badge": "AuraGo द्वारा प्रबंधित",
+  "containers.protected_badge": "संरक्षित",
   "containers.protected_endpoint_warning": "AuraGo इस कंटेनर के माध्यम से Docker तक पहुँचता है। बदलाव AuraGo का Docker से संपर्क काट सकते हैं।",
   "containers.protected_network_warning": "AuraGo इसी कंटेनर में चल रहा है या इसके साथ अपना नेटवर्क साझा करता है। बदलाव इस AuraGo इंस्टेंस को बंद कर सकते हैं या उसका नेटवर्क काट सकते हैं।",
   "containers.protected_self_warning": "AuraGo इसी कंटेनर में चल रहा है। इसे हटाने या बदलने से यह AuraGo इंस्टेंस बंद हो सकता है।",

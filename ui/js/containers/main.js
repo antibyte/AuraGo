@@ -226,6 +226,15 @@ function protectionWarningKey(kind) {
     return 'containers.protected_warning';
 }
 
+// protectionReason is the badge tooltip: the warning the confirmation modals
+// show for this reason, plus the owner when AuraGo manages the container.
+function protectionReason(c) {
+    const kind = containerProtection(c);
+    if (!kind) return '';
+    const text = t(protectionWarningKey(kind));
+    return ['self', 'docker-endpoint', 'shared-network', 'unverified'].includes(kind) ? text : `${text} (${kind})`;
+}
+
 function renderContainers() {
     // The list is unavailable (Docker error or disabled): keep that state until
     // a list loads again.
@@ -331,8 +340,11 @@ function renderCard(c) {
     const deleteName = jsArg(name);
     const terminalName = jsArg(name);
     const updateName = jsArg(name);
-    const protectedBadge = containerProtection(c)
-        ? `<span class="ct-card-protected">${esc(t('containers.protected_badge'))}</span>`
+    // The badge text is neutral; its tooltip names the reason. esc covers
+    // & < >, and the replace keeps a quote from ending the attribute.
+    const protection = containerProtection(c);
+    const protectedBadge = protection
+        ? `<span class="ct-card-protected" data-protection="${esc(protection).replace(/"/g, '&quot;')}" title="${esc(protectionReason(c)).replace(/"/g, '&quot;')}">${esc(t('containers.protected_badge'))}</span>`
         : '';
 
     let actionBtns = '';

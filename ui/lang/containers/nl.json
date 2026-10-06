@@ -27,7 +27,7 @@
   "containers.logs_title": "Container-logs",
   "containers.page_description": "Bewaak en beheer Docker-containers.",
   "containers.page_title": "AuraGo – Containers",
-  "containers.protected_badge": "Beheerd door AuraGo",
+  "containers.protected_badge": "Beschermd",
   "containers.protected_endpoint_warning": "AuraGo bereikt Docker via deze container. Wijzigingen kunnen AuraGo van Docker afsluiten.",
   "containers.protected_network_warning": "AuraGo draait in deze container of deelt het netwerk ervan. Wijzigingen kunnen deze AuraGo-instantie beëindigen of het netwerk ervan verbreken.",
   "containers.protected_self_warning": "AuraGo draait in deze container. Verwijderen of wijzigen kan deze AuraGo-instantie beëindigen.",
