@@ -129,6 +129,9 @@
   without a usable score is a `failed` evaluate entry, never score 0.
 - Chart, gauge and hero use theme tokens; keep the grid rows explicit so the
   action bar cannot absorb the free row. Every new string needs all 16 locales.
+- The unused run view shows the decorative transparent `img/looper-empty.png`
+  illustration with the existing empty-state copy. It shares the monitor's idle
+  predicate and disappears for running, paused and finished runs; keep it responsive.
 - Costs come from the budget tracker's model rates (`EstimateCost`); `cost_approximate`
   marks a fallback price. Starting or resuming under an exhausted budget answers
   402 with `code: "budget_exceeded"`, and a running loop pauses itself with
