@@ -1054,51 +1054,90 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 	if strings.Contains(workflowText, "golang/govulncheck-action") {
 		t.Fatal("workflows must install govulncheck directly instead of using golang/govulncheck-action")
 	}
-	refsByAction := map[string][]githubActionRef{}
-	for _, ref := range githubActionRefs(t) {
-		refsByAction[ref.action] = append(refsByAction[ref.action], ref)
+	refs := githubActionRefs(t)
+	used := map[string]bool{}
+	for _, ref := range refs {
+		used[strings.ToLower(ref.action)] = true
+	}
+	for _, floor := range githubNode24Floors {
+		if !used[floor.name] {
+			t.Errorf("workflows missing SHA-pinned Node 24 action %s (want `uses: %s@<40-hex sha> # vX.Y.Z` with X >= %d)", floor.name, floor.name, floor.minMajor)
+		}
+	}
+	for _, violation := range githubNode24FloorViolations(refs) {
+		t.Error(violation)
+	}
+}
+
+// githubNode24Floors lists, per action, the first major that runs natively
+// on Node 24. Names are lowercase; GitHub matches action names
+// case-insensitively.
+var githubNode24Floors = []struct {
+	name     string
+	minMajor int
+}{
+	{"actions/checkout", 7},
+	{"actions/setup-go", 7},
+	{"actions/setup-node", 7},
+	{"actions/setup-python", 6},
+	{"actions/upload-artifact", 7},
+	{"actions/download-artifact", 8},
+	{"docker/setup-qemu-action", 4},
+	{"docker/setup-buildx-action", 4},
+	{"docker/login-action", 4},
+	{"docker/metadata-action", 6},
+	{"docker/build-push-action", 7},
+	{"softprops/action-gh-release", 3},
+}
+
+// githubNode24FloorViolations reports every reference to a floored action
+// that is not pinned to a commit SHA with a full ` # vX.Y.Z` comment at or
+// above the action's Node 24 major. Full versions keep Dependabot's comment
+// rewriting in step with the SHA; a major-only comment stops matching once
+// that major's tag moves.
+func githubNode24FloorViolations(refs []githubActionRef) []string {
+	minMajors := map[string]int{}
+	for _, floor := range githubNode24Floors {
+		minMajors[floor.name] = floor.minMajor
 	}
 	commitSHA := regexp.MustCompile(`^[0-9a-f]{40}$`)
-	// Full versions keep Dependabot's comment rewriting in step with the SHA;
-	// a major-only comment stops matching once that major's tag moves.
 	fullVersion := regexp.MustCompile(`^v([0-9]+)\.[0-9]+\.[0-9]+(?:\s|$)`)
-	// Every reference is pinned to a commit SHA whose version comment names
-	// the first major that runs natively on Node 24, or a newer one.
-	for _, action := range []struct {
-		name     string
-		minMajor int
-	}{
-		{"actions/checkout", 7},
-		{"actions/setup-go", 7},
-		{"actions/setup-node", 7},
-		{"actions/setup-python", 6},
-		{"actions/upload-artifact", 7},
-		{"actions/download-artifact", 8},
-		{"docker/setup-qemu-action", 4},
-		{"docker/setup-buildx-action", 4},
-		{"docker/login-action", 4},
-		{"docker/metadata-action", 6},
-		{"docker/build-push-action", 7},
-		{"softprops/action-gh-release", 3},
-	} {
-		refs := refsByAction[action.name]
-		if len(refs) == 0 {
-			t.Errorf("workflows missing SHA-pinned Node 24 action %s (want `uses: %s@<40-hex sha> # vX.Y.Z` with X >= %d)", action.name, action.name, action.minMajor)
+	var violations []string
+	for _, ref := range refs {
+		minMajor, floored := minMajors[strings.ToLower(ref.action)]
+		if !floored {
 			continue
 		}
-		for _, ref := range refs {
-			if !commitSHA.MatchString(ref.ref) {
-				t.Errorf("%s: %s must be pinned to a 40-hex commit SHA, not @%s: %s", ref.location(), action.name, ref.ref, ref.source)
-				continue
-			}
-			version := fullVersion.FindStringSubmatch(ref.comment)
-			if version == nil {
-				t.Errorf("%s: %s needs a full ` # vX.Y.Z` version comment: %s", ref.location(), action.name, ref.source)
-				continue
-			}
-			if major, err := strconv.Atoi(version[1]); err != nil || major < action.minMajor {
-				t.Errorf("%s: %s is pinned to v%s; native Node 24 requires v%d or newer", ref.location(), action.name, version[1], action.minMajor)
-			}
+		if !commitSHA.MatchString(ref.ref) {
+			violations = append(violations, fmt.Sprintf("%s: %s must be pinned to a 40-hex commit SHA, not @%s: %s", ref.location(), ref.action, ref.ref, ref.source))
+			continue
+		}
+		version := fullVersion.FindStringSubmatch(ref.comment)
+		if version == nil {
+			violations = append(violations, fmt.Sprintf("%s: %s needs a full ` # vX.Y.Z` version comment: %s", ref.location(), ref.action, ref.source))
+			continue
+		}
+		if major, err := strconv.Atoi(version[1]); err != nil || major < minMajor {
+			violations = append(violations, fmt.Sprintf("%s: %s is pinned to v%s; native Node 24 requires v%d or newer", ref.location(), ref.action, version[1], minMajor))
+		}
+	}
+	return violations
+}
+
+func TestGitHubNode24FloorMatchesActionNamesCaseInsensitively(t *testing.T) {
+	t.Parallel()
+
+	const sha = "3d3c42e5aac5ba805825da76410c181273ba90b1"
+	for _, tc := range []struct {
+		line          string
+		wantViolation bool
+	}{
+		{"      - uses: Actions/Checkout@" + sha + " # v6.0.0", true},
+		{"      - uses: Actions/Checkout@" + sha + " # v7.0.1", false},
+	} {
+		violations := githubNode24FloorViolations(parseGitHubActionRefs("wf.yml", tc.line))
+		if got := len(violations) > 0; got != tc.wantViolation {
+			t.Errorf("%q: floor violation = %v %q, want %v", tc.line, got, violations, tc.wantViolation)
 		}
 	}
 }

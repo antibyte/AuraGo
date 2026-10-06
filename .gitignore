@@ -154,6 +154,7 @@ disposable/
 !/.github/workflows/
 /.github/workflows/*
 !/.github/workflows/*.yml
+!/.github/workflows/*.yaml
 !/disposable/
 /disposable/*
 !/disposable/export_tools/
