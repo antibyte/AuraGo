@@ -676,6 +676,32 @@ func TestContainerSelfSignalsIgnoreASharedNetworkNamespace(t *testing.T) {
 	}
 }
 
+// TestContainerNetworkModeJoinsMatchesFullIDLongPrefixOrName: an ID prefix
+// counts only with 12 or more hex characters, so container:a1 does not join
+// every container whose ID starts with a1.
+func TestContainerNetworkModeJoinsMatchesFullIDLongPrefixOrName(t *testing.T) {
+	names := []string{"/tailscale"}
+	for mode, want := range map[string]bool{
+		"container:" + selfContainerID:                  true,
+		"container:" + strings.ToUpper(selfContainerID): true,
+		"container:" + selfContainerID[:12]:             true,
+		"container:" + selfContainerID[:20]:             true,
+		"container:" + selfContainerID[:11]:             false,
+		"container:" + selfContainerID[:2]:              false,
+		"container:tailscale":                           true,
+		"container:/tailscale":                          true,
+		"container:tail":                                false,
+		"container:":                                    false,
+		"container:" + otherContainerID[:12]:            false,
+		"bridge":                                        false,
+		"host":                                          false,
+	} {
+		if got := containerNetworkModeJoins(mode, selfContainerID, names); got != want {
+			t.Fatalf("containerNetworkModeJoins(%q) = %v, want %v", mode, got, want)
+		}
+	}
+}
+
 // TestContainerSelfNeedsTheListToRuleOutASharedNamespace: when the signals
 // name the target but Docker does not answer the list, self stays unproven.
 func TestContainerSelfNeedsTheListToRuleOutASharedNamespace(t *testing.T) {

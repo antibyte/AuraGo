@@ -231,17 +231,22 @@ func containerIDFromCgroup(text string) string {
 	return found
 }
 
+// containerIDPrefixPattern is the shortest ID prefix a network-mode reference
+// may use to name a container: 12 hex characters, as in Docker's short ID.
+var containerIDPrefixPattern = regexp.MustCompile(`^[0-9a-f]{12,64}$`)
+
 // containerNetworkModeJoins reports whether a HostConfig.NetworkMode joins the
 // network namespace of the container with fullID and names. Docker may record
-// the reference as a full ID, an ID prefix or a name; compose's service:<x> is
-// sent to the Engine as container:<id>.
+// the reference as a full ID, an ID prefix (only 12 or more hex characters
+// count) or a name; compose's service:<x> is sent to the Engine as
+// container:<id>.
 func containerNetworkModeJoins(mode, fullID string, names []string) bool {
 	ref, ok := strings.CutPrefix(strings.TrimSpace(mode), "container:")
 	ref = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(ref), "/"))
 	if !ok || ref == "" {
 		return false
 	}
-	if id := strings.ToLower(strings.TrimSpace(fullID)); id != "" && strings.HasPrefix(id, ref) {
+	if id := strings.ToLower(strings.TrimSpace(fullID)); id != "" && (id == ref || (containerIDPrefixPattern.MatchString(ref) && strings.HasPrefix(id, ref))) {
 		return true
 	}
 	for _, name := range names {
