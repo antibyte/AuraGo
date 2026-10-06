@@ -87,6 +87,11 @@ type dockerComposeOutputPlan struct {
 	root   string
 	rel    string
 	target string
+	// anchorRel is the deepest folder of rel that existed when the target was
+	// checked ("." for the root), and anchor its identity; publish refuses
+	// when that folder is no longer the same one. nil skips the check.
+	anchorRel string
+	anchor    os.FileInfo
 }
 
 func (p dockerComposeOutputPlan) writesFile() bool { return p.target != "" }
@@ -134,6 +139,7 @@ func planDockerComposeOutput(cfg DockerConfig, parts []string) (dockerComposeOut
 		}
 		plan.insertAt = len(args)
 		plan.root, plan.rel, plan.target = "", "", ""
+		plan.anchorRel, plan.anchor = "", nil
 		if value == "" {
 			continue // `--output=` writes to stdout: nothing to confine
 		}
@@ -141,7 +147,11 @@ func planDockerComposeOutput(cfg DockerConfig, parts []string) (dockerComposeOut
 		if err != nil {
 			return dockerComposeOutputPlan{}, err
 		}
-		plan.root, plan.rel, plan.target = root, rel, target
+		anchorRel, anchor, err := dockerComposeOutputAnchor(root, rel)
+		if err != nil {
+			return dockerComposeOutputPlan{}, dockerComposeDenied(dockerComposeOutputDeniedCode, "cannot check the folder of compose --output target %q: %v", value, err)
+		}
+		plan.root, plan.rel, plan.target, plan.anchorRel, plan.anchor = root, rel, target, anchorRel, anchor
 	}
 	plan.args = args
 	return plan, nil
@@ -256,7 +266,44 @@ func resolveDockerComposeOutputPath(cfg DockerConfig, value string) (root, rel, 
 	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return deny("compose --output target %q must stay within %s", value, jail)
 	}
+	if !filepath.IsLocal(rel) {
+		// Windows reserved names (CON, COM1, NUL) name devices, not files.
+		return deny("compose --output target %q is not a valid file name in %s", value, jail)
+	}
 	return root, rel, target, nil
+}
+
+// dockerComposeOutputAnchor returns the deepest existing folder of rel below
+// root and its identity, read through an open handle so os.SameFile also works
+// on Windows.
+func dockerComposeOutputAnchor(root, rel string) (string, os.FileInfo, error) {
+	dir := filepath.Dir(rel)
+	for {
+		info, err := dockerComposeDirIdentity(filepath.Join(root, dir))
+		if err == nil {
+			return dir, info, nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) || dir == "." {
+			return "", nil, err
+		}
+		dir = filepath.Dir(dir)
+	}
+}
+
+func dockerComposeDirIdentity(path string) (os.FileInfo, error) {
+	handle, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer handle.Close()
+	info, err := handle.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("%s is not a folder", path)
+	}
+	return info, nil
 }
 
 // dockerComposeOutputHasStreamSyntax reports, on Windows, a ':' anywhere after
@@ -299,14 +346,40 @@ func (p dockerComposeOutputPlan) publish(stagedPath string) (bool, error) {
 		return false, fmt.Errorf("open the workspace: %w", err)
 	}
 	defer root.Close()
-	existing, err := root.Lstat(p.rel)
+	dir, rest := root, p.rel
+	if p.anchor != nil {
+		// The deepest folder that existed at planning must still be the same
+		// one: a folder swapped for a symlink to another folder of the root
+		// would otherwise receive the checked file name.
+		if p.anchorRel != "." {
+			sub, err := root.OpenRoot(p.anchorRel)
+			if err != nil {
+				return false, dockerComposeDenied(dockerComposeOutputDeniedCode, "compose --output target %q: its folder changed after it was checked: %v", p.target, err)
+			}
+			defer sub.Close()
+			dir = sub
+			if rest, err = filepath.Rel(p.anchorRel, p.rel); err != nil {
+				return false, err
+			}
+		}
+		handle, err := dir.Open(".")
+		if err != nil {
+			return false, dockerComposeDenied(dockerComposeOutputDeniedCode, "compose --output target %q: its folder changed after it was checked: %v", p.target, err)
+		}
+		info, statErr := handle.Stat()
+		handle.Close()
+		if statErr != nil || !os.SameFile(info, p.anchor) {
+			return false, dockerComposeDenied(dockerComposeOutputDeniedCode, "compose --output target %q: its folder changed after it was checked, so the rendered file was not saved", p.target)
+		}
+	}
+	existing, err := dir.Lstat(rest)
 	switch {
 	case err == nil && !existing.Mode().IsRegular():
-		return false, fmt.Errorf("compose --output target %q is not a regular file", p.target)
+		return false, dockerComposeDenied(dockerComposeOutputDeniedCode, "compose --output target %q is not a regular file", p.target)
 	case err != nil && !errors.Is(err, fs.ErrNotExist):
 		return false, fmt.Errorf("compose --output target %q: %w", p.target, err)
 	}
-	if err := writeRootFromReaderAtomic(root, p.rel, source, 0o644, true); err != nil {
+	if err := writeRootFromReaderAtomic(dir, rest, source, 0o644, true); err != nil {
 		return false, err
 	}
 	return true, nil

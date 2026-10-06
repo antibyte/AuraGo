@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -955,6 +956,10 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 	}
 	published, err := plan.publish(staged)
 	if err != nil {
+		var denied *dockerComposeDeniedError
+		if errors.As(err, &denied) {
+			return dockerComposeErrorJSON(err)
+		}
 		return errJSON("cannot save the Compose output to %s: %v", plan.target, err)
 	}
 	if !published {

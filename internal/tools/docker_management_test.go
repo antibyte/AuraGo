@@ -865,3 +865,30 @@ func TestValidateDockerBindMountAcceptsBindsInsideAWorkspaceUnderASensitiveLocat
 		}
 	}
 }
+
+func TestDockerComposeOutputPublishRefusalsAreCoded(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+	workspace := t.TempDir()
+	resolved, err := secureResolveFinalPath(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(resolved, "rendered", "stack.yml")
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stubComposeRunner(t, func(args []string, output string) string {
+		if err := os.Mkdir(target, 0o755); err != nil { // a directory appears while Compose renders
+			t.Error(err)
+		}
+		if output != "" {
+			_ = os.WriteFile(output, []byte("services: {}\n"), 0o600)
+		}
+		return composeOKResult
+	})
+	result := DockerCompose(DockerConfig{WorkspaceDir: workspace}, "compose.yml", "config -o rendered/stack.yml")
+	if !strings.Contains(result, `"code":"docker_compose_output_denied"`) || !strings.Contains(result, "not a regular file") {
+		t.Fatalf("result = %s, want the coded publish refusal", result)
+	}
+}

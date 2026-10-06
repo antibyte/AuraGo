@@ -98,3 +98,14 @@ func TestDockerComposeOutputPublishNeverWritesThroughNTFSStreams(t *testing.T) {
 		}
 	}
 }
+
+func TestDockerComposeOutputRefusesReservedWindowsNamesWhilePlanning(t *testing.T) {
+	cfg := DockerConfig{WorkspaceDir: t.TempDir()}
+	for _, command := range []string{"config -o CON", `config -o rendered\COM1`, "config --output=NUL"} {
+		_, err := planComposeOutput(t, cfg, command)
+		var denied *dockerComposeDeniedError
+		if !errors.As(err, &denied) || denied.code != dockerComposeOutputDeniedCode {
+			t.Fatalf("%s: error %v, want a coded output denial while planning", command, err)
+		}
+	}
+}
