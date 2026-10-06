@@ -11,5 +11,6 @@
   "config.security.severity.critical": "CRITIQUE",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "AVERTISSEMENT",
-  "config.security.status_success": "✅"
+  "config.security.status_success": "✅",
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion : les Nests Docker (Distant) se déploient en HTTP non chiffré"
 }

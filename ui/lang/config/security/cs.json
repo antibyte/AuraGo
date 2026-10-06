@@ -11,5 +11,6 @@
   "config.security.severity.critical": "KRITICKÉ",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "VAROVÁNÍ",
-  "config.security.status_success": "✅"
+  "config.security.status_success": "✅",
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nesty s Docker (Vzdálený) nasazují přes nešifrované HTTP"
 }

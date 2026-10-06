@@ -11,5 +11,6 @@
   "config.security.severity.critical": "KRYTYCZNE",
   "config.security.severity.info": "INFORMACJA",
   "config.security.severity.warning": "OSTRZEŻENIE",
-  "config.security.status_success": "✅"
+  "config.security.status_success": "✅",
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Gniazda z Docker (Zdalny) wdrażają przez nieszyfrowane HTTP"
 }
