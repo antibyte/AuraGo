@@ -631,6 +631,9 @@ func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.Docker
 		HostConfig struct {
 			NetworkMode string `json:"NetworkMode"`
 		} `json:"HostConfig"`
+		GraphDriver struct {
+			Data map[string]string `json:"Data"`
+		} `json:"GraphDriver"`
 		NetworkSettings struct {
 			Networks map[string]struct {
 				IPAddress         string   `json:"IPAddress"`
@@ -686,6 +689,13 @@ func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.Docker
 	}
 
 	signals := readContainerSelfSignals(containerRuntimeIsDocker(s))
+	if containerUpperDirProvesSelf(containerRuntimeIsDocker(s), info.GraphDriver.Data["UpperDir"]) {
+		// The overlay upper directory is unique per container and does not
+		// change with network sharing: this is the container AuraGo runs in
+		// (containers_self_proof.go).
+		p.Self = true
+		return p
+	}
 	named := signals.names(info.ID)
 	joinsOther := strings.HasPrefix(strings.TrimSpace(info.HostConfig.NetworkMode), "container:")
 	if signals == (containerSelfSignals{}) || (!named && !joinsOther) {
@@ -757,6 +767,13 @@ func adminContainerListJSON(ctx context.Context, s *Server, cfg tools.DockerConf
 	// Hostname and /proc are read once per request; the endpoint lookup is
 	// shared between lists for containerEndpointCacheTTL.
 	self, shared := containerSelfInList(entries, readContainerSelfSignals(containerRuntimeIsDocker(s)))
+	if proven := proveSelfInSharedGroup(ctx, cfg, containerRuntimeIsDocker(s), shared); proven != "" {
+		// The hostname and /etc signals cannot tell AuraGo from its network
+		// provider; a proof that survives network sharing can
+		// (containers_self_proof.go).
+		self[proven] = true
+		delete(shared, proven)
+	}
 	endpoint, err := listEndpointLookup.addresses(ctx, cfg.Host)
 	if err != nil {
 		// docker.host did not resolve: a listed container at the address of
