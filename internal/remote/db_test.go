@@ -49,11 +49,9 @@ func TestInitDBCreatesPrivateFile(t *testing.T) {
 	}
 	defer db.Close()
 
+	// dbutil forces WAL mode, so both sidecars exist while the database is open.
 	for _, path := range []string{dbPath, dbPath + "-wal", dbPath + "-shm"} {
 		info, err := os.Stat(path)
-		if path != dbPath && os.IsNotExist(err) {
-			continue
-		}
 		if err != nil {
 			t.Fatalf("stat %s: %v", filepath.Base(path), err)
 		}

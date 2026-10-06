@@ -179,7 +179,7 @@ func remoteDeviceStatus(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger)
 		"ip":            device.IPAddress,
 		"device_status": device.Status,
 		"read_only":     device.ReadOnly,
-		"allowed_paths": device.AllowedPaths,
+		"allowed_paths": hub.EffectiveAllowedPaths(device.ID),
 		"connected":     hub.IsConnected(device.ID),
 		"last_seen":     device.LastSeen,
 		"version":       device.Version,

@@ -109,9 +109,10 @@ type RemoteHub struct {
 	AuditLogEnabled bool
 	// DefaultAllowedPaths returns the global remote_control.allowed_paths,
 	// which a device whose own list is empty uses instead (see
-	// effectiveAllowedPaths). It is called per authentication, command and
-	// config push, so a config reload applies without a restart. Nil means no
-	// default.
+	// effectiveAllowedPaths). It is called per authentication, shell command
+	// and config push, so the hub always evaluates the current default; call
+	// PushDefaultAllowedPaths after it changes so connected agents get it too.
+	// Nil means no default.
 	DefaultAllowedPaths func() []string
 
 	nonceCache *nonceReplayCache
@@ -335,11 +336,11 @@ func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout tim
 			Error:     "device is in read-only mode",
 		}, nil
 	}
-	if h.commandBlockedByMissingAllowedPaths(deviceID, conn, cmd.Operation) {
+	if h.commandBlockedByMissingAllowedPaths(conn, cmd.Operation) {
 		return ResultPayload{
 			CommandID: cmd.CommandID,
 			Status:    "denied",
-			ErrorCode: "REMOTE_ALLOWED_PATHS_REQUIRED",
+			ErrorCode: ShellRequiresAllowedPathsCode,
 			Error:     ShellRequiresAllowedPathsMessage,
 		}, nil
 	}
@@ -427,26 +428,74 @@ func (h *RemoteHub) commandBlockedByReadOnly(deviceID string, conn *RemoteConnec
 }
 
 // commandBlockedByMissingAllowedPaths reports whether a shell operation must be
-// refused because the device has no effective allowed paths: its connection's
-// list, or without a connection its stored list, falling back to
-// DefaultAllowedPaths when that is empty. A command transport (AgoDesk) is
-// exempt: that client never receives allowed_paths and gates shell access by
-// its own advertised capability and locally configured working directories.
-func (h *RemoteHub) commandBlockedByMissingAllowedPaths(deviceID string, conn *RemoteConnection, operation string) bool {
-	if !IsShellOperation(operation) {
+// refused because the connected device has no effective allowed paths. The
+// connection holds the device's own list; the global default is evaluated
+// here, live, so clearing it refuses shell at once. Without a RemoteConnection
+// the check stays out of the way: dispatch either reports the missing
+// connection or hands the command to a command transport (AgoDesk), which
+// never receives allowed_paths and gates shell access by its own advertised
+// capability and locally configured working directories.
+func (h *RemoteHub) commandBlockedByMissingAllowedPaths(conn *RemoteConnection, operation string) bool {
+	if conn == nil || !IsShellOperation(operation) {
 		return false
 	}
-	if conn != nil {
+	conn.mu.Lock()
+	ownPaths := conn.AllowedPaths
+	conn.mu.Unlock()
+	return len(h.effectiveAllowedPaths(ownPaths)) == 0
+}
+
+// EffectiveAllowedPaths returns the allowed paths that apply to deviceID: its
+// own list (from the live connection, else the stored record), or the global
+// default when that is empty. It never returns nil.
+func (h *RemoteHub) EffectiveAllowedPaths(deviceID string) []string {
+	if h == nil {
+		return []string{}
+	}
+	var ownPaths []string
+	if conn := h.GetConnection(deviceID); conn != nil {
 		conn.mu.Lock()
-		paths := conn.AllowedPaths
+		ownPaths = conn.AllowedPaths
 		conn.mu.Unlock()
-		return len(h.effectiveAllowedPaths(paths)) == 0
+	} else if h.db != nil {
+		if device, err := GetDevice(h.db, deviceID); err == nil {
+			ownPaths = device.AllowedPaths
+		}
 	}
-	if h == nil || h.db == nil || h.hasConnectedCommandTransport(deviceID) {
-		return false
+	return h.effectiveAllowedPaths(ownPaths)
+}
+
+// PushDefaultAllowedPaths sends a full allowed_paths snapshot to every
+// connected device without a list of its own (per its stored record, else its
+// connection), so an agent that authenticated before the global default
+// changed receives the current effective list without reconnecting. Call it
+// after DefaultAllowedPaths starts returning a different list.
+func (h *RemoteHub) PushDefaultAllowedPaths() {
+	if h == nil {
+		return
 	}
-	device, err := GetDevice(h.db, deviceID)
-	return err == nil && len(h.effectiveAllowedPaths(device.AllowedPaths)) == 0
+	h.mu.RLock()
+	conns := make([]*RemoteConnection, 0, len(h.connections))
+	for _, conn := range h.connections {
+		conns = append(conns, conn)
+	}
+	h.mu.RUnlock()
+	for _, conn := range conns {
+		conn.mu.Lock()
+		ownPaths := conn.AllowedPaths
+		conn.mu.Unlock()
+		if h.db != nil {
+			if device, err := GetDevice(h.db, conn.DeviceID); err == nil {
+				ownPaths = device.AllowedPaths
+			}
+		}
+		if len(cleanAllowedPaths(ownPaths)) > 0 {
+			continue
+		}
+		if err := h.SendConfigUpdate(conn.DeviceID, ConfigUpdatePayload{AllowedPaths: []string{}}); err != nil {
+			h.logger.Warn("Failed to push the default allowed paths", "device_id", conn.DeviceID, "error", err)
+		}
+	}
 }
 
 // effectiveAllowedPaths returns the paths a device may use: a copy of its own
@@ -499,16 +548,18 @@ func (h *RemoteHub) connectedCommandTransport(deviceID string) CommandTransport 
 
 // SendConfigUpdate pushes config changes to a remote device and updates the
 // in-memory connection state so server-side enforcement reflects the new values.
-// A full snapshot's allowed_paths (non-nil) is replaced by the effective list,
-// so a cleared device list falls back to DefaultAllowedPaths and only an empty
-// result revokes.
+// A full snapshot's allowed_paths (non-nil) is the device's own list: the
+// connection keeps it, and the agent receives the effective list, so a cleared
+// device list falls back to DefaultAllowedPaths and only an empty result
+// revokes.
 func (h *RemoteHub) SendConfigUpdate(deviceID string, update ConfigUpdatePayload) error {
 	conn := h.GetConnection(deviceID)
 	if conn == nil {
 		return fmt.Errorf("no active connection for device %s", deviceID)
 	}
-	if update.AllowedPaths != nil {
-		update.AllowedPaths = h.effectiveAllowedPaths(update.AllowedPaths)
+	ownPaths := update.AllowedPaths
+	if ownPaths != nil {
+		update.AllowedPaths = h.effectiveAllowedPaths(ownPaths)
 	}
 	msg, err := NewMessage(MsgConfigUpdate, deviceID, conn.SharedKey, conn.NextSeq(), update)
 	if err != nil {
@@ -522,8 +573,8 @@ func (h *RemoteHub) SendConfigUpdate(deviceID string, update ConfigUpdatePayload
 	if update.ReadOnly != nil {
 		conn.ReadOnly = *update.ReadOnly
 	}
-	if update.AllowedPaths != nil {
-		conn.AllowedPaths = update.AllowedPaths
+	if ownPaths != nil {
+		conn.AllowedPaths = append([]string{}, ownPaths...)
 	}
 	conn.mu.Unlock()
 	return nil
@@ -805,7 +856,8 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 			return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", "", "rejected", "device status update failed", nil, nil)
 		}
 
-		// Authenticated — register connection
+		// Authenticated — register connection. The connection keeps the
+		// device's own list; the agent receives the effective one.
 		allowedPaths := h.effectiveAllowedPaths(device.AllowedPaths)
 		readOnly := device.ReadOnly
 		conn := &RemoteConnection{
@@ -816,7 +868,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 			LastHeartbeat: time.Now(),
 			Status:        "connected",
 			ReadOnly:      readOnly,
-			AllowedPaths:  allowedPaths,
+			AllowedPaths:  append([]string{}, device.AllowedPaths...),
 			Version:       auth.Version,
 		}
 		h.Register(device.ID, conn)
@@ -972,7 +1024,8 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, requestNonce stri
 		return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, "", "", "rejected", "device registration failed", nil, nil)
 	}
 
-	// Register connection. A new device has no list of its own yet.
+	// Register connection. A new device has no list of its own yet, so the
+	// agent receives the global default.
 	allowedPaths := h.effectiveAllowedPaths(nil)
 	readOnly := h.DefaultReadOnly
 	conn := &RemoteConnection{
@@ -983,7 +1036,7 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, requestNonce stri
 		LastHeartbeat: time.Now(),
 		Status:        "connected",
 		ReadOnly:      readOnly,
-		AllowedPaths:  allowedPaths,
+		AllowedPaths:  []string{},
 		Version:       auth.Version,
 	}
 	h.Register(deviceID, conn)

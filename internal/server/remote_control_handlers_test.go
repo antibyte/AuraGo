@@ -10,10 +10,13 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/remote"
 	"aurago/internal/security"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestRemoteEnrollmentCreateReturnsOneTimeToken(t *testing.T) {
@@ -189,13 +192,27 @@ func TestRemoteDownloadPrefersWSSWhenServerTLSEnabled(t *testing.T) {
 		httpsEnabled   bool
 		tlsRequest     bool
 		forwardedProto string
+		host           string // default aurago.lan:8090
+		remoteAddr     string // default httptest's 192.0.2.1:1234
+		httpsPort      int    // default 8443
 		want           string
 	}{
+		// With https_port equal to server.port there is no plain internal
+		// listener, so even a loopback request gets wss.
+		{name: "server TLS on server.port, plain loopback request", httpsEnabled: true, httpsPort: 8090, host: "127.0.0.1:8090", remoteAddr: "127.0.0.1:50000", want: "wss://127.0.0.1:8090/api/remote/ws"},
 		// The TLS listener binds server.https.https_port (8443 here, not
 		// server.port 8090); server.port is only the loopback listener then.
-		{name: "server TLS, plain request", httpsEnabled: true, want: "wss://aurago.lan:8443/api/remote/ws"},
+		{name: "server TLS, plain LAN request", httpsEnabled: true, want: "wss://aurago.lan:8443/api/remote/ws"},
 		{name: "server TLS, TLS request uses https_port", httpsEnabled: true, tlsRequest: true, want: "wss://aurago.lan:8443/api/remote/ws"},
+		// A plain request from and to loopback came through the internal
+		// listener: an agent on the host itself keeps ws on server.port.
+		{name: "server TLS, plain loopback request", httpsEnabled: true, host: "127.0.0.1:8090", remoteAddr: "127.0.0.1:50000", want: "ws://127.0.0.1:8090/api/remote/ws"},
+		{name: "server TLS, plain IPv6 loopback request", httpsEnabled: true, host: "[::1]:8090", remoteAddr: "[::1]:50000", want: "ws://[::1]:8090/api/remote/ws"},
+		{name: "server TLS, localhost host from a LAN peer", httpsEnabled: true, host: "localhost:8090", remoteAddr: "192.168.1.20:50000", want: "wss://localhost:8443/api/remote/ws"},
+		{name: "server TLS, loopback TLS request", httpsEnabled: true, tlsRequest: true, host: "127.0.0.1:8443", remoteAddr: "127.0.0.1:50000", want: "wss://127.0.0.1:8443/api/remote/ws"},
+		{name: "server TLS, IPv6 LAN host", httpsEnabled: true, host: "[fd00::5]:8090", want: "wss://[fd00::5]:8443/api/remote/ws"},
 		{name: "no server TLS, plain request", want: "ws://aurago.lan:8090/api/remote/ws"},
+		{name: "no server TLS, IPv6 host", host: "[fd00::5]:8090", want: "ws://[fd00::5]:8090/api/remote/ws"},
 		{name: "no server TLS, forwarded https", forwardedProto: "https", want: "wss://aurago.lan:8090/api/remote/ws"},
 	}
 	for _, tc := range cases {
@@ -204,6 +221,9 @@ func TestRemoteDownloadPrefersWSSWhenServerTLSEnabled(t *testing.T) {
 				cfg.Server.Port = 8090
 				cfg.Server.HTTPS.Enabled = tc.httpsEnabled
 				cfg.Server.HTTPS.HTTPSPort = 8443
+				if tc.httpsPort != 0 {
+					cfg.Server.HTTPS.HTTPSPort = tc.httpsPort
+				}
 			})
 			defer cleanup()
 
@@ -217,6 +237,12 @@ func TestRemoteDownloadPrefersWSSWhenServerTLSEnabled(t *testing.T) {
 				t.Fatal("fixture request is not a TLS request")
 			}
 			req.Host = "aurago.lan:8090"
+			if tc.host != "" {
+				req.Host = tc.host
+			}
+			if tc.remoteAddr != "" {
+				req.RemoteAddr = tc.remoteAddr
+			}
 			if tc.forwardedProto != "" {
 				req.Header.Set("X-Forwarded-Proto", tc.forwardedProto)
 			}
@@ -272,6 +298,70 @@ func TestRemoteHubDefaultAllowedPathsFollowsConfigSnapshot(t *testing.T) {
 	s.replaceConfigSnapshot(next)
 	if got := hub.DefaultAllowedPaths(); !reflect.DeepEqual(got, []string{"/data"}) {
 		t.Fatalf("DefaultAllowedPaths() after reload = %q, want [/data]", got)
+	}
+}
+
+// A reload that changes remote_control.allowed_paths pushes the new default to
+// connected devices without their own list; an unchanged list pushes nothing.
+func TestReplaceConfigSnapshotPushesChangedDefaultAllowedPaths(t *testing.T) {
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("remote InitDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{Name: "nas", Status: "approved"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{}
+	cfg.RemoteControl.AllowedPaths = []string{"/srv"}
+	s := &Server{Cfg: cfg}
+	s.initConfigSnapshot()
+	s.RemoteHub = s.newRemoteHub(db, nil, slog.Default(), cfg)
+
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	serverConnCh := make(chan *websocket.Conn, 1)
+	wsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		serverConnCh <- conn
+	}))
+	defer wsServer.Close()
+	agentConn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(wsServer.URL, "http"), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer agentConn.Close()
+	var serverConn *websocket.Conn
+	select {
+	case serverConn = <-serverConnCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("websocket server connection missing")
+	}
+	defer serverConn.Close()
+	s.RemoteHub.Register(deviceID, &remote.RemoteConnection{Conn: serverConn, DeviceID: deviceID, SharedKey: strings.Repeat("b", 64)})
+
+	unchanged := &config.Config{}
+	unchanged.RemoteControl.AllowedPaths = []string{"/srv"}
+	s.replaceConfigSnapshot(unchanged)
+	changed := &config.Config{}
+	changed.RemoteControl.AllowedPaths = []string{"/data"}
+	s.replaceConfigSnapshot(changed)
+
+	// The first frame the agent sees is the push for the changed list, so the
+	// unchanged reload sent nothing.
+	_ = agentConn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var msg remote.RemoteMessage
+	if err := agentConn.ReadJSON(&msg); err != nil {
+		t.Fatalf("read pushed config update: %v", err)
+	}
+	var update struct {
+		AllowedPaths []string `json:"allowed_paths"`
+	}
+	if msg.Type != remote.MsgConfigUpdate || json.Unmarshal(msg.Payload, &update) != nil || !reflect.DeepEqual(update.AllowedPaths, []string{"/data"}) {
+		t.Fatalf("agent received %s %s, want a config update with allowed_paths [/data]", msg.Type, msg.Payload)
 	}
 }
 

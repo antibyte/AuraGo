@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -545,35 +546,61 @@ func remoteDownloadSupervisorURL(s *Server, r *http.Request) (string, error) {
 }
 
 func autoRemoteDownloadSupervisorURL(s *Server, r *http.Request) string {
-	// When AuraGo serves HTTPS itself, agents get wss on the TLS listener
-	// (https_port) whatever scheme this request arrived with; server.port is
-	// then only the 127.0.0.1 internal listener.
-	serverTLS := s.Cfg.Server.HTTPS.Enabled
-	port := s.Cfg.Server.Port
-	if serverTLS {
-		port = s.Cfg.Server.HTTPS.HTTPSPort
+	// r.Host contains the hostname (and port) the client used to reach this
+	// server. Strip any port and re-attach the server's listener port so the
+	// WebSocket URL is always correct regardless of proxies or port forwarding.
+	hostname := r.Host
+	if h, _, err := net.SplitHostPort(hostname); err == nil {
+		hostname = h
+	}
+	hostname = strings.TrimSuffix(strings.TrimPrefix(hostname, "["), "]")
+	plainRequest := r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https"
+
+	// With HTTPS on, a plain request from and to loopback came through the
+	// 127.0.0.1 internal listener (normally server.port): an agent on this
+	// host keeps ws there, which also works with a self-signed certificate.
+	loopbackPort := 0
+	if s.Cfg.Server.HTTPS.Enabled && plainRequest && hostname != "" &&
+		isLoopbackHostname(hostname) && isLoopbackRemoteAddr(r.RemoteAddr) {
+		loopbackPort = DedicatedInternalLoopbackPort(s.Cfg)
+	}
+
+	scheme, port := "ws", s.Cfg.Server.Port
+	switch {
+	case loopbackPort > 0:
+		port = loopbackPort
+	case s.Cfg.Server.HTTPS.Enabled:
+		// AuraGo serves HTTPS itself: agents get wss on the TLS listener
+		// (https_port) whatever scheme this request arrived with; server.port
+		// is then only the internal loopback listener.
+		scheme, port = "wss", s.Cfg.Server.HTTPS.HTTPSPort
 		if port <= 0 {
 			port = 443
 		}
+	case !plainRequest:
+		scheme = "wss"
 	}
-	if host := r.Host; host != "" {
-		// r.Host contains the hostname (and port) the client used to reach this server.
-		// Strip any existing port and re-attach the server's listener port so the
-		// WebSocket URL is always correct regardless of proxies or port forwarding.
-		scheme := "ws"
-		if serverTLS || r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
-			scheme = "wss"
-		}
-		hostname := host
-		if h, _, err := net.SplitHostPort(host); err == nil {
-			hostname = h
-		}
-		return fmt.Sprintf("%s://%s:%d/api/remote/ws", scheme, hostname, port)
+	if hostname == "" {
+		hostname = "localhost"
 	}
-	if serverTLS {
-		return fmt.Sprintf("wss://localhost:%d/api/remote/ws", port)
+	return fmt.Sprintf("%s://%s/api/remote/ws", scheme, net.JoinHostPort(hostname, strconv.Itoa(port)))
+}
+
+func isLoopbackHostname(hostname string) bool {
+	if strings.EqualFold(hostname, "localhost") {
+		return true
 	}
-	return fmt.Sprintf("ws://localhost:%d/api/remote/ws", port)
+	ip := net.ParseIP(hostname)
+	return ip != nil && ip.IsLoopback()
+}
+
+func isLoopbackRemoteAddr(remoteAddr string) bool {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func normalizeRemoteSupervisorURL(raw string, preferTailscale bool, serverPort int) (string, error) {

@@ -90,6 +90,10 @@ func ReadOnlySafe(op string) bool {
 // shell access as a whole; the hub refuses before dispatch and the agent again.
 const ShellRequiresAllowedPathsMessage = "shell operations are disabled until allowed_paths is configured for this device"
 
+// ShellRequiresAllowedPathsCode is the ResultPayload.ErrorCode of that refusal
+// when the hub sends it.
+const ShellRequiresAllowedPathsCode = "REMOTE_ALLOWED_PATHS_REQUIRED"
+
 // IsShellOperation reports whether op runs a shell command or session.
 func IsShellOperation(op string) bool {
 	switch op {

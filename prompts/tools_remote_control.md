@@ -51,6 +51,7 @@ Use `remote_control_devices` for inventory and status, `remote_control_shell` fo
 - `execute_command` supports standard shell commands (sh -c on Linux/macOS, cmd /C on Windows)
 - For shell sessions, poll with `shell_session_read` after start. `initial_wait_ms` is only the first read wait, not the session lifetime. AuraGo does not store session processes; after reconnect, use `shell_session_list` and then read/input/stop.
 - File operations respect the device's `allowed_paths` configuration — only paths within allowed directories are accessible
+- Shell commands and sessions need at least one allowed path: the device's own `allowed_paths`, else the global `remote_control.allowed_paths` (`device_status` shows the effective list; AgoDesk desktops use their own local shell settings)
 - Prefer `file_patch` for precise AgoDesk edits: read first, use the returned/current `expected_sha256`, dry-run first (`dry_run` defaults true), then apply with `dry_run:false` only after the dry run is acceptable
 - If `file_patch` returns `FILE_PATCH_MISMATCH` or `FILE_HASH_MISMATCH`, read the file again and create a fresh exact patch instead of fuzzy-writing
 - When a device is in read-only mode, `execute_command`, all shell session operations, `write_file`, `file_patch`, and `revoke_device` are blocked

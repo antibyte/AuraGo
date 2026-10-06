@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -384,8 +385,8 @@ func (s *Server) ConfigSnapshot() *config.Config {
 
 // newRemoteHub builds the Remote Control hub with its config-driven defaults.
 // The global remote_control.allowed_paths is read from the config snapshot on
-// every call, so a reload needs no restart; a connected agent gets the new
-// default at its next reconnect or config push.
+// every call, so a reload needs no restart; replaceConfigSnapshot pushes a
+// changed default to connected agents without their own list.
 func (s *Server) newRemoteHub(db *sql.DB, vault *security.Vault, logger *slog.Logger, cfg *config.Config) *remote.RemoteHub {
 	hub := remote.NewRemoteHub(db, vault, logger)
 	hub.DefaultReadOnly = cfg.RemoteControl.ReadOnly
@@ -405,6 +406,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	previous := s.ConfigSnapshot()
 	if cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.Enabled {
 		s.revokeDesktopRuns()
 	}
@@ -431,6 +433,13 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	RegisterLLMSecrets(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if hub := s.RemoteHub; hub != nil && previous != nil &&
+		!slices.Equal(previous.RemoteControl.AllowedPaths, cfg.RemoteControl.AllowedPaths) {
+		// The hub already evaluates the new default for shell checks; agents
+		// without their own list get it pushed. Socket writes stay off the
+		// config publication path.
+		go hub.PushDefaultAllowedPaths()
+	}
 	if s.MQTTController != nil {
 		s.MQTTController.UpdateConfig(mqttRuntimeSnapshot(cfg))
 	}

@@ -996,7 +996,9 @@ remote_control:
 
 `allowed_paths` is an explicit allowlist for remote file operations. Leave it empty to block remote file reads, writes, and directory listings.
 
-This list is the default for every remote device without its own `allowed_paths` (set per device with `PUT /api/remote/devices/{id}`); a device's own list replaces it, and with both empty the device has no file or shell access. Since this release, shell commands on a remote agent (`shell_exec`, shell sessions) also require at least one such path: AuraGo refuses them before dispatch and the agent refuses them again, while AgoDesk companions keep their own local shell settings. A changed global list reaches a connected agent at its next reconnect or configuration push; until then the list it authenticated with stays in force.
+This list is the default for every remote device without its own `allowed_paths` (set per device with `PUT /api/remote/devices/{id}`); a device's own list replaces it, and with both empty the device has no file or shell access. Shell commands on a remote agent (`shell_exec`, shell sessions) also require at least one such path: AuraGo refuses them before dispatch and the agent refuses them again, while AgoDesk companions keep their own local shell settings. A saved change to the global list applies at once: AuraGo checks against it and pushes it to connected agents without their own list.
+
+When AuraGo serves HTTPS itself, the **Auto detect** connection route (`connection_mode: auto`) puts a `wss://` URL on `server.https.https_port` into agent downloads, so the agent must trust the certificate (Let's Encrypt or a custom trusted certificate); with a self-signed certificate use **Manual supervisor URL** (`connection_mode: manual`) or **Use Tailscale network** (`connection_mode: tailscale`).
 
 > ⚠️ **Upgrade note (enrollment key split):** Enrollment tokens issued before the upgrade are invalid; create new ones.
 > Remote agents deployed before the upgrade cannot reconnect and must be replaced with a download from the upgraded AuraGo (**Remote Control**). Their device keys survive, so no re-enrollment is needed.

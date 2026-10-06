@@ -7,6 +7,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -35,6 +39,49 @@ func TestReadOnlySafe(t *testing.T) {
 		if ReadOnlySafe(op) {
 			t.Errorf("ReadOnlySafe(%q) = true; want false", op)
 		}
+	}
+}
+
+// IsShellOperation must cover every Op* constant whose value starts with
+// "shell_", including ones added later, and nothing else. The constants are
+// read from protocol.go itself.
+func TestIsShellOperationCoversEveryShellOp(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "protocol.go", nil, 0)
+	if err != nil {
+		t.Fatalf("parse protocol.go: %v", err)
+	}
+	shellOps := 0
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.CONST {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			valueSpec := spec.(*ast.ValueSpec)
+			for i, name := range valueSpec.Names {
+				if !strings.HasPrefix(name.Name, "Op") || i >= len(valueSpec.Values) {
+					continue
+				}
+				lit, ok := valueSpec.Values[i].(*ast.BasicLit)
+				if !ok || lit.Kind != token.STRING {
+					continue
+				}
+				value, err := strconv.Unquote(lit.Value)
+				if err != nil {
+					t.Fatalf("%s: %v", name.Name, err)
+				}
+				isShell := strings.HasPrefix(value, "shell_")
+				if isShell {
+					shellOps++
+				}
+				if IsShellOperation(value) != isShell {
+					t.Errorf("IsShellOperation(%s = %q) = %v, want %v", name.Name, value, !isShell, isShell)
+				}
+			}
+		}
+	}
+	if shellOps < 7 {
+		t.Fatalf("found %d shell_ operations in protocol.go, want at least 7", shellOps)
 	}
 }
 

@@ -405,6 +405,41 @@ func TestRemoteDesktopInputBlockedByGlobalReadOnly(t *testing.T) {
 	}
 }
 
+// device_status shows the paths that apply: the device's own list, or the
+// global remote_control.allowed_paths when that is empty.
+func TestRemoteDeviceStatusShowsEffectiveAllowedPaths(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	bareID, err := remote.CreateDevice(db, remote.DeviceRecord{Name: "bare", Status: "offline"})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+	ownID, err := remote.CreateDevice(db, remote.DeviceRecord{Name: "own", Status: "offline", AllowedPaths: []string{"/data"}})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.DefaultAllowedPaths = func() []string { return []string{"/srv"} }
+
+	for deviceID, want := range map[string]string{bareID: "/srv", ownID: "/data"} {
+		out := remoteDeviceStatus(hub, ToolCall{DeviceID: deviceID}, slog.Default())
+		var payload struct {
+			AllowedPaths []string `json:"allowed_paths"`
+		}
+		if err := json.Unmarshal([]byte(toolOutputPayloadForTest(t, out)), &payload); err != nil {
+			t.Fatalf("decode device_status: %v (%s)", err, out)
+		}
+		if len(payload.AllowedPaths) != 1 || payload.AllowedPaths[0] != want {
+			t.Fatalf("device_status allowed_paths = %q, want [%s]", payload.AllowedPaths, want)
+		}
+	}
+}
+
 func TestRemoteControlShellSessionOpsDispatchToRemoteHub(t *testing.T) {
 	t.Parallel()
 
