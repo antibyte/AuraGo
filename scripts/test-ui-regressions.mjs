@@ -2419,6 +2419,8 @@ async function testContainersListFailureStateSurvivesFiltersUntilTheListLoads() 
   const requests = [];
   let domReady = null;
   let reply = null;
+  const timers = new Map();
+  let nextTimer = 1;
   const context = {
     document: {
       getElementById: node,
@@ -2437,17 +2439,31 @@ async function testContainersListFailureStateSurvivesFiltersUntilTheListLoads() 
     },
     window: { AuraSSE: { on(name, handler) { sseHandlers[name] = handler; } }, location: { protocol: 'http:', host: 'aurago.test' } },
     console: { error() {}, log() {} },
-    fetch: async url => { requests.push(String(url)); return reply; },
+    fetch: async url => {
+      requests.push(String(url));
+      if (reply instanceof Error) throw reply;
+      return reply;
+    },
     t: key => key,
     esc: value => String(value ?? ''),
     applyI18n() {},
     showToast() {},
     setInterval,
-    clearInterval
+    clearInterval,
+    setTimeout(callback, ms) { const id = nextTimer++; timers.set(id, { callback, ms }); return id; },
+    clearTimeout(id) { timers.delete(id); }
   };
   vm.createContext(context);
   vm.runInContext(source, context);
   const run = expression => vm.runInContext(expression, context);
+  // fire runs the single pending retry timer the way the browser would.
+  const fire = async () => {
+    assert.equal(timers.size, 1, 'exactly one retry timer must be pending');
+    const [id, timer] = [...timers.entries()][0];
+    timers.delete(id);
+    timer.callback();
+    await flush();
+  };
   const flush = () => new Promise(resolve => setTimeout(resolve, 0));
   const json = (status, body) => ({ status, ok: status >= 200 && status < 300, json: async () => body });
   const proxyPage = status => ({ status, ok: false, json: async () => { throw new SyntaxError('Unexpected token <'); } });
@@ -2482,12 +2498,16 @@ async function testContainersListFailureStateSurvivesFiltersUntilTheListLoads() 
   assert.deepEqual(view(), { errorShown: true, disabledShown: false, message: 'Docker error (HTTP 409): engine refused', grid: 'none', statusBar: 'none', cards: 0 });
   assert.equal(node('ct-list-error-message').htmlSets, 0, 'the message must be set as text');
   assert.equal(run('allContainers.length'), 0);
+  assert.equal(timers.size, 1, 'a failed list arms exactly one retry');
+  assert.equal([...timers.values()][0].ms, 10000);
 
   // Search and filter input keep the error state and bring no stale card back.
   node('ct-search').value = 'web';
   run('filterContainers()');
   run("setFilter('running')");
   assert.deepEqual(view(), { errorShown: true, disabledShown: false, message: 'Docker error (HTTP 409): engine refused', grid: 'none', statusBar: 'none', cards: 0 });
+
+  assert.equal(timers.size, 1, 'filter input must not add or drop the retry');
 
   // A pushed update means Docker answers again: the page reloads the list.
   const requestsBeforePush = requests.length;
@@ -2498,11 +2518,14 @@ async function testContainersListFailureStateSurvivesFiltersUntilTheListLoads() 
   assert.deepEqual({ ...view(), message: '' }, { errorShown: false, disabledShown: false, message: '', grid: '', statusBar: '', cards: 1 });
   assert.match(node('ct-grid').children[0].cardHTML, /containers\.protected_badge/);
 
+  assert.equal(timers.size, 0, 'a successful load clears the retry');
+
   // HTTP 503 keeps the Docker-disabled state, also against search input.
   reply = json(503, { status: 'error', message: 'Docker is not enabled' });
   await run('loadContainers()');
   run('filterContainers()');
   assert.deepEqual({ ...view(), message: '' }, { errorShown: false, disabledShown: true, message: '', grid: 'none', statusBar: 'none', cards: 0 });
+  assert.equal(timers.size, 0, 'Docker disabled does not retry');
 
   // A successful load ends the unavailable state.
   node('ct-search').value = '';
@@ -2514,19 +2537,44 @@ async function testContainersListFailureStateSurvivesFiltersUntilTheListLoads() 
   reply = proxyPage(502);
   await run('loadContainers()');
   assert.deepEqual(view(), { errorShown: true, disabledShown: false, message: 'common.error', grid: 'none', statusBar: 'none', cards: 0 });
+  assert.equal(timers.size, 1, 'the unreadable-answer path retries too');
 
   // A JSON error without `message` (jsonError shape) shows its `error` text.
   reply = json(403, { error: 'invalid_bearer_scope' });
   await run('loadContainers()');
   assert.equal(view().message, 'invalid_bearer_scope');
   assert.equal(view().errorShown, true);
+  assert.equal(timers.size, 1, 'a new failure re-arms the retry instead of adding a second timer');
 
-  // Recovery with an empty list ends the error state too.
-  reply = json(200, { status: 'ok', containers: [] });
+  // The timer fires while Docker still fails: one new timer replaces it.
+  reply = json(502, { status: 'error', message: 'still down' });
+  await fire();
+  assert.equal(view().message, 'still down');
+  assert.equal(view().errorShown, true);
+  assert.equal(timers.size, 1);
+
+  // The retry cannot reach AuraGo at all: it keeps retrying.
+  reply = new Error('offline');
+  await fire();
+  assert.equal(view().errorShown, true);
+  assert.equal(timers.size, 1);
+
+  // Docker is back: the retry loads the list, ends the error state and leaves no timer.
+  reply = json(200, { status: 'ok', containers: listed });
+  await fire();
+  assert.deepEqual({ ...view(), message: '' }, { errorShown: false, disabledShown: false, message: '', grid: '', statusBar: '', cards: 1 });
+  assert.equal(timers.size, 0);
+
+  // Recovery with an empty list ends the error state and the retry too.
+  reply = json(502, { status: 'error', message: 'down again' });
   await run('loadContainers()');
+  assert.equal(timers.size, 1);
+  reply = json(200, { status: 'ok', containers: [] });
+  await fire();
   assert.equal(view().errorShown, false);
   assert.equal(view().statusBar, '');
   assert.equal(view().cards, 0);
+  assert.equal(timers.size, 0);
 }
 
 function listDesktopMainBundleParts() {

@@ -339,10 +339,12 @@ func TestContainersListFailureShowsDockerMessageNotDisabledState(t *testing.T) {
 	// renderContainers leaves them alone, and both states drop the stale data.
 	// scripts/test-ui-regressions.mjs runs this behaviour against main.js.
 	for name, markers := range map[string][]string{
-		"loadContainers":     {"listUnavailable = false;"},
-		"showDisabledState":  {"clearContainerList();"},
-		"showListErrorState": {"clearContainerList();"},
+		"loadContainers":     {"listUnavailable = false;", "cancelListRetry();"},
+		"showDisabledState":  {"clearContainerList();", "cancelListRetry();"},
+		"showListErrorState": {"clearContainerList();", "armListRetry();"},
 		"clearContainerList": {"allContainers = [];", "lastDataHash = '';", "cardRenderCache.clear();", "protectionById.clear();", "replaceChildren();", "listUnavailable = true;"},
+		"armListRetry":       {"cancelListRetry();", "setTimeout(", "LIST_RETRY_MS"},
+		"cancelListRetry":    {"clearTimeout(listRetryTimer);", "listRetryTimer = null;"},
 	} {
 		body := containersJSFunctionBody(t, source, name)
 		for _, marker := range markers {
@@ -356,6 +358,9 @@ func TestContainersListFailureShowsDockerMessageNotDisabledState(t *testing.T) {
 	firstUse := strings.Index(render, "document.getElementById('ct-grid')")
 	if guard < 0 || firstUse < 0 || guard > firstUse {
 		t.Fatal("renderContainers must return while the list is unavailable, before it touches the grid")
+	}
+	if !strings.Contains(source, "const LIST_RETRY_MS = 10000;") {
+		t.Fatal("a failed list must retry every 10 seconds")
 	}
 	reload := strings.Index(source, "if (listUnavailable) {")
 	merge := strings.Index(source, "containers.some(c => !protectionById.has(c.id || ''))")

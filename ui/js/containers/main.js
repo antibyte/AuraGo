@@ -30,6 +30,14 @@ const CONFIRM_PROTECTED_QUERY = 'confirm=protected';
 // again, so a search or filter input cannot bring back stale cards.
 let listUnavailable = false;
 
+// True when the last list request failed (HTTP 502 or an unreadable error
+// answer), as opposed to Docker being disabled (HTTP 503). Only a failure
+// retries on its own: a short Docker blip must not leave the page stuck, and
+// the SSE feed pushes only when the list changes.
+let listFailed = false;
+const LIST_RETRY_MS = 10000;
+let listRetryTimer = null;
+
 // ── Initialization ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -87,6 +95,8 @@ async function loadContainers() {
             return;
         }
         listUnavailable = false;
+        listFailed = false;
+        cancelListRetry();
 
         // Hash comparison – skip re-render if nothing changed
         const hash = JSON.stringify(data.containers);
@@ -102,6 +112,25 @@ async function loadContainers() {
         // A reverse proxy may have replaced the 502 body with HTML, so the JSON
         // parse failed: the list is still unavailable.
         if (resp && !resp.ok) showListErrorState(t('common.error'));
+        // A retry that could not even reach AuraGo keeps retrying.
+        else if (listFailed && !listRetryTimer) armListRetry();
+    }
+}
+
+// armListRetry schedules the next list load; there is never more than one
+// pending timer.
+function armListRetry() {
+    cancelListRetry();
+    listRetryTimer = setTimeout(() => {
+        listRetryTimer = null;
+        loadContainers();
+    }, LIST_RETRY_MS);
+}
+
+function cancelListRetry() {
+    if (listRetryTimer) {
+        clearTimeout(listRetryTimer);
+        listRetryTimer = null;
     }
 }
 
@@ -118,6 +147,8 @@ function clearContainerList() {
 
 function showDisabledState() {
     clearContainerList();
+    listFailed = false;
+    cancelListRetry();
     document.getElementById('ct-grid').style.display = 'none';
     document.getElementById('ct-empty').style.display = 'none';
     document.getElementById('ct-list-error').classList.add('is-hidden');
@@ -128,12 +159,14 @@ function showDisabledState() {
 
 function showListErrorState(message) {
     clearContainerList();
+    listFailed = true;
     document.getElementById('ct-grid').style.display = 'none';
     document.getElementById('ct-empty').style.display = 'none';
     document.getElementById('ct-disabled').classList.add('is-hidden');
     document.getElementById('ct-list-error-message').textContent = message;
     document.getElementById('ct-list-error').classList.remove('is-hidden');
     document.getElementById('ct-status-bar').style.display = 'none';
+    armListRetry();
 }
 
 // ── Stats ───────────────────────────────────────────────────────────────────
