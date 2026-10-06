@@ -434,6 +434,9 @@ func handleDesktopStoreTerminal(s *Server, appID string) http.HandlerFunc {
 			containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "forbidden websocket origin"})
 			return
 		}
+		if rejectNonWebSocketTerminalRequest(w, r) {
+			return
+		}
 		store, err := s.getDesktopStoreService(r.Context())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)

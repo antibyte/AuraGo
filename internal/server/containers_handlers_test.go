@@ -193,6 +193,9 @@ type fakeContainerTerminalSession struct {
 	closeOnce   sync.Once
 	closed      chan struct{}
 	resizeCalls chan terminalResizeCall
+	mu          sync.Mutex
+	written     []byte
+	atClose     []byte
 }
 
 func newFakeContainerTerminalSession() *fakeContainerTerminalSession {
@@ -208,14 +211,27 @@ func (s *fakeContainerTerminalSession) Read(p []byte) (int, error) {
 }
 
 func (s *fakeContainerTerminalSession) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	s.written = append(s.written, p...)
+	s.mu.Unlock()
 	return len(p), nil
 }
 
 func (s *fakeContainerTerminalSession) Close() error {
 	s.closeOnce.Do(func() {
+		s.mu.Lock()
+		s.atClose = append([]byte(nil), s.written...)
+		s.mu.Unlock()
 		close(s.closed)
 	})
 	return nil
+}
+
+// writtenBeforeClose returns the bytes written to the session before its first Close.
+func (s *fakeContainerTerminalSession) writtenBeforeClose() []byte {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]byte(nil), s.atClose...)
 }
 
 func (s *fakeContainerTerminalSession) Resize(ctx context.Context, cols, rows int) error {

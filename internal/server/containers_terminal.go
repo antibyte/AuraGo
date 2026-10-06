@@ -59,6 +59,11 @@ func handleContainerTerminal(s *Server, cfg tools.DockerConfig, containerID stri
 		containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "forbidden websocket origin"})
 		return
 	}
+	// handleContainerAction answers a non-WebSocket request before its protection
+	// lookup; this check keeps any other caller from creating an exec either.
+	if rejectNonWebSocketTerminalRequest(w, r) {
+		return
+	}
 
 	running, err := activeContainerTerminalBackend.ContainerRunning(r.Context(), cfg, containerID)
 	if err != nil {
@@ -70,11 +75,12 @@ func handleContainerTerminal(s *Server, cfg tools.DockerConfig, containerID stri
 		return
 	}
 
-	session, err := activeContainerTerminalBackend.CreateSession(r.Context(), cfg, containerID, 120, 30, nil)
+	created, err := activeContainerTerminalBackend.CreateSession(r.Context(), cfg, containerID, 120, 30, nil)
 	if err != nil {
 		containerJSON(w, http.StatusBadGateway, map[string]string{"status": "error", "message": err.Error()})
 		return
 	}
+	session := newEOFOnCloseTerminalSession(created)
 
 	conn, err := containerTerminalUpgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -83,6 +89,41 @@ func handleContainerTerminal(s *Server, cfg tools.DockerConfig, containerID stri
 	}
 	defer conn.Close()
 	serveContainerTerminalSession(r.Context(), conn, session)
+}
+
+// rejectNonWebSocketTerminalRequest answers a terminal request that is not a
+// WebSocket upgrade before any exec exists: a plain GET would start a shell
+// that no WebSocket ever attaches to. It reports whether it answered.
+func rejectNonWebSocketTerminalRequest(w http.ResponseWriter, r *http.Request) bool {
+	if websocket.IsWebSocketUpgrade(r) {
+		return false
+	}
+	containerJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "terminal requires a WebSocket upgrade"})
+	return true
+}
+
+// eofOnCloseTerminalSession writes end-of-file (Ctrl-D) to the exec TTY before
+// it closes the stream. Docker has no API to end an exec process, and a TTY exec
+// keeps running after its attach stream closes: dockerd starts it with
+// context.Background() and, for TTY sessions, closes only stdout/stderr when the
+// client disconnects. An interactive /bin/sh at its prompt exits on EOF. No
+// interrupt is sent, so a running foreground job is allowed to finish.
+type eofOnCloseTerminalSession struct {
+	containerTerminalSession
+	closeOnce sync.Once
+	closeErr  error
+}
+
+func newEOFOnCloseTerminalSession(session containerTerminalSession) *eofOnCloseTerminalSession {
+	return &eofOnCloseTerminalSession{containerTerminalSession: session}
+}
+
+func (s *eofOnCloseTerminalSession) Close() error {
+	s.closeOnce.Do(func() {
+		_, _ = s.containerTerminalSession.Write([]byte{0x04})
+		s.closeErr = s.containerTerminalSession.Close()
+	})
+	return s.closeErr
 }
 
 func serveContainerTerminalSession(ctx context.Context, conn *websocket.Conn, session containerTerminalSession) {

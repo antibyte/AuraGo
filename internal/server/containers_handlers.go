@@ -173,6 +173,12 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 				containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "forbidden websocket origin"})
 				return
 			}
+			// Likewise a request that is not a WebSocket upgrade: the protection
+			// lookup inspects the target and resolves the Docker endpoint, and a
+			// plain GET has no use for either.
+			if rejectNonWebSocketTerminalRequest(w, r) {
+				return
+			}
 			if !containerActionAllowed(s, cfg, containerID, "terminal", w, r) {
 				return
 			}
