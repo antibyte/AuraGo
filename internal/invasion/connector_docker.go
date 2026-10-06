@@ -200,9 +200,14 @@ func dockerEggCreateBody(image, nestID string, payload EggDeployPayload) map[str
 }
 
 func dockerEggBinds(nestID string) []string {
-	shortID := nestID
-	if len(shortID) > 8 {
-		shortID = shortID[:8]
+	shortID, err := eggIDPrefix(nestID)
+	if err != nil {
+		// Deploy validated the ID through dockerEggContainerName, so this is
+		// only reached by other callers; keep the historic slice for them.
+		shortID = nestID
+		if len(shortID) > 8 {
+			shortID = shortID[:8]
+		}
 	}
 	return []string{
 		fmt.Sprintf("aurago-egg-%s-log:/app/log", shortID),
