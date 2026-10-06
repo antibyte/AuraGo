@@ -57,6 +57,8 @@
     color: var(--ed-text);
     background: var(--ed-bg);
     -webkit-font-smoothing: antialiased;
+    width: 100%;
+    container-type: inline-size;
 }
 
 .ed-app [data-cat] { --ed-cat: var(--ed-cat-tool); }
@@ -828,14 +830,14 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-pick-label { flex: 1; font-weight: 600; }
 
 /* ── responsive ─────────────────────────────────────────────────────────────── */
-@media (max-width: 900px) {
+@container (max-width: 900px) {
     .ed-head-actions .ed-btn > span, .ed-switch-btn > span:last-child { display: none; }
     .ed-head-actions .ed-btn { padding: 6px 9px; }
     .ed-palette { position: absolute; top: 0; bottom: 0; left: 48px; box-shadow: var(--ed-shadow-lg); }
     .ed-minimap { display: none; }
     .ed-drawer { width: min(340px, 100%); }
 }
-@media (max-width: 560px) {
+@container (max-width: 560px) {
     .ed-home-hero, .ed-home-toolbar, .ed-home-section { padding-left: 16px; padding-right: 16px; }
     .ed-state { display: none; }
     .ed-detail-backdrop { padding: 0; }
@@ -919,3 +921,45 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-app .ed-save-retry:focus-visible { outline-offset: -2px; }
 .ed-app .ed-canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--ed-accent); }
 .ed-app .ed-tpl-input:focus-visible { outline: none; }
+
+/* ── forced colours (Windows high contrast) ─────────────────────────────────────────────────────────────
+   The browser swaps author colours for system colours and drops box shadows. What a shadow, a tint or a hue carried
+   (focus, selection, state, wire colour) is drawn again with outlines, borders and system colours. */
+@media (forced-colors: active) {
+    .ed-app .ed-canvas:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; }
+    .ed-app .ed-tpl.is-editing { outline: 2px solid Highlight; }
+    .ed-app .ed-node.is-selected { outline: 3px solid Highlight; outline-offset: 2px; }
+    .ed-app .ed-suggest li[aria-selected="true"], .ed-app .ed-quick .ed-palette-item[aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
+    .ed-chip-toggle[aria-pressed="true"], .ed-mode[aria-pressed="true"], .ed-seg button[aria-checked="true"], .ed-rail .ed-icon-btn[aria-pressed="true"],
+    .ed-btn--ghost[aria-pressed="true"], .ed-subtabs button[aria-selected="true"], .ed-detail-tabs button[aria-selected="true"] { background-color: Highlight; color: HighlightText; }
+    .ed-btn--primary { border-color: ButtonText; }
+    .ed-btn--primary.has-changes::after, .ed-badge--issue, .ed-guide { background-color: Highlight; }
+
+    /* wires and their previews: SVG strokes keep their author colours */
+    .ed-app .ed-edge .ed-wire { stroke: CanvasText; }
+    .ed-app .ed-edge.is-selected .ed-wire, .ed-app .ed-edge.is-hover .ed-wire, .ed-app .ed-edge.is-drop-target .ed-wire, .ed-app .ed-edge.is-flowing .ed-wire,
+    .ed-app .ed-canvas.has-path .ed-edge.is-path .ed-wire, .ed-app .ed-wire-preview { stroke: Highlight; }
+    .ed-app .ed-wire-preview.is-invalid { stroke: GrayText; }
+    .ed-app .ed-pill rect { fill: Canvas; stroke: CanvasText; }
+    .ed-app .ed-pill text { fill: CanvasText; }
+    .ed-minimap-nodes rect { fill: CanvasText; }
+    .ed-minimap-view { fill: none; stroke: Highlight; }
+    .ed-flow-preview rect { fill: Canvas; stroke: CanvasText; }
+    .ed-flow-preview .ed-mini-wires path { stroke: CanvasText; opacity: 1; }
+    .ed-flow-preview .ed-mini-empty { stroke: GrayText; }
+
+    /* state dots and badges are told apart by fill, shape and ring, not by hue */
+    .ed-run-dot { border: 2px solid CanvasText; background-color: Canvas; }
+    .ed-run-dot--success { background-color: CanvasText; }
+    .ed-run-dot--error { background-color: CanvasText; border-radius: 1px; transform: rotate(45deg); }
+    .ed-run-dot--running, .ed-run-dot--queued { border-color: Highlight; }
+    .ed-run-dot--cancelled { border-color: GrayText; }
+    .ed-status { outline: 2px solid CanvasText; outline-offset: -2px; }
+    .ed-status--running, .ed-status--queued { outline-color: Highlight; }
+
+    /* switch: the track fills with Highlight when on, the knob also moves */
+    .ed-switch { outline: 2px solid ButtonText; outline-offset: -2px; background-color: ButtonFace; }
+    .ed-switch > span { background-color: ButtonText; }
+    .ed-switch[aria-checked="true"], [aria-checked="true"] > .ed-switch { background-color: Highlight; }
+    .ed-switch[aria-checked="true"] > span, [aria-checked="true"] > .ed-switch > span { background-color: HighlightText; }
+}
