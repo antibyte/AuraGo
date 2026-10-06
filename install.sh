@@ -1528,7 +1528,7 @@ latest_release_tag_via_redirect() {
 
 # Downloads the RPM Fusion Free signing key, checks it against a pinned
 # fingerprint and imports it into the RPM keyring. Returns 1 after one warning
-# that names the cause; never leaves the temporary key file behind.
+# that names the cause; never leaves the temporary key file or gpg home behind.
 #
 # RPM Fusion signs its Free release packages for Fedora 33-46 with one
 # year-named key, not a per-release one (source: https://rpmfusion.org/keys,
@@ -1537,7 +1537,7 @@ latest_release_tag_via_redirect() {
 import_rpmfusion_free_key() {
     local key_url="https://rpmfusion.org/keys?action=AttachFile&do=get&target=RPM-GPG-KEY-rpmfusion-free-fedora-2020"
     local key_fpr="E9A491A3DE247814E7E067EAE06F8ECDD651FF2E"
-    local key_id keyfile gpg_out pub_count
+    local key_id keyfile gpg_home gpg_out pub_count primary_fpr
     # rpm names an imported key gpg-pubkey-<last 8 fingerprint digits, lowercase>.
     key_id="$(printf '%s' "${key_fpr: -8}" | tr 'A-F' 'a-f')"
 
@@ -1552,13 +1552,25 @@ import_rpmfusion_free_key() {
     fi
 
     if command -v gpg >/dev/null 2>&1; then
-        # Verify before importing. --show-keys needs gnupg 2.1+; older gpg lists
-        # a key file when it is simply given as the argument.
-        gpg_out="$(gpg --show-keys --with-colons --with-fingerprint "$keyfile" 2>/dev/null ||
-            gpg --with-colons --with-fingerprint "$keyfile" 2>/dev/null || true)"
-        # A file holding a second key next to the pinned one would import both.
+        # Verify before importing. A throwaway GNUPGHOME keeps gpg from creating
+        # ~/.gnupg (and mktemp -d makes it mode 0700, as gpg wants).
+        gpg_home="$(mktemp -d "${TMPDIR:-/tmp}/aurago-rpmfusion-gnupg.XXXXXX")" || {
+            rm -f "$keyfile"
+            warn "Could not create a temporary directory to check the RPM Fusion signing key; skipping RPM Fusion"
+            return 1
+        }
+        # --show-keys needs gnupg 2.1+; older gpg lists a key file when it is
+        # simply given as the argument.
+        gpg_out="$(GNUPGHOME="$gpg_home" gpg --show-keys --with-colons --with-fingerprint "$keyfile" 2>/dev/null ||
+            GNUPGHOME="$gpg_home" gpg --with-colons --with-fingerprint "$keyfile" 2>/dev/null || true)"
+        rm -rf "$gpg_home"
+        # Pin the PRIMARY key: gpg prints an fpr record after every pub and every
+        # sub line, so matching the fingerprint anywhere would also accept an
+        # attacker's key that merely carries the RPM Fusion key as a subkey. The
+        # file must also hold exactly one pub record, or rpm would import both.
+        primary_fpr="$(printf '%s\n' "$gpg_out" | awk -F: '$1=="pub"{want=1; next} want && $1=="fpr"{print $10; exit}')"
         pub_count="$(printf '%s\n' "$gpg_out" | grep -c '^pub:' || true)"
-        if ! printf '%s\n' "$gpg_out" | grep -q "^fpr:::::::::${key_fpr}:" || [ "${pub_count:-0}" -gt 1 ]; then
+        if [ "$primary_fpr" != "$key_fpr" ] || [ "${pub_count:-0}" -ne 1 ]; then
             rm -f "$keyfile"
             warn "The downloaded RPM Fusion signing key is not the pinned key (fingerprint ${key_fpr}); skipping RPM Fusion"
             return 1
