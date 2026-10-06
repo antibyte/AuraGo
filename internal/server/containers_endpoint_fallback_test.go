@@ -297,3 +297,51 @@ func TestDockerEndpointByConnectionKeepsATargetNamedLikeTheHostUnverified(t *tes
 		t.Fatalf("unrelated target = %v, %v; want verified, not the endpoint", endpoint, verified)
 	}
 }
+
+// TestEndpointFallbackTargetFromInspectReadsEveryHostName decodes real inspect
+// JSON, so the Aliases and DNSNames tags and the call that builds the fallback
+// target are pinned end to end: each name source alone makes the target answer
+// docker.host = tcp://docker-proxy:2375.
+func TestEndpointFallbackTargetFromInspectReadsEveryHostName(t *testing.T) {
+	const dockerHost = "tcp://docker-proxy:2375"
+	inspect := func(name, service, aliases, dnsNames string) containerActionInspect {
+		t.Helper()
+		raw := `{"Id":"dddddddddddd4444","Name":"` + name + `",
+			"Config":{"Labels":{"com.docker.compose.project":"aurago","com.docker.compose.service":"` + service + `"}},
+			"HostConfig":{"NetworkMode":"container:gluetun"},
+			"NetworkSettings":{"Networks":{"aurago_docker-control":{"IPAddress":"172.18.0.6","GlobalIPv6Address":"fd00::6",
+				"Aliases":` + aliases + `,"DNSNames":` + dnsNames + `}}}}`
+		var info containerActionInspect
+		if err := json.Unmarshal([]byte(raw), &info); err != nil {
+			t.Fatalf("decode inspect: %v", err)
+		}
+		return info
+	}
+	for name, tc := range map[string]struct {
+		info containerActionInspect
+		want bool
+	}{
+		"network alias":   {inspect("/socket-2", "socket", `["docker-proxy"]`, `["socket-2"]`), true},
+		"DNS name":        {inspect("/socket-2", "socket", `null`, `["socket-2","docker-proxy","dddddddddddd"]`), true},
+		"compose service": {inspect("/socket-2", "docker-proxy", `null`, `null`), true},
+		"container name":  {inspect("/docker-proxy", "socket", `null`, `null`), true},
+		"none":            {inspect("/socket-2", "socket", `["socket"]`, `["socket-2","dddddddddddd"]`), false},
+	} {
+		target := endpointFallbackTargetFromInspect(tc.info, "socket-2", dockerHost)
+		if target.AnswersHost != tc.want {
+			t.Fatalf("%s: AnswersHost = %v, want %v", name, target.AnswersHost, tc.want)
+		}
+		if target.ID != "dddddddddddd4444" || target.NetworkMode != "container:gluetun" || target.Labels["com.docker.compose.project"] != "aurago" ||
+			!slices.Contains(target.IPs, "172.18.0.6") || !slices.Contains(target.IPs, "fd00::6") {
+			t.Fatalf("%s: target = %+v", name, target)
+		}
+	}
+	// docker.host may name the network too (<alias>.<network>); its first label counts.
+	if !endpointFallbackTargetFromInspect(inspect("/socket-2", "socket", `["docker-proxy"]`, `null`), "socket-2", "tcp://docker-proxy.aurago_docker-control:2375").AnswersHost {
+		t.Fatal("an alias must answer <alias>.<network>")
+	}
+	// An IP docker.host names no container, whatever the aliases say.
+	if endpointFallbackTargetFromInspect(inspect("/docker-proxy", "docker-proxy", `["docker-proxy"]`, `null`), "socket-2", "tcp://172.18.0.5:2375").AnswersHost {
+		t.Fatal("an IP docker.host must not match container names")
+	}
+}

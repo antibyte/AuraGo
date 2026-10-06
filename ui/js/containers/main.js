@@ -1,5 +1,5 @@
 /* AuraGo – Containers page JS */
-/* global I18N, t, applyI18n, esc */
+/* global I18N, t, applyI18n, esc, escAttr */
 'use strict';
 
 let allContainers = [];
@@ -340,11 +340,11 @@ function renderCard(c) {
     const deleteName = jsArg(name);
     const terminalName = jsArg(name);
     const updateName = jsArg(name);
-    // The badge text is neutral; its tooltip names the reason. esc covers
-    // & < >, and the replace keeps a quote from ending the attribute.
+    // The badge text is neutral; its tooltip names the reason. escAttr
+    // (shared-core.js) keeps quotes from ending the attributes.
     const protection = containerProtection(c);
     const protectedBadge = protection
-        ? `<span class="ct-card-protected" data-protection="${esc(protection).replace(/"/g, '&quot;')}" title="${esc(protectionReason(c)).replace(/"/g, '&quot;')}">${esc(t('containers.protected_badge'))}</span>`
+        ? `<span class="ct-card-protected" data-protection="${escAttr(protection)}" title="${escAttr(protectionReason(c))}">${esc(t('containers.protected_badge'))}</span>`
         : '';
 
     let actionBtns = '';

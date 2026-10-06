@@ -518,6 +518,51 @@ func containerAnswersDockerHostName(dockerHost string, names []string) bool {
 	return false
 }
 
+// containerActionInspect is the part of a container inspect that
+// classifyContainerForAction reads.
+type containerActionInspect struct {
+	ID     string `json:"Id"`
+	Name   string `json:"Name"`
+	Config struct {
+		Labels map[string]string `json:"Labels"`
+	} `json:"Config"`
+	HostConfig struct {
+		NetworkMode string `json:"NetworkMode"`
+	} `json:"HostConfig"`
+	GraphDriver struct {
+		Data map[string]string `json:"Data"`
+	} `json:"GraphDriver"`
+	NetworkSettings struct {
+		Networks map[string]struct {
+			IPAddress         string   `json:"IPAddress"`
+			GlobalIPv6Address string   `json:"GlobalIPv6Address"`
+			Aliases           []string `json:"Aliases"`
+			DNSNames          []string `json:"DNSNames"`
+		} `json:"Networks"`
+	} `json:"NetworkSettings"`
+}
+
+// endpointFallbackTargetFromInspect collects what dockerEndpointByConnection
+// needs from a target's inspect: its addresses, labels and network mode, and
+// whether its container name, compose service, a network alias or a DNS name
+// answers the host name of dockerHost.
+func endpointFallbackTargetFromInspect(info containerActionInspect, containerID, dockerHost string) endpointFallbackTarget {
+	ips := make([]string, 0, 2*len(info.NetworkSettings.Networks))
+	hostNames := []string{info.Name, containerID, info.Config.Labels[composeServiceLabel]}
+	for _, network := range info.NetworkSettings.Networks {
+		ips = append(ips, network.IPAddress, network.GlobalIPv6Address)
+		hostNames = append(hostNames, network.Aliases...)
+		hostNames = append(hostNames, network.DNSNames...)
+	}
+	return endpointFallbackTarget{
+		ID:          info.ID,
+		IPs:         ips,
+		Labels:      info.Config.Labels,
+		NetworkMode: info.HostConfig.NetworkMode,
+		AnswersHost: containerAnswersDockerHostName(dockerHost, hostNames),
+	}
+}
+
 // endpointFallbackTarget is what dockerEndpointByConnection knows about the
 // target from its inspect.
 type endpointFallbackTarget struct {
@@ -622,27 +667,7 @@ func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.Docker
 		// names its owner, as on the error path below.
 		return containerProtection{Owner: firstContainerOwner([]string{containerID}, nil)}
 	}
-	var info struct {
-		ID     string `json:"Id"`
-		Name   string `json:"Name"`
-		Config struct {
-			Labels map[string]string `json:"Labels"`
-		} `json:"Config"`
-		HostConfig struct {
-			NetworkMode string `json:"NetworkMode"`
-		} `json:"HostConfig"`
-		GraphDriver struct {
-			Data map[string]string `json:"Data"`
-		} `json:"GraphDriver"`
-		NetworkSettings struct {
-			Networks map[string]struct {
-				IPAddress         string   `json:"IPAddress"`
-				GlobalIPv6Address string   `json:"GlobalIPv6Address"`
-				Aliases           []string `json:"Aliases"`
-				DNSNames          []string `json:"DNSNames"`
-			} `json:"Networks"`
-		} `json:"NetworkSettings"`
-	}
+	var info containerActionInspect
 	if err != nil || code != http.StatusOK || json.Unmarshal(data, &info) != nil {
 		// Fail toward a confirmation, like tools.DockerContainerManagedBy: a
 		// reserved name still names its owner, anything else is unverified.
@@ -650,13 +675,8 @@ func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.Docker
 	}
 	p := containerProtection{Owner: firstContainerOwner([]string{info.Name, containerID}, info.Config.Labels)}
 
-	ips := make([]string, 0, 2*len(info.NetworkSettings.Networks))
-	hostNames := []string{info.Name, containerID, info.Config.Labels[composeServiceLabel]}
-	for _, network := range info.NetworkSettings.Networks {
-		ips = append(ips, network.IPAddress, network.GlobalIPv6Address)
-		hostNames = append(hostNames, network.Aliases...)
-		hostNames = append(hostNames, network.DNSNames...)
-	}
+	target := endpointFallbackTargetFromInspect(info, containerID, cfg.Host)
+	ips := target.IPs
 	// At most one container list per request: the endpoint fallback and the
 	// self check share it.
 	var listEntries []tools.DockerContainerListEntry
@@ -672,13 +692,7 @@ func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.Docker
 
 	if endpoint, err := containerDockerEndpointAddresses(ctx, cfg.Host); err == nil {
 		p.DockerEndpoint = containerServesDockerEndpoint(endpoint, ips)
-	} else if isEndpoint, verified := dockerEndpointByConnection(connIP(), endpointFallbackTarget{
-		ID:          info.ID,
-		IPs:         ips,
-		Labels:      info.Config.Labels,
-		NetworkMode: info.HostConfig.NetworkMode,
-		AnswersHost: containerAnswersDockerHostName(cfg.Host, hostNames),
-	}, listContainers); verified {
+	} else if isEndpoint, verified := dockerEndpointByConnection(connIP(), target, listContainers); verified {
 		// docker.host did not resolve, but AuraGo's own Docker connection
 		// names the endpoint container.
 		p.DockerEndpoint = isEndpoint
