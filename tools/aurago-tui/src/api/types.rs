@@ -366,6 +366,19 @@ impl Container {
     pub fn is_protected(&self) -> bool {
         !self.protection().is_empty()
     }
+
+    /// Stopping it stops AuraGo itself, its Docker connection or its network.
+    pub fn stop_needs_confirmation(&self) -> bool {
+        self.is_self || self.docker_endpoint || self.shared_network
+    }
+}
+
+/// Result of DELETE /api/containers/{id}: removed, or the server asks for the
+/// protected-container confirmation the list did not show (HTTP 409).
+#[derive(Debug, Clone, PartialEq)]
+pub enum ContainerRemoveOutcome {
+    Removed,
+    NeedsConfirmation { owner: String, message: String },
 }
 
 impl ContainerList {

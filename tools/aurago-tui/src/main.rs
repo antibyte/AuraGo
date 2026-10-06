@@ -548,6 +548,17 @@ async fn run_app(
                     app_lock.toast_ticks = 10;
                 }
             },
+            AppEvent::ContainerRemoveDone { id, result } => {
+                if actions::on_container_remove_done(&mut app_lock, id, result) {
+                    let c = client.clone();
+                    let tx = event_tx.clone();
+                    let h = tokio::spawn(async move {
+                        let result = auth::fetch_containers(&c).await.map_err(|e| e.to_string());
+                        let _ = tx.send(AppEvent::ContainersLoaded(result));
+                    });
+                    app_lock.spawn_tracked(h);
+                }
+            }
             AppEvent::ContainerLogsLoaded(result) => {
                 match result {
                     Ok(val) => {

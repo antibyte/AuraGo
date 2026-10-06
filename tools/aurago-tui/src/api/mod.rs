@@ -83,6 +83,17 @@ impl ApiClient {
         Ok(())
     }
 
+    /// Sends a request and returns the status with the JSON body (or the body
+    /// text as a JSON string), without turning a non-2xx answer into an error.
+    pub async fn request_json_with_status(&self, method: Method, path: &str) -> Result<(reqwest::StatusCode, serde_json::Value)> {
+        let req = self.build_request(method, path, None::<&()>);
+        let resp = req.send().await.context("HTTP request failed")?;
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        let value = serde_json::from_str(&text).unwrap_or(serde_json::Value::String(text));
+        Ok((status, value))
+    }
+
     fn build_request<B>(&self, method: Method, path: &str, body: Option<&B>) -> RequestBuilder
     where
         B: Serialize,
