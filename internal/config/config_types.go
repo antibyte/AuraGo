@@ -968,6 +968,8 @@ type Config struct {
 		UILanguage           string `yaml:"ui_language"`
 		OAuthRedirectBaseURL string `yaml:"oauth_redirect_base_url"` // override for OAuth callback (e.g. http://localhost:8088)
 		DebugPProf           bool   `yaml:"debug_pprof"`             // expose /debug/pprof endpoints (default false)
+		PreviewDomain        string `yaml:"preview_domain"`          // separate site with wildcard DNS/TLS for isolated guest apps
+		PreviewEnabled       bool   `yaml:"preview_enabled"`         // enable only after staged browser and ingress acceptance
 		MasterKey            string `yaml:"-"`                       // ENV-only (AURAGO_MASTER_KEY)
 		HTTPS                struct {
 			Enabled           bool     `yaml:"enabled"`
@@ -1552,9 +1554,10 @@ type Config struct {
 		Insecure          bool     `yaml:"insecure"`                       // skip TLS certificate verification (default: false)
 	} `yaml:"meshcentral"`
 	Docker struct {
-		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"` // true = only list/inspect/logs/stats, block create/start/stop/remove/exec
-		Host     string `yaml:"host"`     // e.g. unix:///var/run/docker.sock, npipe:////./pipe/docker_engine, or tcp://localhost:2375
+		Enabled         bool   `yaml:"enabled"`
+		ReadOnly        bool   `yaml:"readonly"`          // true = only list/inspect/logs/stats, block create/start/stop/remove/exec
+		Host            string `yaml:"host"`              // e.g. unix:///var/run/docker.sock, npipe:////./pipe/docker_engine, or tcp://localhost:2375
+		AllowHostAccess bool   `yaml:"allow_host_access"` // agent docker compose up/create/build may use host paths outside the workspace, docker.sock, devices, privileged mode, host namespaces, cap_add and unconfined security_opt; configs written before this key existed load as true, fresh installs get false
 	} `yaml:"docker"`
 	PackageManager PackageManagerConfig `yaml:"package_manager"`
 	CoAgents       struct {

@@ -133,8 +133,11 @@
             float disc = 1.0 - smoothstep(0.052, 0.072, sunDist);
             float corona = exp(-sunDist * 15.0);
             float halo = exp(-sunDist * sunDist * 8.5);
-            float ang = atan(toSun.y, toSun.x);
-            float rays = noise(vec2(ang * 6.5 + u_time * 0.035, sunDist * 1.6 - u_time * 0.02)) * 1.45 - 0.42;
+            // Rays are sampled on the unit circle (not on atan) so the noise has no seam at ±π.
+            vec2 sunDir = toSun / max(sunDist, 0.0001);
+            float rayTurn = u_time * 0.035;
+            vec2 rayDir = vec2(sunDir.x * cos(rayTurn) - sunDir.y * sin(rayTurn), sunDir.x * sin(rayTurn) + sunDir.y * cos(rayTurn));
+            float rays = noise(rayDir * 5.2 + vec2(sunDist * 1.6 - u_time * 0.02)) * 1.45 - 0.42;
             rays = pow(max(0.0, rays), 2.1) * smoothstep(0.02, 0.4, sunDist) * exp(-sunDist * 1.5) * (0.3 + closeDust * 1.1);
 
             // The dust wall: a towering, billowing front that crosses the scene during a storm.

@@ -8248,7 +8248,7 @@ function wireWindow(win, id) {
 
     async function fileDialogList(path, options) {
         const endpoint = options.filesEndpoint || '/api/desktop/files';
-        const body = await api(endpoint + '?path=' + encodeURIComponent(normalizeFileDialogPath(path)));
+        const body = await api(endpoint + '?path=' + encodeURIComponent(normalizeFileDialogPath(path)), options.signal ? { signal: options.signal } : undefined);
         return fileDialogSortEntries(Array.isArray(body.files) ? body.files : []);
     }
 
@@ -8521,9 +8521,13 @@ function wireWindow(win, id) {
                     setStatus(fileDialogText('desktop.loading', 'Loading...'));
                     try { const saved = await api(options.fileEndpoint || '/api/desktop/file', {
                         method: 'PUT',
+                        signal: options.signal,
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ path, content: options.content })
-                    }); path = saved.path || path; } finally {
+                    });
+                        if (options.signal && options.signal.aborted) return;
+                        path = saved.path || path;
+                    } finally {
                         saving = false;
                         confirmButton.disabled = false;
                         overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => { btn.disabled = false; });
@@ -8551,6 +8555,7 @@ function wireWindow(win, id) {
             if (settled) return;
             settled = true;
             document.removeEventListener('keydown', onKeydown);
+            if (options.signal) options.signal.removeEventListener('abort', onAbort);
             overlay.remove();
             resolveDialog(result);
         }
@@ -8558,8 +8563,13 @@ function wireWindow(win, id) {
         let resolveDialog;
         const promise = new Promise(resolve => { resolveDialog = resolve; });
         const cancel = () => { if (!saving) finish({ canceled: true }); };
+        const onAbort = () => finish({ canceled: true });
         const onKeydown = event => { if (event.key === 'Escape') cancel(); };
         document.addEventListener('keydown', onKeydown);
+        if (options.signal) {
+            if (options.signal.aborted) onAbort();
+            else options.signal.addEventListener('abort', onAbort, { once: true });
+        }
         overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => btn.addEventListener('click', cancel));
         overlay.addEventListener('click', event => { if (event.target === overlay) cancel(); });
         form.addEventListener('submit', event => {
@@ -8609,9 +8619,11 @@ function wireWindow(win, id) {
                 if (settled) return;
                 settled = true;
                 window.removeEventListener('focus', onFocus);
+                if (options.signal) options.signal.removeEventListener('abort', onAbort);
                 input.remove();
                 resolve(result);
             };
+            const onAbort = () => finish({ canceled: true });
             const onFocus = () => {
                 window.setTimeout(() => {
                     if (!settled && (!input.files || !input.files.length)) finish({ canceled: true });
@@ -8626,13 +8638,16 @@ function wireWindow(win, id) {
                 try {
                     const uploaded = [];
                     for (const file of files) {
+                        if (options.signal && options.signal.aborted) throw new DOMException('Aborted', 'AbortError');
                         const form = new FormData();
                         form.append('path', normalizeFileDialogPath(options.path || options.initialPath || state.filesPath || 'Documents'));
                         form.append('file', file);
-                        const saved = await api(options.uploadURL || options.uploadEndpoint || '/api/desktop/upload', { method: 'POST', body: form });
+                        const saved = await api(options.uploadURL || options.uploadEndpoint || '/api/desktop/upload', { method: 'POST', body: form, signal: options.signal });
+                        if (options.signal && options.signal.aborted) throw new DOMException('Aborted', 'AbortError');
                         const path = saved.path || fileDialogJoinPath(options.path || options.initialPath || state.filesPath || 'Documents', file.name);
                         uploaded.push({ name: fileDialogBaseName(path), path, version: saved.version, size: file.size, type: file.type });
                     }
+                    if (options.signal && options.signal.aborted) return finish({ canceled: true });
                     if (typeof loadBootstrap === 'function') loadBootstrap().catch(() => {});
                     finish({ canceled: false, files: uploaded, paths: uploaded.map(item => item.path) });
                 } catch (err) {
@@ -8641,6 +8656,10 @@ function wireWindow(win, id) {
                 }
             }, { once: true });
             window.addEventListener('focus', onFocus);
+            if (options.signal) {
+                if (options.signal.aborted) onAbort();
+                else options.signal.addEventListener('abort', onAbort, { once: true });
+            }
             input.click();
         });
     }
@@ -10201,8 +10220,9 @@ function wireWindow(win, id) {
         return desktopDropJoinPath(destBase, fallback);
     }
 
-    async function refreshAfterDesktopFileDrop() {
+    async function refreshAfterDesktopFileDrop(options) {
         await loadBootstrap();
+        if (options && options.refreshActiveFileManager === false) return;
         const active = state.windows.get(state.activeWindowId);
         if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
     }
@@ -10277,6 +10297,7 @@ function wireWindow(win, id) {
     }
 
     async function pasteDesktopFileClipboard(destBase, options) {
+        const clipboardState = window.AuraDesktopFileClipboard;
         const clipboard = desktopFileClipboard();
         if (!clipboard) return;
         const targetBase = normalizeDesktopPath(destBase == null ? 'Desktop' : destBase);
@@ -10292,6 +10313,7 @@ function wireWindow(win, id) {
             const naturalPath = desktopDropJoinPath(targetBase, desktopDropBaseName(src) || 'item');
             if (clipboard.mode === 'cut' && naturalPath === src) continue;
             const newPath = await uniqueDestinationInFolder(src, targetBase, existingNames);
+            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
             if (newPath === src) continue;
             if (clipboard.mode === 'copy') {
                 await api('/api/desktop/copy', {
@@ -10306,15 +10328,17 @@ function wireWindow(win, id) {
                     body: JSON.stringify({ old_path: src, new_path: newPath })
                 });
             }
+            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
             if (targetBase.toLowerCase() === 'desktop') {
                 const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
                 saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
                 offset += 18;
             }
         }
-        if (clipboard.mode === 'cut') window.AuraDesktopFileClipboard = null;
+        if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
+        if (clipboard.mode === 'cut' && window.AuraDesktopFileClipboard === clipboardState) window.AuraDesktopFileClipboard = null;
         desktopSound('file.drop');
-        await refreshAfterDesktopFileDrop();
+        await refreshAfterDesktopFileDrop(options);
     }
 
     function wireDesktopFileIconDrag(btn) {
@@ -17184,6 +17208,14 @@ if (appId === 'pixel') {
 
 ;
 /* ui/js/desktop/apps/quickconnect-launchpad-chat.js */
+    const SDK_CHANNEL_CHALLENGE_TYPE = 'aurago.desktop.channel.challenge';
+    const SDK_CHANNEL_HANDSHAKE_TYPE = 'aurago.desktop.channel.handshake';
+    const SDK_CHANNEL_FRAGMENT_KEY = '__aurago_sdk_channel';
+    const SDK_CHANNEL_ORIGINAL_HASH_KEY = '__aurago_sdk_original_hash';
+    const sdkFrameClients = new Map();
+    let sdkChallengeSequence = 0;
+    let sdkFrameObserver = null;
+
     function renderQuickConnect(id) {
         const host = contentEl(id);
         if (!host) return;
@@ -18117,7 +18149,7 @@ if (appId === 'pixel') {
                     formData.append('device_id', deviceId);
                     formData.append('remote_path', joinSFTPPath(remoteDir, file.name));
                     formData.append('file', file);
-                    const resp = await fetch('/api/desktop/sftp/upload', { method: 'POST', body: formData });
+                    const resp = await fetch('/api/desktop/sftp/upload?device_id=' + encodeURIComponent(deviceId), { method: 'POST', body: formData });
                     if (!resp.ok) {
                         const err = await resp.json().catch(() => ({ error: 'Upload failed' }));
                         showNotify(err.error || t('desktop.qc_sftp_error'));
@@ -18133,7 +18165,7 @@ if (appId === 'pixel') {
             const ok = await showConfirmModal(t('desktop.qc_sftp_delete'), t('desktop.qc_sftp_delete_confirm').replace('{{name}}', name));
             if (!ok) return;
             try {
-                await api('/api/desktop/sftp/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
+                await api('/api/desktop/sftp/delete?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -18147,7 +18179,7 @@ if (appId === 'pixel') {
             const dir = oldPath.substring(0, oldPath.lastIndexOf('/')) || '/';
             const newPath = joinSFTPPath(dir, newName);
             try {
-                await api('/api/desktop/sftp/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
+                await api('/api/desktop/sftp/rename?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -18159,7 +18191,7 @@ if (appId === 'pixel') {
             if (!dirName) return;
             const newPath = joinSFTPPath(currentPath, dirName);
             try {
-                await api('/api/desktop/sftp/mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
+                await api('/api/desktop/sftp/mkdir?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -18170,7 +18202,7 @@ if (appId === 'pixel') {
             const dstPath = await promptDialog(t('desktop.qc_sftp_copy_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
-                await api('/api/desktop/sftp/copy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                await api('/api/desktop/sftp/copy?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -18181,7 +18213,7 @@ if (appId === 'pixel') {
             const dstPath = await promptDialog(t('desktop.qc_sftp_move_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
-                await api('/api/desktop/sftp/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                await api('/api/desktop/sftp/move?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -18508,19 +18540,16 @@ if (appId === 'pixel') {
         const pendingExternalWindow = shouldOpenStoreAppExternally(app) ? openPendingExternalStoreWindow() : null;
         host.innerHTML = `<div class="vd-store-frame-loading">${esc(t('desktop.loading'))}</div>`;
         try {
-            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
+            const body = await api(desktopStoreOpenURL(storeAppId));
             if (!contentEl(id)) return;
             if (shouldOpenStoreAppExternally(app)) {
                 navigateExternalStoreWindow(pendingExternalWindow, body.url);
                 closeWindow(id);
                 return;
             }
-            const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
+            const frameURL = storeFrameURL(body.url, storeAppId);
             const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });
             if (storeAppId === 'gods-eye-view') {
-                const localizedURL = new URL(frameURL, window.location.href);
-                localizedURL.searchParams.set('aurago_lang', document.documentElement.lang || 'en');
-                frame.src = localizedURL.toString();
                 frame.setAttribute('allow', frame.getAttribute('allow') + '; microphone');
             }
             host.replaceChildren(frame);
@@ -18674,7 +18703,7 @@ if (appId === 'pixel') {
     async function openExternalStoreApp(storeAppId, title) {
         const pendingWindow = openPendingExternalStoreWindow();
         try {
-            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
+            const body = await api(desktopStoreOpenURL(storeAppId));
             navigateExternalStoreWindow(pendingWindow, body.url);
         } catch (err) {
             closeExternalStoreWindow(pendingWindow);
@@ -18684,16 +18713,23 @@ if (appId === 'pixel') {
 
     function storeFrameURL(src, storeAppId) {
         if (!src) return src;
-        if (storeAppId === 'uptime-kuma') {
-            try {
-                const url = new URL(src, window.location.origin);
+        try {
+            const url = new URL(src, window.location.origin);
+            if (url.pathname.startsWith('/_aurago/launch/')) return src;
+            if (storeAppId === 'uptime-kuma') {
                 url.pathname = '/dashboard';
                 return url.toString();
-            } catch (_) {
-                return String(src).replace(/\/?(\?.*)?$/, '/dashboard$1');
             }
-        }
+        } catch (_) {}
         return src;
+    }
+
+    function desktopStoreOpenURL(storeAppId, portId) {
+        const query = new URLSearchParams();
+        if (portId) query.set('port_id', portId);
+        if (storeAppId === 'gods-eye-view') query.set('lang', document.documentElement.lang || 'en');
+        const suffix = query.toString();
+        return '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url' + (suffix ? '?' + suffix : '');
     }
 
     function cacheBustURL(src, paramName) {
@@ -18714,10 +18750,14 @@ if (appId === 'pixel') {
         const iframe = document.createElement('iframe');
         iframe.className = className;
         iframe.title = title || appId || t('desktop.embed_frame_title');
-        iframe.src = src;
         iframe.dataset.appId = appId || '';
         iframe.dataset.widgetId = widgetId || '';
         iframe.dataset.windowId = windowId || '';
+        const sdkChannel = desktopSDKChannelFromURL(src);
+        if (sdkChannel) {
+            iframe.dataset.sdkChannel = sdkChannel;
+            iframe.addEventListener('load', () => beginSDKChannelHandshake(iframe));
+        }
         const sandboxFlags = ['allow-scripts', 'allow-forms', 'allow-modals'];
         if (options && options.allowSameOrigin) sandboxFlags.push('allow-same-origin');
         if (options && options.allowDownloads) sandboxFlags.push('allow-downloads');
@@ -18733,6 +18773,7 @@ if (appId === 'pixel') {
         iframe.tabIndex = 0;
         iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe));
         if (!(options && options.disableAutoFocus)) iframe.addEventListener('load', () => focusDesktopFrame(iframe));
+        iframe.src = src;
         return iframe;
     }
 
@@ -18756,7 +18797,126 @@ if (appId === 'pixel') {
         const query = new URLSearchParams(params || {});
         const suffix = query.toString();
         const ticketPath = body.token ? '/desktop-ticket/' + encodeURIComponent(body.token) : '';
-        return ticketPath + desktopFileURL(path) + (suffix ? '?' + suffix : '');
+        const src = ticketPath + desktopFileURL(path) + (suffix ? '?' + suffix : '');
+        return /\.html?$/i.test(String(path || '')) ? addDesktopSDKChannelFragment(src) : src;
+    }
+
+    function newDesktopSDKChannel() {
+        if (!window.crypto || typeof window.crypto.getRandomValues !== 'function') return '';
+        const bytes = new Uint8Array(32);
+        window.crypto.getRandomValues(bytes);
+        return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    function addDesktopSDKChannelFragment(src) {
+        const capability = newDesktopSDKChannel();
+        if (!capability) return src;
+        try {
+            const url = new URL(src, window.location.origin);
+            const originalHash = url.hash || '';
+            const params = new URLSearchParams();
+            params.set(SDK_CHANNEL_FRAGMENT_KEY, capability);
+            params.set(SDK_CHANNEL_ORIGINAL_HASH_KEY, originalHash);
+            url.hash = params.toString();
+            return url.pathname + url.search + url.hash;
+        } catch (_) {
+            return src;
+        }
+    }
+
+    function desktopSDKChannelFromURL(src) {
+        try {
+            const url = new URL(src, window.location.origin);
+            if (url.origin !== window.location.origin || !url.pathname.includes('/files/desktop/')) return '';
+            const params = new URLSearchParams(url.hash.slice(1));
+            const capability = params.get(SDK_CHANNEL_FRAGMENT_KEY) || '';
+            return /^[0-9a-f]{64}$/.test(capability) ? capability : '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function nextSDKChannelChallenge() {
+        sdkChallengeSequence = sdkChallengeSequence >= Number.MAX_SAFE_INTEGER ? 1 : sdkChallengeSequence + 1;
+        return sdkChallengeSequence;
+    }
+
+    function revokeSDKFrameClient(frame, remove = false) {
+        const client = sdkFrameClients.get(frame);
+        if (client) {
+            client.generation++;
+            client.challenge = 0;
+            const port = client.port;
+            client.port = null;
+            if (client.abortController) {
+                try { client.abortController.abort(); } catch (_) {}
+                client.abortController = null;
+            }
+            if (port) {
+                try { port.close(); } catch (_) {}
+            }
+            if (remove) sdkFrameClients.delete(frame);
+        }
+        if (frame) delete frame.dataset.sdkChallenge;
+    }
+
+    function sdkFrameClient(frame) {
+        let client = sdkFrameClients.get(frame);
+        if (client) return client;
+        client = {
+            frame,
+            app: null,
+            widget: null,
+            appId: frame.dataset.appId || '',
+            widgetId: frame.dataset.widgetId || '',
+            windowId: frame.dataset.windowId || '',
+            channel: frame.dataset.sdkChannel || '',
+            challenge: 0,
+            generation: 0,
+            port: null,
+            abortController: null,
+            fileVersions: new Map()
+        };
+        sdkFrameClients.set(frame, client);
+        return client;
+    }
+
+    function beginSDKChannelHandshake(frame) {
+        const channel = frame && frame.dataset.sdkChannel;
+        if (!channel || !/^[0-9a-f]{64}$/.test(channel) || !frame.contentWindow) return;
+        const client = sdkFrameClient(frame);
+        revokeSDKFrameClient(frame);
+        client.channel = channel;
+        client.generation++;
+        client.challenge = nextSDKChannelChallenge();
+        frame.dataset.sdkChallenge = String(client.challenge);
+        // This is a public, one-use sequence challenge. The capability and port
+        // travel from the verified child document, never to the WindowProxy.
+        frame.contentWindow.postMessage({ type: SDK_CHANNEL_CHALLENGE_TYPE, challenge: client.challenge }, '*');
+    }
+
+    function ensureSDKFrameLifecycleObserver() {
+        if (sdkFrameObserver || !document.body || typeof MutationObserver !== 'function') return;
+        sdkFrameObserver = new MutationObserver(() => {
+            for (const [frame] of sdkFrameClients) {
+                if (!frame.isConnected) revokeSDKFrameClient(frame, true);
+            }
+        });
+        sdkFrameObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function findSDKFrame(source) {
+        if (!source) return null;
+        for (const frame of document.querySelectorAll('.vd-generated-frame, .vd-widget-frame')) {
+            if (frame.contentWindow === source) return frame;
+        }
+        return null;
+    }
+
+    function isCurrentSDKClient(client, port = client && client.port, generation = client && client.generation) {
+        return !!(client && port && client.frame && client.frame.isConnected &&
+            sdkFrameClients.get(client.frame) === client && client.port === port &&
+            client.generation === generation && client.challenge === 0);
     }
 
     async function ensureDesktopEmbedHasContent(src) {
@@ -18769,26 +18929,45 @@ if (appId === 'pixel') {
     }
 
     function findSDKClient(source) {
-        const frames = document.querySelectorAll('.vd-generated-frame, .vd-widget-frame');
-        for (const frame of frames) {
-            if (frame.contentWindow !== source) continue;
-            const app = allApps().find(item => item.id === frame.dataset.appId);
-            const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
-            const widget = widgets.find(item => item.id === frame.dataset.widgetId);
-            return {
-                app,
-                widget,
-                appId: frame.dataset.appId || '',
-                widgetId: frame.dataset.widgetId || '',
-                windowId: frame.dataset.windowId || ''
-            };
-        }
-        return null;
+        const frame = findSDKFrame(source);
+        const client = frame && sdkFrameClients.get(frame);
+        return isCurrentSDKClient(client) ? client : null;
     }
 
-    function sendSDKResponse(source, id, ok, value) {
-        if (!source || !id) return;
-        source.postMessage(ok ? {
+    function handleSDKChannelHandshake(event) {
+        const message = event && event.data;
+        if (!message || message.type !== SDK_CHANNEL_HANDSHAKE_TYPE) return;
+        const frame = findSDKFrame(event.source);
+        const client = frame && sdkFrameClients.get(frame);
+        const challenge = client && client.challenge;
+        const port = event.ports && event.ports.length === 1 ? event.ports[0] : null;
+        if (!frame || !client || event.origin !== 'null' || !port ||
+            message.capability !== frame.dataset.sdkChannel ||
+            !challenge || message.challenge !== challenge ||
+            String(frame.dataset.sdkChallenge || '') !== String(challenge)) {
+            for (const rejectedPort of event.ports || []) {
+                try { rejectedPort.close(); } catch (_) {}
+            }
+            return;
+        }
+        client.app = allApps().find(item => item.id === frame.dataset.appId) || null;
+        const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
+        client.widget = widgets.find(item => item.id === frame.dataset.widgetId) || null;
+        client.appId = frame.dataset.appId || '';
+        client.widgetId = frame.dataset.widgetId || '';
+        client.windowId = frame.dataset.windowId || '';
+        client.port = port;
+        client.abortController = new AbortController();
+        client.challenge = 0;
+        delete frame.dataset.sdkChallenge;
+        const generation = client.generation;
+        port.addEventListener('message', messageEvent => handleSDKMessage(client, messageEvent, port, generation));
+        port.start();
+    }
+
+    function sendSDKResponse(client, port, generation, id, ok, value) {
+        if (!id || !isCurrentSDKClient(client, port, generation)) return;
+        const response = ok ? {
             type: SDK_RESPONSE_TYPE,
             id,
             ok: true,
@@ -18797,28 +18976,28 @@ if (appId === 'pixel') {
             type: SDK_RESPONSE_TYPE,
             id,
             ok: false,
-            error: value && value.message ? value.message : String(value || t('desktop.embed_bridge_failed'))
-        }, '*');
+            error: value && value.message ? value.message : String(value || t('desktop.embed_bridge_failed')),
+            status: Number(value && value.status) || 0
+        };
+        try { port.postMessage(response); } catch (_) {}
     }
 
     function postSDKMenuAction(windowId, actionId) {
         const frame = document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(windowId)}"]`);
-        if (!frame || !frame.contentWindow || !actionId) return;
-        frame.contentWindow.postMessage({
+        const client = frame && sdkFrameClients.get(frame);
+        if (!actionId || !isCurrentSDKClient(client)) return;
+        try { client.port.postMessage({
             type: 'aurago.desktop.menu-action',
             actionId: String(actionId)
-        }, '*');
+        }); } catch (_) {}
     }
 
     function postSDKContextMenuAction(client, actionId) {
-        const frame = client.windowId
-            ? document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(client.windowId)}"]`)
-            : document.querySelector(`.vd-widget-frame[data-widget-id="${cssSel(client.widgetId)}"]`);
-        if (!frame || !frame.contentWindow || !actionId) return;
-        frame.contentWindow.postMessage({
+        if (!actionId || !isCurrentSDKClient(client)) return;
+        try { client.port.postMessage({
             type: 'aurago.desktop.context-menu-action',
             actionId: String(actionId)
-        }, '*');
+        }); } catch (_) {}
     }
 
 ;
@@ -18902,21 +19081,30 @@ if (appId === 'pixel') {
         throw new Error('Permission denied: ' + required.join(' or '));
     }
 
-    async function handleSDKMessage(event) {
+    async function handleSDKMessage(client, event, port, generation) {
+        if (!isCurrentSDKClient(client, port, generation)) return;
         const msg = event.data;
         if (!msg || msg.type !== SDK_REQUEST_TYPE) return;
-        const client = findSDKClient(event.source);
+        client.app = allApps().find(item => item.id === client.appId) || null;
+        const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
+        client.widget = widgets.find(item => item.id === client.widgetId) || null;
         const widgetAction = msg.action === 'desktop:widget:resize' || msg.action === 'desktop:widget:reload';
         if (!client || (!client.app && !widgetAction)) return;
+        const assertCurrent = () => {
+            if (!isCurrentSDKClient(client, port, generation)) throw new Error('Desktop SDK connection was revoked.');
+        };
         try {
-            const result = await runSDKAction(client, msg.action, msg.payload || {});
-            sendSDKResponse(event.source, msg.id, true, result);
+            const result = await runSDKAction(client, msg.action, msg.payload || {}, assertCurrent);
+            assertCurrent();
+            sendSDKResponse(client, port, generation, msg.id, true, result);
         } catch (err) {
-            sendSDKResponse(event.source, msg.id, false, err);
+            sendSDKResponse(client, port, generation, msg.id, false, err);
         }
     }
 
-    async function runSDKAction(client, action, payload) {
+    async function runSDKAction(client, action, payload, assertCurrent) {
+        const guard = typeof assertCurrent === 'function' ? assertCurrent : function () {};
+        const signal = client.abortController && client.abortController.signal;
         switch (action) {
             case 'desktop:context':
                 return {
@@ -18928,39 +19116,50 @@ if (appId === 'pixel') {
                     icon_theme_manifests: state.iconThemeManifests
                 };
             case 'desktop:widget:resize':
+                guard();
                 if (!client.widgetId) throw new Error('Widget resize is only available inside widget frames.');
                 resizeWidgetToContent(client.widgetId, payload || {});
                 return { status: 'ok' };
             case 'desktop:widget:reload':
+                guard();
                 if (!client.widgetId) throw new Error('Widget reload is only available inside widget frames.');
-                return { status: 'ok', reloaded: await reloadWidgetFrame(client.widgetId, payload || {}) };
+                { const reloaded = await reloadWidgetFrame(client.widgetId, payload || {}); guard(); return { status: 'ok', reloaded }; }
             case 'desktop:menu:set':
+                guard();
                 if (!client.windowId) throw new Error('Menus are only available for app windows.');
                 setWindowMenus(client.windowId, sdkMenus(client, payload.menus || []));
                 return { status: 'ok' };
             case 'desktop:menu:clear':
+                guard();
                 if (client.windowId) clearWindowMenus(client.windowId);
                 return { status: 'ok' };
             case 'desktop:context-menu:show':
+                guard();
                 showContextMenu(Number(payload.x) || 0, Number(payload.y) || 0, sdkContextMenuItems(client, payload.items || []));
                 return { status: 'ok' };
             case 'desktop:context-menu:clear':
+                guard();
                 closeContextMenu();
                 return { status: 'ok' };
             case 'desktop:clipboard:read-text': {
                 if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') throw new Error(t('desktop.clipboard_read_unavailable'));
-                return { text: await navigator.clipboard.readText() };
+                const text = await navigator.clipboard.readText(); guard(); return { text };
             }
             case 'desktop:clipboard:write-text':
                 if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') throw new Error(t('desktop.clipboard_write_unavailable'));
+                guard();
                 await navigator.clipboard.writeText(String(payload.text || ''));
+                guard();
                 return { status: 'ok' };
             case 'fs:list':
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return api('/api/desktop/files?path=' + encodeURIComponent(payload.path || ''));
+                guard();
+                return api('/api/desktop/files?path=' + encodeURIComponent(payload.path || ''), { signal });
             case 'fs:read': {
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                const result = await api('/api/desktop/file?path=' + encodeURIComponent(payload.path || ''));
+                guard();
+                const result = await api('/api/desktop/file?path=' + encodeURIComponent(payload.path || ''), { signal });
+                guard();
                 if (!client.fileVersions) client.fileVersions = new Map();
                 client.fileVersions.set(payload.path || '', result.version);
                 return result;
@@ -18968,47 +19167,57 @@ if (appId === 'pixel') {
             case 'fs:write': {
                 requirePermission(client, ['files:write', 'filesystem:write']);
                 const version = payload.version || client.fileVersions?.get(payload.path || '');
+                guard();
                 const result = await api('/api/desktop/file', {
                     method: 'PUT',
+                    signal,
                     headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
                     body: JSON.stringify({ path: payload.path || '', content: payload.content || '' })
                 });
+                guard();
                 if (!client.fileVersions) client.fileVersions = new Map();
                 client.fileVersions.set(result.path || payload.path || '', result.version);
                 await loadBootstrap();
+                guard();
                 return result;
             }
             case 'dialog:open-file':
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return openDesktopFileDialog(payload || {});
+                guard(); { const result = await openDesktopFileDialog(Object.assign({}, payload || {}, { signal })); guard(); return result; }
             case 'dialog:save-file':
                 requirePermission(client, ['files:write', 'filesystem:write']);
-                return saveDesktopFileDialog(payload || {});
+                guard(); { const result = await saveDesktopFileDialog(Object.assign({}, payload || {}, { signal })); guard(); return result; }
             case 'dialog:import-files':
                 requirePermission(client, ['files:write', 'filesystem:write']);
-                return importHostFiles(payload || {});
+                guard(); { const result = await importHostFiles(Object.assign({}, payload || {}, { signal })); guard(); return result; }
             case 'dialog:export-file':
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return exportWorkspaceFile(payload || {});
+                guard(); { const result = await exportWorkspaceFile(payload || {}); guard(); return result; }
             case 'app:open':
                 requirePermission(client, ['apps:open']);
+                guard();
                 openApp(payload.app_id || payload.id || client.appId);
                 return { status: 'ok' };
             case 'notification:show':
                 requirePermission(client, ['notifications']);
+                guard();
                 showDesktopNotification({ title: payload.title || client.app.name, message: payload.message || payload.content || '' });
                 return { status: 'ok' };
             case 'widget:upsert': {
                 requirePermission(client, ['widgets:write']);
+                guard();
                 const widget = Object.assign({}, payload || {});
                 if (!widget.app_id) widget.app_id = client.appId;
                 if (!widget.icon && client.app && client.app.icon) widget.icon = client.app.icon;
                 await api('/api/desktop/widgets', {
                     method: 'POST',
+                    signal,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(widget)
                 });
+                guard();
                 await loadBootstrap();
+                guard();
                 return { status: 'ok' };
             }
             default:
@@ -19384,7 +19593,8 @@ if (appId === 'pixel') {
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('virtual_desktop_event', handleDesktopEvent);
         }
-        window.addEventListener('message', handleSDKMessage);
+        ensureSDKFrameLifecycleObserver();
+        window.addEventListener('message', handleSDKChannelHandshake);
     }
 
     function toggleWidgetDrawer() {
@@ -19544,18 +19754,24 @@ if (appId === 'pixel') {
             ? document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(state.activeWindowId)}"]`)
             : null;
         if (!frame || !frame.contentWindow) return false;
-        frame.contentWindow.postMessage({
-            type: 'aurago.desktop.key-event',
-            eventType: event.type === 'keyup' ? 'keyup' : 'keydown',
-            key: event.key,
-            code: event.code,
-            location: event.location || 0,
-            repeat: !!event.repeat,
-            ctrlKey: !!event.ctrlKey,
-            shiftKey: !!event.shiftKey,
-            altKey: !!event.altKey,
-            metaKey: !!event.metaKey
-        }, '*');
+        const client = sdkFrameClients.get(frame);
+        if (!isCurrentSDKClient(client)) return false;
+        try {
+            client.port.postMessage({
+                type: 'aurago.desktop.key-event',
+                eventType: event.type === 'keyup' ? 'keyup' : 'keydown',
+                key: event.key,
+                code: event.code,
+                location: event.location || 0,
+                repeat: !!event.repeat,
+                ctrlKey: !!event.ctrlKey,
+                shiftKey: !!event.shiftKey,
+                altKey: !!event.altKey,
+                metaKey: !!event.metaKey
+            });
+        } catch (_) {
+            return false;
+        }
         if (event.cancelable && (event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar' || String(event.key || '').indexOf('Arrow') === 0)) {
             event.preventDefault();
         }

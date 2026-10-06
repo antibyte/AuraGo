@@ -141,6 +141,10 @@ func handleDesktopArchiveList(s *Server) http.HandlerFunc {
 			return
 		}
 		defer reader.Close()
+		if len(reader.File) > desktop.ArchiveEntryLimit {
+			jsonError(w, "Archive contains too many entries", http.StatusRequestEntityTooLarge)
+			return
+		}
 
 		type zipEntry struct {
 			Name           string `json:"name"`

@@ -312,11 +312,30 @@ Manage Docker containers, images, and networks.
 
 > ⚠️ **Warning:** Docker integration grants significant system access. Use `readonly` for restricted environments.
 
+### Agent Compose stacks and host access
+
+The agent can run `docker compose` for files inside its workspace. Before every Compose command, AuraGo resolves the file with `docker compose config` and checks the result:
+
+- **Blocked for every Compose command:** stacks that touch AuraGo-managed containers, labels, images or volumes (local LLM, ACE-Step, Garage, homepage, the AuraGo app container).
+- **Always blocked for `up`, `create` and `build`, even with host access:** binds, env files, secrets, configs, Dockerfiles, build contexts or watch paths that point into AuraGo's own data directory, `config.yaml`, the `.env` next to it, `/etc/aurago` or the master key secret. `config` and `convert` print env files inlined, so they reject env files, secrets and configs inside AuraGo's state too. `up`, `create`, `build`, `pull`, `config` and `convert` reject AuraGo's master key value wherever it appears in the resolved file. Docker Compose itself never sees the master key: AuraGo removes `AURAGO_MASTER_KEY` from the environment of every Docker command it starts.
+- **Needs `docker.allow_host_access: true` (checked for `up`, `create` and `build`):** binds outside the agent workspace (for example `/srv/media`) or that contain AuraGo's own files, sensitive host paths such as `/var/run/docker.sock`, `/etc/localtime` or `/`, Windows named pipes, `use_api_socket`, `devices`, `device_cgroup_rules`, `gpus` and reserved devices, `privileged`, `network_mode`/`pid`/`ipc`/`userns_mode`/`uts`/`cgroup: host`, `cap_add`, unconfined `security_opt`, local volumes that bind a host directory or mount a `/dev` device or a non-network filesystem (NFS, CIFS/SMB and tmpfs volumes are fine), build SSH (`build.ssh`, `build --ssh`), privileged builds, build entitlements, `build.network: host`, and env files, secrets, configs, Dockerfiles, build contexts or `develop.watch` paths outside the workspace. Every service of the file's default profiles is checked, not only the ones a command names. A workspace below `/mnt`, `/root` or `C:\ProgramData` works like any other.
+- **Also needs host access for `down`, `start`, `stop`, `restart`, `rm` and `pull`:** `provider` services and privileged `post_start`/`pre_stop` hooks, including those of profile services the command names and of the services they depend on, because Compose runs them on the host or with host privileges.
+- `kill`, `pause`, `unpause`, `ps`, `logs` and the inspection commands are never checked for host access, so stacks you already run stay manageable.
+- Only what a command runs is checked: a service of an inactive profile counts once a command names it (for example `up -d tools` or `build tools`).
+
+With a Docker Compose older than v2.35 AuraGo resolves a named profile service with `docker compose config -- <service>`. If that fails (for example because an env file is missing), `up` and `create` are rejected; `build` and `pull`, which do not need env files, run unchecked with host access (unless the Compose file itself names AuraGo's own files or master key) and are rejected without it. It cannot list env file paths there: without host access it rejects `up`/`create` for files that use `env_file`, `include:` or `extends:`. Known limitation: `down`, `start`, `stop`, `restart` and `rm` cannot check the providers and hooks of a profile service they name on such a Compose.
+
+Traefik, Portainer, Watchtower, Home Assistant, Frigate, node-exporter or media servers with host folders need host access. Configurations created before this setting existed have it switched on automatically (the updater writes `allow_host_access: true`); fresh installs start with `false`. Toggle it in **Config → Danger Zone → Docker host access for agent Compose stacks**. The security check warns while it is on.
+
+> ⚠️ With host access on, a bind of a parent directory such as `/` (node-exporter) still exposes AuraGo's vault, `config.yaml` and master key to that container. Only AuraGo's own paths themselves are blocked.
+
 ### YAML Reference
 ```yaml
 docker:
     enabled: true
     host: "unix:///var/run/docker.sock"
+    readonly: false
+    allow_host_access: false   # agent Compose up/create/build may use host paths, devices, privileges and host namespaces
 ```
 
 ---
@@ -2162,6 +2181,8 @@ Headless browser automation for forms, screenshots, and web interactions.
 4. Save and restart.
 
 The Browser Automation sidecar requires `AURAGO_BROWSER_AUTOMATION_TOKEN` by default. AuraGo injects it automatically for managed sidecars; set it explicitly when running the sidecar manually. Use `AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1` only for isolated local development.
+
+If the sidecar image is missing and `browser_automation.auto_build` is on (the default), AuraGo builds `Dockerfile.browser_automation` from `browser_automation.dockerfile_dir` with the Docker CLI on the engine in `docker.host`, the engine that also runs the sidecar. An inherited `DOCKER_HOST` or `DOCKER_CONTEXT` does not redirect the build. If that engine refuses the build with a 403-style answer (a socket proxy with `BUILD=0`), AuraGo retries once on the Docker CLI's default engine (`DOCKER_HOST` from AuraGo's environment, else the local socket) when that is a different engine; if `docker.host` still has no image afterwards, the build fails with a hint. Release installs ship neither the Dockerfile nor the sidecar sources: set `browser_automation.dockerfile_dir` to an AuraGo source checkout (relative paths start at AuraGo's working directory), or build `aurago-browser-automation:latest` yourself.
 
 ### YAML Reference
 ```yaml

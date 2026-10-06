@@ -322,3 +322,46 @@ func (testReadyShellSandbox) PrepareExecCommand(binary string, args []string, wo
 	cmd.Dir = workDir
 	return cmd
 }
+
+func TestCheckSecurityWarnsWhileDockerHostAccessIsOn(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name                       string
+		enabled, readOnly, allowed bool
+		want                       bool
+	}{
+		{"enabled, writable, host access", true, false, true, true},
+		{"read-only", true, true, true, false},
+		{"docker disabled", false, false, true, false},
+		{"host access off", true, false, false, false},
+	}
+	for _, tc := range cases {
+		cfg := &config.Config{}
+		cfg.Docker.Enabled, cfg.Docker.ReadOnly, cfg.Docker.AllowHostAccess = tc.enabled, tc.readOnly, tc.allowed
+		hint := findSecurityHint(CheckSecurity(cfg), "docker_compose_host_access")
+		if (hint != nil) != tc.want {
+			t.Fatalf("%s: hint present = %v, want %v", tc.name, hint != nil, tc.want)
+		}
+		if hint != nil && (hint.Severity != SevWarning || !strings.Contains(hint.Description, "parent directory such as /")) {
+			t.Fatalf("%s: unexpected hint %+v", tc.name, hint)
+		}
+	}
+}
+
+func TestCheckSecurityDockerHostAccessHintNamesWhenToSwitchOff(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Docker.Enabled, cfg.Docker.AllowHostAccess = true, true
+	hint := findSecurityHint(CheckSecurity(cfg), "docker_compose_host_access")
+	if hint == nil {
+		t.Fatal("docker_compose_host_access hint missing")
+	}
+	if !strings.Contains(hint.Description, "use files inside the agent workspace and need no devices, privileged mode, host namespaces or cap_add") {
+		t.Fatalf("hint does not name the full switch-off condition: %q", hint.Description)
+	}
+	if hint.AutoFixable || hint.FixPatch != nil {
+		t.Fatalf("hint must not be auto-fixable: %+v", hint)
+	}
+}

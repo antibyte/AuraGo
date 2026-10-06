@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Aperçus d’applications isolés",
+  "config.server.preview_domain": "Domaine des aperçus",
+  "config.server.preview_enabled": "Activer après validation",
+  "config.server.preview_hint": "Désactivé par défaut. Utilise un site séparé avec DNS générique et TLS. Teste les connexions aux applications, les fichiers et les WebSockets sur les hôtes préparés avant l’activation.",
   "config.fritzbox.status_ok": "🟢 Connecté",
   "config.fritzbox.test_fail": "Connexion échouée",
   "config.fritzbox.test_ok": "Connexion réussie",

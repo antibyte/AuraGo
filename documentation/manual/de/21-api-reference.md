@@ -714,6 +714,8 @@ GET /api/missions/v2/dependencies
 
 ## Container API
 
+Bei aktivierter Anmeldung erfordern alle Container-Routen eine Browser-Sitzung oder ein API-Token mit dem Scope `admin`.
+
 ### Container auflisten
 ```http
 GET /api/containers
@@ -735,6 +737,15 @@ POST /api/containers/{id}/pause
 POST /api/containers/{id}/unpause
 DELETE /api/containers/{id}
 ```
+
+### Geschützte Container
+`GET /api/containers` markiert Container, die AuraGo verwaltet (`protected_owner`: `aurago-app`, `acestep`, `homepage`, `go2rtc`, `local-llm`, `boring-garage`), den Container, in dem AuraGo läuft (`self: true`), und den Container, über den AuraGo Docker erreicht (`docker_endpoint: true`). Teilt AuraGo den Netzwerk-Namespace eines anderen Containers (`network_mode: service:…` oder `container:…`, zum Beispiel ein Tailscale- oder Gluetun-Sidecar), kann AuraGo den eigenen Container nicht von diesem Anbieter unterscheiden; beide werden dann statt `self` mit `shared_network: true` markiert. Das gilt auch, wenn ein anderer Container dem Netzwerk-Namespace von AuraGo selbst beitritt, und für alle Container, die sich einen Anbieter teilen.
+
+Für diese Container antworten `GET /api/containers/{id}/terminal` (WebSocket), `POST /api/containers/{id}/update` und `DELETE /api/containers/{id}` mit HTTP 409 und `code: "container_protected_confirmation_required"`, solange die Anfrage nicht `confirm=protected` enthält. Das Feld `owner` nennt den Grund (`self`, `docker-endpoint`, `shared-network`, den verwaltenden Besitzer oder `unverified`). Das gilt auch, wenn Docker die Eigentümerprüfung nicht beantwortet oder der Host des Docker-Endpunkts nicht aufgelöst werden kann (`owner: "unverified"`). `POST /api/containers/{id}/update` auf den AuraGo-Container selbst oder den Docker-Endpunkt-Container antwortet immer mit HTTP 409 und `code: "container_self_update_unsupported"`: Das Update würde AuraGo oder seine Docker-Verbindung stoppen, bevor der Ersatz existiert. Aktualisiere diese Container mit `docker compose pull && docker compose up -d` auf dem Docker-Host. Unter Podman kann AuraGo den eigenen Container nicht erkennen; der App-Container braucht dann nur die Bestätigung (über seinen reservierten Namen oder sein Owner-Label). Start, Stopp, Neustart, Logs, Inspect und Statistiken brauchen keine Bestätigung.
+
+Eine Terminal-Anfrage ohne WebSocket-Upgrade antwortet mit HTTP 400, bevor eine Shell startet. Ein Container mit `shared_network` (und ohne `docker_endpoint`) wird beim Update nie abgelehnt, sondern nur bestätigt, auch wenn es der AuraGo-Container ist; dieses Update stoppt AuraGo.
+
+Ein Fehler von Docker oder der Docker-Werkzeugschicht antwortet mit HTTP 502 und unverändertem JSON-Body (`status: "error"`, `message`). `503` bedeutet weiterhin, dass Docker deaktiviert ist, `403`, dass Docker schreibgeschützt ist.
 
 ### Runtime-Informationen
 ```http

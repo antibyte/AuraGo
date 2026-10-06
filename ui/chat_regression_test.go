@@ -3802,3 +3802,51 @@ func TestChatHandlesTypedAgentErrorsOutsideAssistantStream(t *testing.T) {
 		}
 	}
 }
+
+// docker.allow_host_access has exactly one control, in the Danger Zone; the
+// generic Docker section skips it and the config search lands on the visible
+// Danger Zone card.
+func TestConfigDockerHostAccessLivesInDangerZone(t *testing.T) {
+	t.Parallel()
+
+	read := func(path string) string {
+		t.Helper()
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		return strings.ReplaceAll(string(content), "\r\n", "\n")
+	}
+	mainJS := read(filepath.Join("js", "config", "main.js"))
+	for _, marker := range []string{
+		"const DOCKER_SKIP_KEYS = new Set([\n        'allow_host_access'",
+		"schemaChildren = schemaChildren.filter(f => !DOCKER_SKIP_KEYS.has(f.yaml_key));",
+		"if (key === 'docker' && DOCKER_SKIP_KEYS.has(k)) continue;",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("main.js is missing docker skip marker %q", marker)
+		}
+	}
+	dangerJS := read(filepath.Join("cfg", "danger.js"))
+	for _, marker := range []string{
+		"path: 'docker.allow_host_access',",
+		"val: (configData.docker || {}).allow_host_access === true,",
+		"title: t('config.danger.docker_host_access.title'),",
+		"desc: t('config.danger.docker_host_access.desc'),",
+	} {
+		if !strings.Contains(dangerJS, marker) {
+			t.Fatalf("danger.js is missing Danger Zone marker %q", marker)
+		}
+	}
+	catalogJS := read(filepath.Join("js", "config", "catalog.js"))
+	ownerLine := ""
+	for _, line := range strings.Split(catalogJS, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "danger_zone: [") {
+			ownerLine = line
+			break
+		}
+	}
+	if !strings.Contains(ownerLine, "'docker.allow_host_access'") {
+		t.Fatalf("catalog.js searchSections.danger_zone does not own docker.allow_host_access: %q", ownerLine)
+	}
+}

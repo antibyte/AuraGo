@@ -273,11 +273,30 @@ Verwalte Docker-Container über AuraGo.
 
 > ⚠️ **Sicherheit:** Der Docker-Zugriff ermöglicht volle Host-Kontrolle. Aktiviere `readonly` für mehr Sicherheit.
 
+### Compose-Stacks des Agenten und Hostzugriff
+
+Der Agent kann `docker compose` für Dateien in seinem Workspace ausführen. Vor jedem Compose-Befehl löst AuraGo die Datei mit `docker compose config` auf und prüft das Ergebnis:
+
+- **Bei jedem Compose-Befehl gesperrt:** Stacks, die von AuraGo verwaltete Container, Labels, Images oder Volumes berühren (lokales LLM, ACE-Step, Garage, Homepage, der AuraGo-App-Container).
+- **Bei `up`, `create` und `build` immer gesperrt, auch mit Hostzugriff:** Binds, env-Dateien, Secrets, Configs, Dockerfiles, Build-Kontexte oder Watch-Pfade, die in AuraGos Datenverzeichnis, `config.yaml`, die `.env` daneben, `/etc/aurago` oder das Master-Key-Secret zeigen. `config` und `convert` geben env-Dateien eingebettet aus und lehnen deshalb env-Dateien, Secrets und Configs in AuraGos Zustand ebenfalls ab. `up`, `create`, `build`, `pull`, `config` und `convert` lehnen den Wert von AuraGos Master-Key ab, wo immer er in der aufgelösten Datei steht. Docker Compose selbst sieht den Master-Key nie: AuraGo entfernt `AURAGO_MASTER_KEY` aus der Umgebung jedes Docker-Befehls, den es startet.
+- **Braucht `docker.allow_host_access: true` (geprüft bei `up`, `create` und `build`):** Binds außerhalb des Agenten-Workspace (z. B. `/srv/media`) oder solche, die AuraGos eigene Dateien enthalten, sensible Host-Pfade wie `/var/run/docker.sock`, `/etc/localtime` oder `/`, Windows-Named-Pipes, `use_api_socket`, `devices`, `device_cgroup_rules`, `gpus` und reservierte Geräte, `privileged`, `network_mode`/`pid`/`ipc`/`userns_mode`/`uts`/`cgroup: host`, `cap_add`, unbeschränkte `security_opt`, lokale Volumes, die ein Host-Verzeichnis einbinden oder ein `/dev`-Gerät bzw. ein Nicht-Netzwerk-Dateisystem mounten (NFS-, CIFS/SMB- und tmpfs-Volumes sind in Ordnung), SSH im Build (`build.ssh`, `build --ssh`), privilegierte Builds, Build-Entitlements, `build.network: host` sowie env-Dateien, Secrets, Configs, Dockerfiles, Build-Kontexte oder `develop.watch`-Pfade außerhalb des Workspace. Geprüft wird jeder Service der Standardprofile der Datei, nicht nur die, die ein Befehl nennt. Ein Workspace unter `/mnt`, `/root` oder `C:\ProgramData` funktioniert wie jeder andere.
+- **Braucht Hostzugriff auch bei `down`, `start`, `stop`, `restart`, `rm` und `pull`:** `provider`-Services und privilegierte `post_start`-/`pre_stop`-Hooks, auch die von Profil-Services, die der Befehl nennt, und von den Services, von denen diese abhängen, weil Compose sie auf dem Host bzw. mit Host-Rechten ausführt.
+- `kill`, `pause`, `unpause`, `ps`, `logs` und die Abfragebefehle prüft AuraGo nie auf Hostzugriff – Stacks, die schon laufen, kannst Du also weiter verwalten.
+- Geprüft wird nur, was ein Befehl ausführt: Ein Service eines inaktiven Profils zählt erst, wenn ein Befehl ihn nennt (z. B. `up -d tools` oder `build tools`).
+
+Mit einem Docker Compose älter als v2.35 löst AuraGo einen genannten Service eines inaktiven Profils mit `docker compose config -- <service>` auf. Schlägt das fehl (etwa weil eine env-Datei fehlt), lehnt es `up` und `create` ab; `build` und `pull`, die keine env-Dateien brauchen, laufen mit Hostzugriff ungeprüft (außer die Compose-Datei selbst nennt AuraGos eigene Dateien oder den Master-Key) und werden ohne ihn abgelehnt. Die Pfade von env-Dateien kann es dort nicht auflisten: Ohne Hostzugriff lehnt es `up`/`create` für Dateien mit `env_file`, `include:` oder `extends:` ab. Bekannte Einschränkung: `down`, `start`, `stop`, `restart` und `rm` können bei so einem Compose die Provider und Hooks eines genannten Profil-Service nicht prüfen.
+
+Traefik, Portainer, Watchtower, Home Assistant, Frigate, node-exporter oder Medienserver mit Host-Ordnern brauchen den Hostzugriff. Konfigurationen, die es vor dieser Einstellung schon gab, haben ihn automatisch eingeschaltet (das Update schreibt `allow_host_access: true`); neue Installationen starten mit `false`. Du schaltest ihn unter **Config → Gefahrenzone → Docker-Hostzugriff für Compose-Stacks des Agenten** um. Der Sicherheitscheck warnt, solange er eingeschaltet ist.
+
+> ⚠️ Mit eingeschaltetem Hostzugriff legt ein Bind eines übergeordneten Verzeichnisses wie `/` (node-exporter) AuraGos Vault, `config.yaml` und Master-Key trotzdem für diesen Container offen. Gesperrt sind nur AuraGos eigene Pfade selbst.
+
 ### YAML-Referenz
 ```yaml
 docker:
   enabled: true
   host: "unix:///var/run/docker.sock"
+  readonly: false
+  allow_host_access: false   # Compose up/create/build des Agenten darf Host-Pfade, Geräte, Privilegien und Host-Namespaces nutzen
 ```
 
 ## Package Manager Integration
@@ -1661,6 +1680,8 @@ Headless-Browser-Automatisierung für Formulare, Screenshots und Web-Interaktion
 **Web-UI:** Config → Integrationen → Browser Automation → aktivieren, Headless-Modus und Screenshot-Verzeichnis konfigurieren.
 
 Der Browser-Automation-Sidecar verlangt standardmäßig `AURAGO_BROWSER_AUTOMATION_TOKEN`. AuraGo setzt es bei verwalteten Sidecars automatisch; bei manuell gestarteten Sidecars muss es explizit gesetzt werden. Nutze `AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1` nur für isolierte lokale Entwicklung.
+
+Fehlt das Sidecar-Image und ist `browser_automation.auto_build` aktiv (Standard), baut AuraGo `Dockerfile.browser_automation` aus `browser_automation.dockerfile_dir` mit der Docker-CLI auf der Engine in `docker.host`, die auch den Sidecar startet. Ein geerbtes `DOCKER_HOST` oder `DOCKER_CONTEXT` lenkt den Build nicht um. Lehnt diese Engine den Build mit einer 403-Antwort ab (Socket-Proxy mit `BUILD=0`), versucht AuraGo es einmal auf der Standard-Engine der Docker-CLI (`DOCKER_HOST` aus der Umgebung von AuraGo, sonst der lokale Socket), sofern das eine andere Engine ist; findet `docker.host` das Image danach immer noch nicht, schlägt der Build mit einem Hinweis fehl. Release-Installationen enthalten weder das Dockerfile noch die Sidecar-Quellen: Setze `browser_automation.dockerfile_dir` auf einen AuraGo-Quellcode-Checkout (relative Pfade gelten ab dem Arbeitsverzeichnis von AuraGo) oder baue `aurago-browser-automation:latest` selbst.
 
 ### YAML-Referenz
 ```yaml

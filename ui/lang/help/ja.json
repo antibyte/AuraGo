@@ -121,6 +121,7 @@
   "help.discord.enabled": "Discord ボットを有効にします。",
   "help.discord.guild_id": "Discordサーバー(ギルド)のIDです。",
   "help.discord.read_only": "有効にすると、エージェントは Discord メッセージを読み取ることのみができますが、送信することはできません。",
+  "help.docker.allow_host_access": "この設定が導入される前に作成された設定では自動的にオンになります。Docker が有効で、読み取り専用モードでない場合にのみ適用されます。",
   "help.docker.enabled": "Dockerコンテナ管理を有効にします。",
   "help.docker.host": "オプションのリモート Docker ホスト (例: tcp://192.168.1.5:2375)。ローカルソケットの場合は空白のままにします。",
   "help.docker.read_only": "有効にすると、エージェントは Docker コンテナの一覧表示と検査のみを行うことができますが、開始、停止、作成、削除はできません。",

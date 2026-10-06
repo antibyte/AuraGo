@@ -23,7 +23,8 @@ Ein **Nest** beschreibt, *wo* ein Egg deployed wird:
 | Feld | Werte | Beschreibung |
 |------|-------|--------------|
 | `access_type` | `ssh`, `docker`, `local` | Wie der Master das Ziel erreicht |
-| `deploy_method` | `ssh`, `docker_remote`, `docker_local` | Wie das Egg-Binary deployt wird |
+| `deploy_method` | `ssh`, `docker_remote`, `docker_ssh`, `docker_local` | Wie das Egg-Binary deployt wird |
+| `docker_tls` | `""` (aus), `tls`, `mtls` | Nur `docker_remote`: unverschlüsseltes HTTP (Standard), TLS oder Mutual TLS zur Docker-Engine |
 | `route` | `direct`, `ssh_tunnel`, `tailscale`, `wireguard`, `custom` | Wie das Egg den Master-WebSocket erreicht |
 | `target_arch` | `linux/amd64`, `linux/arm64` | Ziel-Architektur des Binaries |
 | `egg_id` | UUID | Zugewiesene Egg-Vorlage (für Hatch erforderlich) |
@@ -137,10 +138,11 @@ Es gibt **keinen Deployments-Tab**. Deployment-Historie ist nur über die REST A
 | Name | Pflichtfeld |
 | Notes | Optional |
 | Access Type | `SSH`, `Docker API` oder `Local` |
-| Host / Port / Username | Für SSH und Docker; bei Local ausgeblendet |
+| Host / Port / Username | Für SSH und Docker; bei Local ausgeblendet, außer mit der Deploy-Methode `Docker (über SSH)` |
 | Secret | SSH-Key oder Passwort; wird im Vault gespeichert |
 | Assign Egg | Egg auswählen oder leer lassen |
-| Deploy Method | `SSH`, `Docker (Remote)` oder `Docker (Local)` |
+| Deploy Method | `SSH`, `Docker (Entfernt)`, `Docker (über SSH)` oder `Docker (Lokal)` |
+| Docker-TLS | Nur `Docker (Entfernt)`: `Aus`, `TLS` oder `Mutual TLS`, dazu CA / Client-Zertifikat / Schlüssel |
 | Target Architecture | `linux/amd64` oder `linux/arm64` |
 | Route | Wie das Egg den Master-WebSocket erreicht |
 | Route Config | JSON, z. B. `{"tunnel_port":8443}` oder volle WebSocket-URL bei `custom` |
@@ -173,6 +175,52 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/validate
 ```
 
 > 💡 **Tipp:** SSH-Keys und Passwörter beim Erstellen über UI/API im Vault speichern. Secrets werden in API-Antworten nie zurückgegeben (`has_secret: true` zeigt ein gespeichertes Credential an).
+
+### Transportsicherheit für Docker-Nests
+
+Ohne **Docker-TLS** (Standard, siehe unten) spricht `Docker (Entfernt)` (`docker_remote`) die Docker-Engine-API des Ziels über **unverschlüsseltes HTTP** an (Standardport `2375`). Jeder Hatch und jedes Reconfigure kopiert die `config.yaml` des Eggs über diese Verbindung in den Container. Die Datei enthält den Egg-Shared-Key, den Egg-Vault-Schlüssel und mit `inherit_llm` den LLM-API-Key des Masters. Wer den Verkehr mitlesen kann, erhält diese Secrets. Wer den Engine-Port erreicht, steuert den entfernten Docker-Daemon, weil eine Engine ohne TLS Aufrufer nicht authentifiziert.
+
+Bestehende Nests funktionieren weiter. AuraGo warnt an drei Stellen:
+- im Nest-Formular
+- im Bereich **Sicherheitsaudit** der Konfiguration, als Hinweis `invasion_docker_remote_plaintext`
+- im Log, bei jedem Hatch und Reconfigure
+
+Nutze `Docker (Entfernt)` ohne TLS nur in einem isolierten Netz, setze **Docker-TLS** am Nest oder stelle das Nest auf `Docker (über SSH)` (derselbe Container, siehe unten) oder auf `SSH` (das Binary) um. Beide übertragen alle Dateien über die verschlüsselte SSH-Verbindung.
+
+Das Umstellen eines Nests schließt den unverschlüsselten TCP-Listener der Engine nicht. Solange `dockerd` mit `-H tcp://…:2375` läuft, steuert jeder, der diesen Port erreicht, den Docker-Daemon. Entferne diesen Listener auf dem Zielhost.
+
+**Verschlüsseltes Docker (Entfernt).** Setze **Docker-TLS** am Nest:
+
+| Docker-TLS | Wirkung |
+|------------|---------|
+| Aus (Standard) | Unverschlüsseltes HTTP wie bisher, Standardport `2375` |
+| TLS | HTTPS. AuraGo prüft das Engine-Zertifikat gegen die eingefügte CA oder, wenn das CA-Feld leer ist, gegen die Systemzertifikate. Standardport `2376` |
+| Mutual TLS | Wie TLS, zusätzlich legt AuraGo ein Client-Zertifikat mit Schlüssel vor: das Setup von `dockerd --tlsverify` |
+
+CA, Client-Zertifikat und Schlüssel liegen im Vault (`nest_docker_tls_<nest-id>`), nie in der Invasion-Datenbank, und die API gibt sie nie zurück. Sie werden mit dem Nest oder beim Abschalten von TLS gelöscht. AuraGo überspringt die Zertifikatsprüfung nie. `HTTP_PROXY` gilt für unverschlüsselte Nests, `HTTPS_PROXY` für TLS-Nests und `NO_PROXY` für beide; durch einen Proxy läuft TLS Ende-zu-Ende.
+
+REST-Felder: `docker_tls` (`""`, `"tls"`, `"mtls"`), `docker_tls_ca`, `docker_tls_cert`, `docker_tls_key`. Ein Update ohne `docker_tls` behält den aktuellen Modus; leere PEM-Felder behalten das gespeicherte Material.
+
+Ein leeres CA-Feld behält eine gespeicherte CA. Um bei TLS wieder die Systemzertifikate zu nutzen, speichere zweimal: zuerst mit **Docker-TLS** auf `Aus`, was das gespeicherte Material löscht, dann mit `TLS` und leerem CA-Feld.
+
+Bevor Du auf ein Release ohne Docker-TLS zurückgehst, schalte TLS bei den Nests ab oder lösche sie. Ein älteres Release ignoriert `docker_tls` und spricht den TLS-Port mit unverschlüsseltem HTTP an, diese Nests funktionieren dann nicht mehr.
+
+**Docker über SSH.** Die Deploy-Methode `Docker (über SSH)` (`docker_ssh`) startet denselben Egg-Container wie `Docker (Entfernt)`. Sie erreicht den Engine-Socket `/var/run/docker.sock` über eine SSH-Verbindung mit Host, Port (Standard `22`), Benutzername und Secret des Nests. Jede Anfrage, auch die Kopie der Konfiguration, ist verschlüsselt, und Host-Keys werden wie bei SSH-Deploys gegen `known_hosts` geprüft.
+
+Voraussetzungen auf dem Ziel:
+- der SSH-Benutzer darf den Docker-Socket nutzen, zum Beispiel als Mitglied der Gruppe `docker`. Die Mitgliedschaft in `docker` kommt Root-Rechten auf diesem Host gleich.
+- `sshd` erlaubt Stream-Local-Forwarding (`AllowStreamLocalForwarding`, Standard `yes`). Auch `DisableForwarding yes` in der `sshd_config` verhindert es, ebenso `restrict` oder `no-port-forwarding` in der Zeile des Schlüssels in `authorized_keys`.
+- der Engine-Socket ist `/var/run/docker.sock`. Der Pfad ist fest, deshalb wird Rootless Docker (Socket unter `$XDG_RUNTIME_DIR`) nicht unterstützt.
+- der Host-Key steht in `~/.ssh/known_hosts` des Benutzers, unter dem der AuraGo-Dienst läuft, nicht in dem Deines eigenen Logins. Für einen anderen Port als `22` lautet der Eintrag `[host]:port`, zum Beispiel mit `ssh-keyscan -p 2222 host >> ~/.ssh/known_hosts`.
+
+Wähle für solche Nests den Zugriffstyp `SSH`. `Docker (über SSH)` ignoriert `HTTP_PROXY`, `HTTPS_PROXY` und `NO_PROXY`: Die SSH-Verbindung geht direkt zum Host.
+
+| Fehler bei Test Connection oder in `hatch_error` | Ursache |
+|--------------------------------------------------|---------|
+| `open /var/run/docker.sock: ssh: rejected: connect failed ("open failed")` | Entweder hat eine Forwarding-Richtlinie den Socket abgelehnt (`AllowStreamLocalForwarding no`, `DisableForwarding yes` oder `restrict` / `no-port-forwarding` in `authorized_keys`), oder der Socket fehlt (Docker läuft nicht, Rootless Docker) bzw. der SSH-Benutzer darf ihn nicht öffnen. OpenSSH antwortet in beiden Fällen gleich; nur bei einer Ablehnung durch eine Richtlinie steht im `sshd`-Log des Ziels `refused streamlocal port forward` |
+| `negotiate Docker API: context deadline exceeded` | Die SSH-Anmeldung oder das Öffnen des Sockets war nicht innerhalb von 5 Sekunden fertig, siehe [Troubleshooting](#verbindung-verweigert--timeout) |
+
+> ⚠️ Ältere AuraGo-Versionen behandeln unbekannte Deploy-Methoden als `SSH`. Nach einem Downgrade würde ein `docker_ssh`-Nest das Binary per SSH statt des Containers deployen. Stelle solche Nests vor einem Downgrade auf eine andere Methode um.
 
 ---
 
@@ -480,9 +528,10 @@ Details: [Kapitel 22: Interne Tools](./22-interne-tools.md)
 ### Verbindung verweigert / Timeout
 
 1. Ziel erreichbar? (`ping`, `ssh`)
-2. Firewall und Port prüfen (22 für SSH, 2375 für Docker API)
+2. Firewall und Port prüfen (22 für SSH und Docker über SSH, 2375 für Docker API, 2376 für Docker API mit TLS)
 3. **Test Connection** oder `POST .../validate` ausführen
 4. Bei SSH-Nests: Secret muss konfiguriert sein
+5. `Docker (über SSH)` scheitert mit `negotiate Docker API: context deadline exceeded`: Die SSH-Anmeldung oder das Öffnen des Sockets war nicht innerhalb von 5 Sekunden fertig. Die Prüfung der Docker-API-Version zu Beginn jeder Operation hat dieses Budget, und es schließt die SSH-Anmeldung und das Öffnen des Sockets ein. Reverse-DNS-Abfragen (`UseDNS yes`), Verzögerungen durch PAM oder LDAP oder eine Verbindung mit hoher Latenz können die Anmeldung verlangsamen. Beschleunige die Anmeldung auf dem Ziel, zum Beispiel mit `UseDNS no`, oder nutze eine andere Deploy-Methode.
 
 ### Authentifizierung fehlgeschlagen
 
@@ -535,6 +584,7 @@ Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
 > - `inherit_llm` kopiert den Master-API-Key in die Egg-Config — Egg-Host muss vertrauenswürdig sein
 > - `invasion_control.readonly: true` für reine Monitoring-Setups
 > - Bei Verdacht auf Kompromittierung Shared Keys mit `/rotate-key` rotieren
+> - `Docker (Entfernt)` über unverschlüsseltes HTTP sendet Egg-Secrets im Klartext; nutze es nur in isolierten Netzen, setze Docker-TLS oder stelle auf `Docker (über SSH)` oder `SSH` um
 
 ---
 
@@ -546,7 +596,7 @@ Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
 | **REST API** | ✅ Vollständig |
 | **CLI-Befehle** | ❌ Nicht implementiert |
 | **SSH Deployment** | ✅ `access_type: ssh`, `deploy_method: ssh` |
-| **Docker Deployment** | ✅ `docker_remote`, `docker_local` |
+| **Docker Deployment** | ✅ `docker_remote`, `docker_ssh`, `docker_local` |
 | **Kubernetes** | ❌ Nicht implementiert |
 | **Deployments-Tab** | ❌ Nur API (`/deployments`) |
 

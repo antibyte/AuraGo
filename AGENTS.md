@@ -428,7 +428,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 ### Deployment & Maintenance
 
 - Treat `config.yaml` changes carefully. Keep update/install scripts and Dockerfiles aligned with system changes, including new installation needs. AuraGo manages its Docker containers; do not assume users will manage them.
-- The default Compose Docker socket proxy keeps `BUILD=0`; managed Code Studio and sidecars use published images with `IMAGES=1` and `POST=1` instead of build access.
+- The default Compose Docker socket proxy keeps `BUILD=0`: Code Studio and most managed sidecars pull published images with `IMAGES=1` and `POST=1`. Images AuraGo builds through the Engine API (the Homepage dev image on first use, the CommandCode fallback build, local Code Studio runtime images) need `BUILD=1` or must already exist on the host; see `documentation/docker_installation.md` §4. Do not flip the default to `BUILD=1` without an explicit decision.
 - For production releases use `make_deploy.sh` (Linux/macOS) or `make_release.bat`/`make_release.ps1` (Windows), not ad-hoc build commands. These scripts do not upload to a test server.
 - Register Vault secrets used by new tools/integrations in the denylist for Python-tool export; protect them from the agent environment.
 

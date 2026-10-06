@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/config"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -466,5 +468,37 @@ func TestServiceAlreadyInstalledLinuxFileFallback(t *testing.T) {
 	// regardless of systemctl availability.
 	if serviceAlreadyInstalled("/nonexistent-install-dir", slog.Default()) {
 		t.Log("serviceAlreadyInstalled returned true — possibly because aurago.service is actually installed in this environment. Test inconclusive.")
+	}
+}
+
+// The template-less fallback is a fresh install: it must write
+// docker.allow_host_access: false, because an absent key loads as the legacy
+// grandfather (true).
+func TestEnsureConfigFileMinimalFallbackWritesDockerHostAccessFalse(t *testing.T) {
+	t.Parallel()
+
+	installDir := t.TempDir()
+	configPath := filepath.Join(installDir, "config.yaml")
+	if err := ensureConfigFile(installDir, configPath, slog.Default()); err != nil {
+		t.Fatalf("ensureConfigFile() error = %v", err)
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("fallback not valid YAML: %v", err)
+	}
+	docker, ok := raw["docker"].(map[string]interface{})
+	if !ok || docker["allow_host_access"] != false {
+		t.Fatalf("fallback docker section = %#v, want allow_host_access: false", raw["docker"])
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("config.Load(fallback) error = %v", err)
+	}
+	if cfg.Docker.AllowHostAccess {
+		t.Fatal("fallback config loads Docker.AllowHostAccess = true, want false")
 	}
 }

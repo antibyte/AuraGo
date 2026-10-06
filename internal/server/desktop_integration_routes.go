@@ -44,19 +44,25 @@ func desktopIntegrationHandler(s *Server, routes http.Handler) http.HandlerFunc 
 }
 
 func desktopIntegrationOperation(method, route string) desktopOperation {
-	if method == http.MethodPost && strings.HasPrefix(route, "missions/v2/") && strings.HasSuffix(route, "/cancel") {
+	parts := strings.Split(strings.Trim(route, "/"), "/")
+	if method == http.MethodPost && len(parts) == 4 && parts[0] == "missions" && parts[1] == "v2" && parts[2] != "" && parts[3] == "cancel" {
 		return desktopStop
 	}
-	if method == http.MethodPost && strings.HasPrefix(route, "sip/calls/") && strings.HasSuffix(route, "/hangup") {
+	if method == http.MethodPost && len(parts) == 4 && parts[0] == "sip" && parts[1] == "calls" && parts[2] != "" && parts[3] == "hangup" {
 		return desktopStop
 	}
-	if method == http.MethodDelete && (strings.HasPrefix(route, "realtime-speech/sessions/") || strings.HasPrefix(route, "realtime-speech/actions/")) {
+	if method == http.MethodDelete && ((len(parts) == 3 && parts[0] == "realtime-speech" && parts[1] == "sessions" && parts[2] != "") ||
+		(len(parts) == 3 && parts[0] == "realtime-speech" && parts[1] == "actions" && parts[2] != "")) {
 		return desktopStop
 	}
-	if method == http.MethodPost && strings.HasPrefix(route, "realtime-speech/actions/") && strings.HasSuffix(route, "/cancel") {
+	if method == http.MethodPost && len(parts) == 4 && parts[0] == "realtime-speech" && parts[1] == "actions" && parts[2] != "" && parts[3] == "cancel" {
 		return desktopStop
 	}
-	if strings.HasPrefix(route, "sip/browser-media") || strings.HasPrefix(route, "realtime-speech/headset") {
+	if method == http.MethodGet && len(parts) == 3 && parts[0] == "containers" && parts[1] != "" && parts[2] == "terminal" {
+		return desktopExecute
+	}
+	if (parts[0] == "sip" && len(parts) >= 2 && parts[1] == "browser-media") ||
+		(parts[0] == "realtime-speech" && len(parts) >= 2 && parts[1] == "headset") {
 		return desktopExecute
 	}
 	return desktopMethodOperation(method)

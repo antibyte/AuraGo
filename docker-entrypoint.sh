@@ -147,6 +147,8 @@ if [ ! -f "$CONFIG_FILE" ]; then
 server:
     port: 8088
     host: 0.0.0.0
+docker:
+    allow_host_access: false
 EOF
     fi
     

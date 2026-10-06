@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"aurago/internal/dockerutil"
 )
 
 // DockerUpdateContainerImage pulls the container's configured image and
@@ -154,6 +155,9 @@ func validateDockerImageReferenceForUpdate(image string) error {
 	return nil
 }
 
+// pullDockerImageForUpdate pulls the container's image before the container is
+// touched. Progress events are parsed as they arrive, so memory stays bounded
+// by one line however long the pull runs; the caller's context bounds time.
 func pullDockerImageForUpdate(ctx context.Context, cfg DockerConfig, image string) error {
 	reqURL := "http://localhost/" + dockerAPIVersion + "/images/create?fromImage=" + url.QueryEscape(image)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
@@ -166,46 +170,14 @@ func pullDockerImageForUpdate(ctx context.Context, cfg DockerConfig, image strin
 		return fmt.Errorf("pull image: %w", err)
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read pull stream: %w", err)
-	}
 	if resp.StatusCode != http.StatusOK {
-		msg := dockerBodyMessage(resp.StatusCode, data)
+		msg := dockerBodyMessage(resp.StatusCode, dockerutil.ReadErrorBody(resp.Body))
 		if msg == "" {
 			msg = http.StatusText(resp.StatusCode)
 		}
 		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, msg)
 	}
-	if msg := dockerPullStreamError(data); msg != "" {
-		return fmt.Errorf("%s", msg)
-	}
-	return nil
-}
-
-func dockerPullStreamError(data []byte) string {
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		var event struct {
-			Error       string `json:"error"`
-			ErrorDetail struct {
-				Message string `json:"message"`
-			} `json:"errorDetail"`
-		}
-		if json.Unmarshal([]byte(line), &event) != nil {
-			continue
-		}
-		if event.ErrorDetail.Message != "" {
-			return event.ErrorDetail.Message
-		}
-		if event.Error != "" {
-			return event.Error
-		}
-	}
-	return ""
+	return dockerutil.DrainJSONMessages(resp.Body)
 }
 
 func dockerReplacementCreatePayload(inspect map[string]interface{}, image string) (map[string]interface{}, error) {

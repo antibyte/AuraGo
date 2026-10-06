@@ -8,7 +8,7 @@
   "help.browser_automation.url": "URL interne du service sidecar CloakBrowser. Utilisez le nom du conteneur Docker ou le nom du service comme hostname (par ex. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Nom du conteneur Docker pour le sidecar d'automatisation du navigateur. Doit être unique sur votre hôte Docker.",
   "help.browser_automation.image": "Image Docker pour le sidecar d'automatisation du navigateur. Construite automatiquement à partir du Dockerfile dans le répertoire configuré.",
-  "help.browser_automation.dockerfile_dir": "Répertoire contenant le Dockerfile pour construire l'image d'automatisation du navigateur. Par défaut, le répertoire d'installation d'AuraGo.",
+  "help.browser_automation.dockerfile_dir": "Répertoire contenant Dockerfile.browser_automation et le dossier browser_automation_sidecar, c'est-à-dire une copie des sources d'AuraGo. Les chemins relatifs partent du répertoire de travail d'AuraGo. Les installations depuis une release ne contiennent pas ces fichiers. Indiquez ici une copie des sources ou construisez l'image vous-même.",
   "help.browser_automation.allowed_download_dir": "Répertoire où les fichiers téléchargés sont stockés. Les chemins relatifs sont résolus depuis le répertoire de données d'AuraGo.",
   "help.browser_automation.screenshots_dir": "Répertoire où les captures d'écran du navigateur sont enregistrées. Les chemins relatifs sont résolus depuis le répertoire de données d'AuraGo.",
   "help.browser_automation.session_ttl_minutes": "Temps en minutes avant qu'une session de navigateur inactive ne soit automatiquement fermée. Par défaut : 30 minutes.",

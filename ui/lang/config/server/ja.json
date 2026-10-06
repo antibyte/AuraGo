@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "分離されたアプリのプレビュー",
+  "config.server.preview_domain": "プレビュー用ドメイン",
+  "config.server.preview_enabled": "検証後に有効化",
+  "config.server.preview_hint": "既定では無効です。ワイルドカードDNSとTLSを備えた別のサイトを使用してください。有効化する前に、準備したホストでアプリへのログイン、ファイル、WebSocketをテストしてください。",
   "config.fritzbox.status_ok": "🟢 接続済み",
   "config.fritzbox.test_fail": "接続失敗",
   "config.fritzbox.test_ok": "接続成功",

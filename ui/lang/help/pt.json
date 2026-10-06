@@ -121,6 +121,7 @@
   "help.discord.enabled": "Ativa the Discord bot.",
   "help.discord.guild_id": "Descrição: ID of the Discord server (Guild).",
   "help.discord.read_only": "Quando ativado: the agente can only read Discord messages but cannot send them.",
+  "help.docker.allow_host_access": "É ativado automaticamente em configurações criadas antes de esta opção existir. Só se aplica enquanto o Docker estiver habilitado e fora do modo somente leitura.",
   "help.docker.enabled": "Habilita gerenciamento Docker.",
   "help.docker.host": "Opcional: remote Docker host (e.g. tcp://192.168.1.5:2375). Deixe em branco for local socket.",
   "help.docker.read_only": "Quando ativado: the agente can only list and inspect Docker containers but cannot start, stop, create, or remove them.",

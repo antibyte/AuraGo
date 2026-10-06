@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -22,7 +21,7 @@ var (
 	dispatchPreferredMCPVision        = tools.CallPreferredMCPVision
 	dispatchAnalyzeImageWithPrompt    = tools.AnalyzeImageWithPrompt
 	dispatchAnalyzeImageURLWithPrompt = tools.AnalyzeImageURLWithPrompt
-	resolveDockerComposeConfig        = tools.DockerComposeResolvedConfig
+	resolveDockerComposeConfig        = tools.DockerComposeResolvedConfigContext
 
 	meshCentralCachedClient    *meshcentral.CachedClient
 	meshCentralCachedConfig    meshCentralClientConfig
@@ -587,6 +586,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if dockerRequestTargetsAuraGoApp(req) {
 				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
 			}
+			if dockerRequestCreatesReservedGarageName(req) {
+				return dockerAgentError("docker_managed_garage_resource", "The container name is reserved for AuraGo's managed Boring Computers Garage. Choose another name.")
+			}
 			var createCommand []string
 			var createRestart string
 			var createOptions tools.ContainerCreateOptions
@@ -595,6 +597,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				createCommand, createRestart, createOptions, validationError = validateAgentDockerCreateRun(req)
 				if validationError != "" {
 					return validationError
+				}
+			}
+			if cfg.Docker.ReadOnly && strings.EqualFold(strings.TrimSpace(req.Operation), "compose") && strings.TrimSpace(req.Command) != "" {
+				// Invalid Compose arguments count as mutating, which would hide the
+				// real reason behind "disable docker.read_only".
+				if denied := tools.DockerComposeArgumentsDenial(req.Command); denied != "" {
+					return "Tool Output: " + denied
 				}
 			}
 			if cfg.Docker.ReadOnly && (dockerOperationMutates(req.Operation) ||
@@ -619,7 +628,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed local LLM container is blocked. Use the administrator Local LLM API."}`
 			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.BoringGarageOwner] {
-				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Boring Computers Garage container is blocked. Use the Virtual Computers administrator API."}`
+				return dockerAgentError("docker_managed_garage_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Boring Computers Garage container is blocked. Use the Virtual Computers administrator API.")
 			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.AppOwner] {
 				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
@@ -632,19 +641,15 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM model and runtime-key volumes cannot be mounted through the Docker agent tool."}`
 			}
 			if dockerRequestMountsProtectedGaragePath(req.Volumes) {
-				return `Tool Output: {"status":"error","message":"AuraGo's managed Boring Computers Garage data paths cannot be mounted through the Docker agent tool."}`
+				return dockerAgentError("docker_managed_garage_resource", "AuraGo's managed Boring Computers Garage data paths cannot be mounted through the Docker agent tool.")
 			}
 			if dockerProtectedLocalLLMVolumeName(req.Name) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`
 			}
-			if req.Operation == "compose" && dockerComposeReferencesProtectedLocalLLMVolume(dockerCfg, req.File) {
-				return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed local LLM volumes is blocked."}`
-			}
-			if req.Operation == "compose" && dockerComposeReferencesProtectedGarage(dockerCfg, req.File) {
-				return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed Boring Computers Garage is blocked."}`
-			}
-			if req.Operation == "compose" && dockerComposeReferencesProtectedHomepage(dockerCfg, req.File) {
-				return dockerAgentError("docker_managed_homepage_resource", "Docker Compose access to AuraGo-managed homepage resources is blocked. Use homepage_project, homepage_file, or homepage_deploy.")
+			if req.Operation == "compose" {
+				if denied := dockerComposePolicy(ctx, cfg, dockerCfg, req); denied != "" {
+					return denied
+				}
 			}
 			switch req.Operation {
 			case "list_containers", "ps":
@@ -695,7 +700,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerListImages(dockerCfg)
 			case "pull_image", "pull":
 				logger.Info("LLM requested Docker pull", "image", req.Image)
-				return "Tool Output: " + tools.DockerPullImage(dockerCfg, req.Image)
+				return "Tool Output: " + tools.DockerPullImageContext(ctx, dockerCfg, req.Image)
 			case "remove_image", "rmi":
 				logger.Info("LLM requested Docker remove_image", "image", req.Image, "force", req.Force)
 				return "Tool Output: " + tools.DockerRemoveImage(dockerCfg, req.Image, req.Force)
@@ -1568,6 +1573,13 @@ func dockerRequestTargetsAuraGoApp(req dockerArgs) bool {
 	return false
 }
 
+// dockerRequestCreatesReservedGarageName blocks create/run of the managed
+// Garage container name. The ownership check matches reserved names only for
+// targetContainerID, which prefers container_id; this covers req.Name.
+func dockerRequestCreatesReservedGarageName(req dockerArgs) bool {
+	return dockerCreateRunOperation(req.Operation) && dockerutil.IsBoringGarageContainerName(req.Name)
+}
+
 func dockerRequestTargetsManagedHomepage(req dockerArgs) bool {
 	operation := strings.ToLower(strings.TrimSpace(req.Operation))
 	switch operation {
@@ -1575,6 +1587,11 @@ func dockerRequestTargetsManagedHomepage(req dockerArgs) bool {
 		"remove", "rm", "logs", "exec", "stats", "top", "port", "cp", "copy",
 		"connect", "disconnect", "create", "create_container", "run":
 		if dockerutil.IsHomepageContainerName(req.targetContainerID()) {
+			return true
+		}
+		// create/run name the new container in req.Name; a container_id next
+		// to it must not hide a reserved name.
+		if dockerCreateRunOperation(operation) && dockerutil.IsHomepageContainerName(req.Name) {
 			return true
 		}
 	}
@@ -1654,92 +1671,8 @@ func dockerRequestMountsProtectedGaragePath(volumes []string) bool {
 	return false
 }
 
-func dockerComposeReferencesProtectedGarage(cfg tools.DockerConfig, file string) bool {
-	base, err := filepath.Abs(cfg.WorkspaceDir)
-	if err != nil {
-		return true
-	}
-	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
-	if err != nil {
-		return true
-	}
-	relative, err := filepath.Rel(base, path)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
-		return true
-	}
-	payload, err := os.ReadFile(path)
-	if err != nil {
-		return true
-	}
-	lower := strings.ToLower(string(payload))
-	for _, token := range []string{
-		dockerutil.BoringGarageContainerName,
-		"boring-garage",
-		"data/sidecars/garage",
-		`aurago.managed: boring-garage`,
-		`"aurago.managed":"boring-garage"`,
-		`aurago.managed=boring-garage`,
-	} {
-		if strings.Contains(lower, strings.ToLower(token)) {
-			return true
-		}
-	}
-	return false
-}
-
-func dockerComposeReferencesProtectedHomepage(cfg tools.DockerConfig, file string) bool {
-	base, err := filepath.Abs(cfg.WorkspaceDir)
-	if err != nil {
-		return true
-	}
-	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
-	if err != nil {
-		return true
-	}
-	relative, err := filepath.Rel(base, path)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
-		return true
-	}
-	payload, err := os.ReadFile(path)
-	if err != nil {
-		return true
-	}
-	lower := strings.ToLower(string(payload))
-	return strings.Contains(lower, dockerutil.HomepageContainerName) ||
-		strings.Contains(lower, dockerutil.HomepageWebContainerName) ||
-		strings.Contains(lower, dockerutil.HomepageImageRepository)
-}
-
 func dockerProtectedLocalLLMVolumeName(name string) bool {
 	return acestep.IsResourceName(name) || dockerutil.IsLocalLLMVolumeName(name)
-}
-
-func dockerComposeReferencesProtectedLocalLLMVolume(cfg tools.DockerConfig, file string) bool {
-	base, err := filepath.Abs(cfg.WorkspaceDir)
-	if err != nil {
-		return true
-	}
-	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
-	if err != nil {
-		return true
-	}
-	relative, err := filepath.Rel(base, path)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
-		return true
-	}
-	payload, err := os.ReadFile(path)
-	if err != nil {
-		return true
-	}
-	lower := strings.ToLower(string(payload))
-	if dockerComposePayloadReferencesProtectedLocalLLM(lower) {
-		return true
-	}
-	resolved, err := resolveDockerComposeConfig(
-		cfg,
-		file,
-	)
-	return err != nil || dockerComposePayloadReferencesProtectedLocalLLM(strings.ToLower(resolved))
 }
 
 func dockerComposePayloadReferencesProtectedLocalLLM(payload string) bool {

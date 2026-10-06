@@ -8,7 +8,7 @@
   "help.browser_automation.url": "Εσωτερικό URL της υπηρεσίας CloakBrowser sidecar. Χρησιμοποιήστε το όνομα του Docker container ή το όνομα της υπηρεσίας ως hostname (π.χ. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Όνομα container Docker για το sidecar αυτοματοποίησης προγράμματος περιήγησης. Πρέπει να είναι μοναδικό στον κεντρικό υπολογιστή Docker.",
   "help.browser_automation.image": "Εικόνα Docker για το sidecar αυτοματοποίησης προγράμματος περιήγησης. Δημιουργείται αυτόματα από το Dockerfile στον ρυθμισμένο κατάλογο.",
-  "help.browser_automation.dockerfile_dir": "Κατάλογος που περιέχει το Dockerfile για τη δημιουργία της εικόνας αυτοματοποίησης προγράμματος περιήγησης. Η προεπιλογή είναι ο κατάλογος εγκατάστασης AuraGo.",
+  "help.browser_automation.dockerfile_dir": "Κατάλογος που περιέχει το Dockerfile.browser_automation και τον φάκελο browser_automation_sidecar, δηλαδή ένα checkout του πηγαίου κώδικα του AuraGo. Οι σχετικές διαδρομές υπολογίζονται από τον κατάλογο εργασίας του AuraGo. Οι εγκαταστάσεις από έκδοση δεν περιέχουν αυτά τα αρχεία. Ορίστε εδώ ένα checkout πηγαίου κώδικα ή δημιουργήστε την εικόνα μόνοι σας.",
   "help.browser_automation.allowed_download_dir": "Κατάλογος όπου αποθηκεύονται τα ληφθέντα αρχεία. Οι σχετικές διαδρομές επιλύονται από τον κατάλογο δεδομένων AuraGo.",
   "help.browser_automation.screenshots_dir": "Κατάλογος όπου αποθηκεύονται τα στιγμιότυπα οθόνης του προγράμματος περιήγησης. Οι σχετικές διαδρομές επιλύονται από τον κατάλογο δεδομένων AuraGo.",
   "help.browser_automation.session_ttl_minutes": "Χρόνος σε λεπτά πριν κλείσει αυτόματα μια ανενεργή συνεδρία προγράμματος περιήγησης. Προεπιλογή: 30 λεπτά.",

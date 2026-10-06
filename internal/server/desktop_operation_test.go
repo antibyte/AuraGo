@@ -67,6 +67,41 @@ func TestDesktopReadonlyAlsoAppliesToAuthenticatedBrowser(t *testing.T) {
 	}
 }
 
+func TestDesktopWSAuthorizationRechecksCookieAndBearerRevocation(t *testing.T) {
+	s, _, _ := testDesktopPermissionServer(t)
+	if desktopWSAuthorizationValid(s, nil, desktopScopeRead) || desktopWSAuthorizationValid(nil, httptest.NewRequest(http.MethodGet, "/api/desktop/ws", nil), desktopScopeRead) {
+		t.Fatal("nil WebSocket authorization input was accepted")
+	}
+	cookieRequest := httptest.NewRequest(http.MethodGet, "/api/desktop/ws", nil)
+	session := createSessionValue(s.Cfg.Auth.SessionSecret, time.Now().Add(time.Hour))
+	cookieRequest.AddCookie(&http.Cookie{Name: sessionCookieName, Value: session})
+	if !desktopWSAuthorizationValid(s, cookieRequest, desktopScopeRead) {
+		t.Fatal("valid browser session was rejected")
+	}
+	if !revokeRequestSession(s, cookieRequest) {
+		t.Fatal("failed to revoke browser session")
+	}
+	if desktopWSAuthorizationValid(s, cookieRequest, desktopScopeRead) {
+		t.Fatal("revoked browser session remained authorized")
+	}
+
+	token, meta, err := s.TokenManager.Create("websocket token", []string{desktopScopeRead}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bearerRequest := httptest.NewRequest(http.MethodGet, "/api/desktop/ws", nil)
+	bearerRequest.Header.Set("Authorization", "Bearer "+token)
+	if !desktopWSAuthorizationValid(s, bearerRequest, desktopScopeRead) {
+		t.Fatal("valid bearer token was rejected")
+	}
+	if err := s.TokenManager.Delete(meta.ID); err != nil {
+		t.Fatal(err)
+	}
+	if desktopWSAuthorizationValid(s, bearerRequest, desktopScopeRead) {
+		t.Fatal("revoked bearer token remained authorized")
+	}
+}
+
 func TestDesktopRevocationCancelsRunsAndRejectsLatePublication(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}}
 	ctx, done, err := s.beginDesktopRun(context.Background())

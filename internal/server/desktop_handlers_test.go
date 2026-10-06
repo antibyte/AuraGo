@@ -447,8 +447,8 @@ func TestPrepareDesktopAgentTurnPersistsRawUserMessageOnly(t *testing.T) {
 	if turn.runCfg.Config == nil || !strings.Contains(turn.runCfg.Config.Agent.AdditionalPrompt, "AuraGo Virtual Desktop") {
 		t.Fatalf("desktop routing context must be injected as trusted prompt context, got %q", turn.runCfg.Config.Agent.AdditionalPrompt)
 	}
-	if !strings.Contains(turn.runCfg.Config.Agent.AdditionalPrompt, `type="desktop_current_content"`) {
-		t.Fatalf("desktop file context should remain external_data in trusted prompt context: %q", turn.runCfg.Config.Agent.AdditionalPrompt)
+	if !strings.Contains(turn.runCfg.Config.Agent.AdditionalPrompt, "desktop_current_content (untrusted):\n"+security.IsolateExternalData("console.log('desktop context');")) {
+		t.Fatalf("desktop file context should be escaped inside external_data in trusted prompt context: %q", turn.runCfg.Config.Agent.AdditionalPrompt)
 	}
 }
 

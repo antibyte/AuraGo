@@ -654,6 +654,7 @@ func (s *Service) ListApps(ctx context.Context) ([]InstalledApp, error) {
 		if err != nil {
 			return nil, err
 		}
+		app.UpdateRequired = monitoringProxyUpdateRequired(app)
 		apps = append(apps, app)
 	}
 	return apps, rows.Err()
@@ -677,7 +678,81 @@ func (s *Service) GetInstalled(ctx context.Context, appID string) (InstalledApp,
 		}
 		return InstalledApp{}, false, err
 	}
+	app.UpdateRequired = monitoringProxyUpdateRequired(app)
 	return app, true, nil
+}
+
+func monitoringProxyUpdateRequired(app InstalledApp) bool {
+	if app.AppID != "dozzle" && app.AppID != "beszel" {
+		return false
+	}
+	if hasDockerSocketBind(app.HostBinds) {
+		return true
+	}
+	var proxy *CompanionApp
+	var agent *CompanionApp
+	for i := range app.Companions {
+		switch app.Companions[i].ID {
+		case "socket-proxy":
+			proxy = &app.Companions[i]
+		case "agent":
+			agent = &app.Companions[i]
+		}
+	}
+	if proxy == nil || !hasReadOnlyDockerSocketBind(proxy.HostBinds) {
+		return true
+	}
+	if app.AppID == "dozzle" {
+		remoteHost, ok := envValue(app.Env, "DOZZLE_REMOTE_HOST")
+		return proxy.NetworkMode != "aurago-store-dozzle-net" || len(proxy.Ports) != 0 || !ok || remoteHost != "tcp://aurago-store-dozzle-socket-proxy:2375"
+	}
+	if strings.TrimSpace(proxy.NetworkMode) != "" || !hasLoopbackDockerAPIBinding(proxy.Ports) {
+		return true
+	}
+	return agent != nil && (agent.NetworkMode != "host" || hasDockerSocketBind(agent.HostBinds))
+}
+
+func hasDockerSocketBind(binds []HostBinding) bool {
+	for _, bind := range binds {
+		hostPath := strings.TrimRight(strings.ReplaceAll(strings.TrimSpace(bind.HostPath), `\`, "/"), "/")
+		if strings.EqualFold(hostPath, "/var/run/docker.sock") {
+			return true
+		}
+	}
+	return false
+}
+
+func hasReadOnlyDockerSocketBind(binds []HostBinding) bool {
+	for _, bind := range binds {
+		hostPath := strings.TrimRight(strings.ReplaceAll(strings.TrimSpace(bind.HostPath), `\`, "/"), "/")
+		if strings.EqualFold(hostPath, "/var/run/docker.sock") && bind.ReadOnly {
+			return true
+		}
+	}
+	return false
+}
+
+func hasLoopbackDockerAPIBinding(ports []PortBinding) bool {
+	for _, port := range ports {
+		if port.ContainerPort == 2375 && port.HostPort > 0 && port.HostIP == "127.0.0.1" && strings.EqualFold(strings.TrimSpace(port.Protocol), "tcp") {
+			return true
+		}
+	}
+	return false
+}
+
+func hasLoopbackDockerAPIBindingForPort(companions []CompanionApp, companionID string, hostPort int) bool {
+	for _, companion := range companions {
+		if !strings.EqualFold(companion.ID, companionID) {
+			continue
+		}
+		for _, port := range companion.Ports {
+			if port.ContainerPort == 2375 && port.HostPort == hostPort && port.HostIP == "127.0.0.1" && strings.EqualFold(strings.TrimSpace(port.Protocol), "tcp") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // OpenURL computes the best URL for an installed app in the current request
@@ -803,12 +878,6 @@ func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (
 	if s.cfg.Secrets == nil {
 		return InstalledApp{}, fmt.Errorf("desktop store secret vault is not configured")
 	}
-	if err := s.cfg.Secrets.WriteSecret("desktop_store_beszel_agent_key", key); err != nil {
-		return InstalledApp{}, fmt.Errorf("write Beszel agent key: %w", err)
-	}
-	if err := s.cfg.Secrets.WriteSecret("desktop_store_beszel_agent_token", token); err != nil {
-		return InstalledApp{}, fmt.Errorf("write Beszel agent token: %w", err)
-	}
 	app, ok, err := s.GetInstalled(ctx, "beszel")
 	if err != nil {
 		return InstalledApp{}, err
@@ -830,6 +899,20 @@ func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (
 	if template.ID == "" {
 		return InstalledApp{}, fmt.Errorf("Beszel agent companion is not in the allowlist")
 	}
+	proxyHostPort, ok := companionPortHost(app.Companions, "socket-proxy", "docker-api")
+	if !ok || !hasLoopbackDockerAPIBindingForPort(app.Companions, "socket-proxy", proxyHostPort) {
+		return InstalledApp{}, fmt.Errorf("Beszel Docker socket proxy is missing; run the Store update before configuring the agent")
+	}
+	if err := s.cfg.Secrets.WriteSecret("desktop_store_beszel_agent_key", key); err != nil {
+		return InstalledApp{}, fmt.Errorf("write Beszel agent key: %w", err)
+	}
+	if err := s.cfg.Secrets.WriteSecret("desktop_store_beszel_agent_token", token); err != nil {
+		return InstalledApp{}, fmt.Errorf("write Beszel agent token: %w", err)
+	}
+	ports, err := s.allocateCompanionPortBindings(ctx, template, appReservedPortBindings(app))
+	if err != nil {
+		return InstalledApp{}, fmt.Errorf("allocate Beszel agent ports: %w", err)
+	}
 	companion := CompanionApp{
 		ID:            template.ID,
 		Name:          template.Name,
@@ -837,6 +920,7 @@ func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (
 		Image:         template.Image,
 		Status:        AppStatusInstalling,
 		NetworkMode:   template.NetworkMode,
+		Ports:         ports,
 		Volumes:       resolveCompanionVolumes(entry, template),
 		HostBinds:     resolveHostBinds(template.HostBinds),
 	}
@@ -847,10 +931,11 @@ func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (
 		"desktop_store_beszel_agent_token": token,
 	}
 	companion.Env = applyEnvTemplates(template.Env, app, secrets)
+	companion.Env = applyCompanionPortTemplates(companion.Env, app.Companions)
 	if err := s.requireDocker().PullImage(ctx, companion.Image); err != nil {
 		return InstalledApp{}, err
 	}
-	containerID, err := s.requireDocker().CreateContainer(ctx, companionContainerSpec(app, companion))
+	containerID, err := s.requireDocker().CreateContainer(ctx, s.companionRuntimeSpec(app, companion))
 	if err != nil {
 		return InstalledApp{}, err
 	}
@@ -862,6 +947,7 @@ func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (
 	companion.Status = AppStatusRunning
 	companion.Error = ""
 	app.Companions = replaceCompanion(app.Companions, companion)
+	app.UpdateRequired = monitoringProxyUpdateRequired(app)
 	if err := s.saveInstalled(ctx, app); err != nil {
 		return InstalledApp{}, err
 	}
@@ -925,7 +1011,7 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	}
 	record.Env = env
 	record.SecretRefs = secretRefs
-	companions, err := s.prepareAutoCompanions(entry, record)
+	companions, err := s.prepareAutoCompanions(ctx, entry, record)
 	if err != nil {
 		return fmt.Errorf("resolve companion containers: %w", err)
 	}
@@ -1057,7 +1143,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	}
 	record.Env = env
 	record.SecretRefs = secretRefs
-	autoCompanions, err := s.prepareAutoCompanions(entry, record)
+	autoCompanions, err := s.prepareAutoCompanions(ctx, entry, record)
 	if err != nil {
 		return fmt.Errorf("resolve companion containers: %w", err)
 	}
@@ -1944,20 +2030,27 @@ func (s *Service) resolveEnv(entry CatalogEntry, app InstalledApp, previousEnv [
 	return env, refs, nil
 }
 
-func (s *Service) prepareAutoCompanions(entry CatalogEntry, app InstalledApp) ([]CompanionApp, error) {
+func (s *Service) prepareAutoCompanions(ctx context.Context, entry CatalogEntry, app InstalledApp) ([]CompanionApp, error) {
 	if len(entry.Companions) == 0 {
 		return nil, nil
 	}
 	secretValues := s.secretTemplateValues(app.SecretRefs, app.Env)
 	companions := make([]CompanionApp, 0, len(entry.Companions))
+	reservedPorts := appReservedPortBindings(app)
 	for _, template := range entry.Companions {
-		env := applyEnvTemplates(template.Env, app, secretValues)
+		templateSecrets := s.companionTemplateSecrets(template.Env, secretValues)
+		env := applyEnvTemplates(template.Env, app, templateSecrets)
 		if hasUnresolvedSecretTemplate(env) {
-			if isPrivateStoreNetwork(template.NetworkMode) {
+			if isPrivateStoreNetwork(template.NetworkMode) || hasExistingDockerSocketCompanion(app.Companions, template.ID) {
 				return nil, fmt.Errorf("companion %s has unresolved generated secrets", template.ID)
 			}
 			continue
 		}
+		ports, err := s.allocateCompanionPortBindings(ctx, template, reservedPorts)
+		if err != nil {
+			return nil, fmt.Errorf("allocate companion %s ports: %w", template.ID, err)
+		}
+		reservedPorts = append(reservedPorts, ports...)
 		companions = append(companions, CompanionApp{
 			ID:            template.ID,
 			Name:          template.Name,
@@ -1965,12 +2058,160 @@ func (s *Service) prepareAutoCompanions(entry CatalogEntry, app InstalledApp) ([
 			Image:         template.Image,
 			Status:        AppStatusInstalling,
 			NetworkMode:   template.NetworkMode,
+			Ports:         ports,
 			Volumes:       resolveCompanionVolumes(entry, template),
 			HostBinds:     resolveHostBinds(template.HostBinds),
 			Env:           env,
 		})
 	}
+	for i := range companions {
+		companions[i].Env = applyCompanionPortTemplates(companions[i].Env, companions)
+	}
 	return companions, nil
+}
+
+func (s *Service) companionTemplateSecrets(env []string, existing map[string]string) map[string]string {
+	values := make(map[string]string, len(existing))
+	for key, value := range existing {
+		security.RegisterSensitive(value)
+		values[key] = value
+	}
+	if s.cfg.Secrets == nil {
+		return values
+	}
+	for _, item := range env {
+		for remaining := item; ; {
+			start := strings.Index(remaining, "${SECRET:")
+			if start < 0 {
+				break
+			}
+			remaining = remaining[start+len("${SECRET:"):]
+			end := strings.IndexByte(remaining, '}')
+			if end < 0 {
+				break
+			}
+			key := strings.TrimSpace(remaining[:end])
+			remaining = remaining[end+1:]
+			if key == "" || values[key] != "" {
+				continue
+			}
+			if value, err := s.cfg.Secrets.ReadSecret(key); err == nil && value != "" {
+				security.RegisterSensitive(value)
+				values[key] = value
+			}
+		}
+	}
+	return values
+}
+
+func (s *Service) allocateCompanionPortBindings(ctx context.Context, template CompanionTemplate, reserved []PortBinding) ([]PortBinding, error) {
+	ports := make([]PortBinding, 0, len(template.Ports))
+	for _, port := range template.Ports {
+		hostIP := strings.TrimSpace(port.HostIP)
+		if hostIP == "" {
+			hostIP = "127.0.0.1"
+		}
+		var hostPort int
+		for attempt := 0; attempt < 8; attempt++ {
+			allocated, err := s.portAllocator(ctx, port.ContainerPort)
+			if err != nil {
+				return nil, fmt.Errorf("allocate port %s: %w", port.ID, err)
+			}
+			candidate := PortBinding{HostIP: hostIP, HostPort: allocated}
+			if !portBindingConflicts(candidate, reserved) && !portBindingConflicts(candidate, ports) {
+				hostPort = allocated
+				break
+			}
+		}
+		if hostPort <= 0 {
+			return nil, fmt.Errorf("could not allocate a unique host port for %s", port.ID)
+		}
+		protocol := strings.ToLower(strings.TrimSpace(port.Protocol))
+		if protocol == "" {
+			protocol = "tcp"
+		}
+		ports = append(ports, PortBinding{
+			ID:            port.ID,
+			Name:          port.Name,
+			ContainerPort: port.ContainerPort,
+			Protocol:      protocol,
+			HostIP:        hostIP,
+			HostPort:      hostPort,
+		})
+	}
+	return ports, nil
+}
+
+func appReservedPortBindings(app InstalledApp) []PortBinding {
+	reserved := append([]PortBinding(nil), app.Ports...)
+	for _, companion := range app.Companions {
+		reserved = append(reserved, companion.Ports...)
+	}
+	return reserved
+}
+
+func portBindingConflicts(candidate PortBinding, existing []PortBinding) bool {
+	for _, binding := range existing {
+		if candidate.HostPort != binding.HostPort {
+			continue
+		}
+		left := strings.TrimSpace(candidate.HostIP)
+		right := strings.TrimSpace(binding.HostIP)
+		if left == right || left == "" || right == "" || left == "0.0.0.0" || right == "0.0.0.0" || left == "::" || right == "::" {
+			return true
+		}
+	}
+	return false
+}
+
+func applyCompanionPortTemplates(env []string, companions []CompanionApp) []string {
+	replacements := make(map[string]string)
+	for _, companion := range companions {
+		companionID := envTemplateIdentifier(companion.ID)
+		for _, port := range companion.Ports {
+			if port.HostPort <= 0 || strings.TrimSpace(port.ID) == "" {
+				continue
+			}
+			key := "${COMPANION_PORT_" + companionID + "_" + envTemplateIdentifier(port.ID) + "}"
+			replacements[key] = strconv.Itoa(port.HostPort)
+		}
+	}
+	out := make([]string, 0, len(env))
+	for _, item := range env {
+		for key, value := range replacements {
+			item = strings.ReplaceAll(item, key, value)
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func envTemplateIdentifier(value string) string {
+	value = strings.ToUpper(strings.TrimSpace(value))
+	return strings.NewReplacer("-", "_", ".", "_", " ", "_").Replace(value)
+}
+
+func companionPortHost(companions []CompanionApp, companionID, portID string) (int, bool) {
+	for _, companion := range companions {
+		if !strings.EqualFold(companion.ID, companionID) {
+			continue
+		}
+		for _, port := range companion.Ports {
+			if strings.EqualFold(port.ID, portID) && port.HostPort > 0 {
+				return port.HostPort, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func hasExistingDockerSocketCompanion(companions []CompanionApp, companionID string) bool {
+	for _, companion := range companions {
+		if companion.ID == companionID && hasDockerSocketBind(companion.HostBinds) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) secretTemplateValues(refs []SecretRef, env []string) map[string]string {
@@ -2033,7 +2274,7 @@ func (s *Service) createCompanionAt(ctx context.Context, app *InstalledApp, inde
 	if err := s.requireDocker().PullImage(ctx, companion.Image); err != nil {
 		return fmt.Errorf("pull companion image %s: %w", companion.Image, err)
 	}
-	containerID, err := s.requireDocker().CreateContainer(ctx, companionContainerSpec(*app, *companion))
+	containerID, err := s.requireDocker().CreateContainer(ctx, s.companionRuntimeSpec(*app, *companion))
 	if err != nil {
 		return fmt.Errorf("create companion container %s: %w", companion.ContainerName, err)
 	}
@@ -2565,19 +2806,67 @@ func containerSpecFromRecord(app InstalledApp) ContainerSpec {
 
 func companionContainerSpec(app InstalledApp, companion CompanionApp) ContainerSpec {
 	return ContainerSpec{
-		Name:        companion.ContainerName,
-		Image:       companion.Image,
-		Env:         append([]string(nil), companion.Env...),
-		Volumes:     append([]VolumeBinding(nil), companion.Volumes...),
-		HostBinds:   append([]HostBinding(nil), companion.HostBinds...),
-		NetworkMode: companion.NetworkMode,
-		Restart:     "unless-stopped",
+		Name:         companion.ContainerName,
+		Image:        companion.Image,
+		Env:          append([]string(nil), companion.Env...),
+		PortBindings: append([]PortBinding(nil), companion.Ports...),
+		Volumes:      append([]VolumeBinding(nil), companion.Volumes...),
+		HostBinds:    append([]HostBinding(nil), companion.HostBinds...),
+		NetworkMode:  companion.NetworkMode,
+		Restart:      "unless-stopped",
 		Labels: map[string]string{
 			"aurago.desktop_store":           "true",
 			"aurago.desktop_store.app_id":    app.AppID,
 			"aurago.desktop_store.companion": companion.ID,
 		},
 	}
+}
+
+// companionRuntimeSpec is companionContainerSpec plus the catalog's opt-in
+// hardening for that companion image.
+func (s *Service) companionRuntimeSpec(app InstalledApp, companion CompanionApp) ContainerSpec {
+	spec := companionContainerSpec(app, companion)
+	spec.Hardening = s.catalogHardening(app.AppID, companion.ID)
+	return spec
+}
+
+// catalogHardening returns a copy of the opt-in hardening the catalog declares
+// for an app (companionID == "") or one of its companions. Installed records
+// do not store it, so a catalog change applies on the next create without a
+// record migration.
+func (s *Service) catalogHardening(appID, companionID string) *ContainerHardening {
+	entry, ok := s.catalogByID[normalizeAppID(appID)]
+	if !ok {
+		return nil
+	}
+	if strings.TrimSpace(companionID) == "" {
+		return cloneContainerHardening(entry.Hardening)
+	}
+	for _, template := range entry.Companions {
+		if normalizeAppID(template.ID) == normalizeAppID(companionID) {
+			return cloneContainerHardening(template.Hardening)
+		}
+	}
+	return nil
+}
+
+func cloneContainerHardening(hardening *ContainerHardening) *ContainerHardening {
+	if hardening == nil {
+		return nil
+	}
+	out := &ContainerHardening{
+		CapDrop:        append([]string(nil), hardening.CapDrop...),
+		CapAdd:         append([]string(nil), hardening.CapAdd...),
+		ReadonlyRootfs: hardening.ReadonlyRootfs,
+		PidsLimit:      hardening.PidsLimit,
+	}
+	if len(hardening.Tmpfs) > 0 {
+		out.Tmpfs = make(map[string]string, len(hardening.Tmpfs))
+		for path, options := range hardening.Tmpfs {
+			out.Tmpfs[path] = options
+		}
+	}
+	return out
 }
 
 func replaceCompanion(companions []CompanionApp, companion CompanionApp) []CompanionApp {

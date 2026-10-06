@@ -165,9 +165,37 @@
                 <select id="nest-deploy-method" class="form-select">
                     <option value="ssh" data-i18n="invasion.deploy_ssh"></option>
                     <option value="docker_remote" data-i18n="invasion.deploy_docker_remote"></option>
+                    <option value="docker_ssh" data-i18n="invasion.deploy_docker_ssh"></option>
                     <option value="docker_local" data-i18n="invasion.deploy_docker_local"></option>
                 </select>
                 <small id="deploy-docker-local-hint" class="hint-subtle is-hidden mt-xs" data-i18n="invasion.docker_local_hint"></small>
+                <small id="deploy-docker-ssh-hint" class="hint-subtle is-hidden mt-xs" data-i18n="invasion.docker_ssh_hint"></small>
+                <small id="deploy-docker-remote-plaintext-hint" class="hint-warning is-hidden mt-xs" data-i18n="invasion.docker_remote_plaintext_hint"></small>
+            </div>
+            <div id="nest-docker-tls-fields" class="is-hidden">
+                <div class="form-group">
+                    <label for="nest-docker-tls" data-i18n="invasion.docker_tls"></label>
+                    <select id="nest-docker-tls" class="form-select">
+                        <option value="" data-i18n="invasion.docker_tls_off"></option>
+                        <option value="tls" data-i18n="invasion.docker_tls_tls"></option>
+                        <option value="mtls" data-i18n="invasion.docker_tls_mtls"></option>
+                    </select>
+                    <small id="nest-docker-tls-stored-hint" class="hint-subtle is-hidden" data-i18n="invasion.docker_tls_stored"></small>
+                </div>
+                <div id="nest-docker-tls-ca-group" class="form-group is-hidden">
+                    <label for="nest-docker-tls-ca" data-i18n="invasion.docker_tls_ca"></label>
+                    <textarea id="nest-docker-tls-ca" rows="3" class="resize-vertical" placeholder="-----BEGIN CERTIFICATE-----" autocomplete="off" spellcheck="false"></textarea>
+                </div>
+                <div id="nest-docker-tls-client-group" class="is-hidden">
+                    <div class="form-group">
+                        <label for="nest-docker-tls-cert" data-i18n="invasion.docker_tls_cert"></label>
+                        <textarea id="nest-docker-tls-cert" rows="3" class="resize-vertical" placeholder="-----BEGIN CERTIFICATE-----" autocomplete="off" spellcheck="false"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="nest-docker-tls-key" data-i18n="invasion.docker_tls_key"></label>
+                        <textarea id="nest-docker-tls-key" rows="3" class="resize-vertical" placeholder="-----BEGIN PRIVATE KEY-----" autocomplete="off" spellcheck="false"></textarea>
+                    </div>
+                </div>
             </div>
             <div class="form-group">
                 <label for="nest-target-arch" data-i18n="invasion.target_arch"></label>

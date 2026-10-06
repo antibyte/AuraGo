@@ -121,6 +121,7 @@
   "help.discord.enabled": "启用 Discord 机器人。",
   "help.discord.guild_id": "Discord 服务器（公会）的 ID。",
   "help.discord.read_only": "启用后，代理只能读取 Discord 消息，但无法发送消息。",
+  "help.docker.allow_host_access": "对于在此设置出现之前创建的配置，会自动开启。仅在 Docker 已启用且不处于只读模式时生效。",
   "help.docker.enabled": "启用 Docker 容器管理。",
   "help.docker.host": "可选的远程 Docker 主机（例如 tcp://192.168.1.5:2375）。将本地套接字留空。",
   "help.docker.read_only": "启用后，代理只能列出和检查 Docker 容器，但无法启动、停止、创建或删除它们。",

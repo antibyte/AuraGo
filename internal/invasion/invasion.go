@@ -36,8 +36,9 @@ type NestRecord struct {
 	Route       string `json:"route"`        // "direct" | "ssh_tunnel" | "tailscale" | "wireguard" | "custom"
 	RouteConfig string `json:"route_config"` // JSON with route-specific params
 	// ── Deployment settings ──
-	DeployMethod string `json:"deploy_method"` // "ssh" | "docker_remote" | "docker_local"
+	DeployMethod string `json:"deploy_method"` // "ssh" | "docker_remote" | "docker_ssh" | "docker_local"
 	TargetArch   string `json:"target_arch"`   // "linux/amd64" | "linux/arm64" | etc.
+	DockerTLS    string `json:"docker_tls"`    // docker_remote only: "" (plain HTTP, default) | "tls" | "mtls"
 
 	// ── Config revision tracking (safe reconfigure) ──
 	DesiredConfigRev string `json:"desired_config_rev"` // ID of the pending desired revision
@@ -266,6 +267,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE nests ADD COLUMN target_arch TEXT DEFAULT 'linux/amd64'",
 		"ALTER TABLE nests ADD COLUMN desired_config_rev TEXT DEFAULT ''",
 		"ALTER TABLE nests ADD COLUMN applied_config_rev TEXT DEFAULT ''",
+		"ALTER TABLE nests ADD COLUMN docker_tls TEXT DEFAULT ''",
 		"ALTER TABLE eggs ADD COLUMN permanent INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE eggs ADD COLUMN include_vault INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE eggs ADD COLUMN inherit_llm INTEGER NOT NULL DEFAULT 0",
@@ -292,6 +294,11 @@ func InitDB(dbPath string) (*sql.DB, error) {
 
 // ── Nests CRUD ──────────────────────────────────────────────────────────────
 
+// nestColumns lists every nests column in scanNestRow order.
+const nestColumns = `id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
+	hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
+	desired_config_rev, applied_config_rev, docker_tls, created_at, updated_at`
+
 // CreateNest generates a UUID and inserts a new nest record.
 func CreateNest(db *sql.DB, n NestRecord) (string, error) {
 	n.ID = uid.New()
@@ -305,10 +312,8 @@ func CreateNest(db *sql.DB, n NestRecord) (string, error) {
 }
 
 func insertNest(db *sql.DB, n NestRecord) error {
-	query := `INSERT INTO nests (id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
-	           hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
-	           desired_config_rev, applied_config_rev, created_at, updated_at)
-	           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO nests (` + nestColumns + `)
+	           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	if n.HatchStatus == "" {
 		n.HatchStatus = "idle"
 	}
@@ -323,7 +328,7 @@ func insertNest(db *sql.DB, n NestRecord) error {
 	}
 	_, err := db.Exec(query, n.ID, n.Name, n.Notes, n.AccessType, n.Host, n.Port, n.Username, n.VaultSecretID,
 		dbutil.BoolToInt(n.Active), n.EggID, n.HatchStatus, n.LastHatchAt, n.HatchError, n.Route, n.RouteConfig, n.DeployMethod, n.TargetArch,
-		n.DesiredConfigRev, n.AppliedConfigRev, n.CreatedAt, n.UpdatedAt)
+		n.DesiredConfigRev, n.AppliedConfigRev, n.DockerTLS, n.CreatedAt, n.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to insert nest: %w", err)
 	}
@@ -341,10 +346,10 @@ func scanNestRow(s nestScanner) (NestRecord, error) {
 	var active int
 	var notesNull, hostNull, userNull, secretNull, eggNull sql.NullString
 	var hatchStatusNull, lastHatchNull, hatchErrNull, routeNull, routeCfgNull, deployNull, archNull sql.NullString
-	var desiredCfgRevNull, appliedCfgRevNull sql.NullString
+	var desiredCfgRevNull, appliedCfgRevNull, dockerTLSNull sql.NullString
 	if err := s.Scan(&n.ID, &n.Name, &notesNull, &n.AccessType, &hostNull, &n.Port, &userNull, &secretNull, &active, &eggNull,
 		&hatchStatusNull, &lastHatchNull, &hatchErrNull, &routeNull, &routeCfgNull, &deployNull, &archNull,
-		&desiredCfgRevNull, &appliedCfgRevNull, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		&desiredCfgRevNull, &appliedCfgRevNull, &dockerTLSNull, &n.CreatedAt, &n.UpdatedAt); err != nil {
 		return NestRecord{}, err
 	}
 	n.Notes = nullStr(notesNull)
@@ -361,6 +366,7 @@ func scanNestRow(s nestScanner) (NestRecord, error) {
 	n.TargetArch = nullStr(archNull)
 	n.DesiredConfigRev = nullStr(desiredCfgRevNull)
 	n.AppliedConfigRev = nullStr(appliedCfgRevNull)
+	n.DockerTLS = nullStr(dockerTLSNull)
 	n.Active = active != 0
 	if n.HatchStatus == "" {
 		n.HatchStatus = "idle"
@@ -379,9 +385,7 @@ func scanNestRow(s nestScanner) (NestRecord, error) {
 
 // GetNest retrieves a single nest by ID.
 func GetNest(db *sql.DB, id string) (NestRecord, error) {
-	query := `SELECT id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
-	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
-	          desired_config_rev, applied_config_rev, created_at, updated_at FROM nests WHERE id = ?`
+	query := `SELECT ` + nestColumns + ` FROM nests WHERE id = ?`
 	n, err := scanNestRow(db.QueryRow(query, id))
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -394,9 +398,7 @@ func GetNest(db *sql.DB, id string) (NestRecord, error) {
 
 // ListNests returns all nest records.
 func ListNests(db *sql.DB) ([]NestRecord, error) {
-	query := `SELECT id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
-	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
-	          desired_config_rev, applied_config_rev, created_at, updated_at FROM nests ORDER BY name`
+	query := `SELECT ` + nestColumns + ` FROM nests ORDER BY name`
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list nests: %w", err)
@@ -407,9 +409,7 @@ func ListNests(db *sql.DB) ([]NestRecord, error) {
 
 // ListActiveNests returns only active nest records.
 func ListActiveNests(db *sql.DB) ([]NestRecord, error) {
-	query := `SELECT id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
-	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
-	          desired_config_rev, applied_config_rev, created_at, updated_at FROM nests WHERE active = 1 ORDER BY name`
+	query := `SELECT ` + nestColumns + ` FROM nests WHERE active = 1 ORDER BY name`
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list active nests: %w", err)
@@ -423,10 +423,10 @@ func UpdateNest(db *sql.DB, n NestRecord) error {
 	n.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	query := `UPDATE nests SET name=?, notes=?, access_type=?, host=?, port=?, username=?, vault_secret_id=?, active=?, egg_id=?,
 	          hatch_status=?, last_hatch_at=?, hatch_error=?, route=?, route_config=?, deploy_method=?, target_arch=?,
-	          desired_config_rev=?, applied_config_rev=?, updated_at=? WHERE id=?`
+	          desired_config_rev=?, applied_config_rev=?, docker_tls=?, updated_at=? WHERE id=?`
 	res, err := db.Exec(query, n.Name, n.Notes, n.AccessType, n.Host, n.Port, n.Username, n.VaultSecretID, dbutil.BoolToInt(n.Active), n.EggID,
 		n.HatchStatus, n.LastHatchAt, n.HatchError, n.Route, n.RouteConfig, n.DeployMethod, n.TargetArch,
-		n.DesiredConfigRev, n.AppliedConfigRev, n.UpdatedAt, n.ID)
+		n.DesiredConfigRev, n.AppliedConfigRev, n.DockerTLS, n.UpdatedAt, n.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update nest: %w", err)
 	}
@@ -579,9 +579,7 @@ func ToggleEggActive(db *sql.DB, id string, active bool) error {
 
 // GetNestByName retrieves a nest by its name (case-insensitive).
 func GetNestByName(db *sql.DB, name string) (NestRecord, error) {
-	query := `SELECT id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
-	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
-	          desired_config_rev, applied_config_rev, created_at, updated_at FROM nests WHERE LOWER(name) = LOWER(?)`
+	query := `SELECT ` + nestColumns + ` FROM nests WHERE LOWER(name) = LOWER(?)`
 	n, err := scanNestRow(db.QueryRow(query, name))
 	if err != nil {
 		if err == sql.ErrNoRows {

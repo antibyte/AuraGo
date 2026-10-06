@@ -6,6 +6,10 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"aurago/internal/config"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestDeepMerge_BasicOverlay(t *testing.T) {
@@ -723,4 +727,255 @@ func keys(m map[string]string) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+func TestApplyUpgradeSafetyDefaults_MaterialisesDockerHostAccess(t *testing.T) {
+	template := map[string]interface{}{
+		"docker": map[string]interface{}{
+			"enabled":           false,
+			"host":              "",
+			"readonly":          false,
+			"allow_host_access": false,
+		},
+	}
+	cases := []struct {
+		name        string
+		userDocker  map[string]interface{}
+		want        bool
+		wantChanged bool
+	}{
+		{"docker on, key absent", map[string]interface{}{"enabled": true}, true, true},
+		{"docker off, key absent", map[string]interface{}{"enabled": false}, true, true},
+		{"no docker section", nil, true, true},
+		{"key written false", map[string]interface{}{"enabled": true, "allow_host_access": false}, false, false},
+		{"key written true", map[string]interface{}{"enabled": true, "allow_host_access": true}, true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			user := map[string]interface{}{}
+			if tc.userDocker != nil {
+				user["docker"] = tc.userDocker
+			}
+			merged := deepMerge(template, user)
+
+			changed := applyUpgradeSafetyDefaults(merged, user)
+
+			if changed != tc.wantChanged {
+				t.Fatalf("changed = %v, want %v", changed, tc.wantChanged)
+			}
+			docker, _ := asStringMap(merged["docker"])
+			if docker["allow_host_access"] != tc.want {
+				t.Fatalf("docker.allow_host_access = %v, want %v", docker["allow_host_access"], tc.want)
+			}
+		})
+	}
+}
+
+func repositoryTemplateMap(t *testing.T) (string, map[string]interface{}) {
+	t.Helper()
+	content, err := readNormalized(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatalf("read template: %v", err)
+	}
+	tmplMap, err := parseYAMLMap(content)
+	if err != nil {
+		t.Fatalf("parse template: %v", err)
+	}
+	return content, tmplMap
+}
+
+func templateDockerHostAccess(t *testing.T, tmplMap map[string]interface{}) interface{} {
+	t.Helper()
+	docker, ok := asStringMap(tmplMap["docker"])
+	if !ok {
+		t.Fatalf("template docker section missing: %#v", tmplMap["docker"])
+	}
+	return docker["allow_host_access"]
+}
+
+// loadMergedDockerHostAccess writes the merger output and loads it the way
+// AuraGo does at startup, so the test pins the effective value, not only the
+// YAML map.
+func loadMergedDockerHostAccess(t *testing.T, merged map[string]interface{}) bool {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	atomicWriteYAML(path, merged)
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("config.Load(merged) error = %v", err)
+	}
+	return cfg.Docker.AllowHostAccess
+}
+
+// Pre-K5 configurations keep agent Compose host access through an upgrade,
+// whatever shape their docker section has. enforceTemplateTypes replaces a
+// null or scalar docker section with the template map, so the grandfather has
+// to run after it.
+func TestMergeUserConfig_GrandfathersDockerHostAccess(t *testing.T) {
+	templateContent, tmplMap := repositoryTemplateMap(t)
+	if got := templateDockerHostAccess(t, tmplMap); got != false {
+		t.Fatalf("template docker.allow_host_access = %#v, want false", got)
+	}
+	cases := []struct {
+		name string
+		user string
+		want bool
+	}{
+		{"docker null (children commented out)", "server:\n  port: 8088\ndocker:\n  # enabled: true\n", true},
+		{"docker scalar false", "server:\n  port: 8088\ndocker: false\n", true},
+		{"docker empty map", "server:\n  port: 8088\ndocker: {}\n", true},
+		{"pre-K5 docker section", "server:\n  port: 8088\ndocker:\n  enabled: true\n  readonly: false\n", true},
+		{"no docker section", "server:\n  port: 8088\n", true},
+		{"explicit false", "server:\n  port: 8088\ndocker:\n  enabled: true\n  allow_host_access: false\n", false},
+		{"explicit true", "server:\n  port: 8088\ndocker:\n  enabled: true\n  allow_host_access: true\n", true},
+		// A written key ends the grandfather even without a value; the template
+		// type (bool false) replaces the null, as config.Load reads it.
+		{"explicit null", "server:\n  port: 8088\ndocker:\n  enabled: true\n  allow_host_access:\n", false},
+		{"fresh install copied from the template", templateContent, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srcMap, err := parseYAMLMap(tc.user)
+			if err != nil {
+				t.Fatalf("parse user config: %v", err)
+			}
+
+			result := mergeUserConfig(tmplMap, srcMap)
+
+			docker, ok := asStringMap(result.merged["docker"])
+			if !ok {
+				t.Fatalf("merged docker section = %#v, want a map", result.merged["docker"])
+			}
+			if docker["allow_host_access"] != tc.want {
+				t.Fatalf("merged docker.allow_host_access = %#v, want %v", docker["allow_host_access"], tc.want)
+			}
+			if got := loadMergedDockerHostAccess(t, result.merged); got != tc.want {
+				t.Fatalf("loaded Docker.AllowHostAccess = %v, want %v", got, tc.want)
+			}
+			if got := templateDockerHostAccess(t, tmplMap); got != false {
+				t.Fatalf("merge mutated the template: docker.allow_host_access = %#v", got)
+			}
+		})
+	}
+}
+
+func TestMergeUserConfig_LeavesFreshTemplateConfigUnchanged(t *testing.T) {
+	templateContent, tmplMap := repositoryTemplateMap(t)
+	srcMap, err := parseYAMLMap(templateContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := mergeUserConfig(tmplMap, srcMap)
+	if result.needsWrite() {
+		t.Fatalf("a config copied from the template must be up to date: missing=%v safety=%v types=%v sanitized=%v", result.missing, result.safetyAdjusted, result.typeFixed, result.sanitized)
+	}
+}
+
+// The corruption path keeps the grandfather for existing installations. A
+// docker section that cannot be salvaged loses its explicit false and comes
+// back as true (Docker itself is reset to the template's disabled state).
+func TestRecoverCorruptedConfig_GrandfathersDockerHostAccess(t *testing.T) {
+	_, tmplMap := repositoryTemplateMap(t)
+	cases := []struct {
+		name        string
+		source      string
+		want        bool
+		wantEnabled bool
+	}{
+		{"corrupt docker section with explicit false", "server:\n  port: 8088\ndocker:\n  enabled: true\n  allow_host_access: false\n   bad: [\n", true, false},
+		{"salvaged docker section with explicit false", "server:\n  port: [\ndocker:\n  enabled: true\n  allow_host_access: false\n", false, true},
+		{"salvaged pre-K5 docker section", "server:\n  port: [\ndocker:\n  enabled: true\n", true, true},
+		{"salvaged docker null", "server:\n  port: [\ndocker:\n  # enabled: true\n", true, false},
+		{"nothing salvageable", "server: [broken\n", true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := parseYAMLMap(tc.source); err == nil {
+				t.Fatal("test source must be unparseable as a whole")
+			}
+
+			merged := recoverCorruptedConfig(tmplMap, salvageSections(tc.source))
+
+			docker, ok := asStringMap(merged["docker"])
+			if !ok {
+				t.Fatalf("recovered docker section = %#v, want a map", merged["docker"])
+			}
+			if docker["allow_host_access"] != tc.want || docker["enabled"] != tc.wantEnabled {
+				t.Fatalf("recovered docker section = %#v, want allow_host_access %v and enabled %v", docker, tc.want, tc.wantEnabled)
+			}
+			if got := templateDockerHostAccess(t, tmplMap); got != false {
+				t.Fatalf("recovery mutated the template: docker.allow_host_access = %#v", got)
+			}
+		})
+	}
+}
+
+// An empty or comment-only config.yaml (the Docker guide has users `touch` it
+// before the first start) is a fresh install: it gets the template unchanged,
+// without a .corrupted backup. A source with top-level keys that does not
+// parse is an existing installation and keeps the grandfather.
+func TestRun_EmptySourceIsFreshInstall(t *testing.T) {
+	templatePath := filepath.Join("..", "..", "config_template.yaml")
+	_, tmplMap := repositoryTemplateMap(t)
+	cases := []struct {
+		name         string
+		source       string
+		want         bool
+		wantTemplate bool
+		wantBackup   bool
+	}{
+		{"empty file", "", false, true, false},
+		{"comment-only file", "# my config\n", false, true, false},
+		{"comment-only file with CRLF", "# my config\r\n\r\n", false, true, false},
+		{"unparseable source with top-level keys", "server: [broken\n", true, false, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sourcePath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(sourcePath, []byte(tc.source), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			run(sourcePath, templatePath, sourcePath)
+
+			rawOut, err := os.ReadFile(sourcePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			templateOut, err := yaml.Marshal(tmplMap)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := string(rawOut) == string(templateOut); got != tc.wantTemplate {
+				t.Fatalf("output is the unchanged template = %v, want %v", got, tc.wantTemplate)
+			}
+
+			outData, err := readNormalized(sourcePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			outMap, err := parseYAMLMap(outData)
+			if err != nil {
+				t.Fatalf("merger output is not valid YAML: %v", err)
+			}
+			docker, _ := asStringMap(outMap["docker"])
+			if docker["allow_host_access"] != tc.want {
+				t.Fatalf("output docker.allow_host_access = %#v, want %v", docker["allow_host_access"], tc.want)
+			}
+			cfg, err := config.Load(sourcePath)
+			if err != nil {
+				t.Fatalf("config.Load(output) error = %v", err)
+			}
+			if cfg.Docker.AllowHostAccess != tc.want {
+				t.Fatalf("loaded Docker.AllowHostAccess = %v, want %v", cfg.Docker.AllowHostAccess, tc.want)
+			}
+			backups, err := filepath.Glob(sourcePath + ".*.corrupted")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if (len(backups) > 0) != tc.wantBackup {
+				t.Fatalf(".corrupted backups = %v, want present = %v", backups, tc.wantBackup)
+			}
+		})
+	}
 }

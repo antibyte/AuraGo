@@ -74,6 +74,7 @@ func handleSecurityHints(s *Server) http.HandlerFunc {
 		internetFacing := isInternetFacing(s.Cfg)
 		networkFacing := isNetworkFacing(s.Cfg)
 		s.CfgMu.RUnlock()
+		hints = append(hints, invasionSecurityHints(s.InvasionDB, s.Logger)...)
 
 		// Build a serialisable view (strip FixPatch — applied server-side only)
 		type hintView struct {

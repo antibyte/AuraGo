@@ -73,6 +73,8 @@ docker compose up -d
 
 Open **http://localhost:8088**. The image ships volumes and the UI set. It creates a vault key if none is supplied. Keep that key with the backups.
 
+Docker access goes through a restricted socket proxy. It reduces the attack surface but does not contain a compromised AuraGo; see section 4 of the [Docker guide](../../docker_installation.md#4-docker-socket-security).
+
 Do **not** curl `config.yaml` from the GitHub root — that file is not in the repo. The template is `config_template.yaml`. A host bind named `./config.yaml` easily becomes a directory under Docker. Optional: `config/config.yaml`. Details: [Docker guide](../../docker_installation.md).
 
 > **Docker advantage:** isolation, easier backups, no Python on the host.

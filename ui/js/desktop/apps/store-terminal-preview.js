@@ -88,7 +88,6 @@
             const metadata = (app && app.metadata) || {};
             const previewPortID = metadata.preview_port_id || 'web';
             const workspacePath = metadata.workspace_path || 'Shared/CommandCode';
-            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url?port_id=' + encodeURIComponent(previewPortID));
             if (!contentEl(id)) return;
 
             const newSessionLabel = t('desktop.store_terminal_new_session');
@@ -97,6 +96,8 @@
             const pasteLabel = t('desktop.fm.paste');
             const showPreviewLabel = t('desktop.store_terminal_show_preview');
             const hidePreviewLabel = t('desktop.store_terminal_hide_preview');
+            const showShellLabel = t('desktop.store_terminal_show_shell');
+            const hideShellLabel = t('desktop.store_terminal_hide_shell');
             const statusStarting = t('desktop.store_terminal_status_starting');
             const statusConnected = t('desktop.store_terminal_status_connected');
             const statusPreviewWaiting = t('desktop.store_terminal_status_preview_waiting');
@@ -117,6 +118,7 @@
                                 <button type="button" class="vd-store-terminal-action" data-store-terminal-restart title="${esc(restartLabel)}" aria-label="${esc(restartLabel)}">${iconMarkup('refresh', 'R', 'vd-store-terminal-action-icon', 15)}</button>
                                 <button type="button" class="vd-store-terminal-action" data-store-terminal-copy title="${esc(copyLabel)}" aria-label="${esc(copyLabel)}">${iconMarkup('copy', 'C', 'vd-store-terminal-action-icon', 15)}</button>
                                 <button type="button" class="vd-store-terminal-action" data-store-terminal-paste title="${esc(pasteLabel)}" aria-label="${esc(pasteLabel)}">${iconMarkup('clipboard', 'P', 'vd-store-terminal-action-icon', 15)}</button>
+                                <button type="button" class="vd-store-terminal-action vd-store-shell-toggle" data-store-shell-toggle title="${esc(showShellLabel)}" aria-label="${esc(showShellLabel)}" aria-expanded="false" aria-controls="${esc(id)}-store-shell">${iconMarkup('terminal', '>', 'vd-store-terminal-action-icon', 15)}<span>${esc(t('desktop.app_terminal'))}</span></button>
                                 <button type="button" class="vd-store-terminal-action" data-store-preview-toggle title="${esc(hidePreviewLabel)}" aria-label="${esc(hidePreviewLabel)}" aria-pressed="true">${iconMarkup('eye-off', 'P', 'vd-store-terminal-action-icon', 15)}</button>
                             </div>
                         </div>
@@ -125,35 +127,80 @@
                     <div class="vd-store-terminal-resizer" data-store-terminal-resizer></div>
                     <div class="vd-store-preview-pane"></div>
                 </div>
+                <section class="vd-store-shell-drawer" data-store-shell-pane id="${esc(id)}-store-shell" aria-label="${esc(t('desktop.app_terminal'))}" hidden>
+                    <div class="vd-store-terminal-toolbar">
+                        <div class="vd-store-terminal-tabs" data-store-shell-tabs role="tablist" aria-label="${esc(t('desktop.app_terminal'))}"></div>
+                        <div class="vd-store-terminal-meta">
+                            <span class="vd-store-terminal-chip" data-store-shell-connection data-state="starting" role="status">${esc(statusStarting)}</span>
+                            <span class="vd-store-terminal-workspace" title="${esc(workspacePath)}">/workspace</span>
+                        </div>
+                        <div class="vd-store-terminal-actions">
+                            <button type="button" class="vd-store-terminal-action" data-store-terminal-restart title="${esc(restartLabel)}" aria-label="${esc(restartLabel)}">${iconMarkup('refresh', 'R', 'vd-store-terminal-action-icon', 15)}</button>
+                            <button type="button" class="vd-store-terminal-action" data-store-terminal-copy title="${esc(copyLabel)}" aria-label="${esc(copyLabel)}">${iconMarkup('copy', 'C', 'vd-store-terminal-action-icon', 15)}</button>
+                            <button type="button" class="vd-store-terminal-action" data-store-terminal-paste title="${esc(pasteLabel)}" aria-label="${esc(pasteLabel)}">${iconMarkup('clipboard', 'P', 'vd-store-terminal-action-icon', 15)}</button>
+                            <button type="button" class="vd-store-terminal-action" data-store-shell-hide title="${esc(hideShellLabel)}" aria-label="${esc(hideShellLabel)}">${iconMarkup('chevron-down', 'v', 'vd-store-terminal-action-icon', 15)}</button>
+                        </div>
+                    </div>
+                    <div class="vd-store-terminal-surface" data-store-shell-terminal></div>
+                </section>
             </div>`;
 
             const connectionChip = host.querySelector('[data-store-terminal-connection]');
             const previewStatusChip = host.querySelector('[data-store-terminal-preview-status]');
             const terminalStack = host.querySelector('[data-store-terminal]');
             const terminalTabs = host.querySelector('[data-store-terminal-tabs]');
+            const shellPane = host.querySelector('[data-store-shell-pane]');
+            const shellStack = host.querySelector('[data-store-shell-terminal]');
+            const shellTabs = host.querySelector('[data-store-shell-tabs]');
+            const shellToggleButton = host.querySelector('[data-store-shell-toggle]');
+            const shellConnectionChip = host.querySelector('[data-store-shell-connection]');
             const newButton = host.querySelector('[data-store-terminal-new]');
-            const restartButton = host.querySelector('[data-store-terminal-restart]');
-            const copyButton = host.querySelector('[data-store-terminal-copy]');
-            const pasteButton = host.querySelector('[data-store-terminal-paste]');
             const previewToggleButton = host.querySelector('[data-store-preview-toggle]');
             const resizer = host.querySelector('[data-store-terminal-resizer]');
             const terminalPreview = host.querySelector('.vd-store-terminal-preview');
             const previewHost = host.querySelector('.vd-store-preview-pane');
             const terminalSessions = new Map();
             let activeTerminalSessionID = '';
+            let commandSessionID = '';
+            let shellSessionID = '';
             let terminalSessionSequence = 0;
+            let shellSessionSequence = 0;
             let previewVisible = true;
             let previewPollTimer = null;
             let previewReady = false;
+            let previewFrameLaunching = false;
+            let previewLaunchGeneration = 0;
             let terminalPasteHandler = null;
             let resizeMoveHandler = null;
             let resizeUpHandler = null;
             let disposed = false;
 
-            function setConnectionState(state) {
-                if (!connectionChip) return;
-                connectionChip.dataset.state = state;
-                connectionChip.textContent = state === 'connected' ? statusConnected : statusStarting;
+            function setConnectionState(session, state) {
+                session.connectionState = state;
+                if (!session.bootstrap && session.id !== shellSessionID) return;
+                const chip = session.bootstrap ? connectionChip : shellConnectionChip;
+                chip.dataset.state = state;
+                chip.textContent = state === 'connected' ? statusConnected
+                    : state === 'closed' ? t('desktop.terminal_stopped')
+                    : state === 'error' ? t('common.error') : statusStarting;
+            }
+
+            function setShellVisible(visible) {
+                shellPane.hidden = !visible;
+                shellToggleButton.setAttribute('aria-expanded', String(visible));
+                const label = visible ? hideShellLabel : showShellLabel;
+                shellToggleButton.setAttribute('title', label);
+                shellToggleButton.setAttribute('aria-label', label);
+                if (visible && !terminalSessions.has(shellSessionID)) {
+                    createTerminalSession({ bootstrap: false });
+                } else {
+                    activateTerminalSession(visible ? shellSessionID : commandSessionID);
+                }
+                terminalSessions.forEach(session => scheduleTerminalSessionFit(session));
+            }
+
+            function controlSession(button) {
+                return terminalSessions.get(button.closest('[data-store-shell-pane]') ? shellSessionID : commandSessionID);
             }
 
             function setPreviewState(state, detail) {
@@ -251,6 +298,8 @@
                 previewVisible = visible !== false;
                 if (terminalPreview) terminalPreview.classList.toggle('is-preview-hidden', !previewVisible);
                 if (!previewVisible) {
+                    previewLaunchGeneration++;
+                    previewFrameLaunching = false;
                     previewHost.replaceChildren(renderPreviewPlaceholder());
                 } else if (!previewHost.firstElementChild) {
                     previewHost.replaceChildren(renderPreviewPlaceholder());
@@ -258,16 +307,25 @@
                 updatePreviewToggleButton();
                 terminalSessions.forEach(session => scheduleTerminalSessionFit(session));
                 refocusActiveTerminalAfterPreviewLoad();
+                if (previewVisible && previewReady && !previewHost.querySelector('iframe')) openPreviewFrame();
             }
 
-            function openPreviewFrame() {
-                if (disposed) return;
-                if (!previewVisible) setPreviewVisible(true);
-                const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
-                const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true, disableAutoFocus: true });
-                frame.addEventListener('load', refocusActiveTerminalAfterPreviewLoad);
-                previewHost.replaceChildren(frame);
-                refocusActiveTerminalAfterPreviewLoad();
+            async function openPreviewFrame() {
+                if (disposed || !previewVisible || previewFrameLaunching || previewHost.querySelector('iframe')) return;
+                const generation = ++previewLaunchGeneration;
+                previewFrameLaunching = true;
+                try {
+                    const launch = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url?port_id=' + encodeURIComponent(previewPortID));
+                    if (disposed || generation !== previewLaunchGeneration || !previewVisible || !contentEl(id)) return;
+                    const frame = makeSandboxedFrame(storeFrameURL(launch.url, storeAppId), app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true, disableAutoFocus: true });
+                    frame.addEventListener('load', refocusActiveTerminalAfterPreviewLoad);
+                    previewHost.replaceChildren(frame);
+                    refocusActiveTerminalAfterPreviewLoad();
+                } catch (_) {
+                    if (!disposed && generation === previewLaunchGeneration) setPreviewState('waiting');
+                } finally {
+                    if (generation === previewLaunchGeneration) previewFrameLaunching = false;
+                }
             }
 
             async function pollPreviewStatus() {
@@ -287,10 +345,10 @@
                                 title: appName(app),
                                 message: t('desktop.store_terminal_preview_ready_toast')
                             });
-                            openPreviewFrame();
                         } else {
                             setPreviewState('ready', detail);
                         }
+                        if (previewVisible && !previewHost.querySelector('iframe')) openPreviewFrame();
                     } else {
                         previewReady = false;
                         setPreviewState('waiting');
@@ -320,9 +378,9 @@
             };
             host.addEventListener('paste', terminalPasteHandler, true);
 
-            if (copyButton) {
+            host.querySelectorAll('[data-store-terminal-copy]').forEach(copyButton => {
                 copyButton.addEventListener('click', async () => {
-                    const session = activeTerminalSession();
+                    const session = controlSession(copyButton);
                     if (!session || !session.terminal || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
                         if (session && session.terminal) session.terminal.focus();
                         return;
@@ -331,10 +389,10 @@
                     if (selection) await navigator.clipboard.writeText(selection).catch(() => {});
                     session.terminal.focus();
                 });
-            }
-            if (pasteButton) {
+            });
+            host.querySelectorAll('[data-store-terminal-paste]').forEach(pasteButton => {
                 pasteButton.addEventListener('click', async () => {
-                    const session = activeTerminalSession();
+                    const session = controlSession(pasteButton);
                     if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
                         if (session && session.terminal) session.terminal.focus();
                         return;
@@ -342,8 +400,8 @@
                     const text = await navigator.clipboard.readText().catch(() => '');
                     if (writeTerminalInput(session, text) && session.terminal) session.terminal.focus();
                 });
-            }
-            terminalStack.addEventListener('keydown', event => {
+            });
+            [terminalStack, shellStack].forEach(stack => stack.addEventListener('keydown', event => {
                 if (!(event.ctrlKey || event.metaKey) || String(event.key || '').toLowerCase() !== 'v') return;
                 const session = activeTerminalSession();
                 if (!session || !session.socket || session.socket.readyState !== WebSocket.OPEN) return;
@@ -357,10 +415,11 @@
                             if (session.terminal) session.terminal.focus();
                         });
                 }
-            }, true);
+            }, true));
 
             function fitTerminalSession(session) {
                 if (disposed || !session || session.disposed || !session.terminal) return;
+                if (session.surface.hidden || !session.surface.getClientRects().length) return;
                 if (session.fitAddon) {
                     try { session.fitAddon.fit(); } catch (_) { return; }
                 }
@@ -380,24 +439,29 @@
                 const session = terminalSessions.get(sessionID);
                 if (!session) return;
                 activeTerminalSessionID = sessionID;
+                if (!session.bootstrap) shellSessionID = sessionID;
                 terminalSessions.forEach(current => {
-                    const active = current.id === sessionID;
+                    const active = current.bootstrap || current.id === shellSessionID;
                     current.tab.classList.toggle('is-active', active);
                     current.tab.setAttribute('aria-selected', active ? 'true' : 'false');
                     current.surface.hidden = !active;
                 });
+                setConnectionState(session, session.connectionState || 'starting');
                 scheduleTerminalSessionFit(session);
                 session.terminal.focus();
             }
             function closeTerminalSession(sessionID) {
                 const session = terminalSessions.get(sessionID);
                 if (!session || session.bootstrap) return;
-                const wasActive = activeTerminalSessionID === sessionID;
-                const remainingIDs = Array.from(terminalSessions.keys()).filter(currentID => currentID !== sessionID);
+                const wasActive = shellSessionID === sessionID;
+                const remainingIDs = Array.from(terminalSessions.values()).filter(current => !current.bootstrap && current.id !== sessionID).map(current => current.id);
                 session.cleanup();
                 terminalSessions.delete(sessionID);
                 if (wasActive && remainingIDs.length > 0) {
                     activateTerminalSession(remainingIDs[Math.max(0, remainingIDs.length - 1)]);
+                } else if (wasActive) {
+                    shellSessionID = '';
+                    setShellVisible(false);
                 }
             }
             function createTerminalSession(options) {
@@ -407,12 +471,12 @@
                 const sessionID = 'terminal-session-' + terminalSessionSequence;
                 const sessionLabel = bootstrap
                     ? t('desktop.store_terminal_bootstrap_session')
-                    : t('desktop.store_terminal_session_label') + ' ' + terminalSessionSequence;
+                    : t('desktop.store_terminal_session_label') + ' ' + (++shellSessionSequence);
                 const surface = document.createElement('div');
                 surface.className = 'vd-store-terminal-session';
                 surface.hidden = true;
                 surface.dataset.storeTerminalSession = sessionID;
-                terminalStack.appendChild(surface);
+                (bootstrap ? terminalStack : shellStack).appendChild(surface);
                 const tab = document.createElement('button');
                 tab.type = 'button';
                 tab.className = 'vd-store-terminal-tab';
@@ -422,7 +486,7 @@
                     ? ''
                     : `<span class="vd-store-terminal-tab-close" data-store-terminal-close="${esc(sessionID)}" aria-hidden="true">${iconMarkup('x', 'X', 'vd-store-terminal-tab-close-icon', 12)}</span>`;
                 tab.innerHTML = `<span class="vd-store-terminal-tab-label">${esc(sessionLabel)}</span>${closeMarkup}`;
-                terminalTabs.appendChild(tab);
+                (bootstrap ? terminalTabs : shellTabs).appendChild(tab);
                 const terminal = new window.Terminal({
                     cursorBlink: true,
                     convertEol: true,
@@ -470,6 +534,18 @@
                     }
                 };
                 terminalSessions.set(sessionID, session);
+                if (bootstrap) {
+                    commandSessionID = sessionID;
+                } else {
+                    shellSessionID = sessionID;
+                }
+                surface.addEventListener('focusin', () => { activeTerminalSessionID = sessionID; });
+                tab.addEventListener('keydown', event => {
+                    if (event.key === 'Delete' && !bootstrap) {
+                        event.preventDefault();
+                        closeTerminalSession(sessionID);
+                    }
+                });
                 tab.addEventListener('click', event => {
                     const closeTarget = event.target && event.target.closest && event.target.closest('[data-store-terminal-close]');
                     if (closeTarget) {
@@ -480,6 +556,7 @@
                     activateTerminalSession(sessionID);
                 });
                 session.terminal.open(session.surface);
+                if (!bootstrap) setShellVisible(true);
                 const terminalPath = '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/terminal' + (bootstrap ? '?bootstrap=1' : '');
                 session.socket = new WebSocket(scheme + '://' + window.location.host + terminalPath);
                 session.socket.binaryType = 'arraybuffer';
@@ -489,7 +566,7 @@
                     session.resizeObserver.observe(session.surface);
                 }
                 session.socket.onopen = () => {
-                    setConnectionState('connected');
+                    setConnectionState(session, 'connected');
                     scheduleTerminalSessionFit(session);
                 };
                 session.socket.onmessage = event => {
@@ -501,10 +578,10 @@
                     session.terminal.write(new TextDecoder().decode(event.data));
                 };
                 session.socket.onerror = () => {
-                    setConnectionState('starting');
-                    if (session.terminal) session.terminal.write('\r\n[' + esc(t('common.error')) + ']\r\n');
+                    setConnectionState(session, 'error');
+                    if (session.terminal) session.terminal.write('\r\n[' + t('common.error') + ']\r\n');
                 };
-                session.socket.onclose = () => setConnectionState('starting');
+                session.socket.onclose = () => setConnectionState(session, 'closed');
                 activateTerminalSession(sessionID);
                 return session;
             }
@@ -563,7 +640,15 @@
             }
 
             if (newButton) newButton.addEventListener('click', () => createTerminalSession({ bootstrap: false }));
-            if (restartButton) restartButton.addEventListener('click', restartActiveTerminalSession);
+            host.querySelectorAll('[data-store-terminal-restart]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const session = controlSession(button);
+                    if (session) activeTerminalSessionID = session.id;
+                    restartActiveTerminalSession();
+                });
+            });
+            shellToggleButton.addEventListener('click', () => setShellVisible(shellPane.hidden));
+            host.querySelector('[data-store-shell-hide]').addEventListener('click', () => setShellVisible(false));
             if (previewToggleButton) previewToggleButton.addEventListener('click', () => setPreviewVisible(!previewVisible));
             if (resizer) resizer.addEventListener('pointerdown', startTerminalPreviewResize);
             createTerminalSession({ bootstrap: true });

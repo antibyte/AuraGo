@@ -52,6 +52,17 @@ async function renderServerSection(section) {
     html += `</div>`;
 
     html += `<div class="field-group">
+        <div class="field-group-title">${t('config.server.preview_title')}</div>
+        <div class="field-help">${t('config.server.preview_hint')}</div>
+        <label class="field-label" for="server-preview-domain">${t('config.server.preview_domain')}</label>
+        <input id="server-preview-domain" type="text" class="field-input" data-path="server.preview_domain" value="${escapeAttr(cfg.preview_domain || '')}" placeholder="apps.example.net">
+        <div class="cfg-toggle-row">
+            <span class="cfg-toggle-label">${t('config.server.preview_enabled')}</span>
+            <div class="toggle ${cfg.preview_enabled ? 'on' : ''}" data-path="server.preview_enabled" onclick="toggleBool(this)"></div>
+        </div>
+    </div>`;
+
+    html += `<div class="field-group">
         <div class="field-group-title">🔒 ${t('config.server.https_title')}</div>
         <div class="field-group-desc">${t('config.server.https_desc')}</div>`;
 
@@ -205,7 +216,9 @@ function _srvSyncFormState() {
         const path = el.dataset.path;
         if (!path || path.startsWith('server.https.enabled')) return;
         let value;
-        if (el.tagName === 'SELECT') {
+        if (el.classList.contains('toggle')) {
+            value = el.classList.contains('on');
+        } else if (el.tagName === 'SELECT') {
             value = el.value;
         } else if (el.type === 'number') {
             value = el.value === '' ? '' : Number(el.value);

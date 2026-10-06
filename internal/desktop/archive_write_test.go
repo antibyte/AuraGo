@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -32,6 +33,49 @@ func TestArchiveExtractionPreflightsAllEntries(t *testing.T) {
 		content, err := os.ReadFile(filepath.Join(svc.Config().WorkspaceDir, "target", "keep.txt"))
 		if err != nil || string(content) != "original" {
 			t.Fatalf("invalid tail modified destination: %q, %v", content, err)
+		}
+	}
+}
+
+func TestArchiveExtractionRejectsDestinationCollisionsBeforeWrites(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.WriteFileBytes(ctx, "target/keep.txt", []byte("original"), SourceUser); err != nil {
+		t.Fatal(err)
+	}
+	type entry struct{ name, data string }
+	cases := [][]entry{{
+		{name: "keep.txt", data: "changed"},
+		{name: "collision", data: "file"},
+		{name: "collision/"},
+	}}
+	if runtime.GOOS == "windows" {
+		cases = append(cases, []entry{{name: "keep.txt", data: "changed"}, {name: "Case.txt", data: "one"}, {name: "case.txt", data: "two"}})
+	}
+	for i, entries := range cases {
+		var data bytes.Buffer
+		writer := zip.NewWriter(&data)
+		for _, item := range entries {
+			file, err := writer.Create(item.name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := file.Write([]byte(item.data)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := writer.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := svc.WriteFileBytes(ctx, "input.zip", data.Bytes(), SourceUser); err != nil {
+			t.Fatal(err)
+		}
+		if err := svc.ExtractArchive(ctx, "input.zip", "target", SourceUser); err == nil {
+			t.Fatalf("collision case %d was accepted", i)
+		}
+		content, err := os.ReadFile(filepath.Join(svc.Config().WorkspaceDir, "target", "keep.txt"))
+		if err != nil || string(content) != "original" {
+			t.Fatalf("collision case %d modified an earlier destination: %q, %v", i, content, err)
 		}
 	}
 }

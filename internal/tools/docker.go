@@ -2,7 +2,6 @@ package tools
 
 import (
 	"archive/tar"
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -262,6 +261,43 @@ func DockerRequestContext(ctx context.Context, cfg DockerConfig, method, endpoin
 	if err := validateDockerCreateRequestBinds(cfg, method, endpoint, body); err != nil {
 		return nil, 0, err
 	}
+	return dockerRequestContextValidated(ctx, cfg, method, endpoint, body)
+}
+
+// DockerCreateRequestContextWithTrustedBinds posts a /containers/create body
+// like DockerRequestContext, but HostConfig.Binds strings listed exactly in
+// trusted skip validateDockerBindMount. Only code-pinned callers use it (the
+// Software Store adapter passes its catalog's own host binds); agent dispatch
+// and every other caller keep the full bind policy. The endpoint path must be
+// exactly /containers/create; a query such as ?name= is allowed.
+func DockerCreateRequestContextWithTrustedBinds(ctx context.Context, cfg DockerConfig, endpoint, body string, trusted []string) ([]byte, int, error) {
+	if !dockerEndpointIsContainerCreate(endpoint) {
+		return nil, 0, fmt.Errorf("trusted Docker binds apply only to /containers/create")
+	}
+	if err := requireDockerMutationPermission(); err != nil {
+		return nil, 0, err
+	}
+	if err := validateDockerCreateRequestBindsTrusted(cfg, http.MethodPost, endpoint, body, trusted); err != nil {
+		return nil, 0, err
+	}
+	return dockerRequestContextValidated(ctx, cfg, http.MethodPost, endpoint, body)
+}
+
+// dockerEndpointIsContainerCreate reports whether endpoint is a relative
+// reference whose path is exactly /containers/create, spelled without
+// percent-encoding, with an optional query and no fragment.
+func dockerEndpointIsContainerCreate(endpoint string) bool {
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return false
+	}
+	return parsed.Scheme == "" && parsed.Opaque == "" && parsed.User == nil && parsed.Host == "" &&
+		parsed.Fragment == "" && parsed.Path == "/containers/create" && parsed.EscapedPath() == "/containers/create"
+}
+
+// dockerRequestContextValidated sends a request whose gates and bind checks
+// already ran.
+func dockerRequestContextValidated(ctx context.Context, cfg DockerConfig, method, endpoint, body string) ([]byte, int, error) {
 	client := getPullDockerClient(cfg)
 	var reqBody io.Reader
 	if body != "" {
@@ -418,6 +454,102 @@ func DockerListContainers(cfg DockerConfig, all bool, excludedOwners ...string) 
 
 	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "count": len(result), "containers": result})
 	return string(out)
+}
+
+// DockerContainerListEntry is one compact container list entry. FullID,
+// Labels, NetworkIPs and NetworkMode are never serialized; administrator
+// surfaces use them to classify the entry.
+type DockerContainerListEntry struct {
+	ID          string            `json:"id"`
+	Names       []string          `json:"names"`
+	Image       string            `json:"image"`
+	State       string            `json:"state"`
+	Status      string            `json:"status"`
+	Health      string            `json:"health,omitempty"`
+	FullID      string            `json:"-"`
+	Labels      map[string]string `json:"-"`
+	NetworkIPs  []string          `json:"-"`
+	NetworkMode string            `json:"-"` // HostConfig.NetworkMode, e.g. "container:<id>"
+}
+
+// DockerListContainerEntries returns the entries DockerListContainers
+// serializes, plus their full ID, labels, network addresses and network mode.
+// On failure entries is nil and failure holds the error JSON
+// DockerListContainers returns.
+// Keep the parsing in step with DockerListContainers
+// (TestDockerListContainerEntriesMatchesDockerListContainers).
+func DockerListContainerEntries(cfg DockerConfig, all bool, excludedOwners ...string) (entries []DockerContainerListEntry, failure string) {
+	if err := requireDockerPermission(); err != nil {
+		return nil, errJSON("%v", err)
+	}
+	endpoint := "/containers/json"
+	if all {
+		endpoint += "?all=true"
+	}
+	data, code, err := dockerRequest(cfg, "GET", endpoint, "")
+	if err != nil {
+		return nil, errJSON("Failed to list containers: %v", err)
+	}
+	if code != 200 {
+		return nil, dockerBodyErr(code, data)
+	}
+
+	var containers []map[string]interface{}
+	if err := json.Unmarshal(data, &containers); err != nil {
+		return nil, errJSON("Failed to parse containers: %v", err)
+	}
+
+	for _, c := range containers {
+		labels := dockerStringLabels(c["Labels"])
+		names := dockerInterfaceStrings(c["Names"])
+		if dockerManagedResourceExcluded(labels, names, false, excludedOwners) {
+			continue
+		}
+		entry := DockerContainerListEntry{
+			Image:  fmt.Sprintf("%v", c["Image"]),
+			State:  fmt.Sprintf("%v", c["State"]),
+			Status: fmt.Sprintf("%v", c["Status"]),
+			Labels: labels,
+		}
+		if id, ok := c["Id"].(string); ok && len(id) > 12 {
+			entry.ID = id[:12]
+			entry.FullID = id
+		} else {
+			entry.ID = fmt.Sprintf("%v", c["Id"])
+			entry.FullID = entry.ID
+		}
+		entry.Names = append(entry.Names, names...)
+		// Extract health status from State object if available
+		if state, ok := c["State"].(map[string]interface{}); ok {
+			if health, ok := state["Health"].(map[string]interface{}); ok {
+				if status, ok := health["Status"].(string); ok {
+					entry.Health = status
+				}
+			}
+		}
+		if hostConfig, ok := c["HostConfig"].(map[string]interface{}); ok {
+			if mode, ok := hostConfig["NetworkMode"].(string); ok {
+				entry.NetworkMode = strings.TrimSpace(mode)
+			}
+		}
+		if settings, ok := c["NetworkSettings"].(map[string]interface{}); ok {
+			if networks, ok := settings["Networks"].(map[string]interface{}); ok {
+				for _, raw := range networks {
+					network, ok := raw.(map[string]interface{})
+					if !ok {
+						continue
+					}
+					for _, key := range []string{"IPAddress", "GlobalIPv6Address"} {
+						if ip, ok := network[key].(string); ok && strings.TrimSpace(ip) != "" {
+							entry.NetworkIPs = append(entry.NetworkIPs, strings.TrimSpace(ip))
+						}
+					}
+				}
+			}
+		}
+		entries = append(entries, entry)
+	}
+	return entries, ""
 }
 
 // dockerInspectRedacted replaces secret values in Docker inspect output.
@@ -727,6 +859,26 @@ func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool 
 	return owned[owner] || err != nil
 }
 
+// DockerContainerOwnersFromMetadata applies the reserved-name and ownership
+// label rules of DockerContainerOwnership to names and labels the caller
+// already holds (a list entry or an inspect result). It sends no request.
+func DockerContainerOwnersFromMetadata(names []string, labels map[string]string, owners ...string) map[string]bool {
+	owned := make(map[string]bool, len(owners))
+	for _, owner := range owners {
+		if dockerOwnerMatches(owner, "", labels) {
+			owned[owner] = true
+			continue
+		}
+		for _, name := range names {
+			if dockerOwnerMatches(owner, strings.TrimPrefix(strings.TrimSpace(name), "/"), labels) {
+				owned[owner] = true
+				break
+			}
+		}
+	}
+	return owned
+}
+
 func dockerStringLabels(value any) map[string]string {
 	result := make(map[string]string)
 	switch labels := value.(type) {
@@ -943,7 +1095,8 @@ func DockerListImages(cfg DockerConfig) string {
 // PullImageWait pulls a Docker image and blocks until the pull completes (or the
 // context expires). Unlike the shared HTTP client's 60-second timeout this uses a
 // per-request context so long pulls don't get killed prematurely.
-// It returns nil if the image already exists locally.
+// It returns nil if the image already exists locally. An error event in the
+// Engine's progress stream fails the pull even though the status was 200.
 func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *slog.Logger) error {
 	ctx, cancel := dockerContextWithFallbackTimeout(ctx, 15*time.Minute)
 	defer cancel()
@@ -980,14 +1133,13 @@ func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *
 		return fmt.Errorf("pull image %s: %w", image, err)
 	}
 	defer resp.Body.Close()
-
-	// Drain the streaming response (progress JSON) so we block until the
-	// pull is fully complete.
-	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-		return fmt.Errorf("pull image %s (reading stream): %w", image, err)
-	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("pull image %s: HTTP %d", image, resp.StatusCode)
+		return dockerPullHTTPError(image, resp)
+	}
+	// Read the progress stream to its end so the call blocks until the pull
+	// is complete; an error event in it means the pull failed.
+	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
+		return fmt.Errorf("pull image %s: %w", image, err)
 	}
 
 	if logger != nil {
@@ -1024,37 +1176,24 @@ func PullImageForce(ctx context.Context, cfg DockerConfig, image string, logger 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		_, _ = io.Copy(io.Discard, resp.Body)
-		return fmt.Errorf("pull image %s: HTTP %d", image, resp.StatusCode)
+		return dockerPullHTTPError(image, resp)
 	}
-	scanner := bufio.NewScanner(resp.Body)
-	for scanner.Scan() {
-		line := bytes.TrimSpace(scanner.Bytes())
-		if len(line) == 0 {
-			continue
-		}
-		var event struct {
-			Error       string `json:"error"`
-			ErrorDetail struct {
-				Message string `json:"message"`
-			} `json:"errorDetail"`
-		}
-		if err := json.Unmarshal(line, &event); err == nil {
-			if event.ErrorDetail.Message != "" {
-				return fmt.Errorf("pull image %s: %s", image, event.ErrorDetail.Message)
-			}
-			if event.Error != "" {
-				return fmt.Errorf("pull image %s: %s", image, event.Error)
-			}
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("pull image %s (reading stream): %w", image, err)
+	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
+		return fmt.Errorf("pull image %s: %w", image, err)
 	}
 	if logger != nil {
 		logger.Info("Docker image pulled successfully", "image", image, "force", true)
 	}
 	return nil
+}
+
+// dockerPullHTTPError describes a non-200 image pull with the Engine's
+// message, reading at most dockerutil.MaxErrorBody bytes of the response.
+func dockerPullHTTPError(image string, resp *http.Response) error {
+	if msg := dockerBodyMessage(resp.StatusCode, dockerutil.ReadErrorBody(resp.Body)); msg != "" {
+		return fmt.Errorf("pull image %s: HTTP %d: %s", image, resp.StatusCode, msg)
+	}
+	return fmt.Errorf("pull image %s: HTTP %d", image, resp.StatusCode)
 }
 
 // BuildImageWait builds a Docker image through the Docker Engine API using a
@@ -1144,7 +1283,7 @@ func BuildImageContextWait(ctx context.Context, cfg DockerConfig, image, dockerf
 		}
 		return fmt.Errorf("build image %s: HTTP %d: %s", image, resp.StatusCode, msg)
 	}
-	if err := drainDockerBuildStream(resp.Body); err != nil {
+	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
 		return fmt.Errorf("build image %s: %w", image, err)
 	}
 	if logger != nil {
@@ -1165,33 +1304,6 @@ func writeDockerBuildContextFile(tw *tar.Writer, name string, content []byte, mo
 	return err
 }
 
-func drainDockerBuildStream(r io.Reader) error {
-	scanner := bufio.NewScanner(r)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		var event struct {
-			Error       string `json:"error"`
-			ErrorDetail struct {
-				Message string `json:"message"`
-			} `json:"errorDetail"`
-		}
-		if json.Unmarshal([]byte(line), &event) != nil {
-			continue
-		}
-		if msg := strings.TrimSpace(event.ErrorDetail.Message); msg != "" {
-			return fmt.Errorf("%s", msg)
-		}
-		if msg := strings.TrimSpace(event.Error); msg != "" {
-			return fmt.Errorf("%s", msg)
-		}
-	}
-	return scanner.Err()
-}
-
 func dockerContextWithFallbackTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -1203,10 +1315,16 @@ func dockerContextWithFallbackTimeout(ctx context.Context, timeout time.Duration
 }
 
 func validateDockerCreateRequestBinds(cfg DockerConfig, method, endpoint, body string) error {
+	return validateDockerCreateRequestBindsTrusted(cfg, method, endpoint, body, nil)
+}
+
+// validateDockerCreateRequestBindsTrusted validates the binds of a
+// /containers/create body; binds listed exactly in trusted are skipped.
+func validateDockerCreateRequestBindsTrusted(cfg DockerConfig, method, endpoint, body string, trusted []string) error {
 	if strings.ToUpper(strings.TrimSpace(method)) != http.MethodPost {
 		return nil
 	}
-	if !strings.HasPrefix(strings.TrimSpace(endpoint), "/containers/create") {
+	if !dockerEndpointMayCreateContainer(endpoint) {
 		return nil
 	}
 	if strings.TrimSpace(body) == "" {
@@ -1216,10 +1334,44 @@ func validateDockerCreateRequestBinds(cfg DockerConfig, method, endpoint, body s
 	if err := json.Unmarshal([]byte(body), &payload); err != nil {
 		return fmt.Errorf("invalid Docker create payload: %w", err)
 	}
-	return validateDockerCreatePayloadBinds(cfg, payload)
+	return validateDockerCreatePayloadBindsTrusted(cfg, payload, trusted)
 }
 
-func validateDockerCreatePayloadBinds(cfg DockerConfig, payload map[string]interface{}) error {
+// reDockerVersionedPath splits an Engine API path into its /vX.Y version
+// segment and the route below it, like the Engine's own /v{version:[0-9.]+}
+// route prefix.
+var reDockerVersionedPath = regexp.MustCompile(`^/v[0-9.]+(/.*)$`)
+
+// dockerEndpointMayCreateContainer reports whether a POST to endpoint can
+// reach the Engine's container create route, so its binds must be checked.
+// It keeps the raw "/containers/create" prefix match and adds every spelling
+// the Engine routes to create after decoding and cleaning the request path
+// (/containers/%63reate, /containers%2Fcreate, //containers/create,
+// /containers/./create, /x/../containers/create, /../v1.40/containers/create).
+// The endpoint is parsed exactly as the request URL is built
+// ("http://localhost/" + dockerAPIVersion + endpoint); the decoded path is
+// cleaned and one leading /vX.Y segment is removed. An endpoint that does not
+// parse is treated as a create request (fail closed); such a request cannot
+// be sent anyway. Any other path still skips the bind check, so detection
+// only widens.
+func dockerEndpointMayCreateContainer(endpoint string) bool {
+	if strings.HasPrefix(strings.TrimSpace(endpoint), "/containers/create") {
+		return true
+	}
+	parsed, err := url.Parse("http://localhost/" + dockerAPIVersion + endpoint)
+	if err != nil {
+		return true
+	}
+	route := pathpkg.Clean(parsed.Path)
+	if match := reDockerVersionedPath.FindStringSubmatch(route); match != nil {
+		route = match[1]
+	}
+	return route == "/containers/create"
+}
+
+// validateDockerCreatePayloadBindsTrusted validates every HostConfig.Binds
+// entry with validateDockerBindMount, except entries listed exactly in trusted.
+func validateDockerCreatePayloadBindsTrusted(cfg DockerConfig, payload map[string]interface{}, trusted []string) error {
 	hostConfig, ok := payload["HostConfig"].(map[string]interface{})
 	if !ok {
 		return nil
@@ -1228,10 +1380,16 @@ func validateDockerCreatePayloadBinds(cfg DockerConfig, payload map[string]inter
 	if !ok || rawBinds == nil {
 		return nil
 	}
+	validate := func(bind string) error {
+		if dockerBindTrusted(bind, trusted) {
+			return nil
+		}
+		return validateDockerBindMount(cfg, bind)
+	}
 	switch binds := rawBinds.(type) {
 	case []string:
 		for _, bind := range binds {
-			if err := validateDockerBindMount(cfg, bind); err != nil {
+			if err := validate(bind); err != nil {
 				return err
 			}
 		}
@@ -1241,7 +1399,7 @@ func validateDockerCreatePayloadBinds(cfg DockerConfig, payload map[string]inter
 			if !ok {
 				return fmt.Errorf("invalid Docker create payload HostConfig.Binds entry type %T", raw)
 			}
-			if err := validateDockerBindMount(cfg, bind); err != nil {
+			if err := validate(bind); err != nil {
 				return err
 			}
 		}
@@ -1251,18 +1409,49 @@ func validateDockerCreatePayloadBinds(cfg DockerConfig, payload map[string]inter
 	return nil
 }
 
+// dockerBindTrusted reports whether bind is listed exactly in trusted.
+func dockerBindTrusted(bind string, trusted []string) bool {
+	for _, candidate := range trusted {
+		if candidate != "" && candidate == bind {
+			return true
+		}
+	}
+	return false
+}
+
 // DockerPullImage pulls an image from a registry.
 func DockerPullImage(cfg DockerConfig, image string) string {
+	return DockerPullImageContext(context.Background(), cfg, image)
+}
+
+// DockerPullImageContext pulls an image and reports success only after the
+// Engine's progress stream ended without an error event. The caller's context
+// cancels the pull; without a deadline the pull is bounded to 15 minutes.
+func DockerPullImageContext(ctx context.Context, cfg DockerConfig, image string) string {
 	if image == "" {
 		return errJSON("image name is required")
 	}
-	endpoint := "/images/create?fromImage=" + url.QueryEscape(image)
-	data, code, err := dockerRequest(cfg, "POST", endpoint, "")
+	if err := requireDockerMutationPermission(); err != nil {
+		return errJSON("Failed to pull image: %v", err)
+	}
+	ctx, cancel := dockerContextWithFallbackTimeout(ctx, 15*time.Minute)
+	defer cancel()
+	reqURL := "http://localhost/" + dockerAPIVersion + "/images/create?fromImage=" + url.QueryEscape(image)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
 	if err != nil {
 		return errJSON("Failed to pull image: %v", err)
 	}
-	if code != 200 {
-		return dockerBodyErr(code, data)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := getPullDockerClient(cfg).Do(req)
+	if err != nil {
+		return errJSON("Failed to pull image: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return dockerBodyErr(resp.StatusCode, dockerutil.ReadErrorBody(resp.Body))
+	}
+	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
+		return errJSON("Failed to pull image: %v", err)
 	}
 	out, _ := json.Marshal(map[string]string{"status": "ok", "message": "Image '" + image + "' pulled successfully"})
 	return string(out)
@@ -1313,44 +1502,6 @@ func DockerRenameContainer(cfg DockerConfig, containerID, newName string) string
 	}
 	if code == 404 {
 		return errJSON("Container '%s' not found", containerID)
-	}
-	return dockerBodyErr(code, data)
-}
-
-// DockerSystemPrune removes unused data (containers, networks, images, volumes).
-// Warning: This is a destructive operation.
-func DockerSystemPrune(cfg DockerConfig, all, volumes bool) string {
-	endpoint := "/system/prune"
-	if all {
-		endpoint += "?all=true"
-	}
-	if volumes {
-		if strings.Contains(endpoint, "?") {
-			endpoint += "&volumes=true"
-		} else {
-			endpoint += "?volumes=true"
-		}
-	}
-	data, code, err := dockerRequest(cfg, "POST", endpoint, "")
-	if err != nil {
-		return errJSON("Failed to prune system: %v", err)
-	}
-	if code == 200 {
-		// Parse the response to show what was deleted
-		var result map[string]interface{}
-		if err := json.Unmarshal(data, &result); err != nil {
-			return string(data)
-		}
-		out, _ := json.Marshal(map[string]interface{}{
-			"status":                "ok",
-			"message":               "System prune completed",
-			"containers_deleted":    result["ContainersDeleted"],
-			"space_reclaimed_bytes": result["SpaceReclaimed"],
-			"images_deleted":        result["ImagesDeleted"],
-			"networks_deleted":      result["NetworksDeleted"],
-			"volumes_deleted":       result["VolumesDeleted"],
-		})
-		return string(out)
 	}
 	return dockerBodyErr(code, data)
 }

@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Isolerede appforhåndsvisninger",
+  "config.server.preview_domain": "Domæne til forhåndsvisning",
+  "config.server.preview_enabled": "Aktivér efter godkendelse",
+  "config.server.preview_hint": "Slået fra som standard. Brug et separat websted med wildcard-DNS og TLS. Test applogin, filer og WebSockets på de klargjorte værter før aktivering.",
   "config.fritzbox.status_ok": "🟢 Tilsluttet",
   "config.fritzbox.test_fail": "Forbindelse mislykkedes",
   "config.fritzbox.test_ok": "Forbindelse succesfuld",

@@ -8,7 +8,7 @@
   "help.browser_automation.url": "CloakBrowser sidecarサービスの内部URL。ホスト名としてDockerコンテナ名またはサービス名を使用します（例: http://browser-automation:7331）。",
   "help.browser_automation.container_name": "ブラウザー自動操作サイドカーのDockerコンテナー名。Dockerホスト上で一意である必要があります。",
   "help.browser_automation.image": "ブラウザー自動操作サイドカーのDockerイメージ。設定されたディレクトリのDockerfileから自動的にビルドされます。",
-  "help.browser_automation.dockerfile_dir": "ブラウザー自動操作イメージをビルドするためのDockerfileを含むディレクトリ。デフォルトはAuraGoのインストールディレクトリです。",
+  "help.browser_automation.dockerfile_dir": "Dockerfile.browser_automation と browser_automation_sidecar フォルダーを含むディレクトリ（AuraGo のソースチェックアウト）。相対パスは AuraGo の作業ディレクトリを基準に解決されます。リリース版のインストールにはこれらのファイルが含まれません。ソースチェックアウトを指定するか、イメージを手動でビルドしてください。",
   "help.browser_automation.allowed_download_dir": "ダウンロードしたファイルが保存されるディレクトリ。相対パスはAuraGoデータディレクトリから解決されます。",
   "help.browser_automation.screenshots_dir": "ブラウザースクリーンショットが保存されるディレクトリ。相対パスはAuraGoデータディレクトリから解決されます。",
   "help.browser_automation.session_ttl_minutes": "非アクティブなブラウザーセッションが自動的に閉じられるまでの時間（分）。デフォルト: 30分。",

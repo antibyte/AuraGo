@@ -121,6 +121,7 @@
   "help.discord.enabled": "Ενεργοποιεί the Discord bot.",
   "help.discord.guild_id": "Περιγραφή: ID of the Discord server (Guild).",
   "help.discord.read_only": "Όταν είναι ενεργοποιημένο: the πράκτορας can only read Discord messages but cannot send them.",
+  "help.docker.allow_host_access": "Ενεργοποιείται αυτόματα για διαμορφώσεις που δημιουργήθηκαν πριν υπάρξει αυτή η ρύθμιση. Ισχύει μόνο όσο το Docker είναι ενεργοποιημένο και δεν βρίσκεται σε λειτουργία μόνο ανάγνωσης.",
   "help.docker.enabled": "Ενεργοποιεί Docker container management.",
   "help.docker.host": "Προαιρετικό: remote Docker host (e.g. tcp://192.168.1.5:2375). Αφήστε το κενό for local socket.",
   "help.docker.read_only": "Όταν είναι ενεργοποιημένο: the πράκτορας can only list and inspect Docker containers but cannot start, stop, create, or remove them.",

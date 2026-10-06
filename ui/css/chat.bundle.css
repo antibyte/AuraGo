@@ -10764,7 +10764,7 @@ html[data-darksun][data-theme="dark-sun"] body::before {
     display: block;
     background-color: rgba(120, 40, 16, 0);
     background-image:
-        linear-gradient(180deg, rgba(5, 3, 6, 0.55) 0%, rgba(5, 3, 6, 0.18) 12%, transparent 30%),
+        linear-gradient(180deg, rgba(5, 3, 6, 0.55) 0%, rgba(5, 3, 6, 0.32) 6%, rgba(5, 3, 6, 0.16) 13%, rgba(5, 3, 6, 0.06) 22%, rgba(5, 3, 6, 0.015) 30%, transparent 38%),
         linear-gradient(180deg, transparent 72%, rgba(40, 12, 8, 0.2) 100%),
         radial-gradient(circle at 20% 70%, rgba(240, 92, 43, 0.06) 0, transparent 40%);
     background-size: auto, auto, 200% 200%;
@@ -13321,7 +13321,7 @@ html[data-sandstorm][data-theme="sandstorm"] body::before {
     display: block;
     background-color: rgba(92, 52, 20, 0);
     background-image:
-        linear-gradient(180deg, rgba(14, 8, 5, 0.5) 0%, rgba(14, 8, 5, 0.16) 12%, transparent 30%),
+        linear-gradient(180deg, rgba(14, 8, 5, 0.5) 0%, rgba(14, 8, 5, 0.3) 6%, rgba(14, 8, 5, 0.15) 13%, rgba(14, 8, 5, 0.06) 22%, rgba(14, 8, 5, 0.015) 30%, transparent 38%),
         linear-gradient(110deg, rgba(245, 158, 11, 0.05), transparent 28%, transparent 72%, rgba(180, 83, 9, 0.05) 100%),
         radial-gradient(circle, rgba(245, 158, 11, 0.05) 0 1px, transparent 1.2px),
         radial-gradient(circle at 20% 12%, rgba(245, 158, 11, 0.1) 0, rgba(245, 158, 11, 0.05) 1px, transparent 2px, transparent 88px),

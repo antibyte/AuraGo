@@ -121,6 +121,7 @@
   "help.discord.enabled": "Aktiverer the Discord bot.",
   "help.discord.guild_id": "Beskrivelse: ID of the Discord server (Guild).",
   "help.discord.read_only": "Når dette er aktiveret: the agenten can only read Discord messages but cannot send them.",
+  "help.docker.allow_host_access": "Slås automatisk til for konfigurationer, der blev oprettet, før denne indstilling fandtes. Gælder kun, mens Docker er aktiveret og ikke kører i skrivebeskyttet tilstand.",
   "help.docker.enabled": "Aktiverer Docker container management.",
   "help.docker.host": "Valgfrit: remote Docker host (e.g. tcp://192.168.1.5:2375). Lad feltet være tomt for local socket.",
   "help.docker.read_only": "Når dette er aktiveret: the agenten can only list and inspect Docker containers but cannot start, stop, create, or remove them.",

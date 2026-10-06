@@ -243,6 +243,7 @@
                     </div>
                     <div class="vd-store-card-desc">${esc(entry.metadata && entry.metadata.description_key ? t(entry.metadata.description_key) : entry.description)}</div>
                     ${warningText ? `<div class="vd-store-card-warning">${esc(warningText)}</div>` : ''}
+                    ${app && app.update_required === true ? `<div class="vd-store-card-warning" role="status">${esc(t('desktop.store.update_required'))}</div>` : ''}
                     ${operationError ? `<div class="vd-store-card-warning" role="alert">${esc(operationError)}</div>` : ''}
                     <div class="vd-store-meta">
                         <span class="vd-store-status status-${esc(status)}">${esc(statusLabel(status, operation))}</span>

@@ -21,6 +21,17 @@ worker. Keep packaging, recovery and offline instructions in
   Adopt the server's returned path after a copy decision. Rebuild Desktop bundles
   and verify `TestDesktopFileConflictBrowser` for changes to this flow.
 
+- File Manager paste, archive, extract and batch rename retain their originating
+  instance and captured paths across dialogs and requests. Late results cannot
+  repaint another window or replace its undo state. Shared cut completion clears
+  only the clipboard object it started with; a newer clipboard survives. Verify
+  `TestFileManagerAsyncActionsStayWithOriginBrowser` and
+  `TestDesktopFileClipboardPastePreservesNewSameContentBrowser`.
+- Generated-app keyboard relays use the existing document-bound SDK MessagePort.
+  The injected receiver supports SDK-less apps and preserves normal keyboard
+  events; navigation or frame disposal revokes forwarding. Verify
+  `TestDesktopSDKKeyboardBridgeUsesLivePortForSDKAndLegacyApps`.
+
 - Precision Workspace is an opt-in design system. Operational consumers are
   `config.html`, `dashboard.html`, `plans.html`, `missions_v2.html`,
   `cheatsheets.html`, `knowledge.html`, `skills.html`, `containers.html`,

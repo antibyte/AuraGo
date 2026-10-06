@@ -121,6 +121,7 @@
   "help.discord.enabled": "Schakelt in the Discord bot.",
   "help.discord.guild_id": "Beschrijving: ID of the Discord server (Guild).",
   "help.discord.read_only": "Wanneer ingeschakeld: the agent can only read Discord messages but cannot send them.",
+  "help.docker.allow_host_access": "Wordt automatisch ingeschakeld voor configuraties die al bestonden voordat deze instelling er was. Geldt alleen zolang Docker is ingeschakeld en niet in alleen-lezenmodus draait.",
   "help.docker.enabled": "Docker-beheer inschakelen.",
   "help.docker.host": "Optioneel: remote Docker host (e.g. tcp://192.168.1.5:2375). Laat leeg for local socket.",
   "help.docker.read_only": "Wanneer ingeschakeld: the agent can only list and inspect Docker containers but cannot start, stop, create, or remove them.",

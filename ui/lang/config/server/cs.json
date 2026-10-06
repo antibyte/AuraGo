@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Izolované náhledy aplikací",
+  "config.server.preview_domain": "Doména náhledů",
+  "config.server.preview_enabled": "Povolit po ověření",
+  "config.server.preview_hint": "Ve výchozím stavu vypnuto. Použij samostatný web s DNS se zástupným znakem a TLS. Před zapnutím otestuj přihlášení aplikací, soubory a WebSocket na připravených hostitelích.",
   "config.fritzbox.status_ok": "🟢 Připojeno",
   "config.fritzbox.test_fail": "Připojení selhalo",
   "config.fritzbox.test_ok": "Připojení úspěšné",

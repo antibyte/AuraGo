@@ -9,7 +9,7 @@ import (
 
 const commandCodeAppID = "commandcode"
 
-//go:embed commandcode_assets/Dockerfile commandcode_assets/commandcode-preview.js commandcode_assets/commandcode-entrypoint.sh commandcode_assets/preview-port.sh
+//go:embed commandcode_assets/Dockerfile commandcode_assets/commandcode-preview.js commandcode_assets/commandcode-entrypoint.sh commandcode_assets/preview-port.sh commandcode_assets/commandcode-preview.md
 var commandCodeImageAssets embed.FS
 
 func (s *Service) ensureCatalogImage(ctx context.Context, entry CatalogEntry) error {
@@ -43,7 +43,7 @@ func commandCodeBuildContext() ([]byte, map[string][]byte, error) {
 		return nil, nil, err
 	}
 	files := map[string][]byte{}
-	for _, name := range []string{"commandcode-preview.js", "commandcode-entrypoint.sh", "preview-port.sh"} {
+	for _, name := range []string{"commandcode-preview.js", "commandcode-entrypoint.sh", "preview-port.sh", "commandcode-preview.md"} {
 		data, err := commandCodeImageAssets.ReadFile("commandcode_assets/" + name)
 		if err != nil {
 			return nil, nil, err

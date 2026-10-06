@@ -20,6 +20,24 @@ let terminalFitScheduled = false;
 // changed are left alone — scroll position, focus and hover state survive.
 const cardRenderCache = new Map();
 
+// Protection flags of the last /api/containers answer, keyed by container id.
+// SSE container updates carry no flags, so they are merged from here.
+const protectionById = new Map();
+const CONFIRM_PROTECTED_QUERY = 'confirm=protected';
+
+// True while the last list request failed (HTTP 502) or Docker is disabled
+// (HTTP 503). renderContainers() leaves that state alone until a list loads
+// again, so a search or filter input cannot bring back stale cards.
+let listUnavailable = false;
+
+// True when the last list request failed (HTTP 502 or an unreadable error
+// answer), as opposed to Docker being disabled (HTTP 503). Only a failure
+// retries on its own: a short Docker blip must not leave the page stuck, and
+// the SSE feed pushes only when the list changes.
+let listFailed = false;
+const LIST_RETRY_MS = 10000;
+let listRetryTimer = null;
+
 // ── Initialization ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -28,10 +46,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Live updates pushed via SSE — no more polling.
     window.AuraSSE.on('container_update', function (containers) {
         if (!Array.isArray(containers)) return;
-        const hash = JSON.stringify(containers);
+        // The list is unavailable: a pushed update means Docker answers again,
+        // so reload the list (with fresh protection flags) instead of merging.
+        if (listUnavailable) {
+            lastDataHash = '';
+            loadContainers();
+            return;
+        }
+        // A container the last list did not classify: reload the list so its
+        // protection flags are known before any action button is used.
+        if (containers.some(c => !protectionById.has(c.id || ''))) {
+            lastDataHash = '';
+            loadContainers();
+            return;
+        }
+        const merged = containers.map(c => Object.assign({}, c, protectionById.get(c.id || '')));
+        const hash = JSON.stringify(merged);
         if (hash === lastDataHash) return;
         lastDataHash = hash;
-        allContainers = containers;
+        allContainers = merged;
         updateStats();
         renderContainers();
     });
@@ -47,17 +80,23 @@ function bindContainersChrome() {
 // ── Data fetching ───────────────────────────────────────────────────────────
 
 async function loadContainers() {
+    let resp = null;
     try {
-        const resp = await fetch('/api/containers');
+        resp = await fetch('/api/containers');
         if (resp.status === 503) {
             showDisabledState();
             return;
         }
         const data = await resp.json();
         if (data.status !== 'ok') {
-            showDisabledState();
+            // Docker is enabled but the list failed (HTTP 502): show Docker's
+            // message instead of the "Docker not enabled" state.
+            showListErrorState(dockerErrMsg(data.message || data.error));
             return;
         }
+        listUnavailable = false;
+        listFailed = false;
+        cancelListRetry();
 
         // Hash comparison – skip re-render if nothing changed
         const hash = JSON.stringify(data.containers);
@@ -65,19 +104,69 @@ async function loadContainers() {
         lastDataHash = hash;
 
         allContainers = data.containers || [];
+        rememberProtection(allContainers);
         updateStats();
         renderContainers();
     } catch (e) {
         console.error('Failed to load containers:', e);
+        // A reverse proxy may have replaced the 502 body with HTML, so the JSON
+        // parse failed: the list is still unavailable.
+        if (resp && !resp.ok) showListErrorState(t('common.error'));
+        // A retry that could not even reach AuraGo keeps retrying.
+        else if (listFailed && !listRetryTimer) armListRetry();
     }
 }
 
+// armListRetry schedules the next list load; there is never more than one
+// pending timer.
+function armListRetry() {
+    cancelListRetry();
+    listRetryTimer = setTimeout(() => {
+        listRetryTimer = null;
+        loadContainers();
+    }, LIST_RETRY_MS);
+}
+
+function cancelListRetry() {
+    if (listRetryTimer) {
+        clearTimeout(listRetryTimer);
+        listRetryTimer = null;
+    }
+}
+
+// clearContainerList drops every card and the data behind it, so nothing stale
+// can reappear while the list is unavailable.
+function clearContainerList() {
+    allContainers = [];
+    lastDataHash = '';
+    cardRenderCache.clear();
+    protectionById.clear();
+    document.getElementById('ct-grid').replaceChildren();
+    listUnavailable = true;
+}
+
 function showDisabledState() {
+    clearContainerList();
+    listFailed = false;
+    cancelListRetry();
     document.getElementById('ct-grid').style.display = 'none';
     document.getElementById('ct-empty').style.display = 'none';
+    document.getElementById('ct-list-error').classList.add('is-hidden');
     document.getElementById('ct-disabled').classList.remove('is-hidden');
     document.getElementById('ct-status-bar').style.display = 'none';
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+function showListErrorState(message) {
+    clearContainerList();
+    listFailed = true;
+    document.getElementById('ct-grid').style.display = 'none';
+    document.getElementById('ct-empty').style.display = 'none';
+    document.getElementById('ct-disabled').classList.add('is-hidden');
+    document.getElementById('ct-list-error-message').textContent = message;
+    document.getElementById('ct-list-error').classList.remove('is-hidden');
+    document.getElementById('ct-status-bar').style.display = 'none';
+    armListRetry();
 }
 
 // ── Stats ───────────────────────────────────────────────────────────────────
@@ -100,11 +189,50 @@ function jsArg(value) {
         .replace(/>/g, '&gt;');
 }
 
+function rememberProtection(containers) {
+    protectionById.clear();
+    for (const c of containers) {
+        protectionById.set(c.id || '', {
+            protected_owner: c.protected_owner || '',
+            self: !!c.self,
+            docker_endpoint: !!c.docker_endpoint,
+            shared_network: !!c.shared_network
+        });
+    }
+}
+
+// containerProtection returns why AuraGo protects a container: 'self',
+// 'docker-endpoint', 'shared-network', the managing owner, or '' when it is
+// not protected. The order matches the server's "owner" label.
+function containerProtection(c) {
+    if (!c) return '';
+    if (c.self) return 'self';
+    if (c.docker_endpoint) return 'docker-endpoint';
+    if (c.shared_network) return 'shared-network';
+    return c.protected_owner || '';
+}
+
+function findContainer(id) {
+    return allContainers.find(c => c.id === id) || null;
+}
+
+function protectionWarningKey(kind) {
+    if (kind === 'self') return 'containers.protected_self_warning';
+    if (kind === 'docker-endpoint') return 'containers.protected_endpoint_warning';
+    if (kind === 'shared-network') return 'containers.protected_network_warning';
+    if (kind === 'unverified') return 'containers.protected_unverified_warning';
+    return 'containers.protected_warning';
+}
+
 function renderContainers() {
+    // The list is unavailable (Docker error or disabled): keep that state until
+    // a list loads again.
+    if (listUnavailable) return;
     const grid = document.getElementById('ct-grid');
     const empty = document.getElementById('ct-empty');
     const disabled = document.getElementById('ct-disabled');
     disabled.classList.add('is-hidden');
+    document.getElementById('ct-list-error').classList.add('is-hidden');
     document.getElementById('ct-status-bar').style.display = '';
 
     const filtered = getFilteredContainers();
@@ -201,6 +329,9 @@ function renderCard(c) {
     const deleteName = jsArg(name);
     const terminalName = jsArg(name);
     const updateName = jsArg(name);
+    const protectedBadge = containerProtection(c)
+        ? `<span class="ct-card-protected">${esc(t('containers.protected_badge'))}</span>`
+        : '';
 
     let actionBtns = '';
     if (isRunning) {
@@ -221,6 +352,7 @@ function renderCard(c) {
         <div class="ct-card-header">
             <div class="ct-card-status ${stateClass}"></div>
             <div class="ct-card-name" title="${esc(name)}">${esc(name)}</div>
+            ${protectedBadge}
             <span class="ct-card-id">${esc(c.id)}</span>
         </div>
         <div class="ct-card-meta">
@@ -295,12 +427,15 @@ async function containerAction(id, action) {
 
 let updateTarget = '';
 let updateInFlight = false;
+let updateProtection = '';
 
 // eslint-disable-next-line no-unused-vars
 function showUpdateModal(id, name) {
     updateTarget = id;
     updateInFlight = false;
+    updateProtection = containerProtection(findContainer(id));
     document.getElementById('update-container-name').textContent = name;
+    renderUpdateProtection();
     setUpdateConfirmBusy(false);
     document.getElementById('update-modal').classList.add('active');
 }
@@ -310,22 +445,47 @@ function closeUpdateModal() {
     document.getElementById('update-modal').classList.remove('active');
     updateTarget = '';
     updateInFlight = false;
+    updateProtection = '';
     setUpdateConfirmBusy(false);
+}
+
+// updateBlocked: the server refuses to update the container AuraGo runs in or
+// reaches Docker through, because the update would stop AuraGo first.
+function updateBlocked() {
+    return updateProtection === 'self' || updateProtection === 'docker-endpoint';
+}
+
+function renderUpdateProtection() {
+    const warning = document.getElementById('update-protected-warning');
+    if (!warning) return;
+    if (!updateProtection) {
+        warning.textContent = '';
+        warning.classList.add('is-hidden');
+        return;
+    }
+    warning.textContent = t(updateBlocked() ? 'containers.self_update_unsupported' : protectionWarningKey(updateProtection));
+    warning.classList.remove('is-hidden');
 }
 
 // eslint-disable-next-line no-unused-vars
 async function confirmUpdate() {
-    if (!updateTarget || updateInFlight) return;
+    if (!updateTarget || updateInFlight || updateBlocked()) return;
     updateInFlight = true;
     setUpdateConfirmBusy(true);
+    const query = updateProtection ? `?${CONFIRM_PROTECTED_QUERY}` : '';
     try {
-        const resp = await fetch(`/api/containers/${encodeURIComponent(updateTarget)}/update`, { method: 'POST' });
+        const resp = await fetch(`/api/containers/${encodeURIComponent(updateTarget)}/update${query}`, { method: 'POST' });
         const data = await resp.json();
         if (data.status === 'ok') {
             showToast(t('containers.update_success'), 'success');
             closeUpdateModal();
             lastDataHash = '';
             await loadContainers();
+        } else if (data.code === 'container_protected_confirmation_required' || data.code === 'container_self_update_unsupported') {
+            // The list was older than the server's answer: show why, then the
+            // operator confirms again (or sees that the update cannot run).
+            updateProtection = data.owner || 'unverified';
+            renderUpdateProtection();
         } else {
             showToast(dockerErrMsg(data.message), 'error');
         }
@@ -342,7 +502,7 @@ async function confirmUpdate() {
 function setUpdateConfirmBusy(busy) {
     const confirmBtn = document.getElementById('update-confirm-btn');
     if (confirmBtn) {
-        confirmBtn.disabled = busy;
+        confirmBtn.disabled = busy || updateBlocked();
     }
 }
 
@@ -402,8 +562,41 @@ function closeInspectModal() {
 
 // ── Terminal Modal ─────────────────────────────────────────────────────────
 
+let protectedTerminalTarget = null;
+
 // eslint-disable-next-line no-unused-vars
 function showTerminal(id, name) {
+    const protection = containerProtection(findContainer(id));
+    if (protection) {
+        showProtectedTerminalModal(id, name, protection);
+        return;
+    }
+    openTerminal(id, name, false);
+}
+
+function showProtectedTerminalModal(id, name, protection) {
+    protectedTerminalTarget = { id, name };
+    document.getElementById('protected-terminal-name').textContent = name;
+    document.getElementById('protected-terminal-warning').textContent = t(protectionWarningKey(protection));
+    document.getElementById('protected-terminal-modal').classList.add('active');
+}
+
+// eslint-disable-next-line no-unused-vars
+function closeProtectedTerminalModal() {
+    document.getElementById('protected-terminal-modal').classList.remove('active');
+    protectedTerminalTarget = null;
+}
+
+// eslint-disable-next-line no-unused-vars
+function confirmProtectedTerminal() {
+    const target = protectedTerminalTarget;
+    closeProtectedTerminalModal();
+    if (target) openTerminal(target.id, target.name, true);
+}
+
+// openTerminal starts the shell session; confirmed carries the confirmation the
+// operator just gave for a protected container.
+function openTerminal(id, name, confirmed) {
     closeTerminalSession();
     terminalSessionToken += 1;
     const token = terminalSessionToken;
@@ -443,7 +636,8 @@ function showTerminal(id, name) {
     terminal.focus();
 
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    terminalSocket = new WebSocket(`${scheme}://${window.location.host}/api/containers/${encodeURIComponent(id)}/terminal`);
+    const query = confirmed ? `?${CONFIRM_PROTECTED_QUERY}` : '';
+    terminalSocket = new WebSocket(`${scheme}://${window.location.host}/api/containers/${encodeURIComponent(id)}/terminal${query}`);
     terminalSocket.binaryType = 'arraybuffer';
 
     terminal.onData(data => {
@@ -558,13 +752,16 @@ function setTerminalStatus(key) {
 
 let deleteTarget = '';
 let deleteInFlight = false;
+let deleteProtection = '';
 
 // eslint-disable-next-line no-unused-vars
 function showDeleteModal(id, name) {
     deleteTarget = id;
     deleteInFlight = false;
+    deleteProtection = containerProtection(findContainer(id));
     document.getElementById('delete-container-name').textContent = name;
     document.getElementById('delete-force').checked = false;
+    renderDeleteProtection();
     setDeleteConfirmBusy(false);
     document.getElementById('delete-modal').classList.add('active');
 }
@@ -574,7 +771,15 @@ function closeDeleteModal() {
     document.getElementById('delete-modal').classList.remove('active');
     deleteTarget = '';
     deleteInFlight = false;
+    deleteProtection = '';
     setDeleteConfirmBusy(false);
+}
+
+function renderDeleteProtection() {
+    const warning = document.getElementById('delete-protected-warning');
+    if (!warning) return;
+    warning.textContent = deleteProtection ? t(protectionWarningKey(deleteProtection)) : '';
+    warning.classList.toggle('is-hidden', !deleteProtection);
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -583,14 +788,20 @@ async function confirmDelete() {
     deleteInFlight = true;
     setDeleteConfirmBusy(true);
     const force = document.getElementById('delete-force').checked;
+    const confirmQuery = deleteProtection ? `&${CONFIRM_PROTECTED_QUERY}` : '';
     try {
-        const resp = await fetch(`/api/containers/${encodeURIComponent(deleteTarget)}?force=${force}`, { method: 'DELETE' });
+        const resp = await fetch(`/api/containers/${encodeURIComponent(deleteTarget)}?force=${force}${confirmQuery}`, { method: 'DELETE' });
         const data = await resp.json();
         if (data.status === 'ok') {
             showToast(t('containers.delete_success'), 'success');
             closeDeleteModal();
             lastDataHash = '';
             await loadContainers();
+        } else if (data.code === 'container_protected_confirmation_required') {
+            // The list was older than the server's answer: show the warning
+            // and let the operator confirm again.
+            deleteProtection = data.owner || 'unverified';
+            renderDeleteProtection();
         } else {
             showToast(dockerErrMsg(data.message), 'error');
         }

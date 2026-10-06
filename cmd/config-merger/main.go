@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"regexp"
 	"sort"
@@ -45,11 +46,17 @@ func main() {
 		*outputPath = *sourcePath
 	}
 
+	run(*sourcePath, *templatePath, *outputPath)
+}
+
+// run merges the config at sourcePath onto the template at templatePath and
+// writes the result to outputPath.
+func run(sourcePath, templatePath, outputPath string) {
 	ts := time.Now().Format("20060102_150405")
 
 	// ── Step 1: Parse template (must always succeed — this is our controlled default) ──
 
-	tmplData, err := readNormalized(*templatePath)
+	tmplData, err := readNormalized(templatePath)
 	if err != nil {
 		log.Fatalf("Cannot read template: %v", err)
 	}
@@ -63,37 +70,43 @@ func main() {
 
 	// ── Step 2: Parse user config ──
 
-	srcData, err := readNormalized(*sourcePath)
+	srcData, err := readNormalized(sourcePath)
 	if err != nil {
 		fmt.Printf("Source unreadable (%v), using template defaults\n", err)
-		atomicWriteYAML(*outputPath, tmplMap)
+		atomicWriteYAML(outputPath, tmplMap)
 		return
 	}
 
 	srcMap, parseErr := parseYAMLMap(srcData)
 
-	if parseErr == nil && srcMap != nil {
-		// ── Happy path: user config is valid YAML ──
-		missing := findMissingTopKeys(tmplMap, srcMap)
-		merged := deepMerge(tmplMap, srcMap)
-		safetyAdjusted := applyUpgradeSafetyDefaults(merged, srcMap)
-		typeFixed := enforceTemplateTypes(merged, tmplMap)
-		sanitized := sanitizeMergedConfig(merged)
+	// An empty or comment-only file has no settings to keep. It is a fresh
+	// install (the Docker guide has users `touch config.yaml` before the first
+	// start), so it gets the template unchanged like an unreadable source;
+	// the corruption path would back it up and apply upgrade grandfathers.
+	if parseErr == nil && srcMap == nil {
+		fmt.Println("Source has no settings, using template defaults")
+		atomicWriteYAML(outputPath, tmplMap)
+		return
+	}
 
-		if len(missing) == 0 && !sanitized && !typeFixed && !safetyAdjusted {
+	if parseErr == nil {
+		// ── Happy path: user config is valid YAML ──
+		result := mergeUserConfig(tmplMap, srcMap)
+
+		if !result.needsWrite() {
 			fmt.Println("Config is up to date")
-			if *outputPath != *sourcePath {
-				atomicWriteYAML(*outputPath, merged)
+			if outputPath != sourcePath {
+				atomicWriteYAML(outputPath, result.merged)
 			}
 			return
 		}
 
-		atomicWriteYAML(*outputPath, merged)
-		if len(missing) > 0 {
-			sort.Strings(missing)
-			fmt.Printf("Added %d new section(s): %s\n", len(missing), strings.Join(missing, ", "))
+		atomicWriteYAML(outputPath, result.merged)
+		if len(result.missing) > 0 {
+			sort.Strings(result.missing)
+			fmt.Printf("Added %d new section(s): %s\n", len(result.missing), strings.Join(result.missing, ", "))
 		}
-		if sanitized || typeFixed {
+		if result.sanitized || result.typeFixed {
 			fmt.Println("Applied data shape fixes")
 		}
 		return
@@ -105,28 +118,70 @@ func main() {
 	log.Printf("Attempting section-by-section recovery...")
 
 	// Backup corrupted file for manual inspection
-	backupPath := *sourcePath + "." + ts + ".corrupted"
+	backupPath := sourcePath + "." + ts + ".corrupted"
 	if wErr := os.WriteFile(backupPath, []byte(srcData), 0644); wErr == nil {
 		log.Printf("Corrupted config saved to: %s", backupPath)
 	}
 
 	salvaged := salvageSections(srcData)
-
-	var merged map[string]interface{}
+	merged := recoverCorruptedConfig(tmplMap, salvaged)
 	if len(salvaged) > 0 {
-		merged = deepMerge(tmplMap, salvaged)
-		applyUpgradeSafetyDefaults(merged, salvaged)
-		enforceTemplateTypes(merged, tmplMap)
-		sanitizeMergedConfig(merged)
 		total := countTopLevelKeys(srcData)
 		log.Printf("Recovered %d/%d section(s); template defaults used for the rest", len(salvaged), total)
 	} else {
-		merged = tmplMap
 		log.Printf("No sections could be recovered — using full template defaults")
 	}
 
-	atomicWriteYAML(*outputPath, merged)
+	atomicWriteYAML(outputPath, merged)
 	fmt.Println("Config repaired successfully")
+}
+
+// mergeResult is the outcome of merging a parseable user config onto the
+// template defaults.
+type mergeResult struct {
+	merged         map[string]interface{}
+	missing        []string
+	safetyAdjusted bool
+	typeFixed      bool
+	sanitized      bool
+}
+
+// needsWrite reports whether the merged config differs from the user's file.
+func (r mergeResult) needsWrite() bool {
+	return len(r.missing) > 0 || r.safetyAdjusted || r.typeFixed || r.sanitized
+}
+
+// mergeUserConfig merges a parseable user config onto the template defaults.
+func mergeUserConfig(tmplMap, srcMap map[string]interface{}) mergeResult {
+	result := mergeResult{missing: findMissingTopKeys(tmplMap, srcMap)}
+	result.merged = deepMerge(tmplMap, srcMap)
+	result.safetyAdjusted = applyUpgradeSafetyDefaults(result.merged, srcMap)
+	result.typeFixed = enforceTemplateTypes(result.merged, tmplMap)
+	if applyUpgradeGrandfathers(result.merged, srcMap) {
+		result.safetyAdjusted = true
+	}
+	result.sanitized = sanitizeMergedConfig(result.merged)
+	return result
+}
+
+// recoverCorruptedConfig rebuilds a config whose YAML does not parse as a whole
+// from the top-level sections that still parse. The source file existed, so it
+// belongs to an existing installation and keeps its grandfathered settings.
+// A docker section that could not be salvaged loses an explicit
+// allow_host_access: false and comes back as true; Docker itself is reset to
+// the template's disabled state in that case.
+func recoverCorruptedConfig(tmplMap, salvaged map[string]interface{}) map[string]interface{} {
+	if len(salvaged) == 0 {
+		merged := deepMerge(tmplMap, nil)
+		applyUpgradeGrandfathers(merged, nil)
+		return merged
+	}
+	merged := deepMerge(tmplMap, salvaged)
+	applyUpgradeSafetyDefaults(merged, salvaged)
+	enforceTemplateTypes(merged, tmplMap)
+	applyUpgradeGrandfathers(merged, salvaged)
+	sanitizeMergedConfig(merged)
+	return merged
 }
 
 // ── YAML Helpers ─────────────────────────────────────────────────────────────
@@ -210,7 +265,42 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 		}
 	}
 
+	// docker.allow_host_access is new; see grandfatherDockerHostAccess. The
+	// merge pipeline applies it again after enforceTemplateTypes
+	// (applyUpgradeGrandfathers), which can swap in the template's section.
+	if grandfatherDockerHostAccess(merged, user) {
+		changed = true
+	}
+
 	return changed
+}
+
+// applyUpgradeGrandfathers keeps behaviour that predates a new key for configs
+// that never wrote it. It runs after enforceTemplateTypes, because that step
+// replaces a null or scalar section with the template map, whose values are
+// fresh-install defaults.
+func applyUpgradeGrandfathers(merged, user map[string]interface{}) bool {
+	return grandfatherDockerHostAccess(merged, user)
+}
+
+// grandfatherDockerHostAccess materialises docker.allow_host_access: true when
+// the user config never wrote the key. Configurations that predate it keep the
+// unrestricted agent Compose behaviour, so the template's false (meant for
+// fresh installs) never reaches an upgraded config.
+func grandfatherDockerHostAccess(merged, user map[string]interface{}) bool {
+	userDocker, _ := asStringMap(user["docker"])
+	if _, userSetHostAccess := userDocker["allow_host_access"]; userSetHostAccess {
+		return false
+	}
+	dockerMap, ok := asStringMap(merged["docker"])
+	if !ok {
+		return false
+	}
+	// merged may still share the template's section map; never write into it.
+	dockerMap = maps.Clone(dockerMap)
+	dockerMap["allow_host_access"] = true
+	merged["docker"] = dockerMap
+	return true
 }
 
 // asStringMap converts a value to map[string]interface{} if possible.

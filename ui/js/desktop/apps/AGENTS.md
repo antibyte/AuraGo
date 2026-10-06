@@ -2245,7 +2245,13 @@ registration lives in `internal/desktop/types.go`.
   and external-open notifications use `desktop.load_failed`. Bundled
   in the main shell. No child DOX file needed.
 - `store-terminal-preview.js` - CommandCode console-plus-preview
-  host. Frame empty-state and start-toast failures reuse
+  host. CommandCode stays visible above an initially hidden shell drawer.
+  Terminal toggles reuse its live sessions; Plus adds a shell in the same
+  container working directory (`/workspace`). Only tab close, explicit restart
+  and window disposal close shell sockets. Clipboard, focus and status remain
+  session-scoped; hiding restores CommandCode focus. Keep all 16 locale labels,
+  narrow-window layout and `TestDesktopStoreTerminalDrawerBrowser` aligned.
+  Frame empty-state and start-toast failures reuse
   `desktop.load_failed`. Stylesheet and script loads wrap
   AuraLazyAssets and fallback `onerror` with
   `desktop.store_terminal_load_failed` so the asset URL does not

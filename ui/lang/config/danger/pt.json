@@ -22,5 +22,7 @@
   "config.danger.sudo_unrestricted.title": "Acesso de escrita sudo em todo o sistema",
   "config.danger.sudo_unrestricted.desc": "Permite que o agente escreva fora do diretório de instalação usando sudo (por ex. /etc.). Requer a remoção de ProtectSystem=strict da unidade de serviço systemd.",
   "config.danger.unsafe_host_execution.title": "Execução insegura no anfitrião",
-  "config.danger.unsafe_host_execution.desc": "Permite Python no anfitrião e a shell do Windows sem isolamento. Cada utilização é registada como aviso de segurança."
+  "config.danger.unsafe_host_execution.desc": "Permite Python no anfitrião e a shell do Windows sem isolamento. Cada utilização é registada como aviso de segurança.",
+  "config.danger.docker_host_access.title": "Acesso ao host Docker para stacks Compose do agente",
+  "config.danger.docker_host_access.desc": "Permite que o agente, em docker compose up/create/build, use caminhos do host fora do seu espaço de trabalho (por exemplo /var/run/docker.sock, /srv/media ou /), dispositivos, modo privilegiado, namespaces de rede/PID/IPC/UTS/usuário/cgroup do host, cap_add e opções de segurança sem restrição. Os dados, a configuração, o .env e a chave mestra do AuraGo continuam bloqueados, mas montar um caminho superior como / ainda os expõe."
 }

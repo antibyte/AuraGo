@@ -121,6 +121,7 @@
   "help.discord.enabled": "Discord.",
   "help.discord.guild_id": "ID pro discord.",
   "help.discord.read_only": "Pouze pro cteni pro discord.",
+  "help.docker.allow_host_access": "U konfigurací vytvořených před zavedením tohoto nastavení se zapne automaticky. Platí jen tehdy, když je Docker zapnutý a neběží v režimu jen pro čtení.",
   "help.docker.enabled": "Povoluje Docker spravu.",
   "help.docker.host": "Hostitel pro docker.",
   "help.docker.read_only": "Pouze pro cteni pro docker.",

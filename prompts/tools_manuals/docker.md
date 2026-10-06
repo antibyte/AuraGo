@@ -167,11 +167,18 @@ Use `direction: "from_container"` or `"to_container"`. Path maps to the host's a
 ```
 
 #### compose — Run docker compose commands
-Requires `file` pointing to the `docker-compose.yml` path.
+`file` is a Compose file inside the agent workspace (relative paths resolve against it).
 ```json
-{"action": "docker", "operation": "compose", "command": "up -d", "file": "/path/to/project/docker-compose.yml"}
-{"action": "docker", "operation": "compose", "command": "down", "file": "/path/to/project/docker-compose.yml"}
+{"action": "docker", "operation": "compose", "command": "up -d", "file": "stacks/web/docker-compose.yml"}
+{"action": "docker", "operation": "compose", "command": "down", "file": "stacks/web/docker-compose.yml"}
 ```
+- AuraGo resolves the file with `docker compose config` before anything runs. A file that does not resolve returns `docker_compose_preflight_failed` with Compose's error.
+- Every compose command is rejected when the stack touches AuraGo-managed containers, labels, images or volumes.
+- `up`, `create` and `build` (and `config`/`convert` for env files, secret and config files) also reject anything that points into AuraGo's own data directory, config, `.env` or master key, and `up`/`create`/`build`/`pull`/`config`/`convert` reject AuraGo's master key value anywhere in the resolved file (`docker_compose_protected_path_denied`), even with host access.
+- Unless the administrator enabled **Docker host access** (`docker.allow_host_access`), `up`/`create`/`build` also reject binds outside the workspace (or that contain AuraGo's files), `/var/run/docker.sock`, `use_api_socket`, devices, `device_cgroup_rules`, `gpus` and reserved devices, `privileged`, host network/PID/IPC/UTS/user/cgroup namespaces, `cap_add`, unconfined `security_opt`, local volumes that bind a host directory, mount a `/dev` device or a non-network filesystem, `develop.watch` paths outside the workspace, build SSH (`build.ssh`, `build --ssh`), privileged builds, build entitlements, `build.network: host`, and env files, secrets, configs, Dockerfiles or build contexts outside the workspace (`docker_compose_host_access_denied`). Every service of the file's default profiles is checked, not only the ones a command names. Tell the user which setting is needed; do not retry unchanged.
+- Without host access, `provider` services and privileged `post_start`/`pre_stop` hooks also block `down`, `start`, `stop`, `restart`, `rm` and `pull` (including profile services the command names and the services they depend on), because Compose runs them on the host.
+- `kill`, `pause`, `unpause`, `ps`, `logs` and the other inspection commands are never blocked by the host-access check.
+- `config -o <file>` / `--output` writes only inside the workspace (relative paths resolve against it; AuraGo's own data, config and `.env` files, directories and special files are refused): Compose renders into a private staging file and AuraGo publishes it atomically at that path, creating missing folders, and reports `output_file`; `-q` or list flags such as `--services` write no file. `--environment` and `--env-file` are rejected.
 
 #### info — Docker engine system info (version, resource counts)
 ```json
@@ -187,6 +194,7 @@ Requires `file` pointing to the `docker-compose.yml` path.
 - `run` = `create` + auto-`start` in a single call
 - `auto_remove` defaults to `false`, is valid only for `run`, and conflicts with every restart policy other than `no`
 - `aurago-homepage`, `aurago-homepage-web`, and the `aurago-homepage` image repository cannot be managed with this tool
+- The names `aurago` (and compose replicas such as `stack-aurago-1`) and `aurago-boring-garage` are reserved the same way: they cannot be used as `name` for `create`/`run`, even next to a different `container_id`, and those containers cannot be inspected, controlled or read through this tool
 - Logs are truncated to ~8000 chars to avoid flooding the context
 - `force: true` on remove will kill a running container before removing it
 - Port mapping format: `{"container_port": "host_port"}` — both as strings

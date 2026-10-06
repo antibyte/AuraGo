@@ -216,3 +216,185 @@ func TestContainersUpdateTranslationsExist(t *testing.T) {
 		}
 	}
 }
+
+// requireContainersTranslations checks every key in all 16 locales and refuses
+// English copies outside en.json (AGENTS.md: translate, never fill with English).
+func requireContainersTranslations(t *testing.T, required []string) {
+	t.Helper()
+	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	bundles := make(map[string]map[string]string, len(langs))
+	for _, lang := range langs {
+		path := filepath.Join("lang", "containers", lang+".json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(data, &values); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		bundles[lang] = values
+	}
+	for _, lang := range langs {
+		for _, key := range required {
+			value := strings.TrimSpace(bundles[lang][key])
+			if value == "" {
+				t.Fatalf("lang/containers/%s.json missing non-empty translation for %s", lang, key)
+			}
+			if lang != "en" && value == strings.TrimSpace(bundles["en"][key]) {
+				t.Fatalf("lang/containers/%s.json copies the English text for %s", lang, key)
+			}
+		}
+	}
+}
+
+func TestContainersProtectedActionTranslationsExist(t *testing.T) {
+	t.Parallel()
+
+	requireContainersTranslations(t, []string{
+		"containers.protected_badge",
+		"containers.protected_endpoint_warning",
+		"containers.protected_network_warning",
+		"containers.protected_self_warning",
+		"containers.protected_terminal_confirm",
+		"containers.protected_terminal_confirm_btn",
+		"containers.protected_terminal_title",
+		"containers.protected_unverified_warning",
+		"containers.protected_warning",
+		"containers.self_update_unsupported",
+	})
+}
+
+func TestContainersScriptConfirmsProtectedContainersBeforeSendingTheFlag(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/containers/main.js")
+	for _, marker := range []string{
+		"const CONFIRM_PROTECTED_QUERY = 'confirm=protected';",
+		"const protectionById = new Map();",
+		"function rememberProtection(containers)",
+		"function containerProtection(c)",
+		"function showProtectedTerminalModal(id, name, protection)",
+		"function confirmProtectedTerminal()",
+		"if (target) openTerminal(target.id, target.name, true);",
+		"function openTerminal(id, name, confirmed)",
+		"const query = confirmed ? `?${CONFIRM_PROTECTED_QUERY}` : '';",
+		"const query = updateProtection ? `?${CONFIRM_PROTECTED_QUERY}` : '';",
+		"const confirmQuery = deleteProtection ? `&${CONFIRM_PROTECTED_QUERY}` : '';",
+		"if (!updateTarget || updateInFlight || updateBlocked()) return;",
+		"data.code === 'container_protected_confirmation_required'",
+		"data.code === 'container_self_update_unsupported'",
+		"containers.protected_badge",
+		"if (c.shared_network) return 'shared-network';",
+		"if (kind === 'shared-network') return 'containers.protected_network_warning';",
+		"if (kind === 'unverified') return 'containers.protected_unverified_warning';",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("containers script missing protected-container marker %q", marker)
+		}
+	}
+	if strings.Count(source, "confirm=protected") != 1 {
+		t.Fatal("the confirmation query must come from CONFIRM_PROTECTED_QUERY only")
+	}
+	html := rawDesktopAssetText(t, "containers.html")
+	for _, marker := range []string{
+		`id="protected-terminal-modal"`,
+		`aria-labelledby="protected-terminal-modal-title"`,
+		`onclick="confirmProtectedTerminal()"`,
+		`data-i18n="containers.protected_terminal_confirm"`,
+		`id="update-protected-warning"`,
+		`id="delete-protected-warning"`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("containers page missing protected-container marker %q", marker)
+		}
+	}
+}
+
+func TestContainersListFailureShowsDockerMessageNotDisabledState(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/containers/main.js")
+	for _, marker := range []string{
+		"if (resp.status === 503) {",
+		"showListErrorState(dockerErrMsg(data.message || data.error));",
+		"if (resp && !resp.ok) showListErrorState(t('common.error'));",
+		"function showListErrorState(message)",
+		"document.getElementById('ct-list-error-message').textContent = message;",
+		"document.getElementById('ct-list-error').classList.add('is-hidden');",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("containers script missing list-error marker %q", marker)
+		}
+	}
+	html := rawDesktopAssetText(t, "containers.html")
+	for _, marker := range []string{`id="ct-list-error" role="alert"`, `id="ct-list-error-message"`, `data-i18n="containers.list_error_title"`} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("containers page missing list-error marker %q", marker)
+		}
+	}
+	requireContainersTranslations(t, []string{"containers.list_error_title"})
+
+	// The error and disabled states must survive a search or filter input:
+	// renderContainers leaves them alone, and both states drop the stale data.
+	// scripts/test-ui-regressions.mjs runs this behaviour against main.js.
+	for name, markers := range map[string][]string{
+		"loadContainers":     {"listUnavailable = false;", "cancelListRetry();"},
+		"showDisabledState":  {"clearContainerList();", "cancelListRetry();"},
+		"showListErrorState": {"clearContainerList();", "armListRetry();"},
+		"clearContainerList": {"allContainers = [];", "lastDataHash = '';", "cardRenderCache.clear();", "protectionById.clear();", "replaceChildren();", "listUnavailable = true;"},
+		"armListRetry":       {"cancelListRetry();", "setTimeout(", "LIST_RETRY_MS"},
+		"cancelListRetry":    {"clearTimeout(listRetryTimer);", "listRetryTimer = null;"},
+	} {
+		body := containersJSFunctionBody(t, source, name)
+		for _, marker := range markers {
+			if !strings.Contains(body, marker) {
+				t.Fatalf("%s must contain %q", name, marker)
+			}
+		}
+	}
+	render := containersJSFunctionBody(t, source, "renderContainers")
+	guard := strings.Index(render, "if (listUnavailable) return;")
+	firstUse := strings.Index(render, "document.getElementById('ct-grid')")
+	if guard < 0 || firstUse < 0 || guard > firstUse {
+		t.Fatal("renderContainers must return while the list is unavailable, before it touches the grid")
+	}
+	if !strings.Contains(source, "const LIST_RETRY_MS = 10000;") {
+		t.Fatal("a failed list must retry every 10 seconds")
+	}
+	reload := strings.Index(source, "if (listUnavailable) {")
+	merge := strings.Index(source, "containers.some(c => !protectionById.has(c.id || ''))")
+	if reload < 0 || merge < 0 || reload > merge {
+		t.Fatal("an SSE container update must reload the list while it is unavailable, before it merges")
+	}
+}
+
+// containersJSFunctionBody returns the balanced-brace body of a top-level
+// function in the containers script, nested blocks included.
+func containersJSFunctionBody(t *testing.T, source, name string) string {
+	t.Helper()
+
+	start := strings.Index(source, "function "+name+"(")
+	if start < 0 {
+		t.Fatalf("containers script is missing function %s", name)
+	}
+	open := strings.Index(source[start:], "{")
+	if open < 0 {
+		t.Fatalf("function %s has no body", name)
+	}
+	bodyStart := start + open + 1
+	depth := 1
+	for i := bodyStart; i < len(source); i++ {
+		switch source[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return source[bodyStart:i]
+			}
+		}
+	}
+	t.Fatalf("function %s has an unbalanced body", name)
+	return ""
+}

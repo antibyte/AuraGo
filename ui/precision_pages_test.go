@@ -1493,7 +1493,7 @@ func TestPrecisionWorkspaceOperationsIntegration(t *testing.T) {
 		{
 			name: "Containers", template: "containers.html", stylesheet: "/css/containers.css", page: "containers", mainScript: "/js/containers/main.js",
 			hooks:       []string{`id="ct-status-bar"`, `id="ct-search"`, `id="ct-grid"`, `id="terminal-output"`, `id="terminal-status"`},
-			hiddenHooks: []string{`id="ct-empty"`, `id="ct-disabled"`},
+			hiddenHooks: []string{`id="ct-empty"`, `id="ct-disabled"`, `id="ct-list-error"`},
 		},
 		{
 			name: "Media", template: "media.html", stylesheet: "/css/media.css", page: "media", mainScript: "/js/media/main.js",
@@ -1558,7 +1558,7 @@ func TestPrecisionWorkspaceOperationsModalARIAContract(t *testing.T) {
 	t.Parallel()
 
 	modals := map[string][]string{
-		"containers.html":       {"log-modal", "inspect-modal", "terminal-modal", "update-modal", "delete-modal"},
+		"containers.html":       {"log-modal", "inspect-modal", "terminal-modal", "protected-terminal-modal", "update-modal", "delete-modal"},
 		"media.html":            {"lightbox", "audio-modal"},
 		"truenas.html":          {"modal-dataset", "modal-snapshot", "modal-share"},
 		"invasion_control.html": {"nest-modal", "egg-modal", "reconfigure-modal", "config-history-modal", "delete-modal"},

@@ -12,19 +12,9 @@ import (
 // SSHConnector deploys eggs to remote hosts via SSH/SFTP.
 type SSHConnector struct{}
 
+// sshEggIDPrefix returns the nest-ID prefix for SSH egg paths and services.
 func sshEggIDPrefix(nestID string) (string, error) {
-	id := strings.TrimSpace(nestID)
-	if len(id) < 8 {
-		return "", fmt.Errorf("invalid nest ID %q: expected at least 8 safe characters", nestID)
-	}
-	prefix := id[:8]
-	for _, r := range prefix {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' {
-			continue
-		}
-		return "", fmt.Errorf("invalid nest ID %q: unsafe character %q in SSH path prefix", nestID, r)
-	}
-	return prefix, nil
+	return eggIDPrefix(nestID)
 }
 
 func sshEggBaseDir(nestID string) (string, error) {
@@ -330,7 +320,11 @@ func (c *SSHConnector) Rollback(ctx context.Context, nest NestRecord, secret []b
 	}
 
 	// Restart the restored egg
-	serviceName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	prefix, err := sshEggIDPrefix(nest.ID)
+	if err != nil {
+		return err
+	}
+	serviceName := fmt.Sprintf("aurago-egg-%s", prefix)
 	startCmd := fmt.Sprintf("systemctl --user restart %s 2>/dev/null || (cd %s && set -a && source .env && set +a && nohup ./aurago > log/egg.log 2>&1 &)", serviceName, baseDir)
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, startCmd); err != nil {
 		return fmt.Errorf("failed to restart after rollback: %w", err)

@@ -22,5 +22,7 @@
   "config.danger.sudo_unrestricted.title": "Systemowy Dostęp do Zapisu przez Sudo",
   "config.danger.sudo_unrestricted.desc": "Pozwala agentowi zapisywać poza katalogiem instalacyjnym przy użyciu sudo (np. /etc.). Wymaga usunięcia ProtectSystem=strict z jednostki usługi systemd.",
   "config.danger.unsafe_host_execution.title": "Niebezpieczne uruchamianie na hoście",
-  "config.danger.unsafe_host_execution.desc": "Pozwala uruchamiać Python na hoście i powłokę Windows bez izolacji. Każde użycie jest zapisywane jako ostrzeżenie bezpieczeństwa."
+  "config.danger.unsafe_host_execution.desc": "Pozwala uruchamiać Python na hoście i powłokę Windows bez izolacji. Każde użycie jest zapisywane jako ostrzeżenie bezpieczeństwa.",
+  "config.danger.docker_host_access.title": "Dostęp do hosta Dockera dla stosów Compose agenta",
+  "config.danger.docker_host_access.desc": "Pozwala agentowi przy docker compose up/create/build używać ścieżek hosta spoza jego obszaru roboczego (np. /var/run/docker.sock, /srv/media lub /), urządzeń, trybu uprzywilejowanego, przestrzeni nazw sieci/PID/IPC/UTS/użytkowników/cgroup hosta, cap_add i nieograniczonych opcji bezpieczeństwa. Własne dane, konfiguracja, .env i klucz główny AuraGo pozostają zablokowane, ale zamontowanie ścieżki nadrzędnej, np. /, i tak je odsłania."
 }

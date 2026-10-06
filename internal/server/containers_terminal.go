@@ -59,6 +59,11 @@ func handleContainerTerminal(s *Server, cfg tools.DockerConfig, containerID stri
 		containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "forbidden websocket origin"})
 		return
 	}
+	// handleContainerAction answers a non-WebSocket request before its protection
+	// lookup; this check keeps any other caller from creating an exec either.
+	if rejectNonWebSocketTerminalRequest(w, r) {
+		return
+	}
 
 	running, err := activeContainerTerminalBackend.ContainerRunning(r.Context(), cfg, containerID)
 	if err != nil {
@@ -75,23 +80,51 @@ func handleContainerTerminal(s *Server, cfg tools.DockerConfig, containerID stri
 		containerJSON(w, http.StatusBadGateway, map[string]string{"status": "error", "message": err.Error()})
 		return
 	}
+	if err := r.Context().Err(); err != nil {
+		_ = session.Close()
+		http.Error(w, "terminal request was canceled", http.StatusRequestTimeout)
+		return
+	}
 
 	conn, err := containerTerminalUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		_ = session.Close()
 		return
 	}
-	defer conn.Close()
 	serveContainerTerminalSession(r.Context(), conn, session)
+}
+
+// rejectNonWebSocketTerminalRequest answers a terminal request that is not a
+// WebSocket upgrade before any exec exists: a plain GET would start a shell
+// that no WebSocket ever attaches to. It reports whether it answered.
+func rejectNonWebSocketTerminalRequest(w http.ResponseWriter, r *http.Request) bool {
+	if websocket.IsWebSocketUpgrade(r) {
+		return false
+	}
+	containerJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "terminal requires a WebSocket upgrade"})
+	return true
 }
 
 func serveContainerTerminalSession(ctx context.Context, conn *websocket.Conn, session containerTerminalSession) {
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	defer session.Close()
+	var closeOnce sync.Once
+	closeBoth := func() {
+		closeOnce.Do(func() {
+			cancel()
+			_ = session.Close()
+			_ = conn.Close()
+		})
+	}
+	stopContextClose := context.AfterFunc(ctx, closeBoth)
+	defer func() {
+		closeBoth()
+		stopContextClose()
+	}()
 
 	var writeMu sync.Mutex
+	backendDone := make(chan struct{})
 	go func() {
+		defer close(backendDone)
 		buf := make([]byte, 32*1024)
 		for {
 			n, err := session.Read(buf)
@@ -100,12 +133,12 @@ func serveContainerTerminalSession(ctx context.Context, conn *websocket.Conn, se
 				writeErr := conn.WriteMessage(websocket.BinaryMessage, buf[:n])
 				writeMu.Unlock()
 				if writeErr != nil {
-					_ = conn.Close()
+					closeBoth()
 					return
 				}
 			}
 			if err != nil {
-				_ = conn.Close()
+				closeBoth()
 				return
 			}
 		}
@@ -114,19 +147,27 @@ func serveContainerTerminalSession(ctx context.Context, conn *websocket.Conn, se
 	for {
 		messageType, payload, err := conn.ReadMessage()
 		if err != nil {
-			return
+			break
 		}
 		switch messageType {
 		case websocket.BinaryMessage:
 			if len(payload) > 0 {
-				_, _ = session.Write(payload)
+				if _, err := session.Write(payload); err != nil {
+					closeBoth()
+					return
+				}
 			}
 		case websocket.TextMessage:
 			if resize, ok := parseContainerTerminalResize(payload); ok {
-				_ = session.Resize(ctx, resize.Cols, resize.Rows)
+				if err := session.Resize(ctx, resize.Cols, resize.Rows); err != nil && ctx.Err() != nil {
+					closeBoth()
+					return
+				}
 			}
 		}
 	}
+	closeBoth()
+	<-backendDone
 }
 
 type containerTerminalResize struct {

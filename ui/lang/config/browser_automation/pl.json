@@ -8,7 +8,7 @@
   "help.browser_automation.url": "Wewnętrzny URL usługi sidecar CloakBrowser. Użyj nazwy kontenera Docker lub nazwy usługi jako hostname (np. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Nazwa kontenera Docker dla sidecara automatyzacji przeglądarki. Musi być unikalna na hoście Docker.",
   "help.browser_automation.image": "Obraz Docker dla sidecara automatyzacji przeglądarki. Budowany automatycznie z Dockerfile w skonfigurowanym katalogu.",
-  "help.browser_automation.dockerfile_dir": "Katalog zawierający Dockerfile do budowy obrazu automatyzacji przeglądarki. Domyślnie katalog instalacji AuraGo.",
+  "help.browser_automation.dockerfile_dir": "Katalog zawierający Dockerfile.browser_automation i folder browser_automation_sidecar, czyli checkout kodu źródłowego AuraGo. Ścieżki względne są liczone od katalogu roboczego AuraGo. Instalacje z wydań nie zawierają tych plików. Wskaż tutaj checkout kodu źródłowego albo zbuduj obraz samodzielnie.",
   "help.browser_automation.allowed_download_dir": "Katalog, w którym przechowywane są pobrane pliki. Ścieżki względne są rozwiązywane z katalogu danych AuraGo.",
   "help.browser_automation.screenshots_dir": "Katalog, w którym zapisywane są zrzuty ekranu przeglądarki. Ścieżki względne są rozwiązywane z katalogu danych AuraGo.",
   "help.browser_automation.session_ttl_minutes": "Czas w minutach przed automatycznym zamknięciem nieaktywnej sesji przeglądarki. Domyślnie: 30 minut.",

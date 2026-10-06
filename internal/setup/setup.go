@@ -128,6 +128,8 @@ indexing:
     max_chars: %d
     overlap_chars: %d
     max_chunks_per_file: %d
+docker:
+  allow_host_access: false # fresh install; an absent key would load the legacy grandfather (true)
 `, chunking.DefaultStrategy, chunking.DefaultMaxChars, chunking.DefaultOverlapChars, chunking.DefaultMaxChunks))
 	if err := config.WriteFileAtomic(configPath, minimalConfig, 0o600); err != nil {
 		return fmt.Errorf("failed to create minimal config.yaml: %w", err)
