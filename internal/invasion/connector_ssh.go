@@ -221,7 +221,9 @@ func (c *SSHConnector) installService(ctx context.Context, nest NestRecord, secr
 	serviceName := fmt.Sprintf("aurago-egg-%s", prefix)
 	// systemd does not expand "~"; %h is the home directory of the user
 	// manager that runs the unit, the $HOME the deploy steps write to. The
-	// quoted heredoc below keeps %h literal.
+	// quoted heredoc below keeps %h literal. The user manager has no
+	// multi-user.target; default.target starts with the user session (at
+	// boot when the user lingers).
 	unitDir := "%h/" + strings.TrimPrefix(baseDir, "~/")
 	unitFile := fmt.Sprintf(`[Unit]
 Description=AuraGo Egg Worker (%s)
@@ -236,7 +238,7 @@ Restart=on-failure
 RestartSec=10
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 `, prefix, unitDir, unitDir, unitDir)
 
 	writeCmd := fmt.Sprintf("mkdir -p ~/.config/systemd/user && cat > ~/.config/systemd/user/%s.service << 'EOF'\n%s\nEOF", serviceName, unitFile)

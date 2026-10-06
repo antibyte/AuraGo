@@ -366,6 +366,11 @@ func TestSSHConnectorServiceUnitUsesSystemdHomeSpecifier(t *testing.T) {
 	if strings.Contains(unit, "=~") {
 		t.Fatalf("unit still uses ~ paths:\n%s", unit)
 	}
+	// The user manager has no multi-user.target; default.target is what it
+	// starts with the user session (or at boot with linger).
+	if !strings.Contains(unit, "[Install]\nWantedBy=default.target\n") || strings.Contains(unit, "multi-user.target") {
+		t.Fatalf("unit must be wanted by the user manager's default.target:\n%s", unit)
+	}
 	if !strings.Contains(unit, "<< 'EOF'") {
 		t.Fatalf("the unit must be written through a quoted heredoc so the shell keeps %%h: %s", unit)
 	}
