@@ -25,6 +25,7 @@ function bindInvasionUI() {
     document.getElementById('nest-access-type')?.addEventListener('change', onAccessTypeChange);
     document.getElementById('nest-deploy-method')?.addEventListener('change', onDeployMethodSelect);
     document.getElementById('nest-docker-tls')?.addEventListener('change', onDockerTLSSelect);
+    document.getElementById('nest-export-secret')?.addEventListener('change', updateNestSecretField);
     document.getElementById('btn-validate')?.addEventListener('click', validateNest);
     document.getElementById('nest-save-btn')?.addEventListener('click', saveNest);
     document.getElementById('nest-cancel-btn')?.addEventListener('click', () => closeModal('nest-modal'));
@@ -309,6 +310,9 @@ function openNestModal(nest = null) {
         setVal('nest-port', nest?.port || 22);
         setVal('nest-username', nest?.username || '');
         setVal('nest-secret', '');
+        // updateNestSecretField keeps the field visible while a secret is stored.
+        const secretInput = document.getElementById('nest-secret');
+        if (secretInput) secretInput.dataset.stored = isEdit && nest?.has_secret ? 'true' : '';
         setChk('nest-active', nest?.active !== false);
         setChk('nest-export-secret', isEdit && nest?.export_nest_secret === true);
         setHidden('nest-secret-hint', !(isEdit && nest?.has_secret));
@@ -424,6 +428,21 @@ function updateNestRemoteFields() {
     const type = document.getElementById('nest-access-type').value;
     const method = document.getElementById('nest-deploy-method').value;
     setHiddenById('nest-remote-fields', type === 'local' && method !== 'docker_ssh');
+    updateNestSecretField();
+}
+
+// The nest secret matters for SSH and Docker (via SSH), and through
+// "Copy this nest's secret into the egg vault" for the egg vault. Docker
+// (Remote) and Docker (Local) never read it, so the field is hidden there
+// unless a secret is stored, the copy option is on or something was typed.
+function updateNestSecretField() {
+    const method = document.getElementById('nest-deploy-method')?.value || 'ssh';
+    const secret = document.getElementById('nest-secret');
+    const unused = method === 'docker_remote' || method === 'docker_local';
+    const stored = secret?.dataset.stored === 'true';
+    const exported = !!document.getElementById('nest-export-secret')?.checked;
+    const typed = !!secret?.value;
+    setHiddenById('nest-secret-group', unused && !stored && !exported && !typed);
 }
 
 // User changed the TLS mode: move the port between the Docker plain and TLS

@@ -139,7 +139,7 @@ Es gibt **keinen Deployments-Tab**. Deployment-Historie ist nur über die REST A
 | Notes | Optional |
 | Access Type | `SSH`, `Docker API` oder `Local` |
 | Host / Port / Username | Für SSH und Docker; bei Local ausgeblendet, außer mit der Deploy-Methode `Docker (über SSH)` |
-| Secret | SSH-Key oder Passwort; wird im Vault gespeichert |
+| Secret | SSH-Key oder Passwort; wird im Vault gespeichert. `Docker (Entfernt)` und `Docker (Lokal)` nutzen es nicht; dort ist das Feld ausgeblendet, außer ein Secret ist gespeichert, **Secret dieses Nests in den Egg-Vault kopieren** ist an oder Du hast etwas eingegeben |
 | Secret dieses Nests in den Egg-Vault kopieren | Bei neuen Nests aus. Mit einem Egg mit `include_vault` kopiert es das Secret dieses Nests (`nest_<id>`) in den Vault des Eggs, wo das Egg es lesen kann. Nests von vor dieser Option behalten es eingeschaltet |
 | Assign Egg | Egg auswählen oder leer lassen |
 | Deploy Method | `SSH`, `Docker (Entfernt)`, `Docker (über SSH)` oder `Docker (Lokal)` |

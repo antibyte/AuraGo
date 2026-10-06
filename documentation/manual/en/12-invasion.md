@@ -139,7 +139,7 @@ There is **no Deployments tab**. Deployment history is available via the REST AP
 | Notes | Optional |
 | Access Type | `SSH`, `Docker API`, or `Local` |
 | Host / Port / Username | Required for SSH and Docker; hidden for Local unless the deploy method is `Docker (via SSH)` |
-| Secret | SSH key or password; stored in vault (not returned by API) |
+| Secret | SSH key or password; stored in vault (not returned by API). `Docker (Remote)` and `Docker (Local)` do not use it, so the field is hidden there unless a secret is stored, **Copy this nest's secret into the egg vault** is on, or you typed one |
 | Copy this nest's secret into the egg vault | Off for new nests. With an Egg that has `include_vault`, copies this nest's secret (`nest_<id>`) into the Egg's vault, where the Egg can read it. Nests created before this option keep it on |
 | Assign Egg | Select an Egg or leave empty |
 | Deploy Method | `SSH`, `Docker (Remote)`, `Docker (via SSH)`, or `Docker (Local)` |

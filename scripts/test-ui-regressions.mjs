@@ -2672,6 +2672,39 @@ async function testInvasionNestFormSendsExportNestSecret() {
   assert.match(source, /setChk\('nest-export-secret', isEdit && nest\?\.export_nest_secret === true\)/);
 }
 
+function testInvasionNestSecretFieldHidesOnlyWithoutEffect() {
+  const source = read('ui/js/invasion/main.js');
+  const helpers = sourceBetween(source, 'function setHiddenById(', 'function onDeployMethodChange()') +
+    sourceBetween(source, 'function updateNestSecretField()', '// User changed the TLS mode');
+  const makeEl = (props = {}) => {
+    const classes = new Set();
+    return { value: '', checked: false, dataset: {}, ...props,
+      classList: { toggle(name, force) { if (force) classes.add(name); else classes.delete(name); }, contains: name => classes.has(name) } };
+  };
+  const elements = { 'nest-deploy-method': makeEl(), 'nest-secret': makeEl(), 'nest-export-secret': makeEl(), 'nest-secret-group': makeEl() };
+  const context = { document: { getElementById: id => elements[id] || null } };
+  vm.createContext(context);
+  vm.runInContext(`${helpers}; globalThis.updateForTest = updateNestSecretField;`, context);
+  const hidden = (method, { stored = false, exported = false, typed = '' } = {}) => {
+    elements['nest-deploy-method'].value = method;
+    elements['nest-secret'].dataset.stored = stored ? 'true' : '';
+    elements['nest-secret'].value = typed;
+    elements['nest-export-secret'].checked = exported;
+    context.updateForTest();
+    return elements['nest-secret-group'].classList.contains('is-hidden');
+  };
+  assert.equal(hidden('docker_remote'), true);
+  assert.equal(hidden('docker_local'), true);
+  assert.equal(hidden('docker_remote', { stored: true }), false, 'a stored secret stays editable');
+  assert.equal(hidden('docker_remote', { exported: true }), false, 'the egg vault copy uses it');
+  assert.equal(hidden('docker_local', { typed: 'pw' }), false, 'typed text never disappears');
+  assert.equal(elements['nest-secret'].value, 'pw', 'switching methods must not clear the field');
+  for (const method of ['ssh', 'docker_ssh']) assert.equal(hidden(method), false);
+  assert.match(source, /function updateNestRemoteFields\(\) \{[\s\S]*?updateNestSecretField\(\);/);
+  assert.match(source, /getElementById\('nest-export-secret'\)\?\.addEventListener\('change', updateNestSecretField\)/);
+  assert.match(source, /secretInput\.dataset\.stored = isEdit && nest\?\.has_secret \? 'true' : ''/);
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -2721,7 +2754,8 @@ const tests = [
   ['Containers list failure stays visible until the list loads again', testContainersListFailureStateSurvivesFiltersUntilTheListLoads],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting],
-  ['Invasion nest form sends export_nest_secret', testInvasionNestFormSendsExportNestSecret]
+  ['Invasion nest form sends export_nest_secret', testInvasionNestFormSendsExportNestSecret],
+  ['Invasion nest secret field hides only without effect', testInvasionNestSecretFieldHidesOnlyWithoutEffect]
 ];
 
 let failures = 0;
