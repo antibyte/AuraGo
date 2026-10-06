@@ -40,6 +40,7 @@ the Egg runtime in `cmd/aurago`.
   credential is the nest's SSH secret, never TLS material; older binaries map it
   to the SSH binary deploy.
 - A hatch stores the new `egg_shared_<id>` before Deploy and puts the previous key back (vault compare-and-swap) only when Deploy returns `ErrEggConfigNotDelivered`: Docker before `copyConfigToContainer`, SSH before the config write. Never after a possible delivery or a rollback; marked errors keep their text.
+- `export_nest_secret` decides whether `include_vault` copies the nest secret (`nest_<id>`) into the egg vault. Rows from before the column migrate to 1, new nests start at 0, and updates without the field keep it. `InitDB` copies a pre-existing database to `<db>.pre-export-nest-secret.bak` (VACUUM INTO, never overwritten) before adding the column; a failed copy is logged and the migration still runs.
 
 ## Verification
 
