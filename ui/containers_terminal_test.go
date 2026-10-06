@@ -317,7 +317,8 @@ func TestContainersListFailureShowsDockerMessageNotDisabledState(t *testing.T) {
 	source := rawDesktopAssetText(t, "js/containers/main.js")
 	for _, marker := range []string{
 		"if (resp.status === 503) {",
-		"showListErrorState(dockerErrMsg(data.message));",
+		"showListErrorState(dockerErrMsg(data.message || data.error));",
+		"if (resp && !resp.ok) showListErrorState(t('common.error'));",
 		"function showListErrorState(message)",
 		"document.getElementById('ct-list-error-message').textContent = message;",
 		"document.getElementById('ct-list-error').classList.add('is-hidden');",
@@ -327,10 +328,68 @@ func TestContainersListFailureShowsDockerMessageNotDisabledState(t *testing.T) {
 		}
 	}
 	html := rawDesktopAssetText(t, "containers.html")
-	for _, marker := range []string{`id="ct-list-error"`, `id="ct-list-error-message"`, `data-i18n="containers.list_error_title"`} {
+	for _, marker := range []string{`id="ct-list-error" role="alert"`, `id="ct-list-error-message"`, `data-i18n="containers.list_error_title"`} {
 		if !strings.Contains(html, marker) {
 			t.Fatalf("containers page missing list-error marker %q", marker)
 		}
 	}
 	requireContainersTranslations(t, []string{"containers.list_error_title"})
+
+	// The error and disabled states must survive a search or filter input:
+	// renderContainers leaves them alone, and both states drop the stale data.
+	// scripts/test-ui-regressions.mjs runs this behaviour against main.js.
+	for name, markers := range map[string][]string{
+		"loadContainers":     {"listUnavailable = false;"},
+		"showDisabledState":  {"clearContainerList();"},
+		"showListErrorState": {"clearContainerList();"},
+		"clearContainerList": {"allContainers = [];", "lastDataHash = '';", "cardRenderCache.clear();", "protectionById.clear();", "replaceChildren();", "listUnavailable = true;"},
+	} {
+		body := containersJSFunctionBody(t, source, name)
+		for _, marker := range markers {
+			if !strings.Contains(body, marker) {
+				t.Fatalf("%s must contain %q", name, marker)
+			}
+		}
+	}
+	render := containersJSFunctionBody(t, source, "renderContainers")
+	guard := strings.Index(render, "if (listUnavailable) return;")
+	firstUse := strings.Index(render, "document.getElementById('ct-grid')")
+	if guard < 0 || firstUse < 0 || guard > firstUse {
+		t.Fatal("renderContainers must return while the list is unavailable, before it touches the grid")
+	}
+	reload := strings.Index(source, "if (listUnavailable) {")
+	merge := strings.Index(source, "containers.some(c => !protectionById.has(c.id || ''))")
+	if reload < 0 || merge < 0 || reload > merge {
+		t.Fatal("an SSE container update must reload the list while it is unavailable, before it merges")
+	}
+}
+
+// containersJSFunctionBody returns the balanced-brace body of a top-level
+// function in the containers script, nested blocks included.
+func containersJSFunctionBody(t *testing.T, source, name string) string {
+	t.Helper()
+
+	start := strings.Index(source, "function "+name+"(")
+	if start < 0 {
+		t.Fatalf("containers script is missing function %s", name)
+	}
+	open := strings.Index(source[start:], "{")
+	if open < 0 {
+		t.Fatalf("function %s has no body", name)
+	}
+	bodyStart := start + open + 1
+	depth := 1
+	for i := bodyStart; i < len(source); i++ {
+		switch source[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return source[bodyStart:i]
+			}
+		}
+	}
+	t.Fatalf("function %s has an unbalanced body", name)
+	return ""
 }

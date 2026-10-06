@@ -25,6 +25,11 @@ const cardRenderCache = new Map();
 const protectionById = new Map();
 const CONFIRM_PROTECTED_QUERY = 'confirm=protected';
 
+// True while the last list request failed (HTTP 502) or Docker is disabled
+// (HTTP 503). renderContainers() leaves that state alone until a list loads
+// again, so a search or filter input cannot bring back stale cards.
+let listUnavailable = false;
+
 // ── Initialization ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -33,6 +38,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Live updates pushed via SSE — no more polling.
     window.AuraSSE.on('container_update', function (containers) {
         if (!Array.isArray(containers)) return;
+        // The list is unavailable: a pushed update means Docker answers again,
+        // so reload the list (with fresh protection flags) instead of merging.
+        if (listUnavailable) {
+            lastDataHash = '';
+            loadContainers();
+            return;
+        }
         // A container the last list did not classify: reload the list so its
         // protection flags are known before any action button is used.
         if (containers.some(c => !protectionById.has(c.id || ''))) {
@@ -60,8 +72,9 @@ function bindContainersChrome() {
 // ── Data fetching ───────────────────────────────────────────────────────────
 
 async function loadContainers() {
+    let resp = null;
     try {
-        const resp = await fetch('/api/containers');
+        resp = await fetch('/api/containers');
         if (resp.status === 503) {
             showDisabledState();
             return;
@@ -70,9 +83,10 @@ async function loadContainers() {
         if (data.status !== 'ok') {
             // Docker is enabled but the list failed (HTTP 502): show Docker's
             // message instead of the "Docker not enabled" state.
-            showListErrorState(dockerErrMsg(data.message));
+            showListErrorState(dockerErrMsg(data.message || data.error));
             return;
         }
+        listUnavailable = false;
 
         // Hash comparison – skip re-render if nothing changed
         const hash = JSON.stringify(data.containers);
@@ -85,10 +99,25 @@ async function loadContainers() {
         renderContainers();
     } catch (e) {
         console.error('Failed to load containers:', e);
+        // A reverse proxy may have replaced the 502 body with HTML, so the JSON
+        // parse failed: the list is still unavailable.
+        if (resp && !resp.ok) showListErrorState(t('common.error'));
     }
 }
 
+// clearContainerList drops every card and the data behind it, so nothing stale
+// can reappear while the list is unavailable.
+function clearContainerList() {
+    allContainers = [];
+    lastDataHash = '';
+    cardRenderCache.clear();
+    protectionById.clear();
+    document.getElementById('ct-grid').replaceChildren();
+    listUnavailable = true;
+}
+
 function showDisabledState() {
+    clearContainerList();
     document.getElementById('ct-grid').style.display = 'none';
     document.getElementById('ct-empty').style.display = 'none';
     document.getElementById('ct-list-error').classList.add('is-hidden');
@@ -98,6 +127,7 @@ function showDisabledState() {
 }
 
 function showListErrorState(message) {
+    clearContainerList();
     document.getElementById('ct-grid').style.display = 'none';
     document.getElementById('ct-empty').style.display = 'none';
     document.getElementById('ct-disabled').classList.add('is-hidden');
@@ -162,6 +192,9 @@ function protectionWarningKey(kind) {
 }
 
 function renderContainers() {
+    // The list is unavailable (Docker error or disabled): keep that state until
+    // a list loads again.
+    if (listUnavailable) return;
     const grid = document.getElementById('ct-grid');
     const empty = document.getElementById('ct-empty');
     const disabled = document.getElementById('ct-disabled');

@@ -2384,6 +2384,151 @@ async function testDashboardCronjobsIgnoreLateResponses() {
   assert.equal(cardEvents.some(event => event.startsWith('error:')), false, 'a stale failure must not show an error over current data');
 }
 
+async function testContainersListFailureStateSurvivesFiltersUntilTheListLoads() {
+  const source = read('ui/js/containers/main.js');
+  const nodes = {};
+  const hiddenAtStart = new Set(['ct-empty', 'ct-disabled', 'ct-list-error']);
+  function makeNode(id) {
+    const classes = new Set(hiddenAtStart.has(id) ? ['is-hidden'] : []);
+    return {
+      id, style: {}, value: '', parentNode: null, children: [], cardHTML: '', textSets: 0, htmlSets: 0, _text: '', _html: '',
+      classList: {
+        add: name => classes.add(name),
+        remove: name => classes.delete(name),
+        contains: name => classes.has(name),
+        toggle(name, force) { if (force === undefined ? !classes.has(name) : force) classes.add(name); else classes.delete(name); }
+      },
+      addEventListener() {},
+      setAttribute() {},
+      get firstChild() { return this.children[0] || null; },
+      get textContent() { return this._text; },
+      set textContent(value) { this._text = String(value); this.textSets += 1; },
+      get innerHTML() { return this._html; },
+      set innerHTML(value) { this._html = String(value); this.htmlSets += 1; },
+      replaceChildren() { for (const child of this.children) child.parentNode = null; this.children = []; },
+      appendChild(child) { child.parentNode = this; this.children.push(child); },
+      insertBefore(child, ref) { child.parentNode = this; this.children.splice(ref ? this.children.indexOf(ref) : this.children.length, 0, child); },
+      remove() { const parent = this.parentNode; if (parent) parent.children.splice(parent.children.indexOf(this), 1); this.parentNode = null; },
+      after(child) { const parent = this.parentNode; child.parentNode = parent; parent.children.splice(parent.children.indexOf(this) + 1, 0, child); },
+      replaceWith(child) { const parent = this.parentNode; child.parentNode = parent; parent.children.splice(parent.children.indexOf(this), 1, child); this.parentNode = null; }
+    };
+  }
+  const node = id => nodes[id] || (nodes[id] = makeNode(id));
+
+  const sseHandlers = {};
+  const requests = [];
+  let domReady = null;
+  let reply = null;
+  const context = {
+    document: {
+      getElementById: node,
+      addEventListener(name, handler) { if (name === 'DOMContentLoaded') domReady = handler; },
+      querySelectorAll() { return []; },
+      createElement() {
+        return {
+          content: { firstElementChild: null },
+          set innerHTML(html) {
+            const card = makeNode('card');
+            card.cardHTML = String(html);
+            this.content = { firstElementChild: card };
+          }
+        };
+      }
+    },
+    window: { AuraSSE: { on(name, handler) { sseHandlers[name] = handler; } }, location: { protocol: 'http:', host: 'aurago.test' } },
+    console: { error() {}, log() {} },
+    fetch: async url => { requests.push(String(url)); return reply; },
+    t: key => key,
+    esc: value => String(value ?? ''),
+    applyI18n() {},
+    showToast() {},
+    setInterval,
+    clearInterval
+  };
+  vm.createContext(context);
+  vm.runInContext(source, context);
+  const run = expression => vm.runInContext(expression, context);
+  const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+  const json = (status, body) => ({ status, ok: status >= 200 && status < 300, json: async () => body });
+  const proxyPage = status => ({ status, ok: false, json: async () => { throw new SyntaxError('Unexpected token <'); } });
+  const view = () => ({
+    errorShown: !node('ct-list-error').classList.contains('is-hidden'),
+    disabledShown: !node('ct-disabled').classList.contains('is-hidden'),
+    message: node('ct-list-error-message').textContent,
+    grid: node('ct-grid').style.display,
+    statusBar: node('ct-status-bar').style.display,
+    cards: node('ct-grid').children.length
+  });
+  const listed = [{ id: 'abc', names: ['/web'], image: 'web:1', state: 'running', status: 'Up 1 minute', protected_owner: 'go2rtc' }];
+  const pushed = [{ id: 'abc', names: ['/web'], image: 'web:1', state: 'running', status: 'Up 1 minute' }];
+
+  // Initial load: the card shows K12's protected badge.
+  reply = json(200, { status: 'ok', containers: listed });
+  domReady();
+  await flush();
+  assert.deepEqual(view(), { errorShown: false, disabledShown: false, message: '', grid: '', statusBar: '', cards: 1 });
+  assert.match(node('ct-grid').children[0].cardHTML, /containers\.protected_badge/);
+
+  // K12's SSE merge keeps the last list's flags and does not reload the list.
+  const requestsBeforeMerge = requests.length;
+  sseHandlers.container_update(pushed);
+  await flush();
+  assert.equal(requests.length, requestsBeforeMerge, 'a known container must merge without a reload');
+  assert.match(node('ct-grid').children[0].cardHTML, /containers\.protected_badge/);
+
+  // HTTP 502 with Docker's message: error state, text set as text, no stale cards.
+  reply = json(502, { status: 'error', message: 'Docker error (HTTP 409): engine refused' });
+  await run('loadContainers()');
+  assert.deepEqual(view(), { errorShown: true, disabledShown: false, message: 'Docker error (HTTP 409): engine refused', grid: 'none', statusBar: 'none', cards: 0 });
+  assert.equal(node('ct-list-error-message').htmlSets, 0, 'the message must be set as text');
+  assert.equal(run('allContainers.length'), 0);
+
+  // Search and filter input keep the error state and bring no stale card back.
+  node('ct-search').value = 'web';
+  run('filterContainers()');
+  run("setFilter('running')");
+  assert.deepEqual(view(), { errorShown: true, disabledShown: false, message: 'Docker error (HTTP 409): engine refused', grid: 'none', statusBar: 'none', cards: 0 });
+
+  // A pushed update means Docker answers again: the page reloads the list.
+  const requestsBeforePush = requests.length;
+  reply = json(200, { status: 'ok', containers: listed });
+  sseHandlers.container_update(pushed);
+  await flush();
+  assert.equal(requests.length, requestsBeforePush + 1, 'an update during the error state must reload the list');
+  assert.deepEqual({ ...view(), message: '' }, { errorShown: false, disabledShown: false, message: '', grid: '', statusBar: '', cards: 1 });
+  assert.match(node('ct-grid').children[0].cardHTML, /containers\.protected_badge/);
+
+  // HTTP 503 keeps the Docker-disabled state, also against search input.
+  reply = json(503, { status: 'error', message: 'Docker is not enabled' });
+  await run('loadContainers()');
+  run('filterContainers()');
+  assert.deepEqual({ ...view(), message: '' }, { errorShown: false, disabledShown: true, message: '', grid: 'none', statusBar: 'none', cards: 0 });
+
+  // A successful load ends the unavailable state.
+  node('ct-search').value = '';
+  reply = json(200, { status: 'ok', containers: listed });
+  await run('loadContainers()');
+  assert.deepEqual({ ...view(), message: '' }, { errorShown: false, disabledShown: false, message: '', grid: '', statusBar: '', cards: 1 });
+
+  // A proxy that replaced the 502 body with HTML still yields the error state.
+  reply = proxyPage(502);
+  await run('loadContainers()');
+  assert.deepEqual(view(), { errorShown: true, disabledShown: false, message: 'common.error', grid: 'none', statusBar: 'none', cards: 0 });
+
+  // A JSON error without `message` (jsonError shape) shows its `error` text.
+  reply = json(403, { error: 'invalid_bearer_scope' });
+  await run('loadContainers()');
+  assert.equal(view().message, 'invalid_bearer_scope');
+  assert.equal(view().errorShown, true);
+
+  // Recovery with an empty list ends the error state too.
+  reply = json(200, { status: 'ok', containers: [] });
+  await run('loadContainers()');
+  assert.equal(view().errorShown, false);
+  assert.equal(view().statusBar, '');
+  assert.equal(view().cards, 0);
+}
+
 function listDesktopMainBundleParts() {
   const script = read('scripts/build-ui-bundles.js');
   const start = script.indexOf('const desktopMainParts = [');
@@ -2458,6 +2603,7 @@ const tests = [
   ['Quick Connect SFTP navigator ignores stale listings', testQuickConnectSFTPNavigatorIgnoresStaleListings],
   ['Dashboard audit search ignores late responses', testDashboardAuditIgnoresLateResponses],
   ['Dashboard cronjob search ignores late responses', testDashboardCronjobsIgnoreLateResponses],
+  ['Containers list failure stays visible until the list loads again', testContainersListFailureStateSurvivesFiltersUntilTheListLoads],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
