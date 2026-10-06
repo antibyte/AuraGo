@@ -197,7 +197,10 @@ func deepMerge(base, overlay map[string]interface{}) map[string]interface{} {
 // applyUpgradeSafetyDefaults keeps template defaults from silently changing
 // behaviour on existing installations when the user config lacks an explicit
 // value: dangerous defaults must not activate features, and new gates must not
-// switch off what the installation already used.
+// switch off what the installation already used. Like the
+// allow_unsandboxed_shell rule, the web scraper and webhook rate-limit rules
+// fire only for a missing key; fresh installs copy the template, which writes
+// every key, so they keep the template's safer defaults.
 func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 	changed := false
 
@@ -224,7 +227,51 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 		}
 	}
 
+	// The template ships tools.web_scraper.enabled: false. A config without the
+	// key ran with the scraper on unless the legacy agent.allow_web_scraper said
+	// otherwise (config.Load: code default true, legacy key wins when the
+	// canonical key is absent), so write that effective value.
+	userTools, _ := asStringMap(user["tools"])
+	userScraper, _ := asStringMap(userTools["web_scraper"])
+	if _, userSetScraper := userScraper["enabled"]; !userSetScraper {
+		if toolsMap, ok := asStringMap(merged["tools"]); ok {
+			if scraperMap, ok := asStringMap(toolsMap["web_scraper"]); ok {
+				scraperMap["enabled"] = legacyWebScraperEnabled(userAgent)
+				toolsMap["web_scraper"] = scraperMap
+				merged["tools"] = toolsMap
+				changed = true
+			}
+		}
+	}
+
+	// The template ships webhooks.rate_limit: 60. A config without the key ran
+	// unlimited (0); keep that, the webhooks_no_rate_limit security hint still
+	// reports it on internet-facing instances.
+	userWebhooks, _ := asStringMap(user["webhooks"])
+	if _, userSetRateLimit := userWebhooks["rate_limit"]; !userSetRateLimit {
+		if webhooksMap, ok := asStringMap(merged["webhooks"]); ok {
+			webhooksMap["rate_limit"] = 0
+			merged["webhooks"] = webhooksMap
+			changed = true
+		}
+	}
+
 	return changed
+}
+
+// legacyWebScraperEnabled returns the scraper state config.Load derived for a
+// config without tools.web_scraper.enabled: the legacy agent.allow_web_scraper
+// value when set (a "true"/"false" string counts, as enforceTemplateTypes
+// converts it), otherwise the code default true.
+func legacyWebScraperEnabled(userAgent map[string]interface{}) bool {
+	switch v := userAgent["allow_web_scraper"].(type) {
+	case bool:
+		return v
+	case string:
+		return strings.ToLower(v) != "false"
+	default:
+		return true
+	}
 }
 
 // asStringMap converts a value to map[string]interface{} if possible.

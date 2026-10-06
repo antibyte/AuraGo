@@ -409,9 +409,12 @@ func TestApplyUpgradeSafetyDefaults_PreservesUnsandboxedShellForEnabledShell(t *
 	}
 }
 
-// The template's web scraper and webhook rate-limit defaults apply only where
-// an existing config lacks the key; explicit user values survive a merge.
-func TestRepositoryTemplateMergeKeepsExplicitScraperAndRateLimit(t *testing.T) {
+// The template ships the web scraper off and a webhook rate limit of 60. A
+// merge keeps explicit user values; where an existing config lacks a key it
+// writes the value config.Load used before (scraper on unless the legacy
+// agent.allow_web_scraper is false, rate limit 0), and a fresh install that
+// copied the template keeps the template's defaults.
+func TestRepositoryTemplateMergeKeepsScraperAndRateLimitBehaviour(t *testing.T) {
 	tmplData, err := readNormalized(filepath.Join("..", "..", "config_template.yaml"))
 	if err != nil {
 		t.Fatalf("read template: %v", err)
@@ -421,9 +424,15 @@ func TestRepositoryTemplateMergeKeepsExplicitScraperAndRateLimit(t *testing.T) {
 		user        string
 		wantScraper bool
 		wantRate    int
+		wantChanged bool
 	}{
-		{"explicit values", "tools:\n    web_scraper:\n        enabled: true\nwebhooks:\n    rate_limit: 0\n", true, 0},
-		{"absent keys", "server:\n    port: 8088\n", false, 60},
+		{"absent keys, no legacy key", "server:\n    port: 8088\n", true, 0, true},
+		{"absent scraper key, legacy false", "agent:\n    allow_web_scraper: false\ntools:\n    web_scraper:\n        summary_mode: true\nwebhooks:\n    enabled: true\n", false, 0, true},
+		{"absent scraper key, legacy true", "agent:\n    allow_web_scraper: true\n", true, 0, true},
+		{"absent scraper key, legacy string false", "agent:\n    allow_web_scraper: \"false\"\n", false, 0, true},
+		{"explicit false and 60", "tools:\n    web_scraper:\n        enabled: false\nwebhooks:\n    rate_limit: 60\n", false, 60, true},
+		{"explicit true and 0, legacy false", "agent:\n    allow_web_scraper: false\ntools:\n    web_scraper:\n        enabled: true\nwebhooks:\n    rate_limit: 0\n", true, 0, true},
+		{"fresh install from template", tmplData, false, 60, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -436,10 +445,15 @@ func TestRepositoryTemplateMergeKeepsExplicitScraperAndRateLimit(t *testing.T) {
 				t.Fatalf("parse user config: %v", err)
 			}
 			merged := deepMerge(tmplMap, srcMap)
-			applyUpgradeSafetyDefaults(merged, srcMap)
+			changed := applyUpgradeSafetyDefaults(merged, srcMap)
 			enforceTemplateTypes(merged, tmplMap)
 			sanitizeMergedConfig(merged)
 
+			// Every case except the template copy lacks allow_unsandboxed_shell,
+			// which the shell rule materialises; the template writes it.
+			if changed != tc.wantChanged {
+				t.Fatalf("changed = %v, want %v", changed, tc.wantChanged)
+			}
 			tools, _ := asStringMap(merged["tools"])
 			scraper, _ := asStringMap(tools["web_scraper"])
 			if scraper["enabled"] != tc.wantScraper {
@@ -450,6 +464,32 @@ func TestRepositoryTemplateMergeKeepsExplicitScraperAndRateLimit(t *testing.T) {
 				t.Fatalf("webhooks.rate_limit = %v, want %v", webhooks["rate_limit"], tc.wantRate)
 			}
 		})
+	}
+}
+
+// A merged config written once is stable: the next merge finds both keys set
+// and changes nothing for them.
+func TestApplyUpgradeSafetyDefaults_ScraperAndRateLimitIdempotent(t *testing.T) {
+	// A fresh template per merge: deepMerge shares nested template maps.
+	template := func() map[string]interface{} {
+		return map[string]interface{}{
+			"tools":    map[string]interface{}{"web_scraper": map[string]interface{}{"enabled": false}},
+			"webhooks": map[string]interface{}{"rate_limit": 60},
+		}
+	}
+	first := deepMerge(template(), map[string]interface{}{})
+	if !applyUpgradeSafetyDefaults(first, map[string]interface{}{}) {
+		t.Fatal("first merge of a config without the keys must materialise them")
+	}
+	second := deepMerge(template(), first)
+	if applyUpgradeSafetyDefaults(second, first) {
+		t.Fatal("second merge must not change a config that already has the keys")
+	}
+	tools, _ := asStringMap(second["tools"])
+	scraper, _ := asStringMap(tools["web_scraper"])
+	webhooks, _ := asStringMap(second["webhooks"])
+	if scraper["enabled"] != true || webhooks["rate_limit"] != 0 {
+		t.Fatalf("second merge = scraper %v, rate_limit %v; want true, 0", scraper["enabled"], webhooks["rate_limit"])
 	}
 }
 

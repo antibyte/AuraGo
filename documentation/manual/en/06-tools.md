@@ -378,7 +378,7 @@ The Danger Zone controls potentially dangerous operations:
 3. For web scraping, open **Config → Agent Tools → Web Scraper** and enable it there.
 4. Save changes.
 
-New installations start with the web scraper off (`tools.web_scraper.enabled: false`) because it pulls outbound pages into the agent context; existing configurations keep their value.
+New installations start with the web scraper off (`tools.web_scraper.enabled: false`) because it pulls outbound pages into the agent context; existing configurations keep their value. Where a configuration never set the key, an upgrade writes its previous behaviour (on, unless the legacy `agent.allow_web_scraper` is `false`); the Web Scraper page shows the current value.
 
 ### YAML Reference
 ```yaml
