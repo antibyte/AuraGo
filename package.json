@@ -14,6 +14,7 @@
     "test:writer": "node scripts/test-writer-session.mjs",
     "build:sheets-vendor": "node scripts/build-sheets-vendor.js",
     "test:sheets": "node scripts/test-sheets-data.mjs",
+    "test:easydrag": "node scripts/test-easydrag.mjs",
     "build:ui": "node scripts/build-ui-bundles.js",
     "build:game-maker-3d": "node scripts/build-game-maker-3d.js",
     "test:game-maker-glbs": "node scripts/validate-game-maker-glbs.mjs",

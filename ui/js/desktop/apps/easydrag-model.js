@@ -1,0 +1,575 @@
+// EasyDrag client document model: ports and graph queries, change sets with undo/redo,
+// node keys and the clipboard. Pure (no DOM); the server stays authoritative on validation.
+(function () {
+    'use strict';
+
+    const ED = window.EasyDrag = window.EasyDrag || {};
+
+    const RESERVED = new Set(['trigger', 'run', 'flow', 'item', 'index', 'input', 'env', 'vars', 'secrets']);
+    const KEY_PATTERN = /^[a-z][a-z0-9_]{0,39}$/;
+    const ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
+    const COALESCE_MS = 1200;
+    const MAX_HISTORY = 300;
+
+    function randomSuffix(n) {
+        const bytes = new Uint8Array(n);
+        globalThis.crypto.getRandomValues(bytes);
+        let out = '';
+        for (let i = 0; i < n; i++) out += ALPHABET[bytes[i] % ALPHABET.length];
+        return out;
+    }
+
+    function newNodeID() { return 'n_' + randomSuffix(8); }
+    function newEdgeID() { return 'e_' + randomSuffix(8); }
+
+    const UMLAUTS = { 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss', 'Ä': 'ae', 'Ö': 'oe', 'Ü': 'ue' };
+
+    // keyFromLabel mirrors flows.KeyFromLabel: lower case, a-z0-9 and "_", unique, not reserved.
+    function keyFromLabel(label, taken) {
+        const s = String(label || '').trim().replace(/[äöüßÄÖÜ]/g, ch => UMLAUTS[ch]).toLowerCase();
+        let key = '';
+        let lastUnderscore = false;
+        for (const ch of s) {
+            if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9')) { key += ch; lastUnderscore = false; continue; }
+            if (!lastUnderscore && key.length) { key += '_'; lastUnderscore = true; }
+        }
+        key = key.replace(/^_+|_+$/g, '') || 'node';
+        if (key[0] >= '0' && key[0] <= '9') key = 'n_' + key;
+        if (key.length > 36) key = key.slice(0, 36).replace(/_+$/, '');
+        if (RESERVED.has(key)) key += '_node';
+        const used = taken instanceof Set ? taken : new Set(taken || []);
+        let candidate = key;
+        for (let i = 2; used.has(candidate); i++) candidate = key + '_' + i;
+        return candidate;
+    }
+
+    function keyProblem(key) {
+        if (!KEY_PATTERN.test(key)) return 'invalid';
+        if (RESERVED.has(key)) return 'reserved';
+        return '';
+    }
+
+    function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
+    function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+    function isEmpty(v) { return v === undefined || v === null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && !v.length); }
+
+    function normalize(doc) {
+        const d = doc || {};
+        d.schema = d.schema || 1;
+        d.kind = d.kind || 'flow';
+        d.nodes = Array.isArray(d.nodes) ? d.nodes : [];
+        d.edges = Array.isArray(d.edges) ? d.edges : [];
+        d.settings = d.settings || {};
+        d.nodes.forEach(n => { n.params = n.params || {}; n.settings = n.settings || {}; n.position = n.position || { x: 0, y: 0 }; });
+        return d;
+    }
+
+    const META_KEYS = ['name', 'description', 'settings'];
+
+    function create(doc, catalog) {
+        const listeners = new Set();
+        const undoStack = [];
+        const redoStack = [];
+        const state = { doc: normalize(clone(doc)), version: 0 };
+
+        function info(type) {
+            if (!catalog) return null;
+            if (catalog.types && typeof catalog.types.get === 'function') return catalog.types.get(type) || null;
+            return (catalog.types && catalog.types[type]) || null;
+        }
+
+        function node(id) { return state.doc.nodes.find(n => n.id === id) || null; }
+        function edge(id) { return state.doc.edges.find(e => e.id === id) || null; }
+        function byKey(key) { return state.doc.nodes.find(n => n.key === key) || null; }
+
+        function inputs(n) {
+            const i = info(n.type);
+            if (!i) return ['in'];
+            return Array.isArray(i.inputs) ? i.inputs.slice() : [];
+        }
+
+        function outputs(n) {
+            const i = info(n.type);
+            let ports;
+            if (i && i.dynamic_outputs === 'cases') {
+                const cases = Array.isArray(n.params && n.params.cases) ? n.params.cases : [];
+                ports = cases.map((_, idx) => 'case_' + (idx + 1)).concat(['default']);
+            } else if (i) {
+                ports = Array.isArray(i.outputs) ? i.outputs.filter(p => p !== 'error') : [];
+            } else {
+                ports = ['out'];
+            }
+            if (n.settings && n.settings.on_error === 'error_port') ports.push('error');
+            return ports;
+        }
+
+        // fieldsOf lists the output fields of a node (dynamic fields of AI steps included).
+        function fieldsOf(n) {
+            const i = info(n.type);
+            if (!i) return [];
+            if (i.dynamic_fields === 'fields') {
+                const defs = Array.isArray(n.params && n.params.fields) ? n.params.fields : [];
+                const own = defs.filter(f => f && f.name).map((f, idx) => ({ name: String(f.name), type: f.type || 'text', primary: idx === 0 }));
+                if (n.params && n.params.output_mode === 'fields' && own.length) return own.concat([{ name: 'tokens', type: 'object' }, { name: 'model', type: 'text' }]);
+            }
+            return Array.isArray(i.output_fields) ? i.output_fields.slice() : [];
+        }
+
+        function incoming(id) { return state.doc.edges.filter(e => e.target.node === id); }
+        function outgoing(id) { return state.doc.edges.filter(e => e.source.node === id); }
+
+        function walk(start, next) {
+            const seen = new Set();
+            const queue = [start];
+            while (queue.length) {
+                const id = queue.shift();
+                next(id).forEach(other => { if (!seen.has(other)) { seen.add(other); queue.push(other); } });
+            }
+            seen.delete(start);
+            return seen;
+        }
+
+        function upstream(id) { return walk(id, x => incoming(x).map(e => e.source.node)); }
+        function downstream(id) { return walk(id, x => outgoing(x).map(e => e.target.node)); }
+        function keys() { return new Set(state.doc.nodes.map(n => n.key)); }
+
+        function canConnect(src, port, dst, inPort) {
+            const a = node(src);
+            const b = node(dst);
+            if (!a || !b) return { ok: false, reason: 'missing' };
+            if (src === dst) return { ok: false, reason: 'self' };
+            if (!outputs(a).includes(port) || !inputs(b).includes(inPort)) return { ok: false, reason: 'port' };
+            if (state.doc.edges.some(e => e.source.node === src && e.source.port === port && e.target.node === dst && e.target.port === inPort)) {
+                return { ok: false, reason: 'duplicate' };
+            }
+            if (downstream(dst).has(src)) return { ok: false, reason: 'cycle' };
+            return { ok: true, reason: '' };
+        }
+
+        // ── change sets ──────────────────────────────────────────────────────────
+
+        function recorder() {
+            const nodes = new Map();
+            const edges = new Map();
+            let meta = null;
+            function touchNode(id) {
+                if (!nodes.has(id)) {
+                    const idx = state.doc.nodes.findIndex(n => n.id === id);
+                    nodes.set(id, { before: idx >= 0 ? clone(state.doc.nodes[idx]) : null, index: idx, after: undefined });
+                }
+                return nodes.get(id);
+            }
+            function touchEdge(id) {
+                if (!edges.has(id)) {
+                    const idx = state.doc.edges.findIndex(e => e.id === id);
+                    edges.set(id, { before: idx >= 0 ? clone(state.doc.edges[idx]) : null, index: idx, after: undefined });
+                }
+                return edges.get(id);
+            }
+            const rec = {
+                node(id) {
+                    const entry = touchNode(id);
+                    if (entry.after === undefined) entry.after = clone(entry.before);
+                    return entry.after;
+                },
+                addNode(n) { touchNode(n.id).after = n; return n; },
+                removeNode(id) {
+                    touchNode(id).after = null;
+                    state.doc.edges.concat(Array.from(edges.values()).map(e => e.after).filter(Boolean))
+                        .filter(e => e.source.node === id || e.target.node === id)
+                        .forEach(e => rec.removeEdge(e.id));
+                },
+                edge(id) {
+                    const entry = touchEdge(id);
+                    if (entry.after === undefined) entry.after = clone(entry.before);
+                    return entry.after;
+                },
+                addEdge(e) { touchEdge(e.id).after = e; return e; },
+                removeEdge(id) { touchEdge(id).after = null; },
+                meta(patch) {
+                    if (!meta) {
+                        const before = {};
+                        Object.keys(patch).forEach(k => { before[k] = clone(state.doc[k]); });
+                        meta = { before, after: {} };
+                    }
+                    Object.keys(patch).forEach(k => {
+                        if (!(k in meta.before)) meta.before[k] = clone(state.doc[k]);
+                        meta.after[k] = clone(patch[k]);
+                    });
+                },
+                // view returns the node as it will look after this change set (for queries inside commands).
+                view(id) {
+                    const entry = nodes.get(id);
+                    if (entry && entry.after !== undefined) return entry.after;
+                    return node(id);
+                },
+                finish() {
+                    const nodeList = [];
+                    nodes.forEach((v, id) => {
+                        const after = v.after === undefined ? v.before : v.after;
+                        if (!same(v.before, after)) nodeList.push({ id, before: v.before, after, index: v.index });
+                    });
+                    const edgeList = [];
+                    edges.forEach((v, id) => {
+                        const after = v.after === undefined ? v.before : v.after;
+                        if (!same(v.before, after)) edgeList.push({ id, before: v.before, after, index: v.index });
+                    });
+                    const metaEntry = meta && !same(meta.before, meta.after) ? meta : null;
+                    if (!nodeList.length && !edgeList.length && !metaEntry) return null;
+                    return { nodes: nodeList, edges: edgeList, meta: metaEntry };
+                }
+            };
+            return rec;
+        }
+
+        function setItem(list, id, value, index) {
+            const at = list.findIndex(x => x.id === id);
+            if (value === null) { if (at >= 0) list.splice(at, 1); return; }
+            const copy = clone(value);
+            if (at >= 0) list[at] = copy;
+            else if (index >= 0 && index <= list.length) list.splice(index, 0, copy);
+            else list.push(copy);
+        }
+
+        function applySet(set, dir) {
+            const pick = entry => dir === 'after' ? entry.after : entry.before;
+            const order = dir === 'after' ? set.nodes : set.nodes.slice().reverse();
+            order.forEach(e => setItem(state.doc.nodes, e.id, pick(e), e.index));
+            const edgeOrder = dir === 'after' ? set.edges : set.edges.slice().reverse();
+            edgeOrder.forEach(e => setItem(state.doc.edges, e.id, pick(e), e.index));
+            if (set.meta) Object.assign(state.doc, clone(dir === 'after' ? set.meta.after : set.meta.before));
+        }
+
+        function emit(change) {
+            state.version += 1;
+            listeners.forEach(fn => { try { fn(change); } catch (err) { console.error('EasyDrag model listener failed', err); } });
+        }
+
+        function describeSet(set, kind) {
+            return {
+                kind,
+                nodes: set.nodes.map(e => e.id),
+                edges: set.edges.map(e => e.id),
+                meta: !!set.meta,
+                structural: set.nodes.some(e => !e.before || !e.after) || set.edges.length > 0
+            };
+        }
+
+        // change runs fn(rec) and records the result as one undo step. opts.coalesce merges
+        // consecutive steps with the same key (dragging, typing).
+        function change(label, fn, opts) {
+            const rec = recorder();
+            const result = fn(rec);
+            const set = rec.finish();
+            if (!set) return result;
+            applySet(set, 'after');
+            const now = Date.now();
+            const top = undoStack[undoStack.length - 1];
+            const coalesce = opts && opts.coalesce;
+            if (coalesce && top && top.coalesce === coalesce && now - top.at < COALESCE_MS) {
+                mergeInto(top, set);
+                top.at = now;
+            } else {
+                undoStack.push(Object.assign({ label, coalesce, at: now }, set));
+                if (undoStack.length > MAX_HISTORY) undoStack.shift();
+            }
+            redoStack.length = 0;
+            emit(describeSet(set, 'change'));
+            return result;
+        }
+
+        function mergeInto(top, set) {
+            set.nodes.forEach(e => {
+                const prev = top.nodes.find(x => x.id === e.id);
+                if (prev) prev.after = e.after; else top.nodes.push(e);
+            });
+            set.edges.forEach(e => {
+                const prev = top.edges.find(x => x.id === e.id);
+                if (prev) prev.after = e.after; else top.edges.push(e);
+            });
+            if (set.meta) {
+                if (!top.meta) top.meta = set.meta;
+                else Object.keys(set.meta.after).forEach(k => {
+                    if (!(k in top.meta.before)) top.meta.before[k] = set.meta.before[k];
+                    top.meta.after[k] = set.meta.after[k];
+                });
+            }
+        }
+
+        function undo() {
+            const set = undoStack.pop();
+            if (!set) return false;
+            applySet(set, 'before');
+            redoStack.push(set);
+            emit(describeSet(set, 'undo'));
+            return true;
+        }
+
+        function redo() {
+            const set = redoStack.pop();
+            if (!set) return false;
+            applySet(set, 'after');
+            undoStack.push(Object.assign(set, { coalesce: null }));
+            emit(describeSet(set, 'redo'));
+            return true;
+        }
+
+        // ── commands ─────────────────────────────────────────────────────────────
+
+        function defaults(i) {
+            const out = {};
+            (i && i.params || []).forEach(p => { if (p.default !== undefined && p.default !== null) out[p.name] = clone(p.default); });
+            return out;
+        }
+
+        // prefill maps the source's primary output into the new target: files go into the first
+        // file parameter, every other value into the primary input.
+        function prefill(rec, srcId, dstId) {
+            const src = rec.view(srcId);
+            const dst = rec.view(dstId);
+            const dstInfo = info(dst.type);
+            const field = fieldsOf(src).find(f => f.primary);
+            if (!dstInfo || !field) return;
+            const params = dstInfo.params || [];
+            const spec = field.type === 'file'
+                ? params.find(p => p.kind === 'file')
+                : params.find(p => p.name === dstInfo.primary_input && p.kind !== 'file');
+            if (!spec || !isEmpty(dst.params[spec.name])) return;
+            rec.node(dstId).params[spec.name] = '{{' + src.key + '.' + field.name + '}}';
+        }
+
+        // addNode adds a node; from ({node, port}) connects it to an output in the same undo step.
+        function addNode(type, position, params, from) {
+            const i = info(type);
+            const id = newNodeID();
+            change('add', rec => {
+                const label = (i && i.label) || type;
+                rec.addNode({
+                    id, key: keyFromLabel(label, keys()), type, type_version: (i && i.version) || 1, label,
+                    position: { x: Math.round(position.x), y: Math.round(position.y) },
+                    params: Object.assign(defaults(i), clone(params) || {}), settings: {}
+                });
+                const inPort = i && Array.isArray(i.inputs) ? i.inputs[0] : 'in';
+                if (from && inPort && node(from.node) && outputs(node(from.node)).includes(from.port)) {
+                    rec.addEdge({ id: newEdgeID(), source: { node: from.node, port: from.port }, target: { node: id, port: inPort } });
+                    prefill(rec, from.node, id);
+                }
+            });
+            return id;
+        }
+
+        function removeNodes(ids, opts) {
+            const list = (ids || []).filter(id => node(id));
+            if (!list.length) return;
+            change('remove', rec => {
+                let bridge = null;
+                if (opts && opts.bridge && list.length === 1) {
+                    const ins = incoming(list[0]);
+                    const outs = outgoing(list[0]);
+                    if (ins.length === 1 && outs.length === 1) bridge = { src: ins[0].source, dst: outs[0].target };
+                }
+                list.forEach(id => rec.removeNode(id));
+                if (bridge && bridge.src.node !== bridge.dst.node && !downstream(bridge.dst.node).has(bridge.src.node)) {
+                    rec.addEdge({ id: newEdgeID(), source: clone(bridge.src), target: clone(bridge.dst) });
+                }
+            });
+        }
+
+        function moveNodes(ids, dx, dy) {
+            if (!dx && !dy) return;
+            const list = (ids || []).filter(id => node(id));
+            change('move', rec => {
+                list.forEach(id => {
+                    const n = rec.node(id);
+                    n.position = { x: Math.round(n.position.x + dx), y: Math.round(n.position.y + dy) };
+                });
+            }, { coalesce: 'move:' + list.slice().sort().join(',') });
+        }
+
+        function connect(src, port, dst, inPort) {
+            const check = canConnect(src, port, dst, inPort);
+            if (!check.ok) return { ok: false, reason: check.reason };
+            const id = newEdgeID();
+            change('connect', rec => {
+                rec.addEdge({ id, source: { node: src, port }, target: { node: dst, port: inPort } });
+                prefill(rec, src, dst);
+            });
+            return { ok: true, id };
+        }
+
+        function disconnect(ids) {
+            change('disconnect', rec => { (ids || []).forEach(id => { if (edge(id)) rec.removeEdge(id); }); });
+        }
+
+        // insertOnEdge places a node (new type or existing id) between the two ends of an edge.
+        function insertOnEdge(edgeId, typeOrId, position) {
+            const e = edge(edgeId);
+            if (!e) return null;
+            let id = node(typeOrId) ? typeOrId : null;
+            const i = id ? info(node(id).type) : info(typeOrId);
+            if (!i || !(i.inputs || []).length) return null;
+            change('insert', rec => {
+                if (!id) {
+                    id = newNodeID();
+                    const label = i.label || typeOrId;
+                    rec.addNode({ id, key: keyFromLabel(label, keys()), type: typeOrId, type_version: i.version || 1, label,
+                        position: { x: Math.round(position.x), y: Math.round(position.y) }, params: defaults(i), settings: {} });
+                } else if (position) {
+                    rec.node(id).position = { x: Math.round(position.x), y: Math.round(position.y) };
+                }
+                const view = rec.view(id);
+                const outPort = outputs(view)[0];
+                rec.removeEdge(edgeId);
+                rec.addEdge({ id: newEdgeID(), source: clone(e.source), target: { node: id, port: (i.inputs || ['in'])[0] } });
+                if (outPort) rec.addEdge({ id: newEdgeID(), source: { node: id, port: outPort }, target: clone(e.target) });
+                prefill(rec, e.source.node, id);
+            });
+            return id;
+        }
+
+        function setParam(id, name, value) {
+            if (!node(id)) return;
+            change('param', rec => {
+                const n = rec.node(id);
+                if (value === undefined) delete n.params[name]; else n.params[name] = clone(value);
+                if (name === 'cases') dropDanglingEdges(rec, id);
+            }, { coalesce: 'param:' + id + ':' + name });
+        }
+
+        function dropDanglingEdges(rec, id) {
+            const ports = outputs(rec.view(id));
+            outgoing(id).forEach(e => { if (!ports.includes(e.source.port)) rec.removeEdge(e.id); });
+        }
+
+        function setLabel(id, label) {
+            if (!node(id)) return;
+            change('label', rec => { rec.node(id).label = String(label).slice(0, 80); }, { coalesce: 'label:' + id });
+        }
+
+        // setKey renames a node key and rewrites every template reference in one step.
+        function setKey(id, key) {
+            const n = node(id);
+            if (!n) return { ok: false, reason: 'missing' };
+            if (key === n.key) return { ok: true };
+            const problem = keyProblem(key);
+            if (problem) return { ok: false, reason: problem };
+            if (byKey(key)) return { ok: false, reason: 'taken' };
+            const oldKey = n.key;
+            change('key', rec => {
+                rec.node(id).key = key;
+                state.doc.nodes.forEach(other => {
+                    const renamed = ED.template.renameInValue(other.params, oldKey, key);
+                    if (!same(renamed, other.params)) rec.node(other.id).params = renamed;
+                });
+            });
+            return { ok: true };
+        }
+
+        function setSettings(id, patch) {
+            if (!node(id)) return;
+            change('settings', rec => {
+                const n = rec.node(id);
+                n.settings = Object.assign({}, n.settings, clone(patch));
+                Object.keys(n.settings).forEach(k => { if (n.settings[k] === undefined || n.settings[k] === null || n.settings[k] === '') delete n.settings[k]; });
+                dropDanglingEdges(rec, id);
+            }, { coalesce: 'settings:' + id + ':' + Object.keys(patch).join(',') });
+        }
+
+        function toggleDisabled(ids) {
+            const list = (ids || []).map(node).filter(Boolean);
+            if (!list.length) return;
+            const disable = list.some(n => !n.settings.disabled);
+            change('disable', rec => {
+                list.forEach(n => {
+                    const w = rec.node(n.id);
+                    if (disable) w.settings.disabled = true; else delete w.settings.disabled;
+                });
+            });
+        }
+
+        function setFlow(patch) {
+            const clean = {};
+            Object.keys(patch || {}).forEach(k => { if (META_KEYS.includes(k)) clean[k] = patch[k]; });
+            change('flow', rec => rec.meta(clean), { coalesce: 'flow:' + Object.keys(clean).join(',') });
+        }
+
+        // setViewport stores the canvas viewport in the draft without an undo step.
+        function setViewport(v) {
+            state.doc.viewport = { x: Math.round(v.x), y: Math.round(v.y), zoom: Math.round(v.zoom * 1000) / 1000 };
+            emit({ kind: 'viewport', nodes: [], edges: [], meta: false, structural: false });
+        }
+
+        function fragment(ids) {
+            const set = new Set(ids || []);
+            return {
+                easydrag: 1,
+                nodes: state.doc.nodes.filter(n => set.has(n.id)).map(clone),
+                edges: state.doc.edges.filter(e => set.has(e.source.node) && set.has(e.target.node)).map(clone)
+            };
+        }
+
+        // paste inserts a clipboard fragment with fresh ids and keys; references between
+        // pasted nodes follow the new keys. Returns the new node ids.
+        function paste(frag, at) {
+            if (!frag || frag.easydrag !== 1 || !Array.isArray(frag.nodes) || !frag.nodes.length) return [];
+            const minX = Math.min(...frag.nodes.map(n => (n.position || {}).x || 0));
+            const minY = Math.min(...frag.nodes.map(n => (n.position || {}).y || 0));
+            const ids = new Map();
+            const keyMap = new Map();
+            const taken = keys();
+            frag.nodes.forEach(n => {
+                ids.set(n.id, newNodeID());
+                const key = keyFromLabel(n.key || n.label, taken);
+                taken.add(key);
+                keyMap.set(n.key, key);
+            });
+            change('paste', rec => {
+                frag.nodes.forEach(n => {
+                    let params = clone(n.params || {});
+                    keyMap.forEach((nk, ok) => { if (ok !== nk) params = ED.template.renameInValue(params, ok, nk); });
+                    rec.addNode({
+                        id: ids.get(n.id), key: keyMap.get(n.key), type: n.type, type_version: n.type_version || 1, label: n.label || n.type,
+                        position: { x: Math.round(at.x + ((n.position || {}).x || 0) - minX), y: Math.round(at.y + ((n.position || {}).y || 0) - minY) },
+                        params, settings: clone(n.settings || {})
+                    });
+                });
+                (frag.edges || []).forEach(e => {
+                    if (!ids.has(e.source.node) || !ids.has(e.target.node)) return;
+                    rec.addEdge({ id: newEdgeID(), source: { node: ids.get(e.source.node), port: e.source.port }, target: { node: ids.get(e.target.node), port: e.target.port } });
+                });
+            });
+            return Array.from(ids.values());
+        }
+
+        function duplicate(idList) {
+            const frag = fragment(idList);
+            if (!frag.nodes.length) return [];
+            const minX = Math.min(...frag.nodes.map(n => n.position.x));
+            const minY = Math.min(...frag.nodes.map(n => n.position.y));
+            return paste(frag, { x: minX + 40, y: minY + 40 });
+        }
+
+        // replaceDoc swaps in a document from the server (conflict reload) and clears history.
+        function replaceDoc(doc) {
+            state.doc = normalize(clone(doc));
+            undoStack.length = 0;
+            redoStack.length = 0;
+            emit({ kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
+        }
+
+        return {
+            get doc() { return state.doc; },
+            get version() { return state.version; },
+            info, node, edge, byKey, inputs, outputs, fieldsOf, incoming, outgoing, upstream, downstream, keys, canConnect,
+            change, undo, redo,
+            canUndo: () => undoStack.length > 0,
+            canRedo: () => redoStack.length > 0,
+            on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+            toJSON: () => clone(state.doc),
+            addNode, removeNodes, moveNodes, connect, disconnect, insertOnEdge, setParam, setLabel, setKey, setSettings,
+            toggleDisabled, setFlow, setViewport, fragment, paste, duplicate, replaceDoc
+        };
+    }
+
+    ED.model = { create, keyFromLabel, keyProblem, newNodeID, newEdgeID, RESERVED };
+})();
