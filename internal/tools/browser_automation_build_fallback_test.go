@@ -421,6 +421,20 @@ func TestBuildBrowserAutomationImageRetriesOnceWhenDockerHostRefusesBuilds(t *te
 			wantImageChecks: 1,
 		},
 		{
+			name:          "an image check that docker.host does not answer with a 404 is not a failure",
+			inheritedHost: "tcp://127.0.0.1:2376",
+			failHost:      "@HOST@",
+			failText:      browserAutomationRefusedBuildText,
+			imageStatus:   http.StatusForbidden,
+			wantCalls:     []string{"host=@HOST@ context=unset", "host=tcp://127.0.0.1:2376 context=unset"},
+			wantWarnMsgs: []string{
+				"could not verify the image on docker.host, continuing",
+				"built through tcp://127.0.0.1:2376 instead",
+			},
+			wantBuiltOn:     "tcp://127.0.0.1:2376",
+			wantImageChecks: 1,
+		},
+		{
 			name:         "an inherited context disables the retry",
 			inheritedCtx: "remote",
 			failHost:     "@HOST@",
@@ -575,8 +589,8 @@ func TestBrowserAutomationBuildTimeLeft(t *testing.T) {
 	}
 	expired, cancelExpired := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 	defer cancelExpired()
-	if left := browserAutomationBuildTimeLeft(expired); left >= browserAutomationRetryMinRemaining {
-		t.Fatalf("time left on an expired context = %v, want below the retry minimum", left)
+	if left := browserAutomationBuildTimeLeft(expired); left != 0 {
+		t.Fatalf("time left on an expired context = %v, want 0 and never negative", left)
 	}
 }
 

@@ -1115,8 +1115,15 @@ func buildBrowserAutomationImage(image, dockerfileDir, dockerHost string, runtim
 		}
 		// The image now exists on the fallback engine. Ensure creates the
 		// container through docker.host, so the image has to be visible there.
-		if _, code, reqErr := dockerRequest(DockerConfig{Host: dockerHost}, http.MethodGet, "/images/"+image+"/json", ""); reqErr != nil || code != http.StatusOK {
-			return fmt.Errorf("the fallback built on %s, but docker.host %s still has no image %s (status %d, error: %v): it is a different engine, so build the image there or point docker.host at the engine that docker uses by default", retry.DockerHost, inv.DockerHost, image, code, reqErr)
+		// Only a 404 proves it is not: a socket proxy with IMAGES=0, or any other
+		// answer or transport error, is "could not verify", and the container
+		// create decides (that setup worked before the fallback existed).
+		_, code, reqErr := dockerRequest(DockerConfig{Host: dockerHost}, http.MethodGet, "/images/"+image+"/json", "")
+		switch {
+		case reqErr == nil && code == http.StatusNotFound:
+			return fmt.Errorf("the fallback built on %s, but docker.host %s still has no image %s: it is a different engine, so build the image there or point docker.host at the engine that docker uses by default", retry.DockerHost, inv.DockerHost, image)
+		case reqErr != nil || code != http.StatusOK:
+			logger.Warn("[BrowserAutomation] Fallback build done, but could not verify the image on docker.host, continuing", "docker_host", inv.DockerHost, "image", image, "status", code, "error", reqErr)
 		}
 		logger.Warn(fmt.Sprintf("[BrowserAutomation] docker.host refused the build with a 403-style response; built through %s instead", retry.DockerHost), "docker_host", inv.DockerHost, "built_on", retry.DockerHost)
 	}
@@ -1133,13 +1140,14 @@ var (
 	browserAutomationRetryMinRemaining = 2 * time.Minute
 )
 
-// browserAutomationBuildTimeLeft is the time until the build context expires.
+// browserAutomationBuildTimeLeft is the time until the build context expires,
+// never negative.
 func browserAutomationBuildTimeLeft(ctx context.Context) time.Duration {
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		return time.Duration(1<<63 - 1)
 	}
-	return time.Until(deadline)
+	return max(time.Until(deadline), 0)
 }
 
 // browserAutomationRunBuild runs one docker build invocation and returns its
