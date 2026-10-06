@@ -182,6 +182,22 @@ eq('free spot avoids overlap', G.freeSpot({ x: 0, y: 0 }, [{ x: 0, y: 0, w: 232,
     mm.connect(branch, 'false', merge2, 'in');
     eq('c1d02 merge skips duplicate upstream nodes', mm.fieldsOf(mm.node(merge2)).map(f => f.name), ['wenn']);
 }
+{
+    // Preview filters follow the Go engine (internal/flows/filters.go); the expectations are Go's results.
+    eq('c1d02 round halves away from zero', [T.applyFilter('round', -2.5, []), T.applyFilter('round', 2.5, []), T.applyFilter('round', -0.125, [2])], [-3, 3, -0.13]);
+    check('c1d02 round has no negative zero', Object.is(T.applyFilter('round', -0.4, []), 0));
+    let tooManyDecimals = false;
+    try { T.applyFilter('round', 3.14159, [11]); } catch (err) { tooManyDecimals = true; }
+    check('c1d02 round allows at most 10 decimals', tooManyDecimals);
+    eq('c1d02 replace with empty search keeps the text', T.applyFilter('replace', 'a-b-c', ['', '+']), 'a-b-c');
+    eq('c1d02 strip_html separates blocks', T.applyFilter('strip_html', '<p>a</p><p>b</p><br/>c', []), 'a b c');
+    eq('c1d02 strip_html drops script and style', T.applyFilter('strip_html', '<script>x()</script>Hi<style>p{}</style>', []), 'Hi');
+    eq('c1d02 strip_html keeps comparisons', T.applyFilter('strip_html', 'x < 5 and y > 3', []), 'x < 5 and y > 3');
+    eq('c1d02 strip_html drops comments and collapses whitespace', T.applyFilter('strip_html', 'a <!-- c -->\n\n b', []), 'a b');
+    eq('c1d02 strip_html decodes numeric entities', T.applyFilter('strip_html', '&#228;&#x263A; &lt;b&gt;', []), 'ä☺ <b>');
+    eq('c1d02 upper keeps sharp s', T.applyFilter('upper', 'straße', []), 'STRAßE');
+    eq('c1d02 lower maps one letter at a time', [T.applyFilter('lower', 'ΟΔΟΣ', []), T.applyFilter('lower', 'İstanbul', [])], ['οδοσ', 'istanbul']);
+}
 
 if (failures) {
     console.log(failures + ' failure(s)');

@@ -177,8 +177,58 @@
         return String(pattern).replace(/YYYY|MM|DD|HH|mm|ss/g, tok => tokens[tok]);
     }
 
+    const NAMED_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+
     function decodeEntities(s) {
-        return s.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (m, e) => ({ amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' }[e]));
+        return s.replace(/&(?:#(\d+)|#[xX]([0-9A-Fa-f]+)|(amp|lt|gt|quot|apos|nbsp));/g, (m, dec, hex, name) => {
+            if (name) return NAMED_ENTITIES[name];
+            const cp = dec !== undefined ? parseInt(dec, 10) : parseInt(hex, 16);
+            return cp > 0 && cp <= 0x10FFFF && (cp < 0xD800 || cp > 0xDFFF) ? String.fromCodePoint(cp) : '\uFFFD';
+        });
+    }
+
+    // The strip_html patterns and the whitespace set mirror filterStripHTML in
+    // internal/flows/filters.go: script and style blocks, comments, declarations and
+    // tags (a letter must follow "<") become a space, then entities are decoded and
+    // whitespace collapses to single spaces.
+    const HTML_STRIP = [
+        /<script\b[^>]*>.*?<\/script[\t\n\f\r ]*>/gis,
+        /<style\b[^>]*>.*?<\/style[\t\n\f\r ]*>/gis,
+        /<!--.*?-->/gs,
+        /<![A-Za-z[][^>]*>|<\?[^>]*\?>/gi,
+        /<\/?[A-Za-z][A-Za-z0-9:_-]*(?:[\t\n\f\r ][^>]*)?\/?>/g
+    ];
+    const GO_SPACE = /[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/;
+
+    function stripHTML(value) {
+        let text = stringify(value);
+        HTML_STRIP.forEach(re => { text = text.replace(re, ' '); });
+        return decodeEntities(text).split(GO_SPACE).filter(Boolean).join(' ');
+    }
+
+    // caseMap maps one character at a time like Go's strings.ToUpper/ToLower (simple
+    // case mapping): an upper-case mapping that would expand (ß → SS) keeps the
+    // character, and the one lower-case expansion (İ → i + dot) keeps its first letter.
+    function caseMap(s, upper) {
+        if (!/[^\x00-\x7f]/.test(s)) return upper ? s.toUpperCase() : s.toLowerCase();
+        return Array.from(s, ch => {
+            const mapped = Array.from(upper ? ch.toUpperCase() : ch.toLowerCase());
+            if (mapped.length === 1) return mapped[0];
+            return upper ? ch : mapped[0];
+        }).join('');
+    }
+
+    // roundHalfAway rounds like Go's filterRound: halves away from zero (math.Round),
+    // at most 10 decimals, no "-0", and a value too large to scale comes back as is.
+    function roundHalfAway(value, places) {
+        if (places > 10) throw new Error('at most 10 decimals');
+        const n = toNumber(value);
+        if (!isFinite(n)) throw new Error('not a number');
+        const f = Math.pow(10, places);
+        const scaled = n * f;
+        const r = Math.sign(scaled) * Math.round(Math.abs(scaled)) / f;
+        if (!isFinite(r)) return n;
+        return r === 0 ? 0 : r;
     }
 
     function intArg(args, i, def, min) {
@@ -198,8 +248,8 @@
     const FILTERS = {
         default: { min: 1, max: 1, hint: '(value)', fn: (v, a) => (v === null || v === undefined || v === '') ? a[0] : v },
         truncate: { min: 1, max: 1, hint: '(100)', fn: (v, a) => { const n = intArg(a, 0, 0, 1); const chars = Array.from(stringify(v)); return chars.length <= n ? chars.join('') : chars.slice(0, n).join('') + '…'; } },
-        upper: { min: 0, max: 0, hint: '', fn: v => stringify(v).toUpperCase() },
-        lower: { min: 0, max: 0, hint: '', fn: v => stringify(v).toLowerCase() },
+        upper: { min: 0, max: 0, hint: '', fn: v => caseMap(stringify(v), true) },
+        lower: { min: 0, max: 0, hint: '', fn: v => caseMap(stringify(v), false) },
         trim: { min: 0, max: 0, hint: '', fn: v => stringify(v).trim() },
         join: { min: 0, max: 1, hint: '(", ")', fn: (v, a) => Array.isArray(v) ? v.map(stringify).join(strArg(a, 0, ', ')) : stringify(v) },
         split: { min: 1, max: 1, hint: '(",")', fn: (v, a) => stringify(v).split(strArg(a, 0, ',')) },
@@ -209,9 +259,9 @@
         pluck: { min: 1, max: 1, hint: '("title")', fn: (v, a) => { const f = strArg(a, 0, ''); return Array.isArray(v) ? v.map(item => item && typeof item === 'object' && !Array.isArray(item) ? item[f] : null) : []; } },
         json: { min: 0, max: 0, hint: '', fn: v => { try { return JSON.stringify(v === undefined ? null : v); } catch (err) { return ''; } } },
         date: { min: 1, max: 2, hint: '("DD.MM.YYYY")', fn: (v, a) => { const d = toDate(v); if (!d) throw new Error('not a date'); return formatDate(d, strArg(a, 0, ''), a.length > 1 ? strArg(a, 1, '') : undefined); } },
-        round: { min: 0, max: 1, hint: '(2)', fn: (v, a) => { const n = toNumber(v); if (isNaN(n)) throw new Error('not a number'); const places = intArg(a, 0, 0, 0); const f = Math.pow(10, places); return Math.round(n * f) / f; } },
-        replace: { min: 2, max: 2, hint: '("a", "b")', fn: (v, a) => stringify(v).split(strArg(a, 0, '')).join(strArg(a, 1, '')) },
-        strip_html: { min: 0, max: 0, hint: '', fn: v => decodeEntities(stringify(v).replace(/<[^>]*>/g, '')).trim() }
+        round: { min: 0, max: 1, hint: '(2)', fn: (v, a) => roundHalfAway(v, intArg(a, 0, 0, 0)) },
+        replace: { min: 2, max: 2, hint: '("a", "b")', fn: (v, a) => { const from = strArg(a, 0, ''); const to = strArg(a, 1, ''); const s = stringify(v); return from === '' ? s : s.split(from).join(to); } },
+        strip_html: { min: 0, max: 0, hint: '', fn: v => stripHTML(v) }
     };
 
     function applyFilter(name, value, args) {
