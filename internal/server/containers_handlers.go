@@ -167,6 +167,12 @@ func handleContainerAction(s *Server) http.HandlerFunc {
 				containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "Docker is in read-only mode"})
 				return
 			}
+			// Refuse a cross-origin handshake before any Docker request or DNS
+			// lookup; handleContainerTerminal checks it again.
+			if !sameOriginOrNoOrigin(r) {
+				containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "forbidden websocket origin"})
+				return
+			}
 			if !containerActionAllowed(s, cfg, containerID, "terminal", w, r) {
 				return
 			}

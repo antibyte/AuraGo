@@ -457,23 +457,25 @@ func DockerListContainers(cfg DockerConfig, all bool, excludedOwners ...string) 
 }
 
 // DockerContainerListEntry is one compact container list entry. FullID,
-// Labels and NetworkIPs are never serialized; administrator surfaces use them
-// to classify the entry.
+// Labels, NetworkIPs and NetworkMode are never serialized; administrator
+// surfaces use them to classify the entry.
 type DockerContainerListEntry struct {
-	ID         string            `json:"id"`
-	Names      []string          `json:"names"`
-	Image      string            `json:"image"`
-	State      string            `json:"state"`
-	Status     string            `json:"status"`
-	Health     string            `json:"health,omitempty"`
-	FullID     string            `json:"-"`
-	Labels     map[string]string `json:"-"`
-	NetworkIPs []string          `json:"-"`
+	ID          string            `json:"id"`
+	Names       []string          `json:"names"`
+	Image       string            `json:"image"`
+	State       string            `json:"state"`
+	Status      string            `json:"status"`
+	Health      string            `json:"health,omitempty"`
+	FullID      string            `json:"-"`
+	Labels      map[string]string `json:"-"`
+	NetworkIPs  []string          `json:"-"`
+	NetworkMode string            `json:"-"` // HostConfig.NetworkMode, e.g. "container:<id>"
 }
 
 // DockerListContainerEntries returns the entries DockerListContainers
-// serializes, plus their full ID, labels and network addresses. On failure
-// entries is nil and failure holds the error JSON DockerListContainers returns.
+// serializes, plus their full ID, labels, network addresses and network mode.
+// On failure entries is nil and failure holds the error JSON
+// DockerListContainers returns.
 // Keep the parsing in step with DockerListContainers
 // (TestDockerListContainerEntriesMatchesDockerListContainers).
 func DockerListContainerEntries(cfg DockerConfig, all bool, excludedOwners ...string) (entries []DockerContainerListEntry, failure string) {
@@ -523,6 +525,11 @@ func DockerListContainerEntries(cfg DockerConfig, all bool, excludedOwners ...st
 				if status, ok := health["Status"].(string); ok {
 					entry.Health = status
 				}
+			}
+		}
+		if hostConfig, ok := c["HostConfig"].(map[string]interface{}); ok {
+			if mode, ok := hostConfig["NetworkMode"].(string); ok {
+				entry.NetworkMode = strings.TrimSpace(mode)
 			}
 		}
 		if settings, ok := c["NetworkSettings"].(map[string]interface{}); ok {

@@ -20,7 +20,7 @@ func TestDockerListContainerEntriesMatchesDockerListContainers(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`[
-			{"Id":"0123456789abcdef0123","Names":["/web"],"Image":"nginx:1","State":"running","Status":"Up 1 minute","Labels":{"com.docker.compose.service":"web"},"NetworkSettings":{"Networks":{"bridge":{"IPAddress":"172.17.0.2","GlobalIPv6Address":""}}}},
+			{"Id":"0123456789abcdef0123","Names":["/web"],"Image":"nginx:1","State":"running","Status":"Up 1 minute","Labels":{"com.docker.compose.service":"web"},"HostConfig":{"NetworkMode":"container:vpn"},"NetworkSettings":{"Networks":{"bridge":{"IPAddress":"172.17.0.2","GlobalIPv6Address":""}}}},
 			{"Id":"short","Names":["/aurago-local-llm"],"Image":"llama","State":"exited","Status":"Exited (0)","Labels":{"aurago.managed":"local-llm"}}
 		]`))
 	})
@@ -42,10 +42,10 @@ func TestDockerListContainerEntriesMatchesDockerListContainers(t *testing.T) {
 	if len(entries) != 2 {
 		t.Fatalf("entries = %+v, want 2", entries)
 	}
-	if entries[0].FullID != "0123456789abcdef0123" || entries[0].Labels["com.docker.compose.service"] != "web" || !slices.Equal(entries[0].NetworkIPs, []string{"172.17.0.2"}) {
+	if entries[0].FullID != "0123456789abcdef0123" || entries[0].Labels["com.docker.compose.service"] != "web" || !slices.Equal(entries[0].NetworkIPs, []string{"172.17.0.2"}) || entries[0].NetworkMode != "container:vpn" {
 		t.Fatalf("first entry metadata = %+v", entries[0])
 	}
-	if entries[1].FullID != "short" || entries[1].Labels["aurago.managed"] != "local-llm" || len(entries[1].NetworkIPs) != 0 {
+	if entries[1].FullID != "short" || entries[1].Labels["aurago.managed"] != "local-llm" || len(entries[1].NetworkIPs) != 0 || entries[1].NetworkMode != "" {
 		t.Fatalf("second entry metadata = %+v", entries[1])
 	}
 }
