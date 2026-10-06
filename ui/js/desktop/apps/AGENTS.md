@@ -1334,6 +1334,9 @@ registration lives in `internal/desktop/types.go`.
   Acknowledgements cover only the captured revision. Suspend the queue during
   Save As; native writes require ETag preconditions. Keep the async close guard
   installed until cleanup and never replace failed loads with blank content.
+- Writer exposes New/Open after load failures and clears the persisted window
+  path only on a confirmed 404. Transient errors retain it for Retry. Verify
+  `TestDesktopFileLoadRecoveryBrowser` alongside the Sheets recovery check.
 - Writer pointer selection must preserve the viewport, including clicks near its
   edges after toolbar focus. Core 2.23.0 supplies this behavior upstream; keep
   keyboard/programmatic reveal and drag edge autoscroll enabled. Retain the
@@ -2238,6 +2241,11 @@ registration lives in `internal/desktop/types.go`.
   empty-state load failures use `desktop.load_failed`. Bundled in the
   main shell bundle (`desktopMainParts` in `build-ui-bundles.js`) because
   it is referenced directly by the desktop foundation runtime.
+  Failed text-file loads retain Retry/New/Open and block editing/saving the
+  unloaded document. A 404 starts an empty buffer only for explicit creation;
+  restored/opened files keep load intent through both shell entry points.
+  Clear their persisted path only on confirmed 404s, retaining temporary failures
+  for Retry. Verify `TestDesktopFileLoadRecoveryBrowser`.
 - `planning-gallery-music.js` - Planner/todo, gallery and Webamp music.
   Bundled in the main shell. Todo and Gallery empty-state load failures
   use `desktop.load_failed`. Webamp unsupported-browser errors use
