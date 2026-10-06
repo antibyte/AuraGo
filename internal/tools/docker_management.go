@@ -862,11 +862,11 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 	}
 	parts, err := dockerComposeParts(cmd)
 	if err != nil {
-		return errJSON("%v", err)
+		return dockerComposeErrorJSON(err)
 	}
-	parts, err = dockerComposeRewriteOutputArgs(cfg, parts)
+	plan, err := planDockerComposeOutput(cfg, parts)
 	if err != nil {
-		return errJSON("%v", err)
+		return dockerComposeErrorJSON(err)
 	}
 	if !dockerComposeReadOnlySubcommand(parts[0]) {
 		if err := requireDockerMutationPermission(); err != nil {
@@ -874,9 +874,35 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 		}
 	}
 	args := []string{"compose", "-f", composeFile}
-	args = append(args, parts...)
-	return runDockerCLIHelper(cfg, args...)
+	if !plan.writesFile() {
+		return dockerComposeCLIRunner(cfg, append(args, plan.args...)...)
+	}
+	// `config -o`: Compose renders into a private staging directory and the file
+	// is published into the workspace afterwards (like docker cp), so Compose
+	// itself never opens a path chosen by the agent. config stays a read-only
+	// command, so this also works under docker.read_only.
+	stagingDir, err := os.MkdirTemp("", "aurago-docker-compose-*")
+	if err != nil {
+		return errJSON("cannot stage the Compose output: %v", err)
+	}
+	defer os.RemoveAll(stagingDir)
+	staged := filepath.Join(stagingDir, "out")
+	result := dockerComposeCLIRunner(cfg, append(args, plan.argsWithOutput(staged)...)...)
+	if !dockerResultOK(result) {
+		return result
+	}
+	published, err := plan.publish(staged)
+	if err != nil {
+		return errJSON("cannot save the Compose output to %s: %v", plan.target, err)
+	}
+	if !published {
+		return result // -q or a list flag: Compose wrote no file
+	}
+	return dockerResultWithField(result, "output_file", plan.target)
 }
+
+// dockerComposeCLIRunner runs one `docker compose` invocation. Tests replace it.
+var dockerComposeCLIRunner = runDockerCLIHelper
 
 // DockerComposeResolvedConfig returns Compose's fully interpolated model for a
 // read-only policy preflight: stdout of `docker compose config --format json`
@@ -1152,133 +1178,14 @@ func dockerComposeParts(cmd string) ([]string, error) {
 		if strings.HasPrefix(lower, "--host") || strings.HasPrefix(lower, "--context") ||
 			strings.HasPrefix(lower, "--tls") || strings.HasPrefix(lower, "-h=") ||
 			lower == "-v" || lower == "--volume" || strings.HasPrefix(lower, "-v=") ||
-			strings.HasPrefix(lower, "--volume=") || strings.HasPrefix(lower, "--mount") ||
-			// --environment prints AuraGo's whole process environment; --env-file
-			// would read an arbitrary host file into the model.
-			strings.HasPrefix(lower, "--environment") || strings.HasPrefix(lower, "--env-file") {
+			strings.HasPrefix(lower, "--volume=") || strings.HasPrefix(lower, "--mount") {
 			return nil, fmt.Errorf("compose argument %q is not allowed", arg)
+		}
+		// --environment prints AuraGo's whole process environment; --env-file
+		// would read an arbitrary host file into the model.
+		if strings.HasPrefix(lower, "--environment") || strings.HasPrefix(lower, "--env-file") {
+			return nil, dockerComposeDenied(dockerComposeArgumentDeniedCode, "compose argument %q is not allowed", arg)
 		}
 	}
 	return parts, nil
-}
-
-// dockerComposeRewriteOutputArgs confines `config -o/--output` to the agent
-// workspace (the process working directory when none is configured, the same
-// jail the compose file itself gets). Relative targets resolve against that
-// root, not AuraGo's working directory, and every accepted target is passed to
-// Compose as an absolute --output=<path>. Other subcommands have no -o flag and
-// are returned unchanged, and so is everything after `--`, which Compose reads
-// as service names.
-func dockerComposeRewriteOutputArgs(cfg DockerConfig, parts []string) ([]string, error) {
-	if len(parts) == 0 || (parts[0] != "config" && parts[0] != "convert") {
-		return parts, nil
-	}
-	out := []string{parts[0]}
-	for i := 1; i < len(parts); i++ {
-		if parts[i] == "--" {
-			return append(out, parts[i:]...), nil
-		}
-		value, prefix, isOutput, consumesNext := dockerComposeOutputFlag(parts[i])
-		if !isOutput {
-			out = append(out, parts[i])
-			continue
-		}
-		if consumesNext {
-			if i+1 >= len(parts) {
-				return nil, fmt.Errorf("compose argument %q needs a file path", parts[i])
-			}
-			i++
-			value = parts[i]
-		}
-		target, err := resolveDockerComposeOutputPath(cfg, value)
-		if err != nil {
-			return nil, err
-		}
-		if prefix != "" {
-			out = append(out, prefix)
-		}
-		out = append(out, "--output="+target)
-	}
-	return out, nil
-}
-
-// dockerComposeOutputFlag recognises --output, --output=x, -o, -o=x, -ox and
-// short clusters such as -qo / -qox. prefix keeps the other short flags of a
-// cluster (for -qo it is -q).
-func dockerComposeOutputFlag(arg string) (value, prefix string, isOutput, consumesNext bool) {
-	switch {
-	case arg == "--output":
-		return "", "", true, true
-	case strings.HasPrefix(arg, "--output="):
-		return strings.TrimPrefix(arg, "--output="), "", true, false
-	case strings.HasPrefix(arg, "--"), !strings.HasPrefix(arg, "-"), arg == "-":
-		return "", "", false, false
-	}
-	cluster := arg[1:]
-	idx := strings.IndexByte(cluster, 'o')
-	if idx < 0 {
-		return "", "", false, false
-	}
-	if idx > 0 {
-		prefix = "-" + cluster[:idx]
-	}
-	rest := strings.TrimPrefix(cluster[idx+1:], "=")
-	if rest == "" {
-		return "", prefix, true, true
-	}
-	return rest, prefix, true, false
-}
-
-// resolveDockerComposeOutputPath resolves a `config -o` target inside the
-// output root, following symlinks of existing parents, and rejects directories
-// and AuraGo's protected files. The root is the configured workspace; without
-// one it is the process working directory, as for the compose file.
-func resolveDockerComposeOutputPath(cfg DockerConfig, value string) (string, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return "", fmt.Errorf("compose --output needs a file path")
-	}
-	workspace := strings.TrimSpace(cfg.WorkspaceDir)
-	if workspace == "" {
-		workdir, err := os.Getwd()
-		if err != nil {
-			return "", fmt.Errorf("determine working directory for compose --output: %w", err)
-		}
-		workspace = workdir
-	}
-	candidate := value
-	if !filepath.IsAbs(candidate) {
-		candidate = filepath.Join(workspace, candidate)
-	}
-	absTarget, err := filepath.Abs(candidate)
-	if err != nil {
-		return "", fmt.Errorf("invalid compose --output target %q: %w", value, err)
-	}
-	absWorkspace, err := filepath.Abs(workspace)
-	if err != nil {
-		return "", fmt.Errorf("invalid workspace path: %w", err)
-	}
-	resolvedTarget, err := secureResolveFinalPath(filepath.Clean(absTarget))
-	if err != nil {
-		return "", fmt.Errorf("resolve compose --output target %q: %w", value, err)
-	}
-	resolvedWorkspace, err := secureResolveFinalPath(filepath.Clean(absWorkspace))
-	if err != nil {
-		return "", fmt.Errorf("resolve workspace directory: %w", err)
-	}
-	target := cleanDockerHostPath(resolvedTarget)
-	root := cleanDockerHostPath(resolvedWorkspace)
-	if target == root || !dockerPathEqualOrWithin(target, root) {
-		return "", fmt.Errorf("compose --output target %q must stay within the configured workspace", value)
-	}
-	if info, statErr := os.Stat(resolvedTarget); statErr == nil && info.IsDir() {
-		return "", fmt.Errorf("compose --output target %q is a directory", value)
-	}
-	if err := requireUnprotectedNotesPath(resolvedTarget, true); err != nil {
-		return "", err
-	}
-	if err := requireUnprotectedSystemPath(resolvedTarget, value); err != nil {
-		return "", err
-	}
-	return filepath.Clean(resolvedTarget), nil
 }

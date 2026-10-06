@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -370,6 +371,16 @@ func TestValidateDockerComposeArgsRejectsHighRiskSubcommands(t *testing.T) {
 	}
 }
 
+// planComposeOutput parses command like DockerCompose and plans its -o target.
+func planComposeOutput(t *testing.T, cfg DockerConfig, command string) (dockerComposeOutputPlan, error) {
+	t.Helper()
+	parts, err := dockerComposeParts(command)
+	if err != nil {
+		t.Fatalf("%s: dockerComposeParts() error = %v", command, err)
+	}
+	return planDockerComposeOutput(cfg, parts)
+}
+
 func TestDockerComposeOutputArgsStayInWorkspace(t *testing.T) {
 	root := t.TempDir()
 	workspace := filepath.Join(root, "workspace")
@@ -381,88 +392,131 @@ func TestDockerComposeOutputArgsStayInWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "--output=" + filepath.Join(resolvedWorkspace, "rendered", "stack.yml")
-	for _, command := range []string{
-		"config -o rendered/stack.yml",
-		"config --output rendered/stack.yml",
-		"config --output=rendered/stack.yml",
-		"config -o=rendered/stack.yml",
-		"config -orendered/stack.yml",
-		"config -qo rendered/stack.yml",
-		"config --format json -o " + filepath.Join(workspace, "rendered", "stack.yml"),
-		"convert -o rendered/stack.yml",
+	stack := filepath.Join(resolvedWorkspace, "rendered", "stack.yml")
+	const staged = "STAGED"
+	// Compose never gets the validated path: the output flag is replaced by one
+	// pointing at the staging file, at the place of the last output flag.
+	for command, wantArgs := range map[string]string{
+		"config -o rendered/stack.yml":                                                 "config --output=STAGED",
+		"config --output rendered/stack.yml":                                           "config --output=STAGED",
+		"config --output=rendered/stack.yml":                                           "config --output=STAGED",
+		"config -o=rendered/stack.yml":                                                 "config --output=STAGED",
+		"config -orendered/stack.yml":                                                  "config --output=STAGED",
+		"config -qo rendered/stack.yml":                                                "config -q --output=STAGED",
+		"config -qo=rendered/stack.yml":                                                "config -q --output=STAGED",
+		"config --format json -o " + filepath.Join(workspace, "rendered", "stack.yml"): "config --format json --output=STAGED",
+		"convert -o rendered/stack.yml":                                                "convert --output=STAGED",
+		"config -o rendered/stack.yml -- web":                                          "config --output=STAGED -- web",
+		"config -o rendered/stack.yml --services":                                      "config --output=STAGED --services",
+		"config -o rendered/other.yml -o rendered/stack.yml":                           "config --output=STAGED",
 	} {
-		parts, err := dockerComposeParts(command)
+		plan, err := planComposeOutput(t, cfg, command)
 		if err != nil {
-			t.Fatalf("%s: dockerComposeParts() error = %v", command, err)
+			t.Fatalf("%s: plan error = %v", command, err)
 		}
-		got, err := dockerComposeRewriteOutputArgs(cfg, parts)
-		if err != nil {
-			t.Fatalf("%s: rewrite error = %v", command, err)
+		if !plan.writesFile() || plan.target != stack || plan.rel != filepath.Join("rendered", "stack.yml") || plan.root != resolvedWorkspace {
+			t.Fatalf("%s: plan = %+v, want target %s", command, plan, stack)
 		}
-		if strings.Join(got, " ") == strings.Join(parts, " ") || !strings.Contains(strings.Join(got, "\x00"), want) {
-			t.Fatalf("%s: rewritten = %q, want %s", command, got, want)
+		if got := strings.Join(plan.argsWithOutput(staged), " "); got != wantArgs {
+			t.Fatalf("%s: arguments for Compose = %q, want %q", command, got, wantArgs)
 		}
-		if strings.HasPrefix(command, "config -qo") && got[1] != "-q" {
-			t.Fatalf("%s: quiet flag lost: %q", command, got)
+		if strings.Contains(strings.Join(plan.args, " "), "output") || strings.Contains(strings.Join(plan.argsWithOutput(staged), " "), workspace) {
+			t.Fatalf("%s: the workspace path must not reach Compose: %q", command, plan.argsWithOutput(staged))
 		}
+	}
+	// `-o=` names a file called "=" (pflag keeps the "=" when nothing follows it),
+	// so the argument after it stays a service name.
+	plan, err := planComposeOutput(t, cfg, "config -o= web")
+	if err != nil || plan.target != filepath.Join(resolvedWorkspace, "=") || strings.Join(plan.argsWithOutput(staged), " ") != "config --output=STAGED web" {
+		t.Fatalf("-o= plan = %+v, %v", plan, err)
+	}
+	// An "=" after other letters of the value belongs to the value: -ostack=1.yml
+	// names the file "stack=1.yml".
+	plan, err = planComposeOutput(t, cfg, "config -ostack=1.yml")
+	if err != nil || plan.target != filepath.Join(resolvedWorkspace, "stack=1.yml") {
+		t.Fatalf("-ostack=1.yml plan = %+v, %v", plan, err)
+	}
+	// An empty --output= writes to stdout: the flag is dropped, nothing to confine.
+	plan, err = planComposeOutput(t, cfg, "config --output= --services")
+	if err != nil || plan.writesFile() || strings.Join(plan.args, " ") != "config --services" {
+		t.Fatalf("empty --output= plan = %+v, %v", plan, err)
+	}
+	// Compose keeps the last output flag; an empty one last means stdout, but
+	// every flag is validated.
+	plan, err = planComposeOutput(t, cfg, "config -o rendered/stack.yml --output=")
+	if err != nil || plan.writesFile() || strings.Join(plan.args, " ") != "config" {
+		t.Fatalf("last empty --output= plan = %+v, %v", plan, err)
 	}
 	for _, command := range []string{
 		"config -o ../outside.yml",
 		"config --output=" + filepath.Join(root, "outside.yml"),
 		"config -qo ../../etc/cron.d/aurago",
 		"config -o",
+		"config -qo",
+		"config --output",
 		"config -o rendered",
 		"config -o .env",
 		"config --output rendered/vault.bin",
+		"config -o ../outside.yml -o rendered/stack.yml",
+		"config -o rendered/stack.yml -o ../outside.yml",
+		"config -o rendered/stack.yml --output=../outside.yml",
 	} {
-		parts, err := dockerComposeParts(command)
-		if err != nil {
-			t.Fatalf("%s: dockerComposeParts() error = %v", command, err)
+		_, err := planComposeOutput(t, cfg, command)
+		if err == nil {
+			t.Fatalf("%s: accepted", command)
 		}
-		if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err == nil {
-			t.Fatalf("%s: accepted as %q", command, got)
-		}
-	}
-	link := filepath.Join(workspace, "link")
-	if err := os.Symlink(root, link); err == nil {
-		// Skipped where symlinks cannot be created (Windows without the privilege;
-		// Go does not resolve Windows junctions, as for every other jail check).
-		for _, command := range []string{"config -o link/escape.yml", "config --output=link"} {
-			parts, _ := dockerComposeParts(command)
-			if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err == nil {
-				t.Fatalf("%s: symlink to the workspace parent escaped as %q", command, got)
-			}
+		var denied *dockerComposeDeniedError
+		if !errors.As(err, &denied) || denied.code != dockerComposeOutputDeniedCode {
+			t.Fatalf("%s: error %v is not a %s denial", command, err, dockerComposeOutputDeniedCode)
 		}
 	}
-	parts, _ := dockerComposeParts("logs -f --tail 20")
-	if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err != nil || strings.Join(got, " ") != "logs -f --tail 20" {
-		t.Fatalf("other subcommands must stay unchanged: %q, %v", got, err)
+	// Other subcommands, config without -o and everything after `--` reach
+	// Compose unchanged.
+	for _, command := range []string{
+		"logs -f --tail 20",
+		"config --format json --services",
+		"config -- -o ../outside.yml",
+		"up -d -o x",
+		"config -q=foo",
+	} {
+		plan, err := planComposeOutput(t, cfg, command)
+		if err != nil || plan.writesFile() || strings.Join(plan.args, " ") != command {
+			t.Fatalf("%s: plan = %+v, %v; want it unchanged", command, plan, err)
+		}
 	}
-	parts, _ = dockerComposeParts("config --format json --services")
-	if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err != nil || strings.Join(got, " ") != "config --format json --services" {
-		t.Fatalf("config without -o must stay unchanged: %q, %v", got, err)
+
+	result := DockerCompose(cfg, "compose.yml", "config -o ../outside.yml")
+	if !strings.Contains(result, "must stay within the configured workspace") || !strings.Contains(result, `"code":"docker_compose_output_denied"`) {
+		t.Fatalf("DockerCompose() = %s, want the coded workspace denial before the CLI runs", result)
 	}
-	// After `--` Compose reads service names, so nothing there is an output flag.
-	parts, _ = dockerComposeParts("config -- -o ../outside.yml")
-	if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err != nil || strings.Join(got, " ") != "config -- -o ../outside.yml" {
-		t.Fatalf("arguments after -- must stay unchanged: %q, %v", got, err)
+	for _, command := range []string{"config --environment", "config --environment=true", "up -d --env-file /etc/aurago/master.key"} {
+		result := DockerCompose(cfg, "compose.yml", command)
+		if !strings.Contains(result, "is not allowed") || !strings.Contains(result, `"code":"docker_compose_argument_denied"`) {
+			t.Fatalf("DockerCompose(%s) = %s, want the coded argument denial before the CLI runs", command, result)
+		}
 	}
-	parts, _ = dockerComposeParts("config -qo rendered/stack.yml -- web")
-	if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err != nil ||
-		strings.Join(got, "\x00") != "config\x00-q\x00"+want+"\x00--\x00web" {
-		t.Fatalf("output before -- must be rewritten and the service kept: %q, %v", got, err)
-	}
-	if result := DockerCompose(cfg, "compose.yml", "config -o ../outside.yml"); !strings.Contains(result, "must stay within the configured workspace") {
-		t.Fatalf("DockerCompose() = %s, want the workspace denial before the CLI runs", result)
-	}
-	if result := DockerCompose(cfg, "compose.yml", "config --environment"); !strings.Contains(result, "is not allowed") {
-		t.Fatalf("DockerCompose() = %s, want --environment rejected before the CLI runs", result)
+	if result := DockerCompose(cfg, "compose.yml", "exec app sh"); strings.Contains(result, `"code"`) {
+		t.Fatalf("other denials keep their envelope: %s", result)
 	}
 	// Writing a rendered file stays a read-only Compose command, so it keeps
 	// working in Docker read-only mode.
 	if DockerComposeCommandMutates("config -o rendered/stack.yml") {
 		t.Fatal("config -o must stay a read-only Compose command")
+	}
+}
+
+func TestDockerComposeArgumentsDenial(t *testing.T) {
+	for _, command := range []string{"up -d", "config -o rendered/stack.yml", "ps"} {
+		if denial := DockerComposeArgumentsDenial(command); denial != "" {
+			t.Fatalf("%s: unexpected denial %s", command, denial)
+		}
+	}
+	if denial := DockerComposeArgumentsDenial("config --env-file=/x"); !strings.Contains(denial, `"code":"docker_compose_argument_denied"`) {
+		t.Fatalf("--env-file denial = %s", denial)
+	}
+	denial := DockerComposeArgumentsDenial("exec app sh")
+	if !strings.Contains(denial, "not allowed by the safe compose policy") || strings.Contains(denial, `"code"`) {
+		t.Fatalf("exec denial = %s, want the plain envelope", denial)
 	}
 }
 
@@ -482,19 +536,7 @@ func TestDockerComposeOutputArgsRejectAuraGoState(t *testing.T) {
 	if err := os.WriteFile(configPath, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	previous, configured := currentRuntimePermissions()
-	ConfigureRuntimePermissions(RuntimePermissions{
-		ProtectedDataDir:     dataDir,
-		ProtectedSystemFiles: []string{configPath},
-		ProtectedNotesRoots:  []string{notes},
-	})
-	t.Cleanup(func() {
-		if configured {
-			ConfigureRuntimePermissions(previous)
-		} else {
-			ClearRuntimePermissionsForTest()
-		}
-	})
+	protectAuraGoStateForTest(t, dataDir, configPath, notes)
 	cfg := DockerConfig{WorkspaceDir: workspace}
 	for _, command := range []string{
 		"config -o data/short_term.db",
@@ -504,27 +546,41 @@ func TestDockerComposeOutputArgsRejectAuraGoState(t *testing.T) {
 		"config -o Documents/Notes/rendered.md",
 		"config -o rendered/prod.env",
 	} {
-		parts, err := dockerComposeParts(command)
-		if err != nil {
-			t.Fatalf("%s: dockerComposeParts() error = %v", command, err)
-		}
-		if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err == nil {
-			t.Fatalf("%s: accepted as %q", command, got)
+		if plan, err := planComposeOutput(t, cfg, command); err == nil {
+			t.Fatalf("%s: accepted as %+v", command, plan)
 		}
 	}
 	// An existing rendered file may be overwritten.
 	if err := os.WriteFile(filepath.Join(workspace, "rendered", "stack.yml"), []byte("old"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	parts, _ := dockerComposeParts("config -o rendered/stack.yml")
-	if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err != nil || len(got) != 2 || !strings.HasPrefix(got[1], "--output=") {
-		t.Fatalf("existing workspace file rejected: %q, %v", got, err)
+	if plan, err := planComposeOutput(t, cfg, "config -o rendered/stack.yml"); err != nil || !plan.writesFile() {
+		t.Fatalf("existing workspace file rejected: %+v, %v", plan, err)
 	}
+}
+
+// protectAuraGoStateForTest configures the runtime snapshot's protected paths.
+func protectAuraGoStateForTest(t *testing.T, dataDir, configPath, notes string) {
+	t.Helper()
+	previous, configured := currentRuntimePermissions()
+	perms := RuntimePermissions{ProtectedDataDir: dataDir, ProtectedSystemFiles: []string{configPath}}
+	if notes != "" {
+		perms.ProtectedNotesRoots = []string{notes}
+	}
+	ConfigureRuntimePermissions(perms)
+	t.Cleanup(func() {
+		if configured {
+			ConfigureRuntimePermissions(previous)
+		} else {
+			ClearRuntimePermissionsForTest()
+		}
+	})
 }
 
 func TestDockerComposeOutputArgsWithoutWorkspaceStayInWorkingDirectory(t *testing.T) {
 	// Without a configured workspace the agent Compose preflight confines the
-	// compose file to the process working directory; -o uses the same root.
+	// compose file to the process working directory; -o uses the same root, and
+	// the denial says so.
 	workdir := t.TempDir()
 	t.Chdir(workdir)
 	resolvedWorkdir, err := secureResolveFinalPath(workdir)
@@ -532,22 +588,233 @@ func TestDockerComposeOutputArgsWithoutWorkspaceStayInWorkingDirectory(t *testin
 		t.Fatal(err)
 	}
 	cfg := DockerConfig{}
-	parts, _ := dockerComposeParts("config -o rendered/stack.yml")
-	got, err := dockerComposeRewriteOutputArgs(cfg, parts)
+	plan, err := planComposeOutput(t, cfg, "config -o rendered/stack.yml")
 	if err != nil {
-		t.Fatalf("rewrite error = %v", err)
+		t.Fatalf("plan error = %v", err)
 	}
-	want := "--output=" + filepath.Join(resolvedWorkdir, "rendered", "stack.yml")
-	if strings.Join(got, "\x00") != "config\x00"+want {
-		t.Fatalf("rewritten = %q, want config %s", got, want)
+	if want := filepath.Join(resolvedWorkdir, "rendered", "stack.yml"); plan.target != want || plan.root != resolvedWorkdir {
+		t.Fatalf("plan = %+v, want target %s", plan, want)
 	}
 	for _, command := range []string{
 		"config -o ../outside.yml",
 		"config --output=" + filepath.Join(filepath.Dir(resolvedWorkdir), "outside.yml"),
 	} {
-		parts, _ := dockerComposeParts(command)
-		if got, err := dockerComposeRewriteOutputArgs(cfg, parts); err == nil {
-			t.Fatalf("%s: accepted as %q", command, got)
+		_, err := planComposeOutput(t, cfg, command)
+		if err == nil {
+			t.Fatalf("%s: accepted", command)
+		}
+		if !strings.Contains(err.Error(), "AuraGo's working directory") || strings.Contains(err.Error(), "configured workspace") {
+			t.Fatalf("%s: denial %q must name the working directory", command, err)
 		}
 	}
+}
+
+func TestDockerComposeOutputArgsRejectSymlinkEscape(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(root, filepath.Join(workspace, "link")); err != nil {
+		t.Skipf("symlinks cannot be created here (%v); Go does not resolve Windows junctions, as for every other jail check", err)
+	}
+	cfg := DockerConfig{WorkspaceDir: workspace}
+	for _, command := range []string{"config -o link/escape.yml", "config --output=link", "config -o link/workspace/../x.yml"} {
+		if plan, err := planComposeOutput(t, cfg, command); err == nil {
+			t.Fatalf("%s: symlink to the workspace parent escaped as %+v", command, plan)
+		}
+	}
+}
+
+// stubComposeRunner replaces the Compose CLI. run sees the Compose arguments
+// and the path of the --output file (empty when there is none).
+func stubComposeRunner(t *testing.T, run func(args []string, output string) string) {
+	t.Helper()
+	previous := dockerComposeCLIRunner
+	dockerComposeCLIRunner = func(cfg DockerConfig, args ...string) string {
+		output := ""
+		for _, arg := range args {
+			if value, ok := strings.CutPrefix(arg, "--output="); ok {
+				output = value
+			}
+		}
+		return run(args, output)
+	}
+	t.Cleanup(func() { dockerComposeCLIRunner = previous })
+}
+
+const composeOKResult = `{"output":"","status":"ok"}`
+
+func TestDockerComposeConfigOutputIsStagedAndPublished(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true, DockerReadOnly: true})
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+	workspace := t.TempDir()
+	resolvedWorkspace, err := secureResolveFinalPath(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := DockerConfig{WorkspaceDir: workspace}
+	rendered := filepath.Join(resolvedWorkspace, "rendered", "stack.yml")
+	if err := os.MkdirAll(filepath.Dir(rendered), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	var stagedPath string
+	writeStaged := func(args []string, output string) string {
+		if output == "" {
+			return composeOKResult
+		}
+		stagedPath = output
+		if strings.HasPrefix(output, resolvedWorkspace) || strings.HasPrefix(output, workspace) {
+			t.Errorf("Compose was handed a path inside the workspace: %s", output)
+		}
+		if err := os.WriteFile(output, []byte("services: {}\n"), 0o600); err != nil {
+			t.Errorf("Compose cannot write the staging file: %v", err)
+		}
+		return composeOKResult
+	}
+
+	t.Run("published into the workspace, also read-only, staging removed", func(t *testing.T) {
+		stubComposeRunner(t, writeStaged)
+		result := DockerCompose(cfg, "compose.yml", "config -o rendered/stack.yml")
+		var payload map[string]any
+		if err := json.Unmarshal([]byte(result), &payload); err != nil || payload["status"] != "ok" || payload["output_file"] != rendered {
+			t.Fatalf("result = %s (%v), want ok with output_file %s", result, err, rendered)
+		}
+		if data, err := os.ReadFile(rendered); err != nil || string(data) != "services: {}\n" {
+			t.Fatalf("published file = %q, %v", data, err)
+		}
+		if _, err := os.Stat(filepath.Dir(stagedPath)); !os.IsNotExist(err) {
+			t.Fatalf("staging directory %s was not removed (%v)", filepath.Dir(stagedPath), err)
+		}
+	})
+
+	t.Run("an existing target is replaced, never written through a hardlink", func(t *testing.T) {
+		alias := filepath.Join(resolvedWorkspace, "alias.txt")
+		if err := os.Remove(alias); err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(rendered, []byte("old"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Link(rendered, alias); err != nil {
+			t.Skipf("hardlinks cannot be created here: %v", err)
+		}
+		stubComposeRunner(t, writeStaged)
+		if result := DockerCompose(cfg, "compose.yml", "config -o rendered/stack.yml"); !strings.Contains(result, `"status":"ok"`) {
+			t.Fatalf("result = %s", result)
+		}
+		if data, _ := os.ReadFile(alias); string(data) != "old" {
+			t.Fatalf("hardlinked alias was written through: %q", data)
+		}
+		if data, _ := os.ReadFile(rendered); string(data) != "services: {}\n" {
+			t.Fatalf("target = %q, want the rendered file", data)
+		}
+	})
+
+	t.Run("a missing parent directory below the workspace is created", func(t *testing.T) {
+		stubComposeRunner(t, writeStaged)
+		result := DockerCompose(cfg, "compose.yml", "config --output=new/dir/stack.yml")
+		want := filepath.Join(resolvedWorkspace, "new", "dir", "stack.yml")
+		if !strings.Contains(result, `"status":"ok"`) || !strings.Contains(result, "output_file") {
+			t.Fatalf("result = %s", result)
+		}
+		if data, err := os.ReadFile(want); err != nil || string(data) != "services: {}\n" {
+			t.Fatalf("published file = %q, %v", data, err)
+		}
+	})
+
+	t.Run("the last output flag is the one written", func(t *testing.T) {
+		stubComposeRunner(t, writeStaged)
+		if result := DockerCompose(cfg, "compose.yml", "config -o first.yml -o rendered/last.yml"); !strings.Contains(result, `"status":"ok"`) {
+			t.Fatalf("result = %s", result)
+		}
+		if _, err := os.Stat(filepath.Join(resolvedWorkspace, "first.yml")); !os.IsNotExist(err) {
+			t.Fatalf("first.yml must not be written (%v)", err)
+		}
+		if _, err := os.Stat(filepath.Join(resolvedWorkspace, "rendered", "last.yml")); err != nil {
+			t.Fatalf("last.yml missing: %v", err)
+		}
+	})
+
+	t.Run("-q and list flags write nothing and publish nothing", func(t *testing.T) {
+		stubComposeRunner(t, func(args []string, output string) string { return composeOKResult })
+		result := DockerCompose(cfg, "compose.yml", "config -qo rendered/quiet.yml")
+		if result != composeOKResult {
+			t.Fatalf("result = %s, want the plain Compose result", result)
+		}
+		if _, err := os.Stat(filepath.Join(resolvedWorkspace, "rendered", "quiet.yml")); !os.IsNotExist(err) {
+			t.Fatalf("quiet.yml must not exist (%v)", err)
+		}
+	})
+
+	t.Run("an empty --output= reaches Compose without an output flag", func(t *testing.T) {
+		var seen []string
+		stubComposeRunner(t, func(args []string, output string) string {
+			seen = args
+			return composeOKResult
+		})
+		if result := DockerCompose(cfg, "compose.yml", "config --output= --services"); result != composeOKResult {
+			t.Fatalf("result = %s", result)
+		}
+		if strings.Contains(strings.Join(seen, " "), "output") || seen[len(seen)-1] != "--services" {
+			t.Fatalf("Compose arguments = %q", seen)
+		}
+	})
+
+	t.Run("a failed Compose call publishes nothing", func(t *testing.T) {
+		failed := filepath.Join(resolvedWorkspace, "rendered", "failed.yml")
+		stubComposeRunner(t, func(args []string, output string) string {
+			_ = os.WriteFile(output, []byte("partial"), 0o600)
+			return errJSON("Command failed: exit status 1")
+		})
+		result := DockerCompose(cfg, "compose.yml", "config -o rendered/failed.yml")
+		if !strings.Contains(result, "Command failed") {
+			t.Fatalf("result = %s", result)
+		}
+		if _, err := os.Stat(failed); !os.IsNotExist(err) {
+			t.Fatalf("failed.yml must not exist (%v)", err)
+		}
+	})
+
+	t.Run("a directory swapped in after validation is refused", func(t *testing.T) {
+		target := filepath.Join(resolvedWorkspace, "rendered", "swapped.yml")
+		stubComposeRunner(t, func(args []string, output string) string {
+			if err := os.WriteFile(output, []byte("services: {}\n"), 0o600); err != nil {
+				t.Error(err)
+			}
+			if err := os.Mkdir(target, 0o755); err != nil {
+				t.Error(err)
+			}
+			return composeOKResult
+		})
+		result := DockerCompose(cfg, "compose.yml", "config -o rendered/swapped.yml")
+		if !strings.Contains(result, `"status":"error"`) || !strings.Contains(result, "not a regular file") {
+			t.Fatalf("result = %s, want a refusal", result)
+		}
+	})
+
+	t.Run("a symlink swapped in after validation is replaced or refused, never followed", func(t *testing.T) {
+		outside := filepath.Join(t.TempDir(), "outside.txt")
+		if err := os.WriteFile(outside, []byte("outside"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		target := filepath.Join(resolvedWorkspace, "rendered", "linked.yml")
+		stubComposeRunner(t, func(args []string, output string) string {
+			if err := os.WriteFile(output, []byte("services: {}\n"), 0o600); err != nil {
+				t.Error(err)
+			}
+			if err := os.Symlink(outside, target); err != nil {
+				t.Skipf("symlinks cannot be created here: %v", err)
+			}
+			return composeOKResult
+		})
+		result := DockerCompose(cfg, "compose.yml", "config -o rendered/linked.yml")
+		if !strings.Contains(result, `"status":"error"`) {
+			t.Fatalf("result = %s, want a refusal", result)
+		}
+		if data, _ := os.ReadFile(outside); string(data) != "outside" {
+			t.Fatalf("the symlink target outside the workspace was written: %q", data)
+		}
+	})
 }
