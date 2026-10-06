@@ -83,6 +83,7 @@ type PortSpec struct {
 	Name          string `json:"name,omitempty"`
 	ContainerPort int    `json:"container_port"`
 	Protocol      string `json:"protocol"`
+	HostIP        string `json:"host_ip,omitempty"`
 }
 
 // VolumeTemplate describes a named Docker volume mounted into the app.
@@ -144,6 +145,7 @@ type CompanionTemplate struct {
 	Name        string              `json:"name"`
 	Image       string              `json:"image"`
 	Env         []string            `json:"env,omitempty"`
+	Ports       []PortSpec          `json:"ports,omitempty"`
 	Volumes     []VolumeTemplate    `json:"volumes,omitempty"`
 	HostBinds   []HostBindTemplate  `json:"host_binds,omitempty"`
 	NetworkMode string              `json:"network_mode,omitempty"`
@@ -160,6 +162,7 @@ type CompanionApp struct {
 	Status        string          `json:"status"`
 	Error         string          `json:"error,omitempty"`
 	NetworkMode   string          `json:"network_mode,omitempty"`
+	Ports         []PortBinding   `json:"ports,omitempty"`
 	Volumes       []VolumeBinding `json:"volumes,omitempty"`
 	HostBinds     []HostBinding   `json:"host_binds,omitempty"`
 	Env           []string        `json:"-"`
@@ -235,6 +238,7 @@ type InstalledApp struct {
 	ContainerID        string          `json:"container_id,omitempty"`
 	Image              string          `json:"image"`
 	Status             string          `json:"status"`
+	UpdateRequired     bool            `json:"update_required,omitempty"`
 	Error              string          `json:"error,omitempty"`
 	BindMode           string          `json:"bind_mode"`
 	HostIP             string          `json:"host_ip"`

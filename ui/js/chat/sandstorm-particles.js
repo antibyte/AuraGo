@@ -2,7 +2,18 @@
     'use strict';
 
     // ═══════════════════════════════════════════════════════════════
-    //  SANDSTORM PARTICLE + WEBGL FOG ENGINE
+    //  SANDSTORM SCENE, PARTICLE + WEBGL DUST ENGINE
+    //
+    //  Layers (back to front, see css/chat-themes.css):
+    //    #sandstorm-fog      WebGL  sky tint, sun, crepuscular rays, dust,
+    //                               the dust wall of a storm, lightning tint
+    //    #sandstorm-scene    2D     cached dune ridges, clouds, dust rolls,
+    //                               lightning bolt, 2D fallbacks for the sky
+    //    (chat content)
+    //    #sandstorm-overlay  2D     flying grains, trails, ground pile and the
+    //                               sand resting on message bubbles
+    //  Weather state for CSS: html[data-sandstorm="calm"|"storm"] while live,
+    //  --sandstorm-flash on .app-header/.app-footer during dry lightning.
     // ═══════════════════════════════════════════════════════════════
 
     // ─── 2D Particle Config ───
@@ -19,7 +30,19 @@
     const IDLE_MIN = 12000;
     const IDLE_MAX = 24000;
     const STORM_DURATION = 9000;
+    const STORM_ATTACK = 1800;
+    const STORM_RELEASE = 2400;
     const GROUND_RES = 3;
+
+    // ─── Scene Config ───
+    const SUN_X = 0.82;              // fraction of the canvas width
+    const SUN_Y = 0.12;              // fraction of the canvas height
+    const DUNE_MARGIN = 72;          // horizontal parallax reserve per ridge, px
+    const DUNE_PARALLAX_X = [4, 7, 11];
+    const DUNE_PARALLAX_Y = [0.012, 0.022, 0.035];
+    const POINTER_RADIUS = 110;
+    const FLASH_PULSE_MS = 170;
+    const FLASH_SECOND_MS = 140;
 
     // ─── WebGL Fog Config ───
     const FOG_VERTEX = `
@@ -40,6 +63,10 @@
         uniform float u_storm;
         uniform float u_drift;
         uniform vec4 u_eddies[3];
+        uniform vec2 u_sun;
+        uniform vec2 u_front;
+        uniform float u_flash;
+        uniform float u_glow;
 
         float hash(vec2 p) {
             vec3 h = fract(vec3(p.xyx) * 0.1031);
@@ -69,6 +96,13 @@
             return v;
         }
 
+        // Premultiplied "over" compositing into the accumulator.
+        void over(inout vec3 col, inout float a, vec3 c, float alpha) {
+            alpha = clamp(alpha, 0.0, 1.0);
+            col = col * (1.0 - alpha) + c * alpha;
+            a = a * (1.0 - alpha) + alpha;
+        }
+
         void main() {
             vec2 uv = gl_FragCoord.xy / u_resolution;
             vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
@@ -93,15 +127,49 @@
             float density = smoothstep(0.23, 0.78, distant * 0.5 + closeDust * 0.65);
             density += low * smoothstep(0.35, 0.72, groundSheet) * (0.35 + u_storm * 0.45);
 
-            // Warm light scatters through thin dust; dense folds stay ochre.
-            vec2 toLight = p - vec2(aspect.x * 0.82, 0.12);
-            float light = exp(-dot(toLight, toLight) * 2.8);
-            vec3 col = mix(vec3(0.40, 0.28, 0.16), vec3(0.89, 0.73, 0.48),
-                clamp(0.35 + light * 0.4 + closeDust * 0.3, 0.0, 1.0));
-            float alpha = density * (0.17 + u_storm * 0.18) * (0.65 + low * 0.35);
-            alpha = clamp(alpha, 0.0, 0.34);
+            // Sun: disc, corona, halo and crepuscular rays through the dust.
+            vec2 toSun = p - u_sun;
+            float sunDist = length(toSun);
+            float disc = 1.0 - smoothstep(0.052, 0.072, sunDist);
+            float corona = exp(-sunDist * 15.0);
+            float halo = exp(-sunDist * sunDist * 8.5);
+            float ang = atan(toSun.y, toSun.x);
+            float rays = noise(vec2(ang * 6.5 + u_time * 0.035, sunDist * 1.6 - u_time * 0.02)) * 1.45 - 0.42;
+            rays = pow(max(0.0, rays), 2.1) * smoothstep(0.02, 0.4, sunDist) * exp(-sunDist * 1.5) * (0.3 + closeDust * 1.1);
 
-            gl_FragColor = vec4(col * alpha, alpha);
+            // The dust wall: a towering, billowing front that crosses the scene during a storm.
+            float along = (p.x - u_front.x) * u_front.y;
+            float edgeNoise = (fbm(vec2(p.y * 2.6 + u_time * 0.14, p.x * 1.7 - u_drift)) - 0.5) * 0.62;
+            float lobes = fbm(folded * vec2(1.5, 2.1) - vec2(u_drift * 1.4, u_time * 0.1));
+            float wallBody = fbm(folded * vec2(3.2, 4.0) - vec2(u_drift * 1.9, u_time * 0.15));
+            float inside = along + edgeNoise;
+            float wall = smoothstep(-0.05, 0.34, inside) * u_storm;
+            wall *= 0.42 + 0.58 * mix(lobes, wallBody, 0.45);
+            wall *= 0.6 + 0.4 * low;
+            float wallRim = smoothstep(-0.04, 0.06, inside) * (1.0 - smoothstep(0.08, 0.3, inside)) * u_storm;
+
+            // Warm light scatters through thin dust; dense folds stay ochre, storms turn it red.
+            float light = exp(-dot(toSun, toSun) * 2.8);
+            float sunVis = clamp(1.0 - u_storm * 0.7 - wall * 0.9, 0.08, 1.0);
+            vec3 dustCol = mix(vec3(0.40, 0.28, 0.16), vec3(0.89, 0.73, 0.48),
+                clamp(0.35 + light * 0.4 + closeDust * 0.3, 0.0, 1.0));
+            dustCol = mix(dustCol, vec3(0.48, 0.25, 0.1), u_storm * 0.55);
+            vec3 hazeCol = mix(vec3(0.44, 0.28, 0.14), vec3(0.84, 0.6, 0.35), low * 0.55 + light * 0.3);
+            vec3 sunCol = mix(vec3(1.0, 0.88, 0.62), vec3(0.96, 0.44, 0.18), u_storm);
+            vec3 wallCol = mix(vec3(0.42, 0.24, 0.09), vec3(0.78, 0.52, 0.25), mix(lobes, wallBody, 0.5) * (1.0 - low * 0.35));
+            wallCol = mix(wallCol, vec3(0.96, 0.74, 0.46), wallRim * sunVis * 0.8);
+
+            vec3 col = vec3(0.0);
+            float a = 0.0;
+            over(col, a, hazeCol, 0.06 + 0.12 * low + light * 0.08);
+            over(col, a, sunCol, (disc * 0.95 + corona * 0.5 + halo * 0.26 * (1.0 + u_glow * 0.7)) * sunVis);
+            over(col, a, vec3(1.0, 0.92, 0.72), rays * 0.5 * sunVis * (1.0 - u_storm * 0.5));
+            over(col, a, dustCol, density * (0.17 + u_storm * 0.2) * (0.65 + low * 0.35));
+            over(col, a, wallCol, wall * 0.74);
+            over(col, a, vec3(0.93, 0.92, 1.0), u_flash * (0.24 + wall * 0.45 + density * 0.2));
+            a = min(a, 0.94);
+
+            gl_FragColor = vec4(col, a);
         }
     `;
 
@@ -111,9 +179,12 @@
     let animationId = null;
     let active = false;
     let lastTime = 0;
+    let headerEl = null, footerEl = null;
 
     // ─── 2D Canvas State ───
-    let canvas, ctx;
+    let canvas, ctx;              // overlay: grains, trails, piles (above the chat)
+    let sceneCanvas, sctx;        // scene: dunes, clouds, rolls, lightning (behind the chat)
+    let groundLine = 0;           // y of the footer top in canvas coordinates
 
     // Flying particles
     let fx, fy, fvx, fvy, fs, fa, fd, fk;
@@ -134,6 +205,10 @@
     // Ground height map
     let groundHeight = [];
 
+    // Cached scene imagery
+    const duneLayers = [];        // { image, top, crest }
+    let raysCache = null;
+
     // Bubble tracking and sand accumulation state
     let cachedBubbles = [];
     let lastBubbleQueryTime = 0;
@@ -148,34 +223,34 @@
 
     function updateBubbleBounds(time) {
         if (!chatBox) return;
-        
+
         // Query bubble elements every 150ms to keep performance high
         if (time - lastBubbleQueryTime > 150) {
             lastBubbleQueryTime = time;
             const bubbleElements = chatBox.querySelectorAll('.bubble');
             const chatBoxRect = chatBox.getBoundingClientRect();
-            
+
             cachedBubbles = [];
             for (let i = 0; i < bubbleElements.length; i++) {
                 const el = bubbleElements[i];
                 const rect = el.getBoundingClientRect();
-                
+
                 const left = rect.left - chatBoxRect.left;
                 const top = rect.top - chatBoxRect.top;
                 const right = rect.right - chatBoxRect.left;
                 const bottom = rect.bottom - chatBoxRect.top;
                 const width = rect.width;
-                
+
                 // Only track if the bubble is in/near the visible screen area
                 if (bottom > -50 && top < chatBoxRect.height + 50 && width > 20) {
                     const BUCKET_SIZE = 3;
                     const numBuckets = Math.ceil(width / BUCKET_SIZE);
-                    
+
                     // Initialize heightmap on DOM element for automatic GC
                     if (!el.__sandHeightMap || el.__sandHeightMap.length !== numBuckets) {
                         el.__sandHeightMap = new Float32Array(numBuckets);
                     }
-                    
+
                     cachedBubbles.push({
                         el: el,
                         left: left,
@@ -207,7 +282,7 @@
         const scrollTop = chatBox.scrollTop || 0;
         const diff = Math.abs(scrollTop - lastScrollTop);
         lastScrollTop = scrollTop;
-        
+
         if (diff > 1) {
             const decay = Math.min(0.5, diff * 0.04);
             for (let i = 0; i < cachedBubbles.length; i++) {
@@ -225,7 +300,7 @@
         for (let i = 0; i < cachedBubbles.length; i++) {
             const b = cachedBubbles[i];
             const map = b.heightMap;
-            
+
             // 1. Sliding physics pass (angle of repose)
             for (let pass = 0; pass < 2; pass++) {
                 for (let col = 0; col < map.length; col++) {
@@ -247,7 +322,7 @@
                     }
                 }
             }
-            
+
             // 2. Slow natural erosion/settling over time (wind or gravity)
             for (let col = 0; col < map.length; col++) {
                 if (map[col] > 0) {
@@ -278,11 +353,11 @@
                 if (map[k] > 0.15) { hasSand = true; break; }
             }
             if (!hasSand) continue;
-            
+
             // Draw soft shadow under/around the sand
             ctx.shadowBlur = 3;
             ctx.shadowColor = 'rgba(163, 112, 57, 0.4)';
-            
+
             // 1. Draw base/shadow layer
             ctx.beginPath();
             ctx.moveTo(b.left, getBubbleSurfaceY(b, 0));
@@ -290,7 +365,7 @@
                 const px = b.left + col * b.bucketSize + b.bucketSize / 2;
                 const x = col * b.bucketSize + b.bucketSize / 2;
                 const surfaceY = getBubbleSurfaceY(b, x);
-                
+
                 // Rounded corner tapering (first 14px and last 14px of bubble width)
                 const distFromLeft = x;
                 const distFromRight = b.width - distFromLeft;
@@ -300,12 +375,12 @@
                 } else if (distFromRight < 14) {
                     taper = distFromRight / 14;
                 }
-                
+
                 const py = surfaceY - map[col] * taper;
                 ctx.lineTo(px, py);
             }
             ctx.lineTo(b.right, getBubbleSurfaceY(b, b.width));
-            
+
             // Trace back along the curved bubble surface
             for (let col = map.length - 1; col >= 0; col--) {
                 const px = b.left + col * b.bucketSize + b.bucketSize / 2;
@@ -313,7 +388,7 @@
                 ctx.lineTo(px, getBubbleSurfaceY(b, x));
             }
             ctx.closePath();
-            
+
             // Base sand gradient
             const sandGrad = ctx.createLinearGradient(0, b.top - 18, 0, b.top);
             sandGrad.addColorStop(0, 'rgba(235, 195, 140, 0.95)'); // Bright top highlight
@@ -321,10 +396,10 @@
             sandGrad.addColorStop(1, 'rgba(150, 95, 45, 0.95)'); // Warm base
             ctx.fillStyle = sandGrad;
             ctx.fill();
-            
+
             // Turn off shadow for highlights
             ctx.shadowBlur = 0;
-            
+
             // 2. Draw a beautiful golden peak highlight layer (gives 3D depth)
             ctx.beginPath();
             ctx.moveTo(b.left, getBubbleSurfaceY(b, 0));
@@ -332,18 +407,18 @@
                 const px = b.left + col * b.bucketSize + b.bucketSize / 2;
                 const x = col * b.bucketSize + b.bucketSize / 2;
                 const surfaceY = getBubbleSurfaceY(b, x);
-                
+
                 const distFromLeft = x;
                 const distFromRight = b.width - distFromLeft;
                 let taper = 1;
                 if (distFromLeft < 14) taper = distFromLeft / 14;
                 else if (distFromRight < 14) taper = distFromRight / 14;
-                
+
                 const py = surfaceY - map[col] * taper * 0.7;
                 ctx.lineTo(px, py);
             }
             ctx.lineTo(b.right, getBubbleSurfaceY(b, b.width));
-            
+
             // Trace back along curved bubble surface
             for (let col = map.length - 1; col >= 0; col--) {
                 const px = b.left + col * b.bucketSize + b.bucketSize / 2;
@@ -351,31 +426,31 @@
                 ctx.lineTo(px, getBubbleSurfaceY(b, x));
             }
             ctx.closePath();
-            
+
             const highlightGrad = ctx.createLinearGradient(0, b.top - 12, 0, b.top);
             highlightGrad.addColorStop(0, 'rgba(255, 235, 200, 0.6)');
             highlightGrad.addColorStop(1, 'rgba(235, 195, 140, 0)');
             ctx.fillStyle = highlightGrad;
             ctx.fill();
-            
+
             // 3. Draw soft, organic sand speck grains
             for (let col = 0; col < map.length; col += 2) {
                 const x = col * b.bucketSize + b.bucketSize / 2;
                 const surfaceY = getBubbleSurfaceY(b, x);
-                
+
                 const distFromLeft = col * b.bucketSize;
                 const distFromRight = b.width - distFromLeft;
                 let taper = 1;
                 if (distFromLeft < 14) taper = distFromLeft / 14;
                 else if (distFromRight < 14) taper = distFromRight / 14;
-                
+
                 const h = map[col] * taper;
                 if (h > 0.8) {
                     ctx.fillStyle = `rgba(255, 245, 220, ${rand(0.3, 0.85)})`;
                     const px = b.left + col * b.bucketSize + rand(-1.2, 1.2);
                     const py = surfaceY - h - rand(0, 1.0);
                     ctx.fillRect(px, py, 1.0, 1.0);
-                    
+
                     if (col % 4 === 0) {
                         ctx.fillStyle = `rgba(138, 89, 44, ${rand(0.2, 0.5)})`;
                         ctx.fillRect(px, py + 1, 1.0, 1.0);
@@ -391,6 +466,9 @@
     let stormEndTime = 0;
     let nextStormTime = 0;
     let stormIntensity = 0;
+    let stormDirection = 1;       // +1: the wall enters from the left, -1: from the right
+    let frontProgress = 0;        // 0..1 position of the dust wall across the scene
+    let afterglow = 0;            // golden light after a storm, decays over a few seconds
     let windSpeed = BASE_WIND;
     let windDrift = 0;
     let weatherTime = 0;
@@ -401,9 +479,21 @@
     const eddyPhases = new Float32Array(3);
     let flowX = 0, flowY = 0;
 
+    // Dry lightning
+    let flashTimes = [];          // scheduled strike times for the running storm
+    let flashStart = -1;          // start time of the current strike, -1 when idle
+    let flash = 0;                // 0..1 brightness of the current strike
+    let flashApplied = false;     // whether the CSS flash variable is non-zero
+    let lightningCount = 0;
+    let bolt = null;              // { points: [[x,y],...], branches: [[[x,y],...]], glowX, glowY }
+
+    // Pointer gust: a short-lived wake that pushes grains away from the cursor.
+    let gustX = 0, gustY = 0, gustVX = 0, gustVY = 0, gustStrength = 0;
+    let gustLastTime = 0;
+
     // ─── WebGL Fog State ───
     let fogCanvas, gl, fogProgram;
-    let uTime, uRes, uStorm, uDrift, uEddies;
+    let uTime, uRes, uStorm, uDrift, uEddies, uSun, uFront, uFlash, uGlow;
     let fogPositionBuffer;
     let fogActive = false;
 
@@ -426,36 +516,60 @@
         return min + Math.random() * (max - min);
     }
 
+    function smooth(t) {
+        t = Math.max(0, Math.min(1, t));
+        return t * t * (3 - 2 * t);
+    }
+
+    function setWeatherState(state) {
+        const root = document.documentElement;
+        if (!state) {
+            root.removeAttribute('data-sandstorm');
+        } else if (root.getAttribute('data-sandstorm') !== state) {
+            root.setAttribute('data-sandstorm', state);
+        }
+    }
+
+    function applyFlashVariable(value) {
+        if (!headerEl) headerEl = document.querySelector('.app-header');
+        if (!footerEl) footerEl = document.querySelector('.app-footer');
+        const text = value > 0.01 ? value.toFixed(3) : '0';
+        if (headerEl) headerEl.style.setProperty('--sandstorm-flash', text);
+        if (footerEl) footerEl.style.setProperty('--sandstorm-flash', text);
+        flashApplied = value > 0.01;
+    }
+
     // ═══════════════════════════════════════════════════════════════
     //  CANVAS & WEBGL SETUP
     // ═══════════════════════════════════════════════════════════════
 
-    function ensureCanvas() {
-        if (canvas) return;
-        canvas = document.createElement('canvas');
-        canvas.id = 'sandstorm-overlay';
-        canvas.setAttribute('aria-hidden', 'true');
-        Object.assign(canvas.style, {
+    function makeLayer(id, zIndex) {
+        const el = document.createElement('canvas');
+        el.id = id;
+        el.setAttribute('aria-hidden', 'true');
+        Object.assign(el.style, {
             position: 'fixed', top: '0', left: '0', width: '0', height: '0',
-            pointerEvents: 'none', zIndex: '2', opacity: '1',
+            pointerEvents: 'none', zIndex: String(zIndex), opacity: '1',
             mixBlendMode: 'normal', display: 'none'
         });
+        return el;
+    }
+
+    function ensureCanvas() {
+        if (canvas) return;
+        sceneCanvas = makeLayer('sandstorm-scene', 0);
+        canvas = makeLayer('sandstorm-overlay', 2);
+        document.body.appendChild(sceneCanvas);
         document.body.appendChild(canvas);
+        sctx = sceneCanvas.getContext('2d', { alpha: true, desynchronized: true });
         ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
     }
 
     function initFogGL() {
         if (fogCanvas) return !!(gl && fogProgram && gl.getProgramParameter(fogProgram, gl.LINK_STATUS));
 
-        fogCanvas = document.createElement('canvas');
-        fogCanvas.id = 'sandstorm-fog';
-        fogCanvas.setAttribute('aria-hidden', 'true');
-        Object.assign(fogCanvas.style, {
-            position: 'fixed', top: '0', left: '0', width: '0', height: '0',
-            pointerEvents: 'none', zIndex: '2', opacity: '1',
-            mixBlendMode: 'normal', display: 'none'
-        });
-        document.body.insertBefore(fogCanvas, canvas);
+        fogCanvas = makeLayer('sandstorm-fog', 0);
+        document.body.insertBefore(fogCanvas, sceneCanvas || canvas);
 
         gl = fogCanvas.getContext('webgl', {
             alpha: true,
@@ -498,6 +612,10 @@
         uStorm = gl.getUniformLocation(fogProgram, 'u_storm');
         uDrift = gl.getUniformLocation(fogProgram, 'u_drift');
         uEddies = gl.getUniformLocation(fogProgram, 'u_eddies[0]');
+        uSun = gl.getUniformLocation(fogProgram, 'u_sun');
+        uFront = gl.getUniformLocation(fogProgram, 'u_front');
+        uFlash = gl.getUniformLocation(fogProgram, 'u_flash');
+        uGlow = gl.getUniformLocation(fogProgram, 'u_glow');
         gl.deleteShader(vs);
         gl.deleteShader(fs);
 
@@ -526,23 +644,24 @@
             const fr = footer.getBoundingClientRect();
             extraH = Math.max(0, fr.bottom - rect.bottom);
         }
+        const layers = [canvas, sceneCanvas, fogCanvas];
         if (!rect.width || !rect.height) {
-            if (canvas) { canvas.style.width = '0'; canvas.style.height = '0'; }
-            if (fogCanvas) { fogCanvas.style.width = '0'; fogCanvas.style.height = '0'; }
+            for (let i = 0; i < layers.length; i++) {
+                if (layers[i]) { layers[i].style.width = '0'; layers[i].style.height = '0'; }
+            }
             return false;
         }
         const left = `${Math.round(rect.left)}px`;
         const top = `${Math.round(rect.top)}px`;
         const w = `${Math.round(rect.width)}px`;
         const h = `${Math.round(rect.height + extraH)}px`;
+        groundLine = Math.round(rect.height);
 
-        if (canvas) {
-            canvas.style.left = left; canvas.style.top = top;
-            canvas.style.width = w; canvas.style.height = h;
-        }
-        if (fogCanvas) {
-            fogCanvas.style.left = left; fogCanvas.style.top = top;
-            fogCanvas.style.width = w; fogCanvas.style.height = h;
+        for (let i = 0; i < layers.length; i++) {
+            const el = layers[i];
+            if (!el) continue;
+            el.style.left = left; el.style.top = top;
+            el.style.width = w; el.style.height = h;
         }
         return true;
     }
@@ -587,8 +706,8 @@
         fvx[i] = rand(BASE_WIND * 0.4, BASE_WIND * 1.3) * windDirection;
         fvy[i] = rand(-0.8, 1.2);
         fd[i] = rand(0.45, 1.45);
-        fs[i] = rand(0.65, 1.35) * fd[i];
-        fa[i] = rand(0.3, 0.6) * Math.min(1, fd[i]);
+        fs[i] = rand(0.75, 1.5) * fd[i];
+        fa[i] = rand(0.32, 0.64) * Math.min(1, fd[i]);
         fk[i] = Math.random() > 0.88 ? 1 : 0;
     }
 
@@ -664,7 +783,14 @@
         canvas.width = Math.floor(w * dpr);
         canvas.height = Math.floor(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (sctx) {
+            sceneCanvas.width = canvas.width;
+            sceneCanvas.height = canvas.height;
+            sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
         rebuildPools(w, h);
+        buildDunes(w, h, dpr);
+        buildRays(h, dpr);
 
         // Resize WebGL fog canvas
         if (fogActive && gl && fogCanvas) {
@@ -680,23 +806,356 @@
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  SCENE: DUNE RIDGES, SUN RAYS (cached per resize)
+    // ═══════════════════════════════════════════════════════════════
+
+    const DUNE_PALETTE = [
+        // far: hazy, lifted by atmospheric perspective
+        { crest: '#8c6440', base: '#3f2817', lit: '255, 220, 160', shade: '32, 18, 10', haze: 0.34, amp: [12, 5], wave: [860, 430], litMax: 0.4 },
+        // mid
+        { crest: '#5e3c21', base: '#23160c', lit: '255, 206, 130', shade: '22, 12, 6', haze: 0.16, amp: [20, 8], wave: [640, 310], litMax: 0.48 },
+        // near: dark, crisp, sun-lit flanks
+        { crest: '#3d2614', base: '#140c07', lit: '255, 196, 112', shade: '14, 8, 4', haze: 0, amp: [28, 10], wave: [540, 250], litMax: 0.56 }
+    ];
+    const DUNE_CRESTS = [112, 70, 26];   // crest height above the footer top, px
+    const dunePhases = new Float32Array(9);
+
+    function duneProfile(layer, x) {
+        // Long, asymmetric waves: a gentle windward rise and a steeper slip face, no jagged ridges.
+        const p = DUNE_PALETTE[layer];
+        let y = 0;
+        for (let k = 0; k < 2; k++) {
+            const t = (x / p.wave[k]) * Math.PI * 2 + dunePhases[layer * 3 + k];
+            y += p.amp[k] * (Math.sin(t) + 0.32 * Math.sin(2 * t + 0.9));
+        }
+        return y;
+    }
+
+    function buildDunes(width, height, dpr) {
+        duneLayers.length = 0;
+        if (!sctx) return;
+        const sunDirX = 0.62, sunDirY = -0.78;
+        for (let layer = 0; layer < DUNE_PALETTE.length; layer++) {
+            const p = DUNE_PALETTE[layer];
+            const crest = groundLine - DUNE_CRESTS[layer];
+            const maxAmp = (p.amp[0] + p.amp[1]) * 1.32;
+            const top = Math.max(0, Math.floor(crest - maxAmp - 26));
+            const imgW = width + DUNE_MARGIN * 2;
+            const imgH = Math.max(1, height - top);
+            const image = document.createElement('canvas');
+            image.width = Math.max(1, Math.floor(imgW * dpr));
+            image.height = Math.max(1, Math.floor(imgH * dpr));
+            const c = image.getContext('2d');
+            if (!c) continue;
+            c.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            // Body with a vertical crest → base gradient
+            c.beginPath();
+            c.moveTo(0, imgH);
+            for (let x = 0; x <= imgW; x += 2) {
+                c.lineTo(x, crest - top + duneProfile(layer, x - DUNE_MARGIN));
+            }
+            c.lineTo(imgW, imgH);
+            c.closePath();
+            const body = c.createLinearGradient(0, crest - top - maxAmp, 0, imgH);
+            body.addColorStop(0, p.crest);
+            body.addColorStop(0.55, p.base);
+            body.addColorStop(1, p.base);
+            c.fillStyle = body;
+            c.fill();
+
+            // Sun-facing flanks catch the light, lee flanks fall into shade.
+            for (let x = 0; x <= imgW; x += 2) {
+                const lx = x - DUNE_MARGIN;
+                const slope = (duneProfile(layer, lx + 2) - duneProfile(layer, lx - 2)) / 4;
+                const nx = slope, ny = -1;
+                const len = Math.hypot(nx, ny);
+                const facing = (nx / len) * sunDirX + (ny / len) * sunDirY;
+                const y = crest - top + duneProfile(layer, lx);
+                if (facing > 0.79) {
+                    const lit = Math.min(p.litMax, (facing - 0.79) * 3.6);
+                    const g = c.createLinearGradient(0, y, 0, y + 44);
+                    g.addColorStop(0, `rgba(${p.lit}, ${lit})`);
+                    g.addColorStop(0.4, `rgba(${p.lit}, ${lit * 0.45})`);
+                    g.addColorStop(1, `rgba(${p.lit}, 0)`);
+                    c.fillStyle = g;
+                    c.fillRect(x, y - 1, 2, 45);
+                } else if (facing < 0.75) {
+                    const shade = Math.min(0.46, (0.75 - facing) * 2.2);
+                    const g = c.createLinearGradient(0, y, 0, y + 64);
+                    g.addColorStop(0, `rgba(${p.shade}, ${shade})`);
+                    g.addColorStop(1, `rgba(${p.shade}, 0)`);
+                    c.fillStyle = g;
+                    c.fillRect(x, y - 1, 2, 65);
+                }
+            }
+
+            // Crest line and a few wind-polished grains along the ridge
+            c.beginPath();
+            for (let x = 0; x <= imgW; x += 2) {
+                const y = crest - top + duneProfile(layer, x - DUNE_MARGIN);
+                if (x === 0) c.moveTo(x, y); else c.lineTo(x, y);
+            }
+            c.strokeStyle = `rgba(${p.lit}, ${0.22 + layer * 0.06})`;
+            c.lineWidth = 1.2;
+            c.stroke();
+            if (layer === 2) {
+                for (let n = 0; n < imgW / 9; n++) {
+                    const x = rand(0, imgW);
+                    const y = crest - top + duneProfile(layer, x - DUNE_MARGIN) + rand(0, 12);
+                    c.fillStyle = `rgba(255, 220, 170, ${rand(0.08, 0.3)})`;
+                    c.fillRect(x, y, 1, 1);
+                }
+            }
+
+            // Atmospheric haze lifts the far ridges toward the sky colour.
+            if (p.haze > 0) {
+                const hz = c.createLinearGradient(0, 0, 0, imgH);
+                hz.addColorStop(0, `rgba(214, 150, 80, ${p.haze})`);
+                hz.addColorStop(1, `rgba(214, 150, 80, ${p.haze * 0.35})`);
+                c.globalCompositeOperation = 'source-atop';
+                c.fillStyle = hz;
+                c.fillRect(0, 0, imgW, imgH);
+                c.globalCompositeOperation = 'source-over';
+            }
+
+            duneLayers.push({ image: image, top: top, crest: crest, width: imgW, height: imgH });
+        }
+    }
+
+    function buildRays(height, dpr) {
+        const radius = Math.max(120, height * 0.75);
+        const size = radius * 2;
+        raysCache = document.createElement('canvas');
+        raysCache.width = Math.max(1, Math.floor(size * dpr));
+        raysCache.height = Math.max(1, Math.floor(size * dpr));
+        const c = raysCache.getContext('2d');
+        if (!c) { raysCache = null; return; }
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        c.translate(radius, radius);
+        const g = c.createRadialGradient(0, 0, 0, 0, 0, radius);
+        g.addColorStop(0, 'rgba(255, 234, 190, 0.55)');
+        g.addColorStop(0.35, 'rgba(255, 214, 140, 0.22)');
+        g.addColorStop(1, 'rgba(255, 196, 110, 0)');
+        c.fillStyle = g;
+        for (let i = 0; i < 26; i++) {
+            const a = (i / 26) * Math.PI * 2;
+            const w = rand(0.028, 0.075);
+            const len = radius * rand(0.45, 1);
+            c.beginPath();
+            c.moveTo(0, 0);
+            c.lineTo(Math.cos(a - w) * len, Math.sin(a - w) * len);
+            c.lineTo(Math.cos(a + w) * len, Math.sin(a + w) * len);
+            c.closePath();
+            c.globalAlpha = rand(0.35, 0.85);
+            c.fill();
+        }
+        c.globalAlpha = 1;
+    }
+
+    function drawDunes(width, height) {
+        if (!sctx || !duneLayers.length) return;
+        const scroll = chatBox ? chatBox.scrollTop || 0 : 0;
+        for (let i = 0; i < duneLayers.length; i++) {
+            const d = duneLayers[i];
+            const dx = -DUNE_MARGIN + Math.sin(weatherTime * 0.05 + i * 1.7) * DUNE_PARALLAX_X[i] + Math.sin(windDrift * 0.3) * DUNE_PARALLAX_X[i];
+            const dy = Math.max(-40, Math.min(40, -scroll * DUNE_PARALLAX_Y[i]));
+            sctx.drawImage(d.image, dx, d.top + dy, d.width, d.height);
+        }
+        // Storm dust settles over the ridges and the afterglow warms their crests.
+        if (stormIntensity > 0.01 || afterglow > 0.01) {
+            const top = duneLayers[0].top;
+            const g = sctx.createLinearGradient(0, top, 0, height);
+            g.addColorStop(0, `rgba(196, 120, 50, ${stormIntensity * 0.34 + afterglow * 0.1})`);
+            g.addColorStop(1, `rgba(120, 60, 20, ${stormIntensity * 0.18})`);
+            sctx.fillStyle = g;
+            sctx.fillRect(0, top, width, height - top);
+        }
+    }
+
+    function drawSky2D(width, height) {
+        // Without WebGL the scene canvas paints sun, rays and the dust wall itself.
+        const sunX = width * SUN_X, sunY = height * SUN_Y;
+        const storm = stormIntensity;
+        const sunVis = Math.max(0.1, 1 - storm * 0.7);
+
+        if (raysCache) {
+            sctx.save();
+            sctx.translate(sunX, sunY);
+            sctx.rotate(weatherTime * 0.012);
+            sctx.globalAlpha = 0.16 * sunVis * (1 + afterglow * 0.4);
+            const r = raysCache.width / (Math.min(window.devicePixelRatio || 1, 1.75) * 2);
+            sctx.drawImage(raysCache, -r, -r, r * 2, r * 2);
+            sctx.restore();
+        }
+
+        const haloR = height * 0.42;
+        const halo = sctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, haloR);
+        halo.addColorStop(0, `rgba(255, 226, 160, ${0.4 * sunVis})`);
+        halo.addColorStop(0.28, `rgba(255, 176, 76, ${0.18 * sunVis})`);
+        halo.addColorStop(1, 'rgba(206, 114, 38, 0)');
+        sctx.fillStyle = halo;
+        sctx.fillRect(sunX - haloR, sunY - haloR, haloR * 2, haloR * 2);
+
+        const discR = height * 0.062;
+        const disc = sctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, discR * 1.6);
+        const core = storm > 0.5 ? '255, 140, 70' : '255, 246, 220';
+        disc.addColorStop(0, `rgba(${core}, ${0.95 * sunVis})`);
+        disc.addColorStop(0.55, `rgba(255, ${Math.round(210 - storm * 110)}, ${Math.round(120 - storm * 70)}, ${0.85 * sunVis})`);
+        disc.addColorStop(0.68, `rgba(255, 180, 90, ${0.3 * sunVis})`);
+        disc.addColorStop(1, 'rgba(255, 150, 60, 0)');
+        sctx.fillStyle = disc;
+        sctx.fillRect(sunX - discR * 2, sunY - discR * 2, discR * 4, discR * 4);
+
+        if (storm > 0.01) {
+            // Dust wall: a towering band whose edge is broken by soft blobs.
+            const edge = stormDirection > 0 ? (-0.3 + frontProgress * 1.6) * width : (1.3 - frontProgress * 1.6) * width;
+            const dir = stormDirection;
+            const band = sctx.createLinearGradient(edge - dir * width * 0.08, 0, edge + dir * width * 0.3, 0);
+            band.addColorStop(0, 'rgba(150, 92, 38, 0)');
+            band.addColorStop(0.45, `rgba(150, 92, 38, ${0.55 * storm})`);
+            band.addColorStop(1, `rgba(130, 78, 32, ${0.62 * storm})`);
+            sctx.fillStyle = band;
+            sctx.fillRect(0, 0, width, height);
+            for (let j = 0; j < 7; j++) {
+                const t = weatherTime * 0.8 + j * 1.9;
+                const bx = edge + dir * (Math.sin(t) * 40 + j * 6);
+                const by = height * (0.08 + j * 0.14) + Math.cos(t * 0.7) * 24;
+                const br = height * (0.16 + 0.06 * Math.sin(t * 1.3 + j));
+                const blob = sctx.createRadialGradient(bx, by, 0, bx, by, br);
+                blob.addColorStop(0, `rgba(196, 132, 62, ${0.5 * storm})`);
+                blob.addColorStop(1, 'rgba(160, 100, 40, 0)');
+                sctx.fillStyle = blob;
+                sctx.fillRect(bx - br, by - br, br * 2, br * 2);
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  DRY LIGHTNING
+    // ═══════════════════════════════════════════════════════════════
+
+    function scheduleLightning(stormStart) {
+        flashTimes = [];
+        const strikes = 1 + Math.floor(rand(0, 3));
+        // The first strike always lands shortly after the wall has built up.
+        flashTimes.push(stormStart + STORM_ATTACK + rand(300, 1600));
+        for (let i = 1; i < strikes; i++) {
+            flashTimes.push(stormStart + rand(2500, STORM_DURATION - STORM_RELEASE));
+        }
+        flashTimes.sort((a, b) => a - b);
+    }
+
+    function makeBolt(width, height) {
+        const points = [];
+        const startX = width * rand(0.15, 0.85);
+        let x = startX, y = -12;
+        const endY = height * rand(0.42, 0.66);
+        const segments = 11 + Math.floor(rand(0, 7));
+        points.push([x, y]);
+        for (let i = 0; i < segments; i++) {
+            x += rand(-30, 30);
+            y += (endY + 12) / segments * rand(0.6, 1.4);
+            points.push([x, y]);
+        }
+        const branches = [];
+        const branchCount = 1 + Math.floor(rand(0, 2));
+        for (let b = 0; b < branchCount; b++) {
+            const from = points[2 + Math.floor(rand(0, Math.max(1, points.length - 4)))];
+            let bx = from[0], by = from[1];
+            const dir = Math.random() > 0.5 ? 1 : -1;
+            const branch = [[bx, by]];
+            for (let i = 0; i < 4; i++) {
+                bx += dir * rand(8, 26);
+                by += rand(10, 30);
+                branch.push([bx, by]);
+            }
+            branches.push(branch);
+        }
+        return { points: points, branches: branches, glowX: startX, glowY: height * 0.18 };
+    }
+
+    function updateLightning(time, dt, width, height) {
+        if (stormActive && flashStart < 0 && flashTimes.length && time >= flashTimes[0]) {
+            flashTimes.shift();
+            flashStart = time;
+            lightningCount++;
+            bolt = makeBolt(width, height);
+        }
+        let value = 0;
+        if (flashStart >= 0) {
+            const t = time - flashStart;
+            const pulse = (offset) => {
+                const tau = t - offset;
+                if (tau < 0) return 0;
+                if (tau < 18) return tau / 18;
+                return Math.exp(-(tau - 18) / FLASH_PULSE_MS);
+            };
+            value = Math.max(pulse(0), 0.8 * pulse(FLASH_SECOND_MS));
+            if (t > FLASH_SECOND_MS + FLASH_PULSE_MS * 5) {
+                flashStart = -1;
+                bolt = null;
+                value = 0;
+            }
+        }
+        flash = value;
+        if (flash > 0.01 || flashApplied) applyFlashVariable(flash);
+    }
+
+    function drawLightning(width, height) {
+        if (!sctx || flash <= 0.01 || !bolt) return;
+        sctx.save();
+        // A pale flash across the whole scene, strongest near the bolt.
+        sctx.fillStyle = `rgba(230, 228, 255, ${0.13 * flash})`;
+        sctx.fillRect(0, 0, width, height);
+        const glow = sctx.createRadialGradient(bolt.glowX, bolt.glowY, 0, bolt.glowX, bolt.glowY, height * 0.55);
+        glow.addColorStop(0, `rgba(236, 232, 255, ${0.5 * flash})`);
+        glow.addColorStop(0.5, `rgba(236, 232, 255, ${0.18 * flash})`);
+        glow.addColorStop(1, 'rgba(236, 232, 255, 0)');
+        sctx.fillStyle = glow;
+        sctx.fillRect(0, 0, width, height);
+
+        const strokePath = (pts) => {
+            sctx.beginPath();
+            sctx.moveTo(pts[0][0], pts[0][1]);
+            for (let i = 1; i < pts.length; i++) sctx.lineTo(pts[i][0], pts[i][1]);
+            sctx.stroke();
+        };
+        sctx.lineJoin = 'round';
+        sctx.lineCap = 'round';
+        sctx.shadowBlur = 34;
+        sctx.shadowColor = `rgba(205, 210, 255, ${0.95 * flash})`;
+        sctx.strokeStyle = `rgba(196, 202, 255, ${0.42 * flash})`;
+        sctx.lineWidth = 11;
+        strokePath(bolt.points);
+        sctx.shadowBlur = 14;
+        sctx.strokeStyle = `rgba(255, 253, 245, ${0.98 * flash})`;
+        sctx.lineWidth = 3.2;
+        strokePath(bolt.points);
+        sctx.lineWidth = 1.8;
+        sctx.strokeStyle = `rgba(255, 250, 235, ${0.8 * flash})`;
+        for (let b = 0; b < bolt.branches.length; b++) strokePath(bolt.branches[b]);
+        sctx.restore();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  2D DRAWING
     // ═══════════════════════════════════════════════════════════════
 
     function drawClouds(width, height, time) {
         for (let i = 0; i < cCount; i++) {
-            ctx.save();
-            ctx.translate(cx[i], cy[i]);
-            ctx.rotate(Math.atan2(cvy[i], cvx[i]) + Math.sin(weatherTime * 0.23 + i) * 0.3);
-            ctx.scale(1.35, 0.55 + Math.sin(weatherTime * 0.35 + i * 2) * 0.16);
-            const g = ctx.createRadialGradient(0, 0, 0, 0, 0, cr[i]);
+            sctx.save();
+            sctx.translate(cx[i], cy[i]);
+            sctx.rotate(Math.atan2(cvy[i], cvx[i]) + Math.sin(weatherTime * 0.23 + i) * 0.3);
+            sctx.scale(1.35, 0.55 + Math.sin(weatherTime * 0.35 + i * 2) * 0.16);
+            const g = sctx.createRadialGradient(0, 0, 0, 0, 0, cr[i]);
             const alpha = ca[i] * (0.75 + Math.sin(weatherTime * 0.4 + i * 3.1) * 0.25) * (1 + stormIntensity * 0.65);
             g.addColorStop(0, `rgba(210, 178, 132, ${alpha})`);
             g.addColorStop(0.5, `rgba(180, 142, 96, ${alpha * 0.4})`);
             g.addColorStop(1, `rgba(150, 112, 68, 0)`);
-            ctx.fillStyle = g;
-            ctx.fillRect(-cr[i], -cr[i], cr[i] * 2, cr[i] * 2);
-            ctx.restore();
+            sctx.fillStyle = g;
+            sctx.fillRect(-cr[i], -cr[i], cr[i] * 2, cr[i] * 2);
+            sctx.restore();
         }
     }
 
@@ -737,6 +1196,16 @@
             flowX -= dy * spin;
             flowY += dx * spin;
         }
+        if (gustStrength > 0.01) {
+            const gx1 = x - gustX, gy1 = y - gustY;
+            const d2 = gx1 * gx1 + gy1 * gy1;
+            const r2 = POINTER_RADIUS * POINTER_RADIUS;
+            if (d2 < r2) {
+                const f = (1 - d2 / r2) * gustStrength;
+                flowX += (gx1 / POINTER_RADIUS) * f * 6 + gustVX * f * 0.4;
+                flowY += (gy1 / POINTER_RADIUS) * f * 4 - f * 2.6;
+            }
+        }
     }
 
     function drawDustRolls(height) {
@@ -751,12 +1220,12 @@
                 const y = eddies[offset + 1] * height + Math.sin(angle) * distance * 0.8;
                 const size = radius * (0.22 + j * 0.016);
                 const alpha = Math.sin((j + 1) * Math.PI / 10) * (0.045 + stormIntensity * 0.07);
-                const dust = ctx.createRadialGradient(x, y, 0, x, y, size);
+                const dust = sctx.createRadialGradient(x, y, 0, x, y, size);
                 dust.addColorStop(0, `rgba(222, 184, 125, ${alpha})`);
                 dust.addColorStop(0.45, `rgba(184, 137, 78, ${alpha * 0.55})`);
                 dust.addColorStop(1, 'rgba(160, 110, 58, 0)');
-                ctx.fillStyle = dust;
-                ctx.fillRect(x - size, y - size, size * 2, size * 2);
+                sctx.fillStyle = dust;
+                sctx.fillRect(x - size, y - size, size * 2, size * 2);
             }
         }
     }
@@ -806,6 +1275,8 @@
 
     function updateAndDrawFlying(dt, time, width, height) {
         const storm = stormIntensity > 0.35;
+        const sunX = width * SUN_X, sunY = height * SUN_Y;
+        const sunR2 = (height * 0.3) * (height * 0.3);
 
         for (let i = 0; i < fCount; i++) {
             const groundDist = Math.max(0, height - fy[i]);
@@ -866,8 +1337,14 @@
                 spawnFlying(i, width, height, true);
             }
 
+            // Grains drifting through the sun's halo are backlit.
+            const sdx = fx[i] - sunX, sdy = fy[i] - sunY;
+            const backlit = Math.exp(-(sdx * sdx + sdy * sdy) / sunR2) * (1 - stormIntensity * 0.6);
+            const colorIndex = backlit > 0.45 ? 0 : i % sandColors.length;
+            const alphaBoost = 1 + backlit * 0.9;
+
             if (fk[i] === 1) {
-                ctx.strokeStyle = `rgba(${sandColors[i % sandColors.length]}, ${fa[i] * (storm ? 0.75 : 0.55)})`;
+                ctx.strokeStyle = `rgba(${sandColors[colorIndex]}, ${Math.min(1, fa[i] * (storm ? 0.75 : 0.55) * alphaBoost)})`;
                 ctx.lineWidth = Math.max(0.6, fs[i] * 0.4);
                 ctx.beginPath();
                 ctx.moveTo(fx[i], fy[i]);
@@ -875,7 +1352,7 @@
                 ctx.stroke();
             } else {
                 const s = fs[i];
-                ctx.fillStyle = `rgba(${sandColors[i % sandColors.length]}, ${fa[i] * (storm ? 0.96 : 0.85)})`;
+                ctx.fillStyle = `rgba(${sandColors[colorIndex]}, ${Math.min(1, fa[i] * (storm ? 0.96 : 0.85) * alphaBoost)})`;
                 ctx.fillRect(fx[i], fy[i], s, s * 0.7);
             }
         }
@@ -906,24 +1383,28 @@
         }
     }
 
+    function liftGrain(x, y, size, alpha, height) {
+        if (fCount >= MAX_FLYING) return false;
+        fx[fCount] = x;
+        fy[fCount] = y;
+        sampleWind(x, y, height);
+        fvx[fCount] = flowX;
+        fvy[fCount] = rand(STORM_LIFT * 0.6, STORM_LIFT * 0.1);
+        fs[fCount] = size;
+        fa[fCount] = Math.min(0.95, alpha);
+        fd[fCount] = rand(0.8, 1.3);
+        fk[fCount] = 0;
+        fCount++;
+        return true;
+    }
+
     function whirlGroundSand(dt, width, height) {
         liftCarry += dt * stormIntensity * 2.5;
         const toWhirl = Math.min(gCount, Math.floor(liftCarry));
         liftCarry %= 1;
         for (let i = 0; i < toWhirl && gCount > 0; i++) {
             const idx = Math.floor(rand(0, gCount));
-            if (fCount >= MAX_FLYING) break;
-
-            fx[fCount] = gx[idx];
-            fy[fCount] = gy[idx] - rand(10, 50);
-            sampleWind(fx[fCount], fy[fCount], height);
-            fvx[fCount] = flowX;
-            fvy[fCount] = rand(STORM_LIFT * 0.6, STORM_LIFT * 0.1);
-            fs[fCount] = gs[idx];
-            fa[fCount] = Math.min(0.95, ga[idx] * 1.2);
-            fd[fCount] = rand(0.8, 1.3);
-            fk[fCount] = 0;
-            fCount++;
+            if (!liftGrain(gx[idx], gy[idx] - rand(10, 50), gs[idx], ga[idx] * 1.2, height)) break;
 
             removeGroundHeight(gx[idx], gs[idx] * 1.2);
 
@@ -931,6 +1412,26 @@
             gs[idx] = gs[gCount - 1]; ga[idx] = ga[gCount - 1];
             gd[idx] = gd[gCount - 1];
             gCount--;
+        }
+    }
+
+    function sweepBubbleSand(dt, height) {
+        // The storm strips the sand resting on message bubbles and carries it away.
+        for (let i = 0; i < cachedBubbles.length; i++) {
+            const b = cachedBubbles[i];
+            const map = b.heightMap;
+            const erosion = 0.05 * dt * stormIntensity;
+            for (let col = 0; col < map.length; col++) {
+                if (map[col] <= 0) continue;
+                map[col] = Math.max(0, map[col] - erosion);
+                if (map[col] > 0.6 && Math.random() < 0.012 * stormIntensity) {
+                    const x = b.left + col * b.bucketSize + b.bucketSize / 2;
+                    const y = getBubbleSurfaceY(b, col * b.bucketSize) - map[col];
+                    if (liftGrain(x, y, rand(0.7, 1.3), rand(0.5, 0.85), height)) {
+                        map[col] = Math.max(0, map[col] - 0.6);
+                    }
+                }
+            }
         }
     }
 
@@ -950,15 +1451,15 @@
 
     function drawStormHaze(width, height, time) {
         if (!stormActive) return;
-        const alpha = stormIntensity * 0.04;
+        const alpha = stormIntensity * 0.06;
 
-        const grad = ctx.createLinearGradient(0, 0, width, 0);
+        const grad = sctx.createLinearGradient(0, 0, width, 0);
         grad.addColorStop(0, `rgba(225, 190, 140, 0)`);
         grad.addColorStop(0.35, `rgba(215, 178, 128, ${alpha})`);
         grad.addColorStop(0.65, `rgba(205, 168, 118, ${alpha * 0.7})`);
         grad.addColorStop(1, `rgba(190, 152, 105, 0)`);
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, width, height);
+        sctx.fillStyle = grad;
+        sctx.fillRect(0, 0, width, height);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -968,12 +1469,19 @@
     function renderFog(now) {
         if (!fogActive || !gl) return;
 
+        const aspect = fogCanvas.width / Math.max(1, fogCanvas.height);
+        const edge = stormDirection > 0 ? (-0.35 + frontProgress * (aspect + 0.7)) : (aspect + 0.35 - frontProgress * (aspect + 0.7));
+
         gl.useProgram(fogProgram);
         gl.uniform1f(uTime, weatherTime);
         gl.uniform2f(uRes, fogCanvas.width, fogCanvas.height);
         gl.uniform1f(uStorm, stormIntensity);
         gl.uniform1f(uDrift, windDrift);
         gl.uniform4fv(uEddies, eddies);
+        gl.uniform2f(uSun, aspect * SUN_X, SUN_Y);
+        gl.uniform2f(uFront, edge, stormDirection);
+        gl.uniform1f(uFlash, flash);
+        gl.uniform1f(uGlow, afterglow);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
@@ -992,22 +1500,31 @@
 
         updateWeather(dt, time);
         updateEddies(width, height);
+        updateLightning(time, dt, width, height);
+        gustStrength *= Math.exp(-dt * 0.09);
 
         // Update bubble elements & track vertical scrolling/velocity
         updateBubbleBounds(time);
         handleScrollErosion();
         updateBubbleSandPhysics(dt);
 
-        // WebGL fog (rendered first, behind particles)
+        // WebGL sky and dust (behind the chat)
         renderFog(time);
 
-        // 2D particles
+        // Scene layer (behind the chat): sky fallback, dunes, atmosphere, lightning
+        if (sctx) {
+            sctx.clearRect(0, 0, width, height);
+            if (!fogActive) drawSky2D(width, height);
+            drawClouds(width, height, time);
+            updateClouds(dt, width, height);
+            drawDustRolls(height);
+            drawDunes(width, height);
+            if (stormActive) drawStormHaze(width, height, time);
+            drawLightning(width, height);
+        }
+
+        // Overlay layer (above the chat): grains and the sand they leave behind
         ctx.clearRect(0, 0, width, height);
-
-        drawClouds(width, height, time);
-        updateClouds(dt, width, height);
-        drawDustRolls(height);
-
         drawGroundPile(width, height);
         drawGroundParticles();
         drawBubbleSand();
@@ -1016,8 +1533,8 @@
 
         if (stormActive) {
             whirlGroundSand(dt, width, height);
+            sweepBubbleSand(dt, height);
             erodeGroundDuringStorm(dt);
-            drawStormHaze(width, height, time);
         } else {
             decayGround(dt);
         }
@@ -1030,20 +1547,55 @@
             stormActive = true;
             stormEndTime = time + STORM_DURATION;
             nextStormTime = time + STORM_DURATION + rand(IDLE_MIN, IDLE_MAX);
+            stormDirection = windDirection >= 0 ? 1 : -1;
+            scheduleLightning(time);
+            setWeatherState('storm');
         }
         if (stormActive && time >= stormEndTime) {
             stormActive = false;
+            afterglow = 1;
+            flashTimes = [];
+            setWeatherState('calm');
         }
-        const elapsed = time - (stormEndTime - STORM_DURATION);
-        const attack = Math.max(0, Math.min(1, elapsed / 1800));
-        const release = Math.max(0, Math.min(1, (stormEndTime - time) / 2400));
+        const stormStart = stormEndTime - STORM_DURATION;
+        const elapsed = time - stormStart;
+        const attack = Math.max(0, Math.min(1, elapsed / STORM_ATTACK));
+        const release = Math.max(0, Math.min(1, (stormEndTime - time) / STORM_RELEASE));
         stormIntensity = stormActive ? attack * attack * (3 - 2 * attack) * release * release * (3 - 2 * release) : 0;
+        frontProgress = stormActive ? smooth(elapsed / STORM_DURATION) : 0;
+        afterglow *= Math.exp(-dt / 60 * 0.18);
+        if (afterglow < 0.005) afterglow = 0;
         weatherTime += dt / 60;
         const gust = Math.pow(Math.max(0, 0.55 + 0.3 * Math.sin(weatherTime * 0.85) + 0.15 * Math.sin(weatherTime * 1.73 + eddyPhases[0])), 3);
         const target = BASE_WIND + gust * 1.6 + Math.sin(weatherTime * 0.37) * 0.25 + stormIntensity * STORM_WIND;
         windSpeed += (target - windSpeed) * (1 - Math.exp(-dt * 0.035));
         windDirection = Math.sin(weatherTime * 0.14 + 1.4);
         windDrift += windSpeed * windDirection * dt * 0.0025;
+    }
+
+    function onPointerMove(event) {
+        if (!active || !canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const now = performance.now();
+        const elapsed = Math.max(8, now - gustLastTime);
+        if (gustLastTime) {
+            const vx = (x - gustX) / elapsed * 16;
+            const vy = (y - gustY) / elapsed * 16;
+            const speed = Math.hypot(vx, vy);
+            gustVX = vx;
+            gustVY = vy;
+            gustStrength = Math.min(1, gustStrength + speed * 0.05);
+        }
+        gustX = x;
+        gustY = y;
+        gustLastTime = now;
+    }
+
+    function onPointerLeave() {
+        gustStrength = 0;
+        gustLastTime = 0;
     }
 
     function start() {
@@ -1058,16 +1610,27 @@
 
         active = true;
         canvas.style.display = 'block';
+        if (sceneCanvas) sceneCanvas.style.display = 'block';
         if (fogCanvas) fogCanvas.style.display = 'block';
+        for (let i = 0; i < dunePhases.length; i++) dunePhases[i] = rand(0, Math.PI * 2);
         resize();
         stormActive = false;
         stormIntensity = 0;
+        frontProgress = 0;
+        afterglow = 0;
+        flashTimes = [];
+        flashStart = -1;
+        flash = 0;
+        bolt = null;
+        gustStrength = 0;
+        gustLastTime = 0;
         windSpeed = BASE_WIND;
         windDirection = 1;
         windDrift = weatherTime = liftCarry = 0;
         for (let i = 0; i < 3; i++) eddyPhases[i] = rand(0, Math.PI * 2);
         nextStormTime = performance.now() + rand(5000, 9000);
         lastTime = 0;
+        setWeatherState('calm');
         animationId = window.requestAnimationFrame(render);
     }
 
@@ -1078,7 +1641,13 @@
             animationId = null;
         }
         if (canvas) canvas.style.display = 'none';
+        if (sceneCanvas) sceneCanvas.style.display = 'none';
         if (fogCanvas) fogCanvas.style.display = 'none';
+        flash = 0;
+        flashStart = -1;
+        bolt = null;
+        if (flashApplied) applyFlashVariable(0);
+        setWeatherState(null);
     }
 
     function sync() {
@@ -1111,6 +1680,11 @@
         const footer = document.querySelector('.app-footer');
         if (footer && typeof ResizeObserver !== 'undefined') {
             new ResizeObserver(() => { if (active) resize(); }).observe(footer);
+        }
+
+        if (chatBox) {
+            chatBox.addEventListener('pointermove', onPointerMove, { passive: true });
+            chatBox.addEventListener('pointerleave', onPointerLeave, { passive: true });
         }
 
         window.addEventListener('aurago:themechange', sync);

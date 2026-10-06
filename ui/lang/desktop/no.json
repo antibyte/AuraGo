@@ -2843,6 +2843,7 @@
   "desktop.store.uninstall": "Avinstaller",
   "desktop.store.uninstall_copy": "Fjern containeren og skrivebordsoppføringene.",
   "desktop.store.update": "Oppdater",
+  "desktop.store.update_required": "Sikkerhetsoppdatering kreves. Oppdater appen for å bytte Docker-overvåking til en skrivebeskyttet proxy.",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
   "desktop.store_terminal_copy_command": "Kopier",
   "desktop.store_terminal_header_subtitle": "Konsoll først",

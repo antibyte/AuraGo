@@ -421,7 +421,10 @@ func TestCatalogHardeningAppliesOnRollbackWithCurrentCatalog(t *testing.T) {
 }
 
 // ConfigureBeszelAgent creates its companion outside the install and update
-// flows, so it needs its own coverage.
+// flows, so it needs its own coverage. Install also creates the Beszel Docker
+// socket proxy, which gets a loopback host port of its own (the second
+// allocated port; reusing the hub's port is a conflict), and keeps only the
+// hardening the real catalog has verified for it.
 func TestCatalogHardeningAppliesToBeszelAgentCompanion(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
@@ -438,7 +441,7 @@ func TestCatalogHardeningAppliesToBeszelAgentCompanion(t *testing.T) {
 		}
 	}
 	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
-	svc := newTestServiceAtPathWithSecrets(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18091), catalog, secrets)
+	svc := newTestServiceAtPathWithSecrets(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18091, 23751), catalog, secrets)
 
 	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "beszel", BindMode: BindModeLocal})
 	if err != nil {
@@ -451,9 +454,14 @@ func TestCatalogHardeningAppliesToBeszelAgentCompanion(t *testing.T) {
 		t.Fatalf("configure beszel agent: %v", err)
 	}
 
-	if len(docker.created) != 2 {
-		t.Fatalf("created containers = %d, want hub and agent: %#v", len(docker.created), docker.created)
+	if len(docker.created) != 3 {
+		t.Fatalf("created containers = %d, want socket proxy, hub and agent: %#v", len(docker.created), docker.created)
 	}
-	assertSpecHardening(t, "beszel hub", docker.created[0], ContainerName("beszel"), nil)
-	assertSpecHardening(t, "beszel agent", docker.created[1], CompanionContainerName("beszel", "agent"), demoSidecarHardening())
+	var proxyHardening *ContainerHardening
+	if verified, ok := verifiedCatalogHardening["beszel/socket-proxy"]; ok {
+		proxyHardening = &verified
+	}
+	assertSpecHardening(t, "beszel socket proxy", docker.created[0], CompanionContainerName("beszel", "socket-proxy"), proxyHardening)
+	assertSpecHardening(t, "beszel hub", docker.created[1], ContainerName("beszel"), nil)
+	assertSpecHardening(t, "beszel agent", docker.created[2], CompanionContainerName("beszel", "agent"), demoSidecarHardening())
 }

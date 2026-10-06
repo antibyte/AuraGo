@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "अलग किए गए ऐप पूर्वावलोकन",
+  "config.server.preview_domain": "पूर्वावलोकन डोमेन",
+  "config.server.preview_enabled": "जाँच के बाद चालू करें",
+  "config.server.preview_hint": "डिफ़ॉल्ट रूप से बंद। वाइल्डकार्ड DNS और TLS वाली अलग साइट का उपयोग करें। चालू करने से पहले तैयार होस्ट पर ऐप लॉगिन, फ़ाइलों और WebSocket की जाँच करें।",
   "config.fritzbox.status_ok": "🟢 कनेक्टेड",
   "config.fritzbox.test_fail": "कनेक्शन विफल",
   "config.fritzbox.test_ok": "कनेक्शन सफल",

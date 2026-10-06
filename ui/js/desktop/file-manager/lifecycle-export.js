@@ -21,6 +21,8 @@
     function dispose(windowId) {
         const instance = instanceForWindow(windowId);
         if (!instance) return;
+        instance.disposed = true;
+        instance.navigationGeneration++;
         if (instance.callbacks && typeof instance.callbacks.clearWindowMenus === 'function') {
             instance.callbacks.clearWindowMenus(windowId);
         }

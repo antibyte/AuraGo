@@ -992,21 +992,74 @@ func (s *Service) CreateSymlink(ctx context.Context, targetPath, linkPath string
 		return fmt.Errorf("resolve symlink target: %w", err)
 	}
 
-	relTarget, err := filepath.Rel(filepath.Dir(resolvedLink), resolvedTarget)
+	workspaceRoot, err := filepath.EvalSymlinks(s.Config().WorkspaceDir)
+	if err != nil {
+		return fmt.Errorf("resolve symlink workspace: %w", err)
+	}
+	realParent, err := filepath.EvalSymlinks(filepath.Dir(resolvedLink))
+	if err != nil {
+		return fmt.Errorf("resolve symlink destination parent: %w", err)
+	}
+	realTarget, err := resolveSymlinkTargetPath(resolvedTarget)
+	if err != nil {
+		return fmt.Errorf("resolve symlink target: %w", err)
+	}
+	if !isWithinPath(workspaceRoot, realParent) || !isWithinPath(workspaceRoot, realTarget) {
+		return fmt.Errorf("symlink path escapes workspace")
+	}
+	parentRel, err := filepath.Rel(workspaceRoot, realParent)
+	if err != nil {
+		return fmt.Errorf("resolve symlink destination parent: %w", err)
+	}
+	relTarget, err := filepath.Rel(realParent, realTarget)
 	if err != nil {
 		return fmt.Errorf("calculate relative path for symlink: %w", err)
 	}
-
-	if _, err := os.Lstat(resolvedLink); err == nil {
-		return fmt.Errorf("file or directory already exists at link destination")
+	root, err := os.OpenRoot(workspaceRoot)
+	if err != nil {
+		return fmt.Errorf("open symlink workspace: %w", err)
 	}
-
-	if err := os.Symlink(relTarget, resolvedLink); err != nil {
+	defer root.Close()
+	parent, err := root.OpenRoot(parentRel)
+	if err != nil {
+		return fmt.Errorf("open symlink destination parent: %w", err)
+	}
+	defer parent.Close()
+	linkName := filepath.Base(resolvedLink)
+	if _, err := parent.Lstat(linkName); err == nil {
+		return fmt.Errorf("file or directory already exists at link destination")
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect symlink destination: %w", err)
+	}
+	if err := parent.Symlink(relTarget, linkName); err != nil {
 		return fmt.Errorf("create symlink: %w", err)
 	}
 
 	s.invalidateBootstrapCacheForFileMutation(s.relativePath(resolvedLink))
 	return nil
+}
+
+func resolveSymlinkTargetPath(target string) (string, error) {
+	current := target
+	var missing []string
+	for {
+		resolved, err := filepath.EvalSymlinks(current)
+		if err == nil {
+			for i := len(missing) - 1; i >= 0; i-- {
+				resolved = filepath.Join(resolved, missing[i])
+			}
+			return filepath.Clean(resolved), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", err
+		}
+		missing = append(missing, filepath.Base(current))
+		current = parent
+	}
 }
 
 // GetDirectorySize calculates the recursive size of a directory in bytes.

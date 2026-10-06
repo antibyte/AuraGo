@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -149,8 +150,20 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 			}
 		}
 		if entry.ID == "dozzle" {
-			if len(entry.HostBinds) != 1 || entry.HostBinds[0].HostPath != "/var/run/docker.sock" || !entry.HostBinds[0].ReadOnly {
-				t.Fatalf("dozzle must mount Docker socket read-only: %#v", entry.HostBinds)
+			if len(entry.HostBinds) != 0 || len(entry.Companions) != 1 {
+				t.Fatalf("dozzle must delegate Docker access to one socket proxy: binds=%#v companions=%#v", entry.HostBinds, entry.Companions)
+			}
+			proxy := entry.Companions[0]
+			if proxy.ID != "socket-proxy" || proxy.NetworkMode != "aurago-store-dozzle-net" || len(proxy.Ports) != 0 {
+				t.Fatalf("dozzle proxy must use its private network without a published port: %#v", proxy)
+			}
+			if len(proxy.HostBinds) != 1 || proxy.HostBinds[0].HostPath != "/var/run/docker.sock" || !proxy.HostBinds[0].ReadOnly {
+				t.Fatalf("dozzle proxy must mount Docker socket read-only: %#v", proxy.HostBinds)
+			}
+			for _, env := range monitoringProxyEnv() {
+				if !containsString(proxy.Env, env) {
+					t.Fatalf("dozzle proxy env missing %q: %#v", env, proxy.Env)
+				}
 			}
 		}
 		if entry.ID == "arcane" {
@@ -188,11 +201,18 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 			}
 		}
 		if entry.ID == "beszel" {
-			if len(entry.Companions) != 1 || entry.Companions[0].ID != "agent" || entry.Companions[0].NetworkMode != "host" {
-				t.Fatalf("beszel must define a host-network local agent companion: %#v", entry.Companions)
+			if len(entry.Companions) != 2 || entry.Companions[0].ID != "socket-proxy" || entry.Companions[1].ID != "agent" || entry.Companions[1].NetworkMode != "host" {
+				t.Fatalf("beszel must define its proxy before the host-network agent: %#v", entry.Companions)
 			}
-			if entry.Companions[0].Image != "ghcr.io/henrygd/beszel/beszel-agent:latest" {
-				t.Fatalf("beszel agent image = %q", entry.Companions[0].Image)
+			proxy, agent := entry.Companions[0], entry.Companions[1]
+			if proxy.Image != "tecnativa/docker-socket-proxy:latest" || len(proxy.Ports) != 1 || proxy.Ports[0].HostIP != "127.0.0.1" || proxy.Ports[0].ContainerPort != 2375 {
+				t.Fatalf("beszel socket proxy port = %#v", proxy)
+			}
+			if len(proxy.HostBinds) != 1 || proxy.HostBinds[0].HostPath != "/var/run/docker.sock" || !proxy.HostBinds[0].ReadOnly {
+				t.Fatalf("beszel proxy must mount Docker socket read-only: %#v", proxy.HostBinds)
+			}
+			if agent.Image != "ghcr.io/henrygd/beszel/beszel-agent:latest" || len(agent.HostBinds) != 0 || !containsString(agent.Env, "DOCKER_HOST=tcp://127.0.0.1:${COMPANION_PORT_SOCKET_PROXY_DOCKER_API}") {
+				t.Fatalf("beszel agent must preserve host metrics and use the loopback proxy: %#v", agent)
 			}
 		}
 		if entry.ID == "code-server" {
@@ -939,7 +959,7 @@ func TestUpdateRestoresPreviousAutoCompanionWhenMainStartFails(t *testing.T) {
 	}
 }
 
-func TestInstallDozzleUsesReadOnlyDockerSocketBindAndDeleteDataOnlyRemovesVolumes(t *testing.T) {
+func TestInstallDozzleUsesPrivateReadOnlyProxyAndDeleteDataOnlyRemovesVolumes(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
 	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18080))
@@ -955,11 +975,27 @@ func TestInstallDozzleUsesReadOnlyDockerSocketBindAndDeleteDataOnlyRemovesVolume
 	if err != nil || !ok {
 		t.Fatalf("get installed dozzle: ok=%v err=%v", ok, err)
 	}
-	if len(stored.HostBinds) != 1 || !stored.HostBinds[0].ReadOnly {
-		t.Fatalf("stored host binds = %#v, want read-only Docker socket bind", stored.HostBinds)
+	if len(stored.HostBinds) != 0 || len(stored.Companions) != 1 || stored.Companions[0].ID != "socket-proxy" {
+		t.Fatalf("stored Dozzle socket proxy state = binds %#v companions %#v", stored.HostBinds, stored.Companions)
 	}
-	if len(docker.created) != 1 || len(docker.created[0].HostBinds) != 1 || !docker.created[0].HostBinds[0].ReadOnly {
-		t.Fatalf("created dozzle host binds = %#v", docker.created)
+	if stored.UpdateRequired {
+		t.Fatal("new Dozzle install unexpectedly requires a Store update")
+	}
+	if len(docker.created) != 2 {
+		t.Fatalf("created containers = %d, want private proxy and Dozzle", len(docker.created))
+	}
+	proxy, dozzle := docker.created[0], docker.created[1]
+	if proxy.Name != "aurago-store-dozzle-socket-proxy" || proxy.NetworkMode != "aurago-store-dozzle-net" || len(proxy.PortBindings) != 0 {
+		t.Fatalf("Dozzle proxy network/ports = %#v", proxy)
+	}
+	if len(proxy.HostBinds) != 1 || proxy.HostBinds[0].HostPath != "/var/run/docker.sock" || !proxy.HostBinds[0].ReadOnly {
+		t.Fatalf("Dozzle proxy host binds = %#v", proxy.HostBinds)
+	}
+	if len(dozzle.HostBinds) != 0 || dozzle.NetworkMode != "aurago-store-dozzle-net" || !containsString(dozzle.Env, "DOZZLE_REMOTE_HOST=tcp://aurago-store-dozzle-socket-proxy:2375") {
+		t.Fatalf("Dozzle app must use only its private proxy network: %#v", dozzle)
+	}
+	if !containsString(docker.createdNetworks, "aurago-store-dozzle-net") {
+		t.Fatalf("Dozzle private network not created: %#v", docker.createdNetworks)
 	}
 
 	delOp, err := svc.StartAppOperation(ctx, "dozzle", OperationUninstall, OperationRequest{DeleteData: true})
@@ -969,11 +1005,84 @@ func TestInstallDozzleUsesReadOnlyDockerSocketBindAndDeleteDataOnlyRemovesVolume
 	if err := svc.RunOperation(ctx, delOp.ID); err != nil {
 		t.Fatalf("run uninstall: %v", err)
 	}
-	if containsString(docker.removedVolumes, "/var/run/docker.sock") {
-		t.Fatalf("host bind was treated as removable volume: %#v", docker.removedVolumes)
-	}
 	if !containsString(docker.removedVolumes, "aurago_store_dozzle_data") {
 		t.Fatalf("dozzle data volume was not removed: %#v", docker.removedVolumes)
+	}
+	if !containsString(docker.removedNetworks, "aurago-store-dozzle-net") {
+		t.Fatalf("Dozzle private network was not removed: %#v", docker.removedNetworks)
+	}
+}
+
+func TestLegacyDozzleMigrationRequiresExplicitStoreUpdate(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+	docker := &fakeDockerAdapter{}
+	oldCatalog := DefaultCatalog()
+	for i := range oldCatalog {
+		if oldCatalog[i].ID != "dozzle" {
+			continue
+		}
+		oldCatalog[i].Env = nil
+		oldCatalog[i].HostBinds = []HostBindTemplate{{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true}}
+		oldCatalog[i].Companions = nil
+	}
+
+	svc := newTestServiceAtPath(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18080), oldCatalog)
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "dozzle", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start legacy Dozzle install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run legacy Dozzle install: %v", err)
+	}
+	if err := svc.Close(); err != nil {
+		t.Fatalf("close legacy service: %v", err)
+	}
+	docker.events = nil
+	docker.created = nil
+	docker.createdNetworks = nil
+	docker.started = nil
+	docker.stopped = nil
+	docker.removedContainers = nil
+
+	svc = newTestServiceAtPath(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18080), nil)
+	apps, err := svc.ListApps(ctx)
+	if err != nil {
+		t.Fatalf("list legacy Dozzle app: %v", err)
+	}
+	if len(apps) != 1 || apps[0].AppID != "dozzle" || !apps[0].UpdateRequired {
+		t.Fatalf("legacy Dozzle update status = %#v, want update_required", apps)
+	}
+	if len(docker.events)+len(docker.created)+len(docker.createdNetworks)+len(docker.started)+len(docker.stopped)+len(docker.removedContainers) != 0 {
+		t.Fatalf("startup or reads mutated Docker before explicit update: events=%#v creates=%#v networks=%#v starts=%#v stops=%#v removes=%#v", docker.events, docker.created, docker.createdNetworks, docker.started, docker.stopped, docker.removedContainers)
+	}
+
+	update, err := svc.StartAppOperation(ctx, "dozzle", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start explicit Dozzle update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, update.ID); err != nil {
+		t.Fatalf("run explicit Dozzle update: %v", err)
+	}
+	updated, ok, err := svc.GetInstalled(ctx, "dozzle")
+	if err != nil || !ok || updated.UpdateRequired {
+		t.Fatalf("updated Dozzle status = %#v, ok=%v err=%v; want migration complete", updated, ok, err)
+	}
+	if len(docker.created) != 2 {
+		t.Fatalf("explicit Dozzle update created %d containers, want proxy and app: %#v", len(docker.created), docker.created)
+	}
+	var sawProxy, sawDozzle bool
+	for _, spec := range docker.created {
+		if spec.Name == "aurago-store-dozzle-socket-proxy" {
+			sawProxy = spec.NetworkMode == "aurago-store-dozzle-net" && len(spec.PortBindings) == 0 && len(spec.HostBinds) == 1 && spec.HostBinds[0].ReadOnly
+		}
+		if spec.Name == "aurago-store-dozzle" {
+			_, configured := envValue(spec.Env, "DOZZLE_REMOTE_HOST")
+			sawDozzle = len(spec.HostBinds) == 0 && spec.NetworkMode == "aurago-store-dozzle-net" && configured
+		}
+	}
+	if !sawProxy || !sawDozzle {
+		t.Fatalf("explicit update did not replace direct socket access with the private proxy: %#v", docker.created)
 	}
 }
 
@@ -1032,7 +1141,7 @@ func TestConfigureBeszelAgentCreatesHostNetworkCompanionWithVaultSecrets(t *test
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
 	secrets := &fakeSecretStore{data: map[string]string{}}
-	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18090), secrets)
+	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18090, 23750), secrets)
 
 	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "beszel", BindMode: BindModeLocal})
 	if err != nil {
@@ -1048,13 +1157,28 @@ func TestConfigureBeszelAgentCreatesHostNetworkCompanionWithVaultSecrets(t *test
 	if secrets.data["desktop_store_beszel_agent_key"] != "ssh-ed25519 public-key" || secrets.data["desktop_store_beszel_agent_token"] != "agent-token" {
 		t.Fatalf("beszel agent secrets not stored in vault: %#v", secrets.data)
 	}
-	if len(app.Companions) != 1 || app.Companions[0].ID != "agent" || app.Companions[0].Status != AppStatusRunning {
+	if len(app.Companions) != 2 || app.Companions[1].ID != "agent" || app.Companions[1].Status != AppStatusRunning {
 		t.Fatalf("beszel companion not persisted as running: %#v", app.Companions)
 	}
-	if len(docker.created) != 2 {
-		t.Fatalf("created containers = %d, want hub and agent", len(docker.created))
+	if app.UpdateRequired {
+		t.Fatal("new Beszel configuration unexpectedly requires a Store update")
 	}
-	agent := docker.created[1]
+	if len(docker.created) != 3 {
+		t.Fatalf("created containers = %d, want proxy, hub, and agent", len(docker.created))
+	}
+	proxy, hub, agent := docker.created[0], docker.created[1], docker.created[2]
+	if proxy.Name != "aurago-store-beszel-socket-proxy" || proxy.Image != "tecnativa/docker-socket-proxy:latest" {
+		t.Fatalf("Beszel proxy identity = %#v", proxy)
+	}
+	if len(proxy.PortBindings) != 1 || proxy.PortBindings[0].HostIP != "127.0.0.1" || proxy.PortBindings[0].ContainerPort != 2375 || proxy.PortBindings[0].HostPort != 23750 {
+		t.Fatalf("Beszel proxy binding = %#v, want loopback port 23750", proxy.PortBindings)
+	}
+	if len(proxy.HostBinds) != 1 || proxy.HostBinds[0].HostPath != "/var/run/docker.sock" || !proxy.HostBinds[0].ReadOnly {
+		t.Fatalf("Beszel proxy socket bind = %#v", proxy.HostBinds)
+	}
+	if len(hub.HostBinds) != 0 {
+		t.Fatalf("Beszel hub must not receive Docker socket bind: %#v", hub.HostBinds)
+	}
 	if agent.Name != "aurago-store-beszel-agent" || agent.Image != "ghcr.io/henrygd/beszel/beszel-agent:latest" {
 		t.Fatalf("agent container identity = %#v", agent)
 	}
@@ -1067,11 +1191,110 @@ func TestConfigureBeszelAgentCreatesHostNetworkCompanionWithVaultSecrets(t *test
 	if !containsString(agent.Env, "KEY=ssh-ed25519 public-key") || !containsString(agent.Env, "TOKEN=agent-token") {
 		t.Fatalf("agent env missing vault secrets: %#v", agent.Env)
 	}
-	if len(agent.HostBinds) != 1 || agent.HostBinds[0].HostPath != "/var/run/docker.sock" || !agent.HostBinds[0].ReadOnly {
-		t.Fatalf("agent Docker socket bind = %#v", agent.HostBinds)
+	if len(agent.HostBinds) != 0 {
+		t.Fatalf("agent must use the loopback proxy instead of a Docker socket bind: %#v", agent.HostBinds)
+	}
+	if !containsString(agent.Env, "DOCKER_HOST=tcp://127.0.0.1:23750") {
+		t.Fatalf("agent DOCKER_HOST does not match proxy binding: %#v", agent.Env)
 	}
 	assertVolumeBinding(t, agent.Volumes, "aurago_store_beszel_socket", "/beszel_socket")
 	assertVolumeBinding(t, agent.Volumes, "aurago_store_beszel_agent_data", "/var/lib/beszel-agent")
+}
+
+func TestLegacyBeszelMigrationRequiresExplicitStoreUpdate(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+	docker := &fakeDockerAdapter{}
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	svc := newTestServiceAtPathWithSecrets(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18090, 23750), nil, secrets)
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "beszel", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start Beszel install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run Beszel install: %v", err)
+	}
+	app, err := svc.ConfigureBeszelAgent(ctx, "ssh-ed25519 public-key", "agent-token")
+	if err != nil {
+		t.Fatalf("configure Beszel agent: %v", err)
+	}
+	var legacyAgent CompanionApp
+	for _, companion := range app.Companions {
+		if companion.ID == "agent" {
+			legacyAgent = companion
+			break
+		}
+	}
+	if legacyAgent.ID == "" {
+		t.Fatal("configured Beszel agent missing")
+	}
+	legacyAgent.HostBinds = []HostBinding{{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true}}
+	legacyAgent.Env = []string{
+		"LISTEN=/beszel_socket/beszel.sock",
+		"HUB_URL=http://localhost:18090",
+		"KEY=ssh-ed25519 public-key",
+		"TOKEN=agent-token",
+	}
+	app.Companions = []CompanionApp{legacyAgent}
+	if err := svc.saveInstalled(ctx, app); err != nil {
+		t.Fatalf("save legacy Beszel record: %v", err)
+	}
+	if err := svc.Close(); err != nil {
+		t.Fatalf("close legacy service: %v", err)
+	}
+	docker.events = nil
+	docker.created = nil
+	docker.createdNetworks = nil
+	docker.started = nil
+	docker.stopped = nil
+	docker.removedContainers = nil
+
+	svc = newTestServiceAtPathWithSecrets(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18090, 23751), nil, secrets)
+	installed, ok, err := svc.GetInstalled(ctx, "beszel")
+	if err != nil || !ok || !installed.UpdateRequired {
+		t.Fatalf("legacy Beszel update status = %#v, ok=%v err=%v; want update_required", installed, ok, err)
+	}
+	if len(docker.events)+len(docker.created)+len(docker.createdNetworks)+len(docker.started)+len(docker.stopped)+len(docker.removedContainers) != 0 {
+		t.Fatalf("startup or reads mutated Docker before explicit update: events=%#v creates=%#v networks=%#v starts=%#v stops=%#v removes=%#v", docker.events, docker.created, docker.createdNetworks, docker.started, docker.stopped, docker.removedContainers)
+	}
+
+	update, err := svc.StartAppOperation(ctx, "beszel", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatalf("start explicit Beszel update: %v", err)
+	}
+	if err := svc.RunOperation(ctx, update.ID); err != nil {
+		t.Fatalf("run explicit Beszel update: %v", err)
+	}
+	updated, ok, err := svc.GetInstalled(ctx, "beszel")
+	if err != nil || !ok || updated.UpdateRequired {
+		t.Fatalf("updated Beszel status = %#v, ok=%v err=%v; want migration complete", updated, ok, err)
+	}
+	if len(updated.Companions) != 2 {
+		t.Fatalf("updated Beszel companions = %#v, want socket proxy and agent", updated.Companions)
+	}
+	proxyPort, bound := companionPortHost(updated.Companions, "socket-proxy", "docker-api")
+	if !bound || !hasLoopbackDockerAPIBindingForPort(updated.Companions, "socket-proxy", proxyPort) {
+		t.Fatalf("updated Beszel proxy port %d is not loopback-bound: %#v", proxyPort, updated.Companions)
+	}
+	if proxyPort == updated.HostPort {
+		t.Fatalf("Beszel proxy reused hub port %d", proxyPort)
+	}
+	var sawProxy, sawAgent, sawHub bool
+	for _, spec := range docker.created {
+		switch spec.Name {
+		case "aurago-store-beszel-socket-proxy":
+			sawProxy = len(spec.PortBindings) == 1 && spec.PortBindings[0].HostIP == "127.0.0.1" && spec.PortBindings[0].HostPort == proxyPort && len(spec.HostBinds) == 1 && spec.HostBinds[0].ReadOnly
+		case "aurago-store-beszel-agent":
+			got, configured := envValue(spec.Env, "DOCKER_HOST")
+			sawAgent = spec.NetworkMode == "host" && len(spec.HostBinds) == 0 && configured && got == fmt.Sprintf("tcp://127.0.0.1:%d", proxyPort)
+		}
+		if spec.Name == "aurago-store-beszel" && len(spec.HostBinds) == 0 {
+			sawHub = true
+		}
+	}
+	if !sawProxy || !sawAgent || !sawHub {
+		t.Fatalf("explicit update did not migrate Beszel to a loopback proxy: %#v", docker.created)
+	}
 }
 
 func TestInstallOliveTinMountsEditableWorkspaceConfigBeforeStart(t *testing.T) {

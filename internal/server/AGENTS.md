@@ -236,6 +236,19 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Verification
 
+- `preview_gateway.go` dispatches configured guest hosts outside the main-site
+  auth/CSP router, after trusted-proxy normalization. One-use launch grants and
+  host-only partitioned cookies retain resource and parent-session ownership;
+  expired/revoked sessions close both sides of upgraded connections. Never send
+  the boringd management bearer through its unauthenticated guest web route.
+  Preserve guest Cookie, Authorization and CSRF headers while removing AuraGo
+  credentials. `server.preview_domain` prepares hosts; `preview_enabled` stays
+  off until the acceptance procedure in `documentation/preview-isolation.md`.
+  No shared-origin fallback after activation. Verify `TestPreviewGateway*`.
+- Desktop HTML, script inlining and fallback file serving all use rooted opens.
+  A prior path/integrity check does not authorize a later unrooted read. Preserve
+  contained links and verify `TestDesktopHTMLServingContainsSymlinks` under Linux.
+
 - Desktop authority is enforced by `desktop_operation.go` in addition to token
   scopes and integration policy. Readonly blocks writes and execution even for
   administrators; reads and explicit stop actions remain available. Config

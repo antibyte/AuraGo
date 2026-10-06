@@ -47,3 +47,24 @@ func TestDesktopIntegrationRoutesEnforcePolicyBeforeSharedHandlers(t *testing.T)
 		})
 	}
 }
+
+func TestDesktopIntegrationOperationRequiresExactStopRouteAndExecutesContainerTTY(t *testing.T) {
+	for _, tc := range []struct {
+		method, route string
+		want          desktopOperation
+	}{
+		{http.MethodPost, "missions/v2/m1/cancel", desktopStop},
+		{http.MethodPost, "missions/v2/m1/run/cancel", desktopWrite},
+		{http.MethodPost, "missions/v2/m1/trigger/cancel", desktopWrite},
+		{http.MethodPost, "missions/v2/m1/prepare/cancel", desktopWrite},
+		{http.MethodPost, "missions/v2/m1/cancel/extra", desktopWrite},
+		{http.MethodGet, "containers/c1/terminal", desktopExecute},
+		{http.MethodGet, "containers/c1/logs", desktopRead},
+	} {
+		t.Run(tc.route, func(t *testing.T) {
+			if got := desktopIntegrationOperation(tc.method, tc.route); got != tc.want {
+				t.Fatalf("operation(%s, %q) = %v, want %v", tc.method, tc.route, got, tc.want)
+			}
+		})
+	}
+}

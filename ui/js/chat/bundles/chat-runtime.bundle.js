@@ -935,7 +935,7 @@
             scripts: ['/js/chat/lollipop-petals.js']
         },
         'dark-sun': {
-            scripts: ['/js/chat/dark-sun-shader.js', '/js/chat/dark-sun-embers.js']
+            scripts: ['/js/chat/dark-sun-shader.js']
         },
         'ocean': {
             scripts: ['/js/chat/ocean-shader.js']

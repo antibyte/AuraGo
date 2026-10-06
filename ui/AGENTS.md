@@ -21,6 +21,17 @@ worker. Keep packaging, recovery and offline instructions in
   Adopt the server's returned path after a copy decision. Rebuild Desktop bundles
   and verify `TestDesktopFileConflictBrowser` for changes to this flow.
 
+- File Manager paste, archive, extract and batch rename retain their originating
+  instance and captured paths across dialogs and requests. Late results cannot
+  repaint another window or replace its undo state. Shared cut completion clears
+  only the clipboard object it started with; a newer clipboard survives. Verify
+  `TestFileManagerAsyncActionsStayWithOriginBrowser` and
+  `TestDesktopFileClipboardPastePreservesNewSameContentBrowser`.
+- Generated-app keyboard relays use the existing document-bound SDK MessagePort.
+  The injected receiver supports SDK-less apps and preserves normal keyboard
+  events; navigation or frame disposal revokes forwarding. Verify
+  `TestDesktopSDKKeyboardBridgeUsesLivePortForSDKAndLegacyApps`.
+
 - Precision Workspace is an opt-in design system. Operational consumers are
   `config.html`, `dashboard.html`, `plans.html`, `missions_v2.html`,
   `cheatsheets.html`, `knowledge.html`, `skills.html`, `containers.html`,
@@ -509,14 +520,48 @@ worker. Keep packaging, recovery and offline instructions in
   Helix volleys and damage-triggered EMP counterpulses reuse projectile/effect
   cleanup and respect the existing 18-projectile limit. EMP must not interrupt
   a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
-- Sandstorm dust, grains and ground lift share a smooth wind/gust envelope.
-  Three moving counter-rotating eddies drive the fog and particle velocity
-  field; grains must visibly turn, rise and recirculate. Wind changes direction
-  gradually. Soft dust rolls preserve visible circulation in the 2D fallback.
-  Keep the fixed particle pools and the fog buffer at most 960x540 pixels;
-  soft dust does not need device-pixel resolution. Canvas bounds must not
-  transition. Preserve the 2D fallback, hidden-tab pause and reduced-motion
-  and narrow-screen gates.
+- Dark Sun is an eclipse scene. `body` paints the violet-black sky, star specks
+  and the horizon glow; `body::before` carries the static eclipse and lava
+  horizon SVG (the no-JS, reduced-motion and narrow-screen baseline) and fades
+  out while the engine is live. `js/chat/dark-sun-shader.js` is the whole
+  engine: `#dark-sun-sky` (WebGL, at most 1280x720: stars, breathing corona,
+  prominence loops, the black disc, a travelling diamond-ring glint, the
+  eruption plume and light wave) and `#dark-sun-scene` (2D basalt plain with
+  cached glowing cracks, ridge silhouettes and the 2D eclipse fallback) sit
+  behind the chat; `#dark-sun-overlay` (2D, screen blend) carries embers that
+  rise from the cracks, sparks when an ember meets a bubble, pointer heat and
+  the light wave over the chat. Pools: 160 embers, 240 sparks; a single RAF
+  loop; canvas bounds never transition. Every 20–35 s a 5 s eruption triples
+  the ember spawn, launches the wave after one second and publishes
+  `html[data-darksun="calm"|"flare"]` plus `--darksun-flash` on
+  `.app-header`/`.app-footer`; `css/chat-themes.css` reacts and `stop()`
+  clears both. Bubble tails keep the anchored `::before` contract. Gates:
+  theme, hidden tab, reduced motion and `innerWidth >= 768`. The DOM ember
+  layer (`dark-sun-embers.js`) is retired; `theme-effects.js` loads only the
+  engine. Contracts: `TestDarkSunEclipseBrowserSmoke`
+  (`AURAGO_RUN_BROWSER_SMOKE=1`, `AURAGO_DARKSUN_BENCHMARK=1` for 120
+  native-RAF frames at 1920x1080) and `TestChatFrontend_DarkSunSceneStaysPolished`.
+- Sandstorm is a layered desert scene. `body` paints sky, sun bloom and static
+  SVG dunes (the no-JS, reduced-motion and narrow-screen baseline). The engine
+  adds `#sandstorm-fog` (WebGL sky, sun, crepuscular rays, dust, the dust wall
+  of a storm and the lightning tint) and `#sandstorm-scene` (three cached dune
+  ridges with parallax, clouds, dust rolls, the lightning bolt and the 2D sky
+  fallback) behind the chat, and `#sandstorm-overlay` (grains, trails, ground
+  pile, sand resting on bubbles) above it. Dust, grains and ground lift share
+  a smooth wind/gust envelope; three moving counter-rotating eddies drive the
+  fog and particle velocity field; grains must visibly turn, rise and
+  recirculate, and wind changes direction gradually. Each 9 s storm sends a
+  dust wall across the scene from the windward side (`u_front`), dims the sun,
+  schedules one to three dry-lightning strikes (the first always shortly after
+  the attack) and sweeps the sand off bubbles. While live the engine publishes
+  `html[data-sandstorm="calm"|"storm"]` and sets `--sandstorm-flash` on
+  `.app-header`/`.app-footer` during strikes; `css/chat-themes.css` reacts to
+  both and `stop()` clears them. A `pointermove` gust pushes nearby grains
+  without extra loops or pointer capture. Keep the fixed particle pools and
+  the fog buffer at most 960x540 pixels; soft dust does not need device-pixel
+  resolution. Canvas bounds must not transition. Preserve the 2D fallback,
+  hidden-tab pause and reduced-motion and narrow-screen gates. Static
+  contract: `TestChatFrontend_SandstormSceneStaysPolished`.
 - Galaxy uses the shared Three.js 0.186.1 and a single lazy renderer/RAF loop.
   Keep the ten draw calls, shared sphere geometry and fixed 3500/850-star
   buffers. Exactly 20 stars flicker subtly with individually randomized pauses;

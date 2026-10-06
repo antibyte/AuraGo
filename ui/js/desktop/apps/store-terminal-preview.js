@@ -88,7 +88,6 @@
             const metadata = (app && app.metadata) || {};
             const previewPortID = metadata.preview_port_id || 'web';
             const workspacePath = metadata.workspace_path || 'Shared/CommandCode';
-            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url?port_id=' + encodeURIComponent(previewPortID));
             if (!contentEl(id)) return;
 
             const newSessionLabel = t('desktop.store_terminal_new_session');
@@ -145,6 +144,8 @@
             let previewVisible = true;
             let previewPollTimer = null;
             let previewReady = false;
+            let previewFrameLaunching = false;
+            let previewLaunchGeneration = 0;
             let terminalPasteHandler = null;
             let resizeMoveHandler = null;
             let resizeUpHandler = null;
@@ -251,6 +252,8 @@
                 previewVisible = visible !== false;
                 if (terminalPreview) terminalPreview.classList.toggle('is-preview-hidden', !previewVisible);
                 if (!previewVisible) {
+                    previewLaunchGeneration++;
+                    previewFrameLaunching = false;
                     previewHost.replaceChildren(renderPreviewPlaceholder());
                 } else if (!previewHost.firstElementChild) {
                     previewHost.replaceChildren(renderPreviewPlaceholder());
@@ -258,16 +261,25 @@
                 updatePreviewToggleButton();
                 terminalSessions.forEach(session => scheduleTerminalSessionFit(session));
                 refocusActiveTerminalAfterPreviewLoad();
+                if (previewVisible && previewReady && !previewHost.querySelector('iframe')) openPreviewFrame();
             }
 
-            function openPreviewFrame() {
-                if (disposed) return;
-                if (!previewVisible) setPreviewVisible(true);
-                const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
-                const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true, disableAutoFocus: true });
-                frame.addEventListener('load', refocusActiveTerminalAfterPreviewLoad);
-                previewHost.replaceChildren(frame);
-                refocusActiveTerminalAfterPreviewLoad();
+            async function openPreviewFrame() {
+                if (disposed || !previewVisible || previewFrameLaunching || previewHost.querySelector('iframe')) return;
+                const generation = ++previewLaunchGeneration;
+                previewFrameLaunching = true;
+                try {
+                    const launch = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url?port_id=' + encodeURIComponent(previewPortID));
+                    if (disposed || generation !== previewLaunchGeneration || !previewVisible || !contentEl(id)) return;
+                    const frame = makeSandboxedFrame(storeFrameURL(launch.url, storeAppId), app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true, disableAutoFocus: true });
+                    frame.addEventListener('load', refocusActiveTerminalAfterPreviewLoad);
+                    previewHost.replaceChildren(frame);
+                    refocusActiveTerminalAfterPreviewLoad();
+                } catch (_) {
+                    if (!disposed && generation === previewLaunchGeneration) setPreviewState('waiting');
+                } finally {
+                    if (generation === previewLaunchGeneration) previewFrameLaunching = false;
+                }
             }
 
             async function pollPreviewStatus() {
@@ -287,10 +299,10 @@
                                 title: appName(app),
                                 message: t('desktop.store_terminal_preview_ready_toast')
                             });
-                            openPreviewFrame();
                         } else {
                             setPreviewState('ready', detail);
                         }
+                        if (previewVisible && !previewHost.querySelector('iframe')) openPreviewFrame();
                     } else {
                         previewReady = false;
                         setPreviewState('waiting');

@@ -78,9 +78,28 @@ currentPath = saved.path;
 ```
 
 `AuraDesktop.fs.write(path, content)` uses this iframe's last observed version or
-create-only semantics when it has not read the file. The parent owns the shared
-conflict dialog. Handle rejection/cancellation without another write. File dialogs,
-Editor, Pixel and uploads use the same conflict decisions.
+create-only semantics when it has not read the file. It also accepts an explicit
+version as its third argument: `AuraDesktop.fs.write(path, content, file.version)`.
+A successful write advances only that iframe's observed version, so sequential
+writes work while another iframe with an older version receives the normal 412
+conflict. The parent owns the shared conflict dialog. Handle rejection/cancellation
+without another write. File dialogs, Editor, Pixel and uploads use the same conflict
+decisions.
+
+## SDK document channel
+
+The shell grants the SDK channel only to the rooted Apps/Widgets HTML entry it
+launches. A random capability is carried in that document's URL fragment, removed
+before app scripts run, then checked with a per-load challenge over a dedicated
+`MessageChannel`. The sandboxed document keeps its opaque `null` origin; privileged
+requests and responses use the bound port, not `window.postMessage` to a reusable
+iframe `WindowProxy`. Navigating the frame or closing it revokes its channel and
+cancels pending SDK work. A shell-managed app/widget reload creates a fresh document
+and channel; an arbitrary in-frame navigation does not inherit the SDK grant.
+
+This transport does not change manifest permissions or add a new permission gate.
+Existing SDK v1 context and clipboard behavior remains available to valid apps, and
+`files:read`/`files:write` are still checked by the parent for file operations.
 
 ## Archives, Notes and printing
 

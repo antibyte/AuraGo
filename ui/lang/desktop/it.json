@@ -2843,6 +2843,7 @@
   "desktop.store.uninstall": "Disinstalla",
   "desktop.store.uninstall_copy": "Rimuove il container e le voci del desktop.",
   "desktop.store.update": "Aggiorna",
+  "desktop.store.update_required": "È necessario un aggiornamento di sicurezza. Aggiorna questa app per passare il monitoraggio Docker a un proxy di sola lettura.",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
   "desktop.store_terminal_copy_command": "Copia",
   "desktop.store_terminal_header_subtitle": "Console prima",

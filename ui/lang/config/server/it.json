@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Anteprime delle app isolate",
+  "config.server.preview_domain": "Dominio delle anteprime",
+  "config.server.preview_enabled": "Attiva dopo la verifica",
+  "config.server.preview_hint": "Disattivato per impostazione predefinita. Usa un sito separato con DNS wildcard e TLS. Verifica accessi alle app, file e WebSocket sugli host preparati prima dell’attivazione.",
   "config.fritzbox.status_ok": "🟢 Connesso",
   "config.fritzbox.test_fail": "Connessione fallita",
   "config.fritzbox.test_ok": "Connessione riuscita",

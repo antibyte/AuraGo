@@ -68,8 +68,10 @@
     }
 
     async function compressSelectionToZip() {
-        const selected = getSelectedFiles();
+        const instance = fm;
+        const selected = getSelectedFiles().map(file => ({ path: file.path, name: file.name }));
         if (selected.length === 0) return;
+        const currentPath = instance.currentPath;
         
         let defaultName = 'archive.zip';
         if (selected.length === 1) {
@@ -78,12 +80,12 @@
         }
         
         const zipName = await promptDialog(t('desktop.fm.compress_zip'), defaultName);
-        if (!zipName) return;
+        if (!zipName || !isLiveInstance(instance)) return;
         
-        const destPath = joinPath(fm.currentPath, zipName);
+        const destPath = joinPath(currentPath, zipName);
         
         try {
-            showNotification({ type: 'info', message: t('desktop.fm.copy_progress') });
+            withInstance(instance, () => showNotification({ type: 'info', message: t('desktop.fm.copy_progress') }));
             await api('/api/desktop/archive', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -91,33 +93,44 @@
                     dest: destPath
                 })
             });
-            showNotification({ type: 'success', message: t('desktop.fm.zip_created') });
-            refresh();
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                showNotification({ type: 'success', message: t('desktop.fm.zip_created') });
+                refresh();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: err.message || String(err) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: err.message || String(err) }));
         }
     }
 
     async function extractZip(file, extractHere = true) {
-        let dest = fm.currentPath;
+        const instance = fm;
+        const zipPath = file && file.path;
+        const currentPath = instance.currentPath;
+        if (!zipPath) return;
+        let dest = currentPath;
         if (!extractHere) {
-            const destPrompt = await promptDialog(t('desktop.fm.extract_zip_to'), fm.currentPath);
-            if (!destPrompt) return;
+            const destPrompt = await promptDialog(t('desktop.fm.extract_zip_to'), currentPath);
+            if (!destPrompt || !isLiveInstance(instance)) return;
             dest = destPrompt;
         }
+        if (!isLiveInstance(instance)) return;
         
         try {
             await api('/api/desktop/extract', {
                 method: 'POST',
                 body: JSON.stringify({
-                    path: file.path,
+                    path: zipPath,
                     dest: dest
                 })
             });
-            showNotification({ type: 'success', message: t('desktop.fm.zip_extracted') });
-            refresh();
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                showNotification({ type: 'success', message: t('desktop.fm.zip_extracted') });
+                refresh();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: err.message || String(err) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: err.message || String(err) }));
         }
     }
 
@@ -337,19 +350,23 @@
     }
 
     async function executeBatchRename() {
+        const instance = fm;
         if (isReadonly()) return;
-        const payload = await showBatchRenameDialog();
-        if (!payload || !payload.length) return;
+        const payload = await withInstance(instance, () => showBatchRenameDialog());
+        if (!payload || !payload.length || !isLiveInstance(instance)) return;
         
         try {
             await api('/api/desktop/batch-rename', {
                 method: 'POST',
                 body: JSON.stringify({ operations: payload })
             });
-            showNotification({ type: 'success', message: t('desktop.fm.batch_rename_success') });
-            refresh();
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                showNotification({ type: 'success', message: t('desktop.fm.batch_rename_success') });
+                refresh();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: err.message || String(err) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: err.message || String(err) }));
         }
     }
 

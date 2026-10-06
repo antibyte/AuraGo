@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Odizolowane podglądy aplikacji",
+  "config.server.preview_domain": "Domena podglądu",
+  "config.server.preview_enabled": "Włącz po weryfikacji",
+  "config.server.preview_hint": "Domyślnie wyłączone. Użyj osobnej witryny z wieloznacznym DNS i TLS. Przed włączeniem przetestuj logowanie do aplikacji, pliki i WebSocket na przygotowanych hostach.",
   "config.fritzbox.status_ok": "🟢 Połączono",
   "config.fritzbox.test_fail": "Połączenie nieudane",
   "config.fritzbox.test_ok": "Połączenie udane",

@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Απομονωμένες προεπισκοπήσεις εφαρμογών",
+  "config.server.preview_domain": "Τομέας προεπισκόπησης",
+  "config.server.preview_enabled": "Ενεργοποίηση μετά τον έλεγχο",
+  "config.server.preview_hint": "Ανενεργό από προεπιλογή. Χρησιμοποίησε ξεχωριστό ιστότοπο με DNS μπαλαντέρ και TLS. Δοκίμασε συνδέσεις εφαρμογών, αρχεία και WebSocket στους προετοιμασμένους διακομιστές πριν την ενεργοποίηση.",
   "config.fritzbox.status_ok": "🟢 Συνδεδεμένο",
   "config.fritzbox.test_fail": "Σύνδεση απέτυχε",
   "config.fritzbox.test_ok": "Σύνδεση επιτυχής",

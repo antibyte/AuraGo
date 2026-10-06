@@ -29,7 +29,10 @@ func TestSandstormWeatherBrowserSmoke(t *testing.T) {
             width:fogCanvas?.width || 0, height:fogCanvas?.height || 0,
             finite: !fx || Array.from(fx).every(Number.isFinite) && Array.from(fy).every(Number.isFinite),
             visible: !fy ? 0 : Array.from(fy.slice(0,fCount)).filter(y=>y>0 && y<canvas.clientHeight).length,
-            gpuError:gl ? gl.getError() : 0 }; },
+            gpuError:gl ? gl.getError() : 0,
+            flashes:lightningCount, front:frontProgress, dunes:duneLayers.length, gust:gustStrength,
+            weather:document.documentElement.getAttribute('data-sandstorm') || '',
+            scene:!!(sceneCanvas && sceneCanvas.style.display !== 'none') }; },
         fogPixel() {
             if(!gl || !fogActive)return [];
             const pixels=new Uint8Array(4); renderFog(performance.now());
@@ -128,6 +131,26 @@ let seed=17;Math.random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/429
 			if mode == "fallback" && peak["fogActive"].Bool() {
 				t.Error("failed WebGL must use 2D fallback")
 			}
+			if peak["dunes"].Int() != 3 || !peak["scene"].Bool() {
+				t.Error("scene layer must carry three cached dune ridges")
+			}
+			if peak["front"].Num() < 0.3 || peak["flashes"].Int() < 1 || peak["weather"].Str() != "storm" {
+				t.Errorf("dust wall, dry lightning or storm state missing at the peak: front=%v flashes=%v weather=%q", peak["front"], peak["flashes"], peak["weather"].Str())
+			}
+			if after["weather"].Str() != "calm" || after["front"].Num() != 0 {
+				t.Errorf("storm release did not return the scene to calm: weather=%q front=%v", after["weather"].Str(), after["front"])
+			}
+			gust := page.MustEval(`() => {
+                const box=document.getElementById('chat-box'), r=box.getBoundingClientRect(), t=window.__sandTestTime;
+                box.dispatchEvent(new PointerEvent('pointermove',{clientX:r.x+200,clientY:r.y+200,bubbles:true}));
+                box.dispatchEvent(new PointerEvent('pointermove',{clientX:r.x+262,clientY:r.y+188,bubbles:true}));
+                __frame(t+100); const rising=__sand.stats().gust;
+                for(let i=1;i<=150;i++)__frame(t+100+i*1000/60);
+                return {rising, settled:__sand.stats().gust, pending:__pending.size};
+            }`).Map()
+			if gust["rising"].Num() <= 0.05 || gust["settled"].Num() >= gust["rising"].Num()*0.2 || gust["pending"].Int() != 1 {
+				t.Errorf("pointer gust did not rise and decay within a single loop: %v", gust)
+			}
 			if !page.MustEval(`() => {
                 const input=document.getElementById('composer'), r=input.getBoundingClientRect();
                 input.focus(); input.value='Sand bleibt bedienbar';
@@ -180,8 +203,8 @@ let seed=17;Math.random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/429
 				t.Error("fog exceeded pixel budget")
 			}
 			page.MustEval(`() => {document.documentElement.dataset.theme='dark';AuraGoSandstorm.sync()}`)
-			if page.MustEval(`() => __sand.stats().active || __pending.size!==0`).Bool() {
-				t.Error("theme exit did not stop animation")
+			if page.MustEval(`() => __sand.stats().active || __pending.size!==0 || document.documentElement.hasAttribute('data-sandstorm') || document.querySelector('.app-header').style.getPropertyValue('--sandstorm-flash') === '1'`).Bool() {
+				t.Error("theme exit did not stop animation or clear the weather state")
 			}
 			page.MustEval(`() => {document.documentElement.dataset.theme='sandstorm';AuraGoSandstorm.sync();AuraGoSandstorm.sync()}`)
 			if !page.MustEval(`() => __sand.stats().active && __pending.size===1 && document.querySelectorAll('#sandstorm-overlay').length===1`).Bool() {

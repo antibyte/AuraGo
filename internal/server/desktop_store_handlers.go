@@ -333,6 +333,31 @@ func handleDesktopStoreOpenURL(s *Server, appID string) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
+		if s.previewRequested(r) {
+			portID := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("port_id")))
+			if portID == "" && len(app.Ports) > 0 {
+				portID = app.Ports[0].ID
+			}
+			if portID == "" {
+				portID = "main"
+			}
+			startPath := "/"
+			if appID == "uptime-kuma" {
+				startPath = "/dashboard"
+			}
+			if appID == "gods-eye-view" {
+				language := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("lang")))
+				switch language {
+				case "cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh":
+					startPath += "?aurago_lang=" + language
+				}
+			}
+			openURL, err = s.issuePreviewLaunch(r, previewResource{kind: "store", id: appID, port: portID}, startPath)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"status": "ok",

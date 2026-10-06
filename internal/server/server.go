@@ -150,6 +150,7 @@ type Server struct {
 	httpRequests    sync.WaitGroup
 	httpHijacked    map[*drainHTTPConn]struct{}
 	lockdownLogOnce sync.Once
+	previewGrants   previewGrantRegistry
 	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
 	// Setup wizard CSRF tokens (short-lived, multi-token support).
 	// These live on the Server so tests can construct independent Server
@@ -1645,7 +1646,7 @@ func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh 
 	// Apply security headers (relaxed for HTTP, but still present).
 	// Gzip sits outside access logging so static UI assets compress for clients
 	// without wrapping WebSocket/SSE (those are skipped inside gzipMiddleware).
-	handler := trustedProxyMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)))))
+	handler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))))))
 
 	server := newAgentHTTPServer(addr, handler)
 
@@ -1658,7 +1659,7 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 	tlsCfg.HTTPPort = s.Cfg.Server.HTTPS.HTTPPort
 
 	// Apply security headers (strict for HTTPS)
-	handler := trustedProxyMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)))))
+	handler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))))))
 
 	httpsServer, httpServer, err := SetupServers(tlsCfg, handler, s.Logger)
 	if err != nil {

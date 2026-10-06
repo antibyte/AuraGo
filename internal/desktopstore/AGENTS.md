@@ -18,6 +18,33 @@ Store app configuration, runtime, assets, and publication.
   Verify `command-code --version` as the unprivileged image user after updates.
 - The Store pulls `ghcr.io/antibyte/aurago-commandcode:latest`. Source updates
   require image publication and a Store update before installed apps change.
+- CommandCode preview HTTP and WebSocket requests strip reserved AuraGo cookies
+  and internal credential headers. Preserve guest Authorization, CSRF and login
+  cookies; verify `TestCommandCodePreviewPreservesGuestAuthWithoutAuraGoCredentials`.
+
+### Read-only Docker Monitoring
+
+- Dozzle and the optional local Beszel agent must use a managed Tecnativa socket
+  proxy with the exact read-only environment profile `POST=0`,
+  `CONTAINERS=1`, `EVENTS=1`, `INFO=1`, `PING=1`, `SECRETS=0`, `VERSION=1`,
+  and `AUTH=0`. Do not grant `EXEC`, image/build, network, or volume access.
+- Dozzle and its proxy share only `aurago-store-dozzle-net`; Dozzle connects via
+  `DOZZLE_REMOTE_HOST=tcp://aurago-store-dozzle-socket-proxy:2375`. The proxy
+  has no published host port. The Beszel proxy exposes only container port 2375
+  on a dynamically allocated `127.0.0.1` host binding. Its optional agent keeps
+  host networking and metrics, uses the loopback proxy through `DOCKER_HOST`,
+  and never mounts the Docker socket. Keep hub/agent data and Vault secrets in
+  their existing paths.
+- Never add a direct Docker socket bind to either monitoring app or the Beszel
+  agent. Existing installations report the computed `update_required` flag
+  while their stored container configuration uses the old direct socket path.
+  Startup and status reads do not recreate containers; migrate only when the
+  operator invokes the existing Store Update action, which replaces the
+  app/companion configuration through the normal update and rollback path.
+- Verify catalog config, loopback port allocation against all app and companion
+  ports, and legacy migration behavior with `go test ./internal/desktopstore`.
+  A local Docker proxy smoke test should cover successful logs, events and stats
+  reads plus denial of Engine mutation methods.
 
 ### God's Eye View Store Contract
 
@@ -76,6 +103,12 @@ Store app configuration, runtime, assets, and publication.
   generic Docker bind policy. A new catalog `HostBinds` entry is trusted
   automatically, so review it like a policy exemption. Verify
   `TestToolsDockerAdapterTrustsOnlyCatalogHostBinds`.
+- The trusted catalog binds are exactly the read-only Docker sockets of the
+  Arcane, Dozzle and Beszel `socket-proxy` companions; without the exemption
+  their creation fails the generic bind check. Legacy Dozzle and Beszel-agent
+  records with a direct socket bind are not trusted: the Store Update rebuilds
+  them from the catalog, and a rollback to such a record fails the bind check,
+  as it did before the exemption.
 
 ### Store Container Hardening
 
@@ -104,6 +137,11 @@ Store app configuration, runtime, assets, and publication.
 - Most catalog images use floating tags such as `:latest`, so a probe verifies
   the digest it ran against, not the tag. Re-verify an opted-in image when its
   upstream changes and update the recorded digest.
+- Only `arcane/socket-proxy` is opted in. The Dozzle and Beszel `socket-proxy`
+  companions use the same Tecnativa image with the read-only monitoring
+  profile and their own network setup; they keep `no-new-privileges` and
+  Docker's default capabilities until each is probed with `CapDrop: ALL` in
+  its own configuration.
 - Verify `TestCatalogHardening*`, `TestDockerCreatePayload*Hardening*` and
   `TestInstallArcaneAppliesOnlyVerifiedHardening`.
 

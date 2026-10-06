@@ -2843,6 +2843,7 @@
   "desktop.store.uninstall": "アンインストール",
   "desktop.store.uninstall_copy": "コンテナとデスクトップ項目を削除します。",
   "desktop.store.update": "更新",
+  "desktop.store.update_required": "セキュリティ更新が必要です。Docker の監視を読み取り専用プロキシに切り替えるには、このアプリを更新してください。",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
   "desktop.store_terminal_copy_command": "コピー",
   "desktop.store_terminal_header_subtitle": "コンソール優先",

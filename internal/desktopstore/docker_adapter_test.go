@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -112,12 +114,19 @@ func TestToolsDockerAdapterTrustsOnlyCatalogHostBinds(t *testing.T) {
 	// Docker socket) is the companion that failed on aurago-test and keeps its
 	// catalog socket bind on main, so the negative cases below start from it.
 	var catalogSpecs []ContainerSpec
-	var arcaneProxy CompanionTemplate
+	var arcaneProxy, beszelAgent CompanionTemplate
+	var dozzleImage string
 	for _, entry := range DefaultCatalog() {
+		if entry.ID == "dozzle" {
+			dozzleImage = entry.Image
+		}
 		if len(entry.HostBinds) > 0 {
 			catalogSpecs = append(catalogSpecs, appSpec(entry.ID, entry.Image, resolveHostBinds(entry.HostBinds)))
 		}
 		for _, companion := range entry.Companions {
+			if entry.ID == "beszel" && companion.ID == "agent" {
+				beszelAgent = companion
+			}
 			if len(companion.HostBinds) == 0 {
 				continue
 			}
@@ -129,6 +138,21 @@ func TestToolsDockerAdapterTrustsOnlyCatalogHostBinds(t *testing.T) {
 	}
 	if len(arcaneProxy.HostBinds) == 0 {
 		t.Fatal("catalog has no Arcane socket-proxy host bind")
+	}
+	if dozzleImage == "" || beszelAgent.ID == "" {
+		t.Fatal("catalog has no Dozzle app or Beszel agent companion")
+	}
+	// The read-only monitoring proxies (main, baa3b047e) moved the Docker socket
+	// of Dozzle and the Beszel agent into socket-proxy companions, so the only
+	// trusted catalog binds are the sockets of the three socket proxies. A new
+	// catalog host bind is a policy exemption: add it here only after review.
+	var trustedNames []string
+	for _, spec := range catalogSpecs {
+		trustedNames = append(trustedNames, spec.Name)
+	}
+	sort.Strings(trustedNames)
+	if want := []string{"aurago-store-arcane-socket-proxy", "aurago-store-beszel-socket-proxy", "aurago-store-dozzle-socket-proxy"}; !reflect.DeepEqual(trustedNames, want) {
+		t.Fatalf("catalog containers with trusted host binds = %v, want %v", trustedNames, want)
 	}
 	for _, spec := range catalogSpecs {
 		if _, err := adapter.CreateContainer(ctx, spec); err != nil {
@@ -166,6 +190,10 @@ func TestToolsDockerAdapterTrustsOnlyCatalogHostBinds(t *testing.T) {
 		"companion of another app":    {companionSpec("excalidraw", arcaneProxy, proxyBinds), socketDenial},
 		"record without an app id":    {appSpec("", arcaneProxy.Image, proxyBinds), socketDenial},
 		"companion without an app id": {companionSpec("", arcaneProxy, proxyBinds), socketDenial},
+		// Records installed before the monitoring proxies keep a direct socket
+		// bind the catalog no longer declares; only the Store Update migrates them.
+		"legacy dozzle direct socket":       {appSpec("dozzle", dozzleImage, proxyBinds), socketDenial},
+		"legacy beszel agent direct socket": {companionSpec("beszel", beszelAgent, proxyBinds), socketDenial},
 	} {
 		if _, err := adapter.CreateContainer(ctx, tc.spec); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Fatalf("%s: error = %v, want %s", name, err, tc.want)
