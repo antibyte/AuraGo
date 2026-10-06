@@ -252,7 +252,12 @@ func eggVaultExportKeys(egg invasion.EggRecord, nest invasion.NestRecord) []stri
 		keys = append(keys, key)
 	}
 	add(egg.APIKeyRef)
-	add(nest.VaultSecretID)
+	// The nest's own secret logs the master in to the egg's host. It reaches
+	// the egg vault only for nests that opt in; nests from before the option
+	// were migrated with it on.
+	if nest.ExportNestSecret {
+		add(nest.VaultSecretID)
+	}
 	return keys
 }
 
