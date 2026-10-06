@@ -69,7 +69,10 @@ func TestDesktopStoreTerminalRejectsPlainGETBeforeCreatingExec(t *testing.T) {
 	}
 }
 
-func TestContainerTerminalSendsEOFBeforeClosingSession(t *testing.T) {
+// TestContainerTerminalClosesWithoutEOF pins that closing the WebSocket signals
+// nothing to the exec: an EOF would end a tmux or screen session at an empty
+// prompt, and nothing a client types is altered or followed by extra bytes.
+func TestContainerTerminalClosesWithoutEOF(t *testing.T) {
 	s := testContainerServer(true, false)
 	session := newFakeContainerTerminalSession()
 	fake := &fakeContainerTerminalBackend{running: true, session: session}
@@ -92,8 +95,8 @@ func TestContainerTerminalSendsEOFBeforeClosingSession(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("terminal session was not closed after the WebSocket closed")
 	}
-	if got := string(session.writtenBeforeClose()); got != "ls\r\x04" {
-		t.Fatalf("bytes before close = %q, want the input followed by one EOF (no interrupt)", got)
+	if got := string(session.writtenBeforeClose()); got != "ls\r" {
+		t.Fatalf("bytes before close = %q, want only the typed input (no EOF, no interrupt)", got)
 	}
 }
 
