@@ -5,6 +5,23 @@ keeps AuraGo sessions and management credentials out of guest applications while
 preserving guest JavaScript, relative assets, login cookies, APIs, uploads and
 WebSocket upgrades. CommandCode uses the same gateway for its preview port.
 
+## Trusted homelab use
+
+Isolation is optional for trusted applications on a private administrator-owned
+network. It does not require a new domain, local alias or TLS deployment unless
+the operator chooses to enable the gateway. Legacy previews retain their shared
+browser trust boundary; credential filtering does not make them isolated.
+Keep public exposure and externally supplied active content outside that trust
+assumption: use isolated previews before publishing or running untrusted content.
+Both legacy VM previews and the isolated gateway remove reserved AuraGo response
+cookies while preserving guest login cookies. CommandCode removes AuraGo cookies
+and internal credential headers on HTTP and WebSocket requests to dev servers,
+without stripping the guest application's own Authorization or CSRF headers.
+Legacy CommandCode responses can still set cookies for the shared host; this
+remains part of the trusted homelab boundary, not an isolated guest environment.
+CommandCode source changes take effect in installed apps only after image
+publication and an explicit Store update; neither happens during local testing.
+
 ## Prepare without switching existing apps
 
 ```yaml

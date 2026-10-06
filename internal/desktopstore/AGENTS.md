@@ -18,6 +18,9 @@ Store app configuration, runtime, assets, and publication.
   Verify `command-code --version` as the unprivileged image user after updates.
 - The Store pulls `ghcr.io/antibyte/aurago-commandcode:latest`. Source updates
   require image publication and a Store update before installed apps change.
+- CommandCode preview HTTP and WebSocket requests strip reserved AuraGo cookies
+  and internal credential headers. Preserve guest Authorization, CSRF and login
+  cookies; verify `TestCommandCodePreviewPreservesGuestAuthWithoutAuraGoCredentials`.
 
 ### Read-only Docker Monitoring
 

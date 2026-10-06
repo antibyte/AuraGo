@@ -1109,6 +1109,17 @@ func handleVirtualComputerPreviewProxy(s *Server, machineID, tail string) http.H
 				req.Header.Del("X-Internal-FollowUp")
 				req.Header.Del("Proxy-Authorization")
 			},
+			ModifyResponse: func(resp *http.Response) error {
+				cookies := resp.Header.Values("Set-Cookie")
+				resp.Header.Del("Set-Cookie")
+				for _, value := range cookies {
+					name, _, _ := strings.Cut(value, "=")
+					if !reservedPreviewCookie(strings.TrimSpace(name)) {
+						resp.Header.Add("Set-Cookie", value)
+					}
+				}
+				return nil
+			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 				jsonError(w, err.Error(), http.StatusBadGateway)
 			},
