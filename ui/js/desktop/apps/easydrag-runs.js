@@ -8,6 +8,8 @@
     // A failed or refused stream (429 FLOW_RUN_LIMIT) reconnects after 1.5 s, doubling up to 15 s.
     const RETRY_MS = 1500;
     const RETRY_MAX_MS = 15000;
+    // After MAX_FAILURES failures in a row without a message the server is asked about the run.
+    const MAX_FAILURES = 5;
     // REDACTED is the server's placeholder for secret values in scrubbed test data.
     const REDACTED = '[redacted]';
     const EFFECT_ICONS = { sends_message: 'brand-telegram', writes_files: 'file-pencil', controls_devices: 'home', runs_code: 'api', deletes: 'trash', system_change: 'settings' };
@@ -55,8 +57,16 @@
         let lastSeq = 0;
         let reconnectTimer = 0;
         let retryDelay = RETRY_MS;
+        let failures = 0;
+        // parked is a live run that a run view replaced; clearRun() attaches it again.
+        let parked = null;
         let drawer = null;
+        let drawerOpener = null;
         let drawerFilter = 'all';
+        let runsSeq = 0;
+        let viewSeq = 0;
+        let viewing = null;
+        let disposed = false;
 
         function setRun(next) {
             ed.run = next;
@@ -73,12 +83,15 @@
             return roots;
         }
 
-        function rememberRun(run, steps) {
+        // runData is a run's data for the input tree: a label and the outputs by node key.
+        function runData(run, steps) {
             const label = run.mode === 'test'
                 ? t('easydrag.ui.input_last_test', { time: core.fmt.relative(run.started_at) })
                 : t('easydrag.ui.input_last_live', { time: core.fmt.relative(run.started_at) });
-            ed.lastRunData = { runId: run.id, label, roots: rootsFrom(steps, run) };
+            return { runId: run.id, label, roots: rootsFrom(steps, run) };
         }
+
+        function rememberRun(run, steps) { ed.lastRunData = runData(run, steps); }
 
         // ── stream ──────────────────────────────────────────────────────────────
 
@@ -91,6 +104,8 @@
             closeStream();
             lastSeq = 0;
             retryDelay = RETRY_MS;
+            failures = 0;
+            parked = null;
             setRun({ id: runId, status: 'queued', mode: (meta && meta.mode) || 'test', steps: new Map(), record: null, error: '' });
             connect(runId);
         }
@@ -100,7 +115,7 @@
             const es = new EventSource(ed.api.eventsUrl(runId, lastSeq || undefined));
             source = es;
             // Every message shows the stream works: the next failure waits RETRY_MS again.
-            const alive = () => { retryDelay = RETRY_MS; };
+            const alive = () => { retryDelay = RETRY_MS; failures = 0; };
             es.addEventListener('snapshot', (event) => {
                 alive();
                 const detail = JSON.parse(event.data);
@@ -136,13 +151,42 @@
                 if (!ed.run || ed.run.id !== runId) return;
                 // The stream broke after run_finished but before "end": load the result now.
                 if (isFinal(ed.run.status)) { finish(runId); return; }
-                clearTimeout(reconnectTimer);
-                reconnectTimer = setTimeout(() => connect(runId), retryDelay);
-                retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+                failures++;
+                if (failures >= MAX_FAILURES) { failures = 0; probe(runId); return; }
+                reconnectLater(runId);
             };
         }
 
-        function isRunning() { return !!(ed.run && !isFinal(ed.run.status)); }
+        function reconnectLater(runId) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = setTimeout(() => connect(runId), retryDelay);
+            retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+        }
+
+        // probe asks the server about a run whose stream kept failing without a message. A
+        // finished run shows its result; an unknown run (404) or disabled flows (503) stop the
+        // stream and say so; anything else keeps reconnecting.
+        async function probe(runId) {
+            let detail = null;
+            let failure = null;
+            try { detail = await ed.api.run(runId, false); } catch (err) { failure = err; }
+            if (disposed || !ed.run || ed.run.id !== runId) return;
+            if (detail && detail.run && isFinal(detail.run.status)) { finish(runId, detail); return; }
+            const status = Number(failure && failure.status) || 0;
+            const code = core.errorCode(failure);
+            if (failure && (status === 404 || status === 503 || code === 'FLOW_RUN_NOT_FOUND' || code === 'FLOWS_DISABLED')) {
+                closeStream();
+                ed.run.stale = true;
+                ed.run.error = core.errorText(t, failure);
+                setRun(ed.run);
+                ed.ctx.notify({ title: t('easydrag.ui.run_stream_lost'), message: ed.run.error, type: 'error' });
+                return;
+            }
+            reconnectLater(runId);
+        }
+
+        // isRunning: a live run is active (not a run view, not one whose stream was given up).
+        function isRunning() { return !!(ed.run && !ed.run.view && !ed.run.stale && !isFinal(ed.run.status)); }
 
         function applyEvent(ev) {
             if (ev.type === 'run_started') ed.run.status = 'running';
@@ -168,7 +212,7 @@
             if (!detail) {
                 try { detail = await ed.api.run(runId, false); } catch (err) { detail = null; /* keep the streamed state */ }
             }
-            if (ed.run !== current) return;
+            if (disposed || ed.run !== current) return;
             if (detail && detail.run) {
                 current.record = detail.run;
                 current.status = detail.run.status;
@@ -178,7 +222,7 @@
             setRun(ed.run);
             const failed = Array.from(ed.run.steps.values()).find(s => s.status === 'error');
             const node = failed && ed.model.node(failed.node_id);
-            canvas.announce(ed.run.status === 'success' ? t('easydrag.ui.run_done') : node ? t('easydrag.ui.run_failed_at', { node: node.label }) : t('easydrag.ui.run_failed'));
+            canvas.announce(ed.run.status === 'success' ? t('easydrag.ui.run_done') : node ? t('easydrag.ui.run_failed_at', { node: node.label || node.type }) : t('easydrag.ui.run_failed'));
             if (drawer) loadRuns();
         }
 
@@ -217,7 +261,7 @@
         let starting = false;
 
         async function startTest(opts) {
-            if (ed.readonly || ed.runView || starting || isRunning()) return undefined;
+            if (disposed || ed.readonly || ed.runView || starting || isRunning()) return undefined;
             starting = true;
             let dialog;
             try {
@@ -230,7 +274,13 @@
         }
 
         async function openTest(o) {
-            if (ed.saver) await ed.saver.flush();
+            // A test runs the saved draft: an invalid, offline or conflicting draft is not tested
+            // silently in its last saved version.
+            if (ed.saver && !(await ed.saver.flush())) {
+                if (!disposed) ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: t('easydrag.ui.test_unsaved'), type: 'error' });
+                return undefined;
+            }
+            if (disposed) return undefined;
             const list = triggers(ed);
             if (!list.length) { ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: t('easydrag.ui.test_no_trigger'), type: 'error' }); return undefined; }
             const remembered = core.storage.get('aurago.easydrag.test-trigger.' + ed.flow.id, '');
@@ -241,15 +291,16 @@
             if (o.quick && !needConfirm) { await run(trigger.id, null, o.onlyNode, false); return undefined; }
             let sample = {};
             try { sample = (await ed.api.testData(ed.flow.id, trigger.id)).data || {}; } catch (err) { sample = {}; }
+            if (disposed) return undefined;
             // The sample comes scrubbed (secret values read "[redacted]") and must never be saved
             // back: unchanged text runs without trigger_data, so the server uses the stored sample.
             let shown = JSON.stringify(sample, null, 2);
             const dialog = core.modal(ed.root, {
                 title: o.onlyNode ? t('easydrag.ui.test_node_title') : t('easydrag.ui.test_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--test',
                 body: (list.length > 1 ? '<label class="ed-label">' + esc(t('easydrag.ui.test_trigger')) + '<select class="ed-input" data-ed-test-trigger>' +
-                    list.map(n => '<option value="' + esc(n.id) + '"' + (n.id === trigger.id ? ' selected' : '') + '>' + esc(n.label) + '</option>').join('') + '</select></label>' : '') +
+                    list.map(n => '<option value="' + esc(n.id) + '"' + (n.id === trigger.id ? ' selected' : '') + '>' + esc(n.label || n.type) + '</option>').join('') + '</select></label>' : '') +
                     '<label class="ed-label">' + esc(t('easydrag.ui.test_data')) + '<textarea class="ed-input ed-code" rows="9" spellcheck="false" data-ed-test-data>' + esc(shown) + '</textarea></label>' +
-                    '<p class="ed-hint">' + esc(t('easydrag.ui.test_data_hint')) + '</p><p class="ed-error" hidden></p>' +
+                    '<p class="ed-hint">' + esc(t('easydrag.ui.test_data_hint')) + '</p><p class="ed-error" role="alert" hidden></p>' +
                     '<label class="ed-check"><input type="checkbox" data-ed-test-remember checked> ' + esc(t('easydrag.ui.test_remember')) + '</label>' +
                     (needConfirm ? effectsMarkup(fx) : ''),
                 actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'run', label: t('easydrag.ui.test_run'), primary: true, icon: 'play' }],
@@ -300,7 +351,7 @@
                 const body = { trigger_node: triggerNode, only_node: onlyNode || undefined, remember_data: !!remember };
                 if (data) body.trigger_data = data;
                 const res = await ed.api.test(ed.flow.id, body);
-                if (res.run_id) attach(res.run_id, { mode: 'test' });
+                if (res.run_id && !disposed) attach(res.run_id, { mode: 'test' });
                 return true;
             } catch (err) {
                 ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: core.errorText(t, err), type: 'error' });
@@ -309,10 +360,10 @@
         }
 
         async function runLive() {
-            if (ed.runView || starting || isRunning()) return;
+            if (disposed || ed.runView || starting || isRunning()) return;
             try {
                 const res = await ed.api.runNow(ed.flow.id);
-                if (res.run_id) attach(res.run_id, { mode: 'live' });
+                if (res.run_id && !disposed) attach(res.run_id, { mode: 'live' });
             } catch (err) {
                 ed.ctx.notify({ title: t('easydrag.ui.run_now'), message: core.errorText(t, err), type: 'error' });
             }
@@ -334,7 +385,7 @@
         async function settleFinished(runId) {
             let detail = null;
             try { detail = await ed.api.run(runId, false); } catch (err) { return; }
-            if (!detail || !detail.run || !isFinal(detail.run.status)) return;
+            if (disposed || !detail || !detail.run || !isFinal(detail.run.status)) return;
             if (!ed.run || ed.run.id !== runId || isFinal(ed.run.status)) return;
             closeStream();
             await finish(runId, detail);
@@ -344,8 +395,9 @@
         async function loadLast() {
             try {
                 const runs = (await ed.api.runs(ed.flow.id, { limit: 1 })).runs || [];
-                if (!runs.length) return;
+                if (!runs.length || disposed) return;
                 const detail = await ed.api.run(runs[0].id, false);
+                if (disposed) return;
                 rememberRun(detail.run, detail.steps || []);
                 ed.bus.emit('last-run', detail.run);
             } catch (err) { /* no history yet */ }
@@ -358,8 +410,10 @@
             return n ? (n.label || n.type) : t('easydrag.ui.trigger_removed');
         }
 
+        // loadRuns fills the drawer; only the answer to the latest request (filter) is shown.
         async function loadRuns() {
             if (!drawer) return;
+            const mine = ++runsSeq;
             const list = drawer.querySelector('.ed-runs-list');
             const params = { limit: 50 };
             if (drawerFilter === 'errors') params.status = 'error';
@@ -368,19 +422,31 @@
             list.innerHTML = '<p class="ed-hint">' + esc(t('easydrag.ui.loading')) + '</p>';
             try {
                 const runs = (await ed.api.runs(ed.flow.id, params)).runs || [];
+                if (mine !== runsSeq || !drawer) return;
                 list.innerHTML = runs.length ? runs.map(r =>
                     '<button type="button" class="ed-run-row" data-ed-run="' + esc(r.id) + '"><span class="ed-run-dot ed-run-dot--' + esc(r.status) + '"></span>' +
                     '<span class="ed-run-main"><span>' + esc(core.tr(t, 'easydrag.ui.status_' + r.status, r.status)) + ' · ' + esc(triggerLabel(r)) + '</span>' +
                     '<span class="ed-muted">' + esc(core.fmt.dateTime(r.started_at)) + (r.duration_ms ? ' · ' + esc(core.fmt.duration(r.duration_ms)) : '') + '</span></span>' +
                     '<span class="ed-chip' + (r.mode === 'test' ? ' ed-chip--muted' : '') + '">' + esc(r.mode === 'test' ? t('easydrag.ui.run_mode_test') : t('easydrag.ui.run_mode_live')) + '</span></button>').join('')
                     : '<p class="ed-hint">' + esc(t('easydrag.ui.runs_empty')) + '</p>';
-            } catch (err) { list.innerHTML = '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>'; }
+            } catch (err) { if (mine === runsSeq && drawer) list.innerHTML = '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>'; }
         }
 
+        // The drawer takes focus when it opens and gives it back to its opener when it closes.
         function toggleDrawer(force) {
             const open = force === undefined ? !drawer : force;
-            if (!open) { if (drawer) { drawer.remove(); drawer = null; ed.root.classList.remove('has-drawer'); } return; }
+            if (!open) {
+                if (!drawer) return;
+                const hadFocus = drawer.contains(document.activeElement);
+                drawer.remove();
+                drawer = null;
+                ed.root.classList.remove('has-drawer');
+                if (hadFocus && drawerOpener && typeof drawerOpener.focus === 'function') drawerOpener.focus();
+                drawerOpener = null;
+                return;
+            }
             if (drawer) return;
+            drawerOpener = document.activeElement;
             drawer = core.el('<aside class="ed-drawer" aria-label="' + esc(t('easydrag.ui.runs_title')) + '"><header class="ed-drawer-head"><h3>' + esc(t('easydrag.ui.runs_title')) + '</h3>' +
                 '<button type="button" class="ed-icon-btn" data-ed-drawer-close aria-label="' + esc(t('easydrag.ui.close')) + '">' + core.icon('x') + '</button></header>' +
                 '<div class="ed-seg ed-seg--small" role="radiogroup">' + ['all', 'errors', 'tests', 'live'].map(f => '<button type="button" role="radio" aria-checked="' + (f === drawerFilter) + '" data-ed-runs-filter="' + f + '">' + esc(t('easydrag.ui.runs_filter_' + f)) + '</button>').join('') + '</div>' +
@@ -400,29 +466,63 @@
                 if (row) openRunView(row.dataset.edRun);
             });
             loadRuns();
+            const first = drawer.querySelector('[data-ed-runs-filter][aria-checked="true"]') || drawer.querySelector('button');
+            if (first) first.focus();
         }
 
+        // openRunView fetches a stored run for the run view: a second click on the same run while
+        // it loads does nothing, and only the run clicked last is shown.
         async function openRunView(runId) {
+            if (disposed || viewing === runId) return;
+            viewing = runId;
+            const mine = ++viewSeq;
             try {
                 const detail = await ed.api.run(runId, true);
+                if (disposed || mine !== viewSeq) return;
                 if (!detail.doc) { ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message: t('easydrag.ui.run_view_missing'), type: 'error' }); return; }
                 ed.enterRunView(detail);
             } catch (err) {
-                ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message: core.errorText(t, err), type: 'error' });
+                if (!disposed && mine === viewSeq) ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message: core.errorText(t, err), type: 'error' });
+            } finally {
+                if (viewing === runId) viewing = null;
             }
+        }
+
+        function stepsFrom(steps, record) {
+            const map = new Map();
+            (steps || []).forEach(s => map.set(s.node_id, s));
+            return { id: record.id, status: record.status, mode: record.mode, steps: map, record };
+        }
+
+        // applyRunView shows a stored run in the run view, with its own data in the input tree
+        // (ed.runView.data). A live run that is still going is parked: its stream closes, and
+        // clearRun() (leaving the run view) attaches it again.
+        function applyRunView(detail) {
+            if (ed.run && !ed.run.view && !isFinal(ed.run.status) && !ed.run.stale) parked = { id: ed.run.id, mode: ed.run.mode };
+            closeStream();
+            const shown = stepsFrom(detail.steps, detail.run);
+            shown.view = true;
+            shown.finished = true;
+            if (ed.runView) ed.runView.data = runData(detail.run, detail.steps || []);
+            setRun(shown);
+        }
+
+        function clearRun() {
+            closeStream();
+            const back = parked;
+            parked = null;
+            if (back && !disposed) { attach(back.id, { mode: back.mode }); return; }
+            setRun(null);
         }
 
         bag.add(closeStream);
         bag.add(() => toggleDrawer(false));
 
         return {
-            startTest, attach, runLive, cancel, loadLast, toggleDrawer, openRunView, effects,
-            stepsFrom: (steps, record) => { const map = new Map(); (steps || []).forEach(s => map.set(s.node_id, s)); return { id: record.id, status: record.status, mode: record.mode, steps: map, record }; },
-            applyRunView(detail) { setRun(this.stepsFrom(detail.steps, detail.run)); },
-            clearRun() { closeStream(); setRun(null); },
+            startTest, attach, runLive, cancel, loadLast, toggleDrawer, openRunView, effects, stepsFrom, applyRunView, clearRun,
             isRunning,
             drawerOpen: () => !!drawer,
-            dispose() { bag.dispose(); }
+            dispose() { disposed = true; parked = null; bag.dispose(); }
         };
     }
 

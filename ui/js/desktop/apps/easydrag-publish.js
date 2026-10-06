@@ -11,7 +11,9 @@
         const { t, esc } = ed;
         const bag = core.bag();
         let popover = null;
+        let opener = null;
         let seq = 0;
+        let dialogBusy = false;
 
         const refreshIssues = core.debounce(async () => {
             const mine = ++seq;
@@ -41,8 +43,11 @@
             ed.bus.emit('open-detail', { nodeId: is.node_id, param: is.param ? is.param.split(/[.[]/)[0] : undefined });
         }
 
+        // openIssues shows the issues popover at anchor. Escape closes it and gives focus back to
+        // the anchor; a press outside closes it.
         function openIssues(anchor) {
             closeIssues();
+            opener = anchor;
             const list = ed.issues || [];
             popover = core.el('<div class="ed-popover ed-issues-popover" role="dialog" aria-label="' + esc(t('easydrag.ui.issues_title')) + '"><header><h3>' + esc(t('easydrag.ui.issues_title')) + '</h3></header>' +
                 (list.length ? issuesMarkup(list) : '<p class="ed-hint">' + esc(t('easydrag.ui.issues_none')) + '</p>') + '</div>');
@@ -58,16 +63,26 @@
                 closeIssues();
                 focusIssue(sorted[Number(b.dataset.edIssue)]);
             });
+            popover.addEventListener('keydown', (event) => {
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                event.stopPropagation();
+                closeIssues(true);
+            });
             const first = popover.querySelector('button');
             if (first) first.focus();
-            setTimeout(() => document.addEventListener('pointerdown', outside, true), 0);
+            const mine = popover;
+            setTimeout(() => { if (popover === mine) document.addEventListener('pointerdown', outside, true); }, 0);
         }
 
         function outside(event) { if (popover && !popover.contains(event.target)) closeIssues(); }
 
-        function closeIssues() {
+        // closeIssues removes the popover; restore gives focus back to its anchor.
+        function closeIssues(restore) {
             document.removeEventListener('pointerdown', outside, true);
             if (popover) { popover.remove(); popover = null; }
+            if (restore && opener && typeof opener.focus === 'function') opener.focus();
+            opener = null;
         }
 
         // partialText explains a partial publish: the revision is live, but Mission Control or
@@ -88,8 +103,21 @@
             return parts.length ? parts.join(' · ') : t('easydrag.ui.diff_none');
         }
 
+        // openDialog opens the publish dialog once: clicks while it loads or is open do nothing.
         async function openDialog() {
-            if (ed.readonly || ed.runView) return;
+            if (ed.readonly || ed.runView || dialogBusy) return undefined;
+            dialogBusy = true;
+            let dialog;
+            try {
+                dialog = await showDialog();
+            } finally {
+                if (!dialog) dialogBusy = false;
+            }
+            if (dialog) dialog.done.then(() => { dialogBusy = false; });
+            return dialog;
+        }
+
+        async function showDialog() {
             if (ed.saver && !(await ed.saver.flush())) {
                 ed.ctx.notify({ title: t('easydrag.ui.publish'), message: t('easydrag.ui.publish_unsaved'), type: 'error' });
                 return;
@@ -198,7 +226,8 @@
             }
         }
 
-        bag.add(() => { refreshIssues.cancel(); closeIssues(); });
+        // Dispose drops a validation in flight (seq) along with the pending one.
+        bag.add(() => { seq++; refreshIssues.cancel(); closeIssues(); });
 
         return { refreshIssues, openIssues, closeIssues, openDialog, publish, setActive, focusIssue, partialText, dispose() { bag.dispose(); } };
     }

@@ -174,7 +174,9 @@
             });
         }
 
-        function runData() { return ed.lastRunData || null; }
+        // runData is the data the input column offers: in the run view that run's own data
+        // (runs.applyRunView), never the editor's last run.
+        function runData() { return (ed.runView ? ed.runView.data : ed.lastRunData) || null; }
 
         function currentStep() { return (ed.run && ed.run.steps && ed.run.steps.get(node.id)) || null; }
 
@@ -202,7 +204,7 @@
             const step = ed.run && ed.run.steps && ed.run.steps.get(node.id);
             el.querySelector('.ed-detail-status').innerHTML = step ? '<span class="ed-status-pill ed-status-pill--' + esc(step.status) + '">' + esc(core.tr(t, 'easydrag.ui.status_' + step.status, step.status)) + '</span>' : '';
             // One run at a time: "test this step" waits until the active run ended.
-            const busy = !!(ed.run && ED.runs && !ED.runs.isFinal(ed.run.status));
+            const busy = !!(ed.run && !ed.run.view && !ed.run.stale && ED.runs && !ED.runs.isFinal(ed.run.status));
             el.querySelector('[data-ed-detail-test]').disabled = !!(ed.readonly || ed.runView || (info && info.trigger) || busy);
             const list = sortedNodes(ed.model);
             const idx = list.findIndex(n => n.id === node.id);
@@ -261,8 +263,9 @@
             const ro = !!(ed.readonly || ed.runView);
             const fenv = { t, esc, readonly: ro };
             host.innerHTML = '';
-            const keyField = core.el('<div class="ed-field"><div class="ed-field-head"><label>' + esc(t('easydrag.ui.settings_key')) + '</label></div>' +
-                '<input class="ed-input ed-code" value="' + esc(node.key) + '"' + (ro ? ' disabled' : '') + ' spellcheck="false"><p class="ed-hint">' + esc(t('easydrag.ui.settings_key_hint')) + '</p><p class="ed-error" hidden></p></div>');
+            const keyId = 'ed-key-' + ed.windowId + '-' + id;
+            const keyField = core.el('<div class="ed-field"><div class="ed-field-head"><label for="' + esc(keyId) + '">' + esc(t('easydrag.ui.settings_key')) + '</label></div>' +
+                '<input class="ed-input ed-code" id="' + esc(keyId) + '" value="' + esc(node.key) + '"' + (ro ? ' disabled' : '') + ' spellcheck="false"><p class="ed-hint">' + esc(t('easydrag.ui.settings_key_hint')) + '</p><p class="ed-error" role="alert" hidden></p></div>');
             keyField.querySelector('input').addEventListener('change', (event) => {
                 const res = ed.model.setKey(id, event.target.value.trim());
                 const err = keyField.querySelector('.ed-error');
@@ -274,7 +277,7 @@
             const onError = core.el('<div class="ed-field"><div class="ed-field-head"><label>' + esc(t('easydrag.ui.settings_on_error')) + '</label></div></div>');
             onError.appendChild(ED.fields.segmented(fenv, [
                 { value: 'stop', label: t('easydrag.ui.on_error_stop') }, { value: 'continue', label: t('easydrag.ui.on_error_continue') }, { value: 'error_port', label: t('easydrag.ui.on_error_port') }
-            ], s.on_error || 'stop', v => ed.model.setSettings(id, { on_error: v === 'stop' ? undefined : v })));
+            ], s.on_error || 'stop', v => ed.model.setSettings(id, { on_error: v === 'stop' ? undefined : v }), { label: t('easydrag.ui.settings_on_error') }));
             onError.appendChild(core.el('<p class="ed-hint">' + esc(t('easydrag.ui.settings_on_error_hint')) + '</p>'));
             host.appendChild(onError);
             const retry = core.el('<div class="ed-field ed-field--row"><label>' + esc(t('easydrag.ui.settings_retries')) +
@@ -311,7 +314,7 @@
             const ro = !!(ed.readonly || ed.runView);
             if (host.querySelector('textarea') && document.activeElement === host.querySelector('textarea')) return;
             const id = node.id;
-            host.innerHTML = '<textarea class="ed-input ed-note" rows="10" placeholder="' + esc(t('easydrag.ui.note_placeholder')) + '"' + (ro ? ' disabled' : '') + '>' + esc((node.settings || {}).notes || '') + '</textarea>';
+            host.innerHTML = '<textarea class="ed-input ed-note" rows="10" aria-label="' + esc(t('easydrag.ui.detail_note')) + '" placeholder="' + esc(t('easydrag.ui.note_placeholder')) + '"' + (ro ? ' disabled' : '') + '>' + esc((node.settings || {}).notes || '') + '</textarea>';
             host.querySelector('textarea').addEventListener('input', (event) => { pendingNote = { id, value: event.target.value }; saveNote(); });
         }
 
@@ -415,6 +418,25 @@
 
         function closeSelf() { close(ed); }
 
+        // trapTab keeps Tab and Shift+Tab inside the dialog (it is aria-modal).
+        function trapTab(event) {
+            const items = Array.from(dialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+                .filter(n => !n.disabled && n.getAttribute('tabindex') !== '-1' && n.offsetParent !== null);
+            if (!items.length) return;
+            const active = document.activeElement;
+            const first = items[0];
+            const last = items[items.length - 1];
+            if (event.shiftKey && (active === first || !dialog.contains(active))) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && (active === last || !dialog.contains(active))) { event.preventDefault(); first.focus(); }
+        }
+
+        // stepGroup moves to the next tab or radio of a group and selects it.
+        function stepGroup(group, item, delta) {
+            const items = Array.from(group.querySelectorAll('[role="tab"], [role="radio"]')).filter(b => !b.disabled);
+            const next = items[(items.indexOf(item) + delta + items.length) % items.length];
+            if (next && next !== item) { next.focus(); next.click(); }
+        }
+
         bag.listen(el, 'focusin', (event) => {
             const field = event.target.closest && event.target.closest('.ed-field[data-param]');
             if (field) lastField = field.dataset.param;
@@ -439,9 +461,17 @@
                 closeSelf();
                 return;
             }
+            if (event.key === 'Tab') { trapTab(event); return; }
             if (core.isEditable(event.target)) return;
-            if (event.key === 'ArrowLeft' && !event.target.closest('.ed-tree')) { event.preventDefault(); go(-1); }
-            if (event.key === 'ArrowRight' && !event.target.closest('.ed-tree')) { event.preventDefault(); go(1); }
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            const delta = event.key === 'ArrowRight' ? 1 : -1;
+            // In a tab or radio group the arrows move within the group, not to another node.
+            const item = event.target.closest('[role="tab"], [role="radio"]');
+            const group = item && item.closest('[role="tablist"], [role="radiogroup"]');
+            if (group) { event.preventDefault(); stepGroup(group, item, delta); return; }
+            if (event.target.closest('.ed-tree')) return;
+            event.preventDefault();
+            go(delta);
         });
         bag.listen(labelInput, 'input', () => ed.model.setLabel(node.id, labelInput.value));
         bag.add(ed.bus.on('model', change => {
@@ -488,7 +518,8 @@
             ed.detail.close();
             return null;
         }
-        if (!(opts && opts.param)) labelInput.focus({ preventScroll: true });
+        // The label field takes focus; in the run view (label disabled) the close button does.
+        if (!(opts && opts.param)) (labelInput.disabled ? el.querySelector('[data-ed-detail-close]') : labelInput).focus({ preventScroll: true });
         requestAnimationFrame(() => el.classList.add('is-open'));
         return ed.detail;
     }

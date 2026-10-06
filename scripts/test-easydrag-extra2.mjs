@@ -138,7 +138,7 @@ export async function run(env) {
             selection: new Set(), run: null, runView: null, issues: [], lastRunData: null, detail: null, effectsConfirmed: false, bus
         };
         return {
-            ED, ed, model, bus, dom, sources, requests, notes, announced, logged, timers, store, win: box.window,
+            ED, ed, model, bus, dom, sources, requests, notes, announced, logged, timers, store, win: box.window, docListeners,
             canvas: { announce: text => announced.push(text) },
             // timer returns the delay of the one pending timer (all delays when there are more).
             timer() { const list = Array.from(timers.values()).map(x => x.ms); return list.length === 1 ? list[0] : list; },
@@ -195,8 +195,9 @@ export async function run(env) {
 
     await guardAsync('c1d06 run stream', async () => {
         let fetches = 0;
+        let stored = 'running';
         const h = harness(req => {
-            if (req.url === '/api/desktop/flows/runs/r1') { fetches++; return { run: { id: 'r1', status: 'success', mode: 'test', started_at: '2026-10-06T10:00:00Z' }, steps: [] }; }
+            if (req.url === '/api/desktop/flows/runs/r1') { fetches++; return { run: { id: 'r1', status: stored, mode: 'test', started_at: '2026-10-06T10:00:00Z' }, steps: [] }; }
             throw apiError('FLOW_RUN_NOT_FOUND');
         });
         const runs = h.ED.runs.create(h.ed, h.canvas);
@@ -211,24 +212,26 @@ export async function run(env) {
             ['/api/desktop/flows/runs/r1/events', true, 2, '/api/desktop/flows/runs/r1/events?after=5', 0, 0, 'running']);
         h.last().emit('resync', { after: 2 });
         eq('c1d06 resync never moves the start point back', h.last().url, '/api/desktop/flows/runs/r1/events?after=5');
-        // Refused (429 FLOW_RUN_LIMIT) or broken streams back off; never a tight loop.
+        // Refused (429 FLOW_RUN_LIMIT) or broken streams back off; never a tight loop. The fifth
+        // failure in a row asks the server about the run (still running: keep reconnecting).
         const delays = [];
-        for (let i = 0; i < 6; i++) { h.last().fail(); delays.push(h.timer()); h.runTimers(); }
-        eq('c1d06 failed streams retry after 1.5 s, doubling up to 15 s', [delays, h.sources.length, h.last().url], [[1500, 3000, 6000, 12000, 15000, 15000], 9, '/api/desktop/flows/runs/r1/events?after=5']);
+        for (let i = 0; i < 6; i++) { h.last().fail(); await settle(); delays.push(h.timer()); h.runTimers(); }
+        eq('c1d06 failed streams retry after 1.5 s, doubling up to 15 s', [delays, h.sources.length, h.last().url, fetches], [[1500, 3000, 6000, 12000, 15000, 15000], 9, '/api/desktop/flows/runs/r1/events?after=5', 1]);
         h.last().emit('event', { seq: 6, type: 'step_started', node_id: B });
         h.last().fail();
         const reset = h.timer();
         h.runTimers();
         eq('c1d06 a received event resets the backoff and moves the start point', [reset, h.last().url], [1500, '/api/desktop/flows/runs/r1/events?after=6']);
+        stored = 'success';
         h.last().emit('end', {});
         await settle();
-        eq('c1d06 end loads the stored result', [fetches, h.ed.run.status, h.announced, h.timers.size], [1, 'success', ['run_done'], 0]);
+        eq('c1d06 end loads the stored result', [fetches, h.ed.run.status, h.announced, h.timers.size], [2, 'success', ['run_done'], 0]);
         // A stream that breaks after run_finished but before "end" loads the result too.
         runs.attach('r1', { mode: 'test' });
         h.last().emit('event', { seq: 9, type: 'run_finished', run: { status: 'success', duration_ms: 5 } });
         h.last().fail();
         await settle();
-        eq('c1d06 a stream lost after run_finished loads the result instead of retrying', [fetches, h.timers.size, h.announced.length], [2, 0, 2]);
+        eq('c1d06 a stream lost after run_finished loads the result instead of retrying', [fetches, h.timers.size, h.announced.length], [3, 0, 2]);
         eq('c1d06 the stream checks log no errors', h.logged, []);
     });
 
@@ -581,5 +584,213 @@ export async function run(env) {
             [[[['/files/doc.pdf', 'data:image/png;base64,UERG', false]], 2, 2], [[['/files/doc.pdf', 'data:image/png;base64,UERG', false]], 3, 3]]);
         h.ED.detail.close(h.ed);
         eq('c1d06 the thumbnail checks log no errors', h.logged, []);
+    });
+
+    // ── review fixes: run view data and minors ──
+
+    const finalRun = (id, status) => ({ run: { id, status, mode: 'test', started_at: '2026-10-06T10:00:00Z' }, steps: [] });
+
+    await guardAsync('c1d06 review run view', async () => {
+        const h = harness(() => { throw apiError('FLOW_RUN_NOT_FOUND'); });
+        const runs = h.ED.runs.create(h.ed, h.canvas);
+        h.ed.lastRunData = { runId: 'r9', label: 'Editor run', roots: { alpha: { from: 'editor-run' } } };
+        runs.attach('r1', { mode: 'live' });
+        const live = h.last();
+        live.emit('snapshot', { run: { id: 'r1', status: 'running' }, steps: [] });
+        // The editor's enterRunView sets ed.runView, then calls applyRunView.
+        const detail = { run: { id: 'r0', status: 'success', mode: 'test', started_at: '2026-10-06T09:00:00Z' }, steps: [{ node_id: A, node_key: 'alpha', status: 'success', output: { from: 'viewed-run' } }], doc: flowDoc() };
+        h.ed.runView = { run: detail.run, doc: detail.doc };
+        runs.applyRunView(detail);
+        const inView = [live.closed, h.ed.run.id, runs.isRunning(), h.ed.runView.data.roots.alpha];
+        h.ED.detail.open(h.ed, B);
+        const tree = h.ed.root.querySelector('.ed-tree').html;
+        const focus = h.dom.document.activeElement;
+        h.ED.detail.close(h.ed);
+        // The editor's exitRunView clears ed.runView, then calls clearRun: the live run comes back.
+        h.ed.runView = null;
+        runs.clearRun();
+        eq('c1d06 the run view shows its own run\'s data and parks a live run that clearRun attaches again',
+            [inView, tree.includes('viewed-run'), tree.includes('editor-run'), !!(focus && focus.getAttribute('data-ed-detail-close') !== null), h.ed.run.id, h.last() !== live, h.last().url, runs.isRunning()],
+            [[true, 'r0', false, { from: 'viewed-run' }], true, false, true, 'r1', true, '/api/desktop/flows/runs/r1/events', true]);
+        eq('c1d06 the run view checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d06 review lost streams', async () => {
+        const h = harness(req => {
+            if (req.url === '/api/desktop/flows/runs/r1') throw Object.assign(apiError('FLOW_RUN_NOT_FOUND'), { status: 404 });
+            if (req.url === '/api/desktop/flows/runs/r2') throw new Error('network');
+            throw apiError('FLOW_RUN_NOT_FOUND');
+        });
+        const runs = h.ED.runs.create(h.ed, h.canvas);
+        // failFive fails the stream five times, reconnecting after each of the first four.
+        const failFive = async () => { for (let i = 0; i < 5; i++) { if (i) h.runTimers(); h.last().fail(); await settle(); } };
+        runs.attach('r1', { mode: 'test' });
+        await failFive();
+        const gone = [h.sources.length, h.timers.size, h.last().closed, runs.isRunning(), h.ed.run.stale, h.notes];
+        runs.attach('r2', { mode: 'test' });
+        await failFive();
+        eq('c1d06 a stream failing five times asks for the run: unknown stops and says so, a network error keeps retrying',
+            [gone, h.timers.size, runs.isRunning(), h.notes.length],
+            [[5, 0, true, false, true, [{ title: 'run_stream_lost', message: 'error_flow_run_not_found', type: 'error' }]], 1, true, 1]);
+    });
+
+    await guardAsync('c1d06 review test dialog', async () => {
+        const doc = flowDoc();
+        doc.nodes[1].label = '';
+        doc.nodes[2].label = '';
+        const h = harness(req => {
+            if (/\/test-data\//.test(req.url)) return { data: {} };
+            if (req.url === '/api/desktop/flows/runs/r1') return { run: { id: 'r1', status: 'error', mode: 'test', started_at: '2026-10-06T10:00:00Z' }, steps: [{ node_id: A, status: 'error', error_code: 'X' }] };
+            throw apiError('FLOW_RUN_NOT_FOUND');
+        }, { doc });
+        const runs = h.ED.runs.create(h.ed, h.canvas);
+        // M1: a draft that does not save is not tested in its last saved version.
+        h.ed.saver = { flush: async () => false };
+        const refused = await runs.startTest({});
+        h.ed.saver = { flush: async () => true };
+        const dialog = await runs.startTest({});
+        const html = dialog.el.parentNode.html;
+        dialog.el.querySelector('[data-ed-action="cancel"]').fire('click');
+        await settle();
+        // M6: unlabelled steps read as their type.
+        runs.attach('r1', { mode: 'test' });
+        h.last().emit('end', {});
+        await settle();
+        eq('c1d06 the test dialog refuses an unsaved draft, names unlabelled triggers and alerts errors; failures name unlabelled steps',
+            [refused, h.notes, html.includes('>trigger.manual</option>'), html.includes('class="ed-error" role="alert"'), h.announced],
+            [undefined, [{ title: 'test_title', message: 'test_unsaved', type: 'error' }], true, true, ['run_failed_at:web.search']]);
+    });
+
+    await guardAsync('c1d06 review publish dialog and issues', async () => {
+        const preview = deferred();
+        let previews = 0;
+        const h = harness(req => {
+            if (req.url === '/api/desktop/flows/f1/publish-preview') { previews++; return previews === 1 ? preview.p : { issues: [], effects: [], diff: {} }; }
+            throw apiError('FLOW_NOT_FOUND');
+        });
+        const pub = h.ED.publish.create(h.ed);
+        // M2: clicks while the dialog loads or is open do nothing.
+        const one = pub.openDialog();
+        const two = await pub.openDialog();
+        preview.resolve({ issues: [], effects: [], diff: {} });
+        const dialog = await one;
+        const three = await pub.openDialog();
+        dialog.el.querySelector('[data-ed-action="cancel"]').fire('click');
+        await settle();
+        const four = await pub.openDialog();
+        const opens = [two, !!dialog, three, !!four, previews];
+        four.el.querySelector('[data-ed-action="cancel"]').fire('click');
+        await settle();
+        // M5: Escape closes the issues popover and gives focus back to its anchor.
+        const anchor = h.ed.root.appendChild(h.ED.core.el('<button type="button">issues</button>'));
+        anchor.focus();
+        h.ed.issues = [{ severity: 'error', code: 'X', node_id: A }];
+        pub.openIssues(anchor);
+        const pop = h.ed.root.querySelector('.ed-issues-popover');
+        const focusedInside = pop.contains(h.dom.document.activeElement);
+        pop.querySelector('button').fire('keydown', { key: 'Escape' });
+        h.runTimers();
+        eq('c1d06 the publish dialog opens once; Escape closes the issues popover and returns focus',
+            [opens, focusedInside, h.ed.root.querySelector('.ed-issues-popover'), h.dom.document.activeElement === anchor, (h.docListeners.pointerdown || []).length],
+            [[undefined, true, undefined, true, 2], true, null, true, 0]);
+    });
+
+    await guardAsync('c1d06 review drawer', async () => {
+        const slow = deferred();
+        let entered = [];
+        const h = harness(req => {
+            if (req.url === '/api/desktop/flows/f1/runs?limit=50') return slow.p;
+            if (req.url === '/api/desktop/flows/f1/runs?limit=50&status=error') return { runs: [{ id: 'r_new', status: 'error', mode: 'test', started_at: '2026-10-06T10:00:00Z' }] };
+            if (req.url === '/api/desktop/flows/runs/r_new?include=doc') return Object.assign(finalRun('r_new', 'error'), { doc: flowDoc() });
+            throw apiError('FLOW_RUN_NOT_FOUND');
+        });
+        h.ed.enterRunView = d => entered.push(d.run.id);
+        const runs = h.ED.runs.create(h.ed, h.canvas);
+        const opener = h.ed.root.appendChild(h.ED.core.el('<button type="button">runs</button>'));
+        opener.focus();
+        runs.toggleDrawer(true);
+        const drawer = h.ed.root.querySelector('.ed-drawer');
+        const focusIn = h.dom.document.activeElement && h.dom.document.activeElement.getAttribute('data-ed-runs-filter');
+        // M4: the answer to an older filter does not overwrite the newer one.
+        drawer.querySelector('[data-ed-runs-filter="errors"]').fire('click');
+        await settle();
+        slow.resolve({ runs: [{ id: 'r_old', status: 'success', mode: 'live', started_at: '2026-10-06T09:00:00Z' }] });
+        await settle();
+        const listed = drawer.querySelector('.ed-runs-list').html;
+        // M4: a double click on a run fetches it once.
+        const row = drawer.querySelector('[data-ed-run="r_new"]');
+        row.fire('click');
+        row.fire('click');
+        await settle();
+        const fetches = h.requests.filter(r => r.url === '/api/desktop/flows/runs/r_new?include=doc').length;
+        drawer.querySelector('[data-ed-drawer-close]').focus();
+        drawer.querySelector('[data-ed-drawer-close]').fire('click');
+        eq('c1d06 the drawer takes and returns focus, shows the latest filter and opens a run once',
+            [focusIn, listed.includes('r_new'), listed.includes('r_old'), fetches, entered, h.dom.document.activeElement === opener, runs.drawerOpen()],
+            ['all', true, false, 1, ['r_new'], true, false]);
+    });
+
+    await guardAsync('c1d06 review detail keyboard and names', async () => {
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        h.ED.detail.open(h.ed, A);
+        const root = h.ed.root;
+        const dialog = root.querySelector('.ed-detail');
+        const active = () => h.dom.document.activeElement;
+        root.querySelector('[data-ed-pane="settings"]').fire('click');
+        const keyInput = root.querySelector('[data-pane="settings"] input.ed-code');
+        const keyLabel = keyInput.closest('.ed-field').querySelector('label');
+        const onError = root.querySelector('[data-pane="settings"] [role="radiogroup"]');
+        root.querySelector('[data-ed-pane="note"]').fire('click');
+        const names = [keyLabel.getAttribute('for') === keyInput.getAttribute('id') && !!keyInput.getAttribute('id'), onError.getAttribute('aria-label'), root.querySelector('[data-pane="note"] textarea').getAttribute('aria-label')];
+        // Arrows in a tab group move within it (and select), not to another node.
+        const settingsTab = root.querySelector('[data-ed-pane="settings"]');
+        settingsTab.focus();
+        settingsTab.fire('keydown', { key: 'ArrowRight' });
+        const toNote = [active().getAttribute('data-ed-pane'), root.querySelector('[data-ed-pane="note"]').getAttribute('aria-selected'), h.ed.detail.nodeId()];
+        active().fire('keydown', { key: 'ArrowRight' });
+        const wrapped = active().getAttribute('data-ed-pane');
+        // Tab and Shift+Tab stay inside the dialog.
+        const first = root.querySelector('[data-ed-nav="-1"]');
+        first.focus();
+        const back = first.fire('keydown', { key: 'Tab', shiftKey: true });
+        const last = active();
+        const forth = last.fire('keydown', { key: 'Tab', shiftKey: false });
+        eq('c1d06 the detail view names its fields, keeps arrows in tab groups and traps Tab',
+            [names, toNote, wrapped, back.defaultPrevented, last !== first && dialog.contains(last), forth.defaultPrevented, active() === first],
+            [[true, 'settings_on_error', 'detail_note'], ['note', 'true', A], 'params', true, true, true, true]);
+        h.ED.detail.close(h.ed);
+        eq('c1d06 the keyboard checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('c1d06 review dispose', async () => {
+        const validate = deferred();
+        const flush = deferred();
+        const stored = deferred();
+        const h = harness(req => {
+            if (req.url === '/api/desktop/flows/validate') return validate.p;
+            if (req.url === '/api/desktop/flows/runs/r5?include=doc') return stored.p;
+            if (/\/test-data\//.test(req.url)) return { data: {} };
+            throw apiError('FLOW_NOT_FOUND');
+        });
+        const entered = [];
+        const issues = [];
+        h.ed.enterRunView = d => entered.push(d.run.id);
+        h.bus.on('issues', list => issues.push(list));
+        h.ed.saver = { flush: () => flush.p };
+        const pub = h.ED.publish.create(h.ed);
+        const runs = h.ED.runs.create(h.ed, h.canvas);
+        pub.refreshIssues();
+        h.runTimers();
+        const testing = runs.startTest({});
+        const viewing = runs.openRunView('r5');
+        pub.dispose();
+        runs.dispose();
+        validate.resolve({ issues: [{ code: 'X', severity: 'error' }] });
+        flush.resolve(true);
+        stored.resolve(Object.assign(finalRun('r5', 'success'), { doc: flowDoc() }));
+        const results = [await testing, await viewing];
+        await settle();
+        eq('c1d06 nothing lands after dispose: validation, test dialog, run view',
+            [results, issues, h.ed.issues, entered, h.notes, h.requests.filter(r => /\/test-data\//.test(r.url)).length, h.sources.length], [[undefined, undefined], [], [], [], [], 0, 0]);
     });
 }
