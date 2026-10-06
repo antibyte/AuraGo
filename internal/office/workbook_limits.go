@@ -12,19 +12,25 @@ import (
 )
 
 // Preflight sparse row/cell references before Excelize can expand them into
-// enormous slices. The bound applies across all worksheets, including blanks.
+// enormous slices. Row slots are summed across worksheets because GetRows
+// expands every row before the last populated row in each sheet.
 func validateWorkbookAllocation(parts map[string][]byte) error {
-	allocated := 0
+	allocatedCells, allocatedRows := 0, 0
+	sharedStringHasValue, err := workbookSharedStringPresence(parts["xl/sharedStrings.xml"])
+	if err != nil {
+		return fmt.Errorf("parse shared strings for workbook limits: %w", err)
+	}
 	for path, body := range parts {
 		if !strings.HasPrefix(path, "xl/worksheets/") || !strings.HasSuffix(path, ".xml") {
 			continue
 		}
 		decoder := xml.NewDecoder(bytes.NewReader(body))
 		row, rowWidth := 0, 0
+		sheetLastPopulatedRow := 0
 		finishRow := func() error {
-			allocated += rowWidth
+			allocatedCells += rowWidth
 			rowWidth = 0
-			if allocated > 1000000 {
+			if allocatedCells > 1000000 {
 				return fmt.Errorf("workbook cell limit exceeded")
 			}
 			return nil
@@ -59,28 +65,104 @@ func validateWorkbookAllocation(parts map[string][]byte) error {
 				}
 				row = next
 			}
-			if start.Name.Local == "c" {
-				column := rowWidth + 1
-				for _, attr := range start.Attr {
-					if attr.Name.Local == "r" {
-						var cellRow int
-						column, cellRow, err = excelize.CellNameToCoordinates(attr.Value)
-						if err != nil || cellRow != row {
-							return fmt.Errorf("invalid worksheet cell reference")
-						}
+			if start.Name.Local != "c" {
+				continue
+			}
+
+			column, cellType := rowWidth+1, ""
+			for _, attr := range start.Attr {
+				switch attr.Name.Local {
+				case "r":
+					var cellRow int
+					column, cellRow, err = excelize.CellNameToCoordinates(attr.Value)
+					if err != nil || cellRow != row {
+						return fmt.Errorf("invalid worksheet cell reference")
 					}
+				case "t":
+					cellType = attr.Value
 				}
-				if column <= rowWidth || column > 16384 {
-					return fmt.Errorf("workbook column limit exceeded")
+			}
+			if column <= rowWidth || column > 16384 {
+				return fmt.Errorf("workbook column limit exceeded")
+			}
+			rowWidth = column
+
+			var cell struct {
+				Formula *string `xml:"f"`
+				Value   string  `xml:"v"`
+				Inline  struct {
+					Text string `xml:"t"`
+					Runs []struct {
+						Text string `xml:"t"`
+					} `xml:"r"`
+				} `xml:"is"`
+			}
+			if err := decoder.DecodeElement(&cell, &start); err != nil {
+				return fmt.Errorf("parse worksheet cell limits: %w", err)
+			}
+			populated := cell.Formula != nil
+			switch cellType {
+			case "s":
+				index, parseErr := strconv.Atoi(strings.TrimSpace(cell.Value))
+				populated = populated || parseErr == nil && index >= 0 && index < len(sharedStringHasValue) && sharedStringHasValue[index]
+			case "inlineStr":
+				populated = populated || cell.Inline.Text != ""
+				for _, run := range cell.Inline.Runs {
+					populated = populated || run.Text != ""
 				}
-				rowWidth = column
+			default:
+				populated = populated || cell.Value != ""
+			}
+			if populated {
+				sheetLastPopulatedRow = row
 			}
 		}
 		if err := finishRow(); err != nil {
 			return err
 		}
+		// GetRows materializes the complete [][]string through the last row
+		// containing a value or formula, including the intervening row slots.
+		allocatedRows += sheetLastPopulatedRow
+		if allocatedRows > 1000000 {
+			return fmt.Errorf("workbook expanded row limit exceeded")
+		}
 	}
 	return nil
+}
+
+func workbookSharedStringPresence(data []byte) ([]bool, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	var hasValue []bool
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			return hasValue, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		start, ok := token.(xml.StartElement)
+		if !ok || start.Name.Local != "si" {
+			continue
+		}
+		var item struct {
+			Text string `xml:"t"`
+			Runs []struct {
+				Text string `xml:"t"`
+			} `xml:"r"`
+		}
+		if err := decoder.DecodeElement(&item, &start); err != nil {
+			return nil, err
+		}
+		nonEmpty := item.Text != ""
+		for _, run := range item.Runs {
+			nonEmpty = nonEmpty || run.Text != ""
+		}
+		hasValue = append(hasValue, nonEmpty)
+	}
 }
 
 func openValidatedXLSX(data []byte) (map[string][]byte, *excelize.File, error) {
