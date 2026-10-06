@@ -2,6 +2,7 @@ package rocketchat
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -31,6 +32,24 @@ func TestRocketChatSessionIDIsScopedToRoomAndSender(t *testing.T) {
 	}
 	if rocketChatSessionID("room-2", "user-9") == got {
 		t.Fatal("different rooms must not share a session")
+	}
+}
+
+// Username-only senders never collapse into a shared "rocketchat:<room>:" key.
+func TestRocketChatSenderKeyFallsBackToUsername(t *testing.T) {
+	for _, tc := range []struct {
+		id, username, want string
+	}{
+		{"user-9", "alice", "user-9"},
+		{"", "alice", "username:alice"},
+		{"", "bob", "username:bob"},
+		{"", "", ""},
+	} {
+		msg := message{}
+		msg.User.ID, msg.User.Username = tc.id, tc.username
+		if got := rocketChatSenderKey(msg); got != tc.want {
+			t.Fatalf("rocketChatSenderKey(id=%q, username=%q) = %q, want %q", tc.id, tc.username, got, tc.want)
+		}
 	}
 }
 
@@ -101,11 +120,16 @@ func TestRocketChatProcessMessageKeepsEachSenderInItsOwnSession(t *testing.T) {
 	i18n.Load(ui.Content, logger)
 
 	var mu sync.Mutex
-	var posts int
+	var posts []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/chat.sendMessage" {
+		var body struct {
+			Message struct {
+				Msg string `json:"msg"`
+			} `json:"message"`
+		}
+		if r.URL.Path == "/api/v1/chat.sendMessage" && json.NewDecoder(r.Body).Decode(&body) == nil {
 			mu.Lock()
-			posts++
+			posts = append(posts, body.Message.Msg)
 			mu.Unlock()
 		}
 		w.WriteHeader(http.StatusOK)
@@ -190,10 +214,16 @@ func TestRocketChatProcessMessageKeepsEachSenderInItsOwnSession(t *testing.T) {
 		t.Fatal("the model saw alice's turn while answering bob")
 	}
 	mu.Lock()
-	replies := posts
+	sent := append([]string(nil), posts...)
 	mu.Unlock()
-	if replies < 2 {
-		t.Fatalf("the bot sent %d replies, want one per message", replies)
+	replies := 0
+	for _, text := range sent {
+		if text == "rc-reply" {
+			replies++
+		}
+	}
+	if replies != 2 || len(sent) != 2 {
+		t.Fatalf("the bot posted %q, want the reply exactly once per message", sent)
 	}
 
 	send("alice", "/reset")

@@ -1389,6 +1389,8 @@ rocketchat:
 
 Der Channel ist geteilt, deshalb werden Operator-Befehle (`/restart`, `/debug`, `/personality`, `/voice`, `/sudopwd`, `/addssh`) dort abgelehnt, solange `allow_operator_commands: true` nicht gesetzt ist.
 
+Jedes Paar aus Raum und Absender hat einen eigenen Gesprächsverlauf; `/reset` und `/stop` wirken nur auf das eigene Gespräch, und der Web-Chat-Verlauf ist für Rocket.Chat nicht sichtbar.
+
 ## TTS / Whisper
 
 Sprachsynthese (TTS) und Spracherkennung.

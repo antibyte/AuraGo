@@ -143,6 +143,19 @@ func rocketChatSessionID(channelID, userID string) string {
 	return "rocketchat:" + channelID + ":" + userID
 }
 
+// rocketChatSenderKey names the sender inside the session key: the immutable
+// user id, or "username:<name>" when Rocket.Chat omits the id. Empty means the
+// sender cannot be told apart from anyone else.
+func rocketChatSenderKey(msg message) string {
+	if msg.User.ID != "" {
+		return msg.User.ID
+	}
+	if msg.User.Username != "" {
+		return "username:" + msg.User.Username
+	}
+	return ""
+}
+
 // processMessage handles a single incoming Rocket.Chat message. The shared
 // history manager belongs to the owner's "default" session and is
 // deliberately unused: each room/sender pair has its own session.
@@ -151,7 +164,12 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		return
 	}
 	inputText := msg.Msg
-	sessionID := rocketChatSessionID(channelID, msg.User.ID)
+	sender := rocketChatSenderKey(msg)
+	if sender == "" {
+		logger.Warn("[RocketChat] Ignoring message without sender id or username")
+		return
+	}
+	sessionID := rocketChatSessionID(channelID, sender)
 
 	// Command interception
 	if strings.HasPrefix(inputText, "/") {

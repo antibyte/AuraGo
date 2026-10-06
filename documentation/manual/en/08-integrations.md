@@ -1417,6 +1417,8 @@ rocketchat:
 
 The channel is shared, so operator commands (`/restart`, `/debug`, `/personality`, `/voice`, `/sudopwd`, `/addssh`) are refused there unless `allow_operator_commands: true`.
 
+Every room/sender pair has its own conversation history; `/reset` and `/stop` affect only your own conversation, and Rocket.Chat does not see the web-chat conversation.
+
 ---
 
 ## Fallback LLM Integration
