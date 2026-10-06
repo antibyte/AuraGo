@@ -63,9 +63,10 @@ type Manager struct {
 	engine    engine
 	// settle is how long Start waits before checking that Caddy kept running.
 	settle time.Duration
-	// inDocker and selfIDs replace the container probes in tests.
+	// inDocker and selfIDs replace the container probes in tests; selfIDs
+	// returns what selfContainerIDs returns.
 	inDocker func() bool
-	selfIDs  func() []string
+	selfIDs  func() ([]string, string)
 	// native replaces nativePlacement in tests, e.g. with host paths under
 	// /root that a test can neither write nor produce on Windows.
 	native func(cfg *config.Config, proxyDir string) placement

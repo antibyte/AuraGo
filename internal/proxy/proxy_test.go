@@ -652,7 +652,7 @@ func TestManagerFallsBackToNativePlacementWhenEngineDoesNotKnowAuraGo(t *testing
 	}}
 	m := testManager(t, cfg, fake)
 	m.inDocker = func() bool { return true }
-	m.selfIDs = func() []string { return []string{"lxc-host"} }
+	m.selfIDs = func() ([]string, string) { return selfContainerIDsFrom(noProcFiles, hostnameIs("lxc-host")) }
 
 	if err := m.Start(); err != nil {
 		t.Fatalf("Start() error = %v", err)
@@ -661,6 +661,10 @@ func TestManagerFallsBackToNativePlacementWhenEngineDoesNotKnowAuraGo(t *testing
 	hostConfig := payload["HostConfig"].(map[string]interface{})
 	if _, ok := hostConfig["Binds"]; !ok {
 		t.Fatalf("HostConfig = %#v, want native binds when the engine has no AuraGo container", hostConfig)
+	}
+	// As before M1: the custom hostname is looked up once and answers 404.
+	if got := countCalls(fake, "GET /containers/lxc-host/json"); got != 1 {
+		t.Fatalf("inspect of the hostname = %d, want 1", got)
 	}
 }
 
@@ -684,7 +688,7 @@ func TestManagerStartInComposeSharesVolumeAndNetwork(t *testing.T) {
 	}}
 	m := testManager(t, cfg, fake)
 	m.inDocker = func() bool { return true }
-	m.selfIDs = func() []string { return []string{"4f1c0ffee"} }
+	m.selfIDs = func() ([]string, string) { return []string{"4f1c0ffee"}, "" }
 
 	if err := m.Start(); err != nil {
 		t.Fatalf("Start() error = %v", err)
@@ -997,7 +1001,7 @@ func TestManagerStartNativeInstallUnderRootTrustsItsOwnBinds(t *testing.T) {
 			m, trusted := realEngineManager(t, cfg, rootInstallBinds)
 			if lxcGuest {
 				m.inDocker = func() bool { return true }
-				m.selfIDs = func() []string { return []string{"lxc-host"} }
+				m.selfIDs = func() ([]string, string) { return nil, "lxc-host" }
 			}
 
 			if err := m.Start(); err != nil {
@@ -1100,7 +1104,7 @@ func TestManagerStartComposeCreateIsUnchanged(t *testing.T) {
 	}}
 	m := testManager(t, cfg, fake)
 	m.inDocker = func() bool { return true }
-	m.selfIDs = func() []string { return []string{"4f1c0ffee"} }
+	m.selfIDs = func() ([]string, string) { return []string{"4f1c0ffee"}, "" }
 
 	if err := m.Start(); err != nil {
 		t.Fatalf("Start() error = %v", err)
@@ -1542,5 +1546,118 @@ func TestManagerDestroyReportsSuccessWhenRemovalIsRefused(t *testing.T) {
 	}
 	if !fake.called("DELETE /containers/" + containerName) {
 		t.Fatal("Destroy did not try to remove the container")
+	}
+}
+
+// noProcFiles stands in for a runtime whose /proc names no container (gVisor,
+// Kata) or for a host without /proc.
+func noProcFiles(string) ([]byte, error) { return nil, errors.New("no such file") }
+
+func hostnameIs(name string) func() (string, error) {
+	return func() (string, error) { return name, nil }
+}
+
+// countCalls counts the engine calls equal to call.
+func countCalls(fake *fakeEngine, call string) int {
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	n := 0
+	for _, c := range fake.calls {
+		if c == call {
+			n++
+		}
+	}
+	return n
+}
+
+// selfLookupEngine answers like the default compose deployment, with the
+// AuraGo container known only as id and created with Config.Hostname
+// configHostname. Every other container reference but the proxy is unknown.
+func selfLookupEngine(cfg *config.Config, id, configHostname string) *fakeEngine {
+	inspection := strings.ReplaceAll(composeSelfInspection, `"/app/data"`, strconvQuote(filepath.ToSlash(cfg.Directories.DataDir)))
+	inspection = strings.Replace(inspection, `"Name": "/aurago",`, `"Name": "/aurago", "Config": {"Hostname": `+strconvQuote(configHostname)+`},`, 1)
+	running := runningEngine(imageName)
+	return &fakeEngine{handle: func(method, endpoint, body string) ([]byte, int, error) {
+		switch {
+		case method == "GET" && endpoint == "/containers/"+id+"/json":
+			return []byte(inspection), 200, nil
+		case method == "GET" && strings.HasPrefix(endpoint, "/containers/") && strings.HasSuffix(endpoint, "/json") &&
+			endpoint != "/containers/"+containerName+"/json":
+			return []byte(`{"message":"No such container"}`), 404, nil
+		case method == "GET" && endpoint == "/version":
+			return []byte(`{"ApiVersion":"1.47"}`), 200, nil
+		case method == "GET" && strings.HasPrefix(endpoint, "/networks/"):
+			return []byte(fmt.Sprintf(`{"Internal":%t}`, endpoint != "/networks/net-default")), 200, nil
+		}
+		return running(method, endpoint, body)
+	}}
+}
+
+// startedPlacement starts the proxy and reports whether the create used the
+// Docker placement (AuraGo's network, no binds).
+func startedInDockerPlacement(t *testing.T, m *Manager, fake *fakeEngine) bool {
+	t.Helper()
+	if err := m.Start(); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	hostConfig := decodeCreatePayload(t, fake.body("POST /containers/create?name="+containerName))["HostConfig"].(map[string]interface{})
+	_, binds := hostConfig["Binds"]
+	inDocker := hostConfig["NetworkMode"] == "aurago_default"
+	if binds == inDocker {
+		t.Fatalf("HostConfig = %#v, want either native binds or the Docker placement", hostConfig)
+	}
+	return inDocker
+}
+
+// Without a container ID in /proc (gVisor, Kata) a compose hostname equal to
+// AuraGo's container name still finds AuraGo, as before M1, but only when the
+// container's own Config.Hostname confirms it.
+func TestManagerFindsAuraGoByCustomHostnameAsLastResort(t *testing.T) {
+	for name, tc := range map[string]struct {
+		configHostname string
+		wantDocker     bool
+	}{
+		"hostname confirmed by the container":    {"aurago", true},
+		"another container answers the hostname": {"something-else", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := proxyConfig()
+			cfg.Directories.DataDir = t.TempDir()
+			fake := selfLookupEngine(cfg, "aurago", tc.configHostname)
+			m := testManager(t, cfg, fake)
+			m.inDocker = func() bool { return true }
+			m.selfIDs = func() ([]string, string) { return selfContainerIDsFrom(noProcFiles, hostnameIs("aurago")) }
+
+			if got := startedInDockerPlacement(t, m, fake); got != tc.wantDocker {
+				t.Fatalf("Docker placement = %v, want %v", got, tc.wantDocker)
+			}
+			if got := countCalls(fake, "GET /containers/aurago/json"); got != 1 {
+				t.Fatalf("inspect of the hostname = %d, want 1", got)
+			}
+		})
+	}
+}
+
+func TestManagerNeverInspectsTheCustomHostnameWhenProcNamesAuraGo(t *testing.T) {
+	cfg := proxyConfig()
+	cfg.Directories.DataDir = t.TempDir()
+	fake := selfLookupEngine(cfg, proxySelfContainerID, "aurago")
+	m := testManager(t, cfg, fake)
+	m.inDocker = func() bool { return true }
+	mountinfo := etcMountinfo("/var/lib/docker/containers/" + proxySelfContainerID)
+	m.selfIDs = func() ([]string, string) {
+		return selfContainerIDsFrom(func(path string) ([]byte, error) {
+			if path == "/proc/self/mountinfo" {
+				return []byte(mountinfo), nil
+			}
+			return nil, errors.New("no such file")
+		}, hostnameIs("aurago"))
+	}
+
+	if !startedInDockerPlacement(t, m, fake) {
+		t.Fatal("the /proc container ID did not give the Docker placement")
+	}
+	if got := countCalls(fake, "GET /containers/aurago/json"); got != 0 {
+		t.Fatalf("inspect of the custom hostname = %d, want none", got)
 	}
 }

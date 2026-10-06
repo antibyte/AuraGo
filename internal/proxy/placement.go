@@ -123,7 +123,10 @@ func (m *Manager) resolvePlacement(cfg *config.Config, proxyDir string) (placeme
 // selfContainer is the part of `docker inspect` of the AuraGo container the
 // placement needs.
 type selfContainer struct {
-	Name       string `json:"Name"`
+	Name   string `json:"Name"`
+	Config struct {
+		Hostname string `json:"Hostname"`
+	} `json:"Config"`
 	HostConfig struct {
 		NetworkMode  string `json:"NetworkMode"`
 		PortBindings map[string][]struct {
@@ -155,49 +158,78 @@ func parseSelfContainer(data []byte) (selfContainer, error) {
 // selfContainerIDs lists identifiers of the current container with the
 // server's self detection (dockerutil): the full ID from /proc, which is exact
 // and survives a custom hostname, then Docker's default hostname (a prefix of
-// the ID). A custom hostname is skipped: inspectSelf would look it up as a
-// container name.
-func selfContainerIDs() []string {
+// the ID). A custom hostname is returned apart: the engine would resolve it as
+// a container name, so inspectSelf tries it only as a verified last resort.
+func selfContainerIDs() ([]string, string) {
 	return selfContainerIDsFrom(os.ReadFile, os.Hostname)
 }
 
 // selfContainerIDsFrom is selfContainerIDs with the /proc reader and the
-// hostname lookup passed in; tests pass fixtures.
-func selfContainerIDsFrom(readFile func(string) ([]byte, error), hostname func() (string, error)) []string {
-	var ids []string
+// hostname lookup passed in; tests pass fixtures. customHostname is the
+// hostname when it is not Docker's default one, else "".
+func selfContainerIDsFrom(readFile func(string) ([]byte, error), hostname func() (string, error)) (ids []string, customHostname string) {
 	if id := dockerutil.OwnContainerID(readFile); id != "" {
 		ids = append(ids, id)
 	}
 	if name, err := hostname(); err == nil {
 		if id := dockerutil.DefaultContainerHostname(name); id != "" {
 			ids = append(ids, id)
+		} else {
+			customHostname = strings.TrimSpace(name)
 		}
 	}
-	return ids
+	return ids, customHostname
 }
 
 // inspectSelf inspects the AuraGo container. found is false when the engine
 // knows none of the identifiers.
+//
+// A custom hostname comes last and only when the IDs found nothing: a runtime
+// whose /proc names no container (gVisor, Kata) with a compose hostname equal
+// to AuraGo's container name still finds AuraGo, as before the shared self
+// detection. The engine resolves the hostname as a container name, so the
+// answer counts only when that container's own Config.Hostname is the same.
 func (m *Manager) inspectSelf(dockerCfg tools.DockerConfig) (selfContainer, bool, error) {
-	ids := selfContainerIDs()
+	ids, customHostname := selfContainerIDs()
 	if m.selfIDs != nil {
-		ids = m.selfIDs()
+		ids, customHostname = m.selfIDs()
 	}
 	for _, id := range ids {
-		data, code, err := m.engine.request(dockerCfg, "GET", "/containers/"+url.PathEscape(id)+"/json", "")
-		if err != nil {
-			return selfContainer{}, false, fmt.Errorf("inspect AuraGo container %q: %w", id, err)
+		self, found, err := m.inspectSelfRef(dockerCfg, id)
+		if err != nil || found {
+			return self, found, err
 		}
-		if code == 404 {
-			continue
-		}
-		if code != 200 {
-			return selfContainer{}, false, fmt.Errorf("%w: inspect AuraGo container %q returned HTTP %d", ErrDockerPlacement, id, code)
-		}
-		self, err := parseSelfContainer(data)
-		return self, err == nil, err
 	}
-	return selfContainer{}, false, nil
+	if customHostname == "" {
+		return selfContainer{}, false, nil
+	}
+	self, found, err := m.inspectSelfRef(dockerCfg, customHostname)
+	if err != nil || !found {
+		return selfContainer{}, false, err
+	}
+	if strings.TrimSpace(self.Config.Hostname) != customHostname {
+		m.log().Info("Security proxy: AuraGo's hostname names another container; not using it", "hostname", customHostname, "container", self.Name)
+		return selfContainer{}, false, nil
+	}
+	m.log().Warn("Security proxy: /proc names no container; found the AuraGo container by its custom hostname", "hostname", customHostname, "container", self.Name)
+	return self, true, nil
+}
+
+// inspectSelfRef inspects one candidate reference of the AuraGo container.
+// found is false when the engine does not know it.
+func (m *Manager) inspectSelfRef(dockerCfg tools.DockerConfig, ref string) (selfContainer, bool, error) {
+	data, code, err := m.engine.request(dockerCfg, "GET", "/containers/"+url.PathEscape(ref)+"/json", "")
+	if err != nil {
+		return selfContainer{}, false, fmt.Errorf("inspect AuraGo container %q: %w", ref, err)
+	}
+	if code == 404 {
+		return selfContainer{}, false, nil
+	}
+	if code != 200 {
+		return selfContainer{}, false, fmt.Errorf("%w: inspect AuraGo container %q returned HTTP %d", ErrDockerPlacement, ref, code)
+	}
+	self, err := parseSelfContainer(data)
+	return self, err == nil, err
 }
 
 func (m *Manager) engineAPIVersion(dockerCfg tools.DockerConfig) (string, error) {
