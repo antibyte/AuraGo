@@ -166,7 +166,7 @@ The default proxy is attached to an internal `docker-control` network that is sh
 - `VOLUMES=1` and `NETWORKS=1`: model and app volumes, private Software Store networks and the browser automation network check.
 - `INFO=1` and `VERSION=1`: runtime inventory (including NVIDIA container runtime detection) and Engine API version negotiation.
 - `EXEC=1`: the agent's Docker `exec` operation, the Homepage tool (file editing, git, build and deploy run inside the Homepage container), Code Studio exec and terminals, the built-in OpenSCAD compiler container, container terminals in the Web UI including the CommandCode Store terminal, and the security proxy reload.
-- `BUILD=0`: Docker build API access stays disabled; Code Studio and the managed sidecars use published images. The optional browser automation auto-build runs the Docker CLI on the host, not through this proxy.
+- `BUILD=0`: Docker build API access stays disabled; Code Studio and the managed sidecars use published images. The optional browser automation auto-build calls the Docker CLI, which the AuraGo image does not include, so in this setup it never reaches the build API; build that image on the host if you need it.
 
 `EXEC=1` can be set to `0` only if you use none of these features: the agent's Docker `exec` operation, the Homepage tool, Code Studio terminals, the built-in OpenSCAD compiler container, container terminals (including the CommandCode Store terminal) and the security proxy reload stop working without it.
 

@@ -367,7 +367,8 @@ services:
   #     such as go2rtc, Code Studio, and the optional llama.cpp GPU embedding probes
   #   - BUILD=0 keeps Docker build API access disabled; Code Studio and the managed
   #     sidecars use published images (the optional browser-automation auto-build
-  #     runs the Docker CLI on the host, not through this proxy)
+  #     needs the Docker CLI, which the AuraGo image does not include; build the
+  #     browser-automation image on the host if you need it)
   #   - EXEC=1 is used by the agent's Docker exec, the Homepage tool, Code Studio
   #     terminals, the built-in OpenSCAD compiler container, Web UI container
   #     terminals (including the CommandCode Store terminal) and security-proxy reloads
