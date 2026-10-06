@@ -32,9 +32,6 @@ const (
 type dockerEngine interface {
 	DoJSON(context.Context, string, string, any, any) (int, error)
 	HTTPClient() *http.Client
-	// HTTPClientWithTimeout returns a streaming client on the same transport
-	// with an operation-specific total timeout (image pulls).
-	HTTPClientWithTimeout(time.Duration) *http.Client
 }
 
 type dockerContainerSpec struct {
@@ -402,28 +399,38 @@ func (m *Manager) gpuGroupIDs(renderNode string) []string {
 	return nil
 }
 
-// imagePullTimeout bounds one runtime image pull. CUDA and SYCL runtime images
-// are several GB, like the ACE-Step CUDA image that uses the same bound. The
-// pull ends at whichever comes first: this timeout, the install context (6 h)
-// or desired-state cancellation.
-const imagePullTimeout = 2 * time.Hour
-
 // maxPullFailureDetail caps the Docker reason kept after "pull_image_failed: ".
 const maxPullFailureDetail = 256
 
+// pullImage pulls a runtime image. CUDA and SYCL runtime images are several
+// GB, so the pull has no total client timeout: it gets imagePullBaseline
+// unconditionally and then continues while the Engine reports new progress
+// (watchPullProgress). The install context (6 h) and desired-state
+// cancellation still end it at any time.
 func (m *Manager) pullImage(ctx context.Context, reference string) error {
+	baseline, window := imagePullBaseline, imagePullStallWindow
+	pullCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	progress := newPullProgress(time.Now())
+	stopWatchdog := watchPullProgress(pullCtx, cancel, progress, baseline, window)
+	defer stopWatchdog()
+
 	path := "images/create?fromImage=" + url.QueryEscape(reference)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, dockerutil.Endpoint(path), nil)
+	req, err := http.NewRequestWithContext(pullCtx, http.MethodPost, dockerutil.Endpoint(path), nil)
 	if err != nil {
 		return fmt.Errorf("pull_image_failed: %w", err)
 	}
-	client := m.docker.HTTPClientWithTimeout(imagePullTimeout)
-	if client == nil {
+	base := m.docker.HTTPClient()
+	if base == nil {
 		return fmt.Errorf("pull_image_failed: Docker client is unavailable")
 	}
+	// The watchdog bounds the pull; a total client timeout would end a pull
+	// that is still making progress. The shared client is copied, never changed.
+	client := *base
+	client.Timeout = 0
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("pull_image_failed: %w", err)
+		return pullFailure(pullCtx, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -432,7 +439,7 @@ func (m *Manager) pullImage(ctx context.Context, reference string) error {
 		}
 		return fmt.Errorf("pull_image_failed: Docker returned %d", resp.StatusCode)
 	}
-	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
+	if err := dockerutil.DrainJSONMessages(&pullProgressReader{r: resp.Body, progress: progress}); err != nil {
 		var event *dockerutil.JSONMessageError
 		if errors.As(err, &event) {
 			if detail := dockerutil.SanitizeOneLine(event.Message, maxPullFailureDetail); detail != "" {
@@ -440,9 +447,20 @@ func (m *Manager) pullImage(ctx context.Context, reference string) error {
 			}
 			return fmt.Errorf("pull_image_failed")
 		}
-		return fmt.Errorf("pull_image_failed: %w", err)
+		return pullFailure(pullCtx, err)
 	}
 	return nil
+}
+
+// pullFailure reports a transport or stream failure. A pull the watchdog
+// cancelled is reported with its stall reason instead of "context canceled",
+// so it is never mistaken for an intended cancellation.
+func pullFailure(ctx context.Context, err error) error {
+	var stalled *imagePullStalledError
+	if errors.As(context.Cause(ctx), &stalled) {
+		return fmt.Errorf("pull_image_failed: %w", stalled)
+	}
+	return fmt.Errorf("pull_image_failed: %w", err)
 }
 
 // logPullFailure writes the sanitised Docker reason of a failed runtime pull to

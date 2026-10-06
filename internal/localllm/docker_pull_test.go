@@ -21,11 +21,10 @@ import (
 var testRuntimeImage = "ghcr.io/example/aurago-llm-cuda@sha256:" + strings.Repeat("a", 64)
 
 // pullTestEngine answers DoJSON through respond and serves image pulls from
-// client, recording every streaming timeout requested.
+// client.
 type pullTestEngine struct {
-	client   *http.Client
-	respond  func(method, path string) (int, error)
-	timeouts []time.Duration
+	client  *http.Client
+	respond func(method, path string) (int, error)
 }
 
 func (engine *pullTestEngine) DoJSON(_ context.Context, method, path string, _, _ any) (int, error) {
@@ -37,8 +36,7 @@ func (engine *pullTestEngine) DoJSON(_ context.Context, method, path string, _, 
 
 func (engine *pullTestEngine) HTTPClient() *http.Client { return engine.client }
 
-func (engine *pullTestEngine) HTTPClientWithTimeout(timeout time.Duration) *http.Client {
-	engine.timeouts = append(engine.timeouts, timeout)
+func (engine *pullTestEngine) HTTPClientWithTimeout(time.Duration) *http.Client {
 	return engine.client
 }
 
@@ -54,17 +52,6 @@ func codeOrEmpty(err error) string {
 		return ""
 	}
 	return errorCode(err)
-}
-
-func TestPullImageRequestsLongStreamingTimeout(t *testing.T) {
-	engine := &pullTestEngine{client: pullStreamClient(http.StatusOK, strings.NewReader(`{"status":"Status: Downloaded newer image"}`+"\n"))}
-	manager := &Manager{docker: engine}
-	if err := manager.pullImage(context.Background(), testRuntimeImage); err != nil {
-		t.Fatalf("pullImage() error = %v", err)
-	}
-	if len(engine.timeouts) != 1 || engine.timeouts[0] != 2*time.Hour {
-		t.Fatalf("streaming timeouts = %v, want one 2h pull client", engine.timeouts)
-	}
 }
 
 func TestPullImageOutlivesShortEngineTimeout(t *testing.T) {

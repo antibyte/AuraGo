@@ -950,7 +950,7 @@ Exactly one model family is managed at a time:
 - **AuraGo-Ling**: fixed `q4_k_l` with MTP off and 16K context (32K requires separate qualification), with its own pinned hybrid runtime.
 - **AuraGo-Spark** (experimental): fixed `q4_k_m`, MTP off, fixed 64K context, Thinking on, a single slot without speculative decoding; at least 6 GB VRAM.
 
-The `test_only`, `fallback`, and `primary` roles become active only after health, native tool-call, memory, and GPU/KV-offload checks pass. A regular provider fallback is mandatory for `primary`. Do not add the reserved provider ID `aurago-qwen-local` to `providers`; display name and API model alias derive from the selected family. Downloads are size- and SHA-256-verified; experimental CPU, iGPU, SYCL, and Vulkan paths require a hardware acknowledgement. See [AuraGo-Qwen](../../local_llm_aurago_qwen.md).
+The `test_only`, `fallback`, and `primary` roles become active only after health, native tool-call, memory, and GPU/KV-offload checks pass. A regular provider fallback is mandatory for `primary`. Do not add the reserved provider ID `aurago-qwen-local` to `providers`; display name and API model alias derive from the selected family. Downloads are size- and SHA-256-verified; experimental CPU, iGPU, SYCL, and Vulkan paths require a hardware acknowledgement. See [AuraGo-Qwen](../../local_llm_aurago_qwen.md). The runtime image pull is not cut off after a fixed time while Docker still reports progress; it fails only after 15 minutes without progress (after the first two hours) or when the six-hour install limit ends.
 
 ### Speech Lab
 
