@@ -576,7 +576,7 @@
   "easydrag.ui.mode_hint": "Switch between a fixed value and data from earlier steps",
   "easydrag.ui.more": "More",
   "easydrag.ui.move_up": "Move up",
-  "easydrag.ui.names_more": "{names} and {count} more",
+  "easydrag.ui.names_more": "{names}, and {count} more",
   "easydrag.ui.new_flow_name": "New flow",
   "easydrag.ui.node_delete": "Delete",
   "easydrag.ui.node_disable": "Turn off",

@@ -145,4 +145,4 @@ The UI speaks **16 languages**. Pick your company in **Config → Personality**.
 
 [![Flags for all 16 UI languages](../../../assets/readme/language-flags.webp)](../../../assets/readme/language-flags.webp)
 
-*Updated 3 October 2026. German edition [here](../de/README.md).*
+*Updated 7 October 2026. German edition [here](../de/README.md).*

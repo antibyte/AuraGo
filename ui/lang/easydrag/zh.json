@@ -388,7 +388,7 @@
   "easydrag.ui.effect_writes_files": "写入文件",
   "easydrag.ui.effects_remember": "此流程不再询问",
   "easydrag.ui.effects_title": "此测试会产生实际影响",
-  "easydrag.ui.effects_unchecked": "无法完全检查此测试的影响。它可能会做比这里列出的更多的事情。",
+  "easydrag.ui.effects_unchecked": "无法完全检查此测试的影响。它的实际操作可能比此处列出的更多。",
   "easydrag.ui.empty_action": "选择触发器",
   "easydrag.ui.empty_text": "每个流程都从触发器开始：某个时间、某个事件或一次点击。然后添加接下来要执行的步骤。",
   "easydrag.ui.empty_title": "从触发器开始",

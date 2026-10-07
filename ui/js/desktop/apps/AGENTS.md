@@ -173,13 +173,16 @@
   `easydrag.ui.error_<code>`. SSE (`/runs/{id}/events?after=<seq>`) is idempotent and
   reconnects at once on `event: resync`.
 - Test effects (`ED.runs.effects`): each step that runs counts with its catalog effects (default
-  params) and those of its real params from `GET publish-preview` (`CollectEffects`); without
-  the preview the dialog says so and never starts silently. A step test counts what the engine
-  runs (`engine_state.go` `run`, `fireTrigger`, `collectReady`); keep the two in step.
+  params) and those of its real params from `GET publish-preview` (`CollectEffects`). Without
+  the preview, or with a running step whose catalog entry is risky without effects (a failed
+  effects hook), the dialog says so and never starts silently; an edit after the flush is checked
+  again before Run. A step test counts what the engine runs (`engine_state.go` `run`,
+  `fireTrigger`, `collectReady`); keep the two in step.
 - Runs that have not ended (`ED.runs.isActive`) get Stop in the drawer and the run-view banner
   (`runs.stopRun`: any run but a test asks first, 409 `FLOW_RUN_FINISHED` refreshes quietly, a
-  run no stream here shows is asked for after 1, 2 and 4 s); `run_finished` refreshes both,
-  debounced. The secret field deletes the chosen secret and warns with `used_by`.
+  run no stream here shows is asked for after 1 to 16 s); `run_finished` refreshes both
+  (`runs.runFinished`: 250 ms, at most 1 s). The secret field deletes the chosen secret and warns
+  with `used_by`.
 - Saver: 1 s after the last change; network errors, 5xx, 429 and `FLOWS_DISABLED` go `offline`
   (retry 5 s, doubling to 60 s), `PERMANENT_CODES` and a 4xx without a code go `failed` (a retry
   button), `FLOW_INVALID` waits for the next change.
