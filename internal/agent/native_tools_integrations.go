@@ -612,7 +612,9 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"list_containers", "inspect", "start", "stop", "restart", "pause", "unpause", "remove", "logs", "create", "run", "list_images", "pull", "remove_image", "list_networks", "list_volumes", "info"},
+					"enum": []string{"list_containers", "inspect", "start", "stop", "restart", "pause", "unpause", "remove", "logs", "create", "run",
+						"list_images", "pull", "remove_image", "list_networks", "create_network", "remove_network", "connect", "disconnect",
+						"list_volumes", "create_volume", "remove_volume", "exec", "stats", "top", "port", "cp", "compose", "info"},
 				},
 				"container_id": prop("string", "Container ID or name (for container operations)"),
 				"image":        prop("string", "Docker image name with optional tag (e.g. 'nginx:latest'). The aurago-homepage repository is reserved."),
@@ -627,6 +629,13 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"force":        prop("boolean", "Force removal (for remove/remove_image)"),
 				"tail":         prop("integer", "Number of log lines to return (default: 100)"),
 				"all":          prop("boolean", "Include stopped containers (for list_containers)"),
+				"user":         prop("string", "User to run the exec command as (for exec)"),
+				"source":       prop("string", "Source path for cp: a workspace file (to_container) or a container path (from_container)"),
+				"destination":  prop("string", "Destination path for cp: a container path (to_container) or a workspace file (from_container)"),
+				"direction":    prop("string", "Copy direction for cp: to_container or from_container"),
+				"driver":       prop("string", "Driver for create_network or create_volume (e.g. bridge, local)"),
+				"network":      prop("string", "Network name for connect and disconnect"),
+				"file":         prop("string", "Compose file inside the agent workspace (for compose; put the compose command such as 'up -d' in command)"),
 			}, "operation"),
 		))
 	}

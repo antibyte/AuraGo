@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "source": "aurago internal/agent.BuildNativeToolSchemaSnapshot.StrictSchemas (all feature flags enabled)",
   "tool_count": 216,
-  "operation_count": 1151,
+  "operation_count": 1163,
   "call_format": "OpenAI-compatible native function calling with assistant tool_calls and role=tool results linked by tool_call_id.",
   "tools": [
     {
@@ -6929,6 +6929,27 @@
               "null"
             ]
           },
+          "destination": {
+            "description": "Destination path for cp: a container path (to_container) or a workspace file (from_container)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "direction": {
+            "description": "Copy direction for cp: to_container or from_container",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "driver": {
+            "description": "Driver for create_network or create_volume (e.g. bridge, local)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "env": {
             "description": "Environment variables (e.g. ['KEY=value'])",
             "items": {
@@ -6936,6 +6957,13 @@
             },
             "type": [
               "array",
+              "null"
+            ]
+          },
+          "file": {
+            "description": "Compose file inside the agent workspace (for compose; put the compose command such as 'up -d' in command)",
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -6960,6 +6988,13 @@
               "null"
             ]
           },
+          "network": {
+            "description": "Network name for connect and disconnect",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "operation": {
             "description": "Operation to perform",
             "enum": [
@@ -6978,7 +7013,19 @@
               "pull",
               "remove_image",
               "list_networks",
+              "create_network",
+              "remove_network",
+              "connect",
+              "disconnect",
               "list_volumes",
+              "create_volume",
+              "remove_volume",
+              "exec",
+              "stats",
+              "top",
+              "port",
+              "cp",
+              "compose",
               "info"
             ],
             "type": "string"
@@ -6997,10 +7044,24 @@
               "null"
             ]
           },
+          "source": {
+            "description": "Source path for cp: a workspace file (to_container) or a container path (from_container)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "tail": {
             "description": "Number of log lines to return (default: 100)",
             "type": [
               "integer",
+              "null"
+            ]
+          },
+          "user": {
+            "description": "User to run the exec command as (for exec)",
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -7022,14 +7083,21 @@
           "command",
           "command_args",
           "container_id",
+          "destination",
+          "direction",
+          "driver",
           "env",
+          "file",
           "force",
           "image",
           "name",
+          "network",
           "operation",
           "ports",
           "restart",
+          "source",
           "tail",
+          "user",
           "volumes"
         ],
         "type": "object"
@@ -7064,12 +7132,28 @@
             "description": "Container ID or name (for container operations)",
             "type": "string"
           },
+          "destination": {
+            "description": "Destination path for cp: a container path (to_container) or a workspace file (from_container)",
+            "type": "string"
+          },
+          "direction": {
+            "description": "Copy direction for cp: to_container or from_container",
+            "type": "string"
+          },
+          "driver": {
+            "description": "Driver for create_network or create_volume (e.g. bridge, local)",
+            "type": "string"
+          },
           "env": {
             "description": "Environment variables (e.g. ['KEY=value'])",
             "items": {
               "type": "string"
             },
             "type": "array"
+          },
+          "file": {
+            "description": "Compose file inside the agent workspace (for compose; put the compose command such as 'up -d' in command)",
+            "type": "string"
           },
           "force": {
             "description": "Force removal (for remove/remove_image)",
@@ -7081,6 +7165,10 @@
           },
           "name": {
             "description": "Container name. Required for create and run; aurago-homepage and aurago-homepage-web are reserved.",
+            "type": "string"
+          },
+          "network": {
+            "description": "Network name for connect and disconnect",
             "type": "string"
           },
           "operation": {
@@ -7101,7 +7189,19 @@
               "pull",
               "remove_image",
               "list_networks",
+              "create_network",
+              "remove_network",
+              "connect",
+              "disconnect",
               "list_volumes",
+              "create_volume",
+              "remove_volume",
+              "exec",
+              "stats",
+              "top",
+              "port",
+              "cp",
+              "compose",
               "info"
             ],
             "type": "string"
@@ -7114,9 +7214,17 @@
             "description": "Restart policy: no, always, unless-stopped, on-failure",
             "type": "string"
           },
+          "source": {
+            "description": "Source path for cp: a workspace file (to_container) or a container path (from_container)",
+            "type": "string"
+          },
           "tail": {
             "description": "Number of log lines to return (default: 100)",
             "type": "integer"
+          },
+          "user": {
+            "description": "User to run the exec command as (for exec)",
+            "type": "string"
           },
           "volumes": {
             "description": "Volume binds (e.g. ['/host/path:/container/path'])",
@@ -7138,14 +7246,21 @@
         "command",
         "command_args",
         "container_id",
+        "destination",
+        "direction",
+        "driver",
         "env",
+        "file",
         "force",
         "image",
         "name",
+        "network",
         "operation",
         "ports",
         "restart",
+        "source",
         "tail",
+        "user",
         "volumes"
       ],
       "properties": {
@@ -7194,6 +7309,27 @@
             "null"
           ]
         },
+        "destination": {
+          "description": "Destination path for cp: a container path (to_container) or a workspace file (from_container)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "direction": {
+          "description": "Copy direction for cp: to_container or from_container",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "driver": {
+          "description": "Driver for create_network or create_volume (e.g. bridge, local)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "env": {
           "description": "Environment variables (e.g. ['KEY=value'])",
           "items": {
@@ -7201,6 +7337,13 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "file": {
+          "description": "Compose file inside the agent workspace (for compose; put the compose command such as 'up -d' in command)",
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -7225,6 +7368,13 @@
             "null"
           ]
         },
+        "network": {
+          "description": "Network name for connect and disconnect",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "operation": {
           "description": "Operation to perform",
           "enum": [
@@ -7243,7 +7393,19 @@
             "pull",
             "remove_image",
             "list_networks",
+            "create_network",
+            "remove_network",
+            "connect",
+            "disconnect",
             "list_volumes",
+            "create_volume",
+            "remove_volume",
+            "exec",
+            "stats",
+            "top",
+            "port",
+            "cp",
+            "compose",
             "info"
           ],
           "type": "string"
@@ -7262,10 +7424,24 @@
             "null"
           ]
         },
+        "source": {
+          "description": "Source path for cp: a workspace file (to_container) or a container path (from_container)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "tail": {
           "description": "Number of log lines to return (default: 100)",
           "type": [
             "integer",
+            "null"
+          ]
+        },
+        "user": {
+          "description": "User to run the exec command as (for exec)",
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -7284,7 +7460,35 @@
       "operations": [
         {
           "selector": "operation",
+          "value": "compose"
+        },
+        {
+          "selector": "operation",
+          "value": "connect"
+        },
+        {
+          "selector": "operation",
+          "value": "cp"
+        },
+        {
+          "selector": "operation",
           "value": "create"
+        },
+        {
+          "selector": "operation",
+          "value": "create_network"
+        },
+        {
+          "selector": "operation",
+          "value": "create_volume"
+        },
+        {
+          "selector": "operation",
+          "value": "disconnect"
+        },
+        {
+          "selector": "operation",
+          "value": "exec"
         },
         {
           "selector": "operation",
@@ -7320,6 +7524,10 @@
         },
         {
           "selector": "operation",
+          "value": "port"
+        },
+        {
+          "selector": "operation",
           "value": "pull"
         },
         {
@@ -7329,6 +7537,14 @@
         {
           "selector": "operation",
           "value": "remove_image"
+        },
+        {
+          "selector": "operation",
+          "value": "remove_network"
+        },
+        {
+          "selector": "operation",
+          "value": "remove_volume"
         },
         {
           "selector": "operation",
@@ -7344,7 +7560,15 @@
         },
         {
           "selector": "operation",
+          "value": "stats"
+        },
+        {
+          "selector": "operation",
           "value": "stop"
+        },
+        {
+          "selector": "operation",
+          "value": "top"
         },
         {
           "selector": "operation",

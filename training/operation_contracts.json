@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "13c743013a75fc1ad1fa74fbd810fe04cb278193feb131a44677d3f36686b62c",
+  "schema_sha256": "a4b0aefad696b5b8ad5942e8c74c3c99a76456cb46e2668cbe61ab5bbf71c738",
   "tools": {
     "treg_call": {
       "default_arguments": {
@@ -1870,6 +1870,61 @@
       "operations": [
         {
           "selector": "operation",
+          "value": "compose",
+          "arguments": {
+            "command": "ps",
+            "file": "stacks/web/compose.yml",
+            "operation": "compose"
+          },
+          "required_fields": [
+            "command",
+            "file",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "connect",
+          "arguments": {
+            "container_id": "example-container",
+            "network": "example-network",
+            "operation": "connect"
+          },
+          "required_fields": [
+            "container_id",
+            "network",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "cp",
+          "arguments": {
+            "container_id": "example-container",
+            "destination": "/tmp/notes.txt",
+            "direction": "to_container",
+            "operation": "cp",
+            "source": "notes.txt"
+          },
+          "required_fields": [
+            "container_id",
+            "destination",
+            "direction",
+            "operation",
+            "source"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
           "value": "create",
           "arguments": {
             "image": "example",
@@ -1879,6 +1934,70 @@
           "required_fields": [
             "image",
             "name",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "create_network",
+          "arguments": {
+            "name": "example-network",
+            "operation": "create_network"
+          },
+          "required_fields": [
+            "name",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "create_volume",
+          "arguments": {
+            "name": "example-volume",
+            "operation": "create_volume"
+          },
+          "required_fields": [
+            "name",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "disconnect",
+          "arguments": {
+            "container_id": "example-container",
+            "network": "example-network",
+            "operation": "disconnect"
+          },
+          "required_fields": [
+            "container_id",
+            "network",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "exec",
+          "arguments": {
+            "command": "ls /app",
+            "container_id": "example-container",
+            "operation": "exec"
+          },
+          "required_fields": [
+            "command",
+            "container_id",
             "operation"
           ],
           "excluded_fields": [
@@ -1991,6 +2110,19 @@
         },
         {
           "selector": "operation",
+          "value": "port",
+          "arguments": {
+            "operation": "port"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
           "value": "pull",
           "arguments": {
             "operation": "pull"
@@ -2022,6 +2154,36 @@
             "operation": "remove_image"
           },
           "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "remove_network",
+          "arguments": {
+            "name": "example-network",
+            "operation": "remove_network"
+          },
+          "required_fields": [
+            "name",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "remove_volume",
+          "arguments": {
+            "name": "example-volume",
+            "operation": "remove_volume"
+          },
+          "required_fields": [
+            "name",
             "operation"
           ],
           "excluded_fields": [
@@ -2071,9 +2233,35 @@
         },
         {
           "selector": "operation",
+          "value": "stats",
+          "arguments": {
+            "operation": "stats"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
           "value": "stop",
           "arguments": {
             "operation": "stop"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "top",
+          "arguments": {
+            "operation": "top"
           },
           "required_fields": [
             "operation"
