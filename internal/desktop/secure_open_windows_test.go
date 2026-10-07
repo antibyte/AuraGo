@@ -112,6 +112,10 @@ func TestOpenFileNoFollowRefusesEntrySwappedAfterLstat(t *testing.T) {
 				if !errors.Is(err, os.ErrPermission) {
 					t.Fatalf("flag %#x: err = %v, want the symlink refusal (ErrPermission)", flag, err)
 				}
+				// The refused open must not have truncated the swapped-in file.
+				if data, err := os.ReadFile(path); err != nil || string(data) != "swapped" {
+					t.Fatalf("flag %#x: swapped-in file = %q, %v; want its content kept", flag, data, err)
+				}
 				// Re-arm the next round with a fresh file to swap in.
 				if err := os.WriteFile(other, []byte("swapped"), 0o600); err != nil {
 					t.Fatal(err)

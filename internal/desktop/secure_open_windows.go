@@ -9,26 +9,29 @@ import "os"
 var secureOpenAfterLstat func(path string)
 
 // openFileNoFollow refuses symlinks without O_NOFOLLOW: it inspects the entry
-// with Lstat and then requires the opened handle to be that same file, so a
-// swap between the check and the open is refused instead of followed.
+// with Lstat and requires the opened handle to be that same file, so a swap
+// between the check and the open is refused before any truncation.
 func openFileNoFollow(path string, flag int, perm os.FileMode) (*os.File, error) {
-	pre, err := os.Lstat(path)
-	if err == nil {
-		if pre.Mode()&os.ModeSymlink != 0 {
+	var pre os.FileInfo
+	if info, err := os.Lstat(path); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
 			return nil, errSymlinkPath()
 		}
-		// Windows Lstat reads the file ID lazily from the path when SameFile
-		// first needs it, which would compare the post-swap entry. Pin it now.
-		if !os.SameFile(pre, pre) {
+		// Windows Lstat loads the file ID lazily from the path the first time
+		// SameFile needs it, which would read the post-swap entry. Load it now;
+		// an entry whose file ID cannot be read is refused.
+		if !os.SameFile(info, info) {
 			return nil, errSymlinkPath()
 		}
-	} else {
-		pre = nil
+		pre = info
 	}
+	// pre stays nil after any Lstat error, usually a missing entry for O_CREATE.
 	if secureOpenAfterLstat != nil {
 		secureOpenAfterLstat(path)
 	}
-	file, err := os.OpenFile(path, flag, perm)
+	// os.OpenFile truncates inside the open, so truncate only after the check.
+	truncate := flag&os.O_TRUNC != 0
+	file, err := os.OpenFile(path, flag&^os.O_TRUNC, perm)
 	if err != nil {
 		return nil, err
 	}
@@ -38,13 +41,16 @@ func openFileNoFollow(path string, flag int, perm os.FileMode) (*os.File, error)
 			_ = file.Close()
 			return nil, errSymlinkPath()
 		}
-		return file, nil
-	}
-	// The entry did not exist before (O_CREATE): there is no identity to
-	// compare, so keep the path check for a symlink planted in between.
-	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+	} else if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		// No identity to compare: refuse a symlink planted before the open.
 		_ = file.Close()
 		return nil, errSymlinkPath()
+	}
+	if truncate {
+		if err := file.Truncate(0); err != nil {
+			_ = file.Close()
+			return nil, err
+		}
 	}
 	return file, nil
 }

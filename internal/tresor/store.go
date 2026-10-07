@@ -34,14 +34,19 @@ func Open(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return nil, fmt.Errorf("create tresor directory: %w", err)
 	}
-	// Pre-create the file privately: the driver would create it under the
-	// process umask, and SQLite gives the -wal/-shm sidecars the database's mode.
+	// Create or tighten the file before SQLite touches it: the driver would
+	// create it under the process umask, and SQLite gives the -wal/-shm
+	// sidecars the database's mode.
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
-		return nil, fmt.Errorf("create tresor database: %w", err)
+		return nil, fmt.Errorf("open or create tresor database: %w", err)
+	}
+	if err = f.Chmod(0o600); err != nil {
+		f.Close()
+		return nil, fmt.Errorf("open or create tresor database: %w", err)
 	}
 	if err = f.Close(); err != nil {
-		return nil, fmt.Errorf("create tresor database: %w", err)
+		return nil, fmt.Errorf("open or create tresor database: %w", err)
 	}
 	db, err := sql.Open("sqlite", path)
 	if err != nil {

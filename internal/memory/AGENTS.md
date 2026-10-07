@@ -17,6 +17,10 @@ Memory retrieval, hygiene, indexing, and maintenance.
 - OptimizeGraph keeps its explicit low-confidence/degree/protection policy; no implicit age threshold. Pending-write dedupe retains exhausted state and retry scheduling; enqueue does not reactivate work.
 - Verify `TestGraphCleanupRollsBackEarlierDeletesOnSQLFailure`, `TestGraphMergeKeepsAcceptedSourceAndBothClaimHistories`, `TestCanonicalRepairPreservesAnalysisEnvelope`, conflict and pending-write tests. Existing production data needs separately reviewed offline repair.
 
+### Graph Search Patterns
+
+- Every knowledge-graph `LIKE` parameter is built with `dbutil.EscapeLike` and its predicate carries `ESCAPE '\'`, so `%`, `_` and `\` in a query match literally. Verify `TestKGSearchForContextLikeFallbackTreatsWildcardsLiterally` and `TestKGSearchLikeTreatsBackslashLiterally`.
+
 ### Memory System
 - **Short-Term**: SQLite sliding-window conversation context
 - **Long-Term**: Vector database with semantic search (chromem-go)
@@ -56,8 +60,6 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ### Partial Search Results
 - Collection search returns healthy results together with named errors and cancellation. Wrappers preserve both; automatic consumers use only currently metadata-checked results and explicit queries expose incomplete search errors. Empty healthy collections remain successful. Verify `TestMultiCollectionSearchPreservesResultsAndErrors`, `TestAuditMultiCollectionSearchReportsFailedCollection` and `TestMemorySearchConsumersKeepCheckedPartialResults`. Knowledge-graph keyword search follows the same rule: `SearchResultWithOptions` returns healthy FTS, LIKE and edge results together with named errors, `SearchWithOptions` answers a total failure with a JSON `error` and a partial one with an `errors` field, and the explicit HTTP consumers (`/api/knowledge-graph/search`, `/api/people/lookup`) answer 503 when nothing could be searched. Verify `TestKGSearchReportsFTSFailureAndKeepsLikeResults`, `TestKGSearchReportsDatabaseFailureInsteadOfEmptyResult` and `TestHandleKnowledgeGraphSearchReportsDatabaseFailure`.
-
-- Every knowledge-graph `LIKE` predicate fed by `dbutil.EscapeLike` carries `ESCAPE '\'`, so `%`, `_` and `\` in a query match literally (`TestKGSearchForContextLikeFallbackTreatsWildcardsLiterally`).
 
 ### Deferred Extraction Writes
 - Persist the original `MemoryMetaUpdate` in version-1 nullable queue JSON. NULL retains the legacy fallback; malformed or unsupported payloads consume a failed attempt without a vector write. Dedupe preserves the first complete payload and all retry scheduling, enriching NULL once. Back up populated disk stores consistently before the additive column migration. Automatic retries continue to preserve existing curation. Verify `TestPendingMemoryMetadata*` and `TestAuditQueuedAnalysisPreservesExtractionConfidence`.

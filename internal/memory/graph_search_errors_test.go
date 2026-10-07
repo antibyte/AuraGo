@@ -66,6 +66,38 @@ func TestKGSearchForContextLikeFallbackTreatsWildcardsLiterally(t *testing.T) {
 	}
 }
 
+func TestKGSearchLikeTreatsBackslashLiterally(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.AddNode("share", `share\docs`, map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode share: %v", err)
+	}
+	if err := kg.AddNode("plain", "sharedocs", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode plain: %v", err)
+	}
+	if err := kg.AddEdge("share", "nas", `backs\up`, nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+	// Force every search path onto LIKE.
+	for _, table := range []string{"kg_nodes_fts", "kg_edges_fts"} {
+		if _, err := kg.db.Exec(`DROP TABLE ` + table); err != nil {
+			t.Fatalf("drop %s: %v", table, err)
+		}
+	}
+
+	result, _ := kg.SearchResultWithOptions(`share\docs`, KnowledgeGraphQueryOptions{})
+	if len(result.Nodes) != 1 || result.Nodes[0].ID != "share" {
+		t.Fatalf(`SearchResultWithOptions(share\docs) nodes = %+v, want only share`, result.Nodes)
+	}
+	edges, _ := kg.SearchResultWithOptions(`backs\up`, KnowledgeGraphQueryOptions{})
+	if len(edges.Edges) != 1 || edges.Edges[0].Relation != `backs\up` {
+		t.Fatalf(`SearchResultWithOptions(backs\up) edges = %+v, want the backs\up edge`, edges.Edges)
+	}
+	ctx := kg.SearchForContextStructured(`share\docs`, 5, 800)
+	if len(ctx.Nodes) != 1 || ctx.Nodes[0].ID != "share" {
+		t.Fatalf(`SearchForContextStructured(share\docs) nodes = %+v, want only share`, ctx.Nodes)
+	}
+}
+
 func TestKGSearchReportsDatabaseFailureInsteadOfEmptyResult(t *testing.T) {
 	kg := newTestKG(t)
 	if err := kg.AddNode("alice", "Alice Smith", map[string]string{"type": "person"}); err != nil {

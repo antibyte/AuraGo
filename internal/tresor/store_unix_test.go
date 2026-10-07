@@ -45,6 +45,38 @@ func TestOpenCreatesPrivateDatabaseFiles(t *testing.T) {
 	}
 }
 
+func TestOpenKeepsDatabasePrivateWhenInitializationFails(t *testing.T) {
+	old := syscall.Umask(0o022)
+	t.Cleanup(func() { syscall.Umask(old) })
+
+	for name, existing := range map[string]bool{"new database": false, "existing wide database": true} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "tresor.db")
+			if existing {
+				if err := os.WriteFile(path, nil, 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// A directory in place of the WAL file makes the PRAGMA block fail,
+			// so Open returns before its final chmod.
+			if err := os.Mkdir(path+"-wal", 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if store, err := Open(path); err == nil {
+				store.Close()
+				t.Fatal("Open succeeded with a directory as WAL file, want an initialization error")
+			}
+			info, err := os.Stat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode := info.Mode().Perm(); mode != 0o600 {
+				t.Fatalf("tresor.db mode after failed Open = %04o, want 0600", mode)
+			}
+		})
+	}
+}
+
 func TestOpenTightensExistingWideSidecars(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "tresor.db")
 	for _, name := range []string{path, path + "-wal", path + "-shm"} {

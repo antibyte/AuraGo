@@ -3,6 +3,7 @@ package desktop
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -23,6 +24,8 @@ const maxSFTPUploadBytes int64 = 50 << 20
 
 // driveLetterPattern matches a Windows drive prefix such as `C:` in a remote path segment.
 var driveLetterPattern = regexp.MustCompile(`^[A-Za-z]:`)
+
+var errSFTPWindowsAbsolutePath = errors.New("absolute Windows or UNC paths are not allowed; use a path relative to the remote home")
 
 // connectSFTP opens an SSH connection and returns an SFTP client with a cleanup function.
 func connectSFTP(deviceID string, inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) (*sftp.Client, func(), error) {
@@ -66,10 +69,10 @@ func normalizeSFTPRemotePath(raw string) (string, error) {
 		return "", fmt.Errorf("remote path is required")
 	}
 	p = strings.ReplaceAll(p, "\\", "/")
-	// A bare `//` (or `\\`) still means the remote home; a host or drive after it does not.
-	first := strings.SplitN(strings.TrimLeft(p, "/"), "/", 2)[0]
-	if driveLetterPattern.MatchString(first) || (strings.HasPrefix(p, "//") && first != "") {
-		return "", fmt.Errorf("absolute Windows or UNC paths are not allowed; use a path relative to the remote home")
+	// Check UNC on the raw path (path.Clean collapses `//`). A bare `//` (or
+	// `\\`) still means the remote home; a host after it does not.
+	if strings.HasPrefix(p, "//") && strings.Trim(p, "/") != "" {
+		return "", errSFTPWindowsAbsolutePath
 	}
 	if strings.ContainsRune(p, 0) {
 		return "", fmt.Errorf("remote path contains invalid character")
@@ -81,6 +84,10 @@ func normalizeSFTPRemotePath(raw string) (string, error) {
 		return "", fmt.Errorf("remote path traversal is not allowed")
 	}
 	cleaned := path.Clean("/" + strings.TrimLeft(p, "/"))
+	// Check the drive on the cleaned path so `./C:/x` cannot slip through.
+	if first, _, _ := strings.Cut(strings.TrimPrefix(cleaned, "/"), "/"); driveLetterPattern.MatchString(first) {
+		return "", errSFTPWindowsAbsolutePath
+	}
 	if isSensitiveSFTPAbsolutePath(cleaned) {
 		return "", fmt.Errorf("remote path is outside the allowed SFTP workspace")
 	}

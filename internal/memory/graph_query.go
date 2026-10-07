@@ -321,7 +321,7 @@ func (kg *KnowledgeGraph) searchNodesFTS(tx *sql.Tx, query string) ([]Node, erro
 }
 
 func (kg *KnowledgeGraph) searchNodesLike(tx *sql.Tx, query string) ([]Node, error) {
-	likePattern := "%" + strings.NewReplacer("%", `\%`, "_", `\_`).Replace(query) + "%"
+	likePattern := "%" + dbutil.EscapeLike(query) + "%"
 	rows, err := tx.Query(`
 		SELECT id, label, properties, protected FROM kg_nodes
 		WHERE id LIKE ? ESCAPE '\' OR label LIKE ? ESCAPE '\' OR properties LIKE ? ESCAPE '\'
@@ -369,7 +369,7 @@ func (kg *KnowledgeGraph) searchEdgesFTS(tx *sql.Tx, query string) ([]Edge, erro
 }
 
 func (kg *KnowledgeGraph) searchEdgesLike(tx *sql.Tx, query string) ([]Edge, error) {
-	likeQ := "%" + strings.NewReplacer("%", `\%`, "_", `\_`).Replace(strings.ToLower(query)) + "%"
+	likeQ := "%" + dbutil.EscapeLike(strings.ToLower(query)) + "%"
 	rows, err := tx.Query(`
 		SELECT source, target, relation, properties FROM kg_edges
 		WHERE `+activeKGEdgePredicate("")+`
