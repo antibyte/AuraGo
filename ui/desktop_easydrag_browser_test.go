@@ -150,13 +150,15 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	// The run view hides the palette and shows the flow at a readable zoom from its trigger, in the
 	// part of the canvas the drawer leaves free.
 	s.wait(`()=>{const ed=edFixture.editor();const trigger=document.querySelector('.ed-node[data-node-id="n_zeitplan"]').getBoundingClientRect();const canvas=document.querySelector('.ed-canvas').getBoundingClientRect();const drawer=document.querySelector('.ed-drawer').getBoundingClientRect();return document.querySelector('.ed-palette').classList.contains('is-collapsed') && ed.view.zoom>=0.8 && trigger.left>=canvas.left && trigger.right<=drawer.left}`)
+	// The hidden palette is inert, and its rail toggle waits until the run view ends.
+	s.wait(`()=>document.querySelector('.ed-palette').inert===true && document.querySelector('.ed-rail [data-ed-cmd="palette"]').getAttribute('aria-disabled')==='true'`)
 	s.shot("run-view")
 	s.noRawKeys("run view")
 	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
 	page.Keyboard.MustType(input.Escape)
 	s.wait(`()=>document.querySelector('.ed-runview-banner').hidden && !edFixture.editor().runView`)
 	// The palette is back, and the footer still names the last run once the run view is left.
-	s.wait(`()=>!document.querySelector('.ed-palette').classList.contains('is-collapsed')`)
+	s.wait(`()=>!document.querySelector('.ed-palette').classList.contains('is-collapsed') && document.querySelector('.ed-palette').inert===false && document.querySelector('.ed-rail [data-ed-cmd="palette"]').getAttribute('aria-disabled')==='false'`)
 	s.wait(`()=>!document.querySelector('[data-ed-last-run]').textContent.includes(edFixture.editor().t('easydrag.ui.home_never_ran'))`)
 	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-drawer')`)
@@ -431,6 +433,24 @@ func (s *easyDragSmoke) failingRun() {
 	s.failOnPageErrors("failing run")
 }
 
+// phoneKeyboardAdd adds a step from the floating palette by keyboard (Ctrl+K, Enter on an item):
+// the palette closes, turns inert and gives the focus to the canvas. Undo takes the step back.
+func (s *easyDragSmoke) phoneKeyboardAdd() {
+	s.t.Helper()
+	page := s.page
+	s.wait(`()=>document.querySelector('.ed-palette').inert===true`)
+	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
+	page.KeyActions().Press(input.ControlLeft).Type('k').MustDo()
+	s.wait(`()=>!document.querySelector('.ed-palette').classList.contains('is-collapsed') && document.querySelector('.ed-palette').inert===false && document.activeElement.classList.contains('ed-palette-search')`)
+	page.MustEval(`()=>document.querySelector('.ed-palette .ed-palette-item[data-ed-type="web.search"]').focus()`)
+	page.Keyboard.MustType(input.Enter)
+	s.wait(`()=>{const p=document.querySelector('.ed-palette');return edFixture.editor().model.doc.nodes.length===6 && p.classList.contains('is-collapsed') && p.inert===true && document.activeElement===document.querySelector('.ed-canvas') && !document.querySelector('.ed-detail-backdrop')}`)
+	page.KeyActions().Press(input.ControlLeft).Type('z').MustDo()
+	s.wait(`()=>edFixture.editor().model.doc.nodes.length===5`)
+	s.wait(`()=>{const last=edFixture.lastSave();return !!last && last.nodes.length===5}`)
+	s.failOnPageErrors("phone keyboard add")
+}
+
 // failedRunView opens the failed run from the drawer: the run view centres the failed step in the
 // part of the canvas the drawer leaves free.
 func (s *easyDragSmoke) failedRunView() {
@@ -489,6 +509,7 @@ func (s *easyDragSmoke) phone() {
 	s.settle()
 	s.shot("editor-phone")
 	s.noRawKeys("phone editor")
+	s.phoneKeyboardAdd()
 	page.MustElement(`.ed-head [data-ed-cmd="home"]`).MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1`)
 	s.failOnPageErrors("phone")
@@ -504,7 +525,7 @@ func (s *easyDragSmoke) missionControl() {
 	page.MustEval(`()=>{const id=edFixture.flow().rec.mission_id;document.querySelector('.vd-mc-row[data-mc-id="'+id+'"]').click();}`)
 	s.wait(`()=>!!document.querySelector('.vd-mc [data-mc-action="openFlow"]') && document.querySelector('.vd-mc').textContent.includes('Noch nicht veröffentlicht')`)
 	// The weekday schedule (0 7 * * 1-5) reads as such, in the row and in the detail.
-	s.wait(`()=>{const row=document.querySelector('.vd-mc-row[data-mc-id="'+edFixture.flow().rec.mission_id+'"]');return row.textContent.includes('werktags um 07:00') && document.querySelector('.vd-mc-detail-body').textContent.includes('werktags um 07:00')}`)
+	s.wait(`()=>{const row=document.querySelector('.vd-mc-row[data-mc-id="'+edFixture.flow().rec.mission_id+'"]');return row.textContent.includes('Mo–Fr um 07:00') && document.querySelector('.vd-mc-detail-body').textContent.includes('Mo–Fr um 07:00')}`)
 	// Flows that never ran say so: the server's zero time ("0001-01-01T00:00:00Z") is no last run.
 	s.wait(`()=>{const never=t('desktop.mc_state_never_run');const draft=[...document.querySelectorAll('.vd-mc-row')].find(r=>r.textContent.includes('Wetterwarnung'));return !!draft && draft.textContent.includes(never) && document.querySelector('.vd-mc-detail-body').textContent.includes(never)}`)
 	s.shot("mission-control-flow")

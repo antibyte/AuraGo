@@ -1448,7 +1448,7 @@
   "desktop.mc_schedule_every_hours": "elke {{count}} uur",
   "desktop.mc_schedule_hourly_at": "elk uur op minuut {{minute}}",
   "desktop.mc_schedule_daily_at": "dagelijks om {{time}}",
-  "desktop.mc_schedule_weekdays_at": "op werkdagen om {{time}}",
+  "desktop.mc_schedule_weekdays_at": "ma–vr om {{time}}",
   "desktop.mc_schedule_weekly_at": "{{days}} om {{time}}",
   "desktop.mc_schedule_monthly_at": "op dag {{day}} van elke maand om {{time}}",
   "desktop.mc_schedule_custom_desc": "volgens een aangepast cron-schema",

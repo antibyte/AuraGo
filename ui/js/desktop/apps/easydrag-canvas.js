@@ -210,6 +210,15 @@
             setView({ x: s.w / 2 - Number(c.cx) * zoom, y: s.h / 2 - Number(c.cy) * zoom, zoom }, opts);
         }
 
+        // restoreView places a view stored by center() ({cx, cy, zoom}) and reports whether it shows a
+        // step. The older form {x, y, zoom} (screen offsets of another window size) is not used: it
+        // returns false and leaves the view, and the caller fits instead.
+        function restoreView(stored) {
+            if (!stored || typeof stored !== 'object' || !Number.isFinite(stored.cx) || !Number.isFinite(stored.cy)) return false;
+            setCenter(stored);
+            return anyNodeVisible();
+        }
+
         // anyNodeVisible reports whether a card overlaps the free part of the canvas.
         function anyNodeVisible() {
             const a = visibleArea();
@@ -571,7 +580,7 @@
 
         return {
             el, world, wiresSvg, nodesHost,
-            render, renderNodes, setView, fit, zoomBy, centerOn, center, setCenter, anyNodeVisible, size, clientToWorld, nodeRect, announce,
+            render, renderNodes, setView, fit, zoomBy, centerOn, center, setCenter, restoreView, anyNodeVisible, size, clientToWorld, nodeRect, announce,
             nodeEl: id => nodeEls.get(id) || null,
             dispose() { bag.dispose(); }
         };

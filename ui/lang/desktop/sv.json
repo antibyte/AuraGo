@@ -1448,7 +1448,7 @@
   "desktop.mc_schedule_every_hours": "var {{count}}:e timme",
   "desktop.mc_schedule_hourly_at": "varje timme vid minut {{minute}}",
   "desktop.mc_schedule_daily_at": "dagligen kl. {{time}}",
-  "desktop.mc_schedule_weekdays_at": "vardagar kl. {{time}}",
+  "desktop.mc_schedule_weekdays_at": "mån–fre kl. {{time}}",
   "desktop.mc_schedule_weekly_at": "{{days}} kl. {{time}}",
   "desktop.mc_schedule_monthly_at": "den {{day}}:e varje månad kl. {{time}}",
   "desktop.mc_schedule_custom_desc": "enligt ett anpassat cron-schema",

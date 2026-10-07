@@ -118,6 +118,8 @@
             sw.disabled = !!ed.readonly || !!ed.runView;
             btn('runs').setAttribute('aria-pressed', String(runs.drawerOpen()));
             btn('palette').setAttribute('aria-pressed', String(palette.isOpen()));
+            // The run view keeps the palette hidden: a stored run takes no new steps.
+            btn('palette').setAttribute('aria-disabled', String(!!ed.runView));
             // flow_id/run_id from a notification are cleared, so a later render does not reopen
             // that run, or a run of another flow after openFlow switched flows.
             ctx.updateWindowContext && ctx.updateWindowContext(ed.windowId, { flowId: ed.flow.id, flow_id: null, run_id: null });
@@ -198,8 +200,10 @@
             // The run view needs the room: the palette hides (a stored run takes no new steps) and
             // comes back on exit. A failed run shows its failed step, any other run a readable fit.
             const run = ed.runView;
+            const viewAtEnter = ed.view;
+            // A pan or zoom the user made meanwhile wins over the placement.
             const place = () => {
-                if (disposed || ed.runView !== run) return;
+                if (disposed || ed.runView !== run || ed.view !== viewAtEnter) return;
                 const failed = (detail.steps || []).find(st => st.status === 'error' && ed.model.node(st.node_id));
                 if (failed) canvas.centerOn(failed.node_id, { animate: true });
                 else canvas.fit({ animate: true, readable: true });
@@ -220,7 +224,7 @@
             runs.clearRun();
             ed.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
             if (savedView) canvas.setView(savedView, { animate: true });
-            if (paletteBefore && !palette.isOpen()) palette.setOpen(true, true);
+            if (paletteBefore && !palette.isOpen() && !palette.isOverlay()) palette.setOpen(true, true);
             paletteBefore = false;
             renderHeader();
             setMenus();
@@ -235,6 +239,10 @@
         }
 
         function test() { if (!runs.isRunning()) runs.startTest({}); }
+
+        // The palette stays hidden in the run view; its toggle and the search key wait until it ends.
+        function togglePalette() { if (!ed.runView) palette.setOpen(!palette.isOpen()); }
+        function searchPalette() { if (!ed.runView) palette.focusSearch(); }
 
         function exportFlow() {
             const a = document.createElement('a');
@@ -376,8 +384,8 @@
                         { id: 'zoom-out', labelKey: 'easydrag.ui.zoom_out', icon: 'zoom-out', shortcutHint: '−', action: () => canvas.zoomBy(1 / 1.2) },
                         { id: 'zoom-fit', labelKey: 'easydrag.ui.zoom_fit', icon: 'maximize', shortcutHint: 'Shift+1', action: () => canvas.fit({ animate: true }) },
                         { type: 'separator' },
-                        { id: 'search', labelKey: 'easydrag.ui.keys_search', icon: 'search', shortcut: 'Ctrl+K', action: unlessModal(() => palette.focusSearch()) },
-                        { id: 'palette', labelKey: 'easydrag.ui.palette_title', icon: 'sidebar', checked: palette.isOpen(), action: () => palette.setOpen(!palette.isOpen()) },
+                        { id: 'search', labelKey: 'easydrag.ui.keys_search', icon: 'search', shortcut: 'Ctrl+K', disabled: !!ed.runView, action: unlessModal(searchPalette) },
+                        { id: 'palette', labelKey: 'easydrag.ui.palette_title', icon: 'sidebar', checked: palette.isOpen(), disabled: !!ed.runView, action: () => togglePalette() },
                         { id: 'runs', labelKey: 'easydrag.ui.runs_title', icon: 'list', checked: runs.drawerOpen(), action: () => { runs.toggleDrawer(); renderHeader(); setMenus(); } },
                         { type: 'separator' },
                         { id: 'keys', labelKey: 'easydrag.ui.keys_title', icon: 'help', shortcutHint: '?', action: unlessModal(() => ED.dialogs.shortcuts(ed)) }
@@ -456,7 +464,7 @@
 
         bag.listen(el, 'click', (event) => {
             const b = event.target.closest('[data-ed-cmd]');
-            if (!b || b.disabled) return;
+            if (!b || b.disabled || b.getAttribute('aria-disabled') === 'true') return;
             const cmd = b.dataset.edCmd;
             if (cmd === 'home') goHome();
             else if (cmd === 'runs') { runs.toggleDrawer(); renderHeader(); setMenus(); }
@@ -469,7 +477,7 @@
             else if (cmd === 'last-run') { if (ed.run || lastRecord) runs.toggleDrawer(true); renderHeader(); }
             else if (cmd === 'issues') publish.openIssues(b);
             else if (cmd === 'keys') ED.dialogs.shortcuts(ed);
-            else if (cmd === 'palette') palette.setOpen(!palette.isOpen());
+            else if (cmd === 'palette') togglePalette();
             else if (cmd === 'templates') goHome({ section: 'templates' });
             else if (cmd === 'save') saveNow();
         });
@@ -501,7 +509,7 @@
             if (el.querySelector('.ed-modal-backdrop') || document.querySelector('.vd-context-menu')) return;
             if (mod && key === 's') { if (!restoring) saveNow(); return; }
             if (mod && event.key === 'Enter') { event.preventDefault(); test(); return; }
-            if (mod && key === 'k') { event.preventDefault(); palette.focusSearch(); return; }
+            if (mod && key === 'k') { event.preventDefault(); searchPalette(); return; }
             if (core.isEditable(target) || ed.detail || ed.quickAdd) return;
             const active = document.activeElement;
             const onCanvas = canvas.el.contains(active) || active === document.body || active === el;
@@ -572,10 +580,7 @@
         function placeView() {
             const stored = core.storage.get(VIEW_KEY + ed.flow.id, null);
             const wide = el.getBoundingClientRect().width > 560;
-            if (wide && ed.model.doc.nodes.length && stored && Number.isFinite(stored.cx) && Number.isFinite(stored.cy)) {
-                canvas.setCenter(stored);
-                if (canvas.anyNodeVisible()) return;
-            }
+            if (wide && ed.model.doc.nodes.length && canvas.restoreView(stored)) return;
             canvas.fit({ readable: true });
         }
 

@@ -338,6 +338,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-rail-spacer { flex: 1; }
 .ed-rail .ed-icon-btn { width: 34px; height: 34px; border-radius: 10px; }
 .ed-rail .ed-icon-btn[aria-pressed="true"] { color: var(--ed-accent); background: color-mix(in srgb, var(--ed-accent) 14%, transparent); }
+.ed-rail .ed-icon-btn[aria-disabled="true"] { opacity: 0.4; cursor: default; color: var(--ed-muted); background: transparent; }
 .ed-foot {
     display: flex; align-items: center; gap: 4px; min-height: 30px; padding: 2px 8px;
     border-top: 1px solid var(--ed-border); background: var(--ed-chrome); font-size: 12px; color: var(--ed-muted);

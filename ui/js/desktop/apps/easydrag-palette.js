@@ -117,9 +117,13 @@
             }).join('');
         }
 
-        // setOpen shows or hides the panel; transient leaves the stored choice as it is.
+        // setOpen shows or hides the panel; transient leaves the stored choice as it is. A hidden
+        // panel is inert (out of the tab order); closing it with the focus inside moves the focus to
+        // the canvas, so it is never left on a control nobody sees.
         function setOpen(open, transient) {
+            if (!open && el.contains(document.activeElement)) canvas.el.focus({ preventScroll: true });
             el.classList.toggle('is-collapsed', !open);
+            el.inert = !open;
             ed.root.classList.toggle('has-palette', open);
             if (!transient) core.storage.set(OPEN_KEY, open);
             ed.bus.emit('palette', open);
@@ -204,7 +208,8 @@
         function closeOverlay() { if (isOpen() && isOverlay()) setOpen(false, true); }
 
         // syncLayout follows the window width: becoming a floating panel closes it, becoming a docked
-        // one again restores the stored choice. The editor runs it before its first view.
+        // one again restores the stored choice (not in the run view, which keeps the panel hidden).
+        // The editor runs it before its first view.
         let overlay = null;
         function syncLayout() {
             if (!el.isConnected) return;
@@ -213,12 +218,15 @@
             const was = overlay;
             overlay = now;
             if (now) closeOverlay();
-            else if (was) setOpen(!!core.storage.get(OPEN_KEY, true), true);
+            else if (was && !ed.runView) setOpen(!!core.storage.get(OPEN_KEY, true), true);
         }
 
         // afterMove runs fn once the panel stopped moving (its margin transition), at the latest after
-        // 400 ms: the canvas beside a docked panel has its final width by then.
+        // 400 ms: the canvas beside a docked panel has its final width by then. Without a transition
+        // (reduced motion) it runs in the next frame.
         function afterMove(fn) {
+            const durations = typeof getComputedStyle === 'function' ? String(getComputedStyle(el).transitionDuration || '') : '';
+            if (!durations.split(',').some(d => parseFloat(d) > 0)) { requestAnimationFrame(() => fn()); return; }
             let done = false;
             let timer = 0;
             const end = event => { if (!event || (event.target === el && event.propertyName === 'margin-left')) finish(); };

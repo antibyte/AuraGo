@@ -4,6 +4,7 @@
 // The c1d04 checks (test-easydrag-extra.mjs) run canvas, wires and interact on a small stub DOM.
 // The c1d06 checks (test-easydrag-extra2.mjs) run detail, runs and publish with a stub EventSource.
 // The c1d07 checks (test-easydrag-extra3.mjs) run the start page, the editor and the window shell on every module.
+// The c1d14 checks (test-easydrag-extra4.mjs) run the canvas's stored-view restore and readable fit.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -992,6 +993,9 @@ await (await import('./test-easydrag-extra2.mjs')).run({ apps, types, t, miniDom
 
 // ── c1d07: start page, dialogs, editor screen and window shell (test-easydrag-extra3.mjs) ──
 await (await import('./test-easydrag-extra3.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
+
+// ── c1d14: stored views and the readable fit (test-easydrag-extra4.mjs) ──
+await (await import('./test-easydrag-extra4.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
 
 // ── start page preview and shortcut table ──
 const H = ED.home;
