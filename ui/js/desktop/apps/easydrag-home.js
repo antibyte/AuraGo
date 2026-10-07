@@ -62,6 +62,7 @@
             return (f.triggers || []).map(type => (app.catalog && app.catalog.types.get(type) || {}).label || type).filter(l => !seen.has(l) && seen.add(l));
         }
 
+        // statusBadge uses the words of Mission Control: state_draft reads "Not published yet".
         function statusBadge(f) {
             if (!f.published) return '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_draft')) + '</span>';
             if (f.has_unpublished_changes) return '<span class="ed-chip ed-chip--accent">' + esc(t('easydrag.ui.state_changes')) + '</span>';
@@ -79,7 +80,9 @@
             return flows.filter(f => {
                 if (q && !String(f.name).toLowerCase().includes(q) && !String(f.description || '').toLowerCase().includes(q)) return false;
                 if (filter === 'active') return f.enabled;
-                if (filter === 'inactive') return !f.enabled;
+                // "Paused" (the stored filter id stays "inactive"): published and switched off. A
+                // flow that was never published is not paused; it shows under All.
+                if (filter === 'inactive') return f.published && !f.enabled;
                 if (filter === 'errors') return f.last_run && f.last_run.status === 'error';
                 return true;
             });
@@ -253,9 +256,11 @@
         function cardMenu(f, x, y) {
             if (typeof ctx.showContextMenu !== 'function') return;
             const ro = !!app.readonly;
+            // Run now needs a published flow that is switched on (a paused one is refused).
+            const paused = !!f.published && !f.enabled;
             ctx.showContextMenu(x, y, [
                 { icon: 'edit', label: t('easydrag.ui.home_open'), action: () => app.openFlow(f.id) },
-                { icon: 'play', label: t('easydrag.ui.run_now'), disabled: ro || !f.published, action: async () => { try { await app.api.runNow(f.id); ctx.notify({ title: f.name, message: t('easydrag.ui.run_started') }); } catch (err) { ctx.notify({ title: f.name, message: core.errorText(t, err), type: 'error' }); } } },
+                { icon: 'play', label: t('easydrag.ui.run_now'), disabled: ro || !f.published || paused, disabledHint: paused && !ro ? t('easydrag.ui.error_flow_disabled') : '', action: async () => { try { await app.api.runNow(f.id); ctx.notify({ title: f.name, message: t('easydrag.ui.run_started') }); } catch (err) { ctx.notify({ title: f.name, message: core.errorText(t, err), type: 'error' }); } } },
                 { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: ro, action: () => duplicate(f.id) },
                 { icon: 'download', label: t('easydrag.ui.home_export'), action: () => download(f.id, f.name) },
                 { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },

@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Εναύσματα στη ροή",
   "desktop.mc_delete_flow_message": "Διαγραφή της «{{name}}»; Θα διαγραφεί και η ροή της στο EasyDrag μαζί με το πρόχειρο, όλες τις δημοσιευμένες εκδόσεις, τα αποθηκευμένα δεδομένα εναύσματος και το ιστορικό εκτελέσεων. Αυτό δεν μπορεί να αναιρεθεί.",
   "desktop.mc_flow_publish_first": "Δημοσίευσε πρώτα τη ροή στο EasyDrag.",
-  "desktop.mc_flow_cancel_in_easydrag": "Δεν βρέθηκε εκτέλεση της ροής σε εξέλιξη. Ακύρωσε τις εκτελέσεις σε αναμονή στο EasyDrag.",
+  "desktop.mc_flow_cancel_in_easydrag": "Δεν βρέθηκε εκτέλεση της ροής σε εξέλιξη. Διάκοψε τις εκτελέσεις σε αναμονή στη λίστα εκτελέσεων του EasyDrag.",
   "desktop.mc_toast_flow_run_requested": "Ζητήθηκε εκτέλεση της ροής. Παρακολούθησέ τη στο EasyDrag.",
   "desktop.mc_sort_label": "Ταξινόμηση κατά",
   "desktop.mc_sort_name": "Όνομα",

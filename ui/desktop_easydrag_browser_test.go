@@ -174,6 +174,8 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	// flows_changed desktop events reach open editors.
 	page.MustEval(`()=>{window.__flowsChanged=0;document.addEventListener('aurago:flows-changed',e=>{if(e.detail&&e.detail.reason==='enabled'&&e.detail.flow_id===edFixture.seededID)window.__flowsChanged++;});return aurora.handleDesktopEvent({type:'flows_changed',payload:{flow_id:edFixture.seededID,reason:'enabled'}});}`)
 	s.wait(`()=>window.__flowsChanged===1`)
+	// Mission Control pauses the flow: the editor says Paused and offers no Run now.
+	s.pausedElsewhere()
 
 	// A test run that fails at its last step, a selected step, and the three themes: success and
 	// error states, delivered wires with item counts, categories and the selection ring.
@@ -205,7 +207,47 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	// "Not published yet", and opens them in EasyDrag.
 	page.MustSetViewport(1440, 900, 1, false)
 	s.missionControl()
+	// A flow deleted elsewhere while it is open: the editor says so and shows the start page.
+	s.deletedElsewhere()
 	s.failOnPageErrors("final")
+}
+
+// pausedElsewhere switches the seeded flow off as Mission Control would (the broadcast names the
+// flow): the state chip says Paused, the switch is off, and Run now is off in the ⋯ menu and the
+// Flow menu with a hint. Switched on again, Run now is back.
+func (s *easyDragSmoke) pausedElsewhere() {
+	s.t.Helper()
+	page := s.page
+	broadcast := `()=>aurora.handleDesktopEvent({type:'flows_changed',payload:{flow_id:edFixture.seededID,reason:'enabled'}})`
+	runItem := `const ed=edFixture.editor();const item=aurora.state.windowMenus.get(ed.windowId).renderedMenus.find(m=>m.id==='flow').items.find(i=>i.id==='run');`
+	page.MustEval(`()=>{edFixture.flow().enabled=false}`)
+	page.MustEval(broadcast)
+	s.wait(`()=>{` + runItem + `const chips=[...document.querySelectorAll('[data-ed-state] .ed-chip')].map(c=>c.textContent);return ed.flowEnabled===false && chips.includes(ed.t('easydrag.ui.state_inactive')) && document.querySelector('[data-ed-cmd="active"]').getAttribute('aria-checked')==='false' && item.disabled && item.disabledHint===ed.t('easydrag.ui.error_flow_disabled')}`)
+	page.MustElement(`[data-ed-cmd="more"]`).MustClick()
+	s.wait(`()=>{const ed=edFixture.editor();const b=[...document.querySelectorAll('.vd-context-menu .vd-context-item')].find(x=>x.textContent.includes(ed.t('easydrag.ui.run_now')));return !!b && b.disabled && b.title===ed.t('easydrag.ui.error_flow_disabled')}`)
+	s.shot("editor-paused")
+	s.noRawKeys("paused")
+	page.MustEval(`()=>aurora.closeContextMenu()`)
+	page.MustEval(`()=>{edFixture.flow().enabled=true}`)
+	page.MustEval(broadcast)
+	s.wait(`()=>{` + runItem + `return ed.flowEnabled===true && document.querySelectorAll('[data-ed-state] .ed-chip').length===1 && !item.disabled}`)
+	s.failOnPageErrors("paused elsewhere")
+}
+
+// deletedElsewhere opens a second flow, edits it and deletes it behind the editor's back (as
+// Mission Control does): the editor names the delete, shows the start page and keeps no
+// emergency copy of the dead flow.
+func (s *easyDragSmoke) deletedElsewhere() {
+	s.t.Helper()
+	page := s.page
+	id := page.MustEval(`()=>{const id=edFixture.addDraft('Kurzlebig');const ed=edFixture.editor();EasyDragApp.open(ed.windowId,{flowId:id});return id;}`).Str()
+	s.wait(fmt.Sprintf(`()=>{const ed=edFixture.editor();return !!ed && ed.flow.id==='%s' && document.querySelectorAll('.ed-node').length>0}`, id))
+	page.MustEval(`()=>edFixture.editor().model.setFlow({description:'unsaved'})`)
+	s.wait(fmt.Sprintf(`()=>localStorage.getItem('aurago.easydrag.draft.%s')!==null`, id))
+	page.MustEval(fmt.Sprintf(`()=>{edFixture.state.flows.delete('%s');return aurora.handleDesktopEvent({type:'flows_changed',payload:{flow_id:'%s',reason:'deleted'}});}`, id, id))
+	s.wait(fmt.Sprintf(`()=>!edFixture.editor() && !!document.querySelector('.ed-home') && localStorage.getItem('aurago.easydrag.draft.%s')===null && [...document.querySelectorAll('.vd-toast')].some(x=>x.textContent.includes(t('easydrag.ui.flow_deleted_elsewhere')))`, id))
+	s.clearToasts()
+	s.failOnPageErrors("deleted elsewhere")
 }
 
 // easyDragSmoke holds the page and the screenshot folder of TestDesktopEasyDragBrowser.

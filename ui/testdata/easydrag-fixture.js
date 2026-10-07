@@ -592,6 +592,8 @@
         if (action === 'export' && method === 'GET') return reply(rec.draft, 200, { 'Content-Disposition': 'attachment; filename="flow.easydrag.json"' });
         if ((action === 'test' || action === 'run') && method === 'POST') {
             if (action === 'run' && !rec.live) return fail(409, 'FLOW_NOT_PUBLISHED', 'the flow is not published');
+            // RunNow refuses a paused flow (ErrFlowDisabled); test runs stay allowed.
+            if (action === 'run' && !entry.enabled) return fail(409, 'FLOW_DISABLED', 'the flow is paused; switch it on first');
             if (action === 'test') {
                 const issues = validate(rec.draft, 'draft');
                 if (hasErrors(issues)) return reply({ error: 'the draft has errors', code: 'FLOW_INVALID', issues }, 422);

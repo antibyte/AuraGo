@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Utlösare i flödet",
   "desktop.mc_delete_flow_message": "Ta bort ”{{name}}”? Då tas även flödet i EasyDrag bort, med utkastet, alla publicerade versioner, sparade utlösardata och körningshistoriken. Det här kan inte ångras.",
   "desktop.mc_flow_publish_first": "Publicera flödet i EasyDrag först.",
-  "desktop.mc_flow_cancel_in_easydrag": "Ingen pågående körning av flödet hittades. Avbryt väntande körningar i EasyDrag.",
+  "desktop.mc_flow_cancel_in_easydrag": "Ingen pågående körning av flödet hittades. Stoppa väntande körningar i EasyDrags lista över körningar.",
   "desktop.mc_toast_flow_run_requested": "Körning av flödet begärd. Följ den i EasyDrag.",
   "desktop.mc_sort_label": "Sortera efter",
   "desktop.mc_sort_name": "Namn",

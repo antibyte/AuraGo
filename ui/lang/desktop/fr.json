@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Déclencheurs du flux",
   "desktop.mc_delete_flow_message": "Supprimer « {{name}} » ? Son flux dans EasyDrag sera aussi supprimé, avec le brouillon, toutes les versions publiées, les données enregistrées du déclencheur et l’historique d’exécutions. Cette action est irréversible.",
   "desktop.mc_flow_publish_first": "Publiez d’abord le flux dans EasyDrag.",
-  "desktop.mc_flow_cancel_in_easydrag": "Aucune exécution du flux en cours. Annulez les exécutions en attente dans EasyDrag.",
+  "desktop.mc_flow_cancel_in_easydrag": "Aucune exécution du flux en cours. Arrêtez les exécutions en attente dans la liste des exécutions d’EasyDrag.",
   "desktop.mc_toast_flow_run_requested": "Exécution du flux demandée. Suivez-la dans EasyDrag.",
   "desktop.mc_sort_label": "Trier par",
   "desktop.mc_sort_name": "Nom",

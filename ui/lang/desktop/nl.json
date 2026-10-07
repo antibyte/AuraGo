@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Triggers in de flow",
   "desktop.mc_delete_flow_message": "‘{{name}}’ verwijderen? Daarmee verwijder je ook de flow in EasyDrag, met het concept, alle gepubliceerde versies, de opgeslagen triggergegevens en de uitvoeringsgeschiedenis. Dit kan niet ongedaan worden gemaakt.",
   "desktop.mc_flow_publish_first": "Publiceer de flow eerst in EasyDrag.",
-  "desktop.mc_flow_cancel_in_easydrag": "Er is geen lopende uitvoering van de flow gevonden. Annuleer wachtende uitvoeringen in EasyDrag.",
+  "desktop.mc_flow_cancel_in_easydrag": "Er is geen lopende uitvoering van de flow gevonden. Stop wachtende uitvoeringen in de lijst met uitvoeringen van EasyDrag.",
   "desktop.mc_toast_flow_run_requested": "Uitvoering van de flow aangevraagd. Volg die in EasyDrag.",
   "desktop.mc_sort_label": "Sorteren op",
   "desktop.mc_sort_name": "Naam",

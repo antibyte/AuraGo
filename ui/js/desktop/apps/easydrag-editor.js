@@ -87,6 +87,9 @@
 
         // ── header and footer ───────────────────────────────────────────────────
 
+        // stateOf names the flow's state with the words of Mission Control and the missions page:
+        // state_draft reads "Not published yet" (a flow never published) and state_inactive
+        // "Paused" (published, switched off). "Draft" stays the word for the editable version.
         function stateOf() {
             // A partial publish is live, but Mission Control or the timers were not updated: the chip
             // says why and Publish stays offered (publishing again finishes it).
@@ -95,6 +98,15 @@
             if (!ed.flow.live) return { cls: 'muted', key: 'easydrag.ui.state_draft' };
             if (ed.flow.draft_revision !== ed.flow.published_draft_revision) return { cls: 'accent', key: 'easydrag.ui.state_changes' };
             return { cls: 'ok', key: 'easydrag.ui.state_published' };
+        }
+
+        // runNowState: Run now starts the published version, and only while the flow is switched on
+        // (a paused flow is refused with FLOW_DISABLED, as Mission Control refuses a paused mission).
+        // A paused flow's item says to switch it on first.
+        function runNowState() {
+            const ro = !!(ed.readonly || ed.runView);
+            const paused = !!ed.flow.live && !ed.flowEnabled;
+            return { disabled: ro || !ed.flow.live || paused, hint: paused && !ro ? t('easydrag.ui.error_flow_disabled') : '' };
         }
 
         function renderHeader() {
@@ -283,15 +295,31 @@
                 ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
                 return;
             }
+            forget(id);
+            if (disposed) return;
+            app.openHome();
+        }
+
+        // goneElsewhere: the open flow was deleted in another window, in Mission Control, on the
+        // missions page or by the agent. The editor says so once and shows the start page.
+        function goneElsewhere() {
+            if (deleting || disposed) return;
+            deleting = true;
+            forget(ed.flow.id);
+            ctx.notify({ title: ed.model.doc.name, message: t('easydrag.ui.flow_deleted_elsewhere') });
+            app.openHome();
+        }
+
+        // forget stops saving a flow that is gone (a save would only answer FLOW_NOT_FOUND) and drops
+        // what this browser kept for it: the emergency copy and the stored view. Edits made after
+        // the delete do not pile up under a dead id.
+        function forget(id) {
+            contentDirty = false;
+            ed.saver.dispose();
             ED.saver.dropEmergencyCopy(id);
             storeView.cancel();
             pendingView = null;
             core.storage.remove(VIEW_KEY + id);
-            if (disposed) return;
-            // Nothing may be saved any more: a save would only answer FLOW_NOT_FOUND.
-            contentDirty = false;
-            ed.saver.dispose();
-            app.openHome();
         }
 
         // goHome and duplicateFlow stop when the editor was disposed while leave() waited (the
@@ -331,9 +359,9 @@
 
         function moreMenu(anchor) {
             const r = anchor.getBoundingClientRect();
-            const ro = !!(ed.readonly || ed.runView);
+            const run = runNowState();
             ctx.showContextMenu(r.left, r.bottom + 4, [
-                { icon: 'play', label: t('easydrag.ui.run_now'), disabled: ro || !ed.flow.live, action: () => runs.runLive() },
+                { icon: 'play', label: t('easydrag.ui.run_now'), disabled: run.disabled, disabledHint: run.hint, action: () => runs.runLive() },
                 { icon: 'settings', label: t('easydrag.ui.flow_settings'), action: () => ED.dialogs.flowSettings(ed) },
                 { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: !!ed.readonly, action: duplicateFlow },
                 { icon: 'download', label: t('easydrag.ui.home_export'), action: exportFlow },
@@ -364,6 +392,7 @@
             const ro = !!(ed.readonly || ed.runView || restoring);
             const busy = overlayOpen();
             const sel = ed.selection.size > 0;
+            const run = runNowState();
             ctx.setWindowMenus(ed.windowId, [
                 {
                     id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: [
@@ -371,7 +400,7 @@
                         { type: 'separator' },
                         { id: 'save', labelKey: 'easydrag.ui.save_now', icon: 'save', shortcut: 'Ctrl+S', disabled: ro, action: unlessModal(saveNow) },
                         { id: 'test', labelKey: 'easydrag.ui.test', icon: 'run', shortcut: 'Ctrl+Enter', disabled: ro, action: unlessModal(test) },
-                        { id: 'run', labelKey: 'easydrag.ui.run_now', icon: 'play', disabled: ro || !ed.flow.live, action: unlessModal(() => runs.runLive()) },
+                        { id: 'run', labelKey: 'easydrag.ui.run_now', icon: 'play', disabled: restoring || run.disabled, disabledHint: run.hint, action: unlessModal(() => runs.runLive()) },
                         { id: 'publish', labelKey: 'easydrag.ui.publish', icon: 'upload', disabled: ro, action: unlessModal(() => publish.openDialog()) },
                         { type: 'separator' },
                         { id: 'settings', labelKey: 'easydrag.ui.flow_settings', icon: 'settings', disabled: restoring, action: unlessModal(() => ED.dialogs.flowSettings(ed)) },
@@ -460,7 +489,8 @@
             renderHeader();
             setMenus();
         }));
-        bag.add(ed.bus.on('enabled', () => renderHeader()));
+        // The Active switch also decides whether Run now is offered.
+        bag.add(ed.bus.on('enabled', () => { renderHeader(); setMenus(); }));
         // A refused paste is announced to screen readers by interact; this shows it to everyone.
         bag.add(ed.bus.on('paste-refused', () => ctx.notify({ title: t('easydrag.ui.paste'), message: t('easydrag.ui.paste_refused') })));
         // The viewport is stored per flow once panning or zooming pauses for 400 ms, not on every
@@ -535,13 +565,17 @@
         }
         bag.listen(document, 'keydown', onKeyDown);
         bag.listen(document, 'keyup', event => interact.handleKeyUp(event));
+        // Deletes and switches from Mission Control and the missions page name the flow (flow_id).
+        // One without an id (no single flow held the mission) may still be this flow: the record
+        // is read again, and FLOW_NOT_FOUND means it was deleted.
         bag.listen(document, 'aurago:flows-changed', (event) => {
             const d = event.detail || {};
-            if (d.flow_id !== ed.flow.id) return;
+            const mine = d.flow_id === ed.flow.id;
+            const maybe = !d.flow_id && (d.reason === 'deleted' || d.reason === 'enabled');
+            if (!mine && !maybe) return;
             if (d.reason === 'deleted') {
                 if (deleting) return;
-                ctx.notify({ title: ed.model.doc.name, message: t('easydrag.ui.flow_deleted_elsewhere') });
-                app.openHome();
+                if (mine) goneElsewhere(); else refreshRecord();
                 return;
             }
             // A live run ended: the last run, the drawer and a run view follow (debounced in runs).
@@ -549,19 +583,27 @@
             if (d.reason === 'enabled' || d.reason === 'published') refreshRecord();
         });
 
-        // refreshRecord re-reads publication state changed elsewhere (another window, the agent).
-        // "published" is broadcast for partial publishes too, and publishing the same revision
-        // again changes nothing in the store: only a higher live revision finishes a partial one.
+        // refreshRecord re-reads publication state changed elsewhere (another window, the agent,
+        // Mission Control): the state chip, the Active switch and Run now follow. "published" is
+        // broadcast for partial publishes too, and publishing the same revision again changes
+        // nothing in the store: only a higher live revision finishes a partial one. A flow that is
+        // gone was deleted elsewhere; any other failure keeps the current state.
         async function refreshRecord() {
+            let res;
             try {
-                const res = await ed.api.get(ed.flow.id);
-                ed.flow.live = res.flow.live;
-                ed.flow.published_draft_revision = res.flow.published_draft_revision;
-                ed.flow.live_revision = res.flow.live_revision;
-                if (ed.publishIncomplete && Number(res.flow.live_revision) > partialRevision) ed.publishIncomplete = '';
-                ed.flowEnabled = !!res.enabled;
-                renderHeader();
-            } catch (err) { /* keep the current state */ }
+                res = await ed.api.get(ed.flow.id);
+            } catch (err) {
+                if (core.errorCode(err) === 'FLOW_NOT_FOUND') goneElsewhere();
+                return;
+            }
+            if (disposed || deleting || !res || !res.flow) return;
+            ed.flow.live = res.flow.live;
+            ed.flow.published_draft_revision = res.flow.published_draft_revision;
+            ed.flow.live_revision = res.flow.live_revision;
+            if (ed.publishIncomplete && Number(res.flow.live_revision) > partialRevision) ed.publishIncomplete = '';
+            ed.flowEnabled = !!res.enabled;
+            renderHeader();
+            setMenus();
         }
 
         if (typeof ctx.setWindowBeforeClose === 'function') ctx.setWindowBeforeClose(ed.windowId, leave);

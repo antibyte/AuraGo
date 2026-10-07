@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Utløsere i flyten",
   "desktop.mc_delete_flow_message": "Slette «{{name}}»? Da slettes også flyten i EasyDrag, med utkastet, alle publiserte versjoner, de lagrede utløserdataene og kjøringshistorikken. Dette kan ikke angres.",
   "desktop.mc_flow_publish_first": "Publiser flyten i EasyDrag først.",
-  "desktop.mc_flow_cancel_in_easydrag": "Fant ingen pågående kjøring av flyten. Avbryt ventende kjøringer i EasyDrag.",
+  "desktop.mc_flow_cancel_in_easydrag": "Fant ingen pågående kjøring av flyten. Stopp ventende kjøringer i EasyDrags liste over kjøringer.",
   "desktop.mc_toast_flow_run_requested": "Kjøring av flyten er forespurt. Følg den i EasyDrag.",
   "desktop.mc_sort_label": "Sorter etter",
   "desktop.mc_sort_name": "Navn",

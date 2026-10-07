@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Gatilhos no fluxo",
   "desktop.mc_delete_flow_message": "Excluir “{{name}}”? O fluxo no EasyDrag também será excluído, junto com o rascunho, todas as versões publicadas, os dados salvos do gatilho e o histórico de execuções. Isso não pode ser desfeito.",
   "desktop.mc_flow_publish_first": "Publique o fluxo no EasyDrag primeiro.",
-  "desktop.mc_flow_cancel_in_easydrag": "Nenhuma execução do fluxo em andamento foi encontrada. Cancele as execuções em espera no EasyDrag.",
+  "desktop.mc_flow_cancel_in_easydrag": "Nenhuma execução do fluxo em andamento foi encontrada. Pare as execuções em espera na lista de execuções do EasyDrag.",
   "desktop.mc_toast_flow_run_requested": "Execução do fluxo solicitada. Acompanhe no EasyDrag.",
   "desktop.mc_sort_label": "Ordenar por",
   "desktop.mc_sort_name": "Nome",

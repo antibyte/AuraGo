@@ -5,6 +5,8 @@
 // The c1d06 checks (test-easydrag-extra2.mjs) run detail, runs and publish with a stub EventSource.
 // The c1d07 checks (test-easydrag-extra3.mjs) run the start page, the editor and the window shell on every module.
 // The c1d14 checks (test-easydrag-extra4.mjs) run the canvas's stored-view restore and readable fit.
+// The FF2 checks (test-easydrag-extra5.mjs) run the editor of the c1d07 sandbox: changes made
+// elsewhere, the shared state words, pans, the saver's emergency copy, run views and focus.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -992,10 +994,13 @@ await (await import('./test-easydrag-extra.mjs')).run({ apps, types, t, miniDom,
 await (await import('./test-easydrag-extra2.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
 
 // ── c1d07: start page, dialogs, editor screen and window shell (test-easydrag-extra3.mjs) ──
-await (await import('./test-easydrag-extra3.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
+const editorHarness = await (await import('./test-easydrag-extra3.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
 
 // ── c1d14: stored views and the readable fit (test-easydrag-extra4.mjs) ──
 await (await import('./test-easydrag-extra4.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle });
+
+// ── FF2: editor sync, state, performance and accessibility (test-easydrag-extra5.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-extra5.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
 
 // ── start page preview and shortcut table ──
 const H = ED.home;

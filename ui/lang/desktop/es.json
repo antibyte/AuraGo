@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Activadores del flujo",
   "desktop.mc_delete_flow_message": "¿Eliminar «{{name}}»? También se eliminará su flujo en EasyDrag, junto con el borrador, todas las versiones publicadas, los datos guardados del activador y el historial de ejecuciones. Esta acción no se puede deshacer.",
   "desktop.mc_flow_publish_first": "Publica primero el flujo en EasyDrag.",
-  "desktop.mc_flow_cancel_in_easydrag": "No se encontró ninguna ejecución del flujo en curso. Cancela las ejecuciones en espera en EasyDrag.",
+  "desktop.mc_flow_cancel_in_easydrag": "No se encontró ninguna ejecución del flujo en curso. Detén las ejecuciones en espera en la lista de ejecuciones de EasyDrag.",
   "desktop.mc_toast_flow_run_requested": "Ejecución del flujo solicitada. Síguela en EasyDrag.",
   "desktop.mc_sort_label": "Ordenar por",
   "desktop.mc_sort_name": "Nombre",

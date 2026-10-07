@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Auslöser im Flow",
   "desktop.mc_delete_flow_message": "„{{name}}“ löschen? Damit löschst du auch den Flow in EasyDrag mit dem Entwurf, allen veröffentlichten Versionen, den gespeicherten Daten des Auslösers und der Laufhistorie. Das lässt sich nicht rückgängig machen.",
   "desktop.mc_flow_publish_first": "Veröffentliche den Flow zuerst in EasyDrag.",
-  "desktop.mc_flow_cancel_in_easydrag": "Kein laufender Lauf dieses Flows gefunden. Wartende Läufe brichst du in EasyDrag ab.",
+  "desktop.mc_flow_cancel_in_easydrag": "Kein laufender Lauf dieses Flows gefunden. Wartende Läufe stoppst du in EasyDrag in der Liste der Läufe.",
   "desktop.mc_toast_flow_run_requested": "Lauf des Flows angefordert. Verfolge ihn in EasyDrag.",
   "desktop.mc_sort_label": "Sortieren nach",
   "desktop.mc_sort_name": "Name",

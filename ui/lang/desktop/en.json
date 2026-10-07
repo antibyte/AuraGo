@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Triggers in the flow",
   "desktop.mc_delete_flow_message": "Delete “{{name}}”? This also deletes its flow in EasyDrag with the draft, all published versions, the saved trigger data and the run history. This cannot be undone.",
   "desktop.mc_flow_publish_first": "Publish the flow in EasyDrag first.",
-  "desktop.mc_flow_cancel_in_easydrag": "No running flow run was found. Cancel waiting runs in EasyDrag.",
+  "desktop.mc_flow_cancel_in_easydrag": "No running flow run was found. Stop waiting runs in EasyDrag's run list.",
   "desktop.mc_toast_flow_run_requested": "Flow run requested. Follow it in EasyDrag.",
   "desktop.mc_sort_label": "Sort by",
   "desktop.mc_sort_name": "Name",

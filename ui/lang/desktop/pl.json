@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Wyzwalacze w przepływie",
   "desktop.mc_delete_flow_message": "Usunąć „{{name}}”? Zostanie też usunięty przepływ w EasyDrag razem ze szkicem, wszystkimi opublikowanymi wersjami, zapisanymi danymi wyzwalacza i historią uruchomień. Tego nie można cofnąć.",
   "desktop.mc_flow_publish_first": "Najpierw opublikuj przepływ w EasyDrag.",
-  "desktop.mc_flow_cancel_in_easydrag": "Nie znaleziono trwającego uruchomienia przepływu. Oczekujące uruchomienia anuluj w EasyDrag.",
+  "desktop.mc_flow_cancel_in_easydrag": "Nie znaleziono trwającego uruchomienia przepływu. Oczekujące uruchomienia zatrzymaj w EasyDrag na liście uruchomień.",
   "desktop.mc_toast_flow_run_requested": "Zlecono uruchomienie przepływu. Śledź je w EasyDrag.",
   "desktop.mc_sort_label": "Sortuj według",
   "desktop.mc_sort_name": "Nazwa",

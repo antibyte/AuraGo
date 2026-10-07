@@ -1258,7 +1258,7 @@
   "desktop.mc_flow_triggers": "Attivatori nel flusso",
   "desktop.mc_delete_flow_message": "Eliminare “{{name}}”? Verrà eliminato anche il suo flusso in EasyDrag, insieme alla bozza, a tutte le versioni pubblicate, ai dati salvati dell’attivatore e alla cronologia delle esecuzioni. L’operazione non può essere annullata.",
   "desktop.mc_flow_publish_first": "Pubblica prima il flusso in EasyDrag.",
-  "desktop.mc_flow_cancel_in_easydrag": "Nessuna esecuzione del flusso in corso. Annulla le esecuzioni in attesa in EasyDrag.",
+  "desktop.mc_flow_cancel_in_easydrag": "Nessuna esecuzione del flusso in corso. Ferma le esecuzioni in attesa nell’elenco delle esecuzioni di EasyDrag.",
   "desktop.mc_toast_flow_run_requested": "Esecuzione del flusso richiesta. Seguila in EasyDrag.",
   "desktop.mc_sort_label": "Ordina per",
   "desktop.mc_sort_name": "Nome",
