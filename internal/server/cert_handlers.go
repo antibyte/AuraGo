@@ -30,7 +30,15 @@ func handleCertStatus(s *Server) http.HandlerFunc {
 		// Check for certificate files
 		certDir := filepath.Join(s.Cfg.Directories.DataDir, "certs")
 
-		switch config.NormalizeCertMode(httpsCfg.CertMode) {
+		// Report the certificate the server actually serves, which is also the
+		// one Eggs pin: auto, an empty or an unknown mode without a domain fall
+		// back to the self-signed certificate (config.UsesSelfSignedTLS), so
+		// they must not report Let's Encrypt fields.
+		mode := config.NormalizeCertMode(httpsCfg.CertMode)
+		if config.UsesSelfSignedTLS(s.Cfg) {
+			mode = "selfsigned"
+		}
+		switch mode {
 		case "custom":
 			if httpsCfg.CertFile != "" {
 				info, err := GetCertInfo(httpsCfg.CertFile)

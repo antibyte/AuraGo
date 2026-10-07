@@ -525,7 +525,7 @@ Beim Aktualisieren von AuraGo:
 □ Dienst neu starten
 □ Funktion mit dem Befehl /help prüfen
 □ Logs auf Fehler prüfen
-□ Remote Control: neue Enrollment-Tokens erstellen und Remote-Agenten von vor dem Update ersetzen, wenn die Release Notes das verlangen
+□ Remote Control: neue Enrollment-Tokens erstellen und vor dem Update installierte Remote-Agenten ersetzen, wenn die Release Notes das verlangen
 ```
 
 ## Nützliche Ressourcen

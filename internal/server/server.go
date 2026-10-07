@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -281,6 +282,11 @@ type Server struct {
 	loopbackHandler http.Handler // stored handler so hot-reload can restart the listener without a full restart
 	spaceAgentHTTPS *http.Server // HTTPS reverse proxy for the managed Space Agent web UI
 
+	// pushRemoteAllowedPaths sends a changed remote_control.allowed_paths to
+	// connected agents (nil means (*remote.RemoteHub).PushDefaultAllowedPaths);
+	// a field so a test can reach the server goroutine's own recover.
+	pushRemoteAllowedPaths func(*remote.RemoteHub)
+
 	backgroundCompletions backgroundCompletionCache
 	integrationCtx        context.Context
 	rocketChatLifecycleMu sync.Mutex
@@ -443,13 +449,18 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		if logger == nil {
 			logger = slog.Default()
 		}
+		push := s.pushRemoteAllowedPaths
+		if push == nil {
+			push = (*remote.RemoteHub).PushDefaultAllowedPaths
+		}
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Error("Recovered from a panic while pushing remote allowed paths", "panic", r)
+					logger.Error("Recovered from a panic while pushing remote allowed paths",
+						"panic", r, "stack", string(debug.Stack()))
 				}
 			}()
-			hub.PushDefaultAllowedPaths()
+			push(hub)
 		}()
 	}
 	if s.MQTTController != nil {

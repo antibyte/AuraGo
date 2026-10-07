@@ -5,7 +5,9 @@ package remote
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"log/slog"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -105,5 +107,38 @@ func TestPushDefaultAllowedPathsSurvivesAPanickingTransport(t *testing.T) {
 	logged := logs.String()
 	if !strings.Contains(logged, "level=ERROR") || !strings.Contains(logged, "device_id=broken") {
 		t.Fatalf("the recovered panic must be logged as an error naming the device:\n%s", logged)
+	}
+}
+
+// Authentication writes "connected" before Register publishes the connection.
+// When the hub is disabled in between, Register drops the connection and
+// closes its socket; the stored status must not stay "connected".
+func TestRegisterOnADisabledHubMarksTheDeviceOffline(t *testing.T) {
+	db, err := InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := CreateDevice(db, DeviceRecord{Name: "late", Status: "approved"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := UpdateDeviceStatus(db, deviceID, "connected"); err != nil {
+		t.Fatal(err)
+	}
+	hub := NewRemoteHub(db, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	hub.SetEnabled(false)
+
+	hub.Register(deviceID, &RemoteConnection{DeviceID: deviceID, Name: "late", SharedKey: strings.Repeat("l", 64)})
+
+	if hub.GetConnection(deviceID) != nil {
+		t.Fatal("a disabled hub published the connection")
+	}
+	device, err := GetDevice(db, deviceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if device.Status != "offline" {
+		t.Fatalf("device status after Register on a disabled hub = %q, want offline", device.Status)
 	}
 }

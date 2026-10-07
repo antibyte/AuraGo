@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io"
 	"log/slog"
 	"strings"
 	"testing"
@@ -40,9 +41,12 @@ func TestReplaceConfigStoresNewSnapshotWithoutMutatingOldConfig(t *testing.T) {
 }
 
 // A changed remote_control.allowed_paths is pushed to connected agents on a
-// background goroutine. A transport that panics there must not take the
-// process down; the failure is logged as an error.
-func TestReplaceConfigSnapshotSurvivesAPanickingAllowedPathsPush(t *testing.T) {
+// background goroutine. A device transport that panics is caught by the hub's
+// per-device recover (pushDefaultAllowedPathsTo), which logs the device and
+// the stack; the other devices still get their push. This covers the hub's
+// recover; TestReplaceConfigSnapshotRecoversAPanicOutsideTheHubWrapper covers
+// the server goroutine's own recover.
+func TestReplaceConfigSnapshotSurvivesAPanickingDevicePush(t *testing.T) {
 	var logs syncBuffer
 	oldCfg := &config.Config{}
 	oldCfg.RemoteControl.AllowedPaths = []string{"/old"}
@@ -64,5 +68,40 @@ func TestReplaceConfigSnapshotSurvivesAPanickingAllowedPathsPush(t *testing.T) {
 	}
 	if !strings.Contains(logs.String(), "device_id=broken") {
 		t.Fatalf("the error must name the device:\n%s", logs.String())
+	}
+}
+
+// A panic in the push itself, outside the hub's per-device wrapper, reaches
+// the recover on the server goroutine that replaceConfigSnapshot starts. It
+// must be logged with its stack instead of ending the process.
+func TestReplaceConfigSnapshotRecoversAPanicOutsideTheHubWrapper(t *testing.T) {
+	var logs syncBuffer
+	oldCfg := &config.Config{}
+	oldCfg.RemoteControl.AllowedPaths = []string{"/old"}
+	s := &Server{
+		Cfg:       oldCfg,
+		Logger:    slog.New(slog.NewTextHandler(&logs, nil)),
+		RemoteHub: remote.NewRemoteHub(nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil))),
+	}
+	s.pushRemoteAllowedPaths = func(*remote.RemoteHub) { panic("push exploded outside the per-device wrapper") }
+	s.initConfigSnapshot()
+
+	newCfg := &config.Config{}
+	newCfg.RemoteControl.AllowedPaths = []string{"/srv"}
+	s.replaceConfigSnapshot(newCfg)
+
+	deadline := time.Now().Add(5 * time.Second)
+	for !strings.Contains(logs.String(), "pushing remote allowed paths") {
+		if time.Now().After(deadline) {
+			t.Fatalf("the server goroutine did not log the recovered panic:\n%s", logs.String())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	out := logs.String()
+	if !strings.Contains(out, "level=ERROR") || !strings.Contains(out, "push exploded") {
+		t.Fatalf("recovered panic not logged as an error with its value:\n%s", out)
+	}
+	if !strings.Contains(out, "stack=") || !strings.Contains(out, "goroutine") {
+		t.Fatalf("recovered panic logged without its stack:\n%s", out)
 	}
 }

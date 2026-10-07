@@ -89,7 +89,7 @@ func hasPublicInternetExposure(cfg *config.Config) bool {
 	// A public-looking domain with ACME/proxy TLS usually means the operator is
 	// publishing the instance beyond the LAN. Self-signed HTTPS and .ts.net names
 	// are intentionally not treated as public by themselves.
-	if cfg.Server.HTTPS.Enabled && strings.EqualFold(cfg.Server.HTTPS.CertMode, "auto") && publicHostnameLikely(cfg.Server.HTTPS.Domain) {
+	if cfg.Server.HTTPS.Enabled && config.NormalizeCertMode(cfg.Server.HTTPS.CertMode) == "auto" && publicHostnameLikely(cfg.Server.HTTPS.Domain) {
 		return true
 	}
 	if cfg.SecurityProxy.Enabled && publicHostnameLikely(cfg.SecurityProxy.Domain) {

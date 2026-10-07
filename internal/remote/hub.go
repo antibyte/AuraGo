@@ -155,6 +155,14 @@ func (h *RemoteHub) Register(deviceID string, conn *RemoteConnection) {
 	var old *RemoteConnection
 	h.mu.Lock()
 	if h.disabled {
+		// Authentication already stored "connected" and answered
+		// "authenticated"; the hub was disabled before the connection could be
+		// published. The socket is closed here, so undo the stored status
+		// (under h.mu, like the "connected" write below, so a re-enable and a
+		// new Register cannot interleave with it).
+		if h.db != nil {
+			_ = UpdateDeviceStatus(h.db, deviceID, "offline")
+		}
 		h.mu.Unlock()
 		if conn != nil && conn.Conn != nil {
 			_ = conn.Conn.Close()

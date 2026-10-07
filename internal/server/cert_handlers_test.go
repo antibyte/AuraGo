@@ -41,3 +41,50 @@ func TestCertRegenerateTellsOperatorToSafeReconfigureEggs(t *testing.T) {
 		t.Fatalf("certificate not regenerated: %v", err)
 	}
 }
+
+// The status reports the certificate the server actually serves (and Eggs
+// pin): auto, an empty or an unknown mode without a domain fall back to the
+// self-signed certificate, so the status shows its cert_info instead of
+// Let's Encrypt fields. auto with a domain still reports Let's Encrypt.
+func TestCertStatusReportsTheSelfSignedFallback(t *testing.T) {
+	for _, tc := range []struct {
+		name, mode, domain string
+		selfSigned         bool
+	}{
+		{"auto without domain", "auto", "", true},
+		{"padded auto without domain", " Auto ", "", true},
+		{"empty mode without domain", "", "", true},
+		{"unknown mode without domain", "bogus", "", true},
+		{"selfsigned", "selfsigned", "aurago.example.com", true},
+		{"auto with domain", "auto", "aurago.example.com", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.Directories.DataDir = t.TempDir()
+			cfg.Server.HTTPS.Enabled = true
+			cfg.Server.HTTPS.CertMode = tc.mode
+			cfg.Server.HTTPS.Domain = tc.domain
+			cfg.Server.HTTPS.Email = "ops@example.com"
+			s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+			rec := httptest.NewRecorder()
+			handleCertStatus(s)(rec, httptest.NewRequest(http.MethodGet, "/api/cert/status", nil))
+			var body map[string]any
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode response: %v (%s)", err, rec.Body.String())
+			}
+			_, hasCertInfo := body["cert_info"]
+			_, hasCertDir := body["cert_dir"]
+			_, hasEmail := body["email"]
+			if tc.selfSigned {
+				if !hasCertInfo || hasCertDir || hasEmail {
+					t.Fatalf("status = %v, want the self-signed cert_info and no Let's Encrypt fields", body)
+				}
+				return
+			}
+			if hasCertInfo || !hasCertDir || !hasEmail {
+				t.Fatalf("status = %v, want Let's Encrypt fields", body)
+			}
+		})
+	}
+}

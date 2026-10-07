@@ -369,6 +369,30 @@ func TestCheckSecurityTreatsTailscaleFunnelAsInternetFacing(t *testing.T) {
 	}
 }
 
+// cert_mode is read normalised (trimmed, case-insensitive) like the TLS setup
+// does, so a padded " auto " with a public domain still counts as public
+// internet exposure.
+func TestPublicExposureNormalisesTheAutoCertMode(t *testing.T) {
+	t.Parallel()
+
+	for _, mode := range []string{"auto", " auto ", "AUTO", "\tAuto\n"} {
+		cfg := &config.Config{}
+		cfg.Server.HTTPS.Enabled = true
+		cfg.Server.HTTPS.CertMode = mode
+		cfg.Server.HTTPS.Domain = "aurago.my-domain.com"
+		if !hasPublicInternetExposure(cfg) {
+			t.Fatalf("cert_mode %q with a public domain should count as public exposure", mode)
+		}
+	}
+	cfg := &config.Config{}
+	cfg.Server.HTTPS.Enabled = true
+	cfg.Server.HTTPS.CertMode = " selfsigned "
+	cfg.Server.HTTPS.Domain = "aurago.my-domain.com"
+	if hasPublicInternetExposure(cfg) {
+		t.Fatal("self-signed HTTPS must not count as public exposure on its own")
+	}
+}
+
 func TestPublicHostnameLikelyTreatsTailnetAndPrivateHostsAsNonPublic(t *testing.T) {
 	t.Parallel()
 
