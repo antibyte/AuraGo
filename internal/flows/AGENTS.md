@@ -309,7 +309,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   the trigger sample panic → none. Availability is normalised to `available`, `needs_setup` or `blocked`
   (any other state is blocked). A `NodeTypeInfo` shares no memory with its def, and its `Effects` and `Risky`
   describe the default params (a generic node shows the worst case): never present "not risky" as a safety
-  claim, the publish dialog (`CollectEffects` over the real params) is authoritative.
+  claim, the publish and test dialogs (`CollectEffects` over the real params, via `publish-preview`) are authoritative.
 - A def with an `OutputsFunc` or `OutputFieldsFunc` needs a `dynamicOutputs` or `dynamicFields` entry that names
   the driving param (`logic.switch` `cases`; `ai.step` `fields`; `logic.merge` `mode`);
   `TestDynamicMarkersCoverTheHooks` enforces it. Merge fields: mode `append` (exact match) gives `items` (list,
