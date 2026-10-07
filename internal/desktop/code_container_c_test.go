@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -69,6 +70,16 @@ func TestCodeStudioCSampleWorkspace(t *testing.T) {
 }
 
 func TestCodeStudioRuntimeRequiresCCompiler(t *testing.T) {
+	docker := &fakeCodeContainerDocker{}
+	svc := NewCodeContainerService(Config{}, nil)
+	svc.SetDockerClient(docker)
+	if _, err := svc.containerRuntimeMissingLocked(context.Background(), "test"); err != nil {
+		t.Fatal(err)
+	}
+	probe := docker.execs[0].cmd
+	if len(probe) != 3 || probe[0] != "sh" || probe[1] != "-c" {
+		t.Fatalf("runtime probe must preserve the image PATH, got %q", probe)
+	}
 	shell, err := exec.LookPath("sh")
 	if err != nil {
 		t.Skip("POSIX shell required for runtime probe")
@@ -76,7 +87,7 @@ func TestCodeStudioRuntimeRequiresCCompiler(t *testing.T) {
 	bin := t.TempDir()
 	for _, tool := range []string{"node", "python3", "go", "gcc"} {
 		if tool == "gcc" {
-			cmd := exec.Command(shell, "-c", buildCodeStudioRuntimeProbeScript())
+			cmd := exec.Command(shell, probe[1:]...)
 			cmd.Env = append(os.Environ(), "PATH="+bin)
 			out, err := cmd.CombinedOutput()
 			if err == nil || !strings.Contains(string(out), "gcc not found") {
@@ -87,7 +98,7 @@ func TestCodeStudioRuntimeRequiresCCompiler(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	cmd := exec.Command(shell, "-c", buildCodeStudioRuntimeProbeScript())
+	cmd := exec.Command(shell, probe[1:]...)
 	cmd.Env = append(os.Environ(), "PATH="+bin)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("complete runtime was rejected: %v, %s", err, out)

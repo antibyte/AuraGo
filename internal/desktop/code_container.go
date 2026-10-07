@@ -335,7 +335,8 @@ func (s *CodeContainerService) defaultContainerRuntimeMissingLocked(ctx context.
 }
 
 func (s *CodeContainerService) containerRuntimeMissingLocked(ctx context.Context, containerID string) (bool, error) {
-	result, err := s.docker.ExecContainer(ctx, containerID, []string{"sh", "-lc", buildCodeStudioRuntimeProbeScript()}, "", 30*time.Second)
+	// A login shell resets the image PATH and hides /usr/local/go/bin.
+	result, err := s.docker.ExecContainer(ctx, containerID, []string{"sh", "-c", buildCodeStudioRuntimeProbeScript()}, "", 30*time.Second)
 	if err != nil {
 		return false, fmt.Errorf("check code studio container runtime tools: %w", err)
 	}
@@ -413,7 +414,7 @@ func seedCodeStudioContainerWorkspace(ctx context.Context, docker CodeContainerD
 		return err
 	}
 	script := buildCodeStudioContainerSeedScript()
-	result, err := docker.ExecContainer(ctx, containerID, []string{"sh", "-lc", script}, "", 30*time.Second)
+	result, err := docker.ExecContainer(ctx, containerID, []string{"sh", "-c", script}, "", 30*time.Second)
 	if err != nil {
 		return fmt.Errorf("seed code studio container workspace: %w", err)
 	}
@@ -425,7 +426,7 @@ func seedCodeStudioContainerWorkspace(ctx context.Context, docker CodeContainerD
 
 func repairCodeStudioContainerWorkspace(ctx context.Context, docker CodeContainerDocker, containerID string) error {
 	script := buildCodeStudioContainerWorkspaceRepairScript()
-	result, err := docker.ExecContainer(ctx, containerID, []string{"sh", "-lc", script}, "0:0", 30*time.Second)
+	result, err := docker.ExecContainer(ctx, containerID, []string{"sh", "-c", script}, "0:0", 30*time.Second)
 	if err != nil {
 		return fmt.Errorf("repair code studio container workspace permissions: %w", err)
 	}

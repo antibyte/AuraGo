@@ -52,6 +52,10 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### Code Studio
 
+- Managed terminal, Run and Git shell commands retain the container image's
+  environment with `sh -c`; login profiles must not hide installed toolchains.
+  Explicit exec argument arrays stay unchanged. Verify
+  `TestNormalizeCodeStudioExecCommandPreservesEnvironment` and the terminal tests.
 - Save and upload share `code_studio_files.go`: bounded file bytes travel as a
   single generated regular staging file through the Docker archive API. Never
   embed contents in exec arguments. The normal container user verifies the
@@ -234,6 +238,14 @@ Server-owned HTTP and cross-component integration contracts.
 - Mission Control cancel on a flow mission (`handleMissionCancelV2`) cancels the flow's live runs through `Service.CancelMissionRuns`, called after `MissionManagerV2.Get` (a copy; the manager's lock is not held, because unstarted runs are reported to `FlowRunFinished` on this goroutine) with a detached 10 s context: 202 when a run was cancelled (queued and waiting live runs go with it). Its flow answers carry a code through `flowsError` (picked in the handler with `errors.Is`; not `flowsErrorFrom`): `FLOW_NO_ACTIVE_RUN` (409: the mission is not running, `tools.ErrMissionNotRunning` from `CancelCheck`, or no live run was left to cancel; Mission Control shows its EasyDrag hint for this code only), `FLOW_MISSION_AMBIGUOUS` (409), `FLOW_NOT_FOUND` (404), `FLOW_INTERNAL` (500) and `FLOWS_DISABLED` (503, no flow service). Agent missions keep the code-less `jsonError` answers. `CancelCheck` still requires a running mission, so live runs that are all still queued can only be cancelled through `POST /api/desktop/flows/runs/{run}/cancel`; EasyDrag's runs drawer and run view offer Stop on every run that has not ended (queued, waiting, running) and post that route.
 - Audit: user actions go to the audit timeline (source `mission`) as `flow_create`, `flow_import`, `flow_publish`, `flow_enable`, `flow_disable`, `flow_delete`, `flow_secret_set`, `flow_secret_delete` and `flow_run_cancel`. A new type needs an option in the dashboard's audit type filter (`ui/dashboard.html`) and a `dashboard.audit_type_<type>` label in all 16 `ui/lang/dashboard` files (`TestC17AuditTypesAreRegisteredInTheDashboard`).
 - Verify with `go test ./internal/server -run 'TestFlowsAPI|TestC17'`.
+
+### Video Studio Contract
+- Video Studio storage is rooted at `Documents/Video Studio/<project-id>` in the Virtual Desktop workspace; project JSON uses strong `ETag`/`If-Match` writes, and client asset metadata is always reconstructed from the private import manifest. Media uploads stream through the rooted Desktop service and never accept arbitrary host paths.
+- `/api/desktop/video-studio/` routes require Desktop read/write scopes plus both Video Studio and Desktop policy gates. Job IDs remain fetchable without project context. One per-server queue serializes FFmpeg probe, preview and render work; generation is optional, admin-only, budget-checked, and never retried automatically after an uncertain provider outcome.
+- Render submission requires the saved project ETag and snapshots that immutable revision before queueing. Final MP4 publication is create-only and guarded by both Desktop and Video Studio revocation gates. Config root changes cancel active jobs; graceful shutdown drains/cancels the worker before closing Desktop storage.
+- Per-project operations use bounded lock striping: a project ID always maps to the same exclusion lock, while misses and deleted projects do not retain per-ID locks. Stripe collisions may serialize otherwise independent projects.
+- Generation checks project quota before contacting the provider and again before importing its result. Stable job errors distinguish `project_size_limit`, `asset_size_limit`, and local `generation_import_failed` from `generation_failed`; quota errors are shared by preview, render, and generation workers.
+- Generation image inputs are private project image assets normalized locally to bounded PNG bytes. Only the configured provider's supported image mode is exposed; external image URLs are never fetched automatically. Render staging skips muted, hidden, and zero-volume audio clips but retains visual inputs regardless of clip volume. Verify `TestVideoStudio*` and the browser export flow.
 
 ### Rocket.Chat Runtime Contract
 - One server-owned consumer processes history chronologically with bounded pagination, including messages sharing a timestamp. Accept ISO timestamps and the legacy date object.

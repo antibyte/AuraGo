@@ -15,9 +15,11 @@ import (
 type terminalTestDocker struct {
 	fakeCodeStudioDockerAPI
 	commands []string
+	shells   [][]string
 }
 
 func (d *terminalTestDocker) Exec(_ context.Context, _ string, cmd []string, _ time.Duration) (codeStudioExecResult, error) {
+	d.shells = append(d.shells, cmd)
 	command := cmd[2]
 	d.commands = append(d.commands, command)
 	if strings.HasSuffix(command, " && pwd -P") {
@@ -71,7 +73,33 @@ func TestCodeStudioTerminalInputAndDirectories(t *testing.T) {
 			if session.cwd != tc.wantCWD || !reflect.DeepEqual(docker.commands, tc.commands) {
 				t.Fatalf("cwd=%q commands=%q; want cwd=%q commands=%q", session.cwd, docker.commands, tc.wantCWD, tc.commands)
 			}
+			for _, cmd := range docker.shells {
+				if len(cmd) != 3 || cmd[0] != "sh" || cmd[1] != "-c" {
+					t.Fatalf("terminal must preserve the image PATH, got %q", cmd)
+				}
+			}
 		})
+	}
+}
+
+func TestNormalizeCodeStudioExecCommandPreservesEnvironment(t *testing.T) {
+	for _, cwd := range []string{"", "/workspace", "/workspace/with space"} {
+		cmd, err := normalizeCodeStudioExecCommand("go version", nil, cwd)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "go version"
+		if cwd != "" {
+			want = "cd " + shellQuote(cwd) + " && " + want
+		}
+		if !reflect.DeepEqual(cmd, []string{"sh", "-c", want}) {
+			t.Fatalf("exec must preserve the image PATH and cwd, got %q", cmd)
+		}
+	}
+	args := []string{"sh", "-lc", "echo explicit login shell"}
+	cmd, err := normalizeCodeStudioExecCommand("", args, "")
+	if err != nil || !reflect.DeepEqual(cmd, args) {
+		t.Fatalf("explicit arguments changed: %q, %v", cmd, err)
 	}
 }
 

@@ -14,6 +14,7 @@ func (s *Server) closeRuntimeResources() {
 	if s == nil {
 		return
 	}
+	s.closeVideoStudioManager()
 	s.stopRocketChatBot()
 	s.stopHomeAssistantPoller()
 	s.stopFritzPoller()
