@@ -88,29 +88,34 @@ func TestDockerComposePolicyNarrowingKeepsWholeFileChecks(t *testing.T) {
 	}
 }
 
-// Stopping, removing or restarting a service also acts on the services that
-// depend on it, and `up` may restart them; the narrowed check therefore keeps
-// the dependents of the named services too (build and pull only need what the
-// named services depend on).
+// Which dependents of the named services a command acts on: stop, down, rm
+// and restart act on every dependent; up restarts only dependents whose
+// depends_on sets restart: true; create, start, build and pull none.
 func TestDockerComposePolicyNarrowingKeepsDependentsOfNamedServices(t *testing.T) {
 	workspace := t.TempDir()
 	writeComposeFixture(t, workspace, "compose.yml", "services:\n  base:\n    image: alpine\n")
 	model := `{"services":{"base":{"image":"alpine"},"other":{"image":"alpine"},` +
-		`"hooked":{"image":"alpine","depends_on":{"base":{"condition":"service_started","required":true}},"pre_stop":[{"command":["sh","-c","true"],"privileged":true}]}}}`
+		`"hooked":{"image":"alpine","depends_on":{"base":{"condition":"service_started","required":true}},"pre_stop":[{"command":["sh","-c","true"],"privileged":true}]},` +
+		`"restarter":{"image":"alpine","depends_on":{"base":{"condition":"service_started","required":true,"restart":true}},"post_start":[{"command":["sh","-c","true"],"privileged":true}]}}}`
 	stubDockerComposeResolverByMode(t, model, model)
 	cfg := &config.Config{}
 	useRuntimePermissionsForTest(t, cfg)
 	policy := func(command string) string {
 		return dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: command})
 	}
-	for _, command := range []string{"stop base", "down base", "rm -fs base", "restart base", "up -d base"} {
-		if got := policy(command); !strings.Contains(got, `"code":"docker_compose_host_access_denied"`) || !strings.Contains(got, "hooked") {
-			t.Fatalf("%s: got %s, want the dependent's privileged hook checked", command, got)
+	for _, command := range []string{"stop base", "down base", "rm -fs base", "restart base"} {
+		got := policy(command)
+		if !strings.Contains(got, `"code":"docker_compose_host_access_denied"`) || !strings.Contains(got, "hooked") || !strings.Contains(got, "restarter") {
+			t.Fatalf("%s: got %s, want every dependent's privileged hook checked", command, got)
 		}
 	}
-	for _, command := range []string{"stop other", "up -d other", "pull base"} {
+	got := policy("up -d base")
+	if !strings.Contains(got, `"code":"docker_compose_host_access_denied"`) || !strings.Contains(got, "restarter") || strings.Contains(got, "hooked") {
+		t.Fatalf("up -d base: got %s, want only the dependent with restart: true checked", got)
+	}
+	for _, command := range []string{"create base", "start base", "stop other", "up -d other", "pull base", "build base"} {
 		if got := policy(command); got != "" {
-			t.Fatalf("%s: refused because of an unrelated service: %s", command, got)
+			t.Fatalf("%s: refused because of a service it does not act on: %s", command, got)
 		}
 	}
 }

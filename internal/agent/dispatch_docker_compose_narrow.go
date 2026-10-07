@@ -105,11 +105,11 @@ func (p *dockerComposePreflight) serviceRaw(name string) json.RawMessage {
 // services acts on, or false when narrowing is not safe: an unknown flag, no
 // or an unknown service name, or a service of the model whose raw resolved
 // JSON is missing or unreadable. The closure holds the named services and
-// everything they need (dockerComposeServiceReferences, transitively). For
-// every subcommand but build and pull it also holds the services that depend
-// on those, transitively: stop, down, rm and restart act on dependents, and up
-// may restart them (depends_on restart: true). It is a superset of what
-// Compose acts on.
+// everything they need (dockerComposeServiceReferences, transitively), plus,
+// transitively, the dependents the subcommand acts on: every dependent for
+// stop, down, rm and restart; for up the dependents whose depends_on entry sets
+// restart: true (recreating a service restarts them); none for create, start,
+// build and pull. It is a superset of what Compose acts on.
 func (p *dockerComposePreflight) namedServiceClosure(model tools.DockerComposeModel, command string) (map[string]bool, bool) {
 	names, ok := dockerComposeNarrowableNames(command)
 	if !ok {
@@ -141,15 +141,25 @@ func (p *dockerComposePreflight) namedServiceClosure(model tools.DockerComposeMo
 		closure[name] = true
 		queue = append(queue, references[name]...)
 	}
-	switch strings.Fields(command)[0] {
-	case "build", "pull":
-		return closure, true
-	}
 	dependents := map[string][]string{}
-	for name, refs := range references {
-		for _, ref := range refs {
-			dependents[ref] = append(dependents[ref], name)
+	switch strings.Fields(command)[0] {
+	case "stop", "down", "rm", "restart":
+		// They act on every service that depends on a named one.
+		for name, refs := range references {
+			for _, ref := range refs {
+				dependents[ref] = append(dependents[ref], name)
+			}
 		}
+	case "up":
+		// Recreating a service restarts the dependents whose depends_on
+		// entry sets restart: true.
+		for name := range model.Services {
+			for _, ref := range dockerComposeRestartDependencies(p.serviceRaw(name)) {
+				dependents[ref] = append(dependents[ref], name)
+			}
+		}
+	default: // create, start, build, pull: no dependents
+		return closure, true
 	}
 	queue := make([]string, 0, len(closure))
 	for name := range closure {
@@ -164,6 +174,27 @@ func (p *dockerComposePreflight) namedServiceClosure(model tools.DockerComposeMo
 		}
 	}
 	return closure, true
+}
+
+// dockerComposeRestartDependencies returns the depends_on entries of a
+// service's raw JSON that set restart: true: Compose restarts the service when
+// one of them is recreated.
+func dockerComposeRestartDependencies(raw json.RawMessage) []string {
+	var refs struct {
+		DependsOn map[string]struct {
+			Restart bool `json:"restart"`
+		} `json:"depends_on"`
+	}
+	if json.Unmarshal(raw, &refs) != nil {
+		return nil
+	}
+	var names []string
+	for _, name := range tools.SortedDockerComposeKeys(refs.DependsOn) {
+		if refs.DependsOn[name].Restart {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 // dockerComposeServiceReferences returns every service Compose starts with
