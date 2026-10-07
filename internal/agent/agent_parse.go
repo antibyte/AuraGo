@@ -1151,7 +1151,15 @@ func ParseToolCall(content string) ToolCall {
 				promoteString(&tc.Operation, "operation", "op")
 				promoteString(&tc.DeviceID, "device_id", "deviceId", "deviceID")
 				promoteString(&tc.DeviceName, "device_name", "deviceName")
-				promoteString(&tc.FilePath, "file_path", "path", "filepath", "filename", "file")
+				// As promoteString, but it remembers the name it promoted from (FilePathParam).
+				if tc.FilePath == "" {
+					for _, k := range []string{"file_path", "path", "filepath", "filename", "file"} {
+						if v, ok := tc.Params[k].(string); ok && v != "" {
+							tc.FilePath, tc.FilePathParam = v, k
+							break
+						}
+					}
+				}
 				if tc.FilePath != "" && tc.Path == "" {
 					tc.Path = tc.FilePath
 				}
@@ -1506,12 +1514,10 @@ func parseXMLParams(tc *ToolCall, body string) {
 		case "file_path", "path":
 			tc.FilePath = strings.Trim(paramVal, "\"'")
 			tc.Path = tc.FilePath
-			// Keep the name the model used too: send_telegram reads only file_path
-			// (sendTelegramFilePath), and both names land in the same fields here.
-			if tc.Params == nil {
-				tc.Params = make(map[string]interface{})
-			}
-			tc.Params[paramName] = tc.FilePath
+			// Both names land in the same fields; remember which one the model used
+			// (send_telegram reads only file_path). Never in Params: execute_skill
+			// synthesizes its arguments from the fields only while Params is empty.
+			tc.FilePathParam = paramName
 		case "destination", "dest":
 			tc.Destination = strings.Trim(paramVal, "\"'")
 			tc.Dest = tc.Destination

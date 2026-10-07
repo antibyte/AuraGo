@@ -44,7 +44,8 @@ func TestFF1SendTelegramIgnoresAStrayPath(t *testing.T) {
 // file nor fails the call.
 func TestFF1SendTelegramTextFormatAliasesAreNoFile(t *testing.T) {
 	for _, alias := range []string{"path", "filepath", "filename", "file"} {
-		tc := ToolCall{Action: "send_telegram", FilePath: "a.pdf", Params: map[string]interface{}{"message": "m", alias: "a.pdf"}}
+		// As the parser leaves it: FilePath promoted from alias (FilePathParam).
+		tc := ToolCall{Action: "send_telegram", FilePath: "a.pdf", FilePathParam: alias, Params: map[string]interface{}{"message": "m", alias: "a.pdf"}}
 		if got := decodeSendTelegramArgs(tc).FilePath; got != "" {
 			t.Errorf("%s promoted into FilePath = %q", alias, got)
 		}
@@ -55,6 +56,20 @@ func TestFF1SendTelegramTextFormatAliasesAreNoFile(t *testing.T) {
 	}
 	if got := decodeSendTelegramArgs(ToolCall{Action: "send_telegram", FilePath: "a.pdf"}).FilePath; got != "a.pdf" {
 		t.Errorf("a top-level file_path without parameters = %q", got)
+	}
+	// A top-level file_path next to a stray params.path keeps the file (no promotion).
+	top := ParseToolCall(`{"action":"send_telegram","file_path":"c.pdf","params":{"message":"m","path":"x.pdf"}}`)
+	if got := decodeSendTelegramArgs(top).FilePath; got != "c.pdf" {
+		t.Errorf("top-level file_path next to params.path = %q", got)
+	}
+	for _, alias := range []string{"filepath", "filename", "file"} {
+		tc := ParseToolCall(`{"action":"send_telegram","params":{"message":"m","` + alias + `":"x.pdf"}}`)
+		if tc.FilePath != "x.pdf" || tc.FilePathParam != alias {
+			t.Fatalf("%s: promoted %q from %q", alias, tc.FilePath, tc.FilePathParam)
+		}
+		if got := decodeSendTelegramArgs(tc).FilePath; got != "" {
+			t.Errorf("params.%s: FilePath = %q", alias, got)
+		}
 	}
 	for name, raw := range map[string]string{
 		"json params": `{"action":"send_telegram","params":{"message":"m","path":"../../config.yaml"}}`,

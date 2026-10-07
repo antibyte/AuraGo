@@ -396,6 +396,7 @@ type ToolCall struct {
 	Metadata            map[string]interface{}   `json:"metadata"`
 	FilePath            string                   `json:"file_path"`
 	Path                string                   `json:"path"` // Alias for file_path
+	FilePathParam       string                   `json:"-"`    // Name the text parser filled FilePath from (sendTelegramFilePath); never in JSON or Params
 	Destination         string                   `json:"destination"`
 	Dest                string                   `json:"dest"` // Alias for destination
 	Items               []map[string]interface{} `json:"items"`
