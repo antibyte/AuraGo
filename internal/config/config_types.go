@@ -1940,6 +1940,7 @@ type Config struct {
 	Detective         DetectiveConfig         `yaml:"detective"`
 	Newspaper         NewspaperConfig         `yaml:"newspaper"`
 	Flows             FlowsConfig             `yaml:"flows"`
+	VideoStudio       VideoStudioConfig       `yaml:"video_studio"`
 	VirtualComputers  VirtualComputersConfig  `yaml:"virtual_computers"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`

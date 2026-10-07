@@ -93,3 +93,9 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 		},
 	}
 }
+
+// NormalizeConfig returns the canonical form used by NewService without
+// opening databases or initializing managed integrations.
+func NormalizeConfig(cfg Config) (Config, error) {
+	return normalizeConfig(cfg)
+}

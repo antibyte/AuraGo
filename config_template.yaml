@@ -2036,6 +2036,16 @@ heartbeat:
         end: "08:00"
         interval: "4h"
 
+# Optional desktop video editor. The Docker image includes FFmpeg/FFprobe.
+# Native installations need both binaries; an empty path searches PATH.
+video_studio:
+    enabled: false
+    readonly: false
+    ffmpeg_path: ""
+    max_asset_size_mb: 1024
+    max_project_size_mb: 4096
+    render_timeout_seconds: 3600
+
 journal:
     auto_entries: true                      # matches loader default; tools.journal controls tool access
     daily_summary: true                     # generated during maintenance

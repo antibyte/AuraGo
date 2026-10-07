@@ -41,6 +41,7 @@ func desktopRequestOperation(r *http.Request) desktopOperation {
 	if r.Method == http.MethodPost {
 		parts := strings.Split(strings.Trim(path, "/"), "/")
 		if (len(parts) == 5 && parts[0] == "api" && parts[1] == "game-maker" && parts[2] == "jobs" && parts[4] == "cancel") ||
+			(len(parts) == 6 && parts[0] == "api" && parts[1] == "desktop" && parts[2] == "video-studio" && parts[3] == "jobs" && parts[5] == "cancel") ||
 			(len(parts) == 6 && parts[0] == "api" && parts[1] == "desktop" && parts[2] == "personal-radio" && parts[3] == "stations" && (parts[5] == "stop" || parts[5] == "pause")) ||
 			path == "/api/desktop/rtl-sdr/stop" {
 			return desktopStop

@@ -136,6 +136,7 @@
         radio: 'radio',
         'personal-radio': 'personal-radio',
         'synth-studio': 'synth-studio',
+        'video-studio': 'video-studio',
         'rtl-sdr': 'rtl-sdr',
         bluetooth: 'bluetooth',
         openscad: 'openscad',
@@ -586,6 +587,7 @@
         return {
             'personal-radio': 'PersonalRadioApp',
             'synth-studio': 'SynthStudioApp',
+            'video-studio': 'VideoStudioApp',
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',

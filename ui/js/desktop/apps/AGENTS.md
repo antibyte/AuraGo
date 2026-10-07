@@ -843,6 +843,46 @@ buttons and menu popovers remain excluded from those gestures.
   cache invalidation after desktop mutations). See
   `documentation/desktop-gallery.md` for the user-facing description.
 
+### Video Studio contract
+
+- Video Studio is a lazy app. Load `desktop-app-video-studio.css`, then
+  `video-studio-preview.js` and `video-studio-timeline.js` before
+  `video-studio.js`; the shell exposes `VideoStudioApp.render(host, id, ctx)`
+  and `dispose(id)`. The preview owns its media elements and shared frame clock;
+  dispose stops local playback, timers and requests but does not cancel
+  server-owned jobs.
+- Persist the canonical project with strong `If-Match` ETags. A 412/428 save
+  must present Reload, Replace latest or Keep editing; never retry a conflict
+  without an explicit choice and the observed latest ETag. Bind imports, jobs,
+  project refreshes and draft recovery to the captured project ID and epoch.
+  Window close awaits saving until clean or blocked by a visible failure or
+  conflict choice.
+- Timing and transitions use integer 30 fps frames. The outgoing clip owns an
+  exact overlap with the next clip on its track. Titles use full-canvas PNG
+  assets; static stickers are separate image overlays. Preserve editable
+  text/style metadata and use only same-origin staged media URLs.
+- Bound preview media to the active/near clips during playback and release clips
+  that leave that window. Preserve both players for an actual transition overlap;
+  backward seeks must rehydrate released media and dispose must release all media.
+- Apply generated title artwork only if its project/selection, text, normalized
+  style and source asset still match, and its monotonic Apply revision is current.
+  Invalidate pending Applies on Undo/Redo and edits; stale results must not mutate
+  history. Await PNG rendering before upload. Style comparison must ignore JSON
+  key order and omitted default values.
+- Keep editor shortcuts off native controls: Space on buttons/links remains native,
+  default-prevented events and unknown Ctrl/Meta/Alt shortcuts are ignored, while
+  drawer Escape/Tab focus handling runs before control guards. Ctrl+Z remains
+  available for editor Undo without intercepting text-field Undo.
+- Offer/send AI aspect ratio only when the provider supports it (MiniMax currently
+  does not). Localize stable job error codes; a terminal
+  `external_status_unknown` warning takes precedence over retry-safe failure text,
+  but a running job must not show that warning.
+- Keep the media bin, preview and inspector responsive; below 920 px the
+  Inspector control opens a keyboard-dismissable drawer without hiding the
+  timeline. Use the real Standard/Fruity theme tokens and all sixteen Desktop
+  locale dictionaries. Verify UI behavior with
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudioBrowser$'`.
+
 ### Mission Control contract
 
 - Mission Control is a master-detail workbench composed of
