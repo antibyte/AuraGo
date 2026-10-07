@@ -164,6 +164,17 @@
         // server: those refreshes wait until saving pauses for 1.5 s.
         const reloadSoon = core.debounce(reload, 1500);
 
+        // retry is "Try again" on an error card. The new grid replaces the button, so the focus goes
+        // to the new "Try again" or, once the flows are back, to the first card; it is not taken
+        // back from a control the user moved to meanwhile.
+        async function retry() {
+            await reload();
+            const active = document.activeElement;
+            if (active && active !== document.body && el.contains(active)) return;
+            const next = grid.querySelector('[data-ed-home-retry]') || grid.querySelector('[data-ed-flow]') || el.querySelector('[data-ed-new]');
+            if (next && !next.disabled) next.focus();
+        }
+
         // creating allows one create at a time (a held Enter on a template card, a double click).
         let creating = false;
 
@@ -254,7 +265,7 @@
 
         bag.listen(el, 'click', (event) => {
             if (event.target.closest('[data-ed-home-settings]')) { core.openFlowSettings(); return; }
-            if (event.target.closest('[data-ed-home-retry]')) { reload(); return; }
+            if (event.target.closest('[data-ed-home-retry]')) { retry(); return; }
             if (event.target.closest('[data-ed-new]')) { newFlow(); return; }
             if (event.target.closest('[data-ed-import]')) { el.querySelector('[data-ed-import-file]').click(); return; }
             const f = event.target.closest('[data-ed-filter]');

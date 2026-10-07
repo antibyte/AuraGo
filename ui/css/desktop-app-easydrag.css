@@ -790,6 +790,8 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-tag button:hover { background: var(--ed-danger); color: white; }
 .ed-secret { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .ed-secret > .ed-input { flex: 1 1 0; width: auto; min-width: 0; }
+/* the chosen secret is missing, or the list could not be loaded (the reason is in data-error) */
+.ed-secret > .ed-input[data-error] { border-color: color-mix(in srgb, var(--ed-danger) 60%, var(--ed-border)); }
 .ed-secret-unavailable { flex: 0 0 100%; margin: 0; }
 .ed-json textarea { min-height: 120px; }
 

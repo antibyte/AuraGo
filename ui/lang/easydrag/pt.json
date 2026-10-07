@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "Informe um valor.",
   "easydrag.ui.secret_hint": "Os segredos ficam guardados no Vault. Os fluxos podem usá-los, o agente não pode lê-los.",
   "easydrag.ui.secret_invalid": "Use de 1 a 40 letras minúsculas, dígitos ou _ no nome.",
+  "easydrag.ui.secret_missing": "{name} (ausente)",
   "easydrag.ui.secret_name": "Nome",
   "easydrag.ui.secret_name_taken": "Já existe um segredo chamado {name}.",
   "easydrag.ui.secret_new": "Novo segredo",

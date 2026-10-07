@@ -188,6 +188,8 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s.stopWaitingRuns()
 	// A step test asks about the effects of the real settings, such as an HTTP POST.
 	s.realEffects()
+	// The HTTP step's secret field: deleting the secret, and a secret that is gone.
+	s.secretField()
 	// A narrow window: the palette floats over the canvas, so it closes; wide again, it is back.
 	page.MustSetViewport(820, 900, 1, false)
 	s.wait(`()=>getComputedStyle(document.querySelector('.ed-palette')).position==='absolute' && document.querySelector('.ed-palette').classList.contains('is-collapsed')`)
@@ -377,11 +379,11 @@ func (s *easyDragSmoke) homeDisabled() {
 
 // realEffects adds an HTTP request with POST behind the PDF step. Its catalog entry (default GET)
 // names no effect, yet a step test on it asks about the message it sends: the dialog reads the
-// effects of the real settings from the publish preview. The step is removed again.
+// effects of the real settings from the publish preview. secretField removes the step again.
 func (s *easyDragSmoke) realEffects() {
 	s.t.Helper()
 	page := s.page
-	page.MustEval(`()=>{const ed=edFixture.editor();ed.effectsConfirmed.clear();const pdf=ed.model.doc.nodes.find(n=>n.key==='pdf').id;window.__httpStep=ed.model.addNode('http.request',{x:1280,y:360},{method:'POST',url:'https://example.test/hook'},{node:pdf,port:'out'});}`)
+	page.MustEval(`()=>{const ed=edFixture.editor();ed.effectsConfirmed.clear();const pdf=ed.model.doc.nodes.find(n=>n.key==='pdf').id;window.__httpStep=ed.model.addNode('http.request',{x:1280,y:360},{method:'POST',url:'https://example.test/hook',auth_secret:'wetter_api'},{node:pdf,port:'out'});}`)
 	s.wait(`()=>{const last=edFixture.lastSave();return !!last && last.nodes.some(n=>n.type==='http.request')}`)
 	page.MustEval(`()=>edFixture.editor().bus.emit('node-test',{nodeId:window.__httpStep})`)
 	s.wait(`()=>{const li=[...document.querySelectorAll('.ed-modal [data-ed-test-effects] [data-ed-effect]')];const sends=li.find(x=>x.dataset.edEffect==='sends_message');return li.map(x=>x.dataset.edEffect).sort().join()==='sends_message,writes_files' && !!sends && sends.textContent.includes('HTTP') && !document.querySelector('.ed-modal [data-ed-effects-unchecked]')}`)
@@ -398,9 +400,37 @@ func (s *easyDragSmoke) realEffects() {
 	s.wait(`()=>!document.querySelector('.ed-modal-backdrop')`)
 	page.MustEval(`()=>{edFixture.state.failPreview=false;}`)
 	s.clearToasts()
-	page.MustEval(`()=>{edFixture.editor().model.removeNodes([window.__httpStep]);}`)
-	s.wait(`()=>{const last=edFixture.lastSave();return !!last && last.nodes.length===5 && !last.nodes.some(n=>n.type==='http.request')}`)
 	s.failOnPageErrors("real effects")
+}
+
+// secretField deletes the HTTP step's secret in its detail view. The change rebuilds the form, and
+// the new secret list takes the focus. A secret the Vault no longer has is marked as missing. The
+// step is removed at the end.
+func (s *easyDragSmoke) secretField() {
+	s.t.Helper()
+	page := s.page
+	field := `.ed-detail .ed-field[data-param="auth_secret"]`
+	page.MustEval(`()=>edFixture.editor().bus.emit('open-detail',{nodeId:window.__httpStep})`)
+	s.wait(`()=>{const b=document.querySelector('` + field + ` [data-ed-secret-delete]');return !!b && !b.disabled && document.querySelector('` + field + ` select').value==='wetter_api'}`)
+	page.MustElement(field + ` [data-ed-secret-delete]`).MustClick()
+	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="delete"]')`)
+	page.MustElement(`.ed-modal [data-ed-action="delete"]`).MustClick()
+	s.wait(`()=>{const sel=document.querySelector('` + field + ` select');const node=edFixture.editor().model.node(window.__httpStep);return !document.querySelector('.ed-modal-backdrop') && !!sel && document.activeElement===sel && !sel.value && !('auth_secret' in node.params) && !edFixture.state.secrets.includes('wetter_api')}`)
+	s.shot("detail-secret-deleted")
+	s.noRawKeys("secret deleted")
+	page.Keyboard.MustType(input.Escape)
+	s.wait(`()=>!document.querySelector('.ed-detail-backdrop')`)
+	// A secret that is gone: the list names it as missing.
+	page.MustEval(`()=>{const ed=edFixture.editor();ed.model.setParam(window.__httpStep,'auth_secret','wetter_alt');ed.bus.emit('open-detail',{nodeId:window.__httpStep});}`)
+	s.wait(`()=>{const sel=document.querySelector('` + field + ` select');return !!sel && sel.value==='wetter_alt' && sel.options[sel.selectedIndex].textContent===edFixture.editor().t('easydrag.ui.secret_missing',{name:'wetter_alt'}) && sel.dataset.error===edFixture.editor().t('easydrag.ui.error_flow_secret_unavailable')}`)
+	s.shot("detail-secret-missing")
+	s.noRawKeys("secret missing")
+	page.Keyboard.MustType(input.Escape)
+	s.wait(`()=>!document.querySelector('.ed-detail-backdrop')`)
+	page.MustEval(`()=>{edFixture.state.secrets.push('wetter_api');edFixture.editor().model.removeNodes([window.__httpStep]);}`)
+	s.wait(`()=>{const last=edFixture.lastSave();return !!last && last.nodes.length===5 && !last.nodes.some(n=>n.type==='http.request')}`)
+	s.clearToasts()
+	s.failOnPageErrors("secret field")
 }
 
 // stopWaitingRuns adds two live runs that wait for a slot. One is stopped from its row in the runs

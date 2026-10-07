@@ -564,10 +564,19 @@
         setTimeout(() => { button.disabled = false; }, Math.min(seconds, 3600) * 1000);
     }
 
-    // namesText lists at most three names, and "and N more" for the rest.
+    // namesText lists names in the page's language: up to three as a list with "and" (Intl.ListFormat),
+    // more as three names and "and N more". The three are joined with the language's own list
+    // separator (", ", "、"); without Intl.ListFormat with ", ".
     function namesText(t, names) {
-        const shown = names.slice(0, 3).join(', ');
-        return names.length > 3 ? t('easydrag.ui.names_more', { names: shown, count: names.length - 3 }) : shown;
+        let list = null;
+        try { list = new Intl.ListFormat(core().lang(), { style: 'long', type: 'conjunction' }); } catch (err) { list = null; }
+        if (names.length <= 3) return list ? list.format(names) : names.join(', ');
+        let sep = ', ';
+        if (list) {
+            const literal = list.formatToParts(['a', 'b', 'c']).find(p => p.type === 'literal');
+            if (literal) sep = literal.value;
+        }
+        return t('easydrag.ui.names_more', { names: names.slice(0, 3).join(sep), count: names.length - 3 });
     }
 
     // secretRef picks a flow secret (vault entry easydrag_<name>), creates a new one or deletes the
@@ -586,17 +595,22 @@
         const syncDelete = () => { if (deleteBtn) deleteBtn.disabled = !select.value; };
         async function load(selected) {
             let names = [];
+            let missing = false;
             try {
                 names = (await secretNames(env)).slice();
                 unavailable.hidden = true;
                 select.removeAttribute('data-error');
+                // A chosen secret the Vault no longer has: runs fail until it is set again.
+                missing = !!selected && !names.includes(selected);
+                if (missing) select.dataset.error = t('easydrag.ui.error_flow_secret_unavailable');
             } catch (err) {
                 // Like a failed option list: the reason on the select, a visible hint under it.
                 unavailable.hidden = false;
                 select.dataset.error = c.errorText(t, err);
             }
             if (selected && !names.includes(selected)) names.push(selected);
-            select.innerHTML = '<option value="">' + esc(t('easydrag.ui.secret_none')) + '</option>' + names.map(n => '<option value="' + esc(n) + '"' + (n === selected ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+            select.innerHTML = '<option value="">' + esc(t('easydrag.ui.secret_none')) + '</option>' + names.map(n => '<option value="' + esc(n) + '"' + (n === selected ? ' selected' : '') + '>' +
+                esc(missing && n === selected ? t('easydrag.ui.secret_missing', { name: n }) : n) + '</option>').join('');
             syncDelete();
         }
         // confirmReplace asks before the value of an existing secret is overwritten.
@@ -643,8 +657,13 @@
                     return true;
                 }
             });
-            // The disabled Delete cannot keep the focus the dialog gives back: the list takes it.
-            dialog.done.then(result => { if (result === 'delete' && !select.value) select.focus(); });
+            // The disabled Delete cannot keep the focus the dialog gives back: the list takes it. The
+            // change rebuilt the form meanwhile (forms refresh), so the list is found again by its id.
+            dialog.done.then(result => {
+                if (result !== 'delete') return;
+                const list = select.isConnected ? select : (id ? document.getElementById(id) : null);
+                if (list) list.focus();
+            });
         });
         const newBtn = el.querySelector('[data-ed-secret-new]');
         if (newBtn) newBtn.addEventListener('click', () => {

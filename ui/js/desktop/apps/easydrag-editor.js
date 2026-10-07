@@ -181,16 +181,19 @@
         // ── run view ────────────────────────────────────────────────────────────
 
         // renderBanner names the viewed run and offers Stop while it has not ended (not on a
-        // read-only desktop). A Stop that goes away hands its focus to "Back to draft".
+        // read-only desktop). A Stop that goes away hands its focus to "Back to draft". The text
+        // changes only with the run: the banner is a live region, and every header render calls this.
         function renderBanner() {
             const run = ed.runView && ed.runView.run;
             banner.hidden = !run;
             if (!run) return;
-            banner.querySelector('[data-ed-runview-text]').textContent = t('easydrag.ui.run_view_banner', {
+            const text = t('easydrag.ui.run_view_banner', {
                 status: core.tr(t, 'easydrag.ui.status_' + run.status, run.status),
                 time: core.fmt.dateTime(run.started_at),
                 revision: run.revision
             });
+            const node = banner.querySelector('[data-ed-runview-text]');
+            if (node.textContent !== text) node.textContent = text;
             const stop = banner.querySelector('[data-ed-cmd="stop-viewed"]');
             const off = !!ed.readonly || !ED.runs.isActive(run.status);
             if (off && document.activeElement === stop) banner.querySelector('[data-ed-cmd="exit-run-view"]').focus();
@@ -208,7 +211,6 @@
             ed.model = ED.model.create(detail.doc, ed.catalog);
             ed.selection = new Set();
             el.classList.add('is-run-view');
-            renderBanner();
             ed.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
             runs.applyRunView(detail);
             // The run view needs the room: the palette hides (a stored run takes no new steps) and
@@ -234,7 +236,6 @@
             ed.model = draftModel;
             ed.selection = new Set();
             el.classList.remove('is-run-view');
-            renderBanner();
             runs.clearRun();
             ed.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
             if (savedView) canvas.setView(savedView, { animate: true });
@@ -534,6 +535,14 @@
         }
         bag.listen(document, 'keydown', onKeyDown);
         bag.listen(document, 'keyup', event => interact.handleKeyUp(event));
+        // A live run ended (also one stopped here): the last run, the drawer and a run view of it
+        // follow. Runs that end together (a burst of a trigger) cause one refresh.
+        const runFinished = core.debounce(() => {
+            if (disposed) return;
+            if (!runs.isRunning()) runs.loadLast();
+            runs.refreshShown();
+        }, 250);
+        bag.add(() => runFinished.cancel());
         bag.listen(document, 'aurago:flows-changed', (event) => {
             const d = event.detail || {};
             if (d.flow_id !== ed.flow.id) return;
@@ -543,11 +552,7 @@
                 app.openHome();
                 return;
             }
-            if (d.reason === 'run_finished') {
-                if (!runs.isRunning()) runs.loadLast();
-                // A live run ended (also one stopped here): the drawer and a run view of it follow.
-                runs.refreshShown();
-            }
+            if (d.reason === 'run_finished') runFinished();
             if (d.reason === 'enabled' || d.reason === 'published') refreshRecord();
         });
 

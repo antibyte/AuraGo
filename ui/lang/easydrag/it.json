@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "Inserisci un valore.",
   "easydrag.ui.secret_hint": "I segreti sono salvati nel Vault. I flussi possono usarli, l’agente non può leggerli.",
   "easydrag.ui.secret_invalid": "Usa da 1 a 40 lettere minuscole, cifre o _ per il nome.",
+  "easydrag.ui.secret_missing": "{name} (mancante)",
   "easydrag.ui.secret_name": "Nome",
   "easydrag.ui.secret_name_taken": "Esiste già un segreto chiamato {name}.",
   "easydrag.ui.secret_new": "Nuovo segreto",

@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "Skriv inn en verdi.",
   "easydrag.ui.secret_hint": "Hemmeligheter lagres i Vault. Flyter kan bruke dem, agenten kan ikke lese dem.",
   "easydrag.ui.secret_invalid": "Bruk 1–40 små bokstaver, sifre eller _ i navnet.",
+  "easydrag.ui.secret_missing": "{name} (mangler)",
   "easydrag.ui.secret_name": "Navn",
   "easydrag.ui.secret_name_taken": "Det finnes allerede en hemmelighet med navnet {name}.",
   "easydrag.ui.secret_new": "Ny hemmelighet",

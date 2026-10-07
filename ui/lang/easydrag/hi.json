@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "एक मान दर्ज करें।",
   "easydrag.ui.secret_hint": "सीक्रेट Vault में रखे जाते हैं। फ़्लो उनका उपयोग कर सकते हैं, एजेंट उन्हें पढ़ नहीं सकता।",
   "easydrag.ui.secret_invalid": "नाम के लिए 1–40 छोटे अक्षर, अंक या _ का उपयोग करें।",
+  "easydrag.ui.secret_missing": "{name} (मौजूद नहीं)",
   "easydrag.ui.secret_name": "नाम",
   "easydrag.ui.secret_name_taken": "{name} नाम का सीक्रेट पहले से मौजूद है।",
   "easydrag.ui.secret_new": "नया सीक्रेट",

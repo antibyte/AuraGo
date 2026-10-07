@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "Δώσε μια τιμή.",
   "easydrag.ui.secret_hint": "Τα μυστικά αποθηκεύονται στο Vault. Οι ροές μπορούν να τα χρησιμοποιούν, ο πράκτορας δεν μπορεί να τα διαβάσει.",
   "easydrag.ui.secret_invalid": "Για το όνομα χρησιμοποίησε 1–40 πεζά λατινικά γράμματα, ψηφία ή _.",
+  "easydrag.ui.secret_missing": "{name} (λείπει)",
   "easydrag.ui.secret_name": "Όνομα",
   "easydrag.ui.secret_name_taken": "Υπάρχει ήδη μυστικό με το όνομα {name}.",
   "easydrag.ui.secret_new": "Νέο μυστικό",

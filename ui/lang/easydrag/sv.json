@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "Ange ett värde.",
   "easydrag.ui.secret_hint": "Hemligheter lagras i Vault. Flöden kan använda dem, agenten kan inte läsa dem.",
   "easydrag.ui.secret_invalid": "Använd 1–40 gemener, siffror eller _ i namnet.",
+  "easydrag.ui.secret_missing": "{name} (saknas)",
   "easydrag.ui.secret_name": "Namn",
   "easydrag.ui.secret_name_taken": "Det finns redan en hemlighet som heter {name}.",
   "easydrag.ui.secret_new": "Ny hemlighet",

@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "Podaj wartość.",
   "easydrag.ui.secret_hint": "Sekrety są przechowywane w Vault. Przepływy mogą z nich korzystać, agent nie może ich odczytać.",
   "easydrag.ui.secret_invalid": "W nazwie użyj 1–40 małych liter, cyfr lub _.",
+  "easydrag.ui.secret_missing": "{name} (brak)",
   "easydrag.ui.secret_name": "Nazwa",
   "easydrag.ui.secret_name_taken": "Sekret o nazwie {name} już istnieje.",
   "easydrag.ui.secret_new": "Nowy sekret",

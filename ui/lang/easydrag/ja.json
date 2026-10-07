@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "値を入力してください。",
   "easydrag.ui.secret_hint": "シークレットは Vault に保存されます。フローは使用できますが、エージェントは読み取れません。",
   "easydrag.ui.secret_invalid": "名前には 1～40 文字の小文字の英字、数字、_ を使ってください。",
+  "easydrag.ui.secret_missing": "{name}（見つかりません）",
   "easydrag.ui.secret_name": "名前",
   "easydrag.ui.secret_name_taken": "{name} という名前のシークレットはすでに存在します。",
   "easydrag.ui.secret_new": "新しいシークレット",

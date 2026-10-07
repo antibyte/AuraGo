@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "请输入一个值。",
   "easydrag.ui.secret_hint": "密钥保存在 Vault 中。流程可以使用它们，代理无法读取。",
   "easydrag.ui.secret_invalid": "名称请使用 1–40 个小写字母、数字或 _。",
+  "easydrag.ui.secret_missing": "{name}（缺失）",
   "easydrag.ui.secret_name": "名称",
   "easydrag.ui.secret_name_taken": "已存在名为 {name} 的密钥。",
   "easydrag.ui.secret_new": "新建密钥",

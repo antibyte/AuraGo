@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "Voer een waarde in.",
   "easydrag.ui.secret_hint": "Geheimen worden opgeslagen in de Vault. Flows kunnen ze gebruiken, de agent kan ze niet lezen.",
   "easydrag.ui.secret_invalid": "Gebruik voor de naam 1–40 kleine letters, cijfers of _.",
+  "easydrag.ui.secret_missing": "{name} (ontbreekt)",
   "easydrag.ui.secret_name": "Naam",
   "easydrag.ui.secret_name_taken": "Er bestaat al een geheim met de naam {name}.",
   "easydrag.ui.secret_new": "Nieuw geheim",

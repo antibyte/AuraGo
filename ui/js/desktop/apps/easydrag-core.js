@@ -193,10 +193,11 @@
             if (total < 60) return total + ' s';
             return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0') + ' min';
         },
-        dateTime(iso) {
+        // dateTime formats a date and time; seconds adds them (to tell runs of one minute apart).
+        dateTime(iso, seconds) {
             const date = iso instanceof Date ? iso : new Date(iso);
             if (isNaN(date.getTime())) return '';
-            try { return date.toLocaleString(lang(), { dateStyle: 'medium', timeStyle: 'short' }); } catch (err) { return date.toISOString(); }
+            try { return date.toLocaleString(lang(), { dateStyle: 'medium', timeStyle: seconds ? 'medium' : 'short' }); } catch (err) { return date.toISOString(); }
         },
         relative(iso) {
             const date = iso instanceof Date ? iso : new Date(iso);

@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "Enter a value.",
   "easydrag.ui.secret_hint": "Secrets are stored in the Vault. Flows can use them, the agent cannot read them.",
   "easydrag.ui.secret_invalid": "Use 1–40 lowercase letters, digits or _ for the name.",
+  "easydrag.ui.secret_missing": "{name} (missing)",
   "easydrag.ui.secret_name": "Name",
   "easydrag.ui.secret_name_taken": "A secret named {name} already exists.",
   "easydrag.ui.secret_new": "New secret",

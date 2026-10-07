@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "Angiv en værdi.",
   "easydrag.ui.secret_hint": "Hemmeligheder gemmes i Vault. Flows kan bruge dem, agenten kan ikke læse dem.",
   "easydrag.ui.secret_invalid": "Brug 1–40 små bogstaver, cifre eller _ til navnet.",
+  "easydrag.ui.secret_missing": "{name} (mangler)",
   "easydrag.ui.secret_name": "Navn",
   "easydrag.ui.secret_name_taken": "Der findes allerede en hemmelighed med navnet {name}.",
   "easydrag.ui.secret_new": "Ny hemmelighed",

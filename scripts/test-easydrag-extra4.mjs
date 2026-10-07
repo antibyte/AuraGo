@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js'];
-const UI_MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-fields.js', 'easydrag-runs.js', 'easydrag-home.js'];
+const UI_MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-runs.js', 'easydrag-home.js'];
 const T1 = 'n_tttttttt';
 const T2 = 'n_uuuuuuuu';
 const TG = 'n_telegram';
@@ -31,6 +31,7 @@ function effectsDoc() {
 }
 
 const apiError = code => Object.assign(new Error('text ' + code), { body: { error: 'text ' + code, code } });
+const deferred = () => { let resolve, reject; const p = new Promise((a, b) => { resolve = a; reject = b; }); return { p, resolve, reject }; };
 
 // flowDoc is a trigger and two steps in a row, 832 px wide.
 function flowDoc() {
@@ -80,7 +81,11 @@ export async function run(env) {
         Object.defineProperty(proto, 'tagName', { configurable: true, get() { return String(this.localName).toUpperCase(); } });
         proto.removeAttribute = function (name) { this.attrs.delete(name); };
         proto.click = function () { this.fire('click'); };
-        Object.assign(dom.document, { addEventListener() {}, removeEventListener() {} });
+        // An element is connected when its top ancestor is the editor root; getElementById
+        // searches that root, as the page would.
+        let root = null;
+        Object.defineProperty(proto, 'isConnected', { configurable: true, get() { let x = this; while (x.parentNode) x = x.parentNode; return x === root; } });
+        Object.assign(dom.document, { addEventListener() {}, removeEventListener() {}, getElementById: id => (root ? root.querySelector('[id="' + id + '"]') : null) });
         const store = new Map();
         const logged = [];
         const timers = new Map();
@@ -114,6 +119,7 @@ export async function run(env) {
             readonly: false, root: ED.core.el('<div class="ed-editor"></div>'), flow: { id: 'f1', draft_revision: 3, published_draft_revision: 3 },
             model, saver: null, selection: new Set(), run: null, runView: null, issues: [], lastRunData: null, effectsConfirmed: new Set(), bus: ED.core.emitter()
         };
+        root = ed.root;
         const open = () => ed.root.querySelectorAll('.ed-modal-backdrop').filter(m => !m.classList.contains('is-closing'));
         return {
             ED, ed, dom, requests, notes, logged, store, timers, opened,
@@ -284,6 +290,70 @@ export async function run(env) {
         eq('c1d15b the stop checks log no errors', h.logged, []);
     });
 
+    // ── 1d-15b review: stops of runs no stream shows, out-of-order answers, focus and names ──
+    await guardAsync('c1d15b stop follow-ups', async () => {
+        const at = '2026-10-06T10:00:00Z';
+        const run = (id, status, mode) => ({ id, status, mode, started_at: at, trigger_node: T1 });
+        let listed = [run('r_t', 'running', 'test'), run('r_a', 'waiting', 'agent')];
+        let stored = 'running';
+        const views = [];
+        const h = uiHarness(req => {
+            if (req.url === '/api/desktop/flows/f1/runs?limit=50') return { runs: listed };
+            if (req.url === '/api/desktop/flows/runs/r_t/cancel') return { cancelled: true };
+            if (req.url === '/api/desktop/flows/runs/r_t') return { run: run('r_t', stored, 'test'), steps: [] };
+            if (req.url === '/api/desktop/flows/runs/r_v') { const d = deferred(); views.push(d); return d.p; }
+            throw apiError('FLOW_RUN_NOT_FOUND');
+        });
+        const runs = h.ED.runs.create(h.ed, h.canvas);
+        const drawer = () => h.ed.root.querySelector('.ed-drawer');
+        const stopOf = id => drawer().querySelector('[data-ed-run-stop="' + id + '"]');
+        const lists = () => h.requests.filter(r => r.url === '/api/desktop/flows/f1/runs?limit=50').length;
+        const fetches = () => h.requests.filter(r => r.url === '/api/desktop/flows/runs/r_t').length;
+        const delays = () => Array.from(h.timers.values()).map(x => x.ms).filter(ms => ms >= 1000);
+        runs.toggleDrawer(true);
+        await settle();
+        // #8: the name carries the seconds; #7: an agent run asks too.
+        const label = stopOf('r_a').getAttribute('aria-label');
+        stopOf('r_a').fire('click');
+        await settle();
+        const asked = !!h.top();
+        h.top().querySelector('[data-ed-action="keep"]').fire('click');
+        await settle();
+        // #9: a reload keeps the focus on the Stop of a run that goes on.
+        stopOf('r_a').focus();
+        runs.refreshShown();
+        await settle();
+        const kept = h.dom.document.activeElement === stopOf('r_a');
+        // #2: a test run that streams elsewhere is asked for after 1, 2 and 4 s until it ended.
+        const listsBefore = lists();
+        stopOf('r_t').fire('click');
+        await settle();
+        const first = [delays(), fetches(), lists() - listsBefore];
+        h.runTimers(1000);
+        await settle();
+        const second = [delays(), fetches()];
+        stored = 'cancelled';
+        listed = [run('r_t', 'cancelled', 'test'), run('r_a', 'waiting', 'agent')];
+        h.runTimers(2000);
+        await settle();
+        eq('c1d15b a stop asks for any run but a test, names the run to the second, keeps the focus on a Stop that stays, and follows a run no stream shows',
+            [label === 'run_stop_label:' + h.ED.core.fmt.dateTime(at, true), h.ED.core.fmt.dateTime(at, true) !== h.ED.core.fmt.dateTime(at), asked, kept, first, second, [delays(), fetches(), lists() - listsBefore, !!stopOf('r_t')]],
+            [true, true, true, true, [[1000], 0, 1], [[2000], 1], [[], 2, 2, false]]);
+        // #4: an older answer for the viewed run never replaces a newer one.
+        h.ed.runView = { run: run('r_v', 'running', 'live'), doc: effectsDoc() };
+        runs.applyRunView({ run: h.ed.runView.run, steps: [] });
+        runs.refreshShown();
+        runs.refreshShown();
+        await settle();
+        views[1].resolve({ run: run('r_v', 'cancelled', 'live'), steps: [] });
+        await settle();
+        views[0].resolve({ run: run('r_v', 'running', 'live'), steps: [] });
+        await settle();
+        eq('c1d15b an older answer for the viewed run never takes back its end', [views.length, h.ed.runView.run.status, h.ed.run.status], [2, 'cancelled', 'cancelled']);
+        runs.dispose();
+        eq('c1d15b the stop follow-up checks log no errors', h.logged, []);
+    });
+
     // ── 1d-15b C: a flow secret can be deleted from the secret field ──
     await guardAsync('c1d15b delete secrets', async () => {
         const h = uiHarness(() => { throw apiError('FLOW_NOT_FOUND'); });
@@ -300,7 +370,7 @@ export async function run(env) {
         const notes = [];
         const picked = [];
         const env = { t, esc: h.ED.core.esc, readonly: false, root: host, api, secretCache: {}, notify: n => notes.push(n) };
-        const picker = F.secretRef(env, 'api_key', v => picked.push(v === undefined ? 'cleared' : v), 'sec-a');
+        const picker = host.appendChild(F.secretRef(env, 'api_key', v => picked.push(v === undefined ? 'cleared' : v), 'sec-a'));
         await settle();
         const button = picker.querySelector('[data-ed-secret-delete]');
         const options = () => picker.querySelectorAll('option').map(o => o.getAttribute('value'));
@@ -341,7 +411,48 @@ export async function run(env) {
             [[true, 'error_flow_rate_limited secret_retry:30', true], false, null, ['other', 'other'], 1]);
         const readonly = F.secretRef(Object.assign({}, env, { readonly: true }), 'other', () => {}, 'sec-c');
         eq('c1d15b a read-only field has no Delete', !!readonly.querySelector('[data-ed-secret-delete]'), false);
-        eq('c1d15b the secret delete checks log no errors', h.logged, []);
+
+        // The real chain: the change rebuilds the form (forms refresh, the focus is in the dialog),
+        // so the focus goes to the new list, found by its id, not to the detached one.
+        let vault = ['api_key', 'other'];
+        const fh = uiHarness(req => {
+            if (req.url === '/api/desktop/flows/secrets') return { secrets: vault.slice() };
+            if (req.url === '/api/desktop/flows/secrets/api_key' && req.method === 'DELETE') { vault = vault.filter(n => n !== 'api_key'); return { status: 'deleted', used_by: ['Alpha', 'Beta'] }; }
+            throw apiError('FLOW_NOT_FOUND');
+        });
+        const info = { type: 'http.request', params: [{ name: 'auth_secret', kind: 'secret_ref', label: 'Secret' }] };
+        let node = { id: 'n_http', type: 'http.request', params: { auth_secret: 'api_key' }, settings: {} };
+        let form = null;
+        form = fh.ED.forms.render({
+            ed: fh.ed, node, info, roots: {}, upstream: [], issues: [],
+            onChange: (name, value) => {
+                const params = Object.assign({}, node.params);
+                if (value === undefined) delete params[name]; else params[name] = value;
+                node = Object.assign({}, node, { params });
+                form.refresh(node);
+            }
+        });
+        fh.ed.root.appendChild(form.el);
+        await settle();
+        const before = form.el.querySelector('select');
+        form.el.querySelector('[data-ed-secret-delete]').fire('click');
+        fh.top().querySelector('[data-ed-action="delete"]').fire('click');
+        await settle();
+        const after = form.el.querySelector('select');
+        eq('c1d15b after a delete that rebuilds the form, the new list has the focus and the field is empty',
+            [after !== before, before.isConnected, fh.dom.document.activeElement === after, after.getAttribute('id'), 'auth_secret' in node.params, after.querySelectorAll('option').map(o => o.getAttribute('value')),
+                fh.notes.map(n => n.message)],
+            [true, false, true, 'ed-p-w1-n_http-auth_secret', false, ['', 'other'], ['secret_still_used:Alpha and Beta']]);
+
+        // A chosen secret the Vault no longer has is marked; a list that cannot load marks nothing.
+        const gone = host.appendChild(F.secretRef(Object.assign({}, env, { secretCache: {} }), 'old_key', () => {}, 'sec-e'));
+        await settle();
+        const goneOption = gone.querySelectorAll('option').find(o => o.getAttribute('value') === 'old_key');
+        eq('c1d15b a chosen secret that no longer exists is marked as missing',
+            [!!goneOption && goneOption.attrs.has('selected'), gone.querySelector('select').getAttribute('data-error'), gone.querySelector('select').html.includes('secret_missing:old_key'),
+                picker.querySelector('select').html.includes('secret_missing')],
+            [true, 'error_flow_secret_unavailable', true, false]);
+        eq('c1d15b the secret delete checks log no errors', [h.logged, fh.logged], [[], []]);
     });
 
     // ── 1d-15b D: the start page's lock card offers the window card's actions ──
@@ -359,15 +470,23 @@ export async function run(env) {
         const lists = () => h.requests.filter(r => r.url === '/api/desktop/flows').length;
         const off = [!!grid.querySelector('.ed-home-empty [data-ed-home-settings]'), !!grid.querySelector('.ed-home-empty [data-ed-home-retry]'), grid.html.includes('ed-error')];
         grid.querySelector('[data-ed-home-settings]').fire('click');
-        grid.querySelector('[data-ed-home-retry]').fire('click');
+        const first = grid.querySelector('[data-ed-home-retry]');
+        first.focus();
+        first.fire('click');
         await settle();
-        const retried = [h.opened, lists()];
+        const again = grid.querySelector('[data-ed-home-retry]');
+        const retried = [h.opened, lists(), again !== first && h.dom.document.activeElement === again];
         listAnswer = () => { throw apiError('FLOW_INTERNAL'); };
         grid.querySelector('[data-ed-home-retry]').fire('click');
         await settle();
-        const other = [!!grid.querySelector('[data-ed-home-settings]'), !!grid.querySelector('[data-ed-home-retry]'), grid.html.includes('ed-error')];
-        eq('c1d15b the start page lock card offers Open settings and Try again; other errors offer Try again only',
-            [off, retried, other], [[true, true, false], [[['/config#flows', '_blank', 'noopener']], 2], [false, true, true]]);
+        const other = [!!grid.querySelector('[data-ed-home-settings]'), !!grid.querySelector('[data-ed-home-retry]'), grid.html.includes('ed-error'), h.dom.document.activeElement === grid.querySelector('[data-ed-home-retry]')];
+        // Flows back: the focus goes to the first card.
+        listAnswer = () => ({ flows: [{ id: 'f9', name: 'Nine', triggers: [], preview: [] }] });
+        grid.querySelector('[data-ed-home-retry]').fire('click');
+        await settle();
+        const back = h.dom.document.activeElement === grid.querySelector('[data-ed-flow="f9"]');
+        eq('c1d15b the start page lock card offers Open settings and Try again; other errors offer Try again only; Try again keeps the focus on the grid',
+            [off, retried, other, back], [[true, true, false], [[['/config#flows', '_blank', 'noopener']], 2, true], [false, true, true, true], true]);
         home.dispose();
         eq('c1d15b the lock card checks log no errors', h.logged, []);
     });

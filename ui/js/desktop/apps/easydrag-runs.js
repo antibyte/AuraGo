@@ -10,6 +10,9 @@
     const RETRY_MAX_MS = 15000;
     // After MAX_FAILURES failures in a row without a message the server is asked about the run.
     const MAX_FAILURES = 5;
+    // After a stop of a run that streams elsewhere (or nowhere), its stored state is asked again
+    // after 1, 2 and 4 s until it ended: a test run announces its end to no other window.
+    const STOP_POLL_MS = [1000, 2000, 4000];
     // REDACTED is the server's placeholder for secret values in scrubbed test data.
     const REDACTED = '[redacted]';
     const EFFECT_ICONS = { sends_message: 'brand-telegram', writes_files: 'file-pencil', controls_devices: 'home', runs_code: 'api', deletes: 'trash', system_change: 'settings' };
@@ -290,7 +293,7 @@
             const failed = Array.from(ed.run.steps.values()).find(s => s.status === 'error');
             const node = failed && ed.model.node(failed.node_id);
             canvas.announce(ed.run.status === 'success' ? t('easydrag.ui.run_done') : node ? t('easydrag.ui.run_failed_at', { node: node.label || node.type }) : t('easydrag.ui.run_failed'));
-            if (drawer) loadRuns();
+            if (drawer) loadRuns(true);
         }
 
         // ── starting runs ───────────────────────────────────────────────────────
@@ -481,29 +484,59 @@
 
         // stopping holds the runs whose stop is being confirmed or sent: one stop per run at a time.
         const stopping = new Set();
+        // stopPolls holds the timers of followStop.
+        const stopPolls = new Set();
 
         // stopRun stops a run of the drawer or the run view, also one this window did not start: a
-        // live run of a trigger that waits for a slot, or another window's test. A live run stops
-        // only after a confirmation. 202, and 409 FLOW_RUN_FINISHED (it ended meanwhile), refresh
-        // the list and the viewed run quietly; other errors are shown.
+        // live run of a trigger that waits for a slot, or another window's test. Any run but a
+        // test stops only after a confirmation. 202, and 409 FLOW_RUN_FINISHED (it ended
+        // meanwhile), refresh the list and the viewed run quietly; other errors are shown.
         async function stopRun(record) {
             if (disposed || ed.readonly || !record || !isActive(record.status) || stopping.has(record.id)) return false;
             stopping.add(record.id);
             try {
-                if (record.mode === 'live' && !(await confirmStop(record))) return false;
+                if (record.mode !== 'test' && !(await confirmStop(record))) return false;
                 if (disposed) return false;
+                let accepted = true;
                 try { await ed.api.cancel(record.id); } catch (err) {
                     if (core.errorCode(err) !== 'FLOW_RUN_FINISHED') {
                         if (!disposed) ed.ctx.notify({ title: t('easydrag.ui.run_cancel'), message: core.errorText(t, err), type: 'error' });
                         return false;
                     }
+                    accepted = false;
                     if (streamed(record.id)) await settleFinished(record.id);
                 }
                 refreshShown();
+                // A running run ends a moment after the cancel; only this window's own stream shows it.
+                if (accepted && !streamed(record.id)) followStop(record.id, 0);
                 return true;
             } finally {
                 stopping.delete(record.id);
             }
+        }
+
+        // followStop asks for a stopped run's stored state after STOP_POLL_MS[attempt] and refreshes
+        // the drawer and the run view once it ended, while they still show it as not ended.
+        function followStop(runId, attempt) {
+            const timer = setTimeout(async () => {
+                stopPolls.delete(timer);
+                let detail = null;
+                try { detail = await ed.api.run(runId, false); } catch (err) { detail = null; }
+                if (disposed) return;
+                if (detail && detail.run && isFinal(detail.run.status)) {
+                    if (showsActive(runId)) refreshShown();
+                    return;
+                }
+                if (attempt + 1 < STOP_POLL_MS.length) followStop(runId, attempt + 1);
+            }, STOP_POLL_MS[attempt]);
+            stopPolls.add(timer);
+        }
+
+        // showsActive: the drawer or the run view shows runId as not ended.
+        function showsActive(runId) {
+            const listed = drawer && listedRuns.get(runId);
+            const viewed = ed.runView && ed.runView.run;
+            return !!((listed && isActive(listed.status)) || (viewed && viewed.id === runId && isActive(viewed.status)));
         }
 
         async function confirmStop(record) {
@@ -525,13 +558,17 @@
         }
 
         // refreshView shows the stored state of the viewed run again (status, steps, banner), unless
-        // another run view replaced it meanwhile.
+        // another run view replaced it or a newer refresh was asked meanwhile. An answer never takes
+        // back the end of a run the view shows already.
+        let viewRefreshSeq = 0;
         async function refreshView(runId) {
             const mine = viewSeq;
+            const ask = ++viewRefreshSeq;
             let detail = null;
             try { detail = await ed.api.run(runId, false); } catch (err) { return; }
             const shown = ed.runView && ed.runView.run;
-            if (disposed || mine !== viewSeq || !shown || shown.id !== runId || !detail || !detail.run) return;
+            if (disposed || mine !== viewSeq || ask !== viewRefreshSeq || !shown || shown.id !== runId || !detail || !detail.run) return;
+            if (isFinal(shown.status) && !isFinal(detail.run.status)) return;
             ed.runView.run = detail.run;
             applyRunView(detail);
         }
@@ -563,7 +600,7 @@
             // A run that has not ended can be stopped from its row (not on a read-only desktop).
             if (ed.readonly || !isActive(r.status)) return row;
             return '<div class="ed-run-item">' + row + '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-run-stop="' + esc(r.id) + '" aria-label="' +
-                esc(t('easydrag.ui.run_stop_label', { time: core.fmt.dateTime(r.started_at) })) + '">' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button></div>';
+                esc(t('easydrag.ui.run_stop_label', { time: core.fmt.dateTime(r.started_at, true) })) + '">' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button></div>';
         }
 
         // listedRuns holds the runs the drawer shows, by id (for their Stop buttons).
@@ -593,10 +630,14 @@
                 markup = '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>';
             }
             const active = document.activeElement;
-            const focusRun = active && list.contains(active) ? (active.dataset.edRunStop || active.dataset.edRun || '') : null;
+            const inList = !!(active && list.contains(active));
+            const focusRun = inList ? (active.dataset.edRunStop || active.dataset.edRun || '') : null;
+            const onStop = inList && active.dataset.edRunStop !== undefined;
             list.innerHTML = markup;
             if (focusRun === null) return;
-            const target = Array.from(list.querySelectorAll('[data-ed-run]')).find(b => b.dataset.edRun === focusRun) || drawer.querySelector('[data-ed-runs-filter][aria-checked="true"]');
+            // The same control when it is still there (the Stop of a run that goes on), else the row.
+            const stop = onStop && Array.from(list.querySelectorAll('[data-ed-run-stop]')).find(b => b.dataset.edRunStop === focusRun);
+            const target = stop || Array.from(list.querySelectorAll('[data-ed-run]')).find(b => b.dataset.edRun === focusRun) || drawer.querySelector('[data-ed-runs-filter][aria-checked="true"]');
             if (target) target.focus();
         }
 
@@ -686,6 +727,7 @@
         }
 
         bag.add(closeStream);
+        bag.add(() => { stopPolls.forEach(clearTimeout); stopPolls.clear(); });
         bag.add(() => toggleDrawer(false));
 
         return {

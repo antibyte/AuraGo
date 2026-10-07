@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "Zadej hodnotu.",
   "easydrag.ui.secret_hint": "Tajemství jsou uložená ve Vaultu. Toky je můžou používat, agent je číst nemůže.",
   "easydrag.ui.secret_invalid": "Pro název použij 1–40 malých písmen, číslic nebo _.",
+  "easydrag.ui.secret_missing": "{name} (chybí)",
   "easydrag.ui.secret_name": "Název",
   "easydrag.ui.secret_name_taken": "Tajemství s názvem {name} už existuje.",
   "easydrag.ui.secret_new": "Nové tajemství",

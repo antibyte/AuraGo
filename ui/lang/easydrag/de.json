@@ -713,6 +713,7 @@
   "easydrag.ui.secret_empty": "Gib einen Wert ein.",
   "easydrag.ui.secret_hint": "Geheimnisse liegen im Vault. Flows können sie nutzen, der Agent kann sie nicht lesen.",
   "easydrag.ui.secret_invalid": "Nutze für den Namen 1–40 Kleinbuchstaben, Ziffern oder _.",
+  "easydrag.ui.secret_missing": "{name} (fehlt)",
   "easydrag.ui.secret_name": "Name",
   "easydrag.ui.secret_name_taken": "Ein Geheimnis namens {name} existiert bereits.",
   "easydrag.ui.secret_new": "Neues Geheimnis",
