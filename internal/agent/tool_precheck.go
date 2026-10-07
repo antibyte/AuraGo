@@ -17,7 +17,13 @@ func precheckMessagingToolArgs(tc ToolCall, runCfg RunConfig, sessionID string) 
 	var message string
 	switch tc.Action {
 	case "send_telegram":
-		message = decodeSendTelegramArgs(tc).Message
+		req := decodeSendTelegramArgs(tc)
+		// A document needs no text: the dispatch sends it, and without a message there is
+		// no caption. The schema still asks for a message.
+		if strings.TrimSpace(req.FilePath) != "" {
+			return "", false
+		}
+		message = req.Message
 	case "send_notification", "notification_center", "send_push_notification", "web_push":
 		message = decodeNotificationArgs(tc).Message
 	case "cyd_display":

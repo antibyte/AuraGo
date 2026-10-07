@@ -37,6 +37,23 @@
 
     function custom(state, raw) { state.mode = 'custom'; state.cron = raw; return state; }
 
+    // dayList reads the day-of-week field: numbers and ranges ("1-5", as flows send for weekdays)
+    // separated by commas. A value it cannot read gives NaN, so the expression stays custom.
+    function dayList(field) {
+        const days = [];
+        for (const part of field.split(',')) {
+            const range = /^(\d{1,2})-(\d{1,2})$/.exec(part);
+            if (!range) { days.push(num(part)); continue; }
+            const lo = Number(range[1]);
+            const hi = Number(range[2]);
+            if (lo > hi || hi > 7) return [NaN];
+            for (let d = lo; d <= hi; d++) days.push(d);
+        }
+        return days;
+    }
+
+    function isWorkweek(days) { return days.length === 5 && [1, 2, 3, 4, 5].every(d => days.includes(d)); }
+
     function parse(expr) {
         const state = defaultState();
         const raw = String(expr || '').trim();
@@ -65,7 +82,7 @@
         if (Number.isNaN(h) || h > 23) return custom(state, raw);
         if (dom === '*' && dow === '*') return Object.assign(state, { mode: 'daily', minute, hour: h });
         if (dom === '*') {
-            const days = dow.split(',').map(num);
+            const days = dayList(dow);
             if (days.some(d => Number.isNaN(d) || d > 7)) return custom(state, raw);
             const weekdays = Array.from(new Set(days.map(d => (d === 7 ? 0 : d)))).sort((a, b) => a - b);
             return Object.assign(state, { mode: 'weekly', minute, hour: h, weekdays });
@@ -146,6 +163,7 @@
             case 'daily': return t('desktop.mc_schedule_daily_at', { time: time() });
             case 'weekly':
                 if (s.weekdays.length === 7) return t('desktop.mc_schedule_daily_at', { time: time() });
+                if (isWorkweek(s.weekdays)) return t('desktop.mc_schedule_weekdays_at', { time: time() });
                 return t('desktop.mc_schedule_weekly_at', { days: weekdayNames(s.weekdays, lang).join(', '), time: time() });
             case 'monthly': return t('desktop.mc_schedule_monthly_at', { day: s.dayOfMonth, time: time() });
             default: return t('desktop.mc_schedule_custom_desc');

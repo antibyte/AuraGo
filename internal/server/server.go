@@ -33,6 +33,7 @@ import (
 	"aurago/internal/detective"
 	"aurago/internal/discord"
 	"aurago/internal/dockerutil"
+	"aurago/internal/flows"
 	"aurago/internal/fritzbox"
 	"aurago/internal/gamemaker"
 	"aurago/internal/heartbeat"
@@ -265,6 +266,14 @@ type Server struct {
 	GameMaker               *gamemaker.Service
 	Detective               *detective.Service
 	Newspaper               *newspaper.Service
+	Flows                   *flows.Service
+	flowsCatalog            *flowCatalogEnv
+	flowNotify              flowFailureNotifier // flood rule and send slots of flow failure notifications
+	flowSecretRate          flowRateLimiter     // per-IP limit of flow secret writes and deletes
+	flowStreams             flowStreamLimiter   // open flow run event streams, per run and in total
+	flowStreamBeat          time.Duration       // heartbeat of flow run streams; 0 means flowStreamHeartbeat (tests shorten it)
+	flowNodeTypesCache      flowNodeTypesCache  // encoded GET /api/desktop/flows/node-types answers, per language
+	flowHACache             flowHACache         // Home Assistant entity options of the flow editor, reused for 30 s
 	newspaperSkillReady     bool
 	PersonalRadio           *personalradio.Service
 	RTLSDR                  *rtlsdr.Service
@@ -1149,6 +1158,8 @@ func Start(opts StartOptions) error {
 	// Use reinitBudgetTracker so the callback is always registered after a reload too.
 	s.reinitBudgetTracker(cfg)
 
+	// EasyDrag flows hook into Mission Control before it starts (flow triggers, startup trigger).
+	s.initFlows()
 	if err := s.MissionManagerV2.StartContext(serverCtx); err != nil {
 		logger.Warn("Failed to start MissionManagerV2", "error", err)
 	} else if shouldSeedWelcomeContent(s.IsFirstStart) {
@@ -1156,6 +1167,7 @@ func Start(opts StartOptions) error {
 		// Deleted examples must stay deleted on later restarts.
 		tools.SeedWelcomeMissions(s.MissionManagerV2, installDir, logger)
 	}
+	s.startFlows(serverCtx)
 
 	if cheatsheetDB != nil && shouldSeedWelcomeContent(s.IsFirstStart) {
 		// Seed bundled example cheat sheets only during first-start setup.
@@ -1742,6 +1754,10 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 			}
 		}
 		s.httpRequests.Wait()
+
+		// Flow runs use tools, MQTT, mail, MCP, the sandbox, the mission history and the
+		// planner. Cancel and join them before any of those stop (see shutdownFlows).
+		s.shutdownFlows(ctx)
 
 		// Relay runs can own network, database and tool activity. Cancel and
 		// join them before shutting down any of their dependencies.

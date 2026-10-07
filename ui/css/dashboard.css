@@ -4049,6 +4049,7 @@ gray = hollow circle */
 .pw-page[data-workspace-page="dashboard"] .cronjobs-source-agent,
 .pw-page[data-workspace-page="dashboard"] .cronjobs-source-mission,
 .pw-page[data-workspace-page="dashboard"] .cronjobs-source-system,
+.pw-page[data-workspace-page="dashboard"] .cronjobs-source-flow,
 .pw-page[data-workspace-page="dashboard"] .audit-source-agent_tool,
 .pw-page[data-workspace-page="dashboard"] .audit-source-mission,
 .pw-page[data-workspace-page="dashboard"] .audit-source-heartbeat,
@@ -4312,6 +4313,20 @@ gray = hollow circle */
 .pw-page[data-workspace-page="dashboard"] .cronjobs-row-btn.danger:hover {
     background: color-mix(in srgb, var(--pw-danger) 14%, transparent);
     border-color: color-mix(in srgb, var(--pw-danger) 40%, var(--pw-line));
+}
+/* Flow schedules are managed in EasyDrag: a read-only label replaces Edit and Delete. */
+.pw-page[data-workspace-page="dashboard"] .cronjobs-managed {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.75rem;
+    padding: 0.22rem 0.55rem;
+    border: 1px dashed var(--pw-line);
+    border-radius: 0.45rem;
+    color: var(--pw-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
 }
 .pw-page[data-workspace-page="dashboard"] #cronjobs-empty {
     padding: 1.25rem 0;

@@ -360,6 +360,10 @@
             showDesktopNotification({ title: 'RTL-SDR', message: t('rtlSdr.recording_soon'), appId: 'rtl-sdr' });
             return;
         }
+        if (event.type === 'flows_changed') {
+            document.dispatchEvent(new CustomEvent('aurago:flows-changed', { detail: event.payload || {} }));
+            return;
+        }
         if (event.type === 'bluetooth_changed') {
             document.dispatchEvent(new CustomEvent('aurago:bluetooth-change', { detail: event.payload || {} }));
             return;

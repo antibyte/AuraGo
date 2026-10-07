@@ -99,6 +99,9 @@ Returns a JSON array of email objects:
 | to        | string | **yes**  | Recipient email (comma-separated for multiple)   |
 | subject   | string | no       | Email subject line (defaults to "(no subject)")  |
 | body      | string | no       | Plain text email body. `content` also accepted   |
+| attachments | string[] | no     | Files to attach, as a list of paths (max 10 files, 20 MB together) |
+
+`attachments` (list of paths) attaches files (max 10, 20 MB). Only files in the workspace or the documents folder can be attached; a path anywhere else, a missing file, or a list over the limits fails the call and sends nothing. A read-only account refuses the call before any file is opened.
 
 ### Response
 ```json

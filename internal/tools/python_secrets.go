@@ -65,6 +65,9 @@ var blockedSecretPrefixes = []string{
 	"music_minimax_",
 	"music_google_lyria_",
 	"remote_shared_key_",
+	// EasyDrag flow secrets: written by the user through /api/desktop/flows/secrets and read
+	// only by flows; the agent must neither list, read nor create them.
+	"easydrag_",
 	"__aurago_",
 }
 

@@ -31,7 +31,7 @@ AuraGo is a self-hosted Go agent for a home lab. The backend is one portable bin
 
 These chapters stay in sync with the product, not with a marketing checklist. If a sentence and the code disagree, the code wins. Deep dives for MeshCore, Game Maker, SIP, Speech Lab, Docker and web assets live next to this handbook under [`documentation/`](../).
 
-**Stand: 3. Oktober 2026.** Both languages cover the same 23 chapters. German uses *du*.
+**Stand: 7. Oktober 2026.** Both languages cover the same 24 chapters. German uses *du*.
 
 ## Nearby docs
 

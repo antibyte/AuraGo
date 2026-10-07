@@ -95,6 +95,8 @@ func TestDesktopEverydayAppsUseThemeBridge(t *testing.T) {
 		{"css/desktop-app-viewer.css", "var(--vd-theme-app-bg)"},
 		{"css/desktop-app-looper.css", ".vd-looper"},
 		{"css/desktop-app-looper.css", "var(--vd-theme-app-bg)"},
+		{"css/desktop-app-easydrag.css", ".ed-app"},
+		{"css/desktop-app-easydrag.css", "var(--vd-theme-app-bg)"},
 		{"css/desktop-app-cheater.css", ".cheater-app"},
 		{"css/desktop-app-cheater.css", "--cheater-surface: var(--vd-theme-app-bg)"},
 		{"css/desktop-app-people.css", ".vd-people"},

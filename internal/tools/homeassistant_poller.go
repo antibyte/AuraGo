@@ -30,14 +30,7 @@ func StartHomeAssistantPoller(ctx context.Context, cfg HAConfig, m *MissionManag
 		case <-ticker.C:
 			ticker.Reset(15 * time.Second)
 			// Fetch states only for monitored entities
-			monitoredEntities := make(map[string]bool)
-			for _, mission := range m.List() {
-				if mission.ExecutionType == ExecutionTriggered && mission.TriggerType == TriggerHomeAssistantState && mission.Enabled {
-					if mission.TriggerConfig != nil && mission.TriggerConfig.HAEntityID != "" {
-						monitoredEntities[mission.TriggerConfig.HAEntityID] = true
-					}
-				}
-			}
+			monitoredEntities := homeAssistantMonitoredEntities(m.List())
 
 			if len(monitoredEntities) == 0 {
 				// No active entities, skip polling

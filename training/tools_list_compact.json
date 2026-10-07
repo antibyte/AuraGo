@@ -1140,6 +1140,7 @@
     "description": "Create/convert PDFs, merge PDFs, or capture webpage screenshots/PDFs through the configured document backend.",
     "required": [
       "_todo",
+      "block_remote_content",
       "content",
       "filename",
       "landscape",
@@ -5904,6 +5905,7 @@
     "required": [
       "_todo",
       "account",
+      "attachments",
       "body",
       "subject",
       "to"
@@ -5938,6 +5940,7 @@
     "description": "Send a Telegram message to the configured default chat (telegram_user_id).",
     "required": [
       "_todo",
+      "file_path",
       "message",
       "priority",
       "title"

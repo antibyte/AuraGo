@@ -639,13 +639,14 @@ Manage generic Docker containers, images, networks, and volumes. AuraGo-managed 
 Create/convert PDFs, merge PDFs, or capture webpage screenshots/PDFs through the configured document backend.
 
 - Tier: `extended`
-- Required: `_todo`, `content`, `filename`, `landscape`, `operation`, `paper_size`, `sections`, `source_files`, `title`, `url`
+- Required: `_todo`, `block_remote_content`, `content`, `filename`, `landscape`, `operation`, `paper_size`, `sections`, `source_files`, `title`, `url`
 - Operations: 9
 - Manual: `prompts/tools_manuals/document_creator.md`
 
 | Parameter | Type | Description |
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
+| `block_remote_content` | `boolean` | Blocks remote resources, scripts, meta refresh and connection hints while rendering HTML or Markdown; embed images and fonts as data: URLs, inline CSS works. Recommended for untrusted HTML (default: false). Refused for url_to_pdf, screenshot_url and convert_document |
 | `content` | `string` | HTML content (for html_to_pdf, screenshot_html), Markdown content (for markdown_to_pdf), or text content (for create_pdf without sections) |
 | `filename` | `string` | Output filename without extension (auto-generated if omitted) |
 | `landscape` | `boolean` | Landscape orientation (default: false) |
@@ -3124,12 +3125,13 @@ Send a document to the user. Shown with Open and Download buttons in the Web UI.
 Send an email via SMTP.
 
 - Tier: `rare`
-- Required: `_todo`, `account`, `body`, `subject`, `to`
+- Required: `_todo`, `account`, `attachments`, `body`, `subject`, `to`
 
 | Parameter | Type | Description |
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
 | `account` | `string` | Email account ID to send from (omit for default) |
+| `attachments` | `array` | Optional file paths in the workspace or the documents folder to attach (max 10 files, 20 MB together) |
 | `body` | `string` | Email body (plain text) |
 | `subject` | `string` | Email subject |
 | `to` | `string` | Recipient email address |
@@ -3170,11 +3172,12 @@ Send a push notification to ntfy, Pushover, Telegram, Discord, Web Push, SMS, or
 Send a Telegram message to the configured default chat (telegram_user_id).
 
 - Tier: `rare`
-- Required: `_todo`, `message`, `priority`, `title`
+- Required: `_todo`, `file_path`, `message`, `priority`, `title`
 
 | Parameter | Type | Description |
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
+| `file_path` | `string` | Optional file in the workspace or the documents folder to send as a document; message and title become its caption |
 | `message` | `string` | Message text to send |
 | `priority` | `string` | Priority label (normal/high) |
 | `title` | `string` | Optional title prefix |

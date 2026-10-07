@@ -249,6 +249,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Phone** | SIP softphone (browser phone) |
 | **Live Speech / Agent Chat** | Realtime voice window and desktop chat with the agent |
 | **Mission Control / Looper** | Automated tasks and iterative agent workflows |
+| **EasyDrag** | Visual editor for flows: triggers and steps that run as missions ([Chapter 24](24-easydrag.md)). Only listed while flows and missions are enabled |
 | **Calendar / Todo / People / Pet Picker** | Scheduling, tasks, contacts (KG-enriched), and the animated persona pets (OpenPets) picker |
 | **Cheater** | Cheat-sheet manager with Markdown and attachments |
 | **Calculator / Settings / System Info / Log Viewer** | Calculator, desktop settings, system diagnostics, and a live log tail |
@@ -311,11 +312,13 @@ Scheduled work and prepared prompts — **not** eggs and nests. Those live under
 
 The app is a two-pane workbench:
 
-- **Left: mission list.** Grouped into *Running now*, *Waiting* and *Missions*. Search, filter (all / manual / scheduled / triggered / errors) and sort (name, last run, next run, priority) live in the toolbar. Hover a row for a quick *Run now* button; right-click for the full menu. Arrow keys move the selection, `Enter` jumps into the details, `Del` deletes. Drag the divider to resize the list, or hide it with `Ctrl+B`.
+- **Left: mission list.** Grouped into *Running now*, *Waiting* and *Missions*. Search, filter (all / manual / scheduled / triggered / flows / errors) and sort (name, last run, next run, priority) live in the toolbar. Hover a row for a quick *Run now* button; right-click for the full menu. Arrow keys move the selection, `Enter` jumps into the details, `Del` deletes. Drag the divider to resize the list, or hide it with `Ctrl+B`.
 - **Right: details.** The header shows the mission's state, when it runs and the primary action — *Run now*, *Cancel run* (local missions) or *Remove from queue*. The **Overview** tab shows the task, next/last run, run count, execution settings, the prepared context and the last output (with copy). The **History** tab lists past runs with trigger, duration and result; click a run to read its output. Filter by success, errors or cancelled runs.
 - **Editor.** *New mission* (`Ctrl+N`), *Edit* (`Ctrl+E`) and *Duplicate* (`Ctrl+D`) open the editor in the right pane. It has three sections: *Task* (name, description, active), *When to run* (manual, scheduled with a plain-language schedule builder, or one of the grouped triggers with its settings) and *Execution* (priority, local or remote target, lock, auto-prepare, cheatsheets — collapsed unless in use). Fields with problems are highlighted after the first save attempt and clear as soon as you fix them. Unsaved changes are protected when you switch missions or close the window.
 
 The status bar shows how many missions exist, how many are running or waiting, the next scheduled run and whether live updates are connected. Below 720 px width the app switches to a single pane with a *Back to list* button.
+
+Flows from EasyDrag carry the *EasyDrag* badge; for them **Open in EasyDrag** replaces *Edit*, and **New flow** opens EasyDrag ([Chapter 24](24-easydrag.md)).
 
 Details on triggers, schedules, remote execution and the REST API are in [Missions](11-missions.md).
 

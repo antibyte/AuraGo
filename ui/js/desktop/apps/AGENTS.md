@@ -184,6 +184,93 @@
   and the opt-in `TestDesktopLooperBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
   Backend: `internal/desktop/looper.go`, `internal/server/looper_service.go`.
 
+## EasyDrag
+- Nineteen scripts (`easydrag-*.js` and `easydrag.js`) share `window.EasyDrag` and load in the
+  order of `DESKTOP_APP_ASSETS.easydrag` (`core/module-loader.js`), `easydrag.js` last.
+  `window.EasyDragApp = { render, open, dispose }`; `open` re-routes an existing window by
+  `flowId`/`flow_id` and `runId`/`run_id`, and `{section: 'home'}` (Mission Control's New flow)
+  shows the start page once the editor's `leave()` allowed it.
+- Pure modules (template, model, geometry, start-page preview, shortcut table) run in Node; the
+  template filters mirror `internal/flows`. Every model command is one undo step. Pans and zooms
+  change only `ed.view`, stored per flow on the device (`aurago.easydrag.view.<id>`): the model
+  has no viewport command, so they never bump `model.version`, save, or count as unpublished
+  changes; a document's own `viewport` (old drafts, imports) is kept as it came and not read.
+- State words match Mission Control and the missions page: `state_draft` reads "Not published yet"
+  (never published), `state_inactive` and `home_filter_inactive` read "Paused" (published,
+  switched off; the filter lists only those). "Draft" is the editable version. The MC hint
+  `desktop.mc_flow_cancel_in_easydrag` uses EasyDrag's Stop.
+- The editor follows `flows_changed` for its flow (`flow_id`): `enabled`/`published` re-read the
+  record (`refreshRecord`: chip, Active switch, Run now), `deleted` goes home with a notice
+  (`goneElsewhere`). An event without an id and reason `deleted` or `enabled` is "maybe mine": the
+  record is read again and `FLOW_NOT_FOUND` means deleted. Every delete (editor, start-page card,
+  elsewhere, a broadcast on the start page) calls `core.forgetFlow(id)`, which drops the four
+  per-flow keys (`core.FLOW_KEYS`: emergency copy, view, effects-ok, test-trigger).
+- Run now is off while a published flow is paused (`runNowState`), in the ⋯ menu, the Flow menu
+  and a card's menu, with `disabledHint` (`error_flow_disabled`), a menu-item field the desktop
+  draws as the disabled item's tooltip; a stale click gets the server's 409 `FLOW_DISABLED`.
+- DOM modules get the editor state `ed` and talk over `ed.bus`, never through other modules'
+  DOM. Focus moves synchronously when a popover or dialog opens; `.ed-app [hidden]` forces
+  `display: none`. `ED.canvas.portLabel(t, node, port)` is the one port label.
+- Keyboard model of the canvas: the canvas is one tab stop, the zoom bar follows. Arrow keys move
+  the selection between steps (announced through the live region, `core.announcer`), Enter opens
+  the detail view, Delete/D/Ctrl+D/C act on the selection, Tab adds a step. A card's tool buttons
+  are tab stops only while it is selected (`syncTools`; `tabindex="-1"` otherwise), and
+  `.ed-node:focus-within` shows a focused tool's toolbar. Tab on the canvas opens quick-add, so
+  the zoom bar and a selected card's tools are reached with Shift+Tab from the footer. Every tool
+  has a key as well: D (off/on), Ctrl+D (duplicate), Del (delete); Test step sits in the detail
+  view (Enter). The screen-reader step list (`.ed-node-list`) duplicates the arrow keys, so its
+  buttons are `tabindex="-1"`: it serves a screen reader's browse mode, not Tab. With 5 steps
+  and no selection the canvas has 5 tab stops (the browser smoke test counts them). Screen
+  changes move the focus: leaving the run view to the canvas, the start page to New flow and then
+  to the card of the flow just left (not for Mission Control's New flow or the templates link),
+  the shell's error card to Retry.
+- Strings: `easydrag.ui.*` in `ui/lang/easydrag/<16>.json` (shared with the server's catalog
+  keys); built keys (`core.tr`) belong to a family of `TestEasyDragUIKeysExistInAllLocales`.
+- `createApi` (`easydrag-core.js`) errors carry `err.body.code`, shown as
+  `easydrag.ui.error_<code>`. SSE (`/runs/{id}/events?after=<seq>`) is idempotent and
+  reconnects at once on `event: resync`.
+- Test effects (`ED.runs.effects`): each step that runs counts with its catalog effects (default
+  params) and those of its real params from `GET publish-preview` (`CollectEffects`). Without
+  the preview, or with a running step whose catalog entry is risky without effects (a failed
+  effects hook), the dialog says so and never starts silently; an edit after the flush is checked
+  again before Run. A step test counts what the engine runs (`engine_state.go` `run`,
+  `fireTrigger`, `collectReady`); keep the two in step.
+- Runs that have not ended (`ED.runs.isActive`) get Stop in the drawer and the run-view banner
+  (`runs.stopRun`: any run but a test asks first, 409 `FLOW_RUN_FINISHED` refreshes quietly, a
+  run no stream here shows is asked for after 1 to 16 s); `run_finished` refreshes both
+  (`runs.runFinished`: 250 ms, at most 1 s). The secret field deletes the chosen secret and warns
+  with `used_by`.
+- Saver: 1 s after the last change; network errors, 5xx, 429 and `FLOWS_DISABLED` go `offline`
+  (retry 5 s, doubling to 60 s), `PERMANENT_CODES` and a 4xx without a code go `failed` (a retry
+  button), `FLOW_INVALID` waits for the next change. The emergency copy is written at most once
+  per 500 ms while changes keep coming (a drag); a held-back change is written by a later change,
+  `saver.flushCopy()` (the interact bus event `gesture-end`, `pagehide`, a `visibilitychange`
+  to hidden), the next save, `flush()`, `dispose()`, and at the latest by a trailing write
+  500 ms later, so a crash loses less than 500 ms; never once the draft is saved. Model change
+  sets and `model.node` look ids up in Maps (`node` rebuilds its Map after each write of the
+  node list); `test-easydrag-extra5.mjs` guards a 200-step drag and the 100-to-400-step scaling.
+- Run view: `ed.model` is the stored run's document there, `ed.draftModel` always the draft. The
+  hints (`publish.refreshIssues`) validate the draft, wait while the run view shows and run again
+  on exit; a live run that starts meanwhile is parked (`runs.attach`) and followed on exit.
+- Dialog holds (`holdAction`, a 429's Retry-After) are kept per button and end when the dialog
+  closes; a tree drag's document listeners (`dragend`, `drop`) end with the drag or the next one.
+- Window menus pass canonical keys ("Ctrl+S"); the shell dispatches a `shortcut` item before the
+  editor sees the key, a `shortcutHint` ("?") is only drawn. Mod+S is always prevented in the
+  editor and saves only when no EasyDrag dialog is open.
+- `editor.leave()` aborts a drag, flushes the saver and shares one in-flight promise. Sessions
+  and notification contexts keep `flowId` only when it matches `^flow_[a-z0-9]{10}$`.
+- Opening: a stored view `{cx, cy, zoom}` per flow (editors wider than 560 px), else the readable
+  fit (zoom ≥ 0.8, trigger first); below zoom 0.7 cards show labels only. Under 900 px the
+  palette floats over the canvas; the run view keeps it hidden and inert.
+- Other surfaces: Mission Control (`MissionControlTriggers.isFlow`/`isUnpublishedFlow`/
+  `upcomingRun`), `ui/js/missions/main.js`, `ui/cfg/flows.js` and the dashboard's cron list
+  (`managed_by: easydrag`). User docs: manual chapter 24.
+- Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra5.mjs`),
+  `npm run test:mission-control`, `npm run test:dashboard-cron`, `npm run test:missions-page`,
+  `go test ./ui -run 'EasyDrag|MissionControlShowsFlow|StandaloneMissionsPage'` and the opt-in
+  `TestDesktopEasyDragBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`, screenshots in
+  `reports/easydrag/`). Backend: `internal/flows`, `internal/server/flows_*.go`.
+
 ## Purpose
 
 This subtree owns built-in virtual desktop app modules that are loaded lazily by
@@ -792,8 +879,9 @@ buttons and menu popovers remain excluded from those gestures.
   otherwise beat the UA hidden default; keep the stylesheet theme-native
   (`--vd-theme-*`, `--vd-accent`) and free of dark-only literals.
 - Verify with `go test ./ui -run 'MissionControl|RelTime'`,
-  `node scripts/test-mission-control-schedule.mjs` and the opt-in
-  `TestDesktopMissionControlBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
+  `npm run test:mission-control` (schedule, plus flow missions on a stub DOM in
+  `scripts/test-mission-control-flows.mjs`), `npm run test:dashboard-cron` and
+  the opt-in `TestDesktopMissionControlBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
 
 ### App theme bridge contract
 
@@ -1977,6 +2065,8 @@ registration lives in `internal/desktop/types.go`.
 - `go test ./ui/ -run 'TestDesktopMissionControl|TestMissionControlDispose'`
 - `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopMissionControlBrowser -count=1`
 - `node scripts/test-mission-control-schedule.mjs`
+- `node scripts/test-mission-control-flows.mjs` (or `npm run test:mission-control` for both)
+- `node scripts/test-dashboard-cronjobs.mjs` (`npm run test:dashboard-cron`)
 - `go test ./ui/ -run TestDesktopFileManagerTemplateI18n`
 - `go test ./ui/ -run TestDesktopWidgetDisplayTitle`
 - `go test ./ui/ -run 'LineBudget|GalaxaMode|DesktopAppAssets|AdaptiveMusic'`

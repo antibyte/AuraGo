@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/flows"
 	"aurago/internal/tools"
 	"context"
 	"encoding/json"
@@ -73,6 +74,15 @@ func missionPayloads(mgr *tools.MissionManagerV2, missions []*tools.MissionV2) [
 func missionErrorStatus(err error) int {
 	if err == nil {
 		return http.StatusInternalServerError
+	}
+	// Flow missions (run now, trigger) pass the flow service's errors through.
+	switch {
+	case errors.Is(err, tools.ErrFlowsUnavailable), errors.Is(err, flows.ErrRunnerClosed):
+		return http.StatusServiceUnavailable
+	case errors.Is(err, flows.ErrNoTrigger), errors.Is(err, flows.ErrNotPublished):
+		return http.StatusConflict
+	case errors.Is(err, flows.ErrQueueFull):
+		return http.StatusTooManyRequests
 	}
 	msg := err.Error()
 	switch {
@@ -391,6 +401,12 @@ func handleMissionRemoveFromQueue(s *Server, w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(map[string]string{"status": "removed"})
 }
 
+// flowNoActiveRunCode is the code of the 409 a flow mission's cancel answers when there is no
+// live run to cancel here: the mission is not running (CancelCheck), so runs that wait for a
+// global slot are cancelled in EasyDrag, or the flow has no live run at all. Mission Control
+// shows a hint for this code only; the flow mission's other errors carry their flows API code.
+const flowNoActiveRunCode = "FLOW_NO_ACTIVE_RUN"
+
 // handleMissionCancelV2 cancels the running local run of a mission. The run
 // itself is owned by the sync chat handler; we only cancel its registered
 // context and let the mission callback record the cancelled result.
@@ -400,7 +416,48 @@ func handleMissionCancelV2(s *Server, w http.ResponseWriter, r *http.Request, id
 		return
 	}
 	if err := s.MissionManagerV2.CancelCheck(id); err != nil {
+		if errors.Is(err, tools.ErrMissionNotRunning) {
+			if mission, ok := s.MissionManagerV2.Get(id); ok && mission.ExecutionType == tools.ExecutionFlow {
+				flowsError(w, http.StatusConflict, flowNoActiveRunCode, err.Error())
+				return
+			}
+		}
 		jsonError(w, err.Error(), missionErrorStatus(err))
+		return
+	}
+	// Get returns a copy and releases the manager's lock, so CancelMissionRuns runs without
+	// it: it reports runs that never started to Mission Control (FlowRunFinished) on this
+	// goroutine, and that takes the manager's lock.
+	if mission, ok := s.MissionManagerV2.Get(id); ok && mission.ExecutionType == tools.ExecutionFlow {
+		if s.Flows == nil {
+			flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", tools.ErrFlowsUnavailable.Error())
+			return
+		}
+		// Detached: a client that goes away must not end the lookup half-way and get a
+		// cancel reported as failed. Bounded: the lookup is one indexed query.
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
+		defer cancel()
+		n, err := s.Flows.CancelMissionRuns(ctx, id)
+		switch {
+		case errors.Is(err, flows.ErrNotFound):
+			flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "the flow of this mission does not exist")
+			return
+		case errors.Is(err, flows.ErrMissionAmbiguous):
+			flowsError(w, http.StatusConflict, "FLOW_MISSION_AMBIGUOUS", "several flows hold this mission; cancel their runs in EasyDrag")
+			return
+		case err != nil:
+			s.Logger.Warn("Flow runs of a mission could not be cancelled", "mission_id", id,
+				"error", flowBoundRunes(err.Error(), flowErrorRunes))
+			flowsError(w, http.StatusInternalServerError, "FLOW_INTERNAL", "the flow runs could not be cancelled")
+			return
+		case n == 0:
+			// CancelMissionRuns cancels waiting and queued live runs too, so none is left.
+			flowsError(w, http.StatusConflict, flowNoActiveRunCode, "mission run cannot be cancelled yet")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "cancelling"})
 		return
 	}
 	if !s.missionRunTracker().cancel(id) {
@@ -502,8 +559,14 @@ func handleMissionPrepare(s *Server, w http.ResponseWriter, r *http.Request, id 
 	}
 
 	// Verify mission exists
-	if _, ok := s.MissionManagerV2.Get(id); !ok {
+	mission, ok := s.MissionManagerV2.Get(id)
+	if !ok {
 		jsonError(w, "Mission not found", http.StatusNotFound)
+		return
+	}
+	// A flow mission has no prompt to prepare: EasyDrag owns it.
+	if mission.ExecutionType == tools.ExecutionFlow {
+		jsonError(w, tools.ErrFlowMissionManaged.Error(), http.StatusBadRequest)
 		return
 	}
 

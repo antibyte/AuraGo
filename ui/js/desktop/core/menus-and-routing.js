@@ -420,8 +420,9 @@
             const actionKey = path.concat(String(item.id || index)).join('/');
             const icon = `<span class="vd-context-icon">${iconMarkup(item.icon || 'tools', item.fallback || item.icon || '', 'vd-context-papirus-icon', 16)}</span>`;
             const label = `<span class="vd-context-label">${esc(item.label)}</span>`;
-            const shortcut = contextMenuShortcutMarkup(item.shortcut || '');
-            const disabled = item.disabled ? 'disabled' : '';
+            const shortcut = contextMenuShortcutMarkup(item.shortcut || item.shortcutHint || '');
+            // disabledHint says why a disabled item is off; it is drawn as the item's tooltip.
+            const disabled = item.disabled ? 'disabled' + (item.disabledHint ? ` title="${esc(item.disabledHint)}"` : '') : '';
             const submenuItems = normalizeContextMenuItems(item.items || item.children || []);
             if (submenuItems.length) {
                 return `<div class="vd-context-submenu" role="none">
@@ -1291,6 +1292,9 @@
         return translated && translated !== key ? translated : fallback;
     }
 
+    // A menu item's shortcut is drawn and dispatched by handleWindowMenuShortcut before the app
+    // sees the key. shortcutHint is only drawn: the app handles that key itself. disabledHint
+    // says why a disabled item is off (the item's tooltip).
     function normalizeWindowMenuItems(items, menuId, actions, path) {
         return (Array.isArray(items) ? items : []).map((item, index) => {
             if (!item || item.hidden) return null;
@@ -1306,6 +1310,8 @@
                 icon: item.icon || '',
                 fallback: item.fallback || '',
                 shortcut: item.shortcut || '',
+                shortcutHint: item.shortcutHint || '',
+                disabledHint: item.disabledHint || '',
                 disabled: typeof item.disabled === 'function' ? !!item.disabled() : !!item.disabled,
                 checked: typeof item.checked === 'function' ? !!item.checked() : !!item.checked,
                 actionKey: ''
@@ -1375,8 +1381,10 @@
                     <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(item.items)}</div>
                 </div>`;
             }
-            return `<button type="button" class="vd-window-menu-item${checked}" role="menuitem" data-menu-action="${esc(item.actionKey)}" ${disabled}>
-                ${icon}<span>${label}</span>${item.shortcut ? `<kbd>${esc(item.shortcut)}</kbd>` : '<kbd></kbd>'}
+            const keys = item.shortcut || item.shortcutHint;
+            const hint = disabled && item.disabledHint ? ` title="${esc(item.disabledHint)}"` : '';
+            return `<button type="button" class="vd-window-menu-item${checked}" role="menuitem" data-menu-action="${esc(item.actionKey)}" ${disabled}${hint}>
+                ${icon}<span>${label}</span>${keys ? `<kbd>${esc(keys)}</kbd>` : '<kbd></kbd>'}
             </button>`;
         }).join('');
     }
@@ -1857,12 +1865,22 @@ if (appId === 'pixel') {
                 return window.PetPickerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, notify: showDesktopNotification }));
             }
         }
+        if (appId === 'easydrag' && window.EasyDragApp && typeof window.EasyDragApp.render === 'function') {
+            return window.EasyDragApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, api, t, iconMarkup, notify: showDesktopNotification,
+                readonly: desktopReadonly(), openApp, updateWindowContext,
+                setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
+                confirmDialog, promptDialog,
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                isActive: () => state.activeWindowId === id
+            }));
+        }
         if (appId === 'mission-control' && window.MissionControlApp && typeof window.MissionControlApp.render === 'function') {
             return window.MissionControlApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, api, t, iconMarkup, notify: showDesktopNotification,
                 readonly: desktopReadonly(), loadBootstrap, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
-                confirmDialog, promptDialog,
+                confirmDialog, promptDialog, openApp,
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));

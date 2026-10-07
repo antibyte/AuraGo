@@ -1,0 +1,18 @@
+{
+  "config.flows.agent_allow_publish": "Agent darf Flows veröffentlichen",
+  "config.flows.agent_note": "Die Agenten-Optionen greifen, sobald der Agent mit Flows arbeiten kann.",
+  "config.flows.agent_read_only": "Agent darf Flows nur lesen",
+  "config.flows.ai_provider": "KI-Anbieter für KI-Schritte",
+  "config.flows.ai_provider_help": "KI-Schritte, die auf „Standardmodell“ stehen, nutzen diesen Anbieter.",
+  "config.flows.ai_provider_main": "Hauptmodell",
+  "config.flows.enabled": "Flows aktivieren",
+  "config.flows.intro": "Flows laufen an der Warteschlange des Agenten vorbei. Diese Grenzen schützen den Server.",
+  "config.flows.max_parallel_nodes_per_run": "Gleichzeitige Schritte pro Lauf (1–16)",
+  "config.flows.max_parallel_runs": "Gleichzeitige Läufe (1–32)",
+  "config.flows.max_runs_per_flow": "Gespeicherte Läufe pro Flow (10–5000)",
+  "config.flows.missions_off": "Missionen sind ausgeschaltet. Flows brauchen Missionen, um zu laufen.",
+  "config.flows.open": "EasyDrag öffnen",
+  "config.flows.run_retention_days": "Laufhistorie aufbewahren (Tage, 1–365)",
+  "config.section.flows.desc": "Visuelle Automationen aus der EasyDrag-App",
+  "config.section.flows.label": "EasyDrag-Flows"
+}

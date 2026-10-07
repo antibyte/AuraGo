@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -222,6 +223,7 @@ type notificationArgs struct {
 	Title    string
 	Message  string
 	Priority string
+	FilePath string
 }
 
 type cydDisplayArgs struct {
@@ -242,10 +244,14 @@ type emailFetchArgs struct {
 }
 
 type emailSendArgs struct {
-	Account string
-	To      string
-	Subject string
-	Body    string
+	Account     string
+	To          string
+	Subject     string
+	Body        string
+	Attachments []string
+	// AttachmentsErr is set when the attachments argument is not a list of paths (see
+	// toolArgPathList). The send_email dispatch refuses the call with it, after its gates.
+	AttachmentsErr error
 }
 
 type sendMediaArgs struct {
@@ -282,6 +288,76 @@ func toolArgStringSlice(args map[string]interface{}, keys ...string) []string {
 		}
 	}
 	return nil
+}
+
+// toolArgPathList reads a list of file paths the way models send it: a JSON array, one path
+// as a plain string, or a JSON array encoded as a string ("[\"a.pdf\"]"). Items are trimmed
+// and empty ones dropped; a missing, null, empty or all-empty argument is no list and no
+// error. A string that starts with "[" and ends with "]" but is no JSON array is one path.
+//
+// Unlike toolArgStringSlice, which skips items that are not strings, an item that is not a
+// string is an error. A skipped item would send the message without a file the caller
+// named, and a converted one (the number 5 as "5") could name another file than the model
+// meant. The error names the key, the position and the JSON type of the item, never its
+// value.
+func toolArgPathList(args map[string]interface{}, key string) ([]string, error) {
+	raw, ok := args[key]
+	if !ok || raw == nil {
+		return nil, nil
+	}
+	var items []interface{}
+	switch v := raw.(type) {
+	case string:
+		text := strings.TrimSpace(v)
+		var decoded []interface{}
+		if strings.HasPrefix(text, "[") && strings.HasSuffix(text, "]") && json.Unmarshal([]byte(text), &decoded) == nil {
+			items = decoded
+		} else {
+			items = []interface{}{text}
+		}
+	case []string:
+		items = make([]interface{}, len(v))
+		for i, s := range v {
+			items[i] = s
+		}
+	case []interface{}:
+		items = v
+	default:
+		return nil, fmt.Errorf("%s must be a list of file paths, not %s", key, toolArgJSONType(raw))
+	}
+	paths := make([]string, 0, len(items))
+	for i, item := range items {
+		s, ok := item.(string)
+		if !ok {
+			return nil, fmt.Errorf("%s item %d must be a file path string, not %s", key, i+1, toolArgJSONType(item))
+		}
+		if s = strings.TrimSpace(s); s != "" {
+			paths = append(paths, s)
+		}
+	}
+	if len(paths) == 0 {
+		return nil, nil
+	}
+	return paths, nil
+}
+
+// toolArgJSONType names the JSON type of a decoded argument for an error message.
+func toolArgJSONType(v interface{}) string {
+	switch v.(type) {
+	case nil:
+		return "null"
+	case string:
+		return "a string"
+	case bool:
+		return "a boolean"
+	case float64, float32, int, int32, int64, json.Number:
+		return "a number"
+	case []interface{}, []string:
+		return "a list"
+	case map[string]interface{}:
+		return "an object"
+	}
+	return "an unsupported value"
 }
 
 func toolArgStringMap(args map[string]interface{}, keys ...string) map[string]string {
@@ -736,7 +812,23 @@ func decodeNotificationArgs(tc ToolCall) notificationArgs {
 func decodeSendTelegramArgs(tc ToolCall) notificationArgs {
 	req := decodeNotificationArgs(tc)
 	req.Channel = "telegram"
+	req.FilePath = sendTelegramFilePath(tc)
 	return req
+}
+
+// sendTelegramFilePath returns the file of a send_telegram: only file_path names it. The
+// file_path parameter wins; the FilePath field counts only when it came from file_path
+// itself (its JSON field, a native call, or the text-format parser with FilePathParam
+// "file_path"). The text-format parser also fills it from path, filepath, filename and
+// file (FilePathParam), so such a stray argument neither sends a file nor fails the call.
+func sendTelegramFilePath(tc ToolCall) string {
+	if path := toolArgString(tc.Params, "file_path"); path != "" {
+		return path
+	}
+	if tc.FilePathParam != "" && tc.FilePathParam != "file_path" {
+		return ""
+	}
+	return tc.FilePath
 }
 
 func decodeEmailFetchArgs(tc ToolCall) emailFetchArgs {
@@ -748,12 +840,14 @@ func decodeEmailFetchArgs(tc ToolCall) emailFetchArgs {
 }
 
 func decodeEmailSendArgs(tc ToolCall) emailSendArgs {
-	return emailSendArgs{
+	req := emailSendArgs{
 		Account: firstNonEmptyToolString(tc.Account, toolArgString(tc.Params, "account")),
 		To:      firstNonEmptyToolString(tc.To, toolArgString(tc.Params, "to")),
 		Subject: firstNonEmptyToolString(tc.Subject, toolArgString(tc.Params, "subject")),
 		Body:    firstNonEmptyToolString(tc.Body, tc.Content, toolArgString(tc.Params, "body", "content")),
 	}
+	req.Attachments, req.AttachmentsErr = toolArgPathList(tc.Params, "attachments")
+	return req
 }
 
 func decodeSendMediaArgs(tc ToolCall) sendMediaArgs {

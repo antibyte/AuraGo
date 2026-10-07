@@ -1,0 +1,18 @@
+{
+  "config.flows.agent_allow_publish": "El agente puede publicar flujos",
+  "config.flows.agent_note": "Las opciones del agente se aplicarán cuando el agente pueda trabajar con flujos.",
+  "config.flows.agent_read_only": "El agente solo puede leer flujos",
+  "config.flows.ai_provider": "Proveedor de IA para pasos de IA",
+  "config.flows.ai_provider_help": "Los pasos de IA configurados con «Modelo predeterminado» usan este proveedor.",
+  "config.flows.ai_provider_main": "Modelo principal",
+  "config.flows.enabled": "Activar flujos",
+  "config.flows.intro": "Los flujos se ejecutan fuera de la cola del agente. Estos límites protegen el servidor.",
+  "config.flows.max_parallel_nodes_per_run": "Pasos simultáneos por ejecución (1–16)",
+  "config.flows.max_parallel_runs": "Ejecuciones simultáneas (1–32)",
+  "config.flows.max_runs_per_flow": "Ejecuciones guardadas por flujo (10–5000)",
+  "config.flows.missions_off": "Las misiones están desactivadas. Los flujos necesitan misiones para ejecutarse.",
+  "config.flows.open": "Abrir EasyDrag",
+  "config.flows.run_retention_days": "Conservar historial de ejecuciones (días, 1–365)",
+  "config.section.flows.desc": "Automatizaciones visuales de la app EasyDrag",
+  "config.section.flows.label": "Flujos de EasyDrag"
+}

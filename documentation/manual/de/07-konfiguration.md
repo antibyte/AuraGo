@@ -566,6 +566,7 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `treg` | treg-Katalog-Gateway (drei Agent-Tools) | `treg:`<br>`  enabled: false`<br>`  readonly: true`<br>`  max_call_cost_micro: 1000000`<br>`  allowed_endpoints: []` |
 | `model_catalog` | Gebündelter Provider-/Modellkatalog für UI und Fähigkeitserkennung | `model_catalog:`<br>`  enabled: true`<br>`  disabled_providers: []`<br>`  catalog_only_visible: true` |
 | `detective` | Gebundene Desktop-Recherchen (Intensitätsprofile) | `detective:`<br>`  enabled: true`<br>`  readonly: false`<br>`  profiles:`<br>`    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}` |
+| `flows` | Visuelle EasyDrag-Flows: Missionen mit eigener Engine ([Kapitel 11](11-missions.md#flow-missionen-easydrag)). Grenzen: Läufe 1–32, Zweige pro Lauf 1–16, Aufbewahrung 1–365 Tage, 10–5000 Läufe pro Flow; `ai_provider` leer = Hauptmodell. Änderungen an `enabled` oder einer Grenze brauchen einen Neustart. | `flows:`<br>`  enabled: true`<br>`  max_parallel_runs: 8`<br>`  max_parallel_nodes_per_run: 4`<br>`  run_retention_days: 30`<br>`  max_runs_per_flow: 200`<br>`  ai_provider: ""` |
 
 > 📖 Für Details zu allen verfügbaren Parametern siehe `config_template.yaml` im Projektverzeichnis.
 
@@ -855,6 +856,7 @@ Für Headless und GitOps. Alltag bleibt **Menü → Config**. Die Quelle der Wah
 | `virtual_computers` | Boring Computers, optional Managed Garage |
 | `network_shares` / `workspace_search` | Host-Freigaben, Workspace-Index |
 | `llm_router` / `newspaper` / `treg` | Task-Router, Tageszeitung, treg-Katalog |
+| `flows` | EasyDrag-Flows (Missionen mit eigener Engine) |
 | `mcp` / `mcp_server` / `a2a` | Externe Protokolle |
 | `security_proxy` / `cloudflare_tunnel` / `tailscale` | Öffentlicher Zugang |
 | `egg_mode` / `invasion_control` | Worker und Master |

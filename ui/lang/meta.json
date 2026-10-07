@@ -150,6 +150,10 @@
   "help.fallback_llm.provider": {
     "provider_ref": true
   },
+  "help.flows.ai_provider": {
+    "provider_ref": true,
+    "empty_label_key": "config.flows.ai_provider_main"
+  },
   "help.agent.core_memory_cap_mode": {
     "options": [
       "soft",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"aurago/internal/config"
@@ -16,6 +17,54 @@ type emailContentEvaluator interface {
 }
 
 const emailGuardianWorkerLimit = 4
+
+// logTextRunes bounds the model-supplied text (account, recipient, subject, title, file
+// names) that a send_email or send_telegram log line or error repeats.
+const logTextRunes = 200
+
+// emailLoggedAttachments is how many attachment names a delivered send_email logs.
+const emailLoggedAttachments = 6
+
+// emailSentResult is the result of a delivered send_email. A mail with attachments says how
+// many went with it, and its log line names them, so that an incident can be traced.
+func emailSentResult(logger *slog.Logger, accountID, to string, files []tools.EmailAttachment) string {
+	message := fmt.Sprintf("Email sent to %s via account %s", to, accountID)
+	if len(files) > 0 {
+		message += fmt.Sprintf(" with %d attachment(s)", len(files))
+		logger.Info("send_email delivered", "account", accountID, "attachments", len(files), "files", emailAttachmentNames(files))
+	}
+	return "Tool Output: " + tools.EncodeEmailResult(tools.EmailResult{Status: "success", Message: message})
+}
+
+// emailAttachmentNames lists the base names of sent attachments for the log, at most
+// emailLoggedAttachments of them, each cut to logTextRunes, so a file that left AuraGo can be
+// traced to its name.
+func emailAttachmentNames(files []tools.EmailAttachment) string {
+	names := make([]string, 0, emailLoggedAttachments)
+	for _, f := range files[:min(len(files), emailLoggedAttachments)] {
+		names = append(names, boundedRunes(f.Name, logTextRunes))
+	}
+	if len(files) > emailLoggedAttachments {
+		names = append(names, fmt.Sprintf("+%d more", len(files)-emailLoggedAttachments))
+	}
+	return strings.Join(names, ", ")
+}
+
+// boundedRunes returns s cut to at most maxRunes runes, with an ellipsis when it was cut.
+// It walks s once and allocates nothing for the cut, so a huge argument costs no copy.
+func boundedRunes(s string, maxRunes int) string {
+	if len(s) <= maxRunes {
+		return s
+	}
+	n := 0
+	for i := range s {
+		if n == maxRunes {
+			return s[:i] + "…"
+		}
+		n++
+	}
+	return s
+}
 
 func sanitizeFetchedEmails(ctx context.Context, logger *slog.Logger, guardian *security.Guardian, llmGuardian emailContentEvaluator, scanEmails bool, messages []tools.EmailMessage) []tools.EmailMessage {
 	if len(messages) == 0 {
@@ -150,7 +199,7 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		if req.Account != "" {
 			acct = cfg.FindEmailAccount(req.Account)
 			if acct == nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' not found. Use list_email_accounts to see available accounts."}`, req.Account), true
+				return toolErrorf("Email account '%s' not found. Use list_email_accounts to see available accounts.", boundedRunes(req.Account, logTextRunes)), true
 			}
 		} else {
 			acct = cfg.DefaultEmailAccount()
@@ -159,32 +208,53 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 			return `Tool Output: {"status": "error", "message": "No active email account configured. Enable an account in Settings > Email."}`, true
 		}
 		if acct.Disabled {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' is disabled. Enable it in Settings > Email."}`, acct.ID), true
+			return toolErrorf("Email account '%s' is disabled. Enable it in Settings > Email.", acct.ID), true
 		}
 		if acct.ReadOnly {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' is read-only. Enable sending in Settings > Email."}`, acct.ID), true
+			return toolErrorf("Email account '%s' is read-only. Enable sending in Settings > Email.", acct.ID), true
 		}
 		to := req.To
 		if to == "" {
 			return `Tool Output: {"status": "error", "message": "'to' (recipient address) is required"}`, true
+		}
+		// Every gate above has passed. Only now are the recipients validated, an attachment
+		// argument judged and a file opened, so a refused call never touches the file system and
+		// a recipient the senders would refuse costs no attachment read.
+		if err := tools.CheckEmailRecipients(to); err != nil {
+			return toolErrorJSON(err.Error()), true
+		}
+		if req.AttachmentsErr != nil {
+			return toolErrorJSON(req.AttachmentsErr.Error()), true
 		}
 		subject := req.Subject
 		if subject == "" {
 			subject = "(no subject)"
 		}
 		body := req.Body
-		logger.Info("LLM requested email send", "account", acct.ID, "to", to, "subject", subject)
+		logger.Info("LLM requested email send", "account", acct.ID, "to", boundedRunes(to, logTextRunes),
+			"subject", boundedRunes(subject, logTextRunes), "attachments", len(req.Attachments))
 		var sendErr error
-		if acct.SMTPPort == 465 {
+		var files []tools.EmailAttachment
+		if len(req.Attachments) > 0 {
+			var err error
+			files, err = tools.LoadEmailAttachments(cfg, req.Attachments)
+			if err != nil {
+				return "Tool Output: " + tools.EncodeEmailResult(tools.EmailResult{Status: "error", Message: err.Error()}), true
+			}
+			if acct.SMTPPort == 465 {
+				sendErr = tools.SendEmailTLSWithAttachments(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, files, logger)
+			} else {
+				sendErr = tools.SendEmailWithAttachments(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, files, logger)
+			}
+		} else if acct.SMTPPort == 465 {
 			sendErr = tools.SendEmailTLS(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, logger)
 		} else {
 			sendErr = tools.SendEmail(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, logger)
 		}
 		if sendErr != nil {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "SMTP send failed (%s): %v"}`, acct.ID, sendErr), true
+			return toolErrorf("SMTP send failed (%s): %v", acct.ID, sendErr), true
 		}
-		result := tools.EmailResult{Status: "success", Message: fmt.Sprintf("Email sent to %s via account %s", to, acct.ID)}
-		return "Tool Output: " + tools.EncodeEmailResult(result), true
+		return emailSentResult(logger, acct.ID, to, files), true
 
 	case "list_email_accounts":
 		if len(cfg.EmailAccounts) == 0 {

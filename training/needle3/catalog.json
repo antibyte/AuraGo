@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "catalog_sha256": "e61d9ddc211d9746f4f8a2b9b2406e8aee510777033020a2baf9dcaefed32cd3",
+  "catalog_sha256": "fa5f308178f5d1f176ce29e8a77de21477325d28cdcf02cca85f774574e2d7d9",
   "sources": {
     "prompts/tools_manuals/activate_agent_skill.md": "1cd868f578936cbaaa313ffad3aeb33bcb40e6fa39d5410f578d2246e1da4620",
     "prompts/tools_manuals/address_book.md": "e293e5e4593960f04000ded38ac04eb625b194a6672372d085d8ec294aacc509",
@@ -11,7 +11,7 @@
     "prompts/tools_manuals/agentmail_threads.md": "f51c59f75092944d282dce8320c9291e999db087d29456df545fad855ced0398",
     "prompts/tools_manuals/analyze_image.md": "0c6ab1c3f5dfd78ae8aaa947bd9ce41f405645dd4124a083a507e5d8f0654899",
     "prompts/tools_manuals/ansible.md": "32239d2e394affff58cd3b392688bbf70f30c9bd9194b55746eae1467def935c",
-    "prompts/tools_manuals/api_request.md": "572c9f26f08728af470c46b8ad38a05211676e4b4fd788989a0f278075ded517",
+    "prompts/tools_manuals/api_request.md": "ba895ffaa04dc9402a324e3d21062566ad555466f42730e4f469e3dc8a545100",
     "prompts/tools_manuals/archive.md": "863cef499bce2519624301facb95041ba47c5d6364e34284f8233ebd520116ad",
     "prompts/tools_manuals/bluetooth.md": "bf038fb6278cb3e4cc1a58277a9fb7c5afef86668164e3249b4a7dce20c6ef51",
     "prompts/tools_manuals/browser_automation.md": "bd9bb25fd0e7b0b92471c7a29c714a528ca9fadbffafbc72a20cb77d2173ee23",
@@ -24,7 +24,7 @@
     "prompts/tools_manuals/context_manager.md": "f0ff64daa5e8380a6182e95a1b32e4d29826f2878e11d8ffb6031e931788d67f",
     "prompts/tools_manuals/context_memory.md": "d147d09f5a476a04d9309cc5db2573b2aa8be48b79cd903be7f1a3003bab46a6",
     "prompts/tools_manuals/core_memory.md": "552667d084028988e0ad4c399a898b95849bdbfea4a6d50aafc645b4f6245e31",
-    "prompts/tools_manuals/cron_scheduler.md": "9fed12f41fe210d610ba46971633e3fb8cbf4a379513cfcf8d7ee12db9ee93ff",
+    "prompts/tools_manuals/cron_scheduler.md": "e310e196824f0a8d9293a0f9feabf16c3cd9f73e3a68491c24bdf99614e4d0a9",
     "prompts/tools_manuals/cyd_display.md": "0d78fabf958c04b353afd41351d7bd7cc92ac4f5606a940ca92878cd1fb6f90e",
     "prompts/tools_manuals/ddg_search.md": "f2b1e00510e247fcc91de4202619e4d389fdbe39a47d226cd1477fa0f697ed95",
     "prompts/tools_manuals/desktop_notes.md": "4b0d03e9982e7ec380bc73171235fc20c95082ddd4805c9cf06b19280dc40f3c",
@@ -33,8 +33,8 @@
     "prompts/tools_manuals/discover_tools.md": "b54abc0927f636d90b115bbbb2f138513daaa1c04d8a646a966b68f4e628d4b6",
     "prompts/tools_manuals/dns_lookup.md": "7aa5949bc6747dfc720c9471afd7bd420dce70871d1a1599fa380939f10d0802",
     "prompts/tools_manuals/docker.md": "177504d46b2cf09a37ae41c8fc206bf39b1f55dcd676eed62adb3698dd710c80",
-    "prompts/tools_manuals/document_creator.md": "a71897ad2527b55ee849db8c358f822e7dd8078f3beb6436a893d7220afc5f25",
-    "prompts/tools_manuals/email.md": "1563808dd06e166b9f62b68286385084d5ad9bec9b60e26ed5a8baf4193c9954",
+    "prompts/tools_manuals/document_creator.md": "134999edf54fa495f6b742cb472087ec9e721884518f3d5a2e23a630f32ec32b",
+    "prompts/tools_manuals/email.md": "b7cae7148d00525cbf415168bd894d8b3a1a0a5e2cfbf2d93d85f4bd48f9fdc1",
     "prompts/tools_manuals/evomap.md": "18ad1d54e412b1c55dcf2b5ed5d3fb1c307be7ceda8eebbef67bf01f1b1dda46",
     "prompts/tools_manuals/execute_python.md": "4e5a23d1cbebddffed34dbf47db04d62201fbb58fcbea0d04a30f4cb07f35464",
     "prompts/tools_manuals/execute_shell.md": "1a1054b6c68b4d5c973e2a72d7941ddf9caa14dc514e294d15fabaf53a59646b",
@@ -87,7 +87,7 @@
     "prompts/tools_manuals/manage_appointments.md": "27f788b71c2167b7f2c3d9b90a60c88cd057e82c21f2032be1122a941b95c5de",
     "prompts/tools_manuals/manage_daemon.md": "65cc978d70746e86a16e476786fe5c5cc1b97badcc239f2d4275c8bc8a4d8508",
     "prompts/tools_manuals/manage_journal.md": "36ad5fe009779c5e888861ac5710566b6ce884b278de3e25fcbf62cd92442f3d",
-    "prompts/tools_manuals/manage_missions.md": "0a8891528b1bb5c2984251791a9aedc85c92c19fd50c9058918225e5e90216b8",
+    "prompts/tools_manuals/manage_missions.md": "fbcd9e372479f3f5c15f8408d56bfb612627cc5800f226550274146c7b5532ba",
     "prompts/tools_manuals/manage_notes.md": "d0ac4757313c1cfabbc3b291f0aa38c2e365017676aaa656ca8911dfcf100105",
     "prompts/tools_manuals/manage_plan.md": "99a6a98a5d783fa6ca42b44ee77bf3bf40f009bf2d9e008008b88cf9d9d1e98f",
     "prompts/tools_manuals/manage_sql_connections.md": "6aba434fc076013c0d3304c28d1075b2ff02dad846048c2ac73c7f1ed33cbd0a",
@@ -185,7 +185,7 @@
     "prompts/tools_manuals/xml_editor.md": "70a334eb6e3cb4c798d71ab00e233e75a14bbd41c50398c7a7be4589c6b3077e",
     "prompts/tools_manuals/yaml_editor.md": "3019e5bcda6867a4a5ff6732e690daa77fabc3ab8b1444ef3c8776fce787779b",
     "prompts/tools_manuals/yepapi.md": "da38a9f36c026917a53666302aa3a9b91abec88e0bb86feda62f79b5ff574ca9",
-    "training/operation_contracts.json": "ba81a9213ab2ed1c05a3c9d7e29f5e913ca07dec6ff2a2d1ea1fe7561c1ebb4d",
+    "training/operation_contracts.json": "15fb265f062b82f7e5719afdbd38c4ec0759cd90124f088a2e1a8544b9ac696f",
     "training/tool_tiers.json": "30bbf3e1f29594d9f3774400f59bb0a8848e3a6bd19beba390d59d910e1e040e"
   },
   "tools": [
@@ -9914,6 +9914,13 @@
               "null"
             ]
           },
+          "block_remote_content": {
+            "description": "Blocks remote resources, scripts, meta refresh and connection hints while rendering HTML or Markdown; embed images and fonts as data: URLs, inline CSS works. Recommended for untrusted HTML (default: false). Refused for url_to_pdf, screenshot_url and convert_document",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "content": {
             "description": "HTML content (for html_to_pdf, screenshot_html), Markdown content (for markdown_to_pdf), or text content (for create_pdf without sections)",
             "type": [
@@ -9997,6 +10004,7 @@
         },
         "required": [
           "_todo",
+          "block_remote_content",
           "content",
           "filename",
           "landscape",
@@ -10015,6 +10023,10 @@
           "_todo": {
             "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
             "type": "string"
+          },
+          "block_remote_content": {
+            "description": "Blocks remote resources, scripts, meta refresh and connection hints while rendering HTML or Markdown; embed images and fonts as data: URLs, inline CSS works. Recommended for untrusted HTML (default: false). Refused for url_to_pdf, screenshot_url and convert_document",
+            "type": "boolean"
           },
           "content": {
             "description": "HTML content (for html_to_pdf, screenshot_html), Markdown content (for markdown_to_pdf), or text content (for create_pdf without sections)",
@@ -10079,6 +10091,7 @@
       },
       "required": [
         "_todo",
+        "block_remote_content",
         "content",
         "filename",
         "landscape",
@@ -10094,6 +10107,13 @@
           "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "block_remote_content": {
+          "description": "Blocks remote resources, scripts, meta refresh and connection hints while rendering HTML or Markdown; embed images and fonts as data: URLs, inline CSS works. Recommended for untrusted HTML (default: false). Refused for url_to_pdf, screenshot_url and convert_document",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -60478,6 +60498,16 @@
               "null"
             ]
           },
+          "attachments": {
+            "description": "Optional file paths in the workspace or the documents folder to attach (max 10 files, 20 MB together)",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "body": {
             "description": "Email body (plain text)",
             "type": [
@@ -60500,6 +60530,7 @@
         "required": [
           "_todo",
           "account",
+          "attachments",
           "body",
           "subject",
           "to"
@@ -60516,6 +60547,13 @@
           "account": {
             "description": "Email account ID to send from (omit for default)",
             "type": "string"
+          },
+          "attachments": {
+            "description": "Optional file paths in the workspace or the documents folder to attach (max 10 files, 20 MB together)",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "body": {
             "description": "Email body (plain text)",
@@ -60538,6 +60576,7 @@
       "required": [
         "_todo",
         "account",
+        "attachments",
         "body",
         "subject",
         "to"
@@ -60554,6 +60593,16 @@
           "description": "Email account ID to send from (omit for default)",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "attachments": {
+          "description": "Optional file paths in the workspace or the documents folder to attach (max 10 files, 20 MB together)",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
             "null"
           ]
         },
@@ -60867,6 +60916,13 @@
               "null"
             ]
           },
+          "file_path": {
+            "description": "Optional file in the workspace or the documents folder to send as a document; message and title become its caption",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "message": {
             "description": "Message text to send",
             "type": "string"
@@ -60888,6 +60944,7 @@
         },
         "required": [
           "_todo",
+          "file_path",
           "message",
           "priority",
           "title"
@@ -60899,6 +60956,10 @@
         "properties": {
           "_todo": {
             "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": "string"
+          },
+          "file_path": {
+            "description": "Optional file in the workspace or the documents folder to send as a document; message and title become its caption",
             "type": "string"
           },
           "message": {
@@ -60921,6 +60982,7 @@
       },
       "required": [
         "_todo",
+        "file_path",
         "message",
         "priority",
         "title"
@@ -60928,6 +60990,13 @@
       "properties": {
         "_todo": {
           "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "file_path": {
+          "description": "Optional file in the workspace or the documents folder to send as a document; message and title become its caption",
           "type": [
             "string",
             "null"
@@ -60953,7 +61022,7 @@
         }
       },
       "tier": "rare",
-      "absence_reason": "The native schema documents this single message operation; channel and recipient policy is supplied by the active run.",
+      "absence_reason": "The native schema documents this message operation, including the optional file_path document; channel and recipient policy is supplied by the active run.",
       "contract": {
         "default_arguments": {
           "message": "Example content"
@@ -77932,8 +78001,8 @@
     {
       "id": "api_request",
       "path": "prompts/tools_manuals/api_request.md",
-      "sha256": "572c9f26f08728af470c46b8ad38a05211676e4b4fd788989a0f278075ded517",
-      "body": "---\nid: api_request\ntags: [core]\npriority: 100\nconditions: [\"allow_network_requests\"]\n---\n\n## Tool: API Client (`api_request`)\n\nMake HTTP requests to any API endpoint.\n\n**Supported methods:** GET, POST, PUT, DELETE, PATCH\n**Response cap:** 16 KB | **Timeout:** 30 seconds\n\nFor authenticated APIs, pass an `Authorization` header or retrieve the key via `get_secret` first.\n\n### Local/Internal Safety\n\n`api_request` blocks private, link-local, and loopback addresses by default (SSRF protection). The only local exception is the configured Ollama API base URL (`ollama.url`), and only for Ollama API paths under `/api/` or `/v1/`. Use the configured Ollama URL, normally `http://localhost:11434`, for local Ollama chat/completion calls. Do not use AuraGo's internal loopback port (for example `127.0.0.1:18080`) as an Ollama endpoint.\n\n### Examples\n\n```json\n{\"action\": \"api_request\", \"method\": \"GET\", \"url\": \"https://api.example.com/data\"}\n```\n\n```json\n{\"action\": \"api_request\", \"method\": \"POST\", \"url\": \"https://api.example.com/submit\", \"headers\": {\"Authorization\": \"Bearer sk-xxx\"}, \"content\": \"{\\\"key\\\": \\\"value\\\"}\"}\n```\n",
+      "sha256": "ba895ffaa04dc9402a324e3d21062566ad555466f42730e4f469e3dc8a545100",
+      "body": "---\nid: api_request\ntags: [core]\npriority: 100\nconditions: [\"allow_network_requests\"]\n---\n\n## Tool: API Client (`api_request`)\n\nMake HTTP requests to any API endpoint.\n\n**Supported methods:** GET, POST, PUT, DELETE, PATCH\n**Response cap:** 16 KB | **Timeout:** 30 seconds\n\nFor authenticated APIs, pass an `Authorization` header or retrieve the key via `get_secret` first. Your headers are dropped after a redirect to another host, port or scheme (the result then shows `headers_dropped_on_redirect: true` and `final_url`), so call the final URL directly.\n\n### Local/Internal Safety\n\n`api_request` blocks private, link-local, and loopback addresses by default (SSRF protection). The only local exception is the configured Ollama API base URL (`ollama.url`), and only for Ollama API paths under `/api/` or `/v1/`. Use the configured Ollama URL, normally `http://localhost:11434`, for local Ollama chat/completion calls. Do not use AuraGo's internal loopback port (for example `127.0.0.1:18080`) as an Ollama endpoint.\n\n### Examples\n\n```json\n{\"action\": \"api_request\", \"method\": \"GET\", \"url\": \"https://api.example.com/data\"}\n```\n\n```json\n{\"action\": \"api_request\", \"method\": \"POST\", \"url\": \"https://api.example.com/submit\", \"headers\": {\"Authorization\": \"Bearer sk-xxx\"}, \"content\": \"{\\\"key\\\": \\\"value\\\"}\"}\n```\n",
       "tools": [
         "api_request"
       ],
@@ -78062,8 +78131,8 @@
     {
       "id": "cron_scheduler",
       "path": "prompts/tools_manuals/cron_scheduler.md",
-      "sha256": "9fed12f41fe210d610ba46971633e3fb8cbf4a379513cfcf8d7ee12db9ee93ff",
-      "body": "# Cron Scheduler (`manage_schedule`)\n\nSchedule tasks to run automatically at future times or on recurring intervals. Scheduled tasks send you a message when the task is triggered (task_prompt).\n\n## Cron Expression Format\n\n**This system supports 6-field cron expressions with seconds and also accepts legacy 5-field expressions without seconds:**\n\n```\n┌─────────── second (0-59)\n│ ┌───────── minute (0-59)\n│ │ ┌─────── hour (0-23)\n│ │ │ ┌───── day of month (1-31)\n│ │ │ │ ┌─── month (1-12)\n│ │ │ │ │ ┌─ day of week (0-6, 0=Sunday)\n│ │ │ │ │ │\n* * * * * *\n```\n\n**Common expressions:**\n| Expression | Meaning |\n|-----------|---------|\n| `0 0 9 * * *` | Daily at 09:00:00 |\n| `0 30 14 * * *` | Daily at 14:30:00 |\n| `0 0 6 * * 1` | Every Monday at 06:00 |\n| `0 0 0 1 * *` | First of every month at midnight |\n| `0 */15 * * * *` | Every 15 minutes |\n| `0 0 12 25 3 *` | March 25th at 12:00 |\n\n## Parameters\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `operation` | string | yes | `add`, `remove`, `enable`, `disable`, or `list` |\n| `id` | string | for `remove`, `enable`, `disable`; optional for `add` | Unique task identifier |\n| `cron_expr` | string | for `add` | **5-field or 6-field** cron expression (see format above) |\n| `task_prompt` | string | for `add` | Prompt to execute when the task triggers |\n\n## Examples\n\n```json\n{\"action\": \"manage_schedule\", \"operation\": \"add\", \"id\": \"daily_report\", \"cron_expr\": \"0 0 9 * * *\", \"task_prompt\": \"Generate a daily summary.\"}\n```\n\n```json\n{\"action\": \"manage_schedule\", \"operation\": \"list\"}\n```\n\n```json\n{\"action\": \"manage_schedule\", \"operation\": \"remove\", \"id\": \"daily_report\"}\n```\n\n## Notes\n\n- **Cron format:** Use standard 5-field cron (`*/15 * * * *`) or 6-field cron with seconds first (`0 */15 * * * *`).\n- **Backward compatibility:** Existing 5-field entries still work and are interpreted without an explicit seconds field.\n- **Runtime status:** `list` includes `registered`; `false` means the entry is persisted but not bound to the in-process scheduler. Check `last_error` when present.\n- **One-time vs recurring:** Specific month/day combinations (e.g. `0 0 12 25 3 *`) run annually unless combined with conditions.\n- **Task prompts:** When triggered, the task_prompt is sent as a new message to the agent for execution.\n- **Due date reminders:** For to-do reminders, use `manage_notes` with `due_date` combined with a cron entry for notification timing.\n",
+      "sha256": "e310e196824f0a8d9293a0f9feabf16c3cd9f73e3a68491c24bdf99614e4d0a9",
+      "body": "# Cron Scheduler (`manage_schedule`)\n\nSchedule tasks to run automatically at future times or on recurring intervals. Scheduled tasks send you a message when the task is triggered (task_prompt).\n\n## Cron Expression Format\n\n**This system supports 6-field cron expressions with seconds and also accepts legacy 5-field expressions without seconds:**\n\n```\n┌─────────── second (0-59)\n│ ┌───────── minute (0-59)\n│ │ ┌─────── hour (0-23)\n│ │ │ ┌───── day of month (1-31)\n│ │ │ │ ┌─── month (1-12)\n│ │ │ │ │ ┌─ day of week (0-6, 0=Sunday)\n│ │ │ │ │ │\n* * * * * *\n```\n\n**Common expressions:**\n| Expression | Meaning |\n|-----------|---------|\n| `0 0 9 * * *` | Daily at 09:00:00 |\n| `0 30 14 * * *` | Daily at 14:30:00 |\n| `0 0 6 * * 1` | Every Monday at 06:00 |\n| `0 0 0 1 * *` | First of every month at midnight |\n| `0 */15 * * * *` | Every 15 minutes |\n| `0 0 12 25 3 *` | March 25th at 12:00 |\n\n## Parameters\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `operation` | string | yes | `add`, `remove`, `enable`, `disable`, or `list` |\n| `id` | string | for `remove`, `enable`, `disable`; optional for `add` | Unique task identifier |\n| `cron_expr` | string | for `add` | **5-field or 6-field** cron expression (see format above) |\n| `task_prompt` | string | for `add` | Prompt to execute when the task triggers |\n\n## Examples\n\n```json\n{\"action\": \"manage_schedule\", \"operation\": \"add\", \"id\": \"daily_report\", \"cron_expr\": \"0 0 9 * * *\", \"task_prompt\": \"Generate a daily summary.\"}\n```\n\n```json\n{\"action\": \"manage_schedule\", \"operation\": \"list\"}\n```\n\n```json\n{\"action\": \"manage_schedule\", \"operation\": \"remove\", \"id\": \"daily_report\"}\n```\n\n## Notes\n\n- **Cron format:** Use standard 5-field cron (`*/15 * * * *`) or 6-field cron with seconds first (`0 */15 * * * *`).\n- **Backward compatibility:** Existing 5-field entries still work and are interpreted without an explicit seconds field.\n- **Runtime status:** `list` includes `registered`; `false` means the entry is persisted but not bound to the in-process scheduler. Check `last_error` when present.\n- **One-time vs recurring:** Specific month/day combinations (e.g. `0 0 12 25 3 *`) run annually unless combined with conditions.\n- **Task prompts:** When triggered, the task_prompt is sent as a new message to the agent for execution.\n- **Due date reminders:** For to-do reminders, use `manage_notes` with `due_date` combined with a cron entry for notification timing.\n- **EasyDrag flow schedules:** `list` also shows the schedule jobs of EasyDrag flows (ids like `mission_\u003cmission\u003e__\u003cnode\u003e`). Only `list` works for them; `add`, `remove`, `enable` and `disable` on such an id return a `flow_mission` error. Change a flow's schedule in the EasyDrag app.\n",
       "tools": [
         "cron_scheduler"
       ],
@@ -78154,8 +78223,8 @@
     {
       "id": "document_creator",
       "path": "prompts/tools_manuals/document_creator.md",
-      "sha256": "a71897ad2527b55ee849db8c358f822e7dd8078f3beb6436a893d7220afc5f25",
-      "body": "# Document Creator (`document_creator`)\n\nCreate PDF documents, convert files to PDF, merge PDFs, and take screenshots. Backend is configured in settings: `maroto` (built-in, create_pdf only) or `gotenberg` (Docker sidecar, all operations).\n\n## Operations\n\n| Operation | Description |\n|-----------|-------------|\n| `create_pdf` | Create structured PDF document from sections |\n| `url_to_pdf` | Capture webpage as PDF |\n| `html_to_pdf` | Render HTML content as PDF |\n| `markdown_to_pdf` | Render Markdown as PDF |\n| `convert_document` | Convert Office files to PDF via LibreOffice |\n| `merge_pdfs` | Combine multiple PDFs into one |\n| `screenshot_url` | Capture webpage as image |\n| `screenshot_html` | Render HTML to image |\n| `health` | Check Gotenberg status |\n\n## Parameters\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `operation` | string | yes | One of the operations above |\n| `title` | string | for create_pdf | Document title |\n| `content` | string | for html_to_pdf, screenshot_html, markdown_to_pdf | HTML/Markdown/text content |\n| `url` | string | for url_to_pdf, screenshot_url | URL to capture |\n| `filename` | string | no | Output filename without extension (auto-generated if omitted) |\n| `paper_size` | string | no | Paper size: A4, A3, A5, Letter, Legal, Tabloid |\n| `landscape` | boolean | no | Landscape orientation (default: false) |\n| `sections` | string | for create_pdf | JSON array of sections |\n| `source_files` | string | for merge_pdfs, convert_document | JSON array of file paths |\n\n## Sections Format (create_pdf)\n\nEach section is a JSON object with `type`, `header`, and `body`:\n```json\n[\n  {\"type\": \"text\", \"header\": \"Introduction\", \"body\": \"Document content here...\"},\n  {\"type\": \"table\", \"header\": \"Data\", \"rows\": [[\"Col1\", \"Col2\"], [\"Val1\", \"Val2\"]]},\n  {\"type\": \"list\", \"header\": \"Items\", \"body\": \"Item 1\\nItem 2\\nItem 3\"}\n]\n```\n\n## Examples\n\n**Create a PDF from Markdown:**\n```json\n{\"action\": \"document_creator\", \"operation\": \"markdown_to_pdf\", \"title\": \"My Document\", \"content\": \"# Hello\\n\\nThis is a **bold** statement.\"}\n```\n\n**Capture a webpage as PDF:**\n```json\n{\"action\": \"document_creator\", \"operation\": \"url_to_pdf\", \"url\": \"https://example.com\", \"filename\": \"example-page\"}\n```\n\n**Merge multiple PDFs:**\n```json\n{\"action\": \"document_creator\", \"operation\": \"merge_pdfs\", \"source_files\": \"[\\\"doc1.pdf\\\", \\\"doc2.pdf\\\"]\", \"filename\": \"combined\"}\n```\n\n**Take a screenshot of a webpage:**\n```json\n{\"action\": \"document_creator\", \"operation\": \"screenshot_url\", \"url\": \"https://example.com\", \"filename\": \"screenshot\"}\n```\n\n**Check Gotenberg status:**\n```json\n{\"action\": \"document_creator\", \"operation\": \"health\"}\n```\n\n## Configuration\n\n```yaml\n# Backend selection in settings:\n# - maroto: built-in, create_pdf only\n# - gotenberg: Docker sidecar, all operations\n```\n\n## Notes\n\n- **PDF creation**: Use `create_pdf` for structured documents with sections, `markdown_to_pdf` for simple Markdown content\n- **Web capture**: `url_to_pdf` and `screenshot_url` capture webpages at their current state\n- **Gotenberg**: For full functionality (web capture, Office conversion), enable the Gotenberg Docker sidecar\n- **Output**: Generated files are saved to the media registry and can be accessed via the gallery",
+      "sha256": "134999edf54fa495f6b742cb472087ec9e721884518f3d5a2e23a630f32ec32b",
+      "body": "# Document Creator (`document_creator`)\n\nCreate PDF documents, convert files to PDF, merge PDFs, and take screenshots. Backend is configured in settings: `maroto` (built-in, create_pdf only) or `gotenberg` (Docker sidecar, all operations).\n\n## Operations\n\n| Operation | Description |\n|-----------|-------------|\n| `create_pdf` | Create structured PDF document from sections |\n| `url_to_pdf` | Capture webpage as PDF |\n| `html_to_pdf` | Render HTML content as PDF |\n| `markdown_to_pdf` | Render Markdown as PDF |\n| `convert_document` | Convert Office files to PDF via LibreOffice |\n| `merge_pdfs` | Combine multiple PDFs into one |\n| `screenshot_url` | Capture webpage as image |\n| `screenshot_html` | Render HTML to image |\n| `health` | Check Gotenberg status |\n\n## Parameters\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `operation` | string | yes | One of the operations above |\n| `title` | string | for create_pdf | Document title |\n| `content` | string | for html_to_pdf, screenshot_html, markdown_to_pdf | HTML/Markdown/text content |\n| `url` | string | for url_to_pdf, screenshot_url | URL to capture |\n| `filename` | string | no | Output filename without extension (auto-generated if omitted) |\n| `paper_size` | string | no | Paper size: A4, A3, A5, Letter, Legal, Tabloid |\n| `landscape` | boolean | no | Landscape orientation (default: false) |\n| `sections` | string | for create_pdf | JSON array of sections |\n| `source_files` | string | for merge_pdfs, convert_document | JSON array of file paths |\n| `block_remote_content` | boolean | no | Blocks remote resources, scripts, meta refresh and connection hints while rendering HTML or Markdown (html_to_pdf, markdown_to_pdf, screenshot_html, create_pdf on Gotenberg). Recommended for untrusted HTML. Default: false. See \"Rendering untrusted HTML\" below |\n\n## Sections Format (create_pdf)\n\nEach section is a JSON object with `type`, `header`, and `body`:\n```json\n[\n  {\"type\": \"text\", \"header\": \"Introduction\", \"body\": \"Document content here...\"},\n  {\"type\": \"table\", \"header\": \"Data\", \"rows\": [[\"Col1\", \"Col2\"], [\"Val1\", \"Val2\"]]},\n  {\"type\": \"list\", \"header\": \"Items\", \"body\": \"Item 1\\nItem 2\\nItem 3\"}\n]\n```\n\n## Rendering untrusted HTML (`block_remote_content`)\n\nWith `block_remote_content: true` the HTML is rendered without network access:\n- Remote images, stylesheets, fonts, frames and fetches are not loaded. Embed images and fonts as `data:` URLs; inline CSS (`\u003cstyle\u003e`, `style=\"\"`) works.\n- Scripts do not run.\n- Meta refresh tags and connection hints (`\u003clink rel=\"preconnect\"\u003e`, `dns-prefetch`, `prefetch`, `prerender`, `preload`) are neutralized.\n- `url_to_pdf`, `screenshot_url` and `convert_document` cannot be protected this way and return an error when the flag is set.\n\n## Examples\n\n**Create a PDF from Markdown:**\n```json\n{\"action\": \"document_creator\", \"operation\": \"markdown_to_pdf\", \"title\": \"My Document\", \"content\": \"# Hello\\n\\nThis is a **bold** statement.\"}\n```\n\n**Capture a webpage as PDF:**\n```json\n{\"action\": \"document_creator\", \"operation\": \"url_to_pdf\", \"url\": \"https://example.com\", \"filename\": \"example-page\"}\n```\n\n**Merge multiple PDFs:**\n```json\n{\"action\": \"document_creator\", \"operation\": \"merge_pdfs\", \"source_files\": \"[\\\"doc1.pdf\\\", \\\"doc2.pdf\\\"]\", \"filename\": \"combined\"}\n```\n\n**Take a screenshot of a webpage:**\n```json\n{\"action\": \"document_creator\", \"operation\": \"screenshot_url\", \"url\": \"https://example.com\", \"filename\": \"screenshot\"}\n```\n\n**Check Gotenberg status:**\n```json\n{\"action\": \"document_creator\", \"operation\": \"health\"}\n```\n\n## Configuration\n\n```yaml\n# Backend selection in settings:\n# - maroto: built-in, create_pdf only\n# - gotenberg: Docker sidecar, all operations\n```\n\n## Notes\n\n- **PDF creation**: Use `create_pdf` for structured documents with sections, `markdown_to_pdf` for simple Markdown content\n- **Web capture**: `url_to_pdf` and `screenshot_url` capture webpages at their current state\n- **Gotenberg**: For full functionality (web capture, Office conversion), enable the Gotenberg Docker sidecar\n- **Output**: Generated files are saved to the media registry and can be accessed via the gallery",
       "tools": [
         "document_creator"
       ],
@@ -78164,8 +78233,8 @@
     {
       "id": "email",
       "path": "prompts/tools_manuals/email.md",
-      "sha256": "1563808dd06e166b9f62b68286385084d5ad9bec9b60e26ed5a8baf4193c9954",
-      "body": "# Email Tool Manual\n\nIntegrated IMAP/SMTP email tool with **multi-account support**. Fetch inbox messages, send emails, and list configured accounts.\n\n\u003e [!IMPORTANT]\n\u003e **FOR GMAIL USERS:** Use the `google_workspace` tool instead of this one. It is more secure (OAuth2) and does not require enabling IMAP/SMTP or App Passwords in your Google settings.\n\n\u003e ⚠️ All fetched email content is scanned by the Guardian for prompt injection.\n\u003e High-threat messages are automatically redacted.\n\n---\n\n## Multi-Account Support\n\nMultiple email accounts can be configured. Each account has a unique `id`.\n- Use `\"account\": \"\u003cid\u003e\"` in fetch_email / send_email to target a specific account.\n- Omit `account` to use the **default** (first) account.\n- Use `list_email_accounts` to discover available accounts.\n\n---\n\n## list_email_accounts — List configured accounts\n\n```json\n{\n  \"action\": \"list_email_accounts\"\n}\n```\n\n### Response\n```json\n{\n  \"status\": \"success\",\n  \"count\": 2,\n  \"data\": [\n    { \"id\": \"personal\", \"name\": \"Personal Gmail\", \"email\": \"me@gmail.com\", \"imap\": \"imap.gmail.com:993\", \"smtp\": \"smtp.gmail.com:587\", \"watcher\": true },\n    { \"id\": \"work\", \"name\": \"Work Exchange\", \"email\": \"me@company.com\", \"imap\": \"outlook.office365.com:993\", \"smtp\": \"smtp.office365.com:587\", \"watcher\": false }\n  ]\n}\n```\n\n---\n\n## fetch_email — Retrieve emails via IMAP\n\n```json\n{\n  \"action\": \"fetch_email\",\n  \"account\": \"work\",\n  \"folder\": \"INBOX\",\n  \"limit\": 10\n}\n```\n\n| Parameter | Type   | Required | Default  | Description                              |\n|-----------|--------|----------|----------|------------------------------------------|\n| account   | string | no       | (first)  | Email account ID to use                  |\n| folder    | string | no       | \"INBOX\"  | IMAP folder to fetch from                |\n| limit     | int    | no       | 10       | Number of most recent messages (max 50)  |\n\n### Response\nReturns a JSON array of email objects:\n```json\n{\n  \"status\": \"success\",\n  \"count\": 3,\n  \"message\": \"Account: work\",\n  \"data\": [\n    {\n      \"uid\": 1234,\n      \"from\": \"alice@example.com\",\n      \"to\": \"you@example.com\",\n      \"subject\": \"Meeting tomorrow\",\n      \"date\": \"Mon, 14 Jul 2025 10:30:00 +0200\",\n      \"body\": \"Hi, can we reschedule...\",\n      \"snippet\": \"Hi, can we reschedule...\"\n    }\n  ]\n}\n```\n\n---\n\n## send_email — Send an email via SMTP\n\n```json\n{\n  \"action\": \"send_email\",\n  \"account\": \"personal\",\n  \"to\": \"recipient@example.com\",\n  \"subject\": \"Status Report\",\n  \"body\": \"Here is the weekly update...\"\n}\n```\n\n| Parameter | Type   | Required | Description                                      |\n|-----------|--------|----------|--------------------------------------------------|\n| account   | string | no       | Email account ID to send from (default: first)   |\n| to        | string | **yes**  | Recipient email (comma-separated for multiple)   |\n| subject   | string | no       | Email subject line (defaults to \"(no subject)\")  |\n| body      | string | no       | Plain text email body. `content` also accepted   |\n\n### Response\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"Email sent to recipient@example.com via account personal\"\n}\n```\n\n---\n\n## Configuration (config.yaml)\n\n### New format: Multiple accounts\n```yaml\nemail:\n  enabled: true         # master switch\n\nemail_accounts:\n  - id: personal\n    name: \"Personal Gmail\"\n    imap_host: \"imap.gmail.com\"\n    imap_port: 993\n    smtp_host: \"smtp.gmail.com\"\n    smtp_port: 587\n    username: \"you@gmail.com\"\n    password: \"app-password-here\"\n    from_address: \"you@gmail.com\"\n    watch_enabled: true\n    watch_interval_seconds: 120\n    watch_folder: \"INBOX\"\n  - id: work\n    name: \"Work Exchange\"\n    imap_host: \"outlook.office365.com\"\n    imap_port: 993\n    smtp_host: \"smtp.office365.com\"\n    smtp_port: 587\n    username: \"you@company.com\"\n    password: \"work-password\"\n    from_address: \"you@company.com\"\n    watch_enabled: false\n    watch_folder: \"INBOX\"\n```\n\n### Legacy format (still supported, auto-migrated)\n```yaml\nemail:\n  enabled: true\n  imap_host: \"imap.gmail.com\"\n  imap_port: 993\n  smtp_host: \"smtp.gmail.com\"\n  smtp_port: 587\n  username: \"you@gmail.com\"\n  password: \"your-app-password\"\n  from_address: \"\"\n  watch_enabled: true\n  watch_interval_seconds: 120\n  watch_folder: \"INBOX\"\n```\n\n## Email Watcher\n\nWhen an account has `watch_enabled: true`, the system polls its IMAP folder for new unseen messages. When new mail arrives, the agent is automatically woken with a notification containing the account name, sender, subject, and snippet for each new message.\n\n## Notes\n- Uses IMAPS (TLS on port 993) for IMAP connections\n- Uses STARTTLS (port 587) or implicit TLS (port 465) for SMTP\n- For Gmail: use an App Password, not your regular password\n- Email bodies are truncated to 4KB to preserve LLM context\n- HTML emails are stripped to plain text automatically\n- Legacy single-account config is automatically migrated to `email_accounts` at startup\n",
+      "sha256": "b7cae7148d00525cbf415168bd894d8b3a1a0a5e2cfbf2d93d85f4bd48f9fdc1",
+      "body": "# Email Tool Manual\n\nIntegrated IMAP/SMTP email tool with **multi-account support**. Fetch inbox messages, send emails, and list configured accounts.\n\n\u003e [!IMPORTANT]\n\u003e **FOR GMAIL USERS:** Use the `google_workspace` tool instead of this one. It is more secure (OAuth2) and does not require enabling IMAP/SMTP or App Passwords in your Google settings.\n\n\u003e ⚠️ All fetched email content is scanned by the Guardian for prompt injection.\n\u003e High-threat messages are automatically redacted.\n\n---\n\n## Multi-Account Support\n\nMultiple email accounts can be configured. Each account has a unique `id`.\n- Use `\"account\": \"\u003cid\u003e\"` in fetch_email / send_email to target a specific account.\n- Omit `account` to use the **default** (first) account.\n- Use `list_email_accounts` to discover available accounts.\n\n---\n\n## list_email_accounts — List configured accounts\n\n```json\n{\n  \"action\": \"list_email_accounts\"\n}\n```\n\n### Response\n```json\n{\n  \"status\": \"success\",\n  \"count\": 2,\n  \"data\": [\n    { \"id\": \"personal\", \"name\": \"Personal Gmail\", \"email\": \"me@gmail.com\", \"imap\": \"imap.gmail.com:993\", \"smtp\": \"smtp.gmail.com:587\", \"watcher\": true },\n    { \"id\": \"work\", \"name\": \"Work Exchange\", \"email\": \"me@company.com\", \"imap\": \"outlook.office365.com:993\", \"smtp\": \"smtp.office365.com:587\", \"watcher\": false }\n  ]\n}\n```\n\n---\n\n## fetch_email — Retrieve emails via IMAP\n\n```json\n{\n  \"action\": \"fetch_email\",\n  \"account\": \"work\",\n  \"folder\": \"INBOX\",\n  \"limit\": 10\n}\n```\n\n| Parameter | Type   | Required | Default  | Description                              |\n|-----------|--------|----------|----------|------------------------------------------|\n| account   | string | no       | (first)  | Email account ID to use                  |\n| folder    | string | no       | \"INBOX\"  | IMAP folder to fetch from                |\n| limit     | int    | no       | 10       | Number of most recent messages (max 50)  |\n\n### Response\nReturns a JSON array of email objects:\n```json\n{\n  \"status\": \"success\",\n  \"count\": 3,\n  \"message\": \"Account: work\",\n  \"data\": [\n    {\n      \"uid\": 1234,\n      \"from\": \"alice@example.com\",\n      \"to\": \"you@example.com\",\n      \"subject\": \"Meeting tomorrow\",\n      \"date\": \"Mon, 14 Jul 2025 10:30:00 +0200\",\n      \"body\": \"Hi, can we reschedule...\",\n      \"snippet\": \"Hi, can we reschedule...\"\n    }\n  ]\n}\n```\n\n---\n\n## send_email — Send an email via SMTP\n\n```json\n{\n  \"action\": \"send_email\",\n  \"account\": \"personal\",\n  \"to\": \"recipient@example.com\",\n  \"subject\": \"Status Report\",\n  \"body\": \"Here is the weekly update...\"\n}\n```\n\n| Parameter | Type   | Required | Description                                      |\n|-----------|--------|----------|--------------------------------------------------|\n| account   | string | no       | Email account ID to send from (default: first)   |\n| to        | string | **yes**  | Recipient email (comma-separated for multiple)   |\n| subject   | string | no       | Email subject line (defaults to \"(no subject)\")  |\n| body      | string | no       | Plain text email body. `content` also accepted   |\n| attachments | string[] | no     | Files to attach, as a list of paths (max 10 files, 20 MB together) |\n\n`attachments` (list of paths) attaches files (max 10, 20 MB). Only files in the workspace or the documents folder can be attached; a path anywhere else, a missing file, or a list over the limits fails the call and sends nothing. A read-only account refuses the call before any file is opened.\n\n### Response\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"Email sent to recipient@example.com via account personal\"\n}\n```\n\n---\n\n## Configuration (config.yaml)\n\n### New format: Multiple accounts\n```yaml\nemail:\n  enabled: true         # master switch\n\nemail_accounts:\n  - id: personal\n    name: \"Personal Gmail\"\n    imap_host: \"imap.gmail.com\"\n    imap_port: 993\n    smtp_host: \"smtp.gmail.com\"\n    smtp_port: 587\n    username: \"you@gmail.com\"\n    password: \"app-password-here\"\n    from_address: \"you@gmail.com\"\n    watch_enabled: true\n    watch_interval_seconds: 120\n    watch_folder: \"INBOX\"\n  - id: work\n    name: \"Work Exchange\"\n    imap_host: \"outlook.office365.com\"\n    imap_port: 993\n    smtp_host: \"smtp.office365.com\"\n    smtp_port: 587\n    username: \"you@company.com\"\n    password: \"work-password\"\n    from_address: \"you@company.com\"\n    watch_enabled: false\n    watch_folder: \"INBOX\"\n```\n\n### Legacy format (still supported, auto-migrated)\n```yaml\nemail:\n  enabled: true\n  imap_host: \"imap.gmail.com\"\n  imap_port: 993\n  smtp_host: \"smtp.gmail.com\"\n  smtp_port: 587\n  username: \"you@gmail.com\"\n  password: \"your-app-password\"\n  from_address: \"\"\n  watch_enabled: true\n  watch_interval_seconds: 120\n  watch_folder: \"INBOX\"\n```\n\n## Email Watcher\n\nWhen an account has `watch_enabled: true`, the system polls its IMAP folder for new unseen messages. When new mail arrives, the agent is automatically woken with a notification containing the account name, sender, subject, and snippet for each new message.\n\n## Notes\n- Uses IMAPS (TLS on port 993) for IMAP connections\n- Uses STARTTLS (port 587) or implicit TLS (port 465) for SMTP\n- For Gmail: use an App Password, not your regular password\n- Email bodies are truncated to 4KB to preserve LLM context\n- HTML emails are stripped to plain text automatically\n- Legacy single-account config is automatically migrated to `email_accounts` at startup\n",
       "tools": [
         "fetch_email",
         "list_email_accounts",
@@ -78697,8 +78766,8 @@
     {
       "id": "manage_missions",
       "path": "prompts/tools_manuals/manage_missions.md",
-      "sha256": "0a8891528b1bb5c2984251791a9aedc85c92c19fd50c9058918225e5e90216b8",
-      "body": "# Mission Control Tool (`manage_missions`)\n\nCreate and manage background automation tasks (missions) with scheduling, triggers, and chaining.\n\n## Operations\n\n| Operation | Description | Parameters |\n|-----------|-------------|------------|\n| `list` | List all missions | — |\n| `add` | Create a mission | `title`, `command`, `cron_expr`, `priority`, `locked` |\n| `update` | Update a mission | `id`, `title`, `command`, `cron_expr`, `priority`, `locked` |\n| `delete` | Delete a mission | `id` |\n| `run` | Execute a mission now | `id` |\n\n## Execution Types\n\nMissions support three execution types (set via the V2 API):\n- **manual** — Run on demand via `run` operation\n- **scheduled** — Run on a cron schedule\n- **triggered** — Run automatically when an event occurs (webhook, mission completed, email, MQTT, system startup, invasion, device, Fritz!Box, budget, Home Assistant, and Planner appointment reminder events)\n\n## Examples\n\n```json\n{\"action\": \"manage_missions\", \"operation\": \"list\"}\n```\n\n```json\n{\"action\": \"manage_missions\", \"operation\": \"add\", \"title\": \"Daily Backup Check\", \"command\": \"Check all Docker volumes have recent backups and report any issues\", \"cron_expr\": \"0 9 * * *\", \"priority\": 3}\n```\n\n```json\n{\"action\": \"manage_missions\", \"operation\": \"run\", \"id\": \"mission_1234\"}\n```\n\n## Notes\n- `priority`: 1=low, 2=medium (default), 3=high\n- `locked`: prevents accidental deletion\n- `cron_expr`: standard cron format (e.g. `0 */6 * * *` = every 6 hours). When provided, the mission is automatically set to `scheduled` execution type.\n- Missions without a `cron_expr` default to `manual` execution type\n- Heartbeat wake-ups are read-only for Mission Control. During heartbeat checks, use `list` or history/status-style inspection only; do not `add`, `update`, `delete`, or `run` missions.\n- Triggered missions are configured via the V2 REST API. Use `trigger_config.min_interval_seconds` to debounce any trigger type; MQTT can additionally use `mqtt_min_interval_seconds` as a topic-specific override.\n- Planner triggers use `planner_appointment_due`, `planner_todo_overdue`, or `planner_operational_issue`. They can be filtered with appointment/todo IDs, `planner_title_contains`, or operational issue `planner_issue_source` / `planner_issue_severity`.\n",
+      "sha256": "fbcd9e372479f3f5c15f8408d56bfb612627cc5800f226550274146c7b5532ba",
+      "body": "# Mission Control Tool (`manage_missions`)\n\nCreate and manage background automation tasks (missions) with scheduling, triggers, and chaining.\n\n## Operations\n\n| Operation | Description | Parameters |\n|-----------|-------------|------------|\n| `list` | List all missions | — |\n| `add` | Create a mission | `title`, `command`, `cron_expr`, `priority`, `locked` |\n| `update` | Update a mission | `id`, `title`, `command`, `cron_expr`, `priority`, `locked` |\n| `delete` | Delete a mission | `id` |\n| `run` | Execute a mission now | `id` |\n\n## Execution Types\n\nMissions support four execution types (set via the V2 API):\n- **manual** — Run on demand via `run` operation\n- **scheduled** — Run on a cron schedule\n- **triggered** — Run automatically when an event occurs (webhook, mission completed, email, MQTT, system startup, invasion, device, Fritz!Box, budget, Home Assistant, and Planner appointment reminder events)\n- **flow** — an EasyDrag flow (visual workflow). Its triggers are the flow's trigger nodes; it runs on its own engine and never waits in the mission queue. For a flow mission only `list`, `history` and `run` work (`run` only requests the run; follow it with `history`). Every other operation that names it returns an error: `update`, `delete`, and any attempt to enable, disable, lock, unlock or re-prioritize it. `add` cannot create a flow either (`execution_type: \"flow\"` is refused). Flows are created, edited and deleted in the EasyDrag app, and switched on or off there or in Mission Control.\n\n## Examples\n\n```json\n{\"action\": \"manage_missions\", \"operation\": \"list\"}\n```\n\n```json\n{\"action\": \"manage_missions\", \"operation\": \"add\", \"title\": \"Daily Backup Check\", \"command\": \"Check all Docker volumes have recent backups and report any issues\", \"cron_expr\": \"0 9 * * *\", \"priority\": 3}\n```\n\n```json\n{\"action\": \"manage_missions\", \"operation\": \"run\", \"id\": \"mission_1234\"}\n```\n\n## Notes\n- `priority`: 1=low, 2=medium (default), 3=high\n- `locked`: prevents accidental deletion\n- `cron_expr`: standard cron format (e.g. `0 */6 * * *` = every 6 hours). When provided, the mission is automatically set to `scheduled` execution type.\n- Missions without a `cron_expr` default to `manual` execution type\n- Heartbeat wake-ups are read-only for Mission Control. During heartbeat checks, use `list` or history/status-style inspection only; do not `add`, `update`, `delete`, or `run` missions.\n- Triggered missions are configured via the V2 REST API. Use `trigger_config.min_interval_seconds` to debounce any trigger type; MQTT can additionally use `mqtt_min_interval_seconds` as a topic-specific override.\n- Planner triggers use `planner_appointment_due`, `planner_todo_overdue`, or `planner_operational_issue`. They can be filtered with appointment/todo IDs, `planner_title_contains`, or operational issue `planner_issue_source` / `planner_issue_severity`.\n- `mission_completed` trigger data contains `output` (the source's final answer, up to 2000 bytes); flow sources add `outputs` (the results of the flow's final nodes by node key).\n",
       "tools": [
         "manage_missions"
       ],

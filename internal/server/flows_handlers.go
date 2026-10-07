@@ -1,0 +1,852 @@
+package server
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"regexp"
+	"slices"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"aurago/internal/flows"
+	"aurago/internal/i18n"
+	"aurago/internal/memory"
+	"aurago/internal/security"
+	"aurago/internal/tools"
+)
+
+const (
+	flowsDocBodyLimit   = 4 << 20
+	flowsSmallBodyLimit = 256 << 10
+	// flowsLogPathRunes bounds the request path a flow API log line carries.
+	flowsLogPathRunes = 200
+	// flowsInternalMessage is the whole answer of a FLOW_INTERNAL error; the cause (a
+	// path, SQL, driver or vault text) only goes to the log.
+	flowsInternalMessage = "the flow service failed; see the server log"
+	// flowPublishIncompleteMessage answers a publish that made the revision live but could
+	// not update Mission Control or the timers (see flowPublishIncomplete).
+	flowPublishIncompleteMessage = "Published, but not every part could be updated (Mission Control or timers). Publish again to finish."
+	// flowPublishMissionMissingMessage answers such a publish when the flow's mission is gone
+	// from Mission Control: publishing again cannot recreate it.
+	flowPublishMissionMissingMessage = "Published, but the flow's Mission Control entry is missing. Export the flow, delete it and import it again."
+)
+
+// flowsCollectionRoutes are the first path segments under /api/desktop/flows/ that
+// handleFlows dispatches as a collection route, not as a flow id. Only routes that exist
+// are listed: a new collection route in handleFlows adds its segment here.
+var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true}
+
+// flowIDPattern accepts what can be a flow id (flows.NewFlowID gives "flow_" and ten
+// characters); anything else is FLOW_NOT_FOUND before the store is asked.
+var flowIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+// flowRouteSegments is the number of path segments after the flow id that each
+// /api/desktop/flows/{id}/… route takes ("" is the flow itself). Any other path is
+// FLOW_NOT_FOUND (404); a new route adds its entry here.
+var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1,
+	"test": 1, "run": 1, "runs": 1, "test-data": 2}
+
+const (
+	// flowSecretValueMaxBytes bounds the value of a flow secret. Flow secrets are API
+	// tokens and passwords; the vault keeps all its secrets in one encrypted file, and a
+	// run registers the value with the global output scrubber (flowSecrets.ReadSecret).
+	flowSecretValueMaxBytes = 4 << 10
+	// flowSecretWritesPerWindow and flowSecretWriteWindow limit secret writes and deletes
+	// per client IP, as vaultAllowRequest limits the vault API: each one decrypts and
+	// rewrites the whole vault file.
+	flowSecretWritesPerWindow = 30
+	flowSecretWriteWindow     = time.Minute
+	// flowRateKeysSweep is the number of client keys above which allow drops idle ones.
+	flowRateKeysSweep = 256
+)
+
+// flowRateLimiter is a sliding-window limit per key (a client IP). The zero value is
+// ready to use; Server.flowSecretRate holds the one for flow secret writes.
+type flowRateLimiter struct {
+	mu      sync.Mutex
+	windows map[string][]time.Time
+}
+
+// allow records an event for key at now and reports whether it is within limit events per
+// window.
+func (l *flowRateLimiter) allow(key string, now time.Time, limit int, window time.Duration) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.windows == nil {
+		l.windows = map[string][]time.Time{}
+	}
+	cutoff := now.Add(-window)
+	if len(l.windows) > flowRateKeysSweep {
+		for k, ts := range l.windows {
+			if len(ts) == 0 || !ts[len(ts)-1].After(cutoff) {
+				delete(l.windows, k)
+			}
+		}
+	}
+	ts := l.windows[key]
+	i := 0
+	for i < len(ts) && !ts[i].After(cutoff) {
+		i++
+	}
+	ts = ts[i:]
+	if len(ts) >= limit {
+		l.windows[key] = ts
+		return false
+	}
+	l.windows[key] = append(ts, now)
+	return true
+}
+
+func registerFlowsRoutes(mux *http.ServeMux, s *Server) {
+	mux.HandleFunc("/api/desktop/flows", s.handleFlows)
+	mux.HandleFunc("/api/desktop/flows/", s.handleFlows)
+}
+
+// flowsEncodeFailure is the whole answer when a response cannot be encoded.
+const flowsEncodeFailure = `{"error":"the response cannot be encoded","code":"FLOW_INTERNAL"}` + "\n"
+
+// flowsJSON writes value as JSON with status. It encodes before it writes the status, so
+// a value that cannot be encoded gives 500 FLOW_INTERNAL, not a 200 with an empty body.
+func flowsJSON(w http.ResponseWriter, status int, value any) {
+	_ = flowsWriteJSON(w, status, value)
+}
+
+// flowsWriteJSON is flowsJSON that returns the encoding error (after answering 500).
+func flowsWriteJSON(w http.ResponseWriter, status int, value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		flowsWriteEncodeFailure(w)
+		return err
+	}
+	flowsWriteBody(w, status, data)
+	return nil
+}
+
+// flowsWriteBody writes encoded JSON as the answer with status.
+func flowsWriteBody(w http.ResponseWriter, status int, data []byte) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	_, _ = w.Write(append(data, '\n'))
+}
+
+func flowsWriteEncodeFailure(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusInternalServerError)
+	_, _ = w.Write([]byte(flowsEncodeFailure))
+}
+
+// flowsJSONScrubbed writes run data with registered secret values redacted
+// (flowScrubbedJSON). The walk is not budgeted (the payloads are bounded by the stored
+// outputs, at most flows.MaxStoredOutputBytes per step); numbers come back as float64. A
+// value that cannot be encoded gives 500 FLOW_INTERNAL and a Warn log.
+func (s *Server) flowsJSONScrubbed(w http.ResponseWriter, status int, value any) {
+	data, err := flowScrubbedJSON(value)
+	if err != nil {
+		flowsWriteEncodeFailure(w)
+		s.Logger.Warn("A flow API response could not be encoded", "type", fmt.Sprintf("%T", value), "error", flowsErrorText(err))
+		return
+	}
+	flowsWriteBody(w, status, data)
+}
+
+// flowScrubbedJSON encodes value with the registered secrets redacted in its values: value
+// is encoded and decoded once into plain JSON values, which scrubFlowValue copies with every
+// string, map key and number scrubbed. Scrubbing the encoded text instead would miss a
+// secret holding a quote, a backslash or a control character (JSON escapes them) and could
+// break the JSON; the walk avoids both, so the result is always valid JSON. It holds no line
+// break (json.Marshal escapes them), so it also fits one SSE "data:" line.
+func flowScrubbedJSON(value any) ([]byte, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var plain any
+	if err := json.Unmarshal(data, &plain); err != nil {
+		return nil, err
+	}
+	return json.Marshal(scrubFlowValue(plain))
+}
+
+func flowsError(w http.ResponseWriter, status int, code, msg string) {
+	flowsJSON(w, status, map[string]string{"error": msg, "code": code})
+}
+
+func flowsMethodNotAllowed(w http.ResponseWriter) {
+	flowsError(w, http.StatusMethodNotAllowed, "FLOW_BAD_REQUEST", "method not allowed")
+}
+
+func nonNilIssues(issues []flows.Issue) []flows.Issue {
+	if issues == nil {
+		return []flows.Issue{}
+	}
+	return issues
+}
+
+// flowsErrorFrom maps a flow service error to the API error codes of the contract (plan
+// 1c, "HTTP API contract"), extended by FLOW_TOO_LARGE (413: a document, test data or a
+// request body over its limit), FLOW_EXISTS (409) and FLOW_MISSION_AMBIGUOUS (409).
+//
+//   - A request whose context was cancelled (r's context ended and err is that context's
+//     error: the client went away, or the server cancelled it while draining for a
+//     shutdown) gets 503 FLOWS_DISABLED "the request was cancelled", logged at Debug. A
+//     client that is gone does not read it; one that still waits must not see a 200.
+//   - A mapped error echoes its text scrubbed and cut to flowErrorRunes runes (the flow
+//     package already bounds the user data it quotes).
+//   - Anything else is FLOW_INTERNAL with flowsInternalMessage only: the error can hold
+//     file paths, SQL, driver or vault text, so it goes to the log at Warn, scrubbed and
+//     bounded, with the route and the flow id. A typed-nil error (a nil *NodeError,
+//     *ValidationError or *http.MaxBytesError in an error interface) is a bug of its
+//     producer and lands here too; its text is built with fmt.Sprint, which survives a
+//     nil receiver.
+func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err error) {
+	if r.Context().Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
+		s.Logger.Debug("Flow API request was cancelled", "method", r.Method, "path", flowBoundRunes(r.URL.Path, flowsLogPathRunes))
+		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", "the request was cancelled")
+		return
+	}
+	var ve *flows.ValidationError
+	var ne *flows.NodeError
+	var tooLarge *http.MaxBytesError
+	switch {
+	case errors.As(err, &ve) && ve != nil:
+		flowsJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": flowsErrorText(err), "code": "FLOW_INVALID", "issues": nonNilIssues(ve.Issues)})
+	case errors.Is(err, flows.ErrNotFound):
+		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", flowsErrorText(err))
+	case errors.Is(err, flows.ErrRunNotFound):
+		flowsError(w, http.StatusNotFound, "FLOW_RUN_NOT_FOUND", flowsErrorText(err))
+	case errors.Is(err, flows.ErrRevisionConflict):
+		flowsError(w, http.StatusConflict, "FLOW_REVISION_CONFLICT", flowsErrorText(err))
+	case errors.Is(err, flows.ErrNotPublished):
+		flowsError(w, http.StatusConflict, "FLOW_NOT_PUBLISHED", flowsErrorText(err))
+	case errors.Is(err, flows.ErrNoTrigger):
+		flowsError(w, http.StatusConflict, "FLOW_NO_TRIGGER", flowsErrorText(err))
+	case errors.Is(err, flows.ErrFlowDisabled):
+		flowsError(w, http.StatusConflict, "FLOW_DISABLED", flowsErrorText(err))
+	case errors.Is(err, flows.ErrFlowExists):
+		flowsError(w, http.StatusConflict, "FLOW_EXISTS", flowsErrorText(err))
+	case errors.Is(err, flows.ErrMissionAmbiguous):
+		flowsError(w, http.StatusConflict, "FLOW_MISSION_AMBIGUOUS",
+			"more than one flow is linked to the same Mission Control mission, so it is not clear which one is meant; delete the extra flow")
+	case errors.Is(err, tools.ErrMissionLocked):
+		flowsError(w, http.StatusConflict, "FLOW_LOCKED", "the flow's mission is locked in Mission Control; unlock it there first")
+	case errors.Is(err, flows.ErrMissionControlUnavailable):
+		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", flowsErrorText(err))
+	case errors.Is(err, tools.ErrFlowMissionNotFound), errors.Is(err, flows.ErrFlowMissionMissing):
+		flowsError(w, http.StatusConflict, "FLOW_MISSION_MISSING",
+			"the flow's Mission Control entry is missing; export the flow, delete it and import it again")
+	case errors.Is(err, flows.ErrQueueFull):
+		flowsError(w, http.StatusTooManyRequests, "FLOW_RUN_LIMIT", flowsErrorText(err))
+	case errors.Is(err, flows.ErrRunnerClosed):
+		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", flowsErrorText(err))
+	case errors.Is(err, flows.ErrDocumentTooLarge):
+		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsDocumentTooLargeMessage())
+	case errors.Is(err, flows.ErrTestDataTooLarge):
+		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsErrorText(err))
+	case errors.As(err, &tooLarge) && tooLarge != nil:
+		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", fmt.Sprintf("the request body is larger than %d KiB", tooLarge.Limit>>10))
+	case errors.Is(err, flows.ErrUnsupportedSchema), errors.Is(err, flows.ErrUnknownTemplate):
+		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", flowsErrorText(err))
+	case errors.As(err, &ne) && ne != nil:
+		code := ne.Code
+		if code == "" {
+			code = "FLOW_NODE_FAILED"
+		}
+		flowsError(w, http.StatusBadRequest, code, flowBoundRunes(security.Scrub(ne.Message), flowErrorRunes))
+	default:
+		s.Logger.Warn("Flow API request failed", "method", r.Method, "path", flowBoundRunes(r.URL.Path, flowsLogPathRunes),
+			"flow_id", flowsLogFlowID(r), "error", flowsErrorText(err))
+		flowsError(w, http.StatusInternalServerError, "FLOW_INTERNAL", flowsInternalMessage)
+	}
+}
+
+// flowsErrorText is err's text for an answer or a log line: registered secrets and
+// credential-looking pairs redacted (as flowScrubbedError does), cut to flowErrorRunes.
+// fmt.Sprint recovers the panic of an Error method called on a nil receiver.
+func flowsErrorText(err error) string {
+	return flowBoundRunes(security.RedactSensitiveInfo(security.Scrub(fmt.Sprint(err))), flowErrorRunes)
+}
+
+func flowsDocumentTooLargeMessage() string {
+	return fmt.Sprintf("the flow document is larger than %d MiB", flows.MaxDocumentBytes>>20)
+}
+
+// flowsDocumentError answers a document flows.ParseFlow refused: FLOW_TOO_LARGE (413)
+// above flows.MaxDocumentBytes, else FLOW_BAD_REQUEST (400) with the bounded reason (a
+// JSON decode error or an unsupported schema version).
+func flowsDocumentError(w http.ResponseWriter, err error) {
+	if errors.Is(err, flows.ErrDocumentTooLarge) {
+		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsDocumentTooLargeMessage())
+		return
+	}
+	flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", flowsErrorText(err))
+}
+
+// flowsLogFlowID returns the flow id of a /api/desktop/flows/{id}/… request for a log line
+// (bounded), or "" for the collection routes, which name no flow.
+func flowsLogFlowID(r *http.Request) string {
+	parts := flowsPathParts(r.URL.Path)
+	if len(parts) == 0 || flowsCollectionRoutes[parts[0]] {
+		return ""
+	}
+	return flowBoundRunes(parts[0], flowNameEchoRunes)
+}
+
+// flowsDecode reads a JSON body of at most limit bytes into dst. A larger body is
+// FLOW_TOO_LARGE (413), anything that does not decode FLOW_BAD_REQUEST (400). With
+// optional, an empty body (or whitespace only) is no error and leaves dst unchanged; the
+// body is read rather than ContentLength trusted, which is -1 for a chunked request.
+func flowsDecode(w http.ResponseWriter, r *http.Request, dst any, limit int64, optional bool) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
+	err := json.NewDecoder(r.Body).Decode(dst)
+	if err == nil || optional && errors.Is(err, io.EOF) {
+		return true
+	}
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", fmt.Sprintf("the request body is larger than %d KiB", limit>>10))
+		return false
+	}
+	flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "the request body is not valid JSON")
+	return false
+}
+
+// flowsOriginOK requires a same-origin request for session-authenticated writes.
+func flowsOriginOK(r *http.Request) bool {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		return true
+	}
+	if _, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
+		return true
+	}
+	return checkCSRFOriginWithPolicy(r, true)
+}
+
+func (s *Server) flowsLang(r *http.Request) string {
+	if lang := strings.TrimSpace(r.URL.Query().Get("lang")); lang != "" {
+		return i18n.NormalizeLang(lang)
+	}
+	if cfg := s.ConfigSnapshot(); cfg != nil {
+		return i18n.NormalizeLang(cfg.Server.UILanguage)
+	}
+	return "en"
+}
+
+func flowsTranslator(lang string) func(string) string {
+	return func(key string) string { return i18n.T(lang, key) }
+}
+
+func flowsPathParts(path string) []string {
+	rest := strings.Trim(strings.TrimPrefix(path, "/api/desktop/flows"), "/")
+	if rest == "" {
+		return nil
+	}
+	return strings.Split(rest, "/")
+}
+
+// handleFlows serves /api/desktop/flows/… (see the API contract in plan 1c).
+func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
+	parts := flowsPathParts(r.URL.Path)
+	// The Desktop admission (requireDesktopPermission = authentication + checkDesktopOperation)
+	// is split around the flows gates, so the flows API keeps its own codes for a read-only
+	// desktop (FLOW_PERMISSION_DENIED) and a cancelled request (flowsErrorFrom: 503), while a
+	// write still gets the Desktop grant that a readonly switch revokes.
+	if !authenticateDesktopPermission(s, w, r, flowsRequiredScope(r.Method, parts)) {
+		return
+	}
+	if !flowsOriginOK(r) {
+		flowsError(w, http.StatusForbidden, "FLOW_PERMISSION_DENIED", "same-origin request required")
+		return
+	}
+	if !s.flowsAvailable() {
+		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", "EasyDrag flows are disabled")
+		return
+	}
+	cfg := s.ConfigSnapshot()
+	// A run cancel stops work, so a read-only desktop lets it through like Mission Control's
+	// cancel (desktopStop); read-only missions refuse it as CancelCheck refuses theirs.
+	desktopReadOnly := cfg.VirtualDesktop.ReadOnly && !flowsIsRunCancel(r.Method, parts)
+	if r.Method != http.MethodGet && r.Method != http.MethodHead && !flowsReadOnlySafe(r, parts) &&
+		(cfg.Tools.Missions.ReadOnly || desktopReadOnly) {
+		flowsError(w, http.StatusForbidden, "FLOW_PERMISSION_DENIED", "flows are read-only")
+		return
+	}
+	operation := flowsDesktopOperation(r, parts)
+	if operation != desktopRead && r.Context().Err() != nil {
+		s.flowsErrorFrom(w, r, r.Context().Err())
+		return
+	}
+	if !checkDesktopOperation(s, w, r, operation) {
+		return
+	}
+	s.flowsCatalog.refreshRegistry(s.Flows.Registry(), cfg)
+	switch {
+	case len(parts) == 0:
+		s.flowsCollection(w, r)
+	case parts[0] == "secrets":
+		s.flowsSecrets(w, r, parts[1:])
+	case parts[0] == "runs":
+		s.flowsRunRoute(w, r, parts[1:])
+	case parts[0] == "node-types":
+		s.flowsNodeTypes(w, r, parts[1:])
+	case parts[0] == "templates" && len(parts) == 1:
+		s.flowsTemplates(w, r)
+	case parts[0] == "validate" && len(parts) == 1:
+		s.flowsValidate(w, r)
+	case flowsCollectionRoutes[parts[0]]:
+		// templates/… and validate/…: a collection name is never a flow id.
+		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
+	default:
+		s.flowRoute(w, r, parts[0], parts[1:])
+	}
+}
+
+// flowsReadOnlySafe reports whether a request other than GET or HEAD changes nothing, so
+// the read-only modes of missions and the desktop let it through: POST validate only
+// checks the document it is sent. The desktop permission (flowsRequiredScope) and the
+// same-origin check still apply.
+func flowsReadOnlySafe(r *http.Request, parts []string) bool {
+	return flowsIsValidate(r.Method, parts)
+}
+
+// flowsDesktopOperation is the Desktop operation of a flows request for the readonly
+// admission (checkDesktopOperation, desktop_readonly): GET, HEAD and POST validate
+// (flowsReadOnlySafe) are reads, POST runs/{run}/cancel is a stop (it bypasses the readonly
+// write admission, as Mission Control's cancel does), every other request is a write. A
+// write gets a Desktop grant that a readonly switch revokes, which cancels the request.
+func flowsDesktopOperation(r *http.Request, parts []string) desktopOperation {
+	if flowsReadOnlySafe(r, parts) {
+		return desktopRead
+	}
+	if flowsIsRunCancel(r.Method, parts) {
+		return desktopStop
+	}
+	return desktopMethodOperation(r.Method)
+}
+
+// flowsIsValidate reports whether a request is POST validate.
+func flowsIsValidate(method string, parts []string) bool {
+	return method == http.MethodPost && len(parts) == 1 && parts[0] == "validate"
+}
+
+// flowsIsRunCancel reports whether a request is POST runs/{run}/cancel.
+func flowsIsRunCancel(method string, parts []string) bool {
+	return method == http.MethodPost && len(parts) == 3 && parts[0] == "runs" && parts[2] == "cancel"
+}
+
+// isFlowsAPIPath reports whether path is /api/desktop/flows or below it.
+func isFlowsAPIPath(path string) bool {
+	return path == "/api/desktop/flows" || strings.HasPrefix(path, "/api/desktop/flows/")
+}
+
+// flowsRequiredScope is the desktop scope a bearer token needs for a flows request (parts
+// from flowsPathParts): desktop:read for GET and HEAD, desktop:write for POST validate
+// (it only checks the document it is sent) and desktop:admin for every other request. A
+// test or live run executes the flow's tools on the host (shell, sudo, Docker), publishing
+// and enabling create missions, cron jobs and webhooks, and secrets go into the vault, so
+// these writes need what the desktop chat and Looper runs need. Both the auth middleware
+// (validRouteBearer) and handleFlows apply it; session users are not affected.
+func flowsRequiredScope(method string, parts []string) string {
+	switch {
+	case method == http.MethodGet || method == http.MethodHead:
+		return desktopScopeRead
+	case flowsIsValidate(method, parts):
+		return desktopScopeWrite
+	default:
+		return desktopScopeAdmin
+	}
+}
+
+type flowCreateBody struct {
+	Name     string          `json:"name"`
+	Template string          `json:"template"`
+	Import   json.RawMessage `json:"import"`
+}
+
+func (s *Server) flowsCollection(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		list, err := s.Flows.ListFlows(r.Context())
+		if err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		flowsJSON(w, http.StatusOK, map[string]any{"flows": list})
+	case http.MethodPost:
+		var body flowCreateBody
+		if !flowsDecode(w, r, &body, flowsDocBodyLimit, false) {
+			return
+		}
+		req := flows.CreateRequest{Name: body.Name, Template: body.Template, Translate: flowsTranslator(s.flowsLang(r))}
+		if len(body.Import) > 0 && string(body.Import) != "null" {
+			doc, err := flows.ParseFlow(body.Import)
+			if err != nil {
+				flowsDocumentError(w, err)
+				return
+			}
+			req.Import = doc
+		}
+		rec, err := s.Flows.CreateFlow(r.Context(), req)
+		if err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		event := "flow_create"
+		if req.Import != nil {
+			event = "flow_import"
+		}
+		s.recordFlowAudit(event, rec.ID, rec.Name, "Flow "+rec.Name+" created")
+		s.broadcastFlowsChanged(rec.ID, "created")
+		flowsJSON(w, http.StatusCreated, map[string]any{"flow": rec})
+	default:
+		flowsMethodNotAllowed(w)
+	}
+}
+
+func (s *Server) flowEnabled(rec *flows.FlowRecord) bool {
+	return rec.MissionID != "" && flowMissionBridge{s: s}.FlowMissionEnabled(rec.MissionID)
+}
+
+func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, rest []string) {
+	ctx := r.Context()
+	if !flowIDPattern.MatchString(id) {
+		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "flow not found")
+		return
+	}
+	action := ""
+	if len(rest) > 0 {
+		action = rest[0]
+	}
+	if n, ok := flowRouteSegments[action]; !ok || len(rest) != n {
+		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
+		return
+	}
+	switch action {
+	case "":
+		switch r.Method {
+		case http.MethodGet:
+			rec, err := s.Flows.GetFlow(ctx, id)
+			if err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return
+			}
+			issues := s.Flows.Validate(rec.Draft, flows.ModeDraft)
+			flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "enabled": s.flowEnabled(rec), "issues": nonNilIssues(issues)})
+		case http.MethodPut:
+			var body struct {
+				Doc          json.RawMessage `json:"doc"`
+				BaseRevision int             `json:"base_revision"`
+			}
+			if !flowsDecode(w, r, &body, flowsDocBodyLimit, false) {
+				return
+			}
+			doc, err := flows.ParseFlow(body.Doc)
+			if err != nil {
+				flowsDocumentError(w, err)
+				return
+			}
+			rev, issues, err := s.Flows.SaveDraft(ctx, id, doc, body.BaseRevision)
+			if err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return
+			}
+			s.broadcastFlowsChanged(id, "saved")
+			flowsJSON(w, http.StatusOK, map[string]any{"draft_revision": rev, "issues": nonNilIssues(issues)})
+		case http.MethodDelete:
+			rec, err := s.Flows.GetFlow(ctx, id)
+			if err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return
+			}
+			if err := s.Flows.DeleteFlow(ctx, id); err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return
+			}
+			s.recordFlowAudit("flow_delete", id, rec.Name, "Flow "+rec.Name+" deleted")
+			s.broadcastFlowsChanged(id, "deleted")
+			flowsJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+		default:
+			flowsMethodNotAllowed(w)
+		}
+	case "publish-preview":
+		if r.Method != http.MethodGet {
+			flowsMethodNotAllowed(w)
+			return
+		}
+		preview, err := s.Flows.PublishPreview(ctx, id)
+		if err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		flowsJSON(w, http.StatusOK, preview)
+	case "publish":
+		if r.Method != http.MethodPost {
+			flowsMethodNotAllowed(w)
+			return
+		}
+		var body struct {
+			BaseRevision int `json:"base_revision"`
+		}
+		if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
+			return
+		}
+		rec, issues, err := s.Flows.Publish(ctx, id, body.BaseRevision)
+		if err != nil && rec != nil {
+			s.flowPublishIncomplete(w, rec, issues, err)
+			return
+		}
+		if err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		s.recordFlowAudit("flow_publish", id, rec.Name, "Flow "+rec.Name+" published")
+		s.broadcastFlowsChanged(id, "published")
+		flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "issues": nonNilIssues(issues)})
+	case "enabled":
+		if r.Method != http.MethodPost {
+			flowsMethodNotAllowed(w)
+			return
+		}
+		var body struct {
+			Enabled bool `json:"enabled"`
+		}
+		if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
+			return
+		}
+		if err := s.Flows.SetEnabled(ctx, id, body.Enabled); err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		event, state := "flow_disable", "disabled"
+		if body.Enabled {
+			event, state = "flow_enable", "enabled"
+		}
+		// The name for the audit entry comes from the lock-free read; the switch is done,
+		// so a client that went away does not leave the entry without it.
+		name, label := "", id
+		if rec, err := s.Flows.GetFlow(context.WithoutCancel(ctx), id); err == nil {
+			name, label = rec.Name, rec.Name
+		}
+		s.recordFlowAudit(event, id, name, "Flow "+label+" "+state)
+		s.broadcastFlowsChanged(id, "enabled")
+		flowsJSON(w, http.StatusOK, map[string]bool{"enabled": body.Enabled})
+	case "export":
+		if r.Method != http.MethodGet {
+			flowsMethodNotAllowed(w)
+			return
+		}
+		rec, err := s.Flows.GetFlow(ctx, id)
+		if err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		w.Header().Set("Content-Disposition", `attachment; filename="`+flowExportName(rec.Name)+`"`)
+		flowsJSON(w, http.StatusOK, rec.Draft)
+	default:
+		if !s.flowRunAction(w, r, id, action, rest[1:]) {
+			flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
+		}
+	}
+}
+
+// flowPublishIncomplete answers a publish that Service.Publish returned with a record AND
+// an error: the store published the draft (the new revision is live and
+// HasUnpublishedChanges is false), but the Mission Control sync or the timer update
+// failed. The flow is broadcast as published and audited with status warning, and the
+// answer is 200 with
+//
+//	{"flow": FlowRecord, "issues": [Issue], "partial": true,
+//	 "code": "FLOW_PUBLISH_INCOMPLETE", "error": flowPublishIncompleteMessage}
+//
+// so the editor can tell it from a failure (an error status) and from a full publish (no
+// "partial"). Publishing the same draft revision again repeats the update (the heal path
+// of Service.Publish), so the editor keeps its Publish button. The cause stays in the log.
+//
+// Exception: when the flow's mission is gone from Mission Control
+// (tools.ErrFlowMissionNotFound), publishing again fails the same way, because a publish
+// never recreates the mission. The code is then FLOW_MISSION_MISSING and the message
+// (flowPublishMissionMissingMessage) says to export, delete and import the flow.
+func (s *Server) flowPublishIncomplete(w http.ResponseWriter, rec *flows.FlowRecord, issues []flows.Issue, err error) {
+	code, msg, summary := "FLOW_PUBLISH_INCOMPLETE", flowPublishIncompleteMessage, "Flow "+rec.Name+" published; Mission Control update failed"
+	if errors.Is(err, tools.ErrFlowMissionNotFound) {
+		code, msg, summary = "FLOW_MISSION_MISSING", flowPublishMissionMissingMessage, "Flow "+rec.Name+" published; its Mission Control entry is missing"
+	}
+	s.Logger.Warn("Flow published, but Mission Control could not be updated", "flow_id", rec.ID, "code", code, "error", flowsErrorText(err))
+	s.recordFlowAuditStatus("flow_publish", rec.ID, rec.Name, memory.AuditStatusWarning, summary)
+	s.broadcastFlowsChanged(rec.ID, "published")
+	flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "issues": nonNilIssues(issues), "partial": true, "code": code, "error": msg})
+}
+
+// flowExportName turns a flow name into "<slug>.easydrag.json".
+func flowExportName(name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case b.Len() > 0 && !strings.HasSuffix(b.String(), "-"):
+			b.WriteByte('-')
+		}
+	}
+	slug := strings.Trim(b.String(), "-")
+	if len(slug) > 60 {
+		slug = strings.Trim(slug[:60], "-")
+	}
+	if slug == "" {
+		slug = "flow"
+	}
+	return slug + ".easydrag.json"
+}
+
+// flowsSecrets manages the flow secrets (vault entries "easydrag_<name>"). Values are
+// write-only: the API lists names and never returns values.
+func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []string) {
+	if s.Vault == nil {
+		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", "the vault is not available")
+		return
+	}
+	if len(rest) == 0 {
+		if r.Method != http.MethodGet {
+			flowsMethodNotAllowed(w)
+			return
+		}
+		keys, err := s.Vault.ListKeys()
+		if err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		names := []string{}
+		for _, key := range keys {
+			if name, ok := strings.CutPrefix(key, flowSecretPrefix); ok && flowSecretNamePattern.MatchString(name) {
+				names = append(names, name)
+			}
+		}
+		sort.Strings(names)
+		flowsJSON(w, http.StatusOK, map[string]any{"secrets": names})
+		return
+	}
+	name := rest[0]
+	if len(rest) != 1 || !flowSecretNamePattern.MatchString(name) {
+		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "secret names use a-z, 0-9 and _ (at most 40 characters)")
+		return
+	}
+	if r.Method == http.MethodPut || r.Method == http.MethodDelete {
+		cfg := s.ConfigSnapshot()
+		ip := ClientIP(r, cfg != nil && cfg.Server.HTTPS.BehindProxy)
+		if !s.flowSecretRate.allow(ip, time.Now(), flowSecretWritesPerWindow, flowSecretWriteWindow) {
+			w.Header().Set("Retry-After", "60")
+			flowsError(w, http.StatusTooManyRequests, "FLOW_RATE_LIMITED", "too many flow secret changes; try again in a minute")
+			return
+		}
+	}
+	switch r.Method {
+	case http.MethodPut:
+		var body struct {
+			Value string `json:"value"`
+		}
+		if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
+			return
+		}
+		if strings.TrimSpace(body.Value) == "" {
+			flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "the secret value is empty")
+			return
+		}
+		if len(body.Value) > flowSecretValueMaxBytes {
+			flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE",
+				fmt.Sprintf("the secret value is larger than %d KiB", flowSecretValueMaxBytes>>10))
+			return
+		}
+		// WriteUserSecretContext stores the value as not agent-readable and gives up when
+		// the request ends while it waits for the vault lock.
+		//
+		// The value is deliberately not registered with the global output scrubber here.
+		// flowSecrets.ReadSecret registers it, as stored and trimmed, when a run reads it,
+		// before any node can send it or put it into an output; a secret no run reads never
+		// reaches an output. Registering on every write would grow the process-wide scrubber
+		// (each value adds its encoded forms) with every PUT.
+		if err := s.Vault.WriteUserSecretContext(r.Context(), flowSecretPrefix+name, body.Value, true); err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		s.recordFlowAudit("flow_secret_set", "", name, "Flow secret "+name+" saved")
+		flowsJSON(w, http.StatusOK, map[string]string{"status": "saved"})
+	case http.MethodDelete:
+		key := flowSecretPrefix + name
+		keys, err := s.Vault.ListKeys()
+		if err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		if err := s.Vault.DeleteSecret(key); err != nil && !errors.Is(err, security.ErrSecretNotFound) {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		// Only a delete that removed something goes to the audit timeline.
+		if slices.Contains(keys, key) {
+			s.recordFlowAudit("flow_secret_delete", "", name, "Flow secret "+name+" deleted")
+		}
+		answer := map[string]any{"status": "deleted"}
+		if users := s.flowSecretUsers(r.Context(), name); users != nil {
+			answer["used_by"] = users
+		}
+		flowsJSON(w, http.StatusOK, answer)
+	default:
+		flowsMethodNotAllowed(w)
+	}
+}
+
+// flowSecretUsers returns the names of the published flows (sorted) whose live revision
+// passes the flow secret name to a secret_ref parameter of an enabled node: their live
+// runs now fail with FLOW_SECRET_UNAVAILABLE, so the editor can warn after a delete. A
+// template in the parameter is not resolved, so a name chosen at run time is not found.
+// It reads the store without a flow lock, under the request's context. nil means the
+// flows could not be read (or the request was cancelled), and the answer leaves out
+// used_by.
+func (s *Server) flowSecretUsers(ctx context.Context, name string) []string {
+	records, err := s.Flows.Store().ListFlows(ctx, flows.KindFlow)
+	if err != nil {
+		if ctx.Err() != nil {
+			s.Logger.Debug("The flows using a deleted flow secret were not listed: the request was cancelled")
+		} else {
+			s.Logger.Warn("The flows using a deleted flow secret could not be listed", "error", flowsErrorText(err))
+		}
+		return nil
+	}
+	reg := s.Flows.Registry()
+	users := []string{}
+	for _, rec := range records {
+		if rec.Live != nil && flowUsesSecret(rec.Live, reg, name) {
+			users = append(users, rec.Name)
+		}
+	}
+	sort.Strings(users)
+	return users
+}
+
+// flowUsesSecret reports whether an enabled node of doc names the flow secret in a
+// secret_ref parameter of its type.
+func flowUsesSecret(doc *flows.Flow, reg *flows.Registry, name string) bool {
+	for i := range doc.Nodes {
+		n := &doc.Nodes[i]
+		if n.Settings.Disabled {
+			continue
+		}
+		def, ok := reg.Lookup(n.Type)
+		if !ok {
+			continue
+		}
+		for _, p := range def.Params {
+			if v, isText := n.Params[p.Name].(string); p.Kind == flows.ParamSecretRef && isText && strings.TrimSpace(v) == name {
+				return true
+			}
+		}
+	}
+	return false
+}

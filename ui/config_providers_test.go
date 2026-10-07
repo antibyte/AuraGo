@@ -381,6 +381,7 @@ func TestConfigProvidersListUsesRolesCompactLimitsAndEditorTabs(t *testing.T) {
 		"config.providers.role_embeddings",
 		"config.providers.role_llm_guardian",
 		"config.providers.role_mission_preparation",
+		"config.providers.role_flows",
 		"config.providers.role_image_generation",
 		"config.providers.role_music_generation",
 		"config.providers.role_video_generation",

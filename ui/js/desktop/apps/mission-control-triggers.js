@@ -149,9 +149,44 @@
         return String(t(type.labelKey) || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
     }
 
+    // Flow missions (execution_type "flow") are EasyDrag flows. The server refuses to run or switch
+    // on a flow that was never published.
+    function isFlow(mission) { return !!mission && mission.execution_type === 'flow'; }
+    function isUnpublishedFlow(mission) { return isFlow(mission) && !mission.flow_published; }
+
+    // upcomingRun returns the next run of an enabled scheduled or flow mission, or ''. The server
+    // sends next_run for those only (a flow's earliest schedule or Date & time trigger).
+    function upcomingRun(mission) {
+        if (!mission || mission.enabled === false || !mission.next_run) return '';
+        return mission.execution_type === 'scheduled' || isFlow(mission) ? mission.next_run : '';
+    }
+
+    // lastRunAt returns the time of a mission's last run, or '' when it never ran. The server sends
+    // Go's zero time ("0001-01-01T00:00:00Z") for a mission without a run, not an empty value.
+    function lastRunAt(mission) {
+        const value = mission && mission.last_run;
+        return value && Date.parse(value) > 0 ? value : '';
+    }
+
+    // flowSummary lists the trigger nodes of an EasyDrag flow mission.
+    function flowSummary(mission, t, ctx) {
+        if (!mission.flow_published) return t('desktop.mc_flow_unpublished');
+        const specs = Array.isArray(mission.flow_triggers) ? mission.flow_triggers : [];
+        if (!specs.length) return t('desktop.mc_flow_no_trigger');
+        const parts = specs.map(spec => {
+            if (spec.trigger_type === 'schedule') return spec.schedule && ctx.schedule ? ctx.schedule.describe(spec.schedule, t, ctx.lang) : t('desktop.mc_filter_scheduled');
+            if (spec.trigger_type === 'datetime') return t('desktop.mc_flow_trigger_datetime');
+            if (spec.trigger_type === 'manual') return t('desktop.mc_filter_manual');
+            const type = byKey(spec.trigger_type);
+            return type ? label(type, t) : String(spec.trigger_type || '');
+        });
+        return Array.from(new Set(parts.filter(Boolean))).join(' · ');
+    }
+
     function summary(mission, t, ctx) {
         ctx = ctx || {};
         if (!mission) return '';
+        if (mission.execution_type === 'flow') return flowSummary(mission, t, ctx);
         if (mission.execution_type === 'scheduled') {
             if (!mission.schedule) return t('desktop.mc_overview_not_scheduled');
             return ctx.schedule ? ctx.schedule.describe(mission.schedule, t, ctx.lang) : mission.schedule;
@@ -411,14 +446,14 @@
                     return appendAll(fieldWrap(field), [fieldLabel(field, id), select, fieldHint(field), fieldError(field)]);
                 }
                 case 'mission': {
-                    const list = (typeof missions === 'function' ? missions() : []).filter(m => m && m.id !== missionId && (m.execution_type === 'manual' || m.execution_type === 'scheduled'));
+                    const list = (typeof missions === 'function' ? missions() : []).filter(m => m && m.id !== missionId && (m.execution_type === 'manual' || m.execution_type === 'scheduled' || m.execution_type === 'flow'));
                     const group = make('div', 'vd-mc-mission-options', { role: 'radiogroup' });
                     if (list.length) {
                         list.forEach(m => {
                             const label = make('label', 'vd-mc-mission-option');
                             const radio = make('input', '', { type: 'radio', name: 'mc-source-mission', value: m.id, 'data-name': m.name, 'data-mc-field': field.name });
                             radio.checked = m.id === value;
-                            label.append(radio, textEl('span', 'vd-mc-mission-option-name', m.name), textEl('span', 'vd-mc-mission-option-meta', t(m.execution_type === 'scheduled' ? 'missions.filter_scheduled' : 'missions.filter_manual')));
+                            label.append(radio, textEl('span', 'vd-mc-mission-option-name', m.name), textEl('span', 'vd-mc-mission-option-meta', t(m.execution_type === 'flow' ? 'desktop.mc_badge_flow' : m.execution_type === 'scheduled' ? 'missions.filter_scheduled' : 'missions.filter_manual')));
                             group.append(label);
                         });
                     } else {
@@ -544,5 +579,5 @@
         };
     }
 
-    window.MissionControlTriggers = { GROUPS, TYPES, REMOTE_ALLOWED, FIELDS, byKey, label, summary, detail, createPicker, createConfigPanel };
+    window.MissionControlTriggers = { GROUPS, TYPES, REMOTE_ALLOWED, FIELDS, byKey, label, summary, detail, isFlow, isUnpublishedFlow, upcomingRun, lastRunAt, createPicker, createConfigPanel };
 })();

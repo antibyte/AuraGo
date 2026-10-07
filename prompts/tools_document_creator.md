@@ -34,6 +34,7 @@ conditions: ["document_creator_enabled"]
 | `landscape` | ❌ | `true` for landscape orientation (default: portrait) |
 | `sections` | ❌ | JSON array of sections for `create_pdf` (see below) |
 | `source_files` | No | JSON array of file paths for `convert_document` and `merge_pdfs` |
+| `block_remote_content` | ❌ | `true` for untrusted HTML: blocks remote resources, scripts, meta refresh and connection hints while rendering (`html_to_pdf`, `markdown_to_pdf`, `screenshot_html`, `create_pdf` on Gotenberg); embed images and fonts as `data:` URLs, inline CSS works. Refused for `url_to_pdf`, `screenshot_url` and `convert_document` |
 
 **Sections format** (JSON array for `create_pdf`):
 ```json

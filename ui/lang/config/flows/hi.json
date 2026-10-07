@@ -1,0 +1,18 @@
+{
+  "config.flows.agent_allow_publish": "एजेंट फ़्लो प्रकाशित कर सकता है",
+  "config.flows.agent_note": "एजेंट विकल्प तब लागू होंगे जब एजेंट फ़्लो के साथ काम कर सकेगा।",
+  "config.flows.agent_read_only": "एजेंट फ़्लो केवल पढ़ सकता है",
+  "config.flows.ai_provider": "AI चरणों के लिए AI प्रदाता",
+  "config.flows.ai_provider_help": "“डिफ़ॉल्ट मॉडल” पर सेट AI चरण इस प्रदाता का उपयोग करते हैं।",
+  "config.flows.ai_provider_main": "मुख्य मॉडल",
+  "config.flows.enabled": "फ़्लो सक्षम करें",
+  "config.flows.intro": "फ़्लो एजेंट की कतार के बाहर चलते हैं। ये सीमाएँ सर्वर की रक्षा करती हैं।",
+  "config.flows.max_parallel_nodes_per_run": "प्रति रन समानांतर चरण (1–16)",
+  "config.flows.max_parallel_runs": "समानांतर रन (1–32)",
+  "config.flows.max_runs_per_flow": "प्रति फ़्लो रखे गए रन (10–5000)",
+  "config.flows.missions_off": "मिशन बंद हैं। फ़्लो चलाने के लिए मिशन ज़रूरी हैं।",
+  "config.flows.open": "EasyDrag खोलें",
+  "config.flows.run_retention_days": "रन इतिहास रखें (दिन, 1–365)",
+  "config.section.flows.desc": "EasyDrag ऐप के विज़ुअल ऑटोमेशन",
+  "config.section.flows.label": "EasyDrag फ़्लो"
+}

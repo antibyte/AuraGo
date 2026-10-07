@@ -69,18 +69,43 @@
             if (!mission) return 'idle';
             if (ctx.running) return 'running';
             if (ctx.queuePosition) return 'queued';
+            // A flow that was never published is off because it cannot be switched on, not paused.
+            if (triggers.isUnpublishedFlow(mission)) return 'unpublished';
             if (mission.enabled === false) return 'paused';
             if (mission.last_result === 'error') return 'error';
             if (mission.last_result === 'success') return 'ok';
-            return mission.last_run ? 'idle' : 'never';
+            return triggers.lastRunAt(mission) ? 'idle' : 'never';
         }
-        const STATE_KEYS = { running: 'desktop.mc_state_running', queued: 'desktop.mc_state_queued', paused: 'desktop.mc_state_paused', error: 'desktop.mc_state_error', ok: 'desktop.mc_state_ok', idle: 'desktop.mc_state_idle', never: 'desktop.mc_state_never_run' };
+        const STATE_KEYS = { running: 'desktop.mc_state_running', queued: 'desktop.mc_state_queued', paused: 'desktop.mc_state_paused', unpublished: 'desktop.mc_flow_unpublished', error: 'desktop.mc_state_error', ok: 'desktop.mc_state_ok', idle: 'desktop.mc_state_idle', never: 'desktop.mc_state_never_run' };
         function pill(state, extraClass) { return `<span class="vd-mc-pill ${extraClass || ''}" data-state="${esc(state)}">${esc(t(STATE_KEYS[state] || state))}</span>`; }
 
         function actionButton(name, labelKey, iconName, opts) {
             opts = opts || {};
             const disabled = opts.disabled || readonly || (ctx.busy && ctx.busy !== name);
-            return `<button type="button" class="vd-mc-btn${opts.primary ? ' vd-mc-btn--primary' : ''}${opts.danger ? ' vd-mc-btn--danger' : ''}" data-mc-action="${esc(name)}" ${disabled ? 'disabled' : ''} ${opts.title ? `title="${esc(opts.title)}" aria-label="${esc(opts.title)}"` : ''}>${ic(iconName)}${opts.iconOnly ? '' : `<span>${esc(opts.label || t(labelKey))}</span>`}</button>`;
+            // hint is a tooltip only; title also names the button (for icon-only buttons).
+            const tip = opts.title ? `title="${esc(opts.title)}" aria-label="${esc(opts.title)}"` : opts.hint ? `title="${esc(opts.hint)}"` : '';
+            return `<button type="button" class="vd-mc-btn${opts.primary ? ' vd-mc-btn--primary' : ''}${opts.danger ? ' vd-mc-btn--danger' : ''}" data-mc-action="${esc(name)}" ${disabled ? 'disabled' : ''} ${tip}>${ic(iconName)}${opts.iconOnly ? '' : `<span>${esc(opts.label || t(labelKey))}</span>`}</button>`;
+        }
+
+        // openFlowButton stays enabled in read-only mode: EasyDrag itself opens flows read-only.
+        function openFlowButton(extraClass) {
+            return `<button type="button" class="vd-mc-btn${extraClass}" data-mc-action="openFlow">${ic('workflow')}<span>${esc(t('desktop.mc_action_open_easydrag'))}</span></button>`;
+        }
+
+        // taskCard shows the prompt of agent missions and the EasyDrag hint for flow missions.
+        function taskCard() {
+            if (mission.execution_type === 'flow') {
+                return `<article class="vd-mc-card vd-mc-card--task vd-mc-card--flow">
+                    <h3 class="vd-mc-card-title">${ic('workflow')}<span>${esc(t('desktop.mc_flow_card_title'))}</span></h3>
+                    <p class="vd-mc-flow-desc">${esc(t('desktop.mc_flow_card_desc'))}</p>
+                    ${triggers.isUnpublishedFlow(mission) ? `<p class="vd-mc-flow-hint">${ic('info')}<span>${esc(t('desktop.mc_flow_publish_first'))}</span></p>` : ''}
+                    <div class="vd-mc-card-actions">${openFlowButton(' vd-mc-btn--primary')}</div>
+                </article>`;
+            }
+            return `<article class="vd-mc-card vd-mc-card--task">
+                    <h3 class="vd-mc-card-title">${ic('edit')}<span>${esc(t('desktop.mc_overview_task'))}</span></h3>
+                    <pre class="vd-mc-prompt">${esc(mission.prompt || '')}</pre>
+                </article>`;
         }
 
         function renderHero() {
@@ -89,6 +114,7 @@
             let primary;
             if (ctx.running && !remote) primary = actionButton('cancel', 'desktop.mc_action_cancel', 'stop', { danger: true, disabled: ctx.cancelling, label: ctx.cancelling ? t('desktop.mc_action_cancelling') : t('desktop.mc_action_cancel') });
             else if (ctx.queuePosition) primary = actionButton('removeQueue', 'desktop.mc_action_remove_queue', 'queue', {});
+            else if (triggers.isUnpublishedFlow(mission)) primary = actionButton('run', 'desktop.mc_action_run', 'play', { primary: true, disabled: true, hint: t('desktop.mc_flow_publish_first') });
             else primary = actionButton('run', 'desktop.mc_action_run', 'play', { primary: true, disabled: ctx.running });
             q('[data-mc-hero]').innerHTML = `
                 <div class="vd-mc-hero-main">
@@ -98,11 +124,11 @@
                         ${mission.locked ? `<span class="vd-mc-badge" title="${esc(t('desktop.mc_state_locked'))}">${ic('lock')}<span>${esc(t('desktop.mc_state_locked'))}</span></span>` : ''}
                         ${remote ? `<span class="vd-mc-badge">${ic('globe')}<span>${esc(mission.remote_nest_name || mission.remote_egg_name || t('desktop.mc_state_remote'))}</span></span>` : ''}
                     </div>
-                    <div class="vd-mc-hero-summary">${ic(mission.execution_type === 'scheduled' ? 'clock' : mission.execution_type === 'triggered' ? 'bolt' : 'hand')}<span>${esc(triggers.summary(mission, t, { schedule, lang }))}</span></div>
+                    <div class="vd-mc-hero-summary">${ic(mission.execution_type === 'scheduled' ? 'clock' : mission.execution_type === 'triggered' ? 'bolt' : mission.execution_type === 'flow' ? 'workflow' : 'hand')}<span>${esc(triggers.summary(mission, t, { schedule, lang }))}</span></div>
                 </div>
                 <div class="vd-mc-hero-actions">
                     ${primary}
-                    ${actionButton('edit', 'desktop.mc_action_edit', 'edit', {})}
+                    ${mission.execution_type === 'flow' ? openFlowButton('') : actionButton('edit', 'desktop.mc_action_edit', 'edit', {})}
                     <button type="button" class="vd-mc-btn vd-mc-btn--icon" data-mc-action="more" title="${esc(t('desktop.mc_action_more'))}" aria-label="${esc(t('desktop.mc_action_more'))}" aria-haspopup="menu">${ic('more')}</button>
                 </div>`;
             const progress = q('[data-mc-progress]');
@@ -120,27 +146,31 @@
 
         function factRows() {
             const rows = [];
-            rows.push([t('desktop.mc_overview_trigger'), esc(triggers.summary(mission, t, { schedule, lang }))]);
-            if (mission.execution_type === 'scheduled') {
+            rows.push([t(mission.execution_type === 'flow' ? 'desktop.mc_flow_triggers' : 'desktop.mc_overview_trigger'), esc(triggers.summary(mission, t, { schedule, lang }))]);
+            if (mission.execution_type === 'scheduled' || mission.execution_type === 'flow') {
                 let next;
-                if (mission.enabled === false) next = esc(t('desktop.mc_overview_paused'));
+                if (triggers.isUnpublishedFlow(mission)) next = esc(t('desktop.mc_flow_unpublished'));
+                else if (mission.enabled === false) next = esc(t('desktop.mc_overview_paused'));
                 else if (mission.next_run) next = `${esc(fmt.dateTime(mission.next_run))} <span class="vd-mc-muted">· ${esc(fmt.relative(mission.next_run))}</span>`;
                 else next = esc(t('desktop.mc_overview_not_scheduled'));
                 rows.push([t('desktop.mc_overview_next_run'), next]);
             }
-            if (mission.last_run) {
+            const lastRun = triggers.lastRunAt(mission);
+            if (lastRun) {
                 const result = mission.last_result === 'error' ? pill('error', 'vd-mc-pill--small') : mission.last_result === 'success' ? pill('ok', 'vd-mc-pill--small') : '';
-                rows.push([t('desktop.mc_overview_last_run'), `${esc(fmt.dateTime(mission.last_run))} <span class="vd-mc-muted">· ${esc(fmt.relative(mission.last_run))}</span> ${result}`]);
+                rows.push([t('desktop.mc_overview_last_run'), `${esc(fmt.dateTime(lastRun))} <span class="vd-mc-muted">· ${esc(fmt.relative(lastRun))}</span> ${result}`]);
             } else {
                 rows.push([t('desktop.mc_overview_last_run'), esc(t('desktop.mc_state_never_run'))]);
             }
             rows.push([t('desktop.mc_overview_runs'), esc(String(mission.run_count || 0))]);
             const exec = [];
             exec.push(mission.runner_type === 'remote' ? t('desktop.mc_exec_remote', { target: mission.remote_nest_name || mission.remote_egg_name || mission.remote_nest_id || '' }) : t('desktop.mc_exec_local'));
-            const priority = ['low', 'medium', 'high'].includes(mission.priority) ? mission.priority : 'medium';
-            exec.push(t('desktop.mc_exec_priority', { value: t('desktop.mc_priority_' + priority) }));
-            if (Array.isArray(mission.cheatsheet_ids) && mission.cheatsheet_ids.length) exec.push(t('desktop.mc_exec_cheatsheets', { count: mission.cheatsheet_ids.length }));
-            if (mission.auto_prepare) exec.push(t('desktop.mc_exec_auto_prepare'));
+            if (mission.execution_type !== 'flow') {
+                const priority = ['low', 'medium', 'high'].includes(mission.priority) ? mission.priority : 'medium';
+                exec.push(t('desktop.mc_exec_priority', { value: t('desktop.mc_priority_' + priority) }));
+                if (Array.isArray(mission.cheatsheet_ids) && mission.cheatsheet_ids.length) exec.push(t('desktop.mc_exec_cheatsheets', { count: mission.cheatsheet_ids.length }));
+                if (mission.auto_prepare) exec.push(t('desktop.mc_exec_auto_prepare'));
+            }
             rows.push([t('desktop.mc_overview_execution'), `<ul class="vd-mc-fact-list">${exec.map(item => `<li>${esc(item)}</li>`).join('')}</ul>`]);
             return rows.map(([k, v]) => `<div class="vd-mc-fact"><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join('');
         }
@@ -179,12 +209,9 @@
             const long = output.length > OUTPUT_PREVIEW_CHARS;
             const shown = long && !outputExpanded ? output.slice(0, OUTPUT_PREVIEW_CHARS) + '…' : output;
             q('[data-mc-panel="overview"]').innerHTML = `<div class="vd-mc-cards">
-                <article class="vd-mc-card vd-mc-card--task">
-                    <h3 class="vd-mc-card-title">${ic('edit')}<span>${esc(t('desktop.mc_overview_task'))}</span></h3>
-                    <pre class="vd-mc-prompt">${esc(mission.prompt || '')}</pre>
-                </article>
+                ${taskCard()}
                 <article class="vd-mc-card vd-mc-card--facts"><dl class="vd-mc-facts">${factRows()}</dl></article>
-                ${prepMarkup()}
+                ${mission.execution_type === 'flow' ? '' : prepMarkup()}
                 <article class="vd-mc-card vd-mc-card--output">
                     <h3 class="vd-mc-card-title">${ic('history')}<span>${esc(t('desktop.mc_overview_last_output'))}</span>
                         ${output ? `<button type="button" class="vd-mc-btn vd-mc-btn--icon vd-mc-btn--ghost" data-mc-action="copyOutput" title="${esc(t('desktop.mc_overview_copy_output'))}" aria-label="${esc(t('desktop.mc_overview_copy_output'))}">${ic('copy')}</button>` : ''}

@@ -39,7 +39,7 @@
         function queuePosition(m) { const idx = queue.items.findIndex(item => item.mission_id === m.id); return idx < 0 ? 0 : idx + 1; }
         function matchesFilter(m) {
             switch (filter) {
-                case 'manual': case 'scheduled': case 'triggered': return m.execution_type === filter;
+                case 'manual': case 'scheduled': case 'triggered': case 'flow': return m.execution_type === filter;
                 case 'errors': return m.last_result === 'error';
                 default: return true;
             }
@@ -50,7 +50,7 @@
         }
         function compare(a, b) {
             switch (sort) {
-                case 'last_run': return (Date.parse(b.last_run || '') || 0) - (Date.parse(a.last_run || '') || 0) || byName(a, b);
+                case 'last_run': return (Date.parse(triggers.lastRunAt(b)) || 0) - (Date.parse(triggers.lastRunAt(a)) || 0) || byName(a, b);
                 case 'next_run': return (Date.parse(a.next_run || '') || Infinity) - (Date.parse(b.next_run || '') || Infinity) || byName(a, b);
                 case 'priority': return (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1) || byName(a, b);
                 default: return byName(a, b);
@@ -61,28 +61,35 @@
         function stateOf(m) {
             if (isRunning(m)) return 'running';
             if (queuePosition(m)) return 'queued';
+            // A flow that was never published is off because it cannot be switched on, not paused.
+            if (triggers.isUnpublishedFlow(m)) return 'unpublished';
             if (m.enabled === false) return 'paused';
             if (m.last_result === 'error') return 'error';
             if (m.last_result === 'success') return 'ok';
-            return m.last_run ? 'idle' : 'never';
+            return triggers.lastRunAt(m) ? 'idle' : 'never';
         }
 
         function timeText(m, state) {
             if (state === 'running') return t('desktop.mc_state_running');
             if (state === 'queued') return t('desktop.mc_state_queued');
-            if (m.execution_type === 'scheduled' && m.enabled !== false && m.next_run) return t('desktop.mc_next_run_in', { when: fmt.relative(m.next_run) });
-            if (m.last_run) return t('desktop.mc_last_run_ago', { when: fmt.relative(m.last_run) });
+            const next = triggers.upcomingRun(m);
+            if (next) return t('desktop.mc_next_run_in', { when: fmt.relative(next) });
+            const last = triggers.lastRunAt(m);
+            if (last) return t('desktop.mc_last_run_ago', { when: fmt.relative(last) });
             return t('desktop.mc_state_never_run');
         }
 
         // Signature of everything a row renders; unchanged rows keep their DOM.
         function rowSignature(m, state) {
-            return [m.name, m.prompt ? m.prompt.length : 0, m.execution_type, m.schedule, m.trigger_type, JSON.stringify(m.trigger_config || null), m.enabled, m.locked, m.runner_type, m.priority, m.last_run, m.last_result, m.next_run, state, m.id === selectedId, readonly].join('|');
+            return [m.name, m.prompt ? m.prompt.length : 0, m.execution_type, m.schedule, m.trigger_type, JSON.stringify(m.trigger_config || null), m.enabled, m.locked, m.runner_type, m.priority, m.last_run, m.last_result, m.next_run, JSON.stringify(m.flow_triggers || null), m.flow_published, state, m.id === selectedId, readonly].join('|');
         }
 
         function rowMarkup(m, state) {
             const summary = triggers.summary(m, t, { schedule, lang });
             const busy = state === 'running' || state === 'queued';
+            // An unpublished flow cannot run (the server refuses it). It gets no Paused badge: its summary line
+            // already reads "Not published yet".
+            const unpublished = triggers.isUnpublishedFlow(m);
             return `
                 <span class="vd-mc-row-state" data-state="${esc(state)}" aria-hidden="true"></span>
                 <span class="vd-mc-row-main">
@@ -90,13 +97,14 @@
                         <span class="vd-mc-row-name">${esc(m.name || '')}</span>
                         ${m.locked ? `<span class="vd-mc-row-badge" title="${esc(t('desktop.mc_state_locked'))}">${ic('lock')}</span>` : ''}
                         ${m.runner_type === 'remote' ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(t('desktop.mc_state_remote'))}</span>` : ''}
-                        ${m.enabled === false ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(t('desktop.mc_state_paused'))}</span>` : ''}
+                        ${m.enabled === false && !unpublished ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(t('desktop.mc_state_paused'))}</span>` : ''}
+                        ${m.execution_type === 'flow' ? `<span class="vd-mc-row-badge vd-mc-row-badge--text vd-mc-row-badge--flow">${esc(t('desktop.mc_badge_flow'))}</span>` : ''}
                     </span>
                     <span class="vd-mc-row-sub">${esc(summary)}</span>
                 </span>
                 <span class="vd-mc-row-meta">
                     <span class="vd-mc-row-time">${esc(timeText(m, state))}</span>
-                    <button type="button" class="vd-mc-row-quick" data-mc-quick="run" tabindex="-1" title="${esc(t('desktop.mc_action_run'))}" aria-label="${esc(t('desktop.mc_action_run'))}" ${busy || readonly ? 'disabled' : ''}>${ic('play')}</button>
+                    <button type="button" class="vd-mc-row-quick" data-mc-quick="run" tabindex="-1" title="${esc(t('desktop.mc_action_run'))}" aria-label="${esc(t('desktop.mc_action_run'))}" ${busy || unpublished || readonly ? 'disabled' : ''}>${ic('play')}</button>
                 </span>`;
         }
 

@@ -24,6 +24,66 @@ function missionIsRunning(mission, queueState = queue) {
     return mission.id === queueState.running || mission.status === 'running';
 }
 
+// Flow missions (execution_type "flow") are EasyDrag flows: read-only here. The server refuses to run a flow that
+// is switched off (enabled false); a flow that was never published is always off.
+function missionIsFlow(mission) {
+    return !!mission && mission.execution_type === 'flow';
+}
+
+// flowRunBlock returns why a flow mission cannot run now, or '' when it can (and for every other mission).
+function flowRunBlock(mission) {
+    if (!missionIsFlow(mission)) return '';
+    if (!mission.flow_published) return t('missions.flow_publish_first');
+    if (mission.enabled === false) return t('missions.flow_switch_on_first');
+    return '';
+}
+
+// flowStateLabel returns the visible state of a flow mission that cannot run, or ''.
+function flowStateLabel(mission) {
+    if (!missionIsFlow(mission)) return '';
+    if (!mission.flow_published) return t('missions.flow_unpublished');
+    if (mission.enabled === false) return t('missions.flow_paused');
+    return '';
+}
+
+// requestError turns a failed response into an Error carrying the server's message (the `error` field of a JSON
+// answer, else the raw text) and the HTTP status.
+async function requestError(response) {
+    const text = await response.text().catch(() => '');
+    let message = text;
+    try {
+        const body = JSON.parse(text);
+        if (body && typeof body.error === 'string' && body.error) message = body.error;
+    } catch (_) { /* not JSON */ }
+    const err = new Error(message || String(response.status));
+    err.status = response.status;
+    return err;
+}
+
+// flowRunErrorText returns the page's own text for a refused flow run, or '' to show the server's message. The
+// answers carry no code, so it matches the server's English texts: "mission is disabled"
+// (internal/tools/missions_v2_flow_runs.go:296) and "the flow has not been published yet" (internal/flows/service.go:111).
+// Any other or reworded answer falls back to the server's text.
+function flowRunErrorText(err) {
+    const status = err && err.status;
+    const message = (err && err.message) || '';
+    if (status === 503) return t('missions.flows_unavailable');
+    if (status === 400 && /disabled/i.test(message)) return t('missions.flow_switch_on_first');
+    if (status === 409 && /not been published/i.test(message)) return t('missions.flow_publish_first');
+    return '';
+}
+
+// decodeEntities undoes escapeHtml for plain-text uses such as a title attribute (escaped again there).
+function decodeEntities(text) {
+    return String(text)
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&');
+}
+
 function getRunningMissions(missionsList = missions, queueState = queue) {
     const seen = new Set();
     const running = [];
@@ -76,6 +136,7 @@ const icons = {
     manual: '👆',
     scheduled: '📅',
     triggered: '⚡',
+    flow: '🧩',
     running: '🔄',
     queued: '⏳',
     waiting: '⏸️',
@@ -100,6 +161,7 @@ const svgIcons = {
     calendar: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/></svg>`,
     bolt: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.983 1.907a.75.75 0 00-1.292-.657l-8.5 9.5A.75.75 0 002.75 12h6.572l-1.305 6.093a.75.75 0 001.292.657l8.5-9.5A.75.75 0 0017.25 8h-6.572l1.305-6.093z" clip-rule="evenodd"/></svg>`,
     hand: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M7 2a1 1 0 00-1 1v8.5L4.78 10.28a1 1 0 10-1.56 1.44l3 4A1 1 0 007 16h6a3 3 0 003-3V8a1 1 0 10-2 0V6a1 1 0 10-2 0V4a1 1 0 10-2 0V3a1 1 0 10-2 0v8a.5.5 0 11-1 0V3a1 1 0 00-1-1z"/></svg>`,
+    flow: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="12" y="12" width="6" height="6" rx="1.5"/><path d="M8 4.25h4.5a2.25 2.25 0 012.25 2.25V12h-1.5V6.5a.75.75 0 00-.75-.75H8z"/></svg>`,
     checkCircle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>`,
     xCircle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg>`,
     fileText: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>`,
@@ -364,11 +426,11 @@ function renderQueue() {
 
     runningMissions.forEach((runningMission) => {
         html += `
-                        <div class="queue-item queue-item-running priority-${runningMission.priority}">
+                        <div class="queue-item queue-item-running priority-${escapeAttr(runningMission.priority)}">
                             <div class="queue-position">${icons.running}</div>
                             <div class="queue-info">
                                 <div class="queue-name">${escapeHtml(runningMission.name)}</div>
-                                <div class="queue-meta">${t('missions.queue_running_now')} | ${t('missions.queue_priority_prefix')} ${runningMission.priority}</div>
+                                <div class="queue-meta">${t('missions.queue_running_now')} | ${t('missions.queue_priority_prefix')} ${escapeHtml(runningMission.priority)}</div>
                             </div>
                             <span class="queue-trigger queue-trigger-active">${t('missions.queue_active_badge')}</span>
                         </div>
@@ -381,14 +443,14 @@ function renderQueue() {
         if (!mission) return;
 
         const priorityClass = item.priority === 3 ? 'high' : item.priority === 2 ? 'medium' : 'low';
-        const triggerLabel = item.trigger_type ? `[${item.trigger_type}]` : '';
+        const triggerLabel = item.trigger_type ? `[${escapeHtml(item.trigger_type)}]` : '';
 
         html += `
                     <div class="queue-item priority-${priorityClass}">
                         <div class="queue-position">${index + 1}</div>
                         <div class="queue-info">
                             <div class="queue-name">${escapeHtml(mission.name)}</div>
-                            <div class="queue-meta">${t('missions.queue_waiting_since')} ${formatTime(item.enqueued_at)} | ${t('missions.queue_priority_prefix')} ${mission.priority}</div>
+                            <div class="queue-meta">${t('missions.queue_waiting_since')} ${formatTime(item.enqueued_at)} | ${t('missions.queue_priority_prefix')} ${escapeHtml(mission.priority)}</div>
                         </div>
                         ${triggerLabel ? `<span class="queue-trigger">${triggerLabel}</span>` : ''}
                         <button class="icon-btn" data-mission-action="remove-from-queue" data-mission-id="${escapeAttr(mission.id)}" title="${t('missions.queue_remove_title')}">
@@ -453,6 +515,26 @@ function renderMissions() {
     }
 }
 
+// missionCardActions returns the attributes of a card's Run, Duplicate and Edit buttons. Icon-only buttons keep
+// their action as aria-label and carry the reason in title. Flow missions are edited in EasyDrag (Edit only
+// explains that), cannot be duplicated here, and cannot run while they are unpublished or switched off.
+function missionCardActions(mission, isRunning) {
+    const flow = missionIsFlow(mission);
+    const managed = t('missions.flow_managed');
+    const runName = t('missions.card_btn_run_title');
+    const runBlock = flowRunBlock(mission);
+    const runOff = isRunning || !!runBlock;
+    const iconButton = (name, reason, disabled) =>
+        `aria-label="${escapeAttr(name)}" title="${escapeAttr(reason || name)}"${disabled ? ' disabled' : ''}`;
+    return {
+        run: iconButton(runName, runBlock, runOff),
+        // The grid's Run button shows its label, which stays its accessible name.
+        runLabelled: `title="${escapeAttr(runBlock || runName)}"${runOff ? ' disabled' : ''}`,
+        duplicate: iconButton(t('missions.card_btn_duplicate_title'), flow ? managed : '', flow),
+        edit: iconButton(t('missions.card_btn_edit_title'), flow ? managed : '', false)
+    };
+}
+
 // Compact List View Card
 function renderMissionCompact(mission) {
     const isRunning = missionIsRunning(mission);
@@ -460,23 +542,26 @@ function renderMissionCompact(mission) {
     const typeIcon = icons[mission.execution_type] || icons.manual;
     const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` :
                        isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : '';
+    const flowState = flowStateLabel(mission);
+    const flowBadge = flowState ? `<span class="badge badge-idle">${escapeHtml(flowState)}</span>` : '';
     const prepBadge = renderPrepBadge(mission);
     const runnerBadge = mission.runner_type === 'remote'
         ? `<span class="badge badge-remote">${escapeHtml(mission.remote_egg_name || mission.remote_nest_name || t('missions.card_remote_badge'))}</span>`
         : '';
 
     const mid = escapeAttr(mission.id);
+    const acts = missionCardActions(mission, isRunning);
     return `
         <div class="card-compact" data-mission-id="${mid}" data-mission-action="open-edit">
             <span class="card-icon" title="${escapeAttr(mission.execution_type)}">${typeIcon}</span>
             <span class="card-name">${escapeHtml(mission.name)}</span>
             ${mission.locked ? `<span class="card-icon" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>` : ''}
-            <div class="card-badges">${statusBadge}${prepBadge}${runnerBadge}</div>
+            <div class="card-badges">${statusBadge}${flowBadge}${prepBadge}${runnerBadge}</div>
             <div class="card-actions">
-                <button class="mc-btn mc-btn-run" data-mission-action="run" data-mission-id="${mid}" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${svgIcons.play}</button>
+                <button class="mc-btn mc-btn-run" data-mission-action="run" data-mission-id="${mid}" ${acts.run}>${svgIcons.play}</button>
                 ${renderPrepButton(mission, isRunning)}
-                <button class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
-                <button class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
+                <button class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" ${acts.duplicate}>${svgIcons.copy}</button>
+                <button class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" ${acts.edit}>${svgIcons.edit}</button>
                 <button class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
             </div>
         </div>
@@ -497,6 +582,7 @@ function renderMissionGrid(mission, isFirstRender) {
     const hasError = !isRunning && mission.last_result === 'error';
 
     const mid = escapeAttr(mission.id);
+    const acts = missionCardActions(mission, isRunning);
     const statusChip = renderStatusChip(mission, isRunning, isQueued, isWaiting);
     const remoteBadge = mission.runner_type === 'remote'
         ? `<span class="badge badge-remote mc-remote-badge">${escapeHtml(mission.remote_egg_name || mission.remote_nest_name || t('missions.card_remote_badge'))}</span>`
@@ -508,16 +594,20 @@ function renderMissionGrid(mission, isFirstRender) {
     let execText = t('missions.filter_manual');
     if (mission.execution_type === 'scheduled') {
         execIcon = icons.scheduled;
-        execText = mission.schedule ? mission.schedule : t('missions.filter_scheduled');
+        execText = mission.schedule ? escapeHtml(mission.schedule) : t('missions.filter_scheduled');
     } else if (mission.execution_type === 'triggered') {
         execIcon = icons.triggered;
         execText = renderTriggerText(mission) || t('missions.filter_triggered');
+    } else if (mission.execution_type === 'flow') {
+        execIcon = icons.flow;
+        execText = t('missions.filter_flow');
     }
-    const execPillTitle = execText.replace(/<[^>]+>/g, '');
+    // execText is HTML with escaped values; the title gets its plain text (escapeAttr escapes it again).
+    const execPillTitle = decodeEntities(execText.replace(/<[^>]+>/g, ''));
     const triggerPill = `<div class="mc-trigger-pill" title="${escapeAttr(execPillTitle)}">${execIcon}<span>${execText}</span></div>`;
     const hasTriggerDetails = mission.execution_type === 'triggered' && !!renderTriggerText(mission);
 
-    const lastRun = mission.last_run ? formatTime(mission.last_run) : t('missions.card_last_run_never');
+    const lastRun = hasTime(mission.last_run) ? formatTime(mission.last_run) : t('missions.card_last_run_never');
     const resultIcon = hasError ? svgIcons.xCircle : (mission.last_result === 'success' ? svgIcons.checkCircle : '');
     const resultClass = hasError ? 'mc-meta-item--error' : (mission.last_result === 'success' ? 'mc-meta-item--ok' : '');
 
@@ -530,7 +620,7 @@ function renderMissionGrid(mission, isFirstRender) {
     return `
         <article class="mission-card mc-card${statusClass ? ' ' + statusClass : ''}${isFirstRender ? ' entering' : ''}${isExpanded ? ' expanded' : ''}"
                  data-priority="${escapeAttr(mission.priority)}"
-                 data-status="${statusKind}"
+                 data-status="${escapeAttr(statusKind)}"
                  data-mission-id="${mid}">
             <header class="mc-header" data-mission-action="toggle-expand" data-mission-id="${mid}">
                 <div class="mc-header-left">
@@ -564,8 +654,7 @@ function renderMissionGrid(mission, isFirstRender) {
                             class="mc-cta-run"
                             data-mission-action="run"
                             data-mission-id="${mid}"
-                            title="${t('missions.card_btn_run_title')}"
-                            ${isRunning ? 'disabled' : ''}>
+                            ${acts.runLabelled}>
                         ${svgIcons.play}
                         <span class="mc-cta-label">${t('missions.card_run_label')}</span>
                     </button>
@@ -585,8 +674,8 @@ function renderMissionGrid(mission, isFirstRender) {
                         </div>` : ''}
                     <div class="mc-actions-secondary">
                         ${renderPrepButton(mission, isRunning)}
-                        <button type="button" class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
-                        <button type="button" class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
+                        <button type="button" class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" ${acts.duplicate}>${svgIcons.copy}</button>
+                        <button type="button" class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" ${acts.edit}>${svgIcons.edit}</button>
                         <button type="button" class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
                     </div>
                 </div>
@@ -618,13 +707,21 @@ function renderStatusChip(mission, isRunning, isQueued, isWaiting) {
         } else if (kind === 'triggered') {
             label = t('missions.filter_triggered');
             icon = svgIcons.bolt;
+        } else if (kind === 'flow') {
+            // A flow that cannot run shows why (Not published yet / Paused) instead of its type.
+            const state = flowStateLabel(mission);
+            if (state) kind = 'flow-off';
+            label = state || t('missions.filter_flow');
+            icon = svgIcons.flow;
         } else {
             label = t('missions.filter_manual');
             icon = svgIcons.hand;
         }
     }
     const priorityDot = `<span class="mc-status-chip__priority" data-priority="${escapeAttr(mission.priority)}" aria-hidden="true"></span>`;
-    return `<span class="mc-status-chip mc-status-chip--${kind}">${priorityDot}<span class="mc-status-chip__icon">${icon}</span><span class="mc-status-chip__label">${escapeHtml(label)}</span></span>`;
+    // A flow's state is a phrase that narrow cards cut off; its title keeps it readable.
+    const title = kind === 'flow-off' ? ` title="${escapeAttr(label)}"` : '';
+    return `<span class="mc-status-chip mc-status-chip--${escapeAttr(kind)}"${title}>${priorityDot}<span class="mc-status-chip__icon">${icon}</span><span class="mc-status-chip__label">${escapeHtml(label)}</span></span>`;
 }
 
 function renderTriggerText(mission) {
@@ -639,26 +736,26 @@ function renderTriggerText(mission) {
             break;
         case 'email_received':
             const filters = [];
-            if (cfg.email_folder) filters.push(`${t('missions.trigger_info_folder_prefix')} ${cfg.email_folder}`);
-            if (cfg.email_subject_contains) filters.push(`${t('missions.trigger_info_subject_prefix')} "${cfg.email_subject_contains}"`);
-            if (cfg.email_from_contains) filters.push(`${t('missions.trigger_info_from_prefix')} "${cfg.email_from_contains}"`);
+            if (cfg.email_folder) filters.push(`${t('missions.trigger_info_folder_prefix')} ${escapeHtml(cfg.email_folder)}`);
+            if (cfg.email_subject_contains) filters.push(`${t('missions.trigger_info_subject_prefix')} "${escapeHtml(cfg.email_subject_contains)}"`);
+            if (cfg.email_from_contains) filters.push(`${t('missions.trigger_info_from_prefix')} "${escapeHtml(cfg.email_from_contains)}"`);
             triggerText = filters.length > 0 ? filters.join(' | ') : t('missions.trigger_info_any_email');
             break;
         case 'webhook':
-            triggerText = `${t('missions.trigger_info_webhook_prefix')} ${cfg.webhook_slug || cfg.webhook_id || t('missions.trigger_info_webhook_unknown')}`;
+            triggerText = `${t('missions.trigger_info_webhook_prefix')} ${escapeHtml(cfg.webhook_slug || cfg.webhook_id || t('missions.trigger_info_webhook_unknown'))}`;
             break;
         case 'egg_hatched':
-            const eggLabel = cfg.egg_name || cfg.egg_id ? `${t('missions.trigger_info_egg_prefix')} ${cfg.egg_name || cfg.egg_id}` : t('missions.trigger_info_any_egg');
-            const nestEggLabel = cfg.nest_name || cfg.nest_id ? `, ${t('missions.trigger_info_nest_prefix')} ${cfg.nest_name || cfg.nest_id}` : '';
+            const eggLabel = cfg.egg_name || cfg.egg_id ? `${t('missions.trigger_info_egg_prefix')} ${escapeHtml(cfg.egg_name || cfg.egg_id)}` : t('missions.trigger_info_any_egg');
+            const nestEggLabel = cfg.nest_name || cfg.nest_id ? `, ${t('missions.trigger_info_nest_prefix')} ${escapeHtml(cfg.nest_name || cfg.nest_id)}` : '';
             triggerText = `🥚 ${eggLabel}${nestEggLabel}`;
             break;
         case 'nest_cleared':
-            triggerText = `🪺 ${cfg.nest_name || cfg.nest_id ? `${t('missions.trigger_info_nest_prefix')} ${cfg.nest_name || cfg.nest_id}` : t('missions.trigger_info_any_nest')}`;
+            triggerText = `🪺 ${cfg.nest_name || cfg.nest_id ? `${t('missions.trigger_info_nest_prefix')} ${escapeHtml(cfg.nest_name || cfg.nest_id)}` : t('missions.trigger_info_any_nest')}`;
             break;
         case 'mqtt_message':
-            const mqttParts = [`${t('missions.trigger_info_mqtt_topic_prefix')} ${cfg.mqtt_topic || '#'}`];
-            if (cfg.mqtt_payload_contains) mqttParts.push(`${t('missions.trigger_info_mqtt_payload_prefix')} "${cfg.mqtt_payload_contains}"`);
-            if (cfg.mqtt_min_interval_seconds) mqttParts.push(`${t('missions.trigger_info_mqtt_min_interval_prefix')} ${cfg.mqtt_min_interval_seconds}s`);
+            const mqttParts = [`${t('missions.trigger_info_mqtt_topic_prefix')} ${escapeHtml(cfg.mqtt_topic || '#')}`];
+            if (cfg.mqtt_payload_contains) mqttParts.push(`${t('missions.trigger_info_mqtt_payload_prefix')} "${escapeHtml(cfg.mqtt_payload_contains)}"`);
+            if (cfg.mqtt_min_interval_seconds) mqttParts.push(`${t('missions.trigger_info_mqtt_min_interval_prefix')} ${escapeHtml(String(cfg.mqtt_min_interval_seconds))}s`);
             triggerText = `📡 ${mqttParts.join(' | ')}`;
             break;
         case 'system_startup':
@@ -681,7 +778,7 @@ function renderTriggerText(mission) {
             break;
         }
         case 'fritzbox_call': {
-            const typeLabel = cfg.call_type ? cfg.call_type : t('missions.trigger_info_fritzbox_any');
+            const typeLabel = cfg.call_type ? escapeHtml(cfg.call_type) : t('missions.trigger_info_fritzbox_any');
             triggerText = `📞 ${t('missions.trigger_info_fritzbox_prefix')} ${typeLabel}`;
             break;
         }
@@ -715,7 +812,7 @@ function renderTriggerText(mission) {
         }
     }
     if (cfg.min_interval_seconds) {
-        const intervalText = `${t('missions.trigger_info_min_interval_prefix')} ${cfg.min_interval_seconds}s`;
+        const intervalText = `${t('missions.trigger_info_min_interval_prefix')} ${escapeHtml(String(cfg.min_interval_seconds))}s`;
         triggerText = triggerText ? `${triggerText} | ${intervalText}` : intervalText;
     }
     return triggerText;
@@ -871,19 +968,20 @@ function selectTriggerType(type) {
 // Load mission selector
 function loadMissionSelector() {
     const container = document.getElementById('mission-selector');
-    const manualMissions = missions.filter(m => m.execution_type === 'manual' || m.execution_type === 'scheduled');
+    const manualMissions = missions.filter(m => m.execution_type === 'manual' || m.execution_type === 'scheduled' || m.execution_type === 'flow');
 
     if (manualMissions.length === 0) {
         container.innerHTML = '<div class="mission-trigger-empty">' + t('missions.trigger_no_suitable_missions') + '</div>';
         return;
     }
 
+    const typeLabels = { manual: t('missions.filter_manual'), scheduled: t('missions.filter_scheduled'), flow: t('missions.filter_flow') };
     container.innerHTML = manualMissions.map(m => `
                 <label class="mission-option">
-                    <input type="radio" name="source-mission" value="${m.id}" data-name="${escapeHtml(m.name)}">
+                    <input type="radio" name="source-mission" value="${escapeAttr(m.id)}" data-name="${escapeAttr(m.name)}">
                     <div class="mission-option-info">
                         <div class="mission-option-name">${escapeHtml(m.name)}</div>
-                        <div class="mission-option-meta">${m.execution_type} • ${m.priority} • ${t('missions.meta_run_count', { count: m.run_count })}</div>
+                        <div class="mission-option-meta">${escapeHtml(typeLabels[m.execution_type] || m.execution_type)} • ${escapeHtml(m.priority)} • ${t('missions.meta_run_count', { count: m.run_count })}</div>
                     </div>
                 </label>
             `).join('');
@@ -916,9 +1014,9 @@ async function loadInvasionData() {
         const nests = await nestsResp.json();
 
         const eggOptions = '<option value="">' + t('missions.trigger_egg_any') + '</option>' +
-            (eggs.eggs || eggs || []).map(e => `<option value="${e.id}" data-name="${escapeHtml(e.name)}">${escapeHtml(e.name)}</option>`).join('');
+            (eggs.eggs || eggs || []).map(e => `<option value="${escapeAttr(e.id)}" data-name="${escapeAttr(e.name)}">${escapeHtml(e.name)}</option>`).join('');
         const nestOptions = '<option value="">' + t('missions.trigger_nest_any') + '</option>' +
-            (nests.nests || nests || []).map(n => `<option value="${n.id}" data-name="${escapeHtml(n.name)}">${escapeHtml(n.name)}</option>`).join('');
+            (nests.nests || nests || []).map(n => `<option value="${escapeAttr(n.id)}" data-name="${escapeAttr(n.name)}">${escapeHtml(n.name)}</option>`).join('');
 
         document.getElementById('egg-hatched-egg-select').innerHTML = eggOptions;
         document.getElementById('egg-hatched-nest-select').innerHTML = nestOptions;
@@ -964,7 +1062,9 @@ function fillTriggerConfig(cfg, type) {
     switch (type) {
         case 'mission_completed':
             if (cfg.source_mission_id) {
-                const radio = document.querySelector(`input[name="source-mission"][value="${cfg.source_mission_id}"]`);
+                // Compare values instead of building a selector from the stored id.
+                const radio = Array.from(document.querySelectorAll('input[name="source-mission"]'))
+                    .find(input => input.value === String(cfg.source_mission_id));
                 if (radio) {
                     radio.checked = true;
                     radio.closest('.mission-option').classList.add('selected');
@@ -1040,8 +1140,8 @@ async function loadCheatsheetPicker(selectedIds = []) {
             const checked = selectedIds.includes(s.id) ? 'checked' : '';
             const abstract = s.abstract ? `<div class="cheatsheet-picker-preview">${escapeHtml(s.abstract)}</div>` : '';
             return `<div class="cheatsheet-picker-item">
-                <input type="checkbox" id="cs-${s.id}" value="${s.id}" ${checked}>
-                <label for="cs-${s.id}">${escapeHtml(s.name)}${abstract}</label>
+                <input type="checkbox" id="cs-${escapeAttr(s.id)}" value="${escapeAttr(s.id)}" ${checked}>
+                <label for="cs-${escapeAttr(s.id)}">${escapeHtml(s.name)}${abstract}</label>
             </div>`;
         }).join('');
     } catch (e) {
@@ -1218,14 +1318,31 @@ function buildTriggerConfig(type) {
 
 // Actions
 async function runMission(id) {
+    const mission = missions.find(m => m.id === id);
+    const block = flowRunBlock(mission);
+    if (block) {
+        showToast(block, 'info');
+        return;
+    }
     try {
-        const response = await fetch(`/api/missions/v2/${id}/run`, { method: 'POST' });
-        if (!response.ok) throw new Error(await response.text());
+        const response = await fetch(`/api/missions/v2/${encodeURIComponent(id)}/run`, { method: 'POST' });
+        if (!response.ok) throw await requestError(response);
         const data = await response.json().catch(() => ({}));
-        const toastType = data.status === 'skipped' ? 'info' : 'success';
-        showToast(toastForMissionDispatch(data), toastType);
+        if (missionIsFlow(mission)) {
+            // A flow run is not queued here: EasyDrag starts it, lets it wait for a slot or skips it.
+            showToast(t('missions.toast_flow_run_requested'), 'success');
+        } else {
+            const toastType = data.status === 'skipped' ? 'info' : 'success';
+            showToast(toastForMissionDispatch(data), toastType);
+        }
         loadData();
     } catch (err) {
+        // A refused flow run (flows off, flow switched off or unpublished in the meantime) is explained calmly.
+        const flowText = missionIsFlow(mission) ? flowRunErrorText(err) : '';
+        if (flowText) {
+            showToast(flowText, 'info');
+            return;
+        }
         showToast(t('missions.toast_error_prefix') + err.message, 'error');
     }
 }
@@ -1241,11 +1358,21 @@ async function removeFromQueue(id) {
     }
 }
 
+// isFlowMission explains that flows are edited in EasyDrag and reports whether id is one.
+function isFlowMission(id) {
+    const m = missions.find(x => x.id === id);
+    if (!missionIsFlow(m)) return false;
+    showToast(t('missions.flow_managed'), 'info');
+    return true;
+}
+
 function editMission(id) {
+    if (isFlowMission(id)) return;
     openMissionModal(id);
 }
 
 function duplicateMission(id) {
+    if (isFlowMission(id)) return;
     const m = missions.find(x => x.id === id);
     if (!m) return;
     openMissionModal(); // Opens in 'new' mode
@@ -1274,14 +1401,17 @@ async function deleteMission(id) {
     const mission = missions.find(m => m.id === id);
     if (!mission) return;
 
-    const confirmed = await showConfirm(t('common.confirm_title'), t('missions.confirm_delete', { name: mission.name }));
+    // Deleting a flow mission deletes its EasyDrag flow too (Service.DeleteFlowForMission).
+    const confirmed = missionIsFlow(mission)
+        ? await showConfirm(t('common.confirm_title'), t('missions.confirm_delete_flow', { name: mission.name }))
+        : await showConfirm(t('common.confirm_title'), t('missions.confirm_delete', { name: mission.name }));
     if (!confirmed) {
         return;
     }
 
     try {
         const response = await fetch(`/api/missions/v2/${encodeURIComponent(id)}`, { method: 'DELETE' });
-        if (!response.ok) throw new Error(await response.text());
+        if (!response.ok) throw await requestError(response);
         showToast(t('missions.toast_mission_deleted'), 'success');
         loadData();
     } catch (err) {
@@ -1298,7 +1428,7 @@ async function deleteMission(id) {
             }
             try {
                 const forceResponse = await fetch(`/api/missions/v2/${encodeURIComponent(id)}?force=true`, { method: 'DELETE' });
-                if (!forceResponse.ok) throw new Error(await forceResponse.text());
+                if (!forceResponse.ok) throw await requestError(forceResponse);
                 showToast(t('missions.toast_mission_deleted'), 'success');
                 loadData();
                 return;
@@ -1328,8 +1458,14 @@ function escapeAttr(s) {
         .replace(/>/g, '&gt;');
 }
 
+// hasTime reports whether a time from the server is set: Go sends its zero time
+// ("0001-01-01T00:00:00Z") for a mission that never ran, not an empty value.
+function hasTime(isoString) {
+    return !!isoString && Date.parse(isoString) > 0;
+}
+
 function formatTime(isoString) {
-    if (!isoString) return t('missions.time_never');
+    if (!hasTime(isoString)) return t('missions.time_never');
     const date = new Date(isoString);
     const now = new Date();
     const diff = now - date;
@@ -1350,13 +1486,17 @@ function formatTime(isoString) {
 // ═══════════════════════════════════════════════════════════════
 
 function renderPrepBadge(mission) {
+    // Preparation belongs to agent missions; a flow shows no preparation state.
+    if (missionIsFlow(mission)) return '';
     const status = mission.preparation_status;
     if (!status || status === 'none') return '';
     const label = t('missions.prep_status_' + status);
-    return `<span class="badge badge-prep-${status}">${label}</span>`;
+    return `<span class="badge badge-prep-${escapeAttr(status)}">${escapeHtml(label)}</span>`;
 }
 
 function renderPrepButton(mission, isRunning) {
+    // Preparation belongs to agent missions; flows have no prompt to prepare.
+    if (missionIsFlow(mission)) return '';
     const status = mission.preparation_status || 'none';
     const isPreparing = status === 'preparing';
     const mid = escapeAttr(mission.id);

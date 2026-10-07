@@ -8,7 +8,7 @@
     const COMPACT_BREAKPOINT = 720;
     const LIST_MIN = 260, LIST_MAX = 460, LIST_DEFAULT = 320;
     const HISTORY_PAGE = 25;
-    const FILTERS = ['all', 'manual', 'scheduled', 'triggered', 'errors'];
+    const FILTERS = ['all', 'manual', 'scheduled', 'triggered', 'flow', 'errors'];
     const SORTS = ['name', 'last_run', 'next_run', 'priority'];
 
     function clamp(n, lo, hi) { n = Number(n); if (Number.isNaN(n)) return lo; return Math.min(hi, Math.max(lo, n)); }
@@ -31,7 +31,7 @@
     function render(container, windowId, context) {
         dispose(windowId);
 
-        const { esc, t, api, notify, readonly, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, confirmDialog, showContextMenu, setWindowBeforeClose, isActive } = context;
+        const { esc, t, api, notify, readonly, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, confirmDialog, showContextMenu, setWindowBeforeClose, isActive, openApp } = context;
         const S = window.MissionControlSchedule, TR = window.MissionControlTriggers, MN = window.MissionControlMenus;
         if (!S || !TR || !MN || !window.MissionControlList || !window.MissionControlDetail || !window.MissionControlEditor) {
             container.innerHTML = `<div class="vd-mc vd-mc--fatal">${esc(t('desktop.mc_load_error'))}</div>`;
@@ -237,7 +237,8 @@
             if (counts.waiting) parts.push(t('desktop.mc_status_waiting', { count: counts.waiting }));
             if (!counts.running && !counts.waiting && counts.total) parts.push(t('desktop.mc_status_idle'));
             $('[data-mc-status-counts]').textContent = parts.join(' · ');
-            const next = state.missions.filter(m => m.execution_type === 'scheduled' && m.enabled !== false && m.next_run)
+            // Scheduled and flow missions; the server sends a flow's earliest schedule or Date & time trigger.
+            const next = state.missions.filter(m => TR.upcomingRun(m))
                 .sort((a, b) => Date.parse(a.next_run) - Date.parse(b.next_run))[0];
             $('[data-mc-status-next]').textContent = next ? t('desktop.mc_status_next', { name: next.name, when: fmt.relative(next.next_run) }) : '';
             const live = $('[data-mc-status-live]');
@@ -256,7 +257,7 @@
                 canCancel: !!(m && running && m.runner_type !== 'remote' && !state.cancelling.has(m.id)),
                 filter: state.filter, sort: state.sort, tab: state.tab, listCollapsed: state.listCollapsed, editing: !!state.editing
             };
-            const sig = JSON.stringify([m && m.id, m && m.enabled, m && m.locked, m && m.preparation_status, m && m.runner_type, running, menuModel.s.queued, menuModel.s.canCancel, state.filter, state.sort, state.tab, state.listCollapsed, !!state.editing]);
+            const sig = JSON.stringify([m && m.id, m && m.enabled, m && m.locked, m && m.preparation_status, m && m.runner_type, m && !!m.flow_published, running, menuModel.s.queued, menuModel.s.canCancel, state.filter, state.sort, state.tab, state.listCollapsed, !!state.editing]);
             if (sig === state.menuSignature) return;
             state.menuSignature = sig;
             setWindowMenus(windowId, MN.windowMenus(menuModel));
@@ -329,6 +330,11 @@
             }
         }
 
+        // Flow missions are edited in EasyDrag; Mission Control only opens them there.
+        function openFlow(m) {
+            if (m && typeof openApp === 'function') openApp('easydrag', m.flow_id ? { flowId: m.flow_id } : {});
+        }
+
         // ── actions ──
         async function withBusy(name, fn) {
             if (readonly) { notify(t('desktop.mc_toast_readonly'), 'error'); return; }
@@ -339,8 +345,12 @@
         const actions = {
             refresh: () => loadData(),
             newMission: () => openEditor('new', null),
+            // section "home": an EasyDrag window that is open already shows its start page (New flow).
+            newFlow: () => { if (typeof openApp === 'function') openApp('easydrag', { section: 'home' }); },
+            openFlow: (id) => openFlow(byId(id)),
             edit: () => { const m = selected(); if (m) openEditor('edit', m); },
-            duplicate: () => { const m = selected(); if (m) openEditor('duplicate', m); },
+            // Flows are duplicated in EasyDrag; Duplicate does nothing for them (the menus disable it).
+            duplicate: () => { const m = selected(); if (m && !TR.isFlow(m)) openEditor('duplicate', m); },
             run: () => actions.runMission(state.selectedId),
             cancelRun: () => actions.cancelMission(state.selectedId),
             removeFromQueue: () => actions.removeMissionFromQueue(state.selectedId),
@@ -354,12 +364,24 @@
             setTab,
             toggleList: () => { state.listCollapsed = !state.listCollapsed; root.classList.toggle('is-list-collapsed', state.listCollapsed); const tb = $('[data-mc-list-toggle]'); tb.setAttribute('aria-pressed', String(!state.listCollapsed)); tb.title = t(state.listCollapsed ? 'desktop.mc_list_expand' : 'desktop.mc_list_collapse'); savePrefs(state); syncMenus(); },
             runMission: (id) => withBusy('run', async () => {
+                const m = byId(id);
+                if (TR.isUnpublishedFlow(m)) { notify(t('desktop.mc_flow_publish_first')); return; }
                 const data = await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/run', { method: 'POST' });
-                notify(toastForMissionDispatch(data || {}));
+                // A flow run is not queued here: EasyDrag starts it, lets it wait for a slot or skips it.
+                notify(TR.isFlow(m) ? t('desktop.mc_toast_flow_run_requested') : toastForMissionDispatch(data || {}));
                 await loadData();
             }),
             cancelMission: (id) => withBusy('cancel', async () => {
-                await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
+                const m = byId(id);
+                try {
+                    await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
+                } catch (err) {
+                    // FLOW_NO_ACTIVE_RUN: nothing to cancel here. Runs of a flow mission that is not running (waiting
+                    // for a global slot) are cancelled in EasyDrag; while it runs, the cancel takes waiting runs too.
+                    // Every other answer (several flows hold the mission, the flow is gone, ...) stays an error.
+                    if (TR.isFlow(m) && err && err.body && err.body.code === 'FLOW_NO_ACTIVE_RUN') { notify(t('desktop.mc_flow_cancel_in_easydrag')); return; }
+                    throw err;
+                }
                 state.cancelling.add(id);
                 notify(t('desktop.mc_toast_cancel_requested'));
             }),
@@ -370,6 +392,7 @@
             }),
             togglePauseMission: (id) => withBusy('pause', async () => {
                 const m = byId(id); if (!m) return;
+                if (m.enabled === false && TR.isUnpublishedFlow(m)) { notify(t('desktop.mc_flow_publish_first')); return; }
                 await putMission(m, { enabled: m.enabled === false });
                 notify(t(m.enabled === false ? 'desktop.mc_toast_resumed' : 'desktop.mc_toast_paused'));
                 await loadData();
@@ -382,7 +405,9 @@
             }),
             deleteMission: async (id) => {
                 const m = byId(id); if (!m || readonly) return;
-                const ok = await confirmDialog(t('desktop.mc_delete_title'), t('desktop.mc_delete_message', { name: m.name }));
+                // Deleting a flow mission deletes its flow in EasyDrag too (Service.DeleteFlowForMission).
+                const message = TR.isFlow(m) ? t('desktop.mc_delete_flow_message', { name: m.name }) : t('desktop.mc_delete_message', { name: m.name });
+                const ok = await confirmDialog(t('desktop.mc_delete_title'), message);
                 if (!ok) return;
                 await withBusy('delete', async () => {
                     await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id), { method: 'DELETE' });
@@ -421,7 +446,7 @@
                 } catch (err) { failToast(err); }
             },
             editMission: (id) => { const m = byId(id); if (m) openEditor('edit', m); },
-            duplicateMission: (id) => { const m = byId(id); if (m) openEditor('duplicate', m); }
+            duplicateMission: (id) => { const m = byId(id); if (m && !TR.isFlow(m)) openEditor('duplicate', m); }
         };
         menuModel.actions = actions;
 
@@ -433,6 +458,7 @@
 
         // ── editor ──
         async function openEditor(mode, mission) {
+            if (mission && mission.execution_type === 'flow') { openFlow(mission); return; }
             if (readonly) { notify(t('desktop.mc_toast_readonly'), 'error'); return; }
             if (state.editing && !(await closeEditor(false))) return;
             state.editing = { mode, id: mode === 'edit' && mission ? mission.id : '' };
@@ -508,7 +534,7 @@
         detail.on('historyRetry', () => loadHistory(true));
         detail.on('contextmenu', ({ x, y, missionId }) => { const m = byId(missionId); if (m && typeof showContextMenu === 'function') { syncMenus(); showContextMenu(x, y, MN.missionContextItems(menuModel, m)); } });
         detail.on('action', ({ name, missionId, x, y }) => {
-            const map = { run: 'runMission', cancel: 'cancelMission', removeQueue: 'removeMissionFromQueue', edit: 'editMission', duplicate: 'duplicateMission', delete: 'deleteMission', pause: 'togglePauseMission', resume: 'togglePauseMission', lock: 'toggleLockMission', unlock: 'toggleLockMission', prepare: 'prepareMission', invalidatePrep: 'invalidatePrepMission', viewPrep: 'viewPrep', copyOutput: 'copyOutput' };
+            const map = { run: 'runMission', cancel: 'cancelMission', removeQueue: 'removeMissionFromQueue', edit: 'editMission', duplicate: 'duplicateMission', delete: 'deleteMission', pause: 'togglePauseMission', resume: 'togglePauseMission', lock: 'toggleLockMission', unlock: 'toggleLockMission', prepare: 'prepareMission', invalidatePrep: 'invalidatePrepMission', viewPrep: 'viewPrep', copyOutput: 'copyOutput', openFlow: 'openFlow' };
             if (name === 'more') { const m = byId(missionId); if (m && typeof showContextMenu === 'function') { syncMenus(); showContextMenu(x, y, MN.missionContextItems(menuModel, m)); } return; }
             if (map[name]) actions[map[name]](missionId);
         });

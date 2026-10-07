@@ -163,6 +163,7 @@
         'store-termix': 'termix',
         'store-commandcode': 'commandcode',
         looper: 'looper',
+        easydrag: 'easydrag',
         'system-info': 'monitor',
         'log-viewer': 'text',
         'virtual-computers': 'desktop',
@@ -369,6 +370,7 @@
             launchpad: 'LP',
             'software-store': 'SS',
             looper: 'Lp',
+            easydrag: 'ED',
             cheater: 'Ch',
             chess: 'Ch',
             pixel: 'Px',
@@ -596,6 +598,7 @@
             tresor: 'TresorApp',
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',
+            easydrag: 'EasyDragApp',
             camera: 'CameraApp',
             'network-cameras': 'NetworkCamerasApp',
             meshcore: 'MeshCoreApp',
@@ -1045,6 +1048,8 @@
                 const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
                 err.body = body;
                 err.status = resp.status;
+                const retryAfter = String(resp.headers.get('retry-after') || '');
+                if (resp.status === 429 && /^\s*\d+\s*$/.test(retryAfter)) err.retryAfter = Number(retryAfter);
                 throw err;
             }
             if (body && typeof body === 'object' && resp.headers.get('ETag')) body.version = resp.headers.get('ETag');
