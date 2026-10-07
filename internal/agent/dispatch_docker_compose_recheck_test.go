@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -89,5 +90,34 @@ func TestDispatchDockerComposeSkipsTheRecheckWithHostAccess(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Fatalf("resolutions = %d, want only the two of the preflight", calls)
+	}
+}
+
+// A resolution that ran out of the shared deadline during the check proves
+// nothing about the input; succeeding on the repeat is no change.
+func TestDispatchDockerComposeIgnoresAResolutionThatTimedOutDuringTheCheck(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n")
+	allProfiles := 0
+	stubDockerComposeResolverModes(t, func(_ context.Context, _ string, opts tools.DockerComposeConfigOptions) (string, error) {
+		if opts.AllProfiles {
+			allProfiles++
+			if allProfiles == 1 {
+				return "", fmt.Errorf("resolve Compose config: %w", context.DeadlineExceeded)
+			}
+		}
+		return recheckCheckedModel, nil
+	})
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	cfg.Directories.WorkspaceDir = workspace
+	useRuntimePermissionsForTest(t, cfg)
+	output, _ := dispatchServices(context.Background(), ToolCall{Action: "docker", Operation: "compose", File: "compose.yml", Command: "up -d"}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	if strings.Contains(output, "docker_compose_input_changed") {
+		t.Fatalf("a check-time deadline gave a false input change: %s", output)
+	}
+	if allProfiles != 1 {
+		t.Fatalf("all-profiles resolutions = %d, want the timed-out one only (not repeated)", allProfiles)
 	}
 }

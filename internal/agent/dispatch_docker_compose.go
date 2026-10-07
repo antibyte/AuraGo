@@ -61,16 +61,19 @@ type dockerComposePreflight struct {
 }
 
 // dockerComposeResolution is one `docker compose config` run of a preflight:
-// its variant and its output, or that it failed.
+// its variant and its output, or that it failed, and whether that failure
+// came from the deadline (then it proves nothing about the input).
 type dockerComposeResolution struct {
-	opts   tools.DockerComposeConfigOptions
-	output string
-	failed bool
+	opts     tools.DockerComposeConfigOptions
+	output   string
+	failed   bool
+	deadline bool
 }
 
-func (p *dockerComposePreflight) recordResolution(opts tools.DockerComposeConfigOptions, output string, err error) {
+func (p *dockerComposePreflight) recordResolution(ctx context.Context, opts tools.DockerComposeConfigOptions, output string, err error) {
 	opts.Services = append([]string(nil), opts.Services...)
-	p.resolutions = append(p.resolutions, dockerComposeResolution{opts: opts, output: output, failed: err != nil})
+	deadline := err != nil && (errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || (ctx != nil && ctx.Err() != nil))
+	p.resolutions = append(p.resolutions, dockerComposeResolution{opts: opts, output: output, failed: err != nil, deadline: deadline})
 }
 
 // dockerComposeRawModel is a resolved Compose model as raw JSON per entry.
@@ -158,9 +161,9 @@ func loadDockerComposePreflight(ctx context.Context, cfg tools.DockerConfig, fil
 	if json.Unmarshal([]byte(resolved), &preflight.defaultRaw) != nil {
 		preflight.defaultRaw = dockerComposeRawModel{}
 	}
-	preflight.recordResolution(tools.DockerComposeConfigOptions{}, resolved, nil)
+	preflight.recordResolution(ctx, tools.DockerComposeConfigOptions{}, resolved, nil)
 	allResolved, err := resolveDockerComposeConfig(ctx, cfg, composeFile, tools.DockerComposeConfigOptions{AllProfiles: true})
-	preflight.recordResolution(tools.DockerComposeConfigOptions{AllProfiles: true}, allResolved, err)
+	preflight.recordResolution(ctx, tools.DockerComposeConfigOptions{AllProfiles: true}, allResolved, err)
 	if err == nil {
 		var allModel tools.DockerComposeModel
 		if allModel, err = tools.ParseDockerComposeModel(allResolved); err == nil {
@@ -475,7 +478,7 @@ func (p *dockerComposePreflight) resolveNamedProfileServices(ctx context.Context
 	var raw dockerComposeRawModel
 	for round := 1; ; round++ {
 		resolved, err := resolveDockerComposeConfig(ctx, p.dockerCfg, p.file, tools.DockerComposeConfigOptions{Services: names})
-		p.recordResolution(tools.DockerComposeConfigOptions{Services: names}, resolved, err)
+		p.recordResolution(ctx, tools.DockerComposeConfigOptions{Services: names}, resolved, err)
 		if err == nil {
 			if model, err = tools.ParseDockerComposeModel(resolved); err == nil {
 				raw = dockerComposeRawModel{}
