@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Skriver filer",
   "easydrag.ui.effects_remember": "Ikke spør igjen for denne flyten",
   "easydrag.ui.effects_title": "Denne testen har reelle virkninger",
+  "easydrag.ui.effects_unchecked": "Virkningene av denne testen kunne ikke kontrolleres helt. Den kan gjøre mer enn det som står her.",
   "easydrag.ui.empty_action": "Velg en utløser",
   "easydrag.ui.empty_text": "Hver flyt starter med en utløser: et tidspunkt, en hendelse eller et klikk. Legg deretter til trinnene som skal følge.",
   "easydrag.ui.empty_title": "Start med en utløser",

@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "ファイルを書き込み",
   "easydrag.ui.effects_remember": "このフローでは今後確認しない",
   "easydrag.ui.effects_title": "このテストには実際の影響があります",
+  "easydrag.ui.effects_unchecked": "このテストの影響を完全には確認できませんでした。ここに表示されている以上のことを行う可能性があります。",
   "easydrag.ui.empty_action": "トリガーを選択",
   "easydrag.ui.empty_text": "フローは必ずトリガーから始まります。時刻、イベント、クリックなどです。その後に続けるステップを追加してください。",
   "easydrag.ui.empty_title": "まずトリガーから",

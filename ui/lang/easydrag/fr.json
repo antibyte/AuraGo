@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Écrit des fichiers",
   "easydrag.ui.effects_remember": "Ne plus demander pour ce flux",
   "easydrag.ui.effects_title": "Ce test a des effets réels",
+  "easydrag.ui.effects_unchecked": "Les effets de ce test n’ont pas pu être entièrement vérifiés. Il peut faire plus que ce qui est indiqué ici.",
   "easydrag.ui.empty_action": "Choisir un déclencheur",
   "easydrag.ui.empty_text": "Chaque flux commence par un déclencheur : une heure, un événement ou un clic. Ajoutez ensuite les étapes qui doivent suivre.",
   "easydrag.ui.empty_title": "Commencez par un déclencheur",

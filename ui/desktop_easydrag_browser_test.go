@@ -186,6 +186,8 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s.failedRunView()
 	// Live runs that a trigger started and that wait for a slot can be stopped here.
 	s.stopWaitingRuns()
+	// A step test asks about the effects of the real settings, such as an HTTP POST.
+	s.realEffects()
 	// A narrow window: the palette floats over the canvas, so it closes; wide again, it is back.
 	page.MustSetViewport(820, 900, 1, false)
 	s.wait(`()=>getComputedStyle(document.querySelector('.ed-palette')).position==='absolute' && document.querySelector('.ed-palette').classList.contains('is-collapsed')`)
@@ -371,6 +373,34 @@ func (s *easyDragSmoke) homeDisabled() {
 	s.page.MustEval(`()=>{edFixture.state.disabled=false}`)
 	s.page.MustElement(`.ed-flow-grid [data-ed-home-retry]`).MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && !document.querySelector('[data-ed-home-search]').disabled && !document.querySelector('.ed-home-hero [data-ed-new]').disabled && !document.querySelector('.ed-template-grid').classList.contains('is-disabled')`)
+}
+
+// realEffects adds an HTTP request with POST behind the PDF step. Its catalog entry (default GET)
+// names no effect, yet a step test on it asks about the message it sends: the dialog reads the
+// effects of the real settings from the publish preview. The step is removed again.
+func (s *easyDragSmoke) realEffects() {
+	s.t.Helper()
+	page := s.page
+	page.MustEval(`()=>{const ed=edFixture.editor();ed.effectsConfirmed.clear();const pdf=ed.model.doc.nodes.find(n=>n.key==='pdf').id;window.__httpStep=ed.model.addNode('http.request',{x:1280,y:360},{method:'POST',url:'https://example.test/hook'},{node:pdf,port:'out'});}`)
+	s.wait(`()=>{const last=edFixture.lastSave();return !!last && last.nodes.some(n=>n.type==='http.request')}`)
+	page.MustEval(`()=>edFixture.editor().bus.emit('node-test',{nodeId:window.__httpStep})`)
+	s.wait(`()=>{const li=[...document.querySelectorAll('.ed-modal [data-ed-test-effects] [data-ed-effect]')];const sends=li.find(x=>x.dataset.edEffect==='sends_message');return li.map(x=>x.dataset.edEffect).sort().join()==='sends_message,writes_files' && !!sends && sends.textContent.includes('HTTP') && !document.querySelector('.ed-modal [data-ed-effects-unchecked]')}`)
+	s.shot("test-step-real-effects")
+	s.noRawKeys("real effects")
+	page.MustElement(`.ed-modal [data-ed-action="cancel"]`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-modal-backdrop')`)
+	// Without the preview the dialog says that the effects could not be fully checked.
+	page.MustEval(`()=>{edFixture.state.failPreview=true;edFixture.editor().bus.emit('node-test',{nodeId:window.__httpStep});}`)
+	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-effects-unchecked]') && !!document.querySelector('.ed-modal [data-ed-effect="writes_files"]')`)
+	s.shot("test-step-unchecked")
+	s.noRawKeys("unchecked effects")
+	page.MustElement(`.ed-modal [data-ed-action="cancel"]`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-modal-backdrop')`)
+	page.MustEval(`()=>{edFixture.state.failPreview=false;}`)
+	s.clearToasts()
+	page.MustEval(`()=>{edFixture.editor().model.removeNodes([window.__httpStep]);}`)
+	s.wait(`()=>{const last=edFixture.lastSave();return !!last && last.nodes.length===5 && !last.nodes.some(n=>n.type==='http.request')}`)
+	s.failOnPageErrors("real effects")
 }
 
 // stopWaitingRuns adds two live runs that wait for a slot. One is stopped from its row in the runs

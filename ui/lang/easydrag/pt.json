@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Grava arquivos",
   "easydrag.ui.effects_remember": "Não perguntar de novo para este fluxo",
   "easydrag.ui.effects_title": "Este teste tem efeitos reais",
+  "easydrag.ui.effects_unchecked": "Não foi possível verificar completamente os efeitos deste teste. Ele pode fazer mais do que o indicado aqui.",
   "easydrag.ui.empty_action": "Escolher um gatilho",
   "easydrag.ui.empty_text": "Todo fluxo começa com um gatilho: um horário, um evento ou um clique. Depois, adicione as etapas que devem vir em seguida.",
   "easydrag.ui.empty_title": "Comece com um gatilho",

@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Schreibt Dateien",
   "easydrag.ui.effects_remember": "Für diesen Flow nicht mehr fragen",
   "easydrag.ui.effects_title": "Dieser Test hat echte Auswirkungen",
+  "easydrag.ui.effects_unchecked": "Die Auswirkungen dieses Tests ließen sich nicht vollständig prüfen. Er kann mehr tun, als hier steht.",
   "easydrag.ui.empty_action": "Auslöser wählen",
   "easydrag.ui.empty_text": "Jeder Flow beginnt mit einem Auslöser: einer Uhrzeit, einem Ereignis oder einem Klick. Danach folgen die Schritte.",
   "easydrag.ui.empty_title": "Beginne mit einem Auslöser",

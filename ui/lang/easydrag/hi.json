@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "फ़ाइलें लिखता है",
   "easydrag.ui.effects_remember": "इस फ़्लो के लिए फिर न पूछें",
   "easydrag.ui.effects_title": "इस टेस्ट के वास्तविक प्रभाव हैं",
+  "easydrag.ui.effects_unchecked": "इस टेस्ट के प्रभावों की पूरी जाँच नहीं हो सकी। यह यहाँ बताए गए से अधिक कर सकता है।",
   "easydrag.ui.empty_action": "ट्रिगर चुनें",
   "easydrag.ui.empty_text": "हर फ़्लो एक ट्रिगर से शुरू होता है: कोई समय, कोई इवेंट या एक क्लिक। फिर वे चरण जोड़ें जो उसके बाद होने चाहिए।",
   "easydrag.ui.empty_title": "ट्रिगर से शुरुआत करें",

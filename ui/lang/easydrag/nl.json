@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Schrijft bestanden",
   "easydrag.ui.effects_remember": "Niet meer vragen voor deze flow",
   "easydrag.ui.effects_title": "Deze test heeft echte gevolgen",
+  "easydrag.ui.effects_unchecked": "De gevolgen van deze test konden niet volledig worden gecontroleerd. Hij kan meer doen dan hier staat.",
   "easydrag.ui.empty_action": "Trigger kiezen",
   "easydrag.ui.empty_text": "Elke flow begint met een trigger: een tijdstip, een gebeurtenis of een klik. Voeg daarna de stappen toe die moeten volgen.",
   "easydrag.ui.empty_title": "Begin met een trigger",

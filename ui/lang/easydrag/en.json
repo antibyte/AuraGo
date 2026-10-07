@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Writes files",
   "easydrag.ui.effects_remember": "Don’t ask again for this flow",
   "easydrag.ui.effects_title": "This test has real effects",
+  "easydrag.ui.effects_unchecked": "The effects of this test could not be fully checked. It may do more than listed here.",
   "easydrag.ui.empty_action": "Choose a trigger",
   "easydrag.ui.empty_text": "Every flow starts with a trigger: a time, an event or a click. Then add the steps that should follow.",
   "easydrag.ui.empty_title": "Start with a trigger",

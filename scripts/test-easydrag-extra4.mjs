@@ -129,9 +129,12 @@ export async function run(env) {
         fxTypes.set('notify.telegram', Object.assign({}, types.get('notify.telegram'), { effects: ['sends_message'] }));
         fxTypes.set('documents.pdf', Object.assign({}, types.get('documents.pdf'), { effects: ['writes_files'] }));
         fxTypes.set('files.delete', { type: 'files.delete', label: 'Delete', inputs: ['in'], outputs: ['out'], params: [], effects: ['deletes'] });
-        const harness = doc => uiHarness(req => {
+        // preview is the publish preview's answer (the effects of the real settings); a function
+        // that throws makes it fail.
+        const harness = (doc, preview) => uiHarness(req => {
             if (/\/test-data\//.test(req.url)) return { data: {} };
             if (req.url === '/api/desktop/flows/f1/test') return { run_id: 'r1' };
+            if (req.url === '/api/desktop/flows/f1/publish-preview') return typeof preview === 'function' ? preview() : (preview || { issues: [], effects: [], diff: {} });
             throw apiError('FLOW_RUN_NOT_FOUND');
         }, { types: fxTypes, doc });
         const effectKeys = dialog => dialog.body.querySelectorAll('[data-ed-test-effects] [data-ed-effect]').map(li => li.getAttribute('data-ed-effect')).sort();
@@ -165,7 +168,35 @@ export async function run(env) {
         eq('c1d15b a disabled step stops what only it feeds; later steps and other triggers do not count; the whole flow counts every enabled step',
             [scoped, quick, d.requests.filter(r => r.url === '/api/desktop/flows/f1/test').map(r => r.body.trigger_node), whole],
             [[[], ['sends_message', 'writes_files']], undefined, [T1], ['deletes', 'sends_message', 'writes_files']]);
-        eq('c1d15b the step test effect checks log no errors', [h.logged, d.logged], [[], []]);
+
+        // The real settings count: an HTTP request with POST sends, though its catalog entry
+        // (default GET) names no effect. Only the steps that run count with their real effects.
+        fxTypes.set('http.request', { type: 'http.request', label: 'HTTP', inputs: ['in'], outputs: ['out'], params: [{ name: 'method', kind: 'select' }] });
+        const web = effectsDoc();
+        web.nodes.find(n => n.id === TG).type = 'http.request';
+        web.nodes.find(n => n.id === TG).params = { method: 'POST' };
+        web.nodes.find(n => n.id === TG2).type = 'http.request';
+        const realPreview = { issues: [], diff: {}, effects: [{ effect: 'sends_message', node_ids: [TG] }, { effect: 'writes_files', node_ids: [PDF] }, { effect: 'deletes', node_ids: [DEL] }] };
+        const w = harness(web, realPreview);
+        const post = await w.ED.runs.create(w.ed, w.canvas).startTest({ onlyNode: PDF, quick: true, triggerNode: T1 });
+        const postKeys = post ? effectKeys(post) : null;
+        const postNodes = w.ED.runs.effects(w.ed, PDF, T1, new Map([[TG, ['sends_message']]])).get('sends_message');
+        const catalogOnly = Array.from(w.ED.runs.effects(w.ed, PDF, T1).keys());
+        eq('c1d15b an HTTP POST step in the run scope asks through the preview; real effects of steps that do not run are left out',
+            [!!post, postKeys, postNodes, catalogOnly, w.requests.filter(r => r.url === '/api/desktop/flows/f1/test').length],
+            [true, ['sends_message', 'writes_files'], ['Tell'], ['writes_files'], 0]);
+        if (post) post.el.querySelector('[data-ed-action="cancel"]').fire('click');
+
+        // A preview that fails: the catalog effects are listed with a hint, and even a quick test
+        // whose catalog effects are all confirmed opens the dialog instead of running silently.
+        const lost = harness(web, () => { throw apiError('FLOW_INTERNAL'); });
+        lost.store.set('aurago.easydrag.effects-ok.f1', '["writes_files"]');
+        const unchecked = await lost.ED.runs.create(lost.ed, lost.canvas).startTest({ onlyNode: PDF, quick: true, triggerNode: T1 });
+        eq('c1d15b without the preview the dialog says the effects could not be fully checked and never runs silently',
+            [!!unchecked, unchecked && !!unchecked.body.querySelector('[data-ed-effects-unchecked]'), unchecked && effectKeys(unchecked), lost.requests.filter(r => r.url === '/api/desktop/flows/f1/test').length,
+                !!post && !post.body.querySelector('[data-ed-effects-unchecked]')],
+            [true, true, [], 0, true]);
+        eq('c1d15b the step test effect checks log no errors', [h.logged, d.logged, w.logged, lost.logged], [[], [], [], []]);
     });
 
     // ── 1d-15b B: runs that have not ended can be stopped from the drawer and the run view ──

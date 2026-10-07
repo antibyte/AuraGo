@@ -489,6 +489,8 @@ export async function run(env) {
         const h = harness(req => {
             if (/\/test-data\//.test(req.url)) return { data: {} };
             if (req.url === '/api/desktop/flows/f1/test') return { run_id: 'r' + h.requests.length };
+            // The real settings add nothing here (1d-15b: the dialog asks the publish preview).
+            if (req.url === '/api/desktop/flows/f1/publish-preview') return { issues: [], effects: [], diff: {} };
             throw apiError('FLOW_RUN_NOT_FOUND');
         }, { types: fxTypes, doc });
         const runs = h.ED.runs.create(h.ed, h.canvas);

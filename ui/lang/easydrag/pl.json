@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Zapisuje pliki",
   "easydrag.ui.effects_remember": "Nie pytaj ponownie dla tego przepływu",
   "easydrag.ui.effects_title": "Ten test ma realne skutki",
+  "easydrag.ui.effects_unchecked": "Nie udało się w pełni sprawdzić skutków tego testu. Może zrobić więcej, niż tu podano.",
   "easydrag.ui.empty_action": "Wybierz wyzwalacz",
   "easydrag.ui.empty_text": "Każdy przepływ zaczyna się od wyzwalacza: godziny, zdarzenia lub kliknięcia. Potem dodaj kroki, które mają nastąpić.",
   "easydrag.ui.empty_title": "Zacznij od wyzwalacza",

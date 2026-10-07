@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Zapisuje soubory",
   "easydrag.ui.effects_remember": "U tohoto toku se už neptat",
   "easydrag.ui.effects_title": "Tento test má skutečné dopady",
+  "easydrag.ui.effects_unchecked": "Dopady tohoto testu nešlo plně ověřit. Může udělat víc, než je tu uvedeno.",
   "easydrag.ui.empty_action": "Vybrat spouštěč",
   "easydrag.ui.empty_text": "Každý tok začíná spouštěčem: časem, událostí nebo kliknutím. Potom přidej kroky, které mají následovat.",
   "easydrag.ui.empty_title": "Začni spouštěčem",

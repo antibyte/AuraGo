@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Skriver filer",
   "easydrag.ui.effects_remember": "Fråga inte igen för det här flödet",
   "easydrag.ui.effects_title": "Det här testet har verkliga effekter",
+  "easydrag.ui.effects_unchecked": "Effekterna av det här testet kunde inte kontrolleras helt. Det kan göra mer än vad som står här.",
   "easydrag.ui.empty_action": "Välj en utlösare",
   "easydrag.ui.empty_text": "Varje flöde börjar med en utlösare: en tidpunkt, en händelse eller ett klick. Lägg sedan till stegen som ska följa.",
   "easydrag.ui.empty_title": "Börja med en utlösare",

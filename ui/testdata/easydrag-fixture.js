@@ -64,6 +64,14 @@
             T('web.search', 'web', 'search', 'Websuche', { summary: '{query}', description: 'Sucht im Web.', primary_input: 'query',
                 params: [P('query', 'text', 'Suchbegriff', { required: true, templatable: true }), P('count', 'number', 'Anzahl', { default: 5 })],
                 output_fields: [{ name: 'results', type: 'list', primary: true }, { name: 'count', type: 'number' }] }),
+            // The real http.request names no effect in the catalog: its default method is GET. A
+            // POST sends (httpRequestEffects), which only the publish preview sees (effects()).
+            T('http.request', 'web', 'world-www', 'HTTP-Anfrage', { summary: '{method} {url}', description: 'Ruft eine Web-Adresse auf.', primary_input: 'url',
+                params: [
+                    P('method', 'select', 'Methode', { default: 'GET', options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(m => ({ value: m, label: m })) }),
+                    P('url', 'text', 'Adresse', { required: true, templatable: true }),
+                    P('auth_secret', 'secret_ref', 'Geheimnis')
+                ], output_fields: [{ name: 'body', type: 'text', primary: true }, { name: 'status', type: 'number' }] }),
             T('ai.prompt', 'ai', 'sparkles', 'KI-Schritt', { description: 'Lässt die KI einen Text erzeugen.', primary_input: 'prompt',
                 params: [P('prompt', 'textarea', 'Anweisung', { required: true, templatable: true })],
                 output_fields: [{ name: 'text', type: 'text', primary: true }, { name: 'tokens', type: 'object' }] }),
@@ -116,10 +124,11 @@
     //   resyncAfter     a run stream sends "resync" after this many live events (once), as the bus
     //                   does when it drops a slow client
     //   failType        steps of this node type fail, and their run with them
+    //   failPreview     the publish preview answers 500 FLOW_INTERNAL
     //   delay           milliseconds each step of a run takes
     const state = {
         flows: new Map(), runs: new Map(), saves: [], requests: [], testData: {}, secrets: ['wetter_api'], secretWrites: [], streams: [],
-        delay: 140, disabled: false, failSaves: [], publishPartial: '', resyncAfter: 0, failType: '',
+        delay: 140, disabled: false, failSaves: [], publishPartial: '', resyncAfter: 0, failType: '', failPreview: false,
         options: { ha_entities: { options: [{ value: 'light.kueche', label: 'Küche' }, { value: 'light.flur', label: 'Flur' }], truncated: true } }
     };
 
@@ -206,11 +215,25 @@
     }
     const hasErrors = issues => issues.some(i => i.severity === 'error');
 
+    // effectsOf mirrors the definitions' EffectsOf: the effects of a node's real parameters. An
+    // HTTP request sends unless its method is missing, empty or GET (httpRequestEffects); the
+    // other fixture types have fixed effects.
+    function effectsOf(n) {
+        if (n.type === 'http.request') {
+            const method = (n.params || {}).method;
+            if (method === undefined || method === null) return [];
+            if (typeof method === 'string' && (!method.trim() || method.trim().toUpperCase() === 'GET')) return [];
+            return ['sends_message'];
+        }
+        return (types.get(n.type) || {}).effects || [];
+    }
+
+    // effects is CollectEffects: the effects of the real parameters of every enabled node.
     function effects(doc) {
         const map = new Map();
         doc.nodes.forEach(n => {
             if ((n.settings || {}).disabled) return;
-            ((types.get(n.type) || {}).effects || []).forEach(e => { if (!map.has(e)) map.set(e, []); map.get(e).push(n.id); });
+            effectsOf(n).forEach(e => { if (!map.has(e)) map.set(e, []); map.get(e).push(n.id); });
         });
         return Array.from(map.entries()).map(([effect, node_ids]) => ({ effect, node_ids }));
     }
@@ -535,6 +558,7 @@
             return reply({ draft_revision: rec.draft_revision, issues: validate(rec.draft, 'draft') });
         }
         if (action === 'publish-preview' && method === 'GET') {
+            if (state.failPreview) return fail(500, 'FLOW_INTERNAL', 'the flow service failed; see the server log');
             const issues = validate(rec.draft, 'publish');
             return reply({ issues, effects: effects(rec.draft), diff: diff(rec.live || null, rec.draft), can_publish: !hasErrors(issues) });
         }

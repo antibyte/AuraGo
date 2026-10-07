@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Skriver filer",
   "easydrag.ui.effects_remember": "Spørg ikke igen for dette flow",
   "easydrag.ui.effects_title": "Denne test har reelle virkninger",
+  "easydrag.ui.effects_unchecked": "Virkningerne af denne test kunne ikke kontrolleres helt. Den kan gøre mere end det, der står her.",
   "easydrag.ui.empty_action": "Vælg en udløser",
   "easydrag.ui.empty_text": "Hvert flow starter med en udløser: et tidspunkt, en hændelse eller et klik. Tilføj derefter de trin, der skal følge.",
   "easydrag.ui.empty_title": "Start med en udløser",

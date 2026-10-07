@@ -22,18 +22,39 @@
         return ed.model.doc.nodes.filter(n => { const i = ed.model.info(n.type); return i && i.trigger && !n.settings.disabled; });
     }
 
+    // realEffects reads the effects of each step's real settings from the publish preview
+    // (CollectEffects: [{effect, node_ids}]) as node id -> effects; null when the answer has none.
+    function realEffects(preview) {
+        if (!preview || !Array.isArray(preview.effects)) return null;
+        const out = new Map();
+        preview.effects.forEach(item => {
+            if (!item || typeof item.effect !== 'string' || !Array.isArray(item.node_ids)) return;
+            item.node_ids.forEach(id => {
+                if (!out.has(id)) out.set(id, []);
+                out.get(id).push(item.effect);
+            });
+        });
+        return out;
+    }
+
     // effects lists the outward effects of the steps a test runs (for the real-effects warning).
+    // Each step counts with its catalog effects, which describe its default settings, and with
+    // the effects of its real settings when the server named them (real: node id -> effects,
+    // from realEffects): an HTTP request with POST sends, while its catalog entry (GET) does not.
     // A test of the whole flow counts every enabled step. A step test (onlyNode) runs what the
     // engine runs (internal/flows/engine_state.go, run, fireTrigger and collectReady): the step
     // and its ancestors, and of those only the steps the test's trigger reaches. Other triggers
-    // are skipped, and a disabled step is skipped with what only it feeds. triggerId is the
-    // test's trigger; without one, every enabled trigger counts.
-    function effects(ed, onlyNode, triggerId) {
+    // are skipped, and a disabled step is skipped with what only it feeds. Every wire counts,
+    // whatever its port, so the walk deliberately over-estimates what a branch will run.
+    // triggerId is the test's trigger; without one, every enabled trigger counts.
+    function effects(ed, onlyNode, triggerId, real) {
         const doc = ed.model.doc;
         const out = new Map();
         const add = n => {
             const i = ed.model.info(n.type);
-            (i && i.effects || []).forEach(effect => {
+            const kinds = new Set((i && i.effects) || []);
+            ((real && real.get(n.id)) || []).forEach(effect => kinds.add(effect));
+            kinds.forEach(effect => {
                 if (!out.has(effect)) out.set(effect, []);
                 out.get(effect).push(n.label || n.type);
             });
@@ -331,11 +352,18 @@
             if (!list.length) { ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: t('easydrag.ui.test_no_trigger'), type: 'error' }); return undefined; }
             const remembered = core.storage.get('aurago.easydrag.test-trigger.' + ed.flow.id, '');
             let trigger = list.find(n => n.id === (o.triggerNode || remembered)) || list.find(n => n.type === 'trigger.manual') || list[0];
+            // The catalog describes each step with its default settings; the publish preview (a
+            // read-only check of the saved draft) names the effects of the real ones. Without it
+            // the dialog says that the effects could not be fully checked, and a test never starts
+            // without the dialog.
+            let real = null;
+            try { real = realEffects(await ed.api.preview(ed.flow.id)); } catch (err) { real = null; }
+            if (disposed) return undefined;
             const confirmed = confirmedEffects();
             // A step test runs what its trigger reaches: the effects follow the chosen trigger.
-            const pending = id => new Map(Array.from(effects(ed, o.onlyNode, id)).filter(([effect]) => !confirmed.has(effect)));
+            const pending = id => new Map(Array.from(effects(ed, o.onlyNode, id, real)).filter(([effect]) => !confirmed.has(effect)));
             let fx = pending(trigger.id);
-            if (o.quick && !fx.size) { await run(trigger.id, null, o.onlyNode, false); return undefined; }
+            if (o.quick && !fx.size && real) { await run(trigger.id, null, o.onlyNode, false); return undefined; }
             let sample = {};
             try { sample = (await ed.api.testData(ed.flow.id, trigger.id)).data || {}; } catch (err) { sample = {}; }
             if (disposed) return undefined;
@@ -349,6 +377,7 @@
                     '<label class="ed-label">' + esc(t('easydrag.ui.test_data')) + '<textarea class="ed-input ed-code" rows="9" spellcheck="false" data-ed-test-data>' + esc(shown) + '</textarea></label>' +
                     '<p class="ed-hint">' + esc(t('easydrag.ui.test_data_hint')) + '</p><p class="ed-error" role="alert" hidden></p>' +
                     '<label class="ed-check"><input type="checkbox" data-ed-test-remember checked> ' + esc(t('easydrag.ui.test_remember')) + '</label>' +
+                    (real ? '' : '<p class="ed-callout ed-callout--warn" data-ed-effects-unchecked>' + core.icon('alert') + '<span>' + esc(t('easydrag.ui.effects_unchecked')) + '</span></p>') +
                     effectsMarkup(fx),
                 actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'run', label: t('easydrag.ui.test_run'), primary: true, icon: 'play' }],
                 onAction: async (action, d) => {

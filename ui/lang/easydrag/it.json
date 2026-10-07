@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Scrive file",
   "easydrag.ui.effects_remember": "Non chiedere più per questo flusso",
   "easydrag.ui.effects_title": "Questa prova ha effetti reali",
+  "easydrag.ui.effects_unchecked": "Non è stato possibile verificare del tutto gli effetti di questa prova. Potrebbe fare più di quanto indicato qui.",
   "easydrag.ui.empty_action": "Scegli un attivatore",
   "easydrag.ui.empty_text": "Ogni flusso inizia con un attivatore: un orario, un evento o un clic. Poi aggiungi i passi che devono seguire.",
   "easydrag.ui.empty_title": "Inizia con un attivatore",

@@ -388,6 +388,7 @@
   "easydrag.ui.effect_writes_files": "Escribe archivos",
   "easydrag.ui.effects_remember": "No volver a preguntar para este flujo",
   "easydrag.ui.effects_title": "Esta prueba tiene efectos reales",
+  "easydrag.ui.effects_unchecked": "No se pudieron comprobar del todo los efectos de esta prueba. Puede hacer más de lo que se indica aquí.",
   "easydrag.ui.empty_action": "Elegir un activador",
   "easydrag.ui.empty_text": "Todo flujo empieza con un activador: una hora, un evento o un clic. Después añade los pasos que deben seguir.",
   "easydrag.ui.empty_title": "Empieza con un activador",
