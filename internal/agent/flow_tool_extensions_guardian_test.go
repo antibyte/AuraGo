@@ -202,6 +202,14 @@ func TestC06GuardianTelegramParams(t *testing.T) {
 	if stray := toolCallParams(ToolCall{Action: "send_telegram", Params: map[string]interface{}{"message": "m", "path": "secrets/keys.txt"}}); stray["file_path"] != "" {
 		t.Errorf("a stray path became the file: %#v", stray)
 	}
+	// FF1 review: the Path field (a native "path" argument) is no file of send_telegram
+	// either, also next to a real file_path.
+	if stray := c06GuardianParams(t, "send_telegram", `{"message":"m","path":"secrets/keys.txt"}`); stray["file_path"] != "" || stray["path_scope"] != "" {
+		t.Errorf("the Path field became the file: %#v", stray)
+	}
+	if both := c06GuardianParams(t, "send_telegram", `{"message":"m","path":"secrets/keys.txt","file_path":"notes/todo.txt"}`); both["file_path"] != "notes/todo.txt" {
+		t.Errorf("file_path next to a stray path: %#v", both)
+	}
 	if long := c06GuardianParams(t, "send_telegram", mustJSON(t, map[string]any{"message": strings.Repeat("ä", 9000), "title": strings.Repeat("ü", 9000)})); len(long["message"]) > 300 || len(long["title"]) > 200 {
 		t.Errorf("message %d bytes, title %d bytes", len(long["message"]), len(long["title"]))
 	}

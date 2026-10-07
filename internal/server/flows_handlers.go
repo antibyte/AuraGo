@@ -237,7 +237,9 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 			"more than one flow is linked to the same Mission Control mission, so it is not clear which one is meant; delete the extra flow")
 	case errors.Is(err, tools.ErrMissionLocked):
 		flowsError(w, http.StatusConflict, "FLOW_LOCKED", "the flow's mission is locked in Mission Control; unlock it there first")
-	case errors.Is(err, tools.ErrFlowMissionNotFound):
+	case errors.Is(err, flows.ErrMissionControlUnavailable):
+		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", flowsErrorText(err))
+	case errors.Is(err, tools.ErrFlowMissionNotFound), errors.Is(err, flows.ErrFlowMissionMissing):
 		flowsError(w, http.StatusConflict, "FLOW_MISSION_MISSING",
 			"the flow's Mission Control entry is missing; export the flow, delete it and import it again")
 	case errors.Is(err, flows.ErrQueueFull):

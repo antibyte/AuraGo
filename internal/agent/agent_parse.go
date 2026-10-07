@@ -1506,6 +1506,12 @@ func parseXMLParams(tc *ToolCall, body string) {
 		case "file_path", "path":
 			tc.FilePath = strings.Trim(paramVal, "\"'")
 			tc.Path = tc.FilePath
+			// Keep the name the model used too: send_telegram reads only file_path
+			// (sendTelegramFilePath), and both names land in the same fields here.
+			if tc.Params == nil {
+				tc.Params = make(map[string]interface{})
+			}
+			tc.Params[paramName] = tc.FilePath
 		case "destination", "dest":
 			tc.Destination = strings.Trim(paramVal, "\"'")
 			tc.Dest = tc.Destination
@@ -2183,8 +2189,15 @@ func addGuardianTelegramParams(m map[string]string, tc ToolCall) {
 	if req.Message != "" {
 		m["message"] = truncateUTF8HeadTail(req.Message, guardianBodyBytes)
 	}
-	if _, ok := m["file_path"]; !ok && req.FilePath != "" {
+	// Only the file the call sends: the generic file_path above also takes tc.Path (a
+	// stray path argument), which send_telegram ignores.
+	delete(m, "file_path")
+	delete(m, "path_scope")
+	if req.FilePath != "" {
 		m["file_path"] = truncateUTF8HeadTail(guardianDisplayPath(tc, req.FilePath), guardianRecipientBytes)
+		if scope := guardianPathScope(tc, req.FilePath); scope != "" {
+			m["path_scope"] = scope
+		}
 	}
 }
 

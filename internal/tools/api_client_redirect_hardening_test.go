@@ -61,3 +61,23 @@ func TestFF1APIRequestReportsDroppedHeaders(t *testing.T) {
 		}
 	}
 }
+
+// FF1 review: final_url never carries user info, neither the password nor the user name.
+func TestFF1APIRequestFinalURLHasNoUserInfo(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+	ConfigureRuntimePermissions(RuntimePermissions{AllowNetworkRequests: true})
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer target.Close()
+	withUser := strings.Replace(target.URL, "http://", "http://ff1user:ff1pass@", 1) + "/landing"
+	start := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, withUser, http.StatusFound)
+	}))
+	defer start.Close()
+	out := c13APIRequest(t, start.URL+"/away", map[string]string{"X-API-Key": "ff1-key"})
+	if out.Status != "success" || !out.HeadersDroppedOnRedirect || out.FinalURL != target.URL+"/landing" {
+		t.Fatalf("result = %+v", out)
+	}
+}

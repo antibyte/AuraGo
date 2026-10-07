@@ -142,6 +142,8 @@ func TestC17ErrorMapCoversEveryFlowSentinel(t *testing.T) {
 		{flows.ErrNotPublished, http.StatusConflict, "FLOW_NOT_PUBLISHED"},
 		{flows.ErrNoTrigger, http.StatusConflict, "FLOW_NO_TRIGGER"},
 		{flows.ErrFlowDisabled, http.StatusConflict, "FLOW_DISABLED"},
+		{flows.ErrFlowMissionMissing, http.StatusConflict, "FLOW_MISSION_MISSING"},
+		{flows.ErrMissionControlUnavailable, http.StatusServiceUnavailable, "FLOWS_DISABLED"},
 		{fmt.Errorf("%w: %q", flows.ErrFlowExists, "flow_x"), http.StatusConflict, "FLOW_EXISTS"},
 		{fmt.Errorf("lookup: %w", flows.ErrMissionAmbiguous), http.StatusConflict, "FLOW_MISSION_AMBIGUOUS"},
 		{tools.ErrMissionLocked, http.StatusConflict, "FLOW_LOCKED"},

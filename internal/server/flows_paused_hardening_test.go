@@ -73,3 +73,29 @@ func TestFF1RunNowOfAPausedFlowIsRefused(t *testing.T) {
 		t.Fatalf("run of an enabled flow = %d %s", w.Code, w.Body.String())
 	}
 }
+
+// FF1 review: Run now names the real reason when the flow is not switched on because its
+// mission is gone from Mission Control (409 FLOW_MISSION_MISSING) or Mission Control is not
+// there at all (503 FLOWS_DISABLED); "paused" is only for a mission that is switched off.
+func TestFF1RunNowTellsAMissingMissionFromAPause(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	ctx := context.Background()
+	rec := createTestFlow(t, s, greetFlowJSON)
+	if _, _, err := s.Flows.Publish(ctx, rec.ID, rec.DraftRevision); err != nil {
+		t.Fatalf("Publish: %v", err)
+	}
+	mm := s.MissionManagerV2
+	s.MissionManagerV2 = nil
+	w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/run", token, "")
+	s.MissionManagerV2 = mm
+	if w.Code != http.StatusServiceUnavailable || flowsBody(t, w)["code"] != "FLOWS_DISABLED" {
+		t.Fatalf("run without Mission Control = %d %s", w.Code, w.Body.String())
+	}
+	if err := mm.DeleteFlowMission(rec.MissionID); err != nil {
+		t.Fatal(err)
+	}
+	w = flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/run", token, "")
+	if w.Code != http.StatusConflict || flowsBody(t, w)["code"] != "FLOW_MISSION_MISSING" {
+		t.Fatalf("run with the mission gone = %d %s", w.Code, w.Body.String())
+	}
+}

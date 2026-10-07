@@ -131,9 +131,29 @@ func (s *Service) RunNow(ctx context.Context, id string) (StartResult, error) {
 		return StartResult{}, ErrNotPublished
 	}
 	if !s.bridge.FlowMissionEnabled(rec.MissionID) {
-		return StartResult{}, ErrFlowDisabled
+		return StartResult{}, s.notEnabledReason(rec.MissionID)
 	}
 	return s.startLive(rec, "", "manual", nil)
+}
+
+// notEnabledReason tells why FlowMissionEnabled said no, which it reports as one false:
+// ErrMissionControlUnavailable without Mission Control, ErrFlowMissionMissing when Mission
+// Control holds no such flow mission, else ErrFlowDisabled (the flow is switched off). It
+// asks MissionReconciler.FlowMissions (nil without Mission Control) when the bridge offers
+// it; a bridge without it gets ErrFlowDisabled.
+func (s *Service) notEnabledReason(missionID string) error {
+	recon, ok := s.bridge.(MissionReconciler)
+	if !ok {
+		return ErrFlowDisabled
+	}
+	missions := recon.FlowMissions()
+	if missions == nil {
+		return ErrMissionControlUnavailable
+	}
+	if _, held := missions[missionID]; !held || missionID == "" {
+		return ErrFlowMissionMissing
+	}
+	return ErrFlowDisabled
 }
 
 // TriggerFromMission starts a live run when Mission Control fires one of the flow's
@@ -165,7 +185,15 @@ func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data
 		return StartResult{}, err
 	}
 	if nodeID == "" {
-		data = nil // the generic start: see above
+		// The generic start: see above. The drop is logged with the size only.
+		if len(data) > 0 && s.logger.Enabled(context.Background(), slog.LevelDebug) {
+			size := -1
+			if enc, err := json.Marshal(data); err == nil {
+				size = len(enc)
+			}
+			s.logger.Debug("caller data dropped for a flow start without a trigger node", "mission_id", missionID, "data_bytes", size)
+		}
+		data = nil
 	}
 	return s.startLive(rec, nodeID, triggerType, data)
 }

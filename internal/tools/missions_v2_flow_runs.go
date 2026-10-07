@@ -40,15 +40,24 @@ const agentCompletionOutputsMaxBytes = 8 << 10
 
 // capCompletionOutputsForAgents returns outputs when they fit agentCompletionOutputsMaxBytes,
 // else the truncation marker with the longest preview whose encoding fits (the preview is
-// JSON text, so its quotes are escaped again). Caller may hold m.mu: outputs are at most
-// flowCompletionOutputsMaxBytes.
+// JSON text, so its quotes are escaped again). Outputs that boundedCompletionOutputs cut
+// already (the marker object alone) get their preview cut, never a preview of the marker.
+// Caller may hold m.mu: outputs are at most flowCompletionOutputsMaxBytes.
 func capCompletionOutputsForAgents(outputs json.RawMessage) json.RawMessage {
 	if len(outputs) <= agentCompletionOutputsMaxBytes {
 		return outputs
 	}
+	preview := string(outputs)
+	var marked map[string]json.RawMessage
+	if json.Unmarshal(outputs, &marked) == nil && len(marked) == 2 && string(marked["_truncated"]) == "true" {
+		var inner string
+		if json.Unmarshal(marked["_preview"], &inner) == nil {
+			preview = inner
+		}
+	}
 	limit := agentCompletionOutputsMaxBytes
 	for {
-		enc, _ := json.Marshal(map[string]any{"_truncated": true, "_preview": cutAtRuneBoundary(string(outputs), limit)})
+		enc, _ := json.Marshal(map[string]any{"_truncated": true, "_preview": cutAtRuneBoundary(preview, limit)})
 		if len(enc) <= agentCompletionOutputsMaxBytes || limit == 0 {
 			return enc
 		}

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -170,11 +171,19 @@ func TestFF1CronRuntimeJobs(t *testing.T) {
 	cronMgr := NewCronManager(dir)
 	t.Cleanup(func() { _ = cronMgr.Close() })
 	out, err := cronMgr.AddRuntimeJob("ff1_runtime", "0 5 * * *", "ff1 runtime", "ff1")
-	if err != nil || !ff1ContainsAll(out, `"status": "success"`) {
+	if err != nil || ff1CronAnswer(t, out).Status != "success" || ff1CronAnswer(t, out).ID != "ff1_runtime" {
 		t.Fatalf("AddRuntimeJob = %s, %v", out, err)
 	}
-	if out, err := cronMgr.AddRuntimeJob("ff1_bad", "not a cron expression", "x", "ff1"); err != nil || !ff1ContainsAll(out, `"status": "error"`) {
+	// FF1 review: the answers are real JSON, also with a quote in the parser's message or
+	// in the id.
+	if out, err := cronMgr.AddRuntimeJob("ff1_bad", `not a "cron" expression`, "x", "ff1"); err != nil || ff1CronAnswer(t, out).Status != "error" {
 		t.Fatalf("AddRuntimeJob with a bad expression = %s, %v", out, err)
+	}
+	if out, err := cronMgr.AddRuntimeJob(`ff1"quoted`, "0 5 * * *", "x", "ff1"); err != nil || ff1CronAnswer(t, out).ID != `ff1"quoted` {
+		t.Fatalf("AddRuntimeJob with a quote in the id = %s, %v", out, err)
+	}
+	if _, err := cronMgr.ManageSchedule("remove", `ff1"quoted`, "", "", ""); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := cronMgr.ManageSchedule("add", "ff1_persisted", "0 6 * * *", "ff1 persisted", ""); err != nil {
 		t.Fatal(err)
@@ -209,6 +218,16 @@ func TestFF1CronRuntimeJobs(t *testing.T) {
 	if _, err := cronMgr.ManageSchedule("remove", "ff1_persisted", "", "", ""); err != nil || hasCronJob(cronMgr, "ff1_persisted") {
 		t.Fatalf("remove of a runtime job: %v", err)
 	}
+}
+
+// ff1CronAnswer decodes a cron manager JSON answer and fails on anything that is no JSON.
+func ff1CronAnswer(t *testing.T, out string) struct{ Status, Message, ID string } {
+	t.Helper()
+	var answer struct{ Status, Message, ID string }
+	if err := json.Unmarshal([]byte(out), &answer); err != nil {
+		t.Fatalf("answer %q is no JSON: %v", out, err)
+	}
+	return answer
 }
 
 func ff1HasJob(jobs []CronJob, id string) bool {

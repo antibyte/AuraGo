@@ -455,8 +455,15 @@ func (m *MissionManagerV2) addFlowCronLocked(missionID string, spec FlowTriggerS
 	if err != nil {
 		return fmt.Errorf("register flow schedule %s: %w", spec.NodeID, err)
 	}
-	if strings.Contains(out, `"status": "error"`) {
+	var answer struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if json.Unmarshal([]byte(out), &answer) != nil {
 		return fmt.Errorf("register flow schedule %s: %s", spec.NodeID, out)
+	}
+	if answer.Status == "error" {
+		return fmt.Errorf("register flow schedule %s: %s", spec.NodeID, answer.Message)
 	}
 	return nil
 }

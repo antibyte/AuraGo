@@ -54,12 +54,22 @@ func TestFF1FlowRunningStateIsNotPersisted(t *testing.T) {
 		t.Fatal("FlowRunStarted rewrote the missions file")
 	}
 
-	// Another change saves the file while the flow runs: the flow mission is written idle.
+	// Another change saves the file while the flow runs: the flow mission is written idle,
+	// while a running agent mission (the negative control) is still written as running.
+	if err := mm.Create(&MissionV2{ID: "mission_ff1_agent", Name: "Agent", Prompt: "x", ExecutionType: ExecutionManual}); err != nil {
+		t.Fatal(err)
+	}
+	mm.mu.Lock()
+	mm.missions["mission_ff1_agent"].Status = MissionStatusRunning
+	mm.mu.Unlock()
 	if err := mm.Create(&MissionV2{ID: "mission_ff1_other", Name: "Andere", Prompt: "x", ExecutionType: ExecutionManual}); err != nil {
 		t.Fatal(err)
 	}
 	if got := ff1PersistedMission(t, dir, id); got.Status != MissionStatusIdle {
 		t.Fatalf("persisted status while running = %q, want idle", got.Status)
+	}
+	if got := ff1PersistedMission(t, dir, "mission_ff1_agent"); got.Status != MissionStatusRunning {
+		t.Fatalf("a running agent mission was persisted as %q", got.Status)
 	}
 	if m, _ := mm.Get(id); m.Status != MissionStatusRunning {
 		t.Fatalf("the save changed the in-memory status to %q", m.Status)

@@ -113,6 +113,12 @@ var (
 	// ErrFlowDisabled refuses Run now of a published flow that is switched off, as
 	// Mission Control refuses to run a disabled mission. Test runs are not affected.
 	ErrFlowDisabled = errors.New("the flow is paused; switch it on first")
+	// ErrFlowMissionMissing refuses Run now of a flow whose mission is gone from Mission
+	// Control (publishing does not recreate it).
+	ErrFlowMissionMissing = errors.New("the flow's Mission Control entry is missing; export the flow, delete it and import it again")
+	// ErrMissionControlUnavailable refuses Run now while Mission Control is not available,
+	// so the flow's switch cannot be read.
+	ErrMissionControlUnavailable = errors.New("Mission Control is not available")
 )
 
 // Service is the entry point for the HTTP API, Mission Control and timers.

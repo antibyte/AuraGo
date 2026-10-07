@@ -138,3 +138,34 @@ func TestFF1FlowsSessionWritesAreUnaffected(t *testing.T) {
 		t.Fatalf("session test run = %d %s", w.Code, w.Body.String())
 	}
 }
+
+// FF1 review: odd spellings of the validate path (a trailing slash, a doubled slash, an
+// encoded slash) get the same scope from the auth middleware and from handleFlows, so a
+// write token passes both or neither; only the exact validate route is write-scoped.
+func TestFF1FlowsScopeAgreesOnPathVariants(t *testing.T) {
+	s, _ := newFlowsTestServer(t)
+	writeToken := ff1Token(t, s, "ff1 write", desktopScopeRead, desktopScopeWrite)
+	rec := createTestFlow(t, s, greetFlowJSON)
+	body := `{"doc":` + greetFlowJSON + `}`
+	for target, wantWrite := range map[string]bool{
+		"/api/desktop/flows/validate":                       true,
+		"/api/desktop/flows/validate/":                      true,
+		"/api/desktop/flows//validate":                      true,
+		"/api/desktop/flows/validate%2F":                    true,
+		"/api/desktop/flows/%2Fvalidate":                    true,
+		"/api/desktop/flows/validate%2Fx":                   false,
+		"/api/desktop/flows/./validate":                     false,
+		"/api/desktop/flows/" + rec.ID + "%2Fpublish":       false,
+		"/api/desktop/flows/" + rec.ID + "%2F..%2Fvalidate": false,
+	} {
+		r := httptest.NewRequest(http.MethodPost, target, strings.NewReader(body))
+		middleware := validRouteBearer(s, writeToken, r.URL.Path, r.Method)
+		r.Header.Set("Authorization", "Bearer "+writeToken)
+		w := httptest.NewRecorder()
+		s.handleFlows(w, r)
+		handler := !(w.Code == http.StatusForbidden && strings.Contains(w.Body.String(), "desktop_scope_required"))
+		if middleware != handler || middleware != wantWrite {
+			t.Errorf("%s: middleware %v, handler %v (%d %.120s), want %v", target, middleware, handler, w.Code, w.Body.String(), wantWrite)
+		}
+	}
+}

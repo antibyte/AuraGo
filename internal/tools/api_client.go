@@ -52,7 +52,7 @@ type APIResult struct {
 	Message    string            `json:"message,omitempty"`
 	// HeadersDroppedOnRedirect is true when a redirect to another host, port or scheme made
 	// the request drop the caller's headers (see apiRequestClient); FinalURL is then the
-	// URL that answered (password redacted), which the caller can request directly.
+	// URL that answered (without user info), which the caller can request directly.
 	HeadersDroppedOnRedirect bool   `json:"headers_dropped_on_redirect,omitempty"`
 	FinalURL                 string `json:"final_url,omitempty"`
 }
@@ -151,8 +151,10 @@ func ExecuteAPIRequestWithOptions(method, rawURL, body string, headers map[strin
 		Body:       bodyStr,
 	}
 	if dropped && resp.Request != nil && resp.Request.URL != nil {
+		final := *resp.Request.URL
+		final.User = nil // neither the password nor the user name
 		result.HeadersDroppedOnRedirect = true
-		result.FinalURL = resp.Request.URL.Redacted()
+		result.FinalURL = final.String()
 		slog.Debug("[api_request] Caller headers dropped after a redirect to another host, port or scheme",
 			"headers_dropped", true, "final_host", resp.Request.URL.Host)
 	}

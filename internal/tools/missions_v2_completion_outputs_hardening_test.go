@@ -81,3 +81,24 @@ func TestFF1AgentDependentsGetCappedFlowOutputs(t *testing.T) {
 	}
 	hooks.waitStart(t)
 }
+
+// FF1 review: outputs that boundedCompletionOutputs already cut ({"_truncated": true,
+// "_preview": …}) and that still exceed the agent cap once encoded (a preview full of
+// escaped quotes doubles) get their preview cut, never a preview of the marker object.
+func TestFF1AgentCapCutsAnExistingPreview(t *testing.T) {
+	outputs := boundedCompletionOutputs(map[string]any{"report": strings.Repeat(`"`, 70<<10)})
+	if len(outputs) <= agentCompletionOutputsMaxBytes {
+		t.Fatalf("the flow cap left %d bytes; the test needs more than %d", len(outputs), agentCompletionOutputsMaxBytes)
+	}
+	capped := capCompletionOutputsForAgents(outputs)
+	var marker struct {
+		Truncated bool   `json:"_truncated"`
+		Preview   string `json:"_preview"`
+	}
+	if err := json.Unmarshal(capped, &marker); err != nil || len(capped) > agentCompletionOutputsMaxBytes || !marker.Truncated {
+		t.Fatalf("capped = %d bytes, %v", len(capped), err)
+	}
+	if !strings.HasPrefix(marker.Preview, `{"report":"\"`) || strings.Contains(marker.Preview, "_truncated") {
+		t.Fatalf("preview = %.80q", marker.Preview)
+	}
+}

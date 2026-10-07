@@ -812,10 +812,29 @@ func decodeNotificationArgs(tc ToolCall) notificationArgs {
 func decodeSendTelegramArgs(tc ToolCall) notificationArgs {
 	req := decodeNotificationArgs(tc)
 	req.Channel = "telegram"
-	// Only file_path names the file: a stray path argument must neither send a file nor
-	// fail the call (send_telegram has no path parameter).
-	req.FilePath = firstNonEmptyToolString(tc.FilePath, toolArgString(tc.Params, "file_path"))
+	req.FilePath = sendTelegramFilePath(tc)
 	return req
+}
+
+// sendTelegramFileAliases are the parameter names besides file_path that the text-format
+// parser promotes into the FilePath field (agent_parse.go); parseXMLParams records the
+// name it got as well.
+var sendTelegramFileAliases = []string{"path", "filepath", "filename", "file"}
+
+// sendTelegramFilePath returns the file of a send_telegram: only file_path names it. The
+// file_path parameter wins; the FilePath field counts only when the parameters hold none
+// of sendTelegramFileAliases, because the text-format parser fills that field from them, so
+// a stray path, file or filename neither sends a file nor fails the call.
+func sendTelegramFilePath(tc ToolCall) string {
+	if path := toolArgString(tc.Params, "file_path"); path != "" {
+		return path
+	}
+	for _, alias := range sendTelegramFileAliases {
+		if _, ok := tc.Params[alias]; ok {
+			return ""
+		}
+	}
+	return tc.FilePath
 }
 
 func decodeEmailFetchArgs(tc ToolCall) emailFetchArgs {

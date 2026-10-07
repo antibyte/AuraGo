@@ -520,7 +520,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 }
 
 // AddRuntimeJob schedules a job like ManageScheduleWithSource "add" (the same scheduler
-// permission, expression check and JSON answer), but keeps it in memory only: GetJobs,
+// permission, expression check and JSON answer, built with json.Marshal), but keeps it in memory only: GetJobs,
 // "list", the dashboard and the agent's cron tools see it, no save ever writes it to the
 // persisted job list, and it ends with the process, so its owner registers it again on
 // every start. A persisted job under the same id is replaced and leaves the store. id is
@@ -528,13 +528,13 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 // it loads without a runner to its agent, never runs them.
 func (m *CronManager) AddRuntimeJob(id, expr, prompt, source string) (string, error) {
 	if err := requireSchedulerPermission("add"); err != nil {
-		return fmt.Sprintf(`{"status": "error", "message": "%s"}`, err.Error()), nil
+		return cronAnswer("error", err.Error(), ""), nil
 	}
 	if id == "" || expr == "" || prompt == "" {
-		return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T("", "tools.cron_add_required")), nil
+		return cronAnswer("error", i18n.T("", "tools.cron_add_required"), ""), nil
 	}
 	if _, err := newCronParser().Parse(expr); err != nil {
-		return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T("", "tools.cron_invalid_expr", err)), nil
+		return cronAnswer("error", i18n.T("", "tools.cron_invalid_expr", err), ""), nil
 	}
 
 	m.mu.Lock()
@@ -561,7 +561,17 @@ func (m *CronManager) AddRuntimeJob(id, expr, prompt, source string) (string, er
 			return "", err
 		}
 	}
-	return fmt.Sprintf(`{"status": "success", "message": "%s", "id": "%s"}`, i18n.T("", "tools.cron_scheduled"), id), nil
+	return cronAnswer("success", i18n.T("", "tools.cron_scheduled"), id), nil
+}
+
+// cronAnswer encodes an AddRuntimeJob answer ({"status", "message", "id"}) as JSON.
+func cronAnswer(status, message, id string) string {
+	out, _ := json.Marshal(struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+		ID      string `json:"id,omitempty"`
+	}{status, message, id})
+	return string(out)
 }
 
 // RestoreRuntimeJob registers a runtime-only job (see AddRuntimeJob) the way Start registers
