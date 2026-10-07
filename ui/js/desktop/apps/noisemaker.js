@@ -158,7 +158,11 @@
 
     function wireHeader(S) {
         S.root.addEventListener('click', event => {
-            if (event.target.closest('[data-nm-refresh]')) { refreshTracks(S); return; }
+            if (event.target.closest('[data-nm-refresh]')) {
+                if (!S.caps || !S.caps.enabled) loadState(S);
+                else refreshTracks(S);
+                return;
+            }
             if (event.target.closest('[data-nm-toggle-create]')) { setCreateCollapsed(S, !S.prefs.createCollapsed); return; }
             const paneBtn = event.target.closest('[data-nm-pane-btn]');
             if (paneBtn) { S.paneChosen = true; setActivePane(S, paneBtn.dataset.nmPaneBtn); }
@@ -171,10 +175,24 @@
         try {
             const data = await request(S, '/api/desktop/noisemaker/state');
             if (S.disposed) return;
-            S.caps = data || {};
+            if (!data || typeof data.enabled !== 'boolean' || data.status === 'error') throw new Error('Invalid Noisemaker state');
+            S.caps = data;
         } catch (err) {
-            if (S.disposed) return;
-            S.caps = { enabled: false, error: (err && err.message) || '' };
+            if (S.disposed || (err && err.name === 'AbortError')) return;
+            if (S.caps) {
+                toast(S, S.t('desktop.noisemaker_state_error_hint'), 'error');
+            } else {
+                const esc = S.ctx.esc;
+                const body = qs(S, '.nm-body');
+                body.innerHTML = '<div class="nm-onboarding"><div class="nm-onboarding-card" role="alert">' +
+                    '<h2>' + esc(S.t('desktop.noisemaker_state_error_title')) + '</h2>' +
+                    '<p>' + esc(S.t('desktop.noisemaker_state_error_hint')) + '</p>' +
+                    '<button type="button" class="nm-btn nm-btn--primary" data-nm-recheck>' + esc(S.t('desktop.noisemaker_onboarding_recheck')) + '</button>' +
+                    '</div></div>';
+                qs(S, '[data-nm-toggle-create]').hidden = true;
+                body.querySelector('[data-nm-recheck]').addEventListener('click', () => loadState(S));
+            }
+            return;
         }
         renderApp(S);
         scheduleLocalStatus(S);
@@ -187,6 +205,7 @@
             try {
                 const caps = await request(S, '/api/desktop/noisemaker/state');
                 if (S.disposed) return;
+                if (!caps || typeof caps.enabled !== 'boolean' || caps.status === 'error') throw new Error('Invalid Noisemaker state');
                 const previous = S.caps || {};
                 const changed = caps.enabled !== previous.enabled || caps.supports_controls !== previous.supports_controls || caps.provider_type !== previous.provider_type;
                 S.caps = caps || {};

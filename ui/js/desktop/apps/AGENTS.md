@@ -2206,6 +2206,8 @@ registration lives in `internal/desktop/types.go`.
   receives provider credentials. Capability gating (music disabled, no LLM,
   no cover AI, lyrics unsupported) is driven by `/api/desktop/noisemaker/state`;
   a disabled integration renders the onboarding card instead of the workbench.
+  A failed state request renders a retryable connection error, never setup;
+  background refresh failures preserve the current capabilities and workbench.
   Tracks are server-paginated (`limit`/`offset`/`q`/`favorites=1`, newest
   first); favorites are the `favorite` media tag toggled via PATCH. HTTP 200
   `{status:error}` track pages throw and leave the current list in place; toasts
@@ -2245,6 +2247,12 @@ registration lives in `internal/desktop/types.go`.
   `data-nm-create-mode`; the segment buttons carry
   `data-nm-mode="simple|custom"`. Emits `generate, change, mode, play-result,
   show-in-library, new-song`.
+  Read-only mode blocks generation and enhancement at both UI and action entry
+  points. Validate retained local controls in both modes; show the cover toggle
+  in both modes and required lyrics when the local model has no language model.
+  Enhancement results may only replace the unchanged field of the latest
+  request. `TestDesktopNoisemakerAuditBrowser` covers these flows and compact
+  list geometry in Standard and Fruity themes.
 - `editor-filemenu.js` implements `renderFiles`, file management helpers and the inline text
   editor with window menus (file, edit, agent, help). Fallback file-list
   empty-state load failures use `desktop.load_failed`. Bundled in the

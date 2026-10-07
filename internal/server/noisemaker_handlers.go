@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -38,6 +39,10 @@ const (
 
 // noisemakerFavoriteTag marks a song as favorite in the media registry tags.
 const noisemakerFavoriteTag = "favorite"
+
+var noisemakerCoverMonthlyMu sync.Mutex
+var noisemakerCoverMonthlyReservationMonth string
+var noisemakerCoverMonthlyReservations int
 
 func noisemakerHasTag(item tools.MediaItem, tag string) bool {
 	for _, t := range item.Tags {
@@ -479,6 +484,39 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 // media registry entry (source_image). Failures are non-fatal for the generation.
 func (s *Server) noisemakerGenerateCover(ctx context.Context, cfg *config.Config, title, style, idea string, mediaID int64) (string, string) {
 	ig := cfg.ImageGeneration
+	if ig.MaxMonthly > 0 {
+		// ponytail: this lock/reservation covers Noisemaker only; shared image admission is the upgrade path for cross-entry-point races.
+		noisemakerCoverMonthlyMu.Lock()
+		defer noisemakerCoverMonthlyMu.Unlock()
+		month := time.Now().Format("2006-01")
+		if noisemakerCoverMonthlyReservationMonth != month {
+			noisemakerCoverMonthlyReservationMonth = month
+			noisemakerCoverMonthlyReservations = 0
+		}
+		if s.ImageGalleryDB == nil {
+			return "", "Monthly image generation limit cannot be verified."
+		}
+		count, err := tools.ImageGalleryMonthlyCount(s.ImageGalleryDB)
+		if err != nil {
+			return "", fmt.Sprintf("Monthly image generation limit cannot be verified: %v", err)
+		}
+		count += noisemakerCoverMonthlyReservations
+		if count >= ig.MaxMonthly {
+			return "", fmt.Sprintf("Monthly image generation limit reached (%d/%d).", count, ig.MaxMonthly)
+		}
+	}
+	if s.BudgetTracker != nil && s.BudgetTracker.IsBlocked("image_generation") {
+		return "", "Image generation blocked: daily budget exceeded."
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err.Error()
+	}
+	if ig.MaxDaily > 0 {
+		count, allowed := tools.ImageGenCounterIncrement(ig.MaxDaily)
+		if !allowed {
+			return "", fmt.Sprintf("Daily image generation limit reached (%d/%d).", count, ig.MaxDaily)
+		}
+	}
 	coverTitle := strings.TrimSpace(title)
 	if coverTitle == "" {
 		coverTitle = "Untitled"
@@ -508,9 +546,17 @@ func (s *Server) noisemakerGenerateCover(ctx context.Context, cfg *config.Config
 	if err != nil {
 		return "", err.Error()
 	}
+	if s.BudgetTracker != nil && img.CostEstimate > 0 {
+		s.BudgetTracker.RecordCostForCategory("image_generation", img.CostEstimate)
+	}
 	err = publishDesktopResult(ctx, func() error {
-		if _, err := tools.SaveGeneratedImage(s.ImageGalleryDB, img); err != nil && s.Logger != nil {
-			s.Logger.Warn("Noisemaker: failed to save cover to gallery", "error", err)
+		if _, err := tools.SaveGeneratedImage(s.ImageGalleryDB, img); err != nil {
+			if ig.MaxMonthly > 0 {
+				return fmt.Errorf("failed to save cover to image gallery: %w", err)
+			}
+			if s.Logger != nil {
+				s.Logger.Warn("Noisemaker: failed to save cover to gallery", "error", err)
+			}
 		}
 
 		// Register the cover in the media registry (visible in the media browser)
@@ -547,6 +593,14 @@ func (s *Server) noisemakerGenerateCover(ctx context.Context, cfg *config.Config
 		return nil
 	})
 	if err != nil {
+		if ig.MaxMonthly > 0 {
+			month := time.Now().Format("2006-01")
+			if noisemakerCoverMonthlyReservationMonth != month {
+				noisemakerCoverMonthlyReservationMonth = month
+				noisemakerCoverMonthlyReservations = 0
+			}
+			noisemakerCoverMonthlyReservations++
+		}
 		return "", err.Error()
 	}
 	return img.WebPath, ""
