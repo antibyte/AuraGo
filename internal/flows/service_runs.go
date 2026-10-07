@@ -139,6 +139,14 @@ func (s *Service) RunNow(ctx context.Context, id string) (StartResult, error) {
 // TriggerFromMission starts a live run when Mission Control fires one of the flow's
 // triggers. An empty nodeID picks the manual trigger or the first trigger.
 //
+// A start without a node is Mission Control's generic start: its Run, and
+// TriggerMissionWithOptions, which the daemon wake-up and POST
+// /api/missions/v2/{id}/trigger use with data of their callers. That data is dropped
+// and the run starts like RunNow (the manual trigger with its sample, any other trigger
+// with {}): LintUntrustedData treats the manual and the other built-in triggers as
+// trusted, so caller data there would reach {{trigger.…}} in a sensitive step unwarned.
+// The trigger registrations name their node and keep their data.
+//
 // triggerType is recorded with the run only when it is 1 to 40 characters of
 // [a-z0-9_]; anything else is recorded as "unknown". data comes from webhooks, mail,
 // MQTT and the like and is not trusted: the run header keeps at most
@@ -155,6 +163,9 @@ func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data
 	rec, err := s.store.GetFlowByMission(context.Background(), missionID)
 	if err != nil {
 		return StartResult{}, err
+	}
+	if nodeID == "" {
+		data = nil // the generic start: see above
 	}
 	return s.startLive(rec, nodeID, triggerType, data)
 }

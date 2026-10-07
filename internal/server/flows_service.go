@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
+	"runtime/debug"
 	"time"
 
 	"aurago/internal/config"
@@ -22,13 +24,33 @@ func (s *Server) flowsDBPath() string {
 	return filepath.Join("data", config.FlowsDBFilename)
 }
 
+// flowsInitTestHook, when a test sets it, runs inside initFlows once the service exists,
+// just before the hooks are installed, so a test can inject a panic there.
+var flowsInitTestHook func()
+
 // initFlows creates the flow service and connects it to Mission Control. It must run
 // before MissionManagerV2.Start so that flow triggers and the startup trigger find the
 // hooks; startFlows runs after it.
+//
+// Flows are on by default, so a panic while they are set up must not take the server
+// down: it is recovered and logged at Error, the store is closed again and s.Flows stays
+// nil (the capability and the API are off, flow missions report that flows are not
+// available), and the rest of the server starts as usual.
 func (s *Server) initFlows() {
 	if s.Cfg == nil || !s.Cfg.Flows.Enabled || s.MissionManagerV2 == nil {
 		return
 	}
+	var store *flows.Store
+	defer func() {
+		if r := recover(); r != nil {
+			s.Flows, s.flowsCatalog = nil, nil
+			if store != nil {
+				_ = store.Close()
+			}
+			s.Logger.Error("EasyDrag flows could not be set up; they stay off until the next start",
+				"panic", flowBoundRunes(fmt.Sprint(r), flowErrorRunes), "stack", string(debug.Stack()))
+		}
+	}()
 	store, err := flows.OpenStore(s.flowsDBPath(), s.Logger)
 	if err != nil {
 		s.Logger.Error("EasyDrag flow store could not be opened", "error", err)
@@ -52,6 +74,9 @@ func (s *Server) initFlows() {
 		RunRetentionDays: limits.EffectiveRunRetentionDays(), MaxRunsPerFlow: limits.EffectiveMaxRunsPerFlow(),
 	}, s.Logger)
 	s.flowsCatalog = env
+	if flowsInitTestHook != nil {
+		flowsInitTestHook()
+	}
 	s.MissionManagerV2.SetFlowHooks(flowMissionHooks{s: s})
 }
 

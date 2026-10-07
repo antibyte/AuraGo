@@ -471,6 +471,14 @@ func (m *MissionManagerV2) save() error {
 	// Do NOT acquire m.mu here — to avoid double locking.
 	missions := make([]*MissionV2, 0, len(m.missions))
 	for _, mission := range m.missions {
+		if isFlowMission(mission) && (mission.Status == MissionStatusRunning || mission.Status == MissionStatusQueued) {
+			// A flow mission's running state lives in memory only: flow runs never survive
+			// a restart (Start sets flow missions idle), and an older AuraGo would re-queue
+			// a persisted running mission as an agent mission with an empty prompt.
+			persisted := *mission
+			persisted.Status = MissionStatusIdle
+			mission = &persisted
+		}
 		missions = append(missions, mission)
 	}
 

@@ -212,6 +212,7 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 - In Mission Control you can pause, resume, lock, run and delete a flow mission, cancel its running run and see its history. *Run now* and *Resume* stay disabled until the flow is published ("Not published yet"). **Open in EasyDrag** replaces *Edit*, **New flow** opens EasyDrag's start page, and *Duplicate* is not offered. Changing its steps happens in EasyDrag.
 - Deleting the mission deletes the flow with its draft, all published versions, the saved trigger data and the run history. Flow secrets stay.
 - On the missions page (`/missions/v2`) flow missions cannot be edited: *Edit* and *Duplicate* only say that the flow is edited in EasyDrag, and *Run* waits until the flow is published and switched on.
+- *Run* in Mission Control, a daemon skill that wakes the mission and `POST /api/missions/v2/{id}/trigger` start the flow like EasyDrag's *Run now*: from its manual trigger with that trigger's sample data (without a manual trigger, from its first trigger with empty data). Data they pass along does not reach the flow; use a webhook trigger for data from outside.
 - When a mission finishes, `mission_completed` triggers receive its answer as `output` (cut to 2000 bytes). Flow sources also pass `outputs`: the results of their final steps.
 
 #### Runs, cancelling and limits
@@ -250,7 +251,7 @@ Steps that need a password or key (the authentication of an HTTP request, for ex
 - Runs that were in progress when AuraGo stopped are marked interrupted; they do not resume. A Date/Time trigger that came due while AuraGo or flows were off fires at start-up only when it is at most 10 minutes late; otherwise it is skipped with a warning in the log, and a yearly date moves on to the next year.
 - At start-up AuraGo checks Mission Control against the published flows and repairs their triggers and timers. Publishing never re-creates a flow mission that is missing from Mission Control: export the flow, delete it and import it again.
 - `flows.db` (by default in `data/`) is part of the backup.
-- **Before a downgrade**, disable or delete your flows. Flow schedules are kept in memory only and set up again at every start, so an older AuraGo never runs them as agent tasks. What remains are the flow missions in the missions file: an AuraGo without EasyDrag loads them but drops their flow fields on its next save, an enabled flow mission that was running or queued may then run once as an agent mission with an empty prompt, and **Run** in Mission Control can start such an empty agent mission. An AuraGo with an older flow store refuses a newer `flows.db` and leaves it untouched; its flows are then unavailable.
+- **Before a downgrade**, disable or delete your flows. Flow schedules are kept in memory only and set up again at every start, so an older AuraGo never runs them as agent tasks. What remains are the flow missions in the missions file: an AuraGo without EasyDrag loads them but drops their flow fields on its next save, and **Run** in Mission Control can then start one as an agent mission with an empty prompt. The missions file always holds flow missions as idle, so an older AuraGo does not restart one that was running. An AuraGo with an older flow store refuses a newer `flows.db` and leaves it untouched; its flows are then unavailable.
 
 ---
 

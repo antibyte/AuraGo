@@ -350,9 +350,11 @@ func httpRequestEffects(n *Node) []Effect {
 // Secrets: auth_secret names a vault entry whose value goes into the credential
 // header (see withAuthSecret). The value is scrubbed from everything the node
 // returns, errors included, because a server can echo the request headers.
-// Separately, a credential in a custom auth_header (not "Authorization") is also
-// sent to wherever a redirect leads; the Go client only drops Authorization on a
-// redirect to another domain, and api_request follows up to 10 redirects.
+// api_request follows up to 10 redirects. Once a hop changes the host, the scheme or
+// the effective port (only http:80 to https:443 on the same host keeps them), it drops
+// every header the caller set except Accept, Content-Type and User-Agent, so neither
+// Authorization nor a custom auth_header credential reaches another host
+// (apiRequestClient in internal/tools/api_client.go).
 //
 // Errors: an HTTP error status is not a tool failure. The tool reports a status of
 // 400 or more as status "error" together with status_code, and that becomes

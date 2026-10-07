@@ -423,7 +423,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   revision (`ErrNotPublished` without one, `ErrNoTrigger` without a matching enabled trigger). `RunNow` also
   refuses a flow that is switched off (`ErrFlowDisabled`, its mission is disabled), as Mission Control does; the
   other live starts check the switch before they get here (Mission Control's triggers and Run, `onTimerFired`),
-  and test runs are not affected. Live runs report start and
+  and test runs are not affected. `TriggerFromMission` without a node (Mission Control's Run and
+  `TriggerMissionWithOptions`: the daemon wake-up and `POST /api/missions/v2/{id}/trigger`) drops the caller's
+  data and starts like `RunNow` (manual trigger: its sample; any other: `{}`), because `LintUntrustedData`
+  treats those triggers as trusted; a trigger registration names its node and keeps its data. Live runs report start and
   finish: `FlowRunStarted` returns the history id, and `FlowRunFinished(RunFinishedInfo)` carries the leaf
   outputs (nodes without successors, by key) of the document the run executed, for dependent
   `mission_completed` triggers. A run is reported even when its flow was deleted meanwhile (the hook remembers

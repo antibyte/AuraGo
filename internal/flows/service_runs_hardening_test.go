@@ -293,7 +293,9 @@ func TestServiceBridgeRecordsAreBounded(t *testing.T) {
 	b.edge(start, PortOut, echo)
 	pub := svcRunPublish(t, s, b.build())
 	raw := strings.Repeat("a", 2<<20)
-	res, err := s.TriggerFromMission(pub.MissionID, "", "webhook", map[string]any{"raw": raw})
+	// FF1: the start names its node, as a trigger registration does; a start without one
+	// drops the caller's data.
+	res, err := s.TriggerFromMission(pub.MissionID, start, "webhook", map[string]any{"raw": raw})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +387,9 @@ func TestServiceTriggerFromMissionBoundsStoredData(t *testing.T) {
 	b.edge(start, PortOut, echo)
 	pub := svcRunPublish(t, s, b.build())
 	raw := strings.Repeat("a", 2<<20)
-	res, err := s.TriggerFromMission(pub.MissionID, "", "webhook", map[string]any{"raw": raw})
+	// FF1: the start names its node, as a trigger registration does; a start without one
+	// drops the caller's data.
+	res, err := s.TriggerFromMission(pub.MissionID, start, "webhook", map[string]any{"raw": raw})
 	if err != nil {
 		t.Fatalf("TriggerFromMission with 2 MiB: %v", err)
 	}

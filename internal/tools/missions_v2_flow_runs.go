@@ -81,6 +81,9 @@ func boundedCompletionOutputs(outputs map[string]any) json.RawMessage {
 // FlowRunStarted marks a flow mission as running and records the live run in the mission
 // history. It returns the history run id ("" without a history database). The history and
 // the audit start keep at most flowHistoryTriggerDataMaxBytes of the trigger data.
+//
+// It does not rewrite the missions file: the running state lives in memory (save writes
+// flow missions idle), and LastRun is persisted with the result by FlowRunFinishedAtDepth.
 func (m *MissionManagerV2) FlowRunStarted(missionID, triggerType, triggerData string) string {
 	m.mu.Lock()
 	mission, ok := m.missions[missionID]
@@ -96,9 +99,6 @@ func (m *MissionManagerV2) FlowRunStarted(missionID, triggerType, triggerData st
 	mission.LastRun = time.Now()
 	name := mission.Name
 	historyDB, recorder := m.historyDB, m.auditRecorder
-	if err := m.save(); err != nil {
-		slog.Warn("[MissionV2] Failed to persist flow run start", "mission_id", missionID, "error", err)
-	}
 	m.mu.Unlock()
 	if historyDB == nil {
 		return ""
@@ -145,15 +145,10 @@ func (m *MissionManagerV2) FlowRunFinishedAtDepth(missionID, historyID, result, 
 		return
 	}
 	if m.flowActive[missionID] <= 0 {
+		// Only the in-memory status changes; the missions file holds flow missions idle.
 		delete(m.flowActive, missionID)
-		changed := mission.Status != MissionStatusIdle
 		mission.Status = MissionStatusIdle
 		name := mission.Name
-		if changed {
-			if err := m.save(); err != nil {
-				slog.Error("[MissionV2] Failed to persist flow mission state", "mission_id", missionID, "error", err)
-			}
-		}
 		m.mu.Unlock()
 		slog.Debug("[MissionV2] Flow run finished without a running slot; not counted", "mission_id", missionID, "run_id", historyID)
 		completeFlowRunHistory(historyDB, recorder, historyID, missionID, name, result, output)
