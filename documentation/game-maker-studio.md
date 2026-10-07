@@ -405,8 +405,12 @@ readiness alone does not prove a visible canvas. Those errors
 are returned to the agent and the existing repair loop (at most three passes).
 Missing browser feedback blocks publication instead of claiming playability.
 This compatibility mode is a startup check, not a full gameplay check.
-`scope: gameplay` or `full` additionally runs immutable template scenarios plus
-0–8 optional plan scenarios. The schema example defaults to an empty list: movement,
+`scope: gameplay` or `full` additionally runs server-owned template scenarios plus
+0–8 optional plan scenarios. On schema 4 starters, a driven custom scenario can
+replace the matching movement, primary-action or rules check only when it asserts
+`increased`, `decreased` or `changed`. Equality and threshold checks remain
+additional checks: `score equals 0` may already pass before any input.
+The schema example defaults to an empty list: movement,
 launch/action and collision checks are already supplied by the server. Additional
 checks must distinguish a new deterministic effect; score alone cannot prove
 power-up collection. Custom target/navigation/pointer scenarios retain their input.
@@ -598,6 +602,11 @@ replacement uses `scene_set`, keeping that schema out of `scene_patch`.
   reachable target or reacts to no input is marked `repairable`; it starts a
   bounded repair pass instead of ending the job. Missing browser feedback is
   never repairable, and no unobserved check counts as passed.
+- Invalid scopes or check IDs return correction guidance before changing the
+  preview. These request errors preserve the last validation and repair budget
+  and let the agent correct its call in the same round. Free-code `three`
+  supports startup validation only unless backed by valid 3D scene data;
+  declaring scenarios alone does not enable gameplay validation.
 - Phase context includes a coarse `budget` with tool calls, remaining time
   and phase guidance.
 - File errors name the project-relative path only. A missing file answer

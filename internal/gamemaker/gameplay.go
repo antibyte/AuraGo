@@ -299,12 +299,15 @@ func gameScenarios(plan *GamePlan) []GameScenario {
 	return out
 }
 
+// customScenarioCoverage lets only driven delta checks replace starter checks;
+// equality and thresholds remain additive because they may pass from the start.
 func customScenarioCoverage(scenarios []GameScenario) (input, primary, rules bool) {
 	for _, scenario := range scenarios {
 		driven := slices.ContainsFunc(scenario.Steps, func(step GameTestStep) bool {
 			return step.Action == "key" || step.Action == "pointer" || step.Action == "target"
 		})
-		if !driven {
+		hasDelta := scenario.Compare == "increased" || scenario.Compare == "decreased" || scenario.Compare == "changed"
+		if !driven || !hasDelta {
 			continue
 		}
 		switch scenario.Metric {
@@ -613,13 +616,13 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 	}
 	targetedChecks, checkErr := normalizeTargetedGameMakerChecks(requestedCheckIDs)
 	if checkErr != nil {
-		return previewUnavailable(checkErr.Error())
+		return validationRequestError(checkErr.Error())
 	}
 	if len(targetedChecks) > 0 && scope == "startup" {
-		return previewUnavailable("check_ids require gameplay or full scope")
+		return validationRequestError("check_ids require gameplay or full scope")
 	}
 	if !slices.Contains([]string{"startup", "gameplay", "full"}, scope) {
-		return previewUnavailable("scope must be startup, gameplay or full")
+		return validationRequestError("scope must be startup, gameplay or full")
 	}
 	if err := s.CheckJobMutation(ctx, jobID); err != nil {
 		if errors.Is(err, ErrRepairLimit) {
@@ -633,6 +636,10 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 		return previewUnavailable(err.Error())
 	}
 	defer func(requestCtx context.Context) {
+		// A rejected request must not consume repairs or complete an agent round.
+		if slices.ContainsFunc(result.Diagnostics, func(d Diagnostic) bool { return d.Level == "request" }) {
+			return
+		}
 		if !result.OK && (result.Repairable || result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable") && requestCtx.Err() == nil {
 			s.recordValidationFailure(jobID, result)
 		}
@@ -653,7 +660,16 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 	}
 	sceneBacked := s.sceneBackedCurrent(ctx, jobID, plan)
 	if project.Dimension == "3d" && !sceneBacked && scope != "startup" {
-		return BuildResult{GameplayStatus: "unavailable", Diagnostics: []Diagnostic{{Level: "error", Message: "3D gameplay tests are not available; use startup scope"}}}
+		return validationRequestError("Free-code 3D games without scene data support startup scope only; omit check_ids. Gameplay remains unverified")
+	}
+	stage, stageErr := s.JobDirectory(jobID)
+	if stageErr != nil {
+		return previewUnavailable(stageErr.Error())
+	}
+	if len(targetedChecks) > 0 {
+		if _, err := selectTargetedGameMakerScenarios(validationScenarios(stage, plan), targetedChecks); err != nil {
+			return validationRequestError(err.Error())
+		}
 	}
 	missing, err := s.unchangedGameStarter(ctx, jobID, project.Dimension)
 	if err != nil {
@@ -669,7 +685,6 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 		return result
 	}
 	check := result.check
-	stage, stageErr := s.JobDirectory(jobID)
 	fingerprint := ""
 	if stageErr == nil {
 		fingerprint, _ = validationFingerprint(stage)
@@ -677,7 +692,7 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 	if len(targetedChecks) > 0 {
 		selected, selectErr := selectTargetedGameMakerScenarios(check.Scenarios, targetedChecks)
 		if selectErr != nil {
-			return previewUnavailable(selectErr.Error())
+			return validationRequestError(selectErr.Error())
 		}
 		s.mu.Lock()
 		if s.previewCheck == check {
