@@ -45,6 +45,8 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	// The state chip follows the flow name, and no card repeats its label on the second line.
 	s.wait(`()=>{const name=document.querySelector('[data-ed-name]').getBoundingClientRect();const chip=document.querySelector('[data-ed-state] .ed-chip').getBoundingClientRect();return chip.left-name.right>=0 && chip.left-name.right<=16}`)
 	s.wait(`()=>[...document.querySelectorAll('.ed-node')].every(c=>{const sub=c.querySelector('.ed-node-summary');return !sub || sub.textContent!==c.querySelector('.ed-node-label').textContent})`)
+	// The schedule trigger's summary ({mode}) shows the label of its mode.
+	s.wait(`()=>document.querySelector('.ed-node[data-node-id="n_zeitplan"] .ed-node-summary').textContent==='Werktags (Mo–Fr)'`)
 
 	// Keyboard focus: an arrow key on the focused canvas selects the first step; the canvas shows
 	// its focus ring and the step its selection ring.
@@ -76,7 +78,7 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s.wait(`()=>{const s=edFixture.lastSave();return !!s && s.nodes.length===5}`)
 
 	// A save the server answers with 500 leaves the draft offline (retried by itself); a refused
-	// one (409 FLOW_LOCKED) fails, and its chip becomes a retry button that saves.
+	// one (403 FLOW_PERMISSION_DENIED, flows are read-only) fails, and its chip becomes a retry button that saves.
 	s.saveFailures()
 
 	// Detail view: type into the message and click the AI text to insert it at the caret.
@@ -269,12 +271,13 @@ func (s *easyDragSmoke) settle() {
 	s.wait(`()=>![...document.querySelectorAll('.ed-canvas')].some(c=>c.classList.contains('is-animating'))`)
 }
 
-// fit shows the whole flow (Shift+1 on the canvas).
+// fit shows the whole flow (Shift+1 on the canvas). The editor's "view" event says the key was
+// handled; the animation class is no signal (it is short, and never set with reduced motion).
 func (s *easyDragSmoke) fit() {
 	s.t.Helper()
-	s.page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
+	s.page.MustEval(`()=>{const ed=edFixture.editor();window.__edViewed=false;const off=ed.bus.on('view',()=>{window.__edViewed=true;off();});document.querySelector('.ed-canvas').focus();}`)
 	s.page.KeyActions().Press(input.ShiftLeft).Type(input.Digit1).MustDo()
-	s.wait(`()=>document.querySelector('.ed-canvas').classList.contains('is-animating')`)
+	s.wait(`()=>window.__edViewed===true`)
 	s.settle()
 }
 
@@ -339,14 +342,14 @@ func (s *easyDragSmoke) homeDisabled() {
 }
 
 // saveFailures moves the selected step down by keyboard: the save gets 500 (offline, retried by
-// itself), Ctrl+S then gets 409 FLOW_LOCKED (failed, no retry by itself), and the chip's retry
+// itself), Ctrl+S then gets 403 FLOW_PERMISSION_DENIED (failed, no retry by itself), and the chip's retry
 // button saves.
 func (s *easyDragSmoke) saveFailures() {
 	s.t.Helper()
 	page := s.page
 	saves := page.MustEval(`()=>edFixture.state.saves.length`).Int()
 	page.MustEval(`()=>{
-		edFixture.state.failSaves.push({status:500,code:'FLOW_INTERNAL',error:'the flow service failed; see the server log'},{status:409,code:'FLOW_LOCKED',error:"the flow's mission is locked in Mission Control; unlock it there first"});
+		edFixture.state.failSaves.push({status:500,code:'FLOW_INTERNAL',error:'the flow service failed; see the server log'},{status:403,code:'FLOW_PERMISSION_DENIED',error:'flows are read-only'});
 		const ed=edFixture.editor();
 		ed.bus.emit('focus-node',ed.model.doc.nodes.find(n=>n.type==='notify.telegram').id);
 		document.querySelector('.ed-canvas').focus();
@@ -372,15 +375,19 @@ func (s *easyDragSmoke) saveFailures() {
 func (s *easyDragSmoke) publishPartial() {
 	s.t.Helper()
 	page := s.page
+	// reads counts the editor's GET /api/desktop/flows/<id>: the "published" broadcast makes it re-read the flow.
+	reads := `()=>edFixture.state.requests.filter(r=>r==='GET /api/desktop/flows/'+edFixture.seededID).length`
+	before := page.MustEval(reads).Int()
 	page.MustEval(`()=>{edFixture.state.publishPartial='FLOW_PUBLISH_INCOMPLETE'}`)
 	page.MustElement(`.ed-modal [data-ed-action="publish"]`).MustClick()
 	s.wait(`()=>{const ed=edFixture.editor();const r=edFixture.flow().rec;return ed.publishIncomplete==='FLOW_PUBLISH_INCOMPLETE' && r.published_draft_revision===r.draft_revision && !document.querySelector('.ed-modal-backdrop') && !!document.querySelector('.vd-toast')}`)
-	// The "published" broadcast re-reads the flow; the same live revision must not end the warning.
-	page.MustEval(`()=>new Promise(r=>setTimeout(r,300))`)
+	// The re-read flow has the same live revision, which must not end the warning.
+	s.wait(fmt.Sprintf(`()=>(%s)()>%d`, reads, before))
 	s.wait(`()=>{const ed=edFixture.editor();const pub=document.querySelector('[data-ed-cmd="publish"]');return ed.publishIncomplete==='FLOW_PUBLISH_INCOMPLETE' && !!document.querySelector('[data-ed-state] .ed-chip--warn') && !pub.disabled && pub.classList.contains('has-changes')}`)
 	s.clearToasts()
 	s.shot("publish-partial")
 	s.noRawKeys("publish partial")
+	s.failOnPageErrors("publish partial")
 	page.MustEval(`()=>{edFixture.state.publishPartial=''}`)
 }
 

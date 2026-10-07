@@ -44,8 +44,23 @@
         node_types: [
             T('trigger.manual', 'trigger', 'hand-click', 'Manuell starten', { trigger: true, inputs: [], description: 'Startet den Flow per Klick.',
                 params: [P('data', 'json', 'Beispieldaten')], output_fields: [{ name: 'data', type: 'object' }], sample: { data: { thema: 'KI' } } }),
-            T('trigger.schedule', 'trigger', 'clock', 'Zeitplan', { trigger: true, inputs: [], summary: '{cron}', description: 'Startet zu festen Zeiten.',
-                params: [P('cron', 'cron', 'Zeitplan', { required: true, default: '0 7 * * 1-5' })], output_fields: [{ name: 'fired_at', type: 'text' }] }),
+            // The real schedule trigger (scheduleParams in internal/flows/catalog_schedule.go): a mode
+            // and the values that mode shows.
+            T('trigger.schedule', 'trigger', 'clock', 'Zeitplan', { trigger: true, inputs: [], summary: '{mode}', description: 'Startet zu festen Zeiten, zum Beispiel werktags um 7:00.',
+                params: [
+                    P('mode', 'select', 'Wiederholung', { default: 'daily', options: [
+                        { value: 'interval_minutes', label: 'Alle paar Minuten' }, { value: 'interval_hours', label: 'Alle paar Stunden' },
+                        { value: 'daily', label: 'Täglich' }, { value: 'weekdays', label: 'Werktags (Mo–Fr)' }, { value: 'weekly', label: 'Wöchentlich' },
+                        { value: 'monthly', label: 'Monatlich' }, { value: 'cron', label: 'Cron-Ausdruck' }] }),
+                    P('minutes', 'number', 'Minuten', { required: true, default: 15, visible_if: { param: 'mode', equals: ['interval_minutes'] } }),
+                    P('hours', 'number', 'Stunden', { required: true, default: 1, visible_if: { param: 'mode', equals: ['interval_hours'] } }),
+                    P('time', 'text', 'Uhrzeit', { required: true, default: '07:00', visible_if: { param: 'mode', equals: ['daily', 'weekdays', 'weekly', 'monthly'] } }),
+                    P('weekdays', 'multiselect', 'Wochentage', { required: true, visible_if: { param: 'mode', equals: ['weekly'] }, options: [
+                        { value: 'mon', label: 'Mo' }, { value: 'tue', label: 'Di' }, { value: 'wed', label: 'Mi' }, { value: 'thu', label: 'Do' },
+                        { value: 'fri', label: 'Fr' }, { value: 'sat', label: 'Sa' }, { value: 'sun', label: 'So' }] }),
+                    P('day', 'number', 'Tag im Monat', { required: true, default: 1, visible_if: { param: 'mode', equals: ['monthly'] } }),
+                    P('cron', 'cron', 'Cron-Ausdruck', { required: true, visible_if: { param: 'mode', equals: ['cron'] } })
+                ], output_fields: [{ name: 'fired_at', type: 'text' }] }),
             T('web.search', 'web', 'search', 'Websuche', { summary: '{query}', description: 'Sucht im Web.', primary_input: 'query',
                 params: [P('query', 'text', 'Suchbegriff', { required: true, templatable: true }), P('count', 'number', 'Anzahl', { default: 5 })],
                 output_fields: [{ name: 'results', type: 'list', primary: true }, { name: 'count', type: 'number' }] }),
@@ -81,7 +96,7 @@
         return {
             schema: 1, kind: 'flow', name: 'Morgenbriefing', description: 'KI-Nachrichten als PDF', settings: clone(FLOW_SETTINGS),
             nodes: [
-                node('n_zeitplan', 'zeitplan', 'trigger.schedule', 'Werktags 7 Uhr', 0, 120, { cron: '0 7 * * 1-5' }),
+                node('n_zeitplan', 'zeitplan', 'trigger.schedule', 'Werktags 7 Uhr', 0, 120, { mode: 'weekdays', time: '07:00' }),
                 node('n_suche', 'suche', 'web.search', 'Nachrichten suchen', 320, 120, { query: 'KI Nachrichten heute', count: 5 }),
                 node('n_ki', 'ki', 'ai.prompt', 'Zusammenfassen', 640, 120, { prompt: 'Fasse diese Schlagzeilen zusammen: {{suche.results | pluck("title") | join(", ")}}' }),
                 node('n_pdf', 'pdf', 'documents.pdf', 'PDF erstellen', 960, 120, { title: 'Briefing', content: '{{ki.text}}' })
@@ -95,7 +110,8 @@
 
     // state is what the test reads and switches:
     //   disabled        every flows route answers 503 FLOWS_DISABLED (the capability went off)
-    //   failSaves       answers {status, code, error} the next draft saves get, in order
+    //   failSaves       answers {status, code, error} the next draft saves get, in order (for
+    //                   example 500 FLOW_INTERNAL, or 403 FLOW_PERMISSION_DENIED "flows are read-only")
     //   publishPartial  a publish answers 200 {partial: true, code: publishPartial, …}
     //   resyncAfter     a run stream sends "resync" after this many live events (once), as the bus
     //                   does when it drops a slow client
@@ -155,6 +171,20 @@
         return out;
     }
 
+    // paramValue is a param's value, or its default when the node does not set it.
+    function paramValue(info, params, name) {
+        if (params && Object.prototype.hasOwnProperty.call(params, name)) return params[name];
+        const spec = info.params.find(p => p.name === name);
+        return spec ? spec.default : undefined;
+    }
+
+    // paramVisible mirrors paramVisible in internal/flows/validate.go: a hidden param is not required.
+    function paramVisible(info, params, spec) {
+        if (!spec.visible_if) return true;
+        const value = paramValue(info, params, spec.visible_if.param);
+        return spec.visible_if.equals.includes(String(value == null ? '' : value));
+    }
+
     function validate(doc, mode) {
         const issues = [];
         const severity = mode === 'publish' ? 'error' : 'warning';
@@ -162,8 +192,8 @@
         doc.nodes.forEach(n => {
             const info = types.get(n.type);
             if (!info) { issues.push({ code: 'NODE_TYPE_UNKNOWN', severity: 'error', node_id: n.id, message: 'unknown node type' }); return; }
-            info.params.filter(p => p.required).forEach(p => {
-                const v = (n.params || {})[p.name];
+            info.params.filter(p => p.required && paramVisible(info, n.params, p)).forEach(p => {
+                const v = paramValue(info, n.params, p.name);
                 if (v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length)) {
                     issues.push({ code: 'PARAM_REQUIRED', severity, node_id: n.id, param: p.name, message: p.name + ' is required' });
                 }
@@ -187,7 +217,7 @@
 
     // diff counts like flows.DiffFlows: nodes by id (moving one is no change), edges by their ports.
     function diff(live, draft) {
-        if (!live) return { first_publish: true, added_nodes: 0, removed_nodes: 0, changed_nodes: 0, changed_edges: 0 };
+        if (!live) return { first_publish: true, added_nodes: draft.nodes.length, removed_nodes: 0, changed_nodes: 0, changed_edges: 0 };
         const strip = n => JSON.stringify(Object.assign({}, n, { position: null }));
         const before = new Map(live.nodes.map(n => [n.id, n]));
         const after = new Map(draft.nodes.map(n => [n.id, n]));
@@ -475,6 +505,9 @@
             const injected = state.failSaves.shift();
             if (injected) return fail(injected.status, injected.code, injected.error);
             if (!body.doc || body.doc.schema !== 1) return fail(400, 'FLOW_BAD_REQUEST', 'unsupported flow schema');
+            // SaveDraft refuses a draft with error-severity issues (draft rules) before the revision check.
+            const draftIssues = validate(body.doc, 'draft');
+            if (hasErrors(draftIssues)) return reply({ error: 'the flow is not valid', code: 'FLOW_INVALID', issues: draftIssues }, 422);
             if (body.base_revision !== rec.draft_revision) return fail(409, 'FLOW_REVISION_CONFLICT', 'the draft was changed elsewhere');
             rec.draft = Object.assign(clone(body.doc), { id: rec.id });
             rec.name = rec.draft.name;
@@ -581,6 +614,22 @@
         return answer || unrouted(method, u.pathname + u.search);
     }
 
+    // scheduleCron mirrors flows.ScheduleToCron for the modes of the schedule trigger.
+    function scheduleCron(params) {
+        const p = params || {};
+        const [hour, minute] = String(p.time || '07:00').split(':').map(Number);
+        const days = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 0 };
+        switch (p.mode || 'daily') {
+        case 'interval_minutes': return '*/' + (p.minutes || 15) + ' * * * *';
+        case 'interval_hours': return '0 */' + (p.hours || 1) + ' * * *';
+        case 'weekdays': return minute + ' ' + hour + ' * * 1-5';
+        case 'weekly': return minute + ' ' + hour + ' * * ' + (p.weekdays || []).map(d => days[d]).sort((a, b) => a - b).join(',');
+        case 'monthly': return minute + ' ' + hour + ' ' + (p.day || 1) + ' * *';
+        case 'cron': return String(p.cron || '');
+        default: return minute + ' ' + hour + ' * * *';
+        }
+    }
+
     // ── /api/missions/v2: the flow missions Mission Control lists (tools.MissionV2) ──
     function flowMission(entry) {
         const r = entry.rec;
@@ -592,7 +641,7 @@
         if (r.live) {
             m.flow_published = true;
             m.flow_triggers = triggerNodes(r.live).map(n => n.type === 'trigger.schedule'
-                ? { node_id: n.id, trigger_type: 'schedule', schedule: n.params.cron }
+                ? { node_id: n.id, trigger_type: 'schedule', schedule: scheduleCron(n.params) }
                 : { node_id: n.id, trigger_type: 'manual' });
             // missionPayload adds next_run for an armed timer: a switched-on flow with a schedule.
             if (entry.enabled && m.flow_triggers.some(tr => tr.trigger_type === 'schedule')) m.next_run = iso(18 * 3600000);
