@@ -249,6 +249,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Phone** | SIP-Softphone (Browser-Telefon) |
 | **Live Speech / Agent Chat** | Realtime-Sprachfenster und Desktop-Chat mit dem Agenten |
 | **Mission Control / Looper** | Automatisierte Aufgaben und iterative Agent-Workflows |
+| **EasyDrag** | Visueller Editor für Flows: Auslöser und Schritte, die als Missionen laufen ([Kapitel 24](24-easydrag.md)). Nur sichtbar, solange Flows und Missionen eingeschaltet sind |
 | **Calendar / Todo / People / Pet Picker** | Terminplanung, Aufgaben, Kontakte (mit KG-Anreicherung) und Auswahl der animierten Persona-Haustiere (OpenPets) |
 | **Cheater** | Cheat-Sheet-Verwaltung mit Markdown und Anhängen |
 | **Calculator / Settings / System Info / Log Viewer** | Rechner, Desktop-Einstellungen, Systemdiagnose und Live-Logtail |
@@ -305,11 +306,13 @@ Geplante Aufgaben und vorbereitete Prompts — **nicht** Eggs und Nests. Die fin
 
 Die App ist eine zweigeteilte Werkbank:
 
-- **Links: Missionsliste.** Gruppiert in *Läuft gerade*, *Wartet* und *Missionen*. Suche, Filter (alle / manuell / geplant / ausgelöst / Fehler) und Sortierung (Name, letzter Lauf, nächster Lauf, Priorität) sitzen in der Werkzeugleiste. Fährst du über eine Zeile, erscheint ein *Jetzt ausführen*-Knopf; ein Rechtsklick öffnet das vollständige Menü. Mit den Pfeiltasten bewegst du die Auswahl, `Enter` springt in die Details, `Entf` löscht. Ziehe den Trenner, um die Liste breiter oder schmaler zu machen, oder blende sie mit `Strg+B` aus.
+- **Links: Missionsliste.** Gruppiert in *Läuft gerade*, *Wartet* und *Missionen*. Suche, Filter (alle / manuell / geplant / ausgelöst / Flows / Fehler) und Sortierung (Name, letzter Lauf, nächster Lauf, Priorität) sitzen in der Werkzeugleiste. Fährst du über eine Zeile, erscheint ein *Jetzt ausführen*-Knopf; ein Rechtsklick öffnet das vollständige Menü. Mit den Pfeiltasten bewegst du die Auswahl, `Enter` springt in die Details, `Entf` löscht. Ziehe den Trenner, um die Liste breiter oder schmaler zu machen, oder blende sie mit `Strg+B` aus.
 - **Rechts: Details.** Der Kopf zeigt den Zustand der Mission, wann sie läuft und die wichtigste Aktion — *Jetzt ausführen*, *Lauf abbrechen* (lokale Missionen) oder *Aus Warteschlange entfernen*. Der Tab **Übersicht** zeigt die Aufgabe, nächsten und letzten Lauf, Anzahl der Läufe, Ausführungseinstellungen, den vorbereiteten Kontext und die letzte Ausgabe (mit Kopieren). Der Tab **Verlauf** listet vergangene Läufe mit Auslöser, Dauer und Ergebnis; klicke einen Lauf an, um seine Ausgabe zu lesen. Filtere nach Erfolg, Fehlern oder abgebrochenen Läufen.
 - **Editor.** *Neue Mission* (`Strg+N`), *Bearbeiten* (`Strg+E`) und *Duplizieren* (`Strg+D`) öffnen den Editor im rechten Bereich. Er hat drei Abschnitte: *Aufgabe* (Name, Beschreibung, aktiv), *Wann ausführen* (manuell, geplant mit einem Zeitplan-Baukasten in Klartext oder einer der gruppierten Auslöser mit seinen Einstellungen) und *Ausführung* (Priorität, lokales oder entferntes Ziel, Sperre, automatische Vorbereitung, Cheatsheets — eingeklappt, solange nichts davon in Benutzung ist). Felder mit Problemen werden nach dem ersten Speicherversuch markiert und verschwinden, sobald du sie korrigierst. Ungespeicherte Änderungen sind geschützt, wenn du die Mission wechselst oder das Fenster schließt.
 
 Die Statusleiste zeigt, wie viele Missionen es gibt, wie viele laufen oder warten, den nächsten geplanten Lauf und ob Live-Updates verbunden sind. Unter 720 px Breite wechselt die App in eine einspaltige Ansicht mit einem Knopf *Zurück zur Liste*.
+
+Flows aus EasyDrag tragen das Abzeichen *EasyDrag*; bei ihnen ersetzt **In EasyDrag öffnen** das *Bearbeiten*, und **Neuer Flow** öffnet EasyDrag ([Kapitel 24](24-easydrag.md)).
 
 Details zu Auslösern, Zeitplänen, Remote-Ausführung und der REST-API stehen unter [Missionen](11-missions.md).
 

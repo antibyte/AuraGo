@@ -156,26 +156,47 @@
   Backend: `internal/desktop/looper.go`, `internal/server/looper_service.go`.
 
 ## EasyDrag
-- Nineteen scripts `easydrag-*.js` share `window.EasyDrag` and load in dependency order
-  (core → template → model → geometry → saver → canvas → wires → interact → palette →
-  fields → forms → mapping → detail → runs → publish → home → dialogs → editor →
-  `easydrag.js`). `window.EasyDragApp = { render, open, dispose }`; `open` re-routes an
-  existing window (notification click, Mission Control) by `flowId`/`flow_id` and
-  `runId`/`run_id`.
-- Pure modules (template, model, geometry, start-page preview, shortcut table) are tested by
-  `node scripts/test-easydrag.mjs`; the template filters mirror `internal/flows`. Every
-  model command is one undo step; viewport changes never trigger a save on their own.
+- Nineteen scripts `easydrag-*.js` share `window.EasyDrag` and load in the order of
+  `DESKTOP_APP_ASSETS.easydrag` (`core/module-loader.js`): core → template → model → geometry →
+  saver → canvas → wires → interact → palette → fields → forms → mapping → detail → runs →
+  publish → home → dialogs → editor → `easydrag.js`. `window.EasyDragApp = { render, open,
+  dispose }`; `open` re-routes an existing window (notification click, Mission Control) by
+  `flowId`/`flow_id` and `runId`/`run_id`, and `{section: 'home'}` (Mission Control's New
+  flow) shows the start page once the editor's `leave()` allowed it.
+- Pure modules (template, model, geometry, start-page preview, shortcut table) run in Node;
+  the template filters mirror `internal/flows`. Every model command is one undo step;
+  viewport changes never trigger a save on their own.
 - DOM modules receive the editor state `ed` and talk over `ed.bus`; never reach into other
   modules' DOM. Focus moves synchronously when a popover or dialog opens (fast typing),
-  and `.ed-app [hidden]` forces `display: none`.
+  and `.ed-app [hidden]` forces `display: none`. `ED.canvas.portLabel(t, node, port)` is the
+  one port label (switch cases by their label or number); the connect picker uses it too.
 - Strings are `easydrag.ui.*` in `ui/lang/easydrag/<16>.json` (shared with the server's
-  catalog keys); dynamic families go through `core.tr`. Counts use neutral forms
-  ("Label: {count}").
+  catalog keys); built keys (mostly through `core.tr`) belong to a family listed in the
+  `families` of `TestEasyDragUIKeysExistInAllLocales`. Counts use neutral forms ("Label: {count}").
 - The API client lives in `easydrag-core.js` (`createApi`); errors carry `err.body.code`
-  and are shown via `easydrag.ui.error_<code>`. SSE uses `/runs/{id}/events?after=<seq>`
-  and treats events as idempotent.
-- Verify with `node scripts/test-easydrag.mjs`, `go test ./ui -run 'EasyDrag|MissionControlShowsFlow'`
-  and the opt-in `TestDesktopEasyDragBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`, screenshots in
+  and are shown via `easydrag.ui.error_<code>`. SSE uses `/runs/{id}/events?after=<seq>`,
+  treats events as idempotent and reconnects at once on `event: resync`.
+- Saver: 1 s after the last change. Network errors, 5xx, 429 and `FLOWS_DISABLED` go `offline`
+  and retry by themselves (5 s, doubling to 60 s); `PERMANENT_CODES` and a 4xx without a code
+  go `failed` (the chip becomes a retry button); `FLOW_INVALID` waits for the next change.
+- Window menus pass canonical keys ("Ctrl+S"; the shell matches Ctrl as Ctrl or ⌘). A
+  `shortcut` item is dispatched by the shell before the editor sees the key; a `shortcutHint`
+  (keys the canvas handles itself, "?") is only drawn. Mod+S is always prevented inside the
+  editor and saves only when no EasyDrag dialog is open.
+- `editor.leave()` aborts a drag, flushes the saver and shares one in-flight promise, so
+  overlapping navigations ask at most once. The session keeps `flowId` only when it matches
+  `^flow_[a-z0-9]{10}$` (`session-runtime.js`); notification contexts are checked the same way
+  (`shell-chrome-runtime.js`).
+- Opening: a stored view `{cx, cy, zoom}` per flow (editors wider than 560 px), else the
+  readable fit (zoom ≥ 0.8, trigger first); below zoom 0.7 cards show labels only. Under 900 px
+  the palette floats over the canvas; the run view keeps it hidden and inert.
+- Other surfaces: Mission Control (`MissionControlTriggers.isFlow`/`isUnpublishedFlow`/
+  `upcomingRun`), the read-only flows of `ui/js/missions/main.js`, `ui/cfg/flows.js` and the
+  dashboard's cron list (`managed_by: easydrag`). User docs: manual chapter 24.
+- Verify with `node scripts/test-easydrag.mjs` (it also runs `test-easydrag-extra.mjs` to
+  `-extra4.mjs` on stub DOMs), `npm run test:mission-control`, `npm run test:dashboard-cron`,
+  `npm run test:missions-page`, `go test ./ui -run 'EasyDrag|MissionControlShowsFlow|StandaloneMissionsPage'`
+  and the opt-in `TestDesktopEasyDragBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`; 22 screenshots in
   `reports/easydrag/`). Backend: `internal/flows`, `internal/server/flows_*.go`.
 
 ## Purpose

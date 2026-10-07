@@ -189,15 +189,17 @@ Für ereignisgesteuerte Missionen setze `execution_type: triggered` und wähle e
 
 ### Flow-Missionen (EasyDrag)
 
-Flows, die du in der Desktop-App **EasyDrag** baust, erscheinen in Mission Control als Missionen vom Typ **Flow**.
+Flows, die du in der Desktop-App **EasyDrag** baust, erscheinen in Mission Control als Missionen vom Typ **Flow**. Den Editor selbst beschreibt [Kapitel 24: EasyDrag](24-easydrag.md).
 - Ihre Auslöser sind die Auslöser-Knoten des Flows (Zeitpläne, Datum und Uhrzeit, Webhooks, E-Mail, MQTT, Home Assistant, Geräte, Fritz!Box-Anrufe, Planer, Budget, AuraGo-Start, andere Missionen). Ein Flow kann mehrere haben.
 - Flow-Läufe warten nicht in der Missions-Warteschlange. Sie laufen auf einer eigenen Engine (standardmäßig 8 gleichzeitig, `flows.max_parallel_runs`), deshalb hält eine lange Agenten-Mission einen Flow nie auf.
-- In Mission Control kannst du eine Flow-Mission aktivieren (sobald der Flow veröffentlicht ist), pausieren, sperren, ausführen und löschen, ihren laufenden Lauf abbrechen und ihren Verlauf ansehen. Wenn du die Mission löschst, löschst du auch den Flow. Die Schritte änderst du in EasyDrag.
+- In Mission Control kannst du eine Flow-Mission pausieren, fortsetzen, sperren, ausführen und löschen, ihren laufenden Lauf abbrechen und ihren Verlauf ansehen. *Jetzt ausführen* und *Fortsetzen* bleiben gesperrt, bis der Flow veröffentlicht ist („Noch nicht veröffentlicht“). **In EasyDrag öffnen** ersetzt *Bearbeiten*, **Neuer Flow** öffnet die Startseite von EasyDrag, und *Duplizieren* gibt es nicht. Die Schritte änderst du in EasyDrag.
+- Wenn du die Mission löschst, löschst du den Flow mit Entwurf, allen veröffentlichten Versionen, den gespeicherten Daten des Auslösers und der Laufhistorie. Flow-Geheimnisse bleiben.
+- Die Missionsseite (`/missions/v2`) zeigt Flow-Missionen nur zum Lesen: *Bearbeiten* und *Duplizieren* sagen nur, dass der Flow in EasyDrag bearbeitet wird, und *Ausführen* wartet, bis der Flow veröffentlicht und eingeschaltet ist.
 - Wenn eine Mission endet, erhalten `mission_completed`-Auslöser ihre Antwort als `output` (auf 2000 Bytes gekürzt). Flows als Quelle liefern zusätzlich `outputs`: die Ergebnisse ihrer letzten Schritte.
 
 #### Läufe, Abbrechen und Grenzen
 
-- *Lauf abbrechen* in Mission Control funktioniert, solange ein Lauf des Flows läuft; die Aktion bricht diesen Lauf und die wartenden Läufe des Flows ab. Läufe, die nur warten (Mission Control zeigt den Flow dann noch als untätig), brichst du in der Lauf-Ansicht von EasyDrag ab.
+- *Lauf abbrechen* in Mission Control funktioniert, solange ein Lauf des Flows läuft; die Aktion bricht diesen Lauf und die wartenden Läufe des Flows ab. Läufe, die nur auf einen freien Platz warten (Mission Control zeigt den Flow dann noch als untätig), lassen sich dort nicht abbrechen, und **Stoppen** in EasyDrag bricht nur den Test oder Lauf ab, der im eigenen Fenster gestartet wurde.
 - Der Missionsverlauf behält bis zu 2000 Bytes vom Ergebnis eines Flow-Laufs (500 Bytes einer Fehlermeldung) und bis zu 16 KiB seiner Auslöser-Daten.
 - Webhook- und MQTT-Nachrichten über 1 MiB starten keinen Lauf (AuraGo protokolliert eine Warnung). Ein E-Mail-Text über 1 MiB wird gekürzt und als `truncated` markiert.
 - Ressourcen: Jeder laufende Flow kann im schlimmsten Fall etwa 0,5 GB Arbeitsspeicher belegen (alle Schritt-Ausgaben eines Laufs zusammen sind auf 32 MiB JSON begrenzt, was im Speicher etwa das 16-Fache belegen kann), dazu bis zu etwa 0,4 GB pro Tool-Aufruf, während eine große Tool-Antwort (höchstens 8 MiB) verarbeitet wird. `flows.max_parallel_runs` (Standard 8, höchstens 32) und `flows.max_parallel_nodes_per_run` (Standard 4, höchstens 16) vervielfachen das; halte beide auf kleinen Rechnern niedrig. Jeder Flow hält außerdem bis zu 40 wartende Läufe mit ihren Auslöser-Daten.
@@ -222,7 +224,7 @@ Flows, die du in der Desktop-App **EasyDrag** baust, erscheinen in Mission Contr
 
 #### Flow-Geheimnisse
 
-Schritte, die ein Passwort oder einen Schlüssel brauchen (etwa die Anmeldung einer HTTP-Anfrage), lesen ihn aus einem Flow-Geheimnis, das du in EasyDrag verwaltest. AuraGo speichert es im Vault als `easydrag_<name>` (Name: Kleinbuchstaben, Ziffern und `_`, bis zu 40 Zeichen; Wert bis zu 4 KiB). Werte werden nie wieder angezeigt, und der Agent kann Flow-Geheimnisse weder auflisten noch lesen, ändern oder löschen (weder mit seinem Vault-Tool noch aus Python oder Skills). Lauf-Daten, die Lauf-Ansicht und Logs zeigen die Werte geschwärzt; ein Wert unter 8 Bytes wird nur aus der Ausgabe des Schritts entfernt, der ihn genutzt hat. Wenn du ein Geheimnis löschst, zeigt dir EasyDrag, welche veröffentlichten Flows es nutzen.
+Schritte, die ein Passwort oder einen Schlüssel brauchen (etwa die Anmeldung einer HTTP-Anfrage), lesen ihn aus einem Flow-Geheimnis, das du in EasyDrag verwaltest. AuraGo speichert es im Vault als `easydrag_<name>` (Name: Kleinbuchstaben, Ziffern und `_`, bis zu 40 Zeichen; Wert bis zu 4 KiB). Werte werden nie wieder angezeigt, und der Agent kann Flow-Geheimnisse weder auflisten noch lesen, ändern oder löschen (weder mit seinem Vault-Tool noch aus Python oder Skills). Lauf-Daten, die Lauf-Ansicht und Logs zeigen die Werte geschwärzt; ein Wert unter 8 Bytes wird nur aus der Ausgabe des Schritts entfernt, der ihn genutzt hat. Zum Löschen eines Geheimnisses hat EasyDrag noch keine Schaltfläche; löschst du eines über die API (`DELETE /api/desktop/flows/secrets/<name>`), nennt die Antwort die veröffentlichten Flows, die es nutzen.
 
 #### Flows abschalten, Neustarts und Backups
 
