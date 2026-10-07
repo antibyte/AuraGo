@@ -178,6 +178,13 @@
         s.featureDisabled = !s.status.enabled || !s.status.desktop_enabled;
         s.readonly = !!s.status.read_only || s.featureDisabled;
         s.q('.vs-app').classList.toggle('is-readonly', s.readonly);
+        if (s.featureDisabled) {
+            // Every project endpoint refuses while the feature is off; show the calm empty state, not a load error.
+            renderEmptyProject(s);
+            populateCanvas(s);
+            s.q('.vs-app').querySelectorAll(['new-project', 'save', 'export', 'upload', 'browse', 'add-media', 'add-title'].map(action => `[data-action="${action}"]`).join(',')).forEach(button => { button.disabled = true; });
+            return;
+        }
         await loadProjects(s);
         if (!s.project && s.projects.length) await loadProject(s, s.projects[0].id);
         else if (!s.project) renderEmptyProject(s);

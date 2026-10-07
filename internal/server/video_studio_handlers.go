@@ -153,7 +153,8 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 	issue := ""
 	switch {
 	case !cfg.VideoStudio.Enabled:
-		issue = "disabled"
+		// Same code the gated endpoints return, so the editor can explain it.
+		issue = "video_studio_disabled"
 	case !cfg.VirtualDesktop.Enabled:
 		issue = "desktop_disabled"
 	case !runtime.Ready:
