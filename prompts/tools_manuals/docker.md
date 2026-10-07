@@ -181,6 +181,7 @@ Use `direction: "from_container"` or `"to_container"`. Path maps to the host's a
 - Without host access, Compose runs with a minimal environment (`PATH`, `HOME`, Docker/Compose/BuildKit settings, proxy, temp and locale variables): `${VAR}` in a Compose file cannot read AuraGo's own variables, so put such values into the stack's `.env` file. Registry credentials must then come from the Docker config (`~/.docker/config.json`) or a credential helper that needs no secret environment variables.
 - `config -o <file>` / `--output` writes only inside the workspace (relative paths resolve against it; AuraGo's own data, config and `.env` files, directories and special files are refused): Compose renders into a private staging file and AuraGo publishes it atomically at that path, creating missing folders, and reports `output_file`; `-q` or list flags such as `--services` write no file. `config`/`convert` stay read-only, so they also work when Docker is read-only (`docker.read_only`). `--environment` and `--env-file` are rejected.
 - Without host access, AuraGo repeats its checks right before the run; `docker_compose_input_changed` means the Compose file or a file it reads changed in between. Retry once nothing rewrites the files.
+- `build --push` is allowed: it pushes the images the build itself creates. `docker compose push` stays blocked. The master key checks of `build` apply.
 
 #### info — Docker engine system info (version, resource counts)
 ```json

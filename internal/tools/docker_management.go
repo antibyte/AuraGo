@@ -1295,6 +1295,9 @@ func dockerComposeParts(cmd string) ([]string, error) {
 		return nil, fmt.Errorf("compose command %q is not allowed", parts[0])
 	}
 	switch parts[0] {
+	// push is banned; build --push stays allowed (decision 2026-10-06): it
+	// pushes only the images the build itself creates, and the build checks
+	// (master key, host access) still run.
 	case "exec", "run", "cp", "push":
 		return nil, fmt.Errorf("compose command %q is not allowed by the safe compose policy", parts[0])
 	}
