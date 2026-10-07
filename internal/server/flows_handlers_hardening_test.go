@@ -774,6 +774,22 @@ func TestC17SecretDeleteAuditsOnlyRealDeletes(t *testing.T) {
 	if audit := c17AuditEvents(t, stm, "flow_secret_delete"); len(audit) != 1 {
 		t.Fatalf("the cancelled delete was audited: %+v", audit)
 	}
+	// Cancelled after the admission (the route handler itself): the vault delete has no
+	// context, so the secret goes; only used_by is left out.
+	r = httptest.NewRequest(http.MethodDelete, "/api/desktop/flows/secrets/c17_real", nil).WithContext(ctx)
+	r.Header.Set("Authorization", "Bearer "+token)
+	w = httptest.NewRecorder()
+	s.flowsSecrets(w, r, []string{"c17_real"})
+	if body := flowsBody(t, w); w.Code != http.StatusOK || body["status"] != "deleted" || body["used_by"] != nil {
+		t.Fatalf("delete cancelled after the admission = %d %s", w.Code, w.Body.String())
+	}
+	list = flowsCall(t, s, http.MethodGet, "/api/desktop/flows/secrets", token, "")
+	if names, _ := flowsBody(t, list)["secrets"].([]any); len(names) != 0 {
+		t.Fatalf("secrets after the delete cancelled after the admission = %s", list.Body.String())
+	}
+	if audit := c17AuditEvents(t, stm, "flow_secret_delete"); len(audit) != 2 {
+		t.Fatalf("audit after the delete cancelled after the admission = %+v", audit)
+	}
 }
 
 func TestC17MalformedFlowPathsAre404(t *testing.T) {

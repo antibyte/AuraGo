@@ -207,10 +207,11 @@ func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 // a flow lock that its caller holds:
 //   - FlowMissionDeleted and FlowEnabledChanged take the flow's lock (through
 //     Service.DeleteFlowForMission and Service.MissionEnabledChanged). The manager calls them
-//     only on goroutines of their own, after its own lock is released or never held by
-//     them: `go hooks.FlowMissionDeleted(id)` in MissionManagerV2.Delete (missions_v2.go)
-//     and `go hooks.FlowEnabledChanged(id, enabled)` in updateFlowMissionLocked
-//     (missions_v2_flow_runs.go). No bridge method calls them.
+//     only on goroutines of their own (its tracked runAsync work, which Stop waits for),
+//     after its own lock is released or never held by them:
+//     `m.runAsync(func() { hooks.FlowMissionDeleted(id) })` in MissionManagerV2.Delete
+//     (missions_v2.go) and `m.runAsync(func() { hooks.FlowEnabledChanged(id, enabled) })` in
+//     updateFlowMissionLocked (missions_v2_flow_runs.go). No bridge method calls them.
 //   - StartFlowRun is called synchronously, outside the manager's lock: by RunNow and
 //     TriggerMissionWithOptions (missions_v2.go), by fireFlowEvent and fireFlowSchedule
 //     (missions_v2_flows.go, the webhook, email, MQTT and cron registrations), and, for the

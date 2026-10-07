@@ -655,8 +655,12 @@ func (m *MissionManagerV2) flowEventSpecLocked(missionID, nodeID string, trigger
 }
 
 // fireFlowEvent starts a run when a registered event still matches the current spec of an
-// enabled flow mission. Registrations call it without holding m.mu.
+// enabled flow mission. Registrations call it without holding m.mu. After Stop it starts
+// nothing.
 func (m *MissionManagerV2) fireFlowEvent(missionID, nodeID string, trigger TriggerType, triggerType, data string, match func(*TriggerConfig) bool) {
+	if m.ctx.Err() != nil {
+		return
+	}
 	m.mu.Lock()
 	spec, ok := m.flowEventSpecLocked(missionID, nodeID, trigger, match)
 	if !ok || !m.shouldFireFlowSpecLocked(missionID, spec, time.Now()) {
@@ -683,8 +687,11 @@ func (m *MissionManagerV2) dropOversizedFlowEvent(missionID, nodeID string, trig
 }
 
 // fireFlowSchedule handles a flow cron job. It reports false when missionID is not a flow
-// mission.
+// mission. After Stop it starts nothing (and reports true: the job is not stale).
 func (m *MissionManagerV2) fireFlowSchedule(missionID, nodeID string) bool {
+	if m.ctx.Err() != nil {
+		return true
+	}
 	m.mu.Lock()
 	mission, ok := m.missions[missionID]
 	if !ok || !isFlowMission(mission) {

@@ -39,9 +39,9 @@ func (s *Service) CancelMissionRuns(ctx context.Context, missionID string) (int,
 // follow it even when the caller goes away.
 //
 // Taking the lock cannot deadlock: Mission Control calls this from a goroutine of its own
-// (go FlowHooks.FlowEnabledChanged), never while it holds its own lock, and under the flow
-// lock this calls only the store, MissionBridge.FlowMissionEnabled and
-// TimerService.Replace, as SetEnabled does. Like every lock-taking method it must not be
+// (FlowHooks.FlowEnabledChanged through the manager's runAsync), never while it holds its
+// own lock, and under the flow lock this calls only the store,
+// MissionBridge.FlowMissionEnabled and TimerService.Replace, as SetEnabled does. Like every lock-taking method it must not be
 // called synchronously from a MissionBridge method (see MissionBridge).
 func (s *Service) MissionEnabledChanged(ctx context.Context, missionID string) error {
 	rec, err := s.store.GetFlowByMission(ctx, missionID)

@@ -394,7 +394,10 @@ func (m *MissionManagerV2) updateFlowMissionLocked(mission, updated *MissionV2) 
 	saveErr := m.save()
 	if enabledChanged && m.flowHooks != nil {
 		hooks, id, enabled := m.flowHooks, mission.ID, mission.Enabled
-		m.runAsync(func() { hooks.FlowEnabledChanged(id, enabled) })
+		if !m.runAsync(func() { hooks.FlowEnabledChanged(id, enabled) }) {
+			slog.Warn("[MissionV2] Mission manager is stopping; the flow's timers do not follow the switch until the next start",
+				"mission_id", id, "enabled", enabled)
+		}
 	}
 	return errors.Join(regErr, saveErr)
 }

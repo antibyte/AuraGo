@@ -210,3 +210,28 @@ func TestMergeRevokedOwnerStartsNoQueuedFlowDependent(t *testing.T) {
 		})
 	}
 }
+
+// After Stop, a webhook, email or MQTT delivery (fireFlowEvent) and a flow cron job
+// (fireFlowSchedule) start no flow run.
+func TestMergeStoppedManagerFiresNoFlowTriggers(t *testing.T) {
+	dir := tempSystemTaskDir(t)
+	cronMgr := NewCronManager(dir)
+	t.Cleanup(func() { _ = cronMgr.Close() })
+	mm := NewMissionManagerV2(dir, cronMgr)
+	hooks := newFakeFlowHooks()
+	mm.SetFlowHooks(hooks)
+	id := publishTestFlow(t, mm,
+		FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "0 7 * * *"},
+		FlowTriggerSpec{NodeID: "n_bbbbbbbb", TriggerType: TriggerWebhook, TriggerConfig: &TriggerConfig{WebhookID: "hook-1"}})
+	match := func(c *TriggerConfig) bool { return c.WebhookID == "hook-1" }
+	mm.fireFlowEvent(id, "n_bbbbbbbb", TriggerWebhook, "webhook", "{}", match)
+	if c := hooks.waitStart(t); c.nodeID != "n_bbbbbbbb" {
+		t.Fatalf("start before Stop = %+v", c)
+	}
+	mm.Stop()
+	mm.fireFlowEvent(id, "n_bbbbbbbb", TriggerWebhook, "webhook", "{}", match)
+	if !mm.fireFlowSchedule(id, "n_aaaaaaaa") {
+		t.Fatal("a stopped manager reported the flow cron job as stale")
+	}
+	hooks.expectNoStart(t)
+}
