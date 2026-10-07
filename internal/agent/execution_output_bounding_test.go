@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	executionHeadMarker     = "C3-HEAD-MARKER first line"
+	executionHeadMarker     = "HEAD-MARKER first line"
 	executionBudgetEnvelope = "exceeds the output budget"
 	executionTestLimit      = 20000
 )
@@ -145,13 +145,13 @@ func assertPreservedExecutionErrorSummary(t *testing.T, output string) {
 
 func TestOversizedAmpersandDenseExecutionOutputKeepsHead(t *testing.T) {
 	// 40% of the text is "&", which escaping grows to "&amp;".
-	firstLine := "C3-HEAD-MARKER q=&v&"
+	firstLine := "HEAD-MARKER q=&v&"
 	log := executionTestLog(firstLine, strings.Repeat("k=&v&", 12))
 	output := security.NewGuardian(nil).SanitizeToolOutput("execute_shell", "Tool Output:\nSTDOUT:\n"+log)
 	if _, isolated, raw := toolResultPayloadForm(output); !isolated || raw {
 		t.Fatalf("fixture is not in the escaped form: isolated=%v raw=%v", isolated, raw)
 	}
-	escapedHead := "C3-HEAD-MARKER q=&amp;v&amp;"
+	escapedHead := "HEAD-MARKER q=&amp;v&amp;"
 
 	result := finalizeExecutionTestOutput(t, "execute_shell", ToolResultSuccess, output)
 	for name, got := range map[string]string{
@@ -203,13 +203,13 @@ func TestOversizedExecutionOutputDropsGuidanceThatCannotFit(t *testing.T) {
 }
 
 func TestOversizedQuoteFreeExecutionOutputKeepsHeadWithoutDoubleEscaping(t *testing.T) {
-	firstLine := "C3-HEAD-MARKER a && b https://example.test/path?a=1&b=2"
+	firstLine := "HEAD-MARKER a && b https://example.test/path?a=1&b=2"
 	log := executionTestLog(firstLine, "drwxr-xr-x 2 root root 4096 /srv/app/data & cache")
 	output := security.NewGuardian(nil).SanitizeToolOutput("execute_shell", "Tool Output:\nSTDOUT:\n"+log)
 	if _, isolated, raw := toolResultPayloadForm(output); !isolated || raw {
 		t.Fatalf("fixture is not in the escaped form: isolated=%v raw=%v", isolated, raw)
 	}
-	escapedHead := "C3-HEAD-MARKER a &amp;&amp; b https://example.test/path?a=1&amp;b=2"
+	escapedHead := "HEAD-MARKER a &amp;&amp; b https://example.test/path?a=1&amp;b=2"
 
 	result := finalizeExecutionTestOutput(t, "execute_shell", ToolResultSuccess, output)
 	for name, got := range map[string]string{
@@ -249,7 +249,7 @@ func TestOversizedEscapedOutputKeepsNeverClipEnvelope(t *testing.T) {
 			}
 			result := finalizeExecutionTestOutput(t, tc.action, ToolResultSuccess, tc.output)
 			for _, got := range []string{result.Content, boundedToolResult(tc.action, tc.output, executionTestLimit, ToolResultSuccess)} {
-				if len(got) > executionTestLimit || !strings.Contains(got, executionBudgetEnvelope) || strings.Contains(got, "C3-HEAD-MARKER") || strings.Contains(got, `row", "row`) {
+				if len(got) > executionTestLimit || !strings.Contains(got, executionBudgetEnvelope) || strings.Contains(got, "HEAD-MARKER") || strings.Contains(got, `row", "row`) {
 					t.Fatalf("never-clip envelope changed: %.400q", got)
 				}
 			}

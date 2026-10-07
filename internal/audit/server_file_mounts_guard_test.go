@@ -8,7 +8,7 @@ import (
 )
 
 // TestServerFileMountsNeverUseHTTPDir keeps internal/server's static file
-// mounts root-bound (audit M5): http.Dir follows symlinks out of the served
+// mounts root-bound: http.Dir follows symlinks out of the served
 // directory, so production code serves files through
 // neuteredFileSystem{rootBoundFileSystem(dir)} instead.
 func TestServerFileMountsNeverUseHTTPDir(t *testing.T) {

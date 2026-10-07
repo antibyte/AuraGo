@@ -13,9 +13,9 @@ import (
 var credentialedRedirectAllowlist = map[string]string{}
 
 const (
-	credentialedRedirectPendingReason = "credentialed client not yet bound to its origin; follow-up task C14"
-	credentialedRedirectOAuthReason   = "OAuth flow, needs behaviour review before binding; C14 candidate (overview backlog)"
-	credentialedRedirectVendorReason  = "vendor API, needs behaviour review; C14 candidate (overview backlog)"
+	credentialedRedirectPendingReason = "credentialed client not yet bound to its origin; pending same-origin binding (tracked in the backlog)"
+	credentialedRedirectOAuthReason   = "OAuth flow, needs behaviour review before same-origin binding (tracked in the backlog)"
+	credentialedRedirectVendorReason  = "vendor API, needs behaviour review before same-origin binding (tracked in the backlog)"
 )
 
 // credentialedRedirectPending is a ratchet of known credentialed clients that
@@ -56,7 +56,7 @@ var credentialedRedirectPending = map[string]string{
 }
 
 // TestCredentialedHTTPClientsBindRedirectsToOrigin keeps credential-bearing
-// HTTP clients on the house redirect policy (audit H9): a production file that
+// HTTP clients on the house same-origin redirect policy: a production file that
 // builds a raw http.Client (&http.Client{}) or an SSRF-protected client
 // (security.NewSSRFProtectedHTTPClient / ...ForURL) and sets an Authorization,
 // xi-api-key or cf-aig-authorization header (including SetBasicAuth and

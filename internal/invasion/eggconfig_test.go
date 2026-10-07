@@ -551,6 +551,28 @@ func TestGenerateEggConfig_AutoCertWithoutDomain_TLSPin(t *testing.T) {
 	}
 }
 
+// The generator pins whenever the master's TLS setup serves the self-signed
+// certificate (config.UsesSelfSignedTLS): cert_mode is compared trimmed and
+// lower-cased, and an unrecognised mode without a domain falls back to
+// self-signed there too.
+func TestGenerateEggConfig_PinsWheneverTheMasterServesSelfSigned(t *testing.T) {
+	for _, tc := range []struct{ mode, domain string }{
+		{" SelfSigned ", "aurago.example.com"},
+		{"unknown", ""},
+	} {
+		masterCfg := minimalMasterCfg()
+		masterCfg.Server.HTTPS.Enabled = true
+		masterCfg.Server.HTTPS.CertMode = tc.mode
+		masterCfg.Server.HTTPS.Domain = tc.domain
+		masterCfg.Directories.DataDir = t.TempDir()
+		want := writeMasterSelfSignedCert(t, masterCfg.Directories.DataDir)
+
+		if got := generatedEggMode(t, masterCfg)["tls_pin_sha256"]; got != want {
+			t.Errorf("cert_mode %q, domain %q: tls_pin_sha256 = %v, want %s", tc.mode, tc.domain, got, want)
+		}
+	}
+}
+
 // Without a readable master certificate (HTTPS not started yet, file deleted
 // or corrupt) hatching keeps working: the generator falls back to the legacy
 // tls_skip_verify and warns once.

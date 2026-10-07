@@ -12,7 +12,7 @@ import (
 	"aurago/internal/config"
 )
 
-// Audit H9 follow-up: the AI Gateway live probe sends cf-aig-authorization,
+// Same-origin redirect policy: the AI Gateway live probe sends cf-aig-authorization,
 // which net/http forwards to any redirect target. Server A (the gateway origin)
 // answers with a 307 to server B on another host; B must never be reached.
 // The fixture routes both origins through http.DefaultTransport because the

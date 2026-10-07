@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"aurago/internal/config"
 )
 
 // handleCertStatus returns info about the current TLS certificate configuration.
@@ -28,7 +30,7 @@ func handleCertStatus(s *Server) http.HandlerFunc {
 		// Check for certificate files
 		certDir := filepath.Join(s.Cfg.Directories.DataDir, "certs")
 
-		switch httpsCfg.CertMode {
+		switch config.NormalizeCertMode(httpsCfg.CertMode) {
 		case "custom":
 			if httpsCfg.CertFile != "" {
 				info, err := GetCertInfo(httpsCfg.CertFile)
@@ -39,8 +41,7 @@ func handleCertStatus(s *Server) http.HandlerFunc {
 				}
 			}
 		case "selfsigned":
-			certFile := filepath.Join(certDir, "selfsigned.crt")
-			info, err := GetCertInfo(certFile)
+			info, err := GetCertInfo(config.SelfSignedCertFile(s.Cfg.Directories.DataDir))
 			if err == nil {
 				result["cert_info"] = info
 			} else {

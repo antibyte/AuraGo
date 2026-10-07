@@ -810,7 +810,8 @@ func TestSendRekeyReportsLegacyAckWithoutPersistence(t *testing.T) {
 			legacy <- err
 			return
 		}
-		// The pre-D12 wire format: no persisted field at all.
+		// The wire format of eggs that predate the persisted-ack flag: no
+		// persisted field at all.
 		ack, err := NewMessage(MsgAck, "egg", "nest", string(newKey), map[string]interface{}{"ref_id": msg.ID, "success": true, "detail": "key rotated to v1"})
 		if err == nil {
 			err = egg.Prepare(ack, string(newKey))

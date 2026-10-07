@@ -1727,6 +1727,15 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 	if err != nil {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthFailed, "unknown agodesk device"
 	}
+	// An AgoDesk session runs desktop chat at owner trust: only a device that
+	// AgoDesk pairing created may open one. Any other device (an aurago-remote
+	// agent) is refused like a wrong key, so the answer does not tell them apart.
+	if !remote.IsAgodeskDevice(device) {
+		if s.Logger != nil {
+			s.Logger.Warn("AgoDesk reconnect refused: the device was not paired by AgoDesk", "device_id", deviceID)
+		}
+		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthFailed, "invalid shared key proof"
+	}
 	if device.Status == "revoked" {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorDeviceNotApproved, "device has been revoked"
 	}

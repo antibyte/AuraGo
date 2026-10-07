@@ -35,6 +35,32 @@ func TestCheckSecurityAddsPhase2Hints(t *testing.T) {
 	}
 }
 
+// remote_control.auto_approve has no effect: a device without an enrollment
+// token only ever waits for approval. The hint says so instead of warning
+// that devices join unchecked.
+func TestCheckSecurityNotesThatRemoteAutoApproveHasNoEffect(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+	cfg.RemoteControl.AutoApprove = true
+	hint := findSecurityHint(CheckSecurity(cfg), "remote_control_auto_approve")
+	if hint == nil {
+		t.Fatal("expected remote_control_auto_approve note")
+	}
+	if hint.Severity != SevInfo {
+		t.Fatalf("severity = %q, want %q", hint.Severity, SevInfo)
+	}
+	if !strings.Contains(hint.Description, "has no effect") || strings.Contains(hint.Description, "automatically granted") {
+		t.Fatalf("description must say the setting has no effect: %s", hint.Description)
+	}
+
+	cfg.RemoteControl.AutoApprove = false
+	if findSecurityHint(CheckSecurity(cfg), "remote_control_auto_approve") != nil {
+		t.Fatal("no note without auto_approve")
+	}
+}
+
 func TestCheckSecuritySkipsPythonNoSandboxWhenSandboxReady(t *testing.T) {
 	t.Parallel()
 

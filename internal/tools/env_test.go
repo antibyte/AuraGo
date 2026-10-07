@@ -270,9 +270,9 @@ func TestExecuteShellBackgroundHidesDockerClientEnvWithoutDockerPermission(t *te
 }
 
 func TestHostPythonHidesDockerClientEnvWithoutDockerPermission(t *testing.T) {
-	const secretValue = "d11-secret-value-7f3a9c2e5b81"
-	secrets := map[string]string{"d11": secretValue}
-	creds := []CredentialFields{{Name: "D11", Fields: map[string]string{"token": "d11-credential-token-4c8e1b6a92"}}}
+	const secretValue = "probe-secret-value-7f3a9c2e5b81"
+	secrets := map[string]string{"probe": secretValue}
+	creds := []CredentialFields{{Name: "PROBE", Fields: map[string]string{"token": "probe-credential-token-4c8e1b6a92"}}}
 	// These runs inject AURAGO_SECRET_* / AURAGO_CRED_* after the shell filter;
 	// the child must see them while DOCKER_HOST stays hidden.
 	injecting := map[string]bool{
@@ -369,7 +369,7 @@ func TestHostPythonHidesDockerClientEnvWithoutDockerPermission(t *testing.T) {
 
 			wantInjected := "injected-env:none"
 			if injecting[tc.name] {
-				wantInjected = "injected-env:AURAGO_CRED_D11_TOKEN,AURAGO_SECRET_D11"
+				wantInjected = "injected-env:AURAGO_CRED_PROBE_TOKEN,AURAGO_SECRET_PROBE"
 			}
 
 			configureDockerPermissionForTest(t, false)

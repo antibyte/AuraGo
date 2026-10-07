@@ -44,7 +44,7 @@ func resolvePersonalityAnalyzerClient(cfg *config.Config, fallback memory.Person
 	v2Cfg := openai.DefaultConfig(v2Key)
 	v2Cfg.BaseURL = v2URL
 	// The V2 key and conversation excerpt never follow a redirect off v2URL's
-	// origin (audit H9). No client timeout: this client is shared by V2 mood
+	// origin. No client timeout: this client is shared by V2 mood
 	// analysis (v2_timeout_secs) and the emotion synthesizer (30 s), and each
 	// caller's context bounds its own calls.
 	v2Cfg.HTTPClient = httporigin.NewClient(0)

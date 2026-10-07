@@ -20,7 +20,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-// The provider key and the audio never follow a redirect off the provider origin (audit H9).
+// The provider key and the audio never follow a redirect off the provider origin.
 var multimodalTranscribeHTTPClient = httporigin.NewClient(60 * time.Second)
 
 const maxTranscriptionAudioBytes = 100 * 1024 * 1024
@@ -124,7 +124,7 @@ func transcribeWhisperRequest(parent context.Context, request openai.AudioReques
 	if baseURL != "" {
 		c.BaseURL = baseURL
 	}
-	// The key and the audio upload never follow a redirect off the provider origin (audit H9).
+	// The key and the audio upload never follow a redirect off the provider origin.
 	c.HTTPClient = httporigin.NewClient(timeout)
 	client := openai.NewClientWithConfig(c)
 

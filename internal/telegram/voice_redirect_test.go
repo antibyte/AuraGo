@@ -13,7 +13,7 @@ import (
 	"aurago/internal/httporigin"
 )
 
-// Audit H9 follow-up: the voice transcription clients upload the audio with the
+// Same-origin redirect policy: the voice transcription clients upload the audio with the
 // Whisper provider key, so they must not follow a redirect off the configured
 // origin. Server A is the configured provider and answers with a 307 to server
 // B on another loopback port; B must never be reached.

@@ -437,8 +437,20 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		!slices.Equal(previous.RemoteControl.AllowedPaths, cfg.RemoteControl.AllowedPaths) {
 		// The hub already evaluates the new default for shell checks; agents
 		// without their own list get it pushed. Socket writes stay off the
-		// config publication path.
-		go hub.PushDefaultAllowedPaths()
+		// config publication path. Nothing else recovers a panic on this
+		// goroutine, so it is logged here instead of ending the process.
+		logger := s.Logger
+		if logger == nil {
+			logger = slog.Default()
+		}
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.Error("Recovered from a panic while pushing remote allowed paths", "panic", r)
+				}
+			}()
+			hub.PushDefaultAllowedPaths()
+		}()
 	}
 	if s.MQTTController != nil {
 		s.MQTTController.UpdateConfig(mqttRuntimeSnapshot(cfg))

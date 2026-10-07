@@ -15,7 +15,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-// Audit H9 follow-up: the legacy Personality V2 client carries the V2 provider
+// Same-origin redirect policy: the legacy Personality V2 client carries the V2 provider
 // key and the conversation excerpt, so it must not follow a redirect off the
 // configured origin. Server A is the configured endpoint and answers with a 307
 // to server B on another loopback port; B must never be reached.

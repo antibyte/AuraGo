@@ -12,7 +12,7 @@ import (
 	"aurago/internal/httporigin"
 )
 
-// Audit H9 follow-up: the summary and transcription clients carry the provider
+// Same-origin redirect policy: the summary and transcription clients carry the provider
 // key plus page content or audio, so they must not follow a redirect off the
 // configured origin. Server A is the configured provider and answers with a 307
 // to server B on another loopback port; B must never be reached.

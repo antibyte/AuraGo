@@ -2630,6 +2630,60 @@ func TestAgodeskSessionStartReconnectAllowsOfflinePairedDevice(t *testing.T) {
 	}
 }
 
+// An AgoDesk session runs desktop chat at owner trust, so only a device that
+// AgoDesk pairing created may reconnect into one. The key of an aurago-remote
+// device is refused exactly like a wrong key.
+func TestAgodeskSessionStartReconnectRequiresAgodeskDevice(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	const sharedKey = "0123456789abcdef0123456789abcdef"
+	reconnect := func(t *testing.T, tags []string, proofKey string) (agodesk.SessionAcceptedPayload, string, string) {
+		t.Helper()
+		deviceID, err := remote.CreateDevice(s.RemoteHub.DB(), remote.DeviceRecord{
+			Name:          "device",
+			Hostname:      "HOST",
+			Status:        "approved",
+			SharedKeyHash: hashSHA256(sharedKey),
+			Tags:          tags,
+		})
+		if err != nil {
+			t.Fatalf("CreateDevice: %v", err)
+		}
+		if err := s.Vault.WriteSecret("remote_shared_key_"+deviceID, sharedKey); err != nil {
+			t.Fatalf("WriteSecret: %v", err)
+		}
+		requestID := "session-start-" + deviceID
+		proof, err := agodesk.NewSharedKeyProof(proofKey, requestID, deviceID, time.Now().UTC())
+		if err != nil {
+			t.Fatalf("NewSharedKeyProof: %v", err)
+		}
+		return acceptAgodeskDeviceReconnect(s, requestID, agodesk.SessionStartPayload{
+			ClientVersion:  "0.1.0",
+			DeviceID:       deviceID,
+			SharedKeyProof: &proof,
+		}, deviceID)
+	}
+
+	accepted, code, message := reconnect(t, []string{" AgoDesk ", "desktop-client"}, sharedKey)
+	if code != "" || !accepted.Approved {
+		t.Fatalf("AgoDesk device reconnect = %+v, %q %q; want accepted", accepted, code, message)
+	}
+	_, badKeyCode, badKeyMessage := reconnect(t, []string{"agodesk"}, "fedcba9876543210fedcba9876543210")
+	if badKeyCode != agodesk.ErrorAuthFailed {
+		t.Fatalf("wrong key refused with %q %q, want %q", badKeyCode, badKeyMessage, agodesk.ErrorAuthFailed)
+	}
+	for name, tags := range map[string][]string{
+		"aurago-remote device": nil,
+		"other tags only":      {"desktop-client", "server"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			refused, code, message := reconnect(t, tags, sharedKey)
+			if code != badKeyCode || message != badKeyMessage || refused.Approved || refused.SessionID != "" {
+				t.Fatalf("reconnect = %+v, %q %q; want the wrong-key refusal %q %q", refused, code, message, badKeyCode, badKeyMessage)
+			}
+		})
+	}
+}
+
 func TestAgodeskDesktopCommandRoutesThroughPairedSocket(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "desktop-command-pairing-token"

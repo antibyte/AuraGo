@@ -17,7 +17,7 @@ import (
 	"aurago/internal/tools"
 )
 
-// Audit H9 follow-up: the mission preparation call carries the provider key and
+// Same-origin redirect policy: the mission preparation call carries the provider key and
 // the mission prompt, so it must not follow a redirect off the configured
 // origin. Server A is the configured provider and answers with a 307 to server
 // B on another loopback port; B must never be reached.

@@ -16,7 +16,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-// Live fixtures for the same-origin redirect policy (audit H9). Server A is
+// Live fixtures for the same-origin redirect policy. Server A is
 // the configured provider and answers with a redirect to server B, a second
 // origin on another loopback port. B records whether it ever saw a request,
 // the provider key or the prompt body.

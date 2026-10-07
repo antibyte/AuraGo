@@ -626,7 +626,8 @@ func (c *Client) readMessages() {
 
 		if c.cfg.SharedKey == "" {
 			// Fail closed: without a device key nothing from the supervisor can be
-			// trusted. C8 guarantees connect() never reaches this loop without one.
+			// trusted. connect() refuses an "enrolled" answer without a valid key and
+			// an "authenticated" one without a stored key, so this is a safety net.
 			c.logNoKeyOnce.Do(func() {
 				c.logger.Warn("no device shared key; ignoring supervisor frames until enrolled")
 			})

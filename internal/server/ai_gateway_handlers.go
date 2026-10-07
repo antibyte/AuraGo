@@ -152,7 +152,7 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, test bool, prov
 	}
 
 	// cf-aig-authorization is a custom header that net/http forwards to any
-	// redirect target, so the probe never leaves the gateway origin (audit H9).
+	// redirect target, so the probe never leaves the gateway origin.
 	resp, err := httporigin.NewClient(20 * time.Second).Do(req)
 	if err != nil {
 		if test {

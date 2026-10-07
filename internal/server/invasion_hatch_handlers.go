@@ -804,6 +804,13 @@ func handleInvasionNestRotateKey(s *Server) http.HandlerFunc {
 		result, err := s.EggHub.SendRekey(r.Context(), id, newKey)
 		if err != nil {
 			if bridge.IsAckRejected(err) {
+				// The egg refused the key, so it never holds it: drop the staged
+				// candidate now rather than leaving it a valid handshake key
+				// until the next rotation. _prev belongs to an earlier rotation
+				// and stays.
+				if delErr := s.Vault.WriteSecrets(nil, []string{eggSharedKeySlotName(id, eggSharedKeyNextSuffix)}); delErr != nil {
+					s.Logger.Warn("Failed to drop the staged key of a rejected rotation; the next rotation replaces it", "nest_id", id, "error", delErr)
+				}
 				jsonLoggedError(w, s.Logger, http.StatusBadGateway, "Egg rejected the rotation; the current key stays active", "Rekey rejected", err, "nest_id", id)
 				return
 			}

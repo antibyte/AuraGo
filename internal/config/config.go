@@ -1609,6 +1609,8 @@ func Load(path string) (*Config, error) {
 	// (true or false); security_check reports it. allow_unsafe_host_execution
 	// does not count: config-merger has copied the template's false into every
 	// merged config since 2026-09-24.
+	// allow_unsandboxed_shell: null counts as written (yamlHasPath), as
+	// config-merger treats a present key, even null, as the user's choice.
 	if cfg.Agent.AllowShell && !yamlHasPath(data, "agent", "allow_unsandboxed_shell") {
 		cfg.Agent.LegacyUnsandboxedShell = true
 	}
@@ -1617,10 +1619,11 @@ func Load(path string) (*Config, error) {
 	// missions now need a broker login (username or client certificate over
 	// TLS) or mqtt.allow_unauthenticated_relay. Existing setups on anonymous
 	// brokers keep working until the key is written; mission triggers live in
-	// the mission store, so every enabled anonymous broker counts. A null
-	// value counts as unwritten, as config-merger reads it. The security check
-	// reports the result as critical; the warning appears once per process,
-	// as every config save and health check reloads the config.
+	// the mission store, so every enabled anonymous broker counts. The
+	// security check reports the result as critical; the warning appears once
+	// per process, as every config save and health check reloads the config.
+	// mqtt.allow_unauthenticated_relay: null counts as unwritten (yamlHasValue),
+	// as config-merger fills a null key like a missing one.
 	if cfg.MQTT.Enabled && !MQTTBrokerAuthenticated(&cfg) && !yamlHasValue(data, "mqtt", "allow_unauthenticated_relay") {
 		cfg.MQTT.AllowUnauthenticatedRelay = true
 		mqttRelayGrandfatherWarning.Do(func() {

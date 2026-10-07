@@ -55,7 +55,7 @@ func TestWriteStatementsRejectFileAndAdminSQL(t *testing.T) {
 	drivers := []string{"postgres", "mysql", "sqlite"}
 
 	denied := []string{
-		// Author-provided core cases (audit M22).
+		// Author-provided core cases.
 		"INSERT INTO t SELECT pg_read_file('/etc/passwd')",
 		"UPDATE t SET c = load_extension('/tmp/x.so')",
 		"INSERT INTO t VALUES (LOAD_FILE('/etc/passwd'))",

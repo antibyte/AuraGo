@@ -46,7 +46,7 @@ func TranscribeVoice(filePath string, cfg *config.Config) (string, error) {
 	if baseURL != "" {
 		c.BaseURL = baseURL
 	}
-	// The key and the audio upload never follow a redirect off the provider origin (audit H9).
+	// The key and the audio upload never follow a redirect off the provider origin.
 	c.HTTPClient = httporigin.NewClient(10 * time.Minute)
 	client := openai.NewClientWithConfig(c)
 

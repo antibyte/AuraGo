@@ -17,7 +17,7 @@ import (
 )
 
 // Live fixtures for the same-origin redirect policy of the multimodal
-// embedding client (audit H9). Server A is the configured embedding endpoint
+// embedding client. Server A is the configured embedding endpoint
 // and answers with a redirect to server B, a second origin on another loopback
 // port. B must never see a request, the key or the file content.
 

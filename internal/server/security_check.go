@@ -436,14 +436,15 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
-	// 15. remote_control_auto_approve — any device can join without approval
+	// 15. remote_control_auto_approve — the setting is no longer read: a device
+	// without an enrollment token always waits for an administrator-issued one.
 	if cfg.RemoteControl.Enabled && cfg.RemoteControl.AutoApprove {
 		hints = append(hints, SecurityHint{
-			ID: "remote_control_auto_approve", Severity: SevCritical,
-			Title: "Remote Control: new devices are auto-approved",
-			Description: "remote_control.auto_approve is enabled. Any device that connects to the " +
-				"remote control endpoint is automatically granted access without manual confirmation. " +
-				"Disable auto-approve and review devices manually.",
+			ID: "remote_control_auto_approve", Severity: SevInfo,
+			Title: "Remote Control: auto_approve has no effect",
+			Description: "remote_control.auto_approve is enabled, but this setting has no effect: " +
+				"a device that connects without an enrollment token waits for approval in the " +
+				"Remote Control page, which issues a one-time token. Turn the setting off to clear this note.",
 			AutoFixable: true,
 			FixPatch:    map[string]interface{}{"remote_control": map[string]interface{}{"auto_approve": false}},
 		})

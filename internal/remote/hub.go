@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -462,7 +463,7 @@ func (h *RemoteHub) EffectiveAllowedPaths(deviceID string) []string {
 		if device, err := GetDevice(h.db, deviceID); err == nil {
 			// An AgoDesk companion never receives allowed_paths, so the
 			// global default does not apply to it.
-			if isAgodeskDevice(device) {
+			if IsAgodeskDevice(device) {
 				return cleanAllowedPaths(device.AllowedPaths)
 			}
 			ownPaths = device.AllowedPaths
@@ -471,9 +472,9 @@ func (h *RemoteHub) EffectiveAllowedPaths(deviceID string) []string {
 	return h.effectiveAllowedPaths(ownPaths)
 }
 
-// isAgodeskDevice reports whether the record is an AgoDesk desktop companion,
+// IsAgodeskDevice reports whether the record is an AgoDesk desktop companion,
 // which pairing stores with the "agodesk" tag.
-func isAgodeskDevice(device DeviceRecord) bool {
+func IsAgodeskDevice(device DeviceRecord) bool {
 	for _, tag := range device.Tags {
 		if strings.EqualFold(strings.TrimSpace(tag), "agodesk") {
 			return true
@@ -486,7 +487,9 @@ func isAgodeskDevice(device DeviceRecord) bool {
 // connected device without a list of its own (per its stored record, else its
 // connection), so an agent that authenticated before the global default
 // changed receives the current effective list without reconnecting. Call it
-// after DefaultAllowedPaths starts returning a different list.
+// after DefaultAllowedPaths starts returning a different list. Callers run it
+// on a goroutine of its own, so a panic in one device's transport is
+// recovered and logged here and costs only that device's push.
 func (h *RemoteHub) PushDefaultAllowedPaths() {
 	if h == nil {
 		return
@@ -498,20 +501,30 @@ func (h *RemoteHub) PushDefaultAllowedPaths() {
 	}
 	h.mu.RUnlock()
 	for _, conn := range conns {
-		conn.mu.Lock()
-		ownPaths := conn.AllowedPaths
-		conn.mu.Unlock()
-		if h.db != nil {
-			if device, err := GetDevice(h.db, conn.DeviceID); err == nil {
-				ownPaths = device.AllowedPaths
-			}
+		h.pushDefaultAllowedPathsTo(conn)
+	}
+}
+
+func (h *RemoteHub) pushDefaultAllowedPathsTo(conn *RemoteConnection) {
+	defer func() {
+		if r := recover(); r != nil {
+			h.logger.Error("Recovered from a panic while pushing the default allowed paths",
+				"device_id", conn.DeviceID, "panic", r, "stack", string(debug.Stack()))
 		}
-		if len(cleanAllowedPaths(ownPaths)) > 0 {
-			continue
+	}()
+	conn.mu.Lock()
+	ownPaths := conn.AllowedPaths
+	conn.mu.Unlock()
+	if h.db != nil {
+		if device, err := GetDevice(h.db, conn.DeviceID); err == nil {
+			ownPaths = device.AllowedPaths
 		}
-		if err := h.SendConfigUpdate(conn.DeviceID, ConfigUpdatePayload{AllowedPaths: []string{}}); err != nil {
-			h.logger.Warn("Failed to push the default allowed paths", "device_id", conn.DeviceID, "error", err)
-		}
+	}
+	if len(cleanAllowedPaths(ownPaths)) > 0 {
+		return
+	}
+	if err := h.SendConfigUpdate(conn.DeviceID, ConfigUpdatePayload{AllowedPaths: []string{}}); err != nil {
+		h.logger.Warn("Failed to push the default allowed paths", "device_id", conn.DeviceID, "error", err)
 	}
 }
 
@@ -888,11 +901,21 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 			AllowedPaths:  append([]string{}, device.AllowedPaths...),
 			Version:       auth.Version,
 		}
-		h.Register(device.ID, conn)
 
 		// Do NOT echo back the shared key — the client already has it (it just used it to sign
 		// the auth message). Sending it here would transmit the key over the wire unnecessarily.
-		return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", device.ID, "authenticated", "", &readOnly, allowedPaths)
+		// The answer goes out before Register publishes the connection: it is
+		// written without conn.mu, and once published other goroutines (config
+		// pushes, commands) write through conn.Send. gorilla/websocket allows
+		// one writer at a time.
+		if err := h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", device.ID, "authenticated", "", &readOnly, allowedPaths); err != nil {
+			if h.GetConnection(device.ID) == nil {
+				_ = UpdateDeviceStatus(h.db, device.ID, "offline")
+			}
+			return err
+		}
+		h.Register(device.ID, conn)
+		return nil
 	}
 
 	// ── Case 2: Token-based enrollment ──
@@ -1056,9 +1079,13 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, requestNonce stri
 		AllowedPaths:  []string{},
 		Version:       auth.Version,
 	}
+	// Answer before Register publishes the connection, as on reconnect: the
+	// answer is written without conn.mu.
+	if err := h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, sharedKey, deviceID, "enrolled", "", &readOnly, allowedPaths); err != nil {
+		return err
+	}
 	h.Register(deviceID, conn)
-
-	return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, sharedKey, deviceID, "enrolled", "", &readOnly, allowedPaths)
+	return nil
 }
 
 // ApproveDevice replaces a pending observation with a fresh, single-use token.

@@ -13,7 +13,7 @@ import (
 	"aurago/internal/httporigin"
 )
 
-// Fixtures for the SSRF-protected same-origin client (audit H9). Server A is
+// Fixtures for the SSRF-protected same-origin client. Server A is
 // the configured provider and answers with a redirect to server B, a second
 // origin on another loopback port. Both are loopback, so the tests enable the
 // AURAGO_SSRF_ALLOW_LOOPBACK escape hatch; the SSRF pinning itself still runs.

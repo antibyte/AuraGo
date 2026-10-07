@@ -240,7 +240,7 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 		}
 		clientCfg.BaseURL = url
 	}
-	// The key and mission prompt never follow a redirect off the provider origin (audit H9).
+	// The key and mission prompt never follow a redirect off the provider origin.
 	clientCfg.HTTPClient = httporigin.NewClient(timeout)
 	client := openai.NewClientWithConfig(clientCfg)
 

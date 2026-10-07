@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -198,11 +197,11 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 		"nest_id":    nest.ID,
 	}
 	// When the master serves self-signed TLS, the egg pins the master's leaf
-	// certificate (SHA-256 of its DER) instead of trusting any certificate. The
-	// server falls back to self-signed mode for "auto"/empty cert mode when no
-	// domain is configured, so mirror that runtime behavior.
-	if usesSelfSignedMasterTLS(masterCfg) {
-		certPath := masterSelfSignedCertPath(masterCfg)
+	// certificate (SHA-256 of its DER) instead of trusting any certificate.
+	// config.UsesSelfSignedTLS is the rule the server's TLS setup follows,
+	// including its self-signed fallback for "auto"/empty without a domain.
+	if config.UsesSelfSignedTLS(masterCfg) {
+		certPath := config.SelfSignedCertFile(masterCfg.Directories.DataDir)
 		if pin, err := masterCertPin(certPath); err == nil {
 			eggModeCfg["tls_pin_sha256"] = pin
 		} else {
@@ -223,24 +222,6 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 	}
 
 	return data, nil
-}
-
-func usesSelfSignedMasterTLS(masterCfg *config.Config) bool {
-	if masterCfg == nil || !masterCfg.Server.HTTPS.Enabled {
-		return false
-	}
-	certMode := strings.ToLower(strings.TrimSpace(masterCfg.Server.HTTPS.CertMode))
-	if certMode == "selfsigned" {
-		return true
-	}
-	return (certMode == "" || certMode == "auto") && strings.TrimSpace(masterCfg.Server.HTTPS.Domain) == ""
-}
-
-// masterSelfSignedCertPath mirrors server.NewTLSConfigFromConfig, which keeps
-// the self-signed certificate at <data_dir>/certs/selfsigned.crt (this package
-// must not import internal/server).
-func masterSelfSignedCertPath(masterCfg *config.Config) string {
-	return filepath.Join(masterCfg.Directories.DataDir, "certs", "selfsigned.crt")
 }
 
 // masterCertPin returns the lowercase SHA-256 hex of the DER leaf certificate

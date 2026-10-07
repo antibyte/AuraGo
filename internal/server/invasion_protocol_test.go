@@ -387,16 +387,9 @@ func TestInvasionHandshakeAcceptsPreviousKeyOnceAndBoundsIt(t *testing.T) {
 // Re-hatching is the operator's revocation path: it must drop every rotation
 // candidate, not only replace the current key.
 func TestInvasionRehatchRevokesRotationCandidates(t *testing.T) {
-	oldKey, prevKey := strings.Repeat("1", 64), strings.Repeat("4", 64)
-	f := newInvasionKeyFixture(t, map[string]string{"": oldKey, "_prev": prevKey, "_prev_at": rotatedAt(time.Minute)})
-	f.startEgg(t, oldKey, func(string, int) error { return errors.New("read-only vault") })
-	if rec := f.rotate(t, context.Background()); rec.Code != http.StatusBadGateway {
-		t.Fatalf("status = %d, want 502; body %s", rec.Code, rec.Body.String())
-	}
-	stale := f.secret(t, "_next")
-	if stale == "" {
-		t.Fatal("the rejected rotation should have left a staged key")
-	}
+	// _next as a rotation whose ack was lost leaves it.
+	oldKey, stale, prevKey := strings.Repeat("1", 64), strings.Repeat("2", 64), strings.Repeat("4", 64)
+	f := newInvasionKeyFixture(t, map[string]string{"": oldKey, "_next": stale, "_prev": prevKey, "_prev_at": rotatedAt(time.Minute)})
 	fresh := strings.Repeat("3", 64)
 	if err := f.s.storeEggSharedKey(f.nestID, fresh); err != nil {
 		t.Fatal(err)
@@ -486,10 +479,25 @@ func TestInvasionRotateKeyKeepsDatedPreviousKeyForLegacyAck(t *testing.T) {
 	}
 }
 
+// The egg's explicit rejection means it never adopted the staged key, so the
+// candidate is dropped at once instead of staying a valid handshake key until
+// the next rotation. A dated _prev from an earlier legacy rotation stays.
 func TestInvasionRotateKeyKeepsPreviousKeyWhenEggRejects(t *testing.T) {
-	oldKey := strings.Repeat("1", 64)
+	oldKey, prevKey := strings.Repeat("1", 64), strings.Repeat("4", 64)
 	f := newInvasionKeyFixture(t, map[string]string{"": oldKey})
-	client := f.startEgg(t, oldKey, func(string, int) error { return errors.New("read-only vault") })
+	offered := make(chan string, 1)
+	client := f.startEgg(t, oldKey, func(key string, _ int) error {
+		offered <- key
+		return errors.New("read-only vault")
+	})
+	// Written after the egg connected: a current-key handshake retires _prev.
+	prevAt := rotatedAt(time.Minute)
+	if err := f.vault.WriteSecrets(map[string]string{
+		"egg_shared_" + f.nestID + "_prev":    prevKey,
+		"egg_shared_" + f.nestID + "_prev_at": prevAt,
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
 	rec := f.rotate(t, context.Background())
 	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "Egg rejected the rotation") {
 		t.Fatalf("status = %d, want 502 naming the rejection; body %s", rec.Code, rec.Body.String())
@@ -497,8 +505,20 @@ func TestInvasionRotateKeyKeepsPreviousKeyWhenEggRejects(t *testing.T) {
 	if f.secret(t, "") != oldKey || client.SharedKeySnapshot() != oldKey || f.hub.GetConnection(f.nestID).SharedKey != oldKey {
 		t.Fatal("a rejected rotation must leave the previous key active on both sides")
 	}
-	if f.secret(t, "_next") == "" {
-		t.Fatal("the staged candidate stays until a handshake or the next rotation replaces it")
+	var rejected string
+	select {
+	case rejected = <-offered:
+	default:
+		t.Fatal("the egg was never offered the new key")
+	}
+	if f.secret(t, "_next") != "" {
+		t.Fatal("a rejected rotation must drop the key it staged")
+	}
+	if f.secret(t, "_prev") != prevKey || f.secret(t, "_prev_at") != prevAt {
+		t.Fatal("a rejected rotation must leave _prev and its date untouched")
+	}
+	if err := f.handshake(t, rejected); err == nil {
+		t.Fatal("the rejected key must not authenticate")
 	}
 }
 
@@ -582,8 +602,8 @@ func TestInvasionRotateKeyHealsVaultAfterFailedCommit(t *testing.T) {
 		if f.secret(t, "") != liveKey || f.secret(t, "_prev") != "" || client.SharedKeySnapshot() != liveKey {
 			t.Fatal("the retry must first commit the key the egg uses")
 		}
-		if staged := f.secret(t, "_next"); staged == "" || staged == liveKey {
-			t.Fatal("the new rotation stages its own candidate after healing")
+		if f.secret(t, "_next") != "" {
+			t.Fatal("the rejected rotation must drop the candidate it staged after healing")
 		}
 		if err := f.handshake(t, liveKey); err != nil {
 			t.Fatalf("the egg must stay authenticable with its key: %v", err)

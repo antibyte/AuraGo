@@ -29,7 +29,7 @@ func TestPreparePayloadKeepsJSONValidInsideIsolationBoundary(t *testing.T) {
 	}
 }
 
-// Audit M13 regression: a JSON body that spells the closing isolation tag with
+// Regression: a JSON body that spells the closing isolation tag with
 // \u escapes must not be decoded into a second, forged boundary.
 func TestPreparePayloadKeepsEscapedClosingTagInsideJSONBoundary(t *testing.T) {
 	t.Parallel()

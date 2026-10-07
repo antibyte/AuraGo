@@ -21,7 +21,7 @@ import (
 )
 
 // Live fixtures for the same-origin redirect policy of the credentialed vision,
-// TTS and image-generation clients (audit H9). Server A is the configured
+// TTS and image-generation clients. Server A is the configured
 // provider and answers with a redirect to server B, a second origin on another
 // loopback port. B records whether it ever saw a request, a credential header
 // or the request body.

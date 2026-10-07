@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"aurago/internal/config"
@@ -61,14 +62,15 @@ func NewTLSConfigFromConfig(cfg *config.Config, dataDir string) *TLSConfig {
 	}
 
 	certDir := filepath.Join(dataDir, "certs")
+	// The HTTP redirect server only makes sense with a real domain; without
+	// one, port 80 (which needs root) is not bound for a useless redirect.
+	httpPort := cfg.Server.HTTPS.HTTPPort
+	if strings.TrimSpace(cfg.Server.HTTPS.Domain) == "" {
+		httpPort = 0
+	}
 
-	switch cfg.Server.HTTPS.CertMode {
-	case "custom":
-		// HTTP redirect only makes sense with a real domain.
-		httpPort := cfg.Server.HTTPS.HTTPPort
-		if cfg.Server.HTTPS.Domain == "" {
-			httpPort = 0
-		}
+	switch {
+	case config.NormalizeCertMode(cfg.Server.HTTPS.CertMode) == "custom":
 		return &TLSConfig{
 			Mode:      TLSModeCustom,
 			Domain:    cfg.Server.HTTPS.Domain,
@@ -78,39 +80,21 @@ func NewTLSConfigFromConfig(cfg *config.Config, dataDir string) *TLSConfig {
 			HTTPPort:  httpPort,
 			HTTPSPort: cfg.Server.HTTPS.HTTPSPort,
 		}
-	case "selfsigned":
-		// HTTP redirect is useless without a real domain: no redirect server.
-		httpPort := cfg.Server.HTTPS.HTTPPort
-		if cfg.Server.HTTPS.Domain == "" {
-			httpPort = 0
-		}
+	case config.UsesSelfSignedTLS(cfg):
+		// "selfsigned", or "auto"/empty without a domain: Let's Encrypt needs
+		// a public domain, so this falls back to self-signed (e.g. behind a
+		// Cloudflare Tunnel, which handles HTTPS at the edge). The egg config
+		// generator pins this certificate by the same rule.
 		return &TLSConfig{
 			Mode:      TLSModeSelfSigned,
 			Domain:    cfg.Server.HTTPS.Domain,
 			CertDir:   certDir,
-			CertFile:  filepath.Join(certDir, "selfsigned.crt"),
-			KeyFile:   filepath.Join(certDir, "selfsigned.key"),
+			CertFile:  config.SelfSignedCertFile(dataDir),
+			KeyFile:   config.SelfSignedKeyFile(dataDir),
 			HTTPPort:  httpPort,
 			HTTPSPort: cfg.Server.HTTPS.HTTPSPort,
 		}
-	default: // "auto" or empty
-		// If no domain is set, fall back to self-signed instead of Let's Encrypt.
-		// This is the sensible default when HTTPS is enabled but no public domain is available
-		// (e.g., when using Cloudflare Tunnel which handles HTTPS at the edge).
-		if cfg.Server.HTTPS.Domain == "" {
-			return &TLSConfig{
-				Mode:     TLSModeSelfSigned,
-				Domain:   cfg.Server.HTTPS.Domain,
-				CertDir:  certDir,
-				CertFile: filepath.Join(certDir, "selfsigned.crt"),
-				KeyFile:  filepath.Join(certDir, "selfsigned.key"),
-				// Force HTTPPort=0: no public domain means no redirect server needed.
-				// Avoids binding port 80 (requires root) for an HTTPS redirect that
-				// serves no purpose without a real domain.
-				HTTPPort:  0,
-				HTTPSPort: cfg.Server.HTTPS.HTTPSPort,
-			}
-		}
+	default: // "auto" or empty, with a domain
 		return &TLSConfig{
 			Mode:      TLSModeAuto,
 			Domain:    cfg.Server.HTTPS.Domain,
@@ -357,9 +341,8 @@ func ensureSelfSignedCert(certFile, keyFile, domain string, logger Logger) error
 
 // RegenerateSelfSignedCert forces re-generation of the self-signed cert by deleting existing files first.
 func RegenerateSelfSignedCert(dataDir, domain string, logger Logger) error {
-	certDir := filepath.Join(dataDir, "certs")
-	certFile := filepath.Join(certDir, "selfsigned.crt")
-	keyFile := filepath.Join(certDir, "selfsigned.key")
+	certFile := config.SelfSignedCertFile(dataDir)
+	keyFile := config.SelfSignedKeyFile(dataDir)
 
 	os.Remove(certFile)
 	os.Remove(keyFile)
