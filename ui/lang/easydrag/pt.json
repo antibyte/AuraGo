@@ -722,7 +722,7 @@
   "easydrag.ui.secret_replace_text": "Substituir o valor de {name}? Os fluxos que o usam vão receber o novo valor.",
   "easydrag.ui.secret_replace_title": "Substituir o segredo?",
   "easydrag.ui.secret_retry": "Tente de novo em {seconds} s.",
-  "easydrag.ui.secret_still_used": "Ainda usado por {flows}. Esses fluxos vão falhar até que o segredo seja definido novamente.",
+  "easydrag.ui.secret_still_used": "Ainda usado por {flows}. Os fluxos que o usam vão falhar até que o segredo seja definido novamente.",
   "easydrag.ui.secret_too_large": "O valor é maior que 4 KiB.",
   "easydrag.ui.secret_value": "Valor",
   "easydrag.ui.secrets_unavailable": "Não é possível carregar os segredos dos fluxos agora.",

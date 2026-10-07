@@ -722,7 +722,7 @@
   "easydrag.ui.secret_replace_text": "Erstatte verdien til {name}? Flyter som bruker den, får den nye verdien.",
   "easydrag.ui.secret_replace_title": "Erstatte hemmeligheten?",
   "easydrag.ui.secret_retry": "Prøv igjen om {seconds} s.",
-  "easydrag.ui.secret_still_used": "Brukes fortsatt av {flows}. Disse flytene feiler til hemmeligheten er satt igjen.",
+  "easydrag.ui.secret_still_used": "Brukes fortsatt av {flows}. Flyter som bruker den, feiler til hemmeligheten er satt igjen.",
   "easydrag.ui.secret_too_large": "Verdien er større enn 4 KiB.",
   "easydrag.ui.secret_value": "Verdi",
   "easydrag.ui.secrets_unavailable": "Flythemmelighetene kan ikke lastes inn akkurat nå.",

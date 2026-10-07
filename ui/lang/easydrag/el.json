@@ -722,7 +722,7 @@
   "easydrag.ui.secret_replace_text": "Να αντικατασταθεί η τιμή του {name}; Οι ροές που το χρησιμοποιούν θα πάρουν τη νέα τιμή.",
   "easydrag.ui.secret_replace_title": "Αντικατάσταση μυστικού;",
   "easydrag.ui.secret_retry": "Δοκίμασε ξανά σε {seconds} δευτ.",
-  "easydrag.ui.secret_still_used": "Χρησιμοποιείται ακόμη από: {flows}. Αυτές οι ροές θα αποτυγχάνουν μέχρι να οριστεί ξανά το μυστικό.",
+  "easydrag.ui.secret_still_used": "Εξακολουθεί να χρησιμοποιείται από: {flows}. Οι ροές που το χρησιμοποιούν θα αποτυγχάνουν μέχρι να οριστεί ξανά το μυστικό.",
   "easydrag.ui.secret_too_large": "Η τιμή είναι μεγαλύτερη από 4 KiB.",
   "easydrag.ui.secret_value": "Τιμή",
   "easydrag.ui.secrets_unavailable": "Τα μυστικά των ροών δεν μπορούν να φορτωθούν αυτή τη στιγμή.",

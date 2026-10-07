@@ -722,7 +722,7 @@
   "easydrag.ui.secret_replace_text": "De waarde van {name} vervangen? Flows die het gebruiken, krijgen de nieuwe waarde.",
   "easydrag.ui.secret_replace_title": "Geheim vervangen?",
   "easydrag.ui.secret_retry": "Probeer het over {seconds} s opnieuw.",
-  "easydrag.ui.secret_still_used": "Nog gebruikt door {flows}. Deze flows mislukken totdat het geheim opnieuw is ingesteld.",
+  "easydrag.ui.secret_still_used": "Nog gebruikt door {flows}. Flows die het gebruiken, mislukken totdat het geheim opnieuw is ingesteld.",
   "easydrag.ui.secret_too_large": "De waarde is groter dan 4 KiB.",
   "easydrag.ui.secret_value": "Waarde",
   "easydrag.ui.secrets_unavailable": "De flowgeheimen kunnen nu niet worden geladen.",

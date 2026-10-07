@@ -722,7 +722,7 @@
   "easydrag.ui.secret_replace_text": "Ersätta värdet för {name}? Flöden som använder den får det nya värdet.",
   "easydrag.ui.secret_replace_title": "Ersätta hemligheten?",
   "easydrag.ui.secret_retry": "Försök igen om {seconds} s.",
-  "easydrag.ui.secret_still_used": "Används fortfarande av {flows}. Dessa flöden misslyckas tills hemligheten har angetts igen.",
+  "easydrag.ui.secret_still_used": "Används fortfarande av {flows}. Flöden som använder den misslyckas tills hemligheten har angetts igen.",
   "easydrag.ui.secret_too_large": "Värdet är större än 4 KiB.",
   "easydrag.ui.secret_value": "Värde",
   "easydrag.ui.secrets_unavailable": "Flödeshemligheterna kan inte läsas in just nu.",

@@ -722,7 +722,7 @@
   "easydrag.ui.secret_replace_text": "{name} の値を置き換えますか？このシークレットを使うフローには新しい値が使われます。",
   "easydrag.ui.secret_replace_title": "シークレットを置き換えますか？",
   "easydrag.ui.secret_retry": "{seconds} 秒後にもう一度お試しください。",
-  "easydrag.ui.secret_still_used": "次のフローでまだ使われています：{flows}。これらのフローは、シークレットが再び設定されるまで失敗します。",
+  "easydrag.ui.secret_still_used": "次のフローでまだ使われています：{flows}。上記のフローは、シークレットが再び設定されるまで失敗します。",
   "easydrag.ui.secret_too_large": "値が 4 KiB を超えています。",
   "easydrag.ui.secret_value": "値",
   "easydrag.ui.secrets_unavailable": "現在、フローのシークレットを読み込めません。",

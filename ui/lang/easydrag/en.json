@@ -722,7 +722,7 @@
   "easydrag.ui.secret_replace_text": "Replace the value of {name}? Flows that use it get the new value.",
   "easydrag.ui.secret_replace_title": "Replace secret?",
   "easydrag.ui.secret_retry": "Try again in {seconds} s.",
-  "easydrag.ui.secret_still_used": "Still used by {flows}. These flows fail until the secret is set again.",
+  "easydrag.ui.secret_still_used": "Still used by {flows}. Flows that use it fail until the secret is set again.",
   "easydrag.ui.secret_too_large": "The value is larger than 4 KiB.",
   "easydrag.ui.secret_value": "Value",
   "easydrag.ui.secrets_unavailable": "Flow secrets cannot be loaded right now.",

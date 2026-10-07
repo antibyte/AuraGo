@@ -722,7 +722,7 @@
   "easydrag.ui.secret_replace_text": "{name} का मान बदलें? जो फ़्लो इसका उपयोग करते हैं, उन्हें नया मान मिलेगा।",
   "easydrag.ui.secret_replace_title": "सीक्रेट बदलें?",
   "easydrag.ui.secret_retry": "{seconds} सेकंड में फिर कोशिश करें।",
-  "easydrag.ui.secret_still_used": "अभी भी इनमें उपयोग हो रहा है: {flows}। ये फ़्लो तब तक विफल होंगे जब तक सीक्रेट फिर से सेट नहीं किया जाता।",
+  "easydrag.ui.secret_still_used": "अभी भी {flows} में इसका उपयोग हो रहा है। जो फ़्लो इसका उपयोग करते हैं, वे तब तक विफल होंगे जब तक सीक्रेट फिर से सेट नहीं किया जाता।",
   "easydrag.ui.secret_too_large": "मान 4 KiB से बड़ा है।",
   "easydrag.ui.secret_value": "मान",
   "easydrag.ui.secrets_unavailable": "फ़्लो सीक्रेट अभी लोड नहीं हो सकते।",
