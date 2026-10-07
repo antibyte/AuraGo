@@ -202,8 +202,10 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 }
 
 // telnyxNotificationSender returns the SMS sender for notification delivery,
-// or nil when Telnyx cannot send. It uses the configured client, so
-// telnyx.allowed_numbers and telnyx.read_only apply as for the telnyx_sms tool.
+// or nil when Telnyx is disabled or has no sender number. It uses the
+// configured client, so telnyx.allowed_numbers and telnyx.read_only apply as
+// for the telnyx_sms tool: in read-only mode a sender is still returned, and
+// each send then fails with the read-only error.
 func telnyxNotificationSender(ctx context.Context, cfg *config.Config, logger *slog.Logger) tools.TelnyxSendFunc {
 	if !cfg.Telnyx.Enabled || cfg.Telnyx.PhoneNumber == "" {
 		return nil

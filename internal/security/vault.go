@@ -144,7 +144,7 @@ func (v *Vault) encryptAndSave(secrets map[string]string) error {
 }
 
 // syncDir flushes a directory entry so a rename inside it survives a crash.
-// Errors are ignored: Windows cannot open or sync a directory this way, and
+// Errors are ignored: Windows opens the directory but refuses to sync it, and
 // the rename itself already succeeded.
 var syncDir = func(dir string) {
 	if d, err := os.Open(dir); err == nil {

@@ -61,11 +61,13 @@ func SetupFileOnly(debug bool, logPath string, appendMode bool) (*LogFile, error
 }
 
 // openLogFile opens a log file readable by its owner only (0600): log lines
-// carry prompts, paths and tool output. An existing file that is readable by
-// everyone (created by an older release) is tightened to 0600 on open; a mode
-// without world access is left alone, so a log shipper running as another
-// user can be given group access with chmod (for example 0640 plus a shared
-// group) and keeps it across restarts. Windows has no POSIX modes to adjust.
+// carry prompts, paths and tool output. An existing regular file that is
+// readable by everyone (created by an older release) is tightened to 0600 on
+// open; a mode without world access is left alone, so a log shipper running
+// as another user can be given group access with chmod (for example 0640 plus
+// a shared group) and keeps it across restarts. A non-regular target (a
+// symlink to /dev/null, a pipe) is never chmod'ed. Windows has no POSIX modes
+// to adjust.
 func openLogFile(logPath string, appendMode bool) (*os.File, error) {
 	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
@@ -82,7 +84,9 @@ func openLogFile(logPath string, appendMode bool) (*os.File, error) {
 		return nil, err
 	}
 	if runtime.GOOS != "windows" {
-		if info, statErr := file.Stat(); statErr == nil && info.Mode().Perm()&0o007 != 0 {
+		// Only a regular file is ours to tighten: a log path symlinked to
+		// /dev/null or a collector pipe keeps the mode its owner chose.
+		if info, statErr := file.Stat(); statErr == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o007 != 0 {
 			_ = file.Chmod(0o600)
 		}
 	}

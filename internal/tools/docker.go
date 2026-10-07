@@ -504,17 +504,17 @@ var dockerInspectMountFields = map[string]string{
 // projectDockerInspectMounts keeps the useful fields of each mount. A volume's
 // source stays complete (it names Docker's own storage); any other source (a
 // bind's host path) keeps only its last path element unless fullBindSources
-// is set. Entries that are not objects pass through unchanged.
+// is set. Docker sends an array of objects; any other shape, and any entry
+// that is not an object, is dropped rather than passed through unredacted.
 func projectDockerInspectMounts(value interface{}, fullBindSources bool) interface{} {
 	items, ok := value.([]interface{})
 	if !ok {
-		return value
+		return nil
 	}
-	projected := make([]interface{}, len(items))
-	for i, item := range items {
+	projected := make([]interface{}, 0, len(items))
+	for _, item := range items {
 		mount, ok := item.(map[string]interface{})
 		if !ok {
-			projected[i] = item
 			continue
 		}
 		entry := make(map[string]interface{}, len(dockerInspectMountFields))
@@ -526,7 +526,7 @@ func projectDockerInspectMounts(value interface{}, fullBindSources bool) interfa
 		if source, ok := entry["source"].(string); ok && source != "" && !fullBindSources && entry["type"] != "volume" {
 			entry["source"] = pathpkg.Base(strings.ReplaceAll(source, `\`, "/"))
 		}
-		projected[i] = entry
+		projected = append(projected, entry)
 	}
 	return projected
 }
@@ -573,13 +573,16 @@ func dockerInspectEnvKeySensitive(key string) bool {
 	}
 	for _, suffix := range []string{
 		"PASSWORD", "SECRET", "TOKEN", "API_KEY", "ACCESS_KEY", "PRIVATE_KEY", "MASTER_KEY",
-		"PASS", "PASSWD", "PWD", "PASSPHRASE", "CREDENTIALS", "REQUIREPASS", "MASTERAUTH",
+		"PASS", "PASSWD", "PASSPHRASE", "CREDENTIALS", "REQUIREPASS", "MASTERAUTH",
+		"SECRET_KEY", "SECRET_KEY_BASE", "ENCRYPTION_KEY", "APP_KEY",
 	} {
 		if upper == suffix || strings.HasSuffix(upper, "_"+suffix) {
 			return true
 		}
 	}
-	return false
+	// PWD only as a suffix (DB_PWD): the shell's bare PWD is the working
+	// directory and stays visible.
+	return strings.HasSuffix(upper, "_PWD")
 }
 
 // redactDockerInspectArgs masks credential values in a command line: the value

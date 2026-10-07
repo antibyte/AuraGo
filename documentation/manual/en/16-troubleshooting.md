@@ -413,7 +413,7 @@ docker compose up -d
 | Docker | `docker compose logs -f` |
 | Systemd | `journalctl -u aurago -f` |
 
-Log files are readable by the AuraGo user only (`0600`); a log shipper running as another user needs group access, e.g. `chmod 640 log/*.log` plus a group shared with the shipper (AuraGo keeps a mode without world access across restarts).
+`log/aurago.log`, `log/web_access.log` and `log/maintenance.log` are readable by the AuraGo user only (`0600`); a log shipper running as another user needs group access, e.g. `chmod 640` on these files plus a group shared with the shipper. AuraGo leaves a mode without world access unchanged on restart.
 
 ### Log Levels
 

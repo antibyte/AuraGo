@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -259,21 +260,45 @@ func NewSSRFProtectedHTTPClient(timeout time.Duration) *http.Client {
 }
 
 // redirectCredentialHeaders are removed from a redirect that leaves the
-// original origin.
-var redirectCredentialHeaders = []string{"Authorization", "Proxy-Authorization", "Cookie", "X-Api-Key", "X-Auth-Token"}
+// original origin, in addition to every header isRedirectCredentialHeader
+// recognises by name.
+var redirectCredentialHeaders = []string{"Authorization", "Proxy-Authorization", "Cookie", "X-Api-Key", "X-Auth-Token", "X-Goog-Api-Key"}
+
+// redirectCredentialHeaderMarkers mark a header as a credential by name
+// (X-Goog-Api-Key, X-Webhook-Token, My-Secret, ...). Dropping a harmless match
+// such as Idempotency-Key or X-CSRF-Token on a cross-origin hop costs nothing:
+// the new origin could not validate it anyway.
+var redirectCredentialHeaderMarkers = []string{"key", "token", "secret", "auth"}
+
+func isRedirectCredentialHeader(name string) bool {
+	canonical := http.CanonicalHeaderKey(name)
+	if slices.Contains(redirectCredentialHeaders, canonical) {
+		return true
+	}
+	lower := strings.ToLower(canonical)
+	for _, marker := range redirectCredentialHeaderMarkers {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+	return false
+}
 
 // dropCredentialHeadersAcrossOrigins strips credential headers from a
 // redirect whose target is not the exact scheme/host/effective-port origin of
 // the first request. net/http already drops Authorization and Cookie when the
 // redirect leaves the original host and its subdomains; this also covers a hop
-// to a subdomain, a scheme or port change, and custom API-key headers, which
-// net/http forwards to any host.
+// to a subdomain, a scheme or port change, and custom API-key headers (such as
+// Google's x-goog-api-key or a webhook's token header), which net/http
+// forwards to any host.
 func dropCredentialHeadersAcrossOrigins(req *http.Request, via []*http.Request) {
 	if len(via) > 0 && httporigin.SameOrigin(req.URL, via[0].URL) {
 		return
 	}
-	for _, name := range redirectCredentialHeaders {
-		req.Header.Del(name)
+	for name := range req.Header {
+		if isRedirectCredentialHeader(name) {
+			delete(req.Header, name)
+		}
 	}
 }
 

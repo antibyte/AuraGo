@@ -1002,6 +1002,9 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		})
 
 	}
+	// The media mounts below are authenticated, so each sets a private cache
+	// and removes the middleware's no-store Pragma that would contradict it.
+
 	// Serve generated documents from the document_creator output directory
 	docDir := s.Cfg.Tools.DocumentCreator.OutputDir
 	if docDir == "" {
@@ -1012,6 +1015,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	mux.HandleFunc("/files/documents/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=3600")
+		w.Header().Del("Pragma")
 		filename := filepath.Base(r.URL.Path)
 		// Allow inline display when ?inline=1 is set (e.g. PDF preview)
 		if r.URL.Query().Get("inline") == "1" {
@@ -1029,6 +1033,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	mux.HandleFunc("/files/audio/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
+		w.Header().Del("Pragma")
 		audioHandler.ServeHTTP(w, r)
 	})
 
@@ -1039,6 +1044,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	mux.HandleFunc("/files/generated_images/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
+		w.Header().Del("Pragma")
 		genImgHandler.ServeHTTP(w, r)
 	})
 
@@ -1049,6 +1055,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	mux.HandleFunc("/files/generated_videos/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
+		w.Header().Del("Pragma")
 		genVideoHandler.ServeHTTP(w, r)
 	})
 
@@ -1059,6 +1066,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	mux.HandleFunc("/files/launchpad_icons/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
+		w.Header().Del("Pragma")
 		launchpadIconHandler.ServeHTTP(w, r)
 	})
 
@@ -1069,6 +1077,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	mux.HandleFunc("/files/frigate_media/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
+		w.Header().Del("Pragma")
 		frigateMediaHandler.ServeHTTP(w, r)
 	})
 
@@ -1079,6 +1088,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	mux.HandleFunc("/files/go2rtc/snapshots/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=60")
+		w.Header().Del("Pragma")
 		go2RTCMediaHandler.ServeHTTP(w, r)
 	})
 
@@ -1089,6 +1099,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	mux.HandleFunc("/files/3d_printer_media/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
+		w.Header().Del("Pragma")
 		threeDPrinterMediaHandler.ServeHTTP(w, r)
 	})
 
@@ -1102,6 +1113,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	mux.HandleFunc("/files/downloads/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
+		w.Header().Del("Pragma")
 		downloadsHandler.ServeHTTP(w, r)
 	})
 

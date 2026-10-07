@@ -3,13 +3,21 @@ package security
 import (
 	"errors"
 	"net/http"
+	"slices"
 	"testing"
 	"time"
 
 	"aurago/internal/httporigin"
 )
 
-var ssrfRedirectCredentialHeaders = []string{"Authorization", "Proxy-Authorization", "Cookie", "X-Api-Key", "X-Auth-Token"}
+// The fixed list plus headers caught by name: Google's API-key header (Veo,
+// Lyria), a webhook-configured token header and an arbitrary secret header.
+var ssrfRedirectCredentialHeaders = []string{
+	"Authorization", "Proxy-Authorization", "Cookie", "X-Api-Key", "X-Auth-Token",
+	"X-Goog-Api-Key", "X-Webhook-Token", "My-Secret",
+}
+
+var ssrfRedirectPlainHeaders = []string{"Accept", "Content-Type"}
 
 func ssrfRedirectWithCredentials(t *testing.T, target string) *http.Request {
 	t.Helper()
@@ -21,6 +29,7 @@ func ssrfRedirectWithCredentials(t *testing.T, target string) *http.Request {
 		req.Header.Set(name, "fixture-credential")
 	}
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 	return req
 }
 
@@ -56,15 +65,17 @@ func TestSSRFClientStripsCredentialHeadersAcrossOrigins(t *testing.T) {
 					t.Errorf("cross-origin redirect kept %s = %q", name, got)
 				}
 			}
-			if cross.Header.Get("Accept") == "" {
-				t.Error("cross-origin redirect dropped a non-credential header")
+			for _, name := range ssrfRedirectPlainHeaders {
+				if cross.Header.Get(name) != "application/json" {
+					t.Errorf("cross-origin redirect dropped the non-credential header %s", name)
+				}
 			}
 
 			same := ssrfRedirectWithCredentials(t, tc.same)
 			if err := tc.client.CheckRedirect(same, []*http.Request{original}); err != nil {
 				t.Fatalf("same-origin redirect rejected: %v", err)
 			}
-			for _, name := range ssrfRedirectCredentialHeaders {
+			for _, name := range slices.Concat(ssrfRedirectCredentialHeaders, ssrfRedirectPlainHeaders) {
 				if same.Header.Get(name) == "" {
 					t.Errorf("same-origin redirect dropped %s", name)
 				}

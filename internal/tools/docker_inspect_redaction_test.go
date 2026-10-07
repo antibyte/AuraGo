@@ -41,7 +41,10 @@ const dockerInspectMountsFixture = `{"Id":"db","Name":"/db","Mounts":[` +
 	`"not-a-map"],"Config":{"Image":"postgres:16","Env":[` +
 	`"DB_PASS=hunter2","REDIS_REQUIREPASS=x","MYSQL_ROOT_PASSWD=passwd-secret","ADMIN_PWD=pwd-secret",` +
 	`"GPG_PASSPHRASE=phrase-secret","AWS_CREDENTIALS=cred-secret","REDIS_MASTERAUTH=masterauth-secret",` +
-	`"PASS=bare-secret","PASSPORT_OFFICE=kept-value","PATH=/usr/bin"]}}`
+	`"PASS=bare-secret","PASSPORT_OFFICE=kept-value","PATH=/usr/bin",` +
+	`"PAPERLESS_SECRET_KEY=paperless-value","AUTHENTIK_SECRET_KEY=authentik-value","SECRET_KEY=django-value",` +
+	`"ENCRYPTION_KEY=encryption-value","N8N_ENCRYPTION_KEY=n8n-value","APP_KEY=laravel-value",` +
+	`"SECRET_KEY_BASE=rails-value","PWD=/app","DB_PWD=x"]}}`
 
 func TestDockerInspectRedactsShortPasswordNamesAndBindSources(t *testing.T) {
 	configureDockerSecurityTestPermissions(t, true)
@@ -50,17 +53,19 @@ func TestDockerInspectRedactsShortPasswordNamesAndBindSources(t *testing.T) {
 	})
 	out := DockerInspectContainer(DockerConfig{Host: host}, "db")
 
-	for _, leaked := range []string{"hunter2", "REDIS_REQUIREPASS=x", "passwd-secret", "pwd-secret", "phrase-secret", "cred-secret", "masterauth-secret", "bare-secret", "/srv/secret-dir", "rprivate"} {
+	for _, leaked := range []string{"hunter2", "REDIS_REQUIREPASS=x", "passwd-secret", "pwd-secret", "phrase-secret", "cred-secret", "masterauth-secret", "bare-secret", "/srv/secret-dir", "rprivate",
+		"paperless-value", "authentik-value", "django-value", "encryption-value", "n8n-value", "laravel-value", "rails-value", "DB_PWD=x", "not-a-map"} {
 		if strings.Contains(out, leaked) {
 			t.Fatalf("docker inspect leaked %q: %s", leaked, out)
 		}
 	}
-	for _, masked := range []string{"DB_PASS=" + dockerInspectRedacted, "REDIS_REQUIREPASS=" + dockerInspectRedacted, "REDIS_MASTERAUTH=" + dockerInspectRedacted} {
-		if !strings.Contains(out, masked) {
+	for _, masked := range []string{"DB_PASS=", "REDIS_REQUIREPASS=", "REDIS_MASTERAUTH=", "PAPERLESS_SECRET_KEY=", "AUTHENTIK_SECRET_KEY=", "SECRET_KEY=",
+		"ENCRYPTION_KEY=", "N8N_ENCRYPTION_KEY=", "APP_KEY=", "SECRET_KEY_BASE=", "DB_PWD="} {
+		if !strings.Contains(out, `"`+masked+dockerInspectRedacted+`"`) {
 			t.Fatalf("docker inspect did not mask %q: %s", masked, out)
 		}
 	}
-	for _, kept := range []string{"PASSPORT_OFFICE=kept-value", "PATH=/usr/bin", `"not-a-map"`} {
+	for _, kept := range []string{"PASSPORT_OFFICE=kept-value", "PATH=/usr/bin", `"PWD=/app"`} {
 		if !strings.Contains(out, kept) {
 			t.Fatalf("docker inspect dropped non-secret %q: %s", kept, out)
 		}
@@ -72,8 +77,8 @@ func TestDockerInspectRedactsShortPasswordNamesAndBindSources(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &resp); err != nil {
 		t.Fatalf("parse inspect output: %v", err)
 	}
-	if len(resp.Mounts) != 3 {
-		t.Fatalf("mounts = %v, want 3 entries", resp.Mounts)
+	if len(resp.Mounts) != 2 {
+		t.Fatalf("mounts = %v, want the bind and the volume (non-object entries dropped)", resp.Mounts)
 	}
 	bind, _ := resp.Mounts[0].(map[string]any)
 	wantBind := map[string]any{"type": "bind", "source": "secret-dir", "destination": "/data", "mode": "ro", "rw": false}
@@ -84,6 +89,21 @@ func TestDockerInspectRedactsShortPasswordNamesAndBindSources(t *testing.T) {
 	wantVolume := map[string]any{"type": "volume", "name": "pgdata", "source": "/var/lib/docker/volumes/pgdata/_data", "destination": "/var/lib/postgresql/data", "mode": "z", "rw": true}
 	if !reflect.DeepEqual(volume, wantVolume) {
 		t.Fatalf("volume mount = %v, want %v", volume, wantVolume)
+	}
+}
+
+// Docker always sends Mounts as an array of objects; anything else is dropped
+// rather than passed through unredacted.
+func TestDockerInspectMountProjectionFailsClosedOnUnexpectedShapes(t *testing.T) {
+	for _, value := range []any{"/srv/secret-dir", map[string]any{"Source": "/srv/secret-dir"}, float64(1), nil} {
+		if got := projectDockerInspectMounts(value, false); got != nil {
+			t.Errorf("projectDockerInspectMounts(%#v) = %#v, want nil", value, got)
+		}
+	}
+	got := projectDockerInspectMounts([]any{"/srv/secret-dir", map[string]any{"Type": "bind", "Source": "/srv/secret-dir"}}, false)
+	want := []any{map[string]any{"type": "bind", "source": "secret-dir"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("projected mounts = %#v, want %#v", got, want)
 	}
 }
 

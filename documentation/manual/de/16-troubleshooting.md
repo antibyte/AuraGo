@@ -205,13 +205,13 @@ sudo chmod 666 /var/run/docker.sock
 
 ### Log-Dateien
 
-| Datei | Inhalt |
-|-------|--------|
-| `log/aurago.log` | Haupt-Anwendungslog |
-| `log/agent.log` | Agent-spezifische Aktionen |
-| `log/http.log` | Web-UI Zugriffe |
+| Plattform | Log-Ort |
+|-----------|---------|
+| Nativ | `log/aurago.log` (dazu `log/web_access.log`) |
+| Docker | `docker compose logs -f` |
+| Systemd | `journalctl -u aurago -f` |
 
-Logdateien sind nur für den AuraGo-Benutzer lesbar (`0600`); ein Log-Shipper unter einem anderen Benutzer braucht Gruppenzugriff, z. B. `chmod 640 log/*.log` plus eine mit dem Shipper geteilte Gruppe (AuraGo behält einen Modus ohne Zugriff für alle über Neustarts bei).
+`log/aurago.log`, `log/web_access.log` und `log/maintenance.log` sind nur für den AuraGo-Benutzer lesbar (`0600`); ein Log-Shipper unter einem anderen Benutzer braucht Gruppenzugriff, z. B. `chmod 640` auf diese Dateien plus eine mit dem Shipper geteilte Gruppe. Einen Modus ohne Zugriff für alle lässt AuraGo beim Neustart unverändert.
 
 ### Log-Level filtern
 

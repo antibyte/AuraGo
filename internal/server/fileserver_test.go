@@ -438,6 +438,9 @@ func TestAuthenticatedMediaIsPrivatelyCached(t *testing.T) {
 		if got := rec.Header().Get("Cache-Control"); !strings.HasPrefix(got, "private") {
 			t.Errorf("%s%s: Cache-Control = %q, want private", mount.prefix, mount.file, got)
 		}
+		if got := rec.Header().Get("Pragma"); got != "" {
+			t.Errorf("%s%s: leftover Pragma %q contradicts the private cache", mount.prefix, mount.file, got)
+		}
 	}
 
 	for _, name := range []string{"x.png", "notes.txt"} {
