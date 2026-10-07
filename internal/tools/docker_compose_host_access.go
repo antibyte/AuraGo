@@ -131,6 +131,24 @@ func DockerComposeProtectedPaths(cfg *config.Config) (roots, files []string) {
 	return roots, files
 }
 
+// DockerBindTargetsAuraGoState reports a create/run volume string whose host
+// path is equal to or inside AuraGo state (roots and files as
+// DockerComposeProtectedPaths lists them, plus any aurago_master.key), with
+// the Compose always tier's comparison: cleaned, absolute and resolved
+// spellings, Docker Desktop aliases and macOS case folding. Parents of state
+// and named volumes are not reported. It returns the host path it refused.
+func DockerBindTargetsAuraGoState(bind string, roots, files []string) (string, bool) {
+	spec, ok := parseDockerBindMount(bind)
+	if !ok || !spec.isHostPath {
+		return "", false
+	}
+	e := newDockerComposeEvaluation(DockerComposeHostPolicy{AllowHostAccess: true, ProtectedRoots: roots, ProtectedFiles: files}, DockerComposeScopeRun)
+	if e.isProtected(dockerComposePathVariants(spec.hostPath)) {
+		return spec.hostPath, true
+	}
+	return "", false
+}
+
 // DockerComposeSubcommand returns the validated Compose subcommand of cmd, or
 // "" when cmd is not an allowed agent Compose command.
 func DockerComposeSubcommand(cmd string) string {

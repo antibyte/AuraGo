@@ -198,6 +198,7 @@ Use `direction: "from_container"` or `"to_container"`. Path maps to the host's a
 - `aurago-homepage`, `aurago-homepage-web`, and the `aurago-homepage` image repository cannot be managed with this tool
 - The names `aurago` (and compose replicas such as `stack-aurago-1`) and `aurago-boring-garage` are reserved the same way: they cannot be used as `name` for `create`/`run`, even next to a different `container_id`, and those containers cannot be inspected, controlled or read through this tool
 - Without host access, managed sidecar names (`aurago_gotenberg`, `aurago_ollama_managed`, `aurago_ollama_embeddings`, `aurago-piper-tts`, `aurago-supertonic-tts`, `aurago_ansible`, `aurago_browser_automation`, `aurago_go2rtc`, `aurago_space_agent`, `aurago_manifest`, `aurago_manifest_postgres`, `aurago_omniroute`, the `aurago_dograh_*` services, `aurago-cloudflared` and their configured custom names) cannot be used as `name` for `create`/`run` or as a Compose `container_name` in `up`/`create` (`docker_managed_sidecar_name`); `aurago-security-proxy` is refused as a Compose `container_name` everywhere (`docker_managed_security_proxy_resource`).
+- Without host access and without an agent workspace, `create`/`run` refuse binds of AuraGo's own data directory, config, `.env`, `/etc/aurago` and master key (`docker_protected_path_denied`).
 - Logs are truncated to ~8000 chars to avoid flooding the context
 - `force: true` on remove will kill a running container before removing it
 - Port mapping format: `{"container_port": "host_port"}` — both as strings

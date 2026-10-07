@@ -665,6 +665,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return dockerAgentError("docker_managed_aurago_resource", "AuraGo's own data volume and data directory cannot be mounted, created or removed through the Docker agent tool. If this volume belongs to another stack, give it another name.")
 				}
 			}
+			if denied := dockerCreateStateBindDenial(ctx, cfg, dockerCfg, req); denied != "" {
+				return denied
+			}
 			if dockerProtectedLocalLLMVolumeName(req.Name) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`
 			}

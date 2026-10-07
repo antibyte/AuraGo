@@ -678,3 +678,27 @@ func TestEvaluateDockerComposeHostAccessFoldsCaseOnCaseInsensitiveHosts(t *testi
 		}
 	}
 }
+
+func TestDockerBindTargetsAuraGoStateUsesTheAlwaysTier(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	configPath := filepath.Join(root, "config.yaml")
+	roots, files := []string{dataDir}, []string{configPath, filepath.Join(root, ".env")}
+	slash := func(path string) string { return dockerutil.NormalizeHostPathForBind(path) }
+	for _, bind := range []string{
+		slash(dataDir) + ":/d",
+		slash(filepath.Join(dataDir, "vault.bin")) + ":/v:ro",
+		slash(configPath) + ":/c",
+		slash(filepath.Join(root, ".env")) + ":/e",
+		slash(filepath.Join(root, "keys", "aurago_master.key")) + ":/k",
+	} {
+		if path, refused := DockerBindTargetsAuraGoState(bind, roots, files); !refused || path == "" {
+			t.Fatalf("%s: refused = %v, want AuraGo state", bind, refused)
+		}
+	}
+	for _, bind := range []string{slash(root) + ":/parent", slash(filepath.Join(root, "media")) + ":/m", "named_volume:/data", "/data"} {
+		if _, refused := DockerBindTargetsAuraGoState(bind, roots, files); refused {
+			t.Fatalf("%s: refused, want only AuraGo state (parents and named volumes are not)", bind)
+		}
+	}
+}

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -40,6 +41,31 @@ func dockerComposeAuraGoStateVolume(cfg *config.Config, self tools.DockerSelfIde
 			if tools.IsAuraGoStateVolume(name, true, self) {
 				return name
 			}
+		}
+	}
+	return ""
+}
+
+// dockerCreateStateBindDenial refuses create/run binds into AuraGo's own state
+// (F-C20) while the config flag docker.allow_host_access is false and no
+// agent workspace is configured: without a workspace validateDockerBindMount
+// confines no bind, so this applies the Compose always tier
+// (tools.DockerComposeProtectedPaths, plus the host paths behind a proven
+// container's data) instead. With the flag on, or with a workspace, it never
+// refuses.
+func dockerCreateStateBindDenial(ctx context.Context, cfg *config.Config, dockerCfg tools.DockerConfig, req dockerArgs) string {
+	if cfg == nil || cfg.Docker.AllowHostAccess || strings.TrimSpace(cfg.Directories.WorkspaceDir) != "" ||
+		!dockerCreateRunOperation(req.Operation) || len(req.Volumes) == 0 {
+		return ""
+	}
+	roots, files := tools.DockerComposeProtectedPaths(cfg)
+	if cfg.Runtime.IsDocker {
+		roots = append(roots, tools.DockerSelfIdentityFor(ctx, dockerCfg).StateHostRoots()...)
+	}
+	for _, volume := range req.Volumes {
+		if path, refused := tools.DockerBindTargetsAuraGoState(volume, roots, files); refused {
+			return dockerAgentError("docker_protected_path_denied", fmt.Sprintf(
+				"The bind %q points into AuraGo's own data, configuration or master key, which agent containers cannot mount while Docker host access is off and no agent workspace is configured. Nothing was created. Use another host path.", path))
 		}
 	}
 	return ""

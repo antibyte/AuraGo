@@ -2,10 +2,12 @@ package agent
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/dockerutil"
 	"aurago/internal/tools"
 )
 
@@ -272,5 +274,66 @@ func TestDockerComposePolicyRefusesTheSecurityProxyContainerName(t *testing.T) {
 	model = `{"name":"edge","services":{"edge":{"image":"caddy:2","network_mode":"container:aurago-security-proxy"}}}`
 	if got := policy("up -d"); got != "" {
 		t.Fatalf("a stack joining the proxy's namespace was newly refused: %s", got)
+	}
+}
+
+// F-C20: without a workspace, validateDockerBindMount confines no create/run
+// bind, so while docker.allow_host_access is off AuraGo's own state (the
+// Compose always tier, plus the host paths of a proven container's data) is
+// refused there too. With the flag on, or with a workspace, nothing changes.
+func TestDockerCreateStateBindDenialWithoutAWorkspace(t *testing.T) {
+	root := t.TempDir()
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = filepath.Join(root, "data")
+	cfg.ConfigPath = filepath.Join(root, "config.yaml")
+	slash := func(path string) string { return dockerutil.NormalizeHostPathForBind(path) }
+	stateBinds := []string{slash(filepath.Join(root, "data", "vault.bin")) + ":/v:ro", slash(filepath.Join(root, "config.yaml")) + ":/c", slash(filepath.Join(root, ".env")) + ":/e"}
+	denial := func(operation string, volumes ...string) string {
+		return dockerCreateStateBindDenial(context.Background(), cfg, tools.DockerConfig{}, dockerArgs{Operation: operation, Name: "worker", Image: "alpine", Volumes: volumes})
+	}
+	for _, bind := range stateBinds {
+		for _, operation := range []string{"run", "create"} {
+			if got := denial(operation, slash(filepath.Join(root, "media"))+":/m", bind); !strings.Contains(got, `"code":"docker_protected_path_denied"`) {
+				t.Fatalf("%s %s without a workspace and host access: %s", operation, bind, got)
+			}
+		}
+	}
+	for _, volumes := range [][]string{{slash(filepath.Join(root, "media")) + ":/m"}, {slash(root) + ":/parent"}, {"named:/data"}, nil} {
+		if got := denial("run", volumes...); got != "" {
+			t.Fatalf("%q refused: %s", volumes, got)
+		}
+	}
+	if got := denial("start", stateBinds[0]); got != "" {
+		t.Fatalf("an operation that creates nothing was refused: %s", got)
+	}
+	// A proven container also protects the host paths behind its data.
+	cfg.Runtime.IsDocker = true
+	stubDockerSelfIdentity(t, tools.DockerSelfIdentity{Proven: true, StateHostPaths: []string{"/var/lib/docker/volumes/aurago_aurago_data/_data"}})
+	if got := denial("run", "/var/lib/docker/volumes/aurago_aurago_data/_data:/d"); !strings.Contains(got, "docker_protected_path_denied") {
+		t.Fatalf("host path of the proven data volume allowed: %s", got)
+	}
+	// Grandfathered installs and configured workspaces are unchanged.
+	cfg.Docker.AllowHostAccess = true
+	if got := denial("run", stateBinds[0]); got != "" {
+		t.Fatalf("with host access a state bind was newly refused: %s", got)
+	}
+	cfg.Docker.AllowHostAccess = false
+	cfg.Directories.WorkspaceDir = filepath.Join(root, "ws")
+	if got := denial("run", stateBinds[0]); got != "" {
+		t.Fatalf("with a workspace (validateDockerBindMount confines binds) the new check ran: %s", got)
+	}
+}
+
+func TestDispatchDockerRunRefusesAuraGoStateBindsWithoutAWorkspace(t *testing.T) {
+	root := t.TempDir()
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	cfg.Directories.DataDir = filepath.Join(root, "data")
+	useRuntimePermissionsForTest(t, cfg)
+	bind := dockerutil.NormalizeHostPathForBind(filepath.Join(root, "data")) + ":/loot"
+	output, _ := dispatchServices(context.Background(), ToolCall{Action: "docker", Operation: "run", Name: "thief", Image: "alpine:latest", Volumes: []string{bind}}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	if !strings.Contains(output, `"code":"docker_protected_path_denied"`) {
+		t.Fatalf("dispatch output = %s, want the state-bind denial before Docker", output)
 	}
 }
