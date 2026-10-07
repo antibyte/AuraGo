@@ -649,13 +649,13 @@ func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Reque
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	statusResult, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git status --porcelain=v1 -z 2>/dev/null"}, 15*time.Second)
+	statusResult, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git status --porcelain=v1 -z 2>/dev/null"}, 15*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	branchResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git branch --show-current 2>/dev/null"}, 10*time.Second)
-	logResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git log --oneline -10 2>/dev/null"}, 10*time.Second)
+	branchResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git branch --show-current 2>/dev/null"}, 10*time.Second)
+	logResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git log --oneline -10 2>/dev/null"}, 10*time.Second)
 
 	changes := parseGitPorcelain(statusResult.Output)
 	branch := strings.TrimSpace(branchResult.Output)
@@ -692,7 +692,7 @@ func (h codeStudioHandlers) handleGitDiff(w http.ResponseWriter, r *http.Request
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", cmd}, 30*time.Second)
+	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", cmd}, 30*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
@@ -735,7 +735,7 @@ func (h codeStudioHandlers) handleGitCommit(w http.ResponseWriter, r *http.Reque
 		cmd += "git add -A && "
 	}
 	cmd += "git commit -m '" + safeMsg + "'"
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", cmd}, 30*time.Second)
+	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", cmd}, 30*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
@@ -748,7 +748,7 @@ func (h codeStudioHandlers) handleGitCommit(w http.ResponseWriter, r *http.Reque
 		jsonError(w, errMsg, http.StatusBadRequest)
 		return
 	}
-	hashResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git rev-parse --short HEAD"}, 5*time.Second)
+	hashResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git rev-parse --short HEAD"}, 5*time.Second)
 	writeJSON(w, map[string]interface{}{"status": "ok", "hash": strings.TrimSpace(hashResult.Output)})
 }
 
@@ -785,7 +785,7 @@ func (h codeStudioHandlers) handleGitBranch(w http.ResponseWriter, r *http.Reque
 			cmd += "-b "
 		}
 		cmd += "'" + safeName + "'"
-		result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", cmd}, 15*time.Second)
+		result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", cmd}, 15*time.Second)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadGateway)
 			return
@@ -796,12 +796,12 @@ func (h codeStudioHandlers) handleGitBranch(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	listResult, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git branch -a"}, 10*time.Second)
+	listResult, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git branch -a"}, 10*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	currentResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git branch --show-current"}, 5*time.Second)
+	currentResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", "cd /workspace && git branch --show-current"}, 5*time.Second)
 
 	branches := parseGitBranches(listResult.Output)
 	current := strings.TrimSpace(currentResult.Output)
@@ -836,7 +836,7 @@ func (h codeStudioHandlers) handleGitLog(w http.ResponseWriter, r *http.Request)
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", cmd}, 15*time.Second)
+	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", cmd}, 15*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
@@ -1176,13 +1176,13 @@ func normalizeCodeStudioExecCommand(command string, args []string, cwd string) (
 		return nil, fmt.Errorf("command is required")
 	}
 	if strings.TrimSpace(cwd) == "" {
-		return []string{"sh", "-lc", command}, nil
+		return []string{"sh", "-c", command}, nil
 	}
 	path, err := sanitizeCodeStudioPath(cwd)
 	if err != nil {
 		return nil, err
 	}
-	return []string{"sh", "-lc", "cd " + shellQuote(path) + " && " + command}, nil
+	return []string{"sh", "-c", "cd " + shellQuote(path) + " && " + command}, nil
 }
 
 func normalizeCodeStudioExecTimeout(seconds int) time.Duration {

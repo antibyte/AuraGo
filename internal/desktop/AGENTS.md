@@ -25,6 +25,9 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   sample map seeds `hello.go`, `hello.py` and `hello.c`. Existing workspaces with
   both original samples gain only a missing `hello.c`; host and container seeds
   use exclusive creation and preserve existing files and symlinks.
+- Managed probes and workspace scripts use non-login shells to retain the image
+  PATH, including `/usr/local/go/bin`. Never rebuild a healthy image because a
+  login profile hid its tools. Verify `TestCodeStudioRuntimeRequiresCCompiler`.
 
 - Desktop authority consists of scopes, readonly and runtime/tool grants.
   `control_level` is retired; old YAML remains readable and normal config saves

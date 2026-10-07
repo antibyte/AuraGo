@@ -52,6 +52,10 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### Code Studio
 
+- Managed terminal, Run and Git shell commands retain the container image's
+  environment with `sh -c`; login profiles must not hide installed toolchains.
+  Explicit exec argument arrays stay unchanged. Verify
+  `TestNormalizeCodeStudioExecCommandPreservesEnvironment` and the terminal tests.
 - Save and upload share `code_studio_files.go`: bounded file bytes travel as a
   single generated regular staging file through the Docker archive API. Never
   embed contents in exec arguments. The normal container user verifies the

@@ -79,7 +79,7 @@ func (h codeStudioHandlers) executeTerminalLine(ctx context.Context, containerID
 		}
 		command = "cd " + shellQuote(next) + " && pwd -P"
 	}
-	result, err := h.docker.Exec(ctx, containerID, []string{"sh", "-lc", command}, codeStudioMaxExecTime)
+	result, err := h.docker.Exec(ctx, containerID, []string{"sh", "-c", command}, codeStudioMaxExecTime)
 	if err != nil {
 		return err.Error() + "\n"
 	}
