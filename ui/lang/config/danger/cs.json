@@ -22,5 +22,5 @@
   "config.danger.sudo_unrestricted.title": "Systémový zápis přes sudo",
   "config.danger.sudo_unrestricted.desc": "Umožňuje agentovi zapisovat mimo instalační adresář pomocí sudo (např. /etc/). Vyžaduje odstranění ProtectSystem=strict z jednotky systemd služby.",
   "config.danger.unsafe_host_execution.title": "Nebezpečné spouštění na hostiteli",
-  "config.danger.unsafe_host_execution.desc": "Povolí Python přímo na hostiteli a prostředí Windows bez izolace. Zapíše se bezpečnostní upozornění; zapínejte jen vědomě."
+  "config.danger.unsafe_host_execution.desc": "Povolí Python přímo na hostiteli, prostředí Windows a shell hostitele s Linuxem/macOS bez izolace. Každé použití se zapíše jako bezpečnostní upozornění. Zapínejte jen vědomě."
 }

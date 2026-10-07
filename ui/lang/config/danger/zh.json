@@ -22,5 +22,5 @@
   "config.danger.sudo_unrestricted.title": "系统级Sudo写入权限",
   "config.danger.sudo_unrestricted.desc": "允许代理使用sudo在安装目录之外写入（例如 /etc/）。需要从systemd服务单元中移除ProtectSystem=strict。",
   "config.danger.unsafe_host_execution.title": "不安全的主机执行",
-  "config.danger.unsafe_host_execution.desc": "允许在未隔离的主机上运行 Python 和 Windows 命令行。每次使用都会记录安全警告。"
+  "config.danger.unsafe_host_execution.desc": "允许在未隔离的主机上运行 Python、Windows 命令行和 Linux/macOS 主机命令行。每次使用都会记录安全警告。请仅在明确需要时启用。"
 }

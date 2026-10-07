@@ -22,5 +22,5 @@
   "config.danger.sudo_unrestricted.title": "Accès d'Écriture Sudo Système",
   "config.danger.sudo_unrestricted.desc": "Permet à l'agent d'écrire en dehors du répertoire d'installation en utilisant sudo (par ex. /etc.). Nécessite la suppression de ProtectSystem=strict de l'unité de service systemd.",
   "config.danger.unsafe_host_execution.title": "Exécution non isolée sur l’hôte",
-  "config.danger.unsafe_host_execution.desc": "Autorise Python sur l’hôte et le shell Windows sans isolation. Chaque utilisation est journalisée comme avertissement de sécurité."
+  "config.danger.unsafe_host_execution.desc": "Autorise Python sur l’hôte, le shell Windows et le shell de l’hôte sous Linux/macOS sans isolation. Chaque utilisation est journalisée comme avertissement de sécurité. N’activez cette option qu’en connaissance de cause."
 }

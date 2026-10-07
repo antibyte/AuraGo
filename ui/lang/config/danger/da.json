@@ -22,5 +22,5 @@
   "config.danger.sudo_unrestricted.title": "Systemomfattende sudo-skriveadgang",
   "config.danger.sudo_unrestricted.desc": "Tillader agenten at skrive uden for installationsmappen ved hjælp af sudo (f.eks. /etc/). Kræver fjernelse af ProtectSystem=strict fra systemd-serviceenheden.",
   "config.danger.unsafe_host_execution.title": "Usikker kørsel på værten",
-  "config.danger.unsafe_host_execution.desc": "Tillader Python direkte på værten og Windows-shell uden isolation. En sikkerhedsadvarsel logges; aktiver kun bevidst."
+  "config.danger.unsafe_host_execution.desc": "Tillader Python direkte på værten, Windows-shell og værtens shell på Linux/macOS uden isolation. Hver brug logges som en sikkerhedsadvarsel. Aktiver kun bevidst."
 }

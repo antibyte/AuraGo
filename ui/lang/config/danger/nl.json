@@ -22,5 +22,5 @@
   "config.danger.sudo_unrestricted.title": "Systeembrede Sudo-schrijftoegang",
   "config.danger.sudo_unrestricted.desc": "Staat de agent toe om buiten de installatiemap te schrijven met sudo (bijv. /etc.). Vereist het verwijderen van ProtectSystem=strict uit de systemd-service-unit.",
   "config.danger.unsafe_host_execution.title": "Onveilige uitvoering op de host",
-  "config.danger.unsafe_host_execution.desc": "Staat Python op de host en de Windows-shell zonder isolatie toe. Elk gebruik wordt als beveiligingswaarschuwing vastgelegd."
+  "config.danger.unsafe_host_execution.desc": "Staat Python op de host, de Windows-shell en de hostshell op Linux/macOS zonder isolatie toe. Elk gebruik wordt als beveiligingswaarschuwing vastgelegd. Schakel dit alleen bewust in."
 }

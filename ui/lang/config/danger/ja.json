@@ -22,5 +22,5 @@
   "config.danger.sudo_unrestricted.title": "システム全体のSudo書き込みアクセス",
   "config.danger.sudo_unrestricted.desc": "エージェントがsudoを使用してインストールディレクトリ外（例: /etc/）に書き込めるようにします。systemdサービスユニットからProtectSystem=strictを削除する必要があります。",
   "config.danger.unsafe_host_execution.title": "ホストでの危険な実行",
-  "config.danger.unsafe_host_execution.desc": "分離せずにホストの Python と Windows シェルを実行できます。使用するたびにセキュリティ警告を記録します。"
+  "config.danger.unsafe_host_execution.desc": "分離せずにホストの Python、Windows シェル、Linux/macOS のホストシェルを実行できます。使用するたびにセキュリティ警告を記録します。十分に理解したうえで有効にしてください。"
 }
