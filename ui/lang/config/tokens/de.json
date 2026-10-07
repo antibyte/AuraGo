@@ -11,7 +11,7 @@
   "config.tokens.delete_confirm": "Token löschen:",
   "config.tokens.deleted": "Token gelöscht",
   "config.tokens.scopes_label": "Scopes:",
-  "config.tokens.toggle_disable": "Deaktiviert",
+  "config.tokens.toggle_disable": "Deaktivieren",
   "config.tokens.toggle_enable": "Aktivieren",
   "config.tokens.delete_confirm_title": "Token löschen?"
 }

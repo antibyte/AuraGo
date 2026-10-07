@@ -8,7 +8,7 @@
   "config.sql_connections.col_actions": "Handlinger",
   "config.sql_connections.col_database": "Database",
   "config.sql_connections.col_description": "Beskrivelse",
-  "config.sql_connections.col_driver": "Skriv",
+  "config.sql_connections.col_driver": "Type",
   "config.sql_connections.col_host": "Vert",
   "config.sql_connections.col_name": "Navn",
   "config.sql_connections.col_permissions": "Tillatelser",

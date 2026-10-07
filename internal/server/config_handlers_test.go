@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -1095,6 +1096,77 @@ tools:
 	}
 }
 
+func TestHandleGetConfigReportsRetiredPromptSecSettings(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	legacy := `guardian:
+  promptsec:
+    spotlight: true
+    canary: true
+    structure:
+      enabled: true
+      mode: xml
+`
+	if err := os.WriteFile(configPath, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.ConfigPath = configPath
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	rec := httptest.NewRecorder()
+	handleGetConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/config", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	guardian := body["guardian"].(map[string]interface{})
+	promptsec := guardian["promptsec"].(map[string]interface{})
+	for _, key := range []string{"spotlight", "canary", "structure"} {
+		if _, exists := promptsec[key]; exists {
+			t.Fatalf("retired guardian.promptsec.%s remained in config response: %#v", key, promptsec)
+		}
+	}
+	notices := body["_config_migrations"].([]interface{})
+	joined := fmt.Sprint(notices)
+	for _, path := range []string{"guardian.promptsec.spotlight", "guardian.promptsec.canary", "guardian.promptsec.structure"} {
+		if !strings.Contains(joined, path) || !strings.Contains(joined, "forced off") {
+			t.Fatalf("migration notice missing %s or forced-off detail: %v", path, notices)
+		}
+	}
+}
+
+func TestHandleUpdateConfigRejectsRetiredPromptSecReactivationBeforeWrite(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	original := []byte("agent:\n  read_only: true\n")
+	if err := os.WriteFile(configPath, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{Cfg: &config.Config{ConfigPath: configPath}, Logger: slog.Default()}
+	for _, payload := range []string{
+		`{"guardian":{"promptsec":{"spotlight":true}}}`,
+		`{"guardian":{"promptsec":{"canary":true}}}`,
+		`{"guardian":{"promptsec":{"structure":{"enabled":true}}}}`,
+	} {
+		rec := httptest.NewRecorder()
+		handleUpdateConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(payload)))
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("payload %s returned %d, want 400; body=%s", payload, rec.Code, rec.Body.String())
+		}
+		stored, err := os.ReadFile(configPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(stored) != string(original) {
+			t.Fatalf("rejected payload %s modified config: %q", payload, stored)
+		}
+	}
+}
+
 func TestHandleGetConfigInjectsKnowledgeGraphPermissionDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
@@ -1522,4 +1594,79 @@ func TestConfigSchemaConsistency(t *testing.T) {
 
 	_ = rootLevelSections // silence unused warning (kept for documentation)
 	_ = nestedUnderTools
+}
+
+func TestInjectDockerHostAccessDefaultShowsEffectiveValue(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Docker.AllowHostAccess = true
+	raw := map[string]interface{}{}
+	injectDockerHostAccessDefault(raw, cfg)
+	docker, _ := raw["docker"].(map[string]interface{})
+	if docker["allow_host_access"] != true {
+		t.Fatalf("absent key not shown with its loaded value: %#v", raw)
+	}
+	explicit := map[string]interface{}{"docker": map[string]interface{}{"allow_host_access": false}}
+	injectDockerHostAccessDefault(explicit, cfg)
+	if explicit["docker"].(map[string]interface{})["allow_host_access"] != false {
+		t.Fatalf("explicit value overwritten: %#v", explicit)
+	}
+}
+
+func TestConfigSaveKeepsGrandfatheredDockerHostAccess(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "config.yaml")
+	if err := os.WriteFile(path, []byte("docker:\n  enabled: true\n  readonly: false\nbudget: {enabled: false, daily_limit_usd: 5}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.ConfigPath = path
+	if !cfg.Docker.AllowHostAccess {
+		t.Fatal("absent key must load as true")
+	}
+	vault, err := security.NewVault(strings.Repeat("12", 32), filepath.Join(root, "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{Cfg: cfg, Vault: vault, Logger: slog.Default()}
+
+	get := httptest.NewRecorder()
+	handleGetConfig(s).ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/api/config", nil))
+	var loaded map[string]interface{}
+	if err := json.Unmarshal(get.Body.Bytes(), &loaded); err != nil {
+		t.Fatal(err)
+	}
+	if docker, _ := loaded["docker"].(map[string]interface{}); docker["allow_host_access"] != true {
+		t.Fatalf("GET shows docker.allow_host_access = %#v, want true", loaded["docker"])
+	}
+
+	put := httptest.NewRecorder()
+	handleUpdateConfig(s).ServeHTTP(put, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(`{"budget":{"daily_limit_usd":7}}`)))
+	if put.Code != http.StatusOK {
+		t.Fatalf("save: %d %s", put.Code, put.Body.String())
+	}
+	after, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !after.Docker.AllowHostAccess || after.Budget.DailyLimitUSD != 7 {
+		t.Fatalf("after save: allow_host_access=%v daily_limit=%v", after.Docker.AllowHostAccess, after.Budget.DailyLimitUSD)
+	}
+	data, _ := os.ReadFile(path)
+	if strings.Contains(string(data), "allow_host_access: false") {
+		t.Fatalf("an unrelated save wrote the template value:\n%s", data)
+	}
+}
+
+func TestInjectDockerHostAccessDefaultReplacesNullDockerSection(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Docker.AllowHostAccess = true
+	raw := map[string]interface{}{"docker": nil}
+	injectDockerHostAccessDefault(raw, cfg)
+	docker, ok := raw["docker"].(map[string]interface{})
+	if !ok || docker["allow_host_access"] != true {
+		t.Fatalf("null docker section not shown with the loaded value: %#v", raw)
+	}
 }

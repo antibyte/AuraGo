@@ -3,7 +3,7 @@
 Generated deterministically from `BuildNativeToolSchemaSnapshot(...).StrictSchemas()` with all feature flags enabled.
 
 - Tools: **216**
-- Enumerated operations: **1151**
+- Enumerated operations: **1163**
 - Native format: assistant `tool_calls` followed by adjacent `role=tool` messages with matching `tool_call_id`.
 - Hidden format: `discover_tools`, then the returned binding `call_method` such as `invoke_tool`.
 
@@ -605,8 +605,8 @@ Perform DNS record lookups for a hostname. Returns A, AAAA, MX, NS, TXT, CNAME, 
 Manage generic Docker containers, images, networks, and volumes. AuraGo-managed homepage resources are reserved; use homepage_project, homepage_file, or homepage_deploy for homepage work.
 
 - Tier: `extended`
-- Required: `_todo`, `all`, `auto_remove`, `command`, `command_args`, `container_id`, `env`, `force`, `image`, `name`, `operation`, `ports`, `restart`, `tail`, `volumes`
-- Operations: 17
+- Required: `_todo`, `all`, `auto_remove`, `command`, `command_args`, `container_id`, `destination`, `direction`, `driver`, `env`, `file`, `force`, `image`, `name`, `network`, `operation`, `ports`, `restart`, `source`, `tail`, `user`, `volumes`
+- Operations: 29
 - Manual: `prompts/tools_manuals/docker.md`
 
 | Parameter | Type | Description |
@@ -617,14 +617,21 @@ Manage generic Docker containers, images, networks, and volumes. AuraGo-managed 
 | `command` | `string` | Command for exec, or a simple whitespace-separated legacy command for create/run. Shell quoting, pipes, redirections, chaining, and globbing are rejected for create/run; use command_args with an explicit shell instead. |
 | `command_args` | `array` | Exact exec-form command arguments for create/run, for example ['/bin/sh', '-lc', 'printf ...']. Cannot be combined with command. |
 | `container_id` | `string` | Container ID or name (for container operations) |
+| `destination` | `string` | Destination path for cp: a container path (to_container) or a workspace file (from_container) |
+| `direction` | `string` | Copy direction for cp: to_container or from_container |
+| `driver` | `string` | Driver for create_network or create_volume (e.g. bridge, local) |
 | `env` | `array` | Environment variables (e.g. ['KEY=value']) |
+| `file` | `string` | Compose file inside the agent workspace (for compose; put the compose command such as 'up -d' in command) |
 | `force` | `boolean` | Force removal (for remove/remove_image) |
 | `image` | `string` | Docker image name with optional tag (e.g. 'nginx:latest'). The aurago-homepage repository is reserved. |
 | `name` | `string` | Container name. Required for create and run; aurago-homepage and aurago-homepage-web are reserved. |
+| `network` | `string` | Network name for connect and disconnect |
 | `operation` | `string` | Operation to perform |
 | `ports` | `string` | Port mappings: {'container_port': 'host_port'} (e.g. {'80': '8080'}). Provide as a JSON object string. |
 | `restart` | `string` | Restart policy: no, always, unless-stopped, on-failure |
+| `source` | `string` | Source path for cp: a workspace file (to_container) or a container path (from_container) |
 | `tail` | `integer` | Number of log lines to return (default: 100) |
+| `user` | `string` | User to run the exec command as (for exec) |
 | `volumes` | `array` | Volume binds (e.g. ['/host/path:/container/path']) |
 
 ## `document_creator`

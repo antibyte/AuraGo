@@ -1,12 +1,12 @@
 {
   "config.danger.warning_title": "चेतावनी",
   "config.danger.warning_desc": "यहाँ आप तय करते हैं कि आपके एजेंट को कितनी शक्ति देनी है। ध्यान रखें कि एजेंट <strong>गलतियाँ कर सकता है</strong> — केवल वही सक्षम करें जिसकी आपको वास्तव में आवश्यकता है!",
-  "config.danger.sudo.title": "सुडो निष्पादन (निष्पादन_सुडो)",
+  "config.danger.sudo.title": "सुडो निष्पादन (execute_sudo)",
   "config.danger.sudo.desc": "एजेंट को सूडो विशेषाधिकारों के साथ कमांड चलाने की अनुमति देता है। सूडो पासवर्ड को तिजोरी में संग्रहित किया जाना चाहिए।",
   "config.danger.shell.title": "शैल निष्पादन (execute_shell)",
   "config.danger.shell.desc": "एजेंट को होस्ट सिस्टम पर मनमाना शेल कमांड चलाने की अनुमति देता है।",
   "config.danger.python.title": "पायथन/कौशल निष्पादन (execute_python/execute_skill/save_tool)",
-  "config.danger.python.desc": "एजेंट को मनमाने ढंग से पायथन कोड और कौशल <strong>बिना सैंडबॉक्स के स्थानीय स्तर पर</strong> निष्पादित करने और नए टूल जारी रखने की अनुमति देता है। कोड सीधे होस्ट सिस्टम पर चलता है - इसके बजाय पृथक निष्पादन के लिए सैंडबॉक्स का उपयोग करें।",
+  "config.danger.python.desc": "एजेंट को मनमाने ढंग से पायथन कोड और कौशल <strong>बिना सैंडबॉक्स के स्थानीय स्तर पर</strong> निष्पादित करने और नए टूल स्थायी रूप से सहेजने की अनुमति देता है। कोड सीधे होस्ट सिस्टम पर चलता है - इसके बजाय पृथक निष्पादन के लिए सैंडबॉक्स का उपयोग करें।",
   "config.danger.filesystem.title": "फाइलसिस्टम राइट एक्सेस (फाइलसिस्टम राइट ऑप्स)",
   "config.danger.filesystem.desc": "एजेंट को फ़ाइल सिस्टम टूल के माध्यम से लिखने, हटाने, फ़ाइलों को स्थानांतरित करने और निर्देशिका बनाने की अनुमति देता है।",
   "config.danger.network.title": "नेटवर्क अनुरोध (api_request)",
@@ -17,10 +17,12 @@
   "config.danger.self_update.desc": "एजेंट को स्वयं को अपडेट करने और प्रक्रिया को पुनरारंभ करने की अनुमति देता है।",
   "config.danger.package_manager.title": "पैकेज प्रबंधन (package_manager)",
   "config.danger.package_manager.desc": "एजेंट को सिस्टम पैकेज इंस्टॉल, हटाने, अपडेट, खोज और निरीक्षण करने की अनुमति देता है। Linux बदलाव vault से sudo_password का उपयोग करते हैं।",
-  "config.danger.mcp.title": "एमसीपी सर्वर कनेक्शन (एमसीपी_कॉल)",
+  "config.danger.mcp.title": "एमसीपी सर्वर कनेक्शन (mcp_call)",
   "config.danger.mcp.desc": "एजेंट को बाहरी एमसीपी सर्वर से जुड़ने और उनके टूल का उपयोग करने की अनुमति देता है। <strong style=\"color:#f87171;\">⚠केवल विश्वसनीय सर्वर ही जोड़ें!</strong>",
   "config.danger.sudo_unrestricted.title": "सिस्टम-वाइड सुडो राइट एक्सेस",
   "config.danger.sudo_unrestricted.desc": "एजेंट को इंस्टॉलेशन डायरेक्टरी के बाहर sudo का उपयोग करके लिखने की अनुमति देता है (उदा. /etc/)। systemd सेवा यूनिट से ProtectSystem=strict हटाने की आवश्यकता है।",
   "config.danger.unsafe_host_execution.title": "असुरक्षित होस्ट निष्पादन",
-  "config.danger.unsafe_host_execution.desc": "बिना अलगाव के होस्ट Python, Windows शेल और Linux/macOS होस्ट शेल चलाने देता है। हर उपयोग सुरक्षा चेतावनी के रूप में दर्ज होता है। इसे सोच-समझकर ही चालू करें।"
+  "config.danger.unsafe_host_execution.desc": "बिना अलगाव के होस्ट Python, Windows शेल और Linux/macOS होस्ट शेल चलाने देता है। हर उपयोग सुरक्षा चेतावनी के रूप में दर्ज होता है। इसे सोच-समझकर ही चालू करें।",
+  "config.danger.docker_host_access.title": "एजेंट के Compose स्टैक के लिए Docker होस्ट एक्सेस",
+  "config.danger.docker_host_access.desc": "एजेंट को docker compose up/create/build में अपने वर्कस्पेस के बाहर के होस्ट पाथ (जैसे /var/run/docker.sock, /srv/media या /), डिवाइस, privileged मोड, होस्ट नेटवर्क/PID/IPC/UTS/यूज़र/cgroup नेमस्पेस, cap_add और बिना प्रतिबंध वाले सुरक्षा विकल्प इस्तेमाल करने देता है। AuraGo का अपना डेटा, कॉन्फ़िगरेशन, .env और मास्टर की ब्लॉक रहते हैं, लेकिन / जैसे पैरेंट पाथ को माउंट करने पर वे फिर भी उजागर हो जाते हैं। इसे चालू करने पर docker compose को AuraGo के एनवायरनमेंट वेरिएबल भी दिखते हैं; इसके बिना Compose को केवल PATH, HOME और Docker, प्रॉक्सी व भाषा सेटिंग्स मिलती हैं।"
 }

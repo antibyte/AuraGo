@@ -82,6 +82,8 @@ docker compose up -d
 
 Öffne **http://localhost:8088**. Das Image bringt Volumes und das UI-Paket mit. Es erzeugt einen Vault-Key, wenn keiner gesetzt ist. Key mit den Daten sichern.
 
+Der Docker-Zugriff läuft über einen eingeschränkten Socket-Proxy. Er verkleinert die Angriffsfläche, hält ein kompromittiertes AuraGo aber nicht auf; siehe Abschnitt 4 im [Docker-Guide](../../docker_installation.md#4-docker-socket-security).
+
 Lege **kein** `config.yaml` aus dem GitHub-Root daneben — die Datei existiert im Repo nicht. Vorlage ist `config_template.yaml`. Ein Host-Mount namens `./config.yaml` wird unter Docker leicht zum Verzeichnis. Optional: `config/config.yaml`. Details: [Docker-Guide](../../docker_installation.md).
 
 > **Docker-Vorteil:** Isolation, einfacheres Backup, Python nicht auf dem Host.

@@ -42,7 +42,7 @@
   "config.devices.col_tags": "Tag",
   "config.devices.find_mac": "Trova MAC",
   "config.devices.find_mac_tooltip": "Cerca l'indirizzo MAC nella tabella ARP locale (il dispositivo deve essere attivo)",
-  "config.devices.find_mac_no_ip": "Si prega di inserire prima un indirizzo IP.",
+  "config.devices.find_mac_no_ip": "Inserisci prima un indirizzo IP.",
   "config.devices.find_mac_searching": "Ricerca nella tabella ARP…",
   "config.devices.find_mac_found": "Trovato: {mac}",
   "config.devices.find_mac_not_found": "Non trovato nella cache ARP. Assicurarsi che il dispositivo sia raggiungibile.",

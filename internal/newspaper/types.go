@@ -236,16 +236,32 @@ type Run struct {
 // ResearchStats is bounded diagnostic metadata in the existing run JSON body.
 // It deliberately excludes prompts, credentials and provider response bodies.
 type ResearchStats struct {
-	Searches   int               `json:"searches"`
-	Candidates int               `json:"candidates"`
-	Pages      int               `json:"pages"`
-	Read       int               `json:"read"`
-	Accepted   int               `json:"accepted"`
-	Plans      int               `json:"plans"`
-	Rejected   map[string]int    `json:"rejected,omitempty"`
-	Coverage   map[string]int    `json:"coverage,omitempty"`
-	Gaps       []string          `json:"gaps,omitempty"`
-	Tools      map[string]string `json:"tools,omitempty"`
+	Searches         int                       `json:"searches"`
+	Candidates       int                       `json:"candidates"`
+	Pages            int                       `json:"pages"`
+	Read             int                       `json:"read"`
+	Accepted         int                       `json:"accepted"`
+	Plans            int                       `json:"plans"`
+	Budget           *Budget                   `json:"budget,omitempty"`
+	Overviews        int                       `json:"overviews,omitempty"`
+	EditorCalls      int                       `json:"editor_calls,omitempty"`
+	Repairs          int                       `json:"repairs,omitempty"`
+	SourceTruncation int                       `json:"source_truncation,omitempty"`
+	Rounds           []ResearchCounts          `json:"rounds,omitempty"`
+	Topics           map[string]ResearchCounts `json:"topics,omitempty"`
+	Rejected         map[string]int            `json:"rejected,omitempty"`
+	Coverage         map[string]int            `json:"coverage,omitempty"`
+	Gaps             []string                  `json:"gaps,omitempty"`
+	Tools            map[string]string         `json:"tools,omitempty"`
+}
+
+// ResearchCounts holds the bounded counters for one round or selected topic.
+type ResearchCounts struct {
+	Round    int `json:"round,omitempty"`
+	Searches int `json:"searches,omitempty"`
+	Pages    int `json:"pages,omitempty"`
+	Read     int `json:"read,omitempty"`
+	Accepted int `json:"accepted,omitempty"`
 }
 
 type Event struct {
@@ -272,8 +288,8 @@ type Delivery struct {
 }
 
 func ValidateDraft(d Draft, p Profile, cutoff time.Time) error {
-	if len(d.Stories) == 0 || len(d.Stories) > 16 || len(d.Sources) == 0 || len(d.Sources) > 60 {
-		return errors.New("edition requires 1-16 sourced stories and at most 60 sources")
+	if len(d.Stories) == 0 || len(d.Stories) > 31 || len(d.Sources) == 0 || len(d.Sources) > 60 {
+		return errors.New("edition requires 1-31 sourced stories and at most 60 sources")
 	}
 	sources := map[string]Source{}
 	for _, s := range d.Sources {

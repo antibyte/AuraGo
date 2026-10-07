@@ -3,11 +3,13 @@ package security
 import (
 	"context"
 	"fmt"
-	"github.com/sashabaranov/go-openai"
 	"math"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 // StrictContentScanPrompt never includes private context or tool capabilities.
@@ -22,7 +24,7 @@ func StrictContentScanPrompt(contentType, content string) (string, string) {
 // ParseStrictContentVerdict rejects partial, malformed and ambiguous verdicts.
 // It intentionally does not use the permissive legacy tool-verdict parser.
 func ParseStrictContentVerdict(raw string) (GuardianResult, error) {
-	raw = strings.TrimSpace(StripThinkingTags(raw))
+	raw = strings.TrimSpace(raw)
 	parts := strings.Fields(raw)
 	if len(raw) > 256 || len(parts) < 3 || len(parts) > 10 || strings.ContainsAny(raw, "\r\n") {
 		return GuardianResult{}, fmt.Errorf("invalid content verdict")
@@ -47,29 +49,76 @@ func ParseStrictContentVerdict(raw string) (GuardianResult, error) {
 // EvaluateContentStrict requires an actual successful verdict even if global
 // fail_safe permits errors. It neither reuses permissive cache entries nor falls back.
 func (g *LLMGuardian) EvaluateContentStrict(ctx context.Context, contentType, content string) (GuardianResult, error) {
-	if g == nil {
-		return GuardianResult{}, fmt.Errorf("guardian unavailable")
+	result, err := g.evaluateContentChunks(ctx, contentType, content, "")
+	if g != nil && g.Metrics != nil {
+		g.Metrics.RecordContentScan(result)
 	}
-	release, _, ok := g.acquireCheckSlot(time.Now(), "strict_content_scan")
+	return result, err
+}
+
+// evaluateContentChunks only allows complete inspections. A positive verdict
+// from a sample, a truncated response or a permissive fail-safe cannot allow data.
+func (g *LLMGuardian) evaluateContentChunks(ctx context.Context, contentType, content, policy string) (result GuardianResult, err error) {
+	start := time.Now()
+	defer func() { result.Duration = time.Since(start) }()
+	if g == nil || g.client == nil || ctx.Err() != nil {
+		return ContentScanQuarantine(QuarantineUnavailable), fmt.Errorf("content scanner unavailable")
+	}
+	const maxBytes = contentScanChunkBytes + (contentScanMaxChunks-1)*(contentScanChunkBytes-contentScanChunkOverlapBytes)
+	if len(content) > maxBytes || !utf8.ValidString(content) {
+		return ContentScanQuarantine(QuarantineIncomplete), fmt.Errorf("content exceeds complete scan limits")
+	}
+	chunks := prepareContentScanChunks(content, contentScanChunkBytes, contentScanChunkOverlapBytes)
+	if len(chunks) > contentScanMaxChunks {
+		return ContentScanQuarantine(QuarantineIncomplete), fmt.Errorf("content exceeds complete scan limits")
+	}
+	release, _, ok := g.acquireCheckSlot(start, "content_scan")
 	if !ok {
-		return GuardianResult{}, fmt.Errorf("guardian capacity exhausted")
+		return ContentScanQuarantine(QuarantineUnavailable), fmt.Errorf("content scanner capacity exhausted")
 	}
 	defer release()
 	ctx, cancel := context.WithTimeout(ctx, 40*time.Second)
 	defer cancel()
-	system, user := StrictContentScanPrompt(contentType, content)
-	resp, err := g.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{Model: g.model, Messages: g.buildMessages(system, user), MaxTokens: 2048, Temperature: 0})
-	if err != nil {
-		return GuardianResult{}, fmt.Errorf("content scan unavailable")
+	var best GuardianResult
+	haveBest := false
+	tokens := 0
+	for _, chunk := range chunks {
+		system, user := StrictContentScanPrompt(contentType, chunk)
+		if policy != "" {
+			// The policy comes from the configured judge, never from scanned data.
+			system += "\nAdditional security policy:\n" + policy
+		}
+		resp, callErr := g.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+			Model: g.model, Messages: g.buildMessages(system, user), MaxTokens: 2048, Temperature: 0,
+		})
+		if callErr != nil || ctx.Err() != nil {
+			result = ContentScanQuarantine(QuarantineUnavailable)
+			result.TokensUsed = tokens
+			return result, fmt.Errorf("content scan unavailable")
+		}
+		tokens += resp.Usage.TotalTokens
+		if len(resp.Choices) != 1 || resp.Choices[0].FinishReason != openai.FinishReasonStop || len(resp.Choices[0].Message.ToolCalls) != 0 || resp.Choices[0].Message.FunctionCall != nil {
+			result = ContentScanQuarantine(QuarantineIncomplete)
+			result.TokensUsed = tokens
+			return result, fmt.Errorf("incomplete content verdict")
+		}
+		verdict, parseErr := ParseStrictContentVerdict(resp.Choices[0].Message.Content)
+		if parseErr != nil {
+			result = ContentScanQuarantine(QuarantineIncomplete)
+			result.TokensUsed = tokens
+			return result, parseErr
+		}
+		if verdict.Decision == DecisionQuarantine {
+			verdict.QuarantineReason = QuarantineSuspicious
+		}
+		best, haveBest = preferContentScanResult(best, haveBest, verdict)
+		// A complete dangerous verdict decides the scan: no later chunk can
+		// relax it, and stopping here keeps a later provider failure or
+		// truncated reply from replacing it with an incomplete quarantine.
+		if verdict.Decision == DecisionBlock {
+			break
+		}
 	}
-	if len(resp.Choices) != 1 || resp.Choices[0].FinishReason != openai.FinishReasonStop || len(resp.Choices[0].Message.ToolCalls) != 0 || resp.Choices[0].Message.FunctionCall != nil {
-		return GuardianResult{}, fmt.Errorf("incomplete content verdict")
-	}
-	result, err := ParseStrictContentVerdict(resp.Choices[0].Message.Content)
-	if err != nil {
-		return GuardianResult{}, err
-	}
-	result.TokensUsed = resp.Usage.TotalTokens
-	g.Metrics.RecordContentScan(result)
-	return result, nil
+	best.TokensUsed = tokens
+	return best, nil
 }

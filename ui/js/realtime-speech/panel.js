@@ -124,7 +124,6 @@
             if (chosen && !entries.some(entry => entry.value === chosen)) {
                 entries.push({ value: chosen, label: chosen + ' (' + notConnected + ')' });
             }
-            audioField.hidden = entries.length === 0;
             const options = [{ value: '', label: text('chat.realtime_audio_this_device', 'This device') }].concat(entries);
             const signature = options.map(entry => entry.value + '\u0000' + entry.label).join('\u0001');
             if (audio.dataset.signature !== signature) {
@@ -134,6 +133,11 @@
                 audio.dataset.signature = signature;
             }
             audio.value = chosen;
+        }
+        if (options.audioButton && audio) {
+            const label = text('chat.realtime_audio', 'Audio') + ': ' + audio.selectedOptions[0].textContent;
+            options.audioButton.title = label;
+            options.audioButton.setAttribute('aria-label', label);
         }
         const audioStatus = root.querySelector('[data-realtime-audio-status]');
         if (audioStatus) {
@@ -178,6 +182,11 @@
 
     function render(root, options) {
         root.innerHTML = `<section class="realtime-speech-panel" data-realtime-panel data-state="idle">
+            <div class="realtime-speech-audio-toolbar" data-realtime-audio-toolbar>
+                <button type="button" class="realtime-speech-audio-button" data-realtime-audio-open aria-haspopup="dialog">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg>
+                </button>
+            </div>
             <div class="realtime-speech-conversation">
                 <div class="realtime-speech-avatar" data-realtime-avatar aria-hidden="true"></div>
                 <div class="realtime-speech-conversation-text">
@@ -191,10 +200,6 @@
             <label class="realtime-speech-profile-label">
                 <span>${escapeHTML(text('chat.realtime_profile', 'Profile'))}</span>
                 <select data-realtime-profile></select>
-            </label>
-            <label class="realtime-speech-profile-label" data-realtime-audio-field hidden>
-                <span>${escapeHTML(text('chat.realtime_audio', 'Audio'))}</span>
-                <select data-realtime-audio></select>
             </label>
             <p class="realtime-speech-privacy" data-realtime-audio-status role="status" hidden></p>
             <div class="realtime-speech-controls">
@@ -220,14 +225,41 @@
                 <span aria-hidden="true">!</span>
                 <span data-realtime-error-message></span>
             </div>
-        </section>`;
+        </section>
+        <dialog class="realtime-speech-modal realtime-speech-audio-dialog" data-realtime-audio-dialog aria-label="${escapeHTML(text('chat.realtime_audio', 'Audio'))}">
+            <label class="realtime-speech-profile-label" data-realtime-audio-field>
+                <span>${escapeHTML(text('chat.realtime_audio', 'Audio'))}</span>
+                <select data-realtime-audio autofocus></select>
+            </label>
+            <div class="realtime-speech-modal-actions">
+                <button type="button" data-realtime-audio-close>${escapeHTML(text('chat.close', 'Close'))}</button>
+            </div>
+        </dialog>`;
 
         const start = root.querySelector('[data-realtime-start]');
         const profile = root.querySelector('[data-realtime-profile]');
         const mute = root.querySelector('[data-realtime-mute]');
         const cancel = root.querySelector('[data-realtime-cancel]');
         const audio = root.querySelector('[data-realtime-audio]');
-        audio.addEventListener('focus', () => void loadAudioDevices());
+        const audioButton = options.audioButton = root.querySelector('[data-realtime-audio-open]');
+        const audioDialog = root.querySelector('[data-realtime-audio-dialog]');
+        if (options.audioControls) {
+            options.audioControls.appendChild(audioButton);
+            root.querySelector('[data-realtime-audio-toolbar]').remove();
+        }
+        options.disposeAudio = () => {
+            audioDialog.close();
+            audioButton.remove();
+        };
+        audioButton.addEventListener('click', () => {
+            audioDialog.showModal();
+            void loadAudioDevices();
+        });
+        root.querySelector('[data-realtime-audio-close]').addEventListener('click', () => audioDialog.close());
+        audioDialog.addEventListener('keydown', event => {
+            // Let the native dialog handle focus and Escape, without closing its parent overlay.
+            if (event.key === 'Escape' || event.key === 'Tab') event.stopPropagation();
+        });
         audio.addEventListener('change', () => {
             rememberAudio(audio.value);
             if (runtime.sessionId && typeof runtime.setAudioDevice === 'function') void runtime.setAudioDevice(audio.value);
@@ -316,6 +348,7 @@
         const unmount = () => {
             if (disposed) return;
             disposed = true;
+            if (mounted.disposeAudio) mounted.disposeAudio();
             if (mounted.avatar) mounted.avatar.dispose();
             mounts.delete(root);
             root.innerHTML = '';
@@ -327,6 +360,7 @@
             root.querySelector('[data-realtime-avatar]'), { runtime, visible: mounted.visible });
         void runtime.initialize().catch(error => {
             if (disposed) return;
+            if (mounted.disposeAudio) mounted.disposeAudio();
             if (mounted.avatar) mounted.avatar.dispose();
             root.innerHTML = `<div class="realtime-speech-load-error">${escapeHTML(error.message)}</div>`;
         }).finally(() => {

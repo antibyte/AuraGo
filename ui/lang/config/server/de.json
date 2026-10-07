@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Isolierte App-Vorschauen",
+  "config.server.preview_domain": "Vorschau-Domain",
+  "config.server.preview_enabled": "Nach Abnahme aktivieren",
+  "config.server.preview_hint": "Standardmäßig aus. Verwende eine getrennte Site mit Wildcard-DNS und TLS. Prüfe App-Anmeldungen, Dateien und WebSockets auf den vorbereiteten Hosts, bevor Du aktivierst.",
   "config.fritzbox.status_ok": "🟢 Verbunden",
   "config.fritzbox.test_fail": "Verbindung fehlgeschlagen",
   "config.fritzbox.test_ok": "Verbindung erfolgreich",

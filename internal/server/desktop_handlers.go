@@ -229,7 +229,7 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 		for {
 			select {
 			case <-policyTick.C:
-				if token, bearer := bearerCredential(r.Header.Get("Authorization")); bearer && !desktopTokenHasScope(s, token, desktopScopeRead) {
+				if !desktopWSAuthorizationValid(s, r, desktopScopeRead) {
 					return
 				}
 				s.CfgMu.RLock()
@@ -250,7 +250,7 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 				if !ok {
 					return
 				}
-				if token, bearer := bearerCredential(r.Header.Get("Authorization")); bearer && !desktopTokenHasScope(s, token, desktopScopeRead) {
+				if !desktopWSAuthorizationValid(s, r, desktopScopeRead) {
 					return
 				}
 				event, ok = filterDesktopEvent(s, r, event)
@@ -267,6 +267,23 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 			}
 		}
 	}
+}
+
+func desktopWSAuthorizationValid(s *Server, r *http.Request, requiredScope string) bool {
+	if s == nil || r == nil {
+		return false
+	}
+	if token, bearer := bearerCredential(r.Header.Get("Authorization")); bearer {
+		return token != "" && desktopTokenHasScope(s, token, requiredScope)
+	}
+	s.CfgMu.RLock()
+	if s.Cfg == nil {
+		s.CfgMu.RUnlock()
+		return false
+	}
+	enabled, secret := s.Cfg.Auth.Enabled, s.Cfg.Auth.SessionSecret
+	s.CfgMu.RUnlock()
+	return !enabled || IsAuthenticated(r, secret)
 }
 
 func broadcastDesktopEvent(s *Server, hub *desktop.Hub, event desktop.Event) {

@@ -158,3 +158,24 @@ func TestRepositoryConfigTemplateWritesUnsandboxedShellFalse(t *testing.T) {
 		t.Fatal("template agent.allow_unsandboxed_shell = true, want false")
 	}
 }
+
+// Fresh installs must write docker.allow_host_access: false explicitly: an
+// absent key grants the legacy grandfather at load time.
+func TestRepositoryConfigTemplateWritesDockerHostAccessFalse(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatalf("read config_template.yaml: %v", err)
+	}
+	if !yamlHasPath(data, "docker", "allow_host_access") {
+		t.Fatal("config_template.yaml must write docker.allow_host_access")
+	}
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("parse config_template.yaml into Config: %v", err)
+	}
+	if cfg.Docker.AllowHostAccess {
+		t.Fatal("template docker.allow_host_access = true, want false")
+	}
+}

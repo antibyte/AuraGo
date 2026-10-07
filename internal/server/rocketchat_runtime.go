@@ -3,10 +3,22 @@ package server
 import (
 	"context"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/rocketchat"
 )
+
+// budgetTrackerSnapshot lets long-lived channel runtimes observe a tracker
+// created by a later budget.enable config reload.
+func (s *Server) budgetTrackerSnapshot() *budget.Tracker {
+	if s == nil {
+		return nil
+	}
+	s.CfgMu.RLock()
+	defer s.CfgMu.RUnlock()
+	return s.BudgetTracker
+}
 
 // configureRocketChatBot drains the previous generation outside the config lock.
 // Publication and starting the replacement share CfgMu so a concurrent update
@@ -30,7 +42,7 @@ func (s *Server) configureRocketChatBot() {
 	if parent == nil {
 		parent = context.Background()
 	}
-	bot := rocketchat.StartBot(parent, cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, func() (*config.Config, llm.ChatClient) {
+	bot := rocketchat.StartBot(parent, cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot, func() (*config.Config, llm.ChatClient) {
 		s.CfgMu.RLock()
 		defer s.CfgMu.RUnlock()
 		current := s.ConfigSnapshot()

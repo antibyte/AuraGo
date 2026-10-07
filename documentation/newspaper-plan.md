@@ -1,9 +1,12 @@
 # Newspaper: a personal daily edition for the Virtual Desktop
 
-Status: locally implemented, 2026-09-25. Package, API, browser, translation and
-bundle checks have passed. No live provider research or external delivery has
-been verified. This document preserves the original design targets; the current
-behavior and remaining limitations are recorded in `documentation/newspaper.md`.
+Status: initial implementation completed locally, 2026-09-25. This document
+preserves its original design targets; current behavior and limitations are in
+`documentation/newspaper.md`. The coverage revision implemented locally on 2026-10-06 is specified
+in [Coverage-driven research](newspaper-yield-plan.md): aggregator overviews,
+topic-scaled budgets, preserved follow-up capacity and measurable yield gates.
+Historical resource ceilings below describe the initial implementation; the new
+plan explicitly defines auto-mode changes and legacy fixed-mode compatibility.
 
 ## Product goal
 

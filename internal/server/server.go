@@ -152,7 +152,12 @@ type Server struct {
 	httpRequests    sync.WaitGroup
 	httpHijacked    map[*drainHTTPConn]struct{}
 	lockdownLogOnce sync.Once
+	previewGrants   previewGrantRegistry
 	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
+
+	// serverLifetimeCancel cancels serverCtx; beginHTTPDrain calls it.
+	serverLifetimeCancel context.CancelFunc
+
 	// Setup wizard CSRF tokens (short-lived, multi-token support).
 	// These live on the Server so tests can construct independent Server
 	// instances without racing on a shared package-level map.
@@ -469,6 +474,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s.MaintenanceScheduler != nil {
 		s.MaintenanceScheduler.UpdateConfig(cfg)
 	}
+	if s.ProxyManager != nil {
+		// The next proxy Start/Reload uses the saved domain, ports, filters and
+		// Vault credentials instead of the startup config.
+		s.ProxyManager.UpdateConfig(cfg)
+	}
 	if s.LocalMusic != nil {
 		s.LocalMusic.Configure(cfg)
 	}
@@ -608,12 +618,19 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	// The self marker proves AuraGo's own container behind a network sidecar
+	// (containers_self_proof.go); outside a container it does nothing.
+	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
+	// The HTTP drain also ends serverCtx, so it ends when Serve stops on its
+	// own (listener failure) too, not only on shutdownCh.
+	s.setServerLifetimeCancel(serverCancel)
 	s.fritzLoopbackSem = loopbackSem
 	s.MQTTController = mqtt.NewMQTTController(logger)
 	mqtt.SetDefaultController(s.MQTTController)
 	s.bindMQTTPermissions()
 	s.bindRuntimePermissions()
+	s.bindDockerSelfIdentity()
 	s.configureMQTTRelay()
 	defer s.MQTTController.Stop(context.Background())
 	s.localLLMLifecycleCtx = serverCtx
@@ -1523,8 +1540,6 @@ func newServerFromOptions(opts StartOptions) *Server {
 		MaxScanBytes:  cfg.Guardian.MaxScanBytes,
 		ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
 		Preset:        cfg.Guardian.PromptSec.Preset,
-		Spotlight:     cfg.Guardian.PromptSec.Spotlight,
-		Canary:        cfg.Guardian.PromptSec.Canary,
 		Sanitizer: security.PromptSecSanitizerOptions{
 			Normalize:   cfg.Guardian.PromptSec.Sanitizer.Normalize,
 			Dehomoglyph: cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph,
@@ -1539,10 +1554,6 @@ func newServerFromOptions(opts StartOptions) *Server {
 		Taint: security.PromptSecTaintOptions{
 			Enabled:      cfg.Guardian.PromptSec.Taint.Enabled,
 			DefaultLevel: cfg.Guardian.PromptSec.Taint.DefaultLevel,
-		},
-		Structure: security.PromptSecStructureOptions{
-			Enabled: cfg.Guardian.PromptSec.Structure.Enabled,
-			Mode:    cfg.Guardian.PromptSec.Structure.Mode,
 		},
 		LLMJudge: security.PromptSecLLMJudgeOptions{
 			Enabled:     cfg.Guardian.PromptSec.LLMJudge.Enabled,
@@ -1712,7 +1723,7 @@ func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh 
 	// Apply security headers (relaxed for HTTP, but still present).
 	// Gzip sits outside access logging so static UI assets compress for clients
 	// without wrapping WebSocket/SSE (those are skipped inside gzipMiddleware).
-	handler := trustedProxyMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)))))
+	handler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))))))
 
 	server := newAgentHTTPServer(addr, handler)
 
@@ -1725,7 +1736,7 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 	tlsCfg.HTTPPort = s.Cfg.Server.HTTPS.HTTPPort
 
 	// Apply security headers (strict for HTTPS)
-	handler := trustedProxyMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)))))
+	handler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))))))
 
 	httpsServer, httpServer, err := SetupServers(tlsCfg, handler, s.Logger)
 	if err != nil {

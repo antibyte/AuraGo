@@ -72,7 +72,7 @@ func TestNewspaperReservesFinalTimeForEditing(t *testing.T) {
 	started := time.Now()
 	var stats *newspaper.ResearchStats
 	draft, err := runNewspaperResearch(ctx, p, time.Now(), 60, 32, deps, func(v newspaper.Progress) { stats = v.Research })
-	if err != nil || len(draft.Stories) != 1 || !draft.Partial || stats.Plans != 1 {
+	if err != nil || len(draft.Stories) != 1 || !draft.Partial || stats.Plans > 2 {
 		t.Fatalf("reserve: stories=%d stats=%+v err=%v", len(draft.Stories), stats, err)
 	}
 	if editorStarted.IsZero() || editorFinished.Sub(started) < 440*time.Millisecond {

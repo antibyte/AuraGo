@@ -222,8 +222,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		MaxScanBytes:  cfg.Guardian.MaxScanBytes,
 		ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
 		Preset:        cfg.Guardian.PromptSec.Preset,
-		Spotlight:     cfg.Guardian.PromptSec.Spotlight,
-		Canary:        cfg.Guardian.PromptSec.Canary,
 		Sanitizer: security.PromptSecSanitizerOptions{
 			Normalize:   cfg.Guardian.PromptSec.Sanitizer.Normalize,
 			Dehomoglyph: cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph,
@@ -244,10 +242,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			Mode:        cfg.Guardian.PromptSec.LLMJudge.Mode,
 			TimeoutSecs: cfg.Guardian.PromptSec.LLMJudge.TimeoutSecs,
 			Policy:      cfg.Guardian.PromptSec.LLMJudge.Policy,
-		},
-		Structure: security.PromptSecStructureOptions{
-			Enabled: cfg.Guardian.PromptSec.Structure.Enabled,
-			Mode:    cfg.Guardian.PromptSec.Structure.Mode,
 		},
 		UseSanitizedOutput: cfg.Guardian.PromptSec.UseSanitizedOutput,
 	})

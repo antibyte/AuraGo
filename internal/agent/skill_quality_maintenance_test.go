@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"io"
@@ -54,7 +55,7 @@ func (c skillQualityTestClient) CreateChatCompletion(context.Context, openai.Cha
 	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: c.response}}}}, nil
 }
 
-func (skillQualityTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (skillQualityTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }
 
@@ -65,7 +66,7 @@ func (c cancelAfterClassifierClient) CreateChatCompletion(context.Context, opena
 	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: c.response}}}}, nil
 }
 
-func (cancelAfterClassifierClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (cancelAfterClassifierClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }
 

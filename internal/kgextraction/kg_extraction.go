@@ -280,7 +280,7 @@ func resolveHelperBackedLLM(cfg *config.Config, fallbackClient llm.ChatClient, f
 		}
 		helperClient := llm.NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID)
 		if helperClient != nil {
-			return helperClient, helperCfg.Model
+			return llm.WrapOpenAIClient(helperClient), helperCfg.Model
 		}
 	}
 	return fallbackClient, strings.TrimSpace(fallbackModel)
@@ -301,7 +301,7 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 	if client == nil {
 		return nil
 	}
-	return &helperLLMManager{client: client, cfg: cfg, logger: logger}
+	return &helperLLMManager{client: llm.WrapOpenAIClient(client), cfg: cfg, logger: logger}
 }
 
 type helperLLMManager struct {

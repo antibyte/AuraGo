@@ -8,7 +8,7 @@
   "help.browser_automation.url": "CloakBrowser sidecar सेवा का आंतरिक URL। होस्टनाम के रूप में Docker कंटेनर नाम या सेवा नाम का उपयोग करें (जैसे http://browser-automation:7331)।",
   "help.browser_automation.container_name": "ब्राउज़र ऑटोमेशन साइडकार के लिए Docker कंटेनर नाम। आपके Docker होस्ट पर अद्वितीय होना चाहिए।",
   "help.browser_automation.image": "ब्राउज़र ऑटोमेशन साइडकार के लिए Docker इमेज। कॉन्फ़िगर की गई निर्देशिका में Dockerfile से स्वचालित रूप से बनाई जाती है।",
-  "help.browser_automation.dockerfile_dir": "ब्राउज़र ऑटोमेशन इमेज बनाने के लिए Dockerfile वाली निर्देशिका। डिफ़ॉल्ट AuraGo इंस्टॉलेशन निर्देशिका है।",
+  "help.browser_automation.dockerfile_dir": "वह निर्देशिका जिसमें Dockerfile.browser_automation और browser_automation_sidecar फ़ोल्डर हों, यानी AuraGo का सोर्स चेकआउट। सापेक्ष पथ AuraGo की कार्यशील निर्देशिका से माने जाते हैं। रिलीज़ इंस्टॉलेशन में ये फ़ाइलें शामिल नहीं होतीं। यहाँ सोर्स चेकआउट का पथ दें या इमेज स्वयं बनाएँ।",
   "help.browser_automation.allowed_download_dir": "वह निर्देशिका जहाँ डाउनलोड की गई फ़ाइलें संग्रहीत होती हैं। सापेक्ष पथ AuraGo डेटा निर्देशिका से हल किए जाते हैं।",
   "help.browser_automation.screenshots_dir": "वह निर्देशिका जहाँ ब्राउज़र स्क्रीनशॉट सहेजे जाते हैं। सापेक्ष पथ AuraGo डेटा निर्देशिका से हल किए जाते हैं।",
   "help.browser_automation.session_ttl_minutes": "निष्क्रिय ब्राउज़र सेशन के स्वचालित रूप से बंद होने से पहले समय मिनटों में। डिफ़ॉल्ट: 30 मिनट।",

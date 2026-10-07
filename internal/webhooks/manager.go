@@ -29,6 +29,7 @@ type Manager struct {
 
 type missionTrigger struct {
 	webhookID string
+	eligible  func() bool
 	callback  func([]byte)
 }
 
@@ -411,6 +412,12 @@ func (m *Manager) RegisterMissionTrigger(webhookID string, callback func([]byte)
 
 // RegisterMissionTriggerForKey atomically replaces this mission's registration.
 func (m *Manager) RegisterMissionTriggerForKey(key, webhookID string, callback func([]byte)) {
+	m.RegisterMissionTriggerForKeyWithEligibility(key, webhookID, nil, callback)
+}
+
+// RegisterMissionTriggerForKeyWithEligibility adds a pure eligibility query
+// used to decide whether a safe quarantine notice has an intended recipient.
+func (m *Manager) RegisterMissionTriggerForKeyWithEligibility(key, webhookID string, eligible func() bool, callback func([]byte)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if key == "" {
@@ -423,13 +430,33 @@ func (m *Manager) RegisterMissionTriggerForKey(key, webhookID string, callback f
 		delete(m.missionTriggers, key)
 		return
 	}
-	m.missionTriggers[key] = &missionTrigger{webhookID: webhookID, callback: callback}
+	m.missionTriggers[key] = &missionTrigger{webhookID: webhookID, eligible: eligible, callback: callback}
 }
 
 func (m *Manager) UnregisterMissionTrigger(key string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.missionTriggers, key)
+}
+
+// HasMissionTriggers reports whether an active mission is registered for a
+// webhook without invoking it. Quarantined deliveries use this to decide
+// whether a safe replacement notice has an intended agent recipient.
+func (m *Manager) HasMissionTriggers(webhookID string) bool {
+	m.mu.RLock()
+	var eligibility []func() bool
+	for _, trigger := range m.missionTriggers {
+		if trigger.webhookID == webhookID && trigger.callback != nil {
+			eligibility = append(eligibility, trigger.eligible)
+		}
+	}
+	m.mu.RUnlock()
+	for _, eligible := range eligibility {
+		if eligible == nil || eligible() {
+			return true
+		}
+	}
+	return false
 }
 
 // NotifyWebhookFired snapshots callbacks and drops replaced registrations.

@@ -77,21 +77,30 @@
         throw new Error('Permission denied: ' + required.join(' or '));
     }
 
-    async function handleSDKMessage(event) {
+    async function handleSDKMessage(client, event, port, generation) {
+        if (!isCurrentSDKClient(client, port, generation)) return;
         const msg = event.data;
         if (!msg || msg.type !== SDK_REQUEST_TYPE) return;
-        const client = findSDKClient(event.source);
+        client.app = allApps().find(item => item.id === client.appId) || null;
+        const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
+        client.widget = widgets.find(item => item.id === client.widgetId) || null;
         const widgetAction = msg.action === 'desktop:widget:resize' || msg.action === 'desktop:widget:reload';
         if (!client || (!client.app && !widgetAction)) return;
+        const assertCurrent = () => {
+            if (!isCurrentSDKClient(client, port, generation)) throw new Error('Desktop SDK connection was revoked.');
+        };
         try {
-            const result = await runSDKAction(client, msg.action, msg.payload || {});
-            sendSDKResponse(event.source, msg.id, true, result);
+            const result = await runSDKAction(client, msg.action, msg.payload || {}, assertCurrent);
+            assertCurrent();
+            sendSDKResponse(client, port, generation, msg.id, true, result);
         } catch (err) {
-            sendSDKResponse(event.source, msg.id, false, err);
+            sendSDKResponse(client, port, generation, msg.id, false, err);
         }
     }
 
-    async function runSDKAction(client, action, payload) {
+    async function runSDKAction(client, action, payload, assertCurrent) {
+        const guard = typeof assertCurrent === 'function' ? assertCurrent : function () {};
+        const signal = client.abortController && client.abortController.signal;
         switch (action) {
             case 'desktop:context':
                 return {
@@ -103,39 +112,50 @@
                     icon_theme_manifests: state.iconThemeManifests
                 };
             case 'desktop:widget:resize':
+                guard();
                 if (!client.widgetId) throw new Error('Widget resize is only available inside widget frames.');
                 resizeWidgetToContent(client.widgetId, payload || {});
                 return { status: 'ok' };
             case 'desktop:widget:reload':
+                guard();
                 if (!client.widgetId) throw new Error('Widget reload is only available inside widget frames.');
-                return { status: 'ok', reloaded: await reloadWidgetFrame(client.widgetId, payload || {}) };
+                { const reloaded = await reloadWidgetFrame(client.widgetId, payload || {}); guard(); return { status: 'ok', reloaded }; }
             case 'desktop:menu:set':
+                guard();
                 if (!client.windowId) throw new Error('Menus are only available for app windows.');
                 setWindowMenus(client.windowId, sdkMenus(client, payload.menus || []));
                 return { status: 'ok' };
             case 'desktop:menu:clear':
+                guard();
                 if (client.windowId) clearWindowMenus(client.windowId);
                 return { status: 'ok' };
             case 'desktop:context-menu:show':
+                guard();
                 showContextMenu(Number(payload.x) || 0, Number(payload.y) || 0, sdkContextMenuItems(client, payload.items || []));
                 return { status: 'ok' };
             case 'desktop:context-menu:clear':
+                guard();
                 closeContextMenu();
                 return { status: 'ok' };
             case 'desktop:clipboard:read-text': {
                 if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') throw new Error(t('desktop.clipboard_read_unavailable'));
-                return { text: await navigator.clipboard.readText() };
+                const text = await navigator.clipboard.readText(); guard(); return { text };
             }
             case 'desktop:clipboard:write-text':
                 if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') throw new Error(t('desktop.clipboard_write_unavailable'));
+                guard();
                 await navigator.clipboard.writeText(String(payload.text || ''));
+                guard();
                 return { status: 'ok' };
             case 'fs:list':
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return api('/api/desktop/files?path=' + encodeURIComponent(payload.path || ''));
+                guard();
+                return api('/api/desktop/files?path=' + encodeURIComponent(payload.path || ''), { signal });
             case 'fs:read': {
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                const result = await api('/api/desktop/file?path=' + encodeURIComponent(payload.path || ''));
+                guard();
+                const result = await api('/api/desktop/file?path=' + encodeURIComponent(payload.path || ''), { signal });
+                guard();
                 if (!client.fileVersions) client.fileVersions = new Map();
                 client.fileVersions.set(payload.path || '', result.version);
                 return result;
@@ -143,47 +163,57 @@
             case 'fs:write': {
                 requirePermission(client, ['files:write', 'filesystem:write']);
                 const version = payload.version || client.fileVersions?.get(payload.path || '');
+                guard();
                 const result = await api('/api/desktop/file', {
                     method: 'PUT',
+                    signal,
                     headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
                     body: JSON.stringify({ path: payload.path || '', content: payload.content || '' })
                 });
+                guard();
                 if (!client.fileVersions) client.fileVersions = new Map();
                 client.fileVersions.set(result.path || payload.path || '', result.version);
                 await loadBootstrap();
+                guard();
                 return result;
             }
             case 'dialog:open-file':
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return openDesktopFileDialog(payload || {});
+                guard(); { const result = await openDesktopFileDialog(Object.assign({}, payload || {}, { signal })); guard(); return result; }
             case 'dialog:save-file':
                 requirePermission(client, ['files:write', 'filesystem:write']);
-                return saveDesktopFileDialog(payload || {});
+                guard(); { const result = await saveDesktopFileDialog(Object.assign({}, payload || {}, { signal })); guard(); return result; }
             case 'dialog:import-files':
                 requirePermission(client, ['files:write', 'filesystem:write']);
-                return importHostFiles(payload || {});
+                guard(); { const result = await importHostFiles(Object.assign({}, payload || {}, { signal })); guard(); return result; }
             case 'dialog:export-file':
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return exportWorkspaceFile(payload || {});
+                guard(); { const result = await exportWorkspaceFile(payload || {}); guard(); return result; }
             case 'app:open':
                 requirePermission(client, ['apps:open']);
+                guard();
                 openApp(payload.app_id || payload.id || client.appId);
                 return { status: 'ok' };
             case 'notification:show':
                 requirePermission(client, ['notifications']);
+                guard();
                 showDesktopNotification({ title: payload.title || client.app.name, message: payload.message || payload.content || '' });
                 return { status: 'ok' };
             case 'widget:upsert': {
                 requirePermission(client, ['widgets:write']);
+                guard();
                 const widget = Object.assign({}, payload || {});
                 if (!widget.app_id) widget.app_id = client.appId;
                 if (!widget.icon && client.app && client.app.icon) widget.icon = client.app.icon;
                 await api('/api/desktop/widgets', {
                     method: 'POST',
+                    signal,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(widget)
                 });
+                guard();
                 await loadBootstrap();
+                guard();
                 return { status: 'ok' };
             }
             default:
@@ -473,7 +503,7 @@
         $('vd-start-search').addEventListener('input', (event) => {
             state.startQuery = event.target.value;
             clearTimeout(startSearchTimer);
-            startSearchTimer = setTimeout(renderStartApps, 150);
+            startSearchTimer = setTimeout(() => renderStartApps({ switching: true }), 150);
         });
         $('vd-start-menu').addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
@@ -488,8 +518,13 @@
                 if (search && document.activeElement !== search) search.focus();
                 return;
             }
+            if (event.target.closest('.vd-start-rail')) return; // the category rail handles its own arrows
             const items = [...$('vd-start-menu').querySelectorAll('.vd-start-item')];
-            if (!items.length) return;
+            const activeCategory = $('vd-start-menu').querySelector('.vd-start-category[aria-selected="true"]');
+            if (!items.length) {
+                if (activeCategory && (event.key === 'ArrowLeft' || event.key === 'ArrowDown')) { event.preventDefault(); activeCategory.focus(); }
+                return;
+            }
             const idx = items.indexOf(document.activeElement);
             const firstTop = items[0].offsetTop;
             let columns = 1;
@@ -498,7 +533,12 @@
             if (event.key === 'ArrowDown') next = idx < 0 ? 0 : Math.min(items.length - 1, idx + columns);
             else if (event.key === 'ArrowUp') next = idx < 0 ? items.length - 1 : Math.max(0, idx - columns);
             else if (event.key === 'ArrowRight' && columns > 1) next = idx < 0 ? 0 : Math.min(items.length - 1, idx + 1);
-            else if (event.key === 'ArrowLeft' && columns > 1) next = idx < 0 ? 0 : Math.max(0, idx - 1);
+            else if (event.key === 'ArrowLeft') {
+                // Leftmost column (or a single column) hands focus back to the active category.
+                if (columns > 1 && idx > 0 && idx % columns !== 0) next = idx - 1;
+                else if (activeCategory) { event.preventDefault(); activeCategory.focus(); return; }
+                else return;
+            }
             else if (event.key === 'Home') next = 0;
             else if (event.key === 'End') next = items.length - 1;
             else return;
@@ -510,8 +550,9 @@
             if (!event.target.closest('.vd-context-menu')) closeContextMenu();
             if (!event.target.closest('.vd-window-menubar')) closeWindowMenu();
             const menu = $('vd-start-menu');
-            // Protect both classic start button and Fruity Dock orb from the outside-click closer
-            if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button, [data-fruity-dock-orb]')) {
+            // Protect every launcher (classic start button, Fruity dock orb, Fruity menubar brand) from
+            // the outside-click closer. A target that a re-render detached was inside the menu too.
+            if (!menu.hidden && event.target.isConnected && !menu.contains(event.target) && !event.target.closest('#vd-start-button, [data-fruity-dock-orb], .vd-global-brand')) {
                 closeStartMenu();
             }
         });
@@ -548,7 +589,8 @@
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('virtual_desktop_event', handleDesktopEvent);
         }
-        window.addEventListener('message', handleSDKMessage);
+        ensureSDKFrameLifecycleObserver();
+        window.addEventListener('message', handleSDKChannelHandshake);
     }
 
     function toggleWidgetDrawer() {
@@ -708,18 +750,24 @@
             ? document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(state.activeWindowId)}"]`)
             : null;
         if (!frame || !frame.contentWindow) return false;
-        frame.contentWindow.postMessage({
-            type: 'aurago.desktop.key-event',
-            eventType: event.type === 'keyup' ? 'keyup' : 'keydown',
-            key: event.key,
-            code: event.code,
-            location: event.location || 0,
-            repeat: !!event.repeat,
-            ctrlKey: !!event.ctrlKey,
-            shiftKey: !!event.shiftKey,
-            altKey: !!event.altKey,
-            metaKey: !!event.metaKey
-        }, '*');
+        const client = sdkFrameClients.get(frame);
+        if (!isCurrentSDKClient(client)) return false;
+        try {
+            client.port.postMessage({
+                type: 'aurago.desktop.key-event',
+                eventType: event.type === 'keyup' ? 'keyup' : 'keydown',
+                key: event.key,
+                code: event.code,
+                location: event.location || 0,
+                repeat: !!event.repeat,
+                ctrlKey: !!event.ctrlKey,
+                shiftKey: !!event.shiftKey,
+                altKey: !!event.altKey,
+                metaKey: !!event.metaKey
+            });
+        } catch (_) {
+            return false;
+        }
         if (event.cancelable && (event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar' || String(event.key || '').indexOf('Arrow') === 0)) {
             event.preventDefault();
         }

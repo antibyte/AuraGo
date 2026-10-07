@@ -40,6 +40,7 @@
 .pw-page[data-workspace-page="config"] .hp-notice-danger { border-color:var(--danger) !important; background:color-mix(in srgb, #ef4444 8%, transparent) !important; }
 .pw-page[data-workspace-page="config"] .hp-notice-warning { border-color:var(--warning) !important; background:color-mix(in srgb, var(--warning) 8%, transparent) !important; }
 .pw-page[data-workspace-page="config"] .hp-notice-success { border-color:var(--success) !important; background:color-mix(in srgb, #22c55e 8%, transparent) !important; }
+.pw-page[data-workspace-page="config"] .hp-build-command { display:block; margin-top:6px; white-space:pre-wrap; word-break:break-all; user-select:all; }
 .pw-page[data-workspace-page="config"] .hp-disabled { opacity:0.5; pointer-events:none; }
 .pw-page[data-workspace-page="config"] .hp-pw-wrap-mt { margin-top:0.2rem; }
 .pw-page[data-workspace-page="config"] .hp-w-full { width:100%; }

@@ -607,6 +607,8 @@ func Load(path string) (*Config, error) {
 	// read-only until an administrator enables the required mutation scopes.
 	cfg.GameMaker.ReadOnly = true
 	cfg.Detective.Enabled = true
+	cfg.Newspaper.BudgetMode = "fixed"
+	cfg.Newspaper.OverviewSources = []string{}
 	cfg.Newspaper.MaxMinutes = 30
 	cfg.Newspaper.MaxPages = 60
 	cfg.Newspaper.MaxSearches = 32
@@ -775,8 +777,8 @@ func Load(path string) (*Config, error) {
 	cfg.Guardian.MaxScanBytes = 16 * 1024
 	cfg.Guardian.ScanEdgeBytes = 6 * 1024
 	cfg.Guardian.PromptSec.Preset = "strict"
-	cfg.Guardian.PromptSec.Spotlight = true
-	cfg.Guardian.PromptSec.Canary = true
+	cfg.Guardian.PromptSec.Spotlight = false
+	cfg.Guardian.PromptSec.Canary = false
 	cfg.Guardian.PromptSec.Sanitizer.Normalize = true
 	cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph = true
 	cfg.Guardian.PromptSec.Sanitizer.Decode = true
@@ -966,6 +968,9 @@ func Load(path string) (*Config, error) {
 	// defaulted value here and let normalization preserve legacy endpoint-based S3.
 	if !yamlHasPath(data, "virtual_computers", "storage", "mode") {
 		cfg.VirtualComputers.Storage.Mode = ""
+	}
+	if err := NormalizeNewspaperConfig(&cfg.Newspaper); err != nil {
+		return nil, err
 	}
 	if err := ValidateLLMRouterConfig(&cfg, false); err != nil {
 		return nil, err
@@ -1629,6 +1634,15 @@ func Load(path string) (*Config, error) {
 		mqttRelayGrandfatherWarning.Do(func() {
 			slog.Warn("[Config] anonymous MQTT broker grandfathered: relays and MQTT mission triggers stay allowed until mqtt.allow_unauthenticated_relay is written")
 		})
+	}
+
+	// docker.allow_host_access gates host access for agent Compose stacks
+	// (up/create/build). Configurations written before the key existed keep
+	// working: an absent key loads as true. config-merger writes the key on
+	// upgrade and the Config UI shows the loaded value, so neither switches it
+	// off silently; writing the key (true or false) ends the grandfather.
+	if !yamlHasPath(data, "docker", "allow_host_access") {
+		cfg.Docker.AllowHostAccess = true
 	}
 
 	// Migrate legacy agent.personality_* fields → new personality section.

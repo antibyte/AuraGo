@@ -753,54 +753,286 @@
         return appIsBroken(app) ? `<span class="vd-app-health" title="${esc(t('desktop.app_missing_entry'))}">!</span>` : '';
     }
 
-    function renderStartApps() {
-        const query = state.startQuery.trim().toLowerCase();
-        const allApps = startMenuApps();
-        const apps = allApps.filter(app => !query || appName(app).toLowerCase().includes(query));
-        const recentKey = 'aurago.desktop.recentApps.v1';
-        const recentIds = readJSONStorage(recentKey, []).slice(0, 5);
-        const recentApps = query ? [] : recentIds.map(id => allApps.find(app => app.id === id)).filter(Boolean);
-        const nonRecentApps = apps.filter(app => !recentApps.some(r => r.id === app.id));
+    // Start menu categories in rail order. Labels come from desktop.category_<id>; "installed"
+    // collects non-builtin apps without a known category. Mirrors desktop.DesktopAppCategories()
+    // in internal/desktop/types.go (TestDesktopStartMenuCategoriesStayInSync).
+    const START_MENU_CATEGORIES = [
+        { id: 'office', icon: 'writer' },
+        { id: 'media', icon: 'audio-player' },
+        { id: 'creative', icon: 'pixel' },
+        { id: 'ai', icon: 'agent-chat' },
+        { id: 'dev', icon: 'code' },
+        { id: 'system', icon: 'settings' },
+        { id: 'comms', icon: 'phone' },
+        { id: 'games', icon: 'chess' },
+        { id: 'installed', icon: 'software-store' }
+    ];
+    const START_CATEGORY_KEY = 'aurago.desktop.startCategory.v1';
+    const START_RECENT_KEY = 'aurago.desktop.recentApps.v1';
+    const START_HOVER_INTENT_MS = 140;
+    const START_SWITCH_MS = 420;
+    let startCategoryHoverTimer = 0;
+    let startPaneSwitchTimer = 0;
 
-        let html = '';
-        if (recentApps.length > 0) {
-            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps'))}</div>`;
-            html += recentApps.map((app, index) => `<button class="vd-start-item vd-start-recent-item" type="button" data-app-id="${esc(app.id)}" style="--start-index:${index}">
-                ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
-                <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
-            </button>`).join('');
-        }
-        const recentFiles = query ? [] : readRecentFiles().slice(0, 5);
-        if (recentFiles.length > 0) {
-            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_files'))}</div>`;
-            html += recentFiles.map((entry, index) => `<button class="vd-start-item vd-start-recent-file" type="button" data-recent-path="${esc(entry.path)}" style="--start-index:${recentApps.length + index}">
-                ${iconMarkup('documents', entry.name.slice(0, 2), 'vd-sprite-start-item', 30)}
-                <span>${esc(entry.name)}</span>
-            </button>`).join('');
-        }
-        html += nonRecentApps.map((app, index) => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}" style="--start-index:${recentApps.length + index}">
+    function startAppCategory(app) {
+        const id = String((app && app.category) || '').toLowerCase();
+        if (id && id !== 'installed' && START_MENU_CATEGORIES.some(category => category.id === id)) return id;
+        return app && app.builtin ? 'system' : 'installed';
+    }
+
+    function startCategoryLabel(id) {
+        return id === 'recent' ? t('desktop.recent_apps') : t('desktop.category_' + id);
+    }
+
+    function startCategoryIcon(id) {
+        if (id === 'recent') return 'refresh';
+        if (id === 'all') return 'apps';
+        const category = START_MENU_CATEGORIES.find(entry => entry.id === id);
+        return category ? category.icon : 'apps';
+    }
+
+    function compareAppsByName(a, b) {
+        return appName(a).localeCompare(appName(b), undefined, { sensitivity: 'base' });
+    }
+
+    // Groups the visible apps per category and lists the rail entries that have content:
+    // "recent" only with history, "all", then every category with at least one app.
+    function startMenuModel() {
+        const allApps = startMenuApps();
+        const groups = new Map(START_MENU_CATEGORIES.map(category => [category.id, []]));
+        allApps.forEach(app => groups.get(startAppCategory(app)).push(app));
+        groups.forEach(list => list.sort(compareAppsByName));
+        const recentApps = readJSONStorage(START_RECENT_KEY, []).slice(0, 5).map(id => allApps.find(app => app.id === id)).filter(Boolean);
+        const recentFiles = readRecentFiles().slice(0, 5);
+        const rail = [];
+        if (recentApps.length || recentFiles.length) rail.push({ id: 'recent', count: 0 });
+        rail.push({ id: 'all', count: allApps.length });
+        START_MENU_CATEGORIES.forEach(category => {
+            const apps = groups.get(category.id);
+            if (apps.length) rail.push({ id: category.id, count: apps.length });
+        });
+        return { allApps, groups, recentApps, recentFiles, rail };
+    }
+
+    function activeStartCategory(model) {
+        const wanted = state.startCategory || String(readJSONStorage(START_CATEGORY_KEY, 'all') || 'all');
+        state.startCategory = model.rail.some(entry => entry.id === wanted) ? wanted : 'all';
+        return state.startCategory;
+    }
+
+    function startAppItemMarkup(app, index, extraClass) {
+        return `<button class="vd-start-item${extraClass ? ' ' + extraClass : ''}" type="button" data-app-id="${esc(app.id)}" style="--start-index:${Math.min(index, 16)}">
             ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
             <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
-        </button>`).join('');
+        </button>`;
+    }
 
-        $('vd-start-apps').innerHTML = html;
-        $('vd-start-apps').querySelectorAll('[data-app-id]').forEach(btn => {
+    function startFileItemMarkup(entry, index) {
+        return `<button class="vd-start-item vd-start-recent-file" type="button" data-recent-path="${esc(entry.path)}" style="--start-index:${Math.min(index, 16)}">
+            ${iconMarkup('documents', entry.name.slice(0, 2), 'vd-sprite-start-item', 30)}
+            <span>${esc(entry.name)}</span>
+        </button>`;
+    }
+
+    function startSectionMarkup(label, items) {
+        return `<section class="vd-start-section">${label ? `<div class="vd-start-recent-label vd-start-section-label">${esc(label)}</div>` : ''}<div class="vd-start-grid">${items}</div></section>`;
+    }
+
+    function startEmptyMarkup(text) {
+        return `<div class="vd-start-empty">${esc(text)}</div>`;
+    }
+
+    function renderStartRail(model, active) {
+        const rail = $('vd-start-rail');
+        if (!rail) return;
+        const firstCategory = model.rail.findIndex(entry => entry.id !== 'recent' && entry.id !== 'all');
+        let html = '<span class="vd-start-rail-indicator" aria-hidden="true"></span>';
+        model.rail.forEach((entry, index) => {
+            if (index === firstCategory) html += '<span class="vd-start-rail-separator" aria-hidden="true"></span>';
+            const label = startCategoryLabel(entry.id);
+            const selected = entry.id === active;
+            html += `<button class="vd-start-category" type="button" role="tab" data-category="${esc(entry.id)}" aria-selected="${selected ? 'true' : 'false'}" tabindex="${selected ? '0' : '-1'}" style="--start-index:${index}">
+                ${iconMarkup(startCategoryIcon(entry.id), label.slice(0, 1), 'vd-start-category-icon', 20)}
+                <span class="vd-start-category-label">${esc(label)}</span>
+                ${entry.count ? `<span class="vd-start-category-count">${entry.count}</span>` : ''}
+            </button>`;
+        });
+        rail.innerHTML = html;
+        rail.querySelectorAll('.vd-start-category').forEach(btn => {
+            const id = btn.dataset.category;
+            btn.addEventListener('click', () => selectStartCategory(id, { clearQuery: true }));
+            // Hover switches after a short intent delay (mouse only), so a diagonal move towards
+            // the pane does not flip through every category on the way.
+            btn.addEventListener('pointerenter', event => {
+                if (event.pointerType && event.pointerType !== 'mouse') return;
+                window.clearTimeout(startCategoryHoverTimer);
+                if (state.startQuery.trim()) return;
+                startCategoryHoverTimer = window.setTimeout(() => selectStartCategory(id), START_HOVER_INTENT_MS);
+            });
+            btn.addEventListener('pointerleave', () => window.clearTimeout(startCategoryHoverTimer));
+            btn.addEventListener('keydown', handleStartRailKeydown);
+        });
+        positionStartRailIndicator();
+    }
+
+    // The active category's pill slides along the rail (desktop-start-menu.css transitions its
+    // transform from --vd-rail-y); the horizontal mobile rail hides it.
+    function positionStartRailIndicator(options) {
+        const rail = $('vd-start-rail');
+        if (!rail) return;
+        const indicator = rail.querySelector('.vd-start-rail-indicator');
+        const active = rail.querySelector('.vd-start-category[aria-selected="true"]');
+        if (!indicator) return;
+        if (!active) { indicator.style.opacity = '0'; return; }
+        // Measuring needs layout: a hidden menu reports 0, so openStartMenu() positions again
+        // once the panel is visible, without the slide (instant).
+        const instant = !!(options && options.instant);
+        if (instant) indicator.style.transition = 'none';
+        rail.style.setProperty('--vd-rail-y', active.offsetTop + 'px');
+        rail.style.setProperty('--vd-rail-h', active.offsetHeight + 'px');
+        indicator.style.opacity = '';
+        if (instant) { void indicator.offsetWidth; indicator.style.transition = ''; }
+    }
+
+    function handleStartRailKeydown(event) {
+        const rail = $('vd-start-rail');
+        if (!rail) return;
+        const buttons = [...rail.querySelectorAll('.vd-start-category')];
+        const idx = buttons.indexOf(event.currentTarget);
+        if (idx < 0) return;
+        let next = -1;
+        if (event.key === 'ArrowDown') next = Math.min(buttons.length - 1, idx + 1);
+        else if (event.key === 'ArrowUp') next = Math.max(0, idx - 1);
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = buttons.length - 1;
+        else if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            event.stopPropagation();
+            selectStartCategory(buttons[idx].dataset.category, { clearQuery: true });
+            const first = $('vd-start-apps').querySelector('.vd-start-item');
+            if (first) first.focus();
+            return;
+        } else return;
+        event.preventDefault();
+        event.stopPropagation();
+        selectStartCategory(buttons[next].dataset.category, { focus: true, clearQuery: true });
+    }
+
+    function focusStartCategory(id) {
+        const rail = $('vd-start-rail');
+        const btn = rail && [...rail.querySelectorAll('.vd-start-category')].find(entry => entry.dataset.category === id);
+        if (btn) btn.focus();
+    }
+
+    // Switching only re-renders the pane; the rail keeps its buttons, hover and focus.
+    function selectStartCategory(id, options) {
+        options = options || {};
+        window.clearTimeout(startCategoryHoverTimer);
+        let leavingSearch = false;
+        if (options.clearQuery && state.startQuery.trim()) {
+            // Leaving a search keeps the rail (and the clicked button) in place; only the pane changes.
+            state.startQuery = '';
+            const search = $('vd-start-search');
+            if (search) search.value = '';
+            const menu = $('vd-start-menu');
+            if (menu) menu.classList.remove('vd-start-searching');
+            leavingSearch = true;
+        }
+        const model = startMenuModel();
+        if (!model.rail.some(entry => entry.id === id)) return;
+        const changed = state.startCategory !== id || leavingSearch;
+        state.startCategory = id;
+        writeJSONStorage(START_CATEGORY_KEY, id);
+        const rail = $('vd-start-rail');
+        if (rail) rail.querySelectorAll('.vd-start-category').forEach(btn => {
+            const on = btn.dataset.category === id;
+            btn.setAttribute('aria-selected', on ? 'true' : 'false');
+            btn.tabIndex = on ? 0 : -1;
+        });
+        positionStartRailIndicator();
+        if (changed) renderStartPane(model, id, { switching: true });
+        if (options.focus) focusStartCategory(id);
+    }
+
+    function playStartPaneSwitch(head, host) {
+        if (!animationsEnabled()) return;
+        window.clearTimeout(startPaneSwitchTimer);
+        [head, host].forEach(el => {
+            if (!el) return;
+            el.classList.remove('vd-start-pane-switching');
+            void el.offsetWidth;
+            el.classList.add('vd-start-pane-switching');
+        });
+        startPaneSwitchTimer = window.setTimeout(() => [head, host].forEach(el => el && el.classList.remove('vd-start-pane-switching')), START_SWITCH_MS);
+    }
+
+    function renderStartPane(model, active, options) {
+        const head = $('vd-start-pane-head');
+        const host = $('vd-start-apps');
+        if (!host) return;
+        const query = state.startQuery.trim().toLowerCase();
+        let title = '';
+        let count = 0;
+        let html = '';
+        if (query) {
+            const matches = model.allApps.filter(app => appName(app).toLowerCase().includes(query)).sort(compareAppsByName);
+            title = t('desktop.start_results');
+            count = matches.length;
+            html = matches.length ? startSectionMarkup('', matches.map((app, index) => startAppItemMarkup(app, index)).join('')) : startEmptyMarkup(t('desktop.start_no_results'));
+        } else if (active === 'recent') {
+            title = t('desktop.recent_apps');
+            count = model.recentApps.length + model.recentFiles.length;
+            if (model.recentApps.length) html += startSectionMarkup(t('desktop.recent_apps'), model.recentApps.map((app, index) => startAppItemMarkup(app, index, 'vd-start-recent-item')).join(''));
+            if (model.recentFiles.length) html += startSectionMarkup(t('desktop.recent_files'), model.recentFiles.map((entry, index) => startFileItemMarkup(entry, model.recentApps.length + index)).join(''));
+            if (!html) html = startEmptyMarkup(t('desktop.start_category_empty'));
+        } else if (active === 'all') {
+            title = t('desktop.category_all');
+            count = model.allApps.length;
+            let index = 0;
+            html = START_MENU_CATEGORIES.map(category => {
+                const apps = model.groups.get(category.id);
+                if (!apps.length) return '';
+                return startSectionMarkup(startCategoryLabel(category.id), apps.map(app => startAppItemMarkup(app, index++)).join(''));
+            }).join('');
+        } else {
+            const apps = model.groups.get(active) || [];
+            title = startCategoryLabel(active);
+            count = apps.length;
+            html = apps.length ? startSectionMarkup('', apps.map((app, index) => startAppItemMarkup(app, index)).join('')) : startEmptyMarkup(t('desktop.start_category_empty'));
+        }
+        if (head) head.innerHTML = `<span class="vd-start-pane-title">${esc(title)}</span>${count ? `<span class="vd-start-pane-count">${count}</span>` : ''}`;
+        host.innerHTML = html;
+        host.scrollTop = 0;
+        wireStartPaneItems(host);
+        if (options && options.switching) playStartPaneSwitch(head, host);
+    }
+
+    function wireStartPaneItems(host) {
+        host.querySelectorAll('[data-app-id]').forEach(btn => {
             btn.addEventListener('click', () => {
                 closeStartMenu();
                 const appId = btn.dataset.appId;
-                const recent = readJSONStorage(recentKey, []);
-                const updated = [appId, ...recent.filter(id => id !== appId)].slice(0, 5);
-                writeJSONStorage(recentKey, updated);
+                const recent = readJSONStorage(START_RECENT_KEY, []);
+                writeJSONStorage(START_RECENT_KEY, [appId, ...recent.filter(id => id !== appId)].slice(0, 5));
                 openApp(appId);
             });
             btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
-         });
-        $('vd-start-apps').querySelectorAll('[data-recent-path]').forEach(btn => {
+        });
+        host.querySelectorAll('[data-recent-path]').forEach(btn => {
             btn.addEventListener('click', () => {
                 closeStartMenu();
                 openDesktopPath(btn.dataset.recentPath);
             });
         });
+    }
+
+    function renderStartApps(options) {
+        const model = startMenuModel();
+        const active = activeStartCategory(model);
+        const menu = $('vd-start-menu');
+        if (menu) menu.classList.toggle('vd-start-searching', !!state.startQuery.trim());
+        renderStartRail(model, active);
+        renderStartPane(model, active, options);
     }
 
     function renderTaskbar() {
@@ -1278,7 +1510,7 @@
                 if (window.FileManager && typeof window.FileManager.navigateTo === 'function') window.FileManager.navigateTo(existing.id, context.path);
                 else renderFiles(existing.id, context.path);
             }
-            if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content || '');
+            if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content);
             if (appId === 'writer' && context && context.path != null && window.WriterApp && window.WriterApp.instances.has(existing.id)) window.WriterApp.instances.get(existing.id).reloadIfChanged();
             if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openPath === 'function') window.CodeStudio.openPath(context.path, true, existing.id);
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);

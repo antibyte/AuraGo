@@ -271,16 +271,19 @@ func redactProviderURL(raw string) string {
 	return u.String()
 }
 
-// redactProviderErr rewrites the URL inside a *url.Error the way
-// redactProviderURL does. http.Client errors repeat the request URL with the
-// username and full query (only the password masked), so log them through
-// this. Other errors are returned unchanged.
-func redactProviderErr(err error) error {
-	var urlErr *url.Error
-	if !errors.As(err, &urlErr) {
-		return err
+func redactProviderError(err error) string {
+	if err == nil {
+		return ""
 	}
-	return &url.Error{Op: urlErr.Op, URL: redactProviderURL(urlErr.URL), Err: urlErr.Err}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		message := urlErr.Op + " " + redactProviderURL(urlErr.URL)
+		if urlErr.Err != nil {
+			message += ": " + urlErr.Err.Error()
+		}
+		return message
+	}
+	return err.Error()
 }
 
 // loopbackHTTPSTransport returns an http.Transport suitable for loopback HTTPS:

@@ -48,7 +48,7 @@ func TestDiscordOperatorCommandsRunOnlyInDirectMessages(t *testing.T) {
 			ChannelID: "channel-1",
 			Content:   "/personality operatorcheck",
 		}}
-		handleMessage(nil, msg, cfg, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		handleMessage(nil, msg, cfg, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		if cfg.Personality.CorePersonality != tc.want {
 			t.Fatalf("%s: core personality = %q, want %q", tc.name, cfg.Personality.CorePersonality, tc.want)

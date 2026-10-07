@@ -381,7 +381,7 @@
   "config.realtime_speech.no_default": "Ingen standardprofil",
   "config.realtime_speech.no_profiles": "Ingen profiler for tale i sanntid er konfigurert ennå.",
   "config.realtime_speech.park_after": "Parker etter (sekunder)",
-  "config.realtime_speech.park_after_help": "Mellom 5 og 60 sekunder. Lokal taleregistrering forblir aktiv under parkering.",
+  "config.realtime_speech.park_after_help": "Mellom 5 og 60 sekunder. Lokal stemmegjenkjenning forblir aktiv mens den er parkert.",
   "config.realtime_speech.park_invalid": "Parkeringstiden må være et heltall mellom 5 og 60 sekunder.",
   "config.realtime_speech.profile_enabled": "Profil aktiv",
   "config.realtime_speech.profile_invalid": "Hver profil trenger en unik ID og et navn.",

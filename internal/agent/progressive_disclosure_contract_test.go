@@ -36,7 +36,7 @@ func TestLiveDiscoveryRunSurvivesOtherSessionPruning(t *testing.T) {
 
 func TestBoundedIsolatedJSONPreservesStatusAndErrorCode(t *testing.T) {
 	raw := `{"status":"error","code":"fixture_failure","message":"` + strings.Repeat("long message ", 300) + `"}`
-	output := boundedToolResult("", "<external_data>\n"+raw+"\n</external_data>", 280, ToolResultFailed)
+	output := boundedToolResult("<external_data>\n"+raw+"\n</external_data>", 280, ToolResultFailed)
 	payload, isolated := toolResultPayload(output)
 	if len(output) > 280 || !isolated || !json.Valid([]byte(payload)) || !strings.Contains(payload, "fixture_failure") || !strings.Contains(payload, "failed") {
 		t.Fatal(output)

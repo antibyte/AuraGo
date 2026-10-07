@@ -401,3 +401,18 @@ func parseToolOutputJSON(t *testing.T, raw string) map[string]interface{} {
 	}
 	return payload
 }
+
+func TestInvasionAssignEggKeepsNestSecretExport(t *testing.T) {
+	db, err := invasion.InitDB(t.TempDir() + "/invasion.db")
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+	eggID, _ := invasion.CreateEgg(db, invasion.EggRecord{Name: "Worker", Active: true})
+	nestID, _ := invasion.CreateNest(db, invasion.NestRecord{Name: "Nest", Active: true, VaultSecretID: "nest_x", ExportNestSecret: true})
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	invasionAssignEgg(db, ToolCall{Operation: "assign_egg", NestID: nestID, EggID: eggID}, logger)
+	if nest, _ := invasion.GetNest(db, nestID); !nest.ExportNestSecret || nest.EggID != eggID {
+		t.Fatalf("assign_egg changed export_nest_secret or failed: %+v", nest)
+	}
+}

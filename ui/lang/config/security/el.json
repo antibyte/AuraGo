@@ -11,5 +11,6 @@
   "config.security.severity.critical": "ΚΡΙΣΙΜΟ",
   "config.security.severity.info": "ΠΛΗΡΟΦΟΡΙΑ",
   "config.security.severity.warning": "ΠΡΟΕΙΔΟΠΟΙΗΣΗ",
-  "config.security.status_success": "✅"
+  "config.security.status_success": "✅",
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Τα Nest με Docker (Απομακρυσμένο) κάνουν deploy μέσω μη κρυπτογραφημένου HTTP"
 }

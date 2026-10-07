@@ -7,8 +7,9 @@ OpenPets-compatible sprite artwork shipped in AuraGo's external resource set.
 ## Ownership
 
 - `service_pets.go:bundledDefaultPets` owns the selectable catalog.
-- Six original OpenPets sheets and twelve `aurago-*` persona sheets live here.
-- Persona generation sources, prompts, export script and importable packages
+- Six original OpenPets sheets and eighteen `aurago-*` sheets (twelve personas
+  and six mascots) live here.
+- Pet generation sources, prompts, export script and importable packages
   live in the sibling `personas/openpets/` project, outside runtime resources.
 
 ## Local Contracts
@@ -17,18 +18,20 @@ OpenPets-compatible sprite artwork shipped in AuraGo's external resource set.
   192x208 per frame. Row frame counts are 6,8,8,4,5,8,6,6,6, matching
   `ui/js/desktop/core/pet-runtime.js`.
 - Preserve existing IDs, selected pets and user-installed files. Add reviewed
-  personas through the current catalog and missing-pet repair path.
+  pets through the current catalog and missing-pet repair path.
 - The vampire (`aurago-evil`) has two tentacle arms and ordinary legs.
 - Keep source images and intermediate exports outside the production directory.
   `assets/web-assets.json` already packages `.webp` files from this subtree;
   never add Go embeds or a production source-directory fallback.
 - The original OpenPets provenance in README applies to its six original
-  sheets, not to the newly generated AuraGo persona artwork.
+  sheets, not to the newly generated AuraGo artwork.
 
 ## Work Guidance
 
 Re-export reviewed art with the sibling project's `pack-sprites.cjs`, then copy
-only final sheets here. Check transparent borders, full-body alignment and real
+only final sheets here. Native-alpha sources must contain 72 separate complete
+characters; the exporter locates their full silhouettes before grid packing.
+Check transparent borders, full-body alignment and real
 frame changes on both light and dark backgrounds before updating assets.
 
 ## Verification

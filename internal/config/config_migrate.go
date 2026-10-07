@@ -904,6 +904,8 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 		}
 	}
 	apply(Go2RTCAPIPasswordVaultKey, &c.Go2RTC.APIPassword)
+	apply(ProxyBasicAuthUserVaultKey, &c.SecurityProxy.BasicAuth.Username)
+	apply(ProxyBasicAuthPasswordVaultKey, &c.SecurityProxy.BasicAuth.Password)
 	apply(LocalLLMRuntimeAPIKeyVaultKey, &c.LocalLLM.RuntimeAPIKey)
 	for i := range c.Go2RTC.Streams {
 		key := Go2RTCStreamSourceVaultKey(c.Go2RTC.Streams[i].ID)
@@ -1252,11 +1254,12 @@ func (c *Config) MigrateAgentToPersonality() {
 }
 
 // MigratePromptSecDefaults fills missing promptsec sub-fields with their
-// current defaults so existing configs continue to work after the guardian
-// section is expanded. This is safe because all new guards are opt-in except
-// the sanitizer, which defaults to enabled.
+// current defaults. Retired legacy switches stay disabled even when present.
 func (c *Config) MigratePromptSecDefaults(data []byte) {
 	ps := &c.Guardian.PromptSec
+	ps.Spotlight = false
+	ps.Canary = false
+	ps.Structure.Enabled = false
 
 	if ps.Preset == "" {
 		ps.Preset = "strict"

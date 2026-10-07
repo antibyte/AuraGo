@@ -21,6 +21,27 @@ type telegramPollSequence struct {
 	sensitive string
 }
 
+func TestTelegramWorkerWaitHonorsCancellation(t *testing.T) {
+	slots := make(chan struct{}, 1)
+	slots <- struct{}{}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan bool, 1)
+	go func() { done <- acquireTelegramWorker(ctx, slots) }()
+	cancel()
+	select {
+	case acquired := <-done:
+		if acquired || len(slots) != 1 {
+			t.Fatal("cancelled worker acquired or released another worker's slot")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cancelled worker remained blocked")
+	}
+	<-slots
+	if acquireTelegramWorker(ctx, slots) {
+		t.Fatal("cancelled owner admitted new work")
+	}
+}
+
 func (p *telegramPollSequence) GetUpdates(tgbotapi.UpdateConfig) ([]tgbotapi.Update, error) {
 	p.calls++
 	if p.calls == p.cancelAt && p.cancel != nil {

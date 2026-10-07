@@ -4074,3 +4074,61 @@ func TestLoadTemplateDoesNotGrandfatherUnauthenticatedMQTTRelay(t *testing.T) {
 		t.Fatal("template allow_unauthenticated_relay: false must not be grandfathered to true")
 	}
 }
+
+func TestLoadGrandfathersDockerHostAccessOnlyWhenKeyAbsent(t *testing.T) {
+	cases := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"docker enabled, key absent", "docker:\n  enabled: true\n  readonly: false\n", true},
+		{"no docker section", "server:\n  port: 8088\n", true},
+		{"key written false", "docker:\n  enabled: true\n  allow_host_access: false\n", false},
+		{"key written true", "docker:\n  enabled: true\n  allow_host_access: true\n", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(configPath, []byte(tc.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if cfg.Docker.AllowHostAccess != tc.want {
+				t.Fatalf("Docker.AllowHostAccess = %v, want %v", cfg.Docker.AllowHostAccess, tc.want)
+			}
+		})
+	}
+}
+
+// A null docker section never wrote the key and keeps the grandfather. A
+// written allow_host_access without a value ends it (Go's zero value false),
+// matching config-merger, whose template types turn the null into false.
+func TestLoadDockerHostAccessNullValues(t *testing.T) {
+	cases := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"docker null (children commented out)", "docker:\n  # enabled: true\n", true},
+		{"docker explicit null", "docker: null\n", true},
+		{"allow_host_access null", "docker:\n  enabled: true\n  allow_host_access:\n", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(configPath, []byte(tc.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if cfg.Docker.AllowHostAccess != tc.want {
+				t.Fatalf("Docker.AllowHostAccess = %v, want %v", cfg.Docker.AllowHostAccess, tc.want)
+			}
+		})
+	}
+}

@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -56,5 +57,22 @@ func TestAnalyzeImageKeepsTrustedTempFileAndLegacyDefaultModel(t *testing.T) {
 	}
 	if model != "google/gemini-2.5-flash-lite-preview-09-2025" {
 		t.Fatalf("model = %q", model)
+	}
+}
+
+func TestAnalyzeImageContextCancelsTrustedTempFileRequest(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	tempImage := filepath.Join(t.TempDir(), "telegram.jpg")
+	if err := os.WriteFile(tempImage, []byte("temporary channel image"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{}
+	cfg.Vision.APIKey = "test-key"
+	cfg.Vision.BaseURL = "http://127.0.0.1:1"
+
+	_, err := AnalyzeImageContext(ctx, tempImage, cfg)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("AnalyzeImageContext error = %v, want context.Canceled", err)
 	}
 }

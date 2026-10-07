@@ -998,21 +998,56 @@
       "command",
       "command_args",
       "container_id",
+      "destination",
+      "direction",
+      "driver",
       "env",
+      "file",
       "force",
       "image",
       "name",
+      "network",
       "operation",
       "ports",
       "restart",
+      "source",
       "tail",
+      "user",
       "volumes"
     ],
     "tier": "extended",
     "operations": [
       {
         "selector": "operation",
+        "value": "compose"
+      },
+      {
+        "selector": "operation",
+        "value": "connect"
+      },
+      {
+        "selector": "operation",
+        "value": "cp"
+      },
+      {
+        "selector": "operation",
         "value": "create"
+      },
+      {
+        "selector": "operation",
+        "value": "create_network"
+      },
+      {
+        "selector": "operation",
+        "value": "create_volume"
+      },
+      {
+        "selector": "operation",
+        "value": "disconnect"
+      },
+      {
+        "selector": "operation",
+        "value": "exec"
       },
       {
         "selector": "operation",
@@ -1048,6 +1083,10 @@
       },
       {
         "selector": "operation",
+        "value": "port"
+      },
+      {
+        "selector": "operation",
         "value": "pull"
       },
       {
@@ -1057,6 +1096,14 @@
       {
         "selector": "operation",
         "value": "remove_image"
+      },
+      {
+        "selector": "operation",
+        "value": "remove_network"
+      },
+      {
+        "selector": "operation",
+        "value": "remove_volume"
       },
       {
         "selector": "operation",
@@ -1072,7 +1119,15 @@
       },
       {
         "selector": "operation",
+        "value": "stats"
+      },
+      {
+        "selector": "operation",
         "value": "stop"
+      },
+      {
+        "selector": "operation",
+        "value": "top"
       },
       {
         "selector": "operation",

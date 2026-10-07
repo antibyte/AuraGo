@@ -4,7 +4,7 @@
   "config.webhooks.action_test": "परीक्षण",
   "config.webhooks.add_field_button": "+ फ़ील्ड",
   "config.webhooks.cancel": "रद्द करें",
-  "config.webhooks.card_fires": "आग:",
+  "config.webhooks.card_fires": "ट्रिगर:",
   "config.webhooks.card_mode": "मोड:",
   "config.webhooks.choose_preset": "प्रीसेट चुनें",
   "config.webhooks.click_to_copy": "कॉपी करने के लिए क्लिक करें",

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -33,7 +34,7 @@ func (dashboardReflectionTestClient) CreateChatCompletion(_ context.Context, _ o
 	}, nil
 }
 
-func (dashboardReflectionTestClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (dashboardReflectionTestClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }
 

@@ -25,7 +25,7 @@
             '<div class="sheets-toolbar" role="toolbar" aria-label="'+esc(tr('format'))+'"><div class="sheets-toolgroup">'+button('undo','undo','↶')+button('redo','redo','↷')+'</div><div class="sheets-toolgroup sheets-fonts"><select data-format="font" aria-label="'+esc(tr('font'))+'">'+['Arial','Calibri','Carlito','Geist','Georgia','Times New Roman','Courier New'].map(name=>'<option>'+name+'</option>').join('')+'</select><input data-format="size" type="number" min="1" max="200" step=".5" value="11" aria-label="'+esc(tr('size'))+'"></div><div class="sheets-toolgroup">'+button('bold','bold','B')+button('italic','italic','I')+button('underline','underline','U')+'</div><div class="sheets-toolgroup"><select data-format="number" aria-label="'+esc(tr('number_format'))+'">'+[['General','general'],['0.00','format_number'],['0.00%','format_percent'],['#,##0.00 "€"','format_currency'],['yyyy-mm-dd','format_date'],['@','format_text']].map(([v,k])=>'<option value="'+esc(v)+'">'+esc(tr(k))+'</option>').join('')+'</select></div><div class="sheets-toolgroup">'+button('left','align_left','≡')+button('center','align_center','≡')+button('right','align_right','≡')+'</div><div class="sheets-toolgroup">'+button('borders','format_borders','▦')+button('fill','fill_color','▰')+button('merge','merge_cells','↔')+'</div>'+button('more','more','•••')+'</div>'+
             '<div class="sheets-formula-line"><input data-address aria-label="'+esc(tr('address'))+'" value="A1" spellcheck="false"><button data-action="function" class="sheets-fx" title="'+esc(tr('function_assistant'))+'">ƒx</button><div class="sheets-formula-wrap"><textarea data-formula rows="1" spellcheck="false" aria-label="'+esc(tr('formula'))+'"></textarea><div data-formula-hints class="sheets-formula-hints" hidden></div></div><span data-formula-actions hidden>'+button('cancelFormula','cancel','×')+button('commitFormula','apply','✓')+'</span>'+button('expandFormula','expand_formula','⌄')+'</div>'+
             '<div class="sheets-notice" data-notice role="alert" hidden><span data-notice-text></span><button data-action="retry">'+esc(tr('retry'))+'</button><button data-action="saveAs">'+esc(tr('save_as'))+'</button><button data-action="dismiss" aria-label="'+esc(tr('close'))+'">×</button></div>'+
-            '<div class="sheets-workspace"><aside class="sheets-left" data-left hidden></aside><main class="sheets-canvas"><div class="sheets-engine" data-engine></div><div class="sheets-charts" data-charts></div><div class="sheets-loading" data-loading>'+esc(tr('loading'))+'</div></main><aside class="sheets-right" data-right hidden></aside></div>'+
+            '<div class="sheets-workspace"><aside class="sheets-left" data-left hidden></aside><main class="sheets-canvas"><div class="sheets-engine" data-engine></div><div class="sheets-charts" data-charts></div><div class="sheets-loading" data-loading><div class="sheets-load-message"><p data-load-status>'+esc(tr('loading'))+'</p><div class="sheets-buttonrow" data-load-actions hidden><button type="button" data-action="new"'+(ctx.readonly?' disabled':'')+'>'+esc(tr('new'))+'</button><button type="button" data-action="open">'+esc(tr('open'))+'</button></div></div></div></main><aside class="sheets-right" data-right hidden></aside></div>'+
             '<div class="sheets-tabsbar"><div data-tabs class="sheets-tabs" role="tablist" aria-label="'+esc(tr('navigation'))+'"></div>'+button('addSheet','add_sheet','+')+button('sheetMenu','sheet_options','•••')+'</div><footer class="sheets-statusbar"><span data-selection></span><span class="sheets-status-spacer"></span><span data-stats></span>'+button('zoomOut','zoom_out','−')+'<button data-action="zoomReset" data-zoom>100%</button>'+button('zoomIn','zoom_in','+')+'</footer></div>';
         const root=host.firstElementChild,find=selector=>root.querySelector(selector),mount=find('[data-engine]');
         const lifecycle=new AbortController();
@@ -91,7 +91,8 @@
             const token=++generation;
             releaseDocument();documentLife=new AbortController();path=target;etag=null;sourceData=null;recoveryConflict=false;nativeEdit=null;loading=true;loadingFailed=false;operations=[];lastDraft=null;pin=null;formulaTarget=null;formulaChanged=false;
             aux={charts:[],print:{}};mount.replaceChildren();find('[data-charts]').replaceChildren();
-            find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;find('[data-loading]').hidden=false;find('[data-loading]').textContent=tr('loading');notice('');
+            find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('loading');find('[data-load-actions]').hidden=true;notice('');
+            find('[data-save-state]').textContent=tr('loading');find('[data-save-state]').dataset.state='loading';find('[data-notice] [data-action="saveAs"]').hidden=true;
             ctx.updateWindowContext?.(windowId,{path});
             try{
                 enginePromise ||= import('/js/vendor/sheets/engine.js').catch(error=>{enginePromise=null;throw error;});lib=await enginePromise;
@@ -149,9 +150,18 @@
                 disposables.push(api.getFormula().calculationEnd(()=>{refreshSoon();chartView.refresh();}));
                 if(template||restored||/\.csv$/i.test(target)){queue.changed();scheduleBackup();}
                 find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;find('[data-loading]').hidden=true;
+                find('[data-notice] [data-action="saveAs"]').hidden=false;
                 ctx.updateWindowContext?.(windowId,{path});refresh();renderMenus();
                 if(doc.limitations?.length)notice(doc.limitations.map(key=>tr(key)).join(' · '));
-            }catch(error){if(token!==generation||disposed)return;loading=true;loadingFailed=true;find('[data-loading]').textContent=tr('load_failed');fail(error);}
+            }catch(error){
+                if(token!==generation||disposed)return;
+                releaseDocument();loading=false;loadingFailed=true;
+                find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('load_failed');find('[data-load-actions]').hidden=false;
+                find('[data-notice] [data-action="saveAs"]').hidden=true;
+                find('[data-save-state]').textContent=tr('load_failed');find('[data-save-state]').dataset.state='error';
+                if(error.status===404)ctx.updateWindowContext?.(windowId,{path:''});
+                fail(error);
+            }
         }
         function refreshSoon(){clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,40);}
         function refresh(){

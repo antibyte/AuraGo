@@ -55,6 +55,9 @@ type SpaceAgentSidecarConfig struct {
 	BridgeURL      string
 	BridgeToken    string
 	PublicURL      string
+	// DockerHost is docker.host: the image is built on the engine that
+	// creates the sidecar (set by ensureSpaceAgentSidecarRunning).
+	DockerHost string
 }
 
 // SpaceAgentInstruction is sent from AuraGo to Space Agent.
@@ -208,6 +211,7 @@ func ensureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConf
 		logger.Warn("[SpaceAgent] Missing vault secrets, skipping auto-start")
 		return
 	}
+	cfg.DockerHost = dockerHost
 	dockerCfg := DockerConfig{Host: dockerHost}
 	containerName := effectiveSpaceAgentContainerName(cfg)
 	if err := writeSpaceAgentBridgeCustomware(cfg.CustomwarePath, cfg.AdminUser, cfg.BridgeURL, cfg.BridgeToken); err != nil {
@@ -701,7 +705,36 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 	if err := os.WriteFile(dockerfilePath, []byte(spaceAgentDockerfile()), 0o600); err != nil {
 		return fmt.Errorf("write Dockerfile.aurago: %w", err)
 	}
-	return runSpaceAgentCommand(logger, cfg.SourcePath, "docker", "build", "-f", dockerfilePath, "-t", cfg.Image, cfg.SourcePath)
+	return buildSpaceAgentImage(cfg, dockerfilePath, logger)
+}
+
+// buildSpaceAgentImage builds the injected Space Agent image on docker.host,
+// the engine that creates the sidecar (runDockerCLIBuildOnConfiguredEngine).
+func buildSpaceAgentImage(cfg SpaceAgentSidecarConfig, dockerfilePath string, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) error {
+	args := []string{"build", "-f", dockerfilePath, "-t", cfg.Image, cfg.SourcePath}
+	configDir := filepath.Join(cfg.SourcePath, "data", ".docker")
+	_ = os.MkdirAll(configDir, 0o700)
+	logger.Info("[SpaceAgent] Running command", "command", "docker", "args", args, "dir", cfg.SourcePath, "docker_host", dockerutil.NormalizeHost(cfg.DockerHost))
+	out, err := runDockerCLIBuildOnConfiguredEngine(dockerCLIBuildRequest{
+		Image:      cfg.Image,
+		Args:       args,
+		Dir:        cfg.SourcePath,
+		ConfigDir:  configDir,
+		DockerHost: cfg.DockerHost,
+		Timeout:    20 * time.Minute,
+		LogPrefix:  "[SpaceAgent]",
+	}, logger)
+	if err != nil {
+		return fmt.Errorf("docker %s: %w", strings.Join(args, " "), err)
+	}
+	if output := strings.TrimSpace(string(out)); output != "" {
+		logger.Info("[SpaceAgent] Command completed", "output", output)
+	}
+	return nil
 }
 
 func syncSpaceAgentSource(cfg SpaceAgentSidecarConfig, logger interface {

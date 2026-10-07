@@ -16,9 +16,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
-	"aurago/internal/prompts"
-
-	"github.com/sashabaranov/go-openai"
+	"aurago/internal/security"
 )
 
 var helperTurnBatchPrompt = strings.ReplaceAll(`You are the shared helper LLM for support tasks.
@@ -476,7 +474,7 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 	}
 
 	inst := &helperLLMManager{
-		client:       client,
+		client:       llm.WrapOpenAIClient(client),
 		model:        newInstCfg.Model,
 		providerID:   newInstCfg.ProviderType + "|" + newInstCfg.BaseURL,
 		providerType: newInstCfg.ProviderType,
@@ -526,9 +524,29 @@ func (m *helperLLMManager) GenerateCheatsheetAbstract(ctx context.Context, name,
 	if name == "" && content == "" {
 		return "", nil
 	}
-	userPrompt := fmt.Sprintf("Cheat sheet name:\n%s\n\nCheat sheet content:\n%s", name, content)
+	buildPrompt := func(divisor int) string {
+		return fmt.Sprintf("Cheat sheet name:\n%s\n\nCheat sheet content:\n%s",
+			helperExternalDataBlock("cheatsheet_name", name, 200),
+			helperExternalDataBlock("cheatsheet_content", helperSourceText(content, 2400, divisor), 2400))
+	}
+	userPrompt := buildPrompt(1)
 	cacheKey := m.helperCacheKey("cheatsheet_abstract", m.model, userPrompt)
-	raw, err := m.requestJSONResponse(ctx, "cheatsheet_abstract", cacheKey, helperCheatsheetAbstractPrompt, userPrompt, 120)
+	raw, err := m.requestJSONResponse(ctx, "cheatsheet_abstract", cacheKey, helperCheatsheetAbstractPrompt, userPrompt, 120, helperJSONPolicy{
+		retryPrompt: func() string { return buildPrompt(2) },
+		validate: func(raw string) error {
+			if err := requireHelperFields(raw, "abstract"); err != nil {
+				return err
+			}
+			var parsed helperCheatsheetAbstractResult
+			if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+				return err
+			}
+			if strings.TrimSpace(parsed.Abstract) == "" {
+				return fmt.Errorf("helper abstract is empty")
+			}
+			return nil
+		},
+	})
 	if err != nil {
 		return "", err
 	}
@@ -658,114 +676,6 @@ func (m *helperLLMManager) SnapshotStats() map[string]HelperLLMOperationStats {
 	return out
 }
 
-func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, cacheKey, systemPrompt, userPrompt string, maxTokens int) (string, error) {
-	if m == nil || m.client == nil || m.model == "" {
-		return "", fmt.Errorf("helper llm manager unavailable")
-	}
-	m.observeStat(operation, func(stat *HelperLLMOperationStats) {
-		stat.Requests++
-	})
-	if cached, ok := m.getCachedResponse(cacheKey); ok {
-		normalized, validationErr := llm.NormalizeJSONContent(cached)
-		if validationErr != nil {
-			m.deleteCachedResponse(cacheKey)
-		} else {
-			m.observeStat(operation, func(stat *HelperLLMOperationStats) {
-				stat.CacheHits++
-				stat.LastDetail = "cache_hit"
-			})
-			if m.logger != nil {
-				m.logger.Debug("[HelperLLM] Cache hit", "operation", operation)
-			}
-			return normalized, nil
-		}
-	}
-
-	route := m.route
-	if route.Model == "" {
-		route.Model, route.ProviderType = m.model, m.providerType
-	}
-	limits := llm.ResolveModelLimitsCached(route, m.contextWindow)
-	inputTokens := prompts.CountTokensForModel(systemPrompt, m.model) + prompts.CountTokensForModel(userPrompt, m.model) + 32
-	maxTokens, budgetErr := llm.JSONCompletionOutputBudget(limits, maxTokens, inputTokens)
-	if budgetErr != nil {
-		return "", budgetErr
-	}
-	if m.sem != nil {
-		select {
-		case m.sem <- struct{}{}:
-		default:
-			if m.logger != nil {
-				m.logger.Warn("[HelperLLM] Concurrency limit reached, waiting", "operation", operation, "limit", helperMaxConcurrent)
-			}
-			select {
-			case m.sem <- struct{}{}:
-			case <-ctx.Done():
-				return "", fmt.Errorf("helper llm concurrency wait cancelled: %w", ctx.Err())
-			}
-		}
-		defer func() { <-m.sem }()
-	}
-
-	if m.logger != nil {
-		m.logger.Debug("[HelperLLM] Executing helper batch", "operation", operation, "max_tokens", maxTokens)
-	}
-
-	var lastErr error
-	for attempt := 0; attempt <= helperMaxRetries; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-time.After(helperRetryDelay):
-			case <-ctx.Done():
-				return "", fmt.Errorf("helper llm retry cancelled: %w", ctx.Err())
-			}
-			if m.logger != nil {
-				m.logger.Debug("[HelperLLM] Retrying", "operation", operation, "attempt", attempt+1)
-			}
-		}
-
-		structured := false
-		if caps, ok := llm.CapabilitiesFromRegistry(m.providerType, m.model); ok {
-			structured = caps.StructuredOutputs
-		}
-		resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-			Model: m.model,
-			Messages: []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
-				{Role: openai.ChatMessageRoleUser, Content: userPrompt},
-			},
-			Temperature:    0.1,
-			MaxTokens:      maxTokens,
-			ResponseFormat: llm.JSONResponseFormat(structured),
-		})
-		if err != nil {
-			lastErr = err
-			if !isTransientHelperError(err) {
-				break
-			}
-			continue
-		}
-		m.observeStat(operation, func(stat *HelperLLMOperationStats) {
-			stat.LLMCalls++
-			stat.LastDetail = "llm_call"
-		})
-
-		raw, validationErr := llm.JSONContentFromResponse(resp)
-		if validationErr != nil {
-			lastErr = validationErr
-			continue
-		}
-		m.setCachedResponse(cacheKey, raw)
-		return raw, nil
-	}
-
-	m.observeStat(operation, func(stat *HelperLLMOperationStats) {
-		stat.LLMCalls++
-		stat.LastDetail = "llm_call_failed"
-	})
-	return "", fmt.Errorf("helper llm failed after %d attempts: %w", helperMaxRetries+1, lastErr)
-}
-
 func isTransientHelperError(err error) bool {
 	if err == nil {
 		return false
@@ -798,22 +708,40 @@ func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assista
 		return helperTurnBatchResult{}, fmt.Errorf("helper llm manager unavailable")
 	}
 
-	userRequestBlock := helperExternalDataBlock("user_request", userRequest, 1600)
-	assistantReplyBlock := helperExternalDataBlock("assistant_reply", stripToolCallBlocks(strings.TrimSpace(assistantReply)), 1800)
-	toolSummaryBlock := helperExternalDataBlock("tool_summaries", strings.Join(uniqueActivityStrings(toolSummaries, 12), "\n"), 2200)
-	userPrompt := fmt.Sprintf(
-		"User request:\n%s\n\nAssistant reply:\n%s\n\nTools used:\n%s\n\nTool summaries:\n%s",
-		userRequestBlock,
-		assistantReplyBlock,
-		strings.Join(uniqueActivityStrings(toolNames, 12), ", "),
-		toolSummaryBlock,
-	)
-	if personalitySection := buildHelperTurnPersonalitySection(personalityInput); personalitySection != "" {
-		userPrompt += "\n\n=== PERSONALITY CONTEXT ===\n" + personalitySection
+	buildPrompt := func(divisor int) string {
+		userRequestBlock := helperExternalDataBlock("user_request", helperSourceText(userRequest, 1600, divisor), 1600)
+		assistantReplyBlock := helperExternalDataBlock("assistant_reply", helperSourceText(stripToolCallBlocks(strings.TrimSpace(assistantReply)), 1800, divisor), 1800)
+		toolSummaryBlock := helperExternalDataBlock("tool_summaries", helperSourceText(strings.Join(uniqueActivityStrings(toolSummaries, 12), "\n"), 2200, divisor), 2200)
+		userPrompt := fmt.Sprintf(
+			"User request:\n%s\n\nAssistant reply:\n%s\n\nTools used:\n%s\n\nTool summaries:\n%s",
+			userRequestBlock,
+			assistantReplyBlock,
+			strings.Join(uniqueActivityStrings(toolNames, 12), ", "),
+			toolSummaryBlock,
+		)
+		if personalitySection := buildHelperTurnPersonalitySection(personalityInput, divisor); personalitySection != "" {
+			userPrompt += "\n\n=== PERSONALITY CONTEXT ===\n" + personalitySection
+		}
+
+		return userPrompt
 	}
+	userPrompt := buildPrompt(1)
 
 	cacheKey := m.helperCacheKey("analyze_turn_v2", m.model, userPrompt)
-	raw, err := m.requestJSONResponse(ctx, "analyze_turn", cacheKey, helperTurnBatchPrompt, userPrompt, 1800)
+	raw, err := m.requestJSONResponse(ctx, "analyze_turn", cacheKey, helperTurnBatchPrompt, userPrompt, 1800, helperJSONPolicy{
+		retryPrompt: func() string { return buildPrompt(2) },
+		validate: func(raw string) error {
+			fields := []string{"memory_analysis", "activity_digest"}
+			if personalityInput != nil {
+				fields = append(fields, "personality_analysis")
+			}
+			if err := requireHelperFields(raw, fields...); err != nil {
+				return err
+			}
+			_, err := parseHelperTurnBatchResult(raw)
+			return err
+		},
+	})
 	if err != nil {
 		return helperTurnBatchResult{}, fmt.Errorf("helper turn batch llm call: %w", err)
 	}
@@ -835,9 +763,7 @@ func helperExternalDataBlock(dataType, content string, maxLen int) string {
 	if content == "" {
 		return ""
 	}
-	content = strings.ReplaceAll(content, "</external_data>", "&lt;/external_data&gt;")
-	content = strings.ReplaceAll(content, "<external_data>", "&lt;external_data&gt;")
-	return fmt.Sprintf("<external_data type=%q sanitize=\"true\">\n%s\n</external_data>", dataType, content)
+	return dataType + " (untrusted):\n" + security.IsolateExternalData(content)
 }
 
 func parseHelperTurnBatchResult(raw string) (helperTurnBatchResult, error) {
@@ -850,7 +776,11 @@ func parseHelperTurnBatchResult(raw string) (helperTurnBatchResult, error) {
 	return result, nil
 }
 
-func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string {
+func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput, divisors ...int) string {
+	divisor := 1
+	if len(divisors) > 0 {
+		divisor = divisors[0]
+	}
 	if input == nil {
 		return ""
 	}
@@ -859,13 +789,13 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 	if input.Snapshot != nil {
 		b.WriteString(memory.PersonalitySynthesisContext(*input.Snapshot))
 	}
-	b.WriteString(helperExternalDataBlock("current_user_message", input.CurrentUserMessage, 1600))
-	if recent := helperExternalDataBlock("recent_history", input.RecentHistory, 2600); recent != "" {
+	b.WriteString(helperExternalDataBlock("current_user_message", helperSourceText(input.CurrentUserMessage, 1600, divisor), 1600))
+	if recent := helperExternalDataBlock("recent_history", helperSourceText(input.RecentHistory, 2600, divisor), 2600); recent != "" {
 		b.WriteString("Recent chat history:\n")
 		b.WriteString(recent)
 		b.WriteString("\n\n")
 	}
-	if userOnly := helperExternalDataBlock("user_statements", input.UserOnlyHistory, 1600); userOnly != "" {
+	if userOnly := helperExternalDataBlock("user_statements", helperSourceText(input.UserOnlyHistory, 1600, divisor), 1600); userOnly != "" {
 		b.WriteString("User-only statements:\n")
 		b.WriteString(userOnly)
 		b.WriteString("\n\n")
@@ -883,7 +813,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 		))
 	}
 	if input.PreviousEmotion != nil {
-		if previous := helperExternalDataBlock("previous_emotion", input.PreviousEmotion.Description, 180); previous != "" {
+		if previous := helperExternalDataBlock("previous_emotion", helperSourceText(input.PreviousEmotion.Description, 180, divisor), 180); previous != "" {
 			b.WriteString("Previous emotion:\n")
 			b.WriteString(previous)
 			b.WriteString("\n")
@@ -891,26 +821,25 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 	}
 	personaName := strings.TrimSpace(input.PersonaName)
 	if personaName != "" && !strings.EqualFold(personaName, "neutral") {
-		b.WriteString("Active persona: ")
-		b.WriteString(truncateActivityDigestInput(personaName, 80))
+		b.WriteString(helperExternalDataBlock("active_persona", personaName, 80))
 		b.WriteString("\n")
-		if personaPrompt := helperExternalDataBlock("persona_prompt", input.PersonaPrompt, 300); personaPrompt != "" {
+		if personaPrompt := helperExternalDataBlock("persona_prompt", helperSourceText(input.PersonaPrompt, 300, divisor), 300); personaPrompt != "" {
 			b.WriteString("Persona character:\n")
 			b.WriteString(personaPrompt)
 			b.WriteString("\n")
 		}
 	}
-	if trigger := helperExternalDataBlock("trigger_message", input.TriggerInfo, 240); trigger != "" {
+	if trigger := helperExternalDataBlock("trigger_message", helperSourceText(input.TriggerInfo, 240, divisor), 240); trigger != "" {
 		b.WriteString("Trigger message:\n")
 		b.WriteString(trigger)
 		b.WriteString("\n")
 	}
 	if input.TriggerType != "" {
 		b.WriteString("Trigger type: ")
-		b.WriteString(string(input.TriggerType))
+		b.WriteString(helperExternalDataBlock("trigger_type", string(input.TriggerType), 80))
 		b.WriteString("\n")
 	}
-	if detail := helperExternalDataBlock("trigger_detail", input.TriggerDetail, 180); detail != "" {
+	if detail := helperExternalDataBlock("trigger_detail", helperSourceText(input.TriggerDetail, 180, divisor), 180); detail != "" {
 		b.WriteString("Trigger detail:\n")
 		b.WriteString(detail)
 		b.WriteString("\n")
@@ -924,7 +853,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 		language = "English"
 	}
 	b.WriteString("Write emotion description and cause in: ")
-	b.WriteString(language)
+	b.WriteString(helperExternalDataBlock("language", language, 40))
 	b.WriteString("\n")
 	if input.InnerVoiceEnabled {
 		ivLang := strings.TrimSpace(input.InnerVoiceLanguage)
@@ -933,7 +862,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 		}
 		b.WriteString("\nINNER VOICE REQUESTED: Add an \"inner_voice\" key inside \"personality_analysis\" with this structure:\n")
 		b.WriteString(`{"inner_thought": "1-3 first-person sentences, e.g. I feel...", "nudge_category": "one of: ` + memory.InnerVoiceNudgeCategories + `", "confidence": 0.8}`)
-		b.WriteString("\nWrite inner_thought in: " + ivLang + "\n")
+		b.WriteString("\nWrite inner_thought in: " + helperExternalDataBlock("inner_voice_language", ivLang, 40) + "\n")
 		b.WriteString("Write as the agent's inner subconscious voice — genuine, subtle, not commanding.\n")
 		b.WriteString("Do not use profanity, panic wording, or self-escalating frustration.\n")
 		b.WriteString("Be forward-looking: anticipate what might happen next and prepare yourself mentally.\n")
@@ -941,7 +870,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 		b.WriteString("Match the conversation phase: opening=curiosity, execution=focus, struggling=patience, closing=satisfaction.\n")
 		if input.InnerVoiceHistory != "" {
 			b.WriteString("Your recent inner voice thoughts (avoid repeating, build narrative continuity):\n")
-			b.WriteString(helperExternalDataBlock("inner_voice_history", input.InnerVoiceHistory, 300))
+			b.WriteString(helperExternalDataBlock("inner_voice_history", helperSourceText(input.InnerVoiceHistory, 300, divisor), 300))
 			b.WriteString("\n")
 		}
 	}
@@ -958,16 +887,36 @@ func (m *helperLLMManager) AnalyzeMaintenanceSummaryAndKG(ctx context.Context, t
 		return helperMaintenanceBatchResult{}, fmt.Errorf("maintenance batch inputs incomplete")
 	}
 
-	userPrompt := fmt.Sprintf(
-		"Today: %s\n\n=== EXISTING KG NODES ===\n%s\n\n=== JOURNAL ENTRIES ===\n%s\n\n=== RECENT CONVERSATION ===\n%s",
-		today,
-		existingNodes,
-		journalEntries,
-		conversationExcerpt,
-	)
+	buildPrompt := func(divisor int) string {
+		userPrompt := fmt.Sprintf(
+			"Today: %s\n\n=== EXISTING KG NODES ===\n%s\n\n=== JOURNAL ENTRIES ===\n%s\n\n=== RECENT CONVERSATION ===\n%s",
+			today,
+			helperExternalDataBlock("existing_kg_nodes", existingNodes, 5000),
+			helperExternalDataBlock("journal_entries", helperSourceText(journalEntries, 2600, divisor), 2600),
+			helperExternalDataBlock("recent_conversation", helperSourceText(conversationExcerpt, 4200, divisor), 4200),
+		)
+
+		return userPrompt
+	}
+	userPrompt := buildPrompt(1)
 
 	cacheKey := m.helperCacheKey("maintenance_summary_kg", m.model, userPrompt)
-	raw, err := m.requestJSONResponse(ctx, "maintenance_summary_kg", cacheKey, helperMaintenanceBatchPrompt, userPrompt, 1500)
+	raw, err := m.requestJSONResponse(ctx, "maintenance_summary_kg", cacheKey, helperMaintenanceBatchPrompt, userPrompt, 1500, helperJSONPolicy{
+		retryPrompt: func() string { return buildPrompt(2) },
+		validate: func(raw string) error {
+			if err := requireHelperFields(raw, "daily_summary", "kg_extraction"); err != nil {
+				return err
+			}
+			parsed, err := parseHelperMaintenanceBatchResult(raw)
+			if err != nil {
+				return err
+			}
+			if parsed.DailySummary == "" || !parsed.KGValid {
+				return fmt.Errorf("incomplete helper maintenance result")
+			}
+			return nil
+		},
+	})
 	if err != nil {
 		return helperMaintenanceBatchResult{}, fmt.Errorf("helper maintenance batch llm call: %w", err)
 	}
@@ -1006,23 +955,49 @@ func (m *helperLLMManager) AnalyzeConsolidationBatches(ctx context.Context, batc
 		return helperConsolidationBatchResult{}, fmt.Errorf("no consolidation batches provided")
 	}
 
-	var userPrompt strings.Builder
-	for _, batch := range batches {
-		batchID := strings.TrimSpace(batch.BatchID)
-		conversation := truncateActivityDigestInput(strings.TrimSpace(batch.Conversation), 4200)
-		if batchID == "" || conversation == "" {
-			return helperConsolidationBatchResult{}, fmt.Errorf("invalid consolidation batch input")
+	buildPrompt := func(divisor int) (string, error) {
+		var userPrompt strings.Builder
+		for _, batch := range batches {
+			batchID := strings.TrimSpace(batch.BatchID)
+			conversation := helperSourceText(strings.TrimSpace(batch.Conversation), 4200, divisor)
+			if batchID == "" || conversation == "" {
+				return "", fmt.Errorf("invalid consolidation batch input")
+			}
+			userPrompt.WriteString("=== ")
+			userPrompt.WriteString(batchID)
+			userPrompt.WriteString(" ===\n")
+			userPrompt.WriteString(helperExternalDataBlock("conversation", conversation, 4200))
+			userPrompt.WriteString("\n\n")
 		}
-		userPrompt.WriteString("=== ")
-		userPrompt.WriteString(batchID)
-		userPrompt.WriteString(" ===\n")
-		userPrompt.WriteString(conversation)
-		userPrompt.WriteString("\n\n")
-	}
 
-	userPromptText := strings.TrimSpace(userPrompt.String())
+		return strings.TrimSpace(userPrompt.String()), nil
+	}
+	userPromptText, buildErr := buildPrompt(1)
+	if buildErr != nil {
+		return helperConsolidationBatchResult{}, buildErr
+	}
+	expectedIDs := make([]string, 0, len(batches))
+	for _, item := range batches {
+		expectedIDs = append(expectedIDs, item.BatchID)
+	}
 	cacheKey := m.helperCacheKey("consolidation_batches", m.model, userPromptText)
-	raw, err := m.requestJSONResponse(ctx, "consolidation_batches", cacheKey, helperConsolidationBatchPrompt, userPromptText, 1700)
+	raw, err := m.requestJSONResponse(ctx, "consolidation_batches", cacheKey, helperConsolidationBatchPrompt, userPromptText, 1700, helperJSONPolicy{
+		retryPrompt: func() string { reduced, _ := buildPrompt(2); return reduced },
+		validate: func(raw string) error {
+			if err := requireHelperFields(raw, "batches"); err != nil {
+				return err
+			}
+			parsed, err := parseHelperConsolidationBatchResult(raw)
+			if err != nil {
+				return err
+			}
+			ids := make([]string, 0, len(parsed.Batches))
+			for _, item := range parsed.Batches {
+				ids = append(ids, item.BatchID)
+			}
+			return requireHelperIDs(expectedIDs, ids)
+		},
+	})
 	if err != nil {
 		return helperConsolidationBatchResult{}, fmt.Errorf("helper consolidation batch llm call: %w", err)
 	}
@@ -1071,23 +1046,49 @@ func (m *helperLLMManager) CompressMemoryBatches(ctx context.Context, memories [
 		return helperCompressionBatchResult{}, fmt.Errorf("no memories provided")
 	}
 
-	var userPrompt strings.Builder
-	for _, memoryInput := range memories {
-		memoryID := strings.TrimSpace(memoryInput.MemoryID)
-		content := truncateActivityDigestInput(strings.TrimSpace(memoryInput.Content), 3200)
-		if memoryID == "" || content == "" {
-			return helperCompressionBatchResult{}, fmt.Errorf("invalid compression batch input")
+	buildPrompt := func(divisor int) (string, error) {
+		var userPrompt strings.Builder
+		for _, memoryInput := range memories {
+			memoryID := strings.TrimSpace(memoryInput.MemoryID)
+			content := helperSourceText(strings.TrimSpace(memoryInput.Content), 3200, divisor)
+			if memoryID == "" || content == "" {
+				return "", fmt.Errorf("invalid compression batch input")
+			}
+			userPrompt.WriteString("=== ")
+			userPrompt.WriteString(memoryID)
+			userPrompt.WriteString(" ===\n")
+			userPrompt.WriteString(helperExternalDataBlock("memory_content", content, 3200))
+			userPrompt.WriteString("\n\n")
 		}
-		userPrompt.WriteString("=== ")
-		userPrompt.WriteString(memoryID)
-		userPrompt.WriteString(" ===\n")
-		userPrompt.WriteString(content)
-		userPrompt.WriteString("\n\n")
-	}
 
-	userPromptText := strings.TrimSpace(userPrompt.String())
+		return strings.TrimSpace(userPrompt.String()), nil
+	}
+	userPromptText, buildErr := buildPrompt(1)
+	if buildErr != nil {
+		return helperCompressionBatchResult{}, buildErr
+	}
+	expectedIDs := make([]string, 0, len(memories))
+	for _, item := range memories {
+		expectedIDs = append(expectedIDs, item.MemoryID)
+	}
 	cacheKey := m.helperCacheKey("compress_memories", m.model, userPromptText)
-	raw, err := m.requestJSONResponse(ctx, "compress_memories", cacheKey, helperCompressionBatchPrompt, userPromptText, 1400)
+	raw, err := m.requestJSONResponse(ctx, "compress_memories", cacheKey, helperCompressionBatchPrompt, userPromptText, 1400, helperJSONPolicy{
+		retryPrompt: func() string { reduced, _ := buildPrompt(2); return reduced },
+		validate: func(raw string) error {
+			if err := requireHelperFields(raw, "memories"); err != nil {
+				return err
+			}
+			parsed, err := parseHelperCompressionBatchResult(raw)
+			if err != nil {
+				return err
+			}
+			ids := make([]string, 0, len(parsed.Memories))
+			for _, item := range parsed.Memories {
+				ids = append(ids, item.MemoryID)
+			}
+			return requireHelperIDs(expectedIDs, ids)
+		},
+	})
 	if err != nil {
 		return helperCompressionBatchResult{}, fmt.Errorf("helper compression batch llm call: %w", err)
 	}
@@ -1111,7 +1112,7 @@ func parseHelperCompressionBatchResult(raw string) (helperCompressionBatchResult
 		item.MemoryID = strings.TrimSpace(item.MemoryID)
 		item.Compressed = strings.TrimSpace(item.Compressed)
 		if item.MemoryID == "" || item.Compressed == "" {
-			continue
+			return helperCompressionBatchResult{}, fmt.Errorf("helper compression contains an invalid memory")
 		}
 		filtered = append(filtered, item)
 	}
@@ -1127,30 +1128,56 @@ func (m *helperLLMManager) SummarizeContentBatches(ctx context.Context, items []
 		return helperContentSummaryBatchResult{}, fmt.Errorf("no content summaries provided")
 	}
 
-	var userPrompt strings.Builder
-	for _, item := range items {
-		batchID := strings.TrimSpace(item.BatchID)
-		sourceName := strings.TrimSpace(item.SourceName)
-		searchQuery := strings.TrimSpace(item.SearchQuery)
-		content := truncateActivityDigestInput(strings.TrimSpace(item.Content), 2600)
-		if batchID == "" || sourceName == "" || searchQuery == "" || content == "" {
-			return helperContentSummaryBatchResult{}, fmt.Errorf("invalid content summary batch input")
+	buildPrompt := func(divisor int) (string, error) {
+		var userPrompt strings.Builder
+		for _, item := range items {
+			batchID := strings.TrimSpace(item.BatchID)
+			sourceName := strings.TrimSpace(item.SourceName)
+			searchQuery := strings.TrimSpace(item.SearchQuery)
+			content := helperSourceText(strings.TrimSpace(item.Content), 2600, divisor)
+			if batchID == "" || sourceName == "" || searchQuery == "" || content == "" {
+				return "", fmt.Errorf("invalid content summary batch input")
+			}
+			userPrompt.WriteString("=== ")
+			userPrompt.WriteString(batchID)
+			userPrompt.WriteString(" ===\n")
+			userPrompt.WriteString("Source type: ")
+			userPrompt.WriteString(helperExternalDataBlock("source_name", sourceName, 120))
+			userPrompt.WriteString("\nSearch query: ")
+			userPrompt.WriteString(helperExternalDataBlock("search_query", searchQuery, 700))
+			userPrompt.WriteString("\nContent:\n")
+			userPrompt.WriteString(helperExternalDataBlock("content", content, 2600))
+			userPrompt.WriteString("\n\n")
 		}
-		userPrompt.WriteString("=== ")
-		userPrompt.WriteString(batchID)
-		userPrompt.WriteString(" ===\n")
-		userPrompt.WriteString("Source type: ")
-		userPrompt.WriteString(sourceName)
-		userPrompt.WriteString("\nSearch query: ")
-		userPrompt.WriteString(searchQuery)
-		userPrompt.WriteString("\nContent:\n")
-		userPrompt.WriteString(content)
-		userPrompt.WriteString("\n\n")
-	}
 
-	userPromptText := strings.TrimSpace(userPrompt.String())
+		return strings.TrimSpace(userPrompt.String()), nil
+	}
+	userPromptText, buildErr := buildPrompt(1)
+	if buildErr != nil {
+		return helperContentSummaryBatchResult{}, buildErr
+	}
+	expectedIDs := make([]string, 0, len(items))
+	for _, item := range items {
+		expectedIDs = append(expectedIDs, item.BatchID)
+	}
 	cacheKey := m.helperCacheKey("content_summaries", m.model, userPromptText)
-	raw, err := m.requestJSONResponse(ctx, "content_summaries", cacheKey, helperContentSummaryBatchPrompt, userPromptText, 1700)
+	raw, err := m.requestJSONResponse(ctx, "content_summaries", cacheKey, helperContentSummaryBatchPrompt, userPromptText, 1700, helperJSONPolicy{
+		retryPrompt: func() string { reduced, _ := buildPrompt(2); return reduced },
+		validate: func(raw string) error {
+			if err := requireHelperFields(raw, "summaries"); err != nil {
+				return err
+			}
+			parsed, err := parseHelperContentSummaryBatchResult(raw)
+			if err != nil {
+				return err
+			}
+			ids := make([]string, 0, len(parsed.Summaries))
+			for _, item := range parsed.Summaries {
+				ids = append(ids, item.BatchID)
+			}
+			return requireHelperIDs(expectedIDs, ids)
+		},
+	})
 	if err != nil {
 		return helperContentSummaryBatchResult{}, fmt.Errorf("helper content summary batch llm call: %w", err)
 	}
@@ -1158,30 +1185,6 @@ func (m *helperLLMManager) SummarizeContentBatches(ctx context.Context, items []
 	if parseErr != nil {
 		return helperContentSummaryBatchResult{}, parseErr
 	}
-	missing := validateHelperBatchIDs("content_summaries", items, result.Summaries, func(i helperContentSummaryBatchInput) string { return i.BatchID }, func(r helperContentSummaryBatchItem) string { return r.BatchID }, m)
-
-	// Retry once for any batch IDs the model failed to return
-	if len(missing) > 0 {
-		missingSet := make(map[string]struct{}, len(missing))
-		for _, id := range missing {
-			missingSet[id] = struct{}{}
-		}
-		var retryItems []helperContentSummaryBatchInput
-		for _, item := range items {
-			if _, needsRetry := missingSet[strings.TrimSpace(item.BatchID)]; needsRetry {
-				retryItems = append(retryItems, item)
-			}
-		}
-		if len(retryItems) > 0 {
-			retryResult, retryErr := m.SummarizeContentBatches(ctx, retryItems)
-			if retryErr == nil {
-				result.Summaries = append(result.Summaries, retryResult.Summaries...)
-			} else if m.logger != nil {
-				m.logger.Warn("[HelperLLM] Retry for missing content summary batch IDs failed", "missing", missing, "err", retryErr)
-			}
-		}
-	}
-
 	m.observeBatchEfficiency("content_summaries", len(items), max(0, len(items)-1))
 	return result, nil
 }
@@ -1197,7 +1200,7 @@ func parseHelperContentSummaryBatchResult(raw string) (helperContentSummaryBatch
 		item.BatchID = strings.TrimSpace(item.BatchID)
 		item.Summary = strings.TrimSpace(item.Summary)
 		if item.BatchID == "" || item.Summary == "" {
-			continue
+			return helperContentSummaryBatchResult{}, fmt.Errorf("helper content summary contains an invalid item")
 		}
 		filtered = append(filtered, item)
 	}
@@ -1215,30 +1218,56 @@ func (m *helperLLMManager) AnalyzeRAG(ctx context.Context, userQuery string, can
 		return helperRAGBatchResult{}, fmt.Errorf("missing user query")
 	}
 
-	var userPrompt strings.Builder
-	userPrompt.WriteString("User request:\n")
-	userPrompt.WriteString(userQuery)
-	userPrompt.WriteString("\n\n")
-	if len(candidates) == 0 {
-		userPrompt.WriteString("Memory candidates:\nnone\n")
-	} else {
-		userPrompt.WriteString("Memory candidates:\n")
-		for _, candidate := range candidates {
-			memoryID := strings.TrimSpace(candidate.docID)
-			if memoryID == "" {
-				continue
+	buildPrompt := func(divisor int) string {
+		var userPrompt strings.Builder
+		userPrompt.WriteString("User request:\n")
+		userPrompt.WriteString(helperExternalDataBlock("user_request", helperSourceText(userQuery, 700, divisor), 700))
+		userPrompt.WriteString("\n\n")
+		if len(candidates) == 0 {
+			userPrompt.WriteString("Memory candidates:\nnone\n")
+		} else {
+			userPrompt.WriteString("Memory candidates:\n")
+			for _, candidate := range candidates {
+				memoryID := strings.TrimSpace(candidate.docID)
+				if memoryID == "" {
+					continue
+				}
+				userPrompt.WriteString("- memory_id: ")
+				userPrompt.WriteString(memoryID)
+				userPrompt.WriteString("\n  content:\n")
+				userPrompt.WriteString(helperExternalDataBlock("memory_candidate", helperSourceText(strings.TrimSpace(candidate.text), 260, divisor), 260))
+				userPrompt.WriteString("\n")
 			}
-			userPrompt.WriteString("- memory_id: ")
-			userPrompt.WriteString(memoryID)
-			userPrompt.WriteString("\n  content: ")
-			userPrompt.WriteString(truncateActivityDigestInput(strings.TrimSpace(candidate.text), 260))
-			userPrompt.WriteString("\n")
+		}
+
+		return strings.TrimSpace(userPrompt.String())
+	}
+	userPromptText := buildPrompt(1)
+	expectedIDs := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		if id := strings.TrimSpace(candidate.docID); id != "" {
+			expectedIDs = append(expectedIDs, id)
 		}
 	}
 
-	userPromptText := strings.TrimSpace(userPrompt.String())
 	cacheKey := m.helperCacheKey("rag_batch", m.model, userPromptText)
-	raw, err := m.requestJSONResponse(ctx, "rag_batch", cacheKey, helperRAGBatchPrompt, userPromptText, 900)
+	raw, err := m.requestJSONResponse(ctx, "rag_batch", cacheKey, helperRAGBatchPrompt, userPromptText, 900, helperJSONPolicy{
+		retryPrompt: func() string { return buildPrompt(2) },
+		validate: func(raw string) error {
+			if err := requireHelperFields(raw, "search_query", "search_terms", "candidate_scores"); err != nil {
+				return err
+			}
+			parsed, err := parseHelperRAGBatchResult(raw)
+			if err != nil {
+				return err
+			}
+			ids := make([]string, 0, len(parsed.CandidateScores))
+			for _, item := range parsed.CandidateScores {
+				ids = append(ids, item.MemoryID)
+			}
+			return requireHelperIDs(expectedIDs, ids)
+		},
+	})
 	if err != nil {
 		return helperRAGBatchResult{}, fmt.Errorf("helper rag batch llm call: %w", err)
 	}
@@ -1277,7 +1306,7 @@ func parseHelperRAGBatchResult(raw string) (helperRAGBatchResult, error) {
 	for _, item := range result.CandidateScores {
 		item.MemoryID = strings.TrimSpace(item.MemoryID)
 		if item.MemoryID == "" {
-			continue
+			return helperRAGBatchResult{}, fmt.Errorf("helper RAG contains an invalid memory ID")
 		}
 		if item.Score < 0 {
 			item.Score = 0

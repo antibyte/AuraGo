@@ -204,11 +204,8 @@ func handleDesktopWriterAssist(s *Server) http.HandlerFunc {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 		defer cancel()
-		dc := &agent.DispatchContext{Cfg: cfg, Logger: s.Logger, LLMClient: s.LLMClient, Guardian: s.Guardian, LLMGuardian: s.LLMGuardian, SessionID: "writer-assist", MessageSource: "writer_assist", Broker: agent.NoopBroker{}, AllowedTools: map[string]struct{}{}, ToolScopeRestricted: true, AllowedAgentSkills: map[string]struct{}{}, SkillScopeRestricted: true}
-		result, _, err := agent.ExecuteMinimalLoop(ctx, s.LLMClient, cfg.LLM.Model, system, input, nil, dc, nil, s.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0})
-		if s.BudgetTracker != nil {
-			s.BudgetTracker.RecordForCategory("writer", cfg.LLM.Model, result.PromptTokens, result.CompletionTokens)
-		}
+		dc := &agent.DispatchContext{Cfg: cfg, Logger: s.Logger, LLMClient: s.LLMClient, Guardian: s.Guardian, LLMGuardian: s.LLMGuardian, BudgetTracker: s.BudgetTracker, SessionID: "writer-assist", MessageSource: "writer_assist", Broker: agent.NoopBroker{}, AllowedTools: map[string]struct{}{}, ToolScopeRestricted: true, AllowedAgentSkills: map[string]struct{}{}, SkillScopeRestricted: true}
+		result, _, err := agent.ExecuteMinimalLoop(ctx, s.LLMClient, cfg.LLM.Model, system, input, nil, dc, nil, s.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "writer"})
 		if err != nil || result.FinishReason != openai.FinishReasonStop || strings.TrimSpace(result.Response) == "" {
 			jsonError(w, "AI could not produce a complete suggestion. Try again.", http.StatusBadGateway)
 			return

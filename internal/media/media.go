@@ -1,6 +1,7 @@
 package media
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/gif"
@@ -54,11 +55,27 @@ func extensionFromURLPath(rawURL string) string {
 }
 
 func SaveAttachment(url, originalFilename, destDir string) (string, error) {
+	return SaveAttachmentContext(context.Background(), url, originalFilename, destDir)
+}
+
+// SaveAttachmentContext downloads and saves an attachment until ctx is
+// canceled, preserving the same size, filename, and HTTP timeout policies.
+func SaveAttachmentContext(ctx context.Context, url, originalFilename, destDir string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create attachments dir: %w", err)
 	}
 
-	resp, err := httpClientMedia.Get(url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create attachment request: %w", err)
+	}
+	resp, err := httpClientMedia.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to download attachment: %w", err)
 	}
@@ -88,11 +105,19 @@ func SaveAttachment(url, originalFilename, destDir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer dst.Close()
-
-	if err := copyWithSizeLimit(dst, resp.Body, maxAttachmentSize, "attachment"); err != nil {
-		os.Remove(destPath)
-		return "", fmt.Errorf("failed to write attachment: %w", err)
+	copyErr := copyWithSizeLimit(dst, resp.Body, maxAttachmentSize, "attachment")
+	closeErr := dst.Close()
+	if copyErr != nil {
+		_ = os.Remove(destPath)
+		return "", fmt.Errorf("failed to write attachment: %w", copyErr)
+	}
+	if closeErr != nil {
+		_ = os.Remove(destPath)
+		return "", fmt.Errorf("failed to close attachment: %w", closeErr)
+	}
+	if err := ctx.Err(); err != nil {
+		_ = os.Remove(destPath)
+		return "", err
 	}
 
 	return destPath, nil
@@ -218,10 +243,22 @@ func ExtractMarkdownImages(text string) (string, []ImageRef) {
 // SaveURLToDir downloads an image URL into destDir with a timestamped filename.
 // Returns the absolute path of the saved file.
 func SaveURLToDir(rawURL, destDir string) (string, error) {
+	return SaveURLToDirContext(context.Background(), rawURL, destDir)
+}
+
+// SaveURLToDirContext downloads an image URL into destDir and removes partial
+// output if the request is canceled.
+func SaveURLToDirContext(ctx context.Context, rawURL, destDir string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create images dir: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to build request: %w", err)
 	}
@@ -266,10 +303,19 @@ func SaveURLToDir(rawURL, destDir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create image file: %w", err)
 	}
-	defer f.Close()
-	if err := copyWithSizeLimit(f, resp.Body, maxAttachmentSize, "image"); err != nil {
-		os.Remove(destPath)
-		return "", fmt.Errorf("failed to write image: %w", err)
+	copyErr := copyWithSizeLimit(f, resp.Body, maxAttachmentSize, "image")
+	closeErr := f.Close()
+	if copyErr != nil {
+		_ = os.Remove(destPath)
+		return "", fmt.Errorf("failed to write image: %w", copyErr)
+	}
+	if closeErr != nil {
+		_ = os.Remove(destPath)
+		return "", fmt.Errorf("failed to close image file: %w", closeErr)
+	}
+	if err := ctx.Err(); err != nil {
+		_ = os.Remove(destPath)
+		return "", err
 	}
 	return destPath, nil
 }
@@ -330,14 +376,37 @@ func detectImageFormat(header []byte) (format, ext string) {
 // embedded scripts, and other metadata.
 // Returns the path of the sanitized file on success.
 func DownloadAndSanitizeImage(rawURL, destDir string) (string, error) {
+	return DownloadAndSanitizeImageContext(context.Background(), rawURL, destDir)
+}
+
+// DownloadAndSanitizeImageContext downloads and sanitizes an image until ctx
+// is canceled, preserving the public legacy helper and its validation policy.
+func DownloadAndSanitizeImageContext(ctx context.Context, rawURL, destDir string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	// Download to a temp location first
-	tmpPath, err := SaveURLToDir(rawURL, os.TempDir())
+	tmpPath, err := SaveURLToDirContext(ctx, rawURL, os.TempDir())
 	if err != nil {
 		return "", fmt.Errorf("download failed: %w", err)
 	}
 	defer os.Remove(tmpPath) // always clean up temp file
 
-	return SanitizeImageFile(tmpPath, destDir)
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	sanitizedPath, err := SanitizeImageFile(tmpPath, destDir)
+	if err != nil {
+		return "", err
+	}
+	if err := ctx.Err(); err != nil {
+		_ = os.Remove(sanitizedPath)
+		return "", err
+	}
+	return sanitizedPath, nil
 }
 
 // SanitizeImageFile validates a local image file via magic bytes and a full

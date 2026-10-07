@@ -249,8 +249,8 @@ func (r *LooperRunner) executeStarted(
 
 	sysPrompt := looperSystemPrompt(auraCfg)
 	noTools := []openai.Tool{}
-	optsWithTools := &agent.MinimalLoopOptions{MaxToolRounds: 10}
-	optsNoTools := &agent.MinimalLoopOptions{MaxToolRounds: 0}
+	optsWithTools := &agent.MinimalLoopOptions{MaxToolRounds: 10, BudgetCategory: "looper"}
+	optsNoTools := &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "looper"}
 	finishDispatch := looperFinishDispatch(dispatchCtx)
 
 	stepExec := func(stepName, prompt string, system string, stepTools []openai.Tool, opts *agent.MinimalLoopOptions, history []openai.ChatCompletionMessage) (agent.MinimalLoopResult, []openai.ChatCompletionMessage, error) {
@@ -275,11 +275,11 @@ func (r *LooperRunner) executeStarted(
 			r.logger.Info("[Looper] step start", "step", stepName, "round", r.holder.State().Round, "tools", len(stepTools), "attempt", attempt)
 			res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, stepTools, stepDispatch, history, r.logger, opts)
 			stepCancel()
+			r.recordLooperUsage(res, model, dispatchCtx)
 
 			if err != nil {
 				r.logger.Warn("[Looper] step error", "step", stepName, "attempt", attempt, "maxRetries", maxRetries, "error", err)
 				if looperShouldKeepMinimalLoopResult(stepName, err, res, h, prompt) {
-					r.recordLooperUsage(res, model, dispatchCtx)
 					r.logger.Warn("[Looper] recovered format error", "step", stepName, "tool_calls", res.ToolCalls)
 					return res, h, err
 				}
@@ -296,7 +296,6 @@ func (r *LooperRunner) executeStarted(
 				r.logger.Error("[Looper] step failed after retries", "step", stepName, "error", err)
 				return res, h, err
 			}
-			r.recordLooperUsage(res, model, dispatchCtx)
 			r.logger.Info("[Looper] step done", "step", stepName, "duration_ms", res.Duration.Milliseconds(), "tool_calls", res.ToolCalls)
 			return res, h, nil
 		}
@@ -723,9 +722,6 @@ func (r *LooperRunner) recordLooperUsage(res agent.MinimalLoopResult, model stri
 	r.holder.AddUsage(res.PromptTokens, res.CompletionTokens, cost)
 	if !priced {
 		r.holder.MarkCostApproximate()
-	}
-	if dispatchCtx != nil && dispatchCtx.BudgetTracker != nil {
-		dispatchCtx.BudgetTracker.RecordForCategory("looper", model, res.PromptTokens, res.CompletionTokens)
 	}
 }
 

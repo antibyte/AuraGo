@@ -94,7 +94,7 @@
   "config.skill_manager.skillspector_status_unavailable": "Niet beschikbaar: {message}",
   "config.skill_manager.skillspector_status_disabled": "SkillSpector is uitgeschakeld",
   "config.skill_manager.skillspector_status_error": "SkillSpector kon niet worden gecontroleerd",
-  "help.skill_manager.skillspector.enabled": "Voert de optionele externe SkillSpector CLI uit tijdens beveiligingsscans van vaardigheden. Alleen statische modus; er worden geen LLM-referenties doorgegeven.",
+  "help.skill_manager.skillspector.enabled": "Voert de optionele externe SkillSpector CLI uit tijdens beveiligingsscans van vaardigheden. Alleen statische modus; er worden geen LLM-inloggegevens doorgegeven.",
   "help.skill_manager.skillspector.command_path": "Naam van het uitvoerbare bestand of absoluut pad naar de skillspector-opdracht.",
   "help.skill_manager.skillspector.timeout_seconds": "Maximale looptijd voor elke externe scan.",
   "help.skill_manager.skillspector.max_output_kb": "Maximale JSON-uitvoer die van de scanner wordt vastgelegd.",

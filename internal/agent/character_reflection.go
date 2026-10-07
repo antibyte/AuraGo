@@ -64,21 +64,41 @@ func (m *helperLLMManager) ProposeCharacterNotes(ctx context.Context, input memo
 	if m == nil {
 		return nil, fmt.Errorf("helper llm manager unavailable")
 	}
-	var b strings.Builder
-	b.WriteString("Core personality: ")
-	b.WriteString(strings.TrimSpace(input.CorePersonality))
-	if input.ConfirmedRecoveries >= 3 {
-		b.WriteString(fmt.Sprintf("\nRepeated confirmed recoveries: %d", input.ConfirmedRecoveries))
+	buildPrompt := func(divisor int) string {
+		var b strings.Builder
+		b.WriteString("Core personality: ")
+		b.WriteString(strings.TrimSpace(input.CorePersonality))
+		if input.ConfirmedRecoveries >= 3 {
+			b.WriteString(fmt.Sprintf("\nRepeated confirmed recoveries: %d", input.ConfirmedRecoveries))
+		}
+		if len(input.Milestones) > 0 {
+			b.WriteString("\nMilestones: ")
+			for i, milestone := range input.Milestones {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(helperSourceText(milestone, len(milestone), divisor))
+			}
+		}
+		if len(input.ExistingNotes) > 0 {
+			b.WriteString("\nExisting notes:\n- ")
+			b.WriteString(strings.Join(input.ExistingNotes, "\n- "))
+		}
+		return b.String()
 	}
-	if len(input.Milestones) > 0 {
-		b.WriteString("\nMilestones: ")
-		b.WriteString(strings.Join(input.Milestones, ", "))
-	}
-	if len(input.ExistingNotes) > 0 {
-		b.WriteString("\nExisting notes:\n- ")
-		b.WriteString(strings.Join(input.ExistingNotes, "\n- "))
-	}
-	raw, err := m.requestJSONResponse(ctx, "character_reflection", "character-reflection:"+input.CorePersonality, helperCharacterReflectionPrompt, b.String(), 300)
+	userPrompt := buildPrompt(1)
+	raw, err := m.requestJSONResponse(ctx, "character_reflection", m.helperCacheKey("character_reflection", m.model, userPrompt), helperCharacterReflectionPrompt, userPrompt, 300, helperJSONPolicy{
+		retryPrompt: func() string { return buildPrompt(2) },
+		validate: func(raw string) error {
+			if err := requireHelperFields(raw, "notes"); err != nil {
+				return err
+			}
+			var parsed struct {
+				Notes []memory.CharacterNoteProposal `json:"notes"`
+			}
+			return json.Unmarshal([]byte(raw), &parsed)
+		},
+	})
 	if err != nil {
 		return nil, err
 	}

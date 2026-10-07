@@ -1,5 +1,5 @@
 {
-  "config.security.applying": "Používám…",
+  "config.security.applying": "Aplikuje se…",
   "config.security.fix_all_auto": "Opravit {n} automaticky opravitelný/opravitelné problém(y)",
   "config.security.fix_now": "Opravit nyní",
   "config.security.modal.apply": "Použít opravy",
@@ -11,5 +11,6 @@
   "config.security.severity.critical": "KRITICKÉ",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "VAROVÁNÍ",
-  "config.security.status_success": "✅"
+  "config.security.status_success": "✅",
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nesty s Docker (Vzdálený) nasazují přes nešifrované HTTP"
 }

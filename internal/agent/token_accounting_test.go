@@ -214,3 +214,47 @@ func TestApplyTokenEstimationFallback_OnlyTotalProvidedFallsBack(t *testing.T) {
 		t.Fatalf("expected totalTokens=100, got %d", totalTokens)
 	}
 }
+
+func TestNormalizeResponseUsageCompletesPartialStreamingUsage(t *testing.T) {
+	req := openai.ChatCompletionRequest{Model: "requested-model", Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "current task"}}}
+	resp := openai.ChatCompletionResponse{
+		Model: "routed-model",
+		Usage: openai.Usage{PromptTokens: 91},
+		Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{
+			Role: openai.ChatMessageRoleAssistant, Content: "partial answer retained only for accounting",
+		}}},
+	}
+
+	normalized, prompt, completion, total, source, estimated, shouldAccount := normalizeResponseUsage(req, resp)
+	wantCompletion := estimateTokensForModel(resp.Choices[0].Message.Content, "routed-model")
+	if !shouldAccount || !estimated || source != "fallback_estimate" {
+		t.Fatalf("accounting flags = should:%v estimated:%v source:%q", shouldAccount, estimated, source)
+	}
+	if prompt != 91 || completion != wantCompletion || total != prompt+completion {
+		t.Fatalf("normalized usage = (%d,%d,%d), want (91,%d,%d)", prompt, completion, total, wantCompletion, 91+wantCompletion)
+	}
+	if normalized.Model != "routed-model" || normalized.Usage.TotalTokens != total {
+		t.Fatalf("normalized response lost route or total: model=%q usage=%+v", normalized.Model, normalized.Usage)
+	}
+}
+
+func TestNormalizeResponseUsagePreservesProviderTotal(t *testing.T) {
+	req := openai.ChatCompletionRequest{Model: "requested-model", Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "current task"}}}
+	resp := openai.ChatCompletionResponse{Usage: openai.Usage{PromptTokens: 12, TotalTokens: 47}, Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: "answer"}}}}
+	normalized, prompt, completion, total, source, estimated, shouldAccount := normalizeResponseUsage(req, resp)
+	if !shouldAccount || estimated || source != "provider_usage" {
+		t.Fatalf("accounting flags = should:%v estimated:%v source:%q", shouldAccount, estimated, source)
+	}
+	if prompt != 12 || completion != 35 || total != 47 || normalized.Usage.TotalTokens != 47 {
+		t.Fatalf("normalized usage = (%d,%d,%d), response total=%d; want (12,35,47)", prompt, completion, total, normalized.Usage.TotalTokens)
+	}
+}
+
+func TestNormalizeResponseUsageDoesNotEstimateWithoutResponseEvidence(t *testing.T) {
+	req := openai.ChatCompletionRequest{Model: "requested-model", Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "current task"}}}
+	resp := openai.ChatCompletionResponse{}
+	_, prompt, completion, total, source, estimated, shouldAccount := normalizeResponseUsage(req, resp)
+	if shouldAccount || estimated || prompt != 0 || completion != 0 || total != 0 || source != "" {
+		t.Fatalf("empty response was accounted: should:%v estimated:%v tokens:(%d,%d,%d) source:%q", shouldAccount, estimated, prompt, completion, total, source)
+	}
+}

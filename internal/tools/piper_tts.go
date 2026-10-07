@@ -1,11 +1,12 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
-	"net/url"
 	"path/filepath"
 	"time"
 
@@ -98,11 +99,13 @@ func EnsurePiperRunning(cfg *config.Config, logger *slog.Logger) {
 
 	// Container does not exist — pull image if needed, then create and start
 	logger.Info("[Piper TTS] Pulling image", "image", image)
-	_, pullCode, pullErr := dockerRequest(dockerCfg, "POST", "/images/create?fromImage="+url.QueryEscape(image), "")
-	if pullErr != nil {
-		logger.Warn("[Piper TTS] Image pull failed, trying to create container anyway", "error", pullErr)
-	} else if pullCode != 200 {
-		logger.Warn("[Piper TTS] Image pull returned unexpected status", "code", pullCode)
+	if err := pullImageBestEffort(context.Background(), dockerCfg, image); err != nil {
+		var pullErr *dockerPullError
+		if errors.As(err, &pullErr) && pullErr.StatusCode != 0 {
+			logger.Warn("[Piper TTS] Image pull returned unexpected status", "code", pullErr.StatusCode, "error", err)
+		} else {
+			logger.Warn("[Piper TTS] Image pull failed, trying to create container anyway", "error", err)
+		}
 	}
 
 	payload := map[string]interface{}{

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,9 +14,15 @@ import (
 	"strconv"
 	"strings"
 
-	"aurago/internal/dockerutil"
 	"aurago/internal/tools"
 )
+
+// errContainerNotFound marks an Engine 404 for a container. Wrapped as
+// "container <name> not found", the historical message stays unchanged.
+var errContainerNotFound = errors.New("not found")
+
+// errContainerNameConflict marks an Engine 409 for a container name in use.
+var errContainerNameConflict = errors.New("name already in use")
 
 // ToolsDockerAdapter implements DockerAdapter through AuraGo's Docker Engine
 // API helpers.
@@ -50,7 +57,7 @@ func (a ToolsDockerAdapter) CreateContainer(ctx context.Context, spec ContainerS
 	if strings.TrimSpace(spec.Name) != "" {
 		endpoint += "?name=" + url.QueryEscape(spec.Name)
 	}
-	data, code, err := tools.DockerRequestContext(ctx, a.Config, http.MethodPost, endpoint, string(body))
+	data, code, err := tools.DockerCreateRequestContextWithTrustedBinds(ctx, a.Config, endpoint, string(body), catalogTrustedBinds(spec))
 	if err != nil {
 		return "", err
 	}
@@ -144,6 +151,24 @@ func (a ToolsDockerAdapter) RemoveContainer(ctx context.Context, name string, fo
 	return dockerHTTPError("remove container", code, data)
 }
 
+// RenameContainer renames a container through POST /containers/{name}/rename.
+func (a ToolsDockerAdapter) RenameContainer(ctx context.Context, name, newName string) error {
+	endpoint := "/containers/" + url.PathEscape(name) + "/rename?name=" + url.QueryEscape(newName)
+	data, code, err := tools.DockerRequestContext(ctx, a.Config, http.MethodPost, endpoint, "")
+	if err != nil {
+		return err
+	}
+	switch code {
+	case http.StatusNoContent, http.StatusOK:
+		return nil
+	case http.StatusNotFound:
+		return fmt.Errorf("container %s %w", name, errContainerNotFound)
+	case http.StatusConflict:
+		return fmt.Errorf("rename container %s to %s: %w", name, newName, errContainerNameConflict)
+	}
+	return dockerHTTPError("rename container", code, data)
+}
+
 func (a ToolsDockerAdapter) RemoveVolume(ctx context.Context, name string, force bool) error {
 	endpoint := "/volumes/" + url.PathEscape(name)
 	if force {
@@ -203,17 +228,23 @@ func (a ToolsDockerAdapter) InspectContainer(ctx context.Context, name string) (
 		return ContainerState{}, err
 	}
 	if code == http.StatusNotFound {
-		return ContainerState{}, fmt.Errorf("container %s not found", name)
+		return ContainerState{}, fmt.Errorf("container %s %w", name, errContainerNotFound)
 	}
 	if code != http.StatusOK {
 		return ContainerState{}, dockerHTTPError("inspect container", code, data)
 	}
 	var raw struct {
-		Name  string `json:"Name"`
+		Name         string `json:"Name"`
+		RestartCount int    `json:"RestartCount"`
+		Config       struct {
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
 		State struct {
-			Running bool   `json:"Running"`
-			Status  string `json:"Status"`
-			Health  *struct {
+			Running    bool   `json:"Running"`
+			Restarting bool   `json:"Restarting"`
+			Status     string `json:"Status"`
+			ExitCode   int    `json:"ExitCode"`
+			Health     *struct {
 				Status string `json:"Status"`
 			} `json:"Health"`
 		} `json:"State"`
@@ -222,14 +253,54 @@ func (a ToolsDockerAdapter) InspectContainer(ctx context.Context, name string) (
 		return ContainerState{}, fmt.Errorf("parse docker inspect: %w", err)
 	}
 	state := ContainerState{
-		Name:    strings.TrimPrefix(raw.Name, "/"),
-		Running: raw.State.Running,
-		Status:  raw.State.Status,
+		Name:         strings.TrimPrefix(raw.Name, "/"),
+		Running:      raw.State.Running,
+		Restarting:   raw.State.Restarting,
+		Status:       raw.State.Status,
+		ExitCode:     raw.State.ExitCode,
+		RestartCount: raw.RestartCount,
+		Labels:       raw.Config.Labels,
 	}
 	if raw.State.Health != nil {
 		state.Health = raw.State.Health.Status
 	}
 	return state, nil
+}
+
+// FindContainer inspects a container; a missing one is found=false.
+func (a ToolsDockerAdapter) FindContainer(ctx context.Context, name string) (ContainerState, bool, error) {
+	state, err := a.InspectContainer(ctx, name)
+	if errors.Is(err, errContainerNotFound) {
+		return ContainerState{}, false, nil
+	}
+	if err != nil {
+		return ContainerState{}, false, err
+	}
+	return state, true, nil
+}
+
+// VolumeExists reports whether a named volume exists (GET /volumes/{name}).
+func (a ToolsDockerAdapter) VolumeExists(ctx context.Context, name string) (bool, error) {
+	return a.resourceExists(ctx, "/volumes/"+url.PathEscape(strings.TrimSpace(name)), "inspect volume")
+}
+
+// NetworkExists reports whether a network exists (GET /networks/{name}).
+func (a ToolsDockerAdapter) NetworkExists(ctx context.Context, name string) (bool, error) {
+	return a.resourceExists(ctx, "/networks/"+url.PathEscape(strings.TrimSpace(name)), "inspect network")
+}
+
+func (a ToolsDockerAdapter) resourceExists(ctx context.Context, endpoint, action string) (bool, error) {
+	data, code, err := tools.DockerRequestContext(ctx, a.Config, http.MethodGet, endpoint, "")
+	if err != nil {
+		return false, err
+	}
+	switch code {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	}
+	return false, dockerHTTPError(action, code, data)
 }
 
 func (a ToolsDockerAdapter) containerAction(ctx context.Context, name, method, action string) error {
@@ -242,7 +313,7 @@ func (a ToolsDockerAdapter) containerAction(ctx context.Context, name, method, a
 		return nil
 	}
 	if code == http.StatusNotFound {
-		return fmt.Errorf("container %s not found", name)
+		return fmt.Errorf("container %s %w", name, errContainerNotFound)
 	}
 	return dockerHTTPError("container action", code, data)
 }
@@ -277,11 +348,7 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 		if strings.TrimSpace(bind.HostPath) == "" || strings.TrimSpace(bind.ContainerPath) == "" {
 			continue
 		}
-		mode := "rw"
-		if bind.ReadOnly {
-			mode = "ro"
-		}
-		binds = append(binds, dockerutil.FormatBindMount(bind.HostPath, bind.ContainerPath, mode))
+		binds = append(binds, dockerHostBindString(bind))
 	}
 	restart := strings.TrimSpace(spec.Restart)
 	if restart == "" {
@@ -293,6 +360,7 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 		"RestartPolicy": map[string]any{"Name": restart},
 		"SecurityOpt":   []string{"no-new-privileges:true"},
 	}
+	applyContainerHardening(hostConfig, spec.Hardening)
 	if len(spec.ExtraHosts) > 0 {
 		hostConfig["ExtraHosts"] = append([]string(nil), spec.ExtraHosts...)
 	}
@@ -307,6 +375,33 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 		"Labels":       spec.Labels,
 	}
 	return payload
+}
+
+// applyContainerHardening adds the catalog's opt-in hardening for one image.
+// A nil value leaves Docker's defaults untouched.
+func applyContainerHardening(hostConfig map[string]any, hardening *ContainerHardening) {
+	if hardening == nil {
+		return
+	}
+	if len(hardening.CapDrop) > 0 {
+		hostConfig["CapDrop"] = append([]string(nil), hardening.CapDrop...)
+	}
+	if len(hardening.CapAdd) > 0 {
+		hostConfig["CapAdd"] = append([]string(nil), hardening.CapAdd...)
+	}
+	if hardening.ReadonlyRootfs {
+		hostConfig["ReadonlyRootfs"] = true
+	}
+	if len(hardening.Tmpfs) > 0 {
+		tmpfs := make(map[string]string, len(hardening.Tmpfs))
+		for path, options := range hardening.Tmpfs {
+			tmpfs[path] = options
+		}
+		hostConfig["Tmpfs"] = tmpfs
+	}
+	if hardening.PidsLimit > 0 {
+		hostConfig["PidsLimit"] = hardening.PidsLimit
+	}
 }
 
 func dockerHTTPError(action string, code int, data []byte) error {

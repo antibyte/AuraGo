@@ -2,8 +2,8 @@ package llm
 
 import (
 	"bytes"
+	"context"
 	"errors"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -64,58 +64,11 @@ func TestFailoverReconfigureLogsRedactedBaseURL(t *testing.T) {
 	}
 }
 
-func TestQueryModelsEndpointLogsRedactedURL(t *testing.T) {
-	var logs syncLogBuffer
-	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"data":[{"id":"probe-model","context_length":32768}]}`)),
-		}, nil
-	})}
-
-	got := queryModelsEndpoint(client, "https://user:s3cr3t-pw@host.example/v1/models?key=q-s3cr3t", "", "probe-model", logger)
-	if got != 32768 {
-		t.Fatalf("queryModelsEndpoint() = %d, want 32768", got)
-	}
-	out := logs.String()
-	if !strings.Contains(out, "Detected model context window") {
-		t.Fatalf("detection record missing; logs=%s", out)
-	}
-	if strings.Contains(out, "s3cr3t") {
-		t.Fatalf("context detection log leaked provider URL credentials: %s", out)
-	}
-	if !strings.Contains(out, "url=https://host.example/v1/models") {
-		t.Fatalf("context detection log does not carry the redacted URL: %s", out)
-	}
-}
-
-// http.Client wraps transport failures in *url.Error, whose message repeats the
-// request URL with the username and the full query (only the password masked).
-func TestQueryModelsEndpointRedactsURLInsideTransportError(t *testing.T) {
-	var logs syncLogBuffer
-	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return nil, errors.New("connection refused")
-	})}
-
-	if got := queryModelsEndpoint(client, "https://user:s3cr3t-pw@host.example/v1/models?key=q-s3cr3t", "", "probe-model", logger); got != 0 {
-		t.Fatalf("queryModelsEndpoint() = %d, want 0 on transport failure", got)
-	}
-	out := logs.String()
-	if !strings.Contains(out, "Failed to query models API") || !strings.Contains(out, "connection refused") {
-		t.Fatalf("transport failure record missing; logs=%s", out)
-	}
-	if strings.Contains(out, "user:") || strings.Contains(out, "s3cr3t") {
-		t.Fatalf("transport error leaked provider URL credentials: %s", out)
-	}
-}
-
-func TestDetectContextWindowOllamaRedactsURLInsideTransportError(t *testing.T) {
-	var logs syncLogBuffer
-	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	// Local fixture that drops every connection, so client.Do fails with *url.Error.
+// droppingProviderURL returns a credentialed base URL for a local fixture that
+// drops every connection, so client.Do fails with a *url.Error whose message
+// repeats the request URL with the username and the full query.
+func droppingProviderURL(t *testing.T) string {
+	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, _, err := w.(http.Hijacker).Hijack()
 		if err == nil {
@@ -123,13 +76,36 @@ func TestDetectContextWindowOllamaRedactsURLInsideTransportError(t *testing.T) {
 		}
 	}))
 	t.Cleanup(server.Close)
-	baseURL := strings.Replace(server.URL, "http://", "http://user:s3cr3t-pw@", 1) + "/v1"
+	return strings.Replace(server.URL, "http://", "http://user:s3cr3t-pw@", 1)
+}
 
-	if got := detectContextWindowOllama(baseURL, "probe-model", logger); got != 0 {
-		t.Fatalf("detectContextWindowOllama() = %d, want 0 on transport failure", got)
+func TestQueryModelLimitsEndpointRedactsURLInsideTransportError(t *testing.T) {
+	var logs syncLogBuffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	endpoint := droppingProviderURL(t) + "/v1/models?key=q-s3cr3t"
+
+	if _, ok := queryModelLimitsEndpoint(context.Background(), endpoint, "", "probe-model", logger); ok {
+		t.Fatal("queryModelLimitsEndpoint() succeeded, want a transport failure")
 	}
 	out := logs.String()
-	if !strings.Contains(out, "Failed to query /api/show") {
+	if !strings.Contains(out, "Provider metadata probe failed") {
+		t.Fatalf("transport failure record missing; logs=%s", out)
+	}
+	if strings.Contains(out, "user:") || strings.Contains(out, "s3cr3t") {
+		t.Fatalf("transport error leaked provider URL credentials: %s", out)
+	}
+}
+
+func TestProbeOllamaModelLimitsRedactsURLInsideTransportError(t *testing.T) {
+	var logs syncLogBuffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	route := ModelRoute{ProviderType: "ollama", BaseURL: droppingProviderURL(t) + "/v1", Model: "probe-model"}
+
+	if got := probeOllamaModelLimits(context.Background(), route, logger); got.ContextWindow != 0 {
+		t.Fatalf("probeOllamaModelLimits() = %+v, want no limits on transport failure", got)
+	}
+	out := logs.String()
+	if !strings.Contains(out, "Ollama metadata probe failed") {
 		t.Fatalf("transport failure record missing; logs=%s", out)
 	}
 	if strings.Contains(out, "user:") || strings.Contains(out, "s3cr3t") {
@@ -137,17 +113,16 @@ func TestDetectContextWindowOllamaRedactsURLInsideTransportError(t *testing.T) {
 	}
 }
 
-func TestRedactProviderErrKeepsOtherErrorsUnchanged(t *testing.T) {
-	plain := errors.New("plain failure")
-	if got := redactProviderErr(plain); got != plain {
-		t.Fatalf("redactProviderErr(plain) = %v, want the same error", got)
+func TestRedactProviderErrorKeepsOtherErrorsAndTheCause(t *testing.T) {
+	if got := redactProviderError(errors.New("plain failure")); got != "plain failure" {
+		t.Fatalf("redactProviderError(plain) = %q, want the error text unchanged", got)
 	}
-	if redactProviderErr(nil) != nil {
-		t.Fatal("redactProviderErr(nil) != nil")
+	if got := redactProviderError(nil); got != "" {
+		t.Fatalf("redactProviderError(nil) = %q, want empty", got)
 	}
-	wrapped := &url.Error{Op: "Get", URL: "https://user:pw@host.example/v1?key=k", Err: plain}
-	got := redactProviderErr(wrapped)
-	if strings.Contains(got.Error(), "user") || strings.Contains(got.Error(), "key=k") || !errors.Is(got, plain) {
-		t.Fatalf("redactProviderErr(url.Error) = %v, want redacted URL and the cause kept", got)
+	wrapped := &url.Error{Op: "Get", URL: "https://user:pw@host.example/v1?key=k", Err: errors.New("plain failure")}
+	got := redactProviderError(wrapped)
+	if strings.Contains(got, "user") || strings.Contains(got, "key=k") || !strings.Contains(got, "plain failure") || !strings.Contains(got, "https://host.example/v1") {
+		t.Fatalf("redactProviderError(url.Error) = %q, want redacted URL and the cause kept", got)
 	}
 }

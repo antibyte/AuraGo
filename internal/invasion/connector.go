@@ -2,6 +2,9 @@ package invasion
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strings"
 )
 
 // EggDeployPayload contains all data needed to deploy an egg to a nest.
@@ -46,4 +49,48 @@ type NestConnector interface {
 	// It writes the new config YAML and restarts the egg process/container.
 	// The configYAML parameter contains the fully patched config.
 	Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte) error
+}
+
+// eggIDPrefix returns the first eight characters of a nest ID. Egg service
+// names, SSH directories, Docker container names and Docker volume names all
+// use it, so it must stay identical for existing nests: nest IDs are UUIDs and
+// their prefix is the first eight hex digits. Shorter IDs and characters
+// outside [A-Za-z0-9-] are rejected instead of panicking or reaching a shell
+// path or a Docker name.
+func eggIDPrefix(nestID string) (string, error) {
+	id := strings.TrimSpace(nestID)
+	if len(id) < 8 {
+		return "", fmt.Errorf("invalid nest ID %q: expected at least 8 safe characters", nestID)
+	}
+	prefix := id[:8]
+	for _, r := range prefix {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' {
+			continue
+		}
+		return "", fmt.Errorf("invalid nest ID %q: unsafe character %q in egg name prefix", nestID, r)
+	}
+	return prefix, nil
+}
+
+// ErrEggConfigNotDelivered marks a Deploy failure that happened before any
+// request carrying the new egg configuration, and with it the hatch's new
+// shared key, left the master. No egg on the nest can hold the new key, and
+// the egg that ran before the hatch still has its own configuration. Test it
+// with errors.Is; a marked error keeps its text and chain.
+var ErrEggConfigNotDelivered = errors.New("egg configuration not delivered")
+
+// configNotDeliveredError adds ErrEggConfigNotDelivered to an error's chain
+// without changing its text.
+type configNotDeliveredError struct{ err error }
+
+func (e *configNotDeliveredError) Error() string        { return e.err.Error() }
+func (e *configNotDeliveredError) Unwrap() error        { return e.err }
+func (e *configNotDeliveredError) Is(target error) bool { return target == ErrEggConfigNotDelivered }
+
+// configNotDelivered marks err with ErrEggConfigNotDelivered; nil stays nil.
+func configNotDelivered(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &configNotDeliveredError{err: err}
 }

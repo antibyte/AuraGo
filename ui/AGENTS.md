@@ -21,6 +21,17 @@ worker. Keep packaging, recovery and offline instructions in
   Adopt the server's returned path after a copy decision. Rebuild Desktop bundles
   and verify `TestDesktopFileConflictBrowser` for changes to this flow.
 
+- File Manager paste, archive, extract and batch rename retain their originating
+  instance and captured paths across dialogs and requests. Late results cannot
+  repaint another window or replace its undo state. Shared cut completion clears
+  only the clipboard object it started with; a newer clipboard survives. Verify
+  `TestFileManagerAsyncActionsStayWithOriginBrowser` and
+  `TestDesktopFileClipboardPastePreservesNewSameContentBrowser`.
+- Generated-app keyboard relays use the existing document-bound SDK MessagePort.
+  The injected receiver supports SDK-less apps and preserves normal keyboard
+  events; navigation or frame disposal revokes forwarding. Verify
+  `TestDesktopSDKKeyboardBridgeUsesLivePortForSDKAndLegacyApps`.
+
 - Precision Workspace is an opt-in design system. Operational consumers are
   `config.html`, `dashboard.html`, `plans.html`, `missions_v2.html`,
   `cheatsheets.html`, `knowledge.html`, `skills.html`, `containers.html`,
@@ -356,6 +367,11 @@ worker. Keep packaging, recovery and offline instructions in
   selectable profiles; otherwise use the available configured default or first
   available profile. Blocked storage keeps the selection in memory. Never start
   a session automatically when restoring a selection.
+- Live Speech audio selection lives in a native dialog opened by a labelled
+  speaker button, placed in the Desktop app header through the shared panel's
+  `audioControls` mount option. Keep browser/headset selection and storage shared
+  with Webchat; opening the dialog never starts audio. Preserve native Escape,
+  focus return and mount cleanup. Verify `TestRealtimeSpeechAudioPickerBrowser`.
 - Live Speech's shared panel owns one `AuraRealtimeSpeechAvatar` per mount.
   Webchat passes `visible: false` until its overlay opens and calls
   `AuraRealtimeSpeechUI.setVisible`; unmount disposes the avatar. Desktop
@@ -464,6 +480,21 @@ worker. Keep packaging, recovery and offline instructions in
   focus independently of always-on-top stacking and suppress restore sounds.
   Compact mode preserves the logical active space. Resize/snap share clamped
   app minimums, with reachable viewport bounds taking precedence.
+- The start menu is categorized: `AppManifest.Category` (set for every builtin
+  and copied from `CatalogEntry.Category` for Store apps,
+  `desktop.DesktopAppCategories()` in display order; only apps without a known
+  category, e.g. agent-generated ones, fall into `installed`) drives a rail (`#vd-start-rail`, tablist) beside
+  the app pane (`#vd-start-pane-head` + `#vd-start-apps`). "Recent" appears only
+  with history, "All apps" lists sections per category, search shows a flat result
+  list and dims the rail. `START_MENU_CATEGORIES` in `core/window-shell-runtime.js`
+  must mirror the Go list; labels are `desktop.category_<id>` plus
+  `desktop.start_*` in all sixteen desktop locales. Hover switches after a short
+  intent delay (mouse only), arrows move within the rail and hand focus to the
+  pane and back; the active pill slides via `--vd-rail-y`, pane switches reuse the
+  open cascades, everything gated by `data-animations`/reduced motion. The
+  selection persists in `aurago.desktop.startCategory.v1`. Verify
+  `TestDesktopStartMenuCategoriesStayInSync` and
+  `TestBuiltinAppsCarryStartMenuCategories`.
 - Spotlight responses belong to a search generation and open instance. Quick
   Chat owns its AbortController/reader through widget cleanup. Shell popups
   close on Escape and return focus to their accessible opener.
@@ -494,14 +525,52 @@ worker. Keep packaging, recovery and offline instructions in
   Helix volleys and damage-triggered EMP counterpulses reuse projectile/effect
   cleanup and respect the existing 18-projectile limit. EMP must not interrupt
   a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
-- Sandstorm dust, grains and ground lift share a smooth wind/gust envelope.
-  Three moving counter-rotating eddies drive the fog and particle velocity
-  field; grains must visibly turn, rise and recirculate. Wind changes direction
-  gradually. Soft dust rolls preserve visible circulation in the 2D fallback.
-  Keep the fixed particle pools and the fog buffer at most 960x540 pixels;
-  soft dust does not need device-pixel resolution. Canvas bounds must not
-  transition. Preserve the 2D fallback, hidden-tab pause and reduced-motion
-  and narrow-screen gates.
+- Cyberwar uses the generated `img/cyberwar-city.webp` as a static, centered
+  cover background in `#chat-box`, beneath a navy dimming gradient and the HUD.
+  Keep the image position fixed in the scanline keyframes and retain readable
+  message surfaces, including on narrow screens and with reduced motion.
+- Dark Sun is an eclipse scene. `body` paints the violet-black sky, star specks
+  and the horizon glow; `body::before` carries the static eclipse and lava
+  horizon SVG (the no-JS, reduced-motion and narrow-screen baseline) and fades
+  out while the engine is live. `js/chat/dark-sun-shader.js` is the whole
+  engine: `#dark-sun-sky` (WebGL, at most 1280x720: stars, breathing corona,
+  prominence loops, the black disc, a travelling diamond-ring glint, the
+  eruption plume and light wave) and `#dark-sun-scene` (2D basalt plain with
+  cached glowing cracks, ridge silhouettes and the 2D eclipse fallback) sit
+  behind the chat; `#dark-sun-overlay` (2D, screen blend) carries embers that
+  rise from the cracks, sparks when an ember meets a bubble, pointer heat and
+  the light wave over the chat. Pools: 160 embers, 240 sparks; a single RAF
+  loop; canvas bounds never transition. Every 20–35 s a 5 s eruption triples
+  the ember spawn, launches the wave after one second and publishes
+  `html[data-darksun="calm"|"flare"]` plus `--darksun-flash` on
+  `.app-header`/`.app-footer`; `css/chat-themes.css` reacts and `stop()`
+  clears both. Bubble tails keep the anchored `::before` contract. Gates:
+  theme, hidden tab, reduced motion and `innerWidth >= 768`. The DOM ember
+  layer (`dark-sun-embers.js`) is retired; `theme-effects.js` loads only the
+  engine. Contracts: `TestDarkSunEclipseBrowserSmoke`
+  (`AURAGO_RUN_BROWSER_SMOKE=1`, `AURAGO_DARKSUN_BENCHMARK=1` for 120
+  native-RAF frames at 1920x1080) and `TestChatFrontend_DarkSunSceneStaysPolished`.
+- Sandstorm is a layered desert scene. `body` paints sky, sun bloom and static
+  SVG dunes (the no-JS, reduced-motion and narrow-screen baseline). The engine
+  adds `#sandstorm-fog` (WebGL sky, sun, crepuscular rays, dust, the dust wall
+  of a storm and the lightning tint) and `#sandstorm-scene` (three cached dune
+  ridges with parallax, clouds, dust rolls, the lightning bolt and the 2D sky
+  fallback) behind the chat, and `#sandstorm-overlay` (grains, trails, ground
+  pile, sand resting on bubbles) above it. Dust, grains and ground lift share
+  a smooth wind/gust envelope; three moving counter-rotating eddies drive the
+  fog and particle velocity field; grains must visibly turn, rise and
+  recirculate, and wind changes direction gradually. Each 9 s storm sends a
+  dust wall across the scene from the windward side (`u_front`), dims the sun,
+  schedules one to three dry-lightning strikes (the first always shortly after
+  the attack) and sweeps the sand off bubbles. While live the engine publishes
+  `html[data-sandstorm="calm"|"storm"]` and sets `--sandstorm-flash` on
+  `.app-header`/`.app-footer` during strikes; `css/chat-themes.css` reacts to
+  both and `stop()` clears them. A `pointermove` gust pushes nearby grains
+  without extra loops or pointer capture. Keep the fixed particle pools and
+  the fog buffer at most 960x540 pixels; soft dust does not need device-pixel
+  resolution. Canvas bounds must not transition. Preserve the 2D fallback,
+  hidden-tab pause and reduced-motion and narrow-screen gates. Static
+  contract: `TestChatFrontend_SandstormSceneStaysPolished`.
 - Galaxy uses the shared Three.js 0.186.1 and a single lazy renderer/RAF loop.
   Keep the ten draw calls, shared sphere geometry and fixed 3500/850-star
   buffers. Exactly 20 stars flicker subtly with individually randomized pauses;
@@ -518,11 +587,21 @@ worker. Keep packaging, recovery and offline instructions in
   Reduced motion, unavailable WebGL, missing textures and context loss expose
   the complete local poster. Keep posters aligned with the rendered scene and
   preserve source provenance in `img/galaxy/CREDITS.md`.
-  Galaxy chat follows the supplied orbital-glass reference: a violet/cyan/gold
-  outlined header, local orbit wordmark, left navigation rail, orb welcome card
-  and a floating composer ordered Voice, Live, File, Tools, input, Send.
-  Desktop header/composer share width and resting height, with 16px edge gaps;
-  narrow touch views retain the input above the controls and 12px edge gaps.
+  Galaxy chat is an orbital-glass cockpit: a violet/cyan/gold outlined header
+  with the local orbit wordmark and a clock segment at its right end, a footer
+  composer ordered Voice, Live, File, Tools, input, Send, and two equal glass
+  rails between them: navigation on the left (Desktop, Integrations,
+  Conversations, Dashboard, Missions, Config as icon + caption) and the live
+  status pills (connection, tokens, budget, credits, debug) on the right, moved
+  there by `galaxy-interface.js` and restored on exit. Header and footer span
+  the full width with 16px gaps on every side and share their resting height;
+  the rails sit 16px below/above them with the same width (`--galaxy-rail-width`)
+  and the chat lane is centered between them (`--galaxy-lane-inset`). The orb
+  welcome card is a centered column with a connection chip. No floating clock
+  plate, no mottos, no horizontal offsets. Narrow touch views hide logo, clock
+  and status rail, keep a 46px icon-only navigation rail, retain the input above
+  the controls and use 12px edge gaps. Static contract:
+  `TestChatFrontend_GalaxyFrameStaysSymmetric`.
   Keep its styles scoped to `[data-theme="galaxy"]` in `css/chat-themes.css`.
   `galaxy-interface.js` lazily relocates the real composer/drawer controls;
   comment anchors restore the exact original order on theme exit. Do not clone

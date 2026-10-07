@@ -6,7 +6,7 @@
   "config.danger.shell.title": "Wykonanie Shell (execute_shell)",
   "config.danger.shell.desc": "Pozwala agentowi uruchamiać dowolne polecenia shell na systemie hosta.",
   "config.danger.python.title": "Python / Wykonanie Umiejętności (execute_python / execute_skill / save_tool)",
-  "config.danger.python.desc": "Pozwala agentowi wykonywać dowolny kod Python i umiejętności <strong>lokalnie bez sandbox</strong> oraz persistować nowe narzędzia. Kod działa bezpośrednio na systemie hosta — użyj sandboxa dla izolowanego wykonania.",
+  "config.danger.python.desc": "Pozwala agentowi wykonywać dowolny kod Python i umiejętności <strong>lokalnie bez sandbox</strong> oraz utrwalać nowe narzędzia. Kod działa bezpośrednio na systemie hosta — użyj sandboxa dla izolowanego wykonania.",
   "config.danger.filesystem.title": "Dostęp Zapisu do Systemu Plików (filesystem write ops)",
   "config.danger.filesystem.desc": "Pozwala agentowi zapisywać, usuwać, przenosić pliki i tworzyć katalogi przez narzędzie filesystem.",
   "config.danger.network.title": "Żądania Sieciowe (api_request)",
@@ -22,5 +22,7 @@
   "config.danger.sudo_unrestricted.title": "Systemowy Dostęp do Zapisu przez Sudo",
   "config.danger.sudo_unrestricted.desc": "Pozwala agentowi zapisywać poza katalogiem instalacyjnym przy użyciu sudo (np. /etc.). Wymaga usunięcia ProtectSystem=strict z jednostki usługi systemd.",
   "config.danger.unsafe_host_execution.title": "Niebezpieczne uruchamianie na hoście",
-  "config.danger.unsafe_host_execution.desc": "Pozwala uruchamiać Pythona na hoście, powłokę Windows i powłokę hosta z Linuksem/macOS bez izolacji. Każde użycie jest zapisywane jako ostrzeżenie bezpieczeństwa. Włączaj tylko świadomie."
+  "config.danger.unsafe_host_execution.desc": "Pozwala uruchamiać Pythona na hoście, powłokę Windows i powłokę hosta z Linuksem/macOS bez izolacji. Każde użycie jest zapisywane jako ostrzeżenie bezpieczeństwa. Włączaj tylko świadomie.",
+  "config.danger.docker_host_access.title": "Dostęp do hosta Dockera dla stosów Compose agenta",
+  "config.danger.docker_host_access.desc": "Pozwala agentowi przy docker compose up/create/build używać ścieżek hosta spoza jego obszaru roboczego (np. /var/run/docker.sock, /srv/media lub /), urządzeń, trybu uprzywilejowanego, przestrzeni nazw sieci/PID/IPC/UTS/użytkowników/cgroup hosta, cap_add i nieograniczonych opcji bezpieczeństwa. Własne dane, konfiguracja, .env i klucz główny AuraGo pozostają zablokowane, ale zamontowanie ścieżki nadrzędnej, np. /, i tak je odsłania. Po włączeniu docker compose widzi także zmienne środowiskowe AuraGo; bez tego Compose dostaje tylko PATH, HOME oraz ustawienia Dockera, proxy i języka."
 }

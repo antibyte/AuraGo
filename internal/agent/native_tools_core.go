@@ -34,25 +34,6 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				"args":   map[string]interface{}{"type": "object", "description": "JSON arguments sent to the script on stdin"},
 			}, "skill", "script"),
 		),
-		tool("run_tool",
-			"Run only a saved custom Python tool from the agent tools directory. Requires agent.allow_python. The name must exactly match a custom tool returned by discover_tools/list_tools; never invent a name or use run_tool for built-in AuraGo tools. Pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.",
-			schema(map[string]interface{}{
-				"name":       prop("string", "Custom tool filename or registered manifest name to run"),
-				"args":       map[string]interface{}{"type": "array", "description": "Optional positional command-line arguments for the tool", "items": map[string]interface{}{"type": "string"}},
-				"params":     map[string]interface{}{"type": "object", "description": "Optional structured parameters; forwarded to the tool as one JSON argument"},
-				"background": prop("boolean", "Run as background process (default false)"),
-				"vault_keys": map[string]interface{}{
-					"type":        "array",
-					"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
-					"items":       map[string]interface{}{"type": "string"},
-				},
-				"credential_ids": map[string]interface{}{
-					"type":        "array",
-					"description": "List of credential UUIDs to inject as AURAGO_CRED_<NAME>_USERNAME / _PASSWORD / _TOKEN environment variables. Only credentials with 'allow_python' enabled are accessible.",
-					"items":       map[string]interface{}{"type": "string"},
-				},
-			}, "name"),
-		),
 		tool("wikipedia_search",
 			"Search Wikipedia and return the best matching article summary. "+
 				"Use this for encyclopedic facts, biographies, places, historical topics, and definitions. "+
@@ -367,6 +348,27 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				"reason":       prop("string", "Why you need the original output (helps improve compression filters)"),
 			}, "tool_call_id"),
 		),
+	}
+	if ff.AllowPython {
+		tools = append(tools, tool("run_tool",
+			"Run only a saved custom Python tool from the agent tools directory. Requires agent.allow_python. The name must exactly match a custom tool returned by discover_tools/list_tools; never invent a name or use run_tool for built-in AuraGo tools. Pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.",
+			schema(map[string]interface{}{
+				"name":       prop("string", "Custom tool filename or registered manifest name to run"),
+				"args":       map[string]interface{}{"type": "array", "description": "Optional positional command-line arguments for the tool", "items": map[string]interface{}{"type": "string"}},
+				"params":     map[string]interface{}{"type": "object", "description": "Optional structured parameters; forwarded to the tool as one JSON argument"},
+				"background": prop("boolean", "Run as background process (default false)"),
+				"vault_keys": map[string]interface{}{
+					"type":        "array",
+					"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+				"credential_ids": map[string]interface{}{
+					"type":        "array",
+					"description": "List of credential UUIDs to inject as AURAGO_CRED_<NAME>_USERNAME / _PASSWORD / _TOKEN environment variables. Only credentials with 'allow_python' enabled are accessible.",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+			}, "name"),
+		))
 	}
 	if ff.WorkspaceSearchEnabled {
 		tools = append(tools, tool("workspace_search",

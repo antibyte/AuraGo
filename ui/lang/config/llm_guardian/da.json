@@ -33,7 +33,7 @@
   "config.llm_guardian.clarification_desc": "Når aktiveret kan agenten give en begrundelse, hvis et værktøjskald blokeres. Guardian revurderer anmodningen én gang med begrundelsen, før en endelig beslutning træffes.",
   "config.llm_guardian.clarification_label": "Tillad agent-afklaring",
   "config.llm_guardian.scan_title": "Indholdsscanning",
-  "config.llm_guardian.scan_desc": "Brug Guardian LLM til at scanne indgående indhold (e-mails, webhooks) for hurtige injektioner, phishing og social engineering-angreb - ud over de indbyggede regex-mønstre.",
+  "config.llm_guardian.scan_desc": "Brug Guardian LLM til at scanne indgående indhold (e-mails, webhooks) for prompt injection, phishing og social engineering-angreb - ud over de indbyggede regex-mønstre.",
   "config.llm_guardian.scan_emails_label": "Scan indgående e-mails",
   "config.llm_guardian.scan_documents_label": "Scan webhook-payloads"
 }

@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"aurago/internal/desktop"
+	"aurago/internal/security"
 	"aurago/internal/speechlab"
 	"aurago/internal/tools"
 )
@@ -170,7 +171,9 @@ func systemWorldExcerpt(content string, maxRunes int) string {
 		return ""
 	}
 	// Existing chat cleanup scrubs registered secrets, thinking blocks and fenced code.
-	text := chatVoiceCleanText(stripAgodeskAttachmentBlock(content))
+	// Pattern-based redaction must also run before sentence selection so a secret
+	// outside the chosen excerpt cannot influence which sentence is selected.
+	text := security.RedactSensitiveInfo(chatVoiceCleanText(stripAgodeskAttachmentBlock(content)))
 	parts := systemWorldSentence.FindAllString(text, -1)
 	for _, i := range rand.Perm(len(parts)) {
 		phrase := strings.Join(strings.Fields(parts[i]), " ")

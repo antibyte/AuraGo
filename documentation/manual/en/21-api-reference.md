@@ -721,6 +721,8 @@ GET /api/missions/v2/dependencies
 
 ## Container API
 
+With authentication enabled, all container routes require a browser session or an API token with the `admin` scope.
+
 ### List Containers
 ```http
 GET /api/containers
@@ -729,7 +731,11 @@ GET /api/containers
 **Response:**
 ```json
 {
-  "containers": []
+  "status": "ok",
+  "count": 1,
+  "containers": [
+    {"id": "0123456789ab", "names": ["/aurago"], "image": "ghcr.io/antibyte/aurago:latest", "state": "running", "status": "Up 2 hours", "protected_owner": "aurago-app", "self": true}
+  ]
 }
 ```
 
@@ -740,8 +746,18 @@ POST /api/containers/{id}/stop
 POST /api/containers/{id}/restart
 POST /api/containers/{id}/pause
 POST /api/containers/{id}/unpause
+GET /api/containers/{id}/protection
 DELETE /api/containers/{id}
 ```
+
+### Protected Containers
+`GET /api/containers` marks containers that AuraGo manages (`protected_owner`: `aurago-app`, `acestep`, `homepage`, `go2rtc`, `local-llm`, `boring-garage`, `security-proxy`), the container AuraGo runs in (`self: true`) and the container that serves AuraGo's Docker endpoint (`docker_endpoint: true`). When AuraGo shares another container's network namespace (`network_mode: service:…` or `container:…`, for example a Tailscale or Gluetun sidecar), AuraGo cannot tell its own container from that provider; both are marked `shared_network: true` instead of `self`. The same applies when another container joins AuraGo's own network namespace, and to every container that shares one provider.
+
+For these containers, `GET /api/containers/{id}/terminal` (WebSocket), `POST /api/containers/{id}/update` and `DELETE /api/containers/{id}` answer HTTP 409 with `code: "container_protected_confirmation_required"` unless the request carries `confirm=protected`. The `owner` field names the reason (`self`, `docker-endpoint`, `shared-network`, the managing owner or `unverified`). The same applies when Docker does not answer the ownership check (`owner: "unverified"`). If the Docker endpoint host cannot be resolved, AuraGo identifies the endpoint container by the address of its open Docker connection, but only when a listed container has that address. Otherwise the target counts as `unverified`: no TCP connection was observed, the address is a loopback or host address (a proxy behind a published port stays unknown), the target joins the connected container's network namespace (it may be the process serving the port), the target has the connected container's Compose service name in any project, or one of the target's names, aliases or DNS names equals the host name of `docker.host`. `POST /api/containers/{id}/update` on the AuraGo container itself or on the Docker endpoint container always answers HTTP 409 with `code: "container_self_update_unsupported"`: the update would stop AuraGo or its Docker connection before the replacement exists. Upgrade those with `docker compose pull && docker compose up -d` on the Docker host. Under Podman, AuraGo cannot identify its own container; the app container then needs only the confirmation (by its reserved name or owner label). Start, stop, restart, pause, unpause, logs, inspect and stats need no confirmation.
+
+A terminal request that is not a WebSocket upgrade answers HTTP 400 before any shell starts. `GET /api/containers/{id}/protection` returns the classification without opening a shell: `owner` (the reason, empty when not protected), `protected`, `update_unsupported`, `read_only` and, for protected containers, the `message` of the 409 answer. Browsers cannot read the HTTP answer of a refused WebSocket handshake; the Containers page asks this route and then offers the confirmation. On an open terminal WebSocket, the text message `{"type":"end"}` ends the shell: AuraGo sends SIGHUP to the exec's own process, which it finds by the `AURAGO_TERMINAL_SESSION` variable of that session. Programs that detached from the shell, such as a tmux or screen server, keep running. Closing the WebSocket does not end the shell. With the overlay2 storage driver, AuraGo also recognises its own container behind a network sidecar: the overlay upper directory of its root filesystem (`/proc/self/mountinfo`) equals that container's `GraphDriver.Data.UpperDir`. The containerd image store (the default for new Docker 29 installations) does not report this directory. There AuraGo uses a marker file instead: at startup it writes a file with a random name into its own writable layer (for example `/tmp/.aurago-self-<random>`, never into a volume, bind mount or tmpfs) and asks Docker which container of the shared network group holds it (`HEAD /containers/{id}/archive`, which a Docker socket proxy must allow). Exactly one match proves the container AuraGo runs in. A container proven either way is `self`, and its update is refused. Without a proof (no writable directory on the container's own layer, a Docker answer other than 200 or 404, or several matches), a container marked `shared_network` (and not `docker_endpoint`) is never refused for update, only confirmed, even when it is the AuraGo container, and that update stops AuraGo.
+
+A failure reported by Docker or the Docker tool layer answers HTTP 502 with the unchanged JSON body (`status: "error"`, `message`). `503` still means Docker is disabled and `403` that Docker is read-only.
 
 ### Runtime Information
 ```http
@@ -1708,7 +1724,7 @@ POST /api/proxy/reload
 GET /api/proxy/logs
 ```
 
-The Security Proxy API controls the managed Caddy protection layer used for rate limiting, TLS termination, IP filtering, geo-blocking, and public-facing hardening.
+The Security Proxy API controls the managed Caddy protection layer in front of AuraGo: TLS termination, rate limiting, IP filtering and Basic Auth. Geo-blocking is not implemented yet.
 
 ---
 

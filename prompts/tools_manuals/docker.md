@@ -167,11 +167,21 @@ Use `direction: "from_container"` or `"to_container"`. Path maps to the host's a
 ```
 
 #### compose — Run docker compose commands
-Requires `file` pointing to the `docker-compose.yml` path.
+`file` is a Compose file inside the agent workspace (relative paths resolve against it).
 ```json
-{"action": "docker", "operation": "compose", "command": "up -d", "file": "/path/to/project/docker-compose.yml"}
-{"action": "docker", "operation": "compose", "command": "down", "file": "/path/to/project/docker-compose.yml"}
+{"action": "docker", "operation": "compose", "command": "up -d", "file": "stacks/web/docker-compose.yml"}
+{"action": "docker", "operation": "compose", "command": "down", "file": "stacks/web/docker-compose.yml"}
 ```
+- AuraGo resolves the file with `docker compose config` before anything runs. A file that does not resolve returns `docker_compose_preflight_failed` with Compose's error.
+- Every compose command is rejected when the stack touches AuraGo-managed containers, labels, images or volumes. When AuraGo itself runs in Docker, `up`, `create`, `start`, `stop`, `restart`, `down`, `rm`, `kill`, `pause`, `unpause`, `logs` and `top` are also rejected for a stack whose project name is AuraGo's own Compose project (`docker_managed_aurago_resource`): give the stack its own top-level `name:` or another folder.
+- `up`, `create` and `build` (and `config`/`convert` for env files, secret and config files) also reject anything that points into AuraGo's own data directory, config, `.env` or master key, and `up`/`create`/`build`/`pull`/`config`/`convert` reject AuraGo's master key value anywhere in the resolved file (`docker_compose_protected_path_denied`), even with host access.
+- Unless the administrator enabled **Docker host access** (`docker.allow_host_access`), `up`/`create`/`build` also reject binds outside the workspace (or that contain AuraGo's files), `/var/run/docker.sock`, `use_api_socket`, devices, `device_cgroup_rules`, `gpus` and reserved devices, `privileged`, host network/PID/IPC/UTS/user/cgroup namespaces, `cap_add`, unconfined `security_opt`, local volumes that bind a host directory, mount a `/dev` device or a non-network filesystem, `develop.watch` paths outside the workspace, build SSH (`build.ssh`, `build --ssh`), privileged builds, build entitlements, `build.network: host`, and env files, secrets, configs, Dockerfiles or build contexts outside the workspace (`docker_compose_host_access_denied`). A command without service names checks every service of the file's default profiles; a command that names services (`up -d web`) checks those, what they need (depends_on, links, volumes_from, `network_mode: service:`, `service:` build contexts) and what depends on them as far as the command acts on it (all dependents for `stop`/`down`/`rm`/`restart`, `restart: true` dependents for `up`, none for `create`/`start`/`build`/`pull`), as long as every name exists and every flag is a known one (an unknown flag such as `--scale` checks the whole file). Tell the user which setting is needed; do not retry unchanged.
+- Without host access, `provider` services and privileged `post_start`/`pre_stop` hooks also block `down`, `start`, `stop`, `restart`, `rm` and `pull` (including profile services the command names and the services they depend on), because Compose runs them on the host.
+- `kill`, `pause`, `unpause`, `ps`, `logs` and the other inspection commands are never blocked by the host-access check.
+- Without host access, Compose runs with a minimal environment (`PATH`, `HOME`, Docker/Compose/BuildKit settings, proxy, temp and locale variables): `${VAR}` in a Compose file cannot read AuraGo's own variables, so put such values into the stack's `.env` file. Registry credentials must then come from the Docker config (`~/.docker/config.json`) or a credential helper that needs no secret environment variables.
+- `config -o <file>` / `--output` writes only inside the workspace (relative paths resolve against it; AuraGo's own data, config and `.env` files, directories and special files are refused): Compose renders into a private staging file and AuraGo publishes it atomically at that path, creating missing folders, and reports `output_file`; `-q` or list flags such as `--services` write no file. `config`/`convert` stay read-only, so they also work when Docker is read-only (`docker.read_only`). `--environment` and `--env-file` are rejected.
+- Without host access, AuraGo repeats its checks right before the run; `docker_compose_input_changed` means the Compose file or a file it reads changed in between. Retry once nothing rewrites the files.
+- `build --push` is allowed: it pushes the images the build itself creates. `docker compose push` stays blocked. The master key checks of `build` apply.
 
 #### info — Docker engine system info (version, resource counts)
 ```json
@@ -187,7 +197,11 @@ Requires `file` pointing to the `docker-compose.yml` path.
 - `run` = `create` + auto-`start` in a single call
 - `auto_remove` defaults to `false`, is valid only for `run`, and conflicts with every restart policy other than `no`
 - `aurago-homepage`, `aurago-homepage-web`, and the `aurago-homepage` image repository cannot be managed with this tool
+- The names `aurago` (and compose replicas such as `stack-aurago-1`) and `aurago-boring-garage` are reserved the same way: they cannot be used as `name` for `create`/`run`, even next to a different `container_id`, and those containers cannot be inspected, controlled or read through this tool
+- Without host access, managed sidecar names (`aurago_gotenberg`, `aurago_ollama_managed`, `aurago_ollama_embeddings`, `aurago-piper-tts`, `aurago-supertonic-tts`, `aurago_ansible`, `aurago_browser_automation`, `aurago_go2rtc`, `aurago_space_agent`, `aurago_manifest`, `aurago_manifest_postgres`, `aurago_omniroute`, the `aurago_dograh_*` services, `aurago-cloudflared` and their configured custom names) cannot be used as `name` for `create`/`run` or as a Compose `container_name` in `up`/`create` (`docker_managed_sidecar_name`); `aurago-security-proxy` is refused as a Compose `container_name` everywhere (`docker_managed_security_proxy_resource`).
+- Without host access and without an agent workspace, `create`/`run` refuse binds of AuraGo's own data directory, config, `.env`, `/etc/aurago` and master key (`docker_protected_path_denied`).
 - Logs are truncated to ~8000 chars to avoid flooding the context
 - `force: true` on remove will kill a running container before removing it
 - Port mapping format: `{"container_port": "host_port"}` — both as strings
 - Volume bind format: `"/host/path:/container/path"` or `"/host/path:/container/path:ro"`
+- When AuraGo runs in Docker, its data volume (`<project>_aurago_data` or the volume behind `/app/data`) cannot be mounted (`create`/`run`), created or removed, and no Compose stack may use it (`docker_managed_aurago_resource`). If AuraGo cannot identify its own container (Docker did not answer, or AuraGo shares another container's network), every volume named `aurago_data` or ending in `_aurago_data` counts as AuraGo's; give other stacks' volumes a different name. The workdir volume stays usable.

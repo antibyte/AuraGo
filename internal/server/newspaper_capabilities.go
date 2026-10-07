@@ -5,6 +5,13 @@ import (
 	"aurago/internal/newspaper"
 )
 
+func newspaperBudget(cfg *config.Config, p newspaper.Profile) newspaper.Budget {
+	if cfg == nil {
+		return newspaper.Budget{}
+	}
+	return newspaper.ResolveBudget(p, newspaper.BudgetConfig{Mode: cfg.Newspaper.BudgetMode, MaxPages: cfg.Newspaper.MaxPages, MaxSearches: cfg.Newspaper.MaxSearches, MaxMinutes: cfg.Newspaper.MaxMinutes})
+}
+
 type newspaperResearchTool struct {
 	ID        string `json:"id"`
 	State     string `json:"state"`
@@ -40,7 +47,7 @@ func resolveNewspaperCapabilities(cfg *config.Config, p newspaper.Profile, skill
 	if cfg.Agent.AllowNetworkRequests {
 		c.Tools[1].State, c.Tools[1].Reason = "ready", ""
 	}
-	if len(p.RSSFeeds) > 0 {
+	if len(p.RSSFeeds) > 0 || len(cfg.Newspaper.OverviewSources) > 0 {
 		c.Tools[2].State, c.Tools[2].Reason = "ready", ""
 	}
 	if cfg.Tools.WebScraper.Enabled {

@@ -79,7 +79,7 @@
   "knowledge.credentials_host_optional_hint": "Optioneel voor dit type gegevens",
   "knowledge.credentials_host_placeholder": "192.168.1.50",
   "knowledge.credentials_host_required": "Host / IP is verplicht.",
-  "knowledge.credentials_name_placeholder": "e.g. Proxmox SSH",
+  "knowledge.credentials_name_placeholder": "bijv. Proxmox SSH",
   "knowledge.credentials_name_required": "Naam is verplicht.",
   "knowledge.credentials_password_label": "Wachtwoord",
   "knowledge.credentials_password_placeholder": "Optioneel – alleen opgeslagen in vault",

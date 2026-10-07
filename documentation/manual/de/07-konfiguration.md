@@ -599,7 +599,7 @@ Verwaltet wird immer genau eine Modellfamilie gleichzeitig:
 - **AuraGo-Ling**: fest `q4_k_l` mit MTP off und 16K-Kontext (32K erst nach separater Qualifikation), eigene gepinnte Hybrid-Runtime.
 - **AuraGo-Spark** (experimentell): fest `q4_k_m`, MTP off, fester 64K-Kontext, Thinking an, ein Slot ohne Speculative Decoding; mindestens 6 GB VRAM.
 
-Die Rollen `test_only`, `fallback` und `primary` werden erst nach Gesundheits-, Tool-Call-, Speicher- und GPU/KV-Offload-Prüfungen aktiv. Bei `primary` ist ein regulärer Provider als Fallback erforderlich. Der Provider-ID `aurago-qwen-local` darf nicht manuell unter `providers` eingetragen werden; Modellname und API-Alias ergeben sich aus der gewählten Familie. Downloads sind größen- und SHA-256-geprüft; experimentelle CPU-, iGPU-, SYCL- oder Vulkan-Pfade benötigen eine Hardware-Bestätigung. Details: [AuraGo-Qwen](../../local_llm_aurago_qwen.md).
+Die Rollen `test_only`, `fallback` und `primary` werden erst nach Gesundheits-, Tool-Call-, Speicher- und GPU/KV-Offload-Prüfungen aktiv. Bei `primary` ist ein regulärer Provider als Fallback erforderlich. Der Provider-ID `aurago-qwen-local` darf nicht manuell unter `providers` eingetragen werden; Modellname und API-Alias ergeben sich aus der gewählten Familie. Downloads sind größen- und SHA-256-geprüft; experimentelle CPU-, iGPU-, SYCL- oder Vulkan-Pfade benötigen eine Hardware-Bestätigung. Details: [AuraGo-Qwen](../../local_llm_aurago_qwen.md). Der Pull des Runtime-Images bricht nicht nach einer festen Zeit ab, solange Docker noch Fortschritt meldet; er scheitert erst nach 15 Minuten ohne Fortschritt (nach den ersten zwei Stunden) oder wenn das Installationslimit von sechs Stunden endet.
 
 ### Speech Lab
 

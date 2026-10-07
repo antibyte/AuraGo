@@ -130,8 +130,10 @@ func TestEmailWatcherNotificationIsAnInternalLoopback(t *testing.T) {
 
 func TestEmailWatcherNotificationHonorsCancellation(t *testing.T) {
 	entered, cancelled := make(chan struct{}), make(chan struct{})
+	headerCh := make(chan http.Header, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
+		headerCh <- r.Header.Clone()
 		close(entered)
 		<-r.Context().Done()
 		close(cancelled)
@@ -144,6 +146,7 @@ func TestEmailWatcherNotificationHonorsCancellation(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Server.Port, _ = strconv.Atoi(port)
 	watcher := NewEmailWatcher(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil)
+	watcher.SetInternalToken("internal-secret")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan struct{})
@@ -152,6 +155,14 @@ func TestEmailWatcherNotificationHonorsCancellation(t *testing.T) {
 	case <-entered:
 	case <-time.After(3 * time.Second):
 		t.Fatal("notification was not sent")
+	}
+	select {
+	case headers := <-headerCh:
+		if headers.Get("X-Internal-FollowUp") != "true" || headers.Get("X-Internal-Token") != "internal-secret" {
+			t.Fatalf("notification internal-auth headers = %#v", headers)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("notification headers were not observed")
 	}
 	cancel()
 	select {

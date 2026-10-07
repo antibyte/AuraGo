@@ -15,7 +15,7 @@ func (m *mockChatClient) CreateChatCompletion(_ context.Context, _ openai.ChatCo
 	return openai.ChatCompletionResponse{}, nil
 }
 
-func (m *mockChatClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (m *mockChatClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (CompletionStream, error) {
 	return nil, nil
 }
 

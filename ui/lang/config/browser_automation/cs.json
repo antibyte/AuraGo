@@ -8,7 +8,7 @@
   "help.browser_automation.url": "Interní URL sidecar služby pro automatizaci prohlížeče. Použijte název Docker kontejneru nebo název služby jako hostname (např. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Název Docker kontejneru pro sidecar automatizace prohlížeče. Musí být jedinečný na vašem Docker hostiteli.",
   "help.browser_automation.image": "Docker image pro sidecar automatizace prohlížeče. Automaticky se vytvoří z Dockerfile v nakonfigurovaném adresáři.",
-  "help.browser_automation.dockerfile_dir": "Adresář obsahující Dockerfile pro vytvoření image automatizace prohlížeče. Výchozí je instalační adresář AuraGo.",
+  "help.browser_automation.dockerfile_dir": "Adresář, který obsahuje Dockerfile.browser_automation a složku browser_automation_sidecar, tedy zdrojový checkout AuraGo. Relativní cesty vycházejí z pracovního adresáře AuraGo. Instalace z vydání tyto soubory neobsahují. Uveďte zde zdrojový checkout, nebo image sestavte ručně.",
   "help.browser_automation.allowed_download_dir": "Adresář, kam se ukládají stažené soubory. Relativní cesty se vyhodnocují od datového adresáře AuraGo.",
   "help.browser_automation.screenshots_dir": "Adresář, kam se ukládají snímky obrazovky prohlížeče. Relativní cesty se vyhodnocují od datového adresáře AuraGo.",
   "help.browser_automation.session_ttl_minutes": "Čas v minutách, než je nečinná relace prohlížeče automaticky uzavřena. Výchozí: 30 minut.",

@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Pré-visualizações isoladas de aplicações",
+  "config.server.preview_domain": "Domínio de pré-visualização",
+  "config.server.preview_enabled": "Ativar após validação",
+  "config.server.preview_hint": "Desativado por predefinição. Usa um site separado com DNS wildcard e TLS. Testa os inícios de sessão, ficheiros e WebSockets nos anfitriões preparados antes de ativar.",
   "config.fritzbox.status_ok": "🟢 Conectado",
   "config.fritzbox.test_fail": "Conexão falhou",
   "config.fritzbox.test_ok": "Conexão bem-sucedida",
@@ -30,7 +34,7 @@
   "config.remote_control.no_platforms": "Nenhuma plataforma disponível",
   "config.remote_control.platforms_error": "Erro ao carregar plataformas",
   "config.remote_control.status_connected": "Conectado",
-  "config.remote_control.status_offline": "Desligado",
+  "config.remote_control.status_offline": "Offline",
   "config.security_proxy.status_loading": "Carregando…",
   "config.security_proxy.status_unknown": "Status desconhecido",
   "config.server.behind_proxy_label": "Atrás do proxy reverso",

@@ -243,5 +243,13 @@
   "backend.budget_mode_full_de": "(při překročení se vše zablokuje)",
   "backend.speech_lab_audio_warning": "Zvuk Speech Lab se nepodařilo vygenerovat. Textová odpověď zůstává dostupná.",
   "backend.auth_current_password_required": "Pro tuto změnu je vyžadováno vaše současné heslo.",
-  "backend.auth_current_totp_required": "Pro tuto změnu je vyžadován aktuální kód z ověřovací aplikace."
+  "backend.auth_current_totp_required": "Pro tuto změnu je vyžadován aktuální kód z ověřovací aplikace.",
+  "backend.proxy_basic_auth_credentials_invalid": "Přihlašovací údaje Basic Auth ve Vaultu nelze použít. Uživatelské jméno nesmí obsahovat ':', uvozovky, zpětná lomítka ani složené závorky a heslo smí mít nejvýše 72 bajtů.",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth je zapnuté, ale ve Vaultu chybí 'proxy_basic_auth_user' a 'proxy_basic_auth_pass'. Uložte oba tajné údaje nebo Basic Auth vypněte a poté proxy spusťte znovu.",
+  "backend.proxy_caddy_exited": "Proxy se ihned po spuštění zastavila, obvykle kvůli neplatné doméně, položce filtru IP nebo portu. Přesný důvod najdete v logu proxy.",
+  "backend.proxy_config_rejected": "Proxy odmítla nové nastavení a dál běží s předchozím. Důvod najdete v logu proxy.",
+  "backend.proxy_docker_placement_failed": "AuraGo běží v Dockeru, ale proxy nemůže použít datový svazek AuraGo. Je potřeba Docker Engine 26 nebo novější a datový adresář AuraGo musí ležet na svazku Dockeru nebo bind mountu. Podrobnosti najdete v logu AuraGo.",
+  "backend.proxy_not_running": "Bezpečnostní proxy neběží. Nejprve ji spusťte.",
+  "backend.proxy_rate_limit_image_read_only": "Režim Dockeru pouze pro čtení (docker.read_only) je zapnutý, proto AuraGo nemůže sestavit image Caddy s modulem caddy-ratelimit, který omezení rychlosti vyžaduje. V tomto režimu AuraGo nemůže ani vytvořit nebo změnit kontejner proxy. Vypněte režim Dockeru pouze pro čtení a spusťte proxy znovu. Podrobnosti najdete v logu AuraGo.",
+  "backend.proxy_rate_limit_image_unavailable": "Omezení rychlosti vyžaduje image Caddy s modulem caddy-ratelimit, který AuraGo nedokázalo sestavit. Docker musí povolit sestavování imagů (u Docker Compose: BUILD=1 ve službě docker-proxy) a mít přístup k internetu. Případně image sestavte na hostiteli Dockeru (viz příručka) nebo omezení rychlosti vypněte. Podrobnosti najdete v logu AuraGo."
 }

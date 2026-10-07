@@ -387,3 +387,36 @@ func TestSoftwareStoreExpandedCapabilityTranslations(t *testing.T) {
 		}
 	}
 }
+
+// F-S5: a blocked Store install reports error_code container_name_in_use; the
+// Store window shows the translated text and keeps the English error as the
+// fallback.
+func TestSoftwareStoreTranslatesStructuredOperationErrors(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, want := range []string{
+		"function operationErrorText(op)",
+		"const key = 'desktop.store.error_' + op.error_code;",
+		"t(key, op.error_params || {})",
+		": operationErrorText(op));",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store missing structured error marker %q", want)
+		}
+	}
+	const key = "desktop.store.error_container_name_in_use"
+	english := loadDesktopLocale(t, "en")[key]
+	if english == "" {
+		t.Fatalf("en locale missing %s", key)
+	}
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		text := loadDesktopLocale(t, lang)[key]
+		if strings.Count(text, "{{name}}") != 3 || !strings.Contains(text, "docker rename {{name}} {{name}}-old") {
+			t.Fatalf("%s %s = %q, want the container name and the rename command", lang, key, text)
+		}
+		if lang != "en" && text == english {
+			t.Fatalf("%s %s copies the English text", lang, key)
+		}
+	}
+}

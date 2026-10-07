@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"aurago/internal/agentmail"
+	"aurago/internal/security"
 )
 
 type agentMailArgs struct {
@@ -83,7 +84,36 @@ func dispatchAgentMailCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 	if err != nil {
 		return agentMailError(err.Error()), true
 	}
-	return agentMailSuccess(result), true
+	reference := req.InboxID + "/" + req.MessageID + "/" + req.ThreadID + "/" + req.DraftID + "/" + req.AttachmentID
+	return sanitizeAgentMailToolResult(opCtx, dc.Guardian, dc.LLMGuardian, cfg.LLMGuardian.ScanEmails, reference, result), true
+}
+
+// Keep the operation outcome separate from release of untrusted response data.
+// In particular, withholding a send response must not invite a repeated send.
+func sanitizeAgentMailToolResult(ctx context.Context, guardian *security.Guardian, scanner emailContentEvaluator, scanEmails bool, reference string, data map[string]interface{}) string {
+	output := agentMailSuccess(data)
+	var held *security.GuardianResult
+	if guardian != nil && guardian.ScanForInjectionLocal(output).Level >= security.ThreatHigh {
+		result := security.ContentScanQuarantine(security.QuarantineSuspicious)
+		held = &result
+	}
+	if held == nil && scanEmails {
+		result := security.ContentScanQuarantine(security.QuarantineUnavailable)
+		if guardian != nil && scanner != nil {
+			result = scanner.EvaluateContent(ctx, "agentmail_tool", output)
+		}
+		if result.Decision != security.DecisionAllow {
+			held = &result
+		}
+	}
+	if held != nil {
+		return agentMailSuccess(map[string]interface{}{
+			"quarantined": true,
+			"message":     "The operation completed successfully; its returned content was withheld.",
+			"notice":      security.QuarantineNotice("agentmail-tool", reference, *held),
+		})
+	}
+	return output
 }
 
 func executeAgentMailOperation(ctx context.Context, client *agentmail.Client, cfg agentmail.Config, req agentMailArgs, workspaceDir string) (map[string]interface{}, error) {

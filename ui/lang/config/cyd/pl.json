@@ -28,7 +28,7 @@
   "config.cyd.setup_title": "Parowanie",
   "config.cyd.setup_help": "Użyj flashera WWW albo wgraj https://github.com/antibyte/aurago-cyd. Dołącz do agocyd-XXXX dla Wi‑Fi. Po flasherze token i URL są już na szkle. AuraGo musi nasłuchiwać na adresie LAN, nie tylko 127.0.0.1.",
   "config.cyd.flash_hint": "Środowiska PlatformIO cyd i cyd2usb nadal działają. Przytrzymaj BOOT 5 s, aby ponownie otworzyć portal.",
-  "help.cyd.enabled": "Włącza mini-pulpit Cheap Yellow Display. Agent może pokazywać nakładki przez send_notification kanał cyd lub cyd_display.",
+  "help.cyd.enabled": "Włącza mini-panel Cheap Yellow Display. Agent może pokazywać nakładki przez send_notification, kanał cyd lub cyd_display.",
   "help.cyd.poll_seconds": "Jak często wyświetlacz pobiera /api/cyd/snapshot, gdy brak WebSocket. Minimum 2 sekundy.",
   "help.cyd.overlay_ttl": "Domyślna liczba sekund, przez które powiadomienie zostaje na ekranie.",
   "help.cyd.allow_agent_control": "Gdy włączone, agent może zmieniać stronę, jasność i LED. Nakładki działają mimo wyłączenia.",

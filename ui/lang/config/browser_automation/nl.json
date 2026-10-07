@@ -8,7 +8,7 @@
   "help.browser_automation.url": "Interne URL van de CloakBrowser sidecar-service. Gebruik de Docker-containernaam of de servicenaam als hostname (bijv. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Docker-containernaam voor de browserautomatiserings-sidecar. Moet uniek zijn op je Docker-host.",
   "help.browser_automation.image": "Docker-image voor de browserautomatiserings-sidecar. Wordt automatisch gebouwd vanuit de Dockerfile in de geconfigureerde map.",
-  "help.browser_automation.dockerfile_dir": "Map met de Dockerfile voor het bouwen van de browserautomatiserings-image. Standaard is de AuraGo-installatiemap.",
+  "help.browser_automation.dockerfile_dir": "Map met Dockerfile.browser_automation en de map browser_automation_sidecar, dus een checkout van de AuraGo-broncode. Relatieve paden gaan uit van de werkmap van AuraGo. Release-installaties bevatten deze bestanden niet. Geef hier een broncode-checkout op of bouw de image zelf.",
   "help.browser_automation.allowed_download_dir": "Map waar gedownloade bestanden worden opgeslagen. Relatieve paden worden opgelost vanuit de AuraGo-datamap.",
   "help.browser_automation.screenshots_dir": "Map waar browserschermafbeeldingen worden opgeslagen. Relatieve paden worden opgelost vanuit de AuraGo-datamap.",
   "help.browser_automation.session_ttl_minutes": "Tijd in minuten voordat een inactieve browsersessie automatisch wordt gesloten. Standaard: 30 minuten.",

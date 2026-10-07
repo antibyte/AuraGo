@@ -17,6 +17,7 @@ func TestRuntimePermissionsFromConfigMapsAllRuntimeGates(t *testing.T) {
 	cfg.Agent.AllowPackageManager = true
 	cfg.Docker.Enabled = true
 	cfg.Docker.ReadOnly = true
+	cfg.Docker.AllowHostAccess = true
 	cfg.Tools.Scheduler.Enabled = true
 	cfg.Tools.Scheduler.ReadOnly = true
 	cfg.Tools.Missions.Enabled = true
@@ -34,7 +35,7 @@ func TestRuntimePermissionsFromConfigMapsAllRuntimeGates(t *testing.T) {
 	if !perms.AllowShell || !perms.AllowPython || !perms.AllowFilesystemWrite || !perms.AllowNetworkRequests {
 		t.Fatalf("agent permissions not mapped: %+v", perms)
 	}
-	if !perms.DockerEnabled || !perms.DockerReadOnly || !perms.SchedulerEnabled || !perms.SchedulerReadOnly || !perms.MissionsEnabled || !perms.MissionsReadOnly {
+	if !perms.DockerEnabled || !perms.DockerReadOnly || !perms.AllowDockerHostAccess || !perms.SchedulerEnabled || !perms.SchedulerReadOnly || !perms.MissionsEnabled || !perms.MissionsReadOnly {
 		t.Fatalf("integration permissions not mapped: %+v", perms)
 	}
 	if !perms.MQTTEnabled || !perms.MQTTReadOnly {

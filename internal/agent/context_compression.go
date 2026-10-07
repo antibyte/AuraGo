@@ -45,11 +45,12 @@ func summaryMaxTokensForCount(droppedMessages int) int {
 
 // CompressHistoryResult describes what happened during a compression attempt.
 type CompressHistoryResult struct {
-	Compressed    bool
-	DroppedCount  int
-	SummaryTokens int
-	TotalTokens   int // total message tokens (excl. system prompt) after compression
-	Summary       string
+	Compressed       bool
+	DroppedCount     int
+	SummaryTokens    int
+	TotalTokens      int // total message tokens (excl. system prompt) after compression
+	Summary          string
+	CurrentUserIndex int
 }
 
 // CompressHistory checks whether the conversation history exceeds the compression
@@ -75,7 +76,41 @@ func CompressHistory(
 	lastCompressionMsg int,
 	logger *slog.Logger,
 ) ([]openai.ChatCompletionMessage, int, CompressHistoryResult) {
-	result := CompressHistoryResult{}
+	anchorIndex := protectedTaskMessageIndex(messages, "")
+	return compressHistoryForTaskAnchor(ctx, messages, maxHistoryTokens, model, client, lastCompressionMsg, logger, "", anchorIndex)
+}
+
+// compressHistoryForRequest protects the original human request even when later
+// assistant/tool messages make it older than the ordinary compression tail.
+func compressHistoryForRequest(
+	ctx context.Context,
+	messages []openai.ChatCompletionMessage,
+	maxHistoryTokens int,
+	model string,
+	client llm.ChatClient,
+	lastCompressionMsg int,
+	logger *slog.Logger,
+	currentUserText string,
+) ([]openai.ChatCompletionMessage, int, CompressHistoryResult) {
+	anchorIndex := protectedTaskMessageIndex(messages, currentUserText)
+	return compressHistoryForTaskAnchor(ctx, messages, maxHistoryTokens, model, client, lastCompressionMsg, logger, currentUserText, anchorIndex)
+}
+
+func compressHistoryForTaskAnchor(
+	ctx context.Context,
+	messages []openai.ChatCompletionMessage,
+	maxHistoryTokens int,
+	model string,
+	client llm.ChatClient,
+	lastCompressionMsg int,
+	logger *slog.Logger,
+	currentUserText string,
+	anchorIndex int,
+) ([]openai.ChatCompletionMessage, int, CompressHistoryResult) {
+	result := CompressHistoryResult{CurrentUserIndex: anchorIndex}
+	if !validTaskAnchor(messages, anchorIndex, currentUserText) {
+		return messages, lastCompressionMsg, result
+	}
 
 	// Need at least system + cooldown-tail + 1 compressible message
 	if len(messages) < 2+compressionKeepTail {
@@ -136,6 +171,18 @@ func CompressHistory(
 		}
 		break
 	}
+	protectedStart := tailStart
+	if anchorIndex >= 1 && anchorIndex < protectedStart {
+		protectedStart = anchorIndex
+	}
+	for _, index := range newestNativeToolRoundIndices(messages, 2) {
+		if index >= 1 && index < protectedStart {
+			protectedStart = index
+		}
+	}
+	// Keep the exact human task and the two newest complete native tool rounds
+	// outside the summary transcript even when they precede the ordinary tail.
+	tailStart = protectedStart
 	compressible := messages[1:tailStart]
 	if len(compressible) == 0 {
 		return messages, lastCompressionMsg, result
@@ -205,6 +252,10 @@ func CompressHistory(
 	result.Summary = summary
 	result.DroppedCount = len(compressible)
 	result.SummaryTokens = prompts.CountTokensForModel(summaryContent, model)
+	// The reconstructed slice is [system, summary, old tail...]. Map the
+	// protected identity into that new coordinate system after removing the
+	// compressed prefix.
+	result.CurrentUserIndex = 2 + anchorIndex - tailStart
 
 	// Compute total message tokens for the compressed result (excl. system prompt at index 0).
 	compressedTotal := result.SummaryTokens + 4 // summary message overhead

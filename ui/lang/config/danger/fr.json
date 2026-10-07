@@ -20,7 +20,9 @@
   "config.danger.mcp.title": "Connexions Serveur MCP (mcp_call)",
   "config.danger.mcp.desc": "Permet à l'agent de se connecter à des serveurs MCP externes et d'utiliser leurs outils. <strong style=\"color:#f87171;\">⚠ N'ajoutez que des serveurs de confiance !</strong>",
   "config.danger.sudo_unrestricted.title": "Accès d'Écriture Sudo Système",
-  "config.danger.sudo_unrestricted.desc": "Permet à l'agent d'écrire en dehors du répertoire d'installation en utilisant sudo (par ex. /etc.). Nécessite la suppression de ProtectSystem=strict de l'unité de service systemd.",
+  "config.danger.sudo_unrestricted.desc": "Permet à l'agent d'écrire en dehors du répertoire d'installation en utilisant sudo (par ex. /etc/). Nécessite la suppression de ProtectSystem=strict de l'unité de service systemd.",
   "config.danger.unsafe_host_execution.title": "Exécution non isolée sur l’hôte",
-  "config.danger.unsafe_host_execution.desc": "Autorise Python sur l’hôte, le shell Windows et le shell de l’hôte sous Linux/macOS sans isolation. Chaque utilisation est journalisée comme avertissement de sécurité. N’activez cette option qu’en connaissance de cause."
+  "config.danger.unsafe_host_execution.desc": "Autorise Python sur l’hôte, le shell Windows et le shell de l’hôte sous Linux/macOS sans isolation. Chaque utilisation est journalisée comme avertissement de sécurité. N’activez cette option qu’en connaissance de cause.",
+  "config.danger.docker_host_access.title": "Accès à l'hôte Docker pour les stacks Compose de l'agent",
+  "config.danger.docker_host_access.desc": "Permet à l'agent, avec docker compose up/create/build, d'utiliser des chemins de l'hôte hors de son espace de travail (par exemple /var/run/docker.sock, /srv/media ou /), des périphériques, le mode privilégié, les espaces de noms réseau/PID/IPC/UTS/utilisateur/cgroup de l'hôte, cap_add et des options de sécurité non confinées. Les données, la configuration, le .env et la clé maîtresse d'AuraGo restent bloqués, mais le montage d'un chemin parent comme / les expose quand même. Activée, elle transmet aussi les variables d'environnement d'AuraGo à docker compose ; désactivée, Compose ne reçoit que PATH, HOME et les réglages Docker, proxy et de langue."
 }

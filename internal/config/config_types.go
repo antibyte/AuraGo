@@ -292,6 +292,10 @@ const (
 	Go2RTCDefaultImage = "alexxit/go2rtc:1.9.14@sha256:675c318b23c06fd862a61d262240c9a63436b4050d177ffc68a32710d9e05bae"
 	// Go2RTCAPIPasswordVaultKey stores the internal API credential used only by AuraGo.
 	Go2RTCAPIPasswordVaultKey = "go2rtc_api_password"
+	// ProxyBasicAuthUserVaultKey and ProxyBasicAuthPasswordVaultKey hold the
+	// security proxy's Basic Auth account (security_proxy.basic_auth).
+	ProxyBasicAuthUserVaultKey     = "proxy_basic_auth_user"
+	ProxyBasicAuthPasswordVaultKey = "proxy_basic_auth_pass"
 )
 
 // Go2RTCStreamConfig describes one stable, user-visible stream. Source is vault-only.
@@ -964,6 +968,8 @@ type Config struct {
 		UILanguage           string `yaml:"ui_language"`
 		OAuthRedirectBaseURL string `yaml:"oauth_redirect_base_url"` // override for OAuth callback (e.g. http://localhost:8088)
 		DebugPProf           bool   `yaml:"debug_pprof"`             // expose /debug/pprof endpoints (default false)
+		PreviewDomain        string `yaml:"preview_domain"`          // separate site with wildcard DNS/TLS for isolated guest apps
+		PreviewEnabled       bool   `yaml:"preview_enabled"`         // enable only after staged browser and ingress acceptance
 		MasterKey            string `yaml:"-"`                       // ENV-only (AURAGO_MASTER_KEY)
 		HTTPS                struct {
 			Enabled           bool     `yaml:"enabled"`
@@ -1365,8 +1371,8 @@ type Config struct {
 		ScanEdgeBytes int `yaml:"scan_edge_bytes"` // bytes kept from start and end when windowing large inputs (default 6144)
 		PromptSec     struct {
 			Preset    string `yaml:"preset"`    // "strict", "moderate", "lenient" (default: strict)
-			Spotlight bool   `yaml:"spotlight"` // default: true
-			Canary    bool   `yaml:"canary"`    // default: true
+			Spotlight bool   `yaml:"spotlight"` // retired; retained for legacy YAML compatibility
+			Canary    bool   `yaml:"canary"`    // retired; retained for legacy YAML compatibility
 			Sanitizer struct {
 				Normalize   bool `yaml:"normalize"`   // unicode normalization (default: true)
 				Dehomoglyph bool `yaml:"dehomoglyph"` // replace homoglyphs (default: true)
@@ -1387,7 +1393,7 @@ type Config struct {
 			Structure struct {
 				Enabled bool   `yaml:"enabled"` // default: false
 				Mode    string `yaml:"mode"`    // "sandwich", "xml", "random"
-			} `yaml:"structure"`
+			} `yaml:"structure"` // retired; retained for legacy YAML compatibility
 			LLMJudge struct {
 				Enabled     bool   `yaml:"enabled"`      // default: false
 				Mode        string `yaml:"mode"`         // "uncertain", "always", "threat_detected", "no_threat"
@@ -1555,9 +1561,10 @@ type Config struct {
 		Insecure          bool     `yaml:"insecure"`                       // skip TLS certificate verification (default: false)
 	} `yaml:"meshcentral"`
 	Docker struct {
-		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"` // true = only list/inspect/logs/stats, block create/start/stop/remove/exec
-		Host     string `yaml:"host"`     // e.g. unix:///var/run/docker.sock, npipe:////./pipe/docker_engine, or tcp://localhost:2375
+		Enabled         bool   `yaml:"enabled"`
+		ReadOnly        bool   `yaml:"readonly"`          // true = only list/inspect/logs/stats, block create/start/stop/remove/exec
+		Host            string `yaml:"host"`              // e.g. unix:///var/run/docker.sock, npipe:////./pipe/docker_engine, or tcp://localhost:2375
+		AllowHostAccess bool   `yaml:"allow_host_access"` // agent docker compose up/create/build may use host paths outside the workspace, docker.sock, devices, privileged mode, host namespaces, cap_add and unconfined security_opt; configs written before this key existed load as true, fresh installs get false
 	} `yaml:"docker"`
 	PackageManager PackageManagerConfig `yaml:"package_manager"`
 	CoAgents       struct {
@@ -1959,8 +1966,9 @@ type Config struct {
 			Addresses []string `yaml:"addresses"` // IP addresses or CIDR ranges
 		} `yaml:"ip_filter"`
 		BasicAuth struct {
-			Enabled bool `yaml:"enabled"`
-			// Username/password stored in vault as proxy_basic_auth_user / proxy_basic_auth_pass
+			Enabled  bool   `yaml:"enabled"`
+			Username string `yaml:"-" json:"-"` // vault-only: proxy_basic_auth_user
+			Password string `yaml:"-" json:"-"` // vault-only: proxy_basic_auth_pass (plaintext; the proxy writes only its bcrypt hash)
 		} `yaml:"basic_auth"`
 		GeoBlocking struct {
 			Enabled          bool     `yaml:"enabled"`

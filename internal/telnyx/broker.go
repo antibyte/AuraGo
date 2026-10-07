@@ -141,6 +141,9 @@ func (b *TelnyxCallBroker) SendThinkingBlock(provider, content, state string) {
 // FormatSMSForAgent wraps incoming SMS content for the agent with external data protection.
 func FormatSMSForAgent(from, text string, mediaURLs []string) string {
 	var content strings.Builder
+	content.WriteString("From: ")
+	content.WriteString(from)
+	content.WriteString("\nMessage:\n")
 	content.WriteString(text)
 	if len(mediaURLs) > 0 {
 		content.WriteString("\n\nAttachments:\n")
@@ -148,5 +151,5 @@ func FormatSMSForAgent(from, text string, mediaURLs []string) string {
 			content.WriteString("- " + u + "\n")
 		}
 	}
-	return fmt.Sprintf("[Incoming SMS from %s]\n%s", from, security.IsolateExternalData(content.String()))
+	return fmt.Sprintf("[Incoming SMS]\n%s", security.IsolateExternalData(content.String()))
 }

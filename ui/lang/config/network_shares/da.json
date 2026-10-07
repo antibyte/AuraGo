@@ -22,7 +22,7 @@
   "config.network_shares.add": "Tilføj",
   "config.network_shares.remove": "Fjern",
   "config.network_shares.runtime_title": "Værtsstatus og delinger",
-  "config.network_shares.reprobe": "Registrer igen",
+  "config.network_shares.reprobe": "Find igen",
   "config.network_shares.create": "Ny deling",
   "config.network_shares.protocol": "Protokol",
   "config.network_shares.installed": "Installeret",

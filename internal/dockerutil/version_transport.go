@@ -3,6 +3,7 @@ package dockerutil
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,13 +14,20 @@ import (
 	"time"
 )
 
+// defaultVersionProbeTimeout bounds one /version probe of a VersionTransport
+// built by NewVersionTransport.
+const defaultVersionProbeTimeout = 5 * time.Second
+
 // VersionTransport negotiates before sending any versioned request. It never
-// replays the requested operation, including after an uncertain mutation.
+// replays the requested operation, including after an uncertain mutation. It
+// forgets the negotiated version after an HTTP 400 or a transport error the
+// caller did not cancel or time out, so the next request probes again.
 type VersionTransport struct {
-	base    http.RoundTripper
-	mu      sync.Mutex
-	version string
-	loading chan struct{}
+	base         http.RoundTripper
+	probeTimeout time.Duration // 0: defaultVersionProbeTimeout
+	mu           sync.Mutex
+	version      string
+	loading      chan struct{}
 }
 
 func NewVersionTransport(base http.RoundTripper) *VersionTransport {
@@ -27,6 +35,20 @@ func NewVersionTransport(base http.RoundTripper) *VersionTransport {
 		base = http.DefaultTransport
 	}
 	return &VersionTransport{base: base}
+}
+
+// NewVersionTransportWithProbeTimeout is NewVersionTransport with a different
+// budget for the /version probe that precedes the first versioned request.
+// Use it for transports whose connection setup is slow, such as an Engine
+// socket reached through SSH, where the 5-second default would cut off the
+// login. probeTimeout <= 0 keeps the default; a shorter caller deadline still
+// wins.
+func NewVersionTransportWithProbeTimeout(base http.RoundTripper, probeTimeout time.Duration) *VersionTransport {
+	t := NewVersionTransport(base)
+	if probeTimeout > 0 {
+		t.probeTimeout = probeTimeout
+	}
+	return t
 }
 
 func (t *VersionTransport) CloseIdleConnections() {
@@ -77,7 +99,11 @@ func (t *VersionTransport) versionFor(ctx context.Context, origin *url.URL) (str
 }
 
 func (t *VersionTransport) probeVersion(ctx context.Context, origin *url.URL) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	timeout := t.probeTimeout
+	if timeout <= 0 {
+		timeout = defaultVersionProbeTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	u := *origin
 	u.Path, u.RawPath, u.RawQuery, u.Fragment = "/version", "", "", ""
@@ -136,7 +162,39 @@ func (t *VersionTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	if clone.URL.RawPath != "" {
 		clone.URL.RawPath = strings.Replace(clone.URL.RawPath, prefix, "/"+version+"/", 1)
 	}
-	return t.base.RoundTrip(clone)
+	resp, err := t.base.RoundTrip(clone)
+	if staleVersionSignal(req.Context(), resp, err) {
+		t.invalidate(version)
+	}
+	return resp, err
+}
+
+// invalidate forgets the negotiated version so the next request probes again.
+// It clears only the value this request used, so a newer negotiation by a
+// concurrent request is kept. It never resends the current request.
+func (t *VersionTransport) invalidate(version string) {
+	t.mu.Lock()
+	if t.version == version {
+		t.version = ""
+	}
+	t.mu.Unlock()
+}
+
+// staleVersionSignal reports outcomes that can follow an Engine restart with a
+// different API range: a transport failure the caller did not cause by
+// cancelling or timing out, or HTTP 400, which the Engine returns for an
+// unsupported API version before any handler runs. The response body is never
+// read here.
+func staleVersionSignal(ctx context.Context, resp *http.Response, err error) bool {
+	if err != nil {
+		if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
+			// Client.Timeout or a caller deadline: the legacy req.Cancel timer
+			// fires with the context deadline and can beat ctx.Err().
+			return false
+		}
+		return ctx.Err() == nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded)
+	}
+	return resp != nil && resp.StatusCode == http.StatusBadRequest
 }
 
 // NegotiatedAPIVersion supports raw upgraded streams using the same policy.

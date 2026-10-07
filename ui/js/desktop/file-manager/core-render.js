@@ -22,6 +22,8 @@
             filteredFiles: null,
             selectedPaths: new Set(),
             clipboard: null,
+            dragSrcPath: null,
+            quickLookOverlay: null,
             viewMode: 'list',
             sortBy: 'name',
             sortAsc: true,
@@ -35,6 +37,11 @@
             dragOverPath: null,
             keyboardBound: false,
             activeKeyboardWindow: '',
+            navigationGeneration: 0,
+            disposed: false,
+            renameDraft: null,
+            undoStack: [],
+            redoStack: [],
             sidebarOpen: false,
             incrementalRenderToken: 0,
             tabs: null,
@@ -54,6 +61,21 @@
     function setActiveInstance(instance) {
         if (instance) fm = instance;
         return fm;
+    }
+
+    function withInstance(instance, callback) {
+        const previous = fm;
+        fm = instance;
+        try {
+            return callback();
+        } finally {
+            fm = previous;
+        }
+    }
+
+    function isLiveInstance(instance) {
+        return !!(instance && !instance.disposed && instance.host &&
+            instance.windowId && instances.get(instance.windowId) === instance);
     }
 
     function instanceForWindow(windowId) {
@@ -354,6 +376,8 @@
 
     async function navigate(path, addHistory = true) {
         if (!path && path !== '') path = '';
+        const instance = fm;
+        const generation = ++instance.navigationGeneration;
         fm.loading = true;
         fm.currentPath = path;
         fm.files = [];
@@ -361,6 +385,7 @@
         fm.selectedPaths.clear();
         fm.lastClickedPath = null;
         fm.renamePath = null;
+        fm.renameDraft = null;
         fm.searchQuery = '';
         if (addHistory) addToHistory(path);
         if (fm.callbacks && typeof fm.callbacks.onPathChange === 'function') {
@@ -369,14 +394,23 @@
         renderAll();
         try {
             const result = await api('/api/desktop/files?path=' + encodeURIComponent(path));
-            fm.files = Array.isArray(result.files) ? result.files : [];
+            if (!isLiveInstance(instance) || instance.navigationGeneration !== generation) return;
+            withInstance(instance, () => {
+                fm.files = Array.isArray(result.files) ? result.files : [];
+                fm.loading = false;
+                applyFilter();
+                renderAll();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.error_load') + ': ' + (err.message || String(err)) });
-            fm.files = [];
+            if (!isLiveInstance(instance) || instance.navigationGeneration !== generation) return;
+            withInstance(instance, () => {
+                showNotification({ type: 'error', message: t('desktop.fm.error_load') + ': ' + (err.message || String(err)) });
+                fm.files = [];
+                fm.loading = false;
+                applyFilter();
+                renderAll();
+            });
         }
-        fm.loading = false;
-        applyFilter();
-        renderAll();
     }
 
     function applyFilter() {
@@ -412,6 +446,8 @@
 
     function renderAll() {
         if (!fm.host) return;
+        const renameInput = fm.renamePath && fm.host.querySelector('[data-rename-input]');
+        if (renameInput && renameInput.isConnected) fm.renameDraft = renameInput.value;
         if (typeof syncActiveTab === 'function') syncActiveTab();
         fm.incrementalRenderToken++;
         updateWindowMenus();
@@ -685,6 +721,7 @@
             searchQuery: '',
             lastClickedPath: null,
             renamePath: null,
+            renameDraft: null,
             dragOverPath: null,
             scrollPosition: 0
         };
@@ -719,6 +756,7 @@
                 fm.searchQuery = activeState.searchQuery;
                 fm.lastClickedPath = activeState.lastClickedPath;
                 fm.renamePath = activeState.renamePath;
+                fm.renameDraft = activeState.renameDraft;
             }
             fm.leftPane = null;
             fm.rightPane = null;
@@ -740,6 +778,7 @@
         pane.searchQuery = fm.searchQuery;
         pane.lastClickedPath = fm.lastClickedPath;
         pane.renamePath = fm.renamePath;
+        pane.renameDraft = fm.renameDraft;
         
         const main = fm.host ? fm.host.querySelector(`.fm-pane[data-pane="${fm.activePane}"] [data-fm-main]`) : null;
         pane.scrollPosition = main ? main.scrollTop : 0;
@@ -756,6 +795,7 @@
         fm.searchQuery = pane.searchQuery;
         fm.lastClickedPath = pane.lastClickedPath;
         fm.renamePath = pane.renamePath;
+        fm.renameDraft = pane.renameDraft;
         
         const searchInput = fm.host ? fm.host.querySelector('.fm-search-input') : null;
         if (searchInput) searchInput.value = pane.searchQuery || '';
@@ -996,20 +1036,23 @@
 
     function scheduleIncrementalFileRender(root) {
         if (!root) return;
+        const instance = fm;
         const files = getDisplayFiles();
         if (files.length <= FILE_INCREMENTAL_THRESHOLD) return;
         const target = root.querySelector('[data-fm-incremental]');
         if (!target) return;
-        const token = ++fm.incrementalRenderToken;
+        const token = ++instance.incrementalRenderToken;
         let index = FILE_RENDER_BATCH_SIZE;
         const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
         function pump() {
-            if (token !== fm.incrementalRenderToken || !fm.host || !target.isConnected) return;
+            if (!isLiveInstance(instance) || token !== instance.incrementalRenderToken || instance.host !== root.parentElement || !target.isConnected) return;
             const chunk = files.slice(index, index + FILE_RENDER_BATCH_SIZE);
             if (chunk.length) {
-                const html = chunk.map(file => fm.viewMode === 'grid' ? renderGridItem(file) : renderListRow(file)).join('');
-                target.insertAdjacentHTML('beforeend', html);
-                attachFileItemEvents(root);
+                withInstance(instance, () => {
+                    const html = chunk.map(file => fm.viewMode === 'grid' ? renderGridItem(file) : renderListRow(file)).join('');
+                    target.insertAdjacentHTML('beforeend', html);
+                    attachFileItemEvents(root);
+                });
             }
             index += chunk.length;
             if (index < files.length) schedule(pump);
@@ -1025,7 +1068,7 @@
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
         const preview = !isDir && isPreviewableImage(file);
         const nameContent = fm.renamePath === file.path
-            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename'))}">`
+            ? `<input class="fm-rename-input" data-rename-input value="${esc(fm.renameDraft == null ? file.name : fm.renameDraft)}" aria-label="${esc(t('desktop.fm.rename'))}">`
             : esc(file.name);
         return `<div class="fm-grid-item${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0" title="${esc(file.name)}">
             <div class="fm-grid-icon${preview ? ' has-preview' : ''}">${thumbnailMarkup(file, iconKey, isDir ? '\u25A0' : '\u25A1', 'grid')}</div>

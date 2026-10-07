@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -34,7 +35,7 @@ func (c *blockingCancelTestClient) CreateChatCompletion(ctx context.Context, _ o
 	return openai.ChatCompletionResponse{}, ctx.Err()
 }
 
-func (c *blockingCancelTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *blockingCancelTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("streaming is not expected in this test")
 }
 

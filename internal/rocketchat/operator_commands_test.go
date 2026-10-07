@@ -68,7 +68,7 @@ func TestRocketChatOperatorCommandsFollowAllowOperatorCommands(t *testing.T) {
 		mu.Lock()
 		replies = nil
 		mu.Unlock()
-		processMessage(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil, nil, nil, nil, nil, nil, nil, nil, "room-1", msg, nil, nil, nil)
+		processMessage(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil, nil, nil, nil, nil, nil, nil, nil, "room-1", msg, nil, nil, nil, nil)
 
 		mu.Lock()
 		got := strings.Join(replies, "\n")

@@ -1630,28 +1630,28 @@ func TestStreamingAccountingState_RecordsProviderUsage(t *testing.T) {
 	if st.hasProviderUsage {
 		t.Fatal("expected hasProviderUsage=false initially")
 	}
-	st.recordProviderUsage(100, 50, 25)
+	st.recordProviderUsage(100, 50, 150, 25)
 	if !st.hasProviderUsage {
 		t.Error("expected hasProviderUsage=true after recordProviderUsage")
 	}
-	if st.providerPrompt != 100 || st.providerCompletion != 50 || st.providerCached != 25 {
-		t.Errorf("providerPrompt=%d providerCompletion=%d providerCached=%d, want 100, 50, 25", st.providerPrompt, st.providerCompletion, st.providerCached)
+	if st.providerPrompt != 100 || st.providerCompletion != 50 || st.providerTotal != 150 || st.providerCached != 25 {
+		t.Errorf("providerPrompt=%d providerCompletion=%d providerTotal=%d providerCached=%d, want 100, 50, 150, 25", st.providerPrompt, st.providerCompletion, st.providerTotal, st.providerCached)
 	}
 }
 
 func TestStreamingAccountingState_MergesNonZeroValuesOnMultipleRecords(t *testing.T) {
 	st := streamingAccountingState{}
 	// First chunk: prompt only
-	st.recordProviderUsage(100, 0, 0)
+	st.recordProviderUsage(100, 0, 0, 0)
 	// Second chunk: completion only
-	st.recordProviderUsage(0, 75, 0)
-	if st.providerPrompt != 100 || st.providerCompletion != 75 {
-		t.Errorf("expected merged record (100, 75), got (%d, %d)", st.providerPrompt, st.providerCompletion)
+	st.recordProviderUsage(0, 75, 175, 0)
+	if st.providerPrompt != 100 || st.providerCompletion != 75 || st.providerTotal != 175 {
+		t.Errorf("expected merged record (100, 75, 175), got (%d, %d, %d)", st.providerPrompt, st.providerCompletion, st.providerTotal)
 	}
 	// Third chunk: both values updated
-	st.recordProviderUsage(200, 80, 60)
-	if st.providerPrompt != 200 || st.providerCompletion != 80 || st.providerCached != 60 {
-		t.Errorf("expected last record (200, 80, 60), got (%d, %d, %d)", st.providerPrompt, st.providerCompletion, st.providerCached)
+	st.recordProviderUsage(200, 80, 280, 60)
+	if st.providerPrompt != 200 || st.providerCompletion != 80 || st.providerTotal != 280 || st.providerCached != 60 {
+		t.Errorf("expected last record (200, 80, 280, 60), got (%d, %d, %d, %d)", st.providerPrompt, st.providerCompletion, st.providerTotal, st.providerCached)
 	}
 }
 

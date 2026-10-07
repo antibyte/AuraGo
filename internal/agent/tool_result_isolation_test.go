@@ -42,7 +42,7 @@ func TestToolResultPayloadStillDecodesEscapedIsolation(t *testing.T) {
 func TestBoundedToolResultKeepsSingleBoundaryForRawSource(t *testing.T) {
 	output := `Tool Output: {"status":"ok","content":"` + strings.Repeat("const a = 'b';", 400) + `"}`
 	isolated := security.NewGuardian(nil).SanitizeToolOutput("game_maker_file", output)
-	bounded := boundedToolResult("game_maker_file", isolated, 400, ToolResultSuccess)
+	bounded := boundedToolResult(isolated, 400, ToolResultSuccess)
 	if len(bounded) > 400 || strings.Count(bounded, "</external_data>") > 1 {
 		t.Fatalf("bounded raw result broke limits or boundary: %q", bounded)
 	}

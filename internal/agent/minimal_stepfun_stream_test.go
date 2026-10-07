@@ -46,7 +46,7 @@ func TestMinimalLoopStepFunStreamBudgetAndPrivateReasoning(t *testing.T) {
 			cfg.Agent.ContextWindow = 65536
 			cfg.LLM.Model, cfg.LLM.ProviderType, cfg.LLM.Provider = "step-5-preview", "stepfun", "fixture"
 			cfg.Providers = []config.ProviderEntry{{ID: "fixture", Type: "stepfun", Model: cfg.LLM.Model, ContextWindow: 65536, MaxOutputTokens: 12000}}
-			client := llm.NewClientFromProviderWithConfig(cfg, "stepfun", provider.URL+"/v1", "fixture", "")
+			client := llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, "stepfun", provider.URL+"/v1", "fixture", ""))
 			var checkpoint []openai.ChatCompletionMessage
 			result, _, err := ExecuteMinimalLoop(context.Background(), client, cfg.LLM.Model, "Return source.", "Implement the game.", nil, &DispatchContext{Cfg: cfg}, nil, budgetTestLogger(), &MinimalLoopOptions{
 				MaxToolRounds: 0, MaxOutputTokens: 16384, StreamText: true, PreserveReasoning: true,

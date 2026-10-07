@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/budget"
 	"aurago/internal/commands"
 	"aurago/internal/config"
 	"aurago/internal/integrationstatus"
@@ -42,7 +43,7 @@ func buildTelegramAgentMessages(historyManager *memory.HistoryManager) []openai.
 	if currentSummary != "" {
 		finalMessages = append(finalMessages, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
+			Content: agent.FormatContextRecapForPrompt(currentSummary),
 		})
 	}
 	return append(finalMessages, historyManager.Get()...)
@@ -50,7 +51,7 @@ func buildTelegramAgentMessages(historyManager *memory.HistoryManager) []openai.
 
 // StartLongPolling initializes the Telegram bot in Long Polling mode.
 // It runs in a background goroutine and processes incoming messages.
-func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
+func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker) {
 	if cfg.Telegram.BotToken == "" {
 		integrationstatus.SetTelegramConfigured(false, false)
 		logger.Warn("Telegram Bot Token is missing, skipping Long Polling start.")
@@ -59,7 +60,11 @@ func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logg
 	integrationstatus.SetTelegramConfigured(true, cfg.Telegram.UserID != 0)
 
 	security.RegisterSensitive(cfg.Telegram.BotToken)
-	bot, err := tgbotapi.NewBotAPI(cfg.Telegram.BotToken)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	botClient := contextBoundHTTPClient{parent: ctx, client: &http.Client{}}
+	bot, err := tgbotapi.NewBotAPIWithClient(cfg.Telegram.BotToken, tgbotapi.APIEndpoint, botClient)
 	if err != nil {
 		integrationstatus.MarkTelegramUnavailable("telegram_init_failed", time.Now())
 		logger.Error("Failed to initialize Telegram bot", "error", err)
@@ -86,9 +91,6 @@ func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logg
 	}
 	workerSem := make(chan struct{}, maxWorkers)
 
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	integrationstatus.MarkTelegramPolling()
 	go runPollingLoop(ctx, bot, u, plannerDB, logger, func(update tgbotapi.Update) {
 		if update.Message == nil {
@@ -111,15 +113,33 @@ func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logg
 		}
 
 		// Acquire worker slot (blocks if all slots are busy)
-		workerSem <- struct{}{}
+		if !acquireTelegramWorker(ctx, workerSem) {
+			return
+		}
 		go func(upd tgbotapi.Update) {
 			defer func() { <-workerSem }()
-			processUpdate(bot, upd, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian)
+			processUpdate(ctx, bot, upd, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot)
 		}(update)
 	})
 }
 
 const telegramPollingIssueFingerprint = "telegram|long_polling"
+
+func acquireTelegramWorker(ctx context.Context, slots chan struct{}) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	select {
+	case slots <- struct{}{}:
+		if ctx.Err() != nil {
+			<-slots
+			return false
+		}
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
 
 var telegramPollingInitialBackoff = time.Second
 
@@ -219,11 +239,14 @@ func telegramTestMessage(now time.Time) string {
 	return "AuraGo Telegram test (manual) — " + now.UTC().Format(time.RFC3339)
 }
 
-func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
+func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker) {
 	// Maintenance check: Inform the user but allow the tool-based interaction
 	inMaintenance := tools.IsBusy()
 	if inMaintenance {
 		logger.Info("Telegram processing in Maintenance Mode")
+	}
+	if ctx.Err() != nil {
+		return
 	}
 	msg := update.Message
 	logger.Info("Received authorized Telegram message", "id", msg.From.ID, "hasText", msg.Text != "", "hasVoice", msg.Voice != nil, "hasPhoto", len(msg.Photo) > 0)
@@ -248,12 +271,18 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 			logger.Error("Failed to get voice file info", "error", err)
 			return
 		}
+		if ctx.Err() != nil {
+			return
+		}
 
 		oggURL := file.Link(cfg.Telegram.BotToken)
 
 		// 2. Download the .ogg file (we can reuse the logic but needs adjustment)
-		oggPath, err := downloadFile(oggURL, logger)
+		oggPath, err := downloadFile(ctx, oggURL, logger)
 		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			logger.Error("Failed to download voice file", "error", err)
 			return
 		}
@@ -261,11 +290,17 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 
 		// 3. Convert to .mp3 (better for multimodal APIs)
 		mp3Path := oggPath + ".mp3"
-		if err := ConvertOggToMp3(oggPath, mp3Path); err != nil {
+		defer os.Remove(mp3Path)
+		if err := ConvertOggToMp3Context(ctx, oggPath, mp3Path); err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			logger.Error("Failed to convert voice file to mp3", "error", err)
 			return
 		}
-		defer os.Remove(mp3Path)
+		if ctx.Err() != nil {
+			return
+		}
 
 		// 4. Transcribe the application-owned temporary audio in memory. The
 		// agent-facing file API intentionally accepts workspace paths only.
@@ -274,9 +309,15 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 			logger.Error("Failed to read converted voice file", "error", err)
 			return
 		}
-		text, _, err := tools.TranscribeAudio(context.Background(), filepath.Base(mp3Path), audioData, cfg)
+		text, _, err := tools.TranscribeAudio(ctx, filepath.Base(mp3Path), audioData, cfg)
 		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			logger.Error("Failed to transcribe voice", "error", err)
+			return
+		}
+		if ctx.Err() != nil {
 			return
 		}
 
@@ -294,20 +335,32 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		fileConfig := tgbotapi.FileConfig{FileID: photo.FileID}
 		file, err := bot.GetFile(fileConfig)
 		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			logger.Error("Failed to get photo file info", "error", err)
 		} else {
+			if ctx.Err() != nil {
+				return
+			}
 			imgURL := file.Link(cfg.Telegram.BotToken)
 
 			// 2. Download the file
-			imgPath, err := downloadFile(imgURL, logger)
+			imgPath, err := downloadFile(ctx, imgURL, logger)
 			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
 				logger.Error("Failed to download photo file", "error", err)
 			} else {
 				defer os.Remove(imgPath)
 
 				// 3. Analyze via Vision API
-				analysis, err := AnalyzeImage(imgPath, cfg)
+				analysis, err := AnalyzeImageContext(ctx, imgPath, cfg)
 				if err != nil {
+					if ctx.Err() != nil {
+						return
+					}
 					logger.Error("Failed to analyze image", "error", err)
 					if errors.Is(err, tools.ErrVisionPublicURLRequired) {
 						analysis = "[Image analysis unavailable: " + tools.VisionPublicURLRequiredMessage + "]"
@@ -333,14 +386,27 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		fileConfig := tgbotapi.FileConfig{FileID: msg.Document.FileID}
 		file, err := bot.GetFile(fileConfig)
 		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			logger.Error("Failed to get document file info", "error", err)
 		} else {
+			if ctx.Err() != nil {
+				return
+			}
 			docURL := file.Link(cfg.Telegram.BotToken)
 			attachDir := filepath.Join(cfg.Directories.WorkspaceDir, "attachments")
-			savedPath, err := media.SaveAttachment(docURL, msg.Document.FileName, attachDir)
+			savedPath, err := media.SaveAttachmentContext(ctx, docURL, msg.Document.FileName, attachDir)
 			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
 				logger.Error("Failed to save Telegram document", "error", err)
 			} else {
+				if ctx.Err() != nil {
+					_ = os.Remove(savedPath)
+					return
+				}
 				agentPath := "agent_workspace/workdir/attachments/" + filepath.Base(savedPath)
 				fileNote := "[DATEI ANGEHÄNGT]: " + agentPath
 				if msg.Document.MimeType != "" {
@@ -357,6 +423,9 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 	}
 
 	if inputText == "" {
+		return
+	}
+	if ctx.Err() != nil {
 		return
 	}
 
@@ -404,6 +473,9 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		return
 	}
 	inputText = security.IsolateExternalData(inputText)
+	if ctx.Err() != nil {
+		return
+	}
 
 	// Authorized text found (either native or transcribed)
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
@@ -415,6 +487,10 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 	}
 
 	// 1. Build RunConfig first so it can be used for prompt flag derivation
+	var budgetTracker *budget.Tracker
+	if budgetTrackerSnapshot != nil {
+		budgetTracker = budgetTrackerSnapshot()
+	}
 	runCfg := agent.RunConfig{
 		Config:             cfg,
 		Logger:             logger,
@@ -431,7 +507,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		CronManager:        cronManager,
 		MissionManagerV2:   missionManagerV2,
 		CoAgentRegistry:    nil,
-		BudgetTracker:      nil,
+		BudgetTracker:      budgetTracker,
 		PreparationService: nil,
 		SessionID:          sessionID,
 		IsMaintenance:      tools.IsBusy(),
@@ -448,11 +524,15 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 	}
 
 	// Start typing indicator
-	typingCtx, stopTyping := context.WithCancel(context.Background())
+	typingCtx, stopTyping := context.WithCancel(ctx)
+	defer stopTyping()
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for {
+			if typingCtx.Err() != nil {
+				return
+			}
 			bot.Send(tgbotapi.NewChatAction(msg.From.ID, tgbotapi.ChatTyping))
 			select {
 			case <-ticker.C:
@@ -462,13 +542,15 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		}
 	}()
 
-	// Run the loop
-	ctx := context.Background()
+	// Run the loop with the polling owner's cancellation context.
 
 	// Use TelegramBroker to capture audio events for native sending
 	broker := &TelegramBroker{bot: bot, chatID: msg.From.ID, logger: logger}
 	resp, err := agent.ExecuteAgentLoop(ctx, req, runCfg, false, broker)
 	stopTyping() // Stop the indicator as soon as the agent is done
+	if ctx.Err() != nil {
+		return
+	}
 
 	if err != nil {
 		logger.Error("Telegram agent loop failed", "error", err)
@@ -480,7 +562,13 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 	for _, af := range broker.AudioFiles {
 		if agent.GetVoiceMode() {
 			// Voice mode: send as voice note (OGG/Opus) for inline playback
-			oggPath, convErr := convertToOGG(af.FilePath, logger)
+			oggPath, convErr := convertToOGGContext(ctx, af.FilePath, logger)
+			if convErr == nil && oggPath != "" {
+				defer os.Remove(oggPath)
+			}
+			if ctx.Err() != nil {
+				return
+			}
 			if convErr != nil {
 				logger.Warn("[Telegram] OGG conversion failed, falling back to audio", "error", convErr)
 				if err := sendTelegramAudio(bot, msg.From.ID, af.FilePath, af.Title); err != nil {
@@ -490,7 +578,6 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 				if err := sendTelegramVoice(bot, msg.From.ID, oggPath); err != nil {
 					logger.Warn("[Telegram] Failed to send voice note", "path", oggPath, "error", err)
 				}
-				os.Remove(oggPath) // cleanup temp OGG file
 			}
 		} else {
 			if err := sendTelegramAudio(bot, msg.From.ID, af.FilePath, af.Title); err != nil {
@@ -519,8 +606,11 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 			} else if strings.HasPrefix(img.URL, "http://") || strings.HasPrefix(img.URL, "https://") {
 				// Remote URL: download and sanitize before sending
 				imagesDir := filepath.Join(cfg.Directories.WorkspaceDir, "images")
-				sanitized, err := media.DownloadAndSanitizeImage(img.URL, imagesDir)
+				sanitized, err := media.DownloadAndSanitizeImageContext(ctx, img.URL, imagesDir)
 				if err != nil {
+					if ctx.Err() != nil {
+						return
+					}
 					logger.Warn("[Telegram] Failed to download/sanitize image URL", "url", img.URL, "error", err)
 					continue
 				}
@@ -619,15 +709,35 @@ func sendTelegramVoice(bot *tgbotapi.BotAPI, chatID int64, oggPath string) error
 	return err
 }
 
-// convertToOGG converts an audio file (MP3, WAV, etc.) to OGG/Opus format using ffmpeg.
-// Returns the path to the temporary OGG file. Caller must clean up.
-func convertToOGG(inputPath string, logger *slog.Logger) (string, error) {
-	outPath := inputPath + ".ogg"
-	cmd := exec.Command("ffmpeg", "-y", "-i", inputPath, "-c:a", "libopus", "-b:a", "64k", outPath)
+func convertToOGGContext(ctx context.Context, inputPath string, logger *slog.Logger) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	outFile, err := os.CreateTemp("", "aura_telegram_voice_*.ogg")
+	if err != nil {
+		return "", fmt.Errorf("create temporary OGG output: %w", err)
+	}
+	outPath := outFile.Name()
+	if err := outFile.Close(); err != nil {
+		_ = os.Remove(outPath)
+		return "", fmt.Errorf("close temporary OGG output: %w", err)
+	}
+	cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", inputPath, "-c:a", "libopus", "-b:a", "64k", outPath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		_ = os.Remove(outPath)
+		if ctx.Err() != nil {
+			return "", fmt.Errorf("ffmpeg conversion canceled: %w", ctx.Err())
+		}
 		logger.Debug("[Telegram] ffmpeg OGG conversion output", "output", string(out))
 		return "", fmt.Errorf("ffmpeg conversion failed: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		_ = os.Remove(outPath)
+		return "", err
 	}
 	return outPath, nil
 }
@@ -731,11 +841,18 @@ func (b *TelegramBroker) SendTokenUpdate(prompt, completion, total, sessionTotal
 func (b *TelegramBroker) SendThinkingBlock(provider, content, state string) {
 }
 
-func downloadFile(url string, logger *slog.Logger) (string, error) {
+func downloadFile(ctx context.Context, url string, logger *slog.Logger) (string, error) {
 	const maxTelegramDownloadBytes = 50 * 1024 * 1024
 	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Get(url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
+		return "", fmt.Errorf("create Telegram media download request: %s", security.Scrub(err.Error()))
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
 		return "", fmt.Errorf("download Telegram media: %s", security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
@@ -751,11 +868,25 @@ func downloadFile(url string, logger *slog.Logger) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer tempFile.Close()
+	tempPath := tempFile.Name()
+	keepTempFile := false
+	defer func() {
+		_ = tempFile.Close()
+		if !keepTempFile {
+			_ = os.Remove(tempPath)
+		}
+	}()
 
 	if _, err := io.Copy(tempFile, io.LimitReader(resp.Body, maxTelegramDownloadBytes)); err != nil {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
 		return "", err
 	}
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 
-	return tempFile.Name(), nil
+	keepTempFile = true
+	return tempPath, nil
 }

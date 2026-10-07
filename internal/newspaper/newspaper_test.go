@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -104,6 +105,80 @@ func TestProfileAndDraftValidation(t *testing.T) {
 	d.Sources[0].URL = "javascript:alert(1)"
 	if ValidateDraft(d, p, time.Now().UTC()) == nil {
 		t.Fatal("unsafe source link accepted")
+	}
+}
+
+func TestValidateDraftAllowsThirtyOneStories(t *testing.T) {
+	now := time.Now().UTC()
+	draft := testDraft(now)
+	for i := 2; i <= 31; i++ {
+		story := draft.Stories[0]
+		story.ID = "story-" + strconv.Itoa(i)
+		story.Headline = "Council approves library " + strconv.Itoa(i)
+		draft.Stories = append(draft.Stories, story)
+	}
+	if err := ValidateDraft(draft, DefaultProfile(), now); err != nil {
+		t.Fatalf("31-story edition rejected: %v", err)
+	}
+	draft.Stories = append(draft.Stories, draft.Stories[0])
+	if err := ValidateDraft(draft, DefaultProfile(), now); err == nil {
+		t.Fatal("32-story edition was accepted")
+	}
+}
+
+func TestPublishReloadAndRenderThirtyOneSourcedStories(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now().UTC()
+	p := DefaultProfile()
+	p.Language = "en"
+	draft := Draft{Stories: make([]Story, 0, 31), Sources: make([]Source, 0, 31)}
+	for i := 1; i <= 31; i++ {
+		suffix := strconv.Itoa(i)
+		id := "source-" + suffix
+		quote := "The verified report " + suffix + " records a confirmed public update."
+		draft.Sources = append(draft.Sources, Source{
+			ID: id, URL: "https://publisher-" + suffix + ".example/story/" + suffix,
+			Publisher: "Publisher " + suffix, Title: "Verified update " + suffix,
+			RetrievedAt: now, Excerpt: quote + " Additional verified reporting provides useful context for readers.",
+		})
+		draft.Stories = append(draft.Stories, Story{
+			ID: "story-" + suffix, Section: "culture", Headline: "Verified update " + suffix,
+			Deck: "A sourced update for the daily edition.", SourceIDs: []string{id}, SingleSource: true,
+			Paragraphs: []Paragraph{{Text: quote, SourceIDs: []string{id}, EvidenceQuote: quote}},
+		})
+	}
+	if err := ValidateDraft(draft, p, now); err != nil {
+		t.Fatalf("validate 31 stories: %v", err)
+	}
+	store, err := Open(filepath.Join(t.TempDir(), "newspaper.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	run, err := store.Start(ctx, now.Format("2006-01-02"), false, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edition := Edition{ID: run.ID, LocalDate: run.LocalDate, Revision: run.Revision, Title: p.Name, Language: p.Language, CreatedAt: now, CutoffAt: now, Stories: draft.Stories, Sources: draft.Sources}
+	if err := edition.Seal(); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Publish(ctx, run, edition); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.Get(ctx, edition.ID)
+	if err != nil || len(loaded.Stories) != 31 || len(loaded.Sources) != 31 {
+		t.Fatalf("reload: stories=%d sources=%d err=%v", len(loaded.Stories), len(loaded.Sources), err)
+	}
+	if got := strings.Count(HTML(loaded), "<article "); got != 31 {
+		t.Fatalf("HTML rendered %d stories", got)
+	}
+	if text := Text(loaded); !strings.Contains(text, "Verified update 31") {
+		t.Fatal("plain text omitted the last story")
+	}
+	pdf, err := PDF(loaded)
+	if err != nil || len(pdf) < 5 || string(pdf[:5]) != "%PDF-" {
+		t.Fatalf("PDF render: %v", err)
 	}
 }
 
@@ -211,7 +286,7 @@ func TestFailedManualRunDoesNotBlockOneScheduledAttempt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = s.Store().RecordRunSource(ctx, first.ID, testDraft(now).Sources[0]); err != nil {
+	if _, _, err = s.Store().RecordRunSource(ctx, first.ID, testDraft(now).Sources[0], maxResearchSources); err != nil {
 		t.Fatal(err)
 	}
 	first.Status = "failed"
@@ -274,7 +349,7 @@ func TestInterruptedRunAndDST(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.RecordRunSource(ctx, run.ID, testDraft(time.Now().UTC()).Sources[0]); err != nil {
+	if _, _, err := s.RecordRunSource(ctx, run.ID, testDraft(time.Now().UTC()).Sources[0], maxResearchSources); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.Close(); err != nil {

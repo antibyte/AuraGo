@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"regexp"
 	"sort"
@@ -45,11 +46,17 @@ func main() {
 		*outputPath = *sourcePath
 	}
 
+	run(*sourcePath, *templatePath, *outputPath)
+}
+
+// run merges the config at sourcePath onto the template at templatePath and
+// writes the result to outputPath.
+func run(sourcePath, templatePath, outputPath string) {
 	ts := time.Now().Format("20060102_150405")
 
 	// ── Step 1: Parse template (must always succeed — this is our controlled default) ──
 
-	tmplData, err := readNormalized(*templatePath)
+	tmplData, err := readNormalized(templatePath)
 	if err != nil {
 		log.Fatalf("Cannot read template: %v", err)
 	}
@@ -63,34 +70,43 @@ func main() {
 
 	// ── Step 2: Parse user config ──
 
-	srcData, err := readNormalized(*sourcePath)
+	srcData, err := readNormalized(sourcePath)
 	if err != nil {
 		fmt.Printf("Source unreadable (%v), using template defaults\n", err)
-		atomicWriteYAML(*outputPath, tmplMap)
+		atomicWriteYAML(outputPath, tmplMap)
 		return
 	}
 
 	srcMap, parseErr := parseYAMLMap(srcData)
 
-	if parseErr == nil && srcMap != nil {
-		// ── Happy path: user config is valid YAML ──
-		missing := findMissingTopKeys(tmplMap, srcMap)
-		res := mergeWithTemplate(tmplMap, srcMap)
+	// An empty or comment-only file has no settings to keep. It is a fresh
+	// install (the Docker guide has users `touch config.yaml` before the first
+	// start), so it gets the template unchanged like an unreadable source;
+	// the corruption path would back it up and apply upgrade grandfathers.
+	if parseErr == nil && srcMap == nil {
+		fmt.Println("Source has no settings, using template defaults")
+		atomicWriteYAML(outputPath, tmplMap)
+		return
+	}
 
-		if len(missing) == 0 && !res.Sanitized && !res.TypeFixed && !res.SafetyAdjusted {
+	if parseErr == nil {
+		// ── Happy path: user config is valid YAML ──
+		result := mergeUserConfig(tmplMap, srcMap)
+
+		if !result.needsWrite() {
 			fmt.Println("Config is up to date")
-			if *outputPath != *sourcePath {
-				atomicWriteYAML(*outputPath, res.Config)
+			if outputPath != sourcePath {
+				atomicWriteYAML(outputPath, result.merged)
 			}
 			return
 		}
 
-		atomicWriteYAML(*outputPath, res.Config)
-		if len(missing) > 0 {
-			sort.Strings(missing)
-			fmt.Printf("Added %d new section(s): %s\n", len(missing), strings.Join(missing, ", "))
+		atomicWriteYAML(outputPath, result.merged)
+		if len(result.missing) > 0 {
+			sort.Strings(result.missing)
+			fmt.Printf("Added %d new section(s): %s\n", len(result.missing), strings.Join(result.missing, ", "))
 		}
-		if res.Sanitized || res.TypeFixed {
+		if result.sanitized || result.typeFixed {
 			fmt.Println("Applied data shape fixes")
 		}
 		return
@@ -102,25 +118,112 @@ func main() {
 	log.Printf("Attempting section-by-section recovery...")
 
 	// Backup corrupted file for manual inspection
-	backupPath := *sourcePath + "." + ts + ".corrupted"
+	backupPath := sourcePath + "." + ts + ".corrupted"
 	if wErr := os.WriteFile(backupPath, []byte(srcData), 0644); wErr == nil {
 		log.Printf("Corrupted config saved to: %s", backupPath)
 	}
 
 	salvaged := salvageSections(srcData)
-
-	var merged map[string]interface{}
+	merged := recoverCorruptedConfig(tmplMap, salvaged)
 	if len(salvaged) > 0 {
-		merged = mergeWithTemplate(tmplMap, salvaged).Config
 		total := countTopLevelKeys(srcData)
 		log.Printf("Recovered %d/%d section(s); template defaults used for the rest", len(salvaged), total)
 	} else {
-		merged = tmplMap
 		log.Printf("No sections could be recovered — using full template defaults")
 	}
 
-	atomicWriteYAML(*outputPath, merged)
+	atomicWriteYAML(outputPath, merged)
 	fmt.Println("Config repaired successfully")
+}
+
+// mergeResult is the outcome of merging a parseable user config onto the
+// template defaults.
+type mergeResult struct {
+	merged         map[string]interface{}
+	missing        []string
+	safetyAdjusted bool
+	typeFixed      bool
+	sanitized      bool
+}
+
+// needsWrite reports whether the merged config differs from the user's file.
+func (r mergeResult) needsWrite() bool {
+	return len(r.missing) > 0 || r.safetyAdjusted || r.typeFixed || r.sanitized
+}
+
+// mergeUserConfig merges a parseable user config onto the template defaults.
+func mergeUserConfig(tmplMap, srcMap map[string]interface{}) mergeResult {
+	result := mergeResult{missing: findMissingTopKeys(tmplMap, srcMap)}
+	result.merged = deepMerge(tmplMap, srcMap)
+	result.safetyAdjusted = applyUpgradeSafetyDefaults(result.merged, srcMap)
+	result.typeFixed = enforceTemplateTypes(result.merged, tmplMap)
+	if applyUpgradeGrandfathers(result.merged, srcMap) {
+		result.safetyAdjusted = true
+	}
+	if preserveNewspaperLegacyDefaults(result.merged, srcMap) {
+		result.safetyAdjusted = true
+	}
+	result.sanitized = sanitizeMergedConfig(result.merged)
+	return result
+}
+
+// recoverCorruptedConfig rebuilds a config whose YAML does not parse as a whole
+// from the top-level sections that still parse. The source file existed, so it
+// belongs to an existing installation and keeps its grandfathered settings.
+// A docker section that could not be salvaged loses an explicit
+// allow_host_access: false and comes back as true; Docker itself is reset to
+// the template's disabled state in that case.
+func recoverCorruptedConfig(tmplMap, salvaged map[string]interface{}) map[string]interface{} {
+	if len(salvaged) == 0 {
+		// Nothing says how the installation ran, so only the docker grandfather
+		// applies; auth, the web scraper, the webhook limit, the unsandboxed
+		// shell and the MQTT relay keep the template's safer defaults.
+		merged := deepMerge(tmplMap, nil)
+		grandfatherDockerHostAccess(merged, nil)
+		preserveNewspaperLegacyDefaults(merged, nil)
+		return merged
+	}
+	merged := deepMerge(tmplMap, salvaged)
+	applyUpgradeSafetyDefaults(merged, salvaged)
+	enforceTemplateTypes(merged, tmplMap)
+	applyUpgradeGrandfathers(merged, salvaged)
+	preserveNewspaperLegacyDefaults(merged, salvaged)
+	sanitizeMergedConfig(merged)
+	return merged
+}
+
+// preserveNewspaperLegacyDefaults keeps template opt-ins from silently
+// affecting an existing installation whose config predates those choices.
+// Fresh installs that copy the template directly retain its auto preset.
+func preserveNewspaperLegacyDefaults(merged, user map[string]interface{}) bool {
+	newspaperMap, ok := asStringMap(merged["newspaper"])
+	if !ok {
+		return false
+	}
+	userNewspaper, _ := asStringMap(user["newspaper"])
+	changed := false
+	if mode, exists := userNewspaper["budget_mode"]; !exists || mode == nil {
+		newspaperMap = maps.Clone(newspaperMap)
+		newspaperMap["budget_mode"] = config.NewspaperBudgetFixed
+		changed = true
+	} else if _, valid := mode.(string); !valid {
+		newspaperMap = maps.Clone(newspaperMap)
+		newspaperMap["budget_mode"] = config.NewspaperBudgetFixed
+		changed = true
+	}
+	if sources, exists := userNewspaper["overview_sources"]; !exists {
+		newspaperMap = maps.Clone(newspaperMap)
+		newspaperMap["overview_sources"] = []interface{}{}
+		changed = true
+	} else if _, valid := sources.([]interface{}); !valid {
+		newspaperMap = maps.Clone(newspaperMap)
+		newspaperMap["overview_sources"] = []interface{}{}
+		changed = true
+	}
+	if changed {
+		merged["newspaper"] = newspaperMap
+	}
+	return changed
 }
 
 // ── YAML Helpers ─────────────────────────────────────────────────────────────
@@ -152,51 +255,6 @@ func parseYAMLMap(content string) (map[string]interface{}, error) {
 }
 
 // ── Deep Merge ───────────────────────────────────────────────────────────────
-
-// mergeResult is the merged config and which fix-up passes changed it.
-type mergeResult struct {
-	Config         map[string]interface{}
-	TypeFixed      bool
-	SafetyAdjusted bool
-	Sanitized      bool
-}
-
-// mergeWithTemplate overlays user onto a deep copy of tmpl and applies the
-// fixes in order: enforceTemplateTypes first, so a null or mistyped user value
-// or section falls back to the template's shape; then
-// applyUpgradeSafetyDefaults, which decides from the raw user config and can
-// therefore still see such a null and keep the pre-upgrade behaviour; then
-// sanitizeMergedConfig. deepMerge and the fix-ups share and mutate nested
-// template maps, so the copy keeps tmpl itself unmodified.
-func mergeWithTemplate(tmpl, user map[string]interface{}) mergeResult {
-	base, _ := deepCopyYAML(tmpl).(map[string]interface{})
-	merged := deepMerge(base, user)
-	res := mergeResult{Config: merged}
-	res.TypeFixed = enforceTemplateTypes(merged, base)
-	res.SafetyAdjusted = applyUpgradeSafetyDefaults(merged, user)
-	res.Sanitized = sanitizeMergedConfig(merged)
-	return res
-}
-
-// deepCopyYAML copies the maps and slices of a parsed YAML value.
-func deepCopyYAML(v interface{}) interface{} {
-	switch v := v.(type) {
-	case map[string]interface{}:
-		out := make(map[string]interface{}, len(v))
-		for k, e := range v {
-			out[k] = deepCopyYAML(e)
-		}
-		return out
-	case []interface{}:
-		out := make([]interface{}, len(v))
-		for i, e := range v {
-			out[i] = deepCopyYAML(e)
-		}
-		return out
-	default:
-		return v
-	}
-}
 
 // deepMerge recursively merges overlay into base and returns a new map.
 //   - Keys in both: overlay wins (recurse for nested maps).
@@ -233,62 +291,121 @@ func deepMerge(base, overlay map[string]interface{}) map[string]interface{} {
 	return result
 }
 
-// applyUpgradeSafetyDefaults keeps template defaults from silently changing
-// behaviour on existing installations when the user config has no value for
-// a key: dangerous defaults must not activate features, and new gates must not
-// switch off what the installation already used. Each rule fires for a
-// missing key, a null value or a null parent section, all of which
-// config.Load treats as unset; fresh installs copy the template, which writes
-// every key, so they keep the template's safer defaults.
-//
-// Contract: the rules read the owner's intent only from the raw user map
-// (never from merged, where enforceTemplateTypes has already replaced nulls
-// and mistyped values with template defaults) and write only typed literals
-// into merged, because type enforcement has already run (see
-// mergeWithTemplate).
+// applyUpgradeSafetyDefaults prevents dangerous template defaults from silently
+// activating features on existing installations when the user config lacks an
+// explicit value.
 func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 	changed := false
 
-	// config.Load has no auth.enabled default: a config without a value there
-	// runs without login, so the template's true must not lock the owner out.
-	// Indexing a nil map covers a missing or null auth section too.
-	if authMap, ok := asStringMap(merged["auth"]); ok {
-		userAuth, _ := asStringMap(user["auth"])
-		if userAuth["enabled"] == nil && authMap["enabled"] == true {
-			authMap["enabled"] = false
-			merged["auth"] = authMap
+	// auth.enabled runs again after enforceTemplateTypes (applyUpgradeGrandfathers),
+	// which can swap the template's true in for a null value or section.
+	if keepAuthDisabledWithoutValue(merged, user) {
+		changed = true
+	}
+
+	// docker.allow_host_access is new; see grandfatherDockerHostAccess. The
+	// merge pipeline applies it again after enforceTemplateTypes
+	// (applyUpgradeGrandfathers), which can swap in the template's section.
+	if grandfatherDockerHostAccess(merged, user) {
+		changed = true
+	}
+
+	return changed
+}
+
+// applyUpgradeGrandfathers keeps behaviour that predates a new key for configs
+// that never wrote it. It runs after enforceTemplateTypes, because that step
+// replaces a null or scalar section with the template map, whose values are
+// fresh-install defaults.
+//
+// Each rule fires for the cases config.Load treats as unset for that key (a
+// missing key, a null value or a null parent section; see the rule) and reads
+// the owner's intent only from the raw user map, never from merged, where
+// enforceTemplateTypes has already replaced nulls and mistyped values with
+// template defaults. Rules write typed literals into a cloned section, as
+// merged may still share the template's section maps. Fresh installs copy the
+// template, which writes every key, so they keep the template's safer defaults.
+func applyUpgradeGrandfathers(merged, user map[string]interface{}) bool {
+	changed := false
+	for _, rule := range []func(merged, user map[string]interface{}) bool{
+		keepAuthDisabledWithoutValue,
+		grandfatherDockerHostAccess,
+		grandfatherUnsandboxedShell,
+		grandfatherWebScraperAndWebhookLimit,
+		grandfatherUnauthenticatedMQTTRelay,
+	} {
+		if rule(merged, user) {
 			changed = true
 		}
 	}
+	return changed
+}
 
-	// The non-Windows host shell without a sandbox now needs
-	// agent.allow_unsandboxed_shell (or allow_unsafe_host_execution). Materialise
-	// the key on every upgrade so a merged config never relies on the load-time
-	// grandfather: true where the shell was already enabled (in any yaml.v3
-	// bool spelling, as Load reads allow_shell), false otherwise.
+// keepAuthDisabledWithoutValue: config.Load has no auth.enabled default, so a
+// config without a value there (missing, null, or under a null auth section)
+// runs without login; the template's true must not lock the owner out.
+func keepAuthDisabledWithoutValue(merged, user map[string]interface{}) bool {
+	authMap, ok := asStringMap(merged["auth"])
+	if !ok {
+		return false
+	}
+	userAuth, _ := asStringMap(user["auth"])
+	if userAuth["enabled"] != nil || authMap["enabled"] != true {
+		return false
+	}
+	authMap = maps.Clone(authMap)
+	authMap["enabled"] = false
+	merged["auth"] = authMap
+	return true
+}
+
+// grandfatherUnsandboxedShell: the non-Windows host shell without a sandbox
+// now needs agent.allow_unsandboxed_shell (or allow_unsafe_host_execution).
+// Materialise the key on every upgrade so a merged config never relies on the
+// load-time grandfather: true where the shell was already enabled (in any
+// yaml.v3 bool spelling, as Load reads allow_shell), false otherwise. A
+// written key, even null, is the owner's choice, as config.Load reads it.
+func grandfatherUnsandboxedShell(merged, user map[string]interface{}) bool {
 	userAgent, _ := asStringMap(user["agent"])
-	if _, userSetUnsandboxed := userAgent["allow_unsandboxed_shell"]; !userSetUnsandboxed {
-		if agentMap, ok := asStringMap(merged["agent"]); ok {
-			shellOn, _ := yamlBoolValue(userAgent["allow_shell"])
-			agentMap["allow_unsandboxed_shell"] = shellOn
-			merged["agent"] = agentMap
-			changed = true
-		}
+	if _, userSetUnsandboxed := userAgent["allow_unsandboxed_shell"]; userSetUnsandboxed {
+		return false
 	}
+	agentMap, ok := asStringMap(merged["agent"])
+	if !ok {
+		return false
+	}
+	shellOn, _ := yamlBoolValue(userAgent["allow_shell"])
+	agentMap = maps.Clone(agentMap)
+	agentMap["allow_unsandboxed_shell"] = shellOn
+	merged["agent"] = agentMap
+	return true
+}
 
-	// The template ships tools.web_scraper.enabled: false. A config without a
-	// value there ran with the scraper on unless the legacy
-	// agent.allow_web_scraper said otherwise, so write that effective value,
-	// mirroring config.Load: the code default is true, a null enabled leaves
-	// it (and, being present, skips the legacy migration), and the legacy key
-	// wins only when enabled is absent, including under a null tools or
-	// web_scraper section.
+// grandfatherWebScraperAndWebhookLimit keeps two template defaults from
+// changing an existing installation.
+//
+// The template ships tools.web_scraper.enabled: false. A config without a
+// value there ran with the scraper on unless the legacy agent.allow_web_scraper
+// said otherwise, so write that effective value, mirroring config.Load: the
+// code default is true, a null enabled leaves it (and, being present, skips
+// the legacy migration), and the legacy key wins only when enabled is absent,
+// including under a null tools or web_scraper section.
+//
+// The template ships webhooks.rate_limit: 60. A config without a value there
+// (absent, null, or under a null webhooks section) ran unlimited (0); keep
+// that, the webhooks_no_rate_limit security hint still reports it on
+// internet-facing instances.
+func grandfatherWebScraperAndWebhookLimit(merged, user map[string]interface{}) bool {
+	changed := false
+	userAgent, _ := asStringMap(user["agent"])
 	userTools, _ := asStringMap(user["tools"])
 	userScraper, _ := asStringMap(userTools["web_scraper"])
 	if enabled, hasEnabled := userScraper["enabled"]; enabled == nil {
 		if toolsMap, ok := asStringMap(merged["tools"]); ok {
 			if scraperMap, ok := asStringMap(toolsMap["web_scraper"]); ok {
+				scraperMap = maps.Clone(scraperMap)
 				scraperMap["enabled"] = hasEnabled || legacyWebScraperEnabled(userAgent)
+				toolsMap = maps.Clone(toolsMap)
 				toolsMap["web_scraper"] = scraperMap
 				merged["tools"] = toolsMap
 				changed = true
@@ -296,36 +413,39 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 		}
 	}
 
-	// The template ships webhooks.rate_limit: 60. A config without a value
-	// there (absent, null, or under a null webhooks section) ran unlimited (0);
-	// keep that, the webhooks_no_rate_limit security hint still reports it on
-	// internet-facing instances.
 	userWebhooks, _ := asStringMap(user["webhooks"])
 	if userWebhooks["rate_limit"] == nil {
 		if webhooksMap, ok := asStringMap(merged["webhooks"]); ok {
+			webhooksMap = maps.Clone(webhooksMap)
 			webhooksMap["rate_limit"] = 0
 			merged["webhooks"] = webhooksMap
 			changed = true
 		}
 	}
-
-	// MQTT relays and MQTT-triggered missions now need broker authentication
-	// or mqtt.allow_unauthenticated_relay; the template ships false. A config
-	// without a value there (absent, null, or under a null mqtt section) ran
-	// them on any broker, so materialise what config.Load grandfathers: true
-	// for an enabled broker without username or client certificate over TLS (mission
-	// triggers live in the mission store, so no relay flag is needed), false
-	// otherwise. The mqtt_relay_no_auth security hint reports true as critical.
-	userMQTT, _ := asStringMap(user["mqtt"])
-	if userMQTT["allow_unauthenticated_relay"] == nil {
-		if mqttMap, ok := asStringMap(merged["mqtt"]); ok {
-			mqttMap["allow_unauthenticated_relay"] = mqttRanAnonymously(userMQTT)
-			merged["mqtt"] = mqttMap
-			changed = true
-		}
-	}
-
 	return changed
+}
+
+// grandfatherUnauthenticatedMQTTRelay: MQTT relays and MQTT-triggered missions
+// now need broker authentication or mqtt.allow_unauthenticated_relay; the
+// template ships false. A config without a value there (absent, null, or under
+// a null mqtt section) ran them on any broker, so materialise what config.Load
+// grandfathers: true for an enabled broker without username or client
+// certificate over TLS (mission triggers live in the mission store, so no
+// relay flag is needed), false otherwise. The mqtt_relay_no_auth security hint
+// reports true as critical.
+func grandfatherUnauthenticatedMQTTRelay(merged, user map[string]interface{}) bool {
+	userMQTT, _ := asStringMap(user["mqtt"])
+	if userMQTT["allow_unauthenticated_relay"] != nil {
+		return false
+	}
+	mqttMap, ok := asStringMap(merged["mqtt"])
+	if !ok {
+		return false
+	}
+	mqttMap = maps.Clone(mqttMap)
+	mqttMap["allow_unauthenticated_relay"] = mqttRanAnonymously(userMQTT)
+	merged["mqtt"] = mqttMap
+	return true
 }
 
 // mqttRanAnonymously mirrors the config.Load grandfather for
@@ -412,6 +532,26 @@ func yamlBoolValue(v interface{}) (value, ok bool) {
 	default:
 		return false, false
 	}
+}
+
+// grandfatherDockerHostAccess materialises docker.allow_host_access: true when
+// the user config never wrote the key. Configurations that predate it keep the
+// unrestricted agent Compose behaviour, so the template's false (meant for
+// fresh installs) never reaches an upgraded config.
+func grandfatherDockerHostAccess(merged, user map[string]interface{}) bool {
+	userDocker, _ := asStringMap(user["docker"])
+	if _, userSetHostAccess := userDocker["allow_host_access"]; userSetHostAccess {
+		return false
+	}
+	dockerMap, ok := asStringMap(merged["docker"])
+	if !ok {
+		return false
+	}
+	// merged may still share the template's section map; never write into it.
+	dockerMap = maps.Clone(dockerMap)
+	dockerMap["allow_host_access"] = true
+	merged["docker"] = dockerMap
+	return true
 }
 
 // asStringMap converts a value to map[string]interface{} if possible.

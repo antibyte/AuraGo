@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -179,11 +180,13 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 
 	setSupertonicLifecycle("pulling")
 	logSupertonic(logger, slog.LevelInfo, "Pulling image", "image", image)
-	_, pullCode, pullErr := dockerRequest(dockerCfg, "POST", "/images/create?fromImage="+url.QueryEscape(image), "")
-	if pullErr != nil {
-		logSupertonic(logger, slog.LevelWarn, "Image pull failed, trying to create container anyway", "error", pullErr)
-	} else if pullCode != http.StatusOK {
-		logSupertonic(logger, slog.LevelWarn, "Image pull returned unexpected status", "code", pullCode)
+	if err := pullImageBestEffort(context.Background(), dockerCfg, image); err != nil {
+		var pullErr *dockerPullError
+		if errors.As(err, &pullErr) && pullErr.StatusCode != 0 {
+			logSupertonic(logger, slog.LevelWarn, "Image pull returned unexpected status", "code", pullErr.StatusCode, "error", err)
+		} else {
+			logSupertonic(logger, slog.LevelWarn, "Image pull failed, trying to create container anyway", "error", err)
+		}
 	}
 
 	payload := buildSupertonicCreatePayload(image, model, portStr, absData, managedContainerUserSpec())

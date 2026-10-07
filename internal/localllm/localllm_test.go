@@ -1290,6 +1290,10 @@ func (engine *recordingDockerEngine) DoJSON(_ context.Context, method, path stri
 
 func (engine *recordingDockerEngine) HTTPClient() *http.Client { return engine.client }
 
+func (engine *recordingDockerEngine) HTTPClientWithTimeout(time.Duration) *http.Client {
+	return engine.client
+}
+
 type failingStartDockerEngine struct {
 	paths    []string
 	startErr error
@@ -1304,6 +1308,10 @@ func (engine *failingStartDockerEngine) DoJSON(_ context.Context, method, path s
 }
 
 func (engine *failingStartDockerEngine) HTTPClient() *http.Client { return http.DefaultClient }
+
+func (engine *failingStartDockerEngine) HTTPClientWithTimeout(time.Duration) *http.Client {
+	return http.DefaultClient
+}
 
 func TestRecreateContainerRejectsOccupiedLoopbackPortBeforeCreate(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")

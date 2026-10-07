@@ -3,8 +3,8 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -154,58 +154,26 @@ func validateDockerImageReferenceForUpdate(image string) error {
 	return nil
 }
 
+// pullDockerImageForUpdate pulls the container's image before the container is
+// touched, on the shared streaming pull helper; the caller's context bounds it.
 func pullDockerImageForUpdate(ctx context.Context, cfg DockerConfig, image string) error {
-	reqURL := "http://localhost/" + dockerAPIVersion + "/images/create?fromImage=" + url.QueryEscape(image)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
-	if err != nil {
-		return fmt.Errorf("create pull request: %w", err)
+	err := pullDockerImageStream(ctx, cfg, image)
+	var pullErr *dockerPullError
+	if err == nil || !errors.As(err, &pullErr) {
+		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := getPullDockerClient(cfg).Do(req)
-	if err != nil {
-		return fmt.Errorf("pull image: %w", err)
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read pull stream: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		msg := dockerBodyMessage(resp.StatusCode, data)
+	switch {
+	case pullErr.StatusCode != 0:
+		msg := pullErr.Message
 		if msg == "" {
-			msg = http.StatusText(resp.StatusCode)
+			msg = http.StatusText(pullErr.StatusCode)
 		}
-		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, msg)
+		return fmt.Errorf("HTTP %d: %s", pullErr.StatusCode, msg)
+	case pullErr.Stream:
+		return pullErr.Err
+	default:
+		return fmt.Errorf("pull image: %w", pullErr.Err)
 	}
-	if msg := dockerPullStreamError(data); msg != "" {
-		return fmt.Errorf("%s", msg)
-	}
-	return nil
-}
-
-func dockerPullStreamError(data []byte) string {
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		var event struct {
-			Error       string `json:"error"`
-			ErrorDetail struct {
-				Message string `json:"message"`
-			} `json:"errorDetail"`
-		}
-		if json.Unmarshal([]byte(line), &event) != nil {
-			continue
-		}
-		if event.ErrorDetail.Message != "" {
-			return event.ErrorDetail.Message
-		}
-		if event.Error != "" {
-			return event.Error
-		}
-	}
-	return ""
 }
 
 func dockerReplacementCreatePayload(inspect map[string]interface{}, image string) (map[string]interface{}, error) {

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/agent"
 	"aurago/internal/commands"
@@ -535,7 +536,7 @@ func applyDesktopAgentProvider(ctx context.Context, s *Server, cfg *config.Confi
 	if strings.TrimSpace(provider.Model) != "" {
 		cfg.LLM.Model = provider.Model
 	}
-	return llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
+	return llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID))
 }
 
 func desktopAgentProviderID(ctx context.Context, s *Server) string {
@@ -623,7 +624,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		cfg.LLM.AccountID = provider.AccountID
 		cfg.LLM.Model = provider.Model
 		cfg.FallbackLLM.Enabled = false
-		llmClient = llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
+		llmClient = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID))
 	} else if !opts.SkipDesktopProvider {
 		llmClient = applyDesktopAgentProvider(ctx, s, &cfg)
 	}
@@ -1007,8 +1008,8 @@ func buildHomepageStudioAgentContext(chatContext desktopChatContext) string {
 	var b strings.Builder
 	b.WriteString("The user is working in Homepage Studio, AuraGo's homepage/site editor. Interpret short references like \"the page\" or \"die Seite\" as the current Homepage Studio site, not as a Virtual Desktop widget or app.")
 	if target := strings.TrimSpace(chatContext.Target); target != "" {
-		b.WriteString("\nTarget: ")
-		b.WriteString(target)
+		b.WriteString("\nTarget (untrusted client metadata):\n")
+		b.WriteString(desktopExternalData("homepage_target", target, 2048))
 	}
 	b.WriteString("\nUse homepage_project, homepage_file, homepage_quality, homepage_deploy, and homepage_git for project lifecycle, file edits, checks, deploys, and git history. The legacy homepage tool is acceptable only when focused homepage tools are unavailable.")
 	b.WriteString("\nDo not use virtual_desktop apps, widgets, or files for Homepage Studio site changes unless the user explicitly asks to change the Virtual Desktop UI.")
@@ -1087,13 +1088,16 @@ func buildDesktopWindowContextPrompt(windowContext *desktopWindowContext) string
 func desktopExternalData(kind, value string, maxBytes int) string {
 	value = strings.TrimSpace(value)
 	if maxBytes > 0 && len(value) > maxBytes {
-		value = value[:maxBytes] + "\n[truncated]"
+		value = value[:maxBytes]
+		for !utf8.ValidString(value) {
+			value = value[:len(value)-1]
+		}
+		value += "\n[truncated]"
 	}
-	// Escape nested external_data tags to prevent injection that could break
-	// the security wrapper boundary.
-	value = strings.ReplaceAll(value, "<external_data>", "&lt;external_data&gt;")
-	value = strings.ReplaceAll(value, "</external_data>", "&lt;/external_data&gt;")
-	return fmt.Sprintf("<external_data type=%q\u003e\n%s\n</external_data>", kind, value)
+	if value == "" {
+		return ""
+	}
+	return kind + " (untrusted):\n" + security.IsolateExternalData(value)
 }
 
 type desktopReplyBroker struct {

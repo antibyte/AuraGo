@@ -1550,7 +1550,7 @@
             }
             return renderFiles(id, path);
         }
-        if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.content || '');
+        if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.path ? context.content : '');
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
             return window.WriterApp.render(contentEl(id), id, officeAppContext(context));
         }

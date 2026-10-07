@@ -35,9 +35,9 @@
   "backend.chat_voice_details_in_chat": "Details are in the chat.",
   "backend.budget_disabled": "💰 Budget system is disabled.",
   "backend.budget_help": "Shows the current budget status (daily costs, limit, models).",
-  "backend.budget_mode_warn_de": " (nur Warnung)",
-  "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT gesperrt bei Überschreitung)",
-  "backend.budget_mode_full_de": " (alles gesperrt bei Überschreitung)",
+  "backend.budget_mode_warn_de": " (warning only)",
+  "backend.budget_mode_partial_de": " (co-agents + vision/STT blocked when exceeded)",
+  "backend.budget_mode_full_de": " (all blocked when exceeded)",
   "backend.budget_mode_warn_en": " (warning only)",
   "backend.budget_mode_partial_en": " (co-agents + vision/STT blocked when exceeded)",
   "backend.budget_mode_full_en": " (all blocked when exceeded)",
@@ -243,5 +243,13 @@
   "tools.dns_partial_results": "partial results",
   "backend.speech_lab_audio_warning": "Speech Lab audio could not be generated. The text response remains available.",
   "backend.auth_current_password_required": "Your current password is required for this change.",
-  "backend.auth_current_totp_required": "The current code from your authenticator app is required for this change."
+  "backend.auth_current_totp_required": "The current code from your authenticator app is required for this change.",
+  "backend.proxy_basic_auth_credentials_invalid": "The Basic Auth credentials in the Vault cannot be used. The user name must not contain ':', quotes, backslashes or braces, and the password may be at most 72 bytes long.",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth is on, but the Vault has no 'proxy_basic_auth_user' and 'proxy_basic_auth_pass'. Store both secrets or turn Basic Auth off, then start the proxy again.",
+  "backend.proxy_caddy_exited": "The proxy stopped right after starting, usually because of an invalid domain, IP filter entry or port. The proxy logs show the exact reason.",
+  "backend.proxy_config_rejected": "The proxy rejected the new settings and keeps running with the previous ones. The proxy logs show the reason.",
+  "backend.proxy_docker_placement_failed": "AuraGo runs in Docker, but the proxy cannot use AuraGo's data volume. This needs Docker Engine 26 or newer, and AuraGo's data directory must be on a Docker volume or bind mount. The AuraGo log has the details.",
+  "backend.proxy_not_running": "The Security Proxy is not running. Start it first.",
+  "backend.proxy_rate_limit_image_read_only": "Docker read-only mode (docker.read_only) is on, so AuraGo cannot build the Caddy image with the caddy-ratelimit module that rate limiting needs. In this mode AuraGo cannot create or change the proxy container either. Turn off Docker read-only mode and start the proxy again. The AuraGo log has the details.",
+  "backend.proxy_rate_limit_image_unavailable": "Rate limiting needs a Caddy image with the caddy-ratelimit module, and AuraGo could not build it. Docker must allow image builds (with Docker Compose: BUILD=1 on the docker-proxy service) and reach the internet. You can also build the image on the Docker host (see the manual) or turn rate limiting off. The AuraGo log has the details."
 }

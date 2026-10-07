@@ -129,6 +129,9 @@
   without a usable score is a `failed` evaluate entry, never score 0.
 - Chart, gauge and hero use theme tokens; keep the grid rows explicit so the
   action bar cannot absorb the free row. Every new string needs all 16 locales.
+- The unused run view shows the decorative transparent `img/looper-empty.png`
+  illustration with the existing empty-state copy. It shares the monitor's idle
+  predicate and disappears for running, paused and finished runs; keep it responsive.
 - Costs come from the budget tracker's model rates (`EstimateCost`); `cost_approximate`
   marks a fallback price. Starting or resuming under an exhausted budget answers
   402 with `code: "budget_exceeded"`, and a running loop pauses itself with
@@ -989,6 +992,9 @@ buttons and menu popovers remain excluded from those gestures.
 - `live-speech.js` mounts the shared realtime-speech panel on the desktop in a
   compact window (preset 440×520, min 340×460 in
   `window-shell-runtime.js`; panel mounted with `compact: true`).
+  The desktop header's speaker control lives beside the FX toggle and opens
+  the shared audio settings dialog; pass its `[data-live-speech-audio-controls]`
+  host through the mount `audioControls` option.
   The shared panel places its animated persona beside wrapping, scrollable
   captions; small windows scroll vertically. Avatar disposal uses the existing
   panel unmount and preserves `keepSession`. The decorative FX remain separate
@@ -1302,6 +1308,10 @@ registration lives in `internal/desktop/types.go`.
   window owns its engine/worker, requests, panels, chart canvases, operation
   journal and save queue. Load OfficeSession, data, panels and charts before
   sheets.js. The local vendor build imports only Apache-2.0 Univer OSS 1.0.3.
+- Failed workbook loads release the editor/save queue and show New, Open and
+  Retry actions with an error status. A confirmed 404 clears the shell's stored
+  path; temporary failures retain it for retry. New uses a fresh create-only
+  path and never recreates the missing file. Verify `TestDesktopSheetsLoadRecoveryBrowser`.
 - Use the engine's formula, selection, clipboard, structural-reference and undo
   APIs. Do not restore the removed HTML grid or browser formula evaluator.
   Expand shared formulas before persistence, preserve forced strings, and parse
@@ -1327,10 +1337,16 @@ registration lives in `internal/desktop/types.go`.
   Acknowledgements cover only the captured revision. Suspend the queue during
   Save As; native writes require ETag preconditions. Keep the async close guard
   installed until cleanup and never replace failed loads with blank content.
+- Writer exposes New/Open after load failures and clears the persisted window
+  path only on a confirmed 404. Transient errors retain it for Retry. Verify
+  `TestDesktopFileLoadRecoveryBrowser` alongside the Sheets recovery check.
 - Writer pointer selection must preserve the viewport, including clicks near its
   edges after toolbar focus. Core 2.23.0 supplies this behavior upstream; keep
   keyboard/programmatic reveal and drag edge autoscroll enabled. Retain the
   browser regressions when rebuilding or upgrading the core.
+- Writer opens new, loaded and recovered documents at the first paragraph with
+  the viewport at the top. Restore typing focus only in the active editable
+  window. Verify `TestDesktopWriterAppBrowser` and the Writer shell matrix.
 - Writer font-size controls display points and convert to integer half-points at
   the command boundary, including command availability checks. Reject invalid
   inputs before editing. Map app actions to existing shared icon keys; action IDs
@@ -1412,6 +1428,12 @@ registration lives in `internal/desktop/types.go`.
   `desktop.fm.paste_exists` message. Save retains overwrite semantics.
 - Code Studio Git commands run via Docker exec in the container workspace (`/workspace`).
   Git API endpoints are in `internal/server/code_studio_handlers.go`.
+- Code Studio recognizes C source/header files and reuses the bundled CodeMirror
+  C/C++ parser. Run compiles `.c` as C17 with GCC into a private temporary
+  directory, executes only a successful build and cleans up afterward. Headers
+  remain editable, not standalone programs. With no restored tabs or launch
+  path, open available `hello.go`, `hello.py` and `hello.c` samples as tabs.
+  Verify `TestDesktopCodeStudioC` and the CodeContainer sample/runtime tests.
 - System World loads `sysworld-data.js`, `sysworld-hud.js`, `sysworld-controls.js`,
   then `sysworld.js`.
   The first two expose `window.SysWorld.data/createHud`; the entry owns per-window
@@ -2228,6 +2250,11 @@ registration lives in `internal/desktop/types.go`.
   empty-state load failures use `desktop.load_failed`. Bundled in the
   main shell bundle (`desktopMainParts` in `build-ui-bundles.js`) because
   it is referenced directly by the desktop foundation runtime.
+  Failed text-file loads retain Retry/New/Open and block editing/saving the
+  unloaded document. A 404 starts an empty buffer only for explicit creation;
+  restored/opened files keep load intent through both shell entry points.
+  Clear their persisted path only on confirmed 404s, retaining temporary failures
+  for Retry. Verify `TestDesktopFileLoadRecoveryBrowser`.
 - `planning-gallery-music.js` - Planner/todo, gallery and Webamp music.
   Bundled in the main shell. Todo and Gallery empty-state load failures
   use `desktop.load_failed`. Webamp unsupported-browser errors use
@@ -2245,7 +2272,13 @@ registration lives in `internal/desktop/types.go`.
   and external-open notifications use `desktop.load_failed`. Bundled
   in the main shell. No child DOX file needed.
 - `store-terminal-preview.js` - CommandCode console-plus-preview
-  host. Frame empty-state and start-toast failures reuse
+  host. CommandCode stays visible above an initially hidden shell drawer.
+  Terminal toggles reuse its live sessions; Plus adds a shell in the same
+  container working directory (`/workspace`). Only tab close, explicit restart
+  and window disposal close shell sockets. Clipboard, focus and status remain
+  session-scoped; hiding restores CommandCode focus. Keep all 16 locale labels,
+  narrow-window layout and `TestDesktopStoreTerminalDrawerBrowser` aligned.
+  Frame empty-state and start-toast failures reuse
   `desktop.load_failed`. Stylesheet and script loads wrap
   AuraLazyAssets and fallback `onerror` with
   `desktop.store_terminal_load_failed` so the asset URL does not
@@ -2436,19 +2469,33 @@ registration lives in `internal/desktop/types.go`.
 - `terminal.js` - Standalone workspace terminal: one xterm.js session to
   `/api/code-studio/terminal`. Style catalog in `terminal-styles.js`
   (`window.TerminalStyles`: `ids`, `normalize`, `load`, `save`, `profile`,
-  `applyXterm`). IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
+  `applyXterm`, `effectControls`, `loadEffects`, `saveEffects`, `resetEffects`).
+  IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
   `ibm3278`, `vintage`, `mono-green`, `transparent-green`. Persist
   `aurago.desktop.terminal.style` and audio mute
   `aurago.desktop.terminal.audioMuted`. Retro styles use vendored
-  `xterm-addon-canvas`, original WebGL CRT in `terminal-crt.js`
+  xterm 6 with its WebGL addon, original WebGL CRT in `terminal-crt.js`
   (`window.TerminalCrt.create` → `setProfile`/`setEnabled`/`resize`/`dispose`/`usesFallback`;
-  captures only `xterm-*-layer` canvases at their CSS offsets and scale;
+  captures every `.xterm-screen` canvas at its CSS offset and scale;
   output is capped at DPR 1.25 and 30 fps, never stretches text to fill the tube),
   CSS bezels, and Web Audio key-clicks in `terminal-audio.js`
   (`window.TerminalAudio.create` → `setProfile`/`setMuted`/`playKey`/`dispose`).
-  Load order: xterm.css, desktop-app-terminal.css, xterm, fit, canvas,
+  Load order: xterm.css, desktop-app-terminal.css, xterm, fit, WebGL addon,
   styles, crt, audio, terminal.js. Scope is this app only. Reduced motion
   and `dataset.animations === 'false'` disable flicker, burn-in, animated grain, and audio.
+  The native Effects dialog applies bounded sliders to the existing renderer,
+  without recreating xterm or its socket. Preferences live per style in
+  `aurago.desktop.terminal.effects.v1`; malformed/blocked storage falls back
+  to presets, and reset affects only the selected style. Overall intensity zero
+  restores unwarped source output and removes reflection. Brightness, bloom,
+  scanlines, curvature, afterglow, phosphor mask, vignette, glass reflection,
+  noise, flicker, jitter, rolling interference and color fringing are independent.
+  Reduced motion also pauses jitter/interference; static adjustments remain.
+  Glass reflection is a pointer-transparent CSS layer, available in fallback.
+  CSS fallback supports intensity/brightness/bloom/scanlines/vignette/reflection;
+  the dialog disables unsupported effects and explains the limitation. Dispose
+  closes the dialog and releases its media-query/mutation observers. Zero burn
+  removes temporal persistence even when instantaneous bloom remains enabled.
   Retro appearance follows cool-retro-term's luminous phosphor, scanlines,
   subtly curved glass and recessed bezel using original rendering code. Keep
   profile curvature gentle so text rows remain nearly straight. Share Tech
@@ -2456,8 +2503,12 @@ registration lives in `internal/desktop/types.go`.
   Additive bloom and decaying persistence share a half-resolution blurred
   source buffer; never feed warped output back into the source. The native
   xterm layer stays interactive and is visually hidden only after a WebGL frame.
-  Keep canvas addon 0.5.0 paired with xterm 5.3.0; provenance and license are
-  beside `js/vendor/xterm-addon-canvas.min.js`. Browser verification is
+  Housing materials, seams, vents and localized wear live in the app CSS;
+  older Apple II/Vintage cases show more wear. Decorative hardware is hidden
+  from accessibility and pointer input. Its LED follows the existing localized
+  socket status via `data-terminal-state`; Modern stays frameless. Keep compact
+  cases inside the app without changing xterm's measured screen padding.
+  Browser verification is
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopTerminalRetroBrowser -count=1`.
   WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Style
   changes wait for `document.fonts.load` before changing xterm options or

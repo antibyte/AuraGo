@@ -105,10 +105,10 @@ func TestBuildDesktopAgentPromptWrapsAllExternalInputs(t *testing.T) {
 	})
 
 	for _, want := range []string{
-		`<external_data type="desktop_current_file">`,
-		`<external_data type="desktop_current_language">`,
-		`<external_data type="desktop_open_files">`,
-		`<external_data type="desktop_selected_text">`,
+		"desktop_current_file (untrusted):\n<external_data>",
+		"desktop_current_language (untrusted):\n<external_data>",
+		"desktop_open_files (untrusted):\n<external_data>",
+		"desktop_selected_text (untrusted):\n<external_data>",
 		`</external_data>`,
 	} {
 		if !strings.Contains(prompt, want) {

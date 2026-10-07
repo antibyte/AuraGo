@@ -28,6 +28,7 @@ type streamingResponseResult struct {
 	tokenSource          string
 	contextCancelled     bool
 	interruptedReasoning string
+	usedFallbackEstimate bool
 	err                  error
 	recoveryContinue     bool
 	recoveredMessages    []openai.ChatCompletionMessage
@@ -190,7 +191,7 @@ func handleStreamingResponse(
 	strict := len(requireComplete) > 0 && requireComplete[0]
 	streamAcct := streamingAccountingState{}
 	contextCancelled := false
-	var stm *openai.ChatCompletionStream
+	var stm llm.CompletionStream
 	streamCancel := func() {}
 	var streamErr error
 	var midStreamError error
@@ -215,6 +216,7 @@ func handleStreamingResponse(
 	var assembledResponse strings.Builder
 	var assembledReasoning strings.Builder
 	var lastFinishReason string
+	var responseModel string
 	tcAssembler := NewStreamToolCallAssembler()
 
 	const doneTagStr = "<done/>"
@@ -326,7 +328,10 @@ func handleStreamingResponse(
 				streamAcct.providerCacheReported = true
 				cachedTokens = chunk.Usage.PromptTokensDetails.CachedTokens
 			}
-			streamAcct.recordProviderUsage(chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens, cachedTokens)
+			streamAcct.recordProviderUsage(chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens, chunk.Usage.TotalTokens, cachedTokens)
+		}
+		if chunk.Model != "" {
+			responseModel = chunk.Model
 		}
 		if len(chunk.Choices) > 0 {
 			if chunk.Choices[0].FinishReason != "" {
@@ -423,35 +428,17 @@ func handleStreamingResponse(
 		currentLogger.Info("[Stream] Assembled streamed tool calls", "count", len(assembledToolCalls))
 	}
 
-	var promptTokens, completionTokens, totalTokens int
-	tokenSource := ""
-	if streamAcct.hasProviderUsage {
-		promptTokens = streamAcct.providerPrompt
-		completionTokens = streamAcct.providerCompletion
-		totalTokens = promptTokens + completionTokens
-		tokenSource = "provider_usage"
-	} else {
-		completionTokens = estimateTokensForModel(content+reasoningContent, req.Model)
-		for _, call := range assembledToolCalls {
-			completionTokens += estimateTokensForModel(call.Function.Name+call.Function.Arguments, req.Model)
-		}
-		for _, m := range req.Messages {
-			promptTokens += estimateTokensForModel(messageTextWithReasoningForAccounting(m), req.Model)
-		}
-		totalTokens = promptTokens + completionTokens
-		tokenSource = "fallback_estimate"
-	}
-
 	usage := openai.Usage{
-		PromptTokens:     promptTokens,
-		CompletionTokens: completionTokens,
-		TotalTokens:      totalTokens,
+		PromptTokens:     streamAcct.providerPrompt,
+		CompletionTokens: streamAcct.providerCompletion,
+		TotalTokens:      streamAcct.providerTotal,
 	}
 	if streamAcct.providerCacheReported {
 		usage.PromptTokensDetails = &openai.PromptTokensDetails{CachedTokens: streamAcct.providerCached}
 	}
 
 	resp := openai.ChatCompletionResponse{
+		Model: responseModel,
 		Choices: []openai.ChatCompletionChoice{
 			{FinishReason: openai.FinishReason(lastFinishReason), Message: openai.ChatCompletionMessage{
 				Role:             openai.ChatMessageRoleAssistant,
@@ -461,6 +448,10 @@ func handleStreamingResponse(
 			}},
 		},
 		Usage: usage,
+	}
+	resp, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate, shouldAccount := normalizeResponseUsage(req, resp)
+	if !shouldAccount {
+		promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate = 0, 0, 0, "", false
 	}
 	if midStreamError != nil {
 		resp.Choices = nil
@@ -474,6 +465,7 @@ func handleStreamingResponse(
 		completionTokens:     completionTokens,
 		totalTokens:          totalTokens,
 		tokenSource:          tokenSource,
+		usedFallbackEstimate: usedFallbackEstimate,
 		contextCancelled:     contextCancelled,
 	}
 }
@@ -507,15 +499,15 @@ func handleSyncLLMCall(
 			cancelResp()
 			telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
 			if recovered, recErr := recoverFrom422WithPolicy(recoveryPolicy, err, retry422Count, &req, currentLogger, broker, "Sync", telemetryScope); recovered {
-				return recoveryResult{recoveryContinue: true, recoveredMessages: req.Messages, telemetryScope: telemetryScope}
+				return recoveryResult{resp: resp, content: syncResponseContent(resp), recoveryContinue: true, recoveredMessages: req.Messages, telemetryScope: telemetryScope}
 			} else if recErr != nil {
-				return recoveryResult{err: recErr, telemetryScope: telemetryScope}
+				return recoveryResult{resp: resp, content: syncResponseContent(resp), err: recErr, telemetryScope: telemetryScope}
 			}
-			return recoveryResult{err: err, telemetryScope: telemetryScope}
+			return recoveryResult{resp: resp, content: syncResponseContent(resp), err: err, telemetryScope: telemetryScope}
 		}
 		if len(resp.Choices) == 0 {
 			cancelResp()
-			return recoveryResult{err: fmt.Errorf("no choices returned from LLM"), telemetryScope: telemetryScope}
+			return recoveryResult{resp: resp, err: fmt.Errorf("no choices returned from LLM"), telemetryScope: telemetryScope}
 		}
 		return recoveryResult{resp: resp, content: resp.Choices[0].Message.Content, telemetryScope: telemetryScope}
 	} else {
@@ -524,16 +516,23 @@ func handleSyncLLMCall(
 			cancelResp()
 			telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
 			if recovered, recErr := recoverFrom422WithPolicy(recoveryPolicy, err, retry422Count, &req, currentLogger, broker, "Sync", telemetryScope); recovered {
-				return recoveryResult{recoveryContinue: true, recoveredMessages: req.Messages, telemetryScope: telemetryScope}
+				return recoveryResult{resp: resp, content: syncResponseContent(resp), recoveryContinue: true, recoveredMessages: req.Messages, telemetryScope: telemetryScope}
 			} else if recErr != nil {
-				return recoveryResult{err: recErr, telemetryScope: telemetryScope}
+				return recoveryResult{resp: resp, content: syncResponseContent(resp), err: recErr, telemetryScope: telemetryScope}
 			}
-			return recoveryResult{err: err, telemetryScope: telemetryScope}
+			return recoveryResult{resp: resp, content: syncResponseContent(resp), err: err, telemetryScope: telemetryScope}
 		}
 		if len(resp.Choices) == 0 {
 			cancelResp()
-			return recoveryResult{err: fmt.Errorf("no choices returned from LLM"), telemetryScope: telemetryScope}
+			return recoveryResult{resp: resp, err: fmt.Errorf("no choices returned from LLM"), telemetryScope: telemetryScope}
 		}
 		return recoveryResult{resp: resp, content: resp.Choices[0].Message.Content, telemetryScope: telemetryScope}
 	}
+}
+
+func syncResponseContent(resp openai.ChatCompletionResponse) string {
+	if len(resp.Choices) == 0 {
+		return ""
+	}
+	return resp.Choices[0].Message.Content
 }

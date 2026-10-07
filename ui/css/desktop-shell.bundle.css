@@ -2805,7 +2805,7 @@
 }
 
 /* ui/css/desktop-start-menu.css */
-/* desktop-start-menu.css — start menu panel, search, app list, app items */
+/* desktop-start-menu.css — start menu panel, search, category rail, app pane, app items */
 
 
 
@@ -2854,12 +2854,16 @@
     border-radius: 50%;
 }
 
+/* Panel: search on top, then the category rail beside the app pane. The panel keeps a fixed
+   height so switching categories never resizes it. */
 .vd-start-menu {
     position: fixed;
     left: 16px;
     bottom: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 12px) + 8px);
-    width: min(360px, calc(100vw - 36px));
-    max-height: min(520px, calc(100vh - 120px));
+    width: min(640px, calc(100vw - 36px));
+    height: min(600px, calc(100vh - 120px));
+    display: flex;
+    flex-direction: column;
     border: 1px solid var(--vd-border);
     border-radius: 14px;
     background: var(--vd-surface-strong);
@@ -2873,7 +2877,7 @@
 .desktop-body[data-theme="standard"] .vd-start-menu {
     left: 18px;
     bottom: calc(var(--vd-taskbar-height, 54px) + 12px);
-    width: min(420px, calc(100vw - 36px));
+    width: min(680px, calc(100vw - 36px));
     border-color: var(--vd-shell-context-menu-border);
     border-radius: 14px;
     background: var(--vd-shell-context-menu-bg);
@@ -2885,8 +2889,8 @@
 .desktop-body[data-theme="fruity"] .vd-start-menu {
     left: 50%;
     bottom: calc(var(--vd-fruity-dock-reserve, 96px) + env(safe-area-inset-bottom, 0px));
-    width: min(720px, calc(100vw - 64px));
-    max-height: min(560px, calc(100vh - 150px));
+    width: min(860px, calc(100vw - 64px));
+    height: min(620px, calc(100vh - 150px));
     border-color: var(--vd-theme-border);
     border-radius: 18px;
     background: var(--vd-theme-panel-bg-strong);
@@ -2897,6 +2901,7 @@
 }
 
 .vd-start-search {
+    flex: 0 0 auto;
     padding: var(--ds-space-3);
     border-bottom: 1px solid var(--ds-color-border-subtle);
 }
@@ -2933,18 +2938,203 @@
     outline-offset: var(--ds-focus-ring-offset);
 }
 
-.vd-start-apps {
-    padding: 8px;
-    overflow: auto;
-    max-height: 430px;
+/* Body: category rail (left) and app pane (right). */
+.vd-start-body {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
-.desktop-body[data-theme="fruity"] .vd-start-apps {
+.vd-start-rail {
+    position: relative;
+    flex: 0 0 196px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 8px;
+    overflow: hidden auto;
+    border-right: 1px solid var(--ds-color-border-subtle);
+    background: rgba(0, 0, 0, 0.12);
+    scrollbar-width: thin;
+    transition: opacity 160ms var(--ds-motion-ease-standard);
+}
+
+/* While a search runs the rail recedes; its buttons still work and clear the query. */
+.vd-start-menu.vd-start-searching .vd-start-rail {
+    opacity: 0.55;
+}
+
+.vd-start-rail-separator {
+    flex: 0 0 auto;
+    height: 1px;
+    margin: 6px 10px;
+    background: var(--vd-border);
+}
+
+/* The active category's pill; window-shell-runtime.js writes --vd-rail-y/-h from the button. */
+.vd-start-rail-indicator {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 0;
+    height: var(--vd-rail-h, 36px);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    transform: translateY(var(--vd-rail-y, 10px));
+    pointer-events: none;
+    z-index: 0;
+    transition:
+        transform 260ms cubic-bezier(0.32, 0.72, 0, 1),
+        height 200ms var(--ds-motion-ease-standard),
+        opacity 160ms var(--ds-motion-ease-standard);
+}
+
+.vd-start-rail-indicator::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 9px;
+    bottom: 9px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: var(--vd-accent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--vd-accent) 55%, transparent);
+}
+
+.vd-start-category {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    align-items: center;
     gap: 10px;
-    padding: 14px;
-    max-height: 430px;
+    min-height: 36px;
+    padding: 6px 10px 6px 12px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--vd-muted);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        color 140ms var(--ds-motion-ease-standard),
+        background-color 140ms var(--ds-motion-ease-standard),
+        transform 120ms var(--ds-motion-ease-standard);
+}
+
+.vd-start-category:hover {
+    color: var(--vd-text);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.vd-start-category[aria-selected="true"] {
+    color: var(--vd-text);
+    font-weight: 600;
+}
+
+.vd-start-category:active {
+    transform: scale(0.98);
+}
+
+.vd-start-category:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: -2px;
+}
+
+.vd-start-category-icon {
+    opacity: 0.85;
+    transition: opacity 140ms var(--ds-motion-ease-standard), transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.vd-start-category:hover .vd-start-category-icon,
+.vd-start-category[aria-selected="true"] .vd-start-category-icon {
+    opacity: 1;
+    transform: scale(1.06);
+}
+
+.vd-start-category-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-start-category-count {
+    min-width: 20px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--vd-muted);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 16px;
+    text-align: center;
+    opacity: 0.85;
+    transition: background-color 140ms var(--ds-motion-ease-standard), color 140ms var(--ds-motion-ease-standard);
+}
+
+.vd-start-category[aria-selected="true"] .vd-start-category-count {
+    background: color-mix(in srgb, var(--vd-accent) 18%, transparent);
+    color: var(--vd-text);
+}
+
+.vd-start-pane {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+}
+
+.vd-start-pane-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 14px 18px 6px;
+}
+
+.vd-start-pane-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--vd-text);
+}
+
+.vd-start-pane-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--vd-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.vd-start-apps {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 4px 10px 10px;
+    overflow: hidden auto;
+}
+
+.vd-start-section + .vd-start-section {
+    margin-top: 4px;
+}
+
+.vd-start-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 6px;
+}
+
+.vd-start-empty {
+    padding: 36px 16px;
+    color: var(--vd-muted);
+    font-size: 13px;
+    text-align: center;
 }
 
 .vd-start-item {
@@ -2968,6 +3158,13 @@
     font-size: 13px;
 }
 
+.vd-start-item span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .vd-start-item:focus-visible {
     outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
     outline-offset: 1px;
@@ -2975,6 +3172,73 @@
 
 .vd-start-item:active {
     transform: scale(0.97);
+}
+
+/* Fruity: a light rail with a blue pill, tiles in the pane. */
+.desktop-body[data-theme="fruity"] .vd-start-rail {
+    flex-basis: 212px;
+    padding: 12px 10px;
+    background: rgba(255, 255, 255, 0.22);
+    border-right-color: rgba(49, 66, 94, 0.12);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-start-rail {
+    background: rgba(0, 0, 0, 0.16);
+    border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-category {
+    border-radius: 10px;
+    color: var(--vd-theme-muted, var(--vd-muted));
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-category:hover,
+.desktop-body[data-theme="fruity"] .vd-start-category[aria-selected="true"] {
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-category:hover {
+    background-color: rgba(10, 132, 255, 0.08);
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-rail-indicator {
+    left: 10px;
+    right: 10px;
+    border-radius: 10px;
+    background: rgba(10, 132, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-start-rail-indicator {
+    background: rgba(10, 132, 255, 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-rail-indicator::before {
+    display: none;
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-category-count {
+    background: rgba(49, 66, 94, 0.1);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-start-category-count {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-pane-head {
+    padding: 14px 22px 4px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-pane-title {
+    font-size: 14px;
+    font-weight: 620;
+    letter-spacing: -0.015em;
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-grid {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 10px;
 }
 
 .desktop-body[data-theme="fruity"] .vd-start-item {
@@ -2999,7 +3263,7 @@
     transform: scale(0.94);
 }
 
-/* Launchpad-style cascade when the menu opens (class lives ~900ms via JS) */
+/* Launchpad-style cascade when the menu opens (class lives ~900ms via JS); the rail joins in. */
 .desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-start-menu.vd-start-menu-just-opened .vd-start-item {
     animation: vd-start-tile-in 260ms var(--ds-motion-ease-emphasized) both;
     animation-delay: calc(min(var(--start-index, 0), 16) * 16ms);
@@ -3016,16 +3280,37 @@
     animation-delay: calc(min(var(--start-index, 0), 16) * 10ms);
 }
 
+.desktop-body:not([data-animations="false"]) .vd-start-menu.vd-start-menu-just-opened .vd-start-category {
+    animation: vd-start-row-in 200ms var(--ds-motion-ease-standard) both;
+    animation-delay: calc(min(var(--start-index, 0), 12) * 14ms);
+}
+
 @keyframes vd-start-row-in {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-.desktop-body[data-theme="fruity"] .vd-start-item span:last-child {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+/* Category switch: the title slides in from the rail side and the items cascade like on open. */
+.desktop-body:not([data-animations="false"]) .vd-start-pane-head.vd-start-pane-switching .vd-start-pane-title,
+.desktop-body:not([data-animations="false"]) .vd-start-pane-head.vd-start-pane-switching .vd-start-pane-count,
+.desktop-body:not([data-animations="false"]) .vd-start-apps.vd-start-pane-switching .vd-start-section-label,
+.desktop-body:not([data-animations="false"]) .vd-start-apps.vd-start-pane-switching .vd-start-empty {
+    animation: vd-start-title-in 220ms var(--ds-motion-ease-emphasized) both;
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-start-apps.vd-start-pane-switching .vd-start-item {
+    animation: vd-start-row-in 180ms var(--ds-motion-ease-standard) both;
+    animation-delay: calc(min(var(--start-index, 0), 16) * 10ms);
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-start-apps.vd-start-pane-switching .vd-start-item {
+    animation: vd-start-tile-in 240ms var(--ds-motion-ease-emphasized) both;
+    animation-delay: calc(min(var(--start-index, 0), 16) * 14ms);
+}
+
+@keyframes vd-start-title-in {
+    from { opacity: 0; transform: translateX(-6px); }
+    to { opacity: 1; transform: translateX(0); }
 }
 
 .desktop-body[data-theme="standard"] .vd-start-item {
@@ -3060,10 +3345,6 @@
     border-radius: var(--ds-radius-xs);
     border-left-color: var(--vd-accent);
     background: rgba(255, 255, 255, 0.05);
-}
-
-.desktop-body[data-theme="fruity"] .vd-start-recent-label {
-    grid-column: 1 / -1;
 }
 
 .vd-app-health {
@@ -3130,6 +3411,7 @@
     display: none;
 }
 
+/* Mobile sheet: the rail becomes a chip strip above a single-column pane. */
 @media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
     .vd-start-sheet-handle {
         display: block;
@@ -3155,6 +3437,7 @@
         right: 0 !important;
         bottom: var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) !important;
         width: 100vw !important;
+        height: min(70dvh, calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) - 8px));
         max-height: min(70dvh, calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) - 8px));
         border-radius: 20px 20px 0 0;
         transform: none !important;
@@ -3163,8 +3446,52 @@
         flex-direction: column;
     }
 
-    .vd-start-apps {
-        max-height: min(calc(70dvh - 64px), calc(var(--vd-visual-height, 100dvh) - var(--vd-mobile-taskbar-reserve, calc(54px + env(safe-area-inset-bottom, 0px))) - 72px));
+    .vd-start-body {
+        flex-direction: column;
+    }
+
+    .vd-start-rail,
+    .desktop-body[data-theme="fruity"] .vd-start-rail {
+        flex: 0 0 auto;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        overflow: auto hidden;
+        border-right: 0;
+        border-bottom: 1px solid var(--ds-color-border-subtle);
+        scrollbar-width: none;
+    }
+
+    .vd-start-rail::-webkit-scrollbar {
+        display: none;
+    }
+
+    .vd-start-rail-indicator,
+    .vd-start-rail-separator,
+    .vd-start-category-count {
+        display: none;
+    }
+
+    .vd-start-category {
+        grid-template-columns: 18px auto;
+        min-height: 32px;
+        padding: 4px 12px 4px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .vd-start-category[aria-selected="true"] {
+        background: color-mix(in srgb, var(--vd-accent) 18%, transparent);
+    }
+
+    .vd-start-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-start-grid {
+        grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
     }
 
     .desktop-body:not([data-animations="false"]) .vd-start-menu-closing {
@@ -3191,6 +3518,25 @@
     }
     to {
         transform: translateY(100%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-start-rail,
+    .vd-start-rail-indicator,
+    .vd-start-category,
+    .vd-start-category-icon,
+    .vd-start-category-count {
+        transition: none;
+    }
+
+    .vd-start-pane-switching .vd-start-item,
+    .vd-start-pane-switching .vd-start-pane-title,
+    .vd-start-pane-switching .vd-start-pane-count,
+    .vd-start-pane-switching .vd-start-section-label,
+    .vd-start-pane-switching .vd-start-empty,
+    .vd-start-menu-just-opened .vd-start-category {
+        animation: none !important;
     }
 }
 
@@ -3900,6 +4246,7 @@
 }
 
 .vd-store-terminal-shell {
+    container: store-terminal / inline-size;
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -3912,6 +4259,33 @@
 .vd-store-terminal-shell > .vd-store-terminal-preview {
     flex: 1;
     min-height: 0;
+}
+
+.vd-store-shell-drawer {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    flex: 0 0 36%;
+    min-width: 0;
+    min-height: 130px;
+    max-height: 50%;
+    border-top: 1px solid var(--vd-theme-border, #334155);
+    background: #05070a;
+}
+
+.vd-store-shell-drawer[hidden] {
+    display: none;
+}
+
+.vd-store-terminal-action.vd-store-shell-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    width: auto;
+    padding: 0 8px;
+}
+
+.vd-store-shell-toggle[aria-expanded="true"] {
+    border-color: var(--vd-accent, #8bd3ff);
 }
 
 .vd-store-terminal-chip {
@@ -3931,14 +4305,21 @@
 .vd-store-terminal-chip[data-state="ready"] {
     border-color: rgba(34, 197, 94, 0.42);
     color: #bbf7d0;
-    background: rgba(20, 83, 45, 0.42);
+    background: #14532d;
 }
 
 .vd-store-terminal-chip[data-state="starting"],
 .vd-store-terminal-chip[data-state="waiting"] {
     border-color: rgba(251, 191, 36, 0.38);
     color: #fde68a;
-    background: rgba(120, 53, 15, 0.38);
+    background: #78350f;
+}
+
+.vd-store-terminal-chip[data-state="closed"],
+.vd-store-terminal-chip[data-state="error"] {
+    color: #fecaca;
+    border-color: #b45454;
+    background: #451a1a;
 }
 
 .vd-store-terminal-workspace {
@@ -3946,7 +4327,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: rgba(147, 197, 253, 0.92);
+    color: var(--vd-theme-muted, #93c5fd);
     font-size: 11px;
     font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace;
 }
@@ -4067,13 +4448,13 @@
 
 .vd-store-terminal-toolbar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px;
     min-height: 32px;
     padding: 4px 6px;
     border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-    background: #0b1018;
+    background: var(--vd-theme-panel-bg, #0b1018);
 }
 
 .vd-store-terminal-meta {
@@ -4081,7 +4462,9 @@
     align-items: center;
     gap: 6px;
     min-width: 0;
-    justify-self: end;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex-wrap: wrap;
 }
 
 .vd-store-terminal-tabs {
@@ -4098,6 +4481,8 @@
 }
 
 .vd-store-terminal-actions {
+    grid-column: 2;
+    grid-row: 1;
     display: flex;
     align-items: center;
     gap: 5px;
@@ -4106,10 +4491,11 @@
 
 .vd-store-terminal-tab {
     display: inline-flex;
+    flex-shrink: 0;
     align-items: center;
     gap: 5px;
     min-width: 34px;
-    max-width: 92px;
+    max-width: 160px;
     height: 24px;
     padding: 0 7px;
     border: 1px solid rgba(148, 163, 184, 0.18);
@@ -4186,6 +4572,7 @@
     place-items: center;
     min-width: 0;
     min-height: 0;
+    overflow: auto;
     padding: 28px;
     background: radial-gradient(circle at 50% 0%, rgba(30, 41, 59, 0.72), rgba(5, 7, 10, 0.98) 58%);
     color: #d7e1ec;
@@ -4286,6 +4673,24 @@
     .vd-store-terminal-preview.is-preview-hidden {
         grid-template-rows: minmax(0, 1fr) 0 0;
     }
+}
+
+@container store-terminal (max-width: 820px) {
+    .vd-store-terminal-preview {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .vd-store-terminal-resizer { display: none; }
+    .vd-store-terminal-preview.is-preview-hidden {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+    }
+    .vd-store-preview-placeholder { padding: 12px; }
+}
+
+@media (pointer: coarse) {
+    .vd-store-terminal-action { min-width: 36px; min-height: 36px; }
+    .vd-store-shell-toggle span { display: none; }
 }
 
 .vd-window-content,
@@ -10935,11 +11340,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
 /* Pointer light: launchers, menu entries and task buttons glow where the pointer is
  * (position from polish-runtime.js; the fallback is the centre). */
-.desktop-body.desktop-body[data-theme] :is(.vd-start-item, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
+.desktop-body.desktop-body[data-theme] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
     background-image: radial-gradient(circle at var(--vd-rx, 50%) var(--vd-ry, 50%), rgba(var(--vd-reveal), 0.16), transparent 72%);
 }
 
-.desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] :is(.vd-start-item, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
+.desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
     background-image: radial-gradient(circle at var(--vd-rx, 50%) var(--vd-ry, 50%), rgba(var(--vd-reveal), 0.14), transparent 72%);
 }
 

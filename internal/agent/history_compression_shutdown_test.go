@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"errors"
 	"path/filepath"
@@ -35,7 +36,7 @@ func (c *ctxBlockingSummaryClient) CreateChatCompletion(ctx context.Context, _ o
 	return openai.ChatCompletionResponse{}, ctx.Err()
 }
 
-func (c *ctxBlockingSummaryClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *ctxBlockingSummaryClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("streaming is not used by history compression")
 }
 

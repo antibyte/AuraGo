@@ -11,5 +11,6 @@
   "config.security.severity.critical": "गंभीर",
   "config.security.severity.info": "जानकारी",
   "config.security.severity.warning": "चेतावनी",
-  "config.security.status_success": "✅"
+  "config.security.status_success": "✅",
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Docker (रिमोट) वाले Nest बिना एन्क्रिप्शन वाले HTTP से डिप्लॉय होते हैं"
 }

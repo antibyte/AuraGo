@@ -15,6 +15,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/i18n"
+	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/tools"
 	"aurago/ui"
@@ -70,7 +71,7 @@ func (c *sessionTestClient) CreateChatCompletion(_ context.Context, req openai.C
 	}}}, nil
 }
 
-func (c *sessionTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *sessionTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("streaming is not used by the Rocket.Chat bot")
 }
 
@@ -179,7 +180,7 @@ func TestRocketChatProcessMessageKeepsEachSenderInItsOwnSession(t *testing.T) {
 		msg := message{ID: userID + "-" + text, Msg: text}
 		msg.User.ID = userID
 		msg.User.Username = userID
-		processMessage(context.Background(), cfg, logger, client, stm, nil, nil, registry, nil, historyManager, nil, nil, "room-1", msg, nil, nil, nil)
+		processMessage(context.Background(), cfg, logger, client, stm, nil, nil, registry, nil, historyManager, nil, nil, "room-1", msg, nil, nil, nil, nil)
 	}
 
 	const aliceText, bobText = "alice-question-one", "bob-question-two"

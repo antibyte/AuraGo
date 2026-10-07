@@ -37,6 +37,14 @@ reports/
 # Disposable working files
 disposable/
 
+# Local secrets, worktrees and tool state (never part of an image)
+secrets/
+.worktrees/
+.claude/
+.kilo/
+.kilocode/
+.gitnexus/
+
 # Sensitive skill credentials
 agent_workspace/skills/token.json
 agent_workspace/skills/client_secret.json

@@ -78,6 +78,9 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--embedding-worker" {
 		os.Exit(embeddings.RunONNXWorker(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 	}
+	if printHomepageDockerfile(os.Args, os.Stdout) {
+		return
+	}
 
 	// -- Sandbox helper mode ------------------------------------------------
 	// When invoked with --sandbox-exec, this process applies Landlock + rlimits

@@ -269,7 +269,7 @@ func TestDesktopStoreCredentialsReturnsOnlyExposedGeneratedSecrets(t *testing.T)
 }
 
 func TestDesktopStoreBeszelAgentConfigStoresSecretsAndCreatesCompanion(t *testing.T) {
-	svc, secrets, docker := testInstalledStoreApp(t, "beszel", 18090)
+	svc, secrets, docker := testInstalledStoreApp(t, "beszel", 18090, 23750)
 	s := testDesktopStoreServerWithService(t, svc)
 	req := httptest.NewRequest(http.MethodPost, "/api/desktop/store/apps/beszel/companions/agent/config", bytes.NewBufferString(`{"key":"ssh-key","token":"agent-token"}`))
 	rec := httptest.NewRecorder()
@@ -282,11 +282,16 @@ func TestDesktopStoreBeszelAgentConfigStoresSecretsAndCreatesCompanion(t *testin
 	if secrets.data["desktop_store_beszel_agent_key"] != "ssh-key" || secrets.data["desktop_store_beszel_agent_token"] != "agent-token" {
 		t.Fatalf("beszel secrets not stored: %#v", secrets.data)
 	}
-	if len(docker.created) != 2 || docker.created[1].Name != "aurago-store-beszel-agent" {
-		t.Fatalf("beszel agent companion not created: %#v", docker.created)
+	if len(docker.created) != 3 || docker.created[2].Name != "aurago-store-beszel-agent" {
+		t.Fatalf("beszel proxy, hub, and agent containers not created: %#v", docker.created)
 	}
-	if !containsServerTestString(docker.created[1].Env, "TOKEN=agent-token") {
-		t.Fatalf("agent token missing from companion env: %#v", docker.created[1].Env)
+	proxy := docker.created[0]
+	if proxy.Name != "aurago-store-beszel-socket-proxy" || len(proxy.PortBindings) != 1 || proxy.PortBindings[0].HostIP != "127.0.0.1" || proxy.PortBindings[0].ContainerPort != 2375 {
+		t.Fatalf("beszel proxy must publish only a loopback API port: %#v", proxy)
+	}
+	agent := docker.created[2]
+	if !containsServerTestString(agent.Env, "TOKEN=agent-token") || !containsServerTestString(agent.Env, "DOCKER_HOST=tcp://127.0.0.1:23750") || agent.NetworkMode != "host" || len(agent.HostBinds) != 0 {
+		t.Fatalf("agent must keep host networking and use the loopback proxy with its Vault token: %#v", agent)
 	}
 }
 
@@ -545,7 +550,10 @@ func (f *serverStoreDockerAdapter) RestartContainer(context.Context, string) err
 	return nil
 }
 func (f *serverStoreDockerAdapter) RemoveContainer(context.Context, string, bool) error { return nil }
-func (f *serverStoreDockerAdapter) RemoveVolume(context.Context, string, bool) error    { return nil }
+func (f *serverStoreDockerAdapter) RenameContainer(context.Context, string, string) error {
+	return nil
+}
+func (f *serverStoreDockerAdapter) RemoveVolume(context.Context, string, bool) error { return nil }
 func (f *serverStoreDockerAdapter) CreateNetwork(_ context.Context, name string) error {
 	f.createdNetworks = append(f.createdNetworks, name)
 	return nil
@@ -556,6 +564,15 @@ func (f *serverStoreDockerAdapter) RemoveNetwork(_ context.Context, name string)
 }
 func (f *serverStoreDockerAdapter) InspectContainer(_ context.Context, name string) (desktopstore.ContainerState, error) {
 	return desktopstore.ContainerState{Name: name, Running: true, Status: "running"}, nil
+}
+func (f *serverStoreDockerAdapter) FindContainer(context.Context, string) (desktopstore.ContainerState, bool, error) {
+	return desktopstore.ContainerState{}, false, nil
+}
+func (f *serverStoreDockerAdapter) VolumeExists(context.Context, string) (bool, error) {
+	return false, nil
+}
+func (f *serverStoreDockerAdapter) NetworkExists(context.Context, string) (bool, error) {
+	return false, nil
 }
 
 type serverStoreSecretStore struct {

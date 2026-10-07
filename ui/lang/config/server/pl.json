@@ -1,8 +1,12 @@
 {
+  "config.server.preview_title": "Odizolowane podglądy aplikacji",
+  "config.server.preview_domain": "Domena podglądu",
+  "config.server.preview_enabled": "Włącz po weryfikacji",
+  "config.server.preview_hint": "Domyślnie wyłączone. Użyj osobnej witryny z wieloznacznym DNS i TLS. Przed włączeniem przetestuj logowanie do aplikacji, pliki i WebSocket na przygotowanych hostach.",
   "config.fritzbox.status_ok": "🟢 Połączono",
   "config.fritzbox.test_fail": "Połączenie nieudane",
   "config.fritzbox.test_ok": "Połączenie udane",
-  "config.indexing.running": "Uruchomiono",
+  "config.indexing.running": "Działa",
   "config.indexing.stopped": "Zatrzymano",
   "config.mqtt.status_connected": "Połączono",
   "config.mqtt.status_disconnected": "Rozłączono",
@@ -30,7 +34,7 @@
   "config.remote_control.no_platforms": "Brak dostępnych platform",
   "config.remote_control.platforms_error": "Błąd ładowania platform",
   "config.remote_control.status_connected": "Połączono",
-  "config.remote_control.status_offline": "Rozłączono",
+  "config.remote_control.status_offline": "Niedostępny",
   "config.security_proxy.status_loading": "Ładowanie…",
   "config.security_proxy.status_unknown": "Nieznany status",
   "config.server.behind_proxy_label": "Za reverse proxy",
@@ -95,7 +99,7 @@
   "config.truenas.test_ok": "Połączenie udane",
   "config.updates.checking": "Sprawdzanie…",
   "config.updates.installing": "Instalowanie…",
-  "config.updates.running": "Uruchomiono…",
+  "config.updates.running": "Działa…",
   "config.web_scraper.summary_mode": "Tryb podsumowania",
   "config.webdav.secret_empty": "Wartość jest pusta"
 }

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -84,7 +85,7 @@ func TestDetectiveRealAgentLoopPublishesViaScopedTool(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer svc.Close()
-	s := &Server{Cfg: cfg, Detective: svc, LLMClient: openai.NewClientWithConfig(cc), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	s := &Server{Cfg: cfg, Detective: svc, LLMClient: llm.WrapOpenAIClient(openai.NewClientWithConfig(cc)), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	s.Registry = tools.NewProcessRegistry(s.Logger)
 	svc.SetRunner(detectiveTestRunner(func(ctx context.Context, job *detective.Session) (err error) {
 		defer func() {

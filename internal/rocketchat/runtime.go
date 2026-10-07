@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -63,7 +64,7 @@ func warnRenameableAllowlistEntries(logger *slog.Logger, cfg *config.Config) {
 }
 
 // StartBot creates one server-owned, serial message consumer.
-func StartBot(parent context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, snapshot func() (*config.Config, llm.ChatClient)) *Bot {
+func StartBot(parent context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, snapshot func() (*config.Config, llm.ChatClient)) *Bot {
 	if cfg == nil || !cfg.RocketChat.Enabled || cfg.EggMode.Enabled || parent.Err() != nil {
 		return nil
 	}
@@ -83,7 +84,7 @@ func StartBot(parent context.Context, cfg *config.Config, logger *slog.Logger, c
 	}
 	return startRuntime(parent, cfg, func(ctx context.Context) {
 		pollLoop(ctx, cfg, logger, snapshot, func(ctx context.Context, current *config.Config, currentClient llm.ChatClient, channel string, msg message) {
-			processMessage(ctx, current, logger, currentClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, channel, msg, missionManagerV2, remoteHub, guardian)
+			processMessage(ctx, current, logger, currentClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, channel, msg, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot)
 		})
 	})
 }

@@ -763,3 +763,26 @@ func TestApplySafeConfigPatch_ProviderAndBaseURL(t *testing.T) {
 		t.Errorf("base_url = %v, want https://api.openai.com/v1", llm["base_url"])
 	}
 }
+
+// Eggs already get a docker section ({"enabled": false}) and therefore load
+// allow_host_access as grandfathered true today. The egg mirrors the master's
+// effective value, so a regenerated egg of a grandfathered master keeps true
+// and only eggs of a fresh-install master start with false.
+func TestGenerateEggConfig_MirrorsMasterDockerHostAccess(t *testing.T) {
+	for _, masterValue := range []bool{true, false} {
+		masterCfg := minimalMasterCfg()
+		masterCfg.Docker.AllowHostAccess = masterValue
+		data, err := GenerateEggConfig(masterCfg, EggRecord{ID: "e1", Name: "W", EggPort: 8099}, NestRecord{ID: "n1", Name: "S"}, "aa", "ws://localhost", "bb")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var parsed map[string]interface{}
+		if err := yaml.Unmarshal(data, &parsed); err != nil {
+			t.Fatal(err)
+		}
+		docker, _ := parsed["docker"].(map[string]interface{})
+		if docker["enabled"] != false || docker["allow_host_access"] != masterValue {
+			t.Fatalf("master allow_host_access=%v: egg docker section = %#v, want enabled false and the master's value", masterValue, docker)
+		}
+	}
+}

@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Geïsoleerde appvoorbeelden",
+  "config.server.preview_domain": "Domein voor voorbeelden",
+  "config.server.preview_enabled": "Inschakelen na controle",
+  "config.server.preview_hint": "Standaard uit. Gebruik een aparte site met wildcard-DNS en TLS. Test appaanmeldingen, bestanden en WebSockets op de voorbereide hosts voordat je dit inschakelt.",
   "config.fritzbox.status_ok": "🟢 Verbonden",
   "config.fritzbox.test_fail": "Verbinding mislukt",
   "config.fritzbox.test_ok": "Verbinding succesvol",
@@ -78,7 +82,7 @@
   "config.server.key_file_label": "Pad privésleutelbestand",
   "config.server.max_body_bytes_hint": "Maximale body-grootte. 0 = onbeperkt.",
   "config.server.max_body_bytes_label": "Max body-grootte (bytes)",
-  "config.server.oauth_redirect_hint": "Overschrijf basis URL voor OAuth-callbacks (bijvoorbeeld wanneer u zich achter een reverse proxy bevindt).",
+  "config.server.oauth_redirect_hint": "Overschrijf basis URL voor OAuth-callbacks (bijvoorbeeld wanneer je achter een reverse proxy zit).",
   "config.server.oauth_redirect_label": "OAuth Redirect basis-URL",
   "config.server.port_label": "Poort",
   "config.server.selfsigned_port_warning": "Poorten onder 1024 vereisen root-/beheerdersrechten op Linux/macOS. Gebruik poort 8443 voor lokale toegang zonder verhoogde rechten.",

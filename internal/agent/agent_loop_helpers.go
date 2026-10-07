@@ -175,12 +175,13 @@ type streamingAccountingState struct {
 	hasProviderUsage      bool
 	providerPrompt        int
 	providerCompletion    int
+	providerTotal         int
 	providerCached        int
 	providerCacheReported bool
 	finalized             bool
 }
 
-func (s *streamingAccountingState) recordProviderUsage(prompt, completion, cached int) {
+func (s *streamingAccountingState) recordProviderUsage(prompt, completion, total, cached int) {
 	// Providers may send usage across multiple chunks (e.g. prompt in one chunk,
 	// completion in another). Only overwrite non-zero values so earlier
 	// measurements are preserved.
@@ -190,10 +191,13 @@ func (s *streamingAccountingState) recordProviderUsage(prompt, completion, cache
 	if completion > 0 {
 		s.providerCompletion = completion
 	}
+	if total > 0 {
+		s.providerTotal = total
+	}
 	if cached > 0 {
 		s.providerCached = cached
 	}
-	if prompt > 0 || completion > 0 || cached > 0 {
+	if prompt > 0 || completion > 0 || total > 0 || cached > 0 {
 		s.hasProviderUsage = true
 	}
 }

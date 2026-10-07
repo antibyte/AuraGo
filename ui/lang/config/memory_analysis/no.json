@@ -1,5 +1,5 @@
 {
-  "config.memory_analysis.auto_desc": "Minneanalyse bruker den sentrale Helper LLM når den er tilgjengelig. Konfigurer leverandøren i Helper-innstillingene. Disse kontrollene angir konfidensterskelen og refleksjonsdagen.",
+  "config.memory_analysis.auto_desc": "Minneanalyse bruker den sentrale Hjelpe-LLM når den er tilgjengelig. Konfigurer leverandøren i Hjelpe-LLM-innstillingene. Disse kontrollene angir konfidensterskelen og refleksjonsdagen.",
   "config.memory_analysis.auto_notice": "Minneanalyse og refleksjon",
   "config.memory_analysis.day_friday": "Fredag",
   "config.memory_analysis.day_monday": "Mandag",
@@ -39,7 +39,7 @@
   "config.memory_analysis.reflection_label": "Ukentlig refleksjon aktivert:",
   "config.memory_analysis.reflection_title": "Ukentlig refleksjon",
   "config.memory_analysis.select_provider": "— Hoved-LLM (standard) —",
-  "config.memory_analysis.threshold_desc": "Konfidensterskel (0.0–1.0) over hvilken uthentet minner lagres automatisk uten brukerbekreftelse.",
+  "config.memory_analysis.threshold_desc": "Konfidensterskel (0.0–1.0) over hvilken uthentede minner lagres automatisk uten brukerbekreftelse. Lavere verdier lagrer mer aggressivt.",
   "config.memory_analysis.threshold_label": "Terskel",
   "config.memory_analysis.threshold_title": "Automatisk bekreftelsesterskel",
   "config.memory_analysis.unified_block_help": "Slår sammen viktige minner til én kompakt kontekstblokk i stedet for å liste dem opp individuelt. Reduserer token-forbruk samtidig som all relevant informasjon forblir tilgjengelig.",

@@ -61,7 +61,7 @@ func TestStreamThroughputPolicyOutlastsFixedTimeout(t *testing.T) {
 			defer provider.Close()
 			clientCfg := openai.DefaultConfig("local-test")
 			clientCfg.BaseURL = provider.URL
-			runCfg.LLMClient = openai.NewClientWithConfig(clientCfg)
+			runCfg.LLMClient = llm.WrapOpenAIClient(openai.NewClientWithConfig(clientCfg))
 			_, err := ExecuteAgentLoop(ctx, openai.ChatCompletionRequest{Model: runCfg.Config.LLM.Model, Stream: true, Messages: []openai.ChatCompletionMessage{
 				{Role: "user", Content: "Create the current game."},
 			}}, runCfg, true, NoopBroker{})
@@ -99,7 +99,7 @@ func TestMinimalLoopStreamReportsThroughput(t *testing.T) {
 				ctx, cancel = llm.NewThroughputDeadline(context.Background(), llm.ThroughputPolicy{Base: time.Second, ReserveTokens: 4096, MinTokensPerSecond: 5, MaxFactor: 4, MinSample: 200 * time.Millisecond})
 			}
 			defer cancel()
-			response, err := minimalLoopStreamText(ctx, openai.NewClientWithConfig(clientCfg), openai.ChatCompletionRequest{Model: "test", Stream: true})
+			response, err := minimalLoopStreamText(ctx, llm.WrapOpenAIClient(openai.NewClientWithConfig(clientCfg)), openai.ChatCompletionRequest{Model: "test", Stream: true})
 			if steady && (err != nil || response.Choices[0].Message.Content != "export const game = 1;") {
 				t.Fatalf("steady stream did not finish: %v", err)
 			}

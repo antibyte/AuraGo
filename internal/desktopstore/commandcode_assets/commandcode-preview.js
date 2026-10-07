@@ -152,6 +152,22 @@ function placeholder(res) {
 </html>`);
 }
 
+function guestRequestHeaders(headers, host) {
+  const filtered = Object.assign({}, headers, { host });
+  for (const name of ['x-internal-token', 'x-internal-followup', 'x-aurago-agodesk-dev-token', 'proxy-authorization']) {
+    delete filtered[name];
+  }
+  if (filtered.cookie) {
+    const cookies = filtered.cookie.split(';').filter(cookie => {
+      const name = cookie.split('=', 1)[0].trim();
+      return !/^aurago_/i.test(name) && name !== '__Host-aurago-preview';
+    }).map(cookie => cookie.trim()).filter(Boolean);
+    if (cookies.length) filtered.cookie = cookies.join('; ');
+    else delete filtered.cookie;
+  }
+  return filtered;
+}
+
 function proxyHTTPRequest(req, res, target, allowRetry) {
   const upstream = targetURL(req.url || '/', target);
   const proxyReq = http.request({
@@ -159,7 +175,7 @@ function proxyHTTPRequest(req, res, target, allowRetry) {
     port: Number(upstream.port || 80),
     path: upstream.pathname + upstream.search,
     method: req.method,
-    headers: Object.assign({}, req.headers, { host: upstream.host })
+    headers: guestRequestHeaders(req.headers, upstream.host)
   }, proxyRes => {
     res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
     proxyRes.pipe(res);
@@ -191,7 +207,7 @@ server.on('upgrade', async (req, socket, head) => {
   const upstream = targetURL(req.url || '/', await resolveTarget(false));
   const upstreamSocket = net.connect(Number(upstream.port || 80), upstream.hostname, () => {
     upstreamSocket.write(`${req.method} ${upstream.pathname}${upstream.search} HTTP/${req.httpVersion}\r\n`);
-    const headers = Object.assign({}, req.headers, { host: upstream.host });
+    const headers = guestRequestHeaders(req.headers, upstream.host);
     for (const [key, value] of Object.entries(headers)) {
       upstreamSocket.write(`${key}: ${value}\r\n`);
     }

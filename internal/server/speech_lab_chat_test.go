@@ -53,7 +53,7 @@ func TestSpeechLabChatTurnRuntimeUsesSelectedProviderWithoutFallback(t *testing.
 	var factoryProvider string
 	speechLabChatClientFactory = func(_ *config.Config, providerType, _, _, _ string) llm.ChatClient {
 		factoryProvider = providerType
-		return llm.NewClient(&config.Config{})
+		return llm.WrapOpenAIClient(llm.NewClient(&config.Config{}))
 	}
 	cfg := &config.Config{
 		SpeechLab: config.SpeechLabConfig{
@@ -91,7 +91,7 @@ func TestSpeechLabChatTurnRuntimeResolvesStaticAndOAuthCredentials(t *testing.T)
 	var capturedKey string
 	speechLabChatClientFactory = func(_ *config.Config, _, _, apiKey, _ string) llm.ChatClient {
 		capturedKey = apiKey
-		return llm.NewClient(&config.Config{})
+		return llm.WrapOpenAIClient(llm.NewClient(&config.Config{}))
 	}
 	cfg := &config.Config{
 		SpeechLab: config.SpeechLabConfig{Enabled: true, BaseURL: "http://127.0.0.1:8765", ChatInputEnabled: true, ChatLLMProviderID: "fast"},
@@ -126,7 +126,7 @@ func TestSpeechLabRuntimeChatProviderUsesCopilotAuthManagerState(t *testing.T) {
 }
 
 func TestSpeechLabChatTurnRuntimeIgnoresUnmarkedAndInternalTurns(t *testing.T) {
-	defaultClient := llm.NewClient(&config.Config{})
+	defaultClient := llm.WrapOpenAIClient(llm.NewClient(&config.Config{}))
 	cfg := &config.Config{SpeechLab: config.SpeechLabConfig{
 		Enabled: true, BaseURL: "http://127.0.0.1:8765", ChatInputEnabled: true, ChatLLMProviderID: "missing",
 	}}
@@ -146,11 +146,11 @@ func TestSpeechLabChatTurnRuntimeFailsClosed(t *testing.T) {
 	cfg := &config.Config{SpeechLab: config.SpeechLabConfig{
 		Enabled: true, BaseURL: "http://127.0.0.1:8765", ChatInputEnabled: true, ChatLLMProviderID: "cloud",
 	}, Providers: []config.ProviderEntry{{ID: "cloud", Type: "openai", Model: "fast-model"}}}
-	if _, _, err := speechLabChatTurnRuntime(true, false, "", cfg, llm.NewClient(&config.Config{}), nil); !errors.Is(err, errSpeechLabChatLLMUnavailable) {
+	if _, _, err := speechLabChatTurnRuntime(true, false, "", cfg, llm.WrapOpenAIClient(llm.NewClient(&config.Config{})), nil); !errors.Is(err, errSpeechLabChatLLMUnavailable) {
 		t.Fatalf("credential-less provider did not fail closed: %v", err)
 	}
 	cfg.SpeechLab.ChatLLMProviderID = "missing"
-	if _, _, err := speechLabChatTurnRuntime(true, false, "", cfg, llm.NewClient(&config.Config{}), nil); !errors.Is(err, errSpeechLabChatLLMUnavailable) {
+	if _, _, err := speechLabChatTurnRuntime(true, false, "", cfg, llm.WrapOpenAIClient(llm.NewClient(&config.Config{})), nil); !errors.Is(err, errSpeechLabChatLLMUnavailable) {
 		t.Fatalf("missing provider did not fail closed: %v", err)
 	}
 }

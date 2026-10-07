@@ -118,6 +118,13 @@ func TestSystemWorldVoiceExcerpt(t *testing.T) {
 	if got := systemWorldVoiceExcerpt("abc\xff"); got != "" {
 		t.Fatal("accepted invalid UTF-8")
 	}
+	if got := systemWorldVoiceExcerpt("The configured OPENAI_API_KEY=sk-proj-sample-secret must remain private to administrators."); got != "" {
+		t.Fatalf("pattern secret sentence was selected: %q", got)
+	}
+	pathText := "The setting is stored in local_key_path=/home/user/config and can be reviewed."
+	if got := systemWorldVoiceExcerpt(pathText); got == "" || strings.Contains(got, "[redacted]") {
+		t.Fatalf("benign key path was scrubbed: %q", got)
+	}
 	s := newSystemWorldVoiceTestServer(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

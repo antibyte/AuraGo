@@ -147,7 +147,7 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 		cfg.LLM.APIKey = p.APIKey
 		cfg.LLM.AccountID = p.AccountID
 		cfg.LLM.Model = p.Model
-		client = llm.NewClientFromProviderWithConfig(&cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID)
+		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID))
 	}
 	if c.Request.Model != "" {
 		cfg.LLM.Model = c.Request.Model

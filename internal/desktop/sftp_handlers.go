@@ -131,6 +131,22 @@ func jsonSFTPError(w http.ResponseWriter, msg string, code int) {
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
+func validateSFTPDeviceID(w http.ResponseWriter, r *http.Request, bodyDeviceID string, requireQuery bool) bool {
+	guardedDeviceID := strings.TrimSpace(r.URL.Query().Get("device_id"))
+	if guardedDeviceID == "" {
+		if !requireQuery {
+			return true
+		}
+		jsonSFTPError(w, "missing device_id", http.StatusBadRequest)
+		return false
+	}
+	if guardedDeviceID != bodyDeviceID {
+		jsonSFTPError(w, "device_id mismatch", http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
 // jsonOK writes a JSON success response.
 func jsonOK(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -249,6 +265,9 @@ func HandleSFTPMkdir(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Lo
 			jsonSFTPError(w, "missing device_id or path", http.StatusBadRequest)
 			return
 		}
+		if !validateSFTPDeviceID(w, r, req.DeviceID, true) {
+			return
+		}
 		var err error
 		req.Path, err = normalizeSFTPRemotePath(req.Path)
 		if err != nil {
@@ -290,6 +309,9 @@ func HandleSFTPDelete(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 		req.DeviceID = strings.TrimSpace(req.DeviceID)
 		if req.DeviceID == "" || req.Path == "" {
 			jsonSFTPError(w, "missing device_id or path", http.StatusBadRequest)
+			return
+		}
+		if !validateSFTPDeviceID(w, r, req.DeviceID, true) {
 			return
 		}
 		var err error
@@ -349,6 +371,9 @@ func HandleSFTPRename(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 			jsonSFTPError(w, "missing device_id, old_path, or new_path", http.StatusBadRequest)
 			return
 		}
+		if !validateSFTPDeviceID(w, r, req.DeviceID, true) {
+			return
+		}
 		var err error
 		req.OldPath, err = normalizeSFTPRemotePath(req.OldPath)
 		if err != nil {
@@ -396,6 +421,9 @@ func HandleSFTPCopy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 		req.DeviceID = strings.TrimSpace(req.DeviceID)
 		if req.DeviceID == "" || req.SrcPath == "" || req.DstPath == "" {
 			jsonSFTPError(w, "missing device_id, src_path, or dst_path", http.StatusBadRequest)
+			return
+		}
+		if !validateSFTPDeviceID(w, r, req.DeviceID, true) {
 			return
 		}
 		var err error
@@ -461,6 +489,9 @@ func HandleSFTPMove(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			jsonSFTPError(w, "missing device_id, src_path, or dst_path", http.StatusBadRequest)
 			return
 		}
+		if !validateSFTPDeviceID(w, r, req.DeviceID, true) {
+			return
+		}
 		var err error
 		req.SrcPath, err = normalizeSFTPRemotePath(req.SrcPath)
 		if err != nil {
@@ -501,9 +532,14 @@ func HandleSFTPUpload(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 			jsonSFTPError(w, "invalid multipart form", http.StatusBadRequest)
 			return
 		}
-		deviceID := strings.TrimSpace(r.FormValue("device_id"))
-		if guardedDeviceID := strings.TrimSpace(r.URL.Query().Get("device_id")); guardedDeviceID != "" && guardedDeviceID != deviceID {
-			jsonSFTPError(w, "device_id mismatch", http.StatusBadRequest)
+		deviceID := ""
+		if r.MultipartForm != nil {
+			values := r.MultipartForm.Value["device_id"]
+			if len(values) == 1 {
+				deviceID = strings.TrimSpace(values[0])
+			}
+		}
+		if !validateSFTPDeviceID(w, r, deviceID, false) {
 			return
 		}
 		remotePath := r.FormValue("remote_path")

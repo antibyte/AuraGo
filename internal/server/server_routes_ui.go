@@ -242,15 +242,12 @@ window.addEventListener=function(type,handler,options){
 if((type==='keydown'||type==='keyup')&&typeof handler==='function')keyboardHandlers[type].push(handler);
 return originalWindowAddEventListener(type,handler,options);
 };
-window.addEventListener('message',function(event){
-var msg=event&&event.data;
-if(!msg||msg.type!=='aurago.desktop.key-event')return;
+function dispatchKeyboardEvent(msg){
 var eventType=msg.eventType==='keyup'?'keyup':'keydown';
 var key=String(msg.key||''),code=String(msg.code||'');
 if(!code&&(key===' '||key==='Spacebar'))code='Space';
 if(!key&&code==='Space')key=' ';
-var prevented=false;
-var eventObject={key:key,code:code,location:Number(msg.location)||0,ctrlKey:!!msg.ctrlKey,shiftKey:!!msg.shiftKey,altKey:!!msg.altKey,metaKey:!!msg.metaKey,repeat:!!msg.repeat,type:eventType,defaultPrevented:false,preventDefault:function(){prevented=true;this.defaultPrevented=true;},stopPropagation:function(){}};
+var eventObject={key:key,code:code,location:Number(msg.location)||0,ctrlKey:!!msg.ctrlKey,shiftKey:!!msg.shiftKey,altKey:!!msg.altKey,metaKey:!!msg.metaKey,repeat:!!msg.repeat,type:eventType,defaultPrevented:false,preventDefault:function(){this.defaultPrevented=true;},stopPropagation:function(){}};
 keyboardHandlers[eventType].slice().forEach(function(handler){try{handler.call(window,eventObject);}catch(_){}});
 var init={key:key,code:code,location:eventObject.location,ctrlKey:eventObject.ctrlKey,shiftKey:eventObject.shiftKey,altKey:eventObject.altKey,metaKey:eventObject.metaKey,repeat:eventObject.repeat,bubbles:true,cancelable:true};
 function dispatch(target){
@@ -262,6 +259,16 @@ if(active&&active!==document.body&&active!==document.documentElement)dispatch(ac
 try{document.querySelectorAll('canvas,[tabindex]').forEach(dispatch);}catch(_){}
 document.dispatchEvent(new KeyboardEvent(eventType,init));
 window.dispatchEvent(new KeyboardEvent(eventType,init));
+}
+var channelBridge=window.__AURAGO_DESKTOP_SDK_CHANNEL__;
+if(channelBridge&&typeof channelBridge.onPort==='function')channelBridge.onPort(function(port){
+if(!port||typeof port.addEventListener!=='function')return;
+port.addEventListener('message',function(event){
+var msg=event&&event.data;
+if(!msg||msg.type!=='aurago.desktop.key-event'||(msg.eventType!=='keydown'&&msg.eventType!=='keyup'))return;
+dispatchKeyboardEvent(msg);
+});
+port.start();
 });
 })();</script>`
 
@@ -303,6 +310,16 @@ func injectDesktopAppKeyBridgeHTML(content []byte) []byte {
 		return content
 	}
 	lower := bytes.ToLower(content)
+	if channel := bytes.Index(lower, []byte(desktopSDKChannelMarker)); channel >= 0 {
+		if end := bytes.Index(lower[channel:], []byte("</script>")); end >= 0 {
+			insertAt := channel + end + len("</script>")
+			out := make([]byte, 0, len(content)+len(desktopAppKeyBridgeScript))
+			out = append(out, content[:insertAt]...)
+			out = append(out, desktopAppKeyBridgeScript...)
+			out = append(out, content[insertAt:]...)
+			return out
+		}
+	}
 	if idx := bytes.Index(lower, []byte("<head")); idx >= 0 {
 		if end := bytes.IndexByte(content[idx:], '>'); end >= 0 {
 			insertAt := idx + end + 1
@@ -345,26 +362,18 @@ func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, de
 		http.NotFound(w, r)
 		return true
 	}
-	fullPath := filepath.Join(desktopDir, filepath.FromSlash(relPath))
-	rootAbs, rootErr := filepath.Abs(desktopDir)
-	fullAbs, fullErr := filepath.Abs(fullPath)
-	if rootErr != nil || fullErr != nil {
-		http.NotFound(w, r)
-		return true
-	}
-	relToRoot, relErr := filepath.Rel(rootAbs, fullAbs)
-	if relErr != nil || relToRoot == ".." || strings.HasPrefix(relToRoot, ".."+string(os.PathSeparator)) || filepath.IsAbs(relToRoot) {
-		http.NotFound(w, r)
-		return true
-	}
 	content, info, err := readRootBoundFile(desktopDir, relPath)
 	if err != nil {
+		// The root-bound file handler answers for an unreadable or escaping
+		// path with the same rules (404, or 403 for a permission error).
 		return false
 	}
 	content = prepareDesktopHTMLContentForEmbed(content, cfg, desktopTicketFromRequest(r))
+	content = injectDesktopSDKChannelHTML(injectDesktopWidgetAutoResizeHTML(content))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Content-Security-Policy", desktopWidgetWorkspaceCSP)
-	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopWidgetAutoResizeHTML(content)))
+	http.ServeContent(w, r, filepath.Base(relPath), info.ModTime(), bytes.NewReader(content))
 	return true
 }
 
@@ -457,20 +466,10 @@ func shouldServeDesktopFileInline(requestPath string) bool {
 
 func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopDir string, cfg *config.Config) bool {
 	relPath, err := normalizeDesktopEmbedPath(strings.TrimPrefix(r.URL.Path, "/files/desktop/"))
-	if err != nil || !strings.EqualFold(filepath.Base(relPath), "index.html") {
+	ext := strings.ToLower(filepath.Ext(relPath))
+	appHTML := (strings.HasPrefix(relPath, "Apps/") || strings.HasPrefix(relPath, "Widgets/")) && (ext == ".html" || ext == ".htm")
+	if err != nil || (!strings.EqualFold(filepath.Base(relPath), "index.html") && !appHTML) {
 		return false
-	}
-	fullPath := filepath.Join(desktopDir, filepath.FromSlash(relPath))
-	rootAbs, rootErr := filepath.Abs(desktopDir)
-	fullAbs, fullErr := filepath.Abs(fullPath)
-	if rootErr != nil || fullErr != nil {
-		http.NotFound(w, r)
-		return true
-	}
-	relToRoot, relErr := filepath.Rel(rootAbs, fullAbs)
-	if relErr != nil || relToRoot == ".." || strings.HasPrefix(relToRoot, ".."+string(os.PathSeparator)) || filepath.IsAbs(relToRoot) {
-		http.NotFound(w, r)
-		return true
 	}
 	content, info, err := readRootBoundFile(desktopDir, relPath)
 	if err != nil {
@@ -480,12 +479,14 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 	content = inlineDesktopAppSiblingScripts(content, desktopDir, relPath)
 	embedToken := desktopTicketFromRequest(r)
 	content = prepareDesktopHTMLContentForEmbed(content, cfg, embedToken)
+	content = injectDesktopSDKChannelHTML(content)
 	content = rewriteDesktopAppResourceURLs(content, info.ModTime(), embedToken)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
 	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Content-Security-Policy", desktopAppWorkspaceCSPForRequest(r))
-	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
+	http.ServeContent(w, r, filepath.Base(relPath), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
 	return true
 }
 

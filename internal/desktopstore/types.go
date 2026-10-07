@@ -45,6 +45,7 @@ type CatalogEntry struct {
 	ID               string              `json:"id"`
 	Name             string              `json:"name"`
 	Description      string              `json:"description"`
+	Category         string              `json:"category,omitempty"`
 	Image            string              `json:"image"`
 	Icon             string              `json:"icon"`
 	LogoSlug         string              `json:"logo_slug"`
@@ -62,6 +63,18 @@ type CatalogEntry struct {
 	Companions       []CompanionTemplate `json:"companions,omitempty"`
 	SeedFiles        []SeedFile          `json:"-"`
 	Metadata         map[string]string   `json:"metadata,omitempty"`
+	Hardening        *ContainerHardening `json:"-"`
+}
+
+// ContainerHardening is Docker hardening that the catalog enables for one image
+// only after that image was verified to run with it. Images without it keep
+// Docker's defaults plus no-new-privileges.
+type ContainerHardening struct {
+	CapDrop        []string          `json:"cap_drop,omitempty"`
+	CapAdd         []string          `json:"cap_add,omitempty"`
+	ReadonlyRootfs bool              `json:"readonly_rootfs,omitempty"`
+	Tmpfs          map[string]string `json:"tmpfs,omitempty"`
+	PidsLimit      int64             `json:"pids_limit,omitempty"`
 }
 
 // PortSpec describes the container-side web UI port.
@@ -70,6 +83,7 @@ type PortSpec struct {
 	Name          string `json:"name,omitempty"`
 	ContainerPort int    `json:"container_port"`
 	Protocol      string `json:"protocol"`
+	HostIP        string `json:"host_ip,omitempty"`
 }
 
 // VolumeTemplate describes a named Docker volume mounted into the app.
@@ -127,13 +141,15 @@ type SecretRef struct {
 
 // CompanionTemplate describes an allowlisted sidecar container for a Store app.
 type CompanionTemplate struct {
-	ID          string             `json:"id"`
-	Name        string             `json:"name"`
-	Image       string             `json:"image"`
-	Env         []string           `json:"env,omitempty"`
-	Volumes     []VolumeTemplate   `json:"volumes,omitempty"`
-	HostBinds   []HostBindTemplate `json:"host_binds,omitempty"`
-	NetworkMode string             `json:"network_mode,omitempty"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Image       string              `json:"image"`
+	Env         []string            `json:"env,omitempty"`
+	Ports       []PortSpec          `json:"ports,omitempty"`
+	Volumes     []VolumeTemplate    `json:"volumes,omitempty"`
+	HostBinds   []HostBindTemplate  `json:"host_binds,omitempty"`
+	NetworkMode string              `json:"network_mode,omitempty"`
+	Hardening   *ContainerHardening `json:"-"`
 }
 
 // CompanionApp is the persisted runtime state for a companion container.
@@ -146,6 +162,7 @@ type CompanionApp struct {
 	Status        string          `json:"status"`
 	Error         string          `json:"error,omitempty"`
 	NetworkMode   string          `json:"network_mode,omitempty"`
+	Ports         []PortBinding   `json:"ports,omitempty"`
 	Volumes       []VolumeBinding `json:"volumes,omitempty"`
 	HostBinds     []HostBinding   `json:"host_binds,omitempty"`
 	Env           []string        `json:"-"`
@@ -169,24 +186,30 @@ type PortBinding struct {
 
 // ContainerSpec is the Docker create contract used by the store.
 type ContainerSpec struct {
-	Name         string            `json:"name"`
-	Image        string            `json:"image"`
-	Env          []string          `json:"env,omitempty"`
-	PortBindings []PortBinding     `json:"port_bindings,omitempty"`
-	Volumes      []VolumeBinding   `json:"volumes,omitempty"`
-	HostBinds    []HostBinding     `json:"host_binds,omitempty"`
-	ExtraHosts   []string          `json:"extra_hosts,omitempty"`
-	NetworkMode  string            `json:"network_mode,omitempty"`
-	Restart      string            `json:"restart,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty"`
+	Name         string              `json:"name"`
+	Image        string              `json:"image"`
+	Env          []string            `json:"env,omitempty"`
+	PortBindings []PortBinding       `json:"port_bindings,omitempty"`
+	Volumes      []VolumeBinding     `json:"volumes,omitempty"`
+	HostBinds    []HostBinding       `json:"host_binds,omitempty"`
+	ExtraHosts   []string            `json:"extra_hosts,omitempty"`
+	NetworkMode  string              `json:"network_mode,omitempty"`
+	Restart      string              `json:"restart,omitempty"`
+	Labels       map[string]string   `json:"labels,omitempty"`
+	Hardening    *ContainerHardening `json:"hardening,omitempty"`
 }
 
 // ContainerState is the health/status subset returned by Docker inspect.
 type ContainerState struct {
-	Name    string `json:"name"`
-	Running bool   `json:"running"`
-	Status  string `json:"status"`
-	Health  string `json:"health,omitempty"`
+	Name         string `json:"name"`
+	Running      bool   `json:"running"`
+	Status       string `json:"status"`
+	Health       string `json:"health,omitempty"`
+	Restarting   bool   `json:"restarting,omitempty"`
+	ExitCode     int    `json:"exit_code,omitempty"`
+	RestartCount int    `json:"restart_count,omitempty"`
+	// Labels are the container's Config.Labels.
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // NativeManagedStatus is returned by store runtimes that do not expose a web
@@ -220,6 +243,7 @@ type InstalledApp struct {
 	ContainerID        string          `json:"container_id,omitempty"`
 	Image              string          `json:"image"`
 	Status             string          `json:"status"`
+	UpdateRequired     bool            `json:"update_required,omitempty"`
 	Error              string          `json:"error,omitempty"`
 	BindMode           string          `json:"bind_mode"`
 	HostIP             string          `json:"host_ip"`
@@ -246,16 +270,20 @@ type InstalledApp struct {
 
 // Operation is one background lifecycle operation.
 type Operation struct {
-	ID          string     `json:"id"`
-	Type        string     `json:"type"`
-	AppID       string     `json:"app_id"`
-	Status      string     `json:"status"`
-	Message     string     `json:"message,omitempty"`
-	Error       string     `json:"error,omitempty"`
-	RequestJSON string     `json:"-"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	AppID   string `json:"app_id"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
+	// ErrorCode and ErrorParams let the Desktop translate known failures
+	// (desktop.store.error_<code>); Error stays the English text.
+	ErrorCode   string            `json:"error_code,omitempty"`
+	ErrorParams map[string]string `json:"error_params,omitempty"`
+	RequestJSON string            `json:"-"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+	CompletedAt *time.Time        `json:"completed_at,omitempty"`
 }
 
 // InstallRequest is the public request for installing a catalog app.
@@ -299,10 +327,20 @@ type DockerAdapter interface {
 	StopContainer(ctx context.Context, name string) error
 	RestartContainer(ctx context.Context, name string) error
 	RemoveContainer(ctx context.Context, name string, force bool) error
+	// RenameContainer renames a container. A missing container wraps
+	// errContainerNotFound and a name in use wraps errContainerNameConflict.
+	RenameContainer(ctx context.Context, name, newName string) error
 	RemoveVolume(ctx context.Context, name string, force bool) error
 	CreateNetwork(ctx context.Context, name string) error
 	RemoveNetwork(ctx context.Context, name string) error
 	InspectContainer(ctx context.Context, name string) (ContainerState, error)
+	// FindContainer is InspectContainer for an existence check: a missing
+	// container reports found=false instead of an error.
+	FindContainer(ctx context.Context, name string) (state ContainerState, found bool, err error)
+	// VolumeExists reports whether a named volume exists.
+	VolumeExists(ctx context.Context, name string) (bool, error)
+	// NetworkExists reports whether a network exists.
+	NetworkExists(ctx context.Context, name string) (bool, error)
 }
 
 // DockerImageBuilder is an optional DockerAdapter extension for catalog apps

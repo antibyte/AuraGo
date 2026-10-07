@@ -185,7 +185,7 @@ func finalizeToolExecution(
 		}
 	}
 
-	policyResult := applyToolOutputPolicy(tc.Action, rawContent, policyLimit, scope, status)
+	policyResult := applyToolOutputPolicy(rawContent, policyLimit, scope, status)
 	rawContent = policyResult.Content
 
 	// Apply compression after truncation so expensive filters only process the
@@ -264,7 +264,7 @@ func finalizeToolExecution(
 	}
 
 	if limit > 0 && len(rawContent) > policyLimit {
-		postCompressionPolicy := applyToolOutputPolicy(tc.Action, rawContent, policyLimit, scope, status)
+		postCompressionPolicy := applyToolOutputPolicy(rawContent, policyLimit, scope, status)
 		postCompressionPolicy.Truncated = postCompressionPolicy.Truncated || policyResult.Truncated
 		if postCompressionPolicy.ErrorSummary == "" {
 			postCompressionPolicy.ErrorSummary = policyResult.ErrorSummary
@@ -418,7 +418,7 @@ func finalizeToolExecution(
 		})
 	}
 
-	resultContent = boundedToolResult(tc.Action, resultContent, effectiveToolOutputLimit(cfg), status)
+	resultContent = boundedToolResult(resultContent, effectiveToolOutputLimit(cfg), status)
 
 	return toolExecutionResult{
 		Status:       status,
@@ -501,7 +501,12 @@ func maybeStorePrimaryToolOutputVault(
 		logToolMemoryWarning(logger, "Failed to encode primary output vault view", trackingTC.Action, err)
 		return "", "", false
 	}
-	return "Tool Output: " + string(b), out.OutputRef, true
+	content := string(b)
+	if _, isolated := toolResultPayload(originalContent); isolated {
+		// Vault summaries and views still contain untrusted output fragments.
+		content = isolateToolPayload(content, false)
+	}
+	return "Tool Output: " + content, out.OutputRef, true
 }
 
 func summarizeToolOutputForVault(content string) string {

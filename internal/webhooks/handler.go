@@ -286,26 +286,38 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fields := prepared.Fields
 	headers := extractHeaders(r)
 
-	// 8. Scan raw payload for injection attempts before rendering.
+	// 8. Scan raw payload before rendering or dispatching any raw callback.
 	// All webhook payloads are external, untrusted data — always isolate them.
+	var quarantine *security.GuardianResult
 	if guardian != nil {
-		scan := guardian.ScanForInjection(string(body))
+		scan := guardian.ScanForInjectionLocal(string(body))
 		if scan.Level >= security.ThreatHigh {
-			h.log().Warn("[Webhook] Blocked high-threat injection pattern in payload", "webhook", wh.Name, "threat", scan.Level, "source_ip", sourceIP)
-			h.logEvent(wh.ID, wh.Name, 403, sourceIP, rawPayloadSize, false, "guardian blocked payload")
-			http.Error(w, `{"error":"payload blocked by guardian"}`, http.StatusForbidden)
-			return
-		} else if llmGuardian != nil && cfg != nil && cfg.LLMGuardian.ScanDocuments {
-			// LLM Guardian: deeper content scan if regex didn't flag HIGH
+			result := security.ContentScanQuarantine(security.QuarantineSuspicious)
+			quarantine = &result
+		}
+	}
+	scanDocuments := cfg != nil && cfg.LLMGuardian.ScanDocuments
+	if quarantine == nil && scanDocuments {
+		if guardian == nil || llmGuardian == nil {
+			result := security.ContentScanQuarantine(security.QuarantineUnavailable)
+			quarantine = &result
+		} else {
 			llmResult := llmGuardian.EvaluateContent(r.Context(), "document", string(body))
-			if llmResult.Decision == security.DecisionBlock {
-				h.log().Warn("[Webhook] LLM Guardian blocked payload", "webhook", wh.Name, "reason", llmResult.Reason, "source_ip", sourceIP)
-				h.logEvent(wh.ID, wh.Name, 403, sourceIP, rawPayloadSize, false, "llm guardian blocked payload")
-				http.Error(w, `{"error":"payload blocked by guardian"}`, http.StatusForbidden)
-				return
+			if llmResult.Decision != security.DecisionAllow {
+				reason := llmResult.QuarantineReason
+				if reason == "" {
+					reason = security.QuarantineSuspicious
+				}
+				result := security.ContentScanQuarantine(reason)
+				quarantine = &result
 			}
 		}
 	}
+	if quarantine != nil {
+		h.quarantineWebhook(w, wh, internalToken, sourceIP, rawPayloadSize, *quarantine)
+		return
+	}
+
 	// 9. Render prompt
 	prompt, err := renderPrompt(wh, prepared.PromptPayload, fields, headers)
 	if err != nil {
@@ -369,6 +381,57 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go deliver()
+}
+
+func (h *Handler) quarantineWebhook(w http.ResponseWriter, wh Webhook, internalToken, sourceIP string, payloadSize int, result security.GuardianResult) {
+	mode := wh.Delivery.Mode
+	hasMissionTarget := h.manager != nil && h.manager.HasMissionTriggers(wh.ID)
+	sendAgentNotice := mode == DeliveryModeMessage || hasMissionTarget
+	var release func()
+	if sendAgentNotice {
+		var ok bool
+		release, ok = h.acquireDeliverySlot()
+		if !ok {
+			h.logEvent(wh.ID, wh.Name, http.StatusServiceUnavailable, sourceIP, payloadSize, false, "quarantine notice queue full")
+			http.Error(w, `{"error":"quarantine notice queue full"}`, http.StatusServiceUnavailable)
+			return
+		}
+	}
+
+	h.log().Warn("[Webhook] Quarantined incoming payload", "webhook", wh.ID, "category", result.QuarantineReason)
+	http.Error(w, `{"error":"payload quarantined by guardian"}`, http.StatusForbidden)
+
+	deliverNotice := func() {
+		if release != nil {
+			defer release()
+		}
+		sseDelivered := false
+		var deliveryErr string
+		if mode != DeliveryModeSilent && h.sse != nil {
+			sendSSEJSON(h.sse, "webhook_received", map[string]interface{}{
+				"name": wh.Name, "slug": wh.Slug, "quarantined": true,
+				"category": string(result.QuarantineReason),
+			})
+			sseDelivered = true
+		}
+		delivered := sseDelivered
+		if sendAgentNotice {
+			notice := security.QuarantineNotice("webhook", wh.ID, result)
+			if err := h.deliverMessage(notice, internalToken); err != nil {
+				delivered = false
+				deliveryErr = err.Error()
+				h.log().Error("Webhook quarantine notice delivery failed", "error", err, "webhook", wh.ID)
+			} else {
+				delivered = true
+			}
+		}
+		h.logEvent(wh.ID, wh.Name, http.StatusForbidden, sourceIP, payloadSize, delivered, deliveryErr)
+	}
+	if sendAgentNotice {
+		go deliverNotice()
+	} else {
+		deliverNotice()
+	}
 }
 
 func (h *Handler) acquireDeliverySlot() (func(), bool) {

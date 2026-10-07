@@ -149,25 +149,41 @@ Access the Web UI at `http://<your-server-ip>:8088` and navigate to the **CONFIG
 
 ## 4. Docker Socket Security
 
-By default, the `docker-compose.yml` uses a **Docker socket proxy** (`tecnativa/docker-socket-proxy`) instead of mounting the Docker socket directly into the AuraGo container. This is a significant security improvement:
+By default, the `docker-compose.yml` uses a **Docker socket proxy** (`tecnativa/docker-socket-proxy`) instead of mounting the Docker socket directly into the AuraGo container. The proxy filters Docker API calls by path; it does not inspect request bodies.
 
 | | Socket Proxy (default) | Direct Socket Mount |
 |---|---|---|
-| Host access | Filtered API subset only | Full root-equivalent access |
-| Risk if compromised | Limited to allowed operations | Complete host takeover |
-| Container management | Start, stop, inspect, exec | Everything (including privilege escalation) |
+| Host access | Filtered API subset; build, commit and swarm calls are blocked | Full Docker API |
+| Risk if compromised | Host root is still reachable: container create with host binds is allowed | Complete host takeover |
+| Container management | Create (including host binds), start, stop, remove, inspect, exec, image pull | Everything |
 
-The default proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. `IMAGES=1` and `POST=1` allow AuraGo to pull published managed sidecar images such as Code Studio, while `BUILD=0` keeps Docker build API access disabled by default. `EXEC=1` lets AuraGo run commands inside containers through the Docker exec API. It is used by:
+The proxy reduces attack surface but does not contain a compromised AuraGo: container create with host binds is allowed.
 
-- the Docker tool's `exec` operation;
-- the Homepage tool: scaffolding, installs, builds, file access, editors, Git, deploys and permission repair in the `aurago-homepage` dev container, and `caddy reload` in the `aurago-homepage-web` web container;
-- Code Studio: runtime probes at startup, commands and terminals;
-- the OpenSCAD desktop app: runtime check, renders and exports, and diagnostics;
-- the container terminals in the web UI;
-- the code sandbox (`execute_sandbox`), whose llm-sandbox Docker backend runs code with Docker exec;
-- security-proxy reloads.
+The default proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. Keep the `docker-control` network private and do not attach unrelated sidecars to it. The enabled permissions map to these features:
 
-`EXEC=1` can be set to `0` only when none of these features are used. Keep the `docker-control` network private and do not attach unrelated sidecars to it.
+- `CONTAINERS=1` with `POST=1`: create, start, stop and remove managed sidecars, Software Store apps, Invasion Control eggs and the security proxy, and copy files into containers.
+- `IMAGES=1` with `POST=1`: pull and tag published images such as Code Studio, go2rtc, the local LLM runtime, Software Store apps and the security proxy.
+- `VOLUMES=1` and `NETWORKS=1`: model and app volumes, private Software Store networks, the browser automation network check and the security proxy's lookup of the network it shares with AuraGo.
+- `INFO=1` and `VERSION=1`: runtime inventory (including NVIDIA container runtime detection), Engine API version negotiation and the security proxy's Engine version check (Docker Engine 26 or newer for volume subpaths).
+- `EXEC=1`: AuraGo runs commands inside containers through the Docker exec API. It is used by:
+  - the agent's Docker `exec` operation;
+  - the Homepage tool: scaffolding, installs, builds, file access, editors, Git, deploys and permission repair in the `aurago-homepage` dev container, and `caddy reload` in the `aurago-homepage-web` web container;
+  - Code Studio: runtime probes at startup, commands and terminals;
+  - the built-in OpenSCAD compiler container used by the OpenSCAD desktop app: runtime check, renders and exports, and diagnostics;
+  - container terminals in the Web UI, including the CommandCode Store terminal;
+  - the code sandbox (`execute_sandbox`), whose llm-sandbox Docker backend runs code with Docker exec;
+  - the security proxy reload.
+- `BUILD=0`: Docker build API access stays disabled. Code Studio and most managed sidecars pull published images. Images that AuraGo builds through the Engine API need `BUILD=1` or must already exist on the host:
+  - the Homepage dev container image `aurago-homepage:latest`, which the Homepage tool builds on first use. Without `BUILD=1`, build it once on the Docker host: `docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -` (native installs run the AuraGo binary with `--print-homepage-dockerfile`). `homepage rebuild` deletes this image before it builds, so run the command again afterwards;
+  - the bundled CommandCode Store image, built only when its pull fails;
+  - local Code Studio runtime images, used instead of the default published image;
+  - the security proxy's rate-limit image `aurago-proxy:ratelimit-<version>` (Caddy with the `caddy-ratelimit` module), built once when `security_proxy.rate_limiting.enabled` is on; see the Security Proxy section of the integrations manual.
+
+  The optional browser automation auto-build calls the Docker CLI, which the AuraGo image does not include, so in this setup it never reaches the build API. Build that image on the host if you need it (`docker compose --profile browser-automation build browser-automation`). The Ansible sidecar auto-build (`ansible.auto_build`) also calls the Docker CLI and fails the same way; build `aurago-ansible:latest` on the host from a source checkout (`docker build -f Dockerfile.ansible -t aurago-ansible:latest .`). On native installs the browser automation, Ansible and Space Agent auto-builds run on the engine in `docker.host`, the engine that also runs the sidecar; when that engine refuses builds (a socket proxy with `BUILD=0`), AuraGo retries once on the Docker CLI's default engine and then needs the image on `docker.host`.
+
+`EXEC=1` can be set to `0` only if you use none of these features: the agent's Docker `exec` operation, the Homepage tool, Code Studio, the built-in OpenSCAD compiler container, container terminals (including the CommandCode Store terminal), the code sandbox and the security proxy reload stop working without it.
+
+The `:ro` flag on the socket mount (`/var/run/docker.sock:/var/run/docker.sock:ro`) is no security gain: it does not stop API calls through the socket. Access control comes only from the proxy's filters and the private `docker-control` network.
 
 The proxy image is pinned to a release tag plus its multi-arch index digest (`tecnativa/docker-socket-proxy:<tag>@sha256:<digest>`, the version pinned in `docker-compose.yml`); tag and digest always change together. The first `docker compose up -d` after an AuraGo upgrade that changes this image string recreates the `aurago_docker_proxy` container once; that is expected.
 

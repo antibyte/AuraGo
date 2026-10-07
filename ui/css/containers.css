@@ -84,8 +84,9 @@
 
 .pw-page[data-workspace-page="containers"] .ct-card-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--space-2) var(--space-3);
 }
 
 .pw-page[data-workspace-page="containers"] .ct-card-status {
@@ -135,7 +136,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1;
+    flex: 1 1 8rem;
     letter-spacing: -0.01em;
 }
 
@@ -145,6 +146,21 @@
     font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
     flex-shrink: 0;
     opacity: 0.8;
+}
+
+.pw-page[data-workspace-page="containers"] .ct-card-protected {
+    font-size: var(--text-xs);
+    color: var(--pw-accent);
+    border: 1px solid var(--pw-accent);
+    border-radius: 999px;
+    padding: 0 var(--space-2);
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: help;
 }
 
 .pw-page[data-workspace-page="containers"] .ct-card-meta {

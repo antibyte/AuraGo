@@ -18,6 +18,45 @@ Store app configuration, runtime, assets, and publication.
   Verify `command-code --version` as the unprivileged image user after updates.
 - The Store pulls `ghcr.io/antibyte/aurago-commandcode:latest`. Source updates
   require image publication and a Store update before installed apps change.
+- The entrypoint adds one absolute import of image-owned
+  `/usr/local/share/aurago/commandcode-preview.md` to user memory
+  `~/.commandcode/AGENTS.md`, including existing home volumes. Preserve all
+  personal/project instructions and never duplicate the import on restart.
+  Keep the guide in both published and embedded fallback build contexts; it
+  explains `/workspace`, preview ports/gateway and shell lifecycle. Verify
+  `TestCommandCodePreviewMemoryPreservesInstructions` with Bash available.
+- CommandCode preview HTTP and WebSocket requests strip reserved AuraGo cookies
+  and internal credential headers. Preserve guest Authorization, CSRF and login
+  cookies; verify `TestCommandCodePreviewPreservesGuestAuthWithoutAuraGoCredentials`.
+
+### Read-only Docker Monitoring
+
+- Dozzle and the optional local Beszel agent must use a managed Tecnativa socket
+  proxy with the exact read-only environment profile `POST=0`,
+  `CONTAINERS=1`, `EVENTS=1`, `INFO=1`, `PING=1`, `SECRETS=0`, `VERSION=1`,
+  and `AUTH=0`. Do not grant `EXEC`, image/build, network, or volume access.
+- Dozzle and its proxy share only `aurago-store-dozzle-net`; Dozzle connects via
+  `DOZZLE_REMOTE_HOST=tcp://aurago-store-dozzle-socket-proxy:2375`. The proxy
+  has no published host port. The Beszel proxy exposes only container port 2375
+  on a dynamically allocated `127.0.0.1` host binding. Its optional agent keeps
+  host networking and metrics, uses the loopback proxy through `DOCKER_HOST`,
+  and never mounts the Docker socket. Keep hub/agent data and Vault secrets in
+  their existing paths.
+- Never add a direct Docker socket bind to either monitoring app or the Beszel
+  agent. Existing installations report the computed `update_required` flag
+  while their stored container configuration uses the old direct socket path.
+  Startup and status reads do not recreate containers; migrate only when the
+  operator invokes the existing Store Update action, which replaces the
+  app/companion configuration through the normal update and rollback path.
+- Catalog host binds (the read-only Docker socket of the Dozzle, Beszel and
+  Arcane socket proxies) are trusted only while the record's image names the
+  catalog image's repository; tag and digest are ignored so rollbacks to older
+  tags recreate (`catalogTrustedBinds`, `storeImageRepository`,
+  `TestToolsDockerAdapterTrustsCatalogBindsOnlyForTheCatalogImageRepository`).
+- Verify catalog config, loopback port allocation against all app and companion
+  ports, and legacy migration behavior with `go test ./internal/desktopstore`.
+  A local Docker proxy smoke test should cover successful logs, events and stats
+  reads plus denial of Engine mutation methods.
 
 ### God's Eye View Store Contract
 
@@ -27,6 +66,13 @@ Store app configuration, runtime, assets, and publication.
   Store operation slot. GET returns configured flags, exact allowed HTTP(S)
   origins and pending status only; PUT accepts known keys, explicit removals and
   at most eight origins. Blank/omitted key fields preserve existing values.
+- Every catalog entry declares `Category` from `desktop.DesktopAppCategories()`
+  (office, media, creative, ai, dev, system, comms, games; never `installed`),
+  and an entry that fronts a builtin (`DesktopAppID`) uses that builtin's
+  category. `desktopAppManifest` copies it into the Desktop manifest, so the
+  start menu sorts Store apps with the builtins; `ScheduleBrandingReconcile`
+  back-fills installed apps after a restart. Verify
+  `TestStoreCatalogEntriesCarryStartMenuCategories`.
 - Every Store catalog icon must pass the real Desktop icon allowlist before
   app/shortcut registration. `gods-eye-view` is a dedicated allowed icon using
   the packaged logo. Verify catalog icons and installation with the real
@@ -56,6 +102,147 @@ Store app configuration, runtime, assets, and publication.
   Keep cosign-installer on a verified release tag; the bare `v4` ref is absent.
   Verify with Store/handler/Tailscale `TestGodsEye*`, the UI browser contract,
   and anonymous image pulls for both architectures before claiming publication.
+
+### Catalog Host Binds
+
+- Host binds declared in `DefaultCatalog()` (`HostBinds` of an entry or a
+  companion, such as the read-only Docker socket of the socket-proxy
+  companions) are the only binds the Store passes as trusted to
+  `tools.DockerCreateRequestContextWithTrustedBinds`, matched by exact host
+  path, container path and read-only flag against the code catalog at create
+  time. Persisted record binds are trusted only while they still equal the
+  current catalog; managed workspace binds and every other bind keep the
+  generic Docker bind policy. A new catalog `HostBinds` entry is trusted
+  automatically, so review it like a policy exemption. Verify
+  `TestToolsDockerAdapterTrustsOnlyCatalogHostBinds`.
+- The trusted catalog binds are exactly the read-only Docker sockets of the
+  Arcane, Dozzle and Beszel `socket-proxy` companions; without the exemption
+  their creation fails the generic bind check. Legacy Dozzle and Beszel-agent
+  records with a direct socket bind are not trusted: the Store Update rebuilds
+  them from the catalog. A failed Update restores the parked legacy containers
+  without a create, so the bind check is not involved; only the
+  remove-and-recreate fallback (engine without rename) still fails it for such
+  records.
+
+### Store Container Hardening
+
+- Hardening beyond Docker's defaults plus `no-new-privileges` (`CapDrop`,
+  `CapAdd`, `ReadonlyRootfs`, `Tmpfs`, `PidsLimit`) is opt-in per catalog image:
+  `CatalogEntry.Hardening` for an app, `CompanionTemplate.Hardening` for a
+  companion. There is no global default; many Store images start as root and
+  switch users (`PUID`/`PGID`, s6-overlay) or run many threads, so a blanket
+  setting breaks them. Both fields are `json:"-"`, so the catalog API is
+  unchanged.
+- An opt-in needs live evidence first: run the image with exactly that
+  hardening on a real Docker host and record the date, host and image digest in
+  the catalog comment and the commit body, then add the `app` or
+  `app/companion` key to `verifiedCatalogHardening` in `hardening_test.go`.
+  `TestCatalogHardeningOptInsAreVerifiedOnly` fails for any unverified opt-in.
+- Hardening is resolved by app/companion ID from the current catalog every time
+  a container is created (`runtimeContainerSpec`, `companionRuntimeSpec`);
+  installed records do not store it and are not migrated. An opt-in therefore
+  applies on the next create (install, update, a fallback rollback recreate,
+  or companion recreation), not retroactively to running containers.
+- A rollback restores the parked previous containers, which keep the
+  hardening they were created with
+  (`TestRollbackRestoresParkedContainersWithoutReapplyingHardening`). Only the
+  fallback for engines without rename, and containers that were already
+  missing, recreate the previous record's image with the current catalog
+  hardening. Keep image swaps and hardening changes in separate catalog
+  changes for that path
+  (`TestCatalogHardeningAppliesOnRollbackWithCurrentCatalog`).
+- Most catalog images use floating tags such as `:latest`, so a probe verifies
+  the digest it ran against, not the tag. Re-verify an opted-in image when its
+  upstream changes and update the recorded digest.
+- `arcane/socket-proxy`, `dozzle/socket-proxy` and `beszel/socket-proxy` are
+  opted in (`CapDrop: ALL`). Each was probed in its own setup: Arcane's and
+  Dozzle's on their private networks, Beszel's on its loopback host port (F-S3
+  probe; the digests are in the catalog comments). Every other image keeps
+  Docker's default capabilities.
+- Verify `TestCatalogHardening*`, `TestDockerCreatePayload*Hardening*`,
+  `TestInstallArcaneAppliesOnlyVerifiedHardening` and
+  `TestInstallMonitoringProxiesApplyOnlyVerifiedHardening`.
+
+### Store Update Rollback
+
+- `update()` replaces companions first and the app last. Each previous
+  container is stopped and renamed to `<name>.prev` (`parkedContainerName`)
+  before its replacement is created. A stopped container holds no host port
+  and no network DNS name and keeps its ID, volumes, binds and networks.
+- Parked containers are removed only after the replacements run (readiness)
+  and the record is saved. A failed update removes the replacements first,
+  renames the parked containers back and starts them when the app was
+  running; the previous record is kept. The previous companions keep their
+  env this way (`CompanionApp.Env` is not persisted, so a record-based
+  recreate would lose it; `TestFailedUpdateRestoresPreviousCompanionsWithTheirEnv`).
+- A rename conflict means a stale `.prev` from an earlier update; it is
+  removed (the container under the original name wins). A missing container
+  whose `.prev` exists (interrupted update) is adopted and stopped. A `.prev`
+  is removed or adopted only when its `aurago.desktop_store.app_id` label is
+  the app's (`isAppStoreContainer`); uninstall and the success path check the
+  label too and skip an empty container name. A container that does not stop,
+  and engines that cannot rename, fall back to the old remove-and-recreate path
+  with a warning.
+- The rollback starts a restored container when the app was running or the
+  container itself was running before the update. It runs, with the save of the
+  previous record, on a context detached from the operation
+  (`updateRollbackTimeout`), so a shutdown or the operation deadline cannot cut
+  it short. Rollback errors are joined with "; " because the Store window shows
+  them.
+- Companions the update does not recreate (the Beszel agent without its
+  Vault secrets) are left alone by the update and its rollback.
+- Startup never touches parked containers. The next Update adopts or replaces
+  them, and Uninstall removes them.
+- Install and update check the companions they started once the app is ready.
+  Only `exited`/`dead` with a non-zero exit code fails the operation, and only
+  when a second inspect after `CompanionRecheck` (1.5 s in production; Podman
+  can show a companion as exited while it restarts it) finds it still exited
+  with an unchanged restart count. Restarting,
+  health `starting`/`unhealthy`, exit 0 and inspect errors are logged, and
+  companions an update did not replace are never checked. Do not turn this into a
+  must-be-running or health check: RomM's MariaDB initializes slowly, Termix's
+  guacd reports health `starting` until its first probe, and the optional Beszel
+  agent may crash-loop on a bad key without breaking the hub. Verify
+  `TestInstallFailsWhenACompanionExitedWithAnError`,
+  `TestCompanionStatesThatDoNotFailAnInstall` and `TestUpdate*Companion*`.
+- Verify `TestParkContainerHandlesEveryEngineAnswer`, `TestLegacy*UpdateFailure*`,
+  `TestUpdate*Parked*`, `TestUpdateOfAStoppedAppRestoresItStopped`,
+  `TestFailedUpdateRestoresPreviousCompanionsWithTheirEnv`,
+  `TestUninstallRemovesParkedLeftovers`; the four remove-and-recreate tests set
+  `renameErr` and pin the fallback.
+
+### Store Install Cleanup
+
+- An install records what it creates in `desktop_store_install_resources`
+  (`install_journal.go`): an attempt marker, workspace dirs and generated-secret
+  Vault keys that did not exist, volumes and the private network that did not
+  exist, and every container it creates. A failed install removes only those;
+  the journal is cleared after a successful install and on uninstall.
+- The preflight runs after `prepareAutoCompanions`, before the record is saved
+  and before any Docker create. A container with a target name stops the install
+  (`ContainerNameConflictError`, operation `error_code`
+  `container_name_in_use`, translated as `desktop.store.error_container_name_in_use`
+  in all 16 Desktop locales) unless its labels are exactly this app's or
+  companion's Store labels; such a leftover of an earlier attempt is removed, so
+  it never blocks a retry. A blocked install removes its secrets and workspace
+  dirs but no Docker resource.
+- Pre-existing volumes, secrets and workspace files (an uninstall without
+  `delete_data` keeps them) are reused and never removed by a failed install; do
+  not turn them into a blocker, the reinstall that reuses them is a feature
+  (`TestUninstallRemovesVolumesOnlyWhenRequested`).
+- Before a schema migration step runs on an existing database (a table or a
+  column from `storeColumnMigrations` is missing), `backupBeforeMigrationLocked`
+  writes a `VACUUM INTO` copy to `<db>.before-install-journal.bak` (mode 0600).
+  A fresh or up-to-date database takes none, an existing file (even an empty
+  one) is never overwritten, a failed copy is removed and the migration goes
+  on. A future schema migration needs its own backup suffix, otherwise this
+  file blocks its backup. Verify `TestStoreMigration*`.
+- Installing records without an attempt marker (written before the journal)
+  keep the old remove-by-record cleanup (`TestInstallReplacesFailedInstallingRecord`,
+  `TestInitRecoversInterruptedInstallingOperation`). The interrupted-install
+  recovery removes the journaled Docker resources in the background.
+- Verify `install_journal_test.go` and `TestSoftwareStoreTranslatesStructuredOperationErrors`
+  (`ui`).
 
 ## Verification
 

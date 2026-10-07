@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "catalog_sha256": "96a1d6284057abf15c33f70bc04ff540e43464af48a0b2a1dde5cfc28e295ab9",
+  "catalog_sha256": "e61d9ddc211d9746f4f8a2b9b2406e8aee510777033020a2baf9dcaefed32cd3",
   "sources": {
     "prompts/tools_manuals/activate_agent_skill.md": "1cd868f578936cbaaa313ffad3aeb33bcb40e6fa39d5410f578d2246e1da4620",
     "prompts/tools_manuals/address_book.md": "e293e5e4593960f04000ded38ac04eb625b194a6672372d085d8ec294aacc509",
@@ -32,7 +32,7 @@
     "prompts/tools_manuals/discord.md": "64012b86324c17636cece85d87015e0ffa69d037093d7386346986536288846c",
     "prompts/tools_manuals/discover_tools.md": "b54abc0927f636d90b115bbbb2f138513daaa1c04d8a646a966b68f4e628d4b6",
     "prompts/tools_manuals/dns_lookup.md": "7aa5949bc6747dfc720c9471afd7bd420dce70871d1a1599fa380939f10d0802",
-    "prompts/tools_manuals/docker.md": "214ce8a8415ff9de6cd9351d1d13cc5b42b3b95bf2e87ab4ef6f7c7464044998",
+    "prompts/tools_manuals/docker.md": "177504d46b2cf09a37ae41c8fc206bf39b1f55dcd676eed62adb3698dd710c80",
     "prompts/tools_manuals/document_creator.md": "a71897ad2527b55ee849db8c358f822e7dd8078f3beb6436a893d7220afc5f25",
     "prompts/tools_manuals/email.md": "1563808dd06e166b9f62b68286385084d5ad9bec9b60e26ed5a8baf4193c9954",
     "prompts/tools_manuals/evomap.md": "18ad1d54e412b1c55dcf2b5ed5d3fb1c307be7ceda8eebbef67bf01f1b1dda46",
@@ -64,7 +64,7 @@
     "prompts/tools_manuals/google_workspace.md": "6c0a9743c3c04da40a137c4c90135e9af0ac455757875b8f8404a27832efb34f",
     "prompts/tools_manuals/grafana.md": "344c8b9cb75ca0cfe3ba58dfa58d7dfbf2d6fafc5656b86e98c45ee34281e958",
     "prompts/tools_manuals/home_assistant.md": "d78381052abe3a5e8604e41607e45a1abfd2e3b582aa2d61807fd5994df27a37",
-    "prompts/tools_manuals/homepage.md": "df77db55dfe0d4acb4c9e08dfd98244c7dab64b0cb308dc044330ff234bb71ed",
+    "prompts/tools_manuals/homepage.md": "6d9dc594036a75f8fa8588c5dad80800624a90514793a1218b2e197182f5537c",
     "prompts/tools_manuals/homepage_deploy.md": "afdc83eb05b705095ef8f8059e31d4753c5181e9de2d6bcff29b6281207c03da",
     "prompts/tools_manuals/homepage_file.md": "8325fdddcecd230c911a34c776ec118d451a4e2736ff86a63472240698c8e8bf",
     "prompts/tools_manuals/homepage_git.md": "be36cf75e9ded347af5f5c581f58f27b4282c76bea1a91ffe32bf9da98ae3d9d",
@@ -185,7 +185,7 @@
     "prompts/tools_manuals/xml_editor.md": "70a334eb6e3cb4c798d71ab00e233e75a14bbd41c50398c7a7be4589c6b3077e",
     "prompts/tools_manuals/yaml_editor.md": "3019e5bcda6867a4a5ff6732e690daa77fabc3ab8b1444ef3c8776fce787779b",
     "prompts/tools_manuals/yepapi.md": "da38a9f36c026917a53666302aa3a9b91abec88e0bb86feda62f79b5ff574ca9",
-    "training/operation_contracts.json": "714c77b2e4e0c086d4752242e018a00f822bc235808f7dda083d6c875efa5635",
+    "training/operation_contracts.json": "ba81a9213ab2ed1c05a3c9d7e29f5e913ca07dec6ff2a2d1ea1fe7561c1ebb4d",
     "training/tool_tiers.json": "30bbf3e1f29594d9f3774400f59bb0a8848e3a6bd19beba390d59d910e1e040e"
   },
   "tools": [
@@ -8829,6 +8829,27 @@
               "null"
             ]
           },
+          "destination": {
+            "description": "Destination path for cp: a container path (to_container) or a workspace file (from_container)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "direction": {
+            "description": "Copy direction for cp: to_container or from_container",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "driver": {
+            "description": "Driver for create_network or create_volume (e.g. bridge, local)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "env": {
             "description": "Environment variables (e.g. ['KEY=value'])",
             "items": {
@@ -8836,6 +8857,13 @@
             },
             "type": [
               "array",
+              "null"
+            ]
+          },
+          "file": {
+            "description": "Compose file inside the agent workspace (for compose; put the compose command such as 'up -d' in command)",
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -8860,6 +8888,13 @@
               "null"
             ]
           },
+          "network": {
+            "description": "Network name for connect and disconnect",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "operation": {
             "description": "Operation to perform",
             "enum": [
@@ -8878,7 +8913,19 @@
               "pull",
               "remove_image",
               "list_networks",
+              "create_network",
+              "remove_network",
+              "connect",
+              "disconnect",
               "list_volumes",
+              "create_volume",
+              "remove_volume",
+              "exec",
+              "stats",
+              "top",
+              "port",
+              "cp",
+              "compose",
               "info"
             ],
             "type": "string"
@@ -8897,10 +8944,24 @@
               "null"
             ]
           },
+          "source": {
+            "description": "Source path for cp: a workspace file (to_container) or a container path (from_container)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "tail": {
             "description": "Number of log lines to return (default: 100)",
             "type": [
               "integer",
+              "null"
+            ]
+          },
+          "user": {
+            "description": "User to run the exec command as (for exec)",
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -8922,14 +8983,21 @@
           "command",
           "command_args",
           "container_id",
+          "destination",
+          "direction",
+          "driver",
           "env",
+          "file",
           "force",
           "image",
           "name",
+          "network",
           "operation",
           "ports",
           "restart",
+          "source",
           "tail",
+          "user",
           "volumes"
         ],
         "type": "object"
@@ -8964,12 +9032,28 @@
             "description": "Container ID or name (for container operations)",
             "type": "string"
           },
+          "destination": {
+            "description": "Destination path for cp: a container path (to_container) or a workspace file (from_container)",
+            "type": "string"
+          },
+          "direction": {
+            "description": "Copy direction for cp: to_container or from_container",
+            "type": "string"
+          },
+          "driver": {
+            "description": "Driver for create_network or create_volume (e.g. bridge, local)",
+            "type": "string"
+          },
           "env": {
             "description": "Environment variables (e.g. ['KEY=value'])",
             "items": {
               "type": "string"
             },
             "type": "array"
+          },
+          "file": {
+            "description": "Compose file inside the agent workspace (for compose; put the compose command such as 'up -d' in command)",
+            "type": "string"
           },
           "force": {
             "description": "Force removal (for remove/remove_image)",
@@ -8981,6 +9065,10 @@
           },
           "name": {
             "description": "Container name. Required for create and run; aurago-homepage and aurago-homepage-web are reserved.",
+            "type": "string"
+          },
+          "network": {
+            "description": "Network name for connect and disconnect",
             "type": "string"
           },
           "operation": {
@@ -9001,7 +9089,19 @@
               "pull",
               "remove_image",
               "list_networks",
+              "create_network",
+              "remove_network",
+              "connect",
+              "disconnect",
               "list_volumes",
+              "create_volume",
+              "remove_volume",
+              "exec",
+              "stats",
+              "top",
+              "port",
+              "cp",
+              "compose",
               "info"
             ],
             "type": "string"
@@ -9014,9 +9114,17 @@
             "description": "Restart policy: no, always, unless-stopped, on-failure",
             "type": "string"
           },
+          "source": {
+            "description": "Source path for cp: a workspace file (to_container) or a container path (from_container)",
+            "type": "string"
+          },
           "tail": {
             "description": "Number of log lines to return (default: 100)",
             "type": "integer"
+          },
+          "user": {
+            "description": "User to run the exec command as (for exec)",
+            "type": "string"
           },
           "volumes": {
             "description": "Volume binds (e.g. ['/host/path:/container/path'])",
@@ -9038,14 +9146,21 @@
         "command",
         "command_args",
         "container_id",
+        "destination",
+        "direction",
+        "driver",
         "env",
+        "file",
         "force",
         "image",
         "name",
+        "network",
         "operation",
         "ports",
         "restart",
+        "source",
         "tail",
+        "user",
         "volumes"
       ],
       "properties": {
@@ -9094,6 +9209,27 @@
             "null"
           ]
         },
+        "destination": {
+          "description": "Destination path for cp: a container path (to_container) or a workspace file (from_container)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "direction": {
+          "description": "Copy direction for cp: to_container or from_container",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "driver": {
+          "description": "Driver for create_network or create_volume (e.g. bridge, local)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "env": {
           "description": "Environment variables (e.g. ['KEY=value'])",
           "items": {
@@ -9101,6 +9237,13 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "file": {
+          "description": "Compose file inside the agent workspace (for compose; put the compose command such as 'up -d' in command)",
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -9125,6 +9268,13 @@
             "null"
           ]
         },
+        "network": {
+          "description": "Network name for connect and disconnect",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "operation": {
           "description": "Operation to perform",
           "enum": [
@@ -9143,7 +9293,19 @@
             "pull",
             "remove_image",
             "list_networks",
+            "create_network",
+            "remove_network",
+            "connect",
+            "disconnect",
             "list_volumes",
+            "create_volume",
+            "remove_volume",
+            "exec",
+            "stats",
+            "top",
+            "port",
+            "cp",
+            "compose",
             "info"
           ],
           "type": "string"
@@ -9162,10 +9324,24 @@
             "null"
           ]
         },
+        "source": {
+          "description": "Source path for cp: a workspace file (to_container) or a container path (from_container)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "tail": {
           "description": "Number of log lines to return (default: 100)",
           "type": [
             "integer",
+            "null"
+          ]
+        },
+        "user": {
+          "description": "User to run the exec command as (for exec)",
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -9184,7 +9360,35 @@
       "operations": [
         {
           "selector": "operation",
+          "value": "compose"
+        },
+        {
+          "selector": "operation",
+          "value": "connect"
+        },
+        {
+          "selector": "operation",
+          "value": "cp"
+        },
+        {
+          "selector": "operation",
           "value": "create"
+        },
+        {
+          "selector": "operation",
+          "value": "create_network"
+        },
+        {
+          "selector": "operation",
+          "value": "create_volume"
+        },
+        {
+          "selector": "operation",
+          "value": "disconnect"
+        },
+        {
+          "selector": "operation",
+          "value": "exec"
         },
         {
           "selector": "operation",
@@ -9220,6 +9424,10 @@
         },
         {
           "selector": "operation",
+          "value": "port"
+        },
+        {
+          "selector": "operation",
           "value": "pull"
         },
         {
@@ -9229,6 +9437,14 @@
         {
           "selector": "operation",
           "value": "remove_image"
+        },
+        {
+          "selector": "operation",
+          "value": "remove_network"
+        },
+        {
+          "selector": "operation",
+          "value": "remove_volume"
         },
         {
           "selector": "operation",
@@ -9244,7 +9460,15 @@
         },
         {
           "selector": "operation",
+          "value": "stats"
+        },
+        {
+          "selector": "operation",
           "value": "stop"
+        },
+        {
+          "selector": "operation",
+          "value": "top"
         },
         {
           "selector": "operation",
@@ -9260,6 +9484,61 @@
         "operations": [
           {
             "selector": "operation",
+            "value": "compose",
+            "arguments": {
+              "command": "ps",
+              "file": "stacks/web/compose.yml",
+              "operation": "compose"
+            },
+            "required_fields": [
+              "command",
+              "file",
+              "operation"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "connect",
+            "arguments": {
+              "container_id": "example-container",
+              "network": "example-network",
+              "operation": "connect"
+            },
+            "required_fields": [
+              "container_id",
+              "network",
+              "operation"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "cp",
+            "arguments": {
+              "container_id": "example-container",
+              "destination": "/tmp/notes.txt",
+              "direction": "to_container",
+              "operation": "cp",
+              "source": "notes.txt"
+            },
+            "required_fields": [
+              "container_id",
+              "destination",
+              "direction",
+              "operation",
+              "source"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
             "value": "create",
             "arguments": {
               "image": "example",
@@ -9269,6 +9548,70 @@
             "required_fields": [
               "image",
               "name",
+              "operation"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "create_network",
+            "arguments": {
+              "name": "example-network",
+              "operation": "create_network"
+            },
+            "required_fields": [
+              "name",
+              "operation"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "create_volume",
+            "arguments": {
+              "name": "example-volume",
+              "operation": "create_volume"
+            },
+            "required_fields": [
+              "name",
+              "operation"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "disconnect",
+            "arguments": {
+              "container_id": "example-container",
+              "network": "example-network",
+              "operation": "disconnect"
+            },
+            "required_fields": [
+              "container_id",
+              "network",
+              "operation"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "exec",
+            "arguments": {
+              "command": "ls /app",
+              "container_id": "example-container",
+              "operation": "exec"
+            },
+            "required_fields": [
+              "command",
+              "container_id",
               "operation"
             ],
             "excluded_fields": [
@@ -9381,6 +9724,19 @@
           },
           {
             "selector": "operation",
+            "value": "port",
+            "arguments": {
+              "operation": "port"
+            },
+            "required_fields": [
+              "operation"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
             "value": "pull",
             "arguments": {
               "operation": "pull"
@@ -9412,6 +9768,36 @@
               "operation": "remove_image"
             },
             "required_fields": [
+              "operation"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "remove_network",
+            "arguments": {
+              "name": "example-network",
+              "operation": "remove_network"
+            },
+            "required_fields": [
+              "name",
+              "operation"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "remove_volume",
+            "arguments": {
+              "name": "example-volume",
+              "operation": "remove_volume"
+            },
+            "required_fields": [
+              "name",
               "operation"
             ],
             "excluded_fields": [
@@ -9461,9 +9847,35 @@
           },
           {
             "selector": "operation",
+            "value": "stats",
+            "arguments": {
+              "operation": "stats"
+            },
+            "required_fields": [
+              "operation"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
             "value": "stop",
             "arguments": {
               "operation": "stop"
+            },
+            "required_fields": [
+              "operation"
+            ],
+            "excluded_fields": [
+              "auto_remove"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "top",
+            "arguments": {
+              "operation": "top"
             },
             "required_fields": [
               "operation"
@@ -77732,8 +78144,8 @@
     {
       "id": "docker",
       "path": "prompts/tools_manuals/docker.md",
-      "sha256": "214ce8a8415ff9de6cd9351d1d13cc5b42b3b95bf2e87ab4ef6f7c7464044998",
-      "body": "# Docker Management Tool\n\nManage generic Docker containers, images, networks, and volumes directly through the Docker Engine API. AuraGo's managed homepage containers and the `aurago-homepage` image repository are reserved; use `homepage_project`, `homepage_file`, or `homepage_deploy` for homepage work.\n\n## Prerequisites\n- Docker must be running on the host\n- `docker.enabled: true` in config.yaml\n- Optional: `docker.host` — auto-detected if empty (Unix socket on Linux/Mac, TCP on Windows)\n\n## Operations\n\n### Container Operations\n\n#### list_containers — List running (or all) containers\n```json\n{\"action\": \"docker\", \"operation\": \"list_containers\"}\n{\"action\": \"docker\", \"operation\": \"list_containers\", \"all\": true}\n```\n\n#### inspect — Get detailed container info\n```json\n{\"action\": \"docker\", \"operation\": \"inspect\", \"container_id\": \"my_container\"}\n```\n\n#### start / stop / restart / pause / unpause\n```json\n{\"action\": \"docker\", \"operation\": \"start\", \"container_id\": \"my_container\"}\n{\"action\": \"docker\", \"operation\": \"stop\", \"container_id\": \"my_container\"}\n{\"action\": \"docker\", \"operation\": \"restart\", \"container_id\": \"nginx_proxy\"}\n```\n\n#### remove — Delete a container\n```json\n{\"action\": \"docker\", \"operation\": \"remove\", \"container_id\": \"old_container\"}\n{\"action\": \"docker\", \"operation\": \"remove\", \"container_id\": \"stuck_container\", \"force\": true}\n```\n\n#### logs — Get container logs (last N lines)\n```json\n{\"action\": \"docker\", \"operation\": \"logs\", \"container_id\": \"my_app\", \"tail\": 50}\n```\n\n#### create — Create a new container (without starting)\n`name` and `image` are required.\n\n- **name** (required)\n- **image** (required)\n```json\n{\n  \"action\": \"docker\",\n  \"operation\": \"create\",\n  \"name\": \"my_nginx\",\n  \"image\": \"nginx:latest\",\n  \"ports\": {\"80\": \"8080\"},\n  \"volumes\": [\"/data/html:/usr/share/nginx/html:ro\"],\n  \"env\": [\"NGINX_HOST=example.com\"],\n  \"restart\": \"unless-stopped\"\n}\n```\n\n#### run — Create AND start a container in one step\n`name` and `image` are required. Short-lived containers still need an explicit name. Set `auto_remove: true` only with restart policy `no`.\n\n- **name** (required)\n- **image** (required)\n```json\n{\n  \"action\": \"docker\",\n  \"operation\": \"run\",\n  \"name\": \"redis_cache\",\n  \"image\": \"redis:7-alpine\",\n  \"ports\": {\"6379\": \"6379\"},\n  \"restart\": \"always\"\n}\n```\n\nFor exact command arguments, use `command_args`. This array is forwarded without shell parsing:\n```json\n{\n  \"action\": \"docker\",\n  \"operation\": \"run\",\n  \"name\": \"one-shot-report\",\n  \"image\": \"alpine:latest\",\n  \"command_args\": [\"/bin/sh\", \"-lc\", \"printf '%s\\\\n' \\\"$REPORT\\\"\"],\n  \"auto_remove\": true,\n  \"restart\": \"no\"\n}\n```\n\nFor `create` and `run`, the legacy `command` field accepts only simple whitespace-separated arguments. Quotes, pipes, redirections, command chaining, substitutions, and globbing are rejected. Do not provide both `command` and `command_args`.\n\n### Container Operations\n\n#### exec — Run a command inside a running container\n```json\n{\"action\": \"docker\", \"operation\": \"exec\", \"container_id\": \"my_db\", \"command\": \"mysql -u root -p my_db\"}\n{\"action\": \"docker\", \"operation\": \"exec\", \"container_id\": \"my_web\", \"command\": \"cat /etc/nginx/nginx.conf\", \"user\": \"root\"}\n```\n\n#### stats — Real-time resource usage of a container (CPU, Mem, Net I/O)\n```json\n{\"action\": \"docker\", \"operation\": \"stats\", \"container_id\": \"my_container\"}\n```\n\n#### top — List running processes inside a container\n```json\n{\"action\": \"docker\", \"operation\": \"top\", \"container_id\": \"my_container\"}\n```\n\n#### port — Show mapped ports for a container\n```json\n{\"action\": \"docker\", \"operation\": \"port\", \"container_id\": \"my_container\"}\n```\n\n#### cp — Copy files between host and container\nUse `direction: \"from_container\"` or `\"to_container\"`. Path maps to the host's absolute path, Destination maps to the container's absolute path (or vice versa depending on direction).\n```json\n{\"action\": \"docker\", \"operation\": \"cp\", \"container_id\": \"my_container\", \"source\": \"/etc/nginx/nginx.conf\", \"destination\": \"/tmp/host_nginx.conf\", \"direction\": \"from_container\"}\n{\"action\": \"docker\", \"operation\": \"cp\", \"container_id\": \"my_container\", \"source\": \"/tmp/host_nginx.conf\", \"destination\": \"/etc/nginx/nginx.conf\", \"direction\": \"to_container\"}\n```\n\n### Image Operations\n\n#### list_images — List local images\n```json\n{\"action\": \"docker\", \"operation\": \"list_images\"}\n```\n\n#### pull — Pull an image from a registry\n```json\n{\"action\": \"docker\", \"operation\": \"pull\", \"image\": \"postgres:16\"}\n```\n\n#### remove_image — Delete a local image\n```json\n{\"action\": \"docker\", \"operation\": \"remove_image\", \"image\": \"old_image:v1\", \"force\": true}\n```\n\n### Infrastructure\n\n#### list_networks — List Docker networks\n```json\n{\"action\": \"docker\", \"operation\": \"list_networks\"}\n```\n\n#### create_network / remove_network\n```json\n{\"action\": \"docker\", \"operation\": \"create_network\", \"name\": \"my_net\", \"driver\": \"bridge\"}\n{\"action\": \"docker\", \"operation\": \"remove_network\", \"name\": \"my_net\"}\n```\n\n#### connect / disconnect — Connect a container to a network\n```json\n{\"action\": \"docker\", \"operation\": \"connect\", \"container_id\": \"my_container\", \"network\": \"my_net\"}\n{\"action\": \"docker\", \"operation\": \"disconnect\", \"container_id\": \"my_container\", \"network\": \"my_net\"}\n```\n\n#### list_volumes — List Docker volumes\n```json\n{\"action\": \"docker\", \"operation\": \"list_volumes\"}\n```\n\n#### create_volume / remove_volume\n```json\n{\"action\": \"docker\", \"operation\": \"create_volume\", \"name\": \"my_data_vol\", \"driver\": \"local\"}\n{\"action\": \"docker\", \"operation\": \"remove_volume\", \"name\": \"my_data_vol\", \"force\": true}\n```\n\n#### compose — Run docker compose commands\nRequires `file` pointing to the `docker-compose.yml` path.\n```json\n{\"action\": \"docker\", \"operation\": \"compose\", \"command\": \"up -d\", \"file\": \"/path/to/project/docker-compose.yml\"}\n{\"action\": \"docker\", \"operation\": \"compose\", \"command\": \"down\", \"file\": \"/path/to/project/docker-compose.yml\"}\n```\n\n#### info — Docker engine system info (version, resource counts)\n```json\n{\"action\": \"docker\", \"operation\": \"info\"}\n```\n\n## Important Notes\n- Docker mutations are sent once. A lost response can leave a successful remote operation; inspect its existing container/exec ID before retrying. Do not automatically repeat the command.\n- `exec` follows the tool run's cancellation and a ten-minute ceiling. Cancelling the HTTP stream does not prove that the command inside the container has stopped; verify its state before retrying.\n- AuraGo negotiates the Engine API before operations. Socket proxies must allow `GET /version`; unsupported API ranges fail explicitly before mutation.\n- `container_id` accepts both container IDs (short or full) and container names\n- `name` is mandatory for every `create` and `run`, including short-lived jobs\n- `run` = `create` + auto-`start` in a single call\n- `auto_remove` defaults to `false`, is valid only for `run`, and conflicts with every restart policy other than `no`\n- `aurago-homepage`, `aurago-homepage-web`, and the `aurago-homepage` image repository cannot be managed with this tool\n- Logs are truncated to ~8000 chars to avoid flooding the context\n- `force: true` on remove will kill a running container before removing it\n- Port mapping format: `{\"container_port\": \"host_port\"}` — both as strings\n- Volume bind format: `\"/host/path:/container/path\"` or `\"/host/path:/container/path:ro\"`\n",
+      "sha256": "177504d46b2cf09a37ae41c8fc206bf39b1f55dcd676eed62adb3698dd710c80",
+      "body": "# Docker Management Tool\n\nManage generic Docker containers, images, networks, and volumes directly through the Docker Engine API. AuraGo's managed homepage containers and the `aurago-homepage` image repository are reserved; use `homepage_project`, `homepage_file`, or `homepage_deploy` for homepage work.\n\n## Prerequisites\n- Docker must be running on the host\n- `docker.enabled: true` in config.yaml\n- Optional: `docker.host` — auto-detected if empty (Unix socket on Linux/Mac, TCP on Windows)\n\n## Operations\n\n### Container Operations\n\n#### list_containers — List running (or all) containers\n```json\n{\"action\": \"docker\", \"operation\": \"list_containers\"}\n{\"action\": \"docker\", \"operation\": \"list_containers\", \"all\": true}\n```\n\n#### inspect — Get detailed container info\n```json\n{\"action\": \"docker\", \"operation\": \"inspect\", \"container_id\": \"my_container\"}\n```\n\n#### start / stop / restart / pause / unpause\n```json\n{\"action\": \"docker\", \"operation\": \"start\", \"container_id\": \"my_container\"}\n{\"action\": \"docker\", \"operation\": \"stop\", \"container_id\": \"my_container\"}\n{\"action\": \"docker\", \"operation\": \"restart\", \"container_id\": \"nginx_proxy\"}\n```\n\n#### remove — Delete a container\n```json\n{\"action\": \"docker\", \"operation\": \"remove\", \"container_id\": \"old_container\"}\n{\"action\": \"docker\", \"operation\": \"remove\", \"container_id\": \"stuck_container\", \"force\": true}\n```\n\n#### logs — Get container logs (last N lines)\n```json\n{\"action\": \"docker\", \"operation\": \"logs\", \"container_id\": \"my_app\", \"tail\": 50}\n```\n\n#### create — Create a new container (without starting)\n`name` and `image` are required.\n\n- **name** (required)\n- **image** (required)\n```json\n{\n  \"action\": \"docker\",\n  \"operation\": \"create\",\n  \"name\": \"my_nginx\",\n  \"image\": \"nginx:latest\",\n  \"ports\": {\"80\": \"8080\"},\n  \"volumes\": [\"/data/html:/usr/share/nginx/html:ro\"],\n  \"env\": [\"NGINX_HOST=example.com\"],\n  \"restart\": \"unless-stopped\"\n}\n```\n\n#### run — Create AND start a container in one step\n`name` and `image` are required. Short-lived containers still need an explicit name. Set `auto_remove: true` only with restart policy `no`.\n\n- **name** (required)\n- **image** (required)\n```json\n{\n  \"action\": \"docker\",\n  \"operation\": \"run\",\n  \"name\": \"redis_cache\",\n  \"image\": \"redis:7-alpine\",\n  \"ports\": {\"6379\": \"6379\"},\n  \"restart\": \"always\"\n}\n```\n\nFor exact command arguments, use `command_args`. This array is forwarded without shell parsing:\n```json\n{\n  \"action\": \"docker\",\n  \"operation\": \"run\",\n  \"name\": \"one-shot-report\",\n  \"image\": \"alpine:latest\",\n  \"command_args\": [\"/bin/sh\", \"-lc\", \"printf '%s\\\\n' \\\"$REPORT\\\"\"],\n  \"auto_remove\": true,\n  \"restart\": \"no\"\n}\n```\n\nFor `create` and `run`, the legacy `command` field accepts only simple whitespace-separated arguments. Quotes, pipes, redirections, command chaining, substitutions, and globbing are rejected. Do not provide both `command` and `command_args`.\n\n### Container Operations\n\n#### exec — Run a command inside a running container\n```json\n{\"action\": \"docker\", \"operation\": \"exec\", \"container_id\": \"my_db\", \"command\": \"mysql -u root -p my_db\"}\n{\"action\": \"docker\", \"operation\": \"exec\", \"container_id\": \"my_web\", \"command\": \"cat /etc/nginx/nginx.conf\", \"user\": \"root\"}\n```\n\n#### stats — Real-time resource usage of a container (CPU, Mem, Net I/O)\n```json\n{\"action\": \"docker\", \"operation\": \"stats\", \"container_id\": \"my_container\"}\n```\n\n#### top — List running processes inside a container\n```json\n{\"action\": \"docker\", \"operation\": \"top\", \"container_id\": \"my_container\"}\n```\n\n#### port — Show mapped ports for a container\n```json\n{\"action\": \"docker\", \"operation\": \"port\", \"container_id\": \"my_container\"}\n```\n\n#### cp — Copy files between host and container\nUse `direction: \"from_container\"` or `\"to_container\"`. Path maps to the host's absolute path, Destination maps to the container's absolute path (or vice versa depending on direction).\n```json\n{\"action\": \"docker\", \"operation\": \"cp\", \"container_id\": \"my_container\", \"source\": \"/etc/nginx/nginx.conf\", \"destination\": \"/tmp/host_nginx.conf\", \"direction\": \"from_container\"}\n{\"action\": \"docker\", \"operation\": \"cp\", \"container_id\": \"my_container\", \"source\": \"/tmp/host_nginx.conf\", \"destination\": \"/etc/nginx/nginx.conf\", \"direction\": \"to_container\"}\n```\n\n### Image Operations\n\n#### list_images — List local images\n```json\n{\"action\": \"docker\", \"operation\": \"list_images\"}\n```\n\n#### pull — Pull an image from a registry\n```json\n{\"action\": \"docker\", \"operation\": \"pull\", \"image\": \"postgres:16\"}\n```\n\n#### remove_image — Delete a local image\n```json\n{\"action\": \"docker\", \"operation\": \"remove_image\", \"image\": \"old_image:v1\", \"force\": true}\n```\n\n### Infrastructure\n\n#### list_networks — List Docker networks\n```json\n{\"action\": \"docker\", \"operation\": \"list_networks\"}\n```\n\n#### create_network / remove_network\n```json\n{\"action\": \"docker\", \"operation\": \"create_network\", \"name\": \"my_net\", \"driver\": \"bridge\"}\n{\"action\": \"docker\", \"operation\": \"remove_network\", \"name\": \"my_net\"}\n```\n\n#### connect / disconnect — Connect a container to a network\n```json\n{\"action\": \"docker\", \"operation\": \"connect\", \"container_id\": \"my_container\", \"network\": \"my_net\"}\n{\"action\": \"docker\", \"operation\": \"disconnect\", \"container_id\": \"my_container\", \"network\": \"my_net\"}\n```\n\n#### list_volumes — List Docker volumes\n```json\n{\"action\": \"docker\", \"operation\": \"list_volumes\"}\n```\n\n#### create_volume / remove_volume\n```json\n{\"action\": \"docker\", \"operation\": \"create_volume\", \"name\": \"my_data_vol\", \"driver\": \"local\"}\n{\"action\": \"docker\", \"operation\": \"remove_volume\", \"name\": \"my_data_vol\", \"force\": true}\n```\n\n#### compose — Run docker compose commands\n`file` is a Compose file inside the agent workspace (relative paths resolve against it).\n```json\n{\"action\": \"docker\", \"operation\": \"compose\", \"command\": \"up -d\", \"file\": \"stacks/web/docker-compose.yml\"}\n{\"action\": \"docker\", \"operation\": \"compose\", \"command\": \"down\", \"file\": \"stacks/web/docker-compose.yml\"}\n```\n- AuraGo resolves the file with `docker compose config` before anything runs. A file that does not resolve returns `docker_compose_preflight_failed` with Compose's error.\n- Every compose command is rejected when the stack touches AuraGo-managed containers, labels, images or volumes. When AuraGo itself runs in Docker, `up`, `create`, `start`, `stop`, `restart`, `down`, `rm`, `kill`, `pause`, `unpause`, `logs` and `top` are also rejected for a stack whose project name is AuraGo's own Compose project (`docker_managed_aurago_resource`): give the stack its own top-level `name:` or another folder.\n- `up`, `create` and `build` (and `config`/`convert` for env files, secret and config files) also reject anything that points into AuraGo's own data directory, config, `.env` or master key, and `up`/`create`/`build`/`pull`/`config`/`convert` reject AuraGo's master key value anywhere in the resolved file (`docker_compose_protected_path_denied`), even with host access.\n- Unless the administrator enabled **Docker host access** (`docker.allow_host_access`), `up`/`create`/`build` also reject binds outside the workspace (or that contain AuraGo's files), `/var/run/docker.sock`, `use_api_socket`, devices, `device_cgroup_rules`, `gpus` and reserved devices, `privileged`, host network/PID/IPC/UTS/user/cgroup namespaces, `cap_add`, unconfined `security_opt`, local volumes that bind a host directory, mount a `/dev` device or a non-network filesystem, `develop.watch` paths outside the workspace, build SSH (`build.ssh`, `build --ssh`), privileged builds, build entitlements, `build.network: host`, and env files, secrets, configs, Dockerfiles or build contexts outside the workspace (`docker_compose_host_access_denied`). A command without service names checks every service of the file's default profiles; a command that names services (`up -d web`) checks those, what they need (depends_on, links, volumes_from, `network_mode: service:`, `service:` build contexts) and what depends on them as far as the command acts on it (all dependents for `stop`/`down`/`rm`/`restart`, `restart: true` dependents for `up`, none for `create`/`start`/`build`/`pull`), as long as every name exists and every flag is a known one (an unknown flag such as `--scale` checks the whole file). Tell the user which setting is needed; do not retry unchanged.\n- Without host access, `provider` services and privileged `post_start`/`pre_stop` hooks also block `down`, `start`, `stop`, `restart`, `rm` and `pull` (including profile services the command names and the services they depend on), because Compose runs them on the host.\n- `kill`, `pause`, `unpause`, `ps`, `logs` and the other inspection commands are never blocked by the host-access check.\n- Without host access, Compose runs with a minimal environment (`PATH`, `HOME`, Docker/Compose/BuildKit settings, proxy, temp and locale variables): `${VAR}` in a Compose file cannot read AuraGo's own variables, so put such values into the stack's `.env` file. Registry credentials must then come from the Docker config (`~/.docker/config.json`) or a credential helper that needs no secret environment variables.\n- `config -o \u003cfile\u003e` / `--output` writes only inside the workspace (relative paths resolve against it; AuraGo's own data, config and `.env` files, directories and special files are refused): Compose renders into a private staging file and AuraGo publishes it atomically at that path, creating missing folders, and reports `output_file`; `-q` or list flags such as `--services` write no file. `config`/`convert` stay read-only, so they also work when Docker is read-only (`docker.read_only`). `--environment` and `--env-file` are rejected.\n- Without host access, AuraGo repeats its checks right before the run; `docker_compose_input_changed` means the Compose file or a file it reads changed in between. Retry once nothing rewrites the files.\n- `build --push` is allowed: it pushes the images the build itself creates. `docker compose push` stays blocked. The master key checks of `build` apply.\n\n#### info — Docker engine system info (version, resource counts)\n```json\n{\"action\": \"docker\", \"operation\": \"info\"}\n```\n\n## Important Notes\n- Docker mutations are sent once. A lost response can leave a successful remote operation; inspect its existing container/exec ID before retrying. Do not automatically repeat the command.\n- `exec` follows the tool run's cancellation and a ten-minute ceiling. Cancelling the HTTP stream does not prove that the command inside the container has stopped; verify its state before retrying.\n- AuraGo negotiates the Engine API before operations. Socket proxies must allow `GET /version`; unsupported API ranges fail explicitly before mutation.\n- `container_id` accepts both container IDs (short or full) and container names\n- `name` is mandatory for every `create` and `run`, including short-lived jobs\n- `run` = `create` + auto-`start` in a single call\n- `auto_remove` defaults to `false`, is valid only for `run`, and conflicts with every restart policy other than `no`\n- `aurago-homepage`, `aurago-homepage-web`, and the `aurago-homepage` image repository cannot be managed with this tool\n- The names `aurago` (and compose replicas such as `stack-aurago-1`) and `aurago-boring-garage` are reserved the same way: they cannot be used as `name` for `create`/`run`, even next to a different `container_id`, and those containers cannot be inspected, controlled or read through this tool\n- Without host access, managed sidecar names (`aurago_gotenberg`, `aurago_ollama_managed`, `aurago_ollama_embeddings`, `aurago-piper-tts`, `aurago-supertonic-tts`, `aurago_ansible`, `aurago_browser_automation`, `aurago_go2rtc`, `aurago_space_agent`, `aurago_manifest`, `aurago_manifest_postgres`, `aurago_omniroute`, the `aurago_dograh_*` services, `aurago-cloudflared` and their configured custom names) cannot be used as `name` for `create`/`run` or as a Compose `container_name` in `up`/`create` (`docker_managed_sidecar_name`); `aurago-security-proxy` is refused as a Compose `container_name` everywhere (`docker_managed_security_proxy_resource`).\n- Without host access and without an agent workspace, `create`/`run` refuse binds of AuraGo's own data directory, config, `.env`, `/etc/aurago` and master key (`docker_protected_path_denied`).\n- Logs are truncated to ~8000 chars to avoid flooding the context\n- `force: true` on remove will kill a running container before removing it\n- Port mapping format: `{\"container_port\": \"host_port\"}` — both as strings\n- Volume bind format: `\"/host/path:/container/path\"` or `\"/host/path:/container/path:ro\"`\n- When AuraGo runs in Docker, its data volume (`\u003cproject\u003e_aurago_data` or the volume behind `/app/data`) cannot be mounted (`create`/`run`), created or removed, and no Compose stack may use it (`docker_managed_aurago_resource`). If AuraGo cannot identify its own container (Docker did not answer, or AuraGo shares another container's network), every volume named `aurago_data` or ending in `_aurago_data` counts as AuraGo's; give other stacks' volumes a different name. The workdir volume stays usable.\n",
       "tools": [
         "docker"
       ],
@@ -78054,8 +78466,8 @@
     {
       "id": "homepage",
       "path": "prompts/tools_manuals/homepage.md",
-      "sha256": "df77db55dfe0d4acb4c9e08dfd98244c7dab64b0cb308dc044330ff234bb71ed",
-      "body": "# Homepage Legacy Compatibility (`homepage`)\n\nDesign, develop, build, test and deploy professional websites using AuraGo's web workspace with Docker-based full mode and limited local fallback support.\n\nPrefer the focused native tools `homepage_project`, `homepage_file`, `homepage_quality`, `homepage_deploy`, and `homepage_git` when they are visible. The legacy `homepage` action remains accepted for dispatch compatibility with older clients and prompts.\n\n## Required Task Rule\n\nThe `homepage` tool has a required active task rule: `homepage`.\n\nBefore planning, deleting, creating, editing, building, previewing, publishing, or deploying a homepage/website/page project, read and follow the current `# TASK RULES` section for `Homepage Workflow` and the `# HOMEPAGE DESIGN SYSTEM` section when it is present. The design system is not optional styling advice; it is the default visual contract for homepage work unless the user or project supplies a more specific `DESIGN.md`.\n\nIf those sections are not visible yet, do not improvise with generic filesystem, shell, or ad-hoc design choices. Use the focused homepage tool path; the runtime will pause the first matching tool call, inject the required rule/design context, and ask you to retry only after reading it. Intent matching is only a convenience fallback, not the authority.\n\n## Prerequisites\n\n- **Required**: Homepage integration enabled (`homepage.enabled: true`)\n- **Recommended**: Docker integration enabled for the full dev environment\n- For deployment: SFTP/SCP credentials must be stored in the vault\n\n## Operations\n\n| Operation | Description |\n|-----------|-------------|\n| `init` | Initialize the dev environment (run first) |\n| `start` | Start the dev container |\n| `stop` | Stop the dev container |\n| `status` | Get environment status |\n| `rebuild` | Rebuild the dev container from scratch |\n| `destroy` | Remove everything; requires explicit `force: true` |\n| `init_project` | Create a new web project |\n| `exec` | Run a diagnostic shell command in the container |\n| `write_file` | Write/create a file |\n| `read_file` | Read a file |\n| `list_files` | List project files |\n| `install_deps` | Install npm packages |\n| `build` | Build for production |\n| `dev` | Start the dev server |\n| `lint` | Run TypeScript \u0026 ESLint checks |\n| `check_js` | Check for JavaScript runtime errors |\n| `optimize_images` | Optimize SVGs with SVGO |\n| `lighthouse` | Run Lighthouse performance audit |\n| `screenshot` | Take a full-page screenshot |\n| `deploy` | Build and upload to remote server via SFTP |\n| `test_connection` | Test SFTP/SCP connection |\n| `webserver_start` | Start local Caddy web server |\n| `webserver_stop` | Stop the web server |\n| `webserver_status` | Check web server status |\n| `publish_local` | Build and serve locally |\n| `deploy_netlify` | Build and deploy directly to Netlify |\n| `deploy_vercel` | Build and deploy directly to Vercel |\n| `git_init` | Initialize a git repository |\n| `git_commit` | Commit all changes |\n| `git_status` | View changed files |\n| `git_diff` | View current changes |\n| `git_log` | View commit history |\n| `git_rollback` | Revert recent commits |\n| `tunnel` | Create a public URL for sharing |\n\n## Existing Project Fast Path\n\nWhen updating or publishing an existing homepage project, use this direct path:\n\n1. `homepage` → `list_files` with `path: \".\"` to identify the project directory.\n2. `homepage` → `read_file` / `write_file` with a project-prefixed `path`, for example `my-site/index.html`.\n3. `homepage` → `build` with `project_dir: \"my-site\"`; missing dependencies are installed automatically.\n4. `homepage` → `publish_local` with `project_dir: \"my-site\"` for browser checks, then `deploy_netlify` or `deploy_vercel` with `project_dir: \"my-site\"`.\n5. Verify the returned deployment URL or the live page before reporting success.\n\nDo not use the generic `filesystem` tool to inspect, copy, or edit homepage project files. It writes to `agent_workspace/workdir/`, not the homepage workspace. Do not use generic `execute_shell` for `/workspace/...` commands either; `/workspace` is the homepage container path, so use focused homepage operations instead.\n\n## Runtime Modes\n\n### Docker Mode\n\nFull dev environment with Node.js, Playwright, Lighthouse and Caddy web server with automatic HTTPS.\nSupports all frameworks: Next.js, Vite, Astro, SvelteKit, Vue, static HTML.\n\n## Container Lifecycle\n\n### init — Initialize the dev environment\nCreates the Docker image and container. **Run this first** before any other operation.\n```json\n{\"action\": \"homepage\", \"operation\": \"init\"}\n```\n\n**Note:** Docker should be running for the full toolset. If Docker is unavailable, start it with `sudo systemctl start docker`.\n\n### Local Fallback Mode\nIf Docker is unavailable and `homepage.allow_local_server` is enabled, AuraGo can still handle limited local workflows:\n- local/plain HTML project creation\n- homepage workspace file reads and writes\n- local publishing via the Python fallback server\n- status checks for the fallback server\n\n### start — Start the dev container\n```json\n{\"action\": \"homepage\", \"operation\": \"start\"}\n```\n\n### stop — Stop the dev container\n```json\n{\"action\": \"homepage\", \"operation\": \"stop\"}\n```\n\n### status — Get environment status\nReturns status of Docker containers or Python fallback server.\n```json\n{\"action\": \"homepage\", \"operation\": \"status\"}\n```\n\n**Response fields:**\n- `docker_available`: true/false - whether Docker is accessible\n- `mode`: \"docker\" or \"python_fallback\"\n- `python_server`: Status of Python HTTP server (in fallback mode)\n\n### rebuild — Rebuild the dev container from scratch\nRemoves container and image, then rebuilds. Use when you need a fresh environment.\n```json\n{\"action\": \"homepage\", \"operation\": \"rebuild\"}\n```\n\n### destroy — Remove everything\nRemoves both containers and the dev image.\nOnly use this when the user explicitly asks to destroy/reset the homepage environment. For routine recovery prefer `status`, `start`, `init`, or `rebuild`.\n```json\n{\"action\": \"homepage\", \"operation\": \"destroy\", \"force\": true}\n```\n\n## Project Scaffolding\n\n### init_project — Create a new web project\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `framework` | string | yes | `next`, `vite`, `astro`, `svelte`, `vue`, or `html` |\n| `name` | string | no | Project name (default: \"my-site\") |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"init_project\", \"framework\": \"next\", \"name\": \"my-portfolio\"}\n```\n```json\n{\"action\": \"homepage\", \"operation\": \"init_project\", \"framework\": \"astro\", \"name\": \"blog\"}\n```\n```json\n{\"action\": \"homepage\", \"operation\": \"init_project\", \"framework\": \"html\", \"name\": \"landing-page\"}\n```\n\n## Development\n\n`write_file`, `read_file`, `edit_file`, `list_files`, and other project-file operations work against the **homepage dev workspace**, not the published web root.\nKeep `project_dir`/`path` values relative to the homepage workspace.\n\nIf an existing project directory is owned by root or otherwise not writable by the homepage container user, `write_file`, `init_project`, and write-oriented `exec` commands will attempt an automatic project-scoped permission repair before failing. Do not retry with manual `chmod` from the unprivileged container user; inspect the returned repair error instead.\n\n### exec — Run a shell command in the container\n```json\n{\"action\": \"homepage\", \"operation\": \"exec\", \"command\": \"cd /workspace/my-site \u0026\u0026 npm run dev\"}\n```\n\nUse `exec` for diagnostics such as reading package metadata, checking logs, or running one-off inspection commands. Do not use it as the normal build/deploy path, and do not use shell redirects, `cp`, `mv`, `rm`, or similar commands to write directly into generated output directories like `/workspace/my-site/dist`, `/workspace/my-site/build`, or `/workspace/my-site/out`. Edit source files with `write_file`/`edit_file`, run `build`, then deploy through `deploy_netlify` or `deploy_vercel`.\n\n### write_file — Write/create a file\nContent is safely base64-encoded internally. Parent directories are created automatically.\n```json\n{\"action\": \"homepage\", \"operation\": \"write_file\", \"path\": \"my-site/src/components/Hero.tsx\", \"content\": \"export default function Hero() { return \u003csection\u003e...\u003c/section\u003e }\"}\n```\n\n### read_file — Read a file\n```json\n{\"action\": \"homepage\", \"operation\": \"read_file\", \"path\": \"my-site/src/app/page.tsx\"}\n```\n\n### list_files — List project files\nReturns up to 200 files, excluding node_modules, .next, and .git.\n```json\n{\"action\": \"homepage\", \"operation\": \"list_files\", \"path\": \"my-site/src\"}\n```\n\n### install_deps — Install npm packages\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `packages` | string[] | no | Specific packages (omit for `npm install`) |\n| `project_dir` | string | yes | Workspace-relative project subdirectory |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"install_deps\", \"project_dir\": \"my-site\", \"packages\": [\"tailwindcss\", \"@headlessui/react\", \"framer-motion\"]}\n```\n\n### build — Build for production\nFor framework projects, `build` runs inside the managed `aurago-homepage` container, not the host shell. After a successful build, referenced AuraGo assets such as `/files/generated_images/*`, generated image `/assets/img_*` paths, videos, audio, and documents are copied into the detected build output so the local Caddy server and deploy candidates can serve them.\n\n```json\n{\"action\": \"homepage\", \"operation\": \"build\", \"project_dir\": \"my-site\"}\n```\n\n### dev — Start the dev server\nStarts the dev server (e.g. `npm run dev`) in the background. When the Caddy web container is running and a `project_dir` is specified, a reverse_proxy route is automatically registered so the app is accessible through the Caddy web server at `/\u003cproject_dir\u003e/`.\n\nThe dev container and Caddy web container are connected via a shared Docker network (`aurago-homepage-net`), allowing Caddy to forward requests to the dev server. Proxy routes are persisted in the workspace (`.aurago-proxy-routes.json`) and survive container restarts.\n\n```json\n{\"action\": \"homepage\", \"operation\": \"dev\", \"project_dir\": \"my-site\"}\n```\n\n### lint — Run TypeScript \u0026 ESLint checks\nRuns `tsc --noEmit` (if `tsconfig.json` exists) followed by ESLint. Returns combined output.\n```json\n{\"action\": \"homepage\", \"operation\": \"lint\", \"project_dir\": \"my-site\"}\n```\n\n### check_js — Check for JavaScript runtime errors\nUses Playwright to load a page in headless Chromium and captures JavaScript errors and console errors. Useful for detecting runtime issues that linting alone cannot catch.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `url` | string | yes | URL to check (e.g. `http://localhost:3000`) |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"check_js\", \"url\": \"http://localhost:3000\"}\n```\n\n**Response fields:**\n- `errorCount`: Number of JS errors detected\n- `errors`: Array of error messages (page errors and console errors)\n\n### optimize_images — Optimize SVGs with SVGO\nOptimizes **SVG files only** (not PNG/JPEG). Uses SVGO with multipass optimization.\n```json\n{\"action\": \"homepage\", \"operation\": \"optimize_images\", \"project_dir\": \"my-site\"}\n```\n\n## Testing \u0026 Quality\n\n### lighthouse — Run Lighthouse performance audit\nReturns compact scores for performance, accessibility, best practices and SEO.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `url` | string | yes | URL to audit (e.g. `http://localhost:3000`) |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"lighthouse\", \"url\": \"http://localhost:3000\"}\n```\n\n### screenshot — Take a full-page screenshot\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `url` | string | yes | URL to screenshot |\n| `viewport` | string | no | Viewport size (default: \"1280x720\") |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"screenshot\", \"url\": \"http://localhost:3000\", \"viewport\": \"1920x1080\"}\n```\n\n## Deployment\n\n### deploy — Build and upload to remote server via SFTP\nBuilds the project, then uploads the build output to the configured remote server.\nAlways pass the workspace-relative `project_dir` for the project being deployed.\n```json\n{\"action\": \"homepage\", \"operation\": \"deploy\", \"project_dir\": \"my-site\"}\n```\n\n### test_connection — Test SFTP/SCP connection\nTests connectivity to the configured deployment target.\n```json\n{\"action\": \"homepage\", \"operation\": \"test_connection\"}\n```\n\n## Local Web Server (Caddy)\n\nAuraGo uses two different concepts here:\n- **Dev workspace**: where homepage project files are edited inside the homepage tool workflow\n- **Published local site**: served by the separate Caddy container `aurago-homepage-web`\n\nFor local publishing, the Caddy container serves files from:\n- container name: `aurago-homepage-web`\n- document root: `/srv`\n- config path: `/etc/caddy/Caddyfile`\n\n### Shared Docker Network\n\nBoth the dev container (`aurago-homepage`) and the Caddy web container (`aurago-homepage-web`) are connected to a shared Docker network (`aurago-homepage-net`). This enables:\n\n1. **Static file serving** — Caddy serves build output from `/srv` (default)\n2. **Reverse proxy to dev servers** — When a dev server is started via the `dev` operation, Caddy automatically proxies `/\u003cproject_dir\u003e/*` to the dev container. This makes Next.js, Vite, and other framework dev servers accessible through the same Caddy URL without needing a separate port.\n\nProxy routes are persisted in the workspace as `.aurago-proxy-routes.json` and are automatically included when Caddy starts or reloads.\n\n### Caddy Config with Proxy Routes\n\nThe generated Caddyfile uses `handle` blocks for proxy routes (matched first) and a default `handle` for static file serving:\n\n```\n:80 {\n    root * /srv\n    encode gzip\n\n    handle /phaser-demo* {\n        reverse_proxy aurago-homepage:3000\n    }\n\n    handle {\n        file_server\n        try_files {path} /index.html\n    }\n}\n```\n\nDo **not** assume `/var/www/html`. Use `publish_local` or `webserver_start` instead of manual `docker cp` to guessed paths.\n\n### webserver_start — Start local Caddy web server\nServes the build output via Caddy (Docker required). Always pass `project_dir` for the project that should be public at `/`.\nOmit `project_dir` only for recovery/status restoration of an already published site, or when intentionally using the single-project/plain-HTML auto-detect path. When the project is known, pass `project_dir`; do not omit it for ordinary build, publish, or deploy work.\n```json\n{\"action\": \"homepage\", \"operation\": \"webserver_start\", \"project_dir\": \"my-site\"}\n```\n\n**Response:**\n- `url`: The URL where the site is accessible\n- `served_url`: Canonical served URL\n- `mode`: \"docker\"\n- `container_name`: `aurago-homepage-web`\n- `document_root`: `/srv`\n- `source_path`: Host-side build or project directory mounted into Caddy\n- `project_dir` / `build_dir`: The resolved workspace source mounted as `/srv`; for plain HTML projects, `build_dir` is `.`\n\n### webserver_stop — Stop the web server\n```json\n{\"action\": \"homepage\", \"operation\": \"webserver_stop\"}\n```\n\n### webserver_status — Check web server status\n```json\n{\"action\": \"homepage\", \"operation\": \"webserver_status\"}\n```\n\n### publish_local — Build and serve locally\nCombines `build` + `webserver_start` in one step.\nFor plain HTML projects (no `package.json`), the build step is automatically skipped and the project directory is served directly.\nReferenced AuraGo assets (`/files/generated_images/*`, generated image `/assets/img_*` paths, `/files/audio/*`, `/files/documents/*`) are automatically copied into the build directory so the Caddy container can serve them.\nAlways pass the workspace-relative `project_dir` for the project being published.\n```json\n{\"action\": \"homepage\", \"operation\": \"publish_local\", \"project_dir\": \"my-site\"}\n```\n\n## Recommended Workflow\n\n1. **Initialize:** `init` → creates the Docker dev environment\n2. **Scaffold:** `init_project` → creates a new project with chosen framework (optionally with a template)\n3. **Version Control:** `git_init` → initialize git repository for the project\n4. **Develop:** Use `write_file` to create/edit files, `install_deps` for packages\n5. **Commit:** `git_commit` → save progress with a meaningful message\n6. **Preview:** `dev` to start the dev server, `tunnel` to share externally, `screenshot` to capture preview\n7. **Test:** `lighthouse` for performance audit, `lint` for code quality, `check_js` for runtime JS errors\n8. **Optimize:** `optimize_images` for SVG optimization\n9. **Build:** `build` with `project_dir` (and `auto_fix: true` for automatic error recovery)\n10. **Deploy:** Choose based on target and pass `project_dir`:\n    - `publish_local` — serve locally with Caddy (DEFAULT for most cases, no config flags needed)\n    - `deploy` — upload to remote server (requires `homepage.allow_deploy=true`)\n    - `deploy_netlify` — deploy to Netlify (requires `netlify.allow_deploy=true`)\n    - `deploy_vercel` — deploy to Vercel (requires `vercel.allow_deploy=true`)\n\n## Version Control (Git)\n\nGit operations run inside the Docker container. Initialize a repository to track changes, rollback mistakes, and maintain project history.\n\n### git_init — Initialize a git repository\nCreates a repository with an initial commit.\n```json\n{\"action\": \"homepage\", \"operation\": \"git_init\", \"project_dir\": \"my-site\"}\n```\n\n### git_commit — Commit all changes\nStages all modifications and commits.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `git_message` | string | no | Commit message (default: \"Update\") |\n| `project_dir` | string | yes | Workspace-relative project subdirectory |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"git_commit\", \"project_dir\": \"my-site\", \"git_message\": \"Add hero section and navigation\"}\n```\n\n### git_status — View changed files\n```json\n{\"action\": \"homepage\", \"operation\": \"git_status\", \"project_dir\": \"my-site\"}\n```\n\n### git_diff — View current changes\n```json\n{\"action\": \"homepage\", \"operation\": \"git_diff\", \"project_dir\": \"my-site\"}\n```\n\n### git_log — View commit history\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `count` | integer | no | Number of commits to show (default: 10, max: 100) |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"git_log\", \"project_dir\": \"my-site\", \"count\": 5}\n```\n\n### git_rollback — Revert recent commits\nCreates new revert commits (safe — never rewrites history).\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `count` | integer | no | Number of commits to revert (default: 1, max: 10) |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"git_rollback\", \"project_dir\": \"my-site\", \"count\": 1}\n```\n\n## Build with Auto-Fix\n\nThe `build` operation supports automatic error recovery when `auto_fix` is set to `true`.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `auto_fix` | boolean | no | If true, attempt to fix common build errors and retry once |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"build\", \"project_dir\": \"my-site\", \"auto_fix\": true}\n```\n\n**Auto-fixable errors:**\n- Missing npm modules → auto-installs the package\n- Webpack module resolution failures → auto-installs the module\n- ESLint fixable errors → runs `eslint --fix`\n- Missing dependencies / node_modules → runs `npm install`\n\nThe response includes `auto_fix_applied: true` and `auto_fix_pattern` when a fix was applied.\n\n## Project Templates\n\nWhen using `init_project`, you can specify a `template` to get pre-built CSS layouts and a README:\n\n| Template | Description |\n|----------|-------------|\n| `portfolio` | Dark-theme portfolio with hero, project cards, skills grid |\n| `blog` | Clean serif blog with article list, tags, metadata |\n| `landing` | Marketing landing page with hero, features, testimonials, CTA |\n| `dashboard` | Admin dashboard with sidebar, stats cards, data table |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"init_project\", \"framework\": \"next\", \"name\": \"my-portfolio\", \"template\": \"portfolio\"}\n```\n\nTemplates write CSS files into `src/styles/` and a `TEMPLATE_README.md`. Import the CSS in your layout and use the documented class names.\n\n## Sharing \u0026 Tunnels\n\n### tunnel — Create a public URL for sharing\nStarts a Cloudflare quick tunnel to expose a local port to the internet via a temporary `*.trycloudflare.com` URL.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `port` | integer | no | Local port to expose (default: 3000) |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"tunnel\", \"port\": 3000}\n```\n\n**Notes:**\n- Requires `cloudflared` in the Docker container (included since container rebuild)\n- The URL is temporary and changes each time\n- Also returns a `lan_url` for accessing from other devices on the same network\n- The `webserver_start` response now automatically includes a `lan_url` when binding to all interfaces\n\n## Important Notes\n\n- All file paths are relative to `/workspace` inside the container\n- `project_dir` must always be relative to the homepage workspace. Use `ki-news`; never `/workspace/ki-news`.\n- Mutating and deployment operations must carry the workspace-relative `project_dir`.\n  Do not deploy, publish, build, or clean up a homepage project from a guessed folder name.\n- `homepage.workspace_path` in the config UI is only the host mount path. Tool arguments still stay relative, e.g. `project_dir: \"my-site\"` and `path: \"my-site/src/app/page.tsx\"`.\n- The container persists between sessions (uses `unless-stopped` restart policy)\n- Build output directory is auto-detected: checks `out`, `dist`, `build`, `.next`, `public`. If none exist (plain HTML), serves the project root directly.\n- Plain HTML projects (no `package.json`) skip the build step entirely — no Docker dev container needed for deployment.\n- For deployment, store credentials in the vault: `homepage_deploy_password` or `homepage_deploy_key`\n- The Caddy web server can serve with automatic HTTPS if a domain is configured (Docker mode only)\n- Use compound operations (`init_project`, `build`, `publish_local`, `deploy_netlify`, `deploy_vercel`) to save tokens and keep the pipeline recoverable — avoid running many individual `exec` calls\n- Use the homepage workspace operations from the Required Task Rule for project files; do not fall back to generic workspace tools.\n- **NEVER use generic `execute_shell` for `/workspace/...` commands.** `/workspace` exists inside the homepage container; use `homepage_project` `exec`, `homepage_file`, or `homepage_deploy` `build`.\n- **Do not directly edit generated output** (`dist`, `build`, `out`) with shell redirection or copy commands. These directories are deployment artifacts; change source files and rebuild.\n\n### Using Generated Images in Netlify Deployments\n\n**IMPORTANT:** Images generated with `generate_image` or found through `media_registry` are AuraGo-local assets first. For homepage source code, prefer copying the image into the project's deployable static directory and referencing that project asset.\n\nFor Vite, React, and plain HTML projects, put local images under `public/assets/...` or the framework-equivalent static directory, then reference them with a project-relative web URL:\n```html\n\u003cimg src=\"/assets/banner.jpeg\" alt=\"Banner\"\u003e\n```\n\nIf an existing page already references generated AuraGo assets such as `/files/generated_images/\u003cfilename\u003e`, generated image `/assets/img_\u003cid\u003e.jpeg` paths, or legacy `/img_\u003cid\u003e.jpeg` paths, `deploy_netlify` tries to bundle those files into the ZIP. Do not rely on that as the primary workflow for new edits: make the image a deployable project asset in `public/assets` and update the markup to `/assets/\u003cfilename\u003e`.\n\nNever use `file://`, host filesystem paths, `/workspace/...`, `data/homepage/...`, or `agent_workspace/...` in page markup. Those paths are not fetchable from a deployed browser.\n\nThe `deploy_netlify` operation installs missing dependencies, builds, validates that the selected output contains `index.html`, scans HTML/CSS/JS for generated asset references, uploads a ZIP, waits for Netlify to report the deploy as ready, and verifies the public URL.\n\nIf a framework build fails but a finished static sibling directory exists, such as `my-site-static/index.html`, `deploy_netlify` may fall back to that static project and returns `fallback_project_dir` in the result. For an explicitly static export, you can also call `deploy_netlify` with `project_dir: \"my-site-static\"` and `build_dir: \".\"`.\n\n### Using Vercel Deployments\n\nUse `deploy_vercel` when the homepage project should be published to Vercel from AuraGo's managed workspace.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `project_dir` | string | yes | Homepage workspace directory to deploy |\n| `project_id` | string | no | Vercel project name or ID to link before deploying; falls back to `vercel.default_project_id` |\n| `build_dir` | string | no | Explicit directory to upload; otherwise auto-detected after build |\n| `target` | string | no | `preview` or `production` (default: `preview`, production requires explicit selection) |\n| `alias` | string | no | Alias or domain to assign after a successful deployment |\n| `domain` | string | no | Custom domain to add/verify before alias assignment |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"deploy_vercel\", \"project_dir\": \"my-site\", \"project_id\": \"my-site\", \"target\": \"preview\"}\n```\n\n```json\n{\"action\": \"homepage\", \"operation\": \"deploy_vercel\", \"project_dir\": \"my-site\", \"project_id\": \"my-site\", \"target\": \"production\", \"domain\": \"www.example.com\"}\n```\n\nNotes:\n- `deploy_vercel` is designed for homepage workspace projects including HTML, Vite/React, Astro, and Next.js.\n- Projects with `package.json` deploy Vercel-native from the project root after a local build check, even when `build_dir` is provided. Explicit static `build_dir` values are only for plain static projects without package metadata and must contain a valid `index.html`.\n- Do not patch Next.js into static export for Vercel. Let Vercel build and route the framework project from source.\n- AuraGo validates the build first, links the Vercel project when a project reference is available, then deploys from the homepage workspace via the Vercel CLI.\n- If the Vercel project does not exist yet, AuraGo can create it automatically only when `vercel.allow_project_management=true`.\n- Alias or custom domain assignment requires `vercel.allow_domain_management=true`.\n\n## Troubleshooting\n\n### \"Docker not available\" Error\n\n**Problem:** Docker daemon is not running or not accessible.\n\n**Solutions:**\n1. **Start Docker:** `sudo systemctl start docker` (recommended)\n2. **Enable Docker:** `sudo systemctl enable docker`\n\n### Web Server Not Accessible\n\n**Problem:** `publish_local` or `webserver_start` reports success but site not reachable.\n\n**Check:**\n1. Verify port is not in use: `netstat -tlnp | grep 8080`\n2. Check firewall rules: `sudo ufw allow 8080`\n3. Try different port in config: `homepage.webserver_port: 8081`\n\n### Dev Server Returns 404 via Caddy\n\n**Problem:** The dev server runs inside the container but Caddy returns 404 for `/\u003cproject_dir\u003e/` paths.\n\n**Cause:** The Caddy and dev containers must be on the same Docker network (`aurago-homepage-net`) for Caddy to reach the dev server by container name.\n\n**Solutions:**\n1. Restart the dev container (`homepage stop` + `homepage start`) — it auto-connects to the shared network\n2. Restart the Caddy web server (`webserver_stop` + `webserver_start`) — it also auto-connects\n3. Verify both containers are on the network: `docker network inspect aurago-homepage-net`\n\n### Status Shows \"running\": false\n\n**Problem:** Container appears stopped.\n\n**Solutions:**\n1. Check Docker status: `docker ps -a`\n2. Start manually: `homepage start`\n3. If the user explicitly approves a destructive reset: `homepage destroy` with `force: true`, then `homepage init`\n\n### init_project fails or install_deps can't find directory\n\n**Problem:** `init_project` appears to succeed but `install_deps` or `build` reports directory not found. This typically means the Node.js version in the container is too old for the requested framework (npm `EBADENGINE` warnings).\n\n**Solutions:**\n1. Use `framework: \"html\"` for plain HTML projects (no Node.js required)\n2. Rebuild the homepage container to get a newer Node.js: `homepage rebuild`\n3. Create files manually with `homepage write_file`\n\n### deploy_netlify: \"Deploy path does not exist\"\n\n**Problem:** Files were created outside the homepage workspace, commonly through a generic file tool, placing them in `agent_workspace/workdir/` instead of the homepage workspace.\n\n**Solution:** Use `homepage write_file` to create all project files. The `deploy_netlify` operation only finds files in the homepage workspace (`data/homepage/`).\n\n### deploy_netlify: \"Missing script: build\"\n\n**Problem:** `package.json` exists, but it does not define a `build` script.\n\n**Solution:** Do not keep retrying the same deploy call. Either:\n1. Treat the project as static HTML and deploy the project root directly, or\n2. Add a valid `build` script to `package.json`, then retry.\n\nIf the project is plain HTML, you usually do not need a build step at all.\n\n### deploy_vercel: \"project was not found\"\n\n**Problem:** The requested Vercel project does not exist and automatic project creation is blocked.\n\n**Solution:** Either:\n1. Set `vercel.default_project_id` or pass `project_id` explicitly, or\n2. Enable `vercel.allow_project_management` so AuraGo may create the Vercel project automatically.\n\n### deploy_vercel: alias or domain assignment failed\n\n**Problem:** The deployment succeeded, but the requested alias or custom domain could not be attached.\n\n**Solution:** Check:\n1. `vercel.allow_domain_management=true`\n2. The domain is already configured for the same Vercel team/account\n3. DNS verification is complete if you are using a custom domain\n\n## Configuration\n\n```yaml\nhomepage:\n  enabled: true\n  allow_local_server: false  # Enable Python fallback when Docker unavailable\n  workspace_path: \"data/homepage\"  # Path for homepage projects\n  # For deployment:\n  # SFTP/SCP credentials stored in vault:\n  # - homepage_deploy_host: deployment server hostname\n  # - homepage_deploy_user: deployment username\n  # - homepage_deploy_password OR homepage_deploy_key: authentication\n```\n\n## Notes\n\n- **File paths**: All file paths are relative to `/workspace` inside the container\n- **project_dir**: Must always be relative to the homepage workspace (e.g., `my-site`; never `/workspace/my-site`)\n- Use homepage workspace operations for homepage project files; generic workspace tools use a different location\n- **Container persistence**: The container persists between sessions (uses `unless-stopped` restart policy)\n- **Build output**: Auto-detected: `out`, `dist`, `build`, `.next`, `public`\n- **Plain HTML projects**: Skip the build step entirely — no Docker dev container needed for deployment\n- **Auto-fix**: The `build` operation can automatically fix common errors when `auto_fix: true`\n",
+      "sha256": "6d9dc594036a75f8fa8588c5dad80800624a90514793a1218b2e197182f5537c",
+      "body": "# Homepage Legacy Compatibility (`homepage`)\n\nDesign, develop, build, test and deploy professional websites using AuraGo's web workspace with Docker-based full mode and limited local fallback support.\n\nPrefer the focused native tools `homepage_project`, `homepage_file`, `homepage_quality`, `homepage_deploy`, and `homepage_git` when they are visible. The legacy `homepage` action remains accepted for dispatch compatibility with older clients and prompts.\n\n## Required Task Rule\n\nThe `homepage` tool has a required active task rule: `homepage`.\n\nBefore planning, deleting, creating, editing, building, previewing, publishing, or deploying a homepage/website/page project, read and follow the current `# TASK RULES` section for `Homepage Workflow` and the `# HOMEPAGE DESIGN SYSTEM` section when it is present. The design system is not optional styling advice; it is the default visual contract for homepage work unless the user or project supplies a more specific `DESIGN.md`.\n\nIf those sections are not visible yet, do not improvise with generic filesystem, shell, or ad-hoc design choices. Use the focused homepage tool path; the runtime will pause the first matching tool call, inject the required rule/design context, and ask you to retry only after reading it. Intent matching is only a convenience fallback, not the authority.\n\n## Prerequisites\n\n- **Required**: Homepage integration enabled (`homepage.enabled: true`)\n- **Recommended**: Docker integration enabled for the full dev environment\n- For deployment: SFTP/SCP credentials must be stored in the vault\n\n## Operations\n\n| Operation | Description |\n|-----------|-------------|\n| `init` | Initialize the dev environment (run first) |\n| `start` | Start the dev container |\n| `stop` | Stop the dev container |\n| `status` | Get environment status |\n| `rebuild` | Rebuild the dev container from scratch |\n| `destroy` | Remove everything; requires explicit `force: true` |\n| `init_project` | Create a new web project |\n| `exec` | Run a diagnostic shell command in the container |\n| `write_file` | Write/create a file |\n| `read_file` | Read a file |\n| `list_files` | List project files |\n| `install_deps` | Install npm packages |\n| `build` | Build for production |\n| `dev` | Start the dev server |\n| `lint` | Run TypeScript \u0026 ESLint checks |\n| `check_js` | Check for JavaScript runtime errors |\n| `optimize_images` | Optimize SVGs with SVGO |\n| `lighthouse` | Run Lighthouse performance audit |\n| `screenshot` | Take a full-page screenshot |\n| `deploy` | Build and upload to remote server via SFTP |\n| `test_connection` | Test SFTP/SCP connection |\n| `webserver_start` | Start local Caddy web server |\n| `webserver_stop` | Stop the web server |\n| `webserver_status` | Check web server status |\n| `publish_local` | Build and serve locally |\n| `deploy_netlify` | Build and deploy directly to Netlify |\n| `deploy_vercel` | Build and deploy directly to Vercel |\n| `git_init` | Initialize a git repository |\n| `git_commit` | Commit all changes |\n| `git_status` | View changed files |\n| `git_diff` | View current changes |\n| `git_log` | View commit history |\n| `git_rollback` | Revert recent commits |\n| `tunnel` | Create a public URL for sharing |\n\n## Existing Project Fast Path\n\nWhen updating or publishing an existing homepage project, use this direct path:\n\n1. `homepage` → `list_files` with `path: \".\"` to identify the project directory.\n2. `homepage` → `read_file` / `write_file` with a project-prefixed `path`, for example `my-site/index.html`.\n3. `homepage` → `build` with `project_dir: \"my-site\"`; missing dependencies are installed automatically.\n4. `homepage` → `publish_local` with `project_dir: \"my-site\"` for browser checks, then `deploy_netlify` or `deploy_vercel` with `project_dir: \"my-site\"`.\n5. Verify the returned deployment URL or the live page before reporting success.\n\nDo not use the generic `filesystem` tool to inspect, copy, or edit homepage project files. It writes to `agent_workspace/workdir/`, not the homepage workspace. Do not use generic `execute_shell` for `/workspace/...` commands either; `/workspace` is the homepage container path, so use focused homepage operations instead.\n\n## Runtime Modes\n\n### Docker Mode\n\nFull dev environment with Node.js, Playwright, Lighthouse and Caddy web server with automatic HTTPS.\nSupports all frameworks: Next.js, Vite, Astro, SvelteKit, Vue, static HTML.\n\n## Container Lifecycle\n\n### init — Initialize the dev environment\nCreates the Docker image and container. **Run this first** before any other operation.\n```json\n{\"action\": \"homepage\", \"operation\": \"init\"}\n```\n\n**Note:** Docker should be running for the full toolset. If Docker is unavailable, start it with `sudo systemctl start docker`.\n\n**Build refused:** if `init` answers `code: homepage_image_build_forbidden`, the Docker endpoint refuses image builds (socket proxy with `BUILD=0`). Give the user the returned `build_command` (or `BUILD=1` for the docker-proxy service) and stop. Do not call `rebuild`: it deletes the image first.\n\n### Local Fallback Mode\nIf Docker is unavailable and `homepage.allow_local_server` is enabled, AuraGo can still handle limited local workflows:\n- local/plain HTML project creation\n- homepage workspace file reads and writes\n- local publishing via the Python fallback server\n- status checks for the fallback server\n\n### start — Start the dev container\n```json\n{\"action\": \"homepage\", \"operation\": \"start\"}\n```\n\n### stop — Stop the dev container\n```json\n{\"action\": \"homepage\", \"operation\": \"stop\"}\n```\n\n### status — Get environment status\nReturns status of Docker containers or Python fallback server.\n```json\n{\"action\": \"homepage\", \"operation\": \"status\"}\n```\n\n**Response fields:**\n- `docker_available`: true/false - whether Docker is accessible\n- `mode`: \"docker\" or \"python_fallback\"\n- `python_server`: Status of Python HTTP server (in fallback mode)\n\n### rebuild — Rebuild the dev container from scratch\nRemoves container and image, then rebuilds. Use when you need a fresh environment.\n```json\n{\"action\": \"homepage\", \"operation\": \"rebuild\"}\n```\n\n### destroy — Remove everything\nRemoves both containers and the dev image.\nOnly use this when the user explicitly asks to destroy/reset the homepage environment. For routine recovery prefer `status`, `start`, `init`, or `rebuild`.\n```json\n{\"action\": \"homepage\", \"operation\": \"destroy\", \"force\": true}\n```\n\n## Project Scaffolding\n\n### init_project — Create a new web project\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `framework` | string | yes | `next`, `vite`, `astro`, `svelte`, `vue`, or `html` |\n| `name` | string | no | Project name (default: \"my-site\") |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"init_project\", \"framework\": \"next\", \"name\": \"my-portfolio\"}\n```\n```json\n{\"action\": \"homepage\", \"operation\": \"init_project\", \"framework\": \"astro\", \"name\": \"blog\"}\n```\n```json\n{\"action\": \"homepage\", \"operation\": \"init_project\", \"framework\": \"html\", \"name\": \"landing-page\"}\n```\n\n## Development\n\n`write_file`, `read_file`, `edit_file`, `list_files`, and other project-file operations work against the **homepage dev workspace**, not the published web root.\nKeep `project_dir`/`path` values relative to the homepage workspace.\n\nIf an existing project directory is owned by root or otherwise not writable by the homepage container user, `write_file`, `init_project`, and write-oriented `exec` commands will attempt an automatic project-scoped permission repair before failing. Do not retry with manual `chmod` from the unprivileged container user; inspect the returned repair error instead.\n\n### exec — Run a shell command in the container\n```json\n{\"action\": \"homepage\", \"operation\": \"exec\", \"command\": \"cd /workspace/my-site \u0026\u0026 npm run dev\"}\n```\n\nUse `exec` for diagnostics such as reading package metadata, checking logs, or running one-off inspection commands. Do not use it as the normal build/deploy path, and do not use shell redirects, `cp`, `mv`, `rm`, or similar commands to write directly into generated output directories like `/workspace/my-site/dist`, `/workspace/my-site/build`, or `/workspace/my-site/out`. Edit source files with `write_file`/`edit_file`, run `build`, then deploy through `deploy_netlify` or `deploy_vercel`.\n\n### write_file — Write/create a file\nContent is safely base64-encoded internally. Parent directories are created automatically.\n```json\n{\"action\": \"homepage\", \"operation\": \"write_file\", \"path\": \"my-site/src/components/Hero.tsx\", \"content\": \"export default function Hero() { return \u003csection\u003e...\u003c/section\u003e }\"}\n```\n\n### read_file — Read a file\n```json\n{\"action\": \"homepage\", \"operation\": \"read_file\", \"path\": \"my-site/src/app/page.tsx\"}\n```\n\n### list_files — List project files\nReturns up to 200 files, excluding node_modules, .next, and .git.\n```json\n{\"action\": \"homepage\", \"operation\": \"list_files\", \"path\": \"my-site/src\"}\n```\n\n### install_deps — Install npm packages\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `packages` | string[] | no | Specific packages (omit for `npm install`) |\n| `project_dir` | string | yes | Workspace-relative project subdirectory |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"install_deps\", \"project_dir\": \"my-site\", \"packages\": [\"tailwindcss\", \"@headlessui/react\", \"framer-motion\"]}\n```\n\n### build — Build for production\nFor framework projects, `build` runs inside the managed `aurago-homepage` container, not the host shell. After a successful build, referenced AuraGo assets such as `/files/generated_images/*`, generated image `/assets/img_*` paths, videos, audio, and documents are copied into the detected build output so the local Caddy server and deploy candidates can serve them.\n\n```json\n{\"action\": \"homepage\", \"operation\": \"build\", \"project_dir\": \"my-site\"}\n```\n\n### dev — Start the dev server\nStarts the dev server (e.g. `npm run dev`) in the background. When the Caddy web container is running and a `project_dir` is specified, a reverse_proxy route is automatically registered so the app is accessible through the Caddy web server at `/\u003cproject_dir\u003e/`.\n\nThe dev container and Caddy web container are connected via a shared Docker network (`aurago-homepage-net`), allowing Caddy to forward requests to the dev server. Proxy routes are persisted in the workspace (`.aurago-proxy-routes.json`) and survive container restarts.\n\n```json\n{\"action\": \"homepage\", \"operation\": \"dev\", \"project_dir\": \"my-site\"}\n```\n\n### lint — Run TypeScript \u0026 ESLint checks\nRuns `tsc --noEmit` (if `tsconfig.json` exists) followed by ESLint. Returns combined output.\n```json\n{\"action\": \"homepage\", \"operation\": \"lint\", \"project_dir\": \"my-site\"}\n```\n\n### check_js — Check for JavaScript runtime errors\nUses Playwright to load a page in headless Chromium and captures JavaScript errors and console errors. Useful for detecting runtime issues that linting alone cannot catch.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `url` | string | yes | URL to check (e.g. `http://localhost:3000`) |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"check_js\", \"url\": \"http://localhost:3000\"}\n```\n\n**Response fields:**\n- `errorCount`: Number of JS errors detected\n- `errors`: Array of error messages (page errors and console errors)\n\n### optimize_images — Optimize SVGs with SVGO\nOptimizes **SVG files only** (not PNG/JPEG). Uses SVGO with multipass optimization.\n```json\n{\"action\": \"homepage\", \"operation\": \"optimize_images\", \"project_dir\": \"my-site\"}\n```\n\n## Testing \u0026 Quality\n\n### lighthouse — Run Lighthouse performance audit\nReturns compact scores for performance, accessibility, best practices and SEO.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `url` | string | yes | URL to audit (e.g. `http://localhost:3000`) |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"lighthouse\", \"url\": \"http://localhost:3000\"}\n```\n\n### screenshot — Take a full-page screenshot\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `url` | string | yes | URL to screenshot |\n| `viewport` | string | no | Viewport size (default: \"1280x720\") |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"screenshot\", \"url\": \"http://localhost:3000\", \"viewport\": \"1920x1080\"}\n```\n\n## Deployment\n\n### deploy — Build and upload to remote server via SFTP\nBuilds the project, then uploads the build output to the configured remote server.\nAlways pass the workspace-relative `project_dir` for the project being deployed.\n```json\n{\"action\": \"homepage\", \"operation\": \"deploy\", \"project_dir\": \"my-site\"}\n```\n\n### test_connection — Test SFTP/SCP connection\nTests connectivity to the configured deployment target.\n```json\n{\"action\": \"homepage\", \"operation\": \"test_connection\"}\n```\n\n## Local Web Server (Caddy)\n\nAuraGo uses two different concepts here:\n- **Dev workspace**: where homepage project files are edited inside the homepage tool workflow\n- **Published local site**: served by the separate Caddy container `aurago-homepage-web`\n\nFor local publishing, the Caddy container serves files from:\n- container name: `aurago-homepage-web`\n- document root: `/srv`\n- config path: `/etc/caddy/Caddyfile`\n\n### Shared Docker Network\n\nBoth the dev container (`aurago-homepage`) and the Caddy web container (`aurago-homepage-web`) are connected to a shared Docker network (`aurago-homepage-net`). This enables:\n\n1. **Static file serving** — Caddy serves build output from `/srv` (default)\n2. **Reverse proxy to dev servers** — When a dev server is started via the `dev` operation, Caddy automatically proxies `/\u003cproject_dir\u003e/*` to the dev container. This makes Next.js, Vite, and other framework dev servers accessible through the same Caddy URL without needing a separate port.\n\nProxy routes are persisted in the workspace as `.aurago-proxy-routes.json` and are automatically included when Caddy starts or reloads.\n\n### Caddy Config with Proxy Routes\n\nThe generated Caddyfile uses `handle` blocks for proxy routes (matched first) and a default `handle` for static file serving:\n\n```\n:80 {\n    root * /srv\n    encode gzip\n\n    handle /phaser-demo* {\n        reverse_proxy aurago-homepage:3000\n    }\n\n    handle {\n        file_server\n        try_files {path} /index.html\n    }\n}\n```\n\nDo **not** assume `/var/www/html`. Use `publish_local` or `webserver_start` instead of manual `docker cp` to guessed paths.\n\n### webserver_start — Start local Caddy web server\nServes the build output via Caddy (Docker required). Always pass `project_dir` for the project that should be public at `/`.\nOmit `project_dir` only for recovery/status restoration of an already published site, or when intentionally using the single-project/plain-HTML auto-detect path. When the project is known, pass `project_dir`; do not omit it for ordinary build, publish, or deploy work.\n```json\n{\"action\": \"homepage\", \"operation\": \"webserver_start\", \"project_dir\": \"my-site\"}\n```\n\n**Response:**\n- `url`: The URL where the site is accessible\n- `served_url`: Canonical served URL\n- `mode`: \"docker\"\n- `container_name`: `aurago-homepage-web`\n- `document_root`: `/srv`\n- `source_path`: Host-side build or project directory mounted into Caddy\n- `project_dir` / `build_dir`: The resolved workspace source mounted as `/srv`; for plain HTML projects, `build_dir` is `.`\n\n### webserver_stop — Stop the web server\n```json\n{\"action\": \"homepage\", \"operation\": \"webserver_stop\"}\n```\n\n### webserver_status — Check web server status\n```json\n{\"action\": \"homepage\", \"operation\": \"webserver_status\"}\n```\n\n### publish_local — Build and serve locally\nCombines `build` + `webserver_start` in one step.\nFor plain HTML projects (no `package.json`), the build step is automatically skipped and the project directory is served directly.\nReferenced AuraGo assets (`/files/generated_images/*`, generated image `/assets/img_*` paths, `/files/audio/*`, `/files/documents/*`) are automatically copied into the build directory so the Caddy container can serve them.\nAlways pass the workspace-relative `project_dir` for the project being published.\n```json\n{\"action\": \"homepage\", \"operation\": \"publish_local\", \"project_dir\": \"my-site\"}\n```\n\n## Recommended Workflow\n\n1. **Initialize:** `init` → creates the Docker dev environment\n2. **Scaffold:** `init_project` → creates a new project with chosen framework (optionally with a template)\n3. **Version Control:** `git_init` → initialize git repository for the project\n4. **Develop:** Use `write_file` to create/edit files, `install_deps` for packages\n5. **Commit:** `git_commit` → save progress with a meaningful message\n6. **Preview:** `dev` to start the dev server, `tunnel` to share externally, `screenshot` to capture preview\n7. **Test:** `lighthouse` for performance audit, `lint` for code quality, `check_js` for runtime JS errors\n8. **Optimize:** `optimize_images` for SVG optimization\n9. **Build:** `build` with `project_dir` (and `auto_fix: true` for automatic error recovery)\n10. **Deploy:** Choose based on target and pass `project_dir`:\n    - `publish_local` — serve locally with Caddy (DEFAULT for most cases, no config flags needed)\n    - `deploy` — upload to remote server (requires `homepage.allow_deploy=true`)\n    - `deploy_netlify` — deploy to Netlify (requires `netlify.allow_deploy=true`)\n    - `deploy_vercel` — deploy to Vercel (requires `vercel.allow_deploy=true`)\n\n## Version Control (Git)\n\nGit operations run inside the Docker container. Initialize a repository to track changes, rollback mistakes, and maintain project history.\n\n### git_init — Initialize a git repository\nCreates a repository with an initial commit.\n```json\n{\"action\": \"homepage\", \"operation\": \"git_init\", \"project_dir\": \"my-site\"}\n```\n\n### git_commit — Commit all changes\nStages all modifications and commits.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `git_message` | string | no | Commit message (default: \"Update\") |\n| `project_dir` | string | yes | Workspace-relative project subdirectory |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"git_commit\", \"project_dir\": \"my-site\", \"git_message\": \"Add hero section and navigation\"}\n```\n\n### git_status — View changed files\n```json\n{\"action\": \"homepage\", \"operation\": \"git_status\", \"project_dir\": \"my-site\"}\n```\n\n### git_diff — View current changes\n```json\n{\"action\": \"homepage\", \"operation\": \"git_diff\", \"project_dir\": \"my-site\"}\n```\n\n### git_log — View commit history\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `count` | integer | no | Number of commits to show (default: 10, max: 100) |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"git_log\", \"project_dir\": \"my-site\", \"count\": 5}\n```\n\n### git_rollback — Revert recent commits\nCreates new revert commits (safe — never rewrites history).\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `count` | integer | no | Number of commits to revert (default: 1, max: 10) |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"git_rollback\", \"project_dir\": \"my-site\", \"count\": 1}\n```\n\n## Build with Auto-Fix\n\nThe `build` operation supports automatic error recovery when `auto_fix` is set to `true`.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `auto_fix` | boolean | no | If true, attempt to fix common build errors and retry once |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"build\", \"project_dir\": \"my-site\", \"auto_fix\": true}\n```\n\n**Auto-fixable errors:**\n- Missing npm modules → auto-installs the package\n- Webpack module resolution failures → auto-installs the module\n- ESLint fixable errors → runs `eslint --fix`\n- Missing dependencies / node_modules → runs `npm install`\n\nThe response includes `auto_fix_applied: true` and `auto_fix_pattern` when a fix was applied.\n\n## Project Templates\n\nWhen using `init_project`, you can specify a `template` to get pre-built CSS layouts and a README:\n\n| Template | Description |\n|----------|-------------|\n| `portfolio` | Dark-theme portfolio with hero, project cards, skills grid |\n| `blog` | Clean serif blog with article list, tags, metadata |\n| `landing` | Marketing landing page with hero, features, testimonials, CTA |\n| `dashboard` | Admin dashboard with sidebar, stats cards, data table |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"init_project\", \"framework\": \"next\", \"name\": \"my-portfolio\", \"template\": \"portfolio\"}\n```\n\nTemplates write CSS files into `src/styles/` and a `TEMPLATE_README.md`. Import the CSS in your layout and use the documented class names.\n\n## Sharing \u0026 Tunnels\n\n### tunnel — Create a public URL for sharing\nStarts a Cloudflare quick tunnel to expose a local port to the internet via a temporary `*.trycloudflare.com` URL.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `port` | integer | no | Local port to expose (default: 3000) |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"tunnel\", \"port\": 3000}\n```\n\n**Notes:**\n- Requires `cloudflared` in the Docker container (included since container rebuild)\n- The URL is temporary and changes each time\n- Also returns a `lan_url` for accessing from other devices on the same network\n- The `webserver_start` response now automatically includes a `lan_url` when binding to all interfaces\n\n## Important Notes\n\n- All file paths are relative to `/workspace` inside the container\n- `project_dir` must always be relative to the homepage workspace. Use `ki-news`; never `/workspace/ki-news`.\n- Mutating and deployment operations must carry the workspace-relative `project_dir`.\n  Do not deploy, publish, build, or clean up a homepage project from a guessed folder name.\n- `homepage.workspace_path` in the config UI is only the host mount path. Tool arguments still stay relative, e.g. `project_dir: \"my-site\"` and `path: \"my-site/src/app/page.tsx\"`.\n- The container persists between sessions (uses `unless-stopped` restart policy)\n- Build output directory is auto-detected: checks `out`, `dist`, `build`, `.next`, `public`. If none exist (plain HTML), serves the project root directly.\n- Plain HTML projects (no `package.json`) skip the build step entirely — no Docker dev container needed for deployment.\n- For deployment, store credentials in the vault: `homepage_deploy_password` or `homepage_deploy_key`\n- The Caddy web server can serve with automatic HTTPS if a domain is configured (Docker mode only)\n- Use compound operations (`init_project`, `build`, `publish_local`, `deploy_netlify`, `deploy_vercel`) to save tokens and keep the pipeline recoverable — avoid running many individual `exec` calls\n- Use the homepage workspace operations from the Required Task Rule for project files; do not fall back to generic workspace tools.\n- **NEVER use generic `execute_shell` for `/workspace/...` commands.** `/workspace` exists inside the homepage container; use `homepage_project` `exec`, `homepage_file`, or `homepage_deploy` `build`.\n- **Do not directly edit generated output** (`dist`, `build`, `out`) with shell redirection or copy commands. These directories are deployment artifacts; change source files and rebuild.\n\n### Using Generated Images in Netlify Deployments\n\n**IMPORTANT:** Images generated with `generate_image` or found through `media_registry` are AuraGo-local assets first. For homepage source code, prefer copying the image into the project's deployable static directory and referencing that project asset.\n\nFor Vite, React, and plain HTML projects, put local images under `public/assets/...` or the framework-equivalent static directory, then reference them with a project-relative web URL:\n```html\n\u003cimg src=\"/assets/banner.jpeg\" alt=\"Banner\"\u003e\n```\n\nIf an existing page already references generated AuraGo assets such as `/files/generated_images/\u003cfilename\u003e`, generated image `/assets/img_\u003cid\u003e.jpeg` paths, or legacy `/img_\u003cid\u003e.jpeg` paths, `deploy_netlify` tries to bundle those files into the ZIP. Do not rely on that as the primary workflow for new edits: make the image a deployable project asset in `public/assets` and update the markup to `/assets/\u003cfilename\u003e`.\n\nNever use `file://`, host filesystem paths, `/workspace/...`, `data/homepage/...`, or `agent_workspace/...` in page markup. Those paths are not fetchable from a deployed browser.\n\nThe `deploy_netlify` operation installs missing dependencies, builds, validates that the selected output contains `index.html`, scans HTML/CSS/JS for generated asset references, uploads a ZIP, waits for Netlify to report the deploy as ready, and verifies the public URL.\n\nIf a framework build fails but a finished static sibling directory exists, such as `my-site-static/index.html`, `deploy_netlify` may fall back to that static project and returns `fallback_project_dir` in the result. For an explicitly static export, you can also call `deploy_netlify` with `project_dir: \"my-site-static\"` and `build_dir: \".\"`.\n\n### Using Vercel Deployments\n\nUse `deploy_vercel` when the homepage project should be published to Vercel from AuraGo's managed workspace.\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `project_dir` | string | yes | Homepage workspace directory to deploy |\n| `project_id` | string | no | Vercel project name or ID to link before deploying; falls back to `vercel.default_project_id` |\n| `build_dir` | string | no | Explicit directory to upload; otherwise auto-detected after build |\n| `target` | string | no | `preview` or `production` (default: `preview`, production requires explicit selection) |\n| `alias` | string | no | Alias or domain to assign after a successful deployment |\n| `domain` | string | no | Custom domain to add/verify before alias assignment |\n\n```json\n{\"action\": \"homepage\", \"operation\": \"deploy_vercel\", \"project_dir\": \"my-site\", \"project_id\": \"my-site\", \"target\": \"preview\"}\n```\n\n```json\n{\"action\": \"homepage\", \"operation\": \"deploy_vercel\", \"project_dir\": \"my-site\", \"project_id\": \"my-site\", \"target\": \"production\", \"domain\": \"www.example.com\"}\n```\n\nNotes:\n- `deploy_vercel` is designed for homepage workspace projects including HTML, Vite/React, Astro, and Next.js.\n- Projects with `package.json` deploy Vercel-native from the project root after a local build check, even when `build_dir` is provided. Explicit static `build_dir` values are only for plain static projects without package metadata and must contain a valid `index.html`.\n- Do not patch Next.js into static export for Vercel. Let Vercel build and route the framework project from source.\n- AuraGo validates the build first, links the Vercel project when a project reference is available, then deploys from the homepage workspace via the Vercel CLI.\n- If the Vercel project does not exist yet, AuraGo can create it automatically only when `vercel.allow_project_management=true`.\n- Alias or custom domain assignment requires `vercel.allow_domain_management=true`.\n\n## Troubleshooting\n\n### \"Docker not available\" Error\n\n**Problem:** Docker daemon is not running or not accessible.\n\n**Solutions:**\n1. **Start Docker:** `sudo systemctl start docker` (recommended)\n2. **Enable Docker:** `sudo systemctl enable docker`\n\n### Web Server Not Accessible\n\n**Problem:** `publish_local` or `webserver_start` reports success but site not reachable.\n\n**Check:**\n1. Verify port is not in use: `netstat -tlnp | grep 8080`\n2. Check firewall rules: `sudo ufw allow 8080`\n3. Try different port in config: `homepage.webserver_port: 8081`\n\n### Dev Server Returns 404 via Caddy\n\n**Problem:** The dev server runs inside the container but Caddy returns 404 for `/\u003cproject_dir\u003e/` paths.\n\n**Cause:** The Caddy and dev containers must be on the same Docker network (`aurago-homepage-net`) for Caddy to reach the dev server by container name.\n\n**Solutions:**\n1. Restart the dev container (`homepage stop` + `homepage start`) — it auto-connects to the shared network\n2. Restart the Caddy web server (`webserver_stop` + `webserver_start`) — it also auto-connects\n3. Verify both containers are on the network: `docker network inspect aurago-homepage-net`\n\n### Status Shows \"running\": false\n\n**Problem:** Container appears stopped.\n\n**Solutions:**\n1. Check Docker status: `docker ps -a`\n2. Start manually: `homepage start`\n3. If the user explicitly approves a destructive reset: `homepage destroy` with `force: true`, then `homepage init`\n\n### init_project fails or install_deps can't find directory\n\n**Problem:** `init_project` appears to succeed but `install_deps` or `build` reports directory not found. This typically means the Node.js version in the container is too old for the requested framework (npm `EBADENGINE` warnings).\n\n**Solutions:**\n1. Use `framework: \"html\"` for plain HTML projects (no Node.js required)\n2. Rebuild the homepage container to get a newer Node.js: `homepage rebuild`\n3. Create files manually with `homepage write_file`\n\n### deploy_netlify: \"Deploy path does not exist\"\n\n**Problem:** Files were created outside the homepage workspace, commonly through a generic file tool, placing them in `agent_workspace/workdir/` instead of the homepage workspace.\n\n**Solution:** Use `homepage write_file` to create all project files. The `deploy_netlify` operation only finds files in the homepage workspace (`data/homepage/`).\n\n### deploy_netlify: \"Missing script: build\"\n\n**Problem:** `package.json` exists, but it does not define a `build` script.\n\n**Solution:** Do not keep retrying the same deploy call. Either:\n1. Treat the project as static HTML and deploy the project root directly, or\n2. Add a valid `build` script to `package.json`, then retry.\n\nIf the project is plain HTML, you usually do not need a build step at all.\n\n### deploy_vercel: \"project was not found\"\n\n**Problem:** The requested Vercel project does not exist and automatic project creation is blocked.\n\n**Solution:** Either:\n1. Set `vercel.default_project_id` or pass `project_id` explicitly, or\n2. Enable `vercel.allow_project_management` so AuraGo may create the Vercel project automatically.\n\n### deploy_vercel: alias or domain assignment failed\n\n**Problem:** The deployment succeeded, but the requested alias or custom domain could not be attached.\n\n**Solution:** Check:\n1. `vercel.allow_domain_management=true`\n2. The domain is already configured for the same Vercel team/account\n3. DNS verification is complete if you are using a custom domain\n\n## Configuration\n\n```yaml\nhomepage:\n  enabled: true\n  allow_local_server: false  # Enable Python fallback when Docker unavailable\n  workspace_path: \"data/homepage\"  # Path for homepage projects\n  # For deployment:\n  # SFTP/SCP credentials stored in vault:\n  # - homepage_deploy_host: deployment server hostname\n  # - homepage_deploy_user: deployment username\n  # - homepage_deploy_password OR homepage_deploy_key: authentication\n```\n\n## Notes\n\n- **File paths**: All file paths are relative to `/workspace` inside the container\n- **project_dir**: Must always be relative to the homepage workspace (e.g., `my-site`; never `/workspace/my-site`)\n- Use homepage workspace operations for homepage project files; generic workspace tools use a different location\n- **Container persistence**: The container persists between sessions (uses `unless-stopped` restart policy)\n- **Build output**: Auto-detected: `out`, `dist`, `build`, `.next`, `public`\n- **Plain HTML projects**: Skip the build step entirely — no Docker dev container needed for deployment\n- **Auto-fix**: The `build` operation can automatically fix common errors when `auto_fix: true`\n",
       "tools": [
         "here_now_site",
         "here_now_sites"

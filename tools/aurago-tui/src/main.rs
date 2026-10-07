@@ -28,7 +28,7 @@ use app::{AppState, DashTab, MediaTab, Screen};
 use events::AppEvent;
 use events::keybindings::{KeyContext, map_key};
 use ui::theme::Theme;
-use ui::utils::truncate_str;
+use api::types::container_logs_tail;
 
 use actions::execute_confirmed_action;
 use ui::overlays::{draw_confirm_dialog, draw_nav_bar};
@@ -548,15 +548,24 @@ async fn run_app(
                     app_lock.toast_ticks = 10;
                 }
             },
+            AppEvent::ContainerRemoveDone { id, result } => {
+                if actions::on_container_remove_done(&mut app_lock, id, result) {
+                    let c = client.clone();
+                    let tx = event_tx.clone();
+                    let h = tokio::spawn(async move {
+                        let result = auth::fetch_containers(&c).await.map_err(|e| e.to_string());
+                        let _ = tx.send(AppEvent::ContainersLoaded(result));
+                    });
+                    app_lock.spawn_tracked(h);
+                }
+            }
             AppEvent::ContainerLogsLoaded(result) => {
                 match result {
                     Ok(val) => {
-                        // Display container logs as a toast or in a dedicated area
-                        if let Some(logs) = val.as_str() {
-                            app_lock.toast =
-                                Some(format!("Container logs:\n{}", truncate_str(logs, 500)));
-                            app_lock.toast_ticks = 20;
-                        }
+                        // The server answers {"status":"ok","logs":"..."}; the
+                        // newest lines are at the end.
+                        app_lock.toast = Some(format!("Container logs:\n{}", container_logs_tail(&val, 500)));
+                        app_lock.toast_ticks = 20;
                     }
                     Err(e) => {
                         app_lock.toast = Some(format!("Failed to load container logs: {}", e));

@@ -6,6 +6,7 @@ func DefaultCatalog() []CatalogEntry {
 	return withCatalogDefaults([]CatalogEntry{
 		{
 			ID:          GodsEyeAppID,
+			Category:    "media",
 			Name:        "God's Eye View",
 			Description: "Explore a 3D globe with live flights, satellites and public data. Optional provider keys enable additional maps, ships and voice control.",
 			Image:       "ghcr.io/antibyte/aurago-gods-eye-view:gev-7596522-1",
@@ -18,6 +19,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "homarr",
+			Category:    "system",
 			Name:        "Homarr",
 			Description: "Dashboard for home-lab services and quick links.",
 			Image:       "ghcr.io/homarr-labs/homarr:latest",
@@ -34,6 +36,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "n8n",
+			Category:    "dev",
 			Name:        "n8n",
 			Description: "Workflow automation with integrations, triggers, and visual flows.",
 			Image:       "ghcr.io/n8n-io/n8n:latest",
@@ -51,6 +54,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "node-red",
+			Category:    "dev",
 			Name:        "Node-RED",
 			Description: "Low-code automation flows for devices, APIs, and services.",
 			Image:       "ghcr.io/node-red/node-red:latest",
@@ -64,6 +68,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "open-webui",
+			Category:    "ai",
 			Name:        "Open WebUI",
 			Description: "Self-hosted chat interface for local and remote LLM providers.",
 			Image:       "ghcr.io/open-webui/open-webui:main",
@@ -77,6 +82,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "bytestash",
+			Category:    "dev",
 			Name:        "ByteStash",
 			Description: "Self-hosted snippet manager for storing and searching code.",
 			Image:       "ghcr.io/jordan-dalby/bytestash:latest",
@@ -102,6 +108,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "it-tools",
+			Category:    "dev",
 			Name:        "IT Tools",
 			Description: "Collection of handy browser-based tools for developers and IT work.",
 			Image:       "ghcr.io/corentinth/it-tools:latest",
@@ -112,6 +119,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "filebrowser-quantum",
+			Category:    "system",
 			Name:        "FileBrowser Quantum",
 			Description: "Modern web file manager for browsing, uploading, and sharing files.",
 			Image:       "ghcr.io/gtsteffaniak/filebrowser:stable",
@@ -126,6 +134,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "olivetin",
+			Category:    "system",
 			Name:        "OliveTin",
 			Description: "Web UI for running predefined shell automation actions.",
 			Image:       "ghcr.io/olivetin/olivetin:latest",
@@ -142,6 +151,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "adguard-home",
+			Category:    "system",
 			Name:        "AdGuard Home",
 			Description: "Network-wide ad blocking and DNS filtering; v1 exposes only the setup web UI. Keep the admin web port on 3000 during setup.",
 			Image:       "adguard/adguardhome",
@@ -156,6 +166,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "excalidraw",
+			Category:    "creative",
 			Name:        "Excalidraw",
 			Description: "Collaborative sketching and diagramming canvas.",
 			Image:       "excalidraw/excalidraw:latest",
@@ -166,6 +177,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "uptime-kuma",
+			Category:    "system",
 			Name:        "Uptime Kuma",
 			Description: "Friendly uptime monitoring, alerting, and status pages.",
 			Image:       "ghcr.io/louislam/uptime-kuma:2",
@@ -182,6 +194,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "stirling-pdf",
+			Category:    "office",
 			Name:        "Stirling PDF",
 			Description: "Local PDF toolkit for merging, splitting, converting, signing, and OCR workflows.",
 			Image:       "ghcr.io/stirling-tools/stirling-pdf:latest",
@@ -198,6 +211,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "quakejs-rootless",
+			Category:    "games",
 			Name:        "QuakeJS Rootless",
 			Description: "Browser-playable QuakeJS server packaged for rootless container deployments.",
 			Image:       "docker.io/awakenedpower/quakejs-rootless:latest",
@@ -212,6 +226,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "romm",
+			Category:    "games",
 			Name:        "RomM",
 			Description: "ROM library manager with metadata, browser players, saves, and collection management.",
 			Image:       "ghcr.io/rommapp/romm:latest",
@@ -266,6 +281,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "beszel",
+			Category:    "system",
 			Name:        "Beszel",
 			Description: "Lightweight server monitoring hub with an optional local host agent.",
 			Image:       "ghcr.io/henrygd/beszel/beszel:latest",
@@ -279,6 +295,34 @@ func DefaultCatalog() []CatalogEntry {
 			},
 			Companions: []CompanionTemplate{
 				{
+					ID:    "socket-proxy",
+					Name:  "Beszel Docker Socket Proxy",
+					Image: "tecnativa/docker-socket-proxy:latest",
+					Env: []string{
+						"AUTH=0",
+						"CONTAINERS=1",
+						"EVENTS=1",
+						"INFO=1",
+						"PING=1",
+						"POST=0",
+						"SECRETS=0",
+						"VERSION=1",
+					},
+					Ports: []PortSpec{
+						{ID: "docker-api", Name: "Docker API", ContainerPort: 2375, Protocol: "tcp", HostIP: "127.0.0.1"},
+					},
+					HostBinds: []HostBindTemplate{
+						{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true},
+					},
+					// Live-verified on aurago-test (F-S3 probe, 2026-10-06, image
+					// digest sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459):
+					// haproxy serves the read-only monitoring profile on its
+					// 127.0.0.1 port with no capabilities and refuses every
+					// mutation. The :latest tag floats, so re-verify when upstream
+					// changes (see AGENTS.md, Store Container Hardening).
+					Hardening: &ContainerHardening{CapDrop: []string{"ALL"}},
+				},
+				{
 					ID:          "agent",
 					Name:        "Beszel Agent",
 					Image:       "ghcr.io/henrygd/beszel/beszel-agent:latest",
@@ -286,6 +330,7 @@ func DefaultCatalog() []CatalogEntry {
 					Env: []string{
 						"LISTEN=/beszel_socket/beszel.sock",
 						"HUB_URL=${APP_URL}",
+						"DOCKER_HOST=tcp://127.0.0.1:${COMPANION_PORT_SOCKET_PROXY_DOCKER_API}",
 						"KEY=${SECRET:desktop_store_beszel_agent_key}",
 						"TOKEN=${SECRET:desktop_store_beszel_agent_token}",
 					},
@@ -293,14 +338,12 @@ func DefaultCatalog() []CatalogEntry {
 						{NameSuffix: "socket", ContainerPath: "/beszel_socket"},
 						{NameSuffix: "agent-data", ContainerPath: "/var/lib/beszel-agent"},
 					},
-					HostBinds: []HostBindTemplate{
-						{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true},
-					},
 				},
 			},
 		},
 		{
 			ID:          "dozzle",
+			Category:    "dev",
 			Name:        "Dozzle",
 			Description: "Real-time Docker log viewer for local containers.",
 			Image:       "ghcr.io/amir20/dozzle:latest",
@@ -308,15 +351,43 @@ func DefaultCatalog() []CatalogEntry {
 			LogoSlug:    "dozzle",
 			LogoURL:     logoURL("dozzle"),
 			PrimaryPort: PortSpec{ID: "web", Name: "Logs", ContainerPort: 8080, Protocol: "tcp"},
+			Env:         []string{"DOZZLE_REMOTE_HOST=tcp://aurago-store-dozzle-socket-proxy:2375"},
 			Volumes: []VolumeTemplate{
 				{NameSuffix: "data", ContainerPath: "/data"},
 			},
-			HostBinds: []HostBindTemplate{
-				{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true},
+			Companions: []CompanionTemplate{
+				{
+					ID:          "socket-proxy",
+					Name:        "Dozzle Docker Socket Proxy",
+					Image:       "tecnativa/docker-socket-proxy:latest",
+					NetworkMode: "aurago-store-dozzle-net",
+					Env: []string{
+						"AUTH=0",
+						"CONTAINERS=1",
+						"EVENTS=1",
+						"INFO=1",
+						"PING=1",
+						"POST=0",
+						"SECRETS=0",
+						"VERSION=1",
+					},
+					HostBinds: []HostBindTemplate{
+						{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true},
+					},
+					// Live-verified on aurago-test (F-S3 probe, 2026-10-06, image
+					// digest sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459):
+					// haproxy serves the read-only monitoring profile on the
+					// private Dozzle network with no host port and no capabilities,
+					// and refuses every mutation. The :latest tag floats, so
+					// re-verify when upstream changes (see AGENTS.md, Store
+					// Container Hardening).
+					Hardening: &ContainerHardening{CapDrop: []string{"ALL"}},
+				},
 			},
 		},
 		{
 			ID:          "arcane",
+			Category:    "system",
 			Name:        "Arcane",
 			Description: "Modern Docker management UI for containers, images, volumes, networks, and projects.",
 			Image:       "ghcr.io/getarcaneapp/manager:latest",
@@ -374,11 +445,19 @@ func DefaultCatalog() []CatalogEntry {
 					HostBinds: []HostBindTemplate{
 						{HostPath: "/var/run/docker.sock", ContainerPath: "/var/run/docker.sock", ReadOnly: true},
 					},
+					// Live-verified on aurago-test (K21 probe, 2026-10-06, image
+					// digest sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459):
+					// haproxy starts and reads the root-owned socket with no
+					// capabilities, the same profile as docker-compose.yml's
+					// docker-proxy service. The :latest tag floats, so re-verify
+					// when upstream changes (see AGENTS.md, Store Container Hardening).
+					Hardening: &ContainerHardening{CapDrop: []string{"ALL"}},
 				},
 			},
 		},
 		{
 			ID:          "code-server",
+			Category:    "dev",
 			Name:        "code-server",
 			Description: "Browser-based VS Code development environment.",
 			Image:       "ghcr.io/linuxserver/code-server:latest",
@@ -400,6 +479,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "termix",
+			Category:    "dev",
 			Name:        "Termix",
 			Description: "Self-hosted SSH and remote desktop management platform with RDP, VNC, and Telnet support.",
 			Image:       "ghcr.io/lukegus/termix:latest",
@@ -430,6 +510,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "commandcode",
+			Category:    "dev",
 			Name:        "CommandCode",
 			Description: "Console-first development workspace with Command Code and full-stack toolchains preinstalled. Installation can take several minutes because AuraGo may build the image locally. Command Code requires login or an API key; browser auth shows a key you can paste into the terminal.",
 			Image:       "ghcr.io/antibyte/aurago-commandcode:latest",
@@ -454,6 +535,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:           "openscad",
+			Category:     "creative",
 			Name:         "OpenSCAD",
 			Description:  "Script-based parametric CAD compiler with previews and export files.",
 			Image:        "openscad/openscad:latest",

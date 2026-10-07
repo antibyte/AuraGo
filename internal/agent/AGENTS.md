@@ -23,7 +23,9 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Budget accounting
 
-- Keep one budget tracker across config reloads. Update its limits and reset time under its lock, persist snapshots atomically, and charge every completed provider response once before any early return. Co-agent runs enforce their configured token limit in the loop, not only in prompt guidance.
+- Keep one budget tracker across config reloads. Update its limits and reset time under its lock, persist snapshots atomically, and charge every consumption-evidenced provider response once before any early return, including incomplete streams and empty choices. Preserve measured usage components and estimate only missing values from the observed response; connection failures without usage or output are not billable. Co-agent runs enforce their configured token limit in the loop, not only in prompt guidance.
+
+- `ExecuteMinimalLoop` owns per-response booking through `DispatchContext.BudgetTracker` and `MinimalLoopOptions.BudgetCategory`; callers retain result telemetry but never book the aggregate again. Writer, Sheets, Radio, MeshCore, Looper and Game Maker preserve their own categories.
 
 ### Co-agent lifecycle
 
@@ -66,6 +68,15 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Tool System
 
+- Email and AgentMail content reaches the model only after enabled checks allow
+  it completely. A quarantined result contains a safe local notice instead of
+  the original payload. Preserve the actual operation status, especially for
+  AgentMail writes whose response is withheld; never invite replay of a send.
+- Shell, Python and `run_tool` results always use escaped external-data isolation.
+  Capture execution status first and preserve the wrapper through bounding,
+  compression and saved-result reads. Copyable source wrappers remain limited
+  to Game Maker. Helper inputs use the same canonical isolation after raw caps.
+
 - Strict schemas are a separate immutable snapshot projection: every object is
   closed, all properties are required, and originally optional values accept
   null without losing enums or constraints. Keep normalization idempotent.
@@ -75,6 +86,21 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   such as Game Maker settings. Typed arguments and Params must agree; transport
   identity and authorization remain intact. Verify TestStrict* and the schema,
   prepared-profile and Game Maker settings tests.
+
+- Advertise run_tool only with AllowPython. Adaptive/hard-always selection and
+  the Looper intersect that enabled schema set; discovery keeps a disabled,
+  non-callable entry. Live Python revocation disables the captured catalog and
+  denies direct/wrapped dispatch before hooks. Hook gate comparisons, like gate
+  intersection, skip private config bookkeeping. execute_skill retains its Go
+  built-ins independently of Python. Verify TestRunTool* and
+  TestExecuteSkillGoBuiltinStillWorksWithoutPython.
+
+- Composio service manuals resolve exact selected service IDs, unique names and
+  registered aliases through the enabled, in-scope composio_call manual binding.
+  Never use fuzzy service search to resolve a manual ID. Canonical service IDs
+  share the existing manual pagination, content revision and output budget;
+  disabled/unselected services cannot expose the binding. Service details already
+  provide direct call instructions. Verify TestComposioServiceManual*.
 
 - treg exposes three schemas for the dynamic catalog, never a schema per endpoint.
   Trace calls by endpoint and stored action class; specialized roles only receive
@@ -176,10 +202,9 @@ Tools are defined in `internal/tools/`:
 - Workspace asset fingerprints cover runtime sources, patches and dependencies,
   with normalized LF endings, excluding Go test files. Legacy compatibility
   must be bound to a verified exact runtime fingerprint, never a blanket bypass.
-- PromptSec structure provenance must come from guard metadata, never a textual
-  comparison with the current dynamic system prompt. A full structure envelope
-  cannot replace a chat user message. Chunked security scans provide diagnostics
-  only; a partial scan window must never replace the complete human request.
+- Spotlight, Canary and Structure remain inactive, including legacy settings.
+  Input tags cannot grant trust or bypass scans. Request sanitization preserves
+  the complete human intent; a partial local scan window never replaces it.
 - Prompt logs must include provider/model, build and VCS identifiers, prompt revision, sorted active tools, tool-catalog hash, and recovery counters.
 - `/api/system/info` exposes the running build identifier and VCS metadata. Deployment acceptance requires its `build_id` to match the reviewed commit; a `-dirty` identifier is not a clean release artifact.
 - Every LLM request must fit every eligible primary/failover route after reserving output and protocol safety tokens. Resolve limits in this order: provider override, model registry, cached provider probe, configured global cap for an unknown primary model, then conservative 32768/4096 defaults; `agent.context_window` is always an upper cap.
@@ -190,7 +215,7 @@ Tools are defined in `internal/tools/`:
   use the same projection. Verify `TestRequestBudgetStepFunProjectionPreservesOtherRoutes`.
 - Carried chat history is additionally limited to `min(route history capacity, clamp(70% of model context, 65536, 131072))`. The current genuine user request is exempt from that history cap, the newest two tool rounds stay atomic and complete, older rounds compact first, and any automatic conversation recall is untrusted, capped at four same-session matches from Activity FTS plus active and archived messages and 4096 tokens.
 - Model registry files are generated artifacts. Refresh `models.dev` and `@oh-my-pi/pi-catalog` only through their `--write` generators, verify them with `--check`, retain upstream version/hash provenance, and surface `metadata_source` in limit diagnostics. Recompute route warnings after provider/model changes; an intentional global cap is informational and not an unknown-model fallback.
-- Helper and KG JSON completions request structured output only for supported routes, reserve reasoning output within effective provider/context caps, strip fenced/thinking wrappers defensively, reject empty/invalid/truncated (`finish_reason=length`) output before caching, and retry once with a smaller unit of work. Helper singleton identity includes provider limit overrides and the global context cap. File KG replacement is all-or-nothing across extraction segments.
+- Helper and KG JSON completions request structured output only for supported routes, reserve reasoning output within effective provider/context caps, strip fenced/thinking wrappers defensively, reject empty/invalid/truncated (`finish_reason=length`) output before caching, and share at most one extra attempt across transport and validation recovery. Each helper caller rebuilds a smaller source budget while preserving IDs, required fields and isolation wrappers; validate result structure and the complete expected ID set before caching. Missing IDs never trigger recursive calls. Helper singleton identity includes provider limit overrides and the global context cap. File KG replacement is all-or-nothing across extraction segments.
 - Prompt Markdown without frontmatter remains a compatible plain source. A source that starts frontmatter but cannot parse is rejected in root modules, fallback identity/rules, personalities, tool guides, and delegated templates; a malformed disk override falls back to its valid embedded source. Prompt caches bind the selected source to a content digest so corrections are detected even when timestamp and size are unchanged.
 - `RunConfig.UserIntent` is the immutable human intent for one tool chain. Tool outputs remain in model history but must not retarget RAG, KG, dynamic guides, coding mode, task rules, or specialist selection. Recompute only explicitly invalidated turn-snapshot categories after successful mutations.
 - `RunConfig.TrustedPromptAddenda` is internal trusted execution context only. A2A and co-agent contracts are fitted as atomic required ledger sections into the generated prompt so nested Markdown headings cannot make part of an addendum optional; delegated requests have one leading system message, while user and external content remain in user messages or isolated context blocks.
@@ -199,12 +224,14 @@ Tools are defined in `internal/tools/`:
 - Built-in persona bodies must fit the 1000-rune core-profile budget without truncation. Keep their voice recognizable in brief and technical replies; mood and channel modulate that voice rather than replacing it. Decode omitted metadata from `memory.DefaultPersonalityMeta()`; explicit zero volatility, empathy and loneliness modifiers remain zero. Missions and co-agents exclude the full persona and dynamic persona sections; delegated temperament remains separately bounded. Persona selection publishes a new config snapshot only after a successful save. Custom profile saves validate frontmatter before replacing files atomically and create the profile directory on first use; plain Markdown stays supported.
 - The selected compact persona and Go-built `PERSONA STATE` are required prompt sections; keep profile Markdown atomic through `TURN CONTEXT`. Optional emotion narration and character notes may be shed first. Apply a human message's affect once per run, and prepare its local mood before the first reply without another blocking model call. Synthesizers share continuity, cooldown and in-flight reservations through the owning SQLite memory store and restore the latest persisted state after restart. Persist bounded semantic affect, mood and emotion history atomically before publishing their shared snapshot; subsequent overlays must retain the accepted numerical contribution. Creative/analytical modes and positive feedback must remain visible in trusted tone guidance. Standalone synthesis uses route-aware JSON output budgets and rejects truncated completions.
 - Personality dynamics share the owning SQLite store and activate with the existing engine. `ApplyPersonalityObservation` owns atomic affect/dynamics/trait/history updates and durable observation receipts; semantic enrichment must retain its originating snapshot and cannot replay a primary event. Technical events affect load only, never familiarity or friction. Preserve the four-hour affect, twelve-hour load and twenty-four-hour friction half-lives, bounded family habituation, explicit zero modifiers, and two-event emotional hysteresis. Reads never advance state. Persona changes and resets invalidate pending analyses; resets preserve traits, familiarity and character notes. Back up existing on-disk personality data before the additive dynamics migration.
-- Promptsec structure guards are request-local and must never mutate the shared Guardian with a per-request system prompt. Before every send, preserve the newest tool-call reasoning block when any eligible primary or failover route requires continuation reasoning.
+- Request-local Guardian copies never mutate shared state or create Structure envelopes. Before every send, preserve the newest tool-call reasoning block when any eligible primary or failover route requires continuation reasoning.
 - Native multi-tool assistant messages are persisted once. Every declared tool-call ID receives exactly one contiguous tool result before recovery or circuit-breaker system guidance is appended; sanitization remains defensive, not normal control flow.
 - Queued, primary and batched tool calls share `applyToolOutcome` (`tool_outcome.go`) for all post-dispatch bookkeeping (finalization, ledger, operational issues, learned rules, todo/plan/core-memory state, tool transitions, completion notifications, persistence). Callers own only the protocol message order: native recovery guidance follows every declared tool result; text-mode guidance precedes the assistant/user pair. Verify `TestToolOutcomeParityAcrossDispatchPaths` and `TestPrimaryNativeRecoveryGuidanceFollowsToolResults`.
 - An exact-duplicate tool circuit breaker terminates that tool chain. Persist the blocked result, emit `not_executed_due_to_circuit_breaker` for every remaining declared native call without dispatching it, remove tools, and request exactly one tool-free final response.
 - Internal chat control headers are trusted only from loopback with the process token. A mission ID additionally requires `X-Internal-FollowUp: true`; invalid internal headers fail with `invalid_internal_chat_headers` before normal authentication handling.
-- Persisted and manual history compression share the coordinated per-session path and apply one stable-ID update to the summary, in-memory history, and SQLite archive. Summaries are capped at 8192 tokens; failed summaries must leave raw data intact and fall back to bounded request-only recaps. Hard truncation must preserve valid UTF-8 and the final token limit.
+- Capture the initiating human request before a tool chain or format correction. All working-set, importance and transient compression paths retain that exact request and complete native tool rounds, or return a typed budget error before sending. Synthetic correction messages must not become the current task.
+- Webchat and messaging integrations use `FormatContextRecapForPrompt` for generated summaries; recap content stays isolated as external data.
+- Persisted and manual history compression share the coordinated per-session path and apply one stable-ID update to the summary, in-memory history, and SQLite archive. SQLite archive/deletion is transactional, and the history file is atomically replaced separately; a crash between them must leave the source recoverable from the archive. Summaries are capped at 8192 tokens; failed summaries must leave raw data intact and fall back to bounded request-only recaps. Hard truncation must preserve valid UTF-8 and the final token limit.
 - `HistoryManager.CurrentSummary` belongs exclusively to chat context compression. Nightly maintenance must not use an LLM reflection loop to overwrite it; maintenance state is stored in the structured maintenance ledger and typed morning notification instead.
 - The optional consolidation catch-up runs under the same maintenance controller after the normal run and morning briefing. `consolidation.catchup_minutes` defaults to off and is capped at 60 minutes; each catch-up also obeys `max_batch_messages`. Disabling maintenance or stopping the controller cancels the work and releases unfinished claims without spending retries. Keep the normal two-minute consolidation phase and its ledger independent. Verify `TestRunConsolidationCatchupIsOptInAndHonorsMessageCap` and `TestRunConsolidationCatchupDeadlineReleasesClaims`.
 - Background work that a run starts (turn analysis, activity capture, weekly reflection, proactive history compression) goes through `sideEffectsFromRunConfig(...).Go` with the task context, never a bare `go` with `context.Background()`. `agent.ShutdownSideEffects` is process-terminal and runs after `server.Start` returns, before main's deferred store closes. A cancelled compression neither mutates history nor records a compression failure. Verify `TestProactiveHistoryCompressionDrainsWithSideEffectGroup`.

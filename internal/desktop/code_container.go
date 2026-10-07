@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -352,6 +353,7 @@ func buildCodeStudioRuntimeProbeScript() string {
 		"command -v node >/dev/null 2>&1 || { echo 'node not found'; exit 127; }",
 		"command -v python3 >/dev/null 2>&1 || { echo 'python3 not found'; exit 127; }",
 		"command -v go >/dev/null 2>&1 || { echo 'go not found'; exit 127; }",
+		"command -v gcc >/dev/null 2>&1 || { echo 'gcc not found'; exit 127; }",
 	}, "\n")
 }
 
@@ -376,12 +378,28 @@ func seedCodeStudioWorkspace(dir string) error {
 	if err != nil {
 		return err
 	}
+	files := defaultCodeStudioWorkspaceFiles()
 	if len(entries) > 0 {
-		return nil
+		// Add C to existing sample workspaces without filling unrelated projects.
+		for _, name := range []string{"hello.go", "hello.py"} {
+			info, err := os.Lstat(filepath.Join(dir, name))
+			if err != nil || !info.Mode().IsRegular() {
+				return nil
+			}
+		}
+		files = map[string]string{"hello.c": files["hello.c"]}
 	}
-	for name, content := range defaultCodeStudioWorkspaceFiles() {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
-			return err
+	for name, content := range files {
+		file, err := os.OpenFile(filepath.Join(dir, name), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("create code studio example %s: %w", name, err)
+		}
+		_, writeErr := file.WriteString(content)
+		if err := errors.Join(writeErr, file.Close()); err != nil {
+			return fmt.Errorf("write code studio example %s: %w", name, err)
 		}
 	}
 	return nil
@@ -445,14 +463,20 @@ func buildCodeStudioContainerSeedScript() string {
 	var b strings.Builder
 	b.WriteString("set -eu\n")
 	b.WriteString("mkdir -p /workspace\n")
-	b.WriteString("if [ -z \"$(find /workspace -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)\" ]; then\n")
+	b.WriteString("seed_all=false\n")
+	b.WriteString("if [ -z \"$(find /workspace -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)\" ]; then seed_all=true; fi\n")
 	names := make([]string, 0, len(defaultCodeStudioWorkspaceFiles()))
 	for name := range defaultCodeStudioWorkspaceFiles() {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		b.WriteString("cat > /workspace/")
+		condition := "[ \"$seed_all\" = true ]"
+		if name == "hello.c" {
+			condition = "{ " + condition + " || { [ -f /workspace/hello.go ] && [ ! -L /workspace/hello.go ] && [ -f /workspace/hello.py ] && [ ! -L /workspace/hello.py ]; }; }"
+		}
+		fmt.Fprintf(&b, "if %s && [ ! -e /workspace/%s ] && [ ! -L /workspace/%s ]; then\n", condition, name, name)
+		b.WriteString("(set -C; cat > /workspace/")
 		b.WriteString(name)
 		b.WriteString(" <<'AURAGO_CODE_STUDIO_SAMPLE'\n")
 		b.WriteString(defaultCodeStudioWorkspaceFiles()[name])
@@ -460,16 +484,17 @@ func buildCodeStudioContainerSeedScript() string {
 			b.WriteString("\n")
 		}
 		b.WriteString("AURAGO_CODE_STUDIO_SAMPLE\n")
+		b.WriteString(")\nfi\n")
 	}
-	b.WriteString("fi\n")
 	return b.String()
 }
 
 func defaultCodeStudioWorkspaceFiles() map[string]string {
 	return map[string]string{
-		"README.md": "# Code Studio Workspace\n\nThis workspace is mounted at `/workspace` inside the Code Studio container.\n\nTry running:\n\n```sh\ngo run hello.go\npython3 hello.py\n```\n",
+		"README.md": "# Code Studio Workspace\n\nThis workspace is mounted at `/workspace` inside the Code Studio container.\n\nOpen hello.go, hello.py or hello.c and use Run. C source is compiled as C17 with GCC; compiler errors and program output appear in the terminal.\n\nTry running:\n\n```sh\ngo run hello.go\npython3 hello.py\ngcc -std=c17 -Wall -Wextra hello.c -o /tmp/hello-c && /tmp/hello-c\n```\n",
 		"hello.go":  "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello from Code Studio\")\n}\n",
 		"hello.py":  "print(\"Hello from Code Studio\")\n",
+		"hello.c":   "#include <stdio.h>\n\nint main(void) {\n    puts(\"Hello from Code Studio\");\n    return 0;\n}\n",
 	}
 }
 

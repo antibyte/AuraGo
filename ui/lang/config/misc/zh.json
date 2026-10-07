@@ -3,7 +3,7 @@
   "config.budget.model_cost_updated": "💰 预算管理中已更新 '{model}' 的模型成本。",
   "config.embeddings.reset_cancel": "取消",
   "config.embeddings.reset_cancelled": "嵌入更改已中止。未保存任何内容。",
-  "config.embeddings.reset_confirm_final": "确定删除the existing embeddings and rebuild them after restart？",
+  "config.embeddings.reset_confirm_final": "确定要删除现有嵌入，并在重启后重建它们吗？",
   "config.embeddings.reset_continue": "删除旧嵌入",
   "config.embeddings.reset_desc": "此更改可能导致现有嵌入不兼容。AuraGo 可以删除旧嵌入并在重启后重建知识索引。",
   "config.embeddings.reset_desc_postsave": "配置已保存。为避免嵌入不匹配，AuraGo 现在应删除旧嵌入并在重启后重建。",
@@ -68,7 +68,7 @@
   "config.llm.multimodal_banner": "多模态（图片）：启用后，聊天中上传的图片可直接发送给主模型。",
   "config.restart.confirm": "现在重启 AuraGo？",
   "config.restart.disconnected": "已断开 – 等待 AuraGo 重启…",
-  "config.restart.error": "重启失败",
+  "config.restart.error": "错误：无法请求重启。",
   "config.restart.reloading": "AuraGo 正在重新加载。此页面将自动刷新。",
   "config.tools.warning_banner": "这些开关控制代理的功能。只启用你打算使用的工具；关闭某个工具可能会限制相关功能。"
 }

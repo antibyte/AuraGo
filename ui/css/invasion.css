@@ -137,6 +137,20 @@
     display: block;
 }
 
+.pw-page[data-workspace-page="invasion"] .hint-warning {
+    color: var(--pw-warning);
+    font-size: var(--text-sm);
+    line-height: 1.4;
+    margin-top: var(--space-1);
+    display: block;
+}
+
+/* The scoped display: block rules above outrank the global .is-hidden utility. */
+.pw-page[data-workspace-page="invasion"] .hint-subtle.is-hidden,
+.pw-page[data-workspace-page="invasion"] .hint-warning.is-hidden {
+    display: none;
+}
+
 .pw-page[data-workspace-page="invasion"] .inv-telemetry-row {
     display: flex;
     gap: var(--space-2);

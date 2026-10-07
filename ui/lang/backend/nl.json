@@ -243,5 +243,13 @@
   "backend.budget_mode_full_en": "(allemaal geblokkeerd bij overschrijding)",
   "backend.speech_lab_audio_warning": "Speech Lab-audio kon niet worden gegenereerd. Het tekstantwoord blijft beschikbaar.",
   "backend.auth_current_password_required": "Voor deze wijziging is je huidige wachtwoord vereist.",
-  "backend.auth_current_totp_required": "Voor deze wijziging is de huidige code uit je authenticator-app vereist."
+  "backend.auth_current_totp_required": "Voor deze wijziging is de huidige code uit je authenticator-app vereist.",
+  "backend.proxy_basic_auth_credentials_invalid": "De Basic Auth-gegevens in de Vault zijn niet bruikbaar. De gebruikersnaam mag geen ':', aanhalingstekens, backslashes of accolades bevatten en het wachtwoord mag maximaal 72 bytes lang zijn.",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth staat aan, maar de Vault bevat geen 'proxy_basic_auth_user' en 'proxy_basic_auth_pass'. Sla beide geheimen op of zet Basic Auth uit en start de proxy daarna opnieuw.",
+  "backend.proxy_caddy_exited": "De proxy stopte direct na het starten, meestal door een ongeldig domein, een ongeldige IP-filterregel of poort. De proxylogboeken tonen de precieze reden.",
+  "backend.proxy_config_rejected": "De proxy heeft de nieuwe instellingen geweigerd en draait door met de vorige. De proxylogboeken tonen de reden.",
+  "backend.proxy_docker_placement_failed": "AuraGo draait in Docker, maar de proxy kan het datavolume van AuraGo niet gebruiken. Daarvoor is Docker Engine 26 of nieuwer nodig, en de datamap van AuraGo moet op een Docker-volume of bind mount staan. De details staan in het AuraGo-logboek.",
+  "backend.proxy_not_running": "De beveiligingsproxy draait niet. Start hem eerst.",
+  "backend.proxy_rate_limit_image_read_only": "De alleen-lezenmodus van Docker (docker.read_only) staat aan, dus AuraGo kan het Caddy-image met de module caddy-ratelimit dat snelheidsbeperking nodig heeft niet bouwen. In deze modus kan AuraGo de proxycontainer ook niet aanmaken of wijzigen. Zet de alleen-lezenmodus van Docker uit en start de proxy opnieuw. De details staan in het AuraGo-logboek.",
+  "backend.proxy_rate_limit_image_unavailable": "Snelheidsbeperking heeft een Caddy-image met de module caddy-ratelimit nodig, en AuraGo kon die niet bouwen. Docker moet image-builds toestaan (met Docker Compose: BUILD=1 bij de service docker-proxy) en internet kunnen bereiken. Of bouw het image op de Docker-host (zie de handleiding), of zet snelheidsbeperking uit. De details staan in het AuraGo-logboek."
 }

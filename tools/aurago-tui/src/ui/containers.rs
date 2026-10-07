@@ -102,8 +102,9 @@ fn draw_containers_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect
                 };
                 let state_icon = container_state_icon(&c.state);
                 let name = utils::truncate_str(&c.name, 24);
+                let lock = if c.is_protected() { "🔒 " } else { "" };
                 ListItem::new(Line::from(vec![
-                    Span::styled(format!("{} ", state_icon), style),
+                    Span::styled(format!("{} {}", state_icon, lock), style),
                     Span::styled(name, style),
                 ]))
             })
@@ -149,6 +150,13 @@ fn draw_containers_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Re
             ]),
         ];
 
+        if c.is_protected() {
+            lines.push(Line::from(vec![
+                Span::styled(i18n::current().protected_label, Style::default().fg(theme.accent_dim)),
+                Span::styled(protection_reason_text(c.protection()), Style::default().fg(theme.warning)),
+            ]));
+        }
+
         if !c.ports.is_empty() {
             lines.push(Line::from(vec![
                 Span::styled("Ports: ", Style::default().fg(theme.accent_dim)),
@@ -180,12 +188,25 @@ fn draw_containers_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Re
 fn draw_containers_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let left = format!("⚡ {} ", app.status_message);
     let right =
-        " j/k: navigate │ Enter: start/stop │ Del: remove │ r: refresh │ F1: nav │ ?: help ";
+        " j/k: navigate │ Enter: logs │ Del: remove │ r: refresh │ F1: nav │ ?: help ";
     let total = area.width as usize;
     let spacer = total.saturating_sub(left.len() + right.len());
     let text = format!("{}{}{}", left, " ".repeat(spacer), right);
     let para = Paragraph::new(text).style(Style::default().fg(theme.accent_dim));
     f.render_widget(para, area);
+}
+
+/// Text for a protection reason ("self", "docker-endpoint", "shared-network",
+/// "unverified" or a managing owner such as "go2rtc").
+pub fn protection_reason_text(owner: &str) -> String {
+    let s = i18n::current();
+    match owner {
+        "self" => s.protected_reason_self.to_string(),
+        "docker-endpoint" => s.protected_reason_endpoint.to_string(),
+        "shared-network" => s.protected_reason_network.to_string(),
+        "" | "unverified" => s.protected_reason_unverified.to_string(),
+        other => format!("{} ({}).", s.protected_reason_managed, other),
+    }
 }
 
 fn container_state_icon(state: &str) -> &'static str {
@@ -205,5 +226,19 @@ fn container_state_color(state: &str, theme: &Theme) -> ratatui::style::Color {
         "paused" => theme.warning,
         "exited" | "stopped" | "dead" => theme.error,
         _ => theme.fg,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn protection_reason_names_each_reason() {
+        assert!(protection_reason_text("self").contains("runs in this container"));
+        assert!(protection_reason_text("docker-endpoint").contains("reaches Docker"));
+        assert!(protection_reason_text("shared-network").contains("shares its network"));
+        assert!(protection_reason_text("unverified").contains("did not confirm"));
+        assert_eq!(protection_reason_text("go2rtc"), "AuraGo manages this container (go2rtc).");
     }
 }

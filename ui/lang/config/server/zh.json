@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "隔离的应用预览",
+  "config.server.preview_domain": "预览域名",
+  "config.server.preview_enabled": "验收后启用",
+  "config.server.preview_hint": "默认关闭。请使用具有通配符 DNS 和 TLS 的独立站点。启用前，请在已准备的主机上测试应用登录、文件和 WebSocket。",
   "config.fritzbox.status_ok": "🟢 已连接",
   "config.fritzbox.test_fail": "连接失败",
   "config.fritzbox.test_ok": "连接成功",

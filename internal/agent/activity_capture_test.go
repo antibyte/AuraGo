@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"io"
 	"log/slog"
@@ -28,7 +29,7 @@ func (f fakeActivityDigestClient) CreateChatCompletion(_ context.Context, _ open
 	}, nil
 }
 
-func (f fakeActivityDigestClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (f fakeActivityDigestClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }
 

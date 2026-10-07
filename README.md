@@ -21,7 +21,10 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 - **It remembers.** Conversation history, core facts, local embeddings, document RAG, a knowledge graph, notes and a journal. Personality traits, moods and an inner voice shape how it talks.
 - **Put it on autopilot.** Missions, cron schedules and webhooks start recurring work. Co-agents tackle subtasks. **Invasion Control** hatches worker “Eggs” on remote “Nests” over SSH or Docker. Yes, those are the actual names.
 - **Give it a computer.** Agent Workspaces provide disposable Firecracker VMs with a shell, files and a visible Chromium browser. The main agent does the thinking; the VM is its workbench.
-- **Give it a voice.** Telegram, Discord, Rocket.Chat, email, realtime speech and SIP telephony. Speech Lab adds local speech recognition and synthesis. **MeshCore** brings trusted direct messages and restricted channel replies over radio.
+- **Give it a voice.** Telegram, Discord, Rocket.Chat, email, realtime speech and SIP telephony. Speech Lab adds local speech recognition and synthesis.
+- **MeshCore, over the air.** Trusted direct messages and restricted channel replies over mesh radio.
+- **Your own personal newspaper and radio station.** A daily Newspaper tailored to your interests, plus Personal Radio with imported or generated music, an AI host and optional news bulletins.
+- **Tune into RTL-SDR.** Use a compatible USB receiver for live listening, scheduled recordings and optional speech transcription.
 - **Make things.** Documents, PDFs, images, music, video and websites through configured tools and providers. Connect GitHub, Google Workspace, S3, WebDAV and SQL; play media through Jellyfin or Chromecast.
 - **Plug in the weird stuff.** Klipper/Moonraker and Elegoo 3D printers, go2rtc cameras, Linux Bluetooth audio, and an **ESP32 Cheap Yellow Display** for a tiny desk dashboard. Extend further with Python Skills, Agent Skills and MCP.
 

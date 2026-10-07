@@ -397,6 +397,7 @@ docker:
     enabled: false
     host: ""
     readonly: false
+    allow_host_access: false # agent docker compose up/create/build may use host paths outside the workspace, docker.sock, devices, privileged mode and host namespaces; updates set it true for configs written before this key existed
 package_manager:
     enabled: false        # master toggle; Linux mutations additionally require sudo_enabled, sudo_unrestricted and writable system paths
     readonly: false       # allow only detect/search/list_installed/info when true
@@ -813,6 +814,8 @@ server:
     port: 8088
     max_body_bytes: 10485760
     debug_pprof: false                              # expose /debug/pprof endpoints for profiling
+    preview_domain: ""                            # separate registrable site; wildcard DNS/TLS must reach this server
+    preview_enabled: false                        # activate only after staged app/login/WebSocket acceptance
     https:
         enabled: false
         cert_mode: auto                     # "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
@@ -1137,6 +1140,8 @@ detective:
 newspaper:
   enabled: false                                         # opt in to daily research
   readonly: false                                       # preserve archive but block research and delivery
+  budget_mode: auto                                     # topic-scaled allowances; fixed preserves absolute limits
+  overview_sources: []                                  # approved IDs; empty disables overview providers
   max_minutes: 30                                       # cumulative run deadline, 1-60
   max_pages: 60                                         # fetched page ceiling, 1-60
   max_searches: 32                                      # search requests including retries/fallbacks, 1-64
@@ -1675,8 +1680,6 @@ guardian:
     scan_edge_bytes: 6144                 # bytes kept from start and end when max_scan_bytes is exceeded
     promptsec:
         preset: strict                        # promptsec preset ("strict", "moderate", "lenient")
-        spotlight: true                       # use promptsec spotlighting for output isolation
-        canary: true                          # use promptsec canaries for manipulation detection
         sanitizer:
             normalize: true                   # unicode normalization
             dehomoglyph: true                 # replace homoglyphs with base characters
@@ -1690,9 +1693,6 @@ guardian:
         taint:
             enabled: false                  # track data provenance / trust levels
             default_level: untrusted        # untrusted, suspicious, trusted
-        structure:
-            enabled: false                  # enforce prompt structure (sandwich defense)
-            mode: sandwich                  # sandwich, xml, random
         llm_judge:
             enabled: false                  # escalate uncertain detections to LLM Guardian
             mode: uncertain                 # uncertain, always, threat_detected, no_threat
@@ -2040,7 +2040,7 @@ security_proxy:
     http_port: 80
     docker_host: ""                         # empty = inherit docker.host / automatic selection
     rate_limiting:
-        enabled: false
+        enabled: false                      # builds a Caddy image with caddy-ratelimit once (needs Docker build access), or build it on the Docker host (see the manual)
         requests_per_second: 10
         burst: 50
     ip_filter:
@@ -2049,7 +2049,7 @@ security_proxy:
         addresses: []
     basic_auth:
         enabled: false                      # Vault: proxy_basic_auth_user / proxy_basic_auth_pass
-    geo_blocking:
+    geo_blocking:                           # not implemented yet: the security proxy ignores these keys
         enabled: false
         allowed_countries: []               # ISO 3166-1 alpha-2 codes
     additional_routes: []

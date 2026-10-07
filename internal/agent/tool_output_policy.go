@@ -12,7 +12,7 @@ type toolOutputPolicyResult struct {
 	ErrorSummary string
 }
 
-func applyToolOutputPolicy(action, result string, limit int, scope AgentTelemetryScope, executionStatus ...ToolResultStatus) toolOutputPolicyResult {
+func applyToolOutputPolicy(result string, limit int, scope AgentTelemetryScope, executionStatus ...ToolResultStatus) toolOutputPolicyResult {
 	status := classifyLegacyToolResult(result)
 	if len(executionStatus) > 0 {
 		status = executionStatus[0]
@@ -34,28 +34,17 @@ func applyToolOutputPolicy(action, result string, limit int, scope AgentTelemetr
 
 	decision.Truncated = true
 	RecordToolRecoveryEventForScope(scope, "tool_output_truncated")
-	if decision.WasError {
-		RecordToolRecoveryEventForScope(scope, "error_output_truncated_preserved")
-	}
-	// Readable execution output keeps the plain-text policy inside its boundary;
-	// ErrorSummary is already taken from the decoded payload.
-	summary := decision.ErrorSummary
-	if content, ok := truncateExecutionOutput(action, result, limit, func(text string, budget int) string {
-		if decision.WasError {
-			return truncateToolErrorPreserving(text, budget, summary)
-		}
-		return truncateToolOutput(text, budget)
-	}); ok {
-		decision.Content = content
-		return decision
-	}
 	value, isolated := toolResultPayload(result)
 	if json.Valid([]byte(value)) || isolated {
-		decision.Content = boundedToolResult(action, result, limit, status)
+		if decision.WasError {
+			RecordToolRecoveryEventForScope(scope, "error_output_truncated_preserved")
+		}
+		decision.Content = boundedToolResult(result, limit, status)
 		return decision
 	}
 
 	if decision.WasError {
+		RecordToolRecoveryEventForScope(scope, "error_output_truncated_preserved")
 		decision.Content = truncateToolErrorPreserving(result, limit, decision.ErrorSummary)
 		return decision
 	}

@@ -33,7 +33,7 @@
   "help.telnyx.webhook_path": "URL cesta, kam Telnyx doručuje webhook události. Musí odpovídat nastavení na portálu Telnyx.",
   "help.telnyx.allowed_numbers": "Seznam povolených telefonních čísel E.164 oddělených čárkami. Prázdný seznam blokuje všechna čísla.",
   "help.telnyx.call_timeout": "Maximální doba trvání hovoru v sekundách před automatickým zavěšením (30–3600).",
-  "help.telnyx.record_calls": "Automaticky nahrávat všechny hlasové hovory. Nahrávky jsou přístupné agentovi.",
+  "help.telnyx.record_calls": "Automaticky nahrávat všechny hlasové hovory. Nahrávky se ukládají a jsou přístupné agentovi.",
   "help.telnyx.relay_to_agent": "Přeposílat příchozí SMS a přepisy hovorů agentovi ke zpracování.",
   "config.telnyx.checking": "Kontrola připojení…",
   "config.telnyx.loading": "Testování…",

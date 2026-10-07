@@ -448,6 +448,14 @@ func TestHandleMissionCancelV2(t *testing.T) {
 		t.Fatalf("remote mission: expected 400 'not supported', got %d body %s", rr.Code, rr.Body.String())
 	}
 
+	for _, suffix := range []string{"run/cancel", "trigger/cancel", "prepare/cancel", "cancel/extra"} {
+		rr := httptest.NewRecorder()
+		handleMissionV2ByID(s).ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/missions/v2/m_cancel/"+suffix, nil))
+		if rr.Code != http.StatusNotFound {
+			t.Fatalf("extra route %q: status=%d body=%s, want 404", suffix, rr.Code, rr.Body.String())
+		}
+	}
+
 	rr := httptest.NewRecorder()
 	handleMissionV2ByID(s).ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/missions/v2/m_cancel/cancel", nil))
 	if rr.Code != http.StatusMethodNotAllowed {

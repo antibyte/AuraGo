@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"errors"
@@ -37,7 +38,7 @@ func (c *agodeskLocalTestChatClient) CreateChatCompletion(_ context.Context, req
 	return c.response, c.err
 }
 
-func (c *agodeskLocalTestChatClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *agodeskLocalTestChatClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("streaming is not expected")
 }
 

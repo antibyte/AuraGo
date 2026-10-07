@@ -353,6 +353,131 @@ func TestHandlerBlocksHighThreatPayload(t *testing.T) {
 	}
 }
 
+func TestQuarantinedWebhookNotifiesMissionWithSafeReplacement(t *testing.T) {
+	loopback := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Errorf("decode loopback payload: %v", err)
+			return
+		}
+		if len(payload.Messages) != 1 {
+			t.Errorf("loopback messages = %d, want 1", len(payload.Messages))
+			return
+		}
+		loopback <- payload.Messages[0].Content
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	_, portText, err := net.SplitHostPort(strings.TrimPrefix(server.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler, token, manager := newSilentWebhookHandler(t, WebhookFormat{AcceptedContentTypes: []string{"application/json"}})
+	handler.serverPort = port
+	handler.cfg.Server.Port = port
+	handler.cfg.LLMGuardian.ScanDocuments = true
+	handler.guardian = security.NewGuardian(nil)
+	handler.SetInternalToken("internal-test")
+	wh, err := manager.GetBySlug("test-hook")
+	if err != nil {
+		t.Fatal(err)
+	}
+	callbacks := 0
+	manager.RegisterMissionTriggerForKey("mission-1", wh.ID, func([]byte) { callbacks++ })
+
+	body := `{"payload":"RAW SECRET CONTENT"}`
+	req := httptest.NewRequest(http.MethodPost, "/webhook/test-hook", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	select {
+	case prompt := <-loopback:
+		if !strings.Contains(prompt, "[QUARANTINE NOTICE]") || strings.Contains(prompt, "RAW SECRET CONTENT") {
+			t.Fatalf("loopback prompt did not withhold source payload: %q", prompt)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("mission-target quarantine notice was not delivered")
+	}
+	if callbacks != 0 {
+		t.Fatalf("quarantined webhook invoked %d raw mission callbacks", callbacks)
+	}
+}
+
+func TestQuarantinedSilentWebhookWithoutMissionDoesNotWakeAgent(t *testing.T) {
+	handler, token, manager := newSilentWebhookHandler(t, WebhookFormat{AcceptedContentTypes: []string{"application/json"}})
+	handler.cfg.LLMGuardian.ScanDocuments = true
+	handler.guardian = security.NewGuardian(nil)
+	req := httptest.NewRequest(http.MethodPost, "/webhook/test-hook", strings.NewReader(`{"payload":"private"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	entries := manager.GetLog().Recent(1)
+	if len(entries) != 1 || entries[0].Delivered {
+		t.Fatalf("silent quarantine without a mission should only log locally: %#v", entries)
+	}
+}
+
+func TestQuarantineLogRequiresLoopbackAcceptanceDespiteSSE(t *testing.T) {
+	loopback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer loopback.Close()
+	_, portText, err := net.SplitHostPort(strings.TrimPrefix(loopback.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, token, manager := newSilentWebhookHandler(t, WebhookFormat{AcceptedContentTypes: []string{"application/json"}})
+	wh, err := manager.GetBySlug("test-hook")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Update(wh.ID, Webhook{Delivery: DeliveryConfig{Mode: DeliveryModeNotify}}); err != nil {
+		t.Fatal(err)
+	}
+	manager.RegisterMissionTriggerForKey("mission-1", wh.ID, func([]byte) {})
+	handler.serverPort = port
+	handler.cfg.Server.Port = port
+	handler.cfg.LLMGuardian.ScanDocuments = true
+	handler.guardian = security.NewGuardian(nil)
+	handler.SetSSE(&captureSSE{details: make(chan string, 1)})
+
+	req := httptest.NewRequest(http.MethodPost, "/webhook/test-hook", strings.NewReader(`{"payload":"private"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	waitForWebhookLogEntry(t, manager)
+	entries := manager.GetLog().Recent(1)
+	if len(entries) != 1 || entries[0].Delivered {
+		t.Fatalf("UI SSE must not mask failed mandatory agent delivery: %#v", entries)
+	}
+}
+
 func TestDeliverMessageUsesInternalAuthHeaders(t *testing.T) {
 	t.Parallel()
 

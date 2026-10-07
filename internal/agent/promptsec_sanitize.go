@@ -25,19 +25,15 @@ func applyPromptSecToLatestUserMessage(messages []openai.ChatCompletionMessage, 
 					continue
 				}
 				content := strings.TrimSpace(part.Text)
-				if content == "" || guardian.HasPromptSecStructuredOutput(part.Text) {
+				if content == "" {
 					continue
 				}
 				scan := guardian.SanitizeForLLM(part.Text, "user")
-				if scan.Sanitized == "" || scan.Sanitized == part.Text {
+				replacement, ok := promptSecUserReplacement(part.Text, scan)
+				if !ok {
 					continue
 				}
-				// Chat requests already carry the trusted prompt in a system role.
-				// Do not copy PromptSec's structural wrapper into user content.
-				if scan.StructuredPrompt || guardian.HasPromptSecStructuredOutput(scan.Sanitized) {
-					continue
-				}
-				updatedParts[partIdx].Text = scan.Sanitized
+				updatedParts[partIdx].Text = replacement
 				applied = true
 			}
 			if !applied {
@@ -51,23 +47,22 @@ func applyPromptSecToLatestUserMessage(messages []openai.ChatCompletionMessage, 
 		if content == "" {
 			return messages, false
 		}
-		if guardian.HasPromptSecStructuredOutput(msg.Content) {
-			return messages, false
-		}
-
 		scan := guardian.SanitizeForLLM(msg.Content, "user")
-		if scan.Sanitized == "" || scan.Sanitized == msg.Content {
-			return messages, false
-		}
-		// Chat requests already carry the trusted prompt in a system role.
-		// Do not copy PromptSec's structural wrapper into user content.
-		if scan.StructuredPrompt || guardian.HasPromptSecStructuredOutput(scan.Sanitized) {
+		replacement, ok := promptSecUserReplacement(msg.Content, scan)
+		if !ok {
 			return messages, false
 		}
 
 		updated := append([]openai.ChatCompletionMessage(nil), messages...)
-		updated[i].Content = scan.Sanitized
+		updated[i].Content = replacement
 		return updated, true
 	}
 	return messages, false
+}
+
+func promptSecUserReplacement(original string, scan security.ScanResult) (string, bool) {
+	if scan.StructuredPrompt || scan.Sanitized == "" || scan.Sanitized == original {
+		return original, false
+	}
+	return scan.Sanitized, true
 }

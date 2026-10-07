@@ -6,25 +6,18 @@ type toolOutputTrust int
 
 const (
 	toolOutputTrusted toolOutputTrust = iota
-	toolOutputSemiTrusted
 	toolOutputExternal
 	// toolOutputSourceData is untrusted project source that the model must copy
 	// exactly for edits; it stays isolated but unescaped unless it looks hostile.
 	toolOutputSourceData
 )
 
-// IsExecutionToolOutput reports whether SanitizeToolOutput treats action as an
-// execution tool, whose benign output is bounded in the readable source form.
-func IsExecutionToolOutput(action string) bool {
-	return classifyToolOutput(action) == toolOutputSemiTrusted
-}
-
 func classifyToolOutput(action string) toolOutputTrust {
 	switch strings.ToLower(strings.TrimSpace(action)) {
 	case "activate_tools", "context_manager", "discover_tools", "get_tool_info":
 		return toolOutputTrusted
 	case "execute_shell", "execute_python", "run_tool":
-		return toolOutputSemiTrusted
+		return toolOutputExternal
 	case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate":
 		return toolOutputSourceData
 	case

@@ -81,7 +81,7 @@
   "truenas.pool_all_ok": "सब ठीक",
   "truenas.pool_allocated": "आवंटित",
   "truenas.pool_degraded": "क्षतिग्रस्त",
-  "truenas.pool_free": "मुफ़्त",
+  "truenas.pool_free": "खाली",
   "truenas.pool_size": "आकार",
   "truenas.recent_label": "पिछले 24 घंटे:",
   "truenas.rollback_complete": "स्नैपशॉट रोलबैक सफलतापूर्वक पूरा हुआ।",

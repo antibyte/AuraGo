@@ -65,15 +65,13 @@ func WithClientFactory(factory func(*config.Config) *openai.Client) FailoverOpti
 
 func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...FailoverOption) *FailoverManager {
 	if cfg != nil {
-		if cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
-			// Enforce a floor of 120s so large-prompt scenarios (Virtual Desktop)
-			// never get a dangerously short per-attempt timeout from old configs.
-			timeout := time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second
-			if timeout < 120*time.Second {
-				timeout = 120 * time.Second
-			}
-			SetPerAttemptTimeout(timeout)
+		// Enforce a floor of 120s so large-prompt scenarios (Virtual Desktop)
+		// never get a dangerously short per-attempt timeout from old configs.
+		timeout := time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second
+		if timeout < 120*time.Second {
+			timeout = 120 * time.Second
 		}
+		SetPerAttemptTimeout(timeout)
 		ConfigureDefaultRetryIntervals(cfg.CircuitBreaker.RetryIntervals, logger)
 		cfg.CircuitBreaker.FinalRetryInterval = configureFinalRetryInterval(cfg.CircuitBreaker.FinalRetryInterval, logger)
 	}
@@ -123,15 +121,13 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...Fail
 
 func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	if cfg != nil {
-		if cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
-			// Enforce a floor of 120s so large-prompt scenarios (Virtual Desktop)
-			// never get a dangerously short per-attempt timeout from old configs.
-			timeout := time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second
-			if timeout < 120*time.Second {
-				timeout = 120 * time.Second
-			}
-			SetPerAttemptTimeout(timeout)
+		// Enforce a floor of 120s so large-prompt scenarios (Virtual Desktop)
+		// never get a dangerously short per-attempt timeout from old configs.
+		timeout := time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second
+		if timeout < 120*time.Second {
+			timeout = 120 * time.Second
 		}
+		SetPerAttemptTimeout(timeout)
 		ConfigureDefaultRetryIntervals(cfg.CircuitBreaker.RetryIntervals, fm.logger)
 		cfg.CircuitBreaker.FinalRetryInterval = configureFinalRetryInterval(cfg.CircuitBreaker.FinalRetryInterval, fm.logger)
 	}
@@ -230,41 +226,44 @@ func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.
 	return resp, err
 }
 
-func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
-	client, model, onFallback := fm.active()
-	if onFallback && !fm.fallbackSupportsFeatures(req) {
-		fm.logger.Warn("[LLM] Fallback model does not support request features, using primary", "fallback_model", model)
-		fm.mu.RLock()
-		client = fm.primary
-		model = fm.primaryModel
-		fm.mu.RUnlock()
+func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (CompletionStream, error) {
+	route := fm.activeStreamRoute()
+	if route.onFallback && !fm.fallbackSupportsFeatures(req) {
+		fm.logger.Warn("[LLM] Fallback model does not support request features, using primary", "fallback_model", route.model)
+		route = fm.primaryStreamRoute(route)
+	}
+	if !route.valid || route.client == nil {
+		return nil, errors.New("LLM provider client is unavailable")
 	}
 	reqCopy := req
-	reqCopy.Model = model
+	reqCopy.Model = route.model
 
-	stream, err := client.CreateChatCompletionStream(ctx, reqCopy)
+	stream, err := route.client.CreateChatCompletionStream(ctx, reqCopy)
 	if err != nil {
-		if fallbackClient, fallbackModel, retry := fm.immediateFallbackForRequest(err, onFallback, req); retry {
+		if fallbackClient, fallbackModel, retry := fm.immediateFallbackForRequest(err, route.onFallback, req, route.generation); retry {
+			fallbackRoute := fm.fallbackStreamRoute(route.generation, fallbackClient)
+			if !fallbackRoute.valid {
+				return nil, err
+			}
 			reqCopy.Model = fallbackModel
 			stream, err = fallbackClient.CreateChatCompletionStream(ctx, reqCopy)
 			if err != nil {
-				fm.recordError(err)
-			} else {
-				fm.recordSuccess()
+				fm.recordStreamError(fallbackRoute, err)
+				return nil, err
 			}
-			return stream, err
+			return fm.observeStream(ctx, stream, req, fallbackRoute), nil
 		}
-		fm.recordError(err)
-	} else {
-		fm.recordSuccess()
+		fm.recordStreamError(route, err)
+		return nil, err
 	}
-	return stream, err
+	return fm.observeStream(ctx, stream, req, route), nil
 }
 
 func (fm *FailoverManager) immediateFallbackForRequest(
 	err error,
 	wasOnFallback bool,
 	req openai.ChatCompletionRequest,
+	expectedGeneration ...int,
 ) (*openai.Client, string, bool) {
 	if err == nil || wasOnFallback || IsContextError(err) || !fm.fallbackSupportsFeatures(req) {
 		return nil, "", false
@@ -275,6 +274,10 @@ func (fm *FailoverManager) immediateFallbackForRequest(
 	}
 	fm.mu.Lock()
 	defer fm.mu.Unlock()
+	if len(expectedGeneration) > 0 &&
+		(fm.generation != expectedGeneration[0] || fm.isOnFallback != wasOnFallback) {
+		return nil, "", false
+	}
 	if fm.fallback == nil || fm.isOnFallback {
 		return nil, "", false
 	}
@@ -452,6 +455,12 @@ func normalizeRouteBaseURL(value string) string {
 }
 
 func (fm *FailoverManager) recordError(err error) {
+	fm.mu.Lock()
+	defer fm.mu.Unlock()
+	fm.recordErrorLocked(err)
+}
+
+func (fm *FailoverManager) recordErrorLocked(err error) {
 	if err == nil || IsContextError(err) {
 		return
 	}
@@ -468,8 +477,6 @@ func (fm *FailoverManager) recordError(err error) {
 
 	var immediate interface{ ImmediateFailover() bool }
 	if errors.As(err, &immediate) && immediate.ImmediateFailover() {
-		fm.mu.Lock()
-		defer fm.mu.Unlock()
 		if fm.fallback != nil && !fm.isOnFallback {
 			fm.logger.Warn("LLM failover: managed local runtime unavailable, switching immediately",
 				"model", fm.fallbackModel, "error", err)
@@ -478,9 +485,6 @@ func (fm *FailoverManager) recordError(err error) {
 		}
 		return
 	}
-
-	fm.mu.Lock()
-	defer fm.mu.Unlock()
 
 	fm.errorCount++
 	if fm.fallback == nil || fm.isOnFallback {

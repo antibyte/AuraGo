@@ -140,6 +140,13 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		name := strings.TrimSpace(stringValueFromMap(tc.Params, "tool_name", "name", "tool"))
 		entry, ok := catalog.Get(name)
 		if !ok {
+			if serviceID := exactComposioServiceID(cfg, name); serviceID != "" {
+				entry, ok = catalog.Get("composio_call")
+				ok = ok && entry.Enabled && (dc == nil || catalogEntryAllowed(dc, entry))
+				name = serviceID
+			}
+		}
+		if !ok {
 			return discoverToolsJSON(DiscoverToolsResponse{Status: "error", Error: "tool_not_found"})
 		}
 		guide, ok := prompts.ReadToolGuideFull(entry.ManualPath)
@@ -180,6 +187,29 @@ func discoverComposioServiceResult(cfg *config.Config, name string) (DiscoverToo
 		}
 	}
 	return DiscoverToolResult{}, false
+}
+
+// Manual IDs must be exact and unambiguous, unlike free-text service searches.
+func exactComposioServiceID(cfg *config.Config, name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	matched := ""
+	for _, slug := range selectedComposioToolkitSlugs(cfg) {
+		id := "composio:" + slug
+		matches := name == id
+		if !strings.HasPrefix(name, "composio:") {
+			matches = name == slug
+			for _, alias := range composioServiceAliases(slug) {
+				matches = matches || name == alias
+			}
+		}
+		if matches {
+			if matched != "" {
+				return ""
+			}
+			matched = id
+		}
+	}
+	return matched
 }
 
 func selectedComposioToolkitSlugs(cfg *config.Config) []string {

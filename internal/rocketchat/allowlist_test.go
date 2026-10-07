@@ -43,7 +43,7 @@ func TestRocketChatWarnsOnUsernameAllowlistEntries(t *testing.T) {
 	cfg.RocketChat.AllowedUsers = []string{"username:alice"}
 	start := func() {
 		t.Helper()
-		if bot := StartBot(context.Background(), cfg, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil); bot != nil {
+		if bot := StartBot(context.Background(), cfg, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil); bot != nil {
 			bot.Stop()
 			t.Fatal("bot without connection settings started")
 		}

@@ -28,7 +28,7 @@ func (c *rejectingBudgetTestClient) CreateChatCompletion(context.Context, openai
 	return openai.ChatCompletionResponse{}, errors.New("LLM must not be called for an impossible request")
 }
 
-func (c *rejectingBudgetTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *rejectingBudgetTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	c.called = true
 	return nil, errors.New("LLM must not be called for an impossible request")
 }

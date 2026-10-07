@@ -12,7 +12,7 @@
   "config.here_now.allow_publish": "Veröffentlichen erlauben",
   "config.here_now.allow_publish_help": "Erlaubt Erstellen, Aktualisieren, Duplizieren und Wiederherstellen permanenter Sites.",
   "config.here_now.allow_site_management": "Site-Verwaltung erlauben",
-  "config.here_now.allow_site_management_help": "Erlaubt Änderungen an Anzeige- und Viewer-Metadaten sowie am SPA-Modus.",
+  "config.here_now.allow_site_management_help": "Erlaubt Änderungen an Owner- und Viewer-Metadaten sowie am SPA-Routing.",
   "config.here_now.allow_access_management": "Zugriffsverwaltung erlauben",
   "config.here_now.allow_access_management_help": "Erlaubt Änderungen an Zugriffsrichtlinien und Passwörtern.",
   "config.here_now.allow_delete": "Löschen erlauben",

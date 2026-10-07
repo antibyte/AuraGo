@@ -69,11 +69,14 @@
         node.href = href;
         node.setAttribute('aria-label', translate(label));
         node.title = translate(label);
-        node.append(icon(key));
+        node.append(icon(key), element('span', 'galaxy-control-label', translate(label)));
         return node;
     }
     function label(node, key) {
         if (node) own(element('span', 'galaxy-control-label', translate('chat.galaxy_' + key)), node);
+    }
+    function caption(node, i18nKey) {
+        if (node) own(element('span', 'galaxy-control-label', translate(i18nKey)), node);
     }
     function clock() {
         clearTimeout(clockTimer);
@@ -135,21 +138,25 @@
         const logo = document.querySelector('.app-header .logo');
         logo.style.setProperty('--galaxy-mark', 'url("' + asset('orbit-mark.png') + '")');
         own(element('small', 'galaxy-brand-tag', 'YOUR AI AGENT\nFOR A BRIGHTER TOMORROW'), logo);
+        // Left rail: navigation with icon + caption. The two drawer toggles keep their handlers.
         const nav = own(element('nav', 'galaxy-nav'), document.body);
         nav.setAttribute('aria-label', translate('common.nav_aria_label'));
         nav.append(link('/desktop', 'home', 'common.nav_desktop'));
         move(byId('integrations-toggle-btn'), nav);
+        caption(byId('integrations-toggle-btn'), 'chat.integrations_title');
         move(byId('session-toggle-btn'), nav);
+        caption(byId('session-toggle-btn'), 'chat.sessions_title');
         nav.append(link('/dashboard', 'mood-analytical', 'common.nav_dashboard'));
         nav.append(link('/missions', 'mood-curious', 'common.nav_missions'));
         nav.append(link('/config', 'settings', 'common.nav_config', 'galaxy-nav-settings'));
-        const plate = own(element('div', 'galaxy-clock'), document.body);
+        // Right rail: the live status pills, mirrored in size and glass to the navigation.
+        const status = own(element('aside', 'galaxy-status'), document.body);
+        for (const id of ['connectionPill', 'tokenCounter', 'budgetPill', 'creditsPill', 'debug-pill']) move(byId(id), status);
+        // The clock is a header segment, not a floating plate.
+        const plate = own(element('div', 'galaxy-clock'), document.querySelector('.app-header'));
         plate.id = 'galaxy-clock';
         plate.append(element('time', ''), element('small', ''));
         clock();
-        const left = own(element('div', 'galaxy-motto galaxy-motto-left', 'EXPLORE.\nTHINK.\nCREATE\nTOGETHER'), document.body);
-        const right = own(element('div', 'galaxy-motto galaxy-motto-right', 'A MORE\nINTELLIGENT\nTOMORROW\n— TOGETHER'), document.body);
-        [left, right].forEach(node => node.setAttribute('aria-hidden', 'true'));
         label(byId('personality-select'), 'persona');
         label(byId('moodToggle'), 'mood');
         originalPlaceholder = byId('user-input').placeholder;
@@ -160,8 +167,10 @@
         observer = new MutationObserver(greeting);
         headerObserver = new MutationObserver(updateHeader);
         headerObserver.observe(document.querySelector('.header-actions'), {attributes: true, attributeFilter: ['data-chat-icon', 'class'], childList: true, subtree: true});
+        // The connection pill now lives in the status rail; keep mirroring its state.
+        headerObserver.observe(byId('connectionPill'), {attributes: true, attributeFilter: ['class'], childList: true, characterData: true, subtree: true});
         observer.observe(byId('chat-content'), {childList: true});
-        document.querySelectorAll('#chat-form [data-chat-icon], .galaxy-nav [data-chat-icon]').forEach(decorateIcon);
+        document.querySelectorAll('#chat-form [data-chat-icon], .galaxy-nav [data-chat-icon], .galaxy-status [data-chat-icon]').forEach(decorateIcon);
         updateHeader();
     }
     function unmount() {

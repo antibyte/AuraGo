@@ -376,12 +376,18 @@ func (s *Service) handleMessage(ctx context.Context, msg Message) error {
 	if msg.ID == "" || s.isSeen(msg.ID) {
 		return nil
 	}
-	msg = s.sanitizeMessage(ctx, msg)
-	if err := s.notify(ctx, BuildNotificationPrompt(s.cfg.InboxID, msg, s.relaySheet)); err != nil {
+	msg, quarantine := s.sanitizeMessage(ctx, msg)
+	var prompt string
+	if quarantine != nil {
+		prompt = security.QuarantineNotice("agentmail", msg.ID, *quarantine)
+	} else {
+		prompt = BuildNotificationPrompt(s.cfg.InboxID, msg, s.relaySheet)
+	}
+	if err := s.notify(ctx, prompt); err != nil {
 		return err
 	}
 	s.markSeen(msg.ID)
-	if !s.cfg.ReadOnly {
+	if quarantine == nil && !s.cfg.ReadOnly {
 		s.mu.Lock()
 		s.pendingLabels[msg.ID] = struct{}{}
 		s.mu.Unlock()
@@ -412,32 +418,36 @@ func (s *Service) retryLabels(ctx context.Context) {
 	}
 }
 
-func (s *Service) sanitizeMessage(ctx context.Context, msg Message) Message {
-	combined := fmt.Sprintf("From: %s <%s>\nSubject: %s\nText: %s", msg.From.Name, msg.From.Email, msg.Subject, msg.Text)
-	if s.guardian == nil {
-		return msg
-	}
-	scan := s.guardian.ScanForInjection(combined)
-	if scan.Level >= security.ThreatHigh {
-		s.logger.Warn("[AgentMail] Guardian blocked message", "message_id", msg.ID, "threat", scan.Level.String())
-		msg.Subject = security.SanitizedText("guardian scan flagged this message")
-		msg.Text = security.RedactedText("guardian blocked content after injection detection")
-		msg.Snippet = security.RedactedText("")
-		return msg
-	}
-	if s.llmGuardian != nil && s.scanEmails {
-		llmResult := s.llmGuardian.EvaluateContent(ctx, "email", combined)
-		if llmResult.Decision == security.DecisionBlock {
-			s.logger.Warn("[AgentMail] LLM Guardian blocked message", "message_id", msg.ID, "reason", llmResult.Reason)
-			msg.Subject = security.SanitizedText("llm guardian blocked this message")
-			msg.Text = security.RedactedText("llm guardian blocked content: " + llmResult.Reason)
-			msg.Snippet = security.RedactedText("")
-			return msg
+func (s *Service) sanitizeMessage(ctx context.Context, msg Message) (Message, *security.GuardianResult) {
+	combined := fmt.Sprintf("From: %s <%s>\nSubject: %s\nText: %s\nSnippet: %s\nLabels: %s",
+		msg.From.Name, msg.From.Email, msg.Subject, msg.Text, msg.Snippet, strings.Join(msg.Labels, ", "))
+	if s.guardian != nil {
+		scan := s.guardian.ScanForInjectionLocal(combined)
+		if scan.Level >= security.ThreatHigh {
+			result := security.ContentScanQuarantine(security.QuarantineSuspicious)
+			return msg, &result
 		}
 	}
-	msg.Text = s.guardian.SanitizeToolOutput("agentmail", msg.Text)
-	msg.Snippet = s.guardian.SanitizeToolOutput("agentmail", msg.Snippet)
-	return msg
+	if s.scanEmails {
+		if s.guardian == nil || s.llmGuardian == nil {
+			result := security.ContentScanQuarantine(security.QuarantineUnavailable)
+			return msg, &result
+		}
+		llmResult := s.llmGuardian.EvaluateContent(ctx, "email", combined)
+		if llmResult.Decision != security.DecisionAllow {
+			reason := llmResult.QuarantineReason
+			if reason == "" {
+				reason = security.QuarantineSuspicious
+			}
+			result := security.ContentScanQuarantine(reason)
+			return msg, &result
+		}
+	}
+	if s.guardian != nil {
+		msg.Text = s.guardian.SanitizeToolOutput("agentmail", msg.Text)
+		msg.Snippet = s.guardian.SanitizeToolOutput("agentmail", msg.Snippet)
+	}
+	return msg, nil
 }
 
 func (s *Service) isSeen(id string) bool {

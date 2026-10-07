@@ -11,5 +11,6 @@
   "config.security.severity.critical": "KRITISCH",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "WARNUNG",
-  "config.security.status_success": "✅"
+  "config.security.status_success": "✅",
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: Nests mit Docker (Entfernt) deployen über unverschlüsseltes HTTP"
 }
