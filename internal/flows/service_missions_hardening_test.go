@@ -406,6 +406,9 @@ func TestServiceCancelMissionRunsCancelsWaitingLiveRunsOnly(t *testing.T) {
 	finished := c10ObserveFinished(s, 8)
 	ctx := context.Background()
 	rec, _ := c10PublishSearch(t, s, "Suche")
+	if err := s.SetEnabled(ctx, rec.ID, true); err != nil { // FF1: Run now needs the flow switched on
+		t.Fatal(err)
+	}
 
 	testRun, err := s.StartTestRun(ctx, rec.ID, TestRunRequest{})
 	if err != nil || testRun.Status != StartStarted {

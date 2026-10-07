@@ -420,7 +420,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `SaveTriggerSample` and `TriggerSampleData` accept only an enabled trigger of the draft (else `ErrNoTrigger`,
   wrapped with the bounded node id), so made-up node ids never get a stored row.
 - Live runs (`RunNow`, `TriggerFromMission`, timer callbacks, all through `startLive`) execute the published
-  revision (`ErrNotPublished` without one, `ErrNoTrigger` without a matching enabled trigger) and report start and
+  revision (`ErrNotPublished` without one, `ErrNoTrigger` without a matching enabled trigger). `RunNow` also
+  refuses a flow that is switched off (`ErrFlowDisabled`, its mission is disabled), as Mission Control does; the
+  other live starts check the switch before they get here (Mission Control's triggers and Run, `onTimerFired`),
+  and test runs are not affected. Live runs report start and
   finish: `FlowRunStarted` returns the history id, and `FlowRunFinished(RunFinishedInfo)` carries the leaf
   outputs (nodes without successors, by key) of the document the run executed, for dependent
   `mission_completed` triggers. A run is reported even when its flow was deleted meanwhile (the hook remembers

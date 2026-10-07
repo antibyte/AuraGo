@@ -23,6 +23,10 @@ func publishedSimpleFlow(t *testing.T, s *Service) (*FlowRecord, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// FF1: Run now needs the flow switched on.
+	if err := s.SetEnabled(ctx, rec.ID, true); err != nil {
+		t.Fatal(err)
+	}
 	return pub, doc.Nodes[0].ID
 }
 

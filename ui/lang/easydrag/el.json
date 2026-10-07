@@ -400,6 +400,7 @@
   "easydrag.ui.error_flow_condition_failed": "Η συνθήκη δεν ήταν δυνατό να ελεγχθεί.",
   "easydrag.ui.error_flow_condition_invalid": "Η συνθήκη είναι ελλιπής.",
   "easydrag.ui.error_flow_cycle": "Τα βήματα σχηματίζουν βρόχο.",
+  "easydrag.ui.error_flow_disabled": "Η ροή είναι σε παύση. Ενεργοποίησέ την πρώτα.",
   "easydrag.ui.error_flow_exists": "Υπάρχει ήδη ροή με αυτό το ID.",
   "easydrag.ui.error_flow_file_exists": "Το αρχείο υπάρχει ήδη.",
   "easydrag.ui.error_flow_http_status": "Ο διακομιστής ιστού απάντησε με σφάλμα.",

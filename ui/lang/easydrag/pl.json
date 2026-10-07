@@ -400,6 +400,7 @@
   "easydrag.ui.error_flow_condition_failed": "Nie udało się sprawdzić warunku.",
   "easydrag.ui.error_flow_condition_invalid": "Warunek jest niekompletny.",
   "easydrag.ui.error_flow_cycle": "Kroki tworzą pętlę.",
+  "easydrag.ui.error_flow_disabled": "Przepływ jest wstrzymany. Najpierw przełącz go na Aktywny.",
   "easydrag.ui.error_flow_exists": "Przepływ o tym identyfikatorze już istnieje.",
   "easydrag.ui.error_flow_file_exists": "Plik już istnieje.",
   "easydrag.ui.error_flow_http_status": "Serwer WWW odpowiedział błędem.",

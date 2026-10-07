@@ -228,6 +228,8 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 		flowsError(w, http.StatusConflict, "FLOW_NOT_PUBLISHED", flowsErrorText(err))
 	case errors.Is(err, flows.ErrNoTrigger):
 		flowsError(w, http.StatusConflict, "FLOW_NO_TRIGGER", flowsErrorText(err))
+	case errors.Is(err, flows.ErrFlowDisabled):
+		flowsError(w, http.StatusConflict, "FLOW_DISABLED", flowsErrorText(err))
 	case errors.Is(err, flows.ErrFlowExists):
 		flowsError(w, http.StatusConflict, "FLOW_EXISTS", flowsErrorText(err))
 	case errors.Is(err, flows.ErrMissionAmbiguous):

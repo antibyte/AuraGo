@@ -110,6 +110,9 @@ func (e *ValidationError) Error() string {
 var (
 	ErrNotPublished = errors.New("the flow has not been published yet")
 	ErrNoTrigger    = errors.New("the flow has no matching active trigger")
+	// ErrFlowDisabled refuses Run now of a published flow that is switched off, as
+	// Mission Control refuses to run a disabled mission. Test runs are not affected.
+	ErrFlowDisabled = errors.New("the flow is paused; switch it on first")
 )
 
 // Service is the entry point for the HTTP API, Mission Control and timers.

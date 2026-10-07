@@ -182,7 +182,9 @@ func TestServiceStartsRacingADelete(t *testing.T) {
 				case a.path == "timer":
 				case a.err == nil && !a.after && a.res.RunID != "":
 					started = append(started, a)
-				case !errors.Is(a.err, ErrNotFound):
+				// FF1: RunNow during the delete may find the mission removed already, so the
+				// flow counts as switched off (ErrFlowDisabled); it starts no run either.
+				case !errors.Is(a.err, ErrNotFound) && !(a.path == "RunNow" && errors.Is(a.err, ErrFlowDisabled)):
 					t.Fatalf("round %d: %s (after the delete: %v) = %+v, %v; want a run or ErrNotFound", round, a.path, a.after, a.res, a.err)
 				case !a.after:
 					raced++

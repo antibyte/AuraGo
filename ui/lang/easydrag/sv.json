@@ -400,6 +400,7 @@
   "easydrag.ui.error_flow_condition_failed": "Villkoret kunde inte kontrolleras.",
   "easydrag.ui.error_flow_condition_invalid": "Villkoret är ofullständigt.",
   "easydrag.ui.error_flow_cycle": "Stegen bildar en slinga.",
+  "easydrag.ui.error_flow_disabled": "Flödet är pausat. Ställ det först på Aktiv.",
   "easydrag.ui.error_flow_exists": "Det finns redan ett flöde med det här ID:t.",
   "easydrag.ui.error_flow_file_exists": "Filen finns redan.",
   "easydrag.ui.error_flow_http_status": "Webbservern svarade med ett fel.",

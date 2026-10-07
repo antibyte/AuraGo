@@ -400,6 +400,7 @@
   "easydrag.ui.error_flow_condition_failed": "De voorwaarde kon niet worden gecontroleerd.",
   "easydrag.ui.error_flow_condition_invalid": "De voorwaarde is onvolledig.",
   "easydrag.ui.error_flow_cycle": "De stappen vormen een lus.",
+  "easydrag.ui.error_flow_disabled": "De flow is gepauzeerd. Zet hem eerst op Actief.",
   "easydrag.ui.error_flow_exists": "Er bestaat al een flow met deze ID.",
   "easydrag.ui.error_flow_file_exists": "Het bestand bestaat al.",
   "easydrag.ui.error_flow_http_status": "De webserver antwoordde met een fout.",

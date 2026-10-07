@@ -400,6 +400,7 @@
   "easydrag.ui.error_flow_condition_failed": "No se pudo comprobar la condición.",
   "easydrag.ui.error_flow_condition_invalid": "La condición está incompleta.",
   "easydrag.ui.error_flow_cycle": "Los pasos forman un bucle.",
+  "easydrag.ui.error_flow_disabled": "El flujo está en pausa. Primero ponlo en Activo.",
   "easydrag.ui.error_flow_exists": "Ya existe un flujo con este ID.",
   "easydrag.ui.error_flow_file_exists": "El archivo ya existe.",
   "easydrag.ui.error_flow_http_status": "El servidor web respondió con un error.",

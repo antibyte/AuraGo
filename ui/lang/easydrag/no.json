@@ -400,6 +400,7 @@
   "easydrag.ui.error_flow_condition_failed": "Betingelsen kunne ikke kontrolleres.",
   "easydrag.ui.error_flow_condition_invalid": "Betingelsen er ufullstendig.",
   "easydrag.ui.error_flow_cycle": "Trinnene danner en løkke.",
+  "easydrag.ui.error_flow_disabled": "Flyten er satt på pause. Sett den først til Aktiv.",
   "easydrag.ui.error_flow_exists": "Det finnes allerede en flyt med denne ID-en.",
   "easydrag.ui.error_flow_file_exists": "Filen finnes allerede.",
   "easydrag.ui.error_flow_http_status": "Nettserveren svarte med en feil.",

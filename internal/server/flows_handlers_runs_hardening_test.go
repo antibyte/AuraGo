@@ -654,6 +654,9 @@ func TestC18DoubleCancelIsAuditedOnce(t *testing.T) {
 	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/publish", token, `{"base_revision":1}`); w.Code != http.StatusOK {
 		t.Fatalf("publish = %d %s", w.Code, w.Body.String())
 	}
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/enabled", token, `{"enabled":true}`); w.Code != http.StatusOK { // FF1: Run now needs the flow switched on
+		t.Fatalf("enable = %d %s", w.Code, w.Body.String())
+	}
 	const rounds = 3
 	for round := 1; round <= rounds; round++ {
 		w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/run", token, "")
@@ -698,6 +701,9 @@ func TestC18CancelTellsFinishedFromUnknownAndAuditsLiveRuns(t *testing.T) {
 	rec := createTestFlow(t, s, waitFlowJSON)
 	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/publish", token, `{"base_revision":1}`); w.Code != http.StatusOK {
 		t.Fatalf("publish = %d %s", w.Code, w.Body.String())
+	}
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/enabled", token, `{"enabled":true}`); w.Code != http.StatusOK { // FF1: Run now needs the flow switched on
+		t.Fatalf("enable = %d %s", w.Code, w.Body.String())
 	}
 	cancel := func(runID string) *httptest.ResponseRecorder {
 		return flowsCall(t, s, http.MethodPost, "/api/desktop/flows/runs/"+runID+"/cancel", token, "")

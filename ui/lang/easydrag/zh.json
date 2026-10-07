@@ -400,6 +400,7 @@
   "easydrag.ui.error_flow_condition_failed": "无法判断条件。",
   "easydrag.ui.error_flow_condition_invalid": "条件不完整。",
   "easydrag.ui.error_flow_cycle": "步骤形成了循环。",
+  "easydrag.ui.error_flow_disabled": "流程已暂停，请先启用它。",
   "easydrag.ui.error_flow_exists": "已存在具有此 ID 的流程。",
   "easydrag.ui.error_flow_file_exists": "文件已存在。",
   "easydrag.ui.error_flow_http_status": "Web 服务器返回了错误。",

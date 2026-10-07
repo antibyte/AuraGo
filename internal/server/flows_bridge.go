@@ -240,11 +240,12 @@ func (h flowMissionHooks) FlowMissionDeleted(missionID string) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), flowHookTimeout)
 	defer cancel()
+	flowID := h.flowIDOf(ctx, missionID)
 	if err := h.s.Flows.DeleteFlowForMission(ctx, missionID); err != nil {
 		h.logError("The flow of a deleted mission could not be removed", missionID, err)
 		return
 	}
-	h.s.broadcastFlowsChanged("", "deleted")
+	h.s.broadcastFlowsChanged(flowID, "deleted")
 }
 
 // FlowEnabledChanged implements tools.FlowHooks. It takes the flow's lock, waiting at most
@@ -255,11 +256,24 @@ func (h flowMissionHooks) FlowEnabledChanged(missionID string, _ bool) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), flowHookTimeout)
 	defer cancel()
+	flowID := h.flowIDOf(ctx, missionID)
 	if err := h.s.Flows.MissionEnabledChanged(ctx, missionID); err != nil {
 		h.logError("Flow timers could not follow Mission Control", missionID, err)
 		return
 	}
-	h.s.broadcastFlowsChanged("", "enabled")
+	h.s.broadcastFlowsChanged(flowID, "enabled")
+}
+
+// flowIDOf returns the id of the flow that holds missionID, read before the hook acts (a
+// delete removes it), so the flows_changed broadcast names the flow and an editor that
+// has it open reacts. The read is lock-free (Store.GetFlowByMission); when no single flow
+// holds the mission it returns "" and the broadcast only refreshes flow lists.
+func (h flowMissionHooks) flowIDOf(ctx context.Context, missionID string) string {
+	rec, err := h.s.Flows.Store().GetFlowByMission(ctx, missionID)
+	if err != nil || rec == nil {
+		return ""
+	}
+	return rec.ID
 }
 
 // logError logs a failed FlowMissionDeleted or FlowEnabledChanged: a flow that is gone

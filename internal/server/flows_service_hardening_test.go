@@ -255,6 +255,9 @@ func TestC16DisabledFlowsLeaveFlowMissionsInert(t *testing.T) {
 func TestC16ShutdownReportsActiveRunsToMissionControl(t *testing.T) {
 	s := c16StartedServer(t, nil)
 	rec := c16PublishedFlow(t, s, waitFlowJSON)
+	if err := s.Flows.SetEnabled(context.Background(), rec.ID, true); err != nil { // FF1: Run now needs the flow switched on
+		t.Fatalf("SetEnabled: %v", err)
+	}
 	started, err := s.Flows.RunNow(context.Background(), rec.ID)
 	if err != nil {
 		t.Fatalf("RunNow: %v", err)
@@ -447,6 +450,9 @@ func TestC16MissionControlCancelSurvivesAClientDisconnect(t *testing.T) {
 	s := c16StartedServer(t, nil)
 	ctx := context.Background()
 	rec := c16PublishedFlow(t, s, waitFlowJSON)
+	if err := s.Flows.SetEnabled(ctx, rec.ID, true); err != nil { // FF1: Run now needs the flow switched on
+		t.Fatalf("SetEnabled: %v", err)
+	}
 	started, err := s.Flows.RunNow(ctx, rec.ID)
 	if err != nil {
 		t.Fatalf("RunNow: %v", err)

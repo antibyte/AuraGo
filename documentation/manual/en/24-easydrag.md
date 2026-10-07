@@ -53,7 +53,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 - **Runs** lists the latest 50 runs, filtered by *All*, *Errors*, *Tests* or *Live*. Clicking one opens the run view: the flow version of that run with every input and output, read-only. A banner names the run; **Back to draft** or **Esc** returns. The building blocks panel stays hidden in the run view, and a failed run opens centred on the failed step.
 - A run that has not ended yet (*Queued*, which includes waiting for a free slot, or *Running*) shows **Stop** in the list and in the banner of its run view, also when a trigger or another window started it. Stopping any run but a test asks first; steps that already ran are not undone. A read-only desktop offers no Stop.
-- **Run now** (⋯ menu, or a card's menu on the start page) starts the published version.
+- **Run now** (⋯ menu, or a card's menu on the start page) starts the published version. The flow must be **Active**: a paused flow is refused until you switch it on, as Mission Control refuses to run a paused mission. **Test** works either way.
 - A failed live run notifies as the flow settings say: on the desktop (the default), as a push notification, on Telegram or not at all. A flow notifies once when it starts failing, then at most once an hour while it keeps failing. Clicking the desktop notification opens EasyDrag on that run.
 - After a desktop reload, an open flow is opened again.
 

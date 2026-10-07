@@ -400,6 +400,7 @@
   "easydrag.ui.error_flow_condition_failed": "Podmínku se nepodařilo vyhodnotit.",
   "easydrag.ui.error_flow_condition_invalid": "Podmínka je neúplná.",
   "easydrag.ui.error_flow_cycle": "Kroky tvoří smyčku.",
+  "easydrag.ui.error_flow_disabled": "Tok je pozastavený. Nejdřív ho přepni na Aktivní.",
   "easydrag.ui.error_flow_exists": "Tok s tímto ID už existuje.",
   "easydrag.ui.error_flow_file_exists": "Soubor už existuje.",
   "easydrag.ui.error_flow_http_status": "Webový server odpověděl chybou.",

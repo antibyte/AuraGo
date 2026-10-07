@@ -97,6 +97,9 @@ func TestMissionControlCancelsFlowRuns(t *testing.T) {
 	if _, _, err := s.Flows.Publish(ctx, rec.ID, rec.DraftRevision); err != nil {
 		t.Fatalf("Publish: %v", err)
 	}
+	if err := s.Flows.SetEnabled(ctx, rec.ID, true); err != nil { // FF1: Run now needs the flow switched on
+		t.Fatalf("SetEnabled: %v", err)
+	}
 	started, err := s.Flows.RunNow(ctx, rec.ID)
 	if err != nil {
 		t.Fatalf("RunNow: %v", err)

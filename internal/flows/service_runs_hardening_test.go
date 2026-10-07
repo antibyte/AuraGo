@@ -145,6 +145,10 @@ func svcRunPublish(t *testing.T, s *Service, doc *Flow) *FlowRecord {
 	if err != nil {
 		t.Fatalf("Publish: %v", err)
 	}
+	// FF1: Run now needs the flow switched on.
+	if err := s.SetEnabled(ctx, rec.ID, true); err != nil {
+		t.Fatalf("SetEnabled: %v", err)
+	}
 	return pub
 }
 

@@ -400,6 +400,7 @@
   "easydrag.ui.error_flow_condition_failed": "Die Bedingung ließ sich nicht prüfen.",
   "easydrag.ui.error_flow_condition_invalid": "Die Bedingung ist unvollständig.",
   "easydrag.ui.error_flow_cycle": "Die Schritte bilden eine Schleife.",
+  "easydrag.ui.error_flow_disabled": "Der Flow ist pausiert. Schalte ihn zuerst auf Aktiv.",
   "easydrag.ui.error_flow_exists": "Ein Flow mit dieser ID existiert bereits.",
   "easydrag.ui.error_flow_file_exists": "Die Datei existiert bereits.",
   "easydrag.ui.error_flow_http_status": "Der Webserver antwortete mit einem Fehler.",

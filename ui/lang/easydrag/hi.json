@@ -400,6 +400,7 @@
   "easydrag.ui.error_flow_condition_failed": "शर्त की जाँच नहीं हो सकी।",
   "easydrag.ui.error_flow_condition_invalid": "शर्त अधूरी है।",
   "easydrag.ui.error_flow_cycle": "चरण एक लूप बनाते हैं।",
+  "easydrag.ui.error_flow_disabled": "फ़्लो रुका हुआ है। पहले इसे सक्रिय करें।",
   "easydrag.ui.error_flow_exists": "इस ID वाला फ़्लो पहले से मौजूद है।",
   "easydrag.ui.error_flow_file_exists": "फ़ाइल पहले से मौजूद है।",
   "easydrag.ui.error_flow_http_status": "वेब सर्वर ने त्रुटि के साथ जवाब दिया।",

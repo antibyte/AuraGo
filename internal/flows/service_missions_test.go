@@ -27,6 +27,9 @@ func TestServiceCancelMissionRuns(t *testing.T) {
 	if _, _, err := s.Publish(ctx, rec.ID, rev); err != nil {
 		t.Fatal(err)
 	}
+	if err := s.SetEnabled(ctx, rec.ID, true); err != nil { // FF1: Run now needs the flow switched on
+		t.Fatal(err)
+	}
 	started, err := s.RunNow(ctx, rec.ID)
 	if err != nil {
 		t.Fatal(err)

@@ -234,7 +234,9 @@ func TestServiceRunFinishedReportsARunThatNeverStartedOnAGoneFlow(t *testing.T) 
 		inject = false
 		mu.Unlock()
 		if doInject { // the queued run, ended by the first CancelFlow
-			r, err := fx.s.RunNow(context.Background(), fx.pub.ID)
+			// FF1: RunNow refuses here (the delete removed the mission, so the flow counts
+			// as switched off); Mission Control's lock-free start path still records a run.
+			r, err := fx.s.TriggerFromMission(fx.pub.MissionID, "", "manual", nil)
 			mu.Lock()
 			late, lateErr = r, err
 			mu.Unlock()

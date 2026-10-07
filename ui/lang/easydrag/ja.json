@@ -400,6 +400,7 @@
   "easydrag.ui.error_flow_condition_failed": "条件を判定できませんでした。",
   "easydrag.ui.error_flow_condition_invalid": "条件が不完全です。",
   "easydrag.ui.error_flow_cycle": "ステップがループになっています。",
+  "easydrag.ui.error_flow_disabled": "フローは一時停止中です。先に有効にしてください。",
   "easydrag.ui.error_flow_exists": "この ID のフローはすでに存在します。",
   "easydrag.ui.error_flow_file_exists": "ファイルはすでに存在します。",
   "easydrag.ui.error_flow_http_status": "Web サーバーがエラーを返しました。",

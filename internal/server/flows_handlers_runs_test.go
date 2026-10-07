@@ -70,6 +70,9 @@ func TestFlowsAPILiveRunReachesMissionControl(t *testing.T) {
 	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/publish", token, `{"base_revision":1}`); w.Code != http.StatusOK {
 		t.Fatalf("publish = %d %s", w.Code, w.Body.String())
 	}
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/enabled", token, `{"enabled":true}`); w.Code != http.StatusOK { // FF1: Run now needs the flow switched on
+		t.Fatalf("enable = %d %s", w.Code, w.Body.String())
+	}
 	w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/run", token, "")
 	if w.Code != http.StatusAccepted {
 		t.Fatalf("run = %d %s", w.Code, w.Body.String())

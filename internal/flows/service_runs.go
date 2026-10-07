@@ -116,12 +116,22 @@ func (s *Service) requireTrigger(rec *FlowRecord, nodeID string) error {
 	return nil
 }
 
-// RunNow starts the published flow from its manual trigger (or its first trigger). The
-// runner's ErrQueueFull and ErrRunnerClosed are returned unchanged.
+// RunNow starts the published flow from its manual trigger (or its first trigger). A flow
+// that is switched off (its Mission Control mission is disabled) gives ErrFlowDisabled, as
+// Mission Control's own Run, the agent and the missions page refuse a disabled mission;
+// StartTestRun stays allowed. The other live starts check the switch themselves:
+// Mission Control's triggers and Run before TriggerFromMission, onTimerFired before
+// startLive. The runner's ErrQueueFull and ErrRunnerClosed are returned unchanged.
 func (s *Service) RunNow(ctx context.Context, id string) (StartResult, error) {
 	rec, err := s.store.GetFlow(ctx, id)
 	if err != nil {
 		return StartResult{}, err
+	}
+	if rec.Live == nil {
+		return StartResult{}, ErrNotPublished
+	}
+	if !s.bridge.FlowMissionEnabled(rec.MissionID) {
+		return StartResult{}, ErrFlowDisabled
 	}
 	return s.startLive(rec, "", "manual", nil)
 }
