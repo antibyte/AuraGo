@@ -96,22 +96,26 @@ type PetManifest struct {
 
 // BootstrapPayload is the initial state used by the virtual desktop UI.
 type BootstrapPayload struct {
-	Enabled            bool              `json:"enabled"`
-	ReadOnly           bool              `json:"readonly"`
-	AllowAgentControl  bool              `json:"allow_agent_control"`
-	AllowGeneratedApps bool              `json:"allow_generated_apps"`
-	AllowPythonJobs    bool              `json:"allow_python_jobs"`
-	Workspace          WorkspaceInfo     `json:"workspace"`
-	BuiltinApps        []AppManifest     `json:"builtin_apps"`
-	InstalledApps      []AppManifest     `json:"installed_apps"`
-	Shortcuts          []Shortcut        `json:"shortcuts"`
-	Widgets            []Widget          `json:"widgets"`
-	AllWidgets         []Widget          `json:"all_widgets"`
-	Settings           map[string]string `json:"settings"`
-	Providers          []ProviderOption  `json:"providers,omitempty"`
-	IconCatalog        IconCatalogInfo   `json:"icon_catalog"`
-	Pets               []PetManifest     `json:"pets"`
-	ActivePetID        string            `json:"active_pet_id,omitempty"`
+	Enabled                  bool              `json:"enabled"`
+	ReadOnly                 bool              `json:"readonly"`
+	AllowAgentControl        bool              `json:"allow_agent_control"`
+	AllowGeneratedApps       bool              `json:"allow_generated_apps"`
+	AllowPythonJobs          bool              `json:"allow_python_jobs"`
+	SerialBrowserEnabled     bool              `json:"serial_browser_enabled"`
+	SerialHostEnabled        bool              `json:"serial_host_enabled"`
+	RemoteMaxSessionMinutes  int               `json:"remote_max_session_minutes"`
+	RemoteIdleTimeoutMinutes int               `json:"remote_idle_timeout_minutes"`
+	Workspace                WorkspaceInfo     `json:"workspace"`
+	BuiltinApps              []AppManifest     `json:"builtin_apps"`
+	InstalledApps            []AppManifest     `json:"installed_apps"`
+	Shortcuts                []Shortcut        `json:"shortcuts"`
+	Widgets                  []Widget          `json:"widgets"`
+	AllWidgets               []Widget          `json:"all_widgets"`
+	Settings                 map[string]string `json:"settings"`
+	Providers                []ProviderOption  `json:"providers,omitempty"`
+	IconCatalog              IconCatalogInfo   `json:"icon_catalog"`
+	Pets                     []PetManifest     `json:"pets"`
+	ActivePetID              string            `json:"active_pet_id,omitempty"`
 	// DesktopFiles is the Desktop folder listing for first paint (avoids a
 	// second /api/desktop/files round-trip). Omitted when listing fails.
 	DesktopFiles []FileEntry `json:"desktop_files,omitempty"`
@@ -291,6 +295,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "phone_gadget.position_x", Default: ""},
 		{Key: "phone_gadget.position_y", Default: ""},
 		{Key: "phone_gadget.always_on_top", Default: "false", Values: []string{"true", "false"}},
+		{Key: SerialProfilesSetting, Default: defaultSerialProfiles},
 	}
 }
 

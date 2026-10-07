@@ -10,6 +10,23 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+### Quick Connect serial access
+
+- `/api/desktop/serial/ports` and `/connect` use Desktop admin authorization,
+  including the existing auth-disabled behavior, and the default-off
+  `virtual_desktop.serial_host_enabled` grant. Connecting also requires Desktop
+  execution permission; readonly permits listing but blocks opening a port.
+- `desktop_serial.go` projects host/browser grants into bootstrap and live
+  Desktop policy events without recreating the Desktop service. Revalidate
+  authorization and grants on every serial operation and cancel idle sessions
+  on revocation, cookie expiry or server shutdown. RX never renews a session.
+- Deny Web Serial through Permissions-Policy outside the trusted Desktop page;
+  embedded apps deny it through their frame policy too. Never log payloads or
+  expose them to an LLM. Port/protocol contracts live in `internal/desktop/AGENTS.md`.
+- Verify `TestDesktopSerial*`, the Desktop proxy tests and the simulated browser
+  checks. See `documentation/quick-connect-serial.md`; USB hardware acceptance
+  and deployment remain separate from local test/build evidence.
+
 - MCP connection tests require enabled MCP gates, test only the selected server and bind Vault aliases to its saved launch configuration. The automatic Dograh client grants private access only to the managed service's exact origin. Local/Docker stdio observes shell, sandbox, unsafe-host and Docker mutation grants at launch.
 - The incoming MCP endpoint checks Host against configured names/local addresses independently of Origin. Configure server.host or server.https.domain for an external name. Never resolve a request-supplied hostname as authority. MCP sessions are random, signed, expire after 24 hours and bind to the authenticated credential; stateless requests get independent sessions. The MCP allowlist is a hard scope for direct, wrapped and ask_aurago calls; enabling the IDE preset must not widen an explicitly selected list.
 

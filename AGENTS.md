@@ -258,6 +258,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Feature contracts | Canonical child DOX |
 | --- | --- |
 | Shared file replacement | `internal/fileutil/AGENTS.md` |
+| Quick Connect serial and shared MeshCore port ownership | `internal/desktop/AGENTS.md`, `internal/meshcore/AGENTS.md`, `internal/serialutil/AGENTS.md` |
 | Docker Engine transport and version negotiation | `internal/dockerutil/AGENTS.md` |
 | Desktop rooted files and archives | `internal/desktop/AGENTS.md` |
 | Security primitives, Vault import grants and Cast tickets | `internal/security/AGENTS.md` |
@@ -613,6 +614,7 @@ Current child AGENTS.md files:
 - `internal/remote/AGENTS.md` — Remote enrollment, socket ownership and command/result lifecycle.
 - `internal/sanotts/AGENTS.md` — Pinned local CPU speech runtime, voice selection, licenses and synthesis checks.
 - `internal/server/AGENTS.md` — Server-owned HTTP and cross-component integration contracts.
+- `internal/serialutil/AGENTS.md` — Shared serial enumeration, canonical device reservations and cancellation-safe port leases.
 - `internal/security/AGENTS.md` — Vault/token persistence, public URL trust, Guardian caching and Cast tickets.
 - `internal/services/AGENTS.md` — Background services and workspace search.
 - `internal/sipphone/AGENTS.md` — Native telephone registration, calls, media, and agent policy.

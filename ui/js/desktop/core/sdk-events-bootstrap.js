@@ -298,6 +298,9 @@
 
         function onClose() {
             if (staleSocket()) return;
+            const policy = { serial_browser_enabled: false, serial_host_enabled: false };
+            Object.assign(state.bootstrap || (state.bootstrap = {}), policy);
+            document.dispatchEvent(new CustomEvent('aurago:desktop-policy', { detail: policy }));
             if (wsReconnectAttempts >= MAX_WS_RETRIES) {
                 setWSState(false, true);
                 return;
@@ -389,6 +392,7 @@
         if (event.type === 'welcome') {
             document.dispatchEvent(new CustomEvent('aurago:meshcore-change', { detail: {} }));
             state.bootstrap = event.payload || state.bootstrap;
+            document.dispatchEvent(new CustomEvent('aurago:desktop-policy', { detail: state.bootstrap || {} }));
             renderDesktop();
             refreshPetRuntime();
             return;

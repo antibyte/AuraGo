@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan erlaubt öffentliches Internet und ausschließlich die aufgeführten privaten CIDRs.",
   "help.virtual_computers.agent_control_cidrs": "Eine private IPv4-RFC1918-CIDR pro Zeile. Host-, AuraGo-, Bridge-, Metadaten- und Guest-Adressen bleiben gesperrt.",
   "help.virtual_computers.agent_control_credentials": "Jedes kurzlebige Credential-Grant benötigt weiterhin eine separate authentifizierte Benutzerfreigabe.",
-  "help.virtual_computers.agent_control_grant_ttl": "Maximale Grant-Lebensdauer; Grants enden zusätzlich mit Job oder Workspace."
+  "help.virtual_computers.agent_control_grant_ttl": "Maximale Grant-Lebensdauer; Grants enden zusätzlich mit Job oder Workspace.",
+  "config.virtual_desktop.serial_browser_label": "Serielle Anschlüsse an diesem Computer",
+  "help.virtual_desktop.serial_browser_enabled": "Erlaube Quick Connect, serielle Geräte am Browser-Computer zu verwenden. Ein unterstützter Browser, HTTPS oder localhost und eine ausdrückliche Geräteauswahl sind erforderlich. Im Nur-Lesen-Modus deaktiviert.",
+  "config.virtual_desktop.serial_host_label": "Serielle Anschlüsse auf dem AuraGo-Server",
+  "help.virtual_desktop.serial_host_enabled": "Erlaube Administratoren, serielle Geräte am AuraGo-Server in Quick Connect zu öffnen. Containerinstallationen benötigen Geräte-Durchreichung und Betriebssystemberechtigungen. Im Nur-Lesen-Modus deaktiviert."
 }

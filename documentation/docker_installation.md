@@ -71,6 +71,11 @@ That's it!
 
 Open the Web UI to finish setting up your LLM Provider and API keys!
 
+Quick Connect can also use serial hardware attached to the AuraGo server. The
+Docker service does not receive device access by default. To pass one through,
+add a `devices` entry and the host device group's numeric GID to `group_add` in
+your Compose override; see [Quick Connect serial access](quick-connect-serial.md).
+
 > [!IMPORTANT]
 > Until setup is complete, the setup wizard asks for a one-time **setup token**. This proves that you, and not someone scanning the network, own the new instance. AuraGo prints the token to its log on startup:
 >

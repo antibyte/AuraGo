@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan tillåter publikt internet plus endast de uttryckligen listade privata CIDR:erna.",
   "help.virtual_computers.agent_control_cidrs": "En IPv4 RFC1918-CIDR per rad. Adresser för värd, AuraGo, brygga, metadata och gäst förblir blockerade.",
   "help.virtual_computers.agent_control_credentials": "Autentiseringsuppgifter kräver fortfarande ett separat godkännande från en autentiserad användare för varje kortlivad behörighet.",
-  "help.virtual_computers.agent_control_grant_ttl": "Maximal livslängd för en behörighet; behörigheter upphör också med sitt jobb eller sin arbetsyta."
+  "help.virtual_computers.agent_control_grant_ttl": "Maximal livslängd för en behörighet; behörigheter upphör också med sitt jobb eller sin arbetsyta.",
+  "config.virtual_desktop.serial_browser_label": "Serieportar på den här datorn",
+  "help.virtual_desktop.serial_browser_enabled": "Tillåt Quick Connect att använda serieenheter som är anslutna till datorn med webbläsaren. Kräver en webbläsare som stöds, HTTPS eller localhost och ett uttryckligt val av enhet. Inaktiverat i skrivskyddat läge.",
+  "config.virtual_desktop.serial_host_label": "Serieportar på AuraGo-servern",
+  "help.virtual_desktop.serial_host_enabled": "Tillåt administratörer att öppna serieenheter anslutna till AuraGo-servern i Quick Connect. Containerinstallationer kräver enhetspassthrough och behörigheter i operativsystemet. Inaktiverat i skrivskyddat läge."
 }

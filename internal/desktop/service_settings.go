@@ -162,6 +162,8 @@ func validateFreeformDesktopSetting(key, value string) error {
 		return nil
 	case "appearance.wallpaper_by_space":
 		return validateWallpaperBySpace(value)
+	case SerialProfilesSetting:
+		return validateSerialProfiles(value)
 	case "appearance.dock_pins", "files.default_apps", "session.windows":
 		if len(value) > 65536 {
 			return fmt.Errorf("invalid desktop setting value for %s", key)

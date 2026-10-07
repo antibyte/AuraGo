@@ -542,6 +542,7 @@ window.AuraAuth = window.AuraAuth || {};
     function redirectToLogin() {
         if (authRedirectInProgress || isLoginOrSetupPage()) return;
         authRedirectInProgress = true;
+        document.dispatchEvent(new CustomEvent('aurago:auth-ended'));
         window.location.replace(loginURL());
     }
 
@@ -670,6 +671,7 @@ function initLogoutLinks() {
 async function performLogout() {
     if (window._logoutInProgress) return;
     window._logoutInProgress = true;
+    document.dispatchEvent(new CustomEvent('aurago:auth-ended'));
     await window.AuraAuth.stopSessionActivity();
 
     const menu = document.getElementById('radialMenu');

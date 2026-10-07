@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan povoluje veřejný internet a k tomu pouze explicitně uvedené privátní CIDR.",
   "help.virtual_computers.agent_control_cidrs": "Jeden IPv4 CIDR z rozsahu RFC1918 na řádek. Adresy hostitele, AuraGo, mostu, metadat a hosta zůstávají blokovány.",
   "help.virtual_computers.agent_control_credentials": "Pověření stále vyžadují samostatné schválení ověřeným uživatelem pro každé krátkodobé udělení.",
-  "help.virtual_computers.agent_control_grant_ttl": "Maximální životnost udělení; udělení končí také se svou úlohou nebo svým pracovním prostorem."
+  "help.virtual_computers.agent_control_grant_ttl": "Maximální životnost udělení; udělení končí také se svou úlohou nebo svým pracovním prostorem.",
+  "config.virtual_desktop.serial_browser_label": "Sériové porty na tomto počítači",
+  "help.virtual_desktop.serial_browser_enabled": "Povolit Quick Connect používat sériová zařízení připojená k počítači s prohlížečem. Je nutný podporovaný prohlížeč, HTTPS nebo localhost a výslovný výběr zařízení. V režimu jen pro čtení je tato možnost vypnutá.",
+  "config.virtual_desktop.serial_host_label": "Sériové porty na serveru AuraGo",
+  "help.virtual_desktop.serial_host_enabled": "Povolit správcům otevírat v Quick Connect sériová zařízení připojená k serveru AuraGo. Kontejnerové instalace vyžadují předání zařízení a oprávnění operačního systému. V režimu jen pro čtení je tato možnost vypnutá."
 }

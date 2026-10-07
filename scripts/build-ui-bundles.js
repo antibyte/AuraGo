@@ -49,6 +49,7 @@ const desktopMainParts = [
   'ui/js/desktop/apps/calendar-editor.js',
   'ui/js/desktop/apps/calendar.js',
   'ui/js/desktop/apps/quickconnect-sftp-navigator.js',
+  'ui/js/desktop/apps/quickconnect-serial.js',
   'ui/js/desktop/core/menus-and-routing.js',
   'ui/js/desktop/apps/editor-filemenu.js',
   'ui/js/desktop/apps/planning-gallery-music.js',

@@ -25,6 +25,8 @@ func filterDesktopBootstrap(s *Server, r *http.Request, payload desktop.Bootstra
 	payload.AllowAgentControl = false
 	payload.AllowGeneratedApps = false
 	payload.AllowPythonJobs = false
+	payload.SerialBrowserEnabled = false
+	payload.SerialHostEnabled = false
 	if token, _ := bearerCredential(r.Header.Get("Authorization")); !desktopTokenHasScope(s, token, desktopScopeWrite) {
 		payload.ReadOnly = true
 	}

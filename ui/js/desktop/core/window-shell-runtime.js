@@ -1357,7 +1357,7 @@
     }
 
     function matchesExistingAppWindow(win, appId, context) {
-        if (win.appId !== appId) return false;
+        if (win.appId !== appId || appId === 'quick-connect') return false;
         if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;

@@ -624,6 +624,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/agodesk/media/", handleAgodeskMediaAsset(s))
 	mux.HandleFunc("/api/agodesk/knowledge/upload/", handleAgodeskKnowledgeUpload(s))
 	registerDesktopStoreRoutes(mux, s)
+	registerDesktopSerialRoutes(mux, s)
 	remoteProxyOptions := desktop.RemoteProxyOptionsFromConfig(desktop.ConfigFromAuraConfig(s.Cfg))
 	desktopSSHHandler := desktop.HandleSSHProxy(s.InventoryDB, s.Vault, s.Logger, remoteProxyOptions)
 	mux.HandleFunc("/api/desktop/ssh", withDesktopRemoteGuard(s, "desktop_ssh_connect", "", desktopSSHHandler))

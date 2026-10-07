@@ -9,6 +9,7 @@
     function renderQuickConnect(id) {
         const host = contentEl(id);
         if (!host) return;
+        host.classList.add('vd-qc-window');
         host.innerHTML = `<div class="vd-quick-connect">
             <div class="vd-qc-sidebar">
                 <div class="vd-qc-sidebar-header">
@@ -21,8 +22,10 @@
                     <button class="vd-qc-filter active" type="button" data-qc-filter="all">${iconMarkup('server', 'A', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_filter_all'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="ssh">${iconMarkup('terminal', 'T', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_ssh'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="vnc">${iconMarkup('monitor', 'V', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_vnc'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="serial"><span>${esc(t('desktop.qc_serial_filter'))}</span></button>
                 </div>
-                <div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div>
+                <button class="vd-qc-btn vd-qc-serial-new" type="button" data-qc-new-serial>${iconMarkup('plus', '+', 'vd-qc-btn-icon', 13)}<span>${esc(t('desktop.qc_serial_new_connection'))}</span></button>
+                <div class="vd-qc-lists"><div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div><div data-serial-list></div></div>
             </div>
             <div class="vd-qc-terminal-area" data-terminal-area>
                 <div class="vd-qc-tabs" data-qc-tabs hidden>
@@ -35,6 +38,7 @@
                         <span class="vd-qc-placeholder-text">${esc(t('desktop.qc_select_device'))}</span>
                     </div>
                 </div>
+                <div class="vd-qc-serial-content" data-serial-content hidden></div>
             </div>
         </div>`;
         wireContextMenuBoundary(host);
@@ -45,6 +49,8 @@
         const terminalArea = host.querySelector('[data-terminal-area]');
         const tabContent = host.querySelector('[data-tab-content]');
         const qcTabs = host.querySelector('[data-qc-tabs]');
+        const serialList = host.querySelector('[data-serial-list]');
+        const serialContent = host.querySelector('[data-serial-content]');
         const filterButtons = Array.from(host.querySelectorAll('[data-qc-filter]'));
         let activeWS = null;
         let activeTerm = null;
@@ -56,8 +62,65 @@
         let activeProtocolFilter = 'all';
         let connectedDeviceId = null;
         let connectedProtocol = null;
+        let disposed = false;
+        let connectionGeneration = 0;
+        let loadGeneration = 0;
+        let activeSFTPNav = null;
+        const pendingConfirmations = new Set();
+        const serialTerminal = window.QuickConnectSerial.create({
+            list: serialList, content: serialContent, searchInput, api, t,
+            getBootstrap: () => state.bootstrap || {}, confirmDialog: showConfirmModal,
+            onSessionStart: () => {
+                const generation = ++connectionGeneration;
+                closeRemoteSession();
+                connectedDeviceId = null;
+                connectedProtocol = 'serial';
+                showSerialView();
+                return () => !disposed && generation === connectionGeneration;
+            },
+            onSessionEnd: owner => {
+                if (typeof owner === 'function' && owner()) connectedProtocol = null;
+            }
+        });
+        serialTerminal.render();
+
+        function showSerialView() {
+            if (disposed) return;
+            serialContent.hidden = false;
+            tabContent.hidden = true;
+            qcTabs.hidden = true;
+            serialTerminal.render();
+        }
+
+        function newSerialConnection() {
+            activeProtocolFilter = 'serial';
+            filterButtons.forEach(button => button.classList.toggle('active', button.dataset.qcFilter === 'serial'));
+            filterDevices();
+            showSerialView();
+            serialList.querySelector('[data-serial-create]')?.click();
+        }
+
+        function closeRemoteSession() {
+            for (const cancel of pendingConfirmations) cancel();
+            if (activeWS) { const previous = activeWS; activeWS = null; try { previous.close(); } catch (_) {} }
+            if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
+            activeFitAddon = null;
+            disconnectActiveResizeObserver();
+            closeSFTPPanel(tabContent);
+        }
+
+        async function beginRemoteSession() {
+            const generation = ++connectionGeneration;
+            await serialTerminal.disconnect('switch');
+            if (disposed || generation !== connectionGeneration) return null;
+            closeRemoteSession();
+            serialContent.hidden = true;
+            tabContent.hidden = false;
+            return generation;
+        }
 
         function switchTab(tab) {
+            if (tab === 'files' && connectedProtocol !== 'ssh') return;
             activeTab = tab;
             qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
             if (tab === 'files' && connectedDeviceId && connectedProtocol === 'ssh') {
@@ -72,6 +135,12 @@
         });
 
         registerWindowCleanup(id, () => {
+            host.classList.remove('vd-qc-window');
+            disposed = true;
+            connectionGeneration++;
+            loadGeneration++;
+            for (const cancel of pendingConfirmations) cancel();
+            serialTerminal.dispose();
             if (activeSFTPNav) { activeSFTPNav.dispose(); activeSFTPNav = null; }
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
@@ -79,7 +148,11 @@
             host.querySelectorAll('.vd-qc-modal-overlay, .vd-qc-notify').forEach(el => el.remove());
         });
 
-        setQuickConnectMenus(id, host, loadAll, showServerModal, () => switchTab('files'));
+        setQuickConnectMenus(id, host, loadAll, showServerModal, () => switchTab('files'), newSerialConnection);
+        host.querySelector('[data-qc-new-serial]').addEventListener('click', newSerialConnection);
+        serialList.addEventListener('click', event => {
+            if (event.target.closest('[data-serial-profile], [data-serial-create], [data-serial-connect]')) showSerialView();
+        }, true);
         loadAll();
 
         searchInput.addEventListener('input', () => filterDevices());
@@ -88,16 +161,19 @@
                 activeProtocolFilter = btn.dataset.qcFilter || 'all';
                 filterButtons.forEach(item => item.classList.toggle('active', item === btn));
                 filterDevices();
+                if (activeProtocolFilter === 'serial') showSerialView();
             });
         });
 
         async function loadAll() {
+            const generation = ++loadGeneration;
             deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
             try {
                 const [devBody, credBody] = await Promise.all([
                     api('/api/desktop/integrations/devices'),
                     api('/api/desktop/integrations/credentials')
                 ]);
+                if (disposed || generation !== loadGeneration) return;
                 cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.protocol === 'vnc' || d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
                 cachedCredentials = credBody || [];
                 if (!cachedDevices.length) {
@@ -106,6 +182,7 @@
                 }
                 renderDeviceList(cachedDevices);
             } catch (err) {
+                if (disposed || generation !== loadGeneration) return;
                 deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
             }
         }
@@ -184,7 +261,10 @@
         }
 
         function filterDevices() {
+            deviceList.hidden = activeProtocolFilter === 'serial';
+            serialList.hidden = activeProtocolFilter !== 'all' && activeProtocolFilter !== 'serial';
             if (cachedDevices) renderDeviceList(cachedDevices);
+            serialTerminal.render();
         }
 
         function showDeviceContextMenu(x, y, device) {
@@ -244,8 +324,11 @@
                     </div>
                 </div>`;
                 host.querySelector('.vd-quick-connect').appendChild(overlay);
-                overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => { overlay.remove(); resolve(false); });
-                overlay.querySelector('[data-action="ok"]').addEventListener('click', () => { overlay.remove(); resolve(true); });
+                const cancel = () => finish(false);
+                const finish = value => { pendingConfirmations.delete(cancel); overlay.remove(); resolve(value); };
+                pendingConfirmations.add(cancel);
+                overlay.querySelector('[data-action="cancel"]').addEventListener('click', cancel);
+                overlay.querySelector('[data-action="ok"]').addEventListener('click', () => finish(true));
             });
         }
 
@@ -534,7 +617,10 @@
             if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
         }
 
-        function connectSSH(deviceId) {
+        async function connectSSH(deviceId) {
+            const generation = await beginRemoteSession();
+            if (generation === null) return;
+            const isCurrent = () => !disposed && generation === connectionGeneration;
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
@@ -569,7 +655,7 @@
             term.open(termContainer);
             activeTerm = term;
             activeFitAddon = fitAddon;
-            setTimeout(() => { try { fitAddon.fit(); } catch(_) {} }, 50);
+            setTimeout(() => { if (isCurrent()) { try { fitAddon.fit(); } catch(_) {} } }, 50);
             const resizeObserver = new ResizeObserver(() => {
                 if (activeTerm === term) { try { fitAddon.fit(); } catch(_) {} }
             });
@@ -583,12 +669,13 @@
             activeWS = ws;
 
             term.onData(data => {
-                if (ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(data));
+                if (isCurrent() && ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(data));
             });
             term.onResize(({ cols, rows }) => {
-                if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+                if (isCurrent() && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }));
             });
             ws.onmessage = async (event) => {
+                if (!isCurrent()) return;
                 if (typeof event.data === 'string') {
                     try {
                         const msg = JSON.parse(event.data);
@@ -609,6 +696,7 @@
                                 okIcon: 'check-square',
                                 okClass: 'vd-qc-btn-primary'
                             });
+                            if (!isCurrent()) return;
                             if (ws.readyState === WebSocket.OPEN) {
                                 ws.send(JSON.stringify({ type: 'host_key_decision', accept }));
                             }
@@ -624,7 +712,7 @@
                 }
             };
             ws.onclose = () => {
-                if (activeWS === ws) {
+                if (isCurrent() && activeWS === ws) {
                     term.write('\r\n\x1b[33m' + t('desktop.qc_disconnected') + '\x1b[0m\r\n');
                     activeWS = null;
                     const placeholder = document.createElement('div');
@@ -641,7 +729,7 @@
                 }
             };
             ws.onerror = () => {
-                if (activeWS === ws) {
+                if (isCurrent() && activeWS === ws) {
                     term.write('\r\n\x1b[31m' + t('desktop.qc_connection_error') + '\x1b[0m\r\n');
                     activeWS = null;
                     const placeholder = document.createElement('div');
@@ -660,6 +748,9 @@
         }
 
         async function connectVNC(deviceId) {
+            const generation = await beginRemoteSession();
+            if (generation === null) return;
+            const isCurrent = () => !disposed && generation === connectionGeneration;
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
@@ -701,11 +792,13 @@
             wireVNCToolbar(sessionEl, rfb, deviceId);
 
             rfb.addEventListener('connect', () => {
+                if (!isCurrent()) return;
                 lastVNCError = null;
                 setVNCStatus(sessionEl, 'connected');
                 showNotify(t('desktop.qc_vnc_connected'));
             });
             rfb.addEventListener('disconnect', () => {
+                if (!isCurrent()) return;
                 if (activeWS && activeWS.close) { activeWS = null; }
                 if (lastVNCError) {
                     setVNCStatus(sessionEl, 'error', lastVNCError);
@@ -718,6 +811,7 @@
                 if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
             });
             rfb.addEventListener('securityfailure', (e) => {
+                if (!isCurrent()) return;
                 let reason = e && e.detail ? (e.detail.reason || e.detail.message || '') : '';
                 let code = e && e.detail ? (e.detail.code || '') : '';
                 if (reason) {
@@ -737,8 +831,6 @@
 
             activeWS = { close: () => { try { rfb.disconnect(); } catch(_) {} } };
         }
-
-        let activeSFTPNav = null;
 
         function closeSFTPPanel(container) {
             if (activeSFTPNav) {
@@ -1011,7 +1103,7 @@
         }
     }
 
-    function setQuickConnectMenus(id, host, loadAll, showServerModal, toggleFiles) {
+    function setQuickConnectMenus(id, host, loadAll, showServerModal, toggleFiles, newSerialConnection) {
         const viewItems = [
             { id: 'refresh', labelKey: 'desktop.qc_refresh', icon: 'refresh', shortcut: 'F5', action: loadAll }
         ];
@@ -1023,7 +1115,8 @@
                 id: 'file',
                 labelKey: 'desktop.menu_file',
                 items: [
-                    { id: 'add-server', labelKey: 'desktop.qc_add_server', icon: 'server', shortcut: 'Ctrl+N', action: () => showServerModal() }
+                    { id: 'add-server', labelKey: 'desktop.qc_add_server', icon: 'server', shortcut: 'Ctrl+N', action: () => showServerModal() },
+                    { id: 'add-serial', labelKey: 'desktop.qc_serial_new_connection', icon: 'terminal', action: newSerialConnection }
                 ]
             },
             {
@@ -1555,7 +1648,7 @@
         if (options && options.allowTopNavigationByUserActivation) sandboxFlags.push('allow-top-navigation-by-user-activation');
         if (options && options.allowPointerLock) sandboxFlags.push('allow-pointer-lock');
         iframe.setAttribute('sandbox', sandboxFlags.join(' '));
-        const allowParts = ['clipboard-read', 'clipboard-write', "midi 'none'"];
+        const allowParts = ['clipboard-read', 'clipboard-write', "midi 'none'", "serial 'none'"];
         if (options && options.allowFullscreen) allowParts.push('fullscreen');
         if (options && options.allowGamepad) allowParts.push('gamepad');
         // Test compatibility marker: iframe.setAttribute('allow', 'clipboard-read; clipboard-write')

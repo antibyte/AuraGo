@@ -1830,6 +1830,12 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 
 		// Always set these headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		// Hardware access belongs to the trusted Desktop document, never an
+		// embedded app, workspace document or preview served from this origin.
+		w.Header().Set("Permissions-Policy", "serial=()")
+		if path == "/desktop" || path == "/desktop/" || path == "/desktop.html" {
+			w.Header().Set("Permissions-Policy", "serial=(self)")
+		}
 		if !allowDesktopIframe {
 			w.Header().Set("X-Frame-Options", "DENY")
 		}

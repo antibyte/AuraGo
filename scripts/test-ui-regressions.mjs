@@ -1320,9 +1320,10 @@ function testVirtualComputersCanOpenIndependentWindows() {
   const shell = read('ui/js/desktop/core/window-shell-runtime.js');
   const helperSource = sourceBetween(shell, 'function matchesExistingAppWindow', 'function isStandaloneWidgetPath');
   const virtualWindow = { id: 'vc-1', appId: 'virtual-computers', element: { isConnected: true }, context: {} };
+  const serialWindow = { id: 'qc-1', appId: 'quick-connect', element: { isConnected: true }, context: {} };
   const regularWindow = { id: 'settings-1', appId: 'settings', element: { isConnected: true }, context: {} };
   const context = {
-    state: { windows: new Map([[virtualWindow.id, virtualWindow], [regularWindow.id, regularWindow]]), activeWindowId: '' },
+    state: { windows: new Map([[virtualWindow.id, virtualWindow], [serialWindow.id, serialWindow], [regularWindow.id, regularWindow]]), activeWindowId: '' },
     clearWindowMenus() {},
     disposeAppWindow() {},
     normalizeDesktopPath: value => String(value || ''),
@@ -1332,6 +1333,7 @@ function testVirtualComputersCanOpenIndependentWindows() {
   vm.runInContext(`${helperSource}; globalThis.findExisting = findExistingAppWindow;`, context);
 
   assert.equal(context.findExisting('virtual-computers', {}), undefined, 'Virtual Computers must allow a new independent window');
+  assert.equal(context.findExisting('quick-connect', {}), undefined, 'Quick Connect must allow independent connections in multiple windows');
   assert.equal(context.findExisting('settings', {}), regularWindow, 'other single-instance apps must keep their existing behavior');
 }
 

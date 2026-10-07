@@ -518,6 +518,21 @@ buttons and menu popovers remain excluded from those gestures.
   older request, the shown path changes only after a successful listing, rows carry their absolute
   `data-path` for every action, and closing the panel or window disposes the navigator. Verify with
   `npm run test:ui-regressions`.
+- `quickconnect-serial.js` owns serial profiles, bounded in-memory RX/TX capture,
+  ANSI/hex display and browser/host transports. Bundle it before the Quick Connect
+  shell. Profiles use the versioned `quick_connect.serial_profiles` setting;
+  payload bytes never reach logs, persistence or an LLM. See
+  `documentation/quick-connect-serial.md` and `internal/desktop/AGENTS.md`.
+- Quick Connect has one active connection per window. Serial, SSH and VNC switches
+  invalidate old callbacks before cleanup; the Files tab remains SSH-only. Cancel
+  pending device choices and close late opens after policy/auth/window disposal.
+  Browser serial requires a trusted user gesture and always uses the browser's
+  picker. No automatic reconnect. Embedded apps deny `serial` in their frame policy.
+- Keep serial writes ordered, capture and render queues bounded, initial DTR/RTS
+  off, and clear Break after 250 ms including cleanup races. Device traffic never
+  counts as user activity. Verify `TestQuickConnectSerialTranslations`, serial
+  browser tests, existing Quick Connect/SFTP checks and both themes at narrow and
+  wide window sizes. USB adapter acceptance is a separate hardware check.
 - Quick Connect synthetic AuraGo host uses `desktop.qc_aurago_host`
   and `desktop.qc_aurago_host_description`. Detect the host by
   `id === '__aurago-host__'`, matching IP, or the English sentinel

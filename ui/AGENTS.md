@@ -67,6 +67,14 @@ worker. Keep packaging, recovery and offline instructions in
   waits for an in-flight cookie update before clearing it. Keep the timeout help
   in all sixteen Config locales aligned. Verify `TestAuthSessionBrowser`.
 
+- Quick Connect serial sessions use the live bootstrap capabilities, fail closed
+  on the Desktop WebSocket disconnect, and dispose on `aurago:auth-ended` before
+  logout or expiry redirects. `aurago:desktop-policy` carries serial grants,
+  readonly and remote timeout values; device traffic never renews authentication.
+  Embedded apps retain `serial 'none'`. Keep all sixteen serial/profile and
+  configuration translations aligned. See `js/desktop/apps/AGENTS.md` and
+  `documentation/quick-connect-serial.md` for lifecycle and hardware acceptance.
+
 - `cfg/llm_router.js` uses the shared saved/draft config path. Empty provider
   clears its model override; missing saved providers remain visible. Preview
   requires a clean draft and uses saved settings, with a separate explicit

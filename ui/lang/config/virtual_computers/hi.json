@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan सार्वजनिक इंटरनेट तथा केवल स्पष्ट रूप से सूचीबद्ध निजी CIDR की अनुमति देता है।",
   "help.virtual_computers.agent_control_cidrs": "प्रति पंक्ति एक IPv4 RFC1918 CIDR। होस्ट, AuraGo, ब्रिज, मेटाडेटा और गेस्ट पते अवरुद्ध रहते हैं।",
   "help.virtual_computers.agent_control_credentials": "क्रेडेंशियल के लिए अभी भी प्रत्येक अल्पकालिक ग्रांट पर अलग प्रमाणित उपयोगकर्ता अनुमोदन आवश्यक है।",
-  "help.virtual_computers.agent_control_grant_ttl": "अधिकतम ग्रांट जीवनकाल; ग्रांट अपने जॉब या वर्कस्पेस के साथ भी समाप्त होते हैं।"
+  "help.virtual_computers.agent_control_grant_ttl": "अधिकतम ग्रांट जीवनकाल; ग्रांट अपने जॉब या वर्कस्पेस के साथ भी समाप्त होते हैं।",
+  "config.virtual_desktop.serial_browser_label": "इस कंप्यूटर के सीरियल पोर्ट",
+  "help.virtual_desktop.serial_browser_enabled": "Quick Connect को ब्राउज़र वाले कंप्यूटर से जुड़े सीरियल डिवाइस इस्तेमाल करने दें। इसके लिए समर्थित ब्राउज़र, HTTPS या localhost और डिवाइस का स्पष्ट चयन ज़रूरी है। रीड-ओनली मोड में बंद।",
+  "config.virtual_desktop.serial_host_label": "AuraGo सर्वर के सीरियल पोर्ट",
+  "help.virtual_desktop.serial_host_enabled": "प्रशासकों को Quick Connect में AuraGo सर्वर से जुड़े सीरियल डिवाइस खोलने दें। कंटेनर इंस्टॉलेशन में डिवाइस पासथ्रू और ऑपरेटिंग सिस्टम की अनुमतियाँ ज़रूरी हैं। रीड-ओनली मोड में बंद।"
 }
