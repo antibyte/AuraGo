@@ -60,7 +60,8 @@
 
         const ed = {
             ctx, t, esc, api: app.api, catalog: app.catalog, windowId: app.windowId, readonly: !!app.readonly,
-            root: el, flow: loaded.flow, flowEnabled: !!loaded.enabled, model: draftModel,
+            // model is the document shown (a stored run's in the run view); draftModel is the draft.
+            root: el, flow: loaded.flow, flowEnabled: !!loaded.enabled, model: draftModel, draftModel,
             selection: new Set(), selectedEdge: null, hoverNode: null, hoverEdge: null, view: { x: 0, y: 0, zoom: 1 },
             run: null, runView: null, issues: loaded.issues || [], lastRunData: null, detail: null, quickAdd: null,
             dragging: false, initialRender: true, effectsConfirmed: new Set(), publishIncomplete: '', bus: core.emitter(), saver: null,
@@ -255,6 +256,8 @@
             paletteBefore = false;
             renderHeader();
             setMenus();
+            // The hints were not checked while the run view showed (an edit there, a restore).
+            publish.refreshIssues();
         }
 
         // ── commands ────────────────────────────────────────────────────────────
@@ -448,16 +451,14 @@
 
         // ── events ──────────────────────────────────────────────────────────────
 
-        // Every content change of the draft is saved, also one made while the run view shows
-        // another document (a restore answered there); the rest follows the model shown.
+        // Every change of the draft is saved, also one made while the run view shows another
+        // document (a restore answered there); the rest follows the model shown. Pans and zooms
+        // are no changes: the view is stored per device (storeView), never in the document.
         bag.add(draftModel.on(change => {
-            if (change.kind !== 'viewport') {
-                contentDirty = true;
-                ed.saver.schedule();
-            }
+            contentDirty = true;
+            ed.saver.schedule();
             if (ed.model !== draftModel) return;
             ed.bus.emit('model', change);
-            if (change.kind === 'viewport') return;
             publish.refreshIssues();
             if (change.meta || change.kind !== 'change') renderHeader();
             if (change.structural || change.kind !== 'change') pruneSelection();
@@ -471,6 +472,8 @@
             if (ed.selection.size !== before) ed.bus.emit('selection', ed.selection);
         }
 
+        // A drag holds back emergency copies (at most one per 500 ms); its end writes the last one.
+        bag.add(ed.bus.on('gesture-end', () => ed.saver.flushCopy()));
         bag.add(ed.bus.on('quick-add', req => { if (!ed.readonly && !ed.runView) { ED.palette.openQuickAdd(ed, canvas, req); setMenus(); } }));
         bag.add(ed.bus.on('open-detail', req => { ED.detail.open(ed, req.nodeId, { param: req.param }); setMenus(); }));
         bag.add(ed.bus.on('detail-closed', () => { canvas.el.focus({ preventScroll: true }); setMenus(); }));

@@ -147,9 +147,9 @@ model.toggleDisabled([ins]);
 eq('disable', model.node(ins).settings.disabled, true);
 model.toggleDisabled([ins]);
 eq('enable', model.node(ins).settings.disabled, undefined);
-const versionBefore = model.version;
-model.setViewport({ x: 10.4, y: 20.6, zoom: 0.8 });
-eq('viewport stored without undo step', [model.doc.viewport.x, model.version > versionBefore], [10, true]);
+// FF2 M1: the view is stored per device, never in the document; an imported viewport is kept as it came.
+const withView = M.create({ schema: 1, name: 'V', nodes: [], edges: [], viewport: { x: 10, y: 20, zoom: 0.8 } }, { types });
+eq('the model has no viewport command and keeps a document viewport untouched', [typeof model.setViewport, withView.toJSON().viewport, withView.version], ['undefined', { x: 10, y: 20, zoom: 0.8 }, 0]);
 
 // ── geometry ──
 eq('single port in middle', G.portPoint({ x: 0, y: 0 }, 'out', 0, 1), { x: 232, y: 36 });

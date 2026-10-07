@@ -175,13 +175,18 @@
             if (source) { source.close(); source = null; }
         }
 
+        // attach follows a live run. A run started while the run view shows a stored run (its
+        // request answered after the view opened) must not paint over it: it is parked, and
+        // clearRun() attaches it when the run view ends.
         function attach(runId, meta) {
+            const mode = (meta && meta.mode) || 'test';
+            if (ed.runView) { parked = { id: runId, mode }; return; }
             closeStream();
             lastSeq = 0;
             retryDelay = RETRY_MS;
             failures = 0;
             parked = null;
-            setRun({ id: runId, status: 'queued', mode: (meta && meta.mode) || 'test', steps: new Map(), record: null, error: '' });
+            setRun({ id: runId, status: 'queued', mode, steps: new Map(), record: null, error: '' });
             connect(runId);
         }
 

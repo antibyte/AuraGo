@@ -547,7 +547,6 @@
         });
 
         bag.add(ed.bus.on('model', change => {
-            if (change.kind === 'viewport') return;
             if (change.kind === 'reset') forgetCaches();
             // A node that comes, goes or gets a new key or label can change the summaries of other cards:
             // check them all (signatures keep the markup of the unaffected ones).

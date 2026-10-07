@@ -243,7 +243,6 @@
         }
 
         bag.add(ed.bus.on('model', change => {
-            if (change.kind === 'viewport') return;
             if (change.kind === 'reset') { pathModel = null; pathVersion = -1; }
             if (change.structural || change.kind !== 'change' || change.meta) render();
             else renderFor(change.nodes);

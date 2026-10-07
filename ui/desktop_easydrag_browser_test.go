@@ -495,7 +495,9 @@ func (s *easyDragSmoke) stopWaitingRuns() {
 	page.MustElement(`.ed-modal [data-ed-action="stop"]`).MustClick()
 	s.wait(fmt.Sprintf(`()=>edFixture.state.runs.get('%s').run.status==='cancelled' && !document.querySelector('.ed-modal-backdrop') && !document.querySelector('[data-ed-run-stop="%s"]') && document.activeElement===document.querySelector('[data-ed-run="%s"]')`, first, first, first))
 	// The run view of the other waiting run: Stop in the banner, then the banner shows it stopped.
-	page.MustElement(fmt.Sprintf(`.ed-run-row[data-ed-run="%s"]`, second)).MustClick()
+	// The stopped run's run_finished broadcast redraws the drawer about 250 ms later, so the row
+	// is found and clicked in one step (a found row can be detached before a separate click).
+	page.MustEval(fmt.Sprintf(`()=>document.querySelector('.ed-run-row[data-ed-run="%s"]').click()`, second))
 	s.wait(`()=>{const b=document.querySelector('.ed-runview-banner');return !b.hidden && !b.querySelector('[data-ed-cmd="stop-viewed"]').hidden}`)
 	s.settle()
 	s.shot("run-view-stop")

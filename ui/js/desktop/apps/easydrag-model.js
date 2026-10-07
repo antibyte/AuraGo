@@ -176,20 +176,34 @@
 
         // ── change sets ──────────────────────────────────────────────────────────
 
+        // indexOf maps the ids of list to their positions, for lookups without a scan per id. The
+        // first item wins, as findIndex does, should a corrupt document hold an id twice.
+        function indexOf(list) {
+            const at = new Map();
+            list.forEach((item, i) => { if (!at.has(item.id)) at.set(item.id, i); });
+            return at;
+        }
+
+        // recorder collects one change set. The document does not change while a command records
+        // (applySet runs after finish), so each list's id index is built once, on first use.
         function recorder() {
             const nodes = new Map();
             const edges = new Map();
             let meta = null;
+            let nodeAt = null;
+            let edgeAt = null;
             function touchNode(id) {
                 if (!nodes.has(id)) {
-                    const idx = state.doc.nodes.findIndex(n => n.id === id);
+                    if (!nodeAt) nodeAt = indexOf(state.doc.nodes);
+                    const idx = nodeAt.has(id) ? nodeAt.get(id) : -1;
                     nodes.set(id, { before: idx >= 0 ? clone(state.doc.nodes[idx]) : null, index: idx, after: undefined });
                 }
                 return nodes.get(id);
             }
             function touchEdge(id) {
                 if (!edges.has(id)) {
-                    const idx = state.doc.edges.findIndex(e => e.id === id);
+                    if (!edgeAt) edgeAt = indexOf(state.doc.edges);
+                    const idx = edgeAt.has(id) ? edgeAt.get(id) : -1;
                     edges.set(id, { before: idx >= 0 ? clone(state.doc.edges[idx]) : null, index: idx, after: undefined });
                 }
                 return edges.get(id);
@@ -250,21 +264,30 @@
             return rec;
         }
 
-        function setItem(list, id, value, index) {
-            const at = list.findIndex(x => x.id === id);
-            if (value === null) { if (at >= 0) list.splice(at, 1); return; }
-            const copy = clone(value);
-            if (at >= 0) list[at] = copy;
-            else if (index >= 0 && index <= list.length) list.splice(index, 0, copy);
-            else list.push(copy);
+        // setItems applies entries to list. Ids are looked up in an index that a replacement keeps
+        // valid; an insert or removal shifts positions, so the index is built again on next use.
+        // A move of the whole selection (replacements only) therefore costs one pass.
+        function setItems(list, entries, pick) {
+            let at = null;
+            entries.forEach(e => {
+                if (!at) at = indexOf(list);
+                const pos = at.has(e.id) ? at.get(e.id) : -1;
+                const value = pick(e);
+                if (value === null) {
+                    if (pos >= 0) { list.splice(pos, 1); at = null; }
+                    return;
+                }
+                const copy = clone(value);
+                if (pos >= 0) list[pos] = copy;
+                else if (e.index >= 0 && e.index <= list.length) { list.splice(e.index, 0, copy); at = null; }
+                else { list.push(copy); at.set(e.id, list.length - 1); }
+            });
         }
 
         function applySet(set, dir) {
             const pick = entry => dir === 'after' ? entry.after : entry.before;
-            const order = dir === 'after' ? set.nodes : set.nodes.slice().reverse();
-            order.forEach(e => setItem(state.doc.nodes, e.id, pick(e), e.index));
-            const edgeOrder = dir === 'after' ? set.edges : set.edges.slice().reverse();
-            edgeOrder.forEach(e => setItem(state.doc.edges, e.id, pick(e), e.index));
+            setItems(state.doc.nodes, dir === 'after' ? set.nodes : set.nodes.slice().reverse(), pick);
+            setItems(state.doc.edges, dir === 'after' ? set.edges : set.edges.slice().reverse(), pick);
             if (set.meta) Object.assign(state.doc, clone(dir === 'after' ? set.meta.after : set.meta.before));
         }
 
@@ -317,16 +340,20 @@
             return result;
         }
 
-        // mergeInto folds a coalesced change into the top undo step; top keeps its own (earliest) order snapshot.
+        // mergeInto folds a coalesced change into the top undo step; top keeps its own (earliest) order
+        // snapshot. The entries of top are looked up by id in a Map, not one scan per entry.
         function mergeInto(top, set) {
-            set.nodes.forEach(e => {
-                const prev = top.nodes.find(x => x.id === e.id);
-                if (prev) prev.after = e.after; else top.nodes.push(e);
-            });
-            set.edges.forEach(e => {
-                const prev = top.edges.find(x => x.id === e.id);
-                if (prev) prev.after = e.after; else top.edges.push(e);
-            });
+            const fold = (list, entries) => {
+                const byId = new Map();
+                list.forEach(x => { if (!byId.has(x.id)) byId.set(x.id, x); });
+                entries.forEach(e => {
+                    const prev = byId.get(e.id);
+                    if (prev) prev.after = e.after;
+                    else { list.push(e); byId.set(e.id, e); }
+                });
+            };
+            fold(top.nodes, set.nodes);
+            fold(top.edges, set.edges);
             if (set.meta) {
                 if (!top.meta) top.meta = set.meta;
                 else Object.keys(set.meta.after).forEach(k => {
@@ -423,7 +450,8 @@
 
         function moveNodes(ids, dx, dy) {
             if (!dx && !dy) return;
-            const list = (ids || []).filter(id => node(id));
+            const present = new Set(state.doc.nodes.map(n => n.id));
+            const list = (ids || []).filter(id => present.has(id));
             change('move', rec => {
                 list.forEach(id => {
                     const n = rec.node(id);
@@ -537,12 +565,6 @@
             const clean = {};
             Object.keys(patch || {}).forEach(k => { if (META_KEYS.includes(k)) clean[k] = patch[k]; });
             change('flow', rec => rec.meta(clean), { coalesce: 'flow:' + Object.keys(clean).join(',') });
-        }
-
-        // setViewport stores the canvas viewport in the draft without an undo step.
-        function setViewport(v) {
-            state.doc.viewport = { x: Math.round(v.x), y: Math.round(v.y), zoom: Math.round(v.zoom * 1000) / 1000 };
-            emit({ kind: 'viewport', nodes: [], edges: [], meta: false, structural: false });
         }
 
         function fragment(ids) {
@@ -674,7 +696,7 @@
             on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
             toJSON: () => clone(state.doc),
             addNode, removeNodes, moveNodes, connect, disconnect, insertOnEdge, setParam, setLabel, setKey, setSettings,
-            toggleDisabled, setFlow, setViewport, fragment, paste, duplicate, replaceDoc
+            toggleDisabled, setFlow, fragment, paste, duplicate, replaceDoc
         };
     }
 

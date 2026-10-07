@@ -7,6 +7,9 @@
     const DELAY_MS = 1000;
     const RETRY_MS = 5000;
     const RETRY_MAX_MS = 60000;
+    // The emergency copy is written at most once per COPY_MS while changes keep coming (a drag
+    // changes the model on every pointer move, and each copy serialises the whole document).
+    const COPY_MS = 500;
     const EMERGENCY_PREFIX = 'aurago.easydrag.draft.';
     const EMERGENCY_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
     // Answers a retry cannot fix; every other coded error counts as transient.
@@ -51,7 +54,9 @@
     // "failed" with no automatic retry; the emergency copy stays and the next change or save() tries
     // again. A document the server refused as FLOW_INVALID is not sent again until it changes.
     // saver.error holds the error of the last offline or failed request until a request succeeds.
-    // A throwing callback never changes the saver's state.
+    // A throwing callback never changes the saver's state. The emergency copy follows a change at
+    // once, or, within COPY_MS of the last copy, with the next change after that time, at the end
+    // of a gesture (flushCopy), at the next save, at flush() and at dispose().
     function create(options) {
         const core = ED.core;
         const o = options;
@@ -67,6 +72,8 @@
         let retryDelay = RETRY_MS;
         let error = null;
         let disposed = false;
+        let copyAt = 0;            // when the emergency copy was written last (Date.now)
+        let copyPending = false;   // a change since then is not in the copy yet
 
         sweepEmergencyCopies();
 
@@ -83,7 +90,22 @@
         }
 
         function writeEmergency() {
-            core.storage.set(emergencyKey(o.flowId), { revision, at: Date.now(), doc: o.model.toJSON() });
+            copyPending = false;
+            copyAt = Date.now();
+            core.storage.set(emergencyKey(o.flowId), { revision, at: copyAt, doc: o.model.toJSON() });
+        }
+
+        // keepCopy writes the emergency copy for a change, at most once per COPY_MS; a change inside
+        // that time waits (copyPending) for a later change, flushCopy or the next save.
+        function keepCopy() {
+            if (Date.now() - copyAt >= COPY_MS) writeEmergency(); else copyPending = true;
+        }
+
+        // flushCopy writes a change that keepCopy held back, while the draft is still unsaved.
+        function flushCopy() {
+            if (!copyPending) return;
+            copyPending = false;
+            if (o.model.version !== savedVersion) writeEmergency();
         }
 
         // goOffline keeps err and calls save() again after the backoff delay, which then doubles.
@@ -104,14 +126,16 @@
             if (conflictChoice === 'reload') conflictChoice = null;
             if (o.model.version === savedVersion) return;
             setState(state === 'conflict' ? 'conflict' : 'dirty');
-            writeEmergency();
+            keepCopy();
             clearTimeout(timer);
             timer = setTimeout(() => { save(); }, DELAY_MS);
         }
 
         async function save() {
             clearTimeout(timer);
-            if (disposed || state === 'conflict') return undefined;
+            if (disposed) return undefined;
+            flushCopy();
+            if (state === 'conflict') return undefined;
             if (inFlight) { pending = true; return inFlight; }
             clearTimeout(retryTimer);
             if (conflictChoice) {
@@ -163,6 +187,7 @@
             retryDelay = RETRY_MS;
             notify(o.onSaved, { revision, issues: res.issues || [] });
             if (o.model.version === savedVersion) {
+                copyPending = false;
                 core.storage.remove(emergencyKey(o.flowId));
                 setState('saved');
                 return false;
@@ -247,6 +272,7 @@
 
         async function flush() {
             clearTimeout(timer);
+            if (!disposed) flushCopy();
             if (inFlight) await inFlight;
             await save();
             return state === 'saved';
@@ -256,13 +282,16 @@
             schedule,
             save,
             flush,
+            // flushCopy writes a held-back change to the emergency copy (the end of a gesture).
+            flushCopy() { if (!disposed) flushCopy(); },
             get revision() { return revision; },
             set revision(value) { revision = value; },
             get state() { return state; },
             get error() { return error; },
             isDirty: () => o.model.version !== savedVersion,
             markSaved() { savedVersion = o.model.version; setState('saved'); },
-            dispose() { disposed = true; clearTimeout(timer); clearTimeout(retryTimer); }
+            // dispose writes a held-back change to the emergency copy first, so closing never loses it.
+            dispose() { if (!disposed) flushCopy(); disposed = true; clearTimeout(timer); clearTimeout(retryTimer); }
         };
     }
 

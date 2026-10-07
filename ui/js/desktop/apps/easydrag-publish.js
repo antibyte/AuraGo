@@ -15,11 +15,15 @@
         let seq = 0;
         let dialogBusy = false;
 
+        // refreshIssues checks the draft (ed.draftModel), never a stored run's document: while the
+        // run view shows one it waits, and leaving the run view checks again (exitRunView). An
+        // answer that arrives in the run view is dropped too: its markers would land on the run.
         const refreshIssues = core.debounce(async () => {
+            if (ed.runView) return;
             const mine = ++seq;
             try {
-                const res = await ed.api.validate(ed.model.toJSON(), 'publish');
-                if (mine !== seq) return;
+                const res = await ed.api.validate((ed.draftModel || ed.model).toJSON(), 'publish');
+                if (mine !== seq || ed.runView) return;
                 ed.issues = res.issues || [];
                 ed.bus.emit('issues', ed.issues);
             } catch (err) { /* hints are best effort */ }

@@ -213,4 +213,132 @@ export async function run(env) {
             [(html.match(/title="[^"]*"/g) || []), /item\.disabledHint \? ` title="\$\{esc\(item\.disabledHint\)\}"`/.test(between('function showContextMenu(', 'function showDesktopContextMenu('))],
             [['title="Switch it &quot;on&quot; first"'], true]);
     });
+
+    // ── commit 2: state and performance ──
+
+    // bigDoc is a trigger and n-1 search steps in rows of 20, each wired to the one before.
+    function bigDoc(n) {
+        const nodes = [{ id: T1, key: 'start', type: 'trigger.manual', label: 'Start', position: { x: 0, y: 0 }, params: {}, settings: {} }];
+        const edges = [];
+        for (let i = 1; i < n; i++) {
+            const id = 'n_' + String(i).padStart(8, 'a');
+            nodes.push({ id, key: 'step_' + i, type: 'web.search', label: 'Step ' + i, position: { x: (i % 20) * 300, y: Math.floor(i / 20) * 160 }, params: { query: 'q' + i }, settings: {} });
+            edges.push({ id: 'e' + i, source: { node: nodes[i - 1].id, port: 'out' }, target: { node: id, port: 'in' } });
+        }
+        return { schema: 1, name: 'Big', nodes, edges };
+    }
+
+    await guardAsync('ff2 M2 dragging a 200-step selection stays fast and writes the emergency copy rarely', async () => {
+        const h = sandbox(req => (req.method === 'PUT' ? { draft_revision: 4, issues: [] } : undefined));
+        const editor = openEditor(h, { flow: { draft: bigDoc(200) } });
+        await settle();
+        h.menus.find(m => m.id === 'edit').items.find(i => i.id === 'select-all').action();
+        let copies = 0;
+        const set = h.store.set.bind(h.store);
+        h.store.set = (k, v) => { if (k === DRAFT_KEY) copies++; return set(k, v); };
+        const canvasEl = editor.el.querySelector('.ed-canvas');
+        const card = editor.el.querySelector('[data-node-id="' + T1 + '"]');
+        const started = process.hrtime.bigint();
+        card.fire('pointerdown', h.pe(1, 10, 10));
+        for (let i = 1; i <= 60; i++) canvasEl.fire('pointermove', h.pe(1, 10 + i * 3, 10 + i));
+        canvasEl.fire('pointerup', h.pe(1, 190, 70));
+        const ms = Number(process.hrtime.bigint() - started) / 1e6;
+        console.log('info ff2 M2 drag of 200 selected steps: ' + (ms / 60).toFixed(2) + ' ms per frame, ' + copies + ' copy writes');
+        const moved = editor.ed.model.node(T1).position.x > 0;
+        // Generous: a frame of a 200-step drag took 8.7 ms in a browser before FF2; 60 frames
+        // under 3 s leave room for a slow, busy machine and still catch an O(n²) regression.
+        eq('ff2 M2 60 frames of a 200-step drag take under 3 s; the copy is written at most once per 500 ms and at the end',
+            [moved, ms < 3000, copies >= 1 && copies <= 2 + Math.ceil(ms / 500), JSON.parse(h.store.get(DRAFT_KEY)).doc.nodes.find(n => n.id === T1).position, h.logged],
+            [true, true, true, editor.ed.model.node(T1).position, []]);
+        editor.dispose();
+    });
+
+    // runAnswer answers the stored run r1 (with its own document) and the test endpoints.
+    const runAnswer = extra => req => {
+        if (req.url === '/api/desktop/flows/runs/r1?include=doc') return { run: { id: 'r1', status: 'success', mode: 'test', started_at: '2026-10-06T10:00:00Z', revision: 2 }, steps: [], doc: flowDoc('Run') };
+        if (req.url === '/api/desktop/flows/f1/publish-preview') return { issues: [], effects: [] };
+        if (req.url.startsWith('/api/desktop/flows/f1/test-data/')) return { data: {} };
+        if (req.method === 'PUT') return { draft_revision: 4, issues: [] };
+        return extra ? extra(req) : undefined;
+    };
+    const count = (h, method, url) => h.requests.filter(r => r.method === method && r.url === url).length;
+
+    await guardAsync('ff2 M1 pans and zooms are no changes: no save, no unpublished changes, no new test check', async () => {
+        const h = sandbox(runAnswer(req => (req.url === '/api/desktop/flows/f1/test' ? { run_id: 'r9' } : undefined)));
+        const editor = openEditor(h, { flow: { published_draft_revision: 3, live: flowDoc(), live_revision: 1 }, enabled: true });
+        await settle();
+        h.runTimers();
+        await settle();
+        const version = editor.ed.model.version;
+        const canvasEl = editor.el.querySelector('.ed-canvas');
+        const wheel = zoom => canvasEl.fire('wheel', { deltaX: 0, deltaY: 4, deltaMode: 0, ctrlKey: zoom, metaKey: false, shiftKey: false, clientX: 500, clientY: 300, preventDefault() {} });
+        for (let i = 0; i < 20; i++) { wheel(false); wheel(true); }
+        // A middle-button pan.
+        canvasEl.fire('pointerdown', Object.assign(h.pe(2, 100, 100), { button: 1 }));
+        canvasEl.fire('pointermove', h.pe(2, 160, 130));
+        canvasEl.fire('pointerup', h.pe(2, 160, 130));
+        for (let i = 0; i < 3; i++) { h.runTimers(); await settle(); }
+        const panned = [h.puts().length, editor.ed.model.version === version, chips(editor), editor.ed.saver.state, h.store.has(DRAFT_KEY), h.store.has(VIEW_KEY), 'viewport' in editor.ed.model.doc];
+        // The test dialog's check after the flush: a zoom before Run is no edit, so Run starts at once.
+        editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
+        await settle();
+        const dialog = h.dialogs[h.dialogs.length - 1];
+        wheel(true);
+        h.runTimers(600);
+        dialog.el.querySelector('[data-ed-action="run"]').fire('click');
+        await settle();
+        eq('ff2 M1 a pan or zoom saves nothing, keeps Published and is stored per device; the test dialog runs at once after a zoom',
+            [panned, count(h, 'GET', '/api/desktop/flows/f1/publish-preview'), count(h, 'POST', '/api/desktop/flows/f1/test'), h.logged],
+            [[0, true, ['state_published'], 'saved', false, true, false], 1, 1, []]);
+        editor.dispose();
+    });
+
+    await guardAsync('ff2 M3 a live run that starts while a run view shows waits behind it', async () => {
+        let answerTest = null;
+        const h = sandbox(runAnswer(req => {
+            if (req.url === '/api/desktop/flows/f1/test') return new Promise(resolve => { answerTest = resolve; });
+            return undefined;
+        }));
+        const editor = openEditor(h);
+        await settle();
+        editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
+        await settle();
+        h.dialogs[h.dialogs.length - 1].el.querySelector('[data-ed-action="run"]').fire('click');
+        await settle();
+        // A notification opens a stored run before the test's answer arrives.
+        editor.showRun('r1');
+        await settle();
+        answerTest({ run_id: 'r9' });
+        await settle();
+        const during = [!!editor.ed.runView, editor.ed.run && editor.ed.run.id, !!(editor.ed.run && editor.ed.run.view), editor.ed.model.doc.name];
+        editor.ed.exitRunView();
+        await settle();
+        eq('ff2 M3 the run view keeps its run; leaving it follows the parked live run',
+            [during, !!editor.ed.runView, editor.ed.run && editor.ed.run.id, editor.ed.run && editor.ed.run.mode, !!(editor.ed.run && editor.ed.run.view), h.logged],
+            [[true, 'r1', true, 'Run'], false, 'r9', 'test', false, []]);
+        editor.dispose();
+    });
+
+    await guardAsync('ff2 M4 the hints check the draft, never a stored run\'s document', async () => {
+        const h = sandbox(runAnswer());
+        const editor = openEditor(h, { flow: { draft: flowDoc('Draft doc') } });
+        await settle();
+        const validations = () => h.requests.filter(r => r.url === '/api/desktop/flows/validate').map(r => r.body.doc.name);
+        // The editor asks for hints when it opens (debounced); a run view opens before they are asked.
+        editor.showRun('r1');
+        await settle();
+        h.runTimers(700);
+        await settle();
+        const inRunView = validations();
+        editor.ed.draftModel.setFlow({ description: 'edited while the run shows' });
+        h.runTimers(700);
+        await settle();
+        const afterEdit = validations();
+        editor.ed.exitRunView();
+        h.runTimers(700);
+        await settle();
+        eq('ff2 M4 no hints are asked while the run view shows; leaving it checks the draft',
+            [inRunView, afterEdit, validations(), editor.ed.model === editor.ed.draftModel, h.logged], [[], [], ['Draft doc'], true, []]);
+        editor.dispose();
+    });
 }

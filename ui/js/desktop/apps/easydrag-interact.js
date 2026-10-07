@@ -124,7 +124,8 @@
         }
 
         // capture makes a gesture follow its pointer (core.capturePointer: a cancel, lost capture or a
-        // missed mouse release ends it as cancelled). The gesture's abort() cancels it early.
+        // missed mouse release ends it as cancelled). The gesture's abort() cancels it early. Its end
+        // is announced as "gesture-end" once onUp ran (the editor completes the emergency copy).
         function capture(event, onMove, onUp) {
             const g = core.capturePointer(el, event, onMove, (ev, cancelled) => {
                 if (gesture === g) gesture = null;
@@ -132,6 +133,7 @@
                 if (ev.type !== 'abort') pointers.delete(ev.pointerId);
                 ed.dragging = false;
                 onUp(ev, cancelled);
+                ed.bus.emit('gesture-end');
             });
             gesture = g;
             return g;
@@ -144,7 +146,7 @@
             capture(event, ev => {
                 if (pinch) return;
                 canvas.setView({ x: start.view.x + ev.clientX - start.x, y: start.view.y + ev.clientY - start.y, zoom: start.view.zoom });
-            }, () => { el.classList.remove('is-panning'); persistView(); });
+            }, () => { el.classList.remove('is-panning'); });
         }
 
         // startPinch ends the first finger's pan, drag or box select (a drag moves back) and zooms
@@ -169,7 +171,7 @@
 
         function onPointerUpAny(event) {
             pointers.delete(event.pointerId);
-            if (pointers.size < 2 && pinch) { pinch = null; persistView(); }
+            if (pointers.size < 2 && pinch) pinch = null;
         }
 
         function startNodeDrag(event, nodeId) {
@@ -263,7 +265,7 @@
                     from = { node: existing.source.node, port: existing.source.port };
                     reverse = false;
                     undoTop = true;
-                    stopWatch = ed.model.on(change => { if (change.kind !== 'viewport') undoTop = false; });
+                    stopWatch = ed.model.on(() => { undoTop = false; });
                 }
             }
             const anchorNode = ed.model.node(from.node);
@@ -332,12 +334,9 @@
             });
         }
 
-        function persistView() {
-            if (!readonly()) ed.model.setViewport(ed.view);
-        }
-
-        const persistViewSoon = core.debounce(persistView, 600);
-
+        // Pans and zooms change only ed.view: the editor stores the view per flow on this device
+        // (aurago.easydrag.view.<id>), never in the document, so they neither save nor count as
+        // unpublished changes.
         function onWheel(event) {
             event.preventDefault();
             const s = canvas.size();
@@ -350,7 +349,6 @@
                 const unit = event.deltaMode === 1 ? 16 : 1;
                 canvas.setView({ x: ed.view.x - dx * unit, y: ed.view.y - dy * unit, zoom: ed.view.zoom });
             }
-            persistViewSoon();
         }
 
         function onDoubleClick(event) {
@@ -571,7 +569,7 @@
         bag.listen(el, 'click', onClick);
         bag.listen(el, 'contextmenu', onContextMenu);
         bag.listen(el, 'focusout', () => { spaceDown = false; el.classList.remove('is-space'); });
-        bag.add(() => { clearTimeout(hoverTimer); clearTimeout(longPress); persistViewSoon.cancel(); });
+        bag.add(() => { clearTimeout(hoverTimer); clearTimeout(longPress); });
         // Added last, so it runs first on dispose: a gesture still in progress is cancelled.
         bag.add(() => { if (gesture) gesture.abort(); });
 
