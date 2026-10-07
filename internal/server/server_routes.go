@@ -709,7 +709,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// Email Watcher: poll IMAP for new messages and wake the agent
 		s.EmailWatcher = tools.StartEmailWatcherContext(serverCtx, s.Cfg, s.Logger, s.Guardian, s.LLMGuardian, s.internalToken, s.CheatsheetDB)
 		if s.EmailWatcher != nil {
-			s.EmailWatcher.SetInternalToken(s.internalToken)
 			s.MissionManagerV2.SetEmailWatcher(s.EmailWatcher)
 		}
 		s.configureAgentMailRelay(s.Cfg)
