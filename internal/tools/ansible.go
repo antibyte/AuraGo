@@ -306,7 +306,7 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 	_, imgCode, imgErr := dockerRequest(dockerCfg, "GET", "/images/"+image+"/json", "")
 	if imgErr != nil || imgCode != 200 {
 		if sidecarCfg.AutoBuild {
-			if err := buildAnsibleImage(image, sidecarCfg.DockerfileDir, logger); err != nil {
+			if err := buildAnsibleImageOnEngine(image, sidecarCfg.DockerfileDir, dockerHost, logger); err != nil {
 				logger.Error("[Ansible] Auto-build failed. Start the sidecar manually after building the image.",
 					"image", image,
 					"hint", "docker build -f Dockerfile.ansible -t "+image+" .",
@@ -388,10 +388,22 @@ func ansibleManagedHostConfig(binds []string) map[string]interface{} {
 	return hostConfig
 }
 
-// buildAnsibleImage runs `docker build -f Dockerfile.ansible -t <image> <dir>` to build
-// the Ansible sidecar image. This is called automatically when auto_build is enabled and
-// the image is not found locally. The build can take several minutes on first run.
+// buildAnsibleImage builds the Ansible sidecar image on the platform default
+// engine; production passes docker.host through buildAnsibleImageOnEngine.
 func buildAnsibleImage(image, dockerfileDir string, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) error {
+	return buildAnsibleImageOnEngine(image, dockerfileDir, "", logger)
+}
+
+// buildAnsibleImageOnEngine runs `docker build -f Dockerfile.ansible -t <image> <dir>`
+// on docker.host, the engine that creates the sidecar
+// (runDockerCLIBuildOnConfiguredEngine). This is called automatically when
+// auto_build is enabled and the image is not found. The build can take several
+// minutes on first run.
+func buildAnsibleImageOnEngine(image, dockerfileDir, dockerHost string, logger interface {
 	Info(string, ...any)
 	Warn(string, ...any)
 	Error(string, ...any)
@@ -405,27 +417,25 @@ func buildAnsibleImage(image, dockerfileDir string, logger interface {
 
 	logger.Info("[Ansible] Building sidecar image (this may take a few minutes)…",
 		"image", image,
-		"context", dockerfileDir)
+		"context", dockerfileDir,
+		"docker_host", dockerutil.NormalizeHost(dockerHost))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "docker", "build",
-		"-f", filepath.Join(dockerfileDir, "Dockerfile.ansible"),
-		"-t", image,
-		dockerfileDir,
-	)
 	// Ensure Docker CLI can write its config/cache without needing /root/.docker.
 	// Under systemd with ProtectSystem=strict + ProtectHome=read-only the user
 	// home (/root) is read-only, causing "mkdir /root/.docker: read-only file system".
 	// Use a path inside the working directory which is in ReadWritePaths.
 	dockerCfgDir := filepath.Join(dockerfileDir, "data", ".docker")
 	os.MkdirAll(dockerCfgDir, 0o700)
-	cmd.Env = append(sandbox.FilterEnv(os.Environ()), "DOCKER_CONFIG="+dockerCfgDir)
 
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("docker build: %w\n%s", err, strings.TrimSpace(string(out)))
+	if _, err := runDockerCLIBuildOnConfiguredEngine(dockerCLIBuildRequest{
+		Image:      image,
+		Args:       []string{"build", "-f", filepath.Join(dockerfileDir, "Dockerfile.ansible"), "-t", image, dockerfileDir},
+		ConfigDir:  dockerCfgDir,
+		DockerHost: dockerHost,
+		Timeout:    10 * time.Minute,
+		LogPrefix:  "[Ansible]",
+	}, logger); err != nil {
+		return err
 	}
 
 	logger.Info("[Ansible] Image built successfully", "image", image)
