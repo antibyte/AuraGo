@@ -349,7 +349,8 @@ func flowsPathParts(path string) []string {
 
 // handleFlows serves /api/desktop/flows/… (see the API contract in plan 1c).
 func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
-	if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+	parts := flowsPathParts(r.URL.Path)
+	if !requireDesktopPermission(s, w, r, flowsRequiredScope(r.Method, parts)) {
 		return
 	}
 	if !flowsOriginOK(r) {
@@ -361,7 +362,6 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := s.ConfigSnapshot()
-	parts := flowsPathParts(r.URL.Path)
 	if r.Method != http.MethodGet && r.Method != http.MethodHead && !flowsReadOnlySafe(r, parts) &&
 		(cfg.Tools.Missions.ReadOnly || cfg.VirtualDesktop.ReadOnly) {
 		flowsError(w, http.StatusForbidden, "FLOW_PERMISSION_DENIED", "flows are read-only")
@@ -391,10 +391,38 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 
 // flowsReadOnlySafe reports whether a request other than GET or HEAD changes nothing, so
 // the read-only modes of missions and the desktop let it through: POST validate only
-// checks the document it is sent. The desktop permission (desktop:write for every method
-// but GET and HEAD) and the same-origin check still apply.
+// checks the document it is sent. The desktop permission (flowsRequiredScope) and the
+// same-origin check still apply.
 func flowsReadOnlySafe(r *http.Request, parts []string) bool {
-	return r.Method == http.MethodPost && len(parts) == 1 && parts[0] == "validate"
+	return flowsIsValidate(r.Method, parts)
+}
+
+// flowsIsValidate reports whether a request is POST validate.
+func flowsIsValidate(method string, parts []string) bool {
+	return method == http.MethodPost && len(parts) == 1 && parts[0] == "validate"
+}
+
+// isFlowsAPIPath reports whether path is /api/desktop/flows or below it.
+func isFlowsAPIPath(path string) bool {
+	return path == "/api/desktop/flows" || strings.HasPrefix(path, "/api/desktop/flows/")
+}
+
+// flowsRequiredScope is the desktop scope a bearer token needs for a flows request (parts
+// from flowsPathParts): desktop:read for GET and HEAD, desktop:write for POST validate
+// (it only checks the document it is sent) and desktop:admin for every other request. A
+// test or live run executes the flow's tools on the host (shell, sudo, Docker), publishing
+// and enabling create missions, cron jobs and webhooks, and secrets go into the vault, so
+// these writes need what the desktop chat and Looper runs need. Both the auth middleware
+// (validRouteBearer) and handleFlows apply it; session users are not affected.
+func flowsRequiredScope(method string, parts []string) string {
+	switch {
+	case method == http.MethodGet || method == http.MethodHead:
+		return desktopScopeRead
+	case flowsIsValidate(method, parts):
+		return desktopScopeWrite
+	default:
+		return desktopScopeAdmin
+	}
 }
 
 type flowCreateBody struct {

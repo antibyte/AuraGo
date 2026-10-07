@@ -791,6 +791,15 @@ GET /api/desktop/ssh
 GET /api/desktop/vnc
 ```
 
+### EasyDrag-Flows
+```http
+GET  /api/desktop/flows
+POST /api/desktop/flows/validate
+POST /api/desktop/flows/{id}/{test|run|publish|enabled}
+```
+
+Bearer-Tokens brauchen `desktop:read` für `GET`, `desktop:write` für `POST /api/desktop/flows/validate` (prüft nur das mitgeschickte Dokument) und `desktop:admin` für jede andere Änderung: Anlegen, Speichern, Test- und Live-Läufe, Veröffentlichen, Ein- und Ausschalten, Testdaten, Geheimnisse, Abbrechen von Läufen und Löschen. Testläufe führen die Tools des Flows auf dem Host aus, und das Veröffentlichen legt Missionen, Cron-Jobs und Webhooks an. Browser-Sitzungen sind davon nicht betroffen. Den Editor beschreibt [EasyDrag](24-easydrag.md).
+
 ### Desktop Software Store
 ```http
 GET /api/desktop/store/catalog

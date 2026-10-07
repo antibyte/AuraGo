@@ -27,7 +27,8 @@ const waitFlowJSON = `{"schema":1,"name":"Pause","nodes":[
  "edges":[{"id":"e_aaaaaaaa","source":{"node":"n_aaaaaaaa","port":"out"},"target":{"node":"n_bbbbbbbb","port":"in"}}]}`
 
 // newFlowsTestServer builds a server with a real flow service and mission manager and
-// returns it with a desktop token that may read and write.
+// returns it with a desktop token that may read, write and administer (flows writes other
+// than validate need desktop:admin, see flowsRequiredScope).
 func newFlowsTestServer(t *testing.T) (*Server, string) {
 	t.Helper()
 	s, _, _ := testDesktopPermissionServer(t)
@@ -52,7 +53,7 @@ func newFlowsTestServer(t *testing.T) (*Server, string) {
 	t.Cleanup(s.MissionManagerV2.Stop)
 	s.startFlows(context.Background())
 	t.Cleanup(func() { s.shutdownFlows(context.Background()) })
-	token, _, err := s.TokenManager.Create("flows test", []string{desktopScopeRead, desktopScopeWrite}, nil)
+	token, _, err := s.TokenManager.Create("flows test", []string{desktopScopeRead, desktopScopeWrite, desktopScopeAdmin}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

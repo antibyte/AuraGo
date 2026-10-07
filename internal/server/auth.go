@@ -1110,6 +1110,9 @@ func validRouteBearer(s *Server, token, path, method string) bool {
 		if strings.HasPrefix(path, "/api/desktop/chat") || strings.HasPrefix(path, "/api/desktop/logs/") {
 			return desktopTokenHasScope(s, token, desktopScopeAdmin)
 		}
+		if isFlowsAPIPath(path) {
+			return desktopTokenHasScope(s, token, flowsRequiredScope(method, flowsPathParts(path)))
+		}
 		return desktopTokenHasScope(s, token, desktopMethodScope(method))
 	}
 	if strings.HasPrefix(path, "/api/go2rtc/") {
