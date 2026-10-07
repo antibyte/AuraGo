@@ -983,6 +983,10 @@ func DockerComposeResolvedConfig(cfg DockerConfig, file string) (string, error) 
 // DockerComposeResolvedConfigContext is DockerComposeResolvedConfig under the
 // caller's context (a stopped agent run cancels Compose) and with the selected
 // config variant. Compose is still bounded by 20 seconds.
+// dockerComposeConfigTimeout bounds one `docker compose config` run; tests
+// shrink it.
+var dockerComposeConfigTimeout = 20 * time.Second
+
 func DockerComposeResolvedConfigContext(ctx context.Context, cfg DockerConfig, file string, opts DockerComposeConfigOptions) (string, error) {
 	if err := requireDockerPermission(); err != nil {
 		return "", err
@@ -994,7 +998,7 @@ func DockerComposeResolvedConfigContext(ctx context.Context, cfg DockerConfig, f
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	runCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	runCtx, cancel := context.WithTimeout(ctx, dockerComposeConfigTimeout)
 	defer cancel()
 	runner := runDockerComposeConfig
 	if cfg.MinimalCLIEnvironment {
@@ -1003,6 +1007,11 @@ func DockerComposeResolvedConfigContext(ctx context.Context, cfg DockerConfig, f
 	stdout, stderr, err := runner(runCtx, dockerComposeConfigArgs(cfg, composeFile, opts))
 	if err != nil && ctx.Err() != nil {
 		return "", fmt.Errorf("resolve Compose config: %w", ctx.Err())
+	}
+	if err != nil && runCtx.Err() != nil {
+		// The per-call limit killed Compose ("signal: killed"): report the
+		// deadline, not a Compose failure, so callers can tell them apart.
+		return "", fmt.Errorf("resolve Compose config: %w", runCtx.Err())
 	}
 	return dockerComposeConfigResult(stdout, stderr, err)
 }

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -119,5 +120,39 @@ func TestDispatchDockerComposeIgnoresAResolutionThatTimedOutDuringTheCheck(t *te
 	}
 	if allProfiles != 1 {
 		t.Fatalf("all-profiles resolutions = %d, want the timed-out one only (not repeated)", allProfiles)
+	}
+}
+
+// A named-service resolution that tools.DockerComposeResolvedConfigContext
+// cut off at its own per-call limit (it now wraps context.DeadlineExceeded
+// instead of "signal: killed") is not repeated either.
+func TestDispatchDockerComposeIgnoresANamedResolutionKilledByItsTimeout(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n")
+	named := 0
+	stubDockerComposeResolverModes(t, func(_ context.Context, _ string, opts tools.DockerComposeConfigOptions) (string, error) {
+		switch {
+		case opts.AllProfiles:
+			return "", errors.New("resolve Compose config: exit status 16: unknown flag: --no-env-resolution")
+		case len(opts.Services) > 0:
+			named++
+			if named == 1 {
+				return "", fmt.Errorf("resolve Compose config: %w", context.DeadlineExceeded)
+			}
+			return `{"services":{"hidden":{"image":"alpine"}}}`, nil
+		}
+		return recheckCheckedModel, nil
+	})
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	cfg.Directories.WorkspaceDir = workspace
+	useRuntimePermissionsForTest(t, cfg)
+	output, _ := dispatchServices(context.Background(), ToolCall{Action: "docker", Operation: "compose", File: "compose.yml", Command: "config hidden"}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	if strings.Contains(output, "docker_compose_input_changed") {
+		t.Fatalf("a killed named resolution gave a false input change: %s", output)
+	}
+	if named != 1 {
+		t.Fatalf("named resolutions = %d, want the timed-out one only (not repeated)", named)
 	}
 }

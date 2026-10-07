@@ -2,9 +2,11 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDockerCLIMinimalEnvironmentKeepsOnlyWhatComposeNeeds(t *testing.T) {
@@ -100,5 +102,24 @@ func TestDockerCLIMinimalEnvironmentKeepsCertificateAndCredentialHelperPointers(
 	got := dockerCLIMinimalEnvironment(append(append([]string(nil), pointers...), secrets...))
 	if !reflect.DeepEqual(got, pointers) {
 		t.Fatalf("dockerCLIMinimalEnvironment() = %q, want exactly the pointers %q", got, pointers)
+	}
+}
+
+// The resolver's own limit kills `docker compose config` ("signal: killed");
+// the error must say it was the deadline, so the agent's recheck does not
+// read the repeat as changed input.
+func TestDockerComposeResolvedConfigReportsItsOwnTimeoutAsADeadline(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+	previousTimeout, previousRunner := dockerComposeConfigTimeout, runDockerComposeConfig
+	t.Cleanup(func() { dockerComposeConfigTimeout, runDockerComposeConfig = previousTimeout, previousRunner })
+	dockerComposeConfigTimeout = 20 * time.Millisecond
+	runDockerComposeConfig = func(ctx context.Context, _ []string) ([]byte, []byte, error) {
+		<-ctx.Done()
+		return nil, nil, errors.New("signal: killed")
+	}
+	_, err := DockerComposeResolvedConfigContext(context.Background(), DockerConfig{WorkspaceDir: t.TempDir()}, "compose.yml", DockerComposeConfigOptions{})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error = %v, want one that wraps context.DeadlineExceeded", err)
 	}
 }

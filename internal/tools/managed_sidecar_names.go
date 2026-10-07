@@ -45,7 +45,8 @@ func ManagedSidecarContainerNames(cfg *config.Config) []string {
 	add(omniRouteDefaultContainerName, cfg.OmniRoute.ContainerName)
 	add(dograhDefaultAPIContainerName, cfg.Dograh.APIContainerName, dograhDefaultUIContainerName, cfg.Dograh.UIContainerName,
 		dograhDefaultPostgresContainerName, cfg.Dograh.PostgresContainerName, dograhDefaultRedisContainerName, cfg.Dograh.RedisContainerName,
-		dograhDefaultMinioContainerName, cfg.Dograh.MinioContainerName, dograhDefaultCoturnContainerName, cfg.Dograh.CoturnContainerName)
+		dograhDefaultMinioContainerName, cfg.Dograh.MinioContainerName, dograhDefaultCoturnContainerName, cfg.Dograh.CoturnContainerName,
+		dograhDefaultUIProxyContainerName)
 	add(cfdContainerName)
 	return names
 }

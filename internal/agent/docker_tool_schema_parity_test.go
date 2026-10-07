@@ -38,14 +38,41 @@ func dockerToolSchemaProperties(t *testing.T) ([]string, map[string]bool) {
 	return nil, nil
 }
 
+// dispatchedDockerOperations reads the operation list the dispatcher itself
+// names when it gets an unknown operation, so a new dispatcher operation that
+// the schema lacks fails the parity test.
+func dispatchedDockerOperations(t *testing.T) []string {
+	t.Helper()
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	useRuntimePermissionsForTest(t, cfg)
+	output, ok := dispatchServices(context.Background(), ToolCall{Action: "docker", Operation: "fc19_no_such_operation"}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	_, list, found := strings.Cut(output, "Use: ")
+	if !ok || !found {
+		t.Fatalf("unknown docker operation: handled = %v, output = %s, want the dispatcher's operation list", ok, output)
+	}
+	list, _, _ = strings.Cut(list, `"`)
+	var operations []string
+	for _, operation := range strings.Split(list, ",") {
+		if operation = strings.TrimSpace(operation); operation != "" {
+			operations = append(operations, operation)
+		}
+	}
+	if len(operations) < 20 {
+		t.Fatalf("parsed only %q from %s", operations, output)
+	}
+	return operations
+}
+
 // F-C19: the native docker schema offers exactly the operations the
 // dispatcher accepts (its error message lists the canonical names), so a
 // strict schema no longer hides exec, cp, the network and volume operations
 // or compose, and every argument they read is a schema property.
 func TestDockerToolSchemaMatchesTheDispatcherOperations(t *testing.T) {
 	enum, props := dockerToolSchemaProperties(t)
-	source := `Unknown docker operation. Use: list_containers, inspect, start, stop, restart, pause, unpause, remove, logs, create, run, list_images, pull, remove_image, list_networks, create_network, remove_network, connect, disconnect, list_volumes, create_volume, remove_volume, exec, stats, top, port, cp, compose, info`
-	dispatched := strings.Split(strings.TrimPrefix(source, "Unknown docker operation. Use: "), ", ")
+	dispatched := dispatchedDockerOperations(t)
 	if got, want := slices.Sorted(slices.Values(enum)), slices.Sorted(slices.Values(dispatched)); !slices.Equal(got, want) {
 		t.Fatalf("schema enum = %q, want the dispatcher's operations %q", got, want)
 	}

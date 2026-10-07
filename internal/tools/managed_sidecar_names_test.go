@@ -13,7 +13,7 @@ func TestManagedSidecarContainerNamesListEveryManagedSidecar(t *testing.T) {
 	got := ManagedSidecarContainerNames(cfg)
 	for _, want := range []string{"aurago_gotenberg", "aurago_ollama_managed", "aurago_ollama_embeddings", "aurago-piper-tts",
 		"aurago-supertonic-tts", "aurago_ansible", "aurago_browser_automation", "aurago_go2rtc", "aurago_space_agent",
-		"aurago_manifest", "aurago_manifest_postgres", "aurago_omniroute", "aurago_dograh_api", "aurago_dograh_ui",
+		"aurago_manifest", "aurago_manifest_postgres", "aurago_omniroute", "aurago_dograh_api", "aurago_dograh_ui", "aurago_dograh_ui_proxy",
 		"aurago_dograh_postgres", "aurago_dograh_redis", "aurago_dograh_minio", "aurago_dograh_coturn", "aurago-cloudflared"} {
 		if !slices.Contains(got, want) {
 			t.Fatalf("names = %q, missing %s", got, want)
