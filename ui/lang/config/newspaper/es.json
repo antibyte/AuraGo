@@ -29,7 +29,7 @@
   "config.newspaper.max_editions": "Límite de ediciones guardadas",
   "config.newspaper.setup_note": "Elija intereses y destinatarios en la aplicación de escritorio del periódico. La entrega está desactivada hasta que habilites un canal aquí y te suscribas en la aplicación.",
   "config.newspaper.check": "Comprobar preparación",
-  "config.newspaper.open": "Periódico Abierto",
+  "config.newspaper.open": "Abrir Periódico",
   "config.newspaper.checking": "Comprobando…",
   "config.newspaper.active": "Habilitado",
   "config.newspaper.inactive": "Deshabilitado",

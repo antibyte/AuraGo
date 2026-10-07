@@ -29,7 +29,7 @@
   "config.newspaper.max_editions": "Grænse for gemt udgave",
   "config.newspaper.setup_note": "Vælg interesser og modtagere i Newspaper desktop-appen. Leveringen er slået fra, indtil du aktiverer en kanal her og abonnerer i appen.",
   "config.newspaper.check": "Tjek beredskab",
-  "config.newspaper.open": "Åben Avis",
+  "config.newspaper.open": "Åbn Avis",
   "config.newspaper.checking": "Kontrollerer...",
   "config.newspaper.active": "Aktiveret",
   "config.newspaper.inactive": "Deaktiveret",

@@ -939,7 +939,7 @@
   "dashboard.integration_here_now": "here.now",
   "dashboard.newspaper_title": "Journal",
   "dashboard.newspaper_loading": "Chargement de l'état du journal…",
-  "dashboard.newspaper_open": "Journal ouvert",
+  "dashboard.newspaper_open": "Ouvrir le journal",
   "dashboard.newspaper_unavailable": "L'état du journal n'est pas disponible.",
   "dashboard.newspaper_disabled": "Le journal est désactivé dans Config.",
   "dashboard.newspaper_latest": "Dernière édition",

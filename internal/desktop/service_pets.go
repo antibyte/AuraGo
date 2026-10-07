@@ -451,6 +451,9 @@ func bundledDefaultPets() []bundledPet {
 		{Manifest: PetJSON{ID: "aurago-tentacle", DisplayName: "Purple Tentacle", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
 		{Manifest: PetJSON{ID: "aurago-indiana-jones", DisplayName: "Indiana Jones", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
 		{Manifest: PetJSON{ID: "aurago-manga-girl", DisplayName: "Hana", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-zombie", DisplayName: "Zombert", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-chick", DisplayName: "Pippin", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-peacock", DisplayName: "Pavlo", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
 	}
 }
 

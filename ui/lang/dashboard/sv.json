@@ -939,7 +939,7 @@
   "dashboard.integration_here_now": "here.now",
   "dashboard.newspaper_title": "Tidning",
   "dashboard.newspaper_loading": "Laddar tidningsstatus...",
-  "dashboard.newspaper_open": "Öppen tidning",
+  "dashboard.newspaper_open": "Öppna tidningen",
   "dashboard.newspaper_unavailable": "Tidningsstatus är inte tillgänglig.",
   "dashboard.newspaper_disabled": "Tidningen är inaktiverad i Config.",
   "dashboard.newspaper_latest": "Senaste upplagan",

@@ -939,7 +939,7 @@
   "dashboard.integration_here_now": "here.now",
   "dashboard.newspaper_title": "Avis",
   "dashboard.newspaper_loading": "Indlæser avisstatus...",
-  "dashboard.newspaper_open": "Åben Avis",
+  "dashboard.newspaper_open": "Åbn Avis",
   "dashboard.newspaper_unavailable": "Avisstatus er ikke tilgængelig.",
   "dashboard.newspaper_disabled": "Avis er deaktiveret i Config.",
   "dashboard.newspaper_latest": "Seneste udgave",
