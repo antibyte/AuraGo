@@ -2,12 +2,15 @@ package server
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"aurago/internal/services"
 	"aurago/internal/tools"
 )
 
@@ -128,4 +131,24 @@ func TestMergeIntegrationsCancelStopsTheFlowRun(t *testing.T) {
 		t.Fatalf("integrations cancel = %d %s, want 202", w.Code, w.Body.String())
 	}
 	c16WaitStatus(t, s, rec.MissionID, tools.MissionStatusIdle)
+}
+
+// Mission preparation builds context for a mission's prompt; a flow mission has none, so both
+// the mission API and Mission Control's integrations route refuse it with a clear 400.
+func TestMergePrepareRefusesFlowMissions(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	s.Cfg.MissionPreparation.Enabled = true
+	s.PreparationService = services.NewMissionPreparationService(s.Cfg, &s.CfgMu, nil, s.MissionManagerV2, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	rec := createTestFlow(t, s, greetFlowJSON)
+	w := httptest.NewRecorder()
+	handleMissionPrepare(s, w, httptest.NewRequest(http.MethodPost, "/api/missions/v2/"+rec.MissionID+"/prepare", nil), rec.MissionID)
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "managed in EasyDrag") {
+		t.Fatalf("prepare of a flow mission = %d %s, want 400 managed in EasyDrag", w.Code, w.Body.String())
+	}
+	if w := mergeIntegrationsCall(t, s, token, rec.MissionID, "prepare", ""); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "managed in EasyDrag") {
+		t.Fatalf("integrations prepare of a flow mission = %d %s", w.Code, w.Body.String())
+	}
+	if _, err := s.PreparationService.PrepareMission(context.Background(), rec.MissionID); err != tools.ErrFlowMissionManaged {
+		t.Fatalf("PrepareMission(flow) = %v, want ErrFlowMissionManaged", err)
+	}
 }

@@ -559,8 +559,14 @@ func handleMissionPrepare(s *Server, w http.ResponseWriter, r *http.Request, id 
 	}
 
 	// Verify mission exists
-	if _, ok := s.MissionManagerV2.Get(id); !ok {
+	mission, ok := s.MissionManagerV2.Get(id)
+	if !ok {
 		jsonError(w, "Mission not found", http.StatusNotFound)
+		return
+	}
+	// A flow mission has no prompt to prepare: EasyDrag owns it.
+	if mission.ExecutionType == tools.ExecutionFlow {
+		jsonError(w, tools.ErrFlowMissionManaged.Error(), http.StatusBadRequest)
 		return
 	}
 
