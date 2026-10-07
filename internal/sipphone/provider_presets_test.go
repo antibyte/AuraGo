@@ -229,8 +229,21 @@ func TestApplySetupActivationAllowsAllProviderDestinations(t *testing.T) {
 	if err := ApplySetupActivation(context.Background(), &cfg, "fritzbox", SetupActivation{OutboundScope: SetupScopeAll}); err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Permissions.OriginateOutbound || len(cfg.Outbound.AllowedUsers) != 0 || len(cfg.Outbound.AllowedE164Prefixes) != 0 || len(cfg.Outbound.AllowedDomains) != 1 || cfg.Outbound.AllowedDomains[0] != cfg.Domain {
+	if !cfg.Permissions.OriginateOutbound || len(cfg.Outbound.AllowedUsers) != 0 || len(cfg.Outbound.AllowedE164Prefixes) != 9 || len(cfg.Outbound.AllowedDomains) != 1 || cfg.Outbound.AllowedDomains[0] != cfg.Domain {
 		t.Fatalf("unexpected all-provider policy: %+v", cfg.Outbound)
+	}
+	for _, target := range []struct {
+		raw     string
+		allowed bool
+	}{
+		{"sip:+491234567@" + cfg.Domain, true},
+		{"sip:+491234567@untrusted.example", false},
+		{"sip:101@" + cfg.Domain, false},
+	} {
+		uri, _, err := NormalizeSIPURI(target.raw)
+		if err != nil || DestinationAllowed(cfg.Outbound, cfg.Domain, uri) != target.allowed {
+			t.Fatalf("guided all-number policy for %s: err=%v", target.raw, err)
+		}
 	}
 }
 

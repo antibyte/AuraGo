@@ -1,41 +1,46 @@
     // File operations
     async function createNewFile() {
+        const instance = fm;
+        const directory = instance.currentPath;
         if (isReadonly()) return;
         let res = null;
         if (typeof createNewFileWithTemplate === 'function') {
             res = await createNewFileWithTemplate();
         } else {
             const name = await promptDialog(t('desktop.fm.new_file_prompt'), t('desktop.new_file_default'));
+            if (!isLiveInstance(instance)) return;
             if (name) res = { name, content: '' };
         }
-        if (!res) return;
-        const path = joinPath(fm.currentPath, res.name);
+        if (!res || !isLiveInstance(instance)) return;
+        const path = joinPath(directory, res.name);
         try {
             await api('/api/desktop/file', {
                 method: 'PUT',
                 body: JSON.stringify({ path, content: res.content })
             });
-            refresh();
-            showNotification({ type: 'success', message: res.name });
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => { refresh(); showNotification({ type: 'success', message: res.name }); });
         } catch (err) {
-            showNotification({ type: 'error', message: (err.message || String(err)) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
         }
     }
 
     async function createNewFolder() {
+        const instance = fm;
+        const directory = instance.currentPath;
         if (isReadonly()) return;
         const name = await promptDialog(t('desktop.fm.new_folder_prompt'), t('desktop.fm.new_folder'));
-        if (!name) return;
-        const path = joinPath(fm.currentPath, name);
+        if (!name || !isLiveInstance(instance)) return;
+        const path = joinPath(directory, name);
         try {
             await api('/api/desktop/directory', {
                 method: 'POST',
                 body: JSON.stringify({ path })
             });
-            refresh();
-            showNotification({ type: 'success', message: name });
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => { refresh(); showNotification({ type: 'success', message: name }); });
         } catch (err) {
-            showNotification({ type: 'error', message: (err.message || String(err)) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
         }
     }
 
@@ -44,6 +49,7 @@
         const file = fm.files.find(f => f.path === path);
         if (!file) return;
         fm.renamePath = path;
+        fm.renameDraft = file.name;
         renderAll();
         const input = fm.host.querySelector('[data-rename-input]');
         if (input) {
@@ -53,10 +59,11 @@
     }
 
     function finishRename(input) {
-        if (!input || !fm.renamePath) return;
+        if (!input || !input.isConnected || !fm.renamePath) return;
         const nextName = String(input.value || '').trim();
         const path = fm.renamePath;
         fm.renamePath = '';
+        fm.renameDraft = null;
         if (!nextName) {
             renderAll();
             return;
@@ -66,12 +73,14 @@
 
     function cancelRename() {
         fm.renamePath = '';
+        fm.renameDraft = null;
         renderAll();
     }
 
     async function renamePath(path, newName) {
+        const instance = fm;
         if (isReadonly()) return;
-        const file = fm.files.find(f => f.path === path);
+        const file = instance.files.find(f => f.path === path);
         if (!file || newName === file.name || !newName.trim()) {
             renderAll();
             return;
@@ -79,33 +88,41 @@
         const parent = parentPath(path);
         const nextPath = joinPath(parent, newName.trim());
         try {
-            await api('/api/desktop/file', {
+            const renamed = await api('/api/desktop/file', {
                 method: 'PATCH',
                 body: JSON.stringify({ old_path: path, new_path: nextPath })
             });
-            pushToUndo({
-                type: 'rename',
-                items: [{ oldPath: path, newPath: nextPath }]
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                pushToUndo({
+                    type: 'rename',
+                    items: [{ oldPath: path, newPath: renamed.path || nextPath }]
+                });
+                refresh();
             });
-            refresh();
         } catch (err) {
-            showNotification({ type: 'error', message: (err.message || String(err)) });
-            renderAll();
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                showNotification({ type: 'error', message: (err.message || String(err)) });
+                renderAll();
+            });
         }
     }
 
     async function restoreSelected() {
+        const instance = fm;
         if (isReadonly()) return;
         const selected = getSelectedFiles().filter(file => isTrashItemPath(file && file.path));
         if (!selected.length) return;
-        if (fm.callbacks && typeof fm.callbacks.restoreFromTrash === 'function') {
-            await fm.callbacks.restoreFromTrash(selected.map(file => file.path));
-            clearSelection();
-            refresh();
+        const restoreFromTrash = instance.callbacks && instance.callbacks.restoreFromTrash;
+        if (typeof restoreFromTrash === 'function') {
+            await restoreFromTrash(selected.map(file => file.path));
+            if (isLiveInstance(instance)) withInstance(instance, () => { clearSelection(); refresh(); });
         }
     }
 
     async function deleteSelected() {
+        const instance = fm;
         if (isReadonly()) return;
         const selected = getSelectedFiles();
         if (!selected.length) return;
@@ -115,16 +132,15 @@
         } else {
             confirmed = await confirmDialog(t('desktop.fm.confirm_delete', { count: selected.length }), '');
         }
-        if (!confirmed) return;
+        if (!confirmed || !isLiveInstance(instance)) return;
         for (const file of selected) {
             try {
                 await api('/api/desktop/file?path=' + encodeURIComponent(file.path), { method: 'DELETE' });
             } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
+                if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
             }
         }
-        clearSelection();
-        refresh();
+        if (isLiveInstance(instance)) withInstance(instance, () => { clearSelection(); refresh(); });
     }
 
     async function downloadFile(file) {
@@ -151,18 +167,21 @@
     }
 
     async function uploadFiles() {
+        const instance = fm;
+        const directory = instance.currentPath;
         if (isReadonly()) return;
-        if (fm.callbacks && typeof fm.callbacks.importFilesFromHost === 'function') {
-            const result = await fm.callbacks.importFilesFromHost({ path: fm.currentPath, multiple: true });
-            if (result && !result.canceled) refresh();
+        const importFilesFromHost = instance.callbacks && instance.callbacks.importFilesFromHost;
+        if (typeof importFilesFromHost === 'function') {
+            const result = await importFilesFromHost({ path: directory, multiple: true });
+            if (result && !result.canceled && isLiveInstance(instance)) withInstance(instance, () => refresh());
             return;
         }
         const input = document.createElement('input');
         input.type = 'file';
         input.multiple = true;
         input.addEventListener('change', async () => {
-            if (!input.files || !input.files.length) return;
-            await uploadFileList(input.files);
+            if (!input.files || !input.files.length || !isLiveInstance(instance)) return;
+            await uploadFileList(input.files, instance, directory);
         }, { once: true });
         input.click();
     }
@@ -199,7 +218,8 @@
         });
     }
 
-    async function uploadFileList(files) {
+    async function uploadFileList(files, instance = fm, directory = instance.currentPath) {
+        const targetPath = directory;
         if (isReadonly()) return;
         const totalFiles = files.length;
         let completedFiles = 0;
@@ -222,33 +242,37 @@
 
         const limit = maxFileSize();
         for (const file of Array.from(files)) {
+            if (!isLiveInstance(instance)) break;
             completedFiles++;
             if (limit > 0 && file.size > limit) {
-                showNotification({ type: 'error', message: t('desktop.fm.upload_too_large', { name: file.name }) });
+                withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.upload_too_large', { name: file.name }) }));
                 continue;
             }
             fileEl.textContent = `${esc(file.name)} (${completedFiles}/${totalFiles})`;
             try {
-                await uploadWithXHR(file, fm.currentPath, (pct) => {
+                await uploadWithXHR(file, targetPath, (pct) => {
+                    if (!isLiveInstance(instance)) return;
                     barFill.style.width = pct + '%';
                     percentEl.textContent = pct + '%';
                 });
             } catch (err) {
-                showNotification({ type: 'error', message: file.name + ': ' + (err.message || String(err)) });
+                if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: file.name + ': ' + (err.message || String(err)) }));
             }
         }
         overlay.remove();
-        refresh();
+        if (isLiveInstance(instance)) withInstance(instance, () => refresh());
     }
 
     // Properties dialog
     async function showProperties(file) {
+        const instance = fm;
         if (!file) return;
         const isDir = file.type === 'directory';
         let itemCount = '';
         if (isDir) {
             try {
                 const result = await api('/api/desktop/files?path=' + encodeURIComponent(file.path));
+                if (!isLiveInstance(instance)) return;
                 const count = Array.isArray(result.files) ? result.files.length : 0;
                 itemCount = `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_items'))}</span><span class="fm-prop-value">${esc(count)}</span></div>`;
             } catch (_) {}
@@ -283,7 +307,6 @@
     }
 
     // Drag and drop
-    let dragSrcPath = null;
 
     function fileManagerDragPayload(path) {
         const paths = fm.selectedPaths.has(path) ? Array.from(fm.selectedPaths) : [path];
@@ -304,8 +327,18 @@
     }
 
     async function moveDroppedDesktopFilesToFolder(paths, destPath) {
+        const instance = fm;
+        const targetPath = destPath;
+        const sourcePaths = Array.from(new Set((paths || []).filter(Boolean)));
         if (isReadonly()) return;
-        const cleanPaths = Array.from(new Set((paths || []).filter(Boolean)));
+        if (String(targetPath).toLowerCase() === 'trash') {
+            const moveToTrash = instance.callbacks && instance.callbacks.moveToTrash;
+            if (moveToTrash) await moveToTrash(sourcePaths);
+            if (isLiveInstance(instance)) withInstance(instance, () => { clearSelection(); refresh(); });
+            return;
+        }
+        if (isReadonly()) return;
+        const cleanPaths = sourcePaths;
         if (!cleanPaths.length) return;
         
         let progress = null;
@@ -328,13 +361,15 @@
             }
             
             try {
-                await api('/api/desktop/file', {
+                const moved = await api('/api/desktop/file', {
                     method: 'PATCH',
                     body: JSON.stringify({ old_path: src, new_path: newPath })
                 });
-                undoItems.push({ oldPath: src, newPath: newPath });
+                if (!isLiveInstance(instance)) { if (progress) progress.close(); return; }
+                undoItems.push({ oldPath: src, newPath: moved.path || newPath });
             } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
+                if (!isLiveInstance(instance)) { if (progress) progress.close(); return; }
+                withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
             }
         }
         
@@ -342,22 +377,20 @@
             progress.close();
         }
         
-        if (undoItems.length > 0) {
-            pushToUndo({
-                type: 'move',
-                items: undoItems
-            });
-        }
-        
-        if (fm.callbacks && typeof fm.callbacks.refreshDesktop === 'function') await fm.callbacks.refreshDesktop();
-        clearSelection();
-        dragSrcPath = null;
-        refresh();
+        if (!isLiveInstance(instance)) return;
+        withInstance(instance, () => {
+            if (undoItems.length > 0) pushToUndo({ type: 'move', items: undoItems });
+            clearSelection();
+            fm.dragSrcPath = null;
+        });
+        const refreshDesktop = instance.callbacks && instance.callbacks.refreshDesktop;
+        if (typeof refreshDesktop === 'function') await refreshDesktop();
+        if (isLiveInstance(instance)) withInstance(instance, () => refresh());
     }
 
     function handleDragStart(e) {
         const path = e.currentTarget.dataset.path;
-        dragSrcPath = path;
+        fm.dragSrcPath = path;
         if (!fm.selectedPaths.has(path)) {
             clearSelection();
             addSelection(path);
@@ -397,11 +430,12 @@
     }
 
     function handleDrop(e) {
+        const instance = fm;
         e.preventDefault();
         e.stopPropagation();
         hideDropOverlay();
         const payload = fileManagerDragPayloadFromEvent(e);
-        if (payload) moveDroppedDesktopFilesToFolder(payload.paths, fm.currentPath);
+        if (payload) moveDroppedDesktopFilesToFolder(payload.paths, instance.currentPath);
     }
 
     function handleExternalDrop(e) {
@@ -419,7 +453,7 @@
         const target = e.currentTarget;
         const type = target.dataset.type;
         const payload = fileManagerDragPayloadFromEvent(e);
-        if (type === 'directory' && target.dataset.path !== dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
+        if (type === 'directory' && target.dataset.path !== fm.dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
             target.classList.add('drag-over');
         }
     }
@@ -437,7 +471,7 @@
             e.dataTransfer.dropEffect = 'move';
             return;
         }
-        if (type === 'directory' && target.dataset.path !== dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
+        if (type === 'directory' && target.dataset.path !== fm.dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
             e.dataTransfer.dropEffect = 'move';
         } else {
             e.dataTransfer.dropEffect = 'none';
@@ -445,6 +479,7 @@
     }
 
     async function handleItemDrop(e) {
+        const instance = fm;
         e.preventDefault();
         e.stopPropagation();
         if (isReadonly()) return;
@@ -454,20 +489,20 @@
         const destType = target.dataset.type;
         const payload = fileManagerDragPayloadFromEvent(e);
         if (destType !== 'directory') {
-            if (payload) await moveDroppedDesktopFilesToFolder(payload.paths, fm.currentPath);
+            if (payload) await moveDroppedDesktopFilesToFolder(payload.paths, instance.currentPath);
             return;
         }
         if (payload) {
             await moveDroppedDesktopFilesToFolder(payload.paths, destPath);
-            dragSrcPath = null;
+            instance.dragSrcPath = null;
             return;
         }
-        if (!dragSrcPath || dragSrcPath === destPath) return;
-        const srcFile = fm.files.find(f => f.path === dragSrcPath);
+        if (!instance.dragSrcPath || instance.dragSrcPath === destPath) return;
+        const srcFile = instance.files.find(f => f.path === instance.dragSrcPath);
         if (!srcFile) return;
-        const pathsToMove = fm.selectedPaths.has(dragSrcPath) ? Array.from(fm.selectedPaths) : [dragSrcPath];
+        const pathsToMove = instance.selectedPaths.has(instance.dragSrcPath) ? Array.from(instance.selectedPaths) : [instance.dragSrcPath];
         await moveDroppedDesktopFilesToFolder(pathsToMove, destPath);
-        dragSrcPath = null;
+        instance.dragSrcPath = null;
     }
 
     function handleBreadcrumbDragOver(e) {
@@ -495,6 +530,7 @@
     }
 
     async function handleBreadcrumbDrop(e) {
+        const instance = fm;
         e.preventDefault();
         e.stopPropagation();
         if (isReadonly()) return;
@@ -506,14 +542,14 @@
         const payload = fileManagerDragPayloadFromEvent(e);
         if (payload) {
             await moveDroppedDesktopFilesToFolder(payload.paths, destPath);
-            dragSrcPath = null;
+            instance.dragSrcPath = null;
             return;
         }
-        if (!dragSrcPath || dragSrcPath === destPath) return;
+        if (!instance.dragSrcPath || instance.dragSrcPath === destPath) return;
 
-        const pathsToMove = fm.selectedPaths.has(dragSrcPath) ? Array.from(fm.selectedPaths) : [dragSrcPath];
+        const pathsToMove = instance.selectedPaths.has(instance.dragSrcPath) ? Array.from(instance.selectedPaths) : [instance.dragSrcPath];
         await moveDroppedDesktopFilesToFolder(pathsToMove, destPath);
-        dragSrcPath = null;
+        instance.dragSrcPath = null;
     }
 
     function buildOpenWithSubmenu(file) {
@@ -568,8 +604,9 @@
     }
 
     async function duplicateSelected() {
+        const instance = fm;
         if (isReadonly()) return;
-        const selected = getSelectedFiles();
+        const selected = getSelectedFiles().map(file => Object.assign({}, file));
         if (!selected.length) return;
         for (const file of selected) {
             const parent = parentPath(file.path);
@@ -586,7 +623,7 @@
             let newName = base + copySuffix + ext;
             let destPath = joinPath(parent, newName);
             let index = 2;
-            while (fm.files.some(f => f.path === destPath)) {
+            while (instance.files.some(f => f.path === destPath)) {
                 newName = base + copySuffix + ` (${index})` + ext;
                 destPath = joinPath(parent, newName);
                 index++;
@@ -596,11 +633,12 @@
                     method: 'POST',
                     body: JSON.stringify({ source_path: file.path, dest_path: destPath })
                 });
+                if (!isLiveInstance(instance)) return;
             } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
+                if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
             }
         }
-        refresh();
+        if (isLiveInstance(instance)) withInstance(instance, () => refresh());
     }
 
     async function copyPathToClipboard(path) {
@@ -631,12 +669,14 @@
     }
 
     async function createSymlink(file) {
+        const instance = fm;
+        const directory = instance.currentPath;
         if (isReadonly()) return;
         const defaultName = file.name + '_symlink';
         const linkName = await promptDialog(t('desktop.fm.create_symlink_prompt'), defaultName);
-        if (!linkName) return;
+        if (!linkName || !isLiveInstance(instance)) return;
         
-        const linkPath = joinPath(fm.currentPath, linkName);
+        const linkPath = joinPath(directory, linkName);
         
         try {
             await api('/api/desktop/symlink', {
@@ -646,24 +686,25 @@
                     link_path: linkPath
                 })
             });
-            showNotification({ type: 'success', message: t('desktop.fm.symlink_created') });
-            refresh();
+            if (isLiveInstance(instance)) withInstance(instance, () => { showNotification({ type: 'success', message: t('desktop.fm.symlink_created') }); refresh(); });
         } catch (err) {
-            showNotification({ type: 'error', message: err.message || String(err) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: err.message || String(err) }));
         }
     }
 
     async function calculateFolderSize(path) {
-        const span = fm.host ? fm.host.querySelector(`[data-preview-folder-size="${path.replace(/"/g, '\\"')}"]`) : null;
+        const instance = fm;
+        const span = instance.host ? instance.host.querySelector(`[data-preview-folder-size="${path.replace(/"/g, '\\"')}"]`) : null;
         if (!span) return;
         
         span.innerHTML = `<span style="color:var(--vd-muted);font-style:italic">${esc(t('desktop.fm.calculating'))}</span>`;
         try {
             const res = await api('/api/desktop/folder-size?path=' + encodeURIComponent(path));
+            if (!isLiveInstance(instance) || !span.isConnected) return;
             if (res && res.status === 'ok') {
-                span.textContent = fmtBytes(res.size || 0);
+                withInstance(instance, () => { span.textContent = fmtBytes(res.size || 0); });
                 
-                const file = fm.files.find(f => f.path === path);
+                const file = instance.files.find(f => f.path === path);
                 if (file) {
                     file.size = res.size;
                 }
@@ -671,7 +712,7 @@
                 throw new Error();
             }
         } catch (err) {
-            span.innerHTML = `<span style="color:red">${esc(t('desktop.fm.error'))}</span>`;
+            if (isLiveInstance(instance) && span.isConnected) span.innerHTML = `<span style="color:red">${esc(t('desktop.fm.error'))}</span>`;
         }
     }
 
@@ -682,8 +723,16 @@
         document.addEventListener('keydown', handleGlobalKeyDown);
     }
 
-    function activateKeyboardWindow() {
-        fm.activeKeyboardWindow = fm.windowId;
+    function activateKeyboardWindow(event) {
+        const root = event && event.currentTarget;
+        if (!root) return;
+        for (const instance of instances.values()) {
+            if (instance.host && instance.host.contains(root) && !instance.disposed) {
+                setActiveInstance(instance);
+                instance.activeKeyboardWindow = instance.windowId;
+                return;
+            }
+        }
     }
 
     function handleGlobalKeyDown(e) {

@@ -107,8 +107,8 @@ func TestNormalizeSIPURIAndDestinationPolicy(t *testing.T) {
 			t.Fatalf("expected %q to be rejected", invalid)
 		}
 	}
-	if !DestinationAllowed(config.SIPOutboundConfig{}, "example.com", uri) {
-		t.Fatal("empty destination allowlists must allow the account domain")
+	if DestinationAllowed(config.SIPOutboundConfig{}, "example.com", uri) {
+		t.Fatal("empty destination allowlists must deny all")
 	}
 	foreign, _, err := NormalizeSIPURI("sip:+491234@other.example")
 	if err != nil {
@@ -160,22 +160,22 @@ func TestDestinationPolicyLegacyWildcardAllowsRequireMigrationAndGrantNothing(t 
 	}
 }
 
-func TestDestinationPolicyUniversalWildcardMigratesToProviderScope(t *testing.T) {
+func TestDestinationPolicyUniversalWildcardRequiresMigration(t *testing.T) {
 	var cfg config.SIPConfig
 	config.ApplySIPDefaults(&cfg)
 	cfg.Domain = "example.com"
 	cfg.Outbound.AllowedDomains = []string{"*"}
 	cfg.Outbound.AllowedUsers = []string{"*"}
 	config.NormalizeSIPConfig(&cfg)
-	if OutboundPolicyMigrationRequired(cfg.Outbound) {
-		t.Fatal("universal wildcard still requires manual migration")
+	if !OutboundPolicyMigrationRequired(cfg.Outbound) {
+		t.Fatal("universal wildcard must require manual migration")
 	}
 	uri, _, err := NormalizeSIPURI("sip:any-extension@example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !DestinationAllowed(cfg.Outbound, cfg.Domain, uri) {
-		t.Fatal("migrated universal wildcard did not permit the provider destination")
+	if DestinationAllowed(cfg.Outbound, cfg.Domain, uri) {
+		t.Fatal("legacy wildcard permitted a destination")
 	}
 }
 
@@ -1145,4 +1145,14 @@ func validTestSIPConfig() config.SIPConfig {
 	cfg.Outbound.AllowedDomains = []string{"example.com"}
 	cfg.Outbound.AllowedUsers = []string{"alice"}
 	return cfg
+}
+
+func TestDestinationPolicyEmptyAllowsDeny(t *testing.T) {
+	uri, _, err := NormalizeSIPURI("sip:alice@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if DestinationAllowed(config.SIPOutboundConfig{}, "example.com", uri) {
+		t.Fatal("empty destination policy grants access")
+	}
 }

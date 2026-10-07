@@ -25,30 +25,55 @@ const c07DeadlockGuard = 5 * time.Second
 
 const c07PayloadMarker = "c07-untrusted-payload-marker"
 
-// c07Webhooks is a webhook manager fake whose fields sit behind a mutex.
+// c07Webhooks is a keyed webhook manager fake, like webhooks.Manager: a registration replaces
+// the key's old one, and an unregister removes it. Its fields sit behind a mutex.
 type c07Webhooks struct {
-	mu        sync.Mutex
-	callbacks map[string][]func([]byte)
+	mu          sync.Mutex
+	byKey       map[string]c07WebhookRegistration
+	unregisters int
 }
 
-func (f *c07Webhooks) RegisterMissionTrigger(webhookID string, callback func(payload []byte)) {
+type c07WebhookRegistration struct {
+	webhookID string
+	callback  func([]byte)
+}
+
+func (f *c07Webhooks) RegisterMissionTriggerForKey(key, webhookID string, callback func(payload []byte)) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.callbacks == nil {
-		f.callbacks = make(map[string][]func([]byte))
+	if f.byKey == nil {
+		f.byKey = make(map[string]c07WebhookRegistration)
 	}
-	f.callbacks[webhookID] = append(f.callbacks[webhookID], callback)
+	f.byKey[key] = c07WebhookRegistration{webhookID: webhookID, callback: callback}
+}
+
+func (f *c07Webhooks) UnregisterMissionTrigger(key string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.byKey, key)
+	f.unregisters++
 }
 
 func (f *c07Webhooks) count(webhookID string) int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return len(f.callbacks[webhookID])
+	n := 0
+	for _, reg := range f.byKey {
+		if reg.webhookID == webhookID {
+			n++
+		}
+	}
+	return n
 }
 
 func (f *c07Webhooks) fire(webhookID string, payload []byte) {
 	f.mu.Lock()
-	callbacks := append(([]func([]byte))(nil), f.callbacks[webhookID]...)
+	var callbacks []func([]byte)
+	for _, reg := range f.byKey {
+		if reg.webhookID == webhookID {
+			callbacks = append(callbacks, reg.callback)
+		}
+	}
 	f.mu.Unlock()
 	for _, callback := range callbacks {
 		callback(payload)
@@ -731,6 +756,9 @@ func TestDeletedFlowMissionLeavesNoLiveTriggers(t *testing.T) {
 	if n := len(mqtt.registered()); n != 0 {
 		t.Fatalf("%d keyed MQTT registrations left after delete", n)
 	}
+	if n := webhooks.count("hook-1"); n != 0 {
+		t.Fatalf("%d webhook registrations left after delete", n)
+	}
 	webhooks.fire("hook-1", []byte(`{}`))
 	for _, callback := range emailCallbacks {
 		callback("Rechnung", "shop@example.com", "Hallo")
@@ -775,7 +803,8 @@ func TestFlowResyncNeverDoublesRegistrations(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if webhooks.count("hook-1") != 1 || webhooks.count("hook-2") != 1 {
+	// Webhook registrations are keyed by the flow slot: the change back replaced hook-2.
+	if webhooks.count("hook-1") != 1 || webhooks.count("hook-2") != 0 {
 		t.Fatalf("webhook registrations: hook-1 %d, hook-2 %d", webhooks.count("hook-1"), webhooks.count("hook-2"))
 	}
 	emailCallbacks, mqttCallbacks := email.registered(), mqtt.registered()
@@ -1330,8 +1359,18 @@ func TestFlowDispatcherStartsNoRunAfterStop(t *testing.T) {
 		for i := 1; i <= 5; i++ {
 			mm.NotifyDeviceEvent("device_connected", fmt.Sprintf("dev-%d", i), "Laptop")
 		}
-		mm.Stop()
+		// Stop waits for the run in progress (the dispatcher is runAsync work, main's Stop
+		// contract), so release it once Stop has cancelled the manager; the dispatcher then
+		// starts none of the queued runs.
+		stopped := make(chan struct{})
+		go func() { mm.Stop(); close(stopped) }()
+		eventually(t, "Stop cancels the manager", func() bool { return mm.Context().Err() != nil })
 		close(hooks.release)
+		select {
+		case <-stopped:
+		case <-time.After(c07DeadlockGuard):
+			t.Fatalf("round %d: Stop did not return after the run in progress ended", round)
+		}
 		select {
 		case <-hooks.started:
 			t.Fatalf("round %d: a queued run started after Stop (%d runs)", round, hooks.count.Load())

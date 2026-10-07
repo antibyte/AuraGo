@@ -29,7 +29,7 @@
   "config.virtual_computers.allow_persistent_label": "Tillåt beständiga maskiner",
   "config.virtual_computers.allow_publish_label": "Tillåt publicering",
   "config.virtual_computers.allow_volumes_label": "Tillåt volymer",
-  "config.virtual_computers.allow_agent_tasks_label": "Allow machine agent tasks",
+  "config.virtual_computers.allow_agent_tasks_label": "Tillåt föråldrade maskinagentuppgifter",
   "config.virtual_computers.boring_token_label": "boringd-token (valfritt)",
   "config.virtual_computers.save_vault": "Spara i Vault",
   "config.virtual_computers.tailscale_note": "För Tailscale-åtkomst, exponera AuraGo med tsnet serve_http. Exponera inte boringd direkt.",
@@ -64,7 +64,7 @@
   "help.virtual_computers.allow_persistent": "Tillåter persistenta maskiner. Håll avstängt om inte värden är betrodd.",
   "help.virtual_computers.allow_publish": "Tillåter publicerings-/sparåtgärder som exponeras av boringd.",
   "help.virtual_computers.allow_volumes": "Tillåter att volymer skapas och ansluts.",
-  "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
+  "help.virtual_computers.allow_agent_tasks": "Aktiverar endast de föråldrade boringd-agentkanalerna. AuraGos huvudagent använder Agent Workspaces och behöver ingen extra leverantör här.",
   "help.virtual_computers.boring_token": "Lämna tomt när AuraGo installerar boringd; AuraGo skapar token automatiskt och sparar det i Vault. Ange bara ett värde när du ansluter en befintlig boringd; det måste matcha BORING_TOKEN på den värden.",
   "config.virtual_computers.mode_local_host": "Lokalt på denna värd",
   "config.virtual_computers.local_host_note": "Lokal installation kräver Ubuntu/Linux med /dev/kvm, systemd och root eller lösenordsfri sudo. boringd ligger kvar på 127.0.0.1:18082.",
@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan tillåter publikt internet plus endast de uttryckligen listade privata CIDR:erna.",
   "help.virtual_computers.agent_control_cidrs": "En IPv4 RFC1918-CIDR per rad. Adresser för värd, AuraGo, brygga, metadata och gäst förblir blockerade.",
   "help.virtual_computers.agent_control_credentials": "Autentiseringsuppgifter kräver fortfarande ett separat godkännande från en autentiserad användare för varje kortlivad behörighet.",
-  "help.virtual_computers.agent_control_grant_ttl": "Maximal livslängd för en behörighet; behörigheter upphör också med sitt jobb eller sin arbetsyta."
+  "help.virtual_computers.agent_control_grant_ttl": "Maximal livslängd för en behörighet; behörigheter upphör också med sitt jobb eller sin arbetsyta.",
+  "config.virtual_desktop.serial_browser_label": "Serieportar på den här datorn",
+  "help.virtual_desktop.serial_browser_enabled": "Tillåt Quick Connect att använda serieenheter som är anslutna till datorn med webbläsaren. Kräver en webbläsare som stöds, HTTPS eller localhost och ett uttryckligt val av enhet. Inaktiverat i skrivskyddat läge.",
+  "config.virtual_desktop.serial_host_label": "Serieportar på AuraGo-servern",
+  "help.virtual_desktop.serial_host_enabled": "Tillåt administratörer att öppna serieenheter anslutna till AuraGo-servern i Quick Connect. Containerinstallationer kräver enhetspassthrough och behörigheter i operativsystemet. Inaktiverat i skrivskyddat läge."
 }

@@ -46,6 +46,9 @@ func handleDesktopTresor(s *Server) http.HandlerFunc {
 			jsonError(w, "Tresor data directory unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		if !checkDesktopOperation(s, w, r, desktopMethodOperation(r.Method)) {
+			return
+		}
 		store, err := tresor.Open(filepath.Join(dataDir, config.TresorDBFilename))
 		if err != nil {
 			jsonError(w, "Tresor unavailable", http.StatusServiceUnavailable)
@@ -71,14 +74,14 @@ func handleDesktopTresor(s *Server) http.HandlerFunc {
 				return
 			}
 			if r.Method == http.MethodPost {
-				err = store.Setup(r.Context(), h)
+				err = publishDesktopResult(r.Context(), func() error { return store.Setup(r.Context(), h) })
 			} else {
 				var expected int64
 				if expected, err = tresorMatchRevision(r); err != nil {
 					jsonError(w, "If-Match revision required", http.StatusPreconditionRequired)
 					return
 				}
-				err = store.Rewrap(r.Context(), h, expected)
+				err = publishDesktopResult(r.Context(), func() error { return store.Rewrap(r.Context(), h, expected) })
 			}
 			tresorMutationResult(w, err)
 		case path == "/items" && r.Method == http.MethodGet:
@@ -94,7 +97,7 @@ func handleDesktopTresor(s *Server) http.HandlerFunc {
 				jsonError(w, "Invalid encrypted record", http.StatusBadRequest)
 				return
 			}
-			tresorMutationResult(w, store.Create(r.Context(), item))
+			tresorMutationResult(w, publishDesktopResult(r.Context(), func() error { return store.Create(r.Context(), item) }))
 		case strings.HasPrefix(path, "/items/"):
 			id := strings.TrimPrefix(path, "/items/")
 			if !validTresorID(id) {
@@ -121,14 +124,14 @@ func handleDesktopTresor(s *Server) http.HandlerFunc {
 					return
 				}
 				if r.Method == http.MethodDelete {
-					err = store.Delete(r.Context(), id, expected)
+					err = publishDesktopResult(r.Context(), func() error { return store.Delete(r.Context(), id, expected) })
 				} else {
 					var item tresor.Record
 					if !decodeTresorJSON(w, r, &item, 72<<20) || item.ID != id || !validTresorRecord(item) {
 						jsonError(w, "Invalid encrypted record", http.StatusBadRequest)
 						return
 					}
-					err = store.Update(r.Context(), item, expected)
+					err = publishDesktopResult(r.Context(), func() error { return store.Update(r.Context(), item, expected) })
 				}
 				tresorMutationResult(w, err)
 			default:

@@ -159,8 +159,9 @@ type tailscaleArgs struct {
 }
 
 type cloudflareTunnelArgs struct {
-	Operation string
-	Port      int
+	ProjectDir string
+	Operation  string
+	Port       int
 }
 
 type ansibleArgs struct {
@@ -846,8 +847,9 @@ func (req tailscaleArgs) routes() []string {
 
 func decodeCloudflareTunnelArgs(tc ToolCall) cloudflareTunnelArgs {
 	return cloudflareTunnelArgs{
-		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-		Port:      firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
+		ProjectDir: firstNonEmptyToolString(tc.ProjectDir, toolArgString(tc.Params, "project_dir")),
+		Operation:  firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Port:       firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
 	}
 }
 

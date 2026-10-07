@@ -61,7 +61,7 @@ window.WebSocket=class extends EventTarget { close(){} };
 			json.NewEncoder(w).Encode(map[string]interface{}{"enabled": true, "builtin_apps": desktop.BuiltinApps(), "installed_apps": []interface{}{}, "widgets": []interface{}{}, "shortcuts": []interface{}{}, "desktop_files": []interface{}{}, "workspace": map[string]interface{}{"readonly": false}, "settings": settings})
 		case r.URL.Path == "/api/desktop/settings":
 			json.NewEncoder(w).Encode(map[string]interface{}{"settings": settings})
-		case r.URL.Path == "/api/appointments" && r.Method == http.MethodPost:
+		case r.URL.Path == "/api/desktop/integrations/appointments" && r.Method == http.MethodPost:
 			body, _ := io.ReadAll(r.Body)
 			var payload map[string]interface{}
 			_ = json.Unmarshal(body, &payload)
@@ -72,7 +72,7 @@ window.WebSocket=class extends EventTarget { close(){} };
 			payload["id"] = id
 			payload["status"] = "upcoming"
 			json.NewEncoder(w).Encode(payload)
-		case strings.HasPrefix(r.URL.Path, "/api/appointments"):
+		case strings.HasPrefix(r.URL.Path, "/api/desktop/integrations/appointments"):
 			mu.Lock()
 			list := make([]map[string]interface{}, 0, len(created))
 			for index, item := range created {
@@ -84,7 +84,7 @@ window.WebSocket=class extends EventTarget { close(){} };
 			}
 			mu.Unlock()
 			json.NewEncoder(w).Encode(list)
-		case r.URL.Path == "/api/contacts":
+		case r.URL.Path == "/api/desktop/integrations/contacts":
 			fmt.Fprint(w, `[]`)
 		default:
 			fmt.Fprint(w, `{"status":"ok","files":[],"pets":[],"settings":{},"enabled":false}`)

@@ -9,7 +9,7 @@
   "config.grafana.connected": "Propojeno s Grafanou",
   "config.grafana.connection_failed": "Připojení selhalo",
   "config.grafana.enabled_label": "Povoleno",
-  "config.grafana.insecure_ssl_label": "Povolit vlastnoruční podpis TLS",
+  "config.grafana.insecure_ssl_label": "Povolit samopodepsané TLS",
   "config.grafana.loading": "Načítání…",
   "config.grafana.readonly_label": "Pouze pro čtení",
   "config.grafana.request_timeout_label": "Časový limit požadavku (v sekundách)",

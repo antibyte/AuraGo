@@ -4,8 +4,11 @@ import "testing"
 
 func TestExcludedArchiveRowsExpireAndIncompleteRowsSurvive(t *testing.T) {
 	stm := newTestConsolidationDB(t)
-	for _, msg := range []struct{ session, role string }{{"default", "tool"}, {"maintenance", "assistant"}, {"default", "user"}} {
-		if _, err := stm.InsertMessage(msg.session, msg.role, "synthetic event", false, true); err != nil {
+	for _, msg := range []struct {
+		session, role string
+		internal      bool
+	}{{"default", "tool", true}, {"maintenance", "assistant", true}, {"default", "user", false}} {
+		if _, err := stm.InsertMessage(msg.session, msg.role, "synthetic event", false, msg.internal); err != nil {
 			t.Fatal(err)
 		}
 	}

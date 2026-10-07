@@ -51,7 +51,28 @@ func detectiveDecode(w http.ResponseWriter, r *http.Request, v any) error {
 func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 	// Cases can contain selected private material. Desktop read-only bearer scopes
 	// never grant access to this administrative research surface.
-	if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+	if !authenticateDesktopPermission(s, w, r, desktopScopeAdmin) {
+		return
+	}
+	path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/desktop/detective/"), "/")
+	parts := strings.Split(path, "/")
+	var runRequest struct {
+		Action string `json:"action"`
+		Effort string `json:"effort"`
+		Key    string `json:"idempotency_key"`
+		Answer string `json:"answer"`
+	}
+	operation := desktopMethodOperation(r.Method)
+	if len(parts) == 3 && parts[0] == "cases" && parts[2] == "run" && r.Method == http.MethodPost {
+		if err := detectiveDecode(w, r, &runRequest); err != nil {
+			detectiveError(w, err)
+			return
+		}
+		if runRequest.Action == "stop" {
+			operation = desktopStop
+		}
+	}
+	if !checkDesktopOperation(s, w, r, operation) {
 		return
 	}
 	cfg := s.ConfigSnapshot()
@@ -59,7 +80,6 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Desktop unavailable", 503)
 		return
 	}
-	path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/desktop/detective/"), "/")
 	if path == "capabilities" && r.Method == http.MethodGet {
 		tools := []string{}
 		for _, schema := range detectiveSchemas(cfg, s, detective.Request{}) {
@@ -86,11 +106,10 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Detective unavailable", 503)
 		return
 	}
-	if r.Method != http.MethodGet && (cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl) {
+	if operation != desktopRead && operation != desktopStop && (cfg.Detective.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl) {
 		jsonError(w, "Detective is read-only", 403)
 		return
 	}
-	parts := strings.Split(path, "/")
 	if parts[0] != "cases" {
 		http.NotFound(w, r)
 		return
@@ -181,16 +200,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "Method not allowed", 405)
 			return
 		}
-		var req struct {
-			Action string `json:"action"`
-			Effort string `json:"effort"`
-			Key    string `json:"idempotency_key"`
-			Answer string `json:"answer"`
-		}
-		if err := detectiveDecode(w, r, &req); err != nil {
-			detectiveError(w, err)
-			return
-		}
+		req := runRequest
 		if req.Action == "stop" || req.Action == "finish" {
 			if err := s.Detective.Stop(key, req.Action == "finish"); err != nil {
 				detectiveError(w, err)

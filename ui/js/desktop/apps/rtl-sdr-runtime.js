@@ -25,7 +25,7 @@
     }
     function report(err) { error = err.message || 'sdr_request_failed'; publish(); }
     function currentTuning() { const state = snapshot?.state; return state?.recordings?.find(r => r.id === state.active_job)?.tuning || state?.tuning; }
-    function silence() { wanted = false; generation++; clearTimeout(retry); audio.pause(); audio.removeAttribute('src'); audio.load(); publish(); }
+    function silence() { wanted = false; generation++; clearTimeout(retry); audio.pause(); audio.removeAttribute('src'); audio.load(); window.AuraDesktopMediaSession?.release(client); publish(); }
     async function refresh() {
         if (!ctx || busy) return snapshot;
         busy = true;
@@ -56,10 +56,12 @@
         audio.load();
         try { await audio.play(); } catch (_) { error = 'sdr_audio_unlock'; }
         if ('mediaSession' in navigator) {
-            try { navigator.mediaSession.metadata = new MediaMetadata({ title: tuning.label || (tuning.frequency_hz / 1e6).toFixed(3) + ' MHz', artist: 'RTL-SDR' });
-                navigator.mediaSession.setActionHandler('stop', () => stop().catch(report));
-                navigator.mediaSession.setActionHandler('pause', () => { audio.muted = true; publish(); });
-                navigator.mediaSession.setActionHandler('play', () => { audio.muted = false; audio.play().catch(report); publish(); });
+            try { window.AuraDesktopMediaSession?.claim(client, { priority: 10, activate: true,
+                metadata: { title: tuning.label || (tuning.frequency_hz / 1e6).toFixed(3) + ' MHz', artist: 'RTL-SDR' }, handlers: {
+                    stop: () => stop().catch(report),
+                    pause: () => { audio.muted = true; publish(); },
+                    play: () => { audio.muted = false; audio.play().catch(report); publish(); }
+                } });
             } catch (_) {}
         }
         publish(); await refresh();

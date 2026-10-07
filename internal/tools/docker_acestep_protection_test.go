@@ -3,7 +3,6 @@ package tools
 import (
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -28,7 +27,7 @@ func TestACESTepManagedResourcesAreProtected(t *testing.T) {
 }
 
 func TestACESTepIDLookupDoesNotProtectUnrelatedContainer(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/containers/json") {
 			io.WriteString(w, `[{"Id":"abc123","Names":["/other"]},{"Id":"def456","Names":["/aurago-acestep"],"Labels":{"aurago.managed":"acestep"}}]`)
 			return

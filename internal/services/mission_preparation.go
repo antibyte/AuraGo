@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/fileutil"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -206,7 +207,12 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 	}
 
 	// Mark as preparing
-	s.missionMgr.SetPreparationStatus(missionID, string(tools.PrepStatusPreparing))
+	if err := fileutil.PublishContext(ctx, func() error {
+		s.missionMgr.SetPreparationStatus(missionID, string(tools.PrepStatusPreparing))
+		return nil
+	}); err != nil {
+		return nil, err
+	}
 
 	start := time.Now()
 
@@ -261,7 +267,7 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 			PreparationTimeMS: elapsed.Milliseconds(),
 			ErrorMessage:      err.Error(),
 		}
-		tools.SavePreparedMission(s.db, pm)
+		fileutil.PublishContext(ctx, func() error { return tools.SavePreparedMission(s.db, pm) })
 		s.missionMgr.SetPreparationStatus(missionID, string(tools.PrepStatusError))
 		return nil, fmt.Errorf("LLM call failed: %w", err)
 	}
@@ -298,7 +304,7 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 			PreparationTimeMS: elapsed.Milliseconds(),
 			ErrorMessage:      fmt.Sprintf("failed to parse LLM response: %s", err),
 		}
-		tools.SavePreparedMission(s.db, pm)
+		fileutil.PublishContext(ctx, func() error { return tools.SavePreparedMission(s.db, pm) })
 		s.missionMgr.SetPreparationStatus(missionID, string(tools.PrepStatusError))
 		return nil, fmt.Errorf("failed to parse LLM response: %w", err)
 	}
@@ -331,12 +337,14 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 		Analysis:          &analysis,
 	}
 
-	if err := tools.SavePreparedMission(s.db, pm); err != nil {
+	if err := fileutil.PublishContext(ctx, func() error { return tools.SavePreparedMission(s.db, pm) }); err != nil {
 		s.missionMgr.SetPreparationStatus(missionID, string(tools.PrepStatusError))
 		return nil, fmt.Errorf("failed to save preparation: %w", err)
 	}
 
-	s.missionMgr.SetPreparationStatus(missionID, string(status))
+	if err := fileutil.PublishContext(ctx, func() error { s.missionMgr.SetPreparationStatus(missionID, string(status)); return nil }); err != nil {
+		return nil, err
+	}
 
 	s.logger.Info("[MissionPrep] Mission prepared",
 		"mission", missionID,

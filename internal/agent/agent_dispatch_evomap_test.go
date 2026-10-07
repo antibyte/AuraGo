@@ -46,3 +46,27 @@ func TestDispatchEvomapMutatingOperationsArePolicyDeniedInMVP(t *testing.T) {
 		}
 	}
 }
+
+func TestEvomapRegistrationRequiresWritableServerContext(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Evomap.Enabled = true
+	cfg.Evomap.ReadOnly = true
+	calls := 0
+	cfg.RegisterEvomapNode = func(context.Context) (string, string, bool, error) {
+		calls++
+		return "fixture-node", "https://example.invalid/claim", true, nil
+	}
+	out := dispatchEvomapCall(context.Background(), evomapArgs{Operation: "register_node"}, cfg)
+	if !strings.Contains(out, "policy_denied") || calls != 0 {
+		t.Fatalf("read-only registration: %s, calls=%d", out, calls)
+	}
+	cfg.Evomap.ReadOnly = false
+	out = dispatchEvomapCall(context.Background(), evomapArgs{Operation: "register_node"}, cfg)
+	if !strings.Contains(out, `"status":"success"`) || calls != 1 || cfg.Evomap.NodeID != "" {
+		t.Fatalf("server registration not used: %s", out)
+	}
+	cfg.RegisterEvomapNode = nil
+	if out = dispatchEvomapCall(context.Background(), evomapArgs{Operation: "register_node"}, cfg); !strings.Contains(out, "policy_denied") {
+		t.Fatalf("unserialized registration: %s", out)
+	}
+}

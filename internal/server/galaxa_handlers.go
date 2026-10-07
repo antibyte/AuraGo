@@ -115,6 +115,9 @@ func handleGalaxaHighscoreGet(s *Server) http.HandlerFunc {
 
 func handleGalaxaHighscorePost(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopOperation(s, w, r, desktopScopeWrite, desktopWrite) {
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -158,8 +161,11 @@ func handleGalaxaHighscorePost(s *Server) http.HandlerFunc {
 			return
 		}
 
-		_, err = db.Exec(`INSERT INTO galaxa_highscores (name, score, stage, date) VALUES (?, ?, ?, ?)`,
-			strings.ToUpper(req.Name), req.Score, req.Stage, time.Now().UTC().Format(time.RFC3339))
+		err = publishDesktopResult(r.Context(), func() error {
+			_, err := db.ExecContext(r.Context(), `INSERT INTO galaxa_highscores (name, score, stage, date) VALUES (?, ?, ?, ?)`,
+				strings.ToUpper(req.Name), req.Score, req.Stage, time.Now().UTC().Format(time.RFC3339))
+			return err
+		})
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "failed to save"})

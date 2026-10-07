@@ -72,7 +72,16 @@ python training/validate_dataset.py --all
 ```
 
 `--bootstrap-contracts` is not an approval step. It produces explicit fixtures
-so operation-specific required/excluded fields can be reviewed. Normal
+so operation-specific required/excluded fields can be reviewed.
+
+Known gap (2026-10-07): `--bootstrap-contracts` currently fails on an
+unrelated `context_manager` contract (`operation=compact`: field `index` is
+both required and excluded). The 12 `docker` contracts added for the full
+operation enum (`exec`, `stats`, `top`, `port`, `cp`, `create_network`,
+`remove_network`, `connect`, `disconnect`, `create_volume`, `remove_volume`,
+`compose`) were therefore written by hand in `operation_contracts.json`, with
+the new schema digest set explicitly. The next working bootstrap will rewrite
+them; review that diff like any other. Normal
 generation fails on unknown tools, missing operations, schema drift, invalid
 fixtures, incomplete tier assignments, distribution drift, duplicate
 conversations, broken call IDs, mismatched results, native/tagged differences,

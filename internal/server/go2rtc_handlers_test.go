@@ -691,6 +691,10 @@ func TestGo2RTCSetupEnableReturnsLiveDockerCapabilityCode(t *testing.T) {
 	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
 	t.Cleanup(tools.ClearRuntimePermissionsForTest)
 	dockerAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			w.Write([]byte(`{"ApiVersion":"1.45"}`))
+			return
+		}
 		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/containers/json") {
 			http.Error(w, "denied", http.StatusForbidden)
 			return

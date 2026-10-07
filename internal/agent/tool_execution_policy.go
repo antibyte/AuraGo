@@ -479,7 +479,12 @@ func maybeStorePrimaryToolOutputVault(
 		logToolMemoryWarning(logger, "Failed to encode primary output vault view", trackingTC.Action, err)
 		return "", "", false
 	}
-	return "Tool Output: " + string(b), out.OutputRef, true
+	content := string(b)
+	if _, isolated := toolResultPayload(originalContent); isolated {
+		// Vault summaries and views still contain untrusted output fragments.
+		content = isolateToolPayload(content, false)
+	}
+	return "Tool Output: " + content, out.OutputRef, true
 }
 
 func summarizeToolOutputForVault(content string) string {

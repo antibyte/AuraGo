@@ -16,6 +16,7 @@ SMB/NFS capability, ownership, and mutation policy.
 - Only AuraGo-created shares reconciled through the ledger and a native marker where the backend supports markers may be updated or removed. Marker-less Windows NFS requires an exact ledger match on protocol, name, and canonical path. External, orphaned, unsafe, and drifted shares are read-only, out-of-root shares stay hidden, and removing a share must never remove its directory or files.
 - SMB access is limited to configured existing OS principals; no account or password management. NFS accepts only configured IP addresses/CIDRs and must use `sync,root_squash,no_subtree_check` plus `ro` or `rw`; Windows NFS host permissions are limited to individual IP addresses because AuraGo does not manage global client groups.
 - Linux Samba uses only `net conf` registry shares when `registry shares = yes` already exists. Linux NFS owns only `/etc/exports.d/aurago-<id>.exports`. Windows uses fixed JSON-driven PowerShell scripts and installed SMBShare/NFS cmdlets.
+- Samba commands place `--` before any share name, path or parameter value. Registry share enumeration is line-based, retaining spaces inside names. Verify option-like names/comments and whitespace names in the Linux adapter tests.
 - Standard Docker, `NoNewPrivileges`, `ProtectSystem=strict`, and insufficient elevation must disable host mutations without hiding otherwise readable status.
 
 ## Verification

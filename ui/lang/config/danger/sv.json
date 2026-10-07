@@ -22,5 +22,7 @@
   "config.danger.sudo_unrestricted.title": "Systemomfattande sudo-skrivåtkomst",
   "config.danger.sudo_unrestricted.desc": "Tillåter agenten att skriva utanför installationskatalogen med sudo (t.ex. /etc.). Kräver borttagning av ProtectSystem=strict från systemd-tjänsteenheten.",
   "config.danger.unsafe_host_execution.title": "Osäker körning på värden",
-  "config.danger.unsafe_host_execution.desc": "Tillåter Python på värden och Windows-skal utan isolering. Varje användning loggas som en säkerhetsvarning."
+  "config.danger.unsafe_host_execution.desc": "Tillåter Python på värden och Windows-skal utan isolering. Varje användning loggas som en säkerhetsvarning.",
+  "config.danger.docker_host_access.title": "Docker-värdåtkomst för agentens Compose-stackar",
+  "config.danger.docker_host_access.desc": "Låter agenten vid docker compose up/create/build använda värdsökvägar utanför sin arbetsyta (till exempel /var/run/docker.sock, /srv/media eller /), enheter, privilegierat läge, värdens nätverks-/PID-/IPC-/UTS-/användar-/cgroup-namnrymder, cap_add och obegränsade säkerhetsalternativ. AuraGos egna data, konfiguration, .env och huvudnyckel förblir blockerade, men en bindning av en överordnad sökväg som / exponerar dem ändå. När den är på ser docker compose även AuraGos miljövariabler; utan den får Compose bara PATH, HOME samt Docker-, proxy- och språkinställningar."
 }

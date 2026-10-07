@@ -22,7 +22,7 @@
 .pr-app .pr-primary { background: var(--pr-accent); color: #17212b; font-weight: 650; border-color: transparent; }
 .pr-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 22px; border-bottom: 1px solid var(--pr-border); }
 .pr-brand, .pr-header-actions, .pr-transport { display: flex; align-items: center; gap: 10px; }
-.pr-brand > span { font-size: 34px; color: var(--pr-accent); }
+.pr-brand-icon { display: block; width: 48px; height: 48px; flex: 0 0 48px; object-fit: contain; }
 .pr-brand strong { display: block; font-size: 18px; letter-spacing: -.4px; white-space: nowrap; }
 .pr-brand small { display: block; opacity: .65; font-size: 11px; }
 .pr-header-actions { flex-wrap: wrap; justify-content: flex-end; }

@@ -16,12 +16,16 @@ func Rename(source, destination string) error {
 
 // RenameContext retains the original on failure and stops retries on cancellation.
 func RenameContext(ctx context.Context, source, destination string) error {
-	return renameWithRetry(ctx, func() error { return os.Rename(source, destination) })
+	return renameWithRetry(ctx, func() error {
+		return PublishContext(ctx, func() error { return os.Rename(source, destination) })
+	})
 }
 
 // RenameRootContext retains confinement while retrying Windows reader locks.
 func RenameRootContext(ctx context.Context, root *os.Root, source, destination string) error {
-	return renameWithRetry(ctx, func() error { return root.Rename(source, destination) })
+	return renameWithRetry(ctx, func() error {
+		return PublishContext(ctx, func() error { return root.Rename(source, destination) })
+	})
 }
 
 func renameWithRetry(ctx context.Context, rename func() error) error {

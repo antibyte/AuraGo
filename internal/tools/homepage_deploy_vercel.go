@@ -95,6 +95,9 @@ func buildVercelDeployCommand(deploySubdir, projectRef, target string, cfg Verce
 }
 
 func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, buildDir, projectID, target, alias, domain string, allowProjectManagement, allowDomainManagement bool, logger *slog.Logger) string {
+	if msg := vercelDeployError(vcfg); msg != "" {
+		return msg
+	}
 	if strings.TrimSpace(vcfg.Token) == "" {
 		return errJSON("Vercel token is required")
 	}

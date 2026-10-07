@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -127,11 +126,18 @@ func TestResolveManifestSidecarConfigNormalizesExternalEndpoint(t *testing.T) {
 }
 
 func TestStopManifestSidecarsDoesNotRequireManagedSecrets(t *testing.T) {
+	previous, configured := currentRuntimePermissions()
 	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true})
-	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+	t.Cleanup(func() {
+		if configured {
+			ConfigureRuntimePermissions(previous)
+		} else {
+			ClearRuntimePermissionsForTest()
+		}
+	})
 
 	var calls []string
-	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	api := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls = append(calls, r.Method+" "+r.URL.String())
 		w.WriteHeader(http.StatusNoContent)
 	}))

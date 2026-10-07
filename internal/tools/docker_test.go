@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -20,7 +19,7 @@ func TestDockerBodyMessageExtractsEngineError(t *testing.T) {
 
 func TestBuildImageWaitUsesDockerAPIBuildEndpoint(t *testing.T) {
 	var sawBuild bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/"+dockerAPIVersion+"/build" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
@@ -72,7 +71,7 @@ func TestBuildImageWaitUsesDockerAPIBuildEndpoint(t *testing.T) {
 
 func TestBuildImageContextWaitIncludesAdditionalFiles(t *testing.T) {
 	var sawHelper bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tr := tar.NewReader(r.Body)
 		entries := map[string]string{}
 		for {
@@ -121,7 +120,7 @@ func TestBuildImageContextWaitIncludesAdditionalFiles(t *testing.T) {
 }
 
 func TestBuildImageWaitReturnsDockerBuildStreamError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"errorDetail":{"message":"apt failed"},"error":"apt failed"}` + "\n"))
 	}))
@@ -139,7 +138,7 @@ func TestBuildImageWaitReturnsDockerBuildStreamError(t *testing.T) {
 
 func TestPullImageForceSkipsLocalImageCheckAndPullsTag(t *testing.T) {
 	var paths []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, r.URL.Path)
 		if r.URL.Path != "/"+dockerAPIVersion+"/images/create" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
@@ -165,7 +164,7 @@ func TestPullImageForceSkipsLocalImageCheckAndPullsTag(t *testing.T) {
 }
 
 func TestPullImageForceReturnsDockerStreamError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/"+dockerAPIVersion+"/images/create" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
@@ -178,5 +177,35 @@ func TestPullImageForceReturnsDockerStreamError(t *testing.T) {
 	err := PullImageForce(context.Background(), DockerConfig{Host: host}, "ghcr.io/example/missing:latest", nil)
 	if err == nil || !strings.Contains(err.Error(), "manifest not found") {
 		t.Fatalf("error = %v, want Docker stream error", err)
+	}
+}
+
+func TestDockerBodyMessageOutputs(t *testing.T) {
+	long := strings.Repeat("y", 700)
+	cases := []struct {
+		name string
+		body []byte
+		want string
+	}{
+		// Pins: today's output.
+		{"engine message", []byte(`{"message":"driver failed programming external connectivity"}`), "driver failed programming external connectivity"},
+		{"plain text trimmed", []byte("  bad gateway \n"), "bad gateway"},
+		{"long plain text cut at 500 with ellipsis", []byte(long), strings.Repeat("y", 500) + "..."},
+		{"empty", nil, ""},
+		{"whitespace", []byte(" \n "), ""},
+		{"padded engine message trimmed", []byte(`{"message":"  padded  "}`), "padded"},
+		{"blank engine message falls back to the body", []byte(`{"message":"   "}`), `{"message":"   "}`},
+		{"zero-width engine message falls back to the body", []byte(`{"message":"\u200b"}`), `{"message":"\u200b"}`},
+		// New: one printable line, bounded, never a split rune.
+		{"engine message on one line", []byte(`{"message":"line one\nline two\u001b[31m"}`), "line one line two [31m"},
+		{"long engine message bounded", []byte(`{"message":"` + long + `"}`), strings.Repeat("y", 500) + "..."},
+		{"rune at the cut is not split", []byte(strings.Repeat("y", 499) + "é" + "zz"), strings.Repeat("y", 499) + "..."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := dockerBodyMessage(500, tc.body); got != tc.want {
+				t.Fatalf("dockerBodyMessage() = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

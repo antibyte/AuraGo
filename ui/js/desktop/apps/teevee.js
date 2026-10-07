@@ -563,7 +563,10 @@
                 state.buffering = false;
                 state.error = '';
                 rememberRecent(entry);
-                updateMediaSession(entry, 'AuraGo TeeVee');
+                updateMediaSession(entry, 'AuraGo TeeVee', state, {
+                    play: () => { if (!state.disposed && video.paused) togglePlayback(); },
+                    pause: () => video.pause(), stop: stopPlayback
+                });
             } catch (err) {
                 if (state.playbackID !== playbackID || state.current !== entry) return;
                 state.playing = false;
@@ -665,6 +668,7 @@
         }
 
         function resetPlayback() {
+            window.AuraDesktopMediaSession?.release(state);
             clearTimeout(fullscreenHideTimer);
             fullscreenHideTimer = 0;
             playerShell.classList.remove('controls-idle');
@@ -889,15 +893,6 @@
             renderPlayer();
         });
         video.addEventListener('ended', () => { state.playing = false; renderPlayer(); });
-        if ('mediaSession' in navigator) {
-            try {
-                navigator.mediaSession.setActionHandler('play', () => {
-                    if (!state.disposed && video.paused) togglePlayback();
-                });
-                navigator.mediaSession.setActionHandler('pause', () => video.pause());
-                navigator.mediaSession.setActionHandler('stop', stopPlayback);
-            } catch (_) {}
-        }
 
         root.addEventListener('keydown', event => {
             if (event.key === 'Escape') {

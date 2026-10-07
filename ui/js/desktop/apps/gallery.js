@@ -630,15 +630,16 @@
 
         /** Renames `item` to `name` on the server and patches local state. Returns the updated item or null. */
         async function applyRename(item, name) {
-            const updated = L.renamedItem(item, name);
+            let updated = L.renamedItem(item, name);
             try {
-                await api('/api/desktop/file', {
+                const result = await api('/api/desktop/file', {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ old_path: item.path, new_path: updated.path })
                 });
+                if (result && result.path) updated = { ...updated, path: result.path, name: result.path.split('/').pop() };
             } catch (err) {
-                notify({ title: t('desktop.notification'), message: err && err.message ? err.message : t('desktop.load_failed') });
+                notify({ title: t('desktop.notification'), message: t('desktop.load_failed') });
                 return null;
             }
             if (g.selection.delete(item.path)) g.selection.add(updated.path);
@@ -677,7 +678,6 @@
             if (many) showProgress(t('desktop.gallery_delete_progress', { done: 0, total: items.length }), 0);
             const removed = [];
             let failed = 0;
-            let lastError = '';
             for (let index = 0; index < items.length; index += 1) {
                 if (g.disposed) return false;
                 const item = items[index];
@@ -686,7 +686,6 @@
                     removed.push(item.path);
                 } catch (err) {
                     failed += 1;
-                    lastError = err && err.message ? String(err.message) : '';
                 }
                 if (many) showProgress(t('desktop.gallery_delete_progress', { done: index + 1, total: items.length }), (index + 1) / items.length);
             }
@@ -715,7 +714,7 @@
             if (many) hideProgress();
             if (failed) {
                 const summary = countLabel('desktop.gallery_delete_failed', failed);
-                notify({ title: t('desktop.app_gallery'), message: lastError ? `${summary} ${lastError}` : summary });
+                notify({ title: t('desktop.app_gallery'), message: summary });
             }
             return removed.length > 0 && failed === 0;
         }

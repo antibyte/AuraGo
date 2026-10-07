@@ -39,13 +39,17 @@ const (
 
 // Message is the wire format for all egg↔master communication.
 type Message struct {
+	Protocol  int             `json:"protocol"`
+	Session   string          `json:"session"`
+	Sender    string          `json:"sender"`
+	Sequence  uint64          `json:"sequence"`
 	Type      string          `json:"type"`
 	EggID     string          `json:"egg_id"`
 	NestID    string          `json:"nest_id"`
 	ID        string          `json:"id,omitempty"`      // unique message ID for ack correlation
 	Payload   json.RawMessage `json:"payload,omitempty"` // type-specific data
 	Timestamp string          `json:"timestamp"`         // ISO 8601
-	HMAC      string          `json:"hmac"`              // SHA-256 HMAC of Type+EggID+NestID+Timestamp+Payload
+	HMAC      string          `json:"hmac"`              // SHA-256 HMAC of the complete structured envelope
 }
 
 // ── Payload types ───────────────────────────────────────────────────────────
@@ -159,32 +163,39 @@ type ReconfigurePayload struct {
 
 // ── HMAC signing ────────────────────────────────────────────────────────────
 
-// SignMessage computes and sets the HMAC field on a Message.
+// SignMessage authenticates every envelope field, including message identity.
 func SignMessage(msg *Message, sharedKeyHex string) error {
 	key, err := hex.DecodeString(sharedKeyHex)
-	if err != nil {
-		return fmt.Errorf("invalid shared key: %w", err)
+	if err != nil || len(key) != 32 {
+		return fmt.Errorf("invalid 32-byte shared key")
 	}
-	msg.HMAC = "" // clear before signing
-	data := msg.Type + msg.EggID + msg.NestID + msg.Timestamp + string(msg.Payload)
+	if msg.Protocol != ProtocolVersion {
+		return fmt.Errorf("%s", UpgradeRequired)
+	}
+	unsigned := *msg
+	unsigned.HMAC = ""
+	data, err := json.Marshal(unsigned)
+	if err != nil {
+		return fmt.Errorf("encode signed envelope: %w", err)
+	}
 	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte(data))
+	mac.Write([]byte("aurago-invasion-v2\n"))
+	mac.Write(data)
 	msg.HMAC = hex.EncodeToString(mac.Sum(nil))
 	return nil
 }
 
-// VerifyMessage checks the HMAC signature of a Message.
+// VerifyMessage checks the structured signature; Session.Accept also enforces replay policy.
 func VerifyMessage(msg Message, sharedKeyHex string) (bool, error) {
-	key, err := hex.DecodeString(sharedKeyHex)
+	expected, err := hex.DecodeString(msg.HMAC)
 	if err != nil {
-		return false, fmt.Errorf("invalid shared key: %w", err)
+		return false, nil
 	}
-	expected := msg.HMAC
-	data := msg.Type + msg.EggID + msg.NestID + msg.Timestamp + string(msg.Payload)
-	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte(data))
-	computed := hex.EncodeToString(mac.Sum(nil))
-	return hmac.Equal([]byte(expected), []byte(computed)), nil
+	if err := SignMessage(&msg, sharedKeyHex); err != nil {
+		return false, err
+	}
+	computed, _ := hex.DecodeString(msg.HMAC)
+	return hmac.Equal(expected, computed), nil
 }
 
 var bridgeMessageCounter atomic.Uint64
@@ -205,6 +216,7 @@ func NewMessage(msgType, eggID, nestID, sharedKeyHex string, payload interface{}
 	}
 	now := time.Now().UTC()
 	msg := &Message{
+		Protocol:  ProtocolVersion,
 		Type:      msgType,
 		EggID:     eggID,
 		NestID:    nestID,

@@ -18,7 +18,7 @@
   "config.manus.catalog_empty": "Geen bronnen gevonden",
   "config.manus.catalog_load_failed": "Manus-bronnen konden niet worden geladen",
   "config.manus.catalog_not_loaded": "Laad de catalogus om bronnen te kiezen",
-  "config.manus.credits": "Credits: {{count}}",
+  "config.manus.credits": "Tegoed: {{count}}",
   "config.manus.danger_confirm": "Je activeert een recht dat gegevens kan wijzigen of bestanden naar Manus kan sturen. Doorgaan?",
   "config.manus.danger_confirm_title": "Schrijftoegang voor Manus activeren?",
   "config.manus.default_agent_profile": "Standaard agentprofiel",

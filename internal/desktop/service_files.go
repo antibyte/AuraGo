@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"aurago/internal/fileutil"
 	"context"
 	"fmt"
 	"io"
@@ -577,7 +578,7 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 	if err := s.guardNoteMutation(path, source); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(path, 0o700); err != nil {
+	if err := fileutil.PublishContext(ctx, func() error { return os.MkdirAll(path, 0o700) }); err != nil {
 		return fmt.Errorf("create desktop directory: %w", err)
 	}
 	_ = os.Chmod(path, 0o700)
@@ -588,11 +589,26 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 
 // MovePath renames or moves a workspace file or directory.
 func (s *Service) MovePath(ctx context.Context, oldPath, newPath, source string) error {
-	return s.MovePathConditional(ctx, oldPath, newPath, source, nil)
+	return s.MovePathTo(ctx, oldPath, newPath, source, nil)
 }
 
 // MovePathConditional checks a source version under the same lock as the move.
 func (s *Service) MovePathConditional(ctx context.Context, oldPath, newPath, source string, precondition FileWritePrecondition) error {
+	return s.movePathConditional(ctx, oldPath, newPath, source, precondition, nil)
+}
+
+// MovePathTo checks the destination while holding the same lock as publication.
+func (s *Service) MovePathTo(ctx context.Context, oldPath, newPath, source string, target FileWritePrecondition) error {
+	// Trash transitions involving Notes need the dedicated batch operation to
+	// retain their protected namespace and original subdirectory information.
+	oldRel, newRel := cleanDesktopPathSlash(oldPath), cleanDesktopPathSlash(newPath)
+	if source == SourceUser && (NotesPath(oldRel, true) || NotesPath(newRel, true)) && (isDesktopTrashPath(oldRel) || isDesktopTrashPath(newRel)) {
+		return fmt.Errorf("notes trash transitions require the desktop trash operation")
+	}
+	return s.movePathConditional(ctx, oldPath, newPath, source, nil, target)
+}
+
+func (s *Service) movePathConditional(ctx context.Context, oldPath, newPath, source string, precondition, target FileWritePrecondition) error {
 	if err := s.ensureReady(ctx); err != nil {
 		return err
 	}
@@ -627,11 +643,10 @@ func (s *Service) MovePathConditional(ctx context.Context, oldPath, newPath, sou
 		if strings.EqualFold(from, to) {
 			return nil
 		}
-		if err := os.MkdirAll(filepath.Dir(to), 0o700); err != nil {
-			return fmt.Errorf("create desktop media destination directory: %w", err)
+		if err := s.checkPathTargetLocked(to, newPath, target); err != nil {
+			return err
 		}
-		_ = os.Chmod(filepath.Dir(to), 0o700)
-		if err := os.Rename(from, to); err != nil {
+		if err := moveDesktopPathRoot(ctx, fromMount.Dir, from, to); err != nil {
 			return fmt.Errorf("move desktop media path: %w", err)
 		}
 		s.updateMediaRegistriesAfterMove(ctx, fromMount, from, to)
@@ -671,10 +686,9 @@ func (s *Service) MovePathConditional(ctx context.Context, oldPath, newPath, sou
 	if strings.EqualFold(from, to) {
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(to), 0o700); err != nil {
-		return fmt.Errorf("create desktop destination directory: %w", err)
+	if err := s.checkPathTargetLocked(to, newPath, target); err != nil {
+		return err
 	}
-	_ = os.Chmod(filepath.Dir(to), 0o700)
 	rootAbs, err := filepath.Abs(s.Config().WorkspaceDir)
 	if err != nil {
 		return fmt.Errorf("resolve desktop root: %w", err)
@@ -683,10 +697,10 @@ func (s *Service) MovePathConditional(ctx context.Context, oldPath, newPath, sou
 	if err != nil {
 		return fmt.Errorf("resolve desktop destination directory: %w", err)
 	}
-	if err := validateNoSymlinkComponents(rootAbs, toDirAbs, false); err != nil {
+	if err := validateNoSymlinkComponents(rootAbs, toDirAbs, true); err != nil {
 		return err
 	}
-	if err := os.Rename(from, to); err != nil {
+	if err := moveDesktopPathRoot(ctx, rootAbs, from, to); err != nil {
 		return fmt.Errorf("move desktop path: %w", err)
 	}
 	_ = s.Audit(ctx, "move_path", s.relativePath(from), map[string]interface{}{"new_path": s.relativePath(to)}, source)
@@ -696,6 +710,11 @@ func (s *Service) MovePathConditional(ctx context.Context, oldPath, newPath, sou
 
 // CopyPath copies a workspace file or directory to a new location.
 func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string) error {
+	return s.CopyPathConditional(ctx, srcPath, dstPath, source, nil)
+}
+
+// CopyPathConditional stages the complete copy before publishing its destination.
+func (s *Service) CopyPathConditional(ctx context.Context, srcPath, dstPath, source string, target FileWritePrecondition) error {
 	if err := s.ensureReady(ctx); err != nil {
 		return err
 	}
@@ -729,11 +748,10 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 		if strings.EqualFold(from, to) {
 			return fmt.Errorf("source and destination are the same")
 		}
-		if err := os.MkdirAll(filepath.Dir(to), 0o700); err != nil {
-			return fmt.Errorf("create desktop media destination directory: %w", err)
+		if err := s.checkPathTargetLocked(to, dstPath, target); err != nil {
+			return err
 		}
-		_ = os.Chmod(filepath.Dir(to), 0o700)
-		if err := copyPath(from, to); err != nil {
+		if err := copyDesktopPathRoot(ctx, fromMount.Dir, from, to); err != nil {
 			return fmt.Errorf("copy desktop media path: %w", err)
 		}
 		_ = s.Audit(ctx, "copy_path", mediaDesktopPath(fromMount, fromRel), map[string]interface{}{"new_path": mediaDesktopPath(toMount, toRel)}, source)
@@ -758,11 +776,10 @@ func (s *Service) CopyPath(ctx context.Context, srcPath, dstPath, source string)
 	if strings.EqualFold(from, to) {
 		return fmt.Errorf("source and destination are the same")
 	}
-	if err := os.MkdirAll(filepath.Dir(to), 0o700); err != nil {
-		return fmt.Errorf("create desktop destination directory: %w", err)
+	if err := s.checkPathTargetLocked(to, dstPath, target); err != nil {
+		return err
 	}
-	_ = os.Chmod(filepath.Dir(to), 0o700)
-	if err := copyPath(from, to); err != nil {
+	if err := copyDesktopPathRoot(ctx, s.Config().WorkspaceDir, from, to); err != nil {
 		return fmt.Errorf("copy desktop path: %w", err)
 	}
 	_ = s.Audit(ctx, "copy_path", s.relativePath(from), map[string]interface{}{"new_path": s.relativePath(to)}, source)
@@ -873,7 +890,7 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 		if err := s.guardNoteMutation(path, source); err != nil {
 			return err
 		}
-		if err := os.RemoveAll(path); err != nil {
+		if err := fileutil.PublishContext(ctx, func() error { return os.RemoveAll(path) }); err != nil {
 			return fmt.Errorf("delete desktop media path: %w", err)
 		}
 		s.softDeleteMediaRegistries(ctx, mount, path)
@@ -890,7 +907,7 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 	if err := s.guardNoteMutation(path, source); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(path); err != nil {
+	if err := fileutil.PublishContext(ctx, func() error { return os.RemoveAll(path) }); err != nil {
 		return fmt.Errorf("delete desktop path: %w", err)
 	}
 	_ = s.Audit(ctx, "delete_path", s.relativePath(path), map[string]interface{}{}, source)
@@ -975,21 +992,74 @@ func (s *Service) CreateSymlink(ctx context.Context, targetPath, linkPath string
 		return fmt.Errorf("resolve symlink target: %w", err)
 	}
 
-	relTarget, err := filepath.Rel(filepath.Dir(resolvedLink), resolvedTarget)
+	workspaceRoot, err := filepath.EvalSymlinks(s.Config().WorkspaceDir)
+	if err != nil {
+		return fmt.Errorf("resolve symlink workspace: %w", err)
+	}
+	realParent, err := filepath.EvalSymlinks(filepath.Dir(resolvedLink))
+	if err != nil {
+		return fmt.Errorf("resolve symlink destination parent: %w", err)
+	}
+	realTarget, err := resolveSymlinkTargetPath(resolvedTarget)
+	if err != nil {
+		return fmt.Errorf("resolve symlink target: %w", err)
+	}
+	if !isWithinPath(workspaceRoot, realParent) || !isWithinPath(workspaceRoot, realTarget) {
+		return fmt.Errorf("symlink path escapes workspace")
+	}
+	parentRel, err := filepath.Rel(workspaceRoot, realParent)
+	if err != nil {
+		return fmt.Errorf("resolve symlink destination parent: %w", err)
+	}
+	relTarget, err := filepath.Rel(realParent, realTarget)
 	if err != nil {
 		return fmt.Errorf("calculate relative path for symlink: %w", err)
 	}
-
-	if _, err := os.Lstat(resolvedLink); err == nil {
-		return fmt.Errorf("file or directory already exists at link destination")
+	root, err := os.OpenRoot(workspaceRoot)
+	if err != nil {
+		return fmt.Errorf("open symlink workspace: %w", err)
 	}
-
-	if err := os.Symlink(relTarget, resolvedLink); err != nil {
+	defer root.Close()
+	parent, err := root.OpenRoot(parentRel)
+	if err != nil {
+		return fmt.Errorf("open symlink destination parent: %w", err)
+	}
+	defer parent.Close()
+	linkName := filepath.Base(resolvedLink)
+	if _, err := parent.Lstat(linkName); err == nil {
+		return fmt.Errorf("file or directory already exists at link destination")
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect symlink destination: %w", err)
+	}
+	if err := parent.Symlink(relTarget, linkName); err != nil {
 		return fmt.Errorf("create symlink: %w", err)
 	}
 
 	s.invalidateBootstrapCacheForFileMutation(s.relativePath(resolvedLink))
 	return nil
+}
+
+func resolveSymlinkTargetPath(target string) (string, error) {
+	current := target
+	var missing []string
+	for {
+		resolved, err := filepath.EvalSymlinks(current)
+		if err == nil {
+			for i := len(missing) - 1; i >= 0; i-- {
+				resolved = filepath.Join(resolved, missing[i])
+			}
+			return filepath.Clean(resolved), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", err
+		}
+		missing = append(missing, filepath.Base(current))
+		current = parent
+	}
 }
 
 // GetDirectorySize calculates the recursive size of a directory in bytes.

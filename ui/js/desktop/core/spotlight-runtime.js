@@ -1,6 +1,13 @@
     let spotlightOpen = false;
+    let spotlightInstance = null;
 
     function closeSpotlight() {
+        if (spotlightInstance) {
+            spotlightInstance.generation++;
+            spotlightInstance.controller?.abort();
+            window.clearTimeout(spotlightInstance.timer);
+            spotlightInstance = null;
+        }
         const backdrop = document.getElementById('vd-spotlight-backdrop');
         if (backdrop) {
             desktopSound('menu.close');
@@ -64,11 +71,11 @@
         openApp('viewer', { path: normalized });
     }
 
-    async function spotlightFileEntries(query) {
+    async function spotlightFileEntries(query, signal) {
         const q = String(query || '').trim();
         if (q.length < 2) return [];
         try {
-            const body = await api('/api/desktop/search?query=' + encodeURIComponent(q));
+            const body = await api('/api/desktop/search?query=' + encodeURIComponent(q), { signal });
             return (body.files || body.results || []).slice(0, 8).map(file => ({
                 id: 'file-' + file.path,
                 title: file.name || pathBaseName(file.path),
@@ -94,11 +101,15 @@
     }
 
     async function refreshSpotlightResults(input, stateObj) {
+        const generation = ++stateObj.generation;
+        stateObj.controller?.abort();
+        stateObj.controller = new AbortController();
         const query = input.value || '';
         const settings = spotlightSettingsEntries().filter(entry => !query || entry.title.toLowerCase().includes(query.toLowerCase()));
         const apps = spotlightAppEntries(query);
         const recent = spotlightRecentFileEntries(query);
-        const files = await spotlightFileEntries(query);
+        const files = await spotlightFileEntries(query, stateObj.controller.signal);
+        if (spotlightInstance !== stateObj || generation !== stateObj.generation || !stateObj.backdrop.isConnected) return;
         stateObj.entries = []
             .concat(settings.map(entry => ({ id: entry.id, title: entry.title, subtitle: t('desktop.spotlight_settings'), action: entry.action })))
             .concat(recent)
@@ -131,11 +142,13 @@
         </div>`;
         document.body.appendChild(backdrop);
         const input = backdrop.querySelector('.vd-spotlight-input');
-        const stateObj = { entries: [], activeIndex: 0 };
-        let timer = 0;
+        const stateObj = { entries: [], activeIndex: 0, generation: 0, controller: null, timer: 0, backdrop };
+        spotlightInstance = stateObj;
         const scheduleRefresh = () => {
-            if (timer) window.clearTimeout(timer);
-            timer = window.setTimeout(() => refreshSpotlightResults(input, stateObj), 120);
+            ++stateObj.generation;
+            stateObj.controller?.abort();
+            window.clearTimeout(stateObj.timer);
+            stateObj.timer = window.setTimeout(() => refreshSpotlightResults(input, stateObj), 120);
         };
         input.addEventListener('input', scheduleRefresh);
         input.addEventListener('keydown', event => {

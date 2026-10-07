@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -39,7 +38,7 @@ func TestGo2RTCDockerAccessRequirements(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			postRequests := 0
 			created := false
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
 				if r.Method == http.MethodPost {
 					postRequests++

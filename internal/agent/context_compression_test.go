@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"log/slog"
 	"os"
@@ -113,7 +114,7 @@ func TestCompressHistoryIsolatesTranscriptInSummaryPrompt(t *testing.T) {
 	}
 }
 
-func (m *mockChatClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (m *mockChatClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }
 

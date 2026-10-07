@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -53,26 +54,30 @@ func EncodeEmailResult(r EmailResult) string {
 
 // imapConn wraps a TLS connection to an IMAP server.
 type imapConn struct {
-	conn   net.Conn
-	reader *bufio.Reader
-	tag    int
+	conn             net.Conn
+	reader           *bufio.Reader
+	tag              int
+	stopCancellation func() bool
 }
 
 func imapDial(host string, port int) (*imapConn, error) {
+	return imapDialContext(context.Background(), host, port)
+}
+
+func imapDialContext(ctx context.Context, host string, port int) (*imapConn, error) {
 	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
-	tlsConn, err := tls.DialWithDialer(
-		&net.Dialer{Timeout: 15 * time.Second},
-		"tcp", addr,
-		&tls.Config{ServerName: host},
-	)
+	dialer := &tls.Dialer{NetDialer: &net.Dialer{Timeout: 15 * time.Second}, Config: &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}}
+	tlsConn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("IMAP TLS dial failed: %w", err)
 	}
 
 	ic := &imapConn{conn: tlsConn, reader: bufio.NewReaderSize(tlsConn, 65536)}
+	ic.stopCancellation = context.AfterFunc(ctx, func() { _ = tlsConn.Close() })
 
 	// Read server greeting
 	if _, err := ic.readLine(); err != nil {
+		ic.stopCancellation()
 		tlsConn.Close()
 		return nil, fmt.Errorf("IMAP greeting failed: %w", err)
 	}
@@ -80,6 +85,9 @@ func imapDial(host string, port int) (*imapConn, error) {
 }
 
 func (ic *imapConn) Close() {
+	if ic.stopCancellation != nil {
+		defer ic.stopCancellation()
+	}
 	ic.command("LOGOUT")
 	ic.conn.Close()
 }
@@ -201,6 +209,12 @@ func FetchEmails(host string, port int, username, password, folder string, count
 // This is used by the EmailWatcher to fetch exactly the newly detected messages
 // instead of relying on sequence-number ranges which may return wrong emails.
 func FetchEmailsByUID(host string, port int, username, password, folder string, uids []uint32, logger *slog.Logger) ([]EmailMessage, error) {
+	return fetchEmailsByUIDContext(context.Background(), host, port, username, password, folder, uids, logger)
+}
+
+func fetchEmailsByUIDContext(parent context.Context, host string, port int, username, password, folder string, uids []uint32, logger *slog.Logger) ([]EmailMessage, error) {
+	ctx, cancel := context.WithTimeout(parent, time.Minute)
+	defer cancel()
 	if len(uids) == 0 {
 		return nil, nil
 	}
@@ -208,7 +222,7 @@ func FetchEmailsByUID(host string, port int, username, password, folder string, 
 		uids = uids[:50]
 	}
 
-	ic, err := imapDial(host, port)
+	ic, err := imapDialContext(ctx, host, port)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +264,13 @@ func FetchEmailsByUID(host string, port int, username, password, folder string, 
 
 // SearchUnseenUIDs returns UIDs of unseen messages in the given folder.
 func SearchUnseenUIDs(host string, port int, username, password, folder string) ([]uint32, error) {
-	ic, err := imapDial(host, port)
+	return searchUnseenUIDsContext(context.Background(), host, port, username, password, folder)
+}
+
+func searchUnseenUIDsContext(parent context.Context, host string, port int, username, password, folder string) ([]uint32, error) {
+	ctx, cancel := context.WithTimeout(parent, time.Minute)
+	defer cancel()
+	ic, err := imapDialContext(ctx, host, port)
 	if err != nil {
 		return nil, err
 	}

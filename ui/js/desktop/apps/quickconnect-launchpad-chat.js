@@ -1,6 +1,15 @@
+    const SDK_CHANNEL_CHALLENGE_TYPE = 'aurago.desktop.channel.challenge';
+    const SDK_CHANNEL_HANDSHAKE_TYPE = 'aurago.desktop.channel.handshake';
+    const SDK_CHANNEL_FRAGMENT_KEY = '__aurago_sdk_channel';
+    const SDK_CHANNEL_ORIGINAL_HASH_KEY = '__aurago_sdk_original_hash';
+    const sdkFrameClients = new Map();
+    let sdkChallengeSequence = 0;
+    let sdkFrameObserver = null;
+
     function renderQuickConnect(id) {
         const host = contentEl(id);
         if (!host) return;
+        host.classList.add('vd-qc-window');
         host.innerHTML = `<div class="vd-quick-connect">
             <div class="vd-qc-sidebar">
                 <div class="vd-qc-sidebar-header">
@@ -13,8 +22,10 @@
                     <button class="vd-qc-filter active" type="button" data-qc-filter="all">${iconMarkup('server', 'A', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_filter_all'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="ssh">${iconMarkup('terminal', 'T', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_ssh'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="vnc">${iconMarkup('monitor', 'V', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_vnc'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="serial"><span>${esc(t('desktop.qc_serial_filter'))}</span></button>
                 </div>
-                <div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div>
+                <button class="vd-qc-btn vd-qc-serial-new" type="button" data-qc-new-serial>${iconMarkup('plus', '+', 'vd-qc-btn-icon', 13)}<span>${esc(t('desktop.qc_serial_new_connection'))}</span></button>
+                <div class="vd-qc-lists"><div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div><div data-serial-list></div></div>
             </div>
             <div class="vd-qc-terminal-area" data-terminal-area>
                 <div class="vd-qc-tabs" data-qc-tabs hidden>
@@ -27,6 +38,7 @@
                         <span class="vd-qc-placeholder-text">${esc(t('desktop.qc_select_device'))}</span>
                     </div>
                 </div>
+                <div class="vd-qc-serial-content" data-serial-content hidden></div>
             </div>
         </div>`;
         wireContextMenuBoundary(host);
@@ -37,6 +49,8 @@
         const terminalArea = host.querySelector('[data-terminal-area]');
         const tabContent = host.querySelector('[data-tab-content]');
         const qcTabs = host.querySelector('[data-qc-tabs]');
+        const serialList = host.querySelector('[data-serial-list]');
+        const serialContent = host.querySelector('[data-serial-content]');
         const filterButtons = Array.from(host.querySelectorAll('[data-qc-filter]'));
         let activeWS = null;
         let activeTerm = null;
@@ -48,8 +62,65 @@
         let activeProtocolFilter = 'all';
         let connectedDeviceId = null;
         let connectedProtocol = null;
+        let disposed = false;
+        let connectionGeneration = 0;
+        let loadGeneration = 0;
+        let activeSFTPNav = null;
+        const pendingConfirmations = new Set();
+        const serialTerminal = window.QuickConnectSerial.create({
+            list: serialList, content: serialContent, searchInput, api, t,
+            getBootstrap: () => state.bootstrap || {}, confirmDialog: showConfirmModal,
+            onSessionStart: () => {
+                const generation = ++connectionGeneration;
+                closeRemoteSession();
+                connectedDeviceId = null;
+                connectedProtocol = 'serial';
+                showSerialView();
+                return () => !disposed && generation === connectionGeneration;
+            },
+            onSessionEnd: owner => {
+                if (typeof owner === 'function' && owner()) connectedProtocol = null;
+            }
+        });
+        serialTerminal.render();
+
+        function showSerialView() {
+            if (disposed) return;
+            serialContent.hidden = false;
+            tabContent.hidden = true;
+            qcTabs.hidden = true;
+            serialTerminal.render();
+        }
+
+        function newSerialConnection() {
+            activeProtocolFilter = 'serial';
+            filterButtons.forEach(button => button.classList.toggle('active', button.dataset.qcFilter === 'serial'));
+            filterDevices();
+            showSerialView();
+            serialList.querySelector('[data-serial-create]')?.click();
+        }
+
+        function closeRemoteSession() {
+            for (const cancel of pendingConfirmations) cancel();
+            if (activeWS) { const previous = activeWS; activeWS = null; try { previous.close(); } catch (_) {} }
+            if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
+            activeFitAddon = null;
+            disconnectActiveResizeObserver();
+            closeSFTPPanel(tabContent);
+        }
+
+        async function beginRemoteSession() {
+            const generation = ++connectionGeneration;
+            await serialTerminal.disconnect('switch');
+            if (disposed || generation !== connectionGeneration) return null;
+            closeRemoteSession();
+            serialContent.hidden = true;
+            tabContent.hidden = false;
+            return generation;
+        }
 
         function switchTab(tab) {
+            if (tab === 'files' && connectedProtocol !== 'ssh') return;
             activeTab = tab;
             qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
             if (tab === 'files' && connectedDeviceId && connectedProtocol === 'ssh') {
@@ -64,6 +135,12 @@
         });
 
         registerWindowCleanup(id, () => {
+            host.classList.remove('vd-qc-window');
+            disposed = true;
+            connectionGeneration++;
+            loadGeneration++;
+            for (const cancel of pendingConfirmations) cancel();
+            serialTerminal.dispose();
             if (activeSFTPNav) { activeSFTPNav.dispose(); activeSFTPNav = null; }
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
@@ -71,7 +148,11 @@
             host.querySelectorAll('.vd-qc-modal-overlay, .vd-qc-notify').forEach(el => el.remove());
         });
 
-        setQuickConnectMenus(id, host, loadAll, showServerModal, () => switchTab('files'));
+        setQuickConnectMenus(id, host, loadAll, showServerModal, () => switchTab('files'), newSerialConnection);
+        host.querySelector('[data-qc-new-serial]').addEventListener('click', newSerialConnection);
+        serialList.addEventListener('click', event => {
+            if (event.target.closest('[data-serial-profile], [data-serial-create], [data-serial-connect]')) showSerialView();
+        }, true);
         loadAll();
 
         searchInput.addEventListener('input', () => filterDevices());
@@ -80,16 +161,19 @@
                 activeProtocolFilter = btn.dataset.qcFilter || 'all';
                 filterButtons.forEach(item => item.classList.toggle('active', item === btn));
                 filterDevices();
+                if (activeProtocolFilter === 'serial') showSerialView();
             });
         });
 
         async function loadAll() {
+            const generation = ++loadGeneration;
             deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
             try {
                 const [devBody, credBody] = await Promise.all([
-                    api('/api/devices'),
-                    api('/api/credentials')
+                    api('/api/desktop/integrations/devices'),
+                    api('/api/desktop/integrations/credentials')
                 ]);
+                if (disposed || generation !== loadGeneration) return;
                 cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.protocol === 'vnc' || d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
                 cachedCredentials = credBody || [];
                 if (!cachedDevices.length) {
@@ -98,6 +182,7 @@
                 }
                 renderDeviceList(cachedDevices);
             } catch (err) {
+                if (disposed || generation !== loadGeneration) return;
                 deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
             }
         }
@@ -176,7 +261,10 @@
         }
 
         function filterDevices() {
+            deviceList.hidden = activeProtocolFilter === 'serial';
+            serialList.hidden = activeProtocolFilter !== 'all' && activeProtocolFilter !== 'serial';
             if (cachedDevices) renderDeviceList(cachedDevices);
+            serialTerminal.render();
         }
 
         function showDeviceContextMenu(x, y, device) {
@@ -195,7 +283,7 @@
             const ok = await showConfirmModal(t('desktop.qc_delete_confirm'), t('desktop.qc_delete_confirm_msg').replace('{{name}}', device.name));
             if (!ok) return;
             try {
-                await api('/api/devices/' + device.id, { method: 'DELETE' });
+                await api('/api/desktop/integrations/devices/' + device.id, { method: 'DELETE' });
                 await loadAll();
             } catch (err) {
                 showNotify(t('desktop.qc_delete_error') + ': ' + err.message);
@@ -236,8 +324,11 @@
                     </div>
                 </div>`;
                 host.querySelector('.vd-quick-connect').appendChild(overlay);
-                overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => { overlay.remove(); resolve(false); });
-                overlay.querySelector('[data-action="ok"]').addEventListener('click', () => { overlay.remove(); resolve(true); });
+                const cancel = () => finish(false);
+                const finish = value => { pendingConfirmations.delete(cancel); overlay.remove(); resolve(value); };
+                pendingConfirmations.add(cancel);
+                overlay.querySelector('[data-action="cancel"]').addEventListener('click', cancel);
+                overlay.querySelector('[data-action="ok"]').addEventListener('click', () => finish(true));
             });
         }
 
@@ -347,7 +438,7 @@
             if (dlPwBtn && existingCred) {
                 dlPwBtn.addEventListener('click', async () => {
                     try {
-                        const body = await api('/api/credentials/export/' + existingCred.id + '?type=password');
+                        const body = await api('/api/desktop/integrations/credentials/export/' + existingCred.id + '?type=password');
                         downloadText(body.content, (existingCred.name || 'password') + '.txt');
                     } catch (err) { showNotify(err.message); }
                 });
@@ -357,7 +448,7 @@
             if (dlCertBtn && existingCred) {
                 dlCertBtn.addEventListener('click', async () => {
                     try {
-                        const body = await api('/api/credentials/export/' + existingCred.id + '?type=certificate');
+                        const body = await api('/api/desktop/integrations/credentials/export/' + existingCred.id + '?type=certificate');
                         downloadText(body.content, (existingCred.name || 'key') + '_key.pem');
                     } catch (err) { showNotify(err.message); }
                 });
@@ -397,25 +488,25 @@
                             const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                             if (password) credBody.password = password;
                             if (certificateText) credBody.certificate_text = certificateText;
-                            await api('/api/credentials/' + existingCred.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                            await api('/api/desktop/integrations/credentials/' + existingCred.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         } else {
                             // Create credential and link
                             const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                             if (password) credBody.password = password;
                             if (certificateText) credBody.certificate_text = certificateText;
-                            const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                            const created = await api('/api/desktop/integrations/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                             existingDevice.credential_id = created.id;
                         }
                         // Update device
-                        await api('/api/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
+                        await api('/api/desktop/integrations/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
                     } else {
                         // Create credential first
                         const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                         if (password) credBody.password = password;
                         if (certificateText) credBody.certificate_text = certificateText;
-                        const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                        const created = await api('/api/desktop/integrations/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         // Create device linked to credential
-                        await api('/api/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id }) });
+                        await api('/api/desktop/integrations/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id }) });
                     }
                     overlay.remove();
                     await loadAll();
@@ -526,7 +617,10 @@
             if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
         }
 
-        function connectSSH(deviceId) {
+        async function connectSSH(deviceId) {
+            const generation = await beginRemoteSession();
+            if (generation === null) return;
+            const isCurrent = () => !disposed && generation === connectionGeneration;
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
@@ -561,7 +655,7 @@
             term.open(termContainer);
             activeTerm = term;
             activeFitAddon = fitAddon;
-            setTimeout(() => { try { fitAddon.fit(); } catch(_) {} }, 50);
+            setTimeout(() => { if (isCurrent()) { try { fitAddon.fit(); } catch(_) {} } }, 50);
             const resizeObserver = new ResizeObserver(() => {
                 if (activeTerm === term) { try { fitAddon.fit(); } catch(_) {} }
             });
@@ -575,12 +669,13 @@
             activeWS = ws;
 
             term.onData(data => {
-                if (ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(data));
+                if (isCurrent() && ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(data));
             });
             term.onResize(({ cols, rows }) => {
-                if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+                if (isCurrent() && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }));
             });
             ws.onmessage = async (event) => {
+                if (!isCurrent()) return;
                 if (typeof event.data === 'string') {
                     try {
                         const msg = JSON.parse(event.data);
@@ -601,6 +696,7 @@
                                 okIcon: 'check-square',
                                 okClass: 'vd-qc-btn-primary'
                             });
+                            if (!isCurrent()) return;
                             if (ws.readyState === WebSocket.OPEN) {
                                 ws.send(JSON.stringify({ type: 'host_key_decision', accept }));
                             }
@@ -616,7 +712,7 @@
                 }
             };
             ws.onclose = () => {
-                if (activeWS === ws) {
+                if (isCurrent() && activeWS === ws) {
                     term.write('\r\n\x1b[33m' + t('desktop.qc_disconnected') + '\x1b[0m\r\n');
                     activeWS = null;
                     const placeholder = document.createElement('div');
@@ -633,7 +729,7 @@
                 }
             };
             ws.onerror = () => {
-                if (activeWS === ws) {
+                if (isCurrent() && activeWS === ws) {
                     term.write('\r\n\x1b[31m' + t('desktop.qc_connection_error') + '\x1b[0m\r\n');
                     activeWS = null;
                     const placeholder = document.createElement('div');
@@ -652,6 +748,9 @@
         }
 
         async function connectVNC(deviceId) {
+            const generation = await beginRemoteSession();
+            if (generation === null) return;
+            const isCurrent = () => !disposed && generation === connectionGeneration;
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
@@ -693,11 +792,13 @@
             wireVNCToolbar(sessionEl, rfb, deviceId);
 
             rfb.addEventListener('connect', () => {
+                if (!isCurrent()) return;
                 lastVNCError = null;
                 setVNCStatus(sessionEl, 'connected');
                 showNotify(t('desktop.qc_vnc_connected'));
             });
             rfb.addEventListener('disconnect', () => {
+                if (!isCurrent()) return;
                 if (activeWS && activeWS.close) { activeWS = null; }
                 if (lastVNCError) {
                     setVNCStatus(sessionEl, 'error', lastVNCError);
@@ -710,6 +811,7 @@
                 if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
             });
             rfb.addEventListener('securityfailure', (e) => {
+                if (!isCurrent()) return;
                 let reason = e && e.detail ? (e.detail.reason || e.detail.message || '') : '';
                 let code = e && e.detail ? (e.detail.code || '') : '';
                 if (reason) {
@@ -729,8 +831,6 @@
 
             activeWS = { close: () => { try { rfb.disconnect(); } catch(_) {} } };
         }
-
-        let activeSFTPNav = null;
 
         function closeSFTPPanel(container) {
             if (activeSFTPNav) {
@@ -931,7 +1031,7 @@
                     formData.append('device_id', deviceId);
                     formData.append('remote_path', joinSFTPPath(remoteDir, file.name));
                     formData.append('file', file);
-                    const resp = await fetch('/api/desktop/sftp/upload', { method: 'POST', body: formData });
+                    const resp = await fetch('/api/desktop/sftp/upload?device_id=' + encodeURIComponent(deviceId), { method: 'POST', body: formData });
                     if (!resp.ok) {
                         const err = await resp.json().catch(() => ({ error: 'Upload failed' }));
                         showNotify(err.error || t('desktop.qc_sftp_error'));
@@ -947,7 +1047,7 @@
             const ok = await showConfirmModal(t('desktop.qc_sftp_delete'), t('desktop.qc_sftp_delete_confirm').replace('{{name}}', name));
             if (!ok) return;
             try {
-                await api('/api/desktop/sftp/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
+                await api('/api/desktop/sftp/delete?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -961,7 +1061,7 @@
             const dir = oldPath.substring(0, oldPath.lastIndexOf('/')) || '/';
             const newPath = joinSFTPPath(dir, newName);
             try {
-                await api('/api/desktop/sftp/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
+                await api('/api/desktop/sftp/rename?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -973,7 +1073,7 @@
             if (!dirName) return;
             const newPath = joinSFTPPath(currentPath, dirName);
             try {
-                await api('/api/desktop/sftp/mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
+                await api('/api/desktop/sftp/mkdir?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -984,7 +1084,7 @@
             const dstPath = await promptDialog(t('desktop.qc_sftp_copy_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
-                await api('/api/desktop/sftp/copy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                await api('/api/desktop/sftp/copy?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -995,7 +1095,7 @@
             const dstPath = await promptDialog(t('desktop.qc_sftp_move_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
-                await api('/api/desktop/sftp/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                await api('/api/desktop/sftp/move?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -1003,7 +1103,7 @@
         }
     }
 
-    function setQuickConnectMenus(id, host, loadAll, showServerModal, toggleFiles) {
+    function setQuickConnectMenus(id, host, loadAll, showServerModal, toggleFiles, newSerialConnection) {
         const viewItems = [
             { id: 'refresh', labelKey: 'desktop.qc_refresh', icon: 'refresh', shortcut: 'F5', action: loadAll }
         ];
@@ -1015,7 +1115,8 @@
                 id: 'file',
                 labelKey: 'desktop.menu_file',
                 items: [
-                    { id: 'add-server', labelKey: 'desktop.qc_add_server', icon: 'server', shortcut: 'Ctrl+N', action: () => showServerModal() }
+                    { id: 'add-server', labelKey: 'desktop.qc_add_server', icon: 'server', shortcut: 'Ctrl+N', action: () => showServerModal() },
+                    { id: 'add-serial', labelKey: 'desktop.qc_serial_new_connection', icon: 'terminal', action: newSerialConnection }
                 ]
             },
             {
@@ -1068,9 +1169,9 @@
 
         async function load() {
             try {
-                const url = selectedCategory ? '/api/launchpad/links?category=' + encodeURIComponent(selectedCategory) : '/api/launchpad/links';
+                const url = selectedCategory ? '/api/desktop/integrations/launchpad/links?category=' + encodeURIComponent(selectedCategory) : '/api/desktop/integrations/launchpad/links';
                 links = await api(url);
-                categories = await api('/api/launchpad/categories');
+                categories = await api('/api/desktop/integrations/launchpad/categories');
                 updateCategorySelect();
                 render();
             } catch (e) { showDesktopNotification({ message: t('desktop.launchpad_load_error') }); }
@@ -1130,7 +1231,7 @@
         async function deleteLink(linkId) {
             const ok = await confirmDialog(t('desktop.launchpad_delete_confirm'), '');
             if (!ok) return;
-            try { await api('/api/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
+            try { await api('/api/desktop/integrations/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
             catch (e) { showDesktopNotification({ message: t('desktop.launchpad_delete_error') }); }
         }
 
@@ -1197,7 +1298,7 @@
             if (!query.trim()) { resultsEl.innerHTML = ''; return; }
             resultsEl.innerHTML = '<div class="vd-loading">' + esc(t('desktop.loading')) + '</div>';
             try {
-                const results = await api('/api/launchpad/icons/search?q=' + encodeURIComponent(query));
+                const results = await api('/api/desktop/integrations/launchpad/icons/search?q=' + encodeURIComponent(query));
                 const items = (results || []).filter(r => r.url_png || r.url_webp || r.url_svg);
                 if (!items.length) {
                     resultsEl.innerHTML = '<div class="lp-icon-msg muted">' + esc(t('desktop.launchpad_icon_no_results')) + '</div>';
@@ -1235,7 +1336,7 @@
             const iconUrl = activeTab && activeTab.dataset.tab === 'search' ? selectedIconURL : modal.querySelector('.lp-icon-url').value.trim();
             if (iconUrl) {
                 try {
-                    const dl = await api('/api/launchpad/icons/download', { method: 'POST', body: JSON.stringify({ image_url: iconUrl, link_id: linkId || 'new' }) });
+                    const dl = await api('/api/desktop/integrations/launchpad/icons/download', { method: 'POST', body: JSON.stringify({ image_url: iconUrl, link_id: linkId || 'new' }) });
                     if (dl && dl.local_path) iconPath = dl.local_path;
                 } catch (e) { /* ignore download errors */ }
             }
@@ -1243,9 +1344,9 @@
             const payload = { title, url, category, description, icon_path: iconPath };
             try {
                 if (linkId) {
-                    await api('/api/launchpad/links/' + linkId, { method: 'PUT', body: JSON.stringify(payload) });
+                    await api('/api/desktop/integrations/launchpad/links/' + linkId, { method: 'PUT', body: JSON.stringify(payload) });
                 } else {
-                    await api('/api/launchpad/links', { method: 'POST', body: JSON.stringify(payload) });
+                    await api('/api/desktop/integrations/launchpad/links', { method: 'POST', body: JSON.stringify(payload) });
                 }
                 modal.closest('.vd-modal-backdrop').remove();
                 await load();
@@ -1322,19 +1423,16 @@
         const pendingExternalWindow = shouldOpenStoreAppExternally(app) ? openPendingExternalStoreWindow() : null;
         host.innerHTML = `<div class="vd-store-frame-loading">${esc(t('desktop.loading'))}</div>`;
         try {
-            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
+            const body = await api(desktopStoreOpenURL(storeAppId));
             if (!contentEl(id)) return;
             if (shouldOpenStoreAppExternally(app)) {
                 navigateExternalStoreWindow(pendingExternalWindow, body.url);
                 closeWindow(id);
                 return;
             }
-            const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
+            const frameURL = storeFrameURL(body.url, storeAppId);
             const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });
             if (storeAppId === 'gods-eye-view') {
-                const localizedURL = new URL(frameURL, window.location.href);
-                localizedURL.searchParams.set('aurago_lang', document.documentElement.lang || 'en');
-                frame.src = localizedURL.toString();
                 frame.setAttribute('allow', frame.getAttribute('allow') + '; microphone');
             }
             host.replaceChildren(frame);
@@ -1488,7 +1586,7 @@
     async function openExternalStoreApp(storeAppId, title) {
         const pendingWindow = openPendingExternalStoreWindow();
         try {
-            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
+            const body = await api(desktopStoreOpenURL(storeAppId));
             navigateExternalStoreWindow(pendingWindow, body.url);
         } catch (err) {
             closeExternalStoreWindow(pendingWindow);
@@ -1498,16 +1596,23 @@
 
     function storeFrameURL(src, storeAppId) {
         if (!src) return src;
-        if (storeAppId === 'uptime-kuma') {
-            try {
-                const url = new URL(src, window.location.origin);
+        try {
+            const url = new URL(src, window.location.origin);
+            if (url.pathname.startsWith('/_aurago/launch/')) return src;
+            if (storeAppId === 'uptime-kuma') {
                 url.pathname = '/dashboard';
                 return url.toString();
-            } catch (_) {
-                return String(src).replace(/\/?(\?.*)?$/, '/dashboard$1');
             }
-        }
+        } catch (_) {}
         return src;
+    }
+
+    function desktopStoreOpenURL(storeAppId, portId) {
+        const query = new URLSearchParams();
+        if (portId) query.set('port_id', portId);
+        if (storeAppId === 'gods-eye-view') query.set('lang', document.documentElement.lang || 'en');
+        const suffix = query.toString();
+        return '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url' + (suffix ? '?' + suffix : '');
     }
 
     function cacheBustURL(src, paramName) {
@@ -1528,10 +1633,14 @@
         const iframe = document.createElement('iframe');
         iframe.className = className;
         iframe.title = title || appId || t('desktop.embed_frame_title');
-        iframe.src = src;
         iframe.dataset.appId = appId || '';
         iframe.dataset.widgetId = widgetId || '';
         iframe.dataset.windowId = windowId || '';
+        const sdkChannel = desktopSDKChannelFromURL(src);
+        if (sdkChannel) {
+            iframe.dataset.sdkChannel = sdkChannel;
+            iframe.addEventListener('load', () => beginSDKChannelHandshake(iframe));
+        }
         const sandboxFlags = ['allow-scripts', 'allow-forms', 'allow-modals'];
         if (options && options.allowSameOrigin) sandboxFlags.push('allow-same-origin');
         if (options && options.allowDownloads) sandboxFlags.push('allow-downloads');
@@ -1539,7 +1648,7 @@
         if (options && options.allowTopNavigationByUserActivation) sandboxFlags.push('allow-top-navigation-by-user-activation');
         if (options && options.allowPointerLock) sandboxFlags.push('allow-pointer-lock');
         iframe.setAttribute('sandbox', sandboxFlags.join(' '));
-        const allowParts = ['clipboard-read', 'clipboard-write'];
+        const allowParts = ['clipboard-read', 'clipboard-write', "midi 'none'", "serial 'none'"];
         if (options && options.allowFullscreen) allowParts.push('fullscreen');
         if (options && options.allowGamepad) allowParts.push('gamepad');
         // Test compatibility marker: iframe.setAttribute('allow', 'clipboard-read; clipboard-write')
@@ -1547,6 +1656,7 @@
         iframe.tabIndex = 0;
         iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe));
         if (!(options && options.disableAutoFocus)) iframe.addEventListener('load', () => focusDesktopFrame(iframe));
+        iframe.src = src;
         return iframe;
     }
 
@@ -1570,7 +1680,126 @@
         const query = new URLSearchParams(params || {});
         const suffix = query.toString();
         const ticketPath = body.token ? '/desktop-ticket/' + encodeURIComponent(body.token) : '';
-        return ticketPath + desktopFileURL(path) + (suffix ? '?' + suffix : '');
+        const src = ticketPath + desktopFileURL(path) + (suffix ? '?' + suffix : '');
+        return /\.html?$/i.test(String(path || '')) ? addDesktopSDKChannelFragment(src) : src;
+    }
+
+    function newDesktopSDKChannel() {
+        if (!window.crypto || typeof window.crypto.getRandomValues !== 'function') return '';
+        const bytes = new Uint8Array(32);
+        window.crypto.getRandomValues(bytes);
+        return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    function addDesktopSDKChannelFragment(src) {
+        const capability = newDesktopSDKChannel();
+        if (!capability) return src;
+        try {
+            const url = new URL(src, window.location.origin);
+            const originalHash = url.hash || '';
+            const params = new URLSearchParams();
+            params.set(SDK_CHANNEL_FRAGMENT_KEY, capability);
+            params.set(SDK_CHANNEL_ORIGINAL_HASH_KEY, originalHash);
+            url.hash = params.toString();
+            return url.pathname + url.search + url.hash;
+        } catch (_) {
+            return src;
+        }
+    }
+
+    function desktopSDKChannelFromURL(src) {
+        try {
+            const url = new URL(src, window.location.origin);
+            if (url.origin !== window.location.origin || !url.pathname.includes('/files/desktop/')) return '';
+            const params = new URLSearchParams(url.hash.slice(1));
+            const capability = params.get(SDK_CHANNEL_FRAGMENT_KEY) || '';
+            return /^[0-9a-f]{64}$/.test(capability) ? capability : '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function nextSDKChannelChallenge() {
+        sdkChallengeSequence = sdkChallengeSequence >= Number.MAX_SAFE_INTEGER ? 1 : sdkChallengeSequence + 1;
+        return sdkChallengeSequence;
+    }
+
+    function revokeSDKFrameClient(frame, remove = false) {
+        const client = sdkFrameClients.get(frame);
+        if (client) {
+            client.generation++;
+            client.challenge = 0;
+            const port = client.port;
+            client.port = null;
+            if (client.abortController) {
+                try { client.abortController.abort(); } catch (_) {}
+                client.abortController = null;
+            }
+            if (port) {
+                try { port.close(); } catch (_) {}
+            }
+            if (remove) sdkFrameClients.delete(frame);
+        }
+        if (frame) delete frame.dataset.sdkChallenge;
+    }
+
+    function sdkFrameClient(frame) {
+        let client = sdkFrameClients.get(frame);
+        if (client) return client;
+        client = {
+            frame,
+            app: null,
+            widget: null,
+            appId: frame.dataset.appId || '',
+            widgetId: frame.dataset.widgetId || '',
+            windowId: frame.dataset.windowId || '',
+            channel: frame.dataset.sdkChannel || '',
+            challenge: 0,
+            generation: 0,
+            port: null,
+            abortController: null,
+            fileVersions: new Map()
+        };
+        sdkFrameClients.set(frame, client);
+        return client;
+    }
+
+    function beginSDKChannelHandshake(frame) {
+        const channel = frame && frame.dataset.sdkChannel;
+        if (!channel || !/^[0-9a-f]{64}$/.test(channel) || !frame.contentWindow) return;
+        const client = sdkFrameClient(frame);
+        revokeSDKFrameClient(frame);
+        client.channel = channel;
+        client.generation++;
+        client.challenge = nextSDKChannelChallenge();
+        frame.dataset.sdkChallenge = String(client.challenge);
+        // This is a public, one-use sequence challenge. The capability and port
+        // travel from the verified child document, never to the WindowProxy.
+        frame.contentWindow.postMessage({ type: SDK_CHANNEL_CHALLENGE_TYPE, challenge: client.challenge }, '*');
+    }
+
+    function ensureSDKFrameLifecycleObserver() {
+        if (sdkFrameObserver || !document.body || typeof MutationObserver !== 'function') return;
+        sdkFrameObserver = new MutationObserver(() => {
+            for (const [frame] of sdkFrameClients) {
+                if (!frame.isConnected) revokeSDKFrameClient(frame, true);
+            }
+        });
+        sdkFrameObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function findSDKFrame(source) {
+        if (!source) return null;
+        for (const frame of document.querySelectorAll('.vd-generated-frame, .vd-widget-frame')) {
+            if (frame.contentWindow === source) return frame;
+        }
+        return null;
+    }
+
+    function isCurrentSDKClient(client, port = client && client.port, generation = client && client.generation) {
+        return !!(client && port && client.frame && client.frame.isConnected &&
+            sdkFrameClients.get(client.frame) === client && client.port === port &&
+            client.generation === generation && client.challenge === 0);
     }
 
     async function ensureDesktopEmbedHasContent(src) {
@@ -1583,26 +1812,45 @@
     }
 
     function findSDKClient(source) {
-        const frames = document.querySelectorAll('.vd-generated-frame, .vd-widget-frame');
-        for (const frame of frames) {
-            if (frame.contentWindow !== source) continue;
-            const app = allApps().find(item => item.id === frame.dataset.appId);
-            const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
-            const widget = widgets.find(item => item.id === frame.dataset.widgetId);
-            return {
-                app,
-                widget,
-                appId: frame.dataset.appId || '',
-                widgetId: frame.dataset.widgetId || '',
-                windowId: frame.dataset.windowId || ''
-            };
-        }
-        return null;
+        const frame = findSDKFrame(source);
+        const client = frame && sdkFrameClients.get(frame);
+        return isCurrentSDKClient(client) ? client : null;
     }
 
-    function sendSDKResponse(source, id, ok, value) {
-        if (!source || !id) return;
-        source.postMessage(ok ? {
+    function handleSDKChannelHandshake(event) {
+        const message = event && event.data;
+        if (!message || message.type !== SDK_CHANNEL_HANDSHAKE_TYPE) return;
+        const frame = findSDKFrame(event.source);
+        const client = frame && sdkFrameClients.get(frame);
+        const challenge = client && client.challenge;
+        const port = event.ports && event.ports.length === 1 ? event.ports[0] : null;
+        if (!frame || !client || event.origin !== 'null' || !port ||
+            message.capability !== frame.dataset.sdkChannel ||
+            !challenge || message.challenge !== challenge ||
+            String(frame.dataset.sdkChallenge || '') !== String(challenge)) {
+            for (const rejectedPort of event.ports || []) {
+                try { rejectedPort.close(); } catch (_) {}
+            }
+            return;
+        }
+        client.app = allApps().find(item => item.id === frame.dataset.appId) || null;
+        const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
+        client.widget = widgets.find(item => item.id === frame.dataset.widgetId) || null;
+        client.appId = frame.dataset.appId || '';
+        client.widgetId = frame.dataset.widgetId || '';
+        client.windowId = frame.dataset.windowId || '';
+        client.port = port;
+        client.abortController = new AbortController();
+        client.challenge = 0;
+        delete frame.dataset.sdkChallenge;
+        const generation = client.generation;
+        port.addEventListener('message', messageEvent => handleSDKMessage(client, messageEvent, port, generation));
+        port.start();
+    }
+
+    function sendSDKResponse(client, port, generation, id, ok, value) {
+        if (!id || !isCurrentSDKClient(client, port, generation)) return;
+        const response = ok ? {
             type: SDK_RESPONSE_TYPE,
             id,
             ok: true,
@@ -1611,26 +1859,26 @@
             type: SDK_RESPONSE_TYPE,
             id,
             ok: false,
-            error: value && value.message ? value.message : String(value || t('desktop.embed_bridge_failed'))
-        }, '*');
+            error: value && value.message ? value.message : String(value || t('desktop.embed_bridge_failed')),
+            status: Number(value && value.status) || 0
+        };
+        try { port.postMessage(response); } catch (_) {}
     }
 
     function postSDKMenuAction(windowId, actionId) {
         const frame = document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(windowId)}"]`);
-        if (!frame || !frame.contentWindow || !actionId) return;
-        frame.contentWindow.postMessage({
+        const client = frame && sdkFrameClients.get(frame);
+        if (!actionId || !isCurrentSDKClient(client)) return;
+        try { client.port.postMessage({
             type: 'aurago.desktop.menu-action',
             actionId: String(actionId)
-        }, '*');
+        }); } catch (_) {}
     }
 
     function postSDKContextMenuAction(client, actionId) {
-        const frame = client.windowId
-            ? document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(client.windowId)}"]`)
-            : document.querySelector(`.vd-widget-frame[data-widget-id="${cssSel(client.widgetId)}"]`);
-        if (!frame || !frame.contentWindow || !actionId) return;
-        frame.contentWindow.postMessage({
+        if (!actionId || !isCurrentSDKClient(client)) return;
+        try { client.port.postMessage({
             type: 'aurago.desktop.context-menu-action',
             actionId: String(actionId)
-        }, '*');
+        }); } catch (_) {}
     }

@@ -1086,10 +1086,6 @@
       "title": "Max File Size",
       "description": "Maximum text file size the desktop API will read or write."
     },
-    "control_level": {
-      "title": "Control Level",
-      "description": "Controls how much confirmation is expected for destructive desktop actions."
-    },
     "max_ws_clients": {
       "title": "Max WebSocket Clients",
       "description": "Maximum number of browser desktop sessions connected at the same time."

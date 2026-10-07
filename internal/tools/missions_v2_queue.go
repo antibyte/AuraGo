@@ -1,12 +1,17 @@
 package tools
 
 import (
+	"context"
 	"sort"
 	"sync"
 	"time"
 )
 
 type QueueItem struct {
+	RequiresOwner      bool `json:"requires_owner,omitempty"`
+	ownerContext       context.Context
+	releaseOwner       context.CancelFunc
+	retainOwner        func() context.CancelFunc
 	MissionID          string    `json:"mission_id"`
 	Priority           int       `json:"priority"` // 3=high, 2=medium, 1=low
 	EnqueuedAt         time.Time `json:"enqueued_at"`
@@ -17,15 +22,19 @@ type QueueItem struct {
 }
 
 type missionQueueSnapshot struct {
-	Items   []QueueItem `json:"items"`
-	Running string      `json:"running,omitempty"`
+	Items                []QueueItem `json:"items"`
+	Running              string      `json:"running,omitempty"`
+	RunningRequiresOwner bool        `json:"running_requires_owner,omitempty"`
+	NonReplayableIDs     []string    `json:"non_replayable_ids,omitempty"`
 }
 
 // MissionQueue manages the execution queue with priority sorting
 type MissionQueue struct {
-	mu      sync.Mutex
-	items   []QueueItem
-	running string // ID of currently running mission
+	mu            sync.Mutex
+	items         []QueueItem
+	running       string // ID of currently running mission
+	runningItem   QueueItem
+	nonReplayable map[string]bool
 }
 
 // NewMissionQueue creates a new mission queue
@@ -59,18 +68,30 @@ func (q *MissionQueue) EnqueueWithExtras(missionID string, priority int, trigger
 	})
 }
 
-func (q *MissionQueue) enqueueItem(item QueueItem) {
+func (q *MissionQueue) enqueueItem(item QueueItem) bool {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if item.RequiresOwner && q.running == item.MissionID {
+		return false
+	}
 
 	for _, existing := range q.items {
 		if existing.MissionID == item.MissionID {
-			return
+			return false
 		}
 	}
 
 	q.items = append(q.items, item)
+	if q.nonReplayable == nil {
+		q.nonReplayable = make(map[string]bool)
+	}
+	if item.RequiresOwner {
+		q.nonReplayable[item.MissionID] = true
+	} else {
+		delete(q.nonReplayable, item.MissionID)
+	}
 	q.sort()
+	return true
 }
 
 func prioFromString(p string) int {
@@ -96,6 +117,7 @@ func (q *MissionQueue) Dequeue() (QueueItem, bool) {
 	item := q.items[0]
 	q.items = q.items[1:]
 	q.running = item.MissionID
+	q.runningItem = item
 	return item, true
 }
 
@@ -112,6 +134,7 @@ func (q *MissionQueue) TryStartNext() (QueueItem, bool) {
 	item := q.items[0]
 	q.items = q.items[1:]
 	q.running = item.MissionID
+	q.runningItem = item
 	return item, true
 }
 
@@ -130,6 +153,7 @@ func (q *MissionQueue) Done() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.running = ""
+	q.runningItem = QueueItem{}
 }
 
 // GetRunning returns the ID of the currently running mission
@@ -165,6 +189,7 @@ func (q *MissionQueue) Restore(items []QueueItem, running string) {
 		q.items = append(q.items, item)
 	}
 	q.running = running
+	q.runningItem = QueueItem{}
 	q.sort()
 }
 
@@ -184,6 +209,9 @@ func (q *MissionQueue) Remove(missionID string) bool {
 
 	for i, item := range q.items {
 		if item.MissionID == missionID {
+			if item.releaseOwner != nil {
+				item.releaseOwner()
+			}
 			q.items = append(q.items[:i], q.items[i+1:]...)
 			return true
 		}

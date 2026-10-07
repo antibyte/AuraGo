@@ -65,8 +65,8 @@ func NewTaskRouteClient(cfg *config.Config, ordinary ChatClient, selected *confi
 	if fm, ok := ordinary.(*FailoverManager); ok {
 		fm.mu.RLock()
 		factory = fm.clientFactory
-		primary := taskRouteEntry{client: fm.primary, route: fm.primaryRoute}
-		fallback := taskRouteEntry{client: fm.fallback, route: fm.fallbackRoute}
+		primary := taskRouteEntry{client: WrapOpenAIClient(fm.primary), route: fm.primaryRoute}
+		fallback := taskRouteEntry{client: WrapOpenAIClient(fm.fallback), route: fm.fallbackRoute}
 		if fm.isOnFallback && fm.fallback != nil {
 			client.entries = append(client.entries, fallback)
 		}
@@ -96,7 +96,7 @@ func NewTaskRouteClient(cfg *config.Config, ordinary ChatClient, selected *confi
 		}
 		taskProviderClients.Unlock()
 		caps := ResolveProviderCapabilities(*selected, CapabilityFallback{})
-		client.entries = append([]taskRouteEntry{{client: targetClient, route: modelRouteFromConfig(view, false), capabilities: &caps}}, client.entries...)
+		client.entries = append([]taskRouteEntry{{client: WrapOpenAIClient(targetClient), route: modelRouteFromConfig(view, false), capabilities: &caps}}, client.entries...)
 	}
 	seen := map[string]bool{}
 	entries := client.entries[:0]
@@ -201,7 +201,7 @@ func (c *TaskRouteClient) CreateChatCompletion(ctx context.Context, req openai.C
 	}
 }
 
-func (c *TaskRouteClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *TaskRouteClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (CompletionStream, error) {
 	for index := 0; ; {
 		if err := ctx.Err(); err != nil {
 			return nil, err

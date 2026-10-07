@@ -1,4 +1,6 @@
     let desktopMediaKeysWired = false;
+    const webampMediaOwner = {};
+    const webampMediaHandlers = {};
 
     function webampMusicActive() {
         return !!(state.webampMusic && state.webampMusic.instance);
@@ -35,36 +37,27 @@
     function updateWebampMediaSessionMetadata() {
         if (!('mediaSession' in navigator) || !webampMusicActive()) return;
         try {
-            navigator.mediaSession.metadata = new MediaMetadata({
+            window.AuraDesktopMediaSession.claim(webampMediaOwner, { priority: 50, handlers: webampMediaHandlers, metadata: {
                 title: t('desktop.app_music_player'),
                 artist: 'AuraGo',
                 album: t('desktop.winamp_tracks')
-            });
+            } });
         } catch (_) { /* ignore metadata errors */ }
     }
 
     function bindDesktopMediaSessionAction(action, handler) {
         if (!('mediaSession' in navigator)) return;
         try {
-            navigator.mediaSession.setActionHandler(action, handler);
+            webampMediaHandlers[action] = handler;
         } catch (_) { /* unsupported action */ }
     }
 
     function clearDesktopMediaSessionHandlers() {
-        if (!('mediaSession' in navigator)) return;
-        ['play', 'pause', 'previoustrack', 'nexttrack', 'stop'].forEach(action => {
-            try {
-                navigator.mediaSession.setActionHandler(action, null);
-            } catch (_) { /* ignore */ }
-        });
-        try {
-            navigator.mediaSession.metadata = null;
-        } catch (_) { /* ignore */ }
+        window.AuraDesktopMediaSession.release(webampMediaOwner);
     }
 
     function refreshDesktopMediaSessionHandlers() {
         if (!('mediaSession' in navigator)) return;
-        if (window.PersonalRadioRuntime && window.PersonalRadioRuntime.active) return;
         if (!webampMusicActive()) {
             clearDesktopMediaSessionHandlers();
             return;

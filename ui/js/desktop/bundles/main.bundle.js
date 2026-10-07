@@ -248,6 +248,7 @@
         ws: null,
         chatBusy: false,
         startQuery: '',
+        startCategory: '',
         desktopFiles: [],
         iconManifest: null,
         iconThemeManifests: {},
@@ -366,6 +367,7 @@
         noisemaker: 'audio',
         radio: 'radio',
         'personal-radio': 'personal-radio',
+        'synth-studio': 'synth-studio',
         'rtl-sdr': 'rtl-sdr',
         bluetooth: 'bluetooth',
         openscad: 'openscad',
@@ -435,6 +437,7 @@
         ogg: 'audio',
         m4a: 'audio',
         opus: 'audio',
+        aurasynth: 'synth-studio',
         mp4: 'video',
         webm: 'video',
         mov: 'video',
@@ -814,6 +817,7 @@
     function appGlobalName(appId) {
         return {
             'personal-radio': 'PersonalRadioApp',
+            'synth-studio': 'SynthStudioApp',
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
@@ -1265,19 +1269,24 @@
 
     async function api(url, options) {
         const requestOptions = Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {});
-        const resp = await fetch(url, requestOptions);
-        const contentType = resp.headers.get('content-type') || '';
-        const shouldParseJSON = contentType.includes('application/json') || String(url).includes('.json');
-        const body = shouldParseJSON ? await resp.json() : {};
-        if (!resp.ok) {
-            const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
-            err.body = body;
-            err.status = resp.status;
-            const retryAfter = String(resp.headers.get('retry-after') || '');
-            if (resp.status === 429 && /^\s*\d+\s*$/.test(retryAfter)) err.retryAfter = Number(retryAfter);
-            throw err;
+        const mutation = prepareDesktopFileMutation(url, requestOptions);
+        for (;;) {
+            const resp = await fetch(url, requestOptions);
+            const contentType = resp.headers.get('content-type') || '';
+            const shouldParseJSON = requestOptions.method !== 'HEAD' && (contentType.includes('application/json') || String(url).includes('.json'));
+            const body = shouldParseJSON ? await resp.json() : {};
+            if (!resp.ok) {
+                if (await resolveDesktopFileConflict(mutation, requestOptions, body)) continue;
+                const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+                err.body = body;
+                err.status = resp.status;
+                const retryAfter = String(resp.headers.get('retry-after') || '');
+                if (resp.status === 429 && /^\s*\d+\s*$/.test(retryAfter)) err.retryAfter = Number(retryAfter);
+                throw err;
+            }
+            if (body && typeof body === 'object' && resp.headers.get('ETag')) body.version = resp.headers.get('ETag');
+            return body;
         }
-        return body;
     }
 
     function callAppDispose(app, windowId) {
@@ -1400,24 +1409,6 @@
         </div>`;
     }
 
-    function trapFocus(element) {
-        const focusable = element.querySelectorAll('button, input, select, textarea, [tabindex]:not(-1)');
-        if (!focusable.length) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        element.addEventListener('keydown', event => {
-            if (event.key !== 'Tab') return;
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            }
-        });
-        first.focus();
-    }
-
     // fetchBootstrapState loads bootstrap (+ desktop files) without rendering.
     // Used for parallel boot with icon manifests and for refresh paths.
     async function fetchBootstrapState() {
@@ -1509,7 +1500,11 @@
 
     function openStartMenu() {
         const menu = $('vd-start-menu'); if (!menu) return;
+        // Open clean: no stale search, and a fresh render so the recent group is current.
+        state.startQuery = ''; const search = $('vd-start-search'); if (search) search.value = '';
+        renderStartApps();
         menu.dataset.motionState = 'open'; menu.classList.remove('vd-start-menu-closing'); menu.hidden = false; menu.style.transform = '';
+        positionStartRailIndicator({ instant: true });
         runStartMenuMotion(menu, 'vd-start-menu-opening', isFruityTheme() ? 190 : 130);
         menu.classList.add('vd-start-menu-just-opened');
         window.clearTimeout(menu._justOpenedTimer);
@@ -2185,7 +2180,7 @@
     async function desktopSound(eventId, options) {
         options = options || {};
         if (options.silent || document.hidden) return;
-        if (options.sessionRestore) return;
+        if (options.sessionRestore || (typeof state !== 'undefined' && state.sessionRestoring)) return;
         if (!soundsEnabled() && !options.preview) return;
         const category = EVENT_CATEGORY[eventId];
         if (!categoryEnabled(category)) return;
@@ -2197,6 +2192,7 @@
         try {
             const themeId = options.theme || currentThemeId();
             await ensureBuffers(themeId);
+            if (document.hidden || (typeof state !== 'undefined' && state.sessionRestoring)) return;
             const buffer = cache.buffers[eventId] || cache.buffers['notify.info'];
             if (!buffer) return;
             const meta = cache.stats[eventId] || {};
@@ -3934,8 +3930,10 @@
     }
 
     async function handleTrashDropForIcons(icons) {
+        const paths = (icons || []).filter(icon => icon && icon.dataset.desktopEntry === 'true' && !isTrashIcon(icon)).map(icon => icon.dataset.path);
+        if (paths.length) await movePathsToTrash(paths);
         for (const icon of icons || []) {
-            if (icon && !isTrashIcon(icon)) await handleTrashDrop(icon);
+            if (icon && icon.dataset.desktopEntry !== 'true' && !isTrashIcon(icon)) await handleTrashDrop(icon);
         }
     }
 
@@ -4096,7 +4094,7 @@
 
     async function refreshSIPPhoneState() {
         try {
-            const appState = await sipPhoneRequest('/api/sip/app/state');
+            const appState = await sipPhoneRequest('/api/desktop/integrations/sip/app/state');
             const previousCall = sipPhoneShellState.appState && sipPhoneShellState.appState.active_call;
             sipPhoneShellState.appState = appState;
             const call = appState.active_call;
@@ -4145,7 +4143,7 @@
 
     function connectSIPPhoneEvents() {
         if (sipPhoneShellState.eventSource) sipPhoneShellState.eventSource.close();
-        const source = new EventSource('/api/sip/events', { withCredentials: true });
+        const source = new EventSource('/api/desktop/integrations/sip/events', { withCredentials: true });
         sipPhoneShellState.eventSource = source;
         source.addEventListener('open', () => {
             refreshSIPPhoneState();
@@ -4295,7 +4293,7 @@
             const offer = await pendingPeerConnection.createOffer();
             await pendingPeerConnection.setLocalDescription(offer);
             await waitForSIPPhoneICE(pendingPeerConnection);
-            const session = await sipPhoneRequest('/api/sip/browser-media/sessions', {
+            const session = await sipPhoneRequest('/api/desktop/integrations/sip/browser-media/sessions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -4325,7 +4323,7 @@
         sipPhoneEmit();
         try {
             await prepareSIPPhoneMedia();
-            const call = await sipPhoneRequest('/api/sip/calls', {
+            const call = await sipPhoneRequest('/api/desktop/integrations/sip/calls', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -4359,7 +4357,7 @@
         sipPhoneEmit();
         try {
             await prepareSIPPhoneMedia();
-            await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/answer', {
+            await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/answer', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -4386,7 +4384,7 @@
     async function rejectSIPPhone(callID) {
         const id = String(callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id) || '');
         if (!id) return;
-        await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/reject', { method: 'POST' });
+        await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/reject', { method: 'POST' });
         stopSIPPhoneRinging();
         removeSIPPhoneIncomingNotice();
         await refreshSIPPhoneState();
@@ -4395,7 +4393,7 @@
     async function hangupSIPPhone() {
         const id = sipPhoneShellState.callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id);
         if (id) {
-            await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/hangup', {
+            await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/hangup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: '{}'
@@ -4410,7 +4408,7 @@
     async function sendSIPPhoneDTMF(digit) {
         const id = sipPhoneShellState.callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id);
         if (!id || !/^[0-9*#ABCD]$/.test(String(digit || ''))) return;
-        await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/dtmf', {
+        await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/dtmf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ digit: String(digit) })
@@ -4608,7 +4606,7 @@
         const localStream = sipPhoneShellState.localStream;
         const remoteAudio = sipPhoneShellState.remoteAudio;
         if (deleteSession && sessionID) {
-            fetch('/api/sip/browser-media/sessions/' + encodeURIComponent(sessionID), {
+            fetch('/api/desktop/integrations/sip/browser-media/sessions/' + encodeURIComponent(sessionID), {
                 method: 'DELETE',
                 credentials: 'same-origin',
                 cache: 'no-store',
@@ -4796,7 +4794,7 @@
         removeSIPPhoneIncomingNotice();
         const callID = sipPhoneShellState.callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id);
         if (callID && sipPhoneShellState.peerConnection) {
-            fetch('/api/sip/calls/' + encodeURIComponent(callID) + '/hangup', {
+            fetch('/api/desktop/integrations/sip/calls/' + encodeURIComponent(callID) + '/hangup', {
                 method: 'POST',
                 credentials: 'same-origin',
                 keepalive: true,
@@ -5242,11 +5240,23 @@
     }
 
     function renderQuickChatWidget(container) {
+        let disposed = false;
+        let controller = null;
+        const stop = () => {
+            controller?.abort();
+            if (controller && state.quickChatOwner === controller) {
+                state.quickChatOwner = null;
+                state.chatBusy = false;
+            }
+        };
+        const onPolicy = event => { if (event.detail?.readonly || event.detail?.enabled === false) stop(); };
+        document.addEventListener('aurago:desktop-policy', onPolicy);
+        registerWidgetCleanup(() => { disposed = true; stop(); document.removeEventListener('aurago:desktop-policy', onPolicy); });
         container.innerHTML = `<div class="vd-quickchat vd-quickchat-collapsed">
             <div class="vd-quickchat-response"></div>
             <form class="vd-quickchat-form">
-                <input class="vd-quickchat-input" autocomplete="off" placeholder="${esc(t('desktop.chat_placeholder'))}">
-                <button class="vd-quickchat-send" type="submit">${iconMarkup('chat', 'S', 'vd-quickchat-send-icon', 14)}</button>
+                <input class="vd-quickchat-input" autocomplete="off" aria-label="${esc(t('desktop.chat_placeholder'))}" placeholder="${esc(t('desktop.chat_placeholder'))}">
+                <button class="vd-quickchat-send" type="submit" aria-label="${esc(t('desktop.send'))}">${iconMarkup('chat', 'S', 'vd-quickchat-send-icon', 14)}</button>
             </form>
         </div>`;
         const input = container.querySelector('.vd-quickchat-input');
@@ -5254,20 +5264,23 @@
         const wrapper = container.querySelector('.vd-quickchat');
         container.querySelector('form').addEventListener('submit', async (event) => {
             event.preventDefault();
-            if (state.chatBusy) return;
+            if (disposed || state.chatBusy || desktopReadonly()) return;
             const message = input.value.trim();
             if (!message) return;
             input.value = '';
             state.chatBusy = true;
+            controller = new AbortController();
+            const request = controller;
+            state.quickChatOwner = request;
             responseEl.textContent = t('desktop.thinking');
             responseEl.classList.add('vd-quickchat-active');
             wrapper.classList.remove('vd-quickchat-collapsed');
             try {
-                await sendQuickChatStream(responseEl, message);
+                await sendQuickChatStream(responseEl, message, request.signal);
             } catch (err) {
-                responseEl.textContent = err.message || t('desktop.quickchat_error');
+                if (!disposed && !request.signal.aborted) responseEl.textContent = t('desktop.quickchat_error');
             } finally {
-                state.chatBusy = false;
+                if (state.quickChatOwner === request) { state.chatBusy = false; state.quickChatOwner = null; }
             }
         });
     }
@@ -5289,35 +5302,46 @@
         }
     }
 
-    async function sendQuickChatStream(responseEl, message) {
+    async function sendQuickChatStream(responseEl, message, signal) {
         let streamingContent = '';
         let petAnnouncementText = '';
         let finalized = false;
         return new Promise((resolve, reject) => {
-            const ctrl = new AbortController();
+            let reader = null;
+            const onAbort = () => {
+                if (reader) reader.cancel().catch(() => {});
+                doReject(new DOMException('Chat cancelled', 'AbortError'));
+            };
+            signal.addEventListener('abort', onAbort, { once: true });
             function doFinalize() {
                 if (finalized) return;
                 finalized = true;
+                signal.removeEventListener('abort', onAbort);
+                if (signal.aborted || !responseEl.isConnected) { resolve(); return; }
                 announceQuickChatResponseToPet(petAnnouncementText || streamingContent);
                 resolve();
             }
             function doReject(err) {
                 if (finalized) return;
                 finalized = true;
+                signal.removeEventListener('abort', onAbort);
                 reject(err);
             }
+            if (signal.aborted) { onAbort(); return; }
             fetch('/api/desktop/chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message }),
-                signal: ctrl.signal
+                signal
             }).then(response => {
                 if (!response.ok) return response.text().then(text => { throw new Error(text || ('HTTP ' + response.status)); });
-                const reader = response.body.getReader();
+                reader = response.body.getReader();
+                if (signal.aborted || !responseEl.isConnected) { onAbort(); return; }
                 const decoder = new TextDecoder();
                 let buffer = '';
                 function processChunk() {
                     reader.read().then(({ done, value }) => {
+                        if (finalized || signal.aborted || !responseEl.isConnected) { onAbort(); return; }
                         if (done) { doFinalize(); return; }
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
@@ -5886,54 +5910,286 @@
         return appIsBroken(app) ? `<span class="vd-app-health" title="${esc(t('desktop.app_missing_entry'))}">!</span>` : '';
     }
 
-    function renderStartApps() {
-        const query = state.startQuery.trim().toLowerCase();
-        const allApps = startMenuApps();
-        const apps = allApps.filter(app => !query || appName(app).toLowerCase().includes(query));
-        const recentKey = 'aurago.desktop.recentApps.v1';
-        const recentIds = readJSONStorage(recentKey, []).slice(0, 5);
-        const recentApps = query ? [] : recentIds.map(id => allApps.find(app => app.id === id)).filter(Boolean);
-        const nonRecentApps = apps.filter(app => !recentApps.some(r => r.id === app.id));
+    // Start menu categories in rail order. Labels come from desktop.category_<id>; "installed"
+    // collects non-builtin apps without a known category. Mirrors desktop.DesktopAppCategories()
+    // in internal/desktop/types.go (TestDesktopStartMenuCategoriesStayInSync).
+    const START_MENU_CATEGORIES = [
+        { id: 'office', icon: 'writer' },
+        { id: 'media', icon: 'audio-player' },
+        { id: 'creative', icon: 'pixel' },
+        { id: 'ai', icon: 'agent-chat' },
+        { id: 'dev', icon: 'code' },
+        { id: 'system', icon: 'settings' },
+        { id: 'comms', icon: 'phone' },
+        { id: 'games', icon: 'chess' },
+        { id: 'installed', icon: 'software-store' }
+    ];
+    const START_CATEGORY_KEY = 'aurago.desktop.startCategory.v1';
+    const START_RECENT_KEY = 'aurago.desktop.recentApps.v1';
+    const START_HOVER_INTENT_MS = 140;
+    const START_SWITCH_MS = 420;
+    let startCategoryHoverTimer = 0;
+    let startPaneSwitchTimer = 0;
 
-        let html = '';
-        if (recentApps.length > 0) {
-            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps'))}</div>`;
-            html += recentApps.map((app, index) => `<button class="vd-start-item vd-start-recent-item" type="button" data-app-id="${esc(app.id)}" style="--start-index:${index}">
-                ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
-                <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
-            </button>`).join('');
-        }
-        const recentFiles = query ? [] : readRecentFiles().slice(0, 5);
-        if (recentFiles.length > 0) {
-            html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_files'))}</div>`;
-            html += recentFiles.map((entry, index) => `<button class="vd-start-item vd-start-recent-file" type="button" data-recent-path="${esc(entry.path)}" style="--start-index:${recentApps.length + index}">
-                ${iconMarkup('documents', entry.name.slice(0, 2), 'vd-sprite-start-item', 30)}
-                <span>${esc(entry.name)}</span>
-            </button>`).join('');
-        }
-        html += nonRecentApps.map((app, index) => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}" style="--start-index:${recentApps.length + index}">
+    function startAppCategory(app) {
+        const id = String((app && app.category) || '').toLowerCase();
+        if (id && id !== 'installed' && START_MENU_CATEGORIES.some(category => category.id === id)) return id;
+        return app && app.builtin ? 'system' : 'installed';
+    }
+
+    function startCategoryLabel(id) {
+        return id === 'recent' ? t('desktop.recent_apps') : t('desktop.category_' + id);
+    }
+
+    function startCategoryIcon(id) {
+        if (id === 'recent') return 'refresh';
+        if (id === 'all') return 'apps';
+        const category = START_MENU_CATEGORIES.find(entry => entry.id === id);
+        return category ? category.icon : 'apps';
+    }
+
+    function compareAppsByName(a, b) {
+        return appName(a).localeCompare(appName(b), undefined, { sensitivity: 'base' });
+    }
+
+    // Groups the visible apps per category and lists the rail entries that have content:
+    // "recent" only with history, "all", then every category with at least one app.
+    function startMenuModel() {
+        const allApps = startMenuApps();
+        const groups = new Map(START_MENU_CATEGORIES.map(category => [category.id, []]));
+        allApps.forEach(app => groups.get(startAppCategory(app)).push(app));
+        groups.forEach(list => list.sort(compareAppsByName));
+        const recentApps = readJSONStorage(START_RECENT_KEY, []).slice(0, 5).map(id => allApps.find(app => app.id === id)).filter(Boolean);
+        const recentFiles = readRecentFiles().slice(0, 5);
+        const rail = [];
+        if (recentApps.length || recentFiles.length) rail.push({ id: 'recent', count: 0 });
+        rail.push({ id: 'all', count: allApps.length });
+        START_MENU_CATEGORIES.forEach(category => {
+            const apps = groups.get(category.id);
+            if (apps.length) rail.push({ id: category.id, count: apps.length });
+        });
+        return { allApps, groups, recentApps, recentFiles, rail };
+    }
+
+    function activeStartCategory(model) {
+        const wanted = state.startCategory || String(readJSONStorage(START_CATEGORY_KEY, 'all') || 'all');
+        state.startCategory = model.rail.some(entry => entry.id === wanted) ? wanted : 'all';
+        return state.startCategory;
+    }
+
+    function startAppItemMarkup(app, index, extraClass) {
+        return `<button class="vd-start-item${extraClass ? ' ' + extraClass : ''}" type="button" data-app-id="${esc(app.id)}" style="--start-index:${Math.min(index, 16)}">
             ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
             <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
-        </button>`).join('');
+        </button>`;
+    }
 
-        $('vd-start-apps').innerHTML = html;
-        $('vd-start-apps').querySelectorAll('[data-app-id]').forEach(btn => {
+    function startFileItemMarkup(entry, index) {
+        return `<button class="vd-start-item vd-start-recent-file" type="button" data-recent-path="${esc(entry.path)}" style="--start-index:${Math.min(index, 16)}">
+            ${iconMarkup('documents', entry.name.slice(0, 2), 'vd-sprite-start-item', 30)}
+            <span>${esc(entry.name)}</span>
+        </button>`;
+    }
+
+    function startSectionMarkup(label, items) {
+        return `<section class="vd-start-section">${label ? `<div class="vd-start-recent-label vd-start-section-label">${esc(label)}</div>` : ''}<div class="vd-start-grid">${items}</div></section>`;
+    }
+
+    function startEmptyMarkup(text) {
+        return `<div class="vd-start-empty">${esc(text)}</div>`;
+    }
+
+    function renderStartRail(model, active) {
+        const rail = $('vd-start-rail');
+        if (!rail) return;
+        const firstCategory = model.rail.findIndex(entry => entry.id !== 'recent' && entry.id !== 'all');
+        let html = '<span class="vd-start-rail-indicator" aria-hidden="true"></span>';
+        model.rail.forEach((entry, index) => {
+            if (index === firstCategory) html += '<span class="vd-start-rail-separator" aria-hidden="true"></span>';
+            const label = startCategoryLabel(entry.id);
+            const selected = entry.id === active;
+            html += `<button class="vd-start-category" type="button" role="tab" data-category="${esc(entry.id)}" aria-selected="${selected ? 'true' : 'false'}" tabindex="${selected ? '0' : '-1'}" style="--start-index:${index}">
+                ${iconMarkup(startCategoryIcon(entry.id), label.slice(0, 1), 'vd-start-category-icon', 20)}
+                <span class="vd-start-category-label">${esc(label)}</span>
+                ${entry.count ? `<span class="vd-start-category-count">${entry.count}</span>` : ''}
+            </button>`;
+        });
+        rail.innerHTML = html;
+        rail.querySelectorAll('.vd-start-category').forEach(btn => {
+            const id = btn.dataset.category;
+            btn.addEventListener('click', () => selectStartCategory(id, { clearQuery: true }));
+            // Hover switches after a short intent delay (mouse only), so a diagonal move towards
+            // the pane does not flip through every category on the way.
+            btn.addEventListener('pointerenter', event => {
+                if (event.pointerType && event.pointerType !== 'mouse') return;
+                window.clearTimeout(startCategoryHoverTimer);
+                if (state.startQuery.trim()) return;
+                startCategoryHoverTimer = window.setTimeout(() => selectStartCategory(id), START_HOVER_INTENT_MS);
+            });
+            btn.addEventListener('pointerleave', () => window.clearTimeout(startCategoryHoverTimer));
+            btn.addEventListener('keydown', handleStartRailKeydown);
+        });
+        positionStartRailIndicator();
+    }
+
+    // The active category's pill slides along the rail (desktop-start-menu.css transitions its
+    // transform from --vd-rail-y); the horizontal mobile rail hides it.
+    function positionStartRailIndicator(options) {
+        const rail = $('vd-start-rail');
+        if (!rail) return;
+        const indicator = rail.querySelector('.vd-start-rail-indicator');
+        const active = rail.querySelector('.vd-start-category[aria-selected="true"]');
+        if (!indicator) return;
+        if (!active) { indicator.style.opacity = '0'; return; }
+        // Measuring needs layout: a hidden menu reports 0, so openStartMenu() positions again
+        // once the panel is visible, without the slide (instant).
+        const instant = !!(options && options.instant);
+        if (instant) indicator.style.transition = 'none';
+        rail.style.setProperty('--vd-rail-y', active.offsetTop + 'px');
+        rail.style.setProperty('--vd-rail-h', active.offsetHeight + 'px');
+        indicator.style.opacity = '';
+        if (instant) { void indicator.offsetWidth; indicator.style.transition = ''; }
+    }
+
+    function handleStartRailKeydown(event) {
+        const rail = $('vd-start-rail');
+        if (!rail) return;
+        const buttons = [...rail.querySelectorAll('.vd-start-category')];
+        const idx = buttons.indexOf(event.currentTarget);
+        if (idx < 0) return;
+        let next = -1;
+        if (event.key === 'ArrowDown') next = Math.min(buttons.length - 1, idx + 1);
+        else if (event.key === 'ArrowUp') next = Math.max(0, idx - 1);
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = buttons.length - 1;
+        else if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            event.stopPropagation();
+            selectStartCategory(buttons[idx].dataset.category, { clearQuery: true });
+            const first = $('vd-start-apps').querySelector('.vd-start-item');
+            if (first) first.focus();
+            return;
+        } else return;
+        event.preventDefault();
+        event.stopPropagation();
+        selectStartCategory(buttons[next].dataset.category, { focus: true, clearQuery: true });
+    }
+
+    function focusStartCategory(id) {
+        const rail = $('vd-start-rail');
+        const btn = rail && [...rail.querySelectorAll('.vd-start-category')].find(entry => entry.dataset.category === id);
+        if (btn) btn.focus();
+    }
+
+    // Switching only re-renders the pane; the rail keeps its buttons, hover and focus.
+    function selectStartCategory(id, options) {
+        options = options || {};
+        window.clearTimeout(startCategoryHoverTimer);
+        let leavingSearch = false;
+        if (options.clearQuery && state.startQuery.trim()) {
+            // Leaving a search keeps the rail (and the clicked button) in place; only the pane changes.
+            state.startQuery = '';
+            const search = $('vd-start-search');
+            if (search) search.value = '';
+            const menu = $('vd-start-menu');
+            if (menu) menu.classList.remove('vd-start-searching');
+            leavingSearch = true;
+        }
+        const model = startMenuModel();
+        if (!model.rail.some(entry => entry.id === id)) return;
+        const changed = state.startCategory !== id || leavingSearch;
+        state.startCategory = id;
+        writeJSONStorage(START_CATEGORY_KEY, id);
+        const rail = $('vd-start-rail');
+        if (rail) rail.querySelectorAll('.vd-start-category').forEach(btn => {
+            const on = btn.dataset.category === id;
+            btn.setAttribute('aria-selected', on ? 'true' : 'false');
+            btn.tabIndex = on ? 0 : -1;
+        });
+        positionStartRailIndicator();
+        if (changed) renderStartPane(model, id, { switching: true });
+        if (options.focus) focusStartCategory(id);
+    }
+
+    function playStartPaneSwitch(head, host) {
+        if (!animationsEnabled()) return;
+        window.clearTimeout(startPaneSwitchTimer);
+        [head, host].forEach(el => {
+            if (!el) return;
+            el.classList.remove('vd-start-pane-switching');
+            void el.offsetWidth;
+            el.classList.add('vd-start-pane-switching');
+        });
+        startPaneSwitchTimer = window.setTimeout(() => [head, host].forEach(el => el && el.classList.remove('vd-start-pane-switching')), START_SWITCH_MS);
+    }
+
+    function renderStartPane(model, active, options) {
+        const head = $('vd-start-pane-head');
+        const host = $('vd-start-apps');
+        if (!host) return;
+        const query = state.startQuery.trim().toLowerCase();
+        let title = '';
+        let count = 0;
+        let html = '';
+        if (query) {
+            const matches = model.allApps.filter(app => appName(app).toLowerCase().includes(query)).sort(compareAppsByName);
+            title = t('desktop.start_results');
+            count = matches.length;
+            html = matches.length ? startSectionMarkup('', matches.map((app, index) => startAppItemMarkup(app, index)).join('')) : startEmptyMarkup(t('desktop.start_no_results'));
+        } else if (active === 'recent') {
+            title = t('desktop.recent_apps');
+            count = model.recentApps.length + model.recentFiles.length;
+            if (model.recentApps.length) html += startSectionMarkup(t('desktop.recent_apps'), model.recentApps.map((app, index) => startAppItemMarkup(app, index, 'vd-start-recent-item')).join(''));
+            if (model.recentFiles.length) html += startSectionMarkup(t('desktop.recent_files'), model.recentFiles.map((entry, index) => startFileItemMarkup(entry, model.recentApps.length + index)).join(''));
+            if (!html) html = startEmptyMarkup(t('desktop.start_category_empty'));
+        } else if (active === 'all') {
+            title = t('desktop.category_all');
+            count = model.allApps.length;
+            let index = 0;
+            html = START_MENU_CATEGORIES.map(category => {
+                const apps = model.groups.get(category.id);
+                if (!apps.length) return '';
+                return startSectionMarkup(startCategoryLabel(category.id), apps.map(app => startAppItemMarkup(app, index++)).join(''));
+            }).join('');
+        } else {
+            const apps = model.groups.get(active) || [];
+            title = startCategoryLabel(active);
+            count = apps.length;
+            html = apps.length ? startSectionMarkup('', apps.map((app, index) => startAppItemMarkup(app, index)).join('')) : startEmptyMarkup(t('desktop.start_category_empty'));
+        }
+        if (head) head.innerHTML = `<span class="vd-start-pane-title">${esc(title)}</span>${count ? `<span class="vd-start-pane-count">${count}</span>` : ''}`;
+        host.innerHTML = html;
+        host.scrollTop = 0;
+        wireStartPaneItems(host);
+        if (options && options.switching) playStartPaneSwitch(head, host);
+    }
+
+    function wireStartPaneItems(host) {
+        host.querySelectorAll('[data-app-id]').forEach(btn => {
             btn.addEventListener('click', () => {
                 closeStartMenu();
                 const appId = btn.dataset.appId;
-                const recent = readJSONStorage(recentKey, []);
-                const updated = [appId, ...recent.filter(id => id !== appId)].slice(0, 5);
-                writeJSONStorage(recentKey, updated);
+                const recent = readJSONStorage(START_RECENT_KEY, []);
+                writeJSONStorage(START_RECENT_KEY, [appId, ...recent.filter(id => id !== appId)].slice(0, 5));
                 openApp(appId);
             });
             btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
-         });
-        $('vd-start-apps').querySelectorAll('[data-recent-path]').forEach(btn => {
+        });
+        host.querySelectorAll('[data-recent-path]').forEach(btn => {
             btn.addEventListener('click', () => {
                 closeStartMenu();
                 openDesktopPath(btn.dataset.recentPath);
             });
         });
+    }
+
+    function renderStartApps(options) {
+        const model = startMenuModel();
+        const active = activeStartCategory(model);
+        const menu = $('vd-start-menu');
+        if (menu) menu.classList.toggle('vd-start-searching', !!state.startQuery.trim());
+        renderStartRail(model, active);
+        renderStartPane(model, active, options);
     }
 
     function renderTaskbar() {
@@ -6259,12 +6515,12 @@
     }
 
     function matchesExistingAppWindow(win, appId, context) {
-        if (win.appId !== appId) return false;
-        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes') && context && context.path != null) {
+        if (win.appId !== appId || appId === 'quick-connect') return false;
+        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }
-        return appId !== 'editor' && appId !== 'writer' && appId !== 'sheets';
+        return !['editor', 'writer', 'sheets', 'synth-studio'].includes(appId);
     }
 
     function findExistingAppWindow(appId, context) {
@@ -6412,7 +6668,7 @@
                 if (window.FileManager && typeof window.FileManager.navigateTo === 'function') window.FileManager.navigateTo(existing.id, context.path);
                 else renderFiles(existing.id, context.path);
             }
-            if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content || '');
+            if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content);
             if (appId === 'writer' && context && context.path != null && window.WriterApp && window.WriterApp.instances.has(existing.id)) window.WriterApp.instances.get(existing.id).reloadIfChanged();
             if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openPath === 'function') window.CodeStudio.openPath(context.path, true, existing.id);
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
@@ -6521,7 +6777,7 @@
         const windowContext = Object.assign({}, context || {});
         if (windowContext.sessionRestore) delete windowContext.sessionRestore;
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
-        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
+        state.windows.set(id, { id, sessionKey: sessionRestore?.key || id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', 240);
         if (!sessionRestore) desktopSound('window.open');
@@ -6529,7 +6785,10 @@
         else if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
         if (sessionRestore && sessionRestore.z) win.style.zIndex = String(sessionRestore.z);
         focusWindow(id);
-        if (sessionRestore && sessionRestore.minimized) minimizeWindow(id);
+        if (sessionRestore && sessionRestore.minimized) {
+            win.style.display = 'none';
+            if (state.activeWindowId === id) state.activeWindowId = '';
+        }
         applySpaceVisibility();
         renderAppContent(id, appId, windowContext);
         if (!sessionRestore && windowContext.path) recordRecentFile(windowContext.path, appId, windowContext.pathKind);
@@ -7200,12 +7459,8 @@ function wireWindow(win, id) {
     }
 
     function applyWindowSnap(win, zone) {
-        const workspace = $('vd-workspace') || document.body;
-        const ww = workspace.clientWidth;
-        let wh = workspace.clientHeight;
-        const taskbar = document.querySelector('.vd-taskbar');
-        const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
-        wh = Math.max(1, wh - taskbarReserve);
+        const limits = windowLayoutLimits(win);
+        const ww = limits.width, wh = limits.height;
         const positions = {
             'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
             'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
@@ -7230,10 +7485,12 @@ function wireWindow(win, id) {
             }
             item.restoreBounds = windowBounds(win);
             item.snapped = zone;
-            win.style.left = p.left + 'px';
-            win.style.top = p.top + 'px';
-            win.style.width = Math.max(WINDOW_MIN_W, p.width) + 'px';
-            win.style.height = Math.max(WINDOW_MIN_H, p.height) + 'px';
+            const width = Math.min(ww, Math.max(limits.minWidth, p.width));
+            const height = Math.min(wh, Math.max(limits.minHeight, p.height));
+            win.style.left = Math.min(p.left, ww - width) + 'px';
+            win.style.top = Math.min(p.top, wh - height) + 'px';
+            win.style.width = width + 'px';
+            win.style.height = height + 'px';
         });
         desktopSound('window.snap');
         scheduleFruityDockOcclusionCheck();
@@ -7358,12 +7615,12 @@ function wireWindow(win, id) {
                 item.maximized = false;
             } else {
                 item.restoreBounds = windowBounds(win);
-                const bounds = workspaceBoundsForWindow();
+                const bounds = windowLayoutLimits(win);
                 win.classList.add('maximized');
                 win.style.left = '0';
                 win.style.top = '0';
-                win.style.width = Math.max(WINDOW_MIN_W, bounds.width) + 'px';
-                win.style.height = Math.max(WINDOW_MIN_H, bounds.height) + 'px';
+                win.style.width = bounds.width + 'px';
+                win.style.height = bounds.height + 'px';
                 item.maximized = true;
             }
         });
@@ -7425,28 +7682,30 @@ function wireWindow(win, id) {
         });
     }
 
-    function applyResize(win, edge, start, dx, dy) {
+    function windowLayoutLimits(win) {
         const workspace = workspaceBoundsForWindow();
-        const minWidth = parseFloat(win.style.minWidth) || WINDOW_MIN_W;
-        const minHeight = parseFloat(win.style.minHeight) || WINDOW_MIN_H;
-        let left = start.left;
-        let top = start.top;
-        let width = start.width;
-        let height = start.height;
-        if (edge.includes('e')) width = Math.max(minWidth, start.width + dx);
-        if (edge.includes('s')) height = Math.max(minHeight, start.height + dy);
-        if (edge.includes('w')) {
-            width = Math.max(minWidth, start.width - dx);
-            left = start.left + (start.width - width);
-        }
-        if (edge.includes('n')) {
-            height = Math.max(minHeight, start.height - dy);
-            top = start.top + (start.height - height);
-        }
-        left = Math.max(8, Math.min(left, workspace.width - 80));
-        top = Math.max(8, Math.min(top, workspace.height - 80));
-        width = Math.min(width, workspace.width - left - 8);
-        height = Math.min(height, workspace.height - top - 8);
+        const minimum = appWindowMinSize(win.dataset.appId);
+        const minWidth = Math.min(workspace.width, minimum.width || WINDOW_MIN_W);
+        const minHeight = Math.min(workspace.height, minimum.height || WINDOW_MIN_H);
+        win.style.minWidth = minWidth + 'px';
+        win.style.minHeight = minHeight + 'px';
+        return { ...workspace, minWidth, minHeight };
+    }
+
+    function applyResize(win, edge, start, dx, dy) {
+        const limits = windowLayoutLimits(win);
+        const axis = (origin, size, delta, backwards, forwards, minimum, available) => {
+            const clamp = (value, low, high) => Math.max(low, Math.min(value, high));
+            if (backwards) {
+                const end = clamp(origin + size, minimum, available);
+                const begin = clamp(origin + delta, 0, end - minimum);
+                return [begin, end - begin];
+            }
+            const begin = clamp(origin, 0, available - minimum);
+            return [begin, clamp(size + (forwards ? delta : 0), minimum, available - begin)];
+        };
+        const [left, width] = axis(start.left, start.width, dx, edge.includes('w'), edge.includes('e'), limits.minWidth, limits.width);
+        const [top, height] = axis(start.top, start.height, dy, edge.includes('n'), edge.includes('s'), limits.minHeight, limits.height);
         win.style.left = left + 'px';
         win.style.top = top + 'px';
         win.style.width = width + 'px';
@@ -7999,7 +8258,7 @@ function wireWindow(win, id) {
 
     async function fileDialogList(path, options) {
         const endpoint = options.filesEndpoint || '/api/desktop/files';
-        const body = await api(endpoint + '?path=' + encodeURIComponent(normalizeFileDialogPath(path)));
+        const body = await api(endpoint + '?path=' + encodeURIComponent(normalizeFileDialogPath(path)), options.signal ? { signal: options.signal } : undefined);
         return fileDialogSortEntries(Array.isArray(body.files) ? body.files : []);
     }
 
@@ -8263,19 +8522,22 @@ function wireWindow(win, id) {
                     filenameInput.focus();
                     return;
                 }
-                const path = fileDialogJoinPath(currentPath, filename);
-                if (!(await confirmOverwrite(path, options))) return;
+                let path = fileDialogJoinPath(currentPath, filename);
                 if (settled) return;
                 if (typeof options.content === 'string') {
                     saving = true;
                     confirmButton.disabled = true;
                     overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => { btn.disabled = true; });
                     setStatus(fileDialogText('desktop.loading', 'Loading...'));
-                    try { await api(options.fileEndpoint || '/api/desktop/file', {
+                    try { const saved = await api(options.fileEndpoint || '/api/desktop/file', {
                         method: 'PUT',
+                        signal: options.signal,
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ path, content: options.content })
-                    }); } finally {
+                    });
+                        if (options.signal && options.signal.aborted) return;
+                        path = saved.path || path;
+                    } finally {
                         saving = false;
                         confirmButton.disabled = false;
                         overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => { btn.disabled = false; });
@@ -8303,6 +8565,7 @@ function wireWindow(win, id) {
             if (settled) return;
             settled = true;
             document.removeEventListener('keydown', onKeydown);
+            if (options.signal) options.signal.removeEventListener('abort', onAbort);
             overlay.remove();
             resolveDialog(result);
         }
@@ -8310,8 +8573,13 @@ function wireWindow(win, id) {
         let resolveDialog;
         const promise = new Promise(resolve => { resolveDialog = resolve; });
         const cancel = () => { if (!saving) finish({ canceled: true }); };
+        const onAbort = () => finish({ canceled: true });
         const onKeydown = event => { if (event.key === 'Escape') cancel(); };
         document.addEventListener('keydown', onKeydown);
+        if (options.signal) {
+            if (options.signal.aborted) onAbort();
+            else options.signal.addEventListener('abort', onAbort, { once: true });
+        }
         overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => btn.addEventListener('click', cancel));
         overlay.addEventListener('click', event => { if (event.target === overlay) cancel(); });
         form.addEventListener('submit', event => {
@@ -8361,9 +8629,11 @@ function wireWindow(win, id) {
                 if (settled) return;
                 settled = true;
                 window.removeEventListener('focus', onFocus);
+                if (options.signal) options.signal.removeEventListener('abort', onAbort);
                 input.remove();
                 resolve(result);
             };
+            const onAbort = () => finish({ canceled: true });
             const onFocus = () => {
                 window.setTimeout(() => {
                     if (!settled && (!input.files || !input.files.length)) finish({ canceled: true });
@@ -8378,12 +8648,16 @@ function wireWindow(win, id) {
                 try {
                     const uploaded = [];
                     for (const file of files) {
+                        if (options.signal && options.signal.aborted) throw new DOMException('Aborted', 'AbortError');
                         const form = new FormData();
                         form.append('path', normalizeFileDialogPath(options.path || options.initialPath || state.filesPath || 'Documents'));
                         form.append('file', file);
-                        await api(options.uploadURL || options.uploadEndpoint || '/api/desktop/upload', { method: 'POST', body: form });
-                        uploaded.push({ name: file.name, path: fileDialogJoinPath(options.path || options.initialPath || state.filesPath || 'Documents', file.name), size: file.size, type: file.type });
+                        const saved = await api(options.uploadURL || options.uploadEndpoint || '/api/desktop/upload', { method: 'POST', body: form, signal: options.signal });
+                        if (options.signal && options.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+                        const path = saved.path || fileDialogJoinPath(options.path || options.initialPath || state.filesPath || 'Documents', file.name);
+                        uploaded.push({ name: fileDialogBaseName(path), path, version: saved.version, size: file.size, type: file.type });
                     }
+                    if (options.signal && options.signal.aborted) return finish({ canceled: true });
                     if (typeof loadBootstrap === 'function') loadBootstrap().catch(() => {});
                     finish({ canceled: false, files: uploaded, paths: uploaded.map(item => item.path) });
                 } catch (err) {
@@ -8392,6 +8666,10 @@ function wireWindow(win, id) {
                 }
             }, { once: true });
             window.addEventListener('focus', onFocus);
+            if (options.signal) {
+                if (options.signal.aborted) onAbort();
+                else options.signal.addEventListener('abort', onAbort, { once: true });
+            }
             input.click();
         });
     }
@@ -8416,6 +8694,160 @@ function wireWindow(win, id) {
         importHostFiles,
         exportWorkspaceFile
     };
+
+;
+/* ui/js/desktop/core/file-conflict-runtime.js */
+    // Versions belong to the editor/SDK client that read the bytes, never to a
+    // global path cache (another window may have read a newer revision).
+    function prepareDesktopFileMutation(url, options) {
+        const endpoint = String(url).split('?')[0];
+        const method = String(options.method || 'GET').toUpperCase();
+        let field = '';
+        if (endpoint === '/api/desktop/file' && method === 'PUT') field = 'path';
+        if (endpoint === '/api/desktop/file' && method === 'PATCH') field = 'new_path';
+        if (endpoint === '/api/desktop/copy' && method === 'POST') field = 'dest_path';
+        if (endpoint === '/api/pixel/save' && method === 'POST') field = 'path';
+        const trash = endpoint === '/api/desktop/trash' && method === 'POST';
+        const upload = endpoint === '/api/desktop/upload' && method === 'POST' && options.body instanceof FormData;
+        if (!field && !upload && !trash) return null;
+        const headers = new Headers(options.headers || {});
+        if (!headers.has('If-Match') && !headers.has('If-None-Match')) headers.set('If-None-Match', '*');
+        options.headers = headers;
+        const body = upload ? options.body : JSON.parse(options.body || '{}');
+        const file = upload ? body.get('file') : null;
+        const originalPath = upload ? workspaceJoinPath(body.get('path') || '', file.name) : body[field];
+        return { body, file, field, upload, trash, originalPath, copy: 0, copying: false };
+    }
+
+    async function resolveDesktopFileConflict(mutation, options, body) {
+        if (!mutation || !['file_conflict', 'directory_conflict'].includes(body.code)) return false;
+        if (options.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        const conflict = body.conflict || {};
+        const decision = mutation.copying ? 'copy' : await modalDialog({
+            title: t('desktop.file_conflict_title'),
+            message: t('desktop.file_conflict_message').replace('{{path}}', conflict.path || mutation.originalPath),
+            signal: options.signal,
+            choices: [
+                { value: 'replace', label: t('desktop.file_conflict_replace'), disabled: !conflict.version },
+                { value: 'copy', label: t('desktop.file_conflict_copy') }
+            ]
+        });
+        if (!decision) throw new DOMException('Cancelled', 'AbortError');
+        if (mutation.trash) {
+            mutation.body.resolutions ||= {};
+            mutation.body.resolutions[conflict.source] = decision === 'replace'
+                ? { version: String(conflict.version) }
+                : { copy: true };
+            options.body = JSON.stringify(mutation.body);
+            return true;
+        }
+        options.headers.delete('If-Match');
+        options.headers.delete('If-None-Match');
+        if (decision === 'replace' && conflict.version) {
+            options.headers.set('If-Match', conflict.version);
+        } else {
+            // Only retry a create-only copy, never an uncertain mutation or an
+            // overwrite. Each occupied candidate is rejected by the server.
+            if (++mutation.copy > 999) return false;
+            mutation.copying = true;
+            const path = mutation.originalPath;
+            const name = pathBaseName(path);
+            const dot = name.lastIndexOf('.');
+            const copyName = dot > 0 ? name.slice(0, dot) + ' (' + mutation.copy + ')' + name.slice(dot) : name + ' (' + mutation.copy + ')';
+            if (mutation.upload) mutation.body.set('file', mutation.file, copyName);
+            else mutation.body[mutation.field] = workspaceJoinPath(pathDir(path), copyName);
+            options.headers.set('If-None-Match', '*');
+        }
+        options.body = mutation.upload ? mutation.body : JSON.stringify(mutation.body);
+        return true;
+    }
+
+;
+/* ui/js/desktop/core/print-runtime.js */
+(function () {
+    'use strict';
+    if (window.AuraDesktopPrint) return;
+
+    // Parent-owned printing: the document can load images/fonts but never run
+    // scripts, submit forms or navigate its parent. Keep sanitization at callers.
+    async function create({ html, title = '', className = 'vd-print-frame', failureMessage = 'desktop.print_failed', signal } = {}) {
+        const frame = document.createElement('iframe');
+        frame.className = className;
+        frame.title = title;
+        frame.setAttribute('sandbox', 'allow-same-origin allow-modals');
+        let timer = 0, disposed = false;
+        let rejectLoad;
+        const dispose = () => {
+            if (disposed) return;
+            disposed = true;
+            window.clearTimeout(timer);
+            signal?.removeEventListener('abort', dispose);
+            frame.remove();
+            rejectLoad?.(new DOMException('Print cancelled', 'AbortError'));
+        };
+        if (signal?.aborted) throw new DOMException('Print cancelled', 'AbortError');
+        signal?.addEventListener('abort', dispose, { once: true });
+        const loaded = new Promise((resolve, reject) => {
+            rejectLoad = reject;
+            frame.addEventListener('load', resolve, { once: true });
+            timer = window.setTimeout(() => { reject(new Error(failureMessage)); dispose(); }, 15000);
+        });
+        frame.srcdoc = html || '<!doctype html><html><head></head><body></body></html>';
+        document.body.appendChild(frame);
+        try { await loaded; } catch (error) { dispose(); throw error; }
+        rejectLoad = null;
+        window.clearTimeout(timer);
+        const doc = frame.contentDocument;
+        const print = async () => {
+            if (disposed || signal?.aborted) throw new DOMException('Print cancelled', 'AbortError');
+            let readyTimer;
+            try {
+                await Promise.race([
+                    Promise.all([doc.fonts?.ready, ...Array.from(doc.images, image => image.decode().catch(() => {}))]),
+                    new Promise((_, reject) => { rejectLoad = reject; readyTimer = window.setTimeout(() => reject(new Error(failureMessage)), 15000); })
+                ]);
+                if (disposed || signal?.aborted) throw new DOMException('Print cancelled', 'AbortError');
+                frame.contentWindow.addEventListener('afterprint', dispose, { once: true });
+                timer = window.setTimeout(dispose, 60000);
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+            } catch (error) { dispose(); throw error; }
+            finally { rejectLoad = null; window.clearTimeout(readyTimer); }
+        };
+        return { frame, document: doc, print, dispose };
+    }
+
+    async function printHTML(options) { const job = await create(options); await job.print(); }
+    window.AuraDesktopPrint = { create, printHTML };
+})();
+
+;
+/* ui/js/desktop/core/media-session-runtime.js */
+(function () {
+    'use strict';
+    const owners = new Map();
+    const actions = new Set(['play', 'pause', 'stop', 'previoustrack', 'nexttrack', 'seekbackward', 'seekforward', 'seekto']);
+    let sequence = 0;
+    function render() {
+        if (!('mediaSession' in navigator)) return;
+        const selected = [...owners.values()].sort((a, b) => b.priority - a.priority || b.order - a.order)[0];
+        for (const action of actions) {
+            try { navigator.mediaSession.setActionHandler(action, selected?.handlers?.[action] || null); } catch (_) { /* unsupported action */ }
+        }
+        try { navigator.mediaSession.metadata = selected?.metadata ? new MediaMetadata(selected.metadata) : null; } catch (_) { /* unsupported metadata */ }
+        try { navigator.mediaSession.playbackState = selected?.playbackState || 'none'; } catch (_) { /* unsupported state */ }
+    }
+    window.AuraDesktopMediaSession = Object.freeze({
+        claim(owner, options) {
+            if (!owner) return;
+            const prior = owners.get(owner);
+            owners.set(owner, { ...options, priority: options.priority || 0, order: options.activate ? ++sequence : (prior?.order || ++sequence) });
+            Object.keys(options.handlers || {}).forEach(action => actions.add(action));
+            render();
+        },
+        release(owner) { if (owners.delete(owner)) render(); }
+    });
+})();
 
 ;
 /* ui/js/desktop/core/session-runtime.js */
@@ -8504,6 +8936,7 @@ function wireWindow(win, id) {
             if (!el) return;
             const bounds = (item.maximized && item.restoreBounds) || el.style;
             windows.push({
+                key: item.sessionKey || item.id,
                 appId: item.appId,
                 left: parseInt(bounds.left, 10) || 0,
                 top: parseInt(bounds.top, 10) || 0,
@@ -8520,6 +8953,7 @@ function wireWindow(win, id) {
         return {
             version: 2,
             activeSpaceId: normalizeSpaceId(state.activeSpaceId),
+            activeWindowKey: state.windows.get(state.activeWindowId)?.sessionKey || state.activeWindowId || '',
             windows
         };
     }
@@ -8567,40 +9001,44 @@ function wireWindow(win, id) {
         restoreActiveSpaceFromSnapshot(snapshot);
         renderSpacePager();
         const sorted = snapshot.windows.slice().sort((a, b) => (a.z || 0) - (b.z || 0));
-        for (let i = 0; i < sorted.length; i++) {
-            const entry = sorted[i];
-            if (!entry || !entry.appId || SESSION_SKIP_APP_IDS.has(entry.appId)) continue;
-            if (!appById(entry.appId)) continue;
-            const ctx = Object.assign({}, sanitizeSessionContext(entry.context), {
-                forceNew: true,
-                sessionRestore: {
-                    left: entry.left,
-                    top: entry.top,
-                    width: entry.width,
-                    height: entry.height,
-                    maximized: !!entry.maximized,
-                    minimized: !!entry.minimized,
-                    z: entry.z || 0,
-                    spaceId: entry.spaceId,
-                    alwaysOnTop: !!entry.alwaysOnTop,
-                    active: i === sorted.length - 1
-                }
-            });
-            openApp(entry.appId, ctx);
-            await new Promise(resolve => window.setTimeout(resolve, 60));
-        }
-        state.sessionRestoring = false;
-        applySpaceVisibility();
-        const visibleOnSpace = taskbarWindows().filter(win => win.element && win.element.style.display !== 'none');
-        if (visibleOnSpace.length) {
-            const top = visibleOnSpace.reduce((best, win) => {
-                const z = parseInt(win.element.style.zIndex, 10) || 0;
-                const bestZ = parseInt(best.element.style.zIndex, 10) || 0;
-                return z >= bestZ ? win : best;
-            });
-            focusWindow(top.id);
-        } else {
-            state.activeWindowId = '';
+        try {
+            for (let i = 0; i < sorted.length; i++) {
+                const entry = sorted[i];
+                if (!entry || !entry.appId || SESSION_SKIP_APP_IDS.has(entry.appId)) continue;
+                if (!appById(entry.appId)) continue;
+                const ctx = Object.assign({}, sanitizeSessionContext(entry.context), {
+                    forceNew: true,
+                    sessionRestore: {
+                        key: typeof entry.key === 'string' ? entry.key : '',
+                        left: entry.left,
+                        top: entry.top,
+                        width: entry.width,
+                        height: entry.height,
+                        maximized: !!entry.maximized,
+                        minimized: !!entry.minimized,
+                        z: entry.z || 0,
+                        spaceId: entry.spaceId,
+                        alwaysOnTop: !!entry.alwaysOnTop,
+                    }
+                });
+                openApp(entry.appId, ctx);
+                await new Promise(resolve => window.setTimeout(resolve, 60));
+            }
+            applySpaceVisibility();
+            const visibleOnSpace = taskbarWindows().filter(win => win.element && win.element.style.display !== 'none');
+            if (visibleOnSpace.length) {
+                const top = visibleOnSpace.reduce((best, win) => {
+                    const z = parseInt(win.element.style.zIndex, 10) || 0;
+                    const bestZ = parseInt(best.element.style.zIndex, 10) || 0;
+                    return z >= bestZ ? win : best;
+                });
+                const active = visibleOnSpace.find(win => snapshot.activeWindowKey && win.sessionKey === snapshot.activeWindowKey);
+                focusWindow((active || top).id);
+            } else {
+                state.activeWindowId = '';
+            }
+        } finally {
+            state.sessionRestoring = false;
         }
         scheduleSessionPersist();
     }
@@ -8849,7 +9287,6 @@ function wireWindow(win, id) {
     function refreshSpacesForViewport() {
         if (!spacesEnabled() && isSpacesOverviewOpen()) closeSpacesOverview();
         renderSpacePager();
-        if (!spacesEnabled()) state.activeSpaceId = DEFAULT_SPACE_ID;
         applyActiveSpaceWallpaper();
         applySpaceVisibility();
         renderTaskbar();
@@ -9156,9 +9593,13 @@ function wireWindow(win, id) {
         updateNotificationBadge();
     }
 
-    function closeNotificationCenter() {
+    function closeNotificationCenter(restoreFocus = false) {
         const panel = document.getElementById('vd-notification-center');
-        if (panel) panel.hidden = true;
+        if (panel) {
+            panel.hidden = true;
+            panel._returnFocus?.setAttribute('aria-expanded', 'false');
+            if (restoreFocus && panel._returnFocus?.isConnected) panel._returnFocus.focus();
+        }
     }
 
     function renderNotificationCenter() {
@@ -9168,8 +9609,14 @@ function wireWindow(win, id) {
             panel.id = 'vd-notification-center';
             panel.className = 'vd-notification-center';
             panel.hidden = true;
+            panel.setAttribute('role', 'dialog');
+            panel.tabIndex = -1;
+            panel.addEventListener('keydown', event => {
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeNotificationCenter(true); }
+            });
             document.body.appendChild(panel);
         }
+        panel.setAttribute('aria-label', t('desktop.notifications_title'));
         const items = state.notificationHistory || [];
         const list = items.length
             ? items.map(entry => `<button type="button" class="vd-notification-item${entry.read ? '' : ' unread'}" data-notification-id="${esc(entry.id)}" data-app-id="${esc(entry.appId || '')}">
@@ -9211,11 +9658,28 @@ function wireWindow(win, id) {
             return;
         }
         panel.hidden = false;
+        panel._returnFocus = anchor || document.activeElement;
+        panel._returnFocus?.setAttribute('aria-expanded', 'true');
+        panel.focus();
         desktopSound('menu.open');
         markAllNotificationsRead();
-        if (anchor && anchor.getBoundingClientRect) {
-            const rect = anchor.getBoundingClientRect();
-            panel.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+        placeTrayPopover(panel, anchor);
+    }
+
+    // Tray popovers open away from their bar: below an anchor in the upper half of the viewport
+    // (the Fruity menubar), above it otherwise. The placement also steers the entrance motion in
+    // desktop-polish.css.
+    function placeTrayPopover(panel, anchor) {
+        if (!panel || !anchor || !anchor.getBoundingClientRect) return;
+        const rect = anchor.getBoundingClientRect();
+        const below = rect.top + rect.height / 2 < window.innerHeight / 2;
+        panel.dataset.placement = below ? 'below' : 'above';
+        panel.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+        if (below) {
+            panel.style.bottom = '';
+            panel.style.top = Math.round(rect.bottom + 8) + 'px';
+        } else {
+            panel.style.top = '';
             panel.style.bottom = Math.max(8, window.innerHeight - rect.top + 8) + 'px';
         }
     }
@@ -9225,9 +9689,14 @@ function wireWindow(win, id) {
         return date.toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
     }
 
-    function closeClockPopup() {
+    function closeClockPopup(restoreFocus = false) {
         const popup = document.getElementById('vd-clock-popup');
-        if (popup) popup.hidden = true;
+        if (popup) {
+            popup.hidden = true;
+            popup._request = (popup._request || 0) + 1;
+            popup._returnFocus?.setAttribute('aria-expanded', 'false');
+            if (restoreFocus && popup._returnFocus?.isConnected) popup._returnFocus.focus();
+        }
     }
 
     async function openClockPopup(anchor) {
@@ -9237,24 +9706,31 @@ function wireWindow(win, id) {
             popup = document.createElement('div');
             popup.id = 'vd-clock-popup';
             popup.className = 'vd-clock-popup';
+            popup.setAttribute('role', 'dialog');
+            popup.tabIndex = -1;
+            popup.addEventListener('keydown', event => {
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeClockPopup(true); }
+            });
             document.body.appendChild(popup);
         }
+        const request = popup._request = (popup._request || 0) + 1;
+        popup.setAttribute('aria-label', t('desktop.clock_today'));
+        popup._returnFocus = anchor || document.activeElement;
+        popup._returnFocus?.setAttribute('aria-expanded', 'true');
         popup.hidden = false;
+        popup.focus();
         popup.innerHTML = `<div class="vd-clock-popup-loading">${esc(t('desktop.loading'))}</div>`;
-        if (anchor && anchor.getBoundingClientRect) {
-            const rect = anchor.getBoundingClientRect();
-            popup.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
-            popup.style.bottom = Math.max(8, window.innerHeight - rect.top + 8) + 'px';
-        }
+        placeTrayPopover(popup, anchor);
         let appointments = [];
         try {
-            appointments = await api('/api/appointments?status=all');
+            appointments = await api('/api/desktop/integrations/appointments?status=all');
         } catch (_) {
             appointments = [];
         }
+        if (popup.hidden || popup._request !== request || !popup.isConnected) return;
         const now = new Date();
         const todayKey = now.toISOString().slice(0, 10);
-        const todayItems = (appointments || []).filter(item => String(item.date_time || '').startsWith(todayKey));
+        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => String(item.date_time || '').startsWith(todayKey));
         const events = todayItems.slice(0, 6).map(item => {
             const time = item.date_time ? new Date(item.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
             return `<li><span class="vd-clock-event-time">${esc(time)}</span><span class="vd-clock-event-title">${esc(item.title || '')}</span></li>`;
@@ -9397,6 +9873,14 @@ function wireWindow(win, id) {
             clock.dataset.shellChromeWired = 'true';
             clock.style.cursor = 'pointer';
             clock.title = t('desktop.clock_open_calendar');
+            clock.setAttribute('aria-label', t('desktop.clock_open_calendar'));
+            clock.setAttribute('role', 'button');
+            clock.setAttribute('aria-haspopup', 'dialog');
+            clock.setAttribute('aria-expanded', 'false');
+            clock.tabIndex = 0;
+            clock.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); openClockPopup(clock); }
+            });
             clock.addEventListener('click', event => {
                 event.stopPropagation();
                 openClockPopup(clock);
@@ -9405,6 +9889,9 @@ function wireWindow(win, id) {
         const notifyBtn = document.getElementById('vd-notification-button');
         if (notifyBtn && !notifyBtn.dataset.shellChromeWired) {
             notifyBtn.dataset.shellChromeWired = 'true';
+            notifyBtn.setAttribute('aria-label', t('desktop.notifications_title'));
+            notifyBtn.setAttribute('aria-haspopup', 'dialog');
+            notifyBtn.setAttribute('aria-expanded', 'false');
             notifyBtn.addEventListener('click', event => {
                 event.stopPropagation();
                 toggleNotificationCenter(notifyBtn);
@@ -9423,7 +9910,7 @@ function wireWindow(win, id) {
     // Pointer light for launchers, menu entries and task buttons (desktop-polish.css): the
     // hovered item receives the pointer position as two custom properties, written at most
     // once per frame and only while a mouse moves over such an item. Touch never paints it.
-    const POINTER_LIGHT_TARGETS = '.vd-start-item, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile';
+    const POINTER_LIGHT_TARGETS = '.vd-start-item, .vd-start-category, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile';
     let pointerLightItem = null;
     let pointerLightFrame = 0;
     let pointerLightX = 0;
@@ -9465,8 +9952,15 @@ function wireWindow(win, id) {
 ;
 /* ui/js/desktop/core/spotlight-runtime.js */
     let spotlightOpen = false;
+    let spotlightInstance = null;
 
     function closeSpotlight() {
+        if (spotlightInstance) {
+            spotlightInstance.generation++;
+            spotlightInstance.controller?.abort();
+            window.clearTimeout(spotlightInstance.timer);
+            spotlightInstance = null;
+        }
         const backdrop = document.getElementById('vd-spotlight-backdrop');
         if (backdrop) {
             desktopSound('menu.close');
@@ -9530,11 +10024,11 @@ function wireWindow(win, id) {
         openApp('viewer', { path: normalized });
     }
 
-    async function spotlightFileEntries(query) {
+    async function spotlightFileEntries(query, signal) {
         const q = String(query || '').trim();
         if (q.length < 2) return [];
         try {
-            const body = await api('/api/desktop/search?query=' + encodeURIComponent(q));
+            const body = await api('/api/desktop/search?query=' + encodeURIComponent(q), { signal });
             return (body.files || body.results || []).slice(0, 8).map(file => ({
                 id: 'file-' + file.path,
                 title: file.name || pathBaseName(file.path),
@@ -9560,11 +10054,15 @@ function wireWindow(win, id) {
     }
 
     async function refreshSpotlightResults(input, stateObj) {
+        const generation = ++stateObj.generation;
+        stateObj.controller?.abort();
+        stateObj.controller = new AbortController();
         const query = input.value || '';
         const settings = spotlightSettingsEntries().filter(entry => !query || entry.title.toLowerCase().includes(query.toLowerCase()));
         const apps = spotlightAppEntries(query);
         const recent = spotlightRecentFileEntries(query);
-        const files = await spotlightFileEntries(query);
+        const files = await spotlightFileEntries(query, stateObj.controller.signal);
+        if (spotlightInstance !== stateObj || generation !== stateObj.generation || !stateObj.backdrop.isConnected) return;
         stateObj.entries = []
             .concat(settings.map(entry => ({ id: entry.id, title: entry.title, subtitle: t('desktop.spotlight_settings'), action: entry.action })))
             .concat(recent)
@@ -9597,11 +10095,13 @@ function wireWindow(win, id) {
         </div>`;
         document.body.appendChild(backdrop);
         const input = backdrop.querySelector('.vd-spotlight-input');
-        const stateObj = { entries: [], activeIndex: 0 };
-        let timer = 0;
+        const stateObj = { entries: [], activeIndex: 0, generation: 0, controller: null, timer: 0, backdrop };
+        spotlightInstance = stateObj;
         const scheduleRefresh = () => {
-            if (timer) window.clearTimeout(timer);
-            timer = window.setTimeout(() => refreshSpotlightResults(input, stateObj), 120);
+            ++stateObj.generation;
+            stateObj.controller?.abort();
+            window.clearTimeout(stateObj.timer);
+            stateObj.timer = window.setTimeout(() => refreshSpotlightResults(input, stateObj), 120);
         };
         input.addEventListener('input', scheduleRefresh);
         input.addEventListener('keydown', event => {
@@ -9746,8 +10246,9 @@ function wireWindow(win, id) {
         return desktopDropJoinPath(destBase, fallback);
     }
 
-    async function refreshAfterDesktopFileDrop() {
+    async function refreshAfterDesktopFileDrop(options) {
         await loadBootstrap();
+        if (options && options.refreshActiveFileManager === false) return;
         const active = state.windows.get(state.activeWindowId);
         if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
     }
@@ -9822,6 +10323,7 @@ function wireWindow(win, id) {
     }
 
     async function pasteDesktopFileClipboard(destBase, options) {
+        const clipboardState = window.AuraDesktopFileClipboard;
         const clipboard = desktopFileClipboard();
         if (!clipboard) return;
         const targetBase = normalizeDesktopPath(destBase == null ? 'Desktop' : destBase);
@@ -9837,6 +10339,7 @@ function wireWindow(win, id) {
             const naturalPath = desktopDropJoinPath(targetBase, desktopDropBaseName(src) || 'item');
             if (clipboard.mode === 'cut' && naturalPath === src) continue;
             const newPath = await uniqueDestinationInFolder(src, targetBase, existingNames);
+            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
             if (newPath === src) continue;
             if (clipboard.mode === 'copy') {
                 await api('/api/desktop/copy', {
@@ -9851,15 +10354,17 @@ function wireWindow(win, id) {
                     body: JSON.stringify({ old_path: src, new_path: newPath })
                 });
             }
+            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
             if (targetBase.toLowerCase() === 'desktop') {
                 const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
                 saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
                 offset += 18;
             }
         }
-        if (clipboard.mode === 'cut') window.AuraDesktopFileClipboard = null;
+        if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
+        if (clipboard.mode === 'cut' && window.AuraDesktopFileClipboard === clipboardState) window.AuraDesktopFileClipboard = null;
         desktopSound('file.drop');
-        await refreshAfterDesktopFileDrop();
+        await refreshAfterDesktopFileDrop(options);
     }
 
     function wireDesktopFileIconDrag(btn) {
@@ -9894,7 +10399,7 @@ function wireWindow(win, id) {
             event.stopPropagation();
             btn.classList.remove('vd-trash-drop-target');
             try {
-                for (const path of payload.paths) await movePathToTrash(path);
+                await movePathsToTrash(payload.paths);
             } catch (err) {
                 showDesktopNotification({ title: t('desktop.notification'), message: err.message });
             }
@@ -9971,6 +10476,7 @@ function wireWindow(win, id) {
         'viewer-3d': { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['stl']), effect: 'copy' },
         writer: { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['docx', 'html', 'htm', 'md', 'txt']), effect: 'copy' },
         sheets: { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['xlsx', 'xlsm', 'csv']), effect: 'copy' },
+        'synth-studio': { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['aurasynth']), effect: 'copy' },
         zipper: { multiple: true, accepts: path => !!desktopWindowDropPathInfo(path).name, effect: 'copy' },
         'code-studio': { multiple: false, accepts: path => desktopWindowDropExtIn(path, DESKTOP_WINDOW_TEXT_EXTS), effect: 'copy' },
         editor: { multiple: false, accepts: path => desktopWindowDropExtIn(path, DESKTOP_WINDOW_TEXT_EXTS), effect: 'copy' },
@@ -10126,6 +10632,10 @@ function wireWindow(win, id) {
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.openFile === 'function') {
             await window.CodeStudio.openFile(path, true, windowId);
             return true;
+        }
+        if (appId === 'synth-studio') {
+            const instance = window.SynthStudioApp?.instances?.get(windowId);
+            if (instance?.storage?.open) return instance.storage.open(path);
         }
         const nextContext = Object.assign({}, win.context || {}, { path });
         if (appId === 'editor') nextContext.content = '';
@@ -10283,7 +10793,7 @@ function updateTaskbarSystemButtonsForMobile() {
 ;
 /* ui/js/desktop/core/widget-sysmon-runtime.js */
     /* System Monitor widget: live host metrics. Initial fetch of
-       /api/dashboard/system, then live updates via the server-side
+       /api/desktop/integrations/dashboard/system, then live updates via the server-side
        'system_metrics' SSE broadcast (every 10s). All updates happen in
        place (text/attributes only) so re-renders never rebuild the DOM. */
     const SYSMON_HISTORY_LEN = 30; // 30 samples at 10s interval = 5 minutes
@@ -10465,7 +10975,7 @@ function updateTaskbarSystemButtonsForMobile() {
             refs.root.classList.add('is-ready');
         }
 
-        api('/api/dashboard/system')
+        api('/api/desktop/integrations/dashboard/system')
             .then(data => renderMetrics(data))
             .catch(() => {
                 if (disposed) return;
@@ -10648,7 +11158,7 @@ function updateTaskbarSystemButtonsForMobile() {
             if (disposed || refreshing) return;
             refreshing = true;
             try {
-                const data = await api('/api/meshcore/messenger/bootstrap');
+                const data = await api('/api/desktop/integrations/meshcore/messenger/bootstrap');
                 if (!disposed) renderData(data || {});
             } catch (error) {
                 if (!disposed) renderError(error);
@@ -10746,7 +11256,7 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         function startCamera() {
             if (disposed || document.hidden || !refs.select.value) return;
-            refs.image.src = '/api/3d-printers/' + encodeURIComponent(refs.select.value) + '/camera/stream?t=' + Date.now();
+            refs.image.src = '/api/desktop/integrations/3d-printers/' + encodeURIComponent(refs.select.value) + '/camera/stream?t=' + Date.now();
         }
         refs.image.addEventListener('load', () => {
             refs.image.hidden = false;
@@ -10768,7 +11278,7 @@ function updateTaskbarSystemButtonsForMobile() {
             controller = request;
             try {
                 if (!refs.select.options.length) {
-                    const list = await api('/api/3d-printers/status', { signal: request.signal });
+                    const list = await api('/api/desktop/integrations/3d-printers/status', { signal: request.signal });
                     if (disposed || request.signal.aborted) return;
                     for (const printer of list.printers || []) refs.select.add(new Option(printer.name || printer.id, printer.id));
                     const preferred = localStorage.getItem('aurago.desktop.printer_id') || list.default_printer;
@@ -10780,7 +11290,7 @@ function updateTaskbarSystemButtonsForMobile() {
                     }
                     startCamera();
                 }
-                const raw = await api('/api/3d-printers/status?printer_id=' + encodeURIComponent(refs.select.value), { signal: request.signal });
+                const raw = await api('/api/desktop/integrations/3d-printers/status?printer_id=' + encodeURIComponent(refs.select.value), { signal: request.signal });
                 if (disposed || request.signal.aborted) return;
                 const data = printerWidgetData(raw);
                 if (!refs.image.hasAttribute('src')) startCamera();
@@ -11288,7 +11798,7 @@ function updateTaskbarSystemButtonsForMobile() {
         const state = {
             disposed: false, controller: null, timer: null, pages: [], page: 0, capabilities: null,
             history: [], connection: null, devices: null, telephony: null, system: null,
-            fetchedAt: { connection: 0, devices: 0, telephony: 0, system: 0 }, hasData: false,
+            fetchedAt: { connection: 0, devices: 0, telephony: 0, system: 0 }, hasData: false, errors: {},
             chart: null, compact: false, copyTimer: null, drag: null
         };
         const lang = () => document.documentElement.lang || undefined;
@@ -11416,7 +11926,7 @@ function updateTaskbarSystemButtonsForMobile() {
             refs['legend-down'].textContent = latest ? fritzFormatBits(latest.down) : '–';
             refs['legend-up'].textContent = latest ? fritzFormatBits(latest.up) : '–';
             const spanMinutes = Math.max(1, Math.round((range.end - range.start) / 60000));
-            refs['legend-span'].textContent = label('window_label', { span: spanMinutes + ' min' });
+            refs['legend-span'].textContent = label('window_label', { span: new Intl.NumberFormat(lang(), { style: 'unit', unit: 'minute', unitDisplay: 'short' }).format(spanMinutes) });
             let peakDown = 0;
             let peakUp = 0;
             for (const sample of samples) {
@@ -11579,11 +12089,21 @@ function updateTaskbarSystemButtonsForMobile() {
                 state.fetchedAt.telephony = now;
                 renderTelephony();
             }
-            const errors = payload.errors || {};
+            // Overview replies contain only the requested sections. Keep each
+            // failure until that section recovers or its capability is disabled.
+            for (const section of ['system', 'connection', 'devices', 'telephony']) {
+                if (!state.capabilities[section]) delete state.errors[section];
+                else if (payload.errors && payload.errors[section]) state.errors[section] = payload.errors[section];
+                else if (payload[section]) delete state.errors[section];
+            }
+            const errors = state.errors;
             const failing = Object.keys(errors);
-            refs.root.classList.toggle('is-stale', failing.length > 0);
+            refs.root.classList.toggle('is-stale', !!errors.connection);
             if (failing.length) {
-                refs['banner-text'].textContent = errors.connection === 'auth_failed' ? label('error_auth') : label('error') + (state.hasData || Object.keys(payload.stale || {}).length ? ' · ' + label('stale') : '');
+                const sections = failing.map(section => section === 'system' ? label('title') : pageTitle(section)).join(', ');
+                const message = label('error_sections', { sections });
+                refs['banner-text'].textContent = failing.some(section => errors[section] === 'auth_failed')
+                    ? message + ' · ' + label('error_auth') : message;
                 refs.banner.hidden = false;
                 if (errors.connection) refs.dot.className = 'vd-fritz-dot is-stale';
             } else {
@@ -11632,6 +12152,7 @@ function updateTaskbarSystemButtonsForMobile() {
                     refs.updated.textContent = '';
                     state.hasData = false;
                     state.pages = [];
+                    state.errors = {};
                     return;
                 }
                 refs.skeleton.hidden = true;
@@ -11973,6 +12494,8 @@ function updateTaskbarSystemButtonsForMobile() {
 ;
 /* ui/js/desktop/core/media-keys-runtime.js */
     let desktopMediaKeysWired = false;
+    const webampMediaOwner = {};
+    const webampMediaHandlers = {};
 
     function webampMusicActive() {
         return !!(state.webampMusic && state.webampMusic.instance);
@@ -12009,36 +12532,27 @@ function updateTaskbarSystemButtonsForMobile() {
     function updateWebampMediaSessionMetadata() {
         if (!('mediaSession' in navigator) || !webampMusicActive()) return;
         try {
-            navigator.mediaSession.metadata = new MediaMetadata({
+            window.AuraDesktopMediaSession.claim(webampMediaOwner, { priority: 50, handlers: webampMediaHandlers, metadata: {
                 title: t('desktop.app_music_player'),
                 artist: 'AuraGo',
                 album: t('desktop.winamp_tracks')
-            });
+            } });
         } catch (_) { /* ignore metadata errors */ }
     }
 
     function bindDesktopMediaSessionAction(action, handler) {
         if (!('mediaSession' in navigator)) return;
         try {
-            navigator.mediaSession.setActionHandler(action, handler);
+            webampMediaHandlers[action] = handler;
         } catch (_) { /* unsupported action */ }
     }
 
     function clearDesktopMediaSessionHandlers() {
-        if (!('mediaSession' in navigator)) return;
-        ['play', 'pause', 'previoustrack', 'nexttrack', 'stop'].forEach(action => {
-            try {
-                navigator.mediaSession.setActionHandler(action, null);
-            } catch (_) { /* ignore */ }
-        });
-        try {
-            navigator.mediaSession.metadata = null;
-        } catch (_) { /* ignore */ }
+        window.AuraDesktopMediaSession.release(webampMediaOwner);
     }
 
     function refreshDesktopMediaSessionHandlers() {
         if (!('mediaSession' in navigator)) return;
-        if (window.PersonalRadioRuntime && window.PersonalRadioRuntime.active) return;
         if (!webampMusicActive()) {
             clearDesktopMediaSessionHandlers();
             return;
@@ -12619,7 +13133,7 @@ function updateTaskbarSystemButtonsForMobile() {
         const total = Math.max(1, Math.min(CAL_REPEAT_LIMIT, Number(count) || 1));
         const start = calendarDate(payload.date_time);
         if (!start || repeat === 'none' || total <= 1) {
-            await plannerJSON('/api/appointments', 'POST', payload);
+            await plannerJSON('/api/desktop/integrations/appointments', 'POST', payload);
             return 1;
         }
         const reminderOffset = payload.notification_at ? start - new Date(payload.notification_at) : null;
@@ -12628,7 +13142,7 @@ function updateTaskbarSystemButtonsForMobile() {
             const when = calendarShiftDate(start, repeat, index);
             const body = Object.assign({}, payload, { date_time: when.toISOString() });
             if (reminderOffset !== null) body.notification_at = new Date(when.getTime() - reminderOffset).toISOString();
-            await plannerJSON('/api/appointments', 'POST', body);
+            await plannerJSON('/api/desktop/integrations/appointments', 'POST', body);
             created += 1;
         }
         return created;
@@ -12636,7 +13150,7 @@ function updateTaskbarSystemButtonsForMobile() {
 
     function loadCalendarContacts(session) {
         if (!session.contactsPromise) {
-            session.contactsPromise = api('/api/contacts').then(data => {
+            session.contactsPromise = api('/api/desktop/integrations/contacts').then(data => {
                 const list = Array.isArray(data) ? data : (data && (data.contacts || data.items)) || [];
                 return list.filter(c => c && c.id && c.name).map(c => ({ id: String(c.id), name: String(c.name), email: c.email || '', relationship: c.relationship || '' }));
             }).catch(() => []);
@@ -12911,7 +13425,7 @@ function updateTaskbarSystemButtonsForMobile() {
             setBusy(true);
             try {
                 if (appointment) {
-                    await plannerJSON(`/api/appointments/${encodeURIComponent(appointment.id)}`, 'PUT', result.payload);
+                    await plannerJSON(`/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`, 'PUT', result.payload);
                     closeCalendarEditor(session);
                     await session.reload({ silent: true });
                     session.snack({ message: t('desktop.cal_saved') });
@@ -13174,7 +13688,7 @@ function updateTaskbarSystemButtonsForMobile() {
         if (progress && session.loaded) progress.hidden = false;
         if (!session.loaded) paintCalendar(session);
         try {
-            const data = await api('/api/appointments?status=all');
+            const data = await api('/api/desktop/integrations/appointments?status=all');
             session.appointments = normalizeCalendarAppointments(data);
             session.loaded = true;
             session.error = null;
@@ -13446,7 +13960,7 @@ function updateTaskbarSystemButtonsForMobile() {
         Object.assign(appointment, patch);
         session.appointments.sort((a, b) => new Date(a.date_time) - new Date(b.date_time));
         paintCalendar(session);
-        const url = `/api/appointments/${encodeURIComponent(appointment.id)}`;
+        const url = `/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`;
         try {
             await plannerJSON(url, 'PUT', patch);
         } catch (err) {
@@ -13473,7 +13987,7 @@ function updateTaskbarSystemButtonsForMobile() {
         appointment.status = status;
         paintCalendar(session);
         closeCalendarPeek(session);
-        const url = `/api/appointments/${encodeURIComponent(appointment.id)}`;
+        const url = `/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`;
         try {
             await plannerJSON(url, 'PUT', { status });
         } catch (err) {
@@ -13497,7 +14011,7 @@ function updateTaskbarSystemButtonsForMobile() {
 
     async function deleteCalendarAppointment(session, appointment) {
         if (!appointment) return;
-        await api(`/api/appointments/${encodeURIComponent(appointment.id)}`, { method: 'DELETE' });
+        await api(`/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`, { method: 'DELETE' });
         session.appointments = session.appointments.filter(item => item.id !== appointment.id);
         closeCalendarPeek(session);
         paintCalendar(session);
@@ -13511,7 +14025,7 @@ function updateTaskbarSystemButtonsForMobile() {
             message: t('desktop.cal_deleted'),
             actionLabel: t('desktop.cal_undo'),
             onAction: async () => {
-                await plannerJSON('/api/appointments', 'POST', restore);
+                await plannerJSON('/api/desktop/integrations/appointments', 'POST', restore);
                 await loadCalendarAppointments(session, { silent: true });
                 session.snack({ message: t('desktop.cal_restored') });
             }
@@ -13867,6 +14381,1257 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
 ;
+/* ui/js/desktop/apps/quickconnect-serial.js */
+    window.QuickConnectSerial = (() => {
+        const STORAGE_KEY = 'quick_connect.serial_profiles';
+        const MAX_PROFILES = 64;
+        const MAX_PROFILE_BYTES = 64 * 1024;
+        const MAX_CAPTURE_BYTES = 10 * 1024 * 1024;
+        const MAX_CAPTURE_RECORDS = 10000;
+        const MAX_PENDING_RX_BYTES = 1024 * 1024;
+        const MAX_PENDING_TX_BYTES = 256 * 1024;
+        const MAX_SEND_BYTES = 64 * 1024;
+        const BAUD_PRESETS = [1200, 2400, 4800, 9600, 14400, 19200, 28800, 38400, 57600, 76800, 115200, 230400, 460800, 921600];
+        const DEFAULT_OPTIONS = Object.freeze({
+            baud_rate: 115200,
+            data_bits: 8,
+            stop_bits: 1,
+            parity: 'none',
+            flow_control: 'none',
+            local_echo: false,
+            line_ending: 'cr',
+            dtr: false,
+            rts: false
+        });
+
+        function parseHex(value) {
+            const compact = String(value || '').replace(/\s+/g, '');
+            if (!compact || compact.length % 2 || !/^[0-9a-f]+$/i.test(compact)) return null;
+            const bytes = new Uint8Array(compact.length / 2);
+            for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(compact.slice(i * 2, i * 2 + 2), 16);
+            return bytes;
+        }
+
+        function formatHex(bytes) {
+            return Array.from(bytes || [], byte => Number(byte).toString(16).padStart(2, '0').toUpperCase()).join(' ');
+        }
+
+        function normalizeOptions(value, source) {
+            const input = value && typeof value === 'object' ? value : {};
+            const baud = Number(input.baud_rate);
+            return {
+                baud_rate: Number.isInteger(baud) && baud >= 1 && baud <= 4000000 ? baud : DEFAULT_OPTIONS.baud_rate,
+                data_bits: input.data_bits === 7 ? 7 : 8,
+                stop_bits: input.stop_bits === 2 ? 2 : 1,
+                parity: ['none', 'even', 'odd'].includes(input.parity) ? input.parity : 'none',
+                flow_control: source === 'browser' && input.flow_control === 'hardware' ? 'hardware' : 'none',
+                local_echo: input.local_echo === true,
+                line_ending: ['none', 'cr', 'lf', 'crlf'].includes(input.line_ending) ? input.line_ending : 'cr',
+                dtr: input.dtr === true,
+                rts: input.rts === true
+            };
+        }
+
+        function normalizeProfile(value) {
+            if (!value || typeof value !== 'object') return null;
+            const source = value.source === 'browser' || value.source === 'host' ? value.source : '';
+            const name = String(value.name || '').trim();
+            const id = String(value.id || '');
+            const port = String(value.port || '').trim();
+            const hasVendor = value.usb_vendor_id !== undefined && value.usb_vendor_id !== null;
+            const hasProduct = value.usb_product_id !== undefined && value.usb_product_id !== null;
+            const vendor = hasVendor ? Number(value.usb_vendor_id) : undefined;
+            const product = hasProduct ? Number(value.usb_product_id) : undefined;
+            const validUSBID = id => Number.isInteger(id) && id >= 0 && id <= 0xFFFF;
+            if (!source || !/^[A-Za-z0-9_-]{1,64}$/.test(id) || !name || Array.from(name).length > 80 || /[\u0000-\u001F\u007F-\u009F]/.test(name) || new TextEncoder().encode(port).byteLength > 256 || /[\u0000-\u001F\u007F-\u009F]/.test(port)) return null;
+            if ((hasVendor && !validUSBID(vendor)) || (hasProduct && !validUSBID(product)) || (hasProduct && !hasVendor)) return null;
+            return {
+                id,
+                name,
+                source,
+                port,
+                ...(hasVendor ? { usb_vendor_id: vendor } : {}),
+                ...(hasProduct ? { usb_product_id: product } : {}),
+                options: normalizeOptions(value.options, source)
+            };
+        }
+
+        function parseProfiles(raw) {
+            try {
+                const stored = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                if (!stored || stored.version !== 1 || !Array.isArray(stored.profiles)) return [];
+                const seen = new Set();
+                return stored.profiles.slice(0, MAX_PROFILES).map(normalizeProfile).filter(profile => {
+                    if (!profile || seen.has(profile.id)) return false;
+                    seen.add(profile.id);
+                    return true;
+                });
+            } catch (_) {
+                return [];
+            }
+        }
+
+        function parseHexID(value) {
+            const text = String(value || '').trim().replace(/^0x/i, '');
+            if (!text) return undefined;
+            if (!/^[0-9a-f]{1,4}$/i.test(text)) return null;
+            return parseInt(text, 16);
+        }
+
+        function create(options) {
+            const opts = options || {};
+            const list = opts.list || opts.sidebar;
+            const content = opts.content;
+            const searchInput = opts.searchInput;
+            const request = opts.api || api;
+            const translate = opts.t || t;
+            const getBootstrap = opts.getBootstrap || (() => (opts.context && opts.context.state && opts.context.state.bootstrap) || {});
+            const ownerWindow = opts.window || window;
+            const browserNavigator = opts.navigator || ownerWindow.navigator || navigator;
+            const Socket = opts.WebSocket || ownerWindow.WebSocket;
+            const TerminalCtor = opts.Terminal || ownerWindow.Terminal;
+            const FitAddonCtor = opts.FitAddon || ownerWindow.FitAddon;
+            const confirmDialog = opts.confirmDialog || (async () => false);
+            const onSessionStart = opts.onSessionStart || (() => null);
+            const onSessionEnd = opts.onSessionEnd || (() => {});
+            let profiles = [];
+            let selectedId = '';
+            let loaded = false;
+            let loading = false;
+            let loadGeneration = 0;
+            let ports = [];
+            let portsLoading = false;
+            let portsError = false;
+            let portsGeneration = 0;
+            let portsAbort = null;
+            let mounted = false;
+            let disposed = false;
+            let connection = null;
+            let connectionStop = Promise.resolve();
+            let connectionGeneration = 0;
+            let chooserPending = false;
+            let chooserPendingGeneration = 0;
+            let chooserGeneration = 0;
+            let connectionAttemptGeneration = 0;
+            let pendingAttemptSource = '';
+            let authEnded = false;
+            let terminal = null;
+            let terminalInputDisposable = null;
+            let terminalActivityListeners = null;
+            let fitAddon = null;
+            let resizeObserver = null;
+            let receiveMode = 'text';
+            let displaySessionId = 0;
+            let displayGeneration = 0;
+            let displayQueueBytes = 0;
+            let capture = [];
+            let captureBytes = 0;
+            let captureDropped = false;
+            let policySnapshot = null;
+
+            function secureContext() {
+                if (typeof ownerWindow.isSecureContext === 'boolean') return ownerWindow.isSecureContext;
+                if (typeof globalThis.isSecureContext === 'boolean') return globalThis.isSecureContext;
+                return true;
+            }
+
+            function tr(key) { return translate(key); }
+            function bootstrap() { return policySnapshot || getBootstrap() || {}; }
+            function readonly() { const b = bootstrap(); return authEnded || window._logoutInProgress === true || !!b.readonly || b.enabled === false; }
+            function allowed(source) {
+                const b = bootstrap();
+                return !readonly() && (source === 'browser' ? b.serial_browser_enabled === true : b.serial_host_enabled === true);
+            }
+            function sourceDiagnostic(profile) {
+                if (readonly()) return tr('desktop.qc_serial_read_only');
+                if (!allowed(profile.source)) return tr('desktop.qc_serial_permission_disabled');
+                if (profile.source === 'browser') {
+                    if (!secureContext()) return tr('desktop.qc_serial_secure_context_required');
+                    const policy = document.permissionsPolicy || document.featurePolicy;
+                    if (policy && typeof policy.allowsFeature === 'function' && !policy.allowsFeature('serial')) return tr('desktop.qc_serial_browser_permission_denied');
+                    const serial = browserNavigator && browserNavigator.serial;
+                    return !serial || typeof serial.requestPort !== 'function' ? tr('desktop.qc_serial_browser_unsupported') : '';
+                }
+                if (portsLoading) return tr('desktop.loading');
+                if (portsError) return tr('desktop.load_failed');
+                const port = ports.find(item => item.name === profile.port);
+                if (!port) return tr('desktop.qc_serial_unavailable_port');
+                if (port.busy && !(connection && connection.source === 'host' && connection.profileId === profile.id)) return tr('desktop.qc_serial_port_busy');
+                return '';
+            }
+            function serialErrorText(code, fallback) {
+                const keys = {
+                    unauthorized: 'desktop.qc_serial_permission_disabled',
+                    serial_disabled: 'desktop.qc_serial_permission_disabled',
+                    serial_ports_unavailable: 'desktop.qc_serial_open_failed',
+                    invalid_open: 'desktop.qc_serial_open_failed',
+                    invalid_control: 'desktop.qc_serial_open_failed',
+                    invalid_options: 'desktop.qc_serial_open_failed',
+                    invalid_port: 'desktop.qc_serial_unavailable_port',
+                    port_not_found: 'desktop.qc_serial_unavailable_port',
+                    port_busy: 'desktop.qc_serial_port_busy',
+                    open_required: 'desktop.qc_serial_open_failed',
+                    serial_read_failed: 'desktop.qc_serial_connection_lost',
+                    serial_write_failed: 'desktop.qc_serial_connection_lost',
+                    serial_control_failed: 'desktop.qc_serial_open_failed',
+                    idle_timeout: 'desktop.qc_serial_disconnected',
+                    disconnected: 'desktop.qc_serial_connection_lost',
+                    open_failed: 'desktop.qc_serial_open_failed'
+                };
+                return tr(keys[code] || fallback || 'desktop.qc_serial_open_failed');
+            }
+            function setStatus(message, kind) {
+                const status = content && content.querySelector('[data-serial-status]');
+                if (!status) return;
+                status.textContent = message || '';
+                status.dataset.state = kind || 'ready';
+            }
+            function writeStatus(message, kind) { setStatus(message, kind); }
+            function isCurrent(conn) {
+                if (disposed || !conn || connection !== conn || conn.generation !== connectionGeneration) return false;
+                if (conn.isOwnerCurrent) {
+                    let current = false;
+                    try { current = conn.isOwnerCurrent() === true; } catch (_) {}
+                    if (!current) {
+                        void stopConnection(conn, 'switch');
+                        return false;
+                    }
+                }
+                return true;
+            }
+            function updateButtons() {
+                const root = content && content.querySelector('[data-qc-serial-app]');
+                if (!root) return;
+                const locked = readonly();
+                root.querySelectorAll('[data-serial-save], [data-serial-create], [data-serial-delete]').forEach(button => { button.disabled = locked; });
+                root.querySelectorAll('[data-serial-connect]').forEach(button => {
+                    const profile = profiles.find(item => item.id === button.dataset.serialConnect);
+                    button.disabled = locked || !profile || !allowed(profile.source);
+                });
+                const ready = !!(connection && connection.ready);
+                const disconnect = root.querySelector('[data-serial-disconnect]');
+                if (disconnect) disconnect.disabled = !connection;
+                const breakButton = root.querySelector('[data-serial-break]');
+                if (breakButton) breakButton.disabled = !ready;
+                const dtr = root.querySelector('[data-serial-dtr]');
+                const rts = root.querySelector('[data-serial-rts]');
+                if (dtr) dtr.disabled = !ready;
+                if (rts) rts.disabled = !ready || (connection.source === 'browser' && connection.profile.options.flow_control === 'hardware');
+                const send = root.querySelector('[data-serial-send]');
+                if (send) send.disabled = !ready || locked;
+                const input = root.querySelector('[data-serial-input]');
+                if (input) input.disabled = !ready || locked;
+            }
+
+            function startSessionTimers(conn) {
+                const b = bootstrap();
+                const timeout = (value, fallback) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : fallback;
+                conn.maxTimer = ownerWindow.setTimeout(() => { void stopConnection(conn, 'timeout'); }, timeout(b.remote_max_session_minutes, 60) * 60 * 1000);
+                touchUserActivity(conn);
+            }
+
+            function touchUserActivity(conn) {
+                if (!isCurrent(conn)) return;
+                if (conn.idleTimer) ownerWindow.clearTimeout(conn.idleTimer);
+                const b = bootstrap();
+                const minutes = Number(b.remote_idle_timeout_minutes);
+                const delay = Number.isFinite(minutes) && minutes > 0 ? minutes : 5;
+                conn.idleTimer = ownerWindow.setTimeout(() => { void stopConnection(conn, 'timeout'); }, delay * 60 * 1000);
+            }
+
+            function clearSessionTimers(conn) {
+                if (!conn) return;
+                for (const key of ['idleTimer', 'maxTimer', 'breakTimer', 'deviceTimer']) {
+                    if (conn[key]) ownerWindow.clearTimeout(conn[key]);
+                    conn[key] = null;
+                }
+                conn.breakGeneration = (conn.breakGeneration || 0) + 1;
+            }
+
+            function queueBrowserControl(conn, signals, force) {
+                conn.pendingControlCount = conn.pendingControlCount || 0;
+                if (!force && conn.pendingControlCount >= 8) return Promise.reject(new Error('control_queue_full'));
+                conn.pendingControlCount++;
+                const operation = (conn.controlChain || Promise.resolve()).catch(() => {}).then(() => {
+                    if (conn.closed && !force) return;
+                    return conn.port.setSignals(signals);
+                });
+                conn.controlChain = operation.finally(() => { conn.pendingControlCount = Math.max(0, conn.pendingControlCount - 1); });
+                return conn.controlChain;
+            }
+
+            function sendHostControl(conn, message) {
+                if (!conn.socket || conn.socket.readyState !== Socket.OPEN) throw new Error('serial_socket_unavailable');
+                conn.socket.send(JSON.stringify(message));
+            }
+
+            function closeHostSocket(conn) {
+                const socket = conn && conn.socket;
+                if (!socket) return Promise.resolve();
+                if (conn.socketClosePromise) return conn.socketClosePromise;
+                if (Socket.CLOSED !== undefined && socket.readyState === Socket.CLOSED) return Promise.resolve();
+                conn.socketClosePromise = new Promise(resolve => {
+                    let finished = false;
+                    const finish = () => {
+                        if (finished) return;
+                        finished = true;
+                        if (conn.socketCloseTimer) ownerWindow.clearTimeout(conn.socketCloseTimer);
+                        conn.socketCloseTimer = null;
+                        resolve();
+                    };
+                    try { socket.addEventListener('close', finish, { once: true }); } catch (_) {}
+                    if (socket.readyState === Socket.OPEN) {
+                        try { sendHostControl(conn, { type: 'disconnect' }); } catch (_) {}
+                    }
+                    try { socket.close(); } catch (_) { finish(); return; }
+                    const timer = ownerWindow.setTimeout(finish, 1500);
+                    if (finished) ownerWindow.clearTimeout(timer);
+                    else conn.socketCloseTimer = timer;
+                });
+                return conn.socketClosePromise;
+            }
+
+            async function loadProfiles() {
+                const generation = ++loadGeneration;
+                loading = true;
+                try {
+                    const body = await request('/api/desktop/settings');
+                    if (disposed || generation !== loadGeneration) return;
+                    profiles = parseProfiles(body && body.settings && body.settings[STORAGE_KEY]);
+                    if (!profiles.some(profile => profile.id === selectedId)) selectedId = profiles[0] && profiles[0].id || '';
+                    loaded = true;
+                } catch (_) {
+                    if (disposed || generation !== loadGeneration) return;
+                    profiles = [];
+                    loaded = true;
+                    writeStatus(tr('desktop.load_failed'), 'error');
+                } finally {
+                    if (!disposed && generation === loadGeneration) {
+                        loading = false;
+                        renderList();
+                        renderEditor();
+                        updateButtons();
+                    }
+                }
+            }
+
+            function ensureShell() {
+                if (!list || !content || disposed) return false;
+                if (content.querySelector('[data-qc-serial-app]')) {
+                    mounted = true;
+                    return true;
+                }
+                content.innerHTML = `<section class="vd-qc-serial" data-qc-serial-app>
+                    <header class="vd-qc-serial-header">
+                        <div class="vd-qc-serial-heading"><strong>${esc(tr('desktop.qc_serial_title'))}</strong><span data-serial-status data-state="ready">${esc(tr('desktop.qc_serial_idle'))}</span></div>
+                        <div class="vd-qc-serial-actions">
+                            <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-disconnect disabled>${iconMarkup('x', 'X', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_disconnect'))}</span></button>
+                        </div>
+                    </header>
+                    <div class="vd-qc-serial-layout">
+                        <section class="vd-qc-serial-config" data-serial-editor></section>
+                        <section class="vd-qc-serial-console" aria-label="${esc(tr('desktop.qc_serial_title'))}">
+                            <div class="vd-qc-serial-toolbar" role="group" aria-label="${esc(tr('desktop.qc_serial_settings'))}">
+                                <label>${esc(tr('desktop.qc_serial_receive'))}<select data-serial-rx-mode><option value="text">${esc(tr('desktop.qc_serial_receive_text'))}</option><option value="hex">${esc(tr('desktop.qc_serial_receive_hex'))}</option></select></label>
+                                <label class="vd-qc-serial-toggle"><input type="checkbox" data-serial-dtr><span>${esc(tr('desktop.qc_serial_dtr'))}</span></label>
+                                <label class="vd-qc-serial-toggle"><input type="checkbox" data-serial-rts><span>${esc(tr('desktop.qc_serial_rts'))}</span></label>
+                                <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-break disabled>${esc(tr('desktop.qc_serial_break'))}</button>
+                                <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-clear>${esc(tr('desktop.qc_serial_clear'))}</button>
+                                <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-export>${esc(tr('desktop.qc_serial_export'))}</button>
+                            </div>
+                            <div class="vd-qc-serial-terminal" data-serial-terminal></div>
+                            <div class="vd-qc-serial-capture-note" data-serial-capture-note hidden></div>
+                            <form class="vd-qc-serial-send" data-serial-form>
+                                <select data-serial-send-mode aria-label="${esc(tr('desktop.qc_serial_send'))}"><option value="text">${esc(tr('desktop.qc_serial_send_text'))}</option><option value="hex">${esc(tr('desktop.qc_serial_send_hex'))}</option></select>
+                                <input type="text" data-serial-input autocomplete="off" spellcheck="false" placeholder="${esc(tr('desktop.qc_serial_input_placeholder'))}" disabled>
+                                <select data-serial-line-ending aria-label="${esc(tr('desktop.qc_serial_line_ending'))}">
+                                    <option value="none">${esc(tr('desktop.qc_serial_no_ending'))}</option><option value="cr" selected>${esc(tr('desktop.qc_serial_carriage_return'))}</option><option value="lf">${esc(tr('desktop.qc_serial_line_feed'))}</option><option value="crlf">${esc(tr('desktop.qc_serial_crlf'))}</option>
+                                </select>
+                                <button class="vd-qc-btn vd-qc-btn-primary" type="submit" data-serial-send disabled>${iconMarkup('send', 'S', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_send'))}</span></button>
+                            </form>
+                        </section>
+                    </div>
+                </section>`;
+                mounted = true;
+                wireShell();
+                ensureTerminal();
+                if (!loaded && !loading) void loadProfiles();
+                if (allowed('host') && !portsLoading) void refreshPorts();
+                return true;
+            }
+
+            function wireShell() {
+                const root = content.querySelector('[data-qc-serial-app]');
+                if (!root) return;
+                root.querySelector('[data-serial-disconnect]').addEventListener('click', () => { void disconnect('manual'); });
+                root.querySelector('[data-serial-clear]').addEventListener('click', clearCapture);
+                root.querySelector('[data-serial-export]').addEventListener('click', exportCapture);
+                const rxMode = root.querySelector('[data-serial-rx-mode]');
+                rxMode.value = receiveMode;
+                rxMode.addEventListener('change', event => { setReceiveMode(event.target.value); });
+                root.querySelector('[data-serial-send-mode]').addEventListener('change', event => {
+                    const lineEnding = root.querySelector('[data-serial-line-ending]');
+                    lineEnding.disabled = event.target.value === 'hex';
+                    root.querySelector('[data-serial-input]').placeholder = event.target.value === 'hex' ? tr('desktop.qc_serial_hex_placeholder') : tr('desktop.qc_serial_input_placeholder');
+                });
+                root.querySelector('[data-serial-form]').addEventListener('submit', event => { event.preventDefault(); void sendInput(); });
+                root.querySelector('[data-serial-break]').addEventListener('click', () => { void sendBreak(); });
+                root.querySelector('[data-serial-dtr]').addEventListener('change', event => { void setSignal('dtr', event.target.checked); });
+                root.querySelector('[data-serial-rts]').addEventListener('change', event => { void setSignal('rts', event.target.checked); });
+            }
+
+            function ensureTerminal() {
+                if (terminal || !TerminalCtor || !FitAddonCtor || !content) return;
+                const mount = content.querySelector('[data-serial-terminal]');
+                if (!mount) return;
+                terminal = new TerminalCtor({
+                    theme: { background: '#0d1117', foreground: '#c9d1d9', cursor: '#58a6ff', selectionBackground: 'rgba(88, 166, 255, 0.3)' },
+                    fontFamily: "'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+                    fontSize: 13,
+                    cursorBlink: true,
+                    disableStdin: false,
+                    scrollback: 5000,
+                    convertEol: true
+                });
+                fitAddon = new FitAddonCtor.FitAddon();
+                terminal.loadAddon(fitAddon);
+                terminal.open(mount);
+                if (typeof terminal.onData === 'function') {
+                    const inputTerminal = terminal;
+                    const inputGeneration = displayGeneration;
+                    terminalInputDisposable = terminal.onData(data => {
+                        if (terminal !== inputTerminal || displayGeneration !== inputGeneration) return;
+                        const conn = connection;
+                        if (!conn || !conn.ready || readonly() || !isCurrent(conn)) return;
+                        const root = content && content.querySelector('[data-qc-serial-app]');
+                        const ending = root && root.querySelector('[data-serial-line-ending]')?.value || 'cr';
+                        const endings = { none: '', cr: '\r', lf: '\n', crlf: '\r\n' };
+                        const text = String(data).replace(/\r\n|\r|\n/g, endings[ending] || '');
+                        if (text) void queueTransmit(conn, new TextEncoder().encode(text), 'text', false);
+                    });
+                }
+                terminalActivityListeners = event => {
+                    if (event.isTrusted !== true) return;
+                    const conn = connection;
+                    if (conn && conn.ready) touchUserActivity(conn);
+                };
+                if (typeof mount.addEventListener === 'function') {
+                    mount.addEventListener('keydown', terminalActivityListeners);
+                    mount.addEventListener('paste', terminalActivityListeners);
+                }
+                resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => fitTerminal()) : null;
+                if (resizeObserver) resizeObserver.observe(mount);
+                ownerWindow.setTimeout(() => fitTerminal(), 0);
+            }
+
+            function fitTerminal() {
+                if (fitAddon) { try { fitAddon.fit(); } catch (_) {} }
+            }
+
+            function disposeTerminal() {
+                if (terminalInputDisposable) {
+                    try { terminalInputDisposable.dispose(); } catch (_) {}
+                    terminalInputDisposable = null;
+                }
+                if (terminalActivityListeners) {
+                    const mount = content && content.querySelector('[data-serial-terminal]');
+                    if (mount && typeof mount.removeEventListener === 'function') {
+                        mount.removeEventListener('keydown', terminalActivityListeners);
+                        mount.removeEventListener('paste', terminalActivityListeners);
+                    }
+                    terminalActivityListeners = null;
+                }
+                if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
+                if (terminal) { try { terminal.dispose(); } catch (_) {} terminal = null; }
+                fitAddon = null;
+            }
+
+            function render() {
+                if (!ensureShell()) return;
+                renderList();
+                renderEditor();
+                updateButtons();
+            }
+
+            function renderList() {
+                if (!list) return;
+                const query = String(searchInput && searchInput.value || '').trim().toLowerCase();
+                const filtered = profiles.filter(profile => !query || `${profile.name} ${profile.source} ${profile.port}`.toLowerCase().includes(query));
+                list.innerHTML = `<div class="vd-qc-serial-list-head"><span>${esc(tr('desktop.qc_serial_select_profile'))}</span><button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-create ${readonly() ? 'disabled' : ''}>${iconMarkup('plus', '+', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_create_profile'))}</span></button></div>` +
+                    (loading ? `<div class="vd-empty">${esc(tr('desktop.loading'))}</div>` : !filtered.length ? `<div class="vd-empty">${esc(tr('desktop.qc_serial_no_profiles'))}</div>` : filtered.map(profile => {
+                        const detail = profile.source === 'host' ? profile.port : tr('desktop.qc_serial_browser');
+                        const canConnect = allowed(profile.source) && !readonly();
+                        const diagnostic = sourceDiagnostic(profile);
+                        return `<article class="vd-qc-serial-profile${profile.id === selectedId ? ' active' : ''}">
+                            <button class="vd-qc-serial-profile-select" type="button" data-serial-profile="${esc(profile.id)}" aria-pressed="${profile.id === selectedId ? 'true' : 'false'}">
+                                <strong>${esc(profile.name)}</strong><span><span class="vd-qc-badge vd-qc-serial-source" data-source="${esc(profile.source)}">${esc(profile.source === 'host' ? tr('desktop.qc_serial_host') : tr('desktop.qc_serial_browser'))}</span><span class="vd-qc-serial-profile-detail">${esc(detail || tr('desktop.qc_serial_choose_port'))}</span></span>
+                                ${diagnostic ? `<small class="vd-qc-serial-diagnostic" role="status">${esc(diagnostic)}</small>` : ''}
+                            </button>
+                            <div class="vd-qc-serial-profile-actions">
+                                <button class="vd-qc-btn vd-qc-btn-sm vd-qc-btn-primary" type="button" data-serial-connect="${esc(profile.id)}" ${canConnect ? '' : 'disabled'}>${esc(tr('desktop.qc_serial_connect'))}</button>
+                                <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-delete="${esc(profile.id)}" ${readonly() ? 'disabled' : ''} aria-label="${esc(tr('desktop.qc_serial_delete_profile'))}">${iconMarkup('trash', 'X', 'vd-qc-btn-icon', 13)}</button>
+                            </div>
+                        </article>`;
+                    }).join(''));
+                list.querySelector('[data-serial-create]')?.addEventListener('click', () => { selectedId = ''; renderEditor(); });
+                list.querySelectorAll('[data-serial-profile]').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.serialProfile; renderList(); renderEditor(); }));
+                list.querySelectorAll('[data-serial-connect]').forEach(button => button.addEventListener('click', () => { void connectProfile(button.dataset.serialConnect); }));
+                list.querySelectorAll('[data-serial-delete]').forEach(button => button.addEventListener('click', () => { void deleteProfile(button.dataset.serialDelete); }));
+            }
+
+            function renderEditor() {
+                if (!content || !content.querySelector('[data-qc-serial-app]')) return;
+                const editor = content.querySelector('[data-serial-editor]');
+                if (!editor) return;
+                const current = profiles.find(profile => profile.id === selectedId);
+                const profile = current || { id: '', name: '', source: 'browser', port: '', options: { ...DEFAULT_OPTIONS } };
+                const source = profile.source;
+                const optsValue = normalizeOptions(profile.options, source);
+                const baudValue = BAUD_PRESETS.includes(optsValue.baud_rate) ? String(optsValue.baud_rate) : 'custom';
+                const hostOptions = renderPortOptions(profile.port);
+                editor.innerHTML = `<form class="vd-qc-serial-profile-form" data-serial-profile-form>
+                    <h3>${esc(current ? current.name : tr('desktop.qc_serial_create_profile'))}</h3>
+                    <label>${esc(tr('desktop.qc_serial_profile_name'))}<input name="name" type="text" maxlength="80" required value="${esc(profile.name)}" ${readonly() ? 'disabled' : ''}></label>
+                    <label>${esc(tr('desktop.qc_serial_source'))}<select name="source" ${readonly() ? 'disabled' : ''}><option value="browser" ${source === 'browser' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_browser'))}</option><option value="host" ${source === 'host' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_host'))}</option></select></label>
+                    <div data-serial-browser-fields ${source === 'browser' ? '' : 'hidden'}>
+                        <p class="vd-qc-serial-help">${esc(tr('desktop.qc_serial_choose_port'))}</p>
+                        <div class="vd-qc-serial-pair"><label>USB VID<input name="usb_vendor_id" type="text" inputmode="text" maxlength="6" placeholder="10C4" value="${profile.usb_vendor_id !== undefined ? profile.usb_vendor_id.toString(16).toUpperCase().padStart(4, '0') : ''}" ${readonly() ? 'disabled' : ''}></label><label>USB PID<input name="usb_product_id" type="text" inputmode="text" maxlength="6" placeholder="EA60" value="${profile.usb_product_id !== undefined ? profile.usb_product_id.toString(16).toUpperCase().padStart(4, '0') : ''}" ${readonly() ? 'disabled' : ''}></label></div>
+                    </div>
+                    <div data-serial-host-fields ${source === 'host' ? '' : 'hidden'}>
+                        <label>${esc(tr('desktop.qc_serial_port'))}<select name="port" ${readonly() ? 'disabled' : ''}>${hostOptions}</select></label>
+                        <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-refresh-ports ${readonly() ? 'disabled' : ''}>${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 12)}<span>${esc(tr('desktop.retry'))}</span></button>
+                    </div>
+                    <div class="vd-qc-serial-inline-status" data-serial-port-error role="status" ${portsError && source === 'host' ? '' : 'hidden'}>${portsError && source === 'host' ? esc(tr('desktop.load_failed')) : ''}</div>
+                    <details class="vd-qc-serial-options" open><summary>${esc(tr('desktop.qc_serial_settings'))}</summary>
+                        <div class="vd-qc-serial-pair"><label>${esc(tr('desktop.qc_serial_baud_rate'))}<select name="baud_preset">${BAUD_PRESETS.map(rate => `<option value="${rate}" ${baudValue === String(rate) ? 'selected' : ''}>${rate}</option>`).join('')}<option value="custom" ${baudValue === 'custom' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_custom'))}</option></select></label><label data-custom-baud ${baudValue === 'custom' ? '' : 'hidden'}>${esc(tr('desktop.qc_serial_custom'))}<input name="baud_custom" type="number" min="1" max="4000000" value="${optsValue.baud_rate}" ${readonly() ? 'disabled' : ''}></label></div>
+                        <div class="vd-qc-serial-pair"><label>${esc(tr('desktop.qc_serial_data_bits'))}<select name="data_bits"><option value="7" ${optsValue.data_bits === 7 ? 'selected' : ''}>7</option><option value="8" ${optsValue.data_bits === 8 ? 'selected' : ''}>8</option></select></label><label>${esc(tr('desktop.qc_serial_stop_bits'))}<select name="stop_bits"><option value="1" ${optsValue.stop_bits === 1 ? 'selected' : ''}>1</option><option value="2" ${optsValue.stop_bits === 2 ? 'selected' : ''}>2</option></select></label></div>
+                        <div class="vd-qc-serial-pair"><label>${esc(tr('desktop.qc_serial_parity'))}<select name="parity"><option value="none" ${optsValue.parity === 'none' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_none'))}</option><option value="even" ${optsValue.parity === 'even' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_even'))}</option><option value="odd" ${optsValue.parity === 'odd' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_odd'))}</option></select></label><label>${esc(tr('desktop.qc_serial_flow_control'))}<select name="flow_control"><option value="none">${esc(tr('desktop.qc_serial_none'))}</option><option value="hardware" ${optsValue.flow_control === 'hardware' ? 'selected' : ''} ${source === 'host' ? 'disabled' : ''}>${esc(tr('desktop.qc_serial_hardware'))}${source === 'host' ? ` — ${esc(tr('desktop.qc_serial_hardware_host_unsupported'))}` : ''}</option></select></label></div>
+                        <div class="vd-qc-serial-pair"><label class="vd-qc-serial-check"><input name="dtr" type="checkbox" ${optsValue.dtr ? 'checked' : ''} ${readonly() ? 'disabled' : ''}><span>${esc(tr('desktop.qc_serial_dtr'))}</span></label><label class="vd-qc-serial-check"><input name="rts" type="checkbox" ${optsValue.rts ? 'checked' : ''} ${readonly() || (source === 'browser' && optsValue.flow_control === 'hardware') ? 'disabled' : ''}><span>${esc(tr('desktop.qc_serial_rts'))}</span></label></div>
+                        <label class="vd-qc-serial-check"><input name="local_echo" type="checkbox" ${optsValue.local_echo ? 'checked' : ''}><span>${esc(tr('desktop.qc_serial_local_echo'))}</span></label>
+                        <label>${esc(tr('desktop.qc_serial_line_ending'))}<select name="line_ending"><option value="none" ${optsValue.line_ending === 'none' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_no_ending'))}</option><option value="cr" ${optsValue.line_ending === 'cr' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_carriage_return'))}</option><option value="lf" ${optsValue.line_ending === 'lf' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_line_feed'))}</option><option value="crlf" ${optsValue.line_ending === 'crlf' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_crlf'))}</option></select></label>
+                    </details>
+                    <div class="vd-qc-serial-form-actions"><button class="vd-qc-btn vd-qc-btn-primary" type="submit" data-serial-save ${readonly() ? 'disabled' : ''}>${iconMarkup('save', 'S', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_save_profile'))}</span></button></div>
+                    <div data-serial-form-status role="status" aria-live="polite"></div>
+                </form>`;
+                const form = editor.querySelector('[data-serial-profile-form]');
+                form.addEventListener('submit', event => { event.preventDefault(); void saveProfile(form); });
+                form.querySelector('[name="source"]').addEventListener('change', event => {
+                    const nextSource = event.target.value;
+                    connectionAttemptGeneration++;
+                    pendingAttemptSource = '';
+                    if (chooserPending) chooserGeneration++;
+                    if (connection && connection.profileId === selectedId && connection.source !== nextSource) void disconnect('switch');
+                    form.querySelector('[data-serial-browser-fields]').hidden = nextSource !== 'browser';
+                    form.querySelector('[data-serial-host-fields]').hidden = nextSource !== 'host';
+                    const hardware = form.querySelector('[name="flow_control"] option[value="hardware"]');
+                    hardware.disabled = nextSource === 'host';
+                    hardware.textContent = `${tr('desktop.qc_serial_hardware')}${nextSource === 'host' ? ` — ${tr('desktop.qc_serial_hardware_host_unsupported')}` : ''}`;
+                    if (nextSource === 'host' && form.querySelector('[name="flow_control"]').value === 'hardware') form.querySelector('[name="flow_control"]').value = 'none';
+                    form.querySelector('[name="rts"]').disabled = readonly() || (nextSource === 'browser' && form.querySelector('[name="flow_control"]').value === 'hardware');
+                    if (nextSource === 'host' && allowed('host') && !ports.length && !portsLoading) void refreshPorts();
+                });
+                form.querySelector('[name="baud_preset"]').addEventListener('change', event => {
+                    form.querySelector('[data-custom-baud]').hidden = event.target.value !== 'custom';
+                });
+                form.querySelector('[name="flow_control"]').addEventListener('change', event => {
+                    const rts = form.querySelector('[name="rts"]');
+                    rts.disabled = readonly() || (form.elements.source.value === 'browser' && event.target.value === 'hardware');
+                });
+                form.querySelector('[data-serial-refresh-ports]')?.addEventListener('click', () => { void refreshPorts(); });
+                if (connection) syncSignalControls();
+            }
+
+            function renderPortOptions(selectedPort) {
+                const current = String(selectedPort || '');
+                let output = `<option value="">${esc(tr('desktop.qc_serial_choose_port'))}</option>`;
+                if (current && !ports.some(port => port.name === current)) output += `<option value="${esc(current)}" selected disabled>${esc(current)} — ${esc(tr('desktop.qc_serial_unavailable_port'))}</option>`;
+                if (portsError) return output;
+                if (!ports.length) output += `<option value="" disabled>${esc(tr('desktop.qc_serial_no_ports'))}</option>`;
+                return output + ports.map(port => `<option value="${esc(port.name)}" ${port.name === current ? 'selected' : ''} ${port.busy ? 'disabled' : ''}>${esc(port.name)}${port.busy ? ` — ${esc(tr('desktop.qc_serial_port_busy'))}` : ''}</option>`).join('');
+            }
+
+            function updateHostPortControls() {
+                const form = content && content.querySelector('[data-serial-profile-form]');
+                if (!form || form.elements.source.value !== 'host') return;
+                const port = form.elements.port;
+                const selected = port.value || (profiles.find(item => item.id === selectedId) || {}).port || '';
+                port.innerHTML = renderPortOptions(selected);
+                if (selected) port.value = selected;
+                const error = form.querySelector('[data-serial-port-error]');
+                if (error) {
+                    error.hidden = !portsError;
+                    error.textContent = portsError ? tr('desktop.load_failed') : '';
+                }
+            }
+
+            function resetTerminalDisplay() {
+                displayGeneration++;
+                displayQueueBytes = 0;
+                disposeTerminal();
+                ensureTerminal();
+                const note = content && content.querySelector('[data-serial-capture-note]');
+                if (note && !captureDropped) { note.hidden = true; note.textContent = ''; }
+            }
+
+            function terminalWrite(output, conn) {
+                const size = typeof output === 'string' ? output.length : output.byteLength;
+                if (!terminal || displayQueueBytes + size > MAX_PENDING_RX_BYTES) {
+                    showCaptureNote(tr('desktop.qc_serial_render_limit'));
+                    return false;
+                }
+                displayQueueBytes += size;
+                const token = displayGeneration;
+                terminal.write(output, () => {
+                    if (token === displayGeneration) displayQueueBytes = Math.max(0, displayQueueBytes - size);
+                });
+                return true;
+            }
+
+            function setReceiveMode(value) {
+                receiveMode = value === 'hex' ? 'hex' : 'text';
+                if (connection) connection.rxMode = receiveMode;
+                resetTerminalDisplay();
+                showCaptureNote(captureDropped ? tr('desktop.qc_serial_capture_limit') : tr('desktop.qc_serial_mode_changed'));
+            }
+
+            async function refreshPorts() {
+                if (!allowed('host') || disposed) return;
+                if (portsAbort) portsAbort.abort();
+                portsAbort = new AbortController();
+                const generation = ++portsGeneration;
+                portsLoading = true;
+                portsError = false;
+                try {
+                    const body = await request('/api/desktop/serial/ports', { signal: portsAbort.signal });
+                    if (disposed || generation !== portsGeneration) return;
+                    ports = Array.isArray(body && body.ports) ? body.ports.filter(port => port && typeof port.name === 'string').map(port => ({ name: port.name, busy: port.busy === true })) : [];
+                    if (connection && connection.source === 'host' && !ports.some(port => port.name === connection.profile.port)) void disconnect('remote');
+                } catch (_) {
+                    if (disposed || generation !== portsGeneration) return;
+                    portsError = true;
+                } finally {
+                    if (!disposed && generation === portsGeneration) {
+                        portsLoading = false;
+                        updateHostPortControls();
+                        renderList();
+                    }
+                }
+            }
+
+            function readDraft(form) {
+                const name = form.elements.name.value.trim();
+                const source = form.elements.source.value;
+                const baudRate = form.elements.baud_preset.value === 'custom' ? Number(form.elements.baud_custom.value) : Number(form.elements.baud_preset.value);
+                const usbVendor = parseHexID(form.elements.usb_vendor_id.value);
+                const usbProduct = parseHexID(form.elements.usb_product_id.value);
+                if (!name || Array.from(name).length > 80 || /[\u0000-\u001F\u007F-\u009F]/.test(name)) throw new Error(tr('desktop.qc_serial_profile_name'));
+                if (!['browser', 'host'].includes(source)) throw new Error(tr('desktop.qc_serial_source'));
+                if (source === 'host' && !form.elements.port.value) throw new Error(tr('desktop.qc_serial_choose_port'));
+                if (!Number.isInteger(baudRate) || baudRate < 1 || baudRate > 4000000) throw new Error(tr('desktop.qc_serial_baud_rate'));
+                if (usbVendor === null || usbProduct === null || (usbProduct !== undefined && usbVendor === undefined)) throw new Error(tr('desktop.qc_serial_usb_filter_invalid'));
+                const existing = profiles.find(item => item.id === selectedId);
+                const profile = {
+                    id: selectedId || (crypto.randomUUID ? crypto.randomUUID() : `serial-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+                    name,
+                    source,
+                    port: source === 'host' ? form.elements.port.value : '',
+                    options: normalizeOptions({
+                        baud_rate: baudRate,
+                        data_bits: Number(form.elements.data_bits.value),
+                        stop_bits: Number(form.elements.stop_bits.value),
+                        parity: form.elements.parity.value,
+                        flow_control: form.elements.flow_control.value,
+                        local_echo: form.elements.local_echo.checked,
+                        line_ending: form.elements.line_ending.value,
+                        dtr: form.elements.dtr.checked,
+                        rts: form.elements.rts.checked
+                    }, source)
+                };
+                if (usbVendor !== undefined) profile.usb_vendor_id = usbVendor;
+                if (usbProduct !== undefined) profile.usb_product_id = usbProduct;
+                return profile;
+            }
+
+            async function saveProfile(form) {
+                if (readonly()) return;
+                const status = form.querySelector('[data-serial-form-status]');
+                let profile;
+                try {
+                    profile = readDraft(form);
+                    if (!profiles.some(item => item.id === profile.id) && profiles.length >= MAX_PROFILES) throw new Error(tr('desktop.qc_serial_no_profiles'));
+                    const next = profiles.filter(item => item.id !== profile.id).concat(profile);
+                    const serialized = JSON.stringify({ version: 1, profiles: next });
+                    if (new TextEncoder().encode(serialized).byteLength > MAX_PROFILE_BYTES) throw new Error(tr('desktop.qc_serial_save_profile'));
+                    const body = await request('/api/desktop/settings', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: STORAGE_KEY, value: serialized })
+                    });
+                    if (disposed) return;
+                    profiles = next;
+                    selectedId = profile.id;
+                    const b = bootstrap();
+                    if (b.settings && typeof b.settings === 'object') b.settings[STORAGE_KEY] = serialized;
+                    if (status) status.textContent = tr('desktop.qc_serial_saved');
+                    renderList();
+                    updateButtons();
+                    void body;
+                } catch (error) {
+                    if (status) status.textContent = error && error.message ? error.message : tr('desktop.qc_serial_open_failed');
+                }
+            }
+
+            async function deleteProfile(id) {
+                if (readonly()) return;
+                const profile = profiles.find(item => item.id === id);
+                if (!profile) return;
+                const message = tr('desktop.qc_delete_confirm_msg').replace('{{name}}', profile.name);
+                if (!await confirmDialog(tr('desktop.qc_serial_delete_profile'), message)) return;
+                if (connection && connection.profileId === id) await disconnect('switch');
+                const next = profiles.filter(item => item.id !== id);
+                try {
+                    const serialized = JSON.stringify({ version: 1, profiles: next });
+                    await request('/api/desktop/settings', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: STORAGE_KEY, value: serialized })
+                    });
+                    profiles = next;
+                    if (selectedId === id) selectedId = profiles[0] && profiles[0].id || '';
+                    renderList();
+                    renderEditor();
+                    updateButtons();
+                } catch (_) {
+                    writeStatus(tr('desktop.qc_serial_open_failed'), 'error');
+                }
+            }
+
+            async function connectProfile(id) {
+                if (disposed || chooserPending || readonly()) return;
+                const profile = profiles.find(item => item.id === id);
+                if (!profile) return;
+                if (!allowed(profile.source)) {
+                    writeStatus(tr('desktop.qc_serial_permission_disabled'), 'error');
+                    return;
+                }
+                const attempt = ++connectionAttemptGeneration;
+                pendingAttemptSource = profile.source;
+                if (profile.source === 'browser') {
+                    const diagnostic = sourceDiagnostic(profile);
+                    if (diagnostic) {
+                        pendingAttemptSource = '';
+                        writeStatus(diagnostic, 'error');
+                        return;
+                    }
+                    const serial = browserNavigator && browserNavigator.serial;
+                    const filters = [];
+                    if (profile.usb_vendor_id !== undefined || profile.usb_product_id !== undefined) {
+                        const filter = {};
+                        if (profile.usb_vendor_id !== undefined) filter.usbVendorId = profile.usb_vendor_id;
+                        if (profile.usb_product_id !== undefined) filter.usbProductId = profile.usb_product_id;
+                        filters.push(filter);
+                    }
+                    const chooser = ++chooserGeneration;
+                    chooserPending = true;
+                    chooserPendingGeneration = chooser;
+                    let port;
+                    try {
+                        // Keep requestPort in the trusted click stack; awaiting it is safe.
+                        const choice = serial.requestPort(filters.length ? { filters } : {});
+                        port = await choice;
+                    } catch (error) {
+                        if (attempt === connectionAttemptGeneration) pendingAttemptSource = '';
+                        if (chooser === chooserGeneration && !disposed) {
+                            const cancelled = error && error.name === 'NotFoundError';
+                            writeStatus(tr(cancelled ? 'desktop.qc_serial_cancelled' : error && (error.name === 'NotAllowedError' || error.name === 'SecurityError') ? 'desktop.qc_serial_browser_permission_denied' : 'desktop.qc_serial_open_failed'), cancelled ? 'ready' : 'error');
+                        }
+                        return;
+                    } finally {
+                        if (chooserPendingGeneration === chooser) chooserPending = false;
+                    }
+                    if (disposed || attempt !== connectionAttemptGeneration || chooser !== chooserGeneration || !allowed('browser')) {
+                        if (attempt === connectionAttemptGeneration) pendingAttemptSource = '';
+                        return;
+                    }
+                    await startBrowserConnection(profile, port, attempt);
+                    if (attempt === connectionAttemptGeneration) pendingAttemptSource = '';
+                    return;
+                }
+                await startHostConnection(profile, attempt);
+                if (attempt === connectionAttemptGeneration) pendingAttemptSource = '';
+            }
+
+            async function startBrowserConnection(profile, port, attempt) {
+                await disconnect('switch');
+                if (disposed || attempt !== connectionAttemptGeneration || !allowed('browser')) return;
+                const owner = onSessionStart({ source: 'browser', profile });
+                const conn = { generation: ++connectionGeneration, source: 'browser', profileId: profile.id, profile, port, owner, isOwnerCurrent: typeof owner === 'function' ? owner : null, reader: null, writer: null, rxMode: 'text', signals: { dtr: profile.options.dtr, rts: profile.options.rts }, pendingTxBytes: 0, sendChain: Promise.resolve(), controlChain: Promise.resolve(), closed: false };
+                connection = conn;
+                conn.rxMode = receiveMode;
+                displaySessionId = conn.generation;
+                resetTerminalDisplay();
+                startSessionTimers(conn);
+                selectedId = profile.id;
+                const lineEnding = content && content.querySelector('[data-serial-line-ending]');
+                if (lineEnding) lineEnding.value = profile.options.line_ending;
+                renderEditor();
+                ensureTerminal();
+                updateButtons();
+                writeStatus(tr('desktop.qc_serial_choose_port'), 'connecting');
+                try {
+                    const serialOptions = {
+                        baudRate: profile.options.baud_rate,
+                        dataBits: profile.options.data_bits,
+                        stopBits: profile.options.stop_bits,
+                        parity: profile.options.parity,
+                        bufferSize: 65536,
+                        flowControl: profile.options.flow_control
+                    };
+                    conn.openPromise = Promise.resolve().then(() => port.open(serialOptions)).then(() => { conn.opened = true; });
+                    await conn.openPromise;
+                    if (!isCurrent(conn)) { await closePort(conn); return; }
+                    conn.reader = port.readable.getReader();
+                    conn.writer = port.writable.getWriter();
+                    const serial = browserNavigator && browserNavigator.serial;
+                    if (serial && typeof serial.addEventListener === 'function') {
+                        conn.serialDisconnectListener = event => {
+                            const removedPort = event && (event.port || (event.target && event.target.port) || event.target);
+                            if ((removedPort === conn.port || !removedPort) && isCurrent(conn)) {
+                                conn.preserveStatus = true;
+                                writeStatus(tr('desktop.qc_serial_connection_lost'), 'error');
+                                void stopConnection(conn, 'remote');
+                            }
+                        };
+                        serial.addEventListener('disconnect', conn.serialDisconnectListener);
+                        conn.serialEventTarget = serial;
+                        if (typeof port.addEventListener === 'function') port.addEventListener('disconnect', conn.serialDisconnectListener);
+                    }
+                    const signals = { dataTerminalReady: conn.signals.dtr };
+                    if (profile.options.flow_control !== 'hardware') signals.requestToSend = conn.signals.rts;
+                    await queueBrowserControl(conn, signals);
+                    if (!isCurrent(conn)) { await closePort(conn); return; }
+                    conn.ready = true;
+                    syncSignalControls();
+                    writeStatus(tr('desktop.qc_serial_connected'), 'connected');
+                    void readBrowser(conn);
+                } catch (error) {
+                    if (isCurrent(conn)) {
+                        const key = error && error.name === 'NotAllowedError' ? 'desktop.qc_serial_browser_permission_denied' : error && error.name === 'NotFoundError' ? 'desktop.qc_serial_unavailable_port' : 'desktop.qc_serial_open_failed';
+                        conn.preserveStatus = true;
+                        writeStatus(tr(key), 'error');
+                        await stopConnection(conn, 'error');
+                    } else await closePort(conn);
+                }
+            }
+
+            async function startHostConnection(profile, attempt) {
+                if (!Socket) { writeStatus(tr('desktop.qc_serial_open_failed'), 'error'); return; }
+                await disconnect('switch');
+                if (disposed || attempt !== connectionAttemptGeneration || !allowed('host')) return;
+                const owner = onSessionStart({ source: 'host', profile });
+                const conn = { generation: ++connectionGeneration, source: 'host', profileId: profile.id, profile, owner, isOwnerCurrent: typeof owner === 'function' ? owner : null, socket: null, rxMode: 'text', signals: { dtr: profile.options.dtr, rts: profile.options.rts }, pendingTxBytes: 0, sendChain: Promise.resolve(), closed: false };
+                connection = conn;
+                conn.rxMode = receiveMode;
+                displaySessionId = conn.generation;
+                resetTerminalDisplay();
+                startSessionTimers(conn);
+                selectedId = profile.id;
+                const lineEnding = content && content.querySelector('[data-serial-line-ending]');
+                if (lineEnding) lineEnding.value = profile.options.line_ending;
+                renderEditor();
+                ensureTerminal();
+                updateButtons();
+                writeStatus(tr('desktop.qc_serial_choose_port'), 'connecting');
+                try {
+                    const available = await request('/api/desktop/serial/ports');
+                    if (!isCurrent(conn)) return;
+                    const port = (available && available.ports || []).find(item => item && item.name === profile.port);
+                    if (!port || port.busy) {
+                        const error = new Error('');
+                        error.code = port ? 'port_busy' : 'port_not_found';
+                        throw error;
+                    }
+                    const currentLocation = ownerWindow.location || window.location;
+                    const scheme = currentLocation.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const socket = new Socket(`${scheme}//${currentLocation.host}/api/desktop/serial/connect`);
+                    socket.binaryType = 'arraybuffer';
+                    conn.socket = socket;
+                    socket.addEventListener('open', () => {
+                        if (!isCurrent(conn)) { try { socket.close(); } catch (_) {} return; }
+                        try { socket.send(JSON.stringify({ type: 'open', port: profile.port, options: { ...profile.options } })); }
+                        catch (_) { conn.preserveStatus = true; writeStatus(tr('desktop.qc_serial_connection_lost'), 'error'); void stopConnection(conn, 'remote'); }
+                    });
+                    socket.addEventListener('message', event => { if (isCurrent(conn)) handleHostMessage(conn, event.data); });
+                    socket.addEventListener('error', () => { if (isCurrent(conn)) { conn.preserveStatus = true; writeStatus(tr('desktop.qc_serial_connection_lost'), 'error'); void stopConnection(conn, 'remote'); } });
+                    socket.addEventListener('close', () => { if (isCurrent(conn)) void stopConnection(conn, 'remote'); });
+                } catch (error) {
+                    if (isCurrent(conn)) {
+                        const code = error && (error.code || error.body && (error.body.code || error.body.error));
+                        conn.preserveStatus = true;
+                        writeStatus(serialErrorText(code), 'error');
+                        await stopConnection(conn, 'error');
+                    }
+                }
+            }
+
+            async function handleHostMessage(conn, data) {
+                if (typeof data !== 'string') {
+                    const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data instanceof Blob ? new Uint8Array(await data.arrayBuffer()) : new Uint8Array(data);
+                    if (isCurrent(conn)) receive(conn, bytes);
+                    return;
+                }
+                let message;
+                try { message = JSON.parse(data); } catch (_) { return; }
+                const status = message.status || message.type;
+                if (status === 'connected') {
+                    conn.ready = true;
+                    writeStatus(tr('desktop.qc_serial_connected'), 'connected');
+                    syncSignalControls();
+                    if (!conn.deviceTimer) scheduleHostDeviceCheck(conn);
+                }
+                else if (status === 'disconnected') {
+                    conn.preserveStatus = true;
+                    writeStatus(serialErrorText(message.code, 'desktop.qc_serial_connection_lost'), 'error');
+                    void stopConnection(conn, 'remote');
+                } else if (status === 'error') {
+                    conn.preserveStatus = true;
+                    writeStatus(serialErrorText(message.code), 'error');
+                    void stopConnection(conn, 'error');
+                }
+            }
+
+            function scheduleHostDeviceCheck(conn) {
+                conn.deviceTimer = ownerWindow.setTimeout(async () => {
+                    conn.deviceTimer = null;
+                    if (!isCurrent(conn)) return;
+                    try {
+                        const body = await request('/api/desktop/serial/ports');
+                        if (!isCurrent(conn)) return;
+                        const present = Array.isArray(body && body.ports) && body.ports.some(port => port && port.name === conn.profile.port);
+                        if (!present) {
+                            conn.preserveStatus = true;
+                            writeStatus(tr('desktop.qc_serial_unavailable_port'), 'error');
+                            await stopConnection(conn, 'remote');
+                            return;
+                        }
+                    } catch (_) {
+                        if (!isCurrent(conn)) return;
+                    }
+                    if (isCurrent(conn)) scheduleHostDeviceCheck(conn);
+                }, 15000);
+            }
+
+            async function readBrowser(conn) {
+                try {
+                    while (isCurrent(conn)) {
+                        const result = await conn.reader.read();
+                        if (!isCurrent(conn) || result.done) break;
+                        if (result.value && result.value.byteLength) receive(conn, result.value);
+                    }
+                    if (isCurrent(conn)) await stopConnection(conn, 'remote');
+                } catch (error) {
+                    if (isCurrent(conn)) {
+                        conn.preserveStatus = true;
+                        writeStatus(tr('desktop.qc_serial_connection_lost'), 'error');
+                        await stopConnection(conn, 'error');
+                    }
+                }
+            }
+
+            function receive(conn, bytes) {
+                if (!isCurrent(conn) || !bytes || !bytes.byteLength) return;
+                const copy = Uint8Array.from(bytes);
+                addCapture('RX', copy, conn);
+                const output = conn.rxMode === 'hex' ? `${formatHex(copy)}\r\n` : copy;
+                terminalWrite(output, conn);
+            }
+
+            function captureRecord(direction, bytes, conn) {
+                addCapture(direction, bytes, conn);
+            }
+
+            function addCapture(direction, bytes, conn) {
+                const input = Uint8Array.from(bytes || []);
+                let data = input;
+                if (data.byteLength > MAX_CAPTURE_BYTES) {
+                    data = data.slice(data.byteLength - MAX_CAPTURE_BYTES);
+                    captureDropped = true;
+                }
+                const cost = data.byteLength + 32;
+                capture.push({ at: Date.now(), direction, session: conn ? conn.generation : displaySessionId, data, cost });
+                captureBytes += cost;
+                while (capture.length > MAX_CAPTURE_RECORDS || captureBytes > MAX_CAPTURE_BYTES) {
+                    const dropped = capture.shift();
+                    if (dropped) captureBytes -= dropped.cost;
+                    captureDropped = true;
+                }
+                if (captureDropped) showCaptureNote(tr('desktop.qc_serial_capture_limit'));
+            }
+
+            function showCaptureNote(message) {
+                const note = content && content.querySelector('[data-serial-capture-note]');
+                if (!note) return;
+                note.hidden = false;
+                note.textContent = message;
+            }
+
+            function clearCapture() {
+                capture = [];
+                captureBytes = 0;
+                captureDropped = false;
+                resetTerminalDisplay();
+                const note = content && content.querySelector('[data-serial-capture-note]');
+                if (note) { note.hidden = true; note.textContent = ''; }
+            }
+
+            function exportCapture() {
+                const rows = capture.map(record => `${new Date(record.at).toISOString()}\t${record.direction}\t${formatHex(record.data)}`);
+                const contentText = `${captureDropped ? '# Older capture data was dropped.\n' : ''}${rows.join('\n')}${rows.length ? '\n' : ''}`;
+                const blob = new Blob([contentText], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `serial-capture-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 0);
+            }
+
+            function queueTransmit(conn, bytes, mode, explicitActivity) {
+                if (!isCurrent(conn) || !conn.ready || readonly()) return Promise.resolve(false);
+                if (!bytes || !bytes.byteLength || bytes.byteLength > MAX_SEND_BYTES) {
+                    writeStatus(tr('desktop.qc_serial_invalid_hex'), 'error');
+                    return Promise.resolve(false);
+                }
+                if (conn.pendingTxBytes + bytes.byteLength > MAX_PENDING_TX_BYTES) {
+                    writeStatus(tr('desktop.qc_serial_connection_lost'), 'error');
+                    return Promise.resolve(false);
+                }
+                const copy = Uint8Array.from(bytes);
+                conn.pendingTxBytes += copy.byteLength;
+                conn.sendChain = conn.sendChain.then(async () => {
+                    if (!isCurrent(conn) || !conn.ready) return false;
+                    if (conn.source === 'browser') {
+                        if (!conn.writer) throw new Error('writer_unavailable');
+                        await conn.writer.write(copy);
+                    } else {
+                        if (!conn.socket || conn.socket.readyState !== Socket.OPEN || conn.socket.bufferedAmount + copy.byteLength > MAX_PENDING_TX_BYTES) throw new Error('write_unavailable');
+                        conn.socket.send(copy.buffer);
+                    }
+                    captureRecord('TX', copy, conn);
+                    if (!isCurrent(conn)) return true;
+                    if (conn.profile.options.local_echo) terminalWrite(mode === 'hex' ? `${formatHex(copy)}\r\n` : copy, conn);
+                    if (explicitActivity) touchUserActivity(conn);
+                    return true;
+                }).catch(() => {
+                    if (isCurrent(conn)) writeStatus(tr('desktop.qc_serial_connection_lost'), 'error');
+                    return false;
+                }).finally(() => { conn.pendingTxBytes = Math.max(0, conn.pendingTxBytes - copy.byteLength); });
+                return conn.sendChain;
+            }
+
+            async function sendInput() {
+                const root = content && content.querySelector('[data-qc-serial-app]');
+                const input = root && root.querySelector('[data-serial-input]');
+                const conn = connection;
+                if (!conn || !conn.ready || !input || readonly()) return;
+                const original = input.value;
+                const mode = root.querySelector('[data-serial-send-mode]').value;
+                let bytes;
+                if (mode === 'hex') {
+                    bytes = parseHex(original);
+                    if (!bytes) { writeStatus(tr('desktop.qc_serial_invalid_hex'), 'error'); return; }
+                } else {
+                    const endings = { none: '', cr: '\r', lf: '\n', crlf: '\r\n' };
+                    const suffix = endings[root.querySelector('[data-serial-line-ending]').value] || '';
+                    bytes = new TextEncoder().encode(original + suffix);
+                }
+                if (!bytes.byteLength || bytes.byteLength > MAX_SEND_BYTES) {
+                    writeStatus(tr('desktop.qc_serial_invalid_hex'), 'error');
+                    return;
+                }
+                if (await queueTransmit(conn, bytes, mode, true) && input.value === original) input.value = '';
+            }
+
+            async function sendBreak() {
+                const conn = connection;
+                if (!isCurrent(conn) || !conn.ready) return;
+                if (conn.breakTimer) ownerWindow.clearTimeout(conn.breakTimer);
+                const generation = conn.breakGeneration = (conn.breakGeneration || 0) + 1;
+                try {
+                    if (conn.source === 'browser') {
+                        await queueBrowserControl(conn, { break: true });
+                        if (!isCurrent(conn) || conn.breakGeneration !== generation) return;
+                        conn.breakTimer = ownerWindow.setTimeout(async () => {
+                            conn.breakTimer = null;
+                            if (connection !== conn || conn.closed || conn.breakGeneration !== generation) return;
+                            try { await queueBrowserControl(conn, { break: false }); } catch (_) {}
+                        }, 250);
+                    } else {
+                        sendHostControl(conn, { type: 'break' });
+                    }
+                    touchUserActivity(conn);
+                } catch (_) {
+                    if (connection === conn) writeStatus(tr('desktop.qc_serial_open_failed'), 'error');
+                }
+            }
+
+            async function setSignal(signal, value) {
+                const conn = connection;
+                if (!isCurrent(conn) || !conn.ready) return;
+                try {
+                    const signals = { ...conn.signals, [signal]: value };
+                    if (conn.source === 'browser') {
+                        await queueBrowserControl(conn, signal === 'dtr' ? { dataTerminalReady: value } : { requestToSend: value });
+                    } else {
+                        sendHostControl(conn, { type: 'signals', dtr: signals.dtr, rts: signals.rts });
+                    }
+                    if (!isCurrent(conn)) return;
+                    conn.signals = signals;
+                    touchUserActivity(conn);
+                } catch (_) {
+                    if (connection === conn) writeStatus(tr('desktop.qc_serial_open_failed'), 'error');
+                }
+            }
+
+            function syncSignalControls() {
+                const root = content && content.querySelector('[data-qc-serial-app]');
+                if (!root || !connection) return;
+                const dtr = root.querySelector('[data-serial-dtr]');
+                const rts = root.querySelector('[data-serial-rts]');
+                if (dtr) dtr.checked = !!connection.signals.dtr;
+                if (rts) rts.checked = !!connection.signals.rts;
+                updateButtons();
+            }
+
+            async function disconnect(reason) {
+                if (reason !== 'switch') {
+                    connectionAttemptGeneration++;
+                    pendingAttemptSource = '';
+                }
+                chooserGeneration++;
+                const conn = connection;
+                if (conn) await stopConnection(conn, reason || 'manual');
+                else await connectionStop;
+            }
+
+            function stopConnection(conn, reason) {
+                if (!conn || connection !== conn) return conn && conn.stopPromise || connectionStop;
+                if (conn.stopPromise) return conn.stopPromise;
+                connection = null;
+                connectionGeneration++;
+                conn.closed = true;
+                clearSessionTimers(conn);
+                updateButtons();
+                const stopGeneration = connectionGeneration;
+                conn.stopPromise = (async () => {
+                    if (conn.source === 'host') await closeHostSocket(conn);
+                    else await closePort(conn);
+                    updateButtons();
+                    if (!disposed && !connection && connectionGeneration === stopGeneration && !conn.preserveStatus) {
+                        if (reason === 'remote') writeStatus(tr('desktop.qc_serial_connection_lost'), 'error');
+                        else if (reason !== 'error') writeStatus(tr('desktop.qc_serial_disconnected'), 'ready');
+                    }
+                    if (!conn.sessionEnded) {
+                        conn.sessionEnded = true;
+                        try { onSessionEnd(conn.owner, reason); } catch (_) {}
+                    }
+                })();
+                connectionStop = conn.stopPromise.catch(() => {});
+                return conn.stopPromise;
+            }
+
+            function closePort(conn) {
+                if (!conn || !conn.port) return Promise.resolve();
+                if (conn.closePromise) return conn.closePromise;
+                conn.closePromise = (async () => {
+                    if (conn.breakTimer) ownerWindow.clearTimeout(conn.breakTimer);
+                    conn.breakTimer = null;
+                    if (conn.openPromise) { try { await conn.openPromise; } catch (_) {} }
+                    if (conn.opened) {
+                        const signals = { dataTerminalReady: false, break: false };
+                        if (conn.profile.options.flow_control !== 'hardware') signals.requestToSend = false;
+                        try { await queueBrowserControl(conn, signals, true); } catch (_) {}
+                    }
+                    if (conn.serialDisconnectListener) {
+                        try { conn.serialEventTarget && conn.serialEventTarget.removeEventListener('disconnect', conn.serialDisconnectListener); } catch (_) {}
+                        try { conn.port.removeEventListener('disconnect', conn.serialDisconnectListener); } catch (_) {}
+                        conn.serialDisconnectListener = null;
+                    }
+                    if (conn.reader) {
+                        try { await conn.reader.cancel(); } catch (_) {}
+                        try { conn.reader.releaseLock(); } catch (_) {}
+                        conn.reader = null;
+                    }
+                    if (conn.writer) {
+                        try { await conn.writer.abort(); } catch (_) {}
+                        try { conn.writer.releaseLock(); } catch (_) {}
+                        conn.writer = null;
+                    }
+                    try { await conn.port.close(); } catch (_) {}
+                })();
+                return conn.closePromise;
+            }
+
+            function onPolicy(event) {
+                policySnapshot = Object.assign({}, getBootstrap() || {}, event && event.detail || {});
+                if (pendingAttemptSource && !allowed(pendingAttemptSource)) {
+                    connectionAttemptGeneration++;
+                    pendingAttemptSource = '';
+                    if (chooserPending) chooserGeneration++;
+                }
+                const source = connection && connection.source;
+                if (source && !allowed(source)) void disconnect('policy');
+                updateButtons();
+            }
+
+            function onAuthEnded() {
+                authEnded = true;
+                connectionAttemptGeneration++;
+                pendingAttemptSource = '';
+                chooserGeneration++;
+                updateButtons();
+                void disconnect('auth');
+            }
+            function onPageHide() { void disconnect('pagehide'); }
+
+            function dispose() {
+                if (disposed) return;
+                disposed = true;
+                loadGeneration++;
+                chooserGeneration++;
+                connectionAttemptGeneration++;
+                pendingAttemptSource = '';
+                portsGeneration++;
+                if (portsAbort) portsAbort.abort();
+                document.removeEventListener('aurago:desktop-policy', onPolicy);
+                document.removeEventListener('aurago:auth-ended', onAuthEnded);
+                window.removeEventListener('pagehide', onPageHide);
+                displayGeneration++;
+                displayQueueBytes = 0;
+                void stopConnection(connection, 'dispose');
+                disposeTerminal();
+                if (list) list.replaceChildren();
+                if (content && content.querySelector('[data-qc-serial-app]')) content.replaceChildren();
+                mounted = false;
+            }
+
+            document.addEventListener('aurago:desktop-policy', onPolicy);
+            document.addEventListener('aurago:auth-ended', onAuthEnded);
+            window.addEventListener('pagehide', onPageHide);
+
+            return {
+                render,
+                connectProfile,
+                disconnect,
+                dispose,
+                get connected() { return !!connection; }
+            };
+        }
+
+        return { create, parseHex, formatHex, parseProfiles, normalizeProfile };
+    })();
+
+;
 /* ui/js/desktop/core/menus-and-routing.js */
     function isEditableTarget(target) { return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea')); }
     function isNativeContextMenuTarget(target) { return isEditableTarget(target); }
@@ -13985,6 +15750,9 @@ function updateTaskbarSystemButtonsForMobile() {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
             apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (/\.aurasynth$/i.test(name)) {
+            apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (String(name || '').toLowerCase().endsWith('.md')) {
             apps.push({ label: t('desktop.app_notes'), appId: 'notes' });
@@ -14615,25 +16383,33 @@ function updateTaskbarSystemButtonsForMobile() {
         return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp });
     }
 
-function modalDialog(options) {
+    let desktopModalQueue = Promise.resolve();
+    function modalDialog(options) {
+        const pending = desktopModalQueue.then(() => renderDesktopModal(options));
+        desktopModalQueue = pending.catch(() => {});
+        return pending;
+    }
+
+    function renderDesktopModal(options) {
+        if (options.signal?.aborted) return Promise.resolve(false);
         closeContextMenu();
         const previousFocus = document.activeElement;
         const overlay = document.createElement('div');
         overlay.className = 'vd-modal-backdrop';
-        overlay.innerHTML = `<form class="vd-modal" role="dialog" aria-modal="true">
+        overlay.innerHTML = `<form class="vd-modal" role="dialog" aria-modal="true" aria-label="${esc(options.title || '')}">
             <div class="vd-modal-title">${esc(options.title || '')}</div>
             ${options.message ? `<div class="vd-modal-copy">${esc(options.message)}</div>` : ''}
             ${options.input ? `<input class="vd-modal-input" value="${esc(options.value || '')}" autocomplete="off">` : ''}
             <div class="vd-modal-actions">
                 <button type="button" class="vd-button" data-cancel>${esc(t('desktop.cancel'))}</button>
-                <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.ok'))}</button>
+                ${options.choices ? options.choices.map(choice => `<button type="button" class="vd-button" data-choice="${esc(choice.value)}" ${choice.disabled ? 'disabled' : ''}>${esc(choice.label)}</button>`).join('') : `<button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.ok'))}</button>`}
             </div>
         </form>`;
         document.body.appendChild(overlay);
         desktopSound('dialog.open');
         const form = overlay.querySelector('form');
         const input = overlay.querySelector('input');
-        const primaryBtn = overlay.querySelector('[type="submit"]');
+        const primaryBtn = overlay.querySelector('[type="submit"]') || overlay.querySelector('[data-cancel]');
         if (input) {
             input.focus();
             input.select();
@@ -14648,18 +16424,37 @@ function modalDialog(options) {
         }
         document.addEventListener('focusin', trapFocus);
         return new Promise(resolve => {
+            let finished = false;
             const finish = value => {
+                if (finished) return;
+                finished = true;
                 document.removeEventListener('focusin', trapFocus);
+                document.removeEventListener('keydown', onKey, true);
+                options.signal?.removeEventListener('abort', onAbort);
                 overlay.remove();
                 if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
                 if (value === true) desktopSound('dialog.confirm');
                 else if (value === false) desktopSound('dialog.cancel');
                 resolve(value);
             };
+            const onAbort = () => finish(false);
+            const onKey = event => {
+                if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); finish(options.input ? null : false); }
+                if (event.key === 'Tab') {
+                    const controls = [...form.querySelectorAll('input,button:not(:disabled)')];
+                    const current = controls.indexOf(document.activeElement);
+                    event.preventDefault();
+                    controls[(current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length]?.focus();
+                }
+            };
+            document.addEventListener('keydown', onKey, true);
+            options.signal?.addEventListener('abort', onAbort, { once: true });
+            overlay.querySelectorAll('[data-choice]').forEach(button => button.addEventListener('click', () => finish(button.dataset.choice)));
             overlay.querySelector('[data-cancel]').addEventListener('click', () => finish(options.input ? null : false));
             overlay.addEventListener('click', event => { if (event.target === overlay) finish(options.input ? null : false); });
             form.addEventListener('submit', event => {
                 event.preventDefault();
+                if (options.choices) return;
                 finish(options.input ? input.value.trim() : true);
             });
         });
@@ -14670,7 +16465,7 @@ function modalDialog(options) {
         if (!name) return;
         const path = workspaceJoinPath(basePath, name);
         try {
-            await api('/api/desktop/file', {
+            const saved = await api('/api/desktop/file', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, content: '' })
@@ -14678,7 +16473,7 @@ function modalDialog(options) {
             await loadBootstrap();
             const active = state.windows.get(state.activeWindowId);
             if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
-            openApp('editor', { path, content: '' });
+            openApp('editor', { path: saved.path || path, content: '' });
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -14738,20 +16533,26 @@ function modalDialog(options) {
     }
 
     async function movePathToTrash(path) {
-        const cleanPath = normalizeDesktopPath(path);
-        if (!cleanPath || isTrashPath(cleanPath) || isInsideTrashPath(cleanPath)) return;
+        return movePathsToTrash([path]);
+    }
+
+    async function movePathsToTrash(paths) {
+        if (desktopReadonly()) return [];
+        const cleanPaths = [...new Set((paths || []).map(normalizeDesktopPath).filter(Boolean))];
+        if (!cleanPaths.length) return [];
         try {
-            const trashDestination = await uniqueTrashDestination(cleanPath);
-            await api('/api/desktop/file', {
-                method: 'PATCH',
+            const result = await api('/api/desktop/trash', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ old_path: cleanPath, new_path: trashDestination })
+                body: JSON.stringify({ paths: cleanPaths })
             });
-            removeIconPosition('desktop-entry-' + cleanPath);
+            cleanPaths.forEach(path => removeIconPosition('desktop-entry-' + path));
             desktopSound('file.trash');
             await refreshDesktopAfterFileChange();
+            return result.moves || [];
         } catch (err) {
-            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+            if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+            return [];
         }
     }
 
@@ -14811,19 +16612,15 @@ function modalDialog(options) {
         if (desktopReadonly()) return [];
         const unique = [...new Set((paths || []).map(normalizeDesktopPath).filter(isInsideTrashPath))];
         if (!unique.length) return [];
-        const restored = [];
-        for (const path of unique) {
-            try {
-                const dest = await uniqueRestoreDestination('Desktop', pathBaseName(path) || 'item');
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ old_path: path, new_path: dest })
-                });
-                restored.push(dest);
-            } catch (err) {
-                showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
-            }
+        let restored = [];
+        try {
+            const result = await api('/api/desktop/trash', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paths: unique, restore: true })
+            });
+            restored = (result.moves || []).map(move => move.path);
+        } catch (err) {
+            if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
         if (restored.length) {
             await refreshDesktopAfterFileChange();
@@ -15399,9 +17196,16 @@ function modalDialog(options) {
             }
             return renderFiles(id, path);
         }
-        if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.content || '');
+        if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.path ? context.content : '');
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
             return window.WriterApp.render(contentEl(id), id, officeAppContext(context));
+        }
+        if (appId === 'synth-studio') {
+            if (!window.SynthStudioApp) {
+                window.AuraDesktopModules.loadAppScript('synth-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.SynthStudioApp.render(contentEl(id), id, Object.assign(officeAppContext(context), { windowId: id, sessionKey: state.windows.get(id)?.sessionKey || id }));
         }
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
             return window.SheetsApp.render(contentEl(id), id, officeAppContext(context));
@@ -15747,6 +17551,7 @@ if (appId === 'pixel') {
                 wireContextMenuBoundary,
                 openFile: (entry) => {
                     if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
+                    if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path }); if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
                     if (isPixelImageFile(entry)) return openApp('pixel', { path: entry.path });
@@ -15760,6 +17565,7 @@ if (appId === 'pixel') {
                 askAgentAboutFile: (entry) => askAgentAboutFile(entry),
                 refreshDesktop: loadBootstrap,
                 restoreFromTrash: restorePathsFromTrash,
+                moveToTrash: movePathsToTrash,
                 emptyTrash,
                 onPathChange: (newPath) => {
                     state.filesPath = newPath;
@@ -15931,6 +17737,7 @@ if (appId === 'pixel') {
             mime_type: row.dataset.mimeType
         };
         if (fileExtension(entry.name || entry.path) === 'zip') return openApp('zipper', { path: entry.path });
+        if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
         if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
         if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
         if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
@@ -16105,41 +17912,80 @@ if (appId === 'pixel') {
         host.innerHTML = `<div class="vd-editor">
             <div class="vd-toolbar">
                 <span class="vd-path">${esc(path)}</span>
-                <span class="vd-chat-meta" data-status></span>
+                <span class="vd-chat-meta" data-status role="status" aria-live="polite"></span>
             </div>
+            <div data-load-actions hidden><div class="vd-toolbar">
+                <button class="vd-tool-button" type="button" data-retry>${esc(t('desktop.retry'))}</button>
+                <button class="vd-tool-button" type="button" data-new ${desktopReadonly() ? 'disabled' : ''}>${esc(t('desktop.new_file'))}</button>
+                <button class="vd-tool-button" type="button" data-open>${esc(t('desktop.file_dialog_open'))}</button>
+            </div></div>
             <textarea spellcheck="false"></textarea>
         </div>`;
         const textarea = host.querySelector('textarea');
         const status = host.querySelector('[data-status]');
-        textarea.value = initialContent;
+        let version = '';
+        let saving = false;
+        let loadFailed = false;
+        const current = () => host.contains(textarea);
+        textarea.readOnly = true;
+        textarea.value = initialContent || '';
+        host.querySelector('[data-retry]').addEventListener('click', () => renderEditor(id, path, initialContent));
+        host.querySelector('[data-new]').addEventListener('click', () => {
+            if (!desktopReadonly()) renderEditor(id, 'Documents/untitled-' + crypto.randomUUID() + '.txt', '');
+        });
+        host.querySelector('[data-open]').addEventListener('click', async () => {
+            const choice = await openDesktopFileDialog({ initialPath: 'Documents' });
+            if (current() && choice?.path && !choice.canceled) renderEditor(id, choice.path);
+        });
         if (!initialContent) {
             try {
                 const body = await api('/api/desktop/file?path=' + encodeURIComponent(path));
+                if (!current()) return;
                 textarea.value = body.content || '';
-            } catch (_) {
-                textarea.value = '';
+                version = body.version || '';
+            } catch (err) {
+                if (!current()) return;
+                // Only an explicit new document may start empty after a 404.
+                if (err.status !== 404 || initialContent === undefined) {
+                    loadFailed = true;
+                    status.textContent = t('desktop.load_failed');
+                    host.querySelector('[data-load-actions]').hidden = false;
+                    if (err.status === 404) updateWindowContext(id, { path: '' });
+                }
             }
         }
+        textarea.readOnly = desktopReadonly() || loadFailed;
+        textarea.hidden = loadFailed;
+        if (!loadFailed) updateWindowContext(id, { path });
         const saveEditor = async () => {
+            if (!current() || loadFailed || saving || desktopReadonly()) return;
+            saving = true;
+            const content = textarea.value;
             status.textContent = t('desktop.saving');
             try {
-                await api('/api/desktop/file', {
+                const saved = await api('/api/desktop/file', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path, content: textarea.value })
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
+                    body: JSON.stringify({ path, content })
                 });
-                status.textContent = t('desktop.saved');
+                if (!current()) return;
+                path = saved.path || path;
+                version = saved.version || '';
+                host.querySelector('.vd-path').textContent = path;
+                const win = state.windows.get(id);
+                if (win) win.path = path;
+                updateWindowContext(id, { path });
+                status.textContent = textarea.value === content ? t('desktop.saved') : '';
                 await loadBootstrap();
             } catch (err) {
-                status.textContent = err.message;
-                throw err;
-            }
+                if (current()) status.textContent = err.name === 'AbortError' ? '' : t('desktop.request_failed');
+            } finally { saving = false; }
         };
         setEditorMenus(id, path, textarea, status, saveEditor);
     }
 
     function setEditorMenus(id, path, textarea, status, saveEditor) {
-        const readonly = !!((state.bootstrap || {}).readonly);
+        const readonly = desktopReadonly() || textarea.readOnly;
         setWindowMenus(id, [
             {
                 id: 'file',
@@ -16213,15 +18059,15 @@ if (appId === 'pixel') {
             event.preventDefault();
             showContextMenu(event.clientX, event.clientY, [
                 { labelKey: 'desktop.context_open', icon: 'folder-open', action: () => renderTodoDetail(host, todo, reload) },
-                { labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todo.status === 'done', action: async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
+                { labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todo.status === 'done', action: async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
                 { separator: true },
-                { labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
+                { labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
             ]);
             return true;
         };
         wireContextMenuBoundary(host);
         const load = async (selectedID) => {
-            const todos = await api('/api/todos?status=all');
+            const todos = await api('/api/desktop/integrations/todos?status=all');
             const filtered = todos.filter(todo => host.dataset.todoFilter === 'all' || todo.status === host.dataset.todoFilter)
                 .sort((a, b) => (({ high: 0, medium: 1, low: 2 }[a.priority] ?? 3) - (({ high: 0, medium: 1, low: 2 }[b.priority] ?? 3)) || String(a.due_date || '9999').localeCompare(String(b.due_date || '9999'))));
             const list = host.querySelector('.vd-todo-list');
@@ -16249,7 +18095,7 @@ if (appId === 'pixel') {
             const input = event.currentTarget.querySelector('input');
             const title = input.value.trim();
             if (!title) return;
-            const result = await plannerJSON('/api/todos', 'POST', { title, priority: event.currentTarget.querySelector('select').value, status: 'open' });
+            const result = await plannerJSON('/api/desktop/integrations/todos', 'POST', { title, priority: event.currentTarget.querySelector('select').value, status: 'open' });
             input.value = '';
             await load(result.id);
         });
@@ -16275,7 +18121,7 @@ if (appId === 'pixel') {
     async function setTodoDone(todo, done, reload) {
         if (!todo) return;
         if (done) {
-            await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true });
+            await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true });
             await reload(todo.id);
             return;
         }
@@ -16283,13 +18129,13 @@ if (appId === 'pixel') {
         if (Array.isArray(todo.items) && todo.items.length) {
             payload.items = todo.items.map(item => Object.assign({}, item, { is_done: false }));
         }
-        await plannerJSON('/api/todos/' + encodeURIComponent(todo.id), 'PUT', payload);
+        await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', payload);
         await reload(todo.id);
     }
 
     async function updateTodoItem(todo, itemID, patch, reload) {
         if (!todo || !itemID) return;
-        await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(itemID), 'PUT', patch);
+        await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(itemID), 'PUT', patch);
         await reload(todo.id);
     }
 
@@ -16300,12 +18146,12 @@ if (appId === 'pixel') {
         pane.querySelector('.vd-todo-form').addEventListener('submit', async event => {
             event.preventDefault();
             const form = event.currentTarget;
-            await plannerJSON('/api/todos/' + encodeURIComponent(todo.id), 'PUT', { title: form.title.value.trim(), description: form.description.value, priority: form.priority.value, due_date: form.due_date.value, remind_daily: form.remind_daily.checked });
+            await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', { title: form.title.value.trim(), description: form.description.value, priority: form.priority.value, due_date: form.due_date.value, remind_daily: form.remind_daily.checked });
             await reload(todo.id);
         });
-        pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); });
-        pane.querySelector('[data-action="delete"]').addEventListener('click', async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } });
-        pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id); });
+        pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); });
+        pane.querySelector('[data-action="delete"]').addEventListener('click', async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } });
+        pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id); });
         pane.querySelectorAll('[data-item-toggle]').forEach(input => input.addEventListener('change', async () => { await updateTodoItem(todo, input.dataset.itemToggle, { is_done: input.checked }, reload); }));
         pane.querySelectorAll('[data-item-title]').forEach(titleInput => {
             titleInput.addEventListener('keydown', async event => {
@@ -16329,7 +18175,7 @@ if (appId === 'pixel') {
                 await updateTodoItem(todo, titleInput.dataset.itemTitle, { title: titleInput.value.trim() }, reload);
             });
         });
-        pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { await api('/api/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id); }));
+        pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id); }));
         setTodoMenus(host, todo, reload);
     }
 
@@ -16352,8 +18198,8 @@ if (appId === 'pixel') {
                 id: 'edit',
                 labelKey: 'desktop.menu_edit',
                 items: [
-                    { id: 'complete', labelKey: 'desktop.todo_complete', icon: 'check-square', action: async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
-                    { id: 'delete', labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
+                    { id: 'complete', labelKey: 'desktop.todo_complete', icon: 'check-square', action: async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
+                    { id: 'delete', labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
                 ]
             }
         ]);
@@ -16703,9 +18549,18 @@ if (appId === 'pixel') {
 
 ;
 /* ui/js/desktop/apps/quickconnect-launchpad-chat.js */
+    const SDK_CHANNEL_CHALLENGE_TYPE = 'aurago.desktop.channel.challenge';
+    const SDK_CHANNEL_HANDSHAKE_TYPE = 'aurago.desktop.channel.handshake';
+    const SDK_CHANNEL_FRAGMENT_KEY = '__aurago_sdk_channel';
+    const SDK_CHANNEL_ORIGINAL_HASH_KEY = '__aurago_sdk_original_hash';
+    const sdkFrameClients = new Map();
+    let sdkChallengeSequence = 0;
+    let sdkFrameObserver = null;
+
     function renderQuickConnect(id) {
         const host = contentEl(id);
         if (!host) return;
+        host.classList.add('vd-qc-window');
         host.innerHTML = `<div class="vd-quick-connect">
             <div class="vd-qc-sidebar">
                 <div class="vd-qc-sidebar-header">
@@ -16718,8 +18573,10 @@ if (appId === 'pixel') {
                     <button class="vd-qc-filter active" type="button" data-qc-filter="all">${iconMarkup('server', 'A', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_filter_all'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="ssh">${iconMarkup('terminal', 'T', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_ssh'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="vnc">${iconMarkup('monitor', 'V', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_vnc'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="serial"><span>${esc(t('desktop.qc_serial_filter'))}</span></button>
                 </div>
-                <div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div>
+                <button class="vd-qc-btn vd-qc-serial-new" type="button" data-qc-new-serial>${iconMarkup('plus', '+', 'vd-qc-btn-icon', 13)}<span>${esc(t('desktop.qc_serial_new_connection'))}</span></button>
+                <div class="vd-qc-lists"><div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div><div data-serial-list></div></div>
             </div>
             <div class="vd-qc-terminal-area" data-terminal-area>
                 <div class="vd-qc-tabs" data-qc-tabs hidden>
@@ -16732,6 +18589,7 @@ if (appId === 'pixel') {
                         <span class="vd-qc-placeholder-text">${esc(t('desktop.qc_select_device'))}</span>
                     </div>
                 </div>
+                <div class="vd-qc-serial-content" data-serial-content hidden></div>
             </div>
         </div>`;
         wireContextMenuBoundary(host);
@@ -16742,6 +18600,8 @@ if (appId === 'pixel') {
         const terminalArea = host.querySelector('[data-terminal-area]');
         const tabContent = host.querySelector('[data-tab-content]');
         const qcTabs = host.querySelector('[data-qc-tabs]');
+        const serialList = host.querySelector('[data-serial-list]');
+        const serialContent = host.querySelector('[data-serial-content]');
         const filterButtons = Array.from(host.querySelectorAll('[data-qc-filter]'));
         let activeWS = null;
         let activeTerm = null;
@@ -16753,8 +18613,65 @@ if (appId === 'pixel') {
         let activeProtocolFilter = 'all';
         let connectedDeviceId = null;
         let connectedProtocol = null;
+        let disposed = false;
+        let connectionGeneration = 0;
+        let loadGeneration = 0;
+        let activeSFTPNav = null;
+        const pendingConfirmations = new Set();
+        const serialTerminal = window.QuickConnectSerial.create({
+            list: serialList, content: serialContent, searchInput, api, t,
+            getBootstrap: () => state.bootstrap || {}, confirmDialog: showConfirmModal,
+            onSessionStart: () => {
+                const generation = ++connectionGeneration;
+                closeRemoteSession();
+                connectedDeviceId = null;
+                connectedProtocol = 'serial';
+                showSerialView();
+                return () => !disposed && generation === connectionGeneration;
+            },
+            onSessionEnd: owner => {
+                if (typeof owner === 'function' && owner()) connectedProtocol = null;
+            }
+        });
+        serialTerminal.render();
+
+        function showSerialView() {
+            if (disposed) return;
+            serialContent.hidden = false;
+            tabContent.hidden = true;
+            qcTabs.hidden = true;
+            serialTerminal.render();
+        }
+
+        function newSerialConnection() {
+            activeProtocolFilter = 'serial';
+            filterButtons.forEach(button => button.classList.toggle('active', button.dataset.qcFilter === 'serial'));
+            filterDevices();
+            showSerialView();
+            serialList.querySelector('[data-serial-create]')?.click();
+        }
+
+        function closeRemoteSession() {
+            for (const cancel of pendingConfirmations) cancel();
+            if (activeWS) { const previous = activeWS; activeWS = null; try { previous.close(); } catch (_) {} }
+            if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
+            activeFitAddon = null;
+            disconnectActiveResizeObserver();
+            closeSFTPPanel(tabContent);
+        }
+
+        async function beginRemoteSession() {
+            const generation = ++connectionGeneration;
+            await serialTerminal.disconnect('switch');
+            if (disposed || generation !== connectionGeneration) return null;
+            closeRemoteSession();
+            serialContent.hidden = true;
+            tabContent.hidden = false;
+            return generation;
+        }
 
         function switchTab(tab) {
+            if (tab === 'files' && connectedProtocol !== 'ssh') return;
             activeTab = tab;
             qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
             if (tab === 'files' && connectedDeviceId && connectedProtocol === 'ssh') {
@@ -16769,6 +18686,12 @@ if (appId === 'pixel') {
         });
 
         registerWindowCleanup(id, () => {
+            host.classList.remove('vd-qc-window');
+            disposed = true;
+            connectionGeneration++;
+            loadGeneration++;
+            for (const cancel of pendingConfirmations) cancel();
+            serialTerminal.dispose();
             if (activeSFTPNav) { activeSFTPNav.dispose(); activeSFTPNav = null; }
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
@@ -16776,7 +18699,11 @@ if (appId === 'pixel') {
             host.querySelectorAll('.vd-qc-modal-overlay, .vd-qc-notify').forEach(el => el.remove());
         });
 
-        setQuickConnectMenus(id, host, loadAll, showServerModal, () => switchTab('files'));
+        setQuickConnectMenus(id, host, loadAll, showServerModal, () => switchTab('files'), newSerialConnection);
+        host.querySelector('[data-qc-new-serial]').addEventListener('click', newSerialConnection);
+        serialList.addEventListener('click', event => {
+            if (event.target.closest('[data-serial-profile], [data-serial-create], [data-serial-connect]')) showSerialView();
+        }, true);
         loadAll();
 
         searchInput.addEventListener('input', () => filterDevices());
@@ -16785,16 +18712,19 @@ if (appId === 'pixel') {
                 activeProtocolFilter = btn.dataset.qcFilter || 'all';
                 filterButtons.forEach(item => item.classList.toggle('active', item === btn));
                 filterDevices();
+                if (activeProtocolFilter === 'serial') showSerialView();
             });
         });
 
         async function loadAll() {
+            const generation = ++loadGeneration;
             deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
             try {
                 const [devBody, credBody] = await Promise.all([
-                    api('/api/devices'),
-                    api('/api/credentials')
+                    api('/api/desktop/integrations/devices'),
+                    api('/api/desktop/integrations/credentials')
                 ]);
+                if (disposed || generation !== loadGeneration) return;
                 cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.protocol === 'vnc' || d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
                 cachedCredentials = credBody || [];
                 if (!cachedDevices.length) {
@@ -16803,6 +18733,7 @@ if (appId === 'pixel') {
                 }
                 renderDeviceList(cachedDevices);
             } catch (err) {
+                if (disposed || generation !== loadGeneration) return;
                 deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
             }
         }
@@ -16881,7 +18812,10 @@ if (appId === 'pixel') {
         }
 
         function filterDevices() {
+            deviceList.hidden = activeProtocolFilter === 'serial';
+            serialList.hidden = activeProtocolFilter !== 'all' && activeProtocolFilter !== 'serial';
             if (cachedDevices) renderDeviceList(cachedDevices);
+            serialTerminal.render();
         }
 
         function showDeviceContextMenu(x, y, device) {
@@ -16900,7 +18834,7 @@ if (appId === 'pixel') {
             const ok = await showConfirmModal(t('desktop.qc_delete_confirm'), t('desktop.qc_delete_confirm_msg').replace('{{name}}', device.name));
             if (!ok) return;
             try {
-                await api('/api/devices/' + device.id, { method: 'DELETE' });
+                await api('/api/desktop/integrations/devices/' + device.id, { method: 'DELETE' });
                 await loadAll();
             } catch (err) {
                 showNotify(t('desktop.qc_delete_error') + ': ' + err.message);
@@ -16941,8 +18875,11 @@ if (appId === 'pixel') {
                     </div>
                 </div>`;
                 host.querySelector('.vd-quick-connect').appendChild(overlay);
-                overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => { overlay.remove(); resolve(false); });
-                overlay.querySelector('[data-action="ok"]').addEventListener('click', () => { overlay.remove(); resolve(true); });
+                const cancel = () => finish(false);
+                const finish = value => { pendingConfirmations.delete(cancel); overlay.remove(); resolve(value); };
+                pendingConfirmations.add(cancel);
+                overlay.querySelector('[data-action="cancel"]').addEventListener('click', cancel);
+                overlay.querySelector('[data-action="ok"]').addEventListener('click', () => finish(true));
             });
         }
 
@@ -17052,7 +18989,7 @@ if (appId === 'pixel') {
             if (dlPwBtn && existingCred) {
                 dlPwBtn.addEventListener('click', async () => {
                     try {
-                        const body = await api('/api/credentials/export/' + existingCred.id + '?type=password');
+                        const body = await api('/api/desktop/integrations/credentials/export/' + existingCred.id + '?type=password');
                         downloadText(body.content, (existingCred.name || 'password') + '.txt');
                     } catch (err) { showNotify(err.message); }
                 });
@@ -17062,7 +18999,7 @@ if (appId === 'pixel') {
             if (dlCertBtn && existingCred) {
                 dlCertBtn.addEventListener('click', async () => {
                     try {
-                        const body = await api('/api/credentials/export/' + existingCred.id + '?type=certificate');
+                        const body = await api('/api/desktop/integrations/credentials/export/' + existingCred.id + '?type=certificate');
                         downloadText(body.content, (existingCred.name || 'key') + '_key.pem');
                     } catch (err) { showNotify(err.message); }
                 });
@@ -17102,25 +19039,25 @@ if (appId === 'pixel') {
                             const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                             if (password) credBody.password = password;
                             if (certificateText) credBody.certificate_text = certificateText;
-                            await api('/api/credentials/' + existingCred.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                            await api('/api/desktop/integrations/credentials/' + existingCred.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         } else {
                             // Create credential and link
                             const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                             if (password) credBody.password = password;
                             if (certificateText) credBody.certificate_text = certificateText;
-                            const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                            const created = await api('/api/desktop/integrations/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                             existingDevice.credential_id = created.id;
                         }
                         // Update device
-                        await api('/api/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
+                        await api('/api/desktop/integrations/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
                     } else {
                         // Create credential first
                         const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                         if (password) credBody.password = password;
                         if (certificateText) credBody.certificate_text = certificateText;
-                        const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                        const created = await api('/api/desktop/integrations/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         // Create device linked to credential
-                        await api('/api/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id }) });
+                        await api('/api/desktop/integrations/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id }) });
                     }
                     overlay.remove();
                     await loadAll();
@@ -17231,7 +19168,10 @@ if (appId === 'pixel') {
             if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
         }
 
-        function connectSSH(deviceId) {
+        async function connectSSH(deviceId) {
+            const generation = await beginRemoteSession();
+            if (generation === null) return;
+            const isCurrent = () => !disposed && generation === connectionGeneration;
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
@@ -17266,7 +19206,7 @@ if (appId === 'pixel') {
             term.open(termContainer);
             activeTerm = term;
             activeFitAddon = fitAddon;
-            setTimeout(() => { try { fitAddon.fit(); } catch(_) {} }, 50);
+            setTimeout(() => { if (isCurrent()) { try { fitAddon.fit(); } catch(_) {} } }, 50);
             const resizeObserver = new ResizeObserver(() => {
                 if (activeTerm === term) { try { fitAddon.fit(); } catch(_) {} }
             });
@@ -17280,12 +19220,13 @@ if (appId === 'pixel') {
             activeWS = ws;
 
             term.onData(data => {
-                if (ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(data));
+                if (isCurrent() && ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(data));
             });
             term.onResize(({ cols, rows }) => {
-                if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+                if (isCurrent() && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }));
             });
             ws.onmessage = async (event) => {
+                if (!isCurrent()) return;
                 if (typeof event.data === 'string') {
                     try {
                         const msg = JSON.parse(event.data);
@@ -17306,6 +19247,7 @@ if (appId === 'pixel') {
                                 okIcon: 'check-square',
                                 okClass: 'vd-qc-btn-primary'
                             });
+                            if (!isCurrent()) return;
                             if (ws.readyState === WebSocket.OPEN) {
                                 ws.send(JSON.stringify({ type: 'host_key_decision', accept }));
                             }
@@ -17321,7 +19263,7 @@ if (appId === 'pixel') {
                 }
             };
             ws.onclose = () => {
-                if (activeWS === ws) {
+                if (isCurrent() && activeWS === ws) {
                     term.write('\r\n\x1b[33m' + t('desktop.qc_disconnected') + '\x1b[0m\r\n');
                     activeWS = null;
                     const placeholder = document.createElement('div');
@@ -17338,7 +19280,7 @@ if (appId === 'pixel') {
                 }
             };
             ws.onerror = () => {
-                if (activeWS === ws) {
+                if (isCurrent() && activeWS === ws) {
                     term.write('\r\n\x1b[31m' + t('desktop.qc_connection_error') + '\x1b[0m\r\n');
                     activeWS = null;
                     const placeholder = document.createElement('div');
@@ -17357,6 +19299,9 @@ if (appId === 'pixel') {
         }
 
         async function connectVNC(deviceId) {
+            const generation = await beginRemoteSession();
+            if (generation === null) return;
+            const isCurrent = () => !disposed && generation === connectionGeneration;
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
@@ -17398,11 +19343,13 @@ if (appId === 'pixel') {
             wireVNCToolbar(sessionEl, rfb, deviceId);
 
             rfb.addEventListener('connect', () => {
+                if (!isCurrent()) return;
                 lastVNCError = null;
                 setVNCStatus(sessionEl, 'connected');
                 showNotify(t('desktop.qc_vnc_connected'));
             });
             rfb.addEventListener('disconnect', () => {
+                if (!isCurrent()) return;
                 if (activeWS && activeWS.close) { activeWS = null; }
                 if (lastVNCError) {
                     setVNCStatus(sessionEl, 'error', lastVNCError);
@@ -17415,6 +19362,7 @@ if (appId === 'pixel') {
                 if (reconnectBtn) reconnectBtn.addEventListener('click', () => connectVNC(deviceId));
             });
             rfb.addEventListener('securityfailure', (e) => {
+                if (!isCurrent()) return;
                 let reason = e && e.detail ? (e.detail.reason || e.detail.message || '') : '';
                 let code = e && e.detail ? (e.detail.code || '') : '';
                 if (reason) {
@@ -17434,8 +19382,6 @@ if (appId === 'pixel') {
 
             activeWS = { close: () => { try { rfb.disconnect(); } catch(_) {} } };
         }
-
-        let activeSFTPNav = null;
 
         function closeSFTPPanel(container) {
             if (activeSFTPNav) {
@@ -17636,7 +19582,7 @@ if (appId === 'pixel') {
                     formData.append('device_id', deviceId);
                     formData.append('remote_path', joinSFTPPath(remoteDir, file.name));
                     formData.append('file', file);
-                    const resp = await fetch('/api/desktop/sftp/upload', { method: 'POST', body: formData });
+                    const resp = await fetch('/api/desktop/sftp/upload?device_id=' + encodeURIComponent(deviceId), { method: 'POST', body: formData });
                     if (!resp.ok) {
                         const err = await resp.json().catch(() => ({ error: 'Upload failed' }));
                         showNotify(err.error || t('desktop.qc_sftp_error'));
@@ -17652,7 +19598,7 @@ if (appId === 'pixel') {
             const ok = await showConfirmModal(t('desktop.qc_sftp_delete'), t('desktop.qc_sftp_delete_confirm').replace('{{name}}', name));
             if (!ok) return;
             try {
-                await api('/api/desktop/sftp/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
+                await api('/api/desktop/sftp/delete?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -17666,7 +19612,7 @@ if (appId === 'pixel') {
             const dir = oldPath.substring(0, oldPath.lastIndexOf('/')) || '/';
             const newPath = joinSFTPPath(dir, newName);
             try {
-                await api('/api/desktop/sftp/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
+                await api('/api/desktop/sftp/rename?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -17678,7 +19624,7 @@ if (appId === 'pixel') {
             if (!dirName) return;
             const newPath = joinSFTPPath(currentPath, dirName);
             try {
-                await api('/api/desktop/sftp/mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
+                await api('/api/desktop/sftp/mkdir?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -17689,7 +19635,7 @@ if (appId === 'pixel') {
             const dstPath = await promptDialog(t('desktop.qc_sftp_copy_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
-                await api('/api/desktop/sftp/copy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                await api('/api/desktop/sftp/copy?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -17700,7 +19646,7 @@ if (appId === 'pixel') {
             const dstPath = await promptDialog(t('desktop.qc_sftp_move_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
-                await api('/api/desktop/sftp/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
+                await api('/api/desktop/sftp/move?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
@@ -17708,7 +19654,7 @@ if (appId === 'pixel') {
         }
     }
 
-    function setQuickConnectMenus(id, host, loadAll, showServerModal, toggleFiles) {
+    function setQuickConnectMenus(id, host, loadAll, showServerModal, toggleFiles, newSerialConnection) {
         const viewItems = [
             { id: 'refresh', labelKey: 'desktop.qc_refresh', icon: 'refresh', shortcut: 'F5', action: loadAll }
         ];
@@ -17720,7 +19666,8 @@ if (appId === 'pixel') {
                 id: 'file',
                 labelKey: 'desktop.menu_file',
                 items: [
-                    { id: 'add-server', labelKey: 'desktop.qc_add_server', icon: 'server', shortcut: 'Ctrl+N', action: () => showServerModal() }
+                    { id: 'add-server', labelKey: 'desktop.qc_add_server', icon: 'server', shortcut: 'Ctrl+N', action: () => showServerModal() },
+                    { id: 'add-serial', labelKey: 'desktop.qc_serial_new_connection', icon: 'terminal', action: newSerialConnection }
                 ]
             },
             {
@@ -17773,9 +19720,9 @@ if (appId === 'pixel') {
 
         async function load() {
             try {
-                const url = selectedCategory ? '/api/launchpad/links?category=' + encodeURIComponent(selectedCategory) : '/api/launchpad/links';
+                const url = selectedCategory ? '/api/desktop/integrations/launchpad/links?category=' + encodeURIComponent(selectedCategory) : '/api/desktop/integrations/launchpad/links';
                 links = await api(url);
-                categories = await api('/api/launchpad/categories');
+                categories = await api('/api/desktop/integrations/launchpad/categories');
                 updateCategorySelect();
                 render();
             } catch (e) { showDesktopNotification({ message: t('desktop.launchpad_load_error') }); }
@@ -17835,7 +19782,7 @@ if (appId === 'pixel') {
         async function deleteLink(linkId) {
             const ok = await confirmDialog(t('desktop.launchpad_delete_confirm'), '');
             if (!ok) return;
-            try { await api('/api/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
+            try { await api('/api/desktop/integrations/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
             catch (e) { showDesktopNotification({ message: t('desktop.launchpad_delete_error') }); }
         }
 
@@ -17902,7 +19849,7 @@ if (appId === 'pixel') {
             if (!query.trim()) { resultsEl.innerHTML = ''; return; }
             resultsEl.innerHTML = '<div class="vd-loading">' + esc(t('desktop.loading')) + '</div>';
             try {
-                const results = await api('/api/launchpad/icons/search?q=' + encodeURIComponent(query));
+                const results = await api('/api/desktop/integrations/launchpad/icons/search?q=' + encodeURIComponent(query));
                 const items = (results || []).filter(r => r.url_png || r.url_webp || r.url_svg);
                 if (!items.length) {
                     resultsEl.innerHTML = '<div class="lp-icon-msg muted">' + esc(t('desktop.launchpad_icon_no_results')) + '</div>';
@@ -17940,7 +19887,7 @@ if (appId === 'pixel') {
             const iconUrl = activeTab && activeTab.dataset.tab === 'search' ? selectedIconURL : modal.querySelector('.lp-icon-url').value.trim();
             if (iconUrl) {
                 try {
-                    const dl = await api('/api/launchpad/icons/download', { method: 'POST', body: JSON.stringify({ image_url: iconUrl, link_id: linkId || 'new' }) });
+                    const dl = await api('/api/desktop/integrations/launchpad/icons/download', { method: 'POST', body: JSON.stringify({ image_url: iconUrl, link_id: linkId || 'new' }) });
                     if (dl && dl.local_path) iconPath = dl.local_path;
                 } catch (e) { /* ignore download errors */ }
             }
@@ -17948,9 +19895,9 @@ if (appId === 'pixel') {
             const payload = { title, url, category, description, icon_path: iconPath };
             try {
                 if (linkId) {
-                    await api('/api/launchpad/links/' + linkId, { method: 'PUT', body: JSON.stringify(payload) });
+                    await api('/api/desktop/integrations/launchpad/links/' + linkId, { method: 'PUT', body: JSON.stringify(payload) });
                 } else {
-                    await api('/api/launchpad/links', { method: 'POST', body: JSON.stringify(payload) });
+                    await api('/api/desktop/integrations/launchpad/links', { method: 'POST', body: JSON.stringify(payload) });
                 }
                 modal.closest('.vd-modal-backdrop').remove();
                 await load();
@@ -18027,19 +19974,16 @@ if (appId === 'pixel') {
         const pendingExternalWindow = shouldOpenStoreAppExternally(app) ? openPendingExternalStoreWindow() : null;
         host.innerHTML = `<div class="vd-store-frame-loading">${esc(t('desktop.loading'))}</div>`;
         try {
-            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
+            const body = await api(desktopStoreOpenURL(storeAppId));
             if (!contentEl(id)) return;
             if (shouldOpenStoreAppExternally(app)) {
                 navigateExternalStoreWindow(pendingExternalWindow, body.url);
                 closeWindow(id);
                 return;
             }
-            const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
+            const frameURL = storeFrameURL(body.url, storeAppId);
             const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });
             if (storeAppId === 'gods-eye-view') {
-                const localizedURL = new URL(frameURL, window.location.href);
-                localizedURL.searchParams.set('aurago_lang', document.documentElement.lang || 'en');
-                frame.src = localizedURL.toString();
                 frame.setAttribute('allow', frame.getAttribute('allow') + '; microphone');
             }
             host.replaceChildren(frame);
@@ -18193,7 +20137,7 @@ if (appId === 'pixel') {
     async function openExternalStoreApp(storeAppId, title) {
         const pendingWindow = openPendingExternalStoreWindow();
         try {
-            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
+            const body = await api(desktopStoreOpenURL(storeAppId));
             navigateExternalStoreWindow(pendingWindow, body.url);
         } catch (err) {
             closeExternalStoreWindow(pendingWindow);
@@ -18203,16 +20147,23 @@ if (appId === 'pixel') {
 
     function storeFrameURL(src, storeAppId) {
         if (!src) return src;
-        if (storeAppId === 'uptime-kuma') {
-            try {
-                const url = new URL(src, window.location.origin);
+        try {
+            const url = new URL(src, window.location.origin);
+            if (url.pathname.startsWith('/_aurago/launch/')) return src;
+            if (storeAppId === 'uptime-kuma') {
                 url.pathname = '/dashboard';
                 return url.toString();
-            } catch (_) {
-                return String(src).replace(/\/?(\?.*)?$/, '/dashboard$1');
             }
-        }
+        } catch (_) {}
         return src;
+    }
+
+    function desktopStoreOpenURL(storeAppId, portId) {
+        const query = new URLSearchParams();
+        if (portId) query.set('port_id', portId);
+        if (storeAppId === 'gods-eye-view') query.set('lang', document.documentElement.lang || 'en');
+        const suffix = query.toString();
+        return '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url' + (suffix ? '?' + suffix : '');
     }
 
     function cacheBustURL(src, paramName) {
@@ -18233,10 +20184,14 @@ if (appId === 'pixel') {
         const iframe = document.createElement('iframe');
         iframe.className = className;
         iframe.title = title || appId || t('desktop.embed_frame_title');
-        iframe.src = src;
         iframe.dataset.appId = appId || '';
         iframe.dataset.widgetId = widgetId || '';
         iframe.dataset.windowId = windowId || '';
+        const sdkChannel = desktopSDKChannelFromURL(src);
+        if (sdkChannel) {
+            iframe.dataset.sdkChannel = sdkChannel;
+            iframe.addEventListener('load', () => beginSDKChannelHandshake(iframe));
+        }
         const sandboxFlags = ['allow-scripts', 'allow-forms', 'allow-modals'];
         if (options && options.allowSameOrigin) sandboxFlags.push('allow-same-origin');
         if (options && options.allowDownloads) sandboxFlags.push('allow-downloads');
@@ -18244,7 +20199,7 @@ if (appId === 'pixel') {
         if (options && options.allowTopNavigationByUserActivation) sandboxFlags.push('allow-top-navigation-by-user-activation');
         if (options && options.allowPointerLock) sandboxFlags.push('allow-pointer-lock');
         iframe.setAttribute('sandbox', sandboxFlags.join(' '));
-        const allowParts = ['clipboard-read', 'clipboard-write'];
+        const allowParts = ['clipboard-read', 'clipboard-write', "midi 'none'", "serial 'none'"];
         if (options && options.allowFullscreen) allowParts.push('fullscreen');
         if (options && options.allowGamepad) allowParts.push('gamepad');
         // Test compatibility marker: iframe.setAttribute('allow', 'clipboard-read; clipboard-write')
@@ -18252,6 +20207,7 @@ if (appId === 'pixel') {
         iframe.tabIndex = 0;
         iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe));
         if (!(options && options.disableAutoFocus)) iframe.addEventListener('load', () => focusDesktopFrame(iframe));
+        iframe.src = src;
         return iframe;
     }
 
@@ -18275,7 +20231,126 @@ if (appId === 'pixel') {
         const query = new URLSearchParams(params || {});
         const suffix = query.toString();
         const ticketPath = body.token ? '/desktop-ticket/' + encodeURIComponent(body.token) : '';
-        return ticketPath + desktopFileURL(path) + (suffix ? '?' + suffix : '');
+        const src = ticketPath + desktopFileURL(path) + (suffix ? '?' + suffix : '');
+        return /\.html?$/i.test(String(path || '')) ? addDesktopSDKChannelFragment(src) : src;
+    }
+
+    function newDesktopSDKChannel() {
+        if (!window.crypto || typeof window.crypto.getRandomValues !== 'function') return '';
+        const bytes = new Uint8Array(32);
+        window.crypto.getRandomValues(bytes);
+        return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    function addDesktopSDKChannelFragment(src) {
+        const capability = newDesktopSDKChannel();
+        if (!capability) return src;
+        try {
+            const url = new URL(src, window.location.origin);
+            const originalHash = url.hash || '';
+            const params = new URLSearchParams();
+            params.set(SDK_CHANNEL_FRAGMENT_KEY, capability);
+            params.set(SDK_CHANNEL_ORIGINAL_HASH_KEY, originalHash);
+            url.hash = params.toString();
+            return url.pathname + url.search + url.hash;
+        } catch (_) {
+            return src;
+        }
+    }
+
+    function desktopSDKChannelFromURL(src) {
+        try {
+            const url = new URL(src, window.location.origin);
+            if (url.origin !== window.location.origin || !url.pathname.includes('/files/desktop/')) return '';
+            const params = new URLSearchParams(url.hash.slice(1));
+            const capability = params.get(SDK_CHANNEL_FRAGMENT_KEY) || '';
+            return /^[0-9a-f]{64}$/.test(capability) ? capability : '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function nextSDKChannelChallenge() {
+        sdkChallengeSequence = sdkChallengeSequence >= Number.MAX_SAFE_INTEGER ? 1 : sdkChallengeSequence + 1;
+        return sdkChallengeSequence;
+    }
+
+    function revokeSDKFrameClient(frame, remove = false) {
+        const client = sdkFrameClients.get(frame);
+        if (client) {
+            client.generation++;
+            client.challenge = 0;
+            const port = client.port;
+            client.port = null;
+            if (client.abortController) {
+                try { client.abortController.abort(); } catch (_) {}
+                client.abortController = null;
+            }
+            if (port) {
+                try { port.close(); } catch (_) {}
+            }
+            if (remove) sdkFrameClients.delete(frame);
+        }
+        if (frame) delete frame.dataset.sdkChallenge;
+    }
+
+    function sdkFrameClient(frame) {
+        let client = sdkFrameClients.get(frame);
+        if (client) return client;
+        client = {
+            frame,
+            app: null,
+            widget: null,
+            appId: frame.dataset.appId || '',
+            widgetId: frame.dataset.widgetId || '',
+            windowId: frame.dataset.windowId || '',
+            channel: frame.dataset.sdkChannel || '',
+            challenge: 0,
+            generation: 0,
+            port: null,
+            abortController: null,
+            fileVersions: new Map()
+        };
+        sdkFrameClients.set(frame, client);
+        return client;
+    }
+
+    function beginSDKChannelHandshake(frame) {
+        const channel = frame && frame.dataset.sdkChannel;
+        if (!channel || !/^[0-9a-f]{64}$/.test(channel) || !frame.contentWindow) return;
+        const client = sdkFrameClient(frame);
+        revokeSDKFrameClient(frame);
+        client.channel = channel;
+        client.generation++;
+        client.challenge = nextSDKChannelChallenge();
+        frame.dataset.sdkChallenge = String(client.challenge);
+        // This is a public, one-use sequence challenge. The capability and port
+        // travel from the verified child document, never to the WindowProxy.
+        frame.contentWindow.postMessage({ type: SDK_CHANNEL_CHALLENGE_TYPE, challenge: client.challenge }, '*');
+    }
+
+    function ensureSDKFrameLifecycleObserver() {
+        if (sdkFrameObserver || !document.body || typeof MutationObserver !== 'function') return;
+        sdkFrameObserver = new MutationObserver(() => {
+            for (const [frame] of sdkFrameClients) {
+                if (!frame.isConnected) revokeSDKFrameClient(frame, true);
+            }
+        });
+        sdkFrameObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function findSDKFrame(source) {
+        if (!source) return null;
+        for (const frame of document.querySelectorAll('.vd-generated-frame, .vd-widget-frame')) {
+            if (frame.contentWindow === source) return frame;
+        }
+        return null;
+    }
+
+    function isCurrentSDKClient(client, port = client && client.port, generation = client && client.generation) {
+        return !!(client && port && client.frame && client.frame.isConnected &&
+            sdkFrameClients.get(client.frame) === client && client.port === port &&
+            client.generation === generation && client.challenge === 0);
     }
 
     async function ensureDesktopEmbedHasContent(src) {
@@ -18288,26 +20363,45 @@ if (appId === 'pixel') {
     }
 
     function findSDKClient(source) {
-        const frames = document.querySelectorAll('.vd-generated-frame, .vd-widget-frame');
-        for (const frame of frames) {
-            if (frame.contentWindow !== source) continue;
-            const app = allApps().find(item => item.id === frame.dataset.appId);
-            const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
-            const widget = widgets.find(item => item.id === frame.dataset.widgetId);
-            return {
-                app,
-                widget,
-                appId: frame.dataset.appId || '',
-                widgetId: frame.dataset.widgetId || '',
-                windowId: frame.dataset.windowId || ''
-            };
-        }
-        return null;
+        const frame = findSDKFrame(source);
+        const client = frame && sdkFrameClients.get(frame);
+        return isCurrentSDKClient(client) ? client : null;
     }
 
-    function sendSDKResponse(source, id, ok, value) {
-        if (!source || !id) return;
-        source.postMessage(ok ? {
+    function handleSDKChannelHandshake(event) {
+        const message = event && event.data;
+        if (!message || message.type !== SDK_CHANNEL_HANDSHAKE_TYPE) return;
+        const frame = findSDKFrame(event.source);
+        const client = frame && sdkFrameClients.get(frame);
+        const challenge = client && client.challenge;
+        const port = event.ports && event.ports.length === 1 ? event.ports[0] : null;
+        if (!frame || !client || event.origin !== 'null' || !port ||
+            message.capability !== frame.dataset.sdkChannel ||
+            !challenge || message.challenge !== challenge ||
+            String(frame.dataset.sdkChallenge || '') !== String(challenge)) {
+            for (const rejectedPort of event.ports || []) {
+                try { rejectedPort.close(); } catch (_) {}
+            }
+            return;
+        }
+        client.app = allApps().find(item => item.id === frame.dataset.appId) || null;
+        const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
+        client.widget = widgets.find(item => item.id === frame.dataset.widgetId) || null;
+        client.appId = frame.dataset.appId || '';
+        client.widgetId = frame.dataset.widgetId || '';
+        client.windowId = frame.dataset.windowId || '';
+        client.port = port;
+        client.abortController = new AbortController();
+        client.challenge = 0;
+        delete frame.dataset.sdkChallenge;
+        const generation = client.generation;
+        port.addEventListener('message', messageEvent => handleSDKMessage(client, messageEvent, port, generation));
+        port.start();
+    }
+
+    function sendSDKResponse(client, port, generation, id, ok, value) {
+        if (!id || !isCurrentSDKClient(client, port, generation)) return;
+        const response = ok ? {
             type: SDK_RESPONSE_TYPE,
             id,
             ok: true,
@@ -18316,28 +20410,28 @@ if (appId === 'pixel') {
             type: SDK_RESPONSE_TYPE,
             id,
             ok: false,
-            error: value && value.message ? value.message : String(value || t('desktop.embed_bridge_failed'))
-        }, '*');
+            error: value && value.message ? value.message : String(value || t('desktop.embed_bridge_failed')),
+            status: Number(value && value.status) || 0
+        };
+        try { port.postMessage(response); } catch (_) {}
     }
 
     function postSDKMenuAction(windowId, actionId) {
         const frame = document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(windowId)}"]`);
-        if (!frame || !frame.contentWindow || !actionId) return;
-        frame.contentWindow.postMessage({
+        const client = frame && sdkFrameClients.get(frame);
+        if (!actionId || !isCurrentSDKClient(client)) return;
+        try { client.port.postMessage({
             type: 'aurago.desktop.menu-action',
             actionId: String(actionId)
-        }, '*');
+        }); } catch (_) {}
     }
 
     function postSDKContextMenuAction(client, actionId) {
-        const frame = client.windowId
-            ? document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(client.windowId)}"]`)
-            : document.querySelector(`.vd-widget-frame[data-widget-id="${cssSel(client.widgetId)}"]`);
-        if (!frame || !frame.contentWindow || !actionId) return;
-        frame.contentWindow.postMessage({
+        if (!actionId || !isCurrentSDKClient(client)) return;
+        try { client.port.postMessage({
             type: 'aurago.desktop.context-menu-action',
             actionId: String(actionId)
-        }, '*');
+        }); } catch (_) {}
     }
 
 ;
@@ -18421,21 +20515,30 @@ if (appId === 'pixel') {
         throw new Error('Permission denied: ' + required.join(' or '));
     }
 
-    async function handleSDKMessage(event) {
+    async function handleSDKMessage(client, event, port, generation) {
+        if (!isCurrentSDKClient(client, port, generation)) return;
         const msg = event.data;
         if (!msg || msg.type !== SDK_REQUEST_TYPE) return;
-        const client = findSDKClient(event.source);
+        client.app = allApps().find(item => item.id === client.appId) || null;
+        const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
+        client.widget = widgets.find(item => item.id === client.widgetId) || null;
         const widgetAction = msg.action === 'desktop:widget:resize' || msg.action === 'desktop:widget:reload';
         if (!client || (!client.app && !widgetAction)) return;
+        const assertCurrent = () => {
+            if (!isCurrentSDKClient(client, port, generation)) throw new Error('Desktop SDK connection was revoked.');
+        };
         try {
-            const result = await runSDKAction(client, msg.action, msg.payload || {});
-            sendSDKResponse(event.source, msg.id, true, result);
+            const result = await runSDKAction(client, msg.action, msg.payload || {}, assertCurrent);
+            assertCurrent();
+            sendSDKResponse(client, port, generation, msg.id, true, result);
         } catch (err) {
-            sendSDKResponse(event.source, msg.id, false, err);
+            sendSDKResponse(client, port, generation, msg.id, false, err);
         }
     }
 
-    async function runSDKAction(client, action, payload) {
+    async function runSDKAction(client, action, payload, assertCurrent) {
+        const guard = typeof assertCurrent === 'function' ? assertCurrent : function () {};
+        const signal = client.abortController && client.abortController.signal;
         switch (action) {
             case 'desktop:context':
                 return {
@@ -18447,79 +20550,108 @@ if (appId === 'pixel') {
                     icon_theme_manifests: state.iconThemeManifests
                 };
             case 'desktop:widget:resize':
+                guard();
                 if (!client.widgetId) throw new Error('Widget resize is only available inside widget frames.');
                 resizeWidgetToContent(client.widgetId, payload || {});
                 return { status: 'ok' };
             case 'desktop:widget:reload':
+                guard();
                 if (!client.widgetId) throw new Error('Widget reload is only available inside widget frames.');
-                return { status: 'ok', reloaded: await reloadWidgetFrame(client.widgetId, payload || {}) };
+                { const reloaded = await reloadWidgetFrame(client.widgetId, payload || {}); guard(); return { status: 'ok', reloaded }; }
             case 'desktop:menu:set':
+                guard();
                 if (!client.windowId) throw new Error('Menus are only available for app windows.');
                 setWindowMenus(client.windowId, sdkMenus(client, payload.menus || []));
                 return { status: 'ok' };
             case 'desktop:menu:clear':
+                guard();
                 if (client.windowId) clearWindowMenus(client.windowId);
                 return { status: 'ok' };
             case 'desktop:context-menu:show':
+                guard();
                 showContextMenu(Number(payload.x) || 0, Number(payload.y) || 0, sdkContextMenuItems(client, payload.items || []));
                 return { status: 'ok' };
             case 'desktop:context-menu:clear':
+                guard();
                 closeContextMenu();
                 return { status: 'ok' };
             case 'desktop:clipboard:read-text': {
                 if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') throw new Error(t('desktop.clipboard_read_unavailable'));
-                return { text: await navigator.clipboard.readText() };
+                const text = await navigator.clipboard.readText(); guard(); return { text };
             }
             case 'desktop:clipboard:write-text':
                 if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') throw new Error(t('desktop.clipboard_write_unavailable'));
+                guard();
                 await navigator.clipboard.writeText(String(payload.text || ''));
+                guard();
                 return { status: 'ok' };
             case 'fs:list':
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return api('/api/desktop/files?path=' + encodeURIComponent(payload.path || ''));
-            case 'fs:read':
+                guard();
+                return api('/api/desktop/files?path=' + encodeURIComponent(payload.path || ''), { signal });
+            case 'fs:read': {
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return api('/api/desktop/file?path=' + encodeURIComponent(payload.path || ''));
-            case 'fs:write':
+                guard();
+                const result = await api('/api/desktop/file?path=' + encodeURIComponent(payload.path || ''), { signal });
+                guard();
+                if (!client.fileVersions) client.fileVersions = new Map();
+                client.fileVersions.set(payload.path || '', result.version);
+                return result;
+            }
+            case 'fs:write': {
                 requirePermission(client, ['files:write', 'filesystem:write']);
-                await api('/api/desktop/file', {
+                const version = payload.version || client.fileVersions?.get(payload.path || '');
+                guard();
+                const result = await api('/api/desktop/file', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    signal,
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
                     body: JSON.stringify({ path: payload.path || '', content: payload.content || '' })
                 });
+                guard();
+                if (!client.fileVersions) client.fileVersions = new Map();
+                client.fileVersions.set(result.path || payload.path || '', result.version);
                 await loadBootstrap();
-                return { status: 'ok' };
+                guard();
+                return result;
+            }
             case 'dialog:open-file':
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return openDesktopFileDialog(payload || {});
+                guard(); { const result = await openDesktopFileDialog(Object.assign({}, payload || {}, { signal })); guard(); return result; }
             case 'dialog:save-file':
                 requirePermission(client, ['files:write', 'filesystem:write']);
-                return saveDesktopFileDialog(payload || {});
+                guard(); { const result = await saveDesktopFileDialog(Object.assign({}, payload || {}, { signal })); guard(); return result; }
             case 'dialog:import-files':
                 requirePermission(client, ['files:write', 'filesystem:write']);
-                return importHostFiles(payload || {});
+                guard(); { const result = await importHostFiles(Object.assign({}, payload || {}, { signal })); guard(); return result; }
             case 'dialog:export-file':
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return exportWorkspaceFile(payload || {});
+                guard(); { const result = await exportWorkspaceFile(payload || {}); guard(); return result; }
             case 'app:open':
                 requirePermission(client, ['apps:open']);
+                guard();
                 openApp(payload.app_id || payload.id || client.appId);
                 return { status: 'ok' };
             case 'notification:show':
                 requirePermission(client, ['notifications']);
+                guard();
                 showDesktopNotification({ title: payload.title || client.app.name, message: payload.message || payload.content || '' });
                 return { status: 'ok' };
             case 'widget:upsert': {
                 requirePermission(client, ['widgets:write']);
+                guard();
                 const widget = Object.assign({}, payload || {});
                 if (!widget.app_id) widget.app_id = client.appId;
                 if (!widget.icon && client.app && client.app.icon) widget.icon = client.app.icon;
                 await api('/api/desktop/widgets', {
                     method: 'POST',
+                    signal,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(widget)
                 });
+                guard();
                 await loadBootstrap();
+                guard();
                 return { status: 'ok' };
             }
             default:
@@ -18604,6 +20736,9 @@ if (appId === 'pixel') {
 
         function onClose() {
             if (staleSocket()) return;
+            const policy = { serial_browser_enabled: false, serial_host_enabled: false };
+            Object.assign(state.bootstrap || (state.bootstrap = {}), policy);
+            document.dispatchEvent(new CustomEvent('aurago:desktop-policy', { detail: policy }));
             if (wsReconnectAttempts >= MAX_WS_RETRIES) {
                 setWSState(false, true);
                 return;
@@ -18653,6 +20788,11 @@ if (appId === 'pixel') {
 
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
+        if (event.type === 'desktop_policy') {
+            Object.assign(state.bootstrap || (state.bootstrap = {}), event.payload || {});
+            document.dispatchEvent(new CustomEvent('aurago:desktop-policy', { detail: event.payload || {} }));
+            return;
+        }
         if (event.type === 'rtl_sdr_recording_soon') {
             await window.AuraDesktopModules.loadAppI18nSections('rtl-sdr');
             showDesktopNotification({ title: 'RTL-SDR', message: t('rtlSdr.recording_soon'), appId: 'rtl-sdr' });
@@ -18694,6 +20834,7 @@ if (appId === 'pixel') {
         if (event.type === 'welcome') {
             document.dispatchEvent(new CustomEvent('aurago:meshcore-change', { detail: {} }));
             state.bootstrap = event.payload || state.bootstrap;
+            document.dispatchEvent(new CustomEvent('aurago:desktop-policy', { detail: state.bootstrap || {} }));
             renderDesktop();
             refreshPetRuntime();
             return;
@@ -18808,7 +20949,7 @@ if (appId === 'pixel') {
         $('vd-start-search').addEventListener('input', (event) => {
             state.startQuery = event.target.value;
             clearTimeout(startSearchTimer);
-            startSearchTimer = setTimeout(renderStartApps, 150);
+            startSearchTimer = setTimeout(() => renderStartApps({ switching: true }), 150);
         });
         $('vd-start-menu').addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
@@ -18823,8 +20964,13 @@ if (appId === 'pixel') {
                 if (search && document.activeElement !== search) search.focus();
                 return;
             }
+            if (event.target.closest('.vd-start-rail')) return; // the category rail handles its own arrows
             const items = [...$('vd-start-menu').querySelectorAll('.vd-start-item')];
-            if (!items.length) return;
+            const activeCategory = $('vd-start-menu').querySelector('.vd-start-category[aria-selected="true"]');
+            if (!items.length) {
+                if (activeCategory && (event.key === 'ArrowLeft' || event.key === 'ArrowDown')) { event.preventDefault(); activeCategory.focus(); }
+                return;
+            }
             const idx = items.indexOf(document.activeElement);
             const firstTop = items[0].offsetTop;
             let columns = 1;
@@ -18833,7 +20979,12 @@ if (appId === 'pixel') {
             if (event.key === 'ArrowDown') next = idx < 0 ? 0 : Math.min(items.length - 1, idx + columns);
             else if (event.key === 'ArrowUp') next = idx < 0 ? items.length - 1 : Math.max(0, idx - columns);
             else if (event.key === 'ArrowRight' && columns > 1) next = idx < 0 ? 0 : Math.min(items.length - 1, idx + 1);
-            else if (event.key === 'ArrowLeft' && columns > 1) next = idx < 0 ? 0 : Math.max(0, idx - 1);
+            else if (event.key === 'ArrowLeft') {
+                // Leftmost column (or a single column) hands focus back to the active category.
+                if (columns > 1 && idx > 0 && idx % columns !== 0) next = idx - 1;
+                else if (activeCategory) { event.preventDefault(); activeCategory.focus(); return; }
+                else return;
+            }
             else if (event.key === 'Home') next = 0;
             else if (event.key === 'End') next = items.length - 1;
             else return;
@@ -18845,8 +20996,9 @@ if (appId === 'pixel') {
             if (!event.target.closest('.vd-context-menu')) closeContextMenu();
             if (!event.target.closest('.vd-window-menubar')) closeWindowMenu();
             const menu = $('vd-start-menu');
-            // Protect both classic start button and Fruity Dock orb from the outside-click closer
-            if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button, [data-fruity-dock-orb]')) {
+            // Protect every launcher (classic start button, Fruity dock orb, Fruity menubar brand) from
+            // the outside-click closer. A target that a re-render detached was inside the menu too.
+            if (!menu.hidden && event.target.isConnected && !menu.contains(event.target) && !event.target.closest('#vd-start-button, [data-fruity-dock-orb], .vd-global-brand')) {
                 closeStartMenu();
             }
         });
@@ -18883,7 +21035,8 @@ if (appId === 'pixel') {
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('virtual_desktop_event', handleDesktopEvent);
         }
-        window.addEventListener('message', handleSDKMessage);
+        ensureSDKFrameLifecycleObserver();
+        window.addEventListener('message', handleSDKChannelHandshake);
     }
 
     function toggleWidgetDrawer() {
@@ -19043,18 +21196,24 @@ if (appId === 'pixel') {
             ? document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(state.activeWindowId)}"]`)
             : null;
         if (!frame || !frame.contentWindow) return false;
-        frame.contentWindow.postMessage({
-            type: 'aurago.desktop.key-event',
-            eventType: event.type === 'keyup' ? 'keyup' : 'keydown',
-            key: event.key,
-            code: event.code,
-            location: event.location || 0,
-            repeat: !!event.repeat,
-            ctrlKey: !!event.ctrlKey,
-            shiftKey: !!event.shiftKey,
-            altKey: !!event.altKey,
-            metaKey: !!event.metaKey
-        }, '*');
+        const client = sdkFrameClients.get(frame);
+        if (!isCurrentSDKClient(client)) return false;
+        try {
+            client.port.postMessage({
+                type: 'aurago.desktop.key-event',
+                eventType: event.type === 'keyup' ? 'keyup' : 'keydown',
+                key: event.key,
+                code: event.code,
+                location: event.location || 0,
+                repeat: !!event.repeat,
+                ctrlKey: !!event.ctrlKey,
+                shiftKey: !!event.shiftKey,
+                altKey: !!event.altKey,
+                metaKey: !!event.metaKey
+            });
+        } catch (_) {
+            return false;
+        }
         if (event.cancelable && (event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar' || String(event.key || '').indexOf('Arrow') === 0)) {
             event.preventDefault();
         }

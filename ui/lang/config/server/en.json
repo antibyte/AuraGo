@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Isolated app previews",
+  "config.server.preview_domain": "Preview domain",
+  "config.server.preview_enabled": "Enable after acceptance",
+  "config.server.preview_hint": "Off by default. Use a separate site with wildcard DNS and TLS. Test app logins, files and WebSockets on staged hosts before enabling.",
   "config.fritzbox.status_ok": "🟢 Connected",
   "config.fritzbox.test_fail": "Connection failed",
   "config.fritzbox.test_ok": "Connection successful",

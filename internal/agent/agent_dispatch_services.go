@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -22,7 +21,7 @@ var (
 	dispatchPreferredMCPVision        = tools.CallPreferredMCPVision
 	dispatchAnalyzeImageWithPrompt    = tools.AnalyzeImageWithPrompt
 	dispatchAnalyzeImageURLWithPrompt = tools.AnalyzeImageURLWithPrompt
-	resolveDockerComposeConfig        = tools.DockerComposeResolvedConfig
+	resolveDockerComposeConfig        = tools.DockerComposeResolvedConfigContext
 
 	meshCentralCachedClient    *meshcentral.CachedClient
 	meshCentralCachedConfig    meshCentralClientConfig
@@ -455,6 +454,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if cfg.MeshCentral.ReadOnly && !meshCentralReadOnlyAllowed(op) {
 				return meshCentralError(fmt.Sprintf("MeshCentral operation '%s' blocked: meshcentral.readonly is enabled.", req.Operation))
 			}
+			if op == "run_command" && !cfg.Agent.AllowRemoteShell {
+				return meshCentralError("MeshCentral run_command requires agent.allow_remote_shell=true.")
+			}
 
 			for _, blocked := range cfg.MeshCentral.BlockedOperations {
 				if normalizeMeshCentralOp(blocked) == op && op != "" {
@@ -584,6 +586,15 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if dockerRequestTargetsAuraGoApp(req) {
 				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
 			}
+			if dockerRequestCreatesReservedGarageName(req) {
+				return dockerAgentError("docker_managed_garage_resource", "The container name is reserved for AuraGo's managed Boring Computers Garage. Choose another name.")
+			}
+			if dockerRequestCreatesReservedSecurityProxyName(req) {
+				return dockerAgentError("docker_managed_security_proxy_resource", "The container name is reserved for AuraGo's security proxy. Choose another name.")
+			}
+			if dockerCreateRunOperation(req.Operation) && dockerNameReserved(req.Name, dockerReservedSidecarNames(cfg)) {
+				return dockerAgentError("docker_managed_sidecar_name", fmt.Sprintf(dockerManagedSidecarNameMessage, strings.TrimPrefix(strings.TrimSpace(req.Name), "/")))
+			}
 			var createCommand []string
 			var createRestart string
 			var createOptions tools.ContainerCreateOptions
@@ -594,6 +605,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return validationError
 				}
 			}
+			if cfg.Docker.ReadOnly && strings.EqualFold(strings.TrimSpace(req.Operation), "compose") && strings.TrimSpace(req.Command) != "" {
+				// Invalid Compose arguments count as mutating, which would hide the
+				// real reason behind "disable docker.read_only".
+				if denied := tools.DockerComposeArgumentsDenial(req.Command); denied != "" {
+					return "Tool Output: " + denied
+				}
+			}
 			if cfg.Docker.ReadOnly && (dockerOperationMutates(req.Operation) ||
 				strings.EqualFold(strings.TrimSpace(req.Operation), "compose") &&
 					tools.DockerComposeCommandMutates(req.Command)) {
@@ -601,8 +619,12 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 			containerID := req.targetContainerID()
+			// SecurityProxyOwner is listed only to keep this list in sync with the
+			// server's containerProtectedOwners. Its flag is deliberately never
+			// checked: the agent keeps its access to the proxy container, and
+			// dockerRequestCreatesReservedSecurityProxyName refuses create/run.
 			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
-				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "local-llm", dockerutil.BoringGarageOwner, dockerutil.AppOwner)
+				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "local-llm", dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner)
 			if !localLLMDockerOperationSafe(req.Operation) && owned[acestep.Owner] {
 				return dockerAgentError("docker_managed_music_resource", "Managed ACE-Step resources are private. Use generate_music or the administrator Music Generation settings.")
 			}
@@ -616,7 +638,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed local LLM container is blocked. Use the administrator Local LLM API."}`
 			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.BoringGarageOwner] {
-				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Boring Computers Garage container is blocked. Use the Virtual Computers administrator API."}`
+				return dockerAgentError("docker_managed_garage_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Boring Computers Garage container is blocked. Use the Virtual Computers administrator API.")
 			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.AppOwner] {
 				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
@@ -629,19 +651,46 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM model and runtime-key volumes cannot be mounted through the Docker agent tool."}`
 			}
 			if dockerRequestMountsProtectedGaragePath(req.Volumes) {
-				return `Tool Output: {"status":"error","message":"AuraGo's managed Boring Computers Garage data paths cannot be mounted through the Docker agent tool."}`
+				return dockerAgentError("docker_managed_garage_resource", "AuraGo's managed Boring Computers Garage data paths cannot be mounted through the Docker agent tool.")
+			}
+			if cfg.Runtime.IsDocker && (len(req.Volumes) > 0 || dockerVolumeOperation(req.Operation)) {
+				// In a container AuraGo's data directory is a volume or a host
+				// directory; native installs never reach this check.
+				self := tools.DockerSelfIdentityFor(ctx, dockerCfg)
+				refused := dockerVolumeOperation(req.Operation) && tools.IsAuraGoStateVolume(req.Name, true, self)
+				for _, volume := range req.Volumes {
+					refused = refused || tools.DockerBindTouchesAuraGoState(volume, true, self)
+				}
+				if refused {
+					return dockerAgentError("docker_managed_aurago_resource", "AuraGo's own data volume and data directory cannot be mounted, created or removed through the Docker agent tool. If this volume belongs to another stack, give it another name.")
+				}
+			}
+			if denied := dockerCreateStateBindDenial(ctx, cfg, dockerCfg, req); denied != "" {
+				return denied
 			}
 			if dockerProtectedLocalLLMVolumeName(req.Name) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`
 			}
-			if req.Operation == "compose" && dockerComposeReferencesProtectedLocalLLMVolume(dockerCfg, req.File) {
-				return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed local LLM volumes is blocked."}`
-			}
-			if req.Operation == "compose" && dockerComposeReferencesProtectedGarage(dockerCfg, req.File) {
-				return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed Boring Computers Garage is blocked."}`
-			}
-			if req.Operation == "compose" && dockerComposeReferencesProtectedHomepage(dockerCfg, req.File) {
-				return dockerAgentError("docker_managed_homepage_resource", "Docker Compose access to AuraGo-managed homepage resources is blocked. Use homepage_project, homepage_file, or homepage_deploy.")
+			var composeChecked *dockerComposePreflight
+			if req.Operation == "compose" {
+				// Without host access Compose and its preflight see only the
+				// variables they need, never AuraGo's environment (user decision
+				// 2026-10-06). This follows the config flag only: grandfathered
+				// installs (docker.allow_host_access true) keep today's
+				// environment for every run, also for runs that withhold the
+				// AllowDockerHostAccess grant (those still get the host-access
+				// policy through dockerComposeHostAccessAllowed).
+				dockerCfg.MinimalCLIEnvironment = !cfg.Docker.AllowHostAccess
+				// A refused `config -o` target is cheap to find; check it before
+				// the preflight resolves the Compose file (up to three resolutions).
+				if denied := tools.DockerComposeOutputDenial(dockerCfg, req.Command); denied != "" {
+					return "Tool Output: " + denied
+				}
+				denied, checked := dockerComposePolicyChecked(ctx, cfg, dockerCfg, req)
+				if denied != "" {
+					return denied
+				}
+				composeChecked = checked
 			}
 			switch req.Operation {
 			case "list_containers", "ps":
@@ -692,7 +741,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerListImages(dockerCfg)
 			case "pull_image", "pull":
 				logger.Info("LLM requested Docker pull", "image", req.Image)
-				return "Tool Output: " + tools.DockerPullImage(dockerCfg, req.Image)
+				return "Tool Output: " + tools.DockerPullImageContext(ctx, dockerCfg, req.Image)
 			case "remove_image", "rmi":
 				logger.Info("LLM requested Docker remove_image", "image", req.Image, "force", req.Force)
 				return "Tool Output: " + tools.DockerRemoveImage(dockerCfg, req.Image, req.Force)
@@ -707,7 +756,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerSystemInfo(dockerCfg)
 			case "exec":
 				logger.Info("LLM requested Docker exec", "container_id", containerID, "cmd", Truncate(req.Command, 200))
-				return "Tool Output: " + tools.DockerExec(dockerCfg, containerID, req.Command, req.User)
+				return "Tool Output: " + tools.DockerExecContext(ctx, dockerCfg, containerID, req.Command, req.User)
 			case "stats":
 				logger.Info("LLM requested Docker stats", "container_id", containerID)
 				return "Tool Output: " + tools.DockerStats(dockerCfg, containerID)
@@ -740,6 +789,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerRemoveVolume(dockerCfg, req.Name, req.Force)
 			case "compose":
 				logger.Info("LLM requested Docker compose", "file", req.File, "cmd", req.Command)
+				if !cfg.Docker.AllowHostAccess {
+					// Check-then-run: repeat the checked resolutions right before
+					// the run and refuse when the input changed (controller
+					// decision 2026-10-06, only while host access is off).
+					if changed := composeChecked.inputChanged(ctx); changed != "" {
+						return changed
+					}
+				}
 				return "Tool Output: " + tools.DockerCompose(dockerCfg, req.File, req.Command)
 			default:
 				return `Tool Output: {"status": "error", "message": "Unknown docker operation. Use: list_containers, inspect, start, stop, restart, pause, unpause, remove, logs, create, run, list_images, pull, remove_image, list_networks, create_network, remove_network, connect, disconnect, list_volumes, create_volume, remove_volume, exec, stats, top, port, cp, compose, info"}`
@@ -1028,12 +1085,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage webserver_status")
 				return "Tool Output: " + tools.HomepageWebServerStatus(homepageCfg, logger)
 			case "tunnel":
-				logger.Info("LLM requested homepage tunnel", "port", req.Port)
-				port := req.Port
-				if port <= 0 {
-					port = 3000
-				}
-				return "Tool Output: " + tools.HomepageTunnel(homepageCfg, port, logger)
+				tunnelCfg := tools.CloudflareTunnelConfigFromConfig(cfg)
+				tunnelCfg.QuickProjectDir = req.ProjectDir
+				return "Tool Output: " + tools.CloudflareTunnelQuickTunnel(tunnelCfg, dc.Registry, logger, req.Port)
 			case "publish_local":
 				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
 					return validation
@@ -1144,8 +1198,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
 					return validation
 				}
-				if !cfg.Vercel.AllowDeploy {
-					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable vercel.allow_deploy in config."}`
+				if cfg.Vercel.ReadOnly || !cfg.Vercel.AllowDeploy {
+					return `Tool Output: {"status":"error","message":"Deployment requires vercel.readonly=false and vercel.allow_deploy=true."}`
 				}
 				if !cfg.Vercel.Enabled {
 					return `Tool Output: {"status":"error","message":"Vercel integration is not enabled. Set vercel.enabled=true in config.yaml."}`
@@ -1568,6 +1622,20 @@ func dockerRequestTargetsAuraGoApp(req dockerArgs) bool {
 	return false
 }
 
+// dockerRequestCreatesReservedGarageName blocks create/run of the managed
+// Garage container name. The ownership check matches reserved names only for
+// targetContainerID, which prefers container_id; this covers req.Name.
+func dockerRequestCreatesReservedGarageName(req dockerArgs) bool {
+	return dockerCreateRunOperation(req.Operation) && dockerutil.IsBoringGarageContainerName(req.Name)
+}
+
+// dockerRequestCreatesReservedSecurityProxyName blocks create/run of the
+// security proxy container name; like the Garage check it covers req.Name next
+// to a container_id. The agent keeps its access to the existing container.
+func dockerRequestCreatesReservedSecurityProxyName(req dockerArgs) bool {
+	return dockerCreateRunOperation(req.Operation) && dockerutil.IsSecurityProxyContainerName(req.Name)
+}
+
 func dockerRequestTargetsManagedHomepage(req dockerArgs) bool {
 	operation := strings.ToLower(strings.TrimSpace(req.Operation))
 	switch operation {
@@ -1575,6 +1643,11 @@ func dockerRequestTargetsManagedHomepage(req dockerArgs) bool {
 		"remove", "rm", "logs", "exec", "stats", "top", "port", "cp", "copy",
 		"connect", "disconnect", "create", "create_container", "run":
 		if dockerutil.IsHomepageContainerName(req.targetContainerID()) {
+			return true
+		}
+		// create/run name the new container in req.Name; a container_id next
+		// to it must not hide a reserved name.
+		if dockerCreateRunOperation(operation) && dockerutil.IsHomepageContainerName(req.Name) {
 			return true
 		}
 	}
@@ -1654,92 +1727,17 @@ func dockerRequestMountsProtectedGaragePath(volumes []string) bool {
 	return false
 }
 
-func dockerComposeReferencesProtectedGarage(cfg tools.DockerConfig, file string) bool {
-	base, err := filepath.Abs(cfg.WorkspaceDir)
-	if err != nil {
-		return true
-	}
-	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
-	if err != nil {
-		return true
-	}
-	relative, err := filepath.Rel(base, path)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
-		return true
-	}
-	payload, err := os.ReadFile(path)
-	if err != nil {
-		return true
-	}
-	lower := strings.ToLower(string(payload))
-	for _, token := range []string{
-		dockerutil.BoringGarageContainerName,
-		"boring-garage",
-		"data/sidecars/garage",
-		`aurago.managed: boring-garage`,
-		`"aurago.managed":"boring-garage"`,
-		`aurago.managed=boring-garage`,
-	} {
-		if strings.Contains(lower, strings.ToLower(token)) {
-			return true
-		}
-	}
-	return false
-}
-
-func dockerComposeReferencesProtectedHomepage(cfg tools.DockerConfig, file string) bool {
-	base, err := filepath.Abs(cfg.WorkspaceDir)
-	if err != nil {
-		return true
-	}
-	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
-	if err != nil {
-		return true
-	}
-	relative, err := filepath.Rel(base, path)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
-		return true
-	}
-	payload, err := os.ReadFile(path)
-	if err != nil {
-		return true
-	}
-	lower := strings.ToLower(string(payload))
-	return strings.Contains(lower, dockerutil.HomepageContainerName) ||
-		strings.Contains(lower, dockerutil.HomepageWebContainerName) ||
-		strings.Contains(lower, dockerutil.HomepageImageRepository)
-}
-
 func dockerProtectedLocalLLMVolumeName(name string) bool {
 	return acestep.IsResourceName(name) || dockerutil.IsLocalLLMVolumeName(name)
 }
 
-func dockerComposeReferencesProtectedLocalLLMVolume(cfg tools.DockerConfig, file string) bool {
-	base, err := filepath.Abs(cfg.WorkspaceDir)
-	if err != nil {
+// dockerVolumeOperation reports the volume operations whose name is a volume.
+func dockerVolumeOperation(operation string) bool {
+	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "create_volume", "remove_volume":
 		return true
 	}
-	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
-	if err != nil {
-		return true
-	}
-	relative, err := filepath.Rel(base, path)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
-		return true
-	}
-	payload, err := os.ReadFile(path)
-	if err != nil {
-		return true
-	}
-	lower := strings.ToLower(string(payload))
-	if dockerComposePayloadReferencesProtectedLocalLLM(lower) {
-		return true
-	}
-	resolved, err := resolveDockerComposeConfig(
-		cfg,
-		file,
-	)
-	return err != nil || dockerComposePayloadReferencesProtectedLocalLLM(strings.ToLower(resolved))
+	return false
 }
 
 func dockerComposePayloadReferencesProtectedLocalLLM(payload string) bool {

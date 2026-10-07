@@ -132,7 +132,7 @@
   "backend.knowledge_not_configured": "Le stockage de connaissances n'est pas configuré",
   "backend.knowledge_unavailable": "Le stockage de connaissances est actuellement indisponible",
   "backend.knowledge_invalid_upload": "Requête de téléversement invalide",
-  "backend.knowledge_missing_file": "Téléchargement de fichier manquant",
+  "backend.knowledge_missing_file": "Téléversement de fichier manquant",
   "backend.knowledge_invalid_filename": "Nom de fichier invalide",
   "backend.knowledge_type_not_allowed": "Ce type de fichier n'est pas autorisé pour le Centre de connaissances",
   "backend.knowledge_invalid_destination": "Destination de téléversement invalide",
@@ -221,7 +221,7 @@
   "tools.process_not_found": "Processus {0} introuvable : {1}",
   "tools.process_kill_failed": "Échec de l'arrêt du processus {0} : {1}",
   "tools.process_terminated": "Processus {0} arrêté",
-  "tools.process_unknown_op": "Opération inconnue : {0}. Validées : list, kill, stats",
+  "tools.process_unknown_op": "Opération inconnue : {0}. Autorisées : list, kill, stats",
   "tools.ping_host_required": "hôte requis",
   "tools.ping_create_failed": "échec de la création du pinger : {0}",
   "tools.ping_failed_privileged": "ping échoué : {0} — assurez-vous que le processus a la permission d'envoyer des paquets ICMP (root / CAP_NET_RAW sur Linux)",
@@ -242,5 +242,13 @@
   "backend.budget_mode_full_en": "(tous bloqués en cas de dépassement)",
   "backend.speech_lab_audio_warning": "L’audio Speech Lab n’a pas pu être généré. La réponse texte reste disponible.",
   "backend.auth_current_password_required": "Votre mot de passe actuel est requis pour cette modification.",
-  "backend.auth_current_totp_required": "Le code actuel de votre application d'authentification est requis pour cette modification."
+  "backend.auth_current_totp_required": "Le code actuel de votre application d'authentification est requis pour cette modification.",
+  "backend.proxy_basic_auth_credentials_invalid": "Les identifiants Basic Auth du Vault sont inutilisables. Le nom d'utilisateur ne doit contenir ni ':', ni guillemets, ni barres obliques inverses, ni accolades, et le mot de passe ne doit pas dépasser 72 octets.",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth est activé, mais le Vault ne contient pas 'proxy_basic_auth_user' et 'proxy_basic_auth_pass'. Enregistrez les deux secrets ou désactivez Basic Auth, puis redémarrez le proxy.",
+  "backend.proxy_caddy_exited": "Le proxy s'est arrêté juste après le démarrage, généralement à cause d'un domaine, d'une entrée de filtre IP ou d'un port invalide. Les logs du proxy indiquent la raison exacte.",
+  "backend.proxy_config_rejected": "Le proxy a refusé les nouveaux paramètres et continue avec les précédents. Les logs du proxy indiquent la raison.",
+  "backend.proxy_docker_placement_failed": "AuraGo s'exécute dans Docker, mais le proxy ne peut pas utiliser le volume de données d'AuraGo. Il faut Docker Engine 26 ou plus récent, et le répertoire de données d'AuraGo doit se trouver sur un volume Docker ou un bind mount. Les détails figurent dans le journal d'AuraGo.",
+  "backend.proxy_not_running": "Le Security Proxy n'est pas démarré. Démarrez-le d'abord.",
+  "backend.proxy_rate_limit_image_read_only": "Le mode lecture seule de Docker (docker.read_only) est activé : AuraGo ne peut donc pas construire l'image Caddy avec le module caddy-ratelimit nécessaire à la limitation de débit. Dans ce mode, AuraGo ne peut pas non plus créer ni modifier le conteneur du proxy. Désactivez le mode lecture seule de Docker, puis redémarrez le proxy. Les détails figurent dans le journal d'AuraGo.",
+  "backend.proxy_rate_limit_image_unavailable": "La limitation de débit nécessite une image Caddy avec le module caddy-ratelimit, qu'AuraGo n'a pas pu construire. Docker doit autoriser la construction d'images (avec Docker Compose : BUILD=1 sur le service docker-proxy) et accéder à Internet. Sinon, construisez l'image sur l'hôte Docker (voir le manuel) ou désactivez la limitation de débit. Les détails figurent dans le journal d'AuraGo."
 }

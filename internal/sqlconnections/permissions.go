@@ -41,33 +41,8 @@ func (s StatementType) String() string {
 
 // stripSQLComments removes SQL line comments (--) and block comments (/* ... */) from a query string.
 func stripSQLComments(s string) string {
-	var result strings.Builder
-	i := 0
-	for i < len(s) {
-		// Block comment /* ... */
-		if i+1 < len(s) && s[i] == '/' && s[i+1] == '*' {
-			end := strings.Index(s[i+2:], "*/")
-			if end == -1 {
-				break // unterminated block comment: discard rest
-			}
-			i = i + 2 + end + 2
-			result.WriteByte(' ')
-			continue
-		}
-		// Line comment --
-		if i+1 < len(s) && s[i] == '-' && s[i+1] == '-' {
-			nl := strings.IndexByte(s[i:], '\n')
-			if nl == -1 {
-				break // comment to end of string
-			}
-			i = i + nl + 1
-			result.WriteByte(' ')
-			continue
-		}
-		result.WriteByte(s[i])
-		i++
-	}
-	return result.String()
+	structure, _ := sqlStructure(s)
+	return structure
 }
 
 // DetectStatementType parses the leading keyword(s) of a SQL string to classify it.
@@ -77,8 +52,13 @@ func stripSQLComments(s string) string {
 // are blocked rather than allowed. Edge cases like PRAGMA, EXPLAIN variants,
 // CTEs with unknown inner DML, and administrative commands are treated as
 // potentially dangerous and blocked.
-func DetectStatementType(query string) (StatementType, error) {
-	trimmed := strings.TrimSpace(stripSQLComments(query))
+func DetectStatementType(query string) (StatementType, error) { return detectStatementType(query, "") }
+
+func detectStatementType(query, driver string) (StatementType, error) {
+	trimmed, err := sqlStructureDialect(query, driver)
+	if err != nil {
+		return StmtUnknown, err
+	}
 	if trimmed == "" {
 		return StmtUnknown, fmt.Errorf("empty query")
 	}
@@ -99,18 +79,30 @@ func DetectStatementType(query string) (StatementType, error) {
 	case "SELECT":
 		// Check for EXPLAIN SELECT (still read-only)
 		if isExplainQuery(trimmed) {
+			if err := validateReadStructure(trimmed); err != nil {
+				return StmtUnknown, err
+			}
 			return StmtSelect, nil
+		}
+		if err := validateReadStructure(trimmed); err != nil {
+			return StmtUnknown, err
 		}
 		return StmtSelect, nil
 
 	case "SHOW", "DESCRIBE", "DESC":
 		// SHOW and DESCRIBE are informational (read-only)
+		if err := validateReadStructure(trimmed); err != nil {
+			return StmtUnknown, err
+		}
 		return StmtSelect, nil
 
 	case "EXPLAIN":
 		// EXPLAIN without SELECT is ambiguous — block conservatively.
 		// Some databases use EXPLAIN for analyzing INSERT/UPDATE/DELETE plans.
 		if isExplainSelectOnly(trimmed) {
+			if err := validateReadStructure(trimmed); err != nil {
+				return StmtUnknown, err
+			}
 			return StmtSelect, nil
 		}
 		return StmtUnknown, fmt.Errorf("EXPLAIN for non-SELECT statements is not allowed")
@@ -126,6 +118,9 @@ func DetectStatementType(query string) (StatementType, error) {
 		inner := cteLeadingDML(trimmed)
 		switch inner {
 		case "SELECT", "SHOW", "DESCRIBE", "DESC":
+			if err := validateReadStructure(trimmed); err != nil {
+				return StmtUnknown, err
+			}
 			return StmtSelect, nil
 		case "INSERT", "REPLACE":
 			return StmtInsert, nil
@@ -186,7 +181,7 @@ func isExplainSelectOnly(query string) bool {
 	upper := strings.TrimSpace(strings.ToUpper(query))
 	// EXPLAIN SELECT ... or EXPLAIN QUERY PLAN ...
 	return strings.HasPrefix(upper, "EXPLAIN SELECT") ||
-		strings.HasPrefix(upper, "EXPLAIN QUERY PLAN")
+		strings.HasPrefix(upper, "EXPLAIN QUERY PLAN SELECT ")
 }
 
 // CheckPermission verifies that the connection allows the given statement type.

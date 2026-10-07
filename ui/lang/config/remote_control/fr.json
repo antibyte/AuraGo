@@ -24,7 +24,7 @@
   "config.onedrive.test_failed": "Échec",
   "config.onedrive.test_success": "Succès",
   "config.onedrive.testing": "Test…",
-  "config.remote_control.allowed_paths_hint": "un par ligne, vide = tous",
+  "config.remote_control.allowed_paths_hint": "Un chemin par ligne ; une liste vide interdit l’accès aux fichiers.",
   "config.remote_control.allowed_paths_label": "Chemins autorisés",
   "config.remote_control.audit_log_label": "Activer le journal d'audit",
   "config.remote_control.auto_approve_label": "Approuver automatiquement les nouveaux appareils (⚠️ uniquement sur les réseaux de confiance)",

@@ -18,9 +18,18 @@ import (
 
 func TestSpritePackContent(t *testing.T) {
 	s := newTestService(t)
+	mixedPacks := map[string]bool{
+		"mixed-everyday":    true,
+		"mixed-discovery":   true,
+		"mixed-technology":  true,
+		"mixed-curiosities": true,
+	}
+	seenMixedPacks := map[string]bool{}
 	packs, err := s.ListAssetPacks()
-	packs = slices.DeleteFunc(packs, func(p AssetPackSummary) bool { return p.Kind == "model3d" || p.ManifestSchema == 2 || presentationPack(p.ID) })
-	if err != nil || len(packs) != 18 {
+	packs = slices.DeleteFunc(packs, func(p AssetPackSummary) bool {
+		return p.Kind == "model3d" || p.ManifestSchema == 2 || presentationPack(p.ID)
+	})
+	if err != nil || len(packs) != 22 {
 		t.Fatalf("catalog: %d packs, %v", len(packs), err)
 	}
 	for _, summary := range packs {
@@ -126,7 +135,31 @@ func TestSpritePackContent(t *testing.T) {
 					}
 				}
 			}
+			if mixedPacks[summary.ID] {
+				seenMixedPacks[summary.ID] = true
+				if pack.Version != "2" || summary.Kind != "sprite2d" || len(assets) != 100 || len(animations) != 0 {
+					t.Fatalf("mixed pack must be version 2 with 100 static sprite assets: version=%q kind=%q assets=%d animations=%d", pack.Version, summary.Kind, len(assets), len(animations))
+				}
+				for _, asset := range assets {
+					if asset.View != "side" {
+						t.Fatalf("mixed pack asset %s has view %q, want side", asset.ID, asset.View)
+					}
+				}
+				matches, err := s.SearchAssets(assets[0].Name, summary.ID, "side", 6, "sprite2d")
+				if err != nil || len(matches) == 0 || matches[0].PackID != summary.ID || matches[0].AssetID != assets[0].ID || matches[0].Version != "2" {
+					t.Fatalf("mixed pack search did not return %s: matches=%+v err=%v", summary.ID, matches, err)
+				}
+				detail, err := s.DescribeAsset(summary.ID, assets[0].ID, "")
+				if err != nil || detail.Asset == nil || detail.Asset.ID != assets[0].ID || detail.View != "side" || detail.Version != "2" || len(detail.Animations) != 0 {
+					t.Fatalf("mixed pack describe failed for %s/%s: detail=%+v err=%v", summary.ID, assets[0].ID, detail, err)
+				}
+			}
 		})
+	}
+	for id := range mixedPacks {
+		if !seenMixedPacks[id] {
+			t.Errorf("catalog is missing fixed-grid pack %s", id)
+		}
 	}
 }
 
@@ -255,13 +288,15 @@ func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")
 	packs, _ := s.ListAssetPacks()
-	packs = slices.DeleteFunc(packs, func(p AssetPackSummary) bool { return p.Kind == "model3d" || p.ManifestSchema == 2 || presentationPack(p.ID) })
+	packs = slices.DeleteFunc(packs, func(p AssetPackSummary) bool {
+		return p.Kind == "model3d" || p.ManifestSchema == 2 || presentationPack(p.ID)
+	})
 	ids := []string{}
 	for _, p := range packs {
 		ids = append(ids, p.ID)
 	}
 	s.SetRunner(testRunner{service: s, mutate: func(ctx context.Context, run JobRun) error {
-		if len(run.AssetPacks) != 18 {
+		if len(run.AssetPacks) != 22 {
 			return fmt.Errorf("agent saw %d imports", len(run.AssetPacks))
 		}
 		for _, pack := range run.AssetPacks {
@@ -370,6 +405,7 @@ func TestSpritePackImportFailuresLeaveNoPartialPair(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			s := newTestService(t)
 			project := createTestProject(t, s, "2d")
+			verified := make(chan struct{}, 1)
 			s.SetRunner(testRunner{service: s, mutate: func(ctx context.Context, run JobRun) error {
 				stage, _ := s.JobDirectory(run.Job.ID)
 				target := filepath.Join(stage, "assets", "builtin", "space-shooter", "2")
@@ -424,13 +460,24 @@ func TestSpritePackImportFailuresLeaveNoPartialPair(t *testing.T) {
 				} else if _, err := os.Stat(target); !os.IsNotExist(err) {
 					return fmt.Errorf("partial destination remains: %v", err)
 				}
+				verified <- struct{}{}
 				return errors.New("fixture finished")
 			}})
 			job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if done := waitJob(t, s, job.ID); done.Error != "fixture finished" {
+			done := waitJob(t, s, job.ID)
+			select {
+			case <-verified:
+			default:
+				t.Fatalf("failure checks did not finish: %+v", done)
+			}
+			if kind == "disabled" || kind == "readonly" || kind == "edit_disabled" {
+				if done.Status != "cancelled" {
+					t.Fatalf("policy revocation did not cancel: %+v", done)
+				}
+			} else if done.Error != "fixture finished" {
 				t.Fatalf("failure fixture: %+v", done)
 			}
 		})

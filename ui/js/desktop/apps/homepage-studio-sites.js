@@ -1,6 +1,6 @@
 /* Homepage Studio sites panel: managed-site list with drift badges, site
    detail (deploy targets, deployments, remote observations) and on-demand
-   reconcile. Data comes from /api/homepage/sites + /api/homepage/sites/{id}. */
+   reconcile. Data comes from /api/desktop/integrations/homepage/sites + /api/desktop/integrations/homepage/sites/{id}. */
 (function () {
     'use strict';
 
@@ -72,7 +72,7 @@
             state.error = false;
             render();
             try {
-                const data = await deps.api('/api/homepage/sites');
+                const data = await deps.api('/api/desktop/integrations/homepage/sites');
                 if (isDisposed()) return;
                 state.sites = data && Array.isArray(data.sites) ? data.sites : [];
                 if (state.selectedId && !state.sites.some(site => Number(site.id) === state.selectedId)) {
@@ -93,7 +93,7 @@
             id = Number(id);
             if (!Number.isFinite(id) || id <= 0) return null;
             try {
-                const data = await deps.api('/api/homepage/sites/' + encodeURIComponent(String(id)));
+                const data = await deps.api('/api/desktop/integrations/homepage/sites/' + encodeURIComponent(String(id)));
                 if (isDisposed()) return null;
                 const site = data && data.site;
                 if (site) {
@@ -135,7 +135,7 @@
                 if (label) label.textContent = t('homepage_studio.sites_reconciling');
             }
             try {
-                const data = await deps.api('/api/homepage/sites/' + encodeURIComponent(String(id)) + '/reconcile', { method: 'POST' });
+                const data = await deps.api('/api/desktop/integrations/homepage/sites/' + encodeURIComponent(String(id)) + '/reconcile', { method: 'POST' });
                 if (isDisposed()) return;
                 if (data && data.site) {
                     state.details.set(id, data.site);

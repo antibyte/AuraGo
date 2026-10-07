@@ -395,13 +395,24 @@ func persistentSummaryMessageText(message openai.ChatCompletionMessage) string {
 }
 
 func applyPersistentCompressionToRequest(messages []openai.ChatCompletionMessage, result persistentCompressionResult) []openai.ChatCompletionMessage {
+	updated, _ := applyPersistentCompressionToRequestWithTaskAnchor(messages, result, -1)
+	return updated
+}
+
+func applyPersistentCompressionToRequestWithTaskAnchor(messages []openai.ChatCompletionMessage, result persistentCompressionResult, anchorIndex int) ([]openai.ChatCompletionMessage, int) {
 	if !result.Compressed || strings.TrimSpace(result.Summary) == "" {
-		return messages
+		return messages, anchorIndex
+	}
+	if anchorIndex >= len(messages) {
+		anchorIndex = -1
 	}
 	drop := make([]bool, len(messages))
 	cursor := 0
 	for _, stored := range result.Dropped {
 		for i := cursor; i < len(messages); i++ {
+			if i == anchorIndex {
+				continue
+			}
 			if matchesStoredHistoryMessage(messages[i], stored) {
 				drop[i] = true
 				cursor = i + 1
@@ -410,9 +421,13 @@ func applyPersistentCompressionToRequest(messages []openai.ChatCompletionMessage
 		}
 	}
 	filtered := make([]openai.ChatCompletionMessage, 0, len(messages)+1)
+	filteredAnchorIndex := -1
 	for i, message := range messages {
 		if drop[i] || (message.Role == openai.ChatMessageRoleSystem && strings.HasPrefix(strings.TrimSpace(message.Content), "[CONTEXT_RECAP]:")) {
 			continue
+		}
+		if i == anchorIndex {
+			filteredAnchorIndex = len(filtered)
 		}
 		filtered = append(filtered, message)
 	}
@@ -424,7 +439,10 @@ func applyPersistentCompressionToRequest(messages []openai.ChatCompletionMessage
 	filtered = append(filtered, openai.ChatCompletionMessage{})
 	copy(filtered[insertAt+1:], filtered[insertAt:])
 	filtered[insertAt] = recap
-	return filtered
+	if filteredAnchorIndex >= insertAt {
+		filteredAnchorIndex++
+	}
+	return filtered, filteredAnchorIndex
 }
 
 func matchesStoredHistoryMessage(candidate openai.ChatCompletionMessage, stored memory.HistoryMessage) bool {

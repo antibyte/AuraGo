@@ -90,6 +90,8 @@ google_workspace:
 
 ## Notes
 
+- **Label changes**: `gmail_modify_labels` requires the separate `google_workspace.gmail_modify_labels: true` permission and `readonly: false`. It defaults off, including for existing read/send configurations. Save the setting and reconnect OAuth when additional scopes are needed. A broad existing OAuth token does not override disabled runtime permissions.
+
 - **OAuth2**: Authentication is handled automatically via OAuth2 stored in the vault. No manual token handling required.
 - **Gmail queries**: Use Gmail search syntax (e.g., `from:boss is:unread has:attachment`)
 - **Drive queries**: Use Google Drive search syntax (e.g., `name contains 'Invoice' and mimeType='application/pdf'`)

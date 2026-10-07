@@ -51,7 +51,7 @@ Initiate and control voice calls. Supports TTS speech, audio playback, DTMF inpu
 | `text`           | speak/gather_dtmf | Text to speak via TTS |
 | `audio_url`      | play_audio | URL of audio file to play |
 | `max_digits`     | no | Max DTMF digits to collect (default: 1) |
-| `timeout_secs`   | no | Timeout for DTMF gathering (default: 10) |
+| `timeout_secs`   | no | Ringing timeout for initiate (default: 30, range: 5..600), or DTMF timeout for gather_dtmf (default: 10). Call duration is separately limited by the administrator's call_timeout setting. |
 
 #### Call Flow
 
@@ -134,7 +134,9 @@ When Telnyx is enabled, incoming SMS messages and voice calls arrive via webhook
 
 ### Security Notes
 
-- Only numbers in `telnyx.allowed_numbers` can trigger incoming message processing
+- Only numbers in `telnyx.allowed_numbers` may send incoming messages/calls or receive outgoing calls, transfers, SMS/MMS and agent replies. An empty list permits no numbers.
+- Incoming permitted calls are answered; disallowed, read-only or busy calls are actively rejected. Uncertain send/answer results are never retried automatically.
+- Configure the public callback URL on the Telnyx application selected by `connection_id`; AuraGo's `webhook_path` only registers the local route.
 - Webhook signatures are verified using Ed25519
 - Rate limiting prevents SMS flood attacks
 - The agent cannot access the Telnyx API key directly — it is stored in the vault

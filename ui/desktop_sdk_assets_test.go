@@ -16,8 +16,12 @@ func TestDesktopSDKAssetsAreEmbedded(t *testing.T) {
 	for _, want := range []string{
 		"window.AuraDesktop",
 		"aurago.desktop.request",
+		"window.__AURAGO_DESKTOP_SDK_CHANNEL__",
+		"function connectParentPort(port)",
 		"widgets.register",
 		"fs.read",
+		"fs.write = (path, content, versionOrOptions)",
+		"error.status = Number(msg.status) || 0",
 		"ui.button",
 		"ui.select",
 		"ui.toast",

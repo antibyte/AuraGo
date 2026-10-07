@@ -205,7 +205,7 @@ func TestDesktopLooperBrowser(t *testing.T) {
             if(path.startsWith('/api/desktop/looper/runs')) return json({runs:[
                 {id:7,preset_name:'Past loop',status:'completed',rounds:2,max_rounds:6,best_score:91,target_score:90,goal_excerpt:'History goal'},
                 {id:8,preset_name:'Ancient loop',status:'stopped',rounds:1,max_rounds:5,best_score:40,target_score:85,goal_excerpt:'Old goal'}]});
-            if(path.startsWith('/api/providers')) return json({providers:[]});
+            if(path.startsWith('/api/desktop/integrations/providers')) return json({providers:[]});
             return prev(url,options);
         };
     }`)

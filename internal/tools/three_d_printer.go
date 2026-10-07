@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 
 	"github.com/gorilla/websocket"
 )
@@ -268,6 +269,15 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 			return klipperCommandJSON(ctx, *printer.Klipper, http.MethodPost, "/printer/print/resume", nil, nil)
 		}
 		return elegooCentauriCarbonCommandJSON(ctx, *printer.Elegoo, sdcpCmdResumePrint, map[string]interface{}{})
+	case "enable_camera", "disable_camera":
+		if printer.Elegoo == nil {
+			return threeDPrinterJSONError("camera activation is supported only for Elegoo")
+		}
+		streamURL, err := setElegooCamera(ctx, *printer.Elegoo, operation == "enable_camera")
+		if err != nil {
+			return threeDPrinterJSONError(err.Error())
+		}
+		return threeDPrinterJSON(map[string]interface{}{"status": "ok", "enabled": operation == "enable_camera", "url": streamURL})
 	case "set_camera_light":
 		if printer.Klipper != nil {
 			return threeDPrinterJSONError("set_camera_light is not supported for Klipper in standard-actions mode")
@@ -324,21 +334,10 @@ func ElegooCentauriCarbonStatus(ctx context.Context, printer ElegooCentauriCarbo
 	return elegooCentauriCarbonCommandJSON(ctx, printer, sdcpCmdStatus, map[string]interface{}{})
 }
 
+// ElegooCentauriCarbonCameraURL never changes printer state. SDCP command 386
+// is a write and is available only through the guarded enable/disable actions.
 func ElegooCentauriCarbonCameraURL(ctx context.Context, printer ElegooCentauriCarbonPrinter) (string, error) {
-	resp, err := elegooCentauriCarbonCommand(ctx, printer, sdcpCmdCameraURL, map[string]interface{}{"Enable": 1})
-	if err != nil {
-		return "", err
-	}
-	streamURL := findElegooCameraURL(resp)
-	if streamURL == "" {
-		encoded, _ := json.Marshal(resp)
-		return "", fmt.Errorf("camera stream URL was not found in printer response: %s", string(encoded))
-	}
-	streamURL, err = resolvePrinterHTTPURL(printer.URL, streamURL)
-	if err != nil {
-		return "", err
-	}
-	return streamURL, nil
+	return cachedElegooCameraURL(printer)
 }
 
 func ValidateThreeDPrinterStreamURL(printerURL, streamURL string) error {
@@ -364,7 +363,7 @@ func FetchThreeDPrinterSnapshot(ctx context.Context, streamURL string) ([]byte, 
 	if err != nil {
 		return nil, "", fmt.Errorf("create snapshot request: %w", err)
 	}
-	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
+	resp, err := (&http.Client{Timeout: 20 * time.Second, CheckRedirect: security.SameOriginRedirect}).Do(req)
 	if err != nil {
 		return nil, "", fmt.Errorf("fetch camera stream: %w", err)
 	}
@@ -885,7 +884,7 @@ func executeThreeDPrinterSnapshot(ctx context.Context, cfg ThreeDPrinterConfig, 
 
 func threeDPrinterMutates(operation string) bool {
 	switch strings.ToLower(strings.TrimSpace(operation)) {
-	case "start_print", "pause_print", "resume_print", "cancel_print", "set_camera_light":
+	case "start_print", "pause_print", "resume_print", "cancel_print", "set_camera_light", "enable_camera", "disable_camera":
 		return true
 	default:
 		return false

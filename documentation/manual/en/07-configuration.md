@@ -950,7 +950,7 @@ Exactly one model family is managed at a time:
 - **AuraGo-Ling**: fixed `q4_k_l` with MTP off and 16K context (32K requires separate qualification), with its own pinned hybrid runtime.
 - **AuraGo-Spark** (experimental): fixed `q4_k_m`, MTP off, fixed 64K context, Thinking on, a single slot without speculative decoding; at least 6 GB VRAM.
 
-The `test_only`, `fallback`, and `primary` roles become active only after health, native tool-call, memory, and GPU/KV-offload checks pass. A regular provider fallback is mandatory for `primary`. Do not add the reserved provider ID `aurago-qwen-local` to `providers`; display name and API model alias derive from the selected family. Downloads are size- and SHA-256-verified; experimental CPU, iGPU, SYCL, and Vulkan paths require a hardware acknowledgement. See [AuraGo-Qwen](../../local_llm_aurago_qwen.md).
+The `test_only`, `fallback`, and `primary` roles become active only after health, native tool-call, memory, and GPU/KV-offload checks pass. A regular provider fallback is mandatory for `primary`. Do not add the reserved provider ID `aurago-qwen-local` to `providers`; display name and API model alias derive from the selected family. Downloads are size- and SHA-256-verified; experimental CPU, iGPU, SYCL, and Vulkan paths require a hardware acknowledgement. See [AuraGo-Qwen](../../local_llm_aurago_qwen.md). The runtime image pull is not cut off after a fixed time while Docker still reports progress; it fails only after 15 minutes without progress (after the first two hours) or when the six-hour install limit ends.
 
 ### Speech Lab
 
@@ -1115,7 +1115,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `guardian` | Regex-based input scanning. | `guardian:`<br>`  max_scan_bytes: 16384`<br>`  scan_edge_bytes: 6144` |
 | `ai_gateway` | Cloudflare AI Gateway routing, privacy logging, request handling, and metadata headers. | `ai_gateway:`<br>`  enabled: false`<br>`  account_id: ""`<br>`  gateway_id: ""`<br>`  mode: auto`<br>`  log_mode: metadata_only`<br>`  metadata: {}` |
 | `mcp_server` | Expose AuraGo as MCP server. | `mcp_server:`<br>`  enabled: false`<br>`  allowed_tools: []`<br>`  require_auth: true` |
-| `consolidation` | Nightly memory optimization. | `consolidation:`<br>`  enabled: true`<br>`  auto_optimize: true`<br>`  archive_retain_days: 30`<br>`  max_batch_messages: 200` |
+| `consolidation` | Nightly memory optimization; optional daily backlog catch-up after the morning briefing. | `consolidation:`<br>`  enabled: true`<br>`  auto_optimize: true`<br>`  archive_retain_days: 30`<br>`  max_batch_messages: 200`<br>`  catchup_minutes: 0` |
 | `web_config` | Web-based config editor. | `web_config:`<br>`  enabled: true` |
 | `remote_control` | Distributed remote execution. | `remote_control:`<br>`  enabled: false`<br>`  readonly: false`<br>`  discovery_port: 8092`<br>`  max_file_size_mb: 50` |
 | `mission_preparation` | Pre-analyze missions via LLM. | `mission_preparation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  timeout_seconds: 120`<br>`  max_essential_tools: 5` |
@@ -1156,7 +1156,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `omniroute` | OpenAI-compatible gateway. | `omniroute:`<br>`  enabled: false`<br>`  mode: managed`<br>`  auto_start: true` |
 | `evomap` | EvoMap GEP/A2A integration. | `evomap:`<br>`  enabled: false`<br>`  readonly: true`<br>`  base_url: https://evomap.ai` |
 | `music_generation` | AI music generation. | `music_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  model: ""`<br>`  max_daily: 0` |
-| `security_proxy` | Public-facing protection layer. | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true`<br>`    requests_per_second: 10`<br>`  ip_filter:`<br>`    enabled: false`<br>`    mode: blocklist`<br>`  geo_blocking:`<br>`    enabled: false` |
+| `security_proxy` | Public-facing protection layer. `geo_blocking` is not implemented yet; the proxy ignores it. | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true`<br>`    requests_per_second: 10`<br>`  ip_filter:`<br>`    enabled: false`<br>`    mode: blocklist`<br>`  geo_blocking:`<br>`    enabled: false` |
 | `egg_mode` | Distributed cluster worker. | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_skip_verify: false` |
 | `indexing` | File indexing for RAG. | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false`<br>`  directories: []` |
 | `co_agents` | Parallel sub-agents. | `co_agents:`<br>`  enabled: false`<br>`  max_concurrent: 3`<br>`  budget_quota_percent: 0`<br>`  llm:`<br>`    provider: ""`<br>`  retry_policy:`<br>`    max_retries: 1`<br>`  specialists:`<br>`    researcher:`<br>`      enabled: true` |

@@ -19,6 +19,13 @@ func isDesktopScopedAPIPath(path string) bool {
 }
 
 func requireDesktopPermission(s *Server, w http.ResponseWriter, r *http.Request, requiredScope string) bool {
+	if !authenticateDesktopPermission(s, w, r, requiredScope) {
+		return false
+	}
+	return checkDesktopOperation(s, w, r, desktopRequestOperation(r))
+}
+
+func authenticateDesktopPermission(s *Server, w http.ResponseWriter, r *http.Request, requiredScope string) bool {
 	if requiredScope == "" {
 		requiredScope = desktopScopeRead
 	}

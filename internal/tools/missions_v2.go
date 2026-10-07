@@ -190,6 +190,11 @@ type MissionManagerV2 struct {
 	callback           func(prompt string, missionID string) // agent invocation callback with mission ID
 	ctx                context.Context
 	cancel             context.CancelFunc
+	workMu             sync.Mutex
+	workWG             sync.WaitGroup
+	workClosed         bool
+	started            bool
+	stopParent         func() bool
 	emailWatcher       EmailWatcherInterface
 	webhookMgr         WebhookManagerInterface
 	mqttMgr            MQTTManagerInterface
@@ -208,7 +213,7 @@ type MissionManagerV2 struct {
 	lastTriggerFire    map[string]time.Time
 	flowHooks          FlowHooks      // EasyDrag flow service; nil until wired
 	flowActive         map[string]int // flow missionID → live runs in progress
-	// permanent flow webhook/email/plain-MQTT registrations by slot and key
+	// permanent flow email/plain-MQTT registrations by slot and key (webhooks are keyed)
 	flowRegistered map[string]bool
 	// Notify* flow runs waiting for the event dispatcher; created with the first one
 	flowEvents chan flowRunRequest
@@ -221,7 +226,12 @@ type EmailWatcherInterface interface {
 
 // WebhookManagerInterface for webhook trigger integration
 type WebhookManagerInterface interface {
-	RegisterMissionTrigger(webhookID string, callback func(payload []byte))
+	RegisterMissionTriggerForKey(key, webhookID string, callback func([]byte))
+	UnregisterMissionTrigger(key string)
+}
+
+type webhookMissionEligibilityRegistrar interface {
+	RegisterMissionTriggerForKeyWithEligibility(key, webhookID string, eligible func() bool, callback func([]byte))
 }
 
 // MQTTManagerInterface for MQTT trigger integration
@@ -274,6 +284,10 @@ func (m *MissionManagerV2) SetEmailWatcher(watcher EmailWatcherInterface) {
 func (m *MissionManagerV2) SetWebhookManager(mgr WebhookManagerInterface) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	for _, mission := range m.missions {
+		m.unregisterWebhookTriggerLocked(mission)
+		m.unregisterFlowWebhooksLocked(mission)
+	}
 	m.webhookMgr = mgr
 	m.setupTriggersLocked()
 }
@@ -377,9 +391,19 @@ func (m *MissionManagerV2) SetPreparationStatus(missionID, status string) {
 }
 
 // Start loads missions and initializes triggers
-func (m *MissionManagerV2) Start() error {
+func (m *MissionManagerV2) Start() error { return m.StartContext(context.Background()) }
+
+// StartContext binds all queue work to the owning server lifetime. Stop is terminal.
+func (m *MissionManagerV2) StartContext(parent context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	if m.ctx.Err() != nil {
+		return fmt.Errorf("mission manager is stopped")
+	}
+	if m.started {
+		return nil
+	}
 
 	// Load missions
 	data, err := os.ReadFile(m.file)
@@ -453,14 +477,50 @@ func (m *MissionManagerV2) Start() error {
 	m.notifySystemStartupLocked()
 
 	// Start queue processor
-	go m.processQueue()
+	m.stopParent = context.AfterFunc(parent, m.cancel)
+	if parent.Err() != nil {
+		m.cancel()
+		return parent.Err()
+	}
+	m.started = true
+	if !m.runAsync(m.processQueue) {
+		return fmt.Errorf("mission manager is stopped")
+	}
 
 	return nil
 }
 
 // Stop shuts down the mission manager
 func (m *MissionManagerV2) Stop() {
+	m.workMu.Lock()
+	m.workClosed = true
 	m.cancel()
+	m.workMu.Unlock()
+	m.workWG.Wait()
+	m.mu.Lock()
+	for _, mission := range m.missions {
+		m.unregisterWebhookTriggerLocked(mission)
+		m.unregisterFlowWebhooksLocked(mission)
+	}
+	if m.stopParent != nil {
+		m.stopParent()
+		m.stopParent = nil
+	}
+	m.mu.Unlock()
+}
+
+// Context lets a managed invocation callback inherit shutdown cancellation.
+func (m *MissionManagerV2) Context() context.Context { return m.ctx }
+
+func (m *MissionManagerV2) runAsync(fn func()) bool {
+	m.workMu.Lock()
+	defer m.workMu.Unlock()
+	if m.workClosed || m.ctx.Err() != nil {
+		return false
+	}
+	m.workWG.Add(1)
+	go func() { defer m.workWG.Done(); fn() }()
+	return true
 }
 
 func (m *MissionManagerV2) save() error {
@@ -501,11 +561,7 @@ func (m *MissionManagerV2) save() error {
 }
 
 func (m *MissionManagerV2) saveQueueLocked() error {
-	items, running := m.queue.Snapshot()
-	snapshot := missionQueueSnapshot{
-		Items:   items,
-		Running: running,
-	}
+	snapshot := m.queue.persistedSnapshot()
 	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
 		return err
@@ -536,9 +592,20 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 	}
 	items := make([]QueueItem, 0, len(snapshot.Items))
 	statusChanged := false
+	for _, id := range snapshot.NonReplayableIDs {
+		if mission, ok := m.missions[id]; ok && (mission.Status == MissionStatusQueued || mission.Status == MissionStatusRunning) {
+			mission.Status = MissionStatusIdle
+			statusChanged = true
+		}
+	}
 	for _, item := range snapshot.Items {
 		mission, ok := m.missions[item.MissionID]
 		if !ok || !mission.Enabled || isRemoteMission(mission) || isFlowMission(mission) {
+			continue
+		}
+		if item.RequiresOwner {
+			mission.Status = MissionStatusIdle
+			statusChanged = true
 			continue
 		}
 		if item.EnqueuedAt.IsZero() {
@@ -551,7 +618,13 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 		}
 	}
 	running := ""
-	if snapshot.Running != "" {
+	if snapshot.RunningRequiresOwner {
+		if mission, ok := m.missions[snapshot.Running]; ok {
+			mission.Status = MissionStatusIdle
+			statusChanged = true
+		}
+	}
+	if snapshot.Running != "" && !snapshot.RunningRequiresOwner {
 		if mission, ok := m.missions[snapshot.Running]; ok && mission.Enabled && !isRemoteMission(mission) && !isFlowMission(mission) {
 			item := QueueItem{
 				MissionID:   snapshot.Running,
@@ -567,6 +640,7 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 		}
 	}
 	m.queue.Restore(items, running)
+	m.queue.restoreNonReplayable(snapshot.NonReplayableIDs)
 	return statusChanged, nil
 }
 
@@ -638,17 +712,22 @@ func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
 			if !m.markTriggerRegistrationLocked(mission, "webhook|"+webhookID) {
 				return
 			}
-			m.webhookMgr.RegisterMissionTrigger(
-				webhookID,
-				func(payload []byte) {
-					if !m.triggerRegistrationIsCurrent(missionID, TriggerWebhook, func(current *TriggerConfig) bool {
-						return current.WebhookID == webhookID
-					}) {
-						return
-					}
-					m.TriggerMission(missionID, "webhook", string(payload))
-				},
-			)
+			matches := func(current *TriggerConfig) bool { return current.WebhookID == webhookID }
+			eligible := func() bool {
+				return m.triggerRegistrationEligible(missionID, TriggerWebhook, matches)
+			}
+			callback := func(payload []byte) {
+				if !m.triggerRegistrationIsCurrent(missionID, TriggerWebhook, matches) {
+					return
+				}
+				m.TriggerMission(missionID, "webhook", string(payload))
+			}
+			key := missionID + "|" + string(TriggerWebhook)
+			if registrar, ok := m.webhookMgr.(webhookMissionEligibilityRegistrar); ok {
+				registrar.RegisterMissionTriggerForKeyWithEligibility(key, webhookID, eligible, callback)
+			} else {
+				m.webhookMgr.RegisterMissionTriggerForKey(key, webhookID, callback)
+			}
 		}
 
 	case TriggerMQTTMessage:
@@ -724,6 +803,17 @@ func missionHasActiveLocalMQTTTrigger(mission *MissionV2) bool {
 		mission.TriggerConfig.MQTTTopic != ""
 }
 
+func (m *MissionManagerV2) unregisterWebhookTriggerLocked(mission *MissionV2) {
+	if mission == nil {
+		return
+	}
+	key := mission.ID + "|" + string(TriggerWebhook)
+	if m.webhookMgr != nil {
+		m.webhookMgr.UnregisterMissionTrigger(key)
+	}
+	delete(m.registeredTriggers, key)
+}
+
 func (m *MissionManagerV2) unregisterMQTTTriggerLocked(mission *MissionV2) {
 	if mission == nil || mission.TriggerType != TriggerMQTTMessage {
 		return
@@ -750,6 +840,33 @@ func (m *MissionManagerV2) triggerRegistrationIsCurrent(missionID string, trigge
 	return match(mission.TriggerConfig)
 }
 
+// triggerRegistrationEligible is a read-only check for whether this registered
+// trigger could currently reach its mission. Unlike shouldFireTriggerLocked it
+// never consumes the mission's cooldown.
+func (m *MissionManagerV2) triggerRegistrationEligible(missionID string, triggerType TriggerType, match func(*TriggerConfig) bool) bool {
+	if m == nil || m.ctx == nil || m.ctx.Err() != nil {
+		return false
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	mission, ok := m.missions[missionID]
+	if !ok || !mission.Enabled || isRemoteMission(mission) || mission.ExecutionType != ExecutionTriggered || mission.TriggerType != triggerType || mission.TriggerConfig == nil {
+		return false
+	}
+	if match != nil && !match(mission.TriggerConfig) {
+		return false
+	}
+	interval := triggerMinIntervalSeconds(mission.TriggerConfig)
+	if interval <= 0 {
+		return true
+	}
+	if triggerType == "" {
+		triggerType = mission.TriggerType
+	}
+	last := m.lastTriggerFire[missionID+"|"+string(triggerType)]
+	return last.IsZero() || time.Since(last) >= time.Duration(interval)*time.Second
+}
+
 // processQueue runs the main queue processing loop
 func (m *MissionManagerV2) processQueue() {
 	ticker := time.NewTicker(500 * time.Millisecond)
@@ -774,6 +891,9 @@ func (m *MissionManagerV2) processQueue() {
 
 // processNext executes the next mission in queue if none is running
 func (m *MissionManagerV2) processNext() {
+	if m.ctx.Err() != nil {
+		return
+	}
 	item, ok := m.queue.TryStartNext()
 	if !ok {
 		return
@@ -783,6 +903,11 @@ func (m *MissionManagerV2) processNext() {
 
 func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 	dispatched := false
+	defer func() {
+		if !dispatched && item.releaseOwner != nil {
+			item.releaseOwner()
+		}
+	}()
 	muLocked := false
 	defer func() {
 		if r := recover(); r != nil {
@@ -816,7 +941,12 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 	m.mu.Lock()
 	muLocked = true
 	mission, exists := m.missions[item.MissionID]
-	if !exists || !mission.Enabled || isFlowMission(mission) {
+	if !exists || !mission.Enabled || isFlowMission(mission) || (item.RequiresOwner && (item.ownerContext == nil || item.ownerContext.Err() != nil)) {
+		// Flow missions keep their status: the flow bridge owns it.
+		if exists && !isFlowMission(mission) {
+			mission.Status = MissionStatusIdle
+			_ = m.save()
+		}
 		m.queue.Done()
 		if err := m.saveQueueLocked(); err != nil {
 			slog.Error("[MissionV2] Failed to persist queue after dropping invalid item", "error", err)
@@ -912,12 +1042,12 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 
 	prompt = appendIsolatedTriggerContext(prompt, item.TriggerType, item.TriggerData)
 	// Start timeout guardian to prevent permanent queue blocking if callback hangs
-	guardCtx, guardCancel := context.WithCancel(context.Background())
+	guardCtx, guardCancel := context.WithCancel(m.ctx)
 	m.mu.Lock()
 	m.missionGuards[missionID] = guardCancel
 	m.mu.Unlock()
 
-	go func() {
+	m.runAsync(func() {
 		timer := time.NewTimer(40 * time.Minute)
 		defer timer.Stop()
 		select {
@@ -929,9 +1059,14 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 		case <-m.ctx.Done():
 			// System shutdown
 		}
-	}()
+	})
 	dispatched = true
-	go callback(prompt, missionID)
+	m.runAsync(func() {
+		if item.releaseOwner != nil {
+			defer item.releaseOwner()
+		}
+		callback(prompt, missionID)
+	})
 }
 
 func appendIsolatedTriggerContext(prompt, triggerType, triggerData string) string {
@@ -1036,8 +1171,32 @@ func (m *MissionManagerV2) shouldFireTriggerLocked(mission *MissionV2, triggerTy
 
 // OnMissionComplete handles mission completion and triggers dependent missions
 func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	owner := m.queue.activeItem(missionID)
+	complete := func(result, output string, allowDependents bool) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		if owner.RequiresOwner && m.queue.activeItem(missionID).ownerContext != owner.ownerContext {
+			return
+		}
+		m.completeMissionLocked(missionID, result, output, owner, allowDependents)
+	}
+	if owner.RequiresOwner {
+		if owner.ownerContext != nil {
+			if err := fileutil.PublishContext(owner.ownerContext, func() error {
+				complete(result, output, true)
+				return nil
+			}); err == nil {
+				return
+			}
+		}
+		// Cleanup is allowed after revocation; success and dependent runs are not.
+		complete(MissionResultError, MissionCancelledOutput, false)
+		return
+	}
+	complete(result, output, true)
+}
+
+func (m *MissionManagerV2) completeMissionLocked(missionID, result, output string, owner QueueItem, allowDependents bool) {
 
 	// Cancel timeout guardian if active
 	cancel, guarded := m.missionGuards[missionID]
@@ -1071,8 +1230,8 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		recordMissionAuditCompletion(m.auditRecorder, runID, missionID, missionName, result, output)
 		if m.historyDB != nil {
 			hdb := m.historyDB
-			// Write history outside the lock to avoid contention
-			go func() {
+			// Complete history before the tracked callback returns during shutdown.
+			func() {
 				var histErr error
 				if result == MissionResultSuccess || result == "success" {
 					histErr = RecordMissionCompletion(hdb, runID, "success", output)
@@ -1106,15 +1265,20 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		slog.Error("[MissionV2] Failed to persist queue after mission completion", "mission_id", missionID, "error", err)
 	}
 
-	// Queue prompt missions and start flows that wait for this completion.
-	m.enqueueCompletionDependentsAtDepthLocked(missionID, result, output, nil, chainDepth)
+	// Queue prompt missions and start flows that wait for this completion. A revoked
+	// Desktop owner (allowDependents false) fires neither; dependent prompt missions of an
+	// owned run inherit its owner (enqueueCompletionDependentsForOwnerLocked).
+	if allowDependents {
+		m.enqueueCompletionDependentsForOwnerLocked(missionID, result, output, nil, chainDepth, owner)
+	}
 	completeCB := m.onMissionComplete
-	m.save() // Second save: persist queued status of triggered dependents
 	if err := m.saveQueueLocked(); err != nil {
 		slog.Error("[MissionV2] Failed to persist queue after dependent trigger", "mission_id", missionID, "error", err)
+		return
 	}
+	m.save() // Persist queued statuses only after their owner markers.
 	if completeCB != nil {
-		go completeCB(missionID, result, output)
+		m.runAsync(func() { completeCB(missionID, result, output) })
 	}
 }
 
@@ -1129,6 +1293,9 @@ func (m *MissionManagerV2) TriggerMission(missionID, triggerType, triggerData st
 // A flow mission starts a flow run through FlowHooks instead; the daemon extras
 // (extraCheatsheetIDs, extraPromptSuffix) are prompt-only and ignored for it.
 func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, triggerData string, extraCheatsheetIDs []string, extraPromptSuffix string) error {
+	if m.ctx.Err() != nil {
+		return fmt.Errorf("mission manager is stopped")
+	}
 	if err := requireMissionMutationPermission(); err != nil {
 		return err
 	}
@@ -1699,10 +1866,10 @@ func (m *MissionManagerV2) startRemoteRunGuardLocked(missionID string) {
 		cancel()
 		delete(m.remoteRunGuards, missionID)
 	}
-	guardCtx, cancel := context.WithCancel(context.Background())
+	guardCtx, cancel := context.WithCancel(m.ctx)
 	m.remoteRunGuards[missionID] = cancel
 	timeout := remoteMissionResultTimeout
-	go func() {
+	m.runAsync(func() {
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()
 		select {
@@ -1711,7 +1878,7 @@ func (m *MissionManagerV2) startRemoteRunGuardLocked(missionID string) {
 		case <-guardCtx.Done():
 		case <-m.ctx.Done():
 		}
-	}()
+	})
 }
 
 func (m *MissionManagerV2) completeRemoteMissionTimeout(missionID string) {
@@ -1948,6 +2115,9 @@ func (m *MissionManagerV2) ApplySyncedMission(mission *MissionV2) error {
 	if existing, ok := m.missions[mission.ID]; ok && existing.ExecutionType == ExecutionScheduled && existing.Schedule != "" && m.cron != nil {
 		_, _ = m.cron.ManageSchedule("remove", "mission_"+mission.ID, "", "", "")
 	}
+	if existing, ok := m.missions[mission.ID]; ok {
+		m.unregisterWebhookTriggerLocked(existing)
+	}
 	if existing, ok := m.missions[mission.ID]; ok && missionHasActiveLocalMQTTTrigger(existing) && !missionHasActiveLocalMQTTTrigger(mission) {
 		m.unregisterMQTTTriggerLocked(existing)
 	}
@@ -2009,6 +2179,7 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	}
 
 	// Unregister old triggers
+	m.unregisterWebhookTriggerLocked(mission)
 	if !isRemoteMission(mission) && mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" && m.cron != nil {
 		cronID := "mission_" + id
 		m.cron.ManageSchedule("remove", cronID, "", "", "")
@@ -2097,6 +2268,7 @@ func (m *MissionManagerV2) DeleteSyncedMission(id string) error {
 		m.unregisterMQTTTriggerLocked(mission)
 	}
 
+	m.unregisterWebhookTriggerLocked(mission)
 	delete(m.missions, id)
 	m.queue.Remove(id)
 
@@ -2161,6 +2333,7 @@ func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOption
 		cancel()
 	}
 
+	m.unregisterWebhookTriggerLocked(mission)
 	delete(m.missions, id)
 	m.queue.Remove(id)
 
@@ -2186,7 +2359,9 @@ func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOption
 	// The flow service deletes the flow only once the mission's removal is saved; otherwise
 	// the mission would come back after a restart without its flow.
 	if hooks := m.flowHooks; isFlow && hooks != nil {
-		go hooks.FlowMissionDeleted(id)
+		if !m.runAsync(func() { hooks.FlowMissionDeleted(id) }) {
+			slog.Warn("[MissionV2] Mission manager is stopping; the flow of a deleted flow mission stays until it is deleted in EasyDrag", "mission_id", id)
+		}
 	}
 	return nil
 }

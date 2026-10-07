@@ -100,7 +100,10 @@ type mcpContent struct {
 
 func handleMCPEndpoint(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !sameOriginOrNoOrigin(r) {
+		s.CfgMu.RLock()
+		trustedHost := mcpTrustedHost(r, s.Cfg)
+		s.CfgMu.RUnlock()
+		if !trustedHost || !sameOriginOrNoOrigin(r) {
 			jsonError(w, "Request origin does not match server host", http.StatusForbidden)
 			return
 		}
@@ -169,6 +172,12 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 		var resp mcpResponse
 		resp.JSONRPC = "2.0"
 		resp.ID = parseID(req.ID)
+		session, err := s.mcpSessions.session(r, req.Method == "initialize")
+		if err != nil {
+			jsonError(w, "Unknown or expired MCP session; initialize again", http.StatusNotFound)
+			return
+		}
+		r = r.WithContext(context.WithValue(r.Context(), mcpSessionContextKey{}, session))
 
 		switch req.Method {
 		case "initialize":
@@ -188,6 +197,7 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 				Capabilities:    mcpCapabilities{Tools: &mcpToolsCap{}},
 				ServerInfo:      mcpServerInfo{Name: "AuraGo", Version: "1.0.0"},
 			}
+			w.Header().Set("Mcp-Session-Id", session)
 
 		case "notifications/initialized":
 			// Client acknowledgement — accepted notifications have no response body.
@@ -335,7 +345,15 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) (mcpCal
 
 	s.CfgMu.RLock()
 	cfg := s.Cfg
+	allowed := mcpEffectiveAllowedTools(cfg)
 	s.CfgMu.RUnlock()
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, name := range allowed {
+		allowedSet[strings.ToLower(strings.TrimSpace(name))] = struct{}{}
+	}
+	if mcpServerEnabled(cfg) {
+		cfg = mcpScopedConfig(s, cfg)
+	}
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 	dispatchResult := agent.DispatchToolCallResult(
 		toolCtx, &tc, &agent.DispatchContext{
@@ -349,7 +367,8 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) (mcpCal
 			ContactsDB: s.ContactsDB, PlannerDB: s.PlannerDB, SQLConnectionsDB: s.SQLConnectionsDB,
 			SQLConnectionPool: s.SQLConnectionPool, RemoteHub: s.RemoteHub,
 			HistoryMgr: s.HistoryManager, Guardian: s.Guardian,
-			LLMGuardian: s.LLMGuardian, SessionID: "mcp-server",
+			LLMGuardian: s.LLMGuardian, SessionID: mcpDispatchSessionID(toolCtx),
+			AllowedTools: allowedSet, ToolScopeRestricted: true,
 			CoAgentRegistry: s.CoAgentRegistry, BudgetTracker: s.BudgetTracker,
 		}, "",
 	)

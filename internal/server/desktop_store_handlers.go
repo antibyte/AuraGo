@@ -78,15 +78,18 @@ func (s *Server) getDesktopStoreService(ctx context.Context) (*desktopstore.Serv
 		}
 	}
 	store, err := desktopstore.NewService(desktopstore.Config{
-		DBPath:        filepath.Join(desktopCfg.DataDir, "desktop_store.db"),
-		DockerHost:    desktopCfg.DockerHost,
-		DataDir:       desktopCfg.DataDir,
-		WorkspaceDir:  desktopCfg.WorkspaceDir,
-		Docker:        desktopstore.NewToolsDockerAdapter(desktopCfg.DockerHost, desktopCfg.WorkspaceDir, s.Logger),
-		Desktop:       desktopSvc,
-		Launchpad:     launchpadAdapter,
-		Secrets:       s.Vault,
-		NativeManaged: newDesktopStoreNativeRuntime(desktopSvc),
+		DBPath:           filepath.Join(desktopCfg.DataDir, "desktop_store.db"),
+		DockerHost:       desktopCfg.DockerHost,
+		DataDir:          desktopCfg.DataDir,
+		WorkspaceDir:     desktopCfg.WorkspaceDir,
+		Docker:           desktopstore.NewToolsDockerAdapter(desktopCfg.DockerHost, desktopCfg.WorkspaceDir, s.Logger),
+		Desktop:          desktopSvc,
+		Launchpad:        launchpadAdapter,
+		Secrets:          s.Vault,
+		NativeManaged:    newDesktopStoreNativeRuntime(desktopSvc),
+		Logger:           s.Logger,
+		CompanionSettle:  desktopstore.DefaultCompanionSettle,
+		CompanionRecheck: desktopstore.DefaultCompanionRecheck,
 	})
 	if err != nil {
 		return nil, err
@@ -195,7 +198,7 @@ func handleDesktopStoreInstall(s *Server) http.HandlerFunc {
 			writeDesktopStoreStartError(w, err)
 			return
 		}
-		s.runDesktopStoreOperation(op.ID)
+		s.runDesktopStoreOperation(store, op)
 		writeDesktopStoreOperationAccepted(w, op)
 	}
 }
@@ -278,10 +281,19 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
-		if rejectDesktopStoreMutationIfDisabled(s, w) {
+		if action != desktopstore.OperationStop && rejectDesktopStoreMutationIfDisabled(s, w) {
 			return
 		}
 		opType := action
+		if opType == desktopstore.OperationStop {
+			s.CfgMu.RLock()
+			allowed := s.Cfg.Docker.Enabled && !s.Cfg.Docker.ReadOnly
+			s.CfgMu.RUnlock()
+			if !allowed {
+				jsonError(w, "Docker mutation is disabled", http.StatusForbidden)
+				return
+			}
+		}
 		switch opType {
 		case desktopstore.OperationStart, desktopstore.OperationStop, desktopstore.OperationRestart, desktopstore.OperationUpdate:
 		default:
@@ -298,7 +310,7 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 			writeDesktopStoreStartError(w, err)
 			return
 		}
-		s.runDesktopStoreOperation(op.ID)
+		s.runDesktopStoreOperation(store, op)
 		writeDesktopStoreOperationAccepted(w, op)
 	}
 }
@@ -323,6 +335,31 @@ func handleDesktopStoreOpenURL(s *Server, appID string) http.HandlerFunc {
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusNotFound)
 			return
+		}
+		if s.previewRequested(r) {
+			portID := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("port_id")))
+			if portID == "" && len(app.Ports) > 0 {
+				portID = app.Ports[0].ID
+			}
+			if portID == "" {
+				portID = "main"
+			}
+			startPath := "/"
+			if appID == "uptime-kuma" {
+				startPath = "/dashboard"
+			}
+			if appID == "gods-eye-view" {
+				language := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("lang")))
+				switch language {
+				case "cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh":
+					startPath += "?aurago_lang=" + language
+				}
+			}
+			openURL, err = s.issuePreviewLaunch(r, previewResource{kind: "store", id: appID, port: portID}, startPath)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -423,6 +460,9 @@ func handleDesktopStoreTerminal(s *Server, appID string) http.HandlerFunc {
 		}
 		if !sameOriginOrNoOrigin(r) {
 			containerJSON(w, http.StatusForbidden, map[string]string{"status": "error", "message": "forbidden websocket origin"})
+			return
+		}
+		if rejectNonWebSocketTerminalRequest(w, r) {
 			return
 		}
 		store, err := s.getDesktopStoreService(r.Context())
@@ -573,21 +613,24 @@ func handleDesktopStoreDelete(s *Server, appID string) http.HandlerFunc {
 			writeDesktopStoreStartError(w, err)
 			return
 		}
-		s.runDesktopStoreOperation(op.ID)
+		s.runDesktopStoreOperation(store, op)
 		writeDesktopStoreOperationAccepted(w, op)
 	}
 }
 
-func (s *Server) runDesktopStoreOperation(operationID string) {
+func (s *Server) runDesktopStoreOperation(store *desktopstore.Service, operation desktopstore.Operation) {
+	operationID := operation.ID
 	go func() {
 		ctx, cancel := desktopStoreOperationContext(s.ShutdownCh, 30*time.Minute)
 		defer cancel()
-		store, err := s.getDesktopStoreService(ctx)
-		if err != nil {
-			if s.Logger != nil {
-				s.Logger.Warn("Desktop store operation skipped", "operation_id", operationID, "error", err)
+		if operation.Type != desktopstore.OperationStop {
+			runCtx, runDone, err := s.beginDesktopRun(ctx)
+			if err != nil {
+				_ = store.InterruptOperation(operationID, err)
+				return
 			}
-			return
+			defer runDone()
+			ctx = runCtx
 		}
 		if err := store.RunOperation(ctx, operationID); err != nil && s.Logger != nil {
 			s.Logger.Warn("Desktop store operation failed", "operation_id", operationID, "error", err)

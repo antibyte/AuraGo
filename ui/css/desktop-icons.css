@@ -27,8 +27,11 @@
     display: grid;
     grid-template-rows: var(--vd-icon-glyph-size) minmax(0, auto);
     justify-items: center;
-    align-content: center;
+    align-content: start;
     gap: 7px;
+    /* Explicit padding: the button default (1px 6px) stole 12px of label width. The glyph sits at a
+       fixed height so a label that grows (see below) never moves it. */
+    padding: 7px 2px 0;
     cursor: pointer;
     font: inherit;
     pointer-events: auto;
@@ -39,6 +42,22 @@
         border-color 140ms var(--ds-motion-ease-standard),
         box-shadow 140ms var(--ds-motion-ease-standard),
         transform 140ms var(--ds-motion-ease-standard);
+}
+
+/* Hover, selection and keyboard focus reveal the whole name; the icon rises above its neighbours so
+   the longer label may overlap them, and its box grows with the label instead of clipping it. */
+.vd-icon:hover,
+.vd-icon.selected,
+.vd-icon:focus-visible {
+    z-index: 2;
+    height: auto;
+    min-height: 88px;
+}
+
+.vd-icon:hover .vd-icon-label,
+.vd-icon.selected .vd-icon-label,
+.vd-icon:focus-visible .vd-icon-label {
+    -webkit-line-clamp: 6;
 }
 
 .vd-icon:hover,
@@ -252,11 +271,21 @@
 }
 
 .vd-icon-label {
-    max-width: 78px;
+    /* Two lines at rest with an ellipsis; only words wider than the label break (hyphenated where
+       the browser knows the page language). The expanded states live next to .vd-icon above. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    align-self: start; /* keep the content height; a stretched item would clip the extra lines */
+    box-sizing: border-box;
+    max-width: 100%;
     font-size: 0.76rem;
     line-height: 1.2;
     text-align: center;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: auto;
     /* Halo in the theme's canvas tone so labels stay readable on any wallpaper */
     text-shadow:
         0 1px 3px color-mix(in srgb, var(--vd-bg) 78%, transparent),

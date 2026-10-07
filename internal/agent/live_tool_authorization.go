@@ -105,6 +105,11 @@ func revokedNativeTools(original, effective *config.Config) map[string]bool {
 // requires a fresh runner rather than executing with that captured authority.
 func authorizationGatesDiffer(a, b reflect.Value) bool {
 	for i := 0; i < a.NumField(); i++ {
+		// Match the intersection's exported-policy boundary. Private config
+		// bookkeeping cannot be accessed through reflect.Value.Interface.
+		if a.Type().Field(i).PkgPath != "" {
+			continue
+		}
 		x, y := a.Field(i), b.Field(i)
 		switch x.Kind() {
 		case reflect.Struct:

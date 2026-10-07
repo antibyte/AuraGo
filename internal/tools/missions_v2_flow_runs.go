@@ -217,7 +217,7 @@ func (m *MissionManagerV2) FlowRunFinishedAtDepth(missionID, historyID, result, 
 
 	completeFlowRunHistory(historyDB, recorder, historyID, missionID, name, result, output)
 	if completeCB != nil {
-		go completeCB(missionID, result, output)
+		m.runAsync(func() { completeCB(missionID, result, output) })
 	}
 }
 
@@ -259,6 +259,16 @@ func completeFlowRunHistory(historyDB *sql.DB, recorder func(memory.AuditEvent) 
 // alike: when depth + 1 exceeds maxCompletionChainDepth nothing fires, and, when a
 // dependent waits, stopCompletionChainLocked warns and notes the stop on sourceID.
 func (m *MissionManagerV2) enqueueCompletionDependentsAtDepthLocked(sourceID, result, output string, outputs json.RawMessage, depth int) int {
+	return m.enqueueCompletionDependentsForOwnerLocked(sourceID, result, output, outputs, depth, QueueItem{})
+}
+
+// enqueueCompletionDependentsForOwnerLocked is enqueueCompletionDependentsAtDepthLocked for
+// a finished run that may hold a Desktop owner (owner.RequiresOwner, see QueueOwnedMission).
+// Dependent prompt missions of an owned run retain that owner, and remote ones are skipped,
+// because remote execution cannot honour a revocation. Flows that wait for the completion
+// start as usual: their runs have the independent lifecycle of the flow service. Caller
+// holds m.mu.
+func (m *MissionManagerV2) enqueueCompletionDependentsForOwnerLocked(sourceID, result, output string, outputs json.RawMessage, depth int, owner QueueItem) int {
 	ev := flowEvent{SourceMissionID: sourceID, Result: result}
 	next := depth + 1
 	if next > maxCompletionChainDepth {
@@ -296,7 +306,21 @@ func (m *MissionManagerV2) enqueueCompletionDependentsAtDepthLocked(sourceID, re
 				data["outputs"] = outputs
 			}
 		}
-		m.queue.Enqueue(mission.ID, mission.Priority, "mission_completed", string(agentRaw))
+		item := QueueItem{MissionID: mission.ID, Priority: prioFromString(mission.Priority), EnqueuedAt: now,
+			TriggerType: "mission_completed", TriggerData: string(agentRaw)}
+		if owner.RequiresOwner {
+			if owner.retainOwner == nil || isRemoteMission(mission) {
+				continue
+			}
+			item.RequiresOwner, item.ownerContext, item.retainOwner = true, owner.ownerContext, owner.retainOwner
+			item.releaseOwner = owner.retainOwner()
+		}
+		if !m.queue.enqueueItem(item) {
+			if item.releaseOwner != nil {
+				item.releaseOwner()
+			}
+			continue
+		}
 		mission.Status = MissionStatusQueued
 		queued++
 	}
@@ -369,7 +393,7 @@ func (m *MissionManagerV2) updateFlowMissionLocked(mission, updated *MissionV2) 
 	saveErr := m.save()
 	if enabledChanged && m.flowHooks != nil {
 		hooks, id, enabled := m.flowHooks, mission.ID, mission.Enabled
-		go hooks.FlowEnabledChanged(id, enabled)
+		m.runAsync(func() { hooks.FlowEnabledChanged(id, enabled) })
 	}
 	return errors.Join(regErr, saveErr)
 }

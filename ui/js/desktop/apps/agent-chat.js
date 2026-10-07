@@ -162,7 +162,7 @@
     async function ensureDesktopChatPersona() {
         if (window._activePersonaIconKey) return window._activePersonaIconKey;
         if (desktopPersonaPromise) return desktopPersonaPromise;
-        desktopPersonaPromise = api('/api/personalities').then(data => {
+        desktopPersonaPromise = api('/api/desktop/integrations/personalities').then(data => {
             const active = String((data && data.active) || '').trim();
             const personalities = Array.isArray(data && data.personalities) ? data.personalities : [];
             const entry = personalities.find(item => item && item.name === active);
@@ -773,7 +773,7 @@
         const close = () => { if (overlay.parentNode) overlay.remove(); };
         const submit = async (selectedValue, freeTextValue) => {
             try {
-                await fetch('/api/agent/question-response', {
+                await fetch('/api/desktop/integrations/agent/question-response', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

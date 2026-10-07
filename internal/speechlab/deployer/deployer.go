@@ -5,7 +5,6 @@ package deployer
 // supplied Compose file or arbitrary Docker command.
 
 import (
-	"bufio"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
@@ -35,7 +34,6 @@ const (
 	ManifestURL             = "https://github.com/antibyte/s2s/releases/latest/download/speech-lab-bundle.json"
 	PublisherPrefix         = "ghcr.io/antibyte/"
 	ManifestMaxBytes        = 1 << 20
-	DockerPullMaxBytes      = 8 << 20
 	DockerPullTimeout       = 30 * time.Minute
 	DefaultReadinessTimeout = 180 * time.Second
 	OwnerLabel              = "speech-lab"
@@ -433,6 +431,11 @@ func (m *Manager) AutoStart(ctx context.Context) error {
 	}
 	defer m.finishOperation()
 	op := m.operationSnapshot()
+	// Recovery can start old containers. Disabled startup must leave the journal
+	// available for an explicit cleanup or a later enabled recovery.
+	if !op.cfg.Enabled {
+		return nil
+	}
 	_, state := m.snapshot()
 	if state.Transaction != nil {
 		if err := m.requireDockerWrite(op); err != nil {
@@ -614,7 +617,7 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 	}
 	defer func() {
 		if result != nil {
-			rollbackCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			rollbackCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 			rollbackErr := m.rollbackTransaction(rollbackCtx, op)
 			cancel()
 			m.mu.Lock()
@@ -704,7 +707,7 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 	if err := m.persist(); err != nil {
 		return &Error{Code: "speech_lab_state_persist_failed", Err: err}
 	}
-	cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	cleanupCtx, cleanupCancel := context.WithTimeout(ctx, 5*time.Minute)
 	err = m.commitTransaction(cleanupCtx, op)
 	cleanupCancel()
 	if err != nil {
@@ -1395,6 +1398,9 @@ func imageByKey(images ImageSet, key string) string {
 	}
 }
 
+// speechLabPullDetailMax bounds the Docker reason kept in a pull error.
+const speechLabPullDetailMax = 256
+
 func (m *Manager) pull(ctx context.Context, op operationSnapshot, image string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, dockerutil.Endpoint("images/create?fromImage="+url.QueryEscape(image)), nil)
 	if err != nil {
@@ -1410,40 +1416,21 @@ func (m *Manager) pull(ctx context.Context, op operationSnapshot, image string) 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if detail := dockerutil.SanitizeOneLine(dockerutil.EngineErrorMessage(dockerutil.ReadErrorBody(resp.Body)), speechLabPullDetailMax); detail != "" {
+			return &Error{Code: "speech_lab_pull_failed", Err: fmt.Errorf("Docker pull returned HTTP %d: %s", resp.StatusCode, detail)}
+		}
 		return &Error{Code: "speech_lab_pull_failed", Err: fmt.Errorf("Docker pull returned HTTP %d", resp.StatusCode)}
 	}
-	scanner := bufio.NewScanner(io.LimitReader(resp.Body, DockerPullMaxBytes))
-	scanner.Buffer(make([]byte, 64<<10), 1<<20)
-	for scanner.Scan() {
-		var event struct {
-			Error       string `json:"error"`
-			ErrorDetail struct {
-				Message string `json:"message"`
-			} `json:"errorDetail"`
+	// Read the stream to its end: the Engine reports failures after the 200
+	// status as error events, and a stream cut inside a message is a failure.
+	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
+		var event *dockerutil.JSONMessageError
+		if errors.As(err, &event) {
+			return &Error{Code: "speech_lab_pull_failed", Err: fmt.Errorf("Docker pull failed: %s", dockerutil.SanitizeOneLine(event.Message, speechLabPullDetailMax))}
 		}
-		if json.Unmarshal(scanner.Bytes(), &event) != nil {
-			continue
-		}
-		message := strings.TrimSpace(event.ErrorDetail.Message)
-		if message == "" {
-			message = strings.TrimSpace(event.Error)
-		}
-		if message != "" {
-			return &Error{Code: "speech_lab_pull_failed", Err: fmt.Errorf("Docker pull failed: %s", safeDockerDetail(message))}
-		}
-	}
-	if err := scanner.Err(); err != nil {
 		return &Error{Code: "speech_lab_pull_failed", Err: err}
 	}
 	return nil
-}
-
-func safeDockerDetail(value string) string {
-	value = strings.TrimSpace(value)
-	if len(value) > 256 {
-		value = value[:256]
-	}
-	return value
 }
 
 type networkCreateResponse struct {
@@ -2049,6 +2036,12 @@ func restartPolicy(role, requested string) string {
 }
 
 func (m *Manager) containerAction(ctx context.Context, op operationSnapshot, method, path string) error {
+	if method == http.MethodPost && strings.HasSuffix(path, "/start") {
+		cfg, _ := m.snapshot()
+		if !cfg.Enabled || !op.cfg.Enabled {
+			return &Error{Code: "speech_lab_bundle_unavailable", Err: fmt.Errorf("Speech Lab is disabled")}
+		}
+	}
 	status, err := op.docker.DoJSON(ctx, method, path, nil, nil)
 	if status == http.StatusNotModified {
 		return nil
@@ -2320,10 +2313,13 @@ func (m *Manager) setTransaction(transaction *DeploymentTransaction, progress in
 	return nil
 }
 
-func (m *Manager) recoverTransaction(_ context.Context, op operationSnapshot) error {
+func (m *Manager) recoverTransaction(parent context.Context, op operationSnapshot) error {
 	_, state := m.snapshot()
 	if state.Transaction == nil {
 		return nil
+	}
+	if err := parent.Err(); err != nil {
+		return err
 	}
 	if err := m.requireDockerWrite(op); err != nil {
 		return err
@@ -2337,7 +2333,7 @@ func (m *Manager) recoverTransaction(_ context.Context, op operationSnapshot) er
 	if state.Transaction.ReadinessBaseURL != "" {
 		op.readinessBaseURL = state.Transaction.ReadinessBaseURL
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(parent, 5*time.Minute)
 	defer cancel()
 	if state.Transaction.Phase == "commit_cleanup" {
 		return m.commitTransaction(ctx, op)
@@ -2377,11 +2373,15 @@ func (m *Manager) commitTransaction(ctx context.Context, op operationSnapshot) e
 }
 
 func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot) error {
-	_, state := m.snapshot()
+	cfg, state := m.snapshot()
 	transaction := state.Transaction
 	if transaction == nil {
 		return nil
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	restoreRunning := cfg.Enabled && op.cfg.Enabled
 	m.mu.Lock()
 	m.state.Transaction.Phase = "rollback_pending"
 	m.mu.Unlock()
@@ -2444,8 +2444,13 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 		if err := m.restoreBackupNetwork(ctx, op, transaction.PreviousNetworkID, backup, current); err != nil {
 			rollbackErrors = append(rollbackErrors, err)
 		}
-		if backup.WasRunning {
+		wantRunning := backup.WasRunning && restoreRunning
+		if wantRunning {
 			if err := m.containerAction(ctx, op, http.MethodPost, "/containers/"+url.PathEscape(backup.ID)+"/start"); err != nil {
+				rollbackErrors = append(rollbackErrors, err)
+			}
+		} else if current.State.Running {
+			if err := m.containerAction(ctx, op, http.MethodPost, "/containers/"+url.PathEscape(backup.ID)+"/stop?t=10"); err != nil {
 				rollbackErrors = append(rollbackErrors, err)
 			}
 		}
@@ -2457,7 +2462,7 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 			rollbackErrors = append(rollbackErrors, err)
 		} else {
 			endpoint, attached := verified.NetworkSettings.Networks[backup.NetworkName]
-			if strings.TrimPrefix(verified.Name, "/") != backup.StableName || verified.State.Running != backup.WasRunning ||
+			if strings.TrimPrefix(verified.Name, "/") != backup.StableName || verified.State.Running != wantRunning ||
 				(backup.NetworkName != "" && (attached != backup.WasAttached || (backup.WasAttached && !hasNetworkAliases(endpoint.Aliases, backupNetworkAliases(backup, verified))))) {
 				rollbackErrors = append(rollbackErrors, fmt.Errorf("backup container %q was not fully restored", backup.ID))
 			}
@@ -2488,10 +2493,27 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 		}
 	}
 	restoredIDs = uniqueOwnedContainerIDs(ctx, m, op, restoredIDs, &rollbackErrors)
+	if !restoreRunning {
+		for _, id := range restoredIDs {
+			if err := m.containerAction(ctx, op, http.MethodPost, "/containers/"+url.PathEscape(id)+"/stop?t=10"); err != nil {
+				rollbackErrors = append(rollbackErrors, err)
+				continue
+			}
+			if verified, found, err := m.inspectContainer(ctx, op, id); err != nil || !found || verified.State.Running {
+				if err == nil {
+					err = fmt.Errorf("container %q remains active during disabled recovery", id)
+				}
+				rollbackErrors = append(rollbackErrors, err)
+			}
+		}
+	}
+	if current, _ := m.snapshot(); restoreRunning && !current.Enabled {
+		rollbackErrors = append(rollbackErrors, fmt.Errorf("Speech Lab was disabled during recovery"))
+	}
 	if transaction.PreviousReadinessBaseURL != "" {
 		op.readinessBaseURL = transaction.PreviousReadinessBaseURL
 	}
-	if len(rollbackErrors) == 0 && transaction.PreviousState == "ready" && len(restoredIDs) > 0 {
+	if len(rollbackErrors) == 0 && restoreRunning && transaction.PreviousState == "ready" && len(restoredIDs) > 0 {
 		if err := m.waitReady(ctx, op); err != nil {
 			rollbackErrors = append(rollbackErrors, fmt.Errorf("restored Speech Lab stack is not ready: %w", err))
 		}
@@ -2500,6 +2522,9 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 				rollbackErrors = append(rollbackErrors, fmt.Errorf("restore previous Speech Lab selection: %w", err))
 			}
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		rollbackErrors = append(rollbackErrors, err)
 	}
 	if len(rollbackErrors) > 0 {
 		m.mu.Lock()
@@ -2521,7 +2546,7 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 	m.state.RunningModuleContainerIDs = nil
 	for _, module := range transaction.PreviousModules {
 		m.state.ModuleContainerIDs = append(m.state.ModuleContainerIDs, module.ID)
-		if module.Running {
+		if module.Running && restoreRunning {
 			m.state.RunningModuleContainerIDs = append(m.state.RunningModuleContainerIDs, module.ID)
 		}
 	}
@@ -2530,6 +2555,9 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 	m.state.Transaction = nil
 	m.state.State = transaction.PreviousState
 	m.state.Progress = transaction.PreviousProgress
+	if !restoreRunning {
+		m.state.State, m.state.Progress = "stopped", 0
+	}
 	if m.state.State == "" || m.state.State == "pulling" || m.state.State == "starting" {
 		if len(restoredIDs) == 0 {
 			m.state.State, m.state.Progress = "disabled", 0

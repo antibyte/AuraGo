@@ -15,7 +15,7 @@
   "config.virtual_computers.mode_ssh_host": "Externe SSH-host",
   "config.virtual_computers.host_label": "SSH-host",
   "config.virtual_computers.ssh_port_label": "SSH-poort",
-  "config.virtual_computers.credential_id_label": "Referentie-ID",
+  "config.virtual_computers.credential_id_label": "Credential-ID",
   "config.virtual_computers.install_dir_label": "Installatiemap",
   "config.virtual_computers.boringd_url_label": "Privé-URL van boringd",
   "config.virtual_computers.limits_title": "Startlimieten",
@@ -64,7 +64,7 @@
   "help.virtual_computers.allow_persistent": "Staat persistente machines toe. Houd dit uitgeschakeld, tenzij de host vertrouwd is.",
   "help.virtual_computers.allow_publish": "Staat bewerkingen voor publiceren/opslaan toe die door boringd beschikbaar worden gesteld.",
   "help.virtual_computers.allow_volumes": "Staat het maken en koppelen van volumes toe.",
-  "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
+  "help.virtual_computers.allow_agent_tasks": "Schakelt alleen de verouderde boringd-agentkanalen in. De hoofdagent van AuraGo gebruikt Agent Workspaces en heeft hier geen extra provider nodig.",
   "help.virtual_computers.boring_token": "Laat leeg wanneer AuraGo boringd installeert; AuraGo maakt de token automatisch aan en bewaart die in de Vault. Vul alleen een waarde in wanneer je een bestaande boringd koppelt; die moet overeenkomen met BORING_TOKEN op die host.",
   "config.virtual_computers.mode_local_host": "Lokaal op deze host",
   "config.virtual_computers.local_host_note": "Lokale installatie vereist Ubuntu/Linux met /dev/kvm, systemd en root of wachtwoordloze sudo. boringd blijft op 127.0.0.1:18082.",
@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan staat het openbare internet toe plus alleen de expliciet vermelde privé-CIDR's.",
   "help.virtual_computers.agent_control_cidrs": "Één IPv4 RFC1918-CIDR per regel. Host-, AuraGo-, bridge-, metadata- en gastadressen blijven geblokkeerd.",
   "help.virtual_computers.agent_control_credentials": "Inloggegevens vereisen nog steeds een afzonderlijke goedkeuring van een geauthenticeerde gebruiker voor elke kortstondige verlening.",
-  "help.virtual_computers.agent_control_grant_ttl": "Maximale levensduur van een verlening; verleningen eindigen ook met hun job of werkruimte."
+  "help.virtual_computers.agent_control_grant_ttl": "Maximale levensduur van een verlening; verleningen eindigen ook met hun job of werkruimte.",
+  "config.virtual_desktop.serial_browser_label": "Seriële poorten op deze computer",
+  "help.virtual_desktop.serial_browser_enabled": "Sta Quick Connect toe om seriële apparaten te gebruiken die op de computer van de browser zijn aangesloten. Een ondersteunde browser, HTTPS of localhost en een expliciete apparaatkeuze zijn vereist. Uitgeschakeld in de alleen-lezenmodus.",
+  "config.virtual_desktop.serial_host_label": "Seriële poorten op de AuraGo-server",
+  "help.virtual_desktop.serial_host_enabled": "Sta beheerders toe om in Quick Connect seriële apparaten te openen die op de AuraGo-server zijn aangesloten. Containerinstallaties vereisen apparaattoegang en machtigingen van het besturingssysteem. Uitgeschakeld in de alleen-lezenmodus."
 }

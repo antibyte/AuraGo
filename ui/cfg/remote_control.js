@@ -87,12 +87,7 @@ async function renderRemoteControlSection(section) {
         <div class="field-group-title">${t('config.remote_control.security_title')}</div>
         <div class="field-group-desc">${t('config.remote_control.security_desc')}</div>`;
 
-    // Auto Approve
-    const autoApprove = cfg.auto_approve === true;
-    html += `<div class="field-group">
-        <span class="field-label">${t('config.remote_control.auto_approve_label')}</span>
-        <div class="toggle ${autoApprove ? 'on' : ''}" data-path="remote_control.auto_approve" onclick="toggleBool(this)"></div>
-    </div>`;
+    html += `<div class="field-help">${t('config.remote_control.pairing_token_desc')}</div>`;
 
     // Audit Log
     const auditLog = cfg.audit_log !== false;
@@ -219,12 +214,12 @@ function rcDownload(os, arch) {
     window.location.href = `/api/remote/download/${os}/${arch}${qs}`;
 }
 
-async function rcCreateEnrollmentToken() {
+async function rcCreateEnrollmentToken(pendingID) {
     const btn = document.getElementById('rc-token-generate-btn');
     const result = document.getElementById('rc-token-result');
     const status = document.getElementById('rc-token-status');
     const nameEl = document.getElementById('rc-enrollment-device-name');
-    if (!btn || !result) return;
+    if (!btn || !result || btn.disabled) return;
 
     btn.disabled = true;
     if (status) {
@@ -234,7 +229,7 @@ async function rcCreateEnrollmentToken() {
     result.innerHTML = '';
 
     try {
-        const resp = await fetch('/api/remote/enroll', {
+        const resp = await fetch(pendingID ? `/api/remote/devices/${encodeURIComponent(pendingID)}/approve` : '/api/remote/enroll', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ device_name: nameEl ? nameEl.value.trim() : '' })
@@ -256,6 +251,7 @@ async function rcCreateEnrollmentToken() {
             </div>
             <div class="field-help">${t('config.remote_control.pairing_token_expires')} ${escapeAttr(expires)}</div>
         </div>`;
+        if (pendingID) await loadRemoteDevices();
     } catch (e) {
         if (status) {
             status.className = 'adg-test-result is-danger';
@@ -310,10 +306,14 @@ async function loadRemoteDevices() {
                     <div class="rc-device-subline">${escapeAttr(d.os || '')} ${escapeAttr(d.arch || '')} — ${escapeAttr(d.ip_address || '')}</div>
                 </div>
                 <span class="rc-device-status ${d.is_connected ? 'is-connected' : ''}">${statusText}</span>
+                ${d.status === 'pending' ? `<button class="btn-save btn-secondary" data-approve-device="${escapeAttr(d.id)}">${t('config.remote_control.pairing_token_generate')}</button>` : ''}
             </div>`;
         });
         html += '</div>';
         container.innerHTML = html;
+        container.querySelectorAll('[data-approve-device]').forEach(button => {
+            button.addEventListener('click', () => rcCreateEnrollmentToken(button.dataset.approveDevice));
+        });
     } catch (e) {
         container.innerHTML = `<span class="rc-error-text">${escapeAttr(t('config.remote_control.error_prefix'))} ${escapeAttr(e && e.message ? e.message : String(e))}</span>`;
     }

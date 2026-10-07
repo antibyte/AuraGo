@@ -389,3 +389,12 @@ Then register the widget:
 | SDK bridge calls fail silently | Missing permission in manifest | Add the required permission to `manifest.permissions` and reinstall |
 | Widget fetches blocked by CSP | Widget tried to call an external API directly | Use same-origin requests or agent-mediated flows; do not fetch arbitrary third-party APIs from widgets |
 | `diagnose_app` reports entry file unreadable or empty | Entry file missing, unreadable, or has no content | Reinstall or rewrite the app entry file with non-empty HTML; check `entry_path` in the diagnosis output |
+
+## Readonly and file conflicts
+
+Desktop readonly blocks agent runs and mutations even for administrative desktop
+clients. Reading, preview and passive playback remain available; stop/cancel
+remains available after revocation. SDK permissions in the app manifest are still
+required and never override readonly. Use the parent SDK file bridge for
+versioned reads and writes and handle cancellation without retrying a mutation.
+See documentation/desktop-api.md for HTTP preconditions and the shared conflict UI.

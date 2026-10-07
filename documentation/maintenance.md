@@ -241,6 +241,19 @@ complete extraction without creating facts or retrying the same conversation;
 missing/null arrays and invalid facts remain errors on both LLM paths.
 Direct summaries and consolidation reserve reasoning output within the selected
 helper/main provider's output and context limits.
+For an old conversation backlog, `consolidation.catchup_minutes` can opt in to
+another daily consolidation run after the normal maintenance ledger and morning
+briefing are stored. The default is `0` (off); values above 60 are capped at
+60 minutes. This work uses the same model and `max_batch_messages` cap, stops
+when maintenance is disabled or the service shuts down, and releases unfinished
+claims without consuming a retry. The next morning briefing reflects the
+previous catch-up; its own counts describe only the normal maintenance run.
+Archived turns keep their internal-origin flag. Internal turns never enter the
+consolidation queue or its reported backlog. On existing stores, an additive
+migration backs up populated archives before adding the nullable flag; legacy
+rows without origin are excluded only when their content identifies a scheduled
+trigger, native-call error, raw assistant tool call, or empty assistant
+placeholder. Other legacy rows remain eligible for extraction.
 
 The morning briefing reports processed archive messages and extracted facts
 separately from the combined work count, and includes unfinished phases with

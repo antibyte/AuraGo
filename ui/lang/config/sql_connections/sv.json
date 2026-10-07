@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "Global skrivskydd",
   "config.sql_connections.readonly_help": "Blockerar alla skrivoperationer oavsett anslutningsbehörigheter.",
   "config.sql_connections.allow_management_label": "Tillåt hantering",
-  "config.sql_connections.allow_management_help": "Ger agenten möjlighet att skapa, redigera och ta bort anslutningar."
+  "config.sql_connections.sqlite_import": "Importera SQLite-säkerhetskopia",
+  "config.sql_connections.sqlite_import_help": "Ladda upp en konsekvent, fristående säkerhetskopia (högst 64 MiB). Spara importerar till skyddad lagring och bevarar originalen.",
+  "config.sql_connections.sqlite_import_required": "SQLite-import krävs",
+  "config.sql_connections.allow_management_help": "Agenten får bara ändra beskrivningar. Inställningar, inloggningsuppgifter och behörigheter är för administratören."
 }

@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "Hjemmeside til hurtig tunnel",
+  "config.cloudflare_tunnel.quick_project_help": "Udgiver en kopi af det valgte projekts senest byggede statiske filer. Aktivér Homepage og Cloudflare. AuraGo tildeler automatisk porten.",
+  "config.cloudflare_tunnel.quick_project_select": "Vælg et projekt",
+  "config.cloudflare_tunnel.quick_project_error": "Projektet er ikke tilgængeligt. Kontrollér indstillingerne for Homepage og projektregistreringen.",
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel aktiveret",
   "config.cloudflare_tunnel.readonly_label": "Skrivebeskyttet tilstand (kun status)",
   "config.cloudflare_tunnel.auto_start_label": "Autostart ved opstart",
@@ -20,7 +24,7 @@
   "config.cloudflare_tunnel.token_placeholder": "Indtast dit Cloudflare-forbindelsestoken",
   "config.cloudflare_tunnel.save_vault": "Gem i Vault",
   "config.cloudflare_tunnel.token_empty": "Token må ikke være tomt",
-  "config.cloudflare_tunnel.token_saved": "Token blev gemt i boksen",
+  "config.cloudflare_tunnel.token_saved": "Token blev gemt i Vaulten",
   "config.cloudflare_tunnel.start_tunnel": "Start tunnel",
   "config.cloudflare_tunnel.expose_target_label": "Tunnelens måltjeneste",
   "config.cloudflare_tunnel.expose_single_hint": "Token- og Quick-tunneler bruger en enkelt oprindelse URL. Kun én tjeneste kan være tunneldestinationen. Brug Named Tunnel til multi-service routing via separate værtsnavne.",

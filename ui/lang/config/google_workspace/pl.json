@@ -1,4 +1,6 @@
 {
+  "config.google_workspace.scope_gmail_modify_labels": "Gmail — Zmiana etykiet",
+  "config.google_workspace.scope_gmail_modify_labels_hint": "Zezwala na zmianę etykiet, stanu przeczytania i archiwizację. Wymaga wyłączenia trybu tylko do odczytu i czasem ponownego połączenia OAuth.",
   "config.google_workspace.enabled_label": "Integracja Google Workspace włączona",
   "config.google_workspace.readonly_label": "Tryb tylko do odczytu",
   "config.google_workspace.readonly_hint": "Gdy aktywny, dozwolone są tylko operacje odczytu (bez wysyłania e-maili, tworzenia wydarzeń, edytowania dokumentów itp.)",
@@ -14,7 +16,7 @@
   "config.google_workspace.disconnect_btn": "Rozłącz",
   "config.google_workspace.test_btn": "Testuj połączenie",
   "config.google_workspace.scopes_title": "Uprawnienia (Scopes)",
-  "config.google_workspace.scopes_desc": "Wybierz, do których usług Google agent może mieć dostęp. Zmiany wejdą w życie przy następnej autoryzacji OAuth2.",
+  "config.google_workspace.scopes_desc": "Uprawnienia agenta zmieniają się po zapisaniu. Dodatkowe uprawnienia OAuth mogą wymagać ponownego połączenia.",
   "config.google_workspace.scope_gmail": "Gmail — Odczyt",
   "config.google_workspace.scope_gmail_hint": "Wyświetlanie i czytanie e-maili",
   "config.google_workspace.scope_gmail_send": "Gmail — Wysyłanie",

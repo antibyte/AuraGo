@@ -45,7 +45,7 @@ func handleDesktopStoreGodsEyeConfig(s *Server) http.HandlerFunc {
 			writeDesktopStoreStartError(w, err)
 			return
 		}
-		s.runDesktopStoreOperation(op.ID)
+		s.runDesktopStoreOperation(store, op)
 		writeDesktopStoreOperationAccepted(w, op)
 	}
 }

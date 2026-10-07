@@ -251,12 +251,8 @@ function wireWindow(win, id) {
     }
 
     function applyWindowSnap(win, zone) {
-        const workspace = $('vd-workspace') || document.body;
-        const ww = workspace.clientWidth;
-        let wh = workspace.clientHeight;
-        const taskbar = document.querySelector('.vd-taskbar');
-        const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
-        wh = Math.max(1, wh - taskbarReserve);
+        const limits = windowLayoutLimits(win);
+        const ww = limits.width, wh = limits.height;
         const positions = {
             'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
             'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
@@ -281,10 +277,12 @@ function wireWindow(win, id) {
             }
             item.restoreBounds = windowBounds(win);
             item.snapped = zone;
-            win.style.left = p.left + 'px';
-            win.style.top = p.top + 'px';
-            win.style.width = Math.max(WINDOW_MIN_W, p.width) + 'px';
-            win.style.height = Math.max(WINDOW_MIN_H, p.height) + 'px';
+            const width = Math.min(ww, Math.max(limits.minWidth, p.width));
+            const height = Math.min(wh, Math.max(limits.minHeight, p.height));
+            win.style.left = Math.min(p.left, ww - width) + 'px';
+            win.style.top = Math.min(p.top, wh - height) + 'px';
+            win.style.width = width + 'px';
+            win.style.height = height + 'px';
         });
         desktopSound('window.snap');
         scheduleFruityDockOcclusionCheck();
@@ -409,12 +407,12 @@ function wireWindow(win, id) {
                 item.maximized = false;
             } else {
                 item.restoreBounds = windowBounds(win);
-                const bounds = workspaceBoundsForWindow();
+                const bounds = windowLayoutLimits(win);
                 win.classList.add('maximized');
                 win.style.left = '0';
                 win.style.top = '0';
-                win.style.width = Math.max(WINDOW_MIN_W, bounds.width) + 'px';
-                win.style.height = Math.max(WINDOW_MIN_H, bounds.height) + 'px';
+                win.style.width = bounds.width + 'px';
+                win.style.height = bounds.height + 'px';
                 item.maximized = true;
             }
         });
@@ -476,28 +474,30 @@ function wireWindow(win, id) {
         });
     }
 
-    function applyResize(win, edge, start, dx, dy) {
+    function windowLayoutLimits(win) {
         const workspace = workspaceBoundsForWindow();
-        const minWidth = parseFloat(win.style.minWidth) || WINDOW_MIN_W;
-        const minHeight = parseFloat(win.style.minHeight) || WINDOW_MIN_H;
-        let left = start.left;
-        let top = start.top;
-        let width = start.width;
-        let height = start.height;
-        if (edge.includes('e')) width = Math.max(minWidth, start.width + dx);
-        if (edge.includes('s')) height = Math.max(minHeight, start.height + dy);
-        if (edge.includes('w')) {
-            width = Math.max(minWidth, start.width - dx);
-            left = start.left + (start.width - width);
-        }
-        if (edge.includes('n')) {
-            height = Math.max(minHeight, start.height - dy);
-            top = start.top + (start.height - height);
-        }
-        left = Math.max(8, Math.min(left, workspace.width - 80));
-        top = Math.max(8, Math.min(top, workspace.height - 80));
-        width = Math.min(width, workspace.width - left - 8);
-        height = Math.min(height, workspace.height - top - 8);
+        const minimum = appWindowMinSize(win.dataset.appId);
+        const minWidth = Math.min(workspace.width, minimum.width || WINDOW_MIN_W);
+        const minHeight = Math.min(workspace.height, minimum.height || WINDOW_MIN_H);
+        win.style.minWidth = minWidth + 'px';
+        win.style.minHeight = minHeight + 'px';
+        return { ...workspace, minWidth, minHeight };
+    }
+
+    function applyResize(win, edge, start, dx, dy) {
+        const limits = windowLayoutLimits(win);
+        const axis = (origin, size, delta, backwards, forwards, minimum, available) => {
+            const clamp = (value, low, high) => Math.max(low, Math.min(value, high));
+            if (backwards) {
+                const end = clamp(origin + size, minimum, available);
+                const begin = clamp(origin + delta, 0, end - minimum);
+                return [begin, end - begin];
+            }
+            const begin = clamp(origin, 0, available - minimum);
+            return [begin, clamp(size + (forwards ? delta : 0), minimum, available - begin)];
+        };
+        const [left, width] = axis(start.left, start.width, dx, edge.includes('w'), edge.includes('e'), limits.minWidth, limits.width);
+        const [top, height] = axis(start.top, start.height, dy, edge.includes('n'), edge.includes('s'), limits.minHeight, limits.height);
         win.style.left = left + 'px';
         win.style.top = top + 'px';
         win.style.width = width + 'px';

@@ -153,7 +153,7 @@
 
     async function refreshSIPPhoneState() {
         try {
-            const appState = await sipPhoneRequest('/api/sip/app/state');
+            const appState = await sipPhoneRequest('/api/desktop/integrations/sip/app/state');
             const previousCall = sipPhoneShellState.appState && sipPhoneShellState.appState.active_call;
             sipPhoneShellState.appState = appState;
             const call = appState.active_call;
@@ -202,7 +202,7 @@
 
     function connectSIPPhoneEvents() {
         if (sipPhoneShellState.eventSource) sipPhoneShellState.eventSource.close();
-        const source = new EventSource('/api/sip/events', { withCredentials: true });
+        const source = new EventSource('/api/desktop/integrations/sip/events', { withCredentials: true });
         sipPhoneShellState.eventSource = source;
         source.addEventListener('open', () => {
             refreshSIPPhoneState();
@@ -352,7 +352,7 @@
             const offer = await pendingPeerConnection.createOffer();
             await pendingPeerConnection.setLocalDescription(offer);
             await waitForSIPPhoneICE(pendingPeerConnection);
-            const session = await sipPhoneRequest('/api/sip/browser-media/sessions', {
+            const session = await sipPhoneRequest('/api/desktop/integrations/sip/browser-media/sessions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -382,7 +382,7 @@
         sipPhoneEmit();
         try {
             await prepareSIPPhoneMedia();
-            const call = await sipPhoneRequest('/api/sip/calls', {
+            const call = await sipPhoneRequest('/api/desktop/integrations/sip/calls', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -416,7 +416,7 @@
         sipPhoneEmit();
         try {
             await prepareSIPPhoneMedia();
-            await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/answer', {
+            await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/answer', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -443,7 +443,7 @@
     async function rejectSIPPhone(callID) {
         const id = String(callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id) || '');
         if (!id) return;
-        await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/reject', { method: 'POST' });
+        await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/reject', { method: 'POST' });
         stopSIPPhoneRinging();
         removeSIPPhoneIncomingNotice();
         await refreshSIPPhoneState();
@@ -452,7 +452,7 @@
     async function hangupSIPPhone() {
         const id = sipPhoneShellState.callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id);
         if (id) {
-            await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/hangup', {
+            await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/hangup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: '{}'
@@ -467,7 +467,7 @@
     async function sendSIPPhoneDTMF(digit) {
         const id = sipPhoneShellState.callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id);
         if (!id || !/^[0-9*#ABCD]$/.test(String(digit || ''))) return;
-        await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/dtmf', {
+        await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/dtmf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ digit: String(digit) })
@@ -665,7 +665,7 @@
         const localStream = sipPhoneShellState.localStream;
         const remoteAudio = sipPhoneShellState.remoteAudio;
         if (deleteSession && sessionID) {
-            fetch('/api/sip/browser-media/sessions/' + encodeURIComponent(sessionID), {
+            fetch('/api/desktop/integrations/sip/browser-media/sessions/' + encodeURIComponent(sessionID), {
                 method: 'DELETE',
                 credentials: 'same-origin',
                 cache: 'no-store',
@@ -853,7 +853,7 @@
         removeSIPPhoneIncomingNotice();
         const callID = sipPhoneShellState.callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id);
         if (callID && sipPhoneShellState.peerConnection) {
-            fetch('/api/sip/calls/' + encodeURIComponent(callID) + '/hangup', {
+            fetch('/api/desktop/integrations/sip/calls/' + encodeURIComponent(callID) + '/hangup', {
                 method: 'POST',
                 credentials: 'same-origin',
                 keepalive: true,

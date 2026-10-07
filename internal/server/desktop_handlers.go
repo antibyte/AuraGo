@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
@@ -97,6 +98,10 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 			openSCADContainer.SetDockerClient(newOpenSCADDockerAdapter(svc.Config(), s.Logger))
 		}
 		s.DesktopService = svc
+		s.desktopPolicyService.Store(svc)
+		if live := s.cfgSnapshot.Load(); live != nil {
+			svc.SetReadOnly(live.VirtualDesktop.ReadOnly)
+		}
 		s.DesktopHub = desktop.NewHub(desktopCfg.MaxWSClients)
 		// Share the long-lived instance with the agent tool layer so that
 		// virtual_desktop / office tool calls reuse the same service instead of
@@ -119,7 +124,6 @@ func (s *Server) disabledDesktopBootstrap() desktop.BootstrapPayload {
 		AllowAgentControl:  desktopCfg.AllowAgentControl,
 		AllowGeneratedApps: desktopCfg.AllowGeneratedApps,
 		AllowPythonJobs:    desktopCfg.AllowPythonJobs,
-		ControlLevel:       desktopCfg.ControlLevel,
 		Workspace: desktop.WorkspaceInfo{
 			Root:        "/",
 			Directories: desktop.DefaultDirectories(),
@@ -141,6 +145,11 @@ func (s *Server) enrichDesktopBootstrap(payload *desktop.BootstrapPayload) {
 		return
 	}
 	payload.Providers = s.desktopProviderOptions()
+	policy := s.desktopSerialPolicy(nil)
+	payload.SerialBrowserEnabled = policy.SerialBrowserEnabled
+	payload.SerialHostEnabled = policy.SerialHostEnabled
+	payload.RemoteMaxSessionMinutes = policy.RemoteMaxSessionMinutes
+	payload.RemoteIdleTimeoutMinutes = policy.RemoteIdleTimeoutMinutes
 }
 
 func (s *Server) desktopProviderOptions() []desktop.ProviderOption {
@@ -191,12 +200,16 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 			return
 		}
 		defer cancel()
+		conn.SetReadLimit(64 << 10)
+		lastPolicy := s.desktopSerialPolicy(r)
 		if bootstrap, err := svc.Bootstrap(r.Context()); err == nil {
 			s.enrichDesktopBootstrap(&bootstrap)
+			bootstrap = filterDesktopBootstrap(s, r, bootstrap)
 			_ = conn.WriteJSON(map[string]interface{}{"type": "welcome", "payload": bootstrap})
 		}
 
 		done := make(chan struct{})
+		pongs := make(chan struct{}, 1)
 		go func() {
 			defer close(done)
 			for {
@@ -205,17 +218,44 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 					return
 				}
 				if msgType, _ := msg["type"].(string); msgType == "ping" {
-					_ = conn.WriteJSON(map[string]interface{}{"type": "pong"})
+					select {
+					case pongs <- struct{}{}:
+					default:
+					}
 					continue
 				}
 			}
 		}()
+		policyTick := time.NewTicker(time.Second)
+		defer policyTick.Stop()
 
 		for {
 			select {
+			case <-policyTick.C:
+				if !desktopWSAuthorizationValid(s, r, desktopScopeRead) {
+					return
+				}
+				policy := s.desktopSerialPolicy(r)
+				if policy != lastPolicy {
+					lastPolicy = policy
+					if err := conn.WriteJSON(desktop.Event{Type: "desktop_policy", Payload: policy, CreatedAt: time.Now().UTC()}); err != nil {
+						return
+					}
+				}
+			case <-pongs:
+				if err := conn.WriteJSON(map[string]interface{}{"type": "pong"}); err != nil {
+					return
+				}
 			case event, ok := <-events:
 				if !ok {
 					return
+				}
+				if !desktopWSAuthorizationValid(s, r, desktopScopeRead) {
+					return
+				}
+				event, ok = filterDesktopEvent(s, r, event)
+				if !ok {
+					continue
 				}
 				if err := conn.WriteJSON(event); err != nil {
 					return
@@ -227,6 +267,23 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 			}
 		}
 	}
+}
+
+func desktopWSAuthorizationValid(s *Server, r *http.Request, requiredScope string) bool {
+	if s == nil || r == nil {
+		return false
+	}
+	if token, bearer := bearerCredential(r.Header.Get("Authorization")); bearer {
+		return token != "" && desktopTokenHasScope(s, token, requiredScope)
+	}
+	s.CfgMu.RLock()
+	if s.Cfg == nil {
+		s.CfgMu.RUnlock()
+		return false
+	}
+	enabled, secret := s.Cfg.Auth.Enabled, s.Cfg.Auth.SessionSecret
+	s.CfgMu.RUnlock()
+	return !enabled || IsAuthenticated(r, secret)
 }
 
 func broadcastDesktopEvent(s *Server, hub *desktop.Hub, event desktop.Event) {

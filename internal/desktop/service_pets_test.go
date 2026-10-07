@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby", "aurago-neutral", "aurago-servant", "aurago-professional", "aurago-mistress", "aurago-thinker", "aurago-evil", "aurago-secretary", "aurago-psycho", "aurago-punk", "aurago-friend", "aurago-mcp", "aurago-terminator"}
+var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby", "aurago-neutral", "aurago-servant", "aurago-professional", "aurago-mistress", "aurago-thinker", "aurago-evil", "aurago-secretary", "aurago-psycho", "aurago-punk", "aurago-friend", "aurago-mcp", "aurago-terminator", "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-indiana-jones", "aurago-manga-girl", "aurago-zombie", "aurago-chick", "aurago-peacock", "aurago-trex", "aurago-puppy", "aurago-cat", "aurago-crocodile"}
 
 func TestInstallAndListPets(t *testing.T) {
 	svc := testService(t)
@@ -141,7 +141,6 @@ func TestServiceRepairsBrokenDefaultPetSeed(t *testing.T) {
 		MaxFileSizeMB:      1,
 		AllowGeneratedApps: true,
 		AllowAgentControl:  true,
-		ControlLevel:       ControlConfirmDestructive,
 	}
 	svc := testServiceWithConfig(t, cfg)
 	ctx := context.Background()
@@ -206,6 +205,59 @@ func TestServiceBootstrapIncludesAllBundledDefaultPets(t *testing.T) {
 	for _, id := range expectedBundledDefaultPetIDs {
 		if !seen[id] {
 			t.Fatalf("bundled pet %q missing from bootstrap: %+v", id, bootstrap.Pets)
+		}
+	}
+}
+
+func TestListPetsRepairsNewMascotWithoutReplacingUserPets(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+	root := svc.Config().WorkspaceDir
+
+	if err := svc.SetActivePet(ctx, "openpets-default"); err != nil {
+		t.Fatalf("SetActivePet: %v", err)
+	}
+	customFiles := map[string][]byte{
+		"pet.json":         []byte(`{"id":"my-pet","displayName":"My Pet","spritesheetPath":"spritesheet.webp"}`),
+		"spritesheet.webp": []byte("my custom spritesheet"),
+		"notes.txt":        []byte("keep this custom file"),
+	}
+	if err := svc.InstallPet(ctx, "my-pet", customFiles); err != nil {
+		t.Fatalf("InstallPet: %v", err)
+	}
+
+	if err := os.RemoveAll(filepath.Join(root, petsDirName, "aurago-slime")); err != nil {
+		t.Fatalf("remove bundled mascot fixture: %v", err)
+	}
+	pets, err := svc.ListPets(ctx)
+	if err != nil {
+		t.Fatalf("ListPets after repair: %v", err)
+	}
+	foundMascot := false
+	for _, pet := range pets {
+		if pet.ID == "aurago-slime" {
+			foundMascot = true
+			break
+		}
+	}
+	if !foundMascot {
+		t.Fatal("missing bundled mascot was not repaired")
+	}
+
+	active, err := svc.GetActivePetID(ctx)
+	if err != nil {
+		t.Fatalf("GetActivePetID: %v", err)
+	}
+	if active != "openpets-default" {
+		t.Fatalf("active pet = %q, want openpets-default", active)
+	}
+	for name, want := range map[string]string{"spritesheet.webp": "my custom spritesheet", "notes.txt": "keep this custom file"} {
+		got, err := os.ReadFile(filepath.Join(root, petsDirName, "my-pet", name))
+		if err != nil {
+			t.Fatalf("read custom %s: %v", name, err)
+		}
+		if string(got) != want {
+			t.Fatalf("custom %s = %q, want %q", name, got, want)
 		}
 	}
 }

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"aurago/internal/config"
@@ -21,8 +20,7 @@ func CheckConnection(ctx context.Context, cfg *config.Config) error {
 		return errors.New("Rocket.Chat configuration is unavailable")
 	}
 	baseURL := strings.TrimRight(strings.TrimSpace(cfg.RocketChat.URL), "/")
-	parsed, err := url.Parse(baseURL)
-	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+	if err := security.ValidateHTTPBaseURL(baseURL); err != nil {
 		return errors.New("Rocket.Chat URL is invalid")
 	}
 	if strings.TrimSpace(cfg.RocketChat.UserID) == "" || strings.TrimSpace(cfg.RocketChat.AuthToken) == "" {

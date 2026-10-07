@@ -27,7 +27,7 @@ func (f *flowFakeChatClient) CreateChatCompletion(_ context.Context, req openai.
 		Usage:   openai.Usage{PromptTokens: 11, CompletionTokens: 7}}, nil
 }
 
-func (f *flowFakeChatClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (f *flowFakeChatClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }
 

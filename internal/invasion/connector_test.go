@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/testutil"
 )
@@ -54,17 +55,6 @@ func TestSSHShellPathPreservesHomeExpansion(t *testing.T) {
 	want := "$HOME/'.aurago-egg-test/config.yaml'"
 	if got != want {
 		t.Fatalf("shellPath = %q, want %q", got, want)
-	}
-}
-
-func TestSSHEggProcessPatternAvoidsTildeLiteral(t *testing.T) {
-	got, err := sshEggProcessPattern("12345678-abcd")
-	if err != nil {
-		t.Fatalf("sshEggProcessPattern: %v", err)
-	}
-	want := ".aurago-egg-12345678/aurago"
-	if got != want {
-		t.Fatalf("sshEggProcessPattern = %q, want %q", got, want)
 	}
 }
 
@@ -244,6 +234,10 @@ func mockDockerAPI(t *testing.T, handlers map[string]http.HandlerFunc) *httptest
 		return len(patterns[i]) > len(patterns[j])
 	})
 	return testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			json.NewEncoder(w).Encode(map[string]string{"ApiVersion": "1.45", "MinAPIVersion": "1.25"})
+			return
+		}
 		// Strip API version prefix
 		path := r.URL.Path
 		parts := strings.SplitN(path, "/", 3)
@@ -481,5 +475,24 @@ func TestDockerConnector_Deploy_PullFails(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "pull") {
 		t.Errorf("error should mention pull: %v", err)
+	}
+}
+
+func TestDockerLocalTransportReleasesIdleConnections(t *testing.T) {
+	tr := dockerLocalTransport("unix:///var/run/docker.sock")
+	if tr.IdleConnTimeout != dockerLocalIdleConnTimeout || dockerLocalIdleConnTimeout != 5*time.Second || tr.DialContext == nil {
+		t.Fatalf("docker_local transport: IdleConnTimeout %v, dialer set %v; want 5s and the Engine dialer", tr.IdleConnTimeout, tr.DialContext != nil)
+	}
+}
+
+func TestDockerLocalClientStillDialsTheConfiguredEngine(t *testing.T) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]string{"ApiVersion": "1.45", "MinAPIVersion": "1.25"})
+	}))
+	defer ts.Close()
+	t.Setenv("DOCKER_HOST", "tcp://"+strings.TrimPrefix(ts.URL, "http://"))
+	nest := NestRecord{ID: "12345678-abcd-ef12-3456-7890abcdef12", DeployMethod: "docker_local"}
+	if err := (&DockerConnector{}).Validate(context.Background(), nest, nil); err != nil {
+		t.Fatalf("Validate through DOCKER_HOST: %v", err)
 	}
 }

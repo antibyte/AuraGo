@@ -9,7 +9,7 @@
   "config.sql_connections.col_database": "Base de datos",
   "config.sql_connections.col_description": "Descripción",
   "config.sql_connections.col_driver": "Tipo",
-  "config.sql_connections.col_host": "Anfitrión",
+  "config.sql_connections.col_host": "Host",
   "config.sql_connections.col_name": "Nombre",
   "config.sql_connections.col_permissions": "Permisos",
   "config.sql_connections.database_label": "Nombre de la base de datos",
@@ -27,7 +27,7 @@
   "config.sql_connections.edit_tooltip": "Editar",
   "config.sql_connections.empty": "No hay conexiones de base de datos configuradas.",
   "config.sql_connections.filter_placeholder": "🔍 Filtrar…",
-  "config.sql_connections.host_label": "Anfitrión",
+  "config.sql_connections.host_label": "Host",
   "config.sql_connections.host_placeholder": "localhost",
   "config.sql_connections.loading": "⏳ Cargando conexiones…",
   "config.sql_connections.name_label": "Nombre de la conexión",
@@ -52,8 +52,8 @@
   "config.sql_connections.ssl_disable": "Desactivado",
   "config.sql_connections.ssl_mode_label": "Modo SSL",
   "config.sql_connections.ssl_require": "Requerido",
-  "config.sql_connections.ssl_verify_ca": "Verificar CA",
-  "config.sql_connections.ssl_verify_full": "Verificar completo",
+  "config.sql_connections.ssl_verify_ca": "Verificación de CA",
+  "config.sql_connections.ssl_verify_full": "Verificación completa",
   "config.sql_connections.test_connection": "Probar conexión",
   "config.sql_connections.test_success": "¡Conexión exitosa!",
   "config.sql_connections.test_tooltip": "Probar conexión",
@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "Solo lectura global",
   "config.sql_connections.readonly_help": "Bloquea todas las operaciones de escritura independientemente de los permisos de conexión.",
   "config.sql_connections.allow_management_label": "Permitir gestión",
-  "config.sql_connections.allow_management_help": "Permite al agente crear, editar y eliminar conexiones."
+  "config.sql_connections.sqlite_import": "Importar copia de SQLite",
+  "config.sql_connections.sqlite_import_help": "Sube una copia coherente e independiente (hasta 64 MiB). Al guardar, se importa al almacenamiento protegido y se conservan los originales.",
+  "config.sql_connections.sqlite_import_required": "Es necesario importar SQLite",
+  "config.sql_connections.allow_management_help": "El agente solo puede editar descripciones. La configuración, las credenciales y los permisos son exclusivos del administrador."
 }

@@ -51,7 +51,11 @@ func (s ToolResultStatus) IsError() bool {
 // prepareToolCall resolves transport wrappers before policy, task rules, hooks,
 // and effect tracking. Protocol identity is retained; resolution never executes.
 func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
-	if tc.Action != "invoke_tool" || tc.PreparationError != "" {
+	if tc.PreparationError != "" {
+		return tc
+	}
+	tc = normalizeDirectToolCall(tc, dc)
+	if tc.Action != "invoke_tool" {
 		return tc
 	}
 	fail := func(message string) ToolCall {
@@ -84,6 +88,8 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 		args = flattenedInvokeArgs(tc.Params)
 		logInvokeToolArgumentSource(dc.Logger, name, "flattened", tc.Params, args)
 	}
+	args = cloneJSONSchemaValue(args).(map[string]interface{})
+	stripStrictNulls(args, originalToolArgumentSchema(entry.Name, dc))
 	if entry.Kind == ToolKindNative && entry.Status == ToolStatusHidden {
 		MarkDiscoverRequestedTool(dc.discoveryKey(), entry.Name)
 	}
@@ -102,7 +108,7 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	case ToolKindSkill:
 		routed = ToolCall{Action: "execute_skill", Skill: entry.Routing.SkillName, SkillArgs: args, Params: args}
 	case ToolKindCustom:
-		routed = ToolCall{Action: "run_tool", Name: entry.Routing.CustomName, Params: map[string]interface{}{"name": entry.Routing.CustomName, "args": args}}
+		routed = toolCallFromInvokeArgs("run_tool", normalizeCustomToolShortcutArgs(entry.Routing.CustomName, args))
 	}
 	routed.TransportAction = "invoke_tool"
 	routed.NativeCallID, routed.RawJSON = tc.NativeCallID, tc.RawJSON

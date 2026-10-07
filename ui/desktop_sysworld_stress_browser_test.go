@@ -20,9 +20,9 @@ func verifySystemWorldStress(t *testing.T, page *rod.Page, dir string) {
           {id:'graph',kind:'district',district:'graph',state:'idle',at:now,values:{nodes:10000}},
           {id:'mission:test',kind:'mission',district:'missions',label:'Review mission',state:worldStressState,at:now,actions:['start']},
           {id:'container:confirm',kind:'container',district:'infra',label:'Review container',state:'running',at:now,actions:['stop','restart']}];
-        if(path==='/api/containers')return respond(Array.from({length:1000},(_,i)=>({id:'scale-'+i,name:'Container '+i,state:'running'})));
-        if(path==='/api/knowledge-graph/nodes?limit=300')return respond({nodes:worldGraph.slice(0,300),total:worldGraph.length});
-        if(path==='/api/knowledge-graph/node?id=scale-299')return respond({edges:[{source:'scale-299',target:'scale-9999',relation:'related'}]});
+        if(path==='/api/desktop/integrations/containers')return respond(Array.from({length:1000},(_,i)=>({id:'scale-'+i,name:'Container '+i,state:'running'})));
+        if(path==='/api/desktop/integrations/knowledge-graph/nodes?limit=300')return respond({nodes:worldGraph.slice(0,300),total:worldGraph.length});
+        if(path==='/api/desktop/integrations/knowledge-graph/node?id=scale-299')return respond({edges:[{source:'scale-299',target:'scale-9999',relation:'related'}]});
         if(path==='/api/desktop/system-world/snapshot')return respond({at:now,metrics:{cpu:14,ram:38,disk:18},entities});
         if(path.startsWith('/api/desktop/system-world/snapshot?')){if(worldGap)return Promise.resolve(new Response('{}',{status:404}));return respond({at:now-600000,metrics:{cpu:0,ram:28},entities:entities.map(e=>({...e,actions:[]}))});}
         if(path.startsWith('/api/desktop/system-world/events?'))return respond([{id:1,at:now-610000,entity:entities[2]}]);

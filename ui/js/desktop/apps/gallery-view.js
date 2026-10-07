@@ -117,7 +117,7 @@
         return `<div class="vd-empty vd-gallery-empty vd-gallery-error">
             ${iconMarkup('info', '!', ICON, 30)}
             <strong>${esc(t('desktop.gallery_error_title'))}</strong>
-            <p>${esc((err && err.message) || t('desktop.load_failed'))}</p>
+            <p>${esc(t('desktop.load_failed'))}</p>
             <button type="button" class="vd-button vd-button-primary" data-gallery-retry>${esc(t('desktop.retry'))}</button>
         </div>`;
     }

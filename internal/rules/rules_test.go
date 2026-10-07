@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -204,6 +205,22 @@ func TestLoadCatalogIncludesEmbeddedDockerRule(t *testing.T) {
 		if !strings.Contains(rule.Body, marker) {
 			t.Fatalf("docker rule body missing marker %q:\n%s", marker, rule.Body)
 		}
+	}
+}
+
+func TestEmbeddedDockerPromptsDoNotAdvertisePrune(t *testing.T) {
+	t.Parallel()
+
+	data, err := fs.ReadFile(promptsembed.FS, "tools_docker.md")
+	if err != nil {
+		t.Fatalf("read tools_docker.md: %v", err)
+	}
+	text := string(data)
+	if strings.Contains(text, "docker_system_prune") {
+		t.Fatal("tools_docker.md advertises docker_system_prune, but the docker tool has no prune operation")
+	}
+	if !strings.Contains(text, "There is no system prune operation") {
+		t.Fatal("tools_docker.md must state that no prune operation exists, matching the Docker rule")
 	}
 }
 
@@ -689,5 +706,48 @@ func TestLoadCatalogCacheInvalidationOnDiskChange(t *testing.T) {
 	}
 	if !strings.Contains(rule2.Body, "body v2") {
 		t.Fatalf("load should reflect disk change: %s", rule2.Body)
+	}
+}
+
+func TestEmbeddedDockerPromptUsesTheDockerToolOperations(t *testing.T) {
+	t.Parallel()
+
+	data, err := fs.ReadFile(promptsembed.FS, "tools_docker.md")
+	if err != nil {
+		t.Fatalf("read tools_docker.md: %v", err)
+	}
+	text := string(data)
+	if strings.Contains(text, "`docker_") {
+		t.Fatal("tools_docker.md advertises docker_* pseudo functions; the tool is `docker` with an `operation` argument")
+	}
+	// The operations the docker dispatch accepts and the native schema offers
+	// (internal/agent: agent_dispatch_services.go, native_tools_integrations.go).
+	known := map[string]bool{}
+	for _, op := range strings.Fields("list_containers inspect start stop restart pause unpause remove logs create run list_images pull remove_image list_networks list_volumes info exec stats top port cp create_network remove_network connect disconnect create_volume remove_volume compose") {
+		known[op] = true
+	}
+	listed := map[string]bool{}
+	for _, line := range strings.Split(text, "\n") {
+		if !strings.HasPrefix(line, "| `") {
+			continue
+		}
+		cell := strings.SplitN(strings.TrimPrefix(line, "| "), " |", 2)[0]
+		for _, op := range strings.Split(cell, ",") {
+			op = strings.Trim(strings.TrimSpace(op), "`")
+			if !known[op] {
+				t.Fatalf("tools_docker.md lists operation %q, which the docker tool does not accept", op)
+			}
+			listed[op] = true
+		}
+	}
+	for op := range known {
+		if !listed[op] {
+			t.Fatalf("tools_docker.md does not list the docker operation %q", op)
+		}
+	}
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(line, "|---") && strings.Count(line, "|") != 3 {
+			t.Fatalf("malformed table separator %q under a two-column header", line)
+		}
 	}
 }

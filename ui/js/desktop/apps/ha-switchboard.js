@@ -40,7 +40,7 @@
             const [x1, y1] = polar(angle, major ? 70 : 76), [x2, y2] = polar(angle, 82), [x, y] = polar(angle, 57);
             return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="ha-dial-tick ${major ? 'ha-major-tick' : ''}"/>` + (major ? `<text class="ha-dial-mark" x="${x}" y="${y}">${i * 2.5}</text>` : '');
         }).join('');
-        host.innerHTML = `<section class="ha-board" aria-label="HA Switchboard">
+        host.innerHTML = `<section class="ha-board" aria-label="${esc(ctx.t('desktop.app_ha_switchboard'))}">
             <div class="ha-definitions" aria-hidden="true">${hardware}</div>
             <div class="ha-deck"><div class="ha-bays"></div>
                 <aside class="ha-instruments ha-panel">
@@ -50,7 +50,7 @@
                     </div>
                     <div class="ha-meter-readout"><strong data-ha="total">— / —</strong><span>${esc(ctx.t('desktop.ha_on_count'))}</span></div>
                     <div class="ha-indicators"><p><i class="ha-lamp" data-ha="connection-lamp"></i><span data-ha="connection">${esc(ctx.t('desktop.ha_loading'))}</span></p><p><i class="ha-lamp" data-ha="warning-lamp"></i><span data-ha="unknown"></span></p></div>
-                    <div class="ha-plaque ha-signature">HA<br><small>SWITCHBOARD</small></div>
+                    <div class="ha-plaque ha-signature">HA<br><small>${esc(ctx.t('desktop.ha_board_label'))}</small></div>
                 </aside>
             </div>
             <footer class="ha-console"><div class="ha-maker ha-panel"><span>AURAGO</span><small>HOME ASSISTANT</small><i aria-hidden="true">◆</i></div>

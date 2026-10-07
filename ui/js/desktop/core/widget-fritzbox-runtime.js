@@ -135,7 +135,7 @@
         const state = {
             disposed: false, controller: null, timer: null, pages: [], page: 0, capabilities: null,
             history: [], connection: null, devices: null, telephony: null, system: null,
-            fetchedAt: { connection: 0, devices: 0, telephony: 0, system: 0 }, hasData: false,
+            fetchedAt: { connection: 0, devices: 0, telephony: 0, system: 0 }, hasData: false, errors: {},
             chart: null, compact: false, copyTimer: null, drag: null
         };
         const lang = () => document.documentElement.lang || undefined;
@@ -263,7 +263,7 @@
             refs['legend-down'].textContent = latest ? fritzFormatBits(latest.down) : '–';
             refs['legend-up'].textContent = latest ? fritzFormatBits(latest.up) : '–';
             const spanMinutes = Math.max(1, Math.round((range.end - range.start) / 60000));
-            refs['legend-span'].textContent = label('window_label', { span: spanMinutes + ' min' });
+            refs['legend-span'].textContent = label('window_label', { span: new Intl.NumberFormat(lang(), { style: 'unit', unit: 'minute', unitDisplay: 'short' }).format(spanMinutes) });
             let peakDown = 0;
             let peakUp = 0;
             for (const sample of samples) {
@@ -426,11 +426,21 @@
                 state.fetchedAt.telephony = now;
                 renderTelephony();
             }
-            const errors = payload.errors || {};
+            // Overview replies contain only the requested sections. Keep each
+            // failure until that section recovers or its capability is disabled.
+            for (const section of ['system', 'connection', 'devices', 'telephony']) {
+                if (!state.capabilities[section]) delete state.errors[section];
+                else if (payload.errors && payload.errors[section]) state.errors[section] = payload.errors[section];
+                else if (payload[section]) delete state.errors[section];
+            }
+            const errors = state.errors;
             const failing = Object.keys(errors);
-            refs.root.classList.toggle('is-stale', failing.length > 0);
+            refs.root.classList.toggle('is-stale', !!errors.connection);
             if (failing.length) {
-                refs['banner-text'].textContent = errors.connection === 'auth_failed' ? label('error_auth') : label('error') + (state.hasData || Object.keys(payload.stale || {}).length ? ' · ' + label('stale') : '');
+                const sections = failing.map(section => section === 'system' ? label('title') : pageTitle(section)).join(', ');
+                const message = label('error_sections', { sections });
+                refs['banner-text'].textContent = failing.some(section => errors[section] === 'auth_failed')
+                    ? message + ' · ' + label('error_auth') : message;
                 refs.banner.hidden = false;
                 if (errors.connection) refs.dot.className = 'vd-fritz-dot is-stale';
             } else {
@@ -479,6 +489,7 @@
                     refs.updated.textContent = '';
                     state.hasData = false;
                     state.pages = [];
+                    state.errors = {};
                     return;
                 }
                 refs.skeleton.hidden = true;

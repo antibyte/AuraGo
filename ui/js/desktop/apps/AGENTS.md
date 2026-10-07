@@ -1,5 +1,28 @@
 # Desktop App Modules - Child DOX Contract
 
+## Synth Studio
+
+- `synth-studio` is a native Creative app with the `synthStudio.*` locale prefix.
+  Keep its fifty presets (five groups of ten), 128 synthesized GM programs and
+  percussion bank local. See `documentation/synth-studio.md` for supported music
+  formats, controls and resource limits.
+- Model validation owns project trust boundaries. Notes/controllers use clip-local
+  ticks; clips use arrangement ticks. Live playback and offline WAV rendering
+  share the native Web Audio implementation. Never schedule musical timing from
+  animation frames or copy an upstream live-only synthesizer into offline export.
+- Reuse OfficeSession drafts/write queues and the conditional Desktop file API.
+  Preserve the latest dirty revision on failures; fence asynchronous file, MIDI
+  and render results after a project change, permission revocation or disposal.
+  A reopened project is paused. Desktop minimization keeps playback; browser-tab
+  hiding pauses it. Closing releases notes, input ports, timers and audio nodes.
+- MIDI is input-only, explicitly permission-gated with SysEx disabled. The Desktop
+  document alone receives `midi=(self)`; untrusted sandboxed app frames deny MIDI.
+  Read-only policy changes stop recording and block all project mutations.
+- Verify the model/storage checks, `TestDesktopSynthStudioBrowser`,
+  `TestDesktopSynthStudioAudioBrowser` and
+  `TestSynthStudioMIDIPolicyOnlyAllowsDesktop`. Keep all sixteen locales and both
+  Desktop themes usable, including compact library/sound-panel controls.
+
 ## Newspaper
 
 - `newspaper.js` owns one window reader for today's immutable edition, articles, archive and preferences. When only an earlier issue exists, keep it readable and offer creation of today's issue; do not offer today's correction flow on older issues. Closing the window cancels only UI work; the server owns ongoing research and delivery.
@@ -129,6 +152,9 @@
   without a usable score is a `failed` evaluate entry, never score 0.
 - Chart, gauge and hero use theme tokens; keep the grid rows explicit so the
   action bar cannot absorb the free row. Every new string needs all 16 locales.
+- The unused run view shows the decorative transparent `img/looper-empty.png`
+  illustration with the existing empty-state copy. It shares the monitor's idle
+  predicate and disappears for running, paused and finished runs; keep it responsive.
 - Costs come from the budget tracker's model rates (`EstimateCost`); `cost_approximate`
   marks a fallback price. Starting or resuming under an exhausted budget answers
   402 with `code: "budget_exceeded"`, and a running loop pauses itself with
@@ -437,6 +463,13 @@ buttons and menu popovers remain excluded from those gestures.
   `desktop.widget_fritzbox_*` plus reused `desktop.copy`, `desktop.copied`,
   `desktop.retry`, `desktop.load_failed`, `desktop.system_info_updated` and
   the sysmon byte/uptime formatters in all 16 desktop locales.
+- Fritz!Box overview errors belong to individual sections. Preserve a failed
+  section across unrelated partial polls and clear it only after its own
+  successful read or capability removal. Name the affected sections in the
+  banner; a telephony/device failure must not mark fresh connection data stale
+  or claim the router is unreachable. Request failures use a neutral data-load
+  message. Verify the partial-error and recovery cases in
+  `TestDesktopFritzBoxWidgetBrowser`.
 
 - All widget cards, including sticky notes and generated iframe widgets, use
   `widgetWidth()` (320px, reduced only for a narrower workspace). Content resize
@@ -558,8 +591,8 @@ buttons and menu popovers remain excluded from those gestures.
   `compressed`, `ZIP Archives`, or `B`/`KiB`/`MiB` there. Zipper
   `t` stays key-only.   Pixel open-dialog filter uses
   `desktop.file_dialog_images`. Pixel save-dialog filters use
-  `desktop.file_dialog_png`, `desktop.file_dialog_jpeg`, and
-  `desktop.file_dialog_webp`. Do not hardcode `Images`,
+  `desktop.file_dialog_png` and `desktop.file_dialog_jpeg` (the server validates
+  the actual PNG/JPEG data). WebP remains an export format. Do not hardcode `Images`,
   `PNG Image`, `JPEG Image`, or `WebP Image` there.
   Pixel `t` stays key-only. Leave File Manager and
   OpenSCAD byte formatters unchanged.
@@ -572,6 +605,21 @@ buttons and menu popovers remain excluded from those gestures.
   older request, the shown path changes only after a successful listing, rows carry their absolute
   `data-path` for every action, and closing the panel or window disposes the navigator. Verify with
   `npm run test:ui-regressions`.
+- `quickconnect-serial.js` owns serial profiles, bounded in-memory RX/TX capture,
+  ANSI/hex display and browser/host transports. Bundle it before the Quick Connect
+  shell. Profiles use the versioned `quick_connect.serial_profiles` setting;
+  payload bytes never reach logs, persistence or an LLM. See
+  `documentation/quick-connect-serial.md` and `internal/desktop/AGENTS.md`.
+- Quick Connect has one active connection per window. Serial, SSH and VNC switches
+  invalidate old callbacks before cleanup; the Files tab remains SSH-only. Cancel
+  pending device choices and close late opens after policy/auth/window disposal.
+  Browser serial requires a trusted user gesture and always uses the browser's
+  picker. No automatic reconnect. Embedded apps deny `serial` in their frame policy.
+- Keep serial writes ordered, capture and render queues bounded, initial DTR/RTS
+  off, and clear Break after 250 ms including cleanup races. Device traffic never
+  counts as user activity. Verify `TestQuickConnectSerialTranslations`, serial
+  browser tests, existing Quick Connect/SFTP checks and both themes at narrow and
+  wide window sizes. USB adapter acceptance is a separate hardware check.
 - Quick Connect synthetic AuraGo host uses `desktop.qc_aurago_host`
   and `desktop.qc_aurago_host_description`. Detect the host by
   `id === '__aurago-host__'`, matching IP, or the English sentinel
@@ -681,6 +729,12 @@ buttons and menu popovers remain excluded from those gestures.
   plus the throw message. Sheets notifies and returns.
   Call `t(key)` with no fallback string. Do not hardcode English
   `print frame unavailable`.
+- Notes, Writer, Sheets and Viewer share `AuraDesktopPrint` from
+  `core/print-runtime.js`. Set iframe sandbox before insertion to
+  `allow-same-origin allow-modals`, never allow scripts; only the parent prints.
+  Preserve sanitization, await fonts/images, bind the frame to its owner signal,
+  and translate timeout errors at the caller. Browser regression:
+  `TestDesktopPrintSandboxBrowser`.
 - Store container-app frame errors, terminal-preview frame errors,
   store start toasts, and external-open notifications reuse
   `desktop.load_failed`. Do not dump raw `err.message` there.
@@ -725,11 +779,13 @@ buttons and menu popovers remain excluded from those gestures.
 
 - Restore is File Manager only. The desktop trash icon keeps Open, Empty, and
   Properties — never a Restore action (no single target).
-- Restore only moves paths under `trash/…`. Destination is `Desktop/<name>`
-  with unique names via `trashNameCandidate`. Never overwrite an existing
-  Desktop name. Nested `Trash/foo/bar` restores the basename to `Desktop/bar`.
-- Origin paths are not persisted in v1. Do not change `listTrashEntries` or
-  `movePathToTrash` to record origin.
+- Restore only moves paths under `trash/…` through the batch `/api/desktop/trash`
+  operation. Ordinary legacy entries restore to `Desktop/<name>`. Notes under
+  `Trash/Notes/<uuid>/<subpath>` restore to `Documents/Notes/<subpath>`.
+  No origin is guessed for legacy ordinary entries. Conflicts require the shared
+  Replace / Keep copy / Cancel dialog; replacement rechecks the observed version.
+- Trash drops from desktop icons and File Manager preflight the entire selection
+  server-side before moving the first entry; Notes roots and ancestors are protected.
 - Readonly denies restore and empty-trash mutations. Delete inside Trash stays
   a permanent DELETE.
 - Shell callbacks `restoreFromTrash` and `emptyTrash` are injected from
@@ -934,8 +990,14 @@ buttons and menu popovers remain excluded from those gestures.
   cycling spaces.
 - Thumbnails clone DOM window content when possible; iframe-heavy windows show
   a live-window fallback instead of a blank capture.
-- Media keys and `navigator.mediaSession` route to the active Webamp music
-  player only while `state.webampMusic` is alive; no global OS volume control.
+- `AuraDesktopMediaSession` owns OS media handlers/metadata. Registrations are
+  owner-bound; disposal releases only that owner. Personal Radio has priority
+  over Webamp, then the latest active Radio/TeeVee/RTL-SDR player. Metadata
+  refreshes do not steal ownership. Radio direct streams use native no-CORS
+  audio; background TeeVee playback remains intentional. No global volume control.
+- Chess disposes its AudioContext and scheduled tones. Galaxa cancels RAF while
+  inactive and restarts at most one loop on visibility/focus return. Gallery
+  errors use translated messages; Detective renders invalid URLs as text.
 
 - `galaxa-*.js` implements Galaxa Deluxe, a modular Canvas 2D arcade shooter
   with procedural audio, biomed progression, parry/super combat, and persistent
@@ -1056,6 +1118,9 @@ buttons and menu popovers remain excluded from those gestures.
 - `live-speech.js` mounts the shared realtime-speech panel on the desktop in a
   compact window (preset 440×520, min 340×460 in
   `window-shell-runtime.js`; panel mounted with `compact: true`).
+  The desktop header's speaker control lives beside the FX toggle and opens
+  the shared audio settings dialog; pass its `[data-live-speech-audio-controls]`
+  host through the mount `audioControls` option.
   The shared panel places its animated persona beside wrapping, scrollable
   captions; small windows scroll vertically. Avatar disposal uses the existing
   panel unmount and preserves `keepSession`. The decorative FX remain separate
@@ -1369,6 +1434,10 @@ registration lives in `internal/desktop/types.go`.
   window owns its engine/worker, requests, panels, chart canvases, operation
   journal and save queue. Load OfficeSession, data, panels and charts before
   sheets.js. The local vendor build imports only Apache-2.0 Univer OSS 1.0.3.
+- Failed workbook loads release the editor/save queue and show New, Open and
+  Retry actions with an error status. A confirmed 404 clears the shell's stored
+  path; temporary failures retain it for retry. New uses a fresh create-only
+  path and never recreates the missing file. Verify `TestDesktopSheetsLoadRecoveryBrowser`.
 - Use the engine's formula, selection, clipboard, structural-reference and undo
   APIs. Do not restore the removed HTML grid or browser formula evaluator.
   Expand shared formulas before persistence, preserve forced strings, and parse
@@ -1394,10 +1463,16 @@ registration lives in `internal/desktop/types.go`.
   Acknowledgements cover only the captured revision. Suspend the queue during
   Save As; native writes require ETag preconditions. Keep the async close guard
   installed until cleanup and never replace failed loads with blank content.
+- Writer exposes New/Open after load failures and clears the persisted window
+  path only on a confirmed 404. Transient errors retain it for Retry. Verify
+  `TestDesktopFileLoadRecoveryBrowser` alongside the Sheets recovery check.
 - Writer pointer selection must preserve the viewport, including clicks near its
   edges after toolbar focus. Core 2.23.0 supplies this behavior upstream; keep
   keyboard/programmatic reveal and drag edge autoscroll enabled. Retain the
   browser regressions when rebuilding or upgrading the core.
+- Writer opens new, loaded and recovered documents at the first paragraph with
+  the viewport at the top. Restore typing focus only in the active editable
+  window. Verify `TestDesktopWriterAppBrowser` and the Writer shell matrix.
 - Writer font-size controls display points and convert to integer half-points at
   the command boundary, including command availability checks. Reject invalid
   inputs before editing. Map app actions to existing shared icon keys; action IDs
@@ -1479,6 +1554,12 @@ registration lives in `internal/desktop/types.go`.
   `desktop.fm.paste_exists` message. Save retains overwrite semantics.
 - Code Studio Git commands run via Docker exec in the container workspace (`/workspace`).
   Git API endpoints are in `internal/server/code_studio_handlers.go`.
+- Code Studio recognizes C source/header files and reuses the bundled CodeMirror
+  C/C++ parser. Run compiles `.c` as C17 with GCC into a private temporary
+  directory, executes only a successful build and cleans up afterward. Headers
+  remain editable, not standalone programs. With no restored tabs or launch
+  path, open available `hello.go`, `hello.py` and `hello.c` samples as tabs.
+  Verify `TestDesktopCodeStudioC` and the CodeContainer sample/runtime tests.
 - System World loads `sysworld-data.js`, `sysworld-hud.js`, `sysworld-controls.js`,
   then `sysworld.js`.
   The first two expose `window.SysWorld.data/createHud`; the entry owns per-window
@@ -2253,6 +2334,8 @@ registration lives in `internal/desktop/types.go`.
   receives provider credentials. Capability gating (music disabled, no LLM,
   no cover AI, lyrics unsupported) is driven by `/api/desktop/noisemaker/state`;
   a disabled integration renders the onboarding card instead of the workbench.
+  A failed state request renders a retryable connection error, never setup;
+  background refresh failures preserve the current capabilities and workbench.
   Tracks are server-paginated (`limit`/`offset`/`q`/`favorites=1`, newest
   first); favorites are the `favorite` media tag toggled via PATCH. HTTP 200
   `{status:error}` track pages throw and leave the current list in place; toasts
@@ -2292,11 +2375,22 @@ registration lives in `internal/desktop/types.go`.
   `data-nm-create-mode`; the segment buttons carry
   `data-nm-mode="simple|custom"`. Emits `generate, change, mode, play-result,
   show-in-library, new-song`.
+  Read-only mode blocks generation and enhancement at both UI and action entry
+  points. Validate retained local controls in both modes; show the cover toggle
+  in both modes and required lyrics when the local model has no language model.
+  Enhancement results may only replace the unchanged field of the latest
+  request. `TestDesktopNoisemakerAuditBrowser` covers these flows and compact
+  list geometry in Standard and Fruity themes.
 - `editor-filemenu.js` implements `renderFiles`, file management helpers and the inline text
   editor with window menus (file, edit, agent, help). Fallback file-list
   empty-state load failures use `desktop.load_failed`. Bundled in the
   main shell bundle (`desktopMainParts` in `build-ui-bundles.js`) because
   it is referenced directly by the desktop foundation runtime.
+  Failed text-file loads retain Retry/New/Open and block editing/saving the
+  unloaded document. A 404 starts an empty buffer only for explicit creation;
+  restored/opened files keep load intent through both shell entry points.
+  Clear their persisted path only on confirmed 404s, retaining temporary failures
+  for Retry. Verify `TestDesktopFileLoadRecoveryBrowser`.
 - `planning-gallery-music.js` - Planner/todo, gallery and Webamp music.
   Bundled in the main shell. Todo and Gallery empty-state load failures
   use `desktop.load_failed`. Webamp unsupported-browser errors use
@@ -2314,7 +2408,13 @@ registration lives in `internal/desktop/types.go`.
   and external-open notifications use `desktop.load_failed`. Bundled
   in the main shell. No child DOX file needed.
 - `store-terminal-preview.js` - CommandCode console-plus-preview
-  host. Frame empty-state and start-toast failures reuse
+  host. CommandCode stays visible above an initially hidden shell drawer.
+  Terminal toggles reuse its live sessions; Plus adds a shell in the same
+  container working directory (`/workspace`). Only tab close, explicit restart
+  and window disposal close shell sockets. Clipboard, focus and status remain
+  session-scoped; hiding restores CommandCode focus. Keep all 16 locale labels,
+  narrow-window layout and `TestDesktopStoreTerminalDrawerBrowser` aligned.
+  Frame empty-state and start-toast failures reuse
   `desktop.load_failed`. Stylesheet and script loads wrap
   AuraLazyAssets and fallback `onerror` with
   `desktop.store_terminal_load_failed` so the asset URL does not
@@ -2505,19 +2605,33 @@ registration lives in `internal/desktop/types.go`.
 - `terminal.js` - Standalone workspace terminal: one xterm.js session to
   `/api/code-studio/terminal`. Style catalog in `terminal-styles.js`
   (`window.TerminalStyles`: `ids`, `normalize`, `load`, `save`, `profile`,
-  `applyXterm`). IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
+  `applyXterm`, `effectControls`, `loadEffects`, `saveEffects`, `resetEffects`).
+  IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
   `ibm3278`, `vintage`, `mono-green`, `transparent-green`. Persist
   `aurago.desktop.terminal.style` and audio mute
   `aurago.desktop.terminal.audioMuted`. Retro styles use vendored
-  `xterm-addon-canvas`, original WebGL CRT in `terminal-crt.js`
+  xterm 6 with its WebGL addon, original WebGL CRT in `terminal-crt.js`
   (`window.TerminalCrt.create` → `setProfile`/`setEnabled`/`resize`/`dispose`/`usesFallback`;
-  captures only `xterm-*-layer` canvases at their CSS offsets and scale;
+  captures every `.xterm-screen` canvas at its CSS offset and scale;
   output is capped at DPR 1.25 and 30 fps, never stretches text to fill the tube),
   CSS bezels, and Web Audio key-clicks in `terminal-audio.js`
   (`window.TerminalAudio.create` → `setProfile`/`setMuted`/`playKey`/`dispose`).
-  Load order: xterm.css, desktop-app-terminal.css, xterm, fit, canvas,
+  Load order: xterm.css, desktop-app-terminal.css, xterm, fit, WebGL addon,
   styles, crt, audio, terminal.js. Scope is this app only. Reduced motion
   and `dataset.animations === 'false'` disable flicker, burn-in, animated grain, and audio.
+  The native Effects dialog applies bounded sliders to the existing renderer,
+  without recreating xterm or its socket. Preferences live per style in
+  `aurago.desktop.terminal.effects.v1`; malformed/blocked storage falls back
+  to presets, and reset affects only the selected style. Overall intensity zero
+  restores unwarped source output and removes reflection. Brightness, bloom,
+  scanlines, curvature, afterglow, phosphor mask, vignette, glass reflection,
+  noise, flicker, jitter, rolling interference and color fringing are independent.
+  Reduced motion also pauses jitter/interference; static adjustments remain.
+  Glass reflection is a pointer-transparent CSS layer, available in fallback.
+  CSS fallback supports intensity/brightness/bloom/scanlines/vignette/reflection;
+  the dialog disables unsupported effects and explains the limitation. Dispose
+  closes the dialog and releases its media-query/mutation observers. Zero burn
+  removes temporal persistence even when instantaneous bloom remains enabled.
   Retro appearance follows cool-retro-term's luminous phosphor, scanlines,
   subtly curved glass and recessed bezel using original rendering code. Keep
   profile curvature gentle so text rows remain nearly straight. Share Tech
@@ -2525,8 +2639,12 @@ registration lives in `internal/desktop/types.go`.
   Additive bloom and decaying persistence share a half-resolution blurred
   source buffer; never feed warped output back into the source. The native
   xterm layer stays interactive and is visually hidden only after a WebGL frame.
-  Keep canvas addon 0.5.0 paired with xterm 5.3.0; provenance and license are
-  beside `js/vendor/xterm-addon-canvas.min.js`. Browser verification is
+  Housing materials, seams, vents and localized wear live in the app CSS;
+  older Apple II/Vintage cases show more wear. Decorative hardware is hidden
+  from accessibility and pointer input. Its LED follows the existing localized
+  socket status via `data-terminal-state`; Modern stays frameless. Keep compact
+  cases inside the app without changing xterm's measured screen padding.
+  Browser verification is
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopTerminalRetroBrowser -count=1`.
   WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Style
   changes wait for `document.fonts.load` before changing xterm options or

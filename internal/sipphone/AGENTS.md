@@ -16,6 +16,7 @@ Native telephone registration, calls, media, and agent policy.
 - Own the `DialogMedia` returned by Diago Answer/Invite for each active call. Start media only after negotiation; keep the Pion dependency family compatible with this Diago release.
 - Registration and explicit connection tests remain available in read-only mode. Answering, dialing, DTMF, and agent hangup require both `readonly: false` and their granular permissions. Empty caller or destination allowlists deny all.
 - Trust incoming calls only when both the network peer matches a configured CIDR and the normalized caller matches the allowlist. Outgoing calls require canonical `sip:` URIs, an exact allowed domain, and an exact user or allowed E.164 prefix.
+- The guided all-numbers choice records explicit E.164 prefixes +1 through +9 within the exact provider domain; it never turns an empty destination list into a grant. Fritz internal numbers such as **610 are exact user literals, never wildcard grants.
 - SIP config/setup persistence must reserve reconfiguration before any Vault or YAML mutation and return HTTP 409 while a call is active or being prepared. Legacy wildcard outbound allow entries remain loadable but authorize nothing, surface `outbound_policy_migration_required`, and must be replaced on the next save.
 - Keep the SIP password only under Vault key `sip_endpoint_password`; block every `sip_` secret from Python, skills, and agent export. Never log or store full SIP headers, RTP/audio, authentication data, or raw transcripts.
 - Both classic ASR/agent/TTS and server-side Gemini Live use `internal/voice` PCM contracts and the shared `VoiceActionRunner`. SIP turns always carry an explicit `AllowedTools` list whose empty form allows no native tools, including through `invoke_tool`.
@@ -25,6 +26,10 @@ Native telephone registration, calls, media, and agent policy.
 - Accept an inbound answer/reject decision only once while the call is still ringing; a late agent result cannot change its media mode. Purging a transient SIP session also removes remaining transcript references from persistent history.
 - Terminate established local/outbound call failures with one BYE and close every dialog exactly once; cancellation while an outbound INVITE is pending must flow through its context-driven CANCEL. Keep provider audio and VAD buffers bounded, normalize external sample rates before the fixed 8/16/24 kHz media bus, and never write SIP ASR audio to disk.
 - The PCM `MediaPeer`, incoming-call handler, history schema, REST actions, and SSE events are compatibility anchors for the future authenticated WebRTC desktop phone and bounded Media-Registry answering machine; neither future feature may expose SIP credentials or raw RTP to the browser.
+
+- VoiceSession.Close cancels and joins all active provider/turn producers. Keep the active-call reservation until that join completes; only then release it and invoke transcript cleanup. Do not wait while holding the manager mutex.
+- Outbound daily admission reserves preparation, queries history outside the manager mutex, then rechecks the configuration generation, endpoint and contexts before INVITE. An admitted attempt cancelled by a configuration change is recorded as ended.
+- Gemini output uses a bounded thirty-second PCM queue and 160-sample frames at twenty-millisecond cadence. Interruptions flush both provider backlog and the media bridge; overflow is a visible failure, never silent truncation. Cancel pending WebSocket setup and reject late connection installation after closure.
 
 ## Verification
 

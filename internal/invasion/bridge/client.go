@@ -39,6 +39,9 @@ type EggClient struct {
 	logger      *slog.Logger
 	done        chan struct{}
 	activeTasks int
+	session     *Session
+	keyVersion  int
+	stopOnce    sync.Once
 
 	// Callbacks (set by the egg runtime)
 	OnTask          func(task TaskPayload)           // called when master sends a task
@@ -132,59 +135,65 @@ func (c *EggClient) Start() {
 
 		// Start heartbeat sender
 		heartbeatDone := make(chan struct{})
-		go c.heartbeatLoop(heartbeatDone)
+		heartbeatExited := make(chan struct{})
+		go func() { defer close(heartbeatExited); c.heartbeatLoop(heartbeatDone) }()
 
 		// Read loop (blocks until disconnect)
 		c.readLoop()
 
 		close(heartbeatDone)
+		<-heartbeatExited
 		c.logger.Warn("Disconnected from master, will reconnect...")
 	}
 }
 
 // Stop gracefully closes the connection.
 func (c *EggClient) Stop() {
+	c.stopOnce.Do(func() { close(c.done) })
+	c.mu.Lock()
+	conn := c.conn
+	c.conn = nil
+	c.mu.Unlock()
+	if conn != nil {
+		_ = conn.Close()
+	}
+}
+
+// SharedKeySnapshot returns the current key under the same lock as rotation.
+func (c *EggClient) SharedKeySnapshot() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.SharedKey
+}
+
+func (c *EggClient) send(kind string, payload interface{}) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.conn == nil {
+		return fmt.Errorf("not connected")
+	}
 	select {
 	case <-c.done:
-		return // already stopped
+		return fmt.Errorf("client stopped")
 	default:
-		close(c.done)
 	}
-	c.mu.Lock()
-	if c.conn != nil {
-		_ = c.conn.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, "egg shutting down"))
-		_ = c.conn.Close()
+	msg, err := NewMessage(kind, c.EggID, c.NestID, c.SharedKey, payload)
+	if err != nil {
+		return err
 	}
-	c.mu.Unlock()
+	if err := c.session.Prepare(msg, c.SharedKey); err != nil {
+		return err
+	}
+	_ = c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	return c.conn.WriteJSON(msg)
 }
 
 // SendResult sends a task result back to the master.
-func (c *EggClient) SendResult(result ResultPayload) error {
-	msg, err := NewMessage(MsgResult, c.EggID, c.NestID, c.SharedKey, result)
-	if err != nil {
-		return err
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.conn == nil {
-		return fmt.Errorf("not connected")
-	}
-	return c.conn.WriteJSON(msg)
-}
+func (c *EggClient) SendResult(result ResultPayload) error { return c.send(MsgResult, result) }
 
 // SendMissionResult sends a synced mission completion result back to the master.
 func (c *EggClient) SendMissionResult(result MissionResultPayload) error {
-	msg, err := NewMessage(MsgMissionResult, c.EggID, c.NestID, c.SharedKey, result)
-	if err != nil {
-		return err
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.conn == nil {
-		return fmt.Errorf("not connected")
-	}
-	return c.conn.WriteJSON(msg)
+	return c.send(MsgMissionResult, result)
 }
 
 // UploadArtifact reserves a host-side artifact slot and streams the file to it.
@@ -302,7 +311,7 @@ func (c *EggClient) newSignedHTTPRequest(ctx context.Context, method, url string
 }
 
 func (c *EggClient) requestHMAC(method, path, timestamp string, body []byte) (string, error) {
-	key, err := hex.DecodeString(c.SharedKey)
+	key, err := hex.DecodeString(c.SharedKeySnapshot())
 	if err != nil {
 		return "", fmt.Errorf("decode shared key: %w", err)
 	}
@@ -352,80 +361,103 @@ func (c *EggClient) httpClient() *http.Client {
 }
 
 func (c *EggClient) connect() error {
-	dialer := websocket.Dialer{
-		HandshakeTimeout: 10 * time.Second,
-	}
+	dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second}
 	if c.TLSSkipVerify {
-		dialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // user-opted self-signed cert
-	}
-
-	conn, _, err := dialer.Dial(c.MasterURL, nil)
+		dialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	} //nolint:gosec // explicit operator setting
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	go func() {
+		select {
+		case <-c.done:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	conn, _, err := dialer.DialContext(ctx, c.MasterURL, nil)
 	if err != nil {
-		return fmt.Errorf("websocket dial failed: %w", err)
+		return fmt.Errorf("websocket dial: %w", err)
 	}
+	stopClose := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	installed := false
+	defer func() {
+		stopClose()
+		if !installed {
+			_ = conn.Close()
+		}
+	}()
 	conn.SetReadLimit(MaxEggWebSocketMessageBytes)
-
-	// Send auth message
-	authMsg, err := NewMessage(MsgAuth, c.EggID, c.NestID, c.SharedKey, AuthPayload{
-		Version: c.Version,
-	})
+	_ = conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	var challenge Message
+	if err := conn.ReadJSON(&challenge); err != nil {
+		return fmt.Errorf("%s: missing challenge: %w", UpgradeRequired, err)
+	}
+	if challenge.Type != MsgError || challenge.Protocol != ProtocolVersion {
+		return fmt.Errorf("%s", UpgradeRequired)
+	}
+	session, err := NewSession(challenge.Session, c.EggID, c.NestID, "egg")
 	if err != nil {
-		conn.Close()
-		return fmt.Errorf("failed to create auth message: %w", err)
+		return err
 	}
-
-	if err := conn.WriteJSON(authMsg); err != nil {
-		conn.Close()
-		return fmt.Errorf("failed to send auth: %w", err)
-	}
-
-	// Wait for ack
-	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
-	_, data, err := conn.ReadMessage()
+	key := c.SharedKeySnapshot()
+	auth, err := NewMessage(MsgAuth, c.EggID, c.NestID, key, AuthPayload{Version: c.Version})
 	if err != nil {
-		conn.Close()
-		return fmt.Errorf("auth response timeout: %w", err)
+		return err
 	}
-	conn.SetReadDeadline(time.Time{}) // clear deadline
-
+	if err := session.Prepare(auth, key); err != nil {
+		return err
+	}
+	if err := conn.WriteJSON(auth); err != nil {
+		return err
+	}
 	var ackMsg Message
-	if err := json.Unmarshal(data, &ackMsg); err != nil {
-		conn.Close()
-		return fmt.Errorf("invalid auth response: %w", err)
+	if err := conn.ReadJSON(&ackMsg); err != nil {
+		return fmt.Errorf("auth response: %w", err)
 	}
-
-	if ackMsg.Type == MsgError {
-		conn.Close()
-		var errPayload ErrorPayload
-		_ = json.Unmarshal(ackMsg.Payload, &errPayload)
-		return fmt.Errorf("auth rejected: %s", errPayload.Message)
+	if err := session.Accept(ackMsg, key, ""); err != nil {
+		return err
 	}
-
-	if ackMsg.Type != MsgAck {
-		conn.Close()
-		return fmt.Errorf("unexpected auth response type: %s", ackMsg.Type)
+	var ack AckPayload
+	if ackMsg.Type != MsgAck || json.Unmarshal(ackMsg.Payload, &ack) != nil || !ack.Success || ack.RefID != auth.ID {
+		return fmt.Errorf("authentication rejected")
 	}
-
+	if !stopClose() || ctx.Err() != nil {
+		return fmt.Errorf("connection cancelled")
+	}
+	_ = conn.SetReadDeadline(time.Time{})
 	c.mu.Lock()
-	c.conn = conn
-	c.mu.Unlock()
-
+	defer c.mu.Unlock()
+	select {
+	case <-c.done:
+		return fmt.Errorf("client stopped")
+	default:
+	}
+	c.conn, c.session, c.keyVersion = conn, session, 0
+	installed = true
 	return nil
 }
 
 func (c *EggClient) readLoop() {
+	c.mu.Lock()
+	conn := c.conn
+	c.mu.Unlock()
+	if conn == nil {
+		return
+	}
+	defer func() {
+		_ = conn.Close()
+		c.mu.Lock()
+		if c.conn == conn {
+			c.conn = nil
+		}
+		c.mu.Unlock()
+	}()
 	for {
 		select {
 		case <-c.done:
 			return
 		default:
-		}
-
-		c.mu.Lock()
-		conn := c.conn
-		c.mu.Unlock()
-		if conn == nil {
-			return
 		}
 
 		_, data, err := conn.ReadMessage()
@@ -442,11 +474,12 @@ func (c *EggClient) readLoop() {
 			continue
 		}
 
-		// Verify HMAC
-		ok, err := VerifyMessage(msg, c.SharedKey)
-		if err != nil || !ok {
-			c.logger.Warn("HMAC verification failed for master message")
-			continue
+		c.mu.Lock()
+		err = c.session.Accept(msg, c.SharedKey, "")
+		c.mu.Unlock()
+		if err != nil {
+			c.logger.Warn("Rejected master message", "error", err)
+			return
 		}
 
 		switch msg.Type {
@@ -510,14 +543,20 @@ func (c *EggClient) readLoop() {
 				c.sendAck(msg.ID, false, "invalid payload")
 				continue
 			}
-			newKey, err := DecryptWithSharedKey(rekey.NewKeyEncrypted, c.SharedKey)
+			newKey, err := DecryptWithSharedKey(rekey.NewKeyEncrypted, c.SharedKeySnapshot())
 			if err != nil {
 				c.logger.Warn("Failed to decrypt new key", "error", err)
 				c.sendAck(msg.ID, false, "decryption failed")
 				continue
 			}
 			c.mu.Lock()
+			decoded, decodeErr := hex.DecodeString(string(newKey))
+			if decodeErr != nil || len(decoded) != 32 || rekey.KeyVersion != c.keyVersion+1 {
+				c.mu.Unlock()
+				return
+			}
 			c.SharedKey = string(newKey)
+			c.keyVersion = rekey.KeyVersion
 			c.mu.Unlock()
 			c.logger.Info("Shared key rotated", "version", rekey.KeyVersion)
 			c.sendAck(msg.ID, true, fmt.Sprintf("key rotated to v%d", rekey.KeyVersion))
@@ -607,34 +646,13 @@ func (c *EggClient) heartbeatLoop(done chan struct{}) {
 				Uptime:      upS,
 				ActiveTasks: taskCount,
 			}
-			msg, err := NewMessage(MsgHeartbeat, c.EggID, c.NestID, c.SharedKey, hb)
-			if err != nil {
-				continue
-			}
-			c.mu.Lock()
-			if c.conn != nil {
-				_ = c.conn.WriteJSON(msg)
-			}
-			c.mu.Unlock()
+			_ = c.send(MsgHeartbeat, hb)
 		}
 	}
 }
 
 func (c *EggClient) sendAck(refID string, success bool, detail string) {
-	ack, err := NewMessage(MsgAck, c.EggID, c.NestID, c.SharedKey, AckPayload{
-		RefID:   refID,
-		Success: success,
-		Detail:  detail,
-	})
-	if err != nil {
-		c.logger.Warn("Failed to create ack message", "ref_id", refID, "error", err)
-		return
+	if err := c.send(MsgAck, AckPayload{RefID: refID, Success: success, Detail: detail}); err != nil {
+		c.logger.Warn("Failed to send ack", "ref_id", refID, "error", err)
 	}
-	c.mu.Lock()
-	if c.conn != nil {
-		if err := c.conn.WriteJSON(ack); err != nil {
-			c.logger.Warn("Failed to send ack", "ref_id", refID, "error", err)
-		}
-	}
-	c.mu.Unlock()
 }

@@ -148,8 +148,8 @@ func gitHubTrackProject(workspaceDir, name, purpose, repoURL, cloneURL, owner st
 	return string(out)
 }
 
-// GitHubTrustedProjectRepos returns canonical owner/repo names for agent-created projects.
-func GitHubTrustedProjectRepos(workspaceDir string) []string {
+// GitHubLegacyProjectRepos exposes untrusted inventory markers for migration UI only.
+func GitHubLegacyProjectRepos(workspaceDir string) []string {
 	projectsMu.Lock()
 	defer projectsMu.Unlock()
 
@@ -171,8 +171,8 @@ func GitHubTrustedProjectRepos(workspaceDir string) []string {
 }
 
 // GitHubTrustedProjectMap returns trusted agent-created repos keyed by canonical owner/repo.
-func GitHubTrustedProjectMap(workspaceDir string) map[string]bool {
-	repos := GitHubTrustedProjectRepos(workspaceDir)
+func GitHubTrustedProjectMap(dataDir string, baseURL ...string) map[string]bool {
+	repos := GitHubTrustedProjectRepos(dataDir, baseURL...)
 	out := make(map[string]bool, len(repos))
 	for _, repo := range repos {
 		out[repo] = true

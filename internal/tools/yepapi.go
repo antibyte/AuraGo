@@ -17,7 +17,7 @@ import (
 
 const yepAPIBaseURL = "https://api.yepapi.com"
 
-var yepAPIHTTPClient = &http.Client{Timeout: 60 * time.Second}
+var yepAPIHTTPClient = &http.Client{Timeout: 60 * time.Second, CheckRedirect: security.SameOriginRedirect}
 
 // yepAPIClientCache holds reusable YepAPI clients per (apiKey|baseURL) tuple.
 var yepAPIClientCache sync.Map
@@ -37,6 +37,7 @@ func NewYepAPIClient(apiKey string) *YepAPIClient {
 // NewYepAPIClientWithBaseURL creates a new YepAPI client with the given API key
 // and an optional custom base URL. If baseURL is empty, the default YepAPI URL is used.
 func NewYepAPIClientWithBaseURL(apiKey, baseURL string) *YepAPIClient {
+	security.RegisterSensitive(apiKey)
 	if baseURL == "" {
 		baseURL = yepAPIBaseURL
 	}
@@ -72,36 +73,10 @@ type YepAPIResponse struct {
 	} `json:"error"`
 }
 
-// Post sends a POST request to a YepAPI endpoint and returns the data payload.
-// It retries transient failures (network errors, 5xx, 429) up to 3 times with
-// exponential backoff (500ms, 1s, 2s).
+// Post sends one potentially billable request. An uncertain result must not
+// silently cause a second charge or duplicate job.
 func (c *YepAPIClient) Post(ctx context.Context, endpoint string, payload interface{}) ([]byte, error) {
-	var lastErr error
-	backoff := 500 * time.Millisecond
-
-	for attempt := 0; attempt < 3; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
-				return nil, fmt.Errorf("yepapi: context cancelled during retry: %w", ctx.Err())
-			case <-time.After(backoff):
-				backoff *= 2
-			}
-		}
-
-		data, err := c.postOnce(ctx, endpoint, payload)
-		if err == nil {
-			return data, nil
-		}
-		lastErr = err
-
-		// Do not retry on client errors (4xx except 429) or unmarshalling errors.
-		if isNonRetryableError(err) {
-			return nil, err
-		}
-	}
-
-	return nil, fmt.Errorf("yepapi: request failed after 3 attempts: %w", lastErr)
+	return c.postOnce(ctx, endpoint, payload)
 }
 
 func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload interface{}) ([]byte, error) {
@@ -163,23 +138,6 @@ func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload in
 	}
 
 	return env.Data, nil
-}
-
-// isNonRetryableError returns true for errors that should not be retried.
-func isNonRetryableError(err error) bool {
-	if err == nil {
-		return false
-	}
-	s := err.Error()
-	// 4xx client errors (except 429 Too Many Requests) are non-retryable.
-	if strings.Contains(s, "HTTP 4") && !strings.Contains(s, "HTTP 429") {
-		return true
-	}
-	// JSON unmarshalling errors indicate a bad response format, not a transient issue.
-	if strings.Contains(s, "invalid JSON response") {
-		return true
-	}
-	return false
 }
 
 // ResolveYepAPIKey resolves the YepAPI API key from the config/vault.

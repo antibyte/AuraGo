@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"aurago/internal/config"
@@ -17,6 +18,7 @@ import (
 
 type ldapConn interface {
 	Bind(username, password string) error
+	StartTLS(*tls.Config) error
 	Search(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error)
 	Add(addRequest *ldap.AddRequest) error
 	Modify(modifyRequest *ldap.ModifyRequest) error
@@ -25,9 +27,9 @@ type ldapConn interface {
 	SetTimeout(timeout time.Duration)
 }
 
-type dialLDAPURLFunc func(addr string, opts ...ldap.DialOpt) (*ldap.Conn, error)
+type dialLDAPURLFunc func(addr string, dialer *net.Dialer, tlsConfig *tls.Config) (ldapConn, error)
 
-var dialLDAPURL dialLDAPURLFunc = ldap.DialURL
+var dialLDAPURL dialLDAPURLFunc = dialBoundedLDAP
 
 type Client struct {
 	cfg    LDAPConfig
@@ -59,31 +61,44 @@ func (c *Client) Connect() error {
 	}
 
 	address := net.JoinHostPort(c.cfg.Host, strconv.Itoa(c.cfg.Port))
+	mode := strings.ToLower(strings.TrimSpace(c.cfg.TLSMode))
+	if mode == "" {
+		if c.cfg.UseTLS {
+			mode = "ldaps"
+		} else {
+			mode = "plain"
+		}
+	}
+	if mode != "ldaps" && mode != "starttls" && mode != "plain" {
+		return fmt.Errorf("unknown LDAP TLS mode")
+	}
 	scheme := "ldap"
-	if c.cfg.UseTLS {
+	if mode == "ldaps" {
 		scheme = "ldaps"
 	}
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: c.cfg.Host, InsecureSkipVerify: c.cfg.InsecureSkipVerify}
 
-	dialer := &net.Dialer{}
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
 	if c.cfg.ConnectTimeout > 0 {
 		dialer.Timeout = time.Duration(c.cfg.ConnectTimeout) * time.Second
 	}
 
-	opts := []ldap.DialOpt{ldap.DialWithDialer(dialer)}
-	if c.cfg.UseTLS {
-		opts = append(opts, ldap.DialWithTLSConfig(&tls.Config{
-			InsecureSkipVerify: c.cfg.InsecureSkipVerify,
-		}))
-	}
-
-	conn, err := dialLDAPURL((&url.URL{Scheme: scheme, Host: address}).String(), opts...)
+	conn, err := dialLDAPURL((&url.URL{Scheme: scheme, Host: address}).String(), dialer, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("failed to connect to %s: %w", address, err)
 	}
-	if c.cfg.RequestTimeout > 0 {
-		conn.SetTimeout(time.Duration(c.cfg.RequestTimeout) * time.Second)
+	timeout := c.cfg.RequestTimeout
+	if timeout <= 0 {
+		timeout = 30
 	}
+	conn.SetTimeout(time.Duration(timeout) * time.Second)
 
+	if mode == "starttls" {
+		if err := conn.StartTLS(tlsConfig); err != nil {
+			_ = conn.Close()
+			return fmt.Errorf("LDAP StartTLS failed before bind: %w", err)
+		}
+	}
 	c.conn = conn
 	return nil
 }
@@ -136,9 +151,9 @@ func (c *Client) Search(baseDN, filter string, attributes []string) (*SearchResu
 		nil,
 	)
 
-	result, err := c.conn.Search(searchRequest)
+	result, err := searchLDAPPages(c.conn, searchRequest, c.cfg.RequestTimeout)
 	if err != nil {
-		return nil, fmt.Errorf("search failed: %w", err)
+		return nil, err
 	}
 
 	entries := make([]SearchEntry, 0, len(result.Entries))

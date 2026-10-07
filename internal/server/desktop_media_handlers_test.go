@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/desktop"
 )
 
 func TestDesktopMediaMountFilesAPI(t *testing.T) {
@@ -124,6 +125,7 @@ func TestDesktopMediaMountFilePatchAndDeleteAPI(t *testing.T) {
 
 	patchBody := []byte(`{"old_path":"Photos/old.png","new_path":"Photos/new.png"}`)
 	req := httptest.NewRequest(http.MethodPatch, "/api/desktop/file", bytes.NewReader(patchBody))
+	req.Header.Set("If-None-Match", "*")
 	rr := httptest.NewRecorder()
 	handleDesktopFile(srv)(rr, req)
 	if rr.Code != http.StatusOK {
@@ -144,6 +146,7 @@ func TestDesktopMediaMountFilePatchAndDeleteAPI(t *testing.T) {
 	}
 
 	req = httptest.NewRequest(http.MethodPatch, "/api/desktop/file", strings.NewReader(`{"old_path":"Music/a.mp3","new_path":"Photos/a.mp3"}`))
+	req.Header.Set("If-None-Match", "*")
 	rr = httptest.NewRecorder()
 	handleDesktopFile(srv)(rr, req)
 	if rr.Code != http.StatusBadRequest {
@@ -224,6 +227,7 @@ func TestDesktopUploadAndDownloadPreserveBinaryOfficeBytes(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/desktop/upload", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("If-None-Match", "*")
 	rr := httptest.NewRecorder()
 	handleDesktopUpload(srv)(rr, req)
 	if rr.Code != http.StatusOK {
@@ -283,7 +287,7 @@ func TestHandleDesktopUploadUniqueAvoidsOverwrite(t *testing.T) {
 	}
 }
 
-func TestHandleDesktopUploadKeepsOverwriteDefault(t *testing.T) {
+func TestHandleDesktopUploadReplacesObservedVersion(t *testing.T) {
 	t.Parallel()
 
 	srv, _ := testDesktopMediaServer(t)
@@ -294,7 +298,7 @@ func TestHandleDesktopUploadKeepsOverwriteDefault(t *testing.T) {
 	}
 
 	uploadDesktopFile(t, srv, "Desktop", "report.txt", "first", false)
-	secondResp := uploadDesktopFile(t, srv, "Desktop", "report.txt", "second", false)
+	secondResp := uploadDesktopFile(t, srv, "Desktop", "report.txt", "second", false, desktop.NoteVersion([]byte("first")))
 	if secondResp.Path != "Desktop/report.txt" {
 		t.Fatalf("second path = %q, want Desktop/report.txt", secondResp.Path)
 	}
@@ -313,7 +317,7 @@ type desktopUploadJSON struct {
 	Path   string `json:"path"`
 }
 
-func uploadDesktopFile(t *testing.T, srv *Server, destPath, filename, content string, unique bool) desktopUploadJSON {
+func uploadDesktopFile(t *testing.T, srv *Server, destPath, filename, content string, unique bool, versions ...string) desktopUploadJSON {
 	t.Helper()
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -338,6 +342,11 @@ func uploadDesktopFile(t *testing.T, srv *Server, destPath, filename, content st
 
 	req := httptest.NewRequest(http.MethodPost, "/api/desktop/upload", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if len(versions) > 0 {
+		req.Header.Set("If-Match", versions[0])
+	} else {
+		req.Header.Set("If-None-Match", "*")
+	}
 	rr := httptest.NewRecorder()
 	handleDesktopUpload(srv)(rr, req)
 	if rr.Code != http.StatusOK {

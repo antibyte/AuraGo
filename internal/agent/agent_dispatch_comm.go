@@ -915,7 +915,8 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				CoAgentRegistry:    coAgentRegistry,
 				BudgetTracker:      budgetTracker,
 				LLMGuardian:        llmGuardian,
-				SessionID:          vscodeDebugBridgeSessionID,
+				SessionID:          dc.SessionID,
+				AllowedTools:       bridgeAllowedTools(dc),
 				MessageSource:      "mcp-vscode-bridge",
 			}, message)
 			if err != nil {

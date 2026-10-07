@@ -506,7 +506,7 @@
             const select = $(`looper-provider-${windowId}`);
             select.innerHTML = '<option value="">' + esc(t('desktop.looper_default_provider')) + '</option>';
             try {
-                const res = await api('/api/providers');
+                const res = await api('/api/desktop/integrations/providers');
                 const providers = Array.isArray(res) ? res : ((res && res.providers) || []);
                 state.providers = providers;
                 providers.forEach(p => {
@@ -651,9 +651,9 @@
             else state.activeConfigLoaded = false;
 
             $(`looper-start-${windowId}`).disabled = isReadonly || active;
-            $(`looper-pause-${windowId}`).disabled = isReadonly || !running || pausePending;
+            $(`looper-pause-${windowId}`).disabled = !running || pausePending;
             container.querySelector('.vd-looper-pause-label').textContent = pausePending ? t('desktop.looper_pause_pending') : t('desktop.looper_pause');
-            $(`looper-stop-${windowId}`).disabled = isReadonly || !active;
+            $(`looper-stop-${windowId}`).disabled = !active;
             container.querySelector('.vd-looper-stop-label').textContent = paused && !running ? t('desktop.looper_discard_run') : t('desktop.looper_stop');
             const resume = $(`looper-resume-${windowId}`);
             resume.hidden = !(paused && !running);

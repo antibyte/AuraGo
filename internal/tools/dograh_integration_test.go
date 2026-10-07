@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -67,7 +66,7 @@ func TestEnsureDograhStackRunningUsesCurrentImagesForLegacyRuntimeConfig(t *test
 
 	pulledImages := map[string]bool{}
 	createdImages := map[string]string{}
-	dockerAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	dockerAPI := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		switch {
 		case r.Method == http.MethodGet && path == "/"+dockerAPIVersion+"/networks/aurago_dograh":
@@ -125,7 +124,7 @@ func TestEnsureDograhStackRunningUsesCurrentImagesForLegacyRuntimeConfig(t *test
 
 func TestStopDograhStackRemovesUIProxyBeforeUI(t *testing.T) {
 	var calls []string
-	dockerAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	dockerAPI := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls = append(calls, r.Method+" "+r.URL.String())
 		w.WriteHeader(http.StatusNoContent)
 	}))

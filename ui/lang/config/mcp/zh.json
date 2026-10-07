@@ -3,7 +3,7 @@
   "config.mcp.locked_desc": "首先在危险区域中启用 'MCP 服务器连接'，然后再配置 MCP 服务器。",
   "config.mcp.enabled_label": "MCP 已启用：",
   "config.mcp.disabled_notice": "MCP 已禁用",
-  "config.mcp.disabled_desc": "启用上面的切换以连接 MCP 服务器。",
+  "config.mcp.disabled_desc": "启用上面的开关以连接 MCP 服务器。",
   "config.mcp.new_server": "新 MCP 服务器",
   "config.mcp.empty": "未配置 MCP 服务器。",
   "config.mcp.active_badge": "活跃",

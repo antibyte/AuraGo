@@ -1,6 +1,7 @@
 package virtualcomputers
 
 import (
+	"aurago/internal/fileutil"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -115,43 +116,57 @@ func newTaskManager(ledger *Ledger, logger *slog.Logger, opts TaskManagerOptions
 }
 
 func (m *TaskManager) Submit(client *Client, machineID, kind, instruction string) (AgentTask, error) {
+	task, _, err := m.SubmitContext(context.Background(), client, machineID, kind, instruction)
+	return task, err
+}
+
+// SubmitContext keeps asynchronous work bound to its caller-owned lifetime.
+func (m *TaskManager) SubmitContext(parent context.Context, client *Client, machineID, kind, instruction string) (AgentTask, <-chan struct{}, error) {
 	if m == nil || m.ledger == nil {
-		return AgentTask{}, fmt.Errorf("virtual computer task manager is unavailable")
+		return AgentTask{}, nil, fmt.Errorf("virtual computer task manager is unavailable")
 	}
 	if client == nil {
-		return AgentTask{}, fmt.Errorf("boringd client is required")
+		return AgentTask{}, nil, fmt.Errorf("boringd client is required")
+	}
+	if err := parent.Err(); err != nil {
+		return AgentTask{}, nil, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if err := m.ctx.Err(); err != nil {
+		return AgentTask{}, nil, err
 	}
 	machineID = strings.TrimSpace(machineID)
 	instruction = strings.TrimSpace(instruction)
 	if machineID == "" {
-		return AgentTask{}, fmt.Errorf("machine_id is required")
+		return AgentTask{}, nil, fmt.Errorf("machine_id is required")
 	}
 	if instruction == "" {
-		return AgentTask{}, fmt.Errorf("instruction is required")
+		return AgentTask{}, nil, fmt.Errorf("instruction is required")
 	}
 	if len(instruction) > 400 {
-		return AgentTask{}, fmt.Errorf("instruction must not exceed 400 bytes")
+		return AgentTask{}, nil, fmt.Errorf("instruction must not exceed 400 bytes")
 	}
 	if kind != AgentTaskKindShell && kind != AgentTaskKindDesktop {
-		return AgentTask{}, fmt.Errorf("unsupported agent task kind %q", kind)
+		return AgentTask{}, nil, fmt.Errorf("unsupported agent task kind %q", kind)
 	}
 	id, err := newAgentTaskID()
 	if err != nil {
-		return AgentTask{}, err
+		return AgentTask{}, nil, err
 	}
 	now := time.Now().UTC()
 	task := AgentTask{ID: id, MachineID: machineID, Kind: kind, Instruction: instruction,
 		Status: AgentTaskStatusQueued, CreatedAt: now, UpdatedAt: now}
-	if err := m.ledger.InsertAgentTask(context.Background(), task); err != nil {
-		return AgentTask{}, err
+	if err := fileutil.PublishContext(parent, func() error { return m.ledger.InsertAgentTask(parent, task) }); err != nil {
+		return AgentTask{}, nil, err
 	}
-	taskCtx, cancel := context.WithTimeout(m.ctx, m.timeout)
-	m.mu.Lock()
+	taskCtx, cancel := context.WithTimeout(parent, m.timeout)
+	stopShutdown := context.AfterFunc(m.ctx, cancel)
 	m.active[id] = &activeAgentTask{cancel: cancel}
-	m.mu.Unlock()
 	m.wg.Add(1)
-	go m.run(taskCtx, client, task)
-	return task, nil
+	done := make(chan struct{})
+	go func() { defer close(done); defer stopShutdown(); defer cancel(); m.run(taskCtx, client, task) }()
+	return task, done, nil
 }
 
 func (m *TaskManager) run(ctx context.Context, client *Client, task AgentTask) {
@@ -254,7 +269,9 @@ func (m *TaskManager) run(ctx context.Context, client *Client, task AgentTask) {
 		if event.Type == "" {
 			event.Type = "unknown"
 		}
-		if err := m.ledger.AppendAgentTaskEvent(context.Background(), task.ID, event.Type, event.Text, maxAgentTaskEvents, maxAgentTaskEventBytes); err != nil {
+		if err := fileutil.PublishContext(ctx, func() error {
+			return m.ledger.AppendAgentTaskEvent(ctx, task.ID, event.Type, event.Text, maxAgentTaskEvents, maxAgentTaskEventBytes)
+		}); err != nil {
 			m.finish(task.ID, AgentTaskStatusFailed, err.Error())
 			return
 		}

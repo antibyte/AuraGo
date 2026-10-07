@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -216,9 +216,10 @@ func EnsureGotenbergRunning(dockerHost string, logger interface {
 	logger.Info("[Gotenberg] Container created and started", "image", gotenbergImage)
 }
 
-// pullDockerImage pulls a Docker image via the Docker Engine API.
-// Uses a dedicated HTTP client with a long timeout (10 min) since image
-// downloads can take considerable time on slow connections.
+// pullDockerImage pulls image for the Gotenberg and managed Ollama sidecars.
+// A reference without a tag is pulled as ":latest" (the Engine would pull
+// every tag otherwise). The pull reads the Engine's progress stream to its end
+// on the streaming pull client, bounded to dockerPullFallbackTimeout.
 func pullDockerImage(cfg DockerConfig, image string) error {
 	parts := strings.SplitN(image, ":", 2)
 	fromImage := parts[0]
@@ -226,31 +227,15 @@ func pullDockerImage(cfg DockerConfig, image string) error {
 	if len(parts) == 2 {
 		tag = parts[1]
 	}
-	endpoint := "/images/create?fromImage=" + url.QueryEscape(fromImage) + "&tag=" + url.QueryEscape(tag)
-
-	// Build a dedicated long-timeout client — the shared dockerHTTPClient is
-	// only 60 s which is too short for a real image pull.
-	client := getDockerClient(cfg)
-	pullClient := &http.Client{
-		Transport: client.Transport,
-		Timeout:   10 * time.Minute,
+	err := pullDockerImageQuery(context.Background(), cfg, image, url.Values{"fromImage": {fromImage}, "tag": {tag}})
+	var pullErr *dockerPullError
+	if errors.As(err, &pullErr) && pullErr.StatusCode != 0 {
+		if pullErr.Message != "" {
+			return fmt.Errorf("Docker returned HTTP %d during image pull: %s", pullErr.StatusCode, pullErr.Message)
+		}
+		return fmt.Errorf("Docker returned HTTP %d during image pull", pullErr.StatusCode)
 	}
-
-	reqURL := "http://localhost/" + dockerAPIVersion + endpoint
-	req, err := http.NewRequest(http.MethodPost, reqURL, nil)
-	if err != nil {
-		return fmt.Errorf("build pull request: %w", err)
-	}
-	resp, err := pullClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("pull request failed: %w", err)
-	}
-	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxHTTPResponseSize)) // consume bounded streaming progress output
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Docker returned HTTP %d during image pull", resp.StatusCode)
-	}
-	return nil
+	return err
 }
 
 // gotenbergErrJSON returns a properly JSON-encoded error response.

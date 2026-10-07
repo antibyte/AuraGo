@@ -1699,6 +1699,10 @@ async function renderSection(key) {
         'skill_manager',  // → Skill Manager section
         'daemon_skills'   // → Daemon Skills section
     ]);
+    // Docker keys with a dedicated control in another section
+    const DOCKER_SKIP_KEYS = new Set([
+        'allow_host_access'   // → Danger Zone; a second control for the same path must not exist
+    ]);
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
@@ -1801,6 +1805,9 @@ async function renderSection(key) {
         if (key === 'tools') {
             schemaChildren = schemaChildren.filter(f => !TOOLS_SKIP_KEYS.has(f.yaml_key));
         }
+        if (key === 'docker') {
+            schemaChildren = schemaChildren.filter(f => !DOCKER_SKIP_KEYS.has(f.yaml_key));
+        }
         html += renderFields(schemaChildren, data, key);
     } else {
         for (const [k, v] of Object.entries(data)) {
@@ -1809,6 +1816,7 @@ async function renderSection(key) {
             if (key === 'embeddings' && EMBEDDINGS_SKIP_KEYS.has(k)) continue;
             if ((key === 'llm' || key === 'fallback_llm') && LLM_SKIP_KEYS.has(k)) continue;
             if (PROVIDER_MANAGED_SECTIONS.has(key) && LLM_SKIP_KEYS.has(k)) continue;
+            if (key === 'docker' && DOCKER_SKIP_KEYS.has(k)) continue;
             if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
                 html += '<div class="cfg-group-title cfg-group-title-top">' + formatKey(k) + '</div>';
                 for (const [sk, sv] of Object.entries(v)) {

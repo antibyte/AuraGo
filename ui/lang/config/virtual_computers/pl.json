@@ -64,7 +64,7 @@
   "help.virtual_computers.allow_persistent": "Zezwala na trwałe maszyny. Pozostaw wyłączone, chyba że host jest zaufany.",
   "help.virtual_computers.allow_publish": "Zezwala na operacje publikowania/zapisu wystawiane przez boringd.",
   "help.virtual_computers.allow_volumes": "Zezwala na tworzenie i podłączanie woluminów.",
-  "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
+  "help.virtual_computers.allow_agent_tasks": "Włącza tylko przestarzałe kanały agenta boringd. Główny agent AuraGo korzysta z obszarów roboczych agenta i nie potrzebuje tutaj dodatkowego dostawcy.",
   "help.virtual_computers.boring_token": "Zostaw puste, gdy AuraGo instaluje boringd; AuraGo automatycznie tworzy token i zapisuje go w Vault. Wpisz wartość tylko przy podłączaniu istniejącego boringd; musi odpowiadać BORING_TOKEN na tym hoście.",
   "config.virtual_computers.mode_local_host": "Lokalnie na tym hoście",
   "config.virtual_computers.local_host_note": "Instalacja lokalna wymaga Ubuntu/Linux z /dev/kvm, systemd oraz root lub sudo bez hasła. boringd pozostaje na 127.0.0.1:18082.",
@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan zezwala na publiczny internet oraz wyłącznie na jawnie wymienione prywatne CIDR-y.",
   "help.virtual_computers.agent_control_cidrs": "Jeden CIDR IPv4 RFC1918 na linię. Adresy hosta, AuraGo, mostu, metadanych i gościa pozostają zablokowane.",
   "help.virtual_computers.agent_control_credentials": "Poświadczenia nadal wymagają osobnego zatwierdzenia przez uwierzytelnionego użytkownika dla każdego krótkotrwałego przyznania.",
-  "help.virtual_computers.agent_control_grant_ttl": "Maksymalny czas życia przyznania; przyznania kończą się także wraz z ich zadaniem lub obszarem roboczym."
+  "help.virtual_computers.agent_control_grant_ttl": "Maksymalny czas życia przyznania; przyznania kończą się także wraz z ich zadaniem lub obszarem roboczym.",
+  "config.virtual_desktop.serial_browser_label": "Porty szeregowe na tym komputerze",
+  "help.virtual_desktop.serial_browser_enabled": "Zezwól Quick Connect używać urządzeń szeregowych podłączonych do komputera z przeglądarką. Wymagana jest obsługiwana przeglądarka, HTTPS lub localhost oraz jawny wybór urządzenia. Wyłączone w trybie tylko do odczytu.",
+  "config.virtual_desktop.serial_host_label": "Porty szeregowe na serwerze AuraGo",
+  "help.virtual_desktop.serial_host_enabled": "Zezwól administratorom otwierać w Quick Connect urządzenia szeregowe podłączone do serwera AuraGo. Instalacje kontenerowe wymagają przekazania urządzenia i uprawnień systemu operacyjnego. Wyłączone w trybie tylko do odczytu."
 }

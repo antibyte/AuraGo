@@ -90,15 +90,12 @@ func (s *Server) scanMeshCoreMessage(ctx context.Context, msg meshcore.Message) 
 		system, user := security.StrictContentScanPrompt(kind, msg.Text)
 		dc := meshCoreMinimalContext(s, cfg, msg.ID)
 		var response agent.MinimalLoopResult
-		response, _, err = agent.ExecuteMinimalLoop(ctx, s.LLMClient, cfg.LLM.Model, system, user, nil, dc, nil, s.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0})
+		response, _, err = agent.ExecuteMinimalLoop(ctx, s.LLMClient, cfg.LLM.Model, system, user, nil, dc, nil, s.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "meshcore"})
 		if err == nil && response.FinishReason != openai.FinishReasonStop {
 			err = fmt.Errorf("incomplete security verdict")
 		}
 		if err == nil {
 			result, err = security.ParseStrictContentVerdict(response.Response)
-		}
-		if s.BudgetTracker != nil {
-			s.BudgetTracker.RecordForCategory("meshcore", cfg.LLM.Model, response.PromptTokens, response.CompletionTokens)
 		}
 	}
 	if err != nil {
@@ -119,7 +116,7 @@ func meshCoreMinimalContext(s *Server, cfg *config.Config, id string) *agent.Dis
 	// Copy the immutable snapshot before clearing external search delegation.
 	copyCfg := *cfg
 	copyCfg.MCP.PreferredCapabilities.WebSearch = config.MCPPreferredToolSelection{}
-	return &agent.DispatchContext{Cfg: &copyCfg, Logger: s.Logger, LLMClient: s.LLMClient, Guardian: s.Guardian, LLMGuardian: s.LLMGuardian, SessionID: "meshcore-reply-" + id, MessageSource: "meshcore_reply", Broker: agent.NoopBroker{}, AllowedTools: map[string]struct{}{}, ToolScopeRestricted: true, AllowedAgentSkills: map[string]struct{}{}, SkillScopeRestricted: true}
+	return &agent.DispatchContext{Cfg: &copyCfg, Logger: s.Logger, LLMClient: s.LLMClient, Guardian: s.Guardian, LLMGuardian: s.LLMGuardian, BudgetTracker: s.BudgetTracker, SessionID: "meshcore-reply-" + id, MessageSource: "meshcore_reply", Broker: agent.NoopBroker{}, AllowedTools: map[string]struct{}{}, ToolScopeRestricted: true, AllowedAgentSkills: map[string]struct{}{}, SkillScopeRestricted: true}
 }
 func (s *Server) runMeshCoreMessage(ctx context.Context, msg meshcore.Message, mode string) (string, error) {
 	cfg := s.ConfigSnapshot()
@@ -163,10 +160,7 @@ func (s *Server) runMeshCoreMessage(ctx context.Context, msg meshcore.Message, m
 	if mode == "questions" {
 		system += " Answer open channel questions and requests for information, even without a question mark or explicit address to AuraGo. Radio checks such as 'hört mich jemand', 'ist jemand da' or 'anyone receiving' are questions: only confirm that this message reached your node, in the sender's language; you may include the supplied reception SNR and known hop count. Do not claim audio reception, reception by others, unmeasured signal quality or a direct RF path without evidence. Do not use web search for radio checks. For statements, messages addressed exclusively to another participant or other non-questions, respond exactly NO_REPLY. Never respond to another bot's answer."
 	}
-	res, _, err := agent.ExecuteMinimalLoop(ctx, s.LLMClient, cfg.LLM.Model, system, input, schemas, dc, nil, s.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 2, MaxToolCalls: 2})
-	if s.BudgetTracker != nil {
-		s.BudgetTracker.RecordForCategory("meshcore", cfg.LLM.Model, res.PromptTokens, res.CompletionTokens)
-	}
+	res, _, err := agent.ExecuteMinimalLoop(ctx, s.LLMClient, cfg.LLM.Model, system, input, schemas, dc, nil, s.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 2, MaxToolCalls: 2, BudgetCategory: "meshcore"})
 	if err != nil {
 		return "", err
 	}

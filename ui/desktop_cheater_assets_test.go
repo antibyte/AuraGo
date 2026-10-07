@@ -150,7 +150,7 @@ func TestDesktopCheaterEditorRender(t *testing.T) {
 		"data-title",
 		"data-source",
 		"data-save",
-		"/api/cheatsheets/",
+		"/api/desktop/integrations/cheatsheets/",
 		"window.CheaterApp.openSheet = openSheet",
 	} {
 		if !strings.Contains(source, marker) {
@@ -243,7 +243,7 @@ func TestDesktopCheaterSpotlightWiring(t *testing.T) {
 		"e.key === 'n'",
 		"window.CheaterSpotlight.open",
 		"window.CheaterApp.openCreateModal",
-		"/api/cheatsheets",
+		"/api/desktop/integrations/cheatsheets",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("cheater wiring missing JS marker %q", marker)

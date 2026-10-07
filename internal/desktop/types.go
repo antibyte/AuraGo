@@ -8,9 +8,6 @@ import (
 )
 
 const (
-	ControlConfirmDestructive = "confirm_destructive"
-	ControlTrusted            = "trusted"
-
 	SourceAgent = "agent"
 	SourceUser  = "user"
 
@@ -36,7 +33,6 @@ type Config struct {
 	MediaRegistryPath        string
 	ImageGalleryPath         string
 	MaxFileSizeMB            int
-	ControlLevel             string
 	MaxWSClients             int
 	RemoteMaxSessionMinutes  int
 	RemoteIdleTimeoutMinutes int
@@ -100,23 +96,26 @@ type PetManifest struct {
 
 // BootstrapPayload is the initial state used by the virtual desktop UI.
 type BootstrapPayload struct {
-	Enabled            bool              `json:"enabled"`
-	ReadOnly           bool              `json:"readonly"`
-	AllowAgentControl  bool              `json:"allow_agent_control"`
-	AllowGeneratedApps bool              `json:"allow_generated_apps"`
-	AllowPythonJobs    bool              `json:"allow_python_jobs"`
-	ControlLevel       string            `json:"control_level"`
-	Workspace          WorkspaceInfo     `json:"workspace"`
-	BuiltinApps        []AppManifest     `json:"builtin_apps"`
-	InstalledApps      []AppManifest     `json:"installed_apps"`
-	Shortcuts          []Shortcut        `json:"shortcuts"`
-	Widgets            []Widget          `json:"widgets"`
-	AllWidgets         []Widget          `json:"all_widgets"`
-	Settings           map[string]string `json:"settings"`
-	Providers          []ProviderOption  `json:"providers,omitempty"`
-	IconCatalog        IconCatalogInfo   `json:"icon_catalog"`
-	Pets               []PetManifest     `json:"pets"`
-	ActivePetID        string            `json:"active_pet_id,omitempty"`
+	Enabled                  bool              `json:"enabled"`
+	ReadOnly                 bool              `json:"readonly"`
+	AllowAgentControl        bool              `json:"allow_agent_control"`
+	AllowGeneratedApps       bool              `json:"allow_generated_apps"`
+	AllowPythonJobs          bool              `json:"allow_python_jobs"`
+	SerialBrowserEnabled     bool              `json:"serial_browser_enabled"`
+	SerialHostEnabled        bool              `json:"serial_host_enabled"`
+	RemoteMaxSessionMinutes  int               `json:"remote_max_session_minutes"`
+	RemoteIdleTimeoutMinutes int               `json:"remote_idle_timeout_minutes"`
+	Workspace                WorkspaceInfo     `json:"workspace"`
+	BuiltinApps              []AppManifest     `json:"builtin_apps"`
+	InstalledApps            []AppManifest     `json:"installed_apps"`
+	Shortcuts                []Shortcut        `json:"shortcuts"`
+	Widgets                  []Widget          `json:"widgets"`
+	AllWidgets               []Widget          `json:"all_widgets"`
+	Settings                 map[string]string `json:"settings"`
+	Providers                []ProviderOption  `json:"providers,omitempty"`
+	IconCatalog              IconCatalogInfo   `json:"icon_catalog"`
+	Pets                     []PetManifest     `json:"pets"`
+	ActivePetID              string            `json:"active_pet_id,omitempty"`
 	// DesktopFiles is the Desktop folder listing for first paint (avoids a
 	// second /api/desktop/files round-trip). Omitted when listing fails.
 	DesktopFiles []FileEntry `json:"desktop_files,omitempty"`
@@ -158,6 +157,7 @@ type AppManifest struct {
 	Entry        string            `json:"entry"`
 	Runtime      string            `json:"runtime,omitempty"`
 	Description  string            `json:"description,omitempty"`
+	Category     string            `json:"category,omitempty"`
 	Permissions  []string          `json:"permissions,omitempty"`
 	Requires     []string          `json:"requires,omitempty"`
 	Metadata     map[string]string `json:"metadata,omitempty"`
@@ -295,6 +295,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "phone_gadget.position_x", Default: ""},
 		{Key: "phone_gadget.position_y", Default: ""},
 		{Key: "phone_gadget.always_on_top", Default: "false", Values: []string{"true", "false"}},
+		{Key: SerialProfilesSetting, Default: defaultSerialProfiles},
 	}
 }
 
@@ -747,58 +748,84 @@ func workspaceDirectories() []string {
 }
 
 // BuiltinApps returns the first-party applications always available in the shell.
+// AppCategory is one start-menu group of the Virtual Desktop. Labels live in the desktop
+// locales as desktop.category_<id>; the icon names a themed desktop icon.
+type AppCategory struct {
+	ID   string `json:"id"`
+	Icon string `json:"icon"`
+}
+
+// DesktopAppCategories returns the start-menu categories in display order. Every builtin app
+// carries one of them in AppManifest.Category; "installed" collects apps added through the
+// Software Store that declare no known category. The list is mirrored by START_MENU_CATEGORIES
+// in ui/js/desktop/core/window-shell-runtime.js (TestDesktopStartMenuCategoriesStayInSync).
+func DesktopAppCategories() []AppCategory {
+	return []AppCategory{
+		{ID: "office", Icon: "writer"},
+		{ID: "media", Icon: "audio-player"},
+		{ID: "creative", Icon: "pixel"},
+		{ID: "ai", Icon: "agent-chat"},
+		{ID: "dev", Icon: "code"},
+		{ID: "system", Icon: "settings"},
+		{ID: "comms", Icon: "phone"},
+		{ID: "games", Icon: "chess"},
+		{ID: "installed", Icon: "software-store"},
+	}
+}
+
 func BuiltinApps() []AppManifest {
 	apps := []AppManifest{
-		{ID: "ha-switchboard", Name: "HA Switchboard", Version: "1.0.0", Icon: "ha-switchboard", Entry: "builtin://ha-switchboard", Runtime: BuiltinRuntime, Description: "Control selected Home Assistant switches on a walnut and silver switchboard."},
-		{ID: "files", Name: "Files", Version: "1.0.0", Icon: "folder", Entry: "builtin://files", Runtime: BuiltinRuntime, Description: "Browse and manage desktop workspace files."},
-		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Runtime: BuiltinRuntime, Description: "Edit workspace text files."},
-		{ID: "writer", Name: "Writer", Version: "1.0.0", Icon: "writer", Entry: "builtin://writer", Runtime: BuiltinRuntime, Description: "Create and edit basic word-processing documents.", Permissions: []string{"files:read", "files:write", "notifications"}},
-		{ID: "sheets", Name: "Sheets", Version: "1.0.0", Icon: "spreadsheet", Entry: "builtin://sheets", Runtime: BuiltinRuntime, Description: "Create and edit basic spreadsheets.", Permissions: []string{"files:read", "files:write", "notifications"}},
-		{ID: "settings", Name: "Settings", Version: "1.0.0", Icon: "settings", Entry: "builtin://settings", Runtime: BuiltinRuntime, Description: "Inspect virtual desktop settings."},
-		{ID: "calendar", Name: "Calendar", Version: "1.0.0", Icon: "calendar", Entry: "builtin://calendar", Runtime: BuiltinRuntime, Description: "Local calendar surface for the desktop."},
-		{ID: "calculator", Name: "Calculator", Version: "1.0.0", Icon: "calculator", Entry: "builtin://calculator", Runtime: BuiltinRuntime, Description: "Scientific calculator with standard and advanced modes."},
-		{ID: "todo", Name: "Todo", Version: "1.0.0", Icon: "notes", Entry: "builtin://todo", Runtime: BuiltinRuntime, Description: "Task management connected to the backend planner."},
-		{ID: "gallery", Name: "Gallery", Version: "1.0.0", Icon: "gallery", Entry: "builtin://gallery", Runtime: BuiltinRuntime, Description: "Browse AuraGo photos and videos."},
-		{ID: "music-player", Name: "Music Player", Version: "1.0.0", Icon: "audio-player", Entry: "builtin://music-player", Runtime: BuiltinRuntime, Description: "Winamp-style music player for workspace audio files."},
-		{ID: "radio", Name: "Radio", Version: "1.0.0", Icon: "radio", Entry: "builtin://radio", Runtime: BuiltinRuntime, Description: "Stream popular internet radio stations by category and search."},
-		{ID: "personal-radio", Name: "Personal Radio", Version: "1.0.0", Icon: "personal-radio", Entry: "builtin://personal-radio", Runtime: BuiltinRuntime, Description: "Your own station with local or generated music, spoken moderation and researched news."},
-		{ID: "rtl-sdr", Name: "RTL-SDR", Version: "1.0.0", Icon: "rtl-sdr", Entry: "builtin://rtl-sdr", Runtime: BuiltinRuntime, Description: "Live analog and DAB+ radio, scheduled recordings and speech transcripts."},
-		{ID: "bluetooth", Name: "Bluetooth", Version: "1.0.0", Icon: "bluetooth", Entry: "builtin://bluetooth", Runtime: BuiltinRuntime, Description: "Manage the server's Bluetooth adapter, pair devices and answer pairing requests.", Permissions: []string{"notifications"}, Requires: []string{"bluetooth"}},
-		{ID: "teevee", Name: "TeeVee", Version: "1.0.0", Icon: "teevee", Entry: "builtin://teevee", Runtime: BuiltinRuntime, Description: "Watch public IPTV channels from iptv-org with German-first filtering and global search."},
-		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "agent-chat", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Description: "Ask AuraGo to create apps, widgets, and files."},
-		{ID: "live-speech", Name: "Live Speech", Version: "1.0.0", Icon: "audio", Entry: "builtin://live-speech", Runtime: BuiltinRuntime, Description: "Talk naturally with AuraGo through a realtime voice session."},
-		{ID: "sip-phone", Name: "Phone", Version: "1.0.0", Icon: "phone", Entry: "builtin://sip-phone", Runtime: BuiltinRuntime, Description: "Place and receive authenticated browser-media SIP calls.", Permissions: []string{"notifications"}},
-		{ID: "quick-connect", Name: "Quick Connect", Version: "1.0.0", Icon: "terminal", Entry: "builtin://quick-connect", Runtime: BuiltinRuntime, Description: "Connect to SSH and VNC servers with an interactive terminal or remote desktop viewer."},
-		{ID: "virtual-computers", Name: "Virtual Computers", Version: "1.0.0", Icon: "terminal", Entry: "builtin://virtual-computers", Runtime: BuiltinRuntime, Description: "Launch and inspect short-lived microVM computers through AuraGo.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
-		{ID: "code-studio", Name: "Code Studio", Version: "1.0.0", Icon: "code-studio", Entry: "builtin://code-studio", Runtime: BuiltinRuntime, Description: "Full-featured coding IDE with file browser, editor, and terminal.", Permissions: []string{"files:read", "files:write", "notifications"}},
-		{ID: "terminal", Name: "Terminal", Version: "1.0.0", Icon: "terminal", Entry: "builtin://terminal", Runtime: BuiltinRuntime, Description: "Workspace shell terminal for quick command-line tasks."},
-		{ID: "notes", Name: "Notes", Version: "1.0.0", Icon: "notes", Entry: "builtin://notes", Runtime: BuiltinRuntime, Description: "Lightweight markdown notes stored under Documents/Notes.", Permissions: []string{"files:read", "files:write", "notifications"}},
-		{ID: "tresor", Name: "Tresor", Version: "1.0.0", Icon: "tresor", Entry: "builtin://tresor", Runtime: BuiltinRuntime, Description: "Private encrypted notes and files with browser-only keys."},
-		{ID: "launchpad", Name: "Launchpad", Version: "1.0.0", Icon: "launchpad", Entry: "builtin://launchpad", Runtime: BuiltinRuntime, Description: "Quick-access launcher for local and remote web links."},
-		{ID: "software-store", Name: "Software Store", Version: "1.0.0", Icon: "software-store", Entry: "builtin://software-store", Runtime: BuiltinRuntime, Description: "Install allowlisted Docker web apps on the virtual desktop."},
-		{ID: "looper", Name: "Looper", Version: "1.1.0", Icon: "looper", Entry: "builtin://looper", Runtime: BuiltinRuntime, Description: "Goal-driven agent loop: work, evaluate, optional finish, and a saved run history.", Permissions: []string{"files:read", "files:write", "notifications"}},
-		{ID: "cheater", Name: "Cheater", Version: "1.0.0", Icon: "cheater", Entry: "builtin://cheater", Runtime: BuiltinRuntime, Description: "Create, search, and maintain cheat sheets for missions and operator workflows.", Permissions: []string{"notifications"}, Metadata: map[string]string{"logo_path": "/img/chat-ui-icons/cheater.svg"}},
-		{ID: "camera", Name: "Camera", Version: "1.1.0", Icon: "camera", Entry: "builtin://camera", Runtime: BuiltinRuntime, Description: "Capture photos and videos with your camera, then save, share or analyze them.", Permissions: []string{"files:write", "notifications"}},
-		{ID: "network-cameras", Name: "Network Cameras", Version: "1.0.0", Icon: "camera", Entry: "builtin://network-cameras", Runtime: BuiltinRuntime, Description: "View and securely configure network cameras through AuraGo's go2rtc proxy.", Permissions: []string{"notifications"}},
-		{ID: "meshcore", Name: "MeshCore", Version: "1.0.0", Icon: "radio", Entry: "builtin://meshcore", Runtime: BuiltinRuntime, Description: "MeshCore direct and channel messaging, contacts and invitations.", Permissions: []string{"notifications"}},
-		{ID: "zipper", Name: "Zipper", Version: "1.0.0", Icon: "zipper", Entry: "builtin://zipper", Runtime: BuiltinRuntime, Description: "ZIP archive manager — browse, extract, and create archives.", Permissions: []string{"files:read", "files:write", "notifications"}},
-		{ID: "pixel", Name: "Pixel", Version: "1.0.0", Icon: "pixel", Entry: "builtin://pixel", Runtime: BuiltinRuntime, Description: "AI-powered image editor — create, edit, and enhance images.", Permissions: []string{"files:read", "files:write", "notifications"}},
-		{ID: "people", Name: "People", Version: "1.0.0", Icon: "users", Entry: "builtin://people", Runtime: BuiltinRuntime, Description: "Address book with knowledge graph integration and birthdays."},
-		{ID: "galaxa-deluxe", Name: "Galaxa Deluxe", Version: "1.0.0", Icon: "galaxa-deluxe", Entry: "builtin://galaxa-deluxe", Runtime: BuiltinRuntime, Description: "Classic arcade space shooter — destroy enemy formations and beat the high score!"},
-		{ID: "chess", Name: "Chess", Version: "1.0.0", Icon: "chess", Entry: "builtin://chess", Runtime: BuiltinRuntime, Description: "Play chess against Stockfish or the AuraGo agent.", Permissions: []string{"notifications"}},
-		{ID: "mission-control", Name: "Mission Control", Version: "1.0.0", Icon: "workflow", Entry: "builtin://mission-control", Runtime: BuiltinRuntime, Description: "Create, plan, and manage agent missions with triggers and schedules.", Permissions: []string{"notifications"}},
-		{ID: "easydrag", Name: "EasyDrag", Version: "1.0.0", Icon: "easydrag", Entry: "builtin://easydrag", Runtime: BuiltinRuntime, Description: "Build automations visually: connect triggers, AI steps and integrations into flows that run as missions.", Permissions: []string{"notifications"}, Requires: []string{"flows"}, Metadata: map[string]string{"open_maximized": "true"}},
-		{ID: "game-maker-studio", Name: "Game Maker Studio", Version: "1.0.0", Icon: "gamepad", Entry: "builtin://game-maker-studio", Runtime: BuiltinRuntime, Description: "Create and refine offline 2D and 3D browser games with an isolated AuraGo agent.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true", "logo_path": "/img/desktop-icons/game-maker-studio.svg"}},
-		{ID: "homepage-studio", Name: "Homepage Studio", Version: "1.0.0", Icon: "globe", Entry: "builtin://homepage-studio", Runtime: BuiltinRuntime, Description: "AI-powered website builder with live preview.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
-		{ID: "detective", Name: "Detective", Version: "1.0.0", Icon: "search", Entry: "builtin://detective", Runtime: BuiltinRuntime, Description: "Research topics with cited sources and export reports as Markdown, PDF or Word.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
-		{ID: "newspaper", Name: "Newspaper", Version: "1.0.0", Icon: "newspaper", Entry: "builtin://newspaper", Runtime: BuiltinRuntime, Description: "Read your sourced personal daily newspaper and manage delivery.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
-		{ID: "openscad", Name: "OpenSCAD", Version: "1.0.0", Icon: "openscad", Entry: "builtin://openscad", Runtime: BuiltinRuntime, Description: "Script-based parametric CAD compiler with preview, STL export, and downloadable artifacts.", Permissions: []string{"files:read", "files:write", "notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
-		{ID: "nasscad", Name: "NASSCAD", Version: "4.7.0", Icon: "nasscad", Entry: "builtin://nasscad", Runtime: BuiltinRuntime, Description: "Offline browser-based 3D parametric CAD bundled locally — model parts, run booleans, and export STL, OBJ, or 3MF.", Metadata: map[string]string{"open_maximized": "true", "workspace_entry": "Apps/nasscad/index.html"}},
-		{ID: "viewer", Name: "Viewer", Version: "1.0.0", Icon: "eye", Entry: "builtin://viewer", Runtime: BuiltinRuntime, Description: "Read-only viewer for documents, spreadsheets, PDFs and markdown.", Permissions: []string{"files:read"}, Internal: true},
-		{ID: "pet-picker", Name: "Pet Picker", Version: "1.0.0", Icon: "heart", Entry: "builtin://pet-picker", Runtime: BuiltinRuntime, Description: "Choose and manage your desktop pet companions."},
-		{ID: "system-world", Name: "System World", Version: "1.0.0", Icon: "network", Entry: "builtin://system-world", Runtime: BuiltinRuntime, Description: "Immersive 3D world visualizing the living AuraGo system — integrations, knowledge graph, memory, missions, and agents in realtime.", Metadata: map[string]string{"open_maximized": "true"}},
-		{ID: "noisemaker", Name: "Noisemaker", Version: "1.0.0", Icon: "audio", Entry: "builtin://noisemaker", Runtime: BuiltinRuntime, Description: "Create AI-generated songs Suno-style: ideas, styles, lyrics and covers.", Permissions: []string{"notifications"}},
-		{ID: "log-viewer", Name: "Log Viewer", Version: "1.0.0", Icon: "monitor", Entry: "builtin://log-viewer", Runtime: BuiltinRuntime, Description: "Browse and tail AuraGo log files with live streaming and filters."},
+		{ID: "ha-switchboard", Name: "HA Switchboard", Version: "1.0.0", Icon: "ha-switchboard", Entry: "builtin://ha-switchboard", Runtime: BuiltinRuntime, Category: "comms", Description: "Control selected Home Assistant switches on a walnut and silver switchboard."},
+		{ID: "files", Name: "Files", Version: "1.0.0", Icon: "folder", Entry: "builtin://files", Runtime: BuiltinRuntime, Category: "system", Description: "Browse and manage desktop workspace files."},
+		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Runtime: BuiltinRuntime, Category: "office", Description: "Edit workspace text files."},
+		{ID: "writer", Name: "Writer", Version: "1.0.0", Icon: "writer", Entry: "builtin://writer", Runtime: BuiltinRuntime, Category: "office", Description: "Create and edit basic word-processing documents.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "sheets", Name: "Sheets", Version: "1.0.0", Icon: "spreadsheet", Entry: "builtin://sheets", Runtime: BuiltinRuntime, Category: "office", Description: "Create and edit basic spreadsheets.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "settings", Name: "Settings", Version: "1.0.0", Icon: "settings", Entry: "builtin://settings", Runtime: BuiltinRuntime, Category: "system", Description: "Inspect virtual desktop settings."},
+		{ID: "calendar", Name: "Calendar", Version: "1.0.0", Icon: "calendar", Entry: "builtin://calendar", Runtime: BuiltinRuntime, Category: "office", Description: "Local calendar surface for the desktop."},
+		{ID: "calculator", Name: "Calculator", Version: "1.0.0", Icon: "calculator", Entry: "builtin://calculator", Runtime: BuiltinRuntime, Category: "office", Description: "Scientific calculator with standard and advanced modes."},
+		{ID: "todo", Name: "Todo", Version: "1.0.0", Icon: "notes", Entry: "builtin://todo", Runtime: BuiltinRuntime, Category: "office", Description: "Task management connected to the backend planner."},
+		{ID: "gallery", Name: "Gallery", Version: "1.0.0", Icon: "gallery", Entry: "builtin://gallery", Runtime: BuiltinRuntime, Category: "media", Description: "Browse AuraGo photos and videos."},
+		{ID: "music-player", Name: "Music Player", Version: "1.0.0", Icon: "audio-player", Entry: "builtin://music-player", Runtime: BuiltinRuntime, Category: "media", Description: "Winamp-style music player for workspace audio files."},
+		{ID: "radio", Name: "Radio", Version: "1.0.0", Icon: "radio", Entry: "builtin://radio", Runtime: BuiltinRuntime, Category: "media", Description: "Stream popular internet radio stations by category and search."},
+		{ID: "personal-radio", Name: "Personal Radio", Version: "1.0.0", Icon: "personal-radio", Entry: "builtin://personal-radio", Runtime: BuiltinRuntime, Category: "media", Description: "Your own station with local or generated music, spoken moderation and researched news."},
+		{ID: "rtl-sdr", Name: "RTL-SDR", Version: "1.0.0", Icon: "rtl-sdr", Entry: "builtin://rtl-sdr", Runtime: BuiltinRuntime, Category: "media", Description: "Live analog and DAB+ radio, scheduled recordings and speech transcripts."},
+		{ID: "bluetooth", Name: "Bluetooth", Version: "1.0.0", Icon: "bluetooth", Entry: "builtin://bluetooth", Runtime: BuiltinRuntime, Category: "comms", Description: "Manage the server's Bluetooth adapter, pair devices and answer pairing requests.", Permissions: []string{"notifications"}, Requires: []string{"bluetooth"}},
+		{ID: "teevee", Name: "TeeVee", Version: "1.0.0", Icon: "teevee", Entry: "builtin://teevee", Runtime: BuiltinRuntime, Category: "media", Description: "Watch public IPTV channels from iptv-org with German-first filtering and global search."},
+		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "agent-chat", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Category: "ai", Description: "Ask AuraGo to create apps, widgets, and files."},
+		{ID: "live-speech", Name: "Live Speech", Version: "1.0.0", Icon: "audio", Entry: "builtin://live-speech", Runtime: BuiltinRuntime, Category: "ai", Description: "Talk naturally with AuraGo through a realtime voice session."},
+		{ID: "sip-phone", Name: "Phone", Version: "1.0.0", Icon: "phone", Entry: "builtin://sip-phone", Runtime: BuiltinRuntime, Category: "comms", Description: "Place and receive authenticated browser-media SIP calls.", Permissions: []string{"notifications"}},
+		{ID: "quick-connect", Name: "Quick Connect", Version: "1.0.0", Icon: "terminal", Entry: "builtin://quick-connect", Runtime: BuiltinRuntime, Category: "dev", Description: "Connect to SSH and VNC servers with an interactive terminal or remote desktop viewer."},
+		{ID: "virtual-computers", Name: "Virtual Computers", Version: "1.0.0", Icon: "terminal", Entry: "builtin://virtual-computers", Runtime: BuiltinRuntime, Category: "dev", Description: "Launch and inspect short-lived microVM computers through AuraGo.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
+		{ID: "code-studio", Name: "Code Studio", Version: "1.0.0", Icon: "code-studio", Entry: "builtin://code-studio", Runtime: BuiltinRuntime, Category: "dev", Description: "Full-featured coding IDE with file browser, editor, and terminal.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "terminal", Name: "Terminal", Version: "1.0.0", Icon: "terminal", Entry: "builtin://terminal", Runtime: BuiltinRuntime, Category: "dev", Description: "Workspace shell terminal for quick command-line tasks."},
+		{ID: "notes", Name: "Notes", Version: "1.0.0", Icon: "notes", Entry: "builtin://notes", Runtime: BuiltinRuntime, Category: "office", Description: "Lightweight markdown notes stored under Documents/Notes.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "tresor", Name: "Tresor", Version: "1.0.0", Icon: "tresor", Entry: "builtin://tresor", Runtime: BuiltinRuntime, Category: "office", Description: "Private encrypted notes and files with browser-only keys."},
+		{ID: "launchpad", Name: "Launchpad", Version: "1.0.0", Icon: "launchpad", Entry: "builtin://launchpad", Runtime: BuiltinRuntime, Category: "system", Description: "Quick-access launcher for local and remote web links."},
+		{ID: "software-store", Name: "Software Store", Version: "1.0.0", Icon: "software-store", Entry: "builtin://software-store", Runtime: BuiltinRuntime, Category: "system", Description: "Install allowlisted Docker web apps on the virtual desktop."},
+		{ID: "looper", Name: "Looper", Version: "1.1.0", Icon: "looper", Entry: "builtin://looper", Runtime: BuiltinRuntime, Category: "ai", Description: "Goal-driven agent loop: work, evaluate, optional finish, and a saved run history.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "cheater", Name: "Cheater", Version: "1.0.0", Icon: "cheater", Entry: "builtin://cheater", Runtime: BuiltinRuntime, Category: "office", Description: "Create, search, and maintain cheat sheets for missions and operator workflows.", Permissions: []string{"notifications"}, Metadata: map[string]string{"logo_path": "/img/chat-ui-icons/cheater.svg"}},
+		{ID: "camera", Name: "Camera", Version: "1.1.0", Icon: "camera", Entry: "builtin://camera", Runtime: BuiltinRuntime, Category: "media", Description: "Capture photos and videos with your camera, then save, share or analyze them.", Permissions: []string{"files:write", "notifications"}},
+		{ID: "network-cameras", Name: "Network Cameras", Version: "1.0.0", Icon: "camera", Entry: "builtin://network-cameras", Runtime: BuiltinRuntime, Category: "comms", Description: "View and securely configure network cameras through AuraGo's go2rtc proxy.", Permissions: []string{"notifications"}},
+		{ID: "meshcore", Name: "MeshCore", Version: "1.0.0", Icon: "radio", Entry: "builtin://meshcore", Runtime: BuiltinRuntime, Category: "comms", Description: "MeshCore direct and channel messaging, contacts and invitations.", Permissions: []string{"notifications"}},
+		{ID: "zipper", Name: "Zipper", Version: "1.0.0", Icon: "zipper", Entry: "builtin://zipper", Runtime: BuiltinRuntime, Category: "system", Description: "ZIP archive manager — browse, extract, and create archives.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "pixel", Name: "Pixel", Version: "1.0.0", Icon: "pixel", Entry: "builtin://pixel", Runtime: BuiltinRuntime, Category: "creative", Description: "AI-powered image editor — create, edit, and enhance images.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "synth-studio", Name: "Synth Studio", Version: "1.0.0", Icon: "synth-studio", Entry: "builtin://synth-studio", Runtime: BuiltinRuntime, Category: "creative", Description: "Arrange and record music with synthetic and MIDI instruments.", Permissions: []string{"files:read", "files:write", "notifications"}, Metadata: map[string]string{"open_maximized": "true", "logo_path": "/img/desktop-icons/synth-studio.svg"}},
+		{ID: "people", Name: "People", Version: "1.0.0", Icon: "users", Entry: "builtin://people", Runtime: BuiltinRuntime, Category: "office", Description: "Address book with knowledge graph integration and birthdays."},
+		{ID: "galaxa-deluxe", Name: "Galaxa Deluxe", Version: "1.0.0", Icon: "galaxa-deluxe", Entry: "builtin://galaxa-deluxe", Runtime: BuiltinRuntime, Category: "games", Description: "Classic arcade space shooter — destroy enemy formations and beat the high score!"},
+		{ID: "chess", Name: "Chess", Version: "1.0.0", Icon: "chess", Entry: "builtin://chess", Runtime: BuiltinRuntime, Category: "games", Description: "Play chess against Stockfish or the AuraGo agent.", Permissions: []string{"notifications"}},
+		{ID: "mission-control", Name: "Mission Control", Version: "1.0.0", Icon: "workflow", Entry: "builtin://mission-control", Runtime: BuiltinRuntime, Category: "ai", Description: "Create, plan, and manage agent missions with triggers and schedules.", Permissions: []string{"notifications"}},
+		{ID: "easydrag", Name: "EasyDrag", Version: "1.0.0", Icon: "easydrag", Entry: "builtin://easydrag", Runtime: BuiltinRuntime, Category: "ai", Description: "Build automations visually: connect triggers, AI steps and integrations into flows that run as missions.", Permissions: []string{"notifications"}, Requires: []string{"flows"}, Metadata: map[string]string{"open_maximized": "true"}},
+		{ID: "game-maker-studio", Name: "Game Maker Studio", Version: "1.0.0", Icon: "gamepad", Entry: "builtin://game-maker-studio", Runtime: BuiltinRuntime, Category: "creative", Description: "Create and refine offline 2D and 3D browser games with an isolated AuraGo agent.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true", "logo_path": "/img/desktop-icons/game-maker-studio.svg"}},
+		{ID: "homepage-studio", Name: "Homepage Studio", Version: "1.0.0", Icon: "globe", Entry: "builtin://homepage-studio", Runtime: BuiltinRuntime, Category: "creative", Description: "AI-powered website builder with live preview.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
+		{ID: "detective", Name: "Detective", Version: "1.0.0", Icon: "search", Entry: "builtin://detective", Runtime: BuiltinRuntime, Category: "ai", Description: "Research topics with cited sources and export reports as Markdown, PDF or Word.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
+		{ID: "newspaper", Name: "Newspaper", Version: "1.0.0", Icon: "newspaper", Entry: "builtin://newspaper", Runtime: BuiltinRuntime, Category: "ai", Description: "Read your sourced personal daily newspaper and manage delivery.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
+		{ID: "openscad", Name: "OpenSCAD", Version: "1.0.0", Icon: "openscad", Entry: "builtin://openscad", Runtime: BuiltinRuntime, Category: "creative", Description: "Script-based parametric CAD compiler with preview, STL export, and downloadable artifacts.", Permissions: []string{"files:read", "files:write", "notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
+		{ID: "nasscad", Name: "NASSCAD", Version: "4.7.0", Icon: "nasscad", Entry: "builtin://nasscad", Runtime: BuiltinRuntime, Category: "creative", Description: "Offline browser-based 3D parametric CAD bundled locally — model parts, run booleans, and export STL, OBJ, or 3MF.", Metadata: map[string]string{"open_maximized": "true", "workspace_entry": "Apps/nasscad/index.html"}},
+		{ID: "viewer", Name: "Viewer", Version: "1.0.0", Icon: "eye", Entry: "builtin://viewer", Runtime: BuiltinRuntime, Category: "office", Description: "Read-only viewer for documents, spreadsheets, PDFs and markdown.", Permissions: []string{"files:read"}, Internal: true},
+		{ID: "pet-picker", Name: "Pet Picker", Version: "1.0.0", Icon: "heart", Entry: "builtin://pet-picker", Runtime: BuiltinRuntime, Category: "games", Description: "Choose and manage your desktop pet companions."},
+		{ID: "system-world", Name: "System World", Version: "1.0.0", Icon: "network", Entry: "builtin://system-world", Runtime: BuiltinRuntime, Category: "system", Description: "Immersive 3D world visualizing the living AuraGo system — integrations, knowledge graph, memory, missions, and agents in realtime.", Metadata: map[string]string{"open_maximized": "true"}},
+		{ID: "noisemaker", Name: "Noisemaker", Version: "1.0.0", Icon: "audio", Entry: "builtin://noisemaker", Runtime: BuiltinRuntime, Category: "media", Description: "Create AI-generated songs Suno-style: ideas, styles, lyrics and covers.", Permissions: []string{"notifications"}},
+		{ID: "log-viewer", Name: "Log Viewer", Version: "1.0.0", Icon: "monitor", Entry: "builtin://log-viewer", Runtime: BuiltinRuntime, Category: "dev", Description: "Browse and tail AuraGo log files with live streaming and filters."},
 	}
 	for i := range apps {
 		apps[i].Builtin = true

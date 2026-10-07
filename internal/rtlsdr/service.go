@@ -30,7 +30,7 @@ type Service struct {
 	recordCancel context.CancelFunc
 	manualStop   bool
 	deviceLost   bool
-	listeners    map[string]time.Time
+	listeners    map[string]*listenerLease
 	scanCancel   context.CancelFunc
 	scanBlock    string
 	scanError    string
@@ -68,7 +68,7 @@ func New(opts Options) (*Service, error) {
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Service{db: db, lock: lock, opts: opts, state: state, ctx: ctx, cancel: cancel, listeners: map[string]time.Time{}, transcribing: map[string]context.CancelFunc{}, asrAgents: map[string]bool{}, finishing: map[string]bool{}, announced: map[string]time.Time{}}
+	s := &Service{db: db, lock: lock, opts: opts, state: state, ctx: ctx, cancel: cancel, listeners: map[string]*listenerLease{}, transcribing: map[string]context.CancelFunc{}, asrAgents: map[string]bool{}, finishing: map[string]bool{}, announced: map[string]time.Time{}}
 	for i := range s.state.Recordings {
 		r := &s.state.Recordings[i]
 		if validID(r.ID) {
@@ -205,7 +205,17 @@ func (s *Service) Tune(ctx context.Context, client string, t Tuning) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Tuning = t
-	s.listeners[client] = s.opts.Now()
+	now := s.opts.Now()
+	lease := s.listeners[client]
+	if lease == nil || now.Sub(lease.lastHeartbeat) >= LeaseTTL || lease.ctx.Err() != nil {
+		if lease != nil {
+			lease.cancel()
+		}
+		leaseCtx, cancel := context.WithCancel(s.ctx)
+		lease = &listenerLease{ctx: leaseCtx, cancel: cancel}
+		s.listeners[client] = lease
+	}
+	lease.lastHeartbeat = now
 	return s.saveLocked()
 }
 
@@ -235,16 +245,27 @@ func (s *Service) Heartbeat(client string) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.listeners[client]; !ok {
+	lease := s.listeners[client]
+	if lease == nil {
 		return ErrNotFound
 	}
-	s.listeners[client] = s.opts.Now()
+	if s.opts.Now().Sub(lease.lastHeartbeat) >= LeaseTTL || lease.ctx.Err() != nil {
+		lease.cancel()
+		return ErrNotFound
+	}
+	lease.lastHeartbeat = s.opts.Now()
 	return nil
 }
 func (s *Service) Stop(ctx context.Context, client string) error {
 	s.deviceMu.Lock()
 	defer s.deviceMu.Unlock()
 	s.mu.Lock()
+	lease := s.listeners[client]
+	if lease == nil {
+		s.mu.Unlock()
+		return ErrNotFound
+	}
+	lease.cancel()
 	delete(s.listeners, client)
 	stop := len(s.listeners) == 0 && s.active == "" && s.scanCancel == nil
 	s.mu.Unlock()
@@ -254,16 +275,39 @@ func (s *Service) Stop(ctx context.Context, client string) error {
 	return nil
 }
 func (s *Service) Stream(ctx context.Context, client string) (io.ReadCloser, error) {
-	if !s.policy().Enabled {
-		return nil, ErrDisabled
+	if err := s.writable(); err != nil {
+		return nil, err
 	}
 	s.mu.Lock()
-	_, ok := s.listeners[client]
+	lease := s.listeners[client]
+	if lease != nil && (s.opts.Now().Sub(lease.lastHeartbeat) >= LeaseTTL || lease.ctx.Err() != nil) {
+		lease.cancel()
+		lease = nil
+	}
 	s.mu.Unlock()
-	if !ok {
+	if lease == nil {
 		return nil, ErrNotFound
 	}
-	return s.opts.Backend.Stream(ctx)
+	streamCtx, cancel := context.WithCancel(ctx)
+	stopLease := context.AfterFunc(lease.ctx, cancel)
+	reader, err := s.opts.Backend.Stream(streamCtx)
+	if err != nil {
+		stopLease()
+		cancel()
+		return nil, err
+	}
+	if reader == nil {
+		stopLease()
+		cancel()
+		return nil, ErrInvalid
+	}
+	stream := &leasedStream{reader: reader, ctx: streamCtx, cancel: cancel, stopLease: stopLease}
+	context.AfterFunc(streamCtx, func() { _ = stream.Close() })
+	if err := streamCtx.Err(); err != nil {
+		_ = stream.Close()
+		return nil, err
+	}
+	return stream, nil
 }
 func (s *Service) SaveFavorite(st Station) (Station, error) {
 	if err := s.writable(); err != nil {
@@ -469,7 +513,8 @@ func (s *Service) tick() {
 	}
 	hadListeners := len(s.listeners) > 0
 	for k, v := range s.listeners {
-		if now.Sub(v) > LeaseTTL || !p.Enabled || p.ReadOnly {
+		if now.Sub(v.lastHeartbeat) >= LeaseTTL || !p.Enabled || p.ReadOnly {
+			v.cancel()
 			delete(s.listeners, k)
 		}
 	}

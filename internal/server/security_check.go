@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -186,6 +187,21 @@ func stripHostPort(host string) string {
 // weakAuth returns true when no effective authentication is configured.
 func weakAuth(cfg *config.Config) bool {
 	return !cfg.Auth.Enabled || cfg.Auth.PasswordHash == ""
+}
+
+// dockerHostIsComposeSocketProxy reports the docker-compose.yml default: AuraGo
+// runs in a container and reaches the bundled socket proxy as
+// tcp://docker-proxy:2375. That proxy publishes no port; only containers on the
+// internal docker-control network reach it.
+func dockerHostIsComposeSocketProxy(cfg *config.Config) bool {
+	if cfg == nil || !cfg.Runtime.IsDocker {
+		return false
+	}
+	u, err := url.Parse(strings.TrimSpace(cfg.Docker.Host))
+	if err != nil || !strings.EqualFold(u.Scheme, "tcp") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return false
+	}
+	return strings.EqualFold(u.Hostname(), "docker-proxy") && u.Port() == "2375" && (u.Path == "" || u.Path == "/")
 }
 
 // CheckSecurity evaluates the current config and returns a list of security hints.
@@ -472,7 +488,7 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 	}
 
 	// 19. docker_tcp_socket — Docker exposed over unencrypted TCP
-	if cfg.Docker.Enabled && strings.HasPrefix(cfg.Docker.Host, "tcp://") {
+	if cfg.Docker.Enabled && strings.HasPrefix(cfg.Docker.Host, "tcp://") && !dockerHostIsComposeSocketProxy(cfg) {
 		hints = append(hints, SecurityHint{
 			ID: "docker_tcp_socket", Severity: SevWarning,
 			Title: "Docker: using unencrypted TCP socket",
@@ -493,6 +509,18 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 				"agent to read-only Docker operations.",
 			AutoFixable: true,
 			FixPatch:    map[string]interface{}{"docker": map[string]interface{}{"readonly": true}},
+		})
+	}
+
+	// 20b. docker_compose_host_access — agent Compose stacks may use the host.
+	if cfg.Docker.Enabled && !cfg.Docker.ReadOnly && cfg.Docker.AllowHostAccess {
+		hints = append(hints, SecurityHint{
+			ID: "docker_compose_host_access", Severity: SevWarning,
+			Title: "Docker: agent Compose stacks may use host access",
+			Description: "docker.allow_host_access is on, so agent docker compose up/create/build may bind host paths outside the agent workspace (including /var/run/docker.sock), pass devices and use privileged mode, host network/PID/IPC/UTS/user/cgroup namespaces, cap_add and unconfined security options. " +
+				"AuraGo's own data directory, config.yaml, .env and master key stay blocked, but a bind of a parent directory such as / still exposes them to that container. " +
+				"Configurations created before this setting existed have it switched on automatically. Turn it off in Config → Danger Zone if the agent only deploys stacks that use files inside the agent workspace and need no devices, privileged mode, host namespaces or cap_add.",
+			AutoFixable: false,
 		})
 	}
 

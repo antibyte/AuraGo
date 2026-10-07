@@ -218,6 +218,8 @@ The public model artifacts are pinned to immutable Hugging Face commits:
 
 The CUDA, SYCL, and Vulkan GHCR packages and the model artifacts are public and digest-pinned. Candidate backends may be installed only after an explicit backend choice and experimental-hardware acknowledgement. Automatic backend selection remains unavailable until an image and matching hardware profile pass the required native Linux GPU smoke test. AuraGo does not accept Hugging Face or GHCR credentials for this feature.
 
+Runtime image pulls have no fixed total timeout. Every pull gets two hours; after that it continues while Docker reports new progress for a layer, and fails with `pull_image_failed` after 15 minutes without any. The whole install still ends after six hours.
+
 ### WSL2 development tests
 
 WSL2 is not treated as a native Linux release qualification. Intel Arc GPUs can

@@ -218,7 +218,7 @@
   "config.output_compression.preserve_errors_desc": "Saídas com marcadores de erro nunca serão comprimidas.",
   "config.output_compression.preserve_errors_label": "Preservar erros",
   "config.output_compression.python_desc": "Filtros Python",
-  "config.output_compression.python_label": "Git, Docker, kubectl, go test, pytest, grep, find, ls/tree.",
+  "config.output_compression.python_label": "Git, Docker, kubectl, go test, pytest, grep, find, filtros de ls/tree.",
   "config.output_compression.shell_desc": "Filtros Shell",
   "config.output_compression.shell_label": "Selecione quais categorias de filtros estão ativas.",
   "config.save_bar.restarting": "A reiniciar…",
@@ -287,10 +287,10 @@
   "config.yepapi.disabled_notice": "YepAPI está desativado",
   "config.yepapi.disabled_desc": "Ative o YepAPI para acessar ferramentas de SEO, SERP, scraping e mídia social.",
   "config.yepapi.test_title": "Teste de conexão",
-  "config.yepapi.test_desc": "Verifique se sua chave YepAPI é válida e o serviço está acessível.",
+  "config.yepapi.test_desc": "Consulta o catálogo gratuito de modelos no endereço guardado. Não faz pedidos pagos nem verifica a validade da chave.",
   "config.yepapi.test_btn": "Testar conexão",
   "config.yepapi.testing": "Testando...",
-  "config.yepapi.test_success": "Conexão bem-sucedida — a chave API é válida.",
+  "config.yepapi.test_success": "Catálogo acessível. A validade da chave não foi verificada.",
   "config.yepapi.test_error": "Falha na conexão — verifique sua chave API e configurações do provedor.",
   "config.yepapi.provider_info": "YepAPI também pode ser usado como um provedor LLM. Configure-o na seção Provedores com o tipo 'yepapi'.",
   "config.frigate_title": "Frigate NVR",
@@ -606,5 +606,5 @@
   "config.section.detective.label": "Detetive",
   "config.section.detective.desc": "Pesquisas com fontes verificáveis",
   "config.section.newspaper.label": "Jornal",
-  "config.section.newspaper.desc": "Uma edição diária pessoal e de origem"
+  "config.section.newspaper.desc": "Uma edição diária pessoal, com fontes"
 }

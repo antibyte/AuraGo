@@ -135,76 +135,15 @@ func handleEvomapRegister(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if s.Vault == nil {
-			jsonError(w, "Vault not initialized (master key missing)", http.StatusServiceUnavailable)
-			return
-		}
-
-		cfg := evomapConfigSnapshot(s)
-		if !cfg.Enabled {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": "EvoMap integration is disabled"})
-			return
-		}
-		client, err := newEvomapServerClient(cfg)
+		nodeID, claimURL, configured, err := s.registerEvomapNode(r.Context(), evomapConfigSnapshot(s))
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": security.Scrub(err.Error())})
 			return
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(max(5, cfg.RequestTimeoutSeconds))*time.Second)
-		defer cancel()
-		result, err := client.RegisterNode(ctx, evomap.RegisterRequest{
-			Capabilities: []string{"status", "fetch_capsules", "get_asset", "kg_query"},
-			Metadata: map[string]interface{}{
-				"client": "aurago",
-			},
-		})
-		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": security.Scrub(err.Error())})
-			return
-		}
-
-		nodeSecretConfigured := strings.TrimSpace(cfg.NodeSecret) != ""
-		if strings.TrimSpace(result.NodeSecret) != "" {
-			security.RegisterSensitive(result.NodeSecret)
-			if err := s.Vault.WriteSecret("evomap_node_secret", result.NodeSecret); err != nil {
-				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store EvoMap node secret", "[EvoMap] Failed to store node secret", err)
-				return
-			}
-			nodeSecretConfigured = true
-		}
-
-		nodeID := strings.TrimSpace(result.NodeID)
-		if nodeID == "" {
-			nodeID = strings.TrimSpace(cfg.NodeID)
-		}
-		s.CfgMu.Lock()
-		if s.Cfg != nil {
-			if strings.TrimSpace(result.NodeSecret) != "" {
-				s.Cfg.Evomap.NodeSecret = result.NodeSecret
-			}
-			if nodeID != "" {
-				s.Cfg.Evomap.NodeID = nodeID
-				if strings.TrimSpace(s.Cfg.ConfigPath) != "" {
-					if err := s.Cfg.Save(s.Cfg.ConfigPath); err != nil {
-						s.CfgMu.Unlock()
-						jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to persist EvoMap node ID", "[EvoMap] Failed to persist node_id", err)
-						return
-					}
-				}
-			}
-		}
-		s.CfgMu.Unlock()
-
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":                 "ok",
-			"message":                "EvoMap node registered",
-			"node_id":                nodeID,
-			"claim_url":              result.ClaimURL,
-			"node_secret_configured": nodeSecretConfigured,
+			"status": "ok", "message": "EvoMap node registered", "node_id": nodeID, "claim_url": claimURL, "node_secret_configured": configured,
 		})
 	}
 }

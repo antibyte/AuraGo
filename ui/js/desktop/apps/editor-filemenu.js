@@ -23,6 +23,7 @@
                 wireContextMenuBoundary,
                 openFile: (entry) => {
                     if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
+                    if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path }); if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
                     if (isPixelImageFile(entry)) return openApp('pixel', { path: entry.path });
@@ -36,6 +37,7 @@
                 askAgentAboutFile: (entry) => askAgentAboutFile(entry),
                 refreshDesktop: loadBootstrap,
                 restoreFromTrash: restorePathsFromTrash,
+                moveToTrash: movePathsToTrash,
                 emptyTrash,
                 onPathChange: (newPath) => {
                     state.filesPath = newPath;
@@ -207,6 +209,7 @@
             mime_type: row.dataset.mimeType
         };
         if (fileExtension(entry.name || entry.path) === 'zip') return openApp('zipper', { path: entry.path });
+        if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
         if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
         if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
         if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
@@ -381,41 +384,80 @@
         host.innerHTML = `<div class="vd-editor">
             <div class="vd-toolbar">
                 <span class="vd-path">${esc(path)}</span>
-                <span class="vd-chat-meta" data-status></span>
+                <span class="vd-chat-meta" data-status role="status" aria-live="polite"></span>
             </div>
+            <div data-load-actions hidden><div class="vd-toolbar">
+                <button class="vd-tool-button" type="button" data-retry>${esc(t('desktop.retry'))}</button>
+                <button class="vd-tool-button" type="button" data-new ${desktopReadonly() ? 'disabled' : ''}>${esc(t('desktop.new_file'))}</button>
+                <button class="vd-tool-button" type="button" data-open>${esc(t('desktop.file_dialog_open'))}</button>
+            </div></div>
             <textarea spellcheck="false"></textarea>
         </div>`;
         const textarea = host.querySelector('textarea');
         const status = host.querySelector('[data-status]');
-        textarea.value = initialContent;
+        let version = '';
+        let saving = false;
+        let loadFailed = false;
+        const current = () => host.contains(textarea);
+        textarea.readOnly = true;
+        textarea.value = initialContent || '';
+        host.querySelector('[data-retry]').addEventListener('click', () => renderEditor(id, path, initialContent));
+        host.querySelector('[data-new]').addEventListener('click', () => {
+            if (!desktopReadonly()) renderEditor(id, 'Documents/untitled-' + crypto.randomUUID() + '.txt', '');
+        });
+        host.querySelector('[data-open]').addEventListener('click', async () => {
+            const choice = await openDesktopFileDialog({ initialPath: 'Documents' });
+            if (current() && choice?.path && !choice.canceled) renderEditor(id, choice.path);
+        });
         if (!initialContent) {
             try {
                 const body = await api('/api/desktop/file?path=' + encodeURIComponent(path));
+                if (!current()) return;
                 textarea.value = body.content || '';
-            } catch (_) {
-                textarea.value = '';
+                version = body.version || '';
+            } catch (err) {
+                if (!current()) return;
+                // Only an explicit new document may start empty after a 404.
+                if (err.status !== 404 || initialContent === undefined) {
+                    loadFailed = true;
+                    status.textContent = t('desktop.load_failed');
+                    host.querySelector('[data-load-actions]').hidden = false;
+                    if (err.status === 404) updateWindowContext(id, { path: '' });
+                }
             }
         }
+        textarea.readOnly = desktopReadonly() || loadFailed;
+        textarea.hidden = loadFailed;
+        if (!loadFailed) updateWindowContext(id, { path });
         const saveEditor = async () => {
+            if (!current() || loadFailed || saving || desktopReadonly()) return;
+            saving = true;
+            const content = textarea.value;
             status.textContent = t('desktop.saving');
             try {
-                await api('/api/desktop/file', {
+                const saved = await api('/api/desktop/file', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path, content: textarea.value })
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
+                    body: JSON.stringify({ path, content })
                 });
-                status.textContent = t('desktop.saved');
+                if (!current()) return;
+                path = saved.path || path;
+                version = saved.version || '';
+                host.querySelector('.vd-path').textContent = path;
+                const win = state.windows.get(id);
+                if (win) win.path = path;
+                updateWindowContext(id, { path });
+                status.textContent = textarea.value === content ? t('desktop.saved') : '';
                 await loadBootstrap();
             } catch (err) {
-                status.textContent = err.message;
-                throw err;
-            }
+                if (current()) status.textContent = err.name === 'AbortError' ? '' : t('desktop.request_failed');
+            } finally { saving = false; }
         };
         setEditorMenus(id, path, textarea, status, saveEditor);
     }
 
     function setEditorMenus(id, path, textarea, status, saveEditor) {
-        const readonly = !!((state.bootstrap || {}).readonly);
+        const readonly = desktopReadonly() || textarea.readOnly;
         setWindowMenus(id, [
             {
                 id: 'file',

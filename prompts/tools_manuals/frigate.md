@@ -17,7 +17,7 @@ Query Frigate NVR cameras, object detection events, review summaries, snapshots,
 | `recordings_summary` | Recording availability | `camera`, `start_time`, `end_time` |
 | `export_recording` | Fetch and, when `frigate.store_media` is enabled, store a recording clip | `camera`, `start_time`, `end_time` |
 | `config` | Read processed config | none |
-| `config_raw` | Read raw config | none |
+| `config_raw` | Read redacted YAML config | none |
 
 Examples:
 
@@ -41,3 +41,5 @@ Notes:
 - `reviews` uses Frigate's current `cameras`, `labels`, `zones`, `reviewed`, and `severity` filters. A single `camera` value is converted to `cameras`.
 - Stored media responses include `local_path`, `web_path`, `sha256`, and `media_id` when the media registry is available.
 - `event_relay` and `review_relay` subscribe to Frigate MQTT event/review topics when MQTT is enabled.
+
+Configuration reads expose structure and allowlisted numeric/boolean settings only. String values and credential-bearing sections are redacted locally, including config_raw. Unparseable or unsupported configuration is withheld; no raw fallback is returned.

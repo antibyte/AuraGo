@@ -32,11 +32,11 @@ func TestPromptSecDefaults(t *testing.T) {
 	if cfg.Guardian.PromptSec.Preset != "strict" {
 		t.Errorf("expected PromptSec.Preset=strict, got %q", cfg.Guardian.PromptSec.Preset)
 	}
-	if !cfg.Guardian.PromptSec.Spotlight {
-		t.Error("expected PromptSec.Spotlight=true")
+	if cfg.Guardian.PromptSec.Spotlight {
+		t.Error("expected retired PromptSec.Spotlight=false")
 	}
-	if !cfg.Guardian.PromptSec.Canary {
-		t.Error("expected PromptSec.Canary=true")
+	if cfg.Guardian.PromptSec.Canary {
+		t.Error("expected retired PromptSec.Canary=false")
 	}
 	if !cfg.Guardian.PromptSec.Sanitizer.Normalize {
 		t.Error("expected PromptSec.Sanitizer.Normalize=true")
@@ -84,8 +84,8 @@ guardian:
   scan_edge_bytes: 2048
   promptsec:
     preset: moderate
-    spotlight: false
-    canary: false
+    spotlight: true
+    canary: true
     sanitizer:
       normalize: false
       dehomoglyph: true
@@ -129,6 +129,9 @@ guardian:
 	if cfg.Guardian.PromptSec.Spotlight {
 		t.Error("expected Spotlight=false")
 	}
+	if cfg.Guardian.PromptSec.Canary {
+		t.Error("expected retired Canary=false")
+	}
 	if cfg.Guardian.PromptSec.Sanitizer.Normalize {
 		t.Error("expected Sanitizer.Normalize=false")
 	}
@@ -153,11 +156,11 @@ guardian:
 	if cfg.Guardian.PromptSec.Taint.DefaultLevel != "suspicious" {
 		t.Errorf("expected Taint.DefaultLevel=suspicious, got %q", cfg.Guardian.PromptSec.Taint.DefaultLevel)
 	}
-	if !cfg.Guardian.PromptSec.Structure.Enabled {
-		t.Error("expected Structure.Enabled=true")
+	if cfg.Guardian.PromptSec.Structure.Enabled {
+		t.Error("expected retired Structure.Enabled=false")
 	}
-	if cfg.Guardian.PromptSec.Structure.Mode != "xml" {
-		t.Errorf("expected Structure.Mode=xml, got %q", cfg.Guardian.PromptSec.Structure.Mode)
+	if cfg.Guardian.PromptSec.Structure.Mode != "sandwich" {
+		t.Errorf("expected retired Structure.Mode to use inert default sandwich, got %q", cfg.Guardian.PromptSec.Structure.Mode)
 	}
 	if !cfg.Guardian.PromptSec.LLMJudge.Enabled {
 		t.Error("expected LLMJudge.Enabled=true")

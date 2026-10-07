@@ -227,12 +227,14 @@ const CANCEL_ANSWERS = {
     'flow-4': [409, 'mission run cannot be cancelled yet'],
     'agent-1': [409, 'mission run cannot be cancelled yet']
 };
+// Mission Control reaches the mission API through the Desktop integrations route.
+const MC_API = '/api/desktop/integrations/missions/v2';
 async function api(url, options) {
     const method = (options && options.method) || 'GET';
     calls.api.push({ method, url, body: options && options.body ? JSON.parse(options.body) : undefined });
-    if (url === '/api/missions/v2' && method === 'GET') return missionsPayload();
+    if (url === MC_API && method === 'GET') return missionsPayload();
     if (url.endsWith('/run')) return { status: 'queued' };
-    if (url.endsWith('/cancel')) throw httpError(...CANCEL_ANSWERS[url.split('/')[4]]);
+    if (url.endsWith('/cancel')) throw httpError(...CANCEL_ANSWERS[url.split('/').slice(-2)[0]]);
     if (method === 'PUT' || method === 'DELETE') return { status: 'ok' };
     return {};
 }
@@ -332,7 +334,7 @@ await menuAction('lock-toggle');
 await selectRow('flow-2');
 await menuAction('lock-toggle');
 const puts = apiCalls('PUT');
-eq('shell: pause, lock (live) and lock (draft) send PUTs', puts.map(p => p.url), ['/api/missions/v2/flow-1', '/api/missions/v2/flow-1', '/api/missions/v2/flow-2']);
+eq('shell: pause, lock (live) and lock (draft) send PUTs', puts.map(p => p.url), [MC_API + '/flow-1', MC_API + '/flow-1', MC_API + '/flow-2']);
 check('shell: pause sends the whole flow mission with enabled false', puts[0] && puts[0].body.execution_type === 'flow' && puts[0].body.enabled === false && puts[0].body.flow_id === 'f_live' && !('next_run' in puts[0].body));
 check('shell: lock keeps enabled and sets locked', puts[1] && puts[1].body.locked === true && puts[1].body.enabled === true);
 check('shell: lock of an unpublished flow keeps enabled false', puts[2] && puts[2].body.locked === true && puts[2].body.enabled === false);

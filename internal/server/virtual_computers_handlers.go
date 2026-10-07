@@ -971,7 +971,17 @@ func handleVirtualComputersTasks(s *Server) http.HandlerFunc {
 				jsonError(w, err.Error(), http.StatusServiceUnavailable)
 				return
 			}
-			task, err := manager.Submit(client, req.MachineID, req.Kind, req.Instruction)
+			owner, release, err := s.beginDesktopBackgroundRun(time.Hour)
+			if err != nil {
+				writeDesktopPolicyError(w, "desktop_readonly", "The desktop action was revoked.")
+				return
+			}
+			task, done, err := manager.SubmitContext(owner, client, req.MachineID, req.Kind, req.Instruction)
+			if err == nil {
+				go func() { <-done; release() }()
+			} else {
+				release()
+			}
 			if err != nil {
 				writeVirtualComputersAPIError(w, "invalid_argument", err.Error(), http.StatusBadRequest)
 				return
@@ -1004,14 +1014,6 @@ func handleVirtualComputersTask(s *Server) http.HandlerFunc {
 			}
 			writeJSON(w, map[string]interface{}{"status": "ok", "task": task})
 		case http.MethodDelete:
-			cfg := virtualComputersConfigSnapshot(s)
-			if !virtualComputersMutationAllowed(s, w) {
-				return
-			}
-			if !cfg.AllowAgentTasks {
-				jsonError(w, "virtual computer agent tasks are disabled", http.StatusForbidden)
-				return
-			}
 			if !manager.CancelTask(taskID) {
 				writeVirtualComputersAPIError(w, "not_found", "running agent task was not found", http.StatusNotFound)
 				return
@@ -1026,12 +1028,13 @@ func handleVirtualComputersTask(s *Server) http.HandlerFunc {
 
 func handleVirtualComputerPreviewProxy(s *Server, machineID, tail string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
-			return
+		scope := desktopMethodScope(r.Method)
+		operation := desktopMethodOperation(r.Method)
+		if websocket.IsWebSocketUpgrade(r) && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+			scope = desktopScopeWrite
+			operation = desktopExecute
 		}
-		client, err := virtualComputersClient(s)
-		if err != nil {
-			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		if !requireDesktopOperation(s, w, r, scope, operation) {
 			return
 		}
 		portPart, suffix, ok := strings.Cut(tail, "/")
@@ -1043,9 +1046,26 @@ func handleVirtualComputerPreviewProxy(s *Server, machineID, tail string) http.H
 			jsonError(w, "invalid preview port", http.StatusBadRequest)
 			return
 		}
+		cfg := virtualComputersConfigSnapshot(s)
+		if operation != desktopRead && cfg.ReadOnly {
+			jsonError(w, "virtual computers are read-only", http.StatusForbidden)
+			return
+		}
+		client, err := virtualComputersClient(s)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
 		target, err := client.PreviewTargetURL(machineID, port, suffix)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if serveIsolatedVMPreviewLaunch(s, w, r, machineID, port, suffix) {
+			return
+		}
+		if !virtualComputerPreviewProxyAllowed(s, r, scope, operation) {
+			writeDesktopPolicyError(w, "desktop_permission_revoked", "Virtual computer preview access was revoked.")
 			return
 		}
 		virtualComputersSetExposure(s, r, virtualcomputers.ExposureRecord{
@@ -1054,33 +1074,110 @@ func handleVirtualComputerPreviewProxy(s *Server, machineID, tail string) http.H
 			URL:       r.URL.Path,
 			Active:    true,
 		})
-		cfg := virtualComputersConfigSnapshot(s)
 		proxy := &httputil.ReverseProxy{
 			Director: func(req *http.Request) {
 				req.URL.Scheme = target.Scheme
 				req.URL.Host = target.Host
 				req.URL.Path = target.Path
+				query := req.URL.RawQuery
 				req.URL.RawQuery = target.RawQuery
-				req.Host = target.Host
-				if strings.TrimSpace(cfg.BoringToken) != "" {
-					req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(cfg.BoringToken))
+				if query != "" {
+					if req.URL.RawQuery != "" {
+						req.URL.RawQuery += "&"
+					}
+					req.URL.RawQuery += query
 				}
+				req.Host = target.Host
+				// The legacy boringd web route is unauthenticated and forwards headers
+				// to the guest. Remove AuraGo credentials but preserve guest login state.
+				cookies := req.Cookies()
+				req.Header.Del("Cookie")
+				for _, cookie := range cookies {
+					if !reservedPreviewCookie(cookie.Name) {
+						req.AddCookie(cookie)
+					}
+				}
+				if rawToken, bearer := bearerCredential(req.Header.Get("Authorization")); bearer && rawToken != "" {
+					if tm := s.currentTokenManager(); tm != nil {
+						if _, valid := tm.Validate(rawToken, ""); valid {
+							req.Header.Del("Authorization")
+						}
+					}
+				}
+				req.Header.Del(agodeskDevTokenHeader)
+				req.Header.Del("X-Internal-Token")
+				req.Header.Del("X-Internal-FollowUp")
+				req.Header.Del("Proxy-Authorization")
+			},
+			ModifyResponse: func(resp *http.Response) error {
+				cookies := resp.Header.Values("Set-Cookie")
+				resp.Header.Del("Set-Cookie")
+				for _, value := range cookies {
+					name, _, _ := strings.Cut(value, "=")
+					if !reservedPreviewCookie(strings.TrimSpace(name)) {
+						resp.Header.Add("Set-Cookie", value)
+					}
+				}
+				return nil
 			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 				jsonError(w, err.Error(), http.StatusBadGateway)
 			},
 		}
-		proxy.ServeHTTP(w, r)
+		proxyCtx, cancel := context.WithCancel(r.Context())
+		defer cancel()
+		proxyRequest := r.WithContext(proxyCtx)
+		monitorDone := make(chan struct{})
+		go func() {
+			defer close(monitorDone)
+			ticker := time.NewTicker(250 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-proxyCtx.Done():
+					return
+				case <-ticker.C:
+					if !virtualComputerPreviewProxyAllowed(s, r, scope, operation) {
+						cancel()
+						return
+					}
+				}
+			}
+		}()
+		proxy.ServeHTTP(w, proxyRequest)
+		cancel()
+		<-monitorDone
 	}
+}
+
+func virtualComputerPreviewProxyAllowed(s *Server, r *http.Request, scope string, operation desktopOperation) bool {
+	if !desktopWSAuthorizationValid(s, r, scope) {
+		return false
+	}
+	cfg := virtualComputersConfigSnapshot(s)
+	if !cfg.Enabled || (operation != desktopRead && cfg.ReadOnly) {
+		return false
+	}
+	if operation != desktopRead {
+		s.CfgMu.RLock()
+		readOnly := s.Cfg == nil || s.Cfg.VirtualDesktop.ReadOnly
+		s.CfgMu.RUnlock()
+		if readOnly {
+			return false
+		}
+	}
+	return true
 }
 
 func handleVirtualComputerWSProxy(s *Server, machineID, channel string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		scope := desktopScopeRead
+		operation := desktopRead
 		if channel == "tty" || channel == "vnc" || channel == "agent" || channel == "shell-agent" {
 			scope = desktopScopeWrite
+			operation = desktopExecute
 		}
-		if !requireDesktopPermission(s, w, r, scope) {
+		if !requireDesktopOperation(s, w, r, scope, operation) {
 			return
 		}
 		if channel == "tty" || channel == "vnc" || channel == "agent" || channel == "shell-agent" {
@@ -1115,30 +1212,102 @@ func handleVirtualComputerWSProxy(s *Server, machineID, channel string) http.Han
 			jsonError(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		defer upstream.Close()
-
-		downstream, err := virtualComputersWSUpgrader.Upgrade(w, r, nil)
-		if err != nil {
+		if r.Context().Err() != nil {
+			_ = upstream.Close()
 			return
 		}
-		defer downstream.Close()
+		if !virtualComputerWSAllowed(s, r, channel) {
+			_ = upstream.Close()
+			jsonError(w, "Virtual computer WebSocket access was revoked", http.StatusForbidden)
+			return
+		}
+		downstream, err := virtualComputersWSUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			_ = upstream.Close()
+			return
+		}
+		proxyCtx, cancel := context.WithCancel(r.Context())
+		var closeOnce sync.Once
+		closeBoth := func() {
+			closeOnce.Do(func() {
+				cancel()
+				_ = downstream.Close()
+				_ = upstream.Close()
+			})
+		}
+		stopContextClose := context.AfterFunc(proxyCtx, closeBoth)
+		defer func() {
+			closeBoth()
+			stopContextClose()
+		}()
 
-		errCh := make(chan error, 2)
-		go copyVirtualComputerWS(upstream, downstream, errCh)
-		go copyVirtualComputerWS(downstream, upstream, errCh)
-		<-errCh
+		var copies sync.WaitGroup
+		copies.Add(2)
+		go func() {
+			defer copies.Done()
+			copyVirtualComputerWS(upstream, downstream)
+			closeBoth()
+		}()
+		go func() {
+			defer copies.Done()
+			copyVirtualComputerWS(downstream, upstream)
+			closeBoth()
+		}()
+		policyDone := make(chan struct{})
+		go func() {
+			defer close(policyDone)
+			ticker := time.NewTicker(250 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-proxyCtx.Done():
+					return
+				case <-ticker.C:
+					if !virtualComputerWSAllowed(s, r, channel) {
+						closeBoth()
+						return
+					}
+				}
+			}
+		}()
+
+		copies.Wait()
+		closeBoth()
+		<-policyDone
 	}
 }
 
-func copyVirtualComputerWS(dst, src *websocket.Conn, errCh chan<- error) {
+func virtualComputerWSAllowed(s *Server, r *http.Request, channel string) bool {
+	scope := desktopScopeRead
+	writes := channel == "tty" || channel == "vnc" || channel == "agent" || channel == "shell-agent"
+	if writes {
+		scope = desktopScopeWrite
+	}
+	if !desktopWSAuthorizationValid(s, r, scope) {
+		return false
+	}
+	cfg := virtualComputersConfigSnapshot(s)
+	if !cfg.Enabled || (writes && cfg.ReadOnly) || ((channel == "agent" || channel == "shell-agent") && !cfg.AllowAgentTasks) {
+		return false
+	}
+	if writes {
+		s.CfgMu.RLock()
+		readonly := s.Cfg == nil || s.Cfg.VirtualDesktop.ReadOnly
+		s.CfgMu.RUnlock()
+		if readonly {
+			return false
+		}
+	}
+	return true
+}
+
+func copyVirtualComputerWS(dst, src *websocket.Conn) {
 	for {
 		messageType, data, err := src.ReadMessage()
 		if err != nil {
-			errCh <- err
 			return
 		}
 		if err := dst.WriteMessage(messageType, data); err != nil {
-			errCh <- err
 			return
 		}
 	}

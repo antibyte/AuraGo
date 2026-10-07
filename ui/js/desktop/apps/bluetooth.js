@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const API = '/api/bluetooth/';
+    const API = '/api/desktop/integrations/bluetooth/';
     const VISIBLE_MINUTES = [1, 3, 5, 10];
     const INPUT_KINDS = new Set(['enter_passkey', 'enter_pin']);
     const DISPLAY_KINDS = new Set(['display_passkey', 'display_pin']);

@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "Global read-only",
   "config.sql_connections.readonly_help": "Blocks all write operations regardless of connection permissions.",
   "config.sql_connections.allow_management_label": "Allow management",
-  "config.sql_connections.allow_management_help": "Allows the agent to create, edit, and delete connections."
+  "config.sql_connections.sqlite_import": "Import SQLite backup",
+  "config.sql_connections.sqlite_import_help": "Upload a consistent standalone backup (up to 64 MiB). Saving imports it into protected storage and preserves originals.",
+  "config.sql_connections.sqlite_import_required": "SQLite import required",
+  "config.sql_connections.allow_management_help": "The agent may edit descriptions only. Setup, credentials and permissions are administrator-only."
 }

@@ -118,7 +118,7 @@ type AuthResponsePayload struct {
 	SharedKey     string   `json:"shared_key,omitempty"`
 	Message       string   `json:"message,omitempty"`
 	ReadOnly      *bool    `json:"read_only,omitempty"`
-	AllowedPaths  []string `json:"allowed_paths,omitempty"`
+	AllowedPaths  []string `json:"allowed_paths"`
 	MaxFileSizeMB int      `json:"max_file_size_mb,omitempty"`
 }
 
@@ -158,6 +158,21 @@ type ConfigUpdatePayload struct {
 	ReadOnly      *bool    `json:"read_only,omitempty"`
 	AllowedPaths  []string `json:"allowed_paths,omitempty"`
 	MaxFileSizeMB *int     `json:"max_file_size_mb,omitempty"`
+}
+
+// Omitted paths mean unchanged in a partial update; an explicit empty slice
+// revokes access. A slice with omitempty cannot preserve that distinction.
+func (p ConfigUpdatePayload) MarshalJSON() ([]byte, error) {
+	type wire struct {
+		ReadOnly      *bool     `json:"read_only,omitempty"`
+		AllowedPaths  *[]string `json:"allowed_paths,omitempty"`
+		MaxFileSizeMB *int      `json:"max_file_size_mb,omitempty"`
+	}
+	result := wire{ReadOnly: p.ReadOnly, MaxFileSizeMB: p.MaxFileSizeMB}
+	if p.AllowedPaths != nil {
+		result.AllowedPaths = &p.AllowedPaths
+	}
+	return json.Marshal(result)
 }
 
 // AckPayload acknowledges receipt of a message.
@@ -259,6 +274,9 @@ func NewMessage(msgType, deviceID, sharedKeyHex string, seq uint64, payload inte
 // or device shared key is available. Manual approval flows may remain unsigned
 // because no trusted secret exists yet on either side.
 func NewAuthResponseMessage(deviceID, signingKeyHex string, payload AuthResponsePayload) (*RemoteMessage, error) {
+	if payload.AllowedPaths == nil {
+		payload.AllowedPaths = []string{}
+	}
 	return NewMessage(MsgAuthResponse, deviceID, signingKeyHex, 0, payload)
 }
 

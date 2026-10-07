@@ -253,11 +253,10 @@
         }
         async function print(bytes,lib,fonts) {
             // A separate snapshot keeps edits and review state out of the print transaction.
-            printFrame?.remove();printFrame=document.createElement('iframe');printFrame.className='writer-print-frame';
-            document.body.appendChild(printFrame);
-            const doc=printFrame.contentDocument;
-            doc.open();doc.write('<!doctype html><html><head><link rel="stylesheet" href="'+location.origin+'/js/vendor/writer/engine.css"></head><body><div class="docx-editor" id="pages"></div></body></html>');doc.close();
-            await new Promise((resolve,reject)=>{printFrame.onload=resolve;setTimeout(resolve,500);});
+            printFrame?.dispose();
+            const job=await window.AuraDesktopPrint.create({html:'<!doctype html><html><head><link rel="stylesheet" href="/js/vendor/writer/engine.css"></head><body><div class="docx-editor" id="pages"></div></body></html>',title:tr('print'),className:'writer-print-frame',signal:life.signal});
+            printFrame=job;
+            const doc=job.document;
             const printEditor=lib.createDocxEditor({container:doc.getElementById('pages'),document:bytes,fonts,mode:'view',zoom:1,modules:[lib.reviewModule]});
             try {
                 await printEditor.save();
@@ -268,11 +267,12 @@
                 const style=doc.createElement('style');
                 style.textContent='@page{size:'+setup.pageWidthTwips/20+'pt '+setup.pageHeightTwips/20+'pt;margin:0}html,body,#pages{margin:0!important;padding:0!important;height:auto!important;overflow:visible!important;background:white!important}.docx-page{position:relative!important;top:auto!important;left:auto!important;transform:none!important;break-after:page!important;break-inside:avoid!important;margin:0!important;box-shadow:none!important}.docx-page:last-child{break-after:auto!important}';
                 doc.head.appendChild(style);
-                printFrame.contentWindow.focus();printFrame.contentWindow.print();
-            } finally {printEditor.destroy();setTimeout(()=>{printFrame?.remove();printFrame=null;},1000);}
+                await job.print();
+            } catch(error) {job.dispose();throw error;}
+            finally {printEditor.destroy();}
         }
         function reset(){aiRequest?.abort();suggestion=null;renderSuggestion();matches=[];reviewSignature=outlineSignature=searchSignature='';}
-        return {show,update,template,print,reset,dispose(){life.abort();reset();printFrame?.remove();}};
+        return {show,update,template,print,reset,dispose(){life.abort();reset();printFrame?.dispose();}};
     }
     window.WriterPanels={create};
 })();

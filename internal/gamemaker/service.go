@@ -164,6 +164,13 @@ func (s *Service) UpdatePolicy(policy Policy) {
 	s.policyMu.Lock()
 	defer s.policyMu.Unlock()
 	s.policy = policy
+	if !policy.Enabled || policy.ReadOnly || !policy.AllowEdit {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		for _, cancel := range s.jobCancels {
+			cancel()
+		}
+	}
 }
 
 func policyFromOptions(opts Options) Policy {

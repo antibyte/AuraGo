@@ -143,14 +143,19 @@
         const runtime = state.data && state.data.integration;
         const canManage = !!(state.data && state.data.can_manage);
         const error = state.error ? '<div class="nc-modal-error">' + ctx.esc(state.error) + '</div>' : '';
+        const noCameras = allStreams(state).length === 0;
+        const onboardingClass = 'nc-onboarding' + (noCameras ? ' has-artwork' : '');
+        const illustration = noCameras
+            ? '<img class="nc-onboarding-art" src="/img/network-cameras/placeholder.png" width="1254" height="1254" alt="" aria-hidden="true" draggable="false">'
+            : '<div class="nc-onboarding-icon">' + appIcon(ctx, 'camera', 'C', 34) + '</div>';
         if (runtime && !runtime.enabled) {
-            return '<div class="nc-onboarding"><div class="nc-onboarding-icon">' + appIcon(ctx, 'camera', 'C', 34) + '</div><h2>' + ctx.esc(text(ctx, canManage ? 'enable_title' : 'disabled_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'enable_description' : 'disabled_description')) + '</p>' +
+            return '<div class="' + onboardingClass + '">' + illustration + '<h2>' + ctx.esc(text(ctx, canManage ? 'enable_title' : 'disabled_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'enable_description' : 'disabled_description')) + '</p>' +
                 error + (canManage ? '<div class="nc-onboarding-actions"><button class="nc-primary" type="button" data-action="enable">' + ctx.esc(text(ctx, 'enable_action')) + '</button><a href="/config#go2rtc" target="_blank" rel="noopener">' + ctx.esc(text(ctx, 'open_settings')) + '</a></div>' : '') + '</div>';
         }
         if (runtime && !runtime.api_usable) {
             return '<div class="nc-onboarding"><div class="nc-onboarding-icon is-warning">!</div><h2>' + ctx.esc(text(ctx, 'unavailable_title')) + '</h2><p>' + ctx.esc(runtime.last_error || text(ctx, 'unavailable_description')) + '</p><div class="nc-onboarding-actions"><button class="nc-primary" type="button" data-action="refresh">' + ctx.esc(text(ctx, 'retry')) + '</button>' + (canManage ? '<a href="/config#go2rtc" target="_blank" rel="noopener">' + ctx.esc(text(ctx, 'open_settings')) + '</a>' : '') + '</div></div>';
         }
-        return '<div class="nc-onboarding"><div class="nc-onboarding-icon">' + appIcon(ctx, 'camera', 'C', 34) + '</div><h2>' + ctx.esc(text(ctx, 'empty_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'empty_admin_description' : 'empty_viewer_description')) + '</p>' + error + (canManage ? '<button class="nc-primary" type="button" data-action="add">' + ctx.esc(text(ctx, 'setup_camera')) + '</button>' : '') + '</div>';
+        return '<div class="' + onboardingClass + '">' + illustration + '<h2>' + ctx.esc(text(ctx, 'empty_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'empty_admin_description' : 'empty_viewer_description')) + '</p>' + error + (canManage ? '<button class="nc-primary" type="button" data-action="add">' + ctx.esc(text(ctx, 'setup_camera')) + '</button>' : '') + '</div>';
     }
 
     function liveGridIDs(state, streams) {
@@ -173,7 +178,7 @@
         const deleting = state.deletingID === stream.id;
         const codecs = Array.isArray(stream.codecs) && stream.codecs.length ? stream.codecs.join(' · ') : text(ctx, enabled ? 'waiting_codec' : 'disabled');
         const media = live
-            ? '<iframe title="' + ctx.esc(stream.name || stream.id) + '" src="/api/go2rtc/viewer/' + encodeURIComponent(stream.id) + '" loading="lazy"></iframe>'
+            ? '<iframe title="' + ctx.esc(stream.name || stream.id) + '" src="/api/desktop/integrations/go2rtc/viewer/' + encodeURIComponent(stream.id) + '" loading="lazy"></iframe>'
             : (enabled ? '<img data-thumbnail="' + ctx.esc(stream.id) + '" alt="' + ctx.esc(stream.name || stream.id) + '"><div class="nc-image-placeholder">' + appIcon(ctx, 'camera', 'C', 25) + '</div>' : '<div class="nc-disabled-placeholder">' + appIcon(ctx, 'camera', 'C', 25) + '<span>' + ctx.esc(text(ctx, 'disabled')) + '</span></div>');
         return '<article class="nc-card ' + (selected ? 'is-selected ' : '') + (!enabled ? 'is-disabled' : '') + '" data-stream-card="' + ctx.esc(stream.id) + '">' +
             '<button type="button" class="nc-card-select" data-select="' + ctx.esc(stream.id) + '" ' + (!enabled ? 'disabled' : '') + ' aria-label="' + ctx.esc(stream.name || stream.id) + '"></button>' +
@@ -188,7 +193,7 @@
         const ctx = state.ctx;
         const stream = selectedStream(state);
         if (!stream) return '<div class="nc-detail-empty">' + ctx.esc(text(ctx, 'select_camera')) + '</div>';
-        const viewerURL = '/api/go2rtc/viewer/' + encodeURIComponent(stream.id);
+        const viewerURL = '/api/desktop/integrations/go2rtc/viewer/' + encodeURIComponent(stream.id);
         const deleting = state.deletingID === stream.id;
         return '<section class="nc-detail">' +
             '<div class="nc-detail-header"><div><strong>' + ctx.esc(stream.name || stream.id) + '</strong><small>' + ctx.esc(stream.id) + '</small></div><div class="nc-detail-actions">' +
@@ -270,7 +275,7 @@
 
     async function enableIntegration(state) {
         try {
-            const result = await request(state, '/api/go2rtc/setup/enable', { method: 'POST', body: {} });
+            const result = await request(state, '/api/desktop/integrations/go2rtc/setup/enable', { method: 'POST', body: {} });
             state.ctx.notify(text(state.ctx, mutationNoticeKey(result, 'enabled_notice')));
             await loadState(state, true);
         } catch (error) {
@@ -283,14 +288,14 @@
     function reconnectViewer(state) {
         const frame = state.host.querySelector('.nc-detail-video iframe');
         const stream = selectedStream(state);
-        if (frame && stream) frame.src = '/api/go2rtc/viewer/' + encodeURIComponent(stream.id) + '?retry=' + Date.now();
+        if (frame && stream) frame.src = '/api/desktop/integrations/go2rtc/viewer/' + encodeURIComponent(stream.id) + '?retry=' + Date.now();
     }
 
     async function takeSnapshot(state) {
         const stream = selectedStream(state);
         if (!stream) return;
         try {
-            await request(state, '/api/go2rtc/snapshot', { method: 'POST', body: { stream_id: stream.id, store: true } });
+            await request(state, '/api/desktop/integrations/go2rtc/snapshot', { method: 'POST', body: { stream_id: stream.id, store: true } });
             state.ctx.notify(text(state.ctx, 'snapshot_saved'));
             scheduleThumbnails(state, true);
         } catch (error) {
@@ -304,7 +309,7 @@
         state.error = '';
         if (redraw) draw(state);
         try {
-            state.data = await request(state, '/api/go2rtc/app/state');
+            state.data = await request(state, '/api/desktop/integrations/go2rtc/app/state');
             ensureSelection(state);
         } catch (error) {
             if (error.name !== 'AbortError') state.error = error.message || text(state.ctx, 'load_error');
@@ -374,7 +379,7 @@
         const controller = new AbortController();
         state.controllers.add(controller);
         try {
-            const response = await fetch('/api/go2rtc/thumbnail/' + encodeURIComponent(id) + '.jpg?width=640&height=360&cache=5', { credentials: 'same-origin', signal: controller.signal });
+            const response = await fetch('/api/desktop/integrations/go2rtc/thumbnail/' + encodeURIComponent(id) + '.jpg?width=640&height=360&cache=5', { credentials: 'same-origin', signal: controller.signal });
             if (!response.ok) throw new Error('thumbnail');
             const blob = await response.blob();
             if (state.disposed || !node.isConnected) return;
@@ -472,7 +477,7 @@
             modal.busy = true;
             drawModal(state);
             try {
-                const result = await request(state, '/api/go2rtc/discovery', { method: 'POST', body: {} });
+                const result = await request(state, '/api/desktop/integrations/go2rtc/discovery', { method: 'POST', body: {} });
                 modal.candidates = result.candidates || [];
                 if (!modal.candidates.length) modal.error = text(state.ctx, 'no_devices');
             } catch (error) {
@@ -503,7 +508,7 @@
             modal.busy = true;
             drawModal(state);
             try {
-                const result = await request(state, '/api/go2rtc/discovery/profiles', { method: 'POST', body: { candidate_id: modal.selectedCandidate, address: modal.address, username: modal.username, password: modal.password } });
+                const result = await request(state, '/api/desktop/integrations/go2rtc/discovery/profiles', { method: 'POST', body: { candidate_id: modal.selectedCandidate, address: modal.address, username: modal.username, password: modal.password } });
                 modal.password = '';
                 modal.setupToken = result.setup_token;
                 modal.profiles = result.profiles || [];
@@ -539,7 +544,7 @@
         modal.busy = true;
         drawModal(state);
         try {
-            const result = await request(state, '/api/go2rtc/streams', { method: 'POST', body: { id: modal.id, name: modal.name, source: modal.method === 'url' ? modal.source : '', setup_token: modal.setupToken, profile_id: modal.profileID } });
+            const result = await request(state, '/api/desktop/integrations/go2rtc/streams', { method: 'POST', body: { id: modal.id, name: modal.name, source: modal.method === 'url' ? modal.source : '', setup_token: modal.setupToken, profile_id: modal.profileID } });
             modal.source = '';
             state.selected = result.stream && result.stream.id ? result.stream.id : modal.id;
             state.modal = null;
@@ -565,7 +570,7 @@
         modal.busy = true;
         drawModal(state);
         try {
-            const result = await request(state, '/api/go2rtc/streams/' + encodeURIComponent(modal.streamID), { method: 'PATCH', body: { name: modal.name, enabled: modal.enabled, source: modal.source } });
+            const result = await request(state, '/api/desktop/integrations/go2rtc/streams/' + encodeURIComponent(modal.streamID), { method: 'PATCH', body: { name: modal.name, enabled: modal.enabled, source: modal.source } });
             modal.source = '';
             state.modal = null;
             state.ctx.notify(text(state.ctx, mutationNoticeKey(result, 'camera_updated')));
@@ -597,7 +602,7 @@
             draw(state);
         }
         try {
-            const result = await request(state, '/api/go2rtc/streams/' + encodeURIComponent(streamID), { method: 'DELETE' });
+            const result = await request(state, '/api/desktop/integrations/go2rtc/streams/' + encodeURIComponent(streamID), { method: 'DELETE' });
             state.modal = null;
             if (state.selected === streamID) state.selected = '';
             savePreferences(state);

@@ -26,7 +26,7 @@
   "config.chromecast.field_name": "Nome dispositivo",
   "config.chromecast.field_name_help": "Un nome descrittivo per questo dispositivo (es. \"Soggiorno\", \"Altoparlante cucina\"). L'agente userà questo nome per identificare il dispositivo.",
   "config.chromecast.found_devices": "{{count}} dispositivo/i trovato/i",
-  "config.chromecast.ip_placeholder": "e.g. 192.168.1.50",
+  "config.chromecast.ip_placeholder": "es. 192.168.1.50",
   "config.chromecast.ip_required": "L'indirizzo IP è obbligatorio.",
   "config.chromecast.loading": "⏳ Caricamento dispositivi…",
   "config.chromecast.name_placeholder": "es. Soggiorno",

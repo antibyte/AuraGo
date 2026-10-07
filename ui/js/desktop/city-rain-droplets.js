@@ -8,6 +8,7 @@
  * keep the CSS body wallpaper as fallback until the WebGL layer is ready.
  */
 import { createDroplets } from "/js/vendor/canvasui/droplets.js";
+import { desktopCovered } from "./wallpaper-visibility.js";
 
 const WALLPAPER_KEY = "city_rain";
 const WALLPAPER_URL = "/img/wallpapers/city_rain.jpg";
@@ -40,6 +41,12 @@ let startToken = 0;
 let starting = false;
 let retryTimers = [];
 let initDone = false;
+let lifecycleWired = false;
+let pageHidden = false;
+
+function wallpaperVisible() {
+  return !pageHidden && !document.hidden && isCityRainWallpaper() && !desktopCovered();
+}
 
 function prefersReducedMotion() {
   try {
@@ -231,7 +238,7 @@ function destroyDroplets(reason) {
 
 async function startDroplets() {
   if (instance || starting) return;
-  if (!isCityRainWallpaper()) return;
+  if (!wallpaperVisible()) return;
 
   starting = true;
   const token = ++startToken;
@@ -287,7 +294,7 @@ async function startDroplets() {
     return;
   }
 
-  if (token !== startToken || !isCityRainWallpaper()) {
+  if (token !== startToken || !wallpaperVisible() || prefersReducedMotion()) {
     starting = false;
     return;
   }
@@ -368,7 +375,7 @@ async function startDroplets() {
 }
 
 function syncWallpaperEffect() {
-  if (isCityRainWallpaper()) startDroplets();
+  if (wallpaperVisible() && !prefersReducedMotion()) startDroplets();
   else destroyDroplets(DESKTOP_DROPLETS_MARKERS.destroyed);
 }
 
@@ -405,7 +412,9 @@ function initCityRainDroplets() {
 
   observer = new MutationObserver((records) => {
     for (const record of records) {
-      if (record.type === "attributes" && record.attributeName === "data-wallpaper") {
+      const target = record.target;
+      if ((record.type === "attributes" && (target === document.body || target.matches?.('.vd-window, #vd-screensaver'))) ||
+          (record.type === "childList" && Array.from(record.addedNodes).concat(Array.from(record.removedNodes)).some(node => node.matches?.('.vd-window, #vd-screensaver')))) {
         syncWallpaperEffect();
         if (isCityRainWallpaper()) scheduleBootstrapRetries();
         break;
@@ -413,9 +422,12 @@ function initCityRainDroplets() {
     }
   });
   if (document.body) {
-    observer.observe(document.body, { attributes: true, attributeFilter: ["data-wallpaper"] });
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-wallpaper", "class", "style", "hidden", "data-state"] });
   }
 
+  if (lifecycleWired) return;
+  lifecycleWired = true;
+  document.addEventListener("visibilitychange", syncWallpaperEffect);
   motionQuery = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
   if (motionQuery) {
     const onMotion = () => syncWallpaperEffect();
@@ -427,7 +439,8 @@ function initCityRainDroplets() {
     "pageshow",
     () => {
       // bfcache / soft navigations
-      preloadWallpaperImage();
+      pageHidden = false;
+      initCityRainDroplets();
       syncWallpaperEffect();
     },
     { passive: true }
@@ -436,6 +449,7 @@ function initCityRainDroplets() {
   window.addEventListener(
     "pagehide",
     () => {
+      pageHidden = true;
       destroyDroplets(DESKTOP_DROPLETS_MARKERS.destroyed);
       clearRetryTimers();
       if (observer) observer.disconnect();
@@ -444,7 +458,7 @@ function initCityRainDroplets() {
       layoutObserver = null;
       initDone = false;
     },
-    { once: true }
+    { passive: true }
   );
 }
 

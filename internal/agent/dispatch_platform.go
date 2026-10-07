@@ -983,6 +983,8 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if isLocal {
 				// ── Local CLI mode ──────────────────────────────────────────────────────
 				localCfg := tools.AnsibleLocalConfig{
+					Context:          ctx,
+					WorkDir:          filepath.Join(cfg.Directories.WorkspaceDir, "workdir"),
 					PlaybooksDir:     cfg.Ansible.PlaybooksDir,
 					DefaultInventory: cfg.Ansible.DefaultInventory,
 					Timeout:          cfg.Ansible.Timeout,
@@ -1143,9 +1145,6 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 
 		case "evomap":
 			req := decodeEvomapArgs(tc)
-			if vault != nil {
-				return dispatchEvomapCall(ctx, req, cfg, vault)
-			}
 			return dispatchEvomapCall(ctx, req, cfg)
 
 		case "truenas",

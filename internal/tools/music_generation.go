@@ -18,6 +18,7 @@ import (
 
 	"aurago/internal/acestep"
 	"aurago/internal/config"
+	"aurago/internal/fileutil"
 	"aurago/internal/security"
 
 	"aurago/internal/uid"
@@ -151,6 +152,9 @@ func MusicResultToJSON(r MusicGenResult) string {
 // GenerateMusicResult runs music generation and returns the structured result.
 // Use this when the caller needs to inspect or record the result (e.g. budget tracking).
 func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.DB, logger *slog.Logger, params MusicGenParams) MusicGenResult {
+	if err := ctx.Err(); err != nil {
+		return MusicGenResult{Status: "error", Error: err.Error()}
+	}
 	if params.Prompt == "" {
 		return MusicGenResult{Status: "error", Error: "'prompt' is required for music generation."}
 	}
@@ -238,23 +242,31 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 		}
 		// Compute file hash for deduplication
 		fileHash, _ := ComputeMediaFileHash(result.FilePath)
-		regID, _, regErr := RegisterMedia(mediaDB, MediaItem{
-			MediaType:   "music",
-			SourceTool:  "generate_music",
-			Filename:    result.Filename,
-			FilePath:    result.FilePath,
-			WebPath:     result.WebPath,
-			FileSize:    result.FileSize,
-			Format:      result.Format,
-			Provider:    result.Provider,
-			Model:       result.Model,
-			Prompt:      params.Prompt,
-			Description: title,
-			DurationMs:  result.DurationMs,
-			Tags:        tags,
-			Hash:        fileHash,
+		var regID int64
+		regErr := fileutil.PublishContext(ctx, func() error {
+			var err error
+			regID, _, err = RegisterMedia(mediaDB, MediaItem{
+				MediaType:   "music",
+				SourceTool:  "generate_music",
+				Filename:    result.Filename,
+				FilePath:    result.FilePath,
+				WebPath:     result.WebPath,
+				FileSize:    result.FileSize,
+				Format:      result.Format,
+				Provider:    result.Provider,
+				Model:       result.Model,
+				Prompt:      params.Prompt,
+				Description: title,
+				DurationMs:  result.DurationMs,
+				Tags:        tags,
+				Hash:        fileHash,
+			})
+			return err
 		})
 		if regErr != nil {
+			if ctx.Err() != nil {
+				return MusicGenResult{Status: "error", Error: ctx.Err().Error()}
+			}
 			logger.Warn("Failed to register music in media registry", "error", regErr)
 		} else {
 			result.MediaID = regID
@@ -397,7 +409,7 @@ func generateMusicMiniMax(ctx context.Context, apiKey, model string, params Musi
 		if err != nil {
 			return MusicGenResult{Status: "error", Error: fmt.Sprintf("Failed to decode base64 audio: %v", err)}
 		}
-		if err := os.WriteFile(filePath, decoded, 0644); err != nil {
+		if err := fileutil.WriteFileContext(ctx, filePath, decoded, 0644); err != nil {
 			return MusicGenResult{Status: "error", Error: fmt.Sprintf("Failed to write audio file: %v", err)}
 		}
 	}
@@ -557,7 +569,7 @@ func generateMusicGoogleLyria(ctx context.Context, apiKey, model string, params 
 	filename := fmt.Sprintf("music_%s.mp3", uid.New()[:8])
 	filePath := filepath.Join(audioDir, filename)
 
-	if err := os.WriteFile(filePath, audioBytes, 0644); err != nil {
+	if err := fileutil.WriteFileContext(ctx, filePath, audioBytes, 0644); err != nil {
 		return MusicGenResult{Status: "error", Error: fmt.Sprintf("Failed to write audio file: %v", err)}
 	}
 
@@ -598,16 +610,31 @@ func downloadFile(ctx context.Context, url, dest string) error {
 		return fmt.Errorf("download returned status %d", resp.StatusCode)
 	}
 
-	out, err := os.Create(dest)
+	const maxMusicDownload = 128 << 20
+	if resp.ContentLength > maxMusicDownload {
+		return fmt.Errorf("music download exceeds size limit")
+	}
+	out, err := os.CreateTemp(filepath.Dir(dest), ".music-download-*")
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
 	defer out.Close()
+	defer os.Remove(out.Name())
 
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	n, err := io.Copy(out, io.LimitReader(resp.Body, maxMusicDownload+1))
+	if err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
-	return nil
+	if n > maxMusicDownload {
+		return fmt.Errorf("music download exceeds size limit")
+	}
+	if err := out.Sync(); err != nil {
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+	return fileutil.RenameContext(ctx, out.Name(), dest)
 }
 
 // mustJSON marshals v to JSON string, returning error JSON on failure.

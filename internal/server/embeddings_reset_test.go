@@ -3,6 +3,7 @@ package server
 import (
 	"aurago/internal/config"
 	"aurago/internal/kgquality"
+	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/services"
 	"context"
@@ -292,7 +293,7 @@ func (c *lifecycleKGClient) CreateChatCompletion(context.Context, openai.ChatCom
 	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: content}}}}, nil
 }
 
-func (c *lifecycleKGClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *lifecycleKGClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }
 

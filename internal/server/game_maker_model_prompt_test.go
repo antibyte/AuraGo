@@ -68,7 +68,7 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 	cfg.Providers = []config.ProviderEntry{{ID: "source-test", Type: "openai", Model: cfg.LLM.Model, BaseURL: provider.URL, ContextWindow: 65536, MaxOutputTokens: 32768}}
 	clientConfig := openai.DefaultConfig("local-test")
 	clientConfig.BaseURL = provider.URL
-	client := openai.NewClientWithConfig(clientConfig)
+	client := llm.WrapOpenAIClient(openai.NewClientWithConfig(clientConfig))
 	server := &Server{Cfg: cfg, LLMClient: client, GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
 	server.Registry = tools.NewProcessRegistry(server.Logger)
 	server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
@@ -331,7 +331,7 @@ func TestGameMakerToolLimitStillValidatesSavedSource(t *testing.T) {
 			defer provider.Close()
 			clientConfig := openai.DefaultConfig("local-test")
 			clientConfig.BaseURL = provider.URL
-			server := &Server{Cfg: cfg, LLMClient: openai.NewClientWithConfig(clientConfig), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+			server := &Server{Cfg: cfg, LLMClient: llm.WrapOpenAIClient(openai.NewClientWithConfig(clientConfig)), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
 			server.Registry = tools.NewProcessRegistry(server.Logger)
 			server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
 			if err != nil {
@@ -458,7 +458,7 @@ func TestGameMakerEmptyFinalValidatesOnlyNewlySavedWork(t *testing.T) {
 	cfg.Directories.ToolsDir, cfg.Directories.WorkspaceDir = filepath.Join(root, "tools"), root
 	clientConfig := openai.DefaultConfig("local-test")
 	clientConfig.BaseURL = provider.URL
-	server := &Server{Cfg: cfg, LLMClient: openai.NewClientWithConfig(clientConfig), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+	server := &Server{Cfg: cfg, LLMClient: llm.WrapOpenAIClient(openai.NewClientWithConfig(clientConfig)), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
 	server.Registry = tools.NewProcessRegistry(server.Logger)
 	server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
 	if err != nil {
@@ -567,7 +567,7 @@ func TestGameMakerReadReachesModelReadable(t *testing.T) {
 	cfg.Directories.ToolsDir, cfg.Directories.WorkspaceDir = filepath.Join(root, "tools"), root
 	clientConfig := openai.DefaultConfig("local-test")
 	clientConfig.BaseURL = provider.URL
-	server := &Server{Cfg: cfg, LLMClient: openai.NewClientWithConfig(clientConfig), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+	server := &Server{Cfg: cfg, LLMClient: llm.WrapOpenAIClient(openai.NewClientWithConfig(clientConfig)), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
 	server.Registry = tools.NewProcessRegistry(server.Logger)
 	server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
 	if err != nil {
@@ -644,7 +644,7 @@ func TestGameMakerBuildingContextCarriesEntrySource(t *testing.T) {
 	cfg.Directories.ToolsDir, cfg.Directories.WorkspaceDir = filepath.Join(root, "tools"), root
 	clientConfig := openai.DefaultConfig("local-test")
 	clientConfig.BaseURL = provider.URL
-	server := &Server{Cfg: cfg, LLMClient: openai.NewClientWithConfig(clientConfig), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+	server := &Server{Cfg: cfg, LLMClient: llm.WrapOpenAIClient(openai.NewClientWithConfig(clientConfig)), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
 	server.Registry = tools.NewProcessRegistry(server.Logger)
 	server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
 	if err != nil {
@@ -823,7 +823,7 @@ func TestGameMakerSlowSteadyStreamOutlastsCallTimeout(t *testing.T) {
 	cfg.Directories.ToolsDir, cfg.Directories.WorkspaceDir = filepath.Join(root, "tools"), root
 	clientConfig := openai.DefaultConfig("local-test")
 	clientConfig.BaseURL = provider.URL
-	server := &Server{Cfg: cfg, LLMClient: openai.NewClientWithConfig(clientConfig), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+	server := &Server{Cfg: cfg, LLMClient: llm.WrapOpenAIClient(openai.NewClientWithConfig(clientConfig)), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
 	server.Registry = tools.NewProcessRegistry(server.Logger)
 	server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
 	if err != nil {

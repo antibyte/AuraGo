@@ -57,7 +57,7 @@
   "config.updates.installing": "Installerer…",
   "config.updates.latest": "Siste",
   "config.updates.running": "Kjører…",
-  "config.updates.started": "✅ Oppdatering startet — AuraGo starter på nytt. Last inn på nytt på 60-tallet...",
+  "config.updates.started": "✅ Oppdatering startet — AuraGo starter på nytt. Last inn på nytt om 60 sekunder…",
   "config.updates.up_to_date": "Oppdatert",
   "config.updates.version": "Versjon",
   "config.updates.warning_banner": "Oppdateringen erstatter binærfiler, ledetekster og brukergrensesnittfiler. <strong>Din konfigurasjon og data er bevart.</strong> AuraGo vil starte på nytt etter oppdateringen.",

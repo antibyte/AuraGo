@@ -117,6 +117,40 @@ def load_catalog(root: Path) -> tuple[dict[str, dict[str, Any]], dict[str, Draft
     return by_name, validators, tiers
 
 
+def strict_arguments(arguments: Any, original: dict[str, Any]) -> Any:
+    """Copy sparse fixtures to Strict wire arguments without inventing values."""
+    if isinstance(arguments, dict):
+        result = dict(arguments)
+        required = original.get("required", [])
+        for name, schema in original.get("properties", {}).items():
+            if name in result:
+                result[name] = strict_arguments(result[name], schema)
+            elif name not in required:
+                result[name] = None
+        return result
+    if isinstance(arguments, list):
+        return [strict_arguments(item, original.get("items", {})) for item in arguments]
+    return arguments
+
+
+def semantic_arguments(arguments: Any, original: dict[str, Any]) -> Any:
+    """Remove synthetic nulls only where the original schema made a field optional."""
+    if isinstance(arguments, dict):
+        result = dict(arguments)
+        required = original.get("required", [])
+        for name, schema in original.get("properties", {}).items():
+            if name not in result:
+                continue
+            if result[name] is None and name not in required and not Draft7Validator(schema).is_valid(None):
+                del result[name]
+            else:
+                result[name] = semantic_arguments(result[name], schema)
+        return result
+    if isinstance(arguments, list):
+        return [semantic_arguments(item, original.get("items", {})) for item in arguments]
+    return arguments
+
+
 def validate_source_manifests(
     root: Path,
     tools: dict[str, dict[str, Any]],
@@ -145,8 +179,9 @@ def validate_source_manifests(
     operation_count = 0
     for name, contract in contract_tools.items():
         validator = Draft7Validator(tools[name]["parameters"])
+        original = tools[name].get("argument_schema", {})
         default_arguments = contract.get("default_arguments")
-        if not isinstance(default_arguments, dict) or list(validator.iter_errors(default_arguments)):
+        if not isinstance(default_arguments, dict) or list(validator.iter_errors(strict_arguments(default_arguments, original))):
             raise ValidationFailure(f"default operation fixture for {name} is not schema valid")
         operations = contract.get("operations") or []
         if not isinstance(operations, list):
@@ -163,7 +198,7 @@ def validate_source_manifests(
             required_fields = fixture.get("required_fields")
             excluded_fields = fixture.get("excluded_fields")
             actual_operations.append((selector, canonical(value)))
-            if not isinstance(arguments, dict) or list(validator.iter_errors(arguments)):
+            if not isinstance(arguments, dict) or list(validator.iter_errors(strict_arguments(arguments, original))):
                 raise ValidationFailure(f"operation fixture for {name} {selector}={value!r} is not schema valid")
             if arguments.get(selector) != value:
                 raise ValidationFailure(f"operation fixture for {name} {selector}={value!r} lacks selector value")
@@ -175,7 +210,7 @@ def validate_source_manifests(
                 raise ValidationFailure(f"operation fixture for {name} {selector}={value!r} repeats fields")
             if set(required_fields).intersection(excluded_fields):
                 raise ValidationFailure(f"operation fixture for {name} {selector}={value!r} conflicts on fields")
-            if any(field not in arguments for field in required_fields):
+            if any(field not in arguments or arguments[field] is None for field in required_fields):
                 raise ValidationFailure(f"operation fixture for {name} {selector}={value!r} misses required argument")
             if any(field in arguments for field in excluded_fields):
                 raise ValidationFailure(f"operation fixture for {name} {selector}={value!r} includes excluded argument")

@@ -316,6 +316,9 @@ func TestDispatchThreeDPrinterAnalyzeCameraUsesDefaultVisionBudgetModel(t *testi
 	}
 
 	cfg := agentThreeDPrinterConfig(t, wsURL)
+	if out := tools.ExecuteThreeDPrinter(context.Background(), tools.BuildThreeDPrinterRuntimeConfig(cfg), tools.ThreeDPrinterRequest{Operation: "enable_camera"}); !strings.Contains(out, `"status":"ok"`) {
+		t.Fatal(out)
+	}
 	cfg.Budget.Enabled = true
 	tracker := budget.NewTracker(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), t.TempDir())
 	out, ok := dispatchPlatform(context.Background(), ToolCall{
@@ -345,6 +348,9 @@ func TestDispatchThreeDPrinterShowLiveStreamEmitsInlineStream(t *testing.T) {
 	wsURL, closeWS := mockAgentThreeDPrinterCameraURLServer(t, "http://127.0.0.1:8080/video")
 	defer closeWS()
 	cfg := agentThreeDPrinterConfig(t, wsURL)
+	if out := tools.ExecuteThreeDPrinter(context.Background(), tools.BuildThreeDPrinterRuntimeConfig(cfg), tools.ThreeDPrinterRequest{Operation: "enable_camera"}); !strings.Contains(out, `"status":"ok"`) {
+		t.Fatal(out)
+	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	broker := &captureBroker{}

@@ -1,4 +1,6 @@
 {
+  "config.google_workspace.scope_gmail_modify_labels": "Gmail — Cambiar etiquetas",
+  "config.google_workspace.scope_gmail_modify_labels_hint": "Permite cambiar etiquetas, el estado de lectura y archivar mensajes. Requiere desactivar el modo de solo lectura y quizá volver a conectar OAuth.",
   "config.google_workspace.enabled_label": "Integración de Google Workspace habilitada",
   "config.google_workspace.readonly_label": "Modo de solo lectura",
   "config.google_workspace.readonly_hint": "Cuando está activo, solo se permiten operaciones de lectura (sin enviar correos, crear eventos, editar documentos, etc.)",
@@ -14,7 +16,7 @@
   "config.google_workspace.disconnect_btn": "Desconectar",
   "config.google_workspace.test_btn": "Probar conexión",
   "config.google_workspace.scopes_title": "Permisos (Scopes)",
-  "config.google_workspace.scopes_desc": "Selecciona a qué servicios de Google puede acceder el agente. Los cambios tienen efecto en la próxima autorización OAuth2.",
+  "config.google_workspace.scopes_desc": "Los permisos del agente cambian al guardar. Los permisos OAuth adicionales pueden requerir una nueva conexión.",
   "config.google_workspace.scope_gmail": "Gmail — Leer",
   "config.google_workspace.scope_gmail_hint": "Listar y leer correos electrónicos",
   "config.google_workspace.scope_gmail_send": "Gmail — Enviar",

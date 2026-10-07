@@ -7,7 +7,7 @@
   "config.danger.shell.desc": "Tillader agenten at køre vilkårlige shell-kommandoer på værtssystemet.",
   "config.danger.python.title": "Python-/skill-kørsel (execute_python / execute_skill / save_tool)",
   "config.danger.python.desc": "Tillader agenten at køre vilkårlig Python-kode og skills <strong>lokalt uden sandbox</strong> og gemme nye værktøjer. Koden køres direkte på værtssystemet — brug sandboxen til isoleret kørsel.",
-  "config.danger.filesystem.title": "Skriveadgang til filsystemet (filesystem write ops)",
+  "config.danger.filesystem.title": "Skriveadgang til filsystemet (skriveoperationer i filsystemet)",
   "config.danger.filesystem.desc": "Tillader agenten at skrive, slette, flytte filer og oprette mapper via filsystemværktøjet.",
   "config.danger.network.title": "Netværksanmodninger (api_request)",
   "config.danger.network.desc": "Tillader agenten at sende vilkårlige HTTP-anmodninger til eksterne URL'er.",
@@ -22,5 +22,7 @@
   "config.danger.sudo_unrestricted.title": "Systemomfattende sudo-skriveadgang",
   "config.danger.sudo_unrestricted.desc": "Tillader agenten at skrive uden for installationsmappen ved hjælp af sudo (f.eks. /etc/). Kræver fjernelse af ProtectSystem=strict fra systemd-serviceenheden.",
   "config.danger.unsafe_host_execution.title": "Usikker kørsel på værten",
-  "config.danger.unsafe_host_execution.desc": "Tillader Python direkte på værten og Windows-shell uden isolation. En sikkerhedsadvarsel logges; aktiver kun bevidst."
+  "config.danger.unsafe_host_execution.desc": "Tillader Python direkte på værten og Windows-shell uden isolation. En sikkerhedsadvarsel logges; aktiver kun bevidst.",
+  "config.danger.docker_host_access.title": "Docker-værtsadgang for agentens Compose-stakke",
+  "config.danger.docker_host_access.desc": "Lader agenten ved docker compose up/create/build bruge værtsstier uden for sit arbejdsområde (f.eks. /var/run/docker.sock, /srv/media eller /), enheder, privilegeret tilstand, værtens netværks-/PID-/IPC-/UTS-/bruger-/cgroup-navnerum, cap_add og ubegrænsede sikkerhedsindstillinger. AuraGos egne data, konfiguration, .env og hovednøgle forbliver blokeret, men en binding af en overordnet sti som / eksponerer dem alligevel. Når den er slået til, ser docker compose også AuraGos miljøvariabler; uden den får Compose kun PATH, HOME samt Docker-, proxy- og sprogindstillinger."
 }

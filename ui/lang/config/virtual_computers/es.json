@@ -29,7 +29,7 @@
   "config.virtual_computers.allow_persistent_label": "Permitir máquinas persistentes",
   "config.virtual_computers.allow_publish_label": "Permitir publicación",
   "config.virtual_computers.allow_volumes_label": "Permitir volúmenes",
-  "config.virtual_computers.allow_agent_tasks_label": "Allow machine agent tasks",
+  "config.virtual_computers.allow_agent_tasks_label": "Permitir tareas de agente de máquina heredadas",
   "config.virtual_computers.boring_token_label": "token de boringd (opcional)",
   "config.virtual_computers.save_vault": "Guardar en Vault",
   "config.virtual_computers.tailscale_note": "Para el acceso con Tailscale, expón AuraGo con tsnet serve_http. No expongas boringd directamente.",
@@ -64,7 +64,7 @@
   "help.virtual_computers.allow_persistent": "Permite máquinas persistentes. Mantenlo desactivado a menos que el host sea de confianza.",
   "help.virtual_computers.allow_publish": "Permite las operaciones publicar/guardar expuestas por boringd.",
   "help.virtual_computers.allow_volumes": "Permite crear y conectar volúmenes.",
-  "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
+  "help.virtual_computers.allow_agent_tasks": "Activa solo los canales de agente boringd en desuso. El agente principal de AuraGo usa Agent Workspaces y no necesita ningún proveedor adicional aquí.",
   "help.virtual_computers.boring_token": "Déjalo vacío cuando AuraGo instale boringd; AuraGo genera el token automáticamente y lo guarda en Vault. Introduce un valor solo al conectar un boringd existente; debe coincidir con BORING_TOKEN en ese host.",
   "config.virtual_computers.mode_local_host": "Local en este host",
   "config.virtual_computers.local_host_note": "La instalación local requiere Ubuntu/Linux con /dev/kvm, systemd y root o sudo sin contraseña. boringd queda en 127.0.0.1:18082.",
@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan permite internet público y, además, solo los CIDR privados listados explícitamente.",
   "help.virtual_computers.agent_control_cidrs": "Un CIDR IPv4 RFC1918 por línea. Las direcciones del host, de AuraGo, del puente, de metadatos y del invitado permanecen bloqueadas.",
   "help.virtual_computers.agent_control_credentials": "Las credenciales siguen requiriendo una aprobación separada de un usuario autenticado para cada concesión de corta duración.",
-  "help.virtual_computers.agent_control_grant_ttl": "Duración máxima de la concesión; las concesiones también terminan con su trabajo o espacio de trabajo."
+  "help.virtual_computers.agent_control_grant_ttl": "Duración máxima de la concesión; las concesiones también terminan con su trabajo o espacio de trabajo.",
+  "config.virtual_desktop.serial_browser_label": "Puertos serie en este ordenador",
+  "help.virtual_desktop.serial_browser_enabled": "Permitir que Quick Connect use dispositivos serie conectados al ordenador del navegador. Requiere un navegador compatible, HTTPS o localhost y seleccionar explícitamente el dispositivo. Desactivado en modo de solo lectura.",
+  "config.virtual_desktop.serial_host_label": "Puertos serie en el servidor de AuraGo",
+  "help.virtual_desktop.serial_host_enabled": "Permitir que los administradores abran en Quick Connect dispositivos serie conectados al servidor de AuraGo. Las instalaciones en contenedores requieren pasar el dispositivo y contar con permisos del sistema operativo. Desactivado en modo de solo lectura."
 }

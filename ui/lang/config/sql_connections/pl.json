@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "Globalnie tylko do odczytu",
   "config.sql_connections.readonly_help": "Blokuje wszystkie operacje zapisu niezależnie od uprawnień połączenia.",
   "config.sql_connections.allow_management_label": "Zezwól na zarządzanie",
-  "config.sql_connections.allow_management_help": "Umożliwia agentowi tworzenie, edytowanie i usuwanie połączeń."
+  "config.sql_connections.sqlite_import": "Importuj kopię SQLite",
+  "config.sql_connections.sqlite_import_help": "Prześlij spójną, samodzielną kopię (do 64 MiB). Zapis importuje ją do chronionego magazynu i zachowa oryginały.",
+  "config.sql_connections.sqlite_import_required": "Wymagany import SQLite",
+  "config.sql_connections.allow_management_help": "Agent może zmieniać tylko opisy. Konfiguracja, dane logowania i uprawnienia są dostępne dla administratora."
 }

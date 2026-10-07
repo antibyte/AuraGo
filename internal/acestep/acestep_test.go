@@ -149,6 +149,10 @@ func TestCancellationStopsOnlyOwnedWorkerAndBusyDoesNotSubmit(t *testing.T) {
 			defer upstream.Close()
 			m.baseURL = upstream.URL
 			docker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/version" {
+					io.WriteString(w, `{"ApiVersion":"1.45"}`)
+					return
+				}
 				switch r.Method {
 				case "GET":
 					_ = json.NewEncoder(w).Encode(map[string]any{"Id": "owned123", "Config": map[string]any{"Labels": dockerutil.ManagedLabels(Owner, "music", "runtime", "")}, "State": map[string]any{"Running": true}})
@@ -287,6 +291,10 @@ func TestRollbackRetainsPreviousImageAfterInterruptedUpdate(t *testing.T) {
 	var writes []string
 	restored := false
 	docker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			io.WriteString(w, `{"ApiVersion":"1.45"}`)
+			return
+		}
 		path := r.URL.Path
 		if r.Method != "GET" {
 			writes = append(writes, r.Method+" "+path)
@@ -330,6 +338,10 @@ func TestHardwareProbeDoesNotStartStoppedRuntime(t *testing.T) {
 	m.status.State, m.status.Ready = "stopped", false
 	var writes atomic.Int32
 	docker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			io.WriteString(w, `{"ApiVersion":"1.45"}`)
+			return
+		}
 		if r.Method != "GET" {
 			writes.Add(1)
 		}
@@ -352,6 +364,10 @@ func TestReadinessRejectsCrashLoop(t *testing.T) {
 	defer api.Close()
 	m.baseURL = api.URL
 	docker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			io.WriteString(w, `{"ApiVersion":"1.45"}`)
+			return
+		}
 		json.NewEncoder(w).Encode(map[string]any{"Id": "worker", "RestartCount": 3,
 			"Config": map[string]any{"Labels": dockerutil.ManagedLabels(Owner, "music", "runtime", "test")},
 			"State":  map[string]any{"Running": true}})
@@ -379,6 +395,10 @@ func TestActionFeedbackFinishesForReadyStartAndFailedStop(t *testing.T) {
 	defer api.Close()
 	m.baseURL = api.URL
 	docker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			io.WriteString(w, `{"ApiVersion":"1.45"}`)
+			return
+		}
 		if r.Method == "POST" {
 			http.Error(w, "stop failed", 500)
 			return

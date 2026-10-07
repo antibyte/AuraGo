@@ -258,7 +258,8 @@ func UpdateDevice(db *sql.DB, d DeviceRecord) error {
 }
 
 // UpsertDeviceByName inserts a new device or, if a device with the same name
-// already exists (case-insensitive), optionally updates it.
+// already exists (case-insensitive), optionally updates discovery observations only.
+// Discovery names never authorize changing credentials, protocols or target addresses.
 // Returns (created, updated, error). When overwrite is false and the device
 // already exists, both booleans are false (the entry is silently skipped).
 func UpsertDeviceByName(db *sql.DB, d DeviceRecord, overwrite bool) (created bool, updated bool, err error) {
@@ -266,6 +267,8 @@ func UpsertDeviceByName(db *sql.DB, d DeviceRecord, overwrite bool) (created boo
 	err = db.QueryRow(`SELECT id FROM devices WHERE lower(name) = lower(?)`, d.Name).Scan(&existingID)
 	if err == sql.ErrNoRows {
 		d.ID = uid.New()
+		d.Username, d.VaultSecretID, d.CredentialID = "", "", ""
+		d.Protocol = ProtocolNone
 		if insertErr := AddDevice(db, d); insertErr != nil {
 			return false, false, insertErr
 		}
@@ -278,9 +281,13 @@ func UpsertDeviceByName(db *sql.DB, d DeviceRecord, overwrite bool) (created boo
 	if !overwrite {
 		return false, false, nil
 	}
-	d.ID = existingID
-	if updateErr := UpdateDevice(db, d); updateErr != nil {
-		return false, false, updateErr
+	// The single-column update also preserves concurrent administrative changes.
+	observation := fmt.Sprintf("Unverified discovery: address=%s port=%d; %s", d.IPAddress, d.Port, d.Description)
+	if len(observation) > 4096 {
+		observation = observation[:4096]
+	}
+	if _, updateErr := db.Exec(`UPDATE devices SET description=? WHERE id=?`, observation, existingID); updateErr != nil {
+		return false, false, fmt.Errorf("update discovery observation: %w", updateErr)
 	}
 	return false, true, nil
 }

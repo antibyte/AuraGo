@@ -103,6 +103,7 @@ type Go2RTCManager struct {
 	cache           map[string]go2RTCSnapshotCacheEntry
 	cacheBytes      int64
 	cancel          context.CancelFunc
+	lifetime        context.Context // background lifetime; ends at shutdown or Close
 	inDocker        bool
 	manualStop      bool
 	pendingStart    bool
@@ -223,6 +224,7 @@ func (m *Go2RTCManager) StartBackground(parent context.Context) {
 	}
 	ctx, cancel := context.WithCancel(parent)
 	m.cancel = cancel
+	m.lifetime = ctx
 	m.mu.Unlock()
 	go func() {
 		m.reconcileTick(ctx)
@@ -237,6 +239,18 @@ func (m *Go2RTCManager) StartBackground(parent context.Context) {
 			}
 		}
 	}()
+}
+
+// pullLifetime is the background lifetime started by StartBackground, or nil
+// before it. It ends when the server context is cancelled (shutdown begins) or
+// Close runs; a sidecar image pull that ignores its request context stops then.
+func (m *Go2RTCManager) pullLifetime() context.Context {
+	if m == nil {
+		return nil
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.lifetime
 }
 
 // Close stops background reconciliation.
@@ -366,11 +380,9 @@ func (m *Go2RTCManager) Status(ctx context.Context) Go2RTCStatus {
 	owner := m.go2RTCOwner()
 	status.ContainerRunning = go2RTCContainerRunning(docker, cfg.ContainerName, owner)
 	if ctx != nil && cfg.Enabled {
-		tested, err := m.Test(ctx)
-		if err == nil {
-			status = tested
-			status.ContainerRunning = go2RTCContainerRunning(docker, cfg.ContainerName, owner)
-		}
+		tested, _ := m.Test(ctx)
+		status = tested
+		status.ContainerRunning = go2RTCContainerRunning(docker, cfg.ContainerName, owner)
 	}
 	return status
 }

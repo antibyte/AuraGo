@@ -8,6 +8,11 @@ import (
 func TestDesktopMediaLoadI18n(t *testing.T) {
 	t.Parallel()
 
+	gallery := readDesktopAssetText(t, "js/desktop/apps/gallery-view.js")
+	if !strings.Contains(gallery, "<p>${esc(t('desktop.load_failed'))}</p>") || strings.Contains(gallery, "err.message") {
+		t.Fatal("Gallery errors must use translated user-facing copy")
+	}
+
 	pixel := readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js")
 	if !strings.Contains(pixel, "this.t('pixel.error_load')") {
 		t.Fatal("pixel image decode must localize pixel.error_load")

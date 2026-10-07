@@ -1,4 +1,6 @@
 {
+  "config.google_workspace.scope_gmail_modify_labels": "Gmail — Endre etiketter",
+  "config.google_workspace.scope_gmail_modify_labels_hint": "Tillat endring av etiketter, lesestatus og arkivering. Skrivebeskyttelse må være av, og OAuth må kanskje kobles til på nytt.",
   "config.google_workspace.enabled_label": "Google Workspace-integrasjon aktivert",
   "config.google_workspace.readonly_label": "Skrivebeskyttet modus",
   "config.google_workspace.readonly_hint": "Når aktiv er bare leseoperasjoner tillatt (ingen sending av e-post, oppretting av hendelser, redigering av dokumenter osv.)",
@@ -14,7 +16,7 @@
   "config.google_workspace.disconnect_btn": "Koble fra",
   "config.google_workspace.test_btn": "Test tilkobling",
   "config.google_workspace.scopes_title": "Tillatelser (Scopes)",
-  "config.google_workspace.scopes_desc": "Velg hvilke Google-tjenester agenten kan bruke. Endringer trer i kraft ved neste OAuth2-godkjenning.",
+  "config.google_workspace.scopes_desc": "Agentens tillatelser endres etter lagring. Flere OAuth-tillatelser kan kreve ny tilkobling.",
   "config.google_workspace.scope_gmail": "Gmail — Les",
   "config.google_workspace.scope_gmail_hint": "Vis og les e-poster",
   "config.google_workspace.scope_gmail_send": "Gmail — Send",

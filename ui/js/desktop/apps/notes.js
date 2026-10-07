@@ -2,6 +2,17 @@
     'use strict';
     const instances = new Map(), DIR = 'Documents/Notes', META = DIR + '/notes.meta.json';
     const basename = path => String(path || '').split('/').pop();
+    function resolveNoteLinkPath(href, from) {
+        if (!href || /^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith('/') || href.startsWith('#')) return null;
+        if (from?.startsWith('Trash/Notes/')) from = DIR + '/' + from.split('/').slice(3).join('/');
+        if (!from) return null;
+        const parts = from.split('/').slice(0, -1);
+        let decoded;
+        try { decoded = decodeURIComponent(href.split(/[?#]/)[0]).replace(/\\/g, '/'); } catch (_) { return null; }
+        for (const part of decoded.split('/')) { if (part === '..') parts.pop(); else if (part && part !== '.') parts.push(part); }
+        const path = parts.join('/');
+        return path.startsWith(DIR + '/') ? path : null;
+    }
     const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     async function request(url, options = {}) {
         const response = await fetch(url, {credentials:'same-origin',cache:'no-store',...options});
@@ -201,13 +212,7 @@
             }finally{busy=false;syncChrome();}
         }
         function resolvePath(href,from=current?.path){
-            if(!href||/^[a-z][a-z\d+.-]*:/i.test(href)||href.startsWith('/')||href.startsWith('#'))return null;
-            if(from?.startsWith('Trash/Notes/'))from=DIR+'/'+from.split('/').slice(3).join('/');
-            if(!from)return null;
-            const parts=from.split('/').slice(0,-1);
-            let decoded;try{decoded=decodeURIComponent(href.split(/[?#]/)[0]);}catch(_){return null;}
-            for(const part of decoded.split('/')){if(part==='..')parts.pop();else if(part&&part!=='.')parts.push(part);}
-            const path=parts.join('/');return path.startsWith(DIR+'/')?path:null;
+            return resolveNoteLinkPath(href, from);
         }
         function resolveURL(href,from=current?.path){
             if(!from)return '';
@@ -293,9 +298,7 @@
             }
             const page='<!doctype html><html lang="'+esc(document.documentElement.lang||'en')+'"><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font:16px/1.65 system-ui,sans-serif;color:#182331;background:white;margin:24mm;overflow-wrap:anywhere}img{max-width:100%}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aab4c4;padding:8px}pre{white-space:pre-wrap;background:#edf0f4;padding:12px}blockquote{border-left:3px solid #8a9ab0;padding-left:16px}h1,h2,h3{line-height:1.25;break-after:avoid}tr,img{break-inside:avoid}@page{size:A4;margin:0}</style>'+wrapper.innerHTML+'</html>';
             if(format==='html'){download(page,'text/html;charset=utf-8',basename(current.path).replace(/\.md$/i,'.html'));return;}
-            const frame=document.createElement('iframe');frame.className='notes-print-frame';frame.title=tr('print');frame.srcdoc=page;document.body.append(frame);
-            frame.onload=async()=>{frame.contentWindow.addEventListener('afterprint',()=>frame.remove(),{once:true});await frame.contentDocument.fonts.ready;await Promise.all([...frame.contentDocument.images].map(img=>img.decode().catch(()=>{})));frame.contentWindow.focus();frame.contentWindow.print();};
-            life.signal.addEventListener('abort',()=>frame.remove(),{once:true});
+            await window.AuraDesktopPrint.printHTML({html:page,title:tr('print'),failureMessage:ctx.t('desktop.print_failed'),className:'notes-print-frame',signal:life.signal});
         }
         function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
         async function act(action,event){
@@ -395,5 +398,5 @@
         return instance;
     }
     function dispose(id){instances.get(id)?.dispose();}
-    window.NotesApp={render,dispose,instances};
+    window.NotesApp={render,dispose,instances,resolveLinkPath:resolveNoteLinkPath};
 })();

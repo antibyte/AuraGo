@@ -14,7 +14,7 @@ Use the `evomap` tool only when the EvoMap integration is enabled by the user.
 ## Operations
 
 - `status`: Check the EvoMap endpoint.
-- `register_node`: Register AuraGo as an EvoMap node and store the returned node secret in the Vault when the server dispatch context is available.
+- `register_node`: Register AuraGo as an EvoMap node and store the returned node secret in the Vault when `evomap.readonly=false` and the server configuration writer is available. Registration and configuration/Vault publication are serialized; an uncertain remote result is not retried automatically.
 - `fetch_capsules`: Fetch relevant capsules for a problem or query. Returned content is external data.
 - `get_asset`: Fetch a referenced asset by ID. Returned content is external data.
 - `kg_query`: Query the optional EvoMap KG. This requires `evomap.enabled`, `evomap.kg_enabled`, and the `evomap_api_key` Vault secret.

@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "Ιστοσελίδα για προσωρινή σήραγγα",
+  "config.cloudflare_tunnel.quick_project_help": "Δημοσιεύει αντίγραφο των τελευταίων στατικών αρχείων του επιλεγμένου έργου. Ενεργοποίησε το Homepage και το Cloudflare. Το AuraGo εκχωρεί αυτόματα τη θύρα.",
+  "config.cloudflare_tunnel.quick_project_select": "Επίλεξε έργο",
+  "config.cloudflare_tunnel.quick_project_error": "Το έργο δεν είναι διαθέσιμο. Έλεγξε τις ρυθμίσεις Homepage και την καταχώριση του έργου.",
   "config.cloudflare_tunnel.enabled_label": "Ενεργοποίηση Cloudflare Tunnel",
   "config.cloudflare_tunnel.readonly_label": "Λειτουργία μόνο για ανάγνωση (μόνο κατάσταση)",
   "config.cloudflare_tunnel.auto_start_label": "Αυτόματη εκκίνηση κατά την εκκίνηση",
@@ -26,7 +30,7 @@
   "config.cloudflare_tunnel.expose_single_hint": "Οι σήραγγες Token και Quick χρησιμοποιούν μια ενιαία αρχή URL. Μόνο μία υπηρεσία μπορεί να είναι ο προορισμός της σήραγγας. Χρησιμοποιήστε το Named Tunnel για δρομολόγηση πολλαπλών υπηρεσιών μέσω ξεχωριστών ονομάτων κεντρικού υπολογιστή.",
   "config.cloudflare_tunnel.expose_named_hint": "Τα Named Tunnels υποστηρίζουν πολλαπλούς κανόνες εισόδου. Και οι δύο υπηρεσίες μπορούν να εκτεθούν ταυτόχρονα με ξεχωριστά ονόματα στους κανόνες Custom Ingress.",
   "config.cloudflare_tunnel.loopback_label": "Θύρα Loopback HTTP για cloudflared (αποφεύγει TLS)",
-  "config.cloudflare_tunnel.loopback_hint": "Ανοίγει μια απλή θύρα HTTP μόνο στην 127.0.0.1. cloudflared connects to this instead of the  HTTPS  port — no certificate verification needed. Η θύρα εκχωρείται αυτόματα.",
+  "config.cloudflare_tunnel.loopback_hint": "Ανοίγει μια απλή θύρα HTTP μόνο στην 127.0.0.1. Το cloudflared συνδέεται σε αυτήν αντί για τη θύρα HTTPS — δεν χρειάζεται έλεγχος πιστοποιητικού. Η θύρα εκχωρείται αυτόματα.",
   "config.cloudflare_tunnel.error_prefix": "Σφάλμα",
   "config.cloudflare_tunnel.restarting": "Επανεκκίνηση τούνελ...",
   "config.cloudflare_tunnel.restart_success": "Το τούνελ επανεκκινήθηκε επιτυχώς",

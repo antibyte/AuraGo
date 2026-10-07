@@ -74,3 +74,5 @@ A JSON string containing:
 
 - Scanning takes time. You will not receive a response until the `timeout` expires.
 - Not all devices respond to generic scans. If you are looking for a specific type of device, it is much more reliable to search for its exact `service_type`.
+
+Discovery is unverified. `overwrite` refreshes only the discovery description of an existing device; its address, protocol, port, credentials, tags and MAC remain unchanged. New devices use protocol `none` until explicitly configured.

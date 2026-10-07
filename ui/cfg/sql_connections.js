@@ -1,4 +1,5 @@
 let sqlConnCache = [];
+let sqlConnModalRevision = 0;
 
 window.addEventListener('cfg:section-leave', function () {
     const overlay = document.getElementById('sqlconn-modal-overlay');
@@ -133,6 +134,12 @@ function renderSQLConnectionsSection(section) {
                 <input type="text" id="sqlconn-field-database" class="field-input" placeholder="${t('config.sql_connections.database_placeholder')}">
             </div>
 
+            <div id="sqlconn-import-row" class="field-group is-hidden">
+                <label for="sqlconn-import-file">${t('config.sql_connections.sqlite_import')}</label>
+                <input type="file" id="sqlconn-import-file" class="field-input" accept=".db,.sqlite,.sqlite3,application/vnd.sqlite3">
+                <div class="field-help">${t('config.sql_connections.sqlite_import_help')}</div>
+            </div>
+
             <div class="field-group sql-field-group-mt">
                 <div class="field-label">${t('config.sql_connections.description_label')}</div>
                 <input type="text" id="sqlconn-field-desc" class="field-input" placeholder="${t('config.sql_connections.description_placeholder')}">
@@ -233,7 +240,7 @@ function sqlConnRenderRows(connections) {
         }).join('');
 
         const driverIcon = { postgres: '🐘', mysql: '🐬', sqlite: '📄' }[c.driver] || '🗄️';
-        const hostDisplay = c.driver === 'sqlite' ? (c.database_name || '—') : (c.host || 'localhost') + (c.port ? ':' + c.port : '');
+        const hostDisplay = c.driver === 'sqlite' ? '—' : (c.host || 'localhost') + (c.port ? ':' + c.port : '');
         const tr = document.createElement('tr');
         tr.classList.add('sql-table-row');
         tr.dataset.id = c.id;
@@ -241,7 +248,7 @@ function sqlConnRenderRows(connections) {
             <td class="sql-td-name">${escapeHtml(c.name)}</td>
             <td class="sql-td"><span class="sql-driver-badge">${driverIcon} ${escapeHtml(c.driver)}</span></td>
             <td class="sql-td-host">${escapeHtml(hostDisplay)}</td>
-            <td class="sql-td">${escapeHtml(c.database_name || '—')}</td>
+            <td class="sql-td">${escapeHtml(c.driver === 'sqlite' ? t(c.state === 'sqlite_import_required' ? 'config.sql_connections.sqlite_import_required' : 'config.sql_connections.driver_sqlite') : (c.database_name || '—'))}</td>
             <td class="sql-td-desc" title="${escapeHtml(c.description || '')}">${escapeHtml(c.description || '—')}</td>
             <td class="sql-td">${permBadges || '—'}</td>
             <td class="sql-td-actions">
@@ -270,14 +277,21 @@ function sqlConnDriverChanged() {
     document.getElementById('sqlconn-host-row').classList.toggle('is-hidden', isSQLite);
     document.getElementById('sqlconn-creds-row').classList.toggle('is-hidden', isSQLite);
     const portInput = document.getElementById('sqlconn-field-port');
+    portInput.closest('.field-group').classList.toggle('is-hidden', isSQLite);
     if (driver === 'postgres') portInput.placeholder = t('config.sql_connections.port_postgres');
     else if (driver === 'mysql') portInput.placeholder = t('config.sql_connections.port_mysql');
     else portInput.placeholder = '';
     const dbInput = document.getElementById('sqlconn-field-database');
-    dbInput.placeholder = isSQLite ? t('config.sql_connections.sqlite_path_placeholder') : t('config.sql_connections.database_placeholder');
+    dbInput.readOnly = isSQLite;
+    dbInput.closest('.field-group').classList.toggle('is-hidden', isSQLite);
+    dbInput.placeholder = isSQLite ? t('config.sql_connections.sqlite_import_required') : t('config.sql_connections.database_placeholder');
+    document.getElementById('sqlconn-import-row').classList.toggle('is-hidden', !isSQLite);
 }
 
 function sqlConnShowModal(id) {
+    sqlConnModalRevision++;
+    document.getElementById('sqlconn-modal-save').disabled = false;
+    document.getElementById('sqlconn-import-file').value = '';
     const overlay = document.getElementById('sqlconn-modal-overlay');
     const title = document.getElementById('sqlconn-modal-title');
     document.getElementById('sqlconn-modal-error').classList.add('is-hidden');
@@ -326,10 +340,12 @@ function sqlConnShowModal(id) {
 
 function sqlConnCloseModal(e) {
     if (e && e.target !== e.currentTarget) return;
+    sqlConnModalRevision++;
     document.getElementById('sqlconn-modal-overlay').classList.add('is-hidden');
 }
 
 async function sqlConnSave() {
+    const revision = sqlConnModalRevision;
     const errBox = document.getElementById('sqlconn-modal-error');
     const successBox = document.getElementById('sqlconn-modal-success');
     errBox.classList.add('is-hidden');
@@ -342,7 +358,9 @@ async function sqlConnSave() {
         errBox.classList.remove('is-hidden');
         return;
     }
-    if (!database) {
+    const isSQLite = document.getElementById('sqlconn-field-driver').value === 'sqlite';
+    const importFile = document.getElementById('sqlconn-import-file').files[0];
+    if (!database && !isSQLite) {
         errBox.textContent = t('config.sql_connections.database_required');
         errBox.classList.remove('is-hidden');
         return;
@@ -381,13 +399,27 @@ async function sqlConnSave() {
             const data = await resp.json().catch(() => ({}));
             throw new Error(data.error || 'Request failed');
         }
+        const saved = await resp.json();
+        const savedId = editId || saved.id;
+        if (revision === sqlConnModalRevision) document.getElementById('sqlconn-edit-id').value = savedId;
+        if (isSQLite && importFile) {
+            const imported = await fetch('/api/sql-connections/' + encodeURIComponent(savedId) + '/import', {
+                method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: importFile
+            });
+            if (!imported.ok) {
+                const data = await imported.json().catch(() => ({}));
+                throw new Error(data.error || t('config.sql_connections.sqlite_import_required'));
+            }
+        }
+        if (revision !== sqlConnModalRevision) return;
         sqlConnCloseModal();
         await sqlConnLoad();
     } catch (e) {
+        if (revision !== sqlConnModalRevision) return;
         errBox.textContent = '❌ ' + e.message;
         errBox.classList.remove('is-hidden');
     } finally {
-        btn.disabled = false;
+        if (revision === sqlConnModalRevision) btn.disabled = false;
     }
 }
 

@@ -273,6 +273,10 @@ func (f *fakeDocker) find(value string) *fakeContainer {
 }
 
 func (f *fakeDocker) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/version" {
+		json.NewEncoder(w).Encode(map[string]string{"ApiVersion": "1.45", "MinAPIVersion": "1.25"})
+		return
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if r.URL.Path == "/manifest" {
@@ -1153,7 +1157,7 @@ func TestRecoverTransactionRestoresNetworkAliases(t *testing.T) {
 	}
 }
 
-func TestRecoverTransactionIgnoresCancelledRequestContext(t *testing.T) {
+func TestRecoverTransactionHonorsCancelledRequestAndCanRetry(t *testing.T) {
 	manifest := validManifest()
 	fake := newFakeDocker(t, manifest)
 	fake.addContainer(&fakeContainer{ID: "backup", Name: "aurago-speech-lab-gateway-rollback", Image: manifest.Images.Gateway, Labels: dockerutil.ManagedLabels(OwnerLabel, "speech-lab", "gateway", "old")})
@@ -1161,8 +1165,14 @@ func TestRecoverTransactionIgnoresCancelledRequestContext(t *testing.T) {
 	manager.state = State{SchemaVersion: 2, Mode: "managed", Managed: true, State: "error", NetworkID: "network-id", Transaction: &DeploymentTransaction{ID: "tx", Phase: "rollback_pending", PreviousState: "stopped", PreviousNetworkID: "network-id", PreviousContainerIDs: []string{"backup"}, Backups: []ContainerBackup{{ID: "backup", StableName: "aurago-speech-lab-gateway", BackupName: "aurago-speech-lab-gateway-rollback"}}}}
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := manager.recoverTransaction(cancelled, manager.operationSnapshot()); err != nil {
-		t.Fatalf("recoverTransaction() error = %v", err)
+	if err := manager.recoverTransaction(cancelled, manager.operationSnapshot()); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled recovery error = %v", err)
+	}
+	if manager.Status().Transaction == nil || fake.find("backup").Name != "aurago-speech-lab-gateway-rollback" {
+		t.Fatal("cancelled recovery changed containers or discarded the journal")
+	}
+	if err := manager.recoverTransaction(context.Background(), manager.operationSnapshot()); err != nil {
+		t.Fatalf("recovery retry: %v", err)
 	}
 	state := manager.Status()
 	if state.Transaction != nil || state.State != "stopped" {
@@ -1480,7 +1490,7 @@ func TestExternalStartupRecoversJournalBeforeSkippingAutoStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	externalCfg := managedCfg
-	externalCfg.Enabled = false
+	externalCfg.Enabled = true
 	externalCfg.Deployment.Mode = "external"
 	externalCfg.BaseURL = replacementDocker.server.URL
 	restarted := replacementDocker.manager(t, externalCfg, dataDir)

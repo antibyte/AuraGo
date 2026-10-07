@@ -48,7 +48,7 @@ func TestInitiateCall(t *testing.T) {
 	c := NewClient("key", nil)
 	c.baseURL = ts.URL + "/v2"
 
-	resp, err := c.InitiateCall(context.Background(), "conn-123", "+15559999999", "+15551234567", "", 30)
+	resp, err := c.InitiateCall(context.Background(), "conn-123", "+15559999999", "+15551234567", "", 30, 300)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestInitiateCall(t *testing.T) {
 
 func TestInitiateCall_InvalidNumber(t *testing.T) {
 	c := NewClient("key", nil)
-	_, err := c.InitiateCall(context.Background(), "conn-123", "+15559999999", "invalid", "", 30)
+	_, err := c.InitiateCall(context.Background(), "conn-123", "+15559999999", "invalid", "", 30, 300)
 	if err == nil {
 		t.Error("expected error for invalid number")
 	}
@@ -70,7 +70,7 @@ func TestInitiateCall_InvalidNumber(t *testing.T) {
 
 func TestInitiateCall_MissingConnectionID(t *testing.T) {
 	c := NewClient("key", nil)
-	_, err := c.InitiateCall(context.Background(), "", "+15559999999", "+15551234567", "", 30)
+	_, err := c.InitiateCall(context.Background(), "", "+15559999999", "+15551234567", "", 30, 300)
 	if err == nil {
 		t.Error("expected error for missing connection_id")
 	}

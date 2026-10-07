@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -28,9 +29,19 @@ func configureDockerSecurityTestPermissions(t *testing.T, readOnly bool) {
 
 func fakeDockerHost(t *testing.T, handler http.HandlerFunc) string {
 	t.Helper()
-	server := httptest.NewServer(handler)
+	server := newDockerAPITestServer(handler)
 	t.Cleanup(server.Close)
 	return "tcp://" + strings.TrimPrefix(server.URL, "http://")
+}
+
+func newDockerAPITestServer(handler http.Handler) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			w.Write([]byte(`{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`))
+			return
+		}
+		handler.ServeHTTP(w, r)
+	}))
 }
 
 func TestPullImageWaitAllowsLocalImageButRejectsReadOnlyPull(t *testing.T) {
@@ -84,6 +95,31 @@ func TestPullImageWaitAllowsLocalImageButRejectsReadOnlyPull(t *testing.T) {
 			t.Fatal("read-only pull should be denied before POST /images/create")
 		}
 	})
+}
+
+func TestDockerSecurityReadOnlyRefusalIsErrDockerReadOnly(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, true)
+	var called bool
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	buildErr := BuildImageWait(context.Background(), DockerConfig{Host: host}, "aurago/read-only:test", "Dockerfile", []byte("FROM scratch\n"), nil, nil)
+	_, _, requestErr := DockerRequest(DockerConfig{Host: host}, http.MethodPost, "/containers/demo/start", "")
+	for name, err := range map[string]error{"BuildImageWait": buildErr, "DockerRequest": requestErr} {
+		if !errors.Is(err, ErrDockerReadOnly) {
+			t.Errorf("%s error = %v, want ErrDockerReadOnly", name, err)
+			continue
+		}
+		// Callers and tests match the text, so it must stay the same.
+		if err.Error() != "docker mutation is disabled by runtime permissions" {
+			t.Errorf("%s error text = %q, want the unchanged read-only denial", name, err.Error())
+		}
+	}
+	if called {
+		t.Fatal("read-only refusals must not reach the Docker API")
+	}
 }
 
 func TestVideoDownloadDockerRequestContextRejectsMutationWhenReadOnly(t *testing.T) {
@@ -231,7 +267,7 @@ func TestCLIBuildsRejectReadOnlyBeforeRunningDocker(t *testing.T) {
 	if err := buildAnsibleImage("aurago-ansible:test", t.TempDir(), logger); err == nil || !strings.Contains(err.Error(), "docker mutation is disabled") {
 		t.Fatalf("buildAnsibleImage() error = %v, want docker read-only denial", err)
 	}
-	if err := buildBrowserAutomationImage("aurago-browser:test", t.TempDir(), logger); err == nil || !strings.Contains(err.Error(), "docker mutation is disabled") {
+	if err := buildBrowserAutomationImage("aurago-browser:test", t.TempDir(), "", false, logger); err == nil || !strings.Contains(err.Error(), "docker mutation is disabled") {
 		t.Fatalf("buildBrowserAutomationImage() error = %v, want docker read-only denial", err)
 	}
 	sourcePath := filepath.Join(t.TempDir(), "space-agent")
@@ -281,4 +317,301 @@ func prependFakeCommandsToPath(t *testing.T, names ...string) string {
 
 func shellQuoteDockerSecurityTest(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+}
+
+func TestDockerCreateContainerRejectsReservedManagedNames(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	var created []string
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/containers/create") {
+			created = append(created, r.URL.Query().Get("name"))
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	cfg := DockerConfig{Host: host}
+	for _, name := range []string{"aurago-boring-garage", "aurago-homepage", "aurago-homepage-web", "aurago", "stack-aurago-1"} {
+		result := DockerCreateContainerWithOptions(cfg, name, "alpine:latest", nil, nil, nil, nil, "no", nil, ContainerCreateOptions{})
+		if !strings.Contains(result, "reserved AuraGo managed container name") {
+			t.Fatalf("%s: result = %s, want reserved-name denial", name, result)
+		}
+	}
+	if len(created) != 0 {
+		t.Fatalf("reserved names reached Docker: %v", created)
+	}
+	// Code Studio and OpenSCAD create through this function and must keep working.
+	for _, name := range []string{"aurago-code-studio", "aurago-openscad"} {
+		result := DockerCreateContainerWithOptions(cfg, name, "alpine:latest", nil, nil, nil, nil, "no", nil, ContainerCreateOptions{})
+		if !strings.Contains(result, `"status":"ok"`) {
+			t.Fatalf("%s: result = %s, want ok", name, result)
+		}
+	}
+	if len(created) != 2 {
+		t.Fatalf("created = %v, want the two desktop containers", created)
+	}
+}
+
+func TestDockerCreateRequestContextWithTrustedBindsTrustsOnlyExactBinds(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	created := 0
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/containers/create") {
+			created++
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	cfg := DockerConfig{Host: host, WorkspaceDir: t.TempDir()}
+	socketRO := "/var/run/docker.sock:/var/run/docker.sock:ro"
+	body := func(binds ...string) string {
+		payload, _ := json.Marshal(map[string]any{"Image": "ghcr.io/amir20/dozzle:latest", "HostConfig": map[string]any{"Binds": binds}})
+		return string(payload)
+	}
+	ctx := context.Background()
+
+	if _, code, err := DockerCreateRequestContextWithTrustedBinds(ctx, cfg, "/containers/create?name=aurago-store-dozzle", body(socketRO), []string{socketRO}); err != nil || code != http.StatusCreated {
+		t.Fatalf("trusted catalog bind: code=%d err=%v", code, err)
+	}
+	for name, tc := range map[string]struct {
+		binds   []string
+		trusted []string
+	}{
+		"untrusted socket":        {[]string{socketRO}, nil},
+		"writable socket differs": {[]string{"/var/run/docker.sock:/var/run/docker.sock"}, []string{socketRO}},
+		"extra host root next to": {[]string{socketRO, "/:/host"}, []string{socketRO}},
+	} {
+		if _, _, err := DockerCreateRequestContextWithTrustedBinds(ctx, cfg, "/containers/create?name=x", body(tc.binds...), tc.trusted); err == nil || !strings.Contains(err.Error(), "mounting sensitive host path") {
+			t.Fatalf("%s: error = %v, want sensitive-path denial", name, err)
+		}
+	}
+	if _, _, err := DockerRequestContext(ctx, cfg, http.MethodPost, "/containers/create?name=x", body(socketRO)); err == nil {
+		t.Fatal("DockerRequestContext must keep rejecting the socket bind")
+	}
+	if _, _, err := DockerCreateRequestContextWithTrustedBinds(ctx, cfg, "/containers/x/start", "", []string{socketRO}); err == nil {
+		t.Fatal("trusted binds must apply to /containers/create only")
+	}
+	if created != 1 {
+		t.Fatalf("created = %d, want only the trusted create", created)
+	}
+}
+
+func TestDockerCreateRequestContextWithTrustedBindsRequiresExactCreatePath(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	var requests []string
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.URL.RequestURI())
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+	})
+	cfg := DockerConfig{Host: host, WorkspaceDir: t.TempDir()}
+	socketRO := "/var/run/docker.sock:/var/run/docker.sock:ro"
+	payload, _ := json.Marshal(map[string]any{"Image": "tecnativa/docker-socket-proxy:latest", "HostConfig": map[string]any{"Binds": []string{socketRO}}})
+	ctx := context.Background()
+
+	for _, endpoint := range []string{
+		"/containers/createx",
+		"/containers/create/",
+		"/containers/create/../../images/create",
+		"/containers/%63reate",
+		"/containers/create#fragment",
+		" /containers/create",
+		"//evil/containers/create",
+		"http://evil/containers/create",
+		"containers/create",
+		"/containers/x/start",
+	} {
+		if _, _, err := DockerCreateRequestContextWithTrustedBinds(ctx, cfg, endpoint, string(payload), []string{socketRO}); err == nil || !strings.Contains(err.Error(), "apply only to /containers/create") {
+			t.Fatalf("endpoint %q: error = %v, want the create-only denial", endpoint, err)
+		}
+	}
+	if len(requests) != 0 {
+		t.Fatalf("rejected endpoints reached Docker: %v", requests)
+	}
+	for _, endpoint := range []string{"/containers/create", "/containers/create?name=aurago-store-arcane-socket-proxy"} {
+		if _, code, err := DockerCreateRequestContextWithTrustedBinds(ctx, cfg, endpoint, string(payload), []string{socketRO}); err != nil || code != http.StatusCreated {
+			t.Fatalf("endpoint %q: code=%d err=%v, want created", endpoint, code, err)
+		}
+	}
+	if len(requests) != 2 {
+		t.Fatalf("requests = %v, want the two exact creates", requests)
+	}
+}
+
+func TestDockerCreateRequestContextWithTrustedBindsRejectsReadOnlyBeforeBindCheck(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, true)
+	var called bool
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+	})
+	cfg := DockerConfig{Host: host, WorkspaceDir: t.TempDir()}
+	socketRO := "/var/run/docker.sock:/var/run/docker.sock:ro"
+	for name, binds := range map[string][]string{
+		"trusted bind only":       {socketRO},
+		"bind the policy rejects": {socketRO, "/:/host"},
+	} {
+		payload, _ := json.Marshal(map[string]any{"Image": "tecnativa/docker-socket-proxy:latest", "HostConfig": map[string]any{"Binds": binds}})
+		_, _, err := DockerCreateRequestContextWithTrustedBinds(context.Background(), cfg, "/containers/create?name=x", string(payload), []string{socketRO})
+		if err == nil || !strings.Contains(err.Error(), "docker mutation is disabled") || strings.Contains(err.Error(), "mounting sensitive host path") {
+			t.Fatalf("%s: error = %v, want the read-only denial before the bind check", name, err)
+		}
+	}
+	if called {
+		t.Fatal("read-only trusted create reached Docker")
+	}
+}
+
+func TestDockerCreateBindCheckMatchesDecodedCreatePaths(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	var requests []string
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.RequestURI())
+		if strings.HasSuffix(r.URL.Path, "/start") {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+	})
+	cfg := DockerConfig{Host: host, WorkspaceDir: t.TempDir()}
+	payload := func(binds ...string) string {
+		data, _ := json.Marshal(map[string]any{"Image": "alpine:latest", "HostConfig": map[string]any{"Binds": binds}})
+		return string(data)
+	}
+	hostRoot := payload("/:/host")
+	senders := map[string]func(endpoint, body string) error{
+		"dockerRequest": func(endpoint, body string) error {
+			_, _, err := dockerRequest(cfg, http.MethodPost, endpoint, body)
+			return err
+		},
+		"DockerRequestContext": func(endpoint, body string) error {
+			_, _, err := DockerRequestContext(context.Background(), cfg, http.MethodPost, endpoint, body)
+			return err
+		},
+		"video download dockerRequestContext": func(endpoint, body string) error {
+			_, _, err := dockerRequestContext(context.Background(), cfg, http.MethodPost, endpoint, body)
+			return err
+		},
+	}
+
+	// Spellings the Engine routes to container create after decoding and
+	// cleaning the path, plus an endpoint that does not parse (fail closed).
+	for _, endpoint := range []string{
+		"/containers/%63reate",
+		"/containers%2Fcreate",
+		"//containers/create",
+		"/containers/./create",
+		"/containers/create/",
+		"/containers/x/../create",
+		"/x/../containers/create",
+		"/../v1.40/containers/create",
+		"/containers/%63reate?name=x",
+		"/containers/%zz",
+	} {
+		for name, send := range senders {
+			if err := send(endpoint, hostRoot); err == nil || !strings.Contains(err.Error(), `mounting sensitive host path "/"`) {
+				t.Fatalf("%s %q: error = %v, want the host-root bind rejected", name, endpoint, err)
+			}
+		}
+	}
+	if len(requests) != 0 {
+		t.Fatalf("bind-violating creates reached Docker: %v", requests)
+	}
+
+	// Unchanged: a normal create is checked and a valid one is sent; an
+	// unrelated POST is not a create and skips the bind check as before.
+	for name, send := range senders {
+		if err := send("/containers/create?name=x", hostRoot); err == nil || !strings.Contains(err.Error(), "mounting sensitive host path") {
+			t.Fatalf("%s: normal create error = %v, want the host-root bind rejected", name, err)
+		}
+		if err := send("/containers/create?name=x", payload("data:/data")); err != nil {
+			t.Fatalf("%s: normal create with a named volume: %v", name, err)
+		}
+		if err := send("/containers/x/start", hostRoot); err != nil {
+			t.Fatalf("%s: unrelated POST: %v", name, err)
+		}
+	}
+	if len(requests) != 2*len(senders) {
+		t.Fatalf("requests = %v, want one valid create and one start per sender", requests)
+	}
+}
+
+func TestDockerEndpointMayCreateContainerOnlyWidensDetection(t *testing.T) {
+	for endpoint, want := range map[string]bool{
+		// Matched by the raw prefix before; still matched.
+		"/containers/create":          true,
+		"/containers/create?name=x":   true,
+		"/containers/createx":         true,
+		"/containers/create/../start": true,
+		" /containers/create":         true,
+		// Decoded and cleaned spellings of the create route.
+		"/containers/%63reate":         true,
+		"/containers%2Fcreate":         true,
+		"//containers/create":          true,
+		"/containers/./create":         true,
+		"/a/../containers/create":      true,
+		"/../v1.40/containers/create":  true,
+		"/containers/%63reate#section": true,
+		// Unparsable: treated as create (fail closed).
+		"/containers/%zz": true,
+		// Not the create route: the bind check stays skipped as before.
+		"/containers/x/start":     false,
+		"/containers/json":        false,
+		"/containers/%63reated":   false,
+		"/images/create":          false,
+		"/networks/create":        false,
+		"/exec/abc/start":         false,
+		"containers/create":       false,
+		"/v1.40/containers/start": false,
+		"":                        false,
+	} {
+		if got := dockerEndpointMayCreateContainer(endpoint); got != want {
+			t.Errorf("dockerEndpointMayCreateContainer(%q) = %v, want %v", endpoint, got, want)
+		}
+	}
+}
+
+func TestDockerCreateContainerStillRejectsDockerSocketBind(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	var called bool
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+	})
+	// The agent's docker create/run path: binds supplied by the model.
+	result := DockerCreateContainerWithOptions(DockerConfig{Host: host, WorkspaceDir: t.TempDir()}, "dozzle", "ghcr.io/amir20/dozzle:latest", nil, nil,
+		[]string{"/var/run/docker.sock:/var/run/docker.sock:ro"}, nil, "no", nil, ContainerCreateOptions{})
+	if !strings.Contains(result, "mounting sensitive host path") || called {
+		t.Fatalf("result = %s (called=%v), want the agent-supplied socket bind rejected", result, called)
+	}
+}
+
+func TestDockerCreateContainerRejectsSecurityProxyName(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	created := 0
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/containers/create") {
+			created++
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	cfg := DockerConfig{Host: host}
+	for _, name := range []string{"aurago-security-proxy", "AURAGO-SECURITY-PROXY"} {
+		result := DockerCreateContainerWithOptions(cfg, name, "caddy:latest", nil, nil, nil, nil, "no", nil, ContainerCreateOptions{})
+		if !strings.Contains(result, "reserved AuraGo managed container name") {
+			t.Fatalf("%s: result = %s, want reserved-name denial", name, result)
+		}
+	}
+	if created != 0 {
+		t.Fatalf("the reserved security proxy name reached Docker %d times", created)
+	}
 }

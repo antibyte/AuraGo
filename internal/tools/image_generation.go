@@ -2,6 +2,8 @@ package tools
 
 import (
 	"aurago/internal/dbutil"
+	"aurago/internal/fileutil"
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -55,6 +57,7 @@ func ImageGenDailyCount() int {
 
 // ImageGenConfig holds the resolved provider configuration for image generation.
 type ImageGenConfig struct {
+	ctx          context.Context
 	ProviderType string // openai, openrouter, stability, ideogram, google, minimax, agnes
 	BaseURL      string
 	APIKey       string
@@ -281,6 +284,15 @@ func imageGalleryMonthlyCountAt(db *sql.DB, now time.Time) (int, error) {
 
 // GenerateImage dispatches image generation to the appropriate backend based on provider type.
 func GenerateImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions) (*ImageGenResult, error) {
+	return GenerateImageContext(context.Background(), cfg, prompt, opts)
+}
+
+// GenerateImageContext cancels provider calls, downloads and final publication.
+func GenerateImageContext(ctx context.Context, cfg ImageGenConfig, prompt string, opts ImageGenOptions) (*ImageGenResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	cfg.ctx = ctx
 	start := time.Now()
 	if strings.EqualFold(cfg.ProviderType, "agnes") {
 		cfg.Model = normalizeAgnesImageModel(cfg.Model)
@@ -315,7 +327,7 @@ func GenerateImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions) (*Im
 		return nil, err
 	}
 
-	fullPath, err := SaveImageData(imgData, format, cfg.DataDir)
+	fullPath, err := SaveImageDataContext(ctx, imgData, format, cfg.DataDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save generated image: %w", err)
 	}
@@ -344,6 +356,13 @@ func GenerateImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions) (*Im
 
 // SaveImageData writes raw image bytes to data/generated_images/ with a unique filename.
 func SaveImageData(data []byte, format string, dataDir string) (string, error) {
+	return SaveImageDataContext(context.Background(), data, format, dataDir)
+}
+
+func SaveImageDataContext(ctx context.Context, data []byte, format string, dataDir string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	dir := filepath.Join(dataDir, "generated_images")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create generated_images directory: %w", err)
@@ -359,10 +378,17 @@ func SaveImageData(data []byte, format string, dataDir string) (string, error) {
 	filename := fmt.Sprintf("img_%s_%s%s", ts, hex.EncodeToString(hash[:6]), ext)
 
 	path := filepath.Join(dir, filename)
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := fileutil.WriteFileContext(ctx, path, data, 0644); err != nil {
 		return "", fmt.Errorf("failed to write image file: %w", err)
 	}
 	return path, nil
+}
+
+func (cfg ImageGenConfig) requestContext() context.Context {
+	if cfg.ctx != nil {
+		return cfg.ctx
+	}
+	return context.Background()
 }
 
 // estimateCost returns a rough cost estimate for a single image generation.

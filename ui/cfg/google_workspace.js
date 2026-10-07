@@ -91,6 +91,7 @@ async function renderGoogleWorkspaceSection(section) {
     const scopes = [
         { key: 'gmail',          label: t('config.google_workspace.scope_gmail'),           hint: t('config.google_workspace.scope_gmail_hint') },
         { key: 'gmail_send',     label: t('config.google_workspace.scope_gmail_send'),      hint: t('config.google_workspace.scope_gmail_send_hint') },
+        { key: 'gmail_modify_labels', label: t('config.google_workspace.scope_gmail_modify_labels'), hint: t('config.google_workspace.scope_gmail_modify_labels_hint') },
         { key: 'calendar',       label: t('config.google_workspace.scope_calendar'),        hint: t('config.google_workspace.scope_calendar_hint') },
         { key: 'calendar_write', label: t('config.google_workspace.scope_calendar_write'),  hint: t('config.google_workspace.scope_calendar_write_hint') },
         { key: 'drive',          label: t('config.google_workspace.scope_drive'),            hint: t('config.google_workspace.scope_drive_hint') },

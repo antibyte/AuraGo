@@ -109,90 +109,38 @@ func TestTokenTunnelArgsUseRemoteManagedRun(t *testing.T) {
 	}
 }
 
-func TestQuickTunnelOriginURLRespectsExplicitPort(t *testing.T) {
-	cfg := CloudflareTunnelConfig{
-		WebUIPort:      8080,
-		HTTPSEnabled:   true,
-		HTTPSPort:      8443,
-		LoopbackPort:   18080,
-		HomepagePort:   3000,
-		ExposeWebUI:    true,
-		ExposeHomepage: true,
-	}
-
-	got, noTLS := quickTunnelOriginURL(cfg, "localhost", 9000)
-	if got != "http://localhost:9000" {
-		t.Fatalf("quickTunnelOriginURL explicit port = %q, want http://localhost:9000", got)
-	}
-	if noTLS {
-		t.Fatal("quickTunnelOriginURL explicit HTTP port noTLS = true, want false")
+func TestQuickTunnelOriginRejectsUnmanagedDefaults(t *testing.T) {
+	cfg := CloudflareTunnelConfig{WebUIPort: 8080, LoopbackPort: 18080, HTTPSEnabled: true, HTTPSPort: 8443, HomepagePort: 3000}
+	for _, port := range []int{0, 2375, 9000} {
+		if got, _ := quickTunnelOriginURL(cfg, "localhost", port); got != "" {
+			t.Fatalf("unmanaged origin: %s", got)
+		}
 	}
 }
 
-func TestQuickTunnelOriginURLPrefersLoopbackForDefaultPort(t *testing.T) {
-	cfg := CloudflareTunnelConfig{
-		WebUIPort:    8080,
-		LoopbackPort: 18080,
-	}
-
-	got, noTLS := quickTunnelOriginURL(cfg, "localhost", 0)
-	if got != "http://127.0.0.1:18080" {
-		t.Fatalf("quickTunnelOriginURL loopback = %q, want http://127.0.0.1:18080", got)
-	}
-	if noTLS {
-		t.Fatal("quickTunnelOriginURL loopback noTLS = true, want false")
-	}
-}
-
-func TestQuickTunnelOriginURLUsesHTTPSWithoutLoopback(t *testing.T) {
-	cfg := CloudflareTunnelConfig{
-		WebUIPort:      8080,
-		HTTPSEnabled:   true,
-		HTTPSPort:      8443,
-		LoopbackPort:   0,
-		ExposeWebUI:    true,
-		ExposeHomepage: false,
-	}
-
-	got, noTLS := quickTunnelOriginURL(cfg, "localhost", 0)
-	if got != "https://localhost:8443" {
-		t.Fatalf("quickTunnelOriginURL https = %q, want https://localhost:8443", got)
-	}
-	if !noTLS {
-		t.Fatal("quickTunnelOriginURL https noTLS = false, want true")
-	}
-}
-
-func TestCloudflareTunnelStartQuickUsesDefaultOriginWithoutExplicitPort(t *testing.T) {
-	cfg := CloudflareTunnelConfig{
-		AuthMethod:   "quick",
-		Mode:         "native",
-		WebUIPort:    8080,
-		LoopbackPort: 18080,
-	}
-
-	args := captureNativeQuickTunnelArgs(t, cfg, func(cfg CloudflareTunnelConfig, registry *ProcessRegistry, logger *slog.Logger) string {
-		return CloudflareTunnelStart(cfg, nil, registry, logger)
-	})
-
-	if got := argAfter(args, "--url"); got != "http://127.0.0.1:18080" {
-		t.Fatalf("CloudflareTunnelStart quick --url = %q, want loopback default; args=%#v", got, args)
-	}
-}
-
-func TestCloudflareTunnelQuickTunnelZeroPortUsesDefaultOrigin(t *testing.T) {
-	cfg := CloudflareTunnelConfig{
-		Mode:         "native",
-		WebUIPort:    8080,
-		LoopbackPort: 18080,
-	}
-
-	args := captureNativeQuickTunnelArgs(t, cfg, func(cfg CloudflareTunnelConfig, registry *ProcessRegistry, logger *slog.Logger) string {
-		return CloudflareTunnelQuickTunnel(cfg, registry, logger, 0)
-	})
-
-	if got := argAfter(args, "--url"); got != "http://127.0.0.1:18080" {
-		t.Fatalf("CloudflareTunnelQuickTunnel zero port --url = %q, want loopback default; args=%#v", got, args)
+func TestCloudflareQuickStartAndDirectUseManagedOrigin(t *testing.T) {
+	for _, method := range []string{"start", "quick", "restart"} {
+		t.Run(method, func(t *testing.T) {
+			cfg := fixtureHomepageQuickConfig(t)
+			cfg.WebUIPort = 8080
+			cfg.LoopbackPort = 18080
+			args := captureNativeQuickTunnelArgs(t, cfg, func(cfg CloudflareTunnelConfig, registry *ProcessRegistry, logger *slog.Logger) string {
+				if method == "start" {
+					return CloudflareTunnelStart(cfg, nil, registry, logger)
+				}
+				if method == "restart" {
+					return CloudflareTunnelRestart(cfg, nil, registry, logger)
+				}
+				return CloudflareTunnelQuickTunnel(cfg, registry, logger, 0)
+			})
+			got := argAfter(args, "--url")
+			if !strings.HasPrefix(got, "http://127.0.0.1:") || got == "http://127.0.0.1:18080" || got == "http://127.0.0.1:8080" {
+				t.Fatalf("unmanaged target: %q", got)
+			}
+			if argAfter(args, "--http-host-header") == "" {
+				t.Fatal("managed origin binding missing")
+			}
+		})
 	}
 }
 
@@ -265,7 +213,10 @@ func main() {
 func resetCloudflareTunnelRuntimeForTest() {
 	tunnelMu.Lock()
 	defer tunnelMu.Unlock()
+	closeQuickOriginLocked()
 	tunnelPID = 0
+	tunnelExit = nil
+	tunnelDockerHost = ""
 	tunnelMode = ""
 	tunnelURL = ""
 	tunnelStarted = time.Time{}

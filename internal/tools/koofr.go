@@ -49,6 +49,11 @@ var koofrHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 // Valid actions: list, read, download, write, upload, mkdir, delete, rename, copy.
 func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, workspaceDir, dataDir string) string {
 	action = strings.TrimSpace(strings.ToLower(action))
+	if action == "delete" {
+		if err := validateCloudDeletePath(path); err != nil {
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": err.Error()})
+		}
+	}
 	if cfg.ReadOnly && koofrMutationAction(action) {
 		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Koofr is in read-only mode. Disable koofr.readonly to allow changes."})
 	}

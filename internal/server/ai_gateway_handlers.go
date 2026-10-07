@@ -85,7 +85,18 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, test bool, prov
 		})
 		return
 	}
-	route := llm.ResolveAIGatewayRoute(&cfgSnapshot, providerType, providerAccountID)
+	providerBaseURL := cfgSnapshot.LLM.BaseURL
+	targetID := firstString(providerID)
+	if targetID == "" {
+		targetID = cfgSnapshot.LLM.Provider
+	}
+	for _, provider := range cfgSnapshot.Providers {
+		if provider.ID == targetID {
+			providerBaseURL = provider.BaseURL
+			break
+		}
+	}
+	route := llm.ResolveAIGatewayRoute(&cfgSnapshot, providerType, providerAccountID, providerBaseURL)
 	diagnostics := aiGatewayDiagnostics(route)
 	if !test {
 		json.NewEncoder(w).Encode(diagnostics)

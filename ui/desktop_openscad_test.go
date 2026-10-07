@@ -70,8 +70,8 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 	app := readDesktopAssetText(t, "js/desktop/apps/openscad.js")
 	for _, want := range []string{
 		"window.OpenSCADApp = { render, dispose }",
-		"/api/openscad/status",
-		"/api/openscad/render",
+		"/api/desktop/integrations/openscad/status",
+		"/api/desktop/integrations/openscad/render",
 		"/api/desktop/chat/stream",
 		"source: 'openscad'",
 		"openscad_render",

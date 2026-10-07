@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 const defaultUserAgent = "AuraGo HuggingFace Integration"
@@ -179,6 +181,19 @@ func NewClient(cfg ClientConfig) *Client {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: timeout}
 	}
+	clientCopy := *httpClient
+	previousRedirect := clientCopy.CheckRedirect
+	clientCopy.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := security.SameOriginRedirect(req, via); err != nil {
+			return err
+		}
+		if previousRedirect != nil {
+			return previousRedirect(req, via)
+		}
+		return nil
+	}
+	httpClient = &clientCopy
+	security.RegisterSensitive(cfg.Token)
 	return &Client{cfg: cfg, httpClient: httpClient}
 }
 
@@ -193,6 +208,9 @@ func (c *Client) SearchModels(ctx context.Context, opts SearchOptions) ([]map[st
 }
 
 func (c *Client) GetModel(ctx context.Context, repoID string) (map[string]interface{}, error) {
+	if _, err := CanonicalRepoID(repoID); err != nil {
+		return nil, err
+	}
 	return c.getHubObject(ctx, "/api/models/"+strings.Trim(repoID, "/"))
 }
 
@@ -201,6 +219,9 @@ func (c *Client) SearchDatasets(ctx context.Context, opts SearchOptions) ([]map[
 }
 
 func (c *Client) GetDataset(ctx context.Context, repoID string) (map[string]interface{}, error) {
+	if _, err := CanonicalRepoID(repoID); err != nil {
+		return nil, err
+	}
 	return c.getHubObject(ctx, "/api/datasets/"+strings.Trim(repoID, "/"))
 }
 
@@ -209,11 +230,17 @@ func (c *Client) SearchSpaces(ctx context.Context, opts SearchOptions) ([]map[st
 }
 
 func (c *Client) GetSpace(ctx context.Context, repoID string) (map[string]interface{}, error) {
+	if _, err := CanonicalRepoID(repoID); err != nil {
+		return nil, err
+	}
 	return c.getHubObject(ctx, "/api/spaces/"+strings.Trim(repoID, "/"))
 }
 
 func (c *Client) ListFiles(ctx context.Context, opts RepoOptions) ([]map[string]interface{}, error) {
-	revision := defaultString(opts.Revision, "main")
+	if _, err := CanonicalRepoID(opts.RepoID); err != nil {
+		return nil, err
+	}
+	revision := neturl.PathEscape(defaultString(opts.Revision, "main"))
 	p := "/api/" + repoPlural(opts.RepoType) + "/" + strings.Trim(opts.RepoID, "/") + "/tree/" + revision
 	q := neturl.Values{"recursive": []string{"1"}}
 	var out []map[string]interface{}
@@ -222,7 +249,10 @@ func (c *Client) ListFiles(ctx context.Context, opts RepoOptions) ([]map[string]
 }
 
 func (c *Client) DownloadFile(ctx context.Context, opts DownloadFileOptions) (DownloadResult, error) {
-	revision := defaultString(opts.Revision, "main")
+	if _, err := CanonicalRepoID(opts.RepoID); err != nil {
+		return DownloadResult{}, err
+	}
+	revision := neturl.PathEscape(defaultString(opts.Revision, "main"))
 	prefix := repoResolvePrefix(opts.RepoType)
 	p := prefix + strings.Trim(opts.RepoID, "/") + "/resolve/" + revision + "/" + strings.TrimLeft(opts.Path, "/")
 	u, err := buildURL(c.cfg.HubBaseURL, p, nil)
@@ -234,7 +264,7 @@ func (c *Client) DownloadFile(ctx context.Context, opts DownloadFileOptions) (Do
 		return DownloadResult{}, err
 	}
 	c.decorate(req)
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.downloadResponse(req)
 	if err != nil {
 		return DownloadResult{}, err
 	}
@@ -505,6 +535,9 @@ func (c *Client) CreateRepo(ctx context.Context, opts CreateRepoOptions) (map[st
 }
 
 func (c *Client) UploadFile(ctx context.Context, opts UploadFileOptions) (map[string]interface{}, error) {
+	if _, err := CanonicalRepoID(opts.RepoID); err != nil {
+		return nil, err
+	}
 	maxBytes := int64(c.cfg.MaxUploadMB) * 1024 * 1024
 	if maxBytes <= 0 {
 		maxBytes = maxJSONUploadMB * 1024 * 1024
@@ -579,11 +612,17 @@ func (c *Client) UploadFile(ctx context.Context, opts UploadFileOptions) (map[st
 }
 
 func (c *Client) CreateDiscussion(ctx context.Context, opts DiscussionOptions) (map[string]interface{}, error) {
+	if _, err := CanonicalRepoID(opts.RepoID); err != nil {
+		return nil, err
+	}
 	p := "/api/" + repoPlural(opts.RepoType) + "/" + strings.Trim(opts.RepoID, "/") + "/discussions"
 	return c.postHubMap(ctx, p, map[string]interface{}{"title": opts.Title, "description": opts.Body})
 }
 
 func (c *Client) CommentDiscussion(ctx context.Context, opts DiscussionOptions) (map[string]interface{}, error) {
+	if _, err := CanonicalRepoID(opts.RepoID); err != nil {
+		return nil, err
+	}
 	p := "/api/" + repoPlural(opts.RepoType) + "/" + strings.Trim(opts.RepoID, "/") + "/discussions/" + strconv.Itoa(opts.Number) + "/comment"
 	return c.postHubMap(ctx, p, map[string]interface{}{"comment": opts.Body})
 }
@@ -741,7 +780,10 @@ func (c *Client) postHubMap(ctx context.Context, endpoint string, payload interf
 }
 
 func splitRepoID(repoID string) (namespace, name string, err error) {
-	repoID = strings.Trim(strings.TrimSpace(repoID), "/")
+	repoID, err = CanonicalRepoID(repoID)
+	if err != nil {
+		return "", "", err
+	}
 	if repoID == "" {
 		return "", "", fmt.Errorf("huggingface repository ID is required")
 	}
@@ -880,6 +922,18 @@ func (c *Client) apiError(resp *http.Response) error {
 
 func buildURL(baseURL, endpoint string, q neturl.Values) (string, error) {
 	baseURL = trimBaseURL(baseURL)
+	if err := security.ValidateHTTPBaseURL(baseURL); err != nil {
+		return "", err
+	}
+	decoded, err := neturl.PathUnescape(endpoint)
+	if err != nil || strings.ContainsAny(decoded, "\\%?#\r\n\x00") {
+		return "", fmt.Errorf("invalid Hugging Face request path")
+	}
+	for _, segment := range strings.Split(decoded, "/") {
+		if segment == "." || segment == ".." {
+			return "", fmt.Errorf("Hugging Face path traversal rejected")
+		}
+	}
 	if strings.TrimSpace(endpoint) != "" {
 		parts := strings.Split(strings.Trim(endpoint, "/"), "/")
 		joined, err := neturl.JoinPath(baseURL, parts...)

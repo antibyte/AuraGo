@@ -123,7 +123,7 @@ func TestManagerCountsRejectedAgentCallsButExemptsBrowser(t *testing.T) {
 	cfg := validTestSIPConfig()
 	cfg.BrowserMedia.Enabled = true
 	cfg.Voice.MaxOutboundCallsPerDay = 1
-	cfg.Outbound.AllowedUsers = nil
+	cfg.Outbound.AllowedUsers = []string{"alice", "bob", "carol"}
 	cfg.Outbound.AllowedE164Prefixes = nil
 	ua, err := sipgo.NewUA()
 	if err != nil {

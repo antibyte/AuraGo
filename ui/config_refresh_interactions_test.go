@@ -69,6 +69,15 @@ func TestConfigRefreshSIPStepsBrowser(t *testing.T) {
 	page.MustSetViewport(1440, 900, 1, false)
 	waitForJSBool(t, page, `() => !!document.querySelector('[data-sip-profile="test"]')`)
 	waitForJSBool(t, page, `() => document.getElementById('sip-status').textContent!==t('config.sip.loading_status')`)
+	if !page.MustEval(`() => {
+	 const locked = {domain:'account.example',outbound:{allowed_domains:[],allowed_users:[],allowed_e164_prefixes:[]}};
+	 sipNormalizeOutboundPayload(locked);
+	 const explicit = {domain:'account.example',outbound:{allowed_domains:['other.example'],allowed_users:['alice'],allowed_e164_prefixes:[]}};
+	 sipNormalizeOutboundPayload(explicit);
+	 return !locked.outbound.allowed_domains.length && explicit.outbound.allowed_domains.join(',')==='other.example';
+	}`).Bool() {
+		t.Fatal("SIP normalization widened an explicit or empty calling policy")
+	}
 	page.MustElement(`[data-sip-profile="test"]`).MustClick()
 	waitForJSBool(t, page, `() => !!document.querySelector('.sip-test-diagnostic')`)
 	// Status refresh replaces the profile; select its controls after that refresh.
@@ -103,6 +112,7 @@ func TestConfigRefreshSIPStepsBrowser(t *testing.T) {
 	}
 	page.MustElement(`[data-sip-wizard="calling"]`).MustClick()
 	waitForJSBool(t, page, `() => !!document.querySelector('[data-sip-wizard="review"]')`)
+	page.MustElement(`[data-sip-guided-scope="sip-outbound-scope"][value="all"]`).MustClick()
 	page.MustElement(`[data-sip-wizard="review"]`).MustClick()
 	waitForJSBool(t, page, `() => !!document.querySelector('[data-sip-wizard="apply"]')`)
 	if !page.MustEval(`() => document.querySelector('.sip-wizard-shell').classList.contains('cfg-topic') && sipWizardValues.registrar==='sip.fixture.invalid'`).Bool() {

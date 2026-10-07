@@ -1,6 +1,10 @@
 package agent
 
-import "github.com/sashabaranov/go-openai"
+import (
+	"fmt"
+
+	"github.com/sashabaranov/go-openai"
+)
 
 type preparedHistoryGroup struct {
 	start, end int
@@ -46,23 +50,40 @@ func preparedHistoryGroups(messages []openai.ChatCompletionMessage) []preparedHi
 }
 
 func minimumPreparedMessages(messages []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
+	minimum, _ := minimumPreparedMessagesWithTaskAnchor(messages, -1)
+	return minimum
+}
+
+func minimumPreparedMessagesWithTaskAnchor(messages []openai.ChatCompletionMessage, anchorIndex int) ([]openai.ChatCompletionMessage, int) {
 	var kept []openai.ChatCompletionMessage
+	keptAnchorIndex := -1
 	for _, group := range preparedHistoryGroups(messages) {
 		if group.required {
+			if anchorIndex >= group.start && anchorIndex < group.end {
+				keptAnchorIndex = len(kept) + anchorIndex - group.start
+			}
 			kept = append(kept, messages[group.start:group.end]...)
 		}
 	}
-	return kept
+	return kept, keptAnchorIndex
 }
 
 func trimPreparedHistory(budget *RequestBudget, messages []openai.ChatCompletionMessage, currentUser, system string, tools []openai.Tool, cache *tokenCountCache) ([]openai.ChatCompletionMessage, error) {
+	trimmed, _, err := trimPreparedHistoryWithTaskAnchor(budget, messages, currentUser, protectedTaskMessageIndex(messages, currentUser), system, tools, cache)
+	return trimmed, err
+}
+
+func trimPreparedHistoryWithTaskAnchor(budget *RequestBudget, messages []openai.ChatCompletionMessage, currentUser string, anchorIndex int, system string, tools []openai.Tool, cache *tokenCountCache) ([]openai.ChatCompletionMessage, int, error) {
 	working := append([]openai.ChatCompletionMessage(nil), messages...)
+	if !validTaskAnchor(working, anchorIndex, currentUser) {
+		return nil, anchorIndex, fmt.Errorf("prepared prompt is missing its original user request")
+	}
 	fits := func() bool {
 		_, err := budget.validate(working, tools, cache)
-		return err == nil && budget.historyWorkingSetFits(working, currentUserMessageIndex(working, currentUser), system, tools, cache)
+		return err == nil && budget.historyWorkingSetFits(working, anchorIndex, system, tools, cache)
 	}
 	if fits() {
-		return working, nil
+		return working, anchorIndex, nil
 	}
 	var dropped []openai.ChatCompletionMessage
 	for !fits() {
@@ -71,6 +92,9 @@ func trimPreparedHistory(budget *RequestBudget, messages []openai.ChatCompletion
 			if group.required {
 				continue
 			}
+			if group.start < anchorIndex {
+				anchorIndex -= group.end - group.start
+			}
 			dropped = append(dropped, working[group.start:group.end]...)
 			working = append(append([]openai.ChatCompletionMessage(nil), working[:group.start]...), working[group.end:]...)
 			removed = true
@@ -78,10 +102,11 @@ func trimPreparedHistory(budget *RequestBudget, messages []openai.ChatCompletion
 		}
 		if !removed {
 			if _, err := budget.validate(working, tools, cache); err != nil {
-				return nil, err
+				return nil, anchorIndex, err
 			}
-			return nil, promptBudgetExceededForRoutes(budget, budget.maxMessagesTokens(working, cache))
+			return nil, anchorIndex, promptBudgetExceededForRoutes(budget, budget.maxMessagesTokens(working, cache))
 		}
 	}
-	return appendRecapWithinWorkingSet(budget, working, currentUser, system, tools, dropped, cache), nil
+	working, anchorIndex = appendRecapWithinWorkingSetWithTaskAnchor(budget, working, currentUser, anchorIndex, system, tools, dropped, cache)
+	return working, anchorIndex, nil
 }

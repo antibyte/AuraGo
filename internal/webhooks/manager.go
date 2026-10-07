@@ -3,8 +3,10 @@ package webhooks
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -22,7 +24,23 @@ type Manager struct {
 	filePath        string
 	webhooks        []Webhook
 	log             *Log
-	missionTriggers map[string][]func(payload []byte) // webhookID → callbacks
+	missionTriggers map[string]*missionTrigger // registration key → callback
+}
+
+type missionTrigger struct {
+	webhookID string
+	eligible  func() bool
+	callback  func([]byte)
+}
+
+func cloneWebhook(w Webhook) Webhook {
+	w.Format.AcceptedContentTypes = slices.Clone(w.Format.AcceptedContentTypes)
+	w.Format.Fields = slices.Clone(w.Format.Fields)
+	if w.LastFiredAt != nil {
+		value := *w.LastFiredAt
+		w.LastFiredAt = &value
+	}
+	return w
 }
 
 // MigrateSignatureSecrets atomically moves legacy plaintext signature secrets into the vault.
@@ -33,7 +51,7 @@ func (m *Manager) MigrateSignatureSecrets(vault *security.Vault) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	original := append([]Webhook(nil), m.webhooks...)
+	next := append([]Webhook(nil), m.webhooks...)
 	type vaultSnapshot struct {
 		key    string
 		value  string
@@ -51,41 +69,41 @@ func (m *Manager) MigrateSignatureSecrets(vault *security.Vault) error {
 	}
 
 	changed := false
-	for i := range m.webhooks {
-		secret := strings.TrimSpace(m.webhooks[i].Format.SignatureSecret)
+	for i := range next {
+		secret := strings.TrimSpace(next[i].Format.SignatureSecret)
 		if secret == "" {
 			continue
 		}
-		key := SignatureSecretVaultKey(m.webhooks[i].ID)
+		key := SignatureSecretVaultKey(next[i].ID)
 		previous, err := vault.ReadSecret(key)
 		if err == nil && strings.TrimSpace(previous) != "" {
 			// A vault value may have been rotated after a partially completed legacy
 			// migration. The vault is authoritative; only remove the stale plaintext.
-			m.webhooks[i].Format.SignatureSecret = ""
+			next[i].Format.SignatureSecret = ""
 			changed = true
 			continue
 		}
 		if err != nil && !isMissingVaultSecretError(err) {
 			rollback()
-			return fmt.Errorf("read existing signature secret for webhook %s: %w", m.webhooks[i].ID, err)
+			return fmt.Errorf("read existing signature secret for webhook %s: %w", next[i].ID, err)
 		}
 		snapshot := vaultSnapshot{key: key, value: previous, exists: err == nil}
 		snapshots = append(snapshots, snapshot)
 		if err := vault.WriteSecret(key, secret); err != nil {
 			rollback()
-			return fmt.Errorf("migrate signature secret for webhook %s: %w", m.webhooks[i].ID, err)
+			return fmt.Errorf("migrate signature secret for webhook %s: %w", next[i].ID, err)
 		}
-		m.webhooks[i].Format.SignatureSecret = ""
+		next[i].Format.SignatureSecret = ""
 		changed = true
 	}
 	if !changed {
 		return nil
 	}
-	if err := m.save(); err != nil {
-		m.webhooks = original
+	if err := m.saveWebhooks(next); err != nil {
 		rollback()
 		return fmt.Errorf("persist migrated webhook signature secrets: %w", err)
 	}
+	m.webhooks = next
 	return nil
 }
 
@@ -112,7 +130,7 @@ func NewManager(filePath string, logPath string) (*Manager, error) {
 		log:      wl,
 	}
 	if err := m.load(); err != nil {
-		m.webhooks = []Webhook{}
+		return nil, fmt.Errorf("load webhooks: %w", err)
 	}
 	return m, nil
 }
@@ -126,15 +144,14 @@ func (m *Manager) load() error {
 		}
 		return err
 	}
-	if len(data) == 0 {
-		m.webhooks = []Webhook{}
-		return nil
+	if len(strings.TrimSpace(string(data))) == 0 || strings.TrimSpace(string(data)) == "null" {
+		return fmt.Errorf("webhook configuration is empty or null")
 	}
 	return json.Unmarshal(data, &m.webhooks)
 }
 
-func (m *Manager) save() error {
-	data, err := json.MarshalIndent(m.webhooks, "", "  ")
+func (m *Manager) saveWebhooks(next []Webhook) error {
+	data, err := json.MarshalIndent(next, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -146,7 +163,9 @@ func (m *Manager) List() []Webhook {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	result := make([]Webhook, len(m.webhooks))
-	copy(result, m.webhooks)
+	for i, w := range m.webhooks {
+		result[i] = cloneWebhook(w)
+	}
 	return result
 }
 
@@ -156,7 +175,7 @@ func (m *Manager) Get(id string) (Webhook, error) {
 	defer m.mu.RUnlock()
 	for _, w := range m.webhooks {
 		if w.ID == id {
-			return w, nil
+			return cloneWebhook(w), nil
 		}
 	}
 	return Webhook{}, fmt.Errorf("webhook not found")
@@ -168,7 +187,7 @@ func (m *Manager) GetBySlug(slug string) (Webhook, error) {
 	defer m.mu.RUnlock()
 	for _, w := range m.webhooks {
 		if w.Slug == slug {
-			return w, nil
+			return cloneWebhook(w), nil
 		}
 	}
 	return Webhook{}, fmt.Errorf("webhook not found")
@@ -213,12 +232,12 @@ func (m *Manager) Create(w Webhook) (Webhook, error) {
 		w.Format.AcceptedContentTypes = []string{"application/json"}
 	}
 
-	m.webhooks = append(m.webhooks, w)
-	if err := m.save(); err != nil {
-		m.webhooks = m.webhooks[:len(m.webhooks)-1]
+	next := append(slices.Clone(m.webhooks), cloneWebhook(w))
+	if err := m.saveWebhooks(next); err != nil {
 		return Webhook{}, err
 	}
-	return w, nil
+	m.webhooks = next
+	return cloneWebhook(w), nil
 }
 
 // Update modifies an existing webhook.
@@ -240,14 +259,15 @@ func (m *Manager) UpdateWithOptions(id string, patch Webhook, opts UpdateOptions
 		if m.webhooks[i].ID != id {
 			continue
 		}
+		updated := cloneWebhook(m.webhooks[i])
 		if patch.Name != "" {
-			m.webhooks[i].Name = patch.Name
+			updated.Name = patch.Name
 		}
 		if opts.EnabledSet {
-			m.webhooks[i].Enabled = patch.Enabled
+			updated.Enabled = patch.Enabled
 		}
 
-		if patch.Slug != "" && patch.Slug != m.webhooks[i].Slug {
+		if patch.Slug != "" && patch.Slug != updated.Slug {
 			slug := strings.ToLower(strings.TrimSpace(patch.Slug))
 			if !slugRegex.MatchString(slug) {
 				return Webhook{}, fmt.Errorf("invalid slug")
@@ -257,50 +277,53 @@ func (m *Manager) UpdateWithOptions(id string, patch Webhook, opts UpdateOptions
 					return Webhook{}, fmt.Errorf("slug '%s' already in use", slug)
 				}
 			}
-			m.webhooks[i].Slug = slug
+			updated.Slug = slug
 		}
 		if patch.TokenID != "" {
-			m.webhooks[i].TokenID = patch.TokenID
+			updated.TokenID = patch.TokenID
 		}
 
 		// Update format if provided
 		if len(patch.Format.AcceptedContentTypes) > 0 {
-			m.webhooks[i].Format.AcceptedContentTypes = patch.Format.AcceptedContentTypes
+			updated.Format.AcceptedContentTypes = slices.Clone(patch.Format.AcceptedContentTypes)
 		}
 		if patch.Format.Fields != nil {
-			m.webhooks[i].Format.Fields = patch.Format.Fields
+			updated.Format.Fields = slices.Clone(patch.Format.Fields)
 		}
 		if patch.Format.Description != "" {
-			m.webhooks[i].Format.Description = patch.Format.Description
+			updated.Format.Description = patch.Format.Description
 		}
 		if opts.SignatureHeaderSet {
-			m.webhooks[i].Format.SignatureHeader = patch.Format.SignatureHeader
+			updated.Format.SignatureHeader = patch.Format.SignatureHeader
 		}
 		if opts.SignatureAlgoSet {
-			m.webhooks[i].Format.SignatureAlgo = patch.Format.SignatureAlgo
+			updated.Format.SignatureAlgo = patch.Format.SignatureAlgo
 		}
 		if opts.SignatureSecretSet {
-			m.webhooks[i].Format.SignatureSecret = patch.Format.SignatureSecret
+			updated.Format.SignatureSecret = patch.Format.SignatureSecret
 		}
 
 		// Update delivery
 		if patch.Delivery.Mode != "" {
-			m.webhooks[i].Delivery.Mode = patch.Delivery.Mode
+			updated.Delivery.Mode = patch.Delivery.Mode
 		}
 		if patch.Delivery.PromptTemplate != "" {
 			if err := ValidatePromptTemplate(patch.Delivery.PromptTemplate); err != nil {
 				return Webhook{}, err
 			}
-			m.webhooks[i].Delivery.PromptTemplate = patch.Delivery.PromptTemplate
+			updated.Delivery.PromptTemplate = patch.Delivery.PromptTemplate
 		}
 		if patch.Delivery.Priority != "" {
-			m.webhooks[i].Delivery.Priority = "queue"
+			updated.Delivery.Priority = "queue"
 		}
 
-		if err := m.save(); err != nil {
+		next := slices.Clone(m.webhooks)
+		next[i] = updated
+		if err := m.saveWebhooks(next); err != nil {
 			return Webhook{}, err
 		}
-		return m.webhooks[i], nil
+		m.webhooks = next
+		return cloneWebhook(updated), nil
 	}
 	return Webhook{}, fmt.Errorf("webhook not found")
 }
@@ -312,8 +335,17 @@ func (m *Manager) Delete(id string) error {
 
 	for i := range m.webhooks {
 		if m.webhooks[i].ID == id {
-			m.webhooks = append(m.webhooks[:i], m.webhooks[i+1:]...)
-			return m.save()
+			next := slices.Delete(slices.Clone(m.webhooks), i, i+1)
+			if err := m.saveWebhooks(next); err != nil {
+				return err
+			}
+			m.webhooks = next
+			for key, trigger := range m.missionTriggers {
+				if trigger.webhookID == id {
+					delete(m.missionTriggers, key)
+				}
+			}
+			return nil
 		}
 	}
 	return fmt.Errorf("webhook not found")
@@ -326,9 +358,14 @@ func (m *Manager) RecordFire(id string) {
 	now := time.Now().UTC()
 	for i := range m.webhooks {
 		if m.webhooks[i].ID == id {
-			m.webhooks[i].FireCount++
-			m.webhooks[i].LastFiredAt = &now
-			_ = m.save()
+			next := slices.Clone(m.webhooks)
+			next[i].FireCount++
+			next[i].LastFiredAt = &now
+			if err := m.saveWebhooks(next); err != nil {
+				slog.Warn("Failed to persist webhook event count", "error", err)
+				return
+			}
+			m.webhooks = next
 			return
 		}
 	}
@@ -339,22 +376,76 @@ func (m *Manager) GetLog() *Log {
 	return m.log
 }
 
-// RegisterMissionTrigger registers a callback to fire when the given webhook is triggered.
-func (m *Manager) RegisterMissionTrigger(webhookID string, callback func(payload []byte)) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.missionTriggers == nil {
-		m.missionTriggers = make(map[string][]func(payload []byte))
-	}
-	m.missionTriggers[webhookID] = append(m.missionTriggers[webhookID], callback)
+// RegisterMissionTrigger registers an independent anonymous observer.
+func (m *Manager) RegisterMissionTrigger(webhookID string, callback func([]byte)) {
+	m.RegisterMissionTriggerForKey(uid.New(), webhookID, callback)
 }
 
-// NotifyWebhookFired invokes all registered mission callbacks for the given webhook.
+// RegisterMissionTriggerForKey atomically replaces this mission's registration.
+func (m *Manager) RegisterMissionTriggerForKey(key, webhookID string, callback func([]byte)) {
+	m.RegisterMissionTriggerForKeyWithEligibility(key, webhookID, nil, callback)
+}
+
+// RegisterMissionTriggerForKeyWithEligibility adds a pure eligibility query
+// used to decide whether a safe quarantine notice has an intended recipient.
+func (m *Manager) RegisterMissionTriggerForKeyWithEligibility(key, webhookID string, eligible func() bool, callback func([]byte)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if key == "" {
+		return
+	}
+	if m.missionTriggers == nil {
+		m.missionTriggers = make(map[string]*missionTrigger)
+	}
+	if callback == nil || webhookID == "" {
+		delete(m.missionTriggers, key)
+		return
+	}
+	m.missionTriggers[key] = &missionTrigger{webhookID: webhookID, eligible: eligible, callback: callback}
+}
+
+func (m *Manager) UnregisterMissionTrigger(key string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.missionTriggers, key)
+}
+
+// HasMissionTriggers reports whether an active mission is registered for a
+// webhook without invoking it. Quarantined deliveries use this to decide
+// whether a safe replacement notice has an intended agent recipient.
+func (m *Manager) HasMissionTriggers(webhookID string) bool {
+	m.mu.RLock()
+	var eligibility []func() bool
+	for _, trigger := range m.missionTriggers {
+		if trigger.webhookID == webhookID && trigger.callback != nil {
+			eligibility = append(eligibility, trigger.eligible)
+		}
+	}
+	m.mu.RUnlock()
+	for _, eligible := range eligibility {
+		if eligible == nil || eligible() {
+			return true
+		}
+	}
+	return false
+}
+
+// NotifyWebhookFired snapshots callbacks and drops replaced registrations.
 func (m *Manager) NotifyWebhookFired(webhookID string, payload []byte) {
 	m.mu.RLock()
-	cbs := m.missionTriggers[webhookID]
+	callbacks := make(map[string]*missionTrigger)
+	for key, trigger := range m.missionTriggers {
+		if trigger.webhookID == webhookID {
+			callbacks[key] = trigger
+		}
+	}
 	m.mu.RUnlock()
-	for _, cb := range cbs {
-		cb(payload)
+	for key, trigger := range callbacks {
+		m.mu.RLock()
+		current := m.missionTriggers[key] == trigger
+		m.mu.RUnlock()
+		if current {
+			trigger.callback(slices.Clone(payload))
+		}
 	}
 }

@@ -842,8 +842,10 @@ func TestFlowConcurrentRunsStayBalanced(t *testing.T) {
 	}
 }
 
-// c08OldDependentsLoop is the dependents loop of OnMissionComplete before 1c-08, copied
-// verbatim, so the parity test compares against it.
+// c08OldDependentsLoop is main's dependents loop of completeMissionLocked (before 1c-08 on
+// this branch), so the parity test compares against it. Main's Desktop owner branch is left
+// out: these runs have no owner. Since main a mission that is queued already keeps its status
+// (enqueueItem refuses the duplicate).
 func c08OldDependentsLoop(m *MissionManagerV2, missionID, result string) {
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
@@ -861,8 +863,11 @@ func c08OldDependentsLoop(m *MissionManagerV2, missionID, result string) {
 		if !m.shouldFireTriggerLocked(mission, string(TriggerMissionCompleted), time.Now()) {
 			continue
 		}
-		m.queue.Enqueue(mission.ID, mission.Priority, "mission_completed",
-			fmt.Sprintf(`{"source_mission":"%s","result":"%s"}`, missionID, result))
+		item := QueueItem{MissionID: mission.ID, Priority: prioFromString(mission.Priority), EnqueuedAt: time.Now(), TriggerType: "mission_completed",
+			TriggerData: fmt.Sprintf(`{"source_mission":"%s","result":"%s"}`, missionID, result)}
+		if !m.queue.enqueueItem(item) {
+			continue
+		}
 		mission.Status = MissionStatusQueued
 	}
 }

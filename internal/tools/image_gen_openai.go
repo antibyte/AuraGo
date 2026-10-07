@@ -45,7 +45,7 @@ func generateOpenAI(cfg ImageGenConfig, prompt string, opts ImageGenOptions) ([]
 		return nil, "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewReader(jsonBody))
+	req, err := http.NewRequestWithContext(cfg.requestContext(), "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}
@@ -112,7 +112,7 @@ func generateOpenAIEdit(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 		return nil, "", err
 	}
 
-	req, err := http.NewRequest("POST", url, body)
+	req, err := http.NewRequestWithContext(cfg.requestContext(), "POST", url, body)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}

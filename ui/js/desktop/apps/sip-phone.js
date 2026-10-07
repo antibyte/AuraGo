@@ -625,7 +625,7 @@
 
     async function loadContacts(instance) {
         try {
-            const response = await instance.context.api('/api/contacts');
+            const response = await instance.context.api('/api/desktop/integrations/contacts');
             instance.contacts = Array.isArray(response) ? response : (response.contacts || []);
             render(instance, window.SipPhoneRuntime.getState());
         } catch (_) {

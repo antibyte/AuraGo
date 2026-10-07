@@ -2071,8 +2071,8 @@ func TestNormalizeStrictSchemaPreservesExplicitRequiredProperties(t *testing.T) 
 		t.Fatalf("top-level required %#v missing operation", required)
 	}
 	for _, optional := range []string{"category", "nested"} {
-		if containsRequiredValue(required, optional) {
-			t.Fatalf("top-level required %#v should not add optional property %q", required, optional)
+		if !containsRequiredValue(required, optional) || !schemaAllowsNull(schema["properties"].(map[string]interface{})[optional].(map[string]interface{})) {
+			t.Fatalf("Strict property %q must be required and nullable", optional)
 		}
 	}
 	nested := schema["properties"].(map[string]interface{})["nested"].(map[string]interface{})
@@ -2080,8 +2080,8 @@ func TestNormalizeStrictSchemaPreservesExplicitRequiredProperties(t *testing.T) 
 	if !containsRequiredValue(nestedRequired, "name") {
 		t.Fatalf("nested required %#v missing name", nestedRequired)
 	}
-	if containsRequiredValue(nestedRequired, "limit") {
-		t.Fatalf("nested required %#v should not add optional limit", nestedRequired)
+	if !containsRequiredValue(nestedRequired, "limit") || !schemaAllowsNull(nested["properties"].(map[string]interface{})["limit"].(map[string]interface{})) {
+		t.Fatalf("nested optional limit must be required and nullable: %#v", nested)
 	}
 }
 
@@ -2134,7 +2134,7 @@ func TestNormalizeStrictSchemaAddsTypeToEmptyArrayItems(t *testing.T) {
 }
 
 func TestBuildNativeToolSchemasAreStrictOpenAICompatibleAfterNormalization(t *testing.T) {
-	schemas := BuildNativeToolSchemas(t.TempDir(), nil, allBuiltinToolFeatureFlags(), nil)
+	schemas := BuildNativeToolSchemaSnapshot(t.TempDir(), nil, allBuiltinToolFeatureFlags(), nil).StrictSchemas()
 	var violations []string
 
 	for _, toolSchema := range schemas {
@@ -2146,7 +2146,6 @@ func TestBuildNativeToolSchemasAreStrictOpenAICompatibleAfterNormalization(t *te
 			violations = append(violations, toolSchema.Function.Name+".parameters is not an object schema")
 			continue
 		}
-		normalizeStrictSchemaRequiredRec(params)
 		collectStrictOpenAISchemaViolations(toolSchema.Function.Name+".parameters", params, &violations)
 	}
 
@@ -2159,9 +2158,18 @@ func collectStrictOpenAISchemaViolations(path string, node map[string]interface{
 	if _, hasType := node["type"]; !hasType && !hasSchemaCombinator(node) {
 		*violations = append(*violations, path+" schema is missing type")
 	}
-	switch node["type"] {
-	case "object":
+	switch {
+	case schemaHasType(node, "object"):
 		props, _ := node["properties"].(map[string]interface{})
+		required := schemaRequiredNames(node)
+		if len(required) != len(props) {
+			*violations = append(*violations, path+" must require every property")
+		}
+		for name := range props {
+			if !required[name] {
+				*violations = append(*violations, path+" missing required property "+name)
+			}
+		}
 		if requiredRaw, exists := node["required"]; exists {
 			switch typed := requiredRaw.(type) {
 			case []string:
@@ -2193,7 +2201,7 @@ func collectStrictOpenAISchemaViolations(path string, node map[string]interface{
 				collectStrictOpenAISchemaViolations(path+"."+name, child, violations)
 			}
 		}
-	case "array":
+	case schemaHasType(node, "array"):
 		items, ok := node["items"].(map[string]interface{})
 		if !ok {
 			*violations = append(*violations, path+" array is missing object items schema")

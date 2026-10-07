@@ -7,6 +7,8 @@ The `meshcentral` tool interacts with devices managed by a MeshCentral server th
 
 **Warning:** `wake`, `power_action`, and `run_command` are privileged operations. Verify the target `node_id` or `mesh_id` before changing remote device state.
 
+`run_command` additionally requires `agent.allow_remote_shell=true`. Integration permissions and the global remote-shell gate must both allow execution.
+
 ## Parameters
 
 - **`operation`**: Required. One of:

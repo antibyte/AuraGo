@@ -8,7 +8,7 @@
   "help.browser_automation.url": "Internal URL of the CloakBrowser sidecar service. Use the Docker container name or service name as hostname (e.g. http://browser-automation:7331).",
   "help.browser_automation.container_name": "Docker container name for the browser automation sidecar. Must be unique on your Docker host.",
   "help.browser_automation.image": "Docker image for the browser automation sidecar. Built automatically from the Dockerfile in the configured directory.",
-  "help.browser_automation.dockerfile_dir": "Directory containing the Dockerfile for building the browser automation image. Default is the AuraGo install directory.",
+  "help.browser_automation.dockerfile_dir": "Directory that contains Dockerfile.browser_automation and the browser_automation_sidecar folder, i.e. an AuraGo source checkout. Relative paths start from AuraGo's working directory. Release installs do not include these files. Point this at a source checkout or build the image yourself.",
   "help.browser_automation.allowed_download_dir": "Directory where downloaded files are stored. Relative paths are resolved from the AuraGo data directory.",
   "help.browser_automation.screenshots_dir": "Directory where browser screenshots are saved. Relative paths are resolved from the AuraGo data directory.",
   "help.browser_automation.session_ttl_minutes": "Time in minutes before an idle browser session is automatically closed. Default: 30 minutes.",

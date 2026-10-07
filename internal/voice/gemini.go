@@ -67,6 +67,8 @@ func (b *GeminiLiveBackend) Start(ctx context.Context, call CallContext, audio D
 		ctx: sessionCtx, cancel: cancel, call: call, audio: audio, backend: b,
 		events: make(chan VoiceEvent, 64), activitySignal: make(chan struct{}, 1),
 		turnCompleteSignal: make(chan struct{}, 1),
+		done:               make(chan struct{}),
+		output:             make(chan PCMFrame, 1500),
 	}
 	var err error
 	session.outputResampler, err = NewResampler(24000, 8000)
@@ -79,14 +81,19 @@ func (b *GeminiLiveBackend) Start(ctx context.Context, call CallContext, audio D
 		cancel()
 		return nil, err
 	}
-	session.setConnection(conn)
-	session.wg.Add(3)
+	if !session.setConnection(conn) {
+		cancel()
+		return nil, sessionCtx.Err()
+	}
+	session.wg.Add(4)
+	go session.outputLoop()
 	go session.inputLoop()
 	go session.readLoop()
 	go session.idleLoop()
 	go func() {
 		session.wg.Wait()
 		close(session.events)
+		close(session.done)
 	}()
 	return session, nil
 }
@@ -111,6 +118,9 @@ type geminiLiveSession struct {
 	turnCompleteSignal chan struct{}
 	busyTasks          atomic.Int32
 	failureOnce        sync.Once
+	done               chan struct{}
+	output             chan PCMFrame
+	outputMu           sync.Mutex
 }
 
 func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error) {
@@ -136,6 +146,9 @@ func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error
 		}
 		return nil, fmt.Errorf("connect Gemini Live WebSocket: %w", err)
 	}
+	stopClose := context.AfterFunc(s.ctx, func() { _ = conn.Close() })
+	defer stopClose()
+	_ = conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
 	conn.SetReadLimit(geminiMaxMessageBytes)
 	setup := realtimespeech.GeminiSIPSessionSetupWithInstruction(s.backend.Profile, s.backend.SystemInstruction)
 	if s.backend.TestNoTools {
@@ -196,7 +209,7 @@ func (s *geminiLiveSession) inputLoop() {
 			started, utterance := detector.Push(frame.Samples)
 			if started {
 				s.signalActivity()
-				s.audio.FlushOutput()
+				s.flushOutput()
 				s.setActivity(true)
 				s.emit("barge_in", "", nil)
 			}
@@ -261,7 +274,9 @@ func (s *geminiLiveSession) reconnect() bool {
 		}
 		conn, err := s.connect(handle)
 		if err == nil {
-			s.setConnection(conn)
+			if !s.setConnection(conn) {
+				return false
+			}
 			s.emit("session_resumed", "", nil)
 			return true
 		}
@@ -326,11 +341,14 @@ func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) (recon
 					samples[i] = int16(binary.LittleEndian.Uint16(decoded[i*2 : i*2+2]))
 				}
 				s.signalActivity()
-				_ = s.audio.Send(s.ctx, PCMFrame{Samples: s.outputResampler.Process(samples), SampleRate: 8000})
+				if !s.queueOutput(s.outputResampler.Process(samples)) {
+					s.fail("Gemini Live audio exceeds the 30-second playback buffer", false)
+					return false
+				}
 			}
 		}
 		if boolValue(content, "interrupted") {
-			s.audio.FlushOutput()
+			s.flushOutput()
 			s.emit("interrupted", "", nil)
 		}
 		if boolValue(content, "turnComplete", "turn_complete") {
@@ -501,7 +519,7 @@ func geminiTextTurn(text string) map[string]interface{} {
 }
 
 func (s *geminiLiveSession) Interrupt() {
-	s.audio.FlushOutput()
+	s.flushOutput()
 	s.setActivity(true)
 }
 
@@ -517,6 +535,9 @@ func (s *geminiLiveSession) Close() error {
 		s.conn = nil
 		s.connMu.Unlock()
 	})
+	if s.done != nil {
+		<-s.done
+	}
 	return nil
 }
 
@@ -548,6 +569,7 @@ func (s *geminiLiveSession) writeJSON(value interface{}) error {
 	if conn == nil {
 		return fmt.Errorf("Gemini Live connection is unavailable")
 	}
+	_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 	return conn.WriteJSON(value)
 }
 
@@ -557,14 +579,21 @@ func (s *geminiLiveSession) connection() *websocket.Conn {
 	return s.conn
 }
 
-func (s *geminiLiveSession) setConnection(conn *websocket.Conn) {
+// A late dial/setup result never revives a closed session.
+func (s *geminiLiveSession) setConnection(conn *websocket.Conn) bool {
 	s.connMu.Lock()
+	if s.ctx.Err() != nil {
+		s.connMu.Unlock()
+		_ = conn.Close()
+		return false
+	}
 	old := s.conn
 	s.conn = conn
 	s.connMu.Unlock()
 	if old != nil && old != conn {
 		_ = old.Close()
 	}
+	return true
 }
 
 func (s *geminiLiveSession) emit(eventType, message string, data map[string]any) {

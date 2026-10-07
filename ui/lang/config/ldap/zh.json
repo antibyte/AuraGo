@@ -1,4 +1,7 @@
 {
+  "config.ldap.transport_label": "连接安全",
+  "config.ldap.plain_label": "LDAP（未加密）",
+  "help.ldap.tls_mode": "LDAPS 使用端口 636。StartTLS 在端口 389 上进行身份验证前加密连接。加密失败时会阻止登录。",
   "config.ldap.base_dn_label": "基础DN",
   "config.ldap.bind_dn_label": "Bind DN",
   "config.ldap.bind_password_label": "Bind 密码（Vault）",

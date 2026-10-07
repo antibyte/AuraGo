@@ -752,15 +752,27 @@ func TestC17SecretDeleteAuditsOnlyRealDeletes(t *testing.T) {
 	if audit := c17AuditEvents(t, stm, "flow_secret_delete"); len(audit) != 1 || audit[0].TargetName != "c17_real" {
 		t.Fatalf("audit = %+v", audit)
 	}
-	// A cancelled request leaves used_by out; the vault delete itself has no context.
+	// A request cancelled before the Desktop admission (main's checkDesktopOperation) deletes
+	// nothing and gets the flows API's 503; one cancelled later leaves used_by out, because the
+	// vault delete itself has no context.
+	if w := flowsCall(t, s, http.MethodPut, "/api/desktop/flows/secrets/c17_real", token, `{"value":"c17-real-value-456"}`); w.Code != http.StatusOK {
+		t.Fatalf("put again = %d %s", w.Code, w.Body.String())
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	r := httptest.NewRequest(http.MethodDelete, "/api/desktop/flows/secrets/c17_real", nil).WithContext(ctx)
 	r.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 	s.handleFlows(w, r)
-	if body := flowsBody(t, w); w.Code != http.StatusOK || body["status"] != "deleted" || body["used_by"] != nil {
+	if body := flowsBody(t, w); w.Code != http.StatusServiceUnavailable || body["code"] != "FLOWS_DISABLED" || body["error"] != "the request was cancelled" {
 		t.Fatalf("cancelled delete = %d %s", w.Code, w.Body.String())
+	}
+	list := flowsCall(t, s, http.MethodGet, "/api/desktop/flows/secrets", token, "")
+	if names, _ := flowsBody(t, list)["secrets"].([]any); len(names) != 1 || names[0] != "c17_real" {
+		t.Fatalf("secrets after the cancelled delete = %s", list.Body.String())
+	}
+	if audit := c17AuditEvents(t, stm, "flow_secret_delete"); len(audit) != 1 {
+		t.Fatalf("the cancelled delete was audited: %+v", audit)
 	}
 }
 

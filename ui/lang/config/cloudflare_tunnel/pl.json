@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "Witryna dla tunelu tymczasowego",
+  "config.cloudflare_tunnel.quick_project_help": "Publikuje kopię ostatnio zbudowanych plików statycznych wybranego projektu. Włącz Homepage i Cloudflare. AuraGo automatycznie przydziela port.",
+  "config.cloudflare_tunnel.quick_project_select": "Wybierz projekt",
+  "config.cloudflare_tunnel.quick_project_error": "Projekt jest niedostępny. Sprawdź ustawienia Homepage i rejestrację projektu.",
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel włączony",
   "config.cloudflare_tunnel.readonly_label": "Tryb tylko do odczytu (tylko status)",
   "config.cloudflare_tunnel.auto_start_label": "Automatyczny start przy uruchomieniu",
@@ -26,7 +30,7 @@
   "config.cloudflare_tunnel.expose_single_hint": "Tunele Token i Quick używają jednego adresu URL źródła. Tylko jedna usługa może być celem tunelu. Użyj Named Tunnel dla routingu wielu usług.",
   "config.cloudflare_tunnel.expose_named_hint": "Named Tunnele obsługują wiele reguł ingress — obie usługi mogą być udostępnione jednocześnie przez oddzielne hostnamy.",
   "config.cloudflare_tunnel.loopback_label": "Port pętli zwrotnej HTTP dla Cloudflared (unika TLS )",
-  "config.cloudflare_tunnel.loopback_hint": "Otwiera zwykły port HTTP tylko w wersji 127.0.0.1. cloudflared łączy się z tym zamiast z portem HTTPS — nie jest wymagana weryfikacja certyfikatu. Port jest przydzielany automatycznie.",
+  "config.cloudflare_tunnel.loopback_hint": "Otwiera port zwykłego HTTP nasłuchujący wyłącznie na 127.0.0.1. cloudflared łączy się z nim zamiast z portem HTTPS — weryfikacja certyfikatu nie jest wymagana. Port jest przydzielany automatycznie.",
   "config.cloudflare_tunnel.error_prefix": "Błąd",
   "config.cloudflare_tunnel.restarting": "Uruchamianie tunelu ponownie...",
   "config.cloudflare_tunnel.restart_success": "Tunel pomyślnie uruchomiony ponownie",

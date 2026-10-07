@@ -111,6 +111,8 @@ func sendError(conn *websocket.Conn, message string) {
 func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, options ...RemoteProxyOptions) http.HandlerFunc {
 	proxyOptions := normalizeRemoteProxyOptions(options...)
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), proxyOptions.MaxSessionDuration)
+		defer cancel()
 		deviceID := strings.TrimSpace(r.URL.Query().Get("device_id"))
 		if deviceID == "" {
 			http.Error(w, "missing device_id", http.StatusBadRequest)
@@ -136,6 +138,8 @@ func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 		defer conn.Close()
+		stopWS := context.AfterFunc(ctx, func() { _ = conn.Close() })
+		defer stopWS()
 		conn.SetReadLimit(remoteProxyReadLimit)
 
 		device, err := inventory.GetDeviceByID(inventoryDB, deviceID)
@@ -161,13 +165,15 @@ func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			_ = conn.WriteJSON(sshStatusMessage{Type: "warning", Code: "insecure_host_key", Message: "SSH host key verification is disabled because known_hosts is unavailable."})
 		}
 
-		addr := fmt.Sprintf("%s:%d", host, port)
-		client, err := ssh.Dial("tcp", addr, configResult.Config)
+		addr := net.JoinHostPort(host, strconv.Itoa(port))
+		client, err := dialDesktopSSH(ctx, addr, configResult.Config)
 		if err != nil {
 			sendError(conn, fmt.Sprintf("SSH connection failed: %v", err))
 			return
 		}
 		defer client.Close()
+		stopSSH := context.AfterFunc(ctx, func() { _ = client.Close() })
+		defer stopSSH()
 
 		session, err := client.NewSession()
 		if err != nil {
@@ -215,9 +221,6 @@ func HandleSSHProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			logger.Warn("failed to send connected status", "error", err)
 			return
 		}
-
-		ctx, cancel := context.WithTimeout(r.Context(), proxyOptions.MaxSessionDuration)
-		defer cancel()
 
 		// Forward SSH stdout/stderr to WebSocket; cancel context when either ends.
 		go func() {

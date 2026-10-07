@@ -22,6 +22,7 @@
     let menuActionSeq = 0;
     let contextMenuActionSeq = 0;
     let contextMenuDisposer = null;
+    let parentPort = null;
     let widgetAutoResizeStarted = false;
     let widgetAutoResizeFrame = 0;
     let widgetAutoResizeObserver = null;
@@ -29,19 +30,74 @@
     let lastWidgetResizePostAt = 0;
     let lastActivityPingAt = 0;
 
-    function expectedParentMessageOrigin() {
-        try {
-            if (document.referrer) return new URL(document.referrer).origin;
-        } catch (_) {}
-        try {
-            return new URL(window.location.href).origin;
-        } catch (_) {}
-        return window.location.origin || '';
+    function rejectPendingForPort(port) {
+        for (const [id, item] of pending) {
+            if (item.port !== port) continue;
+            pending.delete(id);
+            window.clearTimeout(item.timer);
+            const error = new Error('Desktop bridge connection changed before the request completed');
+            error.status = 0;
+            item.reject(error);
+        }
     }
 
-    function isTrustedParentMessage(event) {
-        if (!event || event.source !== window.parent) return false;
-        return event.origin === expectedParentMessageOrigin();
+    function receiveParentMessage(event, port) {
+        const msg = event && event.data;
+        if (!msg) return;
+        if (msg.type === MENU_ACTION_TYPE) {
+            dispatchMenuAction(msg.actionId);
+            return;
+        }
+        if (msg.type === CONTEXT_MENU_ACTION_TYPE) {
+            dispatchContextMenuAction(msg.actionId);
+            return;
+        }
+        if (msg.type !== RESPONSE_TYPE || !pending.has(msg.id)) return;
+        const item = pending.get(msg.id);
+        if (item.port !== port) return;
+        pending.delete(msg.id);
+        window.clearTimeout(item.timer);
+        if (msg.ok) {
+            item.resolve(msg.payload);
+        } else {
+            const error = new Error(msg.error || 'Desktop bridge request failed');
+            error.status = Number(msg.status) || 0;
+            item.reject(error);
+        }
+    }
+
+    function sendPendingRequest(id, item) {
+        if (!parentPort || item.sent) return;
+        item.sent = true;
+        item.port = parentPort;
+        try {
+            parentPort.postMessage({
+                type: REQUEST_TYPE,
+                id,
+                action: item.action,
+                payload: item.payload
+            });
+        } catch (error) {
+            pending.delete(id);
+            window.clearTimeout(item.timer);
+            item.reject(error);
+        }
+    }
+
+    function connectParentPort(port) {
+        if (!port || typeof port.postMessage !== 'function') return;
+        const previous = parentPort;
+        if (previous && previous !== port) rejectPendingForPort(previous);
+        parentPort = port;
+        port.addEventListener('message', event => receiveParentMessage(event, port));
+        port.addEventListener('messageerror', () => rejectPendingForPort(port));
+        port.start();
+        for (const [id, item] of pending) sendPendingRequest(id, item);
+    }
+
+    const channelBridge = window.__AURAGO_DESKTOP_SDK_CHANNEL__;
+    if (channelBridge && typeof channelBridge.onPort === 'function') {
+        channelBridge.onPort(connectParentPort);
     }
 
     function parentRequest(action, payload) {
@@ -51,39 +107,11 @@
                 pending.delete(id);
                 reject(new Error('Desktop bridge request timed out'));
             }, 15000);
-            pending.set(id, { resolve, reject, timer });
-            window.parent.postMessage({
-                type: REQUEST_TYPE,
-                id,
-                action,
-                payload: payload || {}
-            }, '*');
+            const item = { resolve, reject, timer, action, payload: payload || {}, sent: false, port: null };
+            pending.set(id, item);
+            sendPendingRequest(id, item);
         });
     }
-
-    window.addEventListener('message', (event) => {
-        if (!isTrustedParentMessage(event)) {
-            return;
-        }
-        const msg = event.data;
-        if (msg && msg.type === MENU_ACTION_TYPE) {
-            dispatchMenuAction(msg.actionId);
-            return;
-        }
-        if (msg && msg.type === CONTEXT_MENU_ACTION_TYPE) {
-            dispatchContextMenuAction(msg.actionId);
-            return;
-        }
-        if (!msg || msg.type !== RESPONSE_TYPE || !pending.has(msg.id)) return;
-        const item = pending.get(msg.id);
-        pending.delete(msg.id);
-        window.clearTimeout(item.timer);
-        if (msg.ok) {
-            item.resolve(msg.payload);
-        } else {
-            item.reject(new Error(msg.error || 'Desktop bridge request failed'));
-        }
-    });
 
     function dispatchMenuAction(actionId) {
         const id = String(actionId || '');
@@ -655,7 +683,16 @@
     const fs = {};
     fs.list = path => parentRequest('fs:list', { path: path || '' });
     fs.read = path => parentRequest('fs:read', { path: path || '' });
-    fs.write = (path, content) => parentRequest('fs:write', { path: path || '', content: content || '' });
+    fs.write = (path, content, versionOrOptions) => {
+        const options = typeof versionOrOptions === 'string'
+            ? { version: versionOrOptions }
+            : (versionOrOptions && typeof versionOrOptions === 'object' ? versionOrOptions : {});
+        return parentRequest('fs:write', {
+            path: path || '',
+            content: content || '',
+            ...(options.version ? { version: String(options.version) } : {})
+        });
+    };
 
     const dialogs = {};
     dialogs.openFile = options => parentRequest('dialog:open-file', options || {});

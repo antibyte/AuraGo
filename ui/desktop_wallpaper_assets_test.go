@@ -118,7 +118,7 @@ func TestDesktopChatQuestionPromptAssets(t *testing.T) {
 	for _, marker := range []string{
 		"event === 'question_user'",
 		"showDesktopQuestionModal(host, normalizeDesktopQuestionPayload(data))",
-		"fetch('/api/agent/question-response'",
+		"fetch('/api/desktop/integrations/agent/question-response'",
 		"session_id: 'virtual-desktop'",
 	} {
 		if !strings.Contains(agentChat, marker) {

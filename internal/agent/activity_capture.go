@@ -13,6 +13,7 @@ import (
 	"aurago/internal/kgquality"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/prompts"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -267,7 +268,7 @@ func buildActivityDigestWithConfiguredClient(ctx context.Context, cfg *config.Co
 	if model == "" {
 		return memory.ActivityDigest{}, fmt.Errorf("memory analysis model is empty")
 	}
-	return buildActivityDigestWithLLM(ctx, client, model, userRequest, assistantReply, toolNames, toolSummaries)
+	return buildActivityDigestWithLLM(ctx, llm.WrapOpenAIClient(client), model, userRequest, assistantReply, toolNames, toolSummaries)
 }
 
 func buildActivityDigestWithLLM(ctx context.Context, client llm.ChatClient, model, userRequest, assistantReply string, toolNames, toolSummaries []string) (memory.ActivityDigest, error) {
@@ -429,5 +430,5 @@ func truncateActivityDigestInput(text string, maxLen int) string {
 	if maxLen <= 0 || len(text) <= maxLen {
 		return text
 	}
-	return strings.TrimSpace(text[:maxLen-1]) + "…"
+	return strings.TrimSpace(prompts.TruncateWithEllipsis(text, maxLen))
 }

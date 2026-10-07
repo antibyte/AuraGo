@@ -45,6 +45,30 @@ func TestManagerUpdateWithOptionsPreservesOmittedFields(t *testing.T) {
 	}
 }
 
+func TestHasMissionTriggersOnlyReportsActiveTargets(t *testing.T) {
+	t.Parallel()
+	mgr, err := NewManager(filepath.Join(t.TempDir(), "webhooks.json"), filepath.Join(t.TempDir(), "webhooks.log"))
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	if mgr.HasMissionTriggers("hook-1") {
+		t.Fatal("unregistered webhook unexpectedly has a mission target")
+	}
+	eligible := true
+	mgr.RegisterMissionTriggerForKeyWithEligibility("mission-1", "hook-1", func() bool { return eligible }, func([]byte) {})
+	if !mgr.HasMissionTriggers("hook-1") || mgr.HasMissionTriggers("hook-2") {
+		t.Fatal("mission target lookup did not match the registered webhook")
+	}
+	eligible = false
+	if mgr.HasMissionTriggers("hook-1") {
+		t.Fatal("stale or rate-limited mission should not count as an active target")
+	}
+	mgr.UnregisterMissionTrigger("mission-1")
+	if mgr.HasMissionTriggers("hook-1") {
+		t.Fatal("unregistered mission remained eligible")
+	}
+}
+
 func TestManagerMigratesPlaintextSignatureSecretsToVaultIdempotently(t *testing.T) {
 	t.Parallel()
 

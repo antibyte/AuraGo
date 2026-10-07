@@ -78,6 +78,9 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--embedding-worker" {
 		os.Exit(embeddings.RunONNXWorker(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 	}
+	if printHomepageDockerfile(os.Args, os.Stdout) {
+		return
+	}
 
 	// -- Sandbox helper mode ------------------------------------------------
 	// When invoked with --sandbox-exec, this process applies Landlock + rlimits
@@ -1075,7 +1078,7 @@ func main() {
 		eggClient.OnSecret = func(secret bridge.SecretPayload) {
 			appLog.Info("Secret received from master", "key", secret.Key)
 			// Decrypt the value with the shared key, then store in local vault
-			plaintext, err := bridge.DecryptWithSharedKey(secret.EncryptedValue, cfg.EggMode.SharedKey)
+			plaintext, err := bridge.DecryptWithSharedKey(secret.EncryptedValue, eggClient.SharedKeySnapshot())
 			if err != nil {
 				appLog.Error("Failed to decrypt received secret", "key", secret.Key, "error", err)
 				return

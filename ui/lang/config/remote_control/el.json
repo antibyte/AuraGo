@@ -24,7 +24,7 @@
   "config.onedrive.test_failed": "Αποτυχία",
   "config.onedrive.test_success": "Επιτυχία",
   "config.onedrive.testing": "Δοκιμή…",
-  "config.remote_control.allowed_paths_hint": "μία ανά γραμμή, κενό = όλες",
+  "config.remote_control.allowed_paths_hint": "Μία διαδρομή ανά γραμμή· κενή λίστα αποκλείει την πρόσβαση σε αρχεία.",
   "config.remote_control.allowed_paths_label": "Επιτρεπόμενες διαδρομές",
   "config.remote_control.audit_log_label": "Ενεργοποίηση αρχείου ελέγχου",
   "config.remote_control.auto_approve_label": "Αυτόματη έγκριση νέων συσκευών (⚠️ μόνο σε αξιόπιστα δίκτυα)",

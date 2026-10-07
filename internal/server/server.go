@@ -50,6 +50,7 @@ import (
 	"aurago/internal/planner"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
+	"aurago/internal/rocketchat"
 	"aurago/internal/rtlsdr"
 	"aurago/internal/security"
 	"aurago/internal/services"
@@ -148,8 +149,14 @@ type Server struct {
 	httpDrainCtx    context.Context
 	httpDrainCancel context.CancelFunc
 	httpRequests    sync.WaitGroup
+	httpHijacked    map[*drainHTTPConn]struct{}
 	lockdownLogOnce sync.Once
+	previewGrants   previewGrantRegistry
 	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
+
+	// serverLifetimeCancel cancels serverCtx; beginHTTPDrain calls it.
+	serverLifetimeCancel context.CancelFunc
+
 	// Setup wizard CSRF tokens (short-lived, multi-token support).
 	// These live on the Server so tests can construct independent Server
 	// instances without racing on a shared package-level map.
@@ -211,6 +218,8 @@ type Server struct {
 	systemWorldOnce         sync.Once
 	systemWorld             *systemWorldRuntime
 	MissionManagerV2        *tools.MissionManagerV2
+	EmailWatcher            *tools.EmailWatcher
+	mcpSessions             mcpSessionSigner
 	missionRuns             *missionRunRegistry // cancellable contexts of in-flight local mission runs
 	missionRunsOnce         sync.Once
 	EggHub                  *bridge.EggHub
@@ -226,7 +235,6 @@ type Server struct {
 	MaintenanceScheduler    *agent.MaintenanceController
 	MQTTController          *mqtt.MQTTController
 	HeartbeatScheduler      *heartbeat.Scheduler
-	UptimeKumaPoller        *tools.UptimeKumaPoller
 	AgentMailService        *agentmail.Service
 	AgentMailMu             sync.Mutex
 	CheatsheetDB            *sql.DB
@@ -250,6 +258,7 @@ type Server struct {
 	WarningsRegistry        *warnings.Registry // Runtime warnings and health issues
 	DaemonSupervisor        *tools.DaemonSupervisor
 	DesktopService          *desktop.Service
+	desktopPolicyService    atomic.Pointer[desktop.Service]
 	DesktopStore            *desktopstore.Service
 	DesktopHub              *desktop.Hub
 	VirtualComputersDB      *virtualcomputers.Ledger
@@ -272,6 +281,7 @@ type Server struct {
 	gameMakerSkills         []gamemaker.SkillInfo
 	gameMakerSkillsReady    bool
 	DesktopMu               sync.Mutex
+	desktopRuns             desktopRunRegistry
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
@@ -285,6 +295,22 @@ type Server struct {
 	spaceAgentHTTPS *http.Server // HTTPS reverse proxy for the managed Space Agent web UI
 
 	backgroundCompletions backgroundCompletionCache
+	integrationCtx        context.Context
+	rocketChatLifecycleMu sync.Mutex
+	rocketChatBot         atomic.Pointer[rocketchat.Bot]
+	rocketChatClosed      bool
+	haPollerMu            sync.Mutex
+	haPoller              atomic.Pointer[homeAssistantPollerRuntime]
+	haPollerClosed        bool
+	fritzPollerMu         sync.Mutex
+	fritzPoller           atomic.Pointer[fritzbox.Poller]
+	fritzPollerClosed     bool
+	fritzLoopbackSem      chan struct{}
+	fritzWidgetMu         sync.Mutex
+	fritzWidget           *fritzWidgetCache
+	uptimeKumaMu          sync.Mutex
+	uptimeKuma            atomic.Pointer[uptimeKumaRuntime]
+	uptimeKumaClosed      bool
 }
 
 func (s *Server) accessLogger() *slog.Logger {
@@ -336,7 +362,18 @@ func missionRunBaseContext(s *Server, missionID string) (context.Context, func()
 	if missionID == "" {
 		return context.Background(), func() {}
 	}
-	return s.missionRunTracker().begin(missionID)
+	parent := s.integrationCtx
+	if s.MissionManagerV2 != nil {
+		if owner, owned := s.MissionManagerV2.ActiveOwnerContext(missionID); owned {
+			parent = owner
+			if parent == nil {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				parent = ctx
+			}
+		}
+	}
+	return s.missionRunTracker().beginContext(parent, missionID)
 }
 
 func (s *Server) initConfigSnapshot() {
@@ -363,6 +400,27 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	if cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.Enabled {
+		s.revokeDesktopRuns()
+	}
+	if s.GameMaker != nil {
+		s.GameMaker.UpdatePolicy(gameMakerPolicy(cfg.GameMaker, cfg.VirtualDesktop.ReadOnly))
+	}
+	if svc := s.desktopPolicyService.Load(); svc != nil {
+		svc.SetReadOnly(cfg.VirtualDesktop.ReadOnly)
+	}
+	if bot := s.rocketChatBot.Load(); bot != nil {
+		bot.CancelIfConfigChanged(cfg)
+	}
+	if poller := s.haPoller.Load(); poller != nil {
+		poller.cancelIfChanged(cfg)
+	}
+	if poller := s.fritzPoller.Load(); poller != nil {
+		poller.CancelIfConfigChanged(cfg)
+	}
+	if runtime := s.uptimeKuma.Load(); runtime != nil && (runtime.initial != cfg.UptimeKuma || runtime.eggMode != cfg.EggMode.Enabled) {
+		runtime.cancel()
+	}
 	s.bindConfigAuthorization(cfg)
 	s.syncPersonalityConfig(cfg)
 	s.Cfg = cfg
@@ -372,6 +430,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	if s.MaintenanceScheduler != nil {
 		s.MaintenanceScheduler.UpdateConfig(cfg)
+	}
+	if s.ProxyManager != nil {
+		// The next proxy Start/Reload uses the saved domain, ports, filters and
+		// Vault credentials instead of the startup config.
+		s.ProxyManager.UpdateConfig(cfg)
 	}
 	if s.LocalMusic != nil {
 		s.LocalMusic.Configure(cfg)
@@ -397,6 +460,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 }
 
 func (s *Server) bindConfigAuthorization(cfg *config.Config) {
+	cfg.RegisterEvomapNode = func(ctx context.Context) (string, string, bool, error) {
+		return s.registerEvomapNode(ctx, cfg.Evomap)
+	}
 	cfg.AuthorizationSnapshots = func() (*config.Config, *config.Config) {
 		return cfg, s.ConfigSnapshot()
 	}
@@ -497,10 +563,19 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	// The self marker proves AuraGo's own container behind a network sidecar
+	// (containers_self_proof.go); outside a container it does nothing.
+	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
+	s.integrationCtx = serverCtx
+	// The HTTP drain also ends serverCtx, so it ends when Serve stops on its
+	// own (listener failure) too, not only on shutdownCh.
+	s.setServerLifetimeCancel(serverCancel)
+	s.fritzLoopbackSem = loopbackSem
 	s.MQTTController = mqtt.NewMQTTController(logger)
 	mqtt.SetDefaultController(s.MQTTController)
 	s.bindMQTTPermissions()
 	s.bindRuntimePermissions()
+	s.bindDockerSelfIdentity()
 	s.configureMQTTRelay()
 	defer s.MQTTController.Stop(context.Background())
 	s.localLLMLifecycleCtx = serverCtx
@@ -699,6 +774,7 @@ func Start(opts StartOptions) error {
 		s.RemoteHub.OnAudit = func(event remote.RemoteAuditEvent) {
 			recordRemoteAuditEvent(shortTermMem, event)
 		}
+		s.RemoteHub.SetEnabled(cfg.RemoteControl.Enabled)
 		s.RemoteHub.StartHeartbeatMonitor(30*time.Second, 90*time.Second)
 		if err := remote.TrimAuditLog(remoteControlDB, 10000); err != nil {
 			logger.Warn("Failed to trim remote audit log", "error", err)
@@ -840,6 +916,11 @@ func Start(opts StartOptions) error {
 			s.WebhookManager = whMgr
 			s.WebhookHandler = webhooks.NewHandler(whMgr, tm, vault, s.Guardian, s.LLMGuardian, cfg, logger, cfg.Server.Port, int64(cfg.Webhooks.MaxPayloadSize), cfg.Webhooks.RateLimit)
 			s.WebhookHandler.SetTokenManagerSource(s.currentTokenManager)
+			s.WebhookHandler.SetRuntimeSource(func() (*config.Config, *security.Guardian, *security.LLMGuardian) {
+				s.CfgMu.RLock()
+				defer s.CfgMu.RUnlock()
+				return s.ConfigSnapshot(), s.Guardian, s.LLMGuardian
+			})
 			s.WebhookHandler.SetInternalToken(s.internalToken)
 			logger.Info("Webhook system initialized", "max_webhooks", webhooks.MaxWebhooks)
 		}
@@ -847,7 +928,14 @@ func Start(opts StartOptions) error {
 
 	// Start MissionManagerV2 with enhanced callback that reports completion
 	missionCallbackV2 := func(prompt string, missionID string) {
-		go func() {
+		func() {
+			callbackCtx := s.MissionManagerV2.Context()
+			if owner, owned := s.MissionManagerV2.ActiveOwnerContext(missionID); owned {
+				if owner == nil {
+					return
+				}
+				callbackCtx = owner
+			}
 			recordMissionIssue := func(title, detail string) {
 				if s.PlannerDB == nil {
 					return
@@ -915,7 +1003,7 @@ func Start(opts StartOptions) error {
 			headers.Set("X-Internal-Token", s.internalToken)
 			headers.Set("X-Mission-ID", missionID)
 			client := NewInternalHTTPClient(35 * time.Minute) // Must exceed the 30-minute agent loop timeout
-			resp, err := DoInternalRequestWithStartupRetry(serverCtx, client, http.MethodPost, url, body, headers, 15*time.Second)
+			resp, err := DoInternalRequestWithStartupRetry(callbackCtx, client, http.MethodPost, url, body, headers, 15*time.Second)
 			if err != nil {
 				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
 				setMissionError("", err.Error())
@@ -1072,7 +1160,7 @@ func Start(opts StartOptions) error {
 
 	// EasyDrag flows hook into Mission Control before it starts (flow triggers, startup trigger).
 	s.initFlows()
-	if err := s.MissionManagerV2.Start(); err != nil {
+	if err := s.MissionManagerV2.StartContext(serverCtx); err != nil {
 		logger.Warn("Failed to start MissionManagerV2", "error", err)
 	} else if shouldSeedWelcomeContent(s.IsFirstStart) {
 		// Seed bundled example missions only during first-start setup.
@@ -1086,15 +1174,7 @@ func Start(opts StartOptions) error {
 		tools.SeedWelcomeCheatsheets(cheatsheetDB, installDir, logger)
 	}
 
-	// Start Home Assistant Poller
-	if cfg.HomeAssistant.Enabled && cfg.HomeAssistant.URL != "" && cfg.HomeAssistant.AccessToken != "" {
-		haCfg := tools.HAConfig{
-			URL:         cfg.HomeAssistant.URL,
-			AccessToken: cfg.HomeAssistant.AccessToken,
-		}
-		// Context from server could be passed, but Background is safe for background daemon
-		go tools.StartHomeAssistantPoller(serverCtx, haCfg, s.MissionManagerV2, logger)
-	}
+	s.configureHomeAssistantPoller()
 
 	// Initialize Notes schema in SQLite (idempotent: CREATE TABLE IF NOT EXISTS)
 	if err := shortTermMem.InitNotesTables(); err != nil {
@@ -1286,50 +1366,7 @@ func Start(opts StartOptions) error {
 		logger.Info("Docker is disabled; skipping managed sidecar auto-start")
 	}
 
-	// Start Fritz!Box telephony poller if enabled
-	if cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled && cfg.FritzBox.Telephony.Polling.Enabled {
-		fbPoller := fritzbox.NewPoller(*cfg, func(kind, summary string) {
-			// Fire mission triggers for Fritz!Box events
-			s.MissionManagerV2.NotifyFritzBoxEvent(kind, summary)
-			go func() {
-				if err := acquireLoopbackSem(serverCtx, loopbackSem); err != nil {
-					return
-				}
-				defer releaseLoopbackSem(loopbackSem)
-
-				url := InternalAPIURL(cfg) + "/v1/chat/completions"
-				prompt := fmt.Sprintf("[FRITZ!BOX EVENT: %s] %s", kind, summary)
-				payload := map[string]interface{}{
-					"model":  "aurago",
-					"stream": false,
-					"messages": []map[string]string{
-						{"role": "user", "content": prompt},
-					},
-				}
-				body, _ := json.Marshal(payload)
-				req, err := http.NewRequest("POST", url, strings.NewReader(string(body)))
-				if err != nil {
-					logger.Error("[FritzBox Poller] Failed to create loopback request", "error", err)
-					return
-				}
-				req.Header.Set("Content-Type", "application/json")
-				req.Header.Set("X-Internal-FollowUp", "true")
-				req.Header.Set("X-Internal-Token", s.internalToken)
-				client := NewInternalHTTPClient(10 * time.Minute)
-				if resp, err := client.Do(req); err != nil {
-					logger.Error("[FritzBox Poller] Loopback request failed", "error", err)
-				} else {
-					_ = resp.Body.Close()
-				}
-			}()
-		}, logger)
-		fbPoller.Start()
-		logger.Info("[FritzBox Poller] Telephony polling started")
-		go func() {
-			<-shutdownCh
-			fbPoller.Stop()
-		}()
-	}
+	s.configureFritzPoller()
 
 	// Initialize A2A Protocol support
 	if cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled {
@@ -1454,8 +1491,6 @@ func newServerFromOptions(opts StartOptions) *Server {
 		MaxScanBytes:  cfg.Guardian.MaxScanBytes,
 		ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
 		Preset:        cfg.Guardian.PromptSec.Preset,
-		Spotlight:     cfg.Guardian.PromptSec.Spotlight,
-		Canary:        cfg.Guardian.PromptSec.Canary,
 		Sanitizer: security.PromptSecSanitizerOptions{
 			Normalize:   cfg.Guardian.PromptSec.Sanitizer.Normalize,
 			Dehomoglyph: cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph,
@@ -1470,10 +1505,6 @@ func newServerFromOptions(opts StartOptions) *Server {
 		Taint: security.PromptSecTaintOptions{
 			Enabled:      cfg.Guardian.PromptSec.Taint.Enabled,
 			DefaultLevel: cfg.Guardian.PromptSec.Taint.DefaultLevel,
-		},
-		Structure: security.PromptSecStructureOptions{
-			Enabled: cfg.Guardian.PromptSec.Structure.Enabled,
-			Mode:    cfg.Guardian.PromptSec.Structure.Mode,
 		},
 		LLMJudge: security.PromptSecLLMJudgeOptions{
 			Enabled:     cfg.Guardian.PromptSec.LLMJudge.Enabled,
@@ -1643,7 +1674,7 @@ func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh 
 	// Apply security headers (relaxed for HTTP, but still present).
 	// Gzip sits outside access logging so static UI assets compress for clients
 	// without wrapping WebSocket/SSE (those are skipped inside gzipMiddleware).
-	handler := trustedProxyMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)))))
+	handler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))))))
 
 	server := newAgentHTTPServer(addr, handler)
 
@@ -1656,7 +1687,7 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 	tlsCfg.HTTPPort = s.Cfg.Server.HTTPS.HTTPPort
 
 	// Apply security headers (strict for HTTPS)
-	handler := trustedProxyMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)))))
+	handler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy))))))
 
 	httpsServer, httpServer, err := SetupServers(tlsCfg, handler, s.Logger)
 	if err != nil {
@@ -1749,9 +1780,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 				s.Logger.Warn("Maintenance scheduler shutdown did not complete cleanly", "error", err)
 			}
 		}
-		if s.UptimeKumaPoller != nil {
-			s.UptimeKumaPoller.Stop()
-		}
+		s.stopUptimeKumaPoller()
 		if s.AgentMailService != nil {
 			s.AgentMailService.Stop(ctx)
 		}
@@ -1766,7 +1795,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		// Shut down Cloudflare Tunnel (Docker containers won't be killed by KillAll)
 		if tools.IsTunnelRunning() {
 			tunnelCfg := tools.CloudflareTunnelConfig{DockerHost: s.Cfg.Docker.Host}
-			tools.CloudflareTunnelStop(tunnelCfg, s.Registry, s.Logger)
+			tools.CloudflareTunnelShutdown(tunnelCfg, s.Registry, s.Logger, false)
 		}
 
 		s.closeRuntimeResources()
@@ -1817,6 +1846,12 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 
 		// Always set these headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		// Hardware access belongs to the trusted Desktop document, never an
+		// embedded app, workspace document or preview served from this origin.
+		w.Header().Set("Permissions-Policy", "serial=()")
+		if path == "/desktop" || path == "/desktop/" || path == "/desktop.html" {
+			w.Header().Set("Permissions-Policy", "serial=(self)")
+		}
 		if !allowDesktopIframe {
 			w.Header().Set("X-Frame-Options", "DENY")
 		}
@@ -1883,6 +1918,13 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			w.Header().Set("Pragma", "no-cache")
 		}
 
+		// Keep MIDI input confined to the trusted Desktop document. A separate
+		// field preserves other hardware policies installed by this middleware.
+		midiPolicy := "midi=()"
+		if path == "/desktop" || path == "/desktop/" || path == "/desktop.html" {
+			midiPolicy = "midi=(self)"
+		}
+		w.Header().Add("Permissions-Policy", midiPolicy)
 		next.ServeHTTP(w, r)
 	})
 }

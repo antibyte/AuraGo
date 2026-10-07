@@ -88,8 +88,8 @@ func TestManusStrictToolSchemaUsesLegacyStringFallback(t *testing.T) {
 		params := candidate.Function.Parameters.(map[string]interface{})
 		properties := params["properties"].(map[string]interface{})
 		structured := properties["structured_output_schema"].(map[string]interface{})
-		if got := structured["type"]; got != "string" {
-			t.Fatalf("strict structured_output_schema type = %#v, want string fallback", got)
+		if !schemaHasType(structured, "string") || !schemaAllowsNull(structured) {
+			t.Fatalf("strict structured_output_schema = %#v, want nullable string fallback", structured)
 		}
 		return
 	}

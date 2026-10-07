@@ -29,9 +29,9 @@ func TestDesktopLiveSpeechLoadsSpeechLabProvider(t *testing.T) {
 	for _, marker := range []string{
 		"data-live-speech-lab",
 		"data-live-speech-lab-activate",
-		"/api/speech-lab/status",
-		"/api/speech-lab/deployment/start",
-		"/api/realtime-speech/speech-lab/activate",
+		"/api/desktop/integrations/speech-lab/status",
+		"/api/desktop/integrations/speech-lab/deployment/start",
+		"/api/desktop/integrations/realtime-speech/speech-lab/activate",
 		"window.AuraRealtimeSpeech.initialize(true)",
 		"desktop.live_speech_lab_ready",
 		"window.LiveSpeechFX.create",
@@ -61,6 +61,7 @@ func TestDesktopLiveSpeechLoadsSpeechLabProvider(t *testing.T) {
 		"AuraRealtimeProviders.speech_lab",
 		"/api/realtime-speech/transcribe",
 		"/api/realtime-speech/synthesize",
+		"Common.apiFetch",
 		"aurago_execute",
 	} {
 		if !strings.Contains(adapter, marker) {

@@ -21,14 +21,16 @@ import (
 // email accounts and wakes the agent via a loopback HTTP request when new
 // mail arrives.
 type EmailWatcher struct {
-	cfg         *config.Config
-	logger      *slog.Logger
-	guardian    *security.Guardian
-	llmGuardian *security.LLMGuardian
-	relaySheet  EmailRelayCheatsheet
-	stopCh      chan struct{}
-	mu          sync.Mutex
-	running     bool
+	cfg           *config.Config
+	logger        *slog.Logger
+	guardian      *security.Guardian
+	llmGuardian   emailWatcherContentEvaluator
+	relaySheet    EmailRelayCheatsheet
+	internalToken string
+	cancel        context.CancelFunc
+	done          chan struct{}
+	mu            sync.Mutex
+	running       bool
 	// per-account UID tracking: accountID → set of known UIDs
 	lastUIDs map[string]map[uint32]bool
 	// mission trigger callbacks
@@ -40,6 +42,15 @@ type missionTriggerCallback struct {
 	subjectContains string
 	fromContains    string
 	callback        func(subject, from, body string)
+}
+
+type emailWatcherContentEvaluator interface {
+	EvaluateContent(ctx context.Context, contentType, content string) security.GuardianResult
+}
+
+type quarantinedWatcherEmail struct {
+	uid    uint32
+	result security.GuardianResult
 }
 
 // EmailRelayCheatsheet contains optional trusted instructions appended to
@@ -56,24 +67,31 @@ func NewEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *security
 		logger:      logger,
 		guardian:    guardian,
 		llmGuardian: llmGuardian,
-		stopCh:      make(chan struct{}),
 		lastUIDs:    make(map[string]map[uint32]bool),
 	}
 }
 
 // Start begins the polling loop in a background goroutine.
 func (ew *EmailWatcher) Start() {
+	ew.StartContext(context.Background())
+}
+
+func (ew *EmailWatcher) StartContext(parent context.Context) {
 	ew.mu.Lock()
 	defer ew.mu.Unlock()
 	if ew.running {
 		return
 	}
 	ew.running = true
+	ctx, cancel := context.WithCancel(parent)
+	ew.cancel = cancel
+	done := make(chan struct{})
+	ew.done = done
 
 	// Find minimum interval across accounts
 	interval := 120 * time.Second
 	for _, acct := range ew.cfg.EmailAccounts {
-		if !acct.WatchEnabled {
+		if acct.Disabled || !acct.WatchEnabled {
 			continue
 		}
 		acctInterval := time.Duration(acct.WatchInterval) * time.Second
@@ -88,19 +106,26 @@ func (ew *EmailWatcher) Start() {
 	ew.logger.Info("[EmailWatcher] Starting multi-account watcher", "accounts", len(ew.cfg.EmailAccounts), "interval", interval)
 
 	go func() {
+		defer func() {
+			cancel()
+			ew.mu.Lock()
+			ew.running = false
+			close(done)
+			ew.mu.Unlock()
+		}()
 		// Initial seed: record current unseen UIDs without triggering
-		ew.seedAllAccounts()
+		ew.seedAllAccounts(ctx)
 
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
 		for {
 			select {
-			case <-ew.stopCh:
+			case <-ctx.Done():
 				ew.logger.Info("[EmailWatcher] Stopped")
 				return
 			case <-ticker.C:
-				ew.pollAllAccounts()
+				ew.pollAllAccounts(ctx)
 			}
 		}
 	}()
@@ -108,12 +133,14 @@ func (ew *EmailWatcher) Start() {
 
 func (ew *EmailWatcher) Stop() {
 	ew.mu.Lock()
-	defer ew.mu.Unlock()
 	if !ew.running {
+		ew.mu.Unlock()
 		return
 	}
-	ew.running = false
-	close(ew.stopCh)
+	ew.cancel()
+	done := ew.done
+	ew.mu.Unlock()
+	<-done
 }
 
 // RegisterMissionTrigger registers a callback for email-triggered missions.
@@ -128,14 +155,27 @@ func (ew *EmailWatcher) RegisterMissionTrigger(folder, subjectContains, fromCont
 	})
 }
 
+// SetInternalToken updates the shared-auth token used for loopback wakeups.
+func (ew *EmailWatcher) SetInternalToken(token string) {
+	if ew == nil {
+		return
+	}
+	ew.mu.Lock()
+	ew.internalToken = strings.TrimSpace(token)
+	ew.mu.Unlock()
+}
+
 // seedAllAccounts fetches current unseen UIDs for every watched account so we
 // don't alert on old mail at startup.
-func (ew *EmailWatcher) seedAllAccounts() {
+func (ew *EmailWatcher) seedAllAccounts(ctx context.Context) {
 	for _, acct := range ew.cfg.EmailAccounts {
-		if !acct.WatchEnabled || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
+		if ctx.Err() != nil {
+			return
+		}
+		if acct.Disabled || !acct.WatchEnabled || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
 			continue
 		}
-		uids, err := SearchUnseenUIDs(
+		uids, err := searchUnseenUIDsContext(ctx,
 			acct.IMAPHost, acct.IMAPPort,
 			acct.Username, acct.Password,
 			acct.WatchFolder,
@@ -153,17 +193,23 @@ func (ew *EmailWatcher) seedAllAccounts() {
 	}
 }
 
-func (ew *EmailWatcher) pollAllAccounts() {
+func (ew *EmailWatcher) pollAllAccounts(ctx context.Context) {
 	for _, acct := range ew.cfg.EmailAccounts {
-		if !acct.WatchEnabled || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
+		if ctx.Err() != nil {
+			return
+		}
+		if acct.Disabled || !acct.WatchEnabled || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
 			continue
 		}
-		ew.pollAccount(acct)
+		ew.pollAccount(ctx, acct)
 	}
 }
 
-func (ew *EmailWatcher) pollAccount(acct config.EmailAccount) {
-	uids, err := SearchUnseenUIDs(
+func (ew *EmailWatcher) pollAccount(ctx context.Context, acct config.EmailAccount) {
+	if acct.Disabled || !acct.WatchEnabled || acct.IMAPHost == "" || acct.Username == "" || acct.Password == "" {
+		return
+	}
+	uids, err := searchUnseenUIDsContext(ctx,
 		acct.IMAPHost, acct.IMAPPort,
 		acct.Username, acct.Password,
 		acct.WatchFolder,
@@ -174,7 +220,12 @@ func (ew *EmailWatcher) pollAccount(acct config.EmailAccount) {
 	}
 
 	if ew.lastUIDs[acct.ID] == nil {
-		ew.lastUIDs[acct.ID] = make(map[uint32]bool)
+		// A failed initial seed must succeed before old mail can be relayed.
+		ew.lastUIDs[acct.ID] = make(map[uint32]bool, len(uids))
+		for _, uid := range uids {
+			ew.lastUIDs[acct.ID][uid] = true
+		}
+		return
 	}
 
 	var newUIDs []uint32
@@ -192,7 +243,7 @@ func (ew *EmailWatcher) pollAccount(acct config.EmailAccount) {
 	ew.logger.Info("[EmailWatcher] New unseen emails detected", "account", acct.ID, "count", len(newUIDs))
 
 	// Fetch the specific new messages by UID (not by sequence number)
-	messages, err := FetchEmailsByUID(
+	messages, err := fetchEmailsByUIDContext(ctx,
 		acct.IMAPHost, acct.IMAPPort,
 		acct.Username, acct.Password,
 		acct.WatchFolder, newUIDs,
@@ -200,34 +251,104 @@ func (ew *EmailWatcher) pollAccount(acct config.EmailAccount) {
 	)
 	if err != nil {
 		ew.logger.Warn("[EmailWatcher] Fetch for notification failed", "account", acct.ID, "error", err)
-		ew.notifyAgent(fmt.Sprintf("[EMAIL NOTIFICATION] Account: %s — %d new email(s) in %s. Fetch details with fetch_email (account: \"%s\").", acct.Name, len(newUIDs), acct.WatchFolder, acct.ID))
+		_ = ew.notifyAgent(ctx, fmt.Sprintf("[EMAIL NOTIFICATION] Account: %s — %d new email(s) in %s. Fetch details with fetch_email (account: \"%s\").", acct.Name, len(newUIDs), acct.WatchFolder, acct.ID))
 		return
 	}
 
-	// Build summary and run through Guardian; fire mission triggers
+	// Keep ordinary delivery independent from quarantine notice retries.
+	summary, ordinaryCount, quarantined, processedUIDs := ew.processMessages(ctx, acct, messages)
+	for _, uid := range newUIDs {
+		if !processedUIDs[uid] {
+			delete(ew.lastUIDs[acct.ID], uid)
+		}
+	}
+	// Remove held UIDs before any later notification or cancellation can
+	// accidentally make an undelivered quarantine notice look acknowledged.
+	for _, item := range quarantined {
+		delete(ew.lastUIDs[acct.ID], item.uid)
+	}
+
+	if ordinaryCount > 0 {
+		_ = ew.notifyAgent(ctx, buildEmailNotificationPrompt(acct, ordinaryCount, summary, ew.relaySheet))
+	}
+	ew.notifyQuarantined(ctx, acct, quarantined)
+}
+
+func (ew *EmailWatcher) notifyQuarantined(ctx context.Context, acct config.EmailAccount, quarantined []quarantinedWatcherEmail) {
+	if len(quarantined) == 0 {
+		return
+	}
+	if ew.lastUIDs[acct.ID] == nil {
+		ew.lastUIDs[acct.ID] = make(map[uint32]bool)
+	}
+	for _, item := range quarantined {
+		delete(ew.lastUIDs[acct.ID], item.uid)
+	}
+	for _, item := range quarantined {
+		if ctx.Err() != nil {
+			return
+		}
+		reference := fmt.Sprintf("%s:%s:%d", acct.ID, acct.WatchFolder, item.uid)
+		notice := security.QuarantineNotice("email-watcher", reference, item.result)
+		if err := ew.notifyAgent(ctx, notice); err != nil {
+			ew.logger.Warn("[EmailWatcher] Quarantine notice delivery failed", "account", acct.ID, "uid", item.uid)
+			continue
+		}
+		ew.lastUIDs[acct.ID][item.uid] = true
+	}
+}
+
+func (ew *EmailWatcher) processMessages(ctx context.Context, acct config.EmailAccount, messages []EmailMessage) (string, int, []quarantinedWatcherEmail, map[uint32]bool) {
 	var summary string
-	for i, msg := range messages {
-		content := fmt.Sprintf("From: %s | Subject: %s | Snippet: %s", msg.From, msg.Subject, msg.Snippet)
-		// Guardian scan on email content
-		if ew.guardian != nil {
-			scanResult := ew.guardian.ScanForInjection(content)
-			if scanResult.Level >= security.ThreatHigh {
-				ew.logger.Warn("[EmailWatcher] HIGH threat detected in email, sanitizing", "account", acct.ID, "from", msg.From, "subject", msg.Subject, "threat", scanResult.Level.String())
-				content = fmt.Sprintf("From: %s | Subject: %s | Snippet: %s", msg.From, security.SanitizedText("guardian scan flagged this message"), security.RedactedText(""))
-			} else if ew.llmGuardian != nil && ew.cfg.LLMGuardian.ScanEmails {
-				// LLM Guardian: deeper content scan if regex didn't flag HIGH
-				llmResult := ew.llmGuardian.EvaluateContent(context.Background(), "email", content)
-				if llmResult.Decision == security.DecisionBlock {
-					ew.logger.Warn("[EmailWatcher] LLM Guardian blocked email content", "account", acct.ID, "from", msg.From, "reason", llmResult.Reason)
-					content = fmt.Sprintf("From: %s | Subject: %s | Snippet: %s", msg.From, security.SanitizedText("llm guardian blocked message: "+llmResult.Reason), security.RedactedText(""))
+	var quarantined []quarantinedWatcherEmail
+	processedUIDs := make(map[uint32]bool, len(messages))
+	ordinaryCount := 0
+	for _, msg := range messages {
+		if ctx.Err() != nil {
+			return summary, ordinaryCount, quarantined, processedUIDs
+		}
+		content := fmt.Sprintf("From: %s | Subject: %s | Snippet: %s | Body: %s", msg.From, msg.Subject, msg.Snippet, msg.Body)
+		var blocked *security.GuardianResult
+		if ew.guardian != nil && ew.guardian.ScanForInjectionLocal(content).Level >= security.ThreatHigh {
+			result := security.ContentScanQuarantine(security.QuarantineSuspicious)
+			blocked = &result
+		}
+		if blocked == nil && ew.cfg != nil && ew.cfg.LLMGuardian.ScanEmails {
+			if ew.guardian == nil || ew.llmGuardian == nil {
+				result := security.ContentScanQuarantine(security.QuarantineUnavailable)
+				blocked = &result
+			} else {
+				verdict := ew.llmGuardian.EvaluateContent(ctx, "email", content)
+				if verdict.Decision != security.DecisionAllow {
+					reason := verdict.QuarantineReason
+					if reason == "" {
+						reason = security.QuarantineSuspicious
+					}
+					result := security.ContentScanQuarantine(reason)
+					blocked = &result
 				}
 			}
 		}
-		summary += fmt.Sprintf("\n%d. %s", i+1, content)
+		if blocked != nil {
+			processedUIDs[msg.UID] = true
+			quarantined = append(quarantined, quarantinedWatcherEmail{uid: msg.UID, result: *blocked})
+			continue
+		}
+		if ctx.Err() != nil {
+			return summary, ordinaryCount, quarantined, processedUIDs
+		}
+		processedUIDs[msg.UID] = true
+		ordinaryCount++
+		summary += fmt.Sprintf("\n%d. %s", ordinaryCount, content)
 
-		// Fire registered mission triggers
+		// Quarantined mail exits above; only ordinary mail can trigger missions.
 		ew.mu.Lock()
-		for _, mt := range ew.missionCallbacks {
+		callbacks := append([]missionTriggerCallback(nil), ew.missionCallbacks...)
+		ew.mu.Unlock()
+		for _, mt := range callbacks {
+			if ctx.Err() != nil {
+				return summary, ordinaryCount, quarantined, processedUIDs
+			}
 			if mt.folder != "" && mt.folder != acct.WatchFolder {
 				continue
 			}
@@ -237,12 +358,10 @@ func (ew *EmailWatcher) pollAccount(acct config.EmailAccount) {
 			if mt.fromContains != "" && !containsCI(msg.From, mt.fromContains) {
 				continue
 			}
-			go mt.callback(msg.Subject, msg.From, msg.Body)
+			mt.callback(msg.Subject, msg.From, msg.Body)
 		}
-		ew.mu.Unlock()
 	}
-
-	ew.notifyAgent(buildEmailNotificationPrompt(acct, len(messages), summary, ew.relaySheet))
+	return summary, ordinaryCount, quarantined, processedUIDs
 }
 
 func buildEmailNotificationPrompt(acct config.EmailAccount, messageCount int, summary string, relaySheets ...EmailRelayCheatsheet) string {
@@ -328,8 +447,11 @@ func (ew *EmailWatcher) internalAPIURL() string {
 }
 
 // notifyAgent sends a loopback HTTP request to wake the agent.
-func (ew *EmailWatcher) notifyAgent(prompt string) {
+func (ew *EmailWatcher) notifyAgent(ctx context.Context, prompt string) error {
 	url := ew.internalAPIURL() + "/v1/chat/completions"
+	ew.mu.Lock()
+	internalToken := ew.internalToken
+	ew.mu.Unlock()
 
 	msg := map[string]interface{}{
 		"model": ew.cfg.LLM.Model,
@@ -344,22 +466,41 @@ func (ew *EmailWatcher) notifyAgent(prompt string) {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	client := &http.Client{Timeout: 3 * time.Minute, Transport: transport}
-	resp, err := client.Post(url, "application/json", bytes.NewBuffer(payload))
+	defer transport.CloseIdleConnections()
+	client := &http.Client{Timeout: 3 * time.Minute, Transport: transport, CheckRedirect: security.SameOriginRedirect}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("create email notification request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Internal-FollowUp", "true")
+	if internalToken != "" {
+		req.Header.Set("X-Internal-Token", internalToken)
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		ew.logger.Error("[EmailWatcher] Loopback notification failed", "error", err)
-		return
+		return fmt.Errorf("send email notification: %w", err)
 	}
 	resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		ew.logger.Warn("[EmailWatcher] Agent notification rejected", "status", resp.StatusCode)
+		return fmt.Errorf("email notification rejected with status %d", resp.StatusCode)
+	}
 	ew.logger.Info("[EmailWatcher] Agent notified", "status", resp.Status)
+	return nil
 }
 
 // StartEmailWatcher creates and starts an email watcher if any account has
 // watch_enabled=true (or the legacy email.enabled + watch_enabled is set).
 func StartEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian, cheatsheetDBs ...*sql.DB) *EmailWatcher {
+	return StartEmailWatcherContext(context.Background(), cfg, logger, guardian, llmGuardian, cheatsheetDBs...)
+}
+
+func StartEmailWatcherContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian, cheatsheetDBs ...*sql.DB) *EmailWatcher {
 	hasWatchAccount := false
 	for _, acct := range cfg.EmailAccounts {
-		if acct.WatchEnabled && acct.IMAPHost != "" && acct.Username != "" && acct.Password != "" {
+		if !acct.Disabled && acct.WatchEnabled && acct.IMAPHost != "" && acct.Username != "" && acct.Password != "" {
 			hasWatchAccount = true
 			break
 		}
@@ -375,7 +516,7 @@ func StartEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *securi
 	if len(cheatsheetDBs) > 0 {
 		watcher.relaySheet = loadEmailRelayCheatsheet(cheatsheetDBs[0], cfg.Email.RelayCheatsheetID, logger)
 	}
-	watcher.Start()
+	watcher.StartContext(ctx)
 	return watcher
 }
 

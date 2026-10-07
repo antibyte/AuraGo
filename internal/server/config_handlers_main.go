@@ -120,6 +120,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		}
 		injectDefaultToolPermissions(rawCfg, s.Cfg)
 		injectRuntimeDockerDefaults(rawCfg, s.Cfg)
+		injectDockerHostAccessDefault(rawCfg, s.Cfg)
 		injectAIGatewayDefaults(rawCfg, s.Cfg)
 		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
 		injectGameMakerDefaults(rawCfg, s.Cfg)
@@ -293,6 +294,22 @@ func injectRuntimeDockerDefaults(rawCfg map[string]interface{}, cfg *config.Conf
 	if _, ok := dockerSection["enabled"]; !ok {
 		dockerSection["enabled"] = cfg.Docker.Enabled
 	}
+}
+
+// injectDockerHostAccessDefault shows the loaded docker.allow_host_access when
+// config.yaml does not carry the key yet (grandfathered at load). The Danger
+// Zone toggle then renders the real state and an untouched toggle is never
+// dirty, so a save cannot write the template's false over the grandfather.
+func injectDockerHostAccessDefault(rawCfg map[string]interface{}, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	dockerSection, ok := rawCfg["docker"].(map[string]interface{})
+	if !ok {
+		dockerSection = make(map[string]interface{})
+		rawCfg["docker"] = dockerSection
+	}
+	setDefaultBool(dockerSection, "allow_host_access", cfg.Docker.AllowHostAccess)
 }
 
 func injectAIGatewayDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
@@ -505,6 +522,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 		if err := config.ValidateToolDisclosureSettings(&validateCfg); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := config.NormalizeNewspaperConfig(&validateCfg.Newspaper); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -728,6 +749,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		restartReasons := []string{}
 		embeddingsChanged := false
 		discordChanged := false
+		rocketChatChanged := false
+		homeAssistantChanged := false
+		uptimeKumaChanged := false
+		fritzBoxChanged := false
 		restartFileIndexerAfterUnlock := false
 		fileIndexerEnabledAfterReload := false
 		restartAgentMailAfterUnlock := false
@@ -750,6 +775,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Carry over runtime detection (computed once at startup, not on reload)
 			newCfg.Runtime = oldCfg.Runtime
 			bluetoothChanged = !reflect.DeepEqual(oldCfg.Bluetooth, newCfg.Bluetooth)
+			rocketChatChanged = !reflect.DeepEqual(oldCfg.RocketChat, newCfg.RocketChat) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
+			homeAssistantChanged = !reflect.DeepEqual(oldCfg.HomeAssistant, newCfg.HomeAssistant) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
+			fritzBoxChanged = !reflect.DeepEqual(oldCfg.FritzBox, newCfg.FritzBox) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
 			networkSharesChanged = !reflect.DeepEqual(oldCfg.NetworkShares, newCfg.NetworkShares) ||
 				oldCfg.Agent.SudoEnabled != newCfg.Agent.SudoEnabled ||
 				oldCfg.Agent.SudoUnrestricted != newCfg.Agent.SudoUnrestricted
@@ -824,9 +852,6 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 
 			newCfg.ConfigPath = s.Cfg.ConfigPath
-			if s.GameMaker != nil {
-				s.GameMaker.UpdatePolicy(gameMakerPolicy(newCfg.GameMaker))
-			}
 			if s.TsNetManager != nil {
 				s.TsNetManager.UpdateConfig(newCfg)
 			}
@@ -941,10 +966,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
-			if oldCfg.UptimeKuma != newCfg.UptimeKuma {
-				s.restartUptimeKumaPoller()
-				s.Logger.Info("[Config UI] Uptime Kuma poller restarted")
-			}
+			uptimeKumaChanged = oldCfg.UptimeKuma != newCfg.UptimeKuma || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
 
 			// Hot-reload File Indexer when any indexing setting changes.
 			if !reflect.DeepEqual(oldCfg.Indexing, newCfg.Indexing) {
@@ -1312,6 +1334,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
+			// Revocation closes managed publication before acknowledging configuration changes.
+			if !newCfg.CloudflareTunnel.Enabled || newCfg.CloudflareTunnel.ReadOnly || !newCfg.Homepage.Enabled ||
+				oldCfg.CloudflareTunnel.QuickProjectDir != newCfg.CloudflareTunnel.QuickProjectDir ||
+				oldCfg.Homepage.WorkspacePath != newCfg.Homepage.WorkspacePath ||
+				oldCfg.SQLite.HomepageRegistryPath != newCfg.SQLite.HomepageRegistryPath {
+				tools.CloudflareTunnelShutdown(cloudflareTunnelRuntimeConfig(&oldCfg), s.Registry, s.Logger, true)
+			}
+
 			// Hot-reload Cloudflare Tunnel: stop immediately when disabled, start when enabled.
 			cfEnabledChanged := oldCfg.CloudflareTunnel.Enabled != newCfg.CloudflareTunnel.Enabled
 			if cfEnabledChanged {
@@ -1322,7 +1352,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				if !newCfg.CloudflareTunnel.Enabled {
 					// Disabled → stop the tunnel immediately (security: no tunnel without explicit enable).
 					go func() {
-						result := tools.CloudflareTunnelStop(cfBaseCfg, reg, log)
+						result := tools.CloudflareTunnelShutdown(cfBaseCfg, reg, log, false)
 						log.Info("[CloudflareTunnel] Hot-reload: tunnel stopped because cloudflare_tunnel.enabled=false", "result", result)
 					}()
 				} else if cloudflareTunnelAutoStartAllowed(newCfg) {
@@ -1438,10 +1468,28 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				"smb_writable", networkSharesStatus.SMB.Writable,
 				"nfs_writable", networkSharesStatus.NFS.Writable)
 		}
+		if loadErr == nil && newCfg != nil && s.RemoteHub != nil {
+			s.RemoteHub.SetEnabled(newCfg.RemoteControl.Enabled)
+			if newCfg.RemoteControl.Enabled {
+				s.RemoteHub.StartHeartbeatMonitor(30*time.Second, 90*time.Second)
+			}
+		}
 		if loadErr == nil && discordChanged && newCfg != nil && !newCfg.EggMode.Enabled {
 			discord.StopBot(s.Logger)
-			discord.StartBot(newCfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
+			discord.StartBot(newCfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot)
 			s.Logger.Info("[Config UI] Discord bot hot-reloaded", "enabled", newCfg.Discord.Enabled)
+		}
+		if loadErr == nil && uptimeKumaChanged {
+			s.restartUptimeKumaPoller()
+		}
+		if loadErr == nil && fritzBoxChanged {
+			s.configureFritzPoller()
+		}
+		if loadErr == nil && homeAssistantChanged {
+			s.configureHomeAssistantPoller()
+		}
+		if loadErr == nil && rocketChatChanged {
+			s.configureRocketChatBot()
 		}
 		if restartFileIndexerAfterUnlock && newCfg != nil {
 			s.restartFileIndexer(newCfg)

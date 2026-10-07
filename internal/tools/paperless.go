@@ -23,7 +23,7 @@ type PaperlessConfig struct {
 }
 
 // paperlessHTTPClient is a shared HTTP client for Paperless-ngx calls.
-var paperlessHTTPClient = &http.Client{Timeout: 60 * time.Second}
+var paperlessHTTPClient = &http.Client{Timeout: 60 * time.Second, CheckRedirect: security.SameOriginRedirect}
 
 // ── Internal helpers ─────────────────────────────────────────────────
 
@@ -35,6 +35,10 @@ func paperlessAPI(cfg PaperlessConfig, path string) string {
 
 // paperlessRequest performs an authenticated HTTP request against the Paperless-ngx API.
 func paperlessRequest(cfg PaperlessConfig, method, endpoint string, body io.Reader, contentType string) (*http.Response, error) {
+	if err := security.ValidateHTTPBaseURL(cfg.URL); err != nil {
+		return nil, err
+	}
+	security.RegisterSensitive(cfg.APIToken)
 	reqURL := paperlessAPI(cfg, endpoint)
 	req, err := http.NewRequest(method, reqURL, body)
 	if err != nil {
@@ -250,8 +254,8 @@ func PaperlessSearch(cfg PaperlessConfig, query, tags, correspondent, documentTy
 
 // PaperlessGet retrieves metadata for a single document by ID.
 func PaperlessGet(cfg PaperlessConfig, documentID string) string {
-	if documentID == "" {
-		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' is required for get"})
+	if !validPaperlessDocumentID(documentID) {
+		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' must be a positive decimal integer for get"})
 	}
 
 	endpoint := "documents/" + documentID + "/"
@@ -273,8 +277,8 @@ func PaperlessGet(cfg PaperlessConfig, documentID string) string {
 
 // PaperlessDownload retrieves the text content of a document by ID.
 func PaperlessDownload(cfg PaperlessConfig, documentID string) string {
-	if documentID == "" {
-		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' is required for download"})
+	if !validPaperlessDocumentID(documentID) {
+		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' must be a positive decimal integer for download"})
 	}
 
 	// First get document metadata for the title
@@ -364,8 +368,8 @@ func PaperlessUpdate(cfg PaperlessConfig, documentID, title, tags, correspondent
 	if msg := paperlessReadOnlyError(cfg); msg != "" {
 		return msg
 	}
-	if documentID == "" {
-		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' is required for update"})
+	if !validPaperlessDocumentID(documentID) {
+		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' must be a positive decimal integer for update"})
 	}
 
 	patch := make(map[string]interface{})
@@ -457,8 +461,8 @@ func PaperlessDelete(cfg PaperlessConfig, documentID string) string {
 	if msg := paperlessReadOnlyError(cfg); msg != "" {
 		return msg
 	}
-	if documentID == "" {
-		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' is required for delete"})
+	if !validPaperlessDocumentID(documentID) {
+		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' must be a positive decimal integer for delete"})
 	}
 
 	endpoint := "documents/" + documentID + "/"
@@ -542,4 +546,17 @@ func sanitizeFilename(title string) string {
 		name = name[:100]
 	}
 	return name
+}
+
+func validPaperlessDocumentID(id string) bool {
+	if id == "" || id[0] < '1' || id[0] > '9' {
+		return false
+	}
+	for _, ch := range id {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	_, err := strconv.ParseUint(id, 10, 63)
+	return err == nil
 }

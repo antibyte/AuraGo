@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -67,26 +68,42 @@ func handleInvasionNestHatch(s *Server) http.HandlerFunc {
 		// Mark hatching status
 		_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "hatching", "")
 
-		// Run deployment in background
-		go func() {
-			if err := s.deployEgg(nest, egg); err != nil {
-				s.Logger.Error("Egg deployment failed", "nest_id", id, "error", err)
-				_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "failed", err.Error())
-			} else {
-				s.Logger.Info("Egg deployed successfully", "nest_id", id, "egg_id", egg.ID)
-				_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "running", "")
-				// Fire mission trigger: egg hatched
-				if s.MissionManagerV2 != nil {
-					s.MissionManagerV2.NotifyInvasionEvent("egg_hatched", id, nest.Name, egg.ID, egg.Name)
-				}
-			}
-		}()
+		// Run deployment in background. runEggHatch records a panic as a failed
+		// hatch: the HTTP recovery middleware does not cover this goroutine.
+		go s.runEggHatch(nest, egg, s.deployEgg)
 
 		writeJSON(w, map[string]interface{}{
 			"status":  "hatching",
 			"nest_id": id,
 			"egg_id":  egg.ID,
 		})
+	}
+}
+
+// runEggHatch deploys an egg and records the outcome on the nest. A panic in
+// the deploy path is logged with its stack and recorded as a failed hatch
+// instead of terminating the process.
+func (s *Server) runEggHatch(nest invasion.NestRecord, egg invasion.EggRecord, deploy func(invasion.NestRecord, invasion.EggRecord) error) {
+	id := nest.ID
+	err := func() (err error) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				s.Logger.Error("Egg deployment panicked", "nest_id", id, "panic", recovered, "stack", string(debug.Stack()))
+				err = fmt.Errorf("deployment panicked: %v", recovered)
+			}
+		}()
+		return deploy(nest, egg)
+	}()
+	if err != nil {
+		s.Logger.Error("Egg deployment failed", "nest_id", id, "error", err)
+		_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "failed", err.Error())
+		return
+	}
+	s.Logger.Info("Egg deployed successfully", "nest_id", id, "egg_id", egg.ID)
+	_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "running", "")
+	// Fire mission trigger: egg hatched
+	if s.MissionManagerV2 != nil {
+		s.MissionManagerV2.NotifyInvasionEvent("egg_hatched", id, nest.Name, egg.ID, egg.Name)
 	}
 }
 
@@ -142,14 +159,11 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		}
 	}
 
-	// 7. Get nest secret from vault
-	var secretBytes []byte
-	if nest.VaultSecretID != "" {
-		secretStr, err := s.Vault.ReadSecret(nest.VaultSecretID)
-		if err != nil {
-			return fmt.Errorf("failed to read nest secret: %w", err)
-		}
-		secretBytes = []byte(secretStr)
+	// 7. Get the transport credential from the vault: the nest secret, or the
+	// Docker TLS material of an encrypted docker_remote nest
+	secretBytes, err := s.invasionTransportSecret(nest)
+	if err != nil {
+		return fmt.Errorf("failed to read nest secret: %w", err)
 	}
 
 	// 8. Build deployment payload
@@ -165,7 +179,8 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		MasterKey:    eggMasterKey,
 	}
 
-	if err := s.storeEggSharedKey(nest.ID, sharedKey); err != nil {
+	restorePreviousKey, err := s.replaceEggSharedKey(nest.ID, sharedKey)
+	if err != nil {
 		return err
 	}
 
@@ -177,6 +192,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		deployID, _ = invasion.CreateDeployment(s.InvasionDB, nest.ID, egg.ID, nest.DeployMethod, binaryHash, configHash)
 	}
 
+	warnPlaintextDockerRemote(s.Logger, nest, "hatch")
 	// 10. Get connector and deploy
 	connector := invasion.GetConnector(nest)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -186,6 +202,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		if deployID != "" {
 			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "failed")
 		}
+		restorePreviousKey(err)
 		return err
 	}
 
@@ -235,7 +252,12 @@ func eggVaultExportKeys(egg invasion.EggRecord, nest invasion.NestRecord) []stri
 		keys = append(keys, key)
 	}
 	add(egg.APIKeyRef)
-	add(nest.VaultSecretID)
+	// The nest's own secret logs the master in to the egg's host. It reaches
+	// the egg vault only for nests that opt in; nests from before the option
+	// were migrated with it on.
+	if nest.ExportNestSecret {
+		add(nest.VaultSecretID)
+	}
 	return keys
 }
 
@@ -401,11 +423,7 @@ func handleInvasionNestStop(s *Server) http.HandlerFunc {
 		}
 
 		// Also stop via connector (process/container level)
-		var secretBytes []byte
-		if nest.VaultSecretID != "" {
-			secretStr, _ := s.Vault.ReadSecret(nest.VaultSecretID)
-			secretBytes = []byte(secretStr)
-		}
+		secretBytes, _ := s.invasionTransportSecret(nest)
 
 		connector := invasion.GetConnector(nest)
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -534,7 +552,7 @@ var wsUpgrader = websocket.Upgrader{
 
 func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.InvasionDB == nil {
+		if s.InvasionDB == nil || s.EggHub == nil || s.Vault == nil {
 			jsonError(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
 			return
 		}
@@ -545,7 +563,20 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Wait for auth message
+		defer conn.Close()
+		conn.SetReadLimit(64 << 10)
+		challenge, err := bridge.NewChallenge()
+		if err != nil {
+			return
+		}
+		_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		// Legacy clients understand error envelopes and display this upgrade notice.
+		// Protocol v2 clients recognize the versioned challenge before sending auth.
+		notice, _ := json.Marshal(bridge.ErrorPayload{Code: "invasion_protocol_upgrade_required", Message: bridge.UpgradeRequired})
+		if err := conn.WriteJSON(bridge.Message{Protocol: bridge.ProtocolVersion, Type: bridge.MsgError, Session: challenge, Payload: notice}); err != nil {
+			return
+		}
+		// Wait for a signed response to this connection's challenge.
 		conn.SetReadDeadline(time.Now().Add(15 * time.Second))
 		_, data, err := conn.ReadMessage()
 		if err != nil {
@@ -562,6 +593,10 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
+		if authMsg.Protocol != bridge.ProtocolVersion {
+			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, bridge.UpgradeRequired), time.Now().Add(time.Second))
+			return
+		}
 		// Validate egg and nest
 		nest, err := invasion.GetNest(s.InvasionDB, authMsg.NestID)
 		if err != nil {
@@ -577,7 +612,7 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if !egg.Active {
+		if !egg.Active || !nest.Active || nest.EggID != egg.ID {
 			s.Logger.Warn("Auth failed: egg is inactive", "egg_id", authMsg.EggID)
 			conn.Close()
 			return
@@ -591,24 +626,19 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Verify HMAC
-		ok, err := bridge.VerifyMessage(authMsg, sharedKey)
-		if err != nil || !ok {
-			s.Logger.Warn("Auth failed: HMAC mismatch", "nest_id", nest.ID)
-			conn.Close()
+		session, err := bridge.NewSession(challenge, authMsg.EggID, authMsg.NestID, "master")
+		if err != nil || session.Accept(authMsg, sharedKey, "") != nil {
 			return
 		}
-
-		// Send ack
-		ackMsg, err := bridge.NewMessage(bridge.MsgAck, authMsg.EggID, authMsg.NestID, sharedKey,
-			bridge.AckPayload{RefID: authMsg.ID, Success: true, Detail: "authenticated"})
-		if err == nil {
-			_ = conn.WriteJSON(ackMsg)
+		ackMsg, err := bridge.NewMessage(bridge.MsgAck, authMsg.EggID, authMsg.NestID, sharedKey, bridge.AckPayload{RefID: authMsg.ID, Success: true, Detail: "authenticated"})
+		if err != nil || session.Prepare(ackMsg, sharedKey) != nil || conn.WriteJSON(ackMsg) != nil {
+			return
 		}
 
 		// Register connection
 		eggConn := &bridge.EggConnection{
 			Conn:          conn,
+			Session:       session,
 			EggID:         authMsg.EggID,
 			NestID:        authMsg.NestID,
 			SharedKey:     sharedKey,
@@ -832,11 +862,7 @@ func handleInvasionNestRollback(s *Server) http.HandlerFunc {
 			return
 		}
 
-		var secretBytes []byte
-		if nest.VaultSecretID != "" {
-			secretStr, _ := s.Vault.ReadSecret(nest.VaultSecretID)
-			secretBytes = []byte(secretStr)
-		}
+		secretBytes, _ := s.invasionTransportSecret(nest)
 
 		connector := invasion.GetConnector(nest)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -983,18 +1009,15 @@ func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
 		// Mark revision as applying
 		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "applying", "")
 
-		// Get nest secret for connector
-		var secretBytes []byte
-		if nest.VaultSecretID != "" {
-			secretStr, err := s.Vault.ReadSecret(nest.VaultSecretID)
-			if err != nil {
-				_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "failed", "failed to read nest secret")
-				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest secret", "Safe reconfigure secret read failed", err, "nest_id", id)
-				return
-			}
-			secretBytes = []byte(secretStr)
+		// Get the transport credential for the connector
+		secretBytes, err := s.invasionTransportSecret(nest)
+		if err != nil {
+			_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "failed", "failed to read nest secret")
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest secret", "Safe reconfigure secret read failed", err, "nest_id", id)
+			return
 		}
 
+		warnPlaintextDockerRemote(s.Logger, nest, "safe_reconfigure")
 		// Execute reconfigure via connector
 		connector := invasion.GetConnector(nest)
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -1168,18 +1191,15 @@ func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 
 		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "applying", "")
 
-		// Get nest secret
-		var secretBytes []byte
-		if nest.VaultSecretID != "" {
-			secretStr, err := s.Vault.ReadSecret(nest.VaultSecretID)
-			if err != nil {
-				_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "failed", "failed to read nest secret")
-				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest secret", "Config rollback secret read failed", err, "nest_id", id)
-				return
-			}
-			secretBytes = []byte(secretStr)
+		// Get the transport credential for the connector
+		secretBytes, err := s.invasionTransportSecret(nest)
+		if err != nil {
+			_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "failed", "failed to read nest secret")
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest secret", "Config rollback secret read failed", err, "nest_id", id)
+			return
 		}
 
+		warnPlaintextDockerRemote(s.Logger, nest, "config_rollback")
 		// Execute reconfigure via connector
 		connector := invasion.GetConnector(nest)
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)

@@ -156,7 +156,7 @@
             if (disposed || refreshing) return;
             refreshing = true;
             try {
-                const data = await api('/api/meshcore/messenger/bootstrap');
+                const data = await api('/api/desktop/integrations/meshcore/messenger/bootstrap');
                 if (!disposed) renderData(data || {});
             } catch (error) {
                 if (!disposed) renderError(error);

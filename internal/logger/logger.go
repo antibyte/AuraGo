@@ -1,10 +1,13 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"aurago/internal/security"
 )
 
 // LogFile wraps a logger and its optional file handle for clean shutdown.
@@ -75,6 +78,16 @@ func buildLogger(writer io.Writer, debug bool) *slog.Logger {
 
 	opts := &slog.HandlerOptions{
 		Level: level,
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+			a.Value = a.Value.Resolve()
+			switch a.Value.Kind() {
+			case slog.KindString:
+				a.Value = slog.StringValue(security.Scrub(a.Value.String()))
+			case slog.KindAny:
+				a.Value = slog.StringValue(security.Scrub(fmt.Sprint(a.Value.Any())))
+			}
+			return a
+		},
 	}
 
 	if writer == nil {

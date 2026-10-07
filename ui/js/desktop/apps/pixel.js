@@ -789,6 +789,7 @@
 
         state.dispose = function () {
             state.disposed = true;
+            state.imageRead?.abort();
             if (abortCtrl) abortCtrl.abort();
             stopMarchingAnts();
             if (state._keydown) document.removeEventListener('keydown', state._keydown);

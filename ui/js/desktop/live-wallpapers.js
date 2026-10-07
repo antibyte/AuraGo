@@ -8,6 +8,8 @@
  * wallpaper's CSS gradient (desktop-wallpaper-live.css) stays visible.
  */
 
+import { desktopCovered } from "./wallpaper-visibility.js";
+
 const HOST_ID = "vd-wallpaper-live";
 const TIME_WRAP = 8192; // seconds; keeps shader float precision over long sessions
 const MAX_PIXELS = 900000;
@@ -504,21 +506,6 @@ function resize() {
   canvas.width = bw;
   canvas.height = bh;
   if (program) draw(currentTime());
-}
-
-function desktopCovered() {
-  const saver = document.getElementById("vd-screensaver");
-  if (saver && saver.dataset.state !== "stopping" && saver.getClientRects().length) return true;
-  const area = window.innerWidth * window.innerHeight;
-  for (const win of document.querySelectorAll(".vd-window.maximized")) {
-    if (win.classList.contains("vd-space-hidden") || win.classList.contains("minimized")) continue;
-    const rect = win.getBoundingClientRect();
-    if (rect.width * rect.height < area * 0.82) continue;
-    const style = getComputedStyle(win);
-    if (style.display === "none" || style.visibility === "hidden" || parseFloat(style.opacity) < 0.99) continue;
-    return true;
-  }
-  return false;
 }
 
 // Fewer frames than planned mean the GPU is struggling: render fewer pixels.

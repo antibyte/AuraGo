@@ -128,26 +128,6 @@ async function renderGuardianSection(section) {
     html += `</div>`;
 
     html += `<div class="field-group">
-        <div class="field-group-title">${t('config.guardian.structure_title')}</div>
-        <div class="field-group-desc">${t('config.guardian.structure_desc')}</div>`;
-
-    const structureEnabled = ps.structure && ps.structure.enabled === true;
-    html += renderGuardianToggle('guardian.promptsec.structure.enabled', structureEnabled, t('config.guardian.structure_enabled_label'), guardianHelp('config.guardian.structure_enabled_help', 'config.guardian.structure_desc'));
-
-    const structureMode = (ps.structure && ps.structure.mode) || 'sandwich';
-    const modes = ['sandwich', 'xml', 'random'];
-    html += `<div class="field-group">
-        <div class="field-label">${t('config.guardian.structure_mode_label')}</div>
-        <div class="field-help">${guardianHelp('config.guardian.structure_mode_help', 'config.guardian.structure_desc')}</div>
-        <select class="field-select" data-path="guardian.promptsec.structure.mode">`;
-    modes.forEach(m => {
-        const sel = (structureMode === m) ? ' selected' : '';
-        html += `<option value="${m}"${sel}>${t('config.guardian.structure_mode_' + m)}</option>`;
-    });
-    html += `</select></div>`;
-    html += `</div>`;
-
-    html += `<div class="field-group">
         <div class="field-group-title">${t('config.guardian.llm_judge_title')}</div>
         <div class="field-group-desc">${t('config.guardian.llm_judge_desc')}</div>`;
 

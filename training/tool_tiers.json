@@ -221,5 +221,6 @@
     "send_telegram",
     "set_skill_documentation",
     "transfer_remote_file"
-  ]
+  ],
+  "schema_sha256": "b1325eb4886887411a16ecc528c2c58ab407a7724afde98e578f057d6a528c6d"
 }

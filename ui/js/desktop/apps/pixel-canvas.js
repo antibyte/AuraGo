@@ -149,8 +149,9 @@
                                     img.src = src;
                                 });
             }),
-            loadImageToCanvas: Pixel.bindRuntime(runtime, async function loadImageToCanvas(src) {
+            loadImageToCanvas: Pixel.bindRuntime(runtime, async function loadImageToCanvas(src, current) {
                                 const img = await this.loadImage(src);
+                                if (this.state.disposed || (current && !current())) return false;
                                 this.originalImage = img;
                                 this.canvas.width = img.naturalWidth;
                                 this.canvas.height = img.naturalHeight;
@@ -171,6 +172,7 @@
                                 this.clearOverlay();
                                 this.zoomFit();
                                 this.updateStatus();
+                                return true;
             }),
             newBlankCanvas: Pixel.bindRuntime(runtime, function newBlankCanvas(w, h) {
                                 this.originalImage = null;

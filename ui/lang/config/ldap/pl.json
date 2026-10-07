@@ -1,4 +1,7 @@
 {
+  "config.ldap.transport_label": "Bezpieczeństwo połączenia",
+  "config.ldap.plain_label": "LDAP (bez szyfrowania)",
+  "help.ldap.tls_mode": "LDAPS używa portu 636. StartTLS szyfruje połączenie przed logowaniem na porcie 389. W razie błędu logowanie zostaje zablokowane.",
   "config.ldap.base_dn_label": "Bazowe DN",
   "config.ldap.bind_dn_label": "Bind DN",
   "config.ldap.bind_password_label": "Hasło Bind (Vault)",

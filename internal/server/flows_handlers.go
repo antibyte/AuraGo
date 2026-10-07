@@ -354,7 +354,11 @@ func flowsPathParts(path string) []string {
 // handleFlows serves /api/desktop/flows/… (see the API contract in plan 1c).
 func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 	parts := flowsPathParts(r.URL.Path)
-	if !requireDesktopPermission(s, w, r, flowsRequiredScope(r.Method, parts)) {
+	// The Desktop admission (requireDesktopPermission = authentication + checkDesktopOperation)
+	// is split around the flows gates, so the flows API keeps its own codes for a read-only
+	// desktop (FLOW_PERMISSION_DENIED) and a cancelled request (flowsErrorFrom: 503), while a
+	// write still gets the Desktop grant that a readonly switch revokes.
+	if !authenticateDesktopPermission(s, w, r, flowsRequiredScope(r.Method, parts)) {
 		return
 	}
 	if !flowsOriginOK(r) {
@@ -369,6 +373,14 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead && !flowsReadOnlySafe(r, parts) &&
 		(cfg.Tools.Missions.ReadOnly || cfg.VirtualDesktop.ReadOnly) {
 		flowsError(w, http.StatusForbidden, "FLOW_PERMISSION_DENIED", "flows are read-only")
+		return
+	}
+	operation := flowsDesktopOperation(r, parts)
+	if operation != desktopRead && r.Context().Err() != nil {
+		s.flowsErrorFrom(w, r, r.Context().Err())
+		return
+	}
+	if !checkDesktopOperation(s, w, r, operation) {
 		return
 	}
 	s.flowsCatalog.refreshRegistry(s.Flows.Registry(), cfg)
@@ -399,6 +411,17 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 // same-origin check still apply.
 func flowsReadOnlySafe(r *http.Request, parts []string) bool {
 	return flowsIsValidate(r.Method, parts)
+}
+
+// flowsDesktopOperation is the Desktop operation of a flows request for the readonly
+// admission (checkDesktopOperation, desktop_readonly): GET, HEAD and POST validate
+// (flowsReadOnlySafe) are reads, every other request is a write. A write gets a Desktop
+// grant that a readonly switch revokes, which cancels the request.
+func flowsDesktopOperation(r *http.Request, parts []string) desktopOperation {
+	if flowsReadOnlySafe(r, parts) {
+		return desktopRead
+	}
+	return desktopMethodOperation(r.Method)
 }
 
 // flowsIsValidate reports whether a request is POST validate.

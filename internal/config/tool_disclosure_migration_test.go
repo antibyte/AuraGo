@@ -59,6 +59,68 @@ memory_analysis:
 	}
 }
 
+func TestRetiredPromptSecSettingsNormalizeAndRejectReactivation(t *testing.T) {
+	input := []byte(`guardian:
+  promptsec:
+    spotlight: true
+    canary: true
+    structure:
+      enabled: true
+      mode: xml
+`)
+	notices := ToolDisclosureMigrationNotices(input)
+	for _, path := range retiredPromptSecSettings {
+		found := false
+		for _, notice := range notices {
+			if strings.Contains(notice, path) && strings.Contains(notice, "forced off") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing retirement notice for %s: %v", path, notices)
+		}
+	}
+
+	out, err := NormalizeToolDisclosureConfig(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := NormalizeToolDisclosureConfig(out)
+	if err != nil || string(again) != string(out) {
+		t.Fatalf("retired setting normalization is not idempotent: %v", err)
+	}
+	if strings.Contains(string(out), "spotlight:") || strings.Contains(string(out), "canary:") || strings.Contains(string(out), "structure:") {
+		t.Fatalf("retired promptsec settings remain in normalized YAML: %s", out)
+	}
+	var cfg Config
+	if err := yaml.Unmarshal(out, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	cfg.MigratePromptSecDefaults(out)
+	if cfg.Guardian.PromptSec.Spotlight || cfg.Guardian.PromptSec.Canary || cfg.Guardian.PromptSec.Structure.Enabled {
+		t.Fatal("retired promptsec settings were enabled after normalization")
+	}
+
+	for _, test := range []struct {
+		name  string
+		patch map[string]interface{}
+	}{
+		{"spotlight", map[string]interface{}{"guardian": map[string]interface{}{"promptsec": map[string]interface{}{"spotlight": true}}}},
+		{"canary", map[string]interface{}{"guardian": map[string]interface{}{"promptsec": map[string]interface{}{"canary": true}}}},
+		{"structure", map[string]interface{}{"guardian": map[string]interface{}{"promptsec": map[string]interface{}{"structure": map[string]interface{}{"enabled": true}}}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if err := ValidateToolDisclosurePatch(test.patch); err == nil {
+				t.Fatal("expected explicit reactivation to be rejected")
+			}
+		})
+	}
+	if err := ValidateToolDisclosurePatch(map[string]interface{}{"guardian": map[string]interface{}{"promptsec": map[string]interface{}{"spotlight": false, "canary": false, "structure": map[string]interface{}{"enabled": false}}}}); err != nil {
+		t.Fatalf("disabled compatibility values should be accepted: %v", err)
+	}
+}
+
 func TestDisclosureExplicitDisabledAndEmptyPreferencesSurviveLoadSave(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	input := []byte(`agent:

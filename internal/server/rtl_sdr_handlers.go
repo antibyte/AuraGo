@@ -49,10 +49,6 @@ func (s *Server) handleRTLSDR(w http.ResponseWriter, r *http.Request) {
 		rtlSDRError(w, rtlsdr.ErrDisabled)
 		return
 	}
-	if write && cfg.VirtualDesktop.ReadOnly {
-		rtlSDRError(w, rtlsdr.ErrReadOnly)
-		return
-	}
 	path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/desktop/rtl-sdr/"), "/")
 	parts := strings.Split(path, "/")
 	svc := s.RTLSDR

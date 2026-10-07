@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "グローバル読み取り専用",
   "config.sql_connections.readonly_help": "接続権限に関係なく、すべての書き込み操作をブロックします。",
   "config.sql_connections.allow_management_label": "管理を許可",
-  "config.sql_connections.allow_management_help": "エージェントが接続の作成、編集、削除を行えるようにします。"
+  "config.sql_connections.sqlite_import": "SQLiteバックアップをインポート",
+  "config.sql_connections.sqlite_import_help": "整合性のある単独のバックアップをアップロードしてください（最大64 MiB）。保存すると保護された領域に取り込まれ、元のファイルは保持されます。",
+  "config.sql_connections.sqlite_import_required": "SQLiteのインポートが必要です",
+  "config.sql_connections.allow_management_help": "エージェントは説明のみ編集できます。設定、認証情報、権限は管理者のみが変更できます。"
 }

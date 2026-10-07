@@ -94,39 +94,11 @@ func appendEdgeToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.To
 		))
 
 		tools = append(tools, tool("manage_sql_connections",
-			"Manage external database connections. By default, the agent can only list, get, and test connections. "+
-				"Creating, updating, and deleting connections requires explicit administrator enablement via sql_connections.allow_management. "+
-				"Supports PostgreSQL, MySQL/MariaDB, and SQLite. Credentials are stored securely in the vault. "+
-				"Use 'docker_create' to spin up a new database container via Docker.",
+			"List, inspect and test administrator-configured database connections. With allow_management, update their description. Targets, credentials, permissions and connection setup are administrator-only.",
 			schema(map[string]interface{}{
-				"operation": map[string]interface{}{
-					"type":        "string",
-					"description": "Operation to perform",
-					"enum":        []string{"list", "get", "create", "update", "delete", "test", "docker_create"},
-				},
-				"connection_name": prop("string", "Connection name (unique identifier)"),
-				"driver": map[string]interface{}{
-					"type":        "string",
-					"description": "Database driver",
-					"enum":        []string{"postgres", "mysql", "sqlite"},
-				},
-				"host":              prop("string", "Database host (IP or hostname)"),
-				"port":              map[string]interface{}{"type": "integer", "description": "Database port (default: 5432 for postgres, 3306 for mysql)"},
-				"database_name":     prop("string", "Database name or SQLite file path"),
-				"description":       prop("string", "Short description of the database purpose"),
-				"username":          prop("string", "Database username (stored in vault)"),
-				"password":          prop("string", "Database password (stored in vault)"),
-				"ssl_mode":          prop("string", "SSL mode: disable, require, verify-ca, verify-full (default: disable)"),
-				"credential_action": map[string]interface{}{"type": "string", "description": "Credential handling for update: keep, replace, or delete", "enum": []string{"keep", "replace", "delete"}},
-				"allow_read":        map[string]interface{}{"type": "boolean", "description": "Allow SELECT queries (default: true)"},
-				"allow_write":       map[string]interface{}{"type": "boolean", "description": "Allow INSERT queries (default: false)"},
-				"allow_change":      map[string]interface{}{"type": "boolean", "description": "Allow UPDATE queries (default: false)"},
-				"allow_delete":      map[string]interface{}{"type": "boolean", "description": "Allow DELETE queries (default: false)"},
-				"docker_template": map[string]interface{}{
-					"type":        "string",
-					"description": "Docker template for docker_create: postgres, mysql, mariadb",
-					"enum":        []string{"postgres", "mysql", "mariadb"},
-				},
+				"operation":       map[string]interface{}{"type": "string", "enum": []string{"list", "get", "test", "update"}},
+				"connection_name": prop("string", "Existing connection name"),
+				"description":     prop("string", "New description for update"),
 			}, "operation"),
 		))
 	}

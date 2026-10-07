@@ -26,11 +26,12 @@ const (
 )
 
 type historyWorkingSetStats struct {
-	LimitTokens   int
-	CurrentTokens int
-	KeptTokens    int
-	SummaryTokens int
-	DroppedTokens int
+	LimitTokens      int
+	CurrentTokens    int
+	KeptTokens       int
+	SummaryTokens    int
+	DroppedTokens    int
+	CurrentUserIndex int
 }
 
 // RequestRouteBudget contains the effective model limits for one route.
@@ -441,10 +442,17 @@ func (b *RequestBudget) historyWorkingSetLimitForMessages(messages []openai.Chat
 // removable; the current request and its two newest native tool rounds remain
 // intact even when they alone make the request impossible.
 func (b *RequestBudget) trimHistoryWorkingSet(messages []openai.ChatCompletionMessage, currentUserText, systemPrompt string, tools []openai.Tool, cache *tokenCountCache) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage, historyWorkingSetStats) {
+	return b.trimHistoryWorkingSetWithTaskAnchor(messages, currentUserText, protectedTaskMessageIndex(messages, currentUserText), systemPrompt, tools, cache)
+}
+
+func (b *RequestBudget) trimHistoryWorkingSetWithTaskAnchor(messages []openai.ChatCompletionMessage, currentUserText string, anchorIndex int, systemPrompt string, tools []openai.Tool, cache *tokenCountCache) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage, historyWorkingSetStats) {
 	working := append([]openai.ChatCompletionMessage(nil), messages...)
-	currentUser := currentUserMessageIndex(working, currentUserText)
-	stats := historyWorkingSetStats{LimitTokens: b.historyWorkingSetLimitForMessages(working, currentUser, systemPrompt, tools, cache)}
+	currentUser := anchorIndex
+	stats := historyWorkingSetStats{LimitTokens: b.historyWorkingSetLimitForMessages(working, currentUser, systemPrompt, tools, cache), CurrentUserIndex: currentUser}
 	if len(working) == 0 {
+		return working, nil, stats
+	}
+	if !validTaskAnchor(working, currentUser, currentUserText) {
 		return working, nil, stats
 	}
 	stats.CurrentTokens = b.maxMessageTokensAt(working, currentUser, cache)
@@ -455,12 +463,12 @@ func (b *RequestBudget) trimHistoryWorkingSet(messages []openai.ChatCompletionMe
 	}
 
 	groups := buildConversationGroups(working)
+	protectedRounds := newestNativeToolRoundIndices(working, 2)
 	var dropped []openai.ChatCompletionMessage
-	for len(groups) > 1 && !b.historyWorkingSetFits(working, currentUserMessageIndex(working, currentUserText), systemPrompt, tools, cache) {
-		currentUser = currentUserMessageIndex(working, currentUserText)
+	for len(groups) > 1 && !b.historyWorkingSetFits(working, currentUser, systemPrompt, tools, cache) {
 		candidate := -1
 		for i, group := range groups {
-			if group.end <= currentUser {
+			if group.end <= currentUser && !groupContainsAnyIndex(group, protectedRounds) {
 				candidate = i
 				break
 			}
@@ -470,22 +478,30 @@ func (b *RequestBudget) trimHistoryWorkingSet(messages []openai.ChatCompletionMe
 		}
 		group := groups[candidate]
 		dropped = append(dropped, working[group.start:group.end]...)
+		if group.start < currentUser {
+			currentUser -= group.end - group.start
+		}
+		protectedRounds = rebaseProtectedIndicesAfterRemoval(protectedRounds, group.start, group.end)
 		working = append(append([]openai.ChatCompletionMessage(nil), working[:group.start]...), working[group.end:]...)
 		groups = buildConversationGroups(working)
 	}
 
 	// Compacted tool summaries and old recaps are system messages after the
 	// generated system prompt. They are history, not immutable policy.
-	for i := 1; i < len(working) && !b.historyWorkingSetFits(working, currentUserMessageIndex(working, currentUserText), systemPrompt, tools, cache); {
+	for i := 1; i < len(working) && !b.historyWorkingSetFits(working, currentUser, systemPrompt, tools, cache); {
 		if !isSheddableHistorySystem(working[i]) {
 			i++
 			continue
 		}
 		dropped = append(dropped, working[i])
 		working = append(working[:i], working[i+1:]...)
+		if i < currentUser {
+			currentUser--
+		}
+		protectedRounds = rebaseProtectedIndicesAfterRemoval(protectedRounds, i, i+1)
 	}
 
-	currentUser = currentUserMessageIndex(working, currentUserText)
+	stats.CurrentUserIndex = currentUser
 	stats.DroppedTokens = b.maxMessagesTokens(dropped, cache)
 	stats.KeptTokens = b.maxCarriedHistoryTokens(working, currentUser, cache)
 	stats.SummaryTokens = b.maxSummaryTokens(working, cache)
@@ -691,6 +707,78 @@ func buildConversationGroups(messages []openai.ChatCompletionMessage) []conversa
 	return groups
 }
 
+func nativeToolRoundGroups(messages []openai.ChatCompletionMessage) [][]int {
+	var rounds [][]int
+	for i, message := range messages {
+		if message.Role != openai.ChatMessageRoleAssistant || len(message.ToolCalls) == 0 {
+			continue
+		}
+		group := []int{i}
+		for j := i + 1; j < len(messages); j++ {
+			if messages[j].Role != openai.ChatMessageRoleTool && messages[j].ToolCallID == "" {
+				break
+			}
+			group = append(group, j)
+		}
+		rounds = append(rounds, group)
+	}
+	return rounds
+}
+
+func newestNativeToolRoundIndices(messages []openai.ChatCompletionMessage, count int) []int {
+	if count <= 0 {
+		return nil
+	}
+	rounds := nativeToolRoundGroups(messages)
+	start := len(rounds) - count
+	if start < 0 {
+		start = 0
+	}
+	var protected []int
+	for _, round := range rounds[start:] {
+		protected = append(protected, round...)
+	}
+	return protected
+}
+
+func groupContainsAnyIndex(group conversationGroup, protected []int) bool {
+	for _, index := range protected {
+		if index >= group.start && index < group.end {
+			return true
+		}
+	}
+	return false
+}
+
+func rebaseProtectedIndicesAfterRemoval(indices []int, start, end int) []int {
+	removed := end - start
+	updated := indices[:0]
+	for _, index := range indices {
+		if index >= start && index < end {
+			continue
+		}
+		if index >= end {
+			index -= removed
+		}
+		updated = append(updated, index)
+	}
+	return updated
+}
+
+func rebaseProtectedIndicesAfterIndicesRemoval(indices, dropped []int) []int {
+	updated := indices[:0]
+	for _, index := range indices {
+		shift := 0
+		for _, removed := range dropped {
+			if removed < index {
+				shift++
+			}
+		}
+		updated = append(updated, index-shift)
+	}
+	return updated
+}
+
 func isTextModeToolResult(message openai.ChatCompletionMessage) bool {
 	if message.Role != openai.ChatMessageRoleUser {
 		return false
@@ -700,36 +788,61 @@ func isTextModeToolResult(message openai.ChatCompletionMessage) bool {
 }
 
 func (b *RequestBudget) trimHistory(messages []openai.ChatCompletionMessage, tools []openai.Tool, importance bool, logger *slog.Logger, cache *tokenCountCache) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage, error) {
+	return b.trimHistoryWithCurrentUser(messages, tools, importance, logger, cache, "")
+}
+
+// trimHistoryWithCurrentUser keeps the original human request immutable while
+// optional importance and chronological trimming shed prior conversation.
+func (b *RequestBudget) trimHistoryWithCurrentUser(messages []openai.ChatCompletionMessage, tools []openai.Tool, importance bool, logger *slog.Logger, cache *tokenCountCache, currentUserText string) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage, error) {
+	anchorIndex := protectedTaskMessageIndex(messages, currentUserText)
+	trimmed, dropped, _, err := b.trimHistoryWithTaskAnchor(messages, tools, importance, logger, cache, currentUserText, anchorIndex)
+	return trimmed, dropped, err
+}
+
+// trimHistoryWithTaskAnchor threads an immutable message identity through every
+// trimming pass and returns its adjusted index in the resulting slice.
+func (b *RequestBudget) trimHistoryWithTaskAnchor(messages []openai.ChatCompletionMessage, tools []openai.Tool, importance bool, logger *slog.Logger, cache *tokenCountCache, currentUserText string, anchorIndex int) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage, int, error) {
 	working := append([]openai.ChatCompletionMessage(nil), messages...)
 	var dropped []openai.ChatCompletionMessage
+	if !validTaskAnchor(working, anchorIndex, currentUserText) {
+		return working, nil, anchorIndex, fmt.Errorf("current human request is missing from history; refusing to trim it")
+	}
 	if _, err := b.validate(working, tools, cache); err == nil {
-		return working, nil, nil
+		return working, nil, anchorIndex, nil
 	}
 
 	// Importance scoring gets the first opportunity, but its budget includes
 	// schemas and fixed reserves. Group-aware chronological trimming remains the
 	// fail-safe and establishes the hard postcondition.
+	protectedRounds := newestNativeToolRoundIndices(working, 2)
 	if importance && len(b.Routes) > 0 {
 		target := b.historyAndSystemLimit(tools, cache)
 		original := append([]openai.ChatCompletionMessage(nil), working...)
-		trimmed, indices, _ := TrimByImportance(working, target, b.Routes[0].Limits.Route.Model, logger)
+		originalAnchorIndex := anchorIndex
+		protected := append([]int{anchorIndex}, protectedRounds...)
+		trimmed, indices, _ := trimByImportanceProtecting(working, target, b.Routes[0].Limits.Route.Model, logger, protected...)
 		for _, index := range indices {
 			if index >= 0 && index < len(original) {
 				dropped = append(dropped, original[index])
+				if index < originalAnchorIndex {
+					anchorIndex--
+				}
 			}
 		}
+		protectedRounds = rebaseProtectedIndicesAfterIndicesRemoval(protectedRounds, indices)
 		working = trimmed
 	}
 
 	if _, err := b.validate(working, tools, cache); err == nil {
-		return working, dropped, nil
+		return working, dropped, anchorIndex, nil
 	}
-	working, chronologicalDropped := b.trimOldestConversationGroups(working, tools, cache)
+	var chronologicalDropped []openai.ChatCompletionMessage
+	working, chronologicalDropped, anchorIndex = b.trimOldestConversationGroupsPreserving(working, tools, cache, anchorIndex, protectedRounds)
 	dropped = append(dropped, chronologicalDropped...)
 	if _, err := b.validate(working, tools, cache); err != nil {
-		return working, dropped, err
+		return working, dropped, anchorIndex, err
 	}
-	return working, dropped, nil
+	return working, dropped, anchorIndex, nil
 }
 
 func (b *RequestBudget) historyAndSystemLimit(tools []openai.Tool, cache *tokenCountCache) int {
@@ -748,40 +861,180 @@ func (b *RequestBudget) historyAndSystemLimit(tools []openai.Tool, cache *tokenC
 }
 
 func (b *RequestBudget) trimOldestConversationGroups(messages []openai.ChatCompletionMessage, tools []openai.Tool, cache *tokenCountCache) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage) {
+	return b.trimOldestConversationGroupsWithCurrentUser(messages, tools, cache, "")
+}
+
+func (b *RequestBudget) trimOldestConversationGroupsWithCurrentUser(messages []openai.ChatCompletionMessage, tools []openai.Tool, cache *tokenCountCache, currentUserText string) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage) {
+	trimmed, dropped, _ := b.trimOldestConversationGroupsWithTaskAnchor(messages, tools, cache, protectedTaskMessageIndex(messages, currentUserText))
+	return trimmed, dropped
+}
+
+func (b *RequestBudget) trimOldestConversationGroupsWithTaskAnchor(messages []openai.ChatCompletionMessage, tools []openai.Tool, cache *tokenCountCache, anchorIndex int) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage, int) {
+	return b.trimOldestConversationGroupsPreserving(messages, tools, cache, anchorIndex, newestNativeToolRoundIndices(messages, 2))
+}
+
+func (b *RequestBudget) trimOldestConversationGroupsPreserving(messages []openai.ChatCompletionMessage, tools []openai.Tool, cache *tokenCountCache, anchorIndex int, protectedRounds []int) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage, int) {
 	working := append([]openai.ChatCompletionMessage(nil), messages...)
+	protectedRounds = append([]int(nil), protectedRounds...)
 	var dropped []openai.ChatCompletionMessage
 	for pass := 0; pass < 2; pass++ {
 		for {
 			if _, err := b.validate(working, tools, cache); err == nil {
-				return working, dropped
+				return working, dropped, anchorIndex
 			}
 			groups := buildConversationGroups(working)
-			if len(groups) <= 1 {
-				return working, dropped
+			if len(groups) == 0 {
+				return working, dropped, anchorIndex
 			}
-			candidate := groups[0]
+			protectedGroup := -1
+			for i, group := range groups {
+				if anchorIndex >= group.start && anchorIndex < group.end {
+					protectedGroup = i
+					break
+				}
+			}
+			candidateIndex := -1
+			for groupIndex := range groups {
+				if groupIndex == protectedGroup {
+					continue
+				}
+				if groupContainsAnyIndex(groups[groupIndex], protectedRounds) {
+					continue
+				}
+				if candidateIndex < 0 {
+					candidateIndex = groupIndex
+				}
+			}
+			if candidateIndex < 0 {
+				return working, dropped, anchorIndex
+			}
+			candidate := groups[candidateIndex]
 			remainingNonSystem := 0
-			for i, message := range working {
-				if message.Role != openai.ChatMessageRoleSystem && (i < candidate.start || i >= candidate.end) {
-					remainingNonSystem++
+			for groupIndex, group := range groups {
+				if groupIndex != candidateIndex {
+					remainingNonSystem += group.end - group.start
 				}
 			}
 			if pass == 0 && remainingNonSystem < minimumRecentMessages {
 				break
 			}
 			dropped = append(dropped, working[candidate.start:candidate.end]...)
+			if candidate.start < anchorIndex {
+				anchorIndex -= candidate.end - candidate.start
+			}
+			protectedRounds = rebaseProtectedIndicesAfterRemoval(protectedRounds, candidate.start, candidate.end)
 			next := make([]openai.ChatCompletionMessage, 0, len(working)-(candidate.end-candidate.start))
 			next = append(next, working[:candidate.start]...)
 			next = append(next, working[candidate.end:]...)
 			working = next
 		}
 	}
-	return working, dropped
+	return working, dropped, anchorIndex
+}
+
+// protectedTaskMessageIndex requires an exact identity when the caller supplies
+// the immutable task text. Legacy callers without an anchor use the newest packet.
+func protectedTaskMessageIndex(messages []openai.ChatCompletionMessage, currentUserText string) int {
+	wanted := strings.TrimSpace(currentUserText)
+	if wanted != "" {
+		return exactTaskMessageIndex(messages, wanted)
+	}
+	return latestGenuineUserIndex(messages)
+}
+
+func exactTaskMessageIndex(messages []openai.ChatCompletionMessage, currentUserText string) int {
+	wanted := strings.TrimSpace(currentUserText)
+	if wanted == "" {
+		return -1
+	}
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == openai.ChatMessageRoleUser && !isTextModeToolResult(messages[i]) && strings.TrimSpace(messageText(messages[i])) == wanted {
+			return i
+		}
+	}
+	return -1
+}
+
+func genuineUserOccurrence(messages []openai.ChatCompletionMessage, anchorIndex int) int {
+	if anchorIndex < 0 || anchorIndex >= len(messages) || messages[anchorIndex].Role != openai.ChatMessageRoleUser || isTextModeToolResult(messages[anchorIndex]) {
+		return -1
+	}
+	occurrence := 0
+	for i := 0; i < anchorIndex; i++ {
+		if messages[i].Role == openai.ChatMessageRoleUser && !isTextModeToolResult(messages[i]) {
+			occurrence++
+		}
+	}
+	return occurrence
+}
+
+func genuineUserIndexByOccurrence(messages []openai.ChatCompletionMessage, occurrence int) int {
+	if occurrence < 0 {
+		return -1
+	}
+	for i, message := range messages {
+		if message.Role != openai.ChatMessageRoleUser || isTextModeToolResult(message) {
+			continue
+		}
+		if occurrence == 0 {
+			return i
+		}
+		occurrence--
+	}
+	return -1
+}
+
+func validTaskAnchor(messages []openai.ChatCompletionMessage, anchorIndex int, currentUserText string) bool {
+	if anchorIndex < 0 {
+		return strings.TrimSpace(currentUserText) == ""
+	}
+	if anchorIndex >= len(messages) || messages[anchorIndex].Role != openai.ChatMessageRoleUser || isTextModeToolResult(messages[anchorIndex]) {
+		return false
+	}
+	return strings.TrimSpace(currentUserText) == "" || strings.TrimSpace(messageText(messages[anchorIndex])) == strings.TrimSpace(currentUserText)
+}
+
+// rebaseTaskAnchorForGeneratedSystemPrompt mirrors the prefix filtering in
+// ensureGeneratedSystemPromptMessage while preserving the selected user-message
+// identity across prompt replacement and blank-system cleanup.
+func rebaseTaskAnchorForGeneratedSystemPrompt(messages []openai.ChatCompletionMessage, anchorIndex int, previousGenerated string) int {
+	if anchorIndex < 0 || anchorIndex >= len(messages) || messages[anchorIndex].Role != openai.ChatMessageRoleUser || isTextModeToolResult(messages[anchorIndex]) {
+		return -1
+	}
+	start := 0
+	if len(messages) > 0 && messages[0].Role == openai.ChatMessageRoleSystem {
+		firstContent := strings.TrimSpace(messages[0].Content)
+		if firstContent == "" || (previousGenerated != "" && messages[0].Content == previousGenerated) {
+			start = 1
+		}
+	}
+	newIndex := 1 // The generated system prompt is always inserted at index zero.
+	for i := start; i < len(messages); i++ {
+		message := messages[i]
+		if message.Role == openai.ChatMessageRoleSystem && strings.TrimSpace(message.Content) == "" {
+			continue
+		}
+		if i == anchorIndex {
+			return newIndex
+		}
+		newIndex++
+	}
+	return -1
 }
 
 func appendRecapWithinBudget(budget *RequestBudget, messages []openai.ChatCompletionMessage, tools []openai.Tool, dropped []openai.ChatCompletionMessage, cache *tokenCountCache) []openai.ChatCompletionMessage {
+	trimmed, _ := appendRecapWithinBudgetWithTaskAnchor(budget, messages, tools, dropped, cache, -1)
+	return trimmed
+}
+
+// appendRecapWithinBudgetWithTaskAnchor keeps a stable task-message index when
+// inserting the recap system message before the conversation history.
+func appendRecapWithinBudgetWithTaskAnchor(budget *RequestBudget, messages []openai.ChatCompletionMessage, tools []openai.Tool, dropped []openai.ChatCompletionMessage, cache *tokenCountCache, anchorIndex int) ([]openai.ChatCompletionMessage, int) {
 	if len(dropped) == 0 || len(messages) == 0 {
-		return messages
+		return messages, anchorIndex
+	}
+	if anchorIndex >= 0 && !validTaskAnchor(messages, anchorIndex, "") {
+		return messages, anchorIndex
 	}
 	remaining := int(^uint(0) >> 1)
 	for _, usage := range budget.tokenUsage(messages, tools, cache) {
@@ -791,11 +1044,11 @@ func appendRecapWithinBudget(budget *RequestBudget, messages []openai.ChatComple
 		}
 	}
 	if remaining <= 4 {
-		return messages
+		return messages, anchorIndex
 	}
 	recap := buildTrimmedContextRecap(dropped, remaining-4)
 	if recap == "" {
-		return messages
+		return messages, anchorIndex
 	}
 	insertAt := 0
 	for insertAt < len(messages) && messages[insertAt].Role == openai.ChatMessageRoleSystem {
@@ -806,26 +1059,37 @@ func appendRecapWithinBudget(budget *RequestBudget, messages []openai.ChatComple
 	candidate = append(candidate, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: recap})
 	candidate = append(candidate, messages[insertAt:]...)
 	if _, err := budget.validate(candidate, tools, cache); err != nil {
-		return messages
+		return messages, anchorIndex
 	}
-	return candidate
+	if anchorIndex >= insertAt {
+		anchorIndex++
+	}
+	return candidate, anchorIndex
 }
 
 func appendRecapWithinWorkingSet(budget *RequestBudget, messages []openai.ChatCompletionMessage, currentUserText, systemPrompt string, tools []openai.Tool, dropped []openai.ChatCompletionMessage, cache *tokenCountCache) []openai.ChatCompletionMessage {
+	trimmed, _ := appendRecapWithinWorkingSetWithTaskAnchor(budget, messages, currentUserText, protectedTaskMessageIndex(messages, currentUserText), systemPrompt, tools, dropped, cache)
+	return trimmed
+}
+
+func appendRecapWithinWorkingSetWithTaskAnchor(budget *RequestBudget, messages []openai.ChatCompletionMessage, currentUserText string, anchorIndex int, systemPrompt string, tools []openai.Tool, dropped []openai.ChatCompletionMessage, cache *tokenCountCache) ([]openai.ChatCompletionMessage, int) {
 	if budget == nil || len(dropped) == 0 || len(messages) == 0 {
-		return messages
+		return messages, anchorIndex
 	}
-	currentUser := currentUserMessageIndex(messages, currentUserText)
+	if !validTaskAnchor(messages, anchorIndex, currentUserText) {
+		return messages, anchorIndex
+	}
+	currentUser := anchorIndex
 	remaining := budget.historyWorkingSetLimitForMessages(messages, currentUser, systemPrompt, tools, cache) - budget.maxCarriedHistoryTokens(messages, currentUser, cache)
 	if remaining <= 4 {
-		return messages
+		return messages, anchorIndex
 	}
 	if remaining > historySummaryMaxTokens {
 		remaining = historySummaryMaxTokens
 	}
 	recap := buildTrimmedContextRecap(dropped, remaining-4)
 	if recap == "" {
-		return messages
+		return messages, anchorIndex
 	}
 	insertAt := 1
 	if insertAt > len(messages) {
@@ -835,10 +1099,14 @@ func appendRecapWithinWorkingSet(budget *RequestBudget, messages []openai.ChatCo
 	candidate = append(candidate, messages[:insertAt]...)
 	candidate = append(candidate, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: recap})
 	candidate = append(candidate, messages[insertAt:]...)
-	if !budget.historyWorkingSetFits(candidate, currentUserMessageIndex(candidate, currentUserText), systemPrompt, tools, cache) {
-		return messages
+	newAnchorIndex := anchorIndex
+	if insertAt <= anchorIndex {
+		newAnchorIndex++
 	}
-	return candidate
+	if !budget.historyWorkingSetFits(candidate, newAnchorIndex, systemPrompt, tools, cache) {
+		return messages, anchorIndex
+	}
+	return candidate, newAnchorIndex
 }
 
 func requiredToolSchemasForState(s *agentLoopState) map[string]bool {

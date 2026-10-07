@@ -139,6 +139,7 @@ function loadRuntimeForTimerTest(fetchImpl, options = {}) {
     AuraRealtimeProviderCommon: {
       randomID: prefix => `${prefix}-test`,
       safeJSON: JSON.parse,
+      apiFetch: fetchImpl || (async () => { throw new Error('network not expected'); }),
       analyserLevel: () => 0.4
     },
     AuraRealtimeAudio: { constants: { WAKE_BUFFER_SAMPLES: 48000 } },

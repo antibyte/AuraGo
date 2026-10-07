@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/dockerutil"
@@ -899,58 +900,10 @@ func extractTrycloudflareURL(text string) string {
 	return ""
 }
 
-// HomepageTunnel starts a Cloudflare quick tunnel inside the Docker container
-// that exposes a local port to the internet with a temporary *.trycloudflare.com URL.
-// The tunnel runs in the background; use HomepageExec to check its status.
+// HomepageTunnel rejects the legacy arbitrary-port entry point. All callers must
+// use CloudflareTunnelQuickTunnel with a registered Homepage project.
 func HomepageTunnel(cfg HomepageConfig, port int, logger *slog.Logger) string {
-	if port <= 0 {
-		port = 3000
-	}
-	logger.Info("[Homepage] Starting Cloudflare tunnel", "port", port)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-
-	// Check if cloudflared is available
-	checkResult := DockerExec(dockerCfg, homepageContainerName, "which cloudflared 2>/dev/null && echo FOUND || echo MISSING", "")
-	if !strings.Contains(checkResult, "FOUND") {
-		// Provide LAN IP as fallback
-		lanIP := getLocalLANIP()
-		msg := "cloudflared not available in container. Rebuild the homepage container to get tunnel support."
-		if lanIP != "" {
-			msg += fmt.Sprintf(" LAN URL: http://%s:%d", lanIP, port)
-		}
-		return errJSON("%s", msg)
-	}
-
-	// Start tunnel in background. Give cloudflared 12 seconds to register with
-	// Cloudflare and write the URL to the log (3s was too short; real-world
-	// registration typically takes 8–15 seconds).
-	cmd := fmt.Sprintf("nohup cloudflared tunnel --url http://localhost:%d > /tmp/tunnel.log 2>&1 & sleep 12 && grep -oP 'https://[a-z0-9-]+\\.trycloudflare\\.com' /tmp/tunnel.log | head -1", port)
-	result := DockerExec(dockerCfg, homepageContainerName, cmd, "")
-
-	// Try to extract the tunnel URL from the initial output.
-	if tunnelURL := extractTrycloudflareURL(extractOutput(result)); tunnelURL != "" {
-		return okJSON("Cloudflare tunnel started", "tunnel_url", tunnelURL, "local_port", fmt.Sprintf("%d", port))
-	}
-
-	// cloudflared may still be registering. Poll the log file up to 3 more times
-	// with 5-second gaps before giving up.
-	for i := 0; i < 3; i++ {
-		time.Sleep(5 * time.Second)
-		pollResult := DockerExec(dockerCfg, homepageContainerName, "grep -oP 'https://[a-z0-9-]+\\.trycloudflare\\.com' /tmp/tunnel.log | head -1", "")
-		if tunnelURL := extractTrycloudflareURL(extractOutput(pollResult)); tunnelURL != "" {
-			logger.Info("[Homepage] Cloudflare tunnel URL found after polling", "attempt", i+1, "url", tunnelURL)
-			return okJSON("Cloudflare tunnel started", "tunnel_url", tunnelURL, "local_port", fmt.Sprintf("%d", port))
-		}
-	}
-
-	// Still no URL — return diagnostics so the agent can investigate.
-	lanIP := getLocalLANIP()
-	logContents := extractOutput(DockerExec(dockerCfg, homepageContainerName, "cat /tmp/tunnel.log 2>/dev/null | tail -20", ""))
-	return okJSON("Tunnel process started but URL not yet available. cloudflared may need more time or cannot reach Cloudflare servers.",
-		"local_port", fmt.Sprintf("%d", port),
-		"lan_ip", lanIP,
-		"tunnel_log_tail", logContents,
-		"check_cmd", "cat /tmp/tunnel.log | grep -E 'trycloudflare|error|ERR'")
+	return errJSON("Select a registered project_dir through the managed Cloudflare quick publication flow; arbitrary ports are disabled")
 }
 
 // HomepageDeployNetlify builds the project (if a build script exists) and deploys it to
@@ -1126,6 +1079,28 @@ func copyAssetsToBuildDir(buildPath, dataDir string, logger *slog.Logger) {
 	}
 }
 
+// homepageBuildRefused is set when the Docker endpoint refused the Homepage
+// image build with HTTP 403 (a socket proxy with BUILD=0, or an authorization
+// plugin). HomepageStatus reports it until the image exists.
+var homepageBuildRefused atomic.Bool
+
+const homepageBuildForbiddenMessage = "Docker refused to build the Homepage dev image " + homepageImageName + " (HTTP 403). " +
+	"The default Docker socket proxy in docker-compose.yml blocks image builds (BUILD=0). " +
+	"Build the image once on the Docker host: " + homepageHostBuildCommand + " " +
+	"(native installs: run the AuraGo binary with --print-homepage-dockerfile instead of docker exec). " +
+	"Or set BUILD=1 for the docker-proxy service and run: docker compose up -d docker-proxy. " +
+	"Then run homepage init again. Do not run homepage rebuild: it deletes the image before it builds."
+
+func homepageBuildForbiddenResult() string {
+	out, _ := json.Marshal(map[string]string{
+		"status":        "error",
+		"code":          "homepage_image_build_forbidden",
+		"message":       homepageBuildForbiddenMessage,
+		"build_command": homepageHostBuildCommand,
+	})
+	return string(out)
+}
+
 func homepageBuildImage(dockerCfg DockerConfig) string {
 	if err := requireDockerMutationPermission(); err != nil {
 		return errJSON("%v", err)
@@ -1163,6 +1138,10 @@ func homepageBuildImage(dockerCfg DockerConfig) string {
 		return errJSON("Image build request failed: %v", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusForbidden {
+		homepageBuildRefused.Store(true)
+		return homepageBuildForbiddenResult()
+	}
 
 	// Docker streams JSON progress lines; drain and check final line for errors.
 	var lastLine string
@@ -1183,6 +1162,7 @@ func homepageBuildImage(dockerCfg DockerConfig) string {
 		return errJSON("Image build failed with status %d", resp.StatusCode)
 	}
 
+	homepageBuildRefused.Store(false)
 	res, _ := json.Marshal(map[string]interface{}{"status": "ok", "output": "Image built successfully"})
 	return string(res)
 }

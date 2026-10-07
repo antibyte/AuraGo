@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"sync"
 	"time"
 
@@ -46,7 +47,11 @@ type Poller struct {
 	pooledClient    *Client
 	clientCreatedAt time.Time
 
-	cancel context.CancelFunc
+	lifecycleMu sync.Mutex
+	ctx         context.Context
+	cancel      context.CancelFunc
+	done        chan struct{}
+	stopped     bool
 }
 
 // clientMaxAge is the maximum age of a pooled client before it is re-created.
@@ -76,21 +81,57 @@ func NewPoller(cfg config.Config, callback CallbackFunc, logger *slog.Logger) *P
 
 // Start launches the polling loop in a background goroutine.
 // Call Stop to shut it down.
-func (p *Poller) Start() {
-	ctx, cancel := context.WithCancel(context.Background())
-	p.cancel = cancel
-	go p.run(ctx)
+func (p *Poller) Start() { p.StartContext(context.Background()) }
+
+func (p *Poller) StartContext(parent context.Context) {
+	p.lifecycleMu.Lock()
+	defer p.lifecycleMu.Unlock()
+	if p.done != nil || p.stopped {
+		return
+	}
+	p.ctx, p.cancel = context.WithCancel(parent)
+	p.done = make(chan struct{})
+	go func() {
+		defer close(p.done)
+		defer func() {
+			if p.pooledClient != nil {
+				p.pooledClient.Close()
+				p.pooledClient = nil
+			}
+		}()
+		p.run(p.ctx)
+	}()
 }
 
-// Stop terminates the polling loop gracefully.
+// CancelIfConfigChanged revokes polling without waiting under the config lock.
+func (p *Poller) CancelIfConfigChanged(cfg *config.Config) {
+	p.lifecycleMu.Lock()
+	defer p.lifecycleMu.Unlock()
+	if p.cancel != nil && (cfg.EggMode.Enabled || !reflect.DeepEqual(p.cfg.FritzBox, cfg.FritzBox)) {
+		p.cancel()
+	}
+}
+
+func (p *Poller) Context() context.Context {
+	p.lifecycleMu.Lock()
+	defer p.lifecycleMu.Unlock()
+	if p.ctx == nil {
+		return context.Background()
+	}
+	return p.ctx
+}
+
+// Stop cancels and drains the sole owner of the pooled client and its callbacks.
 func (p *Poller) Stop() {
+	p.lifecycleMu.Lock()
+	p.stopped = true
 	if p.cancel != nil {
 		p.cancel()
 	}
-	// Close pooled client on shutdown.
-	if p.pooledClient != nil {
-		p.pooledClient.Close()
-		p.pooledClient = nil
+	done := p.done
+	p.lifecycleMu.Unlock()
+	if done != nil {
+		<-done
 	}
 }
 
@@ -131,7 +172,7 @@ func (p *Poller) getClient() (*Client, error) {
 		p.pooledClient.Close()
 		p.pooledClient = nil
 	}
-	c, err := NewClient(p.cfg)
+	c, err := NewClientContext(p.ctx, p.cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -141,6 +182,9 @@ func (p *Poller) getClient() (*Client, error) {
 }
 
 func (p *Poller) poll() {
+	if p.Context().Err() != nil {
+		return
+	}
 	c, err := p.getClient()
 	if err != nil {
 		p.logger.Warn("[FritzBox Poller] client init failed", "error", err)
@@ -219,7 +263,7 @@ func (p *Poller) pollCalls(c *Client) {
 	p.lastCallSummary = cur
 	p.lastCallTime = time.Now()
 	p.logger.Info("[FritzBox Poller] new call detected", "type", newest.Type, "caller", security.RedactedText(""))
-	if p.callback != nil {
+	if p.callback != nil && p.Context().Err() == nil {
 		p.callback("call", cur)
 	}
 }
@@ -263,7 +307,7 @@ func (p *Poller) pollTAM(c *Client) {
 
 		p.lastTAMTime = time.Now()
 		p.logger.Info("[FritzBox Poller] new TAM messages", "count", delta)
-		if p.callback != nil {
+		if p.callback != nil && p.Context().Err() == nil {
 			p.callback("tam_message", summariseTAM(delta))
 		}
 	}

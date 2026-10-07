@@ -91,7 +91,7 @@
         state.disposed = true;
         state.searchToken++;
         state.hintToken++;
-        stopClock(state);
+        stopClock(state); state.audio?.dispose();
         try {
             if (state.fx) state.fx.dispose();
         } catch (e) {}

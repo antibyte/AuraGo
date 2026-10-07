@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -50,6 +51,10 @@ func DockerCreateContainerWithOptions(cfg DockerConfig, name, image string, env 
 	}
 	if acestep.IsResourceName(name) || dockerutil.IsLocalLLMContainerName(name) {
 		return errJSON("reserved AuraGo local LLM container name")
+	}
+	if dockerutil.IsBoringGarageContainerName(name) || dockerutil.IsHomepageContainerName(name) || dockerutil.IsAuraGoAppContainerName(name) ||
+		dockerutil.IsSecurityProxyContainerName(name) {
+		return errJSON("reserved AuraGo managed container name")
 	}
 
 	for _, bind := range volumes {
@@ -276,6 +281,12 @@ func DockerSystemInfo(cfg DockerConfig) string {
 }
 
 func dockerExecRaw(cfg DockerConfig, containerID string, cmdArray []string, user string, env []string) (int, string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	return dockerExecRawContext(ctx, cfg, containerID, cmdArray, user, env)
+}
+
+func dockerExecRawContext(ctx context.Context, cfg DockerConfig, containerID string, cmdArray []string, user string, env []string) (int, string, error) {
 	payload := map[string]interface{}{
 		"AttachStdout": true,
 		"AttachStderr": true,
@@ -291,7 +302,7 @@ func dockerExecRaw(cfg DockerConfig, containerID string, cmdArray []string, user
 	body, _ := json.Marshal(payload)
 
 	// Create exec instance
-	data, code, err := dockerRequest(cfg, "POST", "/containers/"+url.PathEscape(containerID)+"/exec", string(body))
+	data, code, err := DockerRequestContext(ctx, cfg, "POST", "/containers/"+url.PathEscape(containerID)+"/exec", string(body))
 	if err != nil {
 		return -1, "", fmt.Errorf("failed to map exec: %w", err)
 	}
@@ -310,9 +321,9 @@ func dockerExecRaw(cfg DockerConfig, containerID string, cmdArray []string, user
 
 	// Start exec instance and read output
 	startPayload := `{"Detach": false, "Tty": false}`
-	outData, outCode, err := dockerRequest(cfg, "POST", "/exec/"+execID+"/start", startPayload)
+	outData, outCode, err := DockerRequestContext(ctx, cfg, "POST", "/exec/"+url.PathEscape(execID)+"/start", startPayload)
 	if err != nil {
-		return -1, "", fmt.Errorf("failed to start exec: %w", err)
+		return -1, "", fmt.Errorf("exec %s outcome uncertain after start; inspect before retrying: %w", execID, err)
 	}
 	if outCode != 200 {
 		return -1, "", fmt.Errorf("API error: %s", dockerBodyErr(outCode, outData))
@@ -322,7 +333,7 @@ func dockerExecRaw(cfg DockerConfig, containerID string, cmdArray []string, user
 
 	// Inspect exec instance to get exit code
 	exitCode := -1
-	inspectData, inspectCode, inspectErr := dockerRequest(cfg, "GET", "/exec/"+execID+"/json", "")
+	inspectData, inspectCode, inspectErr := DockerRequestContext(ctx, cfg, "GET", "/exec/"+url.PathEscape(execID)+"/json", "")
 	if inspectErr == nil && inspectCode == 200 {
 		var inspectResp map[string]interface{}
 		if json.Unmarshal(inspectData, &inspectResp) == nil {
@@ -336,9 +347,18 @@ func dockerExecRaw(cfg DockerConfig, containerID string, cmdArray []string, user
 }
 
 func dockerDetectShell(cfg DockerConfig, containerID string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	return dockerDetectShellContext(ctx, cfg, containerID)
+}
+
+func dockerDetectShellContext(ctx context.Context, cfg DockerConfig, containerID string) string {
 	shells := []string{"/bin/sh", "/bin/bash", "/bin/ash", "sh", "bash"}
 	for _, shell := range shells {
-		ec, out, err := dockerExecRaw(cfg, containerID, []string{shell, "-c", "echo 1"}, "", nil)
+		if ctx.Err() != nil {
+			return ""
+		}
+		ec, out, err := dockerExecRawContext(ctx, cfg, containerID, []string{shell, "-c", "echo 1"}, "", nil)
 		if err == nil && ec == 0 && strings.TrimSpace(out) == "1" {
 			return shell
 		}
@@ -349,17 +369,23 @@ func dockerDetectShell(cfg DockerConfig, containerID string) string {
 // dockerExecInternal executes a command inside a running container using the REST API.
 // Pass env as nil when no additional environment variables are needed.
 func dockerExecInternal(cfg DockerConfig, containerID, cmd, user string, env []string) string {
+	return dockerExecInternalContext(context.Background(), cfg, containerID, cmd, user, env)
+}
+
+func dockerExecInternalContext(ctx context.Context, cfg DockerConfig, containerID, cmd, user string, env []string) string {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
 	if err := validateDockerName(containerID); err != nil {
 		return errJSON("%v", err)
 	}
 
-	shell := dockerDetectShell(cfg, containerID)
+	shell := dockerDetectShellContext(ctx, cfg, containerID)
 	if shell == "" {
 		shell = "/bin/sh"
 	}
 	cmdArray := []string{shell, "-c", cmd}
 
-	exitCode, outputStr, err := dockerExecRaw(cfg, containerID, cmdArray, user, env)
+	exitCode, outputStr, err := dockerExecRawContext(ctx, cfg, containerID, cmdArray, user, env)
 	if err != nil {
 		return errJSON("%v", err)
 	}
@@ -387,6 +413,12 @@ func dockerExecInternal(cfg DockerConfig, containerID, cmd, user string, env []s
 // DockerExec executes a command inside a running container using the REST API.
 func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
 	return dockerExecInternal(cfg, containerID, cmd, user, nil)
+}
+
+// DockerExecContext cancels HTTP execution with the caller's run. An interrupted
+// connection does not prove that the command in the container has terminated.
+func DockerExecContext(ctx context.Context, cfg DockerConfig, containerID, cmd, user string) string {
+	return dockerExecInternalContext(ctx, cfg, containerID, cmd, user, nil)
 }
 
 // DockerStats retrieves real-time resource usage of a container.
@@ -646,7 +678,7 @@ func runDockerCLIHelper(cfg DockerConfig, args ...string) string {
 		return errJSON("%v", err)
 	}
 	cmdArgs := dockerCLIArgs(cfg, args...)
-	cmd := exec.Command("docker", cmdArgs...)
+	cmd := dockerCLICommandFor(context.Background(), cfg, cmdArgs...)
 	out, err := cmd.CombinedOutput()
 
 	msg := string(out)
@@ -659,6 +691,91 @@ func runDockerCLIHelper(cfg DockerConfig, args ...string) string {
 		"output": msg,
 	})
 	return string(res)
+}
+
+// dockerCLICommand prepares a docker CLI child process whose environment is
+// AuraGo's without the master key: Compose interpolates ${VAR}, bare
+// `environment: [VAR]` entries and `--build-arg VAR` from its own
+// environment, so the key must never reach it. Every other variable is kept.
+func dockerCLICommand(ctx context.Context, args ...string) *exec.Cmd {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd.Env = dockerCLIEnvironment(os.Environ())
+	return cmd
+}
+
+// dockerCLIEnvironment returns env without AURAGO_MASTER_KEY (any case).
+func dockerCLIEnvironment(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, entry := range env {
+		name, _, _ := strings.Cut(entry, "=")
+		if strings.EqualFold(strings.TrimSpace(name), DockerComposeMasterKeyVariable) {
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+// dockerCLIMinimalVariables are the variables `docker compose` needs to find
+// the CLI, its plugins and credential helpers, the engine, a proxy, temporary
+// space and the locale. Names compare upper-case. DOCKER_* is not a blanket
+// prefix: other tools keep credentials there.
+var dockerCLIMinimalVariables = map[string]bool{
+	"PATH": true, "HOME": true, "USER": true, "LOGNAME": true,
+	"XDG_RUNTIME_DIR": true, "XDG_CONFIG_HOME": true, "DBUS_SESSION_BUS_ADDRESS": true, "SSH_AUTH_SOCK": true,
+	"TMPDIR": true, "TEMP": true, "TMP": true, "LANG": true, "LANGUAGE": true, "TZ": true, "TERM": true, "NO_COLOR": true,
+	"HTTP_PROXY": true, "HTTPS_PROXY": true, "NO_PROXY": true, "ALL_PROXY": true,
+	"DOCKER_HOST": true, "DOCKER_CONTEXT": true, "DOCKER_CONFIG": true, "DOCKER_CERT_PATH": true,
+	"DOCKER_TLS": true, "DOCKER_TLS_VERIFY": true, "DOCKER_API_VERSION": true, "DOCKER_DEFAULT_PLATFORM": true,
+	"DOCKER_BUILDKIT": true, "DOCKER_CLI_HINTS": true, "DOCKER_CLI_EXPERIMENTAL": true,
+	"DOCKER_CONTENT_TRUST": true, "DOCKER_CONTENT_TRUST_SERVER": true, "DOCKER_HIDE_LEGACY_COMMANDS": true,
+	"USERPROFILE": true, "HOMEDRIVE": true, "HOMEPATH": true, "APPDATA": true, "LOCALAPPDATA": true,
+	"PROGRAMDATA": true, "PROGRAMFILES": true, "PROGRAMFILES(X86)": true, "PROGRAMW6432": true,
+	"COMMONPROGRAMFILES": true, "COMMONPROGRAMFILES(X86)": true, "COMMONPROGRAMW6432": true,
+	"SYSTEMROOT": true, "SYSTEMDRIVE": true, "WINDIR": true, "COMSPEC": true, "PATHEXT": true, "OS": true,
+	"PROCESSOR_ARCHITECTURE": true, "NUMBER_OF_PROCESSORS": true, "USERNAME": true, "USERDOMAIN": true,
+	"COMPUTERNAME": true, "ALLUSERSPROFILE": true, "PUBLIC": true,
+	// Pointers to certificates and credential-helper stores, never secrets
+	// themselves (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and
+	// DOCKER_AUTH_CONFIG stay out): TLS to a private registry and credential
+	// helpers such as pass, ecr-login or gcloud find their files through them.
+	"SSL_CERT_FILE": true, "SSL_CERT_DIR": true, "GNUPGHOME": true, "PASSWORD_STORE_DIR": true,
+	"AWS_PROFILE": true, "AWS_REGION": true, "AWS_DEFAULT_REGION": true, "AWS_CONFIG_FILE": true,
+	"AWS_SHARED_CREDENTIALS_FILE": true, "CLOUDSDK_CONFIG": true,
+}
+
+// dockerCLIMinimalPrefixes are the locale and Compose/BuildKit/Buildx settings.
+var dockerCLIMinimalPrefixes = []string{"LC_", "COMPOSE_", "BUILDKIT_", "BUILDX_"}
+
+// dockerCLIMinimalEnvironment keeps only the variables Compose needs; the
+// master key never passes (dockerCLIEnvironment runs first).
+func dockerCLIMinimalEnvironment(env []string) []string {
+	out := make([]string, 0, 24)
+	for _, entry := range dockerCLIEnvironment(env) {
+		name, _, _ := strings.Cut(entry, "=")
+		upper := strings.ToUpper(strings.TrimSpace(name))
+		keep := dockerCLIMinimalVariables[upper]
+		for _, prefix := range dockerCLIMinimalPrefixes {
+			keep = keep || strings.HasPrefix(upper, prefix)
+		}
+		if keep {
+			out = append(out, entry)
+		}
+	}
+	return out
+}
+
+// dockerCLICommandFor is dockerCLICommand with the environment cfg selects.
+// Without MinimalCLIEnvironment it is dockerCLICommand unchanged.
+func dockerCLICommandFor(ctx context.Context, cfg DockerConfig, args ...string) *exec.Cmd {
+	cmd := dockerCLICommand(ctx, args...)
+	if cfg.MinimalCLIEnvironment {
+		cmd.Env = dockerCLIMinimalEnvironment(os.Environ())
+	}
+	return cmd
 }
 
 func dockerCLIArgs(cfg DockerConfig, args ...string) []string {
@@ -809,7 +926,11 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 	}
 	parts, err := dockerComposeParts(cmd)
 	if err != nil {
-		return errJSON("%v", err)
+		return dockerComposeErrorJSON(err)
+	}
+	plan, err := planDockerComposeOutput(cfg, parts)
+	if err != nil {
+		return dockerComposeErrorJSON(err)
 	}
 	if !dockerComposeReadOnlySubcommand(parts[0]) {
 		if err := requireDockerMutationPermission(); err != nil {
@@ -817,14 +938,56 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 		}
 	}
 	args := []string{"compose", "-f", composeFile}
-	args = append(args, parts...)
-	return runDockerCLIHelper(cfg, args...)
+	if !plan.writesFile() {
+		return dockerComposeCLIRunner(cfg, append(args, plan.args...)...)
+	}
+	// `config -o`: Compose renders into a private staging directory and the file
+	// is published into the workspace afterwards (like docker cp), so Compose
+	// itself never opens a path chosen by the agent. config and convert stay
+	// read-only commands, so this also works under docker.read_only.
+	stagingDir, err := os.MkdirTemp("", "aurago-docker-compose-*")
+	if err != nil {
+		return errJSON("cannot stage the Compose output: %v", err)
+	}
+	defer os.RemoveAll(stagingDir)
+	staged := filepath.Join(stagingDir, "out")
+	result := dockerComposeCLIRunner(cfg, append(args, plan.argsWithOutput(staged)...)...)
+	if !dockerResultOK(result) {
+		return result
+	}
+	published, err := plan.publish(staged)
+	if err != nil {
+		var denied *dockerComposeDeniedError
+		if errors.As(err, &denied) {
+			return dockerComposeErrorJSON(err)
+		}
+		return errJSON("cannot save the Compose output to %s: %v", plan.target, err)
+	}
+	if !published {
+		return result // -q or a list flag: Compose wrote no file
+	}
+	return dockerResultWithField(result, "output_file", plan.target)
 }
 
+// dockerComposeCLIRunner runs one `docker compose` invocation. Tests replace it.
+var dockerComposeCLIRunner = runDockerCLIHelper
+
 // DockerComposeResolvedConfig returns Compose's fully interpolated model for a
-// read-only policy preflight. Errors are intentionally returned to let callers
-// fail closed before executing any Compose action.
+// read-only policy preflight: stdout of `docker compose config --format json`
+// only, so stderr warnings never corrupt the JSON. Errors carry stderr and are
+// returned so callers fail closed before executing any Compose action.
 func DockerComposeResolvedConfig(cfg DockerConfig, file string) (string, error) {
+	return DockerComposeResolvedConfigContext(context.Background(), cfg, file, DockerComposeConfigOptions{})
+}
+
+// DockerComposeResolvedConfigContext is DockerComposeResolvedConfig under the
+// caller's context (a stopped agent run cancels Compose) and with the selected
+// config variant. Compose is still bounded by 20 seconds.
+// dockerComposeConfigTimeout bounds one `docker compose config` run; tests
+// shrink it.
+var dockerComposeConfigTimeout = 20 * time.Second
+
+func DockerComposeResolvedConfigContext(ctx context.Context, cfg DockerConfig, file string, opts DockerComposeConfigOptions) (string, error) {
 	if err := requireDockerPermission(); err != nil {
 		return "", err
 	}
@@ -832,14 +995,25 @@ func DockerComposeResolvedConfig(cfg DockerConfig, file string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	args := dockerCLIArgs(cfg, "compose", "-f", composeFile, "config", "--format", "json")
-	output, err := exec.CommandContext(ctx, "docker", args...).CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("resolve Compose config: %w", err)
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	return string(output), nil
+	runCtx, cancel := context.WithTimeout(ctx, dockerComposeConfigTimeout)
+	defer cancel()
+	runner := runDockerComposeConfig
+	if cfg.MinimalCLIEnvironment {
+		runner = runDockerComposeConfigMinimal
+	}
+	stdout, stderr, err := runner(runCtx, dockerComposeConfigArgs(cfg, composeFile, opts))
+	if err != nil && ctx.Err() != nil {
+		return "", fmt.Errorf("resolve Compose config: %w", ctx.Err())
+	}
+	if err != nil && runCtx.Err() != nil {
+		// The per-call limit killed Compose ("signal: killed"): report the
+		// deadline, not a Compose failure, so callers can tell them apart.
+		return "", fmt.Errorf("resolve Compose config: %w", runCtx.Err())
+	}
+	return dockerComposeConfigResult(stdout, stderr, err)
 }
 
 // DockerComposeCommandMutates reports whether an allowed Compose command can
@@ -870,13 +1044,13 @@ func validateDockerComposeFilePath(cfg DockerConfig, file string) (string, error
 	}
 	cleanWorkspace := filepath.Clean(absWorkspace)
 	if !dockerPathEqualOrWithin(cleanFile, cleanWorkspace) {
-		return "", fmt.Errorf("compose file path %q must stay within the configured workspace", cleanFile)
+		return "", &dockerComposeJailError{message: fmt.Sprintf("compose file path %q must stay within the configured workspace", cleanFile)}
 	}
 	if _, err := os.Lstat(cleanFile); err == nil {
 		if resolved, err := filepath.EvalSymlinks(cleanFile); err == nil {
 			resolved = filepath.Clean(resolved)
 			if !dockerPathEqualOrWithin(resolved, cleanWorkspace) {
-				return "", fmt.Errorf("compose file symlink target %q must stay within the configured workspace", resolved)
+				return "", &dockerComposeJailError{message: fmt.Sprintf("compose file symlink target %q must stay within the configured workspace", resolved)}
 			}
 		}
 	}
@@ -885,11 +1059,61 @@ func validateDockerComposeFilePath(cfg DockerConfig, file string) (string, error
 
 func dockerComposeReadOnlySubcommand(subcommand string) bool {
 	switch subcommand {
-	case "ps", "logs", "config", "images", "version", "events", "port", "ls", "top":
+	case "ps", "logs", "config", "convert", "images", "version", "events", "port", "ls", "top":
 		return true
 	default:
 		return false
 	}
+}
+
+// dockerBindWithinWorkspace reports a bind host path inside the configured
+// workspace with no sensitive host location between it and the workspace, the
+// rule of the Compose policy (dockerComposeEvaluation.withinRoot). A workspace
+// under /mnt (Unraid), /root or C:\ProgramData then accepts its own binds
+// before the sensitive list would reject them. An empty workspace, one that is
+// itself a sensitive location (/, /etc, a drive root), or a path that does
+// not resolve accepts nothing early; the caller's checks run as before.
+func dockerBindWithinWorkspace(workspace, hostPath string) bool {
+	workspace = strings.TrimSpace(workspace)
+	if workspace == "" {
+		return false
+	}
+	resolvedWorkspace, err := secureResolveFinalPath(filepath.Clean(workspace))
+	if err != nil {
+		return false
+	}
+	root := cleanDockerHostPath(resolvedWorkspace)
+	rootClean := cleanDockerHostPath(workspace)
+	if dockerHostPathIsSensitiveLocation(root) || dockerHostPathIsSensitiveLocation(rootClean) {
+		return false
+	}
+	resolvedHost, err := secureResolveFinalPath(filepath.FromSlash(hostPath))
+	if err != nil {
+		return false
+	}
+	candidate := cleanDockerHostPath(resolvedHost)
+	if !dockerPathEqualOrWithin(candidate, root) {
+		return false
+	}
+	return !dockerSensitiveLocationBelow(hostPath, rootClean) && !dockerSensitiveLocationBelow(candidate, root)
+}
+
+// dockerHostPathIsSensitiveLocation reports a path that is exactly a sensitive
+// host location or a sensitive Windows location (a drive root included), not
+// merely inside one.
+func dockerHostPathIsSensitiveLocation(path string) bool {
+	trimmed := strings.TrimRight(path, "/")
+	for _, sensitive := range sensitiveDockerHostPaths {
+		if trimmed == strings.TrimRight(sensitive, "/") {
+			return true
+		}
+	}
+	location := sensitiveWindowsHostLocation(path)
+	if location == "drive root" {
+		return true
+	}
+	normalized := strings.ToLower(strings.TrimRight(dockerutil.NormalizeHostPathForBind(path), "/"))
+	return location != "" && len(normalized) > 2 && normalized[2:] == location
 }
 
 func validateDockerBindMount(cfg DockerConfig, bind string) error {
@@ -905,6 +1129,9 @@ func validateDockerBindMount(cfg DockerConfig, bind string) error {
 	}
 	hostPath := cleanDockerHostPath(spec.hostPath)
 	if hostPath == "." || hostPath == "" {
+		return nil
+	}
+	if dockerBindWithinWorkspace(cfg.WorkspaceDir, hostPath) {
 		return nil
 	}
 	if isSensitiveDockerHostPath(hostPath) {
@@ -997,11 +1224,23 @@ func cleanDockerHostPath(hostPath string) string {
 	return pathpkg.Clean(normalized)
 }
 
+// sensitiveDockerHostPaths are host locations a bind may not be equal to or
+// inside ("/" matches only itself).
+var sensitiveDockerHostPaths = []string{
+	"/", "/mnt", "/hostfs", "/etc", "/root", "/proc", "/sys", "/dev",
+	"/var/run/docker.sock", "/run/docker.sock", "/var/lib/docker", "/boot",
+}
+
+// sensitiveWindowsDrivePaths are the same for every Windows drive.
+var sensitiveWindowsDrivePaths = []string{
+	"/windows",
+	"/program files",
+	"/program files (x86)",
+	"/programdata",
+}
+
 func isSensitiveDockerHostPath(hostPath string) bool {
-	for _, sensitive := range []string{
-		"/", "/mnt", "/hostfs", "/etc", "/root", "/proc", "/sys", "/dev",
-		"/var/run/docker.sock", "/run/docker.sock", "/var/lib/docker", "/boot",
-	} {
+	for _, sensitive := range sensitiveDockerHostPaths {
 		if dockerPathEqualOrWithin(hostPath, sensitive) {
 			return true
 		}
@@ -1010,25 +1249,26 @@ func isSensitiveDockerHostPath(hostPath string) bool {
 }
 
 func isSensitiveWindowsHostPath(hostPath string) bool {
+	return sensitiveWindowsHostLocation(hostPath) != ""
+}
+
+// sensitiveWindowsHostLocation returns the sensitive Windows location that
+// hostPath is equal to or inside ("drive root" for a bare drive), or "".
+func sensitiveWindowsHostLocation(hostPath string) string {
 	normalized := strings.ToLower(strings.TrimRight(dockerutil.NormalizeHostPathForBind(hostPath), "/"))
 	if len(normalized) == 2 && normalized[1] == ':' {
-		return true
+		return "drive root"
 	}
 	if !isWindowsAbsolutePath(normalized) {
-		return false
+		return ""
 	}
 	drivePath := normalized[2:]
-	for _, sensitive := range []string{
-		"/windows",
-		"/program files",
-		"/program files (x86)",
-		"/programdata",
-	} {
+	for _, sensitive := range sensitiveWindowsDrivePaths {
 		if drivePath == sensitive || strings.HasPrefix(drivePath, sensitive+"/") {
-			return true
+			return sensitive
 		}
 	}
-	return false
+	return ""
 }
 
 func dockerPathEqualOrWithin(path, root string) bool {
@@ -1064,6 +1304,9 @@ func dockerComposeParts(cmd string) ([]string, error) {
 		return nil, fmt.Errorf("compose command %q is not allowed", parts[0])
 	}
 	switch parts[0] {
+	// push is banned; build --push stays allowed (decision 2026-10-06): it
+	// pushes only the images the build itself creates, and the build checks
+	// (master key, host access) still run.
 	case "exec", "run", "cp", "push":
 		return nil, fmt.Errorf("compose command %q is not allowed by the safe compose policy", parts[0])
 	}
@@ -1074,6 +1317,11 @@ func dockerComposeParts(cmd string) ([]string, error) {
 			lower == "-v" || lower == "--volume" || strings.HasPrefix(lower, "-v=") ||
 			strings.HasPrefix(lower, "--volume=") || strings.HasPrefix(lower, "--mount") {
 			return nil, fmt.Errorf("compose argument %q is not allowed", arg)
+		}
+		// --environment prints AuraGo's whole process environment; --env-file
+		// would read an arbitrary host file into the model.
+		if strings.HasPrefix(lower, "--environment") || strings.HasPrefix(lower, "--env-file") {
+			return nil, dockerComposeDenied(dockerComposeArgumentDeniedCode, "compose argument %q is not allowed", arg)
 		}
 	}
 	return parts, nil

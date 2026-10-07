@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -38,6 +39,10 @@ const (
 
 // noisemakerFavoriteTag marks a song as favorite in the media registry tags.
 const noisemakerFavoriteTag = "favorite"
+
+var noisemakerCoverMonthlyMu sync.Mutex
+var noisemakerCoverMonthlyReservationMonth string
+var noisemakerCoverMonthlyReservations int
 
 func noisemakerHasTag(item tools.MediaItem, tag string) bool {
 	for _, t := range item.Tags {
@@ -438,7 +443,7 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 			if title == "" {
 				title = body.Title
 			}
-			coverURL, coverError = s.noisemakerGenerateCover(cfg, title, body.Style, body.Prompt, result.MediaID)
+			coverURL, coverError = s.noisemakerGenerateCover(r.Context(), cfg, title, body.Style, body.Prompt, result.MediaID)
 			if coverError != "" && s.Logger != nil {
 				s.Logger.Warn("Noisemaker cover generation failed", "error", coverError)
 			}
@@ -462,8 +467,14 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 			"cover_url":     coverURL,
 			"cover_error":   coverError,
 		}
-		if track := noisemakerPersistTrackText(s, result.MediaID, body.Style, lyrics); track != nil {
-			response["track"] = track
+		if err := publishDesktopResult(r.Context(), func() error {
+			if track := noisemakerPersistTrackText(s, result.MediaID, body.Style, lyrics); track != nil {
+				response["track"] = track
+			}
+			return nil
+		}); err != nil {
+			writeDesktopPolicyError(w, "desktop_readonly", "The desktop action was revoked.")
+			return
 		}
 		_ = json.NewEncoder(w).Encode(response)
 	}
@@ -471,8 +482,41 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 
 // noisemakerGenerateCover renders a square album cover and links it to the track's
 // media registry entry (source_image). Failures are non-fatal for the generation.
-func (s *Server) noisemakerGenerateCover(cfg *config.Config, title, style, idea string, mediaID int64) (string, string) {
+func (s *Server) noisemakerGenerateCover(ctx context.Context, cfg *config.Config, title, style, idea string, mediaID int64) (string, string) {
 	ig := cfg.ImageGeneration
+	if ig.MaxMonthly > 0 {
+		// ponytail: this lock/reservation covers Noisemaker only; shared image admission is the upgrade path for cross-entry-point races.
+		noisemakerCoverMonthlyMu.Lock()
+		defer noisemakerCoverMonthlyMu.Unlock()
+		month := time.Now().Format("2006-01")
+		if noisemakerCoverMonthlyReservationMonth != month {
+			noisemakerCoverMonthlyReservationMonth = month
+			noisemakerCoverMonthlyReservations = 0
+		}
+		if s.ImageGalleryDB == nil {
+			return "", "Monthly image generation limit cannot be verified."
+		}
+		count, err := tools.ImageGalleryMonthlyCount(s.ImageGalleryDB)
+		if err != nil {
+			return "", fmt.Sprintf("Monthly image generation limit cannot be verified: %v", err)
+		}
+		count += noisemakerCoverMonthlyReservations
+		if count >= ig.MaxMonthly {
+			return "", fmt.Sprintf("Monthly image generation limit reached (%d/%d).", count, ig.MaxMonthly)
+		}
+	}
+	if s.BudgetTracker != nil && s.BudgetTracker.IsBlocked("image_generation") {
+		return "", "Image generation blocked: daily budget exceeded."
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err.Error()
+	}
+	if ig.MaxDaily > 0 {
+		count, allowed := tools.ImageGenCounterIncrement(ig.MaxDaily)
+		if !allowed {
+			return "", fmt.Sprintf("Daily image generation limit reached (%d/%d).", count, ig.MaxDaily)
+		}
+	}
 	coverTitle := strings.TrimSpace(title)
 	if coverTitle == "" {
 		coverTitle = "Untitled"
@@ -498,44 +542,66 @@ func (s *Server) noisemakerGenerateCover(cfg *config.Config, title, style, idea 
 		Quality: ig.DefaultQuality,
 		Style:   ig.DefaultStyle,
 	}
-	img, err := tools.GenerateImage(genCfg, prompt, opts)
+	img, err := tools.GenerateImageContext(ctx, genCfg, prompt, opts)
 	if err != nil {
 		return "", err.Error()
 	}
-	if _, err := tools.SaveGeneratedImage(s.ImageGalleryDB, img); err != nil && s.Logger != nil {
-		s.Logger.Warn("Noisemaker: failed to save cover to gallery", "error", err)
+	if s.BudgetTracker != nil && img.CostEstimate > 0 {
+		s.BudgetTracker.RecordCostForCategory("image_generation", img.CostEstimate)
 	}
-
-	// Register the cover in the media registry (visible in the media browser)
-	// and link it to the track via source_image.
-	if s.MediaRegistryDB != nil {
-		coverPath := filepath.Join(cfg.Directories.DataDir, "generated_images", img.Filename)
-		fileSize := int64(0)
-		if info, statErr := os.Stat(coverPath); statErr == nil {
-			fileSize = info.Size()
-		}
-		fileHash, _ := tools.ComputeMediaFileHash(coverPath)
-		if _, _, regErr := tools.RegisterMedia(s.MediaRegistryDB, tools.MediaItem{
-			MediaType:  "image",
-			SourceTool: "generate_image",
-			Filename:   img.Filename,
-			FilePath:   coverPath,
-			WebPath:    img.WebPath,
-			FileSize:   fileSize,
-			Format:     strings.TrimPrefix(filepath.Ext(img.Filename), "."),
-			Provider:   img.Provider,
-			Model:      img.Model,
-			Prompt:     prompt,
-			Tags:       []string{"auto-generated", "cover", "noisemaker"},
-			Hash:       fileHash,
-		}); regErr != nil && s.Logger != nil {
-			s.Logger.Warn("Noisemaker: failed to register cover in media registry", "error", regErr)
-		}
-		if mediaID > 0 {
-			if _, err := s.MediaRegistryDB.Exec("UPDATE media_items SET source_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", img.WebPath, mediaID); err != nil && s.Logger != nil {
-				s.Logger.Warn("Noisemaker: failed to link cover to track", "media_id", mediaID, "error", err)
+	err = publishDesktopResult(ctx, func() error {
+		if _, err := tools.SaveGeneratedImage(s.ImageGalleryDB, img); err != nil {
+			if ig.MaxMonthly > 0 {
+				return fmt.Errorf("failed to save cover to image gallery: %w", err)
+			}
+			if s.Logger != nil {
+				s.Logger.Warn("Noisemaker: failed to save cover to gallery", "error", err)
 			}
 		}
+
+		// Register the cover in the media registry (visible in the media browser)
+		// and link it to the track via source_image.
+		if s.MediaRegistryDB != nil {
+			coverPath := filepath.Join(cfg.Directories.DataDir, "generated_images", img.Filename)
+			fileSize := int64(0)
+			if info, statErr := os.Stat(coverPath); statErr == nil {
+				fileSize = info.Size()
+			}
+			fileHash, _ := tools.ComputeMediaFileHash(coverPath)
+			if _, _, regErr := tools.RegisterMedia(s.MediaRegistryDB, tools.MediaItem{
+				MediaType:  "image",
+				SourceTool: "generate_image",
+				Filename:   img.Filename,
+				FilePath:   coverPath,
+				WebPath:    img.WebPath,
+				FileSize:   fileSize,
+				Format:     strings.TrimPrefix(filepath.Ext(img.Filename), "."),
+				Provider:   img.Provider,
+				Model:      img.Model,
+				Prompt:     prompt,
+				Tags:       []string{"auto-generated", "cover", "noisemaker"},
+				Hash:       fileHash,
+			}); regErr != nil && s.Logger != nil {
+				s.Logger.Warn("Noisemaker: failed to register cover in media registry", "error", regErr)
+			}
+			if mediaID > 0 {
+				if _, err := s.MediaRegistryDB.Exec("UPDATE media_items SET source_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", img.WebPath, mediaID); err != nil && s.Logger != nil {
+					s.Logger.Warn("Noisemaker: failed to link cover to track", "media_id", mediaID, "error", err)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		if ig.MaxMonthly > 0 {
+			month := time.Now().Format("2006-01")
+			if noisemakerCoverMonthlyReservationMonth != month {
+				noisemakerCoverMonthlyReservationMonth = month
+				noisemakerCoverMonthlyReservations = 0
+			}
+			noisemakerCoverMonthlyReservations++
+		}
+		return "", err.Error()
 	}
 	return img.WebPath, ""
 }

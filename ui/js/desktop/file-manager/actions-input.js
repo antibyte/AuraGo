@@ -5,7 +5,7 @@
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
         const typeLabel = isDir ? t('desktop.fm.prop_folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file'));
         const nameContent = fm.renamePath === file.path
-            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename'))}">`
+            ? `<input class="fm-rename-input" data-rename-input value="${esc(fm.renameDraft == null ? file.name : fm.renameDraft)}" aria-label="${esc(t('desktop.fm.rename'))}">`
             : esc(file.name);
         return `<div class="fm-list-row${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0">
             <div class="fm-list-cell fm-col-name">
@@ -53,6 +53,7 @@
 
     function attachEvents() {
         if (!fm.host) return;
+        const instance = fm;
         const root = fm.host.querySelector('.file-manager');
         if (!root) return;
 
@@ -163,21 +164,26 @@
         }
 
         attachFileItemEvents(root);
-        const renameInput = fm.host.querySelector('[data-rename-input]');
+        const renameInput = instance.host.querySelector('[data-rename-input]');
         if (renameInput) {
             renameInput.addEventListener('click', event => event.stopPropagation());
+            renameInput.addEventListener('input', () => withInstance(instance, () => { instance.renameDraft = renameInput.value; }));
             renameInput.addEventListener('keydown', event => {
-                event.stopPropagation();
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    finishRename(renameInput);
-                }
-                if (event.key === 'Escape') {
-                    event.preventDefault();
-                    cancelRename();
-                }
+                withInstance(instance, () => {
+                    event.stopPropagation();
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        finishRename(renameInput);
+                    }
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        cancelRename();
+                    }
+                });
             });
-            renameInput.addEventListener('blur', () => finishRename(renameInput));
+            renameInput.addEventListener('blur', () => {
+                if (renameInput.isConnected) withInstance(instance, () => finishRename(renameInput));
+            });
         }
         attachMainAreaEvents(root, true);
         
@@ -655,23 +661,21 @@
         };
     }
 
-    const undoStack = [];
-    const redoStack = [];
-
     function pushToUndo(action) {
-        undoStack.push(action);
-        if (undoStack.length > 20) {
-            undoStack.shift();
+        fm.undoStack.push(action);
+        if (fm.undoStack.length > 20) {
+            fm.undoStack.shift();
         }
-        redoStack.length = 0;
+        fm.redoStack.length = 0;
     }
 
     async function undo() {
-        if (!undoStack.length) {
+        const instance = fm;
+        if (!instance.undoStack.length) {
             showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_undo') });
             return;
         }
-        const action = undoStack.pop();
+        const action = instance.undoStack.pop();
         try {
             let progress = null;
             if (action.items.length > 1) {
@@ -685,23 +689,26 @@
                     method: 'PATCH',
                     body: JSON.stringify({ old_path: item.newPath, new_path: item.oldPath })
                 });
+                if (!isLiveInstance(instance)) return;
             }
             if (progress) progress.close();
-            
-            redoStack.push(action);
-            showNotification({ type: 'success', message: t('desktop.fm.undone') });
-            refresh();
+            withInstance(instance, () => {
+                instance.redoStack.push(action);
+                showNotification({ type: 'success', message: t('desktop.fm.undone') });
+                refresh();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.undo_error', { error: err.message || String(err) }) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.undo_error', { error: err.message || String(err) }) }));
         }
     }
 
     async function redo() {
-        if (!redoStack.length) {
+        const instance = fm;
+        if (!instance.redoStack.length) {
             showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_redo') });
             return;
         }
-        const action = redoStack.pop();
+        const action = instance.redoStack.pop();
         try {
             let progress = null;
             if (action.items.length > 1) {
@@ -715,23 +722,24 @@
                     method: 'PATCH',
                     body: JSON.stringify({ old_path: item.oldPath, new_path: item.newPath })
                 });
+                if (!isLiveInstance(instance)) return;
             }
             if (progress) progress.close();
             
-            undoStack.push(action);
-            showNotification({ type: 'success', message: t('desktop.fm.redone') });
-            refresh();
+            withInstance(instance, () => {
+                instance.undoStack.push(action);
+                showNotification({ type: 'success', message: t('desktop.fm.redone') });
+                refresh();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.redo_error', { error: err.message || String(err) }) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.redo_error', { error: err.message || String(err) }) }));
         }
     }
 
-    let quickLookOverlay = null;
-
     function toggleQuickLook() {
-        if (quickLookOverlay) {
-            quickLookOverlay.remove();
-            quickLookOverlay = null;
+        if (fm.quickLookOverlay) {
+            fm.quickLookOverlay.remove();
+            fm.quickLookOverlay = null;
             return;
         }
         
@@ -787,16 +795,17 @@
         `;
         
         document.body.appendChild(overlay);
-        quickLookOverlay = overlay;
+        const instance = fm;
+        instance.quickLookOverlay = overlay;
         
         overlay.querySelector('[data-close-ql]').addEventListener('click', () => {
             overlay.remove();
-            quickLookOverlay = null;
+            instance.quickLookOverlay = null;
         });
         overlay.addEventListener('click', e => {
             if (e.target === overlay) {
                 overlay.remove();
-                quickLookOverlay = null;
+                instance.quickLookOverlay = null;
             }
         });
         
@@ -805,9 +814,11 @@
                 const res = await fetch('/api/desktop/file-content?path=' + encodeURIComponent(path));
                 if (!res.ok) throw new Error();
                 const text = await res.text();
+                if (!isLiveInstance(instance)) return;
                 const el = overlay.querySelector('.fm-quick-look-text');
                 if (el) el.textContent = text;
             } catch (err) {
+                if (!isLiveInstance(instance)) return;
                 const el = overlay.querySelector('.fm-quick-look-text');
                 if (el) el.textContent = t('desktop.fm.quick_look_error');
             }
@@ -875,40 +886,55 @@
     }
 
     async function pasteClipboard(destBase) {
+        const instance = fm;
         if (isReadonly()) return;
+        const targetBase = destBase == null ? instance.currentPath : destBase;
+        if (!isLiveInstance(instance)) return;
+
         const ops = sharedFileOps();
         if (ops && typeof ops.paste === 'function') {
-            await ops.paste(destBase == null ? fm.currentPath : destBase);
-            fm.clipboard = null;
-            refresh();
+            await ops.paste(targetBase, {
+                shouldContinue: () => isLiveInstance(instance),
+                refreshActiveFileManager: false
+            });
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                instance.clipboard = sharedFileClipboard();
+                refresh();
+            });
             return;
         }
         const clipboard = sharedFileClipboard();
         if (!clipboard || !clipboard.paths.length) return;
-        const targetBase = destBase || fm.currentPath;
+        const localClipboard = instance.clipboard;
+        const sourcePaths = clipboard.paths.slice();
+        const mode = clipboard.mode;
+        const files = instance.files.slice();
+        const destination = targetBase;
 
         let progress = null;
-        if (clipboard.paths.length > 1) {
-            const title = clipboard.mode === 'copy' 
+        if (sourcePaths.length > 1) {
+            const title = mode === 'copy'
                 ? t('desktop.fm.copying')
                 : t('desktop.fm.moving');
-            progress = showProgressOverlay(title, clipboard.paths.length);
+            progress = showProgressOverlay(title, sourcePaths.length);
         }
 
         let count = 0;
         const undoItems = [];
 
-        for (const srcPath of clipboard.paths) {
+        for (const srcPath of sourcePaths) {
+            if (!isLiveInstance(instance)) {
+                if (progress) progress.close();
+                return;
+            }
             count++;
             const name = baseName(srcPath);
-            let destPath = joinPath(targetBase, name);
-            const exists = fm.files.some(f => f.name === name);
-            if (exists && clipboard.mode === 'copy') {
+            let destPath = joinPath(destination, name);
+            const exists = files.some(f => f.name === name);
+            if (exists && mode === 'copy') {
                 const newName = name + ' (' + t('desktop.fm.copy_of') + ')';
-                destPath = joinPath(targetBase, newName);
-            } else if (exists && clipboard.mode === 'cut') {
-                const overwrite = await confirmDialog(t('desktop.fm.paste_exists', { name: name }));
-                if (!overwrite) continue;
+                destPath = joinPath(destination, newName);
             }
 
             if (progress) {
@@ -916,34 +942,43 @@
             }
 
             try {
-                if (clipboard.mode === 'copy') {
+                if (mode === 'copy') {
                     await api('/api/desktop/copy', {
                         method: 'POST',
                         body: JSON.stringify({ source_path: srcPath, dest_path: destPath })
                     });
                 } else {
-                    await api('/api/desktop/file', {
+                    const moved = await api('/api/desktop/file', {
                         method: 'PATCH',
                         body: JSON.stringify({ old_path: srcPath, new_path: destPath })
                     });
-                    undoItems.push({ oldPath: srcPath, newPath: destPath });
+                    undoItems.push({ oldPath: srcPath, newPath: moved.path || destPath });
                 }
             } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
+                if (!isLiveInstance(instance)) {
+                    if (progress) progress.close();
+                    return;
+                }
+                withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
             }
         }
 
+        if (!isLiveInstance(instance)) {
+            if (progress) progress.close();
+            return;
+        }
         if (progress) {
             progress.close();
         }
 
-        if (undoItems.length > 0) {
-            pushToUndo({
-                type: 'move',
-                items: undoItems
-            });
-        }
-
-        if (clipboard.mode === 'cut') fm.clipboard = null;
-        refresh();
+        withInstance(instance, () => {
+            if (undoItems.length > 0) {
+                pushToUndo({
+                    type: 'move',
+                    items: undoItems
+                });
+            }
+            if (mode === 'cut' && instance.clipboard === localClipboard) instance.clipboard = null;
+            refresh();
+        });
     }

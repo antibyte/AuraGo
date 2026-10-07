@@ -118,6 +118,8 @@ llm_guardian:
 
 > 💡 **Hinweis:** Der LLM Guardian nutzt das Provider-System. Erstelle einen eigenen Provider-Eintrag für den Guardian und referenziere ihn über die `provider`-ID.
 
+`scan_emails` und `scan_documents` sind optionale Prüfungen und standardmäßig deaktiviert. Sobald eine davon aktiviert ist, wird Inhalt nur bei ausdrücklicher Freigabe weitergegeben. Scannerfehler, unvollständige Abdeckung und überschrittene Größenlimits quarantänisieren das Original; ein berechtigtes Agentenziel erhält nur einen festen, sicheren Hinweis. Diese Regel für eingehende Inhalte ist unabhängig von `fail_safe` und kann daher nicht mit `allow` oder `quarantine` auf Freigabe umgestellt werden.
+
 ### Prüfstufen
 
 | Stufe | Beschreibung | Anwendungsfall |
@@ -354,6 +356,8 @@ agent:
 ```
 
 `allow_unsafe_host_execution` ist eine bewusste Ausnahme: Ohne sie läuft Windows-Shell und Host-Python (auch Skills und Hintergrund-Jobs) nicht, unabhängig von `allow_shell`/`allow_python`. Details unter [Ausgehende Verbindungen und Host-Ausführung](#ausgehende-verbindungen-und-host-ausführung).
+
+`docker.allow_host_access` ist das Docker-Gegenstück zu diesen Gates: Es entscheidet, ob `docker compose up/create/build` des Agenten den Host nutzen darf (Binds außerhalb des Workspace, `/var/run/docker.sock`, Geräte, privilegierter Modus, Host-Namespaces). Bestehende Konfigurationen behalten `true`, neue Installationen starten mit `false`; der Sicherheitscheck warnt, solange es eingeschaltet ist. Ohne ihn läuft Compose des Agenten außerdem mit einer minimalen Umgebung ohne AuraGos Variablen. Details: [Docker Integration](08-integrations.md#docker-integration).
 
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Tools → Tool-Berechtigungen**.
@@ -800,7 +804,7 @@ hmac = SHA256(secret + payload)
 | Login | Auth an, bevor irgendetwas nicht mehr nur localhost ist |
 | TOTP | 2FA für jeden internetseitigen Zugriff |
 | Proxy-Vertrauen | `behind_proxy` + `trusted_proxy_cidrs` setzen, sonst Forward-Header ignorieren |
-| Security Proxy | Verwaltetes Caddy für TLS, Rate-Limit, IP-Filter |
+| Security Proxy | Verwaltetes Caddy für TLS, Ratenbegrenzung, IP-Filter und Basic Auth |
 | Tunnel / VPN | Cloudflare Tunnel oder Tailscale statt Port-Forward |
 | Webhooks | Token oder HMAC, enge Scopes, Rate-Limits |
 | Danger Zone | Aus, bis du das Feature wirklich brauchst |

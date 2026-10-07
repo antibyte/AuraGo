@@ -20,6 +20,13 @@ Background services and workspace search.
 - Legacy file-search fallback resolves its glob under the configured workspace, including sibling `skills` and `tools`, never under the install root.
 - Do not persist file content for workspace search. Only frecency/access metadata belongs in `data/workspace_search.db`.
 
+## Desktop invocation ownership
+
+- Manual Desktop mission preparation inherits its server-owned invocation and
+  uses fileutil.PublishContext for prepared content. A cancelled provider result
+  cannot replace the previous valid preparation; failure-status cleanup remains
+  allowed. Ordinary scheduled preparation keeps its service lifetime.
+
 ## Verification
 
 - Run `go test ./internal/services` and the named cross-component checks in the contracts above when those paths change.

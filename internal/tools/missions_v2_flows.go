@@ -394,11 +394,11 @@ func (m *MissionManagerV2) runFlowCronJob(jobID, _ string) {
 	}
 }
 
-// unregisterFlowTriggersLocked removes the cron jobs and keyed MQTT registrations of a flow
-// mission. Webhook, email and plain MQTT registrations cannot be removed: they stay in
-// flowRegistered (so re-registering never duplicates them) and their callbacks re-check the spec.
-// Only flowCronSource jobs are removed, so a prompt mission whose id is "<flow>__<x>" keeps
-// its own cron job.
+// unregisterFlowTriggersLocked removes the cron jobs, the webhook registrations and the keyed
+// MQTT registrations of a flow mission. Email and plain MQTT registrations cannot be removed:
+// they stay in flowRegistered (so re-registering never duplicates them) and their callbacks
+// re-check the spec. Only flowCronSource jobs are removed, so a prompt mission whose id is
+// "<flow>__<x>" keeps its own cron job.
 func (m *MissionManagerV2) unregisterFlowTriggersLocked(mission *MissionV2) {
 	if mission == nil {
 		return
@@ -411,6 +411,7 @@ func (m *MissionManagerV2) unregisterFlowTriggersLocked(mission *MissionV2) {
 			}
 		}
 	}
+	m.unregisterFlowWebhooksLocked(mission)
 	keyed, ok := m.mqttMgr.(KeyedMQTTManagerInterface)
 	if !ok {
 		return
@@ -420,6 +421,24 @@ func (m *MissionManagerV2) unregisterFlowTriggersLocked(mission *MissionV2) {
 	for slot := range m.registeredTriggers {
 		if strings.HasPrefix(slot, prefix) && strings.HasSuffix(slot, suffix) {
 			keyed.UnregisterMissionTrigger(slot)
+			delete(m.registeredTriggers, slot)
+		}
+	}
+}
+
+// unregisterFlowWebhooksLocked removes the keyed webhook registrations (flowSlot keys) of a
+// flow mission. Stop calls it too, as it does for prompt missions' webhooks.
+func (m *MissionManagerV2) unregisterFlowWebhooksLocked(mission *MissionV2) {
+	if mission == nil {
+		return
+	}
+	prefix := mission.ID + "|flow|"
+	suffix := "|" + string(TriggerWebhook)
+	for slot := range m.registeredTriggers {
+		if strings.HasPrefix(slot, prefix) && strings.HasSuffix(slot, suffix) {
+			if m.webhookMgr != nil {
+				m.webhookMgr.UnregisterMissionTrigger(slot)
+			}
 			delete(m.registeredTriggers, slot)
 		}
 	}
@@ -468,8 +487,8 @@ func (m *MissionManagerV2) addFlowCronLocked(missionID string, spec FlowTriggerS
 	return nil
 }
 
-// markFlowRegistrationLocked tracks the current key of a keyed MQTT registration, which
-// unregisterFlowTriggersLocked removes and every sync makes again.
+// markFlowRegistrationLocked tracks the current key of a keyed webhook or MQTT registration,
+// which unregisterFlowTriggersLocked removes and every sync makes again.
 func (m *MissionManagerV2) markFlowRegistrationLocked(slot, key string) bool {
 	if m.registeredTriggers == nil {
 		m.registeredTriggers = make(map[string]string)
@@ -481,7 +500,7 @@ func (m *MissionManagerV2) markFlowRegistrationLocked(slot, key string) bool {
 	return true
 }
 
-// markPermanentFlowRegistrationLocked reports whether a webhook, email or plain MQTT
+// markPermanentFlowRegistrationLocked reports whether an email or plain MQTT
 // registration still has to be made. Those stay for the process lifetime and their callbacks
 // re-check the current spec, so a slot is registered once per key: after a change and a
 // change back, the old callback serves again instead of a second one firing twice.
@@ -502,13 +521,16 @@ func (m *MissionManagerV2) registerFlowWebhookLocked(missionID string, spec Flow
 		return
 	}
 	nodeID, webhookID := spec.NodeID, spec.TriggerConfig.WebhookID
-	if !m.markPermanentFlowRegistrationLocked(flowSlot(missionID, nodeID, TriggerWebhook), "webhook|"+webhookID) {
+	// Keyed by the slot: a new registration replaces the slot's old one, and
+	// unregisterFlowTriggersLocked and Stop remove it.
+	slot := flowSlot(missionID, nodeID, TriggerWebhook)
+	if !m.markFlowRegistrationLocked(slot, "webhook|"+webhookID) {
 		return
 	}
 	match := func(c *TriggerConfig) bool {
 		return c.WebhookID == webhookID
 	}
-	m.webhookMgr.RegisterMissionTrigger(webhookID, func(payload []byte) {
+	m.webhookMgr.RegisterMissionTriggerForKey(slot, webhookID, func(payload []byte) {
 		if len(payload) > flowMaxEventPayloadBytes {
 			m.dropOversizedFlowEvent(missionID, nodeID, TriggerWebhook, len(payload), match)
 			return
@@ -837,8 +859,11 @@ func (m *MissionManagerV2) notifyFlowsLocked(trigger TriggerType, ev flowEvent, 
 		}
 	}
 	if m.flowEvents == nil {
-		m.flowEvents = make(chan flowRunRequest, flowEventQueueSize)
-		go m.dispatchFlowEvents(m.flowEvents)
+		events := make(chan flowRunRequest, flowEventQueueSize)
+		if !m.runAsync(func() { m.dispatchFlowEvents(events) }) {
+			return // Stop has begun; no run starts after it.
+		}
+		m.flowEvents = events
 	}
 	dropped := 0
 	for _, s := range starts {

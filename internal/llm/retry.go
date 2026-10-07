@@ -21,6 +21,7 @@ var defaultRetryIntervals = []time.Duration{
 var finalRetryInterval = 30 * time.Second
 
 const fallbackFinalRetryInterval = 30 * time.Second
+const defaultPerAttemptTimeout = 120 * time.Second
 
 var finalRetryIntervalMu sync.RWMutex
 
@@ -75,6 +76,7 @@ func defaultRetryIntervalsCopy() []time.Duration {
 // not disable the retry policy entirely.
 func ConfigureDefaultRetryIntervals(intervalSpecs []string, logger *slog.Logger) {
 	if len(intervalSpecs) == 0 {
+		resetDefaultRetryIntervals()
 		return
 	}
 
@@ -94,6 +96,7 @@ func ConfigureDefaultRetryIntervals(intervalSpecs []string, logger *slog.Logger)
 		intervals = append(intervals, interval)
 	}
 	if len(intervals) == 0 {
+		resetDefaultRetryIntervals()
 		return
 	}
 
@@ -102,16 +105,22 @@ func ConfigureDefaultRetryIntervals(intervalSpecs []string, logger *slog.Logger)
 	defaultRetryIntervalsMu.Unlock()
 }
 
+func resetDefaultRetryIntervals() {
+	defaultRetryIntervalsMu.Lock()
+	defaultRetryIntervals = []time.Duration{30 * time.Second, 2 * time.Minute}
+	defaultRetryIntervalsMu.Unlock()
+}
+
 var perAttemptTimeoutNanos atomic.Int64
 
 func init() {
-	perAttemptTimeoutNanos.Store(int64(120 * time.Second))
+	perAttemptTimeoutNanos.Store(int64(defaultPerAttemptTimeout))
 }
 
 func perAttemptTimeout() time.Duration {
 	v := perAttemptTimeoutNanos.Load()
 	if v <= 0 {
-		return 60 * time.Second
+		return defaultPerAttemptTimeout
 	}
 	return time.Duration(v)
 }
@@ -120,7 +129,7 @@ func perAttemptTimeout() time.Duration {
 // It is safe to call concurrently.
 func SetPerAttemptTimeout(d time.Duration) {
 	if d <= 0 {
-		return
+		d = defaultPerAttemptTimeout
 	}
 	perAttemptTimeoutNanos.Store(int64(d))
 }
@@ -303,11 +312,11 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 	}
 }
 
-func ExecuteStreamWithRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider) (*openai.ChatCompletionStream, context.CancelFunc, error) {
+func ExecuteStreamWithRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider) (CompletionStream, context.CancelFunc, error) {
 	return ExecuteStreamWithCustomRetry(ctx, client, req, logger, broker, defaultRetryIntervalsCopy(), FinalRetryInterval())
 }
 
-func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider, intervals []time.Duration, finalInterval time.Duration) (*openai.ChatCompletionStream, context.CancelFunc, error) {
+func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider, intervals []time.Duration, finalInterval time.Duration) (CompletionStream, context.CancelFunc, error) {
 	attempt := 0
 	noCancel := func() {}
 

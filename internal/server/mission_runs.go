@@ -10,8 +10,10 @@ import (
 // detached context so a client disconnect cannot abort a tool chain; missions
 // therefore need an explicit handle to be cancelled by the user.
 type missionRunRegistry struct {
-	mu   sync.Mutex
-	runs map[string]*missionRunEntry
+	mu     sync.Mutex
+	runs   map[string]*missionRunEntry
+	wg     sync.WaitGroup
+	closed bool
 }
 
 type missionRunEntry struct {
@@ -29,21 +31,38 @@ func newMissionRunRegistry() *missionRunRegistry {
 // unless it was cancelled by the user, so the completion callback can still
 // classify the failure via consumeCancelled.
 func (r *missionRunRegistry) begin(missionID string) (context.Context, func()) {
-	ctx, cancel := context.WithCancel(context.Background())
+	return r.beginContext(context.Background(), missionID)
+}
+
+func (r *missionRunRegistry) beginContext(parent context.Context, missionID string) (context.Context, func()) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parent)
 	entry := &missionRunEntry{cancel: cancel}
 	r.mu.Lock()
+	if r.closed {
+		r.mu.Unlock()
+		cancel()
+		return ctx, func() {}
+	}
+	r.wg.Add(1)
 	if previous, ok := r.runs[missionID]; ok && previous.cancel != nil {
 		previous.cancel()
 	}
 	r.runs[missionID] = entry
 	r.mu.Unlock()
+	var once sync.Once
 	release := func() {
-		cancel()
-		r.mu.Lock()
-		defer r.mu.Unlock()
-		if current, ok := r.runs[missionID]; ok && current == entry && !entry.cancelled {
-			delete(r.runs, missionID)
-		}
+		once.Do(func() {
+			defer r.wg.Done()
+			cancel()
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			if current, ok := r.runs[missionID]; ok && current == entry && !entry.cancelled {
+				delete(r.runs, missionID)
+			}
+		})
 	}
 	return ctx, release
 }
@@ -75,4 +94,15 @@ func (r *missionRunRegistry) consumeCancelled(missionID string) bool {
 	}
 	delete(r.runs, missionID)
 	return true
+}
+
+// close cancels current and replaced generations, then drains their handlers.
+func (r *missionRunRegistry) close() {
+	r.mu.Lock()
+	r.closed = true
+	for _, entry := range r.runs {
+		entry.cancel()
+	}
+	r.mu.Unlock()
+	r.wg.Wait()
 }

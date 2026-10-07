@@ -57,7 +57,7 @@ window.payload={
  devices:{total:27,active:9,lan_active:4,wlan_active:5,hosts_truncated:false,hosts:[{name:'<img src=x onerror=window.pwned=1>',ip:'192.168.178.20',active:true,interface:'lan'},{name:'Laptop',ip:'192.168.178.31',active:true,interface:'wlan'},{name:'NAS',ip:'192.168.178.2',active:true,interface:'lan'},{name:'Phone',ip:'192.168.178.44',active:true,interface:'wlan'},{name:'Old TV',ip:'192.168.178.60',active:false,interface:'lan'}],wlans:[{index:1,ssid:'Home',enabled:true,channel:6,band:'2.4',guest:false},{index:2,ssid:'Home 5G',enabled:true,channel:100,band:'5',guest:false},{index:3,ssid:'Guests',enabled:false,channel:0,band:'',guest:true}]},
  telephony:{missed_today:2,tam_available:true,tam_new:1,calls:[{type:'missed',date:'12.09.26 09:12',timestamp:new Date(Date.now()-3600000).toISOString(),name:'<b>Mom</b>',number:'+49301234567',called:'',duration:''},{type:'incoming',date:'12.09.26 08:40',timestamp:new Date(Date.now()-7200000).toISOString(),name:'',number:'+4930765432',called:'',duration:'0:12'},{type:'outgoing',date:'11.09.26 19:03',timestamp:new Date(Date.now()-86400000).toISOString(),name:'Office',number:'+4930111111',called:'',duration:'1:05'}]}
 };
-const api=async(url,opts)=>{requests.push(url);if(mode==='disabled')throw Error('fritzbox_disabled');if(mode==='fail')throw Error('offline');const sections=new URL(url,'http://x').searchParams.get('sections').split(',');const now=new Date().toISOString();const out={ready:true,capabilities:payload.capabilities,generated_at:now,errors:{},fetched_at:{},stale:{}};for(const s of sections){if(payload[s]){out[s]=payload[s];out.fetched_at[s]=now;}}return out;};
+const api=async(url,opts)=>{requests.push(url);if(mode==='disabled')throw Error('fritzbox_disabled');if(mode==='fail')throw Error('offline');const sections=mode==='connection-only'?['connection']:new URL(url,'http://x').searchParams.get('sections').split(',');const now=new Date().toISOString();const out={ready:true,capabilities:payload.capabilities,generated_at:now,errors:{},fetched_at:{},stale:{}};for(const s of sections){if(payload[s]){out[s]=payload[s];out.fetched_at[s]=now;}}if(mode==='partial'){out.errors.telephony='fetch_failed';out.stale.telephony=true;}return out;};
 `+sysmon+`
 `+charts+`
 `+runtime+`
@@ -206,6 +206,28 @@ renderFritzBoxWidget(document.querySelector('#card'));</script></body></html>`)
 			if h := page.MustEval(`()=>document.querySelector('.vd-fritz').getBoundingClientRect().height`).Num(); h > 300 {
 				t.Fatalf("widget height %.0f exceeds the 300px seed", h)
 			}
+
+			// A failed slow section must not report a router outage or dim fresh
+			// connection data. A connection-only poll cannot clear that failure.
+			page.MustEval(`()=>{document.querySelectorAll('.vd-fritz-dotbtn')[0].click();window.mode='partial';document.querySelector('[data-fritz=retry]').click();}`)
+			waitForJSBool(t, page, `()=>!document.querySelector('[data-fritz=banner]').hidden`)
+			if !page.MustEval(`()=>{
+				const banner=document.querySelector('[data-fritz=banner-text]').textContent;
+				return banner.includes(t('desktop.widget_fritzbox_page_telephony'))
+					&& !banner.includes(t('desktop.widget_fritzbox_error'))
+					&& !document.querySelector('.vd-fritz').classList.contains('is-stale')
+					&& document.querySelector('[data-fritz=dot]').classList.contains('is-online');
+			}`).Bool() {
+				t.Fatal("telephony failure incorrectly reported the whole router as unavailable")
+			}
+			shoot("partial-error")
+			page.MustEval(`()=>{window.mode='connection-only';document.querySelector('[data-fritz=retry]').click();}`)
+			waitForJSBool(t, page, `()=>requests[requests.length-1].includes('sections=')`)
+			if !page.MustEval(`()=>!document.querySelector('[data-fritz=banner]').hidden && document.querySelector('[data-fritz=banner-text]').textContent.includes(t('desktop.widget_fritzbox_page_telephony'))`).Bool() {
+				t.Fatal("an unrelated successful poll cleared the telephony error")
+			}
+			page.MustEval(`()=>{window.mode='ok';document.querySelector('[data-fritz=retry]').click();}`)
+			waitForJSBool(t, page, `()=>document.querySelector('[data-fritz=banner]').hidden`)
 
 			// Error state keeps the last values and shows the stale banner.
 			page.MustEval(`()=>{window.mode='fail';document.querySelector('[data-fritz=retry]').click();}`)

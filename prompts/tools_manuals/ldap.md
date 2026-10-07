@@ -133,3 +133,5 @@ ldap:
   - `(&(objectClass=user)(memberOf=cn=Admins,ou=groups,dc=example,dc=com))` - users in a specific group
 - **Write operations**: AuraGo does not assume a universal LDAP schema. For create/update operations, provide the full target DN and the exact attributes required by your directory (for example OpenLDAP versus Active Directory).
 - **Active Directory**: For AD, common attributes include `sAMAccountName`, `userPrincipalName`, `memberOf`, `distinguishedName`
+
+LDAP transport is selected administratively with tls_mode (`ldaps`, `starttls`, or `plain`); an empty value preserves legacy use_tls. StartTLS completes before credentials are sent, with no plaintext fallback. Searches use 500-entry pages under one time budget and reject incomplete/oversized results (maximum 100000 entries).

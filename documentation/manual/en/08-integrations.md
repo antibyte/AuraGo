@@ -130,6 +130,8 @@ AuraGo can read emails via IMAP and send via SMTP.
 
 For Gmail, you must create an **App Password** (not your regular password) at [Google Account Security](https://myaccount.google.com/security) → 2-Step Verification → App passwords.
 
+If `llm_guardian.scan_emails` is enabled, AuraGo scans email content before exposing it through `fetch_email` or relaying it through the watcher or AgentMail. Only an explicit allow passes. A suspicious, incomplete, over-limit, or unavailable scan withholds the original and sends a fixed quarantine notice through the already-authorized delivery path. The notice omits the sender, subject, headers, body, and scanner explanation; quarantined AgentMail retains its existing read state and labels, and a failed notice remains eligible for retry. Email and document LLM scans remain opt-in and default to off.
+
 ### YAML Reference (Multiple Accounts)
 The modern configuration uses a **list** of email accounts under `email_accounts`. At startup, any existing `email:` section is automatically migrated to an `email_accounts` entry with `id: "default"` (see `internal/config/config_migrate.go:MigrateEmailAccounts`).
 
@@ -205,6 +207,8 @@ agentmail:
 > 🔒 The API key is stored in the Vault as `agentmail_api_key`, not in `config.yaml`.
 
 Use the focused `agentmail_inboxes`, `agentmail_messages`, `agentmail_threads`, and `agentmail_drafts` tools in chat. The legacy `agentmail` name remains accepted as a compatibility alias.
+
+When email scanning is enabled, a quarantined AgentMail result contains a safe notice instead of message content. For tool operations, the operation status is preserved, but quarantined content is not returned or relayed; quarantine does not authorize replying or changing labels.
 
 ---
 
@@ -308,11 +312,35 @@ Manage Docker containers, images, and networks.
 
 > ⚠️ **Warning:** Docker integration grants significant system access. Use `readonly` for restricted environments.
 
+### Agent Compose stacks and host access
+
+The agent can run `docker compose` for files inside its workspace. Before every Compose command, AuraGo resolves the file with `docker compose config` and checks the result:
+
+- **Blocked for every Compose command:** stacks that touch AuraGo-managed containers, labels, images or volumes (local LLM, ACE-Step, Garage, homepage, the AuraGo app container). When AuraGo itself runs in Docker, commands that act on containers (`up`, `create`, `start`, `stop`, `restart`, `down`, `rm`, `kill`, `pause`, `unpause`, `logs`, `top`) are also refused for a stack whose project name is AuraGo's own Compose project. In a Docker installation the blocked volumes include AuraGo's data volume (`aurago_data`, `<project>_aurago_data`, or whatever volume holds `/app/data`); the workdir volume is the agent workspace and stays usable. When Docker confirms which volume AuraGo's own container mounts at `/app/data`, only that volume is blocked. If AuraGo cannot identify its own container (Docker did not answer, or AuraGo shares another container's network), every volume named `aurago_data` or ending in `_aurago_data` counts as AuraGo's; give other stacks' volumes a different name.
+- **Always blocked for `up`, `create` and `build`, even with host access:** binds, env files, secrets, configs, Dockerfiles, build contexts or watch paths that point into AuraGo's own data directory, `config.yaml`, the `.env` next to it, `/etc/aurago` or the master key secret. `config` and `convert` print env files inlined, so they reject env files, secrets and configs inside AuraGo's state too. `up`, `create`, `build`, `pull`, `config` and `convert` reject AuraGo's master key value wherever it appears in the resolved file. Docker Compose itself never sees the master key: AuraGo removes `AURAGO_MASTER_KEY` from the environment of every Docker command it starts.
+- **Needs `docker.allow_host_access: true` (checked for `up`, `create` and `build`):** binds outside the agent workspace (for example `/srv/media`) or that contain AuraGo's own files, sensitive host paths such as `/var/run/docker.sock`, `/etc/localtime` or `/`, Windows named pipes, `use_api_socket`, `devices`, `device_cgroup_rules`, `gpus` and reserved devices, `privileged`, `network_mode`/`pid`/`ipc`/`userns_mode`/`uts`/`cgroup: host`, `cap_add`, unconfined `security_opt`, local volumes that bind a host directory or mount a `/dev` device or a non-network filesystem (NFS, CIFS/SMB and tmpfs volumes are fine), build SSH (`build.ssh`, `build --ssh`), privileged builds, build entitlements, `build.network: host`, and env files, secrets, configs, Dockerfiles, build contexts or `develop.watch` paths outside the workspace. A command without service names checks every service of the file's default profiles. A command that names services (`up -d web`) checks those services, every service they need (depends_on, links, volumes_from, `network_mode: service:`, `service:` build contexts) and the services that depend on them as far as the command acts on them (`stop`, `down`, `rm` and `restart` all of them, `up` those whose `depends_on` sets `restart: true`, `create`, `start`, `build` and `pull` none), as long as every name exists and AuraGo knows every flag of the command. AuraGo's own files, local volumes, secrets and configs are always checked for the whole file. A workspace below `/mnt`, `/root` or `C:\ProgramData` works like any other. The same applies to the binds of `docker create`/`run`.
+- **Also needs host access for `down`, `start`, `stop`, `restart`, `rm` and `pull`:** `provider` services and privileged `post_start`/`pre_stop` hooks, including those of profile services the command names and of the services they depend on, because Compose runs them on the host or with host privileges.
+- **Environment:** without host access, Docker Compose (and the `docker compose config` check before it) runs with a minimal environment: `PATH`, `HOME`, the Docker and Compose settings (`DOCKER_HOST`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `COMPOSE_*`, `BUILDKIT_*`, …), proxy, temp and locale variables. `${VAR}` in a Compose file no longer reads AuraGo's own environment; put such values into the stack's `.env` file. Certificate and credential-helper pointers (`SSL_CERT_FILE`, `SSL_CERT_DIR`, `GNUPGHOME`, `PASSWORD_STORE_DIR`, `AWS_PROFILE`, `AWS_REGION`, `AWS_CONFIG_FILE`, `AWS_SHARED_CREDENTIALS_FILE`, `CLOUDSDK_CONFIG`) are kept, secrets such as `AWS_SECRET_ACCESS_KEY` or `DOCKER_AUTH_CONFIG` are not: while host access is off, registry credentials must come from the Docker config (`~/.docker/config.json`) or from a credential helper that needs no secret environment variables. With host access, Compose gets AuraGo's environment as before, without `AURAGO_MASTER_KEY`.
+- **Changed files:** without host access, AuraGo reads the Compose file again and repeats its `docker compose config` checks right before the run. If the file, an included file or an env file changed since the check, nothing runs (`docker_compose_input_changed`); run the command again once the files are stable.
+- **Managed sidecar names:** without host access, `create`/`run` and a Compose `container_name` in `up`/`create` cannot use the names of AuraGo-managed sidecars (`aurago_gotenberg`, `aurago_ollama_managed`, `aurago_ollama_embeddings`, `aurago-piper-tts`, `aurago-supertonic-tts`, `aurago_ansible`, `aurago_browser_automation`, `aurago_go2rtc`, `aurago_space_agent`, `aurago_manifest`, `aurago_manifest_postgres`, `aurago_omniroute`, the `aurago_dograh_*` services, `aurago-cloudflared` and the custom names configured for them), because AuraGo finds those sidecars by name. With host access nothing changes. The security proxy name `aurago-security-proxy` is refused as a Compose `container_name` in every installation, as it already is for `create`/`run`.
+- **`create`/`run` without a workspace:** with an agent workspace configured, `create`/`run` binds must stay inside it. Without one, and without host access, `create`/`run` also refuse binds of AuraGo's own data directory, `config.yaml`, the `.env` next to it, `/etc/aurago` and the master key (`docker_protected_path_denied`). With host access nothing changes.
+- `build --push` is allowed: it pushes the images the build itself creates. `docker compose push` stays blocked. The master key checks of `build` apply.
+- `kill`, `pause`, `unpause`, `ps`, `logs` and the inspection commands are never checked for host access, so stacks you already run stay manageable.
+- Only what a command runs is checked: a service of an inactive profile counts once a command names it (for example `up -d tools` or `build tools`), together with the services it depends on; an optional dependency (`required: false`) counts only when its profile is active, as Compose starts it only then.
+
+With a Docker Compose older than v2.35 AuraGo resolves a named profile service with `docker compose config -- <service>`. If that fails (for example because an env file is missing), `up` and `create` are rejected; `build` and `pull`, which do not need env files, run unchecked with host access (unless the Compose file itself names AuraGo's own files or master key) and are rejected without it. It cannot list env file paths there: without host access it rejects `up`/`create` for files that use `env_file`, `include:` or `extends:`. Known limitation: `down`, `start`, `stop`, `restart` and `rm` cannot check the providers and hooks of a profile service they name on such a Compose.
+
+Traefik, Portainer, Watchtower, Home Assistant, Frigate, node-exporter or media servers with host folders need host access. Configurations created before this setting existed have it switched on automatically (the updater writes `allow_host_access: true`); fresh installs start with `false`. Toggle it in **Config → Danger Zone → Docker host access for agent Compose stacks**. The security check warns while it is on.
+
+> ⚠️ With host access on, a bind of a parent directory such as `/` (node-exporter) still exposes AuraGo's vault, `config.yaml` and master key to that container. Only AuraGo's own paths themselves are blocked.
+
 ### YAML Reference
 ```yaml
 docker:
     enabled: true
     host: "unix:///var/run/docker.sock"
+    readonly: false
+    allow_host_access: false   # agent Compose up/create/build may use host paths, devices, privileges and host namespaces
 ```
 
 ---
@@ -395,6 +423,8 @@ Receive HTTP events from external services.
 4. Paste the URL into the external service (e.g., GitHub repository settings).
 
 Prefer `Authorization: Bearer <token>` for incoming authentication. The `?token=<token>` query form remains compatible with providers that cannot set headers, but it can appear in access logs, intermediary logs, and browser history. Incoming delivery is asynchronous. The rate limit is enforced per token as a token bucket, so the configured requests-per-minute value is also the burst capacity.
+
+With `llm_guardian.scan_documents` enabled, an incoming webhook is rejected when its security scan does not explicitly allow the payload, is incomplete, exceeds the scan limit, or is unavailable. The payload is never sent to the chat or raw mission callback. AuraGo sends a fixed quarantine notice whenever the configured delivery or an eligible local mission target would have reached the agent; UI-only and silent webhooks without a mission target do not wake the agent.
 
 Outgoing webhook URLs, sensitive headers, and custom body templates are encrypted in the Vault and are only shown as masks in the API and Web UI. They must not be added to `config.yaml`.
 
@@ -1864,30 +1894,71 @@ tools:
 
 ## Security Proxy
 
-Protection layer for publicly reachable AuraGo instances with rate limiting, IP filtering, and geo-blocking. AuraGo manages the proxy as a Caddy-based Docker container, reloads the generated configuration, and exposes logs and lifecycle actions via API.
+Protection layer for publicly reachable AuraGo instances: TLS (Let's Encrypt for a domain), rate limiting, an IP filter and Basic Auth in front of AuraGo. AuraGo manages the proxy as a Caddy Docker container (`aurago-security-proxy`), writes its Caddyfile to `data/proxy/`, and exposes logs and lifecycle actions via API. Geo-blocking is planned but not implemented yet.
 
 ### Web UI Setup
 1. Open **Config → Integrations → Security Proxy**.
-2. Enable the proxy.
-3. Configure rate limiting (requests per minute).
-4. Optionally define allowed/blocked IPs or countries.
-5. Save and restart.
+2. Enable the proxy and enter the domain, ACME e-mail and ports.
+3. Optionally enable rate limiting, the IP filter or Basic Auth.
+4. Save. Enabling starts the proxy. Settings saved in the Config UI or the Vault apply to the next start or reload without restarting AuraGo. After changes to the domain, e-mail, rate-limit values, IP filter, Basic Auth or additional routes, press **Reload**. After changes to the ports or the container placement, press **Start**. To move the proxy to another `docker_host`, press **Destroy** first, then save the new `docker_host` and press **Start**. Reload only reapplies the Caddyfile and does not recreate the container (see [Reload](#reload)).
+
+### Basic Auth
+Store the account in the Vault as `proxy_basic_auth_user` and `proxy_basic_auth_pass`. AuraGo writes only a bcrypt hash of the password into the Caddyfile (file mode 0600). With Basic Auth enabled but either secret missing, the proxy does not start and the UI names the missing secrets. User names must not contain `:`, quotes, backslashes or braces; passwords may be at most 72 bytes long.
+
+### Rate Limiting
+The official Caddy image has no rate limiting. With rate limiting enabled, AuraGo builds the image `aurago-proxy:ratelimit-<version>` once from a pinned Caddy release and a pinned `caddy-ratelimit` module (Go module checksums are verified). The build needs Docker image-build access and internet access and takes a few minutes; later starts reuse the image. Each client IP may send `burst` requests within `burst / requests_per_second` seconds (sliding window), so short bursts pass and the average stays at `requests_per_second`. Rate limiting runs before Basic Auth and therefore also slows down password guessing. If the build fails, the proxy does not start, an already running proxy keeps running with its current Caddyfile, and the UI explains what is missing. With Docker read-only mode (`docker.read_only`) on, AuraGo can neither build the image nor create or change the proxy container; turn read-only mode off first.
+
+While the first build of the rate-limit image or the first pull of the official Caddy image runs, the proxy's other actions wait for it: **Stop**, **Destroy**, **Reload**, another **Start** and the automatic start or stop after saving the config only run once it has finished or failed. The first build may hold these actions for up to 30 minutes, the first pull for up to 15 minutes. The status and the logs stay available.
+
+### AuraGo in Docker (Compose)
+When AuraGo itself runs in a container, its paths and its container name only exist inside Docker. The proxy then mounts AuraGo's data volume (Docker Engine 26 or newer, for volume subpaths) or its bind-mounted data directory, joins AuraGo's non-internal network (in Compose the project's `default` network) and reaches AuraGo by container name. Without such a network it falls back to `host.docker.internal` and AuraGo's published port. Because the proxy container is attached to the Compose network, press **Destroy** before `docker compose down` removes that network.
+
+The default Compose socket proxy keeps `BUILD=0`, so AuraGo cannot build the rate-limit image there. Either set `BUILD=1` on the `docker-proxy` service, or build the image once on the Docker host. AuraGo reuses an existing image with exactly this tag, which belongs to the pinned Caddy and module versions of this AuraGo release:
+
+```bash
+docker build -t aurago-proxy:ratelimit-2.11.6-5625512f24f6 - <<'EOF'
+FROM caddy:2.11.6-builder AS builder
+RUN xcaddy build --with github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6
+FROM caddy:2.11.6
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+EOF
+```
+
+A later AuraGo release that changes the pins needs a new image: the manual of that release shows the matching command, and the AuraGo log names the tag it expects.
+
+### Container Hardening
+The proxy container keeps Caddy's root user and a writable root filesystem, but drops every Linux capability except the four Caddy needs and sets `no-new-privileges`:
+- `NET_BIND_SERVICE`: the `caddy` binary of the official image and of the rate-limit image carries this file capability and does not start without it. It also allows ports 80 and 443 on older Docker engines.
+- `DAC_OVERRIDE`: the Caddyfile (mode 0600) and `caddy_data` and `caddy_config` (mode 0750) belong to AuraGo's user. Without it Caddy can neither read its configuration nor store certificates.
+- `CHOWN` and `FOWNER`: ownership changes on files Caddy did not create itself, for example certificates copied into `caddy_data`.
+
+Certificates an earlier proxy container stored stay in use. A proxy container created by an earlier AuraGo version gets this profile at the next **Start**; **Reload** keeps the existing container.
+
+The proxy counts as an AuraGo-managed container (owner `security-proxy`): on the **Containers** page, opening a terminal, updating or removing `aurago-security-proxy` asks for a confirmation, also for a container created by an earlier AuraGo version without AuraGo's labels. The agent's docker tool refuses `create` and `run` with this name, and Compose `up`/`create` of a stack that uses it as `container_name`; its other actions on the proxy container stay as they were. Use **Start**, **Stop**, **Reload** and **Destroy** in the proxy settings to manage it.
+
+### Reload
+**Reload** rewrites the Caddyfile and runs `caddy reload` in the container. If Caddy rejects the new configuration, it keeps serving the previous one, AuraGo restores the previous Caddyfile, and the UI points to the proxy logs. Turning rate limiting on or off changes the image, so Reload then recreates the container. Otherwise Reload keeps the container as it is: port mappings, the Docker engine (`docker_host`) and the placement (mounts and network) only change when **Start** removes and recreates the container. Start works on the engine in the current `docker_host` (or `docker.host` while `docker_host` is empty). When a new value reaches a different Docker daemon, press **Destroy** before you switch; otherwise the old proxy keeps running on the previous engine. If you already switched, set the old value back, press **Destroy**, then switch again (or run `docker rm -f aurago-security-proxy` on the old engine).
 
 ### YAML Reference
 ```yaml
 security_proxy:
     enabled: true
     domain: "aurago.example.com"
+    email: "admin@example.com"     # ACME contact
+    https_port: 443
+    http_port: 80
+    docker_host: ""                # empty = docker.host
     rate_limiting:
         enabled: true
-        requests_per_minute: 60
+        requests_per_second: 10
+        burst: 50
     ip_filter:
         enabled: false
-        allowed_ips: []
-        blocked_ips: []
-    geo_blocking:
-        enabled: false
-        blocked_countries: []
+        mode: "blocklist"          # or "allowlist"
+        addresses: []              # IP addresses or CIDR ranges
+    basic_auth:
+        enabled: false             # Vault: proxy_basic_auth_user / proxy_basic_auth_pass
+    additional_routes: []          # entries with name, domain and upstream
 ```
 
 ### Runtime API
@@ -2018,7 +2089,7 @@ Background wake-up scheduler for autonomous status checks at configurable interv
 
 ### YAML Reference
 
-> ⚠️ **Note:** Heartbeat is currently configured exclusively via the **Web UI** (`Config → Integrations → Heartbeat`). A dedicated `heartbeat:` block in `config.yaml` is not currently evaluated — the values shown above (day/night windows, intervals, `additional_prompt`, etc.) are persisted internally by the heartbeat service.
+The loader and scheduler read the `heartbeat:` section in `config.yaml`. Configure it through **Config → Integrations → Heartbeat** or edit the YAML directly. `config_template.yaml` includes every field. `heartbeat.enabled` activates the schedule; `day_time_window` and `night_time_window` each define `start`, `end` and `interval`. Persisted runtime state does not replace this configuration.
 
 Defaults:
 
@@ -2140,6 +2211,8 @@ Headless browser automation for forms, screenshots, and web interactions.
 4. Save and restart.
 
 The Browser Automation sidecar requires `AURAGO_BROWSER_AUTOMATION_TOKEN` by default. AuraGo injects it automatically for managed sidecars; set it explicitly when running the sidecar manually. Use `AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1` only for isolated local development.
+
+If the sidecar image is missing and `browser_automation.auto_build` is on (the default), AuraGo builds `Dockerfile.browser_automation` from `browser_automation.dockerfile_dir` with the Docker CLI on the engine in `docker.host`, the engine that also runs the sidecar. An inherited `DOCKER_HOST` or `DOCKER_CONTEXT` does not redirect the build. If that engine refuses the build with a 403-style answer (a socket proxy with `BUILD=0`), AuraGo retries once on the Docker CLI's default engine (`DOCKER_HOST` from AuraGo's environment, else the local socket) when that is a different engine; if `docker.host` still has no image afterwards, the build fails with a hint. Release installs ship neither the Dockerfile nor the sidecar sources: set `browser_automation.dockerfile_dir` to an AuraGo source checkout (relative paths start at AuraGo's working directory), or build `aurago-browser-automation:latest` yourself.
 
 ### YAML Reference
 ```yaml
@@ -2420,7 +2493,6 @@ virtual_desktop:
   allow_python_jobs: false
   workspace_dir: agent_workspace/virtual_desktop
   max_file_size_mb: 50
-  control_level: confirm_destructive
   max_ws_clients: 8
   code_studio:
     enabled: true
@@ -2535,6 +2607,8 @@ AuraGo can scaffold, edit, build, deploy, and track **static site / homepage** p
 | Files | `homepage_file`, `homepage_project` |
 | Build & deploy | `homepage_deploy`, `homepage_quality` |
 | Design rules | Global `prompts/rules/homepage/DESIGN.md`; per-project `DESIGN.md` adds design context only |
+
+**Docker socket proxy:** the Homepage tool builds its dev image `aurago-homepage:latest` on first use. The default Compose socket proxy refuses builds (`BUILD=0`); `init` then fails with `homepage_image_build_forbidden`, and **Config → Homepage** shows the command that builds the image on the Docker host: `docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -`. See [Docker Socket Security](../../docker_installation.md#4-docker-socket-security).
 
 Call `list_history` before major edits and `add_history` after meaningful changes. New projects are registered automatically on `init_project`.
 

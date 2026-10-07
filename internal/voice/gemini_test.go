@@ -42,6 +42,7 @@ func TestGeminiLiveSetupAudioToolsInterruptAndResumption(t *testing.T) {
 	var connections atomic.Int32
 	serverErrors := make(chan string, 4)
 	resumedSetup := make(chan bool, 1)
+	played := make(chan struct{})
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -91,10 +92,18 @@ func TestGeminiLiveSetupAudioToolsInterruptAndResumption(t *testing.T) {
 				return
 			}
 		}
+		<-played
 		_ = conn.WriteJSON(map[string]interface{}{"serverContent": map[string]interface{}{"interrupted": true}})
 		<-r.Context().Done()
 	}))
-	defer server.Close()
+	defer func() {
+		select {
+		case <-played:
+		default:
+			close(played)
+		}
+		server.Close()
+	}()
 
 	runner := &geminiTestRunner{executed: make(chan string, 1)}
 	bridge := NewBridge(8)
@@ -124,6 +133,7 @@ func TestGeminiLiveSetupAudioToolsInterruptAndResumption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	close(played)
 	if frame.SampleRate != 8000 || len(frame.Samples) == 0 {
 		t.Fatalf("unexpected Gemini output frame: rate=%d samples=%d", frame.SampleRate, len(frame.Samples))
 	}

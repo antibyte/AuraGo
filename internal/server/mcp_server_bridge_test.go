@@ -103,6 +103,7 @@ func TestMCPCallToolRejectsToolsOutsideAllowedList(t *testing.T) {
 
 func TestMCPEndpointTransportAndVersionContract(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Server.Host = "aurago.local"
 	cfg.MCPServer.Enabled = true
 	s := &Server{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	handler := handleMCPEndpoint(s)

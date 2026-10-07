@@ -180,11 +180,48 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 			page.MustEval(`async id=>{fixtureStyle(id);await document.fonts.ready;await new Promise(r=>setTimeout(r,120));await fixtureWrite();await new Promise(r=>setTimeout(r,100));}`, style)
 			check(t, "live CRT", `()=>!fixtureCrt.at(-1).usesFallback() && document.querySelector('[data-terminal-renderer="webgl"]')!==null`)
 			check(t, "one session", `()=>fixtureSockets.length===1 && fixtureSockets[0].readyState===1 && fixtureTerms.length===1`)
+			check(t, "housing details leave the glass usable", `()=>{
+                const root=document.querySelector('.vd-terminal-app'),glass=root.querySelector('.vd-terminal-screen').getBoundingClientRect(),panel=root.querySelector('.vd-terminal-hardware'),r=panel.getBoundingClientRect(),led=panel.querySelector('.vd-terminal-led');
+                return root.dataset.terminalState==='desktop.terminal_running' && panel.getAttribute('aria-hidden')==='true' && getComputedStyle(panel).pointerEvents==='none' && r.top>glass.bottom && r.width>150 && led.getBoundingClientRect().width>=7 && getComputedStyle(led).boxShadow.includes('6px');
+            }`)
 			check(t, "visible phosphor", `async()=>(await fixtureCapture()).lit>500`)
 			check(t, "text inset inside glass", `()=>{const s=document.querySelector('.vd-terminal-screen').getBoundingClientRect(),x=document.querySelector('.xterm-screen').getBoundingClientRect();return x.left>=s.left+15 && x.top>=s.top+15 && x.right<=s.right-10 && x.bottom<=s.bottom-10;}`)
 			snapshot("terminal-" + style)
 		})
 	}
+	t.Run("effects storage", func(t *testing.T) {
+		check(t, "effect storage normalizes corrupt, bounded, and unknown values", `()=>{
+            const key='aurago.desktop.terminal.effects.v1';
+            localStorage.setItem(key,'{');
+            if(TerminalStyles.loadEffects('amber').intensity!==100)return false;
+            localStorage.setItem(key,JSON.stringify({amber:{
+                intensity:-25,brightness:999,bloom:'corrupt',scan:25.2,curve:160,burn:-2,
+                noise:0,flicker:125,mask:999,vignette:-40,reflection:0,jitter:200,
+                interference:-1,chromatic:140,unknown:77
+            },green:{intensity:32}}));
+            const amber=TerminalStyles.loadEffects('amber'),green=TerminalStyles.loadEffects('green');
+            const keys=TerminalStyles.effectControls.map(effect=>effect.key).sort();
+            if(amber.intensity!==0||amber.brightness!==150||amber.scan!==25||amber.curve!==100||amber.burn!==0||
+                amber.noise!==0||amber.flicker!==100||amber.mask!==100||amber.vignette!==0||amber.reflection!==0||
+                amber.jitter!==100||amber.interference!==0||amber.chromatic!==100||!Number.isFinite(amber.bloom)||
+                Object.keys(amber).sort().join(',')!==keys.join(',')||green.intensity!==32)return false;
+            const supplied={intensity:0,brightness:999},profile=TerminalStyles.profile('amber',supplied);
+            supplied.intensity=100;supplied.brightness=50;
+            if(profile.crt.intensity!==0||profile.crt.brightness!==1.5)return false;
+            const originalSet=Storage.prototype.setItem;
+            try{
+                Storage.prototype.setItem=function(){throw new DOMException('blocked','SecurityError');};
+                if(TerminalStyles.saveEffects('vintage',{intensity:22}).intensity!==22)return false;
+            }finally{Storage.prototype.setItem=originalSet;}
+            TerminalStyles.saveEffects('amber',{intensity:37,brightness:125});
+            TerminalStyles.saveEffects('green',{intensity:61,brightness:80});
+            if(TerminalStyles.loadEffects('amber').intensity!==37||TerminalStyles.loadEffects('green').intensity!==61)return false;
+            TerminalStyles.resetEffects('amber');
+            const reset=TerminalStyles.loadEffects('amber'),other=TerminalStyles.loadEffects('green');
+            TerminalStyles.resetEffects('green');
+            return reset.intensity===100&&other.intensity===61;
+        }`)
+	})
 	check(t, "reduced motion freezes time and persistence", `async()=>{document.body.dataset.animations='false';await new Promise(r=>setTimeout(r,120));const before=await fixtureCapture();await new Promise(r=>setTimeout(r,140));return before.hash===(await fixtureCapture()).hash;}`)
 	page.MustEval(`()=>{fixtureStyle('amber');document.body.dataset.animations='true';}`)
 	check(t, "animated grain changes output", `async()=>{await new Promise(r=>setTimeout(r,100));const before=await fixtureCapture();await new Promise(r=>setTimeout(r,150));return before.hash!==(await fixtureCapture()).hash;}`)
@@ -201,15 +238,119 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 	page.MustEval(`()=>fixtureTerms[0].clearSelection()`)
 	check(t, "keyboard focus cannot scroll the glass overlay", `()=>{const s=document.querySelector('.vd-terminal-screen'),a=document.querySelector('.vd-terminal-crt-overlay'),r=s.getBoundingClientRect(),c=a.getBoundingClientRect();return s.scrollTop===0 && Math.abs(r.top-c.top)<1 && Math.abs(r.bottom-c.bottom)<1;}`)
 	snapshot("terminal-compact-dpr2")
+	check(t, "compact housing stays inside the app", `()=>{const root=document.querySelector('.vd-terminal-app'),r=root.getBoundingClientRect(),p=root.querySelector('.vd-terminal-hardware').getBoundingClientRect();return root.scrollWidth<=root.clientWidth+1 && p.left>=r.left && p.right<=r.right && p.bottom<=r.bottom;}`)
+	t.Run("effects dialog and live renderer", func(t *testing.T) {
+		page.MustEval(`async()=>{document.body.dataset.animations='false';fixtureStyle('amber');await document.fonts.ready;await new Promise(r=>setTimeout(r,100));await fixtureWrite();}`)
+		waitForJSBool(t, page, `()=>document.querySelector('[data-terminal-renderer="webgl"]')!==null`)
+		page.MustElement("[data-terminal-effects]").MustClick()
+		check(t, "compact native dialog fits and explains reduced motion", `()=>{
+            const dialog=document.querySelector('[data-terminal-effects-dialog]'),r=dialog.getBoundingClientRect();
+            return dialog.open&&dialog.contains(document.activeElement)&&r.width>0&&r.left>=0&&r.top>=0&&
+                r.right<=innerWidth&&r.bottom<=innerHeight&&dialog.scrollWidth<=dialog.clientWidth+1&&
+                !dialog.querySelector('[data-terminal-effects-motion]').hidden;
+        }`)
+		snapshot("terminal-effects-menu-compact")
+		page.Keyboard.MustType(input.Escape)
+		check(t, "Escape closes the dialog and restores focus", `()=>!document.querySelector('[data-terminal-effects-dialog]').open&&document.activeElement===document.querySelector('[data-terminal-effects]')`)
+		page.MustSetViewport(1280, 850, 2, false)
+		page.MustEval(`async()=>{const w=document.querySelector('.vd-window');w.style.width='960px';w.style.height='690px';w.style.left='150px';w.style.top='70px';await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));}`)
+		page.MustElement("[data-terminal-effects]").MustClick()
+		snapshot("terminal-effects-menu-wide")
+		page.Keyboard.MustType(input.Escape)
+		page.MustSetViewport(440, 700, 2, false)
+		page.MustEval(`async()=>{const w=document.querySelector('.vd-window');w.style.width='400px';w.style.height='580px';w.style.left='10px';w.style.top='50px';await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));}`)
+		page.MustElement("[data-terminal-effects]").MustClick()
+		check(t, "live brightness changes pixels without replacing the session", `async()=>{
+            const socket=fixtureSockets[0],term=fixtureTerms[0],crt=fixtureCrt.at(-1),dialog=document.querySelector('[data-terminal-effects-dialog]');
+            const range=key=>dialog.querySelector('[data-terminal-effect="'+key+'"]');
+            const before=await fixtureCapture();range('brightness').value='150';range('brightness').dispatchEvent(new Event('input',{bubbles:true}));
+            const after=await fixtureCapture();
+            return before.hash!==after.hash&&fixtureSockets[0]===socket&&fixtureTerms[0]===term&&fixtureCrt.at(-1)===crt&&
+                TerminalStyles.loadEffects('amber').brightness===150;
+        }`)
+		check(t, "reflection toggles and master intensity zero disables effects", `async()=>{
+            const dialog=document.querySelector('[data-terminal-effects-dialog]'),reflection=document.querySelector('.vd-terminal-reflection');
+            const set=(key,value)=>{const input=dialog.querySelector('[data-terminal-effect="'+key+'"]');input.value=String(value);input.dispatchEvent(new Event('input',{bubbles:true}));};
+            set('reflection',0);const off=Number(getComputedStyle(reflection).opacity);
+            set('reflection',50);const on=Number(getComputedStyle(reflection).opacity),pointer=getComputedStyle(reflection).pointerEvents;
+            const before=await fixtureCapture();set('intensity',0);const flat=await fixtureCapture();
+            const flatOpacity=Number(getComputedStyle(reflection).opacity),profile=TerminalStyles.profile('amber').crt;
+            set('intensity',100);const restored=await fixtureCapture();
+            return off===0&&on>0&&pointer==='none'&&profile.intensity===0&&flatOpacity===0&&before.hash!==flat.hash&&restored.hash===before.hash;
+        }`)
+		page.MustElement("[data-terminal-effects-close]").MustClick()
+		page.MustEval(`async()=>{fixtureStyle('commodore64');await document.fonts.ready;await new Promise(r=>setTimeout(r,120));await fixtureWrite();}`)
+		waitForJSBool(t, page, `()=>document.querySelector('[data-terminal-renderer="webgl"]')!==null`)
+		page.MustElement("[data-terminal-effects]").MustClick()
+		check(t, "chromatic effect changes actual CRT pixels", `async()=>{
+            const dialog=document.querySelector('[data-terminal-effects-dialog]'),range=dialog.querySelector('[data-terminal-effect="chromatic"]');
+            if(range.disabled)return false;
+            range.value='0';range.dispatchEvent(new Event('input',{bubbles:true}));const before=await fixtureCapture();
+            range.value='100';range.dispatchEvent(new Event('input',{bubbles:true}));const after=await fixtureCapture();
+            return before.hash!==after.hash&&TerminalStyles.loadEffects('commodore64').chromatic===100;
+        }`)
+		check(t, "interference moves when motion is enabled", `async()=>{
+            const dialog=document.querySelector('[data-terminal-effects-dialog]'),set=(key,value)=>{const input=dialog.querySelector('[data-terminal-effect="'+key+'"]');input.value=String(value);input.dispatchEvent(new Event('input',{bubbles:true}));};
+            set('noise',0);set('flicker',0);set('burn',0);set('jitter',0);set('chromatic',0);set('interference',0);
+            document.body.dataset.animations='true';await new Promise(r=>setTimeout(r,60));
+            const before=await fixtureCapture();set('interference',100);const moving=await fixtureCapture();
+            await new Promise(r=>setTimeout(r,220));const later=await fixtureCapture();
+            return before.hash!==moving.hash&&moving.hash!==later.hash&&dialog.querySelector('[data-terminal-effects-motion]').hidden;
+        }`)
+		check(t, "zero afterglow keeps bloom instantaneous", `async()=>{
+            const dialog=document.querySelector('[data-terminal-effects-dialog]');
+            for(const [key,value] of Object.entries({burn:0,bloom:100,interference:0})){
+                const range=dialog.querySelector('[data-terminal-effect="'+key+'"]');
+                range.value=String(value);range.dispatchEvent(new Event('input',{bubbles:true}));
+            }
+            await fixtureWrite();await new Promise(r=>setTimeout(r,100));
+            await new Promise(r=>fixtureTerms[0].write('\x1b[2J\x1b[H',r));
+            await new Promise(r=>setTimeout(r,80));const cleared=await fixtureCapture();
+            await new Promise(r=>setTimeout(r,200));return cleared.hash===(await fixtureCapture()).hash;
+        }`)
+		check(t, "reduced motion freezes interference while keeping noise static", `async()=>{
+            const dialog=document.querySelector('[data-terminal-effects-dialog]'),set=(key,value)=>{const input=dialog.querySelector('[data-terminal-effect="'+key+'"]');input.value=String(value);input.dispatchEvent(new Event('input',{bubbles:true}));};
+            set('interference',100);
+            document.body.dataset.animations='false';await new Promise(r=>setTimeout(r,60));
+            const moving=await fixtureCapture();await new Promise(r=>setTimeout(r,160));
+            const frozen=await fixtureCapture();set('interference',0);set('noise',0);const clean=await fixtureCapture();
+            set('noise',100);const grain=await fixtureCapture();await new Promise(r=>setTimeout(r,160));const sameGrain=await fixtureCapture();
+            return moving.hash===frozen.hash&&clean.hash!==grain.hash&&grain.hash===sameGrain.hash&&
+                !dialog.querySelector('[data-terminal-effects-motion]').hidden;
+        }`)
+		page.MustElement("[data-terminal-effects-close]").MustClick()
+		page.MustNavigate(srv.URL + "/fixture?style=amber").MustWaitLoad()
+		page.MustEval(`async()=>await fixtureReady`)
+		waitForJSBool(t, page, `()=>fixtureTerms.length===1&&fixtureSockets.length===1&&document.querySelector('[data-terminal-renderer="webgl"]')!==null`)
+		check(t, "effect preferences survive a browser reload", `()=>TerminalStyles.loadEffects('amber').brightness===150&&TerminalStyles.loadEffects('commodore64').noise===100`)
+		page.MustEval(`()=>TerminalStyles.resetEffects('commodore64')`)
+		page.MustElement("[data-terminal-effects]").MustClick()
+		page.MustElement("[data-terminal-effects-reset]").MustClick()
+		page.MustElement("[data-terminal-effects-close]").MustClick()
+	})
 	page.MustEval(`()=>fixtureStyle('modern')`)
 	check(t, "modern restores xterm", `()=>!document.querySelector('.vd-terminal-crt-overlay') && getComputedStyle(document.querySelector('.xterm-screen')).opacity==='1' && fixtureTerms[0].options.fontSize===13`)
+	check(t, "modern keeps its full screen", `()=>getComputedStyle(document.querySelector('.vd-terminal-hardware')).display==='none' && getComputedStyle(document.querySelector('.vd-terminal-bezel')).paddingTop==='0px'`)
+	page.MustElement("[data-terminal-effects]").MustClick()
+	check(t, "modern dialog disables CRT effects with a hint", `()=>{const d=document.querySelector('[data-terminal-effects-dialog]');return d.open&&d.querySelector('fieldset').disabled&&!d.querySelector('[data-terminal-effects-retro]').hidden;}`)
+	page.Keyboard.MustType(input.Escape)
 	page.MustEval(`()=>{window.fixtureNoGL=true;fixtureStyle('green');}`)
 	check(t, "CSS fallback keeps session and readable text", `()=>fixtureCrt.at(-1).usesFallback() && document.querySelector('[data-terminal-fallback="css"]')!==null && getComputedStyle(document.querySelector('.xterm-screen')).opacity==='1' && fixtureSockets.length===1`)
+	page.MustElement("[data-terminal-effects]").MustClick()
+	check(t, "CSS fallback disables only unsupported effects", `()=>{const d=document.querySelector('[data-terminal-effects-dialog]');return d.open&&!d.querySelector('[data-terminal-effects-fallback]').hidden&&d.querySelector('[data-terminal-effect="curve"]').disabled&&d.querySelector('[data-terminal-effect="brightness"]').disabled===false;}`)
+	page.Keyboard.MustType(input.Escape)
 	snapshot("terminal-css-fallback")
 	page.MustEval(`()=>{fixtureStyle('modern');window.fixtureNoGL=false;fixtureStyle('amber');}`)
 	waitForJSBool(t, page, `()=>document.querySelector('[data-terminal-renderer="webgl"]')!==null`)
 	page.MustEval(`()=>document.querySelector('.vd-terminal-crt-overlay').dispatchEvent(new Event('webglcontextlost',{cancelable:true}))`)
 	check(t, "context loss reveals native terminal", `()=>document.querySelector('[data-terminal-fallback="css"]')!==null && !document.querySelector('.vd-terminal-crt-overlay') && getComputedStyle(document.querySelector('.xterm-screen')).opacity==='1'`)
+	check(t, "LED follows socket failure and closure", `()=>{
+        const root=document.querySelector('.vd-terminal-app'),led=root.querySelector('.vd-terminal-led'),status=root.querySelector('[data-terminal-status]'),socket=fixtureSockets[0],running=getComputedStyle(led).color;
+        socket.onerror();const failed=getComputedStyle(led).color;
+        if(root.dataset.terminalState!=='desktop.terminal_unavailable' || status.textContent!==t('desktop.terminal_unavailable') || failed===running)return false;
+        socket.close();
+        return root.dataset.terminalState==='desktop.terminal_stopped' && status.textContent===t('desktop.terminal_stopped') && getComputedStyle(led).color!==failed && !getComputedStyle(led).boxShadow.includes('6px');
+    }`)
 	page.MustEval(`()=>TerminalApp.dispose()`)
 	check(t, "disposed session", `async()=>{const n=fixtureDraws;await new Promise(r=>setTimeout(r,100));return n===fixtureDraws && fixtureSockets[0].readyState===3 && !document.querySelector('.vd-terminal-crt-overlay');}`)
 	for _, viewport := range [][2]int{{1366, 768}, {1024, 600}, {900, 700}} {
@@ -229,6 +370,14 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
                 if(!ok)throw Error(JSON.stringify({rect:r,style:w.style.cssText,viewport:[innerWidth,innerHeight],workspace:document.getElementById('vd-workspace').getBoundingClientRect()}));
                 return ok;
             }`)
+			if viewport[0] == 1366 {
+				page.MustEval(`async()=>{fixtureStyle('apple2');await document.fonts.ready;await new Promise(r=>setTimeout(r,150));await fixtureWrite();}`)
+				snapshot("terminal-apple2-" + theme)
+				if theme == "fruity" {
+					page.MustEval(`()=>{terminalTest.state.bootstrap.settings['appearance.fruity_mode']='light';terminalTest.applyDesktopSettings();}`)
+					snapshot("terminal-apple2-fruity-light")
+				}
+			}
 		}
 	}
 	page.MustEval(`async()=>{

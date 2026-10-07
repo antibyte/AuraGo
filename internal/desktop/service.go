@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/dbutil"
@@ -51,6 +52,7 @@ type mediaMount struct {
 
 // Service owns the virtual desktop workspace and registry database.
 type Service struct {
+	readOnlyOverride    atomic.Pointer[bool]
 	plantMu             sync.Mutex // Serializes actions for the one shared Leafy plant.
 	mu                  sync.Mutex
 	cfg                 Config
@@ -168,9 +170,6 @@ func normalizeConfig(cfg Config) (Config, error) {
 	if cfg.MaxFileSizeMB <= 0 {
 		cfg.MaxFileSizeMB = 50
 	}
-	if cfg.ControlLevel == "" {
-		cfg.ControlLevel = ControlConfirmDestructive
-	}
 	if cfg.MaxWSClients <= 0 {
 		cfg.MaxWSClients = 8
 	}
@@ -181,8 +180,15 @@ func normalizeConfig(cfg Config) (Config, error) {
 func (s *Service) Config() Config {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.cfg
+	cfg := s.cfg
+	if value := s.readOnlyOverride.Load(); value != nil {
+		cfg.ReadOnly = *value
+	}
+	return cfg
 }
+
+// SetReadOnly updates the live policy without closing stores or active readers.
+func (s *Service) SetReadOnly(readOnly bool) { s.readOnlyOverride.Store(&readOnly) }
 
 // Init creates workspace folders and opens the desktop registry database.
 func (s *Service) Init(ctx context.Context) error {
@@ -732,7 +738,6 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 		AllowAgentControl:  cfg.AllowAgentControl,
 		AllowGeneratedApps: cfg.AllowGeneratedApps,
 		AllowPythonJobs:    cfg.AllowPythonJobs,
-		ControlLevel:       cfg.ControlLevel,
 		Workspace: WorkspaceInfo{
 			Root:        "/",
 			Directories: DefaultDirectories(),

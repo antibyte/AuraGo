@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "Homepage for quick tunnel",
+  "config.cloudflare_tunnel.quick_project_help": "Publishes a snapshot of the selected project's latest built static files. Enable Homepage and Cloudflare. AuraGo allocates the port automatically.",
+  "config.cloudflare_tunnel.quick_project_select": "Select a project",
+  "config.cloudflare_tunnel.quick_project_error": "Project unavailable. Check Homepage settings and project registration.",
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel enabled",
   "config.cloudflare_tunnel.readonly_label": "Read-only mode (status only)",
   "config.cloudflare_tunnel.auto_start_label": "Auto-start on boot",

@@ -1027,14 +1027,37 @@ func TestMissionPreparationChecksumChangesWhenCheatsheetDeactivates(t *testing.T
 }
 
 type fakeWebhookTriggerManager struct {
+	keys      map[string]string
 	callbacks map[string][]func([]byte)
+	eligible  map[string]func() bool
 }
 
-func (f *fakeWebhookTriggerManager) RegisterMissionTrigger(webhookID string, callback func(payload []byte)) {
+func (f *fakeWebhookTriggerManager) RegisterMissionTriggerForKey(key, webhookID string, callback func([]byte)) {
+	f.UnregisterMissionTrigger(key)
 	if f.callbacks == nil {
 		f.callbacks = make(map[string][]func([]byte))
 	}
+	if f.keys == nil {
+		f.keys = make(map[string]string)
+	}
+	f.keys[key] = webhookID
 	f.callbacks[webhookID] = append(f.callbacks[webhookID], callback)
+}
+func (f *fakeWebhookTriggerManager) UnregisterMissionTrigger(key string) {
+	if old, ok := f.keys[key]; ok {
+		delete(f.callbacks, old)
+		delete(f.keys, key)
+	}
+	delete(f.eligible, key)
+}
+
+func (f *fakeWebhookTriggerManager) RegisterMissionTriggerForKeyWithEligibility(key, webhookID string, eligible func() bool, callback func([]byte)) {
+	f.UnregisterMissionTrigger(key)
+	f.RegisterMissionTriggerForKey(key, webhookID, callback)
+	if f.eligible == nil {
+		f.eligible = make(map[string]func() bool)
+	}
+	f.eligible[key] = eligible
 }
 
 func (f *fakeWebhookTriggerManager) Fire(webhookID string, payload []byte) {
@@ -1446,8 +1469,7 @@ func TestScheduledMissionIdempotentRegistration(t *testing.T) {
 		t.Fatalf("failed to create mission: %v", err)
 	}
 
-	// Trigger a second Start() (e.g. config reload) – should not duplicate jobs
-	mm.Stop()
+	// A repeated Start must not duplicate jobs or queue processors.
 	if err := mm.Start(); err != nil {
 		t.Fatalf("failed to re-start mission manager: %v", err)
 	}

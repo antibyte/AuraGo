@@ -14,7 +14,7 @@
   "config.media_conversion.status_warning": "⚠️",
   "config.media_conversion.status_error": "❌",
   "config.media_conversion.available": "dostupné",
-  "config.media_conversion.missing": "nedostupné",
+  "config.media_conversion.missing": "chybějící",
   "help.media_conversion.enabled": "Povolí nástroj media_conversion pro převod audio, video a obrazových souborů uvnitř workspace.",
   "help.media_conversion.readonly": "V režimu jen pro čtení je povolena pouze operace info. Skutečné převody jsou blokovány.",
   "help.media_conversion.ffmpeg_path": "Volitelná vlastní cesta k binárce ffmpeg. Nechte prázdné pro automatické vyhledání v PATH.",

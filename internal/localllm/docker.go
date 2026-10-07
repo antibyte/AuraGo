@@ -2,13 +2,13 @@ package localllm
 
 import (
 	"archive/tar"
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/dockerutil"
@@ -352,20 +353,30 @@ func (m *Manager) copyRuntimeKeyArchive(ctx context.Context, key string) error {
 	return nil
 }
 
+// deleteContainer force-removes a managed container. Only Docker's 404 (the
+// container is already gone) counts as success. DoJSON reports transport
+// failures with status 0, so an unreachable Engine is never "already gone".
 func (m *Manager) deleteContainer(ctx context.Context, name string) error {
-	_, err := m.docker.DoJSON(ctx, http.MethodDelete, "containers/"+name+"?force=true", nil, nil)
-	if err != nil && !strings.Contains(err.Error(), "404") {
+	code, err := m.docker.DoJSON(ctx, http.MethodDelete, "containers/"+name+"?force=true", nil, nil)
+	if err != nil && code != http.StatusNotFound {
 		return err
 	}
 	return nil
 }
 
+// deleteRuntimeKeyVolume removes the key volume; 404 means it is already gone.
 func (m *Manager) deleteRuntimeKeyVolume(ctx context.Context) error {
-	_, err := m.docker.DoJSON(ctx, http.MethodDelete, "volumes/"+runtimeKeyVolumeName+"?force=true", nil, nil)
-	if err != nil && !strings.Contains(err.Error(), "404") {
+	code, err := m.docker.DoJSON(ctx, http.MethodDelete, "volumes/"+runtimeKeyVolumeName+"?force=true", nil, nil)
+	if err != nil && code != http.StatusNotFound {
 		return err
 	}
 	return nil
+}
+
+// stopAlreadyDone reports Docker's answers for a stop request on a container
+// that is missing (404) or already stopped (304).
+func stopAlreadyDone(code int) bool {
+	return code == http.StatusNotFound || code == http.StatusNotModified
 }
 
 var statRenderNode = statFile
@@ -388,34 +399,83 @@ func (m *Manager) gpuGroupIDs(renderNode string) []string {
 	return nil
 }
 
+// maxPullFailureDetail caps the Docker reason kept after "pull_image_failed: ".
+const maxPullFailureDetail = 256
+
+// pullImage pulls a runtime image. CUDA and SYCL runtime images are several
+// GB, so the pull has no total client timeout: it gets imagePullBaseline
+// unconditionally and then continues while the Engine reports new progress
+// (watchPullProgress). The install context (6 h) and desired-state
+// cancellation still end it at any time.
 func (m *Manager) pullImage(ctx context.Context, reference string) error {
+	baseline, window := imagePullBaseline, imagePullStallWindow
+	pullCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	progress := newPullProgress(time.Now())
+	stopWatchdog := watchPullProgress(pullCtx, cancel, progress, baseline, window)
+	defer stopWatchdog()
+
 	path := "images/create?fromImage=" + url.QueryEscape(reference)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, dockerutil.Endpoint(path), nil)
-	if err != nil {
-		return err
-	}
-	resp, err := m.docker.HTTPClient().Do(req)
+	req, err := http.NewRequestWithContext(pullCtx, http.MethodPost, dockerutil.Endpoint(path), nil)
 	if err != nil {
 		return fmt.Errorf("pull_image_failed: %w", err)
+	}
+	base := m.docker.HTTPClient()
+	if base == nil {
+		return fmt.Errorf("pull_image_failed: Docker client is unavailable")
+	}
+	// The watchdog bounds the pull; a total client timeout would end a pull
+	// that is still making progress. The shared client is copied, never changed.
+	client := *base
+	client.Timeout = 0
+	resp, err := client.Do(req)
+	if err != nil {
+		return pullFailure(pullCtx, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if detail := dockerutil.SanitizeOneLine(dockerutil.EngineErrorMessage(dockerutil.ReadErrorBody(resp.Body)), maxPullFailureDetail); detail != "" {
+			return fmt.Errorf("pull_image_failed: Docker returned %d: %s", resp.StatusCode, detail)
+		}
 		return fmt.Errorf("pull_image_failed: Docker returned %d", resp.StatusCode)
 	}
-	scanner := bufio.NewScanner(io.LimitReader(resp.Body, 64<<20))
-	scanner.Buffer(make([]byte, 64<<10), 1<<20)
-	for scanner.Scan() {
-		var event struct {
-			Error string `json:"error"`
-		}
-		if json.Unmarshal(scanner.Bytes(), &event) == nil && event.Error != "" {
+	if err := dockerutil.DrainJSONMessages(&pullProgressReader{r: resp.Body, progress: progress}); err != nil {
+		var event *dockerutil.JSONMessageError
+		if errors.As(err, &event) {
+			if detail := dockerutil.SanitizeOneLine(event.Message, maxPullFailureDetail); detail != "" {
+				return fmt.Errorf("pull_image_failed: %s", detail)
+			}
 			return fmt.Errorf("pull_image_failed")
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("pull_image_failed: %w", err)
+		return pullFailure(pullCtx, err)
 	}
 	return nil
+}
+
+// pullFailure reports a transport or stream failure. A pull the watchdog
+// cancelled is reported with its stall reason instead of "context canceled",
+// so it is never mistaken for an intended cancellation.
+func pullFailure(ctx context.Context, err error) error {
+	var stalled *imagePullStalledError
+	if errors.As(context.Cause(ctx), &stalled) {
+		return fmt.Errorf("pull_image_failed: %w", stalled)
+	}
+	return fmt.Errorf("pull_image_failed: %w", err)
+}
+
+// logPullFailure writes the sanitised Docker reason of a failed runtime pull to
+// the server log. The API and status expose only the error code. An intended
+// cancellation (Configure, shutdown) is not a failure and is logged at Debug.
+func (m *Manager) logPullFailure(reference string, err error) {
+	logger := m.logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	if errors.Is(err, context.Canceled) {
+		logger.Debug("[LocalLLM] runtime image pull cancelled", "image", reference, "error", err)
+		return
+	}
+	logger.Warn("[LocalLLM] runtime image pull failed", "image", reference, "error", err)
 }
 
 func (m *Manager) ensureImageAvailable(ctx context.Context, reference string) error {

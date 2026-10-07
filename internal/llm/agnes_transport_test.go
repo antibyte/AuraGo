@@ -126,9 +126,9 @@ func TestAgnesClientsEnableThinkingByDefault(t *testing.T) {
 		client       ChatClient
 		wantThinking bool
 	}{
-		{name: "main", client: NewClient(cfg), wantThinking: true},
-		{name: "helper", client: NewClientFromProviderWithConfig(cfg, "agnes", server.URL+"/v1", "test-key", ""), wantThinking: true},
-		{name: "other_provider", client: NewClientFromProviderWithConfig(cfg, "openai", server.URL+"/v1", "test-key", ""), wantThinking: false},
+		{name: "main", client: WrapOpenAIClient(NewClient(cfg)), wantThinking: true},
+		{name: "helper", client: WrapOpenAIClient(NewClientFromProviderWithConfig(cfg, "agnes", server.URL+"/v1", "test-key", "")), wantThinking: true},
+		{name: "other_provider", client: WrapOpenAIClient(NewClientFromProviderWithConfig(cfg, "openai", server.URL+"/v1", "test-key", "")), wantThinking: false},
 	}
 	for _, testClient := range clients {
 		t.Run(testClient.name, func(t *testing.T) {

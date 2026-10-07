@@ -48,7 +48,7 @@ llm_router:
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &Server{Cfg: cfg, Vault: vault, LLMClient: llm.NewClient(cfg), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	return &Server{Cfg: cfg, Vault: vault, LLMClient: llm.WrapOpenAIClient(llm.NewClient(cfg)), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 }
 
 func TestLLMRouterPreviewAndAdminContract(t *testing.T) {

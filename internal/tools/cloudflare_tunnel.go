@@ -29,22 +29,27 @@ var cfHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 // CloudflareTunnelConfig holds the merged config for tunnel management.
 type CloudflareTunnelConfig struct {
-	Enabled        bool
-	ReadOnly       bool
-	Mode           string // "auto", "docker", "native"
-	AutoStart      bool
-	AuthMethod     string // "token", "named", "quick"
-	TunnelName     string
-	AccountID      string
-	ExposeWebUI    bool
-	ExposeHomepage bool
-	CustomIngress  []CloudflareIngress
-	MetricsPort    int
-	LogLevel       string
-	DockerHost     string // inherited from docker.host
-	WebUIPort      int    // from server.port (plain HTTP port)
-	HomepagePort   int    // from homepage.webserver_port
-	DataDir        string // for storing config files
+	Enabled              bool
+	ReadOnly             bool
+	Mode                 string // "auto", "docker", "native"
+	AutoStart            bool
+	AuthMethod           string // "token", "named", "quick"
+	TunnelName           string
+	AccountID            string
+	ExposeWebUI          bool
+	ExposeHomepage       bool
+	CustomIngress        []CloudflareIngress
+	MetricsPort          int
+	LogLevel             string
+	DockerHost           string // inherited from docker.host
+	WebUIPort            int    // from server.port (plain HTTP port)
+	HomepagePort         int    // from homepage.webserver_port
+	DataDir              string // for storing config files
+	HomepageEnabled      bool
+	HomepageWorkspace    string
+	HomepageRegistryPath string
+	QuickProjectDir      string
+	quickOrigin          *homepageQuickOrigin
 	// HTTPS fields: when HTTPS is enabled AuraGo no longer listens on WebUIPort.
 	// The tunnel must connect to the HTTPS endpoint instead.
 	HTTPSEnabled bool   // from server.https.enabled
@@ -76,25 +81,29 @@ func CloudflareTunnelConfigFromConfig(cfg *config.Config) CloudflareTunnelConfig
 		mode = "native"
 	}
 	tunnelCfg := CloudflareTunnelConfig{
-		Enabled:        cfgCopy.CloudflareTunnel.Enabled,
-		ReadOnly:       cfgCopy.CloudflareTunnel.ReadOnly,
-		Mode:           mode,
-		AutoStart:      cfgCopy.CloudflareTunnel.AutoStart,
-		AuthMethod:     cfgCopy.CloudflareTunnel.AuthMethod,
-		TunnelName:     cfgCopy.CloudflareTunnel.TunnelName,
-		AccountID:      cfgCopy.CloudflareTunnel.AccountID,
-		TunnelID:       cfgCopy.CloudflareTunnel.TunnelID,
-		LoopbackPort:   cfgCopy.CloudflareTunnel.LoopbackPort,
-		ExposeWebUI:    cfgCopy.CloudflareTunnel.ExposeWebUI,
-		ExposeHomepage: cfgCopy.CloudflareTunnel.ExposeHomepage,
-		MetricsPort:    cfgCopy.CloudflareTunnel.MetricsPort,
-		LogLevel:       cfgCopy.CloudflareTunnel.LogLevel,
-		DockerHost:     cfgCopy.Docker.Host,
-		WebUIPort:      cfgCopy.Server.Port,
-		HomepagePort:   cfgCopy.Homepage.WebServerPort,
-		DataDir:        cfgCopy.Directories.DataDir,
-		HTTPSEnabled:   cfgCopy.Server.HTTPS.Enabled,
-		HTTPSPort:      cfgCopy.Server.HTTPS.HTTPSPort,
+		Enabled:              cfgCopy.CloudflareTunnel.Enabled,
+		HomepageEnabled:      cfgCopy.Homepage.Enabled,
+		HomepageWorkspace:    cfgCopy.Homepage.WorkspacePath,
+		HomepageRegistryPath: cfgCopy.SQLite.HomepageRegistryPath,
+		QuickProjectDir:      cfgCopy.CloudflareTunnel.QuickProjectDir,
+		ReadOnly:             cfgCopy.CloudflareTunnel.ReadOnly,
+		Mode:                 mode,
+		AutoStart:            cfgCopy.CloudflareTunnel.AutoStart,
+		AuthMethod:           cfgCopy.CloudflareTunnel.AuthMethod,
+		TunnelName:           cfgCopy.CloudflareTunnel.TunnelName,
+		AccountID:            cfgCopy.CloudflareTunnel.AccountID,
+		TunnelID:             cfgCopy.CloudflareTunnel.TunnelID,
+		LoopbackPort:         cfgCopy.CloudflareTunnel.LoopbackPort,
+		ExposeWebUI:          cfgCopy.CloudflareTunnel.ExposeWebUI,
+		ExposeHomepage:       cfgCopy.CloudflareTunnel.ExposeHomepage,
+		MetricsPort:          cfgCopy.CloudflareTunnel.MetricsPort,
+		LogLevel:             cfgCopy.CloudflareTunnel.LogLevel,
+		DockerHost:           cfgCopy.Docker.Host,
+		WebUIPort:            cfgCopy.Server.Port,
+		HomepagePort:         cfgCopy.Homepage.WebServerPort,
+		DataDir:              cfgCopy.Directories.DataDir,
+		HTTPSEnabled:         cfgCopy.Server.HTTPS.Enabled,
+		HTTPSPort:            cfgCopy.Server.HTTPS.HTTPSPort,
 	}
 	for _, r := range cfgCopy.CloudflareTunnel.CustomIngress {
 		tunnelCfg.CustomIngress = append(tunnelCfg.CustomIngress, CloudflareIngress{
@@ -102,6 +111,9 @@ func CloudflareTunnelConfigFromConfig(cfg *config.Config) CloudflareTunnelConfig
 			Service:  r.Service,
 			Path:     r.Path,
 		})
+	}
+	if tunnelCfg.HomepageWorkspace == "" {
+		tunnelCfg.HomepageWorkspace = filepath.Join(cfgCopy.Directories.DataDir, "homepage")
 	}
 	return tunnelCfg
 }
@@ -114,12 +126,15 @@ const (
 
 // tunnelState tracks the running cloudflared process/container.
 var (
-	tunnelMu       sync.Mutex
-	tunnelPID      int    // native mode: PID in registry
-	tunnelMode     string // "docker", "native", "quick", or ""
-	tunnelURL      string // quick tunnel: the public URL
-	tunnelStarted  time.Time
-	tunnelStopping bool
+	tunnelMu          sync.Mutex
+	tunnelPID         int    // native mode: PID in registry
+	tunnelMode        string // "docker", "native", "quick", or ""
+	tunnelURL         string // quick tunnel: the public URL
+	tunnelStarted     time.Time
+	tunnelStopping    bool
+	tunnelQuickOrigin *homepageQuickOrigin
+	tunnelExit        <-chan struct{}
+	tunnelDockerHost  string
 )
 
 var cloudflareRandRead = rand.Read
@@ -167,23 +182,44 @@ func CloudflareTunnelStop(cfg CloudflareTunnelConfig, registry *ProcessRegistry,
 	}
 	tunnelMu.Lock()
 	defer tunnelMu.Unlock()
+	return stopCloudflareTunnelLocked(cfg, registry, logger)
+}
 
+// CloudflareTunnelShutdown is reserved for server shutdown and permission revocation.
+func CloudflareTunnelShutdown(cfg CloudflareTunnelConfig, registry *ProcessRegistry, logger *slog.Logger, quickOnly bool) string {
+	tunnelMu.Lock()
+	defer tunnelMu.Unlock()
+	if quickOnly && tunnelQuickOrigin == nil {
+		return okJSON("No managed quick publication is active")
+	}
+	return stopCloudflareTunnelLocked(cfg, registry, logger)
+}
+
+func stopCloudflareTunnelLocked(cfg CloudflareTunnelConfig, registry *ProcessRegistry, logger *slog.Logger) string {
+	if tunnelQuickOrigin != nil {
+		tunnelQuickOrigin.disabled.Store(true)
+	}
 	if tunnelMode == "" {
+		closeQuickOriginLocked()
 		return errJSON("No tunnel is running")
 	}
-
 	tunnelStopping = true
 	defer func() { tunnelStopping = false }()
-
+	var result string
 	switch tunnelMode {
 	case "docker":
-		return stopDockerTunnel(cfg, logger)
+		result = stopDockerTunnel(cfg, logger)
 	case "native", "quick":
-		return stopNativeTunnel(cfg, registry, logger)
+		result = stopNativeTunnel(cfg, registry, logger)
 	default:
-		tunnelMode = ""
 		return errJSON("Unknown tunnel mode: %s", tunnelMode)
 	}
+	// Keep a disabled listener bound when termination is uncertain. Releasing
+	// its port could let another local service inherit the surviving tunnel.
+	if cloudflareTunnelToolResultOK(result) {
+		closeQuickOriginLocked()
+	}
+	return result
 }
 
 // CloudflareTunnelRestart stops and restarts the tunnel.
@@ -191,6 +227,15 @@ func CloudflareTunnelRestart(cfg CloudflareTunnelConfig, vault *security.Vault, 
 	if msg := cloudflareTunnelReadOnlyError(cfg); msg != "" {
 		return msg
 	}
+	if cfg.AuthMethod == "quick" {
+		// Validate before interrupting an existing tunnel.
+		probe, err := newHomepageQuickOrigin(cfg, "native")
+		if err != nil {
+			return errJSON("%v", err)
+		}
+		probe.Close()
+	}
+
 	stopResult := CloudflareTunnelStop(cfg, registry, logger)
 	// Allow a moment for cleanup
 	time.Sleep(time.Second)
@@ -273,10 +318,13 @@ func CloudflareTunnelStatus(cfg CloudflareTunnelConfig, registry *ProcessRegistr
 	if tunnelURL != "" {
 		result["tunnel_url"] = tunnelURL
 	}
+	if tunnelQuickOrigin != nil {
+		result["publication_disabled"] = tunnelQuickOrigin.disabled.Load()
+	}
 
 	// Check health
 	if tunnelMode == "docker" {
-		dockerCfg := DockerConfig{Host: cfg.DockerHost}
+		dockerCfg := DockerConfig{Host: tunnelDockerHost}
 		data, code, _ := dockerRequest(dockerCfg, "GET", "/containers/"+cfdContainerName+"/json", "")
 		if code == 200 {
 			var info map[string]interface{}
@@ -289,7 +337,9 @@ func CloudflareTunnelStatus(cfg CloudflareTunnelConfig, registry *ProcessRegistr
 	} else if tunnelPID > 0 {
 		if info, ok := registry.Get(tunnelPID); ok {
 			result["pid"] = tunnelPID
+			info.mu.Lock()
 			result["process_alive"] = info.Alive
+			info.mu.Unlock()
 		}
 	}
 
@@ -297,7 +347,7 @@ func CloudflareTunnelStatus(cfg CloudflareTunnelConfig, registry *ProcessRegistr
 	return string(out)
 }
 
-// CloudflareTunnelQuickTunnel starts a temporary quick tunnel for a specific port.
+// CloudflareTunnelQuickTunnel publishes a registered Homepage static snapshot.
 // Quick tunnels use TryCloudflare and don't require any Cloudflare account.
 func CloudflareTunnelQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, logger *slog.Logger, port int) string {
 	if msg := cloudflareTunnelReadOnlyError(cfg); msg != "" {
@@ -379,21 +429,8 @@ func CloudflareTunnelInstall(cfg CloudflareTunnelConfig, logger *slog.Logger) st
 // ──────────────────────────────────────────────────────────────────────────
 
 // cfTunnelConfig is the remotely-managed cloudflared ingress/origin config.
-type cfTunnelConfig struct {
-	Ingress       []cfIngressRule  `json:"ingress,omitempty"`
-	OriginRequest *cfOriginRequest `json:"originRequest,omitempty"`
-}
-
-type cfIngressRule struct {
-	Hostname      string           `json:"hostname,omitempty"`
-	Service       string           `json:"service"`
-	Path          string           `json:"path,omitempty"`
-	OriginRequest *cfOriginRequest `json:"originRequest,omitempty"`
-}
-
-type cfOriginRequest struct {
-	NoTLSVerify bool `json:"noTLSVerify"`
-}
+// Preserve provider fields when updating one origin's TLS policy.
+type cfTunnelConfig map[string]any
 
 type cfAPIError struct {
 	Code    int    `json:"code"`
@@ -427,8 +464,7 @@ type cfTunnelConfigResult struct {
 }
 
 // applyNoTLSVerifyViaAPI reads the current remotely-managed tunnel configuration
-// from the Cloudflare API and ensures noTLSVerify is set at the top-level
-// originRequest. This is necessary when HTTPS is enabled because cloudflared
+// from the Cloudflare API and scopes noTLSVerify to AuraGo local HTTPS rules. This is necessary when HTTPS is enabled because cloudflared
 // overrides local CLI flags with the Dashboard-pushed ingress configuration.
 //
 // The vault secret "cloudflare_api_token" must be set with a Zero Trust write
@@ -461,23 +497,73 @@ func applyNoTLSVerifyViaAPI(ctx context.Context, cfg CloudflareTunnelConfig, api
 		return
 	}
 
-	// Already configured? Nothing to do.
-	if current.OriginRequest != nil && current.OriginRequest.NoTLSVerify {
-		logger.Info("[CloudflareTunnel] noTLSVerify already enabled in Dashboard config", "tunnelID", tunnelID)
+	if !scopeCloudflareTLSException(*current, cfg) {
 		return
 	}
-
-	// Set top-level noTLSVerify; this default applies to all ingress rules.
-	if current.OriginRequest == nil {
-		current.OriginRequest = &cfOriginRequest{}
-	}
-	current.OriginRequest.NoTLSVerify = true
 
 	if err := cfPutTunnelConfig(ctx, cfg.AccountID, apiToken, tunnelID, current); err != nil {
 		logger.Warn("[CloudflareTunnel] Cannot PUT tunnel config via Cloudflare API", "tunnelID", tunnelID, "error", err)
 		return
 	}
-	logger.Info("[CloudflareTunnel] Successfully set noTLSVerify=true via Cloudflare API", "tunnelID", tunnelID)
+	logger.Info("[CloudflareTunnel] Scoped local TLS exception via Cloudflare API", "tunnelID", tunnelID)
+}
+
+// cloudflareLocalHTTPSOrigin matches only the configured AuraGo TLS listener.
+// A port match alone must never disable TLS for a different upstream host.
+func cloudflareLocalHTTPSOrigin(cfg CloudflareTunnelConfig, service string) bool {
+	if !cfg.HTTPSEnabled || cfg.LoopbackPort != 0 {
+		return false
+	}
+	u, err := url.Parse(service)
+	if err != nil || u.Scheme != "https" || u.User != nil {
+		return false
+	}
+	switch strings.ToLower(u.Hostname()) {
+	case "localhost", "127.0.0.1", "::1", "host.docker.internal":
+	default:
+		return false
+	}
+	port := u.Port()
+	if port == "" {
+		port = "443"
+	}
+	return port == fmt.Sprint(effectiveHTTPSPort(cfg))
+}
+
+func scopeCloudflareTLSException(current cfTunnelConfig, cfg CloudflareTunnelConfig) bool {
+	rules, ok := current["ingress"].([]any)
+	if !ok {
+		return false
+	}
+	changed, matched := false, false
+	for _, value := range rules {
+		rule, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		service, _ := rule["service"].(string)
+		if !cloudflareLocalHTTPSOrigin(cfg, service) {
+			continue
+		}
+		matched = true
+		origin, _ := rule["originRequest"].(map[string]any)
+		if origin == nil {
+			origin = make(map[string]any)
+			rule["originRequest"] = origin
+		}
+		if origin["noTLSVerify"] != true {
+			origin["noTLSVerify"] = true
+			changed = true
+		}
+	}
+	// Migrate the former global exception only when this is an AuraGo tunnel.
+	if matched {
+		if origin, ok := current["originRequest"].(map[string]any); ok && origin["noTLSVerify"] == true {
+			delete(origin, "noTLSVerify")
+			changed = true
+		}
+	}
+	return changed
 }
 
 // cfLookupTunnelID resolves a tunnel UUID by its display name.
@@ -718,27 +804,21 @@ func effectiveHTTPSPort(cfg CloudflareTunnelConfig) int {
 }
 
 func quickTunnelOriginURL(cfg CloudflareTunnelConfig, host string, port int) (string, bool) {
-	if port > 0 {
-		if cfg.HTTPSEnabled && port == effectiveHTTPSPort(cfg) {
-			return fmt.Sprintf("https://%s:%d", host, port), true
-		}
-		return fmt.Sprintf("http://%s:%d", host, port), false
+	if cfg.quickOrigin == nil || port != 0 {
+		return "", false
 	}
-	if cfg.LoopbackPort > 0 {
-		return fmt.Sprintf("http://127.0.0.1:%d", cfg.LoopbackPort), false
-	}
-	if cfg.ExposeHomepage && !cfg.ExposeWebUI && cfg.HomepagePort > 0 {
-		return fmt.Sprintf("http://%s:%d", host, cfg.HomepagePort), false
-	}
-	if cfg.HTTPSEnabled {
-		return fmt.Sprintf("https://%s:%d", host, effectiveHTTPSPort(cfg)), true
-	}
-	return fmt.Sprintf("http://%s:%d", host, cfg.WebUIPort), false
+	return cfg.quickOrigin.URL(host), false
 }
 
 func quickTunnelArgs(cfg CloudflareTunnelConfig, host string, port int) []string {
 	localURL, needsNoTLSVerify := quickTunnelOriginURL(cfg, host, port)
 	args := []string{"tunnel", "--url", localURL}
+	if cfg.quickOrigin != nil {
+		args = append(args, "--http-host-header", cfg.quickOrigin.hostHeader)
+	}
+	if cfg.MetricsPort > 0 {
+		args = append(args, "--metrics", fmt.Sprintf("localhost:%d", cfg.MetricsPort))
+	}
 	if needsNoTLSVerify {
 		args = append(args, "--no-tls-verify")
 	}
@@ -746,22 +826,40 @@ func quickTunnelArgs(cfg CloudflareTunnelConfig, host string, port int) []string
 }
 
 func startQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, logger *slog.Logger, port int) string {
+	if port != 0 {
+		return errJSON("quick_tunnel no longer accepts a port; select a registered project_dir")
+	}
 	mode := resolveMode(cfg)
-	logger.Info("[CloudflareTunnel] Starting quick tunnel", "mode", mode, "port", port)
-
-	args := quickTunnelArgs(cfg, "localhost", port)
-	if cfg.MetricsPort > 0 {
-		args = append(args, "--metrics", fmt.Sprintf("localhost:%d", cfg.MetricsPort))
+	if mode != "native" && mode != "docker" {
+		return errJSON("No cloudflared runtime is available")
 	}
-
-	switch mode {
-	case "docker":
-		return startDockerQuickTunnel(cfg, port, logger)
-	case "native":
-		return startNativeQuickTunnel(cfg, registry, args, logger)
-	default:
-		return errJSON("Could not determine runtime mode. Docker not available and native binary not found.")
+	origin, err := newHomepageQuickOrigin(cfg, mode)
+	if err != nil {
+		return errJSON("%v", err)
 	}
+	cfg.quickOrigin = origin
+	if _, err := RecordHomepageEvent(origin.db, origin.projectID, "quick_publication_requested", "cloudflare_tunnel", "Publish immutable static snapshot", map[string]interface{}{"publication_id": origin.publicationID, "artifact_hash": origin.artifactHash, "build_dir": origin.buildDir}); err != nil {
+		origin.Close()
+		return errJSON("Cannot record Homepage publication: %v", err)
+	}
+	logger.Info("[CloudflareTunnel] Publishing managed Homepage snapshot", "project_dir", origin.projectDir, "mode", mode)
+	var result string
+	if mode == "docker" {
+		result = startDockerQuickTunnel(cfg, 0, logger)
+	} else {
+		result = startNativeQuickTunnel(cfg, registry, quickTunnelArgs(cfg, "127.0.0.1", 0), logger)
+	}
+	if cloudflareTunnelToolResultOK(result) {
+		tunnelQuickOrigin = origin
+	} else if tunnelMode == "docker" {
+		// A lost start response may still leave a live container. Reserve the
+		// port until stopping that exact daemon confirms termination.
+		origin.disabled.Store(true)
+		tunnelQuickOrigin = origin
+	} else {
+		origin.Close()
+	}
+	return result
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -822,25 +920,42 @@ func startDockerNamedTunnel(cfg CloudflareTunnelConfig, credDir, configPath stri
 }
 
 func startDockerQuickTunnel(cfg CloudflareTunnelConfig, port int, logger *slog.Logger) string {
+	if cfg.quickOrigin == nil || port != 0 {
+		return errJSON("A managed Homepage origin is required")
+	}
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 
-	pullImage(dockerCfg, cfdImageName, logger)
-	removeContainer(dockerCfg, cfdContainerName)
-
 	host := "host.docker.internal"
-	if cfg.LoopbackPort > 0 {
-		host = "localhost"
-	}
 	cmd := quickTunnelArgs(cfg, host, port)
 
 	hostCfg := map[string]interface{}{
 		"ExtraHosts":    []string{"host.docker.internal:host-gateway"},
 		"RestartPolicy": map[string]string{"Name": "no"},
 	}
-	if cfg.LoopbackPort > 0 {
-		hostCfg = map[string]interface{}{
-			"NetworkMode":   "host",
-			"RestartPolicy": map[string]string{"Name": "no"},
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		// Share the verified parent container network namespace. host-gateway
+		// would address the host, where this origin listener does not exist.
+		hostname, err := os.Hostname()
+		if err != nil || len(hostname) < 12 || len(hostname) > 64 || strings.Trim(hostname, "0123456789abcdef") != "" {
+			return errJSON("Cannot identify this container for quick publication; use native mode")
+		}
+		raw, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+url.PathEscape(hostname)+"/json", "")
+		var parent struct {
+			ID    string `json:"Id"`
+			State struct {
+				Running bool `json:"Running"`
+			} `json:"State"`
+		}
+		if err != nil || code != 200 || json.Unmarshal(raw, &parent) != nil || len(parent.ID) != 64 || strings.Trim(parent.ID, "0123456789abcdef") != "" || !strings.HasPrefix(parent.ID, hostname) || !parent.State.Running {
+			return errJSON("Cannot verify the parent container for quick publication; use native mode")
+		}
+		hostCfg = map[string]interface{}{"NetworkMode": "container:" + parent.ID, "RestartPolicy": map[string]string{"Name": "no"}}
+		host = "127.0.0.1"
+		cmd = quickTunnelArgs(cfg, host, 0)
+	} else {
+		endpoint := dockerutil.NormalizeHost(dockerCfg.Host)
+		if !strings.HasPrefix(endpoint, "unix://") && !strings.HasPrefix(endpoint, "npipe://") {
+			return errJSON("Quick publication needs a local Docker socket or verified parent container; use native mode for a remote Docker daemon")
 		}
 	}
 
@@ -850,7 +965,12 @@ func startDockerQuickTunnel(cfg CloudflareTunnelConfig, port int, logger *slog.L
 		"HostConfig": hostCfg,
 	}
 
+	pullImage(dockerCfg, cfdImageName, logger)
+	removeContainer(dockerCfg, cfdContainerName)
 	result := createAndStartContainer(dockerCfg, cfdContainerName, payload, logger, "quick")
+	if !cloudflareTunnelToolResultOK(result) {
+		return result
+	}
 
 	// Try to capture the quick tunnel URL from container logs after a few seconds
 	go func() {
@@ -858,7 +978,12 @@ func startDockerQuickTunnel(cfg CloudflareTunnelConfig, port int, logger *slog.L
 		url := captureQuickTunnelURLDocker(dockerCfg, logger)
 		if url != "" {
 			tunnelMu.Lock()
-			tunnelURL = url
+			if tunnelMode == "docker" && tunnelQuickOrigin == cfg.quickOrigin {
+				tunnelURL = url
+				if err := cfg.quickOrigin.recordPublication(url); err != nil {
+					logger.Error("[CloudflareTunnel] Homepage publication ledger failed", "error", err)
+				}
+			}
 			tunnelMu.Unlock()
 			logger.Info("[CloudflareTunnel] Quick tunnel URL captured", "url", url)
 		}
@@ -877,14 +1002,15 @@ func createAndStartContainer(dockerCfg DockerConfig, name string, payload map[st
 		return errJSON("Failed to create cloudflared container: HTTP %d — %s", code, string(data))
 	}
 
-	_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+name+"/start", "")
-	if startErr != nil || (startCode != 204 && startCode != 304) {
-		return errJSON("Failed to start cloudflared container: code=%d err=%v", startCode, startErr)
-	}
-
 	tunnelMode = "docker"
+	tunnelDockerHost = dockerutil.NormalizeHost(dockerCfg.Host)
 	tunnelStarted = time.Now()
 	tunnelPID = 0
+	_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+name+"/start", "")
+	if startErr != nil || (startCode != 204 && startCode != 304) {
+		return errJSON("Cloudflared start is unconfirmed; stop the tunnel before retrying: code=%d err=%v", startCode, startErr)
+	}
+
 	logger.Info("[CloudflareTunnel] Container started", "container", name, "auth", authMethod)
 
 	out, _ := json.Marshal(map[string]interface{}{
@@ -898,16 +1024,17 @@ func createAndStartContainer(dockerCfg DockerConfig, name string, payload map[st
 }
 
 func stopDockerTunnel(cfg CloudflareTunnelConfig, logger *slog.Logger) string {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Host: tunnelDockerHost}
 
-	_, stopCode, _ := dockerRequest(dockerCfg, "POST", "/containers/"+cfdContainerName+"/stop?t=10", "")
-	if stopCode != 204 && stopCode != 304 {
-		logger.Warn("[CloudflareTunnel] Container stop returned unexpected code", "code", stopCode)
+	_, stopCode, stopErr := dockerRequest(dockerCfg, "POST", "/containers/"+cfdContainerName+"/stop?t=10", "")
+	if stopErr != nil || (stopCode != 204 && stopCode != 304 && stopCode != 404) {
+		return errJSON("Tunnel termination is unconfirmed: HTTP %d: %v", stopCode, stopErr)
 	}
 
 	removeContainer(dockerCfg, cfdContainerName)
 
 	tunnelMode = ""
+	tunnelDockerHost = ""
 	tunnelURL = ""
 	tunnelPID = 0
 
@@ -984,15 +1111,19 @@ func startNativeTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, ar
 	tunnelStarted = time.Now()
 	logger.Info("[CloudflareTunnel] Native process started", "pid", cmd.Process.Pid)
 
-	// Wait for process exit in background
+	// Wait for the actual process exit before releasing a managed origin port.
+	exited := make(chan struct{})
+	tunnelExit = exited
 	go func() {
 		_ = cmd.Wait()
+		close(exited)
 		info.mu.Lock()
 		info.Alive = false
 		info.mu.Unlock()
 
 		tunnelMu.Lock()
 		if !tunnelStopping && tunnelPID == cmd.Process.Pid {
+			closeQuickOriginLocked()
 			tunnelMode = ""
 			tunnelPID = 0
 			tunnelURL = ""
@@ -1011,14 +1142,17 @@ func startNativeTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, ar
 }
 
 func startNativeQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, args []string, logger *slog.Logger) string {
+	if cfg.quickOrigin == nil {
+		return errJSON("A managed Homepage origin is required")
+	}
 	result := startNativeTunnel(cfg, registry, args, nil, logger)
 
 	// Parse to check success
 	var r map[string]interface{}
 	if json.Unmarshal([]byte(result), &r) == nil && r["status"] == "ok" {
 		// Try to capture quick tunnel URL from process output
+		pid := tunnelPID
 		go func() {
-			pid := tunnelPID
 			if pid <= 0 {
 				return
 			}
@@ -1032,7 +1166,12 @@ func startNativeQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistr
 				output := info.ReadOutput()
 				if url := extractQuickTunnelURL(output); url != "" {
 					tunnelMu.Lock()
-					tunnelURL = url
+					if tunnelPID == pid && tunnelQuickOrigin == cfg.quickOrigin {
+						tunnelURL = url
+						if err := cfg.quickOrigin.recordPublication(url); err != nil {
+							logger.Error("[CloudflareTunnel] Homepage publication ledger failed", "error", err)
+						}
+					}
 					tunnelMu.Unlock()
 					logger.Info("[CloudflareTunnel] Quick tunnel URL captured", "url", url)
 					return
@@ -1048,7 +1187,34 @@ func startNativeQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistr
 func stopNativeTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, logger *slog.Logger) string {
 	if tunnelPID > 0 {
 		if err := registry.Terminate(tunnelPID); err != nil {
-			logger.Warn("[CloudflareTunnel] Failed to terminate process", "pid", tunnelPID, "error", err)
+			return errJSON("Tunnel termination is unconfirmed: %v", err)
+		}
+	}
+	if tunnelPID > 0 {
+		if tunnelExit == nil {
+			return errJSON("Tunnel termination is unconfirmed: no process-exit acknowledgement")
+		}
+		select {
+		case <-tunnelExit:
+		case <-time.After(3 * time.Second):
+			info, ok := registry.Get(tunnelPID)
+			if !ok {
+				return errJSON("Tunnel termination is unconfirmed: process handle missing")
+			}
+			info.mu.Lock()
+			process := info.Process
+			info.mu.Unlock()
+			if process == nil {
+				return errJSON("Tunnel termination is unconfirmed: process handle missing")
+			}
+			if err := killProcess(process); err != nil {
+				return errJSON("Tunnel termination is unconfirmed: %v", err)
+			}
+			select {
+			case <-tunnelExit:
+			case <-time.After(3 * time.Second):
+				return errJSON("Tunnel termination is unconfirmed after kill")
+			}
 		}
 	}
 
@@ -1166,6 +1332,9 @@ func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath str
 			sb.WriteString("    path: " + r.Path + "\n")
 		}
 		sb.WriteString("    service: " + r.Service + "\n")
+		if cloudflareLocalHTTPSOrigin(cfg, r.Service) {
+			sb.WriteString("    originRequest:\n      noTLSVerify: true\n")
+		}
 	}
 
 	// Auto-generate a catch-all for the AuraGo Web UI if no custom rule already covers
@@ -1187,6 +1356,9 @@ func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath str
 
 	if cfg.ExposeWebUI && webUISvc != "" && !hasIngressForService(cfg.CustomIngress, cfg.WebUIPort) {
 		sb.WriteString("  - service: " + webUISvc + "\n")
+		if cloudflareLocalHTTPSOrigin(cfg, webUISvc) {
+			sb.WriteString("    originRequest:\n      noTLSVerify: true\n")
+		}
 	}
 	if cfg.ExposeHomepage && cfg.HomepagePort > 0 && !hasIngressForService(cfg.CustomIngress, cfg.HomepagePort) {
 		sb.WriteString("  - service: " + fmt.Sprintf("http://localhost:%d", cfg.HomepagePort) + "\n")
@@ -1194,13 +1366,6 @@ func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath str
 
 	// Required catch-all (cloudflared rejects configs without it).
 	sb.WriteString("  - service: http_status:404\n")
-
-	// When AuraGo uses HTTPS with a self-signed certificate, tell cloudflared to skip
-	// TLS verification for the local connection to the origin service.
-	// Not needed when LoopbackPort is set because the origin is plain HTTP.
-	if cfg.HTTPSEnabled && cfg.LoopbackPort == 0 {
-		sb.WriteString("\noriginRequest:\n  noTLSVerify: true\n")
-	}
 
 	return os.WriteFile(configPath, []byte(sb.String()), 0600)
 }
@@ -1410,21 +1575,33 @@ func resolveMode(cfg CloudflareTunnelConfig) string {
 	}
 }
 
-func pullImage(dockerCfg DockerConfig, image string, logger *slog.Logger) {
+// cloudflaredPullTimeout bounds the cloudflared image pull. Every caller holds
+// tunnelMu, which config saves, status requests and shutdown also take, so the
+// pull keeps the 60-second bound of the request client it ran on before.
+var cloudflaredPullTimeout = 60 * time.Second
+
+// pullImage pulls image unless it is already present. A failed pull is logged
+// and returned; callers still create the container, as before, and the create
+// reports a missing image itself.
+func pullImage(dockerCfg DockerConfig, image string, logger *slog.Logger) error {
 	// Check if image exists
 	filterURL := fmt.Sprintf("/images/json?filters=%%7B%%22reference%%22%%3A%%5B%%22%s%%22%%5D%%7D", image)
 	data, code, err := dockerRequest(dockerCfg, "GET", filterURL, "")
 	if err == nil && code == 200 {
 		var images []interface{}
 		if json.Unmarshal(data, &images) == nil && len(images) > 0 {
-			return // Image already exists
+			return nil // Image already exists
 		}
 	}
 
 	logger.Info("[CloudflareTunnel] Pulling image", "image", image)
-	_, _, _ = dockerRequest(dockerCfg, "POST", "/images/create?fromImage="+image, "")
-	// Wait a bit for pull to complete
-	time.Sleep(3 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cloudflaredPullTimeout)
+	defer cancel()
+	if err := pullImageBestEffort(ctx, dockerCfg, image); err != nil {
+		logger.Warn("[CloudflareTunnel] Image pull failed; trying to create the container anyway", "image", image, "error", err)
+		return err
+	}
+	return nil
 }
 
 func removeContainer(dockerCfg DockerConfig, name string) {

@@ -3195,11 +3195,12 @@ func TestCyberwarThemeScanlineRadarAndShaderStayBalanced(t *testing.T) {
 		"rgba(13, 242, 114, 0.07) 0 0.38rem",
 		"[data-theme=\"cyberwar\"] #cyberwar-overlay {",
 		"filter: saturate(1.5) brightness(1.22) contrast(1.06) !important;",
-		"background-position: 0 -14px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;",
-		"background-size: 100% 1px, 100% 100%, 100% 100%, 60px 60px, 100% 100%, 100% 100%, 100% 100%;",
-		"background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat, no-repeat;",
+		"url('/img/cyberwar-city.webp')",
+		"background-position: 0 -14px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, center;",
+		"background-size: 100% 1px, 100% 100%, 100% 100%, 60px 60px, 100% 100%, 100% 100%, 100% 100%, cover;",
+		"background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat;",
 		"animation: cyberwarScanlineScan 10s linear infinite;",
-		"background-position: 0 calc(100dvh + 14px), 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;",
+		"background-position: 0 calc(100dvh + 14px), 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, center;",
 	} {
 		if !strings.Contains(cyberwarCSS, marker) {
 			t.Fatalf("cyberwar CSS missing balanced radar/scanline marker %q", marker)
@@ -3800,5 +3801,53 @@ func TestChatHandlesTypedAgentErrorsOutsideAssistantStream(t *testing.T) {
 				t.Fatalf("%s missing typed agent-error marker %q", path, marker)
 			}
 		}
+	}
+}
+
+// docker.allow_host_access has exactly one control, in the Danger Zone; the
+// generic Docker section skips it and the config search lands on the visible
+// Danger Zone card.
+func TestConfigDockerHostAccessLivesInDangerZone(t *testing.T) {
+	t.Parallel()
+
+	read := func(path string) string {
+		t.Helper()
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		return strings.ReplaceAll(string(content), "\r\n", "\n")
+	}
+	mainJS := read(filepath.Join("js", "config", "main.js"))
+	for _, marker := range []string{
+		"const DOCKER_SKIP_KEYS = new Set([\n        'allow_host_access'",
+		"schemaChildren = schemaChildren.filter(f => !DOCKER_SKIP_KEYS.has(f.yaml_key));",
+		"if (key === 'docker' && DOCKER_SKIP_KEYS.has(k)) continue;",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("main.js is missing docker skip marker %q", marker)
+		}
+	}
+	dangerJS := read(filepath.Join("cfg", "danger.js"))
+	for _, marker := range []string{
+		"path: 'docker.allow_host_access',",
+		"val: (configData.docker || {}).allow_host_access === true,",
+		"title: t('config.danger.docker_host_access.title'),",
+		"desc: t('config.danger.docker_host_access.desc'),",
+	} {
+		if !strings.Contains(dangerJS, marker) {
+			t.Fatalf("danger.js is missing Danger Zone marker %q", marker)
+		}
+	}
+	catalogJS := read(filepath.Join("js", "config", "catalog.js"))
+	ownerLine := ""
+	for _, line := range strings.Split(catalogJS, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "danger_zone: [") {
+			ownerLine = line
+			break
+		}
+	}
+	if !strings.Contains(ownerLine, "'docker.allow_host_access'") {
+		t.Fatalf("catalog.js searchSections.danger_zone does not own docker.allow_host_access: %q", ownerLine)
 	}
 }

@@ -5,6 +5,7 @@
 package fritzbox
 
 import (
+	"aurago/internal/security"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -75,8 +76,9 @@ func newTR064Client(baseURL, username, password string, timeout time.Duration, i
 	return &TR064Client{
 		baseURL: baseURL,
 		httpClient: &http.Client{
-			Transport: transport,
-			Timeout:   timeout,
+			Transport:     transport,
+			Timeout:       timeout,
+			CheckRedirect: security.SameOriginRedirect,
 		},
 	}
 }

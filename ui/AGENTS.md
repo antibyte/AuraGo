@@ -14,6 +14,24 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Ownership
 
+- Desktop file mutations use the shared conflict runtime: strong ETags for
+  observed versions, create-only requests for new files, and explicit Replace /
+  Keep copy / Cancel after a server conflict. Each editor/SDK client owns the
+  version it read; a global path cache must not grant another window an overwrite.
+  Adopt the server's returned path after a copy decision. Rebuild Desktop bundles
+  and verify `TestDesktopFileConflictBrowser` for changes to this flow.
+
+- File Manager paste, archive, extract and batch rename retain their originating
+  instance and captured paths across dialogs and requests. Late results cannot
+  repaint another window or replace its undo state. Shared cut completion clears
+  only the clipboard object it started with; a newer clipboard survives. Verify
+  `TestFileManagerAsyncActionsStayWithOriginBrowser` and
+  `TestDesktopFileClipboardPastePreservesNewSameContentBrowser`.
+- Generated-app keyboard relays use the existing document-bound SDK MessagePort.
+  The injected receiver supports SDK-less apps and preserves normal keyboard
+  events; navigation or frame disposal revokes forwarding. Verify
+  `TestDesktopSDKKeyboardBridgeUsesLivePortForSDKAndLegacyApps`.
+
 - Precision Workspace is an opt-in design system. Operational consumers are
   `config.html`, `dashboard.html`, `plans.html`, `missions_v2.html`,
   `cheatsheets.html`, `knowledge.html`, `skills.html`, `containers.html`,
@@ -32,6 +50,10 @@ worker. Keep packaging, recovery and offline instructions in
 
 ### Render and asynchronous ownership
 
+- Google Workspace exposes separate Gmail read, send and label-change grants. Revocation applies after saving; enabling additional OAuth scopes may require reconnecting. Label changes default off and readonly overrides them. Verify TestGmailLabelPermissionBrowser and all sixteen locale bundles.
+
+- LDAP Config offers one transport dropdown (LDAPS, StartTLS, plain), preserves the legacy use_tls selection until edited, and retains custom ports when switching modes. All sixteen LDAP locale bundles describe the transport; verify TestLDAPTransportConfigBrowser.
+
 - Escape text before every Markdown fallback. Generic image/audio/video sources use the shared same-origin media allowlist; external images become deliberate links. Preview iframes retain sandboxing. Logout sends same-origin POST.
 - Config saves bind to the sent snapshot and retain edits made while requests are in flight. Chat HTTP/SSE/recovery responses bind to session and request generation. All close gestures await the window's asynchronous guard; file dialogs remain pending while a write is in flight.
 - Shared modals queue independent promises. Vault prompts have bounded expiry and cancellation, clear sensitive drafts on close, and never let late results close a newer prompt. Highlight original text nodes rather than escaped HTML.
@@ -44,6 +66,14 @@ worker. Keep packaging, recovery and offline instructions in
   server status so another tab's renewal is respected; logout stops renewal and
   waits for an in-flight cookie update before clearing it. Keep the timeout help
   in all sixteen Config locales aligned. Verify `TestAuthSessionBrowser`.
+
+- Quick Connect serial sessions use the live bootstrap capabilities, fail closed
+  on the Desktop WebSocket disconnect, and dispose on `aurago:auth-ended` before
+  logout or expiry redirects. `aurago:desktop-policy` carries serial grants,
+  readonly and remote timeout values; device traffic never renews authentication.
+  Embedded apps retain `serial 'none'`. Keep all sixteen serial/profile and
+  configuration translations aligned. See `js/desktop/apps/AGENTS.md` and
+  `documentation/quick-connect-serial.md` for lifecycle and hardware acceptance.
 
 - `cfg/llm_router.js` uses the shared saved/draft config path. Empty provider
   clears its model override; missing saved providers remain visible. Preview
@@ -345,6 +375,11 @@ worker. Keep packaging, recovery and offline instructions in
   selectable profiles; otherwise use the available configured default or first
   available profile. Blocked storage keeps the selection in memory. Never start
   a session automatically when restoring a selection.
+- Live Speech audio selection lives in a native dialog opened by a labelled
+  speaker button, placed in the Desktop app header through the shared panel's
+  `audioControls` mount option. Keep browser/headset selection and storage shared
+  with Webchat; opening the dialog never starts audio. Preserve native Escape,
+  focus return and mount cleanup. Verify `TestRealtimeSpeechAudioPickerBrowser`.
 - Live Speech's shared panel owns one `AuraRealtimeSpeechAvatar` per mount.
   Webchat passes `visible: false` until its overlay opens and calls
   `AuraRealtimeSpeechUI.setVisible`; unmount disposes the avatar. Desktop
@@ -435,7 +470,7 @@ worker. Keep packaging, recovery and offline instructions in
   reports not-ready so the next frame retries instead of locking in a black
   texture.
 - Animated wallpapers (`silk_flow`, `firefly_dusk` calm; `neon_overdrive`,
-  `fractal_trip` wild) are fragment shaders in the self-contained module
+  `fractal_trip` wild) are fragment shaders in the module
   `js/desktop/live-wallpapers.js`, painted on one WebGL canvas in
   `#vd-wallpaper-live` (fixed, `z-index: -1`, behind the whole shell). A new
   one needs its id in `internal/desktop/types.go`, `spaces-runtime.js`, the
@@ -446,6 +481,31 @@ worker. Keep packaging, recovery and offline instructions in
   still frame for reduced motion or `data-animations="false"`, release the
   context for other wallpapers and keep brightness pulses gentle (no flashes).
   Verify with `TestDesktopLiveWallpapersBrowser`.
+- `wallpaper-visibility.js` owns the shared maximized-window/screensaver
+  occlusion predicate. City Rain also stops while hidden or covered; repeated
+  pagehide/pageshow must reinstall observers exactly once and reject stale loads.
+- Shell session v2 adds stable window keys and an active-window key; restore
+  focus independently of always-on-top stacking and suppress restore sounds.
+  Compact mode preserves the logical active space. Resize/snap share clamped
+  app minimums, with reachable viewport bounds taking precedence.
+- The start menu is categorized: `AppManifest.Category` (set for every builtin
+  and copied from `CatalogEntry.Category` for Store apps,
+  `desktop.DesktopAppCategories()` in display order; only apps without a known
+  category, e.g. agent-generated ones, fall into `installed`) drives a rail (`#vd-start-rail`, tablist) beside
+  the app pane (`#vd-start-pane-head` + `#vd-start-apps`). "Recent" appears only
+  with history, "All apps" lists sections per category, search shows a flat result
+  list and dims the rail. `START_MENU_CATEGORIES` in `core/window-shell-runtime.js`
+  must mirror the Go list; labels are `desktop.category_<id>` plus
+  `desktop.start_*` in all sixteen desktop locales. Hover switches after a short
+  intent delay (mouse only), arrows move within the rail and hand focus to the
+  pane and back; the active pill slides via `--vd-rail-y`, pane switches reuse the
+  open cascades, everything gated by `data-animations`/reduced motion. The
+  selection persists in `aurago.desktop.startCategory.v1`. Verify
+  `TestDesktopStartMenuCategoriesStayInSync` and
+  `TestBuiltinAppsCarryStartMenuCategories`.
+- Spotlight responses belong to a search generation and open instance. Quick
+  Chat owns its AbortController/reader through widget cleanup. Shell popups
+  close on Escape and return focus to their accessible opener.
 - `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
   Desktop bundles; `npm run build:ui -- --check` must be read-only and pass.
   Every Desktop main-bundle part starts and ends at a function boundary inside the shell IIFE (only
@@ -454,8 +514,13 @@ worker. Keep packaging, recovery and offline instructions in
 - `ui/css/desktop-polish.css` is the Desktop's finishing layer and stays the
   last part of the shell CSS bundle: it only refines existing surfaces (ambient
   wallpaper light in taskbar, dock, menubar and menus, focus edge light and
-  glow, vignette, pointer light, taskbar indicators, toast countdown, bell
-  ring). Every wallpaper needs `--vd-ambient-top/-bottom/-glow`; photo values
+  glow, vignette, pointer light, taskbar indicators, toast countdown and hold,
+  bell ring, tray popover rise/drop, tray focus rings and press feedback, icon
+  glyph lift). Tray popovers (clock popup, notification centre) open away from
+  their bar through `placeTrayPopover` (`data-placement`), never off-screen
+  under the Fruity menubar. Desktop icon labels clamp to two lines and reveal
+  the full name on hover, selection and keyboard focus (`desktop-icons.css`).
+  Every wallpaper needs `--vd-ambient-top/-bottom/-glow`; photo values
   come from `python scripts/wallpaper-ambient.py`. Its selectors double
   `.desktop-body` where `desktop-base.css` has mode-specific glass rules.
   Motion is gated by `data-animations` and `prefers-reduced-motion`; the
@@ -468,14 +533,52 @@ worker. Keep packaging, recovery and offline instructions in
   Helix volleys and damage-triggered EMP counterpulses reuse projectile/effect
   cleanup and respect the existing 18-projectile limit. EMP must not interrupt
   a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
-- Sandstorm dust, grains and ground lift share a smooth wind/gust envelope.
-  Three moving counter-rotating eddies drive the fog and particle velocity
-  field; grains must visibly turn, rise and recirculate. Wind changes direction
-  gradually. Soft dust rolls preserve visible circulation in the 2D fallback.
-  Keep the fixed particle pools and the fog buffer at most 960x540 pixels;
-  soft dust does not need device-pixel resolution. Canvas bounds must not
-  transition. Preserve the 2D fallback, hidden-tab pause and reduced-motion
-  and narrow-screen gates.
+- Cyberwar uses the generated `img/cyberwar-city.webp` as a static, centered
+  cover background in `#chat-box`, beneath a navy dimming gradient and the HUD.
+  Keep the image position fixed in the scanline keyframes and retain readable
+  message surfaces, including on narrow screens and with reduced motion.
+- Dark Sun is an eclipse scene. `body` paints the violet-black sky, star specks
+  and the horizon glow; `body::before` carries the static eclipse and lava
+  horizon SVG (the no-JS, reduced-motion and narrow-screen baseline) and fades
+  out while the engine is live. `js/chat/dark-sun-shader.js` is the whole
+  engine: `#dark-sun-sky` (WebGL, at most 1280x720: stars, breathing corona,
+  prominence loops, the black disc, a travelling diamond-ring glint, the
+  eruption plume and light wave) and `#dark-sun-scene` (2D basalt plain with
+  cached glowing cracks, ridge silhouettes and the 2D eclipse fallback) sit
+  behind the chat; `#dark-sun-overlay` (2D, screen blend) carries embers that
+  rise from the cracks, sparks when an ember meets a bubble, pointer heat and
+  the light wave over the chat. Pools: 160 embers, 240 sparks; a single RAF
+  loop; canvas bounds never transition. Every 20–35 s a 5 s eruption triples
+  the ember spawn, launches the wave after one second and publishes
+  `html[data-darksun="calm"|"flare"]` plus `--darksun-flash` on
+  `.app-header`/`.app-footer`; `css/chat-themes.css` reacts and `stop()`
+  clears both. Bubble tails keep the anchored `::before` contract. Gates:
+  theme, hidden tab, reduced motion and `innerWidth >= 768`. The DOM ember
+  layer (`dark-sun-embers.js`) is retired; `theme-effects.js` loads only the
+  engine. Contracts: `TestDarkSunEclipseBrowserSmoke`
+  (`AURAGO_RUN_BROWSER_SMOKE=1`, `AURAGO_DARKSUN_BENCHMARK=1` for 120
+  native-RAF frames at 1920x1080) and `TestChatFrontend_DarkSunSceneStaysPolished`.
+- Sandstorm is a layered desert scene. `body` paints sky, sun bloom and static
+  SVG dunes (the no-JS, reduced-motion and narrow-screen baseline). The engine
+  adds `#sandstorm-fog` (WebGL sky, sun, crepuscular rays, dust, the dust wall
+  of a storm and the lightning tint) and `#sandstorm-scene` (three cached dune
+  ridges with parallax, clouds, dust rolls, the lightning bolt and the 2D sky
+  fallback) behind the chat, and `#sandstorm-overlay` (grains, trails, ground
+  pile, sand resting on bubbles) above it. Dust, grains and ground lift share
+  a smooth wind/gust envelope; three moving counter-rotating eddies drive the
+  fog and particle velocity field; grains must visibly turn, rise and
+  recirculate, and wind changes direction gradually. Each 9 s storm sends a
+  dust wall across the scene from the windward side (`u_front`), dims the sun,
+  schedules one to three dry-lightning strikes (the first always shortly after
+  the attack) and sweeps the sand off bubbles. While live the engine publishes
+  `html[data-sandstorm="calm"|"storm"]` and sets `--sandstorm-flash` on
+  `.app-header`/`.app-footer` during strikes; `css/chat-themes.css` reacts to
+  both and `stop()` clears them. A `pointermove` gust pushes nearby grains
+  without extra loops or pointer capture. Keep the fixed particle pools and
+  the fog buffer at most 960x540 pixels; soft dust does not need device-pixel
+  resolution. Canvas bounds must not transition. Preserve the 2D fallback,
+  hidden-tab pause and reduced-motion and narrow-screen gates. Static
+  contract: `TestChatFrontend_SandstormSceneStaysPolished`.
 - Galaxy uses the shared Three.js 0.186.1 and a single lazy renderer/RAF loop.
   Keep the ten draw calls, shared sphere geometry and fixed 3500/850-star
   buffers. Exactly 20 stars flicker subtly with individually randomized pauses;
@@ -492,11 +595,21 @@ worker. Keep packaging, recovery and offline instructions in
   Reduced motion, unavailable WebGL, missing textures and context loss expose
   the complete local poster. Keep posters aligned with the rendered scene and
   preserve source provenance in `img/galaxy/CREDITS.md`.
-  Galaxy chat follows the supplied orbital-glass reference: a violet/cyan/gold
-  outlined header, local orbit wordmark, left navigation rail, orb welcome card
-  and a floating composer ordered Voice, Live, File, Tools, input, Send.
-  Desktop header/composer share width and resting height, with 16px edge gaps;
-  narrow touch views retain the input above the controls and 12px edge gaps.
+  Galaxy chat is an orbital-glass cockpit: a violet/cyan/gold outlined header
+  with the local orbit wordmark and a clock segment at its right end, a footer
+  composer ordered Voice, Live, File, Tools, input, Send, and two equal glass
+  rails between them: navigation on the left (Desktop, Integrations,
+  Conversations, Dashboard, Missions, Config as icon + caption) and the live
+  status pills (connection, tokens, budget, credits, debug) on the right, moved
+  there by `galaxy-interface.js` and restored on exit. Header and footer span
+  the full width with 16px gaps on every side and share their resting height;
+  the rails sit 16px below/above them with the same width (`--galaxy-rail-width`)
+  and the chat lane is centered between them (`--galaxy-lane-inset`). The orb
+  welcome card is a centered column with a connection chip. No floating clock
+  plate, no mottos, no horizontal offsets. Narrow touch views hide logo, clock
+  and status rail, keep a 46px icon-only navigation rail, retain the input above
+  the controls and use 12px edge gaps. Static contract:
+  `TestChatFrontend_GalaxyFrameStaysSymmetric`.
   Keep its styles scoped to `[data-theme="galaxy"]` in `css/chat-themes.css`.
   `galaxy-interface.js` lazily relocates the real composer/drawer controls;
   comment anchors restore the exact original order on theme exit. Do not clone
@@ -538,6 +651,11 @@ worker. Keep packaging, recovery and offline instructions in
   awaited ES modules before their Desktop app scripts.
 
 ## Verification
+
+- Desktop apps use the server-owned `/api/desktop/integrations/` entry points
+  for shared APIs, including fetch, EventSource and WebSocket URLs. Preserve the
+  integration's own gates. `desktop_policy` updates the live shell policy and
+  emits `aurago:desktop-policy` without disposing open editors or Tresor drafts.
 
 - Syntax for every rollout JavaScript change:
   `$files = git diff --name-only 0773dfa52e3d21f420f9009c480bdd817e761882 -- '*.js'; foreach ($file in $files) { node --check $file; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }`.

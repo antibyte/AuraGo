@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "483f308cc92059b430670502388cc41e2391931c612dc184f0bb60626fc5c05a",
+  "schema_sha256": "d7f311654cc275abd86bc04c0778a14db829cc68af236ebbd021ca879890e858",
   "tools": {
     "treg_call": {
       "default_arguments": {
@@ -1282,7 +1282,8 @@
           "selector": "operation",
           "value": "quick_tunnel",
           "arguments": {
-            "operation": "quick_tunnel"
+            "operation": "quick_tunnel",
+            "project_dir": "my-site"
           },
           "required_fields": [
             "operation"
@@ -1869,6 +1870,61 @@
       "operations": [
         {
           "selector": "operation",
+          "value": "compose",
+          "arguments": {
+            "command": "ps",
+            "file": "stacks/web/compose.yml",
+            "operation": "compose"
+          },
+          "required_fields": [
+            "command",
+            "file",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "connect",
+          "arguments": {
+            "container_id": "example-container",
+            "network": "example-network",
+            "operation": "connect"
+          },
+          "required_fields": [
+            "container_id",
+            "network",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "cp",
+          "arguments": {
+            "container_id": "example-container",
+            "destination": "/tmp/notes.txt",
+            "direction": "to_container",
+            "operation": "cp",
+            "source": "notes.txt"
+          },
+          "required_fields": [
+            "container_id",
+            "destination",
+            "direction",
+            "operation",
+            "source"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
           "value": "create",
           "arguments": {
             "image": "example",
@@ -1878,6 +1934,70 @@
           "required_fields": [
             "image",
             "name",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "create_network",
+          "arguments": {
+            "name": "example-network",
+            "operation": "create_network"
+          },
+          "required_fields": [
+            "name",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "create_volume",
+          "arguments": {
+            "name": "example-volume",
+            "operation": "create_volume"
+          },
+          "required_fields": [
+            "name",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "disconnect",
+          "arguments": {
+            "container_id": "example-container",
+            "network": "example-network",
+            "operation": "disconnect"
+          },
+          "required_fields": [
+            "container_id",
+            "network",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "exec",
+          "arguments": {
+            "command": "ls /app",
+            "container_id": "example-container",
+            "operation": "exec"
+          },
+          "required_fields": [
+            "command",
+            "container_id",
             "operation"
           ],
           "excluded_fields": [
@@ -1990,6 +2110,19 @@
         },
         {
           "selector": "operation",
+          "value": "port",
+          "arguments": {
+            "operation": "port"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
           "value": "pull",
           "arguments": {
             "operation": "pull"
@@ -2021,6 +2154,36 @@
             "operation": "remove_image"
           },
           "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "remove_network",
+          "arguments": {
+            "name": "example-network",
+            "operation": "remove_network"
+          },
+          "required_fields": [
+            "name",
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "remove_volume",
+          "arguments": {
+            "name": "example-volume",
+            "operation": "remove_volume"
+          },
+          "required_fields": [
+            "name",
             "operation"
           ],
           "excluded_fields": [
@@ -2070,9 +2233,35 @@
         },
         {
           "selector": "operation",
+          "value": "stats",
+          "arguments": {
+            "operation": "stats"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
           "value": "stop",
           "arguments": {
             "operation": "stop"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": [
+            "auto_remove"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "top",
+          "arguments": {
+            "operation": "top"
           },
           "required_fields": [
             "operation"
@@ -7915,71 +8104,6 @@
       "operations": [
         {
           "selector": "operation",
-          "value": "create",
-          "arguments": {
-            "allow_change": false,
-            "allow_delete": false,
-            "allow_read": false,
-            "allow_write": false,
-            "connection_name": "example-name",
-            "database_name": "example-name",
-            "description": "example",
-            "driver": "postgres",
-            "host": "device.example.com",
-            "operation": "create",
-            "password": "[redacted]",
-            "port": 1,
-            "ssl_mode": "example",
-            "username": "example-name"
-          },
-          "required_fields": [
-            "allow_change",
-            "allow_delete",
-            "allow_read",
-            "allow_write",
-            "connection_name",
-            "database_name",
-            "description",
-            "driver",
-            "host",
-            "operation",
-            "password",
-            "port",
-            "ssl_mode",
-            "username"
-          ],
-          "excluded_fields": []
-        },
-        {
-          "selector": "operation",
-          "value": "delete",
-          "arguments": {
-            "connection_name": "example-name",
-            "operation": "delete"
-          },
-          "required_fields": [
-            "connection_name",
-            "operation"
-          ],
-          "excluded_fields": []
-        },
-        {
-          "selector": "operation",
-          "value": "docker_create",
-          "arguments": {
-            "connection_name": "example-name",
-            "docker_template": "postgres",
-            "operation": "docker_create"
-          },
-          "required_fields": [
-            "connection_name",
-            "docker_template",
-            "operation"
-          ],
-          "excluded_fields": []
-        },
-        {
-          "selector": "operation",
           "value": "get",
           "arguments": {
             "connection_name": "example-name",
@@ -8020,13 +8144,13 @@
           "value": "update",
           "arguments": {
             "connection_name": "example-name",
-            "credential_action": "keep",
-            "operation": "update"
+            "operation": "update",
+            "description": "Updated database description"
           },
           "required_fields": [
+            "operation",
             "connection_name",
-            "credential_action",
-            "operation"
+            "description"
           ],
           "excluded_fields": []
         }
@@ -12068,6 +12192,32 @@
           "value": "cancel_print",
           "arguments": {
             "operation": "cancel_print",
+            "printer_id": "example-id"
+          },
+          "required_fields": [
+            "operation",
+            "printer_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "disable_camera",
+          "arguments": {
+            "operation": "disable_camera",
+            "printer_id": "example-id"
+          },
+          "required_fields": [
+            "operation",
+            "printer_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "enable_camera",
+          "arguments": {
+            "operation": "enable_camera",
             "printer_id": "example-id"
           },
           "required_fields": [

@@ -1,6 +1,6 @@
 {
   "config.danger.warning_title": "Waarschuwing",
-  "config.danger.warning_desc": "Hier bepaalt u hoeveel macht u uw agent geeft. Houd er rekening mee dat de agent <strong>fouten kan maken</strong> — schakel alleen in wat u echt nodig heeft!",
+  "config.danger.warning_desc": "Hier bepaal je hoeveel macht je je agent geeft. Houd er rekening mee dat de agent <strong>fouten kan maken</strong> — schakel alleen in wat je echt nodig hebt!",
   "config.danger.sudo.title": "Sudo Uitvoering (execute_sudo)",
   "config.danger.sudo.desc": "Staat de agent toe om commandos met sudo privileges uit te voeren. Het sudo wachtwoord moet in de vault worden opgeslagen.",
   "config.danger.shell.title": "Shell Uitvoering (execute_shell)",
@@ -22,5 +22,7 @@
   "config.danger.sudo_unrestricted.title": "Systeembrede Sudo-schrijftoegang",
   "config.danger.sudo_unrestricted.desc": "Staat de agent toe om buiten de installatiemap te schrijven met sudo (bijv. /etc.). Vereist het verwijderen van ProtectSystem=strict uit de systemd-service-unit.",
   "config.danger.unsafe_host_execution.title": "Onveilige uitvoering op de host",
-  "config.danger.unsafe_host_execution.desc": "Staat Python op de host en de Windows-shell zonder isolatie toe. Elk gebruik wordt als beveiligingswaarschuwing vastgelegd."
+  "config.danger.unsafe_host_execution.desc": "Staat Python op de host en de Windows-shell zonder isolatie toe. Elk gebruik wordt als beveiligingswaarschuwing vastgelegd. Schakel dit alleen bewust in.",
+  "config.danger.docker_host_access.title": "Docker-hosttoegang voor Compose-stacks van de agent",
+  "config.danger.docker_host_access.desc": "Laat de agent bij docker compose up/create/build hostpaden buiten zijn werkruimte gebruiken (bijvoorbeeld /var/run/docker.sock, /srv/media of /), apparaten, de privileged-modus, host-netwerk/PID/IPC/UTS/user/cgroup-namespaces, cap_add en onbeperkte beveiligingsopties. AuraGo's eigen data, configuratie, .env en hoofdsleutel blijven geblokkeerd, maar een bind van een bovenliggend pad zoals / maakt ze toch toegankelijk. Ingeschakeld ziet docker compose ook de omgevingsvariabelen van AuraGo; zonder deze instelling krijgt Compose alleen PATH, HOME en de Docker-, proxy- en taalinstellingen."
 }

@@ -76,9 +76,11 @@ llm_guardian:
   model: ""
   default_level: medium   # low | medium | high | strict
   fail_safe: block        # block | quarantine | allow
+  scan_documents: false   # opt-in scan for incoming documents and webhooks
+  scan_emails: false      # opt-in scan for fetched and relayed email
 ```
 
-The German chapter has the full level table and document/email scan flags. This is the operational minimum.
+Document and email scans are opt-in to control cost. Once enabled, their ingress paths accept only an explicit allow; scanner errors, incomplete coverage, and size-limit overflow quarantine the original and deliver only a fixed safe notice where an authorized agent target exists. This ingress rule is independent of `fail_safe` and cannot be changed to allow by setting it to `allow` or `quarantine`.
 
 ## Sudo
 
@@ -164,6 +166,8 @@ tools:
   web_scraper:
     enabled: true    # replaces deprecated agent.allow_web_scraper
 ```
+
+`docker.allow_host_access` is the Docker counterpart of a Danger Zone gate: it decides whether agent `docker compose up/create/build` may use the host (binds outside the workspace, `/var/run/docker.sock`, devices, privileged mode, host namespaces). Existing configurations keep it `true`, fresh installs start with `false`; the security check warns while it is on. Without it, agent Compose also runs with a minimal environment that holds none of AuraGo's variables. Details: [Docker Integration](08-integrations.md#docker-integration).
 
 ### Integration Capabilities
 
@@ -384,7 +388,7 @@ The German security chapter contains a more detailed public-exposure checklist; 
 | Login protection | Enable auth before exposing AuraGo beyond localhost |
 | TOTP | Enable 2FA for all internet-facing deployments |
 | Proxy trust | Set `behind_proxy` + `trusted_proxy_cidrs`, otherwise forwarding headers are ignored |
-| Security Proxy | Use the managed Caddy proxy for rate limiting, TLS termination, IP filtering, and geo-blocking |
+| Security Proxy | Use the managed Caddy proxy for TLS termination, rate limiting, IP filtering and Basic Auth; geo-blocking is not implemented yet |
 | Cloudflare Tunnel / Tailscale | Prefer private tunnels or VPN access over direct port forwarding |
 | Webhooks | Require tokens/HMAC, narrow scopes, and rate limits |
 | Tool permissions | Keep Danger Zone toggles disabled until a feature is actually needed |

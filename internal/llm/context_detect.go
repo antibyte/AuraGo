@@ -1,14 +1,10 @@
 package llm
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"strings"
-	"time"
 )
 
 // ModelInfo contains context window information fetched from the provider API.
@@ -231,194 +227,25 @@ func lookupKnownContextWindow(model string) (int, bool) {
 	return 0, false
 }
 
-// DetectContextWindow queries the LLM provider API for the model's context window size.
-// It checks the static model registry first, then falls back to provider-specific API probing.
-// Supports OpenRouter and Ollama (via /api/show). Returns the context length in tokens, or 0 if detection fails.
+// DetectContextWindow applies the same precedence as request budgeting:
+// exact registry metadata, provider model metadata, then a legacy family-prefix
+// estimate. A conservative default is not reported as a detected value.
 func DetectContextWindow(baseURL, apiKey, model, provider string, logger *slog.Logger) int {
-	lowerProvider := strings.ToLower(provider)
-	lowerModel := strings.ToLower(model)
-
-	// 1. Check the authoritative models.dev registry first (most up-to-date static data)
-	if ctxLen, ok := DetectContextWindowFromRegistry(lowerProvider, lowerModel); ok {
-		logger.Info("[ContextDetect] Using known context window from model registry", "model", model, "provider", provider, "context_length", ctxLen)
-		return ctxLen
+	if logger == nil {
+		logger = slog.Default()
 	}
-
-	// 2. Check legacy static known-models table — covers providers that don't expose
-	// an OpenRouter-compatible /api/v1/models endpoint (MiniMax, direct Anthropic, etc.)
-	if ctxLen, ok := lookupKnownContextWindow(model); ok {
-		logger.Info("[ContextDetect] Using known context window from legacy static table", "model", model, "context_length", ctxLen)
-		return ctxLen
-	}
-
-	// 3. Provider-specific API probing
-	if lowerProvider == "ollama" {
-		return detectContextWindowOllama(baseURL, model, logger)
-	}
-	// Anthropic's /v1/models endpoint exists but does NOT return context_length.
-	// All Claude models should already be covered by the static tables above.
-	// Skip the API call to avoid a useless HTTP request that always returns 0.
-	if lowerProvider == "anthropic" {
-		logger.Debug("[ContextDetect] Anthropic provider: static tables are authoritative, skipping API query", "model", model)
+	limits := ResolveModelLimits(context.Background(), ModelRoute{
+		ProviderType: provider,
+		BaseURL:      baseURL,
+		APIKey:       apiKey,
+		Model:        model,
+	}, 0, logger)
+	if limits.ContextSource == "conservative_default" {
 		return 0
 	}
-	return detectContextWindowOpenRouter(baseURL, apiKey, model, logger)
-}
-
-// detectContextWindowOllama uses Ollama's native /api/show endpoint to get model info.
-func detectContextWindowOllama(baseURL, model string, logger *slog.Logger) int {
-	// baseURL is typically http://localhost:11434/v1 — strip the /v1 suffix
-	ollamaBase := strings.TrimSuffix(strings.TrimSuffix(baseURL, "/"), "/v1")
-	showURL := ollamaBase + "/api/show"
-
-	payloadBytes, err := json.Marshal(map[string]string{"name": model})
-	if err != nil {
-		logger.Debug("[ContextDetect/Ollama] Failed to marshal request payload", "error", err)
-		return 0
-	}
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("POST", showURL, bytes.NewReader(payloadBytes))
-	if err != nil {
-		logger.Debug("[ContextDetect/Ollama] Failed to create request", "error", err)
-		return 0
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		logger.Debug("[ContextDetect/Ollama] Failed to query /api/show", "error", err, "url", showURL)
-		return 0
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		logger.Debug("[ContextDetect/Ollama] /api/show returned non-200", "status", resp.StatusCode)
-		return 0
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
-	if err != nil {
-		logger.Debug("[ContextDetect/Ollama] Failed to read response", "error", err)
-		return 0
-	}
-
-	// Ollama /api/show returns model_info with a key like
-	// "<arch>.context_length" (e.g. "llama.context_length": 131072)
-	// or the older "context_length" at the top level of model_info.
-	var showResp struct {
-		ModelInfo map[string]json.RawMessage `json:"model_info"`
-	}
-	if err := json.Unmarshal(body, &showResp); err != nil {
-		logger.Debug("[ContextDetect/Ollama] Failed to parse /api/show response", "error", err)
-		return 0
-	}
-
-	// Look for any key ending in "context_length" inside model_info
-	for key, raw := range showResp.ModelInfo {
-		if strings.HasSuffix(key, "context_length") || key == "context_length" {
-			var ctxLen int
-			if err := json.Unmarshal(raw, &ctxLen); err == nil && ctxLen > 0 {
-				logger.Info("[ContextDetect/Ollama] Detected model context window", "model", model, "context_length", ctxLen, "key", key)
-				return ctxLen
-			}
-		}
-	}
-
-	logger.Debug("[ContextDetect/Ollama] No context_length found in model_info", "model", model)
-	return 0
-}
-
-// detectContextWindowOpenRouter queries the OpenRouter models API.
-func detectContextWindowOpenRouter(baseURL, apiKey, model string, logger *slog.Logger) int {
-	// Normalise: strip any trailing / so we can always append the path cleanly.
-	base := strings.TrimRight(baseURL, "/")
-
-	// Build a prioritised list of candidate URLs to try.
-	// Different provider APIs host their model list at different paths:
-	//   - OpenRouter / LiteLLM: <base>/api/v1/models  (base already ends with /api or not)
-	//   - Standard OpenAI-compatible: <base>/v1/models  or  <base>/models
-	//   - Self-hosted (base has /v1): strip /v1 then try /v1/models
-	var candidates []string
-	stripped := base
-	if strings.HasSuffix(stripped, "/v1") {
-		stripped = strings.TrimSuffix(stripped, "/v1")
-	}
-	if strings.HasSuffix(stripped, "/api") {
-		// e.g. "https://openrouter.ai/api"  →  /v1/models
-		candidates = append(candidates, stripped+"/v1/models")
-	} else {
-		// Typical case: try OpenRouter-style first, then bare /v1/models
-		candidates = append(candidates, stripped+"/api/v1/models")
-		candidates = append(candidates, stripped+"/v1/models")
-		candidates = append(candidates, base+"/models")
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	for _, modelsURL := range candidates {
-		ctxLen := queryModelsEndpoint(client, modelsURL, apiKey, model, logger)
-		if ctxLen > 0 {
-			return ctxLen
-		}
-	}
-
-	logger.Debug("[ContextDetect] All candidate URLs exhausted, model not found", "model", model, "tried", candidates)
-	return 0
-}
-
-// queryModelsEndpoint performs GET <url> and looks for the model's context_length.
-func queryModelsEndpoint(client *http.Client, modelsURL, apiKey, model string, logger *slog.Logger) int {
-	req, err := http.NewRequest("GET", modelsURL, nil)
-	if err != nil {
-		logger.Debug("[ContextDetect] Failed to create request", "error", err, "url", modelsURL)
-		return 0
-	}
-	if apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		logger.Debug("[ContextDetect] Failed to query models API", "error", err, "url", modelsURL)
-		return 0
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		logger.Debug("[ContextDetect] Models API returned non-200", "status", resp.StatusCode, "url", modelsURL)
-		return 0
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024)) // 2MB limit
-	if err != nil {
-		logger.Debug("[ContextDetect] Failed to read models response", "error", err)
-		return 0
-	}
-
-	// Parse response — OpenRouter returns { "data": [ { "id": "...", "context_length": N, ... } ] }
-	var result struct {
-		Data []struct {
-			ID            string `json:"id"`
-			ContextLength int    `json:"context_length"`
-		} `json:"data"`
-		// Some providers wrap data at the top level as an array.
-	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		logger.Debug("[ContextDetect] Failed to parse models response", "error", err, "url", modelsURL)
-		return 0
-	}
-
-	for _, m := range result.Data {
-		if m.ID == model {
-			if m.ContextLength > 0 {
-				logger.Info("[ContextDetect] Detected model context window", "model", model, "context_length", m.ContextLength, "url", modelsURL)
-				return m.ContextLength
-			}
-		}
-	}
-
-	logger.Debug("[ContextDetect] Model not found or context_length=0 in API response", "model", model, "total_models", len(result.Data), "url", modelsURL)
-	return 0
+	logger.Info("[ContextDetect] Detected model context window", "model", model, "provider", provider,
+		"context_length", limits.ContextWindow, "source", limits.ContextSource)
+	return limits.ContextWindow
 }
 
 // AutoConfigureBudget sets the system prompt token budget based on the detected context window.

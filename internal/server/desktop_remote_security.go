@@ -24,6 +24,16 @@ func withDesktopRemoteGuard(s *Server, action, expectedProtocol string, next htt
 		if !ok {
 			return
 		}
+		operation := desktopWrite
+		switch action {
+		case "desktop_sftp_list", "desktop_sftp_stat", "desktop_sftp_download":
+			operation = desktopRead
+		case "desktop_ssh_connect", "desktop_vnc_connect":
+			operation = desktopExecute
+		}
+		if !checkDesktopOperation(s, w, r, operation) {
+			return
+		}
 
 		ip := ClientIP(r, s != nil && s.Cfg != nil && s.Cfg.Server.HTTPS.BehindProxy)
 		deviceID := strings.TrimSpace(r.URL.Query().Get("device_id"))
@@ -85,7 +95,7 @@ func withDesktopRemoteGuard(s *Server, action, expectedProtocol string, next htt
 func requireDesktopRemoteBaseAccess(s *Server, w http.ResponseWriter, r *http.Request) (string, bool, bool) {
 	rawToken, bearerToken := desktopRemoteBearerToken(r)
 	if !bearerToken {
-		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+		if !authenticateDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return "", false, false
 		}
 		return "", false, true

@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/memory"
 	"aurago/internal/security"
@@ -888,34 +889,69 @@ func readToolGuideEmbed(osPath string) ([]byte, bool) {
 // sentences/sections remain intact.
 func truncateGuide(raw string, maxTokens int) string {
 	content := strings.TrimSpace(raw)
+	if maxTokens <= 0 || content == "" {
+		return ""
+	}
 	if CountTokens(content) <= maxTokens {
 		return content
 	}
 
-	// Binary search for the longest rune-length prefix that fits in maxTokens.
-	lo, hi := 0, len(content)
+	const suffix = "\n[...truncated]"
+	includeSuffix := CountTokens(suffix) <= maxTokens
+	countCandidate := func(prefix string) int {
+		if includeSuffix {
+			return CountTokens(prefix + suffix)
+		}
+		return CountTokens(prefix)
+	}
+	// Search rune boundaries so a multibyte character is never split.
+	boundaries := make([]int, 0, utf8.RuneCountInString(content)+1)
+	for index := range content {
+		boundaries = append(boundaries, index)
+	}
+	boundaries = append(boundaries, len(content))
+	lo, hi := 0, len(boundaries)-1
 	for lo < hi {
 		mid := lo + (hi-lo)/2
-		// Step back to a rune boundary
-		for mid > lo && !isRuneBoundary(content, mid) {
-			mid--
-		}
-		if CountTokens(content[:mid]) <= maxTokens {
+		if countCandidate(content[:boundaries[mid]]) <= maxTokens {
 			lo = mid + 1
 		} else {
 			hi = mid
 		}
 	}
-	cut := lo - 1
-	if cut <= 0 {
-		return content[:min(200, len(content))] + "\n[...truncated]"
+	cutIndex := lo - 1
+	cut := boundaries[cutIndex]
+	if cut <= 0 && !includeSuffix {
+		return ""
 	}
 
 	// Try to cut at the last newline before the cut point for cleaner output.
 	if idx := strings.LastIndex(content[:cut], "\n"); idx > cut/2 {
-		cut = idx
+		if countCandidate(content[:idx]) <= maxTokens {
+			cut = idx
+		}
 	}
-	return content[:cut] + "\n[...truncated]"
+	result := content[:cut]
+	if includeSuffix {
+		result += suffix
+	}
+	for CountTokens(result) > maxTokens && cut > 0 {
+		for cut > 0 && !utf8.RuneStart(content[cut]) {
+			cut--
+		}
+		if cut > 0 {
+			_, size := utf8.DecodeLastRuneInString(content[:cut])
+			cut -= size
+		}
+		result = content[:cut]
+		if includeSuffix {
+			result += suffix
+		}
+	}
+	if CountTokens(result) > maxTokens {
+		return ""
+	}
+	return result
 }
 
 // isRuneBoundary reports whether byte index i is at the start of a UTF-8 rune in s.

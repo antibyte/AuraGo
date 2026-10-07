@@ -220,7 +220,7 @@
             const sel = q('[data-mc-remote-target]');
             remoteTargets = [];
             try {
-                const data = await request('/api/missions/v2/remote-targets');
+                const data = await request('/api/desktop/integrations/missions/v2/remote-targets');
                 remoteTargets = Array.isArray(data && data.targets) ? data.targets : [];
             } catch (_) { remoteTargets = []; }
             if (!remoteTargets.length) { sel.innerHTML = `<option value="">${esc(t('desktop.mc_editor_remote_none'))}</option>`; return; }
@@ -232,7 +232,7 @@
             const box = q('[data-mc-cheatsheets]');
             if (cheatsheets === null) {
                 try {
-                    const data = await request('/api/cheatsheets?active=true&created_by=user');
+                    const data = await request('/api/desktop/integrations/cheatsheets?active=true&created_by=user');
                     cheatsheets = Array.isArray(data) ? data : (Array.isArray(data && data.cheatsheets) ? data.cheatsheets : []);
                 } catch (_) { cheatsheets = []; }
             }

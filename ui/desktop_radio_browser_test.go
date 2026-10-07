@@ -34,7 +34,7 @@ const nativeFetch=window.fetch.bind(window);
 window.fetch=async (url,opts={})=>{
  const path=String(url); if(!path.startsWith('/api/'))return nativeFetch(url,opts);
  fixtureRequests.push({path,signal:opts.signal});
- if(path.startsWith('/api/radio-browser')) {
+ if(path.startsWith('/api/desktop/integrations/radio-browser')) {
   if(window.holdCatalog && !path.includes('/json/url/'))return new Promise(resolve=>heldCatalog.push(()=>resolve(new Response(JSON.stringify(fixtureStations)))));
   if(window.holdStreams && path.includes('/json/url/'))return new Promise(resolve=>heldStreams.push(()=>resolve(new Response(JSON.stringify({url:'https://radio.invalid/delayed'})))));
   if(window.rejectCatalog && !path.includes('/json/url/'))return new Response('{}',{status:503});

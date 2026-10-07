@@ -375,7 +375,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   mission and the timers apart.
 - Mission Control helpers (`service_missions.go`): `MissionEnabledChanged` follows that rule and detaches as
   soon as it holds the lock (Mission Control switched the mission before calling it); it runs from
-  `go FlowHooks.FlowEnabledChanged`, ignores a mission no flow holds and a flow deleted while it waited.
+  `FlowHooks.FlowEnabledChanged` on the mission manager's own goroutine (`runAsync`), ignores a mission no flow holds and a flow deleted while it waited.
   `CancelMissionRuns` takes no flow lock: it calls `Runner.CancelFlowMode(flow, ModeLive)` (`ErrNotFound`
   for an unknown mission) and reports the runs that never started to `FlowRunFinished` on the caller's
   goroutine. `NextTimer` is lock-free and reads no document (`flowIDByMission`, `LIMIT 2` on

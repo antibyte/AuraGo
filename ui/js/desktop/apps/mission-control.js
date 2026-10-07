@@ -168,7 +168,7 @@
         // ── data ──
         async function loadData() {
             try {
-                const data = await api('/api/missions/v2');
+                const data = await api('/api/desktop/integrations/missions/v2');
                 if (state.disposed) return;
                 applyData(data);
                 state.initialLoad = true;
@@ -316,7 +316,7 @@
             if (h.filter === 'success') params.set('result', 'success');
             if (h.filter === 'error' || h.filter === 'cancelled') params.set('result', 'error');
             try {
-                const data = await api('/api/missions/v2/history?' + params.toString());
+                const data = await api('/api/desktop/integrations/missions/v2/history?' + params.toString());
                 if (state.disposed || h.missionId !== state.selectedId) return;
                 const entries = Array.isArray(data && data.entries) ? data.entries : [];
                 h.items = reset ? entries : h.items.concat(entries);
@@ -366,7 +366,7 @@
             runMission: (id) => withBusy('run', async () => {
                 const m = byId(id);
                 if (TR.isUnpublishedFlow(m)) { notify(t('desktop.mc_flow_publish_first')); return; }
-                const data = await api('/api/missions/v2/' + encodeURIComponent(id) + '/run', { method: 'POST' });
+                const data = await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/run', { method: 'POST' });
                 // A flow run is not queued here: EasyDrag starts it, lets it wait for a slot or skips it.
                 notify(TR.isFlow(m) ? t('desktop.mc_toast_flow_run_requested') : toastForMissionDispatch(data || {}));
                 await loadData();
@@ -374,7 +374,7 @@
             cancelMission: (id) => withBusy('cancel', async () => {
                 const m = byId(id);
                 try {
-                    await api('/api/missions/v2/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
+                    await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
                 } catch (err) {
                     // FLOW_NO_ACTIVE_RUN: nothing to cancel here. Runs of a flow mission that is not running (waiting
                     // for a global slot) are cancelled in EasyDrag; while it runs, the cancel takes waiting runs too.
@@ -386,7 +386,7 @@
                 notify(t('desktop.mc_toast_cancel_requested'));
             }),
             removeMissionFromQueue: (id) => withBusy('removeQueue', async () => {
-                await api('/api/missions/v2/' + encodeURIComponent(id) + '/queue', { method: 'DELETE' });
+                await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/queue', { method: 'DELETE' });
                 notify(t('desktop.mc_toast_removed_queue'));
                 await loadData();
             }),
@@ -410,19 +410,19 @@
                 const ok = await confirmDialog(t('desktop.mc_delete_title'), message);
                 if (!ok) return;
                 await withBusy('delete', async () => {
-                    await api('/api/missions/v2/' + encodeURIComponent(id), { method: 'DELETE' });
+                    await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id), { method: 'DELETE' });
                     notify(t('desktop.mc_toast_deleted'));
                     if (state.selectedId === id) state.selectedId = '';
                     await loadData();
                 });
             },
             prepareMission: (id) => withBusy('prepare', async () => {
-                await api('/api/missions/v2/' + encodeURIComponent(id) + '/prepare', { method: 'POST' });
+                await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/prepare', { method: 'POST' });
                 notify(t('desktop.mc_toast_prepare_started'));
                 await loadData();
             }),
             invalidatePrepMission: (id) => withBusy('invalidatePrep', async () => {
-                await api('/api/missions/v2/' + encodeURIComponent(id) + '/prepared', { method: 'DELETE' });
+                await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/prepared', { method: 'DELETE' });
                 state.preparedOpen = false;
                 detail.setPrepared(null, false);
                 notify(t('desktop.mc_toast_prep_discarded'));
@@ -432,7 +432,7 @@
                 if (state.preparedOpen) { state.preparedOpen = false; detail.setPrepared(null, false); return; }
                 detail.setPrepared(null, true);
                 try {
-                    const data = await api('/api/missions/v2/' + encodeURIComponent(id) + '/prepared');
+                    const data = await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/prepared');
                     if (state.selectedId !== id) return;
                     state.preparedOpen = true;
                     detail.setPrepared(data || {}, false);
@@ -453,7 +453,7 @@
         function putMission(mission, patch) {
             const body = Object.assign({}, mission, patch);
             delete body.next_run;
-            return api('/api/missions/v2/' + encodeURIComponent(mission.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            return api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(mission.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         }
 
         // ── editor ──
@@ -490,7 +490,7 @@
             editor.setSaving(true);
             editor.setServerError('');
             try {
-                const url = mode === 'edit' ? '/api/missions/v2/' + encodeURIComponent(id) : '/api/missions/v2';
+                const url = mode === 'edit' ? '/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) : '/api/desktop/integrations/missions/v2';
                 const res = await api(url, { method: mode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 notify(t(mode === 'edit' ? 'desktop.mc_toast_saved' : 'desktop.mc_toast_created'));
                 const newId = mode === 'edit' ? id : (res && res.id) || '';

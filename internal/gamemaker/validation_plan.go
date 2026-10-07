@@ -98,7 +98,7 @@ func BaseChecks(dimension string) map[string]map[string]string {
 			continue
 		}
 		if base == "three" {
-			out[base] = map[string]string{"startup": "visible canvas without runtime errors; gameplay checks need scene data or declared scenarios"}
+			out[base] = map[string]string{"startup": "visible canvas without runtime errors; free-code three leaves gameplay unverified unless backed by valid 3D scene data. Declared scenarios alone do not enable gameplay checks"}
 			continue
 		}
 		entry := map[string]string{}
@@ -141,10 +141,17 @@ func repairableChecks(checks []CheckResult) bool {
 	return found
 }
 
+// Invalid validation requests are not browser observations or failed builds.
+func validationRequestError(message string) BuildResult {
+	return BuildResult{Diagnostics: []Diagnostic{{Level: "request", Message: message}}}
+}
+
 // ValidationNextAction turns a result into one bounded instruction. It never
 // reports success for checks that were not observed.
 func ValidationNextAction(result BuildResult) string {
 	switch {
+	case slices.ContainsFunc(result.Diagnostics, func(d Diagnostic) bool { return d.Level == "request" }):
+		return "Correct the validation request using the diagnostic and inspect.validation_plan: choose a supported scope and existing check_ids, then validate again. This request did not validate the game."
 	case result.OK:
 		return "This scope passed. Finish the remaining accepted features, then end with the player-facing summary; the server validates again before publication."
 	case result.Repairable:

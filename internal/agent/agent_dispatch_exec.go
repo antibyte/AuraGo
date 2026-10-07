@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/fileutil"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -1540,7 +1541,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 
-			result, err := tools.GenerateImage(genCfg, effectivePrompt, opts)
+			result, err := tools.GenerateImageContext(ctx, genCfg, effectivePrompt, opts)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Image generation failed: %s"}`, err.Error())
 			}
@@ -1549,36 +1550,42 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			result.EnhancedPrompt = enhancedPrompt
 
 			// Save to gallery DB
-			tools.SaveGeneratedImage(imageGalleryDB, result)
+			if err := fileutil.PublishContext(ctx, func() error {
+				tools.SaveGeneratedImage(imageGalleryDB, result)
 
-			// Auto-register in media registry
-			if mediaRegistryDB != nil {
-				imgPath := filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename)
-				imgHash, _ := tools.ComputeMediaFileHash(imgPath)
-				if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
-					MediaType:        "image",
-					SourceTool:       "generate_image",
-					Filename:         result.Filename,
-					FilePath:         imgPath,
-					WebPath:          result.WebPath,
-					Format:           "png",
-					Provider:         result.Provider,
-					Model:            result.Model,
-					Prompt:           result.Prompt,
-					Description:      result.Prompt,
-					Quality:          result.Quality,
-					Style:            result.Style,
-					Size:             result.Size,
-					SourceImage:      result.SourceImage,
-					GenerationTimeMs: int64(result.DurationMs),
-					CostEstimate:     result.CostEstimate,
-					Tags:             []string{"auto-generated"},
-					Hash:             imgHash,
-				}); regErr != nil {
-					logger.Warn("Auto-register image in media registry failed", "filename", result.Filename, "error", regErr)
-				} else if !dup {
-					logger.Debug("Auto-registered image in media registry", "id", regID, "filename", result.Filename)
+				// Auto-register in media registry
+				if mediaRegistryDB != nil {
+					imgPath := filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename)
+					imgHash, _ := tools.ComputeMediaFileHash(imgPath)
+					if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
+						MediaType:        "image",
+						SourceTool:       "generate_image",
+						Filename:         result.Filename,
+						FilePath:         imgPath,
+						WebPath:          result.WebPath,
+						Format:           "png",
+						Provider:         result.Provider,
+						Model:            result.Model,
+						Prompt:           result.Prompt,
+						Description:      result.Prompt,
+						Quality:          result.Quality,
+						Style:            result.Style,
+						Size:             result.Size,
+						SourceImage:      result.SourceImage,
+						GenerationTimeMs: int64(result.DurationMs),
+						CostEstimate:     result.CostEstimate,
+						Tags:             []string{"auto-generated"},
+						Hash:             imgHash,
+					}); regErr != nil {
+						logger.Warn("Auto-register image in media registry failed", "filename", result.Filename, "error", regErr)
+					} else if !dup {
+						logger.Debug("Auto-registered image in media registry", "id", regID, "filename", result.Filename)
+					}
 				}
+
+				return nil
+			}); err != nil {
+				return tools.ErrorJSON("Image publication cancelled")
 			}
 
 			// Record cost in budget tracker under "image_generation" category
@@ -1651,7 +1658,13 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Invalid local path: %v"}`, err)
 			}
-			workspaceWorkdir := filepath.Join(cfg.Directories.WorkspaceDir, "workdir")
+			workspaceWorkdir, rootErr := filepath.Abs(filepath.Join(cfg.Directories.WorkspaceDir, "workdir"))
+			if rootErr != nil || tools.IsProtectedSystemPath(absLocal, workspaceWorkdir, cfg) {
+				return tools.ErrorJSON("Protected or invalid local path")
+			}
+			if req.Direction == "download" && !cfg.Agent.AllowFilesystemWrite {
+				return tools.ErrorJSON("Filesystem writes are disabled")
+			}
 			if absLocal != workspaceWorkdir && !strings.HasPrefix(absLocal, workspaceWorkdir+string(os.PathSeparator)) {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Permission denied: local_path must be within %s"}`, workspaceWorkdir)
 			}
@@ -1666,7 +1679,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			rCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 			defer cancel()
-			err = remote.TransferFile(rCtx, access.Host, access.Port, access.Username, access.Secret, absLocal, req.RemotePath, req.Direction)
+			err = remote.TransferFile(rCtx, access.Host, access.Port, access.Username, access.Secret, absLocal, req.RemotePath, req.Direction, workspaceWorkdir)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "File transfer failed: %v"}`, err)
 			}

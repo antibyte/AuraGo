@@ -407,8 +407,8 @@ function sipAdvancedMarkup(c) {
 
 function sipRender() {
     const c = sipConfigState;
-    const outboundMigrationRequired = [...(c.outbound.allowed_domains || []), ...(c.outbound.allowed_users || [])]
-        .some((value) => /[*?]/.test(String(value || '')));
+    const outboundMigrationRequired = (c.outbound.allowed_domains || []).some(value => /[*?]/.test(String(value || '')))
+        || (c.outbound.allowed_users || []).some(value => /[*?]/.test(String(value || '')) && !/^\*\*\d{1,4}$/.test(String(value || '')));
     document.getElementById('content').innerHTML = `<section class="cfg-section active sip-section">
         <div class="section-header">${sipEsc(t('config.sip.title'))}</div>
         <div class="section-desc">${sipEsc(t('config.sip.wizard.intro'))}</div>
@@ -457,7 +457,7 @@ function sipNormalizeOutboundPayload(payload) {
     payload.outbound.denied_e164_prefixes = denied.prefixes;
     const domain = String(payload.domain || '').trim().toLowerCase();
     const domains = Array.isArray(payload.outbound.allowed_domains) ? payload.outbound.allowed_domains.slice() : [];
-	if (domain && domains.length > 0 && !domains.map(item => String(item).toLowerCase()).includes(domain)) {
+    if (domain && domains.length === 0 && (classified.users.length || classified.prefixes.length)) {
         domains.push(domain);
     }
     payload.outbound.allowed_domains = domains;
@@ -1058,8 +1058,9 @@ async function renderSIPSection() {
         ]);
         sipWizardProviderID = sipConfigState.preset_id || '';
         sipWizardStep = sipConfigState.registrar ? 0 : 1;
-		const hasOutboundTargets = (sipConfigState.outbound.allowed_users || []).length > 0 || (sipConfigState.outbound.allowed_e164_prefixes || []).length > 0;
-		sipWizardOutboundScope = hasOutboundTargets ? 'custom' : 'all';
+        const outboundPrefixes = sipConfigState.outbound.allowed_e164_prefixes || [];
+        const hasAllNumberPrefixes = outboundPrefixes.length === 9 && Array.from({length: 9}, (_, i) => '+' + (i + 1)).every(prefix => outboundPrefixes.includes(prefix));
+        sipWizardOutboundScope = !(sipConfigState.outbound.allowed_users || []).length && hasAllNumberPrefixes ? 'all' : 'custom';
         sipWizardInboundEnabled = sipConfigState.inbound.route === 'manual' && !!sipConfigState.permissions.answer_inbound;
         sipWizardInboundScope = (sipConfigState.inbound.allowed_callers || []).includes('*') ? 'all' : 'custom';
         sipWizardCustomCallers = sipList(sipConfigState.inbound.allowed_callers || []);

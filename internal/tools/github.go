@@ -21,6 +21,8 @@ type GitHubConfig struct {
 	BaseURL               string // API base URL (default: https://api.github.com)
 	DefaultPrivate        bool   // true = new repos are private by default
 	ReadOnly              bool   // true = block mutating operations
+	AllowDelete           bool   // explicit administrator grant; defaults off
+	DataDir               string // protected server trust ledger directory
 	AllowedRepos          []string
 	TrustedRepos          []string // canonical owner/repo entries created by AuraGo
 	ListReposUnrestricted bool     // config UI only: list all token-visible repos
@@ -315,6 +317,13 @@ func GitHubCreateRepo(cfg GitHubConfig, name, description string, private *bool)
 		"html_url":  repo["html_url"],
 		"clone_url": repo["clone_url"],
 	}
+	fullName := githubStringValue(repo["full_name"])
+	if err := setGitHubCreatedTrust(cfg, fullName, true); err != nil {
+		response["trust_migration_required"] = true
+		response["trust_warning"] = "Repository created; protected trust registration failed. Administrator approval in github.allowed_repos is required."
+	} else {
+		response["agent_created"] = true
+	}
 	if cfg.WorkspaceDir != "" {
 		repoName := githubStringValue(repo["name"])
 		if repoName == "" {
@@ -353,7 +362,6 @@ func GitHubCreateRepo(cfg GitHubConfig, name, description string, private *bool)
 			}
 		} else {
 			response["tracked"] = true
-			response["agent_created"] = true
 		}
 	}
 	out, _ := json.Marshal(response)
@@ -365,6 +373,9 @@ func GitHubDeleteRepo(cfg GitHubConfig, owner, repo string) string {
 	if msg := githubReadOnlyError(cfg); msg != "" {
 		return msg
 	}
+	if !cfg.AllowDelete {
+		return errJSON("GitHub repository deletion requires github.allow_delete=true")
+	}
 	o := githubOwner(cfg, owner)
 	if o == "" || repo == "" {
 		return errJSON("Owner and repo name are required")
@@ -373,6 +384,11 @@ func GitHubDeleteRepo(cfg GitHubConfig, owner, repo string) string {
 		return msg
 	}
 
+	if cfg.DataDir != "" {
+		if err := setGitHubCreatedTrust(cfg, GitHubCanonicalRepo(o, repo), false); err != nil {
+			return errJSON("Cannot revoke repository trust before deletion: %v", err)
+		}
+	}
 	data, status, err := githubRequest(cfg, "DELETE", githubRepoEndpoint(o, repo), nil)
 	if err != nil {
 		return errJSON("Failed to delete repo: %v", err)

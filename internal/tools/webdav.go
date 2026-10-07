@@ -338,6 +338,9 @@ func WebDAVMkdir(cfg WebDAVConfig, path string) string {
 
 // WebDAVDelete removes a file or directory from WebDAV.
 func WebDAVDelete(cfg WebDAVConfig, path string) string {
+	if err := validateCloudDeletePath(path); err != nil {
+		return webdavInvalidPathResult(err)
+	}
 	if path == "" {
 		return davEncode(FSResult{Status: "error", Message: "'path' is required for delete"})
 	}

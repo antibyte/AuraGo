@@ -574,7 +574,6 @@ func Load(path string) (*Config, error) {
 	// with a project-local persistent workspace when explicitly enabled.
 	cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"
 	cfg.VirtualDesktop.MaxFileSizeMB = 50
-	cfg.VirtualDesktop.ControlLevel = "confirm_destructive"
 	cfg.VirtualDesktop.MaxWSClients = 8
 	cfg.VirtualDesktop.RemoteMaxSessionMinutes = 60
 	cfg.VirtualDesktop.RemoteIdleTimeoutMinutes = 5
@@ -604,6 +603,8 @@ func Load(path string) (*Config, error) {
 	// read-only until an administrator enables the required mutation scopes.
 	cfg.GameMaker.ReadOnly = true
 	cfg.Detective.Enabled = true
+	cfg.Newspaper.BudgetMode = "fixed"
+	cfg.Newspaper.OverviewSources = []string{}
 	cfg.Newspaper.MaxMinutes = 30
 	cfg.Newspaper.MaxPages = 60
 	cfg.Newspaper.MaxSearches = 32
@@ -777,8 +778,8 @@ func Load(path string) (*Config, error) {
 	cfg.Guardian.MaxScanBytes = 16 * 1024
 	cfg.Guardian.ScanEdgeBytes = 6 * 1024
 	cfg.Guardian.PromptSec.Preset = "strict"
-	cfg.Guardian.PromptSec.Spotlight = true
-	cfg.Guardian.PromptSec.Canary = true
+	cfg.Guardian.PromptSec.Spotlight = false
+	cfg.Guardian.PromptSec.Canary = false
 	cfg.Guardian.PromptSec.Sanitizer.Normalize = true
 	cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph = true
 	cfg.Guardian.PromptSec.Sanitizer.Decode = true
@@ -968,6 +969,9 @@ func Load(path string) (*Config, error) {
 	// defaulted value here and let normalization preserve legacy endpoint-based S3.
 	if !yamlHasPath(data, "virtual_computers", "storage", "mode") {
 		cfg.VirtualComputers.Storage.Mode = ""
+	}
+	if err := NormalizeNewspaperConfig(&cfg.Newspaper); err != nil {
+		return nil, err
 	}
 	if err := ValidateLLMRouterConfig(&cfg, false); err != nil {
 		return nil, err
@@ -1353,9 +1357,6 @@ func Load(path string) (*Config, error) {
 	if cfg.VirtualDesktop.MaxFileSizeMB <= 0 {
 		cfg.VirtualDesktop.MaxFileSizeMB = 50
 	}
-	if strings.TrimSpace(cfg.VirtualDesktop.ControlLevel) == "" {
-		cfg.VirtualDesktop.ControlLevel = "confirm_destructive"
-	}
 	if cfg.VirtualDesktop.MaxWSClients <= 0 {
 		cfg.VirtualDesktop.MaxWSClients = 8
 	}
@@ -1607,6 +1608,15 @@ func Load(path string) (*Config, error) {
 	// The canonical tools.web_scraper.enabled value wins when both fields exist.
 	if cfg.Agent.AllowWebScraper != nil && !yamlHasPath(data, "tools", "web_scraper", "enabled") {
 		cfg.Tools.WebScraper.Enabled = *cfg.Agent.AllowWebScraper
+	}
+
+	// docker.allow_host_access gates host access for agent Compose stacks
+	// (up/create/build). Configurations written before the key existed keep
+	// working: an absent key loads as true. config-merger writes the key on
+	// upgrade and the Config UI shows the loaded value, so neither switches it
+	// off silently; writing the key (true or false) ends the grandfather.
+	if !yamlHasPath(data, "docker", "allow_host_access") {
+		cfg.Docker.AllowHostAccess = true
 	}
 
 	// Migrate legacy agent.personality_* fields → new personality section.
@@ -2824,6 +2834,8 @@ func (c *Config) Save(path string) error {
 	if err := yaml.Unmarshal(original, &root); err != nil {
 		return fmt.Errorf("failed to unmarshal config for patching: %w", err)
 	}
+	// Legacy control_level never enforced authority; discard it on normal save.
+	removeYAMLMappingKeys(mappingNodeValue(yamlDocumentRoot(&root), "virtual_desktop"), "control_level")
 
 	// 2. Patch only the fields that are safe to change at runtime
 	patches := []struct {
@@ -2995,7 +3007,6 @@ func (c *Config) Save(path string) error {
 		{[]string{"virtual_desktop", "allow_python_jobs"}, c.VirtualDesktop.AllowPythonJobs},
 		{[]string{"virtual_desktop", "workspace_dir"}, c.VirtualDesktop.WorkspaceDir},
 		{[]string{"virtual_desktop", "max_file_size_mb"}, c.VirtualDesktop.MaxFileSizeMB},
-		{[]string{"virtual_desktop", "control_level"}, c.VirtualDesktop.ControlLevel},
 		{[]string{"virtual_desktop", "max_ws_clients"}, c.VirtualDesktop.MaxWSClients},
 		{[]string{"virtual_desktop", "remote_max_session_minutes"}, c.VirtualDesktop.RemoteMaxSessionMinutes},
 		{[]string{"virtual_desktop", "remote_idle_timeout_minutes"}, c.VirtualDesktop.RemoteIdleTimeoutMinutes},

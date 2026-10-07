@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -80,6 +81,38 @@ func TestDesktopArchiveEntryRejectsTraversalAndExecutables(t *testing.T) {
 	handleDesktopArchiveEntry(s).ServeHTTP(exeResp, exe)
 	if exeResp.Code != http.StatusUnsupportedMediaType {
 		t.Fatalf("exe status = %d body = %s", exeResp.Code, exeResp.Body.String())
+	}
+}
+
+func TestDesktopArchiveListCapsEntriesBeforeBuildingResponse(t *testing.T) {
+	s := newDesktopFilesystemTestServer(t)
+	svc, _, err := s.getDesktopService(context.Background())
+	if err != nil {
+		t.Fatalf("getDesktopService: %v", err)
+	}
+	var data bytes.Buffer
+	zw := zip.NewWriter(&data)
+	for i := 0; i <= desktop.ArchiveEntryLimit; i++ {
+		entry, err := zw.Create(fmt.Sprintf("entry-%05d.txt", i))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write([]byte("x")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.WriteFileBytes(context.Background(), "many.zip", data.Bytes(), desktop.SourceUser); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/archive/list?path=many.zip", nil)
+	resp := httptest.NewRecorder()
+	handleDesktopArchiveList(s).ServeHTTP(resp, req)
+	if resp.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d body = %s", resp.Code, resp.Body.String())
 	}
 }
 

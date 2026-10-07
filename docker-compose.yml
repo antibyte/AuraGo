@@ -358,13 +358,23 @@ services:
   # subset AuraGo actually needs. This is the default and recommended setup.
   #
   # SECURITY NOTES:
+  #   - The proxy filters API paths, not request bodies. It reduces attack surface
+  #     but does not contain a compromised AuraGo: container create with host
+  #     binds is allowed. Keep the docker-control network private.
   #   - The proxy is isolated on the docker-control network, shared only with AuraGo
-  #   - POST=1 allows starting/stopping containers (needed for managed sidecars and Invasion Control)
+  #   - POST=1 allows create/start/stop/remove (managed sidecars, Software Store, Invasion Control)
   #   - IMAGES=1 + POST=1 allow AuraGo to pull pinned managed sidecar images
   #     such as go2rtc, Code Studio, and the optional llama.cpp GPU embedding probes
-  #   - BUILD=0 keeps Docker build API access disabled by default; prefer published images
-  #   - EXEC=1 allows DockerExec, Code Studio terminals, and security-proxy reloads
-  #   - Together these grant significant control — keep the docker-control network private
+  #   - BUILD=0 keeps Docker build API access disabled; Code Studio and most managed
+  #     sidecars pull published images. Images AuraGo builds through the Engine API
+  #     (the Homepage dev image on first use, the CommandCode fallback build, local
+  #     Code Studio runtime images, the security proxy's rate-limit Caddy image when
+  #     rate limiting is on) need BUILD=1 or must already exist on the host.
+  #     The browser-automation auto-build needs the Docker CLI, which the AuraGo
+  #     image does not include; build that image on the host if you need it.
+  #   - EXEC=1 is used by the agent's Docker exec, the Homepage tool, Code Studio
+  #     terminals, the built-in OpenSCAD compiler container, Web UI container
+  #     terminals (including the CommandCode Store terminal) and security-proxy reloads
   #
   # To switch to direct socket access (NOT recommended):
   #   1. Uncomment the docker.sock volume mount in the aurago service above.
@@ -379,17 +389,18 @@ services:
     cap_drop:
       - ALL
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # :ro is no security gain: API calls still pass through the socket
     environment:
       - CONTAINERS=1
       - IMAGES=1
       - NETWORKS=1
       - VOLUMES=1
       - INFO=1          # passive runtime inventory (including NVIDIA container runtime availability)
-      - POST=1          # allow start/stop/restart/create (needed for managed sidecars and Invasion Control)
-      - BUILD=0          # keep Docker build API access disabled by default; prefer published images
+      - VERSION=1       # negotiate a mutually supported Engine API before operations
+      - POST=1          # allow create/start/stop/remove (managed sidecars, Software Store, Invasion Control)
+      - BUILD=0          # Docker build API stays disabled; images AuraGo builds itself need BUILD=1 (see SECURITY NOTES)
       - COMMIT=0
-      - EXEC=1          # allow DockerExec, Code Studio terminals, and security-proxy reloads
+      - EXEC=1          # agent Docker exec, Homepage tool, Code Studio, OpenSCAD compiler, container terminals, security-proxy reloads
       - SWARM=0
     healthcheck:
       # Enhanced healthcheck: verify both ping and container list API work

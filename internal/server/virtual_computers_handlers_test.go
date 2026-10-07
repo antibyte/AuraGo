@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -36,10 +37,18 @@ func TestVirtualComputersLedgerReusesServerDependency(t *testing.T) {
 	}
 }
 
-func TestVirtualComputersPreviewProxyKeepsTokenServerSide(t *testing.T) {
+func TestVirtualComputersPreviewProxyFiltersAuraGoCredentialsAndPreservesGuestAuth(t *testing.T) {
 	var upstreamAuth string
+	var upstreamCookie string
+	var upstreamInternalHeaders string
+	var upstreamDevToken string
+	var upstreamQueries []string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upstreamAuth = r.Header.Get("Authorization")
+		upstreamCookie = r.Header.Get("Cookie")
+		upstreamInternalHeaders = r.Header.Get("X-Internal-Token") + r.Header.Get("X-Internal-FollowUp")
+		upstreamDevToken = r.Header.Get(agodeskDevTokenHeader)
+		upstreamQueries = append(upstreamQueries, r.URL.RawQuery)
 		if r.URL.Path != "/v1/machines/vm-1/web/8080/app/" {
 			t.Fatalf("upstream path = %s", r.URL.Path)
 		}
@@ -47,28 +56,106 @@ func TestVirtualComputersPreviewProxyKeepsTokenServerSide(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	s := &Server{Cfg: virtualComputersTestConfig(upstream.URL)}
+	s, _, _ := testDesktopPermissionServer(t)
+	s.Cfg.VirtualComputers = virtualComputersTestConfig(upstream.URL).VirtualComputers
+	adminToken, _, err := s.TokenManager.Create("preview admin", []string{desktopScopeAdmin}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mux := http.NewServeMux()
 	registerVirtualComputersRoutes(mux, s)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/virtual-computers/machines/vm-1/web/8080/app/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/virtual-computers/machines/vm-1/web/8080/app/?query=guest+value", nil)
+	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Cookie", "aurago_session=browser-session; guest_session=browser-cookie")
+	req.Header.Set(agodeskDevTokenHeader, "aura-development-secret")
+	req.Header.Set("X-Internal-Token", "process-secret")
+	req.Header.Set("X-Internal-FollowUp", "true")
 
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
 	}
-	if upstreamAuth != "Bearer boring-token" {
-		t.Fatalf("upstream auth = %q", upstreamAuth)
+	if upstreamAuth != "" {
+		t.Fatalf("AuraGo bearer token was forwarded to the guest: %q", upstreamAuth)
 	}
-	if strings.Contains(rec.Body.String(), "boring-token") {
-		t.Fatalf("response leaked token: %s", rec.Body.String())
+	if upstreamCookie != "guest_session=browser-cookie" {
+		t.Fatalf("guest cookie was not preserved or AuraGo cookie was forwarded: %q", upstreamCookie)
+	}
+	if upstreamDevToken != "" || upstreamInternalHeaders != "" {
+		t.Fatalf("AuraGo internal credential reached the guest: dev=%q internal=%q", upstreamDevToken, upstreamInternalHeaders)
+	}
+
+	// A non-bearer guest login scheme remains usable when AuraGo session auth
+	// independently authorizes the request.
+	loginRequest := httptest.NewRequest(http.MethodGet, "/api/virtual-computers/machines/vm-1/web/8080/app/", nil)
+	loginRequest.Header.Set("Authorization", "Basic Z3Vlc3Q6cGFzc3dvcmQ=")
+	loginRequest.Header.Set(agodeskDevTokenHeader, "aura-development-secret")
+	loginRequest.Header.Set("X-Internal-Token", "process-secret")
+	loginRequest.Header.Set("X-Internal-FollowUp", "true")
+	loginRequest.AddCookie(&http.Cookie{Name: sessionCookieName, Value: createSessionValue(s.Cfg.Auth.SessionSecret, time.Now().Add(time.Hour))})
+	loginRequest.AddCookie(&http.Cookie{Name: "guest_session", Value: "browser-cookie"})
+	loginRec := httptest.NewRecorder()
+	mux.ServeHTTP(loginRec, loginRequest)
+	if loginRec.Code != http.StatusOK || upstreamAuth != "Basic Z3Vlc3Q6cGFzc3dvcmQ=" || upstreamCookie != "guest_session=browser-cookie" {
+		t.Fatalf("guest auth state was not preserved: status=%d auth=%q cookie=%q", loginRec.Code, upstreamAuth, upstreamCookie)
+	}
+	if upstreamDevToken != "" || upstreamInternalHeaders != "" {
+		t.Fatalf("AuraGo internal credential reached guest after session-authenticated request: dev=%q internal=%q", upstreamDevToken, upstreamInternalHeaders)
+	}
+	if len(upstreamQueries) != 2 || upstreamQueries[0] != "query=guest+value" {
+		t.Fatalf("guest query was discarded: %#v", upstreamQueries)
+	}
+}
+
+func TestVirtualComputersPreviewProxyUsesWritePolicyForMethodsAndUpgrades(t *testing.T) {
+	var upstreamRequests int
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamRequests++
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer upstream.Close()
+	cfg := virtualComputersTestConfig(upstream.URL)
+	cfg.VirtualComputers.ReadOnly = true
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, &Server{Cfg: cfg})
+
+	for _, tc := range []struct {
+		name    string
+		method  string
+		upgrade bool
+		status  int
+	}{
+		{name: "read", method: http.MethodGet, status: http.StatusNoContent},
+		{name: "write", method: http.MethodPost, status: http.StatusForbidden},
+		{name: "websocket upgrade", method: http.MethodGet, upgrade: true, status: http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, "/api/virtual-computers/machines/vm-1/web/8080/app/", nil)
+			if tc.upgrade {
+				req.Header.Set("Connection", "Upgrade")
+				req.Header.Set("Upgrade", "websocket")
+				req.Header.Set("Sec-Websocket-Version", "13")
+				req.Header.Set("Sec-Websocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code != tc.status {
+				t.Fatalf("status=%d body=%s, want %d", rec.Code, rec.Body.String(), tc.status)
+			}
+		})
+	}
+	if upstreamRequests != 1 {
+		t.Fatalf("upstream requests = %d, want only the read", upstreamRequests)
 	}
 }
 
 func TestVirtualComputersWebSocketProxyPassesBinary(t *testing.T) {
 	var upstreamAuth string
 	var upstreamGoal string
+	upstreamClosed := make(chan struct{})
+	handlerDone := make(chan struct{})
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upstreamAuth = r.Header.Get("Authorization")
@@ -81,6 +168,7 @@ func TestVirtualComputersWebSocketProxyPassesBinary(t *testing.T) {
 			t.Errorf("upgrade upstream: %v", err)
 			return
 		}
+		defer close(upstreamClosed)
 		defer conn.Close()
 		mt, msg, err := conn.ReadMessage()
 		if err != nil {
@@ -98,7 +186,10 @@ func TestVirtualComputersWebSocketProxyPassesBinary(t *testing.T) {
 	s := &Server{Cfg: virtualComputersTestConfig(upstream.URL)}
 	mux := http.NewServeMux()
 	registerVirtualComputersRoutes(mux, s)
-	proxy := httptest.NewServer(mux)
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.ServeHTTP(w, r)
+		close(handlerDone)
+	}))
 	defer proxy.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(proxy.URL, "http") + "/api/virtual-computers/machines/vm-1/vnc?goal=" + url.QueryEscape("open docs & report")
@@ -117,11 +208,255 @@ func TestVirtualComputersWebSocketProxyPassesBinary(t *testing.T) {
 	if mt != websocket.BinaryMessage || string(msg) != "pong" {
 		t.Fatalf("proxy returned mt=%d msg=%q", mt, msg)
 	}
+	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	if _, _, err := conn.ReadMessage(); err == nil {
+		t.Fatal("browser WebSocket remained open after the upstream disconnected")
+	}
+	select {
+	case <-upstreamClosed:
+	case <-time.After(3 * time.Second):
+		t.Fatal("upstream WebSocket did not close after normal disconnect")
+	}
+	select {
+	case <-handlerDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("proxy handler did not drain after normal disconnect")
+	}
 	if upstreamAuth != "Bearer boring-token" {
 		t.Fatalf("upstream auth = %q", upstreamAuth)
 	}
 	if upstreamGoal != "open docs & report" {
 		t.Fatalf("upstream goal = %q", upstreamGoal)
+	}
+}
+
+func TestVirtualComputersPreviewProxyAllowsReadTokenInReadOnlyMode(t *testing.T) {
+	upstreamRequests := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamRequests++
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer upstream.Close()
+
+	s, readToken, _ := testDesktopPermissionServer(t)
+	s.Cfg.VirtualComputers = virtualComputersTestConfig(upstream.URL).VirtualComputers
+	s.Cfg.VirtualComputers.ReadOnly = true
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+	req := httptest.NewRequest(http.MethodGet, "/api/virtual-computers/machines/vm-1/web/8080/app/", nil)
+	req.Header.Set("Authorization", "Bearer "+readToken)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status=%d body=%s, want read-only guest response", rec.Code, rec.Body.String())
+	}
+	if upstreamRequests != 1 {
+		t.Fatalf("upstream requests=%d, want read-only GET to reach guest", upstreamRequests)
+	}
+}
+
+func TestVirtualComputersPreviewProxyClosesWebSocketAfterAuthorizationRevocation(t *testing.T) {
+	tests := []struct {
+		name   string
+		revoke func(t *testing.T, s *Server, token, session string)
+		cookie bool
+	}{
+		{
+			name: "bearer token revoked",
+			revoke: func(t *testing.T, s *Server, token, _ string) {
+				meta, valid := s.TokenManager.Validate(token, desktopScopeWrite)
+				if !valid {
+					t.Fatal("write token was not valid before revoke")
+				}
+				if err := s.TokenManager.Delete(meta.ID); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name:   "logout revokes session",
+			cookie: true,
+			revoke: func(t *testing.T, s *Server, _, session string) {
+				req := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+				req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: session})
+				if !revokeRequestSession(s, req) {
+					t.Fatal("could not revoke session")
+				}
+				key := sha256.Sum256([]byte(s.Cfg.Auth.SessionSecret + "\x00" + session))
+				t.Cleanup(func() {
+					revokedSessions.Lock()
+					delete(revokedSessions.entries, key)
+					revokedSessions.Unlock()
+				})
+			},
+		},
+		{
+			name: "virtual computers readonly",
+			revoke: func(t *testing.T, s *Server, _, _ string) {
+				s.CfgMu.Lock()
+				s.Cfg.VirtualComputers.ReadOnly = true
+				s.CfgMu.Unlock()
+			},
+		},
+		{
+			name: "desktop readonly",
+			revoke: func(t *testing.T, s *Server, _, _ string) {
+				s.CfgMu.Lock()
+				s.Cfg.VirtualDesktop.ReadOnly = true
+				s.CfgMu.Unlock()
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			upgraded := make(chan struct{})
+			upstreamClosed := make(chan struct{})
+			upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				conn, err := upgrader.Upgrade(w, r, nil)
+				if err != nil {
+					return
+				}
+				close(upgraded)
+				defer close(upstreamClosed)
+				defer conn.Close()
+				for {
+					if _, _, err := conn.ReadMessage(); err != nil {
+						return
+					}
+				}
+			}))
+			defer upstream.Close()
+
+			s, _, writeToken := testDesktopPermissionServer(t)
+			s.Cfg.VirtualComputers = virtualComputersTestConfig(upstream.URL).VirtualComputers
+			token := writeToken
+			session := ""
+			if tc.cookie {
+				session = createSessionValue(s.Cfg.Auth.SessionSecret, time.Now().Add(time.Hour))
+				token = ""
+			}
+			mux := http.NewServeMux()
+			registerVirtualComputersRoutes(mux, s)
+			proxy := httptest.NewServer(mux)
+			defer proxy.Close()
+
+			header := make(http.Header)
+			if token != "" {
+				header.Set("Authorization", "Bearer "+token)
+			} else {
+				header.Set("Cookie", sessionCookieName+"="+session)
+			}
+			conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(proxy.URL, "http")+"/api/virtual-computers/machines/vm-1/web/8080/app/", header)
+			if err != nil {
+				t.Fatalf("dial preview proxy: %v", err)
+			}
+			defer conn.Close()
+			select {
+			case <-upgraded:
+			case <-time.After(3 * time.Second):
+				t.Fatal("upstream preview WebSocket did not upgrade")
+			}
+
+			tc.revoke(t, s, token, session)
+			_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+			if _, _, err := conn.ReadMessage(); err == nil {
+				t.Fatal("browser WebSocket stayed open after authorization or policy revocation")
+			}
+			select {
+			case <-upstreamClosed:
+			case <-time.After(3 * time.Second):
+				t.Fatal("upstream WebSocket stayed open after authorization or policy revocation")
+			}
+		})
+	}
+}
+
+func TestVirtualComputersWebSocketClosesBothSidesWhenPolicyOrTokenIsRevoked(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		change func(*Server)
+		secure bool
+	}{
+		{name: "virtual computers readonly", change: func(s *Server) { s.Cfg.VirtualComputers.ReadOnly = true }},
+		{name: "agent tasks disabled", change: func(s *Server) { s.Cfg.VirtualComputers.AllowAgentTasks = false }},
+		{name: "bearer token revoked", secure: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			upstreamClosed := make(chan struct{})
+			upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				conn, err := upgrader.Upgrade(w, r, nil)
+				if err != nil {
+					t.Errorf("upstream upgrade: %v", err)
+					return
+				}
+				defer conn.Close()
+				defer close(upstreamClosed)
+				for {
+					if _, _, err := conn.ReadMessage(); err != nil {
+						return
+					}
+				}
+			}))
+			defer upstream.Close()
+
+			cfg := virtualComputersTestConfig(upstream.URL)
+			cfg.VirtualComputers.AllowAgentTasks = true
+			s := &Server{Cfg: cfg}
+			channel := "vnc"
+			var token string
+			var tokenID string
+			if tc.secure {
+				authServer, _, writeToken := testDesktopPermissionServer(t)
+				s = authServer
+				s.Cfg.VirtualComputers = cfg.VirtualComputers
+				var meta security.TokenMeta
+				var err error
+				token, meta, err = s.TokenManager.Create("vnc socket", []string{desktopScopeWrite}, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				tokenID = meta.ID
+				_ = writeToken
+			} else if tc.name == "agent tasks disabled" {
+				channel = "agent"
+			}
+			mux := http.NewServeMux()
+			registerVirtualComputersRoutes(mux, s)
+			proxy := httptest.NewServer(mux)
+			defer proxy.Close()
+
+			conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(proxy.URL, "http")+"/api/virtual-computers/machines/vm-1/"+channel, func() http.Header {
+				header := make(http.Header)
+				if token != "" {
+					header.Set("Authorization", "Bearer "+token)
+				}
+				return header
+			}())
+			if err != nil {
+				t.Fatalf("dial proxy: %v", err)
+			}
+			if tc.secure {
+				if err := s.TokenManager.Delete(tokenID); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				s.CfgMu.Lock()
+				tc.change(s)
+				s.CfgMu.Unlock()
+			}
+			_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+			if _, _, err := conn.ReadMessage(); err == nil {
+				t.Fatal("browser WebSocket stayed open after policy revocation")
+			}
+			_ = conn.Close()
+			select {
+			case <-upstreamClosed:
+			case <-time.After(3 * time.Second):
+				t.Fatal("upstream WebSocket stayed open after policy revocation")
+			}
+		})
 	}
 }
 
@@ -222,6 +557,15 @@ func TestVirtualComputersTTYRejectsReadOnlyAndReadAccessBeforeUpstreamDial(t *te
 				return s, readToken
 			},
 		},
+		{
+			name: "desktop read only",
+			setup: func(t *testing.T, upstreamURL string) (*Server, string) {
+				s, _, writeToken := testDesktopPermissionServer(t)
+				s.Cfg.VirtualComputers = virtualComputersTestConfig(upstreamURL).VirtualComputers
+				s.Cfg.VirtualDesktop.ReadOnly = true
+				return s, writeToken
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -252,6 +596,80 @@ func TestVirtualComputersTTYRejectsReadOnlyAndReadAccessBeforeUpstreamDial(t *te
 				t.Fatalf("upstream received %d TTY requests", upstreamRequests)
 			}
 		})
+	}
+}
+
+func TestVirtualComputersWebSocketRechecksPolicyAfterUpstreamDial(t *testing.T) {
+	upstreamDialed := make(chan struct{})
+	allowUpgrade := make(chan struct{})
+	upstreamClosed := make(chan struct{})
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		select {
+		case <-upstreamDialed:
+		default:
+			close(upstreamDialed)
+		}
+		<-allowUpgrade
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer close(upstreamClosed)
+		defer conn.Close()
+		_, _, _ = conn.ReadMessage()
+	}))
+	defer upstream.Close()
+
+	s, _, writeToken := testDesktopPermissionServer(t)
+	s.Cfg.VirtualComputers = virtualComputersTestConfig(upstream.URL).VirtualComputers
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+	proxy := httptest.NewServer(mux)
+	defer proxy.Close()
+	result := make(chan struct {
+		response *http.Response
+		err      error
+	}, 1)
+	go func() {
+		header := http.Header{"Authorization": []string{"Bearer " + writeToken}}
+		response, err := func() (*http.Response, error) {
+			conn, response, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(proxy.URL, "http")+"/api/virtual-computers/machines/vm-1/tty", header)
+			if conn != nil {
+				_ = conn.Close()
+			}
+			return response, err
+		}()
+		result <- struct {
+			response *http.Response
+			err      error
+		}{response: response, err: err}
+	}()
+	select {
+	case <-upstreamDialed:
+	case <-time.After(3 * time.Second):
+		t.Fatal("proxy did not dial the upstream WebSocket")
+	}
+	s.CfgMu.Lock()
+	s.Cfg.VirtualDesktop.ReadOnly = true
+	s.CfgMu.Unlock()
+	close(allowUpgrade)
+	select {
+	case got := <-result:
+		if got.err == nil || got.response == nil || got.response.StatusCode != http.StatusForbidden {
+			t.Fatalf("revoked late dial returned response=%v error=%v, want HTTP 403", got.response, got.err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("proxy did not finish after the write permission was revoked")
+	}
+	select {
+	case <-upstreamClosed:
+	case <-time.After(3 * time.Second):
+		t.Fatal("late upstream WebSocket remained open after policy revocation")
 	}
 }
 

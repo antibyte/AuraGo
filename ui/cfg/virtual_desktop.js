@@ -11,7 +11,6 @@ function vdCfgEnsureData() {
     const data = configData.virtual_desktop;
     if (!data.workspace_dir) data.workspace_dir = 'agent_workspace/virtual_desktop';
     if (!data.max_file_size_mb) data.max_file_size_mb = 50;
-    if (!data.control_level) data.control_level = 'confirm_destructive';
     if (!data.max_ws_clients) data.max_ws_clients = 8;
     if (!data.remote_max_session_minutes) data.remote_max_session_minutes = 60;
     if (!data.remote_idle_timeout_minutes) data.remote_idle_timeout_minutes = 5;
@@ -47,6 +46,8 @@ function renderVirtualDesktopSection(section) {
     html += vdCfgToggleRow('config.virtual_desktop.agent_control_label', 'help.virtual_desktop.allow_agent_control', data.allow_agent_control === true, 'virtual_desktop.allow_agent_control', "vdCfgToggleAgentControl(this.classList.contains('on'))");
     html += vdCfgToggleRow('config.virtual_desktop.generated_apps_label', 'help.virtual_desktop.allow_generated_apps', data.allow_generated_apps !== false, 'virtual_desktop.allow_generated_apps');
     html += vdCfgToggleRow('config.virtual_desktop.python_jobs_label', 'help.virtual_desktop.allow_python_jobs', data.allow_python_jobs === true, 'virtual_desktop.allow_python_jobs');
+    html += vdCfgToggleRow('config.virtual_desktop.serial_browser_label', 'help.virtual_desktop.serial_browser_enabled', data.serial_browser_enabled === true, 'virtual_desktop.serial_browser_enabled');
+    html += vdCfgToggleRow('config.virtual_desktop.serial_host_label', 'help.virtual_desktop.serial_host_enabled', data.serial_host_enabled === true, 'virtual_desktop.serial_host_enabled');
     html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.virtual_desktop.office_tools_note') + '</div>';
     html += '<div class="field-grid two-cols">';
     html += vdCfgToggleRow('config.virtual_desktop.office_document_label', 'help.virtual_desktop.office_document', configData.tools.office_document.enabled === true, 'tools.office_document.enabled');
@@ -63,11 +64,6 @@ function renderVirtualDesktopSection(section) {
     html += '</div>';
 
     html += '<div class="field-grid two-cols">';
-    html += vdCfgField('config.virtual_desktop.control_level_label', 'help.virtual_desktop.control_level',
-        '<select class="field-select" data-path="virtual_desktop.control_level">' +
-        '<option value="confirm_destructive"' + ((data.control_level || 'confirm_destructive') === 'confirm_destructive' ? ' selected' : '') + '>' + t('config.virtual_desktop.control_confirm') + '</option>' +
-        '<option value="trusted"' + (data.control_level === 'trusted' ? ' selected' : '') + '>' + t('config.virtual_desktop.control_trusted') + '</option>' +
-        '</select>');
     html += vdCfgField('config.virtual_desktop.max_ws_clients_label', 'help.virtual_desktop.max_ws_clients',
         '<input class="field-input" type="number" min="1" max="64" value="' + (data.max_ws_clients || 8) + '" data-path="virtual_desktop.max_ws_clients">');
     html += '</div>';

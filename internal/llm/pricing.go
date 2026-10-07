@@ -113,11 +113,19 @@ func StaticPricingForModel(providerType, modelID string) (ModelPricing, bool) {
 			return p, true
 		}
 	}
-	// Partial-match fallback (e.g. "gpt-4o-2024-08-06" → "gpt-4o")
+	// Partial-match fallback (e.g. "gpt-4o-2024-08-06" → "gpt-4o").
+	// When both a family and variant key match, use the most specific key.
+	var best ModelPricing
+	bestMatchLength := 0
 	for _, p := range table {
-		if strings.Contains(lower, strings.ToLower(p.ModelID)) {
-			return p, true
+		key := strings.ToLower(p.ModelID)
+		if len(key) > bestMatchLength && strings.Contains(lower, key) {
+			best = p
+			bestMatchLength = len(key)
 		}
+	}
+	if bestMatchLength > 0 {
+		return best, true
 	}
 
 	// Fallback to models.dev registry

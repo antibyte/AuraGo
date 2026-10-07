@@ -734,7 +734,7 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 			Model:        dc.Cfg.ImageGeneration.ResolvedModel,
 			DataDir:      dc.Cfg.Directories.DataDir,
 		}
-		result, err := tools.GenerateImage(cfg, prompt, tools.ImageGenOptions{
+		result, err := tools.GenerateImageContext(ctx, cfg, prompt, tools.ImageGenOptions{
 			Size: dc.Cfg.ImageGeneration.DefaultSize, Quality: dc.Cfg.ImageGeneration.DefaultQuality,
 			Style: dc.Cfg.ImageGeneration.DefaultStyle,
 		})

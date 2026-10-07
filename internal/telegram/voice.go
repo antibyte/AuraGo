@@ -69,17 +69,36 @@ func TranscribeVoice(filePath string, cfg *config.Config) (string, error) {
 
 // ConvertOggToMp3 uses ffmpeg to convert a Telegram voice message (ogg/opus) to an mp3 file.
 func ConvertOggToMp3(inputPath, outputPath string) error {
+	return ConvertOggToMp3Context(context.Background(), inputPath, outputPath)
+}
+
+// ConvertOggToMp3Context converts a Telegram voice message and stops the
+// ffmpeg process when ctx is canceled, retaining the 60-second ceiling.
+func ConvertOggToMp3Context(ctx context.Context, inputPath, outputPath string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	// Check if ffmpeg is on the path
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		return fmt.Errorf("ffmpeg not found on system path: %w", err)
 	}
 
-	// ffmpeg -y -i <input> -vn -ar 44100 -ac 2 -b:a 192k <output> with 60s timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	// Preserve the existing 60-second conversion limit while honoring shutdown.
+	commandCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", inputPath, "-vn", "-ar", "44100", "-ac", "2", "-b:a", "192k", outputPath)
-	if output, err := cmd.CombinedOutput(); err != nil {
+	cmd := exec.CommandContext(commandCtx, "ffmpeg", "-y", "-i", inputPath, "-vn", "-ar", "44100", "-ac", "2", "-b:a", "192k", outputPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if contextErr := commandCtx.Err(); contextErr != nil {
+			return fmt.Errorf("ffmpeg conversion to mp3 failed: %w", contextErr)
+		}
 		return fmt.Errorf("ffmpeg conversion to mp3 failed: %w (output: %s)", err, string(output))
+	}
+	if err := commandCtx.Err(); err != nil {
+		return fmt.Errorf("ffmpeg conversion to mp3 failed: %w", err)
 	}
 
 	return nil

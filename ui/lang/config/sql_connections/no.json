@@ -8,7 +8,7 @@
   "config.sql_connections.col_actions": "Handlinger",
   "config.sql_connections.col_database": "Database",
   "config.sql_connections.col_description": "Beskrivelse",
-  "config.sql_connections.col_driver": "Skriv",
+  "config.sql_connections.col_driver": "Type",
   "config.sql_connections.col_host": "Vert",
   "config.sql_connections.col_name": "Navn",
   "config.sql_connections.col_permissions": "Tillatelser",
@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "Global skrivebeskyttelse",
   "config.sql_connections.readonly_help": "Blokkerer alle skriveoperasjoner uavhengig av tilkoblingstillatelser.",
   "config.sql_connections.allow_management_label": "Tillat administrasjon",
-  "config.sql_connections.allow_management_help": "Gir agenten mulighet til å opprette, redigere og slette tilkoblinger."
+  "config.sql_connections.sqlite_import": "Importer SQLite-sikkerhetskopi",
+  "config.sql_connections.sqlite_import_help": "Last opp en konsistent, selvstendig sikkerhetskopi (opptil 64 MiB). Lagring importerer til beskyttet lagring og bevarer originalene.",
+  "config.sql_connections.sqlite_import_required": "SQLite-import kreves",
+  "config.sql_connections.allow_management_help": "Agenten kan bare endre beskrivelser. Oppsett, påloggingsinformasjon og rettigheter er forbeholdt administratoren."
 }

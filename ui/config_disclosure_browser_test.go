@@ -14,6 +14,10 @@ func TestConfigDisclosureSettingsBrowser(t *testing.T) {
 	if page.MustEval(`()=>('_effective_tool_policy' in configData) || ('_config_migrations' in AuraConfigState.snapshot().draft) || !effectiveToolPolicy || configMigrationNotices.length!==1`).Bool() {
 		t.Fatal("response diagnostics leaked into editable config or were lost")
 	}
+	page.MustEval(`async()=>{await selectSection('optimizations',{scrollBehavior:'auto'});}`)
+	if !page.MustEval(`()=>[...document.querySelectorAll('#content .wh-notice')].some(el=>el.textContent.includes('guardian.promptsec.spotlight (retired; forced off)'))`).Bool() {
+		t.Fatal("configuration migration notice was not shown to the user")
+	}
 	page.MustEval(`()=>{window.originalFixtureFetch=window.fetch;window.fetch=async (url,opts)=>{
 		if(url==='/api/mcp-server/tools') return new Response(JSON.stringify(['docker','filesystem']),{headers:{'Content-Type':'application/json'}});
 		if(url==='/api/personality') return new Response('{}',{headers:{'Content-Type':'application/json'}});

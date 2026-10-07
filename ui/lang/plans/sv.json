@@ -35,7 +35,7 @@
   "plans.show_archived": "Visa arkiverade",
   "plans.split": "Dela",
   "plans.split_modal_title": "Dela uppgift",
-  "plans.split_placeholder": "Granska logs\nPatcha handler\nVerifiera fix",
+  "plans.split_placeholder": "Granska loggar\nPatcha hanteraren\nVerifiera åtgärden",
   "plans.split_prompt": "Ange en underuppgift per rad.",
   "plans.split_require_two": "Ange minst två deluppgifter.",
   "plans.start_task": "Starta uppgift",

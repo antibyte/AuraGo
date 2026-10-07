@@ -24,7 +24,7 @@
   "config.onedrive.test_failed": "失敗",
   "config.onedrive.test_success": "成功",
   "config.onedrive.testing": "テスト中…",
-  "config.remote_control.allowed_paths_hint": "1行に1つ、空 = すべて",
+  "config.remote_control.allowed_paths_hint": "1行に1つのパス。空のリストではファイルへのアクセスを許可しません。",
   "config.remote_control.allowed_paths_label": "許可されたパス",
   "config.remote_control.audit_log_label": "監査ログを有効にする",
   "config.remote_control.auto_approve_label": "新しいデバイスを自動承認（⚠️ 信頼できるネットワークのみ）",

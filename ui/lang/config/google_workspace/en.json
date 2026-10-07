@@ -1,4 +1,6 @@
 {
+  "config.google_workspace.scope_gmail_modify_labels": "Gmail — Change labels",
+  "config.google_workspace.scope_gmail_modify_labels_hint": "Allow label changes, read/unread status and archiving. Requires read-only mode to be off and may require reconnecting OAuth.",
   "config.google_workspace.enabled_label": "Google Workspace integration enabled",
   "config.google_workspace.readonly_label": "Read-only mode",
   "config.google_workspace.readonly_hint": "When active, only read operations are allowed (no sending emails, creating events, editing documents, etc.)",
@@ -14,7 +16,7 @@
   "config.google_workspace.disconnect_btn": "Disconnect",
   "config.google_workspace.test_btn": "Test Connection",
   "config.google_workspace.scopes_title": "Permissions (Scopes)",
-  "config.google_workspace.scopes_desc": "Select which Google services the agent may access. Changes take effect on the next OAuth2 authorization.",
+  "config.google_workspace.scopes_desc": "Agent permissions change after saving. Additional OAuth scopes may require reconnecting.",
   "config.google_workspace.scope_gmail": "Gmail — Read",
   "config.google_workspace.scope_gmail_hint": "List and read emails",
   "config.google_workspace.scope_gmail_send": "Gmail — Send",

@@ -259,7 +259,13 @@ pub enum MediaTab {
 #[allow(dead_code)]
 pub enum ConfirmAction {
     DeleteMission { index: usize },
-    DeleteContainer { index: usize },
+    /// Remove the container with this ID; the dialog looks it up by ID, so a
+    /// list that reloaded meanwhile cannot shift it to another container.
+    DeleteContainer { id: String },
+    /// The server asked for a confirmation the list did not show (409).
+    RemoveProtectedContainer { id: String, owner: String },
+    /// Stop on the container AuraGo runs in, its Docker endpoint or a shared network namespace.
+    StopProtectedContainer { id: String, owner: String },
     DeleteKnowledge { index: usize },
     DeleteMedia { index: usize },
     ClearChat,

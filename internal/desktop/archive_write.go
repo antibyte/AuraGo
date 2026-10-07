@@ -15,7 +15,9 @@ import (
 )
 
 const archiveExpansionLimit = int64(500 << 20)
-const archiveEntryLimit = 10000
+
+// ArchiveEntryLimit bounds desktop archive entries across listing and extraction.
+const ArchiveEntryLimit = 10000
 
 func validArchivePath(name string) bool {
 	name = strings.TrimSuffix(name, "/")
@@ -85,7 +87,7 @@ func (s *Service) CreateArchive(ctx context.Context, paths []string, dest, sourc
 			}
 			seen[zipName] = true
 			count++
-			if count > archiveEntryLimit || info.Size() > remaining {
+			if count > ArchiveEntryLimit || info.Size() > remaining {
 				return fmt.Errorf("archive exceeds limits")
 			}
 			stream, err := root.Open(name)
@@ -165,7 +167,7 @@ func (s *Service) ExtractArchive(ctx context.Context, archive, dest, source stri
 	if err != nil {
 		return err
 	}
-	if len(reader.File) > archiveEntryLimit {
+	if len(reader.File) > ArchiveEntryLimit {
 		return fmt.Errorf("archive contains too many entries")
 	}
 	type preparedEntry struct {
@@ -237,6 +239,12 @@ func (s *Service) ExtractArchive(ctx context.Context, archive, dest, source stri
 		key := filepath.Clean(entry.path)
 		if runtime.GOOS == "windows" {
 			key = strings.ToLower(key)
+		}
+		if existingDirectory, exists := planned[key]; exists {
+			if existingDirectory != entry.directory {
+				return fmt.Errorf("archive destination type conflict")
+			}
+			return fmt.Errorf("archive destination path collision")
 		}
 		planned[key] = entry.directory
 	}

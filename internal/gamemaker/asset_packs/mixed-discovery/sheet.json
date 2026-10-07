@@ -1,0 +1,3937 @@
+{
+  "id": "mixed-discovery",
+  "name": "Mixed Discovery",
+  "description": "100 discovery props and collectibles spanning archaeology, magic, ocean, wilderness, science, minerals and exploration.",
+  "tags": [
+    "mixed",
+    "side",
+    "prop",
+    "item",
+    "archaeology",
+    "magic",
+    "ocean",
+    "wilderness",
+    "camping",
+    "science",
+    "minerals",
+    "winter",
+    "desert",
+    "exploration"
+  ],
+  "schema_version": 1,
+  "version": "2",
+  "image": "sheet.png",
+  "columns": 10,
+  "rows": 10,
+  "frame_width": 64,
+  "frame_height": 64,
+  "frames": [
+    {
+      "index": 0,
+      "asset_id": "ancient_amphora",
+      "x": 0,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 1,
+      "asset_id": "stone_tablet",
+      "x": 64,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 2,
+      "asset_id": "fossil_ammonite",
+      "x": 128,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 3,
+      "asset_id": "dinosaur_skull",
+      "x": 192,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 4,
+      "asset_id": "golden_scarab",
+      "x": 256,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 5,
+      "asset_id": "bronze_coin",
+      "x": 320,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 6,
+      "asset_id": "broken_column",
+      "x": 384,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 7,
+      "asset_id": "clay_idol",
+      "x": 448,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 8,
+      "asset_id": "excavation_brush",
+      "x": 512,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 9,
+      "asset_id": "ancient_sundial",
+      "x": 576,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 10,
+      "asset_id": "crystal_ball",
+      "x": 0,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 11,
+      "asset_id": "wizard_hat",
+      "x": 64,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 12,
+      "asset_id": "magic_wand",
+      "x": 128,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 13,
+      "asset_id": "spell_book",
+      "x": 192,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 14,
+      "asset_id": "red_potion_bottle",
+      "x": 256,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 15,
+      "asset_id": "blue_potion_bottle",
+      "x": 320,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 16,
+      "asset_id": "violet_rune_stone",
+      "x": 384,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 17,
+      "asset_id": "enchanted_feather",
+      "x": 448,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 18,
+      "asset_id": "witch_cauldron",
+      "x": 512,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 19,
+      "asset_id": "magic_lamp",
+      "x": 576,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 20,
+      "asset_id": "nautilus_shell",
+      "x": 0,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 21,
+      "asset_id": "starfish",
+      "x": 64,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 22,
+      "asset_id": "red_coral",
+      "x": 128,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 23,
+      "asset_id": "pearl_in_oyster",
+      "x": 192,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 24,
+      "asset_id": "sea_urchin",
+      "x": 256,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 25,
+      "asset_id": "message_bottle",
+      "x": 320,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 26,
+      "asset_id": "ship_anchor",
+      "x": 384,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 27,
+      "asset_id": "diving_helmet",
+      "x": 448,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 28,
+      "asset_id": "life_ring",
+      "x": 512,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 29,
+      "asset_id": "treasure_chest",
+      "x": 576,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 30,
+      "asset_id": "pine_cone",
+      "x": 0,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 31,
+      "asset_id": "acorn",
+      "x": 64,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 32,
+      "asset_id": "bird_nest",
+      "x": 128,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 33,
+      "asset_id": "eagle_feather",
+      "x": 192,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 34,
+      "asset_id": "antler",
+      "x": 256,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 35,
+      "asset_id": "honeycomb",
+      "x": 320,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 36,
+      "asset_id": "red_mushroom",
+      "x": 384,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 37,
+      "asset_id": "fern_frond",
+      "x": 448,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 38,
+      "asset_id": "hollow_log",
+      "x": 512,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 39,
+      "asset_id": "mossy_stone",
+      "x": 576,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 40,
+      "asset_id": "rolled_tent",
+      "x": 0,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 41,
+      "asset_id": "camping_stove",
+      "x": 64,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 42,
+      "asset_id": "hiking_boot",
+      "x": 128,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 43,
+      "asset_id": "ice_axe",
+      "x": 192,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 44,
+      "asset_id": "climbing_rope",
+      "x": 256,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 45,
+      "asset_id": "carabiner",
+      "x": 320,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 46,
+      "asset_id": "camping_chair",
+      "x": 384,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 47,
+      "asset_id": "mess_tin",
+      "x": 448,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 48,
+      "asset_id": "fishing_rod",
+      "x": 512,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 49,
+      "asset_id": "bear_bell",
+      "x": 576,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 50,
+      "asset_id": "microscope",
+      "x": 0,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 51,
+      "asset_id": "test_tube_rack",
+      "x": 64,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 52,
+      "asset_id": "round_flask",
+      "x": 128,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 53,
+      "asset_id": "molecule_model",
+      "x": 192,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 54,
+      "asset_id": "horseshoe_magnet",
+      "x": 256,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 55,
+      "asset_id": "prism",
+      "x": 320,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 56,
+      "asset_id": "balance_scales",
+      "x": 384,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 57,
+      "asset_id": "telescope",
+      "x": 448,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 58,
+      "asset_id": "magnifying_glass",
+      "x": 512,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 59,
+      "asset_id": "laboratory_burner",
+      "x": 576,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 60,
+      "asset_id": "ruby_cluster",
+      "x": 0,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 61,
+      "asset_id": "emerald_cluster",
+      "x": 64,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 62,
+      "asset_id": "sapphire_cluster",
+      "x": 128,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 63,
+      "asset_id": "amethyst_geode",
+      "x": 192,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 64,
+      "asset_id": "quartz_cluster",
+      "x": 256,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 65,
+      "asset_id": "gold_nugget",
+      "x": 320,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 66,
+      "asset_id": "copper_ore",
+      "x": 384,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 67,
+      "asset_id": "iron_ore",
+      "x": 448,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 68,
+      "asset_id": "coal_lump",
+      "x": 512,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 69,
+      "asset_id": "meteorite",
+      "x": 576,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 70,
+      "asset_id": "snow_globe",
+      "x": 0,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 71,
+      "asset_id": "snowshoe",
+      "x": 64,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 72,
+      "asset_id": "wool_mitten",
+      "x": 128,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 73,
+      "asset_id": "ski_goggles",
+      "x": 192,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 74,
+      "asset_id": "ice_skate",
+      "x": 256,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 75,
+      "asset_id": "sled",
+      "x": 320,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 76,
+      "asset_id": "ice_crystal",
+      "x": 384,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 77,
+      "asset_id": "snow_shovel",
+      "x": 448,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 78,
+      "asset_id": "pine_wreath",
+      "x": 512,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 79,
+      "asset_id": "snowman",
+      "x": 576,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 80,
+      "asset_id": "cactus_pot",
+      "x": 0,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 81,
+      "asset_id": "sand_rose_crystal",
+      "x": 64,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 82,
+      "asset_id": "sand_hourglass",
+      "x": 128,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 83,
+      "asset_id": "water_canteen",
+      "x": 192,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 84,
+      "asset_id": "woven_basket",
+      "x": 256,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 85,
+      "asset_id": "camel_saddle",
+      "x": 320,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 86,
+      "asset_id": "oil_lantern",
+      "x": 384,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 87,
+      "asset_id": "desert_rose_flower",
+      "x": 448,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 88,
+      "asset_id": "sun_talisman",
+      "x": 512,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 89,
+      "asset_id": "clay_water_jug",
+      "x": 576,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 90,
+      "asset_id": "astronaut_helmet",
+      "x": 0,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 91,
+      "asset_id": "moon_rock",
+      "x": 64,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 92,
+      "asset_id": "satellite_dish",
+      "x": 128,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 93,
+      "asset_id": "weather_balloon",
+      "x": 192,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 94,
+      "asset_id": "sextant",
+      "x": 256,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 95,
+      "asset_id": "brass_astrolabe",
+      "x": 320,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 96,
+      "asset_id": "signal_flag",
+      "x": 384,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 97,
+      "asset_id": "survey_tripod",
+      "x": 448,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 98,
+      "asset_id": "sample_case",
+      "x": 512,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 99,
+      "asset_id": "antique_diving_boot",
+      "x": 576,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    }
+  ],
+  "assets": [
+    {
+      "id": "ancient_amphora",
+      "name": "Ancient amphora",
+      "description": "Ancient amphora. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "archaeology",
+        "side",
+        "prop",
+        "collectible",
+        "ancient",
+        "amphora"
+      ],
+      "view": "side",
+      "entity": "ancient_amphora",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        0
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "stone_tablet",
+      "name": "Stone tablet",
+      "description": "Stone tablet. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "archaeology",
+        "side",
+        "prop",
+        "collectible",
+        "stone",
+        "tablet"
+      ],
+      "view": "side",
+      "entity": "stone_tablet",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        1
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "fossil_ammonite",
+      "name": "Fossil ammonite",
+      "description": "Fossil ammonite. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "archaeology",
+        "side",
+        "prop",
+        "collectible",
+        "fossil",
+        "ammonite"
+      ],
+      "view": "side",
+      "entity": "fossil_ammonite",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        2
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "dinosaur_skull",
+      "name": "Dinosaur skull",
+      "description": "Dinosaur skull. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "archaeology",
+        "side",
+        "prop",
+        "collectible",
+        "dinosaur",
+        "skull"
+      ],
+      "view": "side",
+      "entity": "dinosaur_skull",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        3
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "golden_scarab",
+      "name": "Golden scarab",
+      "description": "Golden scarab. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "archaeology",
+        "side",
+        "prop",
+        "collectible",
+        "golden",
+        "scarab"
+      ],
+      "view": "side",
+      "entity": "golden_scarab",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        4
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "bronze_coin",
+      "name": "Bronze coin",
+      "description": "Bronze coin. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "archaeology",
+        "side",
+        "prop",
+        "collectible",
+        "bronze",
+        "coin"
+      ],
+      "view": "side",
+      "entity": "bronze_coin",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        5
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "broken_column",
+      "name": "Broken column",
+      "description": "Broken column. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "archaeology",
+        "side",
+        "prop",
+        "collectible",
+        "broken",
+        "column"
+      ],
+      "view": "side",
+      "entity": "broken_column",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        6
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "clay_idol",
+      "name": "Clay idol",
+      "description": "Clay idol. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "archaeology",
+        "side",
+        "prop",
+        "collectible",
+        "clay",
+        "idol"
+      ],
+      "view": "side",
+      "entity": "clay_idol",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        7
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "excavation_brush",
+      "name": "Excavation brush",
+      "description": "Excavation brush. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "archaeology",
+        "side",
+        "prop",
+        "collectible",
+        "excavation",
+        "brush"
+      ],
+      "view": "side",
+      "entity": "excavation_brush",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        8
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "ancient_sundial",
+      "name": "Ancient sundial",
+      "description": "Ancient sundial. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "archaeology",
+        "side",
+        "prop",
+        "collectible",
+        "ancient",
+        "sundial"
+      ],
+      "view": "side",
+      "entity": "ancient_sundial",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        9
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "crystal_ball",
+      "name": "Crystal ball",
+      "description": "Crystal ball. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "magic",
+        "side",
+        "prop",
+        "collectible",
+        "crystal",
+        "ball"
+      ],
+      "view": "side",
+      "entity": "crystal_ball",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        10
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "wizard_hat",
+      "name": "Wizard hat",
+      "description": "Wizard hat. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "magic",
+        "side",
+        "prop",
+        "collectible",
+        "wizard",
+        "hat"
+      ],
+      "view": "side",
+      "entity": "wizard_hat",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        11
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "magic_wand",
+      "name": "Magic wand",
+      "description": "Magic wand. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "magic",
+        "side",
+        "prop",
+        "collectible",
+        "wand"
+      ],
+      "view": "side",
+      "entity": "magic_wand",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        12
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "spell_book",
+      "name": "Spell book",
+      "description": "Spell book. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "magic",
+        "side",
+        "prop",
+        "collectible",
+        "spell",
+        "book"
+      ],
+      "view": "side",
+      "entity": "spell_book",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        13
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "red_potion_bottle",
+      "name": "Red potion bottle",
+      "description": "Red potion bottle. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "magic",
+        "side",
+        "prop",
+        "collectible",
+        "red",
+        "potion",
+        "bottle"
+      ],
+      "view": "side",
+      "entity": "red_potion_bottle",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        14
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "blue_potion_bottle",
+      "name": "Blue potion bottle",
+      "description": "Blue potion bottle. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "magic",
+        "side",
+        "prop",
+        "collectible",
+        "blue",
+        "potion",
+        "bottle"
+      ],
+      "view": "side",
+      "entity": "blue_potion_bottle",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        15
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "violet_rune_stone",
+      "name": "Violet rune stone",
+      "description": "Violet rune stone. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "magic",
+        "side",
+        "prop",
+        "collectible",
+        "violet",
+        "rune",
+        "stone"
+      ],
+      "view": "side",
+      "entity": "violet_rune_stone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        16
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "enchanted_feather",
+      "name": "Enchanted feather",
+      "description": "Enchanted feather. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "magic",
+        "side",
+        "prop",
+        "collectible",
+        "enchanted",
+        "feather"
+      ],
+      "view": "side",
+      "entity": "enchanted_feather",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        17
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "witch_cauldron",
+      "name": "Witch cauldron",
+      "description": "Witch cauldron. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "magic",
+        "side",
+        "prop",
+        "collectible",
+        "witch",
+        "cauldron"
+      ],
+      "view": "side",
+      "entity": "witch_cauldron",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        18
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "magic_lamp",
+      "name": "Magic lamp",
+      "description": "Magic lamp. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "magic",
+        "side",
+        "prop",
+        "collectible",
+        "lamp"
+      ],
+      "view": "side",
+      "entity": "magic_lamp",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        19
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "nautilus_shell",
+      "name": "Nautilus shell",
+      "description": "Nautilus shell. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "ocean",
+        "side",
+        "prop",
+        "collectible",
+        "nautilus",
+        "shell"
+      ],
+      "view": "side",
+      "entity": "nautilus_shell",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        20
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "starfish",
+      "name": "Starfish",
+      "description": "Starfish. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "ocean",
+        "side",
+        "prop",
+        "collectible",
+        "starfish"
+      ],
+      "view": "side",
+      "entity": "starfish",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        21
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "red_coral",
+      "name": "Red coral",
+      "description": "Red coral. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "ocean",
+        "side",
+        "prop",
+        "collectible",
+        "red",
+        "coral"
+      ],
+      "view": "side",
+      "entity": "red_coral",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        22
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "pearl_in_oyster",
+      "name": "Pearl in oyster",
+      "description": "Pearl in oyster. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "ocean",
+        "side",
+        "prop",
+        "collectible",
+        "pearl",
+        "in",
+        "oyster"
+      ],
+      "view": "side",
+      "entity": "pearl_in_oyster",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        23
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "sea_urchin",
+      "name": "Sea urchin",
+      "description": "Sea urchin. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "ocean",
+        "side",
+        "prop",
+        "collectible",
+        "sea",
+        "urchin"
+      ],
+      "view": "side",
+      "entity": "sea_urchin",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        24
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "message_bottle",
+      "name": "Message bottle",
+      "description": "Message bottle. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "ocean",
+        "side",
+        "prop",
+        "collectible",
+        "message",
+        "bottle"
+      ],
+      "view": "side",
+      "entity": "message_bottle",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        25
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "ship_anchor",
+      "name": "Ship anchor",
+      "description": "Ship anchor. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "ocean",
+        "side",
+        "prop",
+        "collectible",
+        "ship",
+        "anchor"
+      ],
+      "view": "side",
+      "entity": "ship_anchor",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        26
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "diving_helmet",
+      "name": "Diving helmet",
+      "description": "Diving helmet. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "ocean",
+        "side",
+        "prop",
+        "collectible",
+        "diving",
+        "helmet"
+      ],
+      "view": "side",
+      "entity": "diving_helmet",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        27
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "life_ring",
+      "name": "Life ring",
+      "description": "Life ring. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "ocean",
+        "side",
+        "prop",
+        "collectible",
+        "life",
+        "ring"
+      ],
+      "view": "side",
+      "entity": "life_ring",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        28
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "treasure_chest",
+      "name": "Treasure chest",
+      "description": "Treasure chest. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "ocean",
+        "side",
+        "prop",
+        "collectible",
+        "treasure",
+        "chest"
+      ],
+      "view": "side",
+      "entity": "treasure_chest",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        29
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "pine_cone",
+      "name": "Pine cone",
+      "description": "Pine cone. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "wilderness",
+        "side",
+        "prop",
+        "collectible",
+        "pine",
+        "cone"
+      ],
+      "view": "side",
+      "entity": "pine_cone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        30
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "acorn",
+      "name": "Acorn",
+      "description": "Acorn. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "wilderness",
+        "side",
+        "prop",
+        "collectible",
+        "acorn"
+      ],
+      "view": "side",
+      "entity": "acorn",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        31
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "bird_nest",
+      "name": "Bird nest",
+      "description": "Bird nest. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "wilderness",
+        "side",
+        "prop",
+        "collectible",
+        "bird",
+        "nest"
+      ],
+      "view": "side",
+      "entity": "bird_nest",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        32
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "eagle_feather",
+      "name": "Eagle feather",
+      "description": "Eagle feather. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "wilderness",
+        "side",
+        "prop",
+        "collectible",
+        "eagle",
+        "feather"
+      ],
+      "view": "side",
+      "entity": "eagle_feather",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        33
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "antler",
+      "name": "Antler",
+      "description": "Antler. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "wilderness",
+        "side",
+        "prop",
+        "collectible",
+        "antler"
+      ],
+      "view": "side",
+      "entity": "antler",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        34
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "honeycomb",
+      "name": "Honeycomb",
+      "description": "Honeycomb. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "wilderness",
+        "side",
+        "prop",
+        "collectible",
+        "honeycomb"
+      ],
+      "view": "side",
+      "entity": "honeycomb",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        35
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "red_mushroom",
+      "name": "Red mushroom",
+      "description": "Red mushroom. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "wilderness",
+        "side",
+        "prop",
+        "collectible",
+        "red",
+        "mushroom"
+      ],
+      "view": "side",
+      "entity": "red_mushroom",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        36
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "fern_frond",
+      "name": "Fern frond",
+      "description": "Fern frond. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "wilderness",
+        "side",
+        "prop",
+        "collectible",
+        "fern",
+        "frond"
+      ],
+      "view": "side",
+      "entity": "fern_frond",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        37
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "hollow_log",
+      "name": "Hollow log",
+      "description": "Hollow log. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "wilderness",
+        "side",
+        "prop",
+        "collectible",
+        "hollow",
+        "log"
+      ],
+      "view": "side",
+      "entity": "hollow_log",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        38
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "mossy_stone",
+      "name": "Mossy stone",
+      "description": "Mossy stone. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "wilderness",
+        "side",
+        "prop",
+        "collectible",
+        "mossy",
+        "stone"
+      ],
+      "view": "side",
+      "entity": "mossy_stone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        39
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "rolled_tent",
+      "name": "Rolled tent",
+      "description": "Rolled tent. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "camping",
+        "side",
+        "prop",
+        "collectible",
+        "rolled",
+        "tent"
+      ],
+      "view": "side",
+      "entity": "rolled_tent",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        40
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "camping_stove",
+      "name": "Camping stove",
+      "description": "Camping stove. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "camping",
+        "side",
+        "prop",
+        "collectible",
+        "stove"
+      ],
+      "view": "side",
+      "entity": "camping_stove",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        41
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "hiking_boot",
+      "name": "Hiking boot",
+      "description": "Hiking boot. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "camping",
+        "side",
+        "prop",
+        "collectible",
+        "hiking",
+        "boot"
+      ],
+      "view": "side",
+      "entity": "hiking_boot",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        42
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "ice_axe",
+      "name": "Ice axe",
+      "description": "Ice axe. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "camping",
+        "side",
+        "prop",
+        "collectible",
+        "ice",
+        "axe"
+      ],
+      "view": "side",
+      "entity": "ice_axe",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        43
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "climbing_rope",
+      "name": "Climbing rope",
+      "description": "Climbing rope. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "camping",
+        "side",
+        "prop",
+        "collectible",
+        "climbing",
+        "rope"
+      ],
+      "view": "side",
+      "entity": "climbing_rope",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        44
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "carabiner",
+      "name": "Carabiner",
+      "description": "Carabiner. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "camping",
+        "side",
+        "prop",
+        "collectible",
+        "carabiner"
+      ],
+      "view": "side",
+      "entity": "carabiner",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        45
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "camping_chair",
+      "name": "Camping chair",
+      "description": "Camping chair. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "camping",
+        "side",
+        "prop",
+        "collectible",
+        "chair"
+      ],
+      "view": "side",
+      "entity": "camping_chair",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        46
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "mess_tin",
+      "name": "Mess tin",
+      "description": "Mess tin. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "camping",
+        "side",
+        "prop",
+        "collectible",
+        "mess",
+        "tin"
+      ],
+      "view": "side",
+      "entity": "mess_tin",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        47
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "fishing_rod",
+      "name": "Fishing rod",
+      "description": "Fishing rod. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "camping",
+        "side",
+        "prop",
+        "collectible",
+        "fishing",
+        "rod"
+      ],
+      "view": "side",
+      "entity": "fishing_rod",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        48
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "bear_bell",
+      "name": "Bear bell",
+      "description": "Bear bell. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "camping",
+        "side",
+        "prop",
+        "collectible",
+        "bear",
+        "bell"
+      ],
+      "view": "side",
+      "entity": "bear_bell",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        49
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "microscope",
+      "name": "Microscope",
+      "description": "Microscope. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "science",
+        "side",
+        "prop",
+        "collectible",
+        "microscope"
+      ],
+      "view": "side",
+      "entity": "microscope",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        50
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "test_tube_rack",
+      "name": "Test tube rack",
+      "description": "Test tube rack. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "science",
+        "side",
+        "prop",
+        "collectible",
+        "test",
+        "tube",
+        "rack"
+      ],
+      "view": "side",
+      "entity": "test_tube_rack",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        51
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "round_flask",
+      "name": "Round flask",
+      "description": "Round flask. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "science",
+        "side",
+        "prop",
+        "collectible",
+        "round",
+        "flask"
+      ],
+      "view": "side",
+      "entity": "round_flask",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        52
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "molecule_model",
+      "name": "Molecule model",
+      "description": "Molecule model. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "science",
+        "side",
+        "prop",
+        "collectible",
+        "molecule",
+        "model"
+      ],
+      "view": "side",
+      "entity": "molecule_model",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        53
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "horseshoe_magnet",
+      "name": "Horseshoe magnet",
+      "description": "Horseshoe magnet. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "science",
+        "side",
+        "prop",
+        "collectible",
+        "horseshoe",
+        "magnet"
+      ],
+      "view": "side",
+      "entity": "horseshoe_magnet",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        54
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "prism",
+      "name": "Prism",
+      "description": "Prism. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "science",
+        "side",
+        "prop",
+        "collectible",
+        "prism"
+      ],
+      "view": "side",
+      "entity": "prism",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        55
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "balance_scales",
+      "name": "Balance scales",
+      "description": "Balance scales. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "science",
+        "side",
+        "prop",
+        "collectible",
+        "balance",
+        "scales"
+      ],
+      "view": "side",
+      "entity": "balance_scales",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        56
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "telescope",
+      "name": "Telescope",
+      "description": "Telescope. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "science",
+        "side",
+        "prop",
+        "collectible",
+        "telescope"
+      ],
+      "view": "side",
+      "entity": "telescope",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        57
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "magnifying_glass",
+      "name": "Magnifying glass",
+      "description": "Magnifying glass. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "science",
+        "side",
+        "prop",
+        "collectible",
+        "magnifying",
+        "glass"
+      ],
+      "view": "side",
+      "entity": "magnifying_glass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        58
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "laboratory_burner",
+      "name": "Laboratory burner",
+      "description": "Laboratory burner. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "science",
+        "side",
+        "prop",
+        "collectible",
+        "laboratory",
+        "burner"
+      ],
+      "view": "side",
+      "entity": "laboratory_burner",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        59
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "ruby_cluster",
+      "name": "Ruby cluster",
+      "description": "Ruby cluster. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "minerals",
+        "side",
+        "prop",
+        "collectible",
+        "ruby",
+        "cluster"
+      ],
+      "view": "side",
+      "entity": "ruby_cluster",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        60
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "emerald_cluster",
+      "name": "Emerald cluster",
+      "description": "Emerald cluster. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "minerals",
+        "side",
+        "prop",
+        "collectible",
+        "emerald",
+        "cluster"
+      ],
+      "view": "side",
+      "entity": "emerald_cluster",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        61
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "sapphire_cluster",
+      "name": "Sapphire cluster",
+      "description": "Sapphire cluster. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "minerals",
+        "side",
+        "prop",
+        "collectible",
+        "sapphire",
+        "cluster"
+      ],
+      "view": "side",
+      "entity": "sapphire_cluster",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        62
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "amethyst_geode",
+      "name": "Amethyst geode",
+      "description": "Amethyst geode. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "minerals",
+        "side",
+        "prop",
+        "collectible",
+        "amethyst",
+        "geode"
+      ],
+      "view": "side",
+      "entity": "amethyst_geode",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        63
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "quartz_cluster",
+      "name": "Quartz cluster",
+      "description": "Quartz cluster. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "minerals",
+        "side",
+        "prop",
+        "collectible",
+        "quartz",
+        "cluster"
+      ],
+      "view": "side",
+      "entity": "quartz_cluster",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        64
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "gold_nugget",
+      "name": "Gold nugget",
+      "description": "Gold nugget. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "minerals",
+        "side",
+        "prop",
+        "collectible",
+        "gold",
+        "nugget"
+      ],
+      "view": "side",
+      "entity": "gold_nugget",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        65
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "copper_ore",
+      "name": "Copper ore",
+      "description": "Copper ore. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "minerals",
+        "side",
+        "prop",
+        "collectible",
+        "copper",
+        "ore"
+      ],
+      "view": "side",
+      "entity": "copper_ore",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        66
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "iron_ore",
+      "name": "Iron ore",
+      "description": "Iron ore. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "minerals",
+        "side",
+        "prop",
+        "collectible",
+        "iron",
+        "ore"
+      ],
+      "view": "side",
+      "entity": "iron_ore",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        67
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "coal_lump",
+      "name": "Coal lump",
+      "description": "Coal lump. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "minerals",
+        "side",
+        "prop",
+        "collectible",
+        "coal",
+        "lump"
+      ],
+      "view": "side",
+      "entity": "coal_lump",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        68
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "meteorite",
+      "name": "Meteorite",
+      "description": "Meteorite. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "minerals",
+        "side",
+        "prop",
+        "collectible",
+        "meteorite"
+      ],
+      "view": "side",
+      "entity": "meteorite",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        69
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "snow_globe",
+      "name": "Snow globe",
+      "description": "Snow globe. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "winter",
+        "side",
+        "prop",
+        "collectible",
+        "snow",
+        "globe"
+      ],
+      "view": "side",
+      "entity": "snow_globe",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        70
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "snowshoe",
+      "name": "Snowshoe",
+      "description": "Snowshoe. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "winter",
+        "side",
+        "prop",
+        "collectible",
+        "snowshoe"
+      ],
+      "view": "side",
+      "entity": "snowshoe",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        71
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "wool_mitten",
+      "name": "Wool mitten",
+      "description": "Wool mitten. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "winter",
+        "side",
+        "prop",
+        "collectible",
+        "wool",
+        "mitten"
+      ],
+      "view": "side",
+      "entity": "wool_mitten",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        72
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "ski_goggles",
+      "name": "Ski goggles",
+      "description": "Ski goggles. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "winter",
+        "side",
+        "prop",
+        "collectible",
+        "ski",
+        "goggles"
+      ],
+      "view": "side",
+      "entity": "ski_goggles",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        73
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "ice_skate",
+      "name": "Ice skate",
+      "description": "Ice skate. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "winter",
+        "side",
+        "prop",
+        "collectible",
+        "ice",
+        "skate"
+      ],
+      "view": "side",
+      "entity": "ice_skate",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        74
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "sled",
+      "name": "Sled",
+      "description": "Sled. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "winter",
+        "side",
+        "prop",
+        "collectible",
+        "sled"
+      ],
+      "view": "side",
+      "entity": "sled",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        75
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "ice_crystal",
+      "name": "Ice crystal",
+      "description": "Ice crystal. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "winter",
+        "side",
+        "prop",
+        "collectible",
+        "ice",
+        "crystal"
+      ],
+      "view": "side",
+      "entity": "ice_crystal",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        76
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "snow_shovel",
+      "name": "Snow shovel",
+      "description": "Snow shovel. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "winter",
+        "side",
+        "prop",
+        "collectible",
+        "snow",
+        "shovel"
+      ],
+      "view": "side",
+      "entity": "snow_shovel",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        77
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "pine_wreath",
+      "name": "Pine wreath",
+      "description": "Pine wreath. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "winter",
+        "side",
+        "prop",
+        "collectible",
+        "pine",
+        "wreath"
+      ],
+      "view": "side",
+      "entity": "pine_wreath",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        78
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "snowman",
+      "name": "Snowman",
+      "description": "Snowman. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "winter",
+        "side",
+        "prop",
+        "collectible",
+        "snowman"
+      ],
+      "view": "side",
+      "entity": "snowman",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        79
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "cactus_pot",
+      "name": "Cactus pot",
+      "description": "Cactus pot. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "desert",
+        "side",
+        "prop",
+        "collectible",
+        "cactus",
+        "pot"
+      ],
+      "view": "side",
+      "entity": "cactus_pot",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        80
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "sand_rose_crystal",
+      "name": "Sand rose crystal",
+      "description": "Sand rose crystal. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "desert",
+        "side",
+        "prop",
+        "collectible",
+        "sand",
+        "rose",
+        "crystal"
+      ],
+      "view": "side",
+      "entity": "sand_rose_crystal",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        81
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "sand_hourglass",
+      "name": "Sand hourglass",
+      "description": "Sand hourglass. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "desert",
+        "side",
+        "prop",
+        "collectible",
+        "sand",
+        "hourglass"
+      ],
+      "view": "side",
+      "entity": "sand_hourglass",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        82
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "water_canteen",
+      "name": "Water canteen",
+      "description": "Water canteen. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "desert",
+        "side",
+        "prop",
+        "collectible",
+        "water",
+        "canteen"
+      ],
+      "view": "side",
+      "entity": "water_canteen",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        83
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "woven_basket",
+      "name": "Woven basket",
+      "description": "Woven basket. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "desert",
+        "side",
+        "prop",
+        "collectible",
+        "woven",
+        "basket"
+      ],
+      "view": "side",
+      "entity": "woven_basket",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        84
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "camel_saddle",
+      "name": "Camel saddle",
+      "description": "Camel saddle. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "desert",
+        "side",
+        "prop",
+        "collectible",
+        "camel",
+        "saddle"
+      ],
+      "view": "side",
+      "entity": "camel_saddle",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        85
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "oil_lantern",
+      "name": "Oil lantern",
+      "description": "Oil lantern. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "desert",
+        "side",
+        "prop",
+        "collectible",
+        "oil",
+        "lantern"
+      ],
+      "view": "side",
+      "entity": "oil_lantern",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        86
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "desert_rose_flower",
+      "name": "Desert rose flower",
+      "description": "Desert rose flower. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "desert",
+        "side",
+        "prop",
+        "collectible",
+        "rose",
+        "flower"
+      ],
+      "view": "side",
+      "entity": "desert_rose_flower",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        87
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "sun_talisman",
+      "name": "Sun talisman",
+      "description": "Sun talisman. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "desert",
+        "side",
+        "prop",
+        "collectible",
+        "sun",
+        "talisman"
+      ],
+      "view": "side",
+      "entity": "sun_talisman",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        88
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "clay_water_jug",
+      "name": "Clay water jug",
+      "description": "Clay water jug. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "desert",
+        "side",
+        "prop",
+        "collectible",
+        "clay",
+        "water",
+        "jug"
+      ],
+      "view": "side",
+      "entity": "clay_water_jug",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        89
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "astronaut_helmet",
+      "name": "Astronaut helmet",
+      "description": "Astronaut helmet. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "exploration",
+        "side",
+        "prop",
+        "collectible",
+        "astronaut",
+        "helmet"
+      ],
+      "view": "side",
+      "entity": "astronaut_helmet",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        90
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "moon_rock",
+      "name": "Moon rock",
+      "description": "Moon rock. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "exploration",
+        "side",
+        "prop",
+        "collectible",
+        "moon",
+        "rock"
+      ],
+      "view": "side",
+      "entity": "moon_rock",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        91
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "satellite_dish",
+      "name": "Satellite dish",
+      "description": "Satellite dish. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "exploration",
+        "side",
+        "prop",
+        "collectible",
+        "satellite",
+        "dish"
+      ],
+      "view": "side",
+      "entity": "satellite_dish",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        92
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "weather_balloon",
+      "name": "Weather balloon",
+      "description": "Weather balloon. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "exploration",
+        "side",
+        "prop",
+        "collectible",
+        "weather",
+        "balloon"
+      ],
+      "view": "side",
+      "entity": "weather_balloon",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        93
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "sextant",
+      "name": "Sextant",
+      "description": "Sextant. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "exploration",
+        "side",
+        "prop",
+        "collectible",
+        "sextant"
+      ],
+      "view": "side",
+      "entity": "sextant",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        94
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "brass_astrolabe",
+      "name": "Brass astrolabe",
+      "description": "Brass astrolabe. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "exploration",
+        "side",
+        "prop",
+        "collectible",
+        "brass",
+        "astrolabe"
+      ],
+      "view": "side",
+      "entity": "brass_astrolabe",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        95
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "signal_flag",
+      "name": "Signal flag",
+      "description": "Signal flag. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "exploration",
+        "side",
+        "prop",
+        "collectible",
+        "signal",
+        "flag"
+      ],
+      "view": "side",
+      "entity": "signal_flag",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        96
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "survey_tripod",
+      "name": "Survey tripod",
+      "description": "Survey tripod. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "exploration",
+        "side",
+        "prop",
+        "collectible",
+        "survey",
+        "tripod"
+      ],
+      "view": "side",
+      "entity": "survey_tripod",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        97
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "sample_case",
+      "name": "Sample case",
+      "description": "Sample case. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "exploration",
+        "side",
+        "prop",
+        "collectible",
+        "sample",
+        "case"
+      ],
+      "view": "side",
+      "entity": "sample_case",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        98
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "antique_diving_boot",
+      "name": "Antique diving boot",
+      "description": "Antique diving boot. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "exploration",
+        "side",
+        "prop",
+        "collectible",
+        "antique",
+        "diving",
+        "boot"
+      ],
+      "view": "side",
+      "entity": "antique_diving_boot",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        99
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    }
+  ],
+  "animations": [],
+  "provenance": {
+    "generator": "OpenAI Imagegen",
+    "license": "MIT",
+    "license_text": "MIT License\n\nCopyright (c) 2025 AuraGo contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.",
+    "source_manifest": "production/manifest.json",
+    "sources": [
+      {
+        "file": "mixed-discovery.png",
+        "sha256": "ac0ae3f907c95f8f5581edd4e6cf9cc49d5e4452cedc4ce21aa75a696efea455"
+      }
+    ],
+    "note": "Reviewed source poses; repeated source frames are intentional animation holds."
+  }
+}

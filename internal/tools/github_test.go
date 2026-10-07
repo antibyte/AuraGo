@@ -201,7 +201,7 @@ func TestGitHubCreateRepoTracksAgentCreatedProject(t *testing.T) {
 	defer func() { githubHTTPClient = oldClient }()
 
 	workspaceDir := t.TempDir()
-	cfg := GitHubConfig{Token: "token", Owner: "owner", BaseURL: server.URL, WorkspaceDir: workspaceDir, DefaultPrivate: true}
+	cfg := GitHubConfig{Token: "token", Owner: "owner", BaseURL: server.URL, WorkspaceDir: workspaceDir, DataDir: t.TempDir(), DefaultPrivate: true}
 	got := GitHubCreateRepo(cfg, "repo", "demo purpose", nil)
 	if !strings.Contains(got, `"status":"ok"`) {
 		t.Fatalf("expected create success, got %s", got)
@@ -220,5 +220,11 @@ func TestGitHubCreateRepoTracksAgentCreatedProject(t *testing.T) {
 	}
 	if !projects[0].AgentCreated || projects[0].FullName != "owner/repo" || projects[0].RepoURL == "" || projects[0].CloneURL == "" {
 		t.Fatalf("unexpected tracked project: %+v", projects[0])
+	}
+	if got := GitHubTrustedProjectRepos(cfg.DataDir, cfg.BaseURL); len(got) != 1 || got[0] != "owner/repo" {
+		t.Fatalf("missing protected trust: %v", got)
+	}
+	if got := GitHubTrustedProjectRepos(cfg.DataDir, "https://different.example/api"); len(got) != 0 {
+		t.Fatal("trust crossed API identity")
 	}
 }

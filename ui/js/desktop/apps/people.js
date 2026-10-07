@@ -189,8 +189,8 @@
     async function loadData(inst) {
         try {
             const [contactsResp, upcomingResp] = await Promise.all([
-                fetchList('/api/contacts'),
-                fetchList('/api/people/upcoming?days=60')
+                fetchList('/api/desktop/integrations/contacts'),
+                fetchList('/api/desktop/integrations/people/upcoming?days=60')
             ]);
             inst.contacts = contactsResp || [];
             inst.upcoming = upcomingResp || [];
@@ -207,7 +207,7 @@
 
     async function loadKGPersons(inst) {
         try {
-            const data = await fetchList('/api/people/kg-persons?limit=100');
+            const data = await fetchList('/api/desktop/integrations/people/kg-persons?limit=100');
             inst.kgPersons = data || [];
         } catch (_) {}
     }
@@ -215,7 +215,7 @@
     async function searchContacts(inst) {
         if (inst.semanticMode) {
             try {
-                const data = await fetchList('/api/people/lookup?q=' + encodeURIComponent(inst.searchQuery) + '&mode=fts');
+                const data = await fetchList('/api/desktop/integrations/people/lookup?q=' + encodeURIComponent(inst.searchQuery) + '&mode=fts');
                 inst.filtered = (data.nodes || []).map(n => ({
                     id: n.id, name: n.label || n.id,
                     email: n.properties && n.properties.email || '',
@@ -228,7 +228,7 @@
             } catch (_) {}
         } else {
             try {
-                const data = await fetchList('/api/contacts?q=' + encodeURIComponent(inst.searchQuery));
+                const data = await fetchList('/api/desktop/integrations/contacts?q=' + encodeURIComponent(inst.searchQuery));
                 inst.filtered = data || [];
                 renderContent(inst);
             } catch (_) {}
@@ -363,7 +363,7 @@
         let kgSection = `<div class="vd-people-detail-kg-empty">${esc(t(inst.context, 'desktop.people_kg_no_data'))}</div>`;
         if (!contact._kg) {
             try {
-                const kgResp = await fetchList('/api/knowledge-graph/node?id=' + encodeURIComponent('contact_' + contact.id));
+                const kgResp = await fetchList('/api/desktop/integrations/knowledge-graph/node?id=' + encodeURIComponent('contact_' + contact.id));
                 const kgNode = kgResp && kgResp.node;
                 if (kgNode && kgNode.id) {
                     const edges = kgResp.edges || [];
@@ -479,13 +479,13 @@
             if (!data.name) return;
             try {
                 if (isEdit) {
-                    await fetchAPI('/api/contacts/' + contact.id, {
+                    await fetchAPI('/api/desktop/integrations/contacts/' + contact.id, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
                     });
                 } else {
-                    await fetchAPI('/api/contacts', {
+                    await fetchAPI('/api/desktop/integrations/contacts', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
@@ -513,7 +513,7 @@
         const confirmed = await showConfirmModal(inst, t(inst.context, 'desktop.people_delete'), t(inst.context, 'desktop.people_delete_confirm', { name }));
         if (!confirmed) return;
         try {
-            await fetchAPI('/api/contacts/' + contact.id, { method: 'DELETE' });
+            await fetchAPI('/api/desktop/integrations/contacts/' + contact.id, { method: 'DELETE' });
             closeDetail(inst);
             loadData(inst);
         } catch (err) {

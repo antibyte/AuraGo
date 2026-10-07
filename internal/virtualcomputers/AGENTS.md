@@ -29,6 +29,13 @@ Workspace leases, managed Garage storage and guest browser lifecycle.
 - Config save must return HTTP 409 (`storage_switch_required`) when identity changes while available volumes exist, unless a single-use `X-AuraGo-Storage-Switch-Token` from `/api/virtual-computers/storage/switch/authorize` matches the target identity hash. Switch-without-migration marks volumes `previous_store` and may stop managed Garage; automated object-copy migration is optional/not required for the gate.
 - Agent Docker tools must hide and block lifecycle/inspect/exec/mount access to `aurago-boring-garage` and Garage data paths, same fail-closed pattern as Local LLM.
 
+## Desktop invocation ownership
+
+- Desktop task submission uses SubmitContext with a server-owned cancellable
+  lifetime and drains its completion channel. Revocation closes the controlling
+  WebSocket and suppresses late event publication. Authenticated cancellation
+  remains available after readonly or agent-task permissions are disabled.
+
 ## Verification
 
 - Run `go test ./internal/virtualcomputers` and the named cross-component checks in the contracts above when those paths change.

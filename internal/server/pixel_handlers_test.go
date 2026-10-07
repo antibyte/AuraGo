@@ -55,6 +55,7 @@ func TestPixelConfigIncludesCapabilities(t *testing.T) {
 
 func TestPixelUpscaleDisabledWhenImageGenOff(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.VirtualDesktop.Enabled = true
 	cfg.ImageGeneration.Enabled = false
 
 	s := &Server{
@@ -78,14 +79,8 @@ func TestPixelUpscaleReturnsPNG(t *testing.T) {
 		t.Fatalf("encode png: %v", err)
 	}
 
-	cfg := &config.Config{}
-	cfg.ImageGeneration.Enabled = true
-	cfg.Directories.DataDir = t.TempDir()
-
-	s := &Server{
-		Cfg:    cfg,
-		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-	}
+	s := newDesktopFilesystemTestServer(t)
+	s.Cfg.ImageGeneration.Enabled = true
 
 	payload, _ := json.Marshal(map[string]interface{}{
 		"source_data": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pngBuf.Bytes()),
@@ -113,6 +108,7 @@ func TestPixelUpscaleReturnsPNG(t *testing.T) {
 
 func TestPixelRemoveBGDisabledWithoutImg2Img(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.VirtualDesktop.Enabled = true
 	cfg.ImageGeneration.Enabled = true
 	cfg.ImageGeneration.ProviderType = "google"
 

@@ -16,6 +16,7 @@
         ws: null,
         chatBusy: false,
         startQuery: '',
+        startCategory: '',
         desktopFiles: [],
         iconManifest: null,
         iconThemeManifests: {},
@@ -134,6 +135,7 @@
         noisemaker: 'audio',
         radio: 'radio',
         'personal-radio': 'personal-radio',
+        'synth-studio': 'synth-studio',
         'rtl-sdr': 'rtl-sdr',
         bluetooth: 'bluetooth',
         openscad: 'openscad',
@@ -203,6 +205,7 @@
         ogg: 'audio',
         m4a: 'audio',
         opus: 'audio',
+        aurasynth: 'synth-studio',
         mp4: 'video',
         webm: 'video',
         mov: 'video',
@@ -582,6 +585,7 @@
     function appGlobalName(appId) {
         return {
             'personal-radio': 'PersonalRadioApp',
+            'synth-studio': 'SynthStudioApp',
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
@@ -1033,19 +1037,24 @@
 
     async function api(url, options) {
         const requestOptions = Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {});
-        const resp = await fetch(url, requestOptions);
-        const contentType = resp.headers.get('content-type') || '';
-        const shouldParseJSON = contentType.includes('application/json') || String(url).includes('.json');
-        const body = shouldParseJSON ? await resp.json() : {};
-        if (!resp.ok) {
-            const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
-            err.body = body;
-            err.status = resp.status;
-            const retryAfter = String(resp.headers.get('retry-after') || '');
-            if (resp.status === 429 && /^\s*\d+\s*$/.test(retryAfter)) err.retryAfter = Number(retryAfter);
-            throw err;
+        const mutation = prepareDesktopFileMutation(url, requestOptions);
+        for (;;) {
+            const resp = await fetch(url, requestOptions);
+            const contentType = resp.headers.get('content-type') || '';
+            const shouldParseJSON = requestOptions.method !== 'HEAD' && (contentType.includes('application/json') || String(url).includes('.json'));
+            const body = shouldParseJSON ? await resp.json() : {};
+            if (!resp.ok) {
+                if (await resolveDesktopFileConflict(mutation, requestOptions, body)) continue;
+                const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+                err.body = body;
+                err.status = resp.status;
+                const retryAfter = String(resp.headers.get('retry-after') || '');
+                if (resp.status === 429 && /^\s*\d+\s*$/.test(retryAfter)) err.retryAfter = Number(retryAfter);
+                throw err;
+            }
+            if (body && typeof body === 'object' && resp.headers.get('ETag')) body.version = resp.headers.get('ETag');
+            return body;
         }
-        return body;
     }
 
     function callAppDispose(app, windowId) {
@@ -1168,24 +1177,6 @@
         </div>`;
     }
 
-    function trapFocus(element) {
-        const focusable = element.querySelectorAll('button, input, select, textarea, [tabindex]:not(-1)');
-        if (!focusable.length) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        element.addEventListener('keydown', event => {
-            if (event.key !== 'Tab') return;
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            }
-        });
-        first.focus();
-    }
-
     // fetchBootstrapState loads bootstrap (+ desktop files) without rendering.
     // Used for parallel boot with icon manifests and for refresh paths.
     async function fetchBootstrapState() {
@@ -1277,7 +1268,11 @@
 
     function openStartMenu() {
         const menu = $('vd-start-menu'); if (!menu) return;
+        // Open clean: no stale search, and a fresh render so the recent group is current.
+        state.startQuery = ''; const search = $('vd-start-search'); if (search) search.value = '';
+        renderStartApps();
         menu.dataset.motionState = 'open'; menu.classList.remove('vd-start-menu-closing'); menu.hidden = false; menu.style.transform = '';
+        positionStartRailIndicator({ instant: true });
         runStartMenuMotion(menu, 'vd-start-menu-opening', isFruityTheme() ? 190 : 130);
         menu.classList.add('vd-start-menu-just-opened');
         window.clearTimeout(menu._justOpenedTimer);

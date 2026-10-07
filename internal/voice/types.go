@@ -53,7 +53,8 @@ type VoiceBackend interface {
 	Start(context.Context, CallContext, DuplexAudio) (VoiceSession, error)
 }
 
-// VoiceSession controls an active voice intelligence session.
+// VoiceSession controls an active voice intelligence session. Close cancels and
+// joins all provider and turn workers before returning; cleanup may then purge transcripts.
 type VoiceSession interface {
 	Interrupt()
 	Events() <-chan VoiceEvent

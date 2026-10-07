@@ -222,7 +222,7 @@ func configRefreshFixtureOrigin(t *testing.T, locale string, populated bool) str
 		"/api/local-llm/status": map[string]any{"state": "disabled", "release_manifest_ready": false},
 	}
 	configuration["_effective_tool_policy"] = map[string]any{"provider_profile": "fixture", "max_tools": 20, "max_tool_calls": 15, "schema_tokens": 6500, "max_guides": 3, "output_bytes": 50000}
-	configuration["_config_migrations"] = []string{"agent.max_tool_calls -> circuit_breaker.max_tool_calls"}
+	configuration["_config_migrations"] = []string{"guardian.promptsec.spotlight (retired; forced off)"}
 	if populated {
 		fixtures["/api/realtime-speech/config"] = map[string]any{"enabled": true, "default_profile": "fixture-voice", "profiles": []any{map[string]any{"id": "fixture-voice", "name": "Home Lab · Sprachassistent", "provider": "openai", "model": "fixture-realtime", "voice": "fixture-voice", "enabled": true, "api_key_set": true}}}
 		fixtures["/api/realtime-speech/catalog"] = map[string]any{"providers": []any{map[string]any{"id": "openai", "label": "OpenAI", "models": []any{map[string]any{"id": "fixture-realtime", "label": "Realtime"}}, "voices": []any{map[string]any{"id": "fixture-voice", "label": "Home Lab"}}}}}

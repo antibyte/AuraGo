@@ -51,7 +51,7 @@ func TestLooperRunHandlerDetachesExecutionContextFromHTTPRequest(t *testing.T) {
 		t.Fatalf("ReadFile desktop_looper_handlers.go: %v", err)
 	}
 	source := string(sourceBytes)
-	if !strings.Contains(source, "context.WithTimeout(context.Background(), looperRunTimeout(req.MaxRounds))") {
+	if !strings.Contains(source, "s.beginDesktopBackgroundRun(looperRunTimeout(req.MaxRounds))") {
 		t.Fatal("looper run context must outlive the short /run HTTP request")
 	}
 	if strings.Contains(source, "context.WithTimeout(r.Context(), looperRunTimeout(req.MaxRounds))") {

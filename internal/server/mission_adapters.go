@@ -18,10 +18,12 @@ type missionWebhookAdapter struct {
 	logger *slog.Logger
 }
 
-// RegisterMissionTrigger registers a callback for webhook-triggered missions
-func (a *missionWebhookAdapter) RegisterMissionTrigger(webhookID string, callback func(payload []byte)) {
-	a.mgr.RegisterMissionTrigger(webhookID, callback)
-	a.logger.Info("[MissionWebhookAdapter] Registered mission trigger", "webhook_id", webhookID)
+func (a *missionWebhookAdapter) RegisterMissionTriggerForKey(key, webhookID string, callback func([]byte)) {
+	a.mgr.RegisterMissionTriggerForKey(key, webhookID, callback)
+}
+
+func (a *missionWebhookAdapter) UnregisterMissionTrigger(key string) {
+	a.mgr.UnregisterMissionTrigger(key)
 }
 
 // ensure MissionV2 types are compatible with expected interfaces

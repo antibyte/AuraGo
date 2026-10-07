@@ -71,10 +71,6 @@ func (s *Server) handlePersonalRadio(w http.ResponseWriter, r *http.Request) {
 		radioJSON(w, 503, map[string]string{"error": "radio_disabled"})
 		return
 	}
-	if r.Method != http.MethodGet && r.Method != http.MethodHead && cfg.VirtualDesktop.ReadOnly {
-		radioJSON(w, 403, map[string]string{"error": "radio_read_only"})
-		return
-	}
 	path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/desktop/personal-radio/"), "/")
 	parts := strings.Split(path, "/")
 	svc := s.PersonalRadio

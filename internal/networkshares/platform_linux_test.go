@@ -100,7 +100,7 @@ func TestLinuxSambaUsesTypedArgumentsWithoutShellComposition(t *testing.T) {
 			t.Fatalf("unexpected shell command: %+v", call)
 		}
 		if call.name == "net" && len(call.args) >= 4 && call.args[0] == "conf" && call.args[1] == "addshare" {
-			foundTypedCreate = call.args[2] == name && call.args[3] == path
+			foundTypedCreate = len(call.args) >= 5 && call.args[2] == "--" && call.args[3] == name && call.args[4] == path
 		}
 	}
 	if !foundTypedCreate {

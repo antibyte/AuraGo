@@ -233,7 +233,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/agentmail/status", handleAgentMailStatus(s))
 	mux.HandleFunc("/api/agentmail/test", handleAgentMailTest(s))
 	mux.Handle("/api/frigate/test", requireAdmin(s, handleFrigateTest(s)))
-	mux.HandleFunc("/api/3d-printers/test", handleThreeDPrinterTest(s))
+	mux.Handle("/api/3d-printers/test", requireAdmin(s, handleThreeDPrinterTest(s)))
 	mux.HandleFunc("/api/3d-printers/status", handleThreeDPrinterWidgetStatus(s))
 	mux.HandleFunc("/api/3d-printers/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/camera/snapshot") {

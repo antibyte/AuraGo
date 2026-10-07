@@ -409,6 +409,19 @@ func bundledDefaultPets() []bundledPet {
 		{Manifest: PetJSON{ID: "aurago-friend", DisplayName: "Hoodie", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
 		{Manifest: PetJSON{ID: "aurago-mcp", DisplayName: "MCP", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
 		{Manifest: PetJSON{ID: "aurago-terminator", DisplayName: "Terminator", SpritesheetPath: "spritesheet.webp", Category: "persona"}},
+		{Manifest: PetJSON{ID: "aurago-slime", DisplayName: "Glibbi", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-spider", DisplayName: "Webbi", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-alien", DisplayName: "Zorbit", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-tentacle", DisplayName: "Purple Tentacle", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-indiana-jones", DisplayName: "Indiana Jones", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-manga-girl", DisplayName: "Hana", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-zombie", DisplayName: "Zombert", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-chick", DisplayName: "Pippin", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-peacock", DisplayName: "Pavlo", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-trex", DisplayName: "Rexi", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-puppy", DisplayName: "Buddy", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-cat", DisplayName: "Minka", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
+		{Manifest: PetJSON{ID: "aurago-crocodile", DisplayName: "Kroko", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
 	}
 }
 

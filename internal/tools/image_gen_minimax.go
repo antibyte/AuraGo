@@ -30,7 +30,7 @@ func generateMiniMax(cfg ImageGenConfig, prompt string, opts ImageGenOptions) ([
 		return nil, "", fmt.Errorf("failed to marshal MiniMax request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewReader(jsonBody))
+	req, err := http.NewRequestWithContext(cfg.requestContext(), "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create MiniMax request: %w", err)
 	}

@@ -172,7 +172,7 @@ func copyHereNowSnapshotFile(sourceRoot *os.Root, snapshotRoot, rel string, expe
 	if err != nil {
 		return hereNowPublishFile{}, fmt.Errorf("inspect opened file %s: %w", rel, err)
 	}
-	if !opened.Mode().IsRegular() || !os.SameFile(expected, opened) {
+	if !opened.Mode().IsRegular() || !os.SameFile(expected, opened) || expected.Size() != opened.Size() || !expected.ModTime().Equal(opened.ModTime()) {
 		return hereNowPublishFile{}, fmt.Errorf("here.now source changed while opening: %s", rel)
 	}
 
@@ -186,7 +186,9 @@ func copyHereNowSnapshotFile(sourceRoot *os.Root, snapshotRoot, rel string, expe
 	}
 	hash := sha256.New()
 	scanner := &hereNowSecretScanner{}
-	written, copyErr := io.Copy(io.MultiWriter(destination, hash, scanner), source)
+	// Bound the read to the size validated before opening, even if a writer
+	// keeps growing the source. The final stat below rejects changed files.
+	written, copyErr := io.Copy(io.MultiWriter(destination, hash, scanner), io.LimitReader(source, expected.Size()+1))
 	closeErr := destination.Close()
 	if copyErr != nil {
 		return hereNowPublishFile{}, fmt.Errorf("snapshot %s: %w", rel, copyErr)
@@ -211,7 +213,11 @@ func copyHereNowSnapshotFile(sourceRoot *os.Root, snapshotRoot, rel string, expe
 	}, nil
 }
 
-func buildHereNowSnapshot(workspaceRoot, deployRelative string) (_ *hereNowPublishSnapshot, err error) {
+func buildHereNowSnapshot(workspaceRoot, deployRelative string) (*hereNowPublishSnapshot, error) {
+	return buildHereNowSnapshotLimited(workspaceRoot, deployRelative, 0)
+}
+
+func buildHereNowSnapshotLimited(workspaceRoot, deployRelative string, maxBytes int64) (_ *hereNowPublishSnapshot, err error) {
 	workspaceRoot, err = filepath.Abs(strings.TrimSpace(workspaceRoot))
 	if err != nil {
 		return nil, fmt.Errorf("resolve Homepage workspace: %w", err)
@@ -256,6 +262,7 @@ func buildHereNowSnapshot(workspaceRoot, deployRelative string) (_ *hereNowPubli
 		}
 	}()
 
+	var total int64
 	err = fs.WalkDir(deployRoot.FS(), ".", func(rel string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -295,11 +302,15 @@ func buildHereNowSnapshot(workspaceRoot, deployRelative string) (_ *hereNowPubli
 		if len(snapshot.files) >= hereNowMaxFiles {
 			return fmt.Errorf("here.now deployments support at most %d files", hereNowMaxFiles)
 		}
+		if maxBytes > 0 && info.Size() > maxBytes-total {
+			return fmt.Errorf("static publication exceeds the %d byte limit", maxBytes)
+		}
 		file, copyErr := copyHereNowSnapshotFile(deployRoot, snapshotPath, rel, info)
 		if copyErr != nil {
 			return copyErr
 		}
 		snapshot.files = append(snapshot.files, file)
+		total += file.Size
 		return nil
 	})
 	if err != nil {

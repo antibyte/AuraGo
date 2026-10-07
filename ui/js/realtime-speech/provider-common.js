@@ -338,7 +338,19 @@
         async sendContextMessage() { }
     }
 
+    // Route selection is UI plumbing only; the Desktop entry point enforces
+    // server-owned policy independently of any client surface claim.
+    function apiURL(url) {
+        return window.AuraDesktopModules && typeof url === 'string'
+            ? url.replace(/^\/api\/realtime-speech(?=\/|\?|$)/, '/api/desktop/integrations/realtime-speech')
+            : url;
+    }
+
+    function apiFetch(url, options) { return fetch(apiURL(url), options); }
+
     window.AuraRealtimeProviderCommon = {
+        apiURL,
+        apiFetch,
         ProviderAdapter,
         PCMPlayer,
         audioOutput,

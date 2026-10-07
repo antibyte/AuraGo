@@ -83,6 +83,7 @@
             if (!el) return;
             const bounds = (item.maximized && item.restoreBounds) || el.style;
             windows.push({
+                key: item.sessionKey || item.id,
                 appId: item.appId,
                 left: parseInt(bounds.left, 10) || 0,
                 top: parseInt(bounds.top, 10) || 0,
@@ -99,6 +100,7 @@
         return {
             version: 2,
             activeSpaceId: normalizeSpaceId(state.activeSpaceId),
+            activeWindowKey: state.windows.get(state.activeWindowId)?.sessionKey || state.activeWindowId || '',
             windows
         };
     }
@@ -146,40 +148,44 @@
         restoreActiveSpaceFromSnapshot(snapshot);
         renderSpacePager();
         const sorted = snapshot.windows.slice().sort((a, b) => (a.z || 0) - (b.z || 0));
-        for (let i = 0; i < sorted.length; i++) {
-            const entry = sorted[i];
-            if (!entry || !entry.appId || SESSION_SKIP_APP_IDS.has(entry.appId)) continue;
-            if (!appById(entry.appId)) continue;
-            const ctx = Object.assign({}, sanitizeSessionContext(entry.context), {
-                forceNew: true,
-                sessionRestore: {
-                    left: entry.left,
-                    top: entry.top,
-                    width: entry.width,
-                    height: entry.height,
-                    maximized: !!entry.maximized,
-                    minimized: !!entry.minimized,
-                    z: entry.z || 0,
-                    spaceId: entry.spaceId,
-                    alwaysOnTop: !!entry.alwaysOnTop,
-                    active: i === sorted.length - 1
-                }
-            });
-            openApp(entry.appId, ctx);
-            await new Promise(resolve => window.setTimeout(resolve, 60));
-        }
-        state.sessionRestoring = false;
-        applySpaceVisibility();
-        const visibleOnSpace = taskbarWindows().filter(win => win.element && win.element.style.display !== 'none');
-        if (visibleOnSpace.length) {
-            const top = visibleOnSpace.reduce((best, win) => {
-                const z = parseInt(win.element.style.zIndex, 10) || 0;
-                const bestZ = parseInt(best.element.style.zIndex, 10) || 0;
-                return z >= bestZ ? win : best;
-            });
-            focusWindow(top.id);
-        } else {
-            state.activeWindowId = '';
+        try {
+            for (let i = 0; i < sorted.length; i++) {
+                const entry = sorted[i];
+                if (!entry || !entry.appId || SESSION_SKIP_APP_IDS.has(entry.appId)) continue;
+                if (!appById(entry.appId)) continue;
+                const ctx = Object.assign({}, sanitizeSessionContext(entry.context), {
+                    forceNew: true,
+                    sessionRestore: {
+                        key: typeof entry.key === 'string' ? entry.key : '',
+                        left: entry.left,
+                        top: entry.top,
+                        width: entry.width,
+                        height: entry.height,
+                        maximized: !!entry.maximized,
+                        minimized: !!entry.minimized,
+                        z: entry.z || 0,
+                        spaceId: entry.spaceId,
+                        alwaysOnTop: !!entry.alwaysOnTop,
+                    }
+                });
+                openApp(entry.appId, ctx);
+                await new Promise(resolve => window.setTimeout(resolve, 60));
+            }
+            applySpaceVisibility();
+            const visibleOnSpace = taskbarWindows().filter(win => win.element && win.element.style.display !== 'none');
+            if (visibleOnSpace.length) {
+                const top = visibleOnSpace.reduce((best, win) => {
+                    const z = parseInt(win.element.style.zIndex, 10) || 0;
+                    const bestZ = parseInt(best.element.style.zIndex, 10) || 0;
+                    return z >= bestZ ? win : best;
+                });
+                const active = visibleOnSpace.find(win => snapshot.activeWindowKey && win.sessionKey === snapshot.activeWindowKey);
+                focusWindow((active || top).id);
+            } else {
+                state.activeWindowId = '';
+            }
+        } finally {
+            state.sessionRestoring = false;
         }
         scheduleSessionPersist();
     }

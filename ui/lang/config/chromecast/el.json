@@ -26,7 +26,7 @@
   "config.chromecast.field_name": "Όνομα συσκευής",
   "config.chromecast.field_name_help": "Ένα φιλικό όνομα για αυτή τη συσκευή (π.χ. «Σαλόνι», «Ηχείο κουζίνας»). Ο πράκτορας θα χρησιμοποιήσει αυτό το όνομα για να αναγνωρίσει τη συσκευή.",
   "config.chromecast.found_devices": "Βρέθηκαν {{count}} συσκευή(-ές)",
-  "config.chromecast.ip_placeholder": "e.g. 192.168.1.50",
+  "config.chromecast.ip_placeholder": "π.χ. 192.168.1.50",
   "config.chromecast.ip_required": "Απαιτείται διεύθυνση IP.",
   "config.chromecast.loading": "⏳ Φόρτωση συσκευών…",
   "config.chromecast.name_placeholder": "π.χ. Σαλόνι",

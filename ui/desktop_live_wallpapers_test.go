@@ -87,9 +87,10 @@ func TestDesktopLiveWallpapersStayBehindTheShellAndSpareTheGPU(t *testing.T) {
 		}
 	}
 	module := readDesktopAssetText(t, "js/desktop/live-wallpapers.js")
-	if strings.Contains(module, "\nimport ") {
-		t.Error("live-wallpapers.js must stay self-contained (no module imports, no import map entry)")
+	if !strings.Contains(module, `import { desktopCovered } from "./wallpaper-visibility.js";`) {
+		t.Error("live wallpapers must share the City Rain occlusion policy")
 	}
+	module += readDesktopAssetText(t, "js/desktop/wallpaper-visibility.js")
 	for _, want := range []string{
 		`window.matchMedia("(prefers-reduced-motion: reduce)")`,
 		`document.body.dataset.animations === "false"`,

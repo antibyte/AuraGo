@@ -22,5 +22,7 @@
   "config.danger.sudo_unrestricted.title": "Systemweiter Sudo-Schreibzugriff",
   "config.danger.sudo_unrestricted.desc": "Erlaubt dem Agenten, mit sudo auch außerhalb des Installationsverzeichnisses zu schreiben (z. B. /etc/). Erfordert das Entfernen von ProtectSystem=strict in der systemd-Service-Datei.",
   "config.danger.unsafe_host_execution.title": "Unsichere Ausführung auf dem Host",
-  "config.danger.unsafe_host_execution.desc": "Erlaubt Host-Python und die Windows-Shell ohne Isolation. Jede Ausführung wird als Sicherheitswarnung protokolliert. Nur bewusst aktivieren."
+  "config.danger.unsafe_host_execution.desc": "Erlaubt Host-Python und die Windows-Shell ohne Isolation. Jede Ausführung wird als Sicherheitswarnung protokolliert. Nur bewusst aktivieren.",
+  "config.danger.docker_host_access.title": "Docker-Hostzugriff für Compose-Stacks des Agenten",
+  "config.danger.docker_host_access.desc": "Erlaubt dem Agenten bei docker compose up/create/build Host-Pfade außerhalb seines Workspace (z. B. /var/run/docker.sock, /srv/media oder /), Geräte, den privilegierten Modus, Host-Netzwerk-/PID-/IPC-/UTS-/User-/cgroup-Namespaces, cap_add und unbeschränkte Sicherheitsoptionen. AuraGos eigene Daten, Konfiguration, .env und Master-Key bleiben gesperrt, ein Bind eines übergeordneten Pfads wie / legt sie aber trotzdem offen. Eingeschaltet sieht docker compose außerdem AuraGos Umgebungsvariablen; ausgeschaltet bekommt Compose nur PATH, HOME sowie Docker-, Proxy- und Spracheinstellungen."
 }

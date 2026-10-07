@@ -171,6 +171,19 @@ func NewComposioClient(cfg ComposioClientConfig) *ComposioClient {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: timeout}
 	}
+	copyClient := *httpClient
+	previousRedirect := copyClient.CheckRedirect
+	copyClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := security.SameOriginRedirect(req, via); err != nil {
+			return err
+		}
+		if previousRedirect != nil {
+			return previousRedirect(req, via)
+		}
+		return nil
+	}
+	httpClient = &copyClient
+	security.RegisterSensitive(cfg.APIKey)
 	return &ComposioClient{
 		baseURL:        baseURL,
 		apiKey:         strings.TrimSpace(cfg.APIKey),
@@ -370,6 +383,9 @@ func (c *ComposioClient) do(ctx context.Context, method, path string, values url
 	}
 	if c.apiKey == "" {
 		return nil, fmt.Errorf("composio API key is not configured")
+	}
+	if err := security.ValidateHTTPBaseURL(c.baseURL); err != nil {
+		return nil, err
 	}
 	requestURL := c.baseURL + path
 	if len(values) > 0 {
@@ -721,7 +737,7 @@ func EvaluateComposioToolPolicy(cfg ComposioPolicyConfig, tool ComposioToolInfo)
 		decision.Reason = "composio is not enabled"
 		return decision
 	}
-	if toolkitSlug == "" {
+	if toolkitSlug == "" || slug == "" {
 		decision.Reason = "composio toolkit slug is required"
 		return decision
 	}
@@ -732,7 +748,7 @@ func EvaluateComposioToolPolicy(cfg ComposioPolicyConfig, tool ComposioToolInfo)
 	}
 	readOnly := cfg.ReadOnly
 	if toolkit.ReadOnly != nil {
-		readOnly = *toolkit.ReadOnly
+		readOnly = readOnly || *toolkit.ReadOnly
 	}
 	allowDestructive := cfg.AllowDestructive
 	if toolkit.AllowDestructive != nil {
@@ -748,16 +764,16 @@ func EvaluateComposioToolPolicy(cfg ComposioPolicyConfig, tool ComposioToolInfo)
 		decision.Reason = "composio destructive tools are disabled"
 		return decision
 	}
+	if readOnly && (decision.Destructive || !isComposioClearlyReadOnlySlug(slug)) {
+		decision.Reason = "composio is in read-only mode and this tool is not clearly read-only"
+		return decision
+	}
 	if len(toolkit.AllowedToolSlugs) > 0 {
 		if slugInList(slug, toolkit.AllowedToolSlugs) {
 			decision.Allowed = true
 			return decision
 		}
 		decision.Reason = fmt.Sprintf("composio tool %q is not in the toolkit allowlist", slug)
-		return decision
-	}
-	if readOnly && !isComposioClearlyReadOnlySlug(slug) {
-		decision.Reason = "composio is in read-only mode and this tool is not clearly read-only"
 		return decision
 	}
 	decision.Allowed = true
@@ -829,7 +845,7 @@ func composioSlugTokens(slug string) []string {
 func isComposioDestructiveSlug(slug string) bool {
 	for _, token := range composioSlugTokens(slug) {
 		switch token {
-		case "delete", "remove", "revoke", "disable", "purge", "drop", "destroy", "truncate", "erase", "wipe":
+		case "delete", "remove", "revoke", "disable", "purge", "drop", "destroy", "truncate", "erase", "wipe", "trash", "cancel", "ban":
 			return true
 		}
 	}

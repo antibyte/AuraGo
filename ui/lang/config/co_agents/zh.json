@@ -26,7 +26,7 @@
   "config.co_agents.spec_researcher_name": "研究员",
   "config.co_agents.spec_security_desc": "安全审计、OWASP/CIS/NIST检查。文件系统只读访问。",
   "config.co_agents.spec_security_name": "安全专家",
-  "config.co_agents.spec_writer_desc": "文档、内容、报告。内存和文件系统访问，无代码执行。",
+  "config.co_agents.spec_writer_desc": "文档、内容、报告。记忆和文件系统访问，无代码执行。",
   "config.co_agents.spec_writer_name": "写作者",
   "config.co_agents.specialists_desc": "专家co-agent具有角色专用提示词、工具限制和可选的专用LLM提供商。每个专家可以独立启用。",
   "config.co_agents.specialists_title": "专家",

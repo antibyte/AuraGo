@@ -105,7 +105,7 @@
   "truenas.status_connection_error": "Forbindelsesfejl",
   "truenas.status_disabled": "Deaktiveret",
   "truenas.status_error_prefix": "Fejl:",
-  "truenas.status_offline": "Afbrudt",
+  "truenas.status_offline": "Offline",
   "truenas.status_online": "Forbundet",
   "truenas.subtitle": "TrueNAS-lagring"
 }

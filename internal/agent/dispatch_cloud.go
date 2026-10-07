@@ -62,8 +62,10 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				BaseURL:        cfg.GitHub.BaseURL,
 				DefaultPrivate: cfg.GitHub.DefaultPrivate,
 				ReadOnly:       cfg.GitHub.ReadOnly,
+				AllowDelete:    cfg.GitHub.AllowDelete,
+				DataDir:        cfg.Directories.DataDir,
 				AllowedRepos:   cfg.GitHub.AllowedRepos,
-				TrustedRepos:   tools.GitHubTrustedProjectRepos(cfg.Directories.WorkspaceDir),
+				TrustedRepos:   tools.GitHubTrustedProjectRepos(cfg.Directories.DataDir, cfg.GitHub.BaseURL),
 				WorkspaceDir:   cfg.Directories.WorkspaceDir,
 			}
 			owner := req.Owner

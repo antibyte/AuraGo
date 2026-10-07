@@ -80,7 +80,7 @@ func TestDesktopChatInitializesActivePersonaForAvatars(t *testing.T) {
 	for _, marker := range []string{
 		"function desktopPersonaPreviewKey(name, isCore)",
 		"async function ensureDesktopChatPersona()",
-		"api('/api/personalities')",
+		"api('/api/desktop/integrations/personalities')",
 		"window._activePersonaIconKey = key;",
 		"window._activePersonaImageUrl = src;",
 		"new CustomEvent('aurago:persona-icon-change'",

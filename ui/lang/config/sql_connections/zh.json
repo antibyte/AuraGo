@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "全局只读",
   "config.sql_connections.readonly_help": "无论连接权限如何，都阻止所有写入操作。",
   "config.sql_connections.allow_management_label": "允许管理",
-  "config.sql_connections.allow_management_help": "允许代理创建、编辑和删除连接。"
+  "config.sql_connections.sqlite_import": "导入 SQLite 备份",
+  "config.sql_connections.sqlite_import_help": "上传一致且独立的备份（最大 64 MiB）。保存后将导入受保护的存储空间并保留原文件。",
+  "config.sql_connections.sqlite_import_required": "需要导入 SQLite",
+  "config.sql_connections.allow_management_help": "代理只能编辑说明。配置、凭据和权限仅限管理员管理。"
 }

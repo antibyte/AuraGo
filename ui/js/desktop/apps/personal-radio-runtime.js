@@ -63,7 +63,7 @@
                 }, event, error: showError, progress: () => listeners.forEach(fn => fn(snapshot, lastError))
             });
             try { player.setVolume(Number(localStorage.getItem('aurago.personal-radio.volume') || 0.8)); } catch (_) {}
-            window.addEventListener('pagehide', () => { wanted = false; player.stop(); clearInterval(pollTimer); });
+            window.addEventListener('pagehide', () => { wanted = false; player.stop(); clearInterval(pollTimer); pollTimer = null; window.AuraDesktopMediaSession?.release(device); });
             window.addEventListener('keydown', e => {
                 if (!wanted || !owned() || !['MediaPlayPause', 'MediaStop', 'MediaTrackNext'].includes(e.code)) return;
                 e.preventDefault(); e.stopImmediatePropagation();
@@ -79,10 +79,12 @@
         const segment = snapshot.state.queue.find(x => x.id === position.current) || snapshot.state.queue[0];
         const station = snapshot.stations.find(x => x.id === snapshot.state.station_id);
         try {
-            navigator.mediaSession.metadata = new MediaMetadata({ title: segment ? segment.title : station ? station.name : 'Personal Radio', artist: station ? station.name : 'Personal Radio' });
-            navigator.mediaSession.setActionHandler('previoustrack', null);
-            navigator.mediaSession.playbackState = snapshot.state.status === 'paused' ? 'paused' : 'playing';
-            for (const [key, action] of [['play','resume'],['pause','pause'],['stop','stop'],['nexttrack','skip']]) navigator.mediaSession.setActionHandler(key, () => control(action).catch(showError));
+            const handlers = {};
+            for (const [key, action] of [['play','resume'],['pause','pause'],['stop','stop'],['nexttrack','skip']]) handlers[key] = () => control(action).catch(showError);
+            window.AuraDesktopMediaSession?.claim(device, { priority: 100, handlers,
+                playbackState: snapshot.state.status === 'paused' ? 'paused' : 'playing',
+                metadata: { title: segment ? segment.title : station ? station.name : 'Personal Radio', artist: station ? station.name : 'Personal Radio' }
+            });
         } catch (_) {}
     }
     async function refresh() {
@@ -94,7 +96,7 @@
             if (expected !== revision || mutations) return snapshot;
             const oldEpoch = snapshot && snapshot.state && snapshot.state.epoch;
             snapshot = value;
-            if (wanted && (!owned() || (oldEpoch && oldEpoch !== value.state.epoch))) { wanted = false; player.stop(); window.dispatchEvent(new CustomEvent('personal-radio-stopped')); }
+            if (wanted && (!owned() || (oldEpoch && oldEpoch !== value.state.epoch))) { wanted = false; player.stop(); window.AuraDesktopMediaSession?.release(device); window.dispatchEvent(new CustomEvent('personal-radio-stopped')); }
             if (owned() && wanted) {
                 const st = value.state; player.update(st.queue);
                 if (st.status === 'paused') { if (!player.paused) await player.pause(); }
@@ -139,6 +141,7 @@
         if (action === 'pause') await player.pause();
         if (action === 'stop') {
             wanted = false; player.stop();
+            window.AuraDesktopMediaSession?.release(device);
             window.dispatchEvent(new CustomEvent('personal-radio-stopped'));
         }
         if (action === 'skip') player.reset(true);

@@ -48,7 +48,7 @@
     }
     const databases = new Map();
     function openDrafts(namespace = 'writer') {
-        if (!['writer','sheets','notes'].includes(namespace)) throw new Error('Invalid office draft namespace');
+        if (!['writer','sheets','notes','synth-studio'].includes(namespace)) throw new Error('Invalid office draft namespace');
         if (!databases.has(namespace)) databases.set(namespace, new Promise((resolve, reject) => {
             const request = indexedDB.open('aurago.' + namespace + '.drafts.v1', 1);
             request.onupgradeneeded = () => request.result.createObjectStore('documents', { keyPath: 'key' });

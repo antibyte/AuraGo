@@ -2,6 +2,7 @@ package config
 
 import (
 	"aurago/internal/meshcore"
+	"context"
 	"fmt"
 	"strings"
 	"unicode"
@@ -291,6 +292,10 @@ const (
 	Go2RTCDefaultImage = "alexxit/go2rtc:1.9.14@sha256:675c318b23c06fd862a61d262240c9a63436b4050d177ffc68a32710d9e05bae"
 	// Go2RTCAPIPasswordVaultKey stores the internal API credential used only by AuraGo.
 	Go2RTCAPIPasswordVaultKey = "go2rtc_api_password"
+	// ProxyBasicAuthUserVaultKey and ProxyBasicAuthPasswordVaultKey hold the
+	// security proxy's Basic Auth account (security_proxy.basic_auth).
+	ProxyBasicAuthUserVaultKey     = "proxy_basic_auth_user"
+	ProxyBasicAuthPasswordVaultKey = "proxy_basic_auth_pass"
 )
 
 // Go2RTCStreamConfig describes one stable, user-visible stream. Source is vault-only.
@@ -544,9 +549,10 @@ type VirtualDesktopConfig struct {
 	AllowAgentControl        bool             `yaml:"allow_agent_control" json:"allow_agent_control"`                 // expose the virtual_desktop tool to the agent
 	AllowGeneratedApps       bool             `yaml:"allow_generated_apps" json:"allow_generated_apps"`               // allow generated JS apps and widgets
 	AllowPythonJobs          bool             `yaml:"allow_python_jobs" json:"allow_python_jobs"`                     // allow desktop apps to request backend Python jobs via the agent
+	SerialBrowserEnabled     bool             `yaml:"serial_browser_enabled" json:"serial_browser_enabled"`           // allow browser-local serial terminals
+	SerialHostEnabled        bool             `yaml:"serial_host_enabled" json:"serial_host_enabled"`                 // allow administrator serial terminals on the AuraGo host
 	WorkspaceDir             string           `yaml:"workspace_dir" json:"workspace_dir"`                             // persistent desktop workspace root
 	MaxFileSizeMB            int              `yaml:"max_file_size_mb" json:"max_file_size_mb"`                       // max text file read/write size
-	ControlLevel             string           `yaml:"control_level" json:"control_level"`                             // "confirm_destructive" (default) or "trusted"
 	MaxWSClients             int              `yaml:"max_ws_clients" json:"max_ws_clients"`                           // max concurrent desktop websocket clients
 	RemoteMaxSessionMinutes  int              `yaml:"remote_max_session_minutes" json:"remote_max_session_minutes"`   // max SSH/VNC remote session duration
 	RemoteIdleTimeoutMinutes int              `yaml:"remote_idle_timeout_minutes" json:"remote_idle_timeout_minutes"` // idle timeout for SSH/VNC remote sessions
@@ -942,6 +948,8 @@ type NetworkSharesConfig struct {
 }
 
 type Config struct {
+	// RegisterEvomapNode is server-owned and serializes registration with config/Vault writes.
+	RegisterEvomapNode func(context.Context) (nodeID, claimURL string, secretConfigured bool, err error) `yaml:"-" json:"-"`
 	// AuthorizationSnapshots preserves publication identity across scoped copies.
 	// It returns the source and current immutable configs; never serialize it.
 	AuthorizationSnapshots func() (*Config, *Config) `yaml:"-" json:"-"`
@@ -962,6 +970,8 @@ type Config struct {
 		UILanguage           string `yaml:"ui_language"`
 		OAuthRedirectBaseURL string `yaml:"oauth_redirect_base_url"` // override for OAuth callback (e.g. http://localhost:8088)
 		DebugPProf           bool   `yaml:"debug_pprof"`             // expose /debug/pprof endpoints (default false)
+		PreviewDomain        string `yaml:"preview_domain"`          // separate site with wildcard DNS/TLS for isolated guest apps
+		PreviewEnabled       bool   `yaml:"preview_enabled"`         // enable only after staged browser and ingress acceptance
 		MasterKey            string `yaml:"-"`                       // ENV-only (AURAGO_MASTER_KEY)
 		HTTPS                struct {
 			Enabled           bool     `yaml:"enabled"`
@@ -1307,6 +1317,7 @@ type Config struct {
 		AutoOptimize         bool   `yaml:"auto_optimize"`          // run optimize_memory after consolidation (default true)
 		ArchiveRetainDays    int    `yaml:"archive_retain_days"`    // keep archived messages for N days (default 30)
 		MaxBatchMessages     int    `yaml:"max_batch_messages"`     // max messages per consolidation batch (default 200)
+		CatchupMinutes       int    `yaml:"catchup_minutes"`        // optional daily post-maintenance consolidation budget (0 = disabled, max 60)
 		OptimizeThreshold    int    `yaml:"optimize_threshold"`     // priority threshold for auto-optimize (default 1)
 		ChatSessionLimit     int    `yaml:"chat_session_limit"`     // max chat sessions retained before archival rotation (default 10)
 		StmRetentionMessages int    `yaml:"stm_retention_messages"` // max STM rows per session before archive+trim (default 500, 0 = disabled)
@@ -1355,8 +1366,8 @@ type Config struct {
 		ScanEdgeBytes int `yaml:"scan_edge_bytes"` // bytes kept from start and end when windowing large inputs (default 6144)
 		PromptSec     struct {
 			Preset    string `yaml:"preset"`    // "strict", "moderate", "lenient" (default: strict)
-			Spotlight bool   `yaml:"spotlight"` // default: true
-			Canary    bool   `yaml:"canary"`    // default: true
+			Spotlight bool   `yaml:"spotlight"` // retired; retained for legacy YAML compatibility
+			Canary    bool   `yaml:"canary"`    // retired; retained for legacy YAML compatibility
 			Sanitizer struct {
 				Normalize   bool `yaml:"normalize"`   // unicode normalization (default: true)
 				Dehomoglyph bool `yaml:"dehomoglyph"` // replace homoglyphs (default: true)
@@ -1377,7 +1388,7 @@ type Config struct {
 			Structure struct {
 				Enabled bool   `yaml:"enabled"` // default: false
 				Mode    string `yaml:"mode"`    // "sandwich", "xml", "random"
-			} `yaml:"structure"`
+			} `yaml:"structure"` // retired; retained for legacy YAML compatibility
 			LLMJudge struct {
 				Enabled     bool   `yaml:"enabled"`      // default: false
 				Mode        string `yaml:"mode"`         // "uncertain", "always", "threat_detected", "no_threat"
@@ -1519,7 +1530,7 @@ type Config struct {
 		ReadOnly            bool     `yaml:"readonly"`                    // true = receive only, no outbound
 		APIKey              string   `yaml:"-" vault:"telnyx_api_key"`    // vault-only
 		APISecret           string   `yaml:"-" vault:"telnyx_api_secret"` // legacy credential; not webhook proof
-		WebhookPublicKey    string   `yaml:"webhook_public_key"`         // account Ed25519 public key, base64
+		WebhookPublicKey    string   `yaml:"webhook_public_key"`          // account Ed25519 public key, base64
 		PhoneNumber         string   `yaml:"phone_number"`                // primary Telnyx number (E.164)
 		MessagingProfileID  string   `yaml:"messaging_profile_id"`        // Telnyx messaging profile
 		ConnectionID        string   `yaml:"connection_id"`               // SIP connection ID for voice calls
@@ -1545,9 +1556,10 @@ type Config struct {
 		Insecure          bool     `yaml:"insecure"`                       // skip TLS certificate verification (default: false)
 	} `yaml:"meshcentral"`
 	Docker struct {
-		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"` // true = only list/inspect/logs/stats, block create/start/stop/remove/exec
-		Host     string `yaml:"host"`     // e.g. unix:///var/run/docker.sock, npipe:////./pipe/docker_engine, or tcp://localhost:2375
+		Enabled         bool   `yaml:"enabled"`
+		ReadOnly        bool   `yaml:"readonly"`          // true = only list/inspect/logs/stats, block create/start/stop/remove/exec
+		Host            string `yaml:"host"`              // e.g. unix:///var/run/docker.sock, npipe:////./pipe/docker_engine, or tcp://localhost:2375
+		AllowHostAccess bool   `yaml:"allow_host_access"` // agent docker compose up/create/build may use host paths outside the workspace, docker.sock, devices, privileged mode, host namespaces, cap_add and unconfined security_opt; configs written before this key existed load as true, fresh installs get false
 	} `yaml:"docker"`
 	PackageManager PackageManagerConfig `yaml:"package_manager"`
 	CoAgents       struct {
@@ -1871,20 +1883,21 @@ type Config struct {
 		} `yaml:"tsnet"`
 	} `yaml:"tailscale"`
 	CloudflareTunnel struct {
-		Enabled        bool                    `yaml:"enabled"`         // master toggle
-		ReadOnly       bool                    `yaml:"readonly"`        // agent: status-only, no start/stop/route changes
-		Mode           string                  `yaml:"mode"`            // "auto" (default), "docker", "native"
-		AutoStart      bool                    `yaml:"auto_start"`      // start tunnel on AuraGo boot
-		AuthMethod     string                  `yaml:"auth_method"`     // "token" (default), "named", "quick"
-		TunnelName     string                  `yaml:"tunnel_name"`     // named tunnel: tunnel name
-		AccountID      string                  `yaml:"account_id"`      // Cloudflare account ID (for API access)
-		TunnelID       string                  `yaml:"tunnel_id"`       // optional: explicit tunnel UUID (used to auto-configure noTLSVerify via API)
-		LoopbackPort   int                     `yaml:"loopback_port"`   // optional plain-HTTP loopback port for cloudflared on 127.0.0.1 (0=use server.port for internal jobs when HTTPS is active)
-		ExposeWebUI    bool                    `yaml:"expose_web_ui"`   // auto-route AuraGo web UI through tunnel
-		ExposeHomepage bool                    `yaml:"expose_homepage"` // auto-route homepage web server through tunnel
-		CustomIngress  []CloudflareIngressRule `yaml:"custom_ingress"`  // additional ingress rules
-		MetricsPort    int                     `yaml:"metrics_port"`    // cloudflared metrics (0=disabled)
-		LogLevel       string                  `yaml:"log_level"`       // "info" (default), "debug", "warn", "error"
+		QuickProjectDir string                  `yaml:"quick_project_dir"` // registered Homepage project for temporary publication
+		Enabled         bool                    `yaml:"enabled"`           // master toggle
+		ReadOnly        bool                    `yaml:"readonly"`          // agent: status-only, no start/stop/route changes
+		Mode            string                  `yaml:"mode"`              // "auto" (default), "docker", "native"
+		AutoStart       bool                    `yaml:"auto_start"`        // start tunnel on AuraGo boot
+		AuthMethod      string                  `yaml:"auth_method"`       // "token" (default), "named", "quick"
+		TunnelName      string                  `yaml:"tunnel_name"`       // named tunnel: tunnel name
+		AccountID       string                  `yaml:"account_id"`        // Cloudflare account ID (for API access)
+		TunnelID        string                  `yaml:"tunnel_id"`         // optional: explicit tunnel UUID (used to auto-configure noTLSVerify via API)
+		LoopbackPort    int                     `yaml:"loopback_port"`     // optional plain-HTTP loopback port for cloudflared on 127.0.0.1 (0=use server.port for internal jobs when HTTPS is active)
+		ExposeWebUI     bool                    `yaml:"expose_web_ui"`     // auto-route AuraGo web UI through tunnel
+		ExposeHomepage  bool                    `yaml:"expose_homepage"`   // auto-route homepage web server through tunnel
+		CustomIngress   []CloudflareIngressRule `yaml:"custom_ingress"`    // additional ingress rules
+		MetricsPort     int                     `yaml:"metrics_port"`      // cloudflared metrics (0=disabled)
+		LogLevel        string                  `yaml:"log_level"`         // "info" (default), "debug", "warn", "error"
 	} `yaml:"cloudflare_tunnel"`
 	Ansible struct {
 		Enabled          bool   `yaml:"enabled"`
@@ -1946,8 +1959,9 @@ type Config struct {
 			Addresses []string `yaml:"addresses"` // IP addresses or CIDR ranges
 		} `yaml:"ip_filter"`
 		BasicAuth struct {
-			Enabled bool `yaml:"enabled"`
-			// Username/password stored in vault as proxy_basic_auth_user / proxy_basic_auth_pass
+			Enabled  bool   `yaml:"enabled"`
+			Username string `yaml:"-" json:"-"` // vault-only: proxy_basic_auth_user
+			Password string `yaml:"-" json:"-"` // vault-only: proxy_basic_auth_pass (plaintext; the proxy writes only its bcrypt hash)
 		} `yaml:"basic_auth"`
 		GeoBlocking struct {
 			Enabled          bool     `yaml:"enabled"`
@@ -1976,6 +1990,7 @@ type Config struct {
 	GitHub struct {
 		Enabled        bool     `yaml:"enabled"`
 		ReadOnly       bool     `yaml:"readonly"`        // true = only list/get/search, block create/delete/update
+		AllowDelete    bool     `yaml:"allow_delete"`    // explicit opt-in for repository deletion
 		Token          string   `yaml:"-" vault:"token"` // Personal Access Token (from vault)
 		Owner          string   `yaml:"owner"`           // GitHub username or organisation
 		DefaultPrivate bool     `yaml:"default_private"` // true = new repos are private by default
@@ -2305,22 +2320,23 @@ type Config struct {
 		IdleTTLSec int `yaml:"idle_ttl_sec"`
 	} `yaml:"sql_connections"`
 	GoogleWorkspace struct {
-		Enabled       bool   `yaml:"enabled"`
-		ReadOnly      bool   `yaml:"readonly"`       // true = only read operations, block send/create/update/write
-		Gmail         bool   `yaml:"gmail"`          // Gmail read access
-		GmailSend     bool   `yaml:"gmail_send"`     // Gmail send (requires !readonly)
-		Calendar      bool   `yaml:"calendar"`       // Calendar read access
-		CalendarWrite bool   `yaml:"calendar_write"` // Calendar create/update (requires !readonly)
-		Drive         bool   `yaml:"drive"`          // Drive read access
-		Docs          bool   `yaml:"docs"`           // Docs read access
-		DocsWrite     bool   `yaml:"docs_write"`     // Docs create/write (requires !readonly)
-		Sheets        bool   `yaml:"sheets"`         // Sheets read access
-		SheetsWrite   bool   `yaml:"sheets_write"`   // Sheets write (requires !readonly)
-		ClientID      string `yaml:"client_id"`      // Google OAuth2 Client ID
-		ClientSecret  string `yaml:"-" json:"-"`     // vault-only: google_workspace_client_secret
-		AccessToken   string `yaml:"-" json:"-"`     // resolved from OAuth token in vault
-		RefreshToken  string `yaml:"-" json:"-"`     // resolved from OAuth token in vault
-		TokenExpiry   string `yaml:"-" json:"-"`     // resolved: RFC3339 expiry
+		Enabled           bool   `yaml:"enabled"`
+		ReadOnly          bool   `yaml:"readonly"`            // true = only read operations, block send/create/update/write
+		Gmail             bool   `yaml:"gmail"`               // Gmail read access
+		GmailSend         bool   `yaml:"gmail_send"`          // Gmail send (requires !readonly)
+		GmailModifyLabels bool   `yaml:"gmail_modify_labels"` // Gmail label changes (default off, requires !readonly)
+		Calendar          bool   `yaml:"calendar"`            // Calendar read access
+		CalendarWrite     bool   `yaml:"calendar_write"`      // Calendar create/update (requires !readonly)
+		Drive             bool   `yaml:"drive"`               // Drive read access
+		Docs              bool   `yaml:"docs"`                // Docs read access
+		DocsWrite         bool   `yaml:"docs_write"`          // Docs create/write (requires !readonly)
+		Sheets            bool   `yaml:"sheets"`              // Sheets read access
+		SheetsWrite       bool   `yaml:"sheets_write"`        // Sheets write (requires !readonly)
+		ClientID          string `yaml:"client_id"`           // Google OAuth2 Client ID
+		ClientSecret      string `yaml:"-" json:"-"`          // vault-only: google_workspace_client_secret
+		AccessToken       string `yaml:"-" json:"-"`          // resolved from OAuth token in vault
+		RefreshToken      string `yaml:"-" json:"-"`          // resolved from OAuth token in vault
+		TokenExpiry       string `yaml:"-" json:"-"`          // resolved: RFC3339 expiry
 	} `yaml:"google_workspace"`
 	ImageGeneration struct {
 		Enabled           bool   `yaml:"enabled"`
@@ -2578,6 +2594,7 @@ type LDAPConfig struct {
 	Host               string `yaml:"host"`                 // LDAP server hostname or IP
 	Port               int    `yaml:"port"`                 // LDAPS port (default: 636) or LDAP port (default: 389)
 	UseTLS             bool   `yaml:"use_tls"`              // use LDAPS (default: true)
+	TLSMode            string `yaml:"tls_mode"`             // ldaps, starttls or plain; empty preserves legacy use_tls
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"` // skip TLS certificate verification (default: false)
 	BaseDN             string `yaml:"base_dn"`              // base DN for searches (e.g. "dc=example,dc=com")
 	BindDN             string `yaml:"bind_dn"`              // service account DN for binding

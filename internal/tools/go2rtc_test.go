@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -95,7 +94,7 @@ func TestGo2RTCBackgroundRetriesPendingStopUntilDockerAcceptsIt(t *testing.T) {
 		}
 	})
 	status := http.StatusForbidden
-	dockerAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	dockerAPI := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(status)
 	}))
 	defer dockerAPI.Close()
@@ -140,7 +139,7 @@ func TestGo2RTCBackgroundRetriesPendingRecreateAgainstDesiredConfig(t *testing.T
 		}
 	})
 	created := 0
-	dockerAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	dockerAPI := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/containers/") && strings.HasSuffix(r.URL.Path, "/json"):
 			http.NotFound(w, r)
@@ -156,7 +155,7 @@ func TestGo2RTCBackgroundRetriesPendingRecreateAgainstDesiredConfig(t *testing.T
 		}
 	}))
 	defer dockerAPI.Close()
-	go2RTCAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	go2RTCAPI := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api" {
 			_, _ = w.Write([]byte(`{"version":"1.9.14"}`))
 			return
@@ -195,7 +194,7 @@ func TestGo2RTCBackgroundRetriesPendingRecreateAgainstDesiredConfig(t *testing.T
 func TestGo2RTCClientUsesBasicAuthAndSanitizesStreamTelemetry(t *testing.T) {
 	const password = "internal-password"
 	var patchedSource string
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, gotPassword, ok := r.BasicAuth()
 		if !ok || username != go2RTCAPIUser || gotPassword != password {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -256,7 +255,7 @@ func TestGo2RTCClientUsesBasicAuthAndSanitizesStreamTelemetry(t *testing.T) {
 }
 
 func TestGo2RTCListStreamsDoesNotTreatConfiguredProducerAsReachable(t *testing.T) {
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/go2rtc/proxy/api/streams" {
 			http.NotFound(w, r)
 			return
@@ -333,7 +332,7 @@ func TestGo2RTCSnapshotValidatesJPEGAndCaches(t *testing.T) {
 	const password = "internal-password"
 	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0xff, 0xd9}
 	var calls atomic.Int32
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, gotPassword, ok := r.BasicAuth()
 		if !ok || gotPassword != password {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -373,7 +372,7 @@ func TestGo2RTCSnapshotValidatesJPEGAndCaches(t *testing.T) {
 
 func TestGo2RTCSnapshotCacheIsBounded(t *testing.T) {
 	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0xff, 0xd9}
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
 		_, _ = w.Write(jpeg)
 	}))
@@ -443,7 +442,7 @@ func TestGo2RTCStoredSnapshotRetentionRemovesOldestFiles(t *testing.T) {
 }
 
 func TestGo2RTCSnapshotRejectsUnexpectedContent(t *testing.T) {
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte("<html>not a jpeg</html>"))
 	}))
@@ -462,7 +461,7 @@ func TestGo2RTCSnapshotRejectsUnexpectedContent(t *testing.T) {
 func TestGo2RTCSnapshotStoresAndDeduplicatesMediaRegistryEntry(t *testing.T) {
 	const password = "internal-password"
 	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x01, 0xff, 0xd9}
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
 		_, _ = w.Write(jpeg)
 	}))
@@ -497,7 +496,7 @@ func TestGo2RTCSnapshotStoresAndDeduplicatesMediaRegistryEntry(t *testing.T) {
 
 func TestGo2RTCSnapshotBytesNeverStoresMedia(t *testing.T) {
 	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x01, 0xff, 0xd9}
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
 		_, _ = w.Write(jpeg)
 	}))

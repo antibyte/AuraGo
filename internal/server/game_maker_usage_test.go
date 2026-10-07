@@ -172,7 +172,7 @@ func TestGameMakerPromptUsagePersistsThroughMinimalLoop(t *testing.T) {
 	profile, _ := agent.NewPreparedPromptProfile("fixture/v1", "Required rules.", nil)
 	cfg := &config.Config{}
 	cfg.Agent.ContextWindow = 32768
-	client := llm.NewClientFromProvider("stepfun", provider.URL+"/v1", "fixture")
+	client := llm.WrapOpenAIClient(llm.NewClientFromProvider("stepfun", provider.URL+"/v1", "fixture"))
 	opts := &agent.MinimalLoopOptions{MaxToolRounds: 0, PreparedPrompt: profile, UsageObserver: observer}
 	_, history, err := agent.ExecuteMinimalLoop(ctx, client, "step-5-preview", "", "private-source-marker", nil, &agent.DispatchContext{Cfg: cfg}, nil, slog.Default(), opts)
 	if err != nil {

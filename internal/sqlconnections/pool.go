@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"strconv"
 	"sync"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 )
 
@@ -314,6 +315,10 @@ func (p *ConnectionPool) PoolStats() map[string]interface{} {
 
 // openConnection builds a DSN from metadata + vault secret and opens the database.
 func (p *ConnectionPool) openConnection(rec ConnectionRecord) (*sql.DB, error) {
+	return p.openWithMode(rec, false)
+}
+
+func (p *ConnectionPool) openWithMode(rec ConnectionRecord, readOnly bool) (*sql.DB, error) {
 	var username, password string
 
 	if rec.VaultSecretID != "" {
@@ -331,6 +336,10 @@ func (p *ConnectionPool) openConnection(rec ConnectionRecord) (*sql.DB, error) {
 	}
 
 	dsn, driverName, err := BuildDSN(rec, username, password, p.timeout)
+	if rec.Driver == "sqlite" {
+		driverName = "sqlite"
+		dsn, err = p.managedSQLiteDSN(rec, readOnly)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -392,8 +401,12 @@ func BuildDSN(rec ConnectionRecord, username, password string, timeout time.Dura
 		if sslMode == "" {
 			sslMode = "disable"
 		}
-		dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-			host, port, username, password, rec.DatabaseName, sslMode)
+		u := url.URL{Scheme: "postgres", Host: net.JoinHostPort(host, strconv.Itoa(port)), Path: "/" + rec.DatabaseName, User: url.UserPassword(username, password)}
+		q := u.Query()
+		q.Set("sslmode", sslMode)
+		q.Set("connect_timeout", strconv.Itoa(int(timeout.Seconds())))
+		u.RawQuery = q.Encode()
+		dsn = u.String()
 		return
 
 	case "mysql":
@@ -412,17 +425,22 @@ func BuildDSN(rec ConnectionRecord, username, password string, timeout time.Dura
 		case "require", "verify-ca", "verify-full":
 			tls = "true"
 		}
-		dsn = fmt.Sprintf("%s:%s@tcp(%s)/%s?tls=%s&parseTime=true&timeout=%s",
-			username, password, addr, rec.DatabaseName, tls, timeout.String())
+		cfg := mysql.NewConfig()
+		cfg.User = username
+		cfg.Passwd = password
+		cfg.Net = "tcp"
+		cfg.Addr = addr
+		cfg.DBName = rec.DatabaseName
+		cfg.TLSConfig = tls
+		cfg.ParseTime = true
+		cfg.Timeout = timeout
+		cfg.MultiStatements = false
+		dsn = cfg.FormatDSN()
 		return
 
 	case "sqlite":
 		driverName = "sqlite"
-		dsn = rec.DatabaseName // file path
-		if dsn == "" {
-			return "", "", fmt.Errorf("sqlite: database_name (file path) is required")
-		}
-		return
+		return "", "sqlite", fmt.Errorf("%s: SQLite DSNs are resolved only by managed storage", SQLiteImportRequired)
 
 	default:
 		return "", "", fmt.Errorf("unsupported driver: %s", rec.Driver)

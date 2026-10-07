@@ -43,7 +43,7 @@ func TestDesktopTodoAddUsesDefinedPlannerJSONHelper(t *testing.T) {
 	source := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, marker := range []string{
 		"async function plannerJSON(",
-		"plannerJSON('/api/todos', 'POST'",
+		"plannerJSON('/api/desktop/integrations/todos', 'POST'",
 		"await load(result.id);",
 	} {
 		if !strings.Contains(source, marker) {

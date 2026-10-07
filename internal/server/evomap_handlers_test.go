@@ -6,9 +6,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/evomap"
@@ -95,7 +97,7 @@ func TestHandleEvomapRegisterStoresSecretAndOmitsItFromResponse(t *testing.T) {
 	}})
 	tmp := t.TempDir()
 	cfgPath := filepath.Join(tmp, "config.yaml")
-	if err := config.WriteFileAtomic(cfgPath, []byte("evomap:\n  enabled: true\n  readonly: true\n  base_url: https://evomap.ai\n"), 0o600); err != nil {
+	if err := config.WriteFileAtomic(cfgPath, []byte("evomap:\n  enabled: true\n  readonly: false\n  base_url: https://evomap.ai\ncustom_fixture: preserved\n"), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 	cfg, err := config.Load(cfgPath)
@@ -124,10 +126,45 @@ func TestHandleEvomapRegisterStoresSecretAndOmitsItFromResponse(t *testing.T) {
 	if stored != "node-secret-from-server" {
 		t.Fatalf("stored secret = %q", stored)
 	}
-	if cfg.Evomap.NodeID != "node-registered" {
-		t.Fatalf("NodeID = %q", cfg.Evomap.NodeID)
+	if cfg.Evomap.NodeID != "" || cfg.Evomap.NodeSecret != "" {
+		t.Fatal("published config snapshot mutated")
 	}
-	if cfg.Evomap.NodeSecret != "node-secret-from-server" {
+	if s.ConfigSnapshot().Evomap.NodeID != "node-registered" {
+		t.Fatal("node ID not published")
+	}
+	if s.ConfigSnapshot().Evomap.NodeSecret != "node-secret-from-server" {
 		t.Fatalf("in-memory node secret was not updated")
+	}
+	data, err := os.ReadFile(cfgPath)
+	if err != nil || !strings.Contains(string(data), "custom_fixture: preserved") || strings.Contains(string(data), "node-secret-from-server") {
+		t.Fatal("saved YAML lost unrelated values or contains a secret")
+	}
+}
+
+func TestEvomapRegistrationRechecksAfterConfigSaveLock(t *testing.T) {
+	cfg := &config.Config{Evomap: config.EvomapConfig{Enabled: true}}
+	s := &Server{Cfg: cfg}
+	s.initConfigSnapshot()
+	s.CfgSaveMu.Lock()
+	done := make(chan error, 1)
+	go func() { _, _, _, err := cfg.RegisterEvomapNode(context.Background()); done <- err }()
+	select {
+	case <-done:
+		t.Fatal("registration ignored config save lock")
+	case <-time.After(20 * time.Millisecond):
+	}
+	next := *cfg
+	next.Evomap.ReadOnly = true
+	s.CfgMu.Lock()
+	s.replaceConfigSnapshot(&next)
+	s.CfgMu.Unlock()
+	s.CfgSaveMu.Unlock()
+	select {
+	case err := <-done:
+		if err == nil || !strings.Contains(err.Error(), "writable") {
+			t.Fatalf("revocation not honored: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("registration deadlocked")
 	}
 }

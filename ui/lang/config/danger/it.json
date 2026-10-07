@@ -7,9 +7,9 @@
   "config.danger.shell.desc": "Permette all'agente di eseguire comandi shell arbitrari sul sistema host.",
   "config.danger.python.title": "Esecuzione Python / Skill (execute_python / execute_skill / save_tool)",
   "config.danger.python.desc": "Permette all'agente di eseguire codice Python arbitrario e skill <strong>localmente senza sandbox</strong> e persistere nuovi tool. Il codice gira direttamente sul sistema host — usa la sandbox per esecuzione isolata invece.",
-  "config.danger.filesystem.title": "Accesso Scrittura Filesystem (operazioni write filesystem)",
+  "config.danger.filesystem.title": "Accesso in scrittura al file system (operazioni di scrittura sul file system)",
   "config.danger.filesystem.desc": "Permette all'agente di scrivere, eliminare, spostare file e creare directory tramite il tool filesystem.",
-  "config.danger.network.title": "Richieste Network (api_request)",
+  "config.danger.network.title": "Richieste di rete (api_request)",
   "config.danger.network.desc": "Permette all'agente di inviare richieste HTTP arbitrarie a URL esterni.",
   "config.danger.remote_shell.title": "Shell Remota (execute_remote_shell)",
   "config.danger.remote_shell.desc": "Permette all'agente di eseguire comandi shell su server remoti via SSH.",
@@ -22,5 +22,7 @@
   "config.danger.sudo_unrestricted.title": "Accesso di Scrittura Sudo a Livello di Sistema",
   "config.danger.sudo_unrestricted.desc": "Consente all'agente di scrivere al di fuori della directory di installazione utilizzando sudo (ad es. /etc.). Richiede la rimozione di ProtectSystem=strict dall'unità di servizio systemd.",
   "config.danger.unsafe_host_execution.title": "Esecuzione non isolata sull’host",
-  "config.danger.unsafe_host_execution.desc": "Consente Python sull’host e la shell di Windows senza isolamento. Ogni utilizzo viene registrato come avviso di sicurezza."
+  "config.danger.unsafe_host_execution.desc": "Consente Python sull’host e la shell di Windows senza isolamento. Ogni utilizzo viene registrato come avviso di sicurezza. Abilitala solo deliberatamente.",
+  "config.danger.docker_host_access.title": "Accesso all'host Docker per gli stack Compose dell'agente",
+  "config.danger.docker_host_access.desc": "Consente all'agente, con docker compose up/create/build, di usare percorsi dell'host fuori dal suo workspace (ad esempio /var/run/docker.sock, /srv/media o /), dispositivi, modalità privilegiata, namespace di rete/PID/IPC/UTS/utente/cgroup dell'host, cap_add e opzioni di sicurezza non confinate. Dati, configurazione, .env e chiave master di AuraGo restano bloccati, ma montare un percorso superiore come / li espone comunque. Se attiva, docker compose vede anche le variabili d'ambiente di AuraGo; senza, Compose riceve solo PATH, HOME e le impostazioni di Docker, proxy e lingua."
 }

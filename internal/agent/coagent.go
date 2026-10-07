@@ -694,11 +694,7 @@ func truncatePromptBlock(s string, maxChars int) string {
 	if s == "" || maxChars <= 0 || len(s) <= maxChars {
 		return s
 	}
-	cutoff := maxChars - 3
-	if cutoff < 1 {
-		cutoff = maxChars
-	}
-	return strings.TrimSpace(s[:cutoff]) + "..."
+	return strings.TrimSpace(prompts.TruncateWithEllipsis(s, maxChars))
 }
 
 func trimCoAgentHints(hints []string, maxHints, maxHintChars int) []string {

@@ -77,14 +77,14 @@ func TestDesktopTrashCanSupportsDropAndEmptyMenu(t *testing.T) {
 		"function emptyTrash(",
 		"vd-trash-drop-target",
 		"desktop.context_empty_trash",
-		"new_path: trashDestination",
-		"body: JSON.stringify({ old_path: cleanPath, new_path: trashDestination })",
-		"removeIconPosition('desktop-entry-' + cleanPath)",
+		"api('/api/desktop/trash'",
+		"body: JSON.stringify({ paths: cleanPaths })",
+		"cleanPaths.forEach(path => removeIconPosition('desktop-entry-' + path))",
 		"await removeDesktopShortcut(btn.dataset.id || '')",
 		"await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' })",
 		"function restorePathsFromTrash(",
 		"function uniqueRestoreDestination(",
-		"uniqueRestoreDestination('Desktop'",
+		"body: JSON.stringify({ paths: unique, restore: true })",
 		"restoreFromTrash: restorePathsFromTrash",
 	} {
 		if !strings.Contains(mainText, want) {

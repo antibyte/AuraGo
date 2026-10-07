@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "快速隧道发布的网站",
+  "config.cloudflare_tunnel.quick_project_help": "发布所选项目最近构建的静态文件副本。请启用 Homepage 和 Cloudflare。AuraGo 会自动分配端口。",
+  "config.cloudflare_tunnel.quick_project_select": "选择项目",
+  "config.cloudflare_tunnel.quick_project_error": "项目不可用。请检查 Homepage 设置和项目注册信息。",
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel 已启用",
   "config.cloudflare_tunnel.readonly_label": "只读模式（仅状态）",
   "config.cloudflare_tunnel.auto_start_label": "启动时自动启动",

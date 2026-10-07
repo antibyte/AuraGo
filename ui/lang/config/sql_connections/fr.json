@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "Lecture seule globale",
   "config.sql_connections.readonly_help": "Bloque toutes les opérations d'écriture indépendamment des permissions de connexion.",
   "config.sql_connections.allow_management_label": "Autoriser la gestion",
-  "config.sql_connections.allow_management_help": "Permet à l'agent de créer, modifier et supprimer des connexions."
+  "config.sql_connections.sqlite_import": "Importer une sauvegarde SQLite",
+  "config.sql_connections.sqlite_import_help": "Importe une sauvegarde cohérente et autonome (64 Mio maximum). Enregistrer la place dans le stockage protégé et conserve les originaux.",
+  "config.sql_connections.sqlite_import_required": "Importation SQLite requise",
+  "config.sql_connections.allow_management_help": "L’agent peut uniquement modifier les descriptions. Configuration, identifiants et droits sont réservés à l’administrateur."
 }

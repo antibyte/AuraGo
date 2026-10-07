@@ -67,7 +67,7 @@ func boundedRunes(s string, maxRunes int) string {
 }
 
 func sanitizeFetchedEmails(ctx context.Context, logger *slog.Logger, guardian *security.Guardian, llmGuardian emailContentEvaluator, scanEmails bool, messages []tools.EmailMessage) []tools.EmailMessage {
-	if guardian == nil || len(messages) == 0 {
+	if len(messages) == 0 {
 		return messages
 	}
 
@@ -85,34 +85,49 @@ func sanitizeFetchedEmails(ctx context.Context, logger *slog.Logger, guardian *s
 			defer wg.Done()
 			for idx := range indexCh {
 				msg := messages[idx]
-				combined := msg.From + " " + msg.Subject + " " + msg.Body
-				scanRes := guardian.ScanForInjection(combined)
-				if scanRes.Level >= security.ThreatHigh {
-					if logger != nil {
-						logger.Warn("[Email] Guardian HIGH threat in message", "uid", msg.UID, "from", msg.From, "threat", scanRes.Level.String())
+				combined := msg.From + " " + msg.To + " " + msg.Subject + " " + msg.Date + " " + msg.Snippet + " " + msg.Body
+				var quarantine *security.GuardianResult
+				if guardian != nil {
+					scanRes := guardian.ScanForInjectionLocal(combined)
+					if scanRes.Level >= security.ThreatHigh {
+						result := security.ContentScanQuarantine(security.QuarantineSuspicious)
+						quarantine = &result
 					}
-					msg.Body = security.RedactedText("guardian blocked content after injection detection")
-					msg.Subject = security.SanitizedText("guardian scan flagged this message")
-					msg.Snippet = security.RedactedText("")
+				}
+				if quarantine == nil && scanEmails {
+					if guardian == nil || llmGuardian == nil {
+						result := security.ContentScanQuarantine(security.QuarantineUnavailable)
+						quarantine = &result
+					} else {
+						llmResult := llmGuardian.EvaluateContent(ctx, "email", combined)
+						if llmResult.Decision != security.DecisionAllow {
+							reason := llmResult.QuarantineReason
+							if reason == "" {
+								reason = security.QuarantineSuspicious
+							}
+							result := security.ContentScanQuarantine(reason)
+							quarantine = &result
+						}
+					}
+				}
+				if quarantine != nil {
+					if logger != nil {
+						logger.Warn("[Email] Guardian quarantined message", "uid", msg.UID, "category", quarantine.QuarantineReason)
+					}
+					msg.From = ""
+					msg.To = ""
+					msg.Date = ""
+					msg.Subject = "Quarantined email"
+					msg.Snippet = ""
+					msg.Body = security.QuarantineNotice("email-fetch", fmt.Sprint(msg.UID), *quarantine)
 					sanitized[idx] = msg
 					continue
 				}
 
-				if llmGuardian != nil && scanEmails {
-					llmResult := llmGuardian.EvaluateContent(ctx, "email", combined)
-					if llmResult.Decision == security.DecisionBlock {
-						if logger != nil {
-							logger.Warn("[Email] LLM Guardian blocked email content", "uid", msg.UID, "from", msg.From, "reason", llmResult.Reason)
-						}
-						msg.Body = security.RedactedText("llm guardian blocked content: " + llmResult.Reason)
-						msg.Subject = security.SanitizedText("llm guardian blocked this message")
-						msg.Snippet = security.RedactedText("")
-						sanitized[idx] = msg
-						continue
-					}
+				if guardian != nil {
+					msg.Body = guardian.SanitizeToolOutput("email", msg.Body)
+					msg.Snippet = guardian.SanitizeToolOutput("email", msg.Snippet)
 				}
-
-				msg.Body = guardian.SanitizeToolOutput("email", msg.Body)
 				sanitized[idx] = msg
 			}
 		}()

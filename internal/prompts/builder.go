@@ -1666,13 +1666,19 @@ func truncateWithEllipsis(text string, maxChars int) string {
 	}
 	const suffix = "..."
 	if maxChars <= len(suffix) {
-		return text[:maxChars]
+		return strings.Repeat(".", maxChars)
 	}
 	cut := maxChars - len(suffix)
-	for cut > 0 && !utf8.ValidString(text[:cut]) {
+	for cut > 0 && !utf8.RuneStart(text[cut]) {
 		cut--
 	}
 	return strings.TrimSpace(text[:cut]) + suffix
+}
+
+// TruncateWithEllipsis bounds text by bytes without splitting UTF-8 runes.
+// The suffix is included in maxBytes, including when only part of it fits.
+func TruncateWithEllipsis(text string, maxBytes int) string {
+	return truncateWithEllipsis(text, maxBytes)
 }
 
 // budgetShed progressively removes content sections until the prompt fits within the token budget.
@@ -1825,7 +1831,7 @@ func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
 	}
 
 	warning := "[advisory/stale] Fresh tool output, current files, and reproducible checks win."
-	out := "## UNIFIED MEMORY CONTEXT\n" + warning
+	out := promptSectionUnifiedMemory + "\n" + warning
 	added := 0
 	for _, section := range sections {
 		if strings.TrimSpace(section.body) == "" {

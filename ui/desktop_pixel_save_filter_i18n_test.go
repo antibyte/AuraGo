@@ -14,7 +14,6 @@ func TestDesktopPixelSaveFilterI18n(t *testing.T) {
 	for _, want := range []string{
 		"label: this.t('desktop.file_dialog_png')",
 		"label: this.t('desktop.file_dialog_jpeg')",
-		"label: this.t('desktop.file_dialog_webp')",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("pixel save dialog missing %s", want)

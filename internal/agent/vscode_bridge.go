@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"aurago/internal/memory"
@@ -11,7 +12,18 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const vscodeDebugBridgeSessionID = "vscode-debug-bridge"
+func bridgeAllowedTools(dc *DispatchContext) []string {
+	allowed := make([]string, 0)
+	if dc != nil && dc.ToolScopeRestricted {
+		for name := range dc.AllowedTools {
+			if name != "ask_aurago" {
+				allowed = append(allowed, name)
+			}
+		}
+	}
+	sort.Strings(allowed)
+	return allowed
+}
 
 // AskAuraGoBridge executes a dedicated AuraGo debugging turn for MCP-based IDE agents.
 // It uses an isolated session so the live debugging conversation does not pollute
@@ -26,8 +38,8 @@ func AskAuraGoBridge(ctx context.Context, runCfg RunConfig, message string) (str
 	}
 
 	sessionID := runCfg.SessionID
-	if sessionID == "" {
-		sessionID = vscodeDebugBridgeSessionID
+	if sessionID == "" || runCfg.AllowedTools == nil {
+		return "", fmt.Errorf("ask_aurago requires an isolated session and explicit tool scope")
 	}
 	runCfg.SessionID = sessionID
 	runCfg.MessageSource = "mcp-vscode-bridge"

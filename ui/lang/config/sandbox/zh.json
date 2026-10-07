@@ -9,7 +9,7 @@
   "config.sandbox.card_options": "选项",
   "config.sandbox.card_resources": "资源限制",
   "config.sandbox.disabled_notice": "沙盒已禁用",
-  "config.sandbox.disabled_desc": "启用上面的切换以在 Docker 容器中使用隔离代码执行。Docker 必须可用。",
+  "config.sandbox.disabled_desc": "启用上面的开关以在 Docker 容器中使用隔离代码执行。Docker 必须可用。",
   "config.sandbox.empty_auto": "空 = 自动",
   "config.sandbox.timeout_label": "秒",
   "config.sandbox.no_pooling": "无池化",

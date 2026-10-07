@@ -30,7 +30,7 @@
   "config.remote_control.no_platforms": "Nenhuma plataforma disponível",
   "config.remote_control.platforms_error": "Erro ao carregar plataformas",
   "config.remote_control.status_connected": "Conectado",
-  "config.remote_control.status_offline": "Desligado",
+  "config.remote_control.status_offline": "Offline",
   "config.security_proxy.basic_auth_desc": "Exigir nome de usuário e senha antes de acessar o proxy.",
   "config.security_proxy.basic_auth_enabled_label": "Ativar Basic Auth",
   "config.security_proxy.basic_auth_title": "Autenticação básica",
@@ -95,5 +95,7 @@
   "config.updates.installing": "Instalando…",
   "config.updates.running": "Executando…",
   "config.web_scraper.summary_mode": "Modo de resumo",
-  "config.webdav.secret_empty": "O valor está vazio"
+  "config.webdav.secret_empty": "O valor está vazio",
+  "config.security_proxy.action_pending": "Em andamento… A primeira inicialização com limitação de taxa cria uma imagem do Caddy e pode levar alguns minutos.",
+  "config.security_proxy.rate_limit_build_hint": "A imagem oficial do Caddy não tem limitação de taxa. Na próxima inicialização, o AuraGo cria uma única vez sua própria imagem do Caddy com o módulo caddy-ratelimit. Para isso, o Docker precisa permitir builds de imagens e ter acesso à internet; leva alguns minutos. Como alternativa, a imagem pode ser criada no host do Docker (veja o manual)."
 }

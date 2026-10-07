@@ -150,7 +150,9 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 	cfg["discord"] = map[string]interface{}{"enabled": false}
 	cfg["email"] = map[string]interface{}{"enabled": false}
 	cfg["home_assistant"] = map[string]interface{}{"enabled": false}
-	cfg["docker"] = map[string]interface{}{"enabled": false}
+	// Mirror the master's effective allow_host_access so a regenerated egg of a
+	// grandfathered master keeps the value it loads today (absent key = true).
+	cfg["docker"] = map[string]interface{}{"enabled": false, "allow_host_access": masterCfg.Docker.AllowHostAccess}
 	cfg["chromecast"] = map[string]interface{}{"enabled": false}
 	cfg["co_agents"] = map[string]interface{}{"enabled": false}
 	cfg["invasion_control"] = map[string]interface{}{"enabled": false}

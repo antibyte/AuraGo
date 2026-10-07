@@ -186,6 +186,7 @@ CREATE INDEX IF NOT EXISTS idx_memory_meta_status_source ON memory_meta(source_t
 		session_id TEXT DEFAULT 'default',
 		role TEXT,
 		content TEXT,
+		is_internal BOOLEAN,
 		original_timestamp DATETIME,
 		archived_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		consolidated BOOLEAN DEFAULT 0,
@@ -652,6 +653,7 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_last_error", "TEXT DEFAULT ''"))
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "next_retry_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"))
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_claimed_at", "DATETIME"))
+	errs = append(errs, migrateArchivedMessageInternalOrigin(db, logger))
 
 	// Reset stale in_progress rows back to pending (crash recovery from a previous
 	// consolidation run that was interrupted before completing).
@@ -676,7 +678,7 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 
 	joinedErr := errors.Join(errs...)
 	if joinedErr == nil {
-		const shortTermSchemaVersion = 10
+		const shortTermSchemaVersion = 11
 		var currentVer int
 		if err := db.QueryRow("PRAGMA user_version").Scan(&currentVer); err != nil {
 			logger.Warn("Failed to read schema version", "error", err)
@@ -717,6 +719,28 @@ func execChunkedArchivedMessagesUpdate(db *sql.DB, label, setClause, whereClause
 			return nil
 		}
 	}
+}
+
+func migrateArchivedMessageInternalOrigin(db *sql.DB, logger *slog.Logger) error {
+	var hasColumn bool
+	if err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM pragma_table_info('archived_messages') WHERE name = 'is_internal')`).Scan(&hasColumn); err != nil {
+		return fmt.Errorf("inspect archived message origin column: %w", err)
+	}
+	if hasColumn {
+		return nil
+	}
+	var hasRows bool
+	if err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM archived_messages)`).Scan(&hasRows); err != nil {
+		return fmt.Errorf("inspect archived messages before origin migration: %w", err)
+	}
+	if hasRows {
+		backup, err := backupMainDatabase(db, "archived-message-origin-v1")
+		if err != nil {
+			return fmt.Errorf("back up archived messages before origin migration: %w", err)
+		}
+		logger.Info("Backed up archived messages before origin migration", "path", backup)
+	}
+	return migrateAddColumn(db, logger, "archived_messages", "is_internal", "BOOLEAN")
 }
 
 func migrateAddColumn(db *sql.DB, logger *slog.Logger, table, column, definition string) error {

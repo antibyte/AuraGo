@@ -33,6 +33,10 @@ var blockedSecretPrefixes = []string{
 	"credential_session_",
 	"credential_bearer_",
 	"sqlconn_",
+	"sql_",
+	"cloudflared_",
+	"cloudflare_",
+	"three_d_printer_klipper_",
 	"cloudflare_tunnel_",
 	"s3_",
 	"telnyx_",
@@ -53,6 +57,7 @@ var blockedSecretPrefixes = []string{
 	"evomap_",
 	"huggingface_",
 	"desktop_store_",
+	"proxy_basic_auth_",
 	"virtual_computers_",
 	"oauth_",
 	"mcp_secret_",
@@ -132,7 +137,7 @@ var blockedSecretExact = map[string]struct{}{
 // must additionally verify Vault provenance; only model-created values may be
 // injected into agent-authored code.
 func IsPythonAccessibleSecret(key string) bool {
-	lower := strings.ToLower(key)
+	lower := strings.ToLower(strings.TrimSpace(key))
 	if _, ok := blockedSecretExact[lower]; ok {
 		return false
 	}

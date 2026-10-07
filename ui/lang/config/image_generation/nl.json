@@ -19,7 +19,7 @@
   "config.image_generation.max_monthly_label": "Max. afbeeldingen per maand",
   "config.image_generation.max_monthly_hint": "0 = onbeperkt",
   "config.image_generation.test_title": "Testgeneratie",
-  "config.image_generation.test_desc": "Genereer een testimage om de connectiviteit van de provider te verifiëren.",
+  "config.image_generation.test_desc": "Genereer een testafbeelding om de connectiviteit van de provider te verifiëren.",
   "config.image_generation.test_btn": "Testgeneratie",
   "config.image_generation.testing": "Genereren...",
   "config.image_generation.test_success": "Afbeelding succesvol gegenereerd",

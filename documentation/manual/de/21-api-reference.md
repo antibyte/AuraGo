@@ -714,6 +714,8 @@ GET /api/missions/v2/dependencies
 
 ## Container API
 
+Bei aktivierter Anmeldung erfordern alle Container-Routen eine Browser-Sitzung oder ein API-Token mit dem Scope `admin`.
+
 ### Container auflisten
 ```http
 GET /api/containers
@@ -722,7 +724,11 @@ GET /api/containers
 **Antwort:**
 ```json
 {
-  "containers": []
+  "status": "ok",
+  "count": 1,
+  "containers": [
+    {"id": "0123456789ab", "names": ["/aurago"], "image": "ghcr.io/antibyte/aurago:latest", "state": "running", "status": "Up 2 hours", "protected_owner": "aurago-app", "self": true}
+  ]
 }
 ```
 
@@ -733,8 +739,18 @@ POST /api/containers/{id}/stop
 POST /api/containers/{id}/restart
 POST /api/containers/{id}/pause
 POST /api/containers/{id}/unpause
+GET /api/containers/{id}/protection
 DELETE /api/containers/{id}
 ```
+
+### Geschützte Container
+`GET /api/containers` markiert Container, die AuraGo verwaltet (`protected_owner`: `aurago-app`, `acestep`, `homepage`, `go2rtc`, `local-llm`, `boring-garage`, `security-proxy`), den Container, in dem AuraGo läuft (`self: true`), und den Container, über den AuraGo Docker erreicht (`docker_endpoint: true`). Teilt AuraGo den Netzwerk-Namespace eines anderen Containers (`network_mode: service:…` oder `container:…`, zum Beispiel ein Tailscale- oder Gluetun-Sidecar), kann AuraGo den eigenen Container nicht von diesem Anbieter unterscheiden; beide werden dann statt `self` mit `shared_network: true` markiert. Das gilt auch, wenn ein anderer Container dem Netzwerk-Namespace von AuraGo selbst beitritt, und für alle Container, die sich einen Anbieter teilen.
+
+Für diese Container antworten `GET /api/containers/{id}/terminal` (WebSocket), `POST /api/containers/{id}/update` und `DELETE /api/containers/{id}` mit HTTP 409 und `code: "container_protected_confirmation_required"`, solange die Anfrage nicht `confirm=protected` enthält. Das Feld `owner` nennt den Grund (`self`, `docker-endpoint`, `shared-network`, den verwaltenden Besitzer oder `unverified`). Das gilt auch, wenn Docker die Eigentümerprüfung nicht beantwortet (`owner: "unverified"`). Lässt sich der Host des Docker-Endpunkts nicht auflösen, erkennt AuraGo den Endpunkt-Container an der Adresse seiner offenen Docker-Verbindung, aber nur, wenn ein gelisteter Container diese Adresse hat. Sonst gilt das Ziel als `unverified`: wenn keine TCP-Verbindung beobachtet wurde, die Adresse eine Loopback- oder Host-Adresse ist (ein Proxy hinter einem veröffentlichten Port bleibt unbekannt), das Ziel dem Netzwerk-Namespace des verbundenen Containers beitritt (es kann der Prozess sein, der den Port bedient), das Ziel den Compose-Dienstnamen des verbundenen Containers trägt (in einem beliebigen Projekt) oder einer der Namen, Aliasse oder DNS-Namen des Ziels dem Hostnamen von `docker.host` entspricht. `POST /api/containers/{id}/update` auf den AuraGo-Container selbst oder den Docker-Endpunkt-Container antwortet immer mit HTTP 409 und `code: "container_self_update_unsupported"`: Das Update würde AuraGo oder seine Docker-Verbindung stoppen, bevor der Ersatz existiert. Aktualisiere diese Container mit `docker compose pull && docker compose up -d` auf dem Docker-Host. Unter Podman kann AuraGo den eigenen Container nicht erkennen; der App-Container braucht dann nur die Bestätigung (über seinen reservierten Namen oder sein Owner-Label). Start, Stopp, Neustart, Pause, Fortsetzen (`unpause`), Logs, Inspect und Statistiken brauchen keine Bestätigung.
+
+Eine Terminal-Anfrage ohne WebSocket-Upgrade antwortet mit HTTP 400, bevor eine Shell startet. `GET /api/containers/{id}/protection` liefert die Einstufung, ohne eine Shell zu öffnen: `owner` (der Grund, leer ohne Schutz), `protected`, `update_unsupported`, `read_only` und bei geschützten Containern die `message` der 409-Antwort. Browser können die HTTP-Antwort eines abgelehnten WebSocket-Handshakes nicht lesen; die Containers-Seite fragt deshalb diese Route und bietet danach die Bestätigung an. Auf einem offenen Terminal-WebSocket beendet die Textnachricht `{"type":"end"}` die Shell: AuraGo sendet SIGHUP an den eigenen Prozess des Exec, den es an der Variable `AURAGO_TERMINAL_SESSION` dieser Sitzung erkennt. Programme, die sich von der Shell gelöst haben, etwa ein tmux- oder screen-Server, laufen weiter. Das Schließen des WebSockets beendet die Shell nicht. Mit dem Storage-Treiber overlay2 erkennt AuraGo den eigenen Container auch hinter einem Netzwerk-Sidecar: Das Overlay-Upper-Verzeichnis seines Root-Dateisystems (`/proc/self/mountinfo`) stimmt mit `GraphDriver.Data.UpperDir` dieses Containers überein. Der containerd-Image-Store (Standard bei neuen Docker-29-Installationen) meldet dieses Verzeichnis nicht. Dort nutzt AuraGo stattdessen eine Markierungsdatei: Beim Start schreibt es eine Datei mit zufälligem Namen in seine eigene beschreibbare Schicht (etwa `/tmp/.aurago-self-<zufällig>`, nie in ein Volume, einen Bind-Mount oder ein tmpfs) und fragt Docker, welcher Container der gemeinsamen Netzwerkgruppe sie enthält (`HEAD /containers/{id}/archive`, das ein Docker-Socket-Proxy erlauben muss). Genau ein Treffer belegt den Container, in dem AuraGo läuft. Ein auf einem der beiden Wege belegter Container ist `self`, und sein Update wird abgelehnt. Ohne Beleg (kein beschreibbares Verzeichnis in der eigenen Schicht des Containers, eine Docker-Antwort außer 200 oder 404 oder mehrere Treffer) wird ein Container mit `shared_network` (und ohne `docker_endpoint`) beim Update nie abgelehnt, sondern nur bestätigt, auch wenn es der AuraGo-Container ist, und dieses Update stoppt AuraGo.
+
+Ein Fehler von Docker oder der Docker-Werkzeugschicht antwortet mit HTTP 502 und unverändertem JSON-Body (`status: "error"`, `message`). `503` bedeutet weiterhin, dass Docker deaktiviert ist, `403`, dass Docker schreibgeschützt ist.
 
 ### Runtime-Informationen
 ```http
@@ -1704,7 +1720,7 @@ POST /api/proxy/reload
 GET /api/proxy/logs
 ```
 
-Die Security Proxy API steuert die verwaltete Caddy-Schutzschicht für Rate-Limiting, TLS-Terminierung, IP-Filter, Geo-Blocking und öffentliche Härtung.
+Die Security Proxy API steuert die verwaltete Caddy-Schutzschicht vor AuraGo: TLS-Terminierung, Ratenbegrenzung, IP-Filter und Basic Auth. Geo-Blocking ist noch nicht umgesetzt.
 
 ---
 
@@ -2779,3 +2795,7 @@ Die API verwendet standard HTTP-Statuscodes:
 - [Chat-Commands](20-chat-commands.md) – Alternative API via Chat
 - [Mission Control](11-missions.md) – Automatisierung
 - [Sicherheit](14-sicherheit.md) – Authentifizierung & Vault
+
+## Desktop-Workspace-API
+
+Im [Desktop-HTTP- und SDK-Vertrag](../../desktop-api.md) findest Du die Regeln für Schreibschutz, Berechtigungen, versionierte Dateizugriffe, Konfliktabfragen, Archivvorschauen und Sitzungskompatibilität.

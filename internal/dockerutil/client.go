@@ -33,7 +33,7 @@ func NewClient(host string, timeout time.Duration) *Client {
 	return &Client{
 		host: host,
 		httpClient: &http.Client{
-			Transport: transport,
+			Transport: NewVersionTransport(transport),
 			Timeout:   timeout,
 		},
 	}
@@ -45,6 +45,11 @@ func Endpoint(path string) string {
 }
 
 // DoJSON sends a Docker Engine request and optionally decodes its JSON body.
+// The returned status is 0 when no HTTP response arrived: request building,
+// transport and API-version negotiation failures return 0 with an error. A
+// non-2xx answer returns the real status code with an error carrying the
+// Engine's message, so callers classify Docker answers (404 gone, 304 not
+// modified, 409 conflict) by code and never by matching error text.
 func (c *Client) DoJSON(ctx context.Context, method, path string, requestBody, responseBody any) (int, error) {
 	var body io.Reader
 	if requestBody != nil {
@@ -69,7 +74,7 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, requestBody, r
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return resp.StatusCode, fmt.Errorf("Docker API returned %d: %s", resp.StatusCode, sanitizeDockerError(detail))
+		return resp.StatusCode, fmt.Errorf("Docker API returned %d: %s", resp.StatusCode, SanitizeOneLine(string(detail), 512))
 	}
 	if responseBody != nil {
 		if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(responseBody); err != nil && err != io.EOF {
@@ -113,12 +118,4 @@ func (c *Client) CloseIdleConnections() {
 	if c != nil && c.httpClient != nil {
 		c.httpClient.CloseIdleConnections()
 	}
-}
-
-func sanitizeDockerError(value []byte) string {
-	text := strings.TrimSpace(string(value))
-	if len(text) > 512 {
-		text = text[:512]
-	}
-	return text
 }

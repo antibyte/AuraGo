@@ -17,7 +17,7 @@ Management of Netlify sites, deployments, environment variables, forms, notifica
 | `rollback` | Restore a previous deploy |
 | `cancel_deploy` | Cancel a pending/in-progress deploy |
 | `list_env` | List environment variables for a site |
-| `get_env` | Get a specific env var details |
+| `get_env` | Get variable metadata only (key, scopes, timestamp, value count); secret values are never returned |
 | `set_env` | Create or update an environment variable |
 | `delete_env` | Delete an environment variable |
 | `list_files` | List files in the production deploy |

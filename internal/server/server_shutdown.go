@@ -14,6 +14,24 @@ func (s *Server) closeRuntimeResources() {
 	if s == nil {
 		return
 	}
+	s.stopRocketChatBot()
+	s.stopHomeAssistantPoller()
+	s.stopFritzPoller()
+	s.stopUptimeKumaPoller()
+	if s.EmailWatcher != nil {
+		s.EmailWatcher.Stop()
+		s.EmailWatcher = nil
+	}
+	s.fritzWidgetMu.Lock()
+	widget := s.fritzWidget
+	s.fritzWidgetMu.Unlock()
+	if widget != nil {
+		widget.close()
+	}
+	if s.MissionManagerV2 != nil {
+		s.MissionManagerV2.Stop()
+	}
+	s.missionRunTracker().close()
 
 	if manager := currentVaultSecretPrompter(s); manager != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
@@ -31,6 +49,10 @@ func (s *Server) closeRuntimeResources() {
 			s.Logger.Warn("Failed to close workspace search service", "error", err)
 		}
 		s.WorkspaceSearch = nil
+	}
+
+	if s.RemoteHub != nil {
+		s.RemoteHub.SetEnabled(false)
 	}
 
 	if s.SQLConnectionPool != nil {

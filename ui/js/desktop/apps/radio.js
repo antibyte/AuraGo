@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const API_BASE = '/api/radio-browser';
+    const API_BASE = '/api/desktop/integrations/radio-browser';
     const FAVORITES_KEY = 'aurago.radio.favorites.v1';
     const SEARCH_DELAY = 300;
     const MAX_FAVORITES = 50;
@@ -22,8 +22,8 @@
         const t = ctx.t || ((key, fallback) => fallback || key);
         const radioIcon = (key, cls = '') => `<img class="radio-icon ${cls}" src="/img/papirus/icons/${key}.svg" alt="" draggable="false">`;
         const audio = new Audio();
+        const mediaOwner = {};
         audio.preload = 'none';
-        audio.crossOrigin = 'anonymous';
 
         const state = {
             activeCategory: 'pop',
@@ -308,7 +308,7 @@
                 await audio.play();
                 if (disposed || revision !== playbackRevision) return;
                 state.playing = true;
-                updateMediaSession(station, t);
+                updateMediaSession(station, t, mediaOwner, { play: resumePlayback, pause: () => audio.pause(), stop: stopPlayback });
             } catch (_) {
                 if (disposed || revision !== playbackRevision) return;
                 state.playing = false;
@@ -380,6 +380,7 @@
         }
 
         function stopPlayback() {
+            window.AuraDesktopMediaSession?.release(mediaOwner);
             playbackRevision++;
             if (streamRequest) streamRequest.abort();
             audio.pause();
@@ -447,22 +448,7 @@
             if (catalogRequest) catalogRequest.abort();
             listeners.abort();
             stopPlayback();
-            if ('mediaSession' in navigator) {
-                try {
-                    ['play', 'pause', 'stop'].forEach(action => navigator.mediaSession.setActionHandler(action, null));
-                    navigator.mediaSession.metadata = null;
-                } catch (_) {}
-            }
         });
-        if ('mediaSession' in navigator) {
-            try {
-                navigator.mediaSession.setActionHandler('play', () => {
-                    resumePlayback();
-                });
-                navigator.mediaSession.setActionHandler('pause', () => audio.pause());
-                navigator.mediaSession.setActionHandler('stop', stopPlayback);
-            } catch (_) {}
-        }
 
         function updateTuner(scroll = false) {
             selectedIndex = Math.max(0, Math.min(selectedIndex, state.stations.length - 1));
@@ -590,16 +576,16 @@
         } catch (_) {}
     }
 
-    function updateMediaSession(station, t) {
+    function updateMediaSession(station, t, owner, handlers) {
         if (!('mediaSession' in navigator) || !station) return;
         const translate = typeof t === 'function' ? t : (key => key);
         try {
-            navigator.mediaSession.metadata = new MediaMetadata({
+            window.AuraDesktopMediaSession?.claim(owner, { priority: 10, activate: true, handlers, metadata: {
                 title: station.name || translate('desktop.app_radio'),
                 artist: station.countrycode || '',
                 album: translate('desktop.radio_album'),
                 artwork: station.favicon ? [{ src: station.favicon, sizes: '96x96', type: 'image/png' }] : []
-            });
+            } });
         } catch (_) {}
     }
 

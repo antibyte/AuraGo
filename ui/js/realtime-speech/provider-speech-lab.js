@@ -92,7 +92,7 @@
                 const form = new FormData();
                 form.append('audio', wav, 'speech.wav');
                 const sessionId = this.session && this.session.session_id;
-                const response = await fetch('/api/realtime-speech/transcribe?session_id=' + encodeURIComponent(sessionId || ''), {
+                const response = await Common.apiFetch('/api/realtime-speech/transcribe?session_id=' + encodeURIComponent(sessionId || ''), {
                     method: 'POST',
                     credentials: 'same-origin',
                     cache: 'no-store',
@@ -178,7 +178,7 @@
         async speak(text) {
             this.interruptOutput();
             const sessionId = this.session && this.session.session_id;
-            const response = await fetch('/api/realtime-speech/synthesize', {
+            const response = await Common.apiFetch('/api/realtime-speech/synthesize', {
                 method: 'POST',
                 credentials: 'same-origin',
                 cache: 'no-store',

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -437,11 +438,33 @@ func TestDaemonRunner_LogRotation(t *testing.T) {
 	}
 	// Write 6MB to exceed the 5MB threshold
 	for i := 0; i < 6*1024; i++ {
-		fmt.Fprintln(f, bigLine)
+		if _, err := fmt.Fprintln(f, bigLine); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 
-	sizeBefore, _ := os.Stat(logPath)
+	sizeBefore, err := os.Stat(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Windows readers can temporarily prevent replacement (for example, log viewers).
+	if runtime.GOOS == "windows" {
+		reader, err := os.Open(logPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { reader.Close() })
+		readerClosed := make(chan struct{})
+		time.AfterFunc(60*time.Millisecond, func() {
+			reader.Close()
+			close(readerClosed)
+		})
+		t.Cleanup(func() { <-readerClosed })
+	}
 
 	// This append should trigger rotation
 	runner.appendDaemonLog("after rotation")

@@ -2,6 +2,17 @@
     'use strict';
 
     const STORAGE_KEY = 'aurago.desktop.terminal.style';
+    const EFFECTS_KEY = 'aurago.desktop.terminal.effects.v1';
+    // Store percentages per style; scale converts controls to shader units.
+    const EFFECTS = [
+        { key: 'intensity', value: 100 }, { key: 'brightness', value: 100, min: 50, max: 150 },
+        { key: 'bloom' }, { key: 'scan' }, { key: 'curve', scale: 0.22, advanced: true },
+        { key: 'burn', advanced: true }, { key: 'mask', advanced: true },
+        { key: 'vignette', value: 48 }, { key: 'reflection', value: 16 },
+        { key: 'noise', scale: 0.25, advanced: true }, { key: 'flicker', scale: 0.06, advanced: true },
+        { key: 'jitter', value: 0, advanced: true }, { key: 'interference', value: 0, advanced: true },
+        { key: 'chromatic', value: 0, advanced: true }
+    ];
     const IDS = [
         'modern', 'amber', 'green', 'apple2', 'commodore64',
         'ibm3278', 'vintage', 'mono-green', 'transparent-green'
@@ -116,8 +127,52 @@
         return next;
     }
 
-    function profile(id) {
-        return PROFILES[normalize(id)] || PROFILES.modern;
+    function normalizeEffects(id, values) {
+        const base = PROFILES[normalize(id)].crt;
+        const result = {};
+        EFFECTS.forEach(function (effect) {
+            const value = values && Object.prototype.hasOwnProperty.call(values, effect.key) ? values[effect.key] : undefined;
+            const fallback = effect.value === undefined ? Math.round(base[effect.key] / (effect.scale || 1) * 100) : effect.value;
+            result[effect.key] = typeof value === 'number' && Number.isFinite(value)
+                ? Math.round(Math.max(effect.min || 0, Math.min(effect.max || 100, value))) : fallback;
+        });
+        return result;
+    }
+
+    function readEffects() {
+        try {
+            const saved = JSON.parse(window.localStorage.getItem(EFFECTS_KEY));
+            if (saved && typeof saved === 'object' && !Array.isArray(saved)) return saved;
+        } catch (_) {}
+        return {};
+    }
+
+    function loadEffects(id) {
+        return normalizeEffects(id, readEffects()[normalize(id)]);
+    }
+
+    function saveEffects(id, values) {
+        const next = normalizeEffects(id, values);
+        const saved = readEffects();
+        const clean = {};
+        IDS.forEach(function (style) {
+            if (Object.prototype.hasOwnProperty.call(saved, style)) clean[style] = normalizeEffects(style, saved[style]);
+        });
+        clean[normalize(id)] = next;
+        try { window.localStorage.setItem(EFFECTS_KEY, JSON.stringify(clean)); } catch (_) {}
+        return next;
+    }
+
+    function resetEffects(id) {
+        return saveEffects(id, null);
+    }
+
+    function profile(id, effects) {
+        const base = PROFILES[normalize(id)];
+        const values = effects ? normalizeEffects(id, effects) : loadEffects(id);
+        const crt = Object.assign({}, base.crt);
+        EFFECTS.forEach(function (effect) { crt[effect.key] = values[effect.key] / 100 * (effect.scale || 1); });
+        return Object.assign({}, base, { crt: crt });
     }
 
     function applyXterm(term, nextProfile) {
@@ -136,6 +191,10 @@
         normalize: normalize,
         load: load,
         save: save,
+        effectControls: EFFECTS,
+        loadEffects: loadEffects,
+        saveEffects: saveEffects,
+        resetEffects: resetEffects,
         profile: profile,
         applyXterm: applyXterm
     };

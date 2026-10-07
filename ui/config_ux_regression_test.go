@@ -214,8 +214,6 @@ func TestConfigUXGuardianFieldsHaveExplanations(t *testing.T) {
 		"policy_help",
 		"taint_enabled_help",
 		"taint_level_help",
-		"structure_enabled_help",
-		"structure_mode_help",
 		"llm_judge_enabled_help",
 		"llm_judge_mode_help",
 		"llm_judge_timeout_help",
@@ -228,6 +226,16 @@ func TestConfigUXGuardianFieldsHaveExplanations(t *testing.T) {
 		for _, locale := range locales {
 			if strings.TrimSpace(translations[locale][marker]) == "" {
 				t.Fatalf("guardian %s locale missing field explanation %q", locale, marker)
+			}
+		}
+	}
+	if strings.Contains(guardianJS, "guardian.promptsec.structure") {
+		t.Fatal("guardian.js must not expose retired prompt structure settings")
+	}
+	for _, locale := range locales {
+		for key := range translations[locale] {
+			if strings.HasPrefix(key, "config.guardian.structure_") {
+				t.Fatalf("guardian %s locale retains retired key %q", locale, key)
 			}
 		}
 	}

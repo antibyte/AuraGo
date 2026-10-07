@@ -200,6 +200,15 @@ All potentially dangerous operations are gated via config:
 ### Sensitive Data Scrubbing
 Use `security.RegisterSensitive(value)` to prevent values from appearing in logs or LLM outputs.
 
+Register credentials before the first network call, including SDK constructors.
+The shared logger scrubs messages, bound attributes and nested errors. Telegram
+text delivery splits at its UTF-16 limit without cutting a Unicode code point.
+AgentMail retries only GET/HEAD automatically; uncertain mutations are never
+replayed. Its relay completes initial seeding before forwarding, deduplicates an
+accepted notification independently of label updates, and drains on shutdown.
+Web Push retains subscriptions on transient errors and counts only 2xx delivery;
+only 404/410 removes a subscription.
+
 ### Agent Reports & Analysis Files
 
 Keep analysis reports, logs, and files that may contain sensitive data under ignored `reports/`, never `documentation/`; do not commit them. Never stage master keys, Vault secrets, API keys, tokens, passwords, credentials, sensitive logs, memory dumps, or conversation history.
@@ -249,8 +258,11 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Feature contracts | Canonical child DOX |
 | --- | --- |
 | Shared file replacement | `internal/fileutil/AGENTS.md` |
+| Quick Connect serial and shared MeshCore port ownership | `internal/desktop/AGENTS.md`, `internal/meshcore/AGENTS.md`, `internal/serialutil/AGENTS.md` |
+| Docker Engine transport and version negotiation | `internal/dockerutil/AGENTS.md` |
 | Desktop rooted files and archives | `internal/desktop/AGENTS.md` |
 | Security primitives, Vault import grants and Cast tickets | `internal/security/AGENTS.md` |
+| Invasion worker protocol and deployment | `internal/invasion/AGENTS.md` |
 | Remote enrollment and connection lifecycle | `internal/remote/AGENTS.md` |
 | LLM transport trust and failover | `internal/llm/AGENTS.md` |
 | HTTP stream write budgets | `internal/httpstream/AGENTS.md` |
@@ -268,10 +280,12 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Local Network Share Integration Contract | `internal/networkshares/AGENTS.md` |
 | Desktop Workbook Contract; Desktop Office Document Contract | `internal/office/AGENTS.md` |
 | Operational Issue Notification Contract | `internal/planner/AGENTS.md` |
+| Security proxy Caddyfile, images and container placement | `internal/proxy/AGENTS.md` |
 | Default Speech Output Contract | `internal/sanotts/AGENTS.md` |
 | System World Tower Voice; 3D Printer Integration Contract; go2rtc Integration Contract; AI Gateway Contract; here.now Integration Contract; GitHub Integration Contract; Homepage Managed Website Ledger; Configuration UI Integration Test Contract | `internal/server/AGENTS.md` |
 | Workspace Search System | `internal/services/AGENTS.md` |
 | Native SIP Telephony Contract | `internal/sipphone/AGENTS.md` |
+| External SQL permissions and managed SQLite imports | `internal/sqlconnections/AGENTS.md` |
 | Update artifact retention contract | `internal/upkeep/AGENTS.md` |
 | Speech Lab Integration Contract | `internal/speechlab/AGENTS.md` |
 | Desktop Tresor Storage Contract | `internal/tresor/AGENTS.md` |
@@ -294,6 +308,13 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
    with the exporter. `--check` is read-only for the committed training pack.
    Preserve paired German/English direct coverage for every operation and
    selector-free tool when the catalog changes.
+   Keep curated arguments sparse. The exporter uses the original argument schema
+   to add optional null placeholders to Strict wire calls on a copy; it never
+   invents required values. Catalogs retain both schemas for independent Python
+   validation and semantic evaluation. Operation required/excluded fields apply
+   to semantic arguments, not synthetic placeholders; domain-null values remain
+   meaningful. Preserve manifests when only the schema projection changes and
+   update their schema hash explicitly instead of bootstrapping them again.
 
 ### Adding a New Integration
 1. Create package in `internal/your_integration/`
@@ -408,7 +429,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 ### Deployment & Maintenance
 
 - Treat `config.yaml` changes carefully. Keep update/install scripts and Dockerfiles aligned with system changes, including new installation needs. AuraGo manages its Docker containers; do not assume users will manage them.
-- The default Compose Docker socket proxy keeps `BUILD=0`; managed Code Studio and sidecars use published images with `IMAGES=1` and `POST=1` instead of build access.
+- The default Compose Docker socket proxy keeps `BUILD=0`: Code Studio and most managed sidecars pull published images with `IMAGES=1` and `POST=1`. Images AuraGo builds through the Engine API (the Homepage dev image on first use, the CommandCode fallback build, local Code Studio runtime images, the security proxy's rate-limit Caddy image) need `BUILD=1` or must already exist on the host (`aurago --print-homepage-dockerfile` prints the Homepage Dockerfile for a host-side build); see `documentation/docker_installation.md` §4. Do not flip the default to `BUILD=1` without an explicit decision.
 - For production releases use `make_deploy.sh` (Linux/macOS) or `make_release.bat`/`make_release.ps1` (Windows), not ad-hoc build commands. These scripts do not upload to a test server.
 - Register Vault secrets used by new tools/integrations in the denylist for Python-tool export; protect them from the agent environment.
 
@@ -573,9 +594,11 @@ Current child AGENTS.md files:
 - `internal/desktop/AGENTS.md` — Rooted Desktop file/archive operations; owns the pets-assets child index.
 - `internal/desktopstore/AGENTS.md` — Store app configuration, runtime, assets, and publication.
 - `internal/detective/AGENTS.md` — Isolated Desktop research cases, evidence, budgets, revisions and exports.
+- `internal/dockerutil/AGENTS.md` — Engine transport, API negotiation, mutation retry and streaming cancellation boundaries.
 - `internal/fritzbox/AGENTS.md` — TR-064 integration and Desktop widget behavior.
 - `internal/gamemaker/AGENTS.md` — Game planning, runtime feedback/progression, lifecycle, validation and exports; owns the asset-pack child index.
 - `internal/httpstream/AGENTS.md` — Finite stream write budgets and HTTP writer compatibility.
+- `internal/invasion/AGENTS.md` — Egg/nest authentication, connection generations, key rotation and private deployment.
 - `internal/llm/AGENTS.md` — Provider transport trust, URL logging and failover state.
 - `internal/localllm/AGENTS.md` — Local model lifecycle, routing, attestation, and qualification.
 - `internal/memory/AGENTS.md` — Memory retrieval, hygiene, indexing, and maintenance.
@@ -586,10 +609,12 @@ Current child AGENTS.md files:
 - `internal/office/AGENTS.md` — Workbook and document preservation, editing, and assist.
 - `internal/personalradio/AGENTS.md` — Personal stations, durable audio library, rotation, news, provider quotas and desktop playback contracts.
 - `internal/planner/AGENTS.md` — Issue lifecycle, notification, and background retry policy.
+- `internal/proxy/AGENTS.md` — Managed Caddy security proxy: Vault Basic Auth, rate-limit image, Docker placement and reload.
 - `internal/rtlsdr/AGENTS.md` — Optional receive-only RTL-SDR runtime, schedules, leases, recordings and ASR.
 - `internal/remote/AGENTS.md` — Remote enrollment, socket ownership and command/result lifecycle.
 - `internal/sanotts/AGENTS.md` — Pinned local CPU speech runtime, voice selection, licenses and synthesis checks.
 - `internal/server/AGENTS.md` — Server-owned HTTP and cross-component integration contracts.
+- `internal/serialutil/AGENTS.md` — Shared serial enumeration, canonical device reservations and cancellation-safe port leases.
 - `internal/security/AGENTS.md` — Vault/token persistence, public URL trust, Guardian caching and Cast tickets.
 - `internal/services/AGENTS.md` — Background services and workspace search.
 - `internal/sipphone/AGENTS.md` — Native telephone registration, calls, media, and agent policy.

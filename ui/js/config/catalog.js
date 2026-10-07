@@ -118,7 +118,7 @@
             skill_manager: ['tools.skill_manager', 'tools.python_tool_bridge'],
             daemon_skills: ['tools.daemon_skills'],
             output_compression: ['agent.output_compression'],
-            danger_zone: ['agent.allow_shell', 'agent.allow_python', 'agent.allow_filesystem_write', 'agent.allow_network_requests', 'agent.allow_remote_shell', 'agent.allow_self_update', 'agent.allow_package_manager', 'agent.allow_mcp', 'agent.sudo_enabled']
+            danger_zone: ['agent.allow_shell', 'agent.allow_python', 'agent.allow_filesystem_write', 'agent.allow_network_requests', 'agent.allow_remote_shell', 'agent.allow_self_update', 'agent.allow_package_manager', 'agent.allow_mcp', 'agent.sudo_enabled', 'docker.allow_host_access']
         }),
         // Only explicitly reviewed tuning fields may be collapsed. Unknown fields stay visible.
         sectionTiers: Object.freeze({

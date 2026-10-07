@@ -146,6 +146,8 @@ func TestConnectionPool_CloseConnection(t *testing.T) {
 	// Close non-existent connection should not panic
 	pool.CloseConnection("nonexistent")
 
+	importFixture(t, pool, id)
+
 	// Get connection (this opens it)
 	db, err := pool.GetConnection(id)
 	if err != nil {
@@ -176,6 +178,8 @@ func TestConnectionPool_CloseAll(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
+	importFixture(t, pool, id)
+
 	// Get connection (this opens it)
 	_, err = pool.GetConnection(id)
 	if err != nil {
@@ -203,6 +207,9 @@ func TestConnectionPool_GetConnection_RateLimit(t *testing.T) {
 		true, false, false, false, "", "")
 	id2, _ := Create(poolMetaDB, "conn2", "sqlite", "", 0, t.TempDir()+"/test2.db", "test2",
 		true, false, false, false, "", "")
+
+	importFixture(t, pool, id1)
+	importFixture(t, pool, id2)
 
 	// Set a rate limit of 1 second
 	pool.SetRateLimit(1)
@@ -234,6 +241,9 @@ func TestConnectionPool_MaxConnsLimit(t *testing.T) {
 		true, false, false, false, "", "")
 	id2, _ := Create(poolMetaDB, "conn2", "sqlite", "", 0, t.TempDir()+"/test2.db", "test2",
 		true, false, false, false, "", "")
+
+	importFixture(t, pool, id1)
+	importFixture(t, pool, id2)
 
 	// Get first connection
 	_, err = pool.GetConnection(id1)
@@ -305,7 +315,7 @@ func TestBuildDSN(t *testing.T) {
 				Driver:       "sqlite",
 				DatabaseName: "/tmp/test.db",
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "unsupported driver",

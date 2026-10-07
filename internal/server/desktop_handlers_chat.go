@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/agent"
 	"aurago/internal/commands"
@@ -56,6 +57,9 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 		}
 		unlockSession := lockSessionRequest(desktopChatSessionID)
 		defer unlockSession()
+		if !checkDesktopOperation(s, w, r, desktopExecute) {
+			return
+		}
 		if answer, handled, err := handleDesktopSlashCommand(s, body.Message); handled {
 			if err != nil {
 				if s.Logger != nil {
@@ -114,6 +118,9 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 
 		unlockSession := lockSessionRequest(desktopChatSessionID)
 		defer unlockSession()
+		if !checkDesktopOperation(s, w, r, desktopExecute) {
+			return
+		}
 		if answer, handled, err := handleDesktopSlashCommand(s, body.Message); handled {
 			if err != nil {
 				sseWriteData(w, "error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))
@@ -149,6 +156,7 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			defer close(done)
 			sseBroker := NewSSEBrokerAdapterWithSession(s.SSE, desktopChatSessionID)
 			combinedBroker := &desktopStreamCombinedBroker{
+				ctx:          llmCtx,
 				stream:       broker,
 				sse:          sseBroker,
 				shortTermMem: s.ShortTermMem,
@@ -217,6 +225,7 @@ func (b *desktopStreamBroker) sendHeartbeat() bool {
 }
 
 type desktopStreamCombinedBroker struct {
+	ctx            context.Context
 	stream         *desktopStreamBroker
 	sse            *SSEBrokerAdapter
 	shortTermMem   *memory.SQLiteMemory
@@ -225,6 +234,9 @@ type desktopStreamCombinedBroker struct {
 }
 
 func (b *desktopStreamCombinedBroker) Send(event, message string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.Send(event, message)
 	b.stream.mu.Lock()
 	if b.stream.closed {
@@ -253,6 +265,9 @@ func (b *desktopStreamCombinedBroker) Send(event, message string) {
 }
 
 func (b *desktopStreamCombinedBroker) SendJSON(jsonStr string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.SendJSON(jsonStr)
 	b.stream.mu.Lock()
 	if b.stream.closed {
@@ -273,6 +288,9 @@ func (b *desktopStreamCombinedBroker) SendTyped(eventType string, payload interf
 
 func (b *desktopStreamCombinedBroker) SendTypedWithTransport(eventType string, payload interface{}) (bool, string) {
 	if b == nil || strings.TrimSpace(eventType) == "" {
+		return false, "pending"
+	}
+	if b.ctx != nil && b.ctx.Err() != nil {
 		return false, "pending"
 	}
 	sessionID := strings.TrimSpace(b.sessionID)
@@ -307,6 +325,9 @@ func (b *desktopStreamCombinedBroker) SendTypedWithTransport(eventType string, p
 }
 
 func (b *desktopStreamCombinedBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.SendLLMStreamDelta(content, toolName, toolID, index, finishReason)
 	b.stream.mu.Lock()
 	if b.stream.closed {
@@ -333,6 +354,9 @@ func (b *desktopStreamCombinedBroker) SendLLMStreamDelta(content, toolName, tool
 }
 
 func (b *desktopStreamCombinedBroker) SendLLMStreamDone(finishReason string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.SendLLMStreamDone(finishReason)
 	b.stream.mu.Lock()
 	if b.stream.closed {
@@ -352,6 +376,9 @@ func (b *desktopStreamCombinedBroker) SendLLMStreamDone(finishReason string) {
 }
 
 func (b *desktopStreamCombinedBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal, isEstimated, isFinal, source)
 	b.stream.mu.Lock()
 	if b.stream.closed {
@@ -378,6 +405,9 @@ func (b *desktopStreamCombinedBroker) SendTokenUpdate(prompt, completion, total,
 }
 
 func (b *desktopStreamCombinedBroker) SendThinkingBlock(provider, content, state string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.SendThinkingBlock(provider, content, state)
 	b.stream.mu.Lock()
 	if b.stream.closed {
@@ -506,7 +536,7 @@ func applyDesktopAgentProvider(ctx context.Context, s *Server, cfg *config.Confi
 	if strings.TrimSpace(provider.Model) != "" {
 		cfg.LLM.Model = provider.Model
 	}
-	return llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
+	return llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID))
 }
 
 func desktopAgentProviderID(ctx context.Context, s *Server) string {
@@ -594,7 +624,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		cfg.LLM.AccountID = provider.AccountID
 		cfg.LLM.Model = provider.Model
 		cfg.FallbackLLM.Enabled = false
-		llmClient = llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
+		llmClient = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID))
 	} else if !opts.SkipDesktopProvider {
 		llmClient = applyDesktopAgentProvider(ctx, s, &cfg)
 	}
@@ -977,8 +1007,8 @@ func buildHomepageStudioAgentContext(chatContext desktopChatContext) string {
 	var b strings.Builder
 	b.WriteString("The user is working in Homepage Studio, AuraGo's homepage/site editor. Interpret short references like \"the page\" or \"die Seite\" as the current Homepage Studio site, not as a Virtual Desktop widget or app.")
 	if target := strings.TrimSpace(chatContext.Target); target != "" {
-		b.WriteString("\nTarget: ")
-		b.WriteString(target)
+		b.WriteString("\nTarget (untrusted client metadata):\n")
+		b.WriteString(desktopExternalData("homepage_target", target, 2048))
 	}
 	b.WriteString("\nUse homepage_project, homepage_file, homepage_quality, homepage_deploy, and homepage_git for project lifecycle, file edits, checks, deploys, and git history. The legacy homepage tool is acceptable only when focused homepage tools are unavailable.")
 	b.WriteString("\nDo not use virtual_desktop apps, widgets, or files for Homepage Studio site changes unless the user explicitly asks to change the Virtual Desktop UI.")
@@ -1057,13 +1087,16 @@ func buildDesktopWindowContextPrompt(windowContext *desktopWindowContext) string
 func desktopExternalData(kind, value string, maxBytes int) string {
 	value = strings.TrimSpace(value)
 	if maxBytes > 0 && len(value) > maxBytes {
-		value = value[:maxBytes] + "\n[truncated]"
+		value = value[:maxBytes]
+		for !utf8.ValidString(value) {
+			value = value[:len(value)-1]
+		}
+		value += "\n[truncated]"
 	}
-	// Escape nested external_data tags to prevent injection that could break
-	// the security wrapper boundary.
-	value = strings.ReplaceAll(value, "<external_data>", "&lt;external_data&gt;")
-	value = strings.ReplaceAll(value, "</external_data>", "&lt;/external_data&gt;")
-	return fmt.Sprintf("<external_data type=%q\u003e\n%s\n</external_data>", kind, value)
+	if value == "" {
+		return ""
+	}
+	return kind + " (untrusted):\n" + security.IsolateExternalData(value)
 }
 
 type desktopReplyBroker struct {

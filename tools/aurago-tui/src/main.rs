@@ -28,7 +28,7 @@ use app::{AppState, DashTab, MediaTab, Screen};
 use events::AppEvent;
 use events::keybindings::{KeyContext, map_key};
 use ui::theme::Theme;
-use ui::utils::truncate_str;
+use api::types::container_logs_tail;
 
 use actions::execute_confirmed_action;
 use ui::overlays::{draw_confirm_dialog, draw_nav_bar};
@@ -39,6 +39,13 @@ use ui::overlays::{draw_confirm_dialog, draw_nav_bar};
 struct Args {
     #[arg(short, long)]
     url: Option<String>,
+    #[arg(
+        long,
+        value_name = "CODE",
+        value_parser = ["cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"],
+        help = "UI language (overrides AURAGO_TUI_LANG; default: en)"
+    )]
+    lang: Option<String>,
     #[arg(long, help = "Skip TLS certificate verification (insecure)")]
     insecure: bool,
 }
@@ -46,6 +53,12 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
+    let environment_language = std::env::var("AURAGO_TUI_LANG").ok();
+    i18n::set_language(i18n::preferred_language(
+        args.lang.as_deref(),
+        environment_language.as_deref(),
+    ));
+
     let mut cfg = config::Config::load().unwrap_or_default();
     if let Some(url) = args.url {
         cfg.server_url = url;
@@ -548,15 +561,24 @@ async fn run_app(
                     app_lock.toast_ticks = 10;
                 }
             },
+            AppEvent::ContainerRemoveDone { id, result } => {
+                if actions::on_container_remove_done(&mut app_lock, id, result) {
+                    let c = client.clone();
+                    let tx = event_tx.clone();
+                    let h = tokio::spawn(async move {
+                        let result = auth::fetch_containers(&c).await.map_err(|e| e.to_string());
+                        let _ = tx.send(AppEvent::ContainersLoaded(result));
+                    });
+                    app_lock.spawn_tracked(h);
+                }
+            }
             AppEvent::ContainerLogsLoaded(result) => {
                 match result {
                     Ok(val) => {
-                        // Display container logs as a toast or in a dedicated area
-                        if let Some(logs) = val.as_str() {
-                            app_lock.toast =
-                                Some(format!("Container logs:\n{}", truncate_str(logs, 500)));
-                            app_lock.toast_ticks = 20;
-                        }
+                        // The server answers {"status":"ok","logs":"..."}; the
+                        // newest lines are at the end.
+                        app_lock.toast = Some(format!("Container logs:\n{}", container_logs_tail(&val, 500)));
+                        app_lock.toast_ticks = 20;
                     }
                     Err(e) => {
                         app_lock.toast = Some(format!("Failed to load container logs: {}", e));
@@ -849,9 +871,6 @@ fn handle_key_event(
     actions::dispatch_action(action, app_lock, client, event_tx, sse_handle);
 }
 
-
-
-
 /// Starts a chat session: fetches history and opens an SSE connection.
 /// Returns a `JoinHandle` for the SSE connection task (the reconnect loop).
 /// The caller should abort this handle before starting a new session.
@@ -900,5 +919,3 @@ fn start_new_chat_session(
 }
 
 // ── Config helpers ────────────────────────────────────────────────────────────
-
-

@@ -178,7 +178,7 @@
     }
 
     function fetchMetrics(instance) {
-        fetch('/api/dashboard/system', { credentials: 'same-origin', cache: 'no-store' })
+        fetch('/api/desktop/integrations/dashboard/system', { credentials: 'same-origin', cache: 'no-store' })
             .then(r => r && r.ok ? r.json() : null)
             .then(data => {
                 if (data) updateFromMetrics(instance, data);

@@ -1,4 +1,6 @@
 {
+  "config.google_workspace.scope_gmail_modify_labels": "Gmail — ラベルを変更",
+  "config.google_workspace.scope_gmail_modify_labels_hint": "ラベル、既読・未読、アーカイブの変更を許可します。読み取り専用モードの解除と、必要に応じた OAuth の再接続が必要です。",
   "config.google_workspace.enabled_label": "Google Workspace 連携を有効化",
   "config.google_workspace.readonly_label": "読み取り専用モード",
   "config.google_workspace.readonly_hint": "有効の場合、読み取り操作のみが許可されます（メール送信、イベント作成、ドキュメント編集などは不可）",
@@ -14,7 +16,7 @@
   "config.google_workspace.disconnect_btn": "切断",
   "config.google_workspace.test_btn": "接続テスト",
   "config.google_workspace.scopes_title": "権限 (スコープ)",
-  "config.google_workspace.scopes_desc": "エージェントがアクセスできる Google サービスを選択します。変更は次回の OAuth2 認証時に有効になります。",
+  "config.google_workspace.scopes_desc": "保存後にエージェントの権限が変更されます。OAuth の権限を追加する場合は再接続が必要になることがあります。",
   "config.google_workspace.scope_gmail": "Gmail — 読み取り",
   "config.google_workspace.scope_gmail_hint": "メールの一覧表示と読み取り",
   "config.google_workspace.scope_gmail_send": "Gmail — 送信",

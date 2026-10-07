@@ -710,10 +710,14 @@
         return unrouted(method, u.pathname + u.search);
     }
 
+    const MISSIONS_VIA_DESKTOP = '/api/desktop/integrations/missions/v2';
     window.fetch = async (url, options) => {
         const opts = options || {};
         const u = new URL(String(url), location.origin);
         const method = String(opts.method || 'GET').toUpperCase();
+        // Mission Control reaches the mission API through the Desktop integrations route, which the
+        // server maps to /api/missions/v2/….
+        if (u.pathname === MISSIONS_VIA_DESKTOP || u.pathname.startsWith(MISSIONS_VIA_DESKTOP + '/')) u.pathname = '/api/missions/v2' + u.pathname.slice(MISSIONS_VIA_DESKTOP.length);
         if (u.pathname === '/api/missions/v2' || u.pathname.startsWith('/api/missions/v2/')) return missions(method, u);
         if (u.pathname !== '/api/desktop/flows' && !u.pathname.startsWith('/api/desktop/flows/')) return previousFetch(url, opts);
         state.requests.push(method + ' ' + u.pathname + u.search);

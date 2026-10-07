@@ -120,6 +120,10 @@ func TestCodeStudioArchiveAdapterPreservesBytesAndMutationGates(t *testing.T) {
 	payload := []byte{0, 255, 128, 1}
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			io.WriteString(w, `{"ApiVersion":"1.45"}`)
+			return
+		}
 		calls.Add(1)
 		body, err := io.ReadAll(r.Body)
 		if err != nil || !bytes.Equal(body, payload) || r.Method != http.MethodPut ||

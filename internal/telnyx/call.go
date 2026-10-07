@@ -11,8 +11,8 @@ import (
 )
 
 // InitiateCall places a new outbound call.
-func (c *Client) InitiateCall(ctx context.Context, connectionID, from, to string, webhookURL string, timeoutSecs int) (*CallResponse, error) {
-	if err := ValidateE164(to); err != nil {
+func (c *Client) InitiateCall(ctx context.Context, connectionID, from, to string, webhookURL string, timeoutSecs, timeLimitSecs int) (*CallResponse, error) {
+	if err := c.validateDestination(to); err != nil {
 		return nil, fmt.Errorf("invalid 'to' number: %w", err)
 	}
 	if err := ValidateE164(from); err != nil {
@@ -21,12 +21,28 @@ func (c *Client) InitiateCall(ctx context.Context, connectionID, from, to string
 	if connectionID == "" {
 		return nil, fmt.Errorf("connection_id is required for initiating calls")
 	}
+	if timeoutSecs <= 0 {
+		timeoutSecs = 30
+	}
+	if timeLimitSecs <= 0 {
+		timeLimitSecs = 300
+	}
+	if timeoutSecs < 5 || timeoutSecs > 600 || timeLimitSecs > 14400 {
+		return nil, fmt.Errorf("ring timeout must be 5..600 seconds and call duration 1..14400 seconds")
+	}
+	if webhookURL != "" {
+		u, err := url.Parse(webhookURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Fragment != "" {
+			return nil, fmt.Errorf("webhook_url must be an absolute HTTP(S) URL")
+		}
+	}
 
 	req := CreateCallRequest{
-		ConnectionID: connectionID,
-		To:           to,
-		From:         from,
-		TimeoutSecs:  timeoutSecs,
+		ConnectionID:  connectionID,
+		To:            to,
+		From:          from,
+		TimeoutSecs:   timeoutSecs,
+		TimeLimitSecs: timeLimitSecs,
 	}
 	if webhookURL != "" {
 		req.WebhookURL = webhookURL
@@ -133,7 +149,7 @@ func (c *Client) TransferCall(ctx context.Context, callControlID, to, from strin
 	if callControlID == "" {
 		return fmt.Errorf("call_control_id is required")
 	}
-	if err := ValidateE164(to); err != nil {
+	if err := c.validateDestination(to); err != nil {
 		return fmt.Errorf("invalid transfer 'to' number: %w", err)
 	}
 
@@ -194,7 +210,7 @@ func DispatchCall(ctx context.Context, operation, to, callControlID, text, audio
 	if cfg.Telnyx.ReadOnly && operation != "list_active" {
 		return encodeResult("error", "Telnyx is in read-only mode")
 	}
-	client := NewClient(cfg.Telnyx.APIKey, logger)
+	client := newConfiguredClient(cfg, logger)
 	language := cfg.Telnyx.VoiceLanguage
 	voice := cfg.Telnyx.VoiceGender
 
@@ -206,15 +222,9 @@ func DispatchCall(ctx context.Context, operation, to, callControlID, text, audio
 		if cfg.Telnyx.ConnectionID == "" {
 			return encodeResult("error", "telnyx connection_id not configured — required for voice calls")
 		}
-		webhookURL := ""
-		if cfg.Telnyx.WebhookPath != "" {
-			webhookURL = cfg.Telnyx.WebhookPath
-		}
-		timeout := timeoutSecs
-		if timeout <= 0 {
-			timeout = cfg.Telnyx.CallTimeout
-		}
-		resp, err := client.InitiateCall(ctx, cfg.Telnyx.ConnectionID, cfg.Telnyx.PhoneNumber, to, webhookURL, timeout)
+		// WebhookPath is a local route, not a public callback URL. Use the
+		// callback configured on the Telnyx application identified by ConnectionID.
+		resp, err := client.InitiateCall(ctx, cfg.Telnyx.ConnectionID, cfg.Telnyx.PhoneNumber, to, "", timeoutSecs, cfg.Telnyx.CallTimeout)
 		if err != nil {
 			return encodeResult("error", fmt.Sprintf("failed to initiate call: %v", err))
 		}

@@ -605,7 +605,7 @@ flowchart LR
 Der [`Guardian`](../../../internal/security/guardian.go) nutzt Pattern-Matching für schnelle Vorab-Prüfungen:
 
 - **ThreatLevel**: Klassifizierung der Bedrohungsstufe
-- **PromptSec**: Prompt-Injection-Erkennung (Preset, Spotlight, Canary)
+- **PromptSec**: Prompt-Injection-Erkennung mit konfigurierbarer Bereinigung, Richtlinien, Herkunftsverfolgung sowie optionalen Embedding- und LLM-Judge-Prüfungen
 - **MaxScanBytes**: Begrenzung der gescannten Datenmenge
 
 ### 8.4 SSRF-Schutz

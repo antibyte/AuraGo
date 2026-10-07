@@ -45,7 +45,7 @@ func generateGoogleImagen(cfg ImageGenConfig, prompt string, opts ImageGenOption
 		return nil, "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewReader(jsonBody))
+	req, err := http.NewRequestWithContext(cfg.requestContext(), "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}

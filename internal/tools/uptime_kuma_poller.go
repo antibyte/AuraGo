@@ -25,6 +25,8 @@ type UptimeKumaPoller struct {
 
 	mu           sync.Mutex
 	cancel       context.CancelFunc
+	done         chan struct{}
+	closed       bool
 	lastStatuses map[string]string
 	baselined    bool
 }
@@ -53,18 +55,22 @@ func NewUptimeKumaPoller(cfg UptimeKumaPollerConfig) *UptimeKumaPoller {
 }
 
 // Start begins the background polling loop.
-func (p *UptimeKumaPoller) Start() {
+func (p *UptimeKumaPoller) Start() { p.StartContext(context.Background()) }
+
+// StartContext binds this single-use runtime to its owner.
+func (p *UptimeKumaPoller) StartContext(parent context.Context) {
 	if p == nil || p.fetch == nil {
 		return
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.cancel != nil {
+	if p.cancel != nil || p.closed {
 		return
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(parent)
 	p.cancel = cancel
-	go p.run(ctx)
+	p.done = make(chan struct{})
+	go func() { defer close(p.done); p.run(ctx) }()
 }
 
 // Stop terminates the polling loop.
@@ -74,10 +80,14 @@ func (p *UptimeKumaPoller) Stop() {
 	}
 	p.mu.Lock()
 	cancel := p.cancel
-	p.cancel = nil
+	done := p.done
+	p.closed = true
 	p.mu.Unlock()
 	if cancel != nil {
 		cancel()
+	}
+	if done != nil {
+		<-done
 	}
 }
 
@@ -96,6 +106,9 @@ func (p *UptimeKumaPoller) run(ctx context.Context) {
 }
 
 func (p *UptimeKumaPoller) pollOnce(ctx context.Context) {
+	if ctx.Err() != nil {
+		return
+	}
 	snapshot, err := p.fetch(ctx)
 	if err != nil {
 		if p.logger != nil {
@@ -148,6 +161,9 @@ func (p *UptimeKumaPoller) pollOnce(ctx context.Context) {
 
 	// Dispatch transitions outside the lock.
 	for _, event := range transitions {
+		if ctx.Err() != nil {
+			return
+		}
 		if p.onTransition != nil {
 			p.onTransition(event)
 		}

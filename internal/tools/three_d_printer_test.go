@@ -480,7 +480,7 @@ func TestElegooCentauriCarbonCameraURLPrefersSchemaURL(t *testing.T) {
 			"Data": map[string]interface{}{
 				"RequestID": requestID,
 				"Data": map[string]interface{}{
-					"Url": "http://192.168.1.50/camera-stream",
+					"Url": "http://127.0.0.1/camera-stream",
 				},
 			},
 		}); err != nil {
@@ -489,11 +489,11 @@ func TestElegooCentauriCarbonCameraURLPrefersSchemaURL(t *testing.T) {
 	})
 	defer closeServer()
 
-	got, err := ElegooCentauriCarbonCameraURL(context.Background(), ElegooCentauriCarbonPrinter{ID: "lab", URL: wsURL, TimeoutSeconds: 2})
+	got, err := setElegooCamera(context.Background(), ElegooCentauriCarbonPrinter{ID: "lab", URL: wsURL, TimeoutSeconds: 2}, true)
 	if err != nil {
 		t.Fatalf("ElegooCentauriCarbonCameraURL error = %v", err)
 	}
-	if got != "http://192.168.1.50/camera-stream" {
+	if got != "http://127.0.0.1/camera-stream" {
 		t.Fatalf("camera URL = %q, want schema URL", got)
 	}
 }
@@ -505,7 +505,7 @@ func TestElegooCentauriCarbonCameraURLNormalizesSchemelessVideoURL(t *testing.T)
 		if err := conn.WriteJSON(map[string]interface{}{
 			"Data": map[string]interface{}{
 				"RequestID": requestID,
-				"VideoUrl":  "192.168.6.181:3031/video",
+				"VideoUrl":  "127.0.0.1:3031/video",
 			},
 		}); err != nil {
 			t.Fatalf("WriteJSON error = %v", err)
@@ -513,11 +513,11 @@ func TestElegooCentauriCarbonCameraURLNormalizesSchemelessVideoURL(t *testing.T)
 	})
 	defer closeServer()
 
-	got, err := ElegooCentauriCarbonCameraURL(context.Background(), ElegooCentauriCarbonPrinter{ID: "lab", URL: wsURL, TimeoutSeconds: 2})
+	got, err := setElegooCamera(context.Background(), ElegooCentauriCarbonPrinter{ID: "lab", URL: wsURL, TimeoutSeconds: 2}, true)
 	if err != nil {
 		t.Fatalf("ElegooCentauriCarbonCameraURL error = %v", err)
 	}
-	if got != "http://192.168.6.181:3031/video" {
+	if got != "http://127.0.0.1:3031/video" {
 		t.Fatalf("camera URL = %q, want normalized VideoUrl", got)
 	}
 }

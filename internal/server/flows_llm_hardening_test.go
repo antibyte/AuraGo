@@ -41,7 +41,7 @@ func (c *c14ChatClient) CreateChatCompletion(_ context.Context, req openai.ChatC
 	return c.answer(len(c.requests), req)
 }
 
-func (c *c14ChatClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *c14ChatClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("not used")
 }
 
@@ -389,7 +389,7 @@ func TestC14ProviderCredentialEchoesAreRedacted(t *testing.T) {
 		{ID: "json", Type: "custom", BaseURL: srv.URL + "/json/v1", APIKey: key, Model: "c14-model"},
 		{ID: "text", Type: "custom", BaseURL: srv.URL + "/text/v1", APIKey: "  " + key + " ", Model: "c14-model"},
 	}
-	s := &Server{Cfg: cfg, LLMClient: llm.NewClientFromProviderWithConfig(cfg, "custom", srv.URL+"/json/v1", key, "")}
+	s := &Server{Cfg: cfg, LLMClient: llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, "custom", srv.URL+"/json/v1", key, ""))}
 	f := newFlowLLM(s)
 	for _, model := range []string{"json", "text", ""} {
 		_, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", Model: model})

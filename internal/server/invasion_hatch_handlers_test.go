@@ -13,7 +13,8 @@ import (
 
 func TestEggVaultExportKeysUsesOnlyEggAndNestRefs(t *testing.T) {
 	egg := invasion.EggRecord{APIKeyRef: " egg_api_key "}
-	nest := invasion.NestRecord{VaultSecretID: " nest_secret "}
+	// export_nest_secret on, as for every nest from before the option (F-I2).
+	nest := invasion.NestRecord{VaultSecretID: " nest_secret ", ExportNestSecret: true}
 
 	got := eggVaultExportKeys(egg, nest)
 	want := []string{"egg_api_key", "nest_secret"}
@@ -24,7 +25,8 @@ func TestEggVaultExportKeysUsesOnlyEggAndNestRefs(t *testing.T) {
 
 func TestEggVaultExportKeysDeduplicatesAndSkipsEmptyKeys(t *testing.T) {
 	egg := invasion.EggRecord{APIKeyRef: "shared_key"}
-	nest := invasion.NestRecord{VaultSecretID: " shared_key "}
+	// export_nest_secret on, so the nest key is added and deduplicated.
+	nest := invasion.NestRecord{VaultSecretID: " shared_key ", ExportNestSecret: true}
 
 	got := eggVaultExportKeys(egg, nest)
 	want := []string{"shared_key"}

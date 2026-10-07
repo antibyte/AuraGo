@@ -11,6 +11,8 @@ Two execution modes are supported — choose with `ansible.mode` in `config.yaml
 > **Sidecar mode** requires the `ansible` container in `docker-compose.yml` plus matching `ansible.url` and `ansible.token`.
 > **Local mode** requires `ansible` to be on the system `PATH` and `ansible.playbooks_dir` / `ansible.default_inventory` to be set.
 
+Local mode requires the effective shell permission for every process, including status, inventory, ping, facts and check runs. It uses the configured shell sandbox; an unavailable required sandbox blocks execution, and unsandboxed execution additionally requires `agent.allow_unsafe_host_execution`. Inputs are private snapshots of the configured playbook root (up to 512 files / 32 MiB). Absolute paths cannot escape that root. Inventories must be static INI or YAML (up to 1 MiB); executable inventories and dynamic inventory plugins are rejected. An administrator-configured default inventory may live outside the playbook root. SSH host-key checking is enabled.
+
 ---
 
 ## Operations

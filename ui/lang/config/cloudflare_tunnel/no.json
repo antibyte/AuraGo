@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "Nettside for hurtigtunnel",
+  "config.cloudflare_tunnel.quick_project_help": "Publiserer en kopi av det valgte prosjektets sist bygde statiske filer. Aktiver Homepage og Cloudflare. AuraGo tildeler porten automatisk.",
+  "config.cloudflare_tunnel.quick_project_select": "Velg et prosjekt",
+  "config.cloudflare_tunnel.quick_project_error": "Prosjektet er utilgjengelig. Kontroller innstillingene for Homepage og prosjektregistreringen.",
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel aktivert",
   "config.cloudflare_tunnel.readonly_label": "Skrivebeskyttet modus (kun status)",
   "config.cloudflare_tunnel.auto_start_label": "Autostart ved oppstart",

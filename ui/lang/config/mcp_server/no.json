@@ -7,7 +7,7 @@
   "config.mcp_server.token": "Bearer-token",
   "config.mcp_server.generate_token": "Generer token",
   "config.mcp_server.endpoint_url": "Endpunkt-URL",
-  "config.mcp_server.no_tools_warning": "Ingen verktøy aktivert.",
+  "config.mcp_server.no_tools_warning": "Ingen verktøy er aktivert. Aktiver først verktøy i delen Verktøy.",
   "config.mcp_server.auth_warning": "Autentisering deaktivert. Alle med nettverkstilgang kan kalle verktøyene dine.",
   "config.mcp_server.disabled_notice": "MCP Server er deaktivert",
   "config.mcp_server.disabled_desc": "Aktiver for å eksponere AuraGo-verktøy via MCP.",

@@ -16,24 +16,15 @@ type promptRequestFinalization struct {
 	DroppedToolMessages int
 }
 
-func applyPromptSecurityToRequest(req *openai.ChatCompletionRequest, cfg *config.Config, guardian *security.Guardian, systemPrompt string, logger *slog.Logger) {
-	if req == nil || cfg == nil || guardian == nil {
+func applyPromptSecurityToRequest(req *openai.ChatCompletionRequest, cfg *config.Config, guardian *security.Guardian, _ string, logger *slog.Logger) {
+	if req == nil || cfg == nil || guardian == nil || !cfg.Guardian.PromptSec.UseSanitizedOutput {
 		return
 	}
-	structureEnabled := cfg.Guardian.PromptSec.Structure.Enabled
-	requestGuardian := guardian
-	if structureEnabled {
-		requestGuardian = guardian.WithSystemPrompt(systemPrompt)
-	}
-	if !cfg.Guardian.PromptSec.UseSanitizedOutput && !structureEnabled {
-		return
-	}
-	if updatedMessages, applied := applyPromptSecToLatestUserMessage(req.Messages, requestGuardian); applied {
+	if updatedMessages, applied := applyPromptSecToLatestUserMessage(req.Messages, guardian); applied {
 		req.Messages = updatedMessages
 		if logger != nil {
 			logger.Debug("[Guardian] Applied promptsec sanitized user message",
-				"structure", structureEnabled,
-				"use_sanitized_output", cfg.Guardian.PromptSec.UseSanitizedOutput)
+				"use_sanitized_output", true)
 		}
 	}
 }

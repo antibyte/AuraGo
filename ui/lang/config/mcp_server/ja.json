@@ -7,7 +7,7 @@
   "config.mcp_server.token": "Bearerトークン",
   "config.mcp_server.generate_token": "トークンを生成",
   "config.mcp_server.endpoint_url": "エンドポイントURL",
-  "config.mcp_server.no_tools_warning": "有効なツールがありません。",
+  "config.mcp_server.no_tools_warning": "有効なツールがありません。先にツールのセクションでツールを有効にしてください。",
   "config.mcp_server.auth_warning": "認証が無効です。ネットワークアクセスがある誰でもツールを呼び出せます。",
   "config.mcp_server.disabled_notice": "MCPサーバーは無効です",
   "config.mcp_server.disabled_desc": "MCPでAuraGoツールを公開するにはトグルを有効にしてください。",

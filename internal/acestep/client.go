@@ -1,6 +1,7 @@
 package acestep
 
 import (
+	"aurago/internal/fileutil"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -212,7 +213,7 @@ func (m *Manager) downloadAudio(ctx context.Context, raw string, duration float6
 	}
 	name := "music_" + uid.New() + ".mp3"
 	target := filepath.Join(dir, name)
-	if err = os.Rename(tmp, target); err != nil {
+	if err = fileutil.RenameContext(ctx, tmp, target); err != nil {
 		return Audio{}, err
 	}
 	return Audio{Filename: name, Path: target, DurationMs: int64(duration * 1000), Model: model, Size: n}, nil

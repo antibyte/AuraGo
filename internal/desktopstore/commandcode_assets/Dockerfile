@@ -76,7 +76,7 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --p
     && chmod -R a+rX "$RUSTUP_HOME" "$CARGO_HOME"
 
 RUN npm install -g --force \
-        command-code@latest \
+        command-code@1.74.1 \
         http-server \
         nodemon \
         pnpm \
@@ -91,6 +91,7 @@ RUN npm install -g --force \
 COPY commandcode-preview.js /usr/local/bin/commandcode-preview.js
 COPY commandcode-entrypoint.sh /usr/local/bin/commandcode-entrypoint
 COPY preview-port.sh /usr/local/bin/preview-port
+COPY commandcode-preview.md /usr/local/share/aurago/commandcode-preview.md
 
 RUN chmod 0755 /usr/local/bin/commandcode-preview.js /usr/local/bin/commandcode-entrypoint /usr/local/bin/preview-port \
     && if getent passwd 1000 >/dev/null; then \

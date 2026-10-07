@@ -11,7 +11,7 @@
   "config.daemon_skills.status_running": "実行中",
   "config.daemon_skills.status_starting": "起動中",
   "config.daemon_skills.status_stopped": "停止",
-  "config.daemon_skills.status_title": "実行中のデーモン (%d)",
+  "config.daemon_skills.status_title": "実行中のデーモン ({{count}})",
   "help.daemon_skills.enabled": "デーモンスキルをグローバルに有効/無効にする",
   "help.daemon_skills.global_rate_limit_secs": "デーモンからエージェントへのウェイクアップコール間の最小秒数",
   "help.daemon_skills.max_budget_per_hour": "デーモンウェイクアップが1時間に消費できる最大LLMコスト（USD）",

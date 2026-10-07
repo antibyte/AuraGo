@@ -299,7 +299,18 @@ func (s *SQLiteMemory) GetUnconsolidatedMessages(limit int) ([]ArchivedMessage, 
 const consolidationCandidateEligibilitySQL = `
 	LOWER(TRIM(COALESCE(role, ''))) IN ('user', 'assistant')
 	AND LOWER(TRIM(COALESCE(session_id, ''))) NOT IN ('heartbeat', 'maintenance', 'space-agent-bridge')
-	AND LOWER(TRIM(COALESCE(session_id, ''))) NOT LIKE 'mission-%'`
+	AND LOWER(TRIM(COALESCE(session_id, ''))) NOT LIKE 'mission-%'
+	AND COALESCE(is_internal, 0) = 0
+	AND NOT (is_internal IS NULL AND (
+		(LOWER(TRIM(COALESCE(role, ''))) = 'user' AND (
+			COALESCE(content, '') LIKE '[SYSTEM CRON TRIGGER]%'
+			OR COALESCE(content, '') LIKE 'ERROR: Your last native function call%'
+		))
+		OR (LOWER(TRIM(COALESCE(role, ''))) = 'assistant' AND (
+			TRIM(COALESCE(content, '')) = '...'
+			OR (SUBSTR(TRIM(COALESCE(content, '')), 1, 10) = '{"action":' AND json_valid(content) = 1)
+		))
+	))`
 
 // FinalizeIneligibleConsolidationCandidates removes internal/background messages
 // from the LLM consolidation queue. The archive row remains available until the

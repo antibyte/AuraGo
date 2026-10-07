@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -58,7 +59,15 @@ func downloadImage(url string) ([]byte, error) {
 }
 
 func downloadImageWithLimit(url string, maxBytes int64) ([]byte, error) {
-	resp, err := imageGenHTTPClient.Get(url)
+	return downloadImageContext(context.Background(), url, maxBytes)
+}
+
+func downloadImageContext(ctx context.Context, url string, maxBytes int64) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := imageGenHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download image: %w", err)
 	}
@@ -117,11 +126,15 @@ func truncateError(s string) string {
 // tryDownloadImageURL attempts to download an image from a URL string.
 // Returns (data, ext, error). Only accepts http/https URLs.
 func tryDownloadImageURL(rawURL string) ([]byte, string, error) {
+	return tryDownloadImageURLContext(context.Background(), rawURL)
+}
+
+func tryDownloadImageURLContext(ctx context.Context, rawURL string) ([]byte, string, error) {
 	u := strings.TrimSpace(rawURL)
 	if !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
 		return nil, "", fmt.Errorf("not a URL")
 	}
-	data, err := downloadImage(u)
+	data, err := downloadImageContext(ctx, u, maxGeneratedImageBytes)
 	if err != nil {
 		return nil, "", err
 	}
@@ -155,6 +168,13 @@ func isRecognizedImageData(data []byte) bool {
 }
 
 func tryDecodeImageString(raw string) ([]byte, string, error) {
+	return tryDecodeImageStringContext(context.Background(), raw)
+}
+
+func tryDecodeImageStringContext(ctx context.Context, raw string) ([]byte, string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, "", err
+	}
 	s := strings.TrimSpace(raw)
 	if s == "" {
 		return nil, "", fmt.Errorf("empty string")
@@ -177,7 +197,7 @@ func tryDecodeImageString(raw string) ([]byte, string, error) {
 	}
 
 	// Direct URL.
-	if data, ext, err := tryDownloadImageURL(s); err == nil {
+	if data, ext, err := tryDownloadImageURLContext(ctx, s); err == nil {
 		return data, ext, nil
 	}
 
@@ -185,7 +205,7 @@ func tryDecodeImageString(raw string) ([]byte, string, error) {
 	if idx := strings.Index(s, "]("); idx >= 0 {
 		rest := s[idx+2:]
 		if end := strings.IndexByte(rest, ')'); end > 0 {
-			if data, ext, err := tryDownloadImageURL(rest[:end]); err == nil {
+			if data, ext, err := tryDownloadImageURLContext(ctx, rest[:end]); err == nil {
 				return data, ext, nil
 			}
 		}
@@ -195,16 +215,23 @@ func tryDecodeImageString(raw string) ([]byte, string, error) {
 }
 
 func extractImageFromAnyResponse(payload interface{}) ([]byte, string, error) {
+	return extractImageFromAnyResponseContext(context.Background(), payload)
+}
+
+func extractImageFromAnyResponseContext(ctx context.Context, payload interface{}) ([]byte, string, error) {
 	var walk func(v interface{}, depth int) ([]byte, string, error)
 
 	walk = func(v interface{}, depth int) ([]byte, string, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, "", err
+		}
 		if depth > 10 {
 			return nil, "", fmt.Errorf("max depth reached")
 		}
 
 		switch t := v.(type) {
 		case string:
-			return tryDecodeImageString(t)
+			return tryDecodeImageStringContext(ctx, t)
 
 		case []interface{}:
 			for _, item := range t {

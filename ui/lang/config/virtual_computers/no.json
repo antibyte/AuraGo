@@ -64,7 +64,7 @@
   "help.virtual_computers.allow_persistent": "Tillater vedvarende maskiner. Hold den avslått med mindre verten er klarert.",
   "help.virtual_computers.allow_publish": "Tillater publiser-/lagreoperasjoner som boringd eksponerer.",
   "help.virtual_computers.allow_volumes": "Tillater oppretting og tilkobling av volumer.",
-  "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
+  "help.virtual_computers.allow_agent_tasks": "Aktiverer bare de avviklede boringd-agentkanalene. AuraGos hovedagent bruker arbeidsområder for agenter og trenger ingen ekstra leverandør her.",
   "help.virtual_computers.boring_token": "La feltet stå tomt når AuraGo installerer boringd; AuraGo oppretter tokenet automatisk og lagrer det i Vault. Angi bare en verdi når du kobler til en eksisterende boringd; den må samsvare med BORING_TOKEN på den verten.",
   "config.virtual_computers.mode_local_host": "Lokalt på denne verten",
   "config.virtual_computers.local_host_note": "Lokal installasjon krever Ubuntu/Linux med /dev/kvm, systemd og root eller passordløs sudo. boringd blir på 127.0.0.1:18082.",
@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan tillater offentlig internett samt kun de eksplisitt oppførte private CIDR-ene.",
   "help.virtual_computers.agent_control_cidrs": "Én IPv4 RFC1918-CIDR per linje. Adresser for vert, AuraGo, bro, metadata og gjest forblir blokkert.",
   "help.virtual_computers.agent_control_credentials": "Legitimasjoner krever fortsatt en separat autentisert brukergodkjenning for hver kortvarig tildeling.",
-  "help.virtual_computers.agent_control_grant_ttl": "Maksimal levetid for tildeling; tildelinger avsluttes også sammen med jobben eller arbeidsområdet de tilhører."
+  "help.virtual_computers.agent_control_grant_ttl": "Maksimal levetid for tildeling; tildelinger avsluttes også sammen med jobben eller arbeidsområdet de tilhører.",
+  "config.virtual_desktop.serial_browser_label": "Seriellporter på denne datamaskinen",
+  "help.virtual_desktop.serial_browser_enabled": "Tillat Quick Connect å bruke serielle enheter som er koblet til datamaskinen med nettleseren. Krever en støttet nettleser, HTTPS eller localhost og et uttrykkelig valg av enhet. Deaktivert i skrivebeskyttet modus.",
+  "config.virtual_desktop.serial_host_label": "Seriellporter på AuraGo-serveren",
+  "help.virtual_desktop.serial_host_enabled": "Tillat administratorer å åpne serielle enheter som er koblet til AuraGo-serveren i Quick Connect. Containerinstallasjoner krever enhetspassthrough og tillatelser i operativsystemet. Deaktivert i skrivebeskyttet modus."
 }

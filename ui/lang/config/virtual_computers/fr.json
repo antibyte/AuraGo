@@ -29,7 +29,7 @@
   "config.virtual_computers.allow_persistent_label": "Autoriser les machines persistantes",
   "config.virtual_computers.allow_publish_label": "Autoriser la publication",
   "config.virtual_computers.allow_volumes_label": "Autoriser les volumes",
-  "config.virtual_computers.allow_agent_tasks_label": "Allow machine agent tasks",
+  "config.virtual_computers.allow_agent_tasks_label": "Autoriser les tâches de l'agent machine obsolète",
   "config.virtual_computers.boring_token_label": "jeton boringd (facultatif)",
   "config.virtual_computers.save_vault": "Enregistrer dans le Vault",
   "config.virtual_computers.tailscale_note": "Pour l'accès Tailscale, exposez AuraGo avec tsnet serve_http. N'exposez pas boringd directement.",
@@ -64,7 +64,7 @@
   "help.virtual_computers.allow_persistent": "Autorise les machines persistantes. Laissez désactivé sauf si l'hôte est de confiance.",
   "help.virtual_computers.allow_publish": "Autorise les opérations de publication/enregistrement exposées par boringd.",
   "help.virtual_computers.allow_volumes": "Autorise la création et l'attachement de volumes.",
-  "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
+  "help.virtual_computers.allow_agent_tasks": "N'active que les canaux d'agent boringd obsolètes. L'agent principal d'AuraGo utilise les espaces de travail de l'agent et n'a pas besoin d'un fournisseur supplémentaire ici.",
   "help.virtual_computers.boring_token": "Laisse ce champ vide quand AuraGo installe boringd; AuraGo génère automatiquement ce jeton et l'enregistre dans le Vault. Renseigne une valeur uniquement pour connecter un boringd existant; elle doit correspondre au BORING_TOKEN de cet hôte.",
   "config.virtual_computers.mode_local_host": "Local sur cet hôte",
   "config.virtual_computers.local_host_note": "L'installation locale exige Ubuntu/Linux avec /dev/kvm, systemd et root ou sudo sans mot de passe. boringd reste sur 127.0.0.1:18082.",
@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan autorise l'internet public plus uniquement les CIDR privés explicitement listés.",
   "help.virtual_computers.agent_control_cidrs": "Un CIDR IPv4 RFC1918 par ligne. Les adresses de l'hôte, d'AuraGo, du pont, des métadonnées et de l'invité restent bloquées.",
   "help.virtual_computers.agent_control_credentials": "Les identifiants exigent encore une approbation distincte d'un utilisateur authentifié pour chaque octroi de courte durée.",
-  "help.virtual_computers.agent_control_grant_ttl": "Durée de vie maximale d'un octroi ; les octrois prennent aussi fin avec leur tâche ou leur espace de travail."
+  "help.virtual_computers.agent_control_grant_ttl": "Durée de vie maximale d'un octroi ; les octrois prennent aussi fin avec leur tâche ou leur espace de travail.",
+  "config.virtual_desktop.serial_browser_label": "Ports série sur cet ordinateur",
+  "help.virtual_desktop.serial_browser_enabled": "Autoriser Quick Connect à utiliser les périphériques série connectés à l’ordinateur du navigateur. Un navigateur compatible, HTTPS ou localhost et une sélection explicite du périphérique sont nécessaires. Désactivé en mode lecture seule.",
+  "config.virtual_desktop.serial_host_label": "Ports série sur le serveur AuraGo",
+  "help.virtual_desktop.serial_host_enabled": "Autoriser les administrateurs à ouvrir dans Quick Connect les périphériques série connectés au serveur AuraGo. Les installations en conteneur nécessitent le transfert du périphérique et les autorisations du système d’exploitation. Désactivé en mode lecture seule."
 }

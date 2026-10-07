@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from training.evaluate_tool_calls import evaluate, parse_tagged_output
+from training.validate_dataset import semantic_arguments, strict_arguments
 from training.train_unsloth import (
     ADAPTERS,
     assert_response_markers,
@@ -25,6 +26,23 @@ class FakeTokenizer:
 
 
 class TrainingPipelineTests(unittest.TestCase):
+    def test_strict_projection_preserves_semantic_fixtures(self) -> None:
+        schema = {"required": ["operation"], "properties": {
+            "operation": {"type": "string"},
+            "optional": {"type": "string"},
+            "rows": {"items": {"required": ["id"], "properties": {
+                "id": {"type": "integer"}, "label": {"type": "string"}}}},
+        }}
+        arguments = {"operation": "list", "rows": [{"id": 0}]}
+        self.assertEqual(strict_arguments(arguments, schema), {
+            "operation": "list", "optional": None, "rows": [{"id": 0, "label": None}]})
+        self.assertEqual(arguments, {"operation": "list", "rows": [{"id": 0}]})
+        self.assertNotIn("operation", strict_arguments({}, schema))
+        self.assertEqual(semantic_arguments(strict_arguments(arguments, schema), schema), arguments)
+        self.assertEqual(semantic_arguments({"settings": None, "free": {"key": None}}, {
+            "properties": {"settings": {"type": ["object", "null"]}, "free": {"type": "object"}}}),
+            {"settings": None, "free": {"key": None}})
+
     def test_all_candidate_adapters_resolve_and_unknown_fails(self) -> None:
         expected = {
             "google/functiongemma-270m-it": "functiongemma",

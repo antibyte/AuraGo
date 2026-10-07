@@ -11,7 +11,7 @@ func TestDesktopPrintFrameI18n(t *testing.T) {
 	t.Parallel()
 
 	viewer := readDesktopAssetText(t, "js/desktop/apps/viewer.js")
-	if strings.Count(viewer, "throw new Error(t('desktop.print_failed'))") < 2 {
+	if strings.Count(viewer, "failureMessage: t('desktop.print_failed')") < 2 {
 		t.Fatal("viewer print helpers must throw desktop.print_failed")
 	}
 	if strings.Contains(viewer, "print frame unavailable") {

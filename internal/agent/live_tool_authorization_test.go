@@ -132,3 +132,27 @@ func TestLiveAuthorizationRevokesCatalogAndCapturedHooks(t *testing.T) {
 		t.Fatalf("captured hook retained write permission: %+v", result)
 	}
 }
+
+func TestLiveAuthorizationIntersectsDockerHostAccess(t *testing.T) {
+	for _, tc := range []struct {
+		name                   string
+		initial, current, want bool
+	}{
+		{"revoked during run", true, false, false},
+		{"granted during run stays denied", false, true, false},
+		{"unchanged grant", true, true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			initial := &config.Config{}
+			initial.Docker.Enabled = true
+			initial.Docker.AllowHostAccess = tc.initial
+			current := *initial
+			current.Docker.AllowHostAccess = tc.current
+			initial.AuthorizationSnapshots = func() (*config.Config, *config.Config) { return initial, &current }
+			actual, ok := dispatchAuthorization(initial)
+			if !ok || actual.Docker.AllowHostAccess != tc.want {
+				t.Fatalf("Docker.AllowHostAccess = %v (ok=%v), want %v", actual.Docker.AllowHostAccess, ok, tc.want)
+			}
+		})
+	}
+}

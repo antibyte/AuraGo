@@ -6,6 +6,7 @@ async function renderGitHubSection(section) {
     const data = configData['github'] || {};
     const enabledOn = data.enabled === true;
     const readonlyOn = data.readonly === true;
+    const allowDeleteOn = data.allow_delete === true;
     const defaultPrivOn = data.default_private === true;
     const allowedRepos = Array.isArray(data.allowed_repos) ? data.allowed_repos : [];
 
@@ -27,6 +28,15 @@ async function renderGitHubSection(section) {
         <div class="toggle-wrap">
             <div class="toggle${readonlyOn ? ' on' : ''}" data-path="github.readonly" onclick="toggleBool(this)"></div>
             <span class="toggle-label">${readonlyOn ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
+        </div>
+    </div>`;
+
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.github.allow_delete_label')}</div>
+        <div class="field-help">${t('config.github.allow_delete_hint')}</div>
+        <div class="toggle-wrap">
+            <div class="toggle${allowDeleteOn ? ' on' : ''}" data-path="github.allow_delete" onclick="toggleBool(this)"></div>
+            <span class="toggle-label">${allowDeleteOn ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
         </div>
     </div>`;
 
@@ -134,8 +144,8 @@ function githubBuildRepoList(repos, allowedRepos) {
         const desc = repo.description || '';
         const isPrivate = repo.private === true;
         const stars = repo.stargazers_count || 0;
-        const isAllowed = allowedSet.has(fullName) || allowedSet.has(name);
         const isAgentCreated = repo.agent_created === true;
+        const isAllowed = isAgentCreated || allowedSet.has(fullName) || allowedSet.has(name);
         const privBadge = isPrivate
             ? `<span class="gh-badge gh-badge-private">🔒 ${t('config.github.badge_private')}</span>`
             : `<span class="gh-badge gh-badge-public">${t('config.github.badge_public')}</span>`;
@@ -154,6 +164,7 @@ function githubBuildRepoList(repos, allowedRepos) {
                     ${privBadge}${agentBadge}${starStr}
                 </div>
                 ${desc ? `<div class="gh-repo-desc">${escapeAttr(desc)}</div>` : ''}
+                ${repo.trust_migration_required === true ? `<div class="field-help gh-trust-migration">${t('config.github.trust_migration_hint')}</div>` : ''}
             </div>
         </label>`;
     });

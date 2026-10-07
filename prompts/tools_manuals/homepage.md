@@ -86,6 +86,8 @@ Creates the Docker image and container. **Run this first** before any other oper
 
 **Note:** Docker should be running for the full toolset. If Docker is unavailable, start it with `sudo systemctl start docker`.
 
+**Build refused:** if `init` answers `code: homepage_image_build_forbidden`, the Docker endpoint refuses image builds (socket proxy with `BUILD=0`). Give the user the returned `build_command` (or `BUILD=1` for the docker-proxy service) and stop. Do not call `rebuild`: it deletes the image first.
+
 ### Local Fallback Mode
 If Docker is unavailable and `homepage.allow_local_server` is enabled, AuraGo can still handle limited local workflows:
 - local/plain HTML project creation
@@ -516,7 +518,7 @@ Use `deploy_vercel` when the homepage project should be published to Vercel from
 | `project_dir` | string | yes | Homepage workspace directory to deploy |
 | `project_id` | string | no | Vercel project name or ID to link before deploying; falls back to `vercel.default_project_id` |
 | `build_dir` | string | no | Explicit directory to upload; otherwise auto-detected after build |
-| `target` | string | no | `preview` or `production` (default: `preview`) |
+| `target` | string | no | `preview` or `production` (default: `preview`, production requires explicit selection) |
 | `alias` | string | no | Alias or domain to assign after a successful deployment |
 | `domain` | string | no | Custom domain to add/verify before alias assignment |
 

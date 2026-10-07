@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "वैश्विक केवल-पढ़ने योग्य",
   "config.sql_connections.readonly_help": "कनेक्शन अनुमतियों की परवाह किए बिना सभी लेखन संचालन को अवरुद्ध करता है।",
   "config.sql_connections.allow_management_label": "प्रबंधन की अनुमति दें",
-  "config.sql_connections.allow_management_help": "एजेंट को कनेक्शन बनाने, संपादित करने और हटाने की अनुमति देता है।"
+  "config.sql_connections.sqlite_import": "SQLite बैकअप आयात करें",
+  "config.sql_connections.sqlite_import_help": "सुसंगत, स्वतंत्र बैकअप अपलोड करें (64 MiB तक)। सहेजने पर यह सुरक्षित भंडारण में आयात होगा और मूल फ़ाइलें सुरक्षित रहेंगी।",
+  "config.sql_connections.sqlite_import_required": "SQLite आयात आवश्यक है",
+  "config.sql_connections.allow_management_help": "एजेंट केवल विवरण बदल सकता है। सेटअप, लॉगिन जानकारी और अनुमतियाँ व्यवस्थापक के लिए हैं।"
 }

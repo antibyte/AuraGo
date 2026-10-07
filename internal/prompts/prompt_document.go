@@ -364,7 +364,9 @@ func (d PromptDocument) renderWithoutGroups(removed map[string]bool) string {
 }
 
 func promptOptionalHeaders(unifiedMemory bool) []string {
-	headers := []string{promptSectionToolGuides}
+	// These advisory personality notes are shed before task guidance under
+	// pressure; the mandatory core Persona and Persona State remain required.
+	headers := []string{promptSectionPersonaSignals, promptSectionPersonaCharacter, promptSectionToolGuides}
 	if unifiedMemory {
 		headers = append(headers, promptSectionUserProfiling, promptSectionUnifiedMemory)
 	} else {
@@ -384,8 +386,6 @@ func promptOptionalHeaders(unifiedMemory bool) []string {
 		promptSectionTaskRules,
 		promptSectionHomepageDesign,
 		promptSectionAgentSkills,
-		promptSectionPersonaSignals,
-		promptSectionPersonaCharacter,
 		promptSectionAvailableContextIndex,
 	)
 }

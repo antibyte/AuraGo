@@ -24,7 +24,7 @@
   "config.onedrive.test_failed": "Fehlgeschlagen",
   "config.onedrive.test_success": "Erfolgreich",
   "config.onedrive.testing": "Teste…",
-  "config.remote_control.allowed_paths_hint": "einer pro Zeile, leer = alle",
+  "config.remote_control.allowed_paths_hint": "Ein Pfad pro Zeile; eine leere Liste sperrt den Dateizugriff.",
   "config.remote_control.allowed_paths_label": "Erlaubte Pfade",
   "config.remote_control.audit_log_label": "Audit-Log aktivieren",
   "config.remote_control.auto_approve_label": "Neue Geräte automatisch genehmigen (⚠️ nur in vertrauenswürdigen Netzwerken)",

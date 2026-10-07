@@ -27,7 +27,9 @@
         url() {
             const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
             const params = new URLSearchParams({ session: this.sessionId, client: this.clientId, device: this.device });
-            return scheme + '//' + location.host + '/api/realtime-speech/headset?' + params.toString();
+            const path = '/api/realtime-speech/headset?' + params.toString();
+            const common = window.AuraRealtimeProviderCommon;
+            return scheme + '//' + location.host + (common && common.apiURL ? common.apiURL(path) : path);
         }
 
         open() {
@@ -130,7 +132,7 @@
 
     // listDevices returns {devices: [{id, name, connected, busy}], reason}.
     async function listDevices() {
-        const response = await fetch('/api/realtime-speech/audio-devices', { credentials: 'same-origin', cache: 'no-store' });
+        const response = await window.AuraRealtimeProviderCommon.apiFetch('/api/realtime-speech/audio-devices', { credentials: 'same-origin', cache: 'no-store' });
         if (!response.ok) return { devices: [], reason: 'HTTP ' + response.status };
         return response.json();
     }

@@ -362,8 +362,7 @@ func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visit
 		}
 	}
 
-	normalizeExplicitRequiredList(m)
-	if m["type"] == "array" {
+	if schemaHasType(m, "array") {
 		if _, ok := m["items"]; !ok {
 			m["items"] = map[string]interface{}{"type": "string"}
 		}
@@ -373,7 +372,7 @@ func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visit
 			if child, ok := raw.(map[string]interface{}); ok {
 				if name == "structured_output_schema" && schemaObjectNeedsJSONString(child, false) {
 					props[name] = jsonObjectStringSchema(name, child)
-					continue
+					child = props[name].(map[string]interface{})
 				}
 				normalizeStrictSchemaRequiredRecWithVisited(child, visited)
 			}
@@ -391,55 +390,24 @@ func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visit
 			}
 		}
 	}
+	// Make children nullable only after their own object contracts are normalized.
+	// The original required list distinguishes values from Strict placeholders.
+	normalizeExplicitRequiredList(m)
 }
 
 func normalizeExplicitRequiredList(m map[string]interface{}) {
-	if m["type"] != "object" {
+	if !schemaHasType(m, "object") {
 		return
 	}
+	m["additionalProperties"] = false
 	props, _ := m["properties"].(map[string]interface{})
-	if len(props) == 0 {
-		delete(m, "required")
-		return
-	}
-	requiredRaw, exists := m["required"]
-	if !exists {
-		return
-	}
-	seen := make(map[string]struct{})
-	required := make([]string, 0)
-	appendRequired := func(name string) {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			return
-		}
-		if _, ok := props[name]; !ok {
-			return
-		}
-		if _, ok := seen[name]; ok {
-			return
-		}
-		seen[name] = struct{}{}
+	originalRequired := schemaRequiredNames(m)
+	required := make([]string, 0, len(props))
+	for name, raw := range props {
 		required = append(required, name)
-	}
-	switch typed := requiredRaw.(type) {
-	case []string:
-		for _, name := range typed {
-			appendRequired(name)
+		if child, ok := raw.(map[string]interface{}); ok && !originalRequired[name] {
+			makeSchemaNullable(child)
 		}
-	case []interface{}:
-		for _, raw := range typed {
-			if name, ok := raw.(string); ok {
-				appendRequired(name)
-			}
-		}
-	default:
-		delete(m, "required")
-		return
-	}
-	if len(required) == 0 {
-		delete(m, "required")
-		return
 	}
 	sort.Strings(required)
 	m["required"] = required
@@ -582,6 +550,7 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	}
 
 	tc := ToolCall{
+		nativeCall:   &native,
 		IsTool:       true,
 		Action:       name,
 		Skill:        skillFromShortcut,
@@ -606,12 +575,13 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 	var rawMap map[string]interface{}
 	rawMapOK := json.Unmarshal([]byte(normalizedArgs), &rawMap) == nil
 	if rawMapOK {
+		restoreOriginalArrayToolArgs(rawMap, []byte(native.Function.Arguments), "tags")
 		decodeNativeJSONStringObjectArgs(rawMap)
 		if customFromShortcut != "" {
 			rawMap = normalizeCustomToolShortcutArgs(customFromShortcut, rawMap)
 		}
 		if normalizedBytes, err := json.Marshal(rawMap); err == nil {
-			normalizedArgs = string(normalizedBytes)
+			normalizedArgs = normalizeTagsInJSON(string(normalizedBytes))
 		}
 		tc.Params = rawMap
 		if decoded, ok := decodeExecuteSkillNativeToolCall(tc, normalizedArgs); ok {
@@ -697,6 +667,9 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 		normalizeNativeActionAlias(name, tc.Action, &tc)
 	}
 	tc.Action = name
+	if customFromShortcut == "" {
+		restoreOriginalArrayToolArgs(tc.Params, []byte(native.Function.Arguments), "tags")
+	}
 
 	// Handle execute_skill: LLM may use "skill_name" key
 	if tc.Action == "execute_skill" && tc.Skill == "" {

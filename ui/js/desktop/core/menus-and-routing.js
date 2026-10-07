@@ -116,6 +116,9 @@
         } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
             apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (/\.aurasynth$/i.test(name)) {
+            apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (String(name || '').toLowerCase().endsWith('.md')) {
             apps.push({ label: t('desktop.app_notes'), appId: 'notes' });
             apps.push({ label: t('desktop.app_editor'), appId: 'editor' });
@@ -745,25 +748,33 @@
         return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp });
     }
 
-function modalDialog(options) {
+    let desktopModalQueue = Promise.resolve();
+    function modalDialog(options) {
+        const pending = desktopModalQueue.then(() => renderDesktopModal(options));
+        desktopModalQueue = pending.catch(() => {});
+        return pending;
+    }
+
+    function renderDesktopModal(options) {
+        if (options.signal?.aborted) return Promise.resolve(false);
         closeContextMenu();
         const previousFocus = document.activeElement;
         const overlay = document.createElement('div');
         overlay.className = 'vd-modal-backdrop';
-        overlay.innerHTML = `<form class="vd-modal" role="dialog" aria-modal="true">
+        overlay.innerHTML = `<form class="vd-modal" role="dialog" aria-modal="true" aria-label="${esc(options.title || '')}">
             <div class="vd-modal-title">${esc(options.title || '')}</div>
             ${options.message ? `<div class="vd-modal-copy">${esc(options.message)}</div>` : ''}
             ${options.input ? `<input class="vd-modal-input" value="${esc(options.value || '')}" autocomplete="off">` : ''}
             <div class="vd-modal-actions">
                 <button type="button" class="vd-button" data-cancel>${esc(t('desktop.cancel'))}</button>
-                <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.ok'))}</button>
+                ${options.choices ? options.choices.map(choice => `<button type="button" class="vd-button" data-choice="${esc(choice.value)}" ${choice.disabled ? 'disabled' : ''}>${esc(choice.label)}</button>`).join('') : `<button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.ok'))}</button>`}
             </div>
         </form>`;
         document.body.appendChild(overlay);
         desktopSound('dialog.open');
         const form = overlay.querySelector('form');
         const input = overlay.querySelector('input');
-        const primaryBtn = overlay.querySelector('[type="submit"]');
+        const primaryBtn = overlay.querySelector('[type="submit"]') || overlay.querySelector('[data-cancel]');
         if (input) {
             input.focus();
             input.select();
@@ -778,18 +789,37 @@ function modalDialog(options) {
         }
         document.addEventListener('focusin', trapFocus);
         return new Promise(resolve => {
+            let finished = false;
             const finish = value => {
+                if (finished) return;
+                finished = true;
                 document.removeEventListener('focusin', trapFocus);
+                document.removeEventListener('keydown', onKey, true);
+                options.signal?.removeEventListener('abort', onAbort);
                 overlay.remove();
                 if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
                 if (value === true) desktopSound('dialog.confirm');
                 else if (value === false) desktopSound('dialog.cancel');
                 resolve(value);
             };
+            const onAbort = () => finish(false);
+            const onKey = event => {
+                if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); finish(options.input ? null : false); }
+                if (event.key === 'Tab') {
+                    const controls = [...form.querySelectorAll('input,button:not(:disabled)')];
+                    const current = controls.indexOf(document.activeElement);
+                    event.preventDefault();
+                    controls[(current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length]?.focus();
+                }
+            };
+            document.addEventListener('keydown', onKey, true);
+            options.signal?.addEventListener('abort', onAbort, { once: true });
+            overlay.querySelectorAll('[data-choice]').forEach(button => button.addEventListener('click', () => finish(button.dataset.choice)));
             overlay.querySelector('[data-cancel]').addEventListener('click', () => finish(options.input ? null : false));
             overlay.addEventListener('click', event => { if (event.target === overlay) finish(options.input ? null : false); });
             form.addEventListener('submit', event => {
                 event.preventDefault();
+                if (options.choices) return;
                 finish(options.input ? input.value.trim() : true);
             });
         });
@@ -800,7 +830,7 @@ function modalDialog(options) {
         if (!name) return;
         const path = workspaceJoinPath(basePath, name);
         try {
-            await api('/api/desktop/file', {
+            const saved = await api('/api/desktop/file', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, content: '' })
@@ -808,7 +838,7 @@ function modalDialog(options) {
             await loadBootstrap();
             const active = state.windows.get(state.activeWindowId);
             if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
-            openApp('editor', { path, content: '' });
+            openApp('editor', { path: saved.path || path, content: '' });
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -868,20 +898,26 @@ function modalDialog(options) {
     }
 
     async function movePathToTrash(path) {
-        const cleanPath = normalizeDesktopPath(path);
-        if (!cleanPath || isTrashPath(cleanPath) || isInsideTrashPath(cleanPath)) return;
+        return movePathsToTrash([path]);
+    }
+
+    async function movePathsToTrash(paths) {
+        if (desktopReadonly()) return [];
+        const cleanPaths = [...new Set((paths || []).map(normalizeDesktopPath).filter(Boolean))];
+        if (!cleanPaths.length) return [];
         try {
-            const trashDestination = await uniqueTrashDestination(cleanPath);
-            await api('/api/desktop/file', {
-                method: 'PATCH',
+            const result = await api('/api/desktop/trash', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ old_path: cleanPath, new_path: trashDestination })
+                body: JSON.stringify({ paths: cleanPaths })
             });
-            removeIconPosition('desktop-entry-' + cleanPath);
+            cleanPaths.forEach(path => removeIconPosition('desktop-entry-' + path));
             desktopSound('file.trash');
             await refreshDesktopAfterFileChange();
+            return result.moves || [];
         } catch (err) {
-            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+            if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+            return [];
         }
     }
 
@@ -941,19 +977,15 @@ function modalDialog(options) {
         if (desktopReadonly()) return [];
         const unique = [...new Set((paths || []).map(normalizeDesktopPath).filter(isInsideTrashPath))];
         if (!unique.length) return [];
-        const restored = [];
-        for (const path of unique) {
-            try {
-                const dest = await uniqueRestoreDestination('Desktop', pathBaseName(path) || 'item');
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ old_path: path, new_path: dest })
-                });
-                restored.push(dest);
-            } catch (err) {
-                showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
-            }
+        let restored = [];
+        try {
+            const result = await api('/api/desktop/trash', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paths: unique, restore: true })
+            });
+            restored = (result.moves || []).map(move => move.path);
+        } catch (err) {
+            if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
         if (restored.length) {
             await refreshDesktopAfterFileChange();
@@ -1529,9 +1561,16 @@ function modalDialog(options) {
             }
             return renderFiles(id, path);
         }
-        if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.content || '');
+        if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.path ? context.content : '');
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
             return window.WriterApp.render(contentEl(id), id, officeAppContext(context));
+        }
+        if (appId === 'synth-studio') {
+            if (!window.SynthStudioApp) {
+                window.AuraDesktopModules.loadAppScript('synth-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.SynthStudioApp.render(contentEl(id), id, Object.assign(officeAppContext(context), { windowId: id, sessionKey: state.windows.get(id)?.sessionKey || id }));
         }
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
             return window.SheetsApp.render(contentEl(id), id, officeAppContext(context));

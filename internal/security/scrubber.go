@@ -15,7 +15,8 @@ var (
 	// Regex for common API keys and secrets.
 	// \b word boundaries prevent matching keywords embedded inside longer identifiers
 	// (e.g. "auth" inside "auth_token", "key" inside "local_key_path").
-	apiKeyRegex = regexp.MustCompile(`(?i)\b(key|secret|password|passwd|pwd|pin|token|auth|credential|api_key|master_key|bot_token)\b["']?\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9\-_:+=/]*)["']?`)
+	envCredentialRegex = regexp.MustCompile(`(?i)\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_(?:SECRET_ACCESS_KEY|REFRESH_TOKEN|PRIVATE_KEY|CLIENT_SECRET|MASTER_KEY|ACCESS_TOKEN|ACCESS_KEY|AUTH_TOKEN|API_KEY|BOT_TOKEN|SESSION_KEY|SECRET_KEY|PASSWORD|PASSWD|TOKEN|SECRET))\b(\s*[:=]\s*)(["']?)([^\s"';&,]+)(["']?)`)
+	apiKeyRegex        = regexp.MustCompile(`(?i)\b(key|secret|password|passwd|pwd|pin|token|auth|credential|api_key|master_key|bot_token)\b["']?\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9\-_:+=/]*)["']?`)
 	// fragmentedSecretRegex catches secrets obfuscated by inserting whitespace/punctuation
 	// between each character (e.g. "s k - 1 2 3 4 5 6 7 8").
 	// '/' and '.' are intentionally excluded from the separator class: they are path
@@ -232,6 +233,11 @@ func RedactSensitiveInfo(text string) string {
 		return ""
 	}
 
+	// Environment-style names have a product prefix before the credential
+	// suffix, so the standalone key regex's word boundary intentionally misses
+	// them. Match only known credential suffixes immediately followed by a value;
+	// identifiers such as local_key_path remain ordinary text.
+	text = envCredentialRegex.ReplaceAllString(text, `${1}${2}${3}`+redactedPlaceholder+`${5}`)
 	// Redact specific key-value patterns
 	text = apiKeyRegex.ReplaceAllStringFunc(text, redactKeyValueMatch)
 	text = fragmentedSecretRegex.ReplaceAllString(text, `$1$2`+redactedPlaceholder)

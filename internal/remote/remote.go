@@ -3,6 +3,8 @@
 package remote
 
 import (
+	"aurago/internal/fileutil"
+	"aurago/internal/uid"
 	"context"
 	"fmt"
 	"io"
@@ -89,7 +91,7 @@ func GetSSHConfig(user string, secret []byte) (*ssh.ClientConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("SSH host key verification failed: %w. "+
 				"Add the host key with 'ssh-keyscan <host> >> ~/.ssh/known_hosts' or enable "+
-				"'ssh.insecure_host_key: true' in config to disable host verification (not recommended)", err)
+				"'remote_control.ssh_insecure_host_key: true' in config to disable host verification (not recommended)", err)
 		}
 		hostKeyCallback = cb
 	}
@@ -103,26 +105,34 @@ func GetSSHConfig(user string, secret []byte) (*ssh.ClientConfig, error) {
 }
 
 // ExecuteRemoteCommand runs a command on a remote host via SSH and returns the combined output.
-func ExecuteRemoteCommand(ctx context.Context, host string, port int, user string, secret []byte, cmd string) (string, error) {
+func ExecuteRemoteCommand(ctx context.Context, host string, port int, user string, secret []byte, cmd string, input ...io.Reader) (string, error) {
 	config, err := GetSSHConfig(user, secret)
 	if err != nil {
 		return "", fmt.Errorf("failed to get ssh config: %w", err)
 	}
 
-	addr := fmt.Sprintf("%s:%d", host, port)
+	addr := net.JoinHostPort(host, fmt.Sprint(port))
 
 	// Use a dialer that supports context for the connection phase
-	var d net.Dialer
+	d := net.Dialer{Timeout: config.Timeout}
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return "", fmt.Errorf("failed to dial: %w", err)
 	}
 
+	stopClose := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stopClose()
+	deadline := time.Now().Add(config.Timeout)
+	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
+		deadline = d
+	}
+	_ = conn.SetDeadline(deadline)
 	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
 	if err != nil {
 		conn.Close()
 		return "", fmt.Errorf("ssh handshake failed: %w", err)
 	}
+	_ = conn.SetDeadline(time.Time{})
 	client := ssh.NewClient(sshConn, chans, reqs)
 	defer client.Close()
 
@@ -145,6 +155,9 @@ func ExecuteRemoteCommand(ctx context.Context, host string, port int, user strin
 	}()
 
 	// Capture output
+	if len(input) > 0 {
+		session.Stdin = input[0]
+	}
 	output, err := session.CombinedOutput(cmd)
 	if ctx.Err() != nil {
 		return string(output), fmt.Errorf("command cancelled: %w", ctx.Err())
@@ -166,18 +179,26 @@ func ExecuteRemoteScript(ctx context.Context, host string, port int, user string
 		return "", fmt.Errorf("failed to get ssh config: %w", err)
 	}
 
-	addr := fmt.Sprintf("%s:%d", host, port)
-	var d net.Dialer
+	addr := net.JoinHostPort(host, fmt.Sprint(port))
+	d := net.Dialer{Timeout: config.Timeout}
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return "", fmt.Errorf("failed to dial: %w", err)
 	}
 
+	stopClose := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stopClose()
+	deadline := time.Now().Add(config.Timeout)
+	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
+		deadline = d
+	}
+	_ = conn.SetDeadline(deadline)
 	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
 	if err != nil {
 		conn.Close()
 		return "", fmt.Errorf("ssh handshake failed: %w", err)
 	}
+	_ = conn.SetDeadline(time.Time{})
 	client := ssh.NewClient(sshConn, chans, reqs)
 	defer client.Close()
 
@@ -218,25 +239,54 @@ func ExecuteRemoteScript(ctx context.Context, host string, port int, user string
 }
 
 // TransferFile handles file uploads and downloads via SFTP.
-func TransferFile(ctx context.Context, host string, port int, user string, secret []byte, localPath, remotePath, direction string) error {
+func TransferFile(ctx context.Context, host string, port int, user string, secret []byte, localPath, remotePath, direction string, allowedRoot ...string) error {
+	rootPath := filepath.Dir(localPath)
+	if len(allowedRoot) > 0 {
+		rootPath = allowedRoot[0]
+	}
+	absRoot, err := filepath.Abs(rootPath)
+	if err != nil {
+		return err
+	}
+	absLocal, err := filepath.Abs(localPath)
+	if err != nil {
+		return err
+	}
+	rel, err := filepath.Rel(absRoot, absLocal)
+	if err != nil || !filepath.IsLocal(rel) || rel == "." {
+		return fmt.Errorf("local path is outside transfer root")
+	}
+	root, err := os.OpenRoot(absRoot)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
 	config, err := GetSSHConfig(user, secret)
 	if err != nil {
 		return fmt.Errorf("failed to get ssh config: %w", err)
 	}
 
-	addr := fmt.Sprintf("%s:%d", host, port)
+	addr := net.JoinHostPort(host, fmt.Sprint(port))
 
-	var d net.Dialer
+	d := net.Dialer{Timeout: config.Timeout}
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to dial: %w", err)
 	}
 
+	stopClose := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stopClose()
+	deadline := time.Now().Add(config.Timeout)
+	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
+		deadline = d
+	}
+	_ = conn.SetDeadline(deadline)
 	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
 	if err != nil {
 		conn.Close()
 		return fmt.Errorf("ssh handshake failed: %w", err)
 	}
+	_ = conn.SetDeadline(time.Time{})
 	client := ssh.NewClient(sshConn, chans, reqs)
 	defer client.Close()
 
@@ -251,9 +301,9 @@ func TransferFile(ctx context.Context, host string, port int, user string, secre
 	go func() {
 		switch direction {
 		case "upload":
-			errCh <- uploadFile(localPath, remotePath, sftpClient)
+			errCh <- uploadFile(ctx, root, rel, remotePath, sftpClient)
 		case "download":
-			errCh <- downloadFile(localPath, remotePath, sftpClient)
+			errCh <- downloadFile(ctx, root, rel, remotePath, sftpClient)
 		default:
 			errCh <- fmt.Errorf("invalid direction: %s", direction)
 		}
@@ -263,54 +313,70 @@ func TransferFile(ctx context.Context, host string, port int, user string, secre
 	case err := <-errCh:
 		return err
 	case <-ctx.Done():
-		_ = sftpClient.Close() // force-close to unblock the transfer goroutine
+		_ = client.Close() // unblock SSH, SFTP and every transfer read/write
+		_ = sftpClient.Close()
+		<-errCh // the worker must finish before its rooted handle is closed
 		return fmt.Errorf("transfer cancelled: %w", ctx.Err())
 	}
 }
 
-func uploadFile(localPath, remotePath string, client *sftp.Client) error {
-	localFile, err := os.Open(localPath)
+func uploadFile(ctx context.Context, root *os.Root, localPath, remotePath string, client *sftp.Client) error {
+	localFile, err := root.Open(localPath)
 	if err != nil {
-		return fmt.Errorf("failed to open local file: %w", err)
+		return fmt.Errorf("open local file: %w", err)
 	}
 	defer localFile.Close()
-
-	remoteFile, err := client.Create(remotePath)
-	if err != nil {
-		return fmt.Errorf("failed to create remote file: %w", err)
+	if info, err := localFile.Stat(); err != nil || !info.Mode().IsRegular() {
+		return fmt.Errorf("transfer requires a regular file")
 	}
-	defer remoteFile.Close()
-
+	tmp := remotePath + ".aurago-" + uid.New()
+	remoteFile, err := client.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL)
+	if err != nil {
+		return fmt.Errorf("stage remote file: %w", err)
+	}
+	defer client.Remove(tmp)
 	_, err = io.Copy(remoteFile, localFile)
+	closeErr := remoteFile.Close()
 	if err != nil {
-		return fmt.Errorf("failed to copy file: %w", err)
-	}
-
-	return nil
-}
-
-func downloadFile(localPath, remotePath string, client *sftp.Client) error {
-	remoteFile, err := client.Open(remotePath)
-	if err != nil {
-		return fmt.Errorf("failed to open remote file: %w", err)
-	}
-	defer remoteFile.Close()
-
-	localFile, err := os.Create(localPath)
-	if err != nil {
-		return fmt.Errorf("failed to create local file: %w", err)
-	}
-
-	_, err = io.Copy(localFile, remoteFile)
-	closeErr := localFile.Close()
-	if err != nil {
-		os.Remove(localPath) // Clean up corrupt/partial file
-		return fmt.Errorf("failed to copy file: %w", err)
+		return err
 	}
 	if closeErr != nil {
-		os.Remove(localPath)
-		return fmt.Errorf("failed to finalize local file: %w", closeErr)
+		return closeErr
 	}
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+	// POSIX rename is atomic and replaces the destination. A server without
+	// this extension fails closed; never unlink the last good destination.
+	return client.PosixRename(tmp, remotePath)
+}
 
-	return nil
+func downloadFile(ctx context.Context, root *os.Root, localPath, remotePath string, client *sftp.Client) error {
+	remoteFile, err := client.Open(remotePath)
+	if err != nil {
+		return fmt.Errorf("open remote file: %w", err)
+	}
+	defer remoteFile.Close()
+	return publishTransferDownload(ctx, root, localPath, remoteFile)
+}
+
+func publishTransferDownload(ctx context.Context, root *os.Root, localPath string, source io.Reader) error {
+	tmp := filepath.Join(filepath.Dir(localPath), ".aurago-transfer-"+uid.New())
+	f, err := root.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return err
+	}
+	defer root.Remove(tmp)
+	_, err = io.Copy(f, source)
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	return fileutil.RenameRootContext(ctx, root, tmp, localPath)
 }

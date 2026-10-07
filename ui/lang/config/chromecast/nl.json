@@ -26,7 +26,7 @@
   "config.chromecast.field_name": "Apparaatnaam",
   "config.chromecast.field_name_help": "Een herkenbare naam voor dit apparaat (bijv. \"Woonkamer\", \"Keukenspeaker\"). De agent gebruikt deze naam om het apparaat te identificeren.",
   "config.chromecast.found_devices": "{{count}} apparaat/apparaten gevonden",
-  "config.chromecast.ip_placeholder": "e.g. 192.168.1.50",
+  "config.chromecast.ip_placeholder": "bijv. 192.168.1.50",
   "config.chromecast.ip_required": "Een IP-adres is vereist.",
   "config.chromecast.loading": "⏳ Apparaten laden…",
   "config.chromecast.name_placeholder": "bijv. Woonkamer",

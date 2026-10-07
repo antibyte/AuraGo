@@ -28,17 +28,24 @@ type GWorkspaceClient struct {
 	Vault        *security.Vault
 }
 
-var gwHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var gwHTTPClient = &http.Client{Timeout: 30 * time.Second, CheckRedirect: security.SameOriginRedirect}
 
 // NewGWorkspaceClient builds a client from config + vault.
 func NewGWorkspaceClient(cfg config.Config, vault *security.Vault) (*GWorkspaceClient, error) {
 	gw := cfg.GoogleWorkspace
+	if vault != nil {
+		token, _, err := readIntegrationOAuth(vault, "oauth_google_workspace")
+		if err != nil {
+			return nil, err
+		}
+		gw.AccessToken, gw.RefreshToken, gw.TokenExpiry = token.AccessToken, token.RefreshToken, token.Expiry
+	}
 	if gw.AccessToken == "" {
 		return nil, fmt.Errorf("no Google Workspace access token — connect via Settings > Google Workspace")
 	}
 
 	clientSecret := gw.ClientSecret
-	if clientSecret == "" {
+	if clientSecret == "" && vault != nil {
 		s, _ := vault.ReadSecret("google_workspace_client_secret")
 		clientSecret = s
 	}
@@ -62,6 +69,22 @@ func NewGWorkspaceClient(cfg config.Config, vault *security.Vault) (*GWorkspaceC
 func (c *GWorkspaceClient) refreshIfNeeded() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	googleWorkspaceTokenRefreshMu.Lock()
+	defer googleWorkspaceTokenRefreshMu.Unlock()
+	var previous string
+	if c.Vault != nil {
+		token, raw, err := readIntegrationOAuth(c.Vault, "oauth_google_workspace")
+		if err != nil {
+			return err
+		}
+		previous = raw
+		c.AccessToken, c.RefreshToken = token.AccessToken, token.RefreshToken
+		c.TokenExpiry, _ = time.Parse(time.RFC3339, token.Expiry)
+	}
+	security.RegisterSensitive(c.AccessToken)
+	security.RegisterSensitive(c.RefreshToken)
+	security.RegisterSensitive(c.ClientSecret)
+
 	if c.RefreshToken == "" {
 		return nil // Cannot refresh without refresh token
 	}
@@ -87,29 +110,31 @@ func (c *GWorkspaceClient) refreshIfNeeded() error {
 		return fmt.Errorf("failed to read token response: %w", err)
 	}
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("token refresh failed (HTTP %d): %s", resp.StatusCode, string(body))
+		return fmt.Errorf("token refresh failed (HTTP %d)", resp.StatusCode)
 	}
 
 	var tok struct {
-		AccessToken string `json:"access_token"`
-		ExpiresIn   int    `json:"expires_in"`
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    int    `json:"expires_in"`
 	}
 	if err := json.Unmarshal(body, &tok); err != nil {
 		return fmt.Errorf("failed to parse token response: %w", err)
 	}
 
-	c.AccessToken = tok.AccessToken
-	c.TokenExpiry = time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second)
-
-	// Persist updated token to vault
-	if c.Vault != nil {
-		tokenData, _ := json.Marshal(map[string]string{
-			"access_token":  c.AccessToken,
-			"refresh_token": c.RefreshToken,
-			"token_expiry":  c.TokenExpiry.Format(time.RFC3339),
-		})
-		_ = c.Vault.WriteSecret("oauth_google_workspace", string(tokenData))
+	if tok.AccessToken == "" || tok.ExpiresIn <= 0 || tok.ExpiresIn > 31536000 {
+		return fmt.Errorf("invalid OAuth refresh response")
 	}
+	nextRefresh := tok.RefreshToken
+	if nextRefresh == "" {
+		nextRefresh = c.RefreshToken
+	}
+	expiry := time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second).UTC()
+	token := config.OAuthToken{AccessToken: tok.AccessToken, RefreshToken: nextRefresh, TokenType: "Bearer", Expiry: expiry.Format(time.RFC3339)}
+	if err := persistIntegrationOAuth(c.Vault, "oauth_google_workspace", previous, token); err != nil {
+		return err
+	}
+	c.AccessToken, c.RefreshToken, c.TokenExpiry = token.AccessToken, token.RefreshToken, expiry
 
 	return nil
 }
@@ -133,7 +158,7 @@ func (c *GWorkspaceClient) request(method, rawURL string, body interface{}) ([]b
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
+	req.Header.Set("Authorization", "Bearer "+c.tokenValue())
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -899,7 +924,7 @@ func ExecuteGoogleWorkspace(cfg config.Config, vault *security.Vault, operation 
 		"gmail_list":          gw.Gmail,
 		"gmail_read":          gw.Gmail,
 		"gmail_send":          gw.GmailSend,
-		"gmail_modify_labels": gw.Gmail,
+		"gmail_modify_labels": gw.GmailModifyLabels,
 		"calendar_list":       gw.Calendar,
 		"calendar_create":     gw.CalendarWrite,
 		"calendar_update":     gw.CalendarWrite,
@@ -1006,4 +1031,10 @@ func ExecuteGoogleWorkspace(cfg config.Config, vault *security.Vault, operation 
 	default:
 		return gwErrJSON("Unknown Google Workspace operation: '%s'", operation)
 	}
+}
+
+func (c *GWorkspaceClient) tokenValue() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.AccessToken
 }

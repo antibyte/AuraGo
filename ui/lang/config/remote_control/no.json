@@ -24,7 +24,7 @@
   "config.onedrive.test_failed": "Mislyktes",
   "config.onedrive.test_success": "Suksess",
   "config.onedrive.testing": "Tester…",
-  "config.remote_control.allowed_paths_hint": "én per linje, tom = alle",
+  "config.remote_control.allowed_paths_hint": "Én sti per linje; en tom liste blokkerer filtilgang.",
   "config.remote_control.allowed_paths_label": "Tillatte stier",
   "config.remote_control.audit_log_label": "Aktiver revisjonslogg",
   "config.remote_control.auto_approve_label": "Godkjenn nye enheter automatisk (⚠️ kun på pålitelige nettverk)",

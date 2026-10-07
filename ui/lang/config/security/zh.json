@@ -11,5 +11,6 @@
   "config.security.severity.critical": "严重",
   "config.security.severity.info": "提示",
   "config.security.severity.warning": "警告",
-  "config.security.status_success": "✅"
+  "config.security.status_success": "✅",
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion：使用 Docker (远程) 的 Nest 通过未加密的 HTTP 部署"
 }

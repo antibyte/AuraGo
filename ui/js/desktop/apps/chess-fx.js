@@ -172,14 +172,22 @@
     // --- Web Audio synthesized chess sounds (no sample files) ---
     function createChessAudio() {
         let actx = null;
+        let disposed = false;
+        const timers = new Set();
+        const later = (action, delay) => {
+            if (disposed) return;
+            const timer = setTimeout(() => { timers.delete(timer); if (!disposed) action(); }, delay);
+            timers.add(timer);
+        };
         function ensure() {
+            if (disposed) return null;
             if (actx) return actx;
             try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
             return actx;
         }
         function tone(freq, dur, type, vol) {
             const a = ensure(); if (!a) return;
-            if (a.state === 'suspended') a.resume();
+            if (a.state === 'suspended') a.resume().catch(() => {});
             const o = a.createOscillator(), g = a.createGain();
             o.type = type || 'sine'; o.frequency.value = freq;
             g.gain.setValueAtTime(Math.max(0.001, vol || 0.2), a.currentTime);
@@ -199,10 +207,11 @@
         return {
             move() { woodThunk(500); tone(300, 0.06, 'sine', 0.1); },
             capture() { woodThunk(280); tone(180, 0.08, 'sawtooth', 0.12); },
-            check() { tone(880, 0.1, 'triangle', 0.18); setTimeout(() => tone(660, 0.1, 'triangle', 0.15), 80); },
-            castle() { woodThunk(500); setTimeout(() => woodThunk(500), 100); },
-            promote() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.1, 'sine', 0.15), i * 60)); },
-            gameOver(win) { const notes = win ? [523, 659, 784, 1047] : [392, 330, 262, 196]; notes.forEach((f, i) => setTimeout(() => tone(f, 0.2, 'triangle', 0.18), i * 120)); }
+            check() { tone(880, 0.1, 'triangle', 0.18); later(() => tone(660, 0.1, 'triangle', 0.15), 80); },
+            castle() { woodThunk(500); later(() => woodThunk(500), 100); },
+            promote() { [523, 659, 784, 1047].forEach((f, i) => later(() => tone(f, 0.1, 'sine', 0.15), i * 60)); },
+            gameOver(win) { const notes = win ? [523, 659, 784, 1047] : [392, 330, 262, 196]; notes.forEach((f, i) => later(() => tone(f, 0.2, 'triangle', 0.18), i * 120)); },
+            dispose() { if (disposed) return; disposed = true; timers.forEach(clearTimeout); timers.clear(); const current = actx; actx = null; if (current) current.close().catch(() => {}); }
         };
     }
 

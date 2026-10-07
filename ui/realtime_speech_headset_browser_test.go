@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
 )
 
@@ -138,9 +141,13 @@ window.FakeSocket=FakeSocket;
 }
 
 func TestRealtimeSpeechAudioPickerBrowser(t *testing.T) {
-	page := openRealtimeHeadsetFixture(t, `<div id="panel"></div><script>
-window.audioList={devices:[],reason:''};
-window.AuraRealtimeHeadsetBridge={listDevices:async()=>window.audioList};
+	page := openRealtimeHeadsetFixture(t, `<link rel="stylesheet" href="/css/realtime-speech.css"><link rel="stylesheet" href="/css/desktop-app-live-speech.css">
+<style>html,body{height:100%;margin:0}.vd-live-speech-app{--vd-text:#e8edf2;--vd-theme-app-bg:#101820;--vd-theme-chrome-bg:#18232d;--vd-theme-panel-bg:#1b2935;--vd-theme-border:#344653;--vd-theme-muted:#a8bac7;--vd-accent:#39d5bd;min-height:100vh}.vd-live-speech-app[data-theme="fruity"]{--vd-text:#302a25;--vd-theme-app-bg:#f6f1e9;--vd-theme-chrome-bg:#e9dfd0;--vd-theme-panel-bg:#fffaf2;--vd-theme-border:#c9bba8;--vd-theme-muted:#6d6257;--vd-accent:#b54864}</style>
+<div class="vd-live-speech-app" data-theme="standard"><div class="vd-live-speech-content">
+<header class="vd-live-speech-header"><h2>Live Speech</h2><div class="vd-live-speech-header-actions"><span data-live-speech-audio-controls></span><button class="vd-live-speech-fx-toggle" type="button" aria-label="Background effects">✦</button></div></header>
+<div id="panel"></div></div></div><script>
+window.audioList={devices:[],reason:''};window.audioListCalls=0;
+window.AuraRealtimeHeadsetBridge={listDevices:async()=>{audioListCalls++;return window.audioList;}};
 window.runtime=window.AuraRealtimeSpeech=Object.assign(new EventTarget(),{
     state:'idle',sessionId:'',profile:null,audioDevice:'',headsetNotice:'',started:null,switched:[],
     config:{default_profile:'primary',profiles:[{id:'primary',name:'Primary',provider:'openai',enabled:true,api_key_set:true}]},
@@ -152,24 +159,72 @@ window.runtime=window.AuraRealtimeSpeech=Object.assign(new EventTarget(),{
 });
 </script><script src="/js/realtime-speech/panel.js"></script><script>
 window.root=document.getElementById('panel');
-window.remount=()=>AuraRealtimeSpeechUI.mount(root,{surface:'webchat'});
+window.controls=document.querySelector('[data-live-speech-audio-controls]');
+window.remount=()=>{window.unmount=AuraRealtimeSpeechUI.mount(root,{surface:'desktop',audioControls:controls});};
 window.field=()=>root.querySelector('[data-realtime-audio-field]');
 window.select=()=>root.querySelector('[data-realtime-audio]');
-window.settle=()=>new Promise(r=>setTimeout(r,50));
+window.dialog=()=>root.querySelector('[data-realtime-audio-dialog]');
+window.audioButton=()=>controls.querySelector('[data-realtime-audio-open]');
+window.settle=()=>new Promise(r=>setTimeout(r,60));
 remount();
 </script>`)
+	page.MustSetViewport(1100, 760, 1, false)
+	capture := func(name string) {
+		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+			dir = filepath.Join(dir, "live-speech-audio")
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				t.Fatal(err)
+			}
+			page.MustScreenshot(filepath.Join(dir, name+".png"))
+		}
+	}
 	page.MustEval(`async()=>{
         await settle();
-        if(!field().hidden)throw Error('no headsets and nothing stored: the field must stay hidden');
-        audioList={devices:[{id:'AA:BB:CC:DD:EE:FF',name:'Earbuds',connected:true,busy:false},{id:'AA:BB:CC:DD:EE:01',name:'Office',connected:false,busy:false}],reason:''};
-        remount();await settle();
+        if(!audioButton()||audioButton().parentElement!==controls||root.contains(audioButton()))throw Error('Desktop audio button must live in the header');
+        if(!dialog()||dialog().open||field().hidden)throw Error('audio field must live in the closed native dialog');
+        window.callsBeforeOpen=audioListCalls;
+    }`)
+	page.MustElement(`[data-realtime-audio-open]`).MustClick()
+	page.MustEval(`async()=>{
+        await settle();
+        if(!dialog().open||audioListCalls<=callsBeforeOpen)throw Error('opening the dialog must show it and refresh headsets');
         const labels=[...select().options].map(o=>o.textContent);
-        if(field().hidden||labels[0]!=='This device'||labels[1]!=='Earbuds'||labels[2]!=='Office (not connected)')throw Error('options '+JSON.stringify(labels));
-        select().value='AA:BB:CC:DD:EE:FF';select().dispatchEvent(new Event('change'));
+        if(labels.length!==1||labels[0]!=='This device'||runtime.started||runtime.sessionId)throw Error('offline option/session '+JSON.stringify({labels,started:runtime.started,session:runtime.sessionId}));
+    }`)
+	page.MustElement(`[data-realtime-audio-close]`).MustClick()
+	page.MustEval(`()=>{if(dialog().open||document.activeElement!==audioButton())throw Error('Close must dismiss and return focus to the speaker button');}`)
+	page.MustEval(`()=>{audioList={devices:[{id:'AA:BB:CC:DD:EE:FF',name:'Earbuds',connected:true,busy:false},{id:'AA:BB:CC:DD:EE:01',name:'Office',connected:false,busy:false}],reason:''};}`)
+	page.MustElement(`[data-realtime-audio-open]`).MustClick()
+	page.MustEval(`async()=>{
+        await settle();
+        const connectedLabels=[...select().options].map(o=>o.textContent);
+        if(!dialog().open||connectedLabels.join('|')!=='This device|Earbuds|Office (not connected)')throw Error('options '+JSON.stringify(connectedLabels));
+    }`)
+	capture("standard-wide")
+	page.MustEval(`()=>document.querySelector('.vd-live-speech-app').dataset.theme='fruity'`)
+	page.MustSetViewport(390, 844, 1, false)
+	page.MustEval(`()=>{const d=dialog().getBoundingClientRect();if(innerWidth!==390||d.left<0||d.right>innerWidth)throw Error('narrow dialog exceeds the viewport: '+JSON.stringify({width:innerWidth,left:d.left,right:d.right}));}`)
+	capture("fruity-narrow")
+	page.MustSetViewport(1100, 760, 1, false)
+	page.MustEval(`()=>document.querySelector('.vd-live-speech-app').dataset.theme='standard'`)
+	page.MustElement(`[data-realtime-audio]`).MustClick()
+	page.Keyboard.MustType(input.ArrowDown)
+	page.Keyboard.MustType(input.Enter)
+	page.MustEval(`async()=>{
+        await settle();
         if(localStorage.getItem('aurago.realtimeSpeech.audioDevice.v1')!=='AA:BB:CC:DD:EE:FF')throw Error('choice not stored');
-        root.querySelector('[data-realtime-start]').click();await settle();
+        if(runtime.started||runtime.sessionId)throw Error('choosing an output must not start a session');
+    }`)
+	page.MustElement(`[data-realtime-audio-close]`).MustClick()
+	page.MustElement(`[data-realtime-start]`).MustClick()
+	page.MustEval(`async()=>{
+        await settle();
         if(runtime.started.audioDevice!=='AA:BB:CC:DD:EE:FF')throw Error('start did not pass the headset');
-        select().value='';select().dispatchEvent(new Event('change'));await settle();
+    }`)
+	page.MustElement(`[data-realtime-audio-open]`).MustClick()
+	page.MustEval(`async()=>{
+        await settle();
+        select().value='';select().dispatchEvent(new Event('change',{bubbles:true}));await settle();
         if(runtime.switched.length!==1||runtime.switched[0]!=='')throw Error('switch during the session missing: '+JSON.stringify(runtime.switched));
         runtime.headsetNotice='Headset connected.';runtime.dispatchEvent(new Event('headset'));
         const status=root.querySelector('[data-realtime-audio-status]');
@@ -177,12 +232,18 @@ remount();
         await runtime.stop();
         localStorage.setItem('aurago.realtimeSpeech.audioDevice.v1','AA:BB:CC:DD:EE:01');
     }`)
+	page.Keyboard.MustType(input.Escape)
+	page.MustEval(`()=>{if(dialog().open||document.activeElement!==audioButton())throw Error('Escape must dismiss and return focus to the speaker button');}`)
+	page.MustElement(`[data-realtime-audio-open]`).MustClick()
+	page.MustEval(`()=>{const old=audioButton();unmount();if(old.isConnected||dialog()||root.childElementCount)throw Error('unmount must close the dialog and remove its external button');remount();}`)
+	page.MustEval(`async()=>{await settle();if(!audioButton()||audioButton().parentElement!==controls||root.querySelectorAll('[data-realtime-audio-dialog]').length!==1)throw Error('remount must restore one header button and one dialog');}`)
 	// After a reload the fixture lists no headsets again.
 	page.MustReload().MustWaitLoad()
+	page.MustElement(`[data-realtime-audio-open]`).MustClick()
 	page.MustEval(`async()=>{
         await settle();
         const labels=[...select().options].map(o=>o.textContent);
-        if(field().hidden||select().value!=='AA:BB:CC:DD:EE:01'||labels[1]!=='AA:BB:CC:DD:EE:01 (not connected)')throw Error('a stored but unlisted headset must stay selectable: '+JSON.stringify(labels));
+        if(!dialog().open||select().value!=='AA:BB:CC:DD:EE:01'||labels.join('|')!=='This device|AA:BB:CC:DD:EE:01 (not connected)')throw Error('a stored but unlisted headset must stay selectable: '+JSON.stringify(labels));
     }`)
 }
 

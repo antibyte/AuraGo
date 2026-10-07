@@ -43,7 +43,6 @@
 
 .vc-heading { gap: 12px; min-width: 0; }
 .vc-heading-icon,
-.vc-machine-hero-icon,
 .vc-empty-icon {
     display: grid;
     place-items: center;
@@ -147,8 +146,10 @@ button:disabled { opacity: .52; cursor: wait; }
 
 .vc-preview { min-width: 0; min-height: 0; overflow: auto; padding: 18px; }
 .vc-machine-detail { display: grid; align-content: start; gap: 16px; min-height: 100%; }
-.vc-machine-hero { display: flex; align-items: flex-start; gap: 13px; }
-.vc-machine-hero-icon { width: 46px; height: 46px; border-radius: 14px; }
+.vc-machine-detail:has(.vc-machine-hero) { height: 100%; grid-template-rows: max-content max-content minmax(280px, 1fr); align-content: stretch; }
+.vc-machine-hero { display: grid; grid-template-rows: minmax(0, 1fr) auto; place-items: center; gap: 10px; width: 100%; height: 100%; min-height: 0; padding: 16px; color: var(--vd-theme-muted, var(--ds-color-fg-muted)); text-align: center; }
+.vc-machine-hero p { margin: 0; }
+.vc-placeholder-art { display: block; width: min(100%, 520px); height: 100%; min-height: 0; object-fit: contain; pointer-events: none; user-select: none; }
 .vc-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; min-width: 0; }
 .vc-detail-header h3 { overflow-wrap: anywhere; font-size: 20px; }
 .vc-state-chip { gap: 7px; width: max-content; margin-top: 6px; padding: 4px 9px; border: 1px solid var(--vd-theme-border); border-radius: 999px; color: var(--vd-theme-muted, var(--ds-color-fg-muted)); font-size: 11px; background: var(--vd-theme-control-bg); }
@@ -210,6 +211,7 @@ button:disabled { opacity: .52; cursor: wait; }
 .vc-empty-state h3, .vc-empty-detail h3 { margin: 0; color: var(--ds-color-fg-primary); }
 .vc-empty-state p, .vc-empty-detail p { max-width: 44ch; margin: 0; }
 .vc-empty-icon { width: 50px; height: 50px; border-radius: 15px; }
+.vc-empty-detail { height: 100%; min-height: 280px; grid-template-rows: minmax(0, 1fr) auto auto; }
 .vc-empty.compact { padding: 16px; color: var(--vd-theme-muted, var(--ds-color-fg-muted)); text-align: center; }
 .vc-skeleton-stack::before, .vc-detail-skeleton::before { content: ""; width: min(100%, 460px); height: 96px; border-radius: 12px; background: linear-gradient(90deg, var(--vd-theme-control-bg) 25%, color-mix(in srgb, var(--vd-theme-control-bg) 65%, white) 45%, var(--vd-theme-control-bg) 65%); background-size: 220% 100%; animation: vc-shimmer 1.25s linear infinite; }
 

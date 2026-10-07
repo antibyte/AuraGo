@@ -16,7 +16,7 @@ func TestDesktopSysmonWidgetRuntimeIsRegistered(t *testing.T) {
 	runtime := readDesktopAssetText(t, "js/desktop/core/widget-sysmon-runtime.js")
 	for _, want := range []string{
 		"function renderSysmonWidget(container)",
-		"api('/api/dashboard/system')",
+		"api('/api/desktop/integrations/dashboard/system')",
 		"window.AuraSSE.on('system_metrics', sseHandler)",
 		"window.AuraSSE.off('system_metrics', sseHandler)",
 		"registerWidgetCleanup(() => {",

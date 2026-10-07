@@ -11,5 +11,6 @@
   "config.security.severity.critical": "CRITICO",
   "config.security.severity.info": "INFO",
   "config.security.severity.warning": "AVVERTIMENTO",
-  "config.security.status_success": "✅"
+  "config.security.status_success": "✅",
+  "security.hint.invasion_docker_remote_plaintext.title": "Invasion: i Nest Docker (Remoto) eseguono il deploy su HTTP non cifrato"
 }

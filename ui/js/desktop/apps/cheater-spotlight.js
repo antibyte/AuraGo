@@ -183,7 +183,7 @@
                 document.body.appendChild(toast);
                 const commit = async () => {
                     try {
-                        await state.api('/api/cheatsheets/' + encodeURIComponent(entry.id), { method: 'DELETE' });
+                        await state.api('/api/desktop/integrations/cheatsheets/' + encodeURIComponent(entry.id), { method: 'DELETE' });
                         state.searchIndex = state.searchIndex.filter(e => e.id !== entry.id);
                         if (typeof state.refreshHome === 'function') state.refreshHome();
                         runSearch();

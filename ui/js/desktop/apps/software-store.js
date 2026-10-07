@@ -243,6 +243,7 @@
                     </div>
                     <div class="vd-store-card-desc">${esc(entry.metadata && entry.metadata.description_key ? t(entry.metadata.description_key) : entry.description)}</div>
                     ${warningText ? `<div class="vd-store-card-warning">${esc(warningText)}</div>` : ''}
+                    ${app && app.update_required === true ? `<div class="vd-store-card-warning" role="status">${esc(t('desktop.store.update_required'))}</div>` : ''}
                     ${operationError ? `<div class="vd-store-card-warning" role="alert">${esc(operationError)}</div>` : ''}
                     <div class="vd-store-meta">
                         <span class="vd-store-status status-${esc(status)}">${esc(statusLabel(status, operation))}</span>
@@ -644,6 +645,17 @@
             }
         }
 
+        // Known failures carry error_code/error_params; the translated text
+        // replaces the backend's English error, which stays the fallback.
+        function operationErrorText(op) {
+            if (op && op.error_code) {
+                const key = 'desktop.store.error_' + op.error_code;
+                const text = t(key, op.error_params || {});
+                if (typeof text === 'string' && text && text !== key) return text;
+            }
+            return op ? op.error : '';
+        }
+
         async function pollOperation(appId, operationId) {
             if (pollingOperations.has(operationId)) return;
             pollingOperations.add(operationId);
@@ -660,7 +672,7 @@
                     renderCards();
                     if (op.status === 'succeeded' || op.status === 'failed') {
                         busy.delete(appId);
-                        if (op.status === 'failed') showOperationError(appId, appId === 'gods-eye-view' && op.type === 'configure' ? t('desktop.store.gev_pending') : op.error);
+                        if (op.status === 'failed') showOperationError(appId, appId === 'gods-eye-view' && op.type === 'configure' ? t('desktop.store.gev_pending') : operationErrorText(op));
                         scheduleLoad(true, true);
                         // A shell refresh failure must not hide the operation result.
                         try { await loadBootstrap(); } catch (_) {}

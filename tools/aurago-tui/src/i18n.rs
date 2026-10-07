@@ -1,12 +1,4 @@
-//! Minimal i18n scaffolding for the TUI.
-//!
-//! Goal: Provide a single place for all user-facing strings so that full
-//! internationalization (15 languages like the Web UI) can be added later
-//! without touching every draw function.
-//!
-//! Current state: Only English. No runtime switching yet.
-//! Future: Add more `static LANG_XX: Strings = ...;` + a `current()` fn
-//! driven by config or env var.
+//! TUI translations and startup language selection.
 
 pub struct Strings {
     // Titles & general (some used in overlays; others allowed for future integration)
@@ -101,6 +93,15 @@ pub struct Strings {
     // Confirm actions (F3)
     pub confirm_delete_mission: &'static str,
     pub confirm_remove_container: &'static str,
+    pub confirm_remove_protected_container: &'static str,
+    pub confirm_stop_protected_container: &'static str,
+    pub protected_label: &'static str,
+    pub protected_reason_self: &'static str,
+    pub protected_reason_endpoint: &'static str,
+    pub protected_reason_network: &'static str,
+    pub protected_reason_managed: &'static str,
+    pub protected_reason_unverified: &'static str,
+    pub container_left_list: &'static str,
     pub confirm_delete_knowledge: &'static str,
     pub confirm_delete_media: &'static str,
     pub confirm_clear_chat: &'static str,
@@ -158,7 +159,53 @@ pub struct Strings {
     pub screen_media: &'static str,
 }
 
-/// English (default / current only language)
+#[path = "i18n/catalogs.rs"]
+mod catalogs;
+
+static LANGUAGE_CATALOGS: [(&str, &'static Strings); 16] = [
+    ("cs", &catalogs::CS),
+    ("da", &catalogs::DA),
+    ("de", &catalogs::DE),
+    ("el", &catalogs::EL),
+    ("en", &EN),
+    ("es", &catalogs::ES),
+    ("fr", &catalogs::FR),
+    ("hi", &catalogs::HI),
+    ("it", &catalogs::IT),
+    ("ja", &catalogs::JA),
+    ("nl", &catalogs::NL),
+    ("no", &catalogs::NO),
+    ("pl", &catalogs::PL),
+    ("pt", &catalogs::PT),
+    ("sv", &catalogs::SV),
+    ("zh", &catalogs::ZH),
+];
+
+static CURRENT: std::sync::OnceLock<&'static Strings> = std::sync::OnceLock::new();
+
+pub fn for_language(language: &str) -> &'static Strings {
+    let code = language
+        .trim()
+        .split(|character| matches!(character, '-' | '_' | '.'))
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    LANGUAGE_CATALOGS
+        .iter()
+        .find(|(supported, _)| *supported == code)
+        .map(|(_, strings)| *strings)
+        .unwrap_or(&EN)
+}
+
+pub fn preferred_language<'a>(cli: Option<&'a str>, environment: Option<&'a str>) -> &'a str {
+    cli.or(environment).unwrap_or("en")
+}
+
+pub fn set_language(language: &str) {
+    let _ = CURRENT.set(for_language(language));
+}
+
+/// English (default language and compatibility baseline)
 pub static EN: Strings = Strings {
     app_title: "AuraGo",
     help_title: " Help ",
@@ -220,6 +267,15 @@ pub static EN: Strings = Strings {
 
     confirm_delete_mission: "delete this mission",
     confirm_remove_container: "remove this container",
+    confirm_remove_protected_container: "remove this protected container",
+    confirm_stop_protected_container: "stop this protected container",
+    protected_label: "Protected: ",
+    protected_reason_self: "AuraGo runs in this container. Stopping or removing it ends this AuraGo instance.",
+    protected_reason_endpoint: "AuraGo reaches Docker through this container. Stopping or removing it cuts AuraGo off from Docker.",
+    protected_reason_network: "AuraGo runs in this container or shares its network with it.",
+    protected_reason_managed: "AuraGo manages this container",
+    protected_reason_unverified: "Docker did not confirm who manages this container.",
+    container_left_list: "The container is no longer in the list. Refresh and select it again.",
     confirm_delete_knowledge: "delete this file",
     confirm_delete_media: "delete this media item",
     confirm_clear_chat: "clear chat history",
@@ -276,8 +332,65 @@ pub static EN: Strings = Strings {
     screen_media: "Media",
 };
 
-/// Current strings (for now always EN).
-/// Later this can become a fn that returns & 'static Strings based on user preference.
+/// Returns the selected strings. English is used when no language was selected.
 pub fn current() -> &'static Strings {
-    &EN
+    *CURRENT.get_or_init(|| {
+        let language = std::env::var("AURAGO_TUI_LANG").unwrap_or_else(|_| "en".to_string());
+        for_language(&language)
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{EN, LANGUAGE_CATALOGS, for_language, preferred_language};
+
+    #[test]
+    fn all_supported_languages_select_translated_catalogs() {
+        for (code, expected) in LANGUAGE_CATALOGS.iter().copied() {
+            let strings = for_language(code);
+            assert!(std::ptr::eq(strings, expected), "{code} catalog");
+            if code == "en" {
+                assert!(std::ptr::eq(strings, &EN));
+                continue;
+            }
+
+            assert_ne!(
+                strings.no_plans_found, EN.no_plans_found,
+                "{code} empty state"
+            );
+            assert_ne!(strings.send, EN.send, "{code} send action");
+            assert_ne!(
+                strings.protected_reason_self, EN.protected_reason_self,
+                "{code} protected-container warning"
+            );
+        }
+    }
+
+    #[test]
+    fn language_selection_accepts_region_suffixes_and_defaults_to_english() {
+        assert_eq!(
+            for_language("DE-de").screen_chat,
+            for_language("de").screen_chat
+        );
+        assert_eq!(
+            for_language("zh_CN").screen_chat,
+            for_language("zh").screen_chat
+        );
+        assert!(std::ptr::eq(for_language("unsupported"), &EN));
+    }
+
+    #[test]
+    fn cli_language_overrides_environment_and_english_is_the_fallback() {
+        assert_eq!(preferred_language(Some("ja"), Some("de")), "ja");
+        assert_eq!(preferred_language(None, Some("fr")), "fr");
+        assert_eq!(preferred_language(None, None), "en");
+        assert!(std::ptr::eq(
+            for_language(preferred_language(Some("ja"), Some("de"))),
+            for_language("ja")
+        ));
+        assert!(std::ptr::eq(
+            for_language(preferred_language(None, None)),
+            &EN
+        ));
+    }
 }

@@ -31,6 +31,7 @@ func newGitHubHandlerTestServer(t *testing.T) (*Server, string) {
 	cfg.GitHub.Owner = "owner"
 	cfg.GitHub.AllowedRepos = []string{"owner/allowed"}
 	cfg.Directories.WorkspaceDir = workspaceDir
+	cfg.Directories.DataDir = t.TempDir()
 
 	return &Server{Cfg: cfg, Vault: vault, Logger: slog.Default()}, workspaceDir
 }
@@ -91,15 +92,15 @@ func TestHandleDashboardGitHubReposFiltersAllowedAndTrustedOnly(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode response: %v\n%s", err, rec.Body.String())
 	}
-	if body.Count != 2 || len(body.Repos) != 2 {
-		t.Fatalf("repo count = %d/%d, want 2; body=%s", body.Count, len(body.Repos), rec.Body.String())
+	if body.Count != 1 || len(body.Repos) != 1 {
+		t.Fatalf("repo count = %d/%d, want only the explicit grant; body=%s", body.Count, len(body.Repos), rec.Body.String())
 	}
 	seen := map[string]bool{}
 	for _, repo := range body.Repos {
 		seen[repo["full_name"].(string)] = true
 	}
-	if !seen["owner/allowed"] || !seen["owner/trusted"] {
-		t.Fatalf("expected allowed and trusted repos, got %#v", seen)
+	if !seen["owner/allowed"] || seen["owner/trusted"] {
+		t.Fatalf("untrusted legacy marker must not appear, got %#v", seen)
 	}
 	if seen["owner/manual"] || seen["owner/blocked"] {
 		t.Fatalf("manual or blocked repo leaked into dashboard: %#v", seen)
@@ -145,8 +146,8 @@ func TestHandleGitHubReposForUIListsAllReposAndAnnotatesPolicy(t *testing.T) {
 	if byFullName["owner/allowed"]["allowed"] != true {
 		t.Fatalf("allowed repo annotation missing: %#v", byFullName["owner/allowed"])
 	}
-	if byFullName["owner/trusted"]["agent_created"] != true {
-		t.Fatalf("trusted repo annotation missing: %#v", byFullName["owner/trusted"])
+	if byFullName["owner/trusted"]["agent_created"] == true || byFullName["owner/trusted"]["trust_migration_required"] != true {
+		t.Fatalf("legacy repo must require explicit approval: %#v", byFullName["owner/trusted"])
 	}
 	if byFullName["owner/manual"]["agent_created"] == true {
 		t.Fatalf("manual tracked repo must not be agent_created: %#v", byFullName["owner/manual"])

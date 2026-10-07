@@ -165,16 +165,22 @@ func (m *Manager) SendPush(payload []byte) (int, error) {
 			TTL:             30,
 		})
 
-		if err != nil || (res != nil && (res.StatusCode == 410 || res.StatusCode == 404)) {
-			// Subscription expired or invalid tracking
-			m.logger.Warn("Failed to send push, removing subscription", "endpoint", endpoint[:30]+"...", "error", err)
-			toDelete = append(toDelete, endpoint)
-		} else {
-			successCount++
-			if res != nil {
-				res.Body.Close()
-			}
+		if res != nil {
+			res.Body.Close()
 		}
+		if err != nil {
+			m.logger.Warn("Push delivery failed; subscription retained", "error", err)
+			continue
+		}
+		if res == nil {
+			continue
+		}
+		if res.StatusCode == 410 || res.StatusCode == 404 {
+			toDelete = append(toDelete, endpoint)
+		} else if res.StatusCode >= 200 && res.StatusCode < 300 {
+			successCount++
+		}
+
 	}
 
 	// Clean up dead subscriptions

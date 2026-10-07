@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -29,11 +28,18 @@ type OneDriveClient struct {
 	ReadOnly     bool
 }
 
-var odHTTPClient = &http.Client{Timeout: 60 * time.Second}
+var odHTTPClient = &http.Client{Timeout: 60 * time.Second, CheckRedirect: security.SameOriginRedirect}
 
 // NewOneDriveClient builds a client from config + vault.
 func NewOneDriveClient(cfg config.Config, vault *security.Vault) (*OneDriveClient, error) {
 	od := cfg.OneDrive
+	if vault != nil {
+		token, _, err := readIntegrationOAuth(vault, "oauth_onedrive")
+		if err != nil {
+			return nil, err
+		}
+		od.AccessToken, od.RefreshToken, od.TokenExpiry = token.AccessToken, token.RefreshToken, token.Expiry
+	}
 	if od.AccessToken == "" {
 		return nil, fmt.Errorf("no OneDrive access token — connect via Settings > OneDrive")
 	}
@@ -70,6 +76,22 @@ func NewOneDriveClient(cfg config.Config, vault *security.Vault) (*OneDriveClien
 func (c *OneDriveClient) refreshIfNeeded() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	oneDriveTokenRefreshMu.Lock()
+	defer oneDriveTokenRefreshMu.Unlock()
+	var previous string
+	if c.Vault != nil {
+		token, raw, err := readIntegrationOAuth(c.Vault, "oauth_onedrive")
+		if err != nil {
+			return err
+		}
+		previous = raw
+		c.AccessToken, c.RefreshToken = token.AccessToken, token.RefreshToken
+		c.TokenExpiry, _ = time.Parse(time.RFC3339, token.Expiry)
+	}
+	security.RegisterSensitive(c.AccessToken)
+	security.RegisterSensitive(c.RefreshToken)
+	security.RegisterSensitive(c.ClientSecret)
+
 	if c.RefreshToken == "" {
 		return nil
 	}
@@ -99,7 +121,7 @@ func (c *OneDriveClient) refreshIfNeeded() error {
 		return fmt.Errorf("failed to read token refresh response: %w", err)
 	}
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("token refresh failed (HTTP %d): %s", resp.StatusCode, string(body))
+		return fmt.Errorf("token refresh failed (HTTP %d)", resp.StatusCode)
 	}
 
 	var tok struct {
@@ -111,23 +133,19 @@ func (c *OneDriveClient) refreshIfNeeded() error {
 		return fmt.Errorf("failed to parse token response: %w", err)
 	}
 
-	c.AccessToken = tok.AccessToken
-	if tok.RefreshToken != "" {
-		c.RefreshToken = tok.RefreshToken
+	if tok.AccessToken == "" || tok.ExpiresIn <= 0 || tok.ExpiresIn > 31536000 {
+		return fmt.Errorf("invalid OAuth refresh response")
 	}
-	c.TokenExpiry = time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second)
-
-	// Persist updated token to vault
-	if c.Vault != nil {
-		tokenData, _ := json.Marshal(map[string]string{
-			"access_token":  c.AccessToken,
-			"refresh_token": c.RefreshToken,
-			"token_expiry":  c.TokenExpiry.Format(time.RFC3339),
-		})
-		if err := c.Vault.WriteSecret("oauth_onedrive", string(tokenData)); err != nil {
-			slog.Warn("OneDrive: failed to persist refreshed token to vault", "error", err)
-		}
+	nextRefresh := tok.RefreshToken
+	if nextRefresh == "" {
+		nextRefresh = c.RefreshToken
 	}
+	expiry := time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second).UTC()
+	token := config.OAuthToken{AccessToken: tok.AccessToken, RefreshToken: nextRefresh, TokenType: "Bearer", Expiry: expiry.Format(time.RFC3339)}
+	if err := persistIntegrationOAuth(c.Vault, "oauth_onedrive", previous, token); err != nil {
+		return err
+	}
+	c.AccessToken, c.RefreshToken, c.TokenExpiry = token.AccessToken, token.RefreshToken, expiry
 
 	return nil
 }
@@ -151,7 +169,7 @@ func (c *OneDriveClient) request(method, rawURL string, body interface{}) ([]byt
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
+	req.Header.Set("Authorization", "Bearer "+c.tokenValue())
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -351,7 +369,7 @@ func (c *OneDriveClient) readFile(path string) string {
 	}
 
 	req, _ := http.NewRequest("GET", apiURL, nil)
-	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
+	req.Header.Set("Authorization", "Bearer "+c.tokenValue())
 
 	// Don't auto-follow redirects to handle the download URL
 	noRedirectClient := &http.Client{
@@ -372,20 +390,13 @@ func (c *OneDriveClient) readFile(path string) string {
 		if downloadURL == "" {
 			return odErrJSON("Got redirect but no Location header")
 		}
-		dlResp, err := odHTTPClient.Get(downloadURL)
+		dlResp, err := odDownloadHTTPClient.Get(downloadURL)
 		if err != nil {
 			return odErrJSON("Download failed: %v", err)
 		}
 		defer dlResp.Body.Close()
 
-		body, _ := io.ReadAll(io.LimitReader(dlResp.Body, 512*1024)) // Limit to 512KB for text content
-		return odOkJSON(map[string]interface{}{
-			"status":    "ok",
-			"path":      path,
-			"size":      len(body),
-			"content":   string(body),
-			"truncated": len(body) >= 512*1024,
-		})
+		return readOneDriveFileResponse(dlResp, path)
 	}
 
 	if resp.StatusCode != 200 {
@@ -396,14 +407,7 @@ func (c *OneDriveClient) readFile(path string) string {
 		return odErrJSON("Read failed (HTTP %d): %s", resp.StatusCode, string(body))
 	}
 
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
-	return odOkJSON(map[string]interface{}{
-		"status":    "ok",
-		"path":      path,
-		"size":      len(body),
-		"content":   string(body),
-		"truncated": len(body) >= 512*1024,
-	})
+	return readOneDriveFileResponse(resp, path)
 }
 
 func (c *OneDriveClient) search(query string, maxResults int) string {
@@ -520,7 +524,7 @@ func (c *OneDriveClient) uploadFile(path, content string) string {
 	}
 
 	req, _ := http.NewRequest("PUT", apiURL, strings.NewReader(content))
-	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
+	req.Header.Set("Authorization", "Bearer "+c.tokenValue())
 	req.Header.Set("Content-Type", "application/octet-stream")
 
 	resp, err := odHTTPClient.Do(req)
@@ -589,6 +593,9 @@ func (c *OneDriveClient) createFolder(path string) string {
 }
 
 func (c *OneDriveClient) deleteItem(path string) string {
+	if err := validateCloudDeletePath(path); err != nil {
+		return odErrJSON("%v", err)
+	}
 	if path == "" {
 		return odErrJSON("Path is required for delete operation")
 	}
@@ -788,4 +795,29 @@ func (c *OneDriveClient) createShareLink(path string) string {
 		"share_url": shareResp.Link.WebURL,
 		"link_type": shareResp.Link.Type,
 	})
+}
+
+// Download URLs are unsigned requests to public storage, never credential-bearing redirects.
+var odDownloadHTTPClient = security.NewSSRFProtectedHTTPClient(60 * time.Second)
+
+func readOneDriveFileResponse(resp *http.Response, path string) string {
+	if resp.StatusCode != http.StatusOK {
+		return odErrJSON("Download failed (HTTP %d)", resp.StatusCode)
+	}
+	const limit = 512 * 1024
+	body, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
+	if err != nil {
+		return odErrJSON("Download body could not be read: %v", err)
+	}
+	truncated := len(body) > limit
+	if truncated {
+		body = body[:limit]
+	}
+	return odOkJSON(map[string]interface{}{"status": "ok", "path": path, "size": len(body), "content": string(body), "truncated": truncated})
+}
+
+func (c *OneDriveClient) tokenValue() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.AccessToken
 }

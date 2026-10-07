@@ -61,7 +61,7 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 		return nil, "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewReader(jsonBody))
+	req, err := http.NewRequestWithContext(cfg.requestContext(), "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}
@@ -118,7 +118,7 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 			}
 		}
 		// Direct HTTP URL
-		if imgData, ext, err := tryDownloadImageURL(urlStr); err == nil {
+		if imgData, ext, err := tryDownloadImageURLContext(cfg.requestContext(), urlStr); err == nil {
 			return imgData, ext, nil
 		}
 	}
@@ -128,19 +128,19 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 	// Content might be a string with base64/URL, or an array of content blocks
 	switch v := content.(type) {
 	case string:
-		if imgData, ext, err := tryDecodeImageString(v); err == nil {
+		if imgData, ext, err := tryDecodeImageStringContext(cfg.requestContext(), v); err == nil {
 			return imgData, ext, nil
 		}
 		return nil, "", fmt.Errorf("could not extract image data from OpenRouter string response (len=%d, preview=%q)", len(v), truncateError(v))
 
 	case []interface{}:
-		if imgData, ext, err := extractImageFromAnyResponse(v); err == nil {
+		if imgData, ext, err := extractImageFromAnyResponseContext(cfg.requestContext(), v); err == nil {
 			return imgData, ext, nil
 		}
 		return nil, "", fmt.Errorf("no image_url block found in OpenRouter response")
 
 	case map[string]interface{}:
-		if imgData, ext, err := extractImageFromAnyResponse(v); err == nil {
+		if imgData, ext, err := extractImageFromAnyResponseContext(cfg.requestContext(), v); err == nil {
 			return imgData, ext, nil
 		}
 		return nil, "", fmt.Errorf("could not extract image data from OpenRouter object response")
@@ -152,7 +152,7 @@ func generateOpenRouter(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 		// Final fallback: search the full raw response recursively for image payloads.
 		var anyResp interface{}
 		if err := json.Unmarshal(respBody, &anyResp); err == nil {
-			if imgData, ext, walkErr := extractImageFromAnyResponse(anyResp); walkErr == nil {
+			if imgData, ext, walkErr := extractImageFromAnyResponseContext(cfg.requestContext(), anyResp); walkErr == nil {
 				return imgData, ext, nil
 			}
 		}

@@ -1,0 +1,3924 @@
+{
+  "id": "mixed-technology",
+  "name": "Mixed Technology",
+  "description": "100 tools, machines and technical props across workshops, energy, electronics, medicine, rescue, transport and space.",
+  "tags": [
+    "mixed",
+    "side",
+    "prop",
+    "item",
+    "tools",
+    "workshop",
+    "machinery",
+    "energy",
+    "electronics",
+    "medical",
+    "rescue",
+    "transport",
+    "space",
+    "communication"
+  ],
+  "schema_version": 1,
+  "version": "2",
+  "image": "sheet.png",
+  "columns": 10,
+  "rows": 10,
+  "frame_width": 64,
+  "frame_height": 64,
+  "frames": [
+    {
+      "index": 0,
+      "asset_id": "claw_hammer",
+      "x": 0,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 1,
+      "asset_id": "adjustable_wrench",
+      "x": 64,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 2,
+      "asset_id": "screwdriver",
+      "x": 128,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 3,
+      "asset_id": "pliers",
+      "x": 192,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 4,
+      "asset_id": "hand_saw",
+      "x": 256,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 5,
+      "asset_id": "power_drill",
+      "x": 320,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 6,
+      "asset_id": "tape_measure",
+      "x": 384,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 7,
+      "asset_id": "spirit_level",
+      "x": 448,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 8,
+      "asset_id": "utility_knife",
+      "x": 512,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 9,
+      "asset_id": "toolbox",
+      "x": 576,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 10,
+      "asset_id": "bench_vise",
+      "x": 0,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 11,
+      "asset_id": "anvil",
+      "x": 64,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 12,
+      "asset_id": "welding_mask",
+      "x": 128,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 13,
+      "asset_id": "paint_roller",
+      "x": 192,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 14,
+      "asset_id": "paint_bucket",
+      "x": 256,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 15,
+      "asset_id": "soldering_iron",
+      "x": 320,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 16,
+      "asset_id": "grease_gun",
+      "x": 384,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 17,
+      "asset_id": "oil_can",
+      "x": 448,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 18,
+      "asset_id": "safety_helmet",
+      "x": 512,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 19,
+      "asset_id": "work_light",
+      "x": 576,
+      "y": 64,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 20,
+      "asset_id": "steel_gear",
+      "x": 0,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 21,
+      "asset_id": "piston",
+      "x": 64,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 22,
+      "asset_id": "electric_motor",
+      "x": 128,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 23,
+      "asset_id": "water_pump",
+      "x": 192,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 24,
+      "asset_id": "pressure_valve",
+      "x": 256,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 25,
+      "asset_id": "pressure_gauge",
+      "x": 320,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 26,
+      "asset_id": "fan_rotor",
+      "x": 384,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 27,
+      "asset_id": "conveyor_roller",
+      "x": 448,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 28,
+      "asset_id": "coiled_spring",
+      "x": 512,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 29,
+      "asset_id": "industrial_filter",
+      "x": 576,
+      "y": 128,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 30,
+      "asset_id": "car_battery",
+      "x": 0,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 31,
+      "asset_id": "solar_panel",
+      "x": 64,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 32,
+      "asset_id": "wind_turbine",
+      "x": 128,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 33,
+      "asset_id": "fuel_can",
+      "x": 192,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 34,
+      "asset_id": "gas_cylinder",
+      "x": 256,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 35,
+      "asset_id": "power_generator",
+      "x": 320,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 36,
+      "asset_id": "electrical_transformer",
+      "x": 384,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 37,
+      "asset_id": "fuse_box",
+      "x": 448,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 38,
+      "asset_id": "electric_plug",
+      "x": 512,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 39,
+      "asset_id": "light_bulb",
+      "x": 576,
+      "y": 192,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 40,
+      "asset_id": "circuit_board",
+      "x": 0,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 41,
+      "asset_id": "microchip",
+      "x": 64,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 42,
+      "asset_id": "resistor",
+      "x": 128,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 43,
+      "asset_id": "capacitor",
+      "x": 192,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 44,
+      "asset_id": "vacuum_tube",
+      "x": 256,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 45,
+      "asset_id": "computer_mouse",
+      "x": 320,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 46,
+      "asset_id": "keyboard",
+      "x": 384,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 47,
+      "asset_id": "crt_monitor",
+      "x": 448,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 48,
+      "asset_id": "joystick",
+      "x": 512,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 49,
+      "asset_id": "game_controller",
+      "x": 576,
+      "y": 256,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 50,
+      "asset_id": "first_aid_kit",
+      "x": 0,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 51,
+      "asset_id": "stethoscope",
+      "x": 64,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 52,
+      "asset_id": "bandage_roll",
+      "x": 128,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 53,
+      "asset_id": "medicine_bottle",
+      "x": 192,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 54,
+      "asset_id": "thermometer",
+      "x": 256,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 55,
+      "asset_id": "crutch",
+      "x": 320,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 56,
+      "asset_id": "wheelchair",
+      "x": 384,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 57,
+      "asset_id": "oxygen_tank",
+      "x": 448,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 58,
+      "asset_id": "defibrillator",
+      "x": 512,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 59,
+      "asset_id": "medical_scanner",
+      "x": 576,
+      "y": 320,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 60,
+      "asset_id": "fire_extinguisher",
+      "x": 0,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 61,
+      "asset_id": "fire_hose_reel",
+      "x": 64,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 62,
+      "asset_id": "traffic_cone",
+      "x": 128,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 63,
+      "asset_id": "warning_beacon",
+      "x": 192,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 64,
+      "asset_id": "rescue_axe",
+      "x": 256,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 65,
+      "asset_id": "life_jacket",
+      "x": 320,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 66,
+      "asset_id": "megaphone",
+      "x": 384,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 67,
+      "asset_id": "rescue_helmet",
+      "x": 448,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 68,
+      "asset_id": "stretcher",
+      "x": 512,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 69,
+      "asset_id": "emergency_radio",
+      "x": 576,
+      "y": 384,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 70,
+      "asset_id": "car_wheel",
+      "x": 0,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 71,
+      "asset_id": "steering_wheel",
+      "x": 64,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 72,
+      "asset_id": "traffic_light",
+      "x": 128,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 73,
+      "asset_id": "road_barrier",
+      "x": 192,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 74,
+      "asset_id": "parking_meter",
+      "x": 256,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 75,
+      "asset_id": "bicycle_pump",
+      "x": 320,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 76,
+      "asset_id": "motorcycle_helmet",
+      "x": 384,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 77,
+      "asset_id": "train_signal",
+      "x": 448,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 78,
+      "asset_id": "propeller",
+      "x": 512,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 79,
+      "asset_id": "ship_wheel",
+      "x": 576,
+      "y": 448,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 80,
+      "asset_id": "rocket_engine",
+      "x": 0,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 81,
+      "asset_id": "space_capsule",
+      "x": 64,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 82,
+      "asset_id": "solar_satellite",
+      "x": 128,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 83,
+      "asset_id": "lunar_rover",
+      "x": 192,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 84,
+      "asset_id": "ray_gun",
+      "x": 256,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 85,
+      "asset_id": "robot_claw",
+      "x": 320,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 86,
+      "asset_id": "energy_cell",
+      "x": 384,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 87,
+      "asset_id": "plasma_coil",
+      "x": 448,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 88,
+      "asset_id": "navigation_console",
+      "x": 512,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 89,
+      "asset_id": "cryogenic_canister",
+      "x": 576,
+      "y": 512,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 90,
+      "asset_id": "walkie_talkie",
+      "x": 0,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 91,
+      "asset_id": "rotary_telephone",
+      "x": 64,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 92,
+      "asset_id": "smartphone",
+      "x": 128,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 93,
+      "asset_id": "portable_radio",
+      "x": 192,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 94,
+      "asset_id": "satellite_phone",
+      "x": 256,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 95,
+      "asset_id": "radar_screen",
+      "x": 320,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 96,
+      "asset_id": "antenna_mast",
+      "x": 384,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 97,
+      "asset_id": "mailbox",
+      "x": 448,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 98,
+      "asset_id": "telegraph_key",
+      "x": 512,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 99,
+      "asset_id": "security_camera",
+      "x": 576,
+      "y": 576,
+      "w": 64,
+      "h": 64
+    }
+  ],
+  "assets": [
+    {
+      "id": "claw_hammer",
+      "name": "Claw hammer",
+      "description": "Claw hammer. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "tools",
+        "side",
+        "prop",
+        "collectible",
+        "claw",
+        "hammer"
+      ],
+      "view": "side",
+      "entity": "claw_hammer",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        0
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "adjustable_wrench",
+      "name": "Adjustable wrench",
+      "description": "Adjustable wrench. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "tools",
+        "side",
+        "prop",
+        "collectible",
+        "adjustable",
+        "wrench"
+      ],
+      "view": "side",
+      "entity": "adjustable_wrench",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        1
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "screwdriver",
+      "name": "Screwdriver",
+      "description": "Screwdriver. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "tools",
+        "side",
+        "prop",
+        "collectible",
+        "screwdriver"
+      ],
+      "view": "side",
+      "entity": "screwdriver",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        2
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "pliers",
+      "name": "Pliers",
+      "description": "Pliers. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "tools",
+        "side",
+        "prop",
+        "collectible",
+        "pliers"
+      ],
+      "view": "side",
+      "entity": "pliers",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        3
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "hand_saw",
+      "name": "Hand saw",
+      "description": "Hand saw. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "tools",
+        "side",
+        "prop",
+        "collectible",
+        "hand",
+        "saw"
+      ],
+      "view": "side",
+      "entity": "hand_saw",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        4
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "power_drill",
+      "name": "Power drill",
+      "description": "Power drill. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "tools",
+        "side",
+        "prop",
+        "collectible",
+        "power",
+        "drill"
+      ],
+      "view": "side",
+      "entity": "power_drill",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        5
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "tape_measure",
+      "name": "Tape measure",
+      "description": "Tape measure. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "tools",
+        "side",
+        "prop",
+        "collectible",
+        "tape",
+        "measure"
+      ],
+      "view": "side",
+      "entity": "tape_measure",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        6
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "spirit_level",
+      "name": "Spirit level",
+      "description": "Spirit level. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "tools",
+        "side",
+        "prop",
+        "collectible",
+        "spirit",
+        "level"
+      ],
+      "view": "side",
+      "entity": "spirit_level",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        7
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "utility_knife",
+      "name": "Utility knife",
+      "description": "Utility knife. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "tools",
+        "side",
+        "prop",
+        "collectible",
+        "utility",
+        "knife"
+      ],
+      "view": "side",
+      "entity": "utility_knife",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        8
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "toolbox",
+      "name": "Toolbox",
+      "description": "Toolbox. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "tools",
+        "side",
+        "prop",
+        "collectible",
+        "toolbox"
+      ],
+      "view": "side",
+      "entity": "toolbox",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        9
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "bench_vise",
+      "name": "Bench vise",
+      "description": "Bench vise. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "workshop",
+        "side",
+        "prop",
+        "collectible",
+        "bench",
+        "vise"
+      ],
+      "view": "side",
+      "entity": "bench_vise",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        10
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "anvil",
+      "name": "Anvil",
+      "description": "Anvil. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "workshop",
+        "side",
+        "prop",
+        "collectible",
+        "anvil"
+      ],
+      "view": "side",
+      "entity": "anvil",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        11
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "welding_mask",
+      "name": "Welding mask",
+      "description": "Welding mask. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "workshop",
+        "side",
+        "prop",
+        "collectible",
+        "welding",
+        "mask"
+      ],
+      "view": "side",
+      "entity": "welding_mask",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        12
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "paint_roller",
+      "name": "Paint roller",
+      "description": "Paint roller. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "workshop",
+        "side",
+        "prop",
+        "collectible",
+        "paint",
+        "roller"
+      ],
+      "view": "side",
+      "entity": "paint_roller",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        13
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "paint_bucket",
+      "name": "Paint bucket",
+      "description": "Paint bucket. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "workshop",
+        "side",
+        "prop",
+        "collectible",
+        "paint",
+        "bucket"
+      ],
+      "view": "side",
+      "entity": "paint_bucket",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        14
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "soldering_iron",
+      "name": "Soldering iron",
+      "description": "Soldering iron. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "workshop",
+        "side",
+        "prop",
+        "collectible",
+        "soldering",
+        "iron"
+      ],
+      "view": "side",
+      "entity": "soldering_iron",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        15
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "grease_gun",
+      "name": "Grease gun",
+      "description": "Grease gun. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "workshop",
+        "side",
+        "prop",
+        "collectible",
+        "grease",
+        "gun"
+      ],
+      "view": "side",
+      "entity": "grease_gun",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        16
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "oil_can",
+      "name": "Oil can",
+      "description": "Oil can. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "workshop",
+        "side",
+        "prop",
+        "collectible",
+        "oil",
+        "can"
+      ],
+      "view": "side",
+      "entity": "oil_can",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        17
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "safety_helmet",
+      "name": "Safety helmet",
+      "description": "Safety helmet. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "workshop",
+        "side",
+        "prop",
+        "collectible",
+        "safety",
+        "helmet"
+      ],
+      "view": "side",
+      "entity": "safety_helmet",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        18
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "work_light",
+      "name": "Work light",
+      "description": "Work light. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "workshop",
+        "side",
+        "prop",
+        "collectible",
+        "work",
+        "light"
+      ],
+      "view": "side",
+      "entity": "work_light",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        19
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "steel_gear",
+      "name": "Steel gear",
+      "description": "Steel gear. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "machinery",
+        "side",
+        "prop",
+        "collectible",
+        "steel",
+        "gear"
+      ],
+      "view": "side",
+      "entity": "steel_gear",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        20
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "piston",
+      "name": "Piston",
+      "description": "Piston. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "machinery",
+        "side",
+        "prop",
+        "collectible",
+        "piston"
+      ],
+      "view": "side",
+      "entity": "piston",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        21
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "electric_motor",
+      "name": "Electric motor",
+      "description": "Electric motor. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "machinery",
+        "side",
+        "prop",
+        "collectible",
+        "electric",
+        "motor"
+      ],
+      "view": "side",
+      "entity": "electric_motor",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        22
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "water_pump",
+      "name": "Water pump",
+      "description": "Water pump. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "machinery",
+        "side",
+        "prop",
+        "collectible",
+        "water",
+        "pump"
+      ],
+      "view": "side",
+      "entity": "water_pump",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        23
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "pressure_valve",
+      "name": "Pressure valve",
+      "description": "Pressure valve. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "machinery",
+        "side",
+        "prop",
+        "collectible",
+        "pressure",
+        "valve"
+      ],
+      "view": "side",
+      "entity": "pressure_valve",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        24
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "pressure_gauge",
+      "name": "Pressure gauge",
+      "description": "Pressure gauge. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "machinery",
+        "side",
+        "prop",
+        "collectible",
+        "pressure",
+        "gauge"
+      ],
+      "view": "side",
+      "entity": "pressure_gauge",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        25
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "fan_rotor",
+      "name": "Fan rotor",
+      "description": "Fan rotor. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "machinery",
+        "side",
+        "prop",
+        "collectible",
+        "fan",
+        "rotor"
+      ],
+      "view": "side",
+      "entity": "fan_rotor",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        26
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "conveyor_roller",
+      "name": "Conveyor roller",
+      "description": "Conveyor roller. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "machinery",
+        "side",
+        "prop",
+        "collectible",
+        "conveyor",
+        "roller"
+      ],
+      "view": "side",
+      "entity": "conveyor_roller",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        27
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "coiled_spring",
+      "name": "Coiled spring",
+      "description": "Coiled spring. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "machinery",
+        "side",
+        "prop",
+        "collectible",
+        "coiled",
+        "spring"
+      ],
+      "view": "side",
+      "entity": "coiled_spring",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        28
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "industrial_filter",
+      "name": "Industrial filter",
+      "description": "Industrial filter. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "machinery",
+        "side",
+        "prop",
+        "collectible",
+        "industrial",
+        "filter"
+      ],
+      "view": "side",
+      "entity": "industrial_filter",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        29
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "car_battery",
+      "name": "Car battery",
+      "description": "Car battery. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "energy",
+        "side",
+        "prop",
+        "collectible",
+        "car",
+        "battery"
+      ],
+      "view": "side",
+      "entity": "car_battery",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        30
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "solar_panel",
+      "name": "Solar panel",
+      "description": "Solar panel. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "energy",
+        "side",
+        "prop",
+        "collectible",
+        "solar",
+        "panel"
+      ],
+      "view": "side",
+      "entity": "solar_panel",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        31
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "wind_turbine",
+      "name": "Wind turbine",
+      "description": "Wind turbine. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "energy",
+        "side",
+        "prop",
+        "collectible",
+        "wind",
+        "turbine"
+      ],
+      "view": "side",
+      "entity": "wind_turbine",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        32
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "fuel_can",
+      "name": "Fuel can",
+      "description": "Fuel can. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "energy",
+        "side",
+        "prop",
+        "collectible",
+        "fuel",
+        "can"
+      ],
+      "view": "side",
+      "entity": "fuel_can",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        33
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "gas_cylinder",
+      "name": "Gas cylinder",
+      "description": "Gas cylinder. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "energy",
+        "side",
+        "prop",
+        "collectible",
+        "gas",
+        "cylinder"
+      ],
+      "view": "side",
+      "entity": "gas_cylinder",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        34
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "power_generator",
+      "name": "Power generator",
+      "description": "Power generator. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "energy",
+        "side",
+        "prop",
+        "collectible",
+        "power",
+        "generator"
+      ],
+      "view": "side",
+      "entity": "power_generator",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        35
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "electrical_transformer",
+      "name": "Electrical transformer",
+      "description": "Electrical transformer. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "energy",
+        "side",
+        "prop",
+        "collectible",
+        "electrical",
+        "transformer"
+      ],
+      "view": "side",
+      "entity": "electrical_transformer",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        36
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "fuse_box",
+      "name": "Fuse box",
+      "description": "Fuse box. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "energy",
+        "side",
+        "prop",
+        "collectible",
+        "fuse",
+        "box"
+      ],
+      "view": "side",
+      "entity": "fuse_box",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        37
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "electric_plug",
+      "name": "Electric plug",
+      "description": "Electric plug. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "energy",
+        "side",
+        "prop",
+        "collectible",
+        "electric",
+        "plug"
+      ],
+      "view": "side",
+      "entity": "electric_plug",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        38
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "light_bulb",
+      "name": "Light bulb",
+      "description": "Light bulb. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "energy",
+        "side",
+        "prop",
+        "collectible",
+        "light",
+        "bulb"
+      ],
+      "view": "side",
+      "entity": "light_bulb",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        39
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "circuit_board",
+      "name": "Circuit board",
+      "description": "Circuit board. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "electronics",
+        "side",
+        "prop",
+        "collectible",
+        "circuit",
+        "board"
+      ],
+      "view": "side",
+      "entity": "circuit_board",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        40
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "microchip",
+      "name": "Microchip",
+      "description": "Microchip. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "electronics",
+        "side",
+        "prop",
+        "collectible",
+        "microchip"
+      ],
+      "view": "side",
+      "entity": "microchip",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        41
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "resistor",
+      "name": "Resistor",
+      "description": "Resistor. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "electronics",
+        "side",
+        "prop",
+        "collectible",
+        "resistor"
+      ],
+      "view": "side",
+      "entity": "resistor",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        42
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "capacitor",
+      "name": "Capacitor",
+      "description": "Capacitor. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "electronics",
+        "side",
+        "prop",
+        "collectible",
+        "capacitor"
+      ],
+      "view": "side",
+      "entity": "capacitor",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        43
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "vacuum_tube",
+      "name": "Vacuum tube",
+      "description": "Vacuum tube. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "electronics",
+        "side",
+        "prop",
+        "collectible",
+        "vacuum",
+        "tube"
+      ],
+      "view": "side",
+      "entity": "vacuum_tube",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        44
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "computer_mouse",
+      "name": "Computer mouse",
+      "description": "Computer mouse. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "electronics",
+        "side",
+        "prop",
+        "collectible",
+        "computer",
+        "mouse"
+      ],
+      "view": "side",
+      "entity": "computer_mouse",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        45
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "keyboard",
+      "name": "Keyboard",
+      "description": "Keyboard. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "electronics",
+        "side",
+        "prop",
+        "collectible",
+        "keyboard"
+      ],
+      "view": "side",
+      "entity": "keyboard",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        46
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "crt_monitor",
+      "name": "CRT monitor",
+      "description": "CRT monitor. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "electronics",
+        "side",
+        "prop",
+        "collectible",
+        "crt",
+        "monitor"
+      ],
+      "view": "side",
+      "entity": "crt_monitor",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        47
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "joystick",
+      "name": "Joystick",
+      "description": "Joystick. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "electronics",
+        "side",
+        "prop",
+        "collectible",
+        "joystick"
+      ],
+      "view": "side",
+      "entity": "joystick",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        48
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "game_controller",
+      "name": "Game controller",
+      "description": "Game controller. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "electronics",
+        "side",
+        "prop",
+        "collectible",
+        "game",
+        "controller"
+      ],
+      "view": "side",
+      "entity": "game_controller",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        49
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "first_aid_kit",
+      "name": "First aid kit",
+      "description": "First aid kit. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "medical",
+        "side",
+        "prop",
+        "collectible",
+        "first",
+        "aid",
+        "kit"
+      ],
+      "view": "side",
+      "entity": "first_aid_kit",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        50
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "stethoscope",
+      "name": "Stethoscope",
+      "description": "Stethoscope. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "medical",
+        "side",
+        "prop",
+        "collectible",
+        "stethoscope"
+      ],
+      "view": "side",
+      "entity": "stethoscope",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        51
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "bandage_roll",
+      "name": "Bandage roll",
+      "description": "Bandage roll. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "medical",
+        "side",
+        "prop",
+        "collectible",
+        "bandage",
+        "roll"
+      ],
+      "view": "side",
+      "entity": "bandage_roll",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        52
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "medicine_bottle",
+      "name": "Medicine bottle",
+      "description": "Medicine bottle. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "medical",
+        "side",
+        "prop",
+        "collectible",
+        "medicine",
+        "bottle"
+      ],
+      "view": "side",
+      "entity": "medicine_bottle",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        53
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "thermometer",
+      "name": "Thermometer",
+      "description": "Thermometer. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "medical",
+        "side",
+        "prop",
+        "collectible",
+        "thermometer"
+      ],
+      "view": "side",
+      "entity": "thermometer",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        54
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "crutch",
+      "name": "Crutch",
+      "description": "Crutch. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "medical",
+        "side",
+        "prop",
+        "collectible",
+        "crutch"
+      ],
+      "view": "side",
+      "entity": "crutch",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        55
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "wheelchair",
+      "name": "Wheelchair",
+      "description": "Wheelchair. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "medical",
+        "side",
+        "prop",
+        "collectible",
+        "wheelchair"
+      ],
+      "view": "side",
+      "entity": "wheelchair",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        56
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "oxygen_tank",
+      "name": "Oxygen tank",
+      "description": "Oxygen tank. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "medical",
+        "side",
+        "prop",
+        "collectible",
+        "oxygen",
+        "tank"
+      ],
+      "view": "side",
+      "entity": "oxygen_tank",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        57
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "defibrillator",
+      "name": "Defibrillator",
+      "description": "Defibrillator. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "medical",
+        "side",
+        "prop",
+        "collectible",
+        "defibrillator"
+      ],
+      "view": "side",
+      "entity": "defibrillator",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        58
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "medical_scanner",
+      "name": "Medical scanner",
+      "description": "Medical scanner. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "medical",
+        "side",
+        "prop",
+        "collectible",
+        "scanner"
+      ],
+      "view": "side",
+      "entity": "medical_scanner",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        59
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "fire_extinguisher",
+      "name": "Fire extinguisher",
+      "description": "Fire extinguisher. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "rescue",
+        "side",
+        "prop",
+        "collectible",
+        "fire",
+        "extinguisher"
+      ],
+      "view": "side",
+      "entity": "fire_extinguisher",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        60
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "fire_hose_reel",
+      "name": "Fire hose reel",
+      "description": "Fire hose reel. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "rescue",
+        "side",
+        "prop",
+        "collectible",
+        "fire",
+        "hose",
+        "reel"
+      ],
+      "view": "side",
+      "entity": "fire_hose_reel",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        61
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "traffic_cone",
+      "name": "Traffic cone",
+      "description": "Traffic cone. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "rescue",
+        "side",
+        "prop",
+        "collectible",
+        "traffic",
+        "cone"
+      ],
+      "view": "side",
+      "entity": "traffic_cone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        62
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "warning_beacon",
+      "name": "Warning beacon",
+      "description": "Warning beacon. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "rescue",
+        "side",
+        "prop",
+        "collectible",
+        "warning",
+        "beacon"
+      ],
+      "view": "side",
+      "entity": "warning_beacon",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        63
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "rescue_axe",
+      "name": "Rescue axe",
+      "description": "Rescue axe. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "rescue",
+        "side",
+        "prop",
+        "collectible",
+        "axe"
+      ],
+      "view": "side",
+      "entity": "rescue_axe",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        64
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "life_jacket",
+      "name": "Life jacket",
+      "description": "Life jacket. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "rescue",
+        "side",
+        "prop",
+        "collectible",
+        "life",
+        "jacket"
+      ],
+      "view": "side",
+      "entity": "life_jacket",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        65
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "megaphone",
+      "name": "Megaphone",
+      "description": "Megaphone. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "rescue",
+        "side",
+        "prop",
+        "collectible",
+        "megaphone"
+      ],
+      "view": "side",
+      "entity": "megaphone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        66
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "rescue_helmet",
+      "name": "Rescue helmet",
+      "description": "Rescue helmet. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "rescue",
+        "side",
+        "prop",
+        "collectible",
+        "helmet"
+      ],
+      "view": "side",
+      "entity": "rescue_helmet",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        67
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "stretcher",
+      "name": "Stretcher",
+      "description": "Stretcher. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "rescue",
+        "side",
+        "prop",
+        "collectible",
+        "stretcher"
+      ],
+      "view": "side",
+      "entity": "stretcher",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        68
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "emergency_radio",
+      "name": "Emergency radio",
+      "description": "Emergency radio. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "rescue",
+        "side",
+        "prop",
+        "collectible",
+        "emergency",
+        "radio"
+      ],
+      "view": "side",
+      "entity": "emergency_radio",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        69
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "car_wheel",
+      "name": "Car wheel",
+      "description": "Car wheel. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "transport",
+        "side",
+        "prop",
+        "collectible",
+        "car",
+        "wheel"
+      ],
+      "view": "side",
+      "entity": "car_wheel",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        70
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "steering_wheel",
+      "name": "Steering wheel",
+      "description": "Steering wheel. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "transport",
+        "side",
+        "prop",
+        "collectible",
+        "steering",
+        "wheel"
+      ],
+      "view": "side",
+      "entity": "steering_wheel",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        71
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "traffic_light",
+      "name": "Traffic light",
+      "description": "Traffic light. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "transport",
+        "side",
+        "prop",
+        "collectible",
+        "traffic",
+        "light"
+      ],
+      "view": "side",
+      "entity": "traffic_light",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        72
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "road_barrier",
+      "name": "Road barrier",
+      "description": "Road barrier. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "transport",
+        "side",
+        "prop",
+        "collectible",
+        "road",
+        "barrier"
+      ],
+      "view": "side",
+      "entity": "road_barrier",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        73
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "parking_meter",
+      "name": "Parking meter",
+      "description": "Parking meter. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "transport",
+        "side",
+        "prop",
+        "collectible",
+        "parking",
+        "meter"
+      ],
+      "view": "side",
+      "entity": "parking_meter",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        74
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "bicycle_pump",
+      "name": "Bicycle pump",
+      "description": "Bicycle pump. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "transport",
+        "side",
+        "prop",
+        "collectible",
+        "bicycle",
+        "pump"
+      ],
+      "view": "side",
+      "entity": "bicycle_pump",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        75
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "motorcycle_helmet",
+      "name": "Motorcycle helmet",
+      "description": "Motorcycle helmet. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "transport",
+        "side",
+        "prop",
+        "collectible",
+        "motorcycle",
+        "helmet"
+      ],
+      "view": "side",
+      "entity": "motorcycle_helmet",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        76
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "train_signal",
+      "name": "Train signal",
+      "description": "Train signal. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "transport",
+        "side",
+        "prop",
+        "collectible",
+        "train",
+        "signal"
+      ],
+      "view": "side",
+      "entity": "train_signal",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        77
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "propeller",
+      "name": "Propeller",
+      "description": "Propeller. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "transport",
+        "side",
+        "prop",
+        "collectible",
+        "propeller"
+      ],
+      "view": "side",
+      "entity": "propeller",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        78
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "ship_wheel",
+      "name": "Ship wheel",
+      "description": "Ship wheel. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "transport",
+        "side",
+        "prop",
+        "collectible",
+        "ship",
+        "wheel"
+      ],
+      "view": "side",
+      "entity": "ship_wheel",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        79
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "rocket_engine",
+      "name": "Rocket engine",
+      "description": "Rocket engine. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "space",
+        "side",
+        "prop",
+        "collectible",
+        "rocket",
+        "engine"
+      ],
+      "view": "side",
+      "entity": "rocket_engine",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        80
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "space_capsule",
+      "name": "Space capsule",
+      "description": "Space capsule. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "space",
+        "side",
+        "prop",
+        "collectible",
+        "capsule"
+      ],
+      "view": "side",
+      "entity": "space_capsule",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        81
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "solar_satellite",
+      "name": "Solar satellite",
+      "description": "Solar satellite. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "space",
+        "side",
+        "prop",
+        "collectible",
+        "solar",
+        "satellite"
+      ],
+      "view": "side",
+      "entity": "solar_satellite",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        82
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "lunar_rover",
+      "name": "Lunar rover",
+      "description": "Lunar rover. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "space",
+        "side",
+        "prop",
+        "collectible",
+        "lunar",
+        "rover"
+      ],
+      "view": "side",
+      "entity": "lunar_rover",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        83
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "ray_gun",
+      "name": "Ray gun",
+      "description": "Ray gun. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "space",
+        "side",
+        "prop",
+        "collectible",
+        "ray",
+        "gun"
+      ],
+      "view": "side",
+      "entity": "ray_gun",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        84
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "robot_claw",
+      "name": "Robot claw",
+      "description": "Robot claw. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "space",
+        "side",
+        "prop",
+        "collectible",
+        "robot",
+        "claw"
+      ],
+      "view": "side",
+      "entity": "robot_claw",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        85
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "energy_cell",
+      "name": "Energy cell",
+      "description": "Energy cell. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "space",
+        "side",
+        "prop",
+        "collectible",
+        "energy",
+        "cell"
+      ],
+      "view": "side",
+      "entity": "energy_cell",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        86
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "plasma_coil",
+      "name": "Plasma coil",
+      "description": "Plasma coil. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "space",
+        "side",
+        "prop",
+        "collectible",
+        "plasma",
+        "coil"
+      ],
+      "view": "side",
+      "entity": "plasma_coil",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        87
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "navigation_console",
+      "name": "Navigation console",
+      "description": "Navigation console. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "space",
+        "side",
+        "prop",
+        "collectible",
+        "navigation",
+        "console"
+      ],
+      "view": "side",
+      "entity": "navigation_console",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        88
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "cryogenic_canister",
+      "name": "Cryogenic canister",
+      "description": "Cryogenic canister. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "space",
+        "side",
+        "prop",
+        "collectible",
+        "cryogenic",
+        "canister"
+      ],
+      "view": "side",
+      "entity": "cryogenic_canister",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        89
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "walkie_talkie",
+      "name": "Walkie talkie",
+      "description": "Walkie talkie. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "communication",
+        "side",
+        "prop",
+        "collectible",
+        "walkie",
+        "talkie"
+      ],
+      "view": "side",
+      "entity": "walkie_talkie",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        90
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "rotary_telephone",
+      "name": "Rotary telephone",
+      "description": "Rotary telephone. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "communication",
+        "side",
+        "prop",
+        "collectible",
+        "rotary",
+        "telephone"
+      ],
+      "view": "side",
+      "entity": "rotary_telephone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        91
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "smartphone",
+      "name": "Smartphone",
+      "description": "Smartphone. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "communication",
+        "side",
+        "prop",
+        "collectible",
+        "smartphone"
+      ],
+      "view": "side",
+      "entity": "smartphone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        92
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "portable_radio",
+      "name": "Portable radio",
+      "description": "Portable radio. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "communication",
+        "side",
+        "prop",
+        "collectible",
+        "portable",
+        "radio"
+      ],
+      "view": "side",
+      "entity": "portable_radio",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        93
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "satellite_phone",
+      "name": "Satellite phone",
+      "description": "Satellite phone. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "communication",
+        "side",
+        "prop",
+        "collectible",
+        "satellite",
+        "phone"
+      ],
+      "view": "side",
+      "entity": "satellite_phone",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        94
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "radar_screen",
+      "name": "Radar screen",
+      "description": "Radar screen. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "communication",
+        "side",
+        "prop",
+        "collectible",
+        "radar",
+        "screen"
+      ],
+      "view": "side",
+      "entity": "radar_screen",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        95
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "antenna_mast",
+      "name": "Antenna mast",
+      "description": "Antenna mast. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "communication",
+        "side",
+        "prop",
+        "collectible",
+        "antenna",
+        "mast"
+      ],
+      "view": "side",
+      "entity": "antenna_mast",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        96
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "mailbox",
+      "name": "Mailbox",
+      "description": "Mailbox. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "communication",
+        "side",
+        "prop",
+        "collectible",
+        "mailbox"
+      ],
+      "view": "side",
+      "entity": "mailbox",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        97
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "telegraph_key",
+      "name": "Telegraph key",
+      "description": "Telegraph key. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "communication",
+        "side",
+        "prop",
+        "collectible",
+        "telegraph",
+        "key"
+      ],
+      "view": "side",
+      "entity": "telegraph_key",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        98
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "security_camera",
+      "name": "Security camera",
+      "description": "Security camera. Static side-view pixel-art prop or collectible.",
+      "tags": [
+        "communication",
+        "side",
+        "prop",
+        "collectible",
+        "security",
+        "camera"
+      ],
+      "view": "side",
+      "entity": "security_camera",
+      "action": "static",
+      "transform": {
+        "mode": "fixed",
+        "forward_radians": 0,
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        99
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    }
+  ],
+  "animations": [],
+  "provenance": {
+    "generator": "OpenAI Imagegen",
+    "license": "MIT",
+    "license_text": "MIT License\n\nCopyright (c) 2025 AuraGo contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.",
+    "source_manifest": "production/manifest.json",
+    "sources": [
+      {
+        "file": "mixed-technology.png",
+        "sha256": "8f12aa6f599a7f17e7f725120cc9d243e353d150c55963a01c38053ccb3428aa"
+      }
+    ],
+    "note": "Reviewed source poses; repeated source frames are intentional animation holds."
+  }
+}

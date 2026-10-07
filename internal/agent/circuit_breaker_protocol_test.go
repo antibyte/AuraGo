@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"errors"
 	"io"
@@ -39,6 +40,34 @@ func TestAgentChargesEmptyResponseOnceBeforeRetry(t *testing.T) {
 	usage := runCfg.BudgetTracker.GetStatus().Models[runCfg.Config.LLM.Model]
 	if usage.Calls != 2 || usage.InputTokens != 30 || usage.OutputTokens != 7 {
 		t.Fatalf("budget usage = %+v, want two responses", usage)
+	}
+}
+
+func TestAgentBooksUsageFromSyncResponseWithoutChoices(t *testing.T) {
+	runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "sync-empty-choices-usage", "web_chat")
+	defer cleanup()
+	runCfg.SuppressTurnSideEffects = true
+	runCfg.Checkpoint = func([]openai.ChatCompletionMessage) error { return nil }
+	runCfg.Config.Budget.Enabled = true
+	runCfg.Config.Budget.DailyLimitUSD = 100
+	runCfg.BudgetTracker = budget.NewTracker(runCfg.Config, runCfg.Logger, t.TempDir())
+	defer runCfg.BudgetTracker.Flush()
+	client := &circuitBreakerSequenceClient{responses: []openai.ChatCompletionResponse{{
+		Model: "actual-route-model",
+		Usage: openai.Usage{PromptTokens: 23, CompletionTokens: 0},
+	}}}
+	runCfg.LLMClient = client
+	resp, err := ExecuteAgentLoop(context.Background(), openai.ChatCompletionRequest{Model: runCfg.Config.LLM.Model,
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "Finish."}}}, runCfg, false, NoopBroker{})
+	if err == nil || !strings.Contains(err.Error(), "no choices") || len(client.requests) != 1 {
+		t.Fatalf("response=%+v error=%v calls=%d, want sync empty-choice error", resp, err, len(client.requests))
+	}
+	if resp.Usage.PromptTokens != 23 || resp.Usage.TotalTokens != 23 {
+		t.Fatalf("returned response lost normalized provider usage: %+v", resp.Usage)
+	}
+	usage := runCfg.BudgetTracker.GetStatus().Models["actual-route-model"]
+	if usage.Calls != 1 || usage.InputTokens != 23 || usage.OutputTokens != 0 {
+		t.Fatalf("budget usage = %+v, want one recorded partial response", usage)
 	}
 }
 
@@ -154,7 +183,7 @@ func (c *circuitBreakerSequenceClient) CreateChatCompletion(_ context.Context, r
 	return c.responses[len(c.requests)-1], nil
 }
 
-func (*circuitBreakerSequenceClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (*circuitBreakerSequenceClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }
 

@@ -53,6 +53,17 @@
     letter-spacing: -0.02em;
 }
 
+.vd-live-speech-header-actions { display: flex; align-items: center; gap: 8px; }
+
+.vd-live-speech-app .realtime-speech-audio-button,
+.vd-live-speech-app .realtime-speech-audio-dialog {
+    --rt-accent: var(--vd-accent, #2fc5a9);
+    --rt-surface: var(--vd-theme-panel-bg);
+    --text-primary: var(--vd-text);
+    --text-muted: var(--vd-theme-muted);
+    --border: var(--vd-theme-border);
+}
+
 .vd-live-speech-fx-toggle {
     display: inline-flex;
     align-items: center;

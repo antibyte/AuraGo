@@ -28,7 +28,7 @@ func (s *Server) speechLabTokens() *speechLabTurnTokenRegistry {
 var (
 	errSpeechLabChatLLMUnavailable = errors.New("Speech Lab chat LLM is unavailable")
 	speechLabChatClientFactory     = func(cfg *config.Config, providerType, baseURL, apiKey, accountID string) llm.ChatClient {
-		return llm.NewClientFromProviderWithConfig(cfg, providerType, baseURL, apiKey, accountID)
+		return llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, providerType, baseURL, apiKey, accountID))
 	}
 )
 

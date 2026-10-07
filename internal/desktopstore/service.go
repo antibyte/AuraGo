@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	pathpkg "path"
@@ -61,6 +62,15 @@ type Config struct {
 	NativeManaged NativeManagedRuntime
 	PortAllocator PortAllocator
 	PortProbe     PortProbe
+	// Logger receives Store warnings; nil uses slog.Default().
+	Logger *slog.Logger
+	// CompanionSettle is the minimum time between the last companion start
+	// and the companion state check (DefaultCompanionSettle in production).
+	// Zero checks at once.
+	CompanionSettle time.Duration
+	// CompanionRecheck is the wait before an exited companion is inspected
+	// again (DefaultCompanionRecheck in production). Zero inspects at once.
+	CompanionRecheck time.Duration
 }
 
 // Service owns the software store catalog, persistent install records and
@@ -240,7 +250,34 @@ func (s *Service) Catalog() []CatalogEntry {
 	return append([]CatalogEntry(nil), s.catalog...)
 }
 
+// storeColumnMigrations are the columns added to existing Store databases.
+var storeColumnMigrations = []struct {
+	table string
+	name  string
+	def   string
+}{
+	{"desktop_store_apps", "ports_json", "TEXT NOT NULL DEFAULT '[]'"},
+	{"desktop_store_apps", "host_binds_json", "TEXT NOT NULL DEFAULT '[]'"},
+	{"desktop_store_apps", "secret_refs_json", "TEXT NOT NULL DEFAULT '[]'"},
+	{"desktop_store_apps", "companions_json", "TEXT NOT NULL DEFAULT '[]'"},
+	{"desktop_store_operations", "error_code", "TEXT NOT NULL DEFAULT ''"},
+	{"desktop_store_operations", "error_params_json", "TEXT NOT NULL DEFAULT '{}'"},
+}
+
+// storeMigrationBackupSuffix names the copy of an existing Store database
+// taken before a schema migration step runs (F-S5: install journal and
+// operation error codes). An existing copy is never overwritten.
+const storeMigrationBackupSuffix = ".before-install-journal.bak"
+
+// storeMigrationBackup writes the backup; tests replace it to simulate a
+// failure.
+var storeMigrationBackup = func(ctx context.Context, db *sql.DB, path string) error {
+	_, err := db.ExecContext(ctx, `VACUUM INTO ?`, path)
+	return err
+}
+
 func (s *Service) migrateLocked(ctx context.Context) error {
+	s.backupBeforeMigrationLocked(ctx)
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS desktop_store_apps (
 			app_id TEXT PRIMARY KEY,
@@ -286,32 +323,120 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			completed_at TEXT
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_desktop_store_operations_app ON desktop_store_operations(app_id, created_at)`,
+		`CREATE TABLE IF NOT EXISTS desktop_store_install_resources (
+			app_id TEXT NOT NULL,
+			kind TEXT NOT NULL,
+			name TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			PRIMARY KEY (app_id, kind, name)
+		)`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("migrate desktop store database: %w", err)
 		}
 	}
-	for _, column := range []struct {
-		name string
-		def  string
-	}{
-		{"ports_json", "TEXT NOT NULL DEFAULT '[]'"},
-		{"host_binds_json", "TEXT NOT NULL DEFAULT '[]'"},
-		{"secret_refs_json", "TEXT NOT NULL DEFAULT '[]'"},
-		{"companions_json", "TEXT NOT NULL DEFAULT '[]'"},
-	} {
-		if err := s.ensureColumn(ctx, "desktop_store_apps", column.name, column.def); err != nil {
+	for _, column := range storeColumnMigrations {
+		if err := s.ensureColumn(ctx, column.table, column.name, column.def); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+// backupBeforeMigrationLocked copies an existing Store database before a
+// migration step changes its schema. A fresh database, an up-to-date one and
+// an existing backup are left alone; a failed backup is logged and the
+// migration goes on.
+func (s *Service) backupBeforeMigrationLocked(ctx context.Context) {
+	pending, err := s.pendingMigrationStepsLocked(ctx)
+	if err != nil {
+		s.logger().Warn("Desktop store could not check its schema before migrating; no backup taken", "error", err)
+		return
+	}
+	if len(pending) == 0 {
+		return
+	}
+	backup := s.cfg.DBPath + storeMigrationBackupSuffix
+	if _, err := os.Lstat(backup); err == nil {
+		s.logger().Info("Desktop store migration keeps the existing backup", "backup", backup, "steps", pending)
+		return
+	} else if !os.IsNotExist(err) {
+		s.logger().Warn("Desktop store could not check its migration backup; migrating without a new one", "backup", backup, "error", err)
+		return
+	}
+	if err := storeMigrationBackup(ctx, s.db, backup); err != nil {
+		// The file did not exist before this call, so anything there now is a
+		// partial copy; it must never count as an existing backup.
+		if removeErr := os.Remove(backup); removeErr != nil && !os.IsNotExist(removeErr) {
+			s.logger().Warn("Desktop store could not remove a partial migration backup", "backup", backup, "error", removeErr)
+		}
+		s.logger().Warn("Desktop store migration backup failed; migrating anyway", "backup", backup, "steps", pending, "error", err)
+		return
+	}
+	_ = os.Chmod(backup, 0o600)
+	s.logger().Info("Desktop store backed up before migrating", "backup", backup, "steps", pending)
+}
+
+// pendingMigrationStepsLocked lists the schema steps migrateLocked will run on
+// an existing Store database; a fresh database has none worth a backup.
+func (s *Service) pendingMigrationStepsLocked(ctx context.Context) ([]string, error) {
+	hasApps, err := s.tableExists(ctx, "desktop_store_apps")
+	if err != nil || !hasApps {
+		return nil, err
+	}
+	var pending []string
+	for _, table := range []string{"desktop_store_operations", "desktop_store_install_resources"} {
+		exists, err := s.tableExists(ctx, table)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			pending = append(pending, table)
+		}
+	}
+	for _, column := range storeColumnMigrations {
+		exists, err := s.tableExists(ctx, column.table)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			continue // created complete
+		}
+		has, err := s.columnExists(ctx, column.table, column.name)
+		if err != nil {
+			return nil, err
+		}
+		if !has {
+			pending = append(pending, column.table+"."+column.name)
+		}
+	}
+	return pending, nil
+}
+
+func (s *Service) tableExists(ctx context.Context, table string) (bool, error) {
+	var count int
+	if err := s.db.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&count); err != nil {
+		return false, fmt.Errorf("inspect desktop store table %s: %w", table, err)
+	}
+	return count > 0, nil
+}
+
 func (s *Service) ensureColumn(ctx context.Context, table, name, def string) error {
+	has, err := s.columnExists(ctx, table, name)
+	if err != nil || has {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, name, def)); err != nil {
+		return fmt.Errorf("add desktop store column %s.%s: %w", table, name, err)
+	}
+	return nil
+}
+
+func (s *Service) columnExists(ctx context.Context, table, name string) (bool, error) {
 	rows, err := s.db.QueryContext(ctx, "PRAGMA table_info("+table+")")
 	if err != nil {
-		return fmt.Errorf("inspect desktop store table %s: %w", table, err)
+		return false, fmt.Errorf("inspect desktop store table %s: %w", table, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -321,19 +446,16 @@ func (s *Service) ensureColumn(ctx context.Context, table, name, def string) err
 		var defaultValue any
 		var pk int
 		if err := rows.Scan(&cid, &colName, &colType, &notNull, &defaultValue, &pk); err != nil {
-			return fmt.Errorf("scan desktop store table %s column: %w", table, err)
+			return false, fmt.Errorf("scan desktop store table %s column: %w", table, err)
 		}
 		if strings.EqualFold(colName, name) {
-			return nil
+			return true, nil
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("read desktop store table %s columns: %w", table, err)
+		return false, fmt.Errorf("read desktop store table %s columns: %w", table, err)
 	}
-	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, name, def)); err != nil {
-		return fmt.Errorf("add desktop store column %s.%s: %w", table, name, err)
-	}
-	return nil
+	return false, nil
 }
 
 func (s *Service) recoverInterruptedOperationsLocked(ctx context.Context) error {
@@ -406,28 +528,57 @@ func (s *Service) recoverInterruptedInstall(ctx context.Context, app InstalledAp
 		}
 		return nil
 	}
+	resources, err := s.installResources(ctx, app.AppID)
+	if err != nil {
+		return err
+	}
 	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
 		return err
 	}
-	if err := s.deleteStoreSecrets(ctx, app); err != nil {
-		return err
+	journaled := hasInstallAttempt(resources)
+	if journaled {
+		// The Docker part runs in the background (Init must not wait for it)
+		// and forgets only the rows it settled; the rest stay for the next
+		// failed attempt's cleanup.
+		localRemoved, _ := s.removeJournaledLocalResources(ctx, app.AppID, resources)
+		if err := s.forgetInstallResources(ctx, app.AppID, localRemoved); err != nil {
+			return err
+		}
+	} else {
+		// An installing record written before the install journal existed.
+		if err := s.deleteStoreSecrets(ctx, app); err != nil {
+			return err
+		}
+		if err := s.removeManagedWorkspaceBinds(app); err != nil {
+			return err
+		}
 	}
-	if err := s.removeManagedWorkspaceBinds(app); err != nil {
-		return err
-	}
-	_, err := s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
+	_, err = s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
 	if err != nil {
 		return fmt.Errorf("delete interrupted desktop store app record: %w", err)
 	}
-	s.scheduleInterruptedInstallDockerCleanup(app)
+	s.scheduleInterruptedInstallDockerCleanup(app, resources, journaled)
 	return nil
 }
 
-func (s *Service) scheduleInterruptedInstallDockerCleanup(app InstalledApp) {
+func (s *Service) scheduleInterruptedInstallDockerCleanup(app InstalledApp, resources []installResource, journaled bool) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
-		s.cleanupInstallDockerResources(ctx, app)
+		if !journaled {
+			s.cleanupInstallDockerResources(ctx, app)
+			return
+		}
+		removed, failed := s.removeJournaledDockerResources(ctx, app.AppID, resources)
+		if !failed {
+			// The interrupted attempt is settled; its marker goes too.
+			for _, item := range resources {
+				if item.Kind == installResourceAttempt {
+					removed = append(removed, item)
+				}
+			}
+		}
+		s.forgetInstallResourcesIfOpen(ctx, app.AppID, removed)
 	}()
 }
 
@@ -551,6 +702,11 @@ func (s *Service) rejectActiveOperationLocked(ctx context.Context, appID string,
 
 // RunOperation executes a pending operation and stores its terminal state.
 func (s *Service) RunOperation(ctx context.Context, operationID string) error {
+	defer func() {
+		if err := ctx.Err(); err != nil {
+			_ = s.InterruptOperation(operationID, err)
+		}
+	}()
 	op, err := s.Operation(ctx, operationID)
 	if err != nil {
 		return err
@@ -589,13 +745,14 @@ func (s *Service) RunOperation(ctx context.Context, operationID string) error {
 		runErr = fmt.Errorf("unsupported operation %q", op.Type)
 	}
 	if runErr != nil {
+		errorCode, errorParams := operationErrorDetails(runErr)
 		if op.AppID == GodsEyeAppID {
 			runErr = errors.New(security.Scrub(runErr.Error()))
 		}
 		if op.Type == OperationConfigure {
 			runErr = fmt.Errorf("configuration saved but not active: %w", runErr)
 		}
-		_ = s.updateOperation(ctx, op.ID, OperationFailed, "", runErr.Error())
+		_ = s.failOperation(ctx, op.ID, runErr.Error(), errorCode, errorParams)
 		return runErr
 	}
 	return s.updateOperation(ctx, op.ID, OperationSucceeded, "completed", "")
@@ -606,7 +763,8 @@ func (s *Service) Operation(ctx context.Context, operationID string) (Operation,
 	if err := s.ensureReady(ctx); err != nil {
 		return Operation{}, err
 	}
-	row := s.db.QueryRowContext(ctx, `SELECT id, type, app_id, status, message, error, request_json, created_at, updated_at, completed_at
+	row := s.db.QueryRowContext(ctx, `SELECT id, type, app_id, status, message, error, error_code, error_params_json,
+		request_json, created_at, updated_at, completed_at
 		FROM desktop_store_operations WHERE id = ?`, strings.TrimSpace(operationID))
 	return scanOperation(row)
 }
@@ -623,6 +781,28 @@ func (s *Service) updateOperation(ctx context.Context, id, status, message, errT
 		WHERE id = ?`,
 		status, message, errText, formatTime(now), completed, id)
 	if err != nil {
+		return fmt.Errorf("update desktop store operation: %w", err)
+	}
+	return nil
+}
+
+// failOperation marks an operation failed with its English error text and,
+// for failures the Desktop translates, the error code and parameters, in one
+// statement, so a poll never sees the failed status without its code.
+func (s *Service) failOperation(ctx context.Context, id, errText, code string, params map[string]string) error {
+	paramsJSON := []byte("{}")
+	if code != "" && len(params) > 0 {
+		encoded, err := json.Marshal(params)
+		if err != nil {
+			return fmt.Errorf("encode desktop store operation error params: %w", err)
+		}
+		paramsJSON = encoded
+	}
+	now := formatTime(time.Now().UTC())
+	if _, err := s.db.ExecContext(ctx, `UPDATE desktop_store_operations
+		SET status = ?, message = '', error = ?, error_code = ?, error_params_json = ?, updated_at = ?, completed_at = ?
+		WHERE id = ?`,
+		OperationFailed, errText, code, string(paramsJSON), now, now, id); err != nil {
 		return fmt.Errorf("update desktop store operation: %w", err)
 	}
 	return nil
@@ -649,6 +829,7 @@ func (s *Service) ListApps(ctx context.Context) ([]InstalledApp, error) {
 		if err != nil {
 			return nil, err
 		}
+		app.UpdateRequired = monitoringProxyUpdateRequired(app)
 		apps = append(apps, app)
 	}
 	return apps, rows.Err()
@@ -672,7 +853,81 @@ func (s *Service) GetInstalled(ctx context.Context, appID string) (InstalledApp,
 		}
 		return InstalledApp{}, false, err
 	}
+	app.UpdateRequired = monitoringProxyUpdateRequired(app)
 	return app, true, nil
+}
+
+func monitoringProxyUpdateRequired(app InstalledApp) bool {
+	if app.AppID != "dozzle" && app.AppID != "beszel" {
+		return false
+	}
+	if hasDockerSocketBind(app.HostBinds) {
+		return true
+	}
+	var proxy *CompanionApp
+	var agent *CompanionApp
+	for i := range app.Companions {
+		switch app.Companions[i].ID {
+		case "socket-proxy":
+			proxy = &app.Companions[i]
+		case "agent":
+			agent = &app.Companions[i]
+		}
+	}
+	if proxy == nil || !hasReadOnlyDockerSocketBind(proxy.HostBinds) {
+		return true
+	}
+	if app.AppID == "dozzle" {
+		remoteHost, ok := envValue(app.Env, "DOZZLE_REMOTE_HOST")
+		return proxy.NetworkMode != "aurago-store-dozzle-net" || len(proxy.Ports) != 0 || !ok || remoteHost != "tcp://aurago-store-dozzle-socket-proxy:2375"
+	}
+	if strings.TrimSpace(proxy.NetworkMode) != "" || !hasLoopbackDockerAPIBinding(proxy.Ports) {
+		return true
+	}
+	return agent != nil && (agent.NetworkMode != "host" || hasDockerSocketBind(agent.HostBinds))
+}
+
+func hasDockerSocketBind(binds []HostBinding) bool {
+	for _, bind := range binds {
+		hostPath := strings.TrimRight(strings.ReplaceAll(strings.TrimSpace(bind.HostPath), `\`, "/"), "/")
+		if strings.EqualFold(hostPath, "/var/run/docker.sock") {
+			return true
+		}
+	}
+	return false
+}
+
+func hasReadOnlyDockerSocketBind(binds []HostBinding) bool {
+	for _, bind := range binds {
+		hostPath := strings.TrimRight(strings.ReplaceAll(strings.TrimSpace(bind.HostPath), `\`, "/"), "/")
+		if strings.EqualFold(hostPath, "/var/run/docker.sock") && bind.ReadOnly {
+			return true
+		}
+	}
+	return false
+}
+
+func hasLoopbackDockerAPIBinding(ports []PortBinding) bool {
+	for _, port := range ports {
+		if port.ContainerPort == 2375 && port.HostPort > 0 && port.HostIP == "127.0.0.1" && strings.EqualFold(strings.TrimSpace(port.Protocol), "tcp") {
+			return true
+		}
+	}
+	return false
+}
+
+func hasLoopbackDockerAPIBindingForPort(companions []CompanionApp, companionID string, hostPort int) bool {
+	for _, companion := range companions {
+		if !strings.EqualFold(companion.ID, companionID) {
+			continue
+		}
+		for _, port := range companion.Ports {
+			if port.ContainerPort == 2375 && port.HostPort == hostPort && port.HostIP == "127.0.0.1" && strings.EqualFold(strings.TrimSpace(port.Protocol), "tcp") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // OpenURL computes the best URL for an installed app in the current request
@@ -798,12 +1053,6 @@ func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (
 	if s.cfg.Secrets == nil {
 		return InstalledApp{}, fmt.Errorf("desktop store secret vault is not configured")
 	}
-	if err := s.cfg.Secrets.WriteSecret("desktop_store_beszel_agent_key", key); err != nil {
-		return InstalledApp{}, fmt.Errorf("write Beszel agent key: %w", err)
-	}
-	if err := s.cfg.Secrets.WriteSecret("desktop_store_beszel_agent_token", token); err != nil {
-		return InstalledApp{}, fmt.Errorf("write Beszel agent token: %w", err)
-	}
 	app, ok, err := s.GetInstalled(ctx, "beszel")
 	if err != nil {
 		return InstalledApp{}, err
@@ -825,6 +1074,20 @@ func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (
 	if template.ID == "" {
 		return InstalledApp{}, fmt.Errorf("Beszel agent companion is not in the allowlist")
 	}
+	proxyHostPort, ok := companionPortHost(app.Companions, "socket-proxy", "docker-api")
+	if !ok || !hasLoopbackDockerAPIBindingForPort(app.Companions, "socket-proxy", proxyHostPort) {
+		return InstalledApp{}, fmt.Errorf("Beszel Docker socket proxy is missing; run the Store update before configuring the agent")
+	}
+	if err := s.cfg.Secrets.WriteSecret("desktop_store_beszel_agent_key", key); err != nil {
+		return InstalledApp{}, fmt.Errorf("write Beszel agent key: %w", err)
+	}
+	if err := s.cfg.Secrets.WriteSecret("desktop_store_beszel_agent_token", token); err != nil {
+		return InstalledApp{}, fmt.Errorf("write Beszel agent token: %w", err)
+	}
+	ports, err := s.allocateCompanionPortBindings(ctx, template, appReservedPortBindings(app))
+	if err != nil {
+		return InstalledApp{}, fmt.Errorf("allocate Beszel agent ports: %w", err)
+	}
 	companion := CompanionApp{
 		ID:            template.ID,
 		Name:          template.Name,
@@ -832,6 +1095,7 @@ func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (
 		Image:         template.Image,
 		Status:        AppStatusInstalling,
 		NetworkMode:   template.NetworkMode,
+		Ports:         ports,
 		Volumes:       resolveCompanionVolumes(entry, template),
 		HostBinds:     resolveHostBinds(template.HostBinds),
 	}
@@ -842,10 +1106,11 @@ func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (
 		"desktop_store_beszel_agent_token": token,
 	}
 	companion.Env = applyEnvTemplates(template.Env, app, secrets)
+	companion.Env = applyCompanionPortTemplates(companion.Env, app.Companions)
 	if err := s.requireDocker().PullImage(ctx, companion.Image); err != nil {
 		return InstalledApp{}, err
 	}
-	containerID, err := s.requireDocker().CreateContainer(ctx, companionContainerSpec(app, companion))
+	containerID, err := s.requireDocker().CreateContainer(ctx, s.companionRuntimeSpec(app, companion))
 	if err != nil {
 		return InstalledApp{}, err
 	}
@@ -857,6 +1122,7 @@ func (s *Service) ConfigureBeszelAgent(ctx context.Context, key, token string) (
 	companion.Status = AppStatusRunning
 	companion.Error = ""
 	app.Companions = replaceCompanion(app.Companions, companion)
+	app.UpdateRequired = monitoringProxyUpdateRequired(app)
 	if err := s.saveInstalled(ctx, app); err != nil {
 		return InstalledApp{}, err
 	}
@@ -886,6 +1152,11 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	if isNativeManagedEntry(entry) {
 		return s.installNativeManaged(ctx, op, entry)
 	}
+	// The journal records what this attempt creates, so a failed install
+	// removes only that (see install_journal.go).
+	if err := s.recordInstallResource(ctx, entry.ID, installResourceAttempt, op.ID); err != nil {
+		return err
+	}
 	if entry.ID == GodsEyeAppID {
 		if err := s.prepareGodsEyeInstall(req); err != nil {
 			return err
@@ -911,8 +1182,14 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 		return fmt.Errorf("resolve host binds: %w", err)
 	}
 	record.HostBinds = hostBinds
+	if err := s.recordAbsentWorkspaceBinds(ctx, record); err != nil {
+		return err
+	}
 	if err := s.prepareManagedWorkspaceBinds(record); err != nil {
 		return fmt.Errorf("prepare workspace binds: %w", err)
+	}
+	if err := s.recordAbsentGeneratedSecrets(ctx, entry); err != nil {
+		return err
 	}
 	env, secretRefs, err := s.installEnv(entry, record)
 	if err != nil {
@@ -920,11 +1197,17 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	}
 	record.Env = env
 	record.SecretRefs = secretRefs
-	companions, err := s.prepareAutoCompanions(entry, record)
+	companions, err := s.prepareAutoCompanions(ctx, entry, record)
 	if err != nil {
 		return fmt.Errorf("resolve companion containers: %w", err)
 	}
 	record.Companions = companions
+	if err := s.preflightInstall(ctx, entry, record); err != nil {
+		// Nothing exists in Docker yet; remove only the Vault secrets and
+		// workspace directories this attempt created.
+		s.cleanupBlockedInstall(ctx, entry.ID)
+		return err
+	}
 	if err := s.saveInstalled(ctx, record); err != nil {
 		return err
 	}
@@ -939,6 +1222,12 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	if err := s.createAutoCompanions(ctx, &record); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
+	for _, companion := range record.Companions {
+		if err := s.recordInstallResource(ctx, entry.ID, installResourceContainer, companion.ContainerName); err != nil {
+			return s.failInstall(ctx, record, err)
+		}
+	}
+	companionsStarted := time.Now()
 	spec, err := s.runtimeContainerSpec(record)
 	if err != nil {
 		return s.failInstall(ctx, record, err)
@@ -948,6 +1237,9 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 		return s.failInstall(ctx, record, err)
 	}
 	record.ContainerID = containerID
+	if err := s.recordInstallResource(ctx, entry.ID, installResourceContainer, record.ContainerName); err != nil {
+		return s.failInstall(ctx, record, err)
+	}
 	if err := s.seedContainerFiles(ctx, entry, record); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
@@ -955,6 +1247,9 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 		return s.failInstall(ctx, record, err)
 	}
 	if err := s.waitContainerReady(ctx, record, appReadinessTimeout); err != nil {
+		return s.failInstall(ctx, record, err)
+	}
+	if err := s.checkStartedCompanions(ctx, record, companionContainerNames(record.Companions), companionsStarted); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
 	record.Status = AppStatusRunning
@@ -968,7 +1263,14 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	}
 	record.LaunchpadLinkID = linkID
 	record.LastOperationState = OperationSucceeded
-	return s.saveInstalled(ctx, record)
+	if err := s.saveInstalled(ctx, record); err != nil {
+		return err
+	}
+	// The installed app owns what the attempt created from now on.
+	if err := s.clearInstallResources(ctx, entry.ID); err != nil {
+		s.logger().Warn("Store install could not clear its journal", "app_id", entry.ID, "error", err)
+	}
+	return nil
 }
 
 func (s *Service) installNativeManaged(ctx context.Context, op Operation, entry CatalogEntry) error {
@@ -1052,7 +1354,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	}
 	record.Env = env
 	record.SecretRefs = secretRefs
-	autoCompanions, err := s.prepareAutoCompanions(entry, record)
+	autoCompanions, err := s.prepareAutoCompanions(ctx, entry, record)
 	if err != nil {
 		return fmt.Errorf("resolve companion containers: %w", err)
 	}
@@ -1073,70 +1375,37 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	if err := s.saveInstalled(ctx, progress); err != nil {
 		return err
 	}
-	companionsTouched := false
-	restorePreviousCompanions := func() error {
-		if len(record.Companions) == 0 && len(previous.Companions) == 0 {
-			return nil
-		}
-		for _, companion := range record.Companions {
-			if strings.TrimSpace(companion.ContainerName) == "" {
-				continue
-			}
-			_ = s.requireDocker().StopContainer(ctx, companion.ContainerName)
-			_ = s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true)
-		}
-		restored := previous
-		for i := range restored.Companions {
-			if err := s.createCompanionAt(ctx, &restored, i); err != nil {
-				return err
-			}
-			if !previousWasRunning {
-				_ = s.requireDocker().StopContainer(ctx, restored.Companions[i].ContainerName)
-				restored.Companions[i].Status = AppStatusStopped
-			}
-		}
-		previous.Companions = restored.Companions
-		return nil
+	// Each previous container is parked (stopped and renamed) before its
+	// replacement is created, and removed only after the replacements run and
+	// the record is saved. A failed update restores the parked containers as
+	// they are; only containers that could not be parked are recreated from
+	// the previous record, as every rollback did before.
+	var replaced []replacedContainer
+	// The rollback and the save of the previous record must finish even when
+	// the operation is cancelled (shutdown, operation deadline).
+	detached := func() (context.Context, context.CancelFunc) {
+		return context.WithTimeout(context.WithoutCancel(ctx), updateRollbackTimeout)
 	}
 	restorePrevious := func(runErr error) error {
+		saveCtx, cancel := detached()
+		defer cancel()
 		previous.LastOperationID = op.ID
 		previous.LastOperationType = op.Type
 		previous.LastOperationState = OperationFailed
-		_ = s.saveInstalled(ctx, previous)
+		_ = s.saveInstalled(saveCtx, previous)
 		return runErr
 	}
-	restorePreviousWithCompanions := func(runErr error) error {
-		if companionsTouched {
-			if companionErr := restorePreviousCompanions(); companionErr != nil {
-				previous.Status = AppStatusError
-				previous.Error = fmt.Sprintf("%v; companion rollback failed: %v", runErr, companionErr)
-			}
-		}
-		return restorePrevious(runErr)
-	}
-	rollbackPrevious := func(runErr error) error {
-		if companionsTouched {
-			if companionErr := restorePreviousCompanions(); companionErr != nil {
-				previous.Status = AppStatusError
-				previous.Error = fmt.Sprintf("%v; companion rollback failed: %v", runErr, companionErr)
-				return restorePrevious(runErr)
-			}
-		}
-		rollbackID, rollbackErr := s.requireDocker().CreateContainer(ctx, previousSpec)
-		if rollbackErr != nil {
+	rollback := func(runErr error) error {
+		rollbackCtx, cancel := detached()
+		defer cancel()
+		rollbackErr := s.restoreReplaced(rollbackCtx, &previous, previousSpec, previousWasRunning, replaced)
+		switch {
+		case rollbackErr != nil:
 			previous.Status = AppStatusError
 			previous.Error = fmt.Sprintf("%v; rollback failed: %v", runErr, rollbackErr)
-			return restorePrevious(runErr)
+		case appWasReplaced(replaced):
+			previous.Error = ""
 		}
-		previous.ContainerID = rollbackID
-		if previousWasRunning {
-			if rollbackErr := s.requireDocker().StartContainer(ctx, previous.ContainerName); rollbackErr != nil {
-				previous.Status = AppStatusError
-				previous.Error = fmt.Sprintf("%v; rollback start failed: %v", runErr, rollbackErr)
-				return restorePrevious(runErr)
-			}
-		}
-		previous.Error = ""
 		return restorePrevious(runErr)
 	}
 	if op.Type != OperationConfigure {
@@ -1153,46 +1422,40 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 			return restorePrevious(err)
 		}
 	}
-	companionsTouched = len(autoCompanions) > 0
-	if err := s.recreateAutoCompanions(ctx, &record, autoCompanions); err != nil {
-		return restorePreviousWithCompanions(err)
+	if err := s.replaceAutoCompanions(ctx, &record, autoCompanions, &replaced); err != nil {
+		return rollback(err)
 	}
-	_ = s.requireDocker().StopContainer(ctx, record.ContainerName)
-	if err := s.requireDocker().RemoveContainer(ctx, record.ContainerName, true); err != nil {
-		if previousWasRunning {
-			if restartErr := s.requireDocker().StartContainer(ctx, previous.ContainerName); restartErr != nil {
-				previous.Status = AppStatusError
-				previous.Error = fmt.Sprintf("restart previous container: %v", restartErr)
-			}
-		}
-		return restorePreviousWithCompanions(fmt.Errorf("remove old container: %w", err))
+	companionsStarted := time.Now()
+	if err := s.parkForReplacement(ctx, record.AppID, &replaced, record.ContainerName, ""); err != nil {
+		return rollback(err)
 	}
 	containerID, err := s.requireDocker().CreateContainer(ctx, nextSpec)
 	if err != nil {
-		return rollbackPrevious(fmt.Errorf("create updated container: %w", err))
+		return rollback(fmt.Errorf("create updated container: %w", err))
 	}
+	replaced[len(replaced)-1].created = true
 	record.ContainerID = containerID
 	if err := s.seedContainerFiles(ctx, entry, record); err != nil {
-		_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
-		return rollbackPrevious(fmt.Errorf("seed updated container files: %w", err))
+		return rollback(fmt.Errorf("seed updated container files: %w", err))
 	}
 	if previousWasRunning {
 		if err := s.requireDocker().StartContainer(ctx, record.ContainerName); err != nil {
-			_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
-			return rollbackPrevious(fmt.Errorf("start updated container: %w", err))
+			return rollback(fmt.Errorf("start updated container: %w", err))
 		}
 		if err := s.waitContainerReady(ctx, record, appReadinessTimeout); err != nil {
-			_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
-			return rollbackPrevious(fmt.Errorf("updated container readiness: %w", err))
+			return rollback(fmt.Errorf("updated container readiness: %w", err))
 		}
+	}
+	if err := s.checkStartedCompanions(ctx, record, replacedCompanionNames(replaced), companionsStarted); err != nil {
+		return rollback(err)
 	}
 	record.Status = previous.Status
 	record.Error = ""
 	record.LastOperationState = OperationSucceeded
 	if err := s.saveInstalled(ctx, record); err != nil {
-		_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
-		return rollbackPrevious(fmt.Errorf("save updated container: %w", err))
+		return rollback(fmt.Errorf("save updated container: %w", err))
 	}
+	s.removeParked(ctx, record.AppID, replaced)
 	return nil
 }
 
@@ -1362,10 +1625,17 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 		if err := s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true); err != nil {
 			return fmt.Errorf("remove companion container %s: %w", companion.ContainerName, err)
 		}
+		// A parked container left by an interrupted update.
+		if err := s.removeParkedContainer(ctx, app.AppID, companion.ContainerName); err != nil {
+			s.logger().Warn("Store uninstall left a parked container in place", "app_id", app.AppID, "error", err)
+		}
 	}
 	_ = s.requireDocker().StopContainer(ctx, app.ContainerName)
 	if err := s.requireDocker().RemoveContainer(ctx, app.ContainerName, true); err != nil {
 		return fmt.Errorf("remove container: %w", err)
+	}
+	if err := s.removeParkedContainer(ctx, app.AppID, app.ContainerName); err != nil {
+		s.logger().Warn("Store uninstall left a parked container in place", "app_id", app.AppID, "error", err)
 	}
 	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
 		return err
@@ -1403,6 +1673,10 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 		if err := s.removeManagedWorkspaceBinds(app); err != nil {
 			return err
 		}
+	}
+	// Nothing the uninstall kept may look like a failed attempt's leftover.
+	if err := s.clearInstallResources(ctx, app.AppID); err != nil {
+		return err
 	}
 	_, err = s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
 	if err != nil {
@@ -1939,20 +2213,27 @@ func (s *Service) resolveEnv(entry CatalogEntry, app InstalledApp, previousEnv [
 	return env, refs, nil
 }
 
-func (s *Service) prepareAutoCompanions(entry CatalogEntry, app InstalledApp) ([]CompanionApp, error) {
+func (s *Service) prepareAutoCompanions(ctx context.Context, entry CatalogEntry, app InstalledApp) ([]CompanionApp, error) {
 	if len(entry.Companions) == 0 {
 		return nil, nil
 	}
 	secretValues := s.secretTemplateValues(app.SecretRefs, app.Env)
 	companions := make([]CompanionApp, 0, len(entry.Companions))
+	reservedPorts := appReservedPortBindings(app)
 	for _, template := range entry.Companions {
-		env := applyEnvTemplates(template.Env, app, secretValues)
+		templateSecrets := s.companionTemplateSecrets(template.Env, secretValues)
+		env := applyEnvTemplates(template.Env, app, templateSecrets)
 		if hasUnresolvedSecretTemplate(env) {
-			if isPrivateStoreNetwork(template.NetworkMode) {
+			if isPrivateStoreNetwork(template.NetworkMode) || hasExistingDockerSocketCompanion(app.Companions, template.ID) {
 				return nil, fmt.Errorf("companion %s has unresolved generated secrets", template.ID)
 			}
 			continue
 		}
+		ports, err := s.allocateCompanionPortBindings(ctx, template, reservedPorts)
+		if err != nil {
+			return nil, fmt.Errorf("allocate companion %s ports: %w", template.ID, err)
+		}
+		reservedPorts = append(reservedPorts, ports...)
 		companions = append(companions, CompanionApp{
 			ID:            template.ID,
 			Name:          template.Name,
@@ -1960,12 +2241,160 @@ func (s *Service) prepareAutoCompanions(entry CatalogEntry, app InstalledApp) ([
 			Image:         template.Image,
 			Status:        AppStatusInstalling,
 			NetworkMode:   template.NetworkMode,
+			Ports:         ports,
 			Volumes:       resolveCompanionVolumes(entry, template),
 			HostBinds:     resolveHostBinds(template.HostBinds),
 			Env:           env,
 		})
 	}
+	for i := range companions {
+		companions[i].Env = applyCompanionPortTemplates(companions[i].Env, companions)
+	}
 	return companions, nil
+}
+
+func (s *Service) companionTemplateSecrets(env []string, existing map[string]string) map[string]string {
+	values := make(map[string]string, len(existing))
+	for key, value := range existing {
+		security.RegisterSensitive(value)
+		values[key] = value
+	}
+	if s.cfg.Secrets == nil {
+		return values
+	}
+	for _, item := range env {
+		for remaining := item; ; {
+			start := strings.Index(remaining, "${SECRET:")
+			if start < 0 {
+				break
+			}
+			remaining = remaining[start+len("${SECRET:"):]
+			end := strings.IndexByte(remaining, '}')
+			if end < 0 {
+				break
+			}
+			key := strings.TrimSpace(remaining[:end])
+			remaining = remaining[end+1:]
+			if key == "" || values[key] != "" {
+				continue
+			}
+			if value, err := s.cfg.Secrets.ReadSecret(key); err == nil && value != "" {
+				security.RegisterSensitive(value)
+				values[key] = value
+			}
+		}
+	}
+	return values
+}
+
+func (s *Service) allocateCompanionPortBindings(ctx context.Context, template CompanionTemplate, reserved []PortBinding) ([]PortBinding, error) {
+	ports := make([]PortBinding, 0, len(template.Ports))
+	for _, port := range template.Ports {
+		hostIP := strings.TrimSpace(port.HostIP)
+		if hostIP == "" {
+			hostIP = "127.0.0.1"
+		}
+		var hostPort int
+		for attempt := 0; attempt < 8; attempt++ {
+			allocated, err := s.portAllocator(ctx, port.ContainerPort)
+			if err != nil {
+				return nil, fmt.Errorf("allocate port %s: %w", port.ID, err)
+			}
+			candidate := PortBinding{HostIP: hostIP, HostPort: allocated}
+			if !portBindingConflicts(candidate, reserved) && !portBindingConflicts(candidate, ports) {
+				hostPort = allocated
+				break
+			}
+		}
+		if hostPort <= 0 {
+			return nil, fmt.Errorf("could not allocate a unique host port for %s", port.ID)
+		}
+		protocol := strings.ToLower(strings.TrimSpace(port.Protocol))
+		if protocol == "" {
+			protocol = "tcp"
+		}
+		ports = append(ports, PortBinding{
+			ID:            port.ID,
+			Name:          port.Name,
+			ContainerPort: port.ContainerPort,
+			Protocol:      protocol,
+			HostIP:        hostIP,
+			HostPort:      hostPort,
+		})
+	}
+	return ports, nil
+}
+
+func appReservedPortBindings(app InstalledApp) []PortBinding {
+	reserved := append([]PortBinding(nil), app.Ports...)
+	for _, companion := range app.Companions {
+		reserved = append(reserved, companion.Ports...)
+	}
+	return reserved
+}
+
+func portBindingConflicts(candidate PortBinding, existing []PortBinding) bool {
+	for _, binding := range existing {
+		if candidate.HostPort != binding.HostPort {
+			continue
+		}
+		left := strings.TrimSpace(candidate.HostIP)
+		right := strings.TrimSpace(binding.HostIP)
+		if left == right || left == "" || right == "" || left == "0.0.0.0" || right == "0.0.0.0" || left == "::" || right == "::" {
+			return true
+		}
+	}
+	return false
+}
+
+func applyCompanionPortTemplates(env []string, companions []CompanionApp) []string {
+	replacements := make(map[string]string)
+	for _, companion := range companions {
+		companionID := envTemplateIdentifier(companion.ID)
+		for _, port := range companion.Ports {
+			if port.HostPort <= 0 || strings.TrimSpace(port.ID) == "" {
+				continue
+			}
+			key := "${COMPANION_PORT_" + companionID + "_" + envTemplateIdentifier(port.ID) + "}"
+			replacements[key] = strconv.Itoa(port.HostPort)
+		}
+	}
+	out := make([]string, 0, len(env))
+	for _, item := range env {
+		for key, value := range replacements {
+			item = strings.ReplaceAll(item, key, value)
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func envTemplateIdentifier(value string) string {
+	value = strings.ToUpper(strings.TrimSpace(value))
+	return strings.NewReplacer("-", "_", ".", "_", " ", "_").Replace(value)
+}
+
+func companionPortHost(companions []CompanionApp, companionID, portID string) (int, bool) {
+	for _, companion := range companions {
+		if !strings.EqualFold(companion.ID, companionID) {
+			continue
+		}
+		for _, port := range companion.Ports {
+			if strings.EqualFold(port.ID, portID) && port.HostPort > 0 {
+				return port.HostPort, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func hasExistingDockerSocketCompanion(companions []CompanionApp, companionID string) bool {
+	for _, companion := range companions {
+		if companion.ID == companionID && hasDockerSocketBind(companion.HostBinds) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) secretTemplateValues(refs []SecretRef, env []string) map[string]string {
@@ -2005,30 +2434,12 @@ func (s *Service) createAutoCompanions(ctx context.Context, app *InstalledApp) e
 	return nil
 }
 
-func (s *Service) recreateAutoCompanions(ctx context.Context, app *InstalledApp, companions []CompanionApp) error {
-	for _, companion := range companions {
-		index := companionIndex(app.Companions, companion.ID)
-		if index < 0 {
-			app.Companions = append(app.Companions, companion)
-			index = len(app.Companions) - 1
-		} else {
-			app.Companions[index] = companion
-		}
-		_ = s.requireDocker().StopContainer(ctx, companion.ContainerName)
-		_ = s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true)
-		if err := s.createCompanionAt(ctx, app, index); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (s *Service) createCompanionAt(ctx context.Context, app *InstalledApp, index int) error {
 	companion := &app.Companions[index]
 	if err := s.requireDocker().PullImage(ctx, companion.Image); err != nil {
 		return fmt.Errorf("pull companion image %s: %w", companion.Image, err)
 	}
-	containerID, err := s.requireDocker().CreateContainer(ctx, companionContainerSpec(*app, *companion))
+	containerID, err := s.requireDocker().CreateContainer(ctx, s.companionRuntimeSpec(*app, *companion))
 	if err != nil {
 		return fmt.Errorf("create companion container %s: %w", companion.ContainerName, err)
 	}
@@ -2103,6 +2514,7 @@ func (s *Service) desktopAppManifest(entry CatalogEntry, app InstalledApp) deskt
 		Entry:       "index.html",
 		Runtime:     RuntimeContainerWebApp,
 		Description: entry.Description,
+		Category:    entry.Category,
 		Metadata: map[string]string{
 			"store_app_id":   entry.ID,
 			"logo_path":      app.LogoPath,
@@ -2335,13 +2747,23 @@ func (s *Service) cleanupInstallArtifacts(ctx context.Context, app InstalledApp)
 		}
 		return nil
 	}
-	s.cleanupInstallDockerResources(ctx, app)
-	_ = s.deleteStoreSecrets(ctx, app)
-	_ = s.removeManagedWorkspaceBinds(app)
+	resources, err := s.installResources(ctx, app.AppID)
+	switch {
+	case err != nil:
+		// Without the journal nothing proves what the attempt created; keep it.
+		s.logger().Warn("Store install cleanup could not read its journal; Docker resources, secrets and workspace files are kept", "app_id", app.AppID, "error", err)
+	case hasInstallAttempt(resources):
+		s.cleanupInstallResources(ctx, app.AppID, resources)
+	default:
+		// An installing record written before the install journal existed.
+		s.cleanupInstallDockerResources(ctx, app)
+		_ = s.deleteStoreSecrets(ctx, app)
+		_ = s.removeManagedWorkspaceBinds(app)
+	}
 	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
 		return err
 	}
-	_, err := s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
+	_, err = s.db.ExecContext(ctx, `DELETE FROM desktop_store_apps WHERE app_id = ?`, app.AppID)
 	if err != nil {
 		return fmt.Errorf("delete desktop store app record: %w", err)
 	}
@@ -2525,6 +2947,14 @@ func (s *Service) requireDocker() DockerAdapter {
 	return s.cfg.Docker
 }
 
+// logger returns the configured logger or slog's default.
+func (s *Service) logger() *slog.Logger {
+	if s.cfg.Logger != nil {
+		return s.cfg.Logger
+	}
+	return slog.Default()
+}
+
 func (s *Service) ensureReady(ctx context.Context) error {
 	s.mu.Lock()
 	ready := s.initialized && !s.closed
@@ -2559,19 +2989,67 @@ func containerSpecFromRecord(app InstalledApp) ContainerSpec {
 
 func companionContainerSpec(app InstalledApp, companion CompanionApp) ContainerSpec {
 	return ContainerSpec{
-		Name:        companion.ContainerName,
-		Image:       companion.Image,
-		Env:         append([]string(nil), companion.Env...),
-		Volumes:     append([]VolumeBinding(nil), companion.Volumes...),
-		HostBinds:   append([]HostBinding(nil), companion.HostBinds...),
-		NetworkMode: companion.NetworkMode,
-		Restart:     "unless-stopped",
+		Name:         companion.ContainerName,
+		Image:        companion.Image,
+		Env:          append([]string(nil), companion.Env...),
+		PortBindings: append([]PortBinding(nil), companion.Ports...),
+		Volumes:      append([]VolumeBinding(nil), companion.Volumes...),
+		HostBinds:    append([]HostBinding(nil), companion.HostBinds...),
+		NetworkMode:  companion.NetworkMode,
+		Restart:      "unless-stopped",
 		Labels: map[string]string{
 			"aurago.desktop_store":           "true",
 			"aurago.desktop_store.app_id":    app.AppID,
 			"aurago.desktop_store.companion": companion.ID,
 		},
 	}
+}
+
+// companionRuntimeSpec is companionContainerSpec plus the catalog's opt-in
+// hardening for that companion image.
+func (s *Service) companionRuntimeSpec(app InstalledApp, companion CompanionApp) ContainerSpec {
+	spec := companionContainerSpec(app, companion)
+	spec.Hardening = s.catalogHardening(app.AppID, companion.ID)
+	return spec
+}
+
+// catalogHardening returns a copy of the opt-in hardening the catalog declares
+// for an app (companionID == "") or one of its companions. Installed records
+// do not store it, so a catalog change applies on the next create without a
+// record migration.
+func (s *Service) catalogHardening(appID, companionID string) *ContainerHardening {
+	entry, ok := s.catalogByID[normalizeAppID(appID)]
+	if !ok {
+		return nil
+	}
+	if strings.TrimSpace(companionID) == "" {
+		return cloneContainerHardening(entry.Hardening)
+	}
+	for _, template := range entry.Companions {
+		if normalizeAppID(template.ID) == normalizeAppID(companionID) {
+			return cloneContainerHardening(template.Hardening)
+		}
+	}
+	return nil
+}
+
+func cloneContainerHardening(hardening *ContainerHardening) *ContainerHardening {
+	if hardening == nil {
+		return nil
+	}
+	out := &ContainerHardening{
+		CapDrop:        append([]string(nil), hardening.CapDrop...),
+		CapAdd:         append([]string(nil), hardening.CapAdd...),
+		ReadonlyRootfs: hardening.ReadonlyRootfs,
+		PidsLimit:      hardening.PidsLimit,
+	}
+	if len(hardening.Tmpfs) > 0 {
+		out.Tmpfs = make(map[string]string, len(hardening.Tmpfs))
+		for path, options := range hardening.Tmpfs {
+			out.Tmpfs[path] = options
+		}
+	}
+	return out
 }
 
 func replaceCompanion(companions []CompanionApp, companion CompanionApp) []CompanionApp {

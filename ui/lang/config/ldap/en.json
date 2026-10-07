@@ -1,4 +1,7 @@
 {
+  "config.ldap.transport_label": "Connection security",
+  "config.ldap.plain_label": "LDAP (unencrypted)",
+  "help.ldap.tls_mode": "LDAPS uses port 636. StartTLS encrypts the connection before signing in on port 389. A failed upgrade blocks sign-in.",
   "config.ldap.base_dn_label": "Base DN",
   "config.ldap.bind_dn_label": "Bind DN",
   "config.ldap.bind_password_label": "Bind Password (Vault)",

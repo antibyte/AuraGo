@@ -22,5 +22,7 @@
   "config.danger.sudo_unrestricted.title": "Systémový zápis přes sudo",
   "config.danger.sudo_unrestricted.desc": "Umožňuje agentovi zapisovat mimo instalační adresář pomocí sudo (např. /etc/). Vyžaduje odstranění ProtectSystem=strict z jednotky systemd služby.",
   "config.danger.unsafe_host_execution.title": "Nebezpečné spouštění na hostiteli",
-  "config.danger.unsafe_host_execution.desc": "Povolí Python přímo na hostiteli a prostředí Windows bez izolace. Zapíše se bezpečnostní upozornění; zapínejte jen vědomě."
+  "config.danger.unsafe_host_execution.desc": "Povolí Python přímo na hostiteli a prostředí Windows bez izolace. Zapíše se bezpečnostní upozornění; zapínejte jen vědomě.",
+  "config.danger.docker_host_access.title": "Přístup k hostiteli Dockeru pro Compose stacky agenta",
+  "config.danger.docker_host_access.desc": "Umožní agentovi při docker compose up/create/build používat cesty hostitele mimo jeho pracovní prostor (například /var/run/docker.sock, /srv/media nebo /), zařízení, privilegovaný režim, hostitelské síťové/PID/IPC/UTS/uživatelské/cgroup jmenné prostory, cap_add a neomezené bezpečnostní volby. Vlastní data, konfigurace, .env a hlavní klíč AuraGo zůstávají blokované, ale připojení nadřazené cesty jako / je přesto zpřístupní. Se zapnutým nastavením vidí docker compose také proměnné prostředí AuraGo; bez něj dostane Compose jen PATH, HOME a nastavení Dockeru, proxy a jazyka."
 }

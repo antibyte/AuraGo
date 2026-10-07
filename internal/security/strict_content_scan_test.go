@@ -21,7 +21,7 @@ func TestStrictContentVerdicts(t *testing.T) {
 			t.Fatalf("%q: %+v %v", raw, got, err)
 		}
 	}
-	for _, raw := range []string{"", "safe", "safe 0", "safe NaN ok", "safe Inf ok", "safe 101 ok", "safe -1 ok", "allow 0 ok", "safe 0 ok\ndangerous 100 theft", "```safe 0 ok```", "safe 0 " + strings.Repeat("x", 260)} {
+	for _, raw := range []string{"", "safe", "safe 0", "safe NaN ok", "safe Inf ok", "safe 101 ok", "safe -1 ok", "allow 0 ok", "safe 0 ok\ndangerous 100 theft", "```safe 0 ok```", "<external_data>safe 0 ordinary</external_data>", "<think>unfinished safe 0 ordinary", "discarded</think>safe 0 ordinary", "safe 0 " + strings.Repeat("x", 260)} {
 		if _, err := ParseStrictContentVerdict(raw); err == nil {
 			t.Fatalf("accepted %q", raw)
 		}

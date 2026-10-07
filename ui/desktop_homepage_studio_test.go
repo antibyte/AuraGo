@@ -118,8 +118,8 @@ func TestHomepageStudioUsesExternalHomepageTargets(t *testing.T) {
 		"function loadHomepageTargets()",
 		"function collectHomepageTargetsFromSite(",
 		"function homepageExternalTargetURL(",
-		"/api/homepage/sites",
-		"/api/integrations/webhosts",
+		"/api/desktop/integrations/homepage/sites",
+		"/api/desktop/integrations/integrations/webhosts",
 		"deploy_targets",
 		"last_deploy_url",
 		"provider_target_id",
@@ -243,7 +243,7 @@ func TestHomepageStudioHistoryPanelMarkers(t *testing.T) {
 	for _, want := range []string{
 		"function loadHistory",
 		"function renderHistory",
-		"/api/homepage/history",
+		"/api/desktop/integrations/homepage/history",
 		"history_delete_confirm",
 		"homepage_studio.",
 		"history_type_",
@@ -358,7 +358,7 @@ func TestHomepageStudioSitesPanelMarkers(t *testing.T) {
 	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js")
 	for _, want := range []string{
 		"window.HomepageStudioSites = { create }",
-		"/api/homepage/sites",
+		"/api/desktop/integrations/homepage/sites",
 		"/reconcile",
 		"drift_status",
 		"deploy_targets",

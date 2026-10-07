@@ -19,12 +19,15 @@ import (
 
 // MinimalLoopResult is the outcome of a single minimal agent turn.
 type MinimalLoopResult struct {
-	FinishReason     openai.FinishReason
-	Response         string
-	ToolCalls        int
-	Duration         time.Duration
-	PromptTokens     int
-	CompletionTokens int
+	FinishReason         openai.FinishReason
+	Response             string
+	ToolCalls            int
+	Duration             time.Duration
+	PromptTokens         int
+	CompletionTokens     int
+	TotalTokens          int
+	TokenSource          string
+	UsedFallbackEstimate bool
 }
 
 // MinimalLoopOptions controls optional behaviour of ExecuteMinimalLoop.
@@ -50,6 +53,9 @@ type MinimalLoopOptions struct {
 	// 0 means "no tools at all" (the request is sent without tool schemas).
 	// -1 or unset defaults to 3.
 	MaxToolRounds int
+	// BudgetCategory attributes every provider response to this budget category.
+	// Empty categories use "chat" so minimal-loop responses are never silently exempt.
+	BudgetCategory string
 }
 
 const defaultMaxToolRounds = 3
@@ -157,6 +163,8 @@ func ExecuteMinimalLoop(
 		}
 	}
 	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: userPrompt})
+	currentUserIndex := len(messages) - 1
+	currentTaskText := userPrompt
 	if profile != nil {
 		baseSystemPrompt = profile.SystemPrompt()
 	}
@@ -183,9 +191,13 @@ func ExecuteMinimalLoop(
 				return result, req.Messages, fmt.Errorf("save agent continuation: %w", err)
 			}
 		}
-		prepared, prepareErr := prepareMinimalLoopRequestWithProfile(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, addenda...)
+		prepared, prepareErr := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, addenda...)
 		if prepareErr != nil {
 			return result, req.Messages, prepareErr
+		}
+		currentUserIndex = prepared.CurrentUserIndex
+		if currentUserIndex >= 0 && currentUserIndex < len(req.Messages) && req.Messages[currentUserIndex].Role == openai.ChatMessageRoleUser {
+			currentTaskText = messageText(req.Messages[currentUserIndex])
 		}
 		var resp openai.ChatCompletionResponse
 		if dispatchCtx.DiscoveryRunID != "" {
@@ -204,6 +216,24 @@ func ExecuteMinimalLoop(
 		} else {
 			resp, err = client.CreateChatCompletion(callCtx, req)
 		}
+		modelForUsage := req.Model
+		if resp.Model != "" {
+			modelForUsage = resp.Model
+		}
+		if modelForUsage != "" {
+			resp.Model = modelForUsage
+		}
+		resp, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate, shouldCharge := normalizeResponseUsage(req, resp)
+		if shouldCharge {
+			accumulateMinimalLoopUsage(&result, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate)
+			category := "chat"
+			if opts != nil && strings.TrimSpace(opts.BudgetCategory) != "" {
+				category = strings.TrimSpace(opts.BudgetCategory)
+			}
+			if dispatchCtx.BudgetTracker != nil {
+				dispatchCtx.BudgetTracker.RecordForCategory(category, modelForUsage, promptTokens, completionTokens)
+			}
+		}
 		observe(resp, err)
 		if err != nil {
 			if opts != nil && opts.Checkpoint != nil && opts.PreserveReasoning && len(resp.Choices) == 1 && resp.Choices[0].Message.ReasoningContent != "" {
@@ -216,8 +246,6 @@ func ExecuteMinimalLoop(
 		if len(resp.Choices) != 1 {
 			return result, req.Messages, fmt.Errorf("empty response from llm")
 		}
-		accumulateMinimalLoopUsage(&result, resp.Usage)
-
 		choice := resp.Choices[0]
 		msg := choice.Message
 		if msg.FunctionCall != nil {
@@ -289,15 +317,35 @@ func ExecuteMinimalLoop(
 	} else {
 		req.Tools = nil
 	}
-	if _, err := prepareMinimalLoopRequestWithProfile(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, addenda...); err != nil {
+	prepared, err := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, addenda...)
+	if err != nil {
 		return result, req.Messages, err
 	}
+	currentUserIndex = prepared.CurrentUserIndex
 	provider := ""
 	if dispatchCtx.Cfg != nil {
 		provider = dispatchCtx.Cfg.LLM.ProviderType
 	}
 	callCtx, observe := observer.begin(ctx, req, provider, profile.Revision(), profile != nil)
 	resp, err := client.CreateChatCompletion(callCtx, req)
+	modelForUsage := req.Model
+	if resp.Model != "" {
+		modelForUsage = resp.Model
+	}
+	if modelForUsage != "" {
+		resp.Model = modelForUsage
+	}
+	resp, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate, shouldCharge := normalizeResponseUsage(req, resp)
+	if shouldCharge {
+		accumulateMinimalLoopUsage(&result, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate)
+		category := "chat"
+		if opts != nil && strings.TrimSpace(opts.BudgetCategory) != "" {
+			category = strings.TrimSpace(opts.BudgetCategory)
+		}
+		if dispatchCtx.BudgetTracker != nil {
+			dispatchCtx.BudgetTracker.RecordForCategory(category, modelForUsage, promptTokens, completionTokens)
+		}
+	}
 	observe(resp, err)
 	if err != nil {
 		return result, req.Messages, fmt.Errorf("llm summary call failed: %w", err)
@@ -305,7 +353,6 @@ func ExecuteMinimalLoop(
 	if len(resp.Choices) != 1 {
 		return result, req.Messages, fmt.Errorf("empty summary response from llm")
 	}
-	accumulateMinimalLoopUsage(&result, resp.Usage)
 	result.FinishReason = resp.Choices[0].FinishReason
 	if len(resp.Choices[0].Message.ToolCalls) > 0 || resp.Choices[0].Message.FunctionCall != nil {
 		return result, req.Messages, fmt.Errorf("unexpected tool calls in a tool-free summary")
@@ -346,15 +393,24 @@ func minimalLoopFinalText(content string) (string, error) {
 	return text, nil
 }
 
-func accumulateMinimalLoopUsage(result *MinimalLoopResult, usage openai.Usage) {
+func accumulateMinimalLoopUsage(result *MinimalLoopResult, promptTokens, completionTokens, totalTokens int, tokenSource string, usedFallbackEstimate bool) {
 	if result == nil {
 		return
 	}
-	if usage.PromptTokens > 0 {
-		result.PromptTokens += usage.PromptTokens
+	if promptTokens > 0 {
+		result.PromptTokens += promptTokens
 	}
-	if usage.CompletionTokens > 0 {
-		result.CompletionTokens += usage.CompletionTokens
+	if completionTokens > 0 {
+		result.CompletionTokens += completionTokens
+	}
+	if totalTokens > 0 {
+		result.TotalTokens += totalTokens
+	}
+	if usedFallbackEstimate {
+		result.UsedFallbackEstimate = true
+		result.TokenSource = "fallback_estimate"
+	} else if result.TokenSource == "" {
+		result.TokenSource = tokenSource
 	}
 }
 

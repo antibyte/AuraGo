@@ -102,6 +102,98 @@
     "kind": "sprite2d"
   },
   {
+    "id": "mixed-curiosities",
+    "name": "Mixed Curiosities",
+    "description": "100 eclectic props and collectibles: festivities, toys, detective gear, medieval life, pirates, farming, art, arcade and fantasy.",
+    "tags": [
+      "mixed",
+      "side",
+      "prop",
+      "item",
+      "festive",
+      "toys",
+      "detective",
+      "medieval",
+      "pirate",
+      "farm",
+      "art",
+      "arcade",
+      "weather",
+      "fantasy"
+    ],
+    "version": "2",
+    "kind": "sprite2d"
+  },
+  {
+    "id": "mixed-discovery",
+    "name": "Mixed Discovery",
+    "description": "100 discovery props and collectibles spanning archaeology, magic, ocean, wilderness, science, minerals and exploration.",
+    "tags": [
+      "mixed",
+      "side",
+      "prop",
+      "item",
+      "archaeology",
+      "magic",
+      "ocean",
+      "wilderness",
+      "camping",
+      "science",
+      "minerals",
+      "winter",
+      "desert",
+      "exploration"
+    ],
+    "version": "2",
+    "kind": "sprite2d"
+  },
+  {
+    "id": "mixed-everyday",
+    "name": "Mixed Everyday",
+    "description": "100 everyday props and collectibles: food, home, clothing, sports, music, school, pets and travel.",
+    "tags": [
+      "mixed",
+      "side",
+      "prop",
+      "item",
+      "food",
+      "kitchen",
+      "home",
+      "clothing",
+      "sport",
+      "music",
+      "school",
+      "pets",
+      "travel",
+      "garden"
+    ],
+    "version": "2",
+    "kind": "sprite2d"
+  },
+  {
+    "id": "mixed-technology",
+    "name": "Mixed Technology",
+    "description": "100 tools, machines and technical props across workshops, energy, electronics, medicine, rescue, transport and space.",
+    "tags": [
+      "mixed",
+      "side",
+      "prop",
+      "item",
+      "tools",
+      "workshop",
+      "machinery",
+      "energy",
+      "electronics",
+      "medical",
+      "rescue",
+      "transport",
+      "space",
+      "communication"
+    ],
+    "version": "2",
+    "kind": "sprite2d"
+  },
+  {
     "id": "monsters-animals-animated",
     "name": "Monsters and Animals Animated",
     "description": "Slime, goblin, wolf and boar side-view animation sets.",

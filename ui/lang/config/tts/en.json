@@ -90,7 +90,7 @@
   "config.tts.supertonic_status_loading": "Supertonic is still loading",
   "config.tts.supertonic_status_stopped": "Supertonic is stopped",
   "config.tts.supertonic_status_error": "Supertonic error",
-  "config.tts.supertonic_voices_loaded": "voices",
+  "config.tts.supertonic_voices_loaded": "voice(s)",
   "config.tts.provider_mistral": "Mistral AI",
   "config.tts.mistral_api_key_label": "API Key",
   "config.tts.mistral_api_key_placeholder": "Enter Mistral API key",

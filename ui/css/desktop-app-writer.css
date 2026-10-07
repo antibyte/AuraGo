@@ -39,6 +39,7 @@
 .writer-viewport{flex:1;min-height:0;overflow:auto;padding:20px 24px 48px;scrollbar-color:#65708480 transparent;scrollbar-width:thin}.writer-editor{margin:0 auto;--doc-page-bg:#fff;--doc-page-bg-rendered:#fff;--doc-page-text:#192234;--doc-surface:transparent;--doc-bg:transparent;--doc-border:rgba(0,0,0,.15);--doc-scrollbar-thumb:#65708480;--doc-caret:#162f58}
 .writer-editor .docx-page{background:#fff;color:#192234;box-shadow:0 2px 5px #0003,0 12px 32px #0004}
 .writer-loading{position:absolute;inset:22px 0 0;display:grid;place-items:center;background:var(--vd-theme-app-bg,#151b24);color:var(--writer-muted)}
+.writer-load-message{max-width:100%;padding:20px;text-align:center}.writer-load-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:10px}.writer-load-actions button{min-height:44px;border-color:var(--writer-border);background:var(--writer-control);color:var(--vd-text,#e4e8f0)}
 .writer-left,.writer-right{flex-shrink:0;min-height:0;overflow:auto;background:var(--writer-panel)}
 .writer-left{width:214px;border-right:1px solid var(--writer-border)}
 .writer-right{width:282px;border-left:1px solid var(--writer-border)}

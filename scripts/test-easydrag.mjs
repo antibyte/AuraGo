@@ -956,7 +956,10 @@ await guardAsync('c1d03 shell api errors', async () => {
     const end = foundation.indexOf('\n    }\n', start);
     if (start < 0 || end < 0) throw new Error('api() not found in desktop-foundation.js');
     let response = null;
-    const shellApi = vm.runInContext('(' + foundation.slice(start, end + 6).trim() + ')', vm.createContext({ fetch: async () => response }));
+    // The file-conflict helpers (file-conflict-runtime.js) only act on desktop file routes; for flows
+    // URLs prepareDesktopFileMutation gives null and resolveDesktopFileConflict false, as stubbed here.
+    const shellApi = vm.runInContext('(' + foundation.slice(start, end + 6).trim() + ')', vm.createContext({
+        fetch: async () => response, prepareDesktopFileMutation: () => null, resolveDesktopFileConflict: async () => false }));
     const respond = (status, text, headers) => {
         const h = Object.assign({}, headers);
         response = { ok: status >= 200 && status < 300, status, headers: { get: name => (name.toLowerCase() in h ? h[name.toLowerCase()] : null) }, json: async () => JSON.parse(text) };

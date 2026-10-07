@@ -294,7 +294,9 @@ func (c *Client) RestoreAlert(ctx context.Context, alertID string) error {
 
 // Close closes the client and releases resources.
 func (c *Client) Close() error {
-	// No persistent connections to close currently
+	if c.httpClient != nil {
+		c.httpClient.CloseIdleConnections()
+	}
 	return nil
 }
 

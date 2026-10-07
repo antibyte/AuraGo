@@ -216,6 +216,11 @@ func generateScenarios(tools []ToolExport, contracts OperationContractManifest) 
 	if err != nil {
 		return nil, nil, err
 	}
+	for _, collection := range [][]Scenario{scenarios, challenge} {
+		if err := completeScenarioArguments(collection, toolByName); err != nil {
+			return nil, nil, err
+		}
+	}
 	return scenarios, challenge, nil
 }
 

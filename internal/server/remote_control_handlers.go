@@ -30,7 +30,7 @@ var remoteUpgrader = websocket.Upgrader{
 
 func handleRemoteWebSocket(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.RemoteHub == nil {
+		if s.RemoteHub == nil || !s.RemoteHub.Enabled() {
 			jsonError(w, "Remote Control not available", http.StatusServiceUnavailable)
 			return
 		}
@@ -91,7 +91,7 @@ func handleRemoteWebSocket(s *Server) http.HandlerFunc {
 
 func handleRemoteDevices(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.RemoteHub == nil {
+		if s.RemoteHub == nil || !s.RemoteHub.Enabled() {
 			jsonError(w, "Remote Control not available", http.StatusServiceUnavailable)
 			return
 		}
@@ -123,7 +123,7 @@ func handleRemoteDevices(s *Server) http.HandlerFunc {
 
 func handleRemoteDevice(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.RemoteHub == nil {
+		if s.RemoteHub == nil || !s.RemoteHub.Enabled() {
 			jsonError(w, "Remote Control not available", http.StatusServiceUnavailable)
 			return
 		}
@@ -190,7 +190,7 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 				maxFileSizeMB := s.Cfg.RemoteControl.MaxFileSizeMB
 				_ = s.RemoteHub.SendConfigUpdate(deviceID, remote.ConfigUpdatePayload{
 					ReadOnly:      &ro,
-					AllowedPaths:  device.AllowedPaths,
+					AllowedPaths:  append([]string{}, device.AllowedPaths...),
 					MaxFileSizeMB: &maxFileSizeMB,
 				})
 			}
@@ -228,17 +228,19 @@ func handleRemoteDeviceApprove(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if s.RemoteHub == nil {
+		if s.RemoteHub == nil || !s.RemoteHub.Enabled() {
 			jsonError(w, "Remote Control not available", http.StatusServiceUnavailable)
 			return
 		}
 
 		deviceID := extractRemoteDeviceID(r.URL.Path, "/approve")
-		if err := s.RemoteHub.ApproveDevice(deviceID); err != nil {
+		token, expires, err := s.RemoteHub.ApproveDevice(deviceID)
+		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Unable to approve device", "Failed to approve remote device", err, "device_id", deviceID)
 			return
 		}
-		writeJSON(w, map[string]string{"status": "approved"})
+		w.Header().Set("Cache-Control", "no-store")
+		writeJSON(w, map[string]string{"status": "token_required", "token": token, "expires_at": expires})
 	}
 }
 
@@ -248,7 +250,7 @@ func handleRemoteDeviceReject(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if s.RemoteHub == nil {
+		if s.RemoteHub == nil || !s.RemoteHub.Enabled() {
 			jsonError(w, "Remote Control not available", http.StatusServiceUnavailable)
 			return
 		}
@@ -268,7 +270,7 @@ func handleRemoteDeviceRevoke(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if s.RemoteHub == nil {
+		if s.RemoteHub == nil || !s.RemoteHub.Enabled() {
 			jsonError(w, "Remote Control not available", http.StatusServiceUnavailable)
 			return
 		}
@@ -299,7 +301,7 @@ func handleRemoteEnrollmentCreate(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if s.RemoteHub == nil {
+		if s.RemoteHub == nil || !s.RemoteHub.Enabled() {
 			jsonError(w, "Remote Control not available", http.StatusServiceUnavailable)
 			return
 		}
@@ -343,7 +345,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if s.RemoteHub == nil {
+		if s.RemoteHub == nil || !s.RemoteHub.Enabled() {
 			jsonError(w, "Remote Control not available", http.StatusServiceUnavailable)
 			return
 		}
@@ -452,7 +454,7 @@ func handleRemoteAuditLog(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if s.RemoteHub == nil {
+		if s.RemoteHub == nil || !s.RemoteHub.Enabled() {
 			jsonError(w, "Remote Control not available", http.StatusServiceUnavailable)
 			return
 		}

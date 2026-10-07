@@ -156,11 +156,11 @@
 
 /* Pointer light: launchers, menu entries and task buttons glow where the pointer is
  * (position from polish-runtime.js; the fallback is the centre). */
-.desktop-body.desktop-body[data-theme] :is(.vd-start-item, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
+.desktop-body.desktop-body[data-theme] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
     background-image: radial-gradient(circle at var(--vd-rx, 50%) var(--vd-ry, 50%), rgba(var(--vd-reveal), 0.16), transparent 72%);
 }
 
-.desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] :is(.vd-start-item, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
+.desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
     background-image: radial-gradient(circle at var(--vd-rx, 50%) var(--vd-ry, 50%), rgba(var(--vd-reveal), 0.14), transparent 72%);
 }
 
@@ -214,6 +214,13 @@
 .vd-toast {
     position: relative;
     overflow: hidden;
+    transition: translate 160ms var(--ds-motion-ease-standard, ease), border-color 160ms var(--ds-motion-ease-standard, ease);
+}
+
+/* Holding a toast (hover pauses its countdown) lifts it a little. */
+.vd-toast.vd-toast-paused {
+    translate: 0 -1px;
+    border-color: var(--vd-theme-border-strong, var(--vd-border-bright));
 }
 
 .vd-toast::after {
@@ -246,6 +253,69 @@
     to { transform: scaleX(0); }
 }
 
+/* Tray popovers rise out of their anchor: the clock popup and the notification centre open away from
+ * the bar (shell-chrome-runtime.js sets data-placement), the taskbar thumbnail above its button. The
+ * keyframes move without scaling so the runtimes can still measure the panel while it enters. */
+.desktop-body:not([data-animations="false"]) :is(.vd-clock-popup, .vd-notification-center, .vd-taskbar-thumbnail) {
+    animation: vd-popover-rise 140ms var(--ds-motion-ease-standard, ease-out) both;
+}
+
+.desktop-body:not([data-animations="false"]) :is(.vd-clock-popup, .vd-notification-center)[data-placement="below"] {
+    animation-name: vd-popover-drop;
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) :is(.vd-clock-popup, .vd-notification-center, .vd-taskbar-thumbnail) {
+    animation-duration: 200ms;
+    animation-timing-function: cubic-bezier(0.16, 1.18, 0.28, 1);
+}
+
+@keyframes vd-popover-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vd-popover-drop {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Keyboard focus: the tray controls, the clock and pinned launchers share the shell ring. */
+.desktop-body :is(.vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button, .vd-clock, .vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn, .vd-taskbar-pin, .vd-notification-clear, .vd-clock-popup-open):focus-visible {
+    outline: var(--ds-focus-ring-width, 2px) solid var(--ds-color-border-focus, var(--vd-accent));
+    outline-offset: 1px;
+}
+
+/* Hover and press: the bell, pinned launchers and the small tray buttons answer like the rest of the
+ * bar. */
+.desktop-body :is(.vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
+    transition:
+        background-color var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
+        color var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
+        border-color var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
+        box-shadow var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
+        transform 80ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.desktop-body .vd-notification-button:hover,
+.desktop-body .vd-taskbar-pin:hover {
+    background-color: var(--vd-theme-control-hover, var(--ds-color-control-hover));
+    border-color: var(--vd-theme-border-strong, var(--vd-border-bright));
+}
+
+.desktop-body :is(.vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button):active {
+    transform: scale(0.94);
+}
+
+/* Desktop icons: the glyph lifts a touch under the pointer (the label reveals its full name in
+ * desktop-icons.css). */
+.vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) {
+    transition: transform 160ms var(--ds-motion-ease-standard, ease);
+}
+
+.desktop-body:not([data-animations="false"]) .vd-icon:hover > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) {
+    transform: translateY(-1px) scale(1.04);
+}
+
 /* Text selection takes the accent colour. */
 .desktop-body ::selection {
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.34);
@@ -255,12 +325,22 @@
     .vd-toast::after,
     .vd-window.active::before,
     .vd-notification-button.vd-bell-ring .vd-notification-icon,
-    .vd-notification-button.vd-bell-ring .vd-notification-badge {
+    .vd-notification-button.vd-bell-ring .vd-notification-badge,
+    .vd-clock-popup,
+    .vd-notification-center,
+    .vd-taskbar-thumbnail {
         animation: none !important;
     }
 
-    .desktop-body[data-theme="standard"] .vd-task-button::after {
+    .desktop-body[data-theme="standard"] .vd-task-button::after,
+    .vd-toast,
+    .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter),
+    .desktop-body :is(.vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
         transition: none;
+    }
+
+    .desktop-body .vd-icon:hover > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) {
+        transform: none !important;
     }
 }
 
