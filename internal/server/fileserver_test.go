@@ -401,6 +401,63 @@ func TestUIRoutesFilesMountsAreRootBound(t *testing.T) {
 	}
 }
 
+// TestAuthenticatedMediaIsPrivatelyCached keeps /files/ responses out of shared
+// caches: the dedicated media mounts answer private, and the generic workspace
+// mount is no-store even for file types the middleware caches as static assets.
+func TestAuthenticatedMediaIsPrivatelyCached(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = t.TempDir()
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	mux := http.NewServeMux()
+	if _, err := s.registerUIRoutes(mux, make(chan struct{})); err != nil {
+		t.Fatalf("registerUIRoutes: %v", err)
+	}
+	handler := securityHeadersMiddleware(mux, false, false)
+	downloadsDir, err := tools.ResolveVideoDownloadDir(cfg)
+	if err != nil {
+		downloadsDir = filepath.Join(cfg.Directories.DataDir, "downloads")
+	}
+
+	for _, mount := range []struct{ prefix, dir, file string }{
+		{"/files/documents/", filepath.Join(cfg.Directories.DataDir, "documents"), "x.pdf"},
+		{"/files/audio/", filepath.Join(cfg.Directories.DataDir, "audio"), "x.mp3"},
+		{"/files/generated_images/", filepath.Join(cfg.Directories.DataDir, "generated_images"), "x.png"},
+		{"/files/generated_videos/", filepath.Join(cfg.Directories.DataDir, "generated_videos"), "x.mp4"},
+		{"/files/launchpad_icons/", filepath.Join(cfg.Directories.DataDir, "launchpad_icons"), "x.svg"},
+		{"/files/frigate_media/", filepath.Join(cfg.Directories.DataDir, "frigate_media"), "x.png"},
+		{"/files/go2rtc/snapshots/", filepath.Join(cfg.Directories.DataDir, "go2rtc", "snapshots"), "x.png"},
+		{"/files/3d_printer_media/", filepath.Join(cfg.Directories.DataDir, "3d_printer_media"), "x.png"},
+		{"/files/downloads/", downloadsDir, "x.mp4"},
+	} {
+		writeRootBoundFixture(t, filepath.Join(mount.dir, mount.file), "media")
+		rec := rootBoundGet(t, handler, mount.prefix+mount.file, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s%s: status %d", mount.prefix, mount.file, rec.Code)
+		}
+		if got := rec.Header().Get("Cache-Control"); !strings.HasPrefix(got, "private") {
+			t.Errorf("%s%s: Cache-Control = %q, want private", mount.prefix, mount.file, got)
+		}
+	}
+
+	for _, name := range []string{"x.png", "notes.txt"} {
+		writeRootBoundFixture(t, filepath.Join(cfg.Directories.WorkspaceDir, name), "workspace")
+		rec := rootBoundGet(t, handler, "/files/"+name, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("/files/%s: status %d", name, rec.Code)
+		}
+		if got := rec.Header().Get("Cache-Control"); !strings.Contains(got, "no-store") || strings.Contains(got, "public") {
+			t.Errorf("/files/%s: Cache-Control = %q, want no-store", name, got)
+		}
+	}
+
+	// Embedded UI assets outside /files/ keep their public cache.
+	rec := rootBoundGet(t, securityHeadersMiddleware(http.NotFoundHandler(), false, false), "/img/logo.png", nil)
+	if got := rec.Header().Get("Cache-Control"); got != "public, max-age=3600" {
+		t.Errorf("/img/logo.png: Cache-Control = %q, want the static asset cache", got)
+	}
+}
+
 func TestServeDesktopExactIndexFileRefusesIndexOutsideDesktopDir(t *testing.T) {
 	t.Parallel()
 	outside := t.TempDir()

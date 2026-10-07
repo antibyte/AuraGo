@@ -349,6 +349,69 @@ func TestHandleThreeDPrinterStreamRejectsKlipperCameraDifferentHost(t *testing.T
 	}
 }
 
+// Each camera stream holds an upstream connection for its whole lifetime, so
+// at most four run at once; a fifth is refused before the printer is contacted.
+func TestPrinterStreamConcurrencyCap(t *testing.T) {
+	var upstream atomic.Int32
+	moonraker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstream.Add(1)
+		http.NotFound(w, r)
+	}))
+	defer moonraker.Close()
+
+	cfg := &config.Config{}
+	cfg.ThreeDPrinters.Enabled = true
+	cfg.ThreeDPrinters.DefaultPrinter = "voron"
+	cfg.ThreeDPrinters.Klipper.Enabled = true
+	cfg.ThreeDPrinters.Klipper.Printers = []config.KlipperPrinterConfig{{ID: "voron", URL: moonraker.URL}}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	stream := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/api/3d-printers/voron/camera/stream", nil)
+		rec := httptest.NewRecorder()
+		handleThreeDPrinterCameraStream(s).ServeHTTP(rec, req)
+		return rec
+	}
+
+	if got := cap(printerStreamSlots); got != 4 {
+		t.Fatalf("printer stream slots = %d, want 4", got)
+	}
+	var held []func()
+	t.Cleanup(func() {
+		for _, release := range held {
+			release()
+		}
+	})
+	for i := 0; i < cap(printerStreamSlots); i++ {
+		release, ok := acquirePrinterStreamSlot()
+		if !ok {
+			t.Fatalf("slot %d unavailable", i)
+		}
+		held = append(held, release)
+	}
+
+	rec := stream()
+	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "too many concurrent camera streams") {
+		t.Fatalf("fifth stream: status %d body %s, want 503", rec.Code, rec.Body.String())
+	}
+	if got := upstream.Load(); got != 0 {
+		t.Fatalf("refused stream contacted the printer %d time(s)", got)
+	}
+
+	held[0]()
+	held = held[1:]
+	if rec := stream(); rec.Code == http.StatusServiceUnavailable {
+		t.Fatalf("stream refused with a free slot: %s", rec.Body.String())
+	}
+	if upstream.Load() == 0 {
+		t.Fatal("admitted stream never resolved the camera URL")
+	}
+	release, ok := acquirePrinterStreamSlot()
+	if !ok {
+		t.Fatal("finished stream did not release its slot")
+	}
+	held = append(held, release)
+}
+
 func mockThreeDPrinterCameraURLServer(t *testing.T, cameraURL string) (string, func()) {
 	t.Helper()
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}

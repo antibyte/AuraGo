@@ -143,6 +143,16 @@ func (v *Vault) encryptAndSave(secrets map[string]string) error {
 	return nil
 }
 
+// syncDir flushes a directory entry so a rename inside it survives a crash.
+// Errors are ignored: Windows cannot open or sync a directory this way, and
+// the rename itself already succeeded.
+var syncDir = func(dir string) {
+	if d, err := os.Open(dir); err == nil {
+		_ = d.Sync()
+		_ = d.Close()
+	}
+}
+
 func writeVaultFileAtomic(path string, data []byte, perm os.FileMode) error {
 	return writeVaultFileAtomicContext(context.Background(), path, data, perm)
 }
@@ -181,6 +191,7 @@ func writeVaultFileAtomicContext(ctx context.Context, path string, data []byte, 
 		return err
 	}
 	success = true
+	syncDir(dir)
 	return nil
 }
 

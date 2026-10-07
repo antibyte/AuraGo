@@ -18,7 +18,8 @@ type boundaryTransport func(*http.Request) (*http.Response, error)
 func (f boundaryTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestProductionCallAndSMSPathsDoNotReplayMutations(t *testing.T) {
-	c := NewClient("synthetic-test-key", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	c := newAllowlistedTestClient("synthetic-test-key", "+15550000002")
+	c.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	var paths []string
 	c.httpClient.Transport = boundaryTransport(func(r *http.Request) (*http.Response, error) {
 		paths = append(paths, r.URL.EscapedPath())

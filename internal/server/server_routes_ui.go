@@ -1011,7 +1011,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	docHandler := http.StripPrefix("/files/documents/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(docDir)}))
 	mux.HandleFunc("/files/documents/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Cache-Control", "private, max-age=3600")
 		filename := filepath.Base(r.URL.Path)
 		// Allow inline display when ?inline=1 is set (e.g. PDF preview)
 		if r.URL.Query().Get("inline") == "1" {
@@ -1028,7 +1028,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	audioHandler := http.StripPrefix("/files/audio/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(audioDir)}))
 	mux.HandleFunc("/files/audio/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Header().Set("Cache-Control", "private, max-age=86400")
 		audioHandler.ServeHTTP(w, r)
 	})
 
@@ -1038,7 +1038,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	genImgHandler := http.StripPrefix("/files/generated_images/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(genImgDir)}))
 	mux.HandleFunc("/files/generated_images/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Header().Set("Cache-Control", "private, max-age=86400")
 		genImgHandler.ServeHTTP(w, r)
 	})
 
@@ -1048,7 +1048,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	genVideoHandler := http.StripPrefix("/files/generated_videos/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(genVideoDir)}))
 	mux.HandleFunc("/files/generated_videos/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Header().Set("Cache-Control", "private, max-age=86400")
 		genVideoHandler.ServeHTTP(w, r)
 	})
 
@@ -1058,7 +1058,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	launchpadIconHandler := http.StripPrefix("/files/launchpad_icons/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(launchpadIconDir)}))
 	mux.HandleFunc("/files/launchpad_icons/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Header().Set("Cache-Control", "private, max-age=86400")
 		launchpadIconHandler.ServeHTTP(w, r)
 	})
 
@@ -1068,7 +1068,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	frigateMediaHandler := http.StripPrefix("/files/frigate_media/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(frigateMediaDir)}))
 	mux.HandleFunc("/files/frigate_media/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Header().Set("Cache-Control", "private, max-age=86400")
 		frigateMediaHandler.ServeHTTP(w, r)
 	})
 
@@ -1088,7 +1088,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	threeDPrinterMediaHandler := http.StripPrefix("/files/3d_printer_media/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(threeDPrinterMediaDir)}))
 	mux.HandleFunc("/files/3d_printer_media/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Header().Set("Cache-Control", "private, max-age=86400")
 		threeDPrinterMediaHandler.ServeHTTP(w, r)
 	})
 
@@ -1101,7 +1101,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	downloadsHandler := http.StripPrefix("/files/downloads/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(downloadsDir)}))
 	mux.HandleFunc("/files/downloads/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Header().Set("Cache-Control", "private, max-age=86400")
 		downloadsHandler.ServeHTTP(w, r)
 	})
 

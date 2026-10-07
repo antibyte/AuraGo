@@ -210,7 +210,7 @@ func DispatchCall(ctx context.Context, operation, to, callControlID, text, audio
 	if cfg.Telnyx.ReadOnly && operation != "list_active" {
 		return encodeResult("error", "Telnyx is in read-only mode")
 	}
-	client := newConfiguredClient(cfg, logger)
+	client := NewConfiguredClient(cfg, logger)
 	language := cfg.Telnyx.VoiceLanguage
 	voice := cfg.Telnyx.VoiceGender
 

@@ -22,7 +22,7 @@ func TestDestinationPolicyCoversAllOutboundOperationsAndFeedback(t *testing.T) {
 		cfg.Telnyx.AllowedNumbers = allowed
 		for _, readOnly := range []bool{false, true} {
 			cfg.Telnyx.ReadOnly = readOnly
-			c := newConfiguredClient(cfg, logger)
+			c := NewConfiguredClient(cfg, logger)
 			requests := 0
 			c.httpClient.Transport = boundaryTransport(func(r *http.Request) (*http.Response, error) {
 				requests++
@@ -78,7 +78,7 @@ func TestDestinationPolicyCoversAllOutboundOperationsAndFeedback(t *testing.T) {
 }
 
 func TestCallDurationIsSeparateFromRingingAndCallbackMustBeAbsolute(t *testing.T) {
-	c := NewClient("fixture-key", nil)
+	c := newAllowlistedTestClient("fixture-key", "+15550000002")
 	requests := 0
 	c.httpClient.Transport = boundaryTransport(func(r *http.Request) (*http.Response, error) {
 		requests++

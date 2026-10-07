@@ -14,7 +14,7 @@ func DispatchSMS(ctx context.Context, operation, to, message, messageID string, 
 	if cfg.Telnyx.ReadOnly && (operation == "send" || operation == "send_mms") {
 		return encodeResult("error", "Telnyx is in read-only mode")
 	}
-	client := newConfiguredClient(cfg, logger)
+	client := NewConfiguredClient(cfg, logger)
 
 	switch operation {
 	case "send":

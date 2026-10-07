@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	pathpkg "path"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/telnyx"
@@ -48,14 +50,7 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 				return tools.DiscordSend(channelID, content, logger)
 			}
 		}
-		var telnyxSend tools.TelnyxSendFunc
-		if cfg.Telnyx.Enabled && cfg.Telnyx.PhoneNumber != "" {
-			telnyxSend = func(to, message string) error {
-				client := telnyx.NewClient(cfg.Telnyx.APIKey, logger)
-				_, err := client.SendSMS(ctx, cfg.Telnyx.PhoneNumber, to, message, cfg.Telnyx.MessagingProfileID)
-				return err
-			}
-		}
+		telnyxSend := telnyxNotificationSender(ctx, cfg, logger)
 		return "Tool Output: " + tools.SendNotification(cfg, logger, req.Channel, req.Title, req.Message, req.Priority, discordSend, telnyxSend), true
 
 	case "send_image":
@@ -204,6 +199,20 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		return "Tool Output: " + telnyx.DispatchManage(ctx, req.Operation, req.Limit, req.Port, cfg, logger), true
 	}
 	return "", false
+}
+
+// telnyxNotificationSender returns the SMS sender for notification delivery,
+// or nil when Telnyx cannot send. It uses the configured client, so
+// telnyx.allowed_numbers and telnyx.read_only apply as for the telnyx_sms tool.
+func telnyxNotificationSender(ctx context.Context, cfg *config.Config, logger *slog.Logger) tools.TelnyxSendFunc {
+	if !cfg.Telnyx.Enabled || cfg.Telnyx.PhoneNumber == "" {
+		return nil
+	}
+	return func(to, message string) error {
+		client := telnyx.NewConfiguredClient(cfg, logger)
+		_, err := client.SendSMS(ctx, cfg.Telnyx.PhoneNumber, to, message, cfg.Telnyx.MessagingProfileID)
+		return err
+	}
 }
 
 func sendAgoDeskChatMessage(dc *DispatchContext, req agoDeskChatArgs) string {

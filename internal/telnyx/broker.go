@@ -35,7 +35,7 @@ type TelnyxSMSBroker struct {
 // NewSMSBroker creates a broker that sends agent feedback via SMS.
 func NewSMSBroker(cfg *config.Config, toNumber string, logger *slog.Logger) *TelnyxSMSBroker {
 	return &TelnyxSMSBroker{
-		client:     newConfiguredClient(cfg, logger),
+		client:     NewConfiguredClient(cfg, logger),
 		fromNumber: cfg.Telnyx.PhoneNumber,
 		toNumber:   toNumber,
 		logger:     logger,
@@ -91,7 +91,7 @@ func NewCallBroker(cfg *config.Config, callControlID string, logger *slog.Logger
 		voice = "male"
 	}
 	return &TelnyxCallBroker{
-		client:        newConfiguredClient(cfg, logger),
+		client:        NewConfiguredClient(cfg, logger),
 		callControlID: callControlID,
 		language:      cfg.Telnyx.VoiceLanguage,
 		voice:         voice,

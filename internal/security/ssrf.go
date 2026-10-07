@@ -203,8 +203,9 @@ func validatedSSRFDialTarget(ctx context.Context, addr string) (networkAddr stri
 
 // NewSSRFProtectedHTTPClient returns an HTTP client that validates the initial URL,
 // revalidates redirects, and pins outbound dials to a public IP selected during validation.
-// Its redirect check is SSRF-only: a hop to another public origin is followed and
-// a 307/308 re-sends the body. Requests that carry credentials use
+// Its redirect check is SSRF-only: a hop to another public origin is followed
+// (without credential headers, see dropCredentialHeadersAcrossOrigins) and a
+// 307/308 re-sends the body. Requests that carry credentials use
 // NewSSRFProtectedHTTPClientSameOrigin instead.
 func NewSSRFProtectedHTTPClient(timeout time.Duration) *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -251,9 +252,29 @@ func NewSSRFProtectedHTTPClient(timeout time.Duration) *http.Client {
 			return err
 		}
 		*req = *req.WithContext(context.WithValue(req.Context(), ssrfPinnedIPsKey{}, pinned))
+		dropCredentialHeadersAcrossOrigins(req, via)
 		return nil
 	}
 	return client
+}
+
+// redirectCredentialHeaders are removed from a redirect that leaves the
+// original origin.
+var redirectCredentialHeaders = []string{"Authorization", "Proxy-Authorization", "Cookie", "X-Api-Key", "X-Auth-Token"}
+
+// dropCredentialHeadersAcrossOrigins strips credential headers from a
+// redirect whose target is not the exact scheme/host/effective-port origin of
+// the first request. net/http already drops Authorization and Cookie when the
+// redirect leaves the original host and its subdomains; this also covers a hop
+// to a subdomain, a scheme or port change, and custom API-key headers, which
+// net/http forwards to any host.
+func dropCredentialHeadersAcrossOrigins(req *http.Request, via []*http.Request) {
+	if len(via) > 0 && httporigin.SameOrigin(req.URL, via[0].URL) {
+		return
+	}
+	for _, name := range redirectCredentialHeaders {
+		req.Header.Del(name)
+	}
 }
 
 // NewSSRFProtectedHTTPClientSameOrigin is NewSSRFProtectedHTTPClient for
@@ -363,6 +384,7 @@ func NewSSRFProtectedHTTPClientForURL(rawURL string, timeout time.Duration) (*ht
 			return err
 		}
 		*req = *req.WithContext(context.WithValue(req.Context(), ssrfPinnedIPsKey{}, pinned))
+		dropCredentialHeadersAcrossOrigins(req, via)
 		return nil
 	}
 	return client, nil

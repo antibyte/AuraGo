@@ -857,8 +857,10 @@ func (g *Guardian) ScanUserInput(text string) ScanResult {
 	scanText := StripInternalMissionAdvisoryForScan(text)
 	scan := g.ScanForInjection(scanText)
 	if scan.Level >= ThreatHigh && g.logger != nil {
+		// Redact before truncating so a credential cut at the boundary is
+		// still recognised; the preview only needs to identify the message.
 		g.logger.Warn("[Guardian] Suspicious user input detected",
-			"threat", scan.Level.String(), "patterns", scan.Patterns, "preview", truncateForLog(scanText, 200))
+			"threat", scan.Level.String(), "patterns", scan.Patterns, "preview", truncateForLog(RedactSensitiveInfo(scanText), 80))
 	}
 	return scan
 }

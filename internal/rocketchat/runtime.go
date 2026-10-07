@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"aurago/internal/config"
@@ -47,11 +48,26 @@ func (b *Bot) Stop() {
 	}
 }
 
+// warnRenameableAllowlistEntries flags allowlist entries matched by username:
+// a Rocket.Chat username can be changed by its owner or an admin, the user ID
+// cannot, so a freed or renamed username could inherit agent access.
+func warnRenameableAllowlistEntries(logger *slog.Logger, cfg *config.Config) {
+	if logger == nil || cfg == nil {
+		return
+	}
+	for _, entry := range cfg.RocketChat.AllowedUsers {
+		if strings.HasPrefix(entry, "username:") {
+			logger.Warn("[RocketChat] allowlist entry matches a renameable username; prefer id:<user-id>", "entry", entry)
+		}
+	}
+}
+
 // StartBot creates one server-owned, serial message consumer.
 func StartBot(parent context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, snapshot func() (*config.Config, llm.ChatClient)) *Bot {
 	if cfg == nil || !cfg.RocketChat.Enabled || cfg.EggMode.Enabled || parent.Err() != nil {
 		return nil
 	}
+	warnRenameableAllowlistEntries(logger, cfg)
 	if cfg.RocketChat.URL == "" || cfg.RocketChat.AuthToken == "" || cfg.RocketChat.UserID == "" || cfg.RocketChat.Channel == "" {
 		logger.Warn("[RocketChat] Missing connection settings; skipping start")
 		return nil

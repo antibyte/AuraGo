@@ -423,8 +423,23 @@ func DockerListContainers(cfg DockerConfig, all bool, excludedOwners ...string) 
 // dockerInspectRedacted replaces secret values in Docker inspect output.
 const dockerInspectRedacted = "••••••••"
 
-// DockerInspectContainer returns detailed info about a specific container.
+// DockerInspectContainer returns detailed info about a specific container for
+// the agent and the UI: credential-like environment values, command-line
+// secrets and labels are masked, and bind-mount sources are reduced to their
+// last path element so host directory layouts are not disclosed.
 func DockerInspectContainer(cfg DockerConfig, containerID string) string {
+	return dockerInspectContainer(cfg, containerID, false)
+}
+
+// DockerInspectContainerWithMountSources is DockerInspectContainer with full
+// bind-mount source paths, for trusted in-process callers that compare a
+// mount with a host path (the Code Studio workspace check). Its output must
+// not be handed to the model or the UI.
+func DockerInspectContainerWithMountSources(cfg DockerConfig, containerID string) string {
+	return dockerInspectContainer(cfg, containerID, true)
+}
+
+func dockerInspectContainer(cfg DockerConfig, containerID string, fullBindSources bool) string {
 	if err := requireDockerPermission(); err != nil {
 		return errJSON("%v", err)
 	}
@@ -454,7 +469,7 @@ func DockerInspectContainer(cfg DockerConfig, containerID string) string {
 		"id":     full["Id"],
 		"name":   full["Name"],
 		"state":  full["State"],
-		"mounts": full["Mounts"],
+		"mounts": projectDockerInspectMounts(full["Mounts"], fullBindSources),
 		"config": nil,
 	}
 	if cfg, ok := full["Config"].(map[string]interface{}); ok {
@@ -473,6 +488,47 @@ func DockerInspectContainer(cfg DockerConfig, containerID string) string {
 	}
 	out, _ := json.Marshal(result)
 	return string(out)
+}
+
+// dockerInspectMountFields maps the Docker mount fields kept in inspect output
+// to their output names; driver options, propagation and the like are dropped.
+var dockerInspectMountFields = map[string]string{
+	"Type":        "type",
+	"Name":        "name",
+	"Destination": "destination",
+	"Mode":        "mode",
+	"RW":          "rw",
+	"Source":      "source",
+}
+
+// projectDockerInspectMounts keeps the useful fields of each mount. A volume's
+// source stays complete (it names Docker's own storage); any other source (a
+// bind's host path) keeps only its last path element unless fullBindSources
+// is set. Entries that are not objects pass through unchanged.
+func projectDockerInspectMounts(value interface{}, fullBindSources bool) interface{} {
+	items, ok := value.([]interface{})
+	if !ok {
+		return value
+	}
+	projected := make([]interface{}, len(items))
+	for i, item := range items {
+		mount, ok := item.(map[string]interface{})
+		if !ok {
+			projected[i] = item
+			continue
+		}
+		entry := make(map[string]interface{}, len(dockerInspectMountFields))
+		for from, to := range dockerInspectMountFields {
+			if v, present := mount[from]; present {
+				entry[to] = v
+			}
+		}
+		if source, ok := entry["source"].(string); ok && source != "" && !fullBindSources && entry["type"] != "volume" {
+			entry["source"] = pathpkg.Base(strings.ReplaceAll(source, `\`, "/"))
+		}
+		projected[i] = entry
+	}
+	return projected
 }
 
 func redactDockerInspectEnv(value interface{}) interface{} {
@@ -517,6 +573,7 @@ func dockerInspectEnvKeySensitive(key string) bool {
 	}
 	for _, suffix := range []string{
 		"PASSWORD", "SECRET", "TOKEN", "API_KEY", "ACCESS_KEY", "PRIVATE_KEY", "MASTER_KEY",
+		"PASS", "PASSWD", "PWD", "PASSPHRASE", "CREDENTIALS", "REQUIREPASS", "MASTERAUTH",
 	} {
 		if upper == suffix || strings.HasSuffix(upper, "_"+suffix) {
 			return true

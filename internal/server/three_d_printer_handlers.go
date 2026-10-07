@@ -27,6 +27,21 @@ var threeDPrinterStreamHTTPClient = &http.Client{
 	},
 }
 
+// printerStreamSlots caps concurrent printer camera streams: each one holds an
+// upstream connection and a proxy goroutine for as long as the viewer watches.
+var printerStreamSlots = make(chan struct{}, 4)
+
+// acquirePrinterStreamSlot takes a stream slot without waiting. The caller
+// must call release exactly once when ok is true.
+func acquirePrinterStreamSlot() (release func(), ok bool) {
+	select {
+	case printerStreamSlots <- struct{}{}:
+		return func() { <-printerStreamSlots }, true
+	default:
+		return nil, false
+	}
+}
+
 func handleThreeDPrinterTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -170,6 +185,12 @@ func handleThreeDPrinterCameraStream(s *Server) http.HandlerFunc {
 			jsonError(w, "3D printer integration is disabled", http.StatusForbidden)
 			return
 		}
+		release, ok := acquirePrinterStreamSlot()
+		if !ok {
+			jsonError(w, "too many concurrent camera streams", http.StatusServiceUnavailable)
+			return
+		}
+		defer release()
 		printer, err := tools.ResolveThreeDPrinter(cfg, printerID)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusNotFound)

@@ -1,7 +1,9 @@
 package tools
 
 import (
+	"encoding/json"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -30,6 +32,74 @@ func TestDockerInspectRedactsCmdLabelsAndEnvURLCredentials(t *testing.T) {
 		if !strings.Contains(out, kept) {
 			t.Fatalf("docker inspect dropped non-secret %q: %s", kept, out)
 		}
+	}
+}
+
+const dockerInspectMountsFixture = `{"Id":"db","Name":"/db","Mounts":[` +
+	`{"Type":"bind","Source":"/srv/secret-dir","Destination":"/data","Mode":"ro","RW":false,"Propagation":"rprivate"},` +
+	`{"Type":"volume","Name":"pgdata","Source":"/var/lib/docker/volumes/pgdata/_data","Destination":"/var/lib/postgresql/data","Driver":"local","Mode":"z","RW":true},` +
+	`"not-a-map"],"Config":{"Image":"postgres:16","Env":[` +
+	`"DB_PASS=hunter2","REDIS_REQUIREPASS=x","MYSQL_ROOT_PASSWD=passwd-secret","ADMIN_PWD=pwd-secret",` +
+	`"GPG_PASSPHRASE=phrase-secret","AWS_CREDENTIALS=cred-secret","REDIS_MASTERAUTH=masterauth-secret",` +
+	`"PASS=bare-secret","PASSPORT_OFFICE=kept-value","PATH=/usr/bin"]}}`
+
+func TestDockerInspectRedactsShortPasswordNamesAndBindSources(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, true)
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(dockerInspectMountsFixture))
+	})
+	out := DockerInspectContainer(DockerConfig{Host: host}, "db")
+
+	for _, leaked := range []string{"hunter2", "REDIS_REQUIREPASS=x", "passwd-secret", "pwd-secret", "phrase-secret", "cred-secret", "masterauth-secret", "bare-secret", "/srv/secret-dir", "rprivate"} {
+		if strings.Contains(out, leaked) {
+			t.Fatalf("docker inspect leaked %q: %s", leaked, out)
+		}
+	}
+	for _, masked := range []string{"DB_PASS=" + dockerInspectRedacted, "REDIS_REQUIREPASS=" + dockerInspectRedacted, "REDIS_MASTERAUTH=" + dockerInspectRedacted} {
+		if !strings.Contains(out, masked) {
+			t.Fatalf("docker inspect did not mask %q: %s", masked, out)
+		}
+	}
+	for _, kept := range []string{"PASSPORT_OFFICE=kept-value", "PATH=/usr/bin", `"not-a-map"`} {
+		if !strings.Contains(out, kept) {
+			t.Fatalf("docker inspect dropped non-secret %q: %s", kept, out)
+		}
+	}
+
+	var resp struct {
+		Mounts []any `json:"mounts"`
+	}
+	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+		t.Fatalf("parse inspect output: %v", err)
+	}
+	if len(resp.Mounts) != 3 {
+		t.Fatalf("mounts = %v, want 3 entries", resp.Mounts)
+	}
+	bind, _ := resp.Mounts[0].(map[string]any)
+	wantBind := map[string]any{"type": "bind", "source": "secret-dir", "destination": "/data", "mode": "ro", "rw": false}
+	if !reflect.DeepEqual(bind, wantBind) {
+		t.Fatalf("bind mount = %v, want %v", bind, wantBind)
+	}
+	volume, _ := resp.Mounts[1].(map[string]any)
+	wantVolume := map[string]any{"type": "volume", "name": "pgdata", "source": "/var/lib/docker/volumes/pgdata/_data", "destination": "/var/lib/postgresql/data", "mode": "z", "rw": true}
+	if !reflect.DeepEqual(volume, wantVolume) {
+		t.Fatalf("volume mount = %v, want %v", volume, wantVolume)
+	}
+}
+
+// Code Studio compares the workspace bind source with its host path; that
+// trusted in-process caller gets the full source, nobody else does.
+func TestDockerInspectWithMountSourcesKeepsBindPathsForHostChecks(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, true)
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(dockerInspectMountsFixture))
+	})
+	out := DockerInspectContainerWithMountSources(DockerConfig{Host: host}, "db")
+	if !strings.Contains(out, `"source":"/srv/secret-dir"`) {
+		t.Fatalf("host-check inspect lost the bind source: %s", out)
+	}
+	if strings.Contains(out, "hunter2") || strings.Contains(out, "masterauth-secret") {
+		t.Fatalf("host-check inspect leaked environment secrets: %s", out)
 	}
 }
 

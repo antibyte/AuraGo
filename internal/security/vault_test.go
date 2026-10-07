@@ -32,6 +32,37 @@ func TestVaultWriteSecretPersistsAtomically(t *testing.T) {
 	}
 }
 
+// The atomic replace renames a temp file over the vault; the parent directory
+// is synced afterwards so the rename itself survives a power loss.
+func TestVaultReplaceSyncsDirectory(t *testing.T) {
+	dir := t.TempDir()
+	vaultPath := filepath.Join(dir, "vault.bin")
+	var synced []string
+	original := syncDir
+	syncDir = func(d string) { synced = append(synced, d) }
+	t.Cleanup(func() { syncDir = original })
+
+	v, err := NewVault(strings.Repeat("a", 64), vaultPath)
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+	if err := v.WriteSecret("demo", "value"); err != nil {
+		t.Fatalf("WriteSecret() error = %v", err)
+	}
+	if len(synced) != 1 || synced[0] != dir {
+		t.Fatalf("WriteSecret synced directories %q, want exactly [%q]", synced, dir)
+	}
+	if err := v.WriteUserSecretContext(context.Background(), "user", "value", true); err != nil {
+		t.Fatalf("WriteUserSecretContext() error = %v", err)
+	}
+	if len(synced) != 2 || synced[1] != dir {
+		t.Fatalf("WriteUserSecretContext synced directories %q, want a second %q", synced, dir)
+	}
+	if got, err := v.ReadSecret("demo"); err != nil || got != "value" {
+		t.Fatalf("ReadSecret() = %q, %v; want value", got, err)
+	}
+}
+
 // TestVaultReadSecretNotFound verifies that reading a non-existent key returns a clear error.
 func TestVaultReadSecretNotFound(t *testing.T) {
 	vaultPath := filepath.Join(t.TempDir(), "vault_empty.bin")

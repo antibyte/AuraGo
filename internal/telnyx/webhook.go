@@ -44,7 +44,7 @@ func NewWebhookHandler(cfg *config.Config, logger *slog.Logger, onSMS func(strin
 	h := &WebhookHandler{
 		cfg:          cfg,
 		logger:       logger,
-		client:       newConfiguredClient(cfg, logger),
+		client:       NewConfiguredClient(cfg, logger),
 		onSMS:        onSMS,
 		onCallEvent:  onCallEvent,
 		activeCalls:  make(map[string]*CallSession),

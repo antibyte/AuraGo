@@ -45,7 +45,7 @@ func TestInitiateCall(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key", "+15551234567")
 	c.baseURL = ts.URL + "/v2"
 
 	resp, err := c.InitiateCall(context.Background(), "conn-123", "+15559999999", "+15551234567", "", 30, 300)
@@ -61,7 +61,7 @@ func TestInitiateCall(t *testing.T) {
 }
 
 func TestInitiateCall_InvalidNumber(t *testing.T) {
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key", "+15551234567")
 	_, err := c.InitiateCall(context.Background(), "conn-123", "+15559999999", "invalid", "", 30, 300)
 	if err == nil {
 		t.Error("expected error for invalid number")
@@ -69,7 +69,7 @@ func TestInitiateCall_InvalidNumber(t *testing.T) {
 }
 
 func TestInitiateCall_MissingConnectionID(t *testing.T) {
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key", "+15551234567")
 	_, err := c.InitiateCall(context.Background(), "", "+15559999999", "+15551234567", "", 30, 300)
 	if err == nil {
 		t.Error("expected error for missing connection_id")
@@ -93,7 +93,7 @@ func TestSpeakText(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key")
 	c.baseURL = ts.URL + "/v2"
 
 	err := c.SpeakText(context.Background(), "ctrl-abc", "Hello world", "en-US", "female")
@@ -103,7 +103,7 @@ func TestSpeakText(t *testing.T) {
 }
 
 func TestSpeakText_MissingParams(t *testing.T) {
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key")
 	if err := c.SpeakText(context.Background(), "", "text", "en", "female"); err == nil {
 		t.Error("expected error for missing call_control_id")
 	}
@@ -129,7 +129,7 @@ func TestGatherDTMF(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key")
 	c.baseURL = ts.URL + "/v2"
 
 	err := c.GatherDTMF(context.Background(), "ctrl-abc", "Enter your code", "en-US", "female", 4, 15)
@@ -152,7 +152,7 @@ func TestTransferCall(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key", "+15559876543")
 	c.baseURL = ts.URL + "/v2"
 
 	err := c.TransferCall(context.Background(), "ctrl-abc", "+15559876543", "+15551111111")
@@ -162,7 +162,7 @@ func TestTransferCall(t *testing.T) {
 }
 
 func TestTransferCall_InvalidNumber(t *testing.T) {
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key", "+15559876543")
 	err := c.TransferCall(context.Background(), "ctrl-abc", "not-e164", "+15551111111")
 	if err == nil {
 		t.Error("expected error for invalid transfer number")
@@ -178,7 +178,7 @@ func TestHangUp(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key")
 	c.baseURL = ts.URL + "/v2"
 
 	err := c.HangUp(context.Background(), "ctrl-abc")
@@ -193,7 +193,7 @@ func TestRecordStartStop(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key")
 	c.baseURL = ts.URL + "/v2"
 
 	if err := c.RecordStart(context.Background(), "ctrl-abc", "mp3", "single"); err != nil {

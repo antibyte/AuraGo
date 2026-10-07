@@ -1,6 +1,7 @@
 package telnyx
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -12,7 +13,15 @@ type numberPolicy struct {
 	readOnly bool
 }
 
-func newConfiguredClient(cfg *config.Config, logger *slog.Logger) *Client {
+// errNoNumberPolicy is returned by every mutation of a client built with
+// NewClient: without telnyx.allowed_numbers and telnyx.read_only it may only read.
+var errNoNumberPolicy = errors.New("telnyx client has no number policy; use the configured client")
+
+// NewConfiguredClient returns a client bound to cfg's number policy: SMS, MMS,
+// calls and transfers only reach telnyx.allowed_numbers, and read-only mode
+// (or a disabled integration) refuses every mutation. Use it for anything
+// that sends or calls; NewClient is for read-only account queries.
+func NewConfiguredClient(cfg *config.Config, logger *slog.Logger) *Client {
 	c := NewClient(cfg.Telnyx.APIKey, logger)
 	c.policy = &numberPolicy{allowed: append([]string(nil), cfg.Telnyx.AllowedNumbers...), readOnly: cfg.Telnyx.ReadOnly || !cfg.Telnyx.Enabled}
 	return c
@@ -32,10 +41,13 @@ func allowedNumber(number string, allowed []string) bool {
 }
 
 func (c *Client) validateDestination(number string) error {
+	if c.policy == nil {
+		return errNoNumberPolicy
+	}
 	if err := ValidateE164(number); err != nil {
 		return err
 	}
-	if c.policy != nil && !allowedNumber(number, c.policy.allowed) {
+	if !allowedNumber(number, c.policy.allowed) {
 		return fmt.Errorf("destination is not in telnyx.allowed_numbers")
 	}
 	return nil

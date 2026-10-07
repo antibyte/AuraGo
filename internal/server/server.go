@@ -1901,15 +1901,19 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		}
 
 		// Cache control: static assets get public 1-hour cache; everything else no-store.
-		isStaticAsset := strings.HasSuffix(path, ".js") ||
-			strings.HasSuffix(path, ".css") ||
-			strings.HasSuffix(path, ".png") ||
-			strings.HasSuffix(path, ".ico") ||
-			strings.HasSuffix(path, ".svg") ||
-			strings.HasSuffix(path, ".woff") ||
-			strings.HasSuffix(path, ".woff2") ||
-			strings.HasSuffix(path, ".ttf") ||
-			strings.HasSuffix(path, ".map")
+		// Files under /files/ are user data behind authentication, never public
+		// static assets: the dedicated media mounts set their own private cache,
+		// everything else there (the workspace mount) stays no-store.
+		isStaticAsset := !strings.HasPrefix(path, "/files/") &&
+			(strings.HasSuffix(path, ".js") ||
+				strings.HasSuffix(path, ".css") ||
+				strings.HasSuffix(path, ".png") ||
+				strings.HasSuffix(path, ".ico") ||
+				strings.HasSuffix(path, ".svg") ||
+				strings.HasSuffix(path, ".woff") ||
+				strings.HasSuffix(path, ".woff2") ||
+				strings.HasSuffix(path, ".ttf") ||
+				strings.HasSuffix(path, ".map"))
 		if path == "/js/desktop/aura-desktop-sdk.js" {
 			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
 			w.Header().Set("Pragma", "no-cache")

@@ -78,7 +78,9 @@ func (a codeStudioDockerAdapter) ListContainers(ctx context.Context, all bool) (
 }
 
 func (a codeStudioDockerAdapter) InspectContainer(ctx context.Context, container string) (desktop.CodeDockerInspect, error) {
-	raw := tools.DockerInspectContainer(a.cfg, container)
+	// The workspace check compares the bind source with the host path, so this
+	// in-process caller needs the full source the agent-facing inspect hides.
+	raw := tools.DockerInspectContainerWithMountSources(a.cfg, container)
 	var resp struct {
 		Status  string                  `json:"status"`
 		Message string                  `json:"message"`
@@ -86,8 +88,8 @@ func (a codeStudioDockerAdapter) InspectContainer(ctx context.Context, container
 		Name    string                  `json:"name"`
 		State   desktop.CodeDockerState `json:"state"`
 		Mounts  []struct {
-			Source      string `json:"Source"`
-			Destination string `json:"Destination"`
+			Source      string `json:"source"`
+			Destination string `json:"destination"`
 		} `json:"mounts"`
 	}
 	if err := json.Unmarshal([]byte(raw), &resp); err != nil {

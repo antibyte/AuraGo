@@ -74,7 +74,7 @@ func TestClient_SendSMS(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key", "+491511234567")
 	c.baseURL = ts.URL
 
 	resp, err := c.SendSMS(context.Background(), "+14155551234", "+491511234567", "Hello, World!", "")
@@ -90,7 +90,7 @@ func TestClient_SendSMS(t *testing.T) {
 }
 
 func TestClient_SendSMS_InvalidNumbers(t *testing.T) {
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key", "+491511234567")
 
 	_, err := c.SendSMS(context.Background(), "not-e164", "+14155551234", "test", "")
 	if err == nil {
@@ -130,7 +130,7 @@ func TestClient_SendMMS(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key", "+491511234567")
 	c.baseURL = ts.URL
 
 	resp, err := c.SendMMS(context.Background(), "+14155551234", "+491511234567", "Photo", []string{"https://example.com/img.jpg"}, "")
@@ -143,7 +143,7 @@ func TestClient_SendMMS(t *testing.T) {
 }
 
 func TestClient_SendMMS_Validation(t *testing.T) {
-	c := NewClient("key", nil)
+	c := newAllowlistedTestClient("key", "+491511234567")
 
 	_, err := c.SendMMS(context.Background(), "+14155551234", "+491511234567", "text", nil, "")
 	if err == nil {

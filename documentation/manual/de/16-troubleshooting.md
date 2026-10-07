@@ -211,6 +211,8 @@ sudo chmod 666 /var/run/docker.sock
 | `log/agent.log` | Agent-spezifische Aktionen |
 | `log/http.log` | Web-UI Zugriffe |
 
+Logdateien sind nur für den AuraGo-Benutzer lesbar (`0600`); ein Log-Shipper unter einem anderen Benutzer braucht Gruppenzugriff, z. B. `chmod 640 log/*.log` plus eine mit dem Shipper geteilte Gruppe (AuraGo behält einen Modus ohne Zugriff für alle über Neustarts bei).
+
 ### Log-Level filtern
 
 ```bash

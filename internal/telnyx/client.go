@@ -26,7 +26,9 @@ type Client struct {
 	policy     *numberPolicy
 }
 
-// NewClient creates a Telnyx API client.
+// NewClient creates a Telnyx API client without a number policy. It can read
+// (balance, numbers, messages, call status) but every mutation fails closed;
+// senders use NewConfiguredClient.
 func NewClient(apiKey string, logger *slog.Logger) *Client {
 	if logger == nil {
 		logger = slog.Default()
@@ -124,9 +126,13 @@ func (c *Client) get(ctx context.Context, path string) ([]byte, int, error) {
 	return c.do(ctx, http.MethodGet, path, nil)
 }
 
-// post performs a POST request.
+// post performs a POST request. Every POST is a mutation, so it requires the
+// number policy of NewConfiguredClient and honours its read-only flag.
 func (c *Client) post(ctx context.Context, path string, body interface{}) ([]byte, int, error) {
-	if c.policy != nil && c.policy.readOnly {
+	if c.policy == nil {
+		return nil, 0, errNoNumberPolicy
+	}
+	if c.policy.readOnly {
 		return nil, 0, fmt.Errorf("Telnyx is in read-only mode")
 	}
 	return c.do(ctx, http.MethodPost, path, body)
