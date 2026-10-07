@@ -333,13 +333,18 @@ export async function run(env) {
         await settle();
         eq('c1d15b Stop in the run view posts the cancel and refreshes the viewed run',
             [await viewed, posted().slice(-1), h.ed.runView.run.status, h.ed.run.status, !!h.ed.run.view], [true, ['r_view'], 'cancelled', 'cancelled', true]);
-        // A read-only desktop offers no Stop.
+        // A read-only desktop still offers Stop: a stop is no write, and the server lets the cancel
+        // through (main's desktopStop; only read-only missions refuse it).
         h.ed.readonly = true;
-        listed = [run('r_wait', 'waiting', 'live')];
+        listed = [run('r_test', 'running', 'test')];
         runs.toggleDrawer(false);
         runs.toggleDrawer(true);
         await settle();
-        eq('c1d15b a read-only desktop shows no Stop and stops nothing', [!!stopOf('r_wait'), await runs.stopRun(listed[0])], [false, false]);
+        const roShown = !!stopOf('r_test');
+        const roBefore = posted().length;
+        const roStopped = await runs.stopRun(listed[0]);
+        await settle();
+        eq('c1d15b a read-only desktop still shows Stop and posts the cancel', [roShown, roStopped, posted().length - roBefore, posted().slice(-1)], [true, true, 1, ['r_test']]);
         eq('c1d15b the stop checks log no errors', h.logged, []);
     });
 

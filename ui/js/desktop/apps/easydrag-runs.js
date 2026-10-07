@@ -544,9 +544,11 @@
         // stopRun stops a run of the drawer or the run view, also one this window did not start: a
         // live run of a trigger that waits for a slot, or another window's test. Any run but a
         // test stops only after a confirmation. 202, and 409 FLOW_RUN_FINISHED (it ended
-        // meanwhile), refresh the list and the viewed run quietly; other errors are shown.
+        // meanwhile), refresh the list and the viewed run quietly; other errors are shown. A
+        // read-only desktop stops runs too: a stop is no write (the server lets the cancel
+        // through; read-only missions refuse it with an error).
         async function stopRun(record) {
-            if (disposed || ed.readonly || !record || !isActive(record.status) || stopping.has(record.id)) return false;
+            if (disposed || !record || !isActive(record.status) || stopping.has(record.id)) return false;
             stopping.add(record.id);
             try {
                 if (record.mode !== 'test' && !(await confirmStop(record))) return false;
@@ -660,8 +662,8 @@
                 '<span class="ed-run-main"><span>' + esc(core.tr(t, 'easydrag.ui.status_' + r.status, r.status)) + ' · ' + esc(triggerLabel(r)) + '</span>' +
                 '<span class="ed-muted">' + esc(core.fmt.dateTime(r.started_at)) + (r.duration_ms ? ' · ' + esc(core.fmt.duration(r.duration_ms)) : '') + '</span></span>' +
                 '<span class="ed-chip' + (r.mode === 'test' ? ' ed-chip--muted' : '') + '">' + esc(r.mode === 'test' ? t('easydrag.ui.run_mode_test') : t('easydrag.ui.run_mode_live')) + '</span></button>';
-            // A run that has not ended can be stopped from its row (not on a read-only desktop).
-            if (ed.readonly || !isActive(r.status)) return row;
+            // A run that has not ended can be stopped from its row, also on a read-only desktop.
+            if (!isActive(r.status)) return row;
             return '<div class="ed-run-item">' + row + '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-run-stop="' + esc(r.id) + '" aria-label="' +
                 esc(t('easydrag.ui.run_stop_label', { time: core.fmt.dateTime(r.started_at, true) })) + '">' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button></div>';
         }

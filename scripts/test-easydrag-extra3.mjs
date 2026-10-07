@@ -193,12 +193,12 @@ export async function run(env) {
     }
 
     // openEditor creates the editor for flow f1 (draft revision 3) in h.body and runs its first frame.
-    // opts: flow (fields over the default record), enabled.
+    // opts: flow (fields over the default record), enabled, readonly (a read-only desktop).
     function openEditor(h, opts) {
         const o = opts || {};
         const flow = Object.assign({ id: 'f1', name: 'Flow', draft: flowDoc(), draft_revision: 3, published_draft_revision: 0, live: null, live_revision: 0 }, o.flow);
         const app = {
-            ctx: h.ctx, t, esc: h.ED.core.esc, api: h.api, catalog: h.catalog, windowId: 'w1', readonly: false,
+            ctx: h.ctx, t, esc: h.ED.core.esc, api: h.api, catalog: h.catalog, windowId: 'w1', readonly: !!o.readonly,
             openHome: x => h.homes.push(x || {}), openFlow: id => h.opened.push(id)
         };
         const editor = h.ED.editor.create(app, { flow, enabled: !!o.enabled, issues: [] }, {});

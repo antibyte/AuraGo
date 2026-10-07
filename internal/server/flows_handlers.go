@@ -370,8 +370,11 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := s.ConfigSnapshot()
+	// A run cancel stops work, so a read-only desktop lets it through like Mission Control's
+	// cancel (desktopStop); read-only missions refuse it as CancelCheck refuses theirs.
+	desktopReadOnly := cfg.VirtualDesktop.ReadOnly && !flowsIsRunCancel(r.Method, parts)
 	if r.Method != http.MethodGet && r.Method != http.MethodHead && !flowsReadOnlySafe(r, parts) &&
-		(cfg.Tools.Missions.ReadOnly || cfg.VirtualDesktop.ReadOnly) {
+		(cfg.Tools.Missions.ReadOnly || desktopReadOnly) {
 		flowsError(w, http.StatusForbidden, "FLOW_PERMISSION_DENIED", "flows are read-only")
 		return
 	}
@@ -415,11 +418,15 @@ func flowsReadOnlySafe(r *http.Request, parts []string) bool {
 
 // flowsDesktopOperation is the Desktop operation of a flows request for the readonly
 // admission (checkDesktopOperation, desktop_readonly): GET, HEAD and POST validate
-// (flowsReadOnlySafe) are reads, every other request is a write. A write gets a Desktop
-// grant that a readonly switch revokes, which cancels the request.
+// (flowsReadOnlySafe) are reads, POST runs/{run}/cancel is a stop (it bypasses the readonly
+// write admission, as Mission Control's cancel does), every other request is a write. A
+// write gets a Desktop grant that a readonly switch revokes, which cancels the request.
 func flowsDesktopOperation(r *http.Request, parts []string) desktopOperation {
 	if flowsReadOnlySafe(r, parts) {
 		return desktopRead
+	}
+	if flowsIsRunCancel(r.Method, parts) {
+		return desktopStop
 	}
 	return desktopMethodOperation(r.Method)
 }
@@ -427,6 +434,11 @@ func flowsDesktopOperation(r *http.Request, parts []string) desktopOperation {
 // flowsIsValidate reports whether a request is POST validate.
 func flowsIsValidate(method string, parts []string) bool {
 	return method == http.MethodPost && len(parts) == 1 && parts[0] == "validate"
+}
+
+// flowsIsRunCancel reports whether a request is POST runs/{run}/cancel.
+func flowsIsRunCancel(method string, parts []string) bool {
+	return method == http.MethodPost && len(parts) == 3 && parts[0] == "runs" && parts[2] == "cancel"
 }
 
 // isFlowsAPIPath reports whether path is /api/desktop/flows or below it.

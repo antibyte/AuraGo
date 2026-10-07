@@ -691,4 +691,29 @@ export async function run(env) {
         editor.dispose();
         viewer.dispose();
     });
+
+    // ── merge with main: a read-only desktop still stops runs (a stop is no write), nothing else ──
+    await guardAsync('merge read-only desktop: the run view offers Stop; Test, Publish, the switch and Delete stay off', async () => {
+        const at = '2026-10-06T10:00:00Z';
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows/runs/r2?include=doc') return { run: { id: 'r2', status: 'running', mode: 'test', started_at: at, revision: 1 }, steps: [], doc: flowDoc('Run') };
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/runs/r2/cancel') return { cancelled: true };
+            if (req.url === '/api/desktop/flows/runs/r2') return { run: { id: 'r2', status: 'cancelled', mode: 'test', started_at: at, revision: 1 }, steps: [] };
+            return undefined;
+        });
+        const editor = openEditor(h, { readonly: true, flow: { published_draft_revision: 3, live: flowDoc(), live_revision: 1 }, enabled: true });
+        await settle();
+        editor.showRun('r2');
+        await settle();
+        const btn = cmd => editor.el.querySelector('[data-ed-cmd="' + cmd + '"]');
+        const flowMenu = h.menus.find(m => m.id === 'flow');
+        const del = flowMenu && flowMenu.items.find(i => i.id === 'delete');
+        const before = [!btn('stop-viewed').hidden, btn('test').disabled, btn('publish').disabled, btn('active').disabled, !!(del && del.disabled)];
+        btn('stop-viewed').fire('click');
+        await settle();
+        const cancels = h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows/runs/r2/cancel').length;
+        eq('merge read-only desktop: Stop shows in the run view and posts the cancel; Test, Publish, the switch and Delete stay off',
+            [before, cancels, h.puts().length, h.notes, h.logged], [[true, true, true, true, true], 1, 0, [], []]);
+        editor.dispose();
+    });
 }

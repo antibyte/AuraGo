@@ -208,7 +208,8 @@
             const node = banner.querySelector('[data-ed-runview-text]');
             if (node.textContent !== text) node.textContent = text;
             const stop = banner.querySelector('[data-ed-cmd="stop-viewed"]');
-            const off = !!ed.readonly || !ED.runs.isActive(run.status);
+            // Stop shows on a read-only desktop too (a stop is no write); nothing else does.
+            const off = !ED.runs.isActive(run.status);
             if (off && document.activeElement === stop) banner.querySelector('[data-ed-cmd="exit-run-view"]').focus();
             stop.hidden = off;
         }
