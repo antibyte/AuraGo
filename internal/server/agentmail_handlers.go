@@ -162,6 +162,12 @@ func (s *Server) notifyAgentMailLoopback(ctx context.Context, prompt string) err
 	}
 	headers := http.Header{}
 	headers.Set("Content-Type", "application/json")
+	// Wake the agent as an internal loopback turn (like the FritzBox/firewall
+	// loopbacks): the follow-up header + per-process token make D3 label this
+	// internal rather than an admin web turn, and let it through when web auth
+	// is enabled instead of being answered with 401.
+	headers.Set("X-Internal-FollowUp", "true")
+	headers.Set("X-Internal-Token", s.internalToken)
 	client := NewInternalHTTPClient(3 * time.Minute)
 	resp, err := DoInternalRequestWithStartupRetry(ctx, client, http.MethodPost, url, payload, headers, 10*time.Second)
 	if err != nil {

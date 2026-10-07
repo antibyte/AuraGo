@@ -77,6 +77,57 @@ func TestEmailWatcherStopCancelsTLSHandshakeAndCanRestart(t *testing.T) {
 	}
 }
 
+// The watcher's loopback is an internal turn: it carries the internal
+// follow-up header and the per-process token like the other loopbacks, so the
+// server labels it internal and accepts it when web auth is enabled.
+func TestEmailWatcherNotificationIsAnInternalLoopback(t *testing.T) {
+	type seen struct{ followUp, token string }
+	got := make(chan seen, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		got <- seen{r.Header.Get("X-Internal-FollowUp"), r.Header.Get("X-Internal-Token")}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	_, port, err := net.SplitHostPort(server.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{}
+	cfg.Server.Port, _ = strconv.Atoi(port)
+	watcher := NewEmailWatcher(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil)
+	watcher.internalToken = "email-loopback-token"
+	watcher.notifyAgent(context.Background(), "fixture")
+	select {
+	case h := <-got:
+		if h.followUp != "true" || h.token != "email-loopback-token" {
+			t.Fatalf("loopback headers = %+v, want internal follow-up with the process token", h)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("notification was not sent")
+	}
+
+	// The server start path hands the token to the watcher it starts.
+	closed, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	closedPort := closed.Addr().(*net.TCPAddr).Port
+	_ = closed.Close()
+	watchCfg := &config.Config{EmailAccounts: []config.EmailAccount{{
+		ID: "fixture", IMAPHost: "127.0.0.1", IMAPPort: closedPort,
+		Username: "fixture", Password: "fixture", WatchEnabled: true,
+	}}}
+	started := StartEmailWatcherContext(context.Background(), watchCfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil, "started-token")
+	if started == nil {
+		t.Fatal("watcher with a watch-enabled account was not started")
+	}
+	defer started.Stop()
+	if started.internalToken != "started-token" {
+		t.Fatalf("started watcher token = %q, want the process token", started.internalToken)
+	}
+}
+
 func TestEmailWatcherNotificationHonorsCancellation(t *testing.T) {
 	entered, cancelled := make(chan struct{}), make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -30,6 +30,12 @@ var sqlWriteDeniedFunctions = map[string]bool{
 	// PostgreSQL dblink: reach another database server from inside a statement.
 	"DBLINK": true, "DBLINK_EXEC": true, "DBLINK_CONNECT": true, "DBLINK_CONNECT_U": true,
 	"DBLINK_SEND_QUERY": true,
+	// PostgreSQL functions that run a SQL string (or SQL built from text
+	// arguments) the denylist never sees: XML export, text-search statistics
+	// and rewrite, and the tablefunc crosstab/connectby family.
+	"QUERY_TO_XML": true, "QUERY_TO_XMLSCHEMA": true, "QUERY_TO_XML_AND_XMLSCHEMA": true,
+	"TS_STAT": true, "TS_REWRITE": true,
+	"CROSSTAB": true, "CROSSTAB2": true, "CROSSTAB3": true, "CROSSTAB4": true, "CONNECTBY": true,
 	// MySQL/MariaDB file read, and SQLite extension loading, file read/write,
 	// directory listing, zip archive access and the external-editor hook.
 	"LOAD_FILE": true, "LOAD_EXTENSION": true, "READFILE": true, "WRITEFILE": true, "FSDIR": true,
@@ -41,23 +47,31 @@ var sqlWriteDeniedFunctions = map[string]bool{
 // sqlWriteDeniedPhrases name statement forms that export data off the server,
 // bulk-import into it, extend/administer the engine, or bind a function without
 // call parentheses, plus the PostgreSQL predefined roles that confer file,
-// program or whole-schema access when granted. Matched as whole, space-delimited
-// words against the identifier-tokenised upper text (punctuation is a token
-// boundary, so a glued quote or operator cannot evade a phrase). COPY and the
-// MySQL INTO OUTFILE / INTO DUMPFILE forms are handled separately (see
-// validateWriteStructure) so ordinary tables/columns named copy, outfile or
-// dumpfile are not refused.
+// program or whole-schema access when granted. Matched as whole words against
+// the identifier-tokenised upper text: punctuation is dropped, so a glued quote
+// or operator cannot evade a phrase, and a phrase may also match across
+// punctuation (erring on refusal). COPY, the MySQL INTO OUTFILE / INTO DUMPFILE
+// forms and the CONNECT FILE_NAME table option are position-matched instead
+// (see validateWriteStructure) so ordinary tables/columns named copy, outfile,
+// dumpfile or file_name are not refused.
 var sqlWriteDeniedPhrases = []string{
 	// MySQL/MariaDB bulk import.
 	"LOAD DATA", "LOAD XML",
 	// Extension / procedural-language / aggregate / foreign-data / server /
-	// operator and system administration. A leading OR REPLACE and a MySQL
+	// operator / replication / tablespace and system administration. A leading
+	// OR REPLACE, the optional TRUSTED / PROCEDURAL words and a MySQL
 	// DEFINER=… / ALGORITHM=… / SQL SECURITY clause are stripped before matching
-	// (stripWriteModifierClauses), so the contiguous CREATE … FUNCTION/PROCEDURE
-	// phrase still catches CREATE OR REPLACE FUNCTION and CREATE DEFINER=… PROCEDURE.
+	// (stripWriteModifierClauses), so the contiguous CREATE … phrase still
+	// catches CREATE OR REPLACE FUNCTION, CREATE TRUSTED LANGUAGE and
+	// CREATE DEFINER=… PROCEDURE.
 	"CREATE EXTENSION", "ALTER EXTENSION", "CREATE FUNCTION", "CREATE PROCEDURE",
 	"CREATE LANGUAGE", "CREATE AGGREGATE", "CREATE SERVER", "CREATE FOREIGN DATA WRAPPER",
-	"CREATE OPERATOR", "ALTER SYSTEM",
+	"CREATE OPERATOR", "ALTER SYSTEM", "CREATE SUBSCRIPTION", "CREATE TABLESPACE",
+	// PostgreSQL library preloading (ALTER ROLE/DATABASE/SYSTEM … SET). The
+	// whole setting names are listed because '_' joins an identifier word.
+	"SHARED_PRELOAD_LIBRARIES", "SESSION_PRELOAD_LIBRARIES", "LOCAL_PRELOAD_LIBRARIES",
+	// MySQL/MariaDB table data/index files placed at a server path.
+	"DATA DIRECTORY", "INDEX DIRECTORY",
 	// MySQL/MariaDB plugin and component loading.
 	"INSTALL PLUGIN", "INSTALL COMPONENT",
 	// PostgreSQL predefined roles: *_SERVER_FILES / EXECUTE_SERVER_PROGRAM confer
@@ -93,6 +107,58 @@ var sqlCreateObjectKeyword = map[string]bool{
 // DEFINER principal scan does not swallow the next modifier.
 var sqlWriteModifierKeyword = map[string]bool{
 	"OR": true, "DEFINER": true, "ALGORITHM": true, "SQL": true,
+	"TRUSTED": true, "PROCEDURAL": true,
+}
+
+// whitespaceOnly reports whether s is empty or all ASCII/Unicode whitespace.
+func whitespaceOnly(s string) bool { return strings.TrimSpace(s) == "" }
+
+// connectFileNameTableOption reports whether the normalised statement carries a
+// MySQL CONNECT-engine FILE_NAME table option: a FILE_NAME identifier at
+// parenthesis depth 0 that is immediately (bar whitespace) followed by '=',
+// appearing before the first top-level SELECT (so a FILE_NAME= table option is
+// caught, while a file_name column inside the column list — depth > 0 — or in
+// the body of a CREATE TABLE … AS SELECT is not). Caller restricts this to
+// CREATE/ALTER TABLE statements.
+func connectFileNameTableOption(ps string) bool {
+	depth := 0
+	for i := 0; i < len(ps); {
+		c := ps[i]
+		switch {
+		case c == '(':
+			depth++
+			i++
+		case c == ')':
+			if depth > 0 {
+				depth--
+			}
+			i++
+		case isSQLIdentChar(rune(c)):
+			j := i
+			for j < len(ps) && isSQLIdentChar(rune(ps[j])) {
+				j++
+			}
+			if depth == 0 {
+				word := strings.ToUpper(ps[i:j])
+				if word == "SELECT" {
+					return false // CTAS body: options can only precede it
+				}
+				if word == "FILE_NAME" {
+					k := j
+					for k < len(ps) && (ps[k] == ' ' || ps[k] == '\t' || ps[k] == '\n' || ps[k] == '\r') {
+						k++
+					}
+					if k < len(ps) && ps[k] == '=' {
+						return true
+					}
+				}
+			}
+			i = j
+		default:
+			i++
+		}
+	}
+	return false
 }
 
 // stripWriteModifierClauses removes the optional CREATE-statement prefix
@@ -113,6 +179,12 @@ func stripWriteModifierClauses(tokens []string) []string {
 		switch {
 		case tokens[i] == "OR" && i+1 < len(tokens) && tokens[i+1] == "REPLACE":
 			i += 2
+		case tokens[i] == "TRUSTED" || tokens[i] == "PROCEDURAL":
+			// PostgreSQL CREATE [TRUSTED] [PROCEDURAL] LANGUAGE: drop the optional
+			// words so the contiguous CREATE LANGUAGE phrase still matches. They
+			// only appear here in the prefix (a table named trusted/procedural is
+			// reached only after the object keyword, which returns below).
+			i++
 		case tokens[i] == "ALGORITHM":
 			i++
 			if i < len(tokens) && !sqlCreateObjectKeyword[tokens[i]] && !sqlWriteModifierKeyword[tokens[i]] {
@@ -125,10 +197,15 @@ func stripWriteModifierClauses(tokens []string) []string {
 			}
 		case tokens[i] == "DEFINER":
 			i++
-			// principal: CURRENT_USER / CURRENT_ROLE / SESSION_USER, or user [host].
-			// Bounded to at most two tokens and never past an object keyword or
-			// another modifier, so nothing beyond the principal is dropped.
-			for k := 0; k < 2 && i < len(tokens) && !sqlCreateObjectKeyword[tokens[i]] && !sqlWriteModifierKeyword[tokens[i]]; k++ {
+			// principal: CURRENT_USER / CURRENT_ROLE / SESSION_USER, or user[@host]
+			// — any number of tokens (a dotted host or an IPv4 literal expands to
+			// several). Scan up to the object keyword or the next modifier, so a
+			// multi-token principal (CREATE DEFINER=root@127.0.0.1 FUNCTION …) no
+			// longer hides the object keyword behind a fixed two-token bound. A
+			// real CREATE … FUNCTION/PROCEDURE/VIEW always has an object keyword,
+			// so the scan stops there; the only way to reach the end is a prefix
+			// with no object keyword, which carries no phrase to match anyway.
+			for i < len(tokens) && !sqlCreateObjectKeyword[tokens[i]] && !sqlWriteModifierKeyword[tokens[i]] {
 				i++
 			}
 		default:
@@ -141,9 +218,12 @@ func stripWriteModifierClauses(tokens []string) []string {
 
 // precedingIdentToken returns the upper-case identifier run that immediately
 // precedes position start in s, skipping any non-identifier separators between
-// them. It is O(token length) with no allocation of the whole prefix, so it
-// stays cheap even for a statement with thousands of function calls.
-func precedingIdentToken(s string, start int) string {
+// them, together with sepStart: the index just past that identifier, i.e. the
+// start of the separator run between the identifier and start (so the caller
+// can inspect s[sepStart:start]). It is O(token length) with no allocation of
+// the whole prefix, so it stays cheap even for a statement with thousands of
+// function calls.
+func precedingIdentToken(s string, start int) (ident string, sepStart int) {
 	i := start
 	for i > 0 && !isSQLIdentChar(rune(s[i-1])) {
 		i--
@@ -152,7 +232,7 @@ func precedingIdentToken(s string, start int) string {
 	for i > 0 && isSQLIdentChar(rune(s[i-1])) {
 		i--
 	}
-	return strings.ToUpper(s[i:end])
+	return strings.ToUpper(s[i:end]), end
 }
 
 // validateWriteStructure rejects file, loader and administrative SQL in write
@@ -187,6 +267,27 @@ func validateWriteStructure(query, driver string) error {
 		}
 	}
 
+	// SQLite VACUUM INTO writes a copy of the database to an arbitrary host path.
+	// VACUUM is classified DDL (so it reaches here); plain VACUUM / VACUUM <name>
+	// stays allowed, only the INTO form is refused.
+	if len(words) > 0 && words[0] == "VACUUM" {
+		for _, w := range words[1:] {
+			if w == "INTO" {
+				return fmt.Errorf("file, loader or administrative SQL is not allowed: VACUUM INTO")
+			}
+		}
+	}
+
+	// MySQL CONNECT storage engine: a FILE_NAME table option binds a table to a
+	// server file. It is a table option (CREATE/ALTER TABLE, at parenthesis
+	// depth 0, before any CTAS SELECT, FILE_NAME followed by '='), so an ordinary
+	// file_name column — inside the column list, in a SET clause, or added with
+	// ADD COLUMN — is not refused.
+	if len(words) >= 2 && (words[0] == "CREATE" || words[0] == "ALTER") && words[1] == "TABLE" &&
+		connectFileNameTableOption(ps) {
+		return fmt.Errorf("file, loader or administrative SQL is not allowed: FILE_NAME")
+	}
+
 	// MySQL file export: SELECT ... INTO OUTFILE/DUMPFILE. Match the two-word form
 	// but skip the INSERT/REPLACE target-table INTO (INSERT INTO outfile ...), so a
 	// table literally named outfile or dumpfile stays writable.
@@ -212,8 +313,14 @@ func validateWriteStructure(query, driver string) error {
 	for _, m := range sqlFunctionPattern.FindAllStringSubmatchIndex(ps, -1) {
 		raw := ps[m[2]:m[3]]
 		name := strings.ToUpper(raw)
-		prev := precedingIdentToken(ps, m[2])
-		if sqlWriteObjectNameContext[prev] || (prev == "ON" && createIndex) {
+		prev, sepStart := precedingIdentToken(ps, m[2])
+		// Only treat prev as an object-name-introducing keyword when the gap
+		// between it and the name is pure whitespace (INTO edit (, TABLE edit (,
+		// KEY `edit` (). A keyword reached through punctuation — an alias or
+		// column spelled KEY/INDEX/VIEW/… then a comma or '=' before the call
+		// (1 AS key, pg_read_file(...); SET key = pg_read_file(...)) — is not an
+		// object-name position, so the denied call is still checked.
+		if whitespaceOnly(ps[sepStart:m[2]]) && (sqlWriteObjectNameContext[prev] || (prev == "ON" && createIndex)) {
 			continue
 		}
 		if sqlWriteDeniedFunctions[name] {

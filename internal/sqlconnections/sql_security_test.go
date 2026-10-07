@@ -3,6 +3,7 @@ package sqlconnections
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSQLLexicalBoundary(t *testing.T) {
@@ -270,5 +271,149 @@ func TestWriteStatementsRejectFileAndAdminSQL(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Final security sample: object-name context only through whitespace, SQL
+// string runners, SQLite VACUUM INTO, optional CREATE words, server-file
+// phrases and DEFINER principals of any shape.
+func TestWriteDenylistFinalSecuritySample(t *testing.T) {
+	drivers := []string{"postgres", "mysql", "sqlite"}
+	denied := []string{
+		// A context keyword spelled as an alias or column, separated from the
+		// denied call by punctuation, is not an object-name position.
+		"INSERT INTO t SELECT 1 AS key, pg_read_file('/etc/passwd')",
+		`INSERT INTO t SELECT 1 AS "index", pg_read_file('/etc/passwd')`,
+		"UPDATE t SET key = pg_read_file('/etc/passwd')",
+		`INSERT INTO t SELECT * FROM generate_series(1,1) AS "table", pg_ls_dir('/')`,
+		"INSERT INTO t SELECT 1 AS view, lo_import('/etc/shadow')",
+		"INSERT INTO t VALUES (1) ON DUPLICATE KEY UPDATE `key` = LOAD_FILE('/etc/passwd')",
+		"INSERT INTO t SELECT 1 AS `key`, LOAD_FILE('/etc/passwd')",
+		`INSERT INTO t SELECT 1 AS "into", pg_read_file('/x')`,
+		`INSERT INTO t SELECT 1 AS "update", pg_read_file('/x')`,
+		`INSERT INTO t SELECT 1 AS "exists", pg_read_file('/x')`,
+		`INSERT INTO t SELECT 1 AS "references", pg_read_file('/x')`,
+		"UPDATE t SET index=pg_read_file('/x')",
+		"CREATE INDEX i ON t (lower(a), pg_read_file('/x'))",
+		// PostgreSQL functions that run a SQL string.
+		"INSERT INTO t SELECT query_to_xml('select pg_read_file(''/etc/passwd'')', true, false, '')",
+		"INSERT INTO t SELECT * FROM ts_stat('select to_tsvector(pg_read_file(''/etc/passwd''))')",
+		"UPDATE t SET c = query_to_xmlschema('select 1', true, false, '')",
+		"UPDATE t SET c = query_to_xml_and_xmlschema('select 1', true, false, '')",
+		"INSERT INTO t SELECT * FROM crosstab('select 1, 2, 3') AS ct(a int, b int)",
+		"INSERT INTO t SELECT * FROM crosstab3('select 1, 2, 3')",
+		// SQLite VACUUM INTO writes a database copy to a host path.
+		"VACUUM INTO '/tmp/evil.db'",
+		"VACUUM main INTO '/tmp/evil.db'",
+		"VACUUM \"main\" INTO '/tmp/evil.db'",
+		// Optional CREATE words and further server-reaching phrases.
+		"CREATE TRUSTED LANGUAGE plpython3u",
+		"CREATE OR REPLACE PROCEDURAL LANGUAGE plperlu",
+		"CREATE OR REPLACE TRUSTED PROCEDURAL LANGUAGE plperlu",
+		"CREATE SUBSCRIPTION s CONNECTION 'host=evil dbname=x' PUBLICATION p",
+		"CREATE TABLESPACE ts LOCATION '/var/lib/x'",
+		"ALTER ROLE app SET session_preload_libraries = 'evil'",
+		"ALTER ROLE app SET shared_preload_libraries = 'evil'",
+		"ALTER DATABASE d SET local_preload_libraries = 'evil'",
+		`ALTER ROLE app SET "session_preload_libraries" TO 'evil'`,
+		"CREATE TABLE t (a int) DATA DIRECTORY='/var/www'",
+		"CREATE TABLE t (a int) INDEX DIRECTORY = '/var/www'",
+		"CREATE TABLE t (a int) ENGINE=CONNECT TABLE_TYPE=DOS FILE_NAME='/etc/passwd'",
+		"CREATE TABLE t (a int) ENGINE=CONNECT, `file_name` = '/etc/passwd'",
+		"ALTER TABLE t ENGINE=CONNECT FILE_NAME='/etc/passwd'",
+		"CREATE TABLE t (a int) FILE_NAME='/etc/passwd' AS SELECT 1",
+		// DEFINER principals that span more than two tokens (IPs, dotted
+		// hostnames, quoted principals) before a denied object type: the
+		// principal is scanned up to the object keyword, not a fixed two tokens.
+		"CREATE DEFINER=root@127.0.0.1 FUNCTION f() RETURNS INT DETERMINISTIC RETURN 1",
+		"CREATE DEFINER=root@local.host.name PROCEDURE p() SELECT 1",
+		"CREATE DEFINER='u'@'%' PROCEDURE p() SELECT 1",
+		"CREATE DEFINER = 'svc' @ '10.0.0.0' FUNCTION f() RETURNS INT RETURN 1",
+		"CREATE DEFINER=CURRENT_USER() FUNCTION f() RETURNS INT RETURN 1",
+		"CREATE DEFINER=`svc`@`db.internal` FUNCTION f() RETURNS INT RETURN 1",
+		"CREATE ALGORITHM=MERGE DEFINER=admin@localhost SQL SECURITY DEFINER FUNCTION f() RETURNS INT RETURN 1",
+		"CREATE OR REPLACE DEFINER=reporter@10.9.8.7 AGGREGATE a(x INT) (SFUNC=f, STYPE=int)",
+	}
+	for _, q := range denied {
+		q := q
+		t.Run("denied/"+q, func(t *testing.T) {
+			for _, driver := range drivers {
+				if _, err := detectStatementType(q, driver); err == nil {
+					t.Errorf("%s (%s): expected rejection", q, driver)
+				}
+			}
+		})
+	}
+
+	allowed := map[string]StatementType{
+		// Object names after a context keyword, separated by whitespace only
+		// (also newlines, comments and padded quoted names), stay writable.
+		"INSERT INTO edit(n) VALUES (1)":                                 StmtInsert,
+		"INSERT INTO  \"edit\"  (n) VALUES (1)":                          StmtInsert,
+		"INSERT INTO edit\n(n) VALUES (1)":                               StmtInsert,
+		"INSERT INTO /* target */ edit (n) VALUES (1)":                   StmtInsert,
+		"CREATE TABLE IF NOT EXISTS \"edit\" (id int)":                   StmtDDL,
+		"CREATE VIEW \"edit\" (a) AS SELECT 1":                           StmtDDL,
+		"CREATE INDEX idx_edit ON \"edit\" (n)":                          StmtDDL,
+		"CREATE TABLE notes (id int, edit_id int REFERENCES edit(id))":   StmtDDL,
+		"CREATE TABLE tt (id int, KEY edit(id))":                         StmtDDL,
+		"CREATE TABLE tt (id int, KEY `edit` (id))":                      StmtDDL,
+		"UPDATE t SET key = lower(key) WHERE id = 1":                     StmtUpdate,
+		"INSERT INTO t SELECT 1 AS key, lower(name) FROM s":              StmtInsert,
+		"INSERT INTO t VALUES (1) ON DUPLICATE KEY UPDATE `key` = NOW()": StmtInsert,
+		// Plain VACUUM keeps working.
+		"VACUUM main": StmtDDL,
+		// Ordinary file_name / data / directory columns are not table options.
+		"INSERT INTO uploads (file_name) VALUES ('a.txt')":                            StmtInsert,
+		"UPDATE uploads SET file_name = 'b.txt' WHERE id = 1":                         StmtUpdate,
+		"CREATE TABLE uploads (id int, file_name text)":                               StmtDDL,
+		"CREATE TABLE uploads (file_name text CHECK (file_name = 'x'))":               StmtDDL,
+		"ALTER TABLE uploads ADD COLUMN file_name text":                               StmtDDL,
+		"CREATE TABLE t2 AS SELECT * FROM uploads WHERE file_name = 'x'":              StmtDDL,
+		"CREATE TRIGGER trg AFTER INSERT ON t BEGIN UPDATE u SET file_name = 'x' END": StmtDDL,
+		"CREATE TABLE trusted (id int)":                                               StmtDDL,
+		// A multi-token DEFINER principal before a permitted object type (VIEW)
+		// is consumed without swallowing the object keyword, so the view is
+		// still allowed.
+		"CREATE DEFINER=root@127.0.0.1 VIEW v AS SELECT 1":                      StmtDDL,
+		"CREATE DEFINER='u'@'%' VIEW v AS SELECT 1":                             StmtDDL,
+		"CREATE DEFINER=`svc`@`db.internal` VIEW v AS SELECT 1":                 StmtDDL,
+		"CREATE DEFINER=CURRENT_USER() SQL SECURITY INVOKER VIEW v AS SELECT 1": StmtDDL,
+	}
+	for q, want := range allowed {
+		q, want := q, want
+		t.Run("allowed/"+q, func(t *testing.T) {
+			for _, driver := range drivers {
+				got, err := detectStatementType(q, driver)
+				if err != nil || got != want {
+					t.Errorf("%s (%s): got %v/%v, want %v", q, driver, got, err, want)
+				}
+			}
+		})
+	}
+}
+
+// The object-name lookback is O(token length): a benign multi-thousand-row
+// INSERT full of ordinary function calls must stay fast (it was ~6.7s when
+// every match re-split the whole prefix).
+func TestWriteDenylistLargeInsertStaysFast(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("INSERT INTO t (a, b, c) VALUES ")
+	for i := 0; i < 5000; i++ {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString("(lower('x'), COALESCE(NULL, 1), key_of(n))")
+	}
+	q := b.String()
+	start := time.Now()
+	typ, err := detectStatementType(q, "postgres")
+	elapsed := time.Since(start)
+	if err != nil || typ != StmtInsert {
+		t.Fatalf("large insert: got %v/%v, want INSERT", typ, err)
+	}
+	t.Logf("5000-row INSERT classified in %v", elapsed)
+	if elapsed > 2*time.Second {
+		t.Fatalf("5000-row INSERT took %v, want well under 2s", elapsed)
 	}
 }

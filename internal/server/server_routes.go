@@ -705,7 +705,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
 
 		// Email Watcher: poll IMAP for new messages and wake the agent
-		s.EmailWatcher = tools.StartEmailWatcherContext(serverCtx, s.Cfg, s.Logger, s.Guardian, s.LLMGuardian, s.CheatsheetDB)
+		s.EmailWatcher = tools.StartEmailWatcherContext(serverCtx, s.Cfg, s.Logger, s.Guardian, s.LLMGuardian, s.internalToken, s.CheatsheetDB)
 		if s.EmailWatcher != nil {
 			s.MissionManagerV2.SetEmailWatcher(s.EmailWatcher)
 		}

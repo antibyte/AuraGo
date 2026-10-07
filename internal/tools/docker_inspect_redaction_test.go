@@ -131,3 +131,38 @@ func TestDockerInspectRequiresDockerPermission(t *testing.T) {
 		t.Fatalf("inspect without docker permission = %s", out)
 	}
 }
+
+// Credential words glued to a prefix (WEBPASSWORD, PGPASSWORD, TS_AUTHKEY) are
+// masked, and a credential flag inside an ordinary env value
+// (REDIS_ARGS=--requirepass x) loses its value; harmless values stay intact.
+func TestDockerInspectRedactsGluedCredentialWordsAndEnvFlagValues(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, true)
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"Id":"app","Name":"/app","Config":{"Image":"pihole","Env":[` +
+			`"WEBPASSWORD=web-secret","PGPASSWORD=pg-secret","TS_AUTHKEY=tskey-auth-secret",` +
+			`"WG_PASSWORD_HASH=hash-secret","APP_APIKEY=apikey-secret","X_API_KEY_FILE=keyfile-secret",` +
+			`"DB_PASSWD_FILE=passwd-secret","MY_SECRETS=secrets-secret","GITHUB_TOKENS=tokens-secret",` +
+			`"REDIS_ARGS=--requirepass redis-secret --port 6379","VALKEY_EXTRA_FLAGS=--masterauth=auth-secret",` +
+			`"EXTRA_FLAGS=--verbose --log-level info","PASSPORT_OFFICE=kept-value","PATH=/usr/bin","PWD=/app"]}}`))
+	})
+	out := DockerInspectContainer(DockerConfig{Host: host}, "app")
+	for _, leaked := range []string{"web-secret", "pg-secret", "tskey-auth-secret", "hash-secret", "apikey-secret", "keyfile-secret",
+		"passwd-secret", "secrets-secret", "tokens-secret", "redis-secret", "auth-secret"} {
+		if strings.Contains(out, leaked) {
+			t.Fatalf("docker inspect leaked %q: %s", leaked, out)
+		}
+	}
+	for _, masked := range []string{"WEBPASSWORD=", "PGPASSWORD=", "TS_AUTHKEY=", "WG_PASSWORD_HASH=", "APP_APIKEY=", "X_API_KEY_FILE=",
+		"DB_PASSWD_FILE=", "MY_SECRETS=", "GITHUB_TOKENS="} {
+		if !strings.Contains(out, `"`+masked+dockerInspectRedacted+`"`) {
+			t.Fatalf("docker inspect did not mask %q: %s", masked, out)
+		}
+	}
+	for _, kept := range []string{`"REDIS_ARGS=--requirepass ` + dockerInspectRedacted + ` --port 6379"`,
+		`"VALKEY_EXTRA_FLAGS=--masterauth=` + dockerInspectRedacted + `"`,
+		`"EXTRA_FLAGS=--verbose --log-level info"`, `"PASSPORT_OFFICE=kept-value"`, `"PATH=/usr/bin"`, `"PWD=/app"`} {
+		if !strings.Contains(out, kept) {
+			t.Fatalf("docker inspect output lacks %s: %s", kept, out)
+		}
+	}
+}

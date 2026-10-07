@@ -551,7 +551,7 @@ func redactDockerInspectEnv(value interface{}) interface{} {
 				if dockerInspectEnvKeySensitive(key) {
 					redacted[i] = key + "=" + dockerInspectRedacted
 				} else {
-					redacted[i] = key + "=" + security.RedactSensitiveInfo(val)
+					redacted[i] = key + "=" + redactDockerInspectEnvValue(val)
 				}
 				continue
 			}
@@ -571,9 +571,20 @@ func dockerInspectEnvKeySensitive(key string) bool {
 	if strings.HasPrefix(upper, "AURAGO_") {
 		return true
 	}
+	// Unambiguous credential words are matched anywhere in the key, so a glued
+	// prefix (WEBPASSWORD, PGPASSWORD, TS_AUTHKEY, APP_APIKEY, X_API_KEY_FILE)
+	// is masked, not just a trailing _PASSWORD. These never occur inside a
+	// non-secret variable name in practice.
+	for _, marker := range []string{"PASSWORD", "PASSWD", "SECRET", "TOKEN", "AUTHKEY", "APIKEY", "API_KEY"} {
+		if strings.Contains(upper, marker) {
+			return true
+		}
+	}
+	// Short/ambiguous markers stay anchored (exact or _SUFFIX) so PASSPORT,
+	// COMPASS, a bare PWD (the working directory) and the like are not masked.
 	for _, suffix := range []string{
-		"PASSWORD", "SECRET", "TOKEN", "API_KEY", "ACCESS_KEY", "PRIVATE_KEY", "MASTER_KEY",
-		"PASS", "PASSWD", "PASSPHRASE", "CREDENTIALS", "REQUIREPASS", "MASTERAUTH",
+		"ACCESS_KEY", "PRIVATE_KEY", "MASTER_KEY",
+		"PASS", "PASSPHRASE", "CREDENTIALS", "REQUIREPASS", "MASTERAUTH",
 		"SECRET_KEY", "SECRET_KEY_BASE", "ENCRYPTION_KEY", "APP_KEY",
 	} {
 		if upper == suffix || strings.HasSuffix(upper, "_"+suffix) {
@@ -583,6 +594,36 @@ func dockerInspectEnvKeySensitive(key string) bool {
 	// PWD only as a suffix (DB_PWD): the shell's bare PWD is the working
 	// directory and stays visible.
 	return strings.HasSuffix(upper, "_PWD")
+}
+
+// redactDockerInspectEnvValue redacts the value of a non-sensitive environment
+// variable: it still masks URL credentials and key=value secrets anywhere in
+// the value, and additionally treats the value as a command line so a
+// credential flag embedded in it (REDIS_ARGS=--requirepass x,
+// VALKEY_EXTRA_FLAGS=--masterauth=y) loses the value after the flag. Whitespace
+// is normalised to single spaces, acceptable for an inspection view.
+func redactDockerInspectEnvValue(val string) string {
+	fields := strings.Fields(val)
+	if len(fields) == 0 {
+		return security.RedactSensitiveInfo(val)
+	}
+	args := make([]interface{}, len(fields))
+	for i, f := range fields {
+		args[i] = f
+	}
+	redacted, ok := redactDockerInspectArgs(args).([]interface{})
+	if !ok {
+		return security.RedactSensitiveInfo(val)
+	}
+	parts := make([]string, len(redacted))
+	for i, r := range redacted {
+		if s, isString := r.(string); isString {
+			parts[i] = s
+		} else {
+			parts[i] = fmt.Sprint(r)
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 // redactDockerInspectArgs masks credential values in a command line: the value

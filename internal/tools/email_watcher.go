@@ -26,10 +26,14 @@ type EmailWatcher struct {
 	guardian    *security.Guardian
 	llmGuardian *security.LLMGuardian
 	relaySheet  EmailRelayCheatsheet
-	cancel      context.CancelFunc
-	done        chan struct{}
-	mu          sync.Mutex
-	running     bool
+	// internalToken is the per-process loopback auth token. When set, the
+	// wake-the-agent request carries the internal follow-up header and token so
+	// the turn is labelled internal and is accepted when web auth is enabled.
+	internalToken string
+	cancel        context.CancelFunc
+	done          chan struct{}
+	mu            sync.Mutex
+	running       bool
 	// per-account UID tracking: accountID → set of known UIDs
 	lastUIDs map[string]map[uint32]bool
 	// mission trigger callbacks
@@ -386,6 +390,10 @@ func (ew *EmailWatcher) notifyAgent(ctx context.Context, prompt string) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if ew.internalToken != "" {
+		req.Header.Set("X-Internal-FollowUp", "true")
+		req.Header.Set("X-Internal-Token", ew.internalToken)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		ew.logger.Error("[EmailWatcher] Loopback notification failed", "error", err)
@@ -401,11 +409,11 @@ func (ew *EmailWatcher) notifyAgent(ctx context.Context, prompt string) {
 
 // StartEmailWatcher creates and starts an email watcher if any account has
 // watch_enabled=true (or the legacy email.enabled + watch_enabled is set).
-func StartEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian, cheatsheetDBs ...*sql.DB) *EmailWatcher {
-	return StartEmailWatcherContext(context.Background(), cfg, logger, guardian, llmGuardian, cheatsheetDBs...)
+func StartEmailWatcher(cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian, internalToken string, cheatsheetDBs ...*sql.DB) *EmailWatcher {
+	return StartEmailWatcherContext(context.Background(), cfg, logger, guardian, llmGuardian, internalToken, cheatsheetDBs...)
 }
 
-func StartEmailWatcherContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian, cheatsheetDBs ...*sql.DB) *EmailWatcher {
+func StartEmailWatcherContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, guardian *security.Guardian, llmGuardian *security.LLMGuardian, internalToken string, cheatsheetDBs ...*sql.DB) *EmailWatcher {
 	hasWatchAccount := false
 	for _, acct := range cfg.EmailAccounts {
 		if acct.WatchEnabled && acct.IMAPHost != "" && acct.Username != "" && acct.Password != "" {
@@ -421,6 +429,7 @@ func StartEmailWatcherContext(ctx context.Context, cfg *config.Config, logger *s
 	}
 
 	watcher := NewEmailWatcher(cfg, logger, guardian, llmGuardian)
+	watcher.internalToken = internalToken
 	if len(cheatsheetDBs) > 0 {
 		watcher.relaySheet = loadEmailRelayCheatsheet(cheatsheetDBs[0], cfg.Email.RelayCheatsheetID, logger)
 	}
