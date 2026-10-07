@@ -10,6 +10,9 @@
   ticks; clips use arrangement ticks. Live playback and offline WAV rendering
   share the native Web Audio implementation. Never schedule musical timing from
   animation frames or copy an upstream live-only synthesizer into offline export.
+  `synth-studio-voices.js` (patches, mix buses, voices, controllers) loads before
+  `synth-studio-audio.js` (project timeline, live transport, WAV render) in the
+  `module-loader.js` asset list and the browser fixtures.
 - Reuse OfficeSession drafts/write queues and the conditional Desktop file API.
   Preserve the latest dirty revision on failures; fence asynchronous file, MIDI
   and render results after a project change, permission revocation or disposal.
@@ -518,9 +521,13 @@ buttons and menu popovers remain excluded from those gestures.
   older request, the shown path changes only after a successful listing, rows carry their absolute
   `data-path` for every action, and closing the panel or window disposes the navigator. Verify with
   `npm run test:ui-regressions`.
-- `quickconnect-serial.js` owns serial profiles, bounded in-memory RX/TX capture,
-  ANSI/hex display and browser/host transports. Bundle it before the Quick Connect
-  shell. Profiles use the versioned `quick_connect.serial_profiles` setting;
+- `quickconnect-serial.js` owns the serial session controller: profiles, bounded
+  in-memory RX/TX capture, ANSI/hex display and the browser/host connection
+  lifecycle. `quickconnect-serial-model.js` (profile schema, hex codec, error
+  keys), `-views.js` (markup) and `-transport.js` (control signals, teardown)
+  precede it in `desktopMainParts`, all before the Quick Connect shell. Serial
+  tests load the parts in that order through `readQuickConnectSerialSources`.
+  Profiles use the versioned `quick_connect.serial_profiles` setting;
   payload bytes never reach logs, persistence or an LLM. See
   `documentation/quick-connect-serial.md` and `internal/desktop/AGENTS.md`.
 - Quick Connect has one active connection per window. Serial, SSH and VNC switches

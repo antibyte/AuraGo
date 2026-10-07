@@ -14358,16 +14358,15 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
 ;
-/* ui/js/desktop/apps/quickconnect-serial.js */
-    window.QuickConnectSerial = (() => {
+/* ui/js/desktop/apps/quickconnect-serial-model.js */
+    // Quick Connect serial profile model: the versioned profile schema, option
+    // normalization, hex codec, profile form drafts and server error-code keys.
+    // Pure helpers bundled inside the Desktop shell IIFE before
+    // quickconnect-serial.js, which owns the session controller.
+    const QuickConnectSerialModel = (() => {
         const STORAGE_KEY = 'quick_connect.serial_profiles';
         const MAX_PROFILES = 64;
         const MAX_PROFILE_BYTES = 64 * 1024;
-        const MAX_CAPTURE_BYTES = 10 * 1024 * 1024;
-        const MAX_CAPTURE_RECORDS = 10000;
-        const MAX_PENDING_RX_BYTES = 1024 * 1024;
-        const MAX_PENDING_TX_BYTES = 256 * 1024;
-        const MAX_SEND_BYTES = 64 * 1024;
         const BAUD_PRESETS = [1200, 2400, 4800, 9600, 14400, 19200, 28800, 38400, 57600, 76800, 115200, 230400, 460800, 921600];
         const DEFAULT_OPTIONS = Object.freeze({
             baud_rate: 115200,
@@ -14379,6 +14378,24 @@ function updateTaskbarSystemButtonsForMobile() {
             line_ending: 'cr',
             dtr: false,
             rts: false
+        });
+        const ERROR_KEYS = Object.freeze({
+            unauthorized: 'desktop.qc_serial_permission_disabled',
+            serial_disabled: 'desktop.qc_serial_permission_disabled',
+            serial_ports_unavailable: 'desktop.qc_serial_open_failed',
+            invalid_open: 'desktop.qc_serial_open_failed',
+            invalid_control: 'desktop.qc_serial_open_failed',
+            invalid_options: 'desktop.qc_serial_open_failed',
+            invalid_port: 'desktop.qc_serial_unavailable_port',
+            port_not_found: 'desktop.qc_serial_unavailable_port',
+            port_busy: 'desktop.qc_serial_port_busy',
+            open_required: 'desktop.qc_serial_open_failed',
+            serial_read_failed: 'desktop.qc_serial_connection_lost',
+            serial_write_failed: 'desktop.qc_serial_connection_lost',
+            serial_control_failed: 'desktop.qc_serial_open_failed',
+            idle_timeout: 'desktop.qc_serial_disconnected',
+            disconnected: 'desktop.qc_serial_connection_lost',
+            open_failed: 'desktop.qc_serial_open_failed'
         });
 
         function parseHex(value) {
@@ -14455,6 +14472,264 @@ function updateTaskbarSystemButtonsForMobile() {
             return parseInt(text, 16);
         }
 
+        // Maps a server or transport error code to its translation key.
+        function errorKey(code, fallback) {
+            return ERROR_KEYS[code] || fallback || 'desktop.qc_serial_open_failed';
+        }
+
+        // Reads and validates the profile form. Keeps the selected profile ID or
+        // creates one; throws an Error carrying the translated field label.
+        function readProfileDraft(form, selectedId, tr) {
+            const name = form.elements.name.value.trim();
+            const source = form.elements.source.value;
+            const baudRate = form.elements.baud_preset.value === 'custom' ? Number(form.elements.baud_custom.value) : Number(form.elements.baud_preset.value);
+            const usbVendor = parseHexID(form.elements.usb_vendor_id.value);
+            const usbProduct = parseHexID(form.elements.usb_product_id.value);
+            if (!name || Array.from(name).length > 80 || /[\u0000-\u001F\u007F-\u009F]/.test(name)) throw new Error(tr('desktop.qc_serial_profile_name'));
+            if (!['browser', 'host'].includes(source)) throw new Error(tr('desktop.qc_serial_source'));
+            if (source === 'host' && !form.elements.port.value) throw new Error(tr('desktop.qc_serial_choose_port'));
+            if (!Number.isInteger(baudRate) || baudRate < 1 || baudRate > 4000000) throw new Error(tr('desktop.qc_serial_baud_rate'));
+            if (usbVendor === null || usbProduct === null || (usbProduct !== undefined && usbVendor === undefined)) throw new Error(tr('desktop.qc_serial_usb_filter_invalid'));
+            const profile = {
+                id: selectedId || (crypto.randomUUID ? crypto.randomUUID() : `serial-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+                name,
+                source,
+                port: source === 'host' ? form.elements.port.value : '',
+                options: normalizeOptions({
+                    baud_rate: baudRate,
+                    data_bits: Number(form.elements.data_bits.value),
+                    stop_bits: Number(form.elements.stop_bits.value),
+                    parity: form.elements.parity.value,
+                    flow_control: form.elements.flow_control.value,
+                    local_echo: form.elements.local_echo.checked,
+                    line_ending: form.elements.line_ending.value,
+                    dtr: form.elements.dtr.checked,
+                    rts: form.elements.rts.checked
+                }, source)
+            };
+            if (usbVendor !== undefined) profile.usb_vendor_id = usbVendor;
+            if (usbProduct !== undefined) profile.usb_product_id = usbProduct;
+            return profile;
+        }
+
+        return { STORAGE_KEY, MAX_PROFILES, MAX_PROFILE_BYTES, BAUD_PRESETS, DEFAULT_OPTIONS, parseHex, formatHex, normalizeOptions, normalizeProfile, parseProfiles, errorKey, readProfileDraft };
+    })();
+
+;
+/* ui/js/desktop/apps/quickconnect-serial-views.js */
+    // Quick Connect serial markup: session shell, profile list, profile form and
+    // host port options. Pure HTML builders bundled inside the Desktop shell IIFE
+    // (shared esc/iconMarkup); quickconnect-serial.js owns state and wiring.
+    const QuickConnectSerialViews = (() => {
+        const { BAUD_PRESETS, DEFAULT_OPTIONS, normalizeOptions } = QuickConnectSerialModel;
+
+        function shellMarkup(tr) {
+            return `<section class="vd-qc-serial" data-qc-serial-app>
+                <header class="vd-qc-serial-header">
+                    <div class="vd-qc-serial-heading"><strong>${esc(tr('desktop.qc_serial_title'))}</strong><span data-serial-status data-state="ready">${esc(tr('desktop.qc_serial_idle'))}</span></div>
+                    <div class="vd-qc-serial-actions">
+                        <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-disconnect disabled>${iconMarkup('x', 'X', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_disconnect'))}</span></button>
+                    </div>
+                </header>
+                <div class="vd-qc-serial-layout">
+                    <section class="vd-qc-serial-config" data-serial-editor></section>
+                    <section class="vd-qc-serial-console" aria-label="${esc(tr('desktop.qc_serial_title'))}">
+                        <div class="vd-qc-serial-toolbar" role="group" aria-label="${esc(tr('desktop.qc_serial_settings'))}">
+                            <label>${esc(tr('desktop.qc_serial_receive'))}<select data-serial-rx-mode><option value="text">${esc(tr('desktop.qc_serial_receive_text'))}</option><option value="hex">${esc(tr('desktop.qc_serial_receive_hex'))}</option></select></label>
+                            <label class="vd-qc-serial-toggle"><input type="checkbox" data-serial-dtr><span>${esc(tr('desktop.qc_serial_dtr'))}</span></label>
+                            <label class="vd-qc-serial-toggle"><input type="checkbox" data-serial-rts><span>${esc(tr('desktop.qc_serial_rts'))}</span></label>
+                            <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-break disabled>${esc(tr('desktop.qc_serial_break'))}</button>
+                            <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-clear>${esc(tr('desktop.qc_serial_clear'))}</button>
+                            <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-export>${esc(tr('desktop.qc_serial_export'))}</button>
+                        </div>
+                        <div class="vd-qc-serial-terminal" data-serial-terminal></div>
+                        <div class="vd-qc-serial-capture-note" data-serial-capture-note hidden></div>
+                        <form class="vd-qc-serial-send" data-serial-form>
+                            <select data-serial-send-mode aria-label="${esc(tr('desktop.qc_serial_send'))}"><option value="text">${esc(tr('desktop.qc_serial_send_text'))}</option><option value="hex">${esc(tr('desktop.qc_serial_send_hex'))}</option></select>
+                            <input type="text" data-serial-input autocomplete="off" spellcheck="false" placeholder="${esc(tr('desktop.qc_serial_input_placeholder'))}" disabled>
+                            <select data-serial-line-ending aria-label="${esc(tr('desktop.qc_serial_line_ending'))}">
+                                <option value="none">${esc(tr('desktop.qc_serial_no_ending'))}</option><option value="cr" selected>${esc(tr('desktop.qc_serial_carriage_return'))}</option><option value="lf">${esc(tr('desktop.qc_serial_line_feed'))}</option><option value="crlf">${esc(tr('desktop.qc_serial_crlf'))}</option>
+                            </select>
+                            <button class="vd-qc-btn vd-qc-btn-primary" type="submit" data-serial-send disabled>${iconMarkup('send', 'S', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_send'))}</span></button>
+                        </form>
+                    </section>
+                </div>
+            </section>`;
+        }
+
+        // isConnectable and diagnose apply the controller's live grants, port
+        // availability and browser capability checks to one profile.
+        function profileListMarkup({ profiles, selectedId, loading, readonly, isConnectable, diagnose, tr }) {
+            return `<div class="vd-qc-serial-list-head"><span>${esc(tr('desktop.qc_serial_select_profile'))}</span><button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-create ${readonly ? 'disabled' : ''}>${iconMarkup('plus', '+', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_create_profile'))}</span></button></div>` +
+                (loading ? `<div class="vd-empty">${esc(tr('desktop.loading'))}</div>` : !profiles.length ? `<div class="vd-empty">${esc(tr('desktop.qc_serial_no_profiles'))}</div>` : profiles.map(profile => {
+                    const detail = profile.source === 'host' ? profile.port : tr('desktop.qc_serial_browser');
+                    const canConnect = isConnectable(profile);
+                    const diagnostic = diagnose(profile);
+                    return `<article class="vd-qc-serial-profile${profile.id === selectedId ? ' active' : ''}">
+                        <button class="vd-qc-serial-profile-select" type="button" data-serial-profile="${esc(profile.id)}" aria-pressed="${profile.id === selectedId ? 'true' : 'false'}">
+                            <strong>${esc(profile.name)}</strong><span><span class="vd-qc-badge vd-qc-serial-source" data-source="${esc(profile.source)}">${esc(profile.source === 'host' ? tr('desktop.qc_serial_host') : tr('desktop.qc_serial_browser'))}</span><span class="vd-qc-serial-profile-detail">${esc(detail || tr('desktop.qc_serial_choose_port'))}</span></span>
+                            ${diagnostic ? `<small class="vd-qc-serial-diagnostic" role="status">${esc(diagnostic)}</small>` : ''}
+                        </button>
+                        <div class="vd-qc-serial-profile-actions">
+                            <button class="vd-qc-btn vd-qc-btn-sm vd-qc-btn-primary" type="button" data-serial-connect="${esc(profile.id)}" ${canConnect ? '' : 'disabled'}>${esc(tr('desktop.qc_serial_connect'))}</button>
+                            <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-delete="${esc(profile.id)}" ${readonly ? 'disabled' : ''} aria-label="${esc(tr('desktop.qc_serial_delete_profile'))}">${iconMarkup('trash', 'X', 'vd-qc-btn-icon', 13)}</button>
+                        </div>
+                    </article>`;
+                }).join(''));
+        }
+
+        // Keeps a saved port that is currently missing visible as unavailable.
+        function portOptionsMarkup(selectedPort, ports, portsError, tr) {
+            const current = String(selectedPort || '');
+            let output = `<option value="">${esc(tr('desktop.qc_serial_choose_port'))}</option>`;
+            if (current && !ports.some(port => port.name === current)) output += `<option value="${esc(current)}" selected disabled>${esc(current)} — ${esc(tr('desktop.qc_serial_unavailable_port'))}</option>`;
+            if (portsError) return output;
+            if (!ports.length) output += `<option value="" disabled>${esc(tr('desktop.qc_serial_no_ports'))}</option>`;
+            return output + ports.map(port => `<option value="${esc(port.name)}" ${port.name === current ? 'selected' : ''} ${port.busy ? 'disabled' : ''}>${esc(port.name)}${port.busy ? ` — ${esc(tr('desktop.qc_serial_port_busy'))}` : ''}</option>`).join('');
+        }
+
+        // Renders the editor for an existing profile, or a new-profile form when
+        // current is undefined.
+        function profileFormMarkup({ current, readonly, ports, portsError, tr }) {
+            const profile = current || { id: '', name: '', source: 'browser', port: '', options: { ...DEFAULT_OPTIONS } };
+            const source = profile.source;
+            const optsValue = normalizeOptions(profile.options, source);
+            const baudValue = BAUD_PRESETS.includes(optsValue.baud_rate) ? String(optsValue.baud_rate) : 'custom';
+            const hostOptions = portOptionsMarkup(profile.port, ports, portsError, tr);
+            return `<form class="vd-qc-serial-profile-form" data-serial-profile-form>
+                <h3>${esc(current ? current.name : tr('desktop.qc_serial_create_profile'))}</h3>
+                <label>${esc(tr('desktop.qc_serial_profile_name'))}<input name="name" type="text" maxlength="80" required value="${esc(profile.name)}" ${readonly ? 'disabled' : ''}></label>
+                <label>${esc(tr('desktop.qc_serial_source'))}<select name="source" ${readonly ? 'disabled' : ''}><option value="browser" ${source === 'browser' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_browser'))}</option><option value="host" ${source === 'host' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_host'))}</option></select></label>
+                <div data-serial-browser-fields ${source === 'browser' ? '' : 'hidden'}>
+                    <p class="vd-qc-serial-help">${esc(tr('desktop.qc_serial_choose_port'))}</p>
+                    <div class="vd-qc-serial-pair"><label>USB VID<input name="usb_vendor_id" type="text" inputmode="text" maxlength="6" placeholder="10C4" value="${profile.usb_vendor_id !== undefined ? profile.usb_vendor_id.toString(16).toUpperCase().padStart(4, '0') : ''}" ${readonly ? 'disabled' : ''}></label><label>USB PID<input name="usb_product_id" type="text" inputmode="text" maxlength="6" placeholder="EA60" value="${profile.usb_product_id !== undefined ? profile.usb_product_id.toString(16).toUpperCase().padStart(4, '0') : ''}" ${readonly ? 'disabled' : ''}></label></div>
+                </div>
+                <div data-serial-host-fields ${source === 'host' ? '' : 'hidden'}>
+                    <label>${esc(tr('desktop.qc_serial_port'))}<select name="port" ${readonly ? 'disabled' : ''}>${hostOptions}</select></label>
+                    <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-refresh-ports ${readonly ? 'disabled' : ''}>${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 12)}<span>${esc(tr('desktop.retry'))}</span></button>
+                </div>
+                <div class="vd-qc-serial-inline-status" data-serial-port-error role="status" ${portsError && source === 'host' ? '' : 'hidden'}>${portsError && source === 'host' ? esc(tr('desktop.load_failed')) : ''}</div>
+                <details class="vd-qc-serial-options" open><summary>${esc(tr('desktop.qc_serial_settings'))}</summary>
+                    <div class="vd-qc-serial-pair"><label>${esc(tr('desktop.qc_serial_baud_rate'))}<select name="baud_preset">${BAUD_PRESETS.map(rate => `<option value="${rate}" ${baudValue === String(rate) ? 'selected' : ''}>${rate}</option>`).join('')}<option value="custom" ${baudValue === 'custom' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_custom'))}</option></select></label><label data-custom-baud ${baudValue === 'custom' ? '' : 'hidden'}>${esc(tr('desktop.qc_serial_custom'))}<input name="baud_custom" type="number" min="1" max="4000000" value="${optsValue.baud_rate}" ${readonly ? 'disabled' : ''}></label></div>
+                    <div class="vd-qc-serial-pair"><label>${esc(tr('desktop.qc_serial_data_bits'))}<select name="data_bits"><option value="7" ${optsValue.data_bits === 7 ? 'selected' : ''}>7</option><option value="8" ${optsValue.data_bits === 8 ? 'selected' : ''}>8</option></select></label><label>${esc(tr('desktop.qc_serial_stop_bits'))}<select name="stop_bits"><option value="1" ${optsValue.stop_bits === 1 ? 'selected' : ''}>1</option><option value="2" ${optsValue.stop_bits === 2 ? 'selected' : ''}>2</option></select></label></div>
+                    <div class="vd-qc-serial-pair"><label>${esc(tr('desktop.qc_serial_parity'))}<select name="parity"><option value="none" ${optsValue.parity === 'none' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_none'))}</option><option value="even" ${optsValue.parity === 'even' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_even'))}</option><option value="odd" ${optsValue.parity === 'odd' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_odd'))}</option></select></label><label>${esc(tr('desktop.qc_serial_flow_control'))}<select name="flow_control"><option value="none">${esc(tr('desktop.qc_serial_none'))}</option><option value="hardware" ${optsValue.flow_control === 'hardware' ? 'selected' : ''} ${source === 'host' ? 'disabled' : ''}>${esc(tr('desktop.qc_serial_hardware'))}${source === 'host' ? ` — ${esc(tr('desktop.qc_serial_hardware_host_unsupported'))}` : ''}</option></select></label></div>
+                    <div class="vd-qc-serial-pair"><label class="vd-qc-serial-check"><input name="dtr" type="checkbox" ${optsValue.dtr ? 'checked' : ''} ${readonly ? 'disabled' : ''}><span>${esc(tr('desktop.qc_serial_dtr'))}</span></label><label class="vd-qc-serial-check"><input name="rts" type="checkbox" ${optsValue.rts ? 'checked' : ''} ${readonly || (source === 'browser' && optsValue.flow_control === 'hardware') ? 'disabled' : ''}><span>${esc(tr('desktop.qc_serial_rts'))}</span></label></div>
+                    <label class="vd-qc-serial-check"><input name="local_echo" type="checkbox" ${optsValue.local_echo ? 'checked' : ''}><span>${esc(tr('desktop.qc_serial_local_echo'))}</span></label>
+                    <label>${esc(tr('desktop.qc_serial_line_ending'))}<select name="line_ending"><option value="none" ${optsValue.line_ending === 'none' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_no_ending'))}</option><option value="cr" ${optsValue.line_ending === 'cr' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_carriage_return'))}</option><option value="lf" ${optsValue.line_ending === 'lf' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_line_feed'))}</option><option value="crlf" ${optsValue.line_ending === 'crlf' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_crlf'))}</option></select></label>
+                </details>
+                <div class="vd-qc-serial-form-actions"><button class="vd-qc-btn vd-qc-btn-primary" type="submit" data-serial-save ${readonly ? 'disabled' : ''}>${iconMarkup('save', 'S', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_save_profile'))}</span></button></div>
+                <div data-serial-form-status role="status" aria-live="polite"></div>
+            </form>`;
+        }
+
+        return { shellMarkup, profileListMarkup, portOptionsMarkup, profileFormMarkup };
+    })();
+
+;
+/* ui/js/desktop/apps/quickconnect-serial-transport.js */
+    // Quick Connect serial device I/O for one connection record: ordered Web
+    // Serial control signals, host WebSocket control frames and idempotent
+    // port/socket teardown. Bundled inside the Desktop shell IIFE before
+    // quickconnect-serial.js, which owns session state and generation fencing.
+    const QuickConnectSerialTransport = (() => {
+        function create({ Socket, ownerWindow }) {
+            // Serializes setSignals calls; force bypasses the queue limit and the
+            // closed check so teardown can always lower DTR/RTS and clear Break.
+            function queueBrowserControl(conn, signals, force) {
+                conn.pendingControlCount = conn.pendingControlCount || 0;
+                if (!force && conn.pendingControlCount >= 8) return Promise.reject(new Error('control_queue_full'));
+                conn.pendingControlCount++;
+                const operation = (conn.controlChain || Promise.resolve()).catch(() => {}).then(() => {
+                    if (conn.closed && !force) return;
+                    return conn.port.setSignals(signals);
+                });
+                conn.controlChain = operation.finally(() => { conn.pendingControlCount = Math.max(0, conn.pendingControlCount - 1); });
+                return conn.controlChain;
+            }
+
+            function sendHostControl(conn, message) {
+                if (!conn.socket || conn.socket.readyState !== Socket.OPEN) throw new Error('serial_socket_unavailable');
+                conn.socket.send(JSON.stringify(message));
+            }
+
+            function closeHostSocket(conn) {
+                const socket = conn && conn.socket;
+                if (!socket) return Promise.resolve();
+                if (conn.socketClosePromise) return conn.socketClosePromise;
+                if (Socket.CLOSED !== undefined && socket.readyState === Socket.CLOSED) return Promise.resolve();
+                conn.socketClosePromise = new Promise(resolve => {
+                    let finished = false;
+                    const finish = () => {
+                        if (finished) return;
+                        finished = true;
+                        if (conn.socketCloseTimer) ownerWindow.clearTimeout(conn.socketCloseTimer);
+                        conn.socketCloseTimer = null;
+                        resolve();
+                    };
+                    try { socket.addEventListener('close', finish, { once: true }); } catch (_) {}
+                    if (socket.readyState === Socket.OPEN) {
+                        try { sendHostControl(conn, { type: 'disconnect' }); } catch (_) {}
+                    }
+                    try { socket.close(); } catch (_) { finish(); return; }
+                    const timer = ownerWindow.setTimeout(finish, 1500);
+                    if (finished) ownerWindow.clearTimeout(timer);
+                    else conn.socketCloseTimer = timer;
+                });
+                return conn.socketClosePromise;
+            }
+
+            function closePort(conn) {
+                if (!conn || !conn.port) return Promise.resolve();
+                if (conn.closePromise) return conn.closePromise;
+                conn.closePromise = (async () => {
+                    if (conn.breakTimer) ownerWindow.clearTimeout(conn.breakTimer);
+                    conn.breakTimer = null;
+                    if (conn.openPromise) { try { await conn.openPromise; } catch (_) {} }
+                    if (conn.opened) {
+                        const signals = { dataTerminalReady: false, break: false };
+                        if (conn.profile.options.flow_control !== 'hardware') signals.requestToSend = false;
+                        try { await queueBrowserControl(conn, signals, true); } catch (_) {}
+                    }
+                    if (conn.serialDisconnectListener) {
+                        try { conn.serialEventTarget && conn.serialEventTarget.removeEventListener('disconnect', conn.serialDisconnectListener); } catch (_) {}
+                        try { conn.port.removeEventListener('disconnect', conn.serialDisconnectListener); } catch (_) {}
+                        conn.serialDisconnectListener = null;
+                    }
+                    if (conn.reader) {
+                        try { await conn.reader.cancel(); } catch (_) {}
+                        try { conn.reader.releaseLock(); } catch (_) {}
+                        conn.reader = null;
+                    }
+                    if (conn.writer) {
+                        try { await conn.writer.abort(); } catch (_) {}
+                        try { conn.writer.releaseLock(); } catch (_) {}
+                        conn.writer = null;
+                    }
+                    try { await conn.port.close(); } catch (_) {}
+                })();
+                return conn.closePromise;
+            }
+
+            return { queueBrowserControl, sendHostControl, closeHostSocket, closePort };
+        }
+
+        return { create };
+    })();
+
+;
+/* ui/js/desktop/apps/quickconnect-serial.js */
+    // Quick Connect serial session controller: profiles, capture, terminal and
+    // browser/host connection lifecycle for one Quick Connect window. The profile
+    // model, markup and device I/O live in quickconnect-serial-{model,views,transport}.js.
+    window.QuickConnectSerial = (() => {
+        const { STORAGE_KEY, MAX_PROFILES, MAX_PROFILE_BYTES, parseHex, formatHex, parseProfiles, normalizeProfile, errorKey, readProfileDraft } = QuickConnectSerialModel;
+        const { shellMarkup, profileListMarkup, portOptionsMarkup, profileFormMarkup } = QuickConnectSerialViews;
+        const MAX_CAPTURE_BYTES = 10 * 1024 * 1024;
+        const MAX_CAPTURE_RECORDS = 10000;
+        const MAX_PENDING_RX_BYTES = 1024 * 1024;
+        const MAX_PENDING_TX_BYTES = 256 * 1024;
+        const MAX_SEND_BYTES = 64 * 1024;
+
         function create(options) {
             const opts = options || {};
             const list = opts.list || opts.sidebar;
@@ -14471,6 +14746,7 @@ function updateTaskbarSystemButtonsForMobile() {
             const confirmDialog = opts.confirmDialog || (async () => false);
             const onSessionStart = opts.onSessionStart || (() => null);
             const onSessionEnd = opts.onSessionEnd || (() => {});
+            const { queueBrowserControl, sendHostControl, closeHostSocket, closePort } = QuickConnectSerialTransport.create({ Socket, ownerWindow });
             let profiles = [];
             let selectedId = '';
             let loaded = false;
@@ -14536,27 +14812,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 if (port.busy && !(connection && connection.source === 'host' && connection.profileId === profile.id)) return tr('desktop.qc_serial_port_busy');
                 return '';
             }
-            function serialErrorText(code, fallback) {
-                const keys = {
-                    unauthorized: 'desktop.qc_serial_permission_disabled',
-                    serial_disabled: 'desktop.qc_serial_permission_disabled',
-                    serial_ports_unavailable: 'desktop.qc_serial_open_failed',
-                    invalid_open: 'desktop.qc_serial_open_failed',
-                    invalid_control: 'desktop.qc_serial_open_failed',
-                    invalid_options: 'desktop.qc_serial_open_failed',
-                    invalid_port: 'desktop.qc_serial_unavailable_port',
-                    port_not_found: 'desktop.qc_serial_unavailable_port',
-                    port_busy: 'desktop.qc_serial_port_busy',
-                    open_required: 'desktop.qc_serial_open_failed',
-                    serial_read_failed: 'desktop.qc_serial_connection_lost',
-                    serial_write_failed: 'desktop.qc_serial_connection_lost',
-                    serial_control_failed: 'desktop.qc_serial_open_failed',
-                    idle_timeout: 'desktop.qc_serial_disconnected',
-                    disconnected: 'desktop.qc_serial_connection_lost',
-                    open_failed: 'desktop.qc_serial_open_failed'
-                };
-                return tr(keys[code] || fallback || 'desktop.qc_serial_open_failed');
-            }
+            function serialErrorText(code, fallback) { return tr(errorKey(code, fallback)); }
             function setStatus(message, kind) {
                 const status = content && content.querySelector('[data-serial-status]');
                 if (!status) return;
@@ -14625,49 +14881,6 @@ function updateTaskbarSystemButtonsForMobile() {
                 conn.breakGeneration = (conn.breakGeneration || 0) + 1;
             }
 
-            function queueBrowserControl(conn, signals, force) {
-                conn.pendingControlCount = conn.pendingControlCount || 0;
-                if (!force && conn.pendingControlCount >= 8) return Promise.reject(new Error('control_queue_full'));
-                conn.pendingControlCount++;
-                const operation = (conn.controlChain || Promise.resolve()).catch(() => {}).then(() => {
-                    if (conn.closed && !force) return;
-                    return conn.port.setSignals(signals);
-                });
-                conn.controlChain = operation.finally(() => { conn.pendingControlCount = Math.max(0, conn.pendingControlCount - 1); });
-                return conn.controlChain;
-            }
-
-            function sendHostControl(conn, message) {
-                if (!conn.socket || conn.socket.readyState !== Socket.OPEN) throw new Error('serial_socket_unavailable');
-                conn.socket.send(JSON.stringify(message));
-            }
-
-            function closeHostSocket(conn) {
-                const socket = conn && conn.socket;
-                if (!socket) return Promise.resolve();
-                if (conn.socketClosePromise) return conn.socketClosePromise;
-                if (Socket.CLOSED !== undefined && socket.readyState === Socket.CLOSED) return Promise.resolve();
-                conn.socketClosePromise = new Promise(resolve => {
-                    let finished = false;
-                    const finish = () => {
-                        if (finished) return;
-                        finished = true;
-                        if (conn.socketCloseTimer) ownerWindow.clearTimeout(conn.socketCloseTimer);
-                        conn.socketCloseTimer = null;
-                        resolve();
-                    };
-                    try { socket.addEventListener('close', finish, { once: true }); } catch (_) {}
-                    if (socket.readyState === Socket.OPEN) {
-                        try { sendHostControl(conn, { type: 'disconnect' }); } catch (_) {}
-                    }
-                    try { socket.close(); } catch (_) { finish(); return; }
-                    const timer = ownerWindow.setTimeout(finish, 1500);
-                    if (finished) ownerWindow.clearTimeout(timer);
-                    else conn.socketCloseTimer = timer;
-                });
-                return conn.socketClosePromise;
-            }
-
             async function loadProfiles() {
                 const generation = ++loadGeneration;
                 loading = true;
@@ -14698,37 +14911,7 @@ function updateTaskbarSystemButtonsForMobile() {
                     mounted = true;
                     return true;
                 }
-                content.innerHTML = `<section class="vd-qc-serial" data-qc-serial-app>
-                    <header class="vd-qc-serial-header">
-                        <div class="vd-qc-serial-heading"><strong>${esc(tr('desktop.qc_serial_title'))}</strong><span data-serial-status data-state="ready">${esc(tr('desktop.qc_serial_idle'))}</span></div>
-                        <div class="vd-qc-serial-actions">
-                            <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-disconnect disabled>${iconMarkup('x', 'X', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_disconnect'))}</span></button>
-                        </div>
-                    </header>
-                    <div class="vd-qc-serial-layout">
-                        <section class="vd-qc-serial-config" data-serial-editor></section>
-                        <section class="vd-qc-serial-console" aria-label="${esc(tr('desktop.qc_serial_title'))}">
-                            <div class="vd-qc-serial-toolbar" role="group" aria-label="${esc(tr('desktop.qc_serial_settings'))}">
-                                <label>${esc(tr('desktop.qc_serial_receive'))}<select data-serial-rx-mode><option value="text">${esc(tr('desktop.qc_serial_receive_text'))}</option><option value="hex">${esc(tr('desktop.qc_serial_receive_hex'))}</option></select></label>
-                                <label class="vd-qc-serial-toggle"><input type="checkbox" data-serial-dtr><span>${esc(tr('desktop.qc_serial_dtr'))}</span></label>
-                                <label class="vd-qc-serial-toggle"><input type="checkbox" data-serial-rts><span>${esc(tr('desktop.qc_serial_rts'))}</span></label>
-                                <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-break disabled>${esc(tr('desktop.qc_serial_break'))}</button>
-                                <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-clear>${esc(tr('desktop.qc_serial_clear'))}</button>
-                                <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-export>${esc(tr('desktop.qc_serial_export'))}</button>
-                            </div>
-                            <div class="vd-qc-serial-terminal" data-serial-terminal></div>
-                            <div class="vd-qc-serial-capture-note" data-serial-capture-note hidden></div>
-                            <form class="vd-qc-serial-send" data-serial-form>
-                                <select data-serial-send-mode aria-label="${esc(tr('desktop.qc_serial_send'))}"><option value="text">${esc(tr('desktop.qc_serial_send_text'))}</option><option value="hex">${esc(tr('desktop.qc_serial_send_hex'))}</option></select>
-                                <input type="text" data-serial-input autocomplete="off" spellcheck="false" placeholder="${esc(tr('desktop.qc_serial_input_placeholder'))}" disabled>
-                                <select data-serial-line-ending aria-label="${esc(tr('desktop.qc_serial_line_ending'))}">
-                                    <option value="none">${esc(tr('desktop.qc_serial_no_ending'))}</option><option value="cr" selected>${esc(tr('desktop.qc_serial_carriage_return'))}</option><option value="lf">${esc(tr('desktop.qc_serial_line_feed'))}</option><option value="crlf">${esc(tr('desktop.qc_serial_crlf'))}</option>
-                                </select>
-                                <button class="vd-qc-btn vd-qc-btn-primary" type="submit" data-serial-send disabled>${iconMarkup('send', 'S', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_send'))}</span></button>
-                            </form>
-                        </section>
-                    </div>
-                </section>`;
+                content.innerHTML = shellMarkup(tr);
                 mounted = true;
                 wireShell();
                 ensureTerminal();
@@ -14834,22 +15017,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 if (!list) return;
                 const query = String(searchInput && searchInput.value || '').trim().toLowerCase();
                 const filtered = profiles.filter(profile => !query || `${profile.name} ${profile.source} ${profile.port}`.toLowerCase().includes(query));
-                list.innerHTML = `<div class="vd-qc-serial-list-head"><span>${esc(tr('desktop.qc_serial_select_profile'))}</span><button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-create ${readonly() ? 'disabled' : ''}>${iconMarkup('plus', '+', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_create_profile'))}</span></button></div>` +
-                    (loading ? `<div class="vd-empty">${esc(tr('desktop.loading'))}</div>` : !filtered.length ? `<div class="vd-empty">${esc(tr('desktop.qc_serial_no_profiles'))}</div>` : filtered.map(profile => {
-                        const detail = profile.source === 'host' ? profile.port : tr('desktop.qc_serial_browser');
-                        const canConnect = allowed(profile.source) && !readonly();
-                        const diagnostic = sourceDiagnostic(profile);
-                        return `<article class="vd-qc-serial-profile${profile.id === selectedId ? ' active' : ''}">
-                            <button class="vd-qc-serial-profile-select" type="button" data-serial-profile="${esc(profile.id)}" aria-pressed="${profile.id === selectedId ? 'true' : 'false'}">
-                                <strong>${esc(profile.name)}</strong><span><span class="vd-qc-badge vd-qc-serial-source" data-source="${esc(profile.source)}">${esc(profile.source === 'host' ? tr('desktop.qc_serial_host') : tr('desktop.qc_serial_browser'))}</span><span class="vd-qc-serial-profile-detail">${esc(detail || tr('desktop.qc_serial_choose_port'))}</span></span>
-                                ${diagnostic ? `<small class="vd-qc-serial-diagnostic" role="status">${esc(diagnostic)}</small>` : ''}
-                            </button>
-                            <div class="vd-qc-serial-profile-actions">
-                                <button class="vd-qc-btn vd-qc-btn-sm vd-qc-btn-primary" type="button" data-serial-connect="${esc(profile.id)}" ${canConnect ? '' : 'disabled'}>${esc(tr('desktop.qc_serial_connect'))}</button>
-                                <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-delete="${esc(profile.id)}" ${readonly() ? 'disabled' : ''} aria-label="${esc(tr('desktop.qc_serial_delete_profile'))}">${iconMarkup('trash', 'X', 'vd-qc-btn-icon', 13)}</button>
-                            </div>
-                        </article>`;
-                    }).join(''));
+                list.innerHTML = profileListMarkup({ profiles: filtered, selectedId, loading, readonly: readonly(), isConnectable: profile => allowed(profile.source) && !readonly(), diagnose: sourceDiagnostic, tr });
                 list.querySelector('[data-serial-create]')?.addEventListener('click', () => { selectedId = ''; renderEditor(); });
                 list.querySelectorAll('[data-serial-profile]').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.serialProfile; renderList(); renderEditor(); }));
                 list.querySelectorAll('[data-serial-connect]').forEach(button => button.addEventListener('click', () => { void connectProfile(button.dataset.serialConnect); }));
@@ -14861,35 +15029,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 const editor = content.querySelector('[data-serial-editor]');
                 if (!editor) return;
                 const current = profiles.find(profile => profile.id === selectedId);
-                const profile = current || { id: '', name: '', source: 'browser', port: '', options: { ...DEFAULT_OPTIONS } };
-                const source = profile.source;
-                const optsValue = normalizeOptions(profile.options, source);
-                const baudValue = BAUD_PRESETS.includes(optsValue.baud_rate) ? String(optsValue.baud_rate) : 'custom';
-                const hostOptions = renderPortOptions(profile.port);
-                editor.innerHTML = `<form class="vd-qc-serial-profile-form" data-serial-profile-form>
-                    <h3>${esc(current ? current.name : tr('desktop.qc_serial_create_profile'))}</h3>
-                    <label>${esc(tr('desktop.qc_serial_profile_name'))}<input name="name" type="text" maxlength="80" required value="${esc(profile.name)}" ${readonly() ? 'disabled' : ''}></label>
-                    <label>${esc(tr('desktop.qc_serial_source'))}<select name="source" ${readonly() ? 'disabled' : ''}><option value="browser" ${source === 'browser' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_browser'))}</option><option value="host" ${source === 'host' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_host'))}</option></select></label>
-                    <div data-serial-browser-fields ${source === 'browser' ? '' : 'hidden'}>
-                        <p class="vd-qc-serial-help">${esc(tr('desktop.qc_serial_choose_port'))}</p>
-                        <div class="vd-qc-serial-pair"><label>USB VID<input name="usb_vendor_id" type="text" inputmode="text" maxlength="6" placeholder="10C4" value="${profile.usb_vendor_id !== undefined ? profile.usb_vendor_id.toString(16).toUpperCase().padStart(4, '0') : ''}" ${readonly() ? 'disabled' : ''}></label><label>USB PID<input name="usb_product_id" type="text" inputmode="text" maxlength="6" placeholder="EA60" value="${profile.usb_product_id !== undefined ? profile.usb_product_id.toString(16).toUpperCase().padStart(4, '0') : ''}" ${readonly() ? 'disabled' : ''}></label></div>
-                    </div>
-                    <div data-serial-host-fields ${source === 'host' ? '' : 'hidden'}>
-                        <label>${esc(tr('desktop.qc_serial_port'))}<select name="port" ${readonly() ? 'disabled' : ''}>${hostOptions}</select></label>
-                        <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-refresh-ports ${readonly() ? 'disabled' : ''}>${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 12)}<span>${esc(tr('desktop.retry'))}</span></button>
-                    </div>
-                    <div class="vd-qc-serial-inline-status" data-serial-port-error role="status" ${portsError && source === 'host' ? '' : 'hidden'}>${portsError && source === 'host' ? esc(tr('desktop.load_failed')) : ''}</div>
-                    <details class="vd-qc-serial-options" open><summary>${esc(tr('desktop.qc_serial_settings'))}</summary>
-                        <div class="vd-qc-serial-pair"><label>${esc(tr('desktop.qc_serial_baud_rate'))}<select name="baud_preset">${BAUD_PRESETS.map(rate => `<option value="${rate}" ${baudValue === String(rate) ? 'selected' : ''}>${rate}</option>`).join('')}<option value="custom" ${baudValue === 'custom' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_custom'))}</option></select></label><label data-custom-baud ${baudValue === 'custom' ? '' : 'hidden'}>${esc(tr('desktop.qc_serial_custom'))}<input name="baud_custom" type="number" min="1" max="4000000" value="${optsValue.baud_rate}" ${readonly() ? 'disabled' : ''}></label></div>
-                        <div class="vd-qc-serial-pair"><label>${esc(tr('desktop.qc_serial_data_bits'))}<select name="data_bits"><option value="7" ${optsValue.data_bits === 7 ? 'selected' : ''}>7</option><option value="8" ${optsValue.data_bits === 8 ? 'selected' : ''}>8</option></select></label><label>${esc(tr('desktop.qc_serial_stop_bits'))}<select name="stop_bits"><option value="1" ${optsValue.stop_bits === 1 ? 'selected' : ''}>1</option><option value="2" ${optsValue.stop_bits === 2 ? 'selected' : ''}>2</option></select></label></div>
-                        <div class="vd-qc-serial-pair"><label>${esc(tr('desktop.qc_serial_parity'))}<select name="parity"><option value="none" ${optsValue.parity === 'none' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_none'))}</option><option value="even" ${optsValue.parity === 'even' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_even'))}</option><option value="odd" ${optsValue.parity === 'odd' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_odd'))}</option></select></label><label>${esc(tr('desktop.qc_serial_flow_control'))}<select name="flow_control"><option value="none">${esc(tr('desktop.qc_serial_none'))}</option><option value="hardware" ${optsValue.flow_control === 'hardware' ? 'selected' : ''} ${source === 'host' ? 'disabled' : ''}>${esc(tr('desktop.qc_serial_hardware'))}${source === 'host' ? ` — ${esc(tr('desktop.qc_serial_hardware_host_unsupported'))}` : ''}</option></select></label></div>
-                        <div class="vd-qc-serial-pair"><label class="vd-qc-serial-check"><input name="dtr" type="checkbox" ${optsValue.dtr ? 'checked' : ''} ${readonly() ? 'disabled' : ''}><span>${esc(tr('desktop.qc_serial_dtr'))}</span></label><label class="vd-qc-serial-check"><input name="rts" type="checkbox" ${optsValue.rts ? 'checked' : ''} ${readonly() || (source === 'browser' && optsValue.flow_control === 'hardware') ? 'disabled' : ''}><span>${esc(tr('desktop.qc_serial_rts'))}</span></label></div>
-                        <label class="vd-qc-serial-check"><input name="local_echo" type="checkbox" ${optsValue.local_echo ? 'checked' : ''}><span>${esc(tr('desktop.qc_serial_local_echo'))}</span></label>
-                        <label>${esc(tr('desktop.qc_serial_line_ending'))}<select name="line_ending"><option value="none" ${optsValue.line_ending === 'none' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_no_ending'))}</option><option value="cr" ${optsValue.line_ending === 'cr' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_carriage_return'))}</option><option value="lf" ${optsValue.line_ending === 'lf' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_line_feed'))}</option><option value="crlf" ${optsValue.line_ending === 'crlf' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_crlf'))}</option></select></label>
-                    </details>
-                    <div class="vd-qc-serial-form-actions"><button class="vd-qc-btn vd-qc-btn-primary" type="submit" data-serial-save ${readonly() ? 'disabled' : ''}>${iconMarkup('save', 'S', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_save_profile'))}</span></button></div>
-                    <div data-serial-form-status role="status" aria-live="polite"></div>
-                </form>`;
+                editor.innerHTML = profileFormMarkup({ current, readonly: readonly(), ports, portsError, tr });
                 const form = editor.querySelector('[data-serial-profile-form]');
                 form.addEventListener('submit', event => { event.preventDefault(); void saveProfile(form); });
                 form.querySelector('[name="source"]').addEventListener('change', event => {
@@ -14918,21 +15058,12 @@ function updateTaskbarSystemButtonsForMobile() {
                 if (connection) syncSignalControls();
             }
 
-            function renderPortOptions(selectedPort) {
-                const current = String(selectedPort || '');
-                let output = `<option value="">${esc(tr('desktop.qc_serial_choose_port'))}</option>`;
-                if (current && !ports.some(port => port.name === current)) output += `<option value="${esc(current)}" selected disabled>${esc(current)} — ${esc(tr('desktop.qc_serial_unavailable_port'))}</option>`;
-                if (portsError) return output;
-                if (!ports.length) output += `<option value="" disabled>${esc(tr('desktop.qc_serial_no_ports'))}</option>`;
-                return output + ports.map(port => `<option value="${esc(port.name)}" ${port.name === current ? 'selected' : ''} ${port.busy ? 'disabled' : ''}>${esc(port.name)}${port.busy ? ` — ${esc(tr('desktop.qc_serial_port_busy'))}` : ''}</option>`).join('');
-            }
-
             function updateHostPortControls() {
                 const form = content && content.querySelector('[data-serial-profile-form]');
                 if (!form || form.elements.source.value !== 'host') return;
                 const port = form.elements.port;
                 const selected = port.value || (profiles.find(item => item.id === selectedId) || {}).port || '';
-                port.innerHTML = renderPortOptions(selected);
+                port.innerHTML = portOptionsMarkup(selected, ports, portsError, tr);
                 if (selected) port.value = selected;
                 const error = form.querySelector('[data-serial-port-error]');
                 if (error) {
@@ -14995,46 +15126,12 @@ function updateTaskbarSystemButtonsForMobile() {
                 }
             }
 
-            function readDraft(form) {
-                const name = form.elements.name.value.trim();
-                const source = form.elements.source.value;
-                const baudRate = form.elements.baud_preset.value === 'custom' ? Number(form.elements.baud_custom.value) : Number(form.elements.baud_preset.value);
-                const usbVendor = parseHexID(form.elements.usb_vendor_id.value);
-                const usbProduct = parseHexID(form.elements.usb_product_id.value);
-                if (!name || Array.from(name).length > 80 || /[\u0000-\u001F\u007F-\u009F]/.test(name)) throw new Error(tr('desktop.qc_serial_profile_name'));
-                if (!['browser', 'host'].includes(source)) throw new Error(tr('desktop.qc_serial_source'));
-                if (source === 'host' && !form.elements.port.value) throw new Error(tr('desktop.qc_serial_choose_port'));
-                if (!Number.isInteger(baudRate) || baudRate < 1 || baudRate > 4000000) throw new Error(tr('desktop.qc_serial_baud_rate'));
-                if (usbVendor === null || usbProduct === null || (usbProduct !== undefined && usbVendor === undefined)) throw new Error(tr('desktop.qc_serial_usb_filter_invalid'));
-                const existing = profiles.find(item => item.id === selectedId);
-                const profile = {
-                    id: selectedId || (crypto.randomUUID ? crypto.randomUUID() : `serial-${Date.now()}-${Math.random().toString(16).slice(2)}`),
-                    name,
-                    source,
-                    port: source === 'host' ? form.elements.port.value : '',
-                    options: normalizeOptions({
-                        baud_rate: baudRate,
-                        data_bits: Number(form.elements.data_bits.value),
-                        stop_bits: Number(form.elements.stop_bits.value),
-                        parity: form.elements.parity.value,
-                        flow_control: form.elements.flow_control.value,
-                        local_echo: form.elements.local_echo.checked,
-                        line_ending: form.elements.line_ending.value,
-                        dtr: form.elements.dtr.checked,
-                        rts: form.elements.rts.checked
-                    }, source)
-                };
-                if (usbVendor !== undefined) profile.usb_vendor_id = usbVendor;
-                if (usbProduct !== undefined) profile.usb_product_id = usbProduct;
-                return profile;
-            }
-
             async function saveProfile(form) {
                 if (readonly()) return;
                 const status = form.querySelector('[data-serial-form-status]');
                 let profile;
                 try {
-                    profile = readDraft(form);
+                    profile = readProfileDraft(form, selectedId, tr);
                     if (!profiles.some(item => item.id === profile.id) && profiles.length >= MAX_PROFILES) throw new Error(tr('desktop.qc_serial_no_profiles'));
                     const next = profiles.filter(item => item.id !== profile.id).concat(profile);
                     const serialized = JSON.stringify({ version: 1, profiles: next });
@@ -15515,38 +15612,6 @@ function updateTaskbarSystemButtonsForMobile() {
                 })();
                 connectionStop = conn.stopPromise.catch(() => {});
                 return conn.stopPromise;
-            }
-
-            function closePort(conn) {
-                if (!conn || !conn.port) return Promise.resolve();
-                if (conn.closePromise) return conn.closePromise;
-                conn.closePromise = (async () => {
-                    if (conn.breakTimer) ownerWindow.clearTimeout(conn.breakTimer);
-                    conn.breakTimer = null;
-                    if (conn.openPromise) { try { await conn.openPromise; } catch (_) {} }
-                    if (conn.opened) {
-                        const signals = { dataTerminalReady: false, break: false };
-                        if (conn.profile.options.flow_control !== 'hardware') signals.requestToSend = false;
-                        try { await queueBrowserControl(conn, signals, true); } catch (_) {}
-                    }
-                    if (conn.serialDisconnectListener) {
-                        try { conn.serialEventTarget && conn.serialEventTarget.removeEventListener('disconnect', conn.serialDisconnectListener); } catch (_) {}
-                        try { conn.port.removeEventListener('disconnect', conn.serialDisconnectListener); } catch (_) {}
-                        conn.serialDisconnectListener = null;
-                    }
-                    if (conn.reader) {
-                        try { await conn.reader.cancel(); } catch (_) {}
-                        try { conn.reader.releaseLock(); } catch (_) {}
-                        conn.reader = null;
-                    }
-                    if (conn.writer) {
-                        try { await conn.writer.abort(); } catch (_) {}
-                        try { conn.writer.releaseLock(); } catch (_) {}
-                        conn.writer = null;
-                    }
-                    try { await conn.port.close(); } catch (_) {}
-                })();
-                return conn.closePromise;
             }
 
             function onPolicy(event) {

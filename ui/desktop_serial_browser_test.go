@@ -445,7 +445,7 @@ func TestQuickConnectSerialVisualBrowser(t *testing.T) {
 func newQuickConnectSerialPage(t *testing.T, browser *rod.Browser, theme string, width, height int) *rod.Page {
 	t.Helper()
 	css := readDesktopAssetText(t, "css/desktop-app-quick-connect.css")
-	module := readDesktopAssetText(t, "js/desktop/apps/quickconnect-serial.js")
+	module := readQuickConnectSerialSources(t)
 	page := browser.MustPage().Timeout(45 * time.Second)
 	page.MustSetViewport(width, height, 1, false)
 	page.MustSetDocumentContent(`<!doctype html><html><head><meta charset="utf-8"><style>` + css + `</style><style>
@@ -531,7 +531,7 @@ class ShellTerminal{constructor(){this.disposed=false;this.cols=80;this.rows=24;
 class ShellSocket extends EventTarget{static OPEN=1;constructor(url){super();this.url=url;this.readyState=0;this.closeCount=0;serialShell.sockets.push(this);}send(){}close(){if(this.readyState===3)return;this.readyState=3;this.closeCount++;this.onclose?.(new Event('close'));}}window.WebSocket=ShellSocket;
 window.RFB=class extends EventTarget{constructor(_el,url){super();this.url=url;this.disconnectCount=0;serialShell.rfbs.push(this);}disconnect(){this.disconnectCount++;this.dispatchEvent(new Event('disconnect'));}};
 </script></body></html>`)
-	module := readDesktopAssetText(t, "js/desktop/apps/quickconnect-serial.js")
+	module := readQuickConnectSerialSources(t)
 	if err := page.AddScriptTag("", normalizeAssetText([]byte(module))); err != nil {
 		t.Fatalf("load Quick Connect serial module: %v", err)
 	}

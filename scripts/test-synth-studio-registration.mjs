@@ -32,6 +32,7 @@ assert.deepEqual(Array.from(assets.scripts), [
     '/js/desktop/apps/synth-studio-presets.js',
     '/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js',
     '/js/desktop/apps/synth-studio-model.js',
+    '/js/desktop/apps/synth-studio-voices.js',
     '/js/desktop/apps/synth-studio-audio.js',
     '/js/desktop/apps/synth-studio-midi.js',
     '/js/desktop/apps/synth-studio-storage.js',

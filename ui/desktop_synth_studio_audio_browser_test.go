@@ -18,6 +18,7 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
 <button id="audio-gesture">Enable audio</button>
 <script src="/js/vendor/synth-studio/gm-data.js"></script>
 <script src="/js/desktop/apps/synth-studio-presets.js"></script>
+<script src="/js/desktop/apps/synth-studio-voices.js"></script>
 <script src="/js/desktop/apps/synth-studio-audio.js"></script>
 </body></html>`)
 	})
