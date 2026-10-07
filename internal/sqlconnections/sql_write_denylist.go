@@ -193,6 +193,64 @@ func tableDirectoryOption(psDQ string) bool {
 	return false
 }
 
+// sqlForeignTableFileOptions name the PostgreSQL file_fdw table options that
+// bind a foreign table to a server file (filename) or a server program
+// (program). Any other foreign-data wrapper option (postgres_fdw's
+// schema_name / table_name / column_name, file_fdw's format / header / …)
+// stays allowed.
+var sqlForeignTableFileOptions = map[string]bool{"FILENAME": true, "PROGRAM": true}
+
+// foreignTableFileOption returns the file_fdw filename / program option set by
+// a normalised CREATE / ALTER FOREIGN TABLE statement, or "" when it sets
+// none: the option is an identifier inside an OPTIONS (...) clause. An OPTIONS
+// word opens a clause only when '(' follows it (bar whitespace) and it is not
+// itself the table name, i.e. not reached from TABLE / EXISTS through
+// whitespace only (CREATE FOREIGN TABLE options (filename text) …). Clauses at
+// any depth count, so a column-level OPTIONS (…) is covered, while a filename
+// or program column in the column list, in a CHECK constraint or after ADD /
+// ALTER COLUMN is outside every clause and is not refused. Caller restricts
+// this to FOREIGN TABLE statements. Each byte is visited once.
+func foreignTableFileOption(ps string) string {
+	depth, optDepth := 0, -1
+	for i := 0; i < len(ps); {
+		c := ps[i]
+		switch {
+		case c == '(':
+			depth++
+			i++
+		case c == ')':
+			if depth > 0 {
+				depth--
+			}
+			if optDepth >= 0 && depth < optDepth {
+				optDepth = -1 // the OPTIONS (...) clause closed
+			}
+			i++
+		case isSQLIdentChar(rune(c)):
+			j := i
+			for j < len(ps) && isSQLIdentChar(rune(ps[j])) {
+				j++
+			}
+			word := strings.ToUpper(ps[i:j])
+			if optDepth >= 0 && sqlForeignTableFileOptions[word] {
+				return ps[i:j]
+			}
+			if optDepth < 0 && word == "OPTIONS" {
+				if k := skipSQLSpace(ps, j); k < len(ps) && ps[k] == '(' {
+					prev, sepStart := precedingIdentToken(ps, i)
+					if !(whitespaceOnly(ps[sepStart:i]) && (prev == "TABLE" || prev == "EXISTS")) {
+						optDepth = depth + 1
+					}
+				}
+			}
+			i = j
+		default:
+			i++
+		}
+	}
+	return ""
+}
+
 // sqlPrefixScanner walks the upper-cased write structure for the CREATE-prefix
 // parser. Unlike the identifier-only word list it still sees '=', '@', '(' and
 // quotes, which the DEFINER principal parse needs. Every step is O(token).
@@ -411,6 +469,18 @@ func validateWriteStructure(query, driver string) error {
 		}
 		if tableDirectoryOption(psDQ) {
 			return fmt.Errorf("file, loader or administrative SQL is not allowed: DATA/INDEX DIRECTORY")
+		}
+	}
+
+	// PostgreSQL file_fdw: a foreign table's filename / program option binds it
+	// to a server file or program, so it reads the host file system (or runs a
+	// program) through an administrator-created file_fdw server even though
+	// CREATE SERVER itself is refused. Position-matched inside an OPTIONS (...)
+	// clause of CREATE / ALTER FOREIGN TABLE, so postgres_fdw foreign tables and
+	// columns named filename / program keep working.
+	if len(words) >= 3 && (words[0] == "CREATE" || words[0] == "ALTER") && words[1] == "FOREIGN" && words[2] == "TABLE" {
+		if opt := foreignTableFileOption(ps); opt != "" {
+			return fmt.Errorf("file, loader or administrative SQL is not allowed: FOREIGN TABLE OPTIONS (%s)", opt)
 		}
 	}
 

