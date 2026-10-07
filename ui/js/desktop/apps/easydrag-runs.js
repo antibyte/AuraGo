@@ -20,17 +20,54 @@
         return ed.model.doc.nodes.filter(n => { const i = ed.model.info(n.type); return i && i.trigger && !n.settings.disabled; });
     }
 
-    // effects lists the outward effects of enabled nodes (for the real-effects warning).
-    function effects(ed, onlyNode) {
+    // effects lists the outward effects of the steps a test runs (for the real-effects warning).
+    // A test of the whole flow counts every enabled step. A step test (onlyNode) runs what the
+    // engine runs (internal/flows/engine_state.go, run, fireTrigger and collectReady): the step
+    // and its ancestors, and of those only the steps the test's trigger reaches. Other triggers
+    // are skipped, and a disabled step is skipped with what only it feeds. triggerId is the
+    // test's trigger; without one, every enabled trigger counts.
+    function effects(ed, onlyNode, triggerId) {
+        const doc = ed.model.doc;
         const out = new Map();
-        ed.model.doc.nodes.forEach(n => {
-            if (n.settings.disabled || (onlyNode && n.id !== onlyNode)) return;
+        const add = n => {
             const i = ed.model.info(n.type);
             (i && i.effects || []).forEach(effect => {
                 if (!out.has(effect)) out.set(effect, []);
                 out.get(effect).push(n.label || n.type);
             });
+        };
+        if (!onlyNode) {
+            doc.nodes.forEach(n => { if (!n.settings.disabled) add(n); });
+            return out;
+        }
+        const isTrigger = n => { const i = ed.model.info(n.type); return !!(i && i.trigger); };
+        // Wires to a missing step are ignored, as buildGraph does.
+        const incoming = new Map();
+        const outgoing = new Map();
+        doc.edges.forEach(e => {
+            if (!ed.model.node(e.source.node) || !ed.model.node(e.target.node)) return;
+            if (!incoming.has(e.target.node)) incoming.set(e.target.node, []);
+            if (!outgoing.has(e.source.node)) outgoing.set(e.source.node, []);
+            incoming.get(e.target.node).push(e.source.node);
+            outgoing.get(e.source.node).push(e.target.node);
         });
+        // The scope: onlyNode and every step with a path to it (graph.ancestors).
+        const scope = new Set([onlyNode]);
+        for (const stack = [onlyNode]; stack.length;) {
+            (incoming.get(stack.pop()) || []).forEach(id => { if (!scope.has(id)) { scope.add(id); stack.push(id); } });
+        }
+        // What runs: the steps of the scope that the trigger reaches through enabled steps.
+        const starts = (triggerId ? [ed.model.node(triggerId)] : triggers(ed)).filter(n => n && isTrigger(n) && !n.settings.disabled).map(n => n.id);
+        const runs = new Set();
+        for (const stack = starts.slice(); stack.length;) {
+            (outgoing.get(stack.pop()) || []).forEach(id => {
+                const n = ed.model.node(id);
+                if (runs.has(id) || !scope.has(id) || n.settings.disabled || isTrigger(n)) return;
+                runs.add(id);
+                stack.push(id);
+            });
+        }
+        doc.nodes.forEach(n => { if (runs.has(n.id)) add(n); });
         return out;
     }
 
@@ -258,8 +295,8 @@
 
         function effectsMarkup(list) {
             if (!list.size) return '';
-            return '<div class="ed-callout ed-callout--warn">' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.effects_title')) + '</strong><ul class="ed-effects">' +
-                Array.from(list.entries()).map(([effect, nodes]) => '<li>' + core.icon(EFFECT_ICONS[effect] || 'bolt') + '<span>' + esc(core.tr(t, 'easydrag.ui.effect_' + effect, effect)) + '</span><span class="ed-muted">' + esc(nodes.join(', ')) + '</span></li>').join('') +
+            return '<div class="ed-callout ed-callout--warn" data-ed-test-effects>' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.effects_title')) + '</strong><ul class="ed-effects">' +
+                Array.from(list.entries()).map(([effect, nodes]) => '<li data-ed-effect="' + esc(effect) + '">' + core.icon(EFFECT_ICONS[effect] || 'bolt') + '<span>' + esc(core.tr(t, 'easydrag.ui.effect_' + effect, effect)) + '</span><span class="ed-muted">' + esc(nodes.join(', ')) + '</span></li>').join('') +
                 '</ul><label class="ed-check"><input type="checkbox" data-ed-effects-skip> ' + esc(t('easydrag.ui.effects_remember')) + '</label></div></div>';
         }
 
@@ -293,9 +330,10 @@
             const remembered = core.storage.get('aurago.easydrag.test-trigger.' + ed.flow.id, '');
             let trigger = list.find(n => n.id === (o.triggerNode || remembered)) || list.find(n => n.type === 'trigger.manual') || list[0];
             const confirmed = confirmedEffects();
-            const fx = new Map(Array.from(effects(ed, o.onlyNode)).filter(([effect]) => !confirmed.has(effect)));
-            const needConfirm = fx.size > 0;
-            if (o.quick && !needConfirm) { await run(trigger.id, null, o.onlyNode, false); return undefined; }
+            // A step test runs what its trigger reaches: the effects follow the chosen trigger.
+            const pending = id => new Map(Array.from(effects(ed, o.onlyNode, id)).filter(([effect]) => !confirmed.has(effect)));
+            let fx = pending(trigger.id);
+            if (o.quick && !fx.size) { await run(trigger.id, null, o.onlyNode, false); return undefined; }
             let sample = {};
             try { sample = (await ed.api.testData(ed.flow.id, trigger.id)).data || {}; } catch (err) { sample = {}; }
             if (disposed) return undefined;
@@ -309,7 +347,7 @@
                     '<label class="ed-label">' + esc(t('easydrag.ui.test_data')) + '<textarea class="ed-input ed-code" rows="9" spellcheck="false" data-ed-test-data>' + esc(shown) + '</textarea></label>' +
                     '<p class="ed-hint">' + esc(t('easydrag.ui.test_data_hint')) + '</p><p class="ed-error" role="alert" hidden></p>' +
                     '<label class="ed-check"><input type="checkbox" data-ed-test-remember checked> ' + esc(t('easydrag.ui.test_remember')) + '</label>' +
-                    (needConfirm ? effectsMarkup(fx) : ''),
+                    effectsMarkup(fx),
                 actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'run', label: t('easydrag.ui.test_run'), primary: true, icon: 'play' }],
                 onAction: async (action, d) => {
                     if (action !== 'run') return true;
@@ -324,7 +362,7 @@
                     const sel = d.body.querySelector('[data-ed-test-trigger]');
                     if (sel) trigger = ed.model.node(sel.value) || trigger;
                     const skip = d.body.querySelector('[data-ed-effects-skip]');
-                    if (needConfirm) confirmEffects(Array.from(fx.keys()), !!(skip && skip.checked));
+                    if (fx.size) confirmEffects(Array.from(fx.keys()), !!(skip && skip.checked));
                     core.storage.set('aurago.easydrag.test-trigger.' + ed.flow.id, trigger.id);
                     // Edited data that still holds a placeholder runs, but is not remembered: it
                     // would replace the stored secret values with "[redacted]".
@@ -336,10 +374,22 @@
                     });
                 }
             });
-            // Another trigger shows its own sample, unless the text was edited.
+            // Another trigger shows its own sample, unless the text was edited. For a step test it
+            // also shows the effects of what that trigger reaches.
             const select = dialog.body.querySelector('[data-ed-test-trigger]');
             if (select) {
                 select.addEventListener('change', async () => {
+                    if (o.onlyNode) {
+                        const old = dialog.body.querySelector('[data-ed-test-effects]');
+                        const skip = old && old.querySelector('[data-ed-effects-skip]');
+                        const remember = !!(skip && skip.checked);
+                        if (old) old.remove();
+                        fx = pending(select.value);
+                        if (fx.size) {
+                            const box = dialog.body.appendChild(core.el(effectsMarkup(fx)));
+                            box.querySelector('[data-ed-effects-skip]').checked = remember;
+                        }
+                    }
                     const area = dialog.body.querySelector('[data-ed-test-data]');
                     const id = select.value;
                     if (area.value !== shown) return;

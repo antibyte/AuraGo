@@ -106,6 +106,14 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	page.Keyboard.MustType(input.Escape)
 	s.wait(`()=>!document.querySelector('.ed-detail-backdrop')`)
 
+	// A step test runs the steps before it too: testing the Telegram step also asks about the
+	// files of the PDF step in front of it. Nothing is confirmed while the dialog is cancelled.
+	page.MustEval(`()=>{const ed=edFixture.editor();ed.bus.emit('node-test',{nodeId:ed.model.doc.nodes.find(n=>n.type==='notify.telegram').id})}`)
+	s.wait(`()=>[...document.querySelectorAll('.ed-modal [data-ed-test-effects] [data-ed-effect]')].map(li=>li.dataset.edEffect).sort().join()==='sends_message,writes_files'`)
+	s.shot("test-step-dialog")
+	page.MustElement(`.ed-modal [data-ed-action="cancel"]`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-modal-backdrop') && edFixture.editor().effectsConfirmed.size===0`)
+
 	// Test run: the dialog warns about real effects, and running confirms each of them; the
 	// stream animates every step. The stream is dropped once on the way (resync), and the editor
 	// reconnects after the last event it applied.
