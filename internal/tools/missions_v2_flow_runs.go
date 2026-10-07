@@ -355,7 +355,7 @@ func (m *MissionManagerV2) updateFlowMissionLocked(mission, updated *MissionV2) 
 	if enabledChanged {
 		regErr = m.syncFlowTriggersLocked(mission)
 	} else {
-		regErr = m.ensureFlowTriggersLocked(mission)
+		regErr = m.ensureFlowTriggersLocked(mission, false)
 	}
 	saveErr := m.save()
 	if enabledChanged && m.flowHooks != nil {

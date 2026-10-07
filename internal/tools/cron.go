@@ -564,6 +564,53 @@ func (m *CronManager) AddRuntimeJob(id, expr, prompt, source string) (string, er
 	return fmt.Sprintf(`{"status": "success", "message": "%s", "id": "%s"}`, i18n.T("", "tools.cron_scheduled"), id), nil
 }
 
+// RestoreRuntimeJob registers a runtime-only job (see AddRuntimeJob) the way Start registers
+// a job it loads from the store: without the scheduler mutation permission, because the
+// owner only sets up again what it published earlier (a read-only scheduler forbids
+// changes, not running the existing schedule). While the scheduler is off
+// (schedulerRuntimeEnabled) the job is kept with schedulerDisabledByConfiguration and no
+// engine entry, and RefreshRuntimePermissions registers it once the scheduler is enabled.
+// A job the engine refuses stays listed with its error, which is also returned. A
+// persisted job under the same id is replaced and leaves the store. id, expr and prompt
+// are required.
+func (m *CronManager) RestoreRuntimeJob(id, expr, prompt, source string) error {
+	if id == "" || expr == "" || prompt == "" {
+		return errors.New(i18n.T("", "tools.cron_add_required"))
+	}
+	if _, err := newCronParser().Parse(expr); err != nil {
+		return errors.New(i18n.T("", "tools.cron_invalid_expr", err))
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	wasPersisted := false
+	for _, job := range m.jobs {
+		if job.ID == id && !m.runtimeJobs[id] {
+			wasPersisted = true
+		}
+	}
+	m.removeJobLocked(id)
+	job := CronJob{ID: id, CronExpr: expr, TaskPrompt: prompt, Source: source}
+	if m.runtimeJobs == nil {
+		m.runtimeJobs = make(map[string]bool)
+	}
+	m.runtimeJobs[id] = true
+	m.jobs = append(m.jobs, job)
+	var scheduleErr error
+	if !schedulerRuntimeEnabled() {
+		m.registrationErrors[id] = schedulerDisabledByConfiguration
+	} else if err := m.scheduleInternal(job); err != nil {
+		m.registrationErrors[id] = err.Error()
+		scheduleErr = fmt.Errorf("register cron job %q (%s): %w", id, expr, err)
+	}
+	if wasPersisted {
+		if err := m.saveLocked(); err != nil {
+			return errors.Join(scheduleErr, err)
+		}
+	}
+	return scheduleErr
+}
+
 // MakeRuntimeOnly turns every job of source into a runtime-only job (see AddRuntimeJob)
 // and rewrites the persisted job list without them. The jobs keep their schedule and
 // keep running; only their storage changes, so it needs no scheduler permission. It

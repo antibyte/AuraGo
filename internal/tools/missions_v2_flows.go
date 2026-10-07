@@ -30,6 +30,9 @@ const flowCronSeparator = "__"
 // registers for it runs them; the cron manager never hands them to its agent fallback.
 const flowCronSource = "flow"
 
+// flowCronPrompt is the task prompt of flow schedule jobs (the runner ignores it).
+const flowCronPrompt = "EasyDrag flow trigger"
+
 // flowNodeIDPattern mirrors flows.ValidNodeID (internal/flows/model.go): "n_" and eight
 // base32 characters. It keeps "__" and other separators out of cron job ids and slots.
 var flowNodeIDPattern = regexp.MustCompile(`^n_[a-z2-7]{8}$`)
@@ -260,13 +263,20 @@ func validateFlowTriggerSpecs(specs []FlowTriggerSpec) error {
 // keeps none. Caller holds m.mu.
 func (m *MissionManagerV2) syncFlowTriggersLocked(mission *MissionV2) error {
 	m.unregisterFlowTriggersLocked(mission)
-	return m.ensureFlowTriggersLocked(mission)
+	return m.ensureFlowTriggersLocked(mission, false)
 }
 
 // ensureFlowTriggersLocked registers the triggers of an enabled flow mission that are not
 // registered yet. Current cron jobs and keyed MQTT registrations stay untouched, so the
 // manager setters neither rewrite cron jobs nor reset MQTT rate limits. Caller holds m.mu.
-func (m *MissionManagerV2) ensureFlowTriggersLocked(mission *MissionV2) error {
+//
+// restore is true where the triggers of an already published flow are set up again (Start
+// and the manager setters through setupTriggersLocked, a failed delete): a schedule is then
+// restored like a persisted job that the cron manager loads, without the scheduler
+// mutation permission (CronManager.RestoreRuntimeJob). Publishing and switching a flow on
+// (restore false) add the schedule with that permission (AddRuntimeJob), as the persisted
+// add did before flow schedules became runtime-only.
+func (m *MissionManagerV2) ensureFlowTriggersLocked(mission *MissionV2, restore bool) error {
 	if !mission.Enabled {
 		return nil
 	}
@@ -275,7 +285,7 @@ func (m *MissionManagerV2) ensureFlowTriggersLocked(mission *MissionV2) error {
 		switch spec.TriggerType {
 		case FlowTriggerSchedule:
 			if !m.flowCronJobCurrentLocked(mission.ID, spec) {
-				errs = append(errs, m.addFlowCronLocked(mission.ID, spec))
+				errs = append(errs, m.addFlowCronLocked(mission.ID, spec, restore))
 			}
 		case TriggerWebhook:
 			m.registerFlowWebhookLocked(mission.ID, spec)
@@ -415,7 +425,9 @@ func (m *MissionManagerV2) unregisterFlowTriggersLocked(mission *MissionV2) {
 	}
 }
 
-func (m *MissionManagerV2) addFlowCronLocked(missionID string, spec FlowTriggerSpec) error {
+// addFlowCronLocked registers the schedule of spec as a runtime-only cron job; restore picks
+// the path (see ensureFlowTriggersLocked).
+func (m *MissionManagerV2) addFlowCronLocked(missionID string, spec FlowTriggerSpec, restore bool) error {
 	if strings.TrimSpace(spec.Schedule) == "" {
 		return nil
 	}
@@ -433,7 +445,13 @@ func (m *MissionManagerV2) addFlowCronLocked(missionID string, spec FlowTriggerS
 	// A runtime-only job: the crontab store never holds it, so an older AuraGo (which hands
 	// every job it loads to its agent) never runs it; Start registers it again from
 	// FlowTriggers (setupTriggersLocked).
-	out, err := m.cron.AddRuntimeJob(jobID, spec.Schedule, "EasyDrag flow trigger", flowCronSource)
+	if restore {
+		if err := m.cron.RestoreRuntimeJob(jobID, spec.Schedule, flowCronPrompt, flowCronSource); err != nil {
+			return fmt.Errorf("restore flow schedule %s: %w", spec.NodeID, err)
+		}
+		return nil
+	}
+	out, err := m.cron.AddRuntimeJob(jobID, spec.Schedule, flowCronPrompt, flowCronSource)
 	if err != nil {
 		return fmt.Errorf("register flow schedule %s: %w", spec.NodeID, err)
 	}

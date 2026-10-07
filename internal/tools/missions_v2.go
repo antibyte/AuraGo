@@ -574,7 +574,7 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 func (m *MissionManagerV2) setupTriggersLocked() {
 	for _, mission := range m.missions {
 		if isFlowMission(mission) {
-			if err := m.ensureFlowTriggersLocked(mission); err != nil {
+			if err := m.ensureFlowTriggersLocked(mission, true); err != nil {
 				slog.Warn("[MissionV2] Failed to register flow triggers", "mission_id", mission.ID, "error", err)
 			}
 			continue
@@ -2177,7 +2177,7 @@ func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOption
 			if flowRuns > 0 {
 				m.flowActive[id] = flowRuns
 			}
-			if regErr := m.ensureFlowTriggersLocked(mission); regErr != nil {
+			if regErr := m.ensureFlowTriggersLocked(mission, true); regErr != nil {
 				slog.Warn("[MissionV2] Failed to restore flow triggers after a failed delete", "mission_id", id, "error", regErr)
 			}
 		}
