@@ -7,8 +7,8 @@ OpenPets-compatible sprite artwork shipped in AuraGo's external resource set.
 ## Ownership
 
 - `service_pets.go:bundledDefaultPets` owns the selectable catalog.
-- Six original OpenPets sheets and eighteen `aurago-*` sheets (twelve personas
-  and six mascots) live here.
+- Six original OpenPets sheets and twenty-one `aurago-*` sheets (twelve personas
+  and nine mascots) live here.
 - Pet generation sources, prompts, export script and importable packages
   live in the sibling `personas/openpets/` project, outside runtime resources.
 
@@ -20,6 +20,8 @@ OpenPets-compatible sprite artwork shipped in AuraGo's external resource set.
 - Preserve existing IDs, selected pets and user-installed files. Add reviewed
   pets through the current catalog and missing-pet repair path.
 - The vampire (`aurago-evil`) has two tentacle arms and ordinary legs.
+- Pavlo's tail animation uses jumping row 4 (zero-based): closed, half-open,
+  open, half-open, closed. The existing idle ambient loop selects jumping.
 - Keep source images and intermediate exports outside the production directory.
   `assets/web-assets.json` already packages `.webp` files from this subtree;
   never add Go embeds or a production source-directory fallback.

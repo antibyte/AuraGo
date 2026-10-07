@@ -23,10 +23,12 @@ IDs.
 
 ## AuraGo pets
 
-The twelve original `aurago-*` personas are joined by six Imagegen-generated
-mascots: Glibbi the slime, Webbi the spider, Zorbit the alien, fan depictions of
-Purple Tentacle and Indiana Jones, and Hana, an original manga-style character.
-They are selectable through the same catalog and missing-pet installation path.
+The twelve original `aurago-*` personas are joined by nine Imagegen-generated
+mascot sheets: Glibbi the slime, Webbi the spider, Zorbit the alien, fan
+depictions of Purple Tentacle and Indiana Jones, Hana, an original
+manga-style character, Zombert the zombie, Pippin the chick, and Pavlo the
+peacock. They are selectable through the same catalog and missing-pet
+installation path.
 Each sheet is lossless WebP with alpha: 1536x1872, 8x9 cells of 192x208 pixels.
 The vampire has two tentacle arms.
 
