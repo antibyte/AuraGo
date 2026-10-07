@@ -15,8 +15,10 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 ## The editor
 
-- The header shows the flow's name and state (*Draft*, *Published*, *Unpublished changes*, *Inactive*) and holds **Runs**, **Test**, **Publish**, the **Active** switch and the **⋯** menu: *Run now*, *Flow settings*, *Duplicate*, *Export*, *Show in Mission Control* and *Delete*. The footer shows the last run, problems and hints, and the save state.
-- A flow opens at a readable size: a small flow is shown whole, a larger one starts at its trigger at 80 %. In windows wider than 560 px, EasyDrag remembers on this device where you left each flow. **Show everything** (Shift+1) fits the whole flow; when that zooms out far, the cards show only their names, in larger type.
+- The header shows the flow's name and state, in the same words as Mission Control and the missions page: *Not published yet* (never published), *Published* or *Unpublished changes*, and *Paused* next to it while a published flow is switched off. It holds **Runs**, **Test**, **Publish**, the **Active** switch and the **⋯** menu: *Run now*, *Flow settings*, *Duplicate*, *Export*, *Show in Mission Control* and *Delete*. The footer shows the last run, problems and hints, and the save state. "Draft" always means the version you edit, as opposed to the published one.
+- The start page lists your flows with the same states and filters them by *All*, *Active*, *Paused* (published and switched off) and *With errors*.
+- The editor follows changes made elsewhere (another window, Mission Control, the missions page or the agent): when the flow is paused or switched on there, the state, the **Active** switch and *Run now* follow; when it is deleted there, EasyDrag says so and shows the start page.
+- A flow opens at a readable size: a small flow is shown whole, a larger one starts at its trigger at 80 %. In windows wider than 560 px, EasyDrag remembers on this device where you left each flow. Moving around the canvas and zooming are no changes to the flow: they are neither saved to it nor counted as *Unpublished changes*. **Show everything** (Shift+1) fits the whole flow; when that zooms out far, the cards show only their names, in larger type.
 - In narrow windows and on phones the building blocks panel starts closed. Opened, it floats over the canvas and closes once you add a step or tap the canvas. The detail view of a step then uses tabs.
 - *Flow settings* hold the name, the description, what happens when a trigger fires during a run (*Queue*, *Run in parallel* or *Skip*), the maximum run time and where failed runs are reported.
 - When the desktop is read-only, EasyDrag opens flows read-only.
@@ -29,7 +31,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
   - *Not saved* with **Try again**: AuraGo refused the change, for example because the flow is too large or you may not change flows. The tooltip names the reason.
   - *Not saved – fix the errors*: the draft has errors that block saving. The next change is sent again.
   - *Conflict*: the flow was changed somewhere else. EasyDrag asks whether to keep your version or load the other one.
-- Until AuraGo has your changes, a copy stays in this browser for up to 30 days. When you open the flow again, EasyDrag offers to restore it, unless the flow was changed elsewhere in the meantime.
+- Until AuraGo has your changes, a copy stays in this browser for up to 30 days. When you open the flow again, EasyDrag offers to restore it, unless the flow was changed elsewhere in the meantime. Deleting a flow, here or elsewhere, removes this copy and everything else this browser remembers for the flow (where you left it, confirmed test effects, the last test trigger).
 - **Ctrl+S** saves at once. Inside the editor it never opens the browser's "Save page"; in a run view and while a dialog is open it does not save, and automatic saving goes on.
 
 ## Testing
@@ -53,7 +55,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 - **Runs** lists the latest 50 runs, filtered by *All*, *Errors*, *Tests* or *Live*. Clicking one opens the run view: the flow version of that run with every input and output, read-only. A banner names the run; **Back to draft** or **Esc** returns. The building blocks panel stays hidden in the run view, and a failed run opens centred on the failed step.
 - A run that has not ended yet (*Queued*, which includes waiting for a free slot, or *Running*) shows **Stop** in the list and in the banner of its run view, also when a trigger or another window started it. Stopping any run but a test asks first; steps that already ran are not undone. A read-only desktop offers no Stop.
-- **Run now** (⋯ menu, or a card's menu on the start page) starts the published version. The flow must be **Active**: a paused flow is refused until you switch it on, as Mission Control refuses to run a paused mission. **Test** works either way.
+- **Run now** (⋯ menu, the *Flow* menu, or a card's menu on the start page) starts the published version. The flow must be **Active**: while it is paused, *Run now* is turned off and its tooltip says to switch the flow on first, as Mission Control refuses to run a paused mission. **Test** works either way.
 - A failed live run notifies as the flow settings say: on the desktop (the default), as a push notification, on Telegram or not at all. A flow notifies once when it starts failing, then at most once an hour while it keeps failing. Clicking the desktop notification opens EasyDrag on that run.
 - After a desktop reload, an open flow is opened again.
 
@@ -93,7 +95,7 @@ EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, s
 
 ## Keyboard shortcuts
 
-Ctrl+S, Ctrl+Enter and Ctrl+K work anywhere in the editor, but not while a dialog or a context menu is open; the other keys act on the canvas. On macOS, Ctrl is ⌘.
+Ctrl+S, Ctrl+Enter and Ctrl+K work anywhere in the editor, but not while a dialog or a context menu is open; the other keys act on the canvas. On macOS, Ctrl is ⌘. The canvas is one stop for **Tab** from outside; a step's tool buttons join the tab order while it is selected, and screen readers also find a list of the steps.
 
 | Key | Action |
 |---|---|

@@ -555,13 +555,23 @@
         return cache.names;
     }
 
+    // holds keeps the timers of each dialog's hold, so a newer hold and the dialog's close end them.
+    const holds = new WeakMap();
+
     // holdAction keeps a dialog button disabled for seconds (a 429 with Retry-After). The dialog
-    // enables its buttons once the action returns, so the hold starts after that.
+    // enables its buttons once the action returns, so the hold starts after that. Its timers (up
+    // to an hour) end when the dialog closes, and a newer hold replaces an older one.
     function holdAction(dialog, id, seconds) {
         const button = dialog.el.querySelector('[data-ed-action="' + id + '"]');
         if (!button || !(seconds > 0)) return;
-        setTimeout(() => { button.disabled = true; }, 0);
-        setTimeout(() => { button.disabled = false; }, Math.min(seconds, 3600) * 1000);
+        const release = () => { const ids = holds.get(dialog); if (ids) ids.forEach(clearTimeout); holds.delete(dialog); };
+        if (!holds.has(dialog) && dialog.done && typeof dialog.done.then === 'function') dialog.done.then(release);
+        const before = holds.get(dialog);
+        if (before) before.forEach(clearTimeout);
+        holds.set(dialog, [
+            setTimeout(() => { button.disabled = true; }, 0),
+            setTimeout(() => { button.disabled = false; holds.delete(dialog); }, Math.min(seconds, 3600) * 1000)
+        ]);
     }
 
     // namesText lists names in the page's language: up to three as a list with "and" (Intl.ListFormat),

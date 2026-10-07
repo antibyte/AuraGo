@@ -5,6 +5,8 @@
 
     const ED = window.EasyDrag = window.EasyDrag || {};
     const PAGE = 100;
+    // endMapping ends the tree drag in progress (any tree's: there is one drag at a time).
+    let endMapping = null;
 
     function typeOf(value) {
         if (value === null || value === undefined) return 'null';
@@ -169,12 +171,22 @@
             event.dataTransfer.setData('application/x-easydrag-ref', row.dataset.ref);
             event.dataTransfer.setData('text/plain', '{{' + row.dataset.ref + '}}');
             event.dataTransfer.effectAllowed = 'copy';
+            // A drag whose end never came (its row was redrawn, so its dragend did not reach the
+            // page) is ended first: its listeners do not pile up.
+            if (endMapping) endMapping();
             const root = env.ed.root;
             root.classList.add('is-mapping');
-            // One dragend on the document ends the mapping look; the forms drop handler clears
-            // it too, for a row redrawn during the drag (its dragend never reaches the page).
-            const clear = () => { root.classList.remove('is-mapping'); document.removeEventListener('dragend', clear, true); };
+            // A dragend or a drop on the document ends the mapping look and removes both
+            // listeners; a drop arrives even when the dragged row was redrawn meanwhile.
+            const clear = () => {
+                root.classList.remove('is-mapping');
+                document.removeEventListener('dragend', clear, true);
+                document.removeEventListener('drop', clear, true);
+                if (endMapping === clear) endMapping = null;
+            };
+            endMapping = clear;
             document.addEventListener('dragend', clear, true);
+            document.addEventListener('drop', clear, true);
         });
         select.addEventListener('change', () => { env.sourceId = select.value; if (env.onSource) env.onSource(select.value); render(); });
 

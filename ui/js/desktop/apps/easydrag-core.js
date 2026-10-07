@@ -254,6 +254,14 @@
         remove(key) { try { localStorage.removeItem(key); } catch (err) { /* storage may be blocked */ } }
     };
 
+    // FLOW_KEYS are the localStorage prefixes of what this browser keeps per flow: the emergency
+    // copy (saver), the stored view (editor), the confirmed test effects and the last test
+    // trigger (runs).
+    const FLOW_KEYS = ['aurago.easydrag.draft.', 'aurago.easydrag.view.', 'aurago.easydrag.effects-ok.', 'aurago.easydrag.test-trigger.'];
+
+    // forgetFlow drops all of it for a flow that was deleted (here or elsewhere).
+    function forgetFlow(flowId) { FLOW_KEYS.forEach(prefix => storage.remove(prefix + flowId)); }
+
     // pathSegment encodes one URL path segment. "", "." and ".." would leave the route after URL
     // normalisation, so they throw a FLOW_BAD_REQUEST error instead.
     function pathSegment(value) {
@@ -460,6 +468,6 @@
 
     ED.core = {
         ICONS, icon, esc, tr, clamp, debounce, announcer, frame, emitter, bag, el, isEditable, isMod, shortcut, IS_MAC,
-        randomID, lang, fmt, storage, createApi, errorCode, errorText, issueText, stepErrorText, modal, capturePointer, catOf, openFlowSettings
+        randomID, lang, fmt, storage, FLOW_KEYS, forgetFlow, createApi, errorCode, errorText, issueText, stepErrorText, modal, capturePointer, catOf, openFlowSettings
     };
 })();

@@ -162,8 +162,23 @@
   `flowId`/`flow_id` and `runId`/`run_id`, and `{section: 'home'}` (Mission Control's New flow)
   shows the start page once the editor's `leave()` allowed it.
 - Pure modules (template, model, geometry, start-page preview, shortcut table) run in Node; the
-  template filters mirror `internal/flows`. Every model command is one undo step; viewport
-  changes never save on their own.
+  template filters mirror `internal/flows`. Every model command is one undo step. Pans and zooms
+  change only `ed.view`, stored per flow on the device (`aurago.easydrag.view.<id>`): the model
+  has no viewport command, so they never bump `model.version`, save, or count as unpublished
+  changes; a document's own `viewport` (old drafts, imports) is kept as it came and not read.
+- State words match Mission Control and the missions page: `state_draft` reads "Not published yet"
+  (never published), `state_inactive` and `home_filter_inactive` read "Paused" (published,
+  switched off; the filter lists only those). "Draft" is the editable version. The MC hint
+  `desktop.mc_flow_cancel_in_easydrag` uses EasyDrag's Stop.
+- The editor follows `flows_changed` for its flow (`flow_id`): `enabled`/`published` re-read the
+  record (`refreshRecord`: chip, Active switch, Run now), `deleted` goes home with a notice
+  (`goneElsewhere`). An event without an id and reason `deleted` or `enabled` is "maybe mine": the
+  record is read again and `FLOW_NOT_FOUND` means deleted. Every delete (editor, start-page card,
+  elsewhere, a broadcast on the start page) calls `core.forgetFlow(id)`, which drops the four
+  per-flow keys (`core.FLOW_KEYS`: emergency copy, view, effects-ok, test-trigger).
+- Run now is off while a published flow is paused (`runNowState`), in the ⋯ menu, the Flow menu
+  and a card's menu, with `disabledHint` (`error_flow_disabled`), a menu-item field the desktop
+  draws as the disabled item's tooltip; a stale click gets the server's 409 `FLOW_DISABLED`.
 - DOM modules get the editor state `ed` and talk over `ed.bus`, never through other modules'
   DOM. Focus moves synchronously when a popover or dialog opens; `.ed-app [hidden]` forces
   `display: none`. `ED.canvas.portLabel(t, node, port)` is the one port label.
@@ -195,7 +210,16 @@
   with `used_by`.
 - Saver: 1 s after the last change; network errors, 5xx, 429 and `FLOWS_DISABLED` go `offline`
   (retry 5 s, doubling to 60 s), `PERMANENT_CODES` and a 4xx without a code go `failed` (a retry
-  button), `FLOW_INVALID` waits for the next change.
+  button), `FLOW_INVALID` waits for the next change. The emergency copy is written at most once
+  per 500 ms while changes keep coming (a drag); a held-back change is written by a later change,
+  `saver.flushCopy()` on the interact bus event `gesture-end`, the next save, `flush()` and
+  `dispose()`, never once the draft is saved. Model change sets look ids up in Maps (a 200-step
+  drag is guarded in `test-easydrag-extra5.mjs`).
+- Run view: `ed.model` is the stored run's document there, `ed.draftModel` always the draft. The
+  hints (`publish.refreshIssues`) validate the draft, wait while the run view shows and run again
+  on exit; a live run that starts meanwhile is parked (`runs.attach`) and followed on exit.
+- Dialog holds (`holdAction`, a 429's Retry-After) end when the dialog closes; a tree drag's
+  document listeners (`dragend`, `drop`) end with the drag or with the next one.
 - Window menus pass canonical keys ("Ctrl+S"); the shell dispatches a `shortcut` item before the
   editor sees the key, a `shortcutHint` ("?") is only drawn. Mod+S is always prevented in the
   editor and saves only when no EasyDrag dialog is open.
@@ -207,7 +231,7 @@
 - Other surfaces: Mission Control (`MissionControlTriggers.isFlow`/`isUnpublishedFlow`/
   `upcomingRun`), `ui/js/missions/main.js`, `ui/cfg/flows.js` and the dashboard's cron list
   (`managed_by: easydrag`). User docs: manual chapter 24.
-- Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra4.mjs`),
+- Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra5.mjs`),
   `npm run test:mission-control`, `npm run test:dashboard-cron`, `npm run test:missions-page`,
   `go test ./ui -run 'EasyDrag|MissionControlShowsFlow|StandaloneMissionsPage'` and the opt-in
   `TestDesktopEasyDragBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`, screenshots in

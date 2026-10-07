@@ -316,15 +316,15 @@
         }
 
         // forget stops saving a flow that is gone (a save would only answer FLOW_NOT_FOUND) and drops
-        // what this browser kept for it: the emergency copy and the stored view. Edits made after
-        // the delete do not pile up under a dead id.
+        // what this browser kept for it (core.forgetFlow): the emergency copy, the stored view, the
+        // confirmed test effects and the last test trigger. Edits made after the delete do not
+        // pile up under a dead id.
         function forget(id) {
             contentDirty = false;
             ed.saver.dispose();
-            ED.saver.dropEmergencyCopy(id);
             storeView.cancel();
             pendingView = null;
-            core.storage.remove(VIEW_KEY + id);
+            core.forgetFlow(id);
         }
 
         // goHome and duplicateFlow stop when the editor was disposed while leave() waited (the

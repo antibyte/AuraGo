@@ -15,8 +15,10 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 
 ## Der Editor
 
-- Der Kopf zeigt Name und Stand des Flows (*Entwurf*, *Veröffentlicht*, *Unveröffentlichte Änderungen*, *Inaktiv*) und enthält **Läufe**, **Testen**, **Veröffentlichen**, den Schalter **Aktiv** und das Menü **⋯**: *Jetzt ausführen*, *Flow-Einstellungen*, *Duplizieren*, *Exportieren*, *In Mission Control zeigen* und *Löschen*. Die Fußzeile zeigt den letzten Lauf, Probleme und Hinweise sowie den Speicherstand.
-- Ein Flow öffnet sich in lesbarer Größe: Ein kleiner Flow erscheint ganz, ein größerer beginnt bei seinem Auslöser mit 80 %. In Fenstern, die breiter als 560 px sind, merkt sich EasyDrag auf diesem Gerät, wo du jeden Flow verlassen hast. **Alles zeigen** (Umschalt+1) zeigt den ganzen Flow; zoomt das weit heraus, zeigen die Karten nur noch ihre Namen, dafür größer.
+- Der Kopf zeigt Name und Stand des Flows, mit denselben Wörtern wie Mission Control und die Missionsseite: *Noch nicht veröffentlicht* (nie veröffentlicht), *Veröffentlicht* oder *Unveröffentlichte Änderungen*, daneben *Pausiert*, solange ein veröffentlichter Flow ausgeschaltet ist. Er enthält **Läufe**, **Testen**, **Veröffentlichen**, den Schalter **Aktiv** und das Menü **⋯**: *Jetzt ausführen*, *Flow-Einstellungen*, *Duplizieren*, *Exportieren*, *In Mission Control zeigen* und *Löschen*. Die Fußzeile zeigt den letzten Lauf, Probleme und Hinweise sowie den Speicherstand. „Entwurf“ meint immer die Version, die du bearbeitest, im Unterschied zur veröffentlichten.
+- Die Startseite zeigt deine Flows mit denselben Ständen und filtert sie nach *Alle*, *Aktiv*, *Pausiert* (veröffentlicht und ausgeschaltet) und *Mit Fehlern*.
+- Der Editor folgt Änderungen von anderswo (einem anderen Fenster, Mission Control, der Missionsseite oder dem Agenten): Wird der Flow dort pausiert oder eingeschaltet, folgen Stand, Schalter **Aktiv** und *Jetzt ausführen*; wird er dort gelöscht, sagt EasyDrag das und zeigt die Startseite.
+- Ein Flow öffnet sich in lesbarer Größe: Ein kleiner Flow erscheint ganz, ein größerer beginnt bei seinem Auslöser mit 80 %. In Fenstern, die breiter als 560 px sind, merkt sich EasyDrag auf diesem Gerät, wo du jeden Flow verlassen hast. Verschieben und Zoomen der Fläche ändern den Flow nicht: Sie werden weder in ihm gespeichert noch als *Unveröffentlichte Änderungen* gezählt. **Alles zeigen** (Umschalt+1) zeigt den ganzen Flow; zoomt das weit heraus, zeigen die Karten nur noch ihre Namen, dafür größer.
 - In schmalen Fenstern und auf dem Handy ist die Bausteine-Leiste anfangs zu. Geöffnet liegt sie über der Fläche und schließt sich, sobald du einen Schritt hinzufügst oder auf die Fläche tippst. Die Detailansicht eines Schritts nutzt dann Tabs.
 - Die *Flow-Einstellungen* enthalten Name, Beschreibung, was passiert, wenn ein Auslöser während eines Laufs feuert (*Warteschlange*, *Parallel ausführen* oder *Überspringen*), die maximale Laufzeit und wohin fehlgeschlagene Läufe gemeldet werden.
 - Ist der Desktop schreibgeschützt, öffnet EasyDrag Flows nur zum Lesen.
@@ -29,7 +31,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
   - *Nicht gespeichert* mit **Erneut versuchen**: AuraGo hat die Änderung abgelehnt, etwa weil der Flow zu groß ist oder du Flows nicht ändern darfst. Der Tooltip nennt den Grund.
   - *Nicht gespeichert – Fehler beheben*: Der Entwurf hat Fehler, die das Speichern verhindern. Die nächste Änderung wird wieder gesendet.
   - *Konflikt*: Der Flow wurde woanders geändert. EasyDrag fragt, ob du deine Version behältst oder die andere lädst.
-- Bis AuraGo deine Änderungen hat, bleibt bis zu 30 Tage eine Kopie in diesem Browser. Öffnest du den Flow wieder, bietet EasyDrag sie an, außer der Flow wurde inzwischen woanders geändert.
+- Bis AuraGo deine Änderungen hat, bleibt bis zu 30 Tage eine Kopie in diesem Browser. Öffnest du den Flow wieder, bietet EasyDrag sie an, außer der Flow wurde inzwischen woanders geändert. Wird ein Flow gelöscht, hier oder anderswo, entfernt EasyDrag diese Kopie und alles andere, was sich dieser Browser für den Flow gemerkt hat (wo du ihn verlassen hast, bestätigte Testauswirkungen, den zuletzt gewählten Testauslöser).
 - **Strg+S** speichert sofort. Im Editor öffnet es nie „Seite speichern“ des Browsers; in der Ansicht eines Laufs und solange ein Dialog offen ist, speichert es nicht, und das automatische Speichern läuft weiter.
 
 ## Testen
@@ -53,7 +55,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 
 - **Läufe** zeigt die letzten 50 Läufe, gefiltert nach *Alle*, *Fehler*, *Tests* oder *Live*. Ein Klick öffnet die Ansicht des Laufs: die Flow-Version dieses Laufs mit allen Ein- und Ausgaben, nur zum Lesen. Ein Banner nennt den Lauf; **Zurück zum Entwurf** oder **Esc** führt zurück. In der Ansicht eines Laufs bleibt die Bausteine-Leiste verborgen, und ein fehlgeschlagener Lauf öffnet sich zentriert auf den gescheiterten Schritt.
 - Ein Lauf, der noch nicht beendet ist (*In Warteschlange* – auch wenn er auf einen freien Platz wartet – oder *Läuft*), zeigt in der Liste und im Banner seiner Ansicht **Stoppen**, auch wenn ein Auslöser oder ein anderes Fenster ihn gestartet hat. Außer bei einem Test fragt EasyDrag vorher nach; Schritte, die schon gelaufen sind, werden nicht rückgängig gemacht. Ein schreibgeschützter Desktop bietet kein Stoppen an.
-- **Jetzt ausführen** (Menü ⋯ oder das Menü einer Karte auf der Startseite) startet die veröffentlichte Version. Der Flow muss **Aktiv** sein: Ein pausierter Flow wird abgelehnt, bis du ihn einschaltest, so wie Mission Control eine pausierte Mission nicht ausführt. **Testen** geht in beiden Fällen.
+- **Jetzt ausführen** (Menü ⋯, das Menü *Flow* oder das Menü einer Karte auf der Startseite) startet die veröffentlichte Version. Der Flow muss **Aktiv** sein: Solange er pausiert ist, ist *Jetzt ausführen* ausgeschaltet, und sein Tooltip sagt, dass du den Flow zuerst einschalten musst, so wie Mission Control eine pausierte Mission nicht ausführt. **Testen** geht in beiden Fällen.
 - Ein fehlgeschlagener Live-Lauf benachrichtigt so, wie es die Flow-Einstellungen sagen: auf dem Desktop (Standard), per Push, per Telegram oder gar nicht. Ein Flow benachrichtigt einmal, wenn er zu scheitern beginnt, danach höchstens einmal pro Stunde, solange er weiter scheitert. Ein Klick auf die Desktop-Benachrichtigung öffnet EasyDrag bei diesem Lauf.
 - Nach einem Neuladen des Desktops öffnet sich ein offener Flow wieder.
 
@@ -93,7 +95,7 @@ EasyDrag braucht *Flows aktivieren* und das Missions-Tool (`tools.missions.enabl
 
 ## Tastenkürzel
 
-Strg+S, Strg+Enter und Strg+K wirken überall im Editor, aber nicht, solange ein Dialog oder ein Kontextmenü offen ist; die übrigen Tasten wirken auf der Arbeitsfläche. Auf dem Mac steht ⌘ für Strg.
+Strg+S, Strg+Enter und Strg+K wirken überall im Editor, aber nicht, solange ein Dialog oder ein Kontextmenü offen ist; die übrigen Tasten wirken auf der Arbeitsfläche. Auf dem Mac steht ⌘ für Strg. Von außen ist die Arbeitsfläche ein Halt für **Tab**; die Werkzeugknöpfe eines Schritts kommen dazu, solange er ausgewählt ist, und Screenreader finden zusätzlich eine Liste der Schritte.
 
 | Taste | Wirkung |
 |---|---|

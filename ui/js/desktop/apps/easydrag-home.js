@@ -5,7 +5,6 @@
 
     const ED = window.EasyDrag = window.EasyDrag || {};
     const FILTER_KEY = 'aurago.easydrag.home.filter';
-    const VIEW_PREFIX = 'aurago.easydrag.view.';
     // IMPORT_MAX_BYTES is the server's request-body limit for flow documents (4 MiB). The document
     // itself may be at most 2 MiB (flows.MaxDocumentBytes); the server answers a larger one with
     // FLOW_TOO_LARGE.
@@ -259,9 +258,9 @@
             const ok = await ctx.confirmDialog(t('easydrag.ui.delete_title'), t('easydrag.ui.delete_text', { name: f.name }));
             if (!ok) return;
             try { await app.api.remove(f.id); } catch (err) { ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); return; }
-            // The flow's local leftovers go with it: its emergency copy and its viewport.
-            ED.saver.dropEmergencyCopy(f.id);
-            core.storage.remove(VIEW_PREFIX + f.id);
+            // The flow's local leftovers go with it: its emergency copy, its view, its confirmed
+            // test effects and its last test trigger.
+            core.forgetFlow(f.id);
             voice.announce(t('easydrag.ui.home_flow_deleted', { name: f.name }));
             reload();
         }
@@ -334,6 +333,8 @@
         });
         bag.listen(document, 'aurago:flows-changed', (event) => {
             const d = event.detail || {};
+            // A flow deleted elsewhere leaves nothing behind in this browser either.
+            if (d.reason === 'deleted' && d.flow_id) core.forgetFlow(d.flow_id);
             if (d.reason === 'saved' || d.reason === 'run_finished') reloadSoon(); else reload();
         });
         bag.add(() => { loadSeq++; reloadSoon.cancel(); voice.cancel(); });
