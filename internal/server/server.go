@@ -1896,6 +1896,13 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			w.Header().Set("Pragma", "no-cache")
 		}
 
+		// Keep MIDI input confined to the trusted Desktop document. A separate
+		// field preserves other hardware policies installed by this middleware.
+		midiPolicy := "midi=()"
+		if path == "/desktop" || path == "/desktop/" || path == "/desktop.html" {
+			midiPolicy = "midi=(self)"
+		}
+		w.Header().Add("Permissions-Policy", midiPolicy)
 		next.ServeHTTP(w, r)
 	})
 }

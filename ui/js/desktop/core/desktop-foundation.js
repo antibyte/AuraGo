@@ -135,6 +135,7 @@
         noisemaker: 'audio',
         radio: 'radio',
         'personal-radio': 'personal-radio',
+        'synth-studio': 'synth-studio',
         'rtl-sdr': 'rtl-sdr',
         bluetooth: 'bluetooth',
         openscad: 'openscad',
@@ -203,6 +204,7 @@
         ogg: 'audio',
         m4a: 'audio',
         opus: 'audio',
+        aurasynth: 'synth-studio',
         mp4: 'video',
         webm: 'video',
         mov: 'video',
@@ -581,6 +583,7 @@
     function appGlobalName(appId) {
         return {
             'personal-radio': 'PersonalRadioApp',
+            'synth-studio': 'SynthStudioApp',
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',

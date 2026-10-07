@@ -367,6 +367,7 @@
         noisemaker: 'audio',
         radio: 'radio',
         'personal-radio': 'personal-radio',
+        'synth-studio': 'synth-studio',
         'rtl-sdr': 'rtl-sdr',
         bluetooth: 'bluetooth',
         openscad: 'openscad',
@@ -435,6 +436,7 @@
         ogg: 'audio',
         m4a: 'audio',
         opus: 'audio',
+        aurasynth: 'synth-studio',
         mp4: 'video',
         webm: 'video',
         mov: 'video',
@@ -813,6 +815,7 @@
     function appGlobalName(appId) {
         return {
             'personal-radio': 'PersonalRadioApp',
+            'synth-studio': 'SynthStudioApp',
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
@@ -6507,11 +6510,11 @@
 
     function matchesExistingAppWindow(win, appId, context) {
         if (win.appId !== appId) return false;
-        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes') && context && context.path != null) {
+        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }
-        return appId !== 'editor' && appId !== 'writer' && appId !== 'sheets';
+        return !['editor', 'writer', 'sheets', 'synth-studio'].includes(appId);
     }
 
     function findExistingAppWindow(appId, context) {
@@ -10450,6 +10453,7 @@ function wireWindow(win, id) {
         'viewer-3d': { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['stl']), effect: 'copy' },
         writer: { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['docx', 'html', 'htm', 'md', 'txt']), effect: 'copy' },
         sheets: { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['xlsx', 'xlsm', 'csv']), effect: 'copy' },
+        'synth-studio': { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['aurasynth']), effect: 'copy' },
         zipper: { multiple: true, accepts: path => !!desktopWindowDropPathInfo(path).name, effect: 'copy' },
         'code-studio': { multiple: false, accepts: path => desktopWindowDropExtIn(path, DESKTOP_WINDOW_TEXT_EXTS), effect: 'copy' },
         editor: { multiple: false, accepts: path => desktopWindowDropExtIn(path, DESKTOP_WINDOW_TEXT_EXTS), effect: 'copy' },
@@ -10605,6 +10609,10 @@ function wireWindow(win, id) {
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.openFile === 'function') {
             await window.CodeStudio.openFile(path, true, windowId);
             return true;
+        }
+        if (appId === 'synth-studio') {
+            const instance = window.SynthStudioApp?.instances?.get(windowId);
+            if (instance?.storage?.open) return instance.storage.open(path);
         }
         const nextContext = Object.assign({}, win.context || {}, { path });
         if (appId === 'editor') nextContext.content = '';
@@ -14469,6 +14477,9 @@ function updateTaskbarSystemButtonsForMobile() {
         } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
             apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (/\.aurasynth$/i.test(name)) {
+            apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (String(name || '').toLowerCase().endsWith('.md')) {
             apps.push({ label: t('desktop.app_notes'), appId: 'notes' });
             apps.push({ label: t('desktop.app_editor'), appId: 'editor' });
@@ -15907,6 +15918,13 @@ function updateTaskbarSystemButtonsForMobile() {
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
             return window.WriterApp.render(contentEl(id), id, officeAppContext(context));
         }
+        if (appId === 'synth-studio') {
+            if (!window.SynthStudioApp) {
+                window.AuraDesktopModules.loadAppScript('synth-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.SynthStudioApp.render(contentEl(id), id, Object.assign(officeAppContext(context), { windowId: id, sessionKey: state.windows.get(id)?.sessionKey || id }));
+        }
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
             return window.SheetsApp.render(contentEl(id), id, officeAppContext(context));
         }
@@ -16241,6 +16259,7 @@ if (appId === 'pixel') {
                 wireContextMenuBoundary,
                 openFile: (entry) => {
                     if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
+                    if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path }); if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
                     if (isPixelImageFile(entry)) return openApp('pixel', { path: entry.path });
@@ -16426,6 +16445,7 @@ if (appId === 'pixel') {
             mime_type: row.dataset.mimeType
         };
         if (fileExtension(entry.name || entry.path) === 'zip') return openApp('zipper', { path: entry.path });
+        if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
         if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
         if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
         if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
@@ -18794,7 +18814,7 @@ if (appId === 'pixel') {
         if (options && options.allowTopNavigationByUserActivation) sandboxFlags.push('allow-top-navigation-by-user-activation');
         if (options && options.allowPointerLock) sandboxFlags.push('allow-pointer-lock');
         iframe.setAttribute('sandbox', sandboxFlags.join(' '));
-        const allowParts = ['clipboard-read', 'clipboard-write'];
+        const allowParts = ['clipboard-read', 'clipboard-write', "midi 'none'"];
         if (options && options.allowFullscreen) allowParts.push('fullscreen');
         if (options && options.allowGamepad) allowParts.push('gamepad');
         // Test compatibility marker: iframe.setAttribute('allow', 'clipboard-read; clipboard-write')

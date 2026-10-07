@@ -152,7 +152,7 @@ func isDesktopTextReadable(name string) bool {
 		return true
 	}
 	switch strings.ToLower(filepath.Ext(name)) {
-	case ".md", ".log", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".csv", ".html", ".htm", ".css", ".js", ".mjs", ".ts", ".tsx", ".jsx", ".go", ".py", ".sh", ".ps1", ".sql", ".svg":
+	case ".md", ".log", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".csv", ".html", ".htm", ".css", ".js", ".mjs", ".ts", ".tsx", ".jsx", ".go", ".py", ".sh", ".ps1", ".sql", ".svg", ".aurasynth":
 		return true
 	default:
 		return false

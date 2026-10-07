@@ -153,6 +153,10 @@
             styles: appStyles('/css/desktop-app-personal-radio.css'),
             scripts: ['/js/desktop/apps/personal-radio-player.js', '/js/desktop/apps/personal-radio-runtime.js', '/js/desktop/apps/personal-radio-settings.js', '/js/desktop/apps/personal-radio.js']
         },
+        'synth-studio': {
+            styles: appStyles('/css/desktop-app-synth-studio.css'),
+            scripts: ['/js/desktop/apps/writer-session.js', '/js/vendor/synth-studio/gm-data.js', '/js/desktop/apps/synth-studio-presets.js', '/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js', '/js/desktop/apps/synth-studio-model.js', '/js/desktop/apps/synth-studio-audio.js', '/js/desktop/apps/synth-studio-midi.js', '/js/desktop/apps/synth-studio-storage.js', '/js/desktop/apps/synth-studio-editor.js', '/js/desktop/apps/synth-studio.js']
+        },
         'teevee': {
             styles: appStyles('/css/teevee.css'),
             scripts: ['/js/vendor/hls.min.js', '/js/desktop/core/media-helpers.js', '/js/desktop/apps/teevee-crt.js', '/js/desktop/apps/teevee-catalog.js', '/js/desktop/apps/teevee.js']
@@ -498,6 +502,7 @@
         'mission-control': ['missions'],
         'newspaper': ['newspaper'],
         'personal-radio': ['personalRadio'],
+        'synth-studio': ['synthStudio'],
         'rtl-sdr': ['rtlSdr'],
         'bluetooth': ['bluetooth'],
         'pixel': ['pixel'],

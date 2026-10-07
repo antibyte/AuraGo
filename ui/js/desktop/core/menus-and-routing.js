@@ -116,6 +116,9 @@
         } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
             apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (/\.aurasynth$/i.test(name)) {
+            apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (String(name || '').toLowerCase().endsWith('.md')) {
             apps.push({ label: t('desktop.app_notes'), appId: 'notes' });
             apps.push({ label: t('desktop.app_editor'), appId: 'editor' });
@@ -1553,6 +1556,13 @@
         if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.path ? context.content : '');
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
             return window.WriterApp.render(contentEl(id), id, officeAppContext(context));
+        }
+        if (appId === 'synth-studio') {
+            if (!window.SynthStudioApp) {
+                window.AuraDesktopModules.loadAppScript('synth-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.SynthStudioApp.render(contentEl(id), id, Object.assign(officeAppContext(context), { windowId: id, sessionKey: state.windows.get(id)?.sessionKey || id }));
         }
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
             return window.SheetsApp.render(contentEl(id), id, officeAppContext(context));

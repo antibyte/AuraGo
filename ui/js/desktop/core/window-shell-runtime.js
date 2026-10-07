@@ -1358,11 +1358,11 @@
 
     function matchesExistingAppWindow(win, appId, context) {
         if (win.appId !== appId) return false;
-        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes') && context && context.path != null) {
+        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }
-        return appId !== 'editor' && appId !== 'writer' && appId !== 'sheets';
+        return !['editor', 'writer', 'sheets', 'synth-studio'].includes(appId);
     }
 
     function findExistingAppWindow(appId, context) {

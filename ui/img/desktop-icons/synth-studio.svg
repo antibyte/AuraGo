@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Synth Studio">
+  <defs>
+    <linearGradient id="case" x1="18" y1="12" x2="109" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#566dff"/>
+      <stop offset="1" stop-color="#272d70"/>
+    </linearGradient>
+    <linearGradient id="keys" x1="34" y1="63" x2="94" y2="102" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff"/>
+      <stop offset="1" stop-color="#cad4ff"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#case)"/>
+  <rect x="23" y="27" width="82" height="20" rx="7" fill="#111a42" stroke="#91a2ff" stroke-width="3"/>
+  <path d="M30 39h10l7-8 8 14 9-11 7 6h9l7-8 7 7h6" fill="none" stroke="#64f0df" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5"/>
+  <rect x="25" y="58" width="78" height="43" rx="8" fill="url(#keys)"/>
+  <path d="M38 59v24m13-24v24m13-24v24m13-24v24m13-24v24" stroke="#596899" stroke-width="2.5"/>
+  <path d="M32 72h6m13 0h13m13 0h13m13 0h6M32 84h71" stroke="#596899" stroke-width="2.5"/>
+  <path d="M45 85v15m13-15v15m13-15v15m13-15v15" stroke="#293564" stroke-linecap="round" stroke-width="5"/>
+  <circle cx="35" cy="110" r="3" fill="#64f0df"/>
+  <circle cx="45" cy="110" r="3" fill="#ffcb73"/>
+  <circle cx="55" cy="110" r="3" fill="#ff7da8"/>
+</svg>

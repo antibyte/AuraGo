@@ -1,5 +1,28 @@
 # Desktop App Modules - Child DOX Contract
 
+## Synth Studio
+
+- `synth-studio` is a native Creative app with the `synthStudio.*` locale prefix.
+  Keep its fifty presets (five groups of ten), 128 synthesized GM programs and
+  percussion bank local. See `documentation/synth-studio.md` for supported music
+  formats, controls and resource limits.
+- Model validation owns project trust boundaries. Notes/controllers use clip-local
+  ticks; clips use arrangement ticks. Live playback and offline WAV rendering
+  share the native Web Audio implementation. Never schedule musical timing from
+  animation frames or copy an upstream live-only synthesizer into offline export.
+- Reuse OfficeSession drafts/write queues and the conditional Desktop file API.
+  Preserve the latest dirty revision on failures; fence asynchronous file, MIDI
+  and render results after a project change, permission revocation or disposal.
+  A reopened project is paused. Desktop minimization keeps playback; browser-tab
+  hiding pauses it. Closing releases notes, input ports, timers and audio nodes.
+- MIDI is input-only, explicitly permission-gated with SysEx disabled. The Desktop
+  document alone receives `midi=(self)`; untrusted sandboxed app frames deny MIDI.
+  Read-only policy changes stop recording and block all project mutations.
+- Verify the model/storage checks, `TestDesktopSynthStudioBrowser`,
+  `TestDesktopSynthStudioAudioBrowser` and
+  `TestSynthStudioMIDIPolicyOnlyAllowsDesktop`. Keep all sixteen locales and both
+  Desktop themes usable, including compact library/sound-panel controls.
+
 ## Newspaper
 
 - `newspaper.js` owns one window reader for today's immutable edition, articles, archive and preferences. When only an earlier issue exists, keep it readable and offer creation of today's issue; do not offer today's correction flow on older issues. Closing the window cancels only UI work; the server owns ongoing research and delivery.
