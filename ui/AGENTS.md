@@ -488,6 +488,11 @@ worker. Keep packaging, recovery and offline instructions in
   focus independently of always-on-top stacking and suppress restore sounds.
   Compact mode preserves the logical active space. Resize/snap share clamped
   app minimums, with reachable viewport bounds taking precedence.
+- Maximized windows end above the taskbar or Fruity dock at every width via
+  `--vd-maximized-window-reserve` (`desktop-windows.css`); keep it, the narrow
+  overrides and `--vd-fruity-dock-reserve` in step with the bar/dock geometry.
+  The touch phone layout keeps its own `--vd-mobile-taskbar-reserve`. Verify
+  `TestDesktopMaximizedWindowClearsTaskbarBrowser`.
 - The start menu is categorized: `AppManifest.Category` (set for every builtin
   and copied from `CatalogEntry.Category` for Store apps,
   `desktop.DesktopAppCategories()` in display order; only apps without a known

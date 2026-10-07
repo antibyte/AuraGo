@@ -204,31 +204,43 @@
     border-radius: inherit;
 }
 
+/* Maximized windows end above the bottom taskbar (Standard) or dock (Fruity)
+   at every width. The touch phone layout below sizes windows with its own
+   --vd-mobile-taskbar-reserve instead. */
+.desktop-body {
+    --vd-maximized-window-reserve: var(--vd-taskbar-height, 54px);
+}
+
+.desktop-body[data-theme="fruity"] {
+    --vd-maximized-window-reserve: var(--vd-fruity-dock-reserve, 97px);
+}
+
+@media (max-width: 820px) {
+    /* The narrow taskbar keeps a 52px minimum height. The narrow Fruity dock
+       stacks its status bar below the apps; it shares the touch layout's
+       116px reserve. */
+    .desktop-body {
+        --vd-maximized-window-reserve: max(var(--vd-taskbar-height, 54px), 52px);
+    }
+
+    .desktop-body[data-theme="fruity"] {
+        --vd-maximized-window-reserve: 116px;
+    }
+}
+
 .vd-window.maximized {
     top: env(safe-area-inset-top, 0px) !important;
     left: env(safe-area-inset-left, 0px) !important;
     width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
-    height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--vd-maximized-window-reserve, 0px)) !important;
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
     border-radius: 0;
 }
 
-/* Standard theme: maximized windows should not extend behind the bottom taskbar */
 @media (min-width: 821px) {
-    .desktop-body:not([data-theme="fruity"]) .vd-window.maximized {
-        top: env(safe-area-inset-top, 0px) !important;
-        left: env(safe-area-inset-left, 0px) !important;
-        width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
-        height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--vd-taskbar-height, 54px)) !important;
-    }
-
     .desktop-body[data-theme="fruity"] .vd-window.maximized {
-        top: env(safe-area-inset-top, 0px) !important;
-        left: env(safe-area-inset-left, 0px) !important;
-        width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
-        height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--vd-fruity-dock-reserve, 96px)) !important;
         border-radius: 14px;
         border: 1px solid rgba(78, 92, 118, 0.16);
     }
