@@ -7,7 +7,7 @@
   "config.mcp_server.token": "Token Bearer",
   "config.mcp_server.generate_token": "Generuj token",
   "config.mcp_server.endpoint_url": "URL endpointu",
-  "config.mcp_server.no_tools_warning": "Brak włączonych narzędzi.",
+  "config.mcp_server.no_tools_warning": "Obecnie żadne narzędzia nie są włączone. Najpierw włącz je w sekcji Narzędzia.",
   "config.mcp_server.auth_warning": "Uwierzytelnianie wyłączone. Każdy z dostępem do sieci może wywołać Twoje narzędzia.",
   "config.mcp_server.disabled_notice": "Serwer MCP wyłączony",
   "config.mcp_server.disabled_desc": "Włącz, aby udostępnić narzędzia AuraGo przez MCP.",

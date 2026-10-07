@@ -613,7 +613,7 @@
   "desktop.chess_mode": "मोड",
   "desktop.chess_mode_agent": "एजेंट",
   "desktop.chess_mode_computer": "कंप्यूटर",
-  "desktop.chess_mode_local": "स्थानीय 2",
+  "desktop.chess_mode_local": "स्थानीय 2-खिलाड़ी खेल",
   "desktop.chess_move_failed": "प्रतिद्वंद्वी की चाल विफल रही.",
   "desktop.chess_moves": "चालें",
   "desktop.chess_moves_count": "{n} चालें",

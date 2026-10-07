@@ -11,7 +11,7 @@
   "config.daemon_skills.status_running": "Kör",
   "config.daemon_skills.status_starting": "Startar",
   "config.daemon_skills.status_stopped": "Stoppad",
-  "config.daemon_skills.status_title": "Körande daemons (%d)",
+  "config.daemon_skills.status_title": "Körande daemons ({{count}})",
   "help.daemon_skills.enabled": "Aktivera eller inaktivera daemon-skills globalt",
   "help.daemon_skills.global_rate_limit_secs": "Minimala sekunder mellan daemon-uppvakningsanrop till agenten",
   "help.daemon_skills.max_budget_per_hour": "Maximala LLM-kostnader (i USD) som daemon-uppvakningar kan förbruka per timme",

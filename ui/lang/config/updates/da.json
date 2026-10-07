@@ -57,7 +57,7 @@
   "config.updates.installing": "Installerer…",
   "config.updates.latest": "Seneste",
   "config.updates.running": "Kører…",
-  "config.updates.started": "✅ Opdatering startet — AuraGo genstarter. Genindlæs i 60'erne...",
+  "config.updates.started": "✅ Opdatering startet — AuraGo genstarter. Genindlæs om 60 sekunder…",
   "config.updates.up_to_date": "Op til dato",
   "config.updates.version": "Version",
   "config.updates.warning_banner": "Opdateringen erstatter binære filer, prompts og UI-filer. <strong>Din konfiguration og dine data bevares.</strong> AuraGo genstarter efter opdateringen.",

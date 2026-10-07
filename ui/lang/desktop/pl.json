@@ -613,7 +613,7 @@
   "desktop.chess_mode": "Tryb",
   "desktop.chess_mode_agent": "Agent",
   "desktop.chess_mode_computer": "Komputer",
-  "desktop.chess_mode_local": "Lokalnie 2",
+  "desktop.chess_mode_local": "Lokalna gra dla 2 graczy",
   "desktop.chess_move_failed": "Ruch przeciwnika nie powiódł się.",
   "desktop.chess_moves": "Ruchy",
   "desktop.chess_moves_count": "{n} ruchów",

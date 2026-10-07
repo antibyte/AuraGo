@@ -11,7 +11,7 @@
   "config.daemon_skills.status_running": "चालू",
   "config.daemon_skills.status_starting": "शुरू हो रहा है",
   "config.daemon_skills.status_stopped": "रुका हुआ",
-  "config.daemon_skills.status_title": "चालू डेमॉन (%d)",
+  "config.daemon_skills.status_title": "चालू डेमॉन ({{count}})",
   "help.daemon_skills.enabled": "डेमॉन स्किल्स को वैश्विक रूप से सक्षम या अक्षम करें",
   "help.daemon_skills.global_rate_limit_secs": "डेमॉन वेक-अप कॉल के बीच न्यूनतम सेकंड",
   "help.daemon_skills.max_budget_per_hour": "डेमॉन वेक-अप प्रति घंटा अधिकतम LLM लागत (USD)",

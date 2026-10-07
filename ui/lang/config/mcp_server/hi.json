@@ -7,7 +7,7 @@
   "config.mcp_server.token": "Bearer टोकन",
   "config.mcp_server.generate_token": "टोकन जनरेट करें",
   "config.mcp_server.endpoint_url": "एंडपॉइंट URL",
-  "config.mcp_server.no_tools_warning": "कोई उपकरण सक्षम नहीं।",
+  "config.mcp_server.no_tools_warning": "फ़िलहाल कोई उपकरण सक्षम नहीं है। पहले उपकरण अनुभाग में उपकरण सक्षम करें।",
   "config.mcp_server.auth_warning": "प्रमाणीकरण अक्षम। नेटवर्क एक्सेस वाला कोई भी आपके उपकरण कॉल कर सकता है।",
   "config.mcp_server.disabled_notice": "MCP सर्वर अक्षम",
   "config.mcp_server.disabled_desc": "MCP के माध्यम से AuraGo उपकरण उजागर करने के लिए सक्षम करें।",

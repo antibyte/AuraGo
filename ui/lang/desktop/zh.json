@@ -4863,7 +4863,7 @@
   "newspaper.reading_length": "阅读长度",
   "newspaper.ready_time": "目标准备时间",
   "newspaper.region": "地区或州",
-  "newspaper.remove": "删除\n[0005] 研究需要勇敢的搜索、页面阅读、模型和经过验证的编辑技能。",
+  "newspaper.remove": "移除",
   "newspaper.research_unavailable": "新闻采编需要 Brave Search 或已配置的 RSS 订阅源、网页读取、模型和经过验证的编辑指南。",
   "newspaper.retrieved": "已取回",
   "newspaper.revision_confirm": "今天再次研究并发布新的修订版？",

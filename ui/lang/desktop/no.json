@@ -613,7 +613,7 @@
   "desktop.chess_mode": "Modus",
   "desktop.chess_mode_agent": "Agent",
   "desktop.chess_mode_computer": "Datamaskin",
-  "desktop.chess_mode_local": "Lokalt 2",
+  "desktop.chess_mode_local": "Lokalt spill for 2 spillere",
   "desktop.chess_move_failed": "Motstanderens trekk mislyktes.",
   "desktop.chess_moves": "Trekk",
   "desktop.chess_moves_count": "{n} trekk",

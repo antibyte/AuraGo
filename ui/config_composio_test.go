@@ -117,7 +117,7 @@ func TestConfigComposioTranslationsUseNativeDiacritics(t *testing.T) {
 			"config.composio.tools_preview": "Aperçu des outils",
 		},
 		"es": {
-			"config.composio.modal_subtitle":  "Elija toolkits, conecte cuentas y controle la política de riesgo.",
+			"config.composio.modal_subtitle":  "Elige toolkits, conecta cuentas y controla la política de riesgo.",
 			"config.composio.save_selection":  "Guardar selección",
 			"config.composio.status_ready":    "Composio está listo",
 			"config.composio.test_connection": "Probar conexión",

@@ -11,7 +11,7 @@
   "config.daemon_skills.status_running": "Läuft",
   "config.daemon_skills.status_starting": "Startet",
   "config.daemon_skills.status_stopped": "Gestoppt",
-  "config.daemon_skills.status_title": "Laufende Daemons (%d)",
+  "config.daemon_skills.status_title": "Laufende Daemons ({{count}})",
   "help.daemon_skills.enabled": "Daemon-Skills global aktivieren oder deaktivieren",
   "help.daemon_skills.global_rate_limit_secs": "Minimale Sekunden zwischen Daemon-Aufweck-Aufrufen an den Agent",
   "help.daemon_skills.max_budget_per_hour": "Maximale LLM-Kosten (in USD), die Daemon-Aufweck-Vorgänge pro Stunde verbrauchen können",

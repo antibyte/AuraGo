@@ -613,7 +613,7 @@
   "desktop.chess_mode": "Λειτουργία",
   "desktop.chess_mode_agent": "Πράκτορας",
   "desktop.chess_mode_computer": "Υπολογιστής",
-  "desktop.chess_mode_local": "Τοπικά 2",
+  "desktop.chess_mode_local": "Τοπικό παιχνίδι για 2 παίκτες",
   "desktop.chess_move_failed": "Η κίνηση αντιπάλου απέτυχε.",
   "desktop.chess_moves": "Κινήσεις",
   "desktop.chess_moves_count": "{n} κινήσεις",

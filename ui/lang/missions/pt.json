@@ -11,7 +11,7 @@
   "mission.btn_save_mission": "Salvar Missão",
   "mission.btn_scheduled": "Agendada",
   "mission.del_confirm": "Tem certeza de que deseja excluir",
-  "mission.empty_desc": "Crie sua primeira missão para começar",
+  "mission.empty_desc": "As missões são tarefas automatizadas que o agente executa sob demanda ou em horários programados. Crie sua primeira missão para começar.",
   "mission.empty_title": "Nenhuma missão ainda",
   "mission.header_missions": "Missões",
   "mission.hint_cron_ex": "Exemplos: 0 0 9 * * * = diariamente às 9:00, 0 */30 * * * * = a cada 30 min",

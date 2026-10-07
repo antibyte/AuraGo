@@ -613,7 +613,7 @@
   "desktop.chess_mode": "Modo",
   "desktop.chess_mode_agent": "Agente",
   "desktop.chess_mode_computer": "Computador",
-  "desktop.chess_mode_local": "Local 2",
+  "desktop.chess_mode_local": "Jogo local para 2 jogadores",
   "desktop.chess_move_failed": "Falha no lance do adversário.",
   "desktop.chess_moves": "Lances",
   "desktop.chess_moves_count": "{n} lances",

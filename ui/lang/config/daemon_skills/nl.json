@@ -11,7 +11,7 @@
   "config.daemon_skills.status_running": "Draait",
   "config.daemon_skills.status_starting": "Opstarten",
   "config.daemon_skills.status_stopped": "Gestopt",
-  "config.daemon_skills.status_title": "Actieve daemons (%d)",
+  "config.daemon_skills.status_title": "Actieve daemons ({{count}})",
   "help.daemon_skills.enabled": "Daemon-skills globaal in- of uitschakelen",
   "help.daemon_skills.global_rate_limit_secs": "Minimale seconden tussen daemon wake-up calls naar de agent",
   "help.daemon_skills.max_budget_per_hour": "Maximale LLM-kosten (in USD) die daemon wake-ups per uur mogen verbruiken",

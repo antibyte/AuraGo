@@ -57,7 +57,7 @@
   "config.updates.installing": "Installerar…",
   "config.updates.latest": "Senaste",
   "config.updates.running": "Kör…",
-  "config.updates.started": "✅ Uppdatering startade — AuraGo startar om. Ladda om på 60-talet...",
+  "config.updates.started": "✅ Uppdatering startade — AuraGo startar om. Ladda om om 60 sekunder…",
   "config.updates.up_to_date": "Upp till datum",
   "config.updates.version": "Version",
   "config.updates.warning_banner": "Uppdateringen ersätter binärfiler, uppmaningar och UI-filer. <strong>Din konfiguration och data bevaras.</strong> AuraGo kommer att starta om efter uppdateringen.",

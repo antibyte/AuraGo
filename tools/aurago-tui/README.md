@@ -36,6 +36,19 @@ installed so that Rust can link native binaries.
 ./aurago-tui --url http://localhost:8080
 ```
 
+The interface defaults to English. Select any supported language with `--lang`
+or set `AURAGO_TUI_LANG`; `--lang` takes precedence. The catalogs localize the
+100 shared labels and headings, navigation, empty states, and protection dialogs.
+Other hardcoded TUI text and server-provided messages may still appear in English.
+
+```bash
+./aurago-tui --lang de
+AURAGO_TUI_LANG=ja ./aurago-tui
+```
+
+Supported codes: `cs`, `da`, `de`, `el`, `en`, `es`, `fr`, `hi`, `it`, `ja`,
+`nl`, `no`, `pl`, `pt`, `sv`, and `zh`.
+
 ### Keybindings
 
 | Key | Action |

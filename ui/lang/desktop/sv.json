@@ -613,7 +613,7 @@
   "desktop.chess_mode": "Läge",
   "desktop.chess_mode_agent": "Agent",
   "desktop.chess_mode_computer": "Dator",
-  "desktop.chess_mode_local": "Lokalt 2",
+  "desktop.chess_mode_local": "Lokalt spel för två spelare",
   "desktop.chess_move_failed": "Motståndarens drag misslyckades.",
   "desktop.chess_moves": "Drag",
   "desktop.chess_moves_count": "{n} drag",
