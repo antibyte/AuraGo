@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"strings"
 
 	"aurago/internal/config"
 	"aurago/internal/tools"
@@ -39,6 +40,45 @@ func dockerComposeAuraGoStateVolume(cfg *config.Config, self tools.DockerSelfIde
 			if tools.IsAuraGoStateVolume(name, true, self) {
 				return name
 			}
+		}
+	}
+	return ""
+}
+
+// dockerManagedSidecarNameMessage explains a refused managed sidecar name.
+const dockerManagedSidecarNameMessage = "The container name %q belongs to an AuraGo-managed sidecar (for example Gotenberg, Ollama, Piper, Supertonic, Ansible, browser automation, go2rtc, Space Agent, Manifest, OmniRoute, Dograh or cloudflared). AuraGo finds that sidecar by its name and may reuse a container of that name, so the agent cannot create one while Docker host access is off. Choose another name."
+
+// dockerReservedSidecarNames are the managed sidecar names the agent may not
+// create: every one of them while the config flag docker.allow_host_access is
+// false (controller decision 2026-10-06), none otherwise, so grandfathered
+// installs are unchanged.
+func dockerReservedSidecarNames(cfg *config.Config) []string {
+	if cfg == nil || cfg.Docker.AllowHostAccess {
+		return nil
+	}
+	return tools.ManagedSidecarContainerNames(cfg)
+}
+
+func dockerNameReserved(name string, reserved []string) bool {
+	name = strings.TrimPrefix(strings.TrimSpace(name), "/")
+	if name == "" {
+		return false
+	}
+	for _, candidate := range reserved {
+		if strings.EqualFold(name, strings.TrimPrefix(strings.TrimSpace(candidate), "/")) {
+			return true
+		}
+	}
+	return false
+}
+
+// dockerComposeReservedContainerName returns the first service container_name
+// of model that matches reserved, or "". Only container_name counts: stacks
+// that join a sidecar's network or other namespaces stay as they are.
+func dockerComposeReservedContainerName(model tools.DockerComposeModel, reserved func(string) bool) string {
+	for _, name := range tools.SortedDockerComposeKeys(model.Services) {
+		if containerName := strings.TrimSpace(model.Services[name].ContainerName); containerName != "" && reserved(containerName) {
+			return containerName
 		}
 	}
 	return ""

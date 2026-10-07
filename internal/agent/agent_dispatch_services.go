@@ -592,6 +592,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if dockerRequestCreatesReservedSecurityProxyName(req) {
 				return dockerAgentError("docker_managed_security_proxy_resource", "The container name is reserved for AuraGo's security proxy. Choose another name.")
 			}
+			if dockerCreateRunOperation(req.Operation) && dockerNameReserved(req.Name, dockerReservedSidecarNames(cfg)) {
+				return dockerAgentError("docker_managed_sidecar_name", fmt.Sprintf(dockerManagedSidecarNameMessage, strings.TrimPrefix(strings.TrimSpace(req.Name), "/")))
+			}
 			var createCommand []string
 			var createRestart string
 			var createOptions tools.ContainerCreateOptions

@@ -182,3 +182,95 @@ func TestAuraGoDataVolumeDenialsSuggestRenamingAnotherStacksVolume(t *testing.T)
 		t.Fatalf("Compose denial lacks the rename hint: %s", got)
 	}
 }
+
+func TestDispatchDockerCreateRefusesManagedSidecarNamesWithoutHostAccess(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.ReadOnly = true // a call that passes the name check stops at the read-only gate, before Docker
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	useRuntimePermissionsForTest(t, cfg)
+	create := func(operation, name string) string {
+		output, _ := dispatchServices(context.Background(), ToolCall{Action: "docker", Operation: operation, Name: name, Image: "alpine:latest"}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+		return output
+	}
+	for _, name := range []string{"aurago_gotenberg", "AURAGO_ANSIBLE", "/aurago-piper-tts", "aurago_browser_automation", "aurago_dograh_redis"} {
+		for _, operation := range []string{"run", "create"} {
+			if got := create(operation, name); !strings.Contains(got, `"code":"docker_managed_sidecar_name"`) {
+				t.Fatalf("%s %s without host access: %s", operation, name, got)
+			}
+		}
+	}
+	for _, name := range []string{"worker", "aurago-code-studio", "aurago-openscad", "my-gotenberg"} {
+		if got := create("run", name); strings.Contains(got, "docker_managed_sidecar_name") {
+			t.Fatalf("%s refused: %s", name, got)
+		}
+	}
+	// Grandfathered installs (docker.allow_host_access true) are unchanged.
+	cfg.Docker.AllowHostAccess = true
+	cfg.Tools.DocumentCreator.Enabled = true
+	cfg.Tools.DocumentCreator.Backend = "gotenberg"
+	if got := create("run", "aurago_gotenberg"); strings.Contains(got, "docker_managed_sidecar_name") {
+		t.Fatalf("grandfathered install refused a sidecar name: %s", got)
+	}
+	// The security proxy name stays reserved for everyone, as before.
+	if got := create("run", "aurago-security-proxy"); !strings.Contains(got, `"code":"docker_managed_security_proxy_resource"`) {
+		t.Fatalf("security proxy name with host access: %s", got)
+	}
+}
+
+func TestDockerComposePolicyRefusesManagedSidecarContainerNamesWithoutHostAccess(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "pdf/compose.yml", "services:\n  pdf:\n    image: gotenberg/gotenberg:8\n")
+	stubDockerComposeResolver(t, func(string) (string, error) {
+		return `{"name":"pdf","services":{"pdf":{"image":"gotenberg/gotenberg:8","container_name":"aurago_gotenberg"}}}`, nil
+	})
+	cfg := &config.Config{}
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func(command string) string {
+		return dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "pdf/compose.yml", Command: command})
+	}
+	for _, command := range []string{"up -d", "create"} {
+		if got := policy(command); !strings.Contains(got, `"code":"docker_managed_sidecar_name"`) {
+			t.Fatalf("%s: %s", command, got)
+		}
+	}
+	for _, command := range []string{"ps", "down", "logs", "config", "pull"} {
+		if got := policy(command); got != "" {
+			t.Fatalf("%s refused: %s", command, got)
+		}
+	}
+	cfg.Docker.AllowHostAccess = true
+	if got := policy("up -d"); got != "" {
+		t.Fatalf("grandfathered install refused a sidecar name in a stack: %s", got)
+	}
+}
+
+// internal/proxy/AGENTS.md: agent create/run already refuses the security
+// proxy name for everyone; a Compose container_name of it is refused for
+// everyone too. Only container_name counts, so stacks that join the proxy's
+// namespaces stay as they are.
+func TestDockerComposePolicyRefusesTheSecurityProxyContainerName(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "edge/compose.yml", "services:\n  edge:\n    image: caddy:2\n")
+	model := `{"name":"edge","services":{"edge":{"image":"caddy:2","container_name":"Aurago-Security-Proxy"}}}`
+	stubDockerComposeResolver(t, func(string) (string, error) { return model, nil })
+	cfg := &config.Config{}
+	cfg.Docker.AllowHostAccess = true
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func(command string) string {
+		return dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "edge/compose.yml", Command: command})
+	}
+	for _, command := range []string{"up -d", "create"} {
+		if got := policy(command); !strings.Contains(got, `"code":"docker_managed_security_proxy_resource"`) {
+			t.Fatalf("%s with host access: %s", command, got)
+		}
+	}
+	if got := policy("ps"); got != "" {
+		t.Fatalf("ps refused: %s", got)
+	}
+	model = `{"name":"edge","services":{"edge":{"image":"caddy:2","network_mode":"container:aurago-security-proxy"}}}`
+	if got := policy("up -d"); got != "" {
+		t.Fatalf("a stack joining the proxy's namespace was newly refused: %s", got)
+	}
+}

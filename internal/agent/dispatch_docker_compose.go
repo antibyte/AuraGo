@@ -841,6 +841,17 @@ func dockerComposePolicyRun(ctx context.Context, cfg *config.Config, dockerCfg t
 	if denied := dockerComposeOwnerDenial(preflight.protectedOwner(effective)); denied != "" {
 		return denied
 	}
+	if subcommand == "up" || subcommand == "create" {
+		// The security proxy name is reserved for everyone, as for agent
+		// create/run; managed sidecar names only without host access.
+		if name := dockerComposeReservedContainerName(effective.model, dockerutil.IsSecurityProxyContainerName); name != "" {
+			return dockerAgentError("docker_managed_security_proxy_resource", fmt.Sprintf("The container name %q is reserved for AuraGo's security proxy, so Docker Compose cannot create it. Choose another container_name.", name))
+		}
+		reserved := dockerReservedSidecarNames(cfg)
+		if name := dockerComposeReservedContainerName(effective.model, func(name string) bool { return dockerNameReserved(name, reserved) }); name != "" {
+			return dockerAgentError("docker_managed_sidecar_name", fmt.Sprintf(dockerManagedSidecarNameMessage, name))
+		}
+	}
 	if volume := dockerComposeAuraGoStateVolume(cfg, preflight.self, preflight.model, effective.model); volume != "" {
 		return dockerAgentError("docker_managed_aurago_resource", fmt.Sprintf("Docker Compose access to AuraGo's own data volume %q is blocked. If this volume belongs to another stack, give it another name.", volume))
 	}
