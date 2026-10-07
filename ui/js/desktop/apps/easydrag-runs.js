@@ -11,8 +11,9 @@
     // After MAX_FAILURES failures in a row without a message the server is asked about the run.
     const MAX_FAILURES = 5;
     // After a stop of a run that streams elsewhere (or nowhere), its stored state is asked again
-    // after 1, 2 and 4 s until it ended: a test run announces its end to no other window.
-    const STOP_POLL_MS = [1000, 2000, 4000];
+    // after 1, 2, 4, 8 and 16 s until it ended: a test run announces its end to no other window,
+    // and the engine waits up to 30 s for a step that ignores the cancel.
+    const STOP_POLL_MS = [1000, 2000, 4000, 8000, 16000];
     // REDACTED is the server's placeholder for secret values in scrubbed test data.
     const REDACTED = '[redacted]';
     const EFFECT_ICONS = { sends_message: 'brand-telegram', writes_files: 'file-pencil', controls_devices: 'home', runs_code: 'api', deletes: 'trash', system_change: 'settings' };
@@ -40,32 +41,16 @@
         return out;
     }
 
-    // effects lists the outward effects of the steps a test runs (for the real-effects warning).
-    // Each step counts with its catalog effects, which describe its default settings, and with
-    // the effects of its real settings when the server named them (real: node id -> effects,
-    // from realEffects): an HTTP request with POST sends, while its catalog entry (GET) does not.
-    // A test of the whole flow counts every enabled step. A step test (onlyNode) runs what the
-    // engine runs (internal/flows/engine_state.go, run, fireTrigger and collectReady): the step
-    // and its ancestors, and of those only the steps the test's trigger reaches. Other triggers
-    // are skipped, and a disabled step is skipped with what only it feeds. Every wire counts,
-    // whatever its port, so the walk deliberately over-estimates what a branch will run.
-    // triggerId is the test's trigger; without one, every enabled trigger counts.
-    function effects(ed, onlyNode, triggerId, real) {
+    // runningSteps lists the steps a test runs, in document order. A test of the whole flow counts
+    // every enabled step. A step test (onlyNode) runs what the engine runs
+    // (internal/flows/engine_state.go, run, fireTrigger and collectReady): the step and its
+    // ancestors, and of those only the steps the test's trigger reaches. Other triggers are
+    // skipped, and a disabled step is skipped with what only it feeds. Every wire counts, whatever
+    // its port, so the walk deliberately over-estimates what a branch will run. triggerId is the
+    // test's trigger; without one, every enabled trigger counts.
+    function runningSteps(ed, onlyNode, triggerId) {
         const doc = ed.model.doc;
-        const out = new Map();
-        const add = n => {
-            const i = ed.model.info(n.type);
-            const kinds = new Set((i && i.effects) || []);
-            ((real && real.get(n.id)) || []).forEach(effect => kinds.add(effect));
-            kinds.forEach(effect => {
-                if (!out.has(effect)) out.set(effect, []);
-                out.get(effect).push(n.label || n.type);
-            });
-        };
-        if (!onlyNode) {
-            doc.nodes.forEach(n => { if (!n.settings.disabled) add(n); });
-            return out;
-        }
+        if (!onlyNode) return doc.nodes.filter(n => !n.settings.disabled);
         const isTrigger = n => { const i = ed.model.info(n.type); return !!(i && i.trigger); };
         // Wires to a missing step are ignored, as buildGraph does.
         const incoming = new Map();
@@ -93,8 +78,35 @@
                 stack.push(id);
             });
         }
-        doc.nodes.forEach(n => { if (runs.has(n.id)) add(n); });
+        return doc.nodes.filter(n => runs.has(n.id));
+    }
+
+    // effects lists the outward effects of the steps a test runs (for the real-effects warning).
+    // Each step counts with its catalog effects, which describe its default settings, and with
+    // the effects of its real settings when the server named them (real: node id -> effects,
+    // from realEffects): an HTTP request with POST sends, while its catalog entry (GET) does not.
+    function effects(ed, onlyNode, triggerId, real) {
+        const out = new Map();
+        runningSteps(ed, onlyNode, triggerId).forEach(n => {
+            const i = ed.model.info(n.type);
+            const kinds = new Set((i && i.effects) || []);
+            ((real && real.get(n.id)) || []).forEach(effect => kinds.add(effect));
+            kinds.forEach(effect => {
+                if (!out.has(effect)) out.set(effect, []);
+                out.get(effect).push(n.label || n.type);
+            });
+        });
         return out;
+    }
+
+    // unknownEffects reports a step that runs and whose effects nobody could name: its catalog
+    // entry is risky without effects, which is how the catalog marks an effects hook that failed
+    // (internal/flows/catalog.go); CollectEffects leaves such a step out as well.
+    function unknownEffects(ed, onlyNode, triggerId) {
+        return runningSteps(ed, onlyNode, triggerId).some(n => {
+            const i = ed.model.info(n.type);
+            return !!(i && i.risky && !((i.effects || []).length));
+        });
     }
 
     function edgeStates(ed) {
@@ -319,6 +331,10 @@
             if (remember) core.storage.set(EFFECTS_KEY + ed.flow.id, Array.from(new Set(storedEffects().concat(list))));
         }
 
+        function uncheckedMarkup() {
+            return '<p class="ed-callout ed-callout--warn" data-ed-effects-unchecked>' + core.icon('alert') + '<span>' + esc(t('easydrag.ui.effects_unchecked')) + '</span></p>';
+        }
+
         function effectsMarkup(list) {
             if (!list.size) return '';
             return '<div class="ed-callout ed-callout--warn" data-ed-test-effects>' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.effects_title')) + '</strong><ul class="ed-effects">' +
@@ -351,6 +367,8 @@
                 return undefined;
             }
             if (disposed) return undefined;
+            // version is the draft the effects were checked for (the one just saved).
+            let version = ed.model.version;
             const list = triggers(ed);
             if (!list.length) { ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: t('easydrag.ui.test_no_trigger'), type: 'error' }); return undefined; }
             const remembered = core.storage.get('aurago.easydrag.test-trigger.' + ed.flow.id, '');
@@ -360,13 +378,35 @@
             // the dialog says that the effects could not be fully checked, and a test never starts
             // without the dialog.
             let real = null;
-            try { real = realEffects(await ed.api.preview(ed.flow.id)); } catch (err) { real = null; }
+            const loadReal = async () => {
+                try { real = realEffects(await ed.api.preview(ed.flow.id)); } catch (err) { real = null; }
+            };
+            await loadReal();
             if (disposed) return undefined;
             const confirmed = confirmedEffects();
             // A step test runs what its trigger reaches: the effects follow the chosen trigger.
             const pending = id => new Map(Array.from(effects(ed, o.onlyNode, id, real)).filter(([effect]) => !confirmed.has(effect)));
+            // unchecked: the effects could not be named in full (no preview, or a step whose effects
+            // hook failed); the dialog then says so, and a test never starts without it.
+            const unchecked = id => !real || unknownEffects(ed, o.onlyNode, id);
             let fx = pending(trigger.id);
-            if (o.quick && !fx.size && real) { await run(trigger.id, null, o.onlyNode, false); return undefined; }
+            // recheck follows an edit that landed after the flush: it saves again and asks the
+            // preview again. False when the draft cannot be saved.
+            const recheck = async () => {
+                if (ed.saver && !(await ed.saver.flush())) return false;
+                version = ed.model.version;
+                await loadReal();
+                return true;
+            };
+            if (o.quick && ed.model.version !== version) {
+                if (!(await recheck())) {
+                    if (!disposed) ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: t('easydrag.ui.test_unsaved'), type: 'error' });
+                    return undefined;
+                }
+                if (disposed) return undefined;
+                fx = pending(trigger.id);
+            }
+            if (o.quick && !fx.size && !unchecked(trigger.id) && ed.model.version === version) { await run(trigger.id, null, o.onlyNode, false); return undefined; }
             let sample = {};
             try { sample = (await ed.api.testData(ed.flow.id, trigger.id)).data || {}; } catch (err) { sample = {}; }
             if (disposed) return undefined;
@@ -380,12 +420,21 @@
                     '<label class="ed-label">' + esc(t('easydrag.ui.test_data')) + '<textarea class="ed-input ed-code" rows="9" spellcheck="false" data-ed-test-data>' + esc(shown) + '</textarea></label>' +
                     '<p class="ed-hint">' + esc(t('easydrag.ui.test_data_hint')) + '</p><p class="ed-error" role="alert" hidden></p>' +
                     '<label class="ed-check"><input type="checkbox" data-ed-test-remember checked> ' + esc(t('easydrag.ui.test_remember')) + '</label>' +
-                    (real ? '' : '<p class="ed-callout ed-callout--warn" data-ed-effects-unchecked>' + core.icon('alert') + '<span>' + esc(t('easydrag.ui.effects_unchecked')) + '</span></p>') +
-                    effectsMarkup(fx),
+                    (unchecked(trigger.id) ? uncheckedMarkup() : '') + effectsMarkup(fx),
                 actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'run', label: t('easydrag.ui.test_run'), primary: true, icon: 'play' }],
                 onAction: async (action, d) => {
                     if (action !== 'run') return true;
                     const err = d.body.querySelector('.ed-error');
+                    // An edit landed after the effects were checked: check them again and let the
+                    // user confirm the new list.
+                    if (ed.model.version !== version) {
+                        const saved = await recheck();
+                        if (disposed) return false;
+                        const pick = d.body.querySelector('[data-ed-test-trigger]');
+                        showChecks(d.body, pick ? pick.value : trigger.id);
+                        if (!saved) { err.hidden = false; err.textContent = t('easydrag.ui.test_unsaved'); }
+                        return false;
+                    }
                     const text = d.body.querySelector('[data-ed-test-data]').value;
                     const edited = text !== shown;
                     let data = null;
@@ -408,22 +457,22 @@
                     });
                 }
             });
+            // showChecks shows the hint and the effects for a trigger again (another trigger, a newer
+            // check); the "don't ask again" tick stays as it was.
+            function showChecks(body, id) {
+                const skip = body.querySelector('[data-ed-effects-skip]');
+                const remember = !!(skip && skip.checked);
+                body.querySelectorAll('[data-ed-effects-unchecked], [data-ed-test-effects]').forEach(n => n.remove());
+                fx = pending(id);
+                if (unchecked(id)) body.appendChild(core.el(uncheckedMarkup()));
+                if (fx.size) body.appendChild(core.el(effectsMarkup(fx))).querySelector('[data-ed-effects-skip]').checked = remember;
+            }
             // Another trigger shows its own sample, unless the text was edited. For a step test it
             // also shows the effects of what that trigger reaches.
             const select = dialog.body.querySelector('[data-ed-test-trigger]');
             if (select) {
                 select.addEventListener('change', async () => {
-                    if (o.onlyNode) {
-                        const old = dialog.body.querySelector('[data-ed-test-effects]');
-                        const skip = old && old.querySelector('[data-ed-effects-skip]');
-                        const remember = !!(skip && skip.checked);
-                        if (old) old.remove();
-                        fx = pending(select.value);
-                        if (fx.size) {
-                            const box = dialog.body.appendChild(core.el(effectsMarkup(fx)));
-                            box.querySelector('[data-ed-effects-skip]').checked = remember;
-                        }
-                    }
+                    if (o.onlyNode) showChecks(dialog.body, select.value);
                     const area = dialog.body.querySelector('[data-ed-test-data]');
                     const id = select.value;
                     if (area.value !== shown) return;
@@ -548,8 +597,17 @@
             return answer === 'stop';
         }
 
+        // runFinished answers flows_changed "run_finished" (a live run ended, also one stopped here):
+        // the last run, the drawer and a run view follow. A burst of ends refreshes once, 250 ms
+        // after the last one, and a steady stream of ends still refreshes once a second.
+        const runFinished = core.debounce(() => {
+            if (disposed) return;
+            if (!isRunning()) loadLast();
+            refreshShown();
+        }, 250, 1000);
+
         // refreshShown brings the drawer's list, and the run view of a run that had not ended, up
-        // to date: after a stop, and when a live run ended (flows_changed "run_finished").
+        // to date: after a stop (at once), and when a live run ended (runFinished).
         function refreshShown() {
             if (disposed) return;
             if (drawer) loadRuns(true);
@@ -728,15 +786,16 @@
 
         bag.add(closeStream);
         bag.add(() => { stopPolls.forEach(clearTimeout); stopPolls.clear(); });
+        bag.add(() => runFinished.cancel());
         bag.add(() => toggleDrawer(false));
 
         return {
-            startTest, attach, runLive, cancel, stopRun, refreshShown, loadLast, toggleDrawer, openRunView, effects, stepsFrom, applyRunView, clearRun,
+            startTest, attach, runLive, cancel, stopRun, refreshShown, runFinished, loadLast, toggleDrawer, openRunView, effects, stepsFrom, applyRunView, clearRun,
             isRunning,
             drawerOpen: () => !!drawer,
             dispose() { disposed = true; parked = null; bag.dispose(); }
         };
     }
 
-    ED.runs = { create, effects, triggers, edgeStates, isFinal, isActive };
+    ED.runs = { create, effects, unknownEffects, triggers, edgeStates, isFinal, isActive };
 })();

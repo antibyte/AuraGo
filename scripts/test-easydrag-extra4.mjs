@@ -81,18 +81,22 @@ export async function run(env) {
         Object.defineProperty(proto, 'tagName', { configurable: true, get() { return String(this.localName).toUpperCase(); } });
         proto.removeAttribute = function (name) { this.attrs.delete(name); };
         proto.click = function () { this.fire('click'); };
-        // An element is connected when its top ancestor is the editor root; getElementById
-        // searches that root, as the page would.
+        // An element is connected when the editor root is among its ancestors (the root itself
+        // hangs in core.el's template); getElementById searches that root, as the page would.
         let root = null;
-        Object.defineProperty(proto, 'isConnected', { configurable: true, get() { let x = this; while (x.parentNode) x = x.parentNode; return x === root; } });
+        Object.defineProperty(proto, 'isConnected', { configurable: true, get() { for (let x = this; x; x = x.parentNode) if (x === root) return true; return false; } });
         Object.assign(dom.document, { addEventListener() {}, removeEventListener() {}, getElementById: id => (root ? root.querySelector('[id="' + id + '"]') : null) });
         const store = new Map();
         const logged = [];
         const timers = new Map();
         let nextId = 1;
         const opened = [];
+        // clock.now (when set) is Date.now() in the sandbox.
+        const clock = { now: null };
+        const ClockDate = class extends Date {};
+        ClockDate.now = () => (clock.now === null ? Date.now() : clock.now);
         const box = vm.createContext({
-            window: { SYSTEM_LANG: 'en', open: (...args) => { opened.push(args); } }, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document,
+            window: { SYSTEM_LANG: 'en', open: (...args) => { opened.push(args); } }, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, Date: ClockDate,
             URLSearchParams, URL, EventSource: class { addEventListener() {} close() {} },
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },
@@ -122,7 +126,7 @@ export async function run(env) {
         root = ed.root;
         const open = () => ed.root.querySelectorAll('.ed-modal-backdrop').filter(m => !m.classList.contains('is-closing'));
         return {
-            ED, ed, dom, requests, notes, logged, store, timers, opened,
+            ED, ed, dom, requests, notes, logged, store, timers, opened, clock,
             canvas: { announce() {} },
             top: () => open()[open().length - 1] || null,
             runTimers(ms) { for (const [id, entry] of Array.from(timers)) { if (ms !== undefined && entry.ms > ms) continue; timers.delete(id); entry.fn(); } }
@@ -202,7 +206,56 @@ export async function run(env) {
             [!!unchecked, unchecked && !!unchecked.body.querySelector('[data-ed-effects-unchecked]'), unchecked && effectKeys(unchecked), lost.requests.filter(r => r.url === '/api/desktop/flows/f1/test').length,
                 !!post && !post.body.querySelector('[data-ed-effects-unchecked]')],
             [true, true, [], 0, true]);
-        eq('c1d15b the step test effect checks log no errors', [h.logged, d.logged, w.logged, lost.logged], [[], [], [], []]);
+
+        // An edit that lands after the preview (here: while it loads) is checked again: Run then
+        // shows the new list and waits for a second confirmation; a quick test opens the dialog.
+        const editedHarness = () => {
+            let calls = 0;
+            let e = null;
+            const doc = effectsDoc();
+            Object.assign(doc.nodes.find(n => n.id === TG), { type: 'http.request', params: { method: 'GET' } });
+            e = harness(doc, () => {
+                calls++;
+                if (calls === 1) { e.ed.model.setParam(TG, 'method', 'POST'); return { issues: [], diff: {}, effects: [{ effect: 'writes_files', node_ids: [PDF] }] }; }
+                return { issues: [], diff: {}, effects: [{ effect: 'sends_message', node_ids: [TG] }, { effect: 'writes_files', node_ids: [PDF] }] };
+            });
+            e.flushes = 0;
+            e.ed.saver = { flush: () => { e.flushes++; return Promise.resolve(true); } };
+            e.previews = () => e.requests.filter(r => r.url === '/api/desktop/flows/f1/publish-preview').length;
+            e.tests = () => e.requests.filter(r => r.url === '/api/desktop/flows/f1/test').length;
+            return e;
+        };
+        const ea = editedHarness();
+        const edited = await ea.ED.runs.create(ea.ed, ea.canvas).startTest({ onlyNode: PDF, triggerNode: T1 });
+        const beforeRun = effectKeys(edited);
+        edited.el.querySelector('[data-ed-action="run"]').fire('click');
+        await settle();
+        const afterFirst = [effectKeys(edited), ea.tests(), ea.previews(), ea.flushes, !!ea.top()];
+        edited.el.querySelector('[data-ed-action="run"]').fire('click');
+        await settle();
+        const eb = editedHarness();
+        eb.store.set('aurago.easydrag.effects-ok.f1', '["writes_files"]');
+        const quickEdited = await eb.ED.runs.create(eb.ed, eb.canvas).startTest({ onlyNode: PDF, quick: true, triggerNode: T1 });
+        eq('c1d15b an edit after the preview is checked again: Run shows the new list first, a quick test opens the dialog',
+            [beforeRun, afterFirst, ea.tests(), !!quickEdited, quickEdited && effectKeys(quickEdited), eb.tests(), eb.previews(), eb.flushes],
+            [['writes_files'], [['sends_message', 'writes_files'], 0, 2, 2, true], 1, true, ['sends_message'], 0, 2, 2]);
+
+        // A running step whose effects hook failed (the catalog marks it risky without effects)
+        // makes the effects unchecked; such a step that does not run changes nothing.
+        fxTypes.set('tool.broken', { type: 'tool.broken', label: 'Broken', inputs: ['in'], outputs: ['out'], params: [], risky: true });
+        const broken = effectsDoc();
+        broken.nodes.find(n => n.id === DEL).type = 'tool.broken';
+        const bh = harness(broken);
+        bh.store.set('aurago.easydrag.effects-ok.f1', '["sends_message","writes_files"]');
+        const bruns = bh.ED.runs.create(bh.ed, bh.canvas);
+        const before = await bruns.startTest({ onlyNode: PDF, quick: true, triggerNode: T1 });
+        bruns.clearRun();
+        const crash = await bruns.startTest({ onlyNode: DEL, quick: true, triggerNode: T1 });
+        eq('c1d15b a running step whose effects hook failed shows the unchecked hint and is never run quietly',
+            [before, bh.requests.filter(r => r.url === '/api/desktop/flows/f1/test').length, !!crash, crash && !!crash.body.querySelector('[data-ed-effects-unchecked]'),
+                bh.ED.runs.unknownEffects(bh.ed, PDF, T1), bh.ED.runs.unknownEffects(bh.ed, DEL, T1)],
+            [undefined, 1, true, true, false, true]);
+        eq('c1d15b the step test effect checks log no errors', [h.logged, d.logged, w.logged, lost.logged, ea.logged, eb.logged, bh.logged], [[], [], [], [], [], [], []]);
     });
 
     // ── 1d-15b B: runs that have not ended can be stopped from the drawer and the run view ──
@@ -301,6 +354,8 @@ export async function run(env) {
             if (req.url === '/api/desktop/flows/f1/runs?limit=50') return { runs: listed };
             if (req.url === '/api/desktop/flows/runs/r_t/cancel') return { cancelled: true };
             if (req.url === '/api/desktop/flows/runs/r_t') return { run: run('r_t', stored, 'test'), steps: [] };
+            if (req.url === '/api/desktop/flows/runs/r_s/cancel') return { cancelled: true };
+            if (req.url === '/api/desktop/flows/runs/r_s') return { run: run('r_s', 'running', 'test'), steps: [] };
             if (req.url === '/api/desktop/flows/runs/r_v') { const d = deferred(); views.push(d); return d.p; }
             throw apiError('FLOW_RUN_NOT_FOUND');
         });
@@ -350,7 +405,43 @@ export async function run(env) {
         views[0].resolve({ run: run('r_v', 'running', 'live'), steps: [] });
         await settle();
         eq('c1d15b an older answer for the viewed run never takes back its end', [views.length, h.ed.runView.run.status, h.ed.run.status], [2, 'cancelled', 'cancelled']);
+        h.ed.runView = null;
+        runs.clearRun();
+        // #3: a run that keeps going is asked for after 1, 2, 4, 8 and 16 s, then no more.
+        listed = [run('r_s', 'running', 'test')];
+        runs.refreshShown();
+        await settle();
+        const slowDelays = [];
+        h.timers.clear();
+        stopOf('r_s').fire('click');
+        await settle();
+        for (let i = 0; i < 6; i++) { const next = delays(); slowDelays.push(next[0] || 0); h.runTimers(16000); await settle(); }
+        eq('c1d15b a stopped run that keeps going is followed for up to 31 s', slowDelays, [1000, 2000, 4000, 8000, 16000, 0]);
+        // #4: run_finished refreshes once per burst, and at the latest a second after it began.
+        h.timers.clear();
+        const lastRuns = () => h.requests.filter(r => r.url === '/api/desktop/flows/f1/runs?limit=1').length;
+        const lastBefore = lastRuns();
+        const waits = [];
+        for (const now of [10000, 10200, 10500, 10900]) {
+            h.clock.now = now;
+            runs.runFinished();
+            waits.push(Array.from(h.timers.values()).map(x => x.ms));
+        }
+        h.runTimers(250);
+        await settle();
+        eq('c1d15b a burst of run ends refreshes once, a second after it began at the latest', [waits, lastRuns() - lastBefore], [[[250], [250], [250], [100]], 1]);
+        // dispose drops a pending refresh and a pending follow-up.
+        h.clock.now = null;
+        runs.runFinished();
+        stored = 'running';
+        listed = [run('r_t', 'running', 'test')];
+        runs.refreshShown();
+        await settle();
+        stopOf('r_t').fire('click');
+        await settle();
+        const pending = Array.from(h.timers.values()).map(x => x.ms).sort((a, b) => a - b);
         runs.dispose();
+        eq('c1d15b dispose cancels the run_finished refresh and the stop follow-up', [pending, Array.from(h.timers.values()).map(x => x.ms)], [[250, 1000], []]);
         eq('c1d15b the stop follow-up checks log no errors', h.logged, []);
     });
 
@@ -465,6 +556,7 @@ export async function run(env) {
         });
         const app = { ctx: { notify() {} }, t, esc: h.ED.core.esc, api: h.ed.api, readonly: false, catalog: { types }, openFlow() {}, openHome() {} };
         const home = h.ED.home.create(app);
+        h.ed.root.appendChild(home.el);
         await settle();
         const grid = home.el.querySelector('.ed-flow-grid');
         const lists = () => h.requests.filter(r => r.url === '/api/desktop/flows').length;
@@ -485,8 +577,16 @@ export async function run(env) {
         grid.querySelector('[data-ed-home-retry]').fire('click');
         await settle();
         const back = h.dom.document.activeElement === grid.querySelector('[data-ed-flow="f9"]');
+        // A control outside the start page keeps the focus.
+        listAnswer = () => { throw apiError('FLOWS_DISABLED'); };
+        await home.reload();
+        const outside = h.ed.root.appendChild(h.ED.core.el('<button type="button">elsewhere</button>'));
+        outside.focus();
+        grid.querySelector('[data-ed-home-retry]').fire('click');
+        await settle();
+        const kept = h.dom.document.activeElement === outside;
         eq('c1d15b the start page lock card offers Open settings and Try again; other errors offer Try again only; Try again keeps the focus on the grid',
-            [off, retried, other, back], [[true, true, false], [[['/config#flows', '_blank', 'noopener']], 2, true], [false, true, true, true], true]);
+            [off, retried, other, back, kept], [[true, true, false], [[['/config#flows', '_blank', 'noopener']], 2, true], [false, true, true, true], true, true]);
         home.dispose();
         eq('c1d15b the lock card checks log no errors', h.logged, []);
     });

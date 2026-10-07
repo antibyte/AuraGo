@@ -165,12 +165,13 @@
         const reloadSoon = core.debounce(reload, 1500);
 
         // retry is "Try again" on an error card. The new grid replaces the button, so the focus goes
-        // to the new "Try again" or, once the flows are back, to the first card; it is not taken
-        // back from a control the user moved to meanwhile.
+        // to the new "Try again" or, once the flows are back, to the first card. It moves only when
+        // it was lost with the old button (on the body, or on the removed button): never away from
+        // a control the user moved to meanwhile, here or in another window.
         async function retry() {
             await reload();
             const active = document.activeElement;
-            if (active && active !== document.body && el.contains(active)) return;
+            if (active && active !== document.body && active.isConnected !== false) return;
             const next = grid.querySelector('[data-ed-home-retry]') || grid.querySelector('[data-ed-flow]') || el.querySelector('[data-ed-new]');
             if (next && !next.disabled) next.focus();
         }

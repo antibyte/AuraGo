@@ -95,11 +95,20 @@
 
     function clamp(value, lo, hi) { return Math.min(hi, Math.max(lo, value)); }
 
-    function debounce(fn, ms) {
+    // debounce runs fn ms after the last call. maxWait (optional) bounds the wait from the first
+    // call of a burst, so steady calls still run fn that often.
+    function debounce(fn, ms, maxWait) {
         let timer = 0;
-        const wrapped = (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
-        wrapped.cancel = () => clearTimeout(timer);
-        wrapped.flush = (...args) => { clearTimeout(timer); fn(...args); };
+        let first = 0;
+        const wrapped = (...args) => {
+            const now = Date.now();
+            if (!timer) first = now;
+            clearTimeout(timer);
+            const wait = maxWait > 0 ? Math.max(0, Math.min(ms, first + maxWait - now)) : ms;
+            timer = setTimeout(() => { timer = 0; fn(...args); }, wait);
+        };
+        wrapped.cancel = () => { clearTimeout(timer); timer = 0; };
+        wrapped.flush = (...args) => { clearTimeout(timer); timer = 0; fn(...args); };
         return wrapped;
     }
 

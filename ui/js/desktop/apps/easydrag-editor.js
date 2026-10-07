@@ -535,14 +535,6 @@
         }
         bag.listen(document, 'keydown', onKeyDown);
         bag.listen(document, 'keyup', event => interact.handleKeyUp(event));
-        // A live run ended (also one stopped here): the last run, the drawer and a run view of it
-        // follow. Runs that end together (a burst of a trigger) cause one refresh.
-        const runFinished = core.debounce(() => {
-            if (disposed) return;
-            if (!runs.isRunning()) runs.loadLast();
-            runs.refreshShown();
-        }, 250);
-        bag.add(() => runFinished.cancel());
         bag.listen(document, 'aurago:flows-changed', (event) => {
             const d = event.detail || {};
             if (d.flow_id !== ed.flow.id) return;
@@ -552,7 +544,8 @@
                 app.openHome();
                 return;
             }
-            if (d.reason === 'run_finished') runFinished();
+            // A live run ended: the last run, the drawer and a run view follow (debounced in runs).
+            if (d.reason === 'run_finished') runs.runFinished();
             if (d.reason === 'enabled' || d.reason === 'published') refreshRecord();
         });
 
