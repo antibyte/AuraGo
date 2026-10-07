@@ -564,16 +564,26 @@
         setTimeout(() => { button.disabled = false; }, Math.min(seconds, 3600) * 1000);
     }
 
-    // secretRef picks a flow secret (vault entry easydrag_<name>) or creates a new one. A name
-    // that exists is replaced only after a confirmation.
+    // namesText lists at most three names, and "and N more" for the rest.
+    function namesText(t, names) {
+        const shown = names.slice(0, 3).join(', ');
+        return names.length > 3 ? t('easydrag.ui.names_more', { names: shown, count: names.length - 3 }) : shown;
+    }
+
+    // secretRef picks a flow secret (vault entry easydrag_<name>), creates a new one or deletes the
+    // chosen one. A name that exists is replaced, and a secret deleted, only after a confirmation.
     function secretRef(env, value, onChange, id) {
         const c = core();
         const { t, esc } = env;
         const el = c.el('<div class="ed-secret"><select class="ed-input"' + (id ? ' id="' + esc(id) + '"' : '') + (env.readonly ? ' disabled' : '') + '></select>' +
-            (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-secret-new>' + c.icon('key') + '<span>' + esc(t('easydrag.ui.secret_new')) + '</span></button>') +
+            (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-secret-new>' + c.icon('key') + '<span>' + esc(t('easydrag.ui.secret_new')) + '</span></button>' +
+                '<button type="button" class="ed-icon-btn" data-ed-secret-delete disabled title="' + esc(t('easydrag.ui.secret_delete')) + '" aria-label="' + esc(t('easydrag.ui.secret_delete')) + '">' + c.icon('trash') + '</button>') +
             '<p class="ed-hint ed-secret-unavailable" hidden>' + esc(t('easydrag.ui.secrets_unavailable')) + '</p></div>');
         const select = el.querySelector('select');
         const unavailable = el.querySelector('.ed-secret-unavailable');
+        const deleteBtn = el.querySelector('[data-ed-secret-delete]');
+        // Delete works on the chosen secret: without one there is nothing to delete.
+        const syncDelete = () => { if (deleteBtn) deleteBtn.disabled = !select.value; };
         async function load(selected) {
             let names = [];
             try {
@@ -587,6 +597,7 @@
             }
             if (selected && !names.includes(selected)) names.push(selected);
             select.innerHTML = '<option value="">' + esc(t('easydrag.ui.secret_none')) + '</option>' + names.map(n => '<option value="' + esc(n) + '"' + (n === selected ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+            syncDelete();
         }
         // confirmReplace asks before the value of an existing secret is overwritten.
         async function confirmReplace(name) {
@@ -597,7 +608,44 @@
             }).done;
             return answer === 'replace';
         }
-        select.addEventListener('change', () => onChange(select.value || undefined));
+        select.addEventListener('change', () => { syncDelete(); onChange(select.value || undefined); });
+        // The delete asks first: flows that use the secret fail until it is set again. The server
+        // names the published ones (used_by), and a warning lists them. A 429 holds Delete for its
+        // Retry-After, as Save does.
+        if (deleteBtn) deleteBtn.addEventListener('click', () => {
+            const name = select.value;
+            if (!name) return;
+            const dialog = c.modal(env.root, {
+                title: t('easydrag.ui.secret_delete_title'), closeLabel: t('easydrag.ui.close'),
+                body: '<p>' + esc(t('easydrag.ui.secret_delete_text', { name })) + '</p><p class="ed-error" role="alert" hidden></p>',
+                actions: [{ id: 'keep', label: t('easydrag.ui.cancel') }, { id: 'delete', label: t('easydrag.ui.delete'), danger: true }],
+                onAction: async (action, d) => {
+                    if (action !== 'delete') return true;
+                    let res;
+                    try {
+                        res = await env.api.deleteSecret(name);
+                    } catch (err) {
+                        const wait = err && err.retryAfter > 0 ? err.retryAfter : 0;
+                        if (wait) holdAction(d, 'delete', wait);
+                        const error = d.body.querySelector('.ed-error');
+                        error.hidden = false;
+                        error.textContent = c.errorText(t, err) + (wait ? ' ' + t('easydrag.ui.secret_retry', { seconds: wait }) : '');
+                        return false;
+                    }
+                    if (env.secretCache) env.secretCache.names = null;
+                    const cleared = select.value === name;
+                    await load(cleared ? undefined : select.value);
+                    if (cleared) onChange(undefined);
+                    const users = res && Array.isArray(res.used_by) ? res.used_by.filter(n => typeof n === 'string') : [];
+                    if (users.length && typeof env.notify === 'function') {
+                        env.notify({ title: t('easydrag.ui.secret_deleted', { name }), message: t('easydrag.ui.secret_still_used', { flows: namesText(t, users) }), type: 'warning' });
+                    }
+                    return true;
+                }
+            });
+            // The disabled Delete cannot keep the focus the dialog gives back: the list takes it.
+            dialog.done.then(result => { if (result === 'delete' && !select.value) select.focus(); });
+        });
         const newBtn = el.querySelector('[data-ed-secret-new]');
         if (newBtn) newBtn.addEventListener('click', () => {
             const dialog = c.modal(env.root, {

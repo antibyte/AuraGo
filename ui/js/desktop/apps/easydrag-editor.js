@@ -39,6 +39,7 @@
             '<button type="button" class="ed-icon-btn" data-ed-cmd="more" aria-label="' + esc(t('easydrag.ui.more')) + '" title="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button>' +
             '</div></header>' +
             '<div class="ed-runview-banner" role="status" hidden>' + core.icon('history') + '<span data-ed-runview-text></span>' +
+            '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-cmd="stop-viewed" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="exit-run-view">' + core.icon('arrow-left') + '<span>' + esc(t('easydrag.ui.run_view_exit')) + '</span></button></div>' +
             '<div class="ed-body"><nav class="ed-rail" aria-label="' + esc(t('easydrag.ui.rail_label')) + '">' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="palette" aria-pressed="true" title="' + esc(t('easydrag.ui.palette_title')) + ' (' + core.shortcut('Ctrl+K') + ')" aria-label="' + esc(t('easydrag.ui.palette_title')) + '">' + core.icon('plus') + '</button>' +
@@ -99,6 +100,7 @@
         function renderHeader() {
             // A save answered after dispose must not point the window context at this flow again.
             if (disposed) return;
+            renderBanner();
             if (document.activeElement !== nameInput) nameInput.value = ed.model.doc.name || '';
             nameInput.readOnly = !!(ed.readonly || ed.runView);
             const s = stateOf();
@@ -178,6 +180,23 @@
 
         // ── run view ────────────────────────────────────────────────────────────
 
+        // renderBanner names the viewed run and offers Stop while it has not ended (not on a
+        // read-only desktop). A Stop that goes away hands its focus to "Back to draft".
+        function renderBanner() {
+            const run = ed.runView && ed.runView.run;
+            banner.hidden = !run;
+            if (!run) return;
+            banner.querySelector('[data-ed-runview-text]').textContent = t('easydrag.ui.run_view_banner', {
+                status: core.tr(t, 'easydrag.ui.status_' + run.status, run.status),
+                time: core.fmt.dateTime(run.started_at),
+                revision: run.revision
+            });
+            const stop = banner.querySelector('[data-ed-cmd="stop-viewed"]');
+            const off = !!ed.readonly || !ED.runs.isActive(run.status);
+            if (off && document.activeElement === stop) banner.querySelector('[data-ed-cmd="exit-run-view"]').focus();
+            stop.hidden = off;
+        }
+
         function enterRunView(detail) {
             ED.detail.close(ed);
             ED.palette.closeQuickAdd(ed);
@@ -189,12 +208,7 @@
             ed.model = ED.model.create(detail.doc, ed.catalog);
             ed.selection = new Set();
             el.classList.add('is-run-view');
-            banner.hidden = false;
-            banner.querySelector('[data-ed-runview-text]').textContent = t('easydrag.ui.run_view_banner', {
-                status: core.tr(t, 'easydrag.ui.status_' + detail.run.status, detail.run.status),
-                time: core.fmt.dateTime(detail.run.started_at),
-                revision: detail.run.revision
-            });
+            renderBanner();
             ed.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
             runs.applyRunView(detail);
             // The run view needs the room: the palette hides (a stored run takes no new steps) and
@@ -220,7 +234,7 @@
             ed.model = draftModel;
             ed.selection = new Set();
             el.classList.remove('is-run-view');
-            banner.hidden = true;
+            renderBanner();
             runs.clearRun();
             ed.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
             if (savedView) canvas.setView(savedView, { animate: true });
@@ -474,6 +488,7 @@
             else if (cmd === 'active') publish.setActive(!ed.flowEnabled);
             else if (cmd === 'more') moreMenu(b);
             else if (cmd === 'exit-run-view') exitRunView();
+            else if (cmd === 'stop-viewed') runs.stopRun(ed.runView && ed.runView.run);
             else if (cmd === 'last-run') { if (ed.run || lastRecord) runs.toggleDrawer(true); renderHeader(); }
             else if (cmd === 'issues') publish.openIssues(b);
             else if (cmd === 'keys') ED.dialogs.shortcuts(ed);
@@ -528,7 +543,11 @@
                 app.openHome();
                 return;
             }
-            if (d.reason === 'run_finished' && !runs.isRunning()) runs.loadLast();
+            if (d.reason === 'run_finished') {
+                if (!runs.isRunning()) runs.loadLast();
+                // A live run ended (also one stopped here): the drawer and a run view of it follow.
+                runs.refreshShown();
+            }
             if (d.reason === 'enabled' || d.reason === 'published') refreshRecord();
         });
 

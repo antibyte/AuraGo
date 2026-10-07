@@ -48,7 +48,7 @@
         box.addEventListener('click', (event) => {
             const b = event.target.closest('[data-ed-shell]');
             if (!b) return;
-            if (b.dataset.edShell === 'config') window.open('/config#flows', '_blank', 'noopener');
+            if (b.dataset.edShell === 'config') core.openFlowSettings();
             else start(inst, inst.lastRoute || {});
         });
         inst.root.appendChild(box);

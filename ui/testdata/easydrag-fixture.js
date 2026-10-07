@@ -343,6 +343,21 @@
         return id;
     }
 
+    // waitingRun adds a live run of the published flow that a trigger started and that waits for a
+    // slot: it never starts by itself, and a cancel ends it at once (the runner's finishUnstarted).
+    function waitingRun(flowId) {
+        const entry = state.flows.get(flowId || seeded.id);
+        const doc = clone(entry.rec.live);
+        const trigger = triggerNodes(doc)[0];
+        const id = nextID('run_');
+        const run = {
+            id, flow_id: entry.rec.id, revision: entry.rec.live_revision, mode: 'live', trigger_node: trigger.id,
+            trigger_type: 'schedule', trigger_data: {}, status: 'waiting', started_at: iso(), duration_ms: 0
+        };
+        state.runs.set(id, { run, steps: [], doc, order: [], events: [], listeners: new Set(), done: false, cancel: false, unstarted: true });
+        return id;
+    }
+
     // ── scripted EventSource for GET /api/desktop/flows/runs/{run}/events (streamFlowRunEvents) ──
     class FixtureEventSource {
         constructor(url) {
@@ -468,6 +483,7 @@
             if (!rec) return fail(404, 'FLOW_RUN_NOT_FOUND', 'run not found');
             if (rec.done) return fail(409, 'FLOW_RUN_FINISHED', 'the run has already finished');
             rec.cancel = true;
+            if (rec.unstarted) endRun(rec, 'cancelled', { error_code: 'FLOW_CANCELLED', error_message: 'the run was cancelled before it started' });
             return reply({ cancelled: true }, 202);
         }
         return null;
@@ -700,6 +716,8 @@
         flow: id => state.flows.get(id || seeded.id),
         // addDraft adds an unpublished flow with the briefing's steps (Mission Control's second row).
         addDraft: name => addFlow(Object.assign(briefing(), { name }), false, false).id,
+        // addWaitingRun adds a live run that waits for a slot (see waitingRun) and returns its id.
+        addWaitingRun: flowId => waitingRun(flowId),
         // editor returns the editor state of the first EasyDrag window (null on the start page).
         editor() {
             const inst = window.EasyDragApp && Array.from(window.EasyDragApp._instances.values())[0];

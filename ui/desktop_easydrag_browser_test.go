@@ -184,6 +184,8 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	}
 	page.MustEval(`()=>fixtureTheme('standard')`)
 	s.failedRunView()
+	// Live runs that a trigger started and that wait for a slot can be stopped here.
+	s.stopWaitingRuns()
 	// A narrow window: the palette floats over the canvas, so it closes; wide again, it is back.
 	page.MustSetViewport(820, 900, 1, false)
 	s.wait(`()=>getComputedStyle(document.querySelector('.ed-palette')).position==='absolute' && document.querySelector('.ed-palette').classList.contains('is-collapsed')`)
@@ -360,12 +362,54 @@ func (s *easyDragSmoke) homeDisabled() {
 	s.wait(`()=>{const card=document.querySelector('.ed-flow-grid .ed-home-empty');return !!card && !!card.querySelector('h3') && !document.querySelector('.ed-flow-card') && document.querySelector('[data-ed-home-search]').disabled}`)
 	// Nothing can be created meanwhile: New flow, Import and the templates wait.
 	s.wait(`()=>document.querySelector('.ed-home-hero [data-ed-new]').disabled && document.querySelector('[data-ed-import]').disabled && document.querySelector('.ed-template-grid').classList.contains('is-disabled') && [...document.querySelectorAll('.ed-template-card')].every(c=>c.getAttribute('aria-disabled')==='true' && c.tabIndex===-1)`)
+	// The card offers the window lock card's actions: Open settings and Try again.
+	s.wait(`()=>{const card=document.querySelector('.ed-flow-grid .ed-home-empty');return !!card.querySelector('[data-ed-home-settings]') && !!card.querySelector('[data-ed-home-retry]')}`)
 	s.shot("home-disabled")
 	s.noRawKeys("home disabled")
 	s.failOnPageErrors("home disabled")
+	// Try again asks for the list once more; with flows back on, the cards return.
 	s.page.MustEval(`()=>{edFixture.state.disabled=false}`)
-	s.page.MustEval(broadcast)
+	s.page.MustElement(`.ed-flow-grid [data-ed-home-retry]`).MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && !document.querySelector('[data-ed-home-search]').disabled && !document.querySelector('.ed-home-hero [data-ed-new]').disabled && !document.querySelector('.ed-template-grid').classList.contains('is-disabled')`)
+}
+
+// stopWaitingRuns adds two live runs that wait for a slot. One is stopped from its row in the runs
+// drawer, the other from the banner of its run view; both ask first.
+func (s *easyDragSmoke) stopWaitingRuns() {
+	s.t.Helper()
+	page := s.page
+	ids := page.MustEval(`()=>[edFixture.addWaitingRun(),edFixture.addWaitingRun()]`).Arr()
+	first, second := ids[0].Str(), ids[1].Str()
+	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
+	s.wait(`()=>document.querySelectorAll('.ed-drawer .ed-run-item [data-ed-run-stop]').length===2`)
+	// The Stop button's name contains its visible label and names the run's start time.
+	s.wait(fmt.Sprintf(`()=>{const b=document.querySelector('[data-ed-run-stop="%s"]');const name=b.getAttribute('aria-label').toLowerCase();return name.includes(b.textContent.trim().toLowerCase()) && /\d/.test(name)}`, first))
+	s.shot("runs-drawer-stop")
+	s.noRawKeys("runs drawer stop")
+	page.MustElement(fmt.Sprintf(`[data-ed-run-stop="%s"]`, first)).MustClick()
+	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="stop"]')`)
+	s.shot("run-stop-confirm")
+	s.noRawKeys("run stop confirm")
+	page.MustElement(`.ed-modal [data-ed-action="stop"]`).MustClick()
+	s.wait(fmt.Sprintf(`()=>edFixture.state.runs.get('%s').run.status==='cancelled' && !document.querySelector('.ed-modal-backdrop') && !document.querySelector('[data-ed-run-stop="%s"]') && document.activeElement===document.querySelector('[data-ed-run="%s"]')`, first, first, first))
+	// The run view of the other waiting run: Stop in the banner, then the banner shows it stopped.
+	page.MustElement(fmt.Sprintf(`.ed-run-row[data-ed-run="%s"]`, second)).MustClick()
+	s.wait(`()=>{const b=document.querySelector('.ed-runview-banner');return !b.hidden && !b.querySelector('[data-ed-cmd="stop-viewed"]').hidden}`)
+	s.settle()
+	s.shot("run-view-stop")
+	page.MustElement(`.ed-runview-banner [data-ed-cmd="stop-viewed"]`).MustClick()
+	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="stop"]')`)
+	page.MustElement(`.ed-modal [data-ed-action="stop"]`).MustClick()
+	s.wait(fmt.Sprintf(`()=>{const b=document.querySelector('.ed-runview-banner');return edFixture.state.runs.get('%s').run.status==='cancelled' && b.querySelector('[data-ed-cmd="stop-viewed"]').hidden && b.textContent.includes(edFixture.editor().t('easydrag.ui.status_cancelled')) && document.activeElement===b.querySelector('[data-ed-cmd="exit-run-view"]')}`, second))
+	s.shot("run-view-stopped")
+	s.noRawKeys("run view stopped")
+	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
+	page.Keyboard.MustType(input.Escape)
+	s.wait(`()=>document.querySelector('.ed-runview-banner').hidden`)
+	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-drawer')`)
+	s.clearToasts()
+	s.failOnPageErrors("stop waiting runs")
 }
 
 // saveFailures moves the selected step down by keyboard: the save gets 500 (offline, retried by

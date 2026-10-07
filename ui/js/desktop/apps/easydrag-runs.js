@@ -1,5 +1,5 @@
 // EasyDrag runs: test dialog (trigger, sample data, real-effects warning), live run stream
-// (SSE with reconnect), step and wire states, run drawer and read-only run view.
+// (SSE with reconnect), step and wire states, run drawer and read-only run view, stopping their runs.
 (function () {
     'use strict';
 
@@ -15,6 +15,8 @@
     const EFFECT_ICONS = { sends_message: 'brand-telegram', writes_files: 'file-pencil', controls_devices: 'home', runs_code: 'api', deletes: 'trash', system_change: 'settings' };
 
     function isFinal(status) { return ['success', 'error', 'cancelled'].includes(status); }
+    // isActive: the run has not ended yet (queued, waiting for a slot, or running).
+    function isActive(status) { return ['queued', 'waiting', 'running'].includes(status); }
 
     function triggers(ed) {
         return ed.model.doc.nodes.filter(n => { const i = ed.model.info(n.type); return i && i.trigger && !n.settings.disabled; });
@@ -448,6 +450,63 @@
             await finish(runId, detail);
         }
 
+        // stopping holds the runs whose stop is being confirmed or sent: one stop per run at a time.
+        const stopping = new Set();
+
+        // stopRun stops a run of the drawer or the run view, also one this window did not start: a
+        // live run of a trigger that waits for a slot, or another window's test. A live run stops
+        // only after a confirmation. 202, and 409 FLOW_RUN_FINISHED (it ended meanwhile), refresh
+        // the list and the viewed run quietly; other errors are shown.
+        async function stopRun(record) {
+            if (disposed || ed.readonly || !record || !isActive(record.status) || stopping.has(record.id)) return false;
+            stopping.add(record.id);
+            try {
+                if (record.mode === 'live' && !(await confirmStop(record))) return false;
+                if (disposed) return false;
+                try { await ed.api.cancel(record.id); } catch (err) {
+                    if (core.errorCode(err) !== 'FLOW_RUN_FINISHED') {
+                        if (!disposed) ed.ctx.notify({ title: t('easydrag.ui.run_cancel'), message: core.errorText(t, err), type: 'error' });
+                        return false;
+                    }
+                    if (streamed(record.id)) await settleFinished(record.id);
+                }
+                refreshShown();
+                return true;
+            } finally {
+                stopping.delete(record.id);
+            }
+        }
+
+        async function confirmStop(record) {
+            const answer = await core.modal(ed.root, {
+                title: t('easydrag.ui.run_stop_title'), closeLabel: t('easydrag.ui.close'),
+                body: '<p>' + esc(t('easydrag.ui.run_stop_text', { time: core.fmt.dateTime(record.started_at) })) + '</p>',
+                actions: [{ id: 'keep', label: t('easydrag.ui.cancel') }, { id: 'stop', label: t('easydrag.ui.run_cancel'), danger: true, icon: 'player-stop' }]
+            }).done;
+            return answer === 'stop';
+        }
+
+        // refreshShown brings the drawer's list, and the run view of a run that had not ended, up
+        // to date: after a stop, and when a live run ended (flows_changed "run_finished").
+        function refreshShown() {
+            if (disposed) return;
+            if (drawer) loadRuns(true);
+            const shown = ed.runView && ed.runView.run;
+            if (shown && isActive(shown.status)) refreshView(shown.id);
+        }
+
+        // refreshView shows the stored state of the viewed run again (status, steps, banner), unless
+        // another run view replaced it meanwhile.
+        async function refreshView(runId) {
+            const mine = viewSeq;
+            let detail = null;
+            try { detail = await ed.api.run(runId, false); } catch (err) { return; }
+            const shown = ed.runView && ed.runView.run;
+            if (disposed || mine !== viewSeq || !shown || shown.id !== runId || !detail || !detail.run) return;
+            ed.runView.run = detail.run;
+            applyRunView(detail);
+        }
+
         // loadLast fills "Last run" data for the input tree when the editor opens.
         async function loadLast() {
             try {
@@ -467,8 +526,24 @@
             return n ? (n.label || n.type) : t('easydrag.ui.trigger_removed');
         }
 
-        // loadRuns fills the drawer; only the answer to the latest request (filter) is shown.
-        async function loadRuns() {
+        function runRow(r) {
+            const row = '<button type="button" class="ed-run-row" data-ed-run="' + esc(r.id) + '"><span class="ed-run-dot ed-run-dot--' + esc(r.status) + '"></span>' +
+                '<span class="ed-run-main"><span>' + esc(core.tr(t, 'easydrag.ui.status_' + r.status, r.status)) + ' · ' + esc(triggerLabel(r)) + '</span>' +
+                '<span class="ed-muted">' + esc(core.fmt.dateTime(r.started_at)) + (r.duration_ms ? ' · ' + esc(core.fmt.duration(r.duration_ms)) : '') + '</span></span>' +
+                '<span class="ed-chip' + (r.mode === 'test' ? ' ed-chip--muted' : '') + '">' + esc(r.mode === 'test' ? t('easydrag.ui.run_mode_test') : t('easydrag.ui.run_mode_live')) + '</span></button>';
+            // A run that has not ended can be stopped from its row (not on a read-only desktop).
+            if (ed.readonly || !isActive(r.status)) return row;
+            return '<div class="ed-run-item">' + row + '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-run-stop="' + esc(r.id) + '" aria-label="' +
+                esc(t('easydrag.ui.run_stop_label', { time: core.fmt.dateTime(r.started_at) })) + '">' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button></div>';
+        }
+
+        // listedRuns holds the runs the drawer shows, by id (for their Stop buttons).
+        let listedRuns = new Map();
+
+        // loadRuns fills the drawer; only the answer to the latest request (filter) is shown. A
+        // refresh keeps the rows until its answer. Focus in the list stays in the drawer: on the
+        // same run's row while it is listed.
+        async function loadRuns(refresh) {
             if (!drawer) return;
             const mine = ++runsSeq;
             const list = drawer.querySelector('.ed-runs-list');
@@ -476,17 +551,24 @@
             if (drawerFilter === 'errors') params.status = 'error';
             if (drawerFilter === 'tests') params.mode = 'test';
             if (drawerFilter === 'live') params.mode = 'live';
-            list.innerHTML = '<p class="ed-hint">' + esc(t('easydrag.ui.loading')) + '</p>';
+            if (!refresh) list.innerHTML = '<p class="ed-hint">' + esc(t('easydrag.ui.loading')) + '</p>';
+            let markup;
             try {
                 const runs = (await ed.api.runs(ed.flow.id, params)).runs || [];
                 if (mine !== runsSeq || !drawer) return;
-                list.innerHTML = runs.length ? runs.map(r =>
-                    '<button type="button" class="ed-run-row" data-ed-run="' + esc(r.id) + '"><span class="ed-run-dot ed-run-dot--' + esc(r.status) + '"></span>' +
-                    '<span class="ed-run-main"><span>' + esc(core.tr(t, 'easydrag.ui.status_' + r.status, r.status)) + ' · ' + esc(triggerLabel(r)) + '</span>' +
-                    '<span class="ed-muted">' + esc(core.fmt.dateTime(r.started_at)) + (r.duration_ms ? ' · ' + esc(core.fmt.duration(r.duration_ms)) : '') + '</span></span>' +
-                    '<span class="ed-chip' + (r.mode === 'test' ? ' ed-chip--muted' : '') + '">' + esc(r.mode === 'test' ? t('easydrag.ui.run_mode_test') : t('easydrag.ui.run_mode_live')) + '</span></button>').join('')
-                    : '<p class="ed-hint">' + esc(t('easydrag.ui.runs_empty')) + '</p>';
-            } catch (err) { if (mine === runsSeq && drawer) list.innerHTML = '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>'; }
+                listedRuns = new Map(runs.map(r => [r.id, r]));
+                markup = runs.length ? runs.map(runRow).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.runs_empty')) + '</p>';
+            } catch (err) {
+                if (mine !== runsSeq || !drawer) return;
+                listedRuns = new Map();
+                markup = '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>';
+            }
+            const active = document.activeElement;
+            const focusRun = active && list.contains(active) ? (active.dataset.edRunStop || active.dataset.edRun || '') : null;
+            list.innerHTML = markup;
+            if (focusRun === null) return;
+            const target = Array.from(list.querySelectorAll('[data-ed-run]')).find(b => b.dataset.edRun === focusRun) || drawer.querySelector('[data-ed-runs-filter][aria-checked="true"]');
+            if (target) target.focus();
         }
 
         // The drawer takes focus when it opens and gives it back to its opener when it closes.
@@ -519,6 +601,8 @@
                     loadRuns();
                     return;
                 }
+                const stop = event.target.closest('[data-ed-run-stop]');
+                if (stop) { stopRun(listedRuns.get(stop.dataset.edRunStop)); return; }
                 const row = event.target.closest('[data-ed-run]');
                 if (row) openRunView(row.dataset.edRun);
             });
@@ -576,12 +660,12 @@
         bag.add(() => toggleDrawer(false));
 
         return {
-            startTest, attach, runLive, cancel, loadLast, toggleDrawer, openRunView, effects, stepsFrom, applyRunView, clearRun,
+            startTest, attach, runLive, cancel, stopRun, refreshShown, loadLast, toggleDrawer, openRunView, effects, stepsFrom, applyRunView, clearRun,
             isRunning,
             drawerOpen: () => !!drawer,
             dispose() { disposed = true; parked = null; bag.dispose(); }
         };
     }
 
-    ED.runs = { create, effects, triggers, edgeStates, isFinal };
+    ED.runs = { create, effects, triggers, edgeStates, isFinal, isActive };
 })();

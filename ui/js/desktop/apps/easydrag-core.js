@@ -423,6 +423,10 @@
         };
     }
 
+    // openFlowSettings opens the flow settings in a new tab: the way out of the FLOWS_DISABLED lock
+    // cards of the window and of the start page.
+    function openFlowSettings() { window.open('/config#flows', '_blank', 'noopener'); }
+
     // catOf returns the colour category of a node type (generic tools share "tool").
     function catOf(info) {
         if (!info) return 'tool';
@@ -431,6 +435,6 @@
 
     ED.core = {
         ICONS, icon, esc, tr, clamp, debounce, frame, emitter, bag, el, isEditable, isMod, shortcut, IS_MAC,
-        randomID, lang, fmt, storage, createApi, errorCode, errorText, issueText, stepErrorText, modal, capturePointer, catOf
+        randomID, lang, fmt, storage, createApi, errorCode, errorText, issueText, stepErrorText, modal, capturePointer, catOf, openFlowSettings
     };
 })();

@@ -90,10 +90,14 @@
         // filters wait; the templates still show.
         let loadError = null;
 
+        // errorCard offers the actions of the window's lock card (easydrag.js showError): "Open
+        // settings" for FLOWS_DISABLED, and "Try again" (a new list request) for every error.
         function errorCard(err) {
+            const retry = '<button type="button" class="ed-btn ed-btn--primary" data-ed-home-retry>' + core.icon('refresh') + '<span>' + esc(t('easydrag.ui.retry')) + '</span></button>';
             return core.errorCode(err) === 'FLOWS_DISABLED'
-                ? '<div class="ed-home-empty">' + core.icon('lock') + '<h3>' + esc(t('easydrag.ui.disabled_title')) + '</h3><p>' + esc(t('easydrag.ui.disabled_text')) + '</p></div>'
-                : '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>';
+                ? '<div class="ed-home-empty">' + core.icon('lock') + '<h3>' + esc(t('easydrag.ui.disabled_title')) + '</h3><p>' + esc(t('easydrag.ui.disabled_text')) + '</p>' +
+                    '<div class="ed-row"><button type="button" class="ed-btn" data-ed-home-settings>' + core.icon('settings') + '<span>' + esc(t('easydrag.ui.open_settings')) + '</span></button>' + retry + '</div></div>'
+                : '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p><div class="ed-row ed-home-retry">' + retry + '</div>';
         }
 
         // createOff: nothing can be created, the desktop is read-only or flows are switched off.
@@ -249,6 +253,8 @@
         }
 
         bag.listen(el, 'click', (event) => {
+            if (event.target.closest('[data-ed-home-settings]')) { core.openFlowSettings(); return; }
+            if (event.target.closest('[data-ed-home-retry]')) { reload(); return; }
             if (event.target.closest('[data-ed-new]')) { newFlow(); return; }
             if (event.target.closest('[data-ed-import]')) { el.querySelector('[data-ed-import-file]').click(); return; }
             const f = event.target.closest('[data-ed-filter]');

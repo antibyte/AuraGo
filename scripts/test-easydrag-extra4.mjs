@@ -1,14 +1,15 @@
 // c1d14 checks: how the canvas restores a stored view (canvas.restoreView, used by the editor's
-// placeView) and its readable fit. c1d15b checks: the effects a step test confirms. They run on
-// the stub DOM of test-easydrag.mjs; that runner calls run(env) with its helpers and counts the
-// failures.
+// placeView) and its readable fit. c1d15b checks: the effects a step test confirms, stopping runs
+// from the drawer and the run view, deleting a flow secret and the start page's lock card. They
+// run on the stub DOM of test-easydrag.mjs; that runner calls run(env) with its helpers and
+// counts the failures.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js'];
-const UI_MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-runs.js'];
+const UI_MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-fields.js', 'easydrag-runs.js', 'easydrag-home.js'];
 const T1 = 'n_tttttttt';
 const T2 = 'n_uuuuuuuu';
 const TG = 'n_telegram';
@@ -165,6 +166,179 @@ export async function run(env) {
             [scoped, quick, d.requests.filter(r => r.url === '/api/desktop/flows/f1/test').map(r => r.body.trigger_node), whole],
             [[[], ['sends_message', 'writes_files']], undefined, [T1], ['deletes', 'sends_message', 'writes_files']]);
         eq('c1d15b the step test effect checks log no errors', [h.logged, d.logged], [[], []]);
+    });
+
+    // ── 1d-15b B: runs that have not ended can be stopped from the drawer and the run view ──
+    await guardAsync('c1d15b stop runs', async () => {
+        const at = '2026-10-06T10:00:00Z';
+        const run = (id, status, mode) => ({ id, status, mode, started_at: at, trigger_node: T1 });
+        let listed = [run('r_wait', 'waiting', 'live'), run('r_done', 'success', 'live'), run('r_test', 'running', 'test')];
+        const cancels = new Map([['r_wait', () => ({ cancelled: true })], ['r_test', () => ({ cancelled: true })],
+            ['r_gone', () => { throw apiError('FLOW_RUN_FINISHED'); }], ['r_lost', () => { throw apiError('FLOW_RUN_NOT_FOUND'); }], ['r_view', () => ({ cancelled: true })]]);
+        const h = uiHarness(req => {
+            if (req.url === '/api/desktop/flows/f1/runs?limit=50') return { runs: listed };
+            const cancel = /^\/api\/desktop\/flows\/runs\/([a-z_]+)\/cancel$/.exec(req.url);
+            if (cancel && req.method === 'POST') return cancels.get(cancel[1])();
+            if (req.url === '/api/desktop/flows/runs/r_view') return { run: run('r_view', 'cancelled', 'live'), steps: [] };
+            throw apiError('FLOW_RUN_NOT_FOUND');
+        });
+        const runs = h.ED.runs.create(h.ed, h.canvas);
+        const drawer = () => h.ed.root.querySelector('.ed-drawer');
+        const stopOf = id => drawer().querySelector('[data-ed-run-stop="' + id + '"]');
+        const posted = () => h.requests.filter(r => r.url.endsWith('/cancel')).map(r => r.url.split('/')[5]);
+        const lists = () => h.requests.filter(r => r.url === '/api/desktop/flows/f1/runs?limit=50').length;
+        runs.toggleDrawer(true);
+        await settle();
+        const label = stopOf('r_wait') && stopOf('r_wait').getAttribute('aria-label');
+        const shown = [!!stopOf('r_wait'), !!stopOf('r_done'), !!stopOf('r_test'), String(label).startsWith('run_stop_label:') && label.length > 'run_stop_label:'.length,
+            stopOf('r_wait').localName, stopOf('r_wait').parentNode.className];
+        // A live run asks first: keeping it posts nothing.
+        stopOf('r_wait').focus();
+        stopOf('r_wait').fire('click');
+        await settle();
+        const asked = [!!h.top(), h.top() && h.top().querySelector('.ed-modal-title') !== null, posted()];
+        h.top().querySelector('[data-ed-action="keep"]').fire('click');
+        await settle();
+        const kept = [h.top(), posted()];
+        // Stop: the cancel is posted, the list comes again and the focus stays on the run's row.
+        const before = lists();
+        listed = [run('r_wait', 'cancelled', 'live'), run('r_done', 'success', 'live'), run('r_test', 'running', 'test')];
+        stopOf('r_wait').focus();
+        stopOf('r_wait').fire('click');
+        await settle();
+        h.top().querySelector('[data-ed-action="stop"]').fire('click');
+        await settle();
+        const stopped = [posted(), lists() - before, !!stopOf('r_wait'), h.dom.document.activeElement && h.dom.document.activeElement.getAttribute('data-ed-run'), h.notes];
+        eq('c1d15b a waiting live run shows Stop in the drawer; Stop asks first and then posts the cancel and refreshes the list',
+            [shown, asked, kept, stopped],
+            [[true, false, true, true, 'button', 'ed-run-item'], [true, true, []], [null, []], [['r_wait'], 1, false, 'r_wait', []]]);
+        // A test run stops without a question; a run that ended meanwhile (409) refreshes quietly;
+        // an unknown run says so.
+        stopOf('r_test').fire('click');
+        await settle();
+        const testStop = [h.top(), posted()];
+        listed = [run('r_gone', 'running', 'live'), run('r_lost', 'queued', 'live')];
+        runs.toggleDrawer(false);
+        runs.toggleDrawer(true);
+        await settle();
+        const listsBefore = lists();
+        stopOf('r_gone').fire('click');
+        await settle();
+        h.top().querySelector('[data-ed-action="stop"]').fire('click');
+        await settle();
+        const gone = [posted().slice(-1), lists() - listsBefore, h.notes.slice()];
+        stopOf('r_lost').fire('click');
+        await settle();
+        h.top().querySelector('[data-ed-action="stop"]').fire('click');
+        await settle();
+        eq('c1d15b a test run stops without asking; 409 FLOW_RUN_FINISHED refreshes quietly; other errors are shown',
+            [testStop, gone, h.notes.map(n => [n.title, n.message, n.type])],
+            [[null, ['r_wait', 'r_test']], [['r_gone'], 1, []], [['run_cancel', 'error_flow_run_not_found', 'error']]]);
+        // The run view: Stop posts the cancel and shows the stored state of the viewed run.
+        h.ed.runView = { run: run('r_view', 'waiting', 'live'), doc: effectsDoc() };
+        runs.applyRunView({ run: h.ed.runView.run, steps: [] });
+        const viewed = runs.stopRun(h.ed.runView.run);
+        await settle();
+        h.top().querySelector('[data-ed-action="stop"]').fire('click');
+        await settle();
+        eq('c1d15b Stop in the run view posts the cancel and refreshes the viewed run',
+            [await viewed, posted().slice(-1), h.ed.runView.run.status, h.ed.run.status, !!h.ed.run.view], [true, ['r_view'], 'cancelled', 'cancelled', true]);
+        // A read-only desktop offers no Stop.
+        h.ed.readonly = true;
+        listed = [run('r_wait', 'waiting', 'live')];
+        runs.toggleDrawer(false);
+        runs.toggleDrawer(true);
+        await settle();
+        eq('c1d15b a read-only desktop shows no Stop and stops nothing', [!!stopOf('r_wait'), await runs.stopRun(listed[0])], [false, false]);
+        eq('c1d15b the stop checks log no errors', h.logged, []);
+    });
+
+    // ── 1d-15b C: a flow secret can be deleted from the secret field ──
+    await guardAsync('c1d15b delete secrets', async () => {
+        const h = uiHarness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        const F = h.ED.fields;
+        const host = h.ed.root;
+        let names = ['api_key', 'other'];
+        let lists = 0;
+        const deleted = [];
+        let deleteAnswer = () => Promise.resolve({ status: 'deleted', used_by: ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon'] });
+        const api = {
+            secrets: () => { lists++; return Promise.resolve({ secrets: names.slice() }); },
+            deleteSecret: name => { deleted.push(name); names = names.filter(n => n !== name); return deleteAnswer(name); }
+        };
+        const notes = [];
+        const picked = [];
+        const env = { t, esc: h.ED.core.esc, readonly: false, root: host, api, secretCache: {}, notify: n => notes.push(n) };
+        const picker = F.secretRef(env, 'api_key', v => picked.push(v === undefined ? 'cleared' : v), 'sec-a');
+        await settle();
+        const button = picker.querySelector('[data-ed-secret-delete]');
+        const options = () => picker.querySelectorAll('option').map(o => o.getAttribute('value'));
+        const ready = [!!button, button.disabled, button.getAttribute('aria-label')];
+        // Cancel posts nothing.
+        button.fire('click');
+        const dialog = h.top();
+        const text = dialog && dialog.html.includes('secret_delete_text:api_key');
+        dialog.querySelector('[data-ed-action="keep"]').fire('click');
+        await settle();
+        const kept = [deleted.slice(), picked.slice(), lists];
+        // Delete: posted, the names come again, the field is cleared and a warning names three flows.
+        button.fire('click');
+        h.top().querySelector('[data-ed-action="delete"]').fire('click');
+        await settle();
+        eq('c1d15b Delete asks first, then deletes the secret, refreshes the names, clears the field and warns with used_by',
+            [ready, text, kept, deleted, lists, options(), picked, button.disabled, h.dom.document.activeElement === picker.querySelector('select'), notes],
+            [[true, false, 'secret_delete'], true, [[], [], 1], ['api_key'], 2, ['', 'other'], ['cleared'], true, true,
+                [{ title: 'secret_deleted:api_key', message: 'secret_still_used:names_more:Alpha, Beta, Gamma,2', type: 'warning' }]]);
+        // No user left: no warning. A 429 keeps the dialog open and holds Delete for Retry-After.
+        deleteAnswer = () => Promise.resolve({ status: 'deleted', used_by: [] });
+        const other = F.secretRef(env, 'other', () => {}, 'sec-b');
+        await settle();
+        deleteAnswer = () => Promise.reject(Object.assign(new Error('slow'), { status: 429, retryAfter: 30, body: { error: 'slow', code: 'FLOW_RATE_LIMITED' } }));
+        other.querySelector('[data-ed-secret-delete]').fire('click');
+        const limited = h.top();
+        limited.querySelector('[data-ed-action="delete"]').fire('click');
+        await settle();
+        const action = limited.querySelector('[data-ed-action="delete"]');
+        const held = [h.top() === limited, limited.querySelector('.ed-error').textContent, (h.runTimers(0), action.disabled)];
+        h.runTimers(30000);
+        const released = action.disabled;
+        deleteAnswer = () => Promise.resolve({ status: 'deleted', used_by: [] });
+        action.fire('click');
+        await settle();
+        eq('c1d15b a 429 holds Delete for Retry-After; a delete without users shows no warning',
+            [held, released, h.top(), deleted.slice(1), notes.length],
+            [[true, 'error_flow_rate_limited secret_retry:30', true], false, null, ['other', 'other'], 1]);
+        const readonly = F.secretRef(Object.assign({}, env, { readonly: true }), 'other', () => {}, 'sec-c');
+        eq('c1d15b a read-only field has no Delete', !!readonly.querySelector('[data-ed-secret-delete]'), false);
+        eq('c1d15b the secret delete checks log no errors', h.logged, []);
+    });
+
+    // ── 1d-15b D: the start page's lock card offers the window card's actions ──
+    await guardAsync('c1d15b start page lock card', async () => {
+        let listAnswer = () => { throw apiError('FLOWS_DISABLED'); };
+        const h = uiHarness(req => {
+            if (req.url === '/api/desktop/flows') return listAnswer();
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            throw apiError('FLOW_NOT_FOUND');
+        });
+        const app = { ctx: { notify() {} }, t, esc: h.ED.core.esc, api: h.ed.api, readonly: false, catalog: { types }, openFlow() {}, openHome() {} };
+        const home = h.ED.home.create(app);
+        await settle();
+        const grid = home.el.querySelector('.ed-flow-grid');
+        const lists = () => h.requests.filter(r => r.url === '/api/desktop/flows').length;
+        const off = [!!grid.querySelector('.ed-home-empty [data-ed-home-settings]'), !!grid.querySelector('.ed-home-empty [data-ed-home-retry]'), grid.html.includes('ed-error')];
+        grid.querySelector('[data-ed-home-settings]').fire('click');
+        grid.querySelector('[data-ed-home-retry]').fire('click');
+        await settle();
+        const retried = [h.opened, lists()];
+        listAnswer = () => { throw apiError('FLOW_INTERNAL'); };
+        grid.querySelector('[data-ed-home-retry]').fire('click');
+        await settle();
+        const other = [!!grid.querySelector('[data-ed-home-settings]'), !!grid.querySelector('[data-ed-home-retry]'), grid.html.includes('ed-error')];
+        eq('c1d15b the start page lock card offers Open settings and Try again; other errors offer Try again only',
+            [off, retried, other], [[true, true, false], [[['/config#flows', '_blank', 'noopener']], 2], [false, true, true]]);
+        home.dispose();
+        eq('c1d15b the lock card checks log no errors', h.logged, []);
     });
 
     // canvasFor runs the canvas on the stub DOM; resize(w, h) sets the size its element reports.

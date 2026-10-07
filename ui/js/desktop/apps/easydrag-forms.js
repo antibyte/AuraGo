@@ -65,7 +65,7 @@
 
         function fieldEnv(name) {
             return {
-                t, esc, readonly, root: env.ed.root, api: env.ed.api, secretCache,
+                t, esc, readonly, root: env.ed.root, api: env.ed.api, secretCache, notify: n => env.ed.ctx.notify(n),
                 // Read on use: refresh() brings new run data while a field keeps its env.
                 get upstream() { return env.upstream; },
                 get roots() { return roots; },

@@ -823,6 +823,10 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-run-main { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
 .ed-run-main > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ed-run-main > span:last-child { font-size: 11px; }
+/* a run that has not ended: its row and its Stop button side by side */
+.ed-run-item { display: flex; align-items: center; gap: 4px; }
+.ed-run-item > .ed-run-row { flex: 1; min-width: 0; }
+.ed-run-item > .ed-btn { flex: none; margin-right: 4px; }
 
 .ed-modal-backdrop {
     position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px;
@@ -939,6 +943,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     border: 1px solid color-mix(in srgb, var(--ed-danger) 40%, transparent); border-left: 3px solid var(--ed-danger);
     border-radius: var(--ed-radius); background: color-mix(in srgb, var(--ed-danger) 9%, transparent);
 }
+.ed-flow-grid > .ed-home-retry { grid-column: 1 / -1; justify-content: flex-start; margin-top: -6px; }
 
 /* focus: these controls draw their own ring (border and shadow, or the template wrapper) and show no outline */
 .ed-app .ed-input:focus-visible,
