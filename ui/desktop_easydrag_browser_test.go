@@ -45,6 +45,9 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	// The state chip follows the flow name, and no card repeats its label on the second line.
 	s.wait(`()=>{const name=document.querySelector('[data-ed-name]').getBoundingClientRect();const chip=document.querySelector('[data-ed-state] .ed-chip').getBoundingClientRect();return chip.left-name.right>=0 && chip.left-name.right<=16}`)
 	s.wait(`()=>[...document.querySelectorAll('.ed-node')].every(c=>{const sub=c.querySelector('.ed-node-summary');return !sub || sub.textContent!==c.querySelector('.ed-node-label').textContent})`)
+	// The flow opens at a readable zoom (no stored view yet), and the name field keeps its own font.
+	s.wait(`()=>edFixture.editor().view.zoom>=0.8`)
+	s.wait(`()=>{const cs=getComputedStyle(document.querySelector('[data-ed-name]'));return cs.fontSize==='16px' && cs.fontWeight==='700'}`)
 	// The schedule trigger's summary ({mode}) shows the label of its mode.
 	s.wait(`()=>document.querySelector('.ed-node[data-node-id="n_zeitplan"] .ed-node-summary').textContent==='Werktags (Mo–Fr)'`)
 
@@ -86,6 +89,10 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s.wait(`()=>!!document.querySelector('.ed-detail .ed-field[data-param="message"] .ed-tpl-view')`)
 	page.MustElement(`.ed-detail .ed-field[data-param="message"] .ed-tpl-view`).MustClick()
 	page.MustElement(`.ed-detail .ed-field[data-param="message"] textarea`).MustInput("Neu: ")
+	// Typing into the required message removes its "required" marker at once.
+	s.wait(`()=>{const f=document.querySelector('.ed-detail .ed-field[data-param="message"]');return !f.classList.contains('has-issue') && !f.querySelector('.ed-field-issue')}`)
+	// A step that keeps its type's label names only its key under it.
+	s.wait(`()=>{const sub=document.querySelector('.ed-detail .ed-detail-type');return sub.textContent==='telegram_senden' && !!sub.querySelector('.ed-code')}`)
 	// One focus ring: the field's own; the text area inside draws none.
 	s.wait(`()=>{const ta=document.querySelector('.ed-detail .ed-field[data-param="message"] textarea');const cs=getComputedStyle(ta);return document.activeElement===ta && !!ta.closest('.ed-tpl.is-editing') && cs.boxShadow==='none' && cs.outlineStyle==='none'}`)
 	s.shot("detail-editing")
@@ -111,6 +118,8 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	page.MustElement(`.ed-modal [data-ed-action="run"]`).MustClick()
 	s.wait(`()=>{const c=edFixture.editor().effectsConfirmed;return c instanceof Set && c.has('writes_files') && c.has('sends_message')}`)
 	s.wait(`()=>document.querySelectorAll('.ed-node.status-running').length===1`)
+	// The explicit fit shows the whole flow; below 70 % the cards show their labels only.
+	s.wait(`()=>{const z=edFixture.editor().view.zoom;const c=document.querySelector('.ed-canvas');return (z<0.7)===c.classList.contains('is-zoomed-out') && (z>=0.7 || getComputedStyle(document.querySelector('.ed-node-summary')).display==='none')}`)
 	s.shot("run-live")
 	page.MustEval(`()=>{edFixture.state.delay=60}`)
 	s.wait(`()=>{const ed=edFixture.editor();return !!ed.run && ed.run.status==='success' && document.querySelectorAll('.ed-node.status-success').length===5 && document.querySelectorAll('.ed-pill').length>=3}`)
@@ -138,14 +147,16 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	page.MustElement(`.ed-run-row`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-runview-banner').hidden && document.querySelectorAll('.ed-node.is-readonly').length===5`)
 	s.settle()
-	// The run view fits the flow into the part of the canvas the drawer leaves free.
-	s.wait(`()=>{const d=document.querySelector('.ed-drawer').getBoundingClientRect();return [...document.querySelectorAll('.ed-node')].every(n=>n.getBoundingClientRect().right<=d.left)}`)
+	// The run view hides the palette and shows the flow at a readable zoom from its trigger, in the
+	// part of the canvas the drawer leaves free.
+	s.wait(`()=>{const ed=edFixture.editor();const trigger=document.querySelector('.ed-node[data-node-id="n_zeitplan"]').getBoundingClientRect();const canvas=document.querySelector('.ed-canvas').getBoundingClientRect();const drawer=document.querySelector('.ed-drawer').getBoundingClientRect();return document.querySelector('.ed-palette').classList.contains('is-collapsed') && ed.view.zoom>=0.8 && trigger.left>=canvas.left && trigger.right<=drawer.left}`)
 	s.shot("run-view")
 	s.noRawKeys("run view")
 	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
 	page.Keyboard.MustType(input.Escape)
 	s.wait(`()=>document.querySelector('.ed-runview-banner').hidden && !edFixture.editor().runView`)
-	// The footer still names the last run once the run view is left.
+	// The palette is back, and the footer still names the last run once the run view is left.
+	s.wait(`()=>!document.querySelector('.ed-palette').classList.contains('is-collapsed')`)
 	s.wait(`()=>!document.querySelector('[data-ed-last-run]').textContent.includes(edFixture.editor().t('easydrag.ui.home_never_ran'))`)
 	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-drawer')`)
@@ -162,10 +173,14 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 		s.shot("editor-" + theme)
 	}
 	page.MustEval(`()=>fixtureTheme('standard')`)
+	s.failedRunView()
+	// A narrow window: the palette floats over the canvas, so it closes; wide again, it is back.
 	page.MustSetViewport(820, 900, 1, false)
-	s.wait(`()=>getComputedStyle(document.querySelector('.ed-palette')).position==='absolute'`)
+	s.wait(`()=>getComputedStyle(document.querySelector('.ed-palette')).position==='absolute' && document.querySelector('.ed-palette').classList.contains('is-collapsed')`)
 	s.shot("editor-narrow")
 	s.failOnPageErrors("narrow")
+	page.MustSetViewport(1440, 900, 1, false)
+	s.wait(`()=>getComputedStyle(document.querySelector('.ed-palette')).position!=='absolute' && !document.querySelector('.ed-palette').classList.contains('is-collapsed')`)
 
 	// A phone: EasyDrag opens over the whole width and the header stays usable.
 	s.phone()
@@ -333,12 +348,14 @@ func (s *easyDragSmoke) homeDisabled() {
 	s.page.MustEval(`()=>{edFixture.state.disabled=true}`)
 	s.page.MustEval(broadcast)
 	s.wait(`()=>{const card=document.querySelector('.ed-flow-grid .ed-home-empty');return !!card && !!card.querySelector('h3') && !document.querySelector('.ed-flow-card') && document.querySelector('[data-ed-home-search]').disabled}`)
+	// Nothing can be created meanwhile: New flow, Import and the templates wait.
+	s.wait(`()=>document.querySelector('.ed-home-hero [data-ed-new]').disabled && document.querySelector('[data-ed-import]').disabled && document.querySelector('.ed-template-grid').classList.contains('is-disabled') && [...document.querySelectorAll('.ed-template-card')].every(c=>c.getAttribute('aria-disabled')==='true' && c.tabIndex===-1)`)
 	s.shot("home-disabled")
 	s.noRawKeys("home disabled")
 	s.failOnPageErrors("home disabled")
 	s.page.MustEval(`()=>{edFixture.state.disabled=false}`)
 	s.page.MustEval(broadcast)
-	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && !document.querySelector('[data-ed-home-search]').disabled`)
+	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && !document.querySelector('[data-ed-home-search]').disabled && !document.querySelector('.ed-home-hero [data-ed-new]').disabled && !document.querySelector('.ed-template-grid').classList.contains('is-disabled')`)
 }
 
 // saveFailures moves the selected step down by keyboard: the save gets 500 (offline, retried by
@@ -414,6 +431,27 @@ func (s *easyDragSmoke) failingRun() {
 	s.failOnPageErrors("failing run")
 }
 
+// failedRunView opens the failed run from the drawer: the run view centres the failed step in the
+// part of the canvas the drawer leaves free.
+func (s *easyDragSmoke) failedRunView() {
+	s.t.Helper()
+	page := s.page
+	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
+	s.wait(`()=>document.querySelectorAll('.ed-run-row').length===2`)
+	page.MustElement(`.ed-run-row .ed-run-dot--error`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-runview-banner').hidden && document.querySelectorAll('.ed-node.status-error').length===1`)
+	s.settle()
+	s.wait(`()=>{const canvas=document.querySelector('.ed-canvas').getBoundingClientRect();const drawer=document.querySelector('.ed-drawer');const free=canvas.width-drawer.offsetWidth;const card=document.querySelector('.ed-node.status-error').getBoundingClientRect();const mid=card.left+card.width/2-canvas.left;return Math.abs(mid-free/2)<=2 && edFixture.editor().view.zoom>=0.8}`)
+	s.shot("run-view-failed")
+	s.noRawKeys("failed run view")
+	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
+	page.Keyboard.MustType(input.Escape)
+	s.wait(`()=>document.querySelector('.ed-runview-banner').hidden`)
+	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-drawer')`)
+	s.failOnPageErrors("failed run view")
+}
+
 // phone opens EasyDrag afresh in a 390×844 touch viewport, as a phone would: the start page and
 // the editor fill the width, and the header keeps every action on screen.
 func (s *easyDragSmoke) phone() {
@@ -435,8 +473,12 @@ func (s *easyDragSmoke) phone() {
 	s.noRawKeys("phone home")
 	page.MustElement(".ed-flow-card h3").MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-node').length===5`)
-	// The palette floats over the canvas here, so it starts closed and leaves the flow in view.
+	// The palette floats over the canvas here, so it starts closed and leaves the flow in view. The
+	// flow opens at a readable zoom from its trigger, 48 px from the edge.
 	s.wait(`()=>document.querySelector('.ed-palette').classList.contains('is-collapsed')`)
+	s.wait(`()=>{const ed=edFixture.editor();const canvas=document.querySelector('.ed-canvas').getBoundingClientRect();const trigger=document.querySelector('.ed-node[data-node-id="n_zeitplan"]').getBoundingClientRect();return Math.abs(ed.view.zoom-0.8)<0.001 && Math.abs(trigger.left-canvas.left-48)<=1 && trigger.top>=canvas.top && trigger.bottom<=canvas.bottom}`)
+	// The footer keeps a short run status; the other items show icons, named for screen readers.
+	s.wait(`()=>{const run=document.querySelector('[data-ed-last-run]');const btn=run.parentElement;const texts=[...document.querySelectorAll('.ed-foot .ed-foot-text')];return getComputedStyle(run).display!=='none' && run.getBoundingClientRect().width>40 && btn.getAttribute('aria-label')===run.textContent && texts.length>=2 && texts.every(x=>x.getBoundingClientRect().width<=1) && !!document.querySelector('[data-ed-cmd="issues"]').getAttribute('aria-label')}`)
 	s.wait(`()=>{
 		const head=document.querySelector('.ed-head');
 		const box=head.getBoundingClientRect();

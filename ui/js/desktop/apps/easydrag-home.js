@@ -96,8 +96,12 @@
                 : '<p class="ed-error">' + esc(core.errorText(t, err)) + '</p>';
         }
 
+        // createOff: nothing can be created, the desktop is read-only or flows are switched off.
+        function createOff() { return !!app.readonly || core.errorCode(loadError) === 'FLOWS_DISABLED'; }
+
         function render() {
             const list = visibleFlows();
+            const off = createOff();
             if (loadError) {
                 grid.innerHTML = errorCard(loadError);
             } else if (!flows.length) {
@@ -115,12 +119,13 @@
                     (f.published && !app.readonly ? '<button type="button" class="ed-switch ed-switch--small" role="switch" aria-checked="' + !!f.enabled + '" data-ed-toggle="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.active')) + '" title="' + esc(t('easydrag.ui.active')) + '"><span></span></button>' : '') +
                     '<button type="button" class="ed-icon-btn" data-ed-card-menu="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button></div></article>').join('');
             }
+            tplGrid.classList.toggle('is-disabled', off);
             tplGrid.innerHTML = templates.map(tp =>
-                '<article class="ed-template-card" data-ed-template="' + esc(tp.id) + '" tabindex="0" role="button" aria-label="' + esc(tp.name) + '">' +
+                '<article class="ed-template-card" data-ed-template="' + esc(tp.id) + '" tabindex="' + (off ? '-1' : '0') + '" role="button"' + (off ? ' aria-disabled="true"' : '') + ' aria-label="' + esc(tp.name) + '">' +
                 '<div class="ed-template-cats">' + (tp.categories || []).map(c => '<span class="ed-cat-dot" data-cat="' + esc(c) + '"></span>').join('') + '</div>' +
                 '<h3>' + esc(tp.name) + '</h3><p>' + esc(tp.description) + '</p><span class="ed-template-use">' + esc(t('easydrag.ui.home_use_template')) + core.icon('chevron-right') + '</span></article>').join('');
-            el.querySelectorAll('[data-ed-new]').forEach(b => { b.disabled = !!app.readonly; });
-            el.querySelector('[data-ed-import]').disabled = !!app.readonly;
+            el.querySelectorAll('[data-ed-new]').forEach(b => { b.disabled = off; });
+            el.querySelector('[data-ed-import]').disabled = off;
             el.querySelector('[data-ed-home-search]').disabled = !!loadError;
             el.querySelectorAll('[data-ed-filter]').forEach(b => { b.disabled = !!loadError; });
         }
@@ -259,7 +264,7 @@
             const menu = event.target.closest('[data-ed-card-menu]');
             if (menu) { const r = menu.getBoundingClientRect(); cardMenu(flows.find(x => x.id === menu.dataset.edCardMenu), r.left, r.bottom); return; }
             const tpl = event.target.closest('[data-ed-template]');
-            if (tpl && !app.readonly) { create({ template: tpl.dataset.edTemplate }); return; }
+            if (tpl) { if (!createOff()) create({ template: tpl.dataset.edTemplate }); return; }
             const card = event.target.closest('[data-ed-flow]');
             if (card) app.openFlow(card.dataset.edFlow);
         });

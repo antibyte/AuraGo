@@ -189,7 +189,7 @@
                 if (res.partial) {
                     ed.publishIncomplete = res.code || 'FLOW_PUBLISH_INCOMPLETE';
                     ed.bus.emit('published', ed.flow);
-                    ed.ctx.notify({ title: t('easydrag.ui.publish_partial'), message: partialText(res.code, res.error), type: 'warning', duration: 12000 });
+                    ed.ctx.notify({ title: t('easydrag.ui.publish_partial'), message: partialText(res.code, res.error), type: 'warning' });
                     return true;
                 }
                 ed.publishIncomplete = '';

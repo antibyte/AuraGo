@@ -228,7 +228,10 @@
             el.querySelector('.ed-detail-tile').dataset.cat = core.catOf(info);
             if (document.activeElement !== labelInput) labelInput.value = node.label || '';
             labelInput.disabled = !!(ed.readonly || ed.runView);
-            el.querySelector('.ed-detail-type').textContent = (info ? info.label : node.type) + ' · ' + node.key;
+            // A step that still carries its type's label names only its key (the label above says the type).
+            el.querySelector('.ed-detail-type').innerHTML = info && node.label === info.label
+                ? '<span class="ed-code">' + esc(node.key) + '</span>'
+                : esc((info ? info.label : node.type) + ' · ' + node.key);
             const step = ed.run && ed.run.steps && ed.run.steps.get(node.id);
             el.querySelector('.ed-detail-status').innerHTML = step ? '<span class="ed-status-pill ed-status-pill--' + esc(step.status) + '">' + esc(core.tr(t, 'easydrag.ui.status_' + step.status, step.status)) + '</span>' : '';
             // One run at a time: "test this step" waits until the active run ended.

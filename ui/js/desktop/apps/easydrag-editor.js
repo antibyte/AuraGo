@@ -15,6 +15,8 @@
         const bag = core.bag();
         const draftModel = ED.model.create(loaded.flow.draft, app.catalog);
         let savedView = null;
+        // paletteBefore: the palette was open when the run view hid it; leaving the run view shows it again.
+        let paletteBefore = false;
         let contentDirty = false;
         let lastRecord = null;
         // partialRevision is the live revision of the last partial publish (ed.publishIncomplete).
@@ -129,7 +131,8 @@
             const node = el.querySelector('[data-ed-save]');
             const err = ed.saver && ed.saver.error;
             const title = s === 'failed' || (s === 'offline' && err) ? core.errorText(t, err) : s === 'offline' ? t('easydrag.ui.save_offline_hint') : '';
-            const label = core.icon(SAVE_ICONS[s] || 'check') + '<span>' + esc(t('easydrag.ui.save_' + s)) + '</span>';
+            // .ed-foot-text: narrow footers show the icon only, the text stays for screen readers.
+            const label = core.icon(SAVE_ICONS[s] || 'check') + '<span class="ed-foot-text">' + esc(t('easydrag.ui.save_' + s)) + '</span>';
             const hadFocus = node.contains(document.activeElement);
             node.className = 'ed-foot-item ed-save ed-save--' + s;
             node.innerHTML = s === 'failed'
@@ -148,10 +151,11 @@
             const node = el.querySelector('[data-ed-issues]');
             node.parentElement.className = 'ed-foot-item' + (errors ? ' has-errors' : warnings ? ' has-warnings' : ' is-clean');
             node.parentElement.title = list.length ? t('easydrag.ui.issues_count', { errors, warnings }) : '';
+            node.parentElement.setAttribute('aria-label', list.length ? node.parentElement.title : t('easydrag.ui.issues_none_short'));
             node.innerHTML = list.length
                 ? (errors ? '<span class="ed-count-badge ed-count-badge--error">' + core.icon('alert') + errors + '</span>' : '') +
                   (warnings ? '<span class="ed-count-badge ed-count-badge--warn">' + core.icon('info') + warnings + '</span>' : '')
-                : core.icon('check') + esc(t('easydrag.ui.issues_none_short'));
+                : core.icon('check') + '<span class="ed-foot-text">' + esc(t('easydrag.ui.issues_none_short')) + '</span>';
         }
 
         function renderLastRun() {
@@ -165,6 +169,9 @@
             text.textContent = r
                 ? head + (r.started_at ? ' · ' + core.fmt.relative(r.started_at) : '') + (r.duration_ms ? ' · ' + core.fmt.duration(r.duration_ms) : '')
                 : t('easydrag.ui.home_never_ran');
+            // Narrow footers cut the text: the button keeps the whole of it as its name and tooltip.
+            text.parentElement.setAttribute('aria-label', text.textContent);
+            text.parentElement.title = text.textContent;
         }
 
         // ── run view ────────────────────────────────────────────────────────────
@@ -172,7 +179,10 @@
         function enterRunView(detail) {
             ED.detail.close(ed);
             ED.palette.closeQuickAdd(ed);
-            if (!ed.runView) savedView = Object.assign({}, ed.view);
+            if (!ed.runView) {
+                savedView = Object.assign({}, ed.view);
+                paletteBefore = palette.isOpen();
+            }
             ed.runView = { run: detail.run, doc: detail.doc };
             ed.model = ED.model.create(detail.doc, ed.catalog);
             ed.selection = new Set();
@@ -185,7 +195,16 @@
             });
             ed.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
             runs.applyRunView(detail);
-            canvas.fit({ animate: true });
+            // The run view needs the room: the palette hides (a stored run takes no new steps) and
+            // comes back on exit. A failed run shows its failed step, any other run a readable fit.
+            const run = ed.runView;
+            const place = () => {
+                if (disposed || ed.runView !== run) return;
+                const failed = (detail.steps || []).find(st => st.status === 'error' && ed.model.node(st.node_id));
+                if (failed) canvas.centerOn(failed.node_id, { animate: true });
+                else canvas.fit({ animate: true, readable: true });
+            };
+            if (palette.isOpen()) { palette.setOpen(false, true); palette.afterMove(place); } else place();
             renderHeader();
             setMenus();
         }
@@ -201,6 +220,8 @@
             runs.clearRun();
             ed.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
             if (savedView) canvas.setView(savedView, { animate: true });
+            if (paletteBefore && !palette.isOpen()) palette.setOpen(true, true);
+            paletteBefore = false;
             renderHeader();
             setMenus();
         }
@@ -420,7 +441,8 @@
         // A refused paste is announced to screen readers by interact; this shows it to everyone.
         bag.add(ed.bus.on('paste-refused', () => ctx.notify({ title: t('easydrag.ui.paste'), message: t('easydrag.ui.paste_refused') })));
         // The viewport is stored per flow once panning or zooming pauses for 400 ms, not on every
-        // frame; dispose stores one still pending.
+        // frame; dispose stores one still pending. It is stored as the world point in the middle of
+        // the canvas and the zoom ({cx, cy, zoom}), so it suits another window size (placeView).
         let pendingView = null;
         const storeView = core.debounce(() => {
             if (pendingView) core.storage.set(VIEW_KEY + ed.flow.id, pendingView);
@@ -428,7 +450,7 @@
         }, 400);
         bag.add(ed.bus.on('view', () => {
             if (ed.runView) return;
-            pendingView = Object.assign({}, ed.view);
+            pendingView = canvas.center();
             storeView();
         }));
 
@@ -543,6 +565,20 @@
             else runs.loadLast();
         }
 
+        // placeView restores the view stored for this flow ({cx, cy, zoom}, see storeView). A view
+        // stored in the older form {x, y, zoom}, and the draft's viewport, are screen offsets of
+        // another window size and are not used. Without a stored view, when it shows no step, and in
+        // an editor 560 px wide or narrower, the flow gets the readable fit.
+        function placeView() {
+            const stored = core.storage.get(VIEW_KEY + ed.flow.id, null);
+            const wide = el.getBoundingClientRect().width > 560;
+            if (wide && ed.model.doc.nodes.length && stored && Number.isFinite(stored.cx) && Number.isFinite(stored.cy)) {
+                canvas.setCenter(stored);
+                if (canvas.anyNodeVisible()) return;
+            }
+            canvas.fit({ readable: true });
+        }
+
         function differs(a, b) {
             const strip = d => JSON.stringify(Object.assign({}, d, { viewport: null }));
             return strip(a) !== strip(b);
@@ -556,13 +592,9 @@
         wires.render();
         requestAnimationFrame(() => {
             if (disposed) return;
-            // A palette that floats over the canvas (narrow windows, phones) starts closed: open, it
-            // would hide the flow. The stored choice of wide windows stays.
-            if (palette.isOpen() && palette.isOverlay()) palette.setOpen(false, true);
-            const local = core.storage.get(VIEW_KEY + ed.flow.id, null);
-            const v = local || ed.model.doc.viewport;
-            if (v && v.zoom && ed.model.doc.nodes.length) canvas.setView(v);
-            else canvas.fit();
+            // The palette settles first: one floating over the canvas (narrow windows) closes.
+            palette.syncLayout();
+            placeView();
             ed.initialRender = false;
             canvas.el.focus({ preventScroll: true });
         });

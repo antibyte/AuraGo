@@ -4,6 +4,11 @@
     'use strict';
 
     const ED = window.EasyDrag = window.EasyDrag || {};
+    // READABLE_ZOOM is the smallest zoom of an automatic fit; READABLE_PAD the room it leaves at the
+    // trigger end. Below ZOOMED_OUT the cards show their labels only, in a larger size.
+    const READABLE_ZOOM = 0.8;
+    const READABLE_PAD = 48;
+    const ZOOMED_OUT = 0.7;
 
     // portLabel names the output port of node n: a switch case by its label or number, any other port
     // by its translation. The connect picker uses it too.
@@ -119,7 +124,7 @@
             const step = 24 * v.zoom;
             grid.style.backgroundSize = step + 'px ' + step + 'px';
             grid.style.backgroundPosition = v.x + 'px ' + v.y + 'px';
-            el.classList.toggle('is-zoomed-out', v.zoom < 0.55);
+            el.classList.toggle('is-zoomed-out', v.zoom < ZOOMED_OUT);
             zoomValue.textContent = Math.round(v.zoom * 100) + '%';
             minimapFrame.request();
         }
@@ -141,14 +146,15 @@
         function allRects() { return ed.model.doc.nodes.map(n => G.nodeRect(n.position, outCount(n))); }
 
         // visibleArea is the part of the canvas that the run drawer (right) and a palette floating over
-        // the canvas (left, narrow windows) leave free; with too little left, the whole canvas.
+        // the canvas (left, narrow windows) leave free; with too little left, the whole canvas. The
+        // drawer is measured by its width: it slides in with a transform, which a client rect follows.
         function visibleArea() {
             const s = size();
             const find = sel => (ed.root && typeof ed.root.querySelector === 'function' ? ed.root.querySelector(sel) : null);
             let left = 0;
             let right = 0;
             const drawer = find('.ed-drawer');
-            if (drawer) right = clampCover(s.left + s.w - drawer.getBoundingClientRect().left, s.w);
+            if (drawer) right = clampCover(drawer.offsetWidth, s.w);
             const palette = find('.ed-palette:not(.is-collapsed)');
             if (palette && typeof getComputedStyle === 'function' && getComputedStyle(palette).position === 'absolute') {
                 left = clampCover(palette.getBoundingClientRect().right - s.left, s.w);
@@ -159,10 +165,60 @@
 
         function clampCover(value, max) { return Number.isFinite(value) ? Math.min(max, Math.max(0, value)) : 0; }
 
+        // fit shows the whole flow in the free part of the canvas. opts.readable (the automatic fits:
+        // opening a flow, the run view) never goes below READABLE_ZOOM: a flow that does not fit then
+        // starts at its trigger, READABLE_PAD from the left edge, and is centred vertically when its
+        // height fits, else on the trigger's row. An explicit Fit (Shift+1, the button) shows it all.
         function fit(opts) {
             const area = visibleArea();
-            const v = G.fit(G.bounds(allRects()), { w: area.w, h: area.h }, 72, 1);
+            const box = G.bounds(allRects());
+            const v = G.fit(box, { w: area.w, h: area.h }, 72, 1);
+            if (opts && opts.readable && box && v.zoom < READABLE_ZOOM) { setView(readable(box, area), opts); return; }
             setView({ x: v.x + area.left, y: v.y, zoom: v.zoom }, opts);
+        }
+
+        function readable(box, area) {
+            const zoom = READABLE_ZOOM;
+            const anchor = anchorRect() || box;
+            const x = box.w * zoom <= area.w - 2 * READABLE_PAD
+                ? area.left + (area.w - box.w * zoom) / 2 - box.x * zoom
+                : area.left + READABLE_PAD - anchor.x * zoom;
+            const y = box.h * zoom <= area.h - 2 * READABLE_PAD
+                ? (area.h - box.h * zoom) / 2 - box.y * zoom
+                : area.h / 2 - (anchor.y + anchor.h / 2) * zoom;
+            return { x, y, zoom };
+        }
+
+        // anchorRect is the card of the leftmost enabled trigger, else of the leftmost step.
+        function anchorRect() {
+            const nodes = ed.model.doc.nodes;
+            const triggers = nodes.filter(n => { const i = info(n); return i && i.trigger && !(n.settings && n.settings.disabled); });
+            const pick = (triggers.length ? triggers : nodes).slice().sort((a, b) => a.position.x - b.position.x)[0];
+            return pick ? G.nodeRect(pick.position, outCount(pick)) : null;
+        }
+
+        // center is the world point in the middle of the canvas and the zoom: stored that way, a view
+        // suits any window size (setCenter places it again).
+        function center() {
+            const s = size();
+            return { cx: (s.w / 2 - ed.view.x) / ed.view.zoom, cy: (s.h / 2 - ed.view.y) / ed.view.zoom, zoom: ed.view.zoom };
+        }
+
+        function setCenter(c, opts) {
+            const s = size();
+            const zoom = G.clampZoom(c && c.zoom);
+            setView({ x: s.w / 2 - Number(c.cx) * zoom, y: s.h / 2 - Number(c.cy) * zoom, zoom }, opts);
+        }
+
+        // anyNodeVisible reports whether a card overlaps the free part of the canvas.
+        function anyNodeVisible() {
+            const a = visibleArea();
+            const v = ed.view;
+            return allRects().some(r => {
+                const left = r.x * v.zoom + v.x;
+                const top = r.y * v.zoom + v.y;
+                return left + r.w * v.zoom > a.left && left < a.left + a.w && top + r.h * v.zoom > 0 && top < a.h;
+            });
         }
 
         function zoomBy(factor, center) {
@@ -171,12 +227,13 @@
             setView(G.zoomAt(ed.view, ed.view.zoom * factor, point));
         }
 
+        // centerOn puts a step in the middle of the free part of the canvas, at a readable zoom.
         function centerOn(id, opts) {
             const rect = nodeRect(id);
             if (!rect) return;
-            const s = size();
-            const zoom = Math.max(ed.view.zoom, 0.8);
-            setView({ x: s.w / 2 - (rect.x + rect.w / 2) * zoom, y: s.h / 2 - (rect.y + rect.h / 2) * zoom, zoom }, opts);
+            const a = visibleArea();
+            const zoom = Math.max(ed.view.zoom, READABLE_ZOOM);
+            setView({ x: a.left + a.w / 2 - (rect.x + rect.w / 2) * zoom, y: a.h / 2 - (rect.y + rect.h / 2) * zoom, zoom }, opts);
         }
 
         // ── node cards ──────────────────────────────────────────────────────────
@@ -514,7 +571,7 @@
 
         return {
             el, world, wiresSvg, nodesHost,
-            render, renderNodes, setView, fit, zoomBy, centerOn, size, clientToWorld, nodeRect, announce,
+            render, renderNodes, setView, fit, zoomBy, centerOn, center, setCenter, anyNodeVisible, size, clientToWorld, nodeRect, announce,
             nodeEl: id => nodeEls.get(id) || null,
             dispose() { bag.dispose(); }
         };

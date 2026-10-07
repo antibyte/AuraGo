@@ -169,6 +169,7 @@
                 if (!hit || !hit.closest('.ed-canvas')) return;
                 const p = canvas.clientToWorld(ev.clientX, ev.clientY);
                 place(ed, type, { x: p.x - G.NODE_W / 2, y: p.y - G.NODE_H / 2 }, { edge: overEdge });
+                closeOverlay();
             };
             drag = core.capturePointer(list, event, move, up);
         }
@@ -181,6 +182,7 @@
                 const rects = ed.model.doc.nodes.map(n => canvas.nodeRect(n.id));
                 const at = G.freeSpot({ x: sel.position.x + G.NODE_W + 96, y: sel.position.y }, rects);
                 const id = place(ed, type, at, { from: { node: sel.id, port: ed.model.outputs(sel)[0] } });
+                closeOverlay();
                 if (id) canvas.centerOn(id, { animate: true });
                 return;
             }
@@ -188,7 +190,54 @@
             const center = G.toWorld(ed.view, { x: s.w / 2, y: s.h / 2 });
             const rects = ed.model.doc.nodes.map(n => canvas.nodeRect(n.id));
             place(ed, type, G.freeSpot({ x: center.x - G.NODE_W / 2, y: center.y - G.NODE_H / 2 }, rects));
+            closeOverlay();
         }
+
+        // ── floating panel (narrow windows) ──────────────────────────────────────
+
+        // isOverlay: the panel floats over the canvas (narrow windows) instead of beside it.
+        function isOverlay() { return !!el.isConnected && typeof getComputedStyle === 'function' && getComputedStyle(el).position === 'absolute'; }
+        function isOpen() { return !el.classList.contains('is-collapsed'); }
+
+        // A floating panel covers the flow: it closes once a step was added and when the canvas is
+        // pressed. Closing it this way leaves the stored choice as it is.
+        function closeOverlay() { if (isOpen() && isOverlay()) setOpen(false, true); }
+
+        // syncLayout follows the window width: becoming a floating panel closes it, becoming a docked
+        // one again restores the stored choice. The editor runs it before its first view.
+        let overlay = null;
+        function syncLayout() {
+            if (!el.isConnected) return;
+            const now = isOverlay();
+            if (now === overlay) return;
+            const was = overlay;
+            overlay = now;
+            if (now) closeOverlay();
+            else if (was) setOpen(!!core.storage.get(OPEN_KEY, true), true);
+        }
+
+        // afterMove runs fn once the panel stopped moving (its margin transition), at the latest after
+        // 400 ms: the canvas beside a docked panel has its final width by then.
+        function afterMove(fn) {
+            let done = false;
+            let timer = 0;
+            const end = event => { if (!event || (event.target === el && event.propertyName === 'margin-left')) finish(); };
+            function finish() {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                el.removeEventListener('transitionend', end);
+                fn();
+            }
+            el.addEventListener('transitionend', end);
+            timer = setTimeout(finish, 400);
+        }
+        if (typeof ResizeObserver === 'function' && ed.root) {
+            const watch = new ResizeObserver(() => syncLayout());
+            watch.observe(ed.root);
+            bag.add(() => watch.disconnect());
+        }
+        bag.listen(canvas.el, 'pointerdown', closeOverlay);
 
         bag.listen(input, 'input', core.debounce(render, 80));
         bag.listen(list, 'click', (event) => {
@@ -219,10 +268,7 @@
         setOpen(core.storage.get(OPEN_KEY, true));
 
         return {
-            el, render, setOpen,
-            isOpen: () => !el.classList.contains('is-collapsed'),
-            // isOverlay: the panel floats over the canvas (narrow windows) instead of beside it.
-            isOverlay: () => !!el.isConnected && typeof getComputedStyle === 'function' && getComputedStyle(el).position === 'absolute',
+            el, render, setOpen, isOpen, isOverlay, syncLayout, afterMove,
             focusSearch() { setOpen(true); input.focus(); input.select(); },
             dispose() { if (drag) drag.abort(); bag.dispose(); }
         };

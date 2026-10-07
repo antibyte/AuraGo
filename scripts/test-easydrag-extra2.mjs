@@ -164,7 +164,7 @@ export async function run(env) {
         const ok = await pub.publish(true);
         eq('c1d06 an incomplete publish is live and flagged, warns and does not activate',
             [ok, h.ed.flow.published_draft_revision, published, h.ed.publishIncomplete, enables(), h.notes],
-            [true, 3, [3], 'FLOW_PUBLISH_INCOMPLETE', 0, [{ title: 'publish_partial', message: 'error_flow_publish_incomplete', type: 'warning', duration: 12000 }]]);
+            [true, 3, [3], 'FLOW_PUBLISH_INCOMPLETE', 0, [{ title: 'publish_partial', message: 'error_flow_publish_incomplete', type: 'warning' }]]);
         // The dialog still offers Publish and says why; publishing the same revision again finishes it.
         const dialog = await pub.openDialog();
         const html = dialog.el.parentNode.html;

@@ -221,8 +221,35 @@
             return wrap;
         }
 
-        function issueFor(name) {
+        // rawIssue is the latest check's issue of a param (or one of its parts).
+        function rawIssue(name) {
             return (env.issues || []).find(is => is.node_id === node.id && is.param && (is.param === name || is.param.startsWith(name + '[') || is.param.startsWith(name + '.')));
+        }
+
+        // issueFor returns the issue shown at a param. "Required" goes as soon as the param has a value:
+        // the server's next check says the same, a moment later.
+        function issueFor(name) {
+            const issue = rawIssue(name);
+            if (issue && issue.code === 'PARAM_REQUIRED' && issue.param === name && filled(node.params[name])) return null;
+            return issue;
+        }
+
+        function filled(value) { return !(value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length)); }
+
+        // syncIssues brings the issue markers of the shown fields up to date without a rebuild,
+        // which would take the focus from the field being edited.
+        function syncIssues() {
+            controls.forEach(({ field, param }) => {
+                const issue = issueFor(param.name);
+                field.classList.toggle('has-issue', !!issue);
+                let box = Array.from(field.children).find(child => child.classList.contains('ed-field-issue'));
+                if (!issue) { if (box) box.remove(); return; }
+                if (!box) {
+                    box = core.el('<div class="ed-field-issue">' + core.icon('alert') + '<span></span></div>');
+                    field.appendChild(box);
+                }
+                box.querySelector('span').textContent = core.issueText(t, issue);
+            });
         }
 
         function build() {
@@ -280,6 +307,18 @@
                 const view = entry && entry.field.querySelector('.ed-tpl-view');
                 if (view) view.click();
             });
+        });
+
+        // Typing into a required param removes its "required" marker at once, before the value is
+        // committed and checked again.
+        el.addEventListener('input', (event) => {
+            const field = event.target.closest && event.target.closest('.ed-field[data-param]');
+            if (!field || !controls.has(field.dataset.param) || !String(event.target.value || '').trim()) return;
+            const issue = rawIssue(field.dataset.param);
+            if (!issue || issue.code !== 'PARAM_REQUIRED' || issue.param !== field.dataset.param) return;
+            field.classList.remove('has-issue');
+            const box = Array.from(field.children).find(child => child.classList.contains('ed-field-issue'));
+            if (box) box.remove();
         });
 
         el.addEventListener('focusin', (event) => {
@@ -349,7 +388,10 @@
                 const visibleAfter = ((env.info && env.info.params) || []).filter(p => visible(p, node.params)).map(p => p.name).join(',');
                 const focused = el.contains(document.activeElement);
                 if (visibleBefore !== visibleAfter || !focused) build();
-                else controls.forEach((_, name) => previewFor(name));
+                else {
+                    controls.forEach((_, name) => previewFor(name));
+                    syncIssues();
+                }
             },
             focus(name) {
                 const entry = controls.get(name);
