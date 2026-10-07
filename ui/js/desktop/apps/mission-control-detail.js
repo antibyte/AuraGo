@@ -74,7 +74,7 @@
             if (mission.enabled === false) return 'paused';
             if (mission.last_result === 'error') return 'error';
             if (mission.last_result === 'success') return 'ok';
-            return mission.last_run ? 'idle' : 'never';
+            return triggers.lastRunAt(mission) ? 'idle' : 'never';
         }
         const STATE_KEYS = { running: 'desktop.mc_state_running', queued: 'desktop.mc_state_queued', paused: 'desktop.mc_state_paused', unpublished: 'desktop.mc_flow_unpublished', error: 'desktop.mc_state_error', ok: 'desktop.mc_state_ok', idle: 'desktop.mc_state_idle', never: 'desktop.mc_state_never_run' };
         function pill(state, extraClass) { return `<span class="vd-mc-pill ${extraClass || ''}" data-state="${esc(state)}">${esc(t(STATE_KEYS[state] || state))}</span>`; }
@@ -155,9 +155,10 @@
                 else next = esc(t('desktop.mc_overview_not_scheduled'));
                 rows.push([t('desktop.mc_overview_next_run'), next]);
             }
-            if (mission.last_run) {
+            const lastRun = triggers.lastRunAt(mission);
+            if (lastRun) {
                 const result = mission.last_result === 'error' ? pill('error', 'vd-mc-pill--small') : mission.last_result === 'success' ? pill('ok', 'vd-mc-pill--small') : '';
-                rows.push([t('desktop.mc_overview_last_run'), `${esc(fmt.dateTime(mission.last_run))} <span class="vd-mc-muted">· ${esc(fmt.relative(mission.last_run))}</span> ${result}`]);
+                rows.push([t('desktop.mc_overview_last_run'), `${esc(fmt.dateTime(lastRun))} <span class="vd-mc-muted">· ${esc(fmt.relative(lastRun))}</span> ${result}`]);
             } else {
                 rows.push([t('desktop.mc_overview_last_run'), esc(t('desktop.mc_state_never_run'))]);
             }

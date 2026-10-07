@@ -202,7 +202,13 @@ func configRefreshFixtureOrigin(t *testing.T, locale string, populated bool) str
 		}
 		return result
 	}
-	metadata, _ := json.Marshal(map[string]any{"systemLang": locale, "buildVersion": "config-refresh-test", "i18n": translations})
+	templateData := map[string]any{"systemLang": locale, "buildVersion": "config-refresh-test", "i18n": translations}
+	if populated {
+		// The server sends the help metadata (I18N_META) too: provider fields then show their
+		// production labels instead of "no provider".
+		templateData["i18nMeta"] = json.RawMessage(mustReadUIFile(t, "lang/meta.json"))
+	}
+	metadata, _ := json.Marshal(templateData)
 	html := strings.NewReplacer("{{.Lang}}", locale, "{{.BuildVersion}}", "config-refresh-test", "{{.TemplateDataJSON}}", string(metadata)).Replace(string(mustReadUIFile(t, "config.html")))
 	fixtures := map[string]any{
 		"/api/config": configuration, "/api/config/schema": schemaFor(configuration, ""),

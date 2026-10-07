@@ -52,8 +52,9 @@
 .vd-mc-btn:hover:not(:disabled) { background: var(--vd-theme-control-hover, var(--vd-control-hover)); border-color: var(--vd-theme-border-strong, var(--vd-theme-border)); }
 .vd-mc-btn:active:not(:disabled) { transform: translateY(1px); }
 .vd-mc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.vd-mc-btn--primary { background: var(--mc-accent); border-color: transparent; color: #fff; }
-.vd-mc-btn--primary:hover:not(:disabled) { background: var(--mc-accent); filter: brightness(1.08); border-color: transparent; }
+/* white text on the raw accent falls below 4.5:1 for the light desktop accents (blue: about 2.5:1); a darkened accent keeps it readable on all */
+.vd-mc-btn--primary { background: color-mix(in srgb, var(--mc-accent) 55%, black); border-color: transparent; color: #fff; }
+.vd-mc-btn--primary:hover:not(:disabled) { background: color-mix(in srgb, var(--mc-accent) 55%, black); filter: brightness(1.12); border-color: transparent; }
 .vd-mc-btn--danger { color: var(--mc-danger); border-color: rgba(229, 72, 77, 0.45); }
 .vd-mc-btn--danger:hover:not(:disabled) { background: rgba(229, 72, 77, 0.12); }
 .vd-mc-btn--icon { width: 32px; padding: 0; }

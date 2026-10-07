@@ -50,7 +50,7 @@
         }
         function compare(a, b) {
             switch (sort) {
-                case 'last_run': return (Date.parse(b.last_run || '') || 0) - (Date.parse(a.last_run || '') || 0) || byName(a, b);
+                case 'last_run': return (Date.parse(triggers.lastRunAt(b)) || 0) - (Date.parse(triggers.lastRunAt(a)) || 0) || byName(a, b);
                 case 'next_run': return (Date.parse(a.next_run || '') || Infinity) - (Date.parse(b.next_run || '') || Infinity) || byName(a, b);
                 case 'priority': return (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1) || byName(a, b);
                 default: return byName(a, b);
@@ -66,7 +66,7 @@
             if (m.enabled === false) return 'paused';
             if (m.last_result === 'error') return 'error';
             if (m.last_result === 'success') return 'ok';
-            return m.last_run ? 'idle' : 'never';
+            return triggers.lastRunAt(m) ? 'idle' : 'never';
         }
 
         function timeText(m, state) {
@@ -74,7 +74,8 @@
             if (state === 'queued') return t('desktop.mc_state_queued');
             const next = triggers.upcomingRun(m);
             if (next) return t('desktop.mc_next_run_in', { when: fmt.relative(next) });
-            if (m.last_run) return t('desktop.mc_last_run_ago', { when: fmt.relative(m.last_run) });
+            const last = triggers.lastRunAt(m);
+            if (last) return t('desktop.mc_last_run_ago', { when: fmt.relative(last) });
             return t('desktop.mc_state_never_run');
         }
 

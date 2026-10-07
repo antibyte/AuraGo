@@ -161,6 +161,13 @@
         return mission.execution_type === 'scheduled' || isFlow(mission) ? mission.next_run : '';
     }
 
+    // lastRunAt returns the time of a mission's last run, or '' when it never ran. The server sends
+    // Go's zero time ("0001-01-01T00:00:00Z") for a mission without a run, not an empty value.
+    function lastRunAt(mission) {
+        const value = mission && mission.last_run;
+        return value && Date.parse(value) > 0 ? value : '';
+    }
+
     // flowSummary lists the trigger nodes of an EasyDrag flow mission.
     function flowSummary(mission, t, ctx) {
         if (!mission.flow_published) return t('desktop.mc_flow_unpublished');
@@ -572,5 +579,5 @@
         };
     }
 
-    window.MissionControlTriggers = { GROUPS, TYPES, REMOTE_ALLOWED, FIELDS, byKey, label, summary, detail, isFlow, isUnpublishedFlow, upcomingRun, createPicker, createConfigPanel };
+    window.MissionControlTriggers = { GROUPS, TYPES, REMOTE_ALLOWED, FIELDS, byKey, label, summary, detail, isFlow, isUnpublishedFlow, upcomingRun, lastRunAt, createPicker, createConfigPanel };
 })();

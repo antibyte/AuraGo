@@ -128,6 +128,9 @@ eq('summary: an unknown trigger type is passed on as text (renderers escape it)'
 check('isFlow / isUnpublishedFlow', TR.isFlow(flowLive) && !TR.isFlow(agent) && !TR.isFlow(null) && TR.isUnpublishedFlow(flowDraft) && !TR.isUnpublishedFlow(flowLive) && !TR.isUnpublishedFlow(agentPaused));
 eq('upcomingRun: enabled scheduled and flow missions only', [TR.upcomingRun(flowLive), TR.upcomingRun(scheduled), TR.upcomingRun(Object.assign({}, flowLive, { enabled: false })), TR.upcomingRun(Object.assign({}, agent, { next_run: '2026-10-07T09:00:00Z' }))],
     ['2026-10-07T09:00:00Z', '2026-10-08T09:00:00Z', '', '']);
+// The server sends Go's zero time for a mission that never ran.
+eq('lastRunAt: zero time, nothing and garbage mean never ran', [TR.lastRunAt({ last_run: '0001-01-01T00:00:00Z' }), TR.lastRunAt({}), TR.lastRunAt({ last_run: 'soon' }), TR.lastRunAt({ last_run: '2026-10-06T09:00:00Z' })],
+    ['', '', '', '2026-10-06T09:00:00Z']);
 
 // ── list: Flows filter, badge, quick run, states, next run ──
 const list = W.MissionControlList.create({ esc, t, lang: 'en', svg, triggers: TR, schedule: S, readonly: false, fmt });

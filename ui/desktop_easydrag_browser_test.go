@@ -454,6 +454,8 @@ func (s *easyDragSmoke) missionControl() {
 	s.wait(`()=>document.querySelectorAll('.vd-mc-row').length===2 && document.querySelectorAll('.vd-mc-row .vd-mc-row-badge--flow').length===2`)
 	page.MustEval(`()=>{const id=edFixture.flow().rec.mission_id;document.querySelector('.vd-mc-row[data-mc-id="'+id+'"]').click();}`)
 	s.wait(`()=>!!document.querySelector('.vd-mc [data-mc-action="openFlow"]') && document.querySelector('.vd-mc').textContent.includes('Noch nicht veröffentlicht')`)
+	// Flows that never ran say so: the server's zero time ("0001-01-01T00:00:00Z") is no last run.
+	s.wait(`()=>{const never=t('desktop.mc_state_never_run');const draft=[...document.querySelectorAll('.vd-mc-row')].find(r=>r.textContent.includes('Wetterwarnung'));return !!draft && draft.textContent.includes(never) && document.querySelector('.vd-mc-detail-body').textContent.includes(never)}`)
 	s.shot("mission-control-flow")
 	page.MustElement(`.vd-mc [data-mc-action="openFlow"]`).MustClick()
 	s.wait(`()=>{const ed=edFixture.editor();return !!ed && ed.flow.id===edFixture.seededID && document.querySelectorAll('.ed-node').length===5}`)
