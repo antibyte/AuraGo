@@ -121,7 +121,7 @@ Your data stays with the installation. **Hosted models still see their request i
 22. [Internal tools](22-internal-tools.md)
 23. [Internals](23-internals.md)
 
-[FAQ](faq.md) · [Handbook hub](../README.md)
+[FAQ](faq.md) · [Handbook hub](../README.md) · [Release notes: audit remediation](../../release-notes-2026-10-audit-remediation.md)
 
 ## Chat shortcuts
 
