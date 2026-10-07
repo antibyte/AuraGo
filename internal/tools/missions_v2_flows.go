@@ -909,6 +909,12 @@ func (m *MissionManagerV2) notifyFlowsForOwnerLocked(trigger TriggerType, ev flo
 			dropped++
 		}
 	}
+	// Stop (or the parent context) can cancel the manager between the check above and the
+	// sends, after the dispatcher drained its queue and ended: give back the owner references
+	// of runs that nobody will start.
+	if m.ctx.Err() != nil {
+		drainFlowRunRequests(m.flowEvents)
+	}
 	if dropped > 0 {
 		slog.Warn("[MissionV2] Flow event queue is full; flow runs dropped", "trigger", string(trigger),
 			"dropped", dropped, "capacity", flowEventQueueSize)

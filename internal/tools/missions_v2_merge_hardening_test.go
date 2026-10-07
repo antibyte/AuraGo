@@ -235,3 +235,36 @@ func TestMergeStoppedManagerFiresNoFlowTriggers(t *testing.T) {
 	}
 	hooks.expectNoStart(t)
 }
+
+// mergeCancelOnMarshal cancels the manager while notifyFlowsForOwnerLocked encodes the event
+// data, that is between its context check and its sends.
+type mergeCancelOnMarshal struct{ cancel context.CancelFunc }
+
+func (c mergeCancelOnMarshal) MarshalJSON() ([]byte, error) {
+	c.cancel()
+	return []byte(`{}`), nil
+}
+
+// A flow run queued after Stop cancelled the manager, when the dispatcher has drained its
+// queue and ended, gives its Desktop owner back at once instead of keeping it for good.
+func TestMergeLateFlowRequestReleasesItsOwner(t *testing.T) {
+	m := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	defer m.Stop()
+	m.SetFlowHooks(newFakeFlowHooks())
+	publishTestFlow(t, m, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: TriggerDeviceConnected, TriggerConfig: &TriggerConfig{}})
+	var retained, released atomic.Int32
+	owner := QueueItem{RequiresOwner: true, ownerContext: context.Background(), retainOwner: func() context.CancelFunc {
+		retained.Add(1)
+		return func() { released.Add(1) }
+	}}
+	m.mu.Lock()
+	// A queue no dispatcher reads any more: the dispatcher drained it and ended.
+	m.flowEvents = make(chan flowRunRequest, 4)
+	m.notifyFlowsForOwnerLocked(TriggerDeviceConnected, flowEvent{}, mergeCancelOnMarshal{cancel: m.cancel}, owner)
+	queued := len(m.flowEvents)
+	m.mu.Unlock()
+	if retained.Load() != 1 || released.Load() != 1 || queued != 0 {
+		t.Fatalf("retained %d, released %d, still queued %d; want the late run dropped and its owner given back",
+			retained.Load(), released.Load(), queued)
+	}
+}
