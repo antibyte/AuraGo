@@ -56,7 +56,8 @@
     // saver.error holds the error of the last offline or failed request until a request succeeds.
     // A throwing callback never changes the saver's state. The emergency copy follows a change at
     // once, or, within COPY_MS of the last copy, with the next change after that time, at the end
-    // of a gesture (flushCopy), at the next save, at flush() and at dispose().
+    // of a gesture or when the page is hidden (flushCopy), at the next save, at flush(), at
+    // dispose(), and at the latest COPY_MS after the held-back change.
     function create(options) {
         const core = ED.core;
         const o = options;
@@ -74,6 +75,7 @@
         let disposed = false;
         let copyAt = 0;            // when the emergency copy was written last (Date.now)
         let copyPending = false;   // a change since then is not in the copy yet
+        let copyTimer = 0;         // the trailing write of a held-back change
 
         sweepEmergencyCopies();
 
@@ -90,21 +92,30 @@
         }
 
         function writeEmergency() {
-            copyPending = false;
+            dropPendingCopy();
             copyAt = Date.now();
             core.storage.set(emergencyKey(o.flowId), { revision, at: copyAt, doc: o.model.toJSON() });
         }
 
-        // keepCopy writes the emergency copy for a change, at most once per COPY_MS; a change inside
-        // that time waits (copyPending) for a later change, flushCopy or the next save.
+        function dropPendingCopy() {
+            copyPending = false;
+            clearTimeout(copyTimer);
+            copyTimer = 0;
+        }
+
+        // keepCopy writes the emergency copy for a change, at most once per COPY_MS. A change inside
+        // that time waits (copyPending) for a later change, flushCopy, the next save, or at the
+        // latest the trailing write COPY_MS later: a crash loses less than COPY_MS of edits.
         function keepCopy() {
-            if (Date.now() - copyAt >= COPY_MS) writeEmergency(); else copyPending = true;
+            if (Date.now() - copyAt >= COPY_MS) { writeEmergency(); return; }
+            copyPending = true;
+            if (!copyTimer) copyTimer = setTimeout(() => { copyTimer = 0; flushCopy(); }, COPY_MS);
         }
 
         // flushCopy writes a change that keepCopy held back, while the draft is still unsaved.
         function flushCopy() {
             if (!copyPending) return;
-            copyPending = false;
+            dropPendingCopy();
             if (o.model.version !== savedVersion) writeEmergency();
         }
 
@@ -187,7 +198,7 @@
             retryDelay = RETRY_MS;
             notify(o.onSaved, { revision, issues: res.issues || [] });
             if (o.model.version === savedVersion) {
-                copyPending = false;
+                dropPendingCopy();
                 core.storage.remove(emergencyKey(o.flowId));
                 setState('saved');
                 return false;
@@ -291,7 +302,7 @@
             isDirty: () => o.model.version !== savedVersion,
             markSaved() { savedVersion = o.model.version; setState('saved'); },
             // dispose writes a held-back change to the emergency copy first, so closing never loses it.
-            dispose() { if (!disposed) flushCopy(); disposed = true; clearTimeout(timer); clearTimeout(retryTimer); }
+            dispose() { if (!disposed) flushCopy(); disposed = true; dropPendingCopy(); clearTimeout(timer); clearTimeout(retryTimer); }
         };
     }
 

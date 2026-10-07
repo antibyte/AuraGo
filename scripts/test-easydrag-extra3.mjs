@@ -46,7 +46,7 @@ export async function run(env) {
     // sandbox loads every module and the window shell on miniDom, as the c1d04 and c1d06 harnesses
     // do: elements keep the markup they were given (el.html); value, checked, style, parentElement
     // and isConnected act like a browser's (connected = inside h.body). Document listeners land in
-    // h.docListeners and h.fireDoc(type, init) dispatches to them. Timers and frames are recorded
+    // h.docListeners (window ones in h.winListeners) and h.fireDoc(type, init) dispatches to them. Timers and frames are recorded
     // and fired by hand; localStorage, ResizeObserver, matchMedia and EventSource are stubs. Every
     // core.modal dialog is listed in h.dialogs. The api records each request in h.requests and
     // answers with answer(req); undefined falls back to "no runs" and "no issues". ctx records
@@ -95,6 +95,7 @@ export async function run(env) {
         proto.select = function () {};
         const body = new dom.El('body', {});
         const docListeners = {};
+        const winListeners = {};
         Object.assign(dom.document, {
             body,
             querySelector: sel => body.querySelector(sel),
@@ -113,7 +114,8 @@ export async function run(env) {
             close() { this.closed = true; }
         }
         const box = vm.createContext({
-            window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' }, open() {} }, navigator: { platform: platform || 'Linux' }, crypto: webcrypto, document: dom.document,
+            window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' }, open() {}, addEventListener: (type, fn) => { (winListeners[type] = winListeners[type] || []).push(fn); },
+                removeEventListener: (type, fn) => { const list = winListeners[type] || []; if (list.includes(fn)) list.splice(list.indexOf(fn), 1); } }, navigator: { platform: platform || 'Linux' }, crypto: webcrypto, document: dom.document,
             EventSource, URLSearchParams, URL,
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: {
@@ -149,7 +151,7 @@ export async function run(env) {
             return Promise.resolve().then(() => { const out = answer(req); return out === undefined ? defaults(req) : out; });
         };
         const h = {
-            ED, dom, body, win: box.window, store, timers, frames, logged, docListeners, dialogs, requests, transport,
+            ED, dom, body, win: box.window, store, timers, frames, logged, docListeners, winListeners, dialogs, requests, transport,
             api: ED.core.createApi(transport), catalog: catalogOf(),
             notes: [], confirms: [], confirmAnswer: false, menus: [], cleared: [], homes: [], opened: [],
             puts: () => requests.filter(r => r.method === 'PUT'),

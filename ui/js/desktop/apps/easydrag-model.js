@@ -85,6 +85,8 @@
         const undoStack = [];
         const redoStack = [];
         const state = { doc: normalize(clone(doc)), version: 0 };
+        // docGen counts the writes of the node and edge lists (applySet, replaceDoc).
+        let docGen = 0;
 
         function info(type) {
             if (!catalog) return null;
@@ -92,7 +94,23 @@
             return (catalog.types && catalog.types[type]) || null;
         }
 
-        function node(id) { return state.doc.nodes.find(n => n.id === id) || null; }
+        // node looks a node up in an id Map. The Map follows the document: applySet and replaceDoc
+        // (the only writers of the node list) bump docGen, and the next lookup builds it again,
+        // so a drag frame that looks up every moved node costs one pass, not one scan per node.
+        // The first node wins for a duplicated id, as find did.
+        let nodeIndex = null;
+        let nodeIndexOf = null;
+        let nodeIndexGen = -1;
+        function node(id) {
+            const list = state.doc.nodes;
+            if (!nodeIndex || nodeIndexOf !== list || nodeIndexGen !== docGen) {
+                nodeIndex = new Map();
+                list.forEach(n => { if (!nodeIndex.has(n.id)) nodeIndex.set(n.id, n); });
+                nodeIndexOf = list;
+                nodeIndexGen = docGen;
+            }
+            return nodeIndex.get(id) || null;
+        }
         function edge(id) { return state.doc.edges.find(e => e.id === id) || null; }
         function byKey(key) { return state.doc.nodes.find(n => n.key === key) || null; }
 
@@ -285,6 +303,7 @@
         }
 
         function applySet(set, dir) {
+            docGen += 1;
             const pick = entry => dir === 'after' ? entry.after : entry.before;
             setItems(state.doc.nodes, dir === 'after' ? set.nodes : set.nodes.slice().reverse(), pick);
             setItems(state.doc.edges, dir === 'after' ? set.edges : set.edges.slice().reverse(), pick);
@@ -680,6 +699,7 @@
 
         // replaceDoc swaps in a document from the server (conflict reload) and clears history.
         function replaceDoc(doc) {
+            docGen += 1;
             state.doc = normalize(clone(doc));
             undoStack.length = 0;
             redoStack.length = 0;

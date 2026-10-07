@@ -555,22 +555,32 @@
         return cache.names;
     }
 
-    // holds keeps the timers of each dialog's hold, so a newer hold and the dialog's close end them.
+    // holds keeps the timers of each held button, so a newer hold of that button and its
+    // dialog's close end them; watched holds the buttons whose dialog close is awaited.
     const holds = new WeakMap();
+    const watched = new WeakSet();
+
+    function endHold(button) {
+        const ids = holds.get(button);
+        if (ids) ids.forEach(clearTimeout);
+        holds.delete(button);
+    }
 
     // holdAction keeps a dialog button disabled for seconds (a 429 with Retry-After). The dialog
-    // enables its buttons once the action returns, so the hold starts after that. Its timers (up
-    // to an hour) end when the dialog closes, and a newer hold replaces an older one.
+    // enables its buttons once the action returns, so the hold starts after that. Holds are kept
+    // per button: a newer hold of the same button replaces the older one, and every hold's timers
+    // (up to an hour) end when its dialog closes.
     function holdAction(dialog, id, seconds) {
         const button = dialog.el.querySelector('[data-ed-action="' + id + '"]');
         if (!button || !(seconds > 0)) return;
-        const release = () => { const ids = holds.get(dialog); if (ids) ids.forEach(clearTimeout); holds.delete(dialog); };
-        if (!holds.has(dialog) && dialog.done && typeof dialog.done.then === 'function') dialog.done.then(release);
-        const before = holds.get(dialog);
-        if (before) before.forEach(clearTimeout);
-        holds.set(dialog, [
+        if (!watched.has(button) && dialog.done && typeof dialog.done.then === 'function') {
+            watched.add(button);
+            dialog.done.then(() => endHold(button));
+        }
+        endHold(button);
+        holds.set(button, [
             setTimeout(() => { button.disabled = true; }, 0),
-            setTimeout(() => { button.disabled = false; holds.delete(dialog); }, Math.min(seconds, 3600) * 1000)
+            setTimeout(() => { button.disabled = false; holds.delete(button); }, Math.min(seconds, 3600) * 1000)
         ]);
     }
 

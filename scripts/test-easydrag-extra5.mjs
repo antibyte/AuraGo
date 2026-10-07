@@ -262,6 +262,57 @@ export async function run(env) {
         editor.dispose();
     });
 
+    await guardAsync('ff2 review: a drag costs about linearly more with more steps', async () => {
+        // bestDrag opens an n-step flow, selects everything and returns the fastest of three
+        // 30-frame drags in ms (a busy machine rarely slows all three).
+        const bestDrag = n => {
+            const h = sandbox(req => (req.method === 'PUT' ? { draft_revision: 4, issues: [] } : undefined));
+            const editor = openEditor(h, { flow: { draft: bigDoc(n) } });
+            h.menus.find(m => m.id === 'edit').items.find(i => i.id === 'select-all').action();
+            const canvasEl = editor.el.querySelector('.ed-canvas');
+            const card = editor.el.querySelector('[data-node-id="' + T1 + '"]');
+            let best = Infinity;
+            for (let run = 0; run < 3; run++) {
+                const started = process.hrtime.bigint();
+                card.fire('pointerdown', h.pe(1, 10, 10));
+                for (let i = 1; i <= 30; i++) canvasEl.fire('pointermove', h.pe(1, 10 + i * 3, 10 + i));
+                canvasEl.fire('pointerup', h.pe(1, 100, 40));
+                best = Math.min(best, Number(process.hrtime.bigint() - started) / 1e6);
+            }
+            const logged = h.logged.length;
+            editor.dispose();
+            return [best, logged];
+        };
+        bestDrag(50); // warm-up: the first editor pays for the JIT
+        let [small, smallErrors] = bestDrag(100);
+        let [large, largeErrors] = bestDrag(400);
+        let ratio = large / Math.max(small, 0.01);
+        // A pause during the large drags can still tip one measurement: one more try decides.
+        if (ratio >= 8) {
+            [small, smallErrors] = bestDrag(100);
+            [large, largeErrors] = bestDrag(400);
+            ratio = Math.min(ratio, large / Math.max(small, 0.01));
+        }
+        console.log('info ff2 drag of 100 vs 400 selected steps: ' + small.toFixed(1) + ' ms vs ' + large.toFixed(1) + ' ms (x' + ratio.toFixed(1) + ')');
+        // Linear work grows 4x from 100 to 400 steps, quadratic 16x: under 8x leaves room for noise.
+        eq('ff2 review: 4x the steps cost under 8x the time per drag (no quadratic lookups); model.node is a Map lookup that follows the document',
+            [ratio < 8, smallErrors + largeErrors], [true, 0]);
+        // model.node follows every write of the node list: commands, undo, redo and replaceDoc.
+        const model = sandbox(() => undefined).ED.model.create(flowDoc(), { types });
+        const seen = [];
+        const added = model.addNode('web.search', { x: 0, y: 300 });
+        seen.push(!!model.node(added));
+        model.undo();
+        seen.push(!!model.node(added));
+        model.redo();
+        seen.push(model.node(added) === model.doc.nodes.find(n => n.id === added));
+        model.moveNodes([A], 10, 0);
+        seen.push(model.node(A) === model.doc.nodes.find(n => n.id === A) && model.node(A).position.x === 310);
+        model.replaceDoc(flowDoc('Other'));
+        seen.push(!!model.node(added), model.node(A) === model.doc.nodes.find(n => n.id === A));
+        eq('ff2 review: model.node stays in step with add, undo, redo, move and replaceDoc', seen, [true, false, true, true, false, true]);
+    });
+
     // runAnswer answers the stored run r1 (with its own document) and the test endpoints.
     const runAnswer = extra => req => {
         if (req.url === '/api/desktop/flows/runs/r1?include=doc') return { run: { id: 'r1', status: 'success', mode: 'test', started_at: '2026-10-06T10:00:00Z', revision: 2 }, steps: [], doc: flowDoc('Run') };
@@ -571,5 +622,73 @@ export async function run(env) {
                 src('easydrag-runs.js').includes("'aurago.easydrag.effects-ok.'"), src('easydrag-runs.js').includes("'aurago.easydrag.test-trigger.'"),
                 (src('easydrag-core.js').match(/const FLOW_KEYS = \[([^\]]*)\]/) || [])[1]],
             [true, true, true, true, "'aurago.easydrag.draft.', 'aurago.easydrag.view.', 'aurago.easydrag.effects-ok.', 'aurago.easydrag.test-trigger.'"]);
+    });
+
+    // ── FF2 review follow-up ──
+
+    await guardAsync('ff2 review: a held-back emergency copy is written on pagehide, on hidden and 500 ms later at the latest', async () => {
+        const outcomes = [];
+        for (const how of ['pagehide', 'hidden', 'trailing', 'visible only']) {
+            const h = sandbox(() => undefined);
+            const editor = openEditor(h);
+            await settle();
+            const copied = () => JSON.parse(h.store.get(DRAFT_KEY)).doc.description;
+            // The first change is copied at once; the next one, within 500 ms, is held back.
+            editor.ed.model.setFlow({ description: 'first' });
+            editor.ed.model.setFlow({ description: 'held' });
+            const before = [copied(), h.delays().includes(500)];
+            if (how === 'pagehide') (h.winListeners.pagehide || []).forEach(fn => fn({ type: 'pagehide' }));
+            else if (how === 'trailing') h.runTimers(500);
+            else {
+                h.dom.document.visibilityState = how === 'hidden' ? 'hidden' : 'visible';
+                h.fireDoc('visibilitychange', {});
+            }
+            outcomes.push([how, before, copied(), h.delays().includes(500)]);
+            editor.dispose();
+            outcomes.push([how + ' disposed', (h.winListeners.pagehide || []).length, (h.docListeners.visibilitychange || []).length]);
+        }
+        eq('ff2 review: pagehide, a hidden page and the trailing 500 ms timer write the held change; a visible page waits', outcomes, [
+            ['pagehide', ['first', true], 'held', false], ['pagehide disposed', 0, 0],
+            ['hidden', ['first', true], 'held', false], ['hidden disposed', 0, 0],
+            ['trailing', ['first', true], 'held', false], ['trailing disposed', 0, 0],
+            ['visible only', ['first', true], 'first', true], ['visible only disposed', 0, 0]
+        ]);
+    });
+
+    await guardAsync('ff2 review: a delete that loses the race to a delete elsewhere still goes home; names come from the draft', async () => {
+        const h = sandbox(runAnswer(req => {
+            if (req.method === 'DELETE') throw apiError('FLOW_NOT_FOUND');
+            return undefined;
+        }));
+        h.confirmAnswer = true;
+        const anchors = [];
+        const create = h.dom.document.createElement;
+        h.dom.document.createElement = tag => { const node = create(tag); if (tag === 'a') anchors.push(node); return node; };
+        const editor = openEditor(h);
+        await settle();
+        // The run view shows the stored run's document ("Run"); the draft is "Flow".
+        editor.showRun('r1');
+        await settle();
+        h.menus.find(m => m.id === 'flow').items.find(i => i.id === 'export').action();
+        const exported = anchors.map(a => a.download);
+        editor.ed.draftModel.setFlow({ description: 'unsaved' });
+        h.store.set('aurago.easydrag.test-trigger.f1', '"n_tttttttt"');
+        await h.menus.find(m => m.id === 'flow').items.find(i => i.id === 'delete').action();
+        await settle();
+        h.runTimers();
+        await settle();
+        eq('ff2 review: FLOW_NOT_FOUND on the own delete counts as deleted (home, no error, no copy, no save); export and confirm name the draft',
+            [exported, h.confirms, h.homes.length, h.notes, h.store.has(DRAFT_KEY), h.store.has('aurago.easydrag.test-trigger.f1'), h.puts().length, h.logged],
+            [['Flow.easydrag.json'], ['delete_text:Flow'], 1, [], false, false, 0, []]);
+        // A delete elsewhere while the run view shows names the draft as well.
+        const g = sandbox(runAnswer());
+        const viewer = openEditor(g);
+        await settle();
+        viewer.showRun('r1');
+        await settle();
+        g.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason: 'deleted' } });
+        eq('ff2 review: the deleted-elsewhere notice names the draft, not the viewed run', g.notes, [{ title: 'Flow', message: 'flow_deleted_elsewhere' }]);
+        editor.dispose();
+        viewer.dispose();
     });
 }

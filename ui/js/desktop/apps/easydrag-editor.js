@@ -279,7 +279,8 @@
         function exportFlow() {
             const a = document.createElement('a');
             a.href = ed.api.exportUrl(ed.flow.id);
-            a.download = (ed.model.doc.name || 'flow') + '.easydrag.json';
+            // The export is the draft, also in the run view: it carries the draft's name.
+            a.download = (draftModel.doc.name || 'flow') + '.easydrag.json';
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -288,17 +289,21 @@
         // deleteFlow deletes the flow; while the request runs, its own "deleted" broadcast is not
         // news (deleting).
         async function deleteFlow() {
-            const ok = await ctx.confirmDialog(t('easydrag.ui.delete_title'), t('easydrag.ui.delete_text', { name: ed.model.doc.name }));
+            const ok = await ctx.confirmDialog(t('easydrag.ui.delete_title'), t('easydrag.ui.delete_text', { name: draftModel.doc.name }));
             if (!ok || deleting) return;
             const id = ed.flow.id;
             deleting = true;
             try {
                 await ed.api.remove(id);
             } catch (err) {
-                // The flow still exists and the editor stays usable: its saver keeps running.
-                deleting = false;
-                ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
-                return;
+                // FLOW_NOT_FOUND: a delete made elsewhere came first. The flow is gone all the
+                // same, so this delete is done. Any other error: the flow still exists and the
+                // editor stays usable, its saver keeps running.
+                if (core.errorCode(err) !== 'FLOW_NOT_FOUND') {
+                    deleting = false;
+                    ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
+                    return;
+                }
             }
             forget(id);
             if (disposed) return;
@@ -311,7 +316,7 @@
             if (deleting || disposed) return;
             deleting = true;
             forget(ed.flow.id);
-            ctx.notify({ title: ed.model.doc.name, message: t('easydrag.ui.flow_deleted_elsewhere') });
+            ctx.notify({ title: draftModel.doc.name, message: t('easydrag.ui.flow_deleted_elsewhere') });
             app.openHome();
         }
 
@@ -474,8 +479,12 @@
             if (ed.selection.size !== before) ed.bus.emit('selection', ed.selection);
         }
 
-        // A drag holds back emergency copies (at most one per 500 ms); its end writes the last one.
+        // A drag holds back emergency copies (at most one per 500 ms); its end writes the last one,
+        // and so does a page that goes away or into the background (closed, reloaded, switched
+        // away from on a phone), where no later timer may run.
         bag.add(ed.bus.on('gesture-end', () => ed.saver.flushCopy()));
+        bag.listen(window, 'pagehide', () => ed.saver.flushCopy());
+        bag.listen(document, 'visibilitychange', () => { if (document.visibilityState === 'hidden') ed.saver.flushCopy(); });
         bag.add(ed.bus.on('quick-add', req => { if (!ed.readonly && !ed.runView) { ED.palette.openQuickAdd(ed, canvas, req); setMenus(); } }));
         bag.add(ed.bus.on('open-detail', req => { ED.detail.open(ed, req.nodeId, { param: req.param }); setMenus(); }));
         bag.add(ed.bus.on('detail-closed', () => { canvas.el.focus({ preventScroll: true }); setMenus(); }));

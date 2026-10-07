@@ -186,12 +186,15 @@
   the selection between steps (announced through the live region, `core.announcer`), Enter opens
   the detail view, Delete/D/Ctrl+D/C act on the selection, Tab adds a step. A card's tool buttons
   are tab stops only while it is selected (`syncTools`; `tabindex="-1"` otherwise), and
-  `.ed-node:focus-within` shows a focused tool's toolbar. The screen-reader step list
-  (`.ed-node-list`) duplicates the arrow keys, so its buttons are `tabindex="-1"`: it serves a
-  screen reader's browse mode, not Tab. With 5 steps and no selection the canvas has 5 tab stops
-  (the browser smoke test counts them). Screen changes move the focus: leaving the run view to
-  the canvas, the start page to New flow and then to the card of the flow just left (not for
-  Mission Control's New flow or the templates link), the shell's error card to Retry.
+  `.ed-node:focus-within` shows a focused tool's toolbar. Tab on the canvas opens quick-add, so
+  the zoom bar and a selected card's tools are reached with Shift+Tab from the footer. Every tool
+  has a key as well: D (off/on), Ctrl+D (duplicate), Del (delete); Test step sits in the detail
+  view (Enter). The screen-reader step list (`.ed-node-list`) duplicates the arrow keys, so its
+  buttons are `tabindex="-1"`: it serves a screen reader's browse mode, not Tab. With 5 steps
+  and no selection the canvas has 5 tab stops (the browser smoke test counts them). Screen
+  changes move the focus: leaving the run view to the canvas, the start page to New flow and then
+  to the card of the flow just left (not for Mission Control's New flow or the templates link),
+  the shell's error card to Retry.
 - Strings: `easydrag.ui.*` in `ui/lang/easydrag/<16>.json` (shared with the server's catalog
   keys); built keys (`core.tr`) belong to a family of `TestEasyDragUIKeysExistInAllLocales`.
 - `createApi` (`easydrag-core.js`) errors carry `err.body.code`, shown as
@@ -212,14 +215,16 @@
   (retry 5 s, doubling to 60 s), `PERMANENT_CODES` and a 4xx without a code go `failed` (a retry
   button), `FLOW_INVALID` waits for the next change. The emergency copy is written at most once
   per 500 ms while changes keep coming (a drag); a held-back change is written by a later change,
-  `saver.flushCopy()` on the interact bus event `gesture-end`, the next save, `flush()` and
-  `dispose()`, never once the draft is saved. Model change sets look ids up in Maps (a 200-step
-  drag is guarded in `test-easydrag-extra5.mjs`).
+  `saver.flushCopy()` (the interact bus event `gesture-end`, `pagehide`, a `visibilitychange`
+  to hidden), the next save, `flush()`, `dispose()`, and at the latest by a trailing write
+  500 ms later, so a crash loses less than 500 ms; never once the draft is saved. Model change
+  sets and `model.node` look ids up in Maps (`node` rebuilds its Map after each write of the
+  node list); `test-easydrag-extra5.mjs` guards a 200-step drag and the 100-to-400-step scaling.
 - Run view: `ed.model` is the stored run's document there, `ed.draftModel` always the draft. The
   hints (`publish.refreshIssues`) validate the draft, wait while the run view shows and run again
   on exit; a live run that starts meanwhile is parked (`runs.attach`) and followed on exit.
-- Dialog holds (`holdAction`, a 429's Retry-After) end when the dialog closes; a tree drag's
-  document listeners (`dragend`, `drop`) end with the drag or with the next one.
+- Dialog holds (`holdAction`, a 429's Retry-After) are kept per button and end when the dialog
+  closes; a tree drag's document listeners (`dragend`, `drop`) end with the drag or the next one.
 - Window menus pass canonical keys ("Ctrl+S"); the shell dispatches a `shortcut` item before the
   editor sees the key, a `shortcutHint` ("?") is only drawn. Mod+S is always prevented in the
   editor and saves only when no EasyDrag dialog is open.

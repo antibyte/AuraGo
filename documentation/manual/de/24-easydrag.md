@@ -95,7 +95,7 @@ EasyDrag braucht *Flows aktivieren* und das Missions-Tool (`tools.missions.enabl
 
 ## Tastenkürzel
 
-Strg+S, Strg+Enter und Strg+K wirken überall im Editor, aber nicht, solange ein Dialog oder ein Kontextmenü offen ist; die übrigen Tasten wirken auf der Arbeitsfläche. Auf dem Mac steht ⌘ für Strg. Von außen ist die Arbeitsfläche ein Halt für **Tab**; die Werkzeugknöpfe eines Schritts kommen dazu, solange er ausgewählt ist, und Screenreader finden zusätzlich eine Liste der Schritte.
+Strg+S, Strg+Enter und Strg+K wirken überall im Editor, aber nicht, solange ein Dialog oder ein Kontextmenü offen ist; die übrigen Tasten wirken auf der Arbeitsfläche. Auf dem Mac steht ⌘ für Strg. Von außen ist die Arbeitsfläche ein Halt für **Tab**, und **Tab** auf der Fläche fügt einen Schritt hinzu: Die Zoom-Knöpfe und die Werkzeugknöpfe des ausgewählten Schritts erreichst du mit **Umschalt+Tab** aus der Fußzeile. Jeder Werkzeugknopf hat auch eine Taste: D schaltet den Schritt aus oder ein, Strg+D dupliziert, Entf löscht, und *Schritt testen* steht in der Detailansicht (Enter). Screenreader finden zusätzlich eine Liste der Schritte.
 
 | Taste | Wirkung |
 |---|---|

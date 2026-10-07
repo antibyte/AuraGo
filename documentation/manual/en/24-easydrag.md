@@ -95,7 +95,7 @@ EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, s
 
 ## Keyboard shortcuts
 
-Ctrl+S, Ctrl+Enter and Ctrl+K work anywhere in the editor, but not while a dialog or a context menu is open; the other keys act on the canvas. On macOS, Ctrl is ⌘. The canvas is one stop for **Tab** from outside; a step's tool buttons join the tab order while it is selected, and screen readers also find a list of the steps.
+Ctrl+S, Ctrl+Enter and Ctrl+K work anywhere in the editor, but not while a dialog or a context menu is open; the other keys act on the canvas. On macOS, Ctrl is ⌘. The canvas is one stop for **Tab** from outside, and **Tab** on the canvas adds a step: the zoom buttons and the tool buttons of the selected step are reached with **Shift+Tab** from the footer. Every tool button also has a key: D turns the step off or on, Ctrl+D duplicates, Del deletes, and *Test step* is in the detail view (Enter). Screen readers also find a list of the steps.
 
 | Key | Action |
 |---|---|

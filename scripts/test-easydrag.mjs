@@ -473,7 +473,8 @@ await guardAsync('c1d03 permanent save errors', async () => {
     await h.saver.save();
     check('c1d03 saver.error is read-only', !Object.getOwnPropertyDescriptor(h.saver, 'error').set);
     h.change();
-    eq('c1d03 a later change schedules a new attempt', [h.saver.state, h.delays()], ['dirty', [1000]]);
+    // (A 500 ms timer may hold back the copy of this second change: FF2's trailing copy write.)
+    eq('c1d03 a later change schedules a new attempt', [h.saver.state, h.delays().filter(ms => ms !== 500)], ['dirty', [1000]]);
     await h.fire(1000);
     eq('c1d03 the new attempt fails again without a retry', [h.saver.state, h.api.calls, h.timers.size], ['failed', 2, 0]);
     await h.saver.save();
