@@ -301,6 +301,12 @@ worker. Keep packaging, recovery and offline instructions in
   shadows. Keep Geist, 16px inputs and 44px controls in both densities. Below 1100px the
   labeled sidebar becomes a keyboard-accessible drawer; the save dock stays in
   the viewport layout without covering the scrollable form.
+- Every Config section icon needs its `SECTIONS` key in
+  `CONFIG_SIDEBAR_ICON_SLOTS`, a `CONFIG_SIDEBAR_ICON_SYMBOLS` entry, the
+  matching 128px cell in `img/config-sidebar-icons.svg` and `.json`, and a
+  `.config-icon-slot-N` position in `config-workspace.css`. The sidebar draws the
+  inline symbol, so a missing one renders blank; it must match the sprite cell.
+  Verify `TestConfigSidebarIconSpriteContract`.
 - Config uses one visible card level: named topic cards containing flat fields,
   with a compact variant for independent objects. Reuse `AuraConfigForm` and the shared presentation pass for lazy
   integration renderers. Preserve their data bindings, independent provider /

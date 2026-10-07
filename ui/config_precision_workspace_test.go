@@ -486,6 +486,10 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 
 	slotByKey := parseConfigSidebarIconSlots(t, mainJS)
 	assertConfigIconCoverage(t, expectedKeys, slotByKey)
+	symbolByKey := parseConfigSidebarIconSymbols(t, mainJS)
+	if got, want := len(symbolByKey), len(expectedKeys); got != want {
+		t.Fatalf("inline symbol map has %d icons, want %d", got, want)
+	}
 	for _, key := range expectedKeys {
 		slot := slotByKey[key]
 		column := slot % 11
@@ -493,6 +497,18 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 		svgMarker := fmt.Sprintf(`data-key="%s" data-slot="%d" transform="translate(%d %d)"`, key, slot, column*128, row*128)
 		if !strings.Contains(sprite, svgMarker) {
 			t.Fatalf("config sidebar SVG sprite missing exact cell marker %q", svgMarker)
+		}
+		// The sidebar renders the inline symbol; a missing entry draws a blank icon.
+		symbol, ok := symbolByKey[key]
+		if !ok || symbol == "" {
+			t.Fatalf("CONFIG_SIDEBAR_ICON_SYMBOLS missing key %q", key)
+		}
+		cell := sprite[strings.Index(sprite, svgMarker):]
+		if next := strings.Index(cell[len(svgMarker):], `class="cfg-icon-cell"`); next >= 0 {
+			cell = cell[:len(svgMarker)+next]
+		}
+		if !strings.Contains(cell, symbol) {
+			t.Fatalf("inline symbol for %q does not match its SVG sprite cell", key)
 		}
 		x := configIconSpritePercent(float64(column) * 100 / 10)
 		y := configIconSpritePercent(float64(row) * 100 / 10)
@@ -649,6 +665,36 @@ func parseConfigSidebarIconSlots(t *testing.T, mainJS string) map[string]int {
 		slotByKey[key] = slot
 	}
 	return slotByKey
+}
+
+func parseConfigSidebarIconSymbols(t *testing.T, mainJS string) map[string]string {
+	t.Helper()
+	startMarker := "const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({"
+	start := strings.Index(mainJS, startMarker)
+	if start < 0 {
+		t.Fatal("config main.js missing CONFIG_SIDEBAR_ICON_SYMBOLS")
+	}
+	start += len(startMarker)
+	end := strings.Index(mainJS[start:], "\n});")
+	if end < 0 {
+		t.Fatal("config main.js has unterminated CONFIG_SIDEBAR_ICON_SYMBOLS")
+	}
+	block := mainJS[start : start+end]
+	entryPattern := regexp.MustCompile(`(?m)^\s+([a-z0-9_]+):\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'),?\s*$`)
+	matches := entryPattern.FindAllStringSubmatch(block, -1)
+	if len(matches) == 0 {
+		t.Fatal("config sidebar inline symbol map is empty")
+	}
+	unescape := strings.NewReplacer(`\"`, `"`, `\'`, `'`)
+	symbolByKey := make(map[string]string, len(matches))
+	for _, match := range matches {
+		key := match[1]
+		if _, exists := symbolByKey[key]; exists {
+			t.Fatalf("icon key %q appears twice in inline symbol map", key)
+		}
+		symbolByKey[key] = unescape.Replace(match[2] + match[3])
+	}
+	return symbolByKey
 }
 
 func assertConfigIconCoverage(t *testing.T, expectedKeys []string, slotByKey map[string]int) {
