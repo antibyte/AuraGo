@@ -889,6 +889,12 @@ buttons and menu popovers remain excluded from those gestures.
   timeline. Use the real Standard/Fruity theme tokens and all sixteen Desktop
   locale dictionaries. Verify UI behavior with
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudioBrowser$'`.
+- Without a project (zero projects or the feature switched off),
+  `.vs-preview-stage.vs-no-project` hides the canvas and preview placeholder and
+  gives the empty-project card the whole stage; `vs-stage` height container
+  queries compact it so New project stays visible in a ~135px stage. `renderUI`
+  clears the state once a project loads. `TestDesktopVideoStudioStartMenuBrowser`
+  asserts the card is visibly hit-testable at 1280x800 and 1910x760 in both themes.
 
 ### Mission Control contract
 
