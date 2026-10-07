@@ -333,6 +333,26 @@ func TestWriteDenylistFinalSecuritySample(t *testing.T) {
 		"CREATE DEFINER=`svc`@`db.internal` FUNCTION f() RETURNS INT RETURN 1",
 		"CREATE ALGORITHM=MERGE DEFINER=admin@localhost SQL SECURITY DEFINER FUNCTION f() RETURNS INT RETURN 1",
 		"CREATE OR REPLACE DEFINER=reporter@10.9.8.7 AGGREGATE a(x INT) (SFUNC=f, STYPE=int)",
+		// A user or host part spelled like an object keyword or a modifier
+		// (MySQL hosts need no quotes) must not end the principal early.
+		"CREATE DEFINER=view@table FUNCTION f() RETURNS INT DETERMINISTIC RETURN 1",
+		"CREATE DEFINER=`view`@`function` PROCEDURE p() SELECT 1",
+		"CREATE DEFINER=event@trigger FUNCTION f() RETURNS INT RETURN 1",
+		"CREATE DEFINER=u@index PROCEDURE p() SELECT 1",
+		"CREATE DEFINER=sql@or FUNCTION f() RETURNS INT RETURN 1",
+		"CREATE DEFINER=type@role FUNCTION f() RETURNS INT RETURN 1",
+		"CREATE DEFINER=user@h.view.table FUNCTION f() RETURNS INT RETURN 1",
+		"CREATE DEFINER=view FUNCTION f() RETURNS INT RETURN 1",
+		"CREATE ALGORITHM=MERGE DEFINER=`table`@h SQL SECURITY DEFINER FUNCTION f() RETURNS INT RETURN 1",
+		"CREATE OR REPLACE DEFINER=`index`@h AGGREGATE FUNCTION a(x INT) RETURNS INT BEGIN RETURN 1 END",
+		// MySQL DATA/INDEX DIRECTORY table and partition options, with or
+		// without '=', and with a double-quoted value (a string in MySQL's
+		// default sql_mode).
+		"CREATE TABLE t (a int) DATA DIRECTORY '/var/www'",
+		`CREATE TABLE t (a int) DATA DIRECTORY "/var/www"`,
+		"CREATE TABLE t (a int) DATA/**/DIRECTORY='/var/www'",
+		"CREATE TABLE t (a int) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10) DATA DIRECTORY = '/var/www')",
+		"ALTER TABLE t ADD PARTITION (PARTITION p1 VALUES LESS THAN (20) INDEX DIRECTORY '/var/www')",
 	}
 	for _, q := range denied {
 		q := q
@@ -379,6 +399,16 @@ func TestWriteDenylistFinalSecuritySample(t *testing.T) {
 		"CREATE DEFINER='u'@'%' VIEW v AS SELECT 1":                             StmtDDL,
 		"CREATE DEFINER=`svc`@`db.internal` VIEW v AS SELECT 1":                 StmtDDL,
 		"CREATE DEFINER=CURRENT_USER() SQL SECURITY INVOKER VIEW v AS SELECT 1": StmtDDL,
+		"CREATE DEFINER=view@table VIEW v AS SELECT 1":                          StmtDDL,
+		"CREATE DEFINER=`table`@`trigger` VIEW v AS SELECT 1":                   StmtDDL,
+		"CREATE DEFINER=user@sql SQL SECURITY INVOKER VIEW v AS SELECT 1":       StmtDDL,
+		// Ordinary data / directory columns, an index named directory and a CTAS
+		// alias are not DATA/INDEX DIRECTORY options.
+		"INSERT INTO backups (data, directory) VALUES ('a','b')":      StmtInsert,
+		"UPDATE backups SET data = 'a', directory = 'b' WHERE id = 1": StmtUpdate,
+		"INSERT INTO backups SELECT data, directory FROM src":         StmtInsert,
+		"CREATE INDEX directory ON backups (data)":                    StmtDDL,
+		"CREATE TABLE backups AS SELECT data directory FROM src":      StmtDDL,
 	}
 	for q, want := range allowed {
 		q, want := q, want
@@ -415,5 +445,30 @@ func TestWriteDenylistLargeInsertStaysFast(t *testing.T) {
 	t.Logf("5000-row INSERT classified in %v", elapsed)
 	if elapsed > 2*time.Second {
 		t.Fatalf("5000-row INSERT took %v, want well under 2s", elapsed)
+	}
+}
+
+// The CREATE-prefix parser (OR REPLACE, DEFINER principal, ALGORITHM, …) does
+// constant work per prefix word, so 10k-token pathological prefixes and
+// statements stay linear.
+func TestWriteDenylistCreatePrefixStaysLinear(t *testing.T) {
+	cols := strings.Repeat("c, ", 10000) + "c"
+	cases := map[string]string{
+		"definer view, 10k columns": "CREATE DEFINER=view@table VIEW v AS SELECT " + cols + " FROM t",
+		"10k OR REPLACE":            "CREATE " + strings.Repeat("OR REPLACE ", 5000) + "VIEW v AS SELECT 1",
+		"definer, 10k bare tokens":  "CREATE DEFINER=" + strings.Repeat("x ", 10000),
+		"10k DEFINER clauses":       "CREATE " + strings.Repeat("DEFINER=u@h ", 10000) + "VIEW v AS SELECT 1",
+	}
+	for name, q := range cases {
+		start := time.Now()
+		_, _ = detectStatementType(q, "mysql")
+		elapsed := time.Since(start)
+		t.Logf("%s: %v", name, elapsed)
+		if elapsed > 2*time.Second {
+			t.Fatalf("%s took %v, want well under 2s", name, elapsed)
+		}
+	}
+	if _, err := detectStatementType("CREATE "+strings.Repeat("DEFINER=u@h ", 10000)+"FUNCTION f() RETURNS INT RETURN 1", "mysql"); err == nil {
+		t.Fatal("10k DEFINER clauses before FUNCTION must still be refused")
 	}
 }

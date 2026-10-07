@@ -24,7 +24,19 @@ func sqlStructureWrite(s, driver string) (string, error) {
 	return sqlStructureDialectMode(s, driver, true)
 }
 
+// sqlStructureWriteDQString is sqlStructureWrite except that a double-quoted
+// token is emitted as a string literal ('literal') instead of an identifier:
+// MySQL's default sql_mode reads "..." as a string, so a write-denylist check
+// that needs to see a string value (DATA DIRECTORY "/path") uses this form.
+func sqlStructureWriteDQString(s, driver string) (string, error) {
+	return sqlStructureLex(s, driver, true, true)
+}
+
 func sqlStructureDialectMode(s, driver string, pad bool) (string, error) {
+	return sqlStructureLex(s, driver, pad, false)
+}
+
+func sqlStructureLex(s, driver string, pad, dquoteString bool) (string, error) {
 	var out strings.Builder
 	// writeLiteral emits a normalised literal/identifier replacement, padding it
 	// with surrounding spaces in write mode so it never merges with a neighbour.
@@ -138,7 +150,7 @@ func sqlStructureDialectMode(s, driver string, pad bool) (string, error) {
 			if j == len(s) {
 				return "", fmt.Errorf("unterminated SQL literal or identifier")
 			}
-			if c == '\'' {
+			if c == '\'' || (dquoteString && c == '"') {
 				writeLiteral("'literal'")
 			} else {
 				writeLiteral(ident.String())

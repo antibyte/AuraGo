@@ -51,9 +51,10 @@ var sqlWriteDeniedFunctions = map[string]bool{
 // the identifier-tokenised upper text: punctuation is dropped, so a glued quote
 // or operator cannot evade a phrase, and a phrase may also match across
 // punctuation (erring on refusal). COPY, the MySQL INTO OUTFILE / INTO DUMPFILE
-// forms and the CONNECT FILE_NAME table option are position-matched instead
-// (see validateWriteStructure) so ordinary tables/columns named copy, outfile,
-// dumpfile or file_name are not refused.
+// forms, the CONNECT FILE_NAME table option and the DATA/INDEX DIRECTORY
+// options are position-matched instead (see validateWriteStructure) so ordinary
+// tables/columns named copy, outfile, dumpfile or file_name, and a column list
+// such as (data, directory), are not refused.
 var sqlWriteDeniedPhrases = []string{
 	// MySQL/MariaDB bulk import.
 	"LOAD DATA", "LOAD XML",
@@ -70,8 +71,6 @@ var sqlWriteDeniedPhrases = []string{
 	// PostgreSQL library preloading (ALTER ROLE/DATABASE/SYSTEM … SET). The
 	// whole setting names are listed because '_' joins an identifier word.
 	"SHARED_PRELOAD_LIBRARIES", "SESSION_PRELOAD_LIBRARIES", "LOCAL_PRELOAD_LIBRARIES",
-	// MySQL/MariaDB table data/index files placed at a server path.
-	"DATA DIRECTORY", "INDEX DIRECTORY",
 	// MySQL/MariaDB plugin and component loading.
 	"INSTALL PLUGIN", "INSTALL COMPONENT",
 	// PostgreSQL predefined roles: *_SERVER_FILES / EXECUTE_SERVER_PROGRAM confer
@@ -94,8 +93,8 @@ var sqlWriteObjectNameContext = map[string]bool{
 	"REFERENCES": true, "VIEW": true, "INDEX": true, "KEY": true,
 }
 
-// sqlCreateObjectKeyword marks the object-type keyword that ends a stripped
-// CREATE-prefix modifier run.
+// sqlCreateObjectKeyword marks the CREATE object-type keywords, which an
+// ALGORITHM value consumed by the CREATE-prefix parser can never be.
 var sqlCreateObjectKeyword = map[string]bool{
 	"FUNCTION": true, "PROCEDURE": true, "TRIGGER": true, "EVENT": true, "VIEW": true,
 	"AGGREGATE": true, "TABLE": true, "INDEX": true, "SEQUENCE": true, "SCHEMA": true,
@@ -103,8 +102,8 @@ var sqlCreateObjectKeyword = map[string]bool{
 	"TYPE": true, "DOMAIN": true, "ROLE": true, "USER": true,
 }
 
-// sqlWriteModifierKeyword marks the CREATE-prefix modifier keywords, so a
-// DEFINER principal scan does not swallow the next modifier.
+// sqlWriteModifierKeyword marks the CREATE-prefix modifier keywords, so an
+// ALGORITHM value is never taken from the next modifier.
 var sqlWriteModifierKeyword = map[string]bool{
 	"OR": true, "DEFINER": true, "ALGORITHM": true, "SQL": true,
 	"TRUSTED": true, "PROCEDURAL": true,
@@ -161,59 +160,170 @@ func connectFileNameTableOption(ps string) bool {
 	return false
 }
 
+// tableDirectoryOption reports whether a CREATE/ALTER statement sets a MySQL
+// DATA DIRECTORY or INDEX DIRECTORY option, at table or partition level: DATA
+// or INDEX and DIRECTORY separated by whitespace only, then '=' or a string
+// literal. psDQ is the write structure with double-quoted tokens as string
+// literals (sqlStructureWriteDQString), because MySQL's default sql_mode reads
+// DATA DIRECTORY "/path" as a string. A column list such as (data, directory)
+// has punctuation between the words, and an index named directory or a
+// SELECT alias is followed by ON/(/FROM, so neither is refused.
+func tableDirectoryOption(psDQ string) bool {
+	u := strings.ToUpper(psDQ)
+	for i := 0; i < len(u); {
+		if !isSQLIdentChar(rune(u[i])) {
+			i++
+			continue
+		}
+		j := i
+		for j < len(u) && isSQLIdentChar(rune(u[j])) {
+			j++
+		}
+		if w := u[i:j]; w == "DATA" || w == "INDEX" {
+			k := skipSQLSpace(u, j)
+			m := k + len("DIRECTORY")
+			if k > j && m <= len(u) && u[k:m] == "DIRECTORY" && (m == len(u) || !isSQLIdentChar(rune(u[m]))) {
+				if v := skipSQLSpace(u, m); v < len(u) && (u[v] == '=' || u[v] == '\'') {
+					return true
+				}
+			}
+		}
+		i = j
+	}
+	return false
+}
+
+// sqlPrefixScanner walks the upper-cased write structure for the CREATE-prefix
+// parser. Unlike the identifier-only word list it still sees '=', '@', '(' and
+// quotes, which the DEFINER principal parse needs. Every step is O(token).
+type sqlPrefixScanner struct {
+	s string
+	i int
+}
+
+// word skips any non-identifier characters and returns the next identifier
+// run ("" at the end): one step of the identifier-only tokeniser.
+func (p *sqlPrefixScanner) word() string {
+	for p.i < len(p.s) && !isSQLIdentChar(rune(p.s[p.i])) {
+		p.i++
+	}
+	start := p.i
+	for p.i < len(p.s) && isSQLIdentChar(rune(p.s[p.i])) {
+		p.i++
+	}
+	return p.s[start:p.i]
+}
+
+func (p *sqlPrefixScanner) peekWord() string {
+	saved := p.i
+	w := p.word()
+	p.i = saved
+	return w
+}
+
+// accept consumes c after optional whitespace and reports whether it was
+// there; otherwise the position is unchanged.
+func (p *sqlPrefixScanner) accept(c byte) bool {
+	if j := skipSQLSpace(p.s, p.i); j < len(p.s) && p.s[j] == c {
+		p.i = j + 1
+		return true
+	}
+	return false
+}
+
+// principalPart consumes one DEFINER user or host part after optional
+// whitespace: the normaliser's single-quoted 'LITERAL', or one run of
+// identifier characters joined by '.' or '$' without whitespace (root,
+// 127.0.0.1, local.host.name; a backtick- or double-quoted part is already a
+// padded identifier run). It returns the part.
+func (p *sqlPrefixScanner) principalPart() string {
+	p.i = skipSQLSpace(p.s, p.i)
+	start := p.i
+	if p.i < len(p.s) && p.s[p.i] == '\'' {
+		if end := strings.IndexByte(p.s[p.i+1:], '\''); end >= 0 {
+			p.i += end + 2
+		} else {
+			p.i = len(p.s)
+		}
+		return p.s[start:p.i]
+	}
+	for p.i < len(p.s) && (isSQLIdentChar(rune(p.s[p.i])) || p.s[p.i] == '.' || p.s[p.i] == '$') {
+		p.i++
+	}
+	return p.s[start:p.i]
+}
+
+// skipDefinerPrincipal consumes "[=] principal" after DEFINER, where principal
+// is CURRENT_USER/CURRENT_ROLE/SESSION_USER with optional "()", or one user
+// part optionally followed by '@' and one host part. It parses the shape, not
+// the words, so a user or host spelled like an object keyword or a modifier
+// (view@table, sql@or, `index`@h) cannot end it early, and it never consumes
+// more than one host part, so the object keyword that follows stays in place.
+func (p *sqlPrefixScanner) skipDefinerPrincipal() {
+	p.accept('=')
+	switch p.principalPart() {
+	case "CURRENT_USER", "CURRENT_ROLE", "SESSION_USER":
+		saved := p.i
+		if !(p.accept('(') && p.accept(')')) {
+			p.i = saved
+		}
+		return
+	}
+	if p.accept('@') {
+		p.principalPart()
+	}
+}
+
 // stripWriteModifierClauses removes the optional CREATE-statement prefix
 // modifiers that would otherwise split a denied phrase: a leading OR REPLACE and
 // the MySQL DEFINER=<principal> / ALGORITHM=<x> / SQL SECURITY <x> clauses. It
 // transforms ONLY the prefix of a CREATE statement and copies everything from
-// the first non-modifier token verbatim, so a DEFINER, ALGORITHM or OR token
+// the first non-modifier word verbatim, so a DEFINER, ALGORITHM or OR word
 // appearing in a column name, SET clause or WHERE clause of any statement is
 // never stripped (that earlier fail-open dropped the rest of such statements).
-// Tokens are identifier-only and upper-case (punctuation already removed).
-func stripWriteModifierClauses(tokens []string) []string {
-	if len(tokens) == 0 || tokens[0] != "CREATE" {
-		return tokens
+// It parses the upper-cased write structure, where '=', '@' and quotes still
+// exist, and returns the identifier-only words for phrase matching. The
+// DEFINER principal is parsed by shape (skipDefinerPrincipal), not by
+// stopping at the first keyword-like word, so any user or host spelling
+// works. Each prefix word costs O(token), so the whole parse is linear.
+func stripWriteModifierClauses(upper string) []string {
+	p := &sqlPrefixScanner{s: upper}
+	if p.word() != "CREATE" {
+		return sqlIdentWords(upper)
 	}
 	out := []string{"CREATE"}
-	i := 1
-	for i < len(tokens) {
-		switch {
-		case tokens[i] == "OR" && i+1 < len(tokens) && tokens[i+1] == "REPLACE":
-			i += 2
-		case tokens[i] == "TRUSTED" || tokens[i] == "PROCEDURAL":
+	for {
+		mark := p.i
+		switch w := p.word(); {
+		case w == "":
+			return out
+		case w == "OR" && p.peekWord() == "REPLACE":
+			p.word()
+		case w == "TRUSTED" || w == "PROCEDURAL":
 			// PostgreSQL CREATE [TRUSTED] [PROCEDURAL] LANGUAGE: drop the optional
 			// words so the contiguous CREATE LANGUAGE phrase still matches. They
 			// only appear here in the prefix (a table named trusted/procedural is
 			// reached only after the object keyword, which returns below).
-			i++
-		case tokens[i] == "ALGORITHM":
-			i++
-			if i < len(tokens) && !sqlCreateObjectKeyword[tokens[i]] && !sqlWriteModifierKeyword[tokens[i]] {
-				i++ // the algorithm value (e.g. COPY / INPLACE / MERGE)
+		case w == "ALGORITHM":
+			if v := p.peekWord(); v != "" && !sqlCreateObjectKeyword[v] && !sqlWriteModifierKeyword[v] {
+				p.word() // the algorithm value (e.g. UNDEFINED / MERGE / TEMPTABLE)
 			}
-		case tokens[i] == "SQL" && i+1 < len(tokens) && tokens[i+1] == "SECURITY":
-			i += 2
-			if i < len(tokens) && !sqlCreateObjectKeyword[tokens[i]] && !sqlWriteModifierKeyword[tokens[i]] {
-				i++ // DEFINER or INVOKER
+		case w == "SQL" && p.peekWord() == "SECURITY":
+			p.word()
+			if v := p.peekWord(); v == "DEFINER" || v == "INVOKER" {
+				p.word()
 			}
-		case tokens[i] == "DEFINER":
-			i++
-			// principal: CURRENT_USER / CURRENT_ROLE / SESSION_USER, or user[@host]
-			// — any number of tokens (a dotted host or an IPv4 literal expands to
-			// several). Scan up to the object keyword or the next modifier, so a
-			// multi-token principal (CREATE DEFINER=root@127.0.0.1 FUNCTION …) no
-			// longer hides the object keyword behind a fixed two-token bound. A
-			// real CREATE … FUNCTION/PROCEDURE/VIEW always has an object keyword,
-			// so the scan stops there; the only way to reach the end is a prefix
-			// with no object keyword, which carries no phrase to match anyway.
-			for i < len(tokens) && !sqlCreateObjectKeyword[tokens[i]] && !sqlWriteModifierKeyword[tokens[i]] {
-				i++
-			}
+		case w == "DEFINER":
+			p.skipDefinerPrincipal()
 		default:
-			out = append(out, tokens[i:]...)
-			return out
+			return append(out, sqlIdentWords(upper[mark:])...)
 		}
 	}
-	return out
+}
+
+// sqlIdentWords splits s into its identifier runs, dropping all punctuation.
+func sqlIdentWords(s string) []string {
+	return strings.FieldsFunc(s, func(r rune) bool { return !isSQLIdentChar(r) })
 }
 
 // precedingIdentToken returns the upper-case identifier run that immediately
@@ -248,11 +358,13 @@ func validateWriteStructure(query, driver string) error {
 		return err
 	}
 
-	// Identifier-only tokens for phrase matching: punctuation (quotes, '=', '@',
-	// parens, dots, commas) is a boundary, so a token glued to punctuation cannot
-	// hide a phrase, and a phrase never spans across punctuation.
-	words := strings.FieldsFunc(strings.ToUpper(ps), func(r rune) bool { return !isSQLIdentChar(r) })
-	words = stripWriteModifierClauses(words)
+	// Identifier-only words for phrase matching: punctuation (quotes, '=', '@',
+	// parens, dots, commas) is dropped, so a token glued to punctuation cannot
+	// hide a phrase, and a phrase may match across punctuation (erring on
+	// refusal). Forms where that would refuse ordinary column lists are
+	// position-matched on ps instead (FILE_NAME, DATA/INDEX DIRECTORY, COPY,
+	// INTO OUTFILE/DUMPFILE).
+	words := stripWriteModifierClauses(strings.ToUpper(ps))
 
 	// COPY (bulk file copy / COPY … TO|FROM PROGRAM) only ever starts a statement
 	// or follows DO in a trigger/event body; the classifier already rejects a
@@ -286,6 +398,20 @@ func validateWriteStructure(query, driver string) error {
 	if len(words) >= 2 && (words[0] == "CREATE" || words[0] == "ALTER") && words[1] == "TABLE" &&
 		connectFileNameTableOption(ps) {
 		return fmt.Errorf("file, loader or administrative SQL is not allowed: FILE_NAME")
+	}
+
+	// MySQL DATA/INDEX DIRECTORY places table or partition files at a server
+	// path. Position-matched (the two words with only whitespace between them,
+	// then '=' or a string) so a (data, directory) column list stays writable;
+	// options exist only in CREATE/ALTER statements.
+	if len(words) > 0 && (words[0] == "CREATE" || words[0] == "ALTER") {
+		psDQ, err := sqlStructureWriteDQString(query, driver)
+		if err != nil {
+			return err
+		}
+		if tableDirectoryOption(psDQ) {
+			return fmt.Errorf("file, loader or administrative SQL is not allowed: DATA/INDEX DIRECTORY")
+		}
 	}
 
 	// MySQL file export: SELECT ... INTO OUTFILE/DUMPFILE. Match the two-word form

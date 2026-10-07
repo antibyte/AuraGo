@@ -597,15 +597,21 @@ func dockerInspectEnvKeySensitive(key string) bool {
 }
 
 // redactDockerInspectEnvValue redacts the value of a non-sensitive environment
-// variable: it still masks URL credentials and key=value secrets anywhere in
-// the value, and additionally treats the value as a command line so a
-// credential flag embedded in it (REDIS_ARGS=--requirepass x,
-// VALKEY_EXTRA_FLAGS=--masterauth=y) loses the value after the flag. Whitespace
-// is normalised to single spaces, acceptable for an inspection view.
+// variable in two passes. First the whole value goes through the scrubber, so
+// its patterns that span whitespace (a bearer header, key = value, key: value,
+// URL credentials) mask as they did before. Then the scrubbed value is treated
+// as a command line, so a credential flag embedded in it
+// (REDIS_ARGS=--requirepass x, VALKEY_EXTRA_FLAGS=--masterauth=y) loses the
+// argument after the flag. Limits: the second pass splits on whitespace, so a
+// quoted multi-word credential after a flag (--requirepass "two words") is only
+// partly masked (its first word), and when that pass masks something the value's
+// whitespace is collapsed to single spaces. A value with nothing for the second
+// pass to mask is returned as scrubbed, spacing intact.
 func redactDockerInspectEnvValue(val string) string {
-	fields := strings.Fields(val)
+	scrubbed := security.RedactSensitiveInfo(val)
+	fields := strings.Fields(scrubbed)
 	if len(fields) == 0 {
-		return security.RedactSensitiveInfo(val)
+		return scrubbed
 	}
 	args := make([]interface{}, len(fields))
 	for i, f := range fields {
@@ -613,15 +619,22 @@ func redactDockerInspectEnvValue(val string) string {
 	}
 	redacted, ok := redactDockerInspectArgs(args).([]interface{})
 	if !ok {
-		return security.RedactSensitiveInfo(val)
+		return scrubbed
 	}
 	parts := make([]string, len(redacted))
+	changed := false
 	for i, r := range redacted {
 		if s, isString := r.(string); isString {
 			parts[i] = s
 		} else {
 			parts[i] = fmt.Sprint(r)
 		}
+		if parts[i] != fields[i] {
+			changed = true
+		}
+	}
+	if !changed {
+		return scrubbed
 	}
 	return strings.Join(parts, " ")
 }

@@ -166,3 +166,35 @@ func TestDockerInspectRedactsGluedCredentialWordsAndEnvFlagValues(t *testing.T) 
 		}
 	}
 }
+
+// The whole value of an ordinary env key still goes through the scrubber, so
+// its patterns that span whitespace (a bearer header, key = value,
+// key: value) keep masking; the command-line pass then also masks the
+// argument of a credential flag.
+func TestDockerInspectEnvValuesKeepWhitespaceSpanningScrubbing(t *testing.T) {
+	encoded, _ := json.Marshal(redactDockerInspectEnv([]interface{}{
+		"CURL_ARGS=-H Authorization: Bearer abcdefghijklmnopqrstuvwxyz012345",
+		"APP_SETTINGS=password = hunter2hunter2",
+		"EXTRA_SETTINGS=token: abcdefghijklmnop",
+		"VALKEY_ARGS=--requirepass x",
+		"JAVA_OPTS=-Xmx1g  -Dlog.level=info",
+	}))
+	out := string(encoded)
+	for _, leaked := range []string{"abcdefghijklmnopqrstuvwxyz012345", "hunter2hunter2", "abcdefghijklmnop"} {
+		if strings.Contains(out, leaked) {
+			t.Fatalf("env value scrubbing leaked %q: %s", leaked, out)
+		}
+	}
+	for _, key := range []string{`"CURL_ARGS=`, `"APP_SETTINGS=`, `"EXTRA_SETTINGS=`} {
+		if !strings.Contains(out, key) {
+			t.Fatalf("env output lost the key %s: %s", key, out)
+		}
+	}
+	if !strings.Contains(out, `"VALKEY_ARGS=--requirepass `+dockerInspectRedacted+`"`) {
+		t.Fatalf("credential flag argument not masked: %s", out)
+	}
+	// A value with nothing to mask keeps its original spacing.
+	if !strings.Contains(out, `"JAVA_OPTS=-Xmx1g  -Dlog.level=info"`) {
+		t.Fatalf("harmless env value was rewritten: %s", out)
+	}
+}
