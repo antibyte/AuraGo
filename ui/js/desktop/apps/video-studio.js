@@ -14,7 +14,6 @@
     const clone = value => JSON.parse(JSON.stringify(value));
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const idempotencyKey = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
-
     function tr(s, key, fallback) {
         const value = s.ctx.t ? s.ctx.t('videoStudio.' + key) : '';
         return !value || value === 'videoStudio.' + key ? (fallback || key) : value;
@@ -86,9 +85,9 @@
         dispose(id);
         const s = {
             id, host, ctx, abort: new AbortController(), disposed: false, project: null, projectId: '', desktopPath: '', etag: '',
-            status: null, projects: [], jobs: [], jobLocalStops: new Set(), frame: 0, selectedClipId: '', selectedAssetId: '',
+            status: null, projects: [], jobs: [], jobLocalStops: new Set(), frame: 0, selectedClipId: '', selectionRevision: 0, selectedAssetId: '',
             zoom: 1, dirty: false, saving: false, saveError: '', conflict: false, activePanel: 'media', history: [], redo: [],
-            busy: false, revision: 0, savePromise: null, autosaveTimer: 0
+            busy: false, revision: 0, artworkRevision: 0, savePromise: null, autosaveTimer: 0
         };
         instances.set(id, s);
         s.projectEpoch = 0;
@@ -330,24 +329,21 @@
         const text = !!clip.text;
         host.innerHTML = `<div class="vs-selected-media"><span>${asset.kind === 'video' ? '▶' : asset.kind === 'audio' ? '♫' : '▧'}</span><div><strong>${esc(s, asset.name || tr(s, 'missingMedia', 'Missing media'))}</strong><small>${esc(s, track.name)}</small></div></div><div class="vs-inspector-group"><h3>${esc(s, tr(s, 'timing', 'Timing'))}</h3><label>${esc(s, tr(s, 'startFrame', 'Start frame'))}<input data-field="start" type="number" min="0" step="1" value="${clip.start}"></label><label>${esc(s, tr(s, 'durationFrames', 'Duration (frames)'))}<input data-field="duration" type="number" min="1" step="1" value="${clip.duration}"></label>${audio ? '' : `<label>${esc(s, tr(s, 'sourceOffset', 'Source offset'))}<input data-field="offset" type="number" min="0" step="1" value="${clip.offset || 0}"></label>`}</div>${audio ? '' : `<div class="vs-inspector-group"><h3>${esc(s, tr(s, 'transform', 'Transform'))}</h3><div class="vs-field-grid"><label>X <input data-field="x" type="number" min="0" max="1" step="0.01" value="${clip.x}"></label><label>Y <input data-field="y" type="number" min="0" max="1" step="0.01" value="${clip.y}"></label><label>${esc(s, tr(s, 'width', 'Width'))}<input data-field="width" type="number" min="0.02" max="1" step="0.01" value="${clip.width}"></label><label>${esc(s, tr(s, 'height', 'Height'))}<input data-field="height" type="number" min="0.02" max="1" step="0.01" value="${clip.height}"></label></div><label>${esc(s, tr(s, 'rotation', 'Rotation'))}<input data-field="rotation" type="number" min="-360" max="360" value="${clip.rotation}"></label><label>${esc(s, tr(s, 'opacity', 'Opacity'))}<input data-field="opacity" type="range" min="0" max="1" step="0.01" value="${clip.opacity}"><output>${Math.round(clip.opacity * 100)}%</output></label><label>${esc(s, tr(s, 'fit', 'Fit'))}<select data-field="fit"><option value="contain" ${clip.fit === 'contain' ? 'selected' : ''}>${esc(s, tr(s, 'contain', 'Contain'))}</option><option value="cover" ${clip.fit === 'cover' ? 'selected' : ''}>${esc(s, tr(s, 'cover', 'Cover'))}</option></select></label></div>`}<div class="vs-inspector-group"><h3>${esc(s, tr(s, 'audio', 'Audio'))}</h3><label>${esc(s, tr(s, 'volume', 'Volume'))}<input data-field="volume" type="range" min="0" max="2" step="0.01" value="${clip.volume}"><output>${Math.round(clip.volume * 100)}%</output></label><div class="vs-field-grid"><label>${esc(s, tr(s, 'fadeIn', 'Fade in (frames)'))}<input data-field="fade_in" type="number" min="0" max="${clip.duration}" value="${clip.fade_in || 0}"></label><label>${esc(s, tr(s, 'fadeOut', 'Fade out (frames)'))}<input data-field="fade_out" type="number" min="0" max="${clip.duration}" value="${clip.fade_out || 0}"></label></div></div><div class="vs-inspector-group"><h3>${esc(s, tr(s, 'transition', 'Transition'))}</h3><label>${esc(s, tr(s, 'transition', 'Transition'))}<select data-transition-type><option value="none">${esc(s, tr(s, 'none', 'None'))}</option>${['dissolve','black','wipeleft','wiperight'].map(type => `<option value="${type}" ${clip.transition && clip.transition.type === type ? 'selected' : ''}>${esc(s, tr(s, type, type))}</option>`).join('')}</select></label><label>${esc(s, tr(s, 'transitionFrames', 'Duration (frames)'))}<input data-transition-duration type="number" min="1" max="90" value="${clip.transition && clip.transition.duration || 15}" ${clip.transition ? '' : 'disabled'}></label><button type="button" data-action="apply-transition" class="vs-secondary">${esc(s, tr(s, 'applyTransition', 'Apply to next clip'))}</button></div>${text ? textControls(s, clip) : ''}`;
     }
-
     function syncInspectorLock(s) {
         const selected = window.VideoStudioTimeline.clipFor(s.project, s.selectedClipId);
         if (s.readonly || selected && selected.track.locked) {
             s.q('[data-inspector]').querySelectorAll('input,select,textarea,button').forEach(control => { control.disabled = true; });
         }
     }
-
     function textControls(s, clip) {
         const style = clip.text_style || {};
         return `<div class="vs-inspector-group vs-text-group"><h3>${esc(s, tr(s, 'text', 'Title'))}</h3><label>${esc(s, tr(s, 'titleText', 'Text'))}<textarea data-text-field="text" rows="3">${esc(s, clip.text)}</textarea></label><label>${esc(s, tr(s, 'font', 'Font'))}<select data-text-style="font_family"><option>Arial</option><option ${style.font_family === 'Georgia' ? 'selected' : ''}>Georgia</option><option ${style.font_family === 'Trebuchet MS' ? 'selected' : ''}>Trebuchet MS</option><option ${style.font_family === 'Impact' ? 'selected' : ''}>Impact</option></select></label><label>${esc(s, tr(s, 'fontSize', 'Font size'))}<input type="number" min="18" max="220" data-text-style="font_size" value="${style.font_size || 72}"></label><label>${esc(s, tr(s, 'color', 'Color'))}<input type="color" data-text-style="color" value="${style.color || '#ffffff'}"></label><label>${esc(s, tr(s, 'alignment', 'Alignment'))}<select data-text-style="alignment"><option value="left" ${style.alignment === 'left' ? 'selected' : ''}>${esc(s, tr(s, 'alignLeft', 'Left'))}</option><option value="center" ${!style.alignment || style.alignment === 'center' ? 'selected' : ''}>${esc(s, tr(s, 'alignCenter', 'Center'))}</option><option value="right" ${style.alignment === 'right' ? 'selected' : ''}>${esc(s, tr(s, 'alignRight', 'Right'))}</option></select></label><label>${esc(s, tr(s, 'background', 'Background'))}<input type="color" data-text-style="background_color" value="${style.background_color || '#101319'}"></label><label>${esc(s, tr(s, 'backgroundOpacity', 'Background opacity'))}<input type="range" min="0" max="1" step="0.05" data-text-style="background_opacity" value="${style.background_opacity == null ? 0.45 : style.background_opacity}"></label><button type="button" data-action="apply-text" class="vs-secondary">${esc(s, tr(s, 'applyText', 'Update title artwork'))}</button></div>`;
     }
-
     function timelineOptions(s) {
         return {
             state: s, label: key => tr(s, key, key), esc: value => esc(s, value), icon: key => icon(s, key),
             onSelect: id => {
-                s.selectedClipId = id;
+                s.selectedClipId = id; s.selectionRevision++;
                 renderInspector(s);
                 syncInspectorLock(s);
                 if (s.q('.vs-app').getBoundingClientRect().width <= 920) setInspectorOpen(s, true, false);
@@ -367,7 +363,6 @@
             onReorderTrack: (from, to) => reorderTrack(s, from, to)
         };
     }
-
     function snapshot(s) { return clone(s.project); }
     function recordChange(s, label, before) {
         if (s.readonly) { if (before) s.project = hydrateProject(s, before); return renderUI(s); }
@@ -409,7 +404,7 @@
         const source = redo ? s.redo : s.history;
         const target = redo ? s.history : s.redo;
         if (!source.length) return;
-        target.push(snapshot(s));
+        s.artworkRevision++; target.push(snapshot(s));
         s.project = hydrateProject(s, source.pop());
         s.dirty = true; s.revision++;
         persistDraft(s); scheduleSave(s); renderUI(s); s.preview.seek(s.frame);
@@ -517,7 +512,10 @@
         });
         renderJobs(s);
     }
-
+    function jobFailure(job) {
+        if (job.external_status_unknown && ['failed', 'cancelled', 'interrupted'].includes(job.status)) return ['generationStatusUnknown', 'The provider status is unclear; it may still be processing. Check its status before making another paid request.'];
+        return ({ project_size_limit: ['projectStorageFull', 'This project has reached its storage limit. Remove media or use another project.'], asset_size_limit: ['fileTooLarge', 'The file is larger than the server limit.'], generation_import_failed: ['generatedImportFailed', 'The generated clip could not be added to this project.'] })[job.error] || ['jobFailed', 'This task could not be completed.'];
+    }
     function renderJobs(s) {
         const host = s.q('[data-jobs]');
         if (!host) return;
@@ -525,8 +523,9 @@
         host.innerHTML = visible.length ? `<h3>${esc(s, tr(s, 'backgroundJobs', 'Background jobs'))}</h3>` + visible.map(job => {
             const percent = Math.round(clamp(Number(job.progress || 0), 0, 1) * 100);
             const terminal = ['succeeded', 'failed', 'cancelled', 'interrupted'].includes(job.status);
+            const failure = job.status === 'failed' || (job.external_status_unknown && ['cancelled', 'interrupted'].includes(job.status)) ? jobFailure(job) : null;
             const artifact = job.artifact && safeSameOrigin(job.artifact.download_url);
-            return `<article class="vs-job vs-job-${esc(s, job.status)}"><div class="vs-job-heading"><span class="vs-job-dot"></span><strong>${esc(s, tr(s, 'job_' + job.kind, job.kind))}</strong><span>${esc(s, tr(s, 'job_' + job.status, job.status))}</span></div><progress max="100" value="${percent}"></progress><div class="vs-job-footer"><small>${terminal ? '' : percent + '%'}</small><span>${artifact ? `<a href="${esc(s, artifact)}" download>${icon(s, 'download')} ${esc(s, tr(s, 'download', 'Download'))}</a>` : ''}${!terminal && job.kind !== 'generate' ? `<button type="button" data-cancel-job="${esc(s, job.id)}">${esc(s, tr(s, 'cancelJob', 'Cancel'))}</button>` : ''}${!terminal && job.kind === 'generate' ? `<button type="button" data-stop-watch="${esc(s, job.id)}">${esc(s, tr(s, 'stopTracking', 'Stop tracking'))}</button>` : ''}</span></div>${job.status === 'failed' ? `<small class="vs-job-error">${esc(s, tr(s, 'jobFailed', 'This task could not be completed.'))}</small>` : ''}</article>`;
+            return `<article class="vs-job vs-job-${esc(s, job.status)}"><div class="vs-job-heading"><span class="vs-job-dot"></span><strong>${esc(s, tr(s, 'job_' + job.kind, job.kind))}</strong><span>${esc(s, tr(s, 'job_' + job.status, job.status))}</span></div><progress max="100" value="${percent}"></progress><div class="vs-job-footer"><small>${terminal ? '' : percent + '%'}</small><span>${artifact ? `<a href="${esc(s, artifact)}" download>${icon(s, 'download')} ${esc(s, tr(s, 'download', 'Download'))}</a>` : ''}${!terminal && job.kind !== 'generate' ? `<button type="button" data-cancel-job="${esc(s, job.id)}">${esc(s, tr(s, 'cancelJob', 'Cancel'))}</button>` : ''}${!terminal && job.kind === 'generate' ? `<button type="button" data-stop-watch="${esc(s, job.id)}">${esc(s, tr(s, 'stopTracking', 'Stop tracking'))}</button>` : ''}</span></div>${failure ? '<small class="vs-job-error">' + esc(s, tr(s, failure[0], failure[1])) + '</small>' : ''}</article>`;
         }).join('') : '';
     }
 
@@ -566,7 +565,7 @@
             renderJobs(s);
             if (['succeeded', 'failed', 'cancelled', 'interrupted'].includes(job.status)) {
                 if (job.status === 'succeeded') await refreshProject(s);
-                if (job.status === 'failed') showNotice(s, 'jobFailed', 'The background task could not be completed.', true);
+                if (job.status === 'failed' || job.external_status_unknown && ['cancelled', 'interrupted'].includes(job.status)) { const failure = jobFailure(job); showNotice(s, failure[0], failure[1], true); }
                 return job;
             }
             await new Promise(resolve => window.setTimeout(resolve, 1200));
@@ -900,21 +899,18 @@
         }
     }
     function handleKeys(s, event) {
-        if (s.disposed || !s.project || !s.host.contains(event.target) || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
-        if (event.key === 'Escape' && s.q('.vs-app').classList.contains('vs-show-inspector')) {
-            setInspectorOpen(s, false, false); s.q('.vs-inspector-toggle')?.focus(); event.preventDefault(); return;
-        }
+        const target = event.target, modifier = event.ctrlKey || event.metaKey, undoShortcut = modifier && !event.altKey && event.key.toLowerCase() === 'z';
+        if (s.disposed || event.defaultPrevented || !s.project || !target || !s.host.contains(target) || typeof target.closest !== 'function') return;
+        if ((event.ctrlKey || event.metaKey || event.altKey) && !undoShortcut) return;
+        if (event.key === 'Escape' && s.q('.vs-app').classList.contains('vs-show-inspector')) { setInspectorOpen(s, false, false); s.q('.vs-inspector-toggle')?.focus(); event.preventDefault(); return; }
         if (event.key === 'Tab' && s.q('.vs-app').classList.contains('vs-show-inspector') && s.q('.vs-app').getBoundingClientRect().width <= 920) {
             const items = Array.from(s.q('.vs-inspector').querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)')).filter(item => item.getClientRects().length);
-            if (items.length) {
-                const first = items[0], last = items[items.length - 1];
-                if (event.shiftKey && (document.activeElement === first || !s.q('.vs-inspector').contains(document.activeElement))) { event.preventDefault(); last.focus(); }
-                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-            }
+            if (items.length) { const first = items[0], last = items[items.length - 1]; if (event.shiftKey && (document.activeElement === first || !s.q('.vs-inspector').contains(document.activeElement))) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); } }
         }
-        const modifier = event.ctrlKey || event.metaKey;
-        if (modifier && event.key.toLowerCase() === 'z') { event.preventDefault(); undo(s, event.shiftKey); }
-        else if (event.code === 'Space') { event.preventDefault(); s.preview.isPlaying() ? s.preview.pause() : s.preview.play(); }
+        if (target.closest('input,textarea,select,[contenteditable="true"]')) return;
+        if (undoShortcut) { event.preventDefault(); undo(s, event.shiftKey); return; }
+        if (target.closest('button,a,summary,[role="button"],[role="link"]')) return;
+        if (event.code === 'Space') { event.preventDefault(); s.preview.isPlaying() ? s.preview.pause() : s.preview.play(); }
         else if (event.key === 'Delete' || event.key === 'Backspace') { if (s.selectedClipId) { event.preventDefault(); timelineAction(s, 'delete', s.selectedClipId); } }
         else if (event.key === 'ArrowLeft') { event.preventDefault(); s.preview.pause(); s.preview.seek(s.frame - (event.shiftKey ? FPS : 1)); }
         else if (event.key === 'ArrowRight') { event.preventDefault(); s.preview.pause(); s.preview.seek(s.frame + (event.shiftKey ? FPS : 1)); }
@@ -927,7 +923,7 @@
         if (!track) return showNotice(s, 'trackLimit', 'Add an overlay track before creating a title.', true);
         const title = tr(s, 'defaultTitle', 'Your title');
         const style = { font_family: 'Arial', font_size: 72, color: '#ffffff', bold: true, alignment: 'center', background_color: '#101319', background_opacity: 0.45 };
-        createArtworkAsset(s, renderTextPNG(s, title, style), title, projectId, epoch).then(asset => {
+        renderTextPNG(s, title, style).then(file => createArtworkAsset(s, file, title, projectId, epoch)).then(asset => {
             if (!asset || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
             const target = s.project.tracks.find(item => item.id === track.id) || s.project.tracks.find(item => item.kind === 'overlay');
             const clip = window.VideoStudioTimeline.makeClip(asset, startFrame);
@@ -971,17 +967,20 @@
         const value = /^#[0-9a-f]{6}$/i.test(hex) ? hex : '#101319';
         return `rgba(${parseInt(value.slice(1, 3), 16)},${parseInt(value.slice(3, 5), 16)},${parseInt(value.slice(5, 7), 16)},${clamp(alpha, 0, 1)})`;
     }
+    function textStyleKey(style) { const defaults = { font_family: 'Arial', font_size: 72, color: '#ffffff', bold: false, italic: false, alignment: 'center', outline_color: '', outline_width: 0, background_color: '#101319', background_opacity: 0 }; return Object.keys(defaults).map(key => style && style[key] || defaults[key]).join('|'); }
     async function applyTextArtwork(s) {
         const found = window.VideoStudioTimeline.clipFor(s.project, s.selectedClipId); if (!found || !found.clip.text) return;
-        const projectId = s.projectId, epoch = s.projectEpoch, clipId = found.clip.id;
-        const text = found.clip.text, style = clone(found.clip.text_style || {});
+        const projectId = s.projectId, epoch = s.projectEpoch, clipId = found.clip.id, selectionRevision = s.selectionRevision;
+        const revision = ++s.artworkRevision, originalAssetId = found.clip.asset_id, text = found.clip.text, style = clone(found.clip.text_style || {}), styleKey = textStyleKey(style);
         try {
             const file = await renderTextPNG(s, text, style);
             const asset = await createArtworkAsset(s, file, 'Title · ' + text.slice(0, 40), projectId, epoch);
-            if (!asset || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+            if (!asset || s.disposed || revision !== s.artworkRevision || epoch !== s.projectEpoch || projectId !== s.projectId || s.selectedClipId !== clipId || s.selectionRevision !== selectionRevision) return;
+            const current = window.VideoStudioTimeline.clipFor(s.project, clipId);
+            if (!current || current.clip.text !== text || textStyleKey(current.clip.text_style || {}) !== styleKey || current.clip.asset_id !== originalAssetId) return;
             mutate(s, 'update title artwork', project => {
                 const target = window.VideoStudioTimeline.clipFor(project, clipId);
-                if (target && target.clip.text === text) target.clip.asset_id = asset.id;
+                if (target) target.clip.asset_id = asset.id;
             });
         } catch (_) { if (!s.disposed && epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'artworkFailed', 'Could not update the title artwork.', true); }
     }
@@ -1068,6 +1067,7 @@
         const projectId = s.projectId, epoch = s.projectEpoch;
         const host = s.q('[data-modal-host]');
         const durations = generation.durations_seconds || [];
+        const supportsAspectRatio = String(generation.provider || '').toLowerCase() !== 'minimax';
         const images = s.project.assets.filter(asset => asset.kind === 'image');
         const supportsStartImage = Array.isArray(generation.image_modes) && generation.image_modes.includes('first_frame');
         const imageField = supportsStartImage ? `<label>${esc(s, tr(s, 'startImage', 'Start image (optional)'))}<select data-ai-image><option value="">${esc(s, tr(s, 'none', 'None'))}</option>${images.map(asset => `<option value="${esc(s, asset.id)}">${esc(s, asset.name)}</option>`).join('')}</select></label>` : '';
@@ -1079,7 +1079,7 @@
             const option = document.createElement('option'); option.value = value; option.textContent = tr(s, key, fallback); ratioSelect.append(option);
         });
         ratioSelect.value = s.project.width === s.project.height ? '1:1' : s.project.width > s.project.height ? '16:9' : '9:16';
-        ratioLabel.append(ratioSelect); host.querySelector('.vs-ai-provider').before(ratioLabel);
+        ratioLabel.append(ratioSelect); if (supportsAspectRatio) host.querySelector('.vs-ai-provider').before(ratioLabel);
         host.querySelectorAll('[data-modal-close]').forEach(button => button.addEventListener('click', () => host.replaceChildren(), { once: true }));
         host.querySelector('[data-ai-form]').addEventListener('submit', async event => {
             event.preventDefault();
@@ -1087,10 +1087,11 @@
             const duration = Number(host.querySelector('[data-ai-duration]').value);
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) { host.replaceChildren(); return; }
             const firstFrame = host.querySelector('[data-ai-image]')?.value || '';
-            const aspectRatio = ratioSelect.value;
+            const payload = { kind: 'generate', prompt, duration_seconds: duration }; if (supportsAspectRatio) payload.aspect_ratio = ratioSelect.value;
+            if (firstFrame) payload.first_frame_asset_id = firstFrame;
             host.replaceChildren();
-            try { await createJob(s, Object.assign({ kind: 'generate', prompt, duration_seconds: duration, aspect_ratio: aspectRatio }, firstFrame ? { first_frame_asset_id: firstFrame } : {}), projectId, epoch); if (epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'generationStarted', 'Generation started. Results will appear in your media bin.', false); }
-            catch (_) { if (epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'generationFailed', 'Could not start generation.', true); }
+            try { await createJob(s, payload, projectId, epoch); if (epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'generationStarted', 'Generation started. Results will appear in your media bin.', false); }
+            catch (error) { if (epoch === s.projectEpoch && projectId === s.projectId) { const failure = jobFailure({ status: 'failed', error: error.body && error.body.code }); showNotice(s, failure[0] === 'jobFailed' ? 'generationFailed' : failure[0], failure[0] === 'jobFailed' ? 'Could not start generation.' : failure[1], true); } }
         });
     }
 

@@ -18,26 +18,34 @@
         let audioContext = null;
         let frame = 0, playing = false, raf = 0, playStartAt = 0, playStartFrame = 0, disposed = false;
 
+        function release(clipId, el) {
+            if (!el) return;
+            try {
+                if (el instanceof HTMLMediaElement) { el.pause(); el.removeAttribute('src'); el.load(); }
+                else el.removeAttribute('src');
+            } catch (_) {}
+            const source = sourceNodes.get(el), gain = gainNodes.get(el);
+            if (source) { try { source.disconnect(); } catch (_) {} sourceNodes.delete(el); }
+            if (gain) { try { gain.disconnect(); } catch (_) {} gainNodes.delete(el); }
+            if (media.get(clipId) === el) media.delete(clipId);
+        }
+
         function entry(asset, clip) {
             if (!asset || !clip || !asset.id || !clip.id) return null;
-            const key = clip.id;
-            if (media.has(key) && media.get(key).__vsAssetId === asset.id) return media.get(key);
-            if (media.has(key)) {
-                const previous = media.get(key);
-                try { if (previous instanceof HTMLMediaElement) { previous.pause(); previous.removeAttribute('src'); previous.load(); } else previous.src = ''; } catch (_) {}
-                media.delete(key);
-            }
-            const src = mediaURL(asset);
+            const key = clip.id, src = mediaURL(asset);
             if (!src) return null;
+            if (media.has(key) && media.get(key).__vsAssetId === asset.id) return media.get(key);
+            if (media.has(key)) release(key, media.get(key));
             let el;
             if (asset.kind === 'image') {
-                el = new Image(); el.decoding = 'async'; el.src = src;
-                el.addEventListener('load', () => paint(frame));
+                el = new Image(); el.decoding = 'async';
+                el.addEventListener('load', () => { if (media.get(key) === el) paint(frame); });
+                el.src = src;
             } else {
                 el = document.createElement(asset.kind === 'audio' ? 'audio' : 'video');
-                el.preload = 'auto'; el.playsInline = true; el.src = src;
-                el.addEventListener('loadeddata', () => paint(frame));
-                el.addEventListener('seeked', () => { if (!playing) paint(frame); });
+                el.preload = 'metadata'; el.playsInline = true; el.src = src;
+                el.addEventListener('loadeddata', () => { if (media.get(key) === el) paint(frame); });
+                el.addEventListener('seeked', () => { if (media.get(key) === el && !playing) paint(frame); });
                 el.load();
             }
             el.__vsAssetId = asset.id;
@@ -77,16 +85,21 @@
         }
 
         function syncMedia(project, at, isPlaying) {
-            const active = new Set();
+            const active = new Set(), keep = new Set(), preloadUntil = at + FPS * 2;
             (project.tracks || []).forEach(track => {
+                if (track.hidden) return;
                 (track.clips || []).forEach(clip => {
+                    const current = activeAt(clip, at), near = !current && clip.start > at && clip.start <= preloadUntil;
+                    if (!current && !near) return;
                     const asset = assetFor(project, clip), el = entry(asset, clip);
                     if (!asset || !el) return;
-                    if (!activeAt(clip, at) || track.hidden) {
-                        if (el instanceof HTMLMediaElement && !el.paused) el.pause();
+                    keep.add(clip.id);
+                    if (near) {
+                        if (el instanceof HTMLMediaElement) { el.preload = 'metadata'; if (!el.paused) el.pause(); }
                         return;
                     }
                     active.add(clip.id);
+                    if (el instanceof HTMLMediaElement) el.preload = 'auto';
                     if (asset.kind === 'image') return;
                     const local = Math.max(0, at - clip.start);
                     const fadeIn = clip.fade_in > 0 ? clamp(local / clip.fade_in, 0, 1) : 1;
@@ -104,7 +117,10 @@
                     else if (!isPlaying && !el.paused) el.pause();
                 });
             });
-            media.forEach((el, clipId) => { if (!active.has(clipId) && el instanceof HTMLMediaElement && !el.paused) el.pause(); });
+            Array.from(media.entries()).forEach(([clipId, el]) => {
+                if (!keep.has(clipId)) release(clipId, el);
+                else if (!active.has(clipId) && el instanceof HTMLMediaElement && !el.paused) el.pause();
+            });
         }
 
         function drawAsset(project, track, clip, at, incoming) {
@@ -118,6 +134,7 @@
             }
             const iw = Number(el.videoWidth || el.naturalWidth || asset.width || 0);
             const ih = Number(el.videoHeight || el.naturalHeight || asset.height || 0);
+            if (asset.kind === 'image' && (!el.naturalWidth || !el.naturalHeight)) return;
             if (!iw || !ih || (el instanceof HTMLVideoElement && el.readyState < 2)) return;
             const cw = canvas.width, ch = canvas.height;
             const x = Number(clip.x || 0) * cw, y = Number(clip.y || 0) * ch;
@@ -213,12 +230,10 @@
         function dispose() {
             if (disposed) return;
             disposed = true; playing = false; cancelAnimationFrame(raf);
-            media.forEach(el => { try { if (el instanceof HTMLMediaElement) { el.pause(); el.removeAttribute('src'); el.load(); } else el.src = ''; } catch (_) {} });
-            sourceNodes.forEach(source => { try { source.disconnect(); } catch (_) {} });
-            gainNodes.forEach(gain => { try { gain.disconnect(); } catch (_) {} });
+            Array.from(media.entries()).forEach(([clipId, el]) => release(clipId, el));
             sourceNodes.clear(); gainNodes.clear();
             if (audioContext) audioContext.close().catch(() => {});
-            media.clear(); context.clearRect(0, 0, canvas.width, canvas.height);
+            context.clearRect(0, 0, canvas.width, canvas.height);
         }
         paint(Number(getFrame() || 0));
         return { play, pause, seek, getFrame: () => Math.round(frame), isPlaying: () => playing, dispose };

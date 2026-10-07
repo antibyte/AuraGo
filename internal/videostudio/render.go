@@ -336,7 +336,12 @@ func buildVisualClipFilter(trackIndex, clipIndex int, clip Clip, input renderInp
 		angle := fmt.Sprintf("(%.6f*PI/180)", clip.Rotation)
 		rotation = fmt.Sprintf(",rotate=%s:ow=rotw(%s):oh=roth(%s):c=black@0", angle, angle, angle)
 	}
-	source := fmt.Sprintf("[%d:V:0]setpts=PTS-STARTPTS,fps=30,trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS,%s,format=rgba%s", input.index, clip.Offset, clip.Offset+clip.Duration, scale, rotation)
+	// Bound pre-offset PTS and clone padding to a small multiple of this clip's duration.
+	offsetPTS := fmt.Sprintf("setpts='max(PTS-%d,-%d)'", clip.Offset, clip.Duration)
+	source := fmt.Sprintf(
+		"[%d:V:0]setpts=PTS-STARTPTS,fps=30,%s,tpad=stop_mode=clone:stop=%d,trim=start_pts=0:end_pts=%d,setpts=PTS-STARTPTS,%s,format=rgba%s",
+		input.index, offsetPTS, clip.Duration*2, clip.Duration, scale, rotation,
+	)
 	if clip.Opacity < 0.999999 {
 		source += fmt.Sprintf(",colorchannelmixer=aa=%.6f", clip.Opacity)
 	}

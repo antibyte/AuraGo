@@ -52,6 +52,8 @@ rotation, opacity, and contain / cover fit. Music, voice, and video sound have
 independent clip volume, mute, and fades. Text and static stickers are image
 overlays; editable title text and style remain in the project. Text is rasterized
 by the browser before import so preview and export use the same pixels.
+If a source's audio continues after its video ends, both preview and export hold
+the final video frame for the remaining clip duration, including trimmed tails.
 
 Transitions include dissolve, fade through black, and wipes in both directions.
 A transition belongs to the outgoing clip. Adjacent clips overlap by exactly
@@ -88,10 +90,18 @@ availability, duration, resolution, and start-image support determine the choice
 shown by the editor. Generated clips are imported into the project library and
 can be cut like uploaded clips.
 
+A project that has already reached its storage quota cannot start a paid
+generation. The quota is checked again before importing the result because
+other edits may have used space in the meantime. Local storage or import errors
+are reported separately from provider failures; they do not imply a refund.
+
 MiniMax and Veo can receive a supported local start image through their existing
 provider-specific image payloads. Agnes supports text-to-video in this app;
 local project files are not automatically published to obtain a public image
 URL. Images leave the server only after the user submits a supported AI request.
+MiniMax has no independent aspect-ratio control in the current adapter, so the
+editor does not offer that selection for MiniMax generation. The project's
+landscape, portrait, or square export format remains independently selectable.
 
 ## Scope and verification
 

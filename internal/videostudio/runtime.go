@@ -51,7 +51,7 @@ func CheckRuntime(ctx context.Context, path string) RuntimeStatus {
 		status.Error = fmt.Sprintf("FFmpeg filters are unavailable: %v", err)
 		return status
 	}
-	if !hasListedName(string(filters), "xfade") || !hasListedName(string(filters), "amix") || !hasListedName(string(filters), "afade") {
+	if !hasRequiredRenderFilters(string(filters)) {
 		status.Error = "FFmpeg is missing a required video or audio filter"
 		return status
 	}
@@ -77,6 +77,15 @@ func hasListedName(output, name string) bool {
 		}
 	}
 	return false
+}
+
+func hasRequiredRenderFilters(output string) bool {
+	for _, name := range [...]string{"xfade", "amix", "afade", "tpad"} {
+		if !hasListedName(output, name) {
+			return false
+		}
+	}
+	return true
 }
 
 func resolveBinary(configuredPath, name string) (string, error) {

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"log/slog"
 	"net/http"
@@ -30,6 +31,14 @@ const (
 	videoStudioIdemRetention = 500
 	// ponytail: one worker per server; add bounded concurrency if queue latency warrants it.
 	videoStudioQueueSize = 128
+	// ponytail: 256 project lock stripes bound lock memory; raise only if measured contention warrants it.
+	videoStudioProjectLockStripeCount = 256
+)
+
+var (
+	errVideoStudioProjectSizeLimit = errors.New("project_size_limit")
+	errVideoStudioAssetSizeLimit   = errors.New("asset_size_limit")
+	errVideoStudioGenerationImport = errors.New("generation_import_failed")
 )
 
 const videoStudioUploadReadWindow = 15 * time.Minute
@@ -122,7 +131,7 @@ type videoStudioManager struct {
 	idem           map[string]videoStudioIdempotency
 	works          map[string]*videoStudioWork
 	active         map[string]context.CancelFunc
-	projectMu      map[string]*sync.Mutex
+	projectMu      [videoStudioProjectLockStripeCount]sync.Mutex
 	queue          chan string
 	closed         bool
 	configChanging bool
@@ -298,8 +307,8 @@ func newVideoStudioManager(s *Server, dataDir string) (*videoStudioManager, erro
 		path: filepath.Join(root, "jobs.json"), previewDir: previewDir,
 		jobs: make(map[string]*videoStudioJob), media: make(map[string]map[string]videoStudioMediaRecord),
 		idem: make(map[string]videoStudioIdempotency), works: make(map[string]*videoStudioWork),
-		active: make(map[string]context.CancelFunc), projectMu: make(map[string]*sync.Mutex),
-		queue: make(chan string, videoStudioQueueSize),
+		active: make(map[string]context.CancelFunc),
+		queue:  make(chan string, videoStudioQueueSize),
 	}
 	if err := m.load(); err != nil {
 		cancel()
@@ -387,14 +396,8 @@ func (m *videoStudioManager) persistLocked() error {
 }
 
 func (m *videoStudioManager) projectLock(projectID string) *sync.Mutex {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	lock := m.projectMu[projectID]
-	if lock == nil {
-		lock = &sync.Mutex{}
-		m.projectMu[projectID] = lock
-	}
-	return lock
+	stripe := crc32.ChecksumIEEE([]byte(projectID)) % uint32(len(m.projectMu))
+	return &m.projectMu[stripe]
 }
 
 func (m *videoStudioManager) admissionEpoch() uint64 {
@@ -859,7 +862,6 @@ func (m *videoStudioManager) removeProject(projectID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.media, projectID)
-	delete(m.projectMu, projectID)
 	_ = os.RemoveAll(filepath.Join(m.previewDir, projectID))
 	_ = m.persistLocked()
 }
@@ -981,6 +983,12 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return "failed", "timeout", "The job exceeded its configured time limit."
 	}
+	if errors.Is(err, errVideoStudioProjectSizeLimit) {
+		return "failed", "project_size_limit", "The project storage limit has been reached. Free space in this project before continuing."
+	}
+	if errors.Is(err, errVideoStudioAssetSizeLimit) {
+		return "failed", "asset_size_limit", "The generated video exceeds the configured per-asset size limit."
+	}
 	switch kind {
 	case "probe":
 		return "failed", "probe_failed", "Media inspection failed. Check that the file is supported and FFmpeg is configured."
@@ -989,6 +997,9 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 	case "render":
 		return "failed", "render_failed", "The project could not be rendered."
 	case "generate":
+		if errors.Is(err, errVideoStudioGenerationImport) {
+			return "failed", "generation_import_failed", "The provider returned a video, but AuraGo could not import it into this project."
+		}
 		return "failed", "generation_failed", "The configured video provider could not complete this request."
 	default:
 		return "failed", "job_failed", "The video job failed."

@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -100,6 +102,42 @@ func TestVideoStudioManagerIdempotencyDeduplicatesAndRejectsChangedPayload(t *te
 	}
 }
 
+func TestVideoStudioProjectLocksAreBoundedAndSerializeSameID(t *testing.T) {
+	manager := &videoStudioManager{}
+	first := manager.projectLock(lifecycleProjectID)
+	second := manager.projectLock(lifecycleProjectID)
+	if first != second {
+		t.Fatal("same project ID did not resolve to the same lock")
+	}
+	first.Lock()
+	acquired := make(chan struct{})
+	go func() {
+		second.Lock()
+		close(acquired)
+		second.Unlock()
+	}()
+	if second.TryLock() {
+		second.Unlock()
+		first.Unlock()
+		t.Fatal("same-project lock allowed concurrent entry")
+	}
+	first.Unlock()
+	select {
+	case <-acquired:
+	case <-time.After(time.Second):
+		t.Fatal("same-project waiter did not acquire the lock after release")
+	}
+
+	locks := make(map[*sync.Mutex]struct{})
+	for i := 1; i <= 4096; i++ {
+		projectID := fmt.Sprintf("%08x-e89b-12d3-a456-%012x", i, i)
+		locks[manager.projectLock(projectID)] = struct{}{}
+	}
+	if got := len(locks); got > videoStudioProjectLockStripeCount {
+		t.Fatalf("4096 project IDs resolved to %d locks, want at most %d", got, videoStudioProjectLockStripeCount)
+	}
+}
+
 func TestVideoStudioManagerCancellationClosesPublicationGate(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.VideoStudio.Enabled = true
@@ -147,6 +185,9 @@ func TestVideoStudioJobFailureClassification(t *testing.T) {
 		{name: "preview error", kind: "preview", err: errors.New("encoder failure"), status: "failed", code: "preview_failed", contains: "preview"},
 		{name: "render error", kind: "render", err: errors.New("encoder failure"), status: "failed", code: "render_failed", contains: "rendered"},
 		{name: "generation error", kind: "generate", err: errors.New("provider error"), status: "failed", code: "generation_failed", contains: "provider"},
+		{name: "generation project quota", kind: "generate", err: errVideoStudioProjectSizeLimit, status: "failed", code: "project_size_limit", contains: "storage limit"},
+		{name: "generation asset quota", kind: "generate", err: errVideoStudioAssetSizeLimit, status: "failed", code: "asset_size_limit", contains: "per-asset size limit"},
+		{name: "generation local import", kind: "generate", err: errVideoStudioGenerationImport, status: "failed", code: "generation_import_failed", contains: "could not import"},
 		{name: "cancelled", kind: "render", err: context.Canceled, status: "cancelled", code: "cancelled", contains: "cancelled"},
 		{name: "deadline", kind: "render", ctxErr: context.DeadlineExceeded, status: "failed", code: "timeout", contains: "time limit"},
 		{name: "unknown kind", kind: "other", err: errors.New("failure"), status: "failed", code: "job_failed", contains: "job failed"},

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -15,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -102,6 +104,35 @@ func TestVideoStudioAPIProjectPermissionsAndCAS(t *testing.T) {
 	}
 	if read := videoStudioAPIRequest(s, readToken, http.MethodGet, path, nil, nil); read.Code != http.StatusOK {
 		t.Fatalf("read-only project cannot be read: %d", read.Code)
+	}
+}
+
+func TestVideoStudioAPIUnknownProjectOperationsKeepLockStorageBounded(t *testing.T) {
+	s, _, writeToken := videoStudioAPIFixture(t)
+	const missingProjects = 384
+	projectIDs := make([]string, 0, missingProjects)
+	for i := 1; i <= missingProjects; i++ {
+		projectID := fmt.Sprintf("%08x-0000-4000-8000-%012x", i, i)
+		projectIDs = append(projectIDs, projectID)
+		created := videoStudioAPIRequest(s, writeToken, http.MethodPost, "/projects/"+projectID+"/jobs", bytes.NewBufferString(`{"kind":"preview","asset_id":"123e4567-e89b-12d3-a456-426614174000"}`), map[string]string{"Idempotency-Key": fmt.Sprintf("missing-project-%d", i)})
+		if created.Code != http.StatusNotFound {
+			t.Fatalf("missing-project job %s returned %d: %s", projectID, created.Code, created.Body.String())
+		}
+		deleted := videoStudioAPIRequest(s, writeToken, http.MethodDelete, "/projects/"+projectID, nil, nil)
+		if deleted.Code != http.StatusOK {
+			t.Fatalf("idempotent missing-project delete %s returned %d: %s", projectID, deleted.Code, deleted.Body.String())
+		}
+	}
+	manager, err := s.videoStudioManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	locks := make(map[*sync.Mutex]struct{}, len(projectIDs))
+	for _, projectID := range projectIDs {
+		locks[manager.projectLock(projectID)] = struct{}{}
+	}
+	if got := len(locks); got > videoStudioProjectLockStripeCount {
+		t.Fatalf("%d missing project IDs resolved to %d locks, want at most %d", len(projectIDs), got, videoStudioProjectLockStripeCount)
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -66,15 +67,15 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-video-studio.css"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}.desktop-body{font-family:system-ui,sans-serif;color:var(--vd-text,#edf0f5);background:var(--vd-theme-app-bg);}.vd-window-content{height:100%;width:100%;display:flex}#studio{flex:1;min-width:0;min-height:0}.vs-app{flex:1}.desktop-body[data-theme="fruity"]{--vd-text:#273144}</style></head><body class="desktop-body" data-theme="standard" data-fruity-mode="light"><main class="vd-window-content"><div id="studio"></div></main><script src="/js/desktop/apps/video-studio-preview.js"></script><script src="/js/desktop/apps/video-studio-timeline.js"></script><script src="/js/desktop/apps/video-studio.js"></script><script>
 			window.fixtureErrors=[];window.fixtureCalls=[];window.addEventListener('error',e=>fixtureErrors.push(String(e.message)));
 			window.fixtureLocales=`+mustJSON(t, locales)+`;const fixtureParams=new URLSearchParams(location.search);window.fixtureLang=fixtureParams.get('lang')||'en';document.body.dataset.theme=fixtureParams.get('theme')||'standard';document.documentElement.lang=window.fixtureLang;
-			window.fixtureProject=`+mustJSON(t, project)+`;window.fixtureLatest=structuredClone(window.fixtureProject);window.fixtureReadonly=fixtureParams.has('readonly');window.fixtureConflict=false;window.fixtureConflictUsed=false;window.fixtureJobs=[];window.fixtureSaves=[];
+			window.fixtureProject=`+mustJSON(t, project)+`;window.fixtureLatest=structuredClone(window.fixtureProject);window.fixtureReadonly=fixtureParams.has('readonly');window.fixtureConflict=false;window.fixtureConflictUsed=false;window.fixtureJobs=[];window.fixtureSaves=[];window.fixtureArtworkRequests=[];window.fixtureArtworkStates={};window.fixtureLastJobBody=null;
 			const originalFetch=window.fetch;const json=(data,status=200,headers={})=>new Response(JSON.stringify(data),{status,headers:Object.assign({'Content-Type':'application/json'},headers)});
 			window.fetch=async(url,options={})=>{const path=String(url),method=String(options.method||'GET').toUpperCase();window.fixtureCalls.push([method,path]);
 			if(path==='/api/desktop/video-studio/status')return json({enabled:true,desktop_enabled:true,ffmpeg_ready:true,read_only:window.fixtureReadonly,limits:{max_duration_frames:18000,canvas_sizes:[{width:1280,height:720},{width:720,height:1280},{width:720,height:720}]},generation:{enabled:true,configured:true,provider:'Fixture provider',model:'fixture-model',durations_seconds:[5,10],image_modes:[]}});
 			if(path==='/api/desktop/video-studio/projects'&&method==='GET')return json({projects:[{id:'p1',project:{name:'Browser fixture'},desktop_path:'Documents/Video Studio/p1/project.json'}]});
 			if(path==='/api/desktop/video-studio/projects/p1'&&method==='GET'){const p=window.fixtureConflict?window.fixtureLatest:window.fixtureProject;return json({id:'p1',project:p,desktop_path:'Documents/Video Studio/p1/project.json'},200,{ETag:window.fixtureConflict?'"vRemote"':'"v1"'});}
 			if(path==='/api/desktop/video-studio/projects/p1'&&method==='PUT'){window.fixtureSaves.push(JSON.parse(options.body));window.fixtureLastIfMatch=new Headers(options.headers).get('If-Match');if(window.fixtureConflict&&!window.fixtureConflictUsed){window.fixtureConflictUsed=true;return json({error:'file_conflict',code:'file_conflict' },412);}window.fixtureProject=JSON.parse(options.body);return json({project:window.fixtureProject,desktop_path:'Documents/Video Studio/p1/project.json'},200,{ETag:'"v2"'});}
-			if(path==='/api/desktop/video-studio/jobs?project_id=p1')return json({jobs:window.fixtureJobs});
-			if(path==='/api/desktop/video-studio/projects/p1/jobs'&&method==='POST'){window.fixtureLastRenderIfMatch=new Headers(options.headers).get('If-Match');const job={id:'j1',project_id:'p1',kind:'render',status:'queued',progress:0};window.fixtureJobs=[job];return json({job},202);}
+			if(path==='/api/desktop/video-studio/projects/p1/media'&&method==='POST'){const id='art-job-'+(window.fixtureArtworkRequests.length+1),assetId='art-asset-'+(window.fixtureArtworkRequests.length+1),job={id,project_id:'p1',kind:'probe',status:'queued',progress:0};window.fixtureArtworkStates[id]=job;window.fixtureArtworkRequests.push({id,assetId});return json({job,asset:{id:assetId,name:'Title.png',path:'media/'+assetId+'.png',kind:'image',duration_frames:18000,width:1280,height:720,has_audio:false}},202);}if(path.startsWith('/api/desktop/video-studio/jobs/art-job-'))return json({job:window.fixtureArtworkStates[path.split('/').pop()]});if(path==='/api/desktop/video-studio/jobs?project_id=p1')return json({jobs:window.fixtureJobs});
+			if(path==='/api/desktop/video-studio/projects/p1/jobs'&&method==='POST'){window.fixtureLastRenderIfMatch=new Headers(options.headers).get('If-Match');window.fixtureLastJobBody=JSON.parse(options.body);const job={id:'j1',project_id:'p1',kind:'render',status:'queued',progress:0};window.fixtureJobs=[job];return json({job},202);}
 			if(path==='/api/desktop/video-studio/jobs/j1')return json({job:{id:'j1',project_id:'p1',kind:'render',status:'succeeded',progress:1,artifact:{name:'Browser fixture.mp4',download_url:'/fixture.mp4',size:1234}}});
 			return originalFetch(url,options);};
 			const t=key=>window.fixtureLocales[window.fixtureLang]?.[key]||key;
@@ -83,7 +84,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 			window.VideoStudioApp.render(document.getElementById('studio'),'fixture',ctx);
 		</script></body></html>`)
 	})
-	mux.HandleFunc("/api/desktop/video-studio/projects/p1/media/art1", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/api/desktop/video-studio/projects/p1/media/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
 		_, _ = w.Write(pngBytes.Bytes())
 	})
@@ -123,18 +124,6 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		t.Fatalf("Fruity timecode does not use the readable theme muted color: %s", page.MustEval(`()=>JSON.stringify({timecode:getComputedStyle(document.querySelector('.vs-timecode')).color,muted:getComputedStyle(document.querySelector('.vs-app')).getPropertyValue('--vs-muted')})`).Str())
 	}
 	page.MustScreenshot(filepath.Join(screenshotDir, "fruity-1280x900.png"))
-	page.MustEval(`async()=>{document.querySelector('[data-action="open-ai"]').click();await new Promise(resolve=>setTimeout(resolve,50));}`)
-	if !page.MustEval(`()=>!!document.querySelector('[data-ai-form]')`).Bool() {
-		t.Fatalf("AI action did not open: %s", page.MustEval(`()=>JSON.stringify({button:document.querySelector('[data-action="open-ai"]')?.outerHTML,notice:document.querySelector('[data-notice]')?.textContent,readonly:window.VideoStudioApp.instances.get('fixture').readonly,generation:window.VideoStudioApp.instances.get('fixture').status.generation,errors:window.fixtureErrors})`).Str())
-	}
-	if page.MustEval(`()=>!!document.querySelector('[data-ai-image]')`).Bool() {
-		t.Fatal("provider without first-frame support received an image control")
-	}
-	if !page.MustEval(`()=>document.querySelector('[data-ai-ratio]').options.length===3 && document.querySelector('.vs-modal').getBoundingClientRect().height>0`).Bool() {
-		t.Fatal("AI modal lacks ratios or is not reachable")
-	}
-	page.MustEval(`()=>document.querySelector('[data-modal-close]').click()`)
-
 	// Exercise a real pointer gesture through the timeline's document/window listeners.
 	page.MustEval(`()=>document.querySelector('.vs-clip').scrollIntoView({block:'center'})`)
 	point := page.MustEval(`()=>{const r=document.querySelector('.vs-clip').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}}`)
@@ -155,7 +144,16 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	if !page.MustEval(`()=>document.querySelector('.vs-app').classList.contains('vs-show-inspector') && document.querySelector('.vs-inspector').getBoundingClientRect().width>0`).Bool() {
 		t.Fatal("narrow inspector did not open as a visible drawer")
 	}
-	page.MustEval(`()=>document.querySelector('.vs-inspector').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`)
+	page.MustEval(`()=>{const controls=Array.from(document.querySelector('.vs-inspector').querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)')).filter(el=>el.getClientRects().length);window.fixtureDrawerFirst=controls[0];controls.at(-1).focus();}`)
+	page.Keyboard.MustType(input.Tab)
+	if !page.MustEval(`()=>document.activeElement===window.fixtureDrawerFirst`).Bool() {
+		t.Fatal("drawer Tab did not wrap to its first control")
+	}
+	page.MustEval(`()=>document.querySelector('.vs-inspector input').focus()`)
+	page.Keyboard.MustType(input.Escape)
+	if page.MustEval(`()=>document.querySelector('.vs-app').classList.contains('vs-show-inspector')`).Bool() {
+		t.Fatal("Escape in a drawer input did not dismiss the inspector")
+	}
 
 	page.MustSetViewport(1280, 900, 1, false)
 	page.MustEval(`()=>document.querySelector('[data-action="export"]').click()`)
@@ -189,6 +187,102 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	if !page.MustEval(`()=>window.fixtureConflictUsed && !window.VideoStudioApp.instances.get('fixture').conflict`).Bool() {
 		t.Fatal("conflict Replace did not use the observed latest version")
 	}
+
+	// Isolate asynchronous editing from the preceding pointer, export, and conflict flows.
+	page.MustEval(`()=>window.VideoStudioApp.dispose('fixture')`)
+	page.MustNavigate(server.URL + "/fixture")
+	page.MustWaitLoad()
+	waitForJSBool(t, page, `()=>!!document.querySelector('.vs-clip')`)
+	page.MustEval(`async()=>{document.querySelector('[data-action="open-ai"]').click();await new Promise(resolve=>setTimeout(resolve,50));}`)
+	if !page.MustEval(`()=>!!document.querySelector('[data-ai-form]')`).Bool() {
+		t.Fatalf("AI action did not open: %s", page.MustEval(`()=>JSON.stringify({button:document.querySelector('[data-action="open-ai"]')?.outerHTML,notice:document.querySelector('[data-notice]')?.textContent,readonly:window.VideoStudioApp.instances.get('fixture').readonly,generation:window.VideoStudioApp.instances.get('fixture').status.generation,errors:window.fixtureErrors})`).Str())
+	}
+	if page.MustEval(`()=>!!document.querySelector('[data-ai-image]')`).Bool() {
+		t.Fatal("provider without first-frame support received an image control")
+	}
+	if !page.MustEval(`()=>document.querySelector('[data-ai-ratio]').options.length===3 && document.querySelector('.vs-modal').getBoundingClientRect().height>0`).Bool() {
+		t.Fatal("AI modal lacks ratios or is not reachable")
+	}
+	page.MustEval(`()=>document.querySelector('[data-modal-close]').click()`)
+
+	page.MustEval(`async()=>{
+		const wait=async test=>{for(let i=0;i<700;i++){if(test())return;await new Promise(resolve=>setTimeout(resolve,10));}throw new Error('Video Studio editor regression timed out: '+JSON.stringify({condition:String(test),revision:s.artworkRevision,selection:s.selectionRevision,dirty:s.dirty,conflict:s.conflict,clips:s.project.tracks.flatMap(track=>track.clips),assets:s.project.assets.map(asset=>asset.id),jobs:s.jobs,notice:document.querySelector('[data-notice]').textContent}))};
+		const s=window.VideoStudioApp.instances.get('fixture'), requests=window.fixtureArtworkRequests;
+		const assetFor=req=>({id:req.assetId,name:'Title.png',path:'media/'+req.assetId+'.png',kind:'image',duration_frames:18000,width:1280,height:720,has_audio:false});
+		const addRemoteAsset=req=>{if(!window.fixtureProject.assets.some(asset=>asset.id===req.assetId))window.fixtureProject.assets.push(assetFor(req));};
+		const finish=req=>{const job=window.fixtureArtworkStates[req.id];job.status='succeeded';job.progress=1;job.result={asset:{id:req.assetId}};addRemoteAsset(req);};
+		s.preview.seek(150);document.querySelector('[data-action="add-title"]').click();
+		await wait(()=>requests.length===1);
+		window.fixtureProject=structuredClone(s.project);addRemoteAsset(requests[0]);finish(requests[0]);
+		await wait(()=>s.project.tracks.find(track=>track.id==='o1').clips.some(clip=>clip.text&&clip.asset_id===requests[0].assetId));
+		const title=s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.text);
+		window.fixtureTitleClipId=title.id;s.timelineOptions.onSelect(title.id);s.dirty=false;window.fixtureProject=structuredClone(s.project);
+		document.querySelector('[data-action="apply-text"]').click();
+		await wait(()=>requests.length===2);
+		title.text_style={font_size:90,font_family:'Georgia',alignment:'center',color:'#ffffff',background_color:'#101319',background_opacity:0,bold:false,italic:false};
+		document.querySelector('[data-action="apply-text"]').click();
+		await wait(()=>requests.length===3);
+		window.fixtureProject=structuredClone(s.project);
+		window.fixtureProject.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).text_style={color:'#ffffff',font_family:'Georgia',background_color:'#101319',alignment:'center',font_size:90};
+		addRemoteAsset(requests[1]);addRemoteAsset(requests[2]);finish(requests[2]);
+		await wait(()=>s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).asset_id===requests[2].assetId);
+		finish(requests[1]);
+		await wait(()=>s.jobs.some(job=>job.id===requests[1].id&&job.status==='succeeded'));
+		if(s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).asset_id!==requests[2].assetId)throw new Error('older artwork response replaced the newer Apply result');
+		s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).text_style={font_size:100,font_family:'Impact',alignment:'center',color:'#ffffff',background_color:'#101319',background_opacity:0,bold:false,italic:false};
+		document.querySelector('[data-action="apply-text"]').click();
+		await wait(()=>requests.length===4);
+		document.querySelector('[data-action="undo"]').click();
+		const undoneClip=s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id),undoAsset=undoneClip.asset_id,undoHistory=s.history.length,undoRedo=s.redo.length;
+		finish(requests[3]);
+		await wait(()=>s.jobs.some(job=>job.id===requests[3].id&&job.status==='succeeded'));
+		if(s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).asset_id!==undoAsset||s.history.length!==undoHistory||s.redo.length!==undoRedo)throw new Error('stale artwork after Undo changed clip or history');
+		const beforeRefresh=s.project;s.dirty=false;window.fixtureProject=structuredClone(s.project);
+		document.querySelector('[data-action="apply-text"]').click();
+		await wait(()=>requests.length===5);addRemoteAsset(requests[4]);finish(requests[4]);
+		await wait(()=>s.project!==beforeRefresh&&s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).asset_id===requests[4].assetId);
+		const clipCount=s.project.tracks.reduce((n,track)=>n+track.clips.length,0),button=document.querySelector('[data-action="undo"]'),playing=s.preview.isPlaying();
+		const space=new KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true,cancelable:true});button.dispatchEvent(space);
+		const app=document.querySelector('.vs-app'),ctrlS=new KeyboardEvent('keydown',{key:'s',code:'KeyS',ctrlKey:true,bubbles:true,cancelable:true});app.dispatchEvent(ctrlS);
+		const handled=new KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true,cancelable:true});handled.preventDefault();app.dispatchEvent(handled);
+		if(space.defaultPrevented||s.preview.isPlaying()!==playing||ctrlS.defaultPrevented||s.project.tracks.reduce((n,track)=>n+track.clips.length,0)!==clipCount||s.preview.isPlaying()!==playing)throw new Error('native button Space, Ctrl+S, or a prehandled key triggered an editor shortcut');
+	}`)
+
+	page.MustEval(`()=>{const s=window.VideoStudioApp.instances.get('fixture');window.fixtureUndoCount=s.history.length;document.querySelector('[data-action="undo"]').focus();}`)
+	page.Keyboard.MustType(input.Space)
+	if !page.MustEval(`()=>{const s=window.VideoStudioApp.instances.get('fixture');return s.history.length===window.fixtureUndoCount-1&&!s.preview.isPlaying();}`).Bool() {
+		t.Fatal("native Space did not activate Undo independently of preview playback")
+	}
+	page.MustEval(`()=>document.querySelector('.vs-app').focus()`)
+	page.Keyboard.MustType(input.Space)
+	if !page.MustEval(`()=>window.VideoStudioApp.instances.get('fixture').preview.isPlaying()`).Bool() {
+		t.Fatal("Space on the editor canvas did not start playback")
+	}
+	page.Keyboard.MustType(input.Space)
+	page.MustEval(`async()=>{
+		const wait=async test=>{for(let i=0;i<700;i++){if(test())return;await new Promise(resolve=>setTimeout(resolve,10));}throw new Error('Video Studio generation regression timed out')};
+		const s=window.VideoStudioApp.instances.get('fixture');
+		s.timelineOptions.onSelect('');
+		for(const provider of ['minimax','veo']){
+			s.status.generation.provider=provider;window.fixtureLastJobBody=null;document.querySelector('[data-action="open-ai"]').click();
+			const ratio=document.querySelector('[data-ai-ratio]');if(!!ratio!==(provider==='veo'))throw new Error('aspect-ratio control does not match provider capabilities');
+			if(ratio)ratio.value='9:16';document.querySelector('[data-ai-prompt]').value='Fixture request';document.querySelector('[data-ai-form]').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+			await wait(()=>window.fixtureLastJobBody!==null);
+			const payload=window.fixtureLastJobBody;if(payload.kind!=='generate'||(provider==='minimax'?'aspect_ratio' in payload:payload.aspect_ratio!=='9:16'))throw new Error('generation payload has incorrect aspect ratio');
+		}
+		window.fixtureJobs=[
+			{id:'quota',kind:'generate',status:'failed',error:'project_size_limit'},
+			{id:'asset',kind:'generate',status:'failed',error:'asset_size_limit'},
+			{id:'import',kind:'generate',status:'failed',error:'generation_import_failed'},
+			{id:'uncertain',kind:'generate',status:'failed',error:'generation_failed',external_status_unknown:true},
+			{id:'interrupted',kind:'generate',status:'interrupted',external_status_unknown:true},
+			{id:'running',kind:'generate',status:'running',external_status_unknown:true}
+		];
+		await wait(()=>document.querySelectorAll('.vs-job-error').length===5);
+		const messages=Array.from(document.querySelectorAll('.vs-job-error'),el=>el.textContent),locale=window.fixtureLocales.en;
+		for(const key of ['projectStorageFull','fileTooLarge','generatedImportFailed','generationStatusUnknown'])if(!messages.includes(locale['videoStudio.'+key]))throw new Error('missing localized job error: '+key);
+		if(document.querySelector('.vs-job-running .vs-job-error'))throw new Error('running provider request was reported as uncertain');
+	}`)
 
 	// Read-only is enforced in the app, not merely by disabled presentation.
 	page.MustNavigate(server.URL + "/fixture?readonly=1")

@@ -136,7 +136,7 @@ func (m *videoStudioManager) processPreview(ctx context.Context, svc *desktop.Se
 	}
 	maxProject := int64(cfg.VideoStudio.MaxProjectSizeMB) << 20
 	if projectBytes > maxProject || previewBytes < oldBytes || info.Size() > maxProject-projectBytes || previewBytes-oldBytes > maxProject-projectBytes-info.Size() {
-		return nil, nil, fmt.Errorf("project_size_limit")
+		return nil, nil, errVideoStudioProjectSizeLimit
 	}
 	if err := os.MkdirAll(previewDir, 0o700); err != nil {
 		return nil, nil, err
@@ -208,15 +208,7 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 	if len(assets) != len(work.project.Assets) {
 		return nil, nil, fmt.Errorf("project references untrusted media")
 	}
-	active := make(map[string]struct{})
-	for _, track := range work.project.Tracks {
-		if track.Hidden || track.Kind == videostudio.TrackAudio && track.Muted {
-			continue
-		}
-		for _, clip := range track.Clips {
-			active[clip.AssetID] = struct{}{}
-		}
-	}
+	active := videoStudioRenderAssetIDs(work.project)
 	stageDir, cleanup, err := m.newStageDir(job.ID)
 	if err != nil {
 		return nil, nil, err
@@ -258,11 +250,11 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 	maxProject := int64(cfg.VideoStudio.MaxProjectSizeMB) << 20
 	remaining := maxProject - used
 	if remaining <= 0 {
-		return nil, nil, fmt.Errorf("project_size_limit")
+		return nil, nil, errVideoStudioProjectSizeLimit
 	}
 	maxOutput := min64(min64(remaining, maxProject), 2<<30)
 	if info.Size() > maxOutput {
-		return nil, nil, fmt.Errorf("project_size_limit")
+		return nil, nil, errVideoStudioProjectSizeLimit
 	}
 	file, err := os.Open(output)
 	if err != nil {
@@ -278,7 +270,32 @@ func (m *videoStudioManager) processRender(ctx context.Context, svc *desktop.Ser
 	return artifact, map[string]interface{}{"duration_frames": videostudio.Duration(work.project), "width": work.project.Width, "height": work.project.Height}, nil
 }
 
-func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.Service, job *videoStudioJob, work *videoStudioWork, cfg *config.Config) (*videoStudioArtifact, map[string]interface{}, error) {
+func videoStudioRenderAssetIDs(project videostudio.Project) map[string]struct{} {
+	active := make(map[string]struct{})
+	for _, track := range project.Tracks {
+		if track.Hidden || track.Kind == videostudio.TrackAudio && track.Muted {
+			continue
+		}
+		for _, clip := range track.Clips {
+			if track.Kind == videostudio.TrackAudio && clip.Volume <= 0 {
+				continue
+			}
+			active[clip.AssetID] = struct{}{}
+		}
+	}
+	return active
+}
+
+func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.Service, job *videoStudioJob, work *videoStudioWork, cfg *config.Config) (artifact *videoStudioArtifact, metadata map[string]interface{}, runErr error) {
+	providerReturnedVideo := false
+	defer func() {
+		if providerReturnedVideo && runErr != nil &&
+			!errors.Is(runErr, errVideoStudioProjectSizeLimit) &&
+			!errors.Is(runErr, errVideoStudioAssetSizeLimit) &&
+			!errors.Is(runErr, errVideoStudioGenerationImport) {
+			runErr = fmt.Errorf("%w: %w", errVideoStudioGenerationImport, runErr)
+		}
+	}()
 	if !cfg.VideoGeneration.Enabled || cfg.VideoGeneration.APIKey == "" || cfg.VideoGeneration.ProviderType == "" {
 		return nil, nil, fmt.Errorf("generation_unavailable")
 	}
@@ -288,9 +305,16 @@ func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.S
 	projectLock := m.projectLock(job.ProjectID)
 	projectLock.Lock()
 	assetCount := len(m.mediaForProject(job.ProjectID))
+	used, err := m.projectStorageSize(ctx, svc, job.ProjectID)
 	projectLock.Unlock()
+	if err != nil {
+		return nil, nil, fmt.Errorf("inspect project storage before generation: %w", err)
+	}
 	if assetCount >= videostudio.MaxAssetsPerProject {
 		return nil, nil, fmt.Errorf("asset_count_limit")
+	}
+	if used >= int64(cfg.VideoStudio.MaxProjectSizeMB)<<20 {
+		return nil, nil, errVideoStudioProjectSizeLimit
 	}
 	params := tools.VideoGenParams{Prompt: work.request.Prompt, NegativePrompt: work.request.NegativePrompt, DurationSeconds: work.request.DurationSeconds, Resolution: work.request.Resolution, AspectRatio: work.request.AspectRatio}
 	provider := strings.ToLower(cfg.VideoGeneration.ProviderType)
@@ -327,7 +351,6 @@ func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.S
 		}
 		return videoStudioGenerationImagePayload(provider, data)
 	}
-	var err error
 	params.FirstFrameImage, err = image(work.request.FirstFrameAssetID)
 	if err != nil {
 		return nil, nil, err
@@ -362,6 +385,7 @@ func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.S
 	if result.Status != "ok" {
 		return nil, nil, fmt.Errorf("provider_generation_failed")
 	}
+	providerReturnedVideo = true
 	if m.server.BudgetTracker != nil && result.CostEstimate > 0 {
 		m.server.BudgetTracker.RecordCostForCategory("video_generation", result.CostEstimate)
 	}
@@ -387,7 +411,7 @@ func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.S
 	}
 	maxAsset := int64(cfg.VideoStudio.MaxAssetSizeMB) << 20
 	if info.Size() > maxAsset {
-		return nil, nil, fmt.Errorf("generated video exceeds the asset limit")
+		return nil, nil, errVideoStudioAssetSizeLimit
 	}
 	assetID := uidNew()
 	name := safeVideoStudioFilename(result.Filename)
@@ -398,17 +422,17 @@ func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.S
 	}
 	projectLock = m.projectLock(job.ProjectID)
 	projectLock.Lock()
-	used, err := m.projectStorageSize(ctx, svc, job.ProjectID)
+	used, err = m.projectStorageSize(ctx, svc, job.ProjectID)
 	if err != nil {
 		projectLock.Unlock()
 		_ = input.Close()
 		return nil, nil, err
 	}
 	remaining := (int64(cfg.VideoStudio.MaxProjectSizeMB) << 20) - used
-	if remaining <= 0 {
+	if remaining <= 0 || info.Size() > remaining {
 		projectLock.Unlock()
 		_ = input.Close()
-		return nil, nil, fmt.Errorf("project_size_limit")
+		return nil, nil, errVideoStudioProjectSizeLimit
 	}
 	if remaining < maxAsset {
 		maxAsset = remaining
@@ -643,7 +667,7 @@ func (m *videoStudioManager) mergeProjectAsset(ctx context.Context, svc *desktop
 		}
 		newTotal := used - int64(len(body)) + int64(len(encoded))
 		if newTotal > maxProject || int64(len(encoded)) > maxProject {
-			return fmt.Errorf("project_size_limit")
+			return errVideoStudioProjectSizeLimit
 		}
 		precondition := func(state desktop.FileWriteState) error {
 			if state.Exists && state.Version != "" { /* byte writer does not populate Version */

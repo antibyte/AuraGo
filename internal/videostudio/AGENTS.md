@@ -15,6 +15,9 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   four-hour hard wall-time ceiling, bounded diagnostics, and a 2 GiB output
   ceiling. Preview proxies are complete-source 540p/30 fps MP4s capped at
   512 MiB.
+- Preview and export hold the last video frame through longer source audio,
+  including clip offsets beyond video EOF; FFmpeg readiness requires `tpad` for
+  bounded render padding.
 - A transition belongs to its outgoing clip and must equal the explicit overlap
   with the next clip on that same visual track. Other same-track overlaps fail.
 - The server owns persistence, upload staging, job scheduling, and cancellation

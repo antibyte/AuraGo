@@ -3,6 +3,7 @@ package videostudio
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"os/exec"
 	"path/filepath"
@@ -167,6 +168,99 @@ func TestFFmpegProbePreviewAndMultitrackRender(t *testing.T) {
 	}
 }
 
+func TestRenderPadsShortVideoToClipDuration(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	root := t.TempDir()
+	shortPath := filepath.Join(root, "short-red-long-audio.mp4")
+	bluePath := filepath.Join(root, "blue.mp4")
+	makeShortVideoLongAudioFixture(t, ctx, ffmpeg, shortPath)
+	makeVideoFixture(t, ctx, ffmpeg, bluePath, "blue")
+	short, err := Probe(ctx, ffmpeg, shortPath)
+	if err != nil {
+		t.Fatalf("Probe(short video with longer audio) error = %v", err)
+	}
+	blue, err := Probe(ctx, ffmpeg, bluePath)
+	if err != nil {
+		t.Fatalf("Probe(blue video) error = %v", err)
+	}
+	short.ID, blue.ID = "short", "blue"
+	clip := func(id, assetID string, start, offset, duration int) Clip {
+		return Clip{ID: id, AssetID: assetID, Start: start, Offset: offset, Duration: duration, Width: 1, Height: 1, Opacity: 1, Volume: 1, Fit: FitContain}
+	}
+	assets := []Asset{short, blue}
+	paths := map[string]string{"short": shortPath, "blue": bluePath}
+	red := clip("red", "short", 0, 0, 60)
+	red.Transition = &Transition{Type: TransitionDissolve, Duration: 10}
+
+	transitionProject := Project{
+		Version: 1, Name: "Short video tail transition", Width: 720, Height: 720, FPS: FramesPerSecond,
+		Assets: assets,
+		Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{
+			red,
+			clip("blue", "blue", 50, 0, 30),
+		}}},
+	}
+	transitionOutput := filepath.Join(root, "transition.mp4")
+	if err := Render(ctx, ffmpeg, transitionProject, paths, transitionOutput, nil); err != nil {
+		t.Fatalf("Render(short-video transition) error = %v", err)
+	}
+	rendered, err := Probe(ctx, ffmpeg, transitionOutput)
+	if err != nil {
+		t.Fatalf("Probe(transition output) error = %v", err)
+	}
+	if !rendered.HasAudio || rendered.DurationFrames < 78 || rendered.DurationFrames > 82 {
+		t.Fatalf("transition output metadata = %+v, want audio and 80 timeline frames", rendered)
+	}
+	lateTail := decodedPixel(t, ctx, ffmpeg, transitionOutput, "1.500000", 360, 360)
+	if lateTail[0] < lateTail[2]*3 {
+		t.Fatalf("frame after video EOF = %v, want retained red frame", lateTail)
+	}
+	transition := decodedPixel(t, ctx, ffmpeg, transitionOutput, "1.833333", 360, 360)
+	if transition[0] < 30 || transition[2] < 30 {
+		t.Fatalf("transition after video EOF did not mix the retained and incoming clips: %v", transition)
+	}
+	afterTransition := decodedPixel(t, ctx, ffmpeg, transitionOutput, "2.200000", 360, 360)
+	if afterTransition[2] < afterTransition[0]*3 {
+		t.Fatalf("post-transition frame = %v, want blue incoming clip", afterTransition)
+	}
+	if got := decodedAudioRMS(t, ctx, ffmpeg, transitionOutput); got < 100 {
+		t.Fatalf("retained clip source audio RMS = %.1f, want audible output", got)
+	}
+
+	for _, offset := range []int{15, 45} {
+		t.Run(fmt.Sprintf("offset_%d", offset), func(t *testing.T) {
+			project := Project{
+				Version: 1, Name: "Offset after short video", Width: 720, Height: 720, FPS: FramesPerSecond,
+				Assets: []Asset{short},
+				Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{clip("short", "short", 0, offset, 15)}}},
+			}
+			output := filepath.Join(root, fmt.Sprintf("offset-%d.mp4", offset))
+			if err := Render(ctx, ffmpeg, project, map[string]string{"short": shortPath}, output, nil); err != nil {
+				t.Fatalf("Render(offset %d) error = %v", offset, err)
+			}
+			got, err := Probe(ctx, ffmpeg, output)
+			if err != nil {
+				t.Fatalf("Probe(offset output) error = %v", err)
+			}
+			if !got.HasAudio || got.DurationFrames < 14 || got.DurationFrames > 17 {
+				t.Fatalf("offset output metadata = %+v, want audio and 15 timeline frames", got)
+			}
+			pixel := decodedPixel(t, ctx, ffmpeg, output, "0.250000", 360, 360)
+			if pixel[0] < pixel[2]*3 {
+				t.Fatalf("offset %d video pixel = %v, want retained red frame", offset, pixel)
+			}
+			if rms := decodedAudioRMS(t, ctx, ffmpeg, output); rms < 100 {
+				t.Fatalf("offset %d source audio RMS = %.1f, want audible output", offset, rms)
+			}
+		})
+	}
+}
+
 func TestRenderCoverRotationAndOpacity(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
@@ -217,6 +311,21 @@ func makeVideoFixture(t *testing.T, ctx context.Context, ffmpeg, output, color s
 	}
 	if output, err := exec.CommandContext(ctx, ffmpeg, args...).CombinedOutput(); err != nil {
 		t.Fatalf("create %s fixture: %v: %s", color, err, output)
+	}
+}
+
+func makeShortVideoLongAudioFixture(t *testing.T, ctx context.Context, ffmpeg, output string) {
+	t.Helper()
+	args := []string{
+		"-hide_banner", "-nostdin", "-loglevel", "error",
+		"-f", "lavfi", "-i", "color=c=red:s=64x32:r=30:d=1",
+		"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=2",
+		"-map", "0:v:0", "-map", "1:a:0", "-t", "2",
+		"-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+		"-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", "-f", "mp4", output,
+	}
+	if output, err := exec.CommandContext(ctx, ffmpeg, args...).CombinedOutput(); err != nil {
+		t.Fatalf("create short-video/long-audio fixture: %v: %s", err, output)
 	}
 }
 
