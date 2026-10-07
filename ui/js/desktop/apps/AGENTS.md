@@ -155,6 +155,29 @@
   and the opt-in `TestDesktopLooperBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
   Backend: `internal/desktop/looper.go`, `internal/server/looper_service.go`.
 
+## EasyDrag
+- Nineteen scripts `easydrag-*.js` share `window.EasyDrag` and load in dependency order
+  (core → template → model → geometry → saver → canvas → wires → interact → palette →
+  fields → forms → mapping → detail → runs → publish → home → dialogs → editor →
+  `easydrag.js`). `window.EasyDragApp = { render, open, dispose }`; `open` re-routes an
+  existing window (notification click, Mission Control) by `flowId`/`flow_id` and
+  `runId`/`run_id`.
+- Pure modules (template, model, geometry, start-page preview, shortcut table) are tested by
+  `node scripts/test-easydrag.mjs`; the template filters mirror `internal/flows`. Every
+  model command is one undo step; viewport changes never trigger a save on their own.
+- DOM modules receive the editor state `ed` and talk over `ed.bus`; never reach into other
+  modules' DOM. Focus moves synchronously when a popover or dialog opens (fast typing),
+  and `.ed-app [hidden]` forces `display: none`.
+- Strings are `easydrag.ui.*` in `ui/lang/easydrag/<16>.json` (shared with the server's
+  catalog keys); dynamic families go through `core.tr`. Counts use neutral forms
+  ("Label: {count}").
+- The API client lives in `easydrag-core.js` (`createApi`); errors carry `err.body.code`
+  and are shown via `easydrag.ui.error_<code>`. SSE uses `/runs/{id}/events?after=<seq>`
+  and treats events as idempotent.
+- Verify with `node scripts/test-easydrag.mjs`, `go test ./ui -run 'EasyDrag|MissionControlShowsFlow'`
+  and the opt-in `TestDesktopEasyDragBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`, screenshots in
+  `reports/easydrag/`). Backend: `internal/flows`, `internal/server/flows_*.go`.
+
 ## Purpose
 
 This subtree owns built-in virtual desktop app modules that are loaded lazily by

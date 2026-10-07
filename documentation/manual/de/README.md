@@ -94,6 +94,7 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 
 ### Teil 3 — Autopilot
 11. [Mission Control](11-missions.md) — Geplante Arbeit
+    - [EasyDrag](24-easydrag.md) (Kapitel 24) — Automationen per Drag & Drop
 12. [Invasion Control](12-invasion.md) — Eggs und Nests
 13. [Dashboard](13-dashboard.md) — Zahlen, Issues, Affect, 3D-Graph
 

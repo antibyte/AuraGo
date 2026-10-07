@@ -94,6 +94,7 @@ Your data stays with the installation. **Hosted models still see their request i
 
 ### Part 3 — Autopilot
 11. [Mission Control](11-missions.md) — Scheduled work
+    - [EasyDrag](24-easydrag.md) (chapter 24) — Automations by drag and drop
 12. [Invasion Control](12-invasion.md) — Eggs and nests
 13. [Dashboard](13-dashboard.md) — Numbers, issues, affect, 3D graph
 
