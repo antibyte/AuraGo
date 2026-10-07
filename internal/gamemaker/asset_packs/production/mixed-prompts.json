@@ -1,0 +1,199 @@
+{
+  "generator": "OpenAI Imagegen (built-in tool)",
+  "created": "2026-10-07",
+  "repair_prompt": "Use case: stylized-concept. Asset type: four ORIGINAL replacement pixel-art sprites for AuraGo Game Maker. Create a square transparent RGBA image in an EXACT regular 2x2 grid, one object in each quadrant, LARGE empty transparent gutters (each object within the central 60% of its quadrant). Top left: ornate black pirate tricorn hat with white skull motif, red band and tails. Top right: curved polished steel pirate cutlass, gold guard, brown grip, diagonal upright blade. Bottom left: red and white striped windsock on a complete wooden pole and short base. Bottom right: ornate gold-framed enchanted standing mirror with a glowing blue spiral surface, two decorative little feet. Four FULL objects including tips, trim, pole, stand and base. Isolated richly shaded 16-bit pixel art, crisp visible pixels, dark charcoal outlines, warm gold, deep red and sapphire blue, consistent with a classic adventure game inventory. No scene, no ground, no shadows, no text, no labels, no grid lines, no checkerboard, no colored background. No object or glow may approach a cell edge. These are static side-view / front elevation game props, not isometric. Exactly four items, no duplicates.",
+  "packs": [
+    {
+      "id": "mixed-everyday",
+      "name": "Mixed Everyday",
+      "description": "100 everyday props and collectibles: food, home, clothing, sports, music, school, pets and travel.",
+      "rows": [
+        [
+          "food",
+          "red apple|banana bunch|bread loaf|cheese wedge|fried egg|carrot|strawberry|hamburger|pizza slice|milk carton"
+        ],
+        [
+          "kitchen",
+          "cooking pot|frying pan|kettle|coffee mug|teapot|wooden spoon|rolling pin|cutting board|salt shaker|toaster"
+        ],
+        [
+          "home",
+          "armchair|table lamp|alarm clock|cushion|flower vase|wall mirror|laundry basket|watering can|broom|bucket"
+        ],
+        [
+          "clothing",
+          "straw hat|wool scarf|rain boot|work glove|backpack|sun hat|sneaker|sunglasses|umbrella|wristwatch"
+        ],
+        [
+          "sport",
+          "football|basketball|tennis racket|baseball bat|boxing glove|skateboard|roller skate|bowling pin|badminton shuttlecock|gold trophy"
+        ],
+        [
+          "music",
+          "acoustic guitar|violin|trumpet|saxophone|tambourine|hand drum|harmonica|accordion|microphone|headphones"
+        ],
+        [
+          "school",
+          "closed notebook|pencil|fountain pen|ink bottle|ruler|scissors|paint box|glue bottle|globe|school satchel"
+        ],
+        [
+          "pets",
+          "pet food bowl|dog bone|cat scratching post|bird cage|aquarium|hamster wheel|pet carrier|dog collar|ball of yarn|pet brush"
+        ],
+        [
+          "travel",
+          "suitcase|compass|binoculars|folded map|camera|flashlight|thermos|sleeping bag|water bottle|camping lantern"
+        ],
+        [
+          "garden",
+          "terracotta pot|seed packet|hand trowel|pruning shears|garden fork|rubber hose coil|bird house|bee hive|wheelbarrow|wooden planter"
+        ]
+      ],
+      "prompt": "Use case: stylized-concept. Asset type: original production pixel-art sprite sheet for AuraGo Game Maker, Mixed Everyday.\nCreate EXACTLY 100 DISTINCT isolated sprites, arranged in EXACTLY 10 columns and 10 rows in a perfectly regular square grid. Canvas square, preferably 1536x1536. Transparent RGBA background. NO visible grid, text, letters, digits, labels, shadows, checkerboard or background color. Every cell contains exactly ONE complete object. Generous identical empty transparent gutters: artwork must fit within central 72% of each cell; no stray pixels between cells; no overlap. Objects centered. Nothing cropped at canvas edges. All 100 cells filled, no duplicates. Item names below describe visual content, never render names.\nArt direction: detailed hand-crafted 16-bit adventure/arcade pixel art, crisp visible pixel clusters, dark charcoal outlines, rich emerald, sapphire, violet, warm gold, orange accents; coherent palette, strong readable silhouettes at 48px. No vector style, no photographic texture, no glossy app-icon backdrop. Objects shown in consistent upright front elevation or readable side profile, suitable as side-view game props and inventory collectibles; NOT isometric or top-down. Each object naturally colored. Match classic richly shaded fantasy adventure sprite-sheet quality. Static poses only.\nExact row-major inventory (left to right):\nROW 1: red apple; banana bunch; bread loaf; cheese wedge; fried egg; carrot; strawberry; hamburger; pizza slice; milk carton.\nROW 2: cooking pot; frying pan; kettle; coffee mug; teapot; wooden spoon; rolling pin; cutting board; salt shaker; toaster.\nROW 3: armchair; table lamp; alarm clock; cushion; flower vase; wall mirror; laundry basket; watering can; broom; bucket.\nROW 4: straw hat; wool scarf; rain boot; work glove; backpack; sun hat; sneaker; sunglasses; umbrella; wristwatch.\nROW 5: football; basketball; tennis racket; baseball bat; boxing glove; skateboard; roller skate; bowling pin; badminton shuttlecock; gold trophy.\nROW 6: acoustic guitar; violin; trumpet; saxophone; tambourine; hand drum; harmonica; accordion; microphone; headphones.\nROW 7: closed notebook; pencil; fountain pen; ink bottle; ruler; scissors; paint box; glue bottle; globe; school satchel.\nROW 8: pet food bowl; dog bone; cat scratching post; bird cage; aquarium; hamster wheel; pet carrier; dog collar; ball of yarn; pet brush.\nROW 9: suitcase; compass; binoculars; folded map; camera; flashlight; thermos; sleeping bag; water bottle; camping lantern.\nROW 10: terracotta pot; seed packet; hand trowel; pruning shears; garden fork; rubber hose coil; bird house; bee hive; wheelbarrow; wooden planter.\nPriority: exact 10x10 aligned cells, truly transparent gutters, 100 clearly distinct complete objects, polished pixel art. All motifs original; no brands, logos or recognizable franchise characters."
+    },
+    {
+      "id": "mixed-discovery",
+      "name": "Mixed Discovery",
+      "description": "100 discovery props and collectibles spanning archaeology, magic, ocean, wilderness, science, minerals and exploration.",
+      "rows": [
+        [
+          "archaeology",
+          "ancient amphora|stone tablet|fossil ammonite|dinosaur skull|golden scarab|bronze coin|broken column|clay idol|excavation brush|ancient sundial"
+        ],
+        [
+          "magic",
+          "crystal ball|wizard hat|magic wand|spell book|red potion bottle|blue potion bottle|violet rune stone|enchanted feather|witch cauldron|magic lamp"
+        ],
+        [
+          "ocean",
+          "nautilus shell|starfish|red coral|pearl in oyster|sea urchin|message bottle|ship anchor|diving helmet|life ring|treasure chest"
+        ],
+        [
+          "wilderness",
+          "pine cone|acorn|bird nest|eagle feather|antler|honeycomb|red mushroom|fern frond|hollow log|mossy stone"
+        ],
+        [
+          "camping",
+          "rolled tent|camping stove|hiking boot|ice axe|climbing rope|carabiner|camping chair|mess tin|fishing rod|bear bell"
+        ],
+        [
+          "science",
+          "microscope|test tube rack|round flask|molecule model|horseshoe magnet|prism|balance scales|telescope|magnifying glass|laboratory burner"
+        ],
+        [
+          "minerals",
+          "ruby cluster|emerald cluster|sapphire cluster|amethyst geode|quartz cluster|gold nugget|copper ore|iron ore|coal lump|meteorite"
+        ],
+        [
+          "winter",
+          "snow globe|snowshoe|wool mitten|ski goggles|ice skate|sled|ice crystal|snow shovel|pine wreath|snowman"
+        ],
+        [
+          "desert",
+          "cactus pot|sand rose crystal|sand hourglass|water canteen|woven basket|camel saddle|oil lantern|desert rose flower|sun talisman|clay water jug"
+        ],
+        [
+          "exploration",
+          "astronaut helmet|moon rock|satellite dish|weather balloon|sextant|brass astrolabe|signal flag|survey tripod|sample case|antique diving boot"
+        ]
+      ],
+      "prompt": "Use case: stylized-concept. Asset type: original production pixel-art sprite sheet for AuraGo Game Maker, Mixed Discovery.\nCreate EXACTLY 100 DISTINCT isolated sprites, arranged in EXACTLY 10 columns and 10 rows in a perfectly regular square grid. Canvas square, preferably 1536x1536. Transparent RGBA background. NO visible grid, text, letters, digits, labels, shadows, checkerboard or background color. Every cell contains exactly ONE complete object. Generous identical empty transparent gutters: artwork must fit within central 72% of each cell; no stray pixels between cells; no overlap. Objects centered. Nothing cropped at canvas edges. All 100 cells filled, no duplicates. Item names below describe visual content, never render names.\nArt direction: detailed hand-crafted 16-bit adventure/arcade pixel art, crisp visible pixel clusters, dark charcoal outlines, rich emerald, sapphire, violet, warm gold, orange accents; coherent palette, strong readable silhouettes at 48px. No vector style, no photographic texture, no glossy app-icon backdrop. Objects shown in consistent upright front elevation or readable side profile, suitable as side-view game props and inventory collectibles; NOT isometric or top-down. Each object naturally colored. Match classic richly shaded fantasy adventure sprite-sheet quality. Static poses only.\nExact row-major inventory (left to right):\nROW 1: ancient amphora; stone tablet; fossil ammonite; dinosaur skull; golden scarab; bronze coin; broken column; clay idol; excavation brush; ancient sundial.\nROW 2: crystal ball; wizard hat; magic wand; spell book; red potion bottle; blue potion bottle; violet rune stone; enchanted feather; witch cauldron; magic lamp.\nROW 3: nautilus shell; starfish; red coral; pearl in oyster; sea urchin; message bottle; ship anchor; diving helmet; life ring; treasure chest.\nROW 4: pine cone; acorn; bird nest; eagle feather; antler; honeycomb; red mushroom; fern frond; hollow log; mossy stone.\nROW 5: rolled tent; camping stove; hiking boot; ice axe; climbing rope; carabiner; camping chair; mess tin; fishing rod; bear bell.\nROW 6: microscope; test tube rack; round flask; molecule model; horseshoe magnet; prism; balance scales; telescope; magnifying glass; laboratory burner.\nROW 7: ruby cluster; emerald cluster; sapphire cluster; amethyst geode; quartz cluster; gold nugget; copper ore; iron ore; coal lump; meteorite.\nROW 8: snow globe; snowshoe; wool mitten; ski goggles; ice skate; sled; ice crystal; snow shovel; pine wreath; snowman.\nROW 9: cactus pot; sand rose crystal; sand hourglass; water canteen; woven basket; camel saddle; oil lantern; desert rose flower; sun talisman; clay water jug.\nROW 10: astronaut helmet; moon rock; satellite dish; weather balloon; sextant; brass astrolabe; signal flag; survey tripod; sample case; antique diving boot.\nPriority: exact 10x10 aligned cells, truly transparent gutters, 100 clearly distinct complete objects, polished pixel art. All motifs original; no brands, logos or recognizable franchise characters."
+    },
+    {
+      "id": "mixed-technology",
+      "name": "Mixed Technology",
+      "description": "100 tools, machines and technical props across workshops, energy, electronics, medicine, rescue, transport and space.",
+      "rows": [
+        [
+          "tools",
+          "claw hammer|adjustable wrench|screwdriver|pliers|hand saw|power drill|tape measure|spirit level|utility knife|toolbox"
+        ],
+        [
+          "workshop",
+          "bench vise|anvil|welding mask|paint roller|paint bucket|soldering iron|grease gun|oil can|safety helmet|work light"
+        ],
+        [
+          "machinery",
+          "steel gear|piston|electric motor|water pump|pressure valve|pressure gauge|fan rotor|conveyor roller|coiled spring|industrial filter"
+        ],
+        [
+          "energy",
+          "car battery|solar panel|wind turbine|fuel can|gas cylinder|power generator|electrical transformer|fuse box|electric plug|light bulb"
+        ],
+        [
+          "electronics",
+          "circuit board|microchip|resistor|capacitor|vacuum tube|computer mouse|keyboard|CRT monitor|joystick|game controller"
+        ],
+        [
+          "medical",
+          "first aid kit|stethoscope|bandage roll|medicine bottle|thermometer|crutch|wheelchair|oxygen tank|defibrillator|medical scanner"
+        ],
+        [
+          "rescue",
+          "fire extinguisher|fire hose reel|traffic cone|warning beacon|rescue axe|life jacket|megaphone|rescue helmet|stretcher|emergency radio"
+        ],
+        [
+          "transport",
+          "car wheel|steering wheel|traffic light|road barrier|parking meter|bicycle pump|motorcycle helmet|train signal|propeller|ship wheel"
+        ],
+        [
+          "space",
+          "rocket engine|space capsule|solar satellite|lunar rover|ray gun|robot claw|energy cell|plasma coil|navigation console|cryogenic canister"
+        ],
+        [
+          "communication",
+          "walkie talkie|rotary telephone|smartphone|portable radio|satellite phone|radar screen|antenna mast|mailbox|telegraph key|security camera"
+        ]
+      ],
+      "prompt": "Use case: stylized-concept. Asset type: original production pixel-art sprite sheet for AuraGo Game Maker, Mixed Technology.\nCreate EXACTLY 100 DISTINCT isolated sprites, arranged in EXACTLY 10 columns and 10 rows in a perfectly regular square grid. Canvas square, preferably 1536x1536. Transparent RGBA background. NO visible grid, text, letters, digits, labels, shadows, checkerboard or background color. Every cell contains exactly ONE complete object. Generous identical empty transparent gutters: artwork must fit within central 72% of each cell; no stray pixels between cells; no overlap. Objects centered. Nothing cropped at canvas edges. All 100 cells filled, no duplicates. Item names below describe visual content, never render names.\nArt direction: detailed hand-crafted 16-bit adventure/arcade pixel art, crisp visible pixel clusters, dark charcoal outlines, rich emerald, sapphire, violet, warm gold, orange accents; coherent palette, strong readable silhouettes at 48px. No vector style, no photographic texture, no glossy app-icon backdrop. Objects shown in consistent upright front elevation or readable side profile, suitable as side-view game props and inventory collectibles; NOT isometric or top-down. Each object naturally colored. Match classic richly shaded fantasy adventure sprite-sheet quality. Static poses only.\nExact row-major inventory (left to right):\nROW 1: claw hammer; adjustable wrench; screwdriver; pliers; hand saw; power drill; tape measure; spirit level; utility knife; toolbox.\nROW 2: bench vise; anvil; welding mask; paint roller; paint bucket; soldering iron; grease gun; oil can; safety helmet; work light.\nROW 3: steel gear; piston; electric motor; water pump; pressure valve; pressure gauge; fan rotor; conveyor roller; coiled spring; industrial filter.\nROW 4: car battery; solar panel; wind turbine; fuel can; gas cylinder; power generator; electrical transformer; fuse box; electric plug; light bulb.\nROW 5: circuit board; microchip; resistor; capacitor; vacuum tube; computer mouse; keyboard; CRT monitor; joystick; game controller.\nROW 6: first aid kit; stethoscope; bandage roll; medicine bottle; thermometer; crutch; wheelchair; oxygen tank; defibrillator; medical scanner.\nROW 7: fire extinguisher; fire hose reel; traffic cone; warning beacon; rescue axe; life jacket; megaphone; rescue helmet; stretcher; emergency radio.\nROW 8: car wheel; steering wheel; traffic light; road barrier; parking meter; bicycle pump; motorcycle helmet; train signal; propeller; ship wheel.\nROW 9: rocket engine; space capsule; solar satellite; lunar rover; ray gun; robot claw; energy cell; plasma coil; navigation console; cryogenic canister.\nROW 10: walkie talkie; rotary telephone; smartphone; portable radio; satellite phone; radar screen; antenna mast; mailbox; telegraph key; security camera.\nPriority: exact 10x10 aligned cells, truly transparent gutters, 100 clearly distinct complete objects, polished pixel art. All motifs original; no brands, logos or recognizable franchise characters."
+    },
+    {
+      "id": "mixed-curiosities",
+      "name": "Mixed Curiosities",
+      "description": "100 eclectic props and collectibles: festivities, toys, detective gear, medieval life, pirates, farming, art, arcade and fantasy.",
+      "rows": [
+        [
+          "festive",
+          "wrapped gift|birthday cake|party hat|balloon bunch|carnival mask|paper lantern|firework rocket|candle holder|confetti popper|ribbon rosette"
+        ],
+        [
+          "toys",
+          "teddy bear|spinning top|wooden toy horse|rubber duck|toy robot|marble pouch|kite|yo yo|building block|toy train"
+        ],
+        [
+          "detective",
+          "detective hat|fingerprint card|evidence bag|old key|padlock|safe|pocket watch|spyglass|briefcase|wax seal"
+        ],
+        [
+          "medieval",
+          "iron sword|round shield|crossbow|arrow quiver|medieval helmet|chainmail shirt|leather boots|wooden tankard|heraldic banner|castle gate"
+        ],
+        [
+          "pirate",
+          "pirate hat|cutlass|flintlock pistol|powder keg|treasure map|gold doubloon|pirate flag|ship cannon|rum bottle|coiled mooring rope"
+        ],
+        [
+          "farm",
+          "hay bale|milk pail|pitchfork|sickle|pumpkin|corn cob|egg basket|flour sack|butter churn|wooden barrel"
+        ],
+        [
+          "art",
+          "paint palette|artist easel|paint brush|marble bust|film reel|clapperboard|typewriter|printing block|sewing machine|thread spool"
+        ],
+        [
+          "arcade",
+          "arcade cabinet|pinball bumper|neon star|extra life heart|gold medal|checkered flag|eight ball|dartboard|rubber mallet|prize ticket roll"
+        ],
+        [
+          "weather",
+          "storm cloud|rain cloud|rainbow|sun icon|moon icon|snowflake|lightning bolt|wind sock|rain gauge|barometer"
+        ],
+        [
+          "fantasy",
+          "dragon egg|fairy lantern|unicorn horn|phoenix feather|mimic chest|floating spell scroll|goblin mask|enchanted mirror|golem core|cursed crown"
+        ]
+      ],
+      "prompt": "Use case: stylized-concept. Asset type: original production pixel-art sprite sheet for AuraGo Game Maker, Mixed Curiosities.\nCreate EXACTLY 100 DISTINCT isolated sprites, arranged in EXACTLY 10 columns and 10 rows in a perfectly regular square grid. Canvas square, preferably 1536x1536. Transparent RGBA background. NO visible grid, text, letters, digits, labels, shadows, checkerboard or background color. Every cell contains exactly ONE complete object. Generous identical empty transparent gutters: artwork must fit within central 72% of each cell; no stray pixels between cells; no overlap. Objects centered. Nothing cropped at canvas edges. All 100 cells filled, no duplicates. Item names below describe visual content, never render names.\nArt direction: detailed hand-crafted 16-bit adventure/arcade pixel art, crisp visible pixel clusters, dark charcoal outlines, rich emerald, sapphire, violet, warm gold, orange accents; coherent palette, strong readable silhouettes at 48px. No vector style, no photographic texture, no glossy app-icon backdrop. Objects shown in consistent upright front elevation or readable side profile, suitable as side-view game props and inventory collectibles; NOT isometric or top-down. Each object naturally colored. Match classic richly shaded fantasy adventure sprite-sheet quality. Static poses only.\nExact row-major inventory (left to right):\nROW 1: wrapped gift; birthday cake; party hat; balloon bunch; carnival mask; paper lantern; firework rocket; candle holder; confetti popper; ribbon rosette.\nROW 2: teddy bear; spinning top; wooden toy horse; rubber duck; toy robot; marble pouch; kite; yo yo; building block; toy train.\nROW 3: detective hat; fingerprint card; evidence bag; old key; padlock; safe; pocket watch; spyglass; briefcase; wax seal.\nROW 4: iron sword; round shield; crossbow; arrow quiver; medieval helmet; chainmail shirt; leather boots; wooden tankard; heraldic banner; castle gate.\nROW 5: pirate hat; cutlass; flintlock pistol; powder keg; treasure map; gold doubloon; pirate flag; ship cannon; rum bottle; coiled mooring rope.\nROW 6: hay bale; milk pail; pitchfork; sickle; pumpkin; corn cob; egg basket; flour sack; butter churn; wooden barrel.\nROW 7: paint palette; artist easel; paint brush; marble bust; film reel; clapperboard; typewriter; printing block; sewing machine; thread spool.\nROW 8: arcade cabinet; pinball bumper; neon star; extra life heart; gold medal; checkered flag; eight ball; dartboard; rubber mallet; prize ticket roll.\nROW 9: storm cloud; rain cloud; rainbow; sun icon; moon icon; snowflake; lightning bolt; wind sock; rain gauge; barometer.\nROW 10: dragon egg; fairy lantern; unicorn horn; phoenix feather; mimic chest; floating spell scroll; goblin mask; enchanted mirror; golem core; cursed crown.\nPriority: exact 10x10 aligned cells, truly transparent gutters, 100 clearly distinct complete objects, polished pixel art. All motifs original; no brands, logos or recognizable franchise characters."
+    }
+  ]
+}

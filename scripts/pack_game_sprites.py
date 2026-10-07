@@ -24,6 +24,26 @@ def write_output(path, data, check):
         path.write_bytes(data)
 
 
+def catalog_records(definitions, model, existing):
+    records = [
+        {k: definition[k] for k in ("id", "name", "description", "tags", "version")}
+        for definition in sorted(definitions, key=lambda definition: definition["id"])
+    ]
+    for item in records:
+        item["kind"] = "sprite2d"
+    records.append({k: model[k] for k in ("id", "name", "description", "tags", "version", "kind")})
+
+    seen = {item["id"] for item in records}
+    for item in existing:
+        pack_id = item.get("id")
+        if not isinstance(pack_id, str) or not pack_id:
+            raise ValueError("Catalog entry is missing an ID")
+        if pack_id not in seen:
+            records.append(item)
+            seen.add(pack_id)
+    return records
+
+
 def assembly_cell(crop, layout):
     """Slice a shared canvas; never resize or re-anchor individual building parts."""
     width, height = layout["columns"] * 64, layout["rows"] * 64
@@ -179,11 +199,13 @@ def main():
         result = pack(definition, args.source_root, args.check)
         print(f"Packed {result['id']}: 100 RGBA frames, {len(result['animations'])} animations")
     write_output(args.manifest, (json.dumps(definitions, ensure_ascii=False, indent=2) + "\n").encode("utf8"), args.check)
-    catalog = [{k: d[k] for k in ("id", "name", "description", "tags", "version")} for d in sorted(definitions, key=lambda d: d["id"])]
-    for item in catalog:item["kind"]="sprite2d"
+    catalog_path = PACKS / "catalog.json"
+    existing_catalog = json.loads(catalog_path.read_text(encoding="utf8")) if catalog_path.exists() else []
+    if not isinstance(existing_catalog, list):
+        raise ValueError("Sprite catalog must be a list")
     model = json.loads((PACKS / "aurago-low-poly/manifest.json").read_text(encoding="utf8"))
-    catalog.append({k:model[k] for k in ("id","name","description","tags","version","kind")})
-    write_output(PACKS / "catalog.json", (json.dumps(catalog, ensure_ascii=False, indent=2) + "\n").encode("utf8"), args.check)
+    catalog = catalog_records(definitions, model, existing_catalog)
+    write_output(catalog_path, (json.dumps(catalog, ensure_ascii=False, indent=2) + "\n").encode("utf8"), args.check)
 
 
 if __name__ == "__main__":

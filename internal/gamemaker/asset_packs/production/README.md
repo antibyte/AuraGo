@@ -1,11 +1,12 @@
 # Sprite production
 
-Original illustrations generated with OpenAI Imagegen for AuraGo on 2026-09-06.
+Original illustrations generated with OpenAI Imagegen for AuraGo on 2026-09-06,
+with the four mixed collections added on 2026-10-07.
 No third-party asset pack or existing game character was used. The repository
 MIT license applies; its complete notice travels in each exported JSON.
 
-Only `../catalog.json` and eighteen `../*/sheet.{png,json}` pairs are embedded. This
-directory retains original PNGs and the explicit production manifest. Source
+The shared `../catalog.json` and twenty-two `../*/sheet.{png,json}` pairs ship in
+the external resource set. This directory retains original PNGs and the explicit production manifest. Source
 hashes also travel in metadata. Preserve originals; change pose/crop choices in
 `manifest.json`, then regenerate.
 Bump the pack's `version` when changing already-released artwork or metadata;
@@ -69,8 +70,35 @@ building sources are front elevations and overhead adventure views, respectively
 
 The manifest is authoritative for pose selection and rectangles. Imagegen does
 not reliably obey exact grids: reviewed explicit rectangles replace guessed
-uniform positions. Repeated poses are intentional holds, not claims of 1,800
-distinct drawings. Card IDs/corner ranks define values; pip placement is decorative.
+uniform positions. Repeated animation poses are intentional holds, not distinct
+drawings. Card IDs/corner ranks define values; pip placement is decorative.
+
+## Mixed collections
+
+Four additional sheets contain 400 distinct static side-view props and inventory
+collectibles, with 100 cells per sheet. They use content version 2, schema 1,
+fixed transforms and no invented animations or directional variants.
+
+| Pack | Subjects |
+|---|---|
+| `mixed-everyday` | Food, kitchen, home, clothing, sports, music, school, pets, travel, garden |
+| `mixed-discovery` | Archaeology, magic, ocean, wilderness, camping, science, minerals, winter, desert, exploration |
+| `mixed-technology` | Tools, workshop, machinery, energy, electronics, medicine, rescue, transport, space, communication |
+| `mixed-curiosities` | Festivities, toys, detective props, medieval life, pirates, farming, art, arcade, weather, fantasy |
+
+`mixed-prompts.json` retains the exact built-in Imagegen prompts and row inventories.
+The four `mixed-*.png` sheets retain the unmodified generated originals. Explicit
+reviewed rectangles account for the nonuniform source grid. The technology
+source includes an extra small utility knife; only the larger complete knife is
+used. The everyday ball is identified as an American football after review.
+`mixed-curiosities-repairs.png` supplies four separately generated, isolated
+replacements (pirate hat, cutlass, windsock and enchanted mirror) whose original
+rectangular bounds included fragments of neighboring objects. Source alpha is
+preserved and normalized by the existing packer; no RGB background is removed.
+
+The packer updates only its fixed-sheet records and the canonical low-poly row
+in the shared catalog. It retains the records owned by the effects, audio and
+worlds pipelines. Existing runtime sheets are unchanged by this expansion.
 
 ## Rebuild and review
 

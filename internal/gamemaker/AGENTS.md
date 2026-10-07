@@ -397,7 +397,7 @@ revision publication and standalone export for Phaser and Three.js games.
 - Model selection uses `model_asset_ids` (1–64) and plan schema 2 with metres,
   metric scale and 3D colliders. Import only explicit IDs after plan acceptance,
   including declared shared animation dependencies; never overwrite edited copies.
-  Sprite plan v1 and all eighteen sprite packs remain compatible.
+  Sprite plan v1 and all twenty-two fixed-grid sprite packs remain compatible.
 - Three.js stays at 0.186.1. Rebuild the local GLTFLoader/SkeletonUtils/OrbitControls
   helper using `node scripts/build-game-maker-3d.js`. One game-owned clock advances
   independent animated instances; static instances share geometry. Studio owns
@@ -410,7 +410,7 @@ revision publication and standalone export for Phaser and Three.js games.
   provider completions fail the job unless a server-owned phase boundary ended
   the round. Successful imports or starter gameplay checks alone are not a game.
 
-- `internal/gamemaker/asset_packs/` owns eighteen locally packaged 10×10 RGBA sheets (64px
+- `internal/gamemaker/asset_packs/` owns twenty-two locally packaged 10×10 RGBA sheets (64px
   cells), versioned JSON and a compact catalog. Original images and reviewed
   crops remain in `production/` but are excluded from the binary. Rebuild with
   `python scripts/pack_game_sprites.py`; verify with `--check` (Pillow 12.2).

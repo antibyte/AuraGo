@@ -245,12 +245,15 @@ browser validation still decide whether the resulting game is ready.
 
 ## Offline sprite library
 
-Open **Assets** to browse eighteen original pixel-art packs. Each contains 100 cells
-of 64×64 pixels in a 640×640 RGBA PNG, with English asset descriptions and JSON
+Open **Assets** to browse twenty-two original pixel-art packs. `mixed-everyday`,
+`mixed-discovery`, `mixed-technology`, and `mixed-curiosities` add 400 static
+side-view assets.
+Each pack contains 100 cells of 64×64 pixels in a 640×640 RGBA PNG, with English
+asset descriptions and versioned JSON metadata; animated packs also include JSON
 animations. Categories cover space shooters, animated effects, platformers,
 top-down adventures, blocks/balls, cards/board games, side-view and top-down
 humans, monsters/animals, buildings/structures, vehicles/planes, nature and
-animated robots/drones. Animation frames count toward the 1,800 cells; some
+animated robots/drones. Animation frames count toward the 2,200 cells; some
 sequences deliberately hold a source pose.
 
 Buildings and large vehicles contain 48 assembly recipes across four packs.
@@ -653,7 +656,7 @@ Authenticated sprite endpoints are `GET /api/game-maker/asset-packs`,
 `GET /api/game-maker/asset-packs/{id}/sheet.json`, and the corresponding
 `sheet.png`. Only known IDs and these filenames are served. Disabled Studio
 access is rejected. Start-job bodies optionally accept `asset_pack_ids` (at
-most eighteen IDs, duplicates removed). No database migration is needed.
+most twenty-two IDs, duplicates removed). No database migration is needed.
 
 The authenticated `preview-report` route additionally accepts at most sixteen
 numeric observations and two PNG data URLs (700,000 characters each). The report

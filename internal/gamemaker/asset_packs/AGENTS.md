@@ -4,7 +4,7 @@ Offline, original sprite and 3D model library consumed by Game Maker Studio and 
 
 # Ownership
 
-This folder owns eighteen runtime PNG/JSON pairs, `catalog.json`, and retained
+This folder owns twenty-two fixed-grid runtime PNG/JSON pairs, `catalog.json`, and retained
 Imagegen source artwork plus production instructions under `production/`.
 `aurago-low-poly/` additionally owns 220 generated runtime model records, GLBs,
 shared animation clips, WEBP previews and MIT license. Its editable Blender
@@ -34,7 +34,7 @@ runtime files enter the same resource set; no .blend or authoring scripts do.
   copies, preserve existing project limits and permissions. Model metadata is
   per asset in project copies. Routes serve only manifest-allowlisted files.
 
-- Eighteen sheets, each 640×640 RGBA with 100 cells of 64×64 pixels. Animation frames
+- Twenty-two fixed-grid sheets, each 640×640 RGBA with 100 cells of 64×64 pixels. Animation frames
   count as cells. Non-tile objects have real transparent margins; no painted
   checkerboards, labels, grid lines, empty cells or clipped bodies.
 - Stable pack/asset IDs and schema/versioned JSON describe every cell and
