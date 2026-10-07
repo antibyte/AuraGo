@@ -892,3 +892,32 @@ func TestDockerComposeOutputPublishRefusalsAreCoded(t *testing.T) {
 		t.Fatalf("result = %s, want the coded publish refusal", result)
 	}
 }
+
+// Publishing creates missing folders one by one and confirms each, on every
+// platform.
+func TestDockerComposeOutputPublishCreatesMissingFolders(t *testing.T) {
+	workspace := t.TempDir()
+	resolved, err := secureResolveFinalPath(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := planComposeOutput(t, DockerConfig{WorkspaceDir: workspace}, "config -o a/b/c/stack.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	staged := filepath.Join(t.TempDir(), "out")
+	if err := os.WriteFile(staged, []byte("services: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := plan.publish(staged); !ok || err != nil {
+		t.Fatalf("publish into new folders: %v, %v", ok, err)
+	}
+	data, err := os.ReadFile(filepath.Join(resolved, "a", "b", "c", "stack.yml"))
+	if err != nil || string(data) != "services: {}\n" {
+		t.Fatalf("published file = %q, %v", data, err)
+	}
+	// A second publish finds the folders and replaces the file.
+	if ok, err := plan.publish(staged); !ok || err != nil {
+		t.Fatalf("publish into existing folders: %v, %v", ok, err)
+	}
+}

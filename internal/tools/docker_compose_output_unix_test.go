@@ -92,3 +92,47 @@ func TestDockerComposeOutputRefusesAFolderSwappedAfterPlanning(t *testing.T) {
 		t.Fatalf("publish into new folders: %v, %v", ok, err)
 	}
 }
+
+// Folders publish creates below the checked folder must not be symlinks
+// planted after planning: a relative link stays inside the root, so os.Root
+// would follow it and the file would land in another folder.
+func TestDockerComposeOutputRefusesASymlinkPlantedBelowTheCheckedFolder(t *testing.T) {
+	workspace := t.TempDir()
+	resolved, err := secureResolveFinalPath(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{"rendered", "data"} {
+		if err := os.MkdirAll(filepath.Join(resolved, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg := DockerConfig{WorkspaceDir: workspace}
+	staged := filepath.Join(t.TempDir(), "out")
+	if err := os.WriteFile(staged, []byte("services: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ command, link, target, landed string }{
+		{"config -o new/deeper/stack.yml", "new", "data", "data/deeper/stack.yml"},
+		{"config -o rendered/sub/stack.yml", "rendered/sub", "../data", "data/stack.yml"},
+	} {
+		plan, err := planComposeOutput(t, cfg, tc.command)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(tc.target, filepath.Join(resolved, filepath.FromSlash(tc.link))); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+		published, err := plan.publish(staged)
+		var denied *dockerComposeDeniedError
+		if published || !errors.As(err, &denied) || denied.code != dockerComposeOutputDeniedCode {
+			t.Fatalf("%s through the planted %s: published = %v, err = %v", tc.command, tc.link, published, err)
+		}
+		if _, err := os.Stat(filepath.Join(resolved, filepath.FromSlash(tc.landed))); !os.IsNotExist(err) {
+			t.Fatalf("%s: the rendered file was written through the planted symlink to %s", tc.command, tc.landed)
+		}
+		if err := os.Remove(filepath.Join(resolved, filepath.FromSlash(tc.link))); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

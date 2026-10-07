@@ -372,6 +372,21 @@ func (p dockerComposeOutputPlan) publish(stagedPath string) (bool, error) {
 			return false, dockerComposeDenied(dockerComposeOutputDeniedCode, "compose --output target %q: its folder changed after it was checked, so the rendered file was not saved", p.target)
 		}
 	}
+	// Walk the folders below the checked one: none may be a symlink (a
+	// relative one stays inside the root, so os.Root would follow it), missing
+	// ones are created one by one, and each is confirmed to be the folder that
+	// is then opened.
+	if parent := filepath.Dir(rest); parent != "." {
+		for _, name := range strings.Split(parent, string(filepath.Separator)) {
+			sub, err := dockerComposeOutputChildFolder(dir, name, p.target)
+			if err != nil {
+				return false, err
+			}
+			defer sub.Close()
+			dir = sub
+		}
+		rest = filepath.Base(rest)
+	}
 	existing, err := dir.Lstat(rest)
 	switch {
 	case err == nil && !existing.Mode().IsRegular():
@@ -379,10 +394,46 @@ func (p dockerComposeOutputPlan) publish(stagedPath string) (bool, error) {
 	case err != nil && !errors.Is(err, fs.ErrNotExist):
 		return false, fmt.Errorf("compose --output target %q: %w", p.target, err)
 	}
+	// rest is a plain file name now, so nothing is created on the way.
 	if err := writeRootFromReaderAtomic(dir, rest, source, 0o644, true); err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+// dockerComposeOutputChildFolder opens the folder name below dir for
+// publishing target, creating it when it is missing. A symlink or a
+// non-folder is refused, and the opened folder must be the one Lstat saw.
+func dockerComposeOutputChildFolder(dir *os.Root, name, target string) (*os.Root, error) {
+	info, err := dir.Lstat(name)
+	if errors.Is(err, fs.ErrNotExist) {
+		if err := dir.Mkdir(name, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
+			return nil, fmt.Errorf("compose --output target %q: create folder %s: %w", target, name, err)
+		}
+		info, err = dir.Lstat(name)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("compose --output target %q: %w", target, err)
+	}
+	if info.Mode()&fs.ModeSymlink != 0 || !info.IsDir() {
+		return nil, dockerComposeDenied(dockerComposeOutputDeniedCode, "compose --output target %q: the folder %s is a symlink or not a folder, so the rendered file was not saved", target, name)
+	}
+	sub, err := dir.OpenRoot(name)
+	if err != nil {
+		return nil, dockerComposeDenied(dockerComposeOutputDeniedCode, "compose --output target %q: its folder %s changed while it was opened: %v", target, name, err)
+	}
+	handle, err := sub.Open(".")
+	if err != nil {
+		sub.Close()
+		return nil, dockerComposeDenied(dockerComposeOutputDeniedCode, "compose --output target %q: its folder %s changed while it was opened: %v", target, name, err)
+	}
+	opened, statErr := handle.Stat()
+	handle.Close()
+	if statErr != nil || !os.SameFile(info, opened) {
+		sub.Close()
+		return nil, dockerComposeDenied(dockerComposeOutputDeniedCode, "compose --output target %q: its folder %s changed while it was opened, so the rendered file was not saved", target, name)
+	}
+	return sub, nil
 }
 
 // dockerResultWithField adds one string field to a runDockerCLIHelper result
