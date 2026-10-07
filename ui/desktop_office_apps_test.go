@@ -38,7 +38,9 @@ func TestOfficeAppsFocusExistingFileWindow(t *testing.T) {
 		"normalizeDesktopPath(context.path)",
 		"win.context && normalizeDesktopPath(win.context.path) === requestedPath",
 		"appId === 'editor' || appId === 'writer' || appId === 'sheets'",
-		"if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content || '');",
+		// Pass content through unchanged: undefined keeps load intent, so a file
+		// deleted meanwhile shows recovery instead of an empty, saveable buffer.
+		"if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content);",
 		// Re-opening a file Writer already shows must not leave an outdated copy.
 		"if (appId === 'writer' && context && context.path != null && window.WriterApp && window.WriterApp.instances.has(existing.id)) window.WriterApp.instances.get(existing.id).reloadIfChanged();",
 		"reloadIfChanged};",
