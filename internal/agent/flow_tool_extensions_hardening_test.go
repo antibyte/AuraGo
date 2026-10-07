@@ -176,7 +176,6 @@ func TestC06SendTelegramFileReachesTheBotAsADocument(t *testing.T) {
 	for name, params := range map[string]map[string]interface{}{
 		"file_path relative": {"file_path": "c06-bericht.pdf"},
 		"file_path absolute": {"file_path": absolute},
-		"path alias":         {"path": "c06-bericht.pdf"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			bot := c06FakeBot(t)
@@ -231,7 +230,7 @@ func TestC06SendTelegramFileNeedsTelegramJustLikeAMessageDoes(t *testing.T) {
 
 func TestC06SendTelegramRefusesAFileThatIsNotAString(t *testing.T) {
 	cfg, _ := c06TelegramConfig(t)
-	for _, key := range []string{"file_path", "path"} {
+	for _, key := range []string{"file_path"} { // FF1: path is ignored (TestFF1SendTelegramIgnoresAStrayPath)
 		for name, value := range map[string]interface{}{
 			"list":   []interface{}{"a.pdf"},
 			"object": map[string]interface{}{"path": "a.pdf"},
@@ -599,15 +598,22 @@ func TestC06DecodeEmailSendArgsCarriesTheAttachmentError(t *testing.T) {
 	}
 }
 
-func TestC06DecodeSendTelegramArgsKeepsThePlanAliases(t *testing.T) {
+// FF1: only file_path names the file; path (param or field) is ignored.
+func TestC06DecodeSendTelegramArgsReadsOnlyFilePath(t *testing.T) {
 	for name, tc := range map[string]ToolCall{
 		"file_path param": {Action: "send_telegram", Params: map[string]interface{}{"message": "m", "file_path": "a.pdf"}},
-		"path param":      {Action: "send_telegram", Params: map[string]interface{}{"message": "m", "path": "a.pdf"}},
 		"FilePath field":  {Action: "send_telegram", FilePath: "a.pdf", Params: map[string]interface{}{"message": "m"}},
-		"Path field":      {Action: "send_telegram", Path: "a.pdf", Params: map[string]interface{}{"message": "m"}},
 	} {
 		if got := decodeSendTelegramArgs(tc).FilePath; got != "a.pdf" {
 			t.Errorf("%s: FilePath = %q", name, got)
+		}
+	}
+	for name, tc := range map[string]ToolCall{
+		"path param": {Action: "send_telegram", Params: map[string]interface{}{"message": "m", "path": "a.pdf"}},
+		"Path field": {Action: "send_telegram", Path: "a.pdf", Params: map[string]interface{}{"message": "m"}},
+	} {
+		if got := decodeSendTelegramArgs(tc).FilePath; got != "" {
+			t.Errorf("%s: FilePath = %q, want none", name, got)
 		}
 	}
 	if got := decodeSendTelegramArgs(ToolCall{Action: "send_telegram", Params: map[string]interface{}{"message": "m", "title": "t"}}).FilePath; got != "" {

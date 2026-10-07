@@ -185,7 +185,7 @@ AuraGo akzeptiert **Cron-Ausdrücke** mit 5 Feldern und optional 6 Feldern mit S
 
 Für ereignisgesteuerte Missionen setze `execution_type: triggered` und wähle einen `trigger_type` (z. B. `webhook`, `email_received`, `mqtt_message`, `home_assistant_state`, `budget_warning`, `mission_completed`). Filter konfigurierst du in `trigger_config`.
 
-**Ketten von Missionen.** Missionen, die sich gegenseitig beim Abschluss starten (`mission_completed`; Agenten-Missionen und Flows gleichermaßen), bilden eine Kette, und eine Kette endet nach 10 Schritten (11 Läufen). Der Abschluss des 10. Schritts startet nichts mehr: AuraGo protokolliert eine Warnung, und die Ausgabe dieser letzten Mission beginnt mit „Stopped a chain of missions triggered by completions after 10 steps; check for a loop between missions". Eine gerade Kette mit bis zu 10 Gliedern läuft vollständig. Jeder andere Start (Zeitplan, Ereignis, **Ausführen**, Wiederaufnahme nach einem Neustart) beginnt eine neue Kette.
+**Ketten von Missionen.** Missionen, die sich gegenseitig beim Abschluss starten (`mission_completed`; Agenten-Missionen und Flows gleichermaßen), bilden eine Kette, und eine Kette endet nach 10 Schritten (11 Läufen). Der Abschluss des 10. Schritts startet nichts mehr: AuraGo protokolliert eine Warnung, und die Ausgabe dieser letzten Mission beginnt mit „Stopped a chain of missions triggered by completions after 10 steps; check for a loop between missions". Eine gerade Kette mit bis zu 10 Gliedern läuft vollständig. Auch eine Mission, die durch ihren eigenen Abschluss startet (eine Selbstschleife), ist eine solche Kette: Sie läuft höchstens 11-mal und stoppt dann mit derselben Warnung. Einen Flow, der auf seine eigene Mission wartet, veröffentlicht EasyDrag nicht. Jeder andere Start (Zeitplan, Ereignis, **Ausführen**, Wiederaufnahme nach einem Neustart) beginnt eine neue Kette.
 
 ### Flow-Missionen (EasyDrag)
 
@@ -196,7 +196,7 @@ Flows, die du in der Desktop-App **EasyDrag** baust, erscheinen in Mission Contr
 - Wenn du die Mission löschst, löschst du den Flow mit Entwurf, allen veröffentlichten Versionen, den gespeicherten Daten des Auslösers und der Laufhistorie. Flow-Geheimnisse bleiben.
 - Auf der Missionsseite (`/missions/v2`) lassen sich Flow-Missionen nicht bearbeiten: *Bearbeiten* und *Duplizieren* sagen nur, dass der Flow in EasyDrag bearbeitet wird, und *Ausführen* wartet, bis der Flow veröffentlicht und eingeschaltet ist.
 - *Ausführen* in Mission Control, ein Daemon-Skill, der die Mission weckt, und `POST /api/missions/v2/{id}/trigger` starten den Flow wie *Jetzt ausführen* in EasyDrag: über seinen manuellen Auslöser mit dessen Beispieldaten (ohne manuellen Auslöser über den ersten Auslöser mit leeren Daten). Daten, die sie mitgeben, erreichen den Flow nicht; für Daten von außen nimm einen Webhook-Auslöser.
-- Wenn eine Mission endet, erhalten `mission_completed`-Auslöser ihre Antwort als `output` (auf 2000 Bytes gekürzt). Flows als Quelle liefern zusätzlich `outputs`: die Ergebnisse ihrer letzten Schritte.
+- Wenn eine Mission endet, erhalten `mission_completed`-Auslöser ihre Antwort als `output` (auf 2000 Bytes gekürzt). Flows als Quelle liefern zusätzlich `outputs`: die Ergebnisse ihrer letzten Schritte (bis zu 64 KiB für einen Flow; eine Agenten-Mission erhält höchstens 8 KiB davon, darüber eine mit `_truncated` markierte Vorschau, weil sie in ihren Prompt gehen).
 
 #### Läufe, Abbrechen und Grenzen
 

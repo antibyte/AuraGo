@@ -30,6 +30,36 @@ const (
 	flowCompletionOutputsPreviewBytes = 4 << 10
 )
 
+// agentCompletionOutputsMaxBytes bounds the encoded `outputs` that mission_completed hands
+// to AGENT missions: their trigger data goes into the agent's prompt
+// (appendIsolatedTriggerContext), the history row and the persisted queue. Larger outputs
+// become {"_truncated": true, "_preview": "<as much of the JSON as fits>"} within the cap
+// (capCompletionOutputsForAgents). Flow dependents keep the outputs up to
+// flowCompletionOutputsMaxBytes.
+const agentCompletionOutputsMaxBytes = 8 << 10
+
+// capCompletionOutputsForAgents returns outputs when they fit agentCompletionOutputsMaxBytes,
+// else the truncation marker with the longest preview whose encoding fits (the preview is
+// JSON text, so its quotes are escaped again). Caller may hold m.mu: outputs are at most
+// flowCompletionOutputsMaxBytes.
+func capCompletionOutputsForAgents(outputs json.RawMessage) json.RawMessage {
+	if len(outputs) <= agentCompletionOutputsMaxBytes {
+		return outputs
+	}
+	limit := agentCompletionOutputsMaxBytes
+	for {
+		enc, _ := json.Marshal(map[string]any{"_truncated": true, "_preview": cutAtRuneBoundary(string(outputs), limit)})
+		if len(enc) <= agentCompletionOutputsMaxBytes || limit == 0 {
+			return enc
+		}
+		next := limit * agentCompletionOutputsMaxBytes / len(enc)
+		if next >= limit {
+			next = limit - 1
+		}
+		limit = max(next-32, 0)
+	}
+}
+
 // completionOutputMaxBytes caps the `output` text of mission_completed trigger data, and
 // flowLastOutputMaxBytes the LastOutput of a flow mission. Both cut at a rune boundary and
 // end with completionTruncatedMarker.
@@ -237,6 +267,9 @@ func (m *MissionManagerV2) enqueueCompletionDependentsAtDepthLocked(sourceID, re
 		data["outputs"] = outputs
 	}
 	raw, _ := json.Marshal(data)
+	// Agent missions get the outputs capped (agentCompletionOutputsMaxBytes), built once for
+	// the first of them; flows get raw.
+	var agentRaw []byte
 	queued := 0
 	now := time.Now()
 	for _, mission := range m.missions {
@@ -246,7 +279,15 @@ func (m *MissionManagerV2) enqueueCompletionDependentsAtDepthLocked(sourceID, re
 		if !m.shouldFireTriggerLocked(mission, string(TriggerMissionCompleted), now) {
 			continue
 		}
-		m.queue.Enqueue(mission.ID, mission.Priority, "mission_completed", string(raw))
+		if agentRaw == nil {
+			agentRaw = raw
+			if capped := capCompletionOutputsForAgents(outputs); len(capped) != len(outputs) {
+				data["outputs"] = capped
+				agentRaw, _ = json.Marshal(data)
+				data["outputs"] = outputs
+			}
+		}
+		m.queue.Enqueue(mission.ID, mission.Priority, "mission_completed", string(agentRaw))
 		mission.Status = MissionStatusQueued
 		queued++
 	}

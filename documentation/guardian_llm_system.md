@@ -387,6 +387,10 @@ func getOperationRisk(operation string) float64 {
 }
 ```
 
+### 6. Geprüfte Parameter von `send_email` und `send_telegram`
+
+Bei `send_email` und `send_telegram` sieht der LLM Guardian mehr als den Tool-Namen. Bei `send_email` sind es die Empfänger (`to`, bis 600 Bytes, dazu `recipient_count`), der Betreff (200 Bytes), Anfang und Ende des Texts (300 Bytes) sowie alle Anhang-Pfade (`attachments` mit `attachment_count`, höchstens 10, je 56 Bytes, zusammen 600 Bytes). Bei `send_telegram` sind es Titel (200 Bytes), Nachricht (300 Bytes) und der Dateipfad (`file_path`, 600 Bytes). Jeder Wert ist gekürzt, Anfang und Ende bleiben erhalten. Die Werte gehen auch in den Cache-Schlüssel ein, damit ein Urteil über eine Mail an einen Freund nicht für eine Mail mit einer geheimen Datei an eine andere Adresse wiederverwendet wird. Diese Prüfungen kosten deshalb etwas mehr Tokens als vorher, und gleiche Nachrichten treffen den Cache seltener.
+
 ---
 
 ## Implementierungs-Workflow

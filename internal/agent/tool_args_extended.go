@@ -812,7 +812,9 @@ func decodeNotificationArgs(tc ToolCall) notificationArgs {
 func decodeSendTelegramArgs(tc ToolCall) notificationArgs {
 	req := decodeNotificationArgs(tc)
 	req.Channel = "telegram"
-	req.FilePath = firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path"))
+	// Only file_path names the file: a stray path argument must neither send a file nor
+	// fail the call (send_telegram has no path parameter).
+	req.FilePath = firstNonEmptyToolString(tc.FilePath, toolArgString(tc.Params, "file_path"))
 	return req
 }
 

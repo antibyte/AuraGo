@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -49,6 +50,11 @@ type APIResult struct {
 	Headers    map[string]string `json:"headers,omitempty"`
 	Body       string            `json:"body,omitempty"`
 	Message    string            `json:"message,omitempty"`
+	// HeadersDroppedOnRedirect is true when a redirect to another host, port or scheme made
+	// the request drop the caller's headers (see apiRequestClient); FinalURL is then the
+	// URL that answered (password redacted), which the caller can request directly.
+	HeadersDroppedOnRedirect bool   `json:"headers_dropped_on_redirect,omitempty"`
+	FinalURL                 string `json:"final_url,omitempty"`
 }
 
 // ExecuteAPIRequest performs an HTTP request and returns the response as structured JSON.
@@ -104,7 +110,8 @@ func ExecuteAPIRequestWithOptions(method, rawURL, body string, headers map[strin
 	}
 	req.Header.Set("User-Agent", "AuraGo-Agent/1.0")
 
-	client := apiRequestClient(apiHTTPClient, headers)
+	var dropped bool
+	client := apiRequestClient(apiHTTPClient, headers, &dropped)
 	if allowLocalOllama {
 		client = apiLocalOllamaHTTPClient
 	}
@@ -137,12 +144,19 @@ func ExecuteAPIRequestWithOptions(method, rawURL, body string, headers map[strin
 		status = "error"
 	}
 
-	return encode(APIResult{
+	result := APIResult{
 		Status:     status,
 		StatusCode: resp.StatusCode,
 		Headers:    respHeaders,
 		Body:       bodyStr,
-	})
+	}
+	if dropped && resp.Request != nil && resp.Request.URL != nil {
+		result.HeadersDroppedOnRedirect = true
+		result.FinalURL = resp.Request.URL.Redacted()
+		slog.Debug("[api_request] Caller headers dropped after a redirect to another host, port or scheme",
+			"headers_dropped", true, "final_host", resp.Request.URL.Host)
+	}
+	return encode(result)
 }
 
 // apiRedirectKeptHeaders are the caller's headers api_request keeps on a redirect that
@@ -162,9 +176,18 @@ var apiRedirectKeptHeaders = map[string]bool{"Accept": true, "Content-Type": tru
 // A 307 or 308 redirect re-sends the request body to the new location, also when the headers
 // are stripped; a body that carries a credential goes with it. That is net/http's behaviour
 // and is left as it is.
-func apiRequestClient(base *http.Client, headers map[string]string) *http.Client {
+//
+// dropped (may be nil) is set when the chain left the origin while the caller had set a
+// header beyond apiRedirectKeptHeaders, so the result can say that those were not sent.
+func apiRequestClient(base *http.Client, headers map[string]string, dropped *bool) *http.Client {
 	if len(headers) == 0 {
 		return base
+	}
+	sensitive := false
+	for name := range headers {
+		if !apiRedirectKeptHeaders[http.CanonicalHeaderKey(name)] {
+			sensitive = true
+		}
 	}
 	client := *base
 	next := base.CheckRedirect
@@ -174,6 +197,9 @@ func apiRequestClient(base *http.Client, headers map[string]string) *http.Client
 			left = true
 		}
 		if left {
+			if sensitive && dropped != nil {
+				*dropped = true
+			}
 			for name := range headers {
 				if canonical := http.CanonicalHeaderKey(name); !apiRedirectKeptHeaders[canonical] {
 					req.Header.Del(canonical)

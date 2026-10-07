@@ -202,7 +202,7 @@ Set `execution_type: triggered` and choose a `trigger_type`:
 
 Configure filters in `trigger_config` (e.g. email subject, MQTT topic, HA entity).
 
-**Chains of missions.** Missions that start each other on completion (`mission_completed`; agent missions and flows alike) form a chain, and a chain stops after 10 steps (11 runs). The completion of the 10th step starts nothing: a warning is logged, and the output of that last mission starts with "Stopped a chain of missions triggered by completions after 10 steps; check for a loop between missions". A straight chain of up to 10 links runs whole. Every other start (schedule, event, **Run**, recovery after a restart) begins a new chain.
+**Chains of missions.** Missions that start each other on completion (`mission_completed`; agent missions and flows alike) form a chain, and a chain stops after 10 steps (11 runs). The completion of the 10th step starts nothing: a warning is logged, and the output of that last mission starts with "Stopped a chain of missions triggered by completions after 10 steps; check for a loop between missions". A straight chain of up to 10 links runs whole. A mission that is started by its own completion (a self-loop) is such a chain too: it runs at most 11 times and then stops with the same warning. EasyDrag refuses to publish a flow that waits for its own mission. Every other start (schedule, event, **Run**, recovery after a restart) begins a new chain.
 
 ### Flow missions (EasyDrag)
 
@@ -213,7 +213,7 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 - Deleting the mission deletes the flow with its draft, all published versions, the saved trigger data and the run history. Flow secrets stay.
 - On the missions page (`/missions/v2`) flow missions cannot be edited: *Edit* and *Duplicate* only say that the flow is edited in EasyDrag, and *Run* waits until the flow is published and switched on.
 - *Run* in Mission Control, a daemon skill that wakes the mission and `POST /api/missions/v2/{id}/trigger` start the flow like EasyDrag's *Run now*: from its manual trigger with that trigger's sample data (without a manual trigger, from its first trigger with empty data). Data they pass along does not reach the flow; use a webhook trigger for data from outside.
-- When a mission finishes, `mission_completed` triggers receive its answer as `output` (cut to 2000 bytes). Flow sources also pass `outputs`: the results of their final steps.
+- When a mission finishes, `mission_completed` triggers receive its answer as `output` (cut to 2000 bytes). Flow sources also pass `outputs`: the results of their final steps (up to 64 KiB for a flow; an agent mission gets at most 8 KiB of them, beyond that a preview marked `_truncated`, because they go into its prompt).
 
 #### Runs, cancelling and limits
 

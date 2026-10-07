@@ -12,7 +12,7 @@ Make HTTP requests to any API endpoint.
 **Supported methods:** GET, POST, PUT, DELETE, PATCH
 **Response cap:** 16 KB | **Timeout:** 30 seconds
 
-For authenticated APIs, pass an `Authorization` header or retrieve the key via `get_secret` first.
+For authenticated APIs, pass an `Authorization` header or retrieve the key via `get_secret` first. Your headers are dropped after a redirect to another host, port or scheme (the result then shows `headers_dropped_on_redirect: true` and `final_url`), so call the final URL directly.
 
 ### Local/Internal Safety
 

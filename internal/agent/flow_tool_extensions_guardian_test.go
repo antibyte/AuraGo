@@ -193,10 +193,14 @@ func TestC06GuardianTelegramParams(t *testing.T) {
 	if len(keys) != 4 {
 		t.Errorf("%d distinct cache keys for 4 different calls", len(keys))
 	}
-	// The path alias is read from the parameters too, not only from the typed fields.
-	viaParams := toolCallParams(ToolCall{Action: "send_telegram", Params: map[string]interface{}{"message": "m", "path": "secrets/keys.txt"}})
+	// file_path is read from the parameters too, not only from the typed fields. FF1: a
+	// stray path is no file of send_telegram, so the Guardian gets none from it.
+	viaParams := toolCallParams(ToolCall{Action: "send_telegram", Params: map[string]interface{}{"message": "m", "file_path": "secrets/keys.txt"}})
 	if viaParams["file_path"] != "secrets/keys.txt" {
 		t.Errorf("params-only file: %#v", viaParams)
+	}
+	if stray := toolCallParams(ToolCall{Action: "send_telegram", Params: map[string]interface{}{"message": "m", "path": "secrets/keys.txt"}}); stray["file_path"] != "" {
+		t.Errorf("a stray path became the file: %#v", stray)
 	}
 	if long := c06GuardianParams(t, "send_telegram", mustJSON(t, map[string]any{"message": strings.Repeat("ä", 9000), "title": strings.Repeat("ü", 9000)})); len(long["message"]) > 300 || len(long["title"]) > 200 {
 		t.Errorf("message %d bytes, title %d bytes", len(long["message"]), len(long["title"]))

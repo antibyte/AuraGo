@@ -239,12 +239,14 @@ func TestMissionCompletedOutputsAreBounded(t *testing.T) {
 	checkBounded("follower flow", c.data)
 }
 
-// Extra 3: outputs within the bound reach the dependents whole.
+// Extra 3: outputs within the bound reach the dependents whole. FF1: the bound of an agent
+// (prompt) dependent is agentCompletionOutputsMaxBytes, the one of a flow dependent
+// flowCompletionOutputsMaxBytes.
 func TestMissionCompletedOutputsWithinTheBoundStayWhole(t *testing.T) {
-	mm, _, _ := newFlowTestManager(t)
+	mm, hooks, _ := newFlowTestManager(t)
 	source := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
 	c08AddPromptDependent(mm, "c08_dependent", source)
-	report := strings.Repeat("a", flowCompletionOutputsMaxBytes-len(`{"report":""}`))
+	report := strings.Repeat("a", agentCompletionOutputsMaxBytes-len(`{"report":""}`))
 	run := mm.FlowRunStarted(source, "manual", "")
 	mm.FlowRunFinished(source, run, MissionResultSuccess, "Fertig.", map[string]any{"report": report})
 	items := mm.queue.List()
@@ -258,7 +260,30 @@ func TestMissionCompletedOutputsWithinTheBoundStayWhole(t *testing.T) {
 		t.Fatal(err)
 	}
 	if data.Outputs["report"] != report || data.Outputs["_truncated"] != nil {
-		t.Fatalf("outputs at the bound were changed: %d keys", len(data.Outputs))
+		t.Fatalf("outputs at the agent bound were changed: %d keys", len(data.Outputs))
+	}
+
+	follower, err := mm.CreateFlowMission("flow_bbbbbbbbbb", "Folge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mm.SyncFlowMission(follower, "Folge", []FlowTriggerSpec{{NodeID: "n_bbbbbbbb", TriggerType: TriggerMissionCompleted,
+		TriggerConfig: &TriggerConfig{SourceMissionID: source}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := mm.SetFlowMissionEnabled(follower, true); err != nil {
+		t.Fatal(err)
+	}
+	report = strings.Repeat("a", flowCompletionOutputsMaxBytes-len(`{"report":""}`))
+	run = mm.FlowRunStarted(source, "manual", "")
+	mm.FlowRunFinished(source, run, MissionResultSuccess, "Fertig.", map[string]any{"report": report})
+	c := hooks.waitStart(t)
+	data.Outputs = nil
+	if err := json.Unmarshal([]byte(c.data), &data); err != nil {
+		t.Fatal(err)
+	}
+	if c.missionID != follower || data.Outputs["report"] != report || data.Outputs["_truncated"] != nil {
+		t.Fatalf("outputs at the flow bound were changed: %d keys", len(data.Outputs))
 	}
 }
 

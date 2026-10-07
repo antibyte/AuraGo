@@ -216,17 +216,15 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 	return "", false
 }
 
-// telegramFilePathArgError refuses a file_path or path that is present but not a string, a
-// list for example. decodeSendTelegramArgs skips it, and the call would then send the message
-// without the file the model named. A missing, null or empty value is no file and no error:
-// such a call is a plain message, as before.
+// telegramFilePathArgError refuses a file_path that is present but not a string, a list for
+// example. decodeSendTelegramArgs skips it, and the call would then send the message without
+// the file the model named. A missing, null or empty value is no file and no error: such a
+// call is a plain message, as before. path is no parameter of send_telegram and is ignored.
 func telegramFilePathArgError(params map[string]interface{}) string {
-	for _, key := range []string{"file_path", "path"} {
-		switch v := params[key].(type) {
-		case nil, string:
-		default:
-			return key + " must be one file path string, not " + toolArgJSONType(v)
-		}
+	switch v := params["file_path"].(type) {
+	case nil, string:
+	default:
+		return "file_path must be one file path string, not " + toolArgJSONType(v)
 	}
 	return ""
 }

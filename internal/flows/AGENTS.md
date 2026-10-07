@@ -250,7 +250,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   from `enqueueCompletionDependentsAtDepthLocked` (`internal/tools/missions_v2_flow_runs.go`): `source_mission`,
   `result`, `chain_depth`, `output` (the source's answer, at most 2000 bytes) and, for a flow source, `outputs`
   (its leaf outputs by key, bounded to 64 KiB of JSON, else `{"_truncated": true, "_preview": <first 4 KiB>}`),
-  as the sample promises.
+  as the sample promises. Agent missions waiting for the same source get `outputs` capped at 8 KiB instead.
 - Taint: untrusted outputs are the triggers webhook, email, mqtt, fritzbox_call, planner and mission_completed;
   the actions web.search, web.read, http.request, file.read, doc.pdf_read and home.assistant; `ai.step` (a
   model that reads untrusted data can be prompt-injected); and every generic node. The other triggers (manual,
