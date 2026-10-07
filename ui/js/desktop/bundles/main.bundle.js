@@ -367,6 +367,7 @@
         noisemaker: 'audio',
         radio: 'radio',
         'personal-radio': 'personal-radio',
+        'video-studio': 'video-studio',
         'rtl-sdr': 'rtl-sdr',
         bluetooth: 'bluetooth',
         openscad: 'openscad',
@@ -813,6 +814,7 @@
     function appGlobalName(appId) {
         return {
             'personal-radio': 'PersonalRadioApp',
+            'video-studio': 'VideoStudioApp',
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
@@ -15945,6 +15947,12 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         if (appId === 'personal-radio' && window.PersonalRadioApp) {
             return window.PersonalRadioApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, openApp, confirmDialog, promptDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly() }));
+        }
+        if (appId === 'video-studio' && window.VideoStudioApp && typeof window.VideoStudioApp.render === 'function') {
+            return window.VideoStudioApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
+                esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog, promptDialog, setWindowMenus, clearWindowMenus,
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+            }));
         }
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
             return window.TeeVeeApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));

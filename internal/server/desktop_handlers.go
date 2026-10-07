@@ -62,6 +62,14 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 	if !desktopCfg.Enabled {
 		return nil, nil, fmt.Errorf("virtual desktop is disabled")
 	}
+	// Compare against the same canonical paths/defaults stored by NewService.
+	// Without this step, omitted DB paths or relative roots differ on every
+	// request and cause the live service to be closed during polling.
+	normalizedDesktopCfg, err := desktop.NormalizeConfig(desktopCfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("normalize virtual desktop config: %w", err)
+	}
+	desktopCfg = normalizedDesktopCfg
 
 	s.DesktopMu.Lock()
 	defer s.DesktopMu.Unlock()

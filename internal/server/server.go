@@ -171,108 +171,112 @@ type Server struct {
 	setupBootstrapValue string
 	// Exact Telnyx webhook path mounted at startup. Its handler verifies Ed25519
 	// signatures itself, so only this registered path skips session auth.
-	telnyxWebhookPath       atomic.Pointer[string]
-	SetupLocalLLMJobsMu     sync.Mutex
-	SetupLocalLLMJobs       map[string]*setupLocalLLMJob
-	Logger                  *slog.Logger
-	AccessLogger            *slog.Logger
-	LLMClient               llm.ChatClient
-	ShortTermMem            *memory.SQLiteMemory
-	LongTermMem             memory.VectorDB
-	Vault                   *security.Vault
-	VaultSecretPrompter     *vaultprompt.Manager
-	vaultSecretPromptMu     sync.Mutex
-	Registry                *tools.ProcessRegistry
-	CronManager             *tools.CronManager
-	BackgroundTasks         *tools.BackgroundTaskManager
-	Go2RTC                  *tools.Go2RTCManager
-	LocalLLM                *localllm.Manager
-	LocalMusic              *acestep.Manager
-	localLLMLifecycleCtx    context.Context
-	Go2RTCDiscovery         *onvif.Service
-	MeshCore                *meshcore.Manager
-	Bluetooth               *bluetooth.Manager
-	NetworkShares           *networkshares.Manager
-	SIPPhone                *sipphone.Manager
-	SpeechLab               *speechlab.Client
-	SpeechLabDeployer       *deployer.Manager
-	speechLabTurnTokens     *speechLabTurnTokenRegistry
-	speechLabTurnTokensMu   sync.Mutex
-	SIPBrowserMedia         *sipphone.BrowserMediaService
-	VoiceActionRunner       *VoiceActionRunner
-	HistoryManager          *memory.HistoryManager
-	KG                      *memory.KnowledgeGraph
-	InventoryDB             *sql.DB
-	InvasionDB              *sql.DB
-	Guardian                *security.Guardian
-	LLMGuardian             *security.LLMGuardian
-	CoAgentRegistry         *agent.CoAgentRegistry
-	BudgetTracker           *budget.Tracker
-	TokenManager            *security.TokenManager
-	tokenManagerMu          sync.RWMutex // guards TokenManager replacement (backup import)
-	CydHub                  *cyd.Hub
-	WebhookManager          *webhooks.Manager
-	WebhookHandler          *webhooks.Handler
-	SSE                     *SSEBroadcaster // shared SSE broadcaster, set by run()
-	systemWorldOnce         sync.Once
-	systemWorld             *systemWorldRuntime
-	MissionManagerV2        *tools.MissionManagerV2
-	EmailWatcher            *tools.EmailWatcher
-	mcpSessions             mcpSessionSigner
-	missionRuns             *missionRunRegistry // cancellable contexts of in-flight local mission runs
-	missionRunsOnce         sync.Once
-	EggHub                  *bridge.EggHub
-	RemoteHub               *remote.RemoteHub
-	agodeskDesktopMu        sync.Mutex
-	agodeskDesktop          *agodeskDesktopBroker
-	agodeskDevToken         string // loopback-only AgoDesk development opt-in; never exposed to clients
-	ProxyManager            *proxy.Manager
-	TsNetManager            *tsnetnode.Manager
-	tsNetHandler            http.Handler // stored so the UI can restart tsnet without a full server restart
-	FileIndexer             *services.FileIndexer
-	WorkspaceSearch         *services.WorkspaceSearchService
-	MaintenanceScheduler    *agent.MaintenanceController
-	MQTTController          *mqtt.MQTTController
-	HeartbeatScheduler      *heartbeat.Scheduler
-	AgentMailService        *agentmail.Service
-	AgentMailMu             sync.Mutex
-	CheatsheetDB            *sql.DB
-	ImageGalleryDB          *sql.DB
-	MediaRegistryDB         *sql.DB
-	HomepageRegistryDB      *sql.DB
-	ContactsDB              *sql.DB
-	PlannerDB               *sql.DB
-	LaunchpadDB             *sql.DB
-	SQLConnectionsDB        *sql.DB
-	SQLConnectionPool       *sqlconnections.ConnectionPool
-	A2AServer               *a2apkg.Server        // A2A protocol server (nil if disabled)
-	A2AClientMgr            *a2apkg.ClientManager // A2A client manager (nil if disabled)
-	A2ABridge               *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
-	SkillManager            *tools.SkillManager   // Skill Manager for registry and security scanning
-	AgentSkillManager       *tools.AgentSkillManager
-	SkillsDB                *sql.DB // Skills registry database
-	PreparedMissionsDB      *sql.DB // Prepared missions SQLite database
-	MissionHistoryDB        *sql.DB // Mission execution history SQLite database
-	PreparationService      *services.MissionPreparationService
-	WarningsRegistry        *warnings.Registry // Runtime warnings and health issues
-	DaemonSupervisor        *tools.DaemonSupervisor
-	DesktopService          *desktop.Service
-	desktopPolicyService    atomic.Pointer[desktop.Service]
-	DesktopStore            *desktopstore.Service
-	DesktopHub              *desktop.Hub
-	VirtualComputersDB      *virtualcomputers.Ledger
-	VirtualWorkspaceManager *virtualcomputers.WorkspaceManager
-	GameMaker               *gamemaker.Service
-	Detective               *detective.Service
-	Newspaper               *newspaper.Service
-	newspaperSkillReady     bool
-	PersonalRadio           *personalradio.Service
-	RTLSDR                  *rtlsdr.Service
-	RTLSDRRuntime           *rtlsdr.Manager
-	gameMakerSkills         []gamemaker.SkillInfo
-	gameMakerSkillsReady    bool
-	DesktopMu               sync.Mutex
-	desktopRuns             desktopRunRegistry
+	telnyxWebhookPath         atomic.Pointer[string]
+	SetupLocalLLMJobsMu       sync.Mutex
+	SetupLocalLLMJobs         map[string]*setupLocalLLMJob
+	Logger                    *slog.Logger
+	AccessLogger              *slog.Logger
+	LLMClient                 llm.ChatClient
+	ShortTermMem              *memory.SQLiteMemory
+	LongTermMem               memory.VectorDB
+	Vault                     *security.Vault
+	VaultSecretPrompter       *vaultprompt.Manager
+	vaultSecretPromptMu       sync.Mutex
+	Registry                  *tools.ProcessRegistry
+	CronManager               *tools.CronManager
+	BackgroundTasks           *tools.BackgroundTaskManager
+	Go2RTC                    *tools.Go2RTCManager
+	LocalLLM                  *localllm.Manager
+	LocalMusic                *acestep.Manager
+	localLLMLifecycleCtx      context.Context
+	Go2RTCDiscovery           *onvif.Service
+	MeshCore                  *meshcore.Manager
+	Bluetooth                 *bluetooth.Manager
+	NetworkShares             *networkshares.Manager
+	SIPPhone                  *sipphone.Manager
+	SpeechLab                 *speechlab.Client
+	SpeechLabDeployer         *deployer.Manager
+	speechLabTurnTokens       *speechLabTurnTokenRegistry
+	speechLabTurnTokensMu     sync.Mutex
+	SIPBrowserMedia           *sipphone.BrowserMediaService
+	VoiceActionRunner         *VoiceActionRunner
+	HistoryManager            *memory.HistoryManager
+	KG                        *memory.KnowledgeGraph
+	InventoryDB               *sql.DB
+	InvasionDB                *sql.DB
+	Guardian                  *security.Guardian
+	LLMGuardian               *security.LLMGuardian
+	CoAgentRegistry           *agent.CoAgentRegistry
+	BudgetTracker             *budget.Tracker
+	TokenManager              *security.TokenManager
+	tokenManagerMu            sync.RWMutex // guards TokenManager replacement (backup import)
+	CydHub                    *cyd.Hub
+	WebhookManager            *webhooks.Manager
+	WebhookHandler            *webhooks.Handler
+	SSE                       *SSEBroadcaster // shared SSE broadcaster, set by run()
+	systemWorldOnce           sync.Once
+	systemWorld               *systemWorldRuntime
+	MissionManagerV2          *tools.MissionManagerV2
+	EmailWatcher              *tools.EmailWatcher
+	mcpSessions               mcpSessionSigner
+	missionRuns               *missionRunRegistry // cancellable contexts of in-flight local mission runs
+	missionRunsOnce           sync.Once
+	EggHub                    *bridge.EggHub
+	RemoteHub                 *remote.RemoteHub
+	agodeskDesktopMu          sync.Mutex
+	agodeskDesktop            *agodeskDesktopBroker
+	agodeskDevToken           string // loopback-only AgoDesk development opt-in; never exposed to clients
+	ProxyManager              *proxy.Manager
+	TsNetManager              *tsnetnode.Manager
+	tsNetHandler              http.Handler // stored so the UI can restart tsnet without a full server restart
+	FileIndexer               *services.FileIndexer
+	WorkspaceSearch           *services.WorkspaceSearchService
+	MaintenanceScheduler      *agent.MaintenanceController
+	MQTTController            *mqtt.MQTTController
+	HeartbeatScheduler        *heartbeat.Scheduler
+	AgentMailService          *agentmail.Service
+	AgentMailMu               sync.Mutex
+	CheatsheetDB              *sql.DB
+	ImageGalleryDB            *sql.DB
+	MediaRegistryDB           *sql.DB
+	HomepageRegistryDB        *sql.DB
+	ContactsDB                *sql.DB
+	PlannerDB                 *sql.DB
+	LaunchpadDB               *sql.DB
+	SQLConnectionsDB          *sql.DB
+	SQLConnectionPool         *sqlconnections.ConnectionPool
+	A2AServer                 *a2apkg.Server        // A2A protocol server (nil if disabled)
+	A2AClientMgr              *a2apkg.ClientManager // A2A client manager (nil if disabled)
+	A2ABridge                 *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
+	SkillManager              *tools.SkillManager   // Skill Manager for registry and security scanning
+	AgentSkillManager         *tools.AgentSkillManager
+	SkillsDB                  *sql.DB // Skills registry database
+	PreparedMissionsDB        *sql.DB // Prepared missions SQLite database
+	MissionHistoryDB          *sql.DB // Mission execution history SQLite database
+	PreparationService        *services.MissionPreparationService
+	WarningsRegistry          *warnings.Registry // Runtime warnings and health issues
+	DaemonSupervisor          *tools.DaemonSupervisor
+	DesktopService            *desktop.Service
+	desktopPolicyService      atomic.Pointer[desktop.Service]
+	videoStudioMu             sync.Mutex
+	videoStudio               *videoStudioManager
+	videoStudioClosed         bool
+	videoStudioConfigRevoking atomic.Bool
+	DesktopStore              *desktopstore.Service
+	DesktopHub                *desktop.Hub
+	VirtualComputersDB        *virtualcomputers.Ledger
+	VirtualWorkspaceManager   *virtualcomputers.WorkspaceManager
+	GameMaker                 *gamemaker.Service
+	Detective                 *detective.Service
+	Newspaper                 *newspaper.Service
+	newspaperSkillReady       bool
+	PersonalRadio             *personalradio.Service
+	RTLSDR                    *rtlsdr.Service
+	RTLSDRRuntime             *rtlsdr.Manager
+	gameMakerSkills           []gamemaker.SkillInfo
+	gameMakerSkillsReady      bool
+	DesktopMu                 sync.Mutex
+	desktopRuns               desktopRunRegistry
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
@@ -391,6 +395,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	if previous := s.ConfigSnapshot(); previous != nil && videoStudioConfigRootsChanged(previous, cfg) {
+		// Cancel before publishing the new roots. A worker may finish an FFmpeg
+		// run after a workspace change, but it must not publish into the new tree.
+		s.beginVideoStudioConfigChange()
+	}
 	if cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.Enabled {
 		s.revokeDesktopRuns()
 	}
@@ -416,6 +425,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	s.syncPersonalityConfig(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	s.finishVideoStudioConfigChange()
 	if s.MQTTController != nil {
 		s.MQTTController.UpdateConfig(mqttRuntimeSnapshot(cfg))
 	}

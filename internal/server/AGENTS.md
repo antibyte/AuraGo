@@ -198,6 +198,12 @@ Server-owned HTTP and cross-component integration contracts.
 - The probes use the integrations' documented read-only authentication/status requests. Any new production HTTP client must be classified in `internal/audit.NetworkClientInventory`, and action text must be present in every `ui/lang/config/common/` locale.
 - `/api/models/catalog` uses the bundled provider/model catalog for its list. For exact provider/model matches, its structured-output flag follows the `models.dev` registry instead of the catalog's API-family inference; unmatched models keep their catalog flag. Verify with `TestHandleModelCatalogStructuredOutputMatchesModelsDev`.
 
+### Video Studio Contract
+- Video Studio storage is rooted at `Documents/Video Studio/<project-id>` in the Virtual Desktop workspace; project JSON uses strong `ETag`/`If-Match` writes, and client asset metadata is always reconstructed from the private import manifest. Media uploads stream through the rooted Desktop service and never accept arbitrary host paths.
+- `/api/desktop/video-studio/` routes require Desktop read/write scopes plus both Video Studio and Desktop policy gates. Job IDs remain fetchable without project context. One per-server queue serializes FFmpeg probe, preview and render work; generation is optional, admin-only, budget-checked, and never retried automatically after an uncertain provider outcome.
+- Render submission requires the saved project ETag and snapshots that immutable revision before queueing. Final MP4 publication is create-only and guarded by both Desktop and Video Studio revocation gates. Config root changes cancel active jobs; graceful shutdown drains/cancels the worker before closing Desktop storage.
+- Generation image inputs are private project image assets normalized locally to bounded PNG bytes. Only the configured provider's supported image mode is exposed; external image URLs are never fetched automatically. Verify `TestVideoStudio*` and the browser export flow.
+
 ### Rocket.Chat Runtime Contract
 - One server-owned consumer processes history chronologically with bounded pagination, including messages sharing a timestamp. Accept ISO timestamps and the legacy date object.
 - Every turn uses a current immutable config/client snapshot. Publishing changed Rocket.Chat credentials, channel, allowlist or enablement cancels the old generation immediately; drain outside config locks before starting its replacement. Egg mode and shutdown forbid restart.

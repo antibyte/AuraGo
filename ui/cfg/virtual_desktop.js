@@ -73,6 +73,7 @@ function renderVirtualDesktopSection(section) {
         '<input class="field-input" type="number" min="1" max="120" value="' + (data.remote_idle_timeout_minutes || 5) + '" data-path="virtual_desktop.remote_idle_timeout_minutes">');
     html += '</div>';
 
+    html += vdCfgVideoStudio();
     html += '<div class="field-group">';
     html += '<button class="btn-save dc-test-btn" onclick="vdCfgTestDesktop()" id="vd-cfg-test-btn">▣ ' + t('config.virtual_desktop.test_button') + '</button>';
     html += '<a class="btn-save dc-test-btn" href="/desktop">' + t('config.virtual_desktop.open_button') + '</a>';
@@ -139,4 +140,41 @@ async function vdCfgTestDesktop() {
     } finally {
         btn.disabled = false;
     }
+}
+
+function vdCfgVideoStudio() {
+    const data = configData.video_studio || {};
+    const prefix = 'config.video_studio.';
+    let html = '<h3>' + t(prefix + 'title') + '</h3><p class="field-help">' + t(prefix + 'help') + '</p>';
+    html += '<div class="field-grid two-cols">';
+    html += vdCfgToggleRow(prefix + 'enabled', '', data.enabled === true, 'video_studio.enabled');
+    html += vdCfgToggleRow(prefix + 'readonly', '', data.readonly === true, 'video_studio.readonly');
+    html += vdCfgField(prefix + 'ffmpeg', '', '<input class="field-input" type="text" value="' + escapeAttr(data.ffmpeg_path || '') + '" data-path="video_studio.ffmpeg_path">');
+    for (const [name, label, fallback, min, max] of [
+        ['max_asset_size_mb', 'asset_limit', 1024, 1, 8192],
+        ['max_project_size_mb', 'project_limit', 4096, 1, 65536],
+        ['render_timeout_seconds', 'timeout', 3600, 30, 14400]
+    ]) {
+        html += vdCfgField(prefix + label, '', '<input class="field-input" type="number" min="' + min + '" max="' + max + '" value="' + escapeAttr(String(data[name] || fallback)) + '" data-path="video_studio.' + name + '">');
+    }
+    html += '</div><div class="field-group"><button type="button" class="btn-save dc-test-btn" onclick="vdCfgTestVideoStudio(this)">' + t(prefix + 'check') + '</button><span id="vd-video-studio-result" class="dc-test-result" role="status"></span></div>';
+    return html;
+}
+
+async function vdCfgTestVideoStudio(button) {
+    const result = document.getElementById('vd-video-studio-result');
+    const prefix = 'config.video_studio.';
+    if (hasUnsavedConfigChanges()) { result.textContent = t(prefix + 'save_first'); return; }
+    button.disabled = true;
+    result.textContent = t(prefix + 'checking');
+    try {
+        const response = await fetch('/api/desktop/video-studio/status', { signal: AbortSignal.timeout(15000) });
+        const status = await response.json();
+        if (!result.isConnected) return;
+        const ready = response.ok && status.enabled && status.desktop_enabled && status.ffmpeg_ready;
+        result.textContent = t(prefix + (ready ? 'ready' : 'unavailable'));
+        result.className = 'dc-test-result ' + (ready ? 'is-success' : 'is-danger');
+    } catch (_) {
+        if (result.isConnected) result.textContent = t(prefix + 'unavailable');
+    } finally { button.disabled = false; }
 }

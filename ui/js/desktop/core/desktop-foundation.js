@@ -135,6 +135,7 @@
         noisemaker: 'audio',
         radio: 'radio',
         'personal-radio': 'personal-radio',
+        'video-studio': 'video-studio',
         'rtl-sdr': 'rtl-sdr',
         bluetooth: 'bluetooth',
         openscad: 'openscad',
@@ -581,6 +582,7 @@
     function appGlobalName(appId) {
         return {
             'personal-radio': 'PersonalRadioApp',
+            'video-studio': 'VideoStudioApp',
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',

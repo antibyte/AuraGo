@@ -290,6 +290,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Desktop Tresor Storage Contract | `internal/tresor/AGENTS.md` |
 | Agent Filesystem Jail Contract; Agent Docker Inspect Contract; Managed Space Agent Contract; treg catalog gateway | `internal/tools/AGENTS.md` |
 | Virtual Computers Storage / Managed Garage Contract | `internal/virtualcomputers/AGENTS.md` |
+| Video Studio project, timeline and FFmpeg contract | `internal/videostudio/AGENTS.md` |
 | External browser resource contract | `internal/webassets/AGENTS.md` |
 
 ## Development Workflow
@@ -622,6 +623,7 @@ Current child AGENTS.md files:
 - `internal/tools/AGENTS.md` — Agent filesystem and Docker tool safety boundaries.
 - `internal/upkeep/AGENTS.md` — Update transactions, artifact retention, maintenance CLI and cleanup safeguards.
 - `internal/virtualcomputers/AGENTS.md` — Workspace lease and managed Garage storage lifecycle.
+- `internal/videostudio/AGENTS.md` — Desktop video project model, local FFmpeg processing and render limits.
 - `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
 - `training/needle3/AGENTS.md` — Category-routing experiments, retained manual selector, pinned Needle training/runtime, API budgets and deferred RunPod lifecycle.
 - `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.

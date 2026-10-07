@@ -965,6 +965,9 @@ func Load(path string) (*Config, error) {
 	if !yamlHasPath(data, "virtual_computers", "storage", "mode") {
 		cfg.VirtualComputers.Storage.Mode = ""
 	}
+	if err := NormalizeVideoStudioConfig(&cfg.VideoStudio); err != nil {
+		return nil, err
+	}
 	if err := NormalizeNewspaperConfig(&cfg.Newspaper); err != nil {
 		return nil, err
 	}
@@ -3027,6 +3030,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"game_maker", "enabled"}, c.GameMaker.Enabled},
 		{[]string{"detective"}, c.Detective},
 		{[]string{"newspaper"}, c.Newspaper},
+		{[]string{"video_studio"}, c.VideoStudio},
 		{[]string{"game_maker", "readonly"}, c.GameMaker.ReadOnly},
 		{[]string{"game_maker", "allow_create"}, c.GameMaker.AllowCreate},
 		{[]string{"game_maker", "allow_edit"}, c.GameMaker.AllowEdit},

@@ -525,6 +525,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.NormalizeVideoStudioConfig(&validateCfg.VideoStudio); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := config.NormalizeNewspaperConfig(&validateCfg.Newspaper); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return

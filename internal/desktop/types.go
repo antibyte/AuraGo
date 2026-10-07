@@ -439,6 +439,7 @@ var desktopPreferredIconNames = []string{
 	"upload",
 	"users",
 	"video",
+	"video-studio",
 	"weather",
 	"workflow",
 	"writer",
@@ -620,7 +621,7 @@ var desktopIconCategories = map[string][]string{
 	"office":       {"writer", "spreadsheet", "calendar", "documents", "printer", "mail"},
 	"productivity": {"notes", "check-square", "workflow", "calendar", "clipboard", "search"},
 	"tools":        {"tools", "settings", "terminal", "code", "openscad", "database", "network", "zipper"},
-	"media":        {"gallery", "pixel", "image", "video", "teevee", "radio", "audio", "audio-player", "camera"},
+	"media":        {"gallery", "pixel", "image", "video", "video-studio", "teevee", "radio", "audio", "audio-player", "camera"},
 	"internet":     {"browser", "globe", "cloud", "mail", "network", "download"},
 	"system":       {"monitor", "server", "settings", "backup", "key", "software-store", "trash-empty"},
 	"documents":    {"documents", "text", "markdown", "pdf", "html", "archive", "zipper"},
@@ -769,6 +770,7 @@ func DesktopAppCategories() []AppCategory {
 
 func BuiltinApps() []AppManifest {
 	apps := []AppManifest{
+		{ID: "video-studio", Name: "Video Studio", Version: "1.0.0", Icon: "video-studio", Entry: "builtin://video-studio", Runtime: BuiltinRuntime, Category: "creative", Description: "Edit multitrack videos with transitions, titles, stickers and optional AI clips.", Permissions: []string{"files:read", "files:write", "notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
 		{ID: "ha-switchboard", Name: "HA Switchboard", Version: "1.0.0", Icon: "ha-switchboard", Entry: "builtin://ha-switchboard", Runtime: BuiltinRuntime, Category: "comms", Description: "Control selected Home Assistant switches on a walnut and silver switchboard."},
 		{ID: "files", Name: "Files", Version: "1.0.0", Icon: "folder", Entry: "builtin://files", Runtime: BuiltinRuntime, Category: "system", Description: "Browse and manage desktop workspace files."},
 		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Runtime: BuiltinRuntime, Category: "office", Description: "Edit workspace text files."},

@@ -36,7 +36,10 @@ func desktopFilePrecondition(r *http.Request) (desktop.FileWritePrecondition, er
 		}
 		version := ""
 		if state.Exists {
-			version = desktop.NoteVersion(state.Data)
+			version = state.Version
+			if version == "" {
+				version = desktop.NoteVersion(state.Data)
+			}
 		}
 		if create == "*" && !state.Exists {
 			return nil

@@ -153,6 +153,10 @@
             styles: appStyles('/css/desktop-app-personal-radio.css'),
             scripts: ['/js/desktop/apps/personal-radio-player.js', '/js/desktop/apps/personal-radio-runtime.js', '/js/desktop/apps/personal-radio-settings.js', '/js/desktop/apps/personal-radio.js']
         },
+        'video-studio': {
+            styles: appStyles('/css/desktop-app-video-studio.css'),
+            scripts: ['/js/desktop/apps/video-studio-preview.js', '/js/desktop/apps/video-studio-timeline.js', '/js/desktop/apps/video-studio.js']
+        },
         'teevee': {
             styles: appStyles('/css/teevee.css'),
             scripts: ['/js/vendor/hls.min.js', '/js/desktop/core/media-helpers.js', '/js/desktop/apps/teevee-crt.js', '/js/desktop/apps/teevee-catalog.js', '/js/desktop/apps/teevee.js']
@@ -498,6 +502,7 @@
         'mission-control': ['missions'],
         'newspaper': ['newspaper'],
         'personal-radio': ['personalRadio'],
+        'video-studio': ['videoStudio'],
         'rtl-sdr': ['rtlSdr'],
         'bluetooth': ['bluetooth'],
         'pixel': ['pixel'],

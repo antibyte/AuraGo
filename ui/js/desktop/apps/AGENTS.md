@@ -718,6 +718,30 @@ buttons and menu popovers remain excluded from those gestures.
   cache invalidation after desktop mutations). See
   `documentation/desktop-gallery.md` for the user-facing description.
 
+### Video Studio contract
+
+- Video Studio is a lazy app. Load `desktop-app-video-studio.css`, then
+  `video-studio-preview.js` and `video-studio-timeline.js` before
+  `video-studio.js`; the shell exposes `VideoStudioApp.render(host, id, ctx)`
+  and `dispose(id)`. The preview owns its media elements and shared frame clock;
+  dispose stops local playback, timers and requests but does not cancel
+  server-owned jobs.
+- Persist the canonical project with strong `If-Match` ETags. A 412/428 save
+  must present Reload, Replace latest or Keep editing; never retry a conflict
+  without an explicit choice and the observed latest ETag. Bind imports, jobs,
+  project refreshes and draft recovery to the captured project ID and epoch.
+  Window close awaits saving until clean or blocked by a visible failure or
+  conflict choice.
+- Timing and transitions use integer 30 fps frames. The outgoing clip owns an
+  exact overlap with the next clip on its track. Titles use full-canvas PNG
+  assets; static stickers are separate image overlays. Preserve editable
+  text/style metadata and use only same-origin staged media URLs.
+- Keep the media bin, preview and inspector responsive; below 920 px the
+  Inspector control opens a keyboard-dismissable drawer without hiding the
+  timeline. Use the real Standard/Fruity theme tokens and all sixteen Desktop
+  locale dictionaries. Verify UI behavior with
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudioBrowser$'`.
+
 ### Mission Control contract
 
 - Mission Control is a master-detail workbench composed of
