@@ -185,6 +185,9 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 	if !ok {
 		return nil, fmt.Errorf("mission not found: %s", missionID)
 	}
+	if mission.ExecutionType == tools.ExecutionFlow {
+		return nil, tools.ErrFlowMissionManaged
+	}
 
 	s.cfgMu.RLock()
 	prepCfg := s.cfg.MissionPreparation

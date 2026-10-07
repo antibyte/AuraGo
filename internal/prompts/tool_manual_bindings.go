@@ -52,7 +52,7 @@ func ToolManualAbsenceReason(name string) string {
 	case "game_maker_asset", "game_maker_file", "game_maker_project", "game_maker_validate":
 		return "Phase-specific schemas and required Game Maker execution guidance are supplied by the isolated Studio run."
 	case "send_telegram":
-		return "The native schema documents this single message operation; channel and recipient policy is supplied by the active run."
+		return "The native schema documents this message operation, including the optional file_path document; channel and recipient policy is supplied by the active run."
 	}
 	return ""
 }

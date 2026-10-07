@@ -105,3 +105,41 @@ func TestFindAppTreatsUnavailableBuiltinAsMissing(t *testing.T) {
 		t.Fatalf("findApp with capability = ok:%v err:%v, want found", ok, err)
 	}
 }
+
+func TestBuiltinEasyDragAppRequiresFlows(t *testing.T) {
+	app := testFindApp(t, BuiltinApps(), "easydrag")
+	if app.Entry != "builtin://easydrag" || app.Icon != "easydrag" || app.Runtime != BuiltinRuntime {
+		t.Fatalf("easydrag manifest = %+v", app)
+	}
+	if len(app.Requires) != 1 || app.Requires[0] != "flows" {
+		t.Fatalf("easydrag requires = %v, want [flows]", app.Requires)
+	}
+	if app.Metadata["open_maximized"] != "true" || !app.DockVisible || !app.StartVisible || app.Deletable {
+		t.Fatalf("easydrag must be a visible, maximized first-party app: %+v", app)
+	}
+}
+
+func TestBootstrapHidesEasyDragUntilFlowsArePresent(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	svc := testService(t)
+	hasEasyDrag := func() bool {
+		bootstrap, err := svc.Bootstrap(ctx)
+		if err != nil {
+			t.Fatalf("Bootstrap: %v", err)
+		}
+		for _, app := range bootstrap.BuiltinApps {
+			if app.ID == "easydrag" {
+				return true
+			}
+		}
+		return false
+	}
+	if hasEasyDrag() {
+		t.Fatal("easydrag must stay hidden without the flows capability")
+	}
+	svc.SetCapabilityProvider(staticCapabilities{"flows": true})
+	if !hasEasyDrag() {
+		t.Fatal("easydrag must appear once flows are available")
+	}
+}

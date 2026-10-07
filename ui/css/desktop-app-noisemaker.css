@@ -238,11 +238,13 @@
 .noisemaker-app.is-compact .nm-player-info { display: none; }
 .noisemaker-app.is-compact .nm-player-volume,
 .noisemaker-app.is-compact .nm-player-viz { display: none; }
-.noisemaker-app.is-compact .nm-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.noisemaker-app.is-compact .nm-grid:not(.nm-grid--list) { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 .noisemaker-app.is-compact .nm-row { grid-template-columns: 44px minmax(0, 1fr) 56px 34px auto; }
 .noisemaker-app.is-compact .nm-library.is-select-mode .nm-row { grid-template-columns: 24px 44px minmax(0, 1fr) 56px 34px auto; }
 .noisemaker-app.is-compact .nm-row-date,
 .noisemaker-app.is-compact .nm-row-provider { display: none; }
+.noisemaker-app.is-compact .nm-row .nm-card-actions { opacity: 1; }
+.noisemaker-app.is-compact .nm-row .nm-card-actions .nm-icon-btn:not(.nm-act-more) { display: none; }
 .noisemaker-app.is-compact .nm-np-body { grid-template-columns: minmax(0, 1fr); }
 .noisemaker-app.is-compact .nm-np-cover { height: min(200px, 34vh); width: min(200px, 34vh); }
 .noisemaker-app.is-compact .nm-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -720,10 +722,12 @@
     .nm-player { grid-template-columns: auto minmax(0, 1fr) auto; }
     .nm-player-info { display: none; }
     .nm-player-volume, .nm-player-viz { display: none; }
-    .nm-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .nm-grid:not(.nm-grid--list) { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
     .nm-row { grid-template-columns: 44px minmax(0, 1fr) 56px 34px auto; }
     .nm-library.is-select-mode .nm-row { grid-template-columns: 24px 44px minmax(0, 1fr) 56px 34px auto; }
     .nm-row-date, .nm-row-provider { display: none; }
+    .nm-row .nm-card-actions { opacity: 1; }
+    .nm-row .nm-card-actions .nm-icon-btn:not(.nm-act-more) { display: none; }
     .nm-np-body { grid-template-columns: minmax(0, 1fr); }
     .nm-np-cover { height: min(200px, 34vh); width: min(200px, 34vh); }
     .nm-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }

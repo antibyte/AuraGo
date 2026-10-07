@@ -16,6 +16,7 @@ func TestDesktopAppsExposeDisposeLifecycle(t *testing.T) {
 			"files: 'FileManager'",
 			"'code-studio': 'CodeStudioApp'",
 			"looper: 'LooperApp'",
+			"easydrag: 'EasyDragApp'",
 			"camera: 'CameraApp'",
 			"function appGlobalFallbackName",
 			"'code-studio': 'CodeStudio'",

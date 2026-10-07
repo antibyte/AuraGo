@@ -81,7 +81,7 @@
 
 .desktop-body[data-theme="fruity"] .vd-start-menu {
     left: 50%;
-    bottom: calc(var(--vd-fruity-dock-reserve, 96px) + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--vd-fruity-dock-reserve, 97px) + env(safe-area-inset-bottom, 0px));
     width: min(860px, calc(100vw - 64px));
     height: min(620px, calc(100vh - 150px));
     border-color: var(--vd-theme-border);

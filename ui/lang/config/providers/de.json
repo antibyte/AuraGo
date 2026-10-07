@@ -285,6 +285,7 @@
   "config.providers.role_embeddings": "Embeddings",
   "config.providers.role_llm_guardian": "LLM-Wächter",
   "config.providers.role_mission_preparation": "Missionsvorbereitung",
+  "config.providers.role_flows": "EasyDrag-Flows",
   "config.providers.role_image_generation": "Bildgenerierung",
   "config.providers.role_music_generation": "Musikgenerierung",
   "config.providers.role_video_generation": "Videogenerierung",

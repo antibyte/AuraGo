@@ -116,6 +116,9 @@
         } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
             apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (/\.aurasynth$/i.test(name)) {
+            apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
+            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (String(name || '').toLowerCase().endsWith('.md')) {
             apps.push({ label: t('desktop.app_notes'), appId: 'notes' });
             apps.push({ label: t('desktop.app_editor'), appId: 'editor' });
@@ -417,8 +420,9 @@
             const actionKey = path.concat(String(item.id || index)).join('/');
             const icon = `<span class="vd-context-icon">${iconMarkup(item.icon || 'tools', item.fallback || item.icon || '', 'vd-context-papirus-icon', 16)}</span>`;
             const label = `<span class="vd-context-label">${esc(item.label)}</span>`;
-            const shortcut = contextMenuShortcutMarkup(item.shortcut || '');
-            const disabled = item.disabled ? 'disabled' : '';
+            const shortcut = contextMenuShortcutMarkup(item.shortcut || item.shortcutHint || '');
+            // disabledHint says why a disabled item is off; it is drawn as the item's tooltip.
+            const disabled = item.disabled ? 'disabled' + (item.disabledHint ? ` title="${esc(item.disabledHint)}"` : '') : '';
             const submenuItems = normalizeContextMenuItems(item.items || item.children || []);
             if (submenuItems.length) {
                 return `<div class="vd-context-submenu" role="none">
@@ -1288,6 +1292,9 @@
         return translated && translated !== key ? translated : fallback;
     }
 
+    // A menu item's shortcut is drawn and dispatched by handleWindowMenuShortcut before the app
+    // sees the key. shortcutHint is only drawn: the app handles that key itself. disabledHint
+    // says why a disabled item is off (the item's tooltip).
     function normalizeWindowMenuItems(items, menuId, actions, path) {
         return (Array.isArray(items) ? items : []).map((item, index) => {
             if (!item || item.hidden) return null;
@@ -1303,6 +1310,8 @@
                 icon: item.icon || '',
                 fallback: item.fallback || '',
                 shortcut: item.shortcut || '',
+                shortcutHint: item.shortcutHint || '',
+                disabledHint: item.disabledHint || '',
                 disabled: typeof item.disabled === 'function' ? !!item.disabled() : !!item.disabled,
                 checked: typeof item.checked === 'function' ? !!item.checked() : !!item.checked,
                 actionKey: ''
@@ -1372,8 +1381,10 @@
                     <div class="vd-window-menu-popover" role="menu">${renderWindowMenuItems(item.items)}</div>
                 </div>`;
             }
-            return `<button type="button" class="vd-window-menu-item${checked}" role="menuitem" data-menu-action="${esc(item.actionKey)}" ${disabled}>
-                ${icon}<span>${label}</span>${item.shortcut ? `<kbd>${esc(item.shortcut)}</kbd>` : '<kbd></kbd>'}
+            const keys = item.shortcut || item.shortcutHint;
+            const hint = disabled && item.disabledHint ? ` title="${esc(item.disabledHint)}"` : '';
+            return `<button type="button" class="vd-window-menu-item${checked}" role="menuitem" data-menu-action="${esc(item.actionKey)}" ${disabled}${hint}>
+                ${icon}<span>${label}</span>${keys ? `<kbd>${esc(keys)}</kbd>` : '<kbd></kbd>'}
             </button>`;
         }).join('');
     }
@@ -1554,6 +1565,13 @@
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
             return window.WriterApp.render(contentEl(id), id, officeAppContext(context));
         }
+        if (appId === 'synth-studio') {
+            if (!window.SynthStudioApp) {
+                window.AuraDesktopModules.loadAppScript('synth-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.SynthStudioApp.render(contentEl(id), id, Object.assign(officeAppContext(context), { windowId: id, sessionKey: state.windows.get(id)?.sessionKey || id }));
+        }
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
             return window.SheetsApp.render(contentEl(id), id, officeAppContext(context));
         }
@@ -1592,6 +1610,12 @@
         }
         if (appId === 'personal-radio' && window.PersonalRadioApp) {
             return window.PersonalRadioApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, openApp, confirmDialog, promptDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly() }));
+        }
+        if (appId === 'video-studio' && window.VideoStudioApp && typeof window.VideoStudioApp.render === 'function') {
+            return window.VideoStudioApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
+                esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog, promptDialog, setWindowMenus, clearWindowMenus,
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+            }));
         }
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
             return window.TeeVeeApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
@@ -1847,12 +1871,22 @@ if (appId === 'pixel') {
                 return window.PetPickerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, notify: showDesktopNotification }));
             }
         }
+        if (appId === 'easydrag' && window.EasyDragApp && typeof window.EasyDragApp.render === 'function') {
+            return window.EasyDragApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, api, t, iconMarkup, notify: showDesktopNotification,
+                readonly: desktopReadonly(), openApp, updateWindowContext,
+                setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
+                confirmDialog, promptDialog,
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                isActive: () => state.activeWindowId === id
+            }));
+        }
         if (appId === 'mission-control' && window.MissionControlApp && typeof window.MissionControlApp.render === 'function') {
             return window.MissionControlApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, api, t, iconMarkup, notify: showDesktopNotification,
                 readonly: desktopReadonly(), loadBootstrap, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
-                confirmDialog, promptDialog,
+                confirmDialog, promptDialog, openApp,
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));

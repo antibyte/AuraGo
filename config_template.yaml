@@ -1103,8 +1103,10 @@ virtual_desktop:
     workspace_dir: agent_workspace/virtual_desktop
     max_file_size_mb: 50
     max_ws_clients: 8
-    remote_max_session_minutes: 60                         # max SSH/VNC session duration
-    remote_idle_timeout_minutes: 5                          # close idle SSH/VNC sessions after this many minutes
+    serial_browser_enabled: false                         # Quick Connect: devices attached to the browser computer
+    serial_host_enabled: false                            # Quick Connect: administrator access to AuraGo host serial ports
+    remote_max_session_minutes: 60                         # max SSH/VNC/serial session duration
+    remote_idle_timeout_minutes: 5                          # close idle SSH/VNC/serial sessions after this many minutes
     code_studio:
         enabled: true
         image: ghcr.io/antibyte/aurago-code-studio:latest
@@ -1148,6 +1150,17 @@ newspaper:
   max_editions: 365                                     # retained edition revisions, minimum 30
   allow_email: false                                    # permit confirmed email delivery
   allow_telegram: false                                 # permit configured authorized Telegram user
+
+flows:
+  enabled: true                                         # EasyDrag visual flows (missions with their own engine)
+  max_parallel_runs: 8                                  # concurrent flow runs, 1-32
+  max_parallel_nodes_per_run: 4                         # parallel branches inside one run, 1-16
+  run_retention_days: 30                                # keep finished runs this many days, 1-365
+  max_runs_per_flow: 200                                # keep at most this many finished runs per flow, 10-5000
+  ai_provider: ""                                       # provider id for AI steps; empty = main model
+  agent:
+    read_only: false                                    # reserved; not enforced yet: agent may only read flows
+    allow_publish: false                                # reserved; not enforced yet: agent may publish flows
 
 game_maker:
     enabled: false                                         # enable Game Maker Studio APIs and agent tools
@@ -2026,6 +2039,16 @@ heartbeat:
         start: "22:00"
         end: "08:00"
         interval: "4h"
+
+# Optional desktop video editor. The Docker image includes FFmpeg/FFprobe.
+# Native installations need both binaries; an empty path searches PATH.
+video_studio:
+    enabled: false
+    readonly: false
+    ffmpeg_path: ""
+    max_asset_size_mb: 1024
+    max_project_size_mb: 4096
+    render_timeout_seconds: 3600
 
 journal:
     auto_entries: true                      # matches loader default; tools.journal controls tool access

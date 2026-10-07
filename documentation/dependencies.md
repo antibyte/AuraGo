@@ -36,6 +36,12 @@ The Ansible sidecar pins 14.4.0 and gives its unprivileged user a writable home.
 
 ## Browser resources
 
+Synth Studio vendors `@tonejs/midi` 2.0.28 (MIT) and only the factory synthesis
+tables from `webaudio-tinysynth` 1.1.4 (Apache-2.0) under
+`ui/js/vendor/synth-studio/`. The native Web Audio renderer owns timing for both
+playback and offline WAV export; the upstream TinySynth player is not loaded.
+Retain the source/version, checksum and license records beside these assets.
+
 Run `npm ci` before generators. `npm run build:browser-vendor` rebuilds shared
 libraries, licenses and hashes, including Three.js and its matching loaders,
 PDF.js workers/fonts, noVNC, Rive and ESP Web Tools. `-- --check` verifies without

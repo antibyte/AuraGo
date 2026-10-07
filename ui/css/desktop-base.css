@@ -33,7 +33,7 @@
     --vd-start-recess-size: 64px;
     --vd-taskbar-height: 54px;
     --vd-taskbar-offset: 0px;
-    --vd-fruity-dock-reserve: 96px;
+    --vd-fruity-dock-reserve: 97px;
     --vd-taskbar-gap: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 0px));
     --vd-mobile-taskbar-reserve: calc(var(--vd-taskbar-height, 54px) + var(--vd-taskbar-offset, 0px) + env(safe-area-inset-bottom, 0px));
     --vd-window-radius: 12px;

@@ -11,7 +11,7 @@
   "config.daemon_skills.status_running": "Działa",
   "config.daemon_skills.status_starting": "Uruchamianie",
   "config.daemon_skills.status_stopped": "Zatrzymany",
-  "config.daemon_skills.status_title": "Działające demony (%d)",
+  "config.daemon_skills.status_title": "Działające demony ({{count}})",
   "help.daemon_skills.enabled": "Globalnie włącz lub wyłącz umiejętności demona",
   "help.daemon_skills.global_rate_limit_secs": "Minimalne sekundy między wywołaniami wybudzenia demona do agenta",
   "help.daemon_skills.max_budget_per_hour": "Maksymalny koszt LLM (w USD) jaki wybudzenia demonów mogą pochłonąć na godzinę",

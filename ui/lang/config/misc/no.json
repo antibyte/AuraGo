@@ -66,7 +66,7 @@
   "config.llm.helper_guardian_banner": "LLM Guardian bruker alltid sin egen separate modellsti. Den rutes ikke gjennom hjelpe-LLM.",
   "config.llm.info_banner": "Modell, URL og API-nøkkel er hentet fra <strong>-leverandøroppføringen </strong> i leverandøradministrasjon. Bare avanserte LLM-innstillinger er konfigurert her.",
   "config.llm.multimodal_banner": "Multimodal (bilder): Når aktivert kan opplastede bilder i chat sendes direkte til hovedmodellen.",
-  "config.restart.confirm": "Starte AuraGo på nytt nå?",
+  "config.restart.confirm": "Starte AuraGo-tjenesten på nytt nå? (Tar omtrent 3–5 sekunder)",
   "config.restart.disconnected": "Frakoblet – venter på at AuraGo starter på nytt…",
   "config.restart.error": "Omstart mislyktes",
   "config.restart.reloading": "AuraGo laster inn på nytt. Denne siden oppdateres automatisk.",

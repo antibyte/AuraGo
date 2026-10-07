@@ -22,7 +22,18 @@ type dashboardCronjob struct {
 	NextRun    string `json:"next_run,omitempty"`
 	Registered bool   `json:"registered"`
 	LastError  string `json:"last_error,omitempty"`
+	// ManagedBy names the feature that owns the job ("easydrag" for a flow's schedule);
+	// the dashboard shows such jobs read-only.
+	ManagedBy string `json:"managed_by,omitempty"`
 }
+
+// A flow's schedule jobs belong to EasyDrag: the dashboard lists them but neither edits,
+// toggles nor deletes them (tools.IsFlowCronJob), and adds none under an id a flow mission
+// claims (tools.FlowOwnsCronJob, the check the agent's cron tools use).
+const (
+	flowCronManagedMessage = "This schedule is managed by EasyDrag; edit the flow instead."
+	flowCronManagedBy      = "easydrag"
+)
 
 type dashboardCronjobUpdateRequest struct {
 	ID         string `json:"id"`
@@ -73,6 +84,10 @@ func handleDashboardCronjobByID(s *Server) http.HandlerFunc {
 		}
 		if !dashboardCronjobExists(s.CronManager.GetJobs(), id) {
 			jsonError(w, "Cron job not found", http.StatusNotFound)
+			return
+		}
+		if tools.IsFlowCronJob(s.CronManager, id) {
+			jsonError(w, flowCronManagedMessage, http.StatusConflict)
 			return
 		}
 		result, err := s.CronManager.ManageSchedule("remove", id, "", "", dashboardLanguage(s))
@@ -144,6 +159,10 @@ func handleDashboardCronjobsUpdate(s *Server, w http.ResponseWriter, r *http.Req
 		jsonError(w, "Cron job not found", http.StatusNotFound)
 		return
 	}
+	if existing.IsFlowJob() {
+		jsonError(w, flowCronManagedMessage, http.StatusConflict)
+		return
+	}
 	disabled := existing.Disabled
 	if body.Disabled != nil {
 		disabled = *body.Disabled
@@ -197,6 +216,9 @@ func dashboardCronjobsFromTools(jobs []tools.CronJobRuntimeStatus) []dashboardCr
 		}
 		if item.Source == "" {
 			item.Source = "agent"
+		}
+		if job.IsFlowJob() {
+			item.ManagedBy = flowCronManagedBy
 		}
 		if item.Disabled {
 			item.Status = "disabled"

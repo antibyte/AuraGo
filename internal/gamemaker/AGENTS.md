@@ -316,7 +316,7 @@ revision publication and standalone export for Phaser and Three.js games.
 - Asset detail examples must include executable preload/setup methods and preserve the template lifecycle. Asset creation rejects unloaded textures or missing frames; test binding requires a live controlled object assigned by setup. Missing Phaser textures cannot pass asset validation.
 - New templates import and preload exact planned asset roles in common.ts. Every 2D template uses those roles through body(...,role), with uniformly fitted art and separate collision proxies; changes retain this wiring. The build guard rejects pack metadata as a texture key at the shared texture-manager boundary. Gameplay scenarios must allow actual travel time; hit counters represent collisions, including hits on durable targets.
 - Scenario schemas enumerate `GameMetrics()` and `GameKeys()`, the same lists `validateScenario` enforces; never advertise a metric or key it rejects. Voxel scenarios accept only key/wait/observe steps (the voxel driver runs nothing else) in both the planning schema and `checkPlan`.
-- Additional plan scenarios are optional (0–8); the server always retains its eight 2D minimums and eight/ten guided 3D minimums (maximum 16 total checks). Check results include the executed finite steps, so repairs distinguish launch/actions from collisions/hits and ESC end from natural defeat. New GameScene templates reject update overrides at startup with hook-specific guidance; preserve common.ts lifecycle and sprite following.
+- Additional plan scenarios are optional (0–8). Schema 4 starter scenarios replace input, primary-action or rules checks only with driven `increased`, `decreased` or `changed` assertions for the matching metric; `equals` and `at_least` assertions remain additive because they may already hold before input. Scene/blank compositions retain their separate scenario selection. Lifecycle, resource and unrelated checks remain server-owned. Check results include the executed finite steps, so repairs distinguish launch/actions from collisions/hits and ESC end from natural defeat. New GameScene templates reject update overrides at startup with hook-specific guidance; preserve common.ts lifecycle and sprite following.
 - Script writes preflight literal built-in metadata imports with esbuild against complete project PNG/JSON pairs, resolving from the source file. Invalid imports leave source/preview and repair counts unchanged and return existing import paths; ordinary module writes retain their build-validation workflow. Arcade collider/overlap registration rejects wrapper records whose body is a GameObject; spawned collision objects belong in persistent groups. Repairs preserve passing sprite/input behavior and the accepted plan.
 - Game Maker tool results reach the model as plain JSON (`<`, `>`, `&` literal) inside readable `<external_data>` source isolation, so reads can be copied exactly into `replace`. They remain untrusted data; boundary-forging or Guardian-critical content keeps the fully escaped form (see root Security & Safety).
 - The isolated Game Maker agent receives phase-specific schemas for `game_maker_project`, `game_maker_file`, `game_maker_asset`, and `game_maker_validate`. Planning exposes only reads, asset discovery and `set_design`; build/repair omit plan mutation. Embedded guidance is already active; redundant skill activation is not advertised. `invoke_tool`, generic filesystem/shell/Python/network tools, and uncurated Agent Skills must remain unavailable.
@@ -365,6 +365,11 @@ revision publication and standalone export for Phaser and Three.js games.
 - `ValidationNextAction` names the next step for every validation answer and
   must never claim success for unobserved gameplay. Tool answers also return
   the remaining repair passes.
+- Invalid scopes/check IDs and unsupported free-code 3D gameplay requests
+  return a `request` diagnostic with correction guidance. They preserve the
+  current preview and last validation, consume no repair pass and do not end
+  the agent round. Check IDs are resolved before building. Free-code `three`
+  needs valid 3D scene data for gameplay; declared scenarios alone do not enable it.
 - `game_maker_file` `search` without `path` scans `game.json` and `src/**` text
   only: at most 64 files of 512 KiB each and twelve matches in total. Managed
   runtimes, compiled output, assets and `.aurago` stay excluded. `path` is
@@ -397,7 +402,7 @@ revision publication and standalone export for Phaser and Three.js games.
 - Model selection uses `model_asset_ids` (1–64) and plan schema 2 with metres,
   metric scale and 3D colliders. Import only explicit IDs after plan acceptance,
   including declared shared animation dependencies; never overwrite edited copies.
-  Sprite plan v1 and all eighteen sprite packs remain compatible.
+  Sprite plan v1 and all twenty-two fixed-grid sprite packs remain compatible.
 - Three.js stays at 0.186.1. Rebuild the local GLTFLoader/SkeletonUtils/OrbitControls
   helper using `node scripts/build-game-maker-3d.js`. One game-owned clock advances
   independent animated instances; static instances share geometry. Studio owns
@@ -410,7 +415,7 @@ revision publication and standalone export for Phaser and Three.js games.
   provider completions fail the job unless a server-owned phase boundary ended
   the round. Successful imports or starter gameplay checks alone are not a game.
 
-- `internal/gamemaker/asset_packs/` owns eighteen locally packaged 10×10 RGBA sheets (64px
+- `internal/gamemaker/asset_packs/` owns twenty-two locally packaged 10×10 RGBA sheets (64px
   cells), versioned JSON and a compact catalog. Original images and reviewed
   crops remain in `production/` but are excluded from the binary. Rebuild with
   `python scripts/pack_game_sprites.py`; verify with `--check` (Pillow 12.2).
@@ -457,6 +462,10 @@ Do not patch a published game merely because a new starter changed.
 
 ## Verification
 
+- `TestCustomScenarioCoverage*` and `TestGameScenarios*` cover additive baseline
+  assertions and driven transition coverage. `TestValidationRequestErrors*`
+  covers request correction without preview, budget or round changes;
+  `TestFreeCodeThreePlanning*` checks the disclosed gameplay boundary.
 - `TestVoxel*` covers deterministic worlds, chunk collision/mesh updates,
   transactions, malformed saves, CAS/revision isolation, restart and copied DB
   migration. `GAMEMAKER_VOXEL_BROWSER=1` adds actual gameplay, touch, respawn,

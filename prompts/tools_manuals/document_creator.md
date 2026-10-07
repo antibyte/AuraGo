@@ -29,6 +29,7 @@ Create PDF documents, convert files to PDF, merge PDFs, and take screenshots. Ba
 | `landscape` | boolean | no | Landscape orientation (default: false) |
 | `sections` | string | for create_pdf | JSON array of sections |
 | `source_files` | string | for merge_pdfs, convert_document | JSON array of file paths |
+| `block_remote_content` | boolean | no | Blocks remote resources, scripts, meta refresh and connection hints while rendering HTML or Markdown (html_to_pdf, markdown_to_pdf, screenshot_html, create_pdf on Gotenberg). Recommended for untrusted HTML. Default: false. See "Rendering untrusted HTML" below |
 
 ## Sections Format (create_pdf)
 
@@ -40,6 +41,14 @@ Each section is a JSON object with `type`, `header`, and `body`:
   {"type": "list", "header": "Items", "body": "Item 1\nItem 2\nItem 3"}
 ]
 ```
+
+## Rendering untrusted HTML (`block_remote_content`)
+
+With `block_remote_content: true` the HTML is rendered without network access:
+- Remote images, stylesheets, fonts, frames and fetches are not loaded. Embed images and fonts as `data:` URLs; inline CSS (`<style>`, `style=""`) works.
+- Scripts do not run.
+- Meta refresh tags and connection hints (`<link rel="preconnect">`, `dns-prefetch`, `prefetch`, `prerender`, `preload`) are neutralized.
+- `url_to_pdf`, `screenshot_url` and `convert_document` cannot be protected this way and return an error when the flag is set.
 
 ## Examples
 

@@ -140,7 +140,7 @@ func PhaseGuidance(stage, dimension string) string {
 ## Design rules
 - Describe the player objective and 1–12 concrete features with set_design on a supported base.
 - Optional helpers belong inside design.mechanics, for example "mechanics":{"outcomes":["won","lost"],"lives":3}; blocks and events belong there too. Omit them for continuous play or implement custom rules in source.
-- Leave scenarios empty when base_checks already cover the rules. Custom rules use bounded target steps with exact runtime roles/IDs and observable metrics; they replace only the starter behavior they prove.
+- Leave scenarios empty when base_checks cover the rules. Custom rules use bounded target steps with exact runtime roles/IDs. Replacing a starter check requires input-driven increased/decreased/changed metrics; equals/at_least checks stay additive.
 - A shooting check measures actions; hits need target aim at a real enemy and projectile travel time, not blind SPACE presses.
 - The server fills version, geometry, controls and validation defaults.`
 		if dimension == "2d" {

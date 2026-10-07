@@ -544,6 +544,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.NormalizeVideoStudioConfig(&validateCfg.VideoStudio); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := config.NormalizeNewspaperConfig(&validateCfg.Newspaper); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -841,6 +845,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if s.GameMaker == nil && newCfg.GameMaker.Enabled {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Game Maker service")
+			}
+			if flowsRuntimeConfigChanged(oldCfg.Flows, newCfg.Flows) {
+				needsRestart = true
+				restartReasons = append(restartReasons, "EasyDrag flows")
 			}
 			if embeddingsConfigChanged(oldCfg, *newCfg) {
 				embeddingsChanged = true

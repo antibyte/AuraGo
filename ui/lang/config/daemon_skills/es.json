@@ -11,7 +11,7 @@
   "config.daemon_skills.status_running": "Ejecutando",
   "config.daemon_skills.status_starting": "Iniciando",
   "config.daemon_skills.status_stopped": "Detenido",
-  "config.daemon_skills.status_title": "Daemons en ejecución (%d)",
+  "config.daemon_skills.status_title": "Daemons en ejecución ({{count}})",
   "help.daemon_skills.enabled": "Activar o desactivar las skills daemon globalmente",
   "help.daemon_skills.global_rate_limit_secs": "Segundos mínimos entre llamadas de despertar del daemon al agente",
   "help.daemon_skills.max_budget_per_hour": "Costo máximo LLM (en USD) que los despertares daemon pueden consumir por hora",

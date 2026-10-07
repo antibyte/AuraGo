@@ -613,6 +613,11 @@ func Load(path string) (*Config, error) {
 	cfg.Newspaper.MaxPages = 60
 	cfg.Newspaper.MaxSearches = 32
 	cfg.Newspaper.MaxEditions = 365
+	cfg.Flows.Enabled = true
+	cfg.Flows.MaxParallelRuns = flowsDefaultMaxParallelRuns
+	cfg.Flows.MaxParallelNodesPerRun = flowsDefaultMaxParallelNodes
+	cfg.Flows.RunRetentionDays = flowsDefaultRunRetentionDays
+	cfg.Flows.MaxRunsPerFlow = flowsDefaultMaxRunsPerFlow
 	cfg.GameMaker.WorkspacePath = "agent_workspace/virtual_desktop"
 	cfg.GameMaker.MaxProjects = 25
 	cfg.GameMaker.MaxFilesPerProject = 250
@@ -968,6 +973,9 @@ func Load(path string) (*Config, error) {
 	// defaulted value here and let normalization preserve legacy endpoint-based S3.
 	if !yamlHasPath(data, "virtual_computers", "storage", "mode") {
 		cfg.VirtualComputers.Storage.Mode = ""
+	}
+	if err := NormalizeVideoStudioConfig(&cfg.VideoStudio); err != nil {
+		return nil, err
 	}
 	if err := NormalizeNewspaperConfig(&cfg.Newspaper); err != nil {
 		return nil, err
@@ -3058,6 +3066,8 @@ func (c *Config) Save(path string) error {
 		{[]string{"game_maker", "enabled"}, c.GameMaker.Enabled},
 		{[]string{"detective"}, c.Detective},
 		{[]string{"newspaper"}, c.Newspaper},
+		{[]string{"flows"}, c.Flows},
+		{[]string{"video_studio"}, c.VideoStudio},
 		{[]string{"game_maker", "readonly"}, c.GameMaker.ReadOnly},
 		{[]string{"game_maker", "allow_create"}, c.GameMaker.AllowCreate},
 		{[]string{"game_maker", "allow_edit"}, c.GameMaker.AllowEdit},

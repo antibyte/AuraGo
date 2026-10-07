@@ -432,13 +432,14 @@ Ask the user a targeted question and wait for a response. Useful for unclear req
 | `options` | array | Optional choice options |
 
 ### `send_telegram`
-Send a message or media via the configured Telegram bot.
+Send a message, or a file as a document, via the configured Telegram bot.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `message` | string | Message text |
 | `title` | string | Optional: title for the message |
 | `priority` | string | Optional: priority (normal, high, low) |
+| `file_path` | string | Optional: a file in the workspace or the documents folder, sent as a Telegram document. `title` and `message` become its caption (a longer text goes out as a message first). Up to 50 MB. A missing file, a path outside both folders, or Telegram not being configured fails the call |
 
 ### `send_agodesk_chat`
 Send proactive text to a connected **AgoDesk/AgoChat** desktop client.
@@ -771,6 +772,8 @@ HTTP request to external APIs.
 | `method` | enum | GET, POST, PUT, PATCH, DELETE |
 | `headers` | object | HTTP headers |
 | `body` | string | Request body |
+
+Redirects: the headers you set (for example `Authorization` or an API key header) go along only while a redirect stays on the same host with the same scheme and port, or upgrades from `http` on port 80 to `https` on port 443. Any other redirect removes them for the rest of the chain; only `Accept`, `Content-Type` and `User-Agent` stay. A 307 or 308 redirect still sends the body again. EasyDrag flows follow the same rule.
 
 ### `github`
 Manage GitHub repositories, issues, PRs, branches, files, commits, workflow runs, and local project tracking (`github.enabled`).
@@ -1380,6 +1383,14 @@ Fetch emails from registered accounts.
 
 ### `send_email`
 Send emails via registered accounts.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `to` | string | Recipient address (comma-separated for several) |
+| `subject` | string | Optional: subject line |
+| `body` | string | Optional: plain text body |
+| `account` | string | Optional: account ID to send from (default: first active account) |
+| `attachments` | array | Optional: file paths in the workspace or the documents folder to attach (max 10 files, 20 MB together). A single path string is accepted as a one-file list. A path elsewhere, a missing file or a list over the limits fails the call and sends nothing |
 
 ### `list_email_accounts`
 List registered email accounts.

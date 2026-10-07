@@ -94,7 +94,7 @@ func gotenbergRequest(ctx context.Context, cfg *config.GotenbergConfig, route st
 // saveGotenbergOutput writes response bytes to the output directory and returns metadata.
 func saveGotenbergOutput(data []byte, outputDir, filename, ext string) (filePath, webPath string, err error) {
 	if filename == "" {
-		filename = fmt.Sprintf("doc_%d", time.Now().Unix())
+		filename = defaultDocumentName()
 	}
 	// Sanitise filename to prevent path traversal
 	filename = filepath.Base(filename)
@@ -314,8 +314,12 @@ func GotenbergURLToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputD
 	return gotenbergOKJSON(filePath, webPath, filepath.Base(filePath))
 }
 
-// GotenbergHTMLToPDF converts HTML content to PDF via Chromium.
-func GotenbergHTMLToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputDir, htmlContent, filename, paperSize string, landscape bool) string {
+// GotenbergHTMLToPDF converts HTML content to PDF via Chromium. With opts.BlockRemoteContent
+// the HTML goes through restrictRemoteContent first, so the render stays off the network.
+func GotenbergHTMLToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputDir, htmlContent, filename, paperSize string, landscape bool, opts DocumentCreatorOptions) string {
+	if opts.BlockRemoteContent {
+		htmlContent = restrictRemoteContent(htmlContent)
+	}
 	fields := paperSizeFields(paperSize)
 	fields["printBackground"] = "true"
 	if landscape {
@@ -340,7 +344,9 @@ func GotenbergHTMLToPDF(ctx context.Context, cfg *config.GotenbergConfig, output
 
 // GotenbergMarkdownToPDF converts Markdown content to PDF via Chromium.
 // Gotenberg expects an index.html with {{ toHTML "file.md" }} and the .md file.
-func GotenbergMarkdownToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputDir, markdownContent, filename, paperSize string, landscape bool) string {
+// With opts.BlockRemoteContent the wrapper page gets the restrictRemoteContent policy and the
+// Markdown loses its risky tags, so the render stays off the network.
+func GotenbergMarkdownToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputDir, markdownContent, filename, paperSize string, landscape bool, opts DocumentCreatorOptions) string {
 	fields := paperSizeFields(paperSize)
 	fields["printBackground"] = "true"
 	if landscape {
@@ -358,6 +364,10 @@ table { border-collapse: collapse; width: 100%; }
 th,td { border: 1px solid #ddd; padding: 8px; text-align: left; }
 th { background: #f2f2f2; }
 </style></head><body>{{ toHTML "content.md" }}</body></html>`
+	if opts.BlockRemoteContent {
+		indexHTML = restrictRemoteContent(indexHTML)
+		markdownContent = restrictRemoteMarkdown(markdownContent)
+	}
 
 	files := map[string][]byte{
 		"index.html": []byte(indexHTML),
@@ -475,8 +485,13 @@ func GotenbergScreenshotURL(ctx context.Context, cfg *config.GotenbergConfig, ou
 	return gotenbergOKJSON(filePath, webPath, filepath.Base(filePath))
 }
 
-// GotenbergScreenshotHTML takes a screenshot of HTML content via Chromium.
-func GotenbergScreenshotHTML(ctx context.Context, cfg *config.GotenbergConfig, outputDir, htmlContent, filename string) string {
+// GotenbergScreenshotHTML takes a screenshot of HTML content via Chromium. With
+// opts.BlockRemoteContent the HTML goes through restrictRemoteContent first, so the render
+// stays off the network.
+func GotenbergScreenshotHTML(ctx context.Context, cfg *config.GotenbergConfig, outputDir, htmlContent, filename string, opts DocumentCreatorOptions) string {
+	if opts.BlockRemoteContent {
+		htmlContent = restrictRemoteContent(htmlContent)
+	}
 	fields := map[string]string{
 		"format": "png",
 	}

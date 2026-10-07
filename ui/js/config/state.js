@@ -191,6 +191,8 @@
         const errors = [];
         Object.keys(rules).forEach(path => {
             const rule = rules[path] || {};
+            // changedOnly rules check edits only; an unchanged saved value is not part of the patch.
+            if (rule.changedOnly && !changed.has(path)) return;
             const value = read(draftConfig, path);
             const empty = value == null || String(value).trim() === '';
             if (rule.required && empty) {

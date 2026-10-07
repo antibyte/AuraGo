@@ -957,6 +957,14 @@
       "row": 10,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "flows",
+      "slot": 119,
+      "column": 9,
+      "row": 10,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
     }
   ]
 }

@@ -1,0 +1,9 @@
+Third-party notice
+
+The General MIDI instrument names, drum-map names, and oscillator timbre parameters in gm-data.js are adapted from webaudio-tinysynth 1.1.4 by Tatsuya Shinyagaito.
+Source: https://github.com/g200kg/webaudio-tinysynth
+Package version: webaudio-tinysynth@1.1.4
+License: Apache-2.0; full text is in LICENSE.txt.
+
+The source timbre table was normalized into data for AuraGo Synth Studio. Runtime synthesis and scheduling are independent native Web Audio code.
+

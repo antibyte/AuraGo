@@ -1,9 +1,10 @@
 /* desktop-app-quick-connect.css */
 /* ═══════════════════════════════════════════════════════════════
-   Quick Connect – SSH Terminal App
+   Quick Connect – SSH, VNC and Serial Terminal App
    ═══════════════════════════════════════════════════════════════ */
 
 .vd-quick-connect {
+    container-type: inline-size;
     display: flex;
     flex-direction: row;
     height: 100%;
@@ -66,7 +67,7 @@
 
 .vd-qc-filters {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
     padding: 0 10px 10px;
     border-bottom: 1px solid var(--vd-theme-border);
@@ -1017,3 +1018,80 @@
 }
 
 .vd-qc-terminal-area .vd-qc-placeholder { color: #b4bdcd; }
+
+/* Serial profiles share the app's theme tokens; terminal bytes stay on ink. */
+.vd-qc-window { container: quick-connect-window / inline-size; }
+.vd-quick-connect [hidden] { display: none !important; }
+.vd-qc-lists { flex: 1; min-height: 0; overflow: auto; }
+.vd-qc-lists .vd-qc-device-list { overflow: visible; }
+.vd-qc-serial-new { margin: 8px 10px; justify-content: center; }
+.vd-qc-serial-list-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 10px; color: var(--vd-theme-muted); font-size: 12px; }
+.vd-qc-serial-list-head > span { flex: 1; }
+.vd-qc-serial-profile { margin: 4px 8px 10px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg); overflow: hidden; }
+.vd-qc-serial-profile.active { border-color: var(--vd-accent); }
+.vd-qc-serial-profile-select { display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 10px; color: var(--vd-text); background: transparent; border: 0; text-align: left; cursor: pointer; }
+.vd-qc-serial-profile-select strong, .vd-qc-serial-profile-select span { max-width: 100%; overflow-wrap: anywhere; }
+.vd-qc-serial-profile-select span { font-size: 11px; color: var(--vd-theme-muted); }
+.vd-qc-serial-profile-actions { display: flex; gap: 6px; padding: 0 10px 10px; }
+.vd-qc-serial-profile-actions > :first-child { flex: 1; }
+.vd-qc-serial-content { flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.vd-qc-serial { display: flex; flex-direction: column; height: 100%; min-width: 0; container-type: inline-size; color: var(--vd-text); background: var(--vd-theme-app-bg); font-size: 12px; }
+.vd-qc-serial-header { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid var(--vd-theme-border); background: var(--vd-theme-chrome-bg); }
+.vd-qc-serial-heading { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.vd-qc-serial-heading strong { font-size: 14px; }
+.vd-qc-serial-heading [data-serial-status] { color: var(--vd-theme-muted); overflow-wrap: anywhere; }
+.vd-qc-serial-heading [data-state="connected"] { color: var(--vd-accent); }
+.vd-qc-serial-heading [data-state="error"] { color: #d86b63; }
+.vd-qc-serial-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); flex: 1; min-height: 0; overflow: auto; }
+.vd-qc-serial-config { padding: 12px; overflow-y: auto; border-right: 1px solid var(--vd-theme-border); background: var(--vd-theme-panel-bg); }
+.vd-qc-serial-profile-form { display: grid; gap: 12px; }
+.vd-qc-serial-profile-form h3 { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.vd-qc-serial label { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.vd-qc-serial input, .vd-qc-serial select { box-sizing: border-box; min-width: 0; max-width: 100%; padding: 7px 8px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg); color: var(--vd-text); font: inherit; }
+.vd-qc-serial input[type="checkbox"] { accent-color: var(--vd-accent); }
+.vd-qc-serial :disabled { opacity: .5; cursor: not-allowed; }
+.vd-qc-serial .vd-qc-serial-toggle, .vd-qc-serial .vd-qc-serial-check { flex-direction: row; align-items: center; gap: 6px; }
+.vd-qc-serial-help { margin: 4px 0 10px; line-height: 1.5; color: var(--vd-theme-muted); }
+.vd-qc-serial-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.vd-qc-serial-options { min-width: 0; border-top: 1px solid var(--vd-theme-border); padding-top: 10px; }
+.vd-qc-serial-options summary { cursor: pointer; margin-bottom: 10px; font-weight: 600; }
+.vd-qc-serial-options > :not(summary) { margin-top: 10px; }
+.vd-qc-serial-console { display: flex; flex-direction: column; min-width: 0; min-height: 320px; overflow: hidden; }
+.vd-qc-serial-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border-bottom: 1px solid var(--vd-theme-border); background: var(--vd-theme-chrome-bg); }
+.vd-qc-serial-toolbar > label:first-child { flex-direction: row; align-items: center; }
+.vd-qc-serial-terminal { flex: 1; min-height: 200px; min-width: 0; overflow: hidden; background: #0d1117; padding: 8px; }
+.vd-qc-serial-terminal .xterm { height: 100%; }
+.vd-qc-serial-capture-note { padding: 8px 10px; line-height: 1.4; color: var(--vd-theme-muted); background: var(--vd-theme-chrome-bg); border-top: 1px solid var(--vd-theme-border); }
+.vd-qc-serial-send { display: grid; grid-template-columns: auto minmax(70px, 1fr) auto auto; gap: 6px; padding: 10px; background: var(--vd-theme-chrome-bg); border-top: 1px solid var(--vd-theme-border); }
+.vd-qc-serial-send [data-serial-input] { width: 100%; font-family: 'Cascadia Code', Consolas, monospace; }
+.vd-qc-serial-form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.vd-qc-serial-form-actions > button { flex: 1; }
+.vd-qc-serial [role="status"] { overflow-wrap: anywhere; line-height: 1.4; }
+.vd-qc-serial select:focus-visible, .vd-qc-serial summary:focus-visible { outline: var(--ds-focus-ring-width, 2px) solid var(--vd-accent); outline-offset: 2px; }
+
+@container (max-width: 680px) {
+    .vd-qc-serial-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 36%) minmax(0, 1fr); overflow: hidden; }
+    .vd-qc-serial-config { min-height: 0; overflow-y: auto; border-right: 0; border-bottom: 1px solid var(--vd-theme-border); }
+    .vd-qc-serial-profile-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .vd-qc-serial-profile-form > h3, .vd-qc-serial-profile-form > details, .vd-qc-serial-profile-form > [role="status"] { grid-column: 1 / -1; }
+    .vd-qc-serial-console { min-height: 0; }
+    .vd-qc-serial-terminal { min-height: 0; }
+    .vd-qc-serial-send { grid-template-columns: auto minmax(70px, 1fr); }
+    .vd-qc-serial-header { align-items: flex-start; }
+}
+
+@container (max-width: 560px) {
+    .vd-qc-sidebar { width: 100%; min-width: 0; max-width: none; max-height: 210px; flex-shrink: 0; border-right: 0; border-bottom: 1px solid var(--vd-theme-border); }
+    .vd-qc-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .vd-qc-sidebar-header { padding: 6px 10px; }
+    .vd-qc-search { padding: 6px 10px; }
+    .vd-qc-serial-new { margin: 4px 10px; }
+    .vd-qc-terminal-area { min-height: 0; }
+}
+
+@container quick-connect-window (max-width: 560px) {
+    .vd-quick-connect { flex-direction: column; }
+}
+@container (max-width: 380px) {
+    .vd-qc-serial-profile-form { grid-template-columns: minmax(0, 1fr); }
+}

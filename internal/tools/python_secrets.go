@@ -70,6 +70,9 @@ var blockedSecretPrefixes = []string{
 	// entry; egg_master_key_<nest> is shipped to the egg on reconfiguration.
 	"egg_shared_",
 	"egg_master_key_",
+	// EasyDrag flow secrets: written by the user through /api/desktop/flows/secrets and read
+	// only by flows; the agent must neither list, read nor create them.
+	"easydrag_",
 	"__aurago_",
 }
 

@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan autorise l'internet public plus uniquement les CIDR privés explicitement listés.",
   "help.virtual_computers.agent_control_cidrs": "Un CIDR IPv4 RFC1918 par ligne. Les adresses de l'hôte, d'AuraGo, du pont, des métadonnées et de l'invité restent bloquées.",
   "help.virtual_computers.agent_control_credentials": "Les identifiants exigent encore une approbation distincte d'un utilisateur authentifié pour chaque octroi de courte durée.",
-  "help.virtual_computers.agent_control_grant_ttl": "Durée de vie maximale d'un octroi ; les octrois prennent aussi fin avec leur tâche ou leur espace de travail."
+  "help.virtual_computers.agent_control_grant_ttl": "Durée de vie maximale d'un octroi ; les octrois prennent aussi fin avec leur tâche ou leur espace de travail.",
+  "config.virtual_desktop.serial_browser_label": "Ports série sur cet ordinateur",
+  "help.virtual_desktop.serial_browser_enabled": "Autoriser Quick Connect à utiliser les périphériques série connectés à l’ordinateur du navigateur. Un navigateur compatible, HTTPS ou localhost et une sélection explicite du périphérique sont nécessaires. Désactivé en mode lecture seule.",
+  "config.virtual_desktop.serial_host_label": "Ports série sur le serveur AuraGo",
+  "help.virtual_desktop.serial_host_enabled": "Autoriser les administrateurs à ouvrir dans Quick Connect les périphériques série connectés au serveur AuraGo. Les installations en conteneur nécessitent le transfert du périphérique et les autorisations du système d’exploitation. Désactivé en mode lecture seule."
 }

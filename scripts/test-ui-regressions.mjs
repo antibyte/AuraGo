@@ -1320,9 +1320,10 @@ function testVirtualComputersCanOpenIndependentWindows() {
   const shell = read('ui/js/desktop/core/window-shell-runtime.js');
   const helperSource = sourceBetween(shell, 'function matchesExistingAppWindow', 'function isStandaloneWidgetPath');
   const virtualWindow = { id: 'vc-1', appId: 'virtual-computers', element: { isConnected: true }, context: {} };
+  const serialWindow = { id: 'qc-1', appId: 'quick-connect', element: { isConnected: true }, context: {} };
   const regularWindow = { id: 'settings-1', appId: 'settings', element: { isConnected: true }, context: {} };
   const context = {
-    state: { windows: new Map([[virtualWindow.id, virtualWindow], [regularWindow.id, regularWindow]]), activeWindowId: '' },
+    state: { windows: new Map([[virtualWindow.id, virtualWindow], [serialWindow.id, serialWindow], [regularWindow.id, regularWindow]]), activeWindowId: '' },
     clearWindowMenus() {},
     disposeAppWindow() {},
     normalizeDesktopPath: value => String(value || ''),
@@ -1332,6 +1333,7 @@ function testVirtualComputersCanOpenIndependentWindows() {
   vm.runInContext(`${helperSource}; globalThis.findExisting = findExistingAppWindow;`, context);
 
   assert.equal(context.findExisting('virtual-computers', {}), undefined, 'Virtual Computers must allow a new independent window');
+  assert.equal(context.findExisting('quick-connect', {}), undefined, 'Quick Connect must allow independent connections in multiple windows');
   assert.equal(context.findExisting('settings', {}), regularWindow, 'other single-instance apps must keep their existing behavior');
 }
 
@@ -3128,6 +3130,332 @@ function testDesktopMainBundlePartsEndAtFunctionBoundaries() {
   assert.deepEqual(failures, [], `desktop main bundle parts must start and end at function boundaries:\n${failures.join('\n')}`);
 }
 
+// A window menu item's shortcutHint is drawn in the key column like a shortcut, but the desktop
+// does not dispatch it: the app handles that key itself. Clicking the item still runs it.
+function testWindowMenuShortcutHintIsDrawnButNotDispatched() {
+  const routing = read('ui/js/desktop/core/menus-and-routing.js');
+  const source = [
+    read('ui/js/desktop/core/shortcut-runtime.js'),
+    sourceBetween(routing, 'function contextMenuShortcutMarkup(', 'function formatDesktopDate('),
+    sourceBetween(routing, 'function normalizeWindowMenuItems(', 'function normalizeWindowMenus('),
+    sourceBetween(routing, 'function renderWindowMenuItems(', 'function setWindowMenus('),
+    sourceBetween(routing, 'function runWindowMenuAction(', 'function renderAppContent(')
+  ].join('\n');
+  const ran = [];
+  const context = {
+    esc: value => String(value).replace(/[&<>"']/g, ch => `&#${ch.charCodeAt(0)};`),
+    menuLabel: item => item.label,
+    iconMarkup: () => '',
+    closeWindowMenu: () => {},
+    state: { activeWindowId: 'w1', windowMenus: new Map() }
+  };
+  vm.createContext(context);
+  vm.runInContext(`${source}; globalThis.menu = { contextMenuShortcutMarkup, normalizeWindowMenuItems, renderWindowMenuItems, handleWindowMenuShortcut, runWindowMenuAction };`, context);
+  const { menu } = context;
+  const actions = new Map();
+  const items = menu.normalizeWindowMenuItems([
+    { id: 'undo', label: 'Undo', shortcutHint: 'Ctrl+Z', action: () => ran.push('undo') },
+    { id: 'save', label: 'Save', shortcut: 'Ctrl+S', action: () => ran.push('save') },
+    { id: 'plain', label: 'Plain', action: () => ran.push('plain') }
+  ], 'edit', actions, ['w1', 'edit']);
+  context.state.windowMenus.set('w1', { renderedMenus: [{ id: 'edit', items }], actions });
+
+  const html = menu.renderWindowMenuItems(items);
+  assert.match(html, /<span>Undo<\/span><kbd>Ctrl\+Z<\/kbd>/, 'a shortcutHint is drawn in the key column');
+  assert.match(html, /<span>Save<\/span><kbd>Ctrl\+S<\/kbd>/, 'a shortcut is drawn in the key column');
+  assert.match(html, /<span>Plain<\/span><kbd><\/kbd>/, 'an item without keys keeps an empty key column');
+  assert.equal(routing.includes("contextMenuShortcutMarkup(item.shortcut || item.shortcutHint || '')"), true, 'context menus draw a shortcutHint too');
+  assert.equal(menu.contextMenuShortcutMarkup('Ctrl+Z'), '<kbd class="vd-context-shortcut">Ctrl+Z</kbd>');
+
+  const keydown = (key, extra) => Object.assign({
+    key, code: 'Key' + key.toUpperCase(), ctrlKey: false, metaKey: false, altKey: false, shiftKey: false,
+    defaultPrevented: false, target: { closest: () => null },
+    preventDefault() { this.defaultPrevented = true; }, stopPropagation() {}
+  }, extra);
+  const undo = keydown('z', { ctrlKey: true });
+  assert.equal(menu.handleWindowMenuShortcut(undo), false, 'the hinted key is left to the app');
+  assert.equal(undo.defaultPrevented, false, 'the hinted key is not prevented');
+  assert.deepEqual(ran, [], 'the hinted item does not run on its key');
+  const save = keydown('s', { ctrlKey: true });
+  assert.equal(menu.handleWindowMenuShortcut(save), true, 'a real shortcut is still dispatched');
+  menu.runWindowMenuAction('w1', items[0].actionKey);
+  assert.deepEqual(ran, ['save', 'undo'], 'a real shortcut runs its item, and a click runs the hinted item');
+}
+
+// easyDragIds builds flow and run ids of the server's shape (flows.NewFlowID / NewRunID: a prefix
+// and 10 or 12 characters of a-z2-7); offset walks every character through every position.
+function easyDragIds(offset) {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz234567';
+  const suffix = n => Array.from({ length: n }, (_, i) => alphabet[(offset + i * 7) % alphabet.length]).join('');
+  return { flow: 'flow_' + suffix(10), run: 'run_' + suffix(12) };
+}
+
+// A clicked EasyDrag notification opens its flow and run; the shell keeps only ids of the server's
+// shape, and an invalid run id alone still opens the flow.
+function testEasyDragNotificationContextKeepsOnlyServerIds() {
+  const source = sourceBetween(read('ui/js/desktop/core/shell-chrome-runtime.js'), 'function notificationContext(', 'function pushNotificationRecord(');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${source}; globalThis.notificationContext = notificationContext;`, context);
+  // JSON copies the vm realm's objects into this one (deepEqual compares prototypes).
+  const keep = (appId, ctx) => JSON.parse(JSON.stringify(context.notificationContext({ appId, context: ctx }) ?? null));
+
+  for (let offset = 0; offset < 32; offset++) {
+    const { flow, run } = easyDragIds(offset);
+    assert.deepEqual(keep('easydrag', { flow_id: flow, run_id: run }), { flow_id: flow, run_id: run }, `server ids ${flow} ${run}`);
+  }
+  const { flow, run } = easyDragIds(3);
+  assert.deepEqual(keep('easydrag', { flow_id: flow }), { flow_id: flow }, 'a flow without a run');
+  assert.deepEqual(keep('easydrag', { flow_id: flow, run_id: run, extra: 'x', path: '/etc' }), { flow_id: flow, run_id: run }, 'other keys are dropped');
+  for (const badRun of ['run_short', run + 'a', run.toUpperCase(), 'run_' + 'a'.repeat(11) + '_', 42, { id: run }]) {
+    assert.deepEqual(keep('easydrag', { flow_id: flow, run_id: badRun }), { flow_id: flow }, `an invalid run id ${JSON.stringify(badRun)} keeps the flow`);
+  }
+  for (const badFlow of ['flow_abc', flow + 'a', flow.toUpperCase(), 'flow_ABCDEFGHIJ', 'flw_' + 'a'.repeat(10), '../flow_aaaaaaaaaa', '', 7, null]) {
+    assert.equal(keep('easydrag', { flow_id: badFlow, run_id: run }), null, `an invalid flow id ${JSON.stringify(badFlow)} opens nothing`);
+  }
+  assert.equal(keep('easydrag', { run_id: run }), null, 'a run without a flow opens nothing');
+  assert.equal(keep('easydrag', undefined), null, 'no context');
+  assert.equal(keep('mission-control', { flow_id: flow, run_id: run }), null, 'another app keeps no flow ids');
+  const conversation = 'ab'.repeat(32);
+  assert.deepEqual(keep('meshcore', { conversation_id: conversation, flow_id: flow }), { conversation_id: conversation }, 'MeshCore keeps its conversation only');
+}
+
+// The session keeps an EasyDrag window's flow: a valid flowId survives save and restore; any
+// other value is neither saved nor restored, so the window opens the start page.
+async function testEasyDragSessionKeepsOnlyValidFlowIds() {
+  const source = read('ui/js/desktop/core/session-runtime.js');
+  const helperSource = [
+    sourceBetween(source, 'const SESSION_SKIP_APP_IDS', 'let sessionPersistTimer'),
+    sourceBetween(source, 'function sanitizeSessionContext(', 'function scheduleSessionPersist('),
+    sourceBetween(source, 'function parseSessionSnapshot(', 'function parseDefaultAppsMap(')
+  ].join('\n');
+  const { flow, run } = easyDragIds(5);
+  const settings = {};
+  const opened = [];
+  const windowOf = (appId, z, ctx) => ({ appId, element: { style: { left: '10px', top: '20px', width: '900px', height: '600px', zIndex: String(z), display: '' } }, context: ctx });
+  const context = {
+    state: {
+      activeSpaceId: 0,
+      windows: new Map([
+        ['w1', windowOf('easydrag', 1, { flowId: flow, flow_id: flow, run_id: run })],
+        ['w2', windowOf('easydrag', 2, { flowId: '..' })],
+        ['w3', windowOf('easydrag', 3, { flowId: flow.toUpperCase() })],
+        ['w4', windowOf('easydrag', 4, { flowId: 42 })],
+        ['w5', windowOf('easydrag', 5, { flowId: null })],
+        ['w6', windowOf('files', 6, { path: 'Documents' })]
+      ])
+    },
+    window: { setTimeout: fn => fn() },
+    windowSpaceId: () => 0,
+    normalizeSpaceId: id => id,
+    settingValue: key => settings[key],
+    sessionRestoreEnabled: () => true,
+    restoreActiveSpaceFromSnapshot() {},
+    renderSpacePager() {},
+    appById: id => ({ id }),
+    openApp: (appId, ctx) => opened.push([appId, ctx.flowId === undefined ? '(none)' : ctx.flowId]),
+    applySpaceVisibility() {},
+    taskbarWindows: () => [],
+    focusWindow() {},
+    scheduleSessionPersist() {}
+  };
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.capture = captureSessionSnapshot; globalThis.restore = restoreDesktopSession;`, context);
+
+  const snapshot = JSON.parse(JSON.stringify(context.capture()));
+  assert.deepEqual(snapshot.windows.map(w => [w.appId, w.context]), [
+    ['easydrag', { flowId: flow }], ['easydrag', {}], ['easydrag', {}], ['easydrag', {}], ['easydrag', {}], ['files', { path: 'Documents' }]
+  ], 'only a valid flowId is saved, and a notification\'s flow_id/run_id are not');
+
+  // A stored session written before the check (or by hand) is checked again on restore.
+  snapshot.windows[1].context = { flowId: '..' };
+  snapshot.windows[2].context = { flowId: 'flow_' + 'a'.repeat(11) };
+  settings['session.windows'] = JSON.stringify(snapshot);
+  await context.restore();
+  assert.deepEqual(opened, [
+    ['easydrag', flow], ['easydrag', '(none)'], ['easydrag', '(none)'], ['easydrag', '(none)'], ['easydrag', '(none)'], ['files', '(none)']
+  ], 'only a valid flowId is restored');
+}
+
+// flows_changed from the desktop event stream reaches EasyDrag as the DOM event aurago:flows-changed.
+async function testEasyDragFlowsChangedIsForwarded() {
+  const source = sourceBetween(read('ui/js/desktop/core/sdk-events-bootstrap.js'), 'async function handleDesktopEvent(', 'function showDesktopNotification(');
+  const dispatched = [];
+  const context = {
+    CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } },
+    document: { dispatchEvent: event => { dispatched.push([event.type, JSON.parse(JSON.stringify(event.detail))]); return true; } }
+  };
+  vm.createContext(context);
+  vm.runInContext(`${source}; globalThis.handle = handleDesktopEvent;`, context);
+  await context.handle({ type: 'flows_changed', payload: { flow_id: 'flow_aaaaaaaaaa', reason: 'saved' } });
+  await context.handle({ type: 'flows_changed' });
+  assert.deepEqual(dispatched, [
+    ['aurago:flows-changed', { flow_id: 'flow_aaaaaaaaaa', reason: 'saved' }],
+    ['aurago:flows-changed', {}]
+  ]);
+}
+
+// Loads cfg/flows.js with the real config helpers it uses: escaping (utils.js), the provider choice helpers
+// and toggleBool (main.js), the validation rules (catalog.js) and the field metadata (lang/meta.json).
+function configFlowsContext({ flows, tools = {}, providers = [], loaded = true }) {
+  const strings = { ...JSON.parse(read('ui/lang/config/common/en.json')), ...JSON.parse(read('ui/lang/config/flows/en.json')) };
+  const meta = JSON.parse(read('ui/lang/meta.json'));
+  const main = read('ui/js/config/main.js');
+  const context = {
+    window: {},
+    content: { innerHTML: '' },
+    configData: { flows, tools },
+    providersCache: providers,
+    providersLoaded: loaded,
+    personalitiesCache: [],
+    personalitiesLoaded: true,
+    helpTexts: { 'flows.ai_provider': meta['help.flows.ai_provider'] },
+    dirtyMarks: 0,
+    markDirty() { context.dirtyMarks += 1; },
+    t(key, params) {
+      assert.ok(Object.prototype.hasOwnProperty.call(strings, key), `missing English string ${key}`);
+      return strings[key].replace(/\{\{(\w+)\}\}/g, (_, name) => params[name]);
+    },
+    document: { getElementById: id => (id === 'content' ? context.content : null), querySelectorAll: () => [] },
+    attachChangeListeners() {}
+  };
+  vm.createContext(context);
+  vm.runInContext(read('ui/js/config/catalog.js'), context);
+  vm.runInContext(sourceBetween(read('ui/js/config/utils.js'), 'function escapeAttr(', 'function formatKey('), context);
+  vm.runInContext(sourceBetween(main, 'function cfgChoiceSource(', 'async function retryConfigChoiceLists('), context);
+  vm.runInContext(sourceBetween(main, 'function syncToggleA11y(', 'function enhanceConfigControls('), context);
+  vm.runInContext(sourceBetween(main, 'function toggleBool(', 'function togglePassword('), context);
+  vm.runInContext(read('ui/cfg/flows.js'), context);
+  return context;
+}
+
+const configFlowsSectionMeta = { label: 'EasyDrag flows', desc: 'Visual automations' };
+
+function renderConfigFlowsSection(options) {
+  const context = configFlowsContext(options);
+  context.renderFlowsSection(configFlowsSectionMeta);
+  return context.content.innerHTML;
+}
+
+function configStateForTest(rules) {
+  const context = { window: {}, document: { dispatchEvent() {} }, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } } };
+  vm.createContext(context);
+  vm.runInContext(read('ui/js/config/state.js'), context);
+  const state = context.window.AuraConfigState;
+  if (rules) state.setRules(rules);
+  return state;
+}
+
+// A minimal element for a rendered .toggle, enough for toggleBool, syncToggleA11y and state.js.
+function fakeConfigToggle(markup) {
+  const attributes = Object.fromEntries([...markup.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1], match[2]]));
+  const classes = new Set(attributes.class.split(/\s+/));
+  return {
+    dataset: { path: attributes['data-path'] },
+    nextElementSibling: null,
+    classList: {
+      contains: name => classes.has(name),
+      toggle(name) { if (classes.has(name)) { classes.delete(name); return false; } classes.add(name); return true; }
+    },
+    getAttribute: name => (Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null),
+    setAttribute(name, value) { attributes[name] = String(value); },
+    removeAttribute(name) { delete attributes[name]; }
+  };
+}
+
+// Config section "EasyDrag flows": the provider picker uses the shared choice helpers (unknown ids kept,
+// hint and retry on a failed list), the limits are validated numbers, the link opens EasyDrag, and the
+// agent options (not enforced yet) cannot be switched.
+function testConfigFlowsSection() {
+  const providers = [
+    { id: 'main', name: 'Main', type: 'openai', model: 'gpt-x' },
+    { id: 'p<2>', name: 'Odd "name"', type: '', model: '' }
+  ];
+  const flows = { enabled: true, max_parallel_runs: 12, max_parallel_nodes_per_run: 3, run_retention_days: 60, max_runs_per_flow: 500, ai_provider: 'gone', agent: { read_only: true, allow_publish: false } };
+  const html = renderConfigFlowsSection({ flows, providers });
+  assert.match(html, /<select class="field-select" data-path="flows\.ai_provider" data-config-choice="providers"[^>]*><option value="gone" selected data-config-choice-preserved>gone \(missing\)<\/option><option value="">Main model<\/option><option value="main">Main \[openai\] — gpt-x<\/option><option value="p&lt;2&gt;">Odd &quot;name&quot;<\/option><\/select><\/div>/);
+  assert.match(renderConfigFlowsSection({ flows: { ...flows, ai_provider: 'main' }, providers }), /<option value="">Main model<\/option><option value="main" selected>/);
+  assert.match(renderConfigFlowsSection({ flows: { ...flows, ai_provider: '' }, providers }), /<option value="" selected>Main model<\/option><option value="main">/);
+  const shared = configFlowsContext({ flows, providers });
+  assert.match(shared.cfgChoiceOptionsHTML('providers', { provider_ref: true }, ''), /^<option value="" selected>— no provider —<\/option><option value="main">/, 'other provider fields keep their empty label');
+
+  const failed = configFlowsContext({ flows, providers: [], loaded: false });
+  failed.renderFlowsSection(configFlowsSectionMeta);
+  assert.match(failed.content.innerHTML, /<select class="field-select" data-path="flows\.ai_provider" data-config-choice="providers"[^>]*><option value="gone" selected data-config-choice-preserved>gone \(list unavailable\)<\/option><option value="">Main model<\/option><\/select><div class="field-help cfg-choice-unavailable" role="status" data-config-choice-hint="providers">[^<]+<button type="button" class="cfg-btn cfg-btn-sm" data-config-choice-retry="providers">[^<]+<\/button><\/div>/);
+  const select = { value: 'gone', innerHTML: '', dataset: { path: 'flows.ai_provider' } };
+  let hintsRemoved = 0;
+  failed.document.querySelectorAll = selector => (selector === 'select[data-config-choice="providers"]' ? [select]
+    : selector === '[data-config-choice-hint="providers"]' ? [{ remove() { hintsRemoved += 1; } }] : []);
+  failed.providersCache = providers;
+  failed.providersLoaded = true;
+  failed.refreshConfigChoiceSelects('providers');
+  assert.match(select.innerHTML, /^<option value="gone" selected data-config-choice-preserved>gone \(missing\)<\/option><option value="">Main model<\/option><option value="main">/, 'a retry rebuilds the select with the flows empty label');
+  assert.equal(select.value, 'gone');
+  assert.equal(hintsRemoved, 1);
+
+  const numberInputs = [...html.matchAll(/<input class="field-input" type="number" min="(\d+)" max="(\d+)" value="(\d+)" data-path="(flows\.[a-z_]+)"/g)];
+  assert.equal(JSON.stringify(numberInputs.map(match => [match[4], Number(match[1]), Number(match[2])])),
+    JSON.stringify([['flows.max_parallel_runs', 1, 32], ['flows.max_parallel_nodes_per_run', 1, 16], ['flows.run_retention_days', 1, 365], ['flows.max_runs_per_flow', 10, 5000]]));
+  const numberElements = values => numberInputs.map(([, , , value, dataPath]) => ({ type: 'number', step: '', value: values[dataPath] || value, dataset: { path: dataPath }, classList: { contains: () => false } }));
+  const flowRules = Object.fromEntries(Object.entries(shared.window.AuraConfigCatalog.validationRules).filter(([path]) => path.startsWith('flows.')));
+  let state = configStateForTest(flowRules);
+  state.init({ flows });
+  state.syncFromDOM({ querySelectorAll: () => numberElements({ 'flows.max_parallel_runs': '16', 'flows.run_retention_days': '90' }) });
+  assert.equal(JSON.stringify(state.buildPatch()), JSON.stringify({ flows: { max_parallel_runs: 16, run_retention_days: 90 } }), 'number inputs reach the patch as numbers');
+  assert.equal(state.validate().valid, true);
+  state.syncFromDOM({ querySelectorAll: () => numberElements({ 'flows.max_parallel_runs': '40', 'flows.max_parallel_nodes_per_run': '0', 'flows.max_runs_per_flow': '9' }) });
+  const validation = state.validate();
+  assert.equal(validation.valid, false, 'an edit beyond the range blocks the save');
+  assert.equal(JSON.stringify(Array.from(validation.errors, error => [error.path, error.code])),
+    JSON.stringify([['flows.max_parallel_runs', 'max'], ['flows.max_parallel_nodes_per_run', 'min'], ['flows.max_runs_per_flow', 'min']]));
+  for (const language of ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh']) {
+    const common = JSON.parse(read(`ui/lang/config/common/${language}.json`));
+    for (const code of ['min', 'max']) assert.ok(common[`config.precision.validation_${code}`], `${language} translates validation_${code}`);
+  }
+  state = configStateForTest(flowRules);
+  state.init({ flows: { ...flows, max_parallel_runs: 100, max_runs_per_flow: 5 } });
+  assert.equal(state.validate().valid, true, 'a saved value beyond the range (the server clamps it) does not block other saves');
+  state.syncFromDOM({ querySelectorAll: () => numberElements({ 'flows.max_parallel_runs': '100', 'flows.max_runs_per_flow': '5' }) });
+  assert.equal(state.validate().valid, true, 'an unchanged saved value stays out of the patch and the check');
+
+  assert.match(html, /<a class="btn-save dc-test-btn" href="\/desktop\?app=easydrag">Open EasyDrag<\/a>/);
+  assert.doesNotMatch(renderConfigFlowsSection({ flows: { ...flows, enabled: false }, providers }), /href="\/desktop/, 'no link while flows are off');
+  const missionsOff = renderConfigFlowsSection({ flows, providers, tools: { missions: { enabled: false } } });
+  assert.match(missionsOff, /cfg-note-banner-warning">Missions are switched off\./);
+  assert.doesNotMatch(missionsOff, /href="\/desktop/, 'no link while missions are off');
+
+  const toggle = dataPath => (html.match(new RegExp(`<div class="toggle[^"]*" data-path="${dataPath.replace(/\./g, '\\.')}"[^>]*>`)) || [''])[0];
+  assert.match(toggle('flows.enabled'), /onclick="toggleBool\(this\)"/);
+  for (const dataPath of ['flows.agent.read_only', 'flows.agent.allow_publish']) {
+    const markup = toggle(dataPath);
+    assert.match(markup, /cfg-toggle-disabled/, `${dataPath} looks disabled`);
+    assert.match(markup, /aria-disabled="true"/, `${dataPath} is announced as disabled`);
+    assert.match(markup, /aria-describedby="flows-agent-note"/);
+    assert.doesNotMatch(markup, /onclick/, `${dataPath} has no click handler`);
+    const context = configFlowsContext({ flows, providers });
+    const element = fakeConfigToggle(markup);
+    const wasOn = element.classList.contains('on');
+    context.toggleBool(element);
+    assert.equal(element.classList.contains('on'), wasOn, `toggleBool leaves ${dataPath} unchanged`);
+    assert.equal(context.dirtyMarks, 0, `toggleBool does not mark ${dataPath} dirty`);
+    state = configStateForTest();
+    state.init({ flows });
+    state.syncFromDOM({ querySelectorAll: () => [element] });
+    assert.equal(state.isDirty(), false, `${dataPath} leaves the draft clean`);
+  }
+  const control = configFlowsContext({ flows, providers });
+  const enabled = fakeConfigToggle(toggle('flows.enabled'));
+  control.toggleBool(enabled);
+  assert.equal(enabled.classList.contains('on'), false, 'the unlocked switch does change');
+  assert.equal(control.dirtyMarks, 1);
+  state = configStateForTest();
+  state.init({ flows });
+  state.syncFromDOM({ querySelectorAll: () => [enabled] });
+  assert.equal(JSON.stringify(state.dirtyPaths()), JSON.stringify(['flows.enabled']));
+  assert.match(toggle('flows.agent.read_only'), /class="toggle on cfg-toggle-disabled"/, 'the saved value stays visible');
+  assert.match(html, /id="flows-agent-note">The agent options take effect once the agent can work with flows\.</);
+}
+
 async function testQuickConnectSFTPMutationsBindDevice() {
   const source = read('ui/js/desktop/apps/quickconnect-launchpad-chat.js');
   const actions = sourceBetween(source, '        async function sftpUploadFiles(', '\n    function setQuickConnectMenus(');
@@ -3284,6 +3612,11 @@ const tests = [
   ['Containers badge is neutral with the reason as tooltip', testContainersProtectedBadgeIsNeutralWithTheReasonAsTooltip],
   ['Containers Stop asks only for self, endpoint and shared network', testContainersStopAsksOnlyForSelfEndpointAndSharedNetwork],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
+  ['Window menu shortcut hints are drawn but not dispatched', testWindowMenuShortcutHintIsDrawnButNotDispatched],
+  ['EasyDrag notifications keep only server-shaped flow and run ids', testEasyDragNotificationContextKeepsOnlyServerIds],
+  ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
+  ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
+  ['Config EasyDrag flows section keeps providers, numbers and locked agent options', testConfigFlowsSection],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting],
   ['Invasion nest form sends export_nest_secret', testInvasionNestFormSendsExportNestSecret],
   ['Invasion nest secret field hides only without effect', testInvasionNestSecretFieldHidesOnlyWithoutEffect]

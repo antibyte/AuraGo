@@ -285,6 +285,7 @@
   "config.providers.role_embeddings": "एम्बेडिंग",
   "config.providers.role_llm_guardian": "LLM गार्जियन",
   "config.providers.role_mission_preparation": "मिशन तैयारी",
+  "config.providers.role_flows": "EasyDrag फ़्लो",
   "config.providers.role_image_generation": "छवि निर्माण",
   "config.providers.role_music_generation": "संगीत निर्माण",
   "config.providers.role_video_generation": "वीडियो निर्माण",

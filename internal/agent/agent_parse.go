@@ -1151,7 +1151,15 @@ func ParseToolCall(content string) ToolCall {
 				promoteString(&tc.Operation, "operation", "op")
 				promoteString(&tc.DeviceID, "device_id", "deviceId", "deviceID")
 				promoteString(&tc.DeviceName, "device_name", "deviceName")
-				promoteString(&tc.FilePath, "file_path", "path", "filepath", "filename", "file")
+				// As promoteString, but it remembers the name it promoted from (FilePathParam).
+				if tc.FilePath == "" {
+					for _, k := range []string{"file_path", "path", "filepath", "filename", "file"} {
+						if v, ok := tc.Params[k].(string); ok && v != "" {
+							tc.FilePath, tc.FilePathParam = v, k
+							break
+						}
+					}
+				}
 				if tc.FilePath != "" && tc.Path == "" {
 					tc.Path = tc.FilePath
 				}
@@ -1506,6 +1514,10 @@ func parseXMLParams(tc *ToolCall, body string) {
 		case "file_path", "path":
 			tc.FilePath = strings.Trim(paramVal, "\"'")
 			tc.Path = tc.FilePath
+			// Both names land in the same fields; remember which one the model used
+			// (send_telegram reads only file_path). Never in Params: execute_skill
+			// synthesizes its arguments from the fields only while Params is empty.
+			tc.FilePathParam = paramName
 		case "destination", "dest":
 			tc.Destination = strings.Trim(paramVal, "\"'")
 			tc.Dest = tc.Destination
@@ -2113,7 +2125,97 @@ func toolCallParams(tc ToolCall) map[string]string {
 	if tc.Name != "" {
 		m["name"] = tc.Name
 	}
+	switch tc.Action {
+	case "send_email":
+		addGuardianEmailParams(m, tc)
+	case "send_telegram":
+		addGuardianTelegramParams(m, tc)
+	}
 	return m
+}
+
+// Bounds, in bytes, of the send_email and send_telegram parameters the LLM Guardian sees.
+// The values are also part of its cache key, so calls that differ in one of them are judged
+// and cached apart; each cut keeps the head and the tail (truncateUTF8HeadTail).
+const (
+	guardianRecipientBytes = 600
+	guardianSubjectBytes   = 200
+	guardianBodyBytes      = 300
+	// guardianAttachmentBytes bounds each attachment path and guardianAttachmentsBytes the whole
+	// list. send_email takes at most guardianMaxAttachments files; every one of them is listed,
+	// so a path cannot hide behind innocuous ones, and every one keeps its head and its tail.
+	guardianAttachmentBytes  = 56
+	guardianAttachmentsBytes = 600
+	guardianMaxAttachments   = 10
+)
+
+// addGuardianEmailParams adds what decides where a send_email goes and what it carries:
+// the recipients, the subject, the head and tail of the body, and the attachment paths. Without
+// them every send_email would have the same (empty) parameters and cache key, and a verdict for
+// a mail to a friend would be reused for a mail with a secret file to another address. The
+// values are read the way the dispatch reads them.
+func addGuardianEmailParams(m map[string]string, tc ToolCall) {
+	req := decodeEmailSendArgs(tc)
+	if req.To != "" {
+		m["to"] = truncateUTF8HeadTail(req.To, guardianRecipientBytes)
+		if n := guardianRecipientCount(req.To); n > 0 {
+			m["recipient_count"] = strconv.Itoa(n)
+		}
+	}
+	if req.Subject != "" {
+		m["subject"] = truncateUTF8HeadTail(req.Subject, guardianSubjectBytes)
+	}
+	if req.Body != "" {
+		m["body"] = truncateUTF8HeadTail(req.Body, guardianBodyBytes)
+	}
+	if n := len(req.Attachments); n > 0 {
+		m["attachment_count"] = strconv.Itoa(n)
+		m["attachments"] = guardianAttachmentList(tc, req.Attachments)
+	}
+}
+
+// guardianRecipientCount is the number of non-empty comma-separated entries of a recipient list.
+func guardianRecipientCount(to string) int {
+	n := 0
+	for _, rcpt := range strings.Split(to, ",") {
+		if strings.TrimSpace(rcpt) != "" {
+			n++
+		}
+	}
+	return n
+}
+
+// addGuardianTelegramParams adds the text, the title and the file of a send_telegram. The file
+// is also read from the parameters, which toolCallParams' typed fields do not cover.
+func addGuardianTelegramParams(m map[string]string, tc ToolCall) {
+	req := decodeSendTelegramArgs(tc)
+	if req.Title != "" {
+		m["title"] = truncateUTF8HeadTail(req.Title, guardianSubjectBytes)
+	}
+	if req.Message != "" {
+		m["message"] = truncateUTF8HeadTail(req.Message, guardianBodyBytes)
+	}
+	// Only the file the call sends: the generic file_path above also takes tc.Path (a
+	// stray path argument), which send_telegram ignores.
+	delete(m, "file_path")
+	delete(m, "path_scope")
+	if req.FilePath != "" {
+		m["file_path"] = truncateUTF8HeadTail(guardianDisplayPath(tc, req.FilePath), guardianRecipientBytes)
+		if scope := guardianPathScope(tc, req.FilePath); scope != "" {
+			m["path_scope"] = scope
+		}
+	}
+}
+
+// guardianAttachmentList renders attachment paths for the Guardian: every path up to
+// guardianMaxAttachments, each cut to guardianAttachmentBytes, joined and bounded as a whole.
+func guardianAttachmentList(tc ToolCall, paths []string) string {
+	paths = paths[:min(len(paths), guardianMaxAttachments)]
+	parts := make([]string, len(paths))
+	for i, p := range paths {
+		parts[i] = truncateUTF8HeadTail(guardianDisplayPath(tc, p), guardianAttachmentBytes)
+	}
+	return truncateUTF8HeadTail(strings.Join(parts, ", "), guardianAttachmentsBytes)
 }
 
 func guardianItemsSummary(tc ToolCall) string {

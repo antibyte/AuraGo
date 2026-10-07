@@ -2,13 +2,23 @@
     state.notificationUnread = state.notificationUnread || 0;
     let windowSwitcherHold = null;
 
+    // notificationContext keeps the launch context an app receives when its notification is clicked.
+    function notificationContext(payload) {
+        const c = payload.context || {};
+        if (payload.appId === 'meshcore' && /^[a-f0-9]{64}$/.test(c.conversation_id || '')) return { conversation_id: c.conversation_id };
+        if (payload.appId === 'easydrag' && /^flow_[a-z0-9]{10}$/.test(c.flow_id || '')) {
+            return /^run_[a-z0-9]{12}$/.test(c.run_id || '') ? { flow_id: c.flow_id, run_id: c.run_id } : { flow_id: c.flow_id };
+        }
+        return undefined;
+    }
+
     function pushNotificationRecord(payload) {
         const entry = {
             id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
             title: String(payload.title || t('desktop.notification')),
             message: String(payload.message || ''),
             appId: payload.appId || '',
-            context: payload.appId === 'meshcore' && /^[a-f0-9]{64}$/.test(payload.context?.conversation_id || '') ? { conversation_id: payload.context.conversation_id } : undefined,
+            context: notificationContext(payload),
             ts: Date.now(),
             read: false
         };

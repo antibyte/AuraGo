@@ -1,6 +1,6 @@
 # Game Maker: AuraGo Low Poly
 
-The Assets dialog now combines the eighteen original sprite packs with 220
+The Assets dialog now combines the twenty-two original sprite packs with 220
 original low-poly 3D models. Choose the 3D category, search and select individual
 models for the next game request. The inspector supports orbit/zoom, real animation
 clips, pause and detail levels. Closing it releases the renderer and model data.

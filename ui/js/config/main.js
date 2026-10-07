@@ -96,6 +96,7 @@ const SECTIONS = [
             { key: 'game_maker', icon: '🎮', label: t('config.section.game_maker.label'), desc: t('config.section.game_maker.desc') },
             { key: 'detective', icon: '🔎', label: t('config.section.detective.label'), desc: t('config.section.detective.desc') },
             { key: 'newspaper', icon: '▤', label: t('config.section.newspaper.label'), desc: t('config.section.newspaper.desc') },
+            { key: 'flows', icon: '⧉', label: t('config.section.flows.label'), desc: t('config.section.flows.desc') },
             { key: 'virtual_computers', icon: 'VC', label: t('config.section.virtual_computers.label'), desc: t('config.section.virtual_computers.desc') },
             { key: 'sandbox', icon: '📦', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
             { key: 'info_tools', icon: '🔍', label: t('config.section.info_tools.label'), desc: t('config.section.info_tools.desc') },
@@ -603,6 +604,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     game_maker: 108,
     detective: 115,
     newspaper: 116,
+    flows: 119,
     virtual_computers: 35,
     sandbox: 36,
     info_tools: 37,
@@ -689,7 +691,9 @@ const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     treg: '<rect x="27" y="25" width="74" height="78" rx="10" fill="none" stroke="#35c7d3" stroke-width="6"/><path d="M43 46h42M43 64h42M43 82h26" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/>',
     llm_router: '<path d="M32 64h25V34h32M57 64h32M57 64v30h32" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18" y="51" width="26" height="26" rx="6" fill="#7da3c8"/><circle cx="94" cy="34" r="11" fill="#6fca8f"/><circle cx="94" cy="64" r="11" fill="#35c7d3"/><circle cx="94" cy="94" r="11" fill="#4f8ee8"/>',
+    flows: '<rect x="16" y="26" width="34" height="24" rx="6" fill="#7da3c8"/><rect x="16" y="78" width="34" height="24" rx="6" fill="#6fca8f"/><rect x="78" y="52" width="34" height="24" rx="6" fill="#35c7d3"/><path d="M50 38c18 0 12 26 28 26M50 90c18 0 12-26 28-26" fill="none" stroke="#4f8ee8" stroke-width="6" stroke-linecap="round"/>',
     detective: "<circle cx=\"54\" cy=\"52\" r=\"27\" fill=\"#35c7d3\" opacity=\".15\"/><circle cx=\"54\" cy=\"52\" r=\"27\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"7\"/><path d=\"M74 73 103 102\" stroke=\"#7da3c8\" stroke-width=\"10\" stroke-linecap=\"round\"/>",
+    newspaper: '<rect x="24" y="26" width="80" height="76" rx="5" fill="#35c7d3" opacity=".16"/><path d="M32 38h64M32 52h64M32 66h29M32 78h29M70 66h26v24H70zM32 90h29" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>',
     meshcore: "<path d=\"M34 90 64 32 94 90Z\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\" stroke-linejoin=\"round\"/><circle cx=\"64\" cy=\"32\" r=\"12\" fill=\"#6fca8f\"/><circle cx=\"34\" cy=\"90\" r=\"12\" fill=\"#35c7d3\"/><circle cx=\"94\" cy=\"90\" r=\"12\" fill=\"#4f8ee8\"/>",
     overview: "<g fill=\"#7da3c8\"><rect x=\"28\" y=\"28\" width=\"28\" height=\"28\" rx=\"7\"/><rect x=\"72\" y=\"28\" width=\"28\" height=\"28\" rx=\"7\" opacity=\".72\"/><rect x=\"28\" y=\"72\" width=\"28\" height=\"28\" rx=\"7\" opacity=\".72\"/><rect x=\"72\" y=\"72\" width=\"28\" height=\"28\" rx=\"7\"/></g><path d=\"M43 43h42M43 85h42\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/>",
     agent: "<circle cx=\"64\" cy=\"64\" r=\"23\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#7da3c8\"/><path d=\"M64 23v13M64 92v13M23 64h13M92 64h13M35 35l9 9M84 84l9 9M93 35l-9 9M44 84l-9 9\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><circle cx=\"64\" cy=\"64\" r=\"8\" fill=\"#35c7d3\"/><text x=\"64\" y=\"64\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"18\" font-weight=\"800\" fill=\"#7da3c8\">A</text>",
@@ -2298,7 +2302,7 @@ function cfgChoiceLoaded(source) {
     return source === 'personalities' ? personalitiesLoaded : providersLoaded;
 }
 
-/** Fixed and loaded options of a dynamic dropdown, in display order. */
+/** Fixed and loaded options of a dynamic dropdown, in display order. help.empty_label_key names the empty provider option. */
 function cfgChoiceOptions(source, help) {
     const options = [];
     if (source === 'personalities') {
@@ -2306,7 +2310,7 @@ function cfgChoiceOptions(source, help) {
         personalitiesCache.forEach(p => options.push({ value: String(p.name), label: String(p.name) }));
         return options;
     }
-    if (!help.allow_disabled) options.push({ value: '', label: t('config.field.no_provider') });
+    if (!help.allow_disabled) options.push({ value: '', label: help.empty_label_key ? t(help.empty_label_key) : t('config.field.no_provider') });
     if (Array.isArray(help.builtin_options)) {
         help.builtin_options.forEach(option => options.push({
             value: String(option),
@@ -3283,6 +3287,7 @@ const SECTION_MODULES = {
     game_maker: { m: 'game_maker', fn: 'renderGameMakerSection' },
     detective: { m: 'detective', fn: 'renderDetectiveSection' },
     newspaper: { m: 'newspaper', fn: 'renderNewspaperSection' },
+    flows: { m: 'flows', fn: 'renderFlowsSection' },
     virtual_computers: { m: 'virtual_computers', fn: 'renderVirtualComputersSection' },
     media_conversion: { m: 'media_conversion', fn: 'renderMediaConversionSection' },
     video_download: { m: 'video_download', fn: 'renderVideoDownloadSection' },

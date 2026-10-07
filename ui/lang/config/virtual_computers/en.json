@@ -97,10 +97,8 @@
   "config.virtual_computers.storage_test_button": "Test storage",
   "config.virtual_computers.storage_test_ok": "The S3 bucket is reachable.",
   "config.virtual_computers.storage_test_failed": "Storage test failed:",
-  "config.virtual_computers.storage_test_dirty_lock":
-    "Save the configuration before testing storage. Connection tests use the saved runtime configuration only.",
-  "config.virtual_computers.storage_switch_hint":
-    "Changing storage mode or control-plane host is a storage switch. If volumes exist, save may require authorizing switch-without-migration first (source objects are never deleted).",
+  "config.virtual_computers.storage_test_dirty_lock": "Save the configuration before testing storage. Connection tests use the saved runtime configuration only.",
+  "config.virtual_computers.storage_switch_hint": "Changing storage mode or control-plane host is a storage switch. If volumes exist, save may require authorizing switch-without-migration first (source objects are never deleted).",
   "help.virtual_computers.storage_mode": "Managed Garage installs a hardened Docker sidecar with boringd. External S3 uses your own endpoint and Vault credentials.",
   "help.virtual_computers.storage_managed_endpoint": "Derived loopback endpoint on the control-plane host. Not editable.",
   "help.virtual_computers.storage_managed_path": "Derived from the install directory as data/sidecars/garage. Not editable.",
@@ -149,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan allows public internet plus only the explicitly listed private CIDRs.",
   "help.virtual_computers.agent_control_cidrs": "One IPv4 RFC1918 CIDR per line. Host, AuraGo, bridge, metadata and guest addresses remain blocked.",
   "help.virtual_computers.agent_control_credentials": "Credentials still require a separate authenticated user approval for each short-lived grant.",
-  "help.virtual_computers.agent_control_grant_ttl": "Maximum grant lifetime; grants also end with their job or workspace."
+  "help.virtual_computers.agent_control_grant_ttl": "Maximum grant lifetime; grants also end with their job or workspace.",
+  "config.virtual_desktop.serial_browser_label": "Serial ports on this computer",
+  "help.virtual_desktop.serial_browser_enabled": "Allow Quick Connect to use serial devices attached to the browser computer. Requires a supported browser, HTTPS or localhost, and an explicit device selection. Disabled in read-only mode.",
+  "config.virtual_desktop.serial_host_label": "Serial ports on the AuraGo server",
+  "help.virtual_desktop.serial_host_enabled": "Allow administrators to open serial devices attached to the AuraGo server in Quick Connect. Container installations require device passthrough and operating-system permissions. Disabled in read-only mode."
 }

@@ -62,6 +62,14 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 	if !desktopCfg.Enabled {
 		return nil, nil, fmt.Errorf("virtual desktop is disabled")
 	}
+	// Compare against the same canonical paths/defaults stored by NewService.
+	// Without this step, omitted DB paths or relative roots differ on every
+	// request and cause the live service to be closed during polling.
+	normalizedDesktopCfg, err := desktop.NormalizeConfig(desktopCfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("normalize virtual desktop config: %w", err)
+	}
+	desktopCfg = normalizedDesktopCfg
 
 	s.DesktopMu.Lock()
 	defer s.DesktopMu.Unlock()
@@ -145,6 +153,11 @@ func (s *Server) enrichDesktopBootstrap(payload *desktop.BootstrapPayload) {
 		return
 	}
 	payload.Providers = s.desktopProviderOptions()
+	policy := s.desktopSerialPolicy(nil)
+	payload.SerialBrowserEnabled = policy.SerialBrowserEnabled
+	payload.SerialHostEnabled = policy.SerialHostEnabled
+	payload.RemoteMaxSessionMinutes = policy.RemoteMaxSessionMinutes
+	payload.RemoteIdleTimeoutMinutes = policy.RemoteIdleTimeoutMinutes
 }
 
 func (s *Server) desktopProviderOptions() []desktop.ProviderOption {
@@ -196,9 +209,7 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 		}
 		defer cancel()
 		conn.SetReadLimit(64 << 10)
-		s.CfgMu.RLock()
-		lastReadonly, lastEnabled := s.Cfg.VirtualDesktop.ReadOnly, s.Cfg.VirtualDesktop.Enabled
-		s.CfgMu.RUnlock()
+		lastPolicy := s.desktopSerialPolicy(r)
 		if bootstrap, err := svc.Bootstrap(r.Context()); err == nil {
 			s.enrichDesktopBootstrap(&bootstrap)
 			bootstrap = filterDesktopBootstrap(s, r, bootstrap)
@@ -232,13 +243,10 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 				if !desktopWSAuthorizationValid(s, r, desktopScopeRead) {
 					return
 				}
-				s.CfgMu.RLock()
-				readonly, enabled := s.Cfg.VirtualDesktop.ReadOnly, s.Cfg.VirtualDesktop.Enabled
-				s.CfgMu.RUnlock()
-				if readonly != lastReadonly || enabled != lastEnabled {
-					lastReadonly, lastEnabled = readonly, enabled
-					payload := filterDesktopBootstrap(s, r, desktop.BootstrapPayload{ReadOnly: readonly, Enabled: enabled})
-					if err := conn.WriteJSON(desktop.Event{Type: "desktop_policy", Payload: map[string]interface{}{"readonly": payload.ReadOnly, "enabled": enabled}, CreatedAt: time.Now().UTC()}); err != nil {
+				policy := s.desktopSerialPolicy(r)
+				if policy != lastPolicy {
+					lastPolicy = policy
+					if err := conn.WriteJSON(desktop.Event{Type: "desktop_policy", Payload: policy, CreatedAt: time.Now().UTC()}); err != nil {
 						return
 					}
 				}

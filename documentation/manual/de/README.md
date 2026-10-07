@@ -104,6 +104,7 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 
 ### Teil 3 — Autopilot
 11. [Mission Control](11-missions.md) — Geplante Arbeit
+    - [EasyDrag](24-easydrag.md) (Kapitel 24) — Automationen per Drag & Drop
 12. [Invasion Control](12-invasion.md) — Eggs und Nests
 13. [Dashboard](13-dashboard.md) — Zahlen, Issues, Affect, 3D-Graph
 
@@ -154,4 +155,4 @@ Die UI spricht **16 Sprachen**. Pick your company in **Config → Personality**.
 
 [![Flaggen der 16 UI-Sprachen](../../../assets/readme/language-flags.webp)](../../../assets/readme/language-flags.webp)
 
-*Stand: 3. Oktober 2026. Die englische Fassung ist [hier](../en/README.md).*
+*Stand: 7. Oktober 2026. Die englische Fassung ist [hier](../en/README.md).*

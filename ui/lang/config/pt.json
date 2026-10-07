@@ -606,5 +606,5 @@
   "config.section.detective.label": "Detetive",
   "config.section.detective.desc": "Pesquisas com fontes verificáveis",
   "config.section.newspaper.label": "Jornal",
-  "config.section.newspaper.desc": "Uma edição diária pessoal e de origem"
+  "config.section.newspaper.desc": "Uma edição diária pessoal, com fontes"
 }

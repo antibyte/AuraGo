@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan staat het openbare internet toe plus alleen de expliciet vermelde privé-CIDR's.",
   "help.virtual_computers.agent_control_cidrs": "Één IPv4 RFC1918-CIDR per regel. Host-, AuraGo-, bridge-, metadata- en gastadressen blijven geblokkeerd.",
   "help.virtual_computers.agent_control_credentials": "Inloggegevens vereisen nog steeds een afzonderlijke goedkeuring van een geauthenticeerde gebruiker voor elke kortstondige verlening.",
-  "help.virtual_computers.agent_control_grant_ttl": "Maximale levensduur van een verlening; verleningen eindigen ook met hun job of werkruimte."
+  "help.virtual_computers.agent_control_grant_ttl": "Maximale levensduur van een verlening; verleningen eindigen ook met hun job of werkruimte.",
+  "config.virtual_desktop.serial_browser_label": "Seriële poorten op deze computer",
+  "help.virtual_desktop.serial_browser_enabled": "Sta Quick Connect toe om seriële apparaten te gebruiken die op de computer van de browser zijn aangesloten. Een ondersteunde browser, HTTPS of localhost en een expliciete apparaatkeuze zijn vereist. Uitgeschakeld in de alleen-lezenmodus.",
+  "config.virtual_desktop.serial_host_label": "Seriële poorten op de AuraGo-server",
+  "help.virtual_desktop.serial_host_enabled": "Sta beheerders toe om in Quick Connect seriële apparaten te openen die op de AuraGo-server zijn aangesloten. Containerinstallaties vereisen apparaattoegang en machtigingen van het besturingssysteem. Uitgeschakeld in de alleen-lezenmodus."
 }

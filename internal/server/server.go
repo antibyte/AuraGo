@@ -35,6 +35,7 @@ import (
 	"aurago/internal/detective"
 	"aurago/internal/discord"
 	"aurago/internal/dockerutil"
+	"aurago/internal/flows"
 	"aurago/internal/fritzbox"
 	"aurago/internal/gamemaker"
 	"aurago/internal/heartbeat"
@@ -173,108 +174,120 @@ type Server struct {
 	setupBootstrapValue string
 	// Exact Telnyx webhook path mounted at startup. Its handler verifies Ed25519
 	// signatures itself, so only this registered path skips session auth.
-	telnyxWebhookPath       atomic.Pointer[string]
-	SetupLocalLLMJobsMu     sync.Mutex
-	SetupLocalLLMJobs       map[string]*setupLocalLLMJob
-	Logger                  *slog.Logger
-	AccessLogger            *slog.Logger
-	LLMClient               llm.ChatClient
-	ShortTermMem            *memory.SQLiteMemory
-	LongTermMem             memory.VectorDB
-	Vault                   *security.Vault
-	VaultSecretPrompter     *vaultprompt.Manager
-	vaultSecretPromptMu     sync.Mutex
-	Registry                *tools.ProcessRegistry
-	CronManager             *tools.CronManager
-	BackgroundTasks         *tools.BackgroundTaskManager
-	Go2RTC                  *tools.Go2RTCManager
-	LocalLLM                *localllm.Manager
-	LocalMusic              *acestep.Manager
-	localLLMLifecycleCtx    context.Context
-	Go2RTCDiscovery         *onvif.Service
-	MeshCore                *meshcore.Manager
-	Bluetooth               *bluetooth.Manager
-	NetworkShares           *networkshares.Manager
-	SIPPhone                *sipphone.Manager
-	SpeechLab               *speechlab.Client
-	SpeechLabDeployer       *deployer.Manager
-	speechLabTurnTokens     *speechLabTurnTokenRegistry
-	speechLabTurnTokensMu   sync.Mutex
-	SIPBrowserMedia         *sipphone.BrowserMediaService
-	VoiceActionRunner       *VoiceActionRunner
-	HistoryManager          *memory.HistoryManager
-	KG                      *memory.KnowledgeGraph
-	InventoryDB             *sql.DB
-	InvasionDB              *sql.DB
-	Guardian                *security.Guardian
-	LLMGuardian             *security.LLMGuardian
-	CoAgentRegistry         *agent.CoAgentRegistry
-	BudgetTracker           *budget.Tracker
-	TokenManager            *security.TokenManager
-	tokenManagerMu          sync.RWMutex // guards TokenManager replacement (backup import)
-	CydHub                  *cyd.Hub
-	WebhookManager          *webhooks.Manager
-	WebhookHandler          *webhooks.Handler
-	SSE                     *SSEBroadcaster // shared SSE broadcaster, set by run()
-	systemWorldOnce         sync.Once
-	systemWorld             *systemWorldRuntime
-	MissionManagerV2        *tools.MissionManagerV2
-	EmailWatcher            *tools.EmailWatcher
-	mcpSessions             mcpSessionSigner
-	missionRuns             *missionRunRegistry // cancellable contexts of in-flight local mission runs
-	missionRunsOnce         sync.Once
-	EggHub                  *bridge.EggHub
-	RemoteHub               *remote.RemoteHub
-	agodeskDesktopMu        sync.Mutex
-	agodeskDesktop          *agodeskDesktopBroker
-	agodeskDevToken         string // loopback-only AgoDesk development opt-in; never exposed to clients
-	ProxyManager            *proxy.Manager
-	TsNetManager            *tsnetnode.Manager
-	tsNetHandler            http.Handler // stored so the UI can restart tsnet without a full server restart
-	FileIndexer             *services.FileIndexer
-	WorkspaceSearch         *services.WorkspaceSearchService
-	MaintenanceScheduler    *agent.MaintenanceController
-	MQTTController          *mqtt.MQTTController
-	HeartbeatScheduler      *heartbeat.Scheduler
-	AgentMailService        *agentmail.Service
-	AgentMailMu             sync.Mutex
-	CheatsheetDB            *sql.DB
-	ImageGalleryDB          *sql.DB
-	MediaRegistryDB         *sql.DB
-	HomepageRegistryDB      *sql.DB
-	ContactsDB              *sql.DB
-	PlannerDB               *sql.DB
-	LaunchpadDB             *sql.DB
-	SQLConnectionsDB        *sql.DB
-	SQLConnectionPool       *sqlconnections.ConnectionPool
-	A2AServer               *a2apkg.Server        // A2A protocol server (nil if disabled)
-	A2AClientMgr            *a2apkg.ClientManager // A2A client manager (nil if disabled)
-	A2ABridge               *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
-	SkillManager            *tools.SkillManager   // Skill Manager for registry and security scanning
-	AgentSkillManager       *tools.AgentSkillManager
-	SkillsDB                *sql.DB // Skills registry database
-	PreparedMissionsDB      *sql.DB // Prepared missions SQLite database
-	MissionHistoryDB        *sql.DB // Mission execution history SQLite database
-	PreparationService      *services.MissionPreparationService
-	WarningsRegistry        *warnings.Registry // Runtime warnings and health issues
-	DaemonSupervisor        *tools.DaemonSupervisor
-	DesktopService          *desktop.Service
-	desktopPolicyService    atomic.Pointer[desktop.Service]
-	DesktopStore            *desktopstore.Service
-	DesktopHub              *desktop.Hub
-	VirtualComputersDB      *virtualcomputers.Ledger
-	VirtualWorkspaceManager *virtualcomputers.WorkspaceManager
-	GameMaker               *gamemaker.Service
-	Detective               *detective.Service
-	Newspaper               *newspaper.Service
-	newspaperSkillReady     bool
-	PersonalRadio           *personalradio.Service
-	RTLSDR                  *rtlsdr.Service
-	RTLSDRRuntime           *rtlsdr.Manager
-	gameMakerSkills         []gamemaker.SkillInfo
-	gameMakerSkillsReady    bool
-	DesktopMu               sync.Mutex
-	desktopRuns             desktopRunRegistry
+	telnyxWebhookPath         atomic.Pointer[string]
+	SetupLocalLLMJobsMu       sync.Mutex
+	SetupLocalLLMJobs         map[string]*setupLocalLLMJob
+	Logger                    *slog.Logger
+	AccessLogger              *slog.Logger
+	LLMClient                 llm.ChatClient
+	ShortTermMem              *memory.SQLiteMemory
+	LongTermMem               memory.VectorDB
+	Vault                     *security.Vault
+	VaultSecretPrompter       *vaultprompt.Manager
+	vaultSecretPromptMu       sync.Mutex
+	Registry                  *tools.ProcessRegistry
+	CronManager               *tools.CronManager
+	BackgroundTasks           *tools.BackgroundTaskManager
+	Go2RTC                    *tools.Go2RTCManager
+	LocalLLM                  *localllm.Manager
+	LocalMusic                *acestep.Manager
+	localLLMLifecycleCtx      context.Context
+	Go2RTCDiscovery           *onvif.Service
+	MeshCore                  *meshcore.Manager
+	Bluetooth                 *bluetooth.Manager
+	NetworkShares             *networkshares.Manager
+	SIPPhone                  *sipphone.Manager
+	SpeechLab                 *speechlab.Client
+	SpeechLabDeployer         *deployer.Manager
+	speechLabTurnTokens       *speechLabTurnTokenRegistry
+	speechLabTurnTokensMu     sync.Mutex
+	SIPBrowserMedia           *sipphone.BrowserMediaService
+	VoiceActionRunner         *VoiceActionRunner
+	HistoryManager            *memory.HistoryManager
+	KG                        *memory.KnowledgeGraph
+	InventoryDB               *sql.DB
+	InvasionDB                *sql.DB
+	Guardian                  *security.Guardian
+	LLMGuardian               *security.LLMGuardian
+	CoAgentRegistry           *agent.CoAgentRegistry
+	BudgetTracker             *budget.Tracker
+	TokenManager              *security.TokenManager
+	tokenManagerMu            sync.RWMutex // guards TokenManager replacement (backup import)
+	CydHub                    *cyd.Hub
+	WebhookManager            *webhooks.Manager
+	WebhookHandler            *webhooks.Handler
+	SSE                       *SSEBroadcaster // shared SSE broadcaster, set by run()
+	systemWorldOnce           sync.Once
+	systemWorld               *systemWorldRuntime
+	MissionManagerV2          *tools.MissionManagerV2
+	EmailWatcher              *tools.EmailWatcher
+	mcpSessions               mcpSessionSigner
+	missionRuns               *missionRunRegistry // cancellable contexts of in-flight local mission runs
+	missionRunsOnce           sync.Once
+	EggHub                    *bridge.EggHub
+	RemoteHub                 *remote.RemoteHub
+	agodeskDesktopMu          sync.Mutex
+	agodeskDesktop            *agodeskDesktopBroker
+	agodeskDevToken           string // loopback-only AgoDesk development opt-in; never exposed to clients
+	ProxyManager              *proxy.Manager
+	TsNetManager              *tsnetnode.Manager
+	tsNetHandler              http.Handler // stored so the UI can restart tsnet without a full server restart
+	FileIndexer               *services.FileIndexer
+	WorkspaceSearch           *services.WorkspaceSearchService
+	MaintenanceScheduler      *agent.MaintenanceController
+	MQTTController            *mqtt.MQTTController
+	HeartbeatScheduler        *heartbeat.Scheduler
+	AgentMailService          *agentmail.Service
+	AgentMailMu               sync.Mutex
+	CheatsheetDB              *sql.DB
+	ImageGalleryDB            *sql.DB
+	MediaRegistryDB           *sql.DB
+	HomepageRegistryDB        *sql.DB
+	ContactsDB                *sql.DB
+	PlannerDB                 *sql.DB
+	LaunchpadDB               *sql.DB
+	SQLConnectionsDB          *sql.DB
+	SQLConnectionPool         *sqlconnections.ConnectionPool
+	A2AServer                 *a2apkg.Server        // A2A protocol server (nil if disabled)
+	A2AClientMgr              *a2apkg.ClientManager // A2A client manager (nil if disabled)
+	A2ABridge                 *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
+	SkillManager              *tools.SkillManager   // Skill Manager for registry and security scanning
+	AgentSkillManager         *tools.AgentSkillManager
+	SkillsDB                  *sql.DB // Skills registry database
+	PreparedMissionsDB        *sql.DB // Prepared missions SQLite database
+	MissionHistoryDB          *sql.DB // Mission execution history SQLite database
+	PreparationService        *services.MissionPreparationService
+	WarningsRegistry          *warnings.Registry // Runtime warnings and health issues
+	DaemonSupervisor          *tools.DaemonSupervisor
+	DesktopService            *desktop.Service
+	desktopPolicyService      atomic.Pointer[desktop.Service]
+	DesktopStore              *desktopstore.Service
+	DesktopHub                *desktop.Hub
+	VirtualComputersDB        *virtualcomputers.Ledger
+	VirtualWorkspaceManager   *virtualcomputers.WorkspaceManager
+	GameMaker                 *gamemaker.Service
+	Detective                 *detective.Service
+	Newspaper                 *newspaper.Service
+	Flows                     *flows.Service
+	flowsCatalog              *flowCatalogEnv
+	flowNotify                flowFailureNotifier // flood rule and send slots of flow failure notifications
+	flowSecretRate            flowRateLimiter     // per-IP limit of flow secret writes and deletes
+	flowStreams               flowStreamLimiter   // open flow run event streams, per run and in total
+	flowStreamBeat            time.Duration       // heartbeat of flow run streams; 0 means flowStreamHeartbeat (tests shorten it)
+	flowNodeTypesCache        flowNodeTypesCache  // encoded GET /api/desktop/flows/node-types answers, per language
+	flowHACache               flowHACache         // Home Assistant entity options of the flow editor, reused for 30 s
+	newspaperSkillReady       bool
+	PersonalRadio             *personalradio.Service
+	RTLSDR                    *rtlsdr.Service
+	RTLSDRRuntime             *rtlsdr.Manager
+	gameMakerSkills           []gamemaker.SkillInfo
+	gameMakerSkillsReady      bool
+	DesktopMu                 sync.Mutex
+	desktopRuns               desktopRunRegistry
+	videoStudioMu             sync.Mutex
+	videoStudio               *videoStudioManager
+	videoStudioClosed         bool
+	videoStudioConfigRevoking atomic.Bool
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
@@ -418,6 +431,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		return
 	}
 	previous := s.ConfigSnapshot()
+	if previous != nil && videoStudioConfigRootsChanged(previous, cfg) {
+		// Cancel before publishing the new roots. A worker may finish an FFmpeg
+		// run after a workspace change, but it must not publish into the new tree.
+		s.beginVideoStudioConfigChange()
+	}
 	if cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.Enabled {
 		s.revokeDesktopRuns()
 	}
@@ -444,6 +462,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	RegisterLLMSecrets(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	s.finishVideoStudioConfigChange()
 	if hub := s.RemoteHub; hub != nil && previous != nil &&
 		!slices.Equal(previous.RemoteControl.AllowedPaths, cfg.RemoteControl.AllowedPaths) {
 		// The hub already evaluates the new default for shell checks; agents
@@ -1210,6 +1229,8 @@ func Start(opts StartOptions) error {
 	// Use reinitBudgetTracker so the callback is always registered after a reload too.
 	s.reinitBudgetTracker(cfg)
 
+	// EasyDrag flows hook into Mission Control before it starts (flow triggers, startup trigger).
+	s.initFlows()
 	if err := s.MissionManagerV2.StartContext(serverCtx); err != nil {
 		logger.Warn("Failed to start MissionManagerV2", "error", err)
 	} else if shouldSeedWelcomeContent(s.IsFirstStart) {
@@ -1217,6 +1238,7 @@ func Start(opts StartOptions) error {
 		// Deleted examples must stay deleted on later restarts.
 		tools.SeedWelcomeMissions(s.MissionManagerV2, installDir, logger)
 	}
+	s.startFlows(serverCtx)
 
 	if cheatsheetDB != nil && shouldSeedWelcomeContent(s.IsFirstStart) {
 		// Seed bundled example cheat sheets only during first-start setup.
@@ -1804,6 +1826,10 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		}
 		s.httpRequests.Wait()
 
+		// Flow runs use tools, MQTT, mail, MCP, the sandbox, the mission history and the
+		// planner. Cancel and join them before any of those stop (see shutdownFlows).
+		s.shutdownFlows(ctx)
+
 		// Relay runs can own network, database and tool activity. Cancel and
 		// join them before shutting down any of their dependencies.
 		if s.MQTTController != nil {
@@ -1891,6 +1917,12 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 
 		// Always set these headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		// Hardware access belongs to the trusted Desktop document, never an
+		// embedded app, workspace document or preview served from this origin.
+		w.Header().Set("Permissions-Policy", "serial=()")
+		if path == "/desktop" || path == "/desktop/" || path == "/desktop.html" {
+			w.Header().Set("Permissions-Policy", "serial=(self)")
+		}
 		if !allowDesktopIframe {
 			w.Header().Set("X-Frame-Options", "DENY")
 		}
@@ -1961,6 +1993,13 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			w.Header().Set("Pragma", "no-cache")
 		}
 
+		// Keep MIDI input confined to the trusted Desktop document. A separate
+		// field preserves other hardware policies installed by this middleware.
+		midiPolicy := "midi=()"
+		if path == "/desktop" || path == "/desktop/" || path == "/desktop.html" {
+			midiPolicy = "midi=(self)"
+		}
+		w.Header().Add("Permissions-Policy", midiPolicy)
 		next.ServeHTTP(w, r)
 	})
 }

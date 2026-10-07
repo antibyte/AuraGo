@@ -39,6 +39,13 @@ use ui::overlays::{draw_confirm_dialog, draw_nav_bar};
 struct Args {
     #[arg(short, long)]
     url: Option<String>,
+    #[arg(
+        long,
+        value_name = "CODE",
+        value_parser = ["cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"],
+        help = "UI language (overrides AURAGO_TUI_LANG; default: en)"
+    )]
+    lang: Option<String>,
     #[arg(long, help = "Skip TLS certificate verification (insecure)")]
     insecure: bool,
 }
@@ -46,6 +53,12 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
+    let environment_language = std::env::var("AURAGO_TUI_LANG").ok();
+    i18n::set_language(i18n::preferred_language(
+        args.lang.as_deref(),
+        environment_language.as_deref(),
+    ));
+
     let mut cfg = config::Config::load().unwrap_or_default();
     if let Some(url) = args.url {
         cfg.server_url = url;
@@ -858,9 +871,6 @@ fn handle_key_event(
     actions::dispatch_action(action, app_lock, client, event_tx, sse_handle);
 }
 
-
-
-
 /// Starts a chat session: fetches history and opens an SSE connection.
 /// Returns a `JoinHandle` for the SSE connection task (the reconnect loop).
 /// The caller should abort this handle before starting a new session.
@@ -909,5 +919,3 @@ fn start_new_chat_session(
 }
 
 // ── Config helpers ────────────────────────────────────────────────────────────
-
-

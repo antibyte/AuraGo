@@ -96,9 +96,11 @@ type listCacheEntry struct {
 
 // FileWriteState is the current target state observed while holding the shared desktop mutation lock.
 type FileWriteState struct {
-	Data   []byte
-	Entry  FileEntry
-	Exists bool
+	Data []byte
+	// Version is set for streamed files, whose bytes are intentionally not buffered.
+	Version string
+	Entry   FileEntry
+	Exists  bool
 }
 
 // FileWritePrecondition can reject a write after observing the current target state under the shared desktop mutation lock.

@@ -57,7 +57,7 @@
   "config.updates.installing": "Εγκατάσταση…",
   "config.updates.latest": "Τελευταία",
   "config.updates.running": "Εκτελείται…",
-  "config.updates.started": "✅ Η ενημέρωση ξεκίνησε — Το AuraGo επανεκκινείται. Επαναφόρτωση στη δεκαετία του '60…",
+  "config.updates.started": "✅ Η ενημέρωση ξεκίνησε — Το AuraGo επανεκκινείται. Επαναφόρτωση σε 60 δευτερόλεπτα…",
   "config.updates.up_to_date": "Ενημερωμένο",
   "config.updates.version": "Έκδοση",
   "config.updates.warning_banner": "Η ενημέρωση αντικαθιστά τα δυαδικά αρχεία, τις προτροπές και τα αρχεία διεπαφής χρήστη. <strong>Η διαμόρφωση και τα δεδομένα σας διατηρούνται.</strong> Το AuraGo θα επανεκκινήσει μετά την ενημέρωση.",

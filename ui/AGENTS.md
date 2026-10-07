@@ -67,6 +67,14 @@ worker. Keep packaging, recovery and offline instructions in
   waits for an in-flight cookie update before clearing it. Keep the timeout help
   in all sixteen Config locales aligned. Verify `TestAuthSessionBrowser`.
 
+- Quick Connect serial sessions use the live bootstrap capabilities, fail closed
+  on the Desktop WebSocket disconnect, and dispose on `aurago:auth-ended` before
+  logout or expiry redirects. `aurago:desktop-policy` carries serial grants,
+  readonly and remote timeout values; device traffic never renews authentication.
+  Embedded apps retain `serial 'none'`. Keep all sixteen serial/profile and
+  configuration translations aligned. See `js/desktop/apps/AGENTS.md` and
+  `documentation/quick-connect-serial.md` for lifecycle and hardware acceptance.
+
 - `cfg/llm_router.js` uses the shared saved/draft config path. Empty provider
   clears its model override; missing saved providers remain visible. Preview
   requires a clean draft and uses saved settings, with a separate explicit
@@ -293,6 +301,12 @@ worker. Keep packaging, recovery and offline instructions in
   shadows. Keep Geist, 16px inputs and 44px controls in both densities. Below 1100px the
   labeled sidebar becomes a keyboard-accessible drawer; the save dock stays in
   the viewport layout without covering the scrollable form.
+- Every Config section icon needs its `SECTIONS` key in
+  `CONFIG_SIDEBAR_ICON_SLOTS`, a `CONFIG_SIDEBAR_ICON_SYMBOLS` entry, the
+  matching 128px cell in `img/config-sidebar-icons.svg` and `.json`, and a
+  `.config-icon-slot-N` position in `config-workspace.css`. The sidebar draws the
+  inline symbol, so a missing one renders blank; it must match the sprite cell.
+  Verify `TestConfigSidebarIconSpriteContract`.
 - Config uses one visible card level: named topic cards containing flat fields,
   with a compact variant for independent objects. Reuse `AuraConfigForm` and the shared presentation pass for lazy
   integration renderers. Preserve their data bindings, independent provider /
@@ -402,6 +416,9 @@ worker. Keep packaging, recovery and offline instructions in
 - Qualify translation-audit candidates by locale and key before editing; preserve
   technical names, URLs and placeholder-only formats. Use targeted checks such as
   `TestTranslationsAuditCorrections`, not blanket ASCII or German pronoun bans.
+- Spanish addresses the user with informal `tú` imperatives (`Elige`,
+  `Introduce`, `Selecciona`), never `usted` (`Elija`, `Introduzca`,
+  `Seleccione`). Tests that pin Spanish strings use the same register.
 - File Manager undo/redo error translations must interpolate `{{error}}` in
   every locale so the failure details passed by the action remain visible.
 - God's Eye View uses the regular container-app window, starts maximized, and
@@ -480,6 +497,11 @@ worker. Keep packaging, recovery and offline instructions in
   focus independently of always-on-top stacking and suppress restore sounds.
   Compact mode preserves the logical active space. Resize/snap share clamped
   app minimums, with reachable viewport bounds taking precedence.
+- Maximized windows end above the taskbar or Fruity dock at every width via
+  `--vd-maximized-window-reserve` (`desktop-windows.css`); keep it, the narrow
+  overrides and `--vd-fruity-dock-reserve` in step with the bar/dock geometry.
+  The touch phone layout keeps its own `--vd-mobile-taskbar-reserve`. Verify
+  `TestDesktopMaximizedWindowClearsTaskbarBrowser`.
 - The start menu is categorized: `AppManifest.Category` (set for every builtin
   and copied from `CatalogEntry.Category` for Store apps,
   `desktop.DesktopAppCategories()` in display order; only apps without a known

@@ -1,0 +1,18 @@
+{
+  "config.flows.agent_allow_publish": "Agenten må udgive flows",
+  "config.flows.agent_note": "Agentindstillingerne træder i kraft, når agenten kan arbejde med flows.",
+  "config.flows.agent_read_only": "Agenten må kun læse flows",
+  "config.flows.ai_provider": "AI-udbyder til AI-trin",
+  "config.flows.ai_provider_help": "AI-trin, der er sat til “Standardmodel”, bruger denne udbyder.",
+  "config.flows.ai_provider_main": "Hovedmodel",
+  "config.flows.enabled": "Aktivér flows",
+  "config.flows.intro": "Flows kører uden om agentens kø. Disse grænser beskytter serveren.",
+  "config.flows.max_parallel_nodes_per_run": "Samtidige trin pr. kørsel (1–16)",
+  "config.flows.max_parallel_runs": "Samtidige kørsler (1–32)",
+  "config.flows.max_runs_per_flow": "Gemte kørsler pr. flow (10–5000)",
+  "config.flows.missions_off": "Missioner er slået fra. Flows skal bruge missioner for at køre.",
+  "config.flows.open": "Åbn EasyDrag",
+  "config.flows.run_retention_days": "Gem kørselshistorik (dage, 1–365)",
+  "config.section.flows.desc": "Visuelle automatiseringer fra EasyDrag-appen",
+  "config.section.flows.label": "EasyDrag-flows"
+}

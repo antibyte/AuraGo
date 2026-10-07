@@ -7,7 +7,7 @@
   "config.mcp_server.token": "Bearer-token",
   "config.mcp_server.generate_token": "Generér token",
   "config.mcp_server.endpoint_url": "Endpoint-URL",
-  "config.mcp_server.no_tools_warning": "Ingen værktøjer aktiveret.",
+  "config.mcp_server.no_tools_warning": "Ingen værktøjer er aktiveret. Aktivér først værktøjer i afsnittet Værktøjer.",
   "config.mcp_server.auth_warning": "Godkendelse deaktiveret. Alle med netværksadgang kan kalde dine værktøjer.",
   "config.mcp_server.disabled_notice": "MCP Server er deaktiveret",
   "config.mcp_server.disabled_desc": "Aktivér for at eksponere AuraGo-værktøjer via MCP.",

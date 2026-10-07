@@ -96,22 +96,26 @@ type PetManifest struct {
 
 // BootstrapPayload is the initial state used by the virtual desktop UI.
 type BootstrapPayload struct {
-	Enabled            bool              `json:"enabled"`
-	ReadOnly           bool              `json:"readonly"`
-	AllowAgentControl  bool              `json:"allow_agent_control"`
-	AllowGeneratedApps bool              `json:"allow_generated_apps"`
-	AllowPythonJobs    bool              `json:"allow_python_jobs"`
-	Workspace          WorkspaceInfo     `json:"workspace"`
-	BuiltinApps        []AppManifest     `json:"builtin_apps"`
-	InstalledApps      []AppManifest     `json:"installed_apps"`
-	Shortcuts          []Shortcut        `json:"shortcuts"`
-	Widgets            []Widget          `json:"widgets"`
-	AllWidgets         []Widget          `json:"all_widgets"`
-	Settings           map[string]string `json:"settings"`
-	Providers          []ProviderOption  `json:"providers,omitempty"`
-	IconCatalog        IconCatalogInfo   `json:"icon_catalog"`
-	Pets               []PetManifest     `json:"pets"`
-	ActivePetID        string            `json:"active_pet_id,omitempty"`
+	Enabled                  bool              `json:"enabled"`
+	ReadOnly                 bool              `json:"readonly"`
+	AllowAgentControl        bool              `json:"allow_agent_control"`
+	AllowGeneratedApps       bool              `json:"allow_generated_apps"`
+	AllowPythonJobs          bool              `json:"allow_python_jobs"`
+	SerialBrowserEnabled     bool              `json:"serial_browser_enabled"`
+	SerialHostEnabled        bool              `json:"serial_host_enabled"`
+	RemoteMaxSessionMinutes  int               `json:"remote_max_session_minutes"`
+	RemoteIdleTimeoutMinutes int               `json:"remote_idle_timeout_minutes"`
+	Workspace                WorkspaceInfo     `json:"workspace"`
+	BuiltinApps              []AppManifest     `json:"builtin_apps"`
+	InstalledApps            []AppManifest     `json:"installed_apps"`
+	Shortcuts                []Shortcut        `json:"shortcuts"`
+	Widgets                  []Widget          `json:"widgets"`
+	AllWidgets               []Widget          `json:"all_widgets"`
+	Settings                 map[string]string `json:"settings"`
+	Providers                []ProviderOption  `json:"providers,omitempty"`
+	IconCatalog              IconCatalogInfo   `json:"icon_catalog"`
+	Pets                     []PetManifest     `json:"pets"`
+	ActivePetID              string            `json:"active_pet_id,omitempty"`
 	// DesktopFiles is the Desktop folder listing for first paint (avoids a
 	// second /api/desktop/files round-trip). Omitted when listing fails.
 	DesktopFiles []FileEntry `json:"desktop_files,omitempty"`
@@ -291,6 +295,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "phone_gadget.position_x", Default: ""},
 		{Key: "phone_gadget.position_y", Default: ""},
 		{Key: "phone_gadget.always_on_top", Default: "false", Values: []string{"true", "false"}},
+		{Key: SerialProfilesSetting, Default: defaultSerialProfiles},
 	}
 }
 
@@ -345,6 +350,7 @@ var desktopPreferredIconNames = []string{
 	"dozzle",
 	"download",
 	"downloads",
+	"easydrag",
 	"editor",
 	"eye",
 	"eye-off",
@@ -439,6 +445,7 @@ var desktopPreferredIconNames = []string{
 	"upload",
 	"users",
 	"video",
+	"video-studio",
 	"weather",
 	"workflow",
 	"writer",
@@ -620,7 +627,7 @@ var desktopIconCategories = map[string][]string{
 	"office":       {"writer", "spreadsheet", "calendar", "documents", "printer", "mail"},
 	"productivity": {"notes", "check-square", "workflow", "calendar", "clipboard", "search"},
 	"tools":        {"tools", "settings", "terminal", "code", "openscad", "database", "network", "zipper"},
-	"media":        {"gallery", "pixel", "image", "video", "teevee", "radio", "audio", "audio-player", "camera"},
+	"media":        {"gallery", "pixel", "image", "video", "video-studio", "teevee", "radio", "audio", "audio-player", "camera"},
 	"internet":     {"browser", "globe", "cloud", "mail", "network", "download"},
 	"system":       {"monitor", "server", "settings", "backup", "key", "software-store", "trash-empty"},
 	"documents":    {"documents", "text", "markdown", "pdf", "html", "archive", "zipper"},
@@ -769,6 +776,7 @@ func DesktopAppCategories() []AppCategory {
 
 func BuiltinApps() []AppManifest {
 	apps := []AppManifest{
+		{ID: "video-studio", Name: "Video Studio", Version: "1.0.0", Icon: "video-studio", Entry: "builtin://video-studio", Runtime: BuiltinRuntime, Category: "creative", Description: "Edit multitrack videos with transitions, titles, stickers and optional AI clips.", Permissions: []string{"files:read", "files:write", "notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
 		{ID: "ha-switchboard", Name: "HA Switchboard", Version: "1.0.0", Icon: "ha-switchboard", Entry: "builtin://ha-switchboard", Runtime: BuiltinRuntime, Category: "comms", Description: "Control selected Home Assistant switches on a walnut and silver switchboard."},
 		{ID: "files", Name: "Files", Version: "1.0.0", Icon: "folder", Entry: "builtin://files", Runtime: BuiltinRuntime, Category: "system", Description: "Browse and manage desktop workspace files."},
 		{ID: "editor", Name: "Editor", Version: "1.0.0", Icon: "edit", Entry: "builtin://editor", Runtime: BuiltinRuntime, Category: "office", Description: "Edit workspace text files."},
@@ -803,10 +811,12 @@ func BuiltinApps() []AppManifest {
 		{ID: "meshcore", Name: "MeshCore", Version: "1.0.0", Icon: "radio", Entry: "builtin://meshcore", Runtime: BuiltinRuntime, Category: "comms", Description: "MeshCore direct and channel messaging, contacts and invitations.", Permissions: []string{"notifications"}},
 		{ID: "zipper", Name: "Zipper", Version: "1.0.0", Icon: "zipper", Entry: "builtin://zipper", Runtime: BuiltinRuntime, Category: "system", Description: "ZIP archive manager — browse, extract, and create archives.", Permissions: []string{"files:read", "files:write", "notifications"}},
 		{ID: "pixel", Name: "Pixel", Version: "1.0.0", Icon: "pixel", Entry: "builtin://pixel", Runtime: BuiltinRuntime, Category: "creative", Description: "AI-powered image editor — create, edit, and enhance images.", Permissions: []string{"files:read", "files:write", "notifications"}},
+		{ID: "synth-studio", Name: "Synth Studio", Version: "1.0.0", Icon: "synth-studio", Entry: "builtin://synth-studio", Runtime: BuiltinRuntime, Category: "creative", Description: "Arrange and record music with synthetic and MIDI instruments.", Permissions: []string{"files:read", "files:write", "notifications"}, Metadata: map[string]string{"open_maximized": "true", "logo_path": "/img/desktop-icons/synth-studio.svg"}},
 		{ID: "people", Name: "People", Version: "1.0.0", Icon: "users", Entry: "builtin://people", Runtime: BuiltinRuntime, Category: "office", Description: "Address book with knowledge graph integration and birthdays."},
 		{ID: "galaxa-deluxe", Name: "Galaxa Deluxe", Version: "1.0.0", Icon: "galaxa-deluxe", Entry: "builtin://galaxa-deluxe", Runtime: BuiltinRuntime, Category: "games", Description: "Classic arcade space shooter — destroy enemy formations and beat the high score!"},
 		{ID: "chess", Name: "Chess", Version: "1.0.0", Icon: "chess", Entry: "builtin://chess", Runtime: BuiltinRuntime, Category: "games", Description: "Play chess against Stockfish or the AuraGo agent.", Permissions: []string{"notifications"}},
 		{ID: "mission-control", Name: "Mission Control", Version: "1.0.0", Icon: "workflow", Entry: "builtin://mission-control", Runtime: BuiltinRuntime, Category: "ai", Description: "Create, plan, and manage agent missions with triggers and schedules.", Permissions: []string{"notifications"}},
+		{ID: "easydrag", Name: "EasyDrag", Version: "1.0.0", Icon: "easydrag", Entry: "builtin://easydrag", Runtime: BuiltinRuntime, Category: "ai", Description: "Build automations visually: connect triggers, AI steps and integrations into flows that run as missions.", Permissions: []string{"notifications"}, Requires: []string{"flows"}, Metadata: map[string]string{"open_maximized": "true"}},
 		{ID: "game-maker-studio", Name: "Game Maker Studio", Version: "1.0.0", Icon: "gamepad", Entry: "builtin://game-maker-studio", Runtime: BuiltinRuntime, Category: "creative", Description: "Create and refine offline 2D and 3D browser games with an isolated AuraGo agent.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true", "logo_path": "/img/desktop-icons/game-maker-studio.svg"}},
 		{ID: "homepage-studio", Name: "Homepage Studio", Version: "1.0.0", Icon: "globe", Entry: "builtin://homepage-studio", Runtime: BuiltinRuntime, Category: "creative", Description: "AI-powered website builder with live preview.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},
 		{ID: "detective", Name: "Detective", Version: "1.0.0", Icon: "search", Entry: "builtin://detective", Runtime: BuiltinRuntime, Category: "ai", Description: "Research topics with cited sources and export reports as Markdown, PDF or Word.", Permissions: []string{"notifications"}, Metadata: map[string]string{"open_maximized": "true"}},

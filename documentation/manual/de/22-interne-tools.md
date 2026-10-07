@@ -499,13 +499,14 @@ Chat-Nachricht in der Web-UI-Historie anheften oder lösen.
 Bridge-Tool für externe Editoren (z. B. VS Code), um den Agenten zu befragen und eine strukturierte Antwort zu erhalten. Nicht für den normalen Chat gedacht.
 
 ### `send_telegram`
-Sendet eine Nachricht oder ein Medium über den konfigurierten Telegram-Bot.
+Sendet eine Nachricht oder eine Datei als Dokument über den konfigurierten Telegram-Bot.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
 | `message` | string | Nachrichtentext |
 | `title` | string | Optional: Titel für die Nachricht |
 | `priority` | string | Optional: Priorität (normal, high, low) |
+| `file_path` | string | Optional: Datei im Workspace oder im Dokumentenordner, die als Telegram-Dokument gesendet wird. `title` und `message` werden ihre Bildunterschrift (ein längerer Text wird zuerst als eigene Nachricht gesendet). Bis 50 MB. Eine fehlende Datei, ein Pfad außerhalb beider Ordner oder ein nicht konfiguriertes Telegram lässt den Aufruf fehlschlagen |
 
 ### `send_youtube_video`
 Sendet ein YouTube-Video als eingebetteten Player oder Link an den Benutzer.
@@ -750,6 +751,8 @@ HTTP-Request an externe APIs.
 | `method` | enum | GET, POST, PUT, PATCH, DELETE |
 | `headers` | object | HTTP-Header |
 | `body` | string | Request-Body |
+
+Weiterleitungen: Die Header, die du setzt (etwa `Authorization` oder ein API-Key-Header), gehen nur mit, solange eine Weiterleitung beim selben Host mit gleichem Schema und Port bleibt oder von `http` auf Port 80 zu `https` auf Port 443 wechselt. Jede andere Weiterleitung entfernt sie für den Rest der Kette; nur `Accept`, `Content-Type` und `User-Agent` bleiben. Eine 307- oder 308-Weiterleitung sendet den Body trotzdem erneut. EasyDrag-Flows folgen derselben Regel.
 
 ### `github`
 GitHub Repositories, Issues, PRs, Branches, Dateien, Commits, Workflow-Runs und lokales Projekt-Tracking verwalten (`github.enabled`).
@@ -1294,6 +1297,14 @@ E-Mails von registrierten Konten abrufen.
 
 ### `send_email`
 E-Mails über registrierte Konten versenden.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `to` | string | Empfängeradresse (mehrere durch Komma getrennt) |
+| `subject` | string | Optional: Betreff |
+| `body` | string | Optional: Text der Mail (Klartext) |
+| `account` | string | Optional: Konto-ID, von der gesendet wird (Standard: erstes aktives Konto) |
+| `attachments` | array | Optional: Dateipfade im Workspace oder im Dokumentenordner, die angehängt werden (max. 10 Dateien, zusammen 20 MB). Ein einzelner Pfad als String wird als Liste mit einer Datei akzeptiert. Ein Pfad außerhalb dieser Ordner, eine fehlende Datei oder eine Liste, die die Grenzen überschreitet, lässt den Aufruf fehlschlagen, und es wird nichts gesendet |
 
 ### `list_email_accounts`
 Registrierte E-Mail-Konten auflisten.

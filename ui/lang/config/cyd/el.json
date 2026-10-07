@@ -28,7 +28,7 @@
   "config.cyd.setup_title": "Σύζευξη",
   "config.cyd.setup_help": "Χρησιμοποιήστε τον web flasher ή κάντε flash το https://github.com/antibyte/aurago-cyd. Συνδεθείτε στο agocyd-XXXX για Wi‑Fi. Μετά τον flasher, token και URL είναι ήδη στο γυαλί. Το AuraGo πρέπει να ακούει σε διεύθυνση LAN, όχι μόνο 127.0.0.1.",
   "config.cyd.flash_hint": "Τα περιβάλλοντα PlatformIO cyd και cyd2usb εξακολουθούν να λειτουργούν. Κρατήστε BOOT 5 δ. για να ανοίξει ξανά η πύλη.",
-  "help.cyd.enabled": "Ενεργοποιεί το μίνι ταμπλό Cheap Yellow Display. Ο πράκτορας μπορεί να δείχνει επικαλύψεις με send_notification κανάλι cyd ή cyd_display.",
+  "help.cyd.enabled": "Ενεργοποιεί το μίνι Dashboard Cheap Yellow Display. Ο πράκτορας μπορεί να δείχνει επικαλύψεις με το κανάλι send_notification cyd ή cyd_display.",
   "help.cyd.poll_seconds": "Πόσο συχνά η οθόνη ζητά /api/cyd/snapshot αν λείπει το WebSocket. Ελάχιστο 2 δευτερόλεπτα.",
   "help.cyd.overlay_ttl": "Προεπιλεγμένα δευτερόλεπτα που μένει μια ειδοποίηση στο γυαλί.",
   "help.cyd.allow_agent_control": "Όταν είναι ενεργό, ο πράκτορας μπορεί να αλλάξει σελίδα, φωτεινότητα και LED. Οι επικαλύψεις λειτουργούν και χωρίς αυτό.",

@@ -3,6 +3,9 @@ package meshcore
 import (
 	"context"
 	"fmt"
+
+	"aurago/internal/serialutil"
+
 	"go.bug.st/serial"
 )
 
@@ -21,9 +24,16 @@ func openLink(ctx context.Context, cfg Config, docker bool) (frameLink, error) {
 	}
 	// TinyUSB CDC companions only transmit while the host asserts DTR.
 	// Keep RTS inactive and 115200 baud to avoid reset/bootloader signaling.
-	p, err := serial.Open(cfg.Port, &serial.Mode{BaudRate: 115200, DataBits: 8, Parity: serial.NoParity, StopBits: serial.OneStopBit, InitialStatusBits: &serial.ModemOutputBits{DTR: true, RTS: false}})
+	p, err := serialutil.OpenConfiguredContext(ctx, cfg.Port, serialutil.OwnerMeshCore, meshCoreSerialMode())
 	if err != nil {
 		return nil, fmt.Errorf("meshcore_serial_unavailable")
 	}
 	return &serialLink{p}, nil
+}
+
+func meshCoreSerialMode() *serial.Mode {
+	return &serial.Mode{
+		BaudRate: 115200, DataBits: 8, Parity: serial.NoParity, StopBits: serial.OneStopBit,
+		InitialStatusBits: &serial.ModemOutputBits{DTR: true, RTS: false},
+	}
 }

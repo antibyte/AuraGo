@@ -6,6 +6,7 @@
         'viewer-3d': { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['stl']), effect: 'copy' },
         writer: { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['docx', 'html', 'htm', 'md', 'txt']), effect: 'copy' },
         sheets: { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['xlsx', 'xlsm', 'csv']), effect: 'copy' },
+        'synth-studio': { multiple: false, accepts: path => desktopWindowDropExtIn(path, ['aurasynth']), effect: 'copy' },
         zipper: { multiple: true, accepts: path => !!desktopWindowDropPathInfo(path).name, effect: 'copy' },
         'code-studio': { multiple: false, accepts: path => desktopWindowDropExtIn(path, DESKTOP_WINDOW_TEXT_EXTS), effect: 'copy' },
         editor: { multiple: false, accepts: path => desktopWindowDropExtIn(path, DESKTOP_WINDOW_TEXT_EXTS), effect: 'copy' },
@@ -161,6 +162,10 @@
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.openFile === 'function') {
             await window.CodeStudio.openFile(path, true, windowId);
             return true;
+        }
+        if (appId === 'synth-studio') {
+            const instance = window.SynthStudioApp?.instances?.get(windowId);
+            if (instance?.storage?.open) return instance.storage.open(path);
         }
         const nextContext = Object.assign({}, win.context || {}, { path });
         if (appId === 'editor') nextContext.content = '';

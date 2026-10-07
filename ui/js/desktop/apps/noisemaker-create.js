@@ -41,12 +41,15 @@
         const formatDuration = deps.formatDuration || (ms => Math.round((Number(ms) || 0) / 1000) + ' s');
         const lang = String(deps.lang || 'en');
         const windowId = String(deps.windowId || 'nm');
+        const readonly = deps.readonly === true;
 
         const handlers = {};
         const on = (name, cb) => { (handlers[name] = handlers[name] || []).push(cb); };
         const emit = (name, ...args) => { (handlers[name] || []).forEach(cb => { try { cb(...args); } catch (_) {} }); };
 
         const form = Object.assign(defaultForm(), deps.form || {});
+        const fieldRevisions = Object.create(null);
+        const enhancementRequests = Object.create(null);
         let mode = deps.mode === 'custom' ? 'custom' : 'simple';
         let caps = null;
         let generation = emptyGeneration();
@@ -79,7 +82,7 @@
 
         function aiButton(action, key, glyph) {
             if (!caps || caps.llm_available === false) return '';
-            return '<button type="button" class="nm-ai" data-nm-enhance="' + action + '">' +
+            return '<button type="button" class="nm-ai" data-nm-enhance="' + action + '"' + (readonly ? ' disabled title="' + esc(t('desktop.noisemaker_readonly_hint')) + '"' : '') + '>' +
                 '<span class="nm-ai-glyph" aria-hidden="true">' + (glyph || '✨') + '</span>' + esc(t('desktop.noisemaker_' + key)) + '</button>';
         }
 
@@ -117,9 +120,11 @@
 
         function switchesMarkup() {
             const c = caps || {};
-            const cover = c.covers_enabled && mode === 'custom'
+            const provider = String(c.cover_provider || '').trim();
+            const coverHint = t('desktop.noisemaker_cover_hint') + (provider ? ' · ' + provider : '');
+            const cover = c.covers_enabled
                 ? '<label class="nm-switch"><input type="checkbox" data-nm-field="cover"><span class="nm-switch-track" aria-hidden="true"></span>' + esc(t('desktop.noisemaker_cover_label')) + '</label>' +
-                  '<span class="nm-hint">' + esc(t('desktop.noisemaker_cover_hint', { provider: c.cover_provider || '' })) + '</span>'
+                  '<span class="nm-hint">' + esc(coverHint) + '</span>'
                 : '';
             return '<div class="nm-form-row">' +
                 '<label class="nm-switch"><input type="checkbox" data-nm-field="instrumental"><span class="nm-switch-track" aria-hidden="true"></span>' + esc(t('desktop.noisemaker_instrumental')) + '</label>' +
@@ -129,13 +134,16 @@
 
         function lyricsMarkup() {
             const c = caps || {};
+            const required = lyricsRequired();
+            const requirement = required ? 'desktop.noisemaker_lyrics_required_label' : 'desktop.noisemaker_optional';
             const body = c.supports_lyrics === false
                 ? '<p class="nm-hint">' + esc(t('desktop.noisemaker_lyrics_unsupported')) + '</p>'
                 : '<div class="nm-field-head">' + aiButton('lyrics', 'lyrics_generate') + '</div>' +
                   '<textarea class="nm-textarea nm-textarea--lyrics" data-nm-field="lyrics" maxlength="' + LYRICS_MAX + '" placeholder="' + esc(t('desktop.noisemaker_lyrics_placeholder')) + '"></textarea>' +
-                  '<div class="nm-field-foot"><span class="nm-counter" data-nm-counter="lyrics"></span></div>';
-            return '<details class="nm-collapsible" data-nm-lyrics-wrap' + (form.lyrics ? ' open' : '') + '>' +
-                '<summary>' + esc(t('desktop.noisemaker_lyrics_label')) + ' <span class="nm-hint">(' + esc(t('desktop.noisemaker_optional')) + ')</span></summary>' +
+                  '<div class="nm-field-foot"><span class="nm-counter" data-nm-counter="lyrics"></span></div>' +
+                  '<p class="nm-hint" data-nm-lyrics-required-hint' + (required && c.llm_available === false ? '' : ' hidden') + '>' + esc(t('desktop.noisemaker_lyrics_required_hint')) + '</p>';
+            return '<details class="nm-collapsible" data-nm-lyrics-wrap' + (form.lyrics || required ? ' open' : '') + '>' +
+                '<summary>' + esc(t('desktop.noisemaker_lyrics_label')) + ' <span class="nm-hint" data-nm-lyrics-requirement>(' + esc(t(requirement)) + ')</span></summary>' +
                 '<div class="nm-collapsible-body">' + body + '</div>' +
             '</details>';
         }
@@ -204,10 +212,11 @@
         }
 
         function errorMarkup(message) {
+            const retryAttrs = readonly ? ' disabled title="' + esc(t('desktop.noisemaker_readonly_hint')) + '"' : '';
             return '<div class="nm-error" role="alert">' +
                 '<strong>' + esc(t('desktop.noisemaker_error_title')) + '</strong>' +
                 '<p>' + esc(message || t('desktop.noisemaker_error_unknown')) + '</p>' +
-                '<button type="button" class="nm-btn" data-nm-retry>' + esc(t('desktop.noisemaker_error_retry')) + '</button>' +
+                '<button type="button" class="nm-btn" data-nm-retry' + retryAttrs + '>' + esc(t('desktop.noisemaker_error_retry')) + '</button>' +
             '</div>';
         }
 
@@ -215,9 +224,9 @@
 
         function renderForm() {
             const c = caps || {};
-            formEl.innerHTML = mode === 'simple'
+            formEl.innerHTML = (readonly ? '<p class="nm-hint" role="status">' + esc(t('desktop.noisemaker_readonly_hint')) + '</p>' : '') + (mode === 'simple'
                 ? ideaFieldMarkup() + presetsMarkup() + switchesMarkup()
-                : ideaFieldMarkup() + styleFieldMarkup() + switchesMarkup() + lyricsMarkup() + titleMarkup() + (c.supports_controls ? localControlsMarkup() : '');
+                : ideaFieldMarkup() + styleFieldMarkup() + switchesMarkup() + lyricsMarkup() + titleMarkup() + (c.supports_controls ? localControlsMarkup() : ''));
             root.dataset.nmCreateMode = mode;
             root.querySelectorAll('.nm-segment-btn[data-nm-mode]').forEach(btn => {
                 const active = btn.dataset.nmMode === mode;
@@ -271,20 +280,57 @@
             return (caps && caps.local) || null;
         }
 
-        function needsLyrics() {
+        function lyricsRequired() {
             const c = caps || {};
             const local = localState();
+            return !!(c.supports_controls && c.supports_lyrics !== false && local && local.profile && !local.profile.lm_model && !form.instrumental);
+        }
+
+        function needsLyrics() {
             const lyrics = mode === 'custom' ? String(form.lyrics || '').trim() : '';
-            return !!(c.supports_controls && local && local.profile && !local.profile.lm_model && !form.instrumental && !lyrics);
+            return lyricsRequired() && !lyrics;
         }
 
         function invalidLocalInput() {
-            return Array.from(root.querySelectorAll('.nm-local-controls input')).find(input => !input.checkValidity()) || null;
+            if (!(caps && caps.supports_controls)) return null;
+            const duration = String(form.duration_seconds == null ? '' : form.duration_seconds);
+            const bpm = String(form.bpm == null ? '' : form.bpm);
+            const language = String(form.vocal_language == null ? '' : form.vocal_language);
+            const seed = String(form.seed == null ? '' : form.seed);
+            let field = '';
+            if (!integerInputInRange(duration, 10, maxDuration(), true)) field = 'duration_seconds';
+            else if (!integerInputInRange(bpm, 30, 300, false)) field = 'bpm';
+            else if (language !== '' && !/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(language)) field = 'vocal_language';
+            else if (!integerInputInRange(seed, 0, 2147483647, false)) field = 'seed';
+            if (!field) return null;
+            return { field, input: root.querySelector('[data-nm-field="' + field + '"]') };
         }
 
-        function syncCreateButton() {
-            const btn = qs('[data-nm-create-btn]');
-            const reason = qs('[data-nm-reason]');
+        function integerInputInRange(raw, min, max, required) {
+            const value = String(raw == null ? '' : raw);
+            if (!value.trim()) return !required;
+            if (!/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(value)) return false;
+            const number = Number(value);
+            return Number.isFinite(number) && Number.isInteger(number) && number >= min && number <= max;
+        }
+
+        function syncLyricsRequirement() {
+            const required = lyricsRequired();
+            const label = qs('[data-nm-lyrics-requirement]');
+            const hint = qs('[data-nm-lyrics-required-hint]');
+            const input = qs('[data-nm-field="lyrics"]');
+            const wrap = qs('[data-nm-lyrics-wrap]');
+            if (label) label.textContent = '(' + t(required ? 'desktop.noisemaker_lyrics_required_label' : 'desktop.noisemaker_optional') + ')';
+            if (hint) hint.hidden = !(required && caps && caps.llm_available === false);
+            if (input) {
+                input.required = required;
+                input.setAttribute('aria-required', required ? 'true' : 'false');
+                input.placeholder = t(required ? 'desktop.noisemaker_lyrics_required_hint' : 'desktop.noisemaker_lyrics_placeholder');
+            }
+            if (required && wrap) wrap.open = true;
+        }
+
+        function submissionState() {
             const c = caps || {};
             const local = localState();
             const hasInput = !!(String(form.idea || '').trim() || String(form.style || '').trim());
@@ -294,9 +340,23 @@
             const unavailable = !!(c.supports_controls && (!local || !local.ready || local.state === 'busy'));
             const lyricsMissing = needsLyrics();
             const invalid = invalidLocalInput();
-            btn.disabled = generation.active || !hasInput || quotaHit || unavailable || lyricsMissing || !!invalid;
+            return { hasInput, max, used, quotaHit, unavailable, lyricsMissing, invalid,
+                blocked: readonly || generation.active || !hasInput || quotaHit || unavailable || lyricsMissing || !!invalid };
+        }
+
+        function switchToCustomLink(reason) {
+            reason.insertAdjacentHTML('beforeend', ' <button type="button" class="nm-link-btn" data-nm-switch-custom>' + esc(t('desktop.noisemaker_mode_switch_custom')) + '</button>');
+        }
+
+        function syncCreateButton() {
+            const btn = qs('[data-nm-create-btn]');
+            const reason = qs('[data-nm-reason]');
+            syncLyricsRequirement();
+            const state = submissionState();
+            btn.disabled = state.blocked;
 
             const localStatus = qs('[data-nm-local-status]');
+            const local = localState();
             if (localStatus) {
                 localStatus.textContent = t('desktop.noisemaker_local_' + ((local && local.state) || 'starting')) +
                     (local && local.error_code ? ' · ' + local.error_code : '') +
@@ -304,18 +364,21 @@
             }
 
             reason.textContent = '';
-            if (invalid) {
-                reason.textContent = invalid.validationMessage;
-            } else if (lyricsMissing) {
+            if (readonly) {
+                reason.textContent = t('desktop.noisemaker_readonly_hint');
+            } else if (state.invalid) {
+                reason.textContent = mode === 'custom' && state.invalid.input
+                    ? state.invalid.input.validationMessage || t('desktop.noisemaker_local_controls_invalid')
+                    : t('desktop.noisemaker_local_controls_invalid');
+                if (mode === 'simple') switchToCustomLink(reason);
+            } else if (state.lyricsMissing) {
                 reason.textContent = t('desktop.noisemaker_lyrics_required');
-                if (mode === 'simple') {
-                    reason.insertAdjacentHTML('beforeend', ' <button type="button" class="nm-link-btn" data-nm-switch-custom>' + esc(t('desktop.noisemaker_mode_switch_custom')) + '</button>');
-                }
-            } else if (unavailable) {
+                if (mode === 'simple') switchToCustomLink(reason);
+            } else if (state.unavailable) {
                 reason.textContent = t('desktop.noisemaker_local_' + ((local && local.state) || 'starting'));
-            } else if (quotaHit) {
-                reason.textContent = t('desktop.noisemaker_create_disabled_quota', { used, max });
-            } else if (!hasInput) {
+            } else if (state.quotaHit) {
+                reason.textContent = t('desktop.noisemaker_create_disabled_quota', { used: state.used, max: state.max });
+            } else if (!state.hasInput) {
                 reason.textContent = t('desktop.noisemaker_create_disabled_idea');
             } else {
                 reason.textContent = t('desktop.noisemaker_create_hint');
@@ -348,8 +411,15 @@
 
         // ---------- form mutations ----------
 
+        function assignForm(patch) {
+            Object.entries(patch || {}).forEach(([field, value]) => {
+                if (!Object.is(form[field], value)) fieldRevisions[field] = (fieldRevisions[field] || 0) + 1;
+                form[field] = value;
+            });
+        }
+
         function setForm(patch) {
-            Object.assign(form, patch || {});
+            assignForm(patch);
             applyFormToInputs();
             syncPresets();
             syncCounters();
@@ -402,10 +472,15 @@
         }
 
         async function enhance(kind, button) {
+            if (readonly || disposed) return;
             const apiKind = kind === 'random' ? 'idea' : kind;
             const fieldFor = { idea: 'idea', random: 'idea', style: 'style', lyrics: 'lyrics', title: 'title' };
             const field = fieldFor[kind];
             if (!field) return;
+            const revision = fieldRevisions[field] || 0;
+            const requestId = (enhancementRequests[field] || 0) + 1;
+            enhancementRequests[field] = requestId;
+            const isCurrent = () => !disposed && enhancementRequests[field] === requestId && (fieldRevisions[field] || 0) === revision;
             const currentValue = kind === 'random' ? '' : String(form[field] || '');
             if (kind === 'style' && !currentValue.trim()) return;
             button.classList.add('is-busy');
@@ -415,7 +490,7 @@
                     method: 'POST',
                     body: { kind: apiKind, text: currentValue, context: enhanceContextFor(apiKind), lang }
                 });
-                if (disposed) return;
+                if (!isCurrent()) return;
                 if (data && data.text) {
                     setForm({ [field]: data.text });
                     if (field === 'lyrics') {
@@ -425,7 +500,7 @@
                     emit('change', getForm());
                 }
             } catch (err) {
-                if (disposed) return;
+                if (!isCurrent()) return;
                 notify((err && err.message) || t('desktop.noisemaker_enhance_failed'));
             } finally {
                 button.classList.remove('is-busy');
@@ -447,18 +522,22 @@
                 lang
             };
             if (c.supports_controls) {
-                params.duration_seconds = Number(form.duration_seconds) || 120;
-                if (String(form.bpm) !== '') params.bpm = Number(form.bpm);
+                const duration = String(form.duration_seconds == null ? '' : form.duration_seconds).trim();
+                const bpm = String(form.bpm == null ? '' : form.bpm).trim();
+                const seed = String(form.seed == null ? '' : form.seed).trim();
+                params.duration_seconds = duration === '' ? 120 : Number(duration);
+                if (bpm !== '') params.bpm = Number(bpm);
                 params.vocal_language = String(form.vocal_language || '').trim();
-                if (String(form.seed) !== '') params.seed = Number(form.seed);
+                if (seed !== '') params.seed = Number(seed);
             }
             return params;
         }
 
         function submit() {
-            if (generation.active) return;
-            for (const input of root.querySelectorAll('.nm-local-controls input')) {
-                if (!input.reportValidity()) return;
+            const state = submissionState();
+            if (state.blocked) {
+                if (!readonly && !generation.active && state.invalid && mode === 'custom' && state.invalid.input) state.invalid.input.reportValidity();
+                return;
             }
             const params = buildParams();
             if (!params.prompt && !params.style) return;
@@ -490,7 +569,7 @@
         root.addEventListener('input', event => {
             const input = event.target.closest('[data-nm-field]');
             if (!input) return;
-            form[input.dataset.nmField] = input.type === 'checkbox' ? input.checked : input.value;
+            assignForm({ [input.dataset.nmField]: input.type === 'checkbox' ? input.checked : input.value });
             syncCounters();
             syncPresets();
             syncCreateButton();
@@ -500,7 +579,7 @@
         root.addEventListener('change', event => {
             const input = event.target.closest('[data-nm-field]');
             if (!input || input.type !== 'checkbox') return;
-            form[input.dataset.nmField] = input.checked;
+            assignForm({ [input.dataset.nmField]: input.checked });
             syncCreateButton();
             emit('change', getForm());
         });

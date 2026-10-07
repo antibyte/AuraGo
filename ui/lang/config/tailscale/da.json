@@ -123,7 +123,7 @@
   "config.tailscale.tsnet_space_agent_hostname_label": "Space Agent-værtsnavn",
   "config.tailscale.tsnet_space_agent_hostname_hint": "Separat MagicDNS-værtsnavn til Space Agent, f.eks. aurago-space-agent.tailnet.ts.net.",
   "config.tailscale.tsnet_http_fallback_notice": "Kører i tilstanden HTTP (port 80) — aktiver HTTPS i Tailscale-administrationspanelet for krypteret adgang.",
-  "config.tailscale.tsnet_https_requirements": "HTTPS over Tailscale kræver, at MagicDNS plus HTTPS-certifikater er aktiveret for denne node i Tailscale-administrationspanelet. Hvis certifikater ikke er tilgængelige endnu, falder AuraGo tilbage til HTTP på port 80.",
+  "config.tailscale.tsnet_https_requirements": "HTTPS via Tailscale kræver MagicDNS og et HTTPS-certifikat aktiveret for denne node i Tailscales administrationspanel. Uden et certifikat kan HTTPS ikke startes. HTTP på port 80 bruges kun, når HTTP-fallback er aktiveret; Funnel falder aldrig tilbage til HTTP.",
   "config.tailscale.tsnet_needs_login": "Godkendelse påkrævet – åbn linket for at forbinde til dit Tailscale-netværk",
   "config.tailscale.tsnet_network_only": "kun netværk",
   "config.tailscale.tsnet_network_only_hint": "Noden er forbundet til dit Tailscale-netværk men web-grænsefladen er ikke eksponeret. Aktivér \"Eksponér web UI via Tailscale\" for at gøre AuraGo tilgængelig fra andre tailnet-enheder.",

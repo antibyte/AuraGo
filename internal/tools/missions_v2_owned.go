@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+// errFlowMissionNotOwnable refuses a flow mission in QueueOwnedMission. The text contains
+// "not supported" so the mission API answers 400.
+var errFlowMissionNotOwnable = fmt.Errorf("queueing a flow mission for the agent is not supported; start it with RunNow or TriggerMission")
+
 // QueueOwnedMission transfers a cancellable invocation to the queue. Its owner
 // is runtime-only: persisted invocations without that owner cannot be replayed.
 // release is called on rejection, removal or after the invocation returns.
@@ -64,6 +68,11 @@ func (m *MissionManagerV2) QueueOwnedMission(ctx context.Context, release contex
 	}
 	if !mission.Enabled {
 		return fmt.Errorf("mission is disabled")
+	}
+	// A flow mission never enters the agent queue (the dispatcher would drop it): its runs
+	// start in the flow service through RunNow or TriggerMission.
+	if isFlowMission(mission) {
+		return errFlowMissionNotOwnable
 	}
 	// The remote protocol currently has no cancellation acknowledgment. Never
 	// launch detached remote execution on behalf of a revocable Desktop owner.

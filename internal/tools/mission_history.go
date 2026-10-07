@@ -135,9 +135,9 @@ func RecordMissionCompletion(db *sql.DB, runID, status, output string) error {
 	now := time.Now()
 	nowStr := now.Format(time.RFC3339)
 
-	// Truncate output to 2000 characters
+	// Truncate output to 2000 bytes, at a rune boundary so the stored text stays valid UTF-8
 	if len(output) > 2000 {
-		output = output[:1997] + "..."
+		output = cutAtRuneBoundary(output, 1997) + "..."
 	}
 
 	// Calculate duration from started_at
@@ -174,9 +174,9 @@ func RecordMissionError(db *sql.DB, runID, errorMsg string) error {
 	now := time.Now()
 	nowStr := now.Format(time.RFC3339)
 
-	// Truncate error message
+	// Truncate error message to 500 bytes, at a rune boundary
 	if len(errorMsg) > 500 {
-		errorMsg = errorMsg[:497] + "..."
+		errorMsg = cutAtRuneBoundary(errorMsg, 497) + "..."
 	}
 
 	// Calculate duration from started_at

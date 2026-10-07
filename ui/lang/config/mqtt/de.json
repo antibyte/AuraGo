@@ -60,7 +60,7 @@
   "config.onedrive.auth_failed": "Fehlgeschlagen",
   "config.onedrive.auth_not_connected": "Nicht verbunden",
   "config.onedrive.auth_timeout": "Zeitüberschreitung",
-  "config.onedrive.auth_waiting": "Warte auf Freigabe…",
+  "config.onedrive.auth_waiting": "Warte auf Bestätigung…",
   "config.onedrive.test_failed": "Fehlgeschlagen",
   "config.onedrive.test_success": "Erfolgreich",
   "config.onedrive.testing": "Teste…",

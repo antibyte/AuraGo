@@ -135,6 +135,8 @@
         noisemaker: 'audio',
         radio: 'radio',
         'personal-radio': 'personal-radio',
+        'synth-studio': 'synth-studio',
+        'video-studio': 'video-studio',
         'rtl-sdr': 'rtl-sdr',
         bluetooth: 'bluetooth',
         openscad: 'openscad',
@@ -162,6 +164,7 @@
         'store-termix': 'termix',
         'store-commandcode': 'commandcode',
         looper: 'looper',
+        easydrag: 'easydrag',
         'system-info': 'monitor',
         'log-viewer': 'text',
         'virtual-computers': 'desktop',
@@ -203,6 +206,7 @@
         ogg: 'audio',
         m4a: 'audio',
         opus: 'audio',
+        aurasynth: 'synth-studio',
         mp4: 'video',
         webm: 'video',
         mov: 'video',
@@ -367,6 +371,7 @@
             launchpad: 'LP',
             'software-store': 'SS',
             looper: 'Lp',
+            easydrag: 'ED',
             cheater: 'Ch',
             chess: 'Ch',
             pixel: 'Px',
@@ -581,6 +586,8 @@
     function appGlobalName(appId) {
         return {
             'personal-radio': 'PersonalRadioApp',
+            'synth-studio': 'SynthStudioApp',
+            'video-studio': 'VideoStudioApp',
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
@@ -593,6 +600,7 @@
             tresor: 'TresorApp',
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',
+            easydrag: 'EasyDragApp',
             camera: 'CameraApp',
             'network-cameras': 'NetworkCamerasApp',
             meshcore: 'MeshCoreApp',
@@ -1042,6 +1050,8 @@
                 const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
                 err.body = body;
                 err.status = resp.status;
+                const retryAfter = String(resp.headers.get('retry-after') || '');
+                if (resp.status === 429 && /^\s*\d+\s*$/.test(retryAfter)) err.retryAfter = Number(retryAfter);
                 throw err;
             }
             if (body && typeof body === 'object' && resp.headers.get('ETag')) body.version = resp.headers.get('ETag');

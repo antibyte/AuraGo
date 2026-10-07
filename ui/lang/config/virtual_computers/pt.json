@@ -147,5 +147,9 @@
   "help.virtual_computers.agent_control_network": "internet_lan permite a internet pública e apenas os CIDR privados explicitamente listados.",
   "help.virtual_computers.agent_control_cidrs": "Um CIDR IPv4 RFC1918 por linha. Os endereços do anfitrião, do AuraGo, da ponte, dos metadados e do convidado permanecem bloqueados.",
   "help.virtual_computers.agent_control_credentials": "As credenciais continuam a exigir uma aprovação separada de um utilizador autenticado para cada concessão de curta duração.",
-  "help.virtual_computers.agent_control_grant_ttl": "Tempo de vida máximo da concessão; as concessões também terminam com o respetivo trabalho ou espaço de trabalho."
+  "help.virtual_computers.agent_control_grant_ttl": "Tempo de vida máximo da concessão; as concessões também terminam com o respetivo trabalho ou espaço de trabalho.",
+  "config.virtual_desktop.serial_browser_label": "Portas seriais neste computador",
+  "help.virtual_desktop.serial_browser_enabled": "Permitir que o Quick Connect use dispositivos seriais conectados ao computador do navegador. Requer um navegador compatível, HTTPS ou localhost e a seleção explícita do dispositivo. Desativado no modo somente leitura.",
+  "config.virtual_desktop.serial_host_label": "Portas seriais no servidor AuraGo",
+  "help.virtual_desktop.serial_host_enabled": "Permitir que administradores abram no Quick Connect dispositivos seriais conectados ao servidor AuraGo. Instalações em contêiner exigem passagem do dispositivo e permissões do sistema operacional. Desativado no modo somente leitura."
 }
