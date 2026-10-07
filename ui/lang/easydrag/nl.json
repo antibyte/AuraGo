@@ -479,6 +479,7 @@
   "easydrag.ui.home_filter_all": "Alle",
   "easydrag.ui.home_filter_errors": "Met fouten",
   "easydrag.ui.home_filter_inactive": "Gepauzeerd",
+  "easydrag.ui.home_flow_deleted": "‘{name}’ is verwijderd.",
   "easydrag.ui.home_flows": "Je flows",
   "easydrag.ui.home_import": "Importeren",
   "easydrag.ui.home_mission_control": "Tonen in Missiecontrole",

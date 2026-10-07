@@ -341,4 +341,126 @@ export async function run(env) {
             [inRunView, afterEdit, validations(), editor.ed.model === editor.ed.draftModel, h.logged], [[], [], ['Draft doc'], true, []]);
         editor.dispose();
     });
+
+    // ── commit 3: accessibility ──
+
+    // shellWith renders the EasyDrag window w1 for route on the sandbox: the catalog, the flow f1
+    // and the list (listed: its flows) answer; extra answers first.
+    async function shellWith(route, listed, extra) {
+        const h = sandbox(req => {
+            const own = extra ? extra(req) : undefined;
+            if (own !== undefined) return own;
+            if (req.url.startsWith('/api/desktop/flows/node-types')) return { node_types: Array.from(types.values()), categories: [] };
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') return { flows: listed() };
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            if (req.method === 'GET' && req.url === '/api/desktop/flows/f1') return { flow: { id: 'f1', name: 'Flow', draft: flowDoc(), draft_revision: 3, published_draft_revision: 0, live_revision: 0 }, enabled: false, issues: [] };
+            return undefined;
+        });
+        const container = h.body.appendChild(new h.dom.El('div', {}));
+        h.win.EasyDragApp.render(container, 'w1', Object.assign({}, h.ctx, { api: h.transport }, route));
+        await settle();
+        h.flushFrames();
+        return { h, container, App: h.win.EasyDragApp };
+    }
+    const card = id => ({ id, name: 'Flow ' + id, published: false, enabled: false, triggers: [], preview: [] });
+
+    await guardAsync('ff2 M5 focus after screen changes: run view exit, start page, error card', async () => {
+        // Leaving the run view puts the focus on the canvas.
+        const r = sandbox(runAnswer());
+        const editor = openEditor(r);
+        await settle();
+        editor.showRun('r1');
+        await settle();
+        const back = editor.el.querySelector('[data-ed-cmd="exit-run-view"]');
+        back.focus();
+        back.fire('click');
+        const runView = [!!editor.ed.runView, r.dom.document.activeElement === editor.el.querySelector('.ed-canvas')];
+        editor.dispose();
+        // Back from the editor: New flow at once, the flow just left once the list is there.
+        const outcomes = [];
+        for (const [name, listed] of [['listed', () => [card('f2'), card('f1')]], ['gone', () => [card('f2')]]]) {
+            const w = await shellWith({ flowId: 'f1' }, listed);
+            const add = () => w.container.querySelector('.ed-home-hero [data-ed-new]');
+            w.container.querySelector('.ed-editor [data-ed-cmd="home"]').fire('click');
+            await settle();
+            const active = w.h.dom.document.activeElement;
+            outcomes.push([name, active && (active.getAttribute('data-ed-flow') || (active === add() ? 'new' : active.localName)), w.h.logged]);
+            w.App.dispose('w1');
+        }
+        // Mission Control's New flow keeps the focus on New flow, the list's answer does not take it.
+        const mc = await shellWith({ flowId: 'f1' }, () => [card('f1')]);
+        mc.App.open('w1', { section: 'home' });
+        await settle();
+        const mcFocus = mc.h.dom.document.activeElement === mc.container.querySelector('.ed-home-hero [data-ed-new]');
+        mc.App.dispose('w1');
+        // A load that fails shows the error card with the focus on Retry.
+        const failed = await shellWith({}, () => [], req => (req.url.startsWith('/api/desktop/flows/node-types') ? Promise.reject(apiError('FLOW_INTERNAL')) : undefined));
+        const retry = failed.container.querySelector('[data-ed-shell="retry"]');
+        eq('ff2 M5 the run view exit focuses the canvas; the start page focuses New flow, then the card just left; MC\'s New flow keeps New flow; an error focuses Retry',
+            [runView, outcomes, mcFocus, !!retry && failed.h.dom.document.activeElement === retry],
+            [[false, true], [['listed', 'f1', []], ['gone', 'new', []]], true, true]);
+        failed.App.dispose('w1');
+    });
+
+    await guardAsync('ff2 M6 the start page announces a delete, not every refresh, and debounces run ends', async () => {
+        let listed = [card('f1'), card('f2')];
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') return { flows: listed };
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            if (req.url === '/api/desktop/flows/f1' && req.method === 'DELETE') { listed = [card('f2')]; return { status: 'deleted', used_by: [] }; }
+            return undefined;
+        });
+        let menu = null;
+        h.ctx.showContextMenu = (x, y, items) => { menu = items; };
+        h.confirmAnswer = true;
+        const home = h.ED.home.create({ ctx: h.ctx, t, esc: h.ED.core.esc, api: h.api, catalog: h.catalog, readonly: false, openFlow: () => {} });
+        h.body.appendChild(home.el);
+        await settle();
+        const lists = () => h.requests.filter(r => r.url === '/api/desktop/flows' && r.method === 'GET').length;
+        const live = home.el.querySelector('[data-ed-home-live]');
+        const politeGrid = home.el.querySelector('.ed-flow-grid').getAttribute('aria-live');
+        home.el.querySelector('[data-ed-card-menu="f1"]').fire('click');
+        await menu.find(i => i.label === 'home_delete').action();
+        await settle();
+        h.runTimers(30);
+        const said = live.textContent;
+        const before = lists();
+        h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f2', reason: 'run_finished' } });
+        h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f2', reason: 'run_finished' } });
+        await settle();
+        const waiting = [lists() - before, h.delays()];
+        h.runTimers(1500);
+        await settle();
+        eq('ff2 M6 the grid is no live region; a delete is announced by name; run ends refresh once after a pause',
+            [politeGrid, live.getAttribute('aria-live'), said, waiting, lists() - before, h.logged], [null, 'polite', 'home_flow_deleted:Flow f1', [0, [1500]], 1, []]);
+        home.dispose();
+    });
+
+    await guardAsync('ff2 M7 only the selected step\'s tools and no screen-reader list button are tab stops', async () => {
+        const h = sandbox(() => undefined);
+        const doc = flowDoc();
+        doc.nodes.push({ id: 'n_cccccccc', key: 'gamma', type: 'web.search', label: 'Gamma', position: { x: 900, y: 0 }, params: { query: 'z' }, settings: {} });
+        doc.nodes.push({ id: 'n_dddddddd', key: 'delta', type: 'web.search', label: 'Delta', position: { x: 1200, y: 0 }, params: { query: 'w' }, settings: {} });
+        const editor = openEditor(h, { flow: { draft: doc } });
+        await settle();
+        h.runTimers(400);
+        const canvasEl = editor.el.querySelector('.ed-canvas');
+        // stops lists the canvas's tab stops: the canvas, and every button or [tabindex] not set
+        // to -1 outside a hidden part.
+        const stops = () => [canvasEl].concat(canvasEl.querySelectorAll('button, [tabindex]')).filter(n => n.getAttribute('tabindex') !== '-1' && !n.closest('[hidden]')).length;
+        const tools = id => editor.el.querySelector('[data-node-id="' + id + '"]').querySelectorAll('.ed-node-tool').map(b => b.getAttribute('tabindex'));
+        const none = [stops(), tools(A), canvasEl.querySelectorAll('[data-ed-focus-node]').map(b => b.getAttribute('tabindex'))];
+        h.fireDoc('keydown', h.key('ArrowRight', canvasEl));
+        const one = [stops(), tools(T1), tools(A)];
+        // A redrawn card (a new label) keeps its tools' tab stops.
+        editor.ed.model.setLabel(T1, 'Begin');
+        const redrawn = tools(T1);
+        h.fireDoc('keydown', h.key('Escape', canvasEl));
+        eq('ff2 M7 with 5 steps the canvas has 5 tab stops (itself and the zoom bar), 9 with one step selected; the list buttons are not tab stops',
+            [none, one, redrawn, stops()],
+            [[5, ['-1', '-1', '-1', '-1'], ['-1', '-1', '-1', '-1', '-1']], [9, ['0', '0', '0', '0'], ['-1', '-1', '-1', '-1']], ['0', '0', '0', '0'], 5]);
+        const css = fs.readFileSync(path.join(apps, '..', '..', '..', 'css', 'desktop-app-easydrag.css'), 'utf8');
+        eq('ff2 M7 a focused tool button shows its toolbar', /\.ed-node:focus-within \.ed-node-tools[^{]*\{ opacity: 1;/.test(css), true);
+        editor.dispose();
+    });
 }

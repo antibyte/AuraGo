@@ -479,6 +479,7 @@
   "easydrag.ui.home_filter_all": "Όλες",
   "easydrag.ui.home_filter_errors": "Με σφάλματα",
   "easydrag.ui.home_filter_inactive": "Σε παύση",
+  "easydrag.ui.home_flow_deleted": "Η ροή «{name}» διαγράφηκε.",
   "easydrag.ui.home_flows": "Οι ροές σου",
   "easydrag.ui.home_import": "Εισαγωγή",
   "easydrag.ui.home_mission_control": "Εμφάνιση στο Κέντρο ελέγχου",

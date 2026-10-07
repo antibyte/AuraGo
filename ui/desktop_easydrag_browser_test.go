@@ -80,6 +80,10 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	// Autosave reaches the backend.
 	s.wait(`()=>{const s=edFixture.lastSave();return !!s && s.nodes.length===5}`)
 
+	// Keyboard model with 5 steps: the canvas and the zoom bar are the tab stops; a selected step's
+	// tools join them, and a focused tool shows its toolbar.
+	s.tabStops()
+
 	// A save the server answers with 500 leaves the draft offline (retried by itself); a refused
 	// one (403 FLOW_PERMISSION_DENIED, flows are read-only) fails, and its chip becomes a retry button that saves.
 	s.saveFailures()
@@ -210,6 +214,26 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	// A flow deleted elsewhere while it is open: the editor says so and shows the start page.
 	s.deletedElsewhere()
 	s.failOnPageErrors("final")
+}
+
+// tabStops counts the canvas's tab stops with 5 steps: without a selection the canvas and the four
+// zoom buttons (no card tools, no screen-reader list button), with one selected step its four tools
+// as well. A tool of an unselected card that gets the focus shows its toolbar.
+func (s *easyDragSmoke) tabStops() {
+	s.t.Helper()
+	page := s.page
+	stops := `(()=>{const c=document.querySelector('.ed-canvas');return [c,...c.querySelectorAll('button,[tabindex]')].filter(n=>n.tabIndex>=0 && !n.disabled && n.getClientRects().length>0 && getComputedStyle(n).visibility!=='hidden').length})()`
+	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
+	page.Keyboard.MustType(input.Escape)
+	s.wait(`()=>edFixture.editor().model.doc.nodes.length===5 && !document.querySelector('.ed-node.is-selected') && ` + stops + `===5`)
+	page.Keyboard.MustType(input.ArrowRight)
+	s.wait(`()=>document.querySelectorAll('.ed-node.is-selected').length===1 && ` + stops + `===9`)
+	page.MustEval(`()=>{window.__tool=document.querySelector('.ed-node:not(.is-selected) .ed-node-tool');window.__tool.focus();}`)
+	s.wait(`()=>document.activeElement===window.__tool && getComputedStyle(window.__tool.closest('.ed-node-tools')).opacity==='1'`)
+	s.shot("editor-tool-focus")
+	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
+	page.Keyboard.MustType(input.Escape)
+	s.failOnPageErrors("tab stops")
 }
 
 // pausedElsewhere switches the seeded flow off as Mission Control would (the broadcast names the
@@ -507,9 +531,9 @@ func (s *easyDragSmoke) stopWaitingRuns() {
 	s.wait(fmt.Sprintf(`()=>{const b=document.querySelector('.ed-runview-banner');return edFixture.state.runs.get('%s').run.status==='cancelled' && b.querySelector('[data-ed-cmd="stop-viewed"]').hidden && b.textContent.includes(edFixture.editor().t('easydrag.ui.status_cancelled')) && document.activeElement===b.querySelector('[data-ed-cmd="exit-run-view"]')}`, second))
 	s.shot("run-view-stopped")
 	s.noRawKeys("run view stopped")
-	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
-	page.Keyboard.MustType(input.Escape)
-	s.wait(`()=>document.querySelector('.ed-runview-banner').hidden`)
+	// "Back to draft" (focused) ends the run view; the focus goes to the draft's canvas.
+	page.Keyboard.MustType(input.Enter)
+	s.wait(`()=>document.querySelector('.ed-runview-banner').hidden && document.activeElement===document.querySelector('.ed-canvas')`)
 	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-drawer')`)
 	s.clearToasts()
@@ -667,7 +691,8 @@ func (s *easyDragSmoke) phone() {
 	s.noRawKeys("phone editor")
 	s.phoneKeyboardAdd()
 	page.MustElement(`.ed-head [data-ed-cmd="home"]`).MustClick()
-	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1`)
+	// Back on the start page, the card of the flow just left has the focus.
+	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && document.activeElement===document.querySelector('.ed-flow-card[data-ed-flow="'+edFixture.seededID+'"]')`)
 	s.failOnPageErrors("phone")
 }
 

@@ -167,6 +167,16 @@
 - DOM modules get the editor state `ed` and talk over `ed.bus`, never through other modules'
   DOM. Focus moves synchronously when a popover or dialog opens; `.ed-app [hidden]` forces
   `display: none`. `ED.canvas.portLabel(t, node, port)` is the one port label.
+- Keyboard model of the canvas: the canvas is one tab stop, the zoom bar follows. Arrow keys move
+  the selection between steps (announced through the live region, `core.announcer`), Enter opens
+  the detail view, Delete/D/Ctrl+D/C act on the selection, Tab adds a step. A card's tool buttons
+  are tab stops only while it is selected (`syncTools`; `tabindex="-1"` otherwise), and
+  `.ed-node:focus-within` shows a focused tool's toolbar. The screen-reader step list
+  (`.ed-node-list`) duplicates the arrow keys, so its buttons are `tabindex="-1"`: it serves a
+  screen reader's browse mode, not Tab. With 5 steps and no selection the canvas has 5 tab stops
+  (the browser smoke test counts them). Screen changes move the focus: leaving the run view to
+  the canvas, the start page to New flow and then to the card of the flow just left (not for
+  Mission Control's New flow or the templates link), the shell's error card to Retry.
 - Strings: `easydrag.ui.*` in `ui/lang/easydrag/<16>.json` (shared with the server's catalog
   keys); built keys (`core.tr`) belong to a family of `TestEasyDragUIKeysExistInAllLocales`.
 - `createApi` (`easydrag-core.js`) errors carry `err.body.code`, shown as

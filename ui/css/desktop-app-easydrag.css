@@ -537,7 +537,8 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     opacity: 0; transform: translateY(4px); pointer-events: none;
     transition: opacity var(--ed-fast) var(--ed-ease), transform var(--ed-fast) var(--ed-ease);
 }
-.ed-node:hover .ed-node-tools, .ed-node.is-selected .ed-node-tools { opacity: 1; transform: none; pointer-events: auto; }
+/* A focused tool button shows its toolbar: no invisible focus stop. */
+.ed-node:hover .ed-node-tools, .ed-node.is-selected .ed-node-tools, .ed-node:focus-within .ed-node-tools { opacity: 1; transform: none; pointer-events: auto; }
 .ed-canvas.is-dragging .ed-node-tools { opacity: 0; pointer-events: none; }
 .ed-node-tool { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--ed-muted); cursor: pointer; }
 .ed-node-tool:hover { background: var(--ed-control-hover); color: var(--ed-text); }

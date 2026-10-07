@@ -479,6 +479,7 @@
   "easydrag.ui.home_filter_all": "Wszystkie",
   "easydrag.ui.home_filter_errors": "Z błędami",
   "easydrag.ui.home_filter_inactive": "Wstrzymane",
+  "easydrag.ui.home_flow_deleted": "Przepływ „{name}” został usunięty.",
   "easydrag.ui.home_flows": "Twoje przepływy",
   "easydrag.ui.home_import": "Importuj",
   "easydrag.ui.home_mission_control": "Pokaż w Kontroli misji",

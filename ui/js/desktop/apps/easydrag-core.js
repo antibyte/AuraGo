@@ -112,6 +112,21 @@
         return wrapped;
     }
 
+    // announcer speaks short texts through a polite live region (liveEl): it clears the region and
+    // sets the text a moment later, so a repeated text is read again; a newer text replaces one that
+    // is still waiting. cancel() drops a waiting text (dispose).
+    function announcer(liveEl) {
+        let timer = 0;
+        return {
+            announce(text) {
+                clearTimeout(timer);
+                liveEl.textContent = '';
+                timer = setTimeout(() => { timer = 0; liveEl.textContent = text; }, 30);
+            },
+            cancel() { clearTimeout(timer); timer = 0; }
+        };
+    }
+
     // frame coalesces many requests into one requestAnimationFrame callback.
     function frame(fn) {
         let id = 0;
@@ -444,7 +459,7 @@
     }
 
     ED.core = {
-        ICONS, icon, esc, tr, clamp, debounce, frame, emitter, bag, el, isEditable, isMod, shortcut, IS_MAC,
+        ICONS, icon, esc, tr, clamp, debounce, announcer, frame, emitter, bag, el, isEditable, isMod, shortcut, IS_MAC,
         randomID, lang, fmt, storage, createApi, errorCode, errorText, issueText, stepErrorText, modal, capturePointer, catOf, openFlowSettings
     };
 })();

@@ -33,7 +33,9 @@
         return '<svg viewBox="0 0 240 110" aria-hidden="true"><g class="ed-mini-wires">' + lines + '</g>' + rects + '</svg>';
     }
 
-    function create(app) {
+    // create builds the start page. opts.focusFlow: the flow the editor just left; its card takes
+    // the focus once the list is loaded, if New flow still has it (showHome focused New flow).
+    function create(app, opts) {
         const core = ED.core;
         const { t, esc, ctx } = app;
         const bag = core.bag();
@@ -41,6 +43,7 @@
         let templates = [];
         let filter = core.storage.get(FILTER_KEY, 'all');
         let query = '';
+        let focusFlow = (opts && opts.focusFlow) || '';
 
         const el = core.el('<div class="ed-home">' +
             '<header class="ed-home-hero"><div class="ed-home-brand"><span class="ed-logo" aria-hidden="true">' + core.icon('git-branch') + '</span>' +
@@ -51,11 +54,15 @@
             '<div class="ed-home-toolbar"><div class="ed-search">' + core.icon('search') + '<input type="search" placeholder="' + esc(t('easydrag.ui.home_search')) + '" aria-label="' + esc(t('easydrag.ui.home_search')) + '" enterkeyhint="search" inputmode="search" data-ed-home-search></div>' +
             '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.home_filter')) + '">' +
             ['all', 'active', 'inactive', 'errors'].map(f => '<button type="button" role="radio" data-ed-filter="' + f + '" aria-checked="' + (f === filter) + '">' + esc(t('easydrag.ui.home_filter_' + f)) + '</button>').join('') + '</div></div>' +
-            '<section class="ed-home-section"><h2>' + esc(t('easydrag.ui.home_flows')) + '</h2><div class="ed-flow-grid" aria-live="polite"></div></section>' +
+            '<section class="ed-home-section"><h2>' + esc(t('easydrag.ui.home_flows')) + '</h2><div class="ed-flow-grid"></div></section>' +
             '<section class="ed-home-section"><h2>' + esc(t('easydrag.ui.home_templates')) + '</h2><p class="ed-hint">' + esc(t('easydrag.ui.home_templates_hint')) + '</p><div class="ed-template-grid"></div></section>' +
+            '<div class="ed-sr-only" aria-live="polite" data-ed-home-live></div>' +
             '</div>');
         const grid = el.querySelector('.ed-flow-grid');
         const tplGrid = el.querySelector('.ed-template-grid');
+        // The grid is no live region (every refresh would read all cards); meaningful changes
+        // are announced on their own (a deleted flow).
+        const voice = core.announcer(el.querySelector('[data-ed-home-live]'));
 
         function triggerLabels(f) {
             const seen = new Set();
@@ -162,10 +169,24 @@
             flows = list.flows || [];
             templates = tpl.templates || [];
             render();
+            focusLeftFlow();
         }
-        // Every autosave broadcasts flows_changed "saved", and listing parses every flow on the
-        // server: those refreshes wait until saving pauses for 1.5 s.
+        // Every autosave broadcasts flows_changed "saved", and every live run's end "run_finished";
+        // listing parses every flow on the server: those refreshes wait until they pause for 1.5 s.
         const reloadSoon = core.debounce(reload, 1500);
+
+        // focusLeftFlow moves the focus to the card of the flow the editor just left, once, and only
+        // from New flow (where showHome put it) or from nowhere: never away from a control the user
+        // chose meanwhile.
+        function focusLeftFlow() {
+            const id = focusFlow;
+            focusFlow = '';
+            if (!id) return;
+            const card = Array.from(grid.querySelectorAll('[data-ed-flow]')).find(c => c.dataset.edFlow === id);
+            const active = document.activeElement;
+            const add = el.querySelector('.ed-home-hero [data-ed-new]');
+            if (card && (!active || active === document.body || active === add)) card.focus();
+        }
 
         // retry is "Try again" on an error card. The new grid replaces the button, so the focus goes
         // to the new "Try again" or, once the flows are back, to the first card. It moves only when
@@ -241,6 +262,7 @@
             // The flow's local leftovers go with it: its emergency copy and its viewport.
             ED.saver.dropEmergencyCopy(f.id);
             core.storage.remove(VIEW_PREFIX + f.id);
+            voice.announce(t('easydrag.ui.home_flow_deleted', { name: f.name }));
             reload();
         }
 
@@ -312,9 +334,9 @@
         });
         bag.listen(document, 'aurago:flows-changed', (event) => {
             const d = event.detail || {};
-            if (d.reason === 'saved') reloadSoon(); else reload();
+            if (d.reason === 'saved' || d.reason === 'run_finished') reloadSoon(); else reload();
         });
-        bag.add(() => { loadSeq++; reloadSoon.cancel(); });
+        bag.add(() => { loadSeq++; reloadSoon.cancel(); voice.cancel(); });
 
         render();
         reload();

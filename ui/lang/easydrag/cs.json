@@ -479,6 +479,7 @@
   "easydrag.ui.home_filter_all": "Vše",
   "easydrag.ui.home_filter_errors": "S chybami",
   "easydrag.ui.home_filter_inactive": "Pozastavené",
+  "easydrag.ui.home_flow_deleted": "Tok „{name}“ byl smazán.",
   "easydrag.ui.home_flows": "Tvoje toky",
   "easydrag.ui.home_import": "Importovat",
   "easydrag.ui.home_mission_control": "Zobrazit v Mission Control",

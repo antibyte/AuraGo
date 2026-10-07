@@ -63,8 +63,10 @@
         // Every timeout the canvas starts is tracked, so dispose can clear the ones still pending.
         const timers = new Set();
         let animTimer = 0;
-        let announceTimer = 0;
         let miniDrag = null;
+        const voice = core.announcer(liveEl);
+        // toolsOn holds the cards whose tool buttons are tab stops (the selected ones), by node id.
+        const toolsOn = new Map();
         // named holds the key and label each card was drawn with; a change to them can alter
         // the summaries of other cards that reference the node.
         const named = new Map();
@@ -334,8 +336,17 @@
                 (status === 'error' && step ? '<div class="ed-node-error">' + esc(core.stepErrorText(t, step)) + '</div>' : '');
         }
 
+        // Tool buttons start outside the tab order: four per card would bury the canvas between
+        // dozens of invisible stops. syncTools makes the selected cards' tools tab stops.
         function toolButton(id, iconName, label) {
-            return '<button type="button" class="ed-node-tool" data-ed-node-tool="' + id + '" title="' + esc(label) + '" aria-label="' + esc(label) + '">' + core.icon(iconName) + '</button>';
+            return '<button type="button" class="ed-node-tool" tabindex="-1" data-ed-node-tool="' + id + '" title="' + esc(label) + '" aria-label="' + esc(label) + '">' + core.icon(iconName) + '</button>';
+        }
+
+        function syncTools(card, id) {
+            const on = ed.selection.has(id);
+            if (toolsOn.get(id) === on) return;
+            toolsOn.set(id, on);
+            card.querySelectorAll('.ed-node-tool').forEach(b => b.setAttribute('tabindex', on ? '0' : '-1'));
         }
 
         function classesFor(n) {
@@ -381,7 +392,9 @@
             if (signatures.get(n.id) !== sig) {
                 signatures.set(n.id, sig);
                 card.innerHTML = cardMarkup(n, sum);
+                toolsOn.delete(n.id);
             }
+            syncTools(card, n.id);
         }
 
         // relabelled reports whether a change added or removed one of these nodes or gave it a new key
@@ -409,6 +422,7 @@
             nodeEls.delete(id);
             signatures.delete(id);
             named.delete(id);
+            toolsOn.delete(id);
         }
 
         function render() {
@@ -431,11 +445,14 @@
             });
         }
 
-        // refreshSelection updates the card classes only: card markup does not show the selection.
+        // refreshSelection updates the card classes and the tools' tab stops only: card markup does
+        // not show the selection.
         function refreshSelection() {
             ed.model.doc.nodes.forEach(n => {
                 const card = nodeEls.get(n.id);
-                if (card) card.className = classesFor(n) + (card.classList.contains('is-new') ? ' is-new' : '');
+                if (!card) return;
+                card.className = classesFor(n) + (card.classList.contains('is-new') ? ' is-new' : '');
+                syncTools(card, n.id);
             });
             selectionTick++;
             minimapFrame.request();
@@ -501,6 +518,9 @@
 
         // ── accessible list and live region ─────────────────────────────────────
 
+        // drawList fills the screen-reader list of steps. Its buttons are not tab stops: on the
+        // keyboard the canvas is the one path (arrow keys move between steps and are announced);
+        // the list serves a screen reader's browse mode.
         function drawList() {
             // One pass over nodes and edges: the labels each node leads to, in edge order.
             const byId = new Map(ed.model.doc.nodes.map(n => [n.id, n]));
@@ -514,17 +534,12 @@
             listEl.innerHTML = ed.model.doc.nodes.map(n => {
                 const targets = leadsTo.get(n.id) || [];
                 const text = (n.label || n.type) + (targets.length ? ' → ' + targets.join(', ') : '');
-                return '<li><button type="button" data-ed-focus-node="' + esc(n.id) + '">' + esc(text) + '</button></li>';
+                return '<li><button type="button" tabindex="-1" data-ed-focus-node="' + esc(n.id) + '">' + esc(text) + '</button></li>';
             }).join('');
         }
 
-        // announce clears the live region and sets the text a moment later, so a repeated text is read
-        // again; a newer text replaces one that is still waiting.
-        function announce(text) {
-            cancel(announceTimer);
-            liveEl.textContent = '';
-            announceTimer = later(() => { liveEl.textContent = text; }, 30);
-        }
+        // announce speaks text through the canvas's live region (core.announcer).
+        function announce(text) { voice.announce(text); }
 
         bag.listen(listEl, 'click', (event) => {
             const btn = event.target.closest('[data-ed-focus-node]');
@@ -573,6 +588,7 @@
             viewFrame.cancel();
             minimapFrame.cancel();
             listUpdate.cancel();
+            voice.cancel();
             timers.forEach(id => clearTimeout(id));
             timers.clear();
         });

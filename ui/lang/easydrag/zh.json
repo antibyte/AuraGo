@@ -479,6 +479,7 @@
   "easydrag.ui.home_filter_all": "全部",
   "easydrag.ui.home_filter_errors": "有错误",
   "easydrag.ui.home_filter_inactive": "已暂停",
+  "easydrag.ui.home_flow_deleted": "“{name}”已删除。",
   "easydrag.ui.home_flows": "你的流程",
   "easydrag.ui.home_import": "导入",
   "easydrag.ui.home_mission_control": "在任务控制中显示",

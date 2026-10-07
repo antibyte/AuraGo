@@ -479,6 +479,7 @@
   "easydrag.ui.home_filter_all": "Alla",
   "easydrag.ui.home_filter_errors": "Med fel",
   "easydrag.ui.home_filter_inactive": "Pausade",
+  "easydrag.ui.home_flow_deleted": "”{name}” har tagits bort.",
   "easydrag.ui.home_flows": "Dina flöden",
   "easydrag.ui.home_import": "Importera",
   "easydrag.ui.home_mission_control": "Visa i Mission Control",

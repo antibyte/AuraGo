@@ -479,6 +479,7 @@
   "easydrag.ui.home_filter_all": "सभी",
   "easydrag.ui.home_filter_errors": "त्रुटियों वाले",
   "easydrag.ui.home_filter_inactive": "रुके हुए",
+  "easydrag.ui.home_flow_deleted": "“{name}” हटा दिया गया।",
   "easydrag.ui.home_flows": "आपके फ़्लो",
   "easydrag.ui.home_import": "आयात करें",
   "easydrag.ui.home_mission_control": "मिशन नियंत्रण में दिखाएँ",

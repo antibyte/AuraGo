@@ -258,6 +258,8 @@
             setMenus();
             // The hints were not checked while the run view showed (an edit there, a restore).
             publish.refreshIssues();
+            // The banner and its buttons are gone: keyboard focus goes to the draft's canvas.
+            canvas.el.focus({ preventScroll: true });
         }
 
         // ── commands ────────────────────────────────────────────────────────────

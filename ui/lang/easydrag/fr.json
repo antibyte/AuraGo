@@ -479,6 +479,7 @@
   "easydrag.ui.home_filter_all": "Tous",
   "easydrag.ui.home_filter_errors": "Avec erreurs",
   "easydrag.ui.home_filter_inactive": "En pause",
+  "easydrag.ui.home_flow_deleted": "« {name} » a été supprimé.",
   "easydrag.ui.home_flows": "Vos flux",
   "easydrag.ui.home_import": "Importer",
   "easydrag.ui.home_mission_control": "Afficher dans Contrôle de mission",

@@ -479,6 +479,7 @@
   "easydrag.ui.home_filter_all": "すべて",
   "easydrag.ui.home_filter_errors": "エラーあり",
   "easydrag.ui.home_filter_inactive": "一時停止中",
+  "easydrag.ui.home_flow_deleted": "「{name}」を削除しました。",
   "easydrag.ui.home_flows": "マイフロー",
   "easydrag.ui.home_import": "インポート",
   "easydrag.ui.home_mission_control": "ミッションコントロールで表示",

@@ -479,6 +479,7 @@
   "easydrag.ui.home_filter_all": "Alle",
   "easydrag.ui.home_filter_errors": "Med feil",
   "easydrag.ui.home_filter_inactive": "Satt på pause",
+  "easydrag.ui.home_flow_deleted": "«{name}» er slettet.",
   "easydrag.ui.home_flows": "Dine flyter",
   "easydrag.ui.home_import": "Importer",
   "easydrag.ui.home_mission_control": "Vis i Oppdragskontroll",

@@ -52,7 +52,13 @@
             else start(inst, inst.lastRoute || {});
         });
         inst.root.appendChild(box);
+        // The screen that had the focus is gone: Retry takes it (in the active window only).
+        if (windowActive(inst)) box.querySelector('[data-ed-shell="retry"]').focus();
     }
+
+    // windowActive: focus may move inside this window (it is the active one, or the desktop
+    // cannot tell).
+    function windowActive(inst) { return typeof inst.ctx.isActive !== 'function' || inst.ctx.isActive(); }
 
     function setHomeMenus(inst) {
         if (typeof inst.ctx.setWindowMenus !== 'function') return;
@@ -71,14 +77,21 @@
         if (b) b.click();
     }
 
+    // showHome shows the start page. Keyboard focus goes to New flow and, once the list is loaded,
+    // to the card of the flow just left (from the editor), unless opts.focusNew keeps it on New flow
+    // (Mission Control's New flow) or opts.section scrolls to the templates.
     function showHome(inst, opts) {
         if (!alive(inst)) return;
+        const o = opts || {};
+        const left = inst.screen && inst.screen.ed && !o.focusNew && o.section !== 'templates' ? inst.screen.ed.flow.id : '';
         inst.nav += 1;
         clearScreen(inst);
         inst.lastRoute = {};
-        inst.screen = ED.home.create(inst.app);
+        inst.screen = ED.home.create(inst.app, { focusFlow: left });
         inst.root.appendChild(inst.screen.el);
-        if (opts && opts.section === 'templates') {
+        const add = inst.screen.el.querySelector('[data-ed-new]');
+        if (add && !add.disabled && windowActive(inst)) add.focus({ preventScroll: true });
+        if (o.section === 'templates') {
             const grid = inst.screen.el.querySelector('.ed-template-grid');
             if (grid) requestAnimationFrame(() => grid.parentElement.scrollIntoView({ block: 'start' }));
         }
@@ -139,7 +152,7 @@
         const nav = ++inst.nav;
         if (inst.screen && inst.screen.leave && !(await inst.screen.leave())) return;
         if (nav !== inst.nav || !alive(inst)) return;
-        if (!inst.screen || inst.screen.ed) showHome(inst);
+        if (!inst.screen || inst.screen.ed) showHome(inst, { focusNew: true });
         const add = inst.root.querySelector('.ed-home [data-ed-new]');
         if (add && !add.disabled && typeof add.focus === 'function') add.focus();
     }
