@@ -250,7 +250,7 @@ Steps that need a password or key (the authentication of an HTTP request, for ex
 - Runs that were in progress when AuraGo stopped are marked interrupted; they do not resume. A Date/Time trigger that came due while AuraGo or flows were off fires at start-up only when it is at most 10 minutes late; otherwise it is skipped with a warning in the log, and a yearly date moves on to the next year.
 - At start-up AuraGo checks Mission Control against the published flows and repairs their triggers and timers. Publishing never re-creates a flow mission that is missing from Mission Control: export the flow, delete it and import it again.
 - `flows.db` (by default in `data/`) is part of the backup.
-- **Before a downgrade**, disable or delete your flows. An AuraGo without EasyDrag loads flow missions but drops their flow fields on its next save, and an enabled flow mission that was running or queued may then run once as an agent mission with an empty prompt. An AuraGo with an older flow store refuses a newer `flows.db` and leaves it untouched; its flows are then unavailable.
+- **Before a downgrade**, disable or delete your flows. Flow schedules are kept in memory only and set up again at every start, so an older AuraGo never runs them as agent tasks. What remains are the flow missions in the missions file: an AuraGo without EasyDrag loads them but drops their flow fields on its next save, an enabled flow mission that was running or queued may then run once as an agent mission with an empty prompt, and **Run** in Mission Control can start such an empty agent mission. An AuraGo with an older flow store refuses a newer `flows.db` and leaves it untouched; its flows are then unavailable.
 
 ---
 

@@ -41,6 +41,9 @@ type CronManager struct {
 	callback           func(prompt string)
 	runners            map[string]func(jobID, prompt string)
 	started            bool
+	// runtimeJobs holds the ids of jobs that live in memory only (AddRuntimeJob,
+	// MakeRuntimeOnly); saveLocked leaves them out of the persisted job list.
+	runtimeJobs map[string]bool
 }
 
 func NewCronManager(dataDir string) *CronManager {
@@ -53,6 +56,7 @@ func NewCronManager(dataDir string) *CronManager {
 		cronEntryIDs:       make(map[string]cron.EntryID),
 		registrationErrors: make(map[string]string),
 		runners:            make(map[string]func(jobID, prompt string)),
+		runtimeJobs:        make(map[string]bool),
 	}
 }
 
@@ -83,6 +87,13 @@ func (m *CronManager) Start(callback func(prompt string)) error {
 
 	m.callback = callback
 
+	// Runtime-only jobs added before Start are not in the persisted list; keep them.
+	var runtimeJobs []CronJob
+	for _, job := range m.jobs {
+		if m.runtimeJobs[job.ID] {
+			runtimeJobs = append(runtimeJobs, job)
+		}
+	}
 	loaded, err := m.loadLocked()
 	if err != nil {
 		slog.Warn("[CronManager] Failed to load persisted jobs; starting with empty job list", "error", err)
@@ -90,6 +101,7 @@ func (m *CronManager) Start(callback func(prompt string)) error {
 	} else if !loaded {
 		m.jobs = []CronJob{}
 	}
+	m.keepRuntimeJobsLocked(runtimeJobs)
 
 	err = m.refreshRuntimeRegistrationsLocked()
 
@@ -235,15 +247,54 @@ func (m *CronManager) save() error {
 	return m.saveLocked()
 }
 
-// saveLocked must be called with m.mu held.
+// keepRuntimeJobsLocked puts the runtime-only jobs back after Start loaded the persisted
+// list; a loaded job under the id of one of them gives way to it. Caller holds m.mu.
+func (m *CronManager) keepRuntimeJobsLocked(runtimeJobs []CronJob) {
+	if len(runtimeJobs) == 0 {
+		return
+	}
+	jobs := make([]CronJob, 0, len(m.jobs)+len(runtimeJobs))
+	replaced := false
+	for _, job := range m.jobs {
+		if m.runtimeJobs[job.ID] {
+			replaced = true
+			continue
+		}
+		jobs = append(jobs, job)
+	}
+	m.jobs = append(jobs, runtimeJobs...)
+	if replaced {
+		if err := m.saveLocked(); err != nil {
+			slog.Warn("[CronManager] Failed to save cron jobs", "error", err)
+		}
+	}
+}
+
+// persistedJobsLocked returns the jobs that are saved: all but the runtime-only ones.
+// Caller holds m.mu.
+func (m *CronManager) persistedJobsLocked() []CronJob {
+	if len(m.runtimeJobs) == 0 {
+		return m.jobs
+	}
+	jobs := make([]CronJob, 0, len(m.jobs))
+	for _, job := range m.jobs {
+		if !m.runtimeJobs[job.ID] {
+			jobs = append(jobs, job)
+		}
+	}
+	return jobs
+}
+
+// saveLocked must be called with m.mu held. Runtime-only jobs are never written.
 func (m *CronManager) saveLocked() error {
+	jobs := m.persistedJobsLocked()
 	if m.store != nil {
-		return m.store.save(systemTaskNamespaceCron, m.jobs)
+		return m.store.save(systemTaskNamespaceCron, jobs)
 	}
 	if err := os.MkdirAll(filepath.Dir(m.file), 0o750); err != nil {
 		return fmt.Errorf("ensure cron dir: %w", err)
 	}
-	data, err := json.MarshalIndent(m.jobs, "", "  ")
+	data, err := json.MarshalIndent(jobs, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -325,6 +376,7 @@ func (m *CronManager) removeJobLocked(id string) bool {
 		found = true
 	}
 	delete(m.registrationErrors, id)
+	delete(m.runtimeJobs, id)
 
 	filtered := []CronJob{}
 	for _, j := range m.jobs {
@@ -465,4 +517,77 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 	default:
 		return "", fmt.Errorf("unsupported manage_schedule operation: %s", operation)
 	}
+}
+
+// AddRuntimeJob schedules a job like ManageScheduleWithSource "add" (the same scheduler
+// permission, expression check and JSON answer), but keeps it in memory only: GetJobs,
+// "list", the dashboard and the agent's cron tools see it, no save ever writes it to the
+// persisted job list, and it ends with the process, so its owner registers it again on
+// every start. A persisted job under the same id is replaced and leaves the store. id is
+// required. EasyDrag's flow schedules use it, so an older AuraGo, which hands every job
+// it loads without a runner to its agent, never runs them.
+func (m *CronManager) AddRuntimeJob(id, expr, prompt, source string) (string, error) {
+	if err := requireSchedulerPermission("add"); err != nil {
+		return fmt.Sprintf(`{"status": "error", "message": "%s"}`, err.Error()), nil
+	}
+	if id == "" || expr == "" || prompt == "" {
+		return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T("", "tools.cron_add_required")), nil
+	}
+	if _, err := newCronParser().Parse(expr); err != nil {
+		return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T("", "tools.cron_invalid_expr", err)), nil
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	wasPersisted := false
+	for _, job := range m.jobs {
+		if job.ID == id && !m.runtimeJobs[id] {
+			wasPersisted = true
+		}
+	}
+	m.removeJobLocked(id)
+	job := CronJob{ID: id, CronExpr: expr, TaskPrompt: prompt, Source: source}
+	if err := m.scheduleInternal(job); err != nil {
+		m.registrationErrors[id] = err.Error()
+		return "", err
+	}
+	if m.runtimeJobs == nil {
+		m.runtimeJobs = make(map[string]bool)
+	}
+	m.runtimeJobs[id] = true
+	m.jobs = append(m.jobs, job)
+	if wasPersisted {
+		if err := m.saveLocked(); err != nil {
+			return "", err
+		}
+	}
+	return fmt.Sprintf(`{"status": "success", "message": "%s", "id": "%s"}`, i18n.T("", "tools.cron_scheduled"), id), nil
+}
+
+// MakeRuntimeOnly turns every job of source into a runtime-only job (see AddRuntimeJob)
+// and rewrites the persisted job list without them. The jobs keep their schedule and
+// keep running; only their storage changes, so it needs no scheduler permission. It
+// reports how many jobs left the persisted list; an empty source changes nothing.
+// MissionManagerV2.Start uses it for flow schedule jobs that an earlier build persisted.
+func (m *CronManager) MakeRuntimeOnly(source string) (int, error) {
+	if source == "" {
+		return 0, nil
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	moved := 0
+	for _, job := range m.jobs {
+		if job.Source != source || m.runtimeJobs[job.ID] {
+			continue
+		}
+		if m.runtimeJobs == nil {
+			m.runtimeJobs = make(map[string]bool)
+		}
+		m.runtimeJobs[job.ID] = true
+		moved++
+	}
+	if moved == 0 {
+		return 0, nil
+	}
+	return moved, m.saveLocked()
 }

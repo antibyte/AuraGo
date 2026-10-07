@@ -418,12 +418,18 @@ func TestFlowCronJobsNeverCapturePromptMissionJobs(t *testing.T) {
 // Review item 1: before MissionManagerV2.Start registers the "flow" runner (the startup
 // window after CronManager.Start), a persisted flow cron job never reaches the agent
 // fallback, while prompt jobs keep using it; once the runners exist both run normally.
+// Since FF1, flow schedules are runtime-only, so a persisted flow job is one that an
+// earlier build wrote; the test seeds it that way.
 func TestFlowCronJobNeverReachesTheAgentFallback(t *testing.T) {
 	logs := c07CaptureLogs(t, slog.LevelInfo)
 	dir := tempSystemTaskDir(t)
 	setupCron := NewCronManager(dir)
 	setup := NewMissionManagerV2(dir, setupCron)
 	flowID := publishTestFlow(t, setup, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "* * * * * *"})
+	if _, err := setupCron.ManageScheduleWithSource("add", flowCronJobID(flowID, "n_aaaaaaaa"), "* * * * * *",
+		"EasyDrag flow trigger", "", flowCronSource); err != nil {
+		t.Fatal(err)
+	}
 	if err := setup.Create(&MissionV2{ID: "mission_every_second", Name: "Tick", Prompt: "c07 prompt mission tick",
 		ExecutionType: ExecutionScheduled, Schedule: "* * * * * *"}); err != nil {
 		t.Fatal(err)

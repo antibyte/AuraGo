@@ -304,10 +304,17 @@ func (m *MissionManagerV2) flowCronJobCurrentLocked(missionID string, spec FlowT
 
 // pruneFlowCronJobsLocked removes flow cron jobs that no enabled schedule spec owns any more,
 // for example after a crash or while the scheduler refused removals. Start runs it before
-// the triggers are set up. Caller holds m.mu.
+// the triggers are set up. Flow schedules are runtime-only cron jobs (addFlowCronLocked);
+// it first takes flow jobs that an earlier build persisted out of the crontab store, so an
+// older AuraGo never loads them. Caller holds m.mu.
 func (m *MissionManagerV2) pruneFlowCronJobsLocked() {
 	if m.cron == nil {
 		return
+	}
+	if moved, err := m.cron.MakeRuntimeOnly(flowCronSource); err != nil {
+		slog.Warn("[MissionV2] Failed to remove persisted flow cron jobs from the cron store", "jobs", moved, "error", err)
+	} else if moved > 0 {
+		slog.Info("[MissionV2] Removed persisted flow cron jobs from the cron store", "jobs", moved)
 	}
 	for _, job := range m.cron.GetJobs() {
 		if job.Source != flowCronSource {
@@ -423,7 +430,10 @@ func (m *MissionManagerV2) addFlowCronLocked(missionID string, spec FlowTriggerS
 			return fmt.Errorf("register flow schedule %s: cron job %s belongs to another scheduler entry", spec.NodeID, jobID)
 		}
 	}
-	out, err := m.cron.ManageScheduleWithSource("add", jobID, spec.Schedule, "EasyDrag flow trigger", "", flowCronSource)
+	// A runtime-only job: the crontab store never holds it, so an older AuraGo (which hands
+	// every job it loads to its agent) never runs it; Start registers it again from
+	// FlowTriggers (setupTriggersLocked).
+	out, err := m.cron.AddRuntimeJob(jobID, spec.Schedule, "EasyDrag flow trigger", flowCronSource)
 	if err != nil {
 		return fmt.Errorf("register flow schedule %s: %w", spec.NodeID, err)
 	}
