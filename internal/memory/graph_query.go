@@ -671,7 +671,7 @@ func (kg *KnowledgeGraph) SearchForContextStructured(query string, maxNodes int,
 		likeQ := "%" + dbutil.EscapeLike(query) + "%"
 		likeRows, err := tx.Query(`
 			SELECT id, access_count FROM kg_nodes
-			WHERE id LIKE ? OR label LIKE ? OR properties LIKE ?
+			WHERE id LIKE ? ESCAPE '\' OR label LIKE ? ESCAPE '\' OR properties LIKE ? ESCAPE '\'
 			ORDER BY updated_at DESC, access_count DESC
 			LIMIT ?
 		`, likeQ, likeQ, likeQ, maxNodes)

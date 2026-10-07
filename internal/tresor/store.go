@@ -34,6 +34,15 @@ func Open(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return nil, fmt.Errorf("create tresor directory: %w", err)
 	}
+	// Pre-create the file privately: the driver would create it under the
+	// process umask, and SQLite gives the -wal/-shm sidecars the database's mode.
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("create tresor database: %w", err)
+	}
+	if err = f.Close(); err != nil {
+		return nil, fmt.Errorf("create tresor database: %w", err)
+	}
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open tresor database: %w", err)
@@ -50,6 +59,14 @@ func Open(path string) (*Store, error) {
 	if err = os.Chmod(path, 0600); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("protect tresor database: %w", err)
+	}
+	// Belt and braces: sidecars left by an older, wider database file keep
+	// their mode, so tighten whichever exist now.
+	for _, sidecar := range []string{path + "-wal", path + "-shm"} {
+		if err = os.Chmod(sidecar, 0600); err != nil && !errors.Is(err, os.ErrNotExist) {
+			db.Close()
+			return nil, fmt.Errorf("protect tresor database sidecar: %w", err)
+		}
 	}
 	return &Store{db: db}, nil
 }

@@ -15,6 +15,7 @@ This package owns the dedicated `data/tresor.db` SQLite store for opaque, browse
 - Store only random IDs, revisions, ciphertext and password/recovery key envelopes. Entry names, types, MIME types and content stay encrypted as metadata or body.
 - Keep the single-header setup atomic and reject stale record/header changes. Preserve existing data on schema changes; back up before migration.
 - Browser notes autosave encrypted records. Desktop close awaits writes and reports failures; explicit/idle/pagehide locks clear decrypted state immediately regardless of pending or failed writes. Only completed encrypted drafts survive locking. Late operations cannot change a newer unlocked session. Note selection changes only after successful loading/decryption; draft titles survive redraws. Reload the header before unlock/password change and clear keys/plaintext after an unlock failure.
+- `Open` pre-creates `tresor.db` as 0600 so SQLite never creates it under the umask and its `-wal`/`-shm` sidecars inherit 0600; existing sidecars are tightened too (`TestOpenCreatesPrivateDatabaseFiles`, Unix).
 - Keep `config.TresorDBFilename` in `SQLiteDatabasePaths` and `SQLiteProtectedPaths`, including sidecars.
 - Never log or export record bytes, keys or plaintext through agent tools.
 
