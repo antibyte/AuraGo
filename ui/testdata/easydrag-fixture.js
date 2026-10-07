@@ -630,6 +630,18 @@
         }
     }
 
+    // nextRun is the next local run of a daily or weekdays schedule; other modes get a time 18 h ahead.
+    function nextRun(params) {
+        const p = params || {};
+        if (p.mode !== 'weekdays' && p.mode !== 'daily') return iso(18 * 3600000);
+        const [hour, minute] = String(p.time || '07:00').split(':').map(Number);
+        const at = new Date();
+        at.setHours(hour, minute, 0, 0);
+        if (at <= new Date()) at.setDate(at.getDate() + 1);
+        while (p.mode === 'weekdays' && (at.getDay() === 0 || at.getDay() === 6)) at.setDate(at.getDate() + 1);
+        return at.toISOString();
+    }
+
     // ── /api/missions/v2: the flow missions Mission Control lists (tools.MissionV2) ──
     function flowMission(entry) {
         const r = entry.rec;
@@ -644,7 +656,8 @@
                 ? { node_id: n.id, trigger_type: 'schedule', schedule: scheduleCron(n.params) }
                 : { node_id: n.id, trigger_type: 'manual' });
             // missionPayload adds next_run for an armed timer: a switched-on flow with a schedule.
-            if (entry.enabled && m.flow_triggers.some(tr => tr.trigger_type === 'schedule')) m.next_run = iso(18 * 3600000);
+            const schedule = triggerNodes(r.live).find(n => n.type === 'trigger.schedule');
+            if (entry.enabled && schedule) m.next_run = nextRun(schedule.params);
         }
         return m;
     }

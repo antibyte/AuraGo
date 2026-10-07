@@ -1448,6 +1448,7 @@
   "desktop.mc_schedule_every_hours": "alle {{count}} Stunden",
   "desktop.mc_schedule_hourly_at": "jede Stunde zur Minute {{minute}}",
   "desktop.mc_schedule_daily_at": "täglich um {{time}}",
+  "desktop.mc_schedule_weekdays_at": "werktags um {{time}}",
   "desktop.mc_schedule_weekly_at": "{{days}} um {{time}}",
   "desktop.mc_schedule_monthly_at": "am {{day}}. jeden Monats um {{time}}",
   "desktop.mc_schedule_custom_desc": "nach eigenem Cron-Zeitplan",

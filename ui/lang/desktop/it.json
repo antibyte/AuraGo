@@ -1448,6 +1448,7 @@
   "desktop.mc_schedule_every_hours": "ogni {{count}} ore",
   "desktop.mc_schedule_hourly_at": "ogni ora al minuto {{minute}}",
   "desktop.mc_schedule_daily_at": "ogni giorno alle {{time}}",
+  "desktop.mc_schedule_weekdays_at": "nei giorni feriali alle {{time}}",
   "desktop.mc_schedule_weekly_at": "{{days}} alle {{time}}",
   "desktop.mc_schedule_monthly_at": "il giorno {{day}} di ogni mese alle {{time}}",
   "desktop.mc_schedule_custom_desc": "secondo un programma cron personalizzato",

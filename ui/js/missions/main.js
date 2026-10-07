@@ -607,7 +607,7 @@ function renderMissionGrid(mission, isFirstRender) {
     const triggerPill = `<div class="mc-trigger-pill" title="${escapeAttr(execPillTitle)}">${execIcon}<span>${execText}</span></div>`;
     const hasTriggerDetails = mission.execution_type === 'triggered' && !!renderTriggerText(mission);
 
-    const lastRun = mission.last_run ? formatTime(mission.last_run) : t('missions.card_last_run_never');
+    const lastRun = hasTime(mission.last_run) ? formatTime(mission.last_run) : t('missions.card_last_run_never');
     const resultIcon = hasError ? svgIcons.xCircle : (mission.last_result === 'success' ? svgIcons.checkCircle : '');
     const resultClass = hasError ? 'mc-meta-item--error' : (mission.last_result === 'success' ? 'mc-meta-item--ok' : '');
 
@@ -1458,8 +1458,14 @@ function escapeAttr(s) {
         .replace(/>/g, '&gt;');
 }
 
+// hasTime reports whether a time from the server is set: Go sends its zero time
+// ("0001-01-01T00:00:00Z") for a mission that never ran, not an empty value.
+function hasTime(isoString) {
+    return !!isoString && Date.parse(isoString) > 0;
+}
+
 function formatTime(isoString) {
-    if (!isoString) return t('missions.time_never');
+    if (!hasTime(isoString)) return t('missions.time_never');
     const date = new Date(isoString);
     const now = new Date();
     const diff = now - date;

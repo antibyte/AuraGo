@@ -1448,6 +1448,7 @@
   "desktop.mc_schedule_every_hours": "हर {{count}} घंटे में",
   "desktop.mc_schedule_hourly_at": "हर घंटे {{minute}} मिनट पर",
   "desktop.mc_schedule_daily_at": "रोज़ {{time}} बजे",
+  "desktop.mc_schedule_weekdays_at": "कार्यदिवसों में {{time}} बजे",
   "desktop.mc_schedule_weekly_at": "{{days}} को {{time}} बजे",
   "desktop.mc_schedule_monthly_at": "हर महीने की {{day}} तारीख़ को {{time}} बजे",
   "desktop.mc_schedule_custom_desc": "कस्टम cron शेड्यूल पर",

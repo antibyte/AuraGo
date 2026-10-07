@@ -1448,6 +1448,7 @@
   "desktop.mc_schedule_every_hours": "každých {{count}} hodin",
   "desktop.mc_schedule_hourly_at": "každou hodinu v minutě {{minute}}",
   "desktop.mc_schedule_daily_at": "denně v {{time}}",
+  "desktop.mc_schedule_weekdays_at": "v pracovní dny v {{time}}",
   "desktop.mc_schedule_weekly_at": "{{days}} v {{time}}",
   "desktop.mc_schedule_monthly_at": "{{day}}. den každého měsíce v {{time}}",
   "desktop.mc_schedule_custom_desc": "podle vlastního plánu cron",

@@ -1448,6 +1448,7 @@
   "desktop.mc_schedule_every_hours": "{{count}} 時間ごと",
   "desktop.mc_schedule_hourly_at": "毎時 {{minute}} 分",
   "desktop.mc_schedule_daily_at": "毎日 {{time}}",
+  "desktop.mc_schedule_weekdays_at": "平日 {{time}}",
   "desktop.mc_schedule_weekly_at": "{{days}} の {{time}}",
   "desktop.mc_schedule_monthly_at": "毎月 {{day}} 日の {{time}}",
   "desktop.mc_schedule_custom_desc": "カスタム cron スケジュール",

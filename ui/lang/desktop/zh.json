@@ -1448,6 +1448,7 @@
   "desktop.mc_schedule_every_hours": "每 {{count}} 小时",
   "desktop.mc_schedule_hourly_at": "每小时第 {{minute}} 分钟",
   "desktop.mc_schedule_daily_at": "每天 {{time}}",
+  "desktop.mc_schedule_weekdays_at": "工作日 {{time}}",
   "desktop.mc_schedule_weekly_at": "{{days}} {{time}}",
   "desktop.mc_schedule_monthly_at": "每月 {{day}} 日 {{time}}",
   "desktop.mc_schedule_custom_desc": "按自定义 cron 计划",

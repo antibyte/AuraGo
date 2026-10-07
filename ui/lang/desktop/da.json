@@ -1448,6 +1448,7 @@
   "desktop.mc_schedule_every_hours": "hver {{count}} timer",
   "desktop.mc_schedule_hourly_at": "hver time ved minut {{minute}}",
   "desktop.mc_schedule_daily_at": "dagligt kl. {{time}}",
+  "desktop.mc_schedule_weekdays_at": "på hverdage kl. {{time}}",
   "desktop.mc_schedule_weekly_at": "{{days}} kl. {{time}}",
   "desktop.mc_schedule_monthly_at": "den {{day}}. i hver måned kl. {{time}}",
   "desktop.mc_schedule_custom_desc": "efter en brugerdefineret cron-tidsplan",

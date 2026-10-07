@@ -1448,6 +1448,7 @@
   "desktop.mc_schedule_every_hours": "κάθε {{count}} ώρες",
   "desktop.mc_schedule_hourly_at": "κάθε ώρα στο λεπτό {{minute}}",
   "desktop.mc_schedule_daily_at": "καθημερινά στις {{time}}",
+  "desktop.mc_schedule_weekdays_at": "τις εργάσιμες στις {{time}}",
   "desktop.mc_schedule_weekly_at": "{{days}} στις {{time}}",
   "desktop.mc_schedule_monthly_at": "την ημέρα {{day}} κάθε μήνα στις {{time}}",
   "desktop.mc_schedule_custom_desc": "με προσαρμοσμένο πρόγραμμα cron",

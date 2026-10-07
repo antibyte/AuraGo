@@ -430,6 +430,12 @@ const pillTitle = startTags(rendered[`grid ${triggeredEvil.id}`]).find(tag => ta
 check('escaping: the trigger pill title is escaped once', pillTitle.includes('&lt;img src=x onerror=alert(10)&gt;') && !pillTitle.includes('&amp;lt;'), pillTitle);
 setMissions(ALL);
 
+// ── never-run missions: the server sends Go's zero time as last_run ──
+const neverRan = { ...flowLive, id: 'flow-zero', last_run: '0001-01-01T00:00:00Z' };
+check('grid: a zero last_run reads as never run', P.renderMissionGrid(neverRan, false).includes('missions.card_last_run_never'));
+check('formatTime: the zero time and nothing read as never', P.formatTime('0001-01-01T00:00:00Z') === 'missions.time_never' && P.formatTime('') === 'missions.time_never');
+check('formatTime: a real time is no "never"', P.formatTime(new Date(Date.now() - 120000).toISOString()) !== 'missions.time_never');
+
 // ── strings: every key the flow paths use exists in all 16 locales ──
 const langs = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
 const keys = ['missions.filter_flow', 'missions.flow_managed', 'missions.flow_publish_first', 'missions.confirm_delete_flow', 'missions.toast_flow_run_requested',
