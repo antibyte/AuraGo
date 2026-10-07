@@ -70,6 +70,24 @@ func TestOpenFileNoFollowCreatesMissingFile(t *testing.T) {
 	}
 }
 
+func TestOpenFileNoFollowRejectsAppendWithTruncate(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "note.txt")
+	if err := os.WriteFile(path, []byte("keep me"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f, err := openFileNoFollow(path, os.O_WRONLY|os.O_APPEND|os.O_TRUNC, 0o600)
+	if err == nil {
+		f.Close()
+		t.Fatal("openFileNoFollow accepted O_APPEND|O_TRUNC")
+	}
+	if !errors.Is(err, os.ErrInvalid) {
+		t.Fatalf("err = %v, want os.ErrInvalid", err)
+	}
+	if data, err := os.ReadFile(path); err != nil || string(data) != "keep me" {
+		t.Fatalf("content = %q, %v; want the file left untouched", data, err)
+	}
+}
+
 func TestOpenFileNoFollowRefusesEntrySwappedAfterLstat(t *testing.T) {
 	cases := map[string]func(t *testing.T, path, other string){
 		"renamed over": func(t *testing.T, path, other string) {

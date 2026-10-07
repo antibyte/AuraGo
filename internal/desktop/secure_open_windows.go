@@ -12,6 +12,10 @@ var secureOpenAfterLstat func(path string)
 // with Lstat and requires the opened handle to be that same file, so a swap
 // between the check and the open is refused before any truncation.
 func openFileNoFollow(path string, flag int, perm os.FileMode) (*os.File, error) {
+	// The deferred truncate below would fail on an append-only handle (no write access); no caller uses O_APPEND.
+	if flag&os.O_APPEND != 0 && flag&os.O_TRUNC != 0 {
+		return nil, &os.PathError{Op: "open", Path: "desktop path", Err: os.ErrInvalid}
+	}
 	var pre os.FileInfo
 	if info, err := os.Lstat(path); err == nil {
 		if info.Mode()&os.ModeSymlink != 0 {

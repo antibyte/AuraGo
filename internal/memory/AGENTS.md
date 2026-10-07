@@ -19,7 +19,7 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ### Graph Search Patterns
 
-- Every knowledge-graph `LIKE` parameter is built with `dbutil.EscapeLike` and its predicate carries `ESCAPE '\'`, so `%`, `_` and `\` in a query match literally. Verify `TestKGSearchForContextLikeFallbackTreatsWildcardsLiterally` and `TestKGSearchLikeTreatsBackslashLiterally`.
+- Every knowledge-graph `LIKE` parameter is escaped with `dbutil.EscapeLike` or the equivalent package-local `escapeLike`, and its predicate carries `ESCAPE '\'`, so `%`, `_` and `\` in a query match literally. Verify `TestKGSearchForContextLikeFallbackTreatsWildcardsLiterally` and `TestKGSearchLikeTreatsBackslashLiterally`.
 
 ### Memory System
 - **Short-Term**: SQLite sliding-window conversation context
