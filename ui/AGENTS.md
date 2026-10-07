@@ -416,6 +416,9 @@ worker. Keep packaging, recovery and offline instructions in
 - Qualify translation-audit candidates by locale and key before editing; preserve
   technical names, URLs and placeholder-only formats. Use targeted checks such as
   `TestTranslationsAuditCorrections`, not blanket ASCII or German pronoun bans.
+- Spanish addresses the user with informal `tú` imperatives (`Elige`,
+  `Introduce`, `Selecciona`), never `usted` (`Elija`, `Introduzca`,
+  `Seleccione`). Tests that pin Spanish strings use the same register.
 - File Manager undo/redo error translations must interpolate `{{error}}` in
   every locale so the failure details passed by the action remain visible.
 - God's Eye View uses the regular container-app window, starts maximized, and
