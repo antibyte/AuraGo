@@ -38,8 +38,8 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - The test dialog shows the trigger data the test starts with. With several triggers, pick one under *Start from*. Change the JSON to try other cases; *Remember this data for later tests* keeps your edit.
 - Stored test data shows secret values as `[redacted]`. Left unchanged, the test uses the real stored data. Edited data that still contains `[redacted]` runs, but is not remembered.
 - A test has real effects. The dialog lists each kind (*Sends messages*, *Writes files*, *Controls devices*, …) with its steps, and **Run test** confirms them while the flow stays open. *Don't ask again for this flow* remembers them on this device. A kind you have not confirmed yet is asked again.
-- **Test step** in a step's detail view runs that step together with the steps before it.
-- **Stop** in the header cancels the test or run you started in this window.
+- **Test step** in a step's detail view runs that step together with the steps before it. Its dialog therefore asks about the effects of every step that runs: the step itself and the steps before it that the chosen trigger reaches. A turned-off step does not run, nor do the steps that only it leads to.
+- **Stop** in the header cancels the test or run you started in this window. Other runs that have not ended are stopped under **Runs** (see [Runs and notifications](#runs-and-notifications)).
 
 ## Publishing
 
@@ -52,6 +52,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 ## Runs and notifications
 
 - **Runs** lists the latest 50 runs, filtered by *All*, *Errors*, *Tests* or *Live*. Clicking one opens the run view: the flow version of that run with every input and output, read-only. A banner names the run; **Back to draft** or **Esc** returns. The building blocks panel stays hidden in the run view, and a failed run opens centred on the failed step.
+- A run that has not ended yet (queued, waiting for a free slot or running) shows **Stop** in the list and in the banner of its run view, also when a trigger or another window started it. Stopping a live run asks first; steps that already ran are not undone. A read-only desktop offers no Stop.
 - **Run now** (⋯ menu, or a card's menu on the start page) starts the published version at once.
 - A failed live run notifies as the flow settings say: on the desktop (the default), as a push notification, on Telegram or not at all. A flow notifies once when it starts failing, then at most once an hour while it keeps failing. Clicking the desktop notification opens EasyDrag on that run.
 - After a desktop reload, an open flow is opened again.
@@ -65,7 +66,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 - Store API keys for HTTP requests as secrets: **New secret** in the step's *Secret* field. A value may be up to 4 KiB, and AuraGo accepts at most 30 secret changes per minute. A name that exists already asks before its value is replaced.
 - Secrets live in the Vault as `easydrag_<name>`. Flows can use them; the agent cannot list, read or change them. Run data and the run view show their values redacted.
-- EasyDrag has no button to delete a secret yet. Deleting one through the API (`DELETE /api/desktop/flows/secrets/<name>`) answers which published flows still use it.
+- The bin next to **New secret** deletes the chosen secret after a confirmation and clears the field. Flows that use the secret fail until it is set again; if published flows still use it, a notification names them.
 
 ## Templates, import and export
 
@@ -77,7 +78,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - In Mission Control, flows carry the *EasyDrag* badge, and the filter *Flows* shows only them. **Open in EasyDrag** replaces *Edit*; **New flow** opens EasyDrag's start page. *Duplicate* and mission preparation are not offered for flows.
 - Pause, lock, run, delete and the history work as for other missions. *Run now* and *Resume* stay disabled until the flow is published (*Not published yet*). Schedules read like "weekdays at 07:00", and a mission that never ran shows *Never run*.
 - Deleting the mission deletes the flow with its draft, all published versions, the saved trigger data and the run history. Flow secrets stay.
-- *Cancel run* in Mission Control works while a run of the flow is running and takes the flow's waiting runs with it. A run that only waits for a free slot cannot be cancelled there.
+- *Cancel run* in Mission Control works while a run of the flow is running and takes the flow's waiting runs with it. A run that only waits for a free slot cannot be cancelled there; stop it in EasyDrag under **Runs**.
 - The missions page (`/missions/v2`) shows flows read-only: *Edit* and *Duplicate* only say that the flow is edited in EasyDrag, and *Run* waits until the flow is published and switched on.
 - The dashboard lists flow schedules among the cron jobs, read-only (*Managed by EasyDrag*).
 
@@ -91,7 +92,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 ## When EasyDrag is switched off
 
-EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, see [Chapter 11](11-missions.md#prerequisites)). When either is off, the EasyDrag icon disappears the next time the desktop loads its app list. A window that is open already shows *EasyDrag is switched off*: when it opens, with **Open settings** and **Try again**; on the start page, as a lock card in place of your flows, with New flow, Import and the templates disabled. Flow missions stay in Mission Control but do not run.
+EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, see [Chapter 11](11-missions.md#prerequisites)). When either is off, the EasyDrag icon disappears the next time the desktop loads its app list. A window that is open already shows *EasyDrag is switched off*: when it opens, with **Open settings** and **Try again**; on the start page, as a lock card in place of your flows with the same two buttons, while New flow, Import and the templates are disabled. Flow missions stay in Mission Control but do not run.
 
 ## Keyboard shortcuts
 

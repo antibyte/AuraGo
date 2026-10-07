@@ -216,7 +216,7 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 
 #### Runs, cancelling and limits
 
-- *Cancel run* in Mission Control works while a run of the flow is running; it cancels that run and the flow's waiting runs. Runs that only wait for a free slot (Mission Control still shows the flow as idle) cannot be cancelled there, and EasyDrag's **Stop** cancels only the test or run started in its own window.
+- *Cancel run* in Mission Control works while a run of the flow is running; it cancels that run and the flow's waiting runs. Runs that only wait for a free slot (Mission Control still shows the flow as idle) cannot be cancelled there; Mission Control then points to EasyDrag. There, **Stop** under **Runs** and in the run view cancels any run that has not ended, a live run after a confirmation.
 - The mission history keeps up to 2000 bytes of a flow run's result (500 bytes of an error message) and up to 16 KiB of its trigger data.
 - Webhook and MQTT messages over 1 MiB start no run (a warning is logged). An email body over 1 MiB is cut and marked `truncated`.
 - Resources: each running flow can hold up to about 0.5 GB of memory in the worst case (all step outputs of a run together are capped at 32 MiB of JSON, which can take about 16 times that in memory), plus up to about 0.4 GB per tool call while a large tool answer (at most 8 MiB) is parsed. `flows.max_parallel_runs` (default 8, at most 32) and `flows.max_parallel_nodes_per_run` (default 4, at most 16) multiply this, so keep both low on small machines. Each flow also keeps up to 40 waiting runs with their trigger data.
@@ -241,7 +241,7 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 
 #### Flow secrets
 
-Steps that need a password or key (the authentication of an HTTP request, for example) read it from a flow secret, which you manage in EasyDrag. AuraGo stores it in the Vault as `easydrag_<name>` (name: lower-case letters, digits and `_`, up to 40 characters; value up to 4 KiB). Values are never shown again, and the agent cannot list, read, change or delete flow secrets (neither with its Vault tool nor from Python or skills). Run data, the run view and logs show values redacted; a value shorter than 8 bytes is redacted only from the output of the step that used it. EasyDrag has no button to delete a secret yet; deleting one through the API (`DELETE /api/desktop/flows/secrets/<name>`) answers which published flows use it.
+Steps that need a password or key (the authentication of an HTTP request, for example) read it from a flow secret, which you manage in EasyDrag. AuraGo stores it in the Vault as `easydrag_<name>` (name: lower-case letters, digits and `_`, up to 40 characters; value up to 4 KiB). Values are never shown again, and the agent cannot list, read, change or delete flow secrets (neither with its Vault tool nor from Python or skills). Run data, the run view and logs show values redacted; a value shorter than 8 bytes is redacted only from the output of the step that used it. The bin next to *New secret* in a step's secret field deletes the chosen secret after a confirmation. Flows that use it fail until it is set again, and EasyDrag names the published flows that still use it (the API, `DELETE /api/desktop/flows/secrets/<name>`, answers them as `used_by`).
 
 #### Switching flows off, restarts and backups
 

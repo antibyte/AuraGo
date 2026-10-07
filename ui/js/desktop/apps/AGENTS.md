@@ -176,6 +176,13 @@
 - The API client lives in `easydrag-core.js` (`createApi`); errors carry `err.body.code`
   and are shown via `easydrag.ui.error_<code>`. SSE uses `/runs/{id}/events?after=<seq>`,
   treats events as idempotent and reconnects at once on `event: resync`.
+- Tests confirm real effects per kind (`ED.runs.effects`). A step test (`only_node`) counts what
+  the engine runs (`internal/flows/engine_state.go` `run`, `fireTrigger`, `collectReady`): the
+  step and its ancestors that the chosen trigger reaches through enabled steps; keep the two in
+  step. Runs that have not ended (`ED.runs.isActive`: queued, waiting, running) get Stop in the
+  drawer and in the run-view banner (`runs.stopRun`; a live run asks first, 409
+  `FLOW_RUN_FINISHED` refreshes quietly); `flows_changed` `run_finished` refreshes both
+  (`runs.refreshShown`). The secret field deletes the chosen secret and warns with `used_by`.
 - Saver: 1 s after the last change. Network errors, 5xx, 429 and `FLOWS_DISABLED` go `offline`
   and retry by themselves (5 s, doubling to 60 s); `PERMANENT_CODES` and a 4xx without a code
   go `failed` (the chip becomes a retry button); `FLOW_INVALID` waits for the next change.

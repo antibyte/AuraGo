@@ -38,8 +38,8 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 - Der Testdialog zeigt die Daten, mit denen der Auslöser den Test startet. Hat der Flow mehrere Auslöser, wählst du einen unter *Starten mit*. Ändere das JSON, um andere Fälle auszuprobieren; *Diese Daten für spätere Tests merken* behält deine Änderung.
 - Gespeicherte Testdaten zeigen geheime Werte als `[redacted]`. Lässt du sie unverändert, nutzt der Test die echten gespeicherten Daten. Geänderte Daten, die noch `[redacted]` enthalten, laufen, werden aber nicht gemerkt.
 - Ein Test hat echte Auswirkungen. Der Dialog nennt jede Art (*Sendet Nachrichten*, *Schreibt Dateien*, *Steuert Geräte*, …) mit ihren Schritten, und **Test starten** bestätigt sie, solange der Flow offen bleibt. *Für diesen Flow nicht mehr fragen* merkt sie auf diesem Gerät. Eine Art, die du noch nicht bestätigt hast, fragt EasyDrag wieder ab.
-- **Schritt testen** in der Detailansicht führt diesen Schritt zusammen mit den Schritten davor aus.
-- **Stoppen** im Kopf bricht den Test oder Lauf ab, den du in diesem Fenster gestartet hast.
+- **Schritt testen** in der Detailansicht führt diesen Schritt zusammen mit den Schritten davor aus. Sein Dialog fragt deshalb nach den Auswirkungen jedes Schritts, der läuft: des Schritts selbst und der Schritte davor, die der gewählte Auslöser erreicht. Ein ausgeschalteter Schritt läuft nicht, ebenso wenig die Schritte, zu denen nur er führt.
+- **Stoppen** im Kopf bricht den Test oder Lauf ab, den du in diesem Fenster gestartet hast. Andere Läufe, die noch nicht beendet sind, stoppst du unter **Läufe** (siehe [Läufe und Benachrichtigungen](#läufe-und-benachrichtigungen)).
 
 ## Veröffentlichen
 
@@ -52,6 +52,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 ## Läufe und Benachrichtigungen
 
 - **Läufe** zeigt die letzten 50 Läufe, gefiltert nach *Alle*, *Fehler*, *Tests* oder *Live*. Ein Klick öffnet die Ansicht des Laufs: die Flow-Version dieses Laufs mit allen Ein- und Ausgaben, nur zum Lesen. Ein Banner nennt den Lauf; **Zurück zum Entwurf** oder **Esc** führt zurück. In der Ansicht eines Laufs bleibt die Bausteine-Leiste verborgen, und ein fehlgeschlagener Lauf öffnet sich zentriert auf den gescheiterten Schritt.
+- Ein Lauf, der noch nicht beendet ist (in der Warteschlange, wartet auf einen freien Platz oder läuft), zeigt in der Liste und im Banner seiner Ansicht **Stoppen**, auch wenn ein Auslöser oder ein anderes Fenster ihn gestartet hat. Bei einem Live-Lauf fragt EasyDrag vorher nach; Schritte, die schon gelaufen sind, werden nicht rückgängig gemacht. Ein schreibgeschützter Desktop bietet kein Stoppen an.
 - **Jetzt ausführen** (Menü ⋯ oder das Menü einer Karte auf der Startseite) startet die veröffentlichte Version sofort.
 - Ein fehlgeschlagener Live-Lauf benachrichtigt so, wie es die Flow-Einstellungen sagen: auf dem Desktop (Standard), per Push, per Telegram oder gar nicht. Ein Flow benachrichtigt einmal, wenn er zu scheitern beginnt, danach höchstens einmal pro Stunde, solange er weiter scheitert. Ein Klick auf die Desktop-Benachrichtigung öffnet EasyDrag bei diesem Lauf.
 - Nach einem Neuladen des Desktops öffnet sich ein offener Flow wieder.
@@ -65,7 +66,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 
 - API-Schlüssel für HTTP-Anfragen legst du als Geheimnis an: **Neues Geheimnis** im Feld *Geheimnis* des Schritts. Ein Wert darf bis zu 4 KiB groß sein, und AuraGo nimmt höchstens 30 Änderungen an Geheimnissen pro Minute an. Gibt es den Namen schon, fragt EasyDrag, bevor es den Wert ersetzt.
 - Geheimnisse liegen im Vault als `easydrag_<name>`. Flows können sie nutzen; der Agent kann sie weder auflisten noch lesen oder ändern. Lauf-Daten und die Ansicht eines Laufs zeigen ihre Werte geschwärzt.
-- Zum Löschen eines Geheimnisses hat EasyDrag noch keine Schaltfläche. Löschst du eines über die API (`DELETE /api/desktop/flows/secrets/<name>`), nennt die Antwort die veröffentlichten Flows, die es noch nutzen.
+- Der Papierkorb neben **Neues Geheimnis** löscht das gewählte Geheimnis nach einer Rückfrage und leert das Feld. Flows, die das Geheimnis nutzen, schlagen fehl, bis es wieder gesetzt ist; nutzen veröffentlichte Flows es noch, nennt eine Benachrichtigung sie.
 
 ## Vorlagen, Import und Export
 
@@ -77,7 +78,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 - In Mission Control tragen Flows das Abzeichen *EasyDrag*, und der Filter *Flows* zeigt nur sie. **In EasyDrag öffnen** ersetzt *Bearbeiten*; **Neuer Flow** öffnet die Startseite von EasyDrag. *Duplizieren* und die Missionsvorbereitung gibt es für Flows nicht.
 - Pausieren, Sperren, Ausführen, Löschen und der Verlauf funktionieren wie bei anderen Missionen. *Jetzt ausführen* und *Fortsetzen* bleiben gesperrt, bis der Flow veröffentlicht ist („Noch nicht veröffentlicht“). Zeitpläne lesen sich wie „Mo–Fr um 07:00“, und eine Mission, die noch nie lief, zeigt *Noch nie gelaufen*.
 - Wenn du die Mission löschst, löschst du den Flow mit Entwurf, allen veröffentlichten Versionen, den gespeicherten Daten des Auslösers und der Laufhistorie. Flow-Geheimnisse bleiben.
-- *Lauf abbrechen* in Mission Control funktioniert, solange ein Lauf des Flows läuft, und nimmt die wartenden Läufe des Flows mit. Einen Lauf, der nur auf einen freien Platz wartet, kannst du dort nicht abbrechen.
+- *Lauf abbrechen* in Mission Control funktioniert, solange ein Lauf des Flows läuft, und nimmt die wartenden Läufe des Flows mit. Einen Lauf, der nur auf einen freien Platz wartet, kannst du dort nicht abbrechen; stoppe ihn in EasyDrag unter **Läufe**.
 - Die Missionsseite (`/missions/v2`) zeigt Flows nur zum Lesen: *Bearbeiten* und *Duplizieren* sagen nur, dass der Flow in EasyDrag bearbeitet wird, und *Ausführen* wartet, bis der Flow veröffentlicht und eingeschaltet ist.
 - Das Dashboard zeigt die Zeitpläne von Flows in der Cron-Liste nur zum Lesen (*Von EasyDrag verwaltet*).
 
@@ -91,7 +92,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 
 ## Wenn EasyDrag abgeschaltet ist
 
-EasyDrag braucht *Flows aktivieren* und das Missions-Tool (`tools.missions.enabled`, siehe [Kapitel 11](11-missions.md#voraussetzungen)). Ist eins davon aus, verschwindet das EasyDrag-Symbol, sobald der Desktop seine App-Liste das nächste Mal lädt. Ein schon offenes Fenster zeigt *EasyDrag ist abgeschaltet*: beim Öffnen mit **Einstellungen öffnen** und **Erneut versuchen**, auf der Startseite als Schloss-Karte statt deiner Flows, wobei Neuer Flow, Importieren und die Vorlagen gesperrt sind. Flow-Missionen bleiben in Mission Control, laufen aber nicht.
+EasyDrag braucht *Flows aktivieren* und das Missions-Tool (`tools.missions.enabled`, siehe [Kapitel 11](11-missions.md#voraussetzungen)). Ist eins davon aus, verschwindet das EasyDrag-Symbol, sobald der Desktop seine App-Liste das nächste Mal lädt. Ein schon offenes Fenster zeigt *EasyDrag ist abgeschaltet*: beim Öffnen mit **Einstellungen öffnen** und **Erneut versuchen**, auf der Startseite als Schloss-Karte statt deiner Flows mit denselben beiden Schaltflächen, wobei Neuer Flow, Importieren und die Vorlagen gesperrt sind. Flow-Missionen bleiben in Mission Control, laufen aber nicht.
 
 ## Tastenkürzel
 
