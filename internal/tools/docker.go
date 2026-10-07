@@ -1558,6 +1558,15 @@ func DockerRenameContainer(cfg DockerConfig, containerID, newName string) string
 	if err := validateDockerName(newName); err != nil {
 		return errJSON("invalid new name: %v", err)
 	}
+	// The names DockerCreateContainerWithOptions reserves: a rename must not
+	// plant a managed AuraGo container either.
+	if acestep.IsResourceName(newName) || dockerutil.IsLocalLLMContainerName(newName) {
+		return errJSON("reserved AuraGo local LLM container name")
+	}
+	if dockerutil.IsBoringGarageContainerName(newName) || dockerutil.IsHomepageContainerName(newName) || dockerutil.IsAuraGoAppContainerName(newName) ||
+		dockerutil.IsSecurityProxyContainerName(newName) {
+		return errJSON("reserved AuraGo managed container name")
+	}
 	endpoint := "/containers/" + url.PathEscape(containerID) + "/rename?name=" + url.QueryEscape(newName)
 	data, code, err := dockerRequest(cfg, "POST", endpoint, "")
 	if err != nil {
