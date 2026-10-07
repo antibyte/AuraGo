@@ -512,6 +512,22 @@ $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Rand
 
 Versionsnummern und Feature-Listen gehören in GitHub Releases. Dieses Handbuch beschreibt den Stand vom **3. Oktober 2026**.
 
+### Update-Checkliste
+
+Beim Aktualisieren von AuraGo:
+
+```
+□ Release Notes auf Breaking Changes prüfen
+□ Verzeichnis data/ sichern
+□ Aktuelle Konfiguration sichern: cp config.yaml config.yaml.backup
+□ Neues Binary herunterladen
+□ config.yaml mit den neuen Standardwerten vergleichen
+□ Dienst neu starten
+□ Funktion mit dem Befehl /help prüfen
+□ Logs auf Fehler prüfen
+□ Remote Control: neue Enrollment-Tokens erstellen und Remote-Agenten von vor dem Update ersetzen, wenn die Release Notes das verlangen
+```
+
 ## Nützliche Ressourcen
 
 ### Offizielle Ressourcen

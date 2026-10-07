@@ -527,7 +527,9 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
   enabled: false
   master_url: ""
   egg_id: ""
-  nest_id: ""` |
+  nest_id: ""
+  tls_pin_sha256: ""
+  tls_skip_verify: false` |
 | `invasion_control` | Remote Deployment | `invasion_control:
   enabled: false
   readonly: false` |

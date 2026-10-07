@@ -1152,8 +1152,6 @@ Empfange Fernsteuerungs-Befehle von anderen AuraGo-Instanzen.
 
 **Web-UI:** Config → Integrationen → Remote Control → Discovery-Port und erlaubte Pfade konfigurieren.
 
-> ⚠️ **Sicherheit:** Aktiviere `auto_approve` nur in vertrauenswürdigen Netzwerken.
-
 ### YAML-Referenz
 ```yaml
 remote_control:
@@ -1163,9 +1161,7 @@ remote_control:
     - "/home/aurago"
 ```
 
-`allowed_paths` ist eine explizite Allowlist für Remote-Dateioperationen. Leer blockiert Remote-Dateilesen, -schreiben und Verzeichnislisten.
-
-Diese Liste gilt als Vorgabe für jedes Remote-Gerät ohne eigene `allowed_paths` (pro Gerät über `PUT /api/remote/devices/{id}` gesetzt); eine eigene Geräteliste ersetzt sie, und sind beide leer, hat das Gerät keinen Datei- oder Shell-Zugriff. Shell-Befehle auf einem Remote-Agenten (`shell_exec`, Shell-Sitzungen) benötigen ebenfalls mindestens einen solchen Pfad: AuraGo lehnt sie vor dem Versand ab und der Agent lehnt sie erneut ab, während AgoDesk-Begleiter ihre eigenen lokalen Shell-Einstellungen behalten. Eine gespeicherte Änderung der globalen Liste wirkt sofort: AuraGo prüft dagegen und überträgt sie an verbundene Agenten ohne eigene Liste.
+`allowed_paths` ist eine explizite Allowlist für Remote-Dateioperationen (Lesen, Schreiben und Verzeichnislisten) und gilt als Vorgabe für jedes Remote-Gerät ohne eigene `allowed_paths` (pro Gerät über `PUT /api/remote/devices/{id}` gesetzt); eine eigene Geräteliste ersetzt sie. Eine leere Liste blockiert Dateioperationen daher nur auf Geräten ohne eigene Liste: Sind beide Listen leer, hat das Gerät keinen Datei- oder Shell-Zugriff. Shell-Befehle auf einem Remote-Agenten (`shell_exec`, Shell-Sitzungen) benötigen ebenfalls mindestens einen solchen Pfad: AuraGo lehnt sie vor dem Versand ab und der Agent lehnt sie erneut ab, während AgoDesk-Begleiter ihre eigenen lokalen Shell-Einstellungen behalten. Eine gespeicherte Änderung der globalen Liste wirkt sofort: AuraGo prüft dagegen und überträgt sie an verbundene Agenten ohne eigene Liste.
 
 Wenn AuraGo selbst HTTPS bereitstellt, bettet der Verbindungsweg **Automatisch erkennen** (`connection_mode: auto`) eine `wss://`-URL auf `server.https.https_port` in Agent-Downloads ein, daher muss der Agent dem Zertifikat vertrauen (Let's Encrypt oder ein eigenes vertrauenswürdiges Zertifikat); bei einem selbstsignierten Zertifikat verwende **Manuelle Supervisor-URL** (`connection_mode: manual`) mit einer Route, deren Zertifikat vertrauenswürdig ist (ein Cloudflare Tunnel oder ein Reverse Proxy, nicht erneut `wss://host:https_port`), oder **Tailscale-Netzwerk verwenden** (`connection_mode: tailscale`).
 
