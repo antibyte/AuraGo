@@ -137,8 +137,11 @@ Agent filesystem, external service and Docker tool safety boundaries.
   Desktop entry until its protocol can acknowledge cancellation.
 - Flow missions never take the owner path: the server routes them to `RunNow`/`TriggerMission`
   (a flow run in the flow service), and `QueueOwnedMission` refuses them. An owned run's
-  completion still starts the flows that wait for it; their runs have the flow service's
-  independent lifecycle. A revoked owner fires no dependents at all (`TestMerge*`).
+  completion still starts the flows that wait for it: each queued `flowRunRequest` retains
+  the owner until the event dispatcher has started it, and the dispatcher skips a run whose
+  owner was revoked meanwhile. A started flow run has the flow service's independent
+  lifecycle (per-run owner contexts are phase 2). A revoked owner fires no dependents at all
+  (`TestMerge*`).
 
 ## Verification
 

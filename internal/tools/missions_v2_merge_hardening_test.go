@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // Tests for the merge of main's Desktop-owned missions and keyed webhook registrations
@@ -121,5 +122,91 @@ func TestMergeFlowWebhooksFollowManagerReplacementAndStop(t *testing.T) {
 	mm.Stop()
 	if n := second.count("hook-1"); n != 0 {
 		t.Fatalf("%d flow webhook registrations left after Stop", n)
+	}
+}
+
+// mergeGateHooks blocks the first flow run start until gate closes, so later runs wait in the
+// event dispatcher's queue; it reports every start on starts.
+type mergeGateHooks struct {
+	gate    chan struct{}
+	starts  chan flowStartCall
+	blocked atomic.Bool
+}
+
+func (h *mergeGateHooks) StartFlowRun(missionID, nodeID, triggerType, data string) error {
+	h.starts <- flowStartCall{missionID, nodeID, triggerType, data}
+	if h.blocked.CompareAndSwap(false, true) {
+		<-h.gate
+	}
+	return nil
+}
+func (h *mergeGateHooks) FlowMissionDeleted(string)            {}
+func (h *mergeGateHooks) FlowEnabledChanged(string, bool)      {}
+func (h *mergeGateHooks) NextFlowRun(string) (time.Time, bool) { return time.Time{}, false }
+
+// A flow that waits for an owned run's completion starts only while the Desktop owner is
+// valid: an owner revoked while the run waits in the event dispatcher starts nothing. Either
+// way the request gives the owner back.
+func TestMergeRevokedOwnerStartsNoQueuedFlowDependent(t *testing.T) {
+	ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	for _, revoke := range []bool{false, true} {
+		t.Run(map[bool]string{false: "valid", true: "revoked"}[revoke], func(t *testing.T) {
+			m := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+			defer m.Stop()
+			hooks := &mergeGateHooks{gate: make(chan struct{}), starts: make(chan flowStartCall, 8)}
+			m.SetFlowHooks(hooks)
+			if err := m.Create(&MissionV2{ID: "first", Name: "First", Prompt: "test", Enabled: true, ExecutionType: ExecutionManual}); err != nil {
+				t.Fatal(err)
+			}
+			flowID := publishTestFlow(t, m,
+				FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: TriggerDeviceConnected, TriggerConfig: &TriggerConfig{}},
+				FlowTriggerSpec{NodeID: "n_bbbbbbbb", TriggerType: TriggerMissionCompleted, TriggerConfig: &TriggerConfig{SourceMissionID: "first"}})
+			// A device event's run blocks the dispatcher, so the dependent run waits in its queue.
+			m.NotifyDeviceEvent("device_connected", "dev-1", "Laptop")
+			select {
+			case c := <-hooks.starts:
+				if c.nodeID != "n_aaaaaaaa" {
+					t.Fatalf("first start = %+v", c)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatal("the device run did not start")
+			}
+			ownerCtx, revokeOwner := context.WithCancel(context.Background())
+			defer revokeOwner()
+			var releases atomic.Int32
+			if err := m.QueueOwnedMission(ownerCtx, func() { releases.Add(1) }, "first", "manual", ""); err != nil {
+				t.Fatal(err)
+			}
+			item, ok := m.queue.TryStartNext()
+			if !ok {
+				t.Fatal("not queued")
+			}
+			m.mu.Lock()
+			m.missions["first"].Status = MissionStatusRunning
+			m.mu.Unlock()
+			m.OnMissionComplete("first", MissionResultSuccess, "done")
+			item.releaseOwner()
+			if releases.Load() != 0 {
+				t.Fatal("the queued flow run did not retain the owner")
+			}
+			if revoke {
+				revokeOwner()
+			}
+			close(hooks.gate)
+			select {
+			case c := <-hooks.starts:
+				if revoke {
+					t.Fatalf("a run started for a revoked owner: %+v", c)
+				}
+				if c.missionID != flowID || c.nodeID != "n_bbbbbbbb" {
+					t.Fatalf("dependent start = %+v", c)
+				}
+			case <-time.After(200 * time.Millisecond):
+				if !revoke {
+					t.Fatal("the dependent flow run did not start")
+				}
+			}
+			eventually(t, "the owner is given back", func() bool { return releases.Load() == 1 })
+		})
 	}
 }

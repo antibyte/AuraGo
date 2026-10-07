@@ -266,8 +266,9 @@ func (m *MissionManagerV2) enqueueCompletionDependentsAtDepthLocked(sourceID, re
 // a finished run that may hold a Desktop owner (owner.RequiresOwner, see QueueOwnedMission).
 // Dependent prompt missions of an owned run retain that owner, and remote ones are skipped,
 // because remote execution cannot honour a revocation. Flows that wait for the completion
-// start as usual: their runs have the independent lifecycle of the flow service. Caller
-// holds m.mu.
+// start unless the owner is revoked before the event dispatcher starts their run
+// (notifyFlowsForOwnerLocked); once started, a flow run has the independent lifecycle of the
+// flow service. Caller holds m.mu.
 func (m *MissionManagerV2) enqueueCompletionDependentsForOwnerLocked(sourceID, result, output string, outputs json.RawMessage, depth int, owner QueueItem) int {
 	ev := flowEvent{SourceMissionID: sourceID, Result: result}
 	next := depth + 1
@@ -324,7 +325,7 @@ func (m *MissionManagerV2) enqueueCompletionDependentsForOwnerLocked(sourceID, r
 		mission.Status = MissionStatusQueued
 		queued++
 	}
-	m.notifyFlowsLocked(TriggerMissionCompleted, ev, json.RawMessage(raw))
+	m.notifyFlowsForOwnerLocked(TriggerMissionCompleted, ev, json.RawMessage(raw), owner)
 	return queued
 }
 

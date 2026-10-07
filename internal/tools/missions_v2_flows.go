@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -814,6 +815,18 @@ func flowEventMatches(spec FlowTriggerSpec, trigger TriggerType, ev flowEvent) b
 type flowRunRequest struct {
 	hooks                                FlowHooks
 	missionID, nodeID, triggerType, data string
+	// ownerCtx is the Desktop owner of the finished run whose mission_completed event asked
+	// for this run (QueueOwnedMission), nil otherwise. A revoked owner starts no run.
+	ownerCtx context.Context
+	// releaseOwner gives back the owner reference the request holds (nil without an owner).
+	releaseOwner context.CancelFunc
+}
+
+// release gives back the request's owner reference, if it holds one.
+func (r flowRunRequest) release() {
+	if r.releaseOwner != nil {
+		r.releaseOwner()
+	}
 }
 
 // notifyFlowsLocked starts the runs of enabled flows whose specs match an event. Caller holds
@@ -822,6 +835,17 @@ type flowRunRequest struct {
 // Without flow hooks no run starts and every matching flow mission shows why
 // (noteFlowsUnavailableLocked).
 func (m *MissionManagerV2) notifyFlowsLocked(trigger TriggerType, ev flowEvent, data any) {
+	m.notifyFlowsForOwnerLocked(trigger, ev, data, QueueItem{})
+}
+
+// notifyFlowsForOwnerLocked is notifyFlowsLocked for the completion of a run that may hold a
+// Desktop owner (owner.RequiresOwner): each queued run retains the owner until the dispatcher
+// has started it, and the dispatcher starts none whose owner was revoked meanwhile. Without a
+// way to retain the owner no run is queued, as for prompt dependents. Caller holds m.mu.
+func (m *MissionManagerV2) notifyFlowsForOwnerLocked(trigger TriggerType, ev flowEvent, data any, owner QueueItem) {
+	if owner.RequiresOwner && owner.retainOwner == nil {
+		return
+	}
 	if m.ctx.Err() != nil {
 		return
 	}
@@ -867,9 +891,14 @@ func (m *MissionManagerV2) notifyFlowsLocked(trigger TriggerType, ev flowEvent, 
 	}
 	dropped := 0
 	for _, s := range starts {
+		req := flowRunRequest{hooks: m.flowHooks, missionID: s.missionID, nodeID: s.nodeID, triggerType: string(trigger), data: raw}
+		if owner.RequiresOwner {
+			req.ownerCtx, req.releaseOwner = owner.ownerContext, owner.retainOwner()
+		}
 		select {
-		case m.flowEvents <- flowRunRequest{hooks: m.flowHooks, missionID: s.missionID, nodeID: s.nodeID, triggerType: string(trigger), data: raw}:
+		case m.flowEvents <- req:
 		default:
+			req.release()
 			dropped++
 		}
 	}
@@ -881,8 +910,10 @@ func (m *MissionManagerV2) notifyFlowsLocked(trigger TriggerType, ev flowEvent, 
 
 // dispatchFlowEvents starts the flow runs of Notify* events one at a time, in event order.
 // notifyFlowsLocked starts it with the first matching event; it ends when Stop cancels the
-// manager context, and starts no queued run after that.
+// manager context, and starts no queued run after that. A run whose Desktop owner was revoked
+// while it waited is skipped (logged at Debug). Every request gives back its owner reference.
 func (m *MissionManagerV2) dispatchFlowEvents(events <-chan flowRunRequest) {
+	defer drainFlowRunRequests(events)
 	for {
 		select {
 		case <-m.ctx.Done():
@@ -890,9 +921,30 @@ func (m *MissionManagerV2) dispatchFlowEvents(events <-chan flowRunRequest) {
 		case req := <-events:
 			// select picks at random when both are ready.
 			if m.ctx.Err() != nil {
+				req.release()
 				return
 			}
+			if req.ownerCtx != nil && req.ownerCtx.Err() != nil {
+				slog.Debug("[MissionV2] Flow run skipped: the Desktop owner of the finished mission was revoked",
+					"mission_id", req.missionID, "node", req.nodeID)
+				req.release()
+				continue
+			}
 			m.startFlowRun(req.hooks, req.missionID, req.nodeID, req.triggerType, req.data)
+			req.release()
+		}
+	}
+}
+
+// drainFlowRunRequests gives back the owner references of the runs still queued when the
+// dispatcher ends; none of them starts.
+func drainFlowRunRequests(events <-chan flowRunRequest) {
+	for {
+		select {
+		case req := <-events:
+			req.release()
+		default:
+			return
 		}
 	}
 }
