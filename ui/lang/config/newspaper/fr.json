@@ -29,7 +29,7 @@
   "config.newspaper.max_editions": "Limite d'édition enregistrée",
   "config.newspaper.setup_note": "Choisissez les centres d'intérêt et les destinataires dans l'application de bureau Newspaper. La livraison est désactivée jusqu'à ce que vous activiez une chaîne ici et que vous vous abonnez dans l'application.",
   "config.newspaper.check": "Vérifier l'état de préparation",
-  "config.newspaper.open": "Journal ouvert",
+  "config.newspaper.open": "Ouvrir le journal",
   "config.newspaper.checking": "Vérification…",
   "config.newspaper.active": "Activé",
   "config.newspaper.inactive": "Désactivé",

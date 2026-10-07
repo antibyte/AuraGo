@@ -180,7 +180,7 @@
   "config.section.meshcentral.desc": "Apparaatbeheer op afstand via de MeshCentral-server",
   "config.section.meshcentral.label": "MeshCentral-integratie",
   "config.section.mission_preparation.desc": "Configureer LLM-gebaseerde vooranalyse en planning voor missies",
-  "config.section.mission_preparation.label": "Missievoorbereid",
+  "config.section.mission_preparation.label": "Missievoorbereiding",
   "config.section.mqtt.desc": "MQTT-brokerintegratie voor IoT en berichten",
   "config.section.mqtt.label": "MQTT-integratie",
   "config.section.music_generation.desc": "Genereer muziek uit tekstprompts met AI",

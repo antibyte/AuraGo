@@ -284,7 +284,7 @@
   "config.providers.role_telephone_agent_asr": "Telefon-ASR",
   "config.providers.role_embeddings": "Inbäddningar",
   "config.providers.role_llm_guardian": "LLM-väktare",
-  "config.providers.role_mission_preparation": "Uppdragsforberedelse",
+  "config.providers.role_mission_preparation": "Uppdragsförberedelse",
   "config.providers.role_image_generation": "Bildgenerering",
   "config.providers.role_music_generation": "Musikgenerering",
   "config.providers.role_video_generation": "Videogenerering",

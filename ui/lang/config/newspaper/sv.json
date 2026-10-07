@@ -29,7 +29,7 @@
   "config.newspaper.max_editions": "Sparad upplagagräns",
   "config.newspaper.setup_note": "Välj intressen och mottagare i Newspapers skrivbordsapp. Leveransen är avstängd tills du aktiverar en kanal här och prenumererar i appen.",
   "config.newspaper.check": "Kontrollera beredskapen",
-  "config.newspaper.open": "Öppen tidning",
+  "config.newspaper.open": "Öppna tidningen",
   "config.newspaper.checking": "Kontrollerar...",
   "config.newspaper.active": "Aktiverad",
   "config.newspaper.inactive": "Inaktiverad",
