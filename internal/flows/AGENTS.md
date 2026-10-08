@@ -189,6 +189,19 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Callbacks run synchronously, are panic-recovered (the timer counts as handled), must return quickly
   and must not call `Stop`. Delivery is at least once. Timers over `MissedTimerGrace` (10 min) late at
   start-up go to the `missed` callback.
+- An occurrence is consumed (a one-off deleted, a yearly one moved on) only after its callback handled it.
+  The Service's fire callback is a `TimerHandleFunc` (`onTimerFired`): nil when a run was created or the
+  start was deliberately skipped (Skip policy `StartSkipped`, no live revision, flow switched off or its
+  switch unreadable, node no longer an enabled trigger: each logged at Info or Warn; a gone flow at Debug),
+  the start's error otherwise (`ErrQueueFull`, a store error, `ErrRunnerClosed`). An error leaves the
+  occurrence stored and the service calls the callback again for it after a per-occurrence backoff:
+  `retryDelay` (30 s), doubled per failed attempt up to `timerMaxRetryDelay` (15 min), each attempt logged
+  at Warn. Other timers keep firing meanwhile, and `nextFire` plans the loop's wake-up around the backoff,
+  so a lasting failure never spins. A retry keeps the occurrence's own `scheduled_for`, however late. A
+  yearly occurrence retried past its next dates fires once, when a retry succeeds, then moves to its first
+  date after that moment (missed years are not caught up). The retry state is in memory: after a restart
+  the start-up pass applies the grace rule to the occurrence like to any other (beyond 10 min: `missed`,
+  consumed). `NewTimerService` takes a `TimerFireFunc`, which always handles its occurrence.
 - A store error makes the loop wait `retryDelay` (30 s) before retrying; `Stop` takes effect between
   timers; `Start` is idempotent and fails after `Stop`.
 - Yearly timers keep their anchor day (Feb 29 fires only in leap years). The arithmetic runs in the
@@ -424,8 +437,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   refuses a flow that is switched off (`ErrFlowDisabled`, its mission is disabled), as Mission Control does
   (`notEnabledReason` asks `MissionReconciler.FlowMissions` when the bridge offers it: `ErrMissionControlUnavailable`
   without Mission Control, `ErrFlowMissionMissing` when the mission is gone); the
-  other live starts check the switch before they get here (Mission Control's triggers and Run, `onTimerFired`),
-  and test runs are not affected. `TriggerFromMission` without a node (Mission Control's Run and
+  other live starts check the switch before they get here (Mission Control's triggers and Run, `onTimerFired`,
+  which logs the skip at Info and reports the occurrence handled, see Timers), and test runs are not affected. `TriggerFromMission` without a node (Mission Control's Run and
   `TriggerMissionWithOptions`: the daemon wake-up and `POST /api/missions/v2/{id}/trigger`) drops the caller's
   data and starts like `RunNow` (manual trigger: its sample; any other: `{}`), because `LintUntrustedData`
   treats those triggers as trusted; a trigger registration names its node and keeps its data. The drop is logged at

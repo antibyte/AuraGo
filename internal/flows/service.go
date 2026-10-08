@@ -174,7 +174,8 @@ func NewService(store *Store, reg *Registry, services *Services, bridge MissionB
 	s.engine = NewEngine(reg, services, logger, cfg.MaxParallelNodes)
 	s.runner = NewRunner(s.engine, store, RunnerHooks{OnRunStarted: s.onRunStarted, OnRunFinished: s.onRunFinished},
 		RunnerConfig{MaxParallelRuns: cfg.MaxParallelRuns, MaxQueuedPerFlow: cfg.MaxQueuedPerFlow}, logger)
-	s.timers = NewTimerService(store, services.clock(), s.onTimerFired, s.onTimerMissed, logger)
+	// onTimerFired reports a failed start, so the occurrence stays stored and is retried.
+	s.timers = newTimerService(store, services.clock(), s.onTimerFired, s.onTimerMissed, logger)
 	// Yearly timers recur at their local time of day, in the zone the triggers are bound in.
 	s.timers.SetLocation(services.Loc())
 	return s

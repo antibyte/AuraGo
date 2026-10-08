@@ -505,20 +505,55 @@ func leafOutputs(f *Flow, res RunResult) map[string]any {
 	return out
 }
 
-// onTimerFired starts a live run for a due Date/Time trigger of an enabled flow.
-func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) {
+// onTimerFired starts a live run for a due Date/Time trigger of an enabled flow. It is the
+// timer service's TimerHandleFunc and returns nil when the occurrence is handled, so the
+// timer service consumes it: a run was created (started or queued), or no run is wanted.
+// No run is wanted for a flow that is gone (its timers went with it; logged at Debug), and,
+// each logged at Info or Warn, for a flow without a published revision, a flow that is
+// switched off (or whose switch cannot be read: no Mission Control, no mission), a node
+// that is no longer an enabled trigger of the published revision, and a trigger the Skip
+// concurrency policy drops (StartSkipped). Any other failure to start (ErrQueueFull, a
+// store error while reading the flow or recording the run, ErrRunnerClosed) is returned:
+// the occurrence stays stored and the timer service tries it again after a backoff, with
+// the same scheduled_for (see TimerService).
+func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) error {
 	rec, err := s.store.GetFlow(context.Background(), flowID)
 	if err != nil {
 		s.logLookup("a date and time trigger could not read its flow", "", err, "flow", flowID, "node", nodeID)
-		return
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		return fmt.Errorf("read the flow: %w", err)
 	}
-	if rec.Live == nil || !s.bridge.FlowMissionEnabled(rec.MissionID) {
-		return
+	if rec.Live == nil {
+		s.logger.Warn("a date and time trigger fired for a flow without a published revision; no run was started",
+			"flow", flowID, "node", nodeID)
+		return nil
+	}
+	if !s.bridge.FlowMissionEnabled(rec.MissionID) {
+		s.logger.Info("a date and time trigger fired while its flow is switched off; no run was started",
+			"flow", flowID, "node", nodeID, "reason", s.notEnabledReason(rec.MissionID).Error())
+		return nil
 	}
 	data := map[string]any{"scheduled_for": scheduledFor.UTC().Format(time.RFC3339)}
-	if _, err := s.startLive(rec, nodeID, "datetime", data); err != nil {
-		// ErrNotFound: the flow was deleted after the read, before the run was recorded.
+	res, err := s.startLive(rec, nodeID, "datetime", data)
+	switch {
+	case err == nil && res.Status == StartSkipped:
+		s.logger.Info("a date and time trigger was skipped because a run of the flow is still active (concurrency: skip)",
+			"flow", flowID, "node", nodeID)
+		return nil
+	case err == nil:
+		return nil
+	case errors.Is(err, ErrNotFound):
+		// The flow was deleted after the read, before the run was recorded.
 		s.logLookup("a date and time trigger could not start its flow", "", err, "flow", flowID, "node", nodeID)
+		return nil
+	case errors.Is(err, ErrNoTrigger):
+		s.logger.Warn("a date and time trigger is no longer an enabled trigger of the published flow; no run was started",
+			"flow", flowID, "node", nodeID)
+		return nil
+	default:
+		return fmt.Errorf("start the flow: %w", err)
 	}
 }
 

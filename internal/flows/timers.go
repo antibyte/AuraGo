@@ -16,13 +16,21 @@ const MissedTimerGrace = 10 * time.Minute
 // timerRetryDelay is how long the service leaves the store alone after a failed
 // attempt to read or settle timers. Without it a persistent database error would
 // turn the loop into a busy loop: the due timer stays stored, so it is due again at once.
+// It is also the first wait before an occurrence that its callback did not handle is
+// tried again (see TimerHandleFunc).
 const timerRetryDelay = 30 * time.Second
+
+// timerMaxRetryDelay caps the wait before an unhandled occurrence is tried again: the
+// wait starts at timerRetryDelay and doubles with every failed attempt up to this.
+const timerMaxRetryDelay = 15 * time.Minute
 
 // errTimerServiceStopped is returned by Start after Stop.
 var errTimerServiceStopped = errors.New("the flow timer service was stopped")
 
 // TimerFireFunc is called when a Date/Time trigger is due, or, for the missed
 // callback, when it became due while AuraGo was off for longer than MissedTimerGrace.
+// The occurrence counts as handled when it returns; a fire callback that can fail uses
+// TimerHandleFunc instead.
 //
 // Callbacks run synchronously, one at a time: on the timer goroutine, except those of
 // the start-up pass, which run on the goroutine that called Start. While one runs, no
@@ -36,6 +44,27 @@ var errTimerServiceStopped = errors.New("the flow timer service was stopped")
 // moves to its next date, so a crashing callback is never repeated in a loop. The
 // recover covers the callback's own goroutine only, not goroutines it starts.
 type TimerFireFunc func(flowID, nodeID string, scheduledFor time.Time)
+
+// TimerHandleFunc is a fire callback that reports whether it handled the occurrence.
+// nil means handled: the occurrence is consumed (a one-off timer is deleted, a yearly one
+// moves to its next date). An error means the occurrence was not handled (the start it
+// wanted failed): it stays stored, the service logs the error at Warn and calls the
+// callback again for the same occurrence once a backoff has passed. The backoff is per
+// occurrence, starts at the retry delay (timerRetryDelay) and doubles up to
+// timerMaxRetryDelay, so other timers keep firing meanwhile and a lasting failure never
+// spins. The rules of TimerFireFunc apply otherwise; a panic counts as handled.
+type TimerHandleFunc func(flowID, nodeID string, scheduledFor time.Time) error
+
+// handled adapts a TimerFireFunc, which always handles its occurrence, to a TimerHandleFunc.
+func handled(fn TimerFireFunc) TimerHandleFunc {
+	if fn == nil {
+		return nil
+	}
+	return func(flowID, nodeID string, scheduledFor time.Time) error {
+		fn(flowID, nodeID, scheduledFor)
+		return nil
+	}
+}
 
 // timerKey identifies one due occurrence of a timer.
 type timerKey struct {
@@ -51,18 +80,31 @@ func keyOfTimer(tm TimerRecord) timerKey {
 // earliest timer; Replace wakes it up to re-plan.
 //
 // Delivery is at least once: a timer is deleted (or moved) only after its callback
-// returned, so a crash in between fires it again at the next start (or reports it as
-// missed). Within one process a callback is not repeated, even when the store fails
-// in between and the timer has to be settled by a later attempt.
+// returned and handled it, so a crash in between fires it again at the next start (or
+// reports it as missed). Within one process a callback that handled its occurrence is
+// not repeated, even when the store fails in between and the timer has to be settled by
+// a later attempt.
+//
+// A fire callback that did not handle its occurrence (TimerHandleFunc returned an error)
+// leaves it stored and is called again for it after a per-occurrence backoff. The retry
+// keeps the occurrence's own time (scheduledFor), however late it is by then. A yearly
+// occurrence that is still retried when its next dates have passed fires once, when a
+// retry succeeds, and then moves to its first date after that moment, so the missed years
+// are not caught up. The retry state lives in memory: after a restart the start-up pass
+// treats the occurrence like any other, so beyond MissedTimerGrace it goes to the missed
+// callback and is consumed (a yearly one again moves to its first date after now).
 type TimerService struct {
 	store  *Store
 	clock  Clock
-	fire   TimerFireFunc
-	missed TimerFireFunc
+	fire   TimerHandleFunc
+	missed TimerHandleFunc
 	logger *slog.Logger
 	grace  time.Duration
-	// retryDelay is the pause after a store error, see timerRetryDelay. Tests shorten it.
+	// retryDelay is the pause after a store error, see timerRetryDelay, and the first
+	// wait before an unhandled occurrence is tried again. Tests shorten it.
 	retryDelay time.Duration
+	// maxRetryDelay caps the doubling wait of an unhandled occurrence, see timerMaxRetryDelay.
+	maxRetryDelay time.Duration
 
 	reload   chan struct{}
 	stop     chan struct{}
@@ -77,14 +119,30 @@ type TimerService struct {
 	loc *time.Location
 
 	// unsettled holds the timers whose callback ran but whose delete or move failed.
-	// It is touched only by processDue, which never runs concurrently with itself:
-	// first from Start, and once Start succeeded only from the loop.
+	// retrying holds the occurrences whose callback did not handle them, with their
+	// backoff. Both are touched only by processDue and nextFire, which never run
+	// concurrently with each other: processDue first from Start, and once Start succeeded
+	// both only from the loop.
 	unsettled map[timerKey]struct{}
+	retrying  map[timerKey]timerRetry
 }
 
-// NewTimerService creates a timer service. missed may be nil; a timer that is too late
-// at start-up is then just removed (or moved forward, when it repeats).
+// timerRetry is the backoff of an occurrence whose callback did not handle it.
+type timerRetry struct {
+	attempts  int       // failed attempts so far
+	notBefore time.Time // the next attempt is not made before this
+}
+
+// NewTimerService creates a timer service whose fire callback always handles its
+// occurrence. missed may be nil; a timer that is too late at start-up is then just
+// removed (or moved forward, when it repeats).
 func NewTimerService(store *Store, clock Clock, fire, missed TimerFireFunc, logger *slog.Logger) *TimerService {
+	return newTimerService(store, clock, handled(fire), missed, logger)
+}
+
+// newTimerService creates a timer service whose fire callback reports whether it handled
+// the occurrence (see TimerHandleFunc). The missed callback always handles it.
+func newTimerService(store *Store, clock Clock, fire TimerHandleFunc, missed TimerFireFunc, logger *slog.Logger) *TimerService {
 	if clock == nil {
 		clock = RealClock()
 	}
@@ -92,10 +150,10 @@ func NewTimerService(store *Store, clock Clock, fire, missed TimerFireFunc, logg
 		logger = slog.Default()
 	}
 	return &TimerService{
-		store: store, clock: clock, fire: fire, missed: missed, logger: logger,
-		grace: MissedTimerGrace, retryDelay: timerRetryDelay,
+		store: store, clock: clock, fire: fire, missed: handled(missed), logger: logger,
+		grace: MissedTimerGrace, retryDelay: timerRetryDelay, maxRetryDelay: timerMaxRetryDelay,
 		reload: make(chan struct{}, 1), stop: make(chan struct{}), done: make(chan struct{}),
-		unsettled: make(map[timerKey]struct{}),
+		unsettled: make(map[timerKey]struct{}), retrying: make(map[timerKey]timerRetry),
 	}
 }
 
@@ -201,7 +259,9 @@ func (t *TimerService) Stop() {
 // instead of waiting for a Replace that may never come). When they can be read but a
 // due timer cannot be settled, that timer stays stored and is due, so its wait is
 // stretched to notBefore. A Replace lifts that wait: it just wrote to the store and may
-// have changed what is due, and each Replace allows only one extra attempt.
+// have changed what is due, and each Replace allows only one extra attempt. An
+// occurrence whose callback did not handle it waits for its own backoff instead (see
+// nextFire), which a Replace does not lift.
 func (t *TimerService) loop() {
 	defer close(t.done)
 	var notBefore time.Time
@@ -244,18 +304,34 @@ func (t *TimerService) loop() {
 	}
 }
 
-// nextFire returns when the earliest timer is due; ok is false when there is none.
-// A store error is logged and returned for the loop to back off.
+// nextFire returns when processDue has the next thing to do; ok is false when there is
+// no timer. That is the earliest due occurrence that is not waiting for its retry
+// backoff, else the end of the earliest backoff or the first timer still to come,
+// whichever is earlier. It reads the timers in processDue's order and stops where
+// processDue stops (at the first timer still to come), so a damaged row behind that
+// timer cannot make the loop spin. A store error is logged and returned for the loop to
+// back off.
 func (t *TimerService) nextFire() (next time.Time, ok bool, err error) {
 	timers, err := t.store.ListTimers(context.Background())
 	if err != nil {
 		t.logger.Warn("flow timers could not be loaded", "error", err)
 		return time.Time{}, false, err
 	}
-	if len(timers) == 0 {
-		return time.Time{}, false, nil
+	now := t.clock.Now()
+	for _, tm := range timers {
+		at := tm.FireAt // zero for a damaged row, which processDue drops at once
+		upcoming := !at.IsZero() && at.After(now)
+		if retry, waiting := t.retrying[keyOfTimer(tm)]; !upcoming && waiting && retry.notBefore.After(at) {
+			at = retry.notBefore
+		}
+		if !ok || at.Before(next) {
+			next, ok = at, true
+		}
+		if upcoming {
+			break // processDue stops here too; the timers after it are not earlier
+		}
 	}
-	return timers[0].FireAt, true, nil
+	return next, ok, nil
 }
 
 // processDue fires (or, at start-up beyond the grace period, reports as missed)
@@ -265,6 +341,11 @@ func (t *TimerService) nextFire() (next time.Time, ok bool, err error) {
 // also stops, without error, before the next timer once Stop was called: the rest stays
 // stored for the next start, so a callback never runs after Stop in the middle of a
 // shutdown.
+//
+// An occurrence whose fire callback did not handle it (an error) is neither settled nor
+// remembered as fired: it stays stored and gets a backoff (retryLater), and processDue
+// passes over it until the backoff has run out, then calls the callback again. The other
+// timers of the pass go on.
 func (t *TimerService) processDue(ctx context.Context, startup bool) error {
 	timers, err := t.store.ListTimers(ctx)
 	if err != nil {
@@ -293,11 +374,18 @@ func (t *TimerService) processDue(ctx context.Context, startup bool) error {
 		}
 		key := keyOfTimer(tm)
 		if _, ran := t.unsettled[key]; !ran {
-			if startup && now.Sub(tm.FireAt) > t.grace {
-				t.call("missed", t.missed, tm)
-			} else {
-				t.call("fire", t.fire, tm)
+			if retry, waiting := t.retrying[key]; waiting && now.Before(retry.notBefore) {
+				continue // its backoff runs; nextFire plans the next attempt
 			}
+			kind, fn := "fire", t.fire
+			if startup && now.Sub(tm.FireAt) > t.grace {
+				kind, fn = "missed", t.missed
+			}
+			if err := t.call(kind, fn, tm); err != nil {
+				t.retryLater(key, tm, now, err)
+				continue
+			}
+			delete(t.retrying, key)
 			t.unsettled[key] = struct{}{}
 		}
 		if err := t.settle(ctx, tm, now); err != nil {
@@ -329,10 +417,10 @@ func (t *TimerService) settle(ctx context.Context, tm TimerRecord, now time.Time
 	return t.store.MoveTimer(ctx, tm.FlowID, tm.NodeID, tm.FireAt, nextYearly(tm.FireAt.In(t.location()), now).UTC())
 }
 
-// forgetGone drops unsettled entries whose timer is no longer stored (the flow was
-// deleted or republished before the store recovered).
+// forgetGone drops unsettled and retrying entries whose timer is no longer stored (the
+// flow was deleted, switched off or republished meanwhile).
 func (t *TimerService) forgetGone(stored []TimerRecord) {
-	if len(t.unsettled) == 0 {
+	if len(t.unsettled) == 0 && len(t.retrying) == 0 {
 		return
 	}
 	live := make(map[timerKey]struct{}, len(stored))
@@ -344,22 +432,50 @@ func (t *TimerService) forgetGone(stored []TimerRecord) {
 			delete(t.unsettled, key)
 		}
 	}
+	for key := range t.retrying {
+		if _, ok := live[key]; !ok {
+			delete(t.retrying, key)
+		}
+	}
+}
+
+// retryLater gives an occurrence whose callback did not handle it its next backoff: the
+// retry delay, doubled for every earlier failed attempt, at most maxRetryDelay. The
+// failure is logged at Warn with the attempt and the wait.
+func (t *TimerService) retryLater(key timerKey, tm TimerRecord, now time.Time, err error) {
+	retry := t.retrying[key]
+	retry.attempts++
+	delay := t.retryDelay
+	for i := 1; i < retry.attempts && delay < t.maxRetryDelay; i++ {
+		delay *= 2
+	}
+	if delay > t.maxRetryDelay {
+		delay = t.maxRetryDelay
+	}
+	retry.notBefore = now.Add(delay)
+	t.retrying[key] = retry
+	t.logger.Warn("a flow timer was not handled; it stays due and is tried again",
+		"flow_id", tm.FlowID, "node_id", tm.NodeID, "scheduled_for", tm.FireAt,
+		"attempt", retry.attempts, "retry_in", delay.String(),
+		"error", truncateRunes(fmt.Sprint(err), maxErrorMessageRunes))
 }
 
 // call runs one callback and recovers from a panic so a faulty trigger handler can
-// neither kill the process nor the timer goroutine.
-func (t *TimerService) call(kind string, fn TimerFireFunc, tm TimerRecord) {
+// neither kill the process nor the timer goroutine. It returns the callback's error; a
+// panic counts as handled (nil).
+func (t *TimerService) call(kind string, fn TimerHandleFunc, tm TimerRecord) (err error) {
 	if fn == nil {
-		return
+		return nil
 	}
 	defer func() {
 		if r := recover(); r != nil {
 			t.logger.Error("flow timer callback panicked; the timer counts as handled",
 				"callback", kind, "flow_id", tm.FlowID, "node_id", tm.NodeID, "scheduled_for", tm.FireAt,
 				"panic", truncateRunes(fmt.Sprint(r), maxErrorMessageRunes), "stack", string(debug.Stack()))
+			err = nil
 		}
 	}()
-	fn(tm.FlowID, tm.NodeID, tm.FireAt)
+	return fn(tm.FlowID, tm.NodeID, tm.FireAt)
 }
 
 // nextYearly returns the first yearly recurrence of from that is after now, or from
