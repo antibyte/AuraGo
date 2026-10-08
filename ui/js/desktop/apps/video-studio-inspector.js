@@ -126,7 +126,7 @@
         const asset = v.asset || {};
         const kind = clip.text ? 'text' : asset.kind || track.kind;
         const icon = kind === 'text' ? 'text' : kind === 'audio' ? 'audio' : kind === 'image' ? 'image' : 'video';
-        const title = clip.text ? clip.text.split(/\r?\n/)[0] : asset.name || v.tr('missingMedia', 'Missing media');
+        const title = clip.text ? clip.text.split(/\r?\n/)[0] : v.assetName || asset.name || v.tr('missingMedia', 'Missing media');
         const audioCapable = track.kind === 'audio' || asset.kind === 'video' && asset.has_audio && track.kind !== 'overlay';
         const visual = track.kind !== 'audio';
         const thumb = v.thumb ? ` style="background-image:url('${v.esc(v.thumb)}')"` : '';

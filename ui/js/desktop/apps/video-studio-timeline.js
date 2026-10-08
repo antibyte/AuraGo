@@ -127,7 +127,7 @@
         const width = Math.max(2, clip.duration / FPS * pps);
         const selected = s.selectedClipId === clip.id;
         const kind = clip.text ? 'text' : track.kind === 'audio' ? 'audio' : track.kind === 'overlay' ? 'overlay' : 'video';
-        const name = clip.text ? clip.text.split(/\r?\n/)[0] : asset ? asset.name : label(options, 'missingMedia', 'Missing media');
+        const name = clip.text ? clip.text.split(/\r?\n/)[0] : asset ? (options.assetName ? options.assetName(asset) : asset.name) : label(options, 'missingMedia', 'Missing media');
         const media = options.clipMedia && asset ? options.clipMedia(asset, clip, track, pps / FPS, width) : '';
         const fadeIn = clip.fade_in ? `<span class="vs-fade vs-fade-in" style="width:${Math.max(2, clip.fade_in / FPS * pps)}px"></span>` : '';
         const fadeOut = clip.fade_out ? `<span class="vs-fade vs-fade-out" style="width:${Math.max(2, clip.fade_out / FPS * pps)}px"></span>` : '';

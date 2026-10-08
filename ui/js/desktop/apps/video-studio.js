@@ -6,6 +6,7 @@
     const I = (...args) => P.I(...args);
     const T = (...args) => P.T(...args);
     const activeAssetCount = (...args) => P.activeAssetCount(...args);
+    const assetDisplayName = (...args) => P.assetDisplayName(...args);
     const addSticker = (...args) => P.addSticker(...args);
     const addTitle = (...args) => P.addTitle(...args);
     const addTrackTo = (...args) => P.addTrackTo(...args);
@@ -431,7 +432,7 @@
         const focus = focusKey(s);
         I().render(host, {
             tr: (key, fallback) => tr(s, key, fallback), esc: value => esc(s, value), icon, project: s.project,
-            selected, asset, transitionInfo, fineOpen: !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: s.textPending,
+            selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: s.textPending,
             summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }
         });
         restoreFocus(s, focus);
@@ -446,6 +447,7 @@
         return {
             state: s, label: (key, fallback) => tr(s, key, fallback || key), esc: value => esc(s, value), icon: (name, size) => icon(name, size),
             clipMedia: (asset, clip, track, pxPerFrame, width) => clipMedia(s, asset, clip, track, pxPerFrame, width),
+            assetName: asset => assetDisplayName(s, asset),
             onSelect: id => {
                 if (id !== s.selectedClipId) { s.selectedClipId = id; s.selectionRevision++; }
                 renderInspector(s);

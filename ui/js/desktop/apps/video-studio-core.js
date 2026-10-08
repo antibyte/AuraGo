@@ -35,6 +35,14 @@
     function icon(name, size, cls) { return window.VideoStudioIcons ? window.VideoStudioIcons.svg(name, size || 16, cls) : ''; }
     function readPref(key) { try { return window.localStorage.getItem(key); } catch (_) { return null; } }
     function writePref(key, value) { try { window.localStorage.setItem(key, String(value)); } catch (_) { /* per-viewer convenience only */ } }
+    // Generated artwork files get readable names: the sticker's name or "Title".
+    function assetDisplayName(s, asset) {
+        const name = String(asset && asset.name || '');
+        const sticker = /^sticker-([a-z]+)\.png$/i.exec(name);
+        if (sticker) return tr(s, 'sticker_' + sticker[1].toLowerCase(), sticker[1]);
+        if (/^title-[\w.-]+\.png$/i.test(name)) return tr(s, 'preset_title', 'Title');
+        return name;
+    }
     function maxFrames(s) { return Number(s.status && s.status.limits && s.status.limits.max_duration_frames || MAX_PROJECT_FRAMES); }
     async function request(url, options) {
         const response = await fetch(url, Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {}));
@@ -92,6 +100,7 @@
     function showNotice(s, key, fallback, error, action) {
         if (s.disposed || !s.q('[data-notice]')) return;
         const el = s.q('[data-notice]');
+        if (P.syncDrawer) P.syncDrawer(s);
         el.hidden = false;
         el.classList.toggle('is-error', !!error);
         el.innerHTML = `<span class="vs-toast-icon">${icon(error ? 'alert' : 'check', 17)}</span><span class="vs-toast-text" data-notice-text></span>${action ? `<a class="vs-toast-action" href="${esc(s, action.href)}" download="${esc(s, action.download || '')}">${icon('download', 15)}${esc(s, action.label)}</a>` : ''}<button type="button" class="vs-toast-close" data-action="dismiss-notice" aria-label="${esc(s, tr(s, 'close', 'Close'))}">${icon('close', 15)}</button>`;
@@ -286,5 +295,5 @@
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { API, FPS, MAX_CLIPS, MAX_ACTIVE_ASSETS, MAX_PROJECT_FRAMES, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, request, canonicalProject, hydrateProject, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, activeAssetCount, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip });
+    Object.assign(P, { assetDisplayName, API, FPS, MAX_CLIPS, MAX_ACTIVE_ASSETS, MAX_PROJECT_FRAMES, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, request, canonicalProject, hydrateProject, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, activeAssetCount, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip });
 })();

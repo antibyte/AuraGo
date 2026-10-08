@@ -150,7 +150,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-disabled-icon { color: var(--vs-warn); display: inline-flex; }
 .vs-disabled p { margin: 2px 0 0; color: var(--vs-muted); }
 .vs-toast {
-    position: absolute; z-index: 70; top: 62px; left: 50%; transform: translateX(-50%);
+    position: absolute; z-index: 70; bottom: calc(var(--vs-drawer-bottom, 36%) + 72px); left: 50%; transform: translateX(-50%);
     display: flex; align-items: center; gap: 10px; width: max-content; max-width: min(560px, calc(100% - 24px));
     padding: 9px 9px 9px 14px; border: 1px solid var(--vs-border-strong); border-radius: 12px;
     background: var(--vs-surface); box-shadow: var(--vs-shadow); animation: vs-toast-in .18s ease-out;
@@ -162,7 +162,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-toast-action { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 8px; background: var(--vs-accent-strong); color: #fff; font-weight: 650; text-decoration: none; white-space: nowrap; }
 .vs-toast-close { display: inline-flex; padding: 5px; border: 0; border-radius: 7px; background: transparent; color: var(--vs-muted); }
 .vs-toast-close:hover { background: var(--vs-control-hover); color: var(--vs-text); }
-@keyframes vs-toast-in { from { opacity: 0; transform: translate(-50%, -6px); } }
+@keyframes vs-toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 .vs-drop-overlay {
     position: absolute; z-index: 80; inset: 8px; display: grid; place-items: center; border: 2px dashed var(--vs-accent);
     border-radius: 16px; background: color-mix(in srgb, var(--vs-bg) 82%, transparent); backdrop-filter: blur(4px); text-align: center;
@@ -577,7 +577,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
     .vs-timeline-zoom input { display: none; }
     .vs-edit-tools button, .vs-timeline-tools button { padding: 4px 7px; }
     .vs-track-actions button { width: 22px; }
-    .vs-toast { top: 52px; }
+    .vs-toast { bottom: calc(var(--vs-drawer-bottom, 36%) + 56px); }
     .vs-popover { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }
 }
 @container (max-width: 420px) {
