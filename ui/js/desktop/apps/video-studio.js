@@ -245,7 +245,7 @@
         }, { signal });
         wireResize(s);
         wireTransform(s);
-        if (typeof ResizeObserver === 'function') { s.resizeObserver = new ResizeObserver(() => updateTransform(s)); s.resizeObserver.observe(s.q('.vs-preview-stage')); }
+        if (typeof ResizeObserver === 'function') { s.resizeObserver = new ResizeObserver(() => { updateTransform(s); syncDrawer(s); }); s.resizeObserver.observe(s.q('.vs-preview-stage')); }
         s.keyHandler = event => handleKeys(s, event);
         window.addEventListener('keydown', s.keyHandler, true);
         if (typeof ctx.setWindowBeforeClose === 'function') ctx.setWindowBeforeClose(id, async () => {
@@ -1333,8 +1333,15 @@
         else if (action === 'fill-frame') mutateSelected(s, 'fill', clip => { Object.assign(clip, { x: 0, y: 0, width: 1, height: 1 }); });
         else if (action === 'clip-split' || action === 'clip-duplicate' || action === 'clip-delete') { if (s.selectedClipId) timelineAction(s, action.slice(5), s.selectedClipId); }
     }
+    // The narrow-window drawer ends above the timeline, whatever height the user gave it.
+    function syncDrawer(s) {
+        const panel = s.q('.vs-timeline-panel'), handle = s.q('[data-resize]');
+        if (!panel || !s.app) return;
+        s.app.style.setProperty('--vs-drawer-bottom', Math.round(panel.getBoundingClientRect().height + (handle ? handle.getBoundingClientRect().height / 2 : 0)) + 'px');
+    }
     function setInspectorOpen(s, open, moveFocus) {
         const app = s.app, inspector = s.q('.vs-inspector');
+        syncDrawer(s);
         const narrow = app.getBoundingClientRect().width <= 920;
         app.classList.toggle('vs-show-inspector', !!open && narrow);
         if (narrow && open) {
@@ -1433,6 +1440,7 @@
             const value = Math.round(clamp(height, 140, max));
             s.app.style.setProperty('--vs-timeline-h', value + 'px');
             updateTransform(s);
+            syncDrawer(s);
             return value;
         };
         let start = null;

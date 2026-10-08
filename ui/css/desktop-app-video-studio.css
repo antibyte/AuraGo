@@ -356,6 +356,8 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-field-row + .vs-field-row, .vs-field-row + .vs-field, .vs-field + .vs-field-row { margin-top: 8px; }
 .vs-text-group .vs-field-row { grid-template-columns: 1fr 86px; }
 .vs-text-group .vs-text-tools { grid-template-columns: auto 1fr auto; }
+.vs-text-group .vs-bg-row { grid-template-columns: auto 1fr; }
+.vs-text-group .vs-bg-row .vs-slider-compact { grid-template-columns: 1fr 44px; }
 .vs-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
 .vs-slider { display: grid; grid-template-columns: 92px 1fr 52px; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--vs-muted); }
 .vs-slider output { text-align: right; font-variant-numeric: tabular-nums; color: var(--vs-text); }
@@ -531,11 +533,12 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
     .vs-inspector-toggle { display: inline-flex; }
     .vs-inspector-toggle span { display: none; }
     .vs-inspector-close { display: grid; }
-    .vs-inspector-scrim { position: absolute; z-index: 47; top: 52px; right: 0; bottom: 0; left: 0; border: 0; background: rgba(5, 7, 10, .5); }
+    .vs-inspector-scrim { position: absolute; z-index: 47; top: 52px; right: 0; bottom: var(--vs-drawer-bottom, 36%); left: 0; border: 0; background: rgba(5, 7, 10, .5); }
     .vs-app.vs-show-inspector .vs-inspector-scrim { display: block; }
-    .vs-inspector { position: absolute; z-index: 48; top: 52px; right: 0; bottom: 0; width: min(320px, 88%); display: none; border: 1px solid var(--vs-border-strong); border-radius: 12px 0 0 12px; box-shadow: var(--vs-shadow); }
+    .vs-inspector { position: absolute; z-index: 48; top: 52px; right: 0; bottom: var(--vs-drawer-bottom, 36%); width: min(320px, 88%); display: none; border: 1px solid var(--vs-border-strong); border-radius: 12px 0 0 12px; box-shadow: var(--vs-shadow); }
     .vs-app.vs-show-inspector .vs-inspector { display: flex; }
     .vs-format select { max-width: 130px; }
+    .vs-jobs-button [data-jobs-label] { display: none; }
     .vs-timeline-zoom [data-action="zoom-fit"] span, .vs-timeline-tools > button span, .vs-timeline-tools .vs-menu-anchor > button span { display: none; }
 }
 
