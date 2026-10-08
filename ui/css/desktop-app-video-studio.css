@@ -230,7 +230,8 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-empty-media strong { color: var(--vs-text); font-size: 13px; }
 .vs-empty-media small { font-size: 12px; line-height: 1.5; max-width: 220px; }
 .vs-media-foot { flex: 0 0 auto; display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--vs-border); font-size: 11px; color: var(--vs-muted); }
-.vs-media-foot span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-media-foot span:first-child { flex: 0 0 auto; white-space: nowrap; }
+.vs-media-foot span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-preset-list { display: grid; gap: 8px; }
 .vs-preset { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--vs-border); border-radius: 10px; background: var(--vs-control); text-align: left; }
 .vs-preset:hover:not(:disabled) { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
