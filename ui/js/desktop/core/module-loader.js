@@ -159,7 +159,7 @@
         },
         'video-studio': {
             styles: appStyles('/css/desktop-app-video-studio.css'),
-            scripts: ['/js/desktop/apps/video-studio-icons.js', '/js/desktop/apps/video-studio-media.js', '/js/desktop/apps/video-studio-preview.js', '/js/desktop/apps/video-studio-timeline.js', '/js/desktop/apps/video-studio-inspector.js', '/js/desktop/apps/video-studio.js']
+            scripts: ['/js/desktop/apps/video-studio-icons.js', '/js/desktop/apps/video-studio-media.js', '/js/desktop/apps/video-studio-preview.js', '/js/desktop/apps/video-studio-timeline.js', '/js/desktop/apps/video-studio-inspector.js', '/js/desktop/apps/video-studio-core.js', '/js/desktop/apps/video-studio-library.js', '/js/desktop/apps/video-studio-artwork.js', '/js/desktop/apps/video-studio-jobs.js', '/js/desktop/apps/video-studio-stage.js', '/js/desktop/apps/video-studio.js']
         },
         'teevee': {
             styles: appStyles('/css/teevee.css'),

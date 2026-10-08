@@ -854,9 +854,16 @@ buttons and menu popovers remain excluded from those gestures.
 
 - Video Studio is a lazy app. Load `desktop-app-video-studio.css`, then
   `video-studio-icons.js`, `video-studio-media.js`, `video-studio-preview.js`,
-  `video-studio-timeline.js` and `video-studio-inspector.js` before
-  `video-studio.js` (same order in `module-loader.js` and both browser
-  fixtures); the shell exposes `VideoStudioApp.render(host, id, ctx)`
+  `video-studio-timeline.js`, `video-studio-inspector.js`, then the app parts
+  `video-studio-core.js` (constants, requests, model, history, saving,
+  conflicts, drafts), `-library.js`, `-artwork.js` (titles, stickers),
+  `-jobs.js` (jobs, refresh, export/AI dialogs) and `-stage.js` (popovers,
+  drawer, timeline height, transform box, field edits), and `video-studio.js`
+  last (same order in `module-loader.js` and both browser fixtures). The parts
+  share `window.VideoStudioParts`: each registers its functions with
+  `Object.assign(P, …)` and calls the others through call-time wrappers, so
+  every file stays below the 1100-line budget; the shell exposes
+  `VideoStudioApp.render(host, id, ctx)`
   and `dispose(id)`. The preview owns its media elements and shared frame clock
   and creates only `<video>`/`<audio>`/`Image` (the node test asserts it);
   dispose stops local playback, timers, uploads (XHR), thumbnail extraction and
