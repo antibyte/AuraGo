@@ -241,6 +241,7 @@ parent.postMessage({source:'aurago-voxel',type:'play_state',channel,request:'loa
 	mux.HandleFunc("/api/game-maker/projects/p/events", func(w http.ResponseWriter, r *http.Request) {
 		eventRequests.Add(1)
 		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "event: stream_ready\ndata: {\"type\":\"stream_ready\"}\n\n")
 		w.(http.Flusher).Flush()
 		select {
 		case <-publish:

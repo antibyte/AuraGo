@@ -91,6 +91,10 @@ Server-owned HTTP and cross-component integration contracts.
   sandboxing and cannot acquire credentials. Draft/test frames receive temporary
   state only. The owning runtime/storage contracts are in
   `internal/gamemaker/AGENTS.md`; verify `TestGameMakerVoxel*`.
+- `GET /api/game-maker/projects/{id}/events` replays persisted events after
+  `Last-Event-ID` or `?after=`, then writes `event: stream_ready` with no id
+  before live updates. The marker is not stored. Verify
+  `TestGameMakerSSEReplaysMoreThanOnePageWithoutGaps`.
 
 - `jsonError` serializes the API `error` field. Handlers pass a plain message,
   never a pre-encoded JSON object, and use existing `backend.*` translations

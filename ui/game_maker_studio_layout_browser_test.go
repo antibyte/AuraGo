@@ -66,7 +66,7 @@ func TestGameMakerStudioLayoutBrowser(t *testing.T) {
 	})
 	mux.HandleFunc("/api/game-maker/projects/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		fmt.Fprint(w, ": connected\n\n")
+		fmt.Fprint(w, ": connected\n\nevent: stream_ready\ndata: {\"type\":\"stream_ready\"}\n\n")
 		w.(http.Flusher).Flush()
 		for {
 			select {

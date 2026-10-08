@@ -5,7 +5,11 @@
     const label = key => data.i18n['game_maker.'+key] || data.i18n.game_maker?.[key];
     const api = window.GameMakerStudioAPI.create(async (url, options) => {
         const response = await fetch(url, {...options, credentials:'same-origin', cache:'no-store'});
-        if (!response.ok) throw new Error('Game player unavailable');
+        if (!response.ok) {
+            const error = new Error('Game player unavailable');
+            error.status = response.status;
+            throw error;
+        }
         return response.json();
     });
     status.textContent = label('preview_loading') || '…';
@@ -27,5 +31,9 @@
         frame.addEventListener('load', () => { status.hidden = true; });
         document.querySelector('main').append(frame);
         frame.src = grant.url + '#gm-channel=' + encodeURIComponent(state.channelID);
-    } catch (_) { status.setAttribute('role','alert'); status.textContent = label('preview_timeout') || label('modules_load_failed') || 'Game Maker Studio'; }
+    } catch (error) {
+        status.setAttribute('role','alert');
+        const timedOut = error?.name === 'TimeoutError' || error?.status === 408 || error?.status === 504;
+        status.textContent = label(timedOut ? 'preview_timeout' : 'modules_load_failed') || '';
+    }
 })();

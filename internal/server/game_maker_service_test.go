@@ -214,21 +214,23 @@ func TestGameMakerSSEReplaysMoreThanOnePageWithoutGaps(t *testing.T) {
 	defer response.Body.Close()
 	scanner := bufio.NewScanner(response.Body)
 	var gotLastID int64
+	sawReady := false
 	for scanner.Scan() {
 		line := scanner.Text()
-		if !strings.HasPrefix(line, "id: ") {
+		if strings.HasPrefix(line, "id: ") {
+			gotLastID, err = strconv.ParseInt(strings.TrimSpace(strings.TrimPrefix(line, "id: ")), 10, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
 			continue
 		}
-		gotLastID, err = strconv.ParseInt(strings.TrimSpace(strings.TrimPrefix(line, "id: ")), 10, 64)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if gotLastID == wantLastID {
+		if line == "event: stream_ready" {
+			sawReady = true
 			break
 		}
 	}
-	if gotLastID != wantLastID {
-		t.Fatal(fmt.Errorf("SSE replay stopped at event %d, want %d", gotLastID, wantLastID))
+	if gotLastID != wantLastID || !sawReady {
+		t.Fatal(fmt.Errorf("SSE replay stopped at event %d, want %d (stream_ready=%v)", gotLastID, wantLastID, sawReady))
 	}
 }
 

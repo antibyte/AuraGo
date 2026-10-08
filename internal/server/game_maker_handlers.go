@@ -311,6 +311,10 @@ func handleGameMakerEvents(w http.ResponseWriter, r *http.Request, s *Server, pr
 		writeGameMakerSSEError(w, err)
 		return
 	}
+	// stream_ready is not stored and has no id, so Last-Event-ID stays on the
+	// last persisted event. The Studio treats everything before it as backlog.
+	fmt.Fprint(w, "event: stream_ready\ndata: {\"type\":\"stream_ready\"}\n\n")
+	flusher.Flush()
 	heartbeat := time.NewTicker(15 * time.Second)
 	defer heartbeat.Stop()
 	for {

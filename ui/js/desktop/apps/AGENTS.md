@@ -1440,15 +1440,24 @@ registration lives in `internal/desktop/types.go`.
   warm yellow fill and a narrow dark outline. Do not use gray fill, white outlines, text strokes or scanlines
   over glyphs; keep the stage-card fade localized so surrounding lines stay legible.
 - EventSource open restores status even without replayed events; stale callbacks
-  cannot affect another project or disposed window. Terminal job status survives
-  reconnects and project refreshes. Cancellation shows its server reason and retry
-  action, with no active phase. Verify with `TestGameMakerEventsReconnectBrowser`.
-- Game Maker retry buttons submit `resume: true` and
-  `validate_restored_draft: true` directly through the existing
-  job-start flow, even after reopening the app. Preserve unsent editor text,
-  lock immediately against duplicate requests, and retain normal permission
-  and global-job gates. Private reasoning stays server-side, outside the
-  progress terminal and chat.
+  cannot affect another project or disposed window. The server ends the persisted
+  backlog with `event: stream_ready` (no id). Until that marker, keep the latest
+  `job_status` or `phase` and any gameplay status, and do not append historical
+  file, asset, diagnostic, validation, preview or revision activity. After the
+  marker, events apply live. A native reconnect keeps its cursor and does not
+  treat new events as backlog. Terminal job status survives reconnects and
+  project refreshes. Cancellation shows its server reason and retry action, with
+  no active phase. Verify with `TestGameMakerEventsReconnectBrowser`.
+- The ready-job line `game_maker.gameplay_unverified` is shown only when
+  `gameplay_status` is `unverified` on a non-voxel 3D project.
+- Game Maker retry buttons submit `resume: true`,
+  `validate_restored_draft: true` and an empty `prompt` directly through the
+  existing job-start flow, even after reopening the app. The server stores the
+  continuation sentence; the button label is not a user message. Preserve unsent
+  editor text, lock immediately against duplicate requests, and retain normal
+  permission and global-job gates. Private reasoning stays server-side, outside
+  the progress terminal and chat. Load, rename and request failures stay in the
+  diagnostics and notice; they do not set the job status to failed.
 - Game Maker visible strings use `game_maker.*` plus
   `desktop.app_game_maker_studio` in all 16 `ui/lang/desktop/*.json` files.
   Missing skills/revisions modals throw `game_maker.modules_load_failed`.

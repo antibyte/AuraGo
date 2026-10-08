@@ -2,6 +2,7 @@
     'use strict';
 
     const packName = (state, id) => state.context.t('game_maker.pack_' + id.replaceAll('-', '_'));
+    const reportedError = (state, error) => !error || error.name === 'AbortError' ? '' : state.context.t('game_maker.assets_load_failed');
     function selectionText(state) {
         const ids = state.selectedAssetPackIDs || [];
         const models = [...(state.selectedModelAssetIDs || []),...(state.selectedAssetSelections || []).map(a=>a.pack_id+'/'+a.asset_id),...(state.selectedPresentation?.effects||[]),...(state.selectedPresentation?.sounds||[]).map(s=>s.sound),...(state.selectedPresentation?.environment?[state.selectedPresentation.environment]:[])];
@@ -183,7 +184,7 @@
                         detail.querySelector('[data-asset-description]').textContent = pack.assemblies[0].description;
                         drawAssembly();
                     }
-                } catch (error) { if (current() && detailID === requestID) helpers.modalError(layer, error.message || t('game_maker.assets_load_failed')); }
+                } catch (error) { const message = reportedError(state, error); if (message && current() && detailID === requestID) helpers.modalError(layer, message); }
             }
             function showEntry(packID,id) {
                 const pack=[...modelPacks,...atlasPacks].find(p=>p.id===packID), asset=pack?.assets.find(a=>a.id===id);
@@ -239,12 +240,12 @@
                 renderCards();
                 for (const summary of packs.filter(p=>p.kind==='model3d'||p.manifest_schema===2)) {
                     try { const pack=await state.api.modelPack(summary.id, { signal: abort.signal });if(!current())return;(pack.kind==='model3d'?modelPacks:atlasPacks).push(pack); }
-                    catch (error) { if (current()) helpers.modalError(layer, error.message || t('game_maker.assets_load_failed')); }
+                    catch (error) { const message = reportedError(state, error); if (message && current()) helpers.modalError(layer, message); }
                     if (!current()) return;
                 }
                 for(const p of packs.filter(p=>['effect','audio'].includes(p.kind))){
                     try {const manifest=await state.api.modelPack(p.id,{signal:abort.signal});if(!current())return;presentationPacks.push(manifest);category.innerHTML+=`<option value="${esc(p.id)}">${esc(t('game_maker.asset_kind_'+p.kind))}</option>`}
-                    catch(error){if(current())helpers.modalError(layer,error.message)}
+                    catch(error){const message=reportedError(state,error);if(message&&current())helpers.modalError(layer,message)}
                 }
                 for (const pack of modelPacks) {
                     const title=packName(state,pack.id);
@@ -252,7 +253,7 @@
                 }
                 for(const cat of new Set(modelPacks.flatMap(p=>p.assets.map(a=>a.category)))){
                     const key='game_maker.model_category_'+({people:'humans',nature:'vegetation',harbor:'architecture',coast:'landscape',equipment:'props'}[cat]||cat),translated=t(key);
-                    category.innerHTML+=`<option value="${esc('3d:'+cat)}">3D · ${esc(translated===key?cat:translated)}</option>`;
+                    category.innerHTML+=`<option value="${esc('3d:'+cat)}">${esc(t('game_maker.asset_kind_model3d'))} · ${esc(translated===key?cat:translated)}</option>`;
                 }
                 if (state.project?.dimension === '3d' && modelPacks.length) category.value = modelPacks[0].id;
                 renderCards();
@@ -260,7 +261,7 @@
                 if(first?.assets.length)showEntry(first.id,first.assets[0].id);
                 else if (packs.some(p=>p.kind==='sprite2d'&&p.manifest_schema!==2)) showPack(packs.find(p => p.kind === 'sprite2d'&&p.manifest_schema!==2).id);
                 else if(atlasPacks[0]?.assets.length)showEntry(atlasPacks[0].id,atlasPacks[0].assets[0].id);
-            }).catch(error => { if (current()) helpers.modalError(layer, error.message || t('game_maker.assets_load_failed')); });
+            }).catch(error => { const message = reportedError(state, error); if (message && current()) helpers.modalError(layer, message); });
         });
     }
     function mountAtlas(state,host,pack,asset) {
@@ -293,7 +294,7 @@
                 const y=asset.view==='isometric'?270-f.height*asset.origin.y*scale-elevation*32:(384-f.height*scale)/2;
                 [f,...visibleLayers].forEach((frame,i)=>ctx.drawImage(images[i],frame.x,frame.y,frame.width,frame.height,x,y,frame.width*scale,frame.height*scale));ctx.restore();
                 status.textContent=`${asset.view} · ${f.width} × ${f.height} · ${t('game_maker.assets_frame')} ${sequence+1}/${frames.length}`;
-            }catch(error){if(!disposed)status.textContent=error.message;}
+            }catch(error){const message=reportedError(state,error);if(!disposed&&message)status.textContent=message;}
         }
         function stop(){clearInterval(clock);clock=0;}
         function play(){stop();if(!playing||!visible||document.hidden)return;const c=clip();if(!c||c.frames.length<2){draw();return;}clock=setInterval(()=>{sequence++;if(sequence>=c.frames.length){if(c.repeat!==-1){sequence=c.frames.length-1;playing=false;stop();}else sequence=0;}draw();},1000/c.frame_rate);}
@@ -318,14 +319,14 @@
         const stage=host.querySelector('[data-fx-stage]'),status=host.querySelector('[data-fx-status]'),dimension=host.querySelector('[data-fx-dimension]');stage.style.position='relative';
         const options={...asset.defaults};for(const [key,val] of Object.entries(options)){
             if(!['number','boolean','string'].includes(typeof val))continue;
-            const label=document.createElement('label');label.textContent=t('game_maker.effect_param_'+key);const input=document.createElement('input');input.type=typeof val==='boolean'?'checkbox':typeof val==='number'?'number':'color';input.value=String(val);input.checked=!!val;input.step='0.1';input.style.width='90px';label.append(input);host.querySelector('[data-fx-parameters]').append(label);input.addEventListener('change',()=>{options[key]=typeof val==='boolean'?input.checked:typeof val==='number'?Number(input.value):input.value;try{fx?.set(asset.id,options)}catch(e){status.textContent=e.message}},{signal:abort.signal});
+            const label=document.createElement('label');label.textContent=t('game_maker.effect_param_'+key);const input=document.createElement('input');input.type=typeof val==='boolean'?'checkbox':typeof val==='number'?'number':'color';input.value=String(val);input.checked=!!val;input.step='0.1';input.style.width='90px';label.append(input);host.querySelector('[data-fx-parameters]').append(label);input.addEventListener('change',()=>{options[key]=typeof val==='boolean'?input.checked:typeof val==='number'?Number(input.value):input.value;try{fx?.set(asset.id,options)}catch(e){const message=reportedError(state,e);if(message)status.textContent=message}},{signal:abort.signal});
         }
         if(pack.kind==='audio'){
             dimension.closest('label').hidden=true;host.querySelector('[data-fx-quality]').closest('label').hidden=true;stage.style.cssText+=';display:grid;place-items:center';
             const audio=document.createElement('audio');audio.controls=true;audio.preload='none';audio.loop=asset.loop;audio.src=state.api.assetPackFileURL(pack.id,asset.files[0].file);stage.append(audio);
             audio.onerror=()=>{if(!disposed)status.textContent=t('game_maker.assets_load_failed')};
             const label=document.createElement('label');label.textContent=t('game_maker.sound_event');const select=document.createElement('select');for(const id of ['step','jump','land','shot','reload','hit','pickup','win','lose','splash','interact','engine','ui','ambient'])select.add(new Option(t('game_maker.sound_event_'+id),id));select.value=state.selectedPresentation?.sounds.find(s=>s.sound===asset.id)?.event||soundEvent(asset);label.append(select);host.querySelector('[data-fx-parameters]').append(label);select.onchange=()=>{const binding=state.selectedPresentation?.sounds.find(s=>s.sound===asset.id);if(binding)binding.event=select.value};
-            host.querySelector('[data-fx-play]').onclick=()=>audio.play().catch(e=>status.textContent=e.message);host.querySelector('[data-fx-pause]').onclick=()=>audio.pause();
+            host.querySelector('[data-fx-play]').onclick=()=>audio.play().catch(e=>{const message=reportedError(state,e);if(message)status.textContent=message});host.querySelector('[data-fx-pause]').onclick=()=>audio.pause();
             status.textContent=`WAV · 48 kHz · PCM 16 · ${asset.duration.toFixed(1)} s · ${asset.provenance?.license||'MIT'}`;
             document.addEventListener('visibilitychange',()=>{if(document.hidden)audio.pause()},{signal:abort.signal});visibility=new IntersectionObserver(entries=>{if(!entries[0].isIntersecting)audio.pause()});visibility.observe(stage);
             return()=>{disposed=true;abort.abort();visibility.disconnect();audio.pause();audio.removeAttribute('src');audio.load()};
@@ -351,7 +352,7 @@
                     if(disposed||revision!==rev)return;
                     engine=new Phaser.Game({type:Phaser.AUTO,parent:stage,width:720,height:420,backgroundColor:'#15222f',scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:{create(){const ground=this.add.rectangle(360,390,720,60,0x46624c),roof=this.add.rectangle(210,220,230,16,0x9d7552);mesh=this.add.rectangle(480,345,60,60,0x789fbe);const adapter=runtime.createPhaserAdapter({scene:this,view:'side',report:e=>status.textContent=String(e)});adapter.registerSurface(ground,{kind:'ground'});adapter.registerSurface(roof,{kind:'roof'});ready(adapter)},update(_,dt){if(playing)fx?.update(Math.min(.05,dt/1000))}}});cleanupEngine=()=>engine.destroy(true);
                 }
-            }catch(e){if(!disposed&&revision===rev)status.textContent=e.message}
+            }catch(e){const message=reportedError(state,e);if(!disposed&&revision===rev&&message)status.textContent=message}
         }
         let releaseObject;
         function trigger(){if(!fx)return;playing=true;last=0;fx.setPaused(false);engine?.loop.wake();invalidate();const position=dimension.value==='3d'?asset.id==='blood-pool'||asset.id==='water-ripple'?[2,.01,1]:[0,1.2,1.01]:[480,320,0];if(['hologram','dissolve','hit-flash'].includes(asset.id)&&mesh){releaseObject?.();releaseObject=fx.applyObject(mesh,asset.id,options)}else if(asset.category!=='environment'){if(['fire','smoke','embers','engine-trail'].includes(asset.id))fx.set(asset.id,{...options,position});fx.emit(asset.id,{...options,position,normal:dimension.value==='3d'?(asset.id==='blood-decal'?[0,0,1]:[0,1,0]):[0,-1,0]})}}

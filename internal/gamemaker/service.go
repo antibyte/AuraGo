@@ -823,8 +823,11 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		map[string]any{"revision": revision.Number})
 	_, _ = s.emit(context.Background(), project.ID, job.ID, "revision",
 		map[string]any{"revision": revision})
-	_, _ = s.emit(context.Background(), project.ID, job.ID, "job_status",
-		map[string]any{"status": "ready", "job": job})
+	ready := map[string]any{"status": "ready", "job": job}
+	if gameplay := strings.TrimSpace(result.GameplayStatus); gameplay != "" {
+		ready["gameplay_status"] = gameplay
+	}
+	_, _ = s.emit(context.Background(), project.ID, job.ID, "job_status", ready)
 }
 
 // An explicit retry can check an edited, restored 2D source before spending

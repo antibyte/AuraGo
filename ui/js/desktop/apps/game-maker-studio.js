@@ -6,7 +6,8 @@
     const eventTypes = [
         'project_created', 'project_updated', 'job_status', 'phase', 'text_delta',
         'skill_activation', 'file_changed', 'asset_changed', 'preview_reload', 'tool_call', 'model_progress',
-        'diagnostic', 'revision', 'validation_reset', 'validation_result', 'visual_result', 'visual_observation', 'visual_progress'
+        'diagnostic', 'revision', 'validation_reset', 'validation_result', 'visual_result', 'visual_observation', 'visual_progress',
+        'stream_ready'
     ];
     const activeStatuses = new Set(['queued', 'planning', 'building', 'validating', 'polishing', 'cancelling']);
     const terminalStatuses = new Set(['ready', 'failed', 'cancelled']);
@@ -26,6 +27,9 @@
             job: null,
             eventSource: null,
             lastEventID: 0,
+            eventCatchup: false,
+            backlogControl: null,
+            gameplayStatus: '',
             frame: null,
             channelID: '',
             diagnostics: [],
@@ -386,6 +390,7 @@
         stopElapsed(state);
         state.repairCount = 0;
         state.lastPhase = '';
+        state.gameplayStatus = '';
         state.previewStale = false;
         try {
             const body = await state.api.getProject(projectID);
@@ -483,6 +488,8 @@
 
     function connectEvents(state) {
         if (!state.project || typeof EventSource !== 'function') return;
+        state.eventCatchup = true;
+        state.backlogControl = null;
         const source = new EventSource(state.api.eventURL(state.project.id, state.lastEventID));
         state.eventSource = source;
         source.onopen = () => {
@@ -492,16 +499,47 @@
         };
         eventTypes.forEach(type => source.addEventListener(type, event => {
             if (state.disposed || source !== state.eventSource) return;
-            const payload = parseEvent(event);
-            if (!payload) return;
-            state.lastEventID = Math.max(state.lastEventID, Number(payload.id || event.lastEventId || 0));
-            handleEvent(state, payload);
+            const body = parseEvent(event) || {};
+            if (!body.type) body.type = type;
+            const id = Number(body.id || event.lastEventId || 0);
+            if (id) state.lastEventID = Math.max(state.lastEventID, id);
+            if (body.type === 'stream_ready') {
+                finishEventBacklog(state);
+                return;
+            }
+            if (state.eventCatchup) {
+                if (body.type === 'validation_result') noteGameplay(state, body);
+                if (body.type === 'job_status') {
+                    // A later status often omits the job object. Keep the earlier
+                    // one so the reloaded project record does not hide it.
+                    if (body.payload?.job) state.job = body.payload.job;
+                    if (state.job && body.payload?.status) state.job.status = body.payload.status;
+                    state.backlogControl = body;
+                } else if (body.type === 'phase') {
+                    state.backlogControl = body;
+                }
+                return;
+            }
+            handleEvent(state, body);
         }));
         source.onerror = () => {
             if (state.disposed || source !== state.eventSource) return;
             state.reconnecting = true;
             updateStatus(state, terminalStatuses.has(state.job?.status) ? state.job.status : 'reconnecting');
         };
+    }
+
+    function noteGameplay(state, event) {
+        const status = event.payload?.result?.gameplay_status;
+        if (status) state.gameplayStatus = status;
+    }
+
+    function finishEventBacklog(state) {
+        if (!state.eventCatchup) return;
+        state.eventCatchup = false;
+        const control = state.backlogControl;
+        state.backlogControl = null;
+        if (control) handleEvent(state, control);
     }
 
     function parseEvent(event) {
@@ -550,6 +588,7 @@
             break;
         case 'validation_result': {
             const result = payload.result || {};
+            noteGameplay(state, event);
             appendActivity(state, state.context.t('game_maker.gameplay_checks') + ': ' + state.context.t('game_maker.check_' + (result.gameplay_status || 'unavailable')));
             appendActivity(state, state.context.t('game_maker.rules_checks') + ': ' + state.context.t('game_maker.check_' + (result.rules_status || 'unverified')));
             for (const check of result.checks || []) {
@@ -610,7 +649,10 @@
         reloadProjectRecord(state).then(() => {
             if (state.disposed || state.job !== job) return;
             if (status === 'ready') {
-                if (state.project?.dimension === '3d') appendActivity(state, state.context.t('game_maker.gameplay_unverified'));
+                const gameplay = payload.gameplay_status || state.gameplayStatus;
+                if (state.project?.dimension === '3d' && state.project?.variant !== 'voxel' && gameplay === 'unverified') {
+                    appendActivity(state, state.context.t('game_maker.gameplay_unverified'));
+                }
                 const revision = (state.job && state.job.result_revision) ||
                     (state.project && state.project.current_revision) || '';
                 appendResultCard(state, 'success',
@@ -975,8 +1017,8 @@
     async function submitChange(state, resume = false) {
         const form = state.container.querySelector('[data-gm-change-form]');
         const input = form.querySelector('textarea');
-        const prompt = resume ? state.context.t('game_maker.retry') : input.value.trim();
-        if (!prompt || !state.project || state.jobActive || input.disabled) return;
+        const prompt = resume ? '' : input.value.trim();
+        if ((!resume && !prompt) || !state.project || state.jobActive || input.disabled) return;
         const selectionError=window.GameMakerStudioAssets?.selectionError(state,state.project.dimension);
         if(selectionError){fail(state,new Error(selectionError));return;}
         if (state.project.dimension !== '3d' && state.selectedModelAssetIDs?.length) {
@@ -991,12 +1033,12 @@
         if (!resume) {
             input.value = '';
             autoGrow(input);
-        }
-        try {
-            finalizeStreaming(state);
             state.messages.push({ role: 'user', content: prompt });
             renderConversation(state);
             scrollConversation(state);
+        }
+        try {
+            finalizeStreaming(state);
             state.job = await state.api.startJob(state.project.id, {
                 prompt,
                 resume,
@@ -1009,10 +1051,16 @@
                 provider_id: state.project.provider_id,
                 model: state.project.model
             });
+            if (resume && state.job.prompt) {
+                state.messages.push({ role: 'user', content: state.job.prompt });
+                renderConversation(state);
+                scrollConversation(state);
+            }
             if (window.GameMakerStudioAssets) window.GameMakerStudioAssets.clearSelection(state);
             state.jobStartedAt = Date.now();
             state.repairCount = 0;
             state.lastPhase = '';
+            state.gameplayStatus = '';
             state.previewStale = true;
             state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase };
             syncJobControls(state);
@@ -1020,6 +1068,8 @@
             if (!resume) {
                 input.value = prompt;
                 autoGrow(input);
+                state.messages.pop();
+                renderConversation(state);
             }
             state.jobActive = false;
             input.disabled = false;
@@ -1217,7 +1267,6 @@
         const message = error && error.message ? error.message : String(error);
         addDiagnostic(state, { level: 'error', message });
         showNotice(state, message, 'error');
-        updateStatus(state, 'failed');
     }
 
     function scrollConversation(state) {

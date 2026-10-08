@@ -20,7 +20,7 @@ func TestGameMakerActivityTerminalBrowser(t *testing.T) {
 	mux.Handle("/", http.FileServer(http.Dir(".")))
 	mux.HandleFunc("/api/game-maker/projects/forest/events", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		fmt.Fprint(w, ": connected\n\n")
+		fmt.Fprint(w, ": connected\n\nevent: stream_ready\ndata: {\"type\":\"stream_ready\"}\n\n")
 		w.(http.Flusher).Flush()
 		for {
 			select {

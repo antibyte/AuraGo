@@ -27,6 +27,7 @@ func TestGameMakerEventsReconnectBrowser(t *testing.T) {
 		if connections.Add(1) == 1 {
 			fmt.Fprint(w, "retry: 50\nid: 1\nevent: job_status\ndata: {\"id\":1,\"type\":\"job_status\",\"payload\":{\"status\":\"building\",\"job\":{\"id\":\"job\",\"status\":\"building\"}}}\n\n")
 			fmt.Fprint(w, "id: 2\nevent: job_status\ndata: {\"id\":2,\"type\":\"job_status\",\"payload\":{\"status\":\"cancelled\",\"error\":\"Game creation exceeded its time limit.\"}}\n\n")
+			fmt.Fprint(w, "event: stream_ready\ndata: {\"type\":\"stream_ready\"}\n\n")
 			w.(http.Flusher).Flush()
 			return
 		}
