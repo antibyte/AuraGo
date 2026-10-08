@@ -237,8 +237,11 @@
   params) and those of its real params from `GET publish-preview` (`CollectEffects`). Without
   the preview, or with a running step whose catalog entry is risky without effects (a failed
   effects hook), the dialog says so and never starts silently; an edit after the flush is checked
-  again before Run. A step test counts what the engine runs (`engine_state.go` `run`,
-  `fireTrigger`, `collectReady`); keep the two in step.
+  again before Run. Run confirms the effects shown (`ed.effectsConfirmed`; with "Don't ask again"
+  also `aurago.easydrag.effects-ok.<id>`) only once the test POST succeeded: a refused or failed
+  test confirms nothing and the next attempt asks again (`a1008` checks in
+  `scripts/test-easydrag-extra6.mjs`). A step test counts what the engine runs (`engine_state.go`
+  `run`, `fireTrigger`, `collectReady`); keep the two in step.
 - Runs that have not ended (`ED.runs.isActive`) get Stop in the drawer and the run-view banner
   (`runs.stopRun`: any run but a test asks first, 409 `FLOW_RUN_FINISHED` refreshes quietly, a
   run no stream here shows is asked for after 1 to 16 s); `run_finished` refreshes both
@@ -269,7 +272,7 @@
 - Other surfaces: Mission Control (`MissionControlTriggers.isFlow`/`isUnpublishedFlow`/
   `upcomingRun`), `ui/js/missions/main.js`, `ui/cfg/flows.js` and the dashboard's cron list
   (`managed_by: easydrag`). User docs: manual chapter 24.
-- Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra5.mjs`),
+- Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra6.mjs`),
   `npm run test:mission-control`, `npm run test:dashboard-cron`, `npm run test:missions-page`,
   `go test ./ui -run 'EasyDrag|MissionControlShowsFlow|StandaloneMissionsPage'` and the opt-in
   `TestDesktopEasyDragBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`, screenshots in

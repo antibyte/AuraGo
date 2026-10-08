@@ -316,9 +316,10 @@
         // ── starting runs ───────────────────────────────────────────────────────
 
         // Real effects are confirmed one by one (sends_message, deletes, …): confirming the effects
-        // of one step does not cover other effects of the flow. ed.effectsConfirmed holds this
-        // session's set; "remember" stores the list under EFFECTS_KEY. An older stored `true` (one
-        // switch for the whole flow) counts as nothing confirmed, so the warning comes once more.
+        // of one step does not cover other effects of the flow, and only a test that started
+        // confirms them. ed.effectsConfirmed holds this session's set; "remember" stores the list
+        // under EFFECTS_KEY. An older stored `true` (one switch for the whole flow) counts as
+        // nothing confirmed, so the warning comes once more.
         function storedEffects() {
             const stored = core.storage.get(EFFECTS_KEY + ed.flow.id, []);
             return Array.isArray(stored) ? stored.filter(x => typeof x === 'string') : [];
@@ -449,14 +450,18 @@
                     }
                     const sel = d.body.querySelector('[data-ed-test-trigger]');
                     if (sel) trigger = ed.model.node(sel.value) || trigger;
+                    // The effects shown count as confirmed once the test started: a refused or failed
+                    // POST keeps the dialog open, and the next attempt asks again.
                     const skip = d.body.querySelector('[data-ed-effects-skip]');
-                    if (fx.size) confirmEffects(Array.from(fx.keys()), !!(skip && skip.checked));
+                    const shownEffects = Array.from(fx.keys());
+                    const rememberEffects = !!(skip && skip.checked);
                     core.storage.set('aurago.easydrag.test-trigger.' + ed.flow.id, trigger.id);
                     // Edited data that still holds a placeholder runs, but is not remembered: it
                     // would replace the stored secret values with "[redacted]".
                     const remember = edited && d.body.querySelector('[data-ed-test-remember]').checked;
                     const redacted = remember && text.includes(REDACTED);
                     return run(trigger.id, data, o.onlyNode, remember && !redacted).then(ok => {
+                        if (ok && shownEffects.length) confirmEffects(shownEffects, rememberEffects);
                         if (ok && redacted) ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: t('easydrag.ui.test_data_redacted') });
                         return ok ? true : false;
                     });
