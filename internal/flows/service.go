@@ -68,8 +68,9 @@ type RunFinishedInfo struct {
 	// FlowName is the flow's name when the run started (for a run that never started:
 	// when it ended), else the name in the run's document; empty when none can be read.
 	FlowName string
-	// NotifyOnError is the setting of the revision the run executed; when that document
-	// cannot be read, the flow's current setting (live revision, else draft). It is empty
+	// NotifyOnError is the setting of the revision the run executed (the runner hands the
+	// Service that document when the run starts, also for a flow deleted meanwhile); only
+	// if it is missing, the flow's current setting (live revision, else draft). It is empty
 	// for a run that never started (it ends cancelled, which is no failure) and when no
 	// document of the flow can be read.
 	NotifyOnError string
@@ -79,8 +80,8 @@ type RunFinishedInfo struct {
 	Result RunResult
 	// Outputs holds the outputs of the final nodes (nodes without successors) of the
 	// revision the run executed, by key. It is empty, never nil, when the run produced
-	// none (it never started) or the document the run executed cannot be read; it never
-	// holds the final nodes of another revision.
+	// none (it never started) or, in a case the runner does not produce, the document the
+	// run executed is unknown; it never holds the final nodes of another revision.
 	Outputs map[string]any
 }
 

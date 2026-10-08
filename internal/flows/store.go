@@ -410,8 +410,9 @@ func (s *Store) SaveDraft(ctx context.Context, id string, f *Flow, baseRevision 
 
 // pruneVersionsSQL deletes a flow's versions that are maxStoredVersions or more behind its
 // live revision, except the revisions an unfinished live run (queued, waiting or running)
-// executes: such a run reads its document from flow_versions when it ends (GetRunDoc, for
-// the leaf outputs and the notify setting of its report). The run lookup is a
+// executes: the run view reads a run's document from flow_versions (GetRunDoc, `include=doc`),
+// also while the run goes on. (The finish report does not need it: the Service keeps the
+// executed document from the runner's OnRunStarted.) The run lookup is a
 // non-correlated subquery, so SQLite evaluates it once per publish, through an index of
 // flow_runs (pinned by TestAudit18VersionPruningSearchesTheRunsByIndex). Arguments: flow
 // id, flow id, maxStoredVersions, flow id.

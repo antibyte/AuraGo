@@ -198,11 +198,13 @@ func TestServiceRunFinishedReportsRunsOfADeletedFlow(t *testing.T) {
 		t.Fatalf("queued run report = %+v", q)
 	}
 
+	// The run that started keeps the document it executed (audit 2026-10-08 review M2): its
+	// report carries that document's notify setting and reads nothing from the store.
 	fx.tools.letGo()
 	info := fx.bridge.waitInfo(t, fx.running.RunID)
 	if !info.Started || info.MissionID != fx.pub.MissionID || info.HistoryID != "hist_"+fx.running.RunID ||
 		info.Result.Status != RunCancelled || info.Outputs == nil || len(info.Outputs) != 0 || info.FlowName != "Weg" ||
-		info.NotifyOnError != "" {
+		info.NotifyOnError != DefaultNotifyOnError {
 		t.Fatalf("report of the run whose flow is gone = %+v", info)
 	}
 	if n := svcRunHistoryLen(fx.s); n != 0 {
@@ -211,8 +213,8 @@ func TestServiceRunFinishedReportsRunsOfADeletedFlow(t *testing.T) {
 	if warned := fx.logs.messages(slog.LevelWarn, ""); len(warned) != 0 {
 		t.Fatalf("logged: %v", warned)
 	}
-	if gone := fx.logs.messages(slog.LevelDebug, "of a finished run could not be read"); len(gone) != 2 {
-		t.Fatalf("debug records about the gone flow = %v, want the document and the flow", gone)
+	if gone := fx.logs.messages(slog.LevelDebug, "of a finished run could not be read"); len(gone) != 0 {
+		t.Fatalf("debug records about the gone flow = %v, want none: the report has the executed document", gone)
 	}
 }
 
@@ -395,7 +397,7 @@ func TestServiceRunHooksLogLevels(t *testing.T) {
 	gone := RunRecord{ID: "run_aaaaaaaaagne", FlowID: "flow_gone", Mode: ModeLive, Status: RunCancelled}
 	queuedGone := RunRecord{ID: "run_aaaaaaaaagnq", FlowID: "flow_gone", Mode: ModeLive, Status: RunCancelled}
 	s.onTimerFired("flow_gone", testNodeID(1), at)
-	s.onRunStarted(gone)
+	s.onRunStarted(gone, nil)
 	s.onRunFinished(gone, RunResult{Status: RunCancelled})
 	s.onRunFinished(queuedGone, RunResult{Status: RunCancelled}) // never started
 	warnings("", 0)
@@ -420,7 +422,7 @@ func TestServiceRunHooksLogLevels(t *testing.T) {
 	if err := s.onTimerFired(pub.ID, testNodeID(1), at); err == nil {
 		t.Fatal("a timer that cannot read its flow must report the occurrence as not handled")
 	}
-	s.onRunStarted(damaged)
+	s.onRunStarted(damaged, nil)
 	s.onRunFinished(damaged, RunResult{Status: RunSuccess})
 	warnings("a date and time trigger could not read its flow", 0)
 	warnings("the flow of a started run could not be read", 0)
@@ -433,7 +435,7 @@ func TestServiceRunHooksLogLevels(t *testing.T) {
 	// A store error: Warn at the start, at the end and for a run that never started.
 	exec(`ALTER TABLE flows RENAME TO svc_flows_away`)
 	broken := RunRecord{ID: "run_aaaaaaaaabrk", FlowID: pub.ID, Mode: ModeLive, Status: RunSuccess}
-	s.onRunStarted(broken)
+	s.onRunStarted(broken, nil)
 	s.onRunFinished(broken, RunResult{Status: RunSuccess})
 	s.onRunFinished(RunRecord{ID: "run_aaaaaaaaabrq", FlowID: pub.ID, Mode: ModeLive, Status: RunCancelled}, RunResult{Status: RunCancelled})
 	exec(`ALTER TABLE svc_flows_away RENAME TO flows`)
@@ -445,7 +447,7 @@ func TestServiceRunHooksLogLevels(t *testing.T) {
 	}
 
 	test := RunRecord{ID: "run_aaaaaaaaatst", FlowID: pub.ID, Mode: ModeTest}
-	s.onRunStarted(test)
+	s.onRunStarted(test, nil)
 	s.onRunFinished(test, RunResult{Status: RunSuccess})
 	if got := bridge.reports(test.ID); len(got) != 0 {
 		t.Fatalf("a test run was reported to Mission Control: %+v", got)

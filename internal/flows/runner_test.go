@@ -80,7 +80,7 @@ func newRunnerFixture(t *testing.T, cfg RunnerConfig) *runnerFixture {
 	started := make(chan RunRecord, 32)
 	finished := make(chan RunRecord, 32)
 	r := NewRunner(newTestEngine(reg, nil, 4), store, RunnerHooks{
-		OnRunStarted:  func(rec RunRecord) { started <- rec },
+		OnRunStarted:  func(rec RunRecord, _ *Flow) { started <- rec },
 		OnRunFinished: func(rec RunRecord, _ RunResult) { finished <- rec },
 	}, cfg, discardLogger())
 	t.Cleanup(func() { _ = r.Shutdown(context.Background()) })

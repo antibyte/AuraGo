@@ -348,13 +348,15 @@ func (s *Service) saveTriggerSample(ctx context.Context, flowID, nodeID string, 
 // runHistory is what onRunStarted learned for onRunFinished. onRunStarted stores one
 // for every live run that starts, so a run without one never started. Keeping the
 // mission and the name here lets onRunFinished complete the history entry, with the
-// flow's name, when the flow is gone by then.
+// flow's name, when the flow is gone by then. doc is the document the run executes, from
+// the runner (read-only, shared with the engine); it lives here only while the run does.
 type runHistory struct {
 	known     bool // the flow's mission and name were read at the start
 	reported  bool // FlowRunStarted was called; historyID may still be empty
 	missionID string
 	flowName  string
 	historyID string
+	doc       *Flow
 }
 
 // The run hooks and the timer callbacks below run on the runner's and the timer
@@ -367,15 +369,16 @@ type runHistory struct {
 // logged at Warn.
 
 // onRunStarted records a live run in the mission history. It reads only the flow's
-// mission and name (no documents), and remembers them for onRunFinished; the entry it
-// stores also marks the run as started. The entry is stored also when FlowRunStarted
-// panics (the runner recovers it): the bridge was called and may already count the run
-// as running, so onRunFinished must report it as started.
-func (s *Service) onRunStarted(rec RunRecord) {
+// mission and name (no documents), and remembers them and doc, the document the run
+// executes (RunnerHooks.OnRunStarted), for onRunFinished; the entry it stores also marks
+// the run as started. The entry is stored also when FlowRunStarted panics (the runner
+// recovers it): the bridge was called and may already count the run as running, so
+// onRunFinished must report it as started.
+func (s *Service) onRunStarted(rec RunRecord, doc *Flow) {
 	if rec.Mode == ModeTest {
 		return
 	}
-	var h runHistory
+	h := runHistory{doc: doc}
 	defer func() { // runs after the bridge call; s.mu is never held during it
 		s.mu.Lock()
 		s.history[rec.ID] = h
@@ -397,12 +400,14 @@ func (s *Service) onRunStarted(rec RunRecord) {
 // onRunFinished tells Mission Control that a live run ended. It reports every live run,
 // also when the flow or the run's document is gone, so no history entry stays
 // "running". For a run that executed, the leaf outputs and the notify setting come from
-// the document the run executed (it may differ from the live revision by now; Publish
-// keeps the versions of unfinished runs). When that document cannot be read (its run row
-// went with a deleted flow, its version is gone, a store or parse error), the outputs are
-// empty, never the leaves of another revision, which could name nodes that were no leaf
-// in the run; the notify setting is then the flow's current one (live revision, else
-// draft), the user's preference now, and a flow that still exists is logged at Warn.
+// the document the run executed (it may differ from the live revision by now), which
+// onRunStarted kept from the runner, so no store read can lose it: not a version pruned
+// after FinishRun, not a flow deleted meanwhile. Only a run started without that document
+// (not the runner's way; tests call the hooks directly) falls back to the stored version
+// (GetRunDoc). Should that fail too, the outputs are empty, never the leaves of another
+// revision, which could name nodes that were no leaf in the run; the notify setting is
+// then the flow's current one (live revision, else draft), the user's preference now, and
+// a flow that still exists is logged at Warn.
 // A run that never started has no outputs: it reads no document, only the flow's
 // mission and name, because it ends inside Runner.CancelFlow (DeleteFlow, with the flow
 // lock held), Runner.CancelFlowMode (CancelMissionRuns, on an HTTP goroutine without a
@@ -427,10 +432,13 @@ func (s *Service) onRunFinished(rec RunRecord, res RunResult) {
 		s.bridge.FlowRunFinished(info)
 		return
 	}
-	doc, err := s.store.GetRunDoc(ctx, rec.ID)
-	if err != nil {
-		s.logLookup("the document of a finished run could not be read", rec.ID, err)
-		doc = nil
+	doc := h.doc
+	if doc == nil {
+		var err error
+		if doc, err = s.store.GetRunDoc(ctx, rec.ID); err != nil {
+			s.logLookup("the document of a finished run could not be read", rec.ID, err)
+			doc = nil
+		}
 	}
 	switch {
 	case doc == nil:

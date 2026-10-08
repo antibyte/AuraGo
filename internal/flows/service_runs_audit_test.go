@@ -14,15 +14,36 @@ import (
 
 // audit18Republished is the flow after the run's revision: "first" is gone, so "search"
 // is the only leaf, and failures are not reported. Under the old fallback a run of
-// revision 1 reported {"search": …} (no leaf when it ran) and notify "none".
+// revision 1 reported {"search": …} (no leaf when it ran) and notify "off".
 func audit18Republished(name string) *Flow {
 	b := newFlow(name)
 	start := b.node("start", TypeTriggerManual, nil)
 	search := b.node("search", TypeWebSearch, map[string]any{"query": "wetter"})
 	b.edge(start, PortOut, search)
 	f := b.build()
-	f.Settings.NotifyOnError = "none"
+	f.Settings.NotifyOnError = "off"
 	return f
+}
+
+// audit18Republish publishes audit18Republished n times as the flow's next revisions.
+func audit18Republish(t *testing.T, s *Service, flowID, name string, n int) {
+	t.Helper()
+	ctx := context.Background()
+	for i := 0; i < n; i++ {
+		rec, err := s.GetFlow(ctx, flowID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		doc := audit18Republished(name)
+		doc.Description = fmt.Sprintf("revision %d", rec.LiveRevision+1)
+		rev, _, err := s.SaveDraft(ctx, flowID, doc, rec.DraftRevision)
+		if err != nil {
+			t.Fatalf("SaveDraft: %v", err)
+		}
+		if _, _, err := s.Publish(ctx, flowID, rev); err != nil {
+			t.Fatalf("Publish: %v", err)
+		}
+	}
 }
 
 // audit18Fixture publishes svcRunSearchFlow(name, "first") as revision 1 and starts a
@@ -53,22 +74,7 @@ func newAudit18Fixture(t *testing.T, name string) *audit18Fixture {
 // republish publishes audit18Republished n times (one new live revision each).
 func (fx *audit18Fixture) republish(t *testing.T, n int) {
 	t.Helper()
-	ctx := context.Background()
-	for i := 0; i < n; i++ {
-		rec, err := fx.s.GetFlow(ctx, fx.pub.ID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		doc := audit18Republished(fx.pub.Name)
-		doc.Description = fmt.Sprintf("revision %d", rec.LiveRevision+1)
-		rev, _, err := fx.s.SaveDraft(ctx, fx.pub.ID, doc, rec.DraftRevision)
-		if err != nil {
-			t.Fatalf("SaveDraft: %v", err)
-		}
-		if _, _, err := fx.s.Publish(ctx, fx.pub.ID, rev); err != nil {
-			t.Fatalf("Publish: %v", err)
-		}
-	}
+	audit18Republish(t, fx.s, fx.pub.ID, fx.pub.Name, n)
 }
 
 func (fx *audit18Fixture) finish(t *testing.T) RunFinishedInfo {
@@ -94,24 +100,79 @@ func TestAudit18RunOutlivesVersionPruning(t *testing.T) {
 	}
 }
 
-// When the executed document still cannot be read (here: its version is deleted behind
-// the store's back), the report carries no leaf outputs instead of the current
-// document's, the current notify setting (the user's preference now), and a warning.
-func TestAudit18UnreadableRunDocumentReportsNoLeaves(t *testing.T) {
+// Review M2: the report uses the document the runner executed, which the Service keeps
+// from OnRunStarted, not a stored version. Here every version of the flow is gone between
+// FinishRun and the finish hook (a prune, or a delete behind the store's back), and the
+// report still carries revision 1's leaf and setting, without reading the store.
+func TestAudit18ReportUsesTheExecutedDocumentAfterAPrune(t *testing.T) {
 	fx := newAudit18Fixture(t, "Weg")
 	fx.republish(t, 1)
-	if _, err := fx.s.store.db.ExecContext(context.Background(),
-		`DELETE FROM flow_versions WHERE flow_id = ? AND revision = 1`, fx.pub.ID); err != nil {
-		t.Fatal(err)
+	ctx := context.Background()
+	var pruned error
+	hook := fx.s.runner.hooks.OnRunFinished
+	// Set before the run is released (tools.open in finish), so the runner reads it after.
+	fx.s.runner.hooks.OnRunFinished = func(rec RunRecord, res RunResult) {
+		if rec.ID == fx.run.RunID {
+			if _, err := fx.s.store.db.ExecContext(ctx, `DELETE FROM flow_versions WHERE flow_id = ?`, fx.pub.ID); err != nil {
+				pruned = err
+			} else if _, err := fx.s.store.GetRunDoc(ctx, rec.ID); err == nil {
+				pruned = fmt.Errorf("the run's stored document is still readable")
+			}
+		}
+		hook(rec, res)
 	}
 	info := fx.finish(t)
+	if pruned != nil {
+		t.Fatalf("test setup: %v", pruned)
+	}
+	first, _ := info.Outputs["first"].(map[string]any)
+	if info.Record.Revision != 1 || len(info.Outputs) != 1 || first["v"] != "first" || info.NotifyOnError != DefaultNotifyOnError ||
+		!info.Started || info.FlowName != "Weg" || info.MissionID != fx.pub.MissionID {
+		t.Fatalf("the run of revision 1 reported outputs %v and notify %q (%+v), want revision 1's leaf and setting",
+			info.Outputs, info.NotifyOnError, info)
+	}
+	if read := fx.logs.messages(slog.LevelDebug, "could not be read"); len(read) != 0 {
+		t.Fatalf("the report read the store: %v", read)
+	}
+	if warned := fx.logs.messages(slog.LevelWarn, ""); len(warned) != 0 {
+		t.Fatalf("logged: %v", warned)
+	}
+}
+
+// The fallback for a case the runner does not produce: a run reported as started without
+// its document (the hooks called directly) whose stored version is gone. The report
+// carries no leaf outputs instead of the current document's, the current notify setting
+// (the user's preference now), and a warning.
+func TestAudit18UnknownRunDocumentReportsNoLeaves(t *testing.T) {
+	bridge := newSvcRunBridge()
+	logs := &svcLogs{}
+	s := svcRunNewService(t, &fakeTools{}, bridge, slog.New(logs), ServiceConfig{})
+	ctx := context.Background()
+	pub := svcRunPublish(t, s, svcRunSearchFlow("Weg", "first"))
+	audit18Republish(t, s, pub.ID, "Weg", 1)
+	rec := RunRecord{ID: "run_aaaaaaaaa18u", FlowID: pub.ID, Revision: 1, Mode: ModeLive, TriggerNode: pub.Live.Nodes[0].ID,
+		Status: RunRunning, StartedAt: storeNow}
+	if err := s.store.CreateRun(ctx, rec, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.store.db.ExecContext(ctx, `DELETE FROM flow_versions WHERE flow_id = ? AND revision = 1`, pub.ID); err != nil {
+		t.Fatal(err)
+	}
+	s.onRunStarted(rec, nil)
+	s.onRunFinished(rec, RunResult{Status: RunSuccess, Outputs: map[string]map[string]any{
+		"first": {"v": "first"}, "search": {"count": 0.0}}})
+	got := bridge.reports(rec.ID)
+	if len(got) != 1 {
+		t.Fatalf("the run was reported %d times", len(got))
+	}
+	info := got[0]
 	if info.Outputs == nil || len(info.Outputs) != 0 {
-		t.Fatalf("outputs of a run whose document is gone = %v, want none", info.Outputs)
+		t.Fatalf("outputs of a run whose document is unknown = %v, want none", info.Outputs)
 	}
-	if info.NotifyOnError != "none" || !info.Started || info.FlowName != "Weg" || info.MissionID != fx.pub.MissionID {
-		t.Fatalf("report of a run whose document is gone = %+v", info)
+	if info.NotifyOnError != "off" || !info.Started || info.FlowName != "Weg" || info.MissionID != pub.MissionID {
+		t.Fatalf("report of a run whose document is unknown = %+v", info)
 	}
-	if warned := fx.logs.messages(slog.LevelWarn, "leaf outputs"); len(warned) != 1 {
+	if warned := logs.messages(slog.LevelWarn, "leaf outputs"); len(warned) != 1 {
 		t.Fatalf("the missing document must be logged once at Warn, got %v", warned)
 	}
 }

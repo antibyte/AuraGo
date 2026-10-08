@@ -213,7 +213,7 @@ Flows that you build in the **EasyDrag** desktop app appear in Mission Control a
 - Deleting the mission deletes the flow with its draft, all published versions, the saved trigger data and the run history. Flow secrets stay.
 - On the missions page (`/missions/v2`) flow missions cannot be edited: *Edit* and *Duplicate* only say that the flow is edited in EasyDrag, and *Run* waits until the flow is published and switched on.
 - *Run* in Mission Control, a daemon skill that wakes the mission and `POST /api/missions/v2/{id}/trigger` start the flow like EasyDrag's *Run now*: from its manual trigger with that trigger's sample data (without a manual trigger, from its first trigger with empty data). Data they pass along does not reach the flow; use a webhook trigger for data from outside.
-- When a mission finishes, `mission_completed` triggers receive its answer as `output` (cut to 2000 bytes). Flow sources also pass `outputs`: the results of their final steps (up to 64 KiB for a flow; an agent mission gets at most 8 KiB of them, beyond that a preview marked `_truncated`, because they go into its prompt).
+- When a mission finishes, `mission_completed` triggers receive its answer as `output` (cut to 2000 bytes). Flow sources also pass `outputs`: the results of their final steps (up to 64 KiB for a flow; an agent mission gets at most 8 KiB of them, beyond that a preview marked `_truncated`, because they go into its prompt). The final steps are those of the version the run executed, even if the flow was published again or deleted meanwhile; `outputs` is empty only if that version is unknown, which normal runs do not produce.
 
 #### Runs, cancelling and limits
 

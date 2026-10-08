@@ -35,8 +35,11 @@ type RunnerConfig struct {
 // RunnerHooks observe runs. OnRunFinished is called for every run (also runs cancelled
 // before they started); OnRunStarted only for runs that actually start executing.
 type RunnerHooks struct {
-	// OnRunStarted runs on the run's goroutine right before the engine starts, outside all locks.
-	OnRunStarted func(rec RunRecord)
+	// OnRunStarted runs on the run's goroutine right before the engine starts, outside all
+	// locks. doc is the document the run executes (its StartRequest's Flow), shared with the
+	// engine: read-only. The Service keeps it for the run's finish report, so the report
+	// does not depend on a stored version (Store.GetRunDoc).
+	OnRunStarted func(rec RunRecord, doc *Flow)
 	// OnRunFinished runs after the run is persisted and its slot is released, outside all locks.
 	OnRunFinished func(rec RunRecord, res RunResult)
 }
@@ -301,7 +304,7 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 					r.logger.Error("flow run start hook panicked", "run", runID, "panic", v)
 				}
 			}()
-			r.hooks.OnRunStarted(started)
+			r.hooks.OnRunStarted(started, p.req.Flow)
 		}()
 	}
 	sink := func(ev RunEvent) {

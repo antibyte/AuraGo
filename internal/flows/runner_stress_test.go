@@ -54,7 +54,7 @@ func newStressFixture(t *testing.T, cfg RunnerConfig, maxRuns int) *stressFixtur
 		}})
 	sx.store = openTestStore(t)
 	sx.r = NewRunner(newTestEngine(reg, nil, 4), sx.store, RunnerHooks{
-		OnRunStarted: func(rec RunRecord) {
+		OnRunStarted: func(rec RunRecord, _ *Flow) {
 			sx.startedMu.Lock()
 			defer sx.startedMu.Unlock()
 			sx.started[rec.ID]++
