@@ -134,6 +134,8 @@ assert.equal(M.pickThumb([], 60), null);
 assert.equal(M.isArtwork({name: 'title-1791446437502.png', kind: 'image'}), true);
 assert.equal(M.isArtwork({name: 'sticker-heart.png', kind: 'image'}), true);
 assert.equal(M.isArtwork({name: 'Holiday title-card.png', kind: 'image'}), false);
+assert.equal(M.isArtwork({name: 'title-urlaub.png', kind: 'image'}), false, 'a user file named like a title stays visible');
+assert.equal(M.isArtwork({name: 'sticker-logo.png', kind: 'image'}), false, 'only the built-in sticker names are artwork');
 `
 	cmd := exec.Command(node, "-e", script)
 	if output, err := cmd.CombinedOutput(); err != nil {

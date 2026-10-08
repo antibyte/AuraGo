@@ -5,7 +5,9 @@
     const THUMB_COUNT = 8;
     const THUMB_WIDTH = 160;
     const MAX_PEAK_BYTES = 80 * 1024 * 1024;
-    const ARTWORK_NAME = /^(title|sticker)-[\w.-]+\.png$/i;
+    // Exactly the names the editor gives its own PNGs (title-<Date.now()>.png, sticker-<name>.png), so a
+    // user's own "title-holiday.png" stays visible in the media bin.
+    const ARTWORK_NAME = /^(title-\d{12,}|sticker-(sparkle|heart|sun|star|flower|burst))\.png$/;
 
     // Frames spread over the clip, starting just after the first frame (which is often black).
     function thumbnailTimes(durationFrames, count) {

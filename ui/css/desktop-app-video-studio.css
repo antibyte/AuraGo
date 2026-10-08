@@ -390,6 +390,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-transition-grid .vs-tx-black { background: linear-gradient(90deg, #4f5fd6, #000 50%, #c66f31); }
 .vs-transition-grid .vs-tx-wipeleft { background: linear-gradient(90deg, #c66f31 40%, #4f5fd6 40%); }
 .vs-text-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--vs-muted); }
+.vs-text-status.is-error { color: color-mix(in srgb, var(--vs-danger) 80%, var(--vs-text)); }
 .vs-insp-empty .vs-facts { margin: 0; }
 .vs-facts { display: grid; gap: 6px; margin: 0 0 14px; }
 .vs-facts > div { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; }

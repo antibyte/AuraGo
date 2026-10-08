@@ -5713,5 +5713,14 @@
   "videoStudio.uploading": "Uploader…",
   "videoStudio.zoomFit": "Vis hele projektet",
   "videoStudio.zoomFitShort": "Tilpas",
+  "videoStudio.keySpace": "Mellemrum",
+  "videoStudio.keyDel": "Delete",
+  "videoStudio.keyCtrl": "Ctrl",
+  "videoStudio.keyHome": "Home",
+  "videoStudio.keyEnd": "End",
+  "videoStudio.keyShift": "Skift",
+  "videoStudio.keyWheel": "scrollhjul",
+  "videoStudio.saveConflict": "Ikke gemt: ændret et andet sted",
+  "videoStudio.saveConflictHint": "Automatisk gemning er sat på pause. Klik for at vælge, hvilken version du beholder.",
   "desktop.app_video_studio": "Video Studio"
 }

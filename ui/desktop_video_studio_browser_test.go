@@ -163,7 +163,14 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	if !page.MustEval(`()=>document.querySelector('.vs-modal').getBoundingClientRect().height>0`).Bool() {
 		t.Fatal("export dialog is not visible")
 	}
+	// A dialog makes the editor behind it inert, so Tab and Space cannot reach toolbar actions.
+	if !page.MustEval(`()=>document.querySelector('.vs-toolbar').inert&&document.querySelector('.vs-timeline-panel').inert&&!document.querySelector('[data-modal-host]').inert`).Bool() {
+		t.Fatal("editor behind the export dialog is still interactive")
+	}
 	page.MustEval(`()=>document.querySelector('[data-export-form] button[type="submit"]').click()`)
+	if !page.MustEval(`async()=>{await Promise.resolve();return !document.querySelector('.vs-toolbar').inert}`).Bool() {
+		t.Fatal("closing the export dialog left the editor inert")
+	}
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) && !page.MustEval(`()=>window.fixtureCalls.some(([method,path])=>method==='POST'&&path==='/api/desktop/video-studio/projects/p1/jobs')`).Bool() {
 		time.Sleep(25 * time.Millisecond)

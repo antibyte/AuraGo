@@ -5713,5 +5713,14 @@
   "videoStudio.uploading": "正在上传…",
   "videoStudio.zoomFit": "显示整个项目",
   "videoStudio.zoomFitShort": "适应",
+  "videoStudio.keySpace": "空格",
+  "videoStudio.keyDel": "Delete",
+  "videoStudio.keyCtrl": "Ctrl",
+  "videoStudio.keyHome": "Home",
+  "videoStudio.keyEnd": "End",
+  "videoStudio.keyShift": "Shift",
+  "videoStudio.keyWheel": "滚轮",
+  "videoStudio.saveConflict": "未保存：已在别处更改",
+  "videoStudio.saveConflictHint": "自动保存已暂停。点击选择要保留的版本。",
   "desktop.app_video_studio": "Video Studio"
 }

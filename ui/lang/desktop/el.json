@@ -5713,5 +5713,14 @@
   "videoStudio.uploading": "Μεταφόρτωση…",
   "videoStudio.zoomFit": "Εμφάνιση ολόκληρου του έργου",
   "videoStudio.zoomFitShort": "Προσαρμογή",
+  "videoStudio.keySpace": "Διάστημα",
+  "videoStudio.keyDel": "Delete",
+  "videoStudio.keyCtrl": "Ctrl",
+  "videoStudio.keyHome": "Home",
+  "videoStudio.keyEnd": "End",
+  "videoStudio.keyShift": "Shift",
+  "videoStudio.keyWheel": "ροδέλα",
+  "videoStudio.saveConflict": "Δεν αποθηκεύτηκε: άλλαξε αλλού",
+  "videoStudio.saveConflictHint": "Η αυτόματη αποθήκευση έχει τεθεί σε παύση. Κάνε κλικ για να επιλέξεις ποια έκδοση θα κρατήσεις.",
   "desktop.app_video_studio": "Video Studio"
 }

@@ -91,6 +91,7 @@
         clearInterval(s.jobsTimer);
         s.xhrs.forEach(xhr => { try { xhr.abort(); } catch (_) { /* finished */ } });
         if (s.resizeObserver) s.resizeObserver.disconnect();
+        if (s.modalObserver) s.modalObserver.disconnect();
         if (s.preview) s.preview.dispose();
         if (s.media) s.media.dispose();
         if (s.detachTimeline) s.detachTimeline();
@@ -103,12 +104,13 @@
         const tab = (name, iconName, key, fallback) => `<button type="button" role="tab" data-tab="${name}" aria-selected="${name === 'media'}" aria-controls="vs-panel-${s.id}-${name}" id="vs-tab-${s.id}-${name}" ${name === 'media' ? '' : 'tabindex="-1"'}>${icon(iconName, 16)}<span>${label(key, fallback)}</span></button>`;
         const presets = Object.keys(TITLE_PRESETS).map(name => `<button type="button" class="vs-preset vs-preset-${name}" data-action="add-title" data-preset="${name}"><span class="vs-preset-sample" aria-hidden="true">${label('presetSample_' + name, name === 'lower' ? 'Name' : 'Aa')}</span><span class="vs-preset-text"><strong>${label('preset_' + name, name)}</strong><small>${label('presetHint_' + name, '')}</small></span>${icon('plus', 16, 'vs-icon vs-preset-add')}</button>`).join('');
         const stickers = STICKERS.map(name => `<button type="button" class="vs-sticker" data-sticker="${name}" title="${label('sticker_' + name, name)}"><span class="vs-sticker-art" aria-hidden="true">${stickerSVG(name, 56)}</span><small>${label('sticker_' + name, name)}</small></button>`).join('');
-        const shortcuts = [['Space', 'shortcutPlay', 'Play / pause'], ['← →', 'shortcutFrame', 'One frame (Shift: one second)'], ['Home End', 'shortcutEnds', 'Start / end'], ['S', 'shortcutSplit', 'Split at the playhead'], ['Del', 'shortcutDelete', 'Delete the selected clip'], ['Ctrl Z', 'shortcutUndo', 'Undo (Shift: redo)'], ['+ −', 'shortcutZoom', 'Zoom the timeline'], ['Ctrl + wheel', 'shortcutWheel', 'Zoom at the pointer']];
+        const key = name => tr(s, 'key' + name, name);
+        const shortcuts = [[[key('Space')], 'shortcutPlay', 'Play / pause'], [['←', '→'], 'shortcutFrame', 'One frame (Shift: one second)'], [[key('Home'), key('End')], 'shortcutEnds', 'Start / end'], [['S'], 'shortcutSplit', 'Split at the playhead'], [[key('Del')], 'shortcutDelete', 'Delete the selected clip'], [[key('Ctrl'), 'Z'], 'shortcutUndo', 'Undo (Shift: redo)'], [['+', '−'], 'shortcutZoom', 'Zoom the timeline'], [[key('Ctrl'), key('Wheel')], 'shortcutWheel', 'Zoom at the pointer']];
         return `<div class="vs-app" tabindex="0">
 <header class="vs-toolbar">
  <div class="vs-tb-group vs-tb-project"><div class="vs-menu-anchor"><button type="button" class="vs-project-button" data-action="project-menu" aria-haspopup="dialog" aria-expanded="false" title="${label('projects', 'Projects')}">${icon('project', 18)}<span class="vs-project-name" data-project-name>${label('noProject', 'No project')}</span>${icon('chevronDown', 14)}</button><div class="vs-popover vs-project-popover" data-project-popover role="dialog" aria-label="${label('projects', 'Projects')}" hidden></div></div><button type="button" class="vs-save-chip" data-action="save" data-save-state></button></div>
- <div class="vs-tb-group vs-tb-edit"><button type="button" class="vs-icon-button" data-action="undo" aria-label="${label('undo', 'Undo')}" title="${label('undo', 'Undo')} (Ctrl+Z)" disabled>${icon('undo', 18)}</button><button type="button" class="vs-icon-button" data-action="redo" aria-label="${label('redo', 'Redo')}" title="${label('redo', 'Redo')} (Ctrl+Shift+Z)" disabled>${icon('redo', 18)}</button><label class="vs-format" title="${label('format', 'Format')}">${icon('film', 16)}<select data-canvas aria-label="${label('format', 'Format')}"></select></label></div>
- <div class="vs-tb-group vs-tb-actions"><div class="vs-menu-anchor"><button type="button" class="vs-jobs-button" data-action="jobs" aria-haspopup="dialog" aria-expanded="false" hidden><span class="vs-jobs-icon" data-jobs-icon></span><span data-jobs-label></span></button><div class="vs-popover vs-jobs-popover" data-jobs-popover role="dialog" aria-label="${label('backgroundJobs', 'Background jobs')}" hidden><h3>${label('backgroundJobs', 'Background jobs')}</h3><section class="vs-jobs" data-jobs></section></div></div><div class="vs-menu-anchor"><button type="button" class="vs-icon-button" data-action="shortcuts" aria-haspopup="dialog" aria-expanded="false" aria-label="${label('shortcuts', 'Keyboard shortcuts')}" title="${label('shortcuts', 'Keyboard shortcuts')}">${icon('keyboard', 18)}</button><div class="vs-popover vs-shortcuts-popover" data-shortcuts-popover role="dialog" aria-label="${label('shortcuts', 'Keyboard shortcuts')}" hidden><h3>${label('shortcuts', 'Keyboard shortcuts')}</h3><dl>${shortcuts.map(([keys, key, fallback]) => `<div><dt>${keys.split(' ').map(k => `<kbd>${esc(s, k)}</kbd>`).join('')}</dt><dd>${label(key, fallback)}</dd></div>`).join('')}</dl></div></div><button type="button" class="vs-inspector-toggle" data-action="toggle-inspector" aria-label="${label('inspector', 'Inspector')}" title="${label('inspector', 'Inspector')}">${icon('sliders', 17)}<span>${label('inspector', 'Inspector')}</span></button><button type="button" class="vs-export-button vs-primary" data-action="export">${icon('export', 17)}<span>${label('export', 'Export')}</span></button></div>
+ <div class="vs-tb-group vs-tb-edit"><button type="button" class="vs-icon-button" data-action="undo" aria-label="${label('undo', 'Undo')}" title="${label('undo', 'Undo')} (${esc(s, key('Ctrl'))}+Z)" disabled>${icon('undo', 18)}</button><button type="button" class="vs-icon-button" data-action="redo" aria-label="${label('redo', 'Redo')}" title="${label('redo', 'Redo')} (${esc(s, key('Ctrl'))}+${esc(s, key('Shift'))}+Z)" disabled>${icon('redo', 18)}</button><label class="vs-format" title="${label('format', 'Format')}">${icon('film', 16)}<select data-canvas aria-label="${label('format', 'Format')}"></select></label></div>
+ <div class="vs-tb-group vs-tb-actions"><div class="vs-menu-anchor"><button type="button" class="vs-jobs-button" data-action="jobs" aria-haspopup="dialog" aria-expanded="false" hidden><span class="vs-jobs-icon" data-jobs-icon></span><span data-jobs-label></span></button><div class="vs-popover vs-jobs-popover" data-jobs-popover role="dialog" aria-label="${label('backgroundJobs', 'Background jobs')}" hidden><h3>${label('backgroundJobs', 'Background jobs')}</h3><section class="vs-jobs" data-jobs></section></div></div><div class="vs-menu-anchor"><button type="button" class="vs-icon-button" data-action="shortcuts" aria-haspopup="dialog" aria-expanded="false" aria-label="${label('shortcuts', 'Keyboard shortcuts')}" title="${label('shortcuts', 'Keyboard shortcuts')}">${icon('keyboard', 18)}</button><div class="vs-popover vs-shortcuts-popover" data-shortcuts-popover role="dialog" aria-label="${label('shortcuts', 'Keyboard shortcuts')}" hidden><h3>${label('shortcuts', 'Keyboard shortcuts')}</h3><dl>${shortcuts.map(([keys, key, fallback]) => `<div><dt>${keys.map(k => `<kbd>${esc(s, k)}</kbd>`).join('')}</dt><dd>${label(key, fallback)}</dd></div>`).join('')}</dl></div></div><button type="button" class="vs-inspector-toggle" data-action="toggle-inspector" aria-label="${label('inspector', 'Inspector')}" title="${label('inspector', 'Inspector')}">${icon('sliders', 17)}<span>${label('inspector', 'Inspector')}</span></button><button type="button" class="vs-export-button vs-primary" data-action="export">${icon('export', 17)}<span>${label('export', 'Export')}</span></button></div>
 </header>
 <div class="vs-disabled" data-disabled hidden></div>
 <div class="vs-workspace">
@@ -126,7 +128,7 @@
  </aside>
  <main class="vs-center">
   <div class="vs-preview-stage"><div class="vs-preview-mat"><canvas data-preview width="1280" height="720" aria-label="${label('preview', 'Preview')}"></canvas><div class="vs-preview-empty" data-preview-empty hidden></div><div class="vs-transform" data-transform hidden><span class="vs-handle" data-handle="nw"></span><span class="vs-handle" data-handle="ne"></span><span class="vs-handle" data-handle="sw"></span><span class="vs-handle" data-handle="se"></span></div></div></div>
-  <div class="vs-transport"><div class="vs-transport-buttons"><button type="button" data-action="seek-start" aria-label="${label('toStart', 'To start')}" title="${label('toStart', 'To start')} (Home)">${icon('skipStart', 17)}</button><button type="button" data-action="step-back" aria-label="${label('previousFrame', 'Previous frame')}" title="${label('previousFrame', 'Previous frame')} (←)">${icon('stepBack', 17)}</button><button type="button" class="vs-play" data-action="play" aria-label="${label('play', 'Play')}" title="${label('play', 'Play')} (Space)">${icon('play', 20)}</button><button type="button" data-action="step-forward" aria-label="${label('nextFrame', 'Next frame')}" title="${label('nextFrame', 'Next frame')} (→)">${icon('stepForward', 17)}</button><button type="button" data-action="seek-end" aria-label="${label('toEnd', 'To end')}" title="${label('toEnd', 'To end')} (End)">${icon('skipEnd', 17)}</button></div><div class="vs-time" aria-live="off"><span class="vs-time-current" data-time>0:00.00</span><span class="vs-timecode" data-transport-time>/ 0:00.00</span></div><div class="vs-transport-right"><button type="button" data-action="fullscreen" aria-label="${label('fullscreen', 'Full screen preview')}" title="${label('fullscreen', 'Full screen preview')}">${icon('fullscreen', 17)}</button></div></div>
+  <div class="vs-transport"><div class="vs-transport-buttons"><button type="button" data-action="seek-start" aria-label="${label('toStart', 'To start')}" title="${label('toStart', 'To start')} (${esc(s, key('Home'))})">${icon('skipStart', 17)}</button><button type="button" data-action="step-back" aria-label="${label('previousFrame', 'Previous frame')}" title="${label('previousFrame', 'Previous frame')} (←)">${icon('stepBack', 17)}</button><button type="button" class="vs-play" data-action="play" aria-label="${label('play', 'Play')}" title="${label('play', 'Play')} (${esc(s, key('Space'))})">${icon('play', 20)}</button><button type="button" data-action="step-forward" aria-label="${label('nextFrame', 'Next frame')}" title="${label('nextFrame', 'Next frame')} (→)">${icon('stepForward', 17)}</button><button type="button" data-action="seek-end" aria-label="${label('toEnd', 'To end')}" title="${label('toEnd', 'To end')} (${esc(s, key('End'))})">${icon('skipEnd', 17)}</button></div><div class="vs-time" aria-live="off"><span class="vs-time-current" data-time>0:00.00</span><span class="vs-timecode" data-transport-time>/ 0:00.00</span></div><div class="vs-transport-right"><button type="button" data-action="fullscreen" aria-label="${label('fullscreen', 'Full screen preview')}" title="${label('fullscreen', 'Full screen preview')}">${icon('fullscreen', 17)}</button></div></div>
  </main>
  <button type="button" class="vs-inspector-scrim" data-action="close-inspector" aria-label="${label('close', 'Close')}"></button>
  <aside class="vs-inspector" aria-label="${label('inspector', 'Inspector')}"><div class="vs-inspector-head"><h2>${label('properties', 'Properties')}</h2><button type="button" class="vs-inspector-close" data-action="close-inspector" aria-label="${label('close', 'Close')}" title="${label('close', 'Close')}">${icon('close', 16)}</button></div><div data-inspector class="vs-inspector-body"></div></aside>
@@ -146,7 +148,7 @@
             status: null, projects: [], jobs: [], jobLocalStops: new Set(), frame: 0, selectedClipId: '', selectionRevision: 0,
             zoom: 1, snap: readPref(PREF_SNAP) !== 'false', dirty: false, saving: false, saveError: '', conflict: false, history: [], redo: [],
             busy: false, revision: 0, artworkRevision: 0, savePromise: null, autosaveTimer: 0, libraryTab: 'media', filter: 'all',
-            uploads: new Map(), notifiedJobs: new Set(), xhrs: new Set(), projectEpoch: 0,
+            uploads: new Map(), notifiedJobs: new Set(), xhrs: new Set(), projectEpoch: 0, failedArtwork: new Set(), fieldGesture: false,
             textTimers: new Map(), staleArtwork: new Set(), artworkInFlight: new Set(), artworkJobs: new Map(), clipArtRevisions: new Map(), artworkKeys: new Map(), pendingArtwork: new Map(), textBefore: null
         };
         instances.set(id, s);
@@ -209,7 +211,15 @@
         }, { signal });
         wireResize(s);
         wireTransform(s);
-        if (typeof ResizeObserver === 'function') { s.resizeObserver = new ResizeObserver(() => { updateTransform(s); syncDrawer(s); }); s.resizeObserver.observe(s.q('.vs-preview-stage')); }
+        if (typeof MutationObserver === 'function') {
+            s.modalObserver = new MutationObserver(() => P.syncInert(s));
+            [s.q('[data-modal-host]'), s.q('[data-conflict-host]')].forEach(node => s.modalObserver.observe(node, { childList: true }));
+        }
+        if (typeof ResizeObserver === 'function') { s.resizeObserver = new ResizeObserver(() => {
+            updateTransform(s); syncDrawer(s);
+            // Widening the window turns the drawer back into a column; drop its modal state.
+            if (s.app.classList.contains('vs-show-inspector') && s.app.getBoundingClientRect().width > 920) setInspectorOpen(s, false, false);
+        }); s.resizeObserver.observe(s.q('.vs-preview-stage')); }
         s.keyHandler = event => handleKeys(s, event);
         window.addEventListener('keydown', s.keyHandler, true);
         if (typeof ctx.setWindowBeforeClose === 'function') ctx.setWindowBeforeClose(id, async () => {
@@ -267,7 +277,6 @@
         else if (!s.project) renderEmptyProject(s);
         populateCanvas(s);
         renderUI(s);
-        if (s.projectId) await loadJobs(s);
         s.jobsTimer = window.setInterval(() => { if (!s.disposed && s.projectId) loadJobs(s).catch(() => {}); }, 2500);
     }
     function disableWriteControls(s) {
@@ -298,7 +307,7 @@
             await recoverDraft(s, id, epoch);
             if (s.disposed || epoch !== s.projectEpoch || id !== s.projectId) return false;
             ensureTracks(s);
-            await loadJobs(s);
+            await loadJobs(s).catch(() => {});
             if (s.disposed || epoch !== s.projectEpoch || id !== s.projectId) return false;
             renderUI(s);
             return true;
@@ -376,11 +385,11 @@
         const chip = s.q('[data-save-state]');
         if (chip) {
             chip.hidden = !s.project;
-            const state = s.saving ? 'saving' : s.saveError ? 'error' : s.dirty ? 'dirty' : 'saved';
-            chip.className = 'vs-save-chip is-' + state;
-            const label = state === 'saving' ? tr(s, 'saving', 'Saving…') : state === 'error' ? tr(s, 'saveFailed', 'Save failed') : state === 'dirty' ? tr(s, 'unsaved', 'Unsaved changes') : tr(s, 'saved', 'All changes saved');
-            chip.innerHTML = `${icon(state === 'saving' ? 'spinner' : state === 'error' ? 'alert' : state === 'dirty' ? 'edit' : 'check', 14, 'vs-icon' + (state === 'saving' ? ' vs-spin' : ''))}<span>${esc(s, label)}</span>`;
-            chip.title = state === 'error' ? tr(s, 'retrySave', 'Click to try saving again') : state === 'dirty' ? tr(s, 'saveNow', 'Click to save now') : label;
+            const state = s.saving ? 'saving' : s.conflict ? 'conflict' : s.saveError ? 'error' : s.dirty ? 'dirty' : 'saved';
+            chip.className = 'vs-save-chip is-' + (state === 'conflict' ? 'error' : state);
+            const label = state === 'saving' ? tr(s, 'saving', 'Saving…') : state === 'conflict' ? tr(s, 'saveConflict', 'Not saved: changed elsewhere') : state === 'error' ? tr(s, 'saveFailed', 'Save failed') : state === 'dirty' ? tr(s, 'unsaved', 'Unsaved changes') : tr(s, 'saved', 'All changes saved');
+            chip.innerHTML = `${icon(state === 'saving' ? 'spinner' : state === 'error' || state === 'conflict' ? 'alert' : state === 'dirty' ? 'edit' : 'check', 14, 'vs-icon' + (state === 'saving' ? ' vs-spin' : ''))}<span>${esc(s, label)}</span>`;
+            chip.title = state === 'conflict' ? tr(s, 'saveConflictHint', 'Autosave is paused. Click to choose which version to keep.') : state === 'error' ? tr(s, 'retrySave', 'Click to try saving again') : state === 'dirty' ? tr(s, 'saveNow', 'Click to save now') : label;
             chip.disabled = s.featureDisabled || !s.project;
         }
         const undo = s.q('[data-action="undo"]'), redo = s.q('[data-action="redo"]');
@@ -440,10 +449,11 @@
         const focus = focusKey(s);
         I().render(host, {
             tr: (key, fallback) => tr(s, key, fallback), esc: value => esc(s, value), icon, project: s.project,
-            selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: P.artworkPending(s, s.selectedClipId),
+            locale: P.uiLocale(), selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: P.artworkPending(s, s.selectedClipId),
             summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }
         });
         restoreFocus(s, focus);
+        P.updateTextStatus(s);
     }
     function syncInspectorLock(s) {
         const selected = T().clipFor(s.project, s.selectedClipId);
@@ -578,7 +588,7 @@
         if (input.matches('[data-search]')) { renderAssets(s); return; }
         if (s.readonly || s.timelineDragging) return;
         if (input.matches('input[type="range"][data-field]')) { liveField(s, input); return; }
-        if (input.matches('[data-transition-duration]')) { updateOutput(input, I().formatSeconds(Number(input.value)) + ' s'); return; }
+        if (input.matches('[data-transition-duration]')) { updateOutput(input, I().formatSeconds(Number(input.value), P.uiLocale()) + ' s'); return; }
         if (input.matches('[data-text-field="text"],[data-text-style]')) liveText(s, input);
     }
     function handleChange(s, event) {
@@ -656,15 +666,21 @@
         if (s.disposed || event.defaultPrevented || !s.project || !target || !s.host.contains(target) || typeof target.closest !== 'function') return;
         if ((event.ctrlKey || event.metaKey || event.altKey) && !undoShortcut) return;
         if (event.key === 'Escape') {
+            // Escape in the conflict dialog is the explicit "Keep editing" choice; it never retries a save.
+            const keep = s.q('[data-conflict-host] [data-conflict="keep"]');
+            if (keep) { keep.click(); event.preventDefault(); return; }
             const modal = s.q('[data-modal-host] .vs-modal');
             if (modal) { s.q('[data-modal-host]').replaceChildren(); s.app.focus({ preventScroll: true }); event.preventDefault(); return; }
             if (Object.values(POPOVERS).some(([, selector]) => !s.q(selector).hidden)) { closePopovers(s, null, true); event.preventDefault(); return; }
         }
         if (event.key === 'Escape' && s.app.classList.contains('vs-show-inspector')) { setInspectorOpen(s, false, false); s.q('.vs-inspector-toggle')?.focus(); event.preventDefault(); return; }
-        if (event.key === 'Tab' && s.app.classList.contains('vs-show-inspector') && s.app.getBoundingClientRect().width <= 920) {
-            const items = Array.from(s.q('.vs-inspector').querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)')).filter(item => item.getClientRects().length);
-            if (items.length) { const first = items[0], last = items[items.length - 1]; if (event.shiftKey && (document.activeElement === first || !s.q('.vs-inspector').contains(document.activeElement))) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); } }
+        // Tab cycles inside an open dialog, or inside the narrow inspector drawer.
+        const trap = s.q('[data-conflict-host] .vs-modal') || s.q('[data-modal-host] .vs-modal') || (s.app.classList.contains('vs-show-inspector') && s.app.getBoundingClientRect().width <= 920 ? s.q('.vs-inspector') : null);
+        if (event.key === 'Tab' && trap) {
+            const items = Array.from(trap.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]')).filter(item => item.getClientRects().length);
+            if (items.length) { const first = items[0], last = items[items.length - 1]; if (event.shiftKey && (document.activeElement === first || !trap.contains(document.activeElement))) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && (document.activeElement === last || !trap.contains(document.activeElement))) { event.preventDefault(); first.focus(); } }
         }
+        if (s.q('[data-modal-host] .vs-modal, [data-conflict-host] .vs-modal')) return;
         if (target.closest('input,textarea,select,[contenteditable="true"]')) return;
         if (undoShortcut) { event.preventDefault(); undo(s, event.shiftKey); return; }
         // A focused timeline clip takes the clip shortcuts; Space and Enter stay with the timeline.

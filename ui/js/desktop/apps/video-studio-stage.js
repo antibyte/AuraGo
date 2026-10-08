@@ -62,13 +62,13 @@
         const found = selectedClip(s);
         if (!found || found.track.locked) return;
         const field = input.dataset.field, value = Number(input.value);
-        if (!input._vsBefore) { input._vsBefore = snapshot(s); input._vsBox = { x: found.clip.x, y: found.clip.y, width: found.clip.width, height: found.clip.height }; }
+        if (!input._vsBefore) { input._vsBefore = snapshot(s); input._vsBox = { x: found.clip.x, y: found.clip.y, width: found.clip.width, height: found.clip.height }; s.fieldGesture = true; }
         clearTimeout(s.autosaveTimer);
         if (field === 'opacity') { found.clip.opacity = clamp(value / 100, 0, 1); updateOutput(input, percentText(value)); }
         else if (field === 'volume') { found.clip.volume = clamp(value / 100, 0, 4); updateOutput(input, percentText(value)); }
         else if (field === 'rotation') { found.clip.rotation = clamp(Math.round(value), -360, 360); updateOutput(input, Math.round(value) + '°'); }
         else if (field === 'size') { Object.assign(found.clip, I().scaleBox(input._vsBox, clamp(value / 100, 0.05, 1))); updateOutput(input, percentText(value)); }
-        else if (field === 'fade_in' || field === 'fade_out') { found.clip[field] = clamp(Math.round(value), 0, found.clip.duration); updateOutput(input, I().formatSeconds(found.clip[field]) + ' s'); }
+        else if (field === 'fade_in' || field === 'fade_out') { found.clip[field] = clamp(Math.round(value), 0, found.clip.duration); updateOutput(input, I().formatSeconds(found.clip[field], P.uiLocale()) + ' s'); }
         else return;
         s.dirty = true; s.revision++;
         renderToolbar(s);
@@ -102,7 +102,8 @@
             return;
         }
         const before = input._vsBefore; delete input._vsBefore; delete input._vsBox;
-        if (!before) return;
+        s.fieldGesture = false;
+        if (!before) { P.retryArtwork(s); return; }
         if (T().validTimeline && !T().validTimeline(s.project)) {
             s.project = hydrateProject(s, before);
             showNotice(s, 'invalidTiming', 'That edit would create invalid timing or an overlap.', true);
@@ -112,6 +113,7 @@
         s.dirty = JSON.stringify(canonicalProject(s.project)) !== JSON.stringify(s.savedProject);
         if (s.dirty) { persistDraft(s); scheduleSave(s); } else clearDraft(s);
         renderInspector(s); renderToolbar(s); T().render(s.q('[data-timeline]'), s.timelineOptions); s.preview.seek(s.frame);
+        P.retryArtwork(s);
     }
     // The pre-edit snapshot lives on the state, so an inspector re-render cannot lose it.
     function liveText(s, input) {
@@ -147,6 +149,15 @@
         if (!panel || !s.app) return;
         s.app.style.setProperty('--vs-drawer-bottom', Math.round(panel.getBoundingClientRect().height + (handle ? handle.getBoundingClientRect().height / 2 : 0)) + 'px');
     }
+    // Dialogs and the narrow drawer are modal: everything behind them is inert, so Tab, Space and clicks
+    // cannot reach the editor underneath.
+    function syncInert(s) {
+        if (!s.app) return;
+        const modal = !!s.q('[data-modal-host] .vs-modal, [data-conflict-host] .vs-modal');
+        const drawer = s.app.classList.contains('vs-show-inspector');
+        s.app.querySelectorAll(':scope > .vs-toolbar, :scope > .vs-disabled, :scope > .vs-resize, :scope > .vs-timeline-panel, :scope > .vs-workspace > .vs-library, :scope > .vs-workspace > .vs-center').forEach(el => { el.inert = modal || drawer; });
+        s.app.querySelectorAll(':scope > .vs-workspace > .vs-inspector, :scope > .vs-workspace > .vs-inspector-scrim').forEach(el => { el.inert = modal; });
+    }
     function setInspectorOpen(s, open, moveFocus) {
         const app = s.app, inspector = s.q('.vs-inspector');
         syncDrawer(s);
@@ -158,6 +169,7 @@
         } else {
             inspector.removeAttribute('role'); inspector.removeAttribute('aria-modal');
         }
+        syncInert(s);
     }
     const POPOVERS = { project: ['project-menu', '[data-project-popover]'], jobs: ['jobs', '[data-jobs-popover]'], shortcuts: ['shortcuts', '[data-shortcuts-popover]'] };
     function togglePopover(s, name) {
@@ -303,9 +315,11 @@
             s.timelineDragging = false; s.transformDrag = false;
             box.classList.remove('is-dragging');
             if (epoch !== s.projectEpoch || projectId !== s.projectId) return;
-            if (event.type === 'pointercancel') { s.project = hydrateProject(s, before); renderUI(s); return; }
-            if (JSON.stringify(before) !== JSON.stringify(s.project)) recordChange(s, 'transform', before);
+            if (event.type === 'pointercancel') { s.project = hydrateProject(s, before); renderUI(s); }
+            else if (JSON.stringify(before) !== JSON.stringify(s.project)) recordChange(s, 'transform', before);
             P.retryArtwork(s);
+            // pointerdown paused the autosave; a click without movement must not leave edits unsaved.
+            if (s.dirty && !s.conflict) P.queueAutosave(s);
             if (s.pendingRefresh) { s.pendingRefresh = false; refreshProject(s).catch(() => {}); }
         };
         box.addEventListener('pointerup', finish, { signal });
@@ -324,5 +338,5 @@
         }, { signal });
     }
 
-    Object.assign(P, { focusKey, restoreFocus, applyTransition, percentText, updateOutput, liveField, commitField, liveText, commitText, mutateSelected, syncDrawer, setInspectorOpen, POPOVERS, togglePopover, closePopovers, closePopoversOutside, renderProjectPopover, renameProject, wireResize, transformTarget, updateTransform, wireTransform });
+    Object.assign(P, { syncInert, focusKey, restoreFocus, applyTransition, percentText, updateOutput, liveField, commitField, liveText, commitText, mutateSelected, syncDrawer, setInspectorOpen, POPOVERS, togglePopover, closePopovers, closePopoversOutside, renderProjectPopover, renameProject, wireResize, transformTarget, updateTransform, wireTransform });
 })();

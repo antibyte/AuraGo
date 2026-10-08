@@ -5713,5 +5713,14 @@
   "videoStudio.uploading": "Uploading…",
   "videoStudio.zoomFit": "Show whole project",
   "videoStudio.zoomFitShort": "Fit",
+  "videoStudio.keySpace": "Space",
+  "videoStudio.keyDel": "Del",
+  "videoStudio.keyCtrl": "Ctrl",
+  "videoStudio.keyHome": "Home",
+  "videoStudio.keyEnd": "End",
+  "videoStudio.keyShift": "Shift",
+  "videoStudio.keyWheel": "wheel",
+  "videoStudio.saveConflict": "Not saved: changed elsewhere",
+  "videoStudio.saveConflictHint": "Autosave is paused. Click to choose which version to keep.",
   "desktop.app_video_studio": "Video Studio"
 }

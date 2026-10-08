@@ -5713,5 +5713,14 @@
   "videoStudio.uploading": "Nahrává se…",
   "videoStudio.zoomFit": "Zobrazit celý projekt",
   "videoStudio.zoomFitShort": "Přizpůsobit",
+  "videoStudio.keySpace": "Mezerník",
+  "videoStudio.keyDel": "Delete",
+  "videoStudio.keyCtrl": "Ctrl",
+  "videoStudio.keyHome": "Home",
+  "videoStudio.keyEnd": "End",
+  "videoStudio.keyShift": "Shift",
+  "videoStudio.keyWheel": "kolečko",
+  "videoStudio.saveConflict": "Neuloženo: změněno jinde",
+  "videoStudio.saveConflictHint": "Automatické ukládání je pozastaveno. Kliknutím vyber, kterou verzi ponechat.",
   "desktop.app_video_studio": "Video Studio"
 }

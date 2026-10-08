@@ -38,11 +38,13 @@
     // Generated artwork files get readable names: the sticker's name or "Title".
     function assetDisplayName(s, asset) {
         const name = String(asset && asset.name || '');
+        if (!window.VideoStudioMedia.isArtwork(asset)) return name;
         const sticker = /^sticker-([a-z]+)\.png$/i.exec(name);
         if (sticker) return tr(s, 'sticker_' + sticker[1].toLowerCase(), sticker[1]);
         if (/^title-[\w.-]+\.png$/i.test(name)) return tr(s, 'preset_title', 'Title');
         return name;
     }
+    function uiLocale() { return document.documentElement.lang || navigator.language || 'en'; }
     function maxFrames(s) { return Number(s.status && s.status.limits && s.status.limits.max_duration_frames || MAX_PROJECT_FRAMES); }
     async function request(url, options) {
         const response = await fetch(url, Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {}));
@@ -337,12 +339,21 @@
             const shouldRecover = draft.project && Date.now() - Number(draft.saved_at || 0) < 7 * 86400000 && await s.ctx.confirmDialog(tr(s, 'recoverTitle', 'Recover local draft?'), tr(s, 'recoverCopy', 'A recent local draft is available. Restore it over the saved project?'));
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
             if (shouldRecover) {
-                s.project = hydrateProject(s, draft.project); s.dirty = true; s.history = [];
+                const saved = clone(s.project), recovered = hydrateProject(s, draft.project);
+                // The server may hold newer media than the draft; keep every asset the server knows.
+                const known = new Set(recovered.assets.map(asset => asset.id));
+                recovered.assets = recovered.assets.concat(saved.assets.filter(asset => !known.has(asset.id)));
+                s.project = recovered; s.dirty = true; s.history = [saved]; s.redo = [];
+                // A draft title whose words or style differ from the saved copy still shows the saved PNG.
+                recovered.tracks.forEach(track => track.clips.forEach(clip => {
+                    const previous = clip.text && T().clipFor(saved, clip.id);
+                    if (previous && previous.clip.asset_id === clip.asset_id && (previous.clip.text !== clip.text || P.textStyleKey(previous.clip.text_style || {}) !== P.textStyleKey(clip.text_style || {}))) P.markTextStale(s, clip.id);
+                }));
             }
         } catch (_) { /* malformed recovery data is ignored */ }
     }
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { assetDisplayName, API, FPS, MAX_CLIPS, MAX_ACTIVE_ASSETS, MAX_PROJECT_FRAMES, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, request, canonicalProject, hydrateProject, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, activeAssetCount, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
+    Object.assign(P, { uiLocale, assetDisplayName, API, FPS, MAX_CLIPS, MAX_ACTIVE_ASSETS, MAX_PROJECT_FRAMES, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, request, canonicalProject, hydrateProject, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, activeAssetCount, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
 })();

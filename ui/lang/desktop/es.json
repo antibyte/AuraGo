@@ -5713,5 +5713,14 @@
   "videoStudio.uploading": "Subiendo…",
   "videoStudio.zoomFit": "Mostrar todo el proyecto",
   "videoStudio.zoomFitShort": "Ajustar",
+  "videoStudio.keySpace": "Espacio",
+  "videoStudio.keyDel": "Supr",
+  "videoStudio.keyCtrl": "Ctrl",
+  "videoStudio.keyHome": "Inicio",
+  "videoStudio.keyEnd": "Fin",
+  "videoStudio.keyShift": "Mayús",
+  "videoStudio.keyWheel": "rueda",
+  "videoStudio.saveConflict": "Sin guardar: cambiado en otro lugar",
+  "videoStudio.saveConflictHint": "El guardado automático está en pausa. Haz clic para elegir qué versión conservar.",
   "desktop.app_video_studio": "Video Studio"
 }

@@ -874,12 +874,18 @@ buttons and menu popovers remain excluded from those gestures.
   all panels stay in the DOM), preview with transport, contextual inspector,
   resizable timeline (`--vs-timeline-h`, per-viewer `localStorage`). Icons come
   from `VideoStudioIcons`, never from the shell's `iconMarkup`. Notices are a
-  toast in `[data-notice]` (info hides after 5 s, errors stay). Finished probe
+  toast in `[data-notice]` (info hides after 5 s, a download toast after 15 s,
+  errors stay). An open dialog or the narrow drawer makes everything behind it
+  `inert` (`syncInert`, driven by a MutationObserver on both dialog hosts); Tab
+  cycles inside, Escape in the conflict dialog is "Keep editing", and a kept
+  conflict shows in the save chip until resolved. Finished probe
   jobs are not listed; a finished render announces once with a download named
   `<project>.mp4`.
 - `video-studio-media.js` extracts up to eight thumbnails per video with one
   hidden `<video>` and waveform peaks (`decodeAudioData`, ≤80 MB) sequentially;
-  `title-*.png`/`sticker-*.png` artwork assets are hidden from the media bin.
+  only the editor's own artwork names (`title-<Date.now()>.png`,
+  `sticker-<built-in name>.png`) are hidden from the media bin. Key names and
+  decimal seconds follow the UI language.
   The inspector shows seconds (`m:ss.cc`, input also `4,5`) and percent; the
   model stays in 30 fps frames and 0..1 boxes. Its fine-tune fields toggle with
   `hidden`, not `<details>`: closed `<details>` content still reports client
@@ -900,6 +906,11 @@ buttons and menu popovers remain excluded from those gestures.
   conflict choice.
 - Timing and transitions use integer 30 fps frames. The outgoing clip owns an
   exact overlap with the next clip on its track; transitions apply on change.
+  `setTransition` moves the following clip and every later clip on the track
+  together; `repairTransitions` runs after every edit (mutate, recordChange,
+  dragClip) so a transition follows the actual overlap or disappears without one.
+  Timeline gestures capture the pointer on the timeline container; a lost capture
+  or window blur cancels them.
   Titles are PNGs cropped to their text block and positioned with the clip box
   like static stickers (both separate image overlays). Titles and stickers look
   for a free unlocked overlay track (`findOverlaySlot`) before their artwork is
@@ -909,6 +920,9 @@ buttons and menu popovers remain excluded from those gestures.
 - Bound preview media to the active/near clips during playback and release clips
   that leave that window. Preserve both players for an actual transition overlap;
   backward seeks must rehydrate released media and dispose must release all media.
+  Dissolves and wipes compose the clip pair in a track layer like the export's
+  xfade (the outgoing layer fades out / is wiped away across the full frame);
+  fade through black darkens the whole frame in both. Empty areas are black.
 - A title's PNG is derived from its text and style. Edits mark the clip stale and
   start a per-clip 900 ms debounce (`markTextStale`), independent of the selection.
   Commit generated artwork only if its project, clip, text, normalized style and

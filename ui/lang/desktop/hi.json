@@ -5713,5 +5713,14 @@
   "videoStudio.uploading": "अपलोड हो रहा है…",
   "videoStudio.zoomFit": "पूरा प्रोजेक्ट दिखाएँ",
   "videoStudio.zoomFitShort": "फ़िट करें",
+  "videoStudio.keySpace": "Space",
+  "videoStudio.keyDel": "Delete",
+  "videoStudio.keyCtrl": "Ctrl",
+  "videoStudio.keyHome": "Home",
+  "videoStudio.keyEnd": "End",
+  "videoStudio.keyShift": "Shift",
+  "videoStudio.keyWheel": "माउस व्हील",
+  "videoStudio.saveConflict": "सहेजा नहीं गया: कहीं और बदला गया",
+  "videoStudio.saveConflictHint": "स्वचालित सहेजना रुका हुआ है। कौन-सा संस्करण रखना है, चुनने के लिए क्लिक करें।",
   "desktop.app_video_studio": "Video Studio"
 }

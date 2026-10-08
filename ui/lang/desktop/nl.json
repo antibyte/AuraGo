@@ -5713,5 +5713,14 @@
   "videoStudio.uploading": "Uploaden…",
   "videoStudio.zoomFit": "Heel project tonen",
   "videoStudio.zoomFitShort": "Passend",
+  "videoStudio.keySpace": "Spatie",
+  "videoStudio.keyDel": "Del",
+  "videoStudio.keyCtrl": "Ctrl",
+  "videoStudio.keyHome": "Home",
+  "videoStudio.keyEnd": "End",
+  "videoStudio.keyShift": "Shift",
+  "videoStudio.keyWheel": "scrollwiel",
+  "videoStudio.saveConflict": "Niet opgeslagen: elders gewijzigd",
+  "videoStudio.saveConflictHint": "Automatisch opslaan is gepauzeerd. Klik om te kiezen welke versie je bewaart.",
   "desktop.app_video_studio": "Video Studio"
 }

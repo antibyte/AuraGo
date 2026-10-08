@@ -116,10 +116,14 @@
     }
     function updateTextStatus(s) {
         const span = s.q('[data-text-status] span');
-        if (span) span.textContent = artworkPending(s, s.selectedClipId) ? tr(s, 'textUpdating', 'Updating the title…') : tr(s, 'textAuto', 'Changes are applied automatically.');
+        if (!span) return;
+        const pending = artworkPending(s, s.selectedClipId), failed = !pending && s.failedArtwork.has(s.selectedClipId);
+        span.textContent = pending ? tr(s, 'textUpdating', 'Updating the title…') : failed ? tr(s, 'artworkFailed', 'Could not create or update the title artwork.') : tr(s, 'textAuto', 'Changes are applied automatically.');
+        span.parentElement.classList.toggle('is-error', failed);
     }
     function markTextStale(s, clipId) {
         if (!clipId || s.readonly) return;
+        s.failedArtwork.delete(clipId);
         s.staleArtwork.add(clipId);
         clearTimeout(s.textTimers.get(clipId));
         s.textTimers.set(clipId, window.setTimeout(() => { s.textTimers.delete(clipId); applyTextArtwork(s, clipId); }, 900));
@@ -127,7 +131,7 @@
     }
     function cancelTextApplies(s) {
         s.textTimers.forEach(timer => clearTimeout(timer));
-        s.textTimers.clear(); s.staleArtwork.clear(); s.pendingArtwork.clear();
+        s.textTimers.clear(); s.staleArtwork.clear(); s.pendingArtwork.clear(); s.failedArtwork.clear();
     }
     // Undo/Redo invalidate pending applies; restored titles whose PNG no longer matches are regenerated.
     function resyncArtwork(s) {
@@ -148,6 +152,7 @@
         const clipRevision = (s.clipArtRevisions.get(clipId) || 0) + 1;
         s.clipArtRevisions.set(clipId, clipRevision);
         s.pendingArtwork.delete(clipId);
+        s.failedArtwork.delete(clipId);
         const style = clone(found.clip.text_style || {});
         const result = { clipId, clipRevision, global: s.artworkRevision, originalAssetId: found.clip.asset_id, text: found.clip.text, style, styleKey: textStyleKey(style) };
         s.artworkInFlight.add(clipId);
@@ -160,9 +165,15 @@
                 if (!asset || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
                 s.artworkKeys.set(asset.id, artworkKey(result.text, result.style));
                 Object.assign(result, { asset, width: art.width, height: art.height });
-                if (s.timelineDragging) s.pendingArtwork.set(clipId, result);
+                // Drags and slider gestures own the clip box until they end; the result waits for them.
+                if (s.timelineDragging || s.fieldGesture) s.pendingArtwork.set(clipId, result);
                 else commitArtwork(s, result);
-            } catch (_) { if (!s.disposed && epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'artworkFailed', 'Could not update the title artwork.', true); }
+            } catch (_) {
+                if (!s.disposed && epoch === s.projectEpoch && projectId === s.projectId) {
+                    s.staleArtwork.delete(clipId); s.failedArtwork.add(clipId);
+                    showNotice(s, 'artworkFailed', 'Could not update the title artwork.', true);
+                }
+            }
             finally {
                 if (s.artworkJobs.get(clipId) === job) { s.artworkJobs.delete(clipId); s.artworkInFlight.delete(clipId); }
                 if (!s.disposed) updateTextStatus(s);
@@ -199,7 +210,7 @@
     }
     // Close, project switches and export wait for debounced and running title applies.
     async function flushArtwork(s) {
-        if (s.timelineDragging || s.disposed) return;
+        if (s.timelineDragging || s.fieldGesture || s.disposed) return;
         retryArtwork(s);
         new Set([...s.textTimers.keys(), ...s.staleArtwork]).forEach(id => { if (!s.artworkInFlight.has(id)) applyTextArtwork(s, id); });
         await Promise.allSettled(Array.from(s.artworkJobs.values()));

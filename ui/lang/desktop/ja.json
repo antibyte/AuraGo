@@ -5713,5 +5713,14 @@
   "videoStudio.uploading": "アップロード中…",
   "videoStudio.zoomFit": "プロジェクト全体を表示",
   "videoStudio.zoomFitShort": "全体表示",
+  "videoStudio.keySpace": "スペース",
+  "videoStudio.keyDel": "Delete",
+  "videoStudio.keyCtrl": "Ctrl",
+  "videoStudio.keyHome": "Home",
+  "videoStudio.keyEnd": "End",
+  "videoStudio.keyShift": "Shift",
+  "videoStudio.keyWheel": "ホイール",
+  "videoStudio.saveConflict": "未保存：別の場所で変更されました",
+  "videoStudio.saveConflictHint": "自動保存は一時停止中です。クリックして残すバージョンを選択してください。",
   "desktop.app_video_studio": "Video Studio"
 }

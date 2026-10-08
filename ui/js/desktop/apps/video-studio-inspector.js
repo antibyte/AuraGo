@@ -29,7 +29,10 @@
         return Number.isFinite(total) ? Math.round(total * FPS) : null;
     }
 
-    function formatSeconds(frames) { return String(Math.round((Number(frames) || 0) / FPS * 10) / 10); }
+    function formatSeconds(frames, locale) {
+        const value = Math.round((Number(frames) || 0) / FPS * 10) / 10;
+        return locale ? value.toLocaleString(locale) : String(value);
+    }
 
     // Rounds the size first and keeps position + size within the frame even after float rounding.
     function fitAxis(position, size) {
@@ -106,7 +109,7 @@
     function soundSection(v, clip) {
         const volume = Math.round(Number(clip.volume == null ? 1 : clip.volume) * 100);
         const maxFade = Math.max(0, Math.min(clip.duration, FPS * 5));
-        return `<section class="vs-insp-section"><h3>${v.icon('speaker', 14)}${v.esc(v.tr('sound', 'Sound'))}</h3>${slider(v, 'volume', v.tr('volume', 'Volume'), 0, 200, 1, volume, volume + ' %')}${slider(v, 'fade_in', v.tr('fadeInSound', 'Fade in'), 0, maxFade, 3, Math.min(maxFade, clip.fade_in || 0), formatSeconds(clip.fade_in || 0) + ' s')}${slider(v, 'fade_out', v.tr('fadeOutSound', 'Fade out'), 0, maxFade, 3, Math.min(maxFade, clip.fade_out || 0), formatSeconds(clip.fade_out || 0) + ' s')}</section>`;
+        return `<section class="vs-insp-section"><h3>${v.icon('speaker', 14)}${v.esc(v.tr('sound', 'Sound'))}</h3>${slider(v, 'volume', v.tr('volume', 'Volume'), 0, 200, 1, volume, volume + ' %')}${slider(v, 'fade_in', v.tr('fadeInSound', 'Fade in'), 0, maxFade, 3, Math.min(maxFade, clip.fade_in || 0), formatSeconds(clip.fade_in || 0, v.locale) + ' s')}${slider(v, 'fade_out', v.tr('fadeOutSound', 'Fade out'), 0, maxFade, 3, Math.min(maxFade, clip.fade_out || 0), formatSeconds(clip.fade_out || 0, v.locale) + ' s')}</section>`;
     }
 
     function transitionSection(v, clip, info) {
@@ -115,7 +118,7 @@
         const maxFrames = next ? Math.max(3, Math.min(90, Math.min(clip.duration, next.duration) - 1)) : 90;
         const duration = clip.transition && clip.transition.duration || Math.min(15, maxFrames);
         const disabled = next ? '' : 'disabled';
-        return `<section class="vs-insp-section"><h3>${v.icon('transition', 14)}${v.esc(v.tr('transitionNext', 'Transition to next clip'))}</h3><div class="vs-transition-grid" role="group" aria-label="${v.esc(v.tr('transition', 'Transition'))}">${TRANSITIONS.map(type => `<button type="button" data-transition="${type}" aria-pressed="${current === type}" ${disabled}><i class="vs-tx-${type}"></i><span>${v.esc(v.tr(type, type))}</span></button>`).join('')}</div><label class="vs-slider"><span>${v.esc(v.tr('transitionLength', 'Length'))}</span><input type="range" data-transition-duration min="3" max="${maxFrames}" step="3" value="${Math.min(duration, maxFrames)}" ${next && current !== 'none' ? '' : 'disabled'}><output>${v.esc(formatSeconds(duration))} s</output></label>${next ? '' : `<p class="vs-hint">${v.esc(v.tr('transitionNeedsNextHint', 'Place another clip right after this one on the same track to add a transition.'))}</p>`}</section>`;
+        return `<section class="vs-insp-section"><h3>${v.icon('transition', 14)}${v.esc(v.tr('transitionNext', 'Transition to next clip'))}</h3><div class="vs-transition-grid" role="group" aria-label="${v.esc(v.tr('transition', 'Transition'))}">${TRANSITIONS.map(type => `<button type="button" data-transition="${type}" aria-pressed="${current === type}" ${disabled}><i class="vs-tx-${type}"></i><span>${v.esc(v.tr(type, type))}</span></button>`).join('')}</div><label class="vs-slider"><span>${v.esc(v.tr('transitionLength', 'Length'))}</span><input type="range" data-transition-duration min="3" max="${maxFrames}" step="3" value="${Math.min(duration, maxFrames)}" ${next && current !== 'none' ? '' : 'disabled'}><output>${v.esc(formatSeconds(duration, v.locale))} s</output></label>${next ? '' : `<p class="vs-hint">${v.esc(v.tr('transitionNeedsNextHint', 'Place another clip right after this one on the same track to add a transition.'))}</p>`}</section>`;
     }
 
     function textSection(v, clip) {

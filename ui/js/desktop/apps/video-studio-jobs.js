@@ -47,7 +47,7 @@
     function exportName(s) { return String(s.project && s.project.name || tr(s, 'untitled', 'Untitled project')).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 80) + '.mp4'; }
     // Finished render and generation jobs get one toast; probes are quiet unless they fail.
     function announceJob(s, job) {
-        if (s.notifiedJobs.has(job.id) || s.disposed) return;
+        if (s.notifiedJobs.has(job.id) || s.jobLocalStops.has(job.id) || s.disposed) return;
         s.notifiedJobs.add(job.id);
         const artifact = job.artifact && safeSameOrigin(job.artifact.download_url);
         if (job.kind === 'render' && job.status === 'succeeded' && artifact) showNotice(s, 'exportReady', 'Your video is ready.', false, { href: artifact, download: exportName(s), label: tr(s, 'download', 'Download') });
@@ -192,8 +192,17 @@
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
             if (!(await P.saveUntilClean(s))) return;
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
-            try { await createJob(s, { kind: 'render' }, projectId, epoch); if (epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'exportStarted', 'Export started. You can keep editing while it runs.', false); }
-            catch (_) { if (epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'exportFailed', 'Could not start the export.', true); }
+            const start = () => createJob(s, { kind: 'render' }, projectId, epoch);
+            try {
+                try { await start(); }
+                catch (error) {
+                    // After "Replace latest" the project is saved with the observed ETag: start the export once more.
+                    const resolved = (error.status === 412 || error.status === 428) && !s.conflict && !s.dirty && epoch === s.projectEpoch && projectId === s.projectId;
+                    if (!resolved) throw error;
+                    await start();
+                }
+                if (epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'exportStarted', 'Export started. You can keep editing while it runs.', false);
+            } catch (_) { if (epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'exportFailed', 'Could not start the export.', true); }
         });
     }
     async function openAI(s) {

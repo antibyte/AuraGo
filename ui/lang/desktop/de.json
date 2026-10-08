@@ -5713,5 +5713,14 @@
   "videoStudio.uploading": "Wird hochgeladen…",
   "videoStudio.zoomFit": "Ganzes Projekt zeigen",
   "videoStudio.zoomFitShort": "Einpassen",
+  "videoStudio.keySpace": "Leertaste",
+  "videoStudio.keyDel": "Entf",
+  "videoStudio.keyCtrl": "Strg",
+  "videoStudio.keyHome": "Pos1",
+  "videoStudio.keyEnd": "Ende",
+  "videoStudio.keyShift": "Umschalt",
+  "videoStudio.keyWheel": "Mausrad",
+  "videoStudio.saveConflict": "Nicht gespeichert: anderswo geändert",
+  "videoStudio.saveConflictHint": "Automatisches Speichern ist pausiert. Klicke, um zu wählen, welche Fassung bleibt.",
   "desktop.app_video_studio": "Video Studio"
 }
