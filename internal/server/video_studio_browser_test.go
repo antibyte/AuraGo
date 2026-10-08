@@ -60,8 +60,11 @@ func TestVideoStudioBrowserRealExport(t *testing.T) {
 <style>html,body,#studio{margin:0;width:100%;height:100%;overflow:hidden}body{background:#151922}</style>
 <div id="studio"></div>
 <script>window.fixtureErrors=[];addEventListener('error',e=>fixtureErrors.push(e.message));addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));</script>
-<script src="/js/desktop/apps/video-studio-timeline.js"></script>
+<script src="/js/desktop/apps/video-studio-icons.js"></script>
+<script src="/js/desktop/apps/video-studio-media.js"></script>
 <script src="/js/desktop/apps/video-studio-preview.js"></script>
+<script src="/js/desktop/apps/video-studio-timeline.js"></script>
+<script src="/js/desktop/apps/video-studio-inspector.js"></script>
 <script src="/js/desktop/apps/video-studio.js"></script>
 <script>
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

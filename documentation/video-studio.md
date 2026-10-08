@@ -45,6 +45,18 @@ video tracks, four audio tracks, and four overlay tracks. Projects support up to
 video, audio, and still images from the Desktop or upload them from the browser.
 Imports are copied; editing never modifies the original file.
 
+The window has a toolbar (project menu, save state, undo/redo, format, tasks,
+keyboard shortcuts, export), a library on the left with tabs for media, text,
+stickers and AI clips, a large preview, an inspector for the selected clip on
+the right, and a timeline whose height can be dragged. Drop files anywhere into
+the window to import them; the library shows upload progress and thumbnails.
+Use **+** on a library item to place it at the playhead, or drag it onto a track.
+Text presets (title, subtitle, lower third, credits) and stickers land at the
+playhead on a free overlay track. A selected picture, title or sticker can be
+moved and scaled directly in the preview. The inspector uses seconds
+(`4,5` or `1:04.5`) and percent; the shortcut list opens with the keyboard
+button or `?`.
+
 The media library, preview, clip inspector, and timeline support trimming,
 splitting, moving, duplicating, deleting, snapping, frame stepping, and undo /
 redo. Video tracks can be layered for picture-in-picture, with position, size,

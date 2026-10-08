@@ -64,7 +64,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	mux.Handle("/", http.FileServer(http.FS(Content)))
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-video-studio.css"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}.desktop-body{font-family:system-ui,sans-serif;color:var(--vd-text,#edf0f5);background:var(--vd-theme-app-bg);}.vd-window-content{height:100%;width:100%;display:flex}#studio{flex:1;min-width:0;min-height:0}.vs-app{flex:1}.desktop-body[data-theme="fruity"]{--vd-text:#273144}</style></head><body class="desktop-body" data-theme="standard" data-fruity-mode="light"><main class="vd-window-content"><div id="studio"></div></main><script src="/js/desktop/apps/video-studio-preview.js"></script><script src="/js/desktop/apps/video-studio-timeline.js"></script><script src="/js/desktop/apps/video-studio.js"></script><script>
+		_, _ = fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-video-studio.css"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}.desktop-body{font-family:system-ui,sans-serif;color:var(--vd-text,#edf0f5);background:var(--vd-theme-app-bg);}.vd-window-content{height:100%;width:100%;display:flex}#studio{flex:1;min-width:0;min-height:0}.vs-app{flex:1}.desktop-body[data-theme="fruity"]{--vd-text:#273144}</style></head><body class="desktop-body" data-theme="standard" data-fruity-mode="light"><main class="vd-window-content"><div id="studio"></div></main><script src="/js/desktop/apps/video-studio-icons.js"></script><script src="/js/desktop/apps/video-studio-media.js"></script><script src="/js/desktop/apps/video-studio-preview.js"></script><script src="/js/desktop/apps/video-studio-timeline.js"></script><script src="/js/desktop/apps/video-studio-inspector.js"></script><script src="/js/desktop/apps/video-studio.js"></script><script>
 			window.fixtureErrors=[];window.fixtureCalls=[];window.addEventListener('error',e=>fixtureErrors.push(String(e.message)));
 			window.fixtureLocales=`+mustJSON(t, locales)+`;const fixtureParams=new URLSearchParams(location.search);window.fixtureLang=fixtureParams.get('lang')||'en';document.body.dataset.theme=fixtureParams.get('theme')||'standard';document.documentElement.lang=window.fixtureLang;
 			window.fixtureProject=`+mustJSON(t, project)+`;window.fixtureLatest=structuredClone(window.fixtureProject);window.fixtureReadonly=fixtureParams.has('readonly');window.fixtureConflict=false;window.fixtureConflictUsed=false;window.fixtureJobs=[];window.fixtureSaves=[];window.fixtureArtworkRequests=[];window.fixtureArtworkStates={};window.fixtureLastJobBody=null;
@@ -119,7 +119,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	page.MustScreenshot(filepath.Join(screenshotDir, "standard-1280x900.png"))
 	page.MustNavigate(server.URL + "/fixture?theme=fruity&lang=de")
 	page.MustWaitLoad()
-	waitForJSBool(t, page, `()=>document.querySelector('.vs-clip') && document.querySelector('[data-action="new-project"]')?.textContent.includes('Neues Projekt')`)
+	waitForJSBool(t, page, `()=>document.querySelector('.vs-clip') && document.querySelector('[data-action="export"]')?.textContent.includes('Exportieren')`)
 	if !page.MustEval(`()=>{const probe=document.createElement('span');probe.style.color=getComputedStyle(document.querySelector('.vs-app')).getPropertyValue('--vs-muted');document.body.append(probe);const expected=getComputedStyle(probe).color;probe.remove();return getComputedStyle(document.querySelector('.vs-timecode')).color===expected}`).Bool() {
 		t.Fatalf("Fruity timecode does not use the readable theme muted color: %s", page.MustEval(`()=>JSON.stringify({timecode:getComputedStyle(document.querySelector('.vs-timecode')).color,muted:getComputedStyle(document.querySelector('.vs-app')).getPropertyValue('--vs-muted')})`).Str())
 	}
@@ -144,10 +144,10 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	if !page.MustEval(`()=>document.querySelector('.vs-app').classList.contains('vs-show-inspector') && document.querySelector('.vs-inspector').getBoundingClientRect().width>0`).Bool() {
 		t.Fatal("narrow inspector did not open as a visible drawer")
 	}
-	page.MustEval(`()=>{const controls=Array.from(document.querySelector('.vs-inspector').querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)')).filter(el=>el.getClientRects().length);window.fixtureDrawerFirst=controls[0];controls.at(-1).focus();}`)
+	page.MustEval(`()=>{const controls=Array.from(document.querySelector('.vs-inspector').querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)')).filter(el=>el.getClientRects().length);window.fixtureDrawerFirst=controls[0];window.fixtureDrawerLast=controls.at(-1);controls.at(-1).focus();window.fixtureDrawerFocused=document.activeElement===controls.at(-1);}`)
 	page.Keyboard.MustType(input.Tab)
 	if !page.MustEval(`()=>document.activeElement===window.fixtureDrawerFirst`).Bool() {
-		t.Fatal("drawer Tab did not wrap to its first control")
+		t.Fatalf("drawer Tab did not wrap to its first control: %s", page.MustEval(`()=>JSON.stringify({active:document.activeElement?.outerHTML.slice(0,160),first:window.fixtureDrawerFirst?.outerHTML.slice(0,160),firstConnected:window.fixtureDrawerFirst?.isConnected,last:window.fixtureDrawerLast?.outerHTML.slice(0,200),lastFocused:window.fixtureDrawerFocused,errors:window.fixtureErrors})`).Str())
 	}
 	page.MustEval(`()=>document.querySelector('.vs-inspector input').focus()`)
 	page.Keyboard.MustType(input.Escape)

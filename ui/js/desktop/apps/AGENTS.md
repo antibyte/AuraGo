@@ -853,11 +853,33 @@ buttons and menu popovers remain excluded from those gestures.
 ### Video Studio contract
 
 - Video Studio is a lazy app. Load `desktop-app-video-studio.css`, then
-  `video-studio-preview.js` and `video-studio-timeline.js` before
-  `video-studio.js`; the shell exposes `VideoStudioApp.render(host, id, ctx)`
-  and `dispose(id)`. The preview owns its media elements and shared frame clock;
-  dispose stops local playback, timers and requests but does not cancel
-  server-owned jobs.
+  `video-studio-icons.js`, `video-studio-media.js`, `video-studio-preview.js`,
+  `video-studio-timeline.js` and `video-studio-inspector.js` before
+  `video-studio.js` (same order in `module-loader.js` and both browser
+  fixtures); the shell exposes `VideoStudioApp.render(host, id, ctx)`
+  and `dispose(id)`. The preview owns its media elements and shared frame clock
+  and creates only `<video>`/`<audio>`/`Image` (the node test asserts it);
+  dispose stops local playback, timers, uploads (XHR), thumbnail extraction and
+  requests but does not cancel server-owned jobs.
+- Layout: toolbar (project popover with switch/rename/new, save chip
+  `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
+  `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/AI;
+  all panels stay in the DOM), preview with transport, contextual inspector,
+  resizable timeline (`--vs-timeline-h`, per-viewer `localStorage`). Icons come
+  from `VideoStudioIcons`, never from the shell's `iconMarkup`. Notices are a
+  toast in `[data-notice]` (info hides after 5 s, errors stay). Finished probe
+  jobs are not listed; a finished render announces once with a download named
+  `<project>.mp4`.
+- `video-studio-media.js` extracts up to eight thumbnails per video with one
+  hidden `<video>` and waveform peaks (`decodeAudioData`, ≤80 MB) sequentially;
+  `title-*.png`/`sticker-*.png` artwork assets are hidden from the media bin.
+  The inspector shows seconds (`m:ss.cc`, input also `4,5`) and percent; the
+  model stays in 30 fps frames and 0..1 boxes. Its fine-tune fields toggle with
+  `hidden`, not `<details>`: closed `<details>` content still reports client
+  rects and broke the drawer focus trap.
+- A project loaded without tracks gets Video 1, Overlay 1 and Audio 1 once (no
+  undo step). Placing media creates a missing track kind. The timeline lists
+  visual tracks front-most first, then audio; array order stays the paint order.
 - Persist the canonical project with strong `If-Match` ETags. A 412/428 save
   must present Reload, Replace latest or Keep editing; never retry a conflict
   without an explicit choice and the observed latest ETag. Bind imports, jobs,
@@ -865,9 +887,13 @@ buttons and menu popovers remain excluded from those gestures.
   Window close awaits saving until clean or blocked by a visible failure or
   conflict choice.
 - Timing and transitions use integer 30 fps frames. The outgoing clip owns an
-  exact overlap with the next clip on its track. Titles use full-canvas PNG
-  assets; static stickers are separate image overlays. Preserve editable
-  text/style metadata and use only same-origin staged media URLs.
+  exact overlap with the next clip on its track; transitions apply on change.
+  Titles are PNGs cropped to their text block and positioned with the clip box
+  like static stickers (both separate image overlays). Titles and stickers look
+  for a free unlocked overlay track (`findOverlaySlot`) before their artwork is
+  uploaded, adding an overlay track when allowed. Re-applying title artwork keeps
+  the box center and the user's scale. Preserve editable text/style metadata and
+  use only same-origin staged media URLs.
 - Bound preview media to the active/near clips during playback and release clips
   that leave that window. Preserve both players for an actual transition overlap;
   backward seeks must rehydrate released media and dispose must release all media.
@@ -888,7 +914,9 @@ buttons and menu popovers remain excluded from those gestures.
   Inspector control opens a keyboard-dismissable drawer without hiding the
   timeline. Use the real Standard/Fruity theme tokens and all sixteen Desktop
   locale dictionaries. Verify UI behavior with
-  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudioBrowser$'`.
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudioBrowser$'`,
+  `go test ./ui -run 'TestVideoStudio(Helpers|TimelineEdits)$'` and the real-FFmpeg
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run '^TestVideoStudioBrowserRealExport$'`.
 - Without a project (zero projects or the feature switched off),
   `.vs-preview-stage.vs-no-project` hides the canvas and preview placeholder and
   gives the empty-project card the whole stage; `vs-stage` height container
