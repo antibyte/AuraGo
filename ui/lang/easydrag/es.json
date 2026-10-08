@@ -778,7 +778,7 @@
   "easydrag.ui.tpl_error_expected_name": "Falta un nombre: un nombre de datos al principio, un campo después de un punto o un filtro después de |.",
   "easydrag.ui.tpl_error_expected_value": "Filtro «{name}»: cada argumento debe ser un texto entre comillas, un número, true, false o null.",
   "easydrag.ui.tpl_error_filter_args": "El filtro «{name}» no acepta estos argumentos.",
-  "easydrag.ui.tpl_error_too_large": "El resultado es demasiado grande o está anidado a demasiada profundidad.",
+  "easydrag.ui.tpl_error_too_large": "El resultado es demasiado grande o tiene demasiados niveles de anidación.",
   "easydrag.ui.tpl_error_unclosed": "Un {{ o un texto entre comillas no está cerrado.",
   "easydrag.ui.tpl_error_unexpected": "«{text}» no corresponde aquí.",
   "easydrag.ui.tpl_error_unknown_filter": "No existe el filtro «{name}».",

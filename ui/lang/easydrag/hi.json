@@ -453,7 +453,7 @@
   "easydrag.ui.error_flow_trigger_disabled": "यह ट्रिगर बंद है।",
   "easydrag.ui.error_flow_trigger_invalid": "ट्रिगर सही से सेट अप नहीं है।",
   "easydrag.ui.error_flow_value_type": "किसी मान का प्रकार गलत है।",
-  "easydrag.ui.error_flow_vault_unavailable": "Vault उपलब्ध नहीं है, इसलिए फ़्लो सीक्रेट उपयोग नहीं किए जा सकते।",
+  "easydrag.ui.error_flow_vault_unavailable": "Vault उपलब्ध नहीं है, इसलिए फ़्लो सीक्रेट का उपयोग नहीं किया जा सकता।",
   "easydrag.ui.error_flow_wait_too_long": "प्रतीक्षा का समय बहुत लंबा है।",
   "easydrag.ui.error_flows_disabled": "EasyDrag बंद है।",
   "easydrag.ui.error_generic": "कुछ गलत हो गया।",

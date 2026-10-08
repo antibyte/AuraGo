@@ -438,7 +438,7 @@
   "easydrag.ui.error_flow_run_output_too_large": "Dane wyjściowe tego uruchomienia są łącznie za duże.",
   "easydrag.ui.error_flow_run_timeout": "Uruchomienie trwało dłużej, niż jest dozwolone.",
   "easydrag.ui.error_flow_runner_panic": "Mechanizm uruchamiania przepływów nieoczekiwanie uległ awarii. Szczegóły są w logu AuraGo.",
-  "easydrag.ui.error_flow_runner_stopped": "EasyDrag się wyłącza lub uruchamia ponownie. Spróbuj ponownie za chwilę.",
+  "easydrag.ui.error_flow_runner_stopped": "EasyDrag wyłącza się lub restartuje. Spróbuj ponownie za chwilę.",
   "easydrag.ui.error_flow_schema": "Dokument przepływu ma nieznany format.",
   "easydrag.ui.error_flow_secret_unavailable": "Brakuje sekretu.",
   "easydrag.ui.error_flow_shutdown": "AuraGo się wyłącza.",

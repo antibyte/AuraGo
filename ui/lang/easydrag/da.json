@@ -429,7 +429,7 @@
   "easydrag.ui.error_flow_port_invalid": "Trinnet valgte et output, det ikke har.",
   "easydrag.ui.error_flow_publish_incomplete": "Udgivet, men Missionskontrol eller timerne kunne ikke opdateres. Udgiv igen for at fuldføre.",
   "easydrag.ui.error_flow_rate_limited": "For mange ændringer på kort tid. Prøv igen om et minut.",
-  "easydrag.ui.error_flow_request_cancelled": "Anmodningen blev annulleret.",
+  "easydrag.ui.error_flow_request_cancelled": "Forespørgslen blev annulleret.",
   "easydrag.ui.error_flow_restarted": "AuraGo blev genstartet under kørslen.",
   "easydrag.ui.error_flow_revision_conflict": "Flowet blev ændret et andet sted.",
   "easydrag.ui.error_flow_run_finished": "Kørslen er allerede afsluttet.",
