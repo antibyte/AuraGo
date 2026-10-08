@@ -157,7 +157,7 @@
             '<p class="ed-hint" id="' + esc(runId) + '-hint">' + esc(t('easydrag.ui.flow_max_run_hint')) + '</p><p class="ed-error" role="alert" data-ed-max-run-error hidden></p></div>' +
             '<label class="ed-field"><span class="ed-label">' + esc(t('easydrag.ui.flow_notify')) + '</span><select class="ed-input" data-ed-set="notify_on_error"' + (ro ? ' disabled' : '') + '>' +
             ['desktop', 'push', 'telegram', 'off'].map(v => opt(v, s.notify_on_error || 'desktop', t('easydrag.ui.notify_' + v))).join('') + '</select></label>';
-        const dialog = core.modal(ed.root, {
+        const modal = core.modal(ed.root, {
             title: t('easydrag.ui.flow_settings'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--settings', body,
             actions: ro ? [{ id: 'close-dialog', label: t('easydrag.ui.close') }] : [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'apply', label: t('easydrag.ui.apply'), primary: true }],
             onAction: (id, dialog) => {
@@ -182,11 +182,11 @@
             }
         });
         // Typing in the run time takes a shown error back until the next Apply.
-        dialog.body.querySelectorAll('[data-ed-set="max_run_minutes"], [data-ed-set="max_run_seconds"]').forEach(field => field.addEventListener('input', () => {
-            dialog.body.querySelector('[data-ed-max-run-error]').hidden = true;
-            dialog.body.querySelectorAll('[aria-invalid]').forEach(f => f.removeAttribute('aria-invalid'));
+        modal.body.querySelectorAll('[data-ed-set="max_run_minutes"], [data-ed-set="max_run_seconds"]').forEach(field => field.addEventListener('input', () => {
+            modal.body.querySelector('[data-ed-max-run-error]').hidden = true;
+            modal.body.querySelectorAll('[aria-invalid]').forEach(f => f.removeAttribute('aria-invalid'));
         }));
-        return dialog;
+        return modal;
     }
 
     // conflict asks whether to load the server's newer draft or keep the local one. Only an explicit
