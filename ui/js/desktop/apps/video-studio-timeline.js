@@ -95,6 +95,37 @@
         return true;
     }
 
+    // A transition is the overlap with the next clip. After an edit it follows that overlap, or
+    // disappears when the clips no longer overlap (deleted, moved apart or trimmed away).
+    function repairTransitions(project) {
+        (project.tracks || []).forEach(track => {
+            const clips = (track.clips || []).slice().sort((a, b) => a.start - b.start);
+            clips.forEach((clip, index) => {
+                if (!clip.transition) return;
+                const next = clips[index + 1];
+                const overlap = next ? clip.start + clip.duration - next.start : 0;
+                if (track.kind === 'audio' || !next || overlap <= 0) clip.transition = null;
+                else if (overlap < Math.min(clip.duration, next.duration)) clip.transition = Object.assign({}, clip.transition, { duration: overlap });
+            });
+        });
+        return project;
+    }
+
+    // Sets, changes or removes the transition after a clip. The following clip and every later clip on
+    // the track move together, so a shorter or removed transition never pushes into the next clip.
+    function setTransition(project, trackId, clipId, type, duration) {
+        const track = trackFor(project, trackId);
+        if (!track || track.kind === 'audio') return false;
+        const ordered = track.clips.slice().sort((a, b) => a.start - b.start);
+        const index = ordered.findIndex(clip => clip.id === clipId), clip = ordered[index], following = ordered[index + 1];
+        if (!clip || !following) return type === 'none' && !!clip && (clip.transition = null, true);
+        const target = type === 'none' ? 0 : Math.max(1, Math.round(Number(duration) || 0));
+        const shift = clip.start + clip.duration - target - following.start;
+        ordered.slice(index + 1).forEach(item => { item.start += shift; });
+        clip.transition = type === 'none' ? null : { type, duration: target };
+        return true;
+    }
+
     // Front-most visual track on top (it paints last), audio tracks below.
     function displayOrder(tracks) {
         const list = tracks || [];
@@ -262,6 +293,7 @@
         }
         clip.fade_in = Math.min(clip.fade_in, clip.duration);
         clip.fade_out = Math.min(clip.fade_out, clip.duration);
+        repairTransitions(project);
         return validTimeline(project) ? project : null;
     }
 
@@ -303,6 +335,10 @@
             render(root, options);
         }
 
+        // Gestures capture the pointer on the timeline container (clips re-render while they move), so the
+        // release arrives even outside the window; a lost capture or a window switch cancels the gesture.
+        function capture(event) { try { root.setPointerCapture(event.pointerId); } catch (_) { /* synthetic or finished pointer */ } }
+        function cancelGesture() { if (drag || scrub) pointerUp({ type: 'pointercancel' }); }
         function pointerUp(event) {
             if (scrub) { scrub = null; return; }
             if (drag) {
@@ -356,6 +392,7 @@
             const ruler = event.target.closest('[data-ruler]') || (event.target.closest('[data-playhead]') && root.querySelector('[data-ruler]'));
             if (ruler) {
                 scrub = { ruler };
+                capture(event);
                 if (options.onScrubStart) options.onScrubStart();
                 options.onFrame(frameAt(ruler, event.clientX));
                 event.preventDefault();
@@ -368,6 +405,7 @@
             const mode = event.target.closest('[data-trim]')?.dataset.trim;
             drag = { clipId: target.clip.id, mode: mode === 'start' ? 'start' : mode === 'end' ? 'end' : 'move', x: event.clientX, before: clone(s().project), epoch: s().projectEpoch, projectId: s().projectId };
             s().timelineDragging = true;
+            capture(event);
             clearTimeout(s().autosaveTimer);
             options.onSelect(target.clip.id);
             event.preventDefault();
@@ -446,6 +484,8 @@
         window.addEventListener('pointermove', pointerMove);
         window.addEventListener('pointerup', pointerUp);
         window.addEventListener('pointercancel', pointerUp);
+        root.addEventListener('lostpointercapture', cancelGesture);
+        window.addEventListener('blur', cancelGesture);
         window.addEventListener('dragend', clearMarker);
         return function detach() {
             drag = null; scrub = null; clearMarker(); s().timelineDragging = false;
@@ -461,9 +501,11 @@
             window.removeEventListener('pointermove', pointerMove);
             window.removeEventListener('pointerup', pointerUp);
             window.removeEventListener('pointercancel', pointerUp);
+            root.removeEventListener('lostpointercapture', cancelGesture);
+            window.removeEventListener('blur', cancelGesture);
             window.removeEventListener('dragend', clearMarker);
         };
     }
 
-    window.VideoStudioTimeline = { FPS, MIN_ZOOM, MAX_ZOOM, BASE_PX_PER_SECOND, newId, frameToClock, shortClock, makeClip, trackCapacity, clipFor, accepts, projectEnd, validTimeline, dragClip, displayOrder, render, setPlayhead, revealFrame, fitZoom, attach };
+    window.VideoStudioTimeline = { FPS, MIN_ZOOM, MAX_ZOOM, BASE_PX_PER_SECOND, newId, frameToClock, shortClock, makeClip, trackCapacity, clipFor, accepts, projectEnd, validTimeline, repairTransitions, setTransition, dragClip, displayOrder, render, setPlayhead, revealFrame, fitZoom, attach };
 })();

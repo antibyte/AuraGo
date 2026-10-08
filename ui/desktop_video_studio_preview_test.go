@@ -33,7 +33,8 @@ class ImageElement {
   removeAttribute(name) { if (name==='src') this.src=''; }
 }
 global.Image=ImageElement;
-global.document={createElement(tag) { assert.equal(tag,'video'); const element=new VideoElement(); allMedia.push(element); return element; }};
+const layers=[];
+global.document={createElement(tag) { if (tag==='canvas') { const layer={width:0,height:0,getContext:()=>layerDrawing}; layers.push(layer); return layer; } assert.equal(tag,'video'); const element=new VideoElement(); allMedia.push(element); return element; }};
 global.requestAnimationFrame=()=>1;
 global.cancelAnimationFrame=()=>{};
 global.performance={now:()=>100};
@@ -51,7 +52,9 @@ class AudioContext {
 }
 window.AudioContext=AudioContext;
 let imageDraws=0;
-const drawing={fillRect(){},save(){},translate(){},rotate(){},drawImage(el){if(el instanceof ImageElement){assert(el.naturalWidth>0&&el.naturalHeight>0,'unloaded or broken image reached canvas');imageDraws++;}},restore(){},clearRect(){}};
+const layerDraws=[];
+const drawing={fillRect(){},save(){},translate(){},rotate(){},beginPath(){},rect(){},clip(){},drawImage(el){if(el instanceof ImageElement){assert(el.naturalWidth>0&&el.naturalHeight>0,'unloaded or broken image reached canvas');imageDraws++;}if(layers.includes(el))layerDraws.push(el);},restore(){},clearRect(){}};
+const layerDrawing={...drawing,drawImage(el){this.alphas=(this.alphas||[]).concat([[el.src,this.globalAlpha,this.globalCompositeOperation||'source-over']]);}};
 const canvas={width:0,height:0,getContext:()=>drawing};
 require('./js/desktop/apps/video-studio-timeline.js');
 require('./js/desktop/apps/video-studio-preview.js');
@@ -90,6 +93,10 @@ assert(T.validTimeline(transitionProject),'overlap must match the outgoing trans
 const transition=Preview.mount(canvas,()=>transitionProject,()=>75,()=>{},()=>{});
 assert.equal(live().length,2,'both overlapping transition sources must stay loaded');
 assert(live().every(element=>element.preload==='auto'));
+assert.equal(layers.length,1,'a dissolve composes its pair in one track layer');
+assert(layerDraws.length>0,'the track layer reaches the canvas');
+const mid=layerDrawing.alphas.slice(-2);
+assert.deepEqual(mid.map(([src,alpha,mode])=>[src,Math.round(alpha*100)/100,mode]),[['http://localhost/media/red.mp4',0.5,'source-over'],['http://localhost/media/blue.mp4',0.5,'lighter']],'outgoing fades out while incoming adds in, like xfade');
 transition.play();
 const transitionAudio=audioContexts[1];
 assert.equal(transitionAudio.sources.length,2);

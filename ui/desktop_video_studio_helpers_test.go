@@ -84,6 +84,44 @@ assert.equal(I.insertIndexFor(tracks, 'video'), 1);
 assert.equal(I.insertIndexFor(tracks, 'overlay'), 3);
 assert.equal(I.insertIndexFor([{kind: 'overlay'}], 'video'), 0);
 
+// Transitions: setting, changing and removing one shifts the following clips together; repairs follow edits.
+const T = window.VideoStudioTimeline;
+const vid = {id: 'v', kind: 'video', duration_frames: 900};
+const seq = () => ({assets: [vid], tracks: [{id: 't', kind: 'video', clips: [
+  {id: 'a', asset_id: 'v', start: 0, offset: 0, duration: 60, fade_in: 0, fade_out: 0, volume: 1, x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, fit: 'contain', transition: null},
+  {id: 'b', asset_id: 'v', start: 60, offset: 0, duration: 60, fade_in: 0, fade_out: 0, volume: 1, x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, fit: 'contain', transition: null},
+  {id: 'c', asset_id: 'v', start: 120, offset: 0, duration: 60, fade_in: 0, fade_out: 0, volume: 1, x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, fit: 'contain', transition: null}
+]}]});
+const starts = p => p.tracks[0].clips.slice().sort((x, y) => x.start - y.start).map(c => c.id + '@' + c.start);
+let p = seq();
+assert(T.setTransition(p, 't', 'a', 'dissolve', 15));
+assert.deepEqual(starts(p), ['a@0', 'b@45', 'c@105'], 'a transition pulls the following clips together');
+assert(T.validTimeline(p));
+assert(T.setTransition(p, 't', 'a', 'dissolve', 6));
+assert.deepEqual(starts(p), ['a@0', 'b@54', 'c@114'], 'a shorter transition pushes them back without colliding');
+assert(T.validTimeline(p));
+assert(T.setTransition(p, 't', 'a', 'none', 0));
+assert.deepEqual(starts(p), ['a@0', 'b@60', 'c@120'], 'removing a transition restores the cut');
+assert(T.validTimeline(p) && p.tracks[0].clips[0].transition === null);
+p = seq(); p.tracks[0].clips[1].start = 80; p.tracks[0].clips[2].start = 150;
+assert(T.setTransition(p, 't', 'a', 'black', 10));
+assert.deepEqual(starts(p), ['a@0', 'b@50', 'c@120'], 'a transition across a gap closes the gap');
+assert(!T.setTransition(p, 't', 'c', 'dissolve', 10), 'the last clip has no following clip');
+// Deleting the following clip drops the dangling transition.
+p = seq(); T.setTransition(p, 't', 'a', 'dissolve', 15); p.tracks[0].clips = p.tracks[0].clips.filter(c => c.id !== 'b');
+T.repairTransitions(p);
+assert(p.tracks[0].clips.find(c => c.id === 'a').transition === null && T.validTimeline(p));
+// Moving the incoming clip changes the overlap: the transition follows it, or disappears without overlap.
+p = seq(); T.setTransition(p, 't', 'a', 'dissolve', 15); p.tracks[0].clips.find(c => c.id === 'b').start = 40;
+T.repairTransitions(p);
+assert.equal(p.tracks[0].clips.find(c => c.id === 'a').transition.duration, 20);
+assert(T.validTimeline(p));
+p.tracks[0].clips.find(c => c.id === 'a').duration = 40;
+T.repairTransitions(p);
+assert(p.tracks[0].clips.find(c => c.id === 'a').transition === null && T.validTimeline(p));
+const dragged = T.dragClip((() => { const q = seq(); T.setTransition(q, 't', 'a', 'dissolve', 15); return q; })(), 'a', 'end', -5, 't', 0);
+assert(dragged && dragged.tracks[0].clips.find(c => c.id === 'a').transition.duration === 10, 'trimming the outgoing clip shortens its transition');
+
 // Media helpers.
 assert.deepEqual(M.thumbnailTimes(300, 4), [9, 81, 153, 225]);
 assert.deepEqual(M.thumbnailTimes(0, 4), [0]);

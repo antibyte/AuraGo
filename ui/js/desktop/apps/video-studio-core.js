@@ -130,6 +130,7 @@
     function recordChange(s, label, before) {
         if (s.readonly) { if (before) s.project = hydrateProject(s, before); return renderUI(s); }
         flushTextBefore(s);
+        T().repairTransitions(s.project);
         if (T().validTimeline && !T().validTimeline(s.project)) {
             if (before) s.project = hydrateProject(s, before);
             showNotice(s, 'invalidTiming', 'That edit would create invalid timing or an overlap.', true);
@@ -148,6 +149,7 @@
         const before = snapshot(s), selection = [s.selectedClipId, s.selectionRevision];
         const restore = () => { s.project = hydrateProject(s, before); [s.selectedClipId, s.selectionRevision] = selection; };
         if (fn(s.project) === false) { restore(); return false; }
+        T().repairTransitions(s.project);
         if (T().validTimeline && !T().validTimeline(s.project)) {
             restore();
             showNotice(s, 'invalidTiming', 'That edit would create invalid timing or an overlap.', true);

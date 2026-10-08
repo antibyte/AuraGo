@@ -17,6 +17,7 @@
         const sourceNodes = new Map(), gainNodes = new Map();
         let audioContext = null;
         let frame = 0, playing = false, raf = 0, playStartAt = 0, playStartFrame = 0, disposed = false;
+        let layer = null, layerContext = null;
 
         function release(clipId, el) {
             if (!el) return;
@@ -123,7 +124,8 @@
             });
         }
 
-        function drawAsset(project, track, clip, at, incoming) {
+        // Draws one clip into ctx. alphaScale and reveal carry the parts of a transition the clip owns itself.
+        function drawAsset(ctx, project, track, clip, at, alphaScale) {
             const asset = assetFor(project, clip), el = entry(asset, clip);
             if (!asset || !el) return;
             if (asset.kind !== 'image') {
@@ -142,28 +144,61 @@
             const scale = clip.fit === 'cover' ? Math.max(w / iw, h / ih) : Math.min(w / iw, h / ih);
             const dw = iw * scale, dh = ih * scale;
             const radians = Number(clip.rotation || 0) * Math.PI / 180;
-            const outgoing = transitionOut(track, clip, at);
-            const entering = incoming || transitionIn(track, clip, at);
-            let alpha = clamp(Number(clip.opacity == null ? 1 : clip.opacity), 0, 1);
+            const outgoing = transitionOut(track, clip, at), entering = transitionIn(track, clip, at);
+            let alpha = clamp(Number(clip.opacity == null ? 1 : clip.opacity), 0, 1) * (alphaScale == null ? 1 : alphaScale);
             if (outgoing && outgoing.type === 'black') alpha *= outgoing.progress < 0.5 ? 1 - outgoing.progress * 2 : 0;
-            if (entering && entering.type === 'dissolve') alpha *= entering.progress;
             if (entering && entering.type === 'black') alpha *= entering.progress < 0.5 ? 0 : (entering.progress - 0.5) * 2;
-            if (outgoing && outgoing.type === 'dissolve') alpha *= 1; // draw A underneath a partially revealed B for a linear crossfade.
-            context.save();
-            context.globalAlpha = alpha;
-            context.translate(x + w / 2, y + h / 2);
-            context.rotate(radians);
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(x + w / 2, y + h / 2);
+            ctx.rotate(radians);
             if (clip.fit === 'cover') {
-                context.beginPath(); context.rect(-w / 2, -h / 2, w, h); context.clip();
+                ctx.beginPath(); ctx.rect(-w / 2, -h / 2, w, h); ctx.clip();
             }
-            if (entering && (entering.type === 'wipeleft' || entering.type === 'wiperight')) {
-                context.beginPath();
-                const reveal = w * entering.progress;
-                context.rect(entering.type === 'wipeleft' ? -w / 2 : w / 2 - reveal, -h / 2, reveal, h);
-                context.clip();
+            ctx.drawImage(el, -dw / 2, -dh / 2, dw, dh);
+            ctx.restore();
+        }
+
+        // The export blends whole track layers (xfade): a dissolve fades the outgoing layer out while the
+        // incoming one fades in, and a wipe reveals the incoming layer across the full frame. The preview
+        // composes the pair in a track layer the same way. Fade through black already matches.
+        function transitionPair(track, at) {
+            const clips = (track.clips || []).slice().sort((a, b) => a.start - b.start);
+            for (let i = 0; i < clips.length - 1; i++) {
+                const clip = clips[i], next = clips[i + 1], transition = clip.transition;
+                if (!transition || transition.type === 'black' || !activeAt(clip, at) || !activeAt(next, at)) continue;
+                const duration = Number(transition.duration || 0);
+                if (duration > 0 && clip.start + clip.duration - next.start === duration) return { out: clip, inc: next, type: transition.type, progress: clamp((at - next.start) / duration, 0, 1) };
             }
-            context.drawImage(el, -dw / 2, -dh / 2, dw, dh);
-            context.restore();
+            return null;
+        }
+        function trackLayer() {
+            if (!layer) {
+                layer = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(canvas.width, canvas.height) : document.createElement('canvas');
+                layerContext = layer.getContext('2d');
+            }
+            if (layer.width !== canvas.width) layer.width = canvas.width;
+            if (layer.height !== canvas.height) layer.height = canvas.height;
+            layerContext.clearRect(0, 0, layer.width, layer.height);
+            return layerContext;
+        }
+        function drawTransition(project, track, pair, at) {
+            const ctx = trackLayer(), p = pair.progress, W = canvas.width, H = canvas.height;
+            if (pair.type === 'dissolve') {
+                drawAsset(ctx, project, track, pair.out, at, 1 - p);
+                ctx.globalCompositeOperation = 'lighter';
+                drawAsset(ctx, project, track, pair.inc, at, p);
+                ctx.globalCompositeOperation = 'source-over';
+            } else {
+                // User "wipeleft" reveals from the left edge (xfade wiperight), "wiperight" from the right.
+                const reveal = W * p, left = pair.type === 'wipeleft' ? 0 : W - reveal;
+                drawAsset(ctx, project, track, pair.out, at, 1);
+                ctx.clearRect(left, 0, reveal, H);
+                ctx.save(); ctx.beginPath(); ctx.rect(left, 0, reveal, H); ctx.clip();
+                drawAsset(ctx, project, track, pair.inc, at, 1);
+                ctx.restore();
+            }
+            context.drawImage(layer, 0, 0);
         }
 
         function paint(nextFrame) {
@@ -173,15 +208,17 @@
             frame = Math.max(0, Number(nextFrame) || 0);
             if (canvas.width !== Number(project.width || 1280)) canvas.width = Number(project.width || 1280);
             if (canvas.height !== Number(project.height || 720)) canvas.height = Number(project.height || 720);
-            context.fillStyle = '#101319'; context.fillRect(0, 0, canvas.width, canvas.height);
+            // The export composes onto black, so empty and letterboxed areas are black here too.
+            context.fillStyle = '#000'; context.fillRect(0, 0, canvas.width, canvas.height);
             const at = frame, tracks = project.tracks || [];
             tracks.forEach(track => {
                 if (track.hidden || track.kind === 'audio') return;
+                const pair = transitionPair(track, at);
                 const clips = (track.clips || []).slice().sort((a, b) => a.start - b.start);
                 clips.forEach(clip => {
                     if (!activeAt(clip, at)) return;
-                    const entering = transitionIn(track, clip, at);
-                    drawAsset(project, track, clip, at, entering);
+                    if (pair && (clip === pair.out || clip === pair.inc)) { if (clip === pair.out) drawTransition(project, track, pair, at); return; }
+                    drawAsset(context, project, track, clip, at);
                     const outgoing = transitionOut(track, clip, at);
                     if (outgoing && outgoing.type === 'black') {
                         const fade = outgoing.progress < 0.5 ? outgoing.progress * 2 : (1 - outgoing.progress) * 2;
@@ -232,6 +269,7 @@
             disposed = true; playing = false; cancelAnimationFrame(raf);
             Array.from(media.entries()).forEach(([clipId, el]) => release(clipId, el));
             sourceNodes.clear(); gainNodes.clear();
+            layer = null; layerContext = null;
             if (audioContext) audioContext.close().catch(() => {});
             context.clearRect(0, 0, canvas.width, canvas.height);
         }

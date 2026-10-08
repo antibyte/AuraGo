@@ -54,12 +54,7 @@
         if (type !== 'none' && !next) return showNotice(s, 'transitionNeedsNext', 'Add a following clip on this track first.', true);
         const duration = clamp(Math.round(Number(frames) || 15), 1, 90);
         if (type !== 'none' && duration >= Math.min(found.clip.duration, next.duration)) return showNotice(s, 'transitionTooLong', 'Transition duration must be shorter than both clips.', true);
-        mutate(s, 'transition', project => {
-            const track = project.tracks.find(item => item.id === found.track.id), clip = track.clips.find(item => item.id === found.clip.id);
-            const target = track.clips.slice().sort((a, b) => a.start - b.start), following = target[target.findIndex(item => item.id === clip.id) + 1];
-            if (type === 'none') { clip.transition = null; if (following) following.start = clip.start + clip.duration; }
-            else { clip.transition = { type, duration }; following.start = clip.start + clip.duration - duration; }
-        });
+        mutate(s, 'transition', project => (T().setTransition(project, found.track.id, found.clip.id, type, duration) ? undefined : false));
     }
     function percentText(value) { return Math.round(value) + ' %'; }
     function updateOutput(input, text) { const output = input.parentElement && input.parentElement.querySelector('output'); if (output) output.textContent = text; }
@@ -277,7 +272,7 @@
             gesture = { clipId: clip.id, handle: event.target.closest('[data-handle]')?.dataset.handle || '', x: event.clientX, y: event.clientY, w: rect.width, h: rect.height, box: { x: clip.x, y: clip.y, width: clip.width, height: clip.height }, before: snapshot(s), epoch: s.projectEpoch, projectId: s.projectId };
             s.timelineDragging = true; s.transformDrag = true;
             clearTimeout(s.autosaveTimer);
-            box.setPointerCapture(event.pointerId);
+            try { box.setPointerCapture(event.pointerId); } catch (_) { /* synthetic pointer */ }
             box.classList.add('is-dragging');
             event.preventDefault(); event.stopPropagation();
         }, { signal });
@@ -315,6 +310,8 @@
         };
         box.addEventListener('pointerup', finish, { signal });
         box.addEventListener('pointercancel', finish, { signal });
+        box.addEventListener('lostpointercapture', () => { if (gesture) finish({ type: 'pointercancel' }); }, { signal });
+        window.addEventListener('blur', () => { if (gesture) finish({ type: 'pointercancel' }); }, { signal });
         // Clicking the picture selects the front-most visible clip under the pointer.
         mat.addEventListener('click', event => {
             if (event.target.closest('[data-transform],[data-no-project],button') || !s.project) return;
