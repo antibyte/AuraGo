@@ -1,6 +1,8 @@
 name: RTL-SDR receiver
 
 on:
+  push:
+    tags: ['v*']
   pull_request:
     paths:
       - internal/rtlsdr/runtime/**
@@ -33,7 +35,7 @@ jobs:
         run: docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges:true aurago-rtl-sdr-fixtures
 
   publish:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)
     needs: decoder-tests
     runs-on: ubuntu-24.04
     timeout-minutes: 120

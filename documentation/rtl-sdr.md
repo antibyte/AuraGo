@@ -157,8 +157,9 @@ The fixture image generates original analog and DAB+ IQ files, decodes them with
 the actual pinned engines, and verifies audio tones and their audible level, stereo separation, spectrum,
 service discovery and continuous analog retuning. It never transmits RF and is
 not installed by the app. `.github/workflows/rtl-sdr.yml` runs these checks on
-amd64 and arm64. Its explicit `publish` input builds/signs the multi-platform GHCR
-package after those checks; adding the workflow does not itself publish an image.
+amd64 and arm64. Release tags (`v*`) and its explicit `publish` input build/sign
+the multi-platform GHCR package only after both architectures pass those checks.
+Pull requests and manual runs without `publish` only validate the receiver.
 Increment `RuntimeImage` and the matching Docker/CI tags when changing a released
 receiver package.
 
