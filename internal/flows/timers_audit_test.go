@@ -14,8 +14,8 @@ import (
 // callback did not handle it stays stored and is tried again after a bounded,
 // per-occurrence backoff.
 
-// audit17Handler is a TimerHandleFunc that records its calls like timerCalls and fails
-// for the nodes in failing.
+// audit17Handler is a timerHandleFunc that records its calls like timerCalls and fails
+// for the nodes in failing; its missed method records the missed callback.
 type audit17Handler struct {
 	timerCalls
 	failMu  sync.Mutex
@@ -43,14 +43,15 @@ func (h *audit17Handler) setFailing(nodeID string, fail bool) {
 	h.failing[nodeID] = fail
 }
 
-// audit17Service builds a handling timer service with the test retry delay (7 s) and
-// a 20 s cap, stopped at the end of the test.
-func audit17Service(t *testing.T, h *hardTimers, fire TimerHandleFunc, logger *slog.Logger) *TimerService {
+// audit17Service builds a handling timer service with the test retry delay (7 s), a 20 s
+// cap and the production retry lateness (24 h), stopped at the end of the test. missed may
+// be nil.
+func audit17Service(t *testing.T, h *hardTimers, fire timerHandleFunc, missed TimerFireFunc, logger *slog.Logger) *TimerService {
 	t.Helper()
 	if logger == nil {
 		logger = discardLogger()
 	}
-	svc := newTimerService(h.store, h.clock, fire, nil, logger)
+	svc := newTimerService(h.store, h.clock, fire, missed, logger)
 	svc.retryDelay = timerRetryTestDelay
 	svc.maxRetryDelay = 20 * time.Second
 	t.Cleanup(svc.Stop)
@@ -64,7 +65,7 @@ func TestAudit17UnhandledOccurrenceBacksOffWithoutBlockingOthers(t *testing.T) {
 	handler := &audit17Handler{}
 	handler.setFailing("n_aaaaaaab", true)
 	logs := &syncBuffer{}
-	svc := audit17Service(t, h, handler.handle, slog.New(slog.NewTextHandler(logs, nil)))
+	svc := audit17Service(t, h, handler.handle, handler.missed, slog.New(slog.NewTextHandler(logs, nil)))
 	due := storeNow.Add(time.Hour)
 	h.arm(t,
 		TimerRecord{NodeID: "n_aaaaaaab", FireAt: due},
@@ -106,30 +107,36 @@ func TestAudit17UnhandledOccurrenceBacksOffWithoutBlockingOthers(t *testing.T) {
 	}
 }
 
-// A yearly occurrence that is still retried when its next date has passed fires once,
-// when a retry succeeds, and then moves to its first date after that moment: the missed
-// year is not caught up.
-func TestAudit17YearlyOccurrenceRetriedPastItsNextDateFiresOnce(t *testing.T) {
+// Retries end by lateness (review M3): a retry that comes due more than a day after the
+// occurrence's own time is given up with a Warn and goes to the missed callback, and the
+// occurrence is consumed, a one-off deleted and a yearly one moved to its first date
+// after now, so a yearly occurrence is never retried into its next year. Up to a day it
+// is retried, always with its own time.
+func TestAudit17RetriesEndAfterADay(t *testing.T) {
 	h := newHardTimers(t, storeNow)
 	ctx := context.Background()
 	handler := &audit17Handler{}
 	handler.setFailing("n_aaaaaaab", true)
-	svc := audit17Service(t, h, handler.handle, nil)
+	handler.setFailing("n_aaaaaaac", true)
+	logs := &syncBuffer{}
+	svc := audit17Service(t, h, handler.handle, handler.missed, slog.New(slog.NewTextHandler(logs, nil)))
 	at := storeNow.Add(-time.Minute)
-	h.arm(t, TimerRecord{NodeID: "n_aaaaaaab", FireAt: at, Repeat: RepeatYearly})
-	if err := svc.processDue(ctx, false); err != nil {
-		t.Fatal(err)
+	h.arm(t,
+		TimerRecord{NodeID: "n_aaaaaaab", FireAt: at},
+		TimerRecord{NodeID: "n_aaaaaaac", FireAt: at, Repeat: RepeatYearly})
+	pass := func() {
+		t.Helper()
+		if err := svc.processDue(ctx, false); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if list := h.timers(t); len(list) != 1 || !list[0].FireAt.Equal(at) {
-		t.Fatalf("the unhandled yearly occurrence must stay where it is, got %+v", list)
+	pass()
+	h.clock.Advance(23 * time.Hour) // 23 h late: still retried
+	pass()
+	handler.assertCalls(t, "fire:n_aaaaaaab", "fire:n_aaaaaaac", "fire:n_aaaaaaab", "fire:n_aaaaaaac")
+	if list := h.timers(t); len(list) != 2 || !list[0].FireAt.Equal(at) || !list[1].FireAt.Equal(at) {
+		t.Fatalf("occurrences retried within a day must stay where they are, got %+v", list)
 	}
-
-	h.clock.Advance(400 * 24 * time.Hour) // past the next yearly date
-	handler.setFailing("n_aaaaaaab", false)
-	if err := svc.processDue(ctx, false); err != nil {
-		t.Fatal(err)
-	}
-	handler.assertCalls(t, "fire:n_aaaaaaab", "fire:n_aaaaaaab")
 	handler.failMu.Lock()
 	when := append([]time.Time(nil), handler.when...)
 	handler.failMu.Unlock()
@@ -138,17 +145,24 @@ func TestAudit17YearlyOccurrenceRetriedPastItsNextDateFiresOnce(t *testing.T) {
 			t.Fatalf("calls were scheduled for %v, want the occurrence's own time %v every time", when, at)
 		}
 	}
-	want := at.AddDate(2, 0, 0) // the first yearly date after now; the one a year after at was missed
-	if list := h.timers(t); len(list) != 1 || !list[0].FireAt.Equal(want) {
-		t.Fatalf("the yearly timer must move to %v, got %+v", want, list)
+
+	h.clock.Advance(2 * time.Hour) // 25 h late: the retries end
+	pass()
+	handler.assertCalls(t, "fire:n_aaaaaaab", "fire:n_aaaaaaac", "fire:n_aaaaaaab", "fire:n_aaaaaaac",
+		"missed:n_aaaaaaab", "missed:n_aaaaaaac")
+	if list := h.timers(t); len(list) != 1 || list[0].NodeID != "n_aaaaaaac" || !list[0].FireAt.Equal(at.AddDate(1, 0, 0)) {
+		t.Fatalf("after the retries ended: timers %+v, want only the yearly one a year after its occurrence", list)
 	}
-	if err := svc.processDue(ctx, false); err != nil {
-		t.Fatal(err)
-	}
-	handler.assertCalls(t, "fire:n_aaaaaaab", "fire:n_aaaaaaab")
 	if len(svc.retrying) != 0 || len(svc.unsettled) != 0 {
-		t.Fatalf("retry state left after the occurrence was handled: %v %v", svc.retrying, svc.unsettled)
+		t.Fatalf("retry state left after the retries ended: %v %v", svc.retrying, svc.unsettled)
 	}
+	out := logs.String()
+	if n := strings.Count(out, "its retries end and it counts as missed"); n != 2 || !strings.Contains(out, "late=25h1m0s") {
+		t.Fatalf("each given-up occurrence must be logged at Warn with how late it is (%d lines):\n%s", n, out)
+	}
+	pass()
+	handler.assertCalls(t, "fire:n_aaaaaaab", "fire:n_aaaaaaac", "fire:n_aaaaaaab", "fire:n_aaaaaaac",
+		"missed:n_aaaaaaab", "missed:n_aaaaaaac")
 }
 
 // The retry state lives in memory. After a restart the start-up pass treats a retried
@@ -158,7 +172,7 @@ func TestAudit17RetriedOccurrenceAfterARestartFollowsTheGraceRule(t *testing.T) 
 	ctx := context.Background()
 	handler := &audit17Handler{}
 	handler.setFailing("n_aaaaaaab", true)
-	before := audit17Service(t, h, handler.handle, nil)
+	before := audit17Service(t, h, handler.handle, nil, nil)
 	h.arm(t, TimerRecord{NodeID: "n_aaaaaaab", FireAt: storeNow.Add(-time.Minute)})
 	if err := before.processDue(ctx, false); err != nil {
 		t.Fatal(err)
@@ -178,13 +192,14 @@ func TestAudit17RetriedOccurrenceAfterARestartFollowsTheGraceRule(t *testing.T) 
 }
 
 // A timer that is gone (the flow was switched off, republished or deleted) takes its
-// retry state with it.
+// retry state with it, and the dropped retry is logged at Info (review M4).
 func TestAudit17RetryStateOfARemovedTimerIsForgotten(t *testing.T) {
 	h := newHardTimers(t, storeNow)
 	ctx := context.Background()
 	handler := &audit17Handler{}
 	handler.setFailing("n_aaaaaaab", true)
-	svc := audit17Service(t, h, handler.handle, nil)
+	logs := &syncBuffer{}
+	svc := audit17Service(t, h, handler.handle, nil, slog.New(slog.NewTextHandler(logs, nil)))
 	h.arm(t, TimerRecord{NodeID: "n_aaaaaaab", FireAt: storeNow.Add(-time.Minute)})
 	if err := svc.processDue(ctx, false); err != nil {
 		t.Fatal(err)
@@ -199,4 +214,10 @@ func TestAudit17RetryStateOfARemovedTimerIsForgotten(t *testing.T) {
 	if len(svc.retrying) != 0 {
 		t.Fatalf("a removed timer's retry state must be forgotten, have %v", svc.retrying)
 	}
+	out := logs.String()
+	if strings.Count(out, "a pending retry of a flow timer was dropped") != 1 || !strings.Contains(out, "level=INFO") ||
+		!strings.Contains(out, "node_id=n_aaaaaaab") {
+		t.Fatalf("the dropped retry must be logged once at Info with its node:\n%s", out)
+	}
+	handler.assertCalls(t, "fire:n_aaaaaaab")
 }

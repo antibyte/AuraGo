@@ -260,6 +260,99 @@ func TestAudit17DeliberateSkipsConsumeTheOccurrenceAndLog(t *testing.T) {
 	})
 }
 
+// Review M3: a flow that cannot be read is a failed start. The occurrence stays, and the
+// failure is logged once, by the timer service with its retry, not also by the callback.
+func TestAudit17UnreadableFlowIsRetriedAndLoggedOnce(t *testing.T) {
+	fx := newAudit17Fixture(t, ConcurrencyQueue)
+	ctx := context.Background()
+	if _, err := fx.s.store.db.ExecContext(ctx, `UPDATE flows SET draft_json = 'x' WHERE id = ?`, fx.pub.ID); err != nil {
+		t.Fatal(err)
+	}
+	fx.clock.Advance(time.Hour)
+	if err := fx.s.timers.processDue(ctx, false); err != nil {
+		t.Fatalf("processDue: %v", err)
+	}
+	fx.assertOccurrence(t, fx.due)
+	if warned := fx.logs.messages(slog.LevelWarn, ""); len(warned) != 1 || !strings.Contains(warned[0], "a flow timer was not handled") {
+		t.Fatalf("warnings = %v, want only the timer service's retry line", warned)
+	}
+}
+
+// audit17ReasonOf returns the "reason" attribute of the records whose message contains part.
+func audit17ReasonOf(l *svcLogs, part string) []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var out []string
+	for _, r := range l.records {
+		if !strings.Contains(r.Message, part) {
+			continue
+		}
+		reason := ""
+		r.Attrs(func(a slog.Attr) bool {
+			if a.Key == "reason" {
+				reason = a.Value.String()
+			}
+			return true
+		})
+		out = append(out, r.Level.String()+" "+reason)
+	}
+	return out
+}
+
+// Review M1: only a flow that is switched off is logged as switched off (Info). When its
+// switch cannot be read, because Mission Control is not available or holds no mission for
+// the flow, the skip is a Warn naming that reason. The occurrence is consumed either way.
+func TestAudit17UnreadableSwitchIsAWarnWithItsReason(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name  string
+		setup func(b *ff1ReconBridge, missionID string)
+		want  []string // log lines: level and reason
+		about string   // part of the expected message
+	}{
+		{"switched off", func(b *ff1ReconBridge, m string) { _ = b.fakeBridge.SetFlowMissionEnabled(m, false) },
+			[]string{"INFO "}, "is switched off"},
+		{"no Mission Control", func(b *ff1ReconBridge, m string) { _ = b.fakeBridge.SetFlowMissionEnabled(m, false); b.none = true },
+			[]string{"WARN " + ErrMissionControlUnavailable.Error()}, "cannot tell whether its flow is switched on"},
+		{"mission missing", func(b *ff1ReconBridge, m string) { _ = b.fakeBridge.DeleteFlowMission(m) },
+			[]string{"WARN " + ErrFlowMissionMissing.Error()}, "cannot tell whether its flow is switched on"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			clock := newFakeClock(time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC))
+			bridge := &ff1ReconBridge{svcBridge: newSvcBridge()}
+			logs := &svcLogs{}
+			s := NewService(openTestStore(t), catalogRegistry(t, fullEnv()), &Services{Tools: &fakeTools{}, Clock: clock, Location: time.UTC},
+				bridge, ServiceConfig{}, slog.New(logs))
+			t.Cleanup(func() { _ = s.Shutdown(context.Background()) })
+			b := newFlow("Schalter")
+			when := b.node("when", TypeTriggerDateTime, map[string]any{"at": "2026-10-03 08:00"})
+			done := b.node("done", TypeSet, map[string]any{"fields": []any{map[string]any{"name": "v", "value": "done"}}})
+			b.edge(when, PortOut, done)
+			pub := svcRunPublish(t, s, b.build())
+			if list, err := s.store.ListTimers(ctx); err != nil || len(list) != 1 {
+				t.Fatalf("armed timers = %+v, %v (test setup)", list, err)
+			}
+			tc.setup(bridge, pub.MissionID)
+			clock.Advance(time.Hour)
+			if err := s.timers.processDue(ctx, false); err != nil {
+				t.Fatalf("processDue: %v", err)
+			}
+			if list, err := s.store.ListTimers(ctx); err != nil || len(list) != 0 {
+				t.Fatalf("timers = %+v, %v; the occurrence must be consumed", list, err)
+			}
+			if got := audit17ReasonOf(logs, tc.about); len(got) != 1 || got[0] != tc.want[0] {
+				t.Fatalf("log lines %q = %q, want %q", tc.about, got, tc.want)
+			}
+			if runs, err := s.Runs(ctx, pub.ID, RunFilter{}); err != nil || len(runs) != 0 {
+				t.Fatalf("runs = %+v, %v; none may start", runs, err)
+			}
+			if len(s.timers.retrying) != 0 {
+				t.Fatalf("a skip must not be retried: %v", s.timers.retrying)
+			}
+		})
+	}
+}
+
 // audit17NoRetry checks that the timer service keeps no retry state and logged no failed start.
 func audit17NoRetry(t *testing.T, fx *audit17Fixture) {
 	t.Helper()

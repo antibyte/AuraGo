@@ -411,15 +411,18 @@ func TestServiceRunHooksLogLevels(t *testing.T) {
 		t.Fatalf("FlowRunStarted was called %d times for a gone flow", n)
 	}
 
-	// Damaged documents: the timer cannot read the flow (Warn), the start needs only the
-	// mission and the name, the end falls back to the flow's documents (Warn).
+	// Damaged documents: the timer cannot read the flow (the error goes back to the timer
+	// service, which logs it with its retry; audit 2026-10-08 review M3), the start needs
+	// only the mission and the name, the end falls back to the flow's documents (Warn).
 	pub := svcRunPublish(t, s, simpleFlow("Kaputt"))
 	exec(`UPDATE flows SET draft_json = 'x' WHERE id = ?`, pub.ID)
 	damaged := RunRecord{ID: "run_aaaaaaaaadmg", FlowID: pub.ID, Mode: ModeLive, Status: RunSuccess}
-	s.onTimerFired(pub.ID, testNodeID(1), at)
+	if err := s.onTimerFired(pub.ID, testNodeID(1), at); err == nil {
+		t.Fatal("a timer that cannot read its flow must report the occurrence as not handled")
+	}
 	s.onRunStarted(damaged)
 	s.onRunFinished(damaged, RunResult{Status: RunSuccess})
-	warnings("a date and time trigger could not read its flow", 1)
+	warnings("a date and time trigger could not read its flow", 0)
 	warnings("the flow of a started run could not be read", 0)
 	warnings("the flow of a finished run could not be read", 1)
 	if got := bridge.reports(damaged.ID); len(got) != 1 || !got[0].Started || got[0].MissionID != pub.MissionID ||

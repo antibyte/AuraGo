@@ -517,23 +517,25 @@ func leafOutputs(f *Flow, res RunResult) map[string]any {
 }
 
 // onTimerFired starts a live run for a due Date/Time trigger of an enabled flow. It is the
-// timer service's TimerHandleFunc and returns nil when the occurrence is handled, so the
+// timer service's timerHandleFunc and returns nil when the occurrence is handled, so the
 // timer service consumes it: a run was created (started or queued), or no run is wanted.
 // No run is wanted for a flow that is gone (its timers went with it; logged at Debug), and,
-// each logged at Info or Warn, for a flow without a published revision, a flow that is
-// switched off (or whose switch cannot be read: no Mission Control, no mission), a node
-// that is no longer an enabled trigger of the published revision, and a trigger the Skip
-// concurrency policy drops (StartSkipped). Any other failure to start (ErrQueueFull, a
-// store error while reading the flow or recording the run, ErrRunnerClosed) is returned:
-// the occurrence stays stored and the timer service tries it again after a backoff, with
-// the same scheduled_for (see TimerService).
+// each logged, for a flow without a published revision (Warn), a flow that is switched
+// off (Info), a flow whose switch cannot be read because Mission Control is not available
+// or holds no mission for it (Warn, naming that reason; a flow being deleted can show the
+// missing mission too), a node that is no longer an enabled trigger of the published
+// revision (Warn), and a trigger the Skip concurrency policy drops (StartSkipped, Info).
+// Any other failure to start (ErrQueueFull, a store error while reading the flow or
+// recording the run, ErrRunnerClosed) is returned without a log line of its own: the
+// timer service logs it with the retry, keeps the occurrence stored and tries it again
+// after a backoff, with the same scheduled_for (see TimerService).
 func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) error {
 	rec, err := s.store.GetFlow(context.Background(), flowID)
-	if err != nil {
+	if errors.Is(err, ErrNotFound) {
 		s.logLookup("a date and time trigger could not read its flow", "", err, "flow", flowID, "node", nodeID)
-		if errors.Is(err, ErrNotFound) {
-			return nil
-		}
+		return nil
+	}
+	if err != nil {
 		return fmt.Errorf("read the flow: %w", err)
 	}
 	if rec.Live == nil {
@@ -542,8 +544,13 @@ func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) er
 		return nil
 	}
 	if !s.bridge.FlowMissionEnabled(rec.MissionID) {
-		s.logger.Info("a date and time trigger fired while its flow is switched off; no run was started",
-			"flow", flowID, "node", nodeID, "reason", s.notEnabledReason(rec.MissionID).Error())
+		if reason := s.notEnabledReason(rec.MissionID); errors.Is(reason, ErrFlowDisabled) {
+			s.logger.Info("a date and time trigger fired while its flow is switched off; no run was started",
+				"flow", flowID, "node", nodeID)
+		} else {
+			s.logger.Warn("a date and time trigger cannot tell whether its flow is switched on; no run was started",
+				"flow", flowID, "node", nodeID, "reason", reason.Error())
+		}
 		return nil
 	}
 	data := map[string]any{"scheduled_for": scheduledFor.UTC().Format(time.RFC3339)}
@@ -568,7 +575,10 @@ func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) er
 	}
 }
 
+// onTimerMissed logs an occurrence that runs no more: it came due while AuraGo was off for
+// longer than MissedTimerGrace, or its start kept failing for timerMaxRetryLateness (the
+// timer service logged that before).
 func (s *Service) onTimerMissed(flowID, nodeID string, scheduledFor time.Time) {
-	s.logger.Warn("a date and time trigger was missed while AuraGo was off", "flow", flowID, "node", nodeID,
+	s.logger.Warn("a date and time trigger was missed; no run was started for it", "flow", flowID, "node", nodeID,
 		"scheduled_for", scheduledFor.Format(time.RFC3339))
 }
