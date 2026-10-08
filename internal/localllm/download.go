@@ -12,12 +12,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/fileutil"
 )
 
 type downloadProgress func(downloaded, total int64)
 type downloadPublishGuard func(func() error) error
 
-var availableDiskBytes = freeDiskBytes
+// availableDiskBytes is swappable for tests; it measures the nearest existing parent of a path.
+var availableDiskBytes = fileutil.FreeDiskBytes
 
 // downloadArtifact resumes into a .part file and publishes only after size and SHA-256 verification.
 func downloadArtifact(ctx context.Context, client *http.Client, rawURL, destination string, artifact Artifact, progress downloadProgress) error {
