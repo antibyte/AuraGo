@@ -221,3 +221,29 @@ func TestAudit17RetryStateOfARemovedTimerIsForgotten(t *testing.T) {
 	}
 	handler.assertCalls(t, "fire:n_aaaaaaab")
 }
+
+// In the running loop a Replace that removes a retrying timer drops the retry at once
+// (nextFire plans after the reload), not when the next timer comes due: here no timer
+// comes due again and the clock never moves past the backoff.
+func TestAudit17ReplaceDropsAPendingRetryAtOnce(t *testing.T) {
+	h := newHardTimers(t, storeNow)
+	ctx := context.Background()
+	handler := &audit17Handler{}
+	handler.setFailing("n_aaaaaaab", true)
+	logs := &syncBuffer{}
+	svc := audit17Service(t, h, handler.handle, nil, slog.New(slog.NewTextHandler(logs, nil)))
+	h.arm(t, TimerRecord{NodeID: "n_aaaaaaab", FireAt: storeNow.Add(time.Hour)})
+	if err := svc.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	h.clock.WaitForWaiters(t, 1)
+	h.clock.Advance(time.Hour)
+	waitUntil(t, "the failed attempt", func() bool { return strings.Contains(logs.String(), "a flow timer was not handled") })
+	if err := svc.Replace(ctx, h.flow.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, "the dropped retry to be logged", func() bool {
+		return strings.Contains(logs.String(), "a pending retry of a flow timer was dropped")
+	})
+	handler.assertCalls(t, "fire:n_aaaaaaab")
+}

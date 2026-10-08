@@ -330,6 +330,9 @@ func (t *TimerService) nextFire() (next time.Time, ok bool, err error) {
 		t.logger.Warn("flow timers could not be loaded", "error", err)
 		return time.Time{}, false, err
 	}
+	// The loop plans after every pass and every Replace, so a retry whose timer was
+	// replaced or removed is dropped (and logged) now, not when the next timer comes due.
+	t.forgetGone(timers)
 	now := t.clock.Now()
 	for _, tm := range timers {
 		at := tm.FireAt // zero for a damaged row, which processDue drops at once
@@ -440,7 +443,8 @@ func (t *TimerService) settle(ctx context.Context, tm TimerRecord, now time.Time
 
 // forgetGone drops unsettled and retrying entries whose timer is no longer stored (the
 // flow was deleted, switched off or republished meanwhile). A dropped retry is logged at
-// Info: that occurrence will not run.
+// Info: that occurrence will not run. processDue and nextFire call it with the timers they
+// listed, so a Replace (which wakes the loop) drops a retry at once.
 func (t *TimerService) forgetGone(stored []TimerRecord) {
 	if len(t.unsettled) == 0 && len(t.retrying) == 0 {
 		return
