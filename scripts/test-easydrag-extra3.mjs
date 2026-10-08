@@ -1088,6 +1088,6 @@ export async function run(env) {
             overlaps, [[false, 1, 'editor:f1', []], [true, 1, 'editor:f2', []]]);
     });
 
-    // The FF2 checks (test-easydrag-extra5.mjs) build on this sandbox.
-    return { sandbox, openEditor };
+    // The FF2 and a1008 checks (test-easydrag-extra5.mjs, -extra6.mjs) build on this sandbox.
+    return { sandbox, openEditor, desktopMenus };
 }

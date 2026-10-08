@@ -32,7 +32,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
   - *Not saved – fix the errors*: the draft has errors that block saving. The next change is sent again.
   - *Conflict*: the flow was changed somewhere else. EasyDrag asks whether to keep your version or load the other one.
 - Until AuraGo has your changes, a copy stays in this browser for up to 30 days. When you open the flow again, EasyDrag offers to restore it, unless the flow was changed elsewhere in the meantime. Deleting a flow, here or elsewhere, removes this copy and everything else this browser remembers for the flow (where you left it, confirmed test effects, the last test trigger).
-- **Ctrl+S** saves at once. Inside the editor it never opens the browser's "Save page"; in a run view and while a dialog is open it does not save, and automatic saving goes on.
+- **Ctrl+S** saves at once. Inside the editor it never opens the browser's "Save page"; in a run view and while a dialog or a step's detail view is open it does not save, and automatic saving goes on. A note you are typing in the detail view is saved before EasyDrag leaves the flow.
 
 ## Testing
 
@@ -95,7 +95,7 @@ EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, s
 
 ## Keyboard shortcuts
 
-Ctrl+S, Ctrl+Enter and Ctrl+K work anywhere in the editor, but not while a dialog or a context menu is open; the other keys act on the canvas. On macOS, Ctrl is ⌘. The canvas is one stop for **Tab** from outside, and **Tab** on the canvas adds a step: the zoom buttons and the tool buttons of the selected step are reached with **Shift+Tab** from the footer. Every tool button also has a key: D turns the step off or on, Ctrl+D duplicates, Del deletes, and *Test step* is in the detail view (Enter). Screen readers also find a list of the steps.
+Ctrl+S, Ctrl+Enter and Ctrl+K work anywhere in the editor, but not while a dialog (a step's detail view included) or a context menu is open; the other keys act on the canvas. On macOS, Ctrl is ⌘. The canvas is one stop for **Tab** from outside, and **Tab** on the canvas adds a step: the zoom buttons and the tool buttons of the selected step are reached with **Shift+Tab** from the footer. Every tool button also has a key: D turns the step off or on, Ctrl+D duplicates, Del deletes, and *Test step* is in the detail view (Enter). Screen readers also find a list of the steps.
 
 | Key | Action |
 |---|---|

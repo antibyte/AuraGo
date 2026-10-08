@@ -533,6 +533,8 @@
         // ed.detail exists before the first render, so a render that throws still closes cleanly.
         ed.detail = {
             nodeId: () => node.id,
+            // flushNote writes a note still waiting for its 400 ms into the draft (editor.leave()).
+            flushNote: () => flushNote(),
             close: () => {
                 flushNote();
                 bag.dispose();

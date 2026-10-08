@@ -263,8 +263,11 @@
   closes; a tree drag's document listeners (`dragend`, `drop`) end with the drag or the next one.
 - Window menus pass canonical keys ("Ctrl+S"); the shell dispatches a `shortcut` item before the
   editor sees the key, a `shortcutHint` ("?") is only drawn. Mod+S is always prevented in the
-  editor and saves only when no EasyDrag dialog is open.
-- `editor.leave()` aborts a drag, flushes the saver and shares one in-flight promise. Sessions
+  editor and saves only when no EasyDrag dialog is open. The step dialog (`ed.detail`,
+  aria-modal) counts as a dialog: Ctrl+S, Ctrl+Enter, Ctrl+K and the menu items behind
+  `unlessModal` (`modalOpen`) wait for it as for `.ed-modal-backdrop`.
+- `editor.leave()` aborts a drag, writes a note still pending in the step dialog
+  (`ed.detail.flushNote`), flushes the saver and shares one in-flight promise. Sessions
   and notification contexts keep `flowId` only when it matches `^flow_[a-z0-9]{10}$`.
 - Opening: a stored view `{cx, cy, zoom}` per flow (editors wider than 560 px), else the readable
   fit (zoom ≥ 0.8, trigger first); below zoom 0.7 cards show labels only. Under 900 px the

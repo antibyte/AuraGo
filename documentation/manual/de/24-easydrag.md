@@ -32,7 +32,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
   - *Nicht gespeichert – Fehler beheben*: Der Entwurf hat Fehler, die das Speichern verhindern. Die nächste Änderung wird wieder gesendet.
   - *Konflikt*: Der Flow wurde woanders geändert. EasyDrag fragt, ob du deine Version behältst oder die andere lädst.
 - Bis AuraGo deine Änderungen hat, bleibt bis zu 30 Tage eine Kopie in diesem Browser. Öffnest du den Flow wieder, bietet EasyDrag sie an, außer der Flow wurde inzwischen woanders geändert. Wird ein Flow gelöscht, hier oder anderswo, entfernt EasyDrag diese Kopie und alles andere, was sich dieser Browser für den Flow gemerkt hat (wo du ihn verlassen hast, bestätigte Testauswirkungen, den zuletzt gewählten Testauslöser).
-- **Strg+S** speichert sofort. Im Editor öffnet es nie „Seite speichern“ des Browsers; in der Ansicht eines Laufs und solange ein Dialog offen ist, speichert es nicht, und das automatische Speichern läuft weiter.
+- **Strg+S** speichert sofort. Im Editor öffnet es nie „Seite speichern“ des Browsers; in der Ansicht eines Laufs und solange ein Dialog oder die Detailansicht eines Schritts offen ist, speichert es nicht, und das automatische Speichern läuft weiter. Eine Notiz, die du in der Detailansicht gerade tippst, speichert EasyDrag, bevor es den Flow verlässt.
 
 ## Testen
 
@@ -95,7 +95,7 @@ EasyDrag braucht *Flows aktivieren* und das Missions-Tool (`tools.missions.enabl
 
 ## Tastenkürzel
 
-Strg+S, Strg+Enter und Strg+K wirken überall im Editor, aber nicht, solange ein Dialog oder ein Kontextmenü offen ist; die übrigen Tasten wirken auf der Arbeitsfläche. Auf dem Mac steht ⌘ für Strg. Von außen ist die Arbeitsfläche ein Halt für **Tab**, und **Tab** auf der Fläche fügt einen Schritt hinzu: Die Zoom-Knöpfe und die Werkzeugknöpfe des ausgewählten Schritts erreichst du mit **Umschalt+Tab** aus der Fußzeile. Jeder Werkzeugknopf hat auch eine Taste: D schaltet den Schritt aus oder ein, Strg+D dupliziert, Entf löscht, und *Schritt testen* steht in der Detailansicht (Enter). Screenreader finden zusätzlich eine Liste der Schritte.
+Strg+S, Strg+Enter und Strg+K wirken überall im Editor, aber nicht, solange ein Dialog (auch die Detailansicht eines Schritts) oder ein Kontextmenü offen ist; die übrigen Tasten wirken auf der Arbeitsfläche. Auf dem Mac steht ⌘ für Strg. Von außen ist die Arbeitsfläche ein Halt für **Tab**, und **Tab** auf der Fläche fügt einen Schritt hinzu: Die Zoom-Knöpfe und die Werkzeugknöpfe des ausgewählten Schritts erreichst du mit **Umschalt+Tab** aus der Fußzeile. Jeder Werkzeugknopf hat auch eine Taste: D schaltet den Schritt aus oder ein, Strg+D dupliziert, Entf löscht, und *Schritt testen* steht in der Detailansicht (Enter). Screenreader finden zusätzlich eine Liste der Schritte.
 
 | Taste | Wirkung |
 |---|---|

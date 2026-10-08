@@ -362,6 +362,9 @@
 
         async function leaveOnce() {
             interact.abortGesture();
+            // A note typed in the step dialog waits 400 ms for its own write: it goes into the
+            // draft now, so the flush below saves it (the dialog stays open if leaving is refused).
+            if (ed.detail) ed.detail.flushNote();
             if (ed.readonly || !contentDirty) return true;
             const ok = await ed.saver.flush();
             if (ok) return true;
@@ -391,9 +394,10 @@
         // does not run it a second time. Keys the canvas handles itself (interact, "?") are
         // therefore a shortcutHint, which the desktop draws but does not dispatch. Ctrl+S,
         // Ctrl+Enter and Ctrl+K are real shortcuts (Ctrl+K so that the desktop's search does not
-        // take it); they do nothing while a dialog is open. Edits wait while a dialog, the detail
-        // view or quick-add covers the canvas, and while the restore offer waits for its answer.
-        function modalOpen() { return !!el.querySelector('.ed-modal-backdrop:not(.is-closing)'); }
+        // take it); they do nothing while a dialog is open, the step dialog (detail view, also
+        // aria-modal) included. Edits wait while a dialog, the detail view or quick-add covers the
+        // canvas, and while the restore offer waits for its answer.
+        function modalOpen() { return !!(ed.detail || el.querySelector('.ed-modal-backdrop:not(.is-closing)')); }
         function overlayOpen() { return !!(ed.detail || ed.quickAdd || modalOpen()); }
         const unlessModal = fn => () => { if (!modalOpen()) fn(); };
         const unlessOverlay = fn => () => { if (!overlayOpen() && !restoring) fn(); };
@@ -562,16 +566,17 @@
             if (typeof ctx.isActive === 'function' && !ctx.isActive()) return;
             const mod = core.isMod(event);
             const key = event.key.toLowerCase();
-            // Mod+S belongs to the editor even when it cannot save (a dialog or context menu is
-            // open, or Save is disabled): the browser's "Save Page" never opens from here. It saves
-            // only when the desktop did not run the Save item (prevented keys return above) and
-            // Save is enabled (saveNow checks read-only and the run view; the restore offer here).
+            // Mod+S belongs to the editor even when it cannot save (a dialog, the step dialog or a
+            // context menu is open, or Save is disabled): the browser's "Save Page" never opens
+            // from here. It saves only when the desktop did not run the Save item (prevented keys
+            // return above) and Save is enabled (saveNow checks read-only and the run view; the
+            // restore offer here). Ctrl+Enter and Ctrl+K wait for the step dialog too.
             if (mod && key === 's') event.preventDefault();
-            if (el.querySelector('.ed-modal-backdrop') || document.querySelector('.vd-context-menu')) return;
+            if (ed.detail || el.querySelector('.ed-modal-backdrop') || document.querySelector('.vd-context-menu')) return;
             if (mod && key === 's') { if (!restoring) saveNow(); return; }
             if (mod && event.key === 'Enter') { event.preventDefault(); test(); return; }
             if (mod && key === 'k') { event.preventDefault(); searchPalette(); return; }
-            if (core.isEditable(target) || ed.detail || ed.quickAdd) return;
+            if (core.isEditable(target) || ed.quickAdd) return;
             const active = document.activeElement;
             const onCanvas = canvas.el.contains(active) || active === document.body || active === el;
             if (event.key === '?' && onCanvas) { event.preventDefault(); ED.dialogs.shortcuts(ed); return; }
