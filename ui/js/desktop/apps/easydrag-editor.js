@@ -486,10 +486,15 @@
 
         // A drag holds back emergency copies (at most one per 500 ms); its end writes the last one,
         // and so does a page that goes away or into the background (closed, reloaded, switched
-        // away from on a phone), where no later timer may run.
+        // away from on a phone), where no later timer may run. A note still waiting for its
+        // 400 ms in the step dialog goes into the draft first, so the copy holds it.
+        const pageAway = () => {
+            if (ed.detail) ed.detail.flushNote();
+            ed.saver.flushCopy();
+        };
         bag.add(ed.bus.on('gesture-end', () => ed.saver.flushCopy()));
-        bag.listen(window, 'pagehide', () => ed.saver.flushCopy());
-        bag.listen(document, 'visibilitychange', () => { if (document.visibilityState === 'hidden') ed.saver.flushCopy(); });
+        bag.listen(window, 'pagehide', pageAway);
+        bag.listen(document, 'visibilitychange', () => { if (document.visibilityState === 'hidden') pageAway(); });
         bag.add(ed.bus.on('quick-add', req => { if (!ed.readonly && !ed.runView) { ED.palette.openQuickAdd(ed, canvas, req); setMenus(); } }));
         bag.add(ed.bus.on('open-detail', req => { ED.detail.open(ed, req.nodeId, { param: req.param }); setMenus(); }));
         bag.add(ed.bus.on('detail-closed', () => { canvas.el.focus({ preventScroll: true }); setMenus(); }));
@@ -570,9 +575,13 @@
             // context menu is open, or Save is disabled): the browser's "Save Page" never opens
             // from here. It saves only when the desktop did not run the Save item (prevented keys
             // return above) and Save is enabled (saveNow checks read-only and the run view; the
-            // restore offer here). Ctrl+Enter and Ctrl+K wait for the step dialog too.
+            // restore offer here). Ctrl+Enter and Ctrl+K wait for the step dialog too; under any
+            // EasyDrag dialog they are prevented as well, so the browser does not take them (Chrome
+            // moves the focus to its address bar on Ctrl+K). No dialog field uses Mod+Enter.
             if (mod && key === 's') event.preventDefault();
-            if (ed.detail || el.querySelector('.ed-modal-backdrop') || document.querySelector('.vd-context-menu')) return;
+            const dialogOpen = !!(ed.detail || el.querySelector('.ed-modal-backdrop'));
+            if (dialogOpen && mod && (key === 'k' || event.key === 'Enter')) event.preventDefault();
+            if (dialogOpen || document.querySelector('.vd-context-menu')) return;
             if (mod && key === 's') { if (!restoring) saveNow(); return; }
             if (mod && event.key === 'Enter') { event.preventDefault(); test(); return; }
             if (mod && key === 'k') { event.preventDefault(); searchPalette(); return; }

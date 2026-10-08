@@ -414,7 +414,12 @@
             // events never replace the tool buttons (a focused one would drop the focus to body).
             const sum = summary(n, i);
             const sig = JSON.stringify([n.label, n.type, n.params, n.settings, i && i.availability, !!ed.runView, ed.readonly, ed.model.outputs(n), sum]);
+            // A rebuild replaces the tool buttons: a tool that had the focus (Disable from the
+            // keyboard changes the step) gives it to its new button with the same action.
+            let focusedTool = null;
             if (signatures.get(n.id) !== sig) {
+                const active = document.activeElement;
+                if (active && active !== card && card.contains(active) && active.dataset) focusedTool = active.dataset.edNodeTool || null;
                 signatures.set(n.id, sig);
                 states.delete(n.id);
                 card.innerHTML = cardMarkup(n, sum);
@@ -426,6 +431,8 @@
                 paintState(card, n, i, status, step);
             }
             syncTools(card, n.id);
+            const tool = focusedTool && Array.from(card.querySelectorAll('[data-ed-node-tool]')).find(b => b.dataset.edNodeTool === focusedTool);
+            if (tool) tool.focus({ preventScroll: true });
         }
 
         // relabelled reports whether a change added or removed one of these nodes or gave it a new key

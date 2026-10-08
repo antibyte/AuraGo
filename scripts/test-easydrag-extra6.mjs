@@ -12,6 +12,7 @@ const T1 = 'n_tttttttt';
 const A = 'n_aaaaaaaa';
 const B = 'n_bbbbbbbb';
 const EFFECTS_KEY = 'aurago.easydrag.effects-ok.f1';
+const DRAFT_KEY = 'aurago.easydrag.draft.f1';
 
 // flowDoc is a flow start -> alpha -> beta, as in test-easydrag-extra3.mjs.
 function flowDoc(settings) {
@@ -144,19 +145,29 @@ export async function run(env) {
     // testRequests counts what a test or publish dialog asks for (publish preview, test data, test).
     const testRequests = h => h.requests.filter(r => /\/(publish-preview|test)$|\/test-data\//.test(r.url)).length;
 
-    await guardAsync('a1008 1.3 under the step dialog Ctrl+S, Ctrl+Enter and Ctrl+K do nothing and Mod+S never reaches the browser', async () => {
+    await guardAsync('a1008 1.3 under the step dialog and any other dialog Ctrl+S, Ctrl+Enter and Ctrl+K do nothing and never reach the browser', async () => {
         const outcomes = [];
         for (const [platform, modifier] of [['MacIntel', 'metaKey'], ['Win32', 'ctrlKey']]) {
-            // Focus on a button of the dialog (the desktop dispatches all three menu keys) and in
-            // the note (the desktop dispatches only Mod+S; the editor's handler sees Enter and K).
-            for (const where of ['button', 'note']) {
-                const { h, editor, detail } = await stepDialog(platform);
-                const target = where === 'note' ? noteField(detail) : detail.querySelector('[data-ed-detail-close]');
+            // Focus on a button of the step dialog (the desktop dispatches all three menu keys), in
+            // its note and in a field of the flow settings (the desktop dispatches only Mod+S there;
+            // the editor's handler sees Enter and K).
+            for (const where of ['button', 'note', 'settings']) {
+                let h, editor, target;
+                if (where === 'settings') {
+                    h = sandbox(req => (req.method === 'PUT' ? { draft_revision: 4, issues: [] } : undefined), platform);
+                    editor = openEditor(h);
+                    await settle();
+                    target = h.ED.dialogs.flowSettings(editor.ed).body.querySelector('[data-ed-set="description"]');
+                } else {
+                    const opened = await stepDialog(platform);
+                    ({ h, editor } = opened);
+                    target = where === 'note' ? noteField(opened.detail) : opened.detail.querySelector('[data-ed-detail-close]');
+                }
                 target.focus();
                 const count = counters(editor);
                 const dialogs = h.dialogs.length;
                 const desktop = desktopMenus(h.menus, []);
-                let saveKey = null;
+                const prevented = [];
                 // Ctrl+K first: before the fix Ctrl+Enter opened the test dialog, under which K waits.
                 for (const key of ['k', 's', 'Enter']) {
                     const event = {
@@ -166,17 +177,17 @@ export async function run(env) {
                     };
                     event[modifier] = true;
                     desktop.handleWindowMenuShortcut(event); // the desktop's keydown listener runs first
-                    h.fireDoc('keydown', event); // then the editor's
-                    if (key === 's') saveKey = event.defaultPrevented;
+                    const seen = h.fireDoc('keydown', event); // then the editor's (on a copy of the event)
+                    prevented.push(seen.defaultPrevented);
                 }
                 await settle();
-                outcomes.push([platform, where, count.saves, count.searches, h.dialogs.length - dialogs, testRequests(h), saveKey,
+                outcomes.push([platform, where, count.saves, count.searches, h.dialogs.length - dialogs, testRequests(h), prevented,
                     !!editor.ed.detail, h.dom.document.activeElement === target, h.logged]);
                 editor.dispose();
             }
         }
-        eq('a1008 1.3 with the step dialog open nothing saves, no test dialog opens, the palette search keeps no focus, Mod+S is prevented (macOS, Windows)',
-            outcomes, ['MacIntel', 'Win32'].flatMap(p => ['button', 'note'].map(w => [p, w, 0, 0, 0, 0, true, true, true, []])));
+        eq('a1008 1.3 with a dialog open nothing saves, no test dialog opens, the palette search keeps no focus; Mod+S, Mod+K and Mod+Enter are prevented (macOS, Windows)',
+            outcomes, ['MacIntel', 'Win32'].flatMap(p => ['button', 'note', 'settings'].map(w => [p, w, 0, 0, 0, 0, [true, true, true], w !== 'settings', true, []])));
     });
 
     await guardAsync('a1008 1.3 the window menu items that wait for a dialog wait for the step dialog too', async () => {
@@ -210,6 +221,28 @@ export async function run(env) {
         editor.dispose();
     });
 
+    await guardAsync('a1008 1.3 review: a note typed just before the page goes away reaches the emergency copy', async () => {
+        const rows = [];
+        for (const how of ['pagehide', 'hidden']) {
+            const { h, editor, detail } = await stepDialog('Win32');
+            const note = noteField(detail);
+            note.focus();
+            note.value = 'Call Ada first';
+            note.fire('input'); // less than 400 ms before the page goes away
+            if (how === 'pagehide') (h.winListeners.pagehide || []).slice().forEach(fn => fn({ type: 'pagehide' }));
+            else {
+                h.dom.document.visibilityState = 'hidden';
+                h.fireDoc('visibilitychange', {});
+            }
+            const copy = h.store.has(DRAFT_KEY) ? JSON.parse(h.store.get(DRAFT_KEY)) : null;
+            const node = copy && copy.doc && copy.doc.nodes.find(n => n.id === A);
+            rows.push([how, node ? (node.settings || {}).notes || null : null, h.logged]);
+            editor.dispose();
+        }
+        eq('a1008 1.3 review: pagehide and a hidden page write the pending note into the emergency copy',
+            rows, [['pagehide', 'Call Ada first', []], ['hidden', 'Call Ada first', []]]);
+    });
+
     // ── 1.4: Apply in the flow settings keeps the maximum run time ──
 
     // settingsDialog opens f1 with the draft's settings (max_run_seconds: seconds; none when
@@ -222,6 +255,9 @@ export async function run(env) {
         let result = 'open';
         dialog.done.then(value => { result = value; });
         const field = name => dialog.body.querySelector('[data-ed-set="' + name + '"]');
+        // A field with validity.badInput reads as empty, as a browser's number field does for
+        // text it cannot parse.
+        ['max_run_minutes', 'max_run_seconds'].forEach(name => { if (field(name)) field(name).validity = { badInput: false }; });
         return {
             h, editor, dialog, field,
             fields: () => ['max_run_minutes', 'max_run_seconds'].map(name => (field(name) ? field(name).value : null)),
@@ -229,7 +265,15 @@ export async function run(env) {
             async apply() { dialog.el.querySelector('[data-ed-action="apply"]').fire('click'); await settle(); }
         };
     }
-    const maxRun = editor => (editor.ed.model.doc.settings || {}).max_run_seconds;
+    const maxRun = editor => {
+        const settings = editor.ed.model.doc.settings || {};
+        return Object.prototype.hasOwnProperty.call(settings, 'max_run_seconds') ? settings.max_run_seconds : 'none';
+    };
+    // BAD is input a number field cannot parse: value '' and validity.badInput.
+    const BAD = { bad: true };
+    const typeInto = (field, value) => {
+        if (value === BAD) { field.value = ''; field.validity = { badInput: true }; } else field.value = value;
+    };
 
     await guardAsync('a1008 1.4 Apply without touching the run time keeps it to the second', async () => {
         const rows = [];
@@ -238,7 +282,7 @@ export async function run(env) {
             const shown = d.fields();
             d.field('name').value = 'Renamed';
             await d.apply();
-            rows.push([seconds === undefined ? 'none' : seconds, shown, d.result(), d.editor.ed.model.doc.name, maxRun(d.editor) === undefined ? 'none' : maxRun(d.editor), d.h.logged]);
+            rows.push([seconds === undefined ? 'none' : seconds, shown, d.result(), d.editor.ed.model.doc.name, maxRun(d.editor), d.h.logged]);
             d.editor.dispose();
         }
         eq('a1008 1.4 10 s, 90 s, 30 min, 24 h and no value show as minutes and seconds and stay as they were when only the name changes', rows, [
@@ -255,25 +299,47 @@ export async function run(env) {
         const attrs = ['max_run_minutes', 'max_run_seconds'].map(name => ['min', 'max', 'step'].map(a => probe.field(name).getAttribute(a)));
         probe.editor.dispose();
         const rows = [];
-        const cases = [['2', '5'], ['0', '1'], ['1440', '0'], ['', '45'], ['3', ''], ['', ''], ['0', '0'], ['1441', '0'], ['1440', '1'], ['0', '60'], ['-1', '0'], ['1.5', '0'], ['0', '0.5']];
+        const cases = [['2', '5'], ['0', '1'], ['1440', '0'], ['', '45'], ['3', ''], ['', ''], ['0', '0'], ['1441', '0'], ['1440', '1'], ['0', '60'], ['-1', '0'], ['1.5', '0'], ['0', '0.5'],
+            [BAD, ''], [BAD, '30'], ['5', BAD]];
+        const shownAs = v => (v === BAD ? 'bad' : v);
         for (const [minutes, seconds] of cases) {
             const d = await settingsDialog(600);
-            d.field('max_run_minutes').value = minutes;
-            d.field('max_run_seconds').value = seconds;
+            typeInto(d.field('max_run_minutes'), minutes);
+            typeInto(d.field('max_run_seconds'), seconds);
             await d.apply();
             const err = d.dialog.body.querySelector('[data-ed-max-run-error]');
             const shownError = !!err && err.hidden === false ? err.textContent : '';
             const invalid = ['max_run_minutes', 'max_run_seconds'].map(name => String(d.field(name).getAttribute('aria-invalid')));
-            rows.push([minutes + ':' + seconds, d.result(), maxRun(d.editor), shownError, invalid.join(',')]);
+            rows.push([shownAs(minutes) + ':' + shownAs(seconds), d.result(), maxRun(d.editor), shownError, invalid.join(',')]);
             d.editor.dispose();
         }
         const ok = (input, seconds) => [input, 'apply', seconds, '', 'null,null'];
         const refused = input => [input, 'open', 600, 'flow_max_run_invalid', 'true,true'];
         eq('a1008 1.4 minutes 0-1440 and seconds 0-59 in whole numbers', attrs, [['0', '1440', '1'], ['0', '59', '1']]);
-        eq('a1008 1.4 typed run times: 1 s to 24 h is kept to the second, both fields empty is the 30-minute default, anything else is refused with a visible error', rows, [
-            ok('2:5', 125), ok('0:1', 1), ok('1440:0', 86400), ok(':45', 45), ok('3:', 180), ok(':', 1800),
-            refused('0:0'), refused('1441:0'), refused('1440:1'), refused('0:60'), refused('-1:0'), refused('1.5:0'), refused('0:0.5')
+        eq('a1008 1.4 typed run times: 1 s to 24 h is kept to the second, both fields empty drop the value (the server\'s 30-minute default), anything else, also input the browser cannot parse, is refused with a visible error', rows, [
+            ok('2:5', 125), ok('0:1', 1), ok('1440:0', 86400), ok(':45', 45), ok('3:', 180), ok(':', 'none'),
+            refused('0:0'), refused('1441:0'), refused('1440:1'), refused('0:60'), refused('-1:0'), refused('1.5:0'), refused('0:0.5'),
+            refused('bad:'), refused('bad:30'), refused('5:bad')
         ]);
+    });
+
+    await guardAsync('a1008 1.4 review: the run time error describes both fields while it shows', async () => {
+        const d = await settingsDialog(600);
+        const described = () => ['max_run_minutes', 'max_run_seconds'].map(name => d.field(name).getAttribute('aria-describedby'));
+        const err = d.dialog.body.querySelector('[data-ed-max-run-error]');
+        const before = described();
+        d.field('max_run_minutes').value = '0';
+        d.field('max_run_seconds').value = '0';
+        await d.apply();
+        const shown = [described(), err.hidden, err.id];
+        d.field('max_run_minutes').value = '1';
+        d.field('max_run_minutes').fire('input');
+        const cleared = [described(), err.hidden, ['max_run_minutes', 'max_run_seconds'].map(name => d.field(name).getAttribute('aria-invalid'))];
+        const hint = 'ed-max-run-w1-hint';
+        const both = hint + ' ed-max-run-w1-error';
+        eq('a1008 1.4 review: aria-describedby names the error while it shows, and only the hint once typing clears it',
+            [before, shown, cleared, d.h.logged], [[hint, hint], [[both, both], false, 'ed-max-run-w1-error'], [[hint, hint], true, [null, null]], []]);
+        d.editor.dispose();
     });
 
     await guardAsync('a1008 1.4 the run time strings exist in every locale', async () => {
@@ -328,6 +394,56 @@ export async function run(env) {
         ed.model.setParam(A, 'query', 'changed');
         eq('a1008 1.5 each tool button keeps the focus and its tab stop through running, success, error and a new run; status, duration and error show',
             [rows, statusRebuilds, rebuilds - statusRebuilds, h.logged], [['test', 'disable', 'duplicate', 'delete'].flatMap(expected), 0, 1, []]);
+        editor.dispose();
+    });
+
+    await guardAsync('a1008 1.5 review: an open issue shows and goes in place, the tools keep the focus', async () => {
+        const h = sandbox(() => undefined);
+        const editor = openEditor(h);
+        await settle();
+        const ed = editor.ed;
+        ed.selection.add(A);
+        ed.bus.emit('selection', ed.selection);
+        const card = editor.el.querySelector('[data-node-id="' + A + '"]');
+        let rebuilds = 0;
+        const setHTML = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(card), 'innerHTML').set;
+        Object.defineProperty(card, 'innerHTML', { configurable: true, set(value) { rebuilds++; setHTML.call(this, value); } });
+        const btn = card.querySelector('[data-ed-node-tool="test"]');
+        btn.focus();
+        const badge = () => !!card.querySelector('.ed-badge--issue');
+        const focused = () => h.dom.document.activeElement === btn && card.contains(btn);
+        const rows = [[badge(), focused()]];
+        ed.issues = [{ node_id: A, severity: 'error', code: 'PARAM_REQUIRED', message: 'query is required' }];
+        ed.bus.emit('issues', ed.issues);
+        rows.push([badge(), focused()]);
+        ed.issues = [];
+        ed.bus.emit('issues', ed.issues);
+        rows.push([badge(), focused()]);
+        eq('a1008 1.5 review: the issue badge comes and goes without a card rebuild, the focused tool stays',
+            [rows, rebuilds, h.logged], [[[false, true], [true, true], [false, true]], 0, []]);
+        editor.dispose();
+    });
+
+    await guardAsync('a1008 1.5 review: Disable from the keyboard keeps the focus on the tool of the redrawn card', async () => {
+        const h = sandbox(() => undefined);
+        const editor = openEditor(h);
+        await settle();
+        const ed = editor.ed;
+        ed.selection.add(A);
+        ed.bus.emit('selection', ed.selection);
+        const card = editor.el.querySelector('[data-node-id="' + A + '"]');
+        const tool = () => card.querySelector('[data-ed-node-tool="disable"]');
+        const rows = [];
+        for (let i = 0; i < 2; i++) {
+            const before = tool();
+            before.focus();
+            before.fire('click'); // Enter or Space on a focused button
+            const now = h.dom.document.activeElement;
+            const focusAfterDisable = now === tool() && card.contains(now);
+            rows.push([!!ed.model.node(A).settings.disabled, focusAfterDisable, now !== before, now ? now.getAttribute('tabindex') : null]);
+        }
+        eq('a1008 1.5 review: off and on again, the new Disable button has the focus and stays a tab stop',
+            [rows, h.logged], [[[true, true, true, '0'], [false, true, true, '0']], []]);
         editor.dispose();
     });
 
