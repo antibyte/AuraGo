@@ -146,6 +146,9 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-input--small { min-height: 26px; padding: 3px 8px; font-size: 12px; width: auto; }
 .ed-input-unit { display: flex; align-items: center; gap: 8px; }
 .ed-input-unit .ed-input { max-width: 120px; }
+.ed-input-unit--pair { flex-wrap: wrap; gap: 8px 16px; }
+.ed-input-unit--pair .ed-input { max-width: 96px; }
+.ed-input[aria-invalid="true"] { border-color: var(--ed-danger); }
 
 .ed-search { position: relative; display: flex; align-items: center; }
 .ed-search > .ed-icon { position: absolute; left: 10px; color: var(--ed-muted); pointer-events: none; }

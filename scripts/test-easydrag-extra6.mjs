@@ -1,16 +1,52 @@
 // a1008 checks (audit 2026-10-08, the editor findings): the test dialog confirms effects only for
 // a test that started; the step dialog blocks the editor's shortcuts and window menus like any
-// other dialog, and its pending note is saved before the editor leaves. They run on the c1d07
-// sandbox (test-easydrag-extra3.mjs returns sandbox, openEditor and desktopMenus);
-// test-easydrag.mjs calls run(env) with its helpers and counts the failures.
+// other dialog, and its pending note is saved before the editor leaves; Apply in the flow
+// settings keeps the maximum run time to the second. They run on the c1d07 sandbox
+// (test-easydrag-extra3.mjs returns sandbox, openEditor and desktopMenus); test-easydrag.mjs
+// calls run(env) with its helpers and counts the failures.
+import fs from 'node:fs';
+import path from 'node:path';
 
+const T1 = 'n_tttttttt';
 const A = 'n_aaaaaaaa';
+const B = 'n_bbbbbbbb';
 const EFFECTS_KEY = 'aurago.easydrag.effects-ok.f1';
 
+// flowDoc is a flow start -> alpha -> beta, as in test-easydrag-extra3.mjs.
+function flowDoc(settings) {
+    const doc = {
+        schema: 1, name: 'Flow',
+        nodes: [
+            { id: T1, key: 'start', type: 'trigger.manual', label: 'Start', position: { x: 0, y: 0 }, params: {}, settings: {} },
+            { id: A, key: 'alpha', type: 'web.search', label: 'Alpha', position: { x: 300, y: 0 }, params: { query: 'x' }, settings: {} },
+            { id: B, key: 'beta', type: 'web.search', label: 'Beta', position: { x: 600, y: 0 }, params: { query: '' }, settings: {} }
+        ],
+        edges: [
+            { id: 'e1', source: { node: T1, port: 'out' }, target: { node: A, port: 'in' } },
+            { id: 'e2', source: { node: A, port: 'out' }, target: { node: B, port: 'in' } }
+        ]
+    };
+    if (settings) doc.settings = settings;
+    return doc;
+}
+
 const apiError = code => Object.assign(new Error('text ' + code), { body: { error: 'text ' + code, code } });
+const LOCALES = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
+
+function readLang(apps, locale) {
+    return JSON.parse(fs.readFileSync(path.join(apps, '..', '..', '..', 'lang', 'easydrag', locale + '.json'), 'utf8'));
+}
+
+// missingKeys lists locale:key for each key that a locale lacks or leaves empty.
+function missingKeys(apps, keys) {
+    return LOCALES.flatMap(locale => {
+        const words = readLang(apps, locale);
+        return keys.filter(key => typeof words[key] !== 'string' || !words[key].trim()).map(key => locale + ':' + key);
+    });
+}
 
 export async function run(env) {
-    const { types, eq, guardAsync, settle, sandbox, openEditor, desktopMenus } = env;
+    const { apps, types, eq, guardAsync, settle, sandbox, openEditor, desktopMenus } = env;
 
     // ── 1.1: the effects are confirmed by a test that started, not by a click on Run ──
 
@@ -171,5 +207,76 @@ export async function run(env) {
         eq('a1008 1.3 leave() saves the pending note (the step dialog stays open until the editor goes)',
             [left, saved, editor.ed.saver.state, !!editor.ed.detail, h.logged], [true, 'Call Ada first', 'saved', true, []]);
         editor.dispose();
+    });
+
+    // ── 1.4: Apply in the flow settings keeps the maximum run time ──
+
+    // settingsDialog opens f1 with the draft's settings (max_run_seconds: seconds; none when
+    // undefined) and its flow settings; fields reads [minutes, seconds] as shown.
+    async function settingsDialog(seconds) {
+        const h = sandbox(req => (req.method === 'PUT' ? { draft_revision: 4, issues: [] } : undefined));
+        const editor = openEditor(h, { flow: { draft: flowDoc(seconds === undefined ? null : { max_run_seconds: seconds }) } });
+        await settle();
+        const dialog = h.ED.dialogs.flowSettings(editor.ed);
+        let result = 'open';
+        dialog.done.then(value => { result = value; });
+        const field = name => dialog.body.querySelector('[data-ed-set="' + name + '"]');
+        return {
+            h, editor, dialog, field,
+            fields: () => ['max_run_minutes', 'max_run_seconds'].map(name => (field(name) ? field(name).value : null)),
+            result: () => result,
+            async apply() { dialog.el.querySelector('[data-ed-action="apply"]').fire('click'); await settle(); }
+        };
+    }
+    const maxRun = editor => (editor.ed.model.doc.settings || {}).max_run_seconds;
+
+    await guardAsync('a1008 1.4 Apply without touching the run time keeps it to the second', async () => {
+        const rows = [];
+        for (const seconds of [10, 90, 1800, 86400, undefined]) {
+            const d = await settingsDialog(seconds);
+            const shown = d.fields();
+            d.field('name').value = 'Renamed';
+            await d.apply();
+            rows.push([seconds === undefined ? 'none' : seconds, shown, d.result(), d.editor.ed.model.doc.name, maxRun(d.editor) === undefined ? 'none' : maxRun(d.editor), d.h.logged]);
+            d.editor.dispose();
+        }
+        eq('a1008 1.4 10 s, 90 s, 30 min, 24 h and no value show as minutes and seconds and stay as they were when only the name changes', rows, [
+            [10, ['0', '10'], 'apply', 'Renamed', 10, []],
+            [90, ['1', '30'], 'apply', 'Renamed', 90, []],
+            [1800, ['30', '0'], 'apply', 'Renamed', 1800, []],
+            [86400, ['1440', '0'], 'apply', 'Renamed', 86400, []],
+            ['none', ['30', '0'], 'apply', 'Renamed', 'none', []]
+        ]);
+    });
+
+    await guardAsync('a1008 1.4 the run time fields match the server range, read 0 as a value and refuse what is out of range visibly', async () => {
+        const probe = await settingsDialog(1800);
+        const attrs = ['max_run_minutes', 'max_run_seconds'].map(name => ['min', 'max', 'step'].map(a => probe.field(name).getAttribute(a)));
+        probe.editor.dispose();
+        const rows = [];
+        const cases = [['2', '5'], ['0', '1'], ['1440', '0'], ['', '45'], ['3', ''], ['', ''], ['0', '0'], ['1441', '0'], ['1440', '1'], ['0', '60'], ['-1', '0'], ['1.5', '0'], ['0', '0.5']];
+        for (const [minutes, seconds] of cases) {
+            const d = await settingsDialog(600);
+            d.field('max_run_minutes').value = minutes;
+            d.field('max_run_seconds').value = seconds;
+            await d.apply();
+            const err = d.dialog.body.querySelector('[data-ed-max-run-error]');
+            const shownError = !!err && err.hidden === false ? err.textContent : '';
+            const invalid = ['max_run_minutes', 'max_run_seconds'].map(name => String(d.field(name).getAttribute('aria-invalid')));
+            rows.push([minutes + ':' + seconds, d.result(), maxRun(d.editor), shownError, invalid.join(',')]);
+            d.editor.dispose();
+        }
+        const ok = (input, seconds) => [input, 'apply', seconds, '', 'null,null'];
+        const refused = input => [input, 'open', 600, 'flow_max_run_invalid', 'true,true'];
+        eq('a1008 1.4 minutes 0-1440 and seconds 0-59 in whole numbers', attrs, [['0', '1440', '1'], ['0', '59', '1']]);
+        eq('a1008 1.4 typed run times: 1 s to 24 h is kept to the second, both fields empty is the 30-minute default, anything else is refused with a visible error', rows, [
+            ok('2:5', 125), ok('0:1', 1), ok('1440:0', 86400), ok(':45', 45), ok('3:', 180), ok(':', 1800),
+            refused('0:0'), refused('1441:0'), refused('1440:1'), refused('0:60'), refused('-1:0'), refused('1.5:0'), refused('0:0.5')
+        ]);
+    });
+
+    await guardAsync('a1008 1.4 the run time strings exist in every locale', async () => {
+        eq('a1008 1.4 seconds unit, range hint and range error in all 16 locales',
+            missingKeys(apps, ['easydrag.ui.unit_seconds', 'easydrag.ui.flow_max_run_hint', 'easydrag.ui.flow_max_run_invalid']), []);
     });
 }

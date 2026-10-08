@@ -109,7 +109,33 @@
         return dialog;
     }
 
-    // flowSettings edits name, description and flow-wide settings as one undo step.
+    // DEFAULT_MAX_RUN and MAX_RUN_LIMIT mirror DefaultMaxRunSeconds and MaxRunSecondsLimit in
+    // internal/flows/model.go: a run lasts 1 s to 24 h, and a flow without a value gets 30 min.
+    const DEFAULT_MAX_RUN = 1800;
+    const MAX_RUN_LIMIT = 86400;
+
+    // maxRunParts shows a run time in seconds as whole minutes and seconds, without rounding.
+    function maxRunParts(seconds) {
+        const total = seconds > 0 ? Math.min(seconds, MAX_RUN_LIMIT) : DEFAULT_MAX_RUN;
+        return [String(Math.floor(total / 60)), String(total % 60)];
+    }
+
+    // readMaxRun reads the two fields: whole minutes and seconds (0-59), together 1 s to 24 h.
+    // Both fields empty means the default; one empty field counts as 0, and 0 is a value. null:
+    // out of range or not whole numbers.
+    function readMaxRun(minutesText, secondsText) {
+        const m = String(minutesText).trim();
+        const s = String(secondsText).trim();
+        if (!m && !s) return DEFAULT_MAX_RUN;
+        const whole = text => (text === '' ? 0 : /^\d+$/.test(text) ? Number(text) : NaN);
+        const minutes = whole(m);
+        const seconds = whole(s);
+        const total = minutes * 60 + seconds;
+        return seconds <= 59 && total >= 1 && total <= MAX_RUN_LIMIT ? total : null;
+    }
+
+    // flowSettings edits name, description and flow-wide settings as one undo step. The maximum
+    // run time is changed only when its fields were: Apply keeps any stored value exactly.
     function flowSettings(ed) {
         const core = ED.core;
         const { t, esc } = ed;
@@ -117,30 +143,50 @@
         const s = doc.settings || {};
         const ro = !!(ed.readonly || ed.runView);
         const opt = (value, current, label) => '<option value="' + esc(value) + '"' + (value === current ? ' selected' : '') + '>' + esc(label) + '</option>';
+        const run = maxRunParts(s.max_run_seconds);
+        const runId = 'ed-max-run-' + ed.windowId;
+        const runInput = (name, value, max, unit) => '<label class="ed-input-unit"><input class="ed-input" type="number" min="0" max="' + max + '" step="1" inputmode="numeric" data-ed-set="' + name + '" value="' + esc(value) + '" aria-describedby="' + esc(runId) + '-hint"' + (ro ? ' disabled' : '') + '><span>' + esc(t(unit)) + '</span></label>';
         const body =
             '<label class="ed-field"><span class="ed-label">' + esc(t('easydrag.ui.flow_name')) + '</span><input class="ed-input" data-ed-set="name" maxlength="120" value="' + esc(doc.name || '') + '"' + (ro ? ' disabled' : '') + '></label>' +
             '<label class="ed-field"><span class="ed-label">' + esc(t('easydrag.ui.flow_description')) + '</span><textarea class="ed-input" data-ed-set="description" rows="3" maxlength="2000"' + (ro ? ' disabled' : '') + '>' + esc(doc.description || '') + '</textarea></label>' +
             '<label class="ed-field"><span class="ed-label">' + esc(t('easydrag.ui.flow_concurrency')) + '</span><select class="ed-input" data-ed-set="concurrency"' + (ro ? ' disabled' : '') + '>' +
             ['queue', 'parallel', 'skip'].map(v => opt(v, s.concurrency || 'queue', t('easydrag.ui.concurrency_' + v))).join('') + '</select>' +
             '<span class="ed-help">' + esc(t('easydrag.ui.flow_concurrency_help')) + '</span></label>' +
-            '<label class="ed-field"><span class="ed-label">' + esc(t('easydrag.ui.flow_max_run')) + '</span><span class="ed-input-unit"><input class="ed-input" type="number" min="10" max="86400" step="10" data-ed-set="max_run_minutes" value="' + Math.round((s.max_run_seconds || 1800) / 60) + '"' + (ro ? ' disabled' : '') + '><span>' + esc(t('easydrag.ui.unit_minutes')) + '</span></span></label>' +
+            '<div class="ed-field" role="group" aria-labelledby="' + esc(runId) + '"><span class="ed-label" id="' + esc(runId) + '">' + esc(t('easydrag.ui.flow_max_run')) + '</span>' +
+            '<div class="ed-input-unit ed-input-unit--pair">' + runInput('max_run_minutes', run[0], 1440, 'easydrag.ui.unit_minutes') + runInput('max_run_seconds', run[1], 59, 'easydrag.ui.unit_seconds') + '</div>' +
+            '<p class="ed-hint" id="' + esc(runId) + '-hint">' + esc(t('easydrag.ui.flow_max_run_hint')) + '</p><p class="ed-error" role="alert" data-ed-max-run-error hidden></p></div>' +
             '<label class="ed-field"><span class="ed-label">' + esc(t('easydrag.ui.flow_notify')) + '</span><select class="ed-input" data-ed-set="notify_on_error"' + (ro ? ' disabled' : '') + '>' +
             ['desktop', 'push', 'telegram', 'off'].map(v => opt(v, s.notify_on_error || 'desktop', t('easydrag.ui.notify_' + v))).join('') + '</select></label>';
-        return core.modal(ed.root, {
+        const dialog = core.modal(ed.root, {
             title: t('easydrag.ui.flow_settings'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--settings', body,
             actions: ro ? [{ id: 'close-dialog', label: t('easydrag.ui.close') }] : [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'apply', label: t('easydrag.ui.apply'), primary: true }],
             onAction: (id, dialog) => {
                 if (id !== 'apply') return true;
                 const get = name => dialog.body.querySelector('[data-ed-set="' + name + '"]').value;
-                const minutes = core.clamp(Math.round(Number(get('max_run_minutes')) || 30), 1, 1440);
-                ed.model.setFlow({
-                    name: get('name').trim() || doc.name,
-                    description: get('description').trim(),
-                    settings: Object.assign({}, s, { concurrency: get('concurrency'), max_run_seconds: minutes * 60, notify_on_error: get('notify_on_error') })
-                });
+                const settings = Object.assign({}, s, { concurrency: get('concurrency'), notify_on_error: get('notify_on_error') });
+                if (get('max_run_minutes') !== run[0] || get('max_run_seconds') !== run[1]) {
+                    const seconds = readMaxRun(get('max_run_minutes'), get('max_run_seconds'));
+                    const fields = dialog.body.querySelectorAll('[data-ed-set="max_run_minutes"], [data-ed-set="max_run_seconds"]');
+                    if (seconds === null) {
+                        const err = dialog.body.querySelector('[data-ed-max-run-error]');
+                        err.textContent = t('easydrag.ui.flow_max_run_invalid');
+                        err.hidden = false;
+                        fields.forEach(f => f.setAttribute('aria-invalid', 'true'));
+                        fields[0].focus();
+                        return false;
+                    }
+                    settings.max_run_seconds = seconds;
+                }
+                ed.model.setFlow({ name: get('name').trim() || doc.name, description: get('description').trim(), settings });
                 return true;
             }
         });
+        // Typing in the run time takes a shown error back until the next Apply.
+        dialog.body.querySelectorAll('[data-ed-set="max_run_minutes"], [data-ed-set="max_run_seconds"]').forEach(field => field.addEventListener('input', () => {
+            dialog.body.querySelector('[data-ed-max-run-error]').hidden = true;
+            dialog.body.querySelectorAll('[aria-invalid]').forEach(f => f.removeAttribute('aria-invalid'));
+        }));
+        return dialog;
     }
 
     // conflict asks whether to load the server's newer draft or keep the local one. Only an explicit
