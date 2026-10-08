@@ -131,6 +131,8 @@ func (h *Hub) Notify(title, body, priority string, ttl int) Notify {
 		copyN.Speak = true
 		n.Speak = true
 		h.speak.Queue(n.ID, n.Title, n.Body)
+	} else if !inGoTest() {
+		h.speak.warnUnavailable()
 	}
 	h.overlay = &copyN
 	h.overlayUntil = time.Now().Add(time.Duration(n.TTLS) * time.Second)

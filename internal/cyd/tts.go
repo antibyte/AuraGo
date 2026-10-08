@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,6 +31,7 @@ type Speaker struct {
 	bin      string
 	voice    string
 	cacheDir string
+	warned   bool
 }
 
 // NewSpeaker looks up sanotts on PATH. The systemd service has no PATH entry
@@ -85,9 +87,23 @@ func (s *Speaker) Get(id string) []byte {
 	return s.clips[id]
 }
 
+func (s *Speaker) warnUnavailable() {
+	if s == nil || s.Available() {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.warned {
+		return
+	}
+	s.warned = true
+	slog.Warn("[CYD] glass speech is unavailable: sanoTTS executable not found")
+}
+
 func (s *Speaker) render(id, text string) {
 	pcm, err := synthesizeU8(s.bin, s.voice, text, s.cacheDir)
 	if err != nil {
+		slog.Warn("[CYD] speech synthesis failed", "id", id, "error", err)
 		return
 	}
 	s.mu.Lock()

@@ -63,6 +63,11 @@ func gzipRequestEligible(r *http.Request) bool {
 		// User media / workspace downloads: may be binary and Range-heavy.
 		return false
 	}
+	// Keep the device protocol uncompressed, including JSON errors and snapshots.
+	// The glass expects raw bodies with Content-Length, not gzip or chunked data.
+	if strings.HasPrefix(p, "/api/cyd/") {
+		return false
+	}
 	return true
 }
 

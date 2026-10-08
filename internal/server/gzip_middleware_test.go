@@ -171,6 +171,29 @@ func TestGzipMiddlewarePreservesSniffedContentType(t *testing.T) {
 	}
 }
 
+func TestGzipMiddlewareLeavesCYDUncompressed(t *testing.T) {
+	t.Parallel()
+
+	// JSON on this subtree is compressible. The glass still needs the raw
+	// body and Content-Length, including for the PCM sibling route.
+	body := []byte(`{"speak":true,"id":"ntf_abc"}`)
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/cyd/speak/ntf_abc", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	rec := httptest.NewRecorder()
+	gzipMiddleware(inner).ServeHTTP(rec, req)
+
+	if rec.Header().Get("Content-Encoding") != "" {
+		t.Fatalf("Content-Encoding = %q", rec.Header().Get("Content-Encoding"))
+	}
+	if rec.Body.String() != string(body) {
+		t.Fatal("CYD body was compressed")
+	}
+}
+
 func TestGzipMiddlewareHeaderOnlyResponseKeepsStatus(t *testing.T) {
 	t.Parallel()
 
