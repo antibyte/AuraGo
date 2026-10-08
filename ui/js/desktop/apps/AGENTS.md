@@ -228,7 +228,11 @@
   keys); built keys (`core.tr`) belong to a family of `TestEasyDragUIKeysExistInAllLocales`.
 - `createApi` (`easydrag-core.js`) errors carry `err.body.code`, shown as
   `easydrag.ui.error_<code>`. SSE (`/runs/{id}/events?after=<seq>`) is idempotent and
-  reconnects at once on `event: resync`.
+  reconnects at once on `event: resync`. Only `FLOWS_DISABLED` (flows switched off) gets the
+  lock card with "Open settings" (`easydrag.js` `showError`, the start page's `errorCard`); the
+  other 503 codes (`FLOW_MISSION_CONTROL_UNAVAILABLE`, `FLOW_RUNNER_STOPPED`,
+  `FLOW_VAULT_UNAVAILABLE`, `FLOW_REQUEST_CANCELLED`) show their own sentence with Try again
+  (`a1008` checks in `scripts/test-easydrag-extra5.mjs`).
 - Test effects (`ED.runs.effects`): each step that runs counts with its catalog effects (default
   params) and those of its real params from `GET publish-preview` (`CollectEffects`). Without
   the preview, or with a running step whose catalog entry is risky without effects (a failed

@@ -716,4 +716,64 @@ export async function run(env) {
             [before, cancels, h.puts().length, h.notes, h.logged], [[true, true, true, true, true], 1, 0, [], []]);
         editor.dispose();
     });
+
+    // ── audit 2026-10-08, finding 1.2: only FLOWS_DISABLED means "switched off" ──
+    const A1008_CODES = ['FLOW_MISSION_CONTROL_UNAVAILABLE', 'FLOW_RUNNER_STOPPED', 'FLOW_VAULT_UNAVAILABLE', 'FLOW_REQUEST_CANCELLED'];
+    await guardAsync('a1008 1.2 the other 503 causes show their error with Try again, not the switched-off card', async () => {
+        const rows = [];
+        for (const code of [...A1008_CODES, 'FLOWS_DISABLED']) {
+            // The window while it loads (easydrag.js showError). The mini DOM keeps no text, so the
+            // card's words are told by the keys it asked for after the failed load.
+            const d = sandbox(() => { throw apiError(code); });
+            const host = d.body.appendChild(new d.dom.El('div', {}));
+            let asked = null;
+            const spyT = (key, params) => { if (asked) asked.push(key.replace('easydrag.ui.', '')); return t(key, params); };
+            d.win.EasyDragApp.render(host, 'a1008', Object.assign({}, d.ctx, { api: d.transport, t: spyT }));
+            asked = [];
+            await settle();
+            const box = host.querySelector('.ed-shell-error');
+            const shell = box && [asked.includes('disabled_title'), !!box.querySelector('[data-ed-shell="config"]'),
+                !!box.querySelector('[data-ed-shell="retry"]'), asked.includes('error_' + code.toLowerCase())];
+            d.win.EasyDragApp.dispose('a1008');
+            // The start page's flow list (easydrag-home.js errorCard); New and Import stay usable.
+            const h = sandbox(req => {
+                if (req.url === '/api/desktop/flows') throw apiError(code);
+                if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+                return undefined;
+            });
+            const home = h.ED.home.create({ ctx: h.ctx, t, esc: h.ED.core.esc, api: h.api, catalog: h.catalog, readonly: false, openFlow: () => {} });
+            h.body.appendChild(home.el);
+            await settle();
+            const grid = home.el.querySelector('.ed-flow-grid').html;
+            const card = [grid.includes('disabled_title'), grid.includes('data-ed-home-settings'), grid.includes('data-ed-home-retry'),
+                grid.includes('error_' + code.toLowerCase()), home.el.querySelector('[data-ed-import]').disabled];
+            home.dispose();
+            rows.push([code, shell, card, d.logged.concat(h.logged)]);
+        }
+        eq('a1008 1.2 Mission Control, runner, vault and cancel errors are errors with Try again; FLOWS_DISABLED keeps the lock card',
+            rows, [...A1008_CODES.map(code => [code, [false, false, true, true], [false, false, true, true, false], []]),
+                ['FLOWS_DISABLED', [true, true, true, false], [true, true, true, false, true], []]]);
+    });
+
+    await guardAsync('a1008 1.2 the new codes read as their own sentence in every locale', async () => {
+        const en = readLang(apps, 'easydrag', 'en');
+        const realT = key => en[key] || key;
+        const core = sandbox(() => undefined).ED.core;
+        eq('a1008 1.2 en: errorText names the cause',
+            A1008_CODES.map(code => core.errorText(realT, apiError(code))), [
+                'Mission Control is not available right now.',
+                'EasyDrag is shutting down or restarting. Try again in a moment.',
+                'The Vault is not available, so flow secrets cannot be used.',
+                'The request was cancelled.'
+            ]);
+        const missing = [];
+        for (const locale of LOCALES) {
+            const words = readLang(apps, 'easydrag', locale);
+            for (const code of A1008_CODES) {
+                const text = words['easydrag.ui.error_' + code.toLowerCase()];
+                if (!text || !text.trim() || text === words['easydrag.ui.error_flows_disabled']) missing.push(locale + ':' + code);
+            }
+        }
+        eq('a1008 1.2 every locale has the four sentences, none of them the switched-off one', missing, []);
+    });
 }

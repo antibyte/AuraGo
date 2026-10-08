@@ -171,7 +171,7 @@ func TestFUFlowsWriteCarriesARevocableGrant(t *testing.T) {
 	s.revokeDesktopRuns()
 	select {
 	case w := <-answer:
-		if body := flowsBody(t, w); w.Code != http.StatusServiceUnavailable || body["code"] != "FLOWS_DISABLED" ||
+		if body := flowsBody(t, w); w.Code != http.StatusServiceUnavailable || body["code"] != "FLOW_REQUEST_CANCELLED" ||
 			!strings.Contains(w.Body.String(), "the request was cancelled") {
 			t.Fatalf("revoked publish = %d %s, want 503 the request was cancelled", w.Code, w.Body.String())
 		}

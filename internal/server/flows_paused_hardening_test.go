@@ -76,7 +76,8 @@ func TestFF1RunNowOfAPausedFlowIsRefused(t *testing.T) {
 
 // FF1 review: Run now names the real reason when the flow is not switched on because its
 // mission is gone from Mission Control (409 FLOW_MISSION_MISSING) or Mission Control is not
-// there at all (503 FLOWS_DISABLED); "paused" is only for a mission that is switched off.
+// there at all (503 FLOW_MISSION_CONTROL_UNAVAILABLE, audit 2026-10-08 finding 1.2); "paused"
+// is only for a mission that is switched off.
 func TestFF1RunNowTellsAMissingMissionFromAPause(t *testing.T) {
 	s, token := newFlowsTestServer(t)
 	ctx := context.Background()
@@ -88,7 +89,7 @@ func TestFF1RunNowTellsAMissingMissionFromAPause(t *testing.T) {
 	s.MissionManagerV2 = nil
 	w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/run", token, "")
 	s.MissionManagerV2 = mm
-	if w.Code != http.StatusServiceUnavailable || flowsBody(t, w)["code"] != "FLOWS_DISABLED" {
+	if w.Code != http.StatusServiceUnavailable || flowsBody(t, w)["code"] != "FLOW_MISSION_CONTROL_UNAVAILABLE" {
 		t.Fatalf("run without Mission Control = %d %s", w.Code, w.Body.String())
 	}
 	if err := mm.DeleteFlowMission(rec.MissionID); err != nil {

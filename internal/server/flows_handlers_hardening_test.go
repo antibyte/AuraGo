@@ -143,13 +143,13 @@ func TestC17ErrorMapCoversEveryFlowSentinel(t *testing.T) {
 		{flows.ErrNoTrigger, http.StatusConflict, "FLOW_NO_TRIGGER"},
 		{flows.ErrFlowDisabled, http.StatusConflict, "FLOW_DISABLED"},
 		{flows.ErrFlowMissionMissing, http.StatusConflict, "FLOW_MISSION_MISSING"},
-		{flows.ErrMissionControlUnavailable, http.StatusServiceUnavailable, "FLOWS_DISABLED"},
+		{flows.ErrMissionControlUnavailable, http.StatusServiceUnavailable, "FLOW_MISSION_CONTROL_UNAVAILABLE"},
 		{fmt.Errorf("%w: %q", flows.ErrFlowExists, "flow_x"), http.StatusConflict, "FLOW_EXISTS"},
 		{fmt.Errorf("lookup: %w", flows.ErrMissionAmbiguous), http.StatusConflict, "FLOW_MISSION_AMBIGUOUS"},
 		{tools.ErrMissionLocked, http.StatusConflict, "FLOW_LOCKED"},
 		{fmt.Errorf("delete: %w", tools.ErrMissionLocked), http.StatusConflict, "FLOW_LOCKED"},
 		{flows.ErrQueueFull, http.StatusTooManyRequests, "FLOW_RUN_LIMIT"},
-		{flows.ErrRunnerClosed, http.StatusServiceUnavailable, "FLOWS_DISABLED"},
+		{flows.ErrRunnerClosed, http.StatusServiceUnavailable, "FLOW_RUNNER_STOPPED"},
 		{flows.ErrDocumentTooLarge, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE"},
 		{flows.ErrTestDataTooLarge, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE"},
 		{&http.MaxBytesError{Limit: 4096}, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE"},
@@ -218,7 +218,7 @@ func TestC17CancelledRequestGets503(t *testing.T) {
 		r.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 		s.handleFlows(w, r)
-		if body := flowsBody(t, w); w.Code != http.StatusServiceUnavailable || body["code"] != "FLOWS_DISABLED" ||
+		if body := flowsBody(t, w); w.Code != http.StatusServiceUnavailable || body["code"] != "FLOW_REQUEST_CANCELLED" ||
 			body["error"] != "the request was cancelled" {
 			t.Fatalf("cancelled %s = %d %s", req.method, w.Code, w.Body.String())
 		}
@@ -764,7 +764,7 @@ func TestC17SecretDeleteAuditsOnlyRealDeletes(t *testing.T) {
 	r.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 	s.handleFlows(w, r)
-	if body := flowsBody(t, w); w.Code != http.StatusServiceUnavailable || body["code"] != "FLOWS_DISABLED" || body["error"] != "the request was cancelled" {
+	if body := flowsBody(t, w); w.Code != http.StatusServiceUnavailable || body["code"] != "FLOW_REQUEST_CANCELLED" || body["error"] != "the request was cancelled" {
 		t.Fatalf("cancelled delete = %d %s", w.Code, w.Body.String())
 	}
 	list := flowsCall(t, s, http.MethodGet, "/api/desktop/flows/secrets", token, "")

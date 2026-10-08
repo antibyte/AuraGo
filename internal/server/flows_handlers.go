@@ -194,10 +194,22 @@ func nonNilIssues(issues []flows.Issue) []flows.Issue {
 // 1c, "HTTP API contract"), extended by FLOW_TOO_LARGE (413: a document, test data or a
 // request body over its limit), FLOW_EXISTS (409) and FLOW_MISSION_AMBIGUOUS (409).
 //
+// FLOWS_DISABLED (503) means only that flows are switched off or not available at all
+// (handleFlows' gate: flows.enabled, missions off, a store that did not open). Every other
+// reason why the service cannot serve a request has a code of its own, so the editor does
+// not show its "switched off" card for it: FLOW_MISSION_CONTROL_UNAVAILABLE and
+// FLOW_RUNNER_STOPPED here, FLOW_VAULT_UNAVAILABLE in flowsSecrets, FLOW_REQUEST_CANCELLED
+// below; all four are 503 (audit 2026-10-08, finding 1.2).
+//
 //   - A request whose context was cancelled (r's context ended and err is that context's
-//     error: the client went away, or the server cancelled it while draining for a
-//     shutdown) gets 503 FLOWS_DISABLED "the request was cancelled", logged at Debug. A
-//     client that is gone does not read it; one that still waits must not see a 200.
+//     error) gets 503 FLOW_REQUEST_CANCELLED "the request was cancelled", logged at Debug.
+//     A client that went away does not read it. One that still waits does: the server
+//     cancels requests while it drains for a shutdown, and revoking the Desktop grants (a
+//     read-only switch) cancels the writes that hold one. Such a client must not see a 200,
+//     and nothing was done. 503 says "not served now, ask again later": a retry after a
+//     drain meets the restarted server, one after a revocation the read-only answer. net/http
+//     has no status for a request the server abandoned (nginx's 499 is not standard and
+//     means the client closed it), and a 4xx would tell the editor's saver to give up.
 //   - A mapped error echoes its text scrubbed and cut to flowErrorRunes runes (the flow
 //     package already bounds the user data it quotes).
 //   - Anything else is FLOW_INTERNAL with flowsInternalMessage only: the error can hold
@@ -209,7 +221,7 @@ func nonNilIssues(issues []flows.Issue) []flows.Issue {
 func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err error) {
 	if r.Context().Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
 		s.Logger.Debug("Flow API request was cancelled", "method", r.Method, "path", flowBoundRunes(r.URL.Path, flowsLogPathRunes))
-		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", "the request was cancelled")
+		flowsError(w, http.StatusServiceUnavailable, "FLOW_REQUEST_CANCELLED", "the request was cancelled")
 		return
 	}
 	var ve *flows.ValidationError
@@ -238,14 +250,14 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 	case errors.Is(err, tools.ErrMissionLocked):
 		flowsError(w, http.StatusConflict, "FLOW_LOCKED", "the flow's mission is locked in Mission Control; unlock it there first")
 	case errors.Is(err, flows.ErrMissionControlUnavailable):
-		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", flowsErrorText(err))
+		flowsError(w, http.StatusServiceUnavailable, "FLOW_MISSION_CONTROL_UNAVAILABLE", flowsErrorText(err))
 	case errors.Is(err, tools.ErrFlowMissionNotFound), errors.Is(err, flows.ErrFlowMissionMissing):
 		flowsError(w, http.StatusConflict, "FLOW_MISSION_MISSING",
 			"the flow's Mission Control entry is missing; export the flow, delete it and import it again")
 	case errors.Is(err, flows.ErrQueueFull):
 		flowsError(w, http.StatusTooManyRequests, "FLOW_RUN_LIMIT", flowsErrorText(err))
 	case errors.Is(err, flows.ErrRunnerClosed):
-		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", flowsErrorText(err))
+		flowsError(w, http.StatusServiceUnavailable, "FLOW_RUNNER_STOPPED", flowsErrorText(err))
 	case errors.Is(err, flows.ErrDocumentTooLarge):
 		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsDocumentTooLargeMessage())
 	case errors.Is(err, flows.ErrTestDataTooLarge):
@@ -706,10 +718,11 @@ func flowExportName(name string) string {
 }
 
 // flowsSecrets manages the flow secrets (vault entries "easydrag_<name>"). Values are
-// write-only: the API lists names and never returns values.
+// write-only: the API lists names and never returns values. Without a vault every secrets
+// route answers 503 FLOW_VAULT_UNAVAILABLE (flows themselves still work).
 func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []string) {
 	if s.Vault == nil {
-		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", "the vault is not available")
+		flowsError(w, http.StatusServiceUnavailable, "FLOW_VAULT_UNAVAILABLE", "the vault is not available")
 		return
 	}
 	if len(rest) == 0 {

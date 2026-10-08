@@ -166,7 +166,9 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 			"node_type_unknown", "flow_ai_output_invalid", "flow_condition_failed", "flow_condition_invalid", "flow_cycle", "flow_file_exists",
 			"flow_http_status", "flow_name_required", "flow_node_failed", "flow_node_not_found", "flow_node_panic", "flow_node_unavailable",
 			"flow_notify_failed", "flow_output_invalid", "flow_output_too_large", "flow_param_invalid", "flow_schema", "flow_shutdown", "flow_stopped",
-			"flow_template_error", "flow_too_many_nodes", "flow_trigger_disabled", "flow_trigger_invalid", "flow_value_type", "flow_wait_too_long"},
+			"flow_template_error", "flow_too_many_nodes", "flow_trigger_disabled", "flow_trigger_invalid", "flow_value_type", "flow_wait_too_long",
+			// The 503 causes other than flows switched off (FLOWS_DISABLED), audit 2026-10-08 finding 1.2.
+			"flow_mission_control_unavailable", "flow_runner_stopped", "flow_vault_unavailable", "flow_request_cancelled"},
 	}
 	for prefix := range prefixes {
 		if _, ok := families[prefix]; !ok {
