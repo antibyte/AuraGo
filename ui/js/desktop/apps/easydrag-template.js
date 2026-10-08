@@ -12,13 +12,30 @@
     const MAX_SPLIT_PARTS = 100000;
     const MAX_PARAM_DEPTH = 32;
 
-    // quoteForError quotes user input for a message like Go's quoteForError: at most 40
-    // characters, then an ellipsis.
-    function quoteForError(value) {
+    // clip keeps the first 40 characters of user input for an error, then an ellipsis.
+    function clip(value) {
         const s = String(value);
         let i = 0;
         for (let n = 0; n < MAX_ECHO && i < s.length; n++) i += s.codePointAt(i) > 0xFFFF ? 2 : 1;
-        return JSON.stringify(i < s.length ? s.slice(0, i) + '…' : s);
+        return i < s.length ? s.slice(0, i) + '…' : s;
+    }
+
+    // quoteForError quotes user input for a message like Go's quoteForError.
+    function quoteForError(value) {
+        return JSON.stringify(clip(value));
+    }
+
+    // tplError is a template error: message is the Go engine's English text (the checks compare
+    // it with Go), code (TPL_*) and params name it for the preview in the user's language
+    // (easydrag-forms.js TPL_ERRORS); an error without a code reads as a generic failure there.
+    // TPL_UNCLOSED: "{{" or a quoted string without its end. TPL_UNEXPECTED {text}: a character,
+    // number or word that does not belong there. TPL_EXPECTED_NAME: a root, field or filter name
+    // is missing. TPL_BAD_INDEX: "[...]" without a whole number or string. TPL_UNKNOWN_FILTER
+    // {name}. TPL_EXPECTED_VALUE {name}: a filter argument that is no literal. TPL_FILTER_ARGS
+    // {name}: the count, list or a value of a filter's arguments. TPL_WRONG_VALUE {name}: the
+    // filter cannot use its input. TPL_TOO_LARGE: output or nesting beyond the engine's limits.
+    function tplError(code, message, params) {
+        return Object.assign(new Error(message), { code, params: params || {} });
     }
 
     // utf8Len counts the UTF-8 bytes of s, the unit of Go's output limits.
@@ -108,7 +125,7 @@
                 while (i < src.length && /[0-9.]/.test(src[i])) i++;
                 const text = src.slice(start, i);
                 const num = Number(text);
-                if (!isFinite(num)) throw new Error('invalid number ' + quoteForError(text));
+                if (!isFinite(num)) throw tplError('TPL_UNEXPECTED', 'invalid number ' + quoteForError(text), { text: clip(text) });
                 tokens.push({ kind: 'number', text, num });
             } else if (c === '"' || c === "'") {
                 i++;
@@ -126,34 +143,36 @@
                     if (ch === c) { closed = true; break; }
                     str += ch;
                 }
-                if (!closed) throw new Error('unterminated string');
+                if (!closed) throw tplError('TPL_UNCLOSED', 'unterminated string');
                 tokens.push({ kind: 'string', text: str });
             } else if ('.[]|(),'.includes(c)) {
                 i++;
                 tokens.push({ kind: 'punct', text: c });
             } else {
-                throw new Error('unexpected character ' + JSON.stringify(String.fromCodePoint(src.codePointAt(i))));
+                const ch = String.fromCodePoint(src.codePointAt(i));
+                throw tplError('TPL_UNEXPECTED', 'unexpected character ' + JSON.stringify(ch), { text: ch });
             }
         }
     }
 
-    function literalValue(tok) {
+    // literalValue reads an argument of the filter name.
+    function literalValue(tok, name) {
         if (tok.kind === 'string') return tok.text;
         if (tok.kind === 'number') return tok.num;
         if (tok.kind === 'ident' && tok.text === 'true') return true;
         if (tok.kind === 'ident' && tok.text === 'false') return false;
         if (tok.kind === 'ident' && tok.text === 'null') return null;
-        throw new Error('expected a string, number, true, false or null');
+        throw tplError('TPL_EXPECTED_VALUE', 'expected a string, number, true, false or null', { name: clip(name) });
     }
 
     // checkFilterCall mirrors checkFilterCall in internal/flows/filters.go.
     function checkFilterCall(call) {
-        if (!Object.prototype.hasOwnProperty.call(FILTERS, call.name)) throw new Error('unknown filter ' + quoteForError(call.name));
+        if (!Object.prototype.hasOwnProperty.call(FILTERS, call.name)) throw tplError('TPL_UNKNOWN_FILTER', 'unknown filter ' + quoteForError(call.name), { name: clip(call.name) });
         const spec = FILTERS[call.name];
         if (call.args.length < spec.min || call.args.length > spec.max) {
-            throw new Error(spec.min === spec.max
+            throw tplError('TPL_FILTER_ARGS', spec.min === spec.max
                 ? 'filter ' + call.name + ' takes ' + spec.min + ' argument(s)'
-                : 'filter ' + call.name + ' takes ' + spec.min + ' to ' + spec.max + ' arguments');
+                : 'filter ' + call.name + ' takes ' + spec.min + ' to ' + spec.max + ' arguments', { name: call.name });
         }
     }
 
@@ -165,14 +184,14 @@
         let tok = tokens[0];
         const advance = () => { pos += 1; tok = tokens[pos]; };
         const isPunct = text => tok.kind === 'punct' && tok.text === text;
-        if (tok.kind !== 'ident') throw new Error('expected a name');
+        if (tok.kind !== 'ident') throw tplError('TPL_EXPECTED_NAME', 'expected a name');
         const root = tok.text;
         const path = [];
         advance();
         for (;;) {
             if (isPunct('.')) {
                 advance();
-                if (tok.kind !== 'ident') throw new Error("expected a field name after '.'");
+                if (tok.kind !== 'ident') throw tplError('TPL_EXPECTED_NAME', "expected a field name after '.'");
                 path.push(tok.text);
                 advance();
                 continue;
@@ -180,16 +199,16 @@
             if (isPunct('[')) {
                 advance();
                 if (tok.kind === 'number') {
-                    if (!Number.isInteger(tok.num)) throw new Error('index must be a whole number');
-                    if (Math.abs(tok.num) > MAX_INDEX) throw new Error('index too large');
+                    if (!Number.isInteger(tok.num)) throw tplError('TPL_BAD_INDEX', 'index must be a whole number');
+                    if (Math.abs(tok.num) > MAX_INDEX) throw tplError('TPL_BAD_INDEX', 'index too large');
                     path.push(tok.num);
                 } else if (tok.kind === 'string') {
                     path.push(tok.text);
                 } else {
-                    throw new Error('expected a number or string inside [ ]');
+                    throw tplError('TPL_BAD_INDEX', 'expected a number or string inside [ ]');
                 }
                 advance();
-                if (!isPunct(']')) throw new Error("expected ']'");
+                if (!isPunct(']')) throw tplError('TPL_BAD_INDEX', "expected ']'");
                 advance();
                 continue;
             }
@@ -198,27 +217,27 @@
         const filters = [];
         while (isPunct('|')) {
             advance();
-            if (tok.kind !== 'ident') throw new Error("expected a filter name after '|'");
+            if (tok.kind !== 'ident') throw tplError('TPL_EXPECTED_NAME', "expected a filter name after '|'");
             const call = { name: tok.text, args: [] };
             advance();
             if (isPunct('(')) {
                 advance();
                 while (!isPunct(')')) {
-                    call.args.push(literalValue(tok));
+                    call.args.push(literalValue(tok, call.name));
                     advance();
                     if (isPunct(',')) {
                         advance();
-                        if (isPunct(')')) throw new Error("expected an argument after ','");
+                        if (isPunct(')')) throw tplError('TPL_FILTER_ARGS', "expected an argument after ','", { name: clip(call.name) });
                         continue;
                     }
-                    if (!isPunct(')')) throw new Error("expected ',' or ')'");
+                    if (!isPunct(')')) throw tplError('TPL_FILTER_ARGS', "expected ',' or ')'", { name: clip(call.name) });
                 }
                 advance();
             }
             checkFilterCall(call);
             filters.push(call);
         }
-        if (tok.kind !== 'eof') throw new Error('unexpected ' + quoteForError(tok.text));
+        if (tok.kind !== 'eof') throw tplError('TPL_UNEXPECTED', 'unexpected ' + quoteForError(tok.text), { text: clip(tok.text) });
         return { root, path, filters };
     }
 
@@ -545,9 +564,9 @@
     // roundHalfAway rounds like Go's filterRound: halves away from zero (math.Round),
     // at most 10 decimals, no "-0", and a value too large to scale comes back as is.
     function roundHalfAway(value, places) {
-        if (places > 10) throw new Error('at most 10 decimals');
+        if (places > 10) throw tplError('TPL_FILTER_ARGS', 'at most 10 decimals');
         const n = toNumber(value);
-        if (!isFinite(n)) throw new Error('not a number');
+        if (!isFinite(n)) throw tplError('TPL_WRONG_VALUE', 'not a number');
         const f = Math.pow(10, places);
         const scaled = n * f;
         const r = Math.sign(scaled) * Math.round(Math.abs(scaled)) / f;
@@ -558,14 +577,14 @@
     function intArg(args, i, def, min) {
         if (i >= args.length) return def;
         const n = args[i];
-        if (typeof n !== 'number' || !Number.isInteger(n)) throw new Error('argument must be a whole number');
-        if (Math.abs(n) > MAX_INDEX) throw new Error('argument too large');
-        if (n < min) throw new Error('argument must be at least ' + min);
+        if (typeof n !== 'number' || !Number.isInteger(n)) throw tplError('TPL_FILTER_ARGS', 'argument must be a whole number');
+        if (Math.abs(n) > MAX_INDEX) throw tplError('TPL_FILTER_ARGS', 'argument too large');
+        if (n < min) throw tplError('TPL_FILTER_ARGS', 'argument must be at least ' + min);
         return n;
     }
 
     function tooLarge(name) {
-        return new Error(name + ' result would exceed ' + MAX_OUTPUT_BYTES + ' bytes');
+        return tplError('TPL_TOO_LARGE', name + ' result would exceed ' + MAX_OUTPUT_BYTES + ' bytes');
     }
 
     // joinList mirrors filterJoin: the separators and then each part count against the 8 MiB cap.
@@ -595,7 +614,7 @@
 
     function splitText(value, args) {
         const parts = stringify(value).split(strArg(args, 0, ','), MAX_SPLIT_PARTS + 1);
-        if (parts.length > MAX_SPLIT_PARTS) throw new Error('split would produce more than ' + MAX_SPLIT_PARTS + ' parts');
+        if (parts.length > MAX_SPLIT_PARTS) throw tplError('TPL_TOO_LARGE', 'split would produce more than ' + MAX_SPLIT_PARTS + ' parts');
         return parts;
     }
 
@@ -613,7 +632,7 @@
 
     function strArg(args, i, def) {
         if (i >= args.length) return def;
-        if (typeof args[i] !== 'string') throw new Error('argument must be a string');
+        if (typeof args[i] !== 'string') throw tplError('TPL_FILTER_ARGS', 'argument must be a string');
         return args[i];
     }
 
@@ -629,16 +648,22 @@
         last: { min: 0, max: 0, hint: '', fn: v => Array.isArray(v) ? (v.length ? v[v.length - 1] : null) : (typeof v === 'string' ? Array.from(v).pop() || '' : null) },
         count: { min: 0, max: 0, hint: '', fn: v => v === null || v === undefined ? 0 : Array.isArray(v) ? v.length : typeof v === 'object' ? Object.keys(v).length : typeof v === 'string' ? Array.from(v).length : 1 },
         pluck: { min: 1, max: 1, hint: '("title")', fn: (v, a) => { const f = strArg(a, 0, ''); return Array.isArray(v) ? v.map(item => item && typeof item === 'object' && !Array.isArray(item) && Object.prototype.hasOwnProperty.call(item, f) ? item[f] : null) : []; } },
-        json: { min: 0, max: 0, hint: '', fn: v => { try { return goJSON(v); } catch (err) { throw new Error('value cannot be serialized as JSON'); } } },
-        date: { min: 1, max: 2, hint: '("DD.MM.YYYY")', fn: (v, a) => { const d = toDate(v); if (!d) throw new Error('not a date'); return formatDate(d, strArg(a, 0, ''), a.length > 1 ? strArg(a, 1, '') : undefined); } },
+        json: { min: 0, max: 0, hint: '', fn: v => { try { return goJSON(v); } catch (err) { throw tplError('TPL_WRONG_VALUE', 'value cannot be serialized as JSON'); } } },
+        date: { min: 1, max: 2, hint: '("DD.MM.YYYY")', fn: (v, a) => { const d = toDate(v); if (!d) throw tplError('TPL_WRONG_VALUE', 'not a date'); return formatDate(d, strArg(a, 0, ''), a.length > 1 ? strArg(a, 1, '') : undefined); } },
         round: { min: 0, max: 1, hint: '(2)', fn: (v, a) => roundHalfAway(v, intArg(a, 0, 0, 0)) },
         replace: { min: 2, max: 2, hint: '("a", "b")', fn: replaceAll },
         strip_html: { min: 0, max: 0, hint: '', fn: v => stripHTML(v) }
     };
 
+    // applyFilter runs a filter; its argument and value errors get the filter's name.
     function applyFilter(name, value, args) {
         checkFilterCall({ name, args });
-        return FILTERS[name].fn(value, args);
+        try {
+            return FILTERS[name].fn(value, args);
+        } catch (err) {
+            if (err && err.code && err.params && err.params.name === undefined) err.params.name = name;
+            throw err;
+        }
     }
 
     // stepInto mirrors stepInto in internal/flows/template_eval.go: a negative index counts
@@ -695,7 +720,7 @@
     function evalValue(value, roots, depth) {
         if (typeof value !== 'string') {
             if (!value || typeof value !== 'object') return value;
-            if (depth > MAX_PARAM_DEPTH) throw new Error('parameters nested deeper than ' + MAX_PARAM_DEPTH + ' levels');
+            if (depth > MAX_PARAM_DEPTH) throw tplError('TPL_TOO_LARGE', 'parameters nested deeper than ' + MAX_PARAM_DEPTH + ' levels');
             if (Array.isArray(value)) return value.map(v => evalValue(v, roots, depth + 1));
             const out = {};
             Object.keys(value).forEach(k => setOwn(out, k, evalValue(value[k], roots, depth + 1)));
@@ -704,14 +729,14 @@
         if (value.indexOf('{{') < 0) return value;
         // Like ParseTemplate, an unclosed "{{" or any broken expression fails the whole text.
         const scan = scanText(value);
-        if (scan.unclosed >= 0) throw new Error('unclosed {{');
+        if (scan.unclosed >= 0) throw tplError('TPL_UNCLOSED', 'unclosed {{');
         const segs = scan.segs.map(s => s.expr !== undefined ? { parsed: parseExpr(s.expr) } : s);
         if (segs.length === 1 && segs[0].parsed) return evalParsed(segs[0].parsed, roots);
         let size = 0;
         return segs.map(s => {
             const part = s.parsed ? stringify(evalParsed(s.parsed, roots)) : s.literal;
             size += utf8Len(part);
-            if (size > MAX_OUTPUT_BYTES) throw new Error('template output exceeds ' + (MAX_OUTPUT_BYTES >> 20) + ' MiB');
+            if (size > MAX_OUTPUT_BYTES) throw tplError('TPL_TOO_LARGE', 'template output exceeds ' + (MAX_OUTPUT_BYTES >> 20) + ' MiB');
             return part;
         }).join('');
     }

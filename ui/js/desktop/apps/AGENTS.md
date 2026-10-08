@@ -191,7 +191,10 @@
   `flowId`/`flow_id` and `runId`/`run_id`, and `{section: 'home'}` (Mission Control's New flow)
   shows the start page once the editor's `leave()` allowed it.
 - Pure modules (template, model, geometry, start-page preview, shortcut table) run in Node; the
-  template filters mirror `internal/flows`. Every model command is one undo step. Pans and zooms
+  template filters mirror `internal/flows`. Template errors keep Go's English message (the parity
+  checks compare it) and carry `err.code` (`TPL_*`, `tplError`) with `err.params` ({name},
+  {text}); the field preview shows `easydrag.ui.tpl_error_*` (`TPL_ERRORS` in
+  `easydrag-forms.js`), an error without a known code the generic error, never the message. Every model command is one undo step. Pans and zooms
   change only `ed.view`, stored per flow on the device (`aurago.easydrag.view.<id>`): the model
   has no viewport command, so they never bump `model.version`, save, or count as unpublished
   changes; a document's own `viewport` (old drafts, imports) is kept as it came and not read.

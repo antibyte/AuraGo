@@ -36,6 +36,27 @@
 
     const REF_TYPE = 'application/x-easydrag-ref';
 
+    // TPL_ERRORS names the codes of template errors (easydrag-template.js tplError) for the
+    // preview; their {name} and {text} come from err.params. The engine's English message is
+    // never shown: an error without a known code reads as the generic error.
+    const TPL_ERRORS = {
+        TPL_UNCLOSED: 'easydrag.ui.tpl_error_unclosed',
+        TPL_UNEXPECTED: 'easydrag.ui.tpl_error_unexpected',
+        TPL_EXPECTED_NAME: 'easydrag.ui.tpl_error_expected_name',
+        TPL_BAD_INDEX: 'easydrag.ui.tpl_error_bad_index',
+        TPL_UNKNOWN_FILTER: 'easydrag.ui.tpl_error_unknown_filter',
+        TPL_EXPECTED_VALUE: 'easydrag.ui.tpl_error_expected_value',
+        TPL_FILTER_ARGS: 'easydrag.ui.tpl_error_filter_args',
+        TPL_WRONG_VALUE: 'easydrag.ui.tpl_error_wrong_value',
+        TPL_TOO_LARGE: 'easydrag.ui.tpl_error_too_large'
+    };
+
+    function templateErrorText(t, err) {
+        const code = err && typeof err.code === 'string' ? err.code : '';
+        if (!Object.prototype.hasOwnProperty.call(TPL_ERRORS, code)) return t('easydrag.ui.error_generic');
+        return t(TPL_ERRORS[code], Object.assign({}, err.params));
+    }
+
     // carriesRef reports a drag from the input tree (other drops keep the browser's handling).
     function carriesRef(event) {
         return !!event.dataTransfer && Array.from(event.dataTransfer.types || []).includes(REF_TYPE);
@@ -89,7 +110,7 @@
                     esc(ED.template.describe(result, t, core.fmt.number)) + (shown ? '<span class="ed-preview-text">' + esc(shown) + '</span>' : '');
             } catch (err) {
                 box.className = 'ed-field-preview is-error';
-                box.textContent = t('easydrag.ui.preview_failed', { reason: err.message });
+                box.textContent = t('easydrag.ui.preview_failed', { reason: templateErrorText(t, err) });
             }
         }
 

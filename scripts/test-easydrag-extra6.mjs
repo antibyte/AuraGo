@@ -2,9 +2,9 @@
 // a test that started; the step dialog blocks the editor's shortcuts and window menus like any
 // other dialog, and its pending note is saved before the editor leaves; Apply in the flow
 // settings keeps the maximum run time to the second; run updates leave a focused card tool
-// where it is. They run on the c1d07 sandbox
-// (test-easydrag-extra3.mjs returns sandbox, openEditor and desktopMenus); test-easydrag.mjs
-// calls run(env) with its helpers and counts the failures.
+// where it is; the template preview names errors in the user's language. They run on the c1d07
+// sandbox (test-easydrag-extra3.mjs returns sandbox, openEditor and desktopMenus);
+// test-easydrag.mjs calls run(env) with its helpers and counts the failures.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -329,5 +329,77 @@ export async function run(env) {
         eq('a1008 1.5 each tool button keeps the focus and its tab stop through running, success, error and a new run; status, duration and error show',
             [rows, statusRebuilds, rebuilds - statusRebuilds, h.logged], [['test', 'disable', 'duplicate', 'delete'].flatMap(expected), 0, 1, []]);
         editor.dispose();
+    });
+
+    // ── 1.6: the template preview names template errors in the user's language ──
+
+    // translator is t over one locale's words, with {name} placeholders filled in.
+    const translator = words => (key, params) => {
+        const text = Object.prototype.hasOwnProperty.call(words, key) ? words[key] : key;
+        return params ? text.replace(/\{(\w+)\}/g, (m, name) => (params[name] !== undefined ? String(params[name]) : m)) : text;
+    };
+    // TPL_CASES: [query value, key of the reason, its params]; null: no code, the generic reason.
+    const deep = (() => { let v = '{{alpha.text}}'; for (let i = 0; i < 32; i++) v = [v]; return v; })();
+    const TPL_CASES = [
+        ['{{alpha | nope}}', 'easydrag.ui.tpl_error_unknown_filter', { name: 'nope' }],
+        ['{{alpha.text | default(foo)}}', 'easydrag.ui.tpl_error_expected_value', { name: 'default' }],
+        ['{{1bad}}', 'easydrag.ui.tpl_error_expected_name', {}],
+        ['{{alpha.}}', 'easydrag.ui.tpl_error_expected_name', {}],
+        ['{{alpha |}}', 'easydrag.ui.tpl_error_expected_name', {}],
+        ['Hallo {{alpha.text', 'easydrag.ui.tpl_error_unclosed', {}],
+        ['{{alpha[1.5]}}', 'easydrag.ui.tpl_error_bad_index', {}],
+        ['{{alpha ~}}', 'easydrag.ui.tpl_error_unexpected', { text: '~' }],
+        ['{{alpha beta}}', 'easydrag.ui.tpl_error_unexpected', { text: 'beta' }],
+        ['{{alpha | upper(1)}}', 'easydrag.ui.tpl_error_filter_args', { name: 'upper' }],
+        ['{{alpha | truncate(0)}}', 'easydrag.ui.tpl_error_filter_args', { name: 'truncate' }],
+        ['{{alpha | nope(1,)}}', 'easydrag.ui.tpl_error_filter_args', { name: 'nope' }],
+        ['{{alpha.text | date("DD.MM.YYYY")}}', 'easydrag.ui.tpl_error_wrong_value', { name: 'date' }],
+        ['{{alpha.text | round}}', 'easydrag.ui.tpl_error_wrong_value', { name: 'round' }],
+        [deep, 'easydrag.ui.tpl_error_too_large', {}],
+        ['{{alpha.when | date("DD", "Mars/Olympus")}}', null, null]
+    ];
+
+    // previews renders alpha's query with each case under the translator t and reads the
+    // preview: [class, text, English engine message].
+    async function previews(t) {
+        const h = sandbox(() => undefined);
+        const editor = openEditor(h);
+        await settle();
+        const ed = Object.assign(Object.create(editor.ed), { t });
+        const roots = { alpha: { text: 'kein Datum', when: '2026-10-04T07:30:00Z' } };
+        const rows = TPL_CASES.map(([value]) => {
+            let english = '';
+            try { h.ED.template.evaluate(value, roots); } catch (err) { english = err.message; }
+            const form = h.ED.forms.render({
+                ed, node: { id: 'n_previewx', key: 'preview', type: 'web.search', label: 'Preview', position: { x: 0, y: 0 }, params: { query: value }, settings: {} },
+                info: types.get('web.search'), upstream: [], roots, issues: [], onChange: () => {}
+            });
+            const box = form.el.querySelector('.ed-field[data-param="query"] .ed-field-preview');
+            form.dispose();
+            return [box.className, box.textContent, english];
+        });
+        editor.dispose();
+        return { rows, logged: h.logged };
+    }
+
+    await guardAsync('a1008 1.6 the template preview shows the reason in German, never the engine\'s English text', async () => {
+        const de = translator(readLang(apps, 'de'));
+        const got = await previews(de);
+        const want = TPL_CASES.map(([, key, params]) => ['ed-field-preview is-error', de('easydrag.ui.preview_failed', { reason: key ? de(key, params) : de('easydrag.ui.error_generic') })]);
+        eq('a1008 1.6 de: each template error reads as its German sentence; an error without a code reads "Etwas ist schiefgelaufen."',
+            [got.rows.map(r => r.slice(0, 2)), got.logged], [want, []]);
+        eq('a1008 1.6 de: no preview contains the engine\'s English message', got.rows.filter(r => !r[2] || r[1].includes(r[2])).map(r => r[1]), []);
+    });
+
+    await guardAsync('a1008 1.6 the template error sentences exist in every locale and read well in English', async () => {
+        const keys = Array.from(new Set(TPL_CASES.filter(c => c[1]).map(c => c[1])));
+        eq('a1008 1.6 nine tpl_error sentences in all 16 locales', [keys.length, missingKeys(apps, keys)], [9, []]);
+        const en = translator(readLang(apps, 'en'));
+        const got = await previews(en);
+        eq('a1008 1.6 en: the preview says what is wrong', got.rows.slice(0, 2).map(r => r[1]).concat(got.rows[got.rows.length - 1][1]), [
+            'Not computable: There is no filter “nope”.',
+            'Not computable: Filter “default”: each argument must be a text in quotes, a number, true, false or null.',
+            'Not computable: Something went wrong.'
+        ]);
     });
 }
