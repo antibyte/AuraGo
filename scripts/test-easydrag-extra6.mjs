@@ -1,7 +1,8 @@
 // a1008 checks (audit 2026-10-08, the editor findings): the test dialog confirms effects only for
 // a test that started; the step dialog blocks the editor's shortcuts and window menus like any
 // other dialog, and its pending note is saved before the editor leaves; Apply in the flow
-// settings keeps the maximum run time to the second. They run on the c1d07 sandbox
+// settings keeps the maximum run time to the second; run updates leave a focused card tool
+// where it is. They run on the c1d07 sandbox
 // (test-easydrag-extra3.mjs returns sandbox, openEditor and desktopMenus); test-easydrag.mjs
 // calls run(env) with its helpers and counts the failures.
 import fs from 'node:fs';
@@ -278,5 +279,55 @@ export async function run(env) {
     await guardAsync('a1008 1.4 the run time strings exist in every locale', async () => {
         eq('a1008 1.4 seconds unit, range hint and range error in all 16 locales',
             missingKeys(apps, ['easydrag.ui.unit_seconds', 'easydrag.ui.flow_max_run_hint', 'easydrag.ui.flow_max_run_invalid']), []);
+    });
+
+    // ── 1.5: run updates keep the focus on a card's tools ──
+
+    await guardAsync('a1008 1.5 a run event that changes a card keeps the focus on its tool button and redraws only the status', async () => {
+        const h = sandbox(() => undefined);
+        const editor = openEditor(h);
+        await settle();
+        const ed = editor.ed;
+        ed.selection.add(A);
+        ed.bus.emit('selection', ed.selection);
+        const card = editor.el.querySelector('[data-node-id="' + A + '"]');
+        // rebuilds counts the card's innerHTML writes.
+        let rebuilds = 0;
+        const setHTML = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(card), 'innerHTML').set;
+        Object.defineProperty(card, 'innerHTML', { configurable: true, set(value) { rebuilds++; setHTML.call(this, value); } });
+        const runWith = (status, step) => {
+            ed.run = { id: 'r1', status, mode: 'test', steps: new Map(step ? [[A, Object.assign({ node_id: A }, step)]] : []), record: null, error: '' };
+            ed.bus.emit('run', ed.run);
+        };
+        const states = [
+            ['running', { status: 'running' }],
+            ['success', { status: 'success', duration_ms: 1200 }],
+            ['error', { status: 'error', duration_ms: 900, error_code: 'FLOW_TOOL_ERROR', error_message: 'boom' }],
+            ['none', null]
+        ];
+        const rows = [];
+        for (const tool of ['test', 'disable', 'duplicate', 'delete']) {
+            const btn = card.querySelector('[data-ed-node-tool="' + tool + '"]');
+            btn.focus();
+            for (const [name, step] of states) {
+                runWith(step ? 'running' : 'success', step);
+                const status = card.querySelector('.ed-status');
+                const error = card.querySelector('.ed-node-error');
+                rows.push([tool, name, h.dom.document.activeElement === btn && card.contains(btn), btn.getAttribute('tabindex'),
+                    card.classList.contains('status-' + name), status ? status.getAttribute('title') : null, error ? error.textContent : null]);
+            }
+        }
+        const expected = tool => [
+            [tool, 'running', true, '0', true, 'status_running', null],
+            [tool, 'success', true, '0', true, 'status_success · 1.2 s', null],
+            [tool, 'error', true, '0', true, 'status_error · 900 ms', 'error_flow_tool_error: boom'],
+            [tool, 'none', true, '0', false, null, null]
+        ];
+        const statusRebuilds = rebuilds;
+        // An edit of the step still redraws its card.
+        ed.model.setParam(A, 'query', 'changed');
+        eq('a1008 1.5 each tool button keeps the focus and its tab stop through running, success, error and a new run; status, duration and error show',
+            [rows, statusRebuilds, rebuilds - statusRebuilds, h.logged], [['test', 'disable', 'duplicate', 'delete'].flatMap(expected), 0, 1, []]);
+        editor.dispose();
     });
 }

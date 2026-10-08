@@ -215,7 +215,9 @@
   the selection between steps (announced through the live region, `core.announcer`), Enter opens
   the detail view, Delete/D/Ctrl+D/C act on the selection, Tab adds a step. A card's tool buttons
   are tab stops only while it is selected (`syncTools`; `tabindex="-1"` otherwise), and
-  `.ed-node:focus-within` shows a focused tool's toolbar. Tab on the canvas opens quick-add, so
+  `.ed-node:focus-within` shows a focused tool's toolbar. Run events and hints change a card's
+  badges, run status and error box in place (`paintState`); its markup, tools included, is
+  rebuilt only when the step itself changes, so a focused tool keeps the focus during a run. Tab on the canvas opens quick-add, so
   the zoom bar and a selected card's tools are reached with Shift+Tab from the footer. Every tool
   has a key as well: D (off/on), Ctrl+D (duplicate), Del (delete); Test step sits in the detail
   view (Enter). The screen-reader step list (`.ed-node-list`) duplicates the arrow keys, so its

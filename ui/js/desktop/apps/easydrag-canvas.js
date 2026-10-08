@@ -25,7 +25,10 @@
         const { t, esc } = ed;
         const bag = core.bag();
         const nodeEls = new Map();
+        // signatures and states hold what each card's markup and its state (paintState) were
+        // drawn from, by node id.
         const signatures = new Map();
+        const states = new Map();
 
         const el = core.el(
             '<div class="ed-canvas" tabindex="0" role="application" aria-roledescription="' + esc(t('easydrag.ui.canvas_role')) + '" aria-label="' + esc(t('easydrag.ui.canvas_label')) + '">' +
@@ -293,13 +296,10 @@
 
         function nodeIssues(id) { return (ed.issues || []).filter(is => is.node_id === id && is.severity === 'error'); }
 
-        function cardMarkup(n, sum) {
-            const i = info(n);
-            const ports = ed.model.outputs(n);
-            const h = G.nodeHeight(ports.length);
+        // badgesMarkup draws a card's badges: availability, risk, open issues and the run status
+        // with its duration.
+        function badgesMarkup(n, i, status, step) {
             const avail = i ? (i.availability || {}).state : 'missing';
-            const status = statusOf(n.id);
-            const step = ed.run && ed.run.steps && ed.run.steps.get(n.id);
             const badges = [];
             if (!i) badges.push('<span class="ed-badge ed-badge--warn" title="' + esc(t('easydrag.ui.badge_unknown')) + '">' + core.icon('alert') + '</span>');
             else if (avail === 'needs_setup') badges.push('<span class="ed-badge ed-badge--warn" title="' + esc(t('easydrag.ui.badge_needs_setup')) + '">' + core.icon('settings') + '</span>');
@@ -311,6 +311,31 @@
                 const dur = step && step.duration_ms ? ' · ' + core.fmt.duration(step.duration_ms) : '';
                 badges.push('<span class="ed-status ed-status--' + esc(status) + '" title="' + esc(label + dur) + '"><span class="ed-sr-only">' + esc(label) + '</span></span>');
             }
+            return badges.join('');
+        }
+
+        // paintState shows what runs and checks change on a card (badges, run status, a failed
+        // step's error) in place: the card's markup, its tool buttons among it, stays, so a focused
+        // tool keeps the focus while a run goes on.
+        function paintState(card, n, i, status, step) {
+            const badges = card.querySelector('.ed-node-badges');
+            if (badges) badges.innerHTML = badgesMarkup(n, i, status, step);
+            const text = status === 'error' && step ? core.stepErrorText(t, step) : '';
+            let box = card.querySelector('.ed-node-error');
+            if (!text) { if (box) box.remove(); return; }
+            if (!box) {
+                box = document.createElement('div');
+                box.className = 'ed-node-error';
+                card.appendChild(box);
+            }
+            box.textContent = text;
+        }
+
+        // cardMarkup draws a card without its state (paintState fills the badges and the error).
+        function cardMarkup(n, sum) {
+            const i = info(n);
+            const ports = ed.model.outputs(n);
+            const h = G.nodeHeight(ports.length);
             const inPorts = ed.model.inputs(n).map(p => '<span class="ed-port ed-port--in" data-ed-port="' + esc(p) + '" data-ed-side="in" style="top:' + (h / 2) + 'px"></span>').join('');
             const outPorts = ports.map((p, idx) => {
                 const y = ports.length > 1 ? G.PORT_TOP + idx * G.PORT_PITCH : h / 2;
@@ -332,8 +357,7 @@
             return '<div class="ed-node-tile">' + core.icon(i ? i.icon : 'tool') + '</div>' +
                 '<div class="ed-node-body"><div class="ed-node-label">' + esc(n.label || (i && i.label) || n.type) + '</div>' +
                 (sum ? '<div class="ed-node-summary">' + esc(sum) + '</div>' : typeLine ? '<div class="ed-node-summary ed-node-summary--muted">' + esc(typeLine) + '</div>' : '') + '</div>' +
-                '<div class="ed-node-badges">' + badges.join('') + '</div>' + inPorts + outPorts + tools +
-                (status === 'error' && step ? '<div class="ed-node-error">' + esc(core.stepErrorText(t, step)) + '</div>' : '');
+                '<div class="ed-node-badges"></div>' + inPorts + outPorts + tools;
         }
 
         // Tool buttons start outside the tab order: four per card would bury the canvas between
@@ -385,14 +409,21 @@
             const status = statusOf(n.id);
             const step = ed.run && ed.run.steps && ed.run.steps.get(n.id);
             // The summary shows the labels of referenced nodes, so it is part of the signature. The
-            // selection is not: it only sets the is-selected class.
+            // selection is not: it only sets the is-selected class. A run's status, duration and
+            // error and the open issues are not either: paintState updates them in place, so run
+            // events never replace the tool buttons (a focused one would drop the focus to body).
             const sum = summary(n, i);
-            const sig = JSON.stringify([n.label, n.type, n.params, n.settings, status, step && step.duration_ms, step && step.error_code,
-                i && i.availability, nodeIssues(n.id).length, !!ed.runView, ed.readonly, ed.model.outputs(n), sum]);
+            const sig = JSON.stringify([n.label, n.type, n.params, n.settings, i && i.availability, !!ed.runView, ed.readonly, ed.model.outputs(n), sum]);
             if (signatures.get(n.id) !== sig) {
                 signatures.set(n.id, sig);
+                states.delete(n.id);
                 card.innerHTML = cardMarkup(n, sum);
                 toolsOn.delete(n.id);
+            }
+            const state = JSON.stringify([status, step && step.duration_ms, step && step.error_code, step && step.error_message, nodeIssues(n.id).length]);
+            if (states.get(n.id) !== state) {
+                states.set(n.id, state);
+                paintState(card, n, i, status, step);
             }
             syncTools(card, n.id);
         }
@@ -421,6 +452,7 @@
             if (card) card.remove();
             nodeEls.delete(id);
             signatures.delete(id);
+            states.delete(id);
             named.delete(id);
             toolsOn.delete(id);
         }
