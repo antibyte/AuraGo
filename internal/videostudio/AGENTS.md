@@ -20,6 +20,9 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
   bounded render padding.
 - A transition belongs to its outgoing clip and must equal the explicit overlap
   with the next clip on that same visual track. Other same-track overlaps fail.
+  `settb=1/30` follows every concat so later xfades accept their inputs, and
+  xfade runs on premultiplied track layers (`premultiply`/`unpremultiply`, both
+  required for readiness) so a dissolve does not darken picture-in-picture clips.
 - The server owns persistence, upload staging, job scheduling, and cancellation
   lifecycle. This package stays independent of server state.
 

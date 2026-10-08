@@ -8,6 +8,10 @@ func TestHasRequiredRenderFiltersIncludesTPad(t *testing.T) {
 		t.Fatal("runtime accepted FFmpeg without the tpad filter")
 	}
 	filters += " T.. tpad Temporarily pad video frames\n"
+	if hasRequiredRenderFilters(filters) {
+		t.Fatal("runtime accepted FFmpeg without the premultiply filters")
+	}
+	filters += " TS premultiply PreMultiply first stream\n TS unpremultiply UnPreMultiply first stream\n"
 	if !hasRequiredRenderFilters(filters) {
 		t.Fatal("runtime rejected FFmpeg with all required render filters")
 	}

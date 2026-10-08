@@ -303,7 +303,12 @@ func buildVisualTrack(track Track, trackIndex, canvasWidth, canvasHeight int, in
 		if previous.Transition != nil {
 			transition := mapTransition(previous.Transition.Type)
 			out := newJoinLabel()
-			filters = append(filters, fmt.Sprintf("[%s][%s]xfade=transition=%s:duration=%s:offset=%s,format=rgba[%s]", combined, clipLabels[i], transition, seconds(previous.Transition.Duration), seconds(clip.Start), out))
+			// xfade mixes all four channels; premultiplied layers keep transparent surroundings from darkening the clips.
+			outgoing, incoming := newJoinLabel(), newJoinLabel()
+			filters = append(filters,
+				fmt.Sprintf("[%s]premultiply=inplace=1[%s]", combined, outgoing),
+				fmt.Sprintf("[%s]premultiply=inplace=1[%s]", clipLabels[i], incoming),
+				fmt.Sprintf("[%s][%s]xfade=transition=%s:duration=%s:offset=%s,unpremultiply=inplace=1,format=rgba[%s]", outgoing, incoming, transition, seconds(previous.Transition.Duration), seconds(clip.Start), out))
 			combined = out
 			combinedEnd = clip.Start + clip.Duration
 			continue

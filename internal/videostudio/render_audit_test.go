@@ -92,3 +92,46 @@ func TestRenderRotationMatchesPreviewDirection(t *testing.T) {
 		t.Fatalf("rotation 90 = top %v bottom %v, want red on top and blue at the bottom (clockwise like the canvas preview)", top, bottom)
 	}
 }
+
+// A dissolve between picture-in-picture clips must not darken them: xfade mixes the
+// transparent (black) surroundings into the colour unless the layers are premultiplied.
+func TestRenderDissolveKeepsPictureInPictureBrightness(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	root := t.TempDir()
+	redPath, bluePath := filepath.Join(root, "red.mp4"), filepath.Join(root, "blue.mp4")
+	makeVideoFixture(t, ctx, ffmpeg, redPath, "red")
+	makeVideoFixture(t, ctx, ffmpeg, bluePath, "blue")
+	red, err := Probe(ctx, ffmpeg, redPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blue, err := Probe(ctx, ffmpeg, bluePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	red.ID, blue.ID = "red", "blue"
+	project := Project{Version: 1, Name: "PiP dissolve", Width: 720, Height: 720, FPS: 30, Assets: []Asset{red, blue},
+		Tracks: []Track{{ID: "video", Name: "Video", Kind: TrackVideo, Clips: []Clip{
+			{ID: "a", AssetID: "red", Start: 0, Duration: 30, Width: 0.5, Height: 0.5, Opacity: 1, Volume: 1, Fit: FitCover,
+				Transition: &Transition{Type: TransitionDissolve, Duration: 10}},
+			{ID: "b", AssetID: "blue", Start: 20, Duration: 30, X: 0.5, Y: 0.5, Width: 0.5, Height: 0.5, Opacity: 1, Volume: 1, Fit: FitCover},
+		}}}}
+	if err := Validate(project); err != nil {
+		t.Fatalf("fixture project invalid: %v", err)
+	}
+	output := filepath.Join(root, "pip.mp4")
+	if err := Render(ctx, ffmpeg, project, map[string]string{"red": redPath, "blue": bluePath}, output, nil); err != nil {
+		t.Fatalf("Render(pip dissolve) error = %v", err)
+	}
+	// Frame 25 is halfway through the dissolve: each clip is half visible over the black canvas.
+	outgoing := decodedPixel(t, ctx, ffmpeg, output, "0.833333", 180, 180)
+	incoming := decodedPixel(t, ctx, ffmpeg, output, "0.833333", 540, 540)
+	if outgoing[0] < 100 || outgoing[0] > 160 || incoming[2] < 100 || incoming[2] > 160 {
+		t.Fatalf("mid-dissolve = outgoing %v incoming %v, want both clips at about half brightness like the preview", outgoing, incoming)
+	}
+}

@@ -80,7 +80,7 @@ func hasListedName(output, name string) bool {
 }
 
 func hasRequiredRenderFilters(output string) bool {
-	for _, name := range [...]string{"xfade", "amix", "afade", "tpad"} {
+	for _, name := range [...]string{"xfade", "amix", "afade", "tpad", "premultiply", "unpremultiply"} {
 		if !hasListedName(output, name) {
 			return false
 		}
