@@ -76,6 +76,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 			if(path==='/api/desktop/video-studio/projects/p1'&&method==='PUT'){window.fixtureSaves.push(JSON.parse(options.body));window.fixtureLastIfMatch=new Headers(options.headers).get('If-Match');if(window.fixtureConflict&&!window.fixtureConflictUsed){window.fixtureConflictUsed=true;return json({error:'file_conflict',code:'file_conflict' },412);}window.fixtureProject=JSON.parse(options.body);return json({project:window.fixtureProject,desktop_path:'Documents/Video Studio/p1/project.json'},200,{ETag:'"v2"'});}
 			if(path==='/api/desktop/video-studio/projects/p1/media'&&method==='POST'){const id='art-job-'+(window.fixtureArtworkRequests.length+1),assetId='art-asset-'+(window.fixtureArtworkRequests.length+1),job={id,project_id:'p1',kind:'probe',status:'queued',progress:0};window.fixtureArtworkStates[id]=job;window.fixtureArtworkRequests.push({id,assetId});return json({job,asset:{id:assetId,name:'Title.png',path:'media/'+assetId+'.png',kind:'image',duration_frames:18000,width:1280,height:720,has_audio:false}},202);}if(path.startsWith('/api/desktop/video-studio/jobs/art-job-'))return json({job:window.fixtureArtworkStates[path.split('/').pop()]});if(path==='/api/desktop/video-studio/jobs?project_id=p1')return json({jobs:window.fixtureJobs});
 			if(path==='/api/desktop/video-studio/projects/p1/jobs'&&method==='POST'){window.fixtureLastRenderIfMatch=new Headers(options.headers).get('If-Match');window.fixtureLastJobBody=JSON.parse(options.body);const job={id:'j1',project_id:'p1',kind:'render',status:'queued',progress:0};window.fixtureJobs=[job];return json({job},202);}
+			if(path==='/api/desktop/video-studio/jobs/j1/cancel'&&method==='POST')return json({error:'job_finished',code:'job_finished',message:'Already finished.',job:{id:'j1',project_id:'p1',kind:'render',status:'succeeded',progress:1}},409);
 			if(path==='/api/desktop/video-studio/jobs/j1')return json({job:{id:'j1',project_id:'p1',kind:'render',status:'succeeded',progress:1,artifact:{name:'Browser fixture.mp4',download_url:'/fixture.mp4',size:1234}}});
 			return originalFetch(url,options);};
 			const t=key=>window.fixtureLocales[window.fixtureLang]?.[key]||key;
@@ -180,6 +181,10 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	}
 	if got := page.MustEval(`()=>window.fixtureLastRenderIfMatch`).Str(); got != `"v2"` {
 		t.Fatalf("render did not bind to saved project ETag: %q", got)
+	}
+	// A cancel that reaches a finished job is answered 409 job_finished; that is not an error.
+	if !page.MustEval(`async()=>{const s=window.VideoStudioApp.instances.get('fixture');await window.VideoStudioParts.cancelJob(s,'j1');const notice=document.querySelector('[data-notice]');return window.fixtureCalls.some(([method,path])=>method==='POST'&&path==='/api/desktop/video-studio/jobs/j1/cancel')&&!(notice&&!notice.hidden&&notice.classList.contains('is-error'))}`).Bool() {
+		t.Fatal("cancelling an already finished job showed an error")
 	}
 	page.MustEval(`()=>{window.fixtureConflict=true;window.fixtureLatest.name='Edited in another window';const input=document.querySelector('[data-field="start"]');input.value='45';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('[data-action="save"]').click()}`)
 	deadline = time.Now().Add(5 * time.Second)

@@ -130,7 +130,12 @@
     async function cancelJob(s, id) {
         const projectId = s.projectId, epoch = s.projectEpoch;
         try { await request(API + '/jobs/' + encodeURIComponent(id) + '/cancel', { method: 'POST' }); if (epoch === s.projectEpoch && projectId === s.projectId) await loadJobs(s); }
-        catch (_) { if (epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'cancelFailed', 'Could not cancel the task.', true); }
+        catch (error) {
+            if (epoch !== s.projectEpoch || projectId !== s.projectId) return;
+            // 409 job_finished: it ended or is already saving its result; polling announces the outcome.
+            if (error.status === 409 && error.body && error.body.code === 'job_finished') { await loadJobs(s).catch(() => {}); return; }
+            showNotice(s, 'cancelFailed', 'Could not cancel the task.', true);
+        }
     }
     // A refresh never overtakes a save: it waits for a running PUT and reads again if one started meanwhile.
     async function refreshProject(s) {

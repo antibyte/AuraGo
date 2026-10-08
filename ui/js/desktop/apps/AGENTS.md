@@ -880,7 +880,8 @@ buttons and menu popovers remain excluded from those gestures.
   cycles inside, Escape in the conflict dialog is "Keep editing", and a kept
   conflict shows in the save chip until resolved. Finished probe
   jobs are not listed; a finished render announces once with a download named
-  `<project>.mp4`.
+  `<project>.mp4`. A cancel answered with 409 `job_finished` (ended, or already
+  saving its result) is not an error: the list reloads and polling reports it.
 - `video-studio-media.js` extracts up to eight thumbnails per video with one
   hidden `<video>` and waveform peaks (`decodeAudioData`, ≤80 MB) sequentially;
   only the editor's own artwork names (`title-<Date.now()>.png`,
