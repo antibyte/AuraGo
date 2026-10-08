@@ -95,6 +95,7 @@
     "gltf-validator": "2.0.0-dev.3.10"
   },
   "overrides": {
+    "katex": "0.18.9",
     "lodash-es": "4.18.1"
   }
 }

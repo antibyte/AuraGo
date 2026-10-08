@@ -5,14 +5,14 @@
 # versions are fixed by training/uv.lock.
 accelerate==1.15.0
 bitsandbytes==0.50.2
-datasets==4.3.0
+datasets==4.8.5
 huggingface-hub==1.33.0
 jsonschema==4.26.0
 peft==0.21.1
 protobuf==7.36.2
 sentencepiece==0.2.2
-torch==2.12.1
+torch==2.14.1
 trackio==0.39.0
-transformers==5.5.0
+transformers==5.17.0
 trl==0.24.0
-unsloth==2026.9.12
+unsloth==2026.10.3

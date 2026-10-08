@@ -22,9 +22,32 @@ the consuming library or reintroduces a vulnerability.
 | gobwas/glob | 0.2.3 | Colly 2.3.0 uses the `Glob` API removed in 1.0. |
 | gVisor | Tailscale's February 2026 generated Go revision | Upstream main contains Bazel/template packages that do not build as a Go module. |
 | Pion media family | ICE 4.3, WebRTC 4.2, TURN 5.0, SRTP 3.0, DTLS 3.1 | Diago 0.40 requires this coherent family; newer minors change STUN/transport types. Exact patches are in `go.mod`. |
-| Unsloth training | Unsloth 2026.9.12; Torch 2.12.1, Transformers 5.5.0, TRL 0.24.0, Datasets 4.3.0 | These are the newest versions satisfying upstream Unsloth's declared constraints. |
+| Unsloth training | Unsloth 2026.10.3; Torch 2.14.1, Transformers 5.17.0, TRL 0.24.0, Datasets 4.8.5 | Unsloth and Unsloth Zoo require Datasets <5 and Transformers <=5.17.0. Retain the existing TRL API; see the outstanding advisories below. |
+| KaTeX | 0.18.9 override | Mermaid and micromark-extension-math still request the vulnerable 0.16 line. Share the fixed version already used by Milkdown and rebuild both browser and Notes vendors. |
 | lodash-es | 4.18.1 override | Mermaid's Chevrotain dependency otherwise selects a vulnerable older pin. |
 | argon2id | 1.0.1 exact pin | Desktop Tresor ships its local JS/WASM with the upstream license; cryptographic vector and vendor drift checks gate changes. |
+
+### Outstanding training advisories (2026-10-08)
+
+The optional GPU training environment still has three Dependabot alerts for two
+advisories; these are not resolved by the dependency refresh:
+
+- [GHSA-379c-qx7v-6h59](https://github.com/advisories/GHSA-379c-qx7v-6h59):
+  Datasets folder builders can read files outside their dataset directory through
+  crafted `file_name` metadata. The fix requires Datasets >=5.0.1, incompatible
+  with Unsloth 2026.10.3 and Unsloth Zoo 2026.10.3. Both `requirements.txt` and
+  `uv.lock` are flagged.
+- [GHSA-27vj-qcqg-25rc](https://github.com/advisories/GHSA-27vj-qcqg-25rc):
+  fsspec ReferenceFileSystem template injection can execute code. The fix requires
+  fsspec >=2026.6.0, but Datasets 4.8.5 requires fsspec <=2026.2.0.
+
+Do not use untrusted folder-builder metadata or ReferenceFileSystem templates in
+this environment. AuraGo's trainer constructs datasets from reviewed JSONL rows
+with `Dataset.from_list`; that does not make other uses of these packages safe.
+Keep the alerts open. Revisit both pins when Unsloth supports a fixed Datasets
+release; do not bypass upstream requirements with resolver overrides. The Torch
+and Transformers updates require a GPU smoke run before production training;
+offline loader tests and lock resolution do not establish CUDA compatibility.
 
 Managed ACE-Step, sanoTTS, RTL-SDR and other service/model releases retain their
 qualified image, native-library and model hashes. Updating these is a separate

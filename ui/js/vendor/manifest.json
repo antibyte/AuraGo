@@ -292,6 +292,10 @@
       "version": "1.16.3",
       "license": "MIT"
     },
+    "katex": {
+      "version": "0.18.9",
+      "license": "MIT"
+    },
     "khroma": {
       "version": "2.1.0"
     },
@@ -1426,8 +1430,8 @@
       "sha256": "f91ba9d6536e0c478852180fbb1746b298bf42b2b5db5a7fd093629e2d46591a"
     },
     "ui/js/vendor/mermaid.min.js": {
-      "bytes": 5280175,
-      "sha256": "f4729869d007233ab9b03e1751514269d43d16d673f49e87846d068a93091300"
+      "bytes": 5280568,
+      "sha256": "d16bd1db4708412ae14e68b6f9bec4ca1e8e38cf28f088eb53439554a935ae66"
     },
     "ui/js/vendor/novnc.min.js": {
       "bytes": 188679,
@@ -1454,8 +1458,8 @@
       "sha256": "bd9a843a7f83a857b52d0c1221770e27d9e890c6649b690b3b2e587dbdacb531"
     },
     "ui/js/vendor/LICENSES.md": {
-      "bytes": 224509,
-      "sha256": "1dfe693ebc75e1efa021d5072336b59c1bef6a07834f865e913a58483b699044"
+      "bytes": 225643,
+      "sha256": "60ec4e7ad3e9c22e36ee82eafbe8632902ccbfd7375dc01d8f16565bd49e19ce"
     }
   }
 }

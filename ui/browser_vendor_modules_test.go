@@ -47,5 +47,13 @@ func TestBrowserVendorESModules(t *testing.T) {
         await first.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
         if(doc.numPages!==1)throw Error('PDF page did not load');
         await doc.loadingTask.destroy();
+        await new Promise((resolve,reject)=>{
+            const script=document.createElement('script');
+            script.src='/js/vendor/mermaid.min.js';script.onload=resolve;script.onerror=reject;
+            document.head.appendChild(script);
+        });
+        mermaid.initialize({startOnLoad:false,securityLevel:'strict'});
+        const diagram=await mermaid.render('vendor-math','flowchart LR\n A["$$x^2 + y^2$$"] --> B[Result]');
+        if(!diagram.svg.includes('katex')||!diagram.svg.includes('Result'))throw Error('Mermaid math rendering failed with the shared KaTeX version');
     }`)
 }
