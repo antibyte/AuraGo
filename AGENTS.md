@@ -260,7 +260,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 
 | Feature contracts | Canonical child DOX |
 | --- | --- |
-| Shared file replacement | `internal/fileutil/AGENTS.md` |
+| Shared file replacement and free-space probe | `internal/fileutil/AGENTS.md` |
 | Quick Connect serial and shared MeshCore port ownership | `internal/desktop/AGENTS.md`, `internal/meshcore/AGENTS.md`, `internal/serialutil/AGENTS.md` |
 | Docker Engine transport and version negotiation | `internal/dockerutil/AGENTS.md` |
 | Desktop rooted files and archives | `internal/desktop/AGENTS.md` |
