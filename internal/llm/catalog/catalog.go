@@ -1,9 +1,12 @@
 package catalog
 
 import (
+	"bytes"
+	"compress/gzip"
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"sync"
@@ -11,7 +14,7 @@ import (
 
 const SourceOhMyPi = "oh-my-pi"
 
-//go:embed ohmypi_models.json ohmypi_providers.json ohmypi_metadata.json
+//go:embed ohmypi_models.json.gz ohmypi_providers.json.gz ohmypi_metadata.json
 var bundledFS embed.FS
 
 type Cost struct {
@@ -100,12 +103,12 @@ var (
 
 func Load() (*Snapshot, error) {
 	loadOnce.Do(func() {
-		modelsData, err := bundledFS.ReadFile("ohmypi_models.json")
+		modelsData, err := readCompressedCatalog("ohmypi_models.json.gz")
 		if err != nil {
 			loadErr = fmt.Errorf("read bundled models: %w", err)
 			return
 		}
-		providersData, err := bundledFS.ReadFile("ohmypi_providers.json")
+		providersData, err := readCompressedCatalog("ohmypi_providers.json.gz")
 		if err != nil {
 			loadErr = fmt.Errorf("read bundled providers: %w", err)
 			return
@@ -118,6 +121,23 @@ func Load() (*Snapshot, error) {
 		loaded, loadErr = LoadFromBytes(modelsData, providersData, metadataData)
 	})
 	return loaded, loadErr
+}
+
+func readCompressedCatalog(name string) ([]byte, error) {
+	data, err := bundledFS.ReadFile(name)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", name, err)
+	}
+	r, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", name, err)
+	}
+	defer r.Close()
+	data, err = io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("decompress %s: %w", name, err)
+	}
+	return data, nil
 }
 
 func LoadFromBytes(modelsData, providersData, metadataData []byte) (*Snapshot, error) {

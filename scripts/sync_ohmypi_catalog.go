@@ -77,6 +77,21 @@ func run(version string, check, write bool) error {
 		filepath.Join("internal", "llm", "catalog", "ohmypi_providers.json"): providersJSON,
 		filepath.Join("internal", "llm", "catalog", "ohmypi_metadata.json"):  metadataJSON,
 	}
+	for _, name := range []string{"ohmypi_models.json", "ohmypi_providers.json"} {
+		path := filepath.Join("internal", "llm", "catalog", name)
+		var compressed bytes.Buffer
+		writer, err := gzip.NewWriterLevel(&compressed, gzip.BestCompression)
+		if err != nil {
+			return fmt.Errorf("compress %s: %w", name, err)
+		}
+		if _, err := writer.Write(targets[path]); err != nil {
+			return fmt.Errorf("compress %s: %w", name, err)
+		}
+		if err := writer.Close(); err != nil {
+			return fmt.Errorf("finish compressed %s: %w", name, err)
+		}
+		targets[path+".gz"] = compressed.Bytes()
+	}
 	if check {
 		var changed []string
 		for path, content := range targets {
