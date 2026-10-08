@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -24,6 +25,9 @@ import (
 
 const videoStudioAPIBase = "/api/desktop/video-studio"
 const videoStudioJSONLimit = 8 << 20
+
+// videoStudioProjectListLimit bounds GET /projects to the most recently changed projects.
+var videoStudioProjectListLimit = 200
 
 type videoStudioProjectItem struct {
 	ID          string              `json:"id"`
@@ -262,11 +266,20 @@ func handleVideoStudioProjects(s *Server, w http.ResponseWriter, r *http.Request
 			writeVideoStudioError(w, http.StatusInternalServerError, "project_list_failed", "Projects could not be listed.")
 			return
 		}
-		items := make([]videoStudioProjectItem, 0, len(entries))
+		candidates := make([]desktop.FileEntry, 0, len(entries))
 		for _, entry := range entries {
-			if entry.Type != "directory" || !validVideoStudioProjectID(entry.Name) {
-				continue
+			if entry.Type == "directory" && validVideoStudioProjectID(entry.Name) {
+				candidates = append(candidates, entry)
 			}
+		}
+		// Read only the most recently changed projects; each project.json may be up to 8 MiB.
+		sort.SliceStable(candidates, func(i, j int) bool { return candidates[i].ModTime.After(candidates[j].ModTime) })
+		truncated := len(candidates) > videoStudioProjectListLimit
+		if truncated {
+			candidates = candidates[:videoStudioProjectListLimit]
+		}
+		items := make([]videoStudioProjectItem, 0, len(candidates))
+		for _, entry := range candidates {
 			project, body, _, readErr := readVideoStudioProject(r.Context(), svc, videoStudioProjectPath(entry.Name))
 			if readErr != nil {
 				continue
@@ -280,8 +293,11 @@ func handleVideoStudioProjects(s *Server, w http.ResponseWriter, r *http.Request
 			}
 			items = append(items, videoStudioProjectItem{ID: entry.Name, Project: project, DesktopPath: videoStudioProjectPath(entry.Name), ETag: desktop.NoteVersion(body), UpdatedAt: entry.ModTime})
 		}
-		sort.Slice(items, func(i, j int) bool { return items[i].UpdatedAt.After(items[j].UpdatedAt) })
-		writeVideoStudioJSON(w, http.StatusOK, map[string]interface{}{"projects": items})
+		response := map[string]interface{}{"projects": items}
+		if truncated {
+			response["truncated"] = true
+		}
+		writeVideoStudioJSON(w, http.StatusOK, response)
 	case http.MethodPost:
 		svc, _, _, ok := videoStudioMutationAccess(s, w, r, desktopScopeWrite)
 		if !ok {
@@ -430,14 +446,17 @@ func handleVideoStudioProject(s *Server, w http.ResponseWriter, r *http.Request,
 		}
 		lock := manager.projectLock(id)
 		lock.Lock()
-		manager.cancelProject(id)
+		// Delete first: a failed delete leaves the project and its jobs as they
+		// were. Workers publish into a project only under this lock, so no output
+		// lands between the delete and the cancellation.
 		err := svc.DeletePath(r.Context(), videoStudioProjectPath(id), desktop.SourceUser)
 		if err == nil {
+			manager.cancelProject(id)
 			manager.removeProject(id)
 		}
 		lock.Unlock()
 		if err != nil {
-			writeVideoStudioError(w, http.StatusNotFound, "project_delete_failed", "Project could not be deleted.")
+			writeVideoStudioDeleteError(w, r, err)
 			return
 		}
 		writeVideoStudioJSON(w, http.StatusOK, map[string]interface{}{"deleted": true, "id": id})
@@ -514,6 +533,7 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 		return
 	}
 	maxAsset := int64(cfg.VideoStudio.MaxAssetSizeMB) << 20
+	assetLimit := maxAsset
 	r.Body = http.MaxBytesReader(w, r.Body, maxAsset+(1<<20))
 	var name string
 	var source io.Reader
@@ -599,9 +619,10 @@ func handleVideoStudioMedia(s *Server, w http.ResponseWriter, r *http.Request, p
 	}
 	_ = svc.CreateDirectory(r.Context(), videoStudioProjectPath(projectID)+"/media", desktop.SourceUser)
 	hasher := sha256.New()
-	_, err = svc.WriteFileStreamConditional(r.Context(), videoStudioProjectPath(projectID)+"/"+mediaPath, io.TeeReader(source, hasher), maxAsset, desktop.SourceUser, nil)
+	counted := &videoStudioUploadSource{reader: source}
+	_, err = svc.WriteFileStreamConditional(r.Context(), videoStudioProjectPath(projectID)+"/"+mediaPath, io.TeeReader(counted, hasher), maxAsset, desktop.SourceUser, nil)
 	if err != nil {
-		writeVideoStudioError(w, http.StatusRequestEntityTooLarge, "media_upload_failed", "Media file could not be stored within the configured limits.")
+		writeVideoStudioUploadError(w, r, err, counted, maxAsset, assetLimit, uploadPart != nil)
 		return
 	}
 	if uploadPart != nil {
@@ -940,8 +961,21 @@ func handleVideoStudioJobCancel(s *Server, w http.ResponseWriter, r *http.Reques
 		writeVideoStudioError(w, http.StatusNotFound, "job_not_found", "Job not found.")
 		return
 	}
-	manager.cancelJob(id)
+	cancelled := manager.cancelJob(id)
 	job = manager.job(id)
+	if job == nil {
+		writeVideoStudioError(w, http.StatusNotFound, "job_not_found", "Job not found.")
+		return
+	}
+	if !cancelled {
+		// Already ended, or its output is already published and it is finishing.
+		writeVideoStudioJSON(w, http.StatusConflict, map[string]interface{}{
+			"error": "job_finished", "code": "job_finished",
+			"message": "The job already finished or is saving its result and can no longer be cancelled.",
+			"job":     job,
+		})
+		return
+	}
 	writeVideoStudioJSON(w, http.StatusOK, map[string]interface{}{"job": job})
 }
 
@@ -1135,8 +1169,65 @@ func writeVideoStudioEnqueueError(w http.ResponseWriter, err error) {
 		writeVideoStudioError(w, http.StatusTooManyRequests, "job_queue_full", "Video Studio is busy. Try again later.")
 	case "video_studio_shutdown":
 		writeVideoStudioError(w, http.StatusServiceUnavailable, "video_studio_shutdown", "Video Studio is shutting down.")
+	case "configuration_changed":
+		writeVideoStudioError(w, http.StatusConflict, "configuration_changed", "Video Studio configuration changed before the job was queued.")
 	default:
 		writeVideoStudioError(w, http.StatusInternalServerError, "job_enqueue_failed", "Video Studio job could not be queued.")
+	}
+}
+
+func writeVideoStudioDeleteError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		writeVideoStudioError(w, http.StatusNotFound, "project_not_found", "Project not found.")
+	case videoStudioPublicationRevoked(r, err):
+		writeVideoStudioError(w, http.StatusConflict, "configuration_changed", "Video Studio configuration changed before the project was deleted.")
+	default:
+		writeVideoStudioError(w, http.StatusInternalServerError, "project_delete_failed", "Project could not be deleted.")
+	}
+}
+
+// videoStudioPublicationRevoked reports a write refused by a publication gate
+// (configuration change, read-only, shutdown) while the request is still alive.
+func videoStudioPublicationRevoked(r *http.Request, err error) bool {
+	return errors.Is(err, context.Canceled) && r.Context().Err() == nil
+}
+
+// videoStudioUploadSource counts what an upload stream delivered and keeps its
+// first read error, so a failed write can be attributed to the size limit, the
+// client or the storage.
+type videoStudioUploadSource struct {
+	reader io.Reader
+	read   int64
+	err    error
+}
+
+func (s *videoStudioUploadSource) Read(p []byte) (int, error) {
+	n, err := s.reader.Read(p)
+	s.read += int64(n)
+	if err != nil && err != io.EOF && s.err == nil {
+		s.err = err
+	}
+	return n, err
+}
+
+// writeVideoStudioUploadError answers 413 only for real size limits; a broken
+// client stream is 400, a revoked publication 409 and anything else 500.
+func writeVideoStudioUploadError(w http.ResponseWriter, r *http.Request, err error, source *videoStudioUploadSource, limit, assetLimit int64, clientStream bool) {
+	var bodyLimit *http.MaxBytesError
+	switch {
+	case errors.As(source.err, &bodyLimit) || source.read > limit:
+		if limit < assetLimit {
+			writeVideoStudioError(w, http.StatusRequestEntityTooLarge, "project_size_limit", "Media file exceeds the remaining project storage limit.")
+			return
+		}
+		writeVideoStudioError(w, http.StatusRequestEntityTooLarge, "asset_size_limit", "Media file exceeds the configured asset limit.")
+	case clientStream && (source.err != nil || r.Context().Err() != nil):
+		writeVideoStudioError(w, http.StatusBadRequest, "media_upload_failed", "The upload was interrupted or could not be read.")
+	case videoStudioPublicationRevoked(r, err):
+		writeVideoStudioError(w, http.StatusConflict, "configuration_changed", "Video Studio configuration changed before the import completed.")
+	default:
+		writeVideoStudioError(w, http.StatusInternalServerError, "media_store_failed", "Media file could not be stored.")
 	}
 }
 

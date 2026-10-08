@@ -283,6 +283,7 @@ type Server struct {
 	gameMakerSkills           []gamemaker.SkillInfo
 	gameMakerSkillsReady      bool
 	DesktopMu                 sync.Mutex
+	desktopClosed             bool // shutdown closed Desktop storage; guarded by DesktopMu
 	desktopRuns               desktopRunRegistry
 	videoStudioMu             sync.Mutex
 	videoStudio               *videoStudioManager

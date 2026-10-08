@@ -14,9 +14,11 @@ import (
 	_ "image/jpeg"
 	png "image/png"
 	"io"
+	"net/http/httptrace"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -378,10 +380,15 @@ func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.S
 			}
 		}
 	}
-	if err := m.markExternalStatusUnknownForWork(job.ID, work); err != nil {
+	if err := m.checkGenerationAdmitted(job.ID, work); err != nil {
 		return nil, nil, err
 	}
-	result := tools.GenerateVideoResult(ctx, cfg, m.server.MediaRegistryDB, m.server.Logger, params)
+	providerCtx, stopProvider, providerMarkErr := m.providerRequestContext(ctx, job.ID, work)
+	result := tools.GenerateVideoResult(providerCtx, cfg, m.server.MediaRegistryDB, m.server.Logger, params)
+	stopProvider()
+	if err := providerMarkErr(); err != nil {
+		return nil, nil, err
+	}
 	if result.Status != "ok" {
 		return nil, nil, fmt.Errorf("provider_generation_failed")
 	}
@@ -392,6 +399,10 @@ func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.S
 	if err := m.markExternalStatusResolved(job.ID); err != nil {
 		return nil, nil, err
 	}
+	// The provider's file is never deleted here: data/generated_videos is the
+	// Desktop "Videos" library and the file is registered in the media registry,
+	// like every generate_video result. It is also the only copy of a paid result
+	// when the import below fails. The project receives its own copy.
 	outputRoot := filepath.Join(cfg.Directories.DataDir, "generated_videos")
 	rootAbs, err := filepath.Abs(outputRoot)
 	if err != nil {
@@ -480,6 +491,33 @@ func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.S
 	}
 	mediaPublished = false
 	return nil, map[string]interface{}{"asset": asset, "provider": result.Provider, "model": result.Model, "cost_estimate": result.CostEstimate}, nil
+}
+
+// providerRequestContext records the uncertain provider outcome when the first
+// provider connection is ready, before any request byte is written. Failures
+// before that point (daily limit, local setup, DNS, refused connections) never
+// reached the provider and stay plain failures.
+func (m *videoStudioManager) providerRequestContext(ctx context.Context, id string, work *videoStudioWork) (context.Context, context.CancelFunc, func() error) {
+	ctx, cancel := context.WithCancel(ctx)
+	var mu sync.Mutex
+	marked := false
+	var markErr error
+	trace := &httptrace.ClientTrace{GotConn: func(httptrace.GotConnInfo) {
+		mu.Lock()
+		defer mu.Unlock()
+		if marked {
+			return
+		}
+		marked = true
+		if markErr = m.markExternalStatusUnknownForWork(id, work); markErr != nil {
+			cancel()
+		}
+	}}
+	return httptrace.WithClientTrace(ctx, trace), cancel, func() error {
+		mu.Lock()
+		defer mu.Unlock()
+		return markErr
+	}
 }
 
 func videoStudioGenerationImagePayload(provider string, data []byte) (string, error) {

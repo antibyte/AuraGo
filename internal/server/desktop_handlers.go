@@ -73,6 +73,10 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 
 	s.DesktopMu.Lock()
 	defer s.DesktopMu.Unlock()
+	if s.desktopClosed {
+		// Shutdown closed the stores; never reopen them behind its back.
+		return nil, nil, fmt.Errorf("virtual desktop is shutting down")
+	}
 	if s.DesktopService != nil && !reflect.DeepEqual(s.DesktopService.Config(), desktopCfg) {
 		if s.DesktopHub != nil {
 			s.DesktopHub.Close()

@@ -9,6 +9,34 @@ import (
 	"aurago/internal/tools"
 )
 
+// shutdownDesktopStorage closes the shared Desktop service, hub and store when
+// shutdown is requested. The Video Studio worker writes through the Desktop
+// service, so it is cancelled and drained first, and getDesktopService refuses
+// to reopen the service afterwards.
+func (s *Server) shutdownDesktopStorage() {
+	s.closeVideoStudioManager()
+	s.revokeDesktopRuns()
+	s.DesktopMu.Lock()
+	s.desktopClosed = true
+	if s.DesktopHub != nil {
+		s.DesktopHub.Close()
+		s.DesktopHub = nil
+	}
+	if s.DesktopService != nil {
+		_ = s.DesktopService.Close()
+		s.DesktopService = nil
+	}
+	if s.DesktopStore != nil {
+		_ = s.DesktopStore.Close()
+		s.DesktopStore = nil
+	}
+	s.DesktopMu.Unlock()
+	// Note: we intentionally do NOT call CloseToolDesktopService() here.
+	// Many tests create short-lived servers; a global close would tear down
+	// services belonging to other parallel tests. The real production server
+	// closes its own DesktopService (which is the one registered via Set).
+}
+
 // closeRuntimeResources releases server-owned runtime handles during graceful shutdown.
 func (s *Server) closeRuntimeResources() {
 	if s == nil {

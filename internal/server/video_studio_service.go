@@ -69,6 +69,9 @@ type videoStudioJob struct {
 	KeyHash               string                 `json:"-"`
 	Fingerprint           string                 `json:"-"`
 	progressPersistedAt   time.Time              `json:"-"`
+	// committed is set once the job's publication gate placed output in the
+	// project. From then on the worker, not a late cancellation, decides the status.
+	committed bool
 }
 
 type videoStudioMediaRecord struct {
@@ -574,8 +577,9 @@ func (m *videoStudioManager) publicationContext(ctx context.Context, jobID strin
 		if m.closed || m.configChanging || m.server.videoStudioConfigRevoking.Load() || m.epoch != epoch || ctx.Err() != nil {
 			return context.Canceled
 		}
+		var job *videoStudioJob
 		if jobID != "" {
-			job := m.jobs[jobID]
+			job = m.jobs[jobID]
 			if job == nil || job.Status != "running" {
 				return context.Canceled
 			}
@@ -584,7 +588,13 @@ func (m *videoStudioManager) publicationContext(ctx context.Context, jobID strin
 		if cfg == nil || !cfg.VideoStudio.Enabled || cfg.VideoStudio.ReadOnly || !cfg.VirtualDesktop.Enabled || cfg.VirtualDesktop.ReadOnly {
 			return context.Canceled
 		}
-		return fileutil.PublishContext(ctx, commit)
+		if err := fileutil.PublishContext(ctx, commit); err != nil {
+			return err
+		}
+		if job != nil {
+			job.committed = true
+		}
+		return nil
 	})
 }
 
@@ -616,16 +626,45 @@ func (m *videoStudioManager) finish(id, status, code, message string, artifact *
 	}
 }
 
+// generationAdmittedLocked reports whether a generation job may still contact its provider.
+func (m *videoStudioManager) generationAdmittedLocked(job *videoStudioJob, work *videoStudioWork) bool {
+	return !(m.closed || m.configChanging || m.server.videoStudioConfigRevoking.Load() || m.ctx.Err() != nil || job == nil || job.Status != "running" || work == nil ||
+		m.epoch != work.admittedEpoch || videoStudioConfigRootsChanged(work.admittedConfig, m.server.ConfigSnapshot()))
+}
+
+func (m *videoStudioManager) checkGenerationAdmitted(id string, work *videoStudioWork) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.generationAdmittedLocked(m.jobs[id], work) {
+		return context.Canceled
+	}
+	return nil
+}
+
+// markExternalStatusUnknownForWork runs once a provider connection is ready,
+// before the request is written. The transport cannot be stopped reliably at
+// that point, so the uncertainty is recorded even for a job that was cancelled
+// meanwhile; an error tells the caller to abandon the request.
 func (m *videoStudioManager) markExternalStatusUnknownForWork(id string, work *videoStudioWork) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	job := m.jobs[id]
-	if m.closed || m.configChanging || m.server.videoStudioConfigRevoking.Load() || m.ctx.Err() != nil || job == nil || job.Status != "running" || work == nil ||
-		m.epoch != work.admittedEpoch || videoStudioConfigRootsChanged(work.admittedConfig, m.server.ConfigSnapshot()) {
+	if job == nil {
 		return context.Canceled
 	}
-	job.ExternalStatusUnknown = true
-	return m.persistLocked()
+	if !job.ExternalStatusUnknown {
+		job.ExternalStatusUnknown = true
+		if job.Status == "cancelled" && job.Kind == "generate" {
+			job.Message = videoStudioUncertainCancelMessage(job.Error)
+		}
+		if err := m.persistLocked(); err != nil {
+			return err
+		}
+	}
+	if !m.generationAdmittedLocked(job, work) {
+		return context.Canceled
+	}
+	return nil
 }
 
 func (m *videoStudioManager) markExternalStatusResolved(id string) error {
@@ -866,18 +905,20 @@ func (m *videoStudioManager) removeProject(projectID string) {
 	_ = m.persistLocked()
 }
 
+// cancelJob reports false when the job is unknown, already ended, or already
+// published its output (it is finishing and will record its own outcome).
 func (m *videoStudioManager) cancelJob(id string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	job := m.jobs[id]
-	if job == nil || job.Status == "succeeded" || job.Status == "failed" || job.Status == "cancelled" || job.Status == "interrupted" {
+	if job == nil || job.committed || job.Status == "succeeded" || job.Status == "failed" || job.Status == "cancelled" || job.Status == "interrupted" {
 		return false
 	}
 	job.Status = "cancelled"
 	job.Error = "cancelled"
 	job.Message = "The job was cancelled."
 	if job.Kind == "generate" && job.ExternalStatusUnknown {
-		job.Message = "Polling stopped, but the provider may still complete this request. Check provider status before starting another paid request."
+		job.Message = videoStudioUncertainCancelMessage(job.Error)
 	}
 	finished := time.Now().UTC()
 	job.FinishedAt = &finished
@@ -898,7 +939,7 @@ func (m *videoStudioManager) cancelProject(projectID string) {
 		}
 		job.Status, job.Error, job.Message = "cancelled", "project_deleted", "The project was deleted."
 		if job.Kind == "generate" && job.ExternalStatusUnknown {
-			job.Message = "The project was deleted and polling stopped, but the provider may still complete this request."
+			job.Message = videoStudioUncertainCancelMessage(job.Error)
 		}
 		finished := time.Now().UTC()
 		job.FinishedAt = &finished
@@ -921,16 +962,20 @@ func (m *videoStudioManager) cancelAll() {
 		if job.Status != "queued" && job.Status != "running" {
 			continue
 		}
+		if cancel := m.active[id]; cancel != nil {
+			cancel()
+		}
+		if job.committed {
+			// Its output was published before the change; the worker records the outcome.
+			continue
+		}
 		job.Status, job.Error, job.Message = "cancelled", "configuration_changed", "Video Studio or Desktop permissions changed."
 		if job.Kind == "generate" && job.ExternalStatusUnknown {
-			job.Message = "Configuration changed and polling stopped, but the provider may still complete this request. Check provider status before retrying."
+			job.Message = videoStudioUncertainCancelMessage(job.Error)
 		}
 		finished := time.Now().UTC()
 		job.FinishedAt = &finished
 		delete(m.works, id)
-		if cancel := m.active[id]; cancel != nil {
-			cancel()
-		}
 	}
 	_ = m.persistLocked()
 	m.mu.Unlock()
@@ -948,12 +993,12 @@ func (m *videoStudioManager) close() {
 	m.closed = true
 	m.epoch++
 	for id, job := range m.jobs {
-		if job.Status != "queued" && job.Status != "running" {
+		if job.Status != "queued" && job.Status != "running" || job.committed {
 			continue
 		}
 		job.Status, job.Error, job.Message = "cancelled", "server_shutdown", "The server is shutting down."
 		if job.Kind == "generate" && job.ExternalStatusUnknown {
-			job.Message = "The server stopped polling, but the provider may still complete this request. Check provider status before retrying."
+			job.Message = videoStudioUncertainCancelMessage(job.Error)
 		}
 		finished := time.Now().UTC()
 		job.FinishedAt = &finished
@@ -973,6 +1018,21 @@ func (m *videoStudioManager) close() {
 		if m.server != nil && m.server.Logger != nil {
 			m.server.Logger.Warn("video studio worker did not stop before shutdown timeout")
 		}
+	}
+}
+
+// videoStudioUncertainCancelMessage explains a cancelled generation whose
+// provider request may already have been received.
+func videoStudioUncertainCancelMessage(code string) string {
+	switch code {
+	case "project_deleted":
+		return "The project was deleted and polling stopped, but the provider may still complete this request."
+	case "configuration_changed":
+		return "Configuration changed and polling stopped, but the provider may still complete this request. Check provider status before retrying."
+	case "server_shutdown":
+		return "The server stopped polling, but the provider may still complete this request. Check provider status before retrying."
+	default:
+		return "Polling stopped, but the provider may still complete this request. Check provider status before starting another paid request."
 	}
 }
 

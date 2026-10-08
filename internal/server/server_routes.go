@@ -72,25 +72,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	startAgentActionReconciler(serverCtx, s, NewSSEBrokerAdapter(sse))
 	go func() {
 		<-shutdownCh
-		s.revokeDesktopRuns()
-		s.DesktopMu.Lock()
-		if s.DesktopHub != nil {
-			s.DesktopHub.Close()
-			s.DesktopHub = nil
-		}
-		if s.DesktopService != nil {
-			_ = s.DesktopService.Close()
-			s.DesktopService = nil
-		}
-		if s.DesktopStore != nil {
-			_ = s.DesktopStore.Close()
-			s.DesktopStore = nil
-		}
-		s.DesktopMu.Unlock()
-		// Note: we intentionally do NOT call CloseToolDesktopService() here.
-		// Many tests create short-lived servers; a global close would tear down
-		// services belonging to other parallel tests. The real production server
-		// closes its own DesktopService (which is the one registered via Set).
+		s.shutdownDesktopStorage()
 	}()
 
 	// Initialize Daemon Supervisor (long-running daemon skills)
