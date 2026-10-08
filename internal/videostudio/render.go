@@ -289,13 +289,14 @@ func buildVisualTrack(track Track, trackIndex, canvasWidth, canvasHeight int, in
 		clipLabels[clipIndex] = label
 		filters = append(filters, buildVisualClipFilter(trackIndex, clipIndex, clip, input, canvasWidth, canvasHeight, label))
 	}
+	// concat outputs a 1/1000000 timebase; settb=1/30 after every concat keeps xfade inputs on the clip timebase.
 	combined := clipLabels[0]
 	combinedEnd := clips[0].Start + clips[0].Duration
 	if clips[0].Start > 0 {
 		gap := gapLabel(trackIndex, 0)
 		filters = append(filters, transparentGapFilter(gap, clips[0].Start, canvasWidth, canvasHeight))
 		combined = newJoinLabel()
-		filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0[%s]", gapLabel(trackIndex, 0), clipLabels[0], combined))
+		filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0,settb=1/30[%s]", gapLabel(trackIndex, 0), clipLabels[0], combined))
 	}
 	for i := 1; i < len(clips); i++ {
 		clip, previous := clips[i], clips[i-1]
@@ -311,11 +312,11 @@ func buildVisualTrack(track Track, trackIndex, canvasWidth, canvasHeight int, in
 			gap := gapLabel(trackIndex, i)
 			filters = append(filters, transparentGapFilter(gap, clip.Start-combinedEnd, canvasWidth, canvasHeight))
 			withGap := newJoinLabel()
-			filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0[%s]", combined, gap, withGap))
+			filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0,settb=1/30[%s]", combined, gap, withGap))
 			combined = withGap
 		}
 		out := newJoinLabel()
-		filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0[%s]", combined, clipLabels[i], out))
+		filters = append(filters, fmt.Sprintf("[%s][%s]concat=n=2:v=1:a=0,settb=1/30[%s]", combined, clipLabels[i], out))
 		combined = out
 		combinedEnd = clip.Start + clip.Duration
 	}
