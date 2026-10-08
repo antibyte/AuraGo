@@ -447,6 +447,29 @@ export async function run(env) {
         editor.dispose();
     });
 
+    await guardAsync('a1008 1.5 review: a rebuilt card that is no longer selected gives a tool\'s focus to the canvas', async () => {
+        const h = sandbox(() => undefined);
+        const editor = openEditor(h);
+        await settle();
+        const ed = editor.ed;
+        ed.model.setParam(A, 'query', 'changed'); // something Ctrl+Z takes back, which rebuilds the card
+        ed.selection.add(A);
+        ed.bus.emit('selection', ed.selection);
+        const card = editor.el.querySelector('[data-node-id="' + A + '"]');
+        const canvasEl = editor.el.querySelector('.ed-canvas');
+        const tool = card.querySelector('[data-ed-node-tool="disable"]');
+        tool.focus();
+        // Escape deselects the card; the focus stays on its tool, which is no tab stop any more.
+        h.fireDoc('keydown', h.key('Escape', tool));
+        const afterEscape = [ed.selection.size, h.dom.document.activeElement === tool, tool.getAttribute('tabindex')];
+        h.fireDoc('keydown', h.key('z', tool, { ctrlKey: true }));
+        const now = h.dom.document.activeElement;
+        eq('a1008 1.5 review: focus, Escape, Ctrl+Z: the undone card is redrawn and the focus goes to the canvas, not to a tool outside the tab order',
+            [afterEscape, ed.model.node(A).params.query, card.contains(tool), now === canvasEl, now && now.dataset ? now.dataset.edNodeTool || null : null, h.logged],
+            [[0, true, '-1'], 'x', false, true, null, []]);
+        editor.dispose();
+    });
+
     // ── 1.6: the template preview names template errors in the user's language ──
 
     // translator is t over one locale's words, with {name} placeholders filled in.

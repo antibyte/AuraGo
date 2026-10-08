@@ -431,8 +431,12 @@
                 paintState(card, n, i, status, step);
             }
             syncTools(card, n.id);
-            const tool = focusedTool && Array.from(card.querySelectorAll('[data-ed-node-tool]')).find(b => b.dataset.edNodeTool === focusedTool);
-            if (tool) tool.focus({ preventScroll: true });
+            // Only a selected card's tools are tab stops: the focus of a card no longer selected
+            // (Escape, then Ctrl+Z) goes to the canvas instead.
+            if (focusedTool) {
+                const tool = ed.selection.has(n.id) && Array.from(card.querySelectorAll('[data-ed-node-tool]')).find(b => b.dataset.edNodeTool === focusedTool);
+                (tool || el).focus({ preventScroll: true });
+            }
         }
 
         // relabelled reports whether a change added or removed one of these nodes or gave it a new key

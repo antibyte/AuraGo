@@ -222,7 +222,8 @@
   badges, run status and error box in place (`paintState`); its markup, tools included, is
   rebuilt only when the step itself changes, so a focused tool keeps the focus during a run.
   A rebuild (Disable from the keyboard) hands a tool's focus to the new button with the same
-  `data-ed-node-tool`. Tab on the canvas opens quick-add, so
+  `data-ed-node-tool` while the card is selected, else to the canvas. Tab on the canvas opens
+  quick-add, so
   the zoom bar and a selected card's tools are reached with Shift+Tab from the footer. Every tool
   has a key as well: D (off/on), Ctrl+D (duplicate), Del (delete); Test step sits in the detail
   view (Enter). The screen-reader step list (`.ed-node-list`) duplicates the arrow keys, so its
