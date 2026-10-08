@@ -408,8 +408,21 @@ func (s *Store) SaveDraft(ctx context.Context, id string, f *Flow, baseRevision 
 	return current, ErrRevisionConflict
 }
 
-// Publish copies the draft to the live revision, stores a version and keeps the last 50 versions.
-// It returns ErrRevisionConflict when baseRevision is not the current draft
+// pruneVersionsSQL deletes a flow's versions that are maxStoredVersions or more behind its
+// live revision, except the revisions an unfinished live run (queued, waiting or running)
+// executes: such a run reads its document from flow_versions when it ends (GetRunDoc, for
+// the leaf outputs and the notify setting of its report). The run lookup is a
+// non-correlated subquery, so SQLite evaluates it once per publish, through an index of
+// flow_runs (pinned by TestAudit18VersionPruningSearchesTheRunsByIndex). Arguments: flow
+// id, flow id, maxStoredVersions, flow id.
+const pruneVersionsSQL = `DELETE FROM flow_versions WHERE flow_id = ?
+	AND revision <= (SELECT live_revision FROM flows WHERE id = ?) - ?
+	AND revision NOT IN (SELECT revision FROM flow_runs WHERE flow_id = ? AND mode = 'live'
+		AND status IN ('queued', 'running', 'waiting'))`
+
+// Publish copies the draft to the live revision, stores a version and keeps the last 50
+// versions, plus every older one that an unfinished live run still executes (see
+// pruneVersionsSQL). It returns ErrRevisionConflict when baseRevision is not the current draft
 // revision. Publishing a draft revision that is already live is a no-op: it
 // returns the current record without a new version, so a repeated or concurrent
 // publish of the same revision is harmless.
@@ -458,8 +471,7 @@ func (s *Store) Publish(ctx context.Context, id string, baseRevision int, now ti
 		SELECT id, live_revision, live_json, published_at FROM flows WHERE id = ?`, id); err != nil {
 		return nil, err
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM flow_versions WHERE flow_id = ?
-		AND revision <= (SELECT live_revision FROM flows WHERE id = ?) - ?`, id, id, maxStoredVersions); err != nil {
+	if _, err := tx.ExecContext(ctx, pruneVersionsSQL, id, id, maxStoredVersions, id); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {

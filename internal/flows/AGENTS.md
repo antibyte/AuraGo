@@ -163,7 +163,11 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   with a greater version (or one that is not a number) before any migration runs and leaves the file untouched,
   so an older AuraGo never writes into a schema a newer one migrated. Raise `storeSchemaVersion` with every
   migration a previous release cannot work with.
-- Test runs store their document in `flow_runs.doc_json`; live runs reference `flow_versions` (last 50).
+- Test runs store their document in `flow_runs.doc_json`; live runs reference `flow_versions`. `Publish` keeps the
+  last 50 versions plus every older one an unfinished live run (queued, waiting, running) executes
+  (`pruneVersionsSQL`: one non-correlated subquery on `idx_flow_runs_flow_started`, pinned by
+  `TestAudit18VersionPruningSearchesTheRunsByIndex`); such a version goes with the first publish after the run
+  finished. A run row left unfinished by a crash is marked interrupted at the next `Start`, so it holds nothing.
 - Not-found and exists cases are typed (`ErrFlowExists`, `ErrNotFound`, `ErrRunNotFound`). Inserts and
   upserts of child rows are guarded by `WHERE EXISTS` on the parent row; plain updates by id
   (`SetMissionID`, `SetRunStatus`, `FinishRun`) use the affected row count. A stale draft revision is
@@ -444,8 +448,13 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   treats those triggers as trusted; a trigger registration names its node and keeps its data. The drop is logged at
   Debug with the mission id and the encoded size, never the data. Live runs report start and
   finish: `FlowRunStarted` returns the history id, and `FlowRunFinished(RunFinishedInfo)` carries the leaf
-  outputs (nodes without successors, by key) of the document the run executed, for dependent
-  `mission_completed` triggers. A run is reported even when its flow was deleted meanwhile (the hook remembers
+  outputs (nodes without successors, by key) and the `notify_on_error` setting of the document the run executed
+  (`GetRunDoc`; `Publish` keeps that version while the run is unfinished, see Store), for dependent
+  `mission_completed` triggers. If that document still cannot be read (the run row went with its deleted flow,
+  a store or parse error), the outputs are empty, never the leaves of the current document, which could drop a
+  leaf the run had or report a node that was no leaf in the run; `notify_on_error` is then the flow's current
+  setting (live revision, else draft), the user's preference now, and a flow that still exists is logged at
+  Warn (a gone one at Debug). A run is reported even when its flow was deleted meanwhile (the hook remembers
   mission and name), so no history entry stays "running"; a run that never started (cancelled while queued,
   shutdown) is reported with `Started` false. `ErrQueueFull` and `ErrRunnerClosed` from the runner pass through.
 - Trigger input from Mission Control is untrusted and bounded: the trigger type is kept only as 1 to 40 characters

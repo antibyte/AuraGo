@@ -396,9 +396,13 @@ func (s *Service) onRunStarted(rec RunRecord) {
 
 // onRunFinished tells Mission Control that a live run ended. It reports every live run,
 // also when the flow or the run's document is gone, so no history entry stays
-// "running". For a run that executed, the outputs and the notify setting come from the
-// document the run executed (it may differ from the live revision by now), else from
-// the live revision, else from the draft; without any document the outputs are empty.
+// "running". For a run that executed, the leaf outputs and the notify setting come from
+// the document the run executed (it may differ from the live revision by now; Publish
+// keeps the versions of unfinished runs). When that document cannot be read (its run row
+// went with a deleted flow, its version is gone, a store or parse error), the outputs are
+// empty, never the leaves of another revision, which could name nodes that were no leaf
+// in the run; the notify setting is then the flow's current one (live revision, else
+// draft), the user's preference now, and a flow that still exists is logged at Warn.
 // A run that never started has no outputs: it reads no document, only the flow's
 // mission and name, because it ends inside Runner.CancelFlow (DeleteFlow, with the flow
 // lock held), Runner.CancelFlowMode (CancelMissionRuns, on an HTTP goroutine without a
@@ -435,12 +439,19 @@ func (s *Service) onRunFinished(rec RunRecord, res RunResult) {
 			s.logLookup("the flow of a finished run could not be read", rec.ID, err)
 			break
 		}
-		if doc = fr.Live; doc == nil {
-			doc = fr.Draft
+		current := fr.Live
+		if current == nil {
+			current = fr.Draft
 		}
 		if !h.known {
 			info.MissionID, info.FlowName = fr.MissionID, fr.Name
 		}
+		if info.FlowName == "" {
+			info.FlowName = current.Name
+		}
+		info.NotifyOnError = current.Settings.NotifyOnError
+		s.logger.Warn("the document a finished run executed could not be read; its leaf outputs are reported empty",
+			"run", rec.ID, "flow", rec.FlowID, "revision", rec.Revision)
 	case !h.known:
 		if missionID, name, err := s.store.flowMissionAndName(ctx, rec.FlowID); err != nil {
 			s.logLookup("the flow of a finished run could not be read", rec.ID, err)
