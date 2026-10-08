@@ -65,10 +65,18 @@
                 x: Number(clip.x || 0), y: Number(clip.y || 0), width: Number(clip.width || 1), height: Number(clip.height || 1),
                 rotation: Number(clip.rotation || 0), opacity: Number(clip.opacity == null ? 1 : clip.opacity), volume: Number(clip.volume == null ? 1 : clip.volume),
                 fade_in: Math.round(clip.fade_in || 0), fade_out: Math.round(clip.fade_out || 0), fit: clip.fit === 'cover' ? 'cover' : 'contain',
-                text: String(clip.text || ''), text_style: clip.text_style || null, transition: clip.transition || null
+                text: String(clip.text || ''), text_style: normalizeTextStyle(clip.text_style), transition: clip.transition || null
             }))
         }));
         return copy;
+    }
+    // Mirrors the server's omitempty JSON (no false, 0 or empty values; stable key order), so a saved
+    // project compares equal to the copy the server sends back and a refresh does not report a conflict.
+    function normalizeTextStyle(style) {
+        if (!style || typeof style !== 'object') return null;
+        const out = {};
+        Object.keys(style).sort().forEach(key => { const value = style[key]; if (value !== '' && value !== 0 && value !== false && value != null) out[key] = value; });
+        return out;
     }
     function hydrateProject(s, project) {
         const p = clone(project || {});
@@ -111,8 +119,17 @@
     function clearNotice(s) { const el = s.q('[data-notice]'); if (el) { el.hidden = true; el.replaceChildren(); } clearTimeout(s.toastTimer); }
     function projectDuration(s) { return s.project ? T().projectEnd(s.project) : 0; }
     function snapshot(s) { return clone(s.project); }
+    // A text edit records its pre-edit state once: when the field commits or another edit starts.
+    function flushTextBefore(s) {
+        if (!s.textBefore) return;
+        s.history.push(s.textBefore.snapshot);
+        if (s.history.length > 50) s.history.shift();
+        s.redo = [];
+        s.textBefore = null;
+    }
     function recordChange(s, label, before) {
         if (s.readonly) { if (before) s.project = hydrateProject(s, before); return renderUI(s); }
+        flushTextBefore(s);
         if (T().validTimeline && !T().validTimeline(s.project)) {
             if (before) s.project = hydrateProject(s, before);
             showNotice(s, 'invalidTiming', 'That edit would create invalid timing or an overlap.', true);
@@ -127,10 +144,12 @@
     }
     function mutate(s, label, fn) {
         if (!s.project || s.readonly || s.timelineDragging) return false;
-        const before = snapshot(s);
-        if (fn(s.project) === false) { s.project = hydrateProject(s, before); return false; }
+        flushTextBefore(s);
+        const before = snapshot(s), selection = [s.selectedClipId, s.selectionRevision];
+        const restore = () => { s.project = hydrateProject(s, before); [s.selectedClipId, s.selectionRevision] = selection; };
+        if (fn(s.project) === false) { restore(); return false; }
         if (T().validTimeline && !T().validTimeline(s.project)) {
-            s.project = hydrateProject(s, before);
+            restore();
             showNotice(s, 'invalidTiming', 'That edit would create invalid timing or an overlap.', true);
             renderUI(s);
             return false;
@@ -148,12 +167,14 @@
     }
     function undo(s, redo) {
         if (s.readonly || s.timelineDragging || !s.project) return;
+        flushTextBefore(s);
         const source = redo ? s.redo : s.history;
         const target = redo ? s.history : s.redo;
         if (!source.length) return;
-        s.artworkRevision++; target.push(snapshot(s));
+        target.push(snapshot(s));
         s.project = hydrateProject(s, source.pop());
         if (s.selectedClipId && !T().clipFor(s.project, s.selectedClipId)) s.selectedClipId = '';
+        P.resyncArtwork(s);
         s.dirty = true; s.revision++;
         persistDraft(s); scheduleSave(s); renderUI(s); s.preview.seek(s.frame);
     }
@@ -194,16 +215,25 @@
         }
         clearTimeout(s.autosaveTimer);
         if (s.savePromise) return s.savePromise;
-        s.saving = true; s.saveError = ''; renderToolbar(s);
+        s.saving = true; s.saveError = ''; s.saveGeneration = (s.saveGeneration || 0) + 1; renderToolbar(s);
         const revision = s.revision, projectId = s.projectId, epoch = s.projectEpoch;
         const token = {};
         s.saveToken = token;
-        const requestBody = canonicalProject(s.project);
+        let requestBody = canonicalProject(s.project);
         s.savePromise = (async () => {
             try {
-                const response = await request(API + '/projects/' + encodeURIComponent(projectId), {
-                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': s.etag }, body: JSON.stringify(requestBody)
-                });
+                let response;
+                for (let attempt = 0; !response; attempt++) {
+                    try {
+                        response = await request(API + '/projects/' + encodeURIComponent(projectId), {
+                            method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': s.etag }, body: JSON.stringify(requestBody)
+                        });
+                    } catch (error) {
+                        const stale = error.status === 412 || error.message === 'file_conflict';
+                        if (!stale || attempt > 0 || !(await adoptServerMedia(s, projectId, epoch))) throw error;
+                        requestBody = canonicalProject(s.project);
+                    }
+                }
                 if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return true;
                 s.etag = response.etag || s.etag;
                 s.desktopPath = response.body.desktop_path || s.desktopPath;
@@ -230,6 +260,22 @@
             }
         })();
         return s.savePromise;
+    }
+    // Imports change the server copy (new or probed assets) and its ETag. When the server copy differs from
+    // our last save only in its media list, adopt that list and the observed ETag; anything else is a conflict.
+    async function adoptServerMedia(s, projectId, epoch) {
+        if (!s.savedProject) return false;
+        const fresh = await request(API + '/projects/' + encodeURIComponent(projectId), { signal: s.abort.signal });
+        if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId || !fresh.etag) return false;
+        const next = hydrateProject(s, fresh.body.project || fresh.body);
+        const content = project => { const canonical = canonicalProject(project); canonical.assets = []; return JSON.stringify(canonical); };
+        if (content(next) !== content(s.savedProject)) return false;
+        const known = new Map((s.project.assets || []).map(asset => [asset.id, asset]));
+        next.assets.forEach(asset => { const local = known.get(asset.id); if (local) Object.assign(local, asset); });
+        s.project.assets = (s.project.assets || []).concat(next.assets.filter(asset => !known.has(asset.id)));
+        s.savedProject.assets = next.assets.map(({ media_url, ...asset }) => asset);
+        s.etag = fresh.etag;
+        return true;
     }
     async function showConflict(s) {
         const host = s.q('[data-conflict-host]');
@@ -280,6 +326,7 @@
     async function recoverDraft(s, expectedProjectId, expectedEpoch) {
         const projectId = expectedProjectId || s.projectId;
         const epoch = expectedEpoch == null ? s.projectEpoch : expectedEpoch;
+        if (s.readonly) return;
         let raw;
         try { raw = localStorage.getItem('video-studio-draft:' + projectId); } catch (_) { return; }
         if (!raw) return;
@@ -295,5 +342,5 @@
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { assetDisplayName, API, FPS, MAX_CLIPS, MAX_ACTIVE_ASSETS, MAX_PROJECT_FRAMES, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, request, canonicalProject, hydrateProject, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, activeAssetCount, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip });
+    Object.assign(P, { assetDisplayName, API, FPS, MAX_CLIPS, MAX_ACTIVE_ASSETS, MAX_PROJECT_FRAMES, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, clone, clamp, idempotencyKey, T, I, tr, esc, icon, readPref, writePref, maxFrames, request, canonicalProject, hydrateProject, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, undo, activeAssetCount, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia });
 })();

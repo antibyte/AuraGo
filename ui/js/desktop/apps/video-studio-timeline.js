@@ -137,6 +137,19 @@
         return `<div class="vs-clip vs-clip-${kind}${selected ? ' is-selected' : ''}${width < 46 ? ' is-narrow' : ''}" data-clip-id="${esc(clip.id)}" data-track-id="${esc(track.id)}" title="${esc(name)} · ${esc(range)}" style="left:${left}px;width:${width}px" tabindex="0" role="button" aria-pressed="${selected}" aria-label="${esc(name)} ${esc(range)}"><span class="vs-clip-media">${media}</span>${fadeIn}${fadeOut}<span class="vs-clip-label">${icon(options, kindIcon, 12)}<span class="vs-clip-name">${esc(name)}</span><span class="vs-clip-dur">${esc(shortClock(clip.duration))}</span></span>${transition}<button type="button" class="vs-trim vs-trim-start" data-trim="start" tabindex="-1" aria-label="${esc(label(options, 'trimStart', 'Trim start'))}"></button><button type="button" class="vs-trim vs-trim-end" data-trim="end" tabindex="-1" aria-label="${esc(label(options, 'trimEnd', 'Trim end'))}"></button></div>`;
     }
 
+    // Re-rendering replaces every control; remember which one had keyboard focus and restore it.
+    function focusSelector(root) {
+        const el = document.activeElement;
+        if (!el || !root.contains(el) || !el.dataset) return '';
+        const q = value => `"${CSS.escape(value)}"`;
+        if (el.dataset.trackAction) return `[data-track-row=${q(el.closest('[data-track-row]').dataset.trackRow)}] [data-track-action=${q(el.dataset.trackAction)}]`;
+        if (el.dataset.clipId) return `[data-clip-id=${q(el.dataset.clipId)}]`;
+        if (el.dataset.addTrack) return `[data-add-track=${q(el.dataset.addTrack)}]`;
+        if (el.dataset.action) return `[data-action=${q(el.dataset.action)}]`;
+        if (el.matches('[data-zoom]')) return '[data-zoom]';
+        if (el.matches('[data-playhead]')) return '[data-playhead]';
+        return '';
+    }
     function tickInterval(pps) {
         return TICK_STEPS.find(step => step * pps >= 72) || 600;
     }
@@ -150,6 +163,7 @@
         const scrollLeft = priorScroll ? priorScroll.scrollLeft : 0;
         const scrollTop = priorScroll ? priorScroll.scrollTop : 0;
         const menuOpen = !!root.querySelector('[data-track-menu]:not([hidden])');
+        const focused = focusSelector(root);
         const zoom = s.zoom || 1;
         const pps = BASE_PX_PER_SECOND * zoom;
         const totalFrames = Math.max(FPS * 20, projectEnd(project) + FPS * 6, s.frame + FPS * 4);
@@ -182,6 +196,7 @@
             root.querySelectorAll('[data-track-action], [data-add-track], [data-action="split"], [data-action="duplicate"], [data-action="delete"]').forEach(button => { button.disabled = true; });
             root.querySelectorAll('[draggable]').forEach(element => { element.draggable = false; });
         }
+        if (focused) root.querySelector(focused)?.focus({ preventScroll: true });
     }
 
     function setPlayhead(root, state, follow) {
@@ -412,7 +427,7 @@
         function keyDown(event) {
             if (event.key === 'Escape' && root.querySelector('[data-track-menu]:not([hidden])')) { closeMenu(); root.querySelector('[data-action="track-menu"]')?.focus(); event.preventDefault(); event.stopPropagation(); return; }
             const clip = event.target.closest('[data-clip-id]');
-            if (clip && event.key === 'Enter' && !event.target.closest('button')) {
+            if (clip && (event.key === 'Enter' || event.key === ' ') && !event.target.closest('button')) {
                 event.preventDefault(); event.stopPropagation();
                 options.onSelect(clip.dataset.clipId);
                 render(root, options);

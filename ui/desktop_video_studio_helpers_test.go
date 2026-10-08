@@ -53,6 +53,12 @@ const edge = I.scaleBox({x: 0.8, y: 0.8, width: 0.2, height: 0.2}, 0.5);
 assert(edge.x + edge.width <= 1 + 1e-9 && edge.y + edge.height <= 1 + 1e-9, 'scaled boxes stay inside the canvas');
 const clamped = I.clampBox({x: 0.9, y: -0.2, width: 0.5, height: 1.4});
 assert.deepEqual(clamped, {x: 0.5, y: 0, width: 0.5, height: 1});
+for (let px = 1; px <= 1280; px++) {
+  for (const canvas of [640, 720, 1280, 1920]) {
+    const b = I.clampBox({x: 2, y: 2, width: px / canvas, height: px / canvas});
+    assert(b.x + b.width <= 1 && b.y + b.height <= 1, 'rounded box crosses the frame edge: ' + JSON.stringify(b));
+  }
+}
 
 // Overlay slots: a free unlocked overlay track, a new track, or nothing.
 const clip = (start, duration) => ({id: 'c' + start, asset_id: 'a', start, duration});

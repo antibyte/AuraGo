@@ -62,7 +62,6 @@
     const saveUntilClean = (...args) => P.saveUntilClean(...args);
     const scheduleMediaRefresh = (...args) => P.scheduleMediaRefresh(...args);
     const scheduleSave = (...args) => P.scheduleSave(...args);
-    const scheduleTextApply = (...args) => P.scheduleTextApply(...args);
     const selectedClip = (...args) => P.selectedClip(...args);
     const setInspectorOpen = (...args) => P.setInspectorOpen(...args);
     const setTab = (...args) => P.setTab(...args);
@@ -88,7 +87,7 @@
         s.abort.abort();
         clearTimeout(s.autosaveTimer);
         clearTimeout(s.toastTimer);
-        clearTimeout(s.textTimer);
+        if (s.textTimers) P.cancelTextApplies(s);
         clearInterval(s.jobsTimer);
         s.xhrs.forEach(xhr => { try { xhr.abort(); } catch (_) { /* finished */ } });
         if (s.resizeObserver) s.resizeObserver.disconnect();
@@ -147,7 +146,8 @@
             status: null, projects: [], jobs: [], jobLocalStops: new Set(), frame: 0, selectedClipId: '', selectionRevision: 0,
             zoom: 1, snap: readPref(PREF_SNAP) !== 'false', dirty: false, saving: false, saveError: '', conflict: false, history: [], redo: [],
             busy: false, revision: 0, artworkRevision: 0, savePromise: null, autosaveTimer: 0, libraryTab: 'media', filter: 'all',
-            uploads: new Map(), notifiedJobs: new Set(), xhrs: new Set(), textPending: false, projectEpoch: 0
+            uploads: new Map(), notifiedJobs: new Set(), xhrs: new Set(), projectEpoch: 0,
+            textTimers: new Map(), staleArtwork: new Set(), artworkInFlight: new Set(), artworkJobs: new Map(), clipArtRevisions: new Map(), artworkKeys: new Map(), pendingArtwork: new Map(), textBefore: null
         };
         instances.set(id, s);
         host.innerHTML = layoutMarkup(s);
@@ -213,6 +213,8 @@
         s.keyHandler = event => handleKeys(s, event);
         window.addEventListener('keydown', s.keyHandler, true);
         if (typeof ctx.setWindowBeforeClose === 'function') ctx.setWindowBeforeClose(id, async () => {
+            if (s.readonly) return true;
+            await P.flushArtwork(s);
             while (s.dirty && !s.disposed) {
                 const saved = await saveProject(s);
                 if (!saved) return false;
@@ -291,7 +293,7 @@
             s.savedProject = canonicalProject(s.project);
             s.selectedClipId = '';
             s.frame = 0;
-            s.history = []; s.redo = []; s.dirty = false;
+            s.history = []; s.redo = []; s.dirty = false; s.textBefore = null; P.cancelTextApplies(s); s.artworkRevision++;
             if (s.preview) s.preview.seek(0);
             await recoverDraft(s, id, epoch);
             if (s.disposed || epoch !== s.projectEpoch || id !== s.projectId) return false;
@@ -323,7 +325,7 @@
         s.project.name = name || s.project.name;
         s.savedProject = canonicalProject(s.project);
         s.dirty = true;
-        s.history = []; s.redo = []; s.selectedClipId = ''; s.frame = 0; s.jobs = [];
+        s.history = []; s.redo = []; s.selectedClipId = ''; s.frame = 0; s.jobs = []; s.textBefore = null; P.cancelTextApplies(s); s.artworkRevision++;
         await saveProject(s);
         await loadProjects(s);
         renderUI(s);
@@ -334,6 +336,7 @@
         closePopovers(s);
         const name = await s.ctx.promptDialog(tr(s, 'newProject', 'New project'), tr(s, 'projectName', 'Untitled project'));
         if (s.disposed || epoch !== (s.projectEpoch || 0) || name === false || name == null || !String(name).trim()) return;
+        await P.flushArtwork(s);
         if (s.dirty && !(await saveUntilClean(s))) return;
         try { await createProject(s, String(name).trim()); }
         catch (_) { showNotice(s, 'createFailed', 'Could not create the project.', true); }
@@ -341,6 +344,7 @@
     async function switchProject(s, targetId) {
         if (!targetId || targetId === s.projectId || s.timelineDragging) return;
         closePopovers(s);
+        await P.flushArtwork(s);
         if (s.dirty && !(await saveUntilClean(s))) return;
         try { await loadProject(s, targetId); clearNotice(s); }
         catch (_) { showNotice(s, 'loadFailed', 'Could not open this project.', true); }
@@ -429,10 +433,14 @@
             const ordered = selected.track.clips.slice().sort((a, b) => a.start - b.start);
             transitionInfo = { next: ordered[ordered.findIndex(clip => clip.id === selected.clip.id) + 1] || null };
         }
+        // Typing in a title field or dragging a slider must not lose the control under the pointer or caret.
+        const active = document.activeElement;
+        if (selected && s.inspectorClipId === selected.clip.id && host.contains(active) && (active.matches('[data-text-field],[data-text-style]') || active._vsBefore)) { P.updateTextStatus(s); return; }
+        s.inspectorClipId = selected ? selected.clip.id : '';
         const focus = focusKey(s);
         I().render(host, {
             tr: (key, fallback) => tr(s, key, fallback), esc: value => esc(s, value), icon, project: s.project,
-            selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: s.textPending,
+            selected, asset, assetName: asset ? assetDisplayName(s, asset) : '', transitionInfo, fineOpen: !!s.fineOpen, thumb: asset && asset.kind && !(selected && selected.clip.text) ? s.media.poster(asset) : '', textPending: P.artworkPending(s, s.selectedClipId),
             summary: { durationFrames: projectDuration(s), clipCount: totalClipCount(s.project) }
         });
         restoreFocus(s, focus);
@@ -460,6 +468,7 @@
             onPreviewChange: () => { if (s.preview) s.preview.seek(s.frame); },
             onChange: (label, before) => recordChange(s, label, before),
             onDragEnd: () => {
+                P.retryArtwork(s);
                 if (s.pendingRefresh) { s.pendingRefresh = false; refreshProject(s).catch(() => {}).finally(() => { if (s.dirty && !s.conflict) queueAutosave(s); }); }
                 else if (s.dirty && !s.conflict) queueAutosave(s);
             },
@@ -509,6 +518,7 @@
         if (action === 'delete') {
             if (mutate(s, action, project => { const track = project.tracks.find(item => item.id === found.track.id); track.clips = track.clips.filter(clip => clip.id !== id); })) {
                 s.selectedClipId = ''; renderUI(s);
+                if (!s.host.contains(document.activeElement)) s.app.focus({ preventScroll: true });
             }
         } else if (action === 'duplicate') {
             if (totalClipCount(s.project) >= MAX_CLIPS) return showNotice(s, 'clipLimit', 'This project reached its clip limit.', true);
@@ -608,9 +618,9 @@
         const transition = event.target.closest('[data-transition]');
         if (transition) { const range = s.q('[data-transition-duration]'); applyTransition(s, transition.dataset.transition, range && !range.disabled ? Number(range.value) : 15); return; }
         const align = event.target.closest('[data-text-align]');
-        if (align) { if (mutateSelected(s, 'text align', clip => { clip.text_style = Object.assign({}, clip.text_style || {}, { alignment: align.dataset.textAlign }); })) scheduleTextApply(s); return; }
+        if (align) { if (mutateSelected(s, 'text align', clip => { clip.text_style = Object.assign({}, clip.text_style || {}, { alignment: align.dataset.textAlign }); })) P.markTextStale(s, s.selectedClipId); return; }
         const toggle = event.target.closest('[data-text-toggle]');
-        if (toggle) { const key = toggle.dataset.textToggle; if (mutateSelected(s, 'text style', clip => { clip.text_style = Object.assign({}, clip.text_style || {}, { [key]: !(clip.text_style && clip.text_style[key]) }); })) scheduleTextApply(s); return; }
+        if (toggle) { const key = toggle.dataset.textToggle; if (mutateSelected(s, 'text style', clip => { clip.text_style = Object.assign({}, clip.text_style || {}, { [key]: !(clip.text_style && clip.text_style[key]) }); })) P.markTextStale(s, s.selectedClipId); return; }
         const button = event.target.closest('[data-action]'); if (!button || button.disabled) return;
         const action = button.dataset.action;
         if (s.readonly && !READ_ONLY_SAFE.has(action)) return showNotice(s, 'readonly', 'Read-only mode prevents editing.', true);
@@ -635,7 +645,7 @@
         else if (action === 'fullscreen') { const mat = s.q('.vs-preview-mat'); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else if (mat && mat.requestFullscreen) mat.requestFullscreen().catch(() => {}); }
         else if (action === 'export') openExport(s);
         else if (action === 'add-title') addTitle(s, button.dataset.preset || 'title');
-        else if (action === 'apply-text') { clearTimeout(s.textTimer); applyTextArtwork(s); }
+        else if (action === 'apply-text') { if (s.selectedClipId) applyTextArtwork(s, s.selectedClipId); }
         else if (action === 'open-ai') openAI(s);
         else if (action === 'toggle-fine') { s.fineOpen = !s.fineOpen; renderInspector(s); syncInspectorLock(s); s.q('[data-action="toggle-fine"]')?.focus(); }
         else if (action === 'fill-frame') mutateSelected(s, 'fill', clip => { Object.assign(clip, { x: 0, y: 0, width: 1, height: 1 }); });
@@ -648,7 +658,7 @@
         if (event.key === 'Escape') {
             const modal = s.q('[data-modal-host] .vs-modal');
             if (modal) { s.q('[data-modal-host]').replaceChildren(); s.app.focus({ preventScroll: true }); event.preventDefault(); return; }
-            if (Object.values(POPOVERS).some(([, selector]) => !s.q(selector).hidden)) { closePopovers(s); event.preventDefault(); return; }
+            if (Object.values(POPOVERS).some(([, selector]) => !s.q(selector).hidden)) { closePopovers(s, null, true); event.preventDefault(); return; }
         }
         if (event.key === 'Escape' && s.app.classList.contains('vs-show-inspector')) { setInspectorOpen(s, false, false); s.q('.vs-inspector-toggle')?.focus(); event.preventDefault(); return; }
         if (event.key === 'Tab' && s.app.classList.contains('vs-show-inspector') && s.app.getBoundingClientRect().width <= 920) {
@@ -657,8 +667,12 @@
         }
         if (target.closest('input,textarea,select,[contenteditable="true"]')) return;
         if (undoShortcut) { event.preventDefault(); undo(s, event.shiftKey); return; }
-        if (target.closest('button,a,summary,[role="button"],[role="link"],[role="tab"],[role="separator"]')) return;
+        // A focused timeline clip takes the clip shortcuts; Space and Enter stay with the timeline.
+        const focusedClip = target.closest('[data-clip-id]') && !target.closest('button') ? target.closest('[data-clip-id]').dataset.clipId : '';
+        if (!focusedClip && target.closest('button,a,summary,[role="button"],[role="link"],[role="tab"],[role="separator"]')) return;
+        if (focusedClip && (event.code === 'Space' || event.key === 'Enter')) return;
         if (s.q('[data-modal-host] .vs-modal, [data-conflict-host] .vs-modal')) return;
+        if (focusedClip && focusedClip !== s.selectedClipId && ['Delete', 'Backspace', 's', 'S'].includes(event.key)) s.timelineOptions.onSelect(focusedClip);
         if (event.code === 'Space') { event.preventDefault(); s.preview.isPlaying() ? s.preview.pause() : s.preview.play(); }
         else if (event.key === 'Delete' || event.key === 'Backspace') { if (s.selectedClipId) { event.preventDefault(); timelineAction(s, 'delete', s.selectedClipId); } }
         else if (event.key === 'ArrowLeft') { event.preventDefault(); s.preview.pause(); s.preview.seek(s.frame - (event.shiftKey ? FPS : 1)); }

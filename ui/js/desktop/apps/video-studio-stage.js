@@ -6,7 +6,6 @@
     const { PREF_TIMELINE } = P;
     const I = (...args) => P.I(...args);
     const T = (...args) => P.T(...args);
-    const applyTextArtwork = (...args) => P.applyTextArtwork(...args);
     const canonicalProject = (...args) => P.canonicalProject(...args);
     const clamp = (...args) => P.clamp(...args);
     const clearDraft = (...args) => P.clearDraft(...args);
@@ -119,10 +118,11 @@
         if (s.dirty) { persistDraft(s); scheduleSave(s); } else clearDraft(s);
         renderInspector(s); renderToolbar(s); T().render(s.q('[data-timeline]'), s.timelineOptions); s.preview.seek(s.frame);
     }
+    // The pre-edit snapshot lives on the state, so an inspector re-render cannot lose it.
     function liveText(s, input) {
         const found = selectedClip(s);
         if (!found || found.track.locked) return;
-        if (!input._vsBefore) input._vsBefore = snapshot(s);
+        if (!s.textBefore || s.textBefore.clipId !== found.clip.id) { P.flushTextBefore(s); s.textBefore = { clipId: found.clip.id, snapshot: snapshot(s) }; }
         clearTimeout(s.autosaveTimer);
         if (input.matches('[data-text-field="text"]')) found.clip.text = input.value;
         else {
@@ -132,21 +132,14 @@
         }
         s.dirty = true; s.revision++;
         renderToolbar(s);
-        scheduleTextApply(s);
+        P.markTextStale(s, found.clip.id);
     }
-    function commitText(s, input) {
-        const before = input._vsBefore; delete input._vsBefore;
-        if (before) { s.history.push(before); if (s.history.length > 50) s.history.shift(); s.redo = []; }
+    function commitText(s) {
+        P.flushTextBefore(s);
         s.dirty = JSON.stringify(canonicalProject(s.project)) !== JSON.stringify(s.savedProject);
         if (s.dirty) { persistDraft(s); scheduleSave(s); } else clearDraft(s);
+        renderToolbar(s);
         T().render(s.q('[data-timeline]'), s.timelineOptions);
-    }
-    function scheduleTextApply(s) {
-        clearTimeout(s.textTimer);
-        s.textPending = true;
-        const status = s.q('[data-text-status] span');
-        if (status) status.textContent = tr(s, 'textUpdating', 'Updating the title…');
-        s.textTimer = window.setTimeout(() => { s.textTimer = 0; applyTextArtwork(s); }, 900);
     }
     function mutateSelected(s, label, fn) {
         const found = selectedClip(s);
@@ -184,11 +177,15 @@
         button.setAttribute('aria-expanded', 'true');
         pop.querySelector('input,button:not(:disabled),a')?.focus();
     }
-    function closePopovers(s, except) {
+    function closePopovers(s, except, returnFocus) {
         Object.entries(POPOVERS).forEach(([name, [action, selector]]) => {
             if (name === except) return;
             const pop = s.q(selector);
-            if (pop && !pop.hidden) { pop.hidden = true; s.q(`[data-action="${action}"]`)?.setAttribute('aria-expanded', 'false'); }
+            if (pop && !pop.hidden) {
+                const trigger = s.q(`[data-action="${action}"]`), hadFocus = pop.contains(document.activeElement);
+                pop.hidden = true;
+                if (trigger) { trigger.setAttribute('aria-expanded', 'false'); if (returnFocus || hadFocus) trigger.focus({ preventScroll: true }); }
+            }
         });
         renderJobsButton(s);
     }
@@ -313,6 +310,7 @@
             if (epoch !== s.projectEpoch || projectId !== s.projectId) return;
             if (event.type === 'pointercancel') { s.project = hydrateProject(s, before); renderUI(s); return; }
             if (JSON.stringify(before) !== JSON.stringify(s.project)) recordChange(s, 'transform', before);
+            P.retryArtwork(s);
             if (s.pendingRefresh) { s.pendingRefresh = false; refreshProject(s).catch(() => {}); }
         };
         box.addEventListener('pointerup', finish, { signal });
@@ -329,5 +327,5 @@
         }, { signal });
     }
 
-    Object.assign(P, { focusKey, restoreFocus, applyTransition, percentText, updateOutput, liveField, commitField, liveText, commitText, scheduleTextApply, mutateSelected, syncDrawer, setInspectorOpen, POPOVERS, togglePopover, closePopovers, closePopoversOutside, renderProjectPopover, renameProject, wireResize, transformTarget, updateTransform, wireTransform });
+    Object.assign(P, { focusKey, restoreFocus, applyTransition, percentText, updateOutput, liveField, commitField, liveText, commitText, mutateSelected, syncDrawer, setInspectorOpen, POPOVERS, togglePopover, closePopovers, closePopoversOutside, renderProjectPopover, renameProject, wireResize, transformTarget, updateTransform, wireTransform });
 })();

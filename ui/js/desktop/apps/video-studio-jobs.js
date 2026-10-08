@@ -92,7 +92,7 @@
         const key = idempotencyKey();
         let response;
         try {
-            response = await request(API + '/projects/' + encodeURIComponent(projectId) + '/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key, 'If-Match': s.etag }, body: JSON.stringify(payload) });
+            response = await request(API + '/projects/' + encodeURIComponent(projectId) + '/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key, 'If-Match': s.etag }, body: JSON.stringify(payload), signal: s.abort.signal });
         } catch (error) {
             if ((error.status === 412 || error.status === 428) && epoch === s.projectEpoch && projectId === s.projectId) { s.conflict = true; await showConflict(s); }
             throw error;
@@ -132,11 +132,19 @@
         try { await request(API + '/jobs/' + encodeURIComponent(id) + '/cancel', { method: 'POST' }); if (epoch === s.projectEpoch && projectId === s.projectId) await loadJobs(s); }
         catch (_) { if (epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'cancelFailed', 'Could not cancel the task.', true); }
     }
+    // A refresh never overtakes a save: it waits for a running PUT and reads again if one started meanwhile.
     async function refreshProject(s) {
         if (!s.projectId || s.disposed) return;
         const projectId = s.projectId, epoch = s.projectEpoch;
-        const response = await request(API + '/projects/' + encodeURIComponent(projectId), { signal: s.abort.signal });
-        if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+        let response = null;
+        for (let attempt = 0; attempt < 4 && !response; attempt++) {
+            if (s.savePromise) await s.savePromise.catch(() => {});
+            if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+            const generation = s.saveGeneration || 0;
+            const candidate = await request(API + '/projects/' + encodeURIComponent(projectId), { signal: s.abort.signal });
+            if (!s.savePromise && (s.saveGeneration || 0) === generation) response = candidate;
+        }
+        if (!response || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
         if (s.timelineDragging) { s.pendingRefresh = true; return; }
         const next = hydrateProject(s, response.body.project || response.body);
         if (s.dirty) {
@@ -180,7 +188,9 @@
             const [width, height] = host.querySelector('[data-export-size]').value.split('x').map(Number);
             if (width !== s.project.width || height !== s.project.height) mutate(s, 'export canvas', project => { project.width = width; project.height = height; });
             host.replaceChildren();
-            if (!(await saveProject(s))) return;
+            await P.flushArtwork(s);
+            if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+            if (!(await P.saveUntilClean(s))) return;
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
             try { await createJob(s, { kind: 'render' }, projectId, epoch); if (epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'exportStarted', 'Export started. You can keep editing while it runs.', false); }
             catch (_) { if (epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'exportFailed', 'Could not start the export.', true); }

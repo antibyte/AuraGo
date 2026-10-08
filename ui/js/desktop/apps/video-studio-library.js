@@ -69,7 +69,9 @@
         const activeAssets = new Set(s.project.tracks.flatMap(track => track.clips.map(clip => clip.asset_id)));
         const search = (s.q('[data-search]')?.value || '').toLowerCase();
         const visible = s.project.assets.filter(asset => !window.VideoStudioMedia.isArtwork(asset) && (s.filter === 'all' || asset.kind === s.filter) && (!search || String(asset.name).toLowerCase().includes(search)));
-        const uploads = Array.from(s.uploads.values()).map(item => `<article class="vs-asset is-uploading${item.failed ? ' is-failed' : ''}"><span class="vs-asset-thumb">${icon(item.failed ? 'alert' : 'upload', 22)}<span class="vs-asset-progress"><i style="width:${Math.round(item.progress * 100)}%"></i></span></span><span class="vs-asset-name" title="${esc(s, item.name)}">${esc(s, item.name)}</span><span class="vs-asset-meta">${esc(s, item.failed ? tr(s, 'importFailedShort', 'Import failed') : item.progress < 1 ? tr(s, 'uploading', 'Uploading…') + ' ' + Math.round(item.progress * 100) + ' %' : tr(s, 'preparing', 'Preparing…'))}</span></article>`).join('');
+        const uploads = Array.from(s.uploads.entries()).filter(([, item]) => item.projectId === s.projectId).map(([key, item]) => `<article class="vs-asset is-uploading${item.failed ? ' is-failed' : ''}" data-upload-key="${esc(s, key)}"><span class="vs-asset-thumb">${icon(item.failed ? 'alert' : 'upload', 22)}<span class="vs-asset-progress"><i style="width:${Math.round(item.progress * 100)}%"></i></span></span><span class="vs-asset-name" title="${esc(s, item.name)}">${esc(s, item.name)}</span><span class="vs-asset-meta">${esc(s, uploadLabel(s, item))}</span></article>`).join('');
+        const active = root.contains(document.activeElement) ? document.activeElement : null;
+        const focus = active && (active.dataset.placeAsset ? `[data-place-asset="${CSS.escape(active.dataset.placeAsset)}"]` : active.dataset.assetId ? `[data-asset-id="${CSS.escape(active.dataset.assetId)}"]` : '');
         root.innerHTML = uploads + visible.map(asset => {
             const used = activeAssets.has(asset.id);
             const ready = !!asset.kind;
@@ -83,8 +85,19 @@
             const searching = search || s.filter !== 'all';
             root.innerHTML = `<div class="vs-empty-media">${icon(searching ? 'search' : 'upload', 28)}<strong>${esc(s, searching ? tr(s, 'noMatches', 'Nothing matches') : tr(s, 'emptyMedia', 'Your media will appear here'))}</strong><small>${esc(s, searching ? tr(s, 'noMatchesHint', 'Try another search or filter.') : tr(s, 'emptyMediaDrop', 'Upload clips, music or pictures, or drop files into this window.'))}</small></div>`;
         }
+        if (focus) root.querySelector(focus)?.focus({ preventScroll: true });
         const total = s.project.assets.filter(asset => !window.VideoStudioMedia.isArtwork(asset)).length;
         s.q('[data-asset-count]').textContent = tr(s, 'assetCount', '{{count}} items').replace('{{count}}', String(total));
+    }
+    function uploadLabel(s, item) {
+        return item.failed ? tr(s, 'importFailedShort', 'Import failed') : item.progress < 1 ? tr(s, 'uploading', 'Uploading…') + ' ' + Math.round(item.progress * 100) + ' %' : tr(s, 'preparing', 'Preparing…');
+    }
+    // Progress events update the card in place so keyboard focus in the grid survives an upload.
+    function updateUploadCard(s, key, item) {
+        const card = s.q(`[data-upload-key="${CSS.escape(key)}"]`);
+        if (!card) { renderAssets(s); return; }
+        card.querySelector('.vs-asset-progress i').style.width = Math.round(item.progress * 100) + '%';
+        card.querySelector('.vs-asset-meta').textContent = uploadLabel(s, item);
     }
     function scheduleMediaRefresh(s) {
         if (s.mediaFrame || s.disposed) return;
@@ -161,29 +174,28 @@
         if (!allowed) return showNotice(s, 'unsupportedFile', 'Choose a video, audio, PNG or WebP file.', true);
         const max = Number(s.status.limits && s.status.limits.max_asset_size_bytes || 256 * 1024 * 1024);
         if (file.size > max) return showNotice(s, 'fileTooLarge', 'This file is larger than the server limit.', true);
-        const key = idempotencyKey(), entry = { name: file.name, progress: 0, failed: false };
+        const key = idempotencyKey(), entry = { name: file.name, progress: 0, failed: false, projectId };
         s.uploads.set(key, entry);
         renderAssets(s);
         const form = new FormData(); form.append('file', file, file.name);
+        const current = () => !s.disposed && epoch === s.projectEpoch && projectId === s.projectId;
         try {
-            const response = await upload(s, API + '/projects/' + encodeURIComponent(projectId) + '/media', form, progress => { entry.progress = progress; if (!s.disposed) renderAssets(s); });
+            const response = await upload(s, API + '/projects/' + encodeURIComponent(projectId) + '/media', form, progress => { entry.progress = progress; if (current()) updateUploadCard(s, key, entry); });
             entry.progress = 1;
-            if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
-            renderAssets(s);
+            if (!current()) return;
+            updateUploadCard(s, key, entry);
             const job = response.body.job;
             if (job) { s.jobs.unshift(job); renderJobs(s); await pollJob(s, job.id, projectId, epoch); }
             else await refreshProject(s);
-            if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
-            s.uploads.delete(key);
-            renderAssets(s);
-            showNotice(s, 'importReady', 'Media added. Drag it to the timeline or press +.', false);
+            if (current()) showNotice(s, 'importReady', 'Media added. Drag it to the timeline or press +.', false);
         } catch (error) {
-            s.uploads.delete(key);
-            if (!s.disposed && epoch === s.projectEpoch && projectId === s.projectId) {
-                renderAssets(s);
+            if (current()) {
                 const code = error.body && error.body.code;
                 showNotice(s, code === 'asset_size_limit' ? 'fileTooLarge' : code === 'project_size_limit' ? 'projectStorageFull' : 'importFailed', 'Could not import this media.', true);
             }
+        } finally {
+            s.uploads.delete(key);
+            if (!s.disposed) renderAssets(s);
         }
     }
     async function importDesktopFile(s) {
@@ -194,10 +206,10 @@
             filters: [{ label: tr(s, 'videoAudioImages', 'Video, audio and images'), extensions: ['.mp4', '.mov', '.webm', '.m4v', '.mkv', '.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.png', '.webp'] }]
         });
         if (!result || result.canceled || !result.path || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
-        const key = idempotencyKey(), entry = { name: String(result.path).split('/').pop(), progress: 1, failed: false };
+        const key = idempotencyKey(), entry = { name: String(result.path).split('/').pop(), progress: 1, failed: false, projectId };
         s.uploads.set(key, entry); renderAssets(s);
         try {
-            const response = await request(API + '/projects/' + encodeURIComponent(projectId) + '/media', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey() }, body: JSON.stringify({ source_path: result.path }) });
+            const response = await request(API + '/projects/' + encodeURIComponent(projectId) + '/media', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey() }, body: JSON.stringify({ source_path: result.path }), signal: s.abort.signal });
             if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
             if (response.body.job) { s.jobs.unshift(response.body.job); await pollJob(s, response.body.job.id, projectId, epoch); }
             else await refreshProject(s);
@@ -226,5 +238,5 @@
         host.innerHTML = `<div class="vs-ai-card"><span class="vs-ai-art" aria-hidden="true">${icon('sparkle', 30)}</span><h3>${esc(s, tr(s, 'generateTitle', 'Generate a clip'))}</h3><p>${esc(s, tr(s, 'aiIntro', 'Describe a scene and the configured provider creates a short clip. It appears in your media library when it is ready.'))}</p>${generation && generation.provider ? `<p class="vs-ai-provider">${icon('info', 13)} ${esc(s, tr(s, 'usingModel', 'Provider'))}: ${esc(s, generation.provider)}${generation.model ? ' · ' + esc(s, generation.model) : ''}</p>` : ''}${reason ? `<p class="vs-hint vs-ai-reason">${esc(s, reason)}</p>` : ''}<button type="button" class="vs-primary" data-action="open-ai" ${ready && !s.readonly ? '' : 'disabled'}>${icon('sparkle', 16)}<span>${esc(s, tr(s, 'generateStart', 'Describe a clip'))}</span></button></div>`;
     }
 
-    Object.assign(P, { upload, renderPreviewEmpty, assetKindLabel, renderFilters, renderAssets, scheduleMediaRefresh, clipMedia, isFileDrag, fileDrag, importFiles, uploadFile, importDesktopFile, setTab, handleTabKeys, renderAIPanel });
+    Object.assign(P, { upload, renderPreviewEmpty, assetKindLabel, renderFilters, renderAssets, scheduleMediaRefresh, clipMedia, isFileDrag, fileDrag, importFiles, uploadFile, importDesktopFile, setTab, handleTabKeys, renderAIPanel, uploadLabel, updateUploadCard });
 })();

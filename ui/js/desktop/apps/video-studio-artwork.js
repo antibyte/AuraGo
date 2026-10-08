@@ -18,6 +18,7 @@
     const renderInspector = (...args) => P.renderInspector(...args);
     const renderJobs = (...args) => P.renderJobs(...args);
     const request = (...args) => P.request(...args);
+    const scheduleSave = (...args) => P.scheduleSave(...args);
     const setInspectorOpen = (...args) => P.setInspectorOpen(...args);
     const showNotice = (...args) => P.showNotice(...args);
     const totalClipCount = (...args) => P.totalClipCount(...args);
@@ -49,6 +50,7 @@
             const art = await renderTextPNG(s, text, style);
             const asset = await createArtworkAsset(s, art.file, text, projectId, epoch);
             if (!asset || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+            s.artworkKeys.set(asset.id, artworkKey(text, style));
             const box = { width: art.width / s.project.width, height: art.height / s.project.height };
             placeOverlay(s, asset, startFrame, duration, clip => {
                 Object.assign(clip, I().clampBox(Object.assign(box, I().presetBox(preset.anchor, I().clampBox(Object.assign({ x: 0, y: 0 }, box))))));
@@ -106,41 +108,108 @@
         return `rgba(${parseInt(value.slice(1, 3), 16)},${parseInt(value.slice(3, 5), 16)},${parseInt(value.slice(5, 7), 16)},${clamp(alpha, 0, 1)})`;
     }
     function textStyleKey(style) { const defaults = { font_family: 'Arial', font_size: 72, color: '#ffffff', bold: false, italic: false, alignment: 'center', outline_color: '', outline_width: 0, background_color: '#101319', background_opacity: 0 }; return Object.keys(defaults).map(key => style && style[key] || defaults[key]).join('|'); }
-    async function applyTextArtwork(s) {
-        const found = T().clipFor(s.project || { tracks: [] }, s.selectedClipId);
-        if (!found || !found.clip.text || s.readonly || found.track.locked) { s.textPending = false; return; }
-        const projectId = s.projectId, epoch = s.projectEpoch, clipId = found.clip.id, selectionRevision = s.selectionRevision;
-        const revision = ++s.artworkRevision, originalAssetId = found.clip.asset_id, text = found.clip.text, style = clone(found.clip.text_style || {}), styleKey = textStyleKey(style);
-        s.textPending = true;
-        try {
-            const art = await renderTextPNG(s, text, style);
-            const asset = await createArtworkAsset(s, art.file, 'Title · ' + text.slice(0, 40), projectId, epoch);
-            if (!asset || s.disposed || revision !== s.artworkRevision || epoch !== s.projectEpoch || projectId !== s.projectId || s.selectedClipId !== clipId || s.selectionRevision !== selectionRevision) return;
-            const current = T().clipFor(s.project, clipId);
-            if (!current || current.clip.text !== text || textStyleKey(current.clip.text_style || {}) !== styleKey || current.clip.asset_id !== originalAssetId) return;
-            mutate(s, 'update title artwork', project => {
-                const target = T().clipFor(project, clipId);
-                if (!target) return;
-                const clip = target.clip, previous = project.assets.find(item => item.id === clip.asset_id);
-                const scale = previous && previous.width ? clamp(clip.width / (previous.width / project.width), 0.1, 10) : 1;
-                const width = art.width / project.width * scale, height = art.height / project.height * scale;
-                clip.asset_id = asset.id;
-                Object.assign(clip, I().clampBox({ x: clip.x + clip.width / 2 - width / 2, y: clip.y + clip.height / 2 - height / 2, width, height }));
-            });
-        } catch (_) { if (!s.disposed && epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'artworkFailed', 'Could not update the title artwork.', true); }
-        finally {
-            if (revision === s.artworkRevision && !s.disposed) {
-                s.textPending = false;
-                const status = s.q('[data-text-status] span');
-                if (status) status.textContent = tr(s, 'textAuto', 'Changes are applied automatically.');
+    // A title's PNG is derived from its text and style. Edits mark the clip stale and a per-clip
+    // debounce regenerates it; the result amends the edit that is already on the undo stack.
+    function artworkKey(text, style) { return String(text) + '\u0001' + textStyleKey(style); }
+    function artworkPending(s, clipId) {
+        return !!clipId && (s.staleArtwork.has(clipId) || s.artworkInFlight.has(clipId) || s.textTimers.has(clipId) || s.pendingArtwork.has(clipId));
+    }
+    function updateTextStatus(s) {
+        const span = s.q('[data-text-status] span');
+        if (span) span.textContent = artworkPending(s, s.selectedClipId) ? tr(s, 'textUpdating', 'Updating the title…') : tr(s, 'textAuto', 'Changes are applied automatically.');
+    }
+    function markTextStale(s, clipId) {
+        if (!clipId || s.readonly) return;
+        s.staleArtwork.add(clipId);
+        clearTimeout(s.textTimers.get(clipId));
+        s.textTimers.set(clipId, window.setTimeout(() => { s.textTimers.delete(clipId); applyTextArtwork(s, clipId); }, 900));
+        updateTextStatus(s);
+    }
+    function cancelTextApplies(s) {
+        s.textTimers.forEach(timer => clearTimeout(timer));
+        s.textTimers.clear(); s.staleArtwork.clear(); s.pendingArtwork.clear();
+    }
+    // Undo/Redo invalidate pending applies; restored titles whose PNG no longer matches are regenerated.
+    function resyncArtwork(s) {
+        s.artworkRevision++;
+        cancelTextApplies(s);
+        (s.project ? s.project.tracks : []).forEach(track => track.clips.forEach(clip => {
+            const key = clip.text && s.artworkKeys.get(clip.asset_id);
+            if (key && key !== artworkKey(clip.text, clip.text_style || {})) markTextStale(s, clip.id);
+        }));
+        updateTextStatus(s);
+    }
+    function applyTextArtwork(s, clipId) {
+        clipId = clipId || s.selectedClipId;
+        clearTimeout(s.textTimers.get(clipId)); s.textTimers.delete(clipId);
+        const found = s.project && clipId ? T().clipFor(s.project, clipId) : null;
+        if (!found || !found.clip.text || s.readonly || found.track.locked) { s.staleArtwork.delete(clipId); updateTextStatus(s); return Promise.resolve(); }
+        const projectId = s.projectId, epoch = s.projectEpoch;
+        const clipRevision = (s.clipArtRevisions.get(clipId) || 0) + 1;
+        s.clipArtRevisions.set(clipId, clipRevision);
+        s.pendingArtwork.delete(clipId);
+        const style = clone(found.clip.text_style || {});
+        const result = { clipId, clipRevision, global: s.artworkRevision, originalAssetId: found.clip.asset_id, text: found.clip.text, style, styleKey: textStyleKey(style) };
+        s.artworkInFlight.add(clipId);
+        updateTextStatus(s);
+        const job = (async () => {
+            try {
+                await Promise.resolve();
+                const art = await renderTextPNG(s, result.text, result.style);
+                const asset = await createArtworkAsset(s, art.file, 'Title · ' + result.text.slice(0, 40), projectId, epoch);
+                if (!asset || s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) return;
+                s.artworkKeys.set(asset.id, artworkKey(result.text, result.style));
+                Object.assign(result, { asset, width: art.width, height: art.height });
+                if (s.timelineDragging) s.pendingArtwork.set(clipId, result);
+                else commitArtwork(s, result);
+            } catch (_) { if (!s.disposed && epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'artworkFailed', 'Could not update the title artwork.', true); }
+            finally {
+                if (s.artworkJobs.get(clipId) === job) { s.artworkJobs.delete(clipId); s.artworkInFlight.delete(clipId); }
+                if (!s.disposed) updateTextStatus(s);
             }
-        }
+        })();
+        s.artworkJobs.set(clipId, job);
+        return job;
+    }
+    // Commits only if the project, clip, text, normalized style, source PNG and both Apply revisions still match.
+    function commitArtwork(s, result) {
+        if (s.disposed || !s.project || result.global !== s.artworkRevision || s.clipArtRevisions.get(result.clipId) !== result.clipRevision) return;
+        const current = T().clipFor(s.project, result.clipId);
+        if (!current || current.clip.text !== result.text || textStyleKey(current.clip.text_style || {}) !== result.styleKey || current.clip.asset_id !== result.originalAssetId) return;
+        const clip = current.clip, project = s.project, previous = project.assets.find(item => item.id === clip.asset_id);
+        const before = { asset_id: clip.asset_id, x: clip.x, y: clip.y, width: clip.width, height: clip.height };
+        const scale = previous && previous.width ? clamp(clip.width / (previous.width / project.width), 0.1, 10) : 1;
+        const width = result.width / project.width * scale, height = result.height / project.height * scale;
+        clip.asset_id = result.asset.id;
+        Object.assign(clip, I().clampBox({ x: clip.x + clip.width / 2 - width / 2, y: clip.y + clip.height / 2 - height / 2, width, height }));
+        if (!T().validTimeline(project)) { Object.assign(clip, before); return; }
+        s.staleArtwork.delete(result.clipId);
+        scheduleSave(s);
+        T().render(s.q('[data-timeline]'), s.timelineOptions);
+        renderInspector(s);
+        s.preview.seek(s.frame);
+        P.updateTransform(s);
+    }
+    // Results that arrived during a drag are committed once the gesture ends.
+    function retryArtwork(s) {
+        const pending = Array.from(s.pendingArtwork.values());
+        s.pendingArtwork.clear();
+        pending.forEach(result => commitArtwork(s, result));
+        updateTextStatus(s);
+    }
+    // Close, project switches and export wait for debounced and running title applies.
+    async function flushArtwork(s) {
+        if (s.timelineDragging || s.disposed) return;
+        retryArtwork(s);
+        new Set([...s.textTimers.keys(), ...s.staleArtwork]).forEach(id => { if (!s.artworkInFlight.has(id)) applyTextArtwork(s, id); });
+        await Promise.allSettled(Array.from(s.artworkJobs.values()));
+        retryArtwork(s);
     }
     async function createArtworkAsset(s, file, name, expectedProjectId, expectedEpoch) {
         const projectId = expectedProjectId || s.projectId, epoch = expectedEpoch == null ? s.projectEpoch : expectedEpoch;
         if (!projectId || projectId !== s.projectId || epoch !== s.projectEpoch || s.readonly) throw new Error('project_changed');
         const form = new FormData(); form.append('file', file, file.name || 'overlay.png');
-        const response = await request(API + '/projects/' + encodeURIComponent(projectId) + '/media', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey() }, body: form });
+        const response = await request(API + '/projects/' + encodeURIComponent(projectId) + '/media', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey() }, body: form, signal: s.abort.signal });
         if (s.disposed || epoch !== s.projectEpoch || projectId !== s.projectId) throw new Error('project_changed');
         if (!response.body.job) return response.body.asset;
         s.jobs.unshift(response.body.job); renderJobs(s);
@@ -194,5 +263,5 @@
         } catch (_) { if (!s.disposed && epoch === s.projectEpoch && projectId === s.projectId) showNotice(s, 'artworkFailed', 'Could not add this sticker.', true); }
     }
 
-    Object.assign(P, { STICKERS, TITLE_PRESETS, scaledFont, addTitle, placeOverlay, fontFor, renderTextPNG, wrapCanvasText, hexWithAlpha, textStyleKey, applyTextArtwork, createArtworkAsset, stickerSVG, stickerPNG, addSticker });
+    Object.assign(P, { STICKERS, TITLE_PRESETS, scaledFont, addTitle, placeOverlay, fontFor, renderTextPNG, wrapCanvasText, hexWithAlpha, textStyleKey, applyTextArtwork, createArtworkAsset, stickerSVG, stickerPNG, addSticker, artworkKey, artworkPending, updateTextStatus, markTextStale, cancelTextApplies, resyncArtwork, commitArtwork, retryArtwork, flushArtwork });
 })();

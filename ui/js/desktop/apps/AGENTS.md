@@ -887,9 +887,14 @@ buttons and menu popovers remain excluded from those gestures.
 - A project loaded without tracks gets Video 1, Overlay 1 and Audio 1 once (no
   undo step). Placing media creates a missing track kind. The timeline lists
   visual tracks front-most first, then audio; array order stays the paint order.
-- Persist the canonical project with strong `If-Match` ETags. A 412/428 save
-  must present Reload, Replace latest or Keep editing; never retry a conflict
-  without an explicit choice and the observed latest ETag. Bind imports, jobs,
+- Persist the canonical project with strong `If-Match` ETags. Imports change the
+  server copy's asset list and ETag, so a 412 save first reads the server copy:
+  when its content (everything but `assets`) equals the last saved project, adopt
+  its assets and the observed ETag and retry once (`adoptServerMedia`). Any other
+  412/428 must present Reload, Replace latest or Keep editing; never retry a real
+  conflict without an explicit choice and the observed latest ETag. The canonical
+  form normalizes `text_style` like the server's omitempty JSON (no false/0/empty
+  values, sorted keys), or every refresh of a title project reports a conflict. Bind imports, jobs,
   project refreshes and draft recovery to the captured project ID and epoch.
   Window close awaits saving until clean or blocked by a visible failure or
   conflict choice.
@@ -904,11 +909,20 @@ buttons and menu popovers remain excluded from those gestures.
 - Bound preview media to the active/near clips during playback and release clips
   that leave that window. Preserve both players for an actual transition overlap;
   backward seeks must rehydrate released media and dispose must release all media.
-- Apply generated title artwork only if its project/selection, text, normalized
-  style and source asset still match, and its monotonic Apply revision is current.
-  Invalidate pending Applies on Undo/Redo and edits; stale results must not mutate
-  history. Await PNG rendering before upload. Style comparison must ignore JSON
-  key order and omitted default values.
+- A title's PNG is derived from its text and style. Edits mark the clip stale and
+  start a per-clip 900 ms debounce (`markTextStale`), independent of the selection.
+  Commit generated artwork only if its project, clip, text, normalized style and
+  source asset still match and both the per-clip and the global Apply revision are
+  current. The commit amends the current state without its own undo step; the text
+  edit's pre-edit snapshot lives on `s.textBefore` (never on DOM nodes) and enters
+  history when the field commits or another edit starts. Undo/Redo bump the global
+  revision, cancel debounces and regenerate restored titles whose PNG key no longer
+  matches (`resyncArtwork`). Results arriving during a drag wait for its end
+  (`retryArtwork`); close, project switch and export await `flushArtwork`. While a
+  title field or slider is being edited, re-renders only update the status line.
+  Await PNG rendering before upload. Style comparison must ignore JSON key order
+  and omitted default values. `refreshProject` waits for a running save and reads
+  again if a save started meanwhile.
 - Keep editor shortcuts off native controls: Space on buttons/links remains native,
   default-prevented events and unknown Ctrl/Meta/Alt shortcuts are ignored, while
   drawer Escape/Tab focus handling runs before control guards. Ctrl+Z remains

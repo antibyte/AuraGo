@@ -174,7 +174,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	if got := page.MustEval(`()=>window.fixtureLastRenderIfMatch`).Str(); got != `"v2"` {
 		t.Fatalf("render did not bind to saved project ETag: %q", got)
 	}
-	page.MustEval(`()=>{window.fixtureConflict=true;const input=document.querySelector('[data-field="start"]');input.value='45';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('[data-action="save"]').click()}`)
+	page.MustEval(`()=>{window.fixtureConflict=true;window.fixtureLatest.name='Edited in another window';const input=document.querySelector('[data-field="start"]');input.value='45';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('[data-action="save"]').click()}`)
 	deadline = time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) && !page.MustEval(`()=>!!document.querySelector('[data-conflict="replace"]')`).Bool() {
 		time.Sleep(25 * time.Millisecond)
@@ -206,7 +206,7 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 	page.MustEval(`()=>document.querySelector('[data-modal-close]').click()`)
 
 	page.MustEval(`async()=>{
-		const wait=async test=>{for(let i=0;i<700;i++){if(test())return;await new Promise(resolve=>setTimeout(resolve,10));}throw new Error('Video Studio editor regression timed out: '+JSON.stringify({condition:String(test),revision:s.artworkRevision,selection:s.selectionRevision,dirty:s.dirty,conflict:s.conflict,clips:s.project.tracks.flatMap(track=>track.clips),assets:s.project.assets.map(asset=>asset.id),jobs:s.jobs,notice:document.querySelector('[data-notice]').textContent}))};
+		const wait=async test=>{for(let i=0;i<700;i++){if(test())return;await new Promise(resolve=>setTimeout(resolve,10));}throw new Error('Video Studio editor regression timed out: '+JSON.stringify({condition:String(test),revision:s.artworkRevision,selection:s.selectionRevision,dirty:s.dirty,conflict:s.conflict,clips:s.project.tracks.flatMap(track=>track.clips),assets:s.project.assets.map(asset=>asset.id),jobs:s.jobs,notice:document.querySelector('[data-notice]').textContent,calls:window.fixtureCalls.slice(-12),states:window.fixtureArtworkStates,errors:window.fixtureErrors}))};
 		const s=window.VideoStudioApp.instances.get('fixture'), requests=window.fixtureArtworkRequests;
 		const assetFor=req=>({id:req.assetId,name:'Title.png',path:'media/'+req.assetId+'.png',kind:'image',duration_frames:18000,width:1280,height:720,has_audio:false});
 		const addRemoteAsset=req=>{if(!window.fixtureProject.assets.some(asset=>asset.id===req.assetId))window.fixtureProject.assets.push(assetFor(req));};
@@ -227,20 +227,40 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 		addRemoteAsset(requests[1]);addRemoteAsset(requests[2]);finish(requests[2]);
 		await wait(()=>s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).asset_id===requests[2].assetId);
 		finish(requests[1]);
-		await wait(()=>s.jobs.some(job=>job.id===requests[1].id&&job.status==='succeeded'));
+		// The job poller replaces s.jobs every few seconds; finishedJobs records the terminal poll reliably.
+		await wait(()=>s.finishedJobs&&s.finishedJobs.has(requests[1].id));
+		await new Promise(resolve=>setTimeout(resolve,200));
 		if(s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).asset_id!==requests[2].assetId)throw new Error('older artwork response replaced the newer Apply result');
-		s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).text_style={font_size:100,font_family:'Impact',alignment:'center',color:'#ffffff',background_color:'#101319',background_opacity:0,bold:false,italic:false};
+		// A recorded style edit schedules its own artwork; an explicit Apply replaces that timer, and Undo invalidates the upload.
+		const historyBeforeBold=s.history.length;
+		document.querySelector('[data-text-toggle="bold"]').click();
+		if(s.history.length!==historyBeforeBold+1||!s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).text_style.bold)throw new Error('bold toggle did not record one undo step');
 		document.querySelector('[data-action="apply-text"]').click();
 		await wait(()=>requests.length===4);
 		document.querySelector('[data-action="undo"]').click();
+		if(s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).text_style.bold)throw new Error('undo did not restore the previous title style');
 		const undoneClip=s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id),undoAsset=undoneClip.asset_id,undoHistory=s.history.length,undoRedo=s.redo.length;
 		finish(requests[3]);
-		await wait(()=>s.jobs.some(job=>job.id===requests[3].id&&job.status==='succeeded'));
+		await wait(()=>!s.artworkJobs.has(title.id));
 		if(s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).asset_id!==undoAsset||s.history.length!==undoHistory||s.redo.length!==undoRedo)throw new Error('stale artwork after Undo changed clip or history');
 		const beforeRefresh=s.project;s.dirty=false;window.fixtureProject=structuredClone(s.project);
 		document.querySelector('[data-action="apply-text"]').click();
 		await wait(()=>requests.length===5);addRemoteAsset(requests[4]);finish(requests[4]);
 		await wait(()=>s.project!==beforeRefresh&&s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id).asset_id===requests[4].assetId);
+		const titleClip=()=>s.project.tracks.find(track=>track.id==='o1').clips.find(clip=>clip.id===title.id);
+		const requestsBeforeUndo=requests.length;
+		document.querySelector('[data-text-toggle="italic"]').click();
+		document.querySelector('[data-action="undo"]').click();
+		await new Promise(resolve=>setTimeout(resolve,1300));
+		if(requests.length!==requestsBeforeUndo||titleClip().text_style.italic)throw new Error('Undo did not cancel the pending title apply');
+		const textarea=document.querySelector('[data-text-field="text"]');
+		textarea.value='Renamed title';textarea.dispatchEvent(new Event('input',{bubbles:true}));textarea.dispatchEvent(new Event('change',{bubbles:true}));
+		s.timelineOptions.onSelect('');
+		await wait(()=>requests.length===requestsBeforeUndo+1);
+		// The fixture's PUT replaces the whole stored project, so let the autosave land before the probe finishes.
+		await wait(()=>!s.dirty&&!s.saving);
+		addRemoteAsset(requests.at(-1));finish(requests.at(-1));
+		await wait(()=>titleClip().text==='Renamed title'&&titleClip().asset_id===requests.at(-1).assetId);
 		const clipCount=s.project.tracks.reduce((n,track)=>n+track.clips.length,0),button=document.querySelector('[data-action="undo"]'),playing=s.preview.isPlaying();
 		const space=new KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true,cancelable:true});button.dispatchEvent(space);
 		const app=document.querySelector('.vs-app'),ctrlS=new KeyboardEvent('keydown',{key:'s',code:'KeyS',ctrlKey:true,bubbles:true,cancelable:true});app.dispatchEvent(ctrlS);

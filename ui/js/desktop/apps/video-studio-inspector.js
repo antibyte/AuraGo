@@ -31,9 +31,15 @@
 
     function formatSeconds(frames) { return String(Math.round((Number(frames) || 0) / FPS * 10) / 10); }
 
+    // Rounds the size first and keeps position + size within the frame even after float rounding.
+    function fitAxis(position, size) {
+        let value = round6(clamp(Number(position) || 0, 0, 1 - size));
+        for (let i = 0; i < 4 && value + size > 1; i++) value = Math.max(0, round6(value - 1e-6));
+        return value;
+    }
     function clampBox(box) {
-        const width = clamp(Number(box.width) || 0, 0.01, 1), height = clamp(Number(box.height) || 0, 0.01, 1);
-        return { x: round6(clamp(Number(box.x) || 0, 0, 1 - width)), y: round6(clamp(Number(box.y) || 0, 0, 1 - height)), width: round6(width), height: round6(height) };
+        const width = round6(clamp(Number(box.width) || 0, 0.01, 1)), height = round6(clamp(Number(box.height) || 0, 0.01, 1));
+        return { x: fitAxis(box.x, width), y: fitAxis(box.y, height), width, height };
     }
 
     function presetBox(anchor, box) {
