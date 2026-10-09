@@ -19,7 +19,7 @@ var catalogSpec = []struct {
 	{"towel", "Star Wars ASCII", "classics", "towel.blinkenlights.nl:23", ProtocolTelnet, KindWorld, CharsetUTF8, ""},
 	{"mapscii", "MapSCII", "classics", "mapscii.me:23", ProtocolTelnet, KindWorld, CharsetUTF8, ""},
 	{"fics", "Free Internet Chess Server", "classics", "freechess.org:5000", ProtocolTelnet, KindWorld, CharsetUTF8, ""},
-	{"telehack-ssh", "Telehack SSH", "classics", "telehack.com:2222", ProtocolSSH, "", "", "SHA256:PBE5P0vD6J9s3Exw/zWoZ4DGRla1ultRexuGF7Zm/ek"},
+	{"telehack-ssh", "Telehack SSH", "classics", "telehack.com:2222", ProtocolSSH, "", "", "SHA256:7lRupOG7vxiW/9UDBSAVY0wvOHfzCnnqJz6M8RNty+U"},
 	{"vertrauen", "Vertrauen", "bbs", "vert.synchro.net:23", ProtocolTelnet, KindBBS, CharsetCP437, ""},
 	{"digital-distortion", "Digital Distortion", "bbs", "digitaldistortionbbs.com:23", ProtocolTelnet, KindBBS, CharsetCP437, ""},
 	{"diamond-mine", "Diamond Mine Online", "bbs", "sbbs.dmine.net:24", ProtocolTelnet, KindBBS, CharsetCP437, ""},

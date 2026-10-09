@@ -16,7 +16,7 @@ var catalogEntries = []Entry{
 	telnetEntry("towel", "Star Wars ASCII", CategoryClassics, "towel.blinkenlights.nl", 23, KindWorld, CharsetUTF8),
 	telnetEntry("mapscii", "MapSCII", CategoryClassics, "mapscii.me", 23, KindWorld, CharsetUTF8),
 	telnetEntry("fics", "Free Internet Chess Server", CategoryClassics, "freechess.org", 5000, KindWorld, CharsetUTF8),
-	sshEntry("telehack-ssh", "Telehack SSH", CategoryClassics, "telehack.com", 2222, "SHA256:PBE5P0vD6J9s3Exw/zWoZ4DGRla1ultRexuGF7Zm/ek"),
+	sshEntry("telehack-ssh", "Telehack SSH", CategoryClassics, "telehack.com", 2222, "SHA256:7lRupOG7vxiW/9UDBSAVY0wvOHfzCnnqJz6M8RNty+U"),
 
 	telnetEntry("vertrauen", "Vertrauen", CategoryBBS, "vert.synchro.net", 23, KindBBS, CharsetCP437),
 	telnetEntry("digital-distortion", "Digital Distortion", CategoryBBS, "digitaldistortionbbs.com", 23, KindBBS, CharsetCP437),
