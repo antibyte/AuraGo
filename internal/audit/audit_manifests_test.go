@@ -2131,3 +2131,29 @@ func TestDockerEntrypointMinimalConfigWritesDockerHostAccessFalse(t *testing.T) 
 		t.Fatalf("minimal config lost its server section: %#v", minimal)
 	}
 }
+
+func TestLocalWikipediaManifestsStayReadOnly(t *testing.T) {
+	t.Parallel()
+
+	foundTool := false
+	for _, entry := range ToolPermissionMatrix() {
+		if entry.Name == "local_wikipedia" {
+			foundTool = true
+			if len(entry.Capabilities) != 1 || entry.Capabilities[0] != CapabilityRead {
+				t.Fatalf("local_wikipedia must stay read-only: %+v", entry)
+			}
+		}
+	}
+	foundIntegration := false
+	for _, entry := range HomeLabIntegrationMatrix() {
+		if entry.Name == "local_wikipedia" {
+			foundIntegration = true
+			if entry.HasWriteOrDelete || entry.AllowsLocalNetwork || entry.EnabledByDefault {
+				t.Fatalf("unexpected local_wikipedia integration classification: %+v", entry)
+			}
+		}
+	}
+	if !foundTool || !foundIntegration {
+		t.Fatalf("local_wikipedia manifests missing: tool=%v integration=%v", foundTool, foundIntegration)
+	}
+}

@@ -60,6 +60,7 @@ func classifyToolOutput(action string) toolOutputTrust {
 		"influxdb_query",
 		"jellyfin",
 		"joplin_note",
+		"local_wikipedia",
 		"matrix_read",
 		"mcp_call",
 		"meshcentral",
