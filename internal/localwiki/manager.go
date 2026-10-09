@@ -53,9 +53,10 @@ type Manager struct {
 	lifecycleCancel context.CancelFunc
 	wg              sync.WaitGroup
 	reload          chan struct{}
-	loadMu          sync.Mutex // serializes load
-	beforeLoadLock  func()     // test seam: runs right before a load waits for loadMu
-	stateMu         sync.Mutex // orders state.json writes; never taken while holding mu
+	firstLoad       chan struct{} // closed once the loop has loaded the storage directory for the first time
+	loadMu          sync.Mutex    // serializes loads
+	beforeLoadLock  func()        // test seam: runs right before a load waits for loadMu
+	stateMu         sync.Mutex    // orders state.json writes; never taken while holding mu
 
 	mu           sync.Mutex
 	settings     Settings
@@ -67,7 +68,7 @@ type Manager struct {
 	lib          *libraryRef
 	op           *operation
 	interrupted  bool   // a download.json describes a download that can be resumed
-	loadCode     string // why the installed edition could not be loaded (set by load)
+	loadCode     string // why the installed edition could not be loaded (set by loadLocked)
 	errCode      string // why the last operation stopped (set when it ends)
 	errRequired  int64  // bytes the paused download needed (errCode insufficient_disk_space)
 	catalogCache map[string]catalogCacheEntry
@@ -114,6 +115,7 @@ func NewManager(deps Deps) *Manager {
 		lifecycleCtx:    ctx,
 		lifecycleCancel: cancel,
 		reload:          make(chan struct{}, 1),
+		firstLoad:       make(chan struct{}),
 		settings:        Settings{Variant: VariantNoPic},
 		catalogCache:    map[string]catalogCacheEntry{},
 	}
@@ -146,8 +148,13 @@ func (m *Manager) Settings() Settings {
 	return m.settings
 }
 
-// Start loads the installed edition and starts the background loop (storage
-// directory changes, daily update check). It never resumes a download.
+// Start starts the background loop, which first loads the installed edition
+// and then follows storage directory changes and runs the daily update check.
+// Start itself does no I/O: a slow or hung storage directory (a hard-mounted
+// network share, a large retired edition being deleted) never delays the
+// caller. Until the first load has finished, Status reports Loading, Acquire
+// returns ok=false and Install and Delete refuse with ErrBusy. It never
+// resumes a download.
 func (m *Manager) Start(ctx context.Context) {
 	m.mu.Lock()
 	if m.started || m.shuttingDown {
@@ -155,14 +162,33 @@ func (m *Manager) Start(ctx context.Context) {
 		return
 	}
 	m.started = true
-	dir := m.settings.DataDir
 	m.mu.Unlock()
 	if ctx != nil {
 		context.AfterFunc(ctx, m.lifecycleCancel)
 	}
-	m.load(dir)
 	m.wg.Add(1)
 	go m.loop()
+}
+
+// firstLoadPending reports whether Start ran and the background loop has not
+// finished its first load yet.
+func (m *Manager) firstLoadPending() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.firstLoadPendingLocked()
+}
+
+// firstLoadPendingLocked is firstLoadPending for a caller that holds mu.
+func (m *Manager) firstLoadPendingLocked() bool {
+	if !m.started {
+		return false
+	}
+	select {
+	case <-m.firstLoad:
+		return false
+	default:
+		return true
+	}
 }
 
 // Shutdown cancels a running download (its part file is kept for "Resume"),
@@ -198,6 +224,8 @@ func (m *Manager) Shutdown(ctx context.Context) error {
 
 func (m *Manager) loop() {
 	defer m.wg.Done()
+	m.loadIfStale() // skipped once Shutdown began
+	close(m.firstLoad)
 	timer := time.NewTimer(m.firstCheck)
 	defer timer.Stop()
 	for {
@@ -244,13 +272,6 @@ func (m *Manager) loadIfStale() {
 	if stale {
 		m.loadLocked(dir)
 	}
-}
-
-// load makes dir the active storage directory (see loadLocked).
-func (m *Manager) load(dir string) {
-	m.lockLoad()
-	defer m.loadMu.Unlock()
-	m.loadLocked(dir)
 }
 
 func (m *Manager) lockLoad() {
@@ -496,6 +517,7 @@ func (m *Manager) Status() Status {
 		status.ErrorCode = m.loadCode
 	}
 	status.Readable = m.lib != nil
+	status.Loading = m.firstLoadPendingLocked()
 	if m.state != nil && m.state.Edition != nil {
 		edition := *m.state.Edition
 		status.Edition = &edition
@@ -522,6 +544,9 @@ func (m *Manager) Status() Status {
 	status.State = m.stateLocked()
 	m.mu.Unlock()
 
+	if status.ErrorCode == "" && status.Loading {
+		status.ErrorCode = CodeBusy
+	}
 	if status.ErrorCode == "" && status.State == StateReady && !status.Fulltext {
 		status.ErrorCode = CodeFulltextUnsupported
 	}
@@ -562,7 +587,8 @@ func (m *Manager) stateLocked() string {
 
 // Acquire returns the open edition for one request. release must be called
 // exactly once (extra calls are ignored); ok is false when the integration is
-// disabled or no readable edition is installed.
+// disabled, no readable edition is installed or the first load after Start
+// has not finished yet.
 func (m *Manager) Acquire() (*Library, func(), bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

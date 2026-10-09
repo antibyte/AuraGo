@@ -1,9 +1,12 @@
 package localwiki
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -66,6 +69,86 @@ func TestManagerStartLoadsInstalledEditionWithoutNetwork(t *testing.T) {
 	release() // extra calls are ignored
 	if len(env.kiwix.requestLog()) != 0 {
 		t.Fatalf("Start contacted the network: %v", env.kiwix.requestLog())
+	}
+}
+
+// Start returns before the installed edition is loaded: the first load runs in
+// the background loop, so a hung storage directory cannot block the server's
+// startup. The hook holds the first load right before it takes the load lock.
+func TestManagerStartLoadsInTheBackground(t *testing.T) {
+	env := newTestEnv(t)
+	edition := placeEdition(t, env.dir, "de", "wikipedia_de_all_nopic_2026-09")
+	m := env.manager
+	reached := make(chan struct{})
+	proceed := make(chan struct{})
+	finishLoad := sync.OnceFunc(func() { close(proceed) })
+	defer finishLoad() // a failed check must not leave the loop blocked
+	var once sync.Once
+	m.beforeLoadLock = func() {
+		once.Do(func() {
+			close(reached)
+			<-proceed
+		})
+	}
+	started := make(chan struct{})
+	go func() {
+		m.Start(context.Background())
+		close(started)
+	}()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Start waited for the first load")
+	}
+	<-reached
+
+	status := m.Status()
+	if !status.Loading || status.State != StateNotInstalled || status.Readable || status.Edition != nil ||
+		status.ErrorCode != CodeBusy || status.Recommendation != Recommendation(CodeBusy) {
+		t.Fatalf("status while loading = %+v", status)
+	}
+	if _, release, ok := m.Acquire(); ok {
+		release()
+		t.Fatal("Acquire succeeded before the first load")
+	}
+	if err := m.Install(context.Background(), InstallRequest{}); !errors.Is(err, ErrBusy) {
+		t.Fatalf("Install while loading = %v, want ErrBusy", err)
+	}
+	if err := m.Delete(); !errors.Is(err, ErrBusy) {
+		t.Fatalf("Delete while loading = %v, want ErrBusy", err)
+	}
+	disabled := env.settings()
+	disabled.Enabled = false
+	m.Configure(disabled)
+	if err := m.Install(context.Background(), InstallRequest{}); !errors.Is(err, ErrDisabled) {
+		t.Fatalf("Install while loading and disabled = %v, want ErrDisabled", err)
+	}
+	m.Configure(env.settings())
+
+	finishLoad()
+	select {
+	case <-m.firstLoad:
+	case <-time.After(15 * time.Second):
+		t.Fatal("the first load did not finish")
+	}
+	status = m.Status()
+	if status.Loading || status.State != StateReady || !status.Readable || status.Edition == nil ||
+		status.Edition.Name != edition.Name || status.ErrorCode != "" {
+		t.Fatalf("status after loading = %+v", status)
+	}
+	lib, release, ok := m.Acquire()
+	if !ok || lib.Edition().Name != edition.Name {
+		t.Fatalf("Acquire after loading = %v, %v", lib, ok)
+	}
+	release()
+}
+
+// A manager that is never started reports no loading: it serves nothing, and
+// its operations do not wait for a load that will never run.
+func TestManagerWithoutStartIsNotLoading(t *testing.T) {
+	env := newTestEnv(t)
+	if status := env.manager.Status(); status.Loading || status.ErrorCode == CodeBusy {
+		t.Fatalf("status of an unstarted manager = %+v", status)
 	}
 }
 

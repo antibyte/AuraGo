@@ -80,7 +80,17 @@ func (e *testEnv) settings() Settings {
 	return Settings{Enabled: true, AgentAccess: true, Language: "de", SystemLanguage: "de", Variant: VariantNoPic, DataDir: e.dir, UpdateCheck: true}
 }
 
-func (e *testEnv) start() { e.manager.Start(context.Background()) }
+// start starts the manager and waits for its first load, which runs in the
+// background loop.
+func (e *testEnv) start() {
+	e.t.Helper()
+	e.manager.Start(context.Background())
+	select {
+	case <-e.manager.firstLoad:
+	case <-time.After(15 * time.Second):
+		e.t.Fatal("the first load after Start did not finish")
+	}
+}
 
 // waitFor polls the status until cond holds (15 s deadline).
 func (e *testEnv) waitFor(what string, cond func(Status) bool) Status {

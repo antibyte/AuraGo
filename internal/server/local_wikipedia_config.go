@@ -13,8 +13,9 @@ import (
 )
 
 // newLocalWikipediaManager builds the passive Local Wikipedia manager; Start
-// loads the installed edition with the server lifetime. The manager builds its
-// own HTTP client, which trusts only the Kiwix catalog host.
+// binds it to the server lifetime, and its background loop loads the
+// installed edition without delaying the server's startup. The manager builds
+// its own HTTP client, which trusts only the Kiwix catalog host.
 func newLocalWikipediaManager(cfg *config.Config, logger *slog.Logger) *localwiki.Manager {
 	manager := localwiki.NewManager(localwiki.Deps{
 		Logger:          logger,
@@ -22,6 +23,30 @@ func newLocalWikipediaManager(cfg *config.Config, logger *slog.Logger) *localwik
 	})
 	manager.Configure(localwiki.SettingsFromConfig(cfg))
 	return manager
+}
+
+// syncLocalWikipediaSettings configures the manager from the current config
+// snapshot. replaceConfigSnapshot calls it after every publication, so the
+// config save, the setup wizard and every other publisher reach the manager;
+// admin requests only read it. The snapshot is read and applied under
+// localWikiSyncMu: a call that read an older snapshot finishes applying it
+// before a later call reads the newer one, so publications that overlap can
+// never leave the manager on older settings.
+func (s *Server) syncLocalWikipediaSettings() {
+	if s == nil || s.LocalWiki == nil {
+		return
+	}
+	s.localWikiSyncMu.Lock()
+	defer s.localWikiSyncMu.Unlock()
+	cfg := s.ConfigSnapshot()
+	if cfg == nil {
+		return
+	}
+	settings := localwiki.SettingsFromConfig(cfg)
+	if s.localWikiBeforeConfigure != nil {
+		s.localWikiBeforeConfigure()
+	}
+	s.LocalWiki.Configure(settings)
 }
 
 // localWikipediaSensitivePath refuses system locations (the Docker bind

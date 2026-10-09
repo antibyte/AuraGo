@@ -23,15 +23,13 @@ func registerLocalWikipediaRoutes(mux *http.ServeMux, s *Server) {
 	mux.Handle("/api/local-wikipedia/check-update", requireAdmin(s, handleLocalWikipediaCheckUpdate(s)))
 }
 
-// localWikipediaManager returns the manager with its settings re-resolved from
-// the current config snapshot (the system language can change outside the
-// Local Wikipedia section), or nil.
+// localWikipediaManager returns the manager, or nil. Requests only read it:
+// every published config snapshot configures it (replaceConfigSnapshot calls
+// syncLocalWikipediaSettings), including changes made outside the Local
+// Wikipedia section such as the system language in the setup wizard.
 func (s *Server) localWikipediaManager() *localwiki.Manager {
-	if s == nil || s.LocalWiki == nil {
+	if s == nil {
 		return nil
-	}
-	if cfg := s.ConfigSnapshot(); cfg != nil {
-		s.LocalWiki.Configure(localwiki.SettingsFromConfig(cfg))
 	}
 	return s.LocalWiki
 }
@@ -187,13 +185,25 @@ func writeLocalWikipediaError(w http.ResponseWriter, status int, code string, ex
 	writeLocalWikipediaJSON(w, status, body)
 }
 
-// decodeLocalWikipediaBody accepts an empty body as an empty request.
+// decodeLocalWikipediaBody accepts an empty body as an empty request and
+// otherwise exactly one JSON object without unknown fields or trailing data.
 func decodeLocalWikipediaBody(w http.ResponseWriter, r *http.Request, target any) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(target); err != nil && !errors.Is(err, io.EOF) {
+	err := decoder.Decode(target)
+	if err == nil {
+		// Anything but the end of the body after the object is refused.
+		if err = decoder.Decode(&json.RawMessage{}); errors.Is(err, io.EOF) {
+			err = nil
+		} else if err == nil {
+			err = errors.New("trailing data after the request object")
+		}
+	} else if errors.Is(err, io.EOF) {
+		err = nil // empty body
+	}
+	if err != nil {
 		writeLocalWikipediaError(w, http.StatusBadRequest, "invalid_request", nil)
 		return false
 	}

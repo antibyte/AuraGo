@@ -227,7 +227,13 @@ type Status struct {
 	// zim_unreadable): clients must use it, not "edition != nil" and the state,
 	// to decide whether Wikipedia content is available. It does not include the
 	// enabled switch.
-	Readable            bool           `json:"readable"`
+	Readable bool `json:"readable"`
+	// Loading is true from Start until the background loop has loaded the
+	// storage directory for the first time (normally a fraction of a second;
+	// longer on a slow or hung network share). Meanwhile the state is
+	// not_installed, readable is false, error_code is busy, and Install and
+	// Delete refuse with busy; clients poll the status until it is false.
+	Loading             bool           `json:"loading"`
 	FreeBytes           int64          `json:"free_bytes"`
 	RequiredBytes       int64          `json:"required_bytes"`
 	DataDir             string         `json:"data_dir"`

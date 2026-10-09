@@ -34,6 +34,14 @@ type installPlan struct {
 // download is resumed. The background work is bound to the manager's
 // lifetime, not to ctx.
 func (m *Manager) Install(ctx context.Context, req InstallRequest) error {
+	// Checked before loadIfStale: the request must not wait for the first
+	// load, which may hang on an unreachable storage directory.
+	if m.firstLoadPending() {
+		if !m.Settings().Enabled {
+			return ErrDisabled
+		}
+		return ErrBusy
+	}
 	m.loadIfStale()
 	m.mu.Lock()
 	settings := m.settings
@@ -104,7 +112,8 @@ func (m *Manager) planInstall(ctx context.Context, settings Settings, installed 
 // dir (see removeRestartFiles). They are never resumed and only occupy space
 // the install's space check would count as used. Like discardPending it acts
 // only while no operation runs, with mu held, so no download that could be
-// writing a restart file starts meanwhile.
+// writing a restart file starts meanwhile; the same trade-off applies (see
+// discardPending).
 func (m *Manager) removeStaleRestartFiles(dir string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -122,6 +131,12 @@ func (m *Manager) removeStaleRestartFiles(dir string) {
 // there is no readable download.json. Nothing is touched unless the manager is
 // idle: the files are removed with mu held, so no operation can start (and
 // begin to write them) meanwhile, and no running one loses its files.
+//
+// Unlinking under mu is an accepted trade-off: it is a few local file
+// removals that only an administrator's Install triggers, and Status and
+// Acquire wait for them meanwhile. Releasing mu around the removals would need
+// another "no operation may start" marker (like deleting) with interleavings
+// of its own, for no practical gain.
 func (m *Manager) discardPending(dir string, pending *downloadFile) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

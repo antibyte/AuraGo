@@ -14,6 +14,10 @@ import (
 // its last reader releases it. It refuses to run while a download is active,
 // and no download can start while it runs.
 func (m *Manager) Delete() error {
+	// Like Install, Delete does not wait for the first load after Start.
+	if m.firstLoadPending() {
+		return ErrBusy
+	}
 	// A storage-directory reload must not interleave with the deletion.
 	m.loadMu.Lock()
 	defer m.loadMu.Unlock()

@@ -56,6 +56,14 @@ func newLocalWikipediaTestServerWithDisk(t *testing.T, enabled bool, freeDisk fu
 		defer cancel()
 		_ = manager.Shutdown(ctx)
 	})
+	// The first load runs in the manager's background loop.
+	deadline := time.Now().Add(10 * time.Second)
+	for manager.Status().Loading {
+		if time.Now().After(deadline) {
+			t.Fatal("the manager did not finish its first load")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 	s := &Server{Cfg: cfg, Logger: slog.Default(), LocalWiki: manager}
 	mux := http.NewServeMux()
 	registerLocalWikipediaRoutes(mux, s)
@@ -140,9 +148,20 @@ func TestLocalWikipediaInstallMapsPreflightErrors(t *testing.T) {
 	if body["error"] != localwiki.CodeInsufficientDiskSpace || body["recommendation"] != localwiki.Recommendation(localwiki.CodeInsufficientDiskSpace) {
 		t.Fatalf("error body = %v", body)
 	}
-	for _, payload := range []string{`{"replace_mode":"everything"}`, `{"unknown":true}`, `{`} {
-		if got := localWikipediaRequest(mux, http.MethodPost, "/api/local-wikipedia/install", payload, nil); got.Code != http.StatusBadRequest {
-			t.Fatalf("install %s = %d, want 400", payload, got.Code)
+	for _, payload := range []string{
+		`{"replace_mode":"everything"}`, `{"unknown":true}`, `{`,
+		`{} {}`, `{}x`, `{"replace_mode":"keep_old"}{"confirm_unknown_space":true}`, `{} null`,
+	} {
+		if got := localWikipediaRequest(mux, http.MethodPost, "/api/local-wikipedia/install", payload, nil); got.Code != http.StatusBadRequest ||
+			decodeLocalWikipediaBodyMap(t, got)["error_code"] != "invalid_request" {
+			t.Fatalf("install %s = %d %s, want 400 invalid_request", payload, got.Code, got.Body.String())
+		}
+	}
+	// Whitespace after the object is not trailing data: the request reaches the
+	// space check again.
+	for _, payload := range []string{"{}\n", " \r\n\t", `{"replace_mode":"keep_old"}  `} {
+		if got := localWikipediaRequest(mux, http.MethodPost, "/api/local-wikipedia/install", payload, nil); got.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("install %q = %d %s, want 422", payload, got.Code, got.Body.String())
 		}
 	}
 	got = localWikipediaRequest(mux, http.MethodPost, "/api/local-wikipedia/cancel", "", nil)

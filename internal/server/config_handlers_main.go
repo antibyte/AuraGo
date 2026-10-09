@@ -6,7 +6,6 @@ import (
 	"aurago/internal/discord"
 	"aurago/internal/i18n"
 	"aurago/internal/llm"
-	"aurago/internal/localwiki"
 	"aurago/internal/security"
 	"aurago/internal/services"
 	"aurago/internal/services/optimizer"
@@ -908,9 +907,6 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if s.LocalLLM != nil && oldCfg.LocalLLM != newCfg.LocalLLM {
 				s.LocalLLM.Configure(newCfg.LocalLLM)
 				s.Logger.Info("[Config UI] Local LLM desired state updated")
-			}
-			if s.LocalWiki != nil {
-				s.LocalWiki.Configure(localwiki.SettingsFromConfig(newCfg))
 			}
 
 			// Apply hot-reload by publishing a new immutable config snapshot after

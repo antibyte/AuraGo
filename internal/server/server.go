@@ -193,6 +193,8 @@ type Server struct {
 	LocalLLM                  *localllm.Manager
 	LocalMusic                *acestep.Manager
 	LocalWiki                 *localwiki.Manager
+	localWikiSyncMu           sync.Mutex // one step from reading the config snapshot to configuring LocalWiki
+	localWikiBeforeConfigure  func()     // test seam: runs in syncLocalWikipediaSettings after the snapshot is read
 	localLLMLifecycleCtx      context.Context
 	Go2RTCDiscovery           *onvif.Service
 	MeshCore                  *meshcore.Manager
@@ -504,6 +506,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s.LocalMusic != nil {
 		s.LocalMusic.Configure(cfg)
 	}
+	s.syncLocalWikipediaSettings()
 	if s.WarningsRegistry != nil {
 		// Provider metadata probes may perform bounded network I/O. Keep config
 		// publication non-blocking while still reconciling stale warnings.
