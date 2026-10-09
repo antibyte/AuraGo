@@ -1,12 +1,22 @@
 package fileutil
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
+// skipWithoutFreeSpaceProbe skips on platforms that have no free-space probe (errors.ErrUnsupported).
+func skipWithoutFreeSpaceProbe(t *testing.T) {
+	t.Helper()
+	if _, err := FreeDiskBytes(t.TempDir()); errors.Is(err, errors.ErrUnsupported) {
+		t.Skip("no free-space probe on this platform")
+	}
+}
+
 func TestFreeDiskBytesMeasuresExistingDirectory(t *testing.T) {
+	skipWithoutFreeSpaceProbe(t)
 	free, err := FreeDiskBytes(t.TempDir())
 	if err != nil {
 		t.Fatalf("FreeDiskBytes() error = %v", err)
@@ -17,6 +27,7 @@ func TestFreeDiskBytesMeasuresExistingDirectory(t *testing.T) {
 }
 
 func TestFreeDiskBytesUsesNearestExistingParent(t *testing.T) {
+	skipWithoutFreeSpaceProbe(t)
 	root := t.TempDir()
 	missing := filepath.Join(root, "not", "created", "yet", "wikipedia")
 	free, err := FreeDiskBytes(missing)
@@ -32,6 +43,7 @@ func TestFreeDiskBytesUsesNearestExistingParent(t *testing.T) {
 }
 
 func TestFreeDiskBytesAcceptsFilePath(t *testing.T) {
+	skipWithoutFreeSpaceProbe(t)
 	file := filepath.Join(t.TempDir(), "edition.zim.part")
 	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
@@ -55,5 +67,32 @@ func TestNearestExistingDirWalksUp(t *testing.T) {
 	}
 	if got != filepath.Clean(root) {
 		t.Fatalf("nearestExistingDir() = %q, want %q", got, root)
+	}
+}
+
+func TestNearestExistingDirWalksUpFromPathBelowAFile(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "edition.zim")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := nearestExistingDir(filepath.Join(file, "child", "grandchild"))
+	if err != nil {
+		t.Fatalf("nearestExistingDir(below file) error = %v", err)
+	}
+	if got != filepath.Clean(root) {
+		t.Fatalf("nearestExistingDir(below file) = %q, want %q", got, root)
+	}
+}
+
+func TestNearestExistingDirSurfacesNonMissingStatErrors(t *testing.T) {
+	// A NUL byte makes os.Stat fail with EINVAL on every platform, which is neither
+	// "does not exist" nor "not a directory": it must be returned, not walked past.
+	bad := filepath.Join(t.TempDir(), "bad\x00name")
+	if got, err := nearestExistingDir(bad); err == nil {
+		t.Fatalf("nearestExistingDir(NUL path) = %q, nil; want an error", got)
+	}
+	if free, err := FreeDiskBytes(bad); err == nil {
+		t.Fatalf("FreeDiskBytes(NUL path) = %d, nil; want an error", free)
 	}
 }

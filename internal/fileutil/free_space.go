@@ -3,8 +3,10 @@ package fileutil
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 // FreeDiskBytes returns the bytes available to the current user on the filesystem holding path.
@@ -21,15 +23,24 @@ func FreeDiskBytes(path string) (int64, error) {
 	return free, nil
 }
 
-// nearestExistingDir walks up from path to the first directory that exists.
+// nearestExistingDir walks up from path to the first directory that exists. It only walks past
+// entries that are missing, below a non-directory, or not directories themselves; any other
+// stat failure (permissions, I/O, invalid path) is returned instead of measuring a wrong volume.
 func nearestExistingDir(path string) (string, error) {
 	if path == "" {
 		return "", errors.New("fileutil: empty path")
 	}
 	current := filepath.Clean(path)
 	for {
-		if info, err := os.Stat(current); err == nil && info.IsDir() {
-			return current, nil
+		info, err := os.Stat(current)
+		switch {
+		case err == nil:
+			if info.IsDir() {
+				return current, nil
+			}
+		case errors.Is(err, fs.ErrNotExist), errors.Is(err, syscall.ENOTDIR):
+		default:
+			return "", fmt.Errorf("fileutil: stat %s: %w", current, err)
 		}
 		parent := filepath.Dir(current)
 		if parent == current {

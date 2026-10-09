@@ -24,9 +24,11 @@ acknowledgements and free-space thresholds. This package does not grant filesyst
 - Token storage and Desktop archive publication share the same retry behavior; rooted callers supply an authorized root rename callback, never an unchecked absolute-path fallback.
   Keep their existing filesystem gates, locks, file modes, and error handling.
 - `FreeDiskBytes(path)` reports the bytes available to the current user (`statfs`
-  `Bavail*Bsize` outside Windows, the caller quota of `GetDiskFreeSpaceEx` on Windows)
+  `Bavail*Bsize` on Linux, macOS and FreeBSD, the caller quota of `GetDiskFreeSpaceEx`
+  on Windows, `errors.ErrUnsupported` on every other GOOS so the package still builds there)
   on the filesystem of the nearest existing directory at or above `path`; it never
-  creates directories. Local LLM's swappable `availableDiskBytes` and Local
+  creates directories. It walks up only past missing paths, paths below a non-directory
+  and non-directory entries; any other `os.Stat` error is returned. Local LLM's swappable `availableDiskBytes` and Local
   Wikipedia's `localwiki.Deps.FreeDiskBytes` default to it; tests replace those hooks.
 
 ## Work Guidance
@@ -40,7 +42,8 @@ acknowledgements and free-space thresholds. This package does not grant filesyst
   readers, successful retries, cancellation, and temporary file cleanup.
 - `go test ./internal/tools -run 'Hashline|FileEditor|WriteFileAtomic|NotesNativeFileGuards|MQTTMissionTriggers|MissionQueue'`
 - Free space: `go test ./internal/fileutil -run 'FreeDiskBytes|NearestExistingDir'` and
-  `GOOS=darwin GOARCH=arm64 go build ./internal/fileutil`, `GOOS=linux GOARCH=arm go build ./internal/fileutil`.
+  `GOOS=darwin GOARCH=arm64 go build ./internal/fileutil`, `GOOS=linux GOARCH=arm go build ./internal/fileutil`
+  and the unsupported-probe targets `GOOS=openbsd`, `GOOS=js GOARCH=wasm`, `GOOS=wasip1 GOARCH=wasm`.
 
 ## Child DOX Index
 
