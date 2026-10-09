@@ -72,7 +72,7 @@ func (ix searchIndex) read(ctx context.Context, req ReadRequest) (Article, error
 		}
 		text = art.sectionMarkdown(i)
 	}
-	content, next, err := pageText(text, req.Offset)
+	content, next, err := pageTextRunes(text, req.Offset, pageRunesFor(req.PageRunes))
 	if err != nil {
 		return Article{}, err
 	}

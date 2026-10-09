@@ -244,14 +244,28 @@ and an administrator installs an edition under **Config > Local Wikipedia**.
 - `search` — `query` (required, at most 200 characters and 16 words) and `limit`
   (1–10, default 5). Returns the edition (language, variant, date), whether
   full-text search is available, and the results (title, path, snippet). The top
-  three results also carry the lead section as Markdown (at most 2,000
+  three results also carry the lead section as Markdown (up to 2,000
   characters).
 - `read` — `title` or `path`, optionally `section` (heading text or index) and
-  `offset`. Returns the article as Markdown in chunks of at most 8,000 characters,
-  the list of sections (at most 100; `sections_total` says how many there are)
-  and `next_offset` for the next chunk. Infoboxes become key-value lists, tables
+  `offset`. Returns the article as Markdown in chunks of up to 8,000 characters
+  (depending on settings, see below), the list of sections (at most 100;
+  `sections_total` says how many there are) and `next_offset` for the next
+  chunk. Infoboxes become key-value lists, tables
   become Markdown tables (at most 50 rows), and reference lists, navigation boxes
   and edit links are removed.
+
+**Answer size.** AuraGo moves a tool answer that is larger than
+`agent.output_compression.reversible.max_inline_chars` (default 6,000, counted in
+bytes of the answer as the model receives it) into the output vault, and the
+model then sees only its start. The tool therefore sizes every answer to that
+limit (or to `agent.tool_output_limit` when it is smaller): a search first
+shortens the leads, then gives fewer results a lead, then shortens snippets and
+only at last drops results; a read gives the section list at most a third of the
+room and shortens the page. Non-Latin scripts take two to three bytes per
+character, so a page of a Hindi or Chinese article holds about 1,500
+characters at the default, a German or English page about 3,500–4,000. Offsets
+stay in characters, so the agent simply continues with `next_offset`. Raise
+`max_inline_chars` for longer pages.
 
 Tool output is marked as external data, like web content. The agent is told to
 prefer `local_wikipedia` over the online `wikipedia_search` tool and web search for

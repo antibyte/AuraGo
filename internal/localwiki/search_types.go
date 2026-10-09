@@ -27,11 +27,15 @@ type SearchResult struct {
 
 // ReadRequest selects an article by Path (preferred) or Title, optionally one
 // section (heading text or decimal index) and a rune offset into the content.
+// PageRunes is the page size in runes: 0 (or more than 8,000) reads pages of
+// 8,000 runes, smaller values are raised to 100. Offsets and NextOffset count
+// runes whatever the page size, so pages of different sizes chain.
 type ReadRequest struct {
-	Title   string
-	Path    string
-	Section string
-	Offset  int
+	Title     string
+	Path      string
+	Section   string
+	Offset    int
+	PageRunes int
 }
 
 // Section describes one heading of a rendered article. Index 0 is the lead.

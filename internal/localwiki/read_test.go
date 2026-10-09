@@ -143,6 +143,55 @@ func TestReadPagesLongArticles(t *testing.T) {
 	}
 }
 
+// A smaller page size (the agent tool's inline budget) pages the same text:
+// pages of any size chain through rune offsets, also in a multi-byte script.
+func TestReadHonoursPageRunes(t *testing.T) {
+	useFreshRenderCache(t)
+	var body strings.Builder
+	for i := 0; i < 60; i++ {
+		body.WriteString("<p>" + strings.Repeat("भारत गणराज्य ", 20) + "अंत।</p>")
+	}
+	store := newFakeArticleStore(fakeEntry{path: "भारत", title: "भारत", html: htmlPage("भारत", body.String())})
+	ix := searchIndex{store: store}
+	full, err := ix.read(context.Background(), ReadRequest{Path: "भारत", PageRunes: 1 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := utf8.RuneCountInString(full.Content); n > readPageRunes || full.NextOffset == nil {
+		t.Fatalf("an oversized page size must stay at %d runes: got %d, next %v", readPageRunes, n, full.NextOffset)
+	}
+	var pages []string
+	offset := 0
+	for size := 300; ; size = 300 + (size+700)%1500 {
+		art, err := ix.read(context.Background(), ReadRequest{Path: "भारत", Offset: offset, PageRunes: size})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n := utf8.RuneCountInString(art.Content); n > size || n == 0 {
+			t.Fatalf("page at %d has %d runes, asked for %d", offset, n, size)
+		}
+		pages = append(pages, art.Content)
+		if art.NextOffset == nil {
+			break
+		}
+		if *art.NextOffset <= offset {
+			t.Fatalf("next offset %d does not advance from %d", *art.NextOffset, offset)
+		}
+		offset = *art.NextOffset
+	}
+	if len(pages) < 10 {
+		t.Fatalf("pages = %d, want many small ones", len(pages))
+	}
+	joined := strings.Join(pages, "\n\n")
+	if got, want := strings.Count(joined, "अंत।"), 60; got != want {
+		t.Fatalf("small pages hold %d paragraph ends, want %d (nothing lost or repeated)", got, want)
+	}
+	tiny, err := ix.read(context.Background(), ReadRequest{Path: "भारत", PageRunes: 1})
+	if err != nil || utf8.RuneCountInString(tiny.Content) > minPageRunes || utf8.RuneCountInString(tiny.Content) < minPageRunes/2 {
+		t.Fatalf("a tiny page size must be raised to %d runes: %d runes, err %v", minPageRunes, utf8.RuneCountInString(tiny.Content), err)
+	}
+}
+
 func TestReadReportsMissingArticles(t *testing.T) {
 	useFreshRenderCache(t)
 	ix := searchIndex{store: cityArticles()}

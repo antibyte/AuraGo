@@ -8,8 +8,20 @@ import (
 	"unicode/utf8"
 )
 
-// readPageRunes is the largest Content a single Read returns.
-const readPageRunes = 8000
+// readPageRunes is the largest Content a single Read returns; minPageRunes is
+// the smallest page a ReadRequest.PageRunes can ask for.
+const (
+	readPageRunes = 8000
+	minPageRunes  = 100
+)
+
+// pageRunesFor returns the page size of a request (see ReadRequest.PageRunes).
+func pageRunesFor(requested int) int {
+	if requested <= 0 || requested > readPageRunes {
+		return readPageRunes
+	}
+	return max(requested, minPageRunes)
+}
 
 // findSection resolves a section request, in this order: a decimal index of
 // an existing section; the heading itself, folded (case and accents) but
@@ -72,19 +84,26 @@ func (a *renderedArticle) sectionNotFound(spec string) error {
 }
 
 // pageText returns up to readPageRunes runes of text starting at the rune
-// offset, cut at a paragraph or line break in the second half of the page
-// when possible. next (a rune offset) is nil on the last page. It works on
-// byte indexes, so a page of a long article costs no copy of the article.
+// offset; see pageTextRunes.
 func pageText(text string, offset int) (string, *int, error) {
+	return pageTextRunes(text, offset, readPageRunes)
+}
+
+// pageTextRunes returns up to pageRunes runes (at least 2) of text starting at
+// the rune offset, cut at a paragraph or line break in the second half of the
+// page when possible. next (a rune offset) is nil on the last page. It works
+// on byte indexes, so a page of a long article costs no copy of the article.
+func pageTextRunes(text string, offset, pageRunes int) (string, *int, error) {
 	if offset < 0 {
 		return "", nil, ErrOffsetOutOfRange
 	}
+	pageRunes = max(pageRunes, 2)
 	start, ok := advanceRunes(text, 0, offset)
 	if !ok || (start == len(text) && offset > 0) {
 		return "", nil, ErrOffsetOutOfRange
 	}
-	mid, _ := advanceRunes(text, start, readPageRunes/2)
-	end, ok := advanceRunes(text, mid, readPageRunes-readPageRunes/2)
+	mid, _ := advanceRunes(text, start, pageRunes/2)
+	end, ok := advanceRunes(text, mid, pageRunes-pageRunes/2)
 	if !ok || end == len(text) {
 		return strings.TrimLeft(text[start:], "\n"), nil, nil
 	}

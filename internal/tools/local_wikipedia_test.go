@@ -179,7 +179,7 @@ func TestLocalWikipediaReadReturnsPageAndSections(t *testing.T) {
 	if _, ok := m["sections_truncated"]; ok {
 		t.Fatalf("short section list marked as truncated: %v", m)
 	}
-	if lib.readReq != (localwiki.ReadRequest{Title: "Hauptstadt Deutschlands", Section: "Geschichte"}) {
+	if lib.readReq != (localwiki.ReadRequest{Title: "Hauptstadt Deutschlands", Section: "Geschichte", PageRunes: localWikipediaBudget(0)}) {
 		t.Fatalf("read request = %+v", lib.readReq)
 	}
 	lib.article.NextOffset = nil
@@ -206,7 +206,7 @@ func TestLocalWikipediaReadCapsTheSectionList(t *testing.T) {
 		Content:  "Text",
 	}}
 	useWikiSource(t, &fakeWikiSource{lib: lib, open: true})
-	out := ExecuteLocalWikipedia(context.Background(), wikiConfig(), LocalWikipediaRequest{Operation: "read", Path: "Liste"})
+	out := ExecuteLocalWikipedia(context.Background(), wikiConfig(), LocalWikipediaRequest{Operation: "read", Path: "Liste", OutputBudget: 1 << 20})
 	m := decodeWikiOutput(t, out)
 	sections := m["sections"].([]any)
 	if len(sections) != localWikipediaMaxSections || m["sections_truncated"] != true || m["sections_total"] != float64(250_000) {
@@ -222,6 +222,15 @@ func TestLocalWikipediaReadCapsTheSectionList(t *testing.T) {
 	}
 	if len(out) > 20_000 {
 		t.Fatalf("read output is %d bytes", len(out))
+	}
+	// At the default inline budget the list shrinks further and still says so.
+	out = ExecuteLocalWikipedia(context.Background(), wikiConfig(), LocalWikipediaRequest{Operation: "read", Path: "Liste"})
+	m = decodeWikiOutput(t, out)
+	if n := len(m["sections"].([]any)); n == 0 || n >= localWikipediaMaxSections || m["sections_truncated"] != true || m["sections_total"] != float64(250_000) {
+		t.Fatalf("default budget: sections = %d truncated=%v total=%v", n, m["sections_truncated"], m["sections_total"])
+	}
+	if got := localWikipediaModelBytes(out); got > localWikipediaBudget(0) {
+		t.Fatalf("default budget: answer is %d model bytes, budget %d", got, localWikipediaBudget(0))
 	}
 }
 
@@ -280,15 +289,21 @@ func TestLocalWikipediaUnknownSectionListsSections(t *testing.T) {
 		t.Fatalf("output = %v", m)
 	}
 	lib.readErr = &localwiki.SectionNotFoundError{Section: "X", Sections: manyWikiSections(5000)}
-	m = decodeWikiOutput(t, ExecuteLocalWikipedia(context.Background(), wikiConfig(), LocalWikipediaRequest{Operation: "read", Path: "Berlin", Section: "X"}))
+	m = decodeWikiOutput(t, ExecuteLocalWikipedia(context.Background(), wikiConfig(), LocalWikipediaRequest{Operation: "read", Path: "Berlin", Section: "X", OutputBudget: 1 << 20}))
 	if len(m["sections"].([]any)) != localWikipediaMaxSections || m["sections_truncated"] != true || m["sections_total"] != float64(5000) {
 		t.Fatalf("section_not_found list is not capped: %d entries", len(m["sections"].([]any)))
 	}
 	// The library already caps the list and reports the article's count.
 	lib.readErr = &localwiki.SectionNotFoundError{Section: "X", Sections: manyWikiSections(localWikipediaMaxSections), Total: 250}
-	m = decodeWikiOutput(t, ExecuteLocalWikipedia(context.Background(), wikiConfig(), LocalWikipediaRequest{Operation: "read", Path: "Berlin", Section: "X"}))
+	m = decodeWikiOutput(t, ExecuteLocalWikipedia(context.Background(), wikiConfig(), LocalWikipediaRequest{Operation: "read", Path: "Berlin", Section: "X", OutputBudget: 1 << 20}))
 	if len(m["sections"].([]any)) != localWikipediaMaxSections || m["sections_truncated"] != true || m["sections_total"] != float64(250) {
 		t.Fatalf("capped library error: %d entries, total %v", len(m["sections"].([]any)), m["sections_total"])
+	}
+	// At the default inline budget the list is shortened to fit.
+	out := ExecuteLocalWikipedia(context.Background(), wikiConfig(), LocalWikipediaRequest{Operation: "read", Path: "Berlin", Section: "X"})
+	m = decodeWikiOutput(t, out)
+	if n := len(m["sections"].([]any)); n == 0 || n >= localWikipediaMaxSections || m["sections_total"] != float64(250) || localWikipediaModelBytes(out) > localWikipediaBudget(0) {
+		t.Fatalf("default budget: %d entries, total %v, %d model bytes", n, m["sections_total"], localWikipediaModelBytes(out))
 	}
 }
 

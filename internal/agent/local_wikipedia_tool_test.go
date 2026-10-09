@@ -76,17 +76,17 @@ func TestDispatchLocalWikipediaDecodesArguments(t *testing.T) {
 	out, _ = dispatchPlatform(context.Background(), ToolCall{Action: "local_wikipedia", Params: map[string]interface{}{
 		"operation": "read", "path": "Berlin", "section": float64(2), "offset": float64(8000),
 	}}, dc)
-	if want := (localwiki.ReadRequest{Path: "Berlin", Section: "2", Offset: 8000}); lib.read != want {
+	if want := (localwiki.ReadRequest{Path: "Berlin", Section: "2", Offset: 8000, PageRunes: 8000}); lib.read != want {
 		t.Fatalf("read request = %+v, want %+v (out %s)", lib.read, want, out)
 	}
 
 	_, _ = dispatchPlatform(context.Background(), ToolCall{Action: "local_wikipedia", Operation: "read", Title: "Berlin", Params: map[string]interface{}{"section": " Geschichte "}}, dc)
-	if want := (localwiki.ReadRequest{Title: "Berlin", Section: "Geschichte"}); lib.read != want {
+	if want := (localwiki.ReadRequest{Title: "Berlin", Section: "Geschichte", PageRunes: 8000}); lib.read != want {
 		t.Fatalf("text-mode read request = %+v, want %+v", lib.read, want)
 	}
 
 	_, _ = dispatchPlatform(context.Background(), ToolCall{Action: "local_wikipedia", Operation: "read", Path: "Berlin", Offset: 16000}, dc)
-	if want := (localwiki.ReadRequest{Path: "Berlin", Offset: 16000}); lib.read != want {
+	if want := (localwiki.ReadRequest{Path: "Berlin", Offset: 16000, PageRunes: 8000}); lib.read != want {
 		t.Fatalf("text-mode paged read request = %+v, want %+v", lib.read, want)
 	}
 }

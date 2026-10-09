@@ -452,10 +452,7 @@ func maybeStorePrimaryToolOutputVault(
 	if tc.Action == "read_tool_output" || tc.Action == "retrieve_original_output" {
 		return "", "", false
 	}
-	maxInline := cfg.Agent.OutputCompression.Reversible.MaxInlineChars
-	if maxInline <= 0 {
-		maxInline = 6000
-	}
+	maxInline := primaryOutputVaultMaxInline(cfg)
 	if len(originalContent) <= maxInline {
 		return "", "", false
 	}
@@ -507,6 +504,29 @@ func maybeStorePrimaryToolOutputVault(
 		content = isolateToolPayload(content, false)
 	}
 	return "Tool Output: " + content, out.OutputRef, true
+}
+
+// primaryOutputVaultMaxInline is the size in bytes (len of the dispatch
+// output) above which maybeStorePrimaryToolOutputVault archives a successful
+// native tool result: agent.output_compression.reversible.max_inline_chars,
+// 6000 when unset.
+func primaryOutputVaultMaxInline(cfg *config.Config) int {
+	if cfg != nil && cfg.Agent.OutputCompression.Reversible.MaxInlineChars > 0 {
+		return cfg.Agent.OutputCompression.Reversible.MaxInlineChars
+	}
+	return 6000
+}
+
+// toolResultInlineBudget is the largest dispatch output in bytes that reaches
+// the model whole: at most the tool output limit and, while the primary output
+// vault is on, at most its archive threshold. Tools that page their answers
+// (local_wikipedia) size them to it.
+func toolResultInlineBudget(cfg *config.Config) int {
+	budget := effectiveToolOutputLimit(cfg)
+	if cfg == nil || (cfg.Agent.OutputCompression.Reversible.Enabled && cfg.Agent.OutputCompression.Reversible.PrimaryOutputVault) {
+		budget = min(budget, primaryOutputVaultMaxInline(cfg))
+	}
+	return budget
 }
 
 func summarizeToolOutputForVault(content string) string {
