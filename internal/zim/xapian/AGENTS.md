@@ -15,7 +15,7 @@ Callers (`internal/localwiki`) choose the analyzer language, drop unknown query 
 - The exported API is the slice-2 contract in `docs/superpowers/plans/2026-10-09-local-wikipedia-overview.md` (local, git-ignored) plus `Normalize`, `ExistingTerms`, `Analyzer.Stem/Language`, `Database.LastDocID/TotalLength/Metadata`, `ErrCorrupt`, `ErrDocNotFound`.
 - The byte format and libzim's analysis rules are documented in `FORMAT.md` (this directory); keep it in step with the code.
 - Supported: single-file glass, format 2016-03-14, 2–64 KiB blocks. Error classes (test with `errors.Is`): anything this reader does not implement (other backend, other format version, block size outside 2–64 KiB or not a power of two, mixed block sizes, blob under 2 KiB) → `ErrUnsupportedFormat`; structural damage (version fields out of range, block or tag overruns, level mismatch, B-tree keys that are not strictly increasing, bad deflate, non-increasing docids) → `ErrCorrupt`; an unknown docid → `ErrDocNotFound`. An I/O error from the `io.ReaderAt` is wrapped with `%w` and is neither class. Callers treat every `Open` error as "full-text unavailable". Never panic on index data.
-- Memory is bounded independently of the index: a tag is at most 16 MiB (before and after inflating), the block cache holds 4 MiB of block data per `Database` (512 blocks at 8 KiB, 64 at 64 KiB, at least 16), a tree has at most 10 levels, `Search` ranks at most `MaxSearchWindow` (10,000) documents. Validate sizes before allocating; range-check `uint64` values before narrowing to `int` (32-bit builds).
+- Memory is bounded independently of the index: a tag is at most 16 MiB (before and after inflating), the block cache holds 4 MiB of block data per `Database` (512 blocks at 8 KiB, 64 at 64 KiB, at least 16), a tree has at most 10 levels, `Search` ranks at most `MaxSearchWindow` (10,000) documents; a posting list reads its current chunk in place (`tagView`), so besides its cursor path it keeps only that leaf block alive. Validate sizes before allocating; range-check `uint64` values before narrowing to `int` (32-bit builds).
 - Tree walks require strictly increasing `(key, component)`; do not weaken that check, it is what keeps a damaged branch block from making a walk revisit items.
 - Ranking must reproduce libzim 9.8 (Xapian 1.4.23): `Search` = default `BM25Weight`, ties by docid; `Suggest` = `BM25Weight(0.001,0,1,1,0.5)`, sort by score then title, collapse on value slot 1. Change ranking only together with regenerated goldens.
 - Normalisation is ICU "Lower; NFD; [:M:] remove; NFC": all marks (Mn, Mc, Me) are removed, Greek final sigma applies.
@@ -34,6 +34,7 @@ Callers (`internal/localwiki`) choose the analyzer language, drop unknown query 
 ## Verification
 
 - `go test ./internal/zim/xapian/ -count=1`
+- Ranking speed: `go test ./internal/zim/xapian/ -run '^$' -bench BenchmarkSearch -benchmem` (`BenchmarkSearchScale` is a synthetic 2.9M-document index); scoring streams the document length list in docid order, never `DocLength` per hit.
 - `AURAGO_ZIM_REAL_FIXTURE=1 go test ./internal/zim/xapian/ -run TestRealFixtureIndexes -count=1 -v`
 - `go test ./internal/zim/xapian/ -run '^$' -fuzz '^FuzzDatabase$' -fuzztime 60s` (and `FuzzUnpack`, `FuzzParseVersion`)
 - `GOOS=linux GOARCH=arm go vet ./internal/zim/xapian/`

@@ -382,6 +382,22 @@ func (c *cursor) tag() ([]byte, error) {
 	return out, nil
 }
 
+// tagView is tag without the copy when the entry is a single uncompressed
+// component, which holds for nearly every posting chunk: the result then
+// aliases the cached block shared by all cursors. Callers must not modify it
+// and should drop it soon, since it pins the whole block outside the cache
+// budget (a posting list keeps at most its current chunk).
+func (c *cursor) tagView() ([]byte, error) {
+	it, err := c.item()
+	if err != nil {
+		return nil, err
+	}
+	if it.first && it.last && !it.compressed {
+		return it.chunk, nil
+	}
+	return c.tag()
+}
+
 // get returns the tag stored under exactly key.
 func (t *table) get(key []byte) ([]byte, bool, error) {
 	c := t.cursor()

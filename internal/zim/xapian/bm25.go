@@ -44,7 +44,10 @@ func (w bm25) sumPart(termWeight float64, wdf, doclen uint32) float64 {
 	if wdf == 0 {
 		return 0
 	}
-	normlen := math.Max(float64(doclen)*w.lenFactor, w.minNormLen)
+	normlen := float64(doclen) * w.lenFactor // never NaN: same as math.Max, without the call
+	if normlen < w.minNormLen {
+		normlen = w.minNormLen
+	}
 	d := float64(wdf)
 	return termWeight * (d / (w.k1*(normlen*w.b+(1-w.b)) + d))
 }

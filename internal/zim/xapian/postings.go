@@ -53,7 +53,7 @@ type postingList struct {
 	db          *Database
 	term        string
 	c           *cursor
-	data        []byte // undecoded rest of the current chunk
+	data        []byte // undecoded rest of the current chunk (may alias a cached block)
 	did         uint32
 	wdf         uint32
 	lastInChunk uint32
@@ -128,7 +128,7 @@ func (p *postingList) loadChunk() error {
 	if !ok {
 		return corruptf("posting list for %q: unexpected key", p.term)
 	}
-	tag, err := p.c.tag()
+	tag, err := p.c.tagView()
 	if err != nil {
 		return err
 	}
@@ -179,20 +179,33 @@ func (p *postingList) loadChunk() error {
 
 // advance moves to the next posting; false at the end of the list.
 func (p *postingList) advance() (bool, error) {
-	if len(p.data) > 0 {
-		delta, n, err := unpackUint32(p.data)
-		if err != nil {
-			return false, err
-		}
-		wdf, m, err := unpackUint32(p.data[n:])
-		if err != nil {
-			return false, err
+	if d := p.data; len(d) > 0 {
+		// Scoring decodes millions of (gap, wdf) pairs per query; almost all
+		// are a one-byte gap with a one- or two-byte wdf (document lengths
+		// mostly need two bytes), decoded here without a call.
+		var delta, wdf uint32
+		var n int
+		switch {
+		case len(d) >= 2 && d[0] < 0x80 && d[1] < 0x80:
+			delta, wdf, n = uint32(d[0]), uint32(d[1]), 2
+		case len(d) >= 3 && d[0] < 0x80 && d[2] < 0x80:
+			delta, wdf, n = uint32(d[0]), uint32(d[1]&0x7f)|uint32(d[2])<<7, 3
+		default:
+			var m int
+			var err error
+			if delta, n, err = unpackUint32(d); err != nil {
+				return false, err
+			}
+			if wdf, m, err = unpackUint32(d[n:]); err != nil {
+				return false, err
+			}
+			n += m
 		}
 		next := uint64(p.did) + uint64(delta) + 1
 		if next > uint64(p.lastInChunk) {
 			return false, corruptf("posting list for %q: docid beyond chunk end", p.term)
 		}
-		p.did, p.wdf, p.data = uint32(next), wdf, p.data[n+m:]
+		p.did, p.wdf, p.data = uint32(next), wdf, d[n:]
 		return true, nil
 	}
 	if p.did != p.lastInChunk {
@@ -248,7 +261,7 @@ func (p *postingList) skipTo(target uint32) (bool, error) {
 		return true, nil
 	}
 	if target > p.lastInChunk && !p.isLastChunk {
-		if err := p.jumpTo(target); err != nil {
+		if err := p.chunkFor(target); err != nil {
 			p.err, p.done = err, true
 			return false, err
 		}
@@ -265,6 +278,28 @@ func (p *postingList) skipTo(target uint32) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// chunkFor loads the chunk that may contain target, which lies beyond the
+// current chunk of a list that continues. Scoring walks the document length
+// list (and common terms) in docid order, so target is usually in the next
+// chunk: one cursor step instead of a seek from the root. A target past the
+// next chunk falls back to jumpTo.
+func (p *postingList) chunkFor(target uint32) error {
+	ok, err := p.c.next()
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return corruptf("posting list for %q: missing continuation chunk", p.term)
+	}
+	if err := p.loadChunk(); err != nil {
+		return err
+	}
+	if p.lastInChunk >= target || p.isLastChunk {
+		return nil
+	}
+	return p.jumpTo(target)
 }
 
 // jumpTo loads the chunk that may contain target: the last chunk starting at

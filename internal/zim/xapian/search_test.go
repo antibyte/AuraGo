@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"sort"
 	"testing"
 )
 
@@ -233,6 +234,113 @@ func TestOrTermFreqEstimate(t *testing.T) {
 	for _, c := range cases {
 		if got := orTermFreqEstimate(c.tfs, c.n); got != c.want {
 			t.Errorf("orTermFreqEstimate(%v, %d) = %d, want %d", c.tfs, c.n, got, c.want)
+		}
+	}
+}
+
+// Scoring streams the document length list with skipTo, which only works if
+// both merges hand out docids in ascending order. Check that, and that the
+// streamed lengths give exactly the scores of per-document DocLength lookups.
+func TestSearchStreamsDocLengthsInDocidOrder(t *testing.T) {
+	const n = 30000
+	lens := make([]uint32, n)
+	lists := map[string][][2]uint32{}
+	for i := range lens {
+		did := uint32(i + 1)
+		lens[i] = 20 + did*7919%400
+		for _, m := range []struct {
+			term string
+			mod  uint32
+		}{{"three", 3}, {"five", 5}, {"seven", 7}} {
+			if did%m.mod == 0 || did%1009 == 1 {
+				lists[m.term] = append(lists[m.term], [2]uint32{did, 1 + did%m.mod})
+			}
+		}
+	}
+	lens[41] = 0 // a deleted document inside a chunk
+	for term, ps := range lists {
+		var kept [][2]uint32
+		for _, p := range ps {
+			if p[0] != 42 {
+				kept = append(kept, p)
+			}
+		}
+		lists[term] = kept
+	}
+	db := synthDB(t, minBlockSize, lens, lists)
+	query := []string{"seven", "three", "five"}
+	w := newBM25(db)
+	in := func(term string, did uint32) (uint32, bool) {
+		ps := lists[term]
+		i := sort.Search(len(ps), func(i int) bool { return ps[i][0] >= did })
+		if i < len(ps) && ps[i][0] == did {
+			return ps[i][1], true
+		}
+		return 0, false
+	}
+	for _, op := range []Op{OpAnd, OpOr} {
+		// The order Search adds term weights in: rarest first for AND, query
+		// order for OR.
+		order := query
+		if op == OpAnd {
+			order = []string{"seven", "five", "three"}
+		}
+		var want []Hit
+		for did := uint32(1); did <= n; did++ {
+			s, matched := 0.0, 0
+			for _, term := range order {
+				wdf, ok := in(term, did)
+				if !ok {
+					continue
+				}
+				dl, err := db.DocLength(did)
+				if err != nil {
+					t.Fatalf("DocLength(%d): %v", did, err)
+				}
+				s += w.sumPart(w.termWeight(uint32(len(lists[term]))), wdf, dl)
+				matched++
+			}
+			if matched == len(order) || (op == OpOr && matched > 0) {
+				want = append(want, Hit{DocID: did, Score: s})
+			}
+		}
+		sortHits(want)
+
+		var srcs []*searchTerm
+		for _, term := range order {
+			pl, err := db.openPostings(term)
+			if err != nil {
+				t.Fatal(err)
+			}
+			srcs = append(srcs, &searchTerm{pl: pl})
+		}
+		var visited []uint32
+		visit := func(did uint32, _ []*searchTerm) error {
+			if len(visited) > 0 && did <= visited[len(visited)-1] {
+				t.Fatalf("op %v visits docid %d after %d", op, did, visited[len(visited)-1])
+			}
+			visited = append(visited, did)
+			return nil
+		}
+		var err error
+		if op == OpAnd {
+			err = andMatches(context.Background(), srcs, visit)
+		} else {
+			err = orMatches(context.Background(), srcs, visit)
+		}
+		if err != nil || len(visited) != len(want) {
+			t.Fatalf("op %v visited %d documents (%v), want %d", op, len(visited), err, len(want))
+		}
+
+		limit := min(len(want), MaxSearchWindow)
+		hits, total, err := Search(context.Background(), db, query, op, 0, limit)
+		if err != nil || total != len(want) || len(hits) != limit {
+			t.Fatalf("op %v: %d hits of %d (%v), want %d of %d", op, len(hits), total, err, limit, len(want))
+		}
+		for i := range hits {
+			if hits[i].DocID != want[i].DocID || hits[i].Score != want[i].Score {
+				t.Fatalf("op %v hit %d = (%d, %v), per-document lookup gives (%d, %v)", op, i, hits[i].DocID, hits[i].Score, want[i].DocID, want[i].Score)
+			}
 		}
 	}
 }
