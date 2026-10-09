@@ -151,5 +151,7 @@
   "config.virtual_desktop.serial_browser_label": "Portas seriais neste computador",
   "help.virtual_desktop.serial_browser_enabled": "Permitir que o Quick Connect use dispositivos seriais conectados ao computador do navegador. Requer um navegador compatível, HTTPS ou localhost e a seleção explícita do dispositivo. Desativado no modo somente leitura.",
   "config.virtual_desktop.serial_host_label": "Portas seriais no servidor AuraGo",
-  "help.virtual_desktop.serial_host_enabled": "Permitir que administradores abram no Quick Connect dispositivos seriais conectados ao servidor AuraGo. Instalações em contêiner exigem passagem do dispositivo e permissões do sistema operacional. Desativado no modo somente leitura."
+  "help.virtual_desktop.serial_host_enabled": "Permitir que administradores abram no Quick Connect dispositivos seriais conectados ao servidor AuraGo. Instalações em contêiner exigem passagem do dispositivo e permissões do sistema operacional. Desativado no modo somente leitura.",
+  "config.virtual_desktop.retronet_label": "Retro-Net no Terminal",
+  "help.virtual_desktop.retronet_enabled": "Permitir que usuários do Desktop com acesso de escrita se conectem a BBS Telnet, MUDs e jogos SSH anônimos a partir de um diretório Retro-Net no aplicativo Terminal; só administradores gerenciam as entradas próprias. O servidor AuraGo faz a conexão, então os operadores dos serviços veem o endereço IP público do servidor, e o Telnet não é criptografado: nunca digite senhas que você usa em outros lugares. Desativado por padrão e no modo somente leitura."
 }

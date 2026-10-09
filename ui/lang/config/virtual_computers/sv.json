@@ -151,5 +151,7 @@
   "config.virtual_desktop.serial_browser_label": "Serieportar på den här datorn",
   "help.virtual_desktop.serial_browser_enabled": "Tillåt Quick Connect att använda serieenheter som är anslutna till datorn med webbläsaren. Kräver en webbläsare som stöds, HTTPS eller localhost och ett uttryckligt val av enhet. Inaktiverat i skrivskyddat läge.",
   "config.virtual_desktop.serial_host_label": "Serieportar på AuraGo-servern",
-  "help.virtual_desktop.serial_host_enabled": "Tillåt administratörer att öppna serieenheter anslutna till AuraGo-servern i Quick Connect. Containerinstallationer kräver enhetspassthrough och behörigheter i operativsystemet. Inaktiverat i skrivskyddat läge."
+  "help.virtual_desktop.serial_host_enabled": "Tillåt administratörer att öppna serieenheter anslutna till AuraGo-servern i Quick Connect. Containerinstallationer kräver enhetspassthrough och behörigheter i operativsystemet. Inaktiverat i skrivskyddat läge.",
+  "config.virtual_desktop.retronet_label": "Retro-Net i Terminal",
+  "help.virtual_desktop.retronet_enabled": "Tillåt Desktop-användare med skrivbehörighet att ansluta till Telnet-BBS:er, MUD:ar och anonyma SSH-spel från en Retro-Net-katalog i Terminal-appen; bara administratörer kan lägga till och ändra egna poster. AuraGo-servern upprättar anslutningen, så de som driver tjänsterna ser serverns offentliga IP-adress, och Telnet är okrypterat: skriv aldrig lösenord som du använder någon annanstans. Av som standard; inaktiverat i skrivskyddat läge."
 }

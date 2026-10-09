@@ -151,5 +151,7 @@
   "config.virtual_desktop.serial_browser_label": "此电脑上的串口",
   "help.virtual_desktop.serial_browser_enabled": "允许 Quick Connect 使用连接到浏览器所在电脑的串口设备。需要受支持的浏览器、HTTPS 或 localhost，并明确选择设备。只读模式下禁用。",
   "config.virtual_desktop.serial_host_label": "AuraGo 服务器上的串口",
-  "help.virtual_desktop.serial_host_enabled": "允许管理员在 Quick Connect 中打开连接到 AuraGo 服务器的串口设备。容器安装需要设备直通和操作系统权限。只读模式下禁用。"
+  "help.virtual_desktop.serial_host_enabled": "允许管理员在 Quick Connect 中打开连接到 AuraGo 服务器的串口设备。容器安装需要设备直通和操作系统权限。只读模式下禁用。",
+  "config.virtual_desktop.retronet_label": "终端中的 Retro-Net",
+  "help.virtual_desktop.retronet_enabled": "允许有写入权限的 Desktop 用户从终端应用中的 Retro-Net 目录连接 Telnet BBS、MUD 和匿名 SSH 游戏；自有条目仅由管理员管理。连接由 AuraGo 服务器建立，因此服务运营方看到的是服务器的公网 IP 地址；Telnet 未加密，切勿输入你在其他地方使用的密码。默认关闭，只读模式下禁用。"
 }

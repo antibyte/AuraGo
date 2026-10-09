@@ -151,5 +151,7 @@
   "config.virtual_desktop.serial_browser_label": "このコンピューターのシリアルポート",
   "help.virtual_desktop.serial_browser_enabled": "Quick Connect がブラウザーを実行しているコンピューターに接続されたシリアルデバイスを使えるようにします。対応ブラウザー、HTTPS または localhost、およびデバイスの明示的な選択が必要です。読み取り専用モードでは無効です。",
   "config.virtual_desktop.serial_host_label": "AuraGo サーバーのシリアルポート",
-  "help.virtual_desktop.serial_host_enabled": "管理者が Quick Connect で AuraGo サーバーに接続されたシリアルデバイスを開けるようにします。コンテナー環境ではデバイスのパススルーと OS の権限が必要です。読み取り専用モードでは無効です。"
+  "help.virtual_desktop.serial_host_enabled": "管理者が Quick Connect で AuraGo サーバーに接続されたシリアルデバイスを開けるようにします。コンテナー環境ではデバイスのパススルーと OS の権限が必要です。読み取り専用モードでは無効です。",
+  "config.virtual_desktop.retronet_label": "ターミナルの Retro-Net",
+  "help.virtual_desktop.retronet_enabled": "書き込み権限のある Desktop ユーザーが、ターミナルアプリの Retro-Net ディレクトリから Telnet の BBS、MUD、匿名 SSH ゲームに接続できるようにします。独自エントリの管理は管理者のみです。接続は AuraGo サーバーが行うため、サービスの運営者にはサーバーのパブリック IP アドレスが見えます。Telnet は暗号化されないため、他で使っているパスワードは決して入力しないでください。デフォルトではオフで、読み取り専用モードでは無効です。"
 }

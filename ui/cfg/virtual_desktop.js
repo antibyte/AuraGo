@@ -48,6 +48,7 @@ function renderVirtualDesktopSection(section) {
     html += vdCfgToggleRow('config.virtual_desktop.python_jobs_label', 'help.virtual_desktop.allow_python_jobs', data.allow_python_jobs === true, 'virtual_desktop.allow_python_jobs');
     html += vdCfgToggleRow('config.virtual_desktop.serial_browser_label', 'help.virtual_desktop.serial_browser_enabled', data.serial_browser_enabled === true, 'virtual_desktop.serial_browser_enabled');
     html += vdCfgToggleRow('config.virtual_desktop.serial_host_label', 'help.virtual_desktop.serial_host_enabled', data.serial_host_enabled === true, 'virtual_desktop.serial_host_enabled');
+    html += vdCfgToggleRow('config.virtual_desktop.retronet_label', 'help.virtual_desktop.retronet_enabled', data.retronet_enabled === true, 'virtual_desktop.retronet_enabled');
     html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.virtual_desktop.office_tools_note') + '</div>';
     html += '<div class="field-grid two-cols">';
     html += vdCfgToggleRow('config.virtual_desktop.office_document_label', 'help.virtual_desktop.office_document', configData.tools.office_document.enabled === true, 'tools.office_document.enabled');

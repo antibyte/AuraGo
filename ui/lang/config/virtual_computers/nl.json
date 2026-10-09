@@ -151,5 +151,7 @@
   "config.virtual_desktop.serial_browser_label": "Seriële poorten op deze computer",
   "help.virtual_desktop.serial_browser_enabled": "Sta Quick Connect toe om seriële apparaten te gebruiken die op de computer van de browser zijn aangesloten. Een ondersteunde browser, HTTPS of localhost en een expliciete apparaatkeuze zijn vereist. Uitgeschakeld in de alleen-lezenmodus.",
   "config.virtual_desktop.serial_host_label": "Seriële poorten op de AuraGo-server",
-  "help.virtual_desktop.serial_host_enabled": "Sta beheerders toe om in Quick Connect seriële apparaten te openen die op de AuraGo-server zijn aangesloten. Containerinstallaties vereisen apparaattoegang en machtigingen van het besturingssysteem. Uitgeschakeld in de alleen-lezenmodus."
+  "help.virtual_desktop.serial_host_enabled": "Sta beheerders toe om in Quick Connect seriële apparaten te openen die op de AuraGo-server zijn aangesloten. Containerinstallaties vereisen apparaattoegang en machtigingen van het besturingssysteem. Uitgeschakeld in de alleen-lezenmodus.",
+  "config.virtual_desktop.retronet_label": "Retro-Net in Terminal",
+  "help.virtual_desktop.retronet_enabled": "Sta Desktop-gebruikers met schrijftoegang toe om vanuit een Retro-Net-gids in de Terminal-app verbinding te maken met Telnet-BBS'en, MUD's en anonieme SSH-games; alleen beheerders kunnen eigen vermeldingen toevoegen en bewerken. De AuraGo-server legt de verbinding, dus exploitanten van de diensten zien het openbare IP-adres van de server, en Telnet is onversleuteld: typ nooit wachtwoorden die je elders gebruikt. Standaard uit; uitgeschakeld in de alleen-lezenmodus."
 }
