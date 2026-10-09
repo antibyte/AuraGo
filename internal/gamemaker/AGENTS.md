@@ -47,6 +47,11 @@ revision publication and standalone export for Phaser and Three.js games.
   element index/ID, the field and its accepted values. Grid mutation owns collision,
   geometry invalidation and saves; inventory/crafting transactions are atomic.
   Hooks use the public API and dispose their scene additions on reload/disposal.
+- Both modes require the seven `voxelTerrainMaterials` used by terrain generation.
+  Planning/editing guidance names them; creative supply does not remove them.
+  Definition validation reports bounded independent corrections together before
+  checking reachability. Native JSON-string and object designs retain the same
+  failed draft for partial corrections; acceptance and file-write gates stay strict.
 - Voxel prepared profiles keep three planning/four editing tools and fixed
   schemas; repair shares editing. Only compact definitions/API and bounded file
   observations enter prompts. Saves and chunk arrays never enter agent context.
@@ -64,6 +69,12 @@ revision publication and standalone export for Phaser and Three.js games.
   Counter-only reports cannot pass mining, placing, crafting or combat. Preserve
   the 16-check/60-second ceilings and the ordinary input-only driver boundary.
   Pause, inventory, focus loss, touch cancellation and disposal release input.
+  Held input is owned by its keyboard, UI or canvas-pointer source: releasing
+  camera look cannot cancel a separately held Mine action. Verify
+  `TestVoxelTouchMineSurvivesCanvasLookRelease` with `GAMEMAKER_VOXEL_BROWSER=1`.
+- Canvas input must not request pointer capture while pointer lock owns the mouse.
+  Verify real right-click placement under pointer lock as well as unlocked mouse,
+  keyboard and touch input; keyboard-only placement checks miss browser failures.
 
 ### Shared game lifecycle
 
@@ -303,6 +314,11 @@ revision publication and standalone export for Phaser and Three.js games.
   require custom cooldowns, spawn clocks and per-run flags to reset in `setup()`;
   class initializers alone cannot reset values against a restarted `elapsed`.
 - Dynamic gameplay checks use bounded `target` steps (move, aim, reach, interact, catch, avoid, select), driven only by normal keys/pointer input and read-only engine geometry. Keep roles/IDs independent of artwork. Never mutate actors, damage, randomness or counters to pass. Target reports require matching steps and physical effects; counter-only changes, missing targets, blocked routes and unsupported controls stay unavailable. Only observed contact/response contradictions fail. `player_distance` is derived from engine positions. Targeted input lives only in the injected preview driver; read-only 3D observations may ship with the common helper. Existing scenario/driver deadlines, lifecycle cleanup, export exclusion and publication gates remain binding.
+- Board selection observes both `scene.marks[index]` and the actual cell object's
+  `opened` state, including cells with a zero mark. Skip occupied/open cells and
+  still require an observed target change plus the scenario's metric change.
+  Verify `TestTargetControlBrowser/occupied_cell` and `/opened_cell*`, including
+  the counter-only rejection.
 - 3D reach/interact steps navigate active targets using live world geometry even
   outside the camera frustum; low FPS pickups leave the viewport before contact.
   Aim/select still require visible targets. Preserve collision/height checks,

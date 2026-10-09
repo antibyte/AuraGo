@@ -20,12 +20,15 @@ Server-owned HTTP and cross-component integration contracts.
   Desktop policy events without recreating the Desktop service. Revalidate
   authorization and grants on every serial operation and cancel idle sessions
   on revocation, cookie expiry or server shutdown. RX never renews a session.
-- Deny Web Serial through Permissions-Policy outside the trusted Desktop page;
-  embedded apps deny it through their frame policy too. Never log payloads or
-  expose them to an LLM. Port/protocol contracts live in `internal/desktop/AGENTS.md`.
-- Verify `TestDesktopSerial*`, the Desktop proxy tests and the simulated browser
-  checks. See `documentation/quick-connect-serial.md`; USB hardware acceptance
-  and deployment remain separate from local test/build evidence.
+- Deny Web Serial through Permissions-Policy outside the trusted Desktop page
+  and the exact `/config` document (CYD web flasher, which stays unframable and
+  MIDI-denied); embedded apps deny it through their frame policy too. Never log
+  payloads or expose them to an LLM. Port/protocol contracts live in
+  `internal/desktop/AGENTS.md`.
+- Verify `TestDesktopSerial*`, `TestCYDFlasherConfigPageAllowsWebSerial`, the
+  Desktop proxy tests and the simulated browser checks. See
+  `documentation/quick-connect-serial.md`; USB hardware acceptance and
+  deployment remain separate from local test/build evidence.
 
 - MCP connection tests require enabled MCP gates, test only the selected server and bind Vault aliases to its saved launch configuration. The automatic Dograh client grants private access only to the managed service's exact origin. Local/Docker stdio observes shell, sandbox, unsafe-host and Docker mutation grants at launch.
 - The incoming MCP endpoint checks Host against configured names/local addresses independently of Origin. Configure server.host or server.https.domain for an external name. Never resolve a request-supplied hostname as authority. MCP sessions are random, signed, expire after 24 hours and bind to the authenticated credential; stateless requests get independent sessions. The MCP allowlist is a hard scope for direct, wrapped and ask_aurago calls; enabling the IDE preset must not widen an explicitly selected list.
@@ -132,6 +135,10 @@ Server-owned HTTP and cross-component integration contracts.
   polling and streams cannot extend sessions. Verify `TestAuthSession*`.
 - Forwarded host, scheme, and client IP count only when `server.https.behind_proxy` is enabled and the immediate peer matches `server.https.trusted_proxy_cidrs`; other forwarding headers are removed before auth and URL construction.
 - An auth-disabled remote listener requires `auth.allow_unauthenticated_remote` before startup, config save or setup save (`applyConfigPatch`). The check uses the effective bind host, including `AURAGO_SERVER_HOST`. This exception never opens `/speech-lab/`.
+- Disabling login retains same-origin checks on writes carrying browser Origin
+  or Referer headers, including opaque Game Maker previews. Headerless native
+  clients and safe asset reads retain their existing access. Verify
+  `TestAuthDisabledBrowserWriteOrigins` and `TestGameMakerPreviewCannotWriteProjectAPI`.
 - Setup writes (`/api/setup`, `/api/setup/test`, `/api/setup/local-llm/probe`) and the first admin password during the lockdown require the one-time bootstrap token in `X-Setup-Token`, checked before the setup CSRF token is consumed. Only loopback peers of a listener without remote ingress are exempt. The token lives in memory, is logged at startup for reachable open setups, is never returned over HTTP and is cleared once an owner exists. Verify `TestSetup*Bootstrap*` and `TestAuthSetPasswordLockdown*`.
 - Changing an existing password, confirming (enrolling or replacing) TOTP and disabling TOTP require a valid browser session plus a credential step-up (`verifyAdminCredentials`): `current_password` and, while TOTP is active, `current_totp_code`. Step-up failures share the `/auth/login` IP and account lockout keys (`adminLoginKeys`). The first-password bootstrap path is unchanged. Verify `TestAuthStepUp*`, `TestAuthSetPassword*` and `TestAuthTOTP*`.
 - A vault that exists but cannot be decrypted keeps setup and the first-password path closed (503 `setup_vault_locked`), even for loopback peers: the lockdown hides an existing owner, not a fresh install. Verify `TestSetupStaysClosedWhenVaultCannotBeDecrypted`.
@@ -216,6 +223,7 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### Homepage Managed Website Ledger
 - Quick tunnels use active registry identities and a private static snapshot through the shared Cloudflare publication boundary. The config UI selects `cloudflare_tunnel.quick_project_dir` from registered projects. Explicit tool/API ports and the former in-container arbitrary-port entry point fail closed. Disable/read-only, workspace/registry changes and project selection changes revoke active quick publication; shutdown cannot be blocked by agent read-only grants. Named/token tunnels remain separate.
+- Cloudflare start/stop/restart routes require admin/CSRF and use saved settings plus read-only gates. Both config-save paths validate ports and stop revoked connectors before publishing the new Docker permissions; refuse saves on uncertain termination. Startup reconciles verified Docker containers even without auto-start. Dashboard and both status endpoints use the shared observed state, including unknown engine state and TLS warnings. Verify Cloudflare config/API tests and the enabled Cloudflare browser tests.
 - Managed homepage/web projects use `data/homepage_registry.db` as the system of record for project identity, local file state, structured events, revision links, deployment targets, deployment history, remote observations, and drift status.
 - Homepage project identity is the `project_dir` relative to `homepage.workspace_path`; avoid storing absolute workspace paths as the canonical project key.
 - Mutating homepage operations must keep the ledger current by recording structured events and, when files change, revisions plus file-state snapshots. Remote deploys must be linked to provider IDs/URLs and build artifact hashes when available.
@@ -291,7 +299,9 @@ Server-owned HTTP and cross-component integration contracts.
   revokes background owner contexts and rejects late local publication.
 - Stop/pause/cancel routes require the normal authenticated scope but bypass
   readonly write admission. Body-selected actions (Detective) are decoded and
-  classified once; finish/resume/new execution remain writes.
+  classified once; finish/resume/new execution remain writes. Turning Detective
+  from allowed to denied revokes in-flight desktop runs on that transition.
+  A later save while research is already denied does not cancel other desktop runs.
 - Game Maker policy publication and agent phases, Detective reports, queued
   local missions, mission preparation and Virtual Computer tasks retain this
   ownership across HTTP completion. Server cancellation drains before stores close.

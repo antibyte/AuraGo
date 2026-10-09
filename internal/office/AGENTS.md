@@ -13,7 +13,9 @@ Workbook and document preservation, editing, and assist.
 - All DOCX/XLSX ZIP readers share explicit budgets: 128 MiB decoded data, 4096 parts and 16 MiB per XML part. XLSX decoding, legacy rewrite checks and editor CSV export share sparse row/column/cell preflight, a 1,000,000 aggregate expanded-row-slot cap across populated sheets, and explicit Excelize unzip limits before `GetRows` allocation. Preserve existing package roundtrips and opaque parts. Verify workbook-limit tests and the Office suite.
 
 ### Desktop Workbook Contract
-- Tabellen uses exactly Univer OSS 1.0.3, Chart.js 4.5.1 and Excelize 2.11.0.
+- Tabellen uses exactly Univer OSS 1.0.3, Chart.js 4.5.1 and Excelize
+  2.11.1-0.20261003002531-6258dcebc4e2. The Excelize security exception to stable
+  releases is documented in `documentation/dependencies.md`.
   Vendor assets/fonts stay local and permissive; never add Pro components.
 - `/api/desktop/office/workbook?representation=editor-v2` exposes typed native
   snapshots. PATCH requires ETag or create-only preconditions, applies the

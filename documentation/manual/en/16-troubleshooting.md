@@ -82,7 +82,7 @@ The full UI is missing, or the binary is not pinned to the resource set.
 
 | Error | Solution |
 |-------|----------|
-| `go: command not found` | Install Go 1.27.1+: [golang.org/dl](https://golang.org/dl) |
+| `go: command not found` | Install Go 1.27.2+: [golang.org/dl](https://golang.org/dl) |
 | `module not found` | Run `go mod download` |
 | `CGO errors` | Ensure CGO is disabled or gcc is installed |
 | `sqlite build errors` | Use `CGO_ENABLED=0` when building |

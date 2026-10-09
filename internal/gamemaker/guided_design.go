@@ -93,9 +93,6 @@ func (s *Service) expandDesign(ctx context.Context, jobID string, project Projec
 		if err := json.Unmarshal(raw, &text); err != nil {
 			return nil, fmt.Errorf("design.voxel: %w", err)
 		}
-		if _, err := ParseVoxelDefinition([]byte(text)); err != nil {
-			return nil, err
-		}
 		patch["voxel"] = json.RawMessage(text)
 	}
 	s.mu.RLock()

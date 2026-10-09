@@ -58,6 +58,9 @@ func (s *Service) Start(key, action, effort, requestKey string, answers ...strin
 			return c, ErrBudget
 		}
 	case "deepen":
+		if c.Run.Status == "draft" || activeStatus(c.Run.Status) {
+			return c, ErrConflict
+		}
 		if len(c.Reports) >= 30 {
 			return c, errors.New("report revision limit reached")
 		}
@@ -94,7 +97,7 @@ func (s *Service) Start(key, action, effort, requestKey string, answers ...strin
 		return c, err
 	}
 	defer tx.Rollback()
-	if _, err = tx.Exec("UPDATE detective_cases SET body=?,status=?,updated=? WHERE id=?", b, c.Run.Status, c.UpdatedAt.Format(time.RFC3339Nano), key); err != nil {
+	if _, err = tx.Exec("UPDATE detective_cases SET body=?,status=?,updated=?,active_ms=? WHERE id=?", b, c.Run.Status, c.UpdatedAt.Format(time.RFC3339Nano), c.Run.Usage.ActiveMS, key); err != nil {
 		return c, err
 	}
 	if _, err = tx.Exec("INSERT INTO detective_keys(case_id,key,run_id) VALUES(?,?,?)", key, requestKey, c.Run.ID); err != nil {
@@ -221,11 +224,38 @@ func (x *Session) Activate(parent context.Context) (context.Context, context.Can
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				_ = x.update(func(*Case) error { return nil })
+				_ = x.beat()
 			}
 		}
 	}()
 	return ctx, func() { cancel(); <-done }, nil
+}
+func (x *Session) beat() error {
+	s := x.service
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := s.now()
+	if x.last.IsZero() {
+		x.last = now
+		return nil
+	}
+	delta := now.Sub(x.last).Milliseconds()
+	if delta <= 0 {
+		return nil
+	}
+	res, err := s.db.Exec(`UPDATE detective_cases SET active_ms = active_ms + ? WHERE id=? AND status='running'`, delta, x.CaseID)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	x.last = now
+	if n == 0 {
+		return context.Canceled
+	}
+	return nil
 }
 func (x *Session) touch(c *Case) {
 	now := x.service.now()

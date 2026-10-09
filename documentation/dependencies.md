@@ -1,6 +1,6 @@
 # Dependency maintenance
 
-AuraGo pins Go 1.27.1 in `go.mod`, container builders, installers and release
+AuraGo pins Go 1.27.2 in `go.mod`, container builders, installers and release
 scripts. `GOTOOLCHAIN=auto` downloads that compiler when the host has an older Go.
 Release scripts select the exact compiler explicitly. The stripped executable
 budget is 125 MB; first-party embeds remain capped at 10 MB and recovery at 1 MB.
@@ -20,7 +20,9 @@ the consuming library or reintroduces a vulnerability.
 
 | Dependency | Supported version | Reason to retain the bound |
 | --- | --- | --- |
+| cloudflared | 2026.10.0; Docker manifest digest and Linux amd64/arm64 SHA-256 pins | Reviewed release metadata in `internal/tools/cloudflare_install.go` and `cloudflare_tunnel.go`; no moving latest URL or checksum sidecar. Run Cloudflare/HomepageQuick tests when refreshing. See [Cloudflare Tunnel](cloudflare-tunnel.md). |
 | gRPC Go | 1.83.2 | 1.84.0 is affected by GO-2026-6443; use a fixed stable successor when available. |
+| Excelize | 2.11.1-0.20261003002531-6258dcebc4e2 | Security exception to stable releases: 2.11.0 remains affected by 15 workbook-parsing advisories. This exact upstream commit contains all their fixes; move to a fixed stable release when available and rerun the Office preservation and security tests. |
 | pdfcpu | 0.15.0 | 0.16 changes `MergeRaw`; Maroto 2.4.2 still calls the previous API. |
 | fetchup | 0.2.4 | Rod 0.116.2 still needs its older browser-download API. |
 | gobwas/glob | 0.2.3 | Colly 2.3.0 uses the `Glob` API removed in 1.0. |
@@ -33,16 +35,16 @@ the consuming library or reintroduces a vulnerability.
 | ulikunitz/xz | ≥ 0.5.15 | Local Wikipedia decompresses xz clusters from downloaded ZIM files; earlier releases leak memory on corrupted multi-stream LZMA input (GO-2025-3922, CVE-2025-58058). |
 | blevesearch/snowballstem | 0.9.0 exact pin | Local Wikipedia must stem query words exactly like the Xapian index inside a downloaded ZIM file; its output was verified against Xapian 1.4 on the Snowball vocabularies of ten languages. Re-run the stemmer parity tests before bumping it. |
 
-### Outstanding training advisories (2026-10-08)
+### Outstanding training advisories (2026-10-09)
 
-The optional GPU training environment still has three Dependabot alerts for two
+The optional GPU training environment still has four Dependabot alerts for two
 advisories; these are not resolved by the dependency refresh:
 
 - [GHSA-379c-qx7v-6h59](https://github.com/advisories/GHSA-379c-qx7v-6h59):
   Datasets folder builders can read files outside their dataset directory through
   crafted `file_name` metadata. The fix requires Datasets >=5.0.1, incompatible
-  with Unsloth 2026.10.3 and Unsloth Zoo 2026.10.3. Both `requirements.txt` and
-  `uv.lock` are flagged.
+  with Unsloth 2026.10.3 and Unsloth Zoo 2026.10.3. `pyproject.toml`,
+  `requirements.txt` and `uv.lock` are flagged.
 - [GHSA-27vj-qcqg-25rc](https://github.com/advisories/GHSA-27vj-qcqg-25rc):
   fsspec ReferenceFileSystem template injection can execute code. The fix requires
   fsspec >=2026.6.0, but Datasets 4.8.5 requires fsspec <=2026.2.0.

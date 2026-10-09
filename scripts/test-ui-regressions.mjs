@@ -299,6 +299,123 @@ async function testGameMakerEventConnectionLifecycle() {
   assert.equal(state.project.id, 'new-project');
 }
 
+async function testGameMakerJobEventOwnership() {
+  const app = read('ui/js/desktop/apps/game-maker-studio.js');
+  const listeners = new Map(), cards = [], phases = {};
+  const context = {
+    EventSource: class { addEventListener(type, fn) { listeners.set(type, fn); } },
+    eventTypes: ['job_status', 'phase', 'preview_reload', 'validation_reset', 'stream_ready'],
+    terminalStatuses: new Set(['ready', 'failed', 'cancelled']),
+    updateStatus(state, status) { state.displayStatus = status; },
+    finalizeStreaming() {}, stopElapsed() {}, phaseMarkup: (_state, phase) => phase,
+    renderProjects() {}, async reloadProjectRecord() {},
+    appendResultCard(_state, kind) { cards.push(kind); },
+    refreshPreview(state) { state.reloads = (state.reloads || 0) + 1; }, window: {}
+  };
+  context.syncJobControls = state => { state.jobActive = !context.terminalStatuses.has(state.job.status); };
+  vm.createContext(context);
+  vm.runInContext(sourceBetween(app, 'function connectEvents(', 'function finalizeStreaming('), context);
+  const job = { id: 'new', status: 'building', created_at: '2026-01-02T00:00:00Z' };
+  const state = { project: { id: 'project' }, job: { ...job }, activeJob: { job_id: 'new' }, jobActive: true,
+    api: { eventURL: () => '/events' }, container: { querySelector: () => phases }, context: { t: String } };
+  const emit = (type, id, payload) => listeners.get(type)({ data: JSON.stringify({ type, job_id: id, payload }) });
+  context.connectEvents(state);
+  for (const replay of [true, false]) {
+    if (!replay) emit('stream_ready', '', {});
+    emit('job_status', 'old', { status: 'queued', job: { id: 'old', created_at: '2026-01-01T00:00:00Z' } });
+    emit('job_status', 'old', { status: 'ready', job: { id: 'old', status: 'ready' } });
+    emit('phase', 'old', { phase: 'planning' });
+    emit('preview_reload', 'old', {});
+    emit('validation_reset', 'old', {});
+    assert.equal(state.job.id, 'new');
+    assert.equal(state.job.status, 'building');
+    assert.equal(state.jobActive, true);
+    assert.equal(state.activeJob.job_id, 'new');
+    assert.equal(state.reloads, undefined);
+    assert.equal(cards.length, 0);
+  }
+  // A job started in another Studio window still advances this window.
+  emit('job_status', 'next', { status: 'queued', job: { id: 'next', status: 'queued', created_at: '2026-01-03T00:00:00Z' } });
+  emit('phase', 'next', { phase: 'building' });
+  emit('job_status', 'new', { status: 'cancelled' });
+  assert.equal(state.job.id, 'next');
+  assert.equal(state.job.status, 'building');
+  assert.equal(state.activeJob.job_id, 'next');
+  emit('preview_reload', '', {});
+  assert.equal(state.reloads, 1, 'project revision events without a job remain valid');
+  emit('job_status', 'next', { status: 'ready' });
+  await Promise.resolve();
+  assert.equal(state.activeJob, null);
+  assert.equal(state.jobActive, false);
+  assert.deepEqual(cards, ['success']);
+  // An active job from capabilities has no timestamp until its own replayed start.
+  state.job = { id: 'active', status: 'building' };
+  context.connectEvents(state);
+  emit('job_status', 'old', { status: 'queued', job: { id: 'old', created_at: '2026-01-01T00:00:00Z' } });
+  assert.equal(state.job.id, 'active');
+  emit('job_status', 'active', { status: 'queued', job: { id: 'active', status: 'queued', created_at: '2026-01-04T00:00:00Z' } });
+  emit('phase', 'active', { phase: 'building' });
+  emit('stream_ready', '', {});
+  assert.equal(state.job.id, 'active');
+  assert.equal(state.job.status, 'building');
+  state.activeJob = { job_id: 'another-project-job', project_id: 'another-project' };
+  emit('job_status', 'active', { status: 'ready' });
+  assert.equal(state.activeJob.job_id, 'another-project-job', 'history must not clear another project writer');
+}
+
+async function testGameMakerVisualGrantRenewal() {
+  const context = { window: {}, AbortController, setTimeout, clearTimeout };
+  vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-preview.js'), context);
+  // Review is private; use the same capture response path as the iframe.
+  for (const outcome of ['renewed', 'revision_changed', 'validation', 'replaced', 'disposed', 'cancelled', 'failed']) {
+    const frame = { contentWindow: {} }, grant = { token: 'expired', revision: 3 };
+    let resolveGrant, reviewCalls = 0;
+    const status = {}, state = { frame, previewGrant: grant, project: { id: 'p' }, previewProjectID: 'p', channelID: 'c',
+      visualCapture: { id: 'capture', manual: true, project: 'p', grant }, context: { t: String },
+      container: { querySelector: selector => selector === '[data-gm-visual-status]' ? status : null },
+      addDiagnostic() {}, api: {
+        previewGrant: () => new Promise((resolve, reject) => { resolveGrant = outcome === 'failed' ? () => reject(new Error('offline')) : resolve; }),
+        async reviewVisual(id, body) { reviewCalls++; assert.equal(id, 'p'); assert.equal(body.token, 'fresh'); return { status: 'reviewed' }; }
+      } };
+    context.window.GameMakerStudioPreview.handleMessage(state, { source: frame.contentWindow, data: {
+      source: 'aurago-game', type: 'capture', channel: 'c', request_id: 'capture',
+      captures: [{ image: 'data:image/png;base64,AA==', width: 1, height: 1 }]
+    } });
+    assert.equal(typeof resolveGrant, 'function');
+    if (outcome === 'replaced') state.previewGrant = { token: 'other' };
+    if (outcome === 'disposed') state.disposed = true;
+    if (outcome === 'cancelled') context.window.GameMakerStudioPreview.cancelVisual(state);
+    resolveGrant({ token: 'fresh', revision: outcome === 'revision_changed' ? 4 : 3, validation_id: outcome === 'validation' ? 'build' : '' });
+    await new Promise(setImmediate);
+    assert.equal(reviewCalls, outcome === 'renewed' ? 1 : 0, outcome);
+    assert.equal(state.frame, frame, 'renewal must preserve the running frame');
+    if (outcome === 'renewed') assert.equal(state.previewGrant, grant, 'renewal must preserve channel/save binding');
+    if (['revision_changed', 'validation', 'failed'].includes(outcome)) assert.equal(status.textContent, 'game_maker.visual_analysis_failed');
+    assert.equal(state.visualBusy, false);
+  }
+}
+
+function testVoxelInputOwnership() {
+  const source = read('internal/gamemaker/runtime/aurago-voxel-1.js');
+  const keys = new Set(), inputs = new Map();
+  const context = { keys, inputs, blocked: () => false, performance: { now: () => 0 }, jumpUntil: 0 };
+  vm.createContext(context);
+  vm.runInContext(sourceBetween(source, 'function action(', 'function respawn('), context);
+  context.action('primary', true);
+  context.action('primary', false, 'pointer:4');
+  assert.equal(keys.has('primary'), true, 'ending look cannot end the Mine button');
+  context.action('primary', true, 'keyboard:KeyE');
+  context.action('primary', true, 'keyboard:KeyE');
+  context.action('primary', false);
+  assert.equal(keys.has('primary'), true, 'ending touch cannot end a held keyboard key');
+  context.action('primary', false, 'keyboard:KeyE');
+  assert.equal(keys.has('primary'), false, 'one keyup clears repeated keydowns');
+  assert.equal(inputs.size, 0);
+  context.blocked = () => true;
+  context.action('primary', true);
+  assert.equal(keys.size, 0, 'paused games cannot acquire input');
+}
+
 async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   const app = read('ui/js/desktop/apps/game-maker-studio.js');
   const sent = [];
@@ -3561,6 +3678,9 @@ const tests = [
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
   ['Desktop Chat separates streamed tool rounds and final text', testDesktopChatSeparatesStreamedToolRounds],
   ['Game Maker reconnect and terminal job state remain consistent', testGameMakerEventConnectionLifecycle],
+  ['Game Maker isolates old job events during replay and live updates', testGameMakerJobEventOwnership],
+  ['Game Maker renews manual review grants without replacing the game', testGameMakerVisualGrantRenewal],
+  ['Voxel keeps held inputs isolated by source', testVoxelInputOwnership],
   ['Game Maker sprite browser owns selection and cleanup', testGameMakerSpriteBrowserOwnsSelectionAndCleanup],
   ['Game Maker diagnostics belong to the current preview', testGameMakerDiagnosticsFollowPreviewLifetime],
   ['Game Maker stops reports from expired or finished validation', testGameMakerPreviewStopsExpiredValidation],

@@ -7,6 +7,26 @@ import (
 	"aurago/internal/tools"
 )
 
+func handleCloudflareTunnelStart(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		writeCloudflareTunnelToolResponse(w, tools.CloudflareTunnelStart(s.buildTunnelConfig(), s.Vault, s.Registry, s.Logger))
+	}
+}
+
+func handleCloudflareTunnelStop(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		writeCloudflareTunnelToolResponse(w, tools.CloudflareTunnelStop(s.buildTunnelConfig(), s.Registry, s.Logger))
+	}
+}
+
 // handleCloudflareTunnelStatus returns the current tunnel status.
 func handleCloudflareTunnelStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +71,7 @@ func handleCloudflareTunnelRestart(s *Server) http.HandlerFunc {
 }
 
 func writeCloudflareTunnelToolResponse(w http.ResponseWriter, result string) {
+	w.Header().Set("Content-Type", "application/json")
 	var resp map[string]interface{}
 	if err := json.Unmarshal([]byte(result), &resp); err != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{

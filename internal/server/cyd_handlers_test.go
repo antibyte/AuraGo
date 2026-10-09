@@ -258,6 +258,27 @@ func TestCYDFirmwareStatusAndProvision(t *testing.T) {
 	}
 }
 
+// The CYD web flasher on /config reaches the display over Web Serial, so the
+// Config document keeps serial access while it stays unframable and MIDI
+// stays confined to the Desktop.
+func TestCYDFlasherConfigPageAllowsWebSerial(t *testing.T) {
+	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), false, false)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/config", nil))
+	policy := strings.Join(rec.Header().Values("Permissions-Policy"), ", ")
+	if !strings.Contains(policy, "serial=(self)") || strings.Contains(policy, "serial=()") {
+		t.Fatalf("/config Permissions-Policy = %q, want serial=(self)", policy)
+	}
+	if !strings.Contains(policy, "midi=()") {
+		t.Fatalf("/config Permissions-Policy = %q widened MIDI", policy)
+	}
+	if rec.Header().Get("X-Frame-Options") != "DENY" || !strings.Contains(rec.Header().Get("Content-Security-Policy"), "frame-ancestors 'none'") {
+		t.Fatal("/config can be framed, so another page could borrow its serial grant")
+	}
+}
+
 func TestMeshIncomingSpeechUsesPreview(t *testing.T) {
 	convos := []meshcore.Conversation{
 		{ID: "old", Name: "Bob", Unread: 1, Preview: "later", Protected: false},

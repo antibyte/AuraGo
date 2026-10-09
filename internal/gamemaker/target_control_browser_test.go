@@ -32,6 +32,7 @@ func TestTargetControlBrowser(t *testing.T) {
 		{"moving_enemy", "shooter", "passed"}, {"missing_enemy", "shooter", "unavailable"}, {"counter_only", "shooter", "unavailable"},
 		{"around_wall", "topdown", "passed"}, {"sealed_wall", "topdown", "unavailable"}, {"interaction", "topdown", "passed"},
 		{"raised_collectible", "platformer", "passed"}, {"occupied_cell", "board", "passed"}, {"natural_miss", "blocks", "passed"},
+		{"opened_cell", "board", "passed"}, {"opened_cell_counter_only", "board", "unavailable"},
 		{"floor_movement", "platformer", "passed"}, {"floor_pickup", "platformer", "passed"},
 		{"scene_pickup", "platformer", "passed"}, {"pickup_counter_only", "platformer", "unavailable"},
 		{"floor_disabled", "platformer", "failed"}, {"floor_embedded", "platformer", "unavailable"},
@@ -260,6 +261,14 @@ func TestTargetControlBrowser(t *testing.T) {
 				}
 			case "occupied_cell":
 				replace("this.marks=Array(9).fill(0);", "this.marks=Array(9).fill(0);this.marks[0]=1;")
+			case "opened_cell", "opened_cell_counter_only":
+				// Card faces belong to real cell objects even when the board marks stay zero.
+				replace("this.player=this.add.rectangle", "this.cells[0].opened=true;this.player=this.add.rectangle")
+				replace("if(this.marks[this.selected])return;", "if(this.cells[this.selected].opened)return;")
+				replace("this.marks[this.selected]=turn;", "this.cells[this.selected].opened=true;")
+				if tc.name == "opened_cell_counter_only" {
+					replace("const turn=", "this.state.hits++;return;const turn=")
+				}
 			}
 			if dimension == "3d" {
 				mode := "fps"

@@ -16,18 +16,6 @@ func handleTunnelStatus(s *Server) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 
-		s.CfgMu.RLock()
-		enabled := s.Cfg.CloudflareTunnel.Enabled
-		s.CfgMu.RUnlock()
-
-		if !enabled {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "disabled",
-				"running": false,
-			})
-			return
-		}
-
 		cfg := s.buildTunnelConfig()
 		result := tools.CloudflareTunnelStatus(cfg, s.Registry, s.Logger)
 		w.Write([]byte(result))

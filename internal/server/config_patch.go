@@ -66,9 +66,15 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err != nil {
 		return nil, fmt.Errorf("marshal config: %w", err)
 	}
-	validateCfg := *s.Cfg
+	validateCfg := *s.ConfigSnapshot().Clone()
+	if err := config.ValidateCloudflareTunnelPortYAML(out); err != nil {
+		return nil, err
+	}
 	if err := yaml.Unmarshal(out, &validateCfg); err != nil {
 		return nil, fmt.Errorf("validate config: %w", err)
+	}
+	if err := config.ValidateCloudflareTunnelConfig(&validateCfg); err != nil {
+		return nil, err
 	}
 	if err := config.ValidateLocalLLMConfig(&validateCfg); err != nil {
 		return nil, err
@@ -90,6 +96,12 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err := validateRemoteAuthExposure(&validateCfg); err != nil {
 		return nil, err
 	}
+	_, cfExplicit := patch["cloudflare_tunnel"]
+	cfFinish, cfErr := prepareCloudflareConfigSave(s, &validateCfg, cfExplicit)
+	if cfErr != nil {
+		return nil, cfErr
+	}
+	defer cfFinish(false)
 	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 		return nil, fmt.Errorf("write config: %w", err)
 	}
@@ -102,5 +114,6 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	reloaded.ConfigPath = configPath
 	reloaded.ApplyVaultSecrets(s.Vault)
 	reloaded.ResolveProviders()
+	cfFinish(true)
 	return reloaded, nil
 }

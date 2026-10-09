@@ -143,7 +143,7 @@
       const active=o.active===true&&(!body||body.enable!==false),x=rect.x+rect.width/2,y=rect.y+rect.height/2;
       return {id:r?.node.id||o.__auragoBrickID||o.__gmID||identity(o),roles,asset_ids:(o.__gmAssets||[]).map(a=>a.asset_id).filter(Boolean),x,y,z:0,w:rect.width,h:rect.height,active,
         visible:active&&x+rect.width/2>=view.x&&x-rect.width/2<=view.right&&y+rect.height/2>=view.y&&y-rect.height/2<=view.bottom,
-        solid:active&&body?.immovable&&linked(o,player),health:r?.health??o.__hp,mark:board.includes(o)?scene.marks?.[board.indexOf(o)]:Boolean(o.opened),
+        solid:active&&body?.immovable&&linked(o,player),health:r?.health??o.__hp,mark:(board.includes(o)?scene.marks?.[board.indexOf(o)]:0)||Boolean(o.opened),
         vx:body?.velocity?.x||0,vy:body?.velocity?.y||0,grounded:body?.blocked?.down||body?.touching?.down,
         sx:(x-view.x)*scene.cameras.main.zoom,sy:(y-view.y)*scene.cameras.main.zoom};
     };

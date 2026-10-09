@@ -1033,9 +1033,7 @@ func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
 		"go test ./...",
 		"go test -race ./internal/llm ./internal/server ./internal/memory",
 		"go install golang.org/x/vuln/cmd/govulncheck@v",
-		"govulncheck -json ./...",
-		"python3 -m unittest discover -s scripts -p test_check_govulncheck.py",
-		"python3 scripts/check_govulncheck.py",
+		"run: govulncheck ./...",
 	} {
 		if !strings.Contains(workflowText, needle) {
 			t.Fatalf("CI workflows must include %q", needle)

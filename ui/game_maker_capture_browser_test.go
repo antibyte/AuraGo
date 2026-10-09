@@ -110,7 +110,7 @@ func TestGameMakerManualVisualLifecycleBrowser(t *testing.T) {
 	page.MustEval(`()=>{
   document.body.innerHTML='<main style="background:#19212e;color:#eee;padding:24px;font:15px sans-serif"><div data-gm-visual hidden><span data-gm-visual-status></span></div></main>';
   window.visualDiagnostics=[];window.visualRequest=null;
-  window.fixtureState={container:document.querySelector('main'),context:{t:k=>k},frame:{contentWindow:window},channelID:'manual',project:{id:'project'},previewProjectID:'project',previewGrant:{token:'current',expires_at:new Date(Date.now()+120000).toISOString()},previewReported:new Set(),addDiagnostic:d=>visualDiagnostics.push(d),api:{reviewVisual:(id,body,signal)=>{window.visualRequest={id,body,signal};return new Promise(resolve=>window.resolveVisual=resolve)}}};
+  window.fixtureState={container:document.querySelector('main'),context:{t:k=>k},frame:{contentWindow:window},channelID:'manual',project:{id:'project'},previewProjectID:'project',previewGrant:{token:'expired',revision:1,expires_at:new Date(Date.now()-120000).toISOString()},previewReported:new Set(),addDiagnostic:d=>visualDiagnostics.push(d),api:{previewGrant:async()=>({token:'renewed',revision:1}),reviewVisual:(id,body,signal)=>{window.visualRequest={id,body,signal};return new Promise(resolve=>window.resolveVisual=resolve)}}};
  }`)
 	page.MustEval(`source=>{(0,eval)(source)}`, string(mustReadUIFile(t, "js/desktop/apps/game-maker-studio-preview.js")))
 	page.MustEval(`()=>{
@@ -119,8 +119,9 @@ func TestGameMakerManualVisualLifecycleBrowser(t *testing.T) {
   window.capturePayload={source:'aurago-game',channel:'manual',type:'capture',request_id:state.visualCapture.id,captures:[{image:canvas.toDataURL(),width:320,height:180,scenario:'current_view',at:new Date().toISOString()}]};
   api.handleMessage(state,{source:window,data:window.capturePayload});
  }`)
-	if !page.MustEval(`()=>visualRequest.body.token==='current'&&fixtureState.container.querySelectorAll('img').length===1`).Bool() {
-		t.Fatal("manual analysis did not bind the current capture")
+	page.MustWait(`()=>visualRequest!==null`)
+	if !page.MustEval(`()=>visualRequest.body.token==='renewed'&&fixtureState.previewGrant.token==='expired'&&fixtureState.frame.contentWindow===window&&fixtureState.container.querySelectorAll('img').length===1`).Bool() {
+		t.Fatal("manual analysis did not renew its credential while preserving the current capture and frame")
 	}
 	page.MustEval(`()=>{GameMakerStudioPreview.cancelVisual(fixtureState);fixtureState.previewGrant={token:'next'};resolveVisual({status:'reviewed',findings:[{observation:'obsolete finding'}]})}`)
 	page.MustEval(`async()=>{await Promise.resolve();await Promise.resolve()}`)

@@ -14,7 +14,7 @@ export function startVoxelGame(definition,hooks={}) {
   definition=JSON.parse(JSON.stringify(definition));
   let game=new VoxelGame(definition),disposed=false,frame=0,last=0,active=true,inventory=false,loading=true,ui,playerUI,persistence;
   let lastEvent=0,lastPersist=-1,persistAt=0,finished=false,fps=60,look=null,jumpUntil=0;
-  const root=document.getElementById('game-root'),controller=new AbortController(),signal=controller.signal,keys=new Set(),labels=voxelLabels();
+  const root=document.getElementById('game-root'),controller=new AbortController(),signal=controller.signal,keys=new Set(),inputs=new Map(),labels=voxelLabels();
   root.style.position='relative';root.querySelector('#hud')?.remove();const oldHUD=document.getElementById('hud');if(oldHUD)oldHUD.hidden=true;
   const touch=matchMedia('(pointer:coarse)').matches,view=touch?40:88;
   const renderer=new T.WebGLRenderer({antialias:!touch,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,touch?1:1.5));
@@ -36,7 +36,7 @@ export function startVoxelGame(definition,hooks={}) {
   const enemyGeometry=new T.BoxGeometry(.7,1.4,.7),enemyMaterials={melee:new T.MeshLambertMaterial({color:'#b65c4a'}),ranged:new T.MeshLambertMaterial({color:'#7861b2'})},enemyMeshes=new Map();
   const bulletGeometry=new T.BoxGeometry(.16,.16,.16),bulletMaterial=new T.MeshBasicMaterial({color:'#ffb261'}),bulletMeshes=[];
   const outlineBox=new T.BoxGeometry(1.006,1.006,1.006),outline=new T.LineSegments(new T.EdgesGeometry(outlineBox),new T.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.7}));outlineBox.dispose();scene.add(outline);
-  function clear(){keys.clear();look=null;jumpUntil=0;ui?.release();game.mining=null;}
+  function clear(){inputs.clear();keys.clear();look=null;jumpUntil=0;ui?.release();game.mining=null;}
   function blocked(){return loading||!active||inventory||playerUI?.blocked||!game.alive;}
   function resize(){const width=root.clientWidth||innerWidth,height=root.clientHeight||innerHeight;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();presentation?.resize();}
   const sizeObserver=new ResizeObserver(resize);sizeObserver.observe(root);resize();
@@ -59,12 +59,15 @@ export function startVoxelGame(definition,hooks={}) {
   }
   function freeze(){clear();last=0;document.exitPointerLock?.();persistence?.save(true);}
   function toggleInventory(){if(loading||!playerUI.started||playerUI.blocked||!game.alive)return;inventory=!inventory;ui.open(inventory);freeze();}
-  function action(name,down){
+  function action(name,down,source='voxel-ui'){
     if(name==='inventory'){if(down)toggleInventory();return;}
-    if(blocked()){if(!down)keys.delete(name);return;}
+    if(blocked()&&down)return;
     if(name==='place'){if(down)game.place();return;}
     if(name==='jump'&&down)jumpUntil=performance.now()+180;
-    if(down)keys.add(name);else keys.delete(name);
+    // A released pointer must not clear another held touch or keyboard input.
+    const held=inputs.get(name)||new Set();
+    if(down)held.add(source);else held.delete(source);
+    if(held.size){inputs.set(name,held);keys.add(name);}else{inputs.delete(name);keys.delete(name);}
   }
   function respawn(){if(game.respawn()){finished=false;flow.reset();playerUI.reset();clear();}}
   function replaceWorld(state){
@@ -77,7 +80,7 @@ export function startVoxelGame(definition,hooks={}) {
     reload:async()=>{loading=true;clear();const state=await persistence.reload();if(persistence.loaded)replaceWorld(state);loading=false;},
     reset:async()=>{if(await persistence.reset()||persistence.temporary){replaceWorld(null);lastPersist=-1;}}});
   playerUI=createPlayerUI({root,mode:'voxel',movement:'full',action:false,objective:hooks.objective||'',instructions:labels.help,
-    key:(name,down)=>action(({LEFT:'left',RIGHT:'right',UP:'forward',DOWN:'backward'})[name]||name,down),clear,restart:()=>{if(!game.alive)respawn();else {Object.assign(game.player,game.world.spawn(),{vy:0});game.changed();}},change:isBlocked=>{if(isBlocked)freeze();}});
+    key:(name,down)=>action(({LEFT:'left',RIGHT:'right',UP:'forward',DOWN:'backward'})[name]||name,down,'player-ui'),clear,restart:()=>{if(!game.alive)respawn();else {Object.assign(game.player,game.world.spawn(),{vy:0});game.changed();}},change:isBlocked=>{if(isBlocked)freeze();}});
   const api=Object.freeze({scene,camera,renderer,
     getBlock:(x,y,z)=>game.world.get(x,y,z),
     setBlock:(x,y,z,id)=>{if(!game.world.inside(x,y,z)||!Number.isInteger(id)||(id!==0&&!game.world.blocks.has(id))||y===0)return false;const old=game.world.get(x,y,z);if(!game.world.set(x,y,z,id))return false;if(id&&game.world.collides(game.player)){game.world.set(x,y,z,old);return false;}game.changed();return true;},
@@ -96,21 +99,23 @@ export function startVoxelGame(definition,hooks={}) {
     if(key==='i'){toggleInventory();return;}
     if(!game.alive&&(key==='r'||key==='enter')){respawn();return;}
     if(/^[1-9]$/.test(key)&&!blocked()){game.selected=Number(key)-1;game.changed();return;}
-    action(({w:'forward',s:'backward',a:'left',d:'right',' ':'jump',arrowup:'lookUp',arrowdown:'lookDown',arrowleft:'lookLeft',arrowright:'lookRight',e:'primary',f:'place'})[key]||key,true);
+    action(({w:'forward',s:'backward',a:'left',d:'right',' ':'jump',arrowup:'lookUp',arrowdown:'lookDown',arrowleft:'lookLeft',arrowright:'lookRight',e:'primary',f:'place'})[key]||key,true,'keyboard:'+e.code);
   },{signal});
-  window.addEventListener('keyup',e=>action(({w:'forward',s:'backward',a:'left',d:'right',' ':'jump',arrowup:'lookUp',arrowdown:'lookDown',arrowleft:'lookLeft',arrowright:'lookRight',e:'primary',f:'place'})[e.key.toLowerCase()]||e.key.toLowerCase(),false),{signal});
+  window.addEventListener('keyup',e=>action(({w:'forward',s:'backward',a:'left',d:'right',' ':'jump',arrowup:'lookUp',arrowdown:'lookDown',arrowleft:'lookLeft',arrowright:'lookRight',e:'primary',f:'place'})[e.key.toLowerCase()]||e.key.toLowerCase(),false,'keyboard:'+e.code),{signal});
   const canvas=renderer.domElement;
   canvas.addEventListener('contextmenu',e=>e.preventDefault(),{signal});
   canvas.addEventListener('pointerdown',e=>{
-    if(blocked())return;canvas.focus();canvas.setPointerCapture(e.pointerId);
+    if(blocked())return;canvas.focus();
+    // Pointer capture is forbidden while pointer lock already owns mouse input.
+    if(!document.pointerLockElement)canvas.setPointerCapture(e.pointerId);
     if(e.pointerType==='touch'||e.pointerType==='pen'){look={id:e.pointerId,x:e.clientX,y:e.clientY};return;}
     if(e.button===2){game.place();return;}if(e.button!==0)return;
-    action('primary',true);look={id:e.pointerId,x:e.clientX,y:e.clientY};
+    action('primary',true,'pointer:'+e.pointerId);look={id:e.pointerId,x:e.clientX,y:e.clientY};
     if(!document.pointerLockElement)try{canvas.requestPointerLock?.()?.catch?.(()=>{});}catch{}
   },{signal});
   function turn(x,y){game.player.yaw=((game.player.yaw-x*.003+Math.PI*3)%(Math.PI*2))-Math.PI;game.player.pitch=Math.max(-1.5,Math.min(1.5,game.player.pitch-y*.003));game.changed();}
   window.addEventListener('pointermove',e=>{if(blocked())return;if(document.pointerLockElement===canvas){turn(e.movementX,e.movementY);return;}if(look?.id===e.pointerId){turn(e.clientX-look.x,e.clientY-look.y);look.x=e.clientX;look.y=e.clientY;}},{signal});
-  for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,e=>{if(look?.id===e.pointerId)look=null;action('primary',false);},{signal});
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,e=>{if(look?.id===e.pointerId)look=null;action('primary',false,'pointer:'+e.pointerId);},{signal});
   document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement!==canvas)clear();},{signal});
   window.addEventListener('blur',()=>{if(playerUI.started&&!playerUI.blocked)playerUI.togglePause();freeze();},{signal});
   document.addEventListener('visibilitychange',()=>{active=!document.hidden;playerUI.sync(active);if(!active)freeze();last=0;},{signal});

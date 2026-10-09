@@ -46,15 +46,7 @@ func TestVerifyCloudflaredChecksumFailsClosedWhenUnavailable(t *testing.T) {
 		t.Fatalf("Close: %v", err)
 	}
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	client := &http.Client{Transport: cloudflareRoundTripFunc(func(r *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusServiceUnavailable,
-			Body:       io.NopCloser(strings.NewReader("missing")),
-			Header:     make(http.Header),
-		}, nil
-	})}
-	if err := verifyCloudflaredChecksum(client, "https://example.invalid/checksum", tmp.Name(), logger); err == nil {
+	if err := verifyCloudflaredChecksum("", tmp.Name()); err == nil {
 		t.Fatal("expected unavailable checksum to fail closed")
 	}
 }
@@ -112,7 +104,7 @@ func TestTokenTunnelArgsUseRemoteManagedRun(t *testing.T) {
 func TestQuickTunnelOriginRejectsUnmanagedDefaults(t *testing.T) {
 	cfg := CloudflareTunnelConfig{WebUIPort: 8080, LoopbackPort: 18080, HTTPSEnabled: true, HTTPSPort: 8443, HomepagePort: 3000}
 	for _, port := range []int{0, 2375, 9000} {
-		if got, _ := quickTunnelOriginURL(cfg, "localhost", port); got != "" {
+		if got := quickTunnelOriginURL(cfg, "localhost", port); got != "" {
 			t.Fatalf("unmanaged origin: %s", got)
 		}
 	}
@@ -211,12 +203,18 @@ func main() {
 }
 
 func resetCloudflareTunnelRuntimeForTest() {
+	tunnelLifecycleMu.Lock()
+	defer tunnelLifecycleMu.Unlock()
+	tunnelPolicy = nil
+	clearCloudflareState()
 	tunnelMu.Lock()
 	defer tunnelMu.Unlock()
-	closeQuickOriginLocked()
 	tunnelPID = 0
 	tunnelExit = nil
 	tunnelDockerHost = ""
+	tunnelContainerID = ""
+	tunnelAuth = ""
+	tunnelWarnings = nil
 	tunnelMode = ""
 	tunnelURL = ""
 	tunnelStarted = time.Time{}

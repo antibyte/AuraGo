@@ -131,11 +131,33 @@
   tokens and `desktop-app-detective.css`. Register the built-in `detective` app
   with the existing search icon. All sixteen locales use `desktop.detective_*`.
 - `DetectiveApp` owns a per-window instance with cancellable polling. Disposal
-  ends UI requests only; research remains owned by the server. Render evidence
+  aborts that window's UI controller only; it does not stop the run. Research
+  remains owned by the server. While a case is open, one refresh chain polls
+  live status and new events every 3 seconds on every tab. Source text and the
+  report render again only when that data changes. A missing report and
+  `latest_revision` 0 are the same revision, so an empty report stays in place.
+  An open source disclosure, a report text selection, scroll position, and a
+  focused answer keep their text through a status-only poll. The reason
+  paragraph tracks the live reason. `waiting_for_user` shows `.dt-answer` on
+  the next poll and removes it when the run leaves that status; a focused
+  answer keeps its text and focus while that status remains. Render evidence
   and structured report blocks as escaped text. Only HTTP(S) source links are
   clickable; private integration receipts never masquerade as website links.
-- Export links always name an immutable report revision. Autor opens a new,
-  create-only DOCX copy. No private model continuation is returned to the UI.
+  Source disclosures expose `data-id`. Activity items expose `data-event`, and a
+  poll does not append an event id that is already in the list. A full load
+  stores `latestSourceID` only after the loaded sources match that id, and an
+  absent source list becomes an empty list so the next poll does not refetch it.
+- Stop stays enabled for an active case when Detective or Virtual Desktop is
+  read-only, while the integration is enabled and ready. Finish, Start,
+  Continue, Deepen, Delete and New stay disabled. A draft offers Start and the
+  effort control, not Deepen. Continue does not post `effort`. Start and Deepen
+  do.
+- Export links name the revision on screen. A live poll rebuilds the export bar
+  when the visible revision changes or when the revision set grows or shrinks,
+  even if the chosen number stays the same. A poll that leaves both unchanged
+  does not rebuild the bar. Autor
+  opens a new, create-only DOCX copy. No private model continuation is returned
+  to the UI.
 - Verify `TestDetectiveTranslations`, `TestDesktopDetectiveBrowser` and the
   Detective config section. Backend contracts: `internal/detective/AGENTS.md`.
 
@@ -2777,6 +2799,11 @@ registration lives in `internal/desktop/types.go`.
   status text and thumbnails must not squeeze the live game into a narrow band.
   Verify wide/narrow layout and stale-review cleanup with
   `TestGameMakerVisualStripLayoutBrowser` / `TestGameMakerManualVisualLifecycleBrowser`.
+  Manual review renews its credential for the captured revision without replacing
+  the frame or its save/channel grant; changed revisions and late responses fail
+  closed. Replay and live job events may replace the current job only with a newer
+  queued job; old terminal/preview events cannot finish a newer job. Project-only
+  revision events stay valid. Verify `scripts/test-ui-regressions.mjs`.
   No child DOX file needed.
 - `pixel-state.js`, `pixel-view.js`, `pixel-canvas.js`, `pixel-tools.js`,
   `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel.js` -

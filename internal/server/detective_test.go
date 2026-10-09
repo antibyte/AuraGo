@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
@@ -180,8 +181,91 @@ func TestDetectiveHTTPGates(t *testing.T) {
 	if strings.Contains(w.Body.String(), "private-fixture") {
 		t.Fatal("private context leaked")
 	}
+	r = httptest.NewRequest("GET", "/api/desktop/detective/cases/"+c.ID+"/live", nil)
+	w = httptest.NewRecorder()
+	s.handleDetective(w, r)
+	if w.Code != 200 {
+		t.Fatalf("live: %d %s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `"topic":"test"`) {
+		t.Fatalf("live topic missing: %s", body)
+	}
+	if strings.Contains(body, "private-fixture") {
+		t.Fatal("live leaked private context")
+	}
 	if _, err := svc.ExportRevision(context.Background(), c.ID, 0, "md"); err == nil {
 		t.Fatal("invalid revision exported")
+	}
+}
+
+func TestPromptFindingsKeepsOlderEvidence(t *testing.T) {
+	in := make([]detective.Finding, 41)
+	for i := range in {
+		in[i] = detective.Finding{ID: fmt.Sprintf("ev_%02d", i), SourceID: "src", Text: strings.Repeat("t", 600), Quote: strings.Repeat("q", 300)}
+	}
+	out := promptFindings(in)
+	if len(out) != 41 || out[0].ID != "ev_00" || out[40].ID != "ev_40" {
+		t.Fatalf("dropped findings: %d %s", len(out), out[0].ID)
+	}
+	if utf8.RuneCountInString(out[0].Text) != 500 || utf8.RuneCountInString(out[0].Quote) != 240 {
+		t.Fatalf("text %d quote %d", utf8.RuneCountInString(out[0].Text), utf8.RuneCountInString(out[0].Quote))
+	}
+}
+
+func TestDetectiveReadonlyRevokesProviderCall(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.VirtualDesktop.Enabled = true
+	cfg.VirtualDesktop.AllowAgentControl = true
+	cfg.Detective.Enabled = true
+	s := &Server{Cfg: cfg}
+	s.cfgSnapshot.Store(cfg)
+	svc, err := detective.New(detective.Options{Path: filepath.Join(t.TempDir(), "case.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svc.Close()
+	s.Detective = svc
+	entered := make(chan struct{})
+	svc.SetRunner(detectiveTestRunner(func(ctx context.Context, _ *detective.Session) error {
+		runCtx, releaseDesk, err := s.beginDesktopRun(ctx)
+		if err != nil {
+			return err
+		}
+		defer releaseDesk()
+		close(entered)
+		<-runCtx.Done()
+		return runCtx.Err()
+	}))
+	c, err := svc.Create(detective.Request{Topic: "revoke", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = svc.Start(c.ID, "start", "quick", "revoke-1"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("run did not start")
+	}
+	next := *cfg
+	next.Detective.ReadOnly = true
+	s.replaceConfigSnapshot(&next)
+	deadline := time.After(2 * time.Second)
+	for {
+		got, err := svc.Get(c.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Run.Status == "failed" && got.Run.Reason == "provider_or_tool_failure" {
+			return
+		}
+		select {
+		case <-deadline:
+			t.Fatalf("run still %s (%s)", got.Run.Status, got.Run.Reason)
+		case <-time.After(20 * time.Millisecond):
+		}
 	}
 }
 

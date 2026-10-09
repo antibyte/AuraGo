@@ -183,8 +183,10 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 	mux.HandleFunc("/api/proxy/logs", handleProxyLogs(s))
 	s.Logger.Info("Security Proxy API registered at /api/proxy/...")
 
-	mux.HandleFunc("/api/cloudflare-tunnel/status", handleCloudflareTunnelStatus(s))
-	mux.HandleFunc("/api/cloudflare-tunnel/restart", handleCloudflareTunnelRestart(s))
+	mux.Handle("/api/cloudflare-tunnel/status", requireAdmin(s, handleCloudflareTunnelStatus(s)))
+	mux.Handle("/api/cloudflare-tunnel/start", requireAdmin(s, handleCloudflareTunnelStart(s)))
+	mux.Handle("/api/cloudflare-tunnel/stop", requireAdmin(s, handleCloudflareTunnelStop(s)))
+	mux.Handle("/api/cloudflare-tunnel/restart", requireAdmin(s, handleCloudflareTunnelRestart(s)))
 	s.Logger.Info("Cloudflare Tunnel API registered at /api/cloudflare-tunnel/...")
 
 	mux.HandleFunc("/api/tsnet/status", handleTsNetStatus(s))

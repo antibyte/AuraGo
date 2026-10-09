@@ -140,8 +140,9 @@ func TestDesktopSerialRevocationClosesIdleRun(t *testing.T) {
 func TestDesktopSerialPermissionsPolicy(t *testing.T) {
 	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) }), false, false)
 	for path, want := range map[string]string{
-		"/desktop": "serial=(self)", "/desktop.html": "serial=(self)",
+		"/desktop": "serial=(self)", "/desktop.html": "serial=(self)", "/config": "serial=(self)",
 		"/files/desktop/Apps/example/index.html": "serial=()", "/api/game-maker/preview/example": "serial=()", "/": "serial=()",
+		"/config/": "serial=()", "/config_help.json": "serial=()",
 	} {
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))

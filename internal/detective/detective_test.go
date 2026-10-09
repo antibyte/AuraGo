@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
@@ -172,6 +173,182 @@ func TestEvidenceRejectsUnseenAndSearchOnlySources(t *testing.T) {
 	}
 }
 
+func TestHeartbeatDoesNotRewriteEvidence(t *testing.T) {
+	s := newTestService(t)
+	var clockMu sync.Mutex
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	s.now = func() time.Time { clockMu.Lock(); defer clockMu.Unlock(); return now }
+	c, err := s.Create(Request{Topic: "heartbeat", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	excerpt := strings.Repeat("quoted measurement 42 units. ", 1000)
+	s.mu.Lock()
+	c.Run = Run{ID: "run_heart", Status: "running", Profile: Profiles()["quick"], StartedAt: now}
+	c.Sources = []Source{{ID: "src_heart", Title: "Gauge", Status: "read", Excerpt: excerpt}}
+	if err = s.saveLocked(&c); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	var before int
+	if err = s.db.QueryRow("SELECT length(body) FROM detective_cases WHERE id=?", c.ID).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	x := &Session{service: s, CaseID: c.ID, last: now}
+	clockMu.Lock()
+	now = now.Add(2 * time.Second)
+	clockMu.Unlock()
+	if err = x.beat(); err != nil {
+		t.Fatal(err)
+	}
+	var after int
+	var active int64
+	var updated string
+	if err = s.db.QueryRow("SELECT length(body), active_ms, updated FROM detective_cases WHERE id=?", c.ID).Scan(&after, &active, &updated); err != nil {
+		t.Fatal(err)
+	}
+	if after != before || active != 2000 {
+		t.Fatalf("body %d->%d active_ms=%d", before, after, active)
+	}
+	got, err := s.Get(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Run.Usage.ActiveMS != 2000 || got.Sources[0].Excerpt != excerpt {
+		t.Fatalf("overlay lost evidence or time: active=%d excerpt=%d", got.Run.Usage.ActiveMS, len(got.Sources[0].Excerpt))
+	}
+	if got.UpdatedAt.Format(time.RFC3339Nano) != updated {
+		t.Fatal("heartbeat changed case updated_at")
+	}
+}
+
+func TestLiveStatusSkipsEvidenceBody(t *testing.T) {
+	s := newTestService(t)
+	c, err := s.Create(Request{Topic: "live view", Effort: "normal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	c.Run.Status = "running"
+	c.Run.Phase = "research"
+	c.Run.Usage.ActiveMS = 1500
+	c.Run.Usage.Tools = 3
+	c.Run.Usage.CachedTokens = 42
+	c.Run.Usage.Bytes = 8192
+	c.Run.Profile = Profiles()["normal"]
+	c.Sources = []Source{{ID: "src_live", Title: "Tape", Status: "read", Excerpt: strings.Repeat("x", 50000)}}
+	c.Findings = []Finding{{ID: "ev_live", SourceID: "src_live", Text: "noted", Quote: "xxxxxxxx"}}
+	if err = s.saveLocked(&c); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	view, err := s.Live(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.Topic != "live view" || view.Status != "running" || view.Usage.ActiveMS != 1500 || view.Usage.Tools != 3 || view.Usage.CachedTokens != 42 || view.Usage.Bytes != 8192 || view.Sources != 1 || view.Findings != 1 || view.LatestSourceID != "src_live" {
+		t.Fatalf("%+v", view)
+	}
+	if strings.Contains(fmt.Sprint(view), strings.Repeat("x", 100)) {
+		t.Fatal("live view included the excerpt")
+	}
+}
+
+func TestActiveTimeSurvivesRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "detective.db")
+	s, err := New(Options{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	var clockMu sync.Mutex
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	s.now = func() time.Time { clockMu.Lock(); defer clockMu.Unlock(); return now }
+	c, err := s.Create(Request{Topic: "restart", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	excerpt := strings.Repeat("quoted measurement 42 units. ", 1000)
+	s.mu.Lock()
+	c.Run = Run{ID: "run_restart", Status: "running", Profile: Profiles()["quick"], StartedAt: now}
+	c.Sources = []Source{{ID: "src_restart", Title: "Gauge", Status: "read", Excerpt: excerpt}}
+	if err = s.saveLocked(&c); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	var before int
+	if err = s.db.QueryRow("SELECT length(body) FROM detective_cases WHERE id=?", c.ID).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	x := &Session{service: s, CaseID: c.ID, last: now}
+	clockMu.Lock()
+	now = now.Add(2 * time.Second)
+	clockMu.Unlock()
+	if err = x.beat(); err != nil {
+		t.Fatal(err)
+	}
+	var afterBeat int
+	var active int64
+	if err = s.db.QueryRow("SELECT length(body), active_ms FROM detective_cases WHERE id=?", c.ID).Scan(&afterBeat, &active); err != nil {
+		t.Fatal(err)
+	}
+	if afterBeat != before || active != 2000 {
+		t.Fatalf("body %d->%d active_ms=%d", before, afterBeat, active)
+	}
+	if err = s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := New(Options{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = reopened.Close() })
+	var version int
+	if err = reopened.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	if version != 2 {
+		t.Fatalf("user_version=%d", version)
+	}
+	got, err := reopened.Get(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Run.Usage.ActiveMS != 2000 || len(got.Sources) != 1 || got.Sources[0].Excerpt != excerpt {
+		t.Fatalf("restart lost time or excerpt: active=%d sources=%d", got.Run.Usage.ActiveMS, len(got.Sources))
+	}
+	if got.Run.Status != "interrupted" || got.Run.Reason != "server_restart" {
+		t.Fatalf("status=%s reason=%s", got.Run.Status, got.Run.Reason)
+	}
+	var body []byte
+	if err = reopened.db.QueryRow("SELECT body FROM detective_cases WHERE id=?", c.ID).Scan(&body); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(body, []byte(excerpt)) {
+		t.Fatal("restart save dropped the source excerpt")
+	}
+
+	if err = reopened.Close(); err != nil {
+		t.Fatal(err)
+	}
+	third, err := New(Options{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = third.Close() })
+	got, err = third.Get(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Run.Usage.ActiveMS != 2000 || got.Sources[0].Excerpt != excerpt {
+		t.Fatalf("backfill overwrote active time: active=%d excerpt=%d", got.Run.Usage.ActiveMS, len(got.Sources[0].Excerpt))
+	}
+}
+
 func TestResearchBudgetResumeAndParallelReservations(t *testing.T) {
 	s := newTestService(t)
 	var clockMu sync.Mutex
@@ -251,5 +428,61 @@ func TestResearchCancellationCheckpointAndRestart(t *testing.T) {
 	}
 	if strings.Contains(string(func() []byte { b, _ := json.Marshal(c); return b }()), "checkpoint") {
 		t.Fatal("private continuation leaked through case")
+	}
+}
+
+func TestContinueKeepsEffortAndDraftRejectsDeepen(t *testing.T) {
+	s := newTestService(t)
+	s.SetRunner(testRunner(func(ctx context.Context, _ *Session) error {
+		<-ctx.Done()
+		return ctx.Err()
+	}))
+	c, err := s.Create(Request{Topic: "effort", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Start(c.ID, "deepen", "maximum", "deepen-draft"); err != ErrConflict {
+		t.Fatalf("draft deepen: %v", err)
+	}
+	s.mu.Lock()
+	c.Run = Run{ID: "run_keep", Status: "cancelled", Reason: "user_stopped", Profile: Profiles()["quick"], Usage: Usage{ActiveMS: 1000}}
+	if err = s.saveLocked(&c); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	next, err := s.Start(c.ID, "continue", "maximum", "continue-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.Request.Effort != "quick" || next.Run.ID != "run_keep" || next.Run.Profile.Seconds != Profiles()["quick"].Seconds || next.Run.Usage.ActiveMS != 1000 || next.Run.Status != "queued" {
+		t.Fatalf("continue replaced the budget: %+v effort=%s", next.Run, next.Request.Effort)
+	}
+}
+
+func TestFindingQuoteRejectsParticles(t *testing.T) {
+	s := newTestService(t)
+	c, err := s.Create(Request{Topic: "quotes", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	c.Run.Status = "running"
+	if err = s.saveLocked(&c); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	x := &Session{service: s, CaseID: c.ID}
+	src, err := x.RecordSource("https://example.test/g", "Gauge", "web_scraper", "The measurement was 42 units.", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = x.AddFinding(Finding{SourceID: src.ID, Text: "particle", Quote: "The"}); err == nil {
+		t.Fatal("accepted a 3-rune quote")
+	}
+	got, err := x.AddFinding(Finding{SourceID: src.ID, Text: "measurement", Quote: "42 units"})
+	if err != nil || got.Quote != "42 units" {
+		t.Fatalf("short exact measurement: %v %+v", err, got)
 	}
 }

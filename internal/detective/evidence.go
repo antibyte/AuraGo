@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 func canonicalURL(raw string) (string, error) {
@@ -82,6 +83,9 @@ func (x *Session) AddFinding(f Finding) (Finding, error) {
 	f.Quote = bounded(f.Quote, 2000)
 	if f.Text == "" || f.Quote == "" {
 		return f, errors.New("finding text and exact supporting quote are required")
+	}
+	if utf8.RuneCountInString(f.Quote) < 8 {
+		return f, errors.New("quote is too short to support a finding")
 	}
 	err := x.update(func(c *Case) error {
 		if len(c.Findings) >= 200 {

@@ -472,7 +472,7 @@ func toolDispatchStopReason(s *agentLoopState, ctx context.Context, tc ToolCall)
 		return context.Canceled
 	}
 	if s.runCfg.RunComplete != nil && s.runCfg.RunComplete() {
-		return fmt.Errorf("server completed this run")
+		return errServerRunCompleted
 	}
 	if (s.runCfg.IsCoAgent || isCoAgentSession(s.runCfg.SessionID)) && s.runCfg.CoAgentTokenLimit > 0 && s.sessionTokens >= s.runCfg.CoAgentTokenLimit {
 		return fmt.Errorf("co-agent token limit reached: %d of %d", s.sessionTokens, s.runCfg.CoAgentTokenLimit)

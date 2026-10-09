@@ -247,6 +247,14 @@ function cydVariantInfo(id) {
     return null;
 }
 
+// ESP Web Tools only checks for navigator.serial; a Permissions-Policy can
+// still block requestPort() on this document.
+function cydWebSerialAvailable() {
+    if (!window.isSecureContext || !('serial' in navigator)) return false;
+    const policy = document.permissionsPolicy || document.featurePolicy;
+    return !(policy && typeof policy.allowsFeature === 'function' && !policy.allowsFeature('serial'));
+}
+
 function cydUpdateFlashStatus() {
     const el = document.getElementById('cyd-flash-status');
     const btn = document.getElementById('cyd-flash-btn');
@@ -258,12 +266,7 @@ function cydUpdateFlashStatus() {
             sel.options[i].disabled = !info || !info.available;
         }
     }
-    if (!window.isSecureContext) {
-        el.textContent = t('config.cyd.flash_unsupported');
-        if (btn) btn.disabled = true;
-        return;
-    }
-    if (!('serial' in navigator)) {
+    if (!cydWebSerialAvailable()) {
         el.textContent = t('config.cyd.flash_unsupported');
         if (btn) btn.disabled = true;
         return;
@@ -300,6 +303,7 @@ async function cydFlashDisplay() {
     if (status) status.textContent = t('config.cyd.flash_need_token');
     try {
         await cydLoadFirmwareStatus();
+        if (!cydWebSerialAvailable()) return;
         const variant = cydSelectedVariant();
         const info = cydVariantInfo(variant);
         if (!info || !info.available) return;

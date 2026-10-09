@@ -135,7 +135,7 @@ Without a matching set — or with an unpinned binary — you only get the recov
 For developers or if you want to modify the code:
 
 **Prerequisites:**
-- Go 1.27.1+
+- Go 1.27.2+
 - Python 3.10+ (optional, for tools)
 
 ```bash
