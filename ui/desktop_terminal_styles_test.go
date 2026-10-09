@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -8,12 +9,14 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"aurago/internal/retronet"
@@ -732,5 +735,34 @@ func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal-retronet-directory.js must render only into xterm and use the shared TerminalText helpers; found %q", forbidden)
 		}
+	}
+}
+
+// The directory numbers entries with two digits; 00 is the local shell.
+func TestDesktopTerminalRetroNetDirectoryNumbersFitTwoDigits(t *testing.T) {
+	t.Parallel()
+
+	if total := len(retronet.DefaultCatalog()) + retronet.MaxOwnEntries; total > 99 {
+		t.Fatalf("%d catalog and own entries do not fit the two-digit directory numbers 01-99", total)
+	}
+}
+
+// Runs the Node behaviour scripts (vendored xterm in node:vm, no npm packages; also `npm run test:terminal-retronet`).
+func TestDesktopTerminalBehaviourScripts(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	for _, name := range []string{"test-terminal-modem.mjs", "test-terminal-retronet-directory.mjs"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+			defer cancel()
+			output, err := exec.CommandContext(ctx, node, filepath.Join("..", "scripts", name)).CombinedOutput()
+			if err != nil {
+				t.Fatalf("%s failed: %v\n%s", name, err, output)
+			}
+		})
 	}
 }

@@ -280,17 +280,18 @@ function clickable(real, bufferOverride) {
             ? { getBoundingClientRect: () => ({ top: 100, bottom: 100 + real.rows * 16, height: real.rows * 16 }) }
             : null)
     };
+    let writes = 0;
     const term = {
         get cols() { return real.cols; },
         get rows() { return real.rows; },
         get buffer() { return bufferOverride || real.buffer; },
-        write: (data, callback) => real.write(data, callback),
+        write: (data, callback) => { writes += 1; return real.write(data, callback); },
         element
     };
     const click = (screenRow, type = 'click', offset = 8) => {
         if (listeners[type]) listeners[type]({ clientY: 100 + screenRow * 16 + offset });
     };
-    return { term, click, listeners };
+    return { term, click, listeners, writes: () => writes };
 }
 
 async function mouseDirectory(term, options = {}) {
@@ -373,6 +374,220 @@ async function mouseDirectory(term, options = {}) {
     check('an invalid SYSTEM_LANG still renders headings', fallback.term.buffer.active.getLine(3).translateToString(true).length > 0);
     fallback.term.dispose();
     sandbox.SYSTEM_LANG = 'en';
+}
+
+// 7. Keys, admin keys, status refresh, clicks, racing loads, dispose and errors.
+async function harness(options = {}) {
+    const real = new sandbox.Terminal({ cols: 80, rows: options.rows || 30 });
+    const mouse = clickable(real);
+    const calls = [];
+    const dialed = [];
+    const edited = [];
+    const deleted = [];
+    const data = options.data || payload;
+    const api = options.api || (async (url, request) => {
+        calls.push(((request && request.method) || 'GET') + ' ' + url);
+        if (url === '/api/desktop/retronet/directory') return JSON.parse(JSON.stringify(data));
+        if (url === '/api/desktop/retronet/status') return { status: { telehack: { state: 'offline' } } };
+        throw new Error('unexpected ' + url);
+    });
+    const directory = Directory.create({
+        term: mouse.term, t, api, announce() {},
+        canEdit: options.canEdit || (() => true),
+        onDial: (entry) => dialed.push(entry.id),
+        onEdit: (entry) => edited.push(entry ? entry.id : null),
+        onDelete: (entry) => deleted.push(entry.id)
+    });
+    const screen = async () => {
+        await flush(real);
+        const shown = [];
+        for (let y = 0; y < real.rows; y += 1) shown.push(real.buffer.active.getLine(y).translateToString(true));
+        return shown;
+    };
+    const rowOf = async (pattern) => (await screen()).findIndex((text) => pattern.test(text));
+    return { real, directory, calls, dialed, edited, deleted, screen, rowOf, ...mouse };
+}
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+const deferred = () => {
+    let resolve;
+    let reject;
+    const promise = new Promise((ok, fail) => { resolve = ok; reject = fail; });
+    return { promise, resolve, reject };
+};
+
+{
+    const h = await harness({ rows: 12 });
+    await h.directory.load();
+    h.directory.handleData('\x1b[F');
+    same('End selects the last entry', h.directory.selected().id, 'old');
+    h.directory.handleData('\x1b[6~');
+    same('PgDn stops at the last entry', h.directory.selected().id, 'old');
+    h.directory.handleData('\x1b[H');
+    same('Home selects the local shell', h.directory.selected().id, Directory.LOCAL_SHELL_ID);
+    h.directory.handleData('\x1b[6~');
+    const paged = NUMBERED_IDS.indexOf(h.directory.selected().id);
+    check('PgDn moves by a page', paged > 1, String(paged));
+    h.directory.handleData('\x1b[5~');
+    same('PgUp moves back by a page', h.directory.selected().id, Directory.LOCAL_SHELL_ID);
+    h.directory.handleData('\x1bOB');
+    same('application cursor down', h.directory.selected().id, 'telehack');
+    h.directory.handleData('\x1b[A');
+    same('cursor up', h.directory.selected().id, Directory.LOCAL_SHELL_ID);
+    h.directory.handleData('0');
+    h.directory.handleData('5');
+    same('two digits within a second jump to 05', h.directory.selected().id, 'zwj');
+    h.directory.handleData('1');
+    h.directory.handleData('2');
+    same('an unknown two-digit number keeps the first digit', h.directory.selected().id, 'telehack');
+    h.directory.handleData('3');
+    same('the next digit starts a new number', h.directory.selected().id, 'cjk');
+    h.directory.dispose();
+    h.real.dispose();
+}
+{
+    const h = await harness();
+    await h.directory.load();
+    check('a fresh directory does not refresh status', !h.calls.includes('POST /api/desktop/retronet/status'));
+    h.directory.handleData('R');
+    await settle();
+    check('R posts a status refresh', h.calls.includes('POST /api/desktop/retronet/status'), h.calls.join(', '));
+    const row = (await h.screen()).find((text) => /^[> ]01 /.test(text)) || '';
+    same('refreshed status is drawn', row.slice(4, 7), '[ ]');
+    h.directory.dispose();
+    h.real.dispose();
+}
+{
+    const h = await harness({ data: { ...payload, stale: true } });
+    await h.directory.load();
+    await settle();
+    check('a stale directory refreshes status after loading', h.calls.join(', ') === 'GET /api/desktop/retronet/directory, POST /api/desktop/retronet/status', h.calls.join(', '));
+    h.directory.dispose();
+    h.real.dispose();
+}
+{
+    const h = await harness();
+    await h.directory.load();
+    h.directory.handleData('2');
+    await settle();
+    h.directory.handleData('e');
+    h.directory.handleData('\x1b[3~');
+    h.directory.handleData('n');
+    check('admin keys act on own entries', h.edited.join(',') === 'ascii,' && h.deleted.join(',') === 'ascii', h.edited + ' / ' + h.deleted);
+    check('admin key help is shown', (await h.screen()).some((text) => text.includes('N: new entry')));
+    h.directory.handleData('1');
+    same('a non-digit key ends the number being typed', h.directory.selected().id, 'telehack');
+    h.directory.handleData('E');
+    h.directory.handleData('\x1b[3~');
+    check('catalog entries cannot be edited or deleted', h.edited.length === 2 && h.deleted.length === 1, h.edited + ' / ' + h.deleted);
+    check('the not-own notice is shown', (await h.screen())[0].includes(t('desktop.terminal_retronet_not_own')));
+    h.directory.handleData('\x1b[B');
+    check('moving clears the not-own notice', !(await h.screen())[0].includes(t('desktop.terminal_retronet_not_own')));
+    h.directory.dispose();
+    h.real.dispose();
+}
+for (const [label, options] of [['can_edit false', { data: { ...payload, can_edit: false } }], ['read-only desktop', { canEdit: () => false }]]) {
+    const h = await harness(options);
+    await h.directory.load();
+    h.directory.handleData('2');
+    h.directory.handleData('n');
+    h.directory.handleData('e');
+    h.directory.handleData('\x1b[3~');
+    check(label + ': n/e/Del are refused', h.edited.length === 0 && h.deleted.length === 0, h.edited + ' / ' + h.deleted);
+    check(label + ': admin key help is hidden', !(await h.screen()).some((text) => text.includes('N: new entry')));
+    h.directory.dispose();
+    h.real.dispose();
+}
+{
+    const h = await harness();
+    await h.directory.load();
+    const heading = await h.rowOf(/^ CLASSICS/);
+    check('the classics heading is on screen', heading > 0, String(heading));
+    h.click(heading);
+    same('a click on a heading selects nothing', h.directory.selected().id, Directory.LOCAL_SHELL_ID);
+    h.click(0);
+    h.click(1);
+    same('a click on the header selects nothing', h.directory.selected().id, Directory.LOCAL_SHELL_ID);
+    h.click(-2);
+    h.click(h.real.rows + 2);
+    same('clicks outside the screen are ignored', h.directory.selected().id, Directory.LOCAL_SHELL_ID);
+    const footerRule = (await h.screen()).findIndex((text, index) => index > 2 && text.startsWith('\u2500'));
+    h.click(footerRule + 1);
+    same('a click on the key help selects nothing', h.directory.selected().id, Directory.LOCAL_SHELL_ID);
+    const telehack = await h.rowOf(/^[> ]01 /);
+    h.click(telehack);
+    same('a click selects the entry', h.directory.selected().id, 'telehack');
+    check('a single click does not dial', h.dialed.length === 0);
+    h.click(telehack, 'dblclick');
+    same('a double-click dials the entry', h.dialed.join(','), 'telehack');
+    h.directory.dispose();
+    h.real.dispose();
+}
+{
+    const h = await harness();
+    await h.directory.load();
+    const cjk = await h.rowOf(/^[> ]03 /);
+    h.click(cjk);
+    h.click(cjk);
+    same('a double tap dials the entry', h.dialed.join(','), 'cjk');
+    h.directory.dispose();
+    h.real.dispose();
+}
+{
+    const pending = [];
+    const h = await harness({ api: () => { const d = deferred(); pending.push(d); return d.promise; } });
+    const first = h.directory.load();
+    const second = h.directory.load();
+    await settle();
+    same('two loads fetch twice', pending.length, 2);
+    pending[1].resolve({ entries: [payload.entries[8]], status: {}, stale: false, can_edit: false });
+    same('the newer load wins', await second, true);
+    pending[0].resolve(JSON.parse(JSON.stringify(payload)));
+    same('the older load is ignored', await first, false);
+    same('entries come from the newer load', h.directory.entries().map((entry) => entry.id).join(','), 'old');
+    h.directory.dispose();
+    h.real.dispose();
+}
+{
+    const pending = [];
+    const h = await harness({ api: () => { const d = deferred(); pending.push(d); return d.promise; } });
+    const loading = h.directory.load();
+    await settle();
+    h.directory.dispose();
+    const before = h.writes();
+    pending[0].resolve(JSON.parse(JSON.stringify(payload)));
+    same('a load finishing after dispose resolves false', await loading, false);
+    same('nothing is drawn after dispose', h.writes(), before);
+    h.directory.handleData('\r');
+    same('keys after dispose are ignored', h.dialed.length, 0);
+    h.real.dispose();
+}
+{
+    let attempts = 0;
+    const h = await harness({
+        api: async (url) => {
+            attempts += 1;
+            if (attempts === 1) {
+                const err = new Error('forbidden');
+                err.status = 403;
+                throw err;
+            }
+            return url === '/api/desktop/retronet/directory' ? JSON.parse(JSON.stringify(payload)) : { status: {} };
+        }
+    });
+    let rejected = null;
+    try {
+        await h.directory.load();
+    } catch (err) {
+        rejected = err;
+    }
+    same('a 403 rejects load() with the error', rejected && rejected.status, 403);
+    check('the error view is drawn', (await h.screen())[0].includes(t('desktop.terminal_retronet_load_failed')));
+    h.directory.handleData('r');
+    await settle();
+    await settle();
+    same('R after a failed load loads again', h.directory.entries().length, payload.entries.length);
+    h.directory.dispose();
+    h.real.dispose();
 }
 
 if (failures) {

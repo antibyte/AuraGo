@@ -321,6 +321,7 @@
 
         function handleData(input) {
             if (disposed || dialing || typeof input !== 'string' || !input) return;
+            if (!(input.length === 1 && input >= '0' && input <= '9')) pendingDigit = null;
             if (KEYS.up.indexOf(input) >= 0) { select(cursor - 1); return; }
             if (KEYS.down.indexOf(input) >= 0) { select(cursor + 1); return; }
             if (KEYS.pageUp.indexOf(input) >= 0) { select(cursor - Math.max(1, visibleRows - 1)); return; }
