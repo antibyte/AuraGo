@@ -50,9 +50,11 @@ func TestSecurityHeadersKeepLocalWikipediaPathsUnframable(t *testing.T) {
 	}
 }
 
-// The other framing exemptions, the DENY default and the static-asset cache of
-// other routes are unchanged.
-func TestSecurityHeadersLocalWikipediaExceptionLeavesOtherFramingRoutesAlone(t *testing.T) {
+// The middleware has no Local Wikipedia exception: the Desktop API and content
+// routes keep the DENY default like every other route, the exemptions that do
+// exist (Desktop app files, go2rtc viewer, Game Maker preview) still apply and the
+// static-asset cache of other routes is unchanged.
+func TestSecurityHeadersKeepDenyDefaultAndOtherFramingExemptions(t *testing.T) {
 	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}), false, false)

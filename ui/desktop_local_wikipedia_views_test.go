@@ -22,8 +22,9 @@ assert.equal(V.contentURL('Berlin'), '/api/desktop/local-wikipedia/content/Berli
 assert.equal(V.contentURL('AC/DC'), '/api/desktop/local-wikipedia/content/AC/DC');
 assert.equal(V.contentURL('Café (Begriffsklärung)'), '/api/desktop/local-wikipedia/content/Caf%C3%A9%20(Begriffskl%C3%A4rung)');
 assert.equal(V.contentURL('Frage?#1'), '/api/desktop/local-wikipedia/content/Frage%3F%231');
-for (const bad of ['', '..', '../status', 'a/./b', 'a/..']) assert.equal(V.contentURL(bad), '', 'unsafe path ' + bad);
-for (const path of ['Berlin', 'AC/DC', 'Café (Begriffsklärung)', 'Frage?#1', '100%_Wolle']) {
+assert.equal(V.contentURL('Verzeichnis/'), '/api/desktop/local-wikipedia/content/Verzeichnis/', 'a trailing slash is kept');
+for (const bad of ['', '..', '../status', 'a/./b', 'a/..', '.', '/', '//', '/Berlin', 'a//b', 'a//', '//a']) assert.equal(V.contentURL(bad), '', 'unsafe path ' + JSON.stringify(bad));
+for (const path of ['Berlin', 'AC/DC', 'Café (Begriffsklärung)', 'Frage?#1', '100%_Wolle', 'Verzeichnis/']) {
   assert.equal(V.pathFromLocation(new URL(V.contentURL(path), 'http://x').pathname), path, 'round trip ' + path);
 }
 assert.equal(V.pathFromLocation('/api/desktop/local-wikipedia/status'), '');

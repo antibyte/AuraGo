@@ -21,12 +21,15 @@
     }
 
     // contentURL returns the frame address of a content path, or '' when the path
-    // cannot be addressed safely (browsers would normalise dot segments away).
+    // cannot be addressed safely. It mirrors localWikiContentURL on the server:
+    // dot segments, empty segments (a//b) and a leading slash are refused because
+    // the browser or the mux would clean them out of the route; a trailing slash
+    // survives and is kept.
     function contentURL(path) {
         const value = String(path || '');
         if (!value) return '';
         const parts = value.split('/');
-        if (parts.some(part => part === '.' || part === '..')) return '';
+        if (parts.some((part, index) => part === '.' || part === '..' || (part === '' && index < parts.length - 1))) return '';
         return CONTENT_PREFIX + parts.map(part => encodeURIComponent(part)).join('/');
     }
 

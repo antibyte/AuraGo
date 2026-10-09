@@ -116,6 +116,50 @@ return w.left>=-1&&w.right<=innerWidth+1&&w.top>=0&&f.bottom<=innerHeight+1&&(th
 			}
 		}
 	}
+	// The in-app article error (a missing article) keeps readable text in every theme.
+	page.MustEval(`()=>document.querySelector('.lw-tool[data-action="main"]').click()`)
+	page.MustWait(`()=>document.querySelector('.lw-title')?.textContent==='Hauptseite'`)
+	page.MustEval(`()=>document.querySelector('.lw-frame').contentDocument.getElementById('to-missing').click()`)
+	page.MustWait(`()=>{const e=document.querySelector('.lw-frame-error');return !!e&&!e.hidden}`)
+	for _, combo := range themes {
+		setTheme(combo.theme, combo.mode)
+		checkContrast(fmt.Sprintf("frame-error-%s-%s", combo.theme, combo.mode), ".lw-frame-error")
+	}
+
+	// State screens replace the article; each one opens in a fresh window that reads its own status.
+	for _, screen := range []struct {
+		name      string
+		prepare   func()
+		ready     string
+		selectors []string
+	}{
+		{"not-installed", func() { fixture.setStatus(localWikipediaFixtureStatus("not_installed", true, false, false, 0)) },
+			`()=>!!document.querySelector('.lw-state-card[data-state="not_installed"]')`,
+			[]string{".lw-state-card h2", ".lw-state-card p", `.lw-state-card [data-action="settings"]`}},
+		{"downloading", func() { fixture.setStatus(localWikipediaFixtureStatus("downloading", false, false, false, 0.42)) },
+			`()=>!!document.querySelector('.lw-state-card[data-state="downloading"]')`,
+			[]string{".lw-state-card h2", ".lw-state-card p"}},
+		{"failed", func() {
+			fixture.setFailure(http.StatusInternalServerError, map[string]any{"error": "boom", "code": "internal"})
+		},
+			`()=>!!document.querySelector('.lw-state-card[data-state="failed"]')`,
+			[]string{".lw-state-card h2", ".lw-state-card p", `.lw-state-card [data-action="retry"]`}},
+	} {
+		page.MustEval(`()=>auditTest.closeWindow(auditTest.state.activeWindowId)`)
+		page.MustWait(`()=>!document.querySelector('.lw-app')`)
+		screen.prepare()
+		page.MustEval(`()=>auditTest.openApp('local-wikipedia')`)
+		if err := page.Wait(rod.Eval(screen.ready)); err != nil {
+			t.Fatalf("state screen %s: %v", screen.name, err)
+		}
+		for _, combo := range themes {
+			setTheme(combo.theme, combo.mode)
+			checkContrast(fmt.Sprintf("%s-%s-%s", screen.name, combo.theme, combo.mode), screen.selectors...)
+			if combo.theme == "standard" {
+				page.MustScreenshot(filepath.Join(dir, "state-"+screen.name+".png"))
+			}
+		}
+	}
 	if got := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); got != "[]" {
 		t.Fatalf("shell errors: %s", got)
 	}

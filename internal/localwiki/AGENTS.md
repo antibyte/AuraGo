@@ -9,7 +9,9 @@ app read through `Manager.Acquire`.
 ## Ownership
 
 `internal/localwiki` owns the manager and `Library`. These contracts also bind
-`internal/server/local_wikipedia_*.go` (manager construction, settings sync, admin API),
+`internal/server/local_wikipedia_*.go` (manager construction, settings sync, admin API, the read-only Desktop
+API under `/api/desktop/local-wikipedia/` with its content route, and the `isStaticAsset` exclusion for that
+prefix in `securityHeadersMiddleware`, `internal/server/server.go`),
 `ui/cfg/local_wikipedia.js`, `ui/lang/config/local_wikipedia/`, `scripts/test-local-wikipedia-config.mjs`,
 the `local_wikipedia` config section (`internal/config/local_wikipedia.go`, `config_template.yaml`), the
 `tools.IsSensitiveHostDirectory` helper (`internal/tools/sensitive_host_directory.go`) and their tests.
