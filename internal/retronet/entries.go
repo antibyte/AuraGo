@@ -322,16 +322,32 @@ func validHostname(host string) bool {
 	return strings.Trim(labels[len(labels)-1], "0123456789") != ""
 }
 
-// validName requires 1-40 runes, not blank, without control characters.
+// zeroWidthJoiner (U+200D) is the one invisible rune allowed in display text:
+// emoji sequences need it.
+const zeroWidthJoiner rune = 0x200d
+
+// validName requires 1-40 runes with at least one visible character and no
+// invisible, format or control runes.
 func validName(name string) bool {
-	return strings.TrimSpace(name) != "" && utf8.RuneCountInString(name) <= maxNameRunes && !hasControl(name)
+	visible := func(r rune) bool { return !unicode.IsSpace(r) && r != zeroWidthJoiner }
+	return utf8.RuneCountInString(name) <= maxNameRunes && strings.IndexFunc(name, visible) >= 0 && !hasInvisible(name)
 }
 
-// validDescription allows up to 80 runes without control characters.
+// validDescription allows up to 80 runes without invisible, format or control
+// runes.
 func validDescription(description string) bool {
-	return utf8.RuneCountInString(description) <= maxDescriptionRunes && !hasControl(description)
+	return utf8.RuneCountInString(description) <= maxDescriptionRunes && !hasInvisible(description)
 }
 
-func hasControl(s string) bool {
-	return strings.IndexFunc(s, unicode.IsControl) >= 0
+// hasInvisible reports runes that can hide or reorder text: categories Cc,
+// Cf (zero-width and bidirectional controls, tag characters), Co, Zl and Zp,
+// and U+FFFD (also what invalid UTF-8 and lone surrogate escapes decode to).
+// U+200D is exempt.
+func hasInvisible(s string) bool {
+	return strings.IndexFunc(s, func(r rune) bool {
+		if r == zeroWidthJoiner {
+			return false
+		}
+		return r == unicode.ReplacementChar || unicode.In(r, unicode.Cc, unicode.Cf, unicode.Co, unicode.Zl, unicode.Zp)
+	}) >= 0
 }
