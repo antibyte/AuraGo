@@ -124,6 +124,14 @@ var restrictedAddresses = []struct {
 	{"unspecified v4", "0.0.0.0"},
 	{"unspecified v6", "::"},
 	{"multicast", "224.0.0.1"},
+	// Regression guard for internal/security: embedded and reserved forms.
+	{"nat64 well-known prefix", "64:ff9b::7f00:1"},
+	{"6to4 of loopback", "2002:7f00:1::"},
+	{"teredo", "2001:0:4136:e378:8000:63bf:3fff:fdd2"},
+	{"v4-compatible loopback", "::127.0.0.1"},
+	{"documentation 192.0.2/24", "192.0.2.1"},
+	{"reserved 240/4", "240.0.0.1"},
+	{"link-local multicast v6", "ff02::1"},
 }
 
 func TestDialEntryBlocksRestrictedResolvedAddresses(t *testing.T) {
@@ -609,5 +617,64 @@ func TestDialErrorFormatting(t *testing.T) {
 	}
 	if got := (&DialError{Reason: ReasonLimit}).Error(); got != "retronet: limit" {
 		t.Fatalf("Error() without cause = %q", got)
+	}
+}
+
+func TestDialEntryNeverDialsWithAnEndedContext(t *testing.T) {
+	expired, cancelExpired := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancelExpired()
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	tests := []struct {
+		name string
+		ctx  context.Context
+		host string
+		want string
+	}{
+		{"canceled, resolved host", canceled, "bbs.example.org", ReasonOf(context.Canceled)},
+		{"canceled, literal host", canceled, "1.1.1.1", ReasonOf(context.Canceled)},
+		{"deadline passed, resolved host", expired, "bbs.example.org", ReasonTimeout},
+		{"deadline passed, literal host", expired, "1.1.1.1", ReasonTimeout},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resolver := &fakeResolver{answers: [][]string{{"1.1.1.1", "8.8.8.8"}}}
+			dial := &fakeDial{}
+			defer dial.close()
+			conn, target, err := Dialer{Resolver: resolver, Dial: dial.dial}.DialEntry(tc.ctx, telnetTestEntry(tc.host, 23))
+			if conn != nil {
+				conn.Close()
+			}
+			requireReason(t, err, tc.want)
+			if got := dial.dialed(); len(got) != 0 {
+				t.Fatalf("dialed %v with an ended context, want no dial", got)
+			}
+			if target != "" {
+				t.Fatalf("target = %q, want empty (no attempt was made)", target)
+			}
+		})
+	}
+}
+
+// ignoringResolver sleeps past the dial budget and then answers, like a
+// resolver that does not honour its context.
+type ignoringResolver struct{ delay time.Duration }
+
+func (r ignoringResolver) LookupIPAddr(context.Context, string) ([]net.IPAddr, error) {
+	time.Sleep(r.delay)
+	return []net.IPAddr{{IP: net.ParseIP("1.1.1.1")}}, nil
+}
+
+func TestDialEntryResolveUsingUpTheBudgetStartsNoAttempt(t *testing.T) {
+	dial := &fakeDial{}
+	defer dial.close()
+	_, target, err := Dialer{Resolver: ignoringResolver{delay: 120 * time.Millisecond}, Dial: dial.dial, Timeout: 30 * time.Millisecond}.DialEntry(context.Background(), telnetTestEntry("slow-dns.example.org", 23))
+	requireReason(t, err, ReasonTimeout)
+	if got := dial.dialed(); len(got) != 0 {
+		t.Fatalf("dialed %v after the budget was used up, want no dial", got)
+	}
+	if target != "" {
+		t.Fatalf("target = %q, want empty", target)
 	}
 }

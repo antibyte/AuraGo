@@ -87,8 +87,9 @@ var dialAttemptTimeout = 4 * time.Second
 // attempts; an attempt gets at most 4 s while further addresses remain, the last one gets
 // whatever is left. It returns the first connection and its pinned target for auditing. When
 // every attempt fails, the reason comes from the last attempt's error and the returned target
-// is the last attempted address; failures before any attempt return an empty target. Every
-// error is a *DialError.
+// is the last attempted address; failures before any attempt return an empty target. No
+// attempt starts once ctx has ended or the budget is used up (DialFunc is never called with
+// an ended context; the reason then comes from ctx.Err()). Every error is a *DialError.
 func (d Dialer) DialEntry(ctx context.Context, e Entry) (net.Conn, string, error) {
 	if blockedPort(e.Port) {
 		return nil, "", &DialError{Reason: ReasonBlocked, Err: errors.New("port " + strconv.Itoa(e.Port) + " is blocked")}
@@ -124,7 +125,10 @@ func (d Dialer) DialEntry(ctx context.Context, e Entry) (net.Conn, string, error
 	var target string
 	var lastErr error
 	for i, ip := range candidates {
-		if i > 0 && (ctx.Err() != nil || !time.Now().Before(deadline)) {
+		if err := budgetErr(ctx, deadline); err != nil {
+			if lastErr == nil {
+				lastErr = err // nothing was attempted: the ended context is the reason
+			}
 			break // overall budget used up or caller gone
 		}
 		target = net.JoinHostPort(ip.String(), port)
@@ -137,6 +141,18 @@ func (d Dialer) DialEntry(ctx context.Context, e Entry) (net.Conn, string, error
 		lastErr = err
 	}
 	return nil, target, &DialError{Reason: ReasonOf(lastErr), Err: lastErr}
+}
+
+// budgetErr reports why no further connect attempt may start: the caller's
+// context has ended or the overall budget is used up. It is nil otherwise.
+func budgetErr(ctx context.Context, deadline time.Time) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !time.Now().Before(deadline) {
+		return context.DeadlineExceeded
+	}
+	return nil
 }
 
 // attemptTimeout returns the budget of one connect attempt: everything left

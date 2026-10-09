@@ -30,9 +30,10 @@ const (
 )
 
 var (
-	ownIDPattern   = regexp.MustCompile(`^own-[a-z0-9]{8,32}$`)
-	sshUserPattern = regexp.MustCompile(`^[a-z0-9._-]{1,32}$`)
-	hostKeyPattern = regexp.MustCompile(`^SHA256:[A-Za-z0-9+/]{43}$`)
+	ownIDPattern    = regexp.MustCompile(`^own-[a-z0-9]{8,32}$`)
+	sshUserPattern  = regexp.MustCompile(`^[a-z0-9._-]{1,32}$`)
+	hostKeyPattern  = regexp.MustCompile(`^SHA256:[A-Za-z0-9+/]{43}$`)
+	hexLabelPattern = regexp.MustCompile(`^0[xX][0-9a-fA-F]*$`)
 )
 
 // errInvalidEntries is the only error the validators return, so the settings
@@ -301,8 +302,9 @@ func validHost(host string) bool {
 
 // validHostname accepts RFC 1123 names: at most 253 bytes, labels of 1-63
 // letters, digits and hyphens without a leading or trailing hyphen. A final
-// all-numeric label is rejected because resolvers may read names such as
-// "127.1" as IPv4 shorthand.
+// all-numeric label or one in hexadecimal form (0x7f000001, 1.0x7f) is
+// rejected because resolvers may read such names as IPv4 shorthand
+// (inet_aton).
 func validHostname(host string) bool {
 	if host == "" || len(host) > maxHostnameLength {
 		return false
@@ -319,7 +321,8 @@ func validHostname(host string) bool {
 			}
 		}
 	}
-	return strings.Trim(labels[len(labels)-1], "0123456789") != ""
+	last := labels[len(labels)-1]
+	return strings.Trim(last, "0123456789") != "" && !hexLabelPattern.MatchString(last)
 }
 
 // zeroWidthJoiner (U+200D) is the one invisible rune allowed in display text:
