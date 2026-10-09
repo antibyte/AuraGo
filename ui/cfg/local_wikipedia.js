@@ -9,6 +9,8 @@ const LOCAL_WIKI_STATES = ['not_installed', 'downloading', 'verifying', 'ready',
 const LOCAL_WIKI_ERROR_CODES = ['insufficient_disk_space', 'free_space_unknown', 'checksum_mismatch', 'download_failed',
     'catalog_unreachable', 'zim_unreadable', 'fulltext_unsupported', 'busy', 'disabled', 'data_dir_invalid',
     'already_installed', 'no_operation', 'unknown_language'];
+// Codes of an install/update that ended without a new edition.
+const LOCAL_WIKI_OPERATION_ERRORS = ['insufficient_disk_space', 'checksum_mismatch', 'download_failed', 'zim_unreadable'];
 const LOCAL_WIKI_MARGIN_BYTES = 1073741824;
 
 let _lwSection = null;
@@ -20,7 +22,9 @@ let _lwCatalogPending = false;
 let _lwPollTimer = null;
 let _lwActionPending = false;
 let _lwMessage = null;
+let _lwPollError = '';
 let _lwRuntimeHTML = '';
+let _lwAnnounced = '';
 
 function localWikiEnsureData() {
     if (!configData.local_wikipedia) configData.local_wikipedia = {};
@@ -44,11 +48,15 @@ function renderLocalWikipediaSection(section) {
     _lwCatalogError = '';
     _lwCatalogPending = false;
     _lwMessage = null;
+    _lwPollError = '';
+    _lwAnnounced = '';
     _lwRuntimeHTML = localWikiRuntimeHTML();
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + escapeHtml(section.label) + '</div>';
     html += '<div class="section-desc">' + escapeHtml(section.desc) + '</div>';
+    // The one live region of the section: it outlives every re-render of the status area.
+    html += '<div id="lw-announce" class="cfg-visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>';
     html += '<div class="cfg-note-banner cfg-note-banner-warning">' + escapeHtml(t('config.local_wikipedia.warning_size')) + '</div>';
     html += '<div class="cfg-group-title">' + escapeHtml(t('config.local_wikipedia.group_settings')) + '</div>';
     html += localWikiToggle('enabled', data.enabled === true);
@@ -190,19 +198,62 @@ function localWikiErrorText(code, data) {
 }
 
 // The status error comes from either the installed edition or the last
-// install/update, and the server words its recommendation for that case (a
-// download that cannot be read was removed, an installed edition has to be
-// deleted). The server text is therefore preferred; the localized per-code text
-// is only the fallback for a status without one.
+// install/update, and the same code can mean different things. The server
+// sends English text only, so the wording is derived here from the status
+// fields: zim_unreadable is the installed edition (which has to be deleted) when
+// nothing is readable, otherwise the file a download just produced (removed
+// already). A failed update leaves the installed edition online, which the
+// status shows as readable together with the code of the failed operation.
 function localWikiStatusErrorText(status) {
-    const recommendation = typeof status.recommendation === 'string' ? status.recommendation.trim() : '';
-    return recommendation || localWikiErrorText(status.error_code, status);
+    const code = status.error_code;
+    let text;
+    if (code === 'zim_unreadable') {
+        const installedUnreadable = Boolean(status.edition) && status.readable === false;
+        text = t(installedUnreadable ? 'config.local_wikipedia.error_zim_unreadable' : 'config.local_wikipedia.error_download_unreadable');
+    } else {
+        text = localWikiErrorText(code, status);
+    }
+    if (status.readable === true && LOCAL_WIKI_OPERATION_ERRORS.includes(code)) {
+        text = t('config.local_wikipedia.update_failed') + ' ' + text;
+    }
+    return text;
 }
 
-function localWikiBanner(kind, text, alert) {
+function localWikiStateOf(status) {
+    return LOCAL_WIKI_STATES.includes(status.state) ? status.state : 'error';
+}
+
+// What the live region says: the state and whatever went wrong, never the
+// progress numbers (they change every poll).
+function localWikiAnnouncement() {
+    const status = _lwStatus;
+    if (!status) return _lwPollError || t('config.local_wikipedia.loading');
+    if (status.loading === true) return t('config.local_wikipedia.loading_edition');
+    const parts = [t('config.local_wikipedia.state_' + localWikiStateOf(status))];
+    if (_lwPollError) parts.push(_lwPollError);
+    if (_lwMessage) parts.push(_lwMessage.text);
+    if (status.error_code) parts.push(localWikiStatusErrorText(status));
+    return parts.join(' ');
+}
+
+function localWikiAnnounce() {
+    const region = document.getElementById('lw-announce');
+    if (!region) return;
+    const text = localWikiAnnouncement();
+    if (text === _lwAnnounced) return;
+    _lwAnnounced = text;
+    region.textContent = text;
+}
+
+function localWikiBanner(kind, text) {
     const cls = kind === 'warning' ? ' cfg-note-banner-warning' : kind === 'success' ? ' cfg-note-banner-success' :
         kind === 'info' ? ' cfg-note-banner-info' : '';
-    return '<div class="cfg-note-banner' + cls + '"' + (alert ? ' role="alert"' : '') + '>' + escapeHtml(text) + '</div>';
+    return '<div class="cfg-note-banner' + cls + '">' + escapeHtml(text) + '</div>';
+}
+
+function localWikiRetryStatusHTML() {
+    return '<div class="cfg-actions-row pw-action-row lw-actions"><button type="button" class="btn-secondary" data-lw-action="reload" ' +
+        'onclick="localWikiRefreshStatus()">' + escapeHtml(t('config.local_wikipedia.retry')) + '</button></div>';
 }
 
 function localWikiEditionLabel(edition) {
@@ -231,7 +282,7 @@ function localWikiEditionFacts(titleKey, edition, fulltext, readable) {
 function localWikiSelectedHTML() {
     if (_lwCatalogPending) return '<div class="field-help">' + escapeHtml(t('config.local_wikipedia.catalog_loading')) + '</div>';
     if (_lwCatalogError) {
-        return localWikiBanner('warning', localWikiErrorText(_lwCatalogError, {}), true) +
+        return localWikiBanner('warning', localWikiErrorText(_lwCatalogError, {})) +
             '<div class="cfg-actions-row pw-action-row lw-actions"><button type="button" class="btn-secondary" data-lw-action="retry" ' +
             'onclick="localWikiLoadCatalog(true)">' + escapeHtml(t('config.local_wikipedia.retry')) + '</button></div>';
     }
@@ -271,6 +322,8 @@ function localWikiActionsHTML(status) {
     const blocked = localWikiBlockedReason();
     const busy = _lwActionPending || status.operation_in_progress === true;
     const disabled = Boolean(blocked) || busy;
+    // Delete needs no enabled integration, but acts on saved state only.
+    const deleteDisabled = busy || blocked === 'save_first';
     const readable = status.readable === true;
     const button = (action, labelKey, primary, isDisabled, handler) => '<button type="button" class="' +
         (primary ? 'btn-save' : 'btn-secondary') + '" data-lw-action="' + action + '" onclick="' + handler + '"' +
@@ -285,7 +338,7 @@ function localWikiActionsHTML(status) {
         // An edition that cannot be read has nothing to check an update for;
         // deleting it (and installing again) is the way out.
         if (readable && status.selection_matches_installed !== false) buttons.push(button('check', 'check_update', false, disabled, 'localWikiCheckUpdate()'));
-        if (status.edition || status.state === 'interrupted') buttons.push(button('delete', 'delete', false, busy, 'localWikiDelete()'));
+        if (status.edition || status.state === 'interrupted') buttons.push(button('delete', 'delete', false, deleteDisabled, 'localWikiDelete()'));
     }
     let html = '<div class="cfg-actions-row pw-action-row lw-actions">' + buttons.join('') + '</div>';
     if (blocked && !status.operation_in_progress) html += '<div class="field-help">' + escapeHtml(t('config.local_wikipedia.' + blocked)) + '</div>';
@@ -294,24 +347,26 @@ function localWikiActionsHTML(status) {
 
 function localWikiRuntimeHTML() {
     const status = _lwStatus;
+    const pollError = _lwPollError ? localWikiBanner('warning', _lwPollError) + localWikiRetryStatusHTML() : '';
     if (!status) {
-        return _lwMessage ? localWikiBanner(_lwMessage.kind, _lwMessage.text, true) :
-            '<div class="cfg-note-banner" role="status">' + escapeHtml(t('config.local_wikipedia.loading')) + '</div>';
+        return pollError || '<div id="lw-state" class="cfg-note-banner" tabindex="-1">' + escapeHtml(t('config.local_wikipedia.loading')) + '</div>';
     }
-    const state = LOCAL_WIKI_STATES.includes(status.state) ? status.state : 'error';
+    // The first load of the storage directory is still running: the state would
+    // read "not installed" with a "busy" code, which is neither true nor useful.
+    if (status.loading === true) {
+        return pollError + '<div id="lw-state" class="cfg-note-banner" tabindex="-1">' + escapeHtml(t('config.local_wikipedia.loading_edition')) + '</div>';
+    }
+    const state = localWikiStateOf(status);
     const readable = status.readable === true;
     const stateClass = state === 'ready' ? ' cfg-note-banner-success' : (state === 'error' || state === 'interrupted') ? ' cfg-note-banner-warning' : '';
-    let html = '<div id="lw-state" class="cfg-note-banner' + stateClass + '" role="status" aria-live="polite">' +
+    let html = '<div id="lw-state" class="cfg-note-banner' + stateClass + '" tabindex="-1">' +
         escapeHtml(t('config.local_wikipedia.state_' + state)) + '</div>';
-    if (_lwMessage) html += localWikiBanner(_lwMessage.kind, _lwMessage.text, _lwMessage.kind === 'warning');
+    html += pollError;
+    if (_lwMessage) html += localWikiBanner(_lwMessage.kind, _lwMessage.text);
     if (status.error_code) {
         // A failed update leaves the installed edition online (state "ready"),
         // so the code is shown next to the state instead of replacing it.
-        const informational = status.error_code === 'fulltext_unsupported';
-        html += localWikiBanner(informational ? 'info' : 'warning', localWikiStatusErrorText(status), !informational);
-        if (status.error_code === 'insufficient_disk_space' && Number(status.required_bytes) > 0) {
-            html += '<div class="field-help">' + escapeHtml(t('config.local_wikipedia.required_space', { required: localWikiFormatBytes(status.required_bytes) })) + '</div>';
-        }
+        html += localWikiBanner(status.error_code === 'fulltext_unsupported' ? 'info' : 'warning', localWikiStatusErrorText(status));
     }
     if (status.edition) html += localWikiEditionFacts('installed_title', status.edition, status.fulltext, readable);
     if (status.edition && status.update_available && status.selection_matches_installed) {
@@ -328,21 +383,30 @@ function localWikiRuntimeHTML() {
     return html + localWikiActionsHTML(status);
 }
 
-// Re-renders the status area only when its markup changed, and hands the focus
-// back to the action button the user was on (polling replaces the buttons).
+// Re-renders the status area only when its markup changed. Polling replaces the
+// buttons, so the focus is handed back to the button the user was on; when that
+// one is gone or disabled it moves to the first enabled action, else to the
+// state banner, instead of falling back to the page.
+function localWikiRestoreFocus(target, action, stateFocused) {
+    let next = action ? target.querySelector('[data-lw-action="' + action + '"]:not([disabled])') : null;
+    if (!next && stateFocused) next = target.querySelector('#lw-state');
+    if (!next) next = target.querySelector('[data-lw-action]:not([disabled])') || target.querySelector('#lw-state');
+    if (next) next.focus();
+}
+
 function localWikiUpdateRuntimeDOM() {
     const target = document.getElementById('lw-runtime');
     if (!target) return;
+    localWikiAnnounce();
     const html = localWikiRuntimeHTML();
     if (html === _lwRuntimeHTML) return;
     const active = document.activeElement;
-    const focused = active && target.contains(active) && active.dataset ? active.dataset.lwAction : '';
+    const hadFocus = Boolean(active) && target.contains(active);
+    const action = hadFocus && active.dataset ? active.dataset.lwAction || '' : '';
+    const stateFocused = hadFocus && active.id === 'lw-state';
     target.innerHTML = html;
     _lwRuntimeHTML = html;
-    if (focused) {
-        const next = target.querySelector('[data-lw-action="' + focused + '"]');
-        if (next && !next.disabled) next.focus();
-    }
+    if (hadFocus) localWikiRestoreFocus(target, action, stateFocused);
 }
 
 function localWikiSchedulePolling() {
@@ -351,26 +415,37 @@ function localWikiSchedulePolling() {
         _lwPollTimer = null;
     }
     if (!document.getElementById('lw-runtime') || !_lwStatus) return;
-    if (_lwStatus.operation_in_progress === true || _lwActionPending) {
+    // A download runs, or the storage directory is still being loaded.
+    if (_lwStatus.operation_in_progress === true || _lwStatus.loading === true || _lwActionPending) {
         _lwPollTimer = setTimeout(localWikiRefreshStatus, 2000);
     }
 }
 
 async function localWikiRefreshStatus() {
     if (!document.getElementById('lw-runtime')) return;
+    let status = null;
+    let failure = '';
     try {
         const response = await fetch('/api/local-wikipedia/status');
         let data = {};
         try { data = await response.json(); } catch (_) { data = {}; }
         if (!response.ok) throw new Error(localWikiErrorText(data.error_code || data.error, data));
-        _lwStatus = data;
+        status = data;
+    } catch (error) {
+        failure = t('config.local_wikipedia.error_prefix') + ': ' + error.message;
+    }
+    // The answer may arrive after the administrator left the section.
+    if (!document.getElementById('lw-runtime')) return;
+    if (status) {
+        _lwStatus = status;
+        _lwPollError = '';
         localWikiApplyOptionLabels();
         if (_lwCatalogLang === null) localWikiLoadCatalog(false);
-        localWikiUpdateRuntimeDOM();
-    } catch (error) {
-        _lwMessage = { kind: 'warning', text: t('config.local_wikipedia.error_prefix') + ': ' + error.message };
-        localWikiUpdateRuntimeDOM();
+    } else {
+        // Kept apart from the action messages: the next successful poll clears it.
+        _lwPollError = failure;
     }
+    localWikiUpdateRuntimeDOM();
     localWikiSchedulePolling();
 }
 
@@ -382,22 +457,21 @@ async function localWikiLoadCatalog(force) {
     _lwCatalogPending = true;
     _lwCatalogError = '';
     localWikiUpdateRuntimeDOM();
+    let catalog = null;
+    let errorCode = '';
     try {
         const response = await fetch('/api/local-wikipedia/catalog?lang=' + encodeURIComponent(language));
         let data = {};
         try { data = await response.json(); } catch (_) { data = {}; }
-        if (_lwCatalogLang !== language) return;
-        if (response.ok) {
-            _lwCatalog = data;
-        } else {
-            _lwCatalog = null;
-            _lwCatalogError = data.error_code || 'catalog_unreachable';
-        }
+        if (response.ok) catalog = data;
+        else errorCode = data.error_code || 'catalog_unreachable';
     } catch (_) {
-        if (_lwCatalogLang !== language) return;
-        _lwCatalog = null;
-        _lwCatalogError = 'catalog_unreachable';
+        errorCode = 'catalog_unreachable';
     }
+    // A newer selection or leaving the section supersedes this answer.
+    if (_lwCatalogLang !== language || !document.getElementById('lw-runtime')) return;
+    _lwCatalog = catalog;
+    _lwCatalogError = errorCode;
     _lwCatalogPending = false;
     localWikiApplyOptionLabels();
     localWikiUpdateRuntimeDOM();
@@ -502,6 +576,10 @@ async function localWikiCancel() {
 }
 
 async function localWikiDelete() {
+    if (localWikiBlockedReason() === 'save_first') {
+        localWikiUpdateRuntimeDOM();
+        return;
+    }
     if (!(await showConfirm(t('config.local_wikipedia.confirm_delete_title'), t('config.local_wikipedia.confirm_delete')))) return;
     await localWikiSimpleAction('/api/local-wikipedia/delete');
 }

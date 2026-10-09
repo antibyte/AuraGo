@@ -15,6 +15,7 @@
     "build:sheets-vendor": "node scripts/build-sheets-vendor.js",
     "test:sheets": "node scripts/test-sheets-data.mjs",
     "test:easydrag": "node scripts/test-easydrag.mjs",
+    "test:local-wikipedia-config": "node scripts/test-local-wikipedia-config.mjs",
     "test:mission-control": "node scripts/test-mission-control-schedule.mjs && node scripts/test-mission-control-flows.mjs",
     "test:dashboard-cron": "node scripts/test-dashboard-cronjobs.mjs",
     "test:missions-page": "node scripts/test-missions-page-flows.mjs",

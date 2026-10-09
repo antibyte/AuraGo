@@ -78,6 +78,7 @@ func TestConfigLocalWikipediaTranslationsCoverAllLocales(t *testing.T) {
 		"error_catalog_unreachable", "error_zim_unreadable", "error_fulltext_unsupported", "error_busy", "error_disabled",
 		"error_data_dir_invalid", "error_already_installed", "error_no_operation", "error_unknown_language", "error_unknown",
 		"variant_nopic", "variant_maxi", "enabled", "agent_access", "language", "variant", "update_check", "data_dir",
+		"error_download_unreadable", "update_failed", "loading_edition", "unreadable",
 	} {
 		if _, ok := english["config.local_wikipedia."+suffix]; !ok {
 			t.Fatalf("English bundle lacks the dynamic key config.local_wikipedia.%s", suffix)
@@ -117,19 +118,33 @@ func TestConfigLocalWikipediaModuleUsesAdminAPIAndKnownKeys(t *testing.T) {
 		"aurago:config-saved",
 		"cfg:section-leave",
 		"['no', 'Norsk']",
-		// The status error text prefers the server's operation-specific
-		// recommendation, and "edition available" follows the readable flag.
+		// The status error text is derived from the status fields, "edition
+		// available" follows the readable flag, the first load shows its own
+		// view, and a failed poll is kept apart from the action messages.
 		"function localWikiStatusErrorText(",
-		"status.recommendation",
 		"status.readable === true",
+		"status.loading === true",
+		"_lwPollError",
+		"config.local_wikipedia.error_download_unreadable",
+		"config.local_wikipedia.update_failed",
+		"config.local_wikipedia.loading_edition",
+		// One persistent live region outside the status area.
+		`<div id="lw-announce" class="cfg-visually-hidden" role="status" aria-live="polite"`,
 	} {
 		if !strings.Contains(module, wanted) {
 			t.Fatalf("Local Wikipedia config module missing %q", wanted)
 		}
 	}
-	for _, forbidden := range []string{"alert(", "confirm(", "prompt(", `style="`, "130 GB"} {
+	// The server's recommendation is English only: it must never be shown, and
+	// no banner may be a second live region.
+	for _, forbidden := range []string{"alert(", "confirm(", "prompt(", `style="`, "130 GB", "recommendation", `role="alert"`} {
 		if strings.Contains(module, forbidden) {
 			t.Fatalf("Local Wikipedia config module contains forbidden %q", forbidden)
+		}
+	}
+	for _, once := range []string{`role="status"`, "aria-live"} {
+		if got := strings.Count(module, once); got != 1 {
+			t.Fatalf("Local Wikipedia config module has %d occurrences of %q, want exactly the one live region", got, once)
 		}
 	}
 	byLocale, _ := readLocalWikipediaBundles(t)
@@ -153,6 +168,28 @@ func TestConfigLocalWikipediaSectionIsRegistered(t *testing.T) {
 	} {
 		if !strings.Contains(mainJS, wanted) {
 			t.Fatalf("config main.js missing %q", wanted)
+		}
+	}
+}
+
+func TestConfigLocalWikipediaTranslationsKeepLocaleConventions(t *testing.T) {
+	byLocale, _ := readLocalWikipediaBundles(t)
+	flat := func(locale string) string {
+		data, _ := json.Marshal(byLocale[locale])
+		return string(data)
+	}
+	// Hindi keeps technical terms transliterated: "absolute path" is the repo's "पूर्ण पथ".
+	if text := flat("hi"); strings.Contains(text, "absolute") || !strings.Contains(text, "पूर्ण पथ") {
+		t.Fatal("Hindi Local Wikipedia strings must say पूर्ण पथ instead of the English word absolute")
+	}
+	// The other Chinese bundles call the agent 代理.
+	if text := flat("zh"); strings.Contains(text, "智能体") || strings.Contains(text, "放下") {
+		t.Fatal("Chinese Local Wikipedia strings must use 代理 for the agent and avoid the mistranslated 放下")
+	}
+	// The button name in the selection hint is quoted.
+	for locale, quoted := range map[string]string{"fr": "« Installer »", "es": "«Instalar»"} {
+		if value, _ := byLocale[locale]["config.local_wikipedia.selection_mismatch"].(string); !strings.Contains(value, quoted) {
+			t.Fatalf("%s selection_mismatch must quote the button as %s: %q", locale, quoted, value)
 		}
 	}
 }
