@@ -704,7 +704,7 @@ func Start(opts StartOptions) error {
 			shutdownCancel()
 		}
 		if s.LocalWiki != nil {
-			publishLocalWikipediaTool(nil)
+			withdrawLocalWikipediaTool(s.LocalWiki)
 			wikiCtx, wikiCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			if err := s.LocalWiki.Shutdown(wikiCtx); err != nil {
 				s.Logger.Warn("[LocalWikipedia] Shutdown did not complete", "error", err)

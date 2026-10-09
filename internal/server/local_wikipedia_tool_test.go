@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/localwiki"
 	"aurago/internal/tools"
 )
 
@@ -21,6 +22,16 @@ func TestPublishLocalWikipediaToolNilWithdrawsSource(t *testing.T) {
 	publishLocalWikipediaTool(nil)
 	if tools.LocalWikipediaAvailable() {
 		t.Fatal("publishing nil must withdraw the edition source")
+	}
+}
+
+func TestWithdrawLocalWikipediaToolKeepsAnotherSource(t *testing.T) {
+	t.Cleanup(func() { tools.SetLocalWikipediaSource(nil) })
+	tools.SetLocalWikipediaSource(openWikiSource{})
+	withdrawLocalWikipediaTool(nil)
+	withdrawLocalWikipediaTool(localwiki.NewManager(localwiki.Deps{}))
+	if !tools.LocalWikipediaAvailable() {
+		t.Fatal("shutdown withdrew an edition source this server never published")
 	}
 }
 

@@ -71,6 +71,21 @@ func LocalWikipediaManagerSource(m *localwiki.Manager) LocalWikipediaSource {
 	return localWikipediaManagerSource{m: m}
 }
 
+// WithdrawLocalWikipediaManager clears the published source only while it is
+// still the one adapted from m, so a server shutting down after another
+// publisher took over (a restart, a test server) leaves the newer source alone.
+// The check and the clear happen under one lock.
+func WithdrawLocalWikipediaManager(m *localwiki.Manager) {
+	if m == nil {
+		return
+	}
+	localWikipediaMu.Lock()
+	defer localWikipediaMu.Unlock()
+	if cur, ok := localWikipediaSource.(localWikipediaManagerSource); ok && cur.m == m {
+		localWikipediaSource = nil
+	}
+}
+
 type localWikipediaManagerSource struct{ m *localwiki.Manager }
 
 // AcquireLibrary turns the manager's no-op release of a failed Acquire

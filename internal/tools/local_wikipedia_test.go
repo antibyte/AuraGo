@@ -313,6 +313,35 @@ func TestLocalWikipediaManagerSourceWithoutEdition(t *testing.T) {
 	}
 }
 
+func TestWithdrawLocalWikipediaManagerClearsOnlyItsOwnSource(t *testing.T) {
+	own := localwiki.NewManager(localwiki.Deps{})
+	other := localwiki.NewManager(localwiki.Deps{})
+	useWikiSource(t, LocalWikipediaManagerSource(own))
+
+	WithdrawLocalWikipediaManager(nil)
+	WithdrawLocalWikipediaManager(other)
+	if currentLocalWikipediaSource() != LocalWikipediaManagerSource(own) {
+		t.Fatal("withdrawing another manager cleared the published source")
+	}
+	WithdrawLocalWikipediaManager(own)
+	if currentLocalWikipediaSource() != nil {
+		t.Fatal("withdrawing the published manager kept its source")
+	}
+
+	SetLocalWikipediaSource(LocalWikipediaManagerSource(other))
+	WithdrawLocalWikipediaManager(own)
+	if currentLocalWikipediaSource() != LocalWikipediaManagerSource(other) {
+		t.Fatal("a stale manager withdrew the newer published source")
+	}
+
+	fake := &fakeWikiSource{lib: &fakeWikiLibrary{}, open: true}
+	SetLocalWikipediaSource(fake)
+	WithdrawLocalWikipediaManager(own)
+	if currentLocalWikipediaSource() != fake {
+		t.Fatal("withdrawing a manager cleared a source it never published")
+	}
+}
+
 func TestLocalWikipediaSearchClampsLimitToTen(t *testing.T) {
 	for _, tc := range []struct{ in, want int }{{-2, 5}, {0, 5}, {3, 3}, {10, 10}, {50, 10}} {
 		lib := &fakeWikiLibrary{}
