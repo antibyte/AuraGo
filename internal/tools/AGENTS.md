@@ -14,6 +14,8 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 - YepAPI POST operations are sent once because results may be billable or mutate provider jobs. YepAPI and Dograh bind custom credential headers to one HTTP origin. Proxmox error responses use JSON encoding for dynamic messages.
 
+- `local_wikipedia` (`local_wikipedia.go`) is read-only. The server publishes the edition manager with `SetLocalWikipediaSource` and withdraws it with nil; `ExecuteLocalWikipedia` gates on `local_wikipedia.enabled` and `agent_access`, holds one refcounted library handle per call, isolates every article text field with `IsolateExternalData` and maps library errors to fixed messages, so archive error text never reaches the model. `LocalWikipediaAvailable` drives schema, prompt and MCP visibility. Verify `TestLocalWikipedia*`.
+
 ### GitHub repository trust
 - Workspace project metadata, including `AgentCreated`, is inventory only. Runtime trust comes from explicit administrator allowlists or the protected, API-bound `github_trust.json` ledger. Legacy inventory requires visible administrator approval. Preserve a private backup and atomically replace ledger updates; malformed ledgers fail closed without being overwritten.
 - Repository deletion requires `github.allow_delete` (default false), repository access and writable mode. A create response followed by a ledger failure reports the created repository plus a migration warning; never suggest retrying the creation.
