@@ -95,9 +95,12 @@ func (a *Archive) titleEntry(i int64) (Entry, error) {
 	if err != nil {
 		return Entry{}, err
 	}
-	// The listing promises articles: content or redirect entries of the content
-	// namespace. A damaged listing must not hand out X/fulltext/xapian or M/ entries.
-	if e.Namespace != a.contentNS || (e.kind != kindContent && e.kind != kindRedirect) {
+	// A damaged listing must not hand out X/fulltext/xapian or M/ entries, so
+	// every position has to stay in the content namespace. A v1 listing
+	// additionally promises articles (content or redirect entries); the v0 list
+	// covers the whole namespace block, which in old archives legitimately holds
+	// deprecated entries, so only its namespace is checked.
+	if e.Namespace != a.contentNS || (a.titles.v1 && e.kind != kindContent && e.kind != kindRedirect) {
 		return Entry{}, errCorrupt("title list position %d points to %c/%s, which is not a %c article", i, e.Namespace, e.Path, a.contentNS)
 	}
 	return e, nil

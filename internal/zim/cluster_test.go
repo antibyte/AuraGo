@@ -230,3 +230,57 @@ func TestDecodeClusterTruncatedDataIsCorrupt(t *testing.T) {
 		}
 	}
 }
+
+func TestDecodeClusterZstdWindowIsCappedAtTheClusterLimit(t *testing.T) {
+	if zstdMaxMemory != 32<<20 {
+		t.Fatalf("zstdMaxMemory = %d, want 32 MiB (the documented window cap)", zstdMaxMemory)
+	}
+	body := zimtest.ClusterBody([][]byte{[]byte("hello"), bytes.Repeat([]byte("z"), 5000)}, false)
+	cases := []struct {
+		name   string
+		window int
+		want   error
+	}{
+		{"8 MiB window as written by libzim", 8 << 20, nil},
+		{"window exactly at the cap", zstdMaxMemory, nil},
+		{"window above the cap", 2 * zstdMaxMemory, ErrUnsupported},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var frame bytes.Buffer
+			enc, err := zstd.NewWriter(&frame, zstd.WithWindowSize(tc.window), zstd.WithEncoderConcurrency(1))
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Flushing after a short first write forces a streaming frame header
+			// (a one-shot tiny frame would be single-segment, without a window).
+			if _, err := enc.Write(body[:16]); err != nil {
+				t.Fatal(err)
+			}
+			if err := enc.Flush(); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := enc.Write(body[16:]); err != nil {
+				t.Fatal(err)
+			}
+			if err := enc.Close(); err != nil {
+				t.Fatal(err)
+			}
+			var h zstd.Header
+			if err := h.Decode(frame.Bytes()); err != nil || h.WindowSize != uint64(tc.window) {
+				t.Fatalf("frame window = %d, %v; want %d (precondition of this test)", h.WindowSize, err, tc.window)
+			}
+			cd, err := decodeCluster(bytes.NewReader(frame.Bytes()), clusterInfo{comp: compZstd}, 1<<20, 10)
+			if tc.want != nil {
+				wantErr(t, err, tc.want)
+				return
+			}
+			if err != nil {
+				t.Fatalf("decodeCluster() error = %v", err)
+			}
+			if got, _ := cd.blob(1); len(got) != 5000 {
+				t.Fatalf("blob 1 has %d bytes", len(got))
+			}
+		})
+	}
+}

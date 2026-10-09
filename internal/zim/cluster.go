@@ -25,8 +25,11 @@ const (
 
 	// maxClusterBytes caps one decompressed cluster (libzim writes 2 MiB clusters).
 	maxClusterBytes = 32 << 20
-	// zstdMaxMemory caps the zstd window of a streaming decoder.
-	zstdMaxMemory     = 64 << 20
+	// zstdMaxMemory caps the zstd window (and the decoded size of one frame) of
+	// a streaming decoder. A cluster that decompresses to at most maxClusterBytes
+	// never needs a larger window, and libzim itself writes level-19 frames with
+	// an 8 MiB window.
+	zstdMaxMemory     = maxClusterBytes
 	clusterReadBuffer = 64 << 10
 )
 
@@ -129,7 +132,7 @@ func readClusterData(r io.Reader, extended bool, limit int64, maxBlobs uint64) (
 
 // zstdDecoders pools stream decoders across clusters and archives. A pooled
 // decoder keeps the history buffers of its last stream, which can grow up to
-// the zstdMaxMemory (64 MiB) window and live outside the cluster cache budget.
+// the zstdMaxMemory (32 MiB) window and live outside the cluster cache budget.
 // Real libzim clusters (about 2 MiB, single-segment frames) keep them small.
 var zstdDecoders sync.Pool
 

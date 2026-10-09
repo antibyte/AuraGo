@@ -284,3 +284,45 @@ func mustBuild(t *testing.T, b *zimtest.Builder) *zimtest.Layout {
 	}
 	return layout
 }
+
+func TestV0TitleListAllowsDeprecatedEntries(t *testing.T) {
+	// Old archives keep deprecated ("deleted"/"link target") entries inside the
+	// content namespace block that the v0 list covers; they are listed, not corrupt.
+	b := sampleBuilder()
+	b.TitleListV1 = false
+	b.TitleListV0 = true
+	data, layout, err := b.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary.LittleEndian.PutUint16(data[layout.DirentOffset["C/Hamburg"]:], mimeDeleted)
+	a := openPath(t, zimtest.WriteBytes(t, data))
+	if a.titles.v1 {
+		t.Fatal("test needs the v0 list")
+	}
+	got, err := a.TitlePrefix("", 100)
+	if err != nil {
+		t.Fatalf("TitlePrefix() error = %v", err)
+	}
+	if len(got) != a.ArticleCount() {
+		t.Fatalf("TitlePrefix returned %d entries, want %d", len(got), a.ArticleCount())
+	}
+	deprecated := 0
+	for _, e := range got {
+		if e.kind == kindDeprecated {
+			deprecated++
+		}
+	}
+	if deprecated != 1 {
+		t.Fatalf("listed %d deprecated entries, want 1", deprecated)
+	}
+	if e, err := a.ArticleAt(3); err != nil || e.kind != kindDeprecated {
+		t.Fatalf("ArticleAt(3) = %+v, %v; want the deprecated entry", e, err)
+	}
+
+	// The namespace check still applies to v0: a pointer into X/ is corrupt.
+	binary.LittleEndian.PutUint32(data[layout.TitlePtrPos+4*3:], layout.EntryIndex["X/fulltext/xapian"])
+	a = openPath(t, zimtest.WriteBytes(t, data))
+	_, err = a.ArticleAt(3)
+	wantErr(t, err, ErrCorrupt)
+}
