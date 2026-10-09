@@ -156,3 +156,29 @@ func TestLiveAuthorizationIntersectsDockerHostAccess(t *testing.T) {
 		})
 	}
 }
+
+func TestLiveAuthorizationIntersectsAgentAccess(t *testing.T) {
+	for _, tc := range []struct {
+		name                   string
+		initial, current, want bool
+	}{
+		{"revoked during run", true, false, false},
+		{"granted during run stays denied", false, true, false},
+		{"unchanged grant", true, true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			initial := &config.Config{}
+			initial.LocalWikipedia.Enabled = true
+			initial.LocalWikipedia.AgentAccess = tc.initial
+			initial.Go2RTC.AgentAccess = tc.initial
+			current := *initial
+			current.LocalWikipedia.AgentAccess = tc.current
+			current.Go2RTC.AgentAccess = tc.current
+			initial.AuthorizationSnapshots = func() (*config.Config, *config.Config) { return initial, &current }
+			actual, ok := dispatchAuthorization(initial)
+			if !ok || actual.LocalWikipedia.AgentAccess != tc.want || actual.Go2RTC.AgentAccess != tc.want {
+				t.Fatalf("AgentAccess = %v/%v (ok=%v), want %v", actual.LocalWikipedia.AgentAccess, actual.Go2RTC.AgentAccess, ok, tc.want)
+			}
+		})
+	}
+}

@@ -36,7 +36,7 @@ func intersectAuthorizationFields(dst, current, baseline reflect.Value) bool {
 		name := field.Name
 		// Config's policy naming contract covers both legacy readonly spellings.
 		restriction := name == "ReadOnly" || name == "Readonly"
-		grant := name == "Enabled" || strings.HasPrefix(name, "Allow") || name == "SudoEnabled" || name == "SudoUnrestricted"
+		grant := name == "Enabled" || strings.HasPrefix(name, "Allow") || name == "AgentAccess" || name == "SudoEnabled" || name == "SudoUnrestricted"
 		compound := strings.Contains(name, "Allowed") || strings.HasPrefix(name, "Blocked") || strings.HasPrefix(name, "Denied") || strings.Contains(name, "Allowlist") || strings.Contains(name, "Blocklist") || name == "Permissions" || name == "ExportedTools"
 		if compound && !reflect.DeepEqual(original.Interface(), b.Interface()) {
 			return false
