@@ -1118,7 +1118,7 @@ local_wikipedia:
     update_check: true        # daily catalog check; updates still need a click
 ```
 
-Changing `language` or `variant` never starts a download; the status reports that the selection differs from the installed edition. A custom `data_dir` must be absolute, writable by the AuraGo service (systemd `ReadWritePaths`) and not a system or program directory; saving such a path is refused. There are no Vault keys. See [Local Wikipedia](../../local-wikipedia.md).
+Changing `language` or `variant` never starts a download; the status reports that the selection differs from the installed edition. A custom `data_dir` must be absolute and must not be a system directory or AuraGo's data directory itself (saving such a path is refused); it must also be writable by the AuraGo service, e.g. via systemd `ReadWritePaths` (checked on Install: `data_dir_invalid`). There are no Vault keys. See [Local Wikipedia](../../local-wikipedia.md).
 
 ## Compact YAML Reference
 

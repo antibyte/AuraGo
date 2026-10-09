@@ -769,7 +769,7 @@ local_wikipedia:
   update_check: true        # tägliche Katalogprüfung; Updates nur per Klick
 ```
 
-Eine Änderung von `language` oder `variant` startet nie einen Download; der Status meldet, dass die Auswahl von der installierten Ausgabe abweicht. Ein eigenes `data_dir` muss absolut sein, für den AuraGo-Dienst beschreibbar (systemd `ReadWritePaths`) und kein System- oder Programmverzeichnis; ein solcher Pfad wird beim Speichern abgelehnt. Es gibt keine Vault-Schlüssel. Details: [Local Wikipedia](../../local-wikipedia.md).
+Eine Änderung von `language` oder `variant` startet nie einen Download; der Status meldet, dass die Auswahl von der installierten Ausgabe abweicht. Ein eigenes `data_dir` muss absolut sein und darf weder ein System- oder Programmverzeichnis noch AuraGos Datenverzeichnis selbst sein (sonst wird das Speichern abgelehnt). Dass der AuraGo-Dienst dort schreiben darf (systemd `ReadWritePaths`), prüft AuraGo erst beim Installieren (`data_dir_invalid`). Es gibt keine Vault-Schlüssel. Details: [Local Wikipedia](../../local-wikipedia.md).
 
 ---
 

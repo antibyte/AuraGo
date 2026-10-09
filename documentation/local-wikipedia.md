@@ -27,7 +27,8 @@ clicks **Install**.
 
 Sizes from the Kiwix catalog on 9 October 2026, in decimal gigabytes as Kiwix
 rounds them. Kiwix publishes new editions every few months, so the config page
-shows the exact size of the current edition before you install.
+shows the size of the current edition before you install (approximate until
+Install reads the exact size from Kiwix's metalink).
 
 | Language | Without media (`nopic`) | With media (`maxi`) | Articles |
 |---|---:|---:|---:|
@@ -68,7 +69,7 @@ shows **Title search only** and the status carries `fulltext_unsupported`.
 1. Open **Config** and select **Local Wikipedia** in the **Agent Tools** group of
    the sidebar (or search for it). Turn on **Enable Local Wikipedia**, pick the
    **Language** and the **Variant**, and click **Save**.
-2. The info box shows the selected edition (date, exact size, article count)
+2. The info box shows the selected edition (date, size, article count)
    and the free space at the target directory.
 3. Click **Install** and confirm. The download runs in the background with a
    progress bar (percent, rate, remaining time); you can close the page.
@@ -87,18 +88,23 @@ FUSE file systems), the dialog asks for an explicit confirmation.
 - HTTPS only. A redirect to plain HTTP, to a URL with credentials or to a local
   host is refused, and AuraGo does not connect to mirror addresses that resolve to
   loopback, private, link-local or other local networks (checked on the address
-  of every connection attempt).
+  of every connection attempt). Behind a proxy from the environment
+  (`HTTPS_PROXY` and friends) the proxy resolves the mirror, so only the URL and
+  redirect checks apply.
 - The edition size comes from the metalink and must not exceed 1 TiB. The file
   is hashed with SHA-256 while it downloads.
-- Mirrors are tried in the order of the metalink; Kiwix's load balancer is the
-  last resort. Every connection has a two-minute stall watchdog. A round that
-  makes progress simply repeats, a round without progress ends the download as
-  `download_failed` (state **Download interrupted**, partial file kept).
-- If every mirror refuses to continue the partial file (they answer *range not
-  satisfiable* or ignore the range request) in two rounds in a row, AuraGo starts
-  over into `<name>.zim.part.restart`. That file replaces the partial download only
-  once it holds more bytes, so the progress never shrinks. The restart needs the
-  space for a second copy, which AuraGo counts exactly.
+- Mirrors are tried in the metalink's priority order (at most 15); Kiwix's load
+  balancer is the last resort. Every connection has a two-minute stall watchdog.
+  A round that makes progress simply repeats, a round without progress ends the
+  download as `download_failed` (state **Download interrupted**, partial file
+  kept).
+- If no mirror makes progress and at least one can only send the whole file (it
+  answers *range not satisfiable* or ignores the range request) in two rounds in
+  a row, 30 seconds apart, AuraGo starts over into `<name>.zim.part.restart`.
+  That file replaces the partial download only once it holds more bytes, so the
+  partial file never shrinks (the progress bar starts again from zero
+  meanwhile). The restart needs the space for a second copy, which AuraGo counts
+  exactly.
 - A mismatch of the SHA-256 deletes the partial file (`checksum_mismatch`).
 
 **Cancel and resume.** **Cancel download** keeps the partial download
@@ -107,33 +113,37 @@ data**) and then continues where it stopped. After an AuraGo restart an unfinish
 download shows **Download interrupted**; nothing resumes on its own.
 
 **Updates.** With **Check daily for a newer edition** on and an edition installed,
-AuraGo asks the Kiwix catalog about two minutes after it starts and then once a
-day; **Check for updates** asks right away. A newer edition of the same language
-and variant shows up on the config page, as a **New edition** hint on the
-dashboard badge and as a banner in the desktop app. **Update** uses the same flow
-as Install. The old edition stays usable until the new one is verified, so you
-need room for both. If there is room for only one, AuraGo asks whether it may
-delete the old edition first; Wikipedia is then offline until the new download is
-finished.
+AuraGo checks at most once a day: two minutes after it starts, and then every
+hour, it looks whether the last check (or the install) is 24 hours old and only
+then asks the Kiwix catalog. Nothing is asked while a download runs. **Check for
+updates** asks right away. A newer edition of the same language and variant shows
+up on the config page, as a **New edition** hint on the dashboard badge and as a
+banner in the desktop app. **Update** uses the same flow as Install. The old
+edition stays usable until the new one is verified, so you need room for both. If
+there is room for only one, AuraGo asks whether it may delete the old edition
+first; Wikipedia is then offline until the new download is finished.
 
-**A failed install, resume or update never takes a working edition away.** The
-status stays **Ready** (`readable` is still true) and carries the `error_code` of
-the failed operation until you start the next one. The same holds for
-`interrupted` while an installed edition is open.
+**A failed install, resume or update never takes a working edition away**,
+unless you allowed AuraGo to delete the old edition first. `readable` stays true;
+the state is **Ready** (after `checksum_mismatch` or `zim_unreadable`) or
+**Download interrupted** (after `download_failed`, `insufficient_disk_space` or
+**Cancel download**), and `error_code` names the failure (a cancel sets none)
+until the next operation starts.
 
 **Changing language or variant** never starts a download. The status shows that
 your selection differs from the installed edition, and **Install** replaces it
 under the same rules.
 
 **Delete edition** (with confirmation) removes the ZIM file, any partial download
-and the state files. It is refused while a download is running.
+and the state files. It is refused (`busy`) while a download is running or the
+storage directory is still being loaded.
 
 ## Where the files live
 
 | Installation | Directory | Notes |
 |---|---|---|
-| Native Linux, Windows, macOS | `<data_dir>/wikipedia` by default (for example `/home/aurago/aurago/data/wikipedia`), or an absolute directory you choose under **Storage directory** | Must be absolute and writable, not a system or program directory, and not AuraGo's own data directory itself (use a subfolder). |
-| Native Linux with the AuraGo systemd service | same | The unit from `install_service_linux.sh` uses `ProtectSystem=strict` and only lets AuraGo write below its install directory (`ReadWritePaths`). To use another disk, mount it below the install directory, or add it with `sudo systemctl edit aurago` (`[Service]` and `ReadWritePaths=/mnt/wiki`) and restart. Otherwise the install fails with `data_dir_invalid`. |
+| Native Linux, Windows, macOS | `<data_dir>/wikipedia` by default (for example `/home/aurago/aurago/data/wikipedia`), or an absolute directory you choose under **Storage directory** | Must be absolute, not a system or program directory and not AuraGo's own data directory itself (use a subfolder); saving anything else is refused. Whether AuraGo can write there is checked when you click Install (`data_dir_invalid`). |
+| Native Linux with the AuraGo systemd service | same | The unit generated by `install_service_linux.sh` uses `ProtectSystem=strict` and only lets AuraGo write below its install directory (`ReadWritePaths`). To use another disk, mount it below the install directory, or add it with `sudo systemctl edit aurago` (`[Service]` and `ReadWritePaths=/mnt/wiki`) and restart. Otherwise the install fails with `data_dir_invalid`. This applies to the default unit only: the installer leaves `ProtectSystem=strict` out when `sudo_unrestricted` is on. |
 | Docker | `/app/data/wikipedia` inside the `aurago_data` volume | Fixed; the config field is read-only. Make sure the disk that holds Docker's volumes has room (`docker system df -v`). |
 
 **Refused directories.** The check looks at the path as written and at where it
@@ -163,29 +173,52 @@ Files in that directory:
   files still waiting for deletion.
 - `download.json` — resume data: URL, mirrors, size, SHA-256 and target name.
 
-AuraGo only ever deletes files it knows from `state.json` or `download.json`, and
-only ZIM files that follow Kiwix's naming scheme. Other files in the directory
-are left alone. After replacing an edition the old file is deleted once the last
-reader has released it. Windows refuses to delete a file that is still open, so
-AuraGo keeps the name in `state.json` and retries after loads and once an hour.
+AuraGo only ever deletes files it knows from `state.json` or `download.json`,
+plus partial downloads (`.zim.part`, `.zim.part.restart`) of Kiwix-named
+editions, and only ZIM files that follow Kiwix's naming scheme. Other files in
+the directory are left alone; the probe file mentioned above
+(`.aurago-write-check-*`) is removed again right away. After replacing an
+edition the old file is deleted once the last reader has released it. Windows
+refuses to delete a file that is still open, so AuraGo keeps the name in
+`state.json` and retries after loads and once an hour.
 
 There is nothing to back up: an edition can always be downloaded again.
 
 ## The agent tool
 
-The `local_wikipedia` tool appears when the integration is on, **Agent may use
+The `local_wikipedia` tool exists when the integration is on, **Agent may use
 Local Wikipedia** is on and an edition is installed and readable. It is
 read-only.
 
-- `search` — `query` (required) and `limit` (1–10, default 5). Returns the
-  edition (language, variant, date), whether full-text search is available, and
-  the results (title, path, snippet). The top three results also carry the lead
-  section as Markdown (at most 2,000 characters).
+**When the agent gets it.** With adaptive tool selection (the default,
+`agent.adaptive_tools.enabled`) the agent does not receive every tool in every
+request:
+
+- The tool is added when the request mentions Wikipedia, an encyclopedia
+  (*Lexikon*, *Enzyklopädie*, *encyclopedia*) or Kiwix. It is an addition: it
+  never pushes another tool out. When the tool limit
+  (`agent.adaptive_tools.max_total_tools` or the schema token budget) leaves no
+  room, it may take the place of a selected `wikipedia_search`, unless your
+  message names the online Wikipedia (`wikipedia_search`, "online Wikipedia",
+  `wikipedia.org`); otherwise it is skipped for that request.
+- If you listed `local_wikipedia` under `agent.adaptive_tools.always_include`, or
+  the agent already used it in the session or requested it via `discover_tools`,
+  it stays available.
+- For any other request the agent finds it through `discover_tools`.
+
+**Operations.**
+
+- `search` — `query` (required, at most 200 characters and 16 words) and `limit`
+  (1–10, default 5). Returns the edition (language, variant, date), whether
+  full-text search is available, and the results (title, path, snippet). The top
+  three results also carry the lead section as Markdown (at most 2,000
+  characters).
 - `read` — `title` or `path`, optionally `section` (heading text or index) and
   `offset`. Returns the article as Markdown in chunks of at most 8,000 characters,
-  the list of sections and `next_offset` for the next chunk. Infoboxes become
-  key-value lists, tables become Markdown tables (at most 50 rows), and reference
-  lists, navigation boxes and edit links are removed.
+  the list of sections (at most 100; `sections_total` says how many there are)
+  and `next_offset` for the next chunk. Infoboxes become key-value lists, tables
+  become Markdown tables (at most 50 rows), and reference lists, navigation boxes
+  and edit links are removed.
 
 Tool output is marked as external data, like web content. The agent is told to
 prefer `local_wikipedia` over the online `wikipedia_search` tool and web search for
@@ -230,7 +263,7 @@ POST /api/local-wikipedia/install                  # 202; {"replace_mode":"keep_
 POST /api/local-wikipedia/cancel                   # keeps the partial download
 POST /api/local-wikipedia/delete                   # removes ZIM, partial download and state
 POST /api/local-wikipedia/check-update             # asks the catalog now, answers the status
-GET  /api/desktop/local-wikipedia/status           # state, progress (0..1), edition, fulltext, update_available, error_code, can_manage
+GET  /api/desktop/local-wikipedia/status           # state, progress (0..1), edition, fulltext, readable, loading, update_available, error_code, can_manage
 GET  /api/desktop/local-wikipedia/suggest?q=       # up to 10 titles
 GET  /api/desktop/local-wikipedia/search?q=&limit= # up to 30 results (default 20)
 GET  /api/desktop/local-wikipedia/random
@@ -238,8 +271,10 @@ GET  /api/desktop/local-wikipedia/main
 GET  /api/desktop/local-wikipedia/content/{path}   # original ZIM content with Range and ETag
 ```
 
-The administrator routes need an administrator session or Bearer token, answer
-`Cache-Control: no-store`, and POSTs from a browser session must be same-origin.
+The administrator routes need an administrator session or a Bearer token with the
+`admin` scope (`403 admin_required` otherwise), answer `Cache-Control: no-store`,
+and POSTs from a browser session must be same-origin (cross-origin POSTs answer
+`403 csrf_check_failed`). The wrong method answers 405.
 `catalog?lang=` defaults to the system language and answers `{"language","fulltext",
 "variants":{"nopic":{…},"maxi":{…}}}` with name, date, approximate size, article
 count and metalink URL per variant. The install body is one JSON object of at most
@@ -247,8 +282,8 @@ count and metalink URL per variant. The install body is one JSON object of at mo
 `confirm_unknown_space` answers the unknown-free-space question. Success is
 `202 {"status":"accepted"}`; cancel answers `{"status":"cancelled"}` and delete
 `{"status":"deleted"}`. Content paths are names inside the ZIM file, never
-file-system paths. HTML content is sent with a sandboxing Content-Security-Policy
-that forbids scripts.
+file-system paths. Every content answer (any MIME type, redirects and error
+pages) carries a sandboxing Content-Security-Policy that forbids scripts.
 
 **Status.** `GET /api/local-wikipedia/status` answers `state`
 (`not_installed`, `downloading`, `verifying`, `ready`, `interrupted`, `error`),
@@ -266,7 +301,10 @@ clients:
 - `loading` is true for the moment after AuraGo starts in which the storage
   directory is read for the first time (longer on a slow or hung network share).
   The state is then `not_installed`, `readable` is false, `error_code` is `busy`,
-  and install and delete answer `busy`. Poll until `loading` is false.
+  and install and delete answer `busy`. It is also true while a changed storage
+  directory loads; the previous edition stays served and described meanwhile
+  (`state`, `edition` and `readable` do not change). Poll until `loading` is
+  false.
 
 **Errors.** Refusals have the form `{"error","error_code","recommendation"}`
 and never contain paths or host names:
@@ -276,9 +314,33 @@ and never contain paths or host names:
 | 409 | `busy`, `disabled`, `free_space_unknown`, `already_installed`, `no_operation` |
 | 422 | `insufficient_disk_space` (also `required_bytes`, `free_bytes`, `can_delete_old`), `data_dir_invalid` |
 | 502 | `catalog_unreachable` |
-| 400 | `unknown_language`, `invalid_request` |
-| 503 | `localwiki_unavailable` (no manager) |
+| 400 | `unknown_language` (the language is not offered), `invalid_request` (unknown `replace_mode`, unknown field, trailing data or a body above 16 KiB) |
+| 503 | `localwiki_unavailable` (no manager; see the AuraGo log) |
 | 500 | `localwiki_error` (see the AuraGo log) |
+
+Three refusals come from the layers in front and have a smaller body:
+`403 {"error":"admin_required",…}` (Bearer token without the `admin` scope),
+`403 {"error":"csrf_check_failed"}` (cross-origin POST) and
+`405 {"error":"Method not allowed"}`.
+
+**Desktop API errors** have another shape, `{"error": <message>, "code": <code>}`,
+and the codes below. `random` and `main` answer `{"title","path"}`; a ZIM
+redirect on the content route answers 302.
+
+| HTTP | `code` |
+|---|---|
+| 503 | `desktop_unavailable` (Virtual Desktop off), `disabled` (also `can_manage`), `unavailable` (no manager), `busy` (all four search slots taken; `Retry-After: 1`), `request_cancelled` |
+| 409 | `not_ready` (no readable edition, or the first load is still running) |
+| 400 | `query_too_long` (above 200 characters or 16 words), `query_empty`, `bad_limit` |
+| 504 | `timeout` (the search took too long) |
+| 500 | `search_failed`, `lookup_failed` |
+| 404 | `not_found` (also an unknown route or article) |
+| 405 | `method_not_allowed` (GET and HEAD only) |
+
+Errors on the content route are small, framable HTML pages instead of JSON; they
+carry the marker `<meta name="aurago-local-wikipedia-error" content="…">` with the
+code: `not_found`, `content_failed` (500), `not_ready`, `disabled`, `unavailable`,
+`desktop_unavailable` or `method_not_allowed`.
 
 ## Troubleshooting
 
@@ -287,20 +349,48 @@ and never contain paths or host names:
 | `insufficient_disk_space` | Not enough free space; the status shows the required and available bytes. | Free space, choose *without media*, or pick another directory. For updates, let AuraGo delete the old edition first. |
 | `free_space_unknown` | AuraGo cannot measure free space at the target (some network or FUSE file systems). | Confirm in the dialog if you are sure there is room, or use a local disk. |
 | `checksum_mismatch` | The download does not match Kiwix's SHA-256; the partial file was deleted. | Install again. If it repeats, check proxies, antivirus and the disk. |
-| `download_failed` | All mirrors failed; the state is `interrupted`. | Check internet access, DNS and the firewall for the hosts below, then **Resume**. |
-| `catalog_unreachable` | The Kiwix catalog cannot be reached. An installed edition keeps working. | Retry later; check access to `opds.library.kiwix.org`. |
+| `download_failed` | All mirrors failed, or AuraGo could not write one of its files (partial download, `download.json`, `state.json`); the state is `interrupted`. If only the `state.json` write failed, the verified download is kept as `.part`, so Resume only re-hashes it. | Check internet access, DNS and the firewall for the hosts below, then **Resume**. For a local write error the AuraGo log (`[LocalWikipedia]`, WARN) names the file; check permissions and free space. |
+| `catalog_unreachable` | The Kiwix catalog or metalink cannot be used. An installed edition keeps working. Besides no connection: Kiwix offers no edition of that variant for the language (the config page says *Kiwix offers no edition for this selection*); an answer takes longer than 30 seconds or is larger than 1 MiB (catalog) or 8 MiB (metalink); the metalink is not on a `*.kiwix.org` host, has no size or SHA-256, or claims more than 1 TiB. | Retry later; check access to `opds.library.kiwix.org` and `download.kiwix.org` (and your proxy). For the other causes pick another variant or language and read the AuraGo log. |
 | `zim_unreadable` | With an installed edition and `readable` false: the file cannot be opened (damaged, truncated or unsupported), the tool is hidden. After an install: the downloaded file could not be read and was removed. | In the first case **Delete edition** and install again; in the second just install again. |
-| `state_unreadable` | The state file `state.json` in the storage directory cannot be read (damaged or invalid), so AuraGo cannot tell which files belong to the installed edition. It touches nothing and offers no edition. | Check the AuraGo log for the reason. AuraGo does not repair the file: stop AuraGo, move the damaged `state.json` out of the storage directory (and delete old `.zim` files you no longer need), start AuraGo and install again. |
+| `state_unreadable` | The state file `state.json` in the storage directory cannot be read (damaged or invalid), so AuraGo cannot tell which files belong to the installed edition. It touches nothing and offers no edition. | Check the AuraGo log for the reason, then click **Delete edition** (removes `state.json`, `download.json` and partial downloads) or **Install** again (replaces `state.json` once the new edition is verified). Neither deletes the old `.zim` file; remove leftover `wikipedia_*.zim` files by hand to free the space. |
 | `fulltext_unsupported` | The edition has no usable full-text index; title search still works. This is a warning. | Nothing to do. Newer index formats may need a newer AuraGo. |
 | `already_installed` | The newest catalog edition of your selection is already installed. | Nothing to do; choose another language or variant to replace it. |
 | `busy` | Another download, verification or delete is running, or AuraGo is still loading the storage directory after its start. | Wait, or cancel the running operation. |
 | `disabled` | The integration is off or the change is not saved. | Turn it on and **Save**. |
-| `data_dir_invalid` | The directory is not absolute, not writable or a system or program directory. | Choose another directory; see the systemd note above. In Docker the directory is fixed. |
+| `data_dir_invalid` | The directory is not absolute, not writable or a system or program directory. The status shows it whenever the configured directory fails the check, even while idle. | Choose another directory; see the systemd note above. In Docker the directory is fixed. |
+| `no_operation` | Cancel was called while no download was running (409), for example because the page was out of date. | Reload the page. |
+| `unknown_language`, `invalid_request` | 400: the language is not offered, or the install body has an unknown `replace_mode`, an unknown field, trailing data or more than 16 KiB. | Reload the page and select an offered language; for API calls fix the request. |
+| `localwiki_unavailable` | 503: this AuraGo process has no Local Wikipedia manager (not expected in a normal installation). | Restart AuraGo; if it repeats, read the log from the start and report it. |
+| `localwiki_error` | 500: an unexpected failure of a request, most often **Delete** when a file cannot be removed (permissions, a file in use, an unreachable share) or `state.json` cannot be updated. | The AuraGo log has the real error (`[LocalWikipedia] Request refused`). |
+| `admin_required`, `csrf_check_failed` | 403: the Bearer token lacks the `admin` scope, or a POST came from another origin. A wrong method answers 405. | Use an administrator session or a token with the `admin` scope; send POSTs from the AuraGo page itself. |
+
+**Desktop app and agent tool.** The Wikipedia app and the desktop API use the
+codes listed under *Desktop API errors* above. The agent tool answers with a
+`status` and a `code`: `local_wikipedia_disabled` (`policy_denied`: the
+integration or agent access is off), `local_wikipedia_not_installed`
+(`needs_setup`: nothing is installed, or the edition is still loading),
+`edition_unavailable` (the edition is being replaced; retry), `busy`, `timeout`,
+`article_not_found`, `article_unavailable`, `section_not_found`,
+`invalid_request`, `local_wikipedia_failed` (the edition could not answer, for
+example a damaged file) and `cancelled`.
+
+**Files from another version.** A `state.json` or `download.json` written by a
+newer AuraGo is ignored (and logged): after a downgrade the edition shows *No
+edition installed* while its `.zim` file stays on disk. Update AuraGo again or
+delete the files by hand. A `download.json` AuraGo cannot read is ignored too;
+**Install** then looks the edition up again instead of resuming from the saved
+mirror list, and a leftover `.zim.part` of the same edition is still continued.
+
+**Logs.** All messages carry the prefix `[LocalWikipedia]`. Refused requests with
+the codes `localwiki_error`, `catalog_unreachable` and `data_dir_invalid` are
+logged at WARN, other refusals at DEBUG.
 
 **Install** stays disabled while the config page has unsaved changes: save first.
-Download speed depends on the mirror Kiwix's load balancer picks; a resumed
-download continues from the same mirror if it can, and AuraGo does not limit
-bandwidth.
+Download speed depends on the mirrors Kiwix's metalink ranks first (the load
+balancer is the last resort); a resumed download continues from the same mirror
+if it can, and AuraGo does not limit bandwidth. A proxy from the environment
+(`HTTPS_PROXY` and `NO_PROXY`) is used for the catalog, the metalink and the
+downloads; the proxy must allow the hosts below.
 
 ## Privacy and network
 
@@ -318,7 +408,9 @@ HTTPS (redirects to plain HTTP are refused), and only to:
   `wi.mirror.driftle.ss` and `dumps.wikimedia.org` (the list changes).
 
 No account, no API key, no telemetry. Turn the update check off to stop the daily
-catalog request. For a firewall allowlist, use the hosts above.
+catalog request. For a firewall allowlist, use the hosts above. If AuraGo sits
+behind a proxy, set `HTTPS_PROXY` in AuraGo's environment; the proxy then resolves
+the mirrors.
 
 ## Licenses
 
@@ -337,7 +429,8 @@ catalog request. For a firewall allowlist, use the hosts above.
   libzim and Xapian sources were only used to understand the file formats. The Go
   libraries involved (`klauspost/compress`, `ulikunitz/xz`,
   `blevesearch/snowballstem`, `golang.org/x/text`) are listed in
-  [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
+  [`THIRD_PARTY_LIBRARIES.md`](../THIRD_PARTY_LIBRARIES.md); the first three also
+  in [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
 
 ## Limits
 
@@ -346,7 +439,9 @@ catalog request. For a firewall allowlist, use the hosts above.
 - Keyword and title search only, no semantic search.
 - Articles keep Wikipedia's light style; there is no dark mode for article pages.
 - No bandwidth limit, and no Kiwix server for the rest of your LAN.
-- Reading needs little memory: at most 64 MiB of decompressed data are cached,
-  and at most four searches run at once with a five-second limit each.
+- Reading needs little memory: about 100 MiB of caches (64 MiB of decompressed
+  clusters, 32 MiB of rendered articles, 4 MiB per search index). At most four
+  searches, suggestions or reads run at once, with five seconds each including
+  the wait.
 - A future Kiwix index format may fall back to title search until AuraGo
   supports it.

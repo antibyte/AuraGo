@@ -2765,7 +2765,7 @@ POST /api/local-wikipedia/install                  # 202; {"replace_mode":"keep_
 POST /api/local-wikipedia/cancel                   # keeps the partial download
 POST /api/local-wikipedia/delete                   # removes ZIM, partial download and state
 POST /api/local-wikipedia/check-update
-GET  /api/desktop/local-wikipedia/status           # state, progress (0..1), edition, fulltext, update_available, error_code, can_manage
+GET  /api/desktop/local-wikipedia/status           # state, progress (0..1), edition, fulltext, readable, loading, update_available, error_code, can_manage
 GET  /api/desktop/local-wikipedia/suggest?q=       # up to 10 titles
 GET  /api/desktop/local-wikipedia/search?q=&limit= # up to 30 results (default 20)
 GET  /api/desktop/local-wikipedia/random
@@ -2773,7 +2773,7 @@ GET  /api/desktop/local-wikipedia/main
 GET  /api/desktop/local-wikipedia/content/{path}   # original ZIM content with Range and ETag
 ```
 
-Refusals answer `{"error","error_code","recommendation"}` without paths or host names: 409 for `busy`, `disabled`, `free_space_unknown`, `already_installed` and `no_operation`; 422 for `insufficient_disk_space` (with `required_bytes`, `free_bytes`, `can_delete_old`) and `data_dir_invalid`; 502 for `catalog_unreachable`; 400 for `unknown_language` and `invalid_request`. `GET /api/local-wikipedia/status` reports `readable` (an installed edition is open and served; use it rather than `state` to decide whether content is available) and `loading` (the first load after startup is still running; poll until it is false). HTML content carries a sandboxing Content-Security-Policy without scripts. See [Local Wikipedia](../../local-wikipedia.md).
+Administrator routes need a session or a Bearer token with the `admin` scope (403 `admin_required` otherwise); a cross-origin POST without a Bearer token answers 403 `csrf_check_failed`, a wrong method 405. Refusals answer `{"error","error_code","recommendation"}` without paths or host names: 409 for `busy`, `disabled`, `free_space_unknown`, `already_installed` and `no_operation`; 422 for `insufficient_disk_space` (with `required_bytes`, `free_bytes`, `can_delete_old`) and `data_dir_invalid`; 502 for `catalog_unreachable`; 400 for `unknown_language` and `invalid_request`; 503 for `localwiki_unavailable`; 500 for `localwiki_error`. `GET /api/local-wikipedia/status` reports `readable` (an installed edition is open and served; use it rather than `state` to decide whether content is available) and `loading` (the first load after startup or a changed storage directory is still running; the previous edition stays served meanwhile; poll until it is false). Desktop routes answer errors as `{"error","code"}`, for example `not_ready` (409), `busy` (503 with `Retry-After`), `timeout` (504), `query_too_long` (400) and `not_found` (404); errors on the content route are small HTML pages with an `aurago-local-wikipedia-error` meta marker. Every content answer carries a sandboxing Content-Security-Policy without scripts. The full code list is in [Local Wikipedia](../../local-wikipedia.md).
 
 ## SSE Events
 

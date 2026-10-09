@@ -28,15 +28,15 @@ Through the root routing table this contract also binds `internal/tools/local_wi
 - Pure Go only: no Docker, no kiwix-serve, no CGO, no runtime downloads besides the catalog, the `.meta4` and the edition. `CGO_ENABLED=0` builds of `./internal/zim/...` and `./internal/localwiki/...` for linux/amd64, linux/arm64, linux/arm, windows/amd64 and darwin/arm64 must pass. ZIM offsets stay `int64` and reads use `ReadAt`, so 32-bit ARM works.
 - Exactly one edition at a time: the 16 AuraGo UI languages mapped to Kiwix `wikipedia_<code>_all` names (`no` maps to Kiwix `nb`), variants `nopic` and `maxi` only. Changing language or variant never starts a download; status reports `selection_matches_installed: false`.
 - Network: HTTPS only, to `opds.library.kiwix.org`, `download.kiwix.org` (including `lb.download.kiwix.org`) and the mirrors listed in the edition's `.meta4`; redirects to plain HTTP are refused. Searches, reads and content never leave the host. No secrets and no Vault keys.
-- Install, update, cancel, delete and the data directory are admin-only. Search, suggest, read, random, main and content need `desktop:read`. The agent tool is read-only and visible only when `enabled && agent_access` and an edition is open.
+- Install, update, cancel, delete and the data directory are admin-only. Search, suggest, read, random, main and content need `desktop:read`. The agent tool is read-only and exists only when `enabled && agent_access` and an edition is open; with adaptive tool selection a request gets it for an encyclopedia intent or via `discover_tools` (rules in `internal/agent/AGENTS.md`, "Non-displacing tools").
 - Disk: start only when `free ≥ (size − .part bytes) + max(1 GiB, 1 % of size)`; unknown free space needs `confirm_unknown_space`; re-check about every 1 GiB and pause with `insufficient_disk_space` before the disk fills. Updates keep the old edition online and need room for both unless the admin picks `delete_old_first`. Free space is read through `fileutil.FreeDiskBytes`, swappable via `Deps.FreeDiskBytes` in tests.
 - Integrity: the `.meta4` SHA-256 is computed while downloading; a resumed download re-hashes the existing `.part` first; a mismatch deletes `.part` (`checksum_mismatch`). The archive is opened (header with checksum position, main page; a missing or unsupported full-text index only disables full-text search) before it is published.
 - Publish: atomic rename through `internal/fileutil`, then `state.json`, then a refcounted reader swap: `Manager.Acquire` handles keep the old archive open until released, and the old file is deleted only after the swap.
 - No automatic resume: after a restart an unfinished download is `interrupted` and waits for an explicit Install/Resume. Updates are only checked (daily, with `update_check`) and hinted (config page, dashboard, desktop app), never installed automatically.
-- Docker: `data_dir` is forced to `<data_dir>/wikipedia` inside AuraGo's data mount. Native custom directories must be absolute, writable and not a sensitive system path (`data_dir_invalid` otherwise).
+- Docker: `data_dir` is forced to `<data_dir>/wikipedia` inside AuraGo's data mount. Native custom directories must be absolute, writable and not a sensitive system path (`data_dir_invalid` at Install; saving refuses only relative paths, system locations and AuraGo's data directory root).
 - Reader limits (cluster size, zstd window, cache size, redirect depth, fuzzing) are owned by `internal/zim/AGENTS.md`; the manager opens archives only through `OpenLibrary` (`zim.Open`) and maps every open failure (`zim.ErrUnsupported`, `zim.ErrCorrupt`, I/O errors, a missing main page) to `zim_unreadable`. A missing or unsupported full-text index degrades to title search (`fulltext: false`, `fulltext_unsupported` warning), never to an error.
 - Search limits: at most 4 concurrent searches, 5 s timeout, queries at most 200 characters and 16 terms. Tool output: leads of at most 2,000 characters for the top 3 hits, article chunks of at most 8,000 characters; every text field passes `security.IsolateExternalData`.
-- Content serving: paths are lookup keys in the content namespace (`C`, legacy `A`), never file-system paths. Responses use `http.ServeContent` (Range), an ETag derived from the ZIM UUID and the path, `Cache-Control: private, max-age=86400` and `X-Content-Type-Options: nosniff`; HTML carries the sandbox Content-Security-Policy with `script-src 'none'` so ZIM scripts can never call AuraGo APIs.
+- Content serving: paths are lookup keys in the content namespace (`C`, legacy `A`), never file-system paths. Responses use `http.ServeContent` (Range), an ETag derived from the ZIM UUID and the path, `Cache-Control: private, max-age=86400` and `X-Content-Type-Options: nosniff`; every content answer (any MIME type, redirects, error pages) carries the sandbox Content-Security-Policy with `script-src 'none'` so ZIM scripts can never call AuraGo APIs.
 - GPL hygiene: libzim, Xapian and Kiwix sources (GPL) may be read to understand formats; never copy their code. python-libzim and the Xapian tools run only in throwaway containers through `scripts/localwiki/fixtures/` to generate fixtures and golden JSON from self-authored text: dev tooling, never runtime or `go test`.
 - Content license: Wikipedia text (CC BY-SA 4.0) is never embedded in the binary and an edition is never committed; the only Wikipedia text in the repository are the two trimmed rendering test pages `internal/localwiki/testdata/render_*.html`, attributed in `THIRD_PARTY_NOTICES.md`. The tool manual makes the agent cite article and edition date.
 
@@ -103,8 +103,10 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   `recommendation`, `system_language`, `languages`.
 - `readable` is true while an installed edition is open and served, in every state. Clients decide whether
   Wikipedia content is available from `readable`, never from `edition != nil` or `state`. An edition that
-  is being served is never reported as `error`: a failed install, resume or update ends as `ready` (or
-  `interrupted`) with the failed operation's `error_code`, and `readable` stays true.
+  is being served is never reported as `error`: a failed install, resume or update ends as `ready`
+  (`checksum_mismatch`, `zim_unreadable`) or `interrupted` (`download_failed`, `insufficient_disk_space`,
+  Cancel) with the failed operation's `error_code` (a cancel sets none), and `readable` stays true.
+  `delete_old_first` is the exception: it detaches the old edition before the download starts.
 - Startup problems and operation problems are tracked apart: `loadCode` (why the load failed:
   `zim_unreadable` for an installed edition that cannot be opened, `state_unreadable` for a `state.json`
   that cannot be read) and `errCode` (why the last operation stopped). An operation's code outranks the
@@ -114,9 +116,9 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   says which one is installed), the state is `error` (`interrupted` when a `download.json` exists), and
   `Install` or `Delete` replace or remove the file. Clients derive their wording from `error_code`,
   `readable` and `edition`. `recommendation` is English only and never shown by the config UI.
-- `error_code` for an idle manager also covers `busy` (first load), `fulltext_unsupported` (informational:
-  ready without a full-text index) and `data_dir_invalid` (the configured directory fails the shape
-  check).
+- `error_code` for an idle manager also covers `busy` (first load or a storage-directory change being
+  loaded), `fulltext_unsupported` (informational: ready without a full-text index) and `data_dir_invalid`
+  (the configured directory fails the shape check, even while idle).
 - `Acquire` hands out the library only while `enabled` and a readable edition is loaded; callers release
   exactly once (extra releases are ignored). `libraryRef` closes a retired library after its last reader
   released it, then runs the after-close hook (deleting the retired file, which Windows refuses while open).
@@ -196,7 +198,9 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   a `download.json` of the installed edition: it and the partial files are dropped. A crash between the rename
   and the state write leaves a finished `<edition>.zim` that `state.json` does not name: it becomes the part
   file again, so "Resume" only re-hashes it. Without a readable `state.json` the directory is left as it is
-  and the code is `state_unreadable` (see "Manager lifecycle and status").
+  and the code is `state_unreadable` (see "Manager lifecycle and status"). An unreadable `download.json` is
+  logged and ignored: nothing is `interrupted`, and `Install` plans a new download (a part file of the same
+  edition is still continued).
 
 ### Updates
 
@@ -212,7 +216,9 @@ Through the root routing table this contract also binds `internal/tools/local_wi
 
 - `/api/local-wikipedia/{catalog,status,install,cancel,delete,check-update}`: `requireAdmin`, the prefix in
   `isAdminProtectedPath`, GET (catalog, status) and POST (rest), POSTs must be same-origin unless they carry
-  a Bearer token, `Cache-Control: no-store`. The install body is one JSON object (at most 16 KiB, no unknown
+  a Bearer token (403 `csrf_check_failed` otherwise; a Bearer token needs the `admin` scope, else 403
+  `admin_required`; a wrong method is 405; these three have a smaller body than the errors below),
+  `Cache-Control: no-store`. The install body is one JSON object (at most 16 KiB, no unknown
   fields) with `replace_mode` (`keep_old` default, `delete_old_first`) and `confirm_unknown_space`; success is
   `202 {"status":"accepted"}`. `catalog?lang=` defaults to the system language; an unknown language is 400.
   `check-update` answers the status.
@@ -224,7 +230,9 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   `free_space_unknown`, `checksum_mismatch`, `download_failed`, `catalog_unreachable`, `zim_unreadable`,
   `fulltext_unsupported` (warning), `busy`, `disabled`, `data_dir_invalid`, `already_installed`,
   `no_operation`, `unknown_language`, `localwiki_error`; the status alone also reports `state_unreadable`
-  (no request fails with it).
+  (no request fails with it). A file write that fails inside the background download (partial file,
+  `download.json`, `state.json`) ends as `download_failed`; `localwiki_error` is for requests, mostly
+  `Delete` (a file cannot be removed or `state.json` updated).
 - Config UI: the section derives every error text from `error_code` plus `readable` and `edition` with its
   own 16-locale strings (`config.local_wikipedia.error_*`, `help.local_wikipedia.*` in
   `ui/lang/config/local_wikipedia/`, German with "Du" and real umlauts) and never shows the server's
@@ -258,7 +266,9 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   fulltext, update_available, error_code) plus `can_manage` (browser session or `admin` bearer); never
   paths, file names, hashes or free space. Queries <= 200 runes with a 6 s deadline; suggest <= 10 refs,
   search default 20 and at most 30 hits, never leads; `query_too_long`/`query_empty`/`bad_limit` 400,
-  `busy` 503 (+ `Retry-After`), `timeout` 504, `search_failed` 500.
+  `busy` 503 (+ `Retry-After`), `request_cancelled` 503, `timeout` 504, `search_failed` and `lookup_failed`
+  500, `not_found` 404, `method_not_allowed` 405. Errors have the shape `{"error": message, "code": code}`;
+  errors of the content route are framable HTML pages with the `aurago-local-wikipedia-error` marker.
 - Content paths are lookup keys, never filesystem paths; a redirect answers 302 to the resolved path
   (dot and empty segments refused). Every content answer (blobs, redirects, the framable HTML error pages
   with the `aurago-local-wikipedia-error` marker) carries `localWikipediaContentCSP` (sandbox without
