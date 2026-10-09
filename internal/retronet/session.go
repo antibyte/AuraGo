@@ -132,7 +132,10 @@ func (m *Manager) sessionInSlot(ctx context.Context, e Entry, size Size, client 
 }
 
 // session dials e and serves it until it ends. The result carries no Code and Duration yet.
-func (m *Manager) session(ctx context.Context, e Entry, size Size, client Client) Result {
+func (m *Manager) session(parent context.Context, e Entry, size Size, client Client) Result {
+	ctx, cancel := context.WithTimeoutCause(parent, m.maxDuration(), errSessionTooLong)
+	defer cancel()
+
 	conn, target, err := m.Dialer.DialEntry(ctx, e)
 	if err != nil {
 		return Result{Reason: endReason(ctx, ReasonOf(err)), Target: target}
@@ -176,6 +179,13 @@ func (m *Manager) maxSessions() int {
 		return m.MaxSessions
 	}
 	return defaultMaxSessions
+}
+
+func (m *Manager) maxDuration() time.Duration {
+	if m.MaxDuration > 0 {
+		return m.MaxDuration
+	}
+	return defaultMaxDuration
 }
 
 // sessionSize clamps the browser size like the WebSocket handler (cols 20-400, rows 5-200,

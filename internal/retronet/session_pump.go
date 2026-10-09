@@ -49,9 +49,9 @@ func (w sessionWriter) write(p []byte) error {
 }
 
 // pump moves bytes between src and the browser until the session ends and returns the
-// reason. The reader goroutine reuses one buffer: it waits until the pump has handled a chunk
-// before reading the next one. src is closed and the reader goroutine has exited when pump
-// returns.
+// reason. Only user input (Data events) resets the idle timer. The reader goroutine reuses
+// one buffer: it waits until the pump has handled a chunk before reading the next one. src is
+// closed and the reader goroutine has exited when pump returns.
 func (m *Manager) pump(ctx context.Context, client Client, src io.ReadCloser, stats *sessionStats, h pumpHandlers) string {
 	readCtx, stopRead := context.WithCancel(ctx)
 	reads := make(chan serviceRead)
@@ -64,11 +64,15 @@ func (m *Manager) pump(ctx context.Context, client Client, src io.ReadCloser, st
 		wg.Wait()
 	}()
 
+	idle := time.NewTimer(m.idleTimeout())
+	defer idle.Stop()
 	events := client.Events()
 	for {
 		select {
 		case <-ctx.Done():
 			return cancelReason(context.Cause(ctx))
+		case <-idle.C:
+			return ReasonIdle
 		case r := <-reads:
 			if r.err != nil {
 				return endReason(ctx, ReasonRemoteClosed)
@@ -90,6 +94,7 @@ func (m *Manager) pump(ctx context.Context, client Client, src io.ReadCloser, st
 			// WebSocket read limit is 64 KiB); a service that never drains its socket ends the
 			// session as remote_closed.
 			if len(ev.Data) > 0 {
+				idle.Reset(m.idleTimeout())
 				if err := h.input(ev.Data); err != nil {
 					return endReason(ctx, ReasonRemoteClosed)
 				}
@@ -129,4 +134,12 @@ func readService(ctx context.Context, src io.Reader, out chan<- serviceRead, rel
 			return
 		}
 	}
+}
+
+// idleTimeout is how long a session may go without user input.
+func (m *Manager) idleTimeout() time.Duration {
+	if m.IdleTimeout > 0 {
+		return m.IdleTimeout
+	}
+	return defaultIdleTimeout
 }
