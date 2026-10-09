@@ -54,12 +54,12 @@ func New(opts Options) (*Service, error) {
 	}
 	db.SetMaxOpenConns(1)
 	var schemaVersion int
-	if err = db.QueryRow("PRAGMA user_version").Scan(&schemaVersion); err != nil || schemaVersion > 1 {
+	if err = db.QueryRow("PRAGMA user_version").Scan(&schemaVersion); err != nil || schemaVersion > 2 {
 		db.Close()
 		return nil, fmt.Errorf("unsupported Detective database version %d: %v", schemaVersion, err)
 	}
 	_, err = db.Exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
-CREATE TABLE IF NOT EXISTS detective_cases(id TEXT PRIMARY KEY, body BLOB NOT NULL, status TEXT NOT NULL, updated TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS detective_cases(id TEXT PRIMARY KEY, body BLOB NOT NULL, status TEXT NOT NULL, updated TEXT NOT NULL, active_ms INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS detective_continuations(case_id TEXT PRIMARY KEY REFERENCES detective_cases(id), body BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS detective_keys(case_id TEXT NOT NULL, key TEXT NOT NULL, run_id TEXT NOT NULL, PRIMARY KEY(case_id,key));
 CREATE TABLE IF NOT EXISTS detective_events(id INTEGER PRIMARY KEY AUTOINCREMENT, case_id TEXT NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL, at TEXT NOT NULL);
@@ -69,6 +69,27 @@ PRAGMA user_version=1;`)
 	if err != nil {
 		db.Close()
 		return nil, err
+	}
+	if schemaVersion < 2 {
+		var cols int
+		if err = db.QueryRow(`SELECT count(*) FROM pragma_table_info('detective_cases') WHERE name='active_ms'`).Scan(&cols); err != nil {
+			db.Close()
+			return nil, err
+		}
+		if cols == 0 {
+			if _, err = db.Exec(`ALTER TABLE detective_cases ADD COLUMN active_ms INTEGER NOT NULL DEFAULT 0`); err != nil {
+				db.Close()
+				return nil, err
+			}
+		}
+		if _, err = db.Exec(`UPDATE detective_cases SET active_ms = COALESCE(CAST(json_extract(body,'$.run.usage.active_ms') AS INTEGER), 0)`); err != nil {
+			db.Close()
+			return nil, err
+		}
+		if _, err = db.Exec(`PRAGMA user_version=2`); err != nil {
+			db.Close()
+			return nil, err
+		}
 	}
 	p := Profiles()
 	for k, v := range opts.Profiles {
@@ -155,13 +176,17 @@ func (s *Service) Profiles() map[string]Profile {
 
 func (s *Service) getLocked(key string) (Case, error) {
 	var b []byte
-	err := s.db.QueryRow("SELECT body FROM detective_cases WHERE id=?", key).Scan(&b)
+	var active int64
+	err := s.db.QueryRow("SELECT body, active_ms FROM detective_cases WHERE id=?", key).Scan(&b, &active)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Case{}, ErrNotFound
 	}
 	var c Case
 	if err == nil {
 		err = json.Unmarshal(b, &c)
+	}
+	if active > c.Run.Usage.ActiveMS {
+		c.Run.Usage.ActiveMS = active
 	}
 	return c, err
 }
@@ -172,7 +197,9 @@ func (s *Service) saveLocked(c *Case) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec("INSERT INTO detective_cases(id,body,status,updated) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,status=excluded.status,updated=excluded.updated", c.ID, b, c.Run.Status, c.UpdatedAt.Format(time.RFC3339Nano))
+	_, err = s.db.Exec(`INSERT INTO detective_cases(id,body,status,updated,active_ms) VALUES(?,?,?,?,?)
+ON CONFLICT(id) DO UPDATE SET body=excluded.body,status=excluded.status,updated=excluded.updated,active_ms=excluded.active_ms`,
+		c.ID, b, c.Run.Status, c.UpdatedAt.Format(time.RFC3339Nano), c.Run.Usage.ActiveMS)
 	return err
 }
 func (s *Service) Get(key string) (Case, error) {

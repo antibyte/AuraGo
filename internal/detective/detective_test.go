@@ -172,6 +172,56 @@ func TestEvidenceRejectsUnseenAndSearchOnlySources(t *testing.T) {
 	}
 }
 
+func TestHeartbeatDoesNotRewriteEvidence(t *testing.T) {
+	s := newTestService(t)
+	var clockMu sync.Mutex
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	s.now = func() time.Time { clockMu.Lock(); defer clockMu.Unlock(); return now }
+	c, err := s.Create(Request{Topic: "heartbeat", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	excerpt := strings.Repeat("quoted measurement 42 units. ", 1000)
+	s.mu.Lock()
+	c.Run = Run{ID: "run_heart", Status: "running", Profile: Profiles()["quick"], StartedAt: now}
+	c.Sources = []Source{{ID: "src_heart", Title: "Gauge", Status: "read", Excerpt: excerpt}}
+	if err = s.saveLocked(&c); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	var before int
+	if err = s.db.QueryRow("SELECT length(body) FROM detective_cases WHERE id=?", c.ID).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	x := &Session{service: s, CaseID: c.ID, last: now}
+	clockMu.Lock()
+	now = now.Add(2 * time.Second)
+	clockMu.Unlock()
+	if err = x.beat(); err != nil {
+		t.Fatal(err)
+	}
+	var after int
+	var active int64
+	var updated string
+	if err = s.db.QueryRow("SELECT length(body), active_ms, updated FROM detective_cases WHERE id=?", c.ID).Scan(&after, &active, &updated); err != nil {
+		t.Fatal(err)
+	}
+	if after != before || active != 2000 {
+		t.Fatalf("body %d->%d active_ms=%d", before, after, active)
+	}
+	got, err := s.Get(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Run.Usage.ActiveMS != 2000 || got.Sources[0].Excerpt != excerpt {
+		t.Fatalf("overlay lost evidence or time: active=%d excerpt=%d", got.Run.Usage.ActiveMS, len(got.Sources[0].Excerpt))
+	}
+	if got.UpdatedAt.Format(time.RFC3339Nano) != updated {
+		t.Fatal("heartbeat changed case updated_at")
+	}
+}
+
 func TestResearchBudgetResumeAndParallelReservations(t *testing.T) {
 	s := newTestService(t)
 	var clockMu sync.Mutex
