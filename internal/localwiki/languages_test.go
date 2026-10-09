@@ -55,8 +55,10 @@ func TestLanguagesListsAllSixteenWithNames(t *testing.T) {
 	}
 	for _, info := range infos {
 		spec, _ := lookupLanguage(info.Code)
-		if info.Name != spec.Name || info.Fulltext != fulltextSupported(spec) {
-			t.Fatalf("language info %+v does not match spec %+v", info, spec)
+		// Slice 2 ships a full-text analyzer for all 16 languages (CJK and
+		// Norwegian included), so every language must report it.
+		if info.Name != spec.Name || !info.Fulltext {
+			t.Fatalf("language info %+v does not match spec %+v (full-text must be supported)", info, spec)
 		}
 	}
 	infos[0].Name = "changed"
