@@ -92,12 +92,13 @@ func adaptiveSelectionProbe(t *testing.T, query string, ff ToolFeatureFlags, b a
 	additive := adaptiveAdditiveToolsForQuery(query)
 
 	first := schemas
+	var swapped map[string]string
 	if b.initFiltered {
 		always := append([]string(nil), cfg.Agent.AdaptiveTools.AlwaysInclude...)
 		always = channelAdaptiveAlwaysInclude(runCfg, always, ff)
 		always = cacheAwareAdaptiveAlwaysInclude(query, always, schemas)
 		always = expandAdaptiveAlwaysInclude(cfg, always)
-		first = filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+		result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
 			PreferredTools:        buildAdaptiveToolPriority(schemas, nil, query, guides, nil),
 			HardAlwaysTools:       hard,
 			SoftAlwaysTools:       always,
@@ -106,10 +107,13 @@ func adaptiveSelectionProbe(t *testing.T, query string, ff ToolFeatureFlags, b a
 			MaxSchemaTokens:       b.token,
 			AdditiveTools:         additive,
 			AdaptiveExcludedTools: adaptiveIntentOnlyTools,
-		}, nil).Tools
+			AdditiveSwaps:         adaptiveAdditiveSwaps,
+		}, nil)
+		first, swapped = result.Tools, recordAdaptiveSwaps(nil, result.Report)
 	}
-	second := filterToolSchemasWithReport(first, toolSchemaFilterOptions{
-		PreferredTools:        toolSchemaNames(first),
+	candidates := restoreAdaptiveSwapPartners(first, schemas, swapped)
+	second := filterToolSchemasWithReport(candidates, toolSchemaFilterOptions{
+		PreferredTools:        toolSchemaNames(candidates),
 		HardAlwaysTools:       hard,
 		SoftAlwaysTools:       cfg.Agent.AdaptiveTools.AlwaysInclude,
 		MaxAdaptiveTools:      b.refreshAdaptive,
@@ -117,6 +121,7 @@ func adaptiveSelectionProbe(t *testing.T, query string, ff ToolFeatureFlags, b a
 		MaxSchemaTokens:       b.token,
 		AdditiveTools:         additive,
 		AdaptiveExcludedTools: adaptiveRefreshExcludedTools(b.initFiltered, nil),
+		AdditiveSwaps:         adaptiveAdditiveSwaps,
 	}, nil).Tools
 	return sortedToolNames(first), sortedToolNames(second)
 }
@@ -128,11 +133,14 @@ func sortedToolNames(schemas []openai.Tool) []string {
 }
 
 // assertOnlyLocalWikipediaAdded checks that enabling local_wikipedia changed
-// a selection only by adding local_wikipedia, and only for an intent query.
-func assertOnlyLocalWikipediaAdded(t *testing.T, label string, baseline, enabled []string, intent bool, total int) {
+// a selection only by adding local_wikipedia or by putting it in the place of
+// wikipedia_search, and only for an intent query. It reports a swap.
+func assertOnlyLocalWikipediaAdded(t *testing.T, label string, baseline, enabled []string, intent bool, total int) (swapped bool) {
 	t.Helper()
 	without := slices.DeleteFunc(slices.Clone(enabled), func(name string) bool { return name == "local_wikipedia" })
-	if !slices.Equal(without, baseline) {
+	swapped = len(without) < len(enabled) && len(enabled) == len(baseline) && slices.Contains(baseline, "wikipedia_search") &&
+		slices.Equal(without, slices.DeleteFunc(slices.Clone(baseline), func(name string) bool { return name == "wikipedia_search" }))
+	if !slices.Equal(without, baseline) && !swapped {
 		t.Errorf("%s: enabling local_wikipedia changed the other tools\nenabled  %v\nbaseline %v", label, enabled, baseline)
 	}
 	if !intent && len(without) != len(enabled) {
@@ -141,6 +149,7 @@ func assertOnlyLocalWikipediaAdded(t *testing.T, label string, baseline, enabled
 	if total > 0 && len(enabled) > total && len(enabled) > len(baseline) {
 		t.Errorf("%s: %d tools exceed the cap of %d", label, len(enabled), total)
 	}
+	return swapped
 }
 
 var localWikipediaProbeQueries = map[string]bool{
@@ -163,10 +172,13 @@ var localWikipediaProbeQueries = map[string]bool{
 // TestLocalWikipediaOnlyAddsToTheAdaptiveSelection: with local_wikipedia
 // enabled a query is offered exactly the tools it gets without it, plus
 // local_wikipedia when it asks for Wikipedia or an encyclopedia and the
-// budget has room. The baseline does not depend on the flag, so it is the
-// selection before the tool existed; the other queries cover catalog matches
-// on short words ("die" in "Enzyklopädie", "read", "server").
+// budget has room, or with local_wikipedia in the place of a ranked
+// wikipedia_search when the selection is full. The baseline does not depend
+// on the flag, so it is the selection before the tool existed; the other
+// queries cover catalog matches on short words ("die" in "Enzyklopädie",
+// "read", "server").
 func TestLocalWikipediaOnlyAddsToTheAdaptiveSelection(t *testing.T) {
+	swaps := 0
 	for flagsName, enabled := range localWikipediaProbeFlagSets() {
 		enabled.LocalWikipediaEnabled = true
 		baseline := enabled
@@ -176,15 +188,20 @@ func TestLocalWikipediaOnlyAddsToTheAdaptiveSelection(t *testing.T) {
 				label := flagsName + " " + b.name
 				baseInitial, baseRefreshed := adaptiveSelectionProbe(t, query, baseline, b, nil)
 				initial, refreshed := adaptiveSelectionProbe(t, query, enabled, b, nil)
-				if b.initFiltered {
-					assertOnlyLocalWikipediaAdded(t, label+" initial "+query, baseInitial, initial, intent, b.total)
+				if b.initFiltered && assertOnlyLocalWikipediaAdded(t, label+" initial "+query, baseInitial, initial, intent, b.total) {
+					swaps++
 				}
-				assertOnlyLocalWikipediaAdded(t, label+" refreshed "+query, baseRefreshed, refreshed, intent, b.total)
+				if assertOnlyLocalWikipediaAdded(t, label+" refreshed "+query, baseRefreshed, refreshed, intent, b.total) {
+					swaps++
+				}
 				if intent && b.total >= 40 && b.token == 0 && !containsName(refreshed, "local_wikipedia") {
 					t.Errorf("%s %q: local_wikipedia not offered although the budget has room", label, query)
 				}
 			}
 		}
+	}
+	if swaps == 0 {
+		t.Error("no full selection put local_wikipedia in the place of wikipedia_search")
 	}
 }
 
@@ -308,4 +325,105 @@ func TestAdditiveToolsTakeNoSlotAndRespectTheCaps(t *testing.T) {
 
 func testFilterSchema(name string) openai.Tool {
 	return openai.Tool{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{Name: name, Description: name}}
+}
+
+func sizedFilterSchema(name string, descriptionBytes int) openai.Tool {
+	return openai.Tool{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{Name: name, Description: strings.Repeat("x", descriptionBytes)}}
+}
+
+func TestAdditiveToolTakesOnlyItsRankedSwapPartnersPlace(t *testing.T) {
+	schemas := []openai.Tool{
+		testFilterSchema("hard"), testFilterSchema("soft"), testFilterSchema("wikipedia_search"),
+		testFilterSchema("a"), testFilterSchema("b"), testFilterSchema("local_wikipedia"),
+	}
+	base := toolSchemaFilterOptions{
+		PreferredTools:   []string{"a", "wikipedia_search", "b"},
+		HardAlwaysTools:  []string{"hard"},
+		SoftAlwaysTools:  []string{"soft"},
+		MaxAdaptiveTools: 3,
+		MaxTotalTools:    5,
+		AdditiveTools:    []string{"local_wikipedia"},
+	}
+	names := func(opts toolSchemaFilterOptions) (string, toolSchemaFilterReport) {
+		result := filterToolSchemasWithReport(schemas, opts, nil)
+		return strings.Join(toolSchemaNames(result.Tools), ","), result.Report
+	}
+	if got, _ := names(base); got != "hard,soft,a,wikipedia_search,b" {
+		t.Fatalf("without swaps = %s", got)
+	}
+	swapping := base
+	swapping.AdditiveSwaps = adaptiveAdditiveSwaps
+	got, report := names(swapping)
+	if got != "hard,soft,a,local_wikipedia,b" {
+		t.Fatalf("full selection = %s, want local_wikipedia in the place of wikipedia_search", got)
+	}
+	if report.KeptAdditive != 1 || report.KeptAdaptive != 2 || !slices.Equal(report.SwappedTools, []string{"wikipedia_search->local_wikipedia"}) {
+		t.Fatalf("report = %+v", report)
+	}
+	roomy := swapping
+	roomy.MaxTotalTools = 6
+	if got, _ := names(roomy); got != "hard,soft,a,wikipedia_search,b,local_wikipedia" {
+		t.Fatalf("with room = %s, want an addition", got)
+	}
+	for name, change := range map[string]func(*toolSchemaFilterOptions){
+		"pinned": func(o *toolSchemaFilterOptions) { o.PinnedTools = []string{"wikipedia_search"} },
+		"soft":   func(o *toolSchemaFilterOptions) { o.SoftAlwaysTools = []string{"soft", "wikipedia_search"} },
+		"hard":   func(o *toolSchemaFilterOptions) { o.HardAlwaysTools = []string{"hard", "wikipedia_search"} },
+		"not ranked": func(o *toolSchemaFilterOptions) {
+			o.PreferredTools = []string{"a", "b"}
+			o.MaxAdaptiveTools = 2
+			o.MaxTotalTools = 4
+		},
+		"no additive": func(o *toolSchemaFilterOptions) { o.AdditiveTools = nil },
+	} {
+		opts := swapping
+		opts.PinnedTools, opts.SoftAlwaysTools, opts.HardAlwaysTools = nil, []string{"soft"}, []string{"hard"}
+		change(&opts)
+		if got, report := names(opts); strings.Contains(got, "local_wikipedia") || len(report.SwappedTools) != 0 {
+			t.Errorf("%s: swapped anyway: %s", name, got)
+		}
+	}
+}
+
+func TestAdditiveSwapKeepsTheSchemaTokenCap(t *testing.T) {
+	schemas := []openai.Tool{sizedFilterSchema("wikipedia_search", 40), sizedFilterSchema("a", 40), sizedFilterSchema("local_wikipedia", 400)}
+	opts := toolSchemaFilterOptions{
+		PreferredTools: []string{"wikipedia_search", "a"}, MaxTotalTools: 2,
+		AdditiveTools: []string{"local_wikipedia"}, AdditiveSwaps: adaptiveAdditiveSwaps,
+	}
+	tokens := func(names ...string) int {
+		sum := 0
+		for _, s := range schemas {
+			if slices.Contains(names, s.Function.Name) {
+				sum += estimateSingleToolSchemaTokens(s)
+			}
+		}
+		return sum
+	}
+	opts.MaxSchemaTokens = tokens("local_wikipedia", "a") - 1
+	if got := strings.Join(toolSchemaNames(filterToolSchemasWithReport(schemas, opts, nil).Tools), ","); got != "wikipedia_search,a" {
+		t.Fatalf("a swap past the schema token cap happened: %s", got)
+	}
+	opts.MaxSchemaTokens = tokens("local_wikipedia", "a")
+	if got := strings.Join(toolSchemaNames(filterToolSchemasWithReport(schemas, opts, nil).Tools), ","); got != "local_wikipedia,a" {
+		t.Fatalf("a swap within the schema token cap was skipped: %s", got)
+	}
+}
+
+func TestRestoreAdaptiveSwapPartnersPutsTheReplacedToolBack(t *testing.T) {
+	all := []openai.Tool{testFilterSchema("a"), testFilterSchema("wikipedia_search"), testFilterSchema("local_wikipedia"), testFilterSchema("b")}
+	selected := []openai.Tool{testFilterSchema("a"), testFilterSchema("local_wikipedia"), testFilterSchema("b")}
+	swapped := recordAdaptiveSwaps(nil, toolSchemaFilterReport{SwappedTools: []string{"wikipedia_search->local_wikipedia"}})
+	if got := strings.Join(toolSchemaNames(restoreAdaptiveSwapPartners(selected, all, swapped)), ","); got != "a,wikipedia_search,local_wikipedia,b" {
+		t.Fatalf("restored = %s", got)
+	}
+	if got := strings.Join(toolSchemaNames(restoreAdaptiveSwapPartners(selected, all, nil)), ","); got != "a,local_wikipedia,b" {
+		t.Fatalf("restored without a swap = %s", got)
+	}
+	if got := strings.Join(toolSchemaNames(restoreAdaptiveSwapPartners(selected, all[2:], swapped)), ","); got != "a,local_wikipedia,b" {
+		t.Fatalf("restored a tool that is gone = %s", got)
+	}
+	if got := pinnedToolNames(map[string]bool{"b": true, "a": true}); !slices.Equal(got, []string{"a", "b"}) {
+		t.Fatalf("pinned = %v", got)
+	}
 }

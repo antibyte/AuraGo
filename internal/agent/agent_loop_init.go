@@ -345,6 +345,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 
 	adaptiveFilteredTools := make([]string, 0)
 	var adaptiveAdditiveTools []string
+	var adaptiveSwapped map[string]string
 	adaptiveInitFiltered := false
 	ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 	if voiceOutputSuppressed || speechLabOwnsAutomaticWebChatOutput(cfg, runCfg) {
@@ -470,9 +471,11 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				// Only the first selection ranks the whole catalog; the
 				// per-iteration refresh keeps what was selected here.
 				AdaptiveExcludedTools: adaptiveIntentOnlyTools,
+				AdditiveSwaps:         adaptiveAdditiveSwaps,
 			}, logger)
 			ntSchemas = filterResult.Tools
 			filterReport = filterResult.Report
+			adaptiveSwapped = recordAdaptiveSwaps(adaptiveSwapped, filterReport)
 			RecordToolFilterReport(filterReport)
 			// Track tools removed by adaptive filtering so their guides are also skipped
 			remainingSet := make(map[string]bool, len(ntSchemas))
@@ -608,6 +611,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.adaptiveFilteredTools = adaptiveFilteredTools
 	s.adaptiveAdditiveTools = adaptiveAdditiveTools
 	s.adaptiveInitFiltered = adaptiveInitFiltered
+	s.adaptiveSwapped = adaptiveSwapped
 	s.nativeSchemaSnapshot = schemaSnapshot
 	s.isMaintenance = isMaintenance
 	deliverOperationalIssueNotice(&s.operationalIssueNotice, runCfg, broker, logger)

@@ -609,6 +609,72 @@ func isNetworkCameraIntent(normalizedQuery string) bool {
 // optional tools therefore never changes which other tools a query gets.
 var adaptiveIntentOnlyTools = prompts.NonDisplacingTools
 
+// adaptiveAdditiveSwaps name the one tool an intent-matched additive tool may
+// replace when a cap leaves no room (toolSchemaFilterOptions.AdditiveSwaps):
+// a Wikipedia question then gets the offline edition in place of the online
+// search, which stays reachable through discover_tools.
+var adaptiveAdditiveSwaps = map[string]string{"local_wikipedia": "wikipedia_search"}
+
+// recordAdaptiveSwaps remembers, for the rest of the run, which tool each
+// additive tool replaced ("replaced->additive" in the filter report).
+func recordAdaptiveSwaps(swapped map[string]string, report toolSchemaFilterReport) map[string]string {
+	for _, swap := range report.SwappedTools {
+		replaced, additive, ok := strings.Cut(swap, "->")
+		if !ok {
+			continue
+		}
+		if swapped == nil {
+			swapped = make(map[string]string, len(report.SwappedTools))
+		}
+		swapped[additive] = replaced
+	}
+	return swapped
+}
+
+// restoreAdaptiveSwapPartners puts a replaced tool back right before the
+// additive tool that replaced it, so the per-iteration refresh ranks exactly
+// the candidates it would rank without the additive tool and decides the swap
+// again. all is the current schema set; a replaced tool that is no longer in
+// it stays out.
+func restoreAdaptiveSwapPartners(tools, all []openai.Tool, swapped map[string]string) []openai.Tool {
+	if len(swapped) == 0 {
+		return tools
+	}
+	present := stringSet(toolSchemaNames(tools))
+	byName := make(map[string]openai.Tool, len(all))
+	for _, schema := range all {
+		if schema.Function != nil {
+			byName[schema.Function.Name] = schema
+		}
+	}
+	out := make([]openai.Tool, 0, len(tools)+len(swapped))
+	for _, schema := range tools {
+		if schema.Function != nil {
+			if replaced, ok := swapped[schema.Function.Name]; ok && !present[replaced] {
+				if partner, ok := byName[replaced]; ok {
+					out = append(out, partner)
+					present[replaced] = true
+				}
+			}
+		}
+		out = append(out, schema)
+	}
+	return out
+}
+
+// pinnedToolNames lists the requested tools in a stable order.
+func pinnedToolNames(requested map[string]bool) []string {
+	if len(requested) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(requested))
+	for name := range requested {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
 // adaptiveRefreshExcludedTools returns the tools the per-iteration refresh
 // keeps out of its ranking. After an adaptive first selection the refresh only
 // re-ranks what that selection offered, so nothing is excluded. Without one
@@ -1039,6 +1105,14 @@ type toolSchemaFilterOptions struct {
 	// as preferred tool nor as filler); they are kept only as hard, soft or
 	// additive tools.
 	AdaptiveExcludedTools []string
+	// AdditiveSwaps maps an additive tool to the one tool it may replace
+	// when a cap leaves it no room: the replaced tool must have been picked
+	// by the adaptive ranking (not hard, soft or pinned), the additive tool
+	// takes its position (net count 0), and the swap is skipped when the
+	// additive schema would then exceed MaxSchemaTokens.
+	AdditiveSwaps map[string]string
+	// PinnedTools are never swapped out (tools discover_tools requested).
+	PinnedTools []string
 }
 
 type toolSchemaFilterReport struct {
@@ -1053,6 +1127,7 @@ type toolSchemaFilterReport struct {
 	KeptSoftAlways             int                   `json:"kept_soft_always"`
 	KeptAdaptive               int                   `json:"kept_adaptive"`
 	KeptAdditive               int                   `json:"kept_additive,omitempty"`
+	SwappedTools               []string              `json:"swapped_tools,omitempty"` // "replaced->additive"
 	KeptChannelRequired        int                   `json:"kept_channel_required,omitempty"`
 	KeptConfigured             int                   `json:"kept_configured,omitempty"`
 	Dropped                    int                   `json:"dropped"`
@@ -1146,6 +1221,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 	consumed := make(map[string]bool, len(schemas))
 	schemaTokens := make(map[string]int, len(schemas))
 	keptSchemaTokens := 0
+	keptClass := make(map[string]string, len(schemas))
 	add := func(schema openai.Tool, class string) bool {
 		tokens := estimateSingleToolSchemaTokens(schema)
 		if schema.Function == nil {
@@ -1167,6 +1243,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		consumed[name] = true
 		kept = append(kept, schema)
 		keptSchemaTokens += tokens
+		keptClass[name] = class
 		switch class {
 		case "hard":
 			report.KeptHardAlways++
@@ -1230,10 +1307,34 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		}
 		add(schema, "adaptive")
 	}
+	pinnedSet := stringSet(opts.PinnedTools)
 	for _, name := range schemaOrder {
-		if additiveSet[name] {
-			add(schemaByName[name], "additive")
+		if !additiveSet[name] || consumed[name] || add(schemaByName[name], "additive") {
+			continue
 		}
+		// A cap left no room: the additive tool may only take the place of
+		// its ranked swap partner, never of any other tool.
+		partner := opts.AdditiveSwaps[name]
+		if partner == "" || keptClass[partner] != "adaptive" || pinnedSet[partner] {
+			continue
+		}
+		tokens := keptSchemaTokens - schemaTokens[partner] + schemaTokens[name]
+		if opts.MaxSchemaTokens > 0 && tokens > opts.MaxSchemaTokens {
+			continue
+		}
+		for i := range kept {
+			if kept[i].Function != nil && kept[i].Function.Name == partner {
+				kept[i] = schemaByName[name]
+				break
+			}
+		}
+		keptSchemaTokens = tokens
+		consumed[name], consumed[partner] = true, false
+		keptClass[name] = "additive"
+		delete(keptClass, partner)
+		report.KeptAdaptive--
+		report.KeptAdditive++
+		report.SwappedTools = append(report.SwappedTools, partner+"->"+name)
 	}
 
 	finalDropped := len(schemas) - len(kept)
@@ -1260,6 +1361,9 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		}
 		if report.KeptAdditive > 0 {
 			args = append(args, "kept_additive", report.KeptAdditive)
+		}
+		if len(report.SwappedTools) > 0 {
+			args = append(args, "swapped_tools", strings.Join(report.SwappedTools, ", "))
 		}
 		args = append(args,
 			"dropped", finalDropped,
