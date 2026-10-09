@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -662,6 +663,30 @@ func restoreAdaptiveSwapPartners(tools, all []openai.Tool, swapped map[string]st
 	return out
 }
 
+// adaptiveSwapNames are the words with which a user message names the tool a
+// swap would replace; such a message keeps that tool (adaptiveSwapsForQuery).
+var adaptiveSwapNames = map[string][]string{
+	"wikipedia_search": {"wikipedia_search", "online-wikipedia", "online wikipedia", "wikipedia.org"},
+}
+
+// adaptiveSwapsForQuery returns the adaptiveAdditiveSwaps a user message
+// allows: a swap whose replaced tool the message names is left out, so an
+// explicitly requested online Wikipedia search is never replaced.
+func adaptiveSwapsForQuery(userQuery string) map[string]string {
+	q := strings.ToLower(userQuery)
+	var out map[string]string
+	for additive, replaced := range adaptiveAdditiveSwaps {
+		if slices.ContainsFunc(adaptiveSwapNames[replaced], func(name string) bool { return strings.Contains(q, name) }) {
+			continue
+		}
+		if out == nil {
+			out = make(map[string]string, len(adaptiveAdditiveSwaps))
+		}
+		out[additive] = replaced
+	}
+	return out
+}
+
 // pinnedToolNames lists the requested tools in a stable order.
 func pinnedToolNames(requested map[string]bool) []string {
 	if len(requested) == 0 {
@@ -673,6 +698,24 @@ func pinnedToolNames(requested map[string]bool) []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// refreshSwapProtectedTools lists the tools the per-iteration refresh must
+// not swap out besides the pinned ones: after an adaptive first selection,
+// the tools kept from the session, which that selection protected as
+// always-included tools. Without a first selection nothing protected them.
+func refreshSwapProtectedTools(initFiltered bool, sessionUsed map[string]bool, recent []string) []string {
+	if !initFiltered {
+		return nil
+	}
+	set := make(map[string]bool, len(sessionUsed)+len(recent))
+	for name := range sessionUsed {
+		set[name] = true
+	}
+	for _, name := range recent {
+		set[name] = true
+	}
+	return pinnedToolNames(set)
 }
 
 // adaptiveRefreshExcludedTools returns the tools the per-iteration refresh
@@ -1111,8 +1154,12 @@ type toolSchemaFilterOptions struct {
 	// takes its position (net count 0), and the swap is skipped when the
 	// additive schema would then exceed MaxSchemaTokens.
 	AdditiveSwaps map[string]string
-	// PinnedTools are never swapped out (tools discover_tools requested).
+	// PinnedTools are never swapped out and never treated as additive; they
+	// are ranked like any requested tool (tools discover_tools requested).
 	PinnedTools []string
+	// SwapProtectedTools are never swapped out but otherwise keep their class
+	// (in the refresh, the tools kept from the session).
+	SwapProtectedTools []string
 }
 
 type toolSchemaFilterReport struct {
@@ -1181,9 +1228,12 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 	}
 	hardSet := stringSet(opts.HardAlwaysTools)
 	softSet := stringSet(opts.SoftAlwaysTools)
+	pinnedSet := stringSet(opts.PinnedTools)
+	// A kept or named tool wins over the additive rule: a hard or soft tool
+	// keeps its class, and a pinned one is ranked like any requested tool.
 	additiveSet := make(map[string]bool, len(opts.AdditiveTools))
 	for _, t := range opts.AdditiveTools {
-		if t = strings.TrimSpace(t); t != "" && !hardSet[t] {
+		if t = strings.TrimSpace(t); t != "" && !hardSet[t] && !softSet[t] && !pinnedSet[t] {
 			additiveSet[t] = true
 		}
 	}
@@ -1291,7 +1341,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		}
 	}
 	for _, name := range schemaOrder {
-		if softSet[name] && !hardSet[name] && !additiveSet[name] {
+		if softSet[name] && !hardSet[name] {
 			add(schemaByName[name], "soft")
 		}
 	}
@@ -1307,7 +1357,6 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		}
 		add(schema, "adaptive")
 	}
-	pinnedSet := stringSet(opts.PinnedTools)
 	for _, name := range schemaOrder {
 		if !additiveSet[name] || consumed[name] || add(schemaByName[name], "additive") {
 			continue
@@ -1315,7 +1364,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		// A cap left no room: the additive tool may only take the place of
 		// its ranked swap partner, never of any other tool.
 		partner := opts.AdditiveSwaps[name]
-		if partner == "" || keptClass[partner] != "adaptive" || pinnedSet[partner] {
+		if partner == "" || keptClass[partner] != "adaptive" || pinnedSet[partner] || slices.Contains(opts.SwapProtectedTools, partner) {
 			continue
 		}
 		tokens := keptSchemaTokens - schemaTokens[partner] + schemaTokens[name]

@@ -208,6 +208,7 @@ type agentLoopState struct {
 	adaptiveInitFiltered     bool              // the first selection already ranked the whole catalog
 	discoverRequestedTools   map[string]bool   // tools discover_tools requested during this run
 	adaptiveSwapped          map[string]string // additive tool -> the tool it replaced in a full selection
+	adaptiveSwaps            map[string]string // swaps the user message allows (adaptiveSwapsForQuery)
 	nativeSchemaSnapshot     *nativeToolSchemaSnapshot
 	turnSnapshot             *turnContextSnapshot
 	gameMakerDuplicateBlocks int
@@ -670,8 +671,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				MaxSchemaTokens:       toolingPolicy.EffectiveMaxSchemaTokens,
 				AdditiveTools:         s.adaptiveAdditiveTools,
 				AdaptiveExcludedTools: adaptiveRefreshExcludedTools(s.adaptiveInitFiltered, s.discoverRequestedTools),
-				AdditiveSwaps:         adaptiveAdditiveSwaps,
+				AdditiveSwaps:         s.adaptiveSwaps,
 				PinnedTools:           pinnedToolNames(s.discoverRequestedTools),
+				SwapProtectedTools: refreshSwapProtectedTools(s.adaptiveInitFiltered, s.sessionUsedTools,
+					recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns)),
 			}, s.currentLogger)
 			req.Tools = filtered.Tools
 			s.adaptiveSwapped = recordAdaptiveSwaps(s.adaptiveSwapped, filtered.Report)

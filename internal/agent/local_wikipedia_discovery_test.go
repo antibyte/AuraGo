@@ -60,6 +60,7 @@ type adaptiveProbeBudget struct {
 	adaptive, total, token int
 	initFiltered           bool
 	refreshAdaptive        int
+	alwaysExtra            []string // appended to the default always_include
 }
 
 var adaptiveProbeBudgets = []adaptiveProbeBudget{
@@ -70,6 +71,7 @@ var adaptiveProbeBudgets = []adaptiveProbeBudget{
 	{name: "adaptive off 30/6500", total: 30, token: 6500},
 	{name: "adaptive off 400/-", total: 400},
 	{name: "no short-term memory 10/20/6500", adaptive: 10, total: 20, token: 6500, refreshAdaptive: 10},
+	{name: "small 6/14/6500", adaptive: 6, total: 14, token: 6500, initFiltered: true, refreshAdaptive: 6},
 }
 
 // adaptiveSelectionProbe mirrors the production adaptive selection for one
@@ -84,7 +86,7 @@ func adaptiveSelectionProbe(t *testing.T, query string, ff ToolFeatureFlags, b a
 	cfg.Agent.AdaptiveTools.MaxTotalTools = b.total
 	cfg.Agent.AdaptiveTools.MaxSchemaTokens = b.token
 	if cfg.Agent.AdaptiveTools.Enabled {
-		cfg.Agent.AdaptiveTools.AlwaysInclude = []string{"filesystem", "query_memory", "manage_memory", "execute_shell"}
+		cfg.Agent.AdaptiveTools.AlwaysInclude = append([]string{"filesystem", "query_memory", "manage_memory", "execute_shell"}, b.alwaysExtra...)
 	}
 	runCfg := RunConfig{Config: cfg}
 	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
@@ -107,7 +109,7 @@ func adaptiveSelectionProbe(t *testing.T, query string, ff ToolFeatureFlags, b a
 			MaxSchemaTokens:       b.token,
 			AdditiveTools:         additive,
 			AdaptiveExcludedTools: adaptiveIntentOnlyTools,
-			AdditiveSwaps:         adaptiveAdditiveSwaps,
+			AdditiveSwaps:         adaptiveSwapsForQuery(query),
 		}, nil)
 		first, swapped = result.Tools, recordAdaptiveSwaps(nil, result.Report)
 	}
@@ -121,7 +123,7 @@ func adaptiveSelectionProbe(t *testing.T, query string, ff ToolFeatureFlags, b a
 		MaxSchemaTokens:       b.token,
 		AdditiveTools:         additive,
 		AdaptiveExcludedTools: adaptiveRefreshExcludedTools(b.initFiltered, nil),
-		AdditiveSwaps:         adaptiveAdditiveSwaps,
+		AdditiveSwaps:         adaptiveSwapsForQuery(query),
 	}, nil).Tools
 	return sortedToolNames(first), sortedToolNames(second)
 }
@@ -167,6 +169,8 @@ var localWikipediaProbeQueries = map[string]bool{
 	"read the server logs and summarise them":     false,
 	"starte den docker container neu":             false,
 	"search the web for golang news":              false,
+	"Bitte nutze die Online-Wikipedia (wikipedia_search), nicht die lokale": true,
+	"look it up on wikipedia.org":                                           true,
 }
 
 // TestLocalWikipediaOnlyAddsToTheAdaptiveSelection: with local_wikipedia
@@ -188,11 +192,18 @@ func TestLocalWikipediaOnlyAddsToTheAdaptiveSelection(t *testing.T) {
 				label := flagsName + " " + b.name
 				baseInitial, baseRefreshed := adaptiveSelectionProbe(t, query, baseline, b, nil)
 				initial, refreshed := adaptiveSelectionProbe(t, query, enabled, b, nil)
+				named := strings.Contains(query, "(wikipedia_search)") || strings.Contains(query, "wikipedia.org")
 				if b.initFiltered && assertOnlyLocalWikipediaAdded(t, label+" initial "+query, baseInitial, initial, intent, b.total) {
 					swaps++
+					if named {
+						t.Errorf("%s initial %q: swapped out the wikipedia_search the message names", label, query)
+					}
 				}
 				if assertOnlyLocalWikipediaAdded(t, label+" refreshed "+query, baseRefreshed, refreshed, intent, b.total) {
 					swaps++
+					if named {
+						t.Errorf("%s refreshed %q: swapped out the wikipedia_search the message names", label, query)
+					}
 				}
 				if intent && b.total >= 40 && b.token == 0 && !containsName(refreshed, "local_wikipedia") {
 					t.Errorf("%s %q: local_wikipedia not offered although the budget has room", label, query)
@@ -425,5 +436,93 @@ func TestRestoreAdaptiveSwapPartnersPutsTheReplacedToolBack(t *testing.T) {
 	}
 	if got := pinnedToolNames(map[string]bool{"b": true, "a": true}); !slices.Equal(got, []string{"a", "b"}) {
 		t.Fatalf("pinned = %v", got)
+	}
+}
+
+// A kept local_wikipedia (always_include, session use, discover_tools at the
+// first selection) stays a soft tool on an encyclopedia question instead of
+// being demoted to an additive tool and cut by a full selection.
+func TestKeptLocalWikipediaStaysOnEncyclopediaQuestions(t *testing.T) {
+	enabled := allBuiltinToolFeatureFlags()
+	enabled.LocalWikipediaEnabled = true
+	kept := 0
+	for _, b := range adaptiveProbeBudgets {
+		b.alwaysExtra = []string{"local_wikipedia"}
+		if !b.initFiltered && b.refreshAdaptive == 0 {
+			continue // adaptive tools off: always_include has no defaults to extend
+		}
+		for query, intent := range localWikipediaProbeQueries {
+			if !intent {
+				continue
+			}
+			initial, refreshed := adaptiveSelectionProbe(t, query, enabled, b, nil)
+			if b.initFiltered && !containsName(initial, "local_wikipedia") {
+				t.Errorf("%s initial %q: always-included local_wikipedia dropped", b.name, query)
+			}
+			if !containsName(refreshed, "local_wikipedia") {
+				t.Errorf("%s refreshed %q: always-included local_wikipedia dropped", b.name, query)
+			}
+			kept++
+		}
+	}
+	if kept == 0 {
+		t.Fatal("no budget exercised")
+	}
+}
+
+func TestPinnedOrSoftLocalWikipediaIsNotAdditive(t *testing.T) {
+	schemas := []openai.Tool{testFilterSchema("hard"), testFilterSchema("a"), testFilterSchema("b"), testFilterSchema("local_wikipedia"), testFilterSchema("wikipedia_search")}
+	base := toolSchemaFilterOptions{
+		HardAlwaysTools:  []string{"hard"},
+		MaxAdaptiveTools: 2,
+		MaxTotalTools:    3,
+		AdditiveTools:    []string{"local_wikipedia"},
+		AdditiveSwaps:    adaptiveAdditiveSwaps,
+	}
+	soft := base
+	soft.PreferredTools = []string{"a", "b"}
+	soft.SoftAlwaysTools = []string{"local_wikipedia"}
+	result := filterToolSchemasWithReport(schemas, soft, nil)
+	if got := strings.Join(toolSchemaNames(result.Tools), ","); got != "hard,local_wikipedia,a" || result.Report.KeptSoftAlways != 1 || result.Report.KeptAdditive != 0 {
+		t.Fatalf("soft local_wikipedia = %s %+v", got, result.Report)
+	}
+	pinned := base
+	pinned.PreferredTools = []string{"local_wikipedia", "a", "b"}
+	pinned.PinnedTools = []string{"local_wikipedia"}
+	result = filterToolSchemasWithReport(schemas, pinned, nil)
+	if got := strings.Join(toolSchemaNames(result.Tools), ","); got != "hard,local_wikipedia,a" || result.Report.KeptAdaptive != 2 || result.Report.KeptAdditive != 0 {
+		t.Fatalf("requested local_wikipedia = %s %+v", got, result.Report)
+	}
+}
+
+func TestSwapKeepsNamedOrSessionKeptWikipediaSearch(t *testing.T) {
+	for query, allowed := range map[string]bool{
+		"Was sagt Wikipedia über Berlin?":                                       true,
+		"Bitte nutze die Online-Wikipedia (wikipedia_search), nicht die lokale": false,
+		"use the online wikipedia":                                              false,
+		"check wikipedia.org for this":                                          false,
+		"WIKIPEDIA_SEARCH please":                                               false,
+	} {
+		if got := adaptiveSwapsForQuery(query) != nil; got != allowed {
+			t.Errorf("%q: swap allowed = %v, want %v", query, got, allowed)
+		}
+	}
+	schemas := []openai.Tool{testFilterSchema("a"), testFilterSchema("wikipedia_search"), testFilterSchema("local_wikipedia")}
+	opts := toolSchemaFilterOptions{
+		PreferredTools: []string{"a", "wikipedia_search"}, MaxTotalTools: 2,
+		AdditiveTools: []string{"local_wikipedia"}, AdditiveSwaps: adaptiveAdditiveSwaps,
+	}
+	if got := strings.Join(toolSchemaNames(filterToolSchemasWithReport(schemas, opts, nil).Tools), ","); got != "a,local_wikipedia" {
+		t.Fatalf("unprotected swap = %s", got)
+	}
+	opts.SwapProtectedTools = []string{"wikipedia_search"}
+	if got := strings.Join(toolSchemaNames(filterToolSchemasWithReport(schemas, opts, nil).Tools), ","); got != "a,wikipedia_search" {
+		t.Fatalf("session-kept wikipedia_search swapped out: %s", got)
+	}
+	if got := refreshSwapProtectedTools(false, map[string]bool{"wikipedia_search": true}, nil); got != nil {
+		t.Fatalf("without a first selection the refresh protects %v", got)
+	}
+	if got := refreshSwapProtectedTools(true, map[string]bool{"wikipedia_search": true}, []string{"docker", "wikipedia_search"}); !slices.Equal(got, []string{"docker", "wikipedia_search"}) {
+		t.Fatalf("protected = %v", got)
 	}
 }

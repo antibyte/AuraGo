@@ -346,6 +346,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	adaptiveFilteredTools := make([]string, 0)
 	var adaptiveAdditiveTools []string
 	var adaptiveSwapped map[string]string
+	var adaptiveSwaps map[string]string
 	adaptiveInitFiltered := false
 	ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 	if voiceOutputSuppressed || speechLabOwnsAutomaticWebChatOutput(cfg, runCfg) {
@@ -396,6 +397,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		// The intent-matched additive tools also apply when no adaptive first
 		// selection runs; the per-iteration refresh then offers them.
 		adaptiveAdditiveTools = adaptiveAdditiveToolsForQuery(adaptiveUserContext)
+		adaptiveSwaps = adaptiveSwapsForQuery(adaptiveUserContext)
 		if runCfg.PreparedPrompt != nil {
 			// Explicit profiles keep their complete, ordered schema set. Hard
 			// scope was intersected above; dispatch still checks live grants.
@@ -471,7 +473,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				// Only the first selection ranks the whole catalog; the
 				// per-iteration refresh keeps what was selected here.
 				AdaptiveExcludedTools: adaptiveIntentOnlyTools,
-				AdditiveSwaps:         adaptiveAdditiveSwaps,
+				AdditiveSwaps:         adaptiveSwaps,
 			}, logger)
 			ntSchemas = filterResult.Tools
 			filterReport = filterResult.Report
@@ -612,6 +614,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.adaptiveAdditiveTools = adaptiveAdditiveTools
 	s.adaptiveInitFiltered = adaptiveInitFiltered
 	s.adaptiveSwapped = adaptiveSwapped
+	s.adaptiveSwaps = adaptiveSwaps
 	s.nativeSchemaSnapshot = schemaSnapshot
 	s.isMaintenance = isMaintenance
 	deliverOperationalIssueNotice(&s.operationalIssueNotice, runCfg, broker, logger)
