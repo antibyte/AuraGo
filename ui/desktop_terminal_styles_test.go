@@ -4,13 +4,19 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"aurago/internal/retronet"
 )
 
 func TestDesktopTerminalStyleCatalog(t *testing.T) {
@@ -322,20 +328,37 @@ func TestDesktopTerminalVGAFontIsVendoredWithAttribution(t *testing.T) {
 
 var terminalRetroNetLocales = []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 
-// Catalog IDs from internal/retronet/catalog.go (slice 1); slice 4 owns the
-// check that each description key exists in all 16 desktop locales.
-var terminalRetroNetCatalogIDs = []string{
-	"telehack", "towel", "mapscii", "fics", "telehack-ssh",
-	"vertrauen", "digital-distortion", "diamond-mine", "diamond-mine-wwiv", "retroboard",
-	"futureland", "vague", "the-dungeon", "funtopia", "imzadi-box", "redghost",
-	"discworld", "aardwolf", "batmud", "mume", "genesis", "alter-aeon", "miriani",
-	"cosmic-rage", "star-conquest", "furrymuck", "spindizzy",
-	"sshtron", "netris", "digital-highway", "digicom", "digital-warfare", "disconnected-by-peer",
+// Server result reasons; TestDesktopTerminalRetroNetReasonsMatchPackage keeps
+// this list equal to every Reason* constant declared in internal/retronet.
+var terminalRetroNetServerReasons = []string{
+	retronet.ReasonRefused,
+	retronet.ReasonLimit,
+	retronet.ReasonTimeout,
+	retronet.ReasonDNS,
+	retronet.ReasonBlocked,
+	retronet.ReasonRemoteClosed,
+	retronet.ReasonIdle,
+	retronet.ReasonMaxDuration,
+	retronet.ReasonDisabled,
+	retronet.ReasonHostKeyMismatch,
+	retronet.ReasonHostKeyRejected,
+	retronet.ReasonServerShutdown,
 }
 
-var terminalRetroNetReasons = []string{
-	"refused", "limit", "timeout", "dns", "blocked", "remote_closed", "idle", "max_duration",
-	"disabled", "hostkey_mismatch", "hostkey_rejected", "server_shutdown", "local_hangup", "lost",
+// Result reasons only the browser produces (Ctrl+] / toolbar hang-up, socket
+// closed without a result frame).
+var terminalRetroNetBrowserReasons = []string{"local_hangup", "lost"}
+
+var terminalRetroNetCategories = []string{
+	retronet.CategoryClassics,
+	retronet.CategoryBBS,
+	retronet.CategoryMUDs,
+	retronet.CategoryGames,
+	retronet.CategoryOwn,
+}
+
+func terminalRetroNetReasons() []string {
+	return append(append([]string{}, terminalRetroNetServerReasons...), terminalRetroNetBrowserReasons...)
 }
 
 var terminalRetroNetFixedKeys = []string{
@@ -415,19 +438,34 @@ var terminalRetroNetSentenceKeys = []string{
 	"desktop.terminal_retronet_error_limit",
 }
 
-func terminalRetroNetI18nKeys() []string {
+func terminalRetroNetI18nKeys(t *testing.T) []string {
+	t.Helper()
 	keys := append([]string{}, terminalRetroNetFixedKeys...)
-	for _, category := range []string{"classics", "bbs", "muds", "games", "own"} {
+	for _, category := range terminalRetroNetCategories {
 		keys = append(keys, "desktop.terminal_retronet_cat_"+category)
 	}
 	for _, state := range []string{"online", "offline", "unknown"} {
 		keys = append(keys, "desktop.terminal_retronet_status_"+state)
 	}
-	for _, reason := range terminalRetroNetReasons {
+	for _, reason := range terminalRetroNetReasons() {
 		keys = append(keys, "desktop.terminal_retronet_result_"+reason)
 	}
-	for _, id := range terminalRetroNetCatalogIDs {
-		keys = append(keys, "desktop.terminal_retronet_entry_"+strings.ReplaceAll(id, "-", "_"))
+	catalog := retronet.DefaultCatalog()
+	if len(catalog) == 0 {
+		t.Fatal("retronet.DefaultCatalog() returned no entries")
+	}
+	for _, entry := range catalog {
+		if !strings.HasPrefix(entry.DescriptionKey, "desktop.terminal_retronet_entry_") {
+			t.Fatalf("catalog entry %q has description key %q", entry.ID, entry.DescriptionKey)
+		}
+		keys = append(keys, entry.DescriptionKey)
+	}
+	seen := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		if seen[key] {
+			t.Fatalf("Retro-Net i18n key %s is listed twice", key)
+		}
+		seen[key] = true
 	}
 	return keys
 }
@@ -446,12 +484,76 @@ func readTerminalDesktopLocale(t *testing.T, lang string) map[string]string {
 	return values
 }
 
+func TestDesktopTerminalRetroNetReasonsMatchPackage(t *testing.T) {
+	t.Parallel()
+
+	files, err := filepath.Glob(filepath.Join("..", "internal", "retronet", "*.go"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("list internal/retronet sources: %v (%d files)", err, len(files))
+	}
+	fset := token.NewFileSet()
+	declared := map[string]bool{}
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
+		parsed, err := parser.ParseFile(fset, file, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", file, err)
+		}
+		for _, decl := range parsed.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.CONST {
+				continue
+			}
+			for _, spec := range gen.Specs {
+				value, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+				for i, name := range value.Names {
+					if !strings.HasPrefix(name.Name, "Reason") || i >= len(value.Values) {
+						continue
+					}
+					lit, ok := value.Values[i].(*ast.BasicLit)
+					if !ok || lit.Kind != token.STRING {
+						continue
+					}
+					reason, err := strconv.Unquote(lit.Value)
+					if err != nil {
+						t.Fatalf("unquote %s in %s: %v", name.Name, file, err)
+					}
+					declared[reason] = true
+				}
+			}
+		}
+	}
+	listed := map[string]bool{}
+	for _, reason := range terminalRetroNetServerReasons {
+		listed[reason] = true
+		if !declared[reason] {
+			t.Errorf("terminalRetroNetServerReasons lists %q, which internal/retronet does not declare", reason)
+		}
+	}
+	for reason := range declared {
+		if !listed[reason] {
+			t.Errorf("internal/retronet declares reason %q; add it to terminalRetroNetServerReasons and translate desktop.terminal_retronet_result_%s", reason, reason)
+		}
+	}
+	for _, reason := range terminalRetroNetBrowserReasons {
+		if declared[reason] {
+			t.Errorf("browser-only reason %q is also declared by internal/retronet", reason)
+		}
+	}
+}
+
 func TestDesktopTerminalRetroNetI18n(t *testing.T) {
 	t.Parallel()
 
-	keys := terminalRetroNetI18nKeys()
-	if len(keys) != 109 || len(terminalRetroNetCatalogIDs) != 33 {
-		t.Fatalf("Retro-Net key list has %d keys and %d catalog IDs, want 109 and 33", len(keys), len(terminalRetroNetCatalogIDs))
+	keys := terminalRetroNetI18nKeys(t)
+	copyChecked := append([]string{}, terminalRetroNetSentenceKeys...)
+	for _, reason := range terminalRetroNetReasons() {
+		copyChecked = append(copyChecked, "desktop.terminal_retronet_result_"+reason)
 	}
 	placeholder := regexp.MustCompile(`\{\{[a-z_]+\}\}`)
 	english := readTerminalDesktopLocale(t, "en")
@@ -460,37 +562,32 @@ func TestDesktopTerminalRetroNetI18n(t *testing.T) {
 		for _, key := range keys {
 			got := strings.TrimSpace(values[key])
 			if got == "" {
-				t.Fatalf("lang/desktop/%s.json missing non-empty %s", lang, key)
+				t.Errorf("lang/desktop/%s.json missing non-empty %s", lang, key)
+				continue
 			}
 			want := placeholder.FindAllString(english[key], -1)
 			have := placeholder.FindAllString(got, -1)
 			sort.Strings(want)
 			sort.Strings(have)
 			if strings.Join(want, ",") != strings.Join(have, ",") {
-				t.Fatalf("lang/desktop/%s.json %s placeholders %v, want %v", lang, key, have, want)
+				t.Errorf("lang/desktop/%s.json %s placeholders %v, want %v", lang, key, have, want)
 			}
 		}
 		if lang != "en" {
-			for _, key := range append(append([]string{}, terminalRetroNetSentenceKeys...), func() []string {
-				var results []string
-				for _, reason := range terminalRetroNetReasons {
-					results = append(results, "desktop.terminal_retronet_result_"+reason)
-				}
-				return results
-			}()...) {
-				if values[key] == english[key] {
-					t.Fatalf("lang/desktop/%s.json copies the English %s", lang, key)
+			for _, key := range copyChecked {
+				if values[key] != "" && values[key] == english[key] {
+					t.Errorf("lang/desktop/%s.json copies the English %s", lang, key)
 				}
 			}
 		}
 		yes := values["desktop.terminal_retronet_hostkey_yes"]
 		no := values["desktop.terminal_retronet_hostkey_no"]
 		if utf8.RuneCountInString(yes) != 1 || utf8.RuneCountInString(no) != 1 || strings.EqualFold(yes, no) {
-			t.Fatalf("lang/desktop/%s.json host-key answers must be two different single letters, got %q/%q", lang, yes, no)
+			t.Errorf("lang/desktop/%s.json host-key answers must be two different single letters, got %q/%q", lang, yes, no)
 		}
 	}
 	if english["desktop.terminal_retronet_telnet_notice"] != "Unencrypted Telnet connection – do not use real passwords" {
-		t.Fatalf("English Telnet notice changed: %q", english["desktop.terminal_retronet_telnet_notice"])
+		t.Errorf("English Telnet notice changed: %q", english["desktop.terminal_retronet_telnet_notice"])
 	}
 	german := readTerminalDesktopLocale(t, "de")
 	for key, umlaut := range map[string]string{
@@ -500,7 +597,7 @@ func TestDesktopTerminalRetroNetI18n(t *testing.T) {
 		"desktop.terminal_retronet_result_hostkey_mismatch": "ü",
 	} {
 		if !strings.Contains(german[key], umlaut) {
-			t.Fatalf("German %s must use real umlauts, got %q", key, german[key])
+			t.Errorf("German %s must use real umlauts, got %q", key, german[key])
 		}
 	}
 }
