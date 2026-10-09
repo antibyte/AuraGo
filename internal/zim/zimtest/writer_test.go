@@ -68,6 +68,62 @@ func TestBuildRejectsBrokenInput(t *testing.T) {
 	if _, _, err := b.Build(); err == nil {
 		t.Fatal("Build accepted duplicate paths")
 	}
+
+	// An empty MIME type would sort first in the MIME list and end it early;
+	// NUL bytes would end the MIME type, path or title early.
+	for name, e := range map[string]Entry{
+		"empty MIME type":      {Namespace: 'C', Path: "A", MimeType: "", Data: []byte("x")},
+		"NUL in MIME":          {Namespace: 'C', Path: "A", MimeType: "text/\x00html", Data: []byte("x")},
+		"NUL in path":          {Namespace: 'C', Path: "A\x00B", MimeType: "text/html", Data: []byte("x")},
+		"NUL in title":         {Namespace: 'C', Path: "A", Title: "A\x00B", MimeType: "text/html", Data: []byte("x")},
+		"NUL in redirect path": {Namespace: 'C', Path: "R\x00", Redirect: "C/A"},
+	} {
+		b = New()
+		e.Cluster = b.AddCluster(CompressionNone, false)
+		b.Add(e)
+		if _, _, err := b.Build(); err == nil {
+			t.Fatalf("Build accepted an entry with %s", name)
+		}
+	}
+
+	// Redirects have no MIME type, and the raw-redirect hook must keep working.
+	b = New()
+	c = b.AddCluster(CompressionNone, false)
+	b.AddArticle(c, 'C', "A", "A", "<p>a</p>")
+	bad := uint32(9999)
+	b.Add(Entry{Namespace: 'C', Path: "Bad", RawRedirectIndex: &bad})
+	b.AddRedirect('C', "R", "", "C/A")
+	if _, _, err := b.Build(); err != nil {
+		t.Fatalf("Build rejected redirects without a MIME type: %v", err)
+	}
+}
+
+func TestBuildWritesTitleListV0InTitleOrder(t *testing.T) {
+	b := New()
+	b.TitleListV0 = true
+	c := b.AddCluster(CompressionNone, false)
+	b.AddArticle(c, 'C', "A", "Zeta", "<p>a</p>")
+	b.AddArticle(c, 'C', "B", "Alpha", "<p>b</p>")
+	b.AddRedirect('W', "mainPage", "", "C/A")
+	data, layout, err := b.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	le := binary.LittleEndian
+	if layout.TitlePtrPos < 0 || le.Uint64(data[40:]) != uint64(layout.TitlePtrPos) {
+		t.Fatalf("header titlePtrPos = %d, layout %d", le.Uint64(data[40:]), layout.TitlePtrPos)
+	}
+	// Sorted by namespace, then title: C/B (Alpha), C/A (Zeta), W/mainPage and
+	// the generated X/listing/titleOrdered/v1 entry.
+	want := []uint32{layout.EntryIndex["C/B"], layout.EntryIndex["C/A"], layout.EntryIndex["W/mainPage"], layout.EntryIndex["X/listing/titleOrdered/v1"]}
+	for i, w := range want {
+		if got := le.Uint32(data[layout.TitlePtrPos+int64(4*i):]); got != w {
+			t.Fatalf("title pointer %d = %d, want %d (all wanted %v)", i, got, w, want)
+		}
+	}
+	if layout.ClusterPtrPos != layout.TitlePtrPos+int64(4*len(want)) {
+		t.Fatalf("cluster pointers at %d, want right after the title list (%d)", layout.ClusterPtrPos, layout.TitlePtrPos+int64(4*len(want)))
+	}
 }
 
 func TestClusterBodyOffsets(t *testing.T) {
@@ -75,5 +131,17 @@ func TestClusterBodyOffsets(t *testing.T) {
 	want := []byte{12, 0, 0, 0, 14, 0, 0, 0, 15, 0, 0, 0, 'a', 'b', 'c'}
 	if !bytes.Equal(body, want) {
 		t.Fatalf("ClusterBody = % x, want % x", body, want)
+	}
+
+	// Extended clusters use 8-byte offsets: three offsets = 24 bytes of table.
+	body = ClusterBody([][]byte{[]byte("ab"), []byte("c")}, true)
+	want = []byte{
+		24, 0, 0, 0, 0, 0, 0, 0,
+		26, 0, 0, 0, 0, 0, 0, 0,
+		27, 0, 0, 0, 0, 0, 0, 0,
+		'a', 'b', 'c',
+	}
+	if !bytes.Equal(body, want) {
+		t.Fatalf("extended ClusterBody = % x, want % x", body, want)
 	}
 }

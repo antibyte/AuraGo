@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/klauspost/compress/zstd"
@@ -140,8 +141,38 @@ func titleOf(e Entry) string {
 	return e.Path
 }
 
+// validateEntry rejects entries that would silently corrupt the archive: the
+// MIME list and the directory entries are NUL-terminated strings, and an empty
+// MIME type would end the MIME list early. Corrupt-archive tests that need such
+// bytes mutate the built archive using Layout, or use RawRedirectIndex and
+// AddRawCluster, which are not affected by these checks.
+func validateEntry(e Entry) error {
+	k := key(e.Namespace, e.Path)
+	if strings.IndexByte(e.Path, 0) >= 0 {
+		return fmt.Errorf("zimtest: entry %q has a NUL byte in its path", k)
+	}
+	if strings.IndexByte(e.Title, 0) >= 0 {
+		return fmt.Errorf("zimtest: entry %q has a NUL byte in its title", k)
+	}
+	if e.Redirect != "" || e.RawRedirectIndex != nil {
+		return nil
+	}
+	if e.MimeType == "" {
+		return fmt.Errorf("zimtest: content entry %q has an empty MIME type", k)
+	}
+	if strings.IndexByte(e.MimeType, 0) >= 0 {
+		return fmt.Errorf("zimtest: content entry %q has a NUL byte in its MIME type", k)
+	}
+	return nil
+}
+
 // Build serialises the archive.
 func (b *Builder) Build() ([]byte, *Layout, error) {
+	for _, e := range b.entries {
+		if err := validateEntry(e); err != nil {
+			return nil, nil, err
+		}
+	}
 	entries := append([]Entry(nil), b.entries...)
 	clusters := append([]*clusterSpec(nil), b.clusters...)
 	for i, c := range clusters {
