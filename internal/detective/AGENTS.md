@@ -8,6 +8,10 @@ and tool dispatch; Desktop adapters own UI state.
 ## Local Contracts
 - A run has one cumulative budget across phases and continuation. Only an explicit
   deepen request grants a new budget. Closing the client never cancels a run.
+- `detective_cases.active_ms` wins over the JSON value when the column is greater.
+  Restart loads each running or queued case with `getLocked` before saving
+  `interrupted` / `server_restart`. `PRAGMA user_version` stops at 2; opening a
+  version-2 file does not rewrite version 1 or repeat the JSON backfill.
 - Persist checkpoints privately; never serialize them in case API responses or
   exports. Publication validates references against server-recorded retrievals.
 - Research output is untrusted data. Never render raw HTML or treat a cited URL

@@ -64,13 +64,18 @@ CREATE TABLE IF NOT EXISTS detective_continuations(case_id TEXT PRIMARY KEY REFE
 CREATE TABLE IF NOT EXISTS detective_keys(case_id TEXT NOT NULL, key TEXT NOT NULL, run_id TEXT NOT NULL, PRIMARY KEY(case_id,key));
 CREATE TABLE IF NOT EXISTS detective_events(id INTEGER PRIMARY KEY AUTOINCREMENT, case_id TEXT NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL, at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS detective_event_case ON detective_events(case_id,id);
-CREATE TABLE IF NOT EXISTS detective_artifacts(case_id TEXT NOT NULL, revision INTEGER NOT NULL, format TEXT NOT NULL, body BLOB NOT NULL, mime TEXT NOT NULL, filename TEXT NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY(case_id,revision,format));
-PRAGMA user_version=1;`)
+CREATE TABLE IF NOT EXISTS detective_artifacts(case_id TEXT NOT NULL, revision INTEGER NOT NULL, format TEXT NOT NULL, body BLOB NOT NULL, mime TEXT NOT NULL, filename TEXT NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY(case_id,revision,format));`)
 	if err != nil {
 		db.Close()
 		return nil, err
 	}
 	if schemaVersion < 2 {
+		if schemaVersion < 1 {
+			if _, err = db.Exec(`PRAGMA user_version=1`); err != nil {
+				db.Close()
+				return nil, err
+			}
+		}
 		var cols int
 		if err = db.QueryRow(`SELECT count(*) FROM pragma_table_info('detective_cases') WHERE name='active_ms'`).Scan(&cols); err != nil {
 			db.Close()
@@ -117,9 +122,15 @@ PRAGMA user_version=1;`)
 	}
 	for _, c := range cases {
 		if c.Run.Status == "running" || c.Run.Status == "queued" {
+			c, err = s.getLocked(c.ID)
+			if err != nil {
+				db.Close()
+				cancel()
+				return nil, err
+			}
 			c.Run.Status = "interrupted"
 			c.Run.Reason = "server_restart"
-			if err := s.saveLocked(&c); err != nil {
+			if err = s.saveLocked(&c); err != nil {
 				db.Close()
 				cancel()
 				return nil, err
@@ -217,9 +228,9 @@ func (s *Service) ListSummaries() ([]Case, error) { return s.list(true) }
 func (s *Service) list(summary bool) ([]Case, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	query := "SELECT body FROM detective_cases ORDER BY updated DESC LIMIT 100"
+	query := "SELECT body, active_ms FROM detective_cases ORDER BY updated DESC LIMIT 100"
 	if summary {
-		query = "SELECT json_remove(CAST(body AS TEXT),'$.sources','$.findings','$.reports','$.answers','$.plan') FROM detective_cases ORDER BY updated DESC LIMIT 100"
+		query = "SELECT json_remove(CAST(body AS TEXT),'$.sources','$.findings','$.reports','$.answers','$.plan'), active_ms FROM detective_cases ORDER BY updated DESC LIMIT 100"
 	}
 	rows, err := s.db.Query(query)
 	if err != nil {
@@ -229,12 +240,16 @@ func (s *Service) list(summary bool) ([]Case, error) {
 	out := []Case{}
 	for rows.Next() {
 		var b []byte
+		var active int64
 		var c Case
-		if err = rows.Scan(&b); err != nil {
+		if err = rows.Scan(&b, &active); err != nil {
 			return nil, err
 		}
 		if err = json.Unmarshal(b, &c); err != nil {
 			return nil, err
+		}
+		if active > c.Run.Usage.ActiveMS {
+			c.Run.Usage.ActiveMS = active
 		}
 		out = append(out, c)
 	}

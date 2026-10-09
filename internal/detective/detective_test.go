@@ -222,6 +222,99 @@ func TestHeartbeatDoesNotRewriteEvidence(t *testing.T) {
 	}
 }
 
+func TestActiveTimeSurvivesRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "detective.db")
+	s, err := New(Options{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	var clockMu sync.Mutex
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	s.now = func() time.Time { clockMu.Lock(); defer clockMu.Unlock(); return now }
+	c, err := s.Create(Request{Topic: "restart", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	excerpt := strings.Repeat("quoted measurement 42 units. ", 1000)
+	s.mu.Lock()
+	c.Run = Run{ID: "run_restart", Status: "running", Profile: Profiles()["quick"], StartedAt: now}
+	c.Sources = []Source{{ID: "src_restart", Title: "Gauge", Status: "read", Excerpt: excerpt}}
+	if err = s.saveLocked(&c); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	var before int
+	if err = s.db.QueryRow("SELECT length(body) FROM detective_cases WHERE id=?", c.ID).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	x := &Session{service: s, CaseID: c.ID, last: now}
+	clockMu.Lock()
+	now = now.Add(2 * time.Second)
+	clockMu.Unlock()
+	if err = x.beat(); err != nil {
+		t.Fatal(err)
+	}
+	var afterBeat int
+	var active int64
+	if err = s.db.QueryRow("SELECT length(body), active_ms FROM detective_cases WHERE id=?", c.ID).Scan(&afterBeat, &active); err != nil {
+		t.Fatal(err)
+	}
+	if afterBeat != before || active != 2000 {
+		t.Fatalf("body %d->%d active_ms=%d", before, afterBeat, active)
+	}
+	if err = s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := New(Options{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = reopened.Close() })
+	var version int
+	if err = reopened.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	if version != 2 {
+		t.Fatalf("user_version=%d", version)
+	}
+	got, err := reopened.Get(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Run.Usage.ActiveMS != 2000 || len(got.Sources) != 1 || got.Sources[0].Excerpt != excerpt {
+		t.Fatalf("restart lost time or excerpt: active=%d sources=%d", got.Run.Usage.ActiveMS, len(got.Sources))
+	}
+	if got.Run.Status != "interrupted" || got.Run.Reason != "server_restart" {
+		t.Fatalf("status=%s reason=%s", got.Run.Status, got.Run.Reason)
+	}
+	var body []byte
+	if err = reopened.db.QueryRow("SELECT body FROM detective_cases WHERE id=?", c.ID).Scan(&body); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(body, []byte(excerpt)) {
+		t.Fatal("restart save dropped the source excerpt")
+	}
+
+	if err = reopened.Close(); err != nil {
+		t.Fatal(err)
+	}
+	third, err := New(Options{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = third.Close() })
+	got, err = third.Get(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Run.Usage.ActiveMS != 2000 || got.Sources[0].Excerpt != excerpt {
+		t.Fatalf("backfill overwrote active time: active=%d excerpt=%d", got.Run.Usage.ActiveMS, len(got.Sources[0].Excerpt))
+	}
+}
+
 func TestResearchBudgetResumeAndParallelReservations(t *testing.T) {
 	s := newTestService(t)
 	var clockMu sync.Mutex
