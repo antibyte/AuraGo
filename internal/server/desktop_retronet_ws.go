@@ -113,13 +113,13 @@ func (c *retroNetWSClient) readLoop() {
 }
 
 // closeSocket sends a normal close frame (best effort) and closes the socket.
-// It is idempotent and unblocks the reader.
+// It is idempotent and unblocks the reader. WriteControl and Close may run
+// concurrently with a data write, so it does not wait for writeMu: a stalled
+// write cannot hold the close beyond its own one-second deadline.
 func (c *retroNetWSClient) closeSocket() {
 	c.closeOnce.Do(func() {
 		close(c.done)
-		c.writeMu.Lock()
 		_ = c.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
-		c.writeMu.Unlock()
 		_ = c.conn.Close()
 	})
 }

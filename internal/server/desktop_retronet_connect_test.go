@@ -144,6 +144,7 @@ func TestDesktopRetroNetConnectRejectsBeforeUpgrade(t *testing.T) {
 		{"unknown entry", "/api/desktop/retronet/connect?entry=own-missing01", env.adminToken, sameOrigin, true, false, false, http.StatusNotFound, ""},
 		{"missing entry", "/api/desktop/retronet/connect", env.writeToken, sameOrigin, true, false, false, http.StatusNotFound, ""},
 		{"foreign origin", connect, env.writeToken, "https://foreign.example", true, false, false, http.StatusForbidden, ""},
+		{"unknown entry from a foreign origin", "/api/desktop/retronet/connect?entry=own-missing01", env.writeToken, "https://foreign.example", true, false, false, http.StatusNotFound, ""},
 		{"missing origin", connect, env.writeToken, "", true, false, false, http.StatusForbidden, ""},
 		{"plain GET", connect, env.writeToken, sameOrigin, false, false, false, http.StatusBadRequest, ""},
 	} {
@@ -178,8 +179,37 @@ func TestDesktopRetroNetConnectRejectsBeforeUpgrade(t *testing.T) {
 			}
 		})
 	}
+	env.configure(func(vd *config.VirtualDesktopConfig) { vd.ReadOnly, vd.RetroNetEnabled = false, true })
+	if rec := env.serve(t, http.MethodHead, connect, env.adminToken, ""); rec.Code != http.StatusMethodNotAllowed || rec.Header().Get("Allow") != http.MethodGet {
+		t.Fatalf("HEAD connect = %d (Allow %q), want 405 GET", rec.Code, rec.Header().Get("Allow"))
+	}
 	if accepted := env.telnet.acceptedCount(); accepted != 0 {
 		t.Fatalf("rejected handshakes reached the service %d times", accepted)
+	}
+}
+
+func TestDesktopRetroNetConnectAuditsFailedUpgrades(t *testing.T) {
+	env := newRetroNetTestEnv(t)
+	env.saveEntries(t, env.ownTelnetEntry())
+	r := httptest.NewRequest(http.MethodGet, "/api/desktop/retronet/connect?entry="+retroNetTestEntryID, nil)
+	r.Host = "aurago.test:8088"
+	r.Header.Set("Origin", "http://aurago.test:8088")
+	r.Header.Set("Authorization", "Bearer "+env.writeToken)
+	r.Header.Set("Connection", "Upgrade")
+	r.Header.Set("Upgrade", "websocket")
+	r.Header.Set("Sec-Websocket-Version", "8")
+	r.Header.Set("Sec-Websocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+	w := httptest.NewRecorder()
+	env.mux.ServeHTTP(w, r)
+	if w.Code != http.StatusBadRequest || w.Header().Get("Upgrade") != "" {
+		t.Fatalf("unsupported WebSocket version = %d (Upgrade %q), want 400", w.Code, w.Header().Get("Upgrade"))
+	}
+	audit, _ := waitRetroNetAudit(t, env, "desktop_retronet_connect", retroNetTestEntryID)
+	if audit["status"] != "blocked" || audit["reason"] != "upgrade_failed" {
+		t.Fatalf("connect audit after a failed upgrade = %v, want blocked/upgrade_failed", audit)
+	}
+	if accepted := env.telnet.acceptedCount(); accepted != 0 {
+		t.Fatalf("a failed upgrade reached the service %d times", accepted)
 	}
 }
 
@@ -195,8 +225,8 @@ func TestDesktopRetroNetConnectBridgesTelnetEndToEnd(t *testing.T) {
 	if connected.Protocol != "telnet" || connected.Kind != "world" || connected.Charset != "utf8" {
 		t.Fatalf("connected = %+v", connected)
 	}
-	if echo, ok := socket.control("echo"); !ok || echo.Remote == nil || *echo.Remote {
-		t.Fatalf("initial echo control = %+v, %v; want remote:false", echo, ok)
+	if echo, ok := socket.control("echo"); !ok || echo.Remote == nil || *echo.Remote || echo.Hidden == nil || *echo.Hidden {
+		t.Fatalf("initial echo control = %+v, %v; want remote:false, hidden:false", echo, ok)
 	}
 	env.telnet.waitInput(t, retroNetNAWS(90, 28))
 	socket.send(websocket.BinaryMessage, "dir\r")

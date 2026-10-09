@@ -107,12 +107,17 @@ func (s *Server) storeRetroNetHostKey(ctx context.Context, entryID, fingerprint 
 		s.retroNetLogger().Warn("Retro-Net host key was not stored", "entry", entryID, "error", err)
 		return err
 	}
-	settings := map[string]string{}
-	if own, err := svc.RetroNetEntries(ctx); err == nil {
-		if document, err := retronet.EncodeEntriesDocument(own); err == nil {
-			settings[retronet.EntriesSetting] = document
-		}
+	own, err := svc.RetroNetEntries(ctx)
+	var document string
+	if err == nil {
+		document, err = retronet.EncodeEntriesDocument(own)
 	}
+	if err != nil {
+		// The key is stored; only the announcement is skipped.
+		s.retroNetLogger().Warn("Retro-Net host key stored but not announced", "entry", entryID, "error", err)
+		return nil
+	}
+	settings := map[string]string{retronet.EntriesSetting: document}
 	event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "set_settings", "settings": settings}, CreatedAt: time.Now().UTC()}
 	broadcastDesktopEvent(s, hub, event)
 	return nil
@@ -199,6 +204,8 @@ func (s *Server) handleRetroNetConnect(w http.ResponseWriter, r *http.Request) {
 	auditDesktopRemoteAttempt(s, r, "desktop_retronet_connect", entry.ID, "attempt", "")
 	conn, err := retroNetUpgrader.Upgrade(w, r, nil)
 	if err != nil {
+		// Upgrade has answered the handshake with an HTTP error.
+		auditDesktopRemoteAttempt(s, r, "desktop_retronet_connect", entry.ID, "blocked", "upgrade_failed")
 		return
 	}
 	client := newRetroNetWSClient(conn)
