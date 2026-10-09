@@ -80,6 +80,79 @@ func TestClusterCacheSharesConcurrentLoads(t *testing.T) {
 	}
 }
 
+// Loads of different clusters run in parallel only up to
+// maxConcurrentClusterLoads; the others wait for a slot and then load too.
+func TestClusterCacheBoundsConcurrentLoads(t *testing.T) {
+	c := newClusterCache(0)
+	const callers = 4 * maxConcurrentClusterLoads
+	var running, peak, loads atomic.Int32
+	release := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := range callers {
+		wg.Go(func() {
+			_, err := c.get(uint32(i), func() (*clusterData, error) {
+				now := running.Add(1)
+				for {
+					old := peak.Load()
+					if now <= old || peak.CompareAndSwap(old, now) {
+						break
+					}
+				}
+				<-release
+				running.Add(-1)
+				loads.Add(1)
+				return fakeCluster(10), nil
+			})
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for running.Load() < maxConcurrentClusterLoads && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	// Give any caller that ignores the bound time to start its load.
+	time.Sleep(50 * time.Millisecond)
+	if got := running.Load(); got != maxConcurrentClusterLoads {
+		t.Fatalf("running loads = %d, want %d", got, maxConcurrentClusterLoads)
+	}
+	close(release)
+	wg.Wait()
+	if got := peak.Load(); got != maxConcurrentClusterLoads {
+		t.Fatalf("peak concurrent loads = %d, want %d", got, maxConcurrentClusterLoads)
+	}
+	if got := loads.Load(); got != callers {
+		t.Fatalf("loads = %d, want %d (every waiting caller must load eventually)", got, callers)
+	}
+	if got := len(c.loadSlots); got != 0 {
+		t.Fatalf("occupied load slots after all loads = %d, want 0", got)
+	}
+}
+
+// A failing or panicking load gives its slot back.
+func TestClusterCacheReleasesLoadSlotsOnFailure(t *testing.T) {
+	c := newClusterCache(0)
+	boom := errors.New("boom")
+	for i := range 2 * maxConcurrentClusterLoads {
+		if _, err := c.get(uint32(i), func() (*clusterData, error) { return nil, boom }); !errors.Is(err, boom) {
+			t.Fatalf("error = %v, want boom", err)
+		}
+	}
+	for i := range 2 * maxConcurrentClusterLoads {
+		func() {
+			defer func() { _ = recover() }()
+			_, _ = c.get(uint32(100+i), func() (*clusterData, error) { panic("load panicked") })
+		}()
+	}
+	if got := len(c.loadSlots); got != 0 {
+		t.Fatalf("occupied load slots = %d, want 0", got)
+	}
+	if _, err := c.get(1000, func() (*clusterData, error) { return fakeCluster(10), nil }); err != nil {
+		t.Fatalf("load after failures = %v", err)
+	}
+}
+
 func TestClusterCacheClearDropsEntries(t *testing.T) {
 	c := newClusterCache(0)
 	var loads int
