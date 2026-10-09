@@ -1,0 +1,4517 @@
+{
+ "index_words": {
+  "de": [
+   "alleen",
+   "aller",
+   "als",
+   "alt",
+   "alten",
+   "alteste",
+   "altstadt",
+   "am",
+   "an",
+   "apfel",
+   "auch",
+   "auf",
+   "aus",
+   "autos",
+   "backer",
+   "backerei",
+   "backt",
+   "bahnhof",
+   "ballspiel",
+   "baumen",
+   "bayern",
+   "bekannt",
+   "beliebtes",
+   "berg",
+   "berlin",
+   "besonders",
+   "bestehen",
+   "bonn",
+   "breite",
+   "brot",
+   "brotchen",
+   "brucke",
+   "brucken",
+   "bundesland",
+   "dem",
+   "den",
+   "der",
+   "des",
+   "deutschlands",
+   "die",
+   "dom",
+   "dort",
+   "dresden",
+   "duftet",
+   "durch",
+   "ein",
+   "eine",
+   "einen",
+   "einer",
+   "eines",
+   "elbe",
+   "er",
+   "europas",
+   "fachwerkhaus",
+   "fahren",
+   "fahrt",
+   "fast",
+   "feiern",
+   "fest",
+   "findet",
+   "fließt",
+   "fluss",
+   "flusse",
+   "freistaats",
+   "frisches",
+   "fuhrt",
+   "fur",
+   "fußball",
+   "fußballverein",
+   "fußganger",
+   "gebaude",
+   "gerust",
+   "gotische",
+   "grenze",
+   "große",
+   "großer",
+   "großes",
+   "gut",
+   "hafen",
+   "hafenstadt",
+   "hamburg",
+   "hat",
+   "hauptstadt",
+   "haus",
+   "hauser",
+   "hauses",
+   "havel",
+   "heidelberg",
+   "herbst",
+   "hochste",
+   "holz",
+   "im",
+   "in",
+   "isar",
+   "ist",
+   "jede",
+   "junge",
+   "kirche",
+   "koln",
+   "kolner",
+   "kommt",
+   "langsten",
+   "leben",
+   "liegt",
+   "man",
+   "mannschaften",
+   "mehr",
+   "menschen",
+   "millionen",
+   "mit",
+   "morgen",
+   "munchen",
+   "mundet",
+   "nach",
+   "nebeneinander",
+   "nennt",
+   "norden",
+   "nordsee",
+   "obst",
+   "oder",
+   "oft",
+   "osten",
+   "osterreich",
+   "rader",
+   "rhein",
+   "sauer",
+   "schienen",
+   "schiffe",
+   "schmecken",
+   "schnell",
+   "sehr",
+   "seinen",
+   "sichtbares",
+   "sie",
+   "sind",
+   "solche",
+   "spree",
+   "stadt",
+   "stadten",
+   "stadtteile",
+   "stehen",
+   "steht",
+   "stein",
+   "straße",
+   "straßen",
+   "studieren",
+   "suden",
+   "suß",
+   "tal",
+   "trainiert",
+   "uber",
+   "und",
+   "universitat",
+   "venedig",
+   "verbinden",
+   "viele",
+   "vielen",
+   "vier",
+   "von",
+   "vorbei",
+   "wachsen",
+   "wande",
+   "weg",
+   "welt",
+   "woche",
+   "wohnen",
+   "zu",
+   "zug",
+   "zugspitze",
+   "zwei"
+  ],
+  "en": [
+   "1960s",
+   "2024",
+   "a",
+   "about",
+   "along",
+   "america",
+   "an",
+   "and",
+   "apple",
+   "apples",
+   "are",
+   "arms",
+   "art",
+   "artists",
+   "as",
+   "at&t",
+   "athletes",
+   "baked",
+   "band",
+   "based",
+   "beatles",
+   "before",
+   "between",
+   "bridge",
+   "bridges",
+   "bright",
+   "built",
+   "by",
+   "c",
+   "c++",
+   "cafe",
+   "cafes",
+   "cakes",
+   "capital",
+   "carries",
+   "check",
+   "city",
+   "climbers",
+   "coffee",
+   "colours",
+   "common",
+   "company",
+   "compete",
+   "competed",
+   "computers",
+   "countries",
+   "created",
+   "cross",
+   "day",
+   "despite",
+   "dessert",
+   "e",
+   "earth",
+   "east",
+   "email",
+   "engineers",
+   "england",
+   "enjoy",
+   "everest",
+   "every",
+   "famous",
+   "faster",
+   "filled",
+   "flows",
+   "foot",
+   "for",
+   "formal",
+   "forty",
+   "from",
+   "fruit",
+   "games",
+   "green",
+   "grows",
+   "have",
+   "highest",
+   "in",
+   "ireland",
+   "irish",
+   "is",
+   "it",
+   "its",
+   "kilometres",
+   "kingdom",
+   "language",
+   "large",
+   "legs",
+   "let",
+   "live",
+   "liverpool",
+   "london",
+   "mail",
+   "many",
+   "marathon",
+   "messages",
+   "method",
+   "months",
+   "mount",
+   "mountain",
+   "moving",
+   "naive",
+   "name",
+   "named",
+   "near",
+   "need",
+   "north",
+   "not",
+   "o'brien",
+   "obstacle",
+   "of",
+   "often",
+   "olympics",
+   "on",
+   "opens",
+   "operating",
+   "or",
+   "outside",
+   "over",
+   "oxygen",
+   "paintings",
+   "paris",
+   "parks",
+   "pass",
+   "people",
+   "pie",
+   "pineapple",
+   "place",
+   "pools",
+   "popular",
+   "programmers",
+   "programming",
+   "quickly",
+   "race",
+   "railway",
+   "red",
+   "related",
+   "released",
+   "restaurant",
+   "river",
+   "rivers",
+   "road",
+   "rock",
+   "rough",
+   "runner",
+   "runners",
+   "running",
+   "runs",
+   "sea",
+   "sending",
+   "serves",
+   "ships",
+   "show",
+   "skin",
+   "small",
+   "songs",
+   "southern",
+   "started",
+   "states",
+   "steel",
+   "stone",
+   "structure",
+   "sugar",
+   "summer",
+   "summit",
+   "surname",
+   "sweet",
+   "swimmers",
+   "swimming",
+   "systems",
+   "tables",
+   "tall",
+   "telecommunications",
+   "telephone",
+   "thames",
+   "than",
+   "that",
+   "the",
+   "their",
+   "through",
+   "to",
+   "took",
+   "tower",
+   "train",
+   "training",
+   "trees",
+   "tropical",
+   "two",
+   "united",
+   "use",
+   "using",
+   "walker",
+   "water",
+   "way",
+   "were",
+   "with",
+   "without",
+   "wood",
+   "yellow"
+  ],
+  "ja": [
+   "skytree",
+   "tokyo",
+   "々",
+   "々て",
+   "あ",
+   "あり",
+   "ある",
+   "い",
+   "いな",
+   "いま",
+   "いる",
+   "い山",
+   "い気",
+   "い都",
+   "い電",
+   "え",
+   "えま",
+   "お",
+   "お寺",
+   "か",
+   "かあ",
+   "かい",
+   "かけ",
+   "かた",
+   "かな",
+   "から",
+   "か住",
+   "か公",
+   "か大",
+   "か有",
+   "き",
+   "きて",
+   "きな",
+   "きれ",
+   "く",
+   "くさ",
+   "くて",
+   "くの",
+   "く花",
+   "け",
+   "けて",
+   "こ",
+   "こか",
+   "ここ",
+   "こ飯",
+   "さ",
+   "され",
+   "さん",
+   "し",
+   "しい",
+   "した",
+   "しま",
+   "しみ",
+   "す",
+   "せ",
+   "せた",
+   "せま",
+   "た",
+   "たく",
+   "たス",
+   "た日",
+   "っ",
+   "った",
+   "つ",
+   "つて",
+   "て",
+   "てい",
+   "てす",
+   "ては",
+   "ても",
+   "て一",
+   "て人",
+   "て生",
+   "て知",
+   "て約",
+   "て花",
+   "て話",
+   "て走",
+   "て食",
+   "と",
+   "とて",
+   "とも",
+   "と呼",
+   "と暖",
+   "と魚",
+   "な",
+   "なは",
+   "なを",
+   "な島",
+   "な海",
+   "な都",
+   "な駅",
+   "に",
+   "にあ",
+   "には",
+   "にひ",
+   "にカ",
+   "に咲",
+   "の",
+   "のお",
+   "のロ",
+   "の一",
+   "の中",
+   "の人",
+   "の北",
+   "の南",
+   "の大",
+   "の家",
+   "の文",
+   "の新",
+   "の首",
+   "の高",
+   "は",
+   "はと",
+   "はれ",
+   "は中",
+   "は北",
+   "は古",
+   "は多",
+   "は安",
+   "は日",
+   "は春",
+   "は最",
+   "は東",
+   "は西",
+   "は酢",
+   "は食",
+   "ひ",
+   "ひら",
+   "へ",
+   "へま",
+   "へ物",
+   "ま",
+   "まし",
+   "ます",
+   "まて",
+   "まれ",
+   "み",
+   "みま",
+   "も",
+   "もこ",
+   "もは",
+   "も人",
+   "も寒",
+   "も見",
+   "や",
+   "や東",
+   "や神",
+   "ら",
+   "らか",
+   "らも",
+   "られ",
+   "ら出",
+   "ら大",
+   "ら街",
+   "り",
+   "りま",
+   "る",
+   "る大",
+   "る島",
+   "る言",
+   "る赤",
+   "れ",
+   "れい",
+   "れた",
+   "れて",
+   "れま",
+   "わ",
+   "わせ",
+   "を",
+   "をか",
+   "を使",
+   "を合",
+   "を楽",
+   "を習",
+   "を見",
+   "ん",
+   "んて",
+   "ん降",
+   "ア",
+   "アニ",
+   "イ",
+   "イス",
+   "イツ",
+   "カ",
+   "カイ",
+   "カタ",
+   "カナ",
+   "カレ",
+   "カン",
+   "ス",
+   "スは",
+   "スカ",
+   "スー",
+   "タ",
+   "タカ",
+   "タム",
+   "タワ",
+   "ッ",
+   "ット",
+   "ツ",
+   "ツリ",
+   "テ",
+   "テル",
+   "ト",
+   "トア",
+   "ナ",
+   "ニ",
+   "ニメ",
+   "フ",
+   "フラ",
+   "フ料",
+   "ホ",
+   "ホッ",
+   "ム",
+   "ムは",
+   "メ",
+   "メて",
+   "メン",
+   "モ",
+   "モテ",
+   "ラ",
+   "ライ",
+   "ラモ",
+   "ラー",
+   "リ",
+   "リー",
+   "ル",
+   "ルも",
+   "レ",
+   "レー",
+   "ロ",
+   "ロホ",
+   "ワ",
+   "ワー",
+   "ン",
+   "ンは",
+   "ンタ",
+   "ー",
+   "ーは",
+   "ーや",
+   "ーを",
+   "ーフ",
+   "ーメ",
+   "ーラ",
+   "一",
+   "一つ",
+   "一番",
+   "中",
+   "中心",
+   "中華",
+   "二",
+   "二時",
+   "京",
+   "京か",
+   "京に",
+   "京の",
+   "京は",
+   "京ス",
+   "京タ",
+   "京都",
+   "京駅",
+   "人",
+   "人か",
+   "人は",
+   "人気",
+   "住",
+   "住ん",
+   "使",
+   "使い",
+   "使っ",
+   "候",
+   "候て",
+   "公",
+   "公園",
+   "冬",
+   "冬は",
+   "出",
+   "出発",
+   "初",
+   "初に",
+   "北",
+   "北に",
+   "北海",
+   "半",
+   "半て",
+   "南",
+   "南に",
+   "古",
+   "古い",
+   "台",
+   "台か",
+   "司",
+   "司は",
+   "合",
+   "合わ",
+   "名",
+   "名て",
+   "味",
+   "味噌",
+   "呼",
+   "呼は",
+   "咲",
+   "咲く",
+   "噌",
+   "噌ラ",
+   "回",
+   "回転",
+   "園",
+   "園て",
+   "塔",
+   "塔て",
+   "士",
+   "士山",
+   "多",
+   "多く",
+   "大",
+   "大き",
+   "大好",
+   "大阪",
+   "好",
+   "好き",
+   "子",
+   "子と",
+   "字",
+   "字の",
+   "字を",
+   "安",
+   "安く",
+   "家",
+   "家庭",
+   "富",
+   "富士",
+   "寒",
+   "寒く",
+   "寺",
+   "寺や",
+   "寿",
+   "寿司",
+   "展",
+   "展望",
+   "山",
+   "山て",
+   "山は",
+   "島",
+   "島々",
+   "島て",
+   "市",
+   "市て",
+   "幹",
+   "幹線",
+   "庭",
+   "庭料",
+   "心",
+   "心に",
+   "文",
+   "文字",
+   "料",
+   "料理",
+   "新",
+   "新し",
+   "新幹",
+   "日",
+   "日に",
+   "日本",
+   "春",
+   "春に",
+   "時",
+   "時間",
+   "晴",
+   "晴れ",
+   "暖",
+   "暖か",
+   "最",
+   "最初",
+   "有",
+   "有名",
+   "望",
+   "望台",
+   "本",
+   "本て",
+   "本の",
+   "本料",
+   "本語",
+   "東",
+   "東京",
+   "桜",
+   "桜は",
+   "楽",
+   "楽し",
+   "気",
+   "気か",
+   "気の",
+   "気候",
+   "沖",
+   "沖縄",
+   "波",
+   "波塔",
+   "海",
+   "海と",
+   "海道",
+   "渡",
+   "渡せ",
+   "漢",
+   "漢字",
+   "物",
+   "物か",
+   "理",
+   "理て",
+   "生",
+   "生ま",
+   "番",
+   "番高",
+   "発",
+   "発し",
+   "知",
+   "知ら",
+   "社",
+   "社か",
+   "神",
+   "神社",
+   "約",
+   "約二",
+   "線",
+   "線は",
+   "線も",
+   "縄",
+   "縄は",
+   "習",
+   "習い",
+   "花",
+   "花て",
+   "花見",
+   "英",
+   "英語",
+   "華",
+   "華麺",
+   "街",
+   "街を",
+   "西",
+   "西日",
+   "見",
+   "見え",
+   "見を",
+   "見渡",
+   "言",
+   "言語",
+   "話",
+   "話さ",
+   "語",
+   "語て",
+   "語の",
+   "語は",
+   "赤",
+   "赤い",
+   "走",
+   "走り",
+   "転",
+   "転寿",
+   "速",
+   "速鉄",
+   "道",
+   "道て",
+   "道は",
+   "都",
+   "都て",
+   "都に",
+   "都は",
+   "都市",
+   "酢",
+   "酢飯",
+   "鉄",
+   "鉄道",
+   "間",
+   "間半",
+   "阪",
+   "阪の",
+   "阪は",
+   "阪ま",
+   "降",
+   "降り",
+   "雪",
+   "雪か",
+   "電",
+   "電波",
+   "食",
+   "食へ",
+   "飯",
+   "飯と",
+   "飯に",
+   "首",
+   "首都",
+   "駅",
+   "駅か",
+   "駅て",
+   "駅は",
+   "高",
+   "高い",
+   "高速",
+   "魚",
+   "魚を",
+   "麺",
+   "麺を"
+  ],
+  "pl": [
+   "albo",
+   "bałtyckie",
+   "bałtyckiego",
+   "bałtyckim",
+   "białowieskiej",
+   "biały",
+   "bigos",
+   "bocian",
+   "bociany",
+   "buduja",
+   "był",
+   "centrum",
+   "chopin",
+   "cumuja",
+   "dachach",
+   "danie",
+   "dawna",
+   "dawniej",
+   "dniach",
+   "do",
+   "duze",
+   "duzym",
+   "dwa",
+   "europy",
+   "fabryk",
+   "fryderyk",
+   "gdansk",
+   "gniazda",
+   "gory",
+   "gotowania",
+   "i",
+   "jest",
+   "kapuste",
+   "kapusty",
+   "kilku",
+   "kompozytorem",
+   "krakow",
+   "krasnali",
+   "krolewski",
+   "krolowie",
+   "kuchni",
+   "ladowym",
+   "lezy",
+   "ludzi",
+   "ma",
+   "mało",
+   "małych",
+   "miastem",
+   "miasto",
+   "miesa",
+   "miescie",
+   "mieszka",
+   "mieszkali",
+   "miliony",
+   "morza",
+   "morze",
+   "morzem",
+   "morzu",
+   "mostow",
+   "moze",
+   "na",
+   "nad",
+   "nadzienie",
+   "najdłuzsza",
+   "najlepiej",
+   "najwiekszym",
+   "najwyzsze",
+   "najwyzszym",
+   "narciarzy",
+   "niedaleko",
+   "nim",
+   "odra",
+   "pianista",
+   "piekny",
+   "pierogi",
+   "po",
+   "polsce",
+   "polski",
+   "polskiej",
+   "polskim",
+   "porcie",
+   "portowe",
+   "potrawa",
+   "poznan",
+   "połnocy",
+   "prawie",
+   "przez",
+   "przyjezdza",
+   "przylatuje",
+   "puszczy",
+   "płynie",
+   "ratusz",
+   "rynku",
+   "rysy",
+   "rzeka",
+   "sa",
+   "ser",
+   "sie",
+   "smakuje",
+   "ssakiem",
+   "starym",
+   "statki",
+   "stoi",
+   "stolica",
+   "stop",
+   "stronie",
+   "szczytem",
+   "słona",
+   "słupach",
+   "słyneła",
+   "słynie",
+   "tatr",
+   "tatry",
+   "to",
+   "tradycyjne",
+   "tu",
+   "tym",
+   "u",
+   "urodził",
+   "w",
+   "warszawa",
+   "warszawe",
+   "warszawie",
+   "warszawy",
+   "warta",
+   "wawel",
+   "wiele",
+   "wielu",
+   "wiosna",
+   "wisła",
+   "woda",
+   "wrocław",
+   "wzgorzu",
+   "włokienniczych",
+   "z",
+   "zakopane",
+   "zamek",
+   "zawierac",
+   "ziemniaki",
+   "zima",
+   "zubr",
+   "zubry",
+   "zyja",
+   "łodz"
+  ]
+ },
+ "normalize": [
+  [
+   "Häuser in Berlin",
+   "hauser in berlin"
+  ],
+  [
+   "MÜNCHEN",
+   "munchen"
+  ],
+  [
+   "Straße",
+   "straße"
+  ],
+  [
+   "STRASSE",
+   "strasse"
+  ],
+  [
+   "ẞ",
+   "ß"
+  ],
+  [
+   "Œuvre",
+   "œuvre"
+  ],
+  [
+   "Ångström",
+   "angstrom"
+  ],
+  [
+   "Łódź",
+   "łodz"
+  ],
+  [
+   "Żubr",
+   "zubr"
+  ],
+  [
+   "Kraków",
+   "krakow"
+  ],
+  [
+   "naïve café",
+   "naive cafe"
+  ],
+  [
+   "İstanbul",
+   "istanbul"
+  ],
+  [
+   "ΟΔΥΣΣΕΥΣ",
+   "οδυσσευς"
+  ],
+  [
+   "Σίσυφος",
+   "σισυφος"
+  ],
+  [
+   "ガンダム",
+   "カンタム"
+  ],
+  [
+   "パン",
+   "ハン"
+  ],
+  [
+   "東京タワー",
+   "東京タワー"
+  ],
+  [
+   "हिन्दी",
+   "हनद"
+  ],
+  [
+   "Ελληνικά",
+   "ελληνικα"
+  ],
+  [
+   "ﬁligree",
+   "ﬁligree"
+  ],
+  [
+   "Ⅻ",
+   "ⅻ"
+  ],
+  [
+   "Ｆｕｌｌｗｉｄｔｈ",
+   "ｆｕｌｌｗｉｄｔｈ"
+  ],
+  [
+   "Dvořák",
+   "dvorak"
+  ],
+  [
+   "Søren Kierkegaard",
+   "søren kierkegaard"
+  ],
+  [
+   "Å",
+   "a"
+  ]
+ ],
+ "queryparse": [
+  {
+   "language": "deu",
+   "query": "berlin",
+   "terms": [
+    "berlin"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "Berlin",
+   "terms": [
+    "berlin"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "häuser",
+   "terms": [
+    "haus"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "hauses",
+   "terms": [
+    "haus"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "münchen",
+   "terms": [
+    "munch"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "MUNCHEN",
+   "terms": [
+    "munch"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "fluss berlin",
+   "terms": [
+    "berlin",
+    "fluss"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "fluss hafen",
+   "terms": [
+    "fluss",
+    "haf"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "die stadt",
+   "terms": [
+    "die",
+    "stadt"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "straße",
+   "terms": [
+    "strass"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "strasse",
+   "terms": [
+    "strass"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "brücken",
+   "terms": [
+    "bruck"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "äpfel",
+   "terms": [
+    "apfel"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "zug bahnhof",
+   "terms": [
+    "bahnhof",
+    "zug"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "hauptstadt bayern",
+   "terms": [
+    "bay",
+    "hauptstadt"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "Österreich",
+   "terms": [
+    "osterreich"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "bäcker brot",
+   "terms": [
+    "back",
+    "brot"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "Spree-Athen",
+   "terms": [
+    "ath",
+    "spree"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "b",
+   "terms": [
+    "b"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "ber",
+   "terms": [
+    "ber"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "berl",
+   "terms": [
+    "berl"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "Berlin",
+   "terms": [
+    "berlin"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "haupt",
+   "terms": [
+    "haupt"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "hauptstadt d",
+   "terms": [
+    "d",
+    "hauptstadt"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "mün",
+   "terms": [
+    "mun"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "mue",
+   "terms": [
+    "mue"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "muen",
+   "terms": [
+    "muen"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "zug",
+   "terms": [
+    "zug"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "zugs",
+   "terms": [
+    "zug"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "str",
+   "terms": [
+    "str"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "strasse",
+   "terms": [
+    "strass"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "brü",
+   "terms": [
+    "bru"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "spree",
+   "terms": [
+    "spree"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "spree-",
+   "terms": [
+    "spree"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "köln",
+   "terms": [
+    "koln"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "koel",
+   "terms": [
+    "koel"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "fach",
+   "terms": [
+    "fach"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "bayern m",
+   "terms": [
+    "bay",
+    "m"
+   ]
+  },
+  {
+   "language": "deu",
+   "query": "zu",
+   "terms": [
+    "zu"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "london",
+   "terms": [
+    "london"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "bridges",
+   "terms": [
+    "bridg"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "bridge london",
+   "terms": [
+    "bridg",
+    "london"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "running",
+   "terms": [
+    "run"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "runs",
+   "terms": [
+    "run"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "runner",
+   "terms": [
+    "runner"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "apple",
+   "terms": [
+    "appl"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "apples pie",
+   "terms": [
+    "appl",
+    "pie"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "cafe",
+   "terms": [
+    "cafe"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "café",
+   "terms": [
+    "cafe"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "c++",
+   "terms": [
+    "c++"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "at&t",
+   "terms": [
+    "at&t"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "o'brien",
+   "terms": [
+    "o'brien"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "the beatles",
+   "terms": [
+    "beatl",
+    "the"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "beatles",
+   "terms": [
+    "beatl"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "mount everest",
+   "terms": [
+    "everest",
+    "mount"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "e-mail",
+   "terms": [
+    "e",
+    "mail"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "2024",
+   "terms": [
+    "2024"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "river thames",
+   "terms": [
+    "river",
+    "thame"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "swimming running",
+   "terms": [
+    "run",
+    "swim"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "colours",
+   "terms": [
+    "colour"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "l",
+   "terms": [
+    "l"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "lon",
+   "terms": [
+    "lon"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "london",
+   "terms": [
+    "london"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "tower b",
+   "terms": [
+    "b",
+    "tower"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "tower bridge",
+   "terms": [
+    "bridg",
+    "tower"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "app",
+   "terms": [
+    "app"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "apple p",
+   "terms": [
+    "appl",
+    "p"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "pine",
+   "terms": [
+    "pine"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "caf",
+   "terms": [
+    "caf"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "café",
+   "terms": [
+    "cafe"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "the b",
+   "terms": [
+    "b",
+    "the"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "beat",
+   "terms": [
+    "beat"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "c+",
+   "terms": [
+    "c+"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "c++",
+   "terms": [
+    "c++"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "at&",
+   "terms": [
+    "at"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "o'b",
+   "terms": [
+    "o'b"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "2024",
+   "terms": [
+    "2024"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "2024 s",
+   "terms": [
+    "2024",
+    "s"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "mount e",
+   "terms": [
+    "e",
+    "mount"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "e-m",
+   "terms": [
+    "e",
+    "m"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "em",
+   "terms": [
+    "em"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "riv",
+   "terms": [
+    "riv"
+   ]
+  },
+  {
+   "language": "eng",
+   "query": "thames",
+   "terms": [
+    "thame"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "warszawa",
+   "terms": [
+    "warszawa"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "warszawie",
+   "terms": [
+    "warszawie"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "kraków",
+   "terms": [
+    "krakow"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "krakow",
+   "terms": [
+    "krakow"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "łódź",
+   "terms": [
+    "łodz"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "lodz",
+   "terms": [
+    "lodz"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "wisła",
+   "terms": [
+    "wisła"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "wisla",
+   "terms": [
+    "wisla"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "rzeka",
+   "terms": [
+    "rzeka"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "rzeką",
+   "terms": [
+    "rzeka"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "miasto wisłą",
+   "terms": [
+    "miasto",
+    "wisła"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "stolica polski",
+   "terms": [
+    "polski",
+    "stolica"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "żubr",
+   "terms": [
+    "zubr"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "zubr",
+   "terms": [
+    "zubr"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "morze bałtyckie",
+   "terms": [
+    "bałtyckie",
+    "morze"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "tatry zakopane",
+   "terms": [
+    "tatry",
+    "zakopane"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "w",
+   "terms": [
+    "w"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "war",
+   "terms": [
+    "war"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "warsz",
+   "terms": [
+    "warsz"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "kra",
+   "terms": [
+    "kra"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "krak",
+   "terms": [
+    "krak"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "łó",
+   "terms": [
+    "ło"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "lod",
+   "terms": [
+    "lod"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "lodz",
+   "terms": [
+    "lodz"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "zamek k",
+   "terms": [
+    "k",
+    "zamek"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "pie",
+   "terms": [
+    "pie"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "żu",
+   "terms": [
+    "zu"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "zu",
+   "terms": [
+    "zu"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "morze",
+   "terms": [
+    "morze"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "tat",
+   "terms": [
+    "tat"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "chop",
+   "terms": [
+    "chop"
+   ]
+  },
+  {
+   "language": "pol",
+   "query": "fryderyk c",
+   "terms": [
+    "c",
+    "fryderyk"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "東京",
+   "terms": [
+    "京",
+    "東",
+    "東京"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "日本",
+   "terms": [
+    "日",
+    "日本",
+    "本"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "タワー",
+   "terms": [
+    "タ",
+    "タワ",
+    "ワ",
+    "ワー",
+    "ー"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "東京 タワー",
+   "terms": [
+    "タ",
+    "タワ",
+    "ワ",
+    "ワー",
+    "ー",
+    "京",
+    "東",
+    "東京"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "東京タワー",
+   "terms": [
+    "タ",
+    "タワ",
+    "ワ",
+    "ワー",
+    "ー",
+    "京",
+    "京タ",
+    "東",
+    "東京"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "ラーメン",
+   "terms": [
+    "メ",
+    "メン",
+    "ラ",
+    "ラー",
+    "ン",
+    "ー",
+    "ーメ"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "ガンダム",
+   "terms": [
+    "カ",
+    "カン",
+    "タ",
+    "タム",
+    "ム",
+    "ン",
+    "ンタ"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "カンタム",
+   "terms": [
+    "カ",
+    "カン",
+    "タ",
+    "タム",
+    "ム",
+    "ン",
+    "ンタ"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "寿司",
+   "terms": [
+    "司",
+    "寿",
+    "寿司"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "新幹線 大阪",
+   "terms": [
+    "大",
+    "大阪",
+    "幹",
+    "幹線",
+    "新",
+    "新幹",
+    "線",
+    "阪"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "skytree",
+   "terms": [
+    "skytree"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "tokyo",
+   "terms": [
+    "tokyo"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "ひらがな",
+   "terms": [
+    "か",
+    "かな",
+    "な",
+    "ひ",
+    "ひら",
+    "ら",
+    "らか"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "東",
+   "terms": [
+    "東"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "東京",
+   "terms": [
+    "京",
+    "東",
+    "東京"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "東京タ",
+   "terms": [
+    "タ",
+    "京",
+    "京タ",
+    "東",
+    "東京"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "東京ス",
+   "terms": [
+    "ス",
+    "京",
+    "京ス",
+    "東",
+    "東京"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "とう",
+   "terms": [
+    "う",
+    "と",
+    "とう"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "ラー",
+   "terms": [
+    "ラ",
+    "ラー",
+    "ー"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "tok",
+   "terms": [
+    "tok"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "ガン",
+   "terms": [
+    "カ",
+    "カン",
+    "ン"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "カン",
+   "terms": [
+    "カ",
+    "カン",
+    "ン"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "新",
+   "terms": [
+    "新"
+   ]
+  },
+  {
+   "language": "jpn",
+   "query": "スカイ",
+   "terms": [
+    "イ",
+    "カ",
+    "カイ",
+    "ス",
+    "スカ"
+   ]
+  }
+ ],
+ "stems": {
+  "da": [
+   [
+    "husene",
+    "hus"
+   ],
+   [
+    "kærligheden",
+    "kær"
+   ],
+   [
+    "pigerne",
+    "pig"
+   ]
+  ],
+  "de": [
+   [
+    "alleen",
+    "alle"
+   ],
+   [
+    "aller",
+    "all"
+   ],
+   [
+    "als",
+    "als"
+   ],
+   [
+    "alt",
+    "alt"
+   ],
+   [
+    "alten",
+    "alt"
+   ],
+   [
+    "alteste",
+    "alt"
+   ],
+   [
+    "altstadt",
+    "altstadt"
+   ],
+   [
+    "am",
+    "am"
+   ],
+   [
+    "an",
+    "an"
+   ],
+   [
+    "apfel",
+    "apfel"
+   ],
+   [
+    "auch",
+    "auch"
+   ],
+   [
+    "auf",
+    "auf"
+   ],
+   [
+    "aus",
+    "aus"
+   ],
+   [
+    "autos",
+    "autos"
+   ],
+   [
+    "backer",
+    "back"
+   ],
+   [
+    "backerei",
+    "backerei"
+   ],
+   [
+    "backereien",
+    "backerei"
+   ],
+   [
+    "backt",
+    "backt"
+   ],
+   [
+    "bahnhof",
+    "bahnhof"
+   ],
+   [
+    "ballspiel",
+    "ballspiel"
+   ],
+   [
+    "baumen",
+    "baum"
+   ],
+   [
+    "bayern",
+    "bay"
+   ],
+   [
+    "bekannt",
+    "bekannt"
+   ],
+   [
+    "beliebtes",
+    "beliebt"
+   ],
+   [
+    "berg",
+    "berg"
+   ],
+   [
+    "berlin",
+    "berlin"
+   ],
+   [
+    "besonders",
+    "besond"
+   ],
+   [
+    "bestehen",
+    "besteh"
+   ],
+   [
+    "bonn",
+    "bonn"
+   ],
+   [
+    "breite",
+    "breit"
+   ],
+   [
+    "brot",
+    "brot"
+   ],
+   [
+    "brotchen",
+    "brotch"
+   ],
+   [
+    "brucke",
+    "bruck"
+   ],
+   [
+    "brucken",
+    "bruck"
+   ],
+   [
+    "bundesland",
+    "bundesland"
+   ],
+   [
+    "dem",
+    "dem"
+   ],
+   [
+    "den",
+    "den"
+   ],
+   [
+    "der",
+    "der"
+   ],
+   [
+    "des",
+    "des"
+   ],
+   [
+    "deutschlands",
+    "deutschland"
+   ],
+   [
+    "die",
+    "die"
+   ],
+   [
+    "dom",
+    "dom"
+   ],
+   [
+    "dort",
+    "dort"
+   ],
+   [
+    "dresden",
+    "dresd"
+   ],
+   [
+    "duftet",
+    "duftet"
+   ],
+   [
+    "durch",
+    "durch"
+   ],
+   [
+    "ein",
+    "ein"
+   ],
+   [
+    "eine",
+    "ein"
+   ],
+   [
+    "einen",
+    "ein"
+   ],
+   [
+    "einer",
+    "ein"
+   ],
+   [
+    "eines",
+    "ein"
+   ],
+   [
+    "elbe",
+    "elb"
+   ],
+   [
+    "er",
+    "er"
+   ],
+   [
+    "europas",
+    "europas"
+   ],
+   [
+    "fachwerkhaus",
+    "fachwerkhaus"
+   ],
+   [
+    "fahren",
+    "fahr"
+   ],
+   [
+    "fahrt",
+    "fahrt"
+   ],
+   [
+    "fast",
+    "fast"
+   ],
+   [
+    "feiern",
+    "feiern"
+   ],
+   [
+    "fest",
+    "fest"
+   ],
+   [
+    "findet",
+    "findet"
+   ],
+   [
+    "fließt",
+    "fliesst"
+   ],
+   [
+    "fluss",
+    "fluss"
+   ],
+   [
+    "flusse",
+    "fluss"
+   ],
+   [
+    "freistaats",
+    "freistaat"
+   ],
+   [
+    "frisches",
+    "frisch"
+   ],
+   [
+    "fuhrt",
+    "fuhrt"
+   ],
+   [
+    "fur",
+    "fur"
+   ],
+   [
+    "fußball",
+    "fussball"
+   ],
+   [
+    "fußballverein",
+    "fussballverein"
+   ],
+   [
+    "fußballvereine",
+    "fussballverein"
+   ],
+   [
+    "fußganger",
+    "fussgang"
+   ],
+   [
+    "gebaude",
+    "gebaud"
+   ],
+   [
+    "gerust",
+    "gerust"
+   ],
+   [
+    "gotische",
+    "gotisch"
+   ],
+   [
+    "grenze",
+    "grenz"
+   ],
+   [
+    "große",
+    "gross"
+   ],
+   [
+    "großer",
+    "gross"
+   ],
+   [
+    "großes",
+    "gross"
+   ],
+   [
+    "gut",
+    "gut"
+   ],
+   [
+    "hafen",
+    "haf"
+   ],
+   [
+    "hafenstadt",
+    "hafenstadt"
+   ],
+   [
+    "hamburg",
+    "hamburg"
+   ],
+   [
+    "hat",
+    "hat"
+   ],
+   [
+    "hauptstadt",
+    "hauptstadt"
+   ],
+   [
+    "haus",
+    "haus"
+   ],
+   [
+    "hauser",
+    "haus"
+   ],
+   [
+    "hauses",
+    "haus"
+   ],
+   [
+    "havel",
+    "havel"
+   ],
+   [
+    "heidelberg",
+    "heidelberg"
+   ],
+   [
+    "herbst",
+    "herb"
+   ],
+   [
+    "hochste",
+    "hoch"
+   ],
+   [
+    "holz",
+    "holz"
+   ],
+   [
+    "im",
+    "im"
+   ],
+   [
+    "in",
+    "in"
+   ],
+   [
+    "isar",
+    "isar"
+   ],
+   [
+    "ist",
+    "ist"
+   ],
+   [
+    "jede",
+    "jed"
+   ],
+   [
+    "junge",
+    "jung"
+   ],
+   [
+    "kirche",
+    "kirch"
+   ],
+   [
+    "koln",
+    "koln"
+   ],
+   [
+    "kolner",
+    "koln"
+   ],
+   [
+    "kommt",
+    "kommt"
+   ],
+   [
+    "langsten",
+    "lang"
+   ],
+   [
+    "laufen",
+    "lauf"
+   ],
+   [
+    "lauft",
+    "lauft"
+   ],
+   [
+    "leben",
+    "leb"
+   ],
+   [
+    "liegt",
+    "liegt"
+   ],
+   [
+    "man",
+    "man"
+   ],
+   [
+    "mannschaften",
+    "mannschaft"
+   ],
+   [
+    "mehr",
+    "mehr"
+   ],
+   [
+    "menschen",
+    "mensch"
+   ],
+   [
+    "millionen",
+    "million"
+   ],
+   [
+    "mit",
+    "mit"
+   ],
+   [
+    "morgen",
+    "morg"
+   ],
+   [
+    "munchen",
+    "munch"
+   ],
+   [
+    "mundet",
+    "mundet"
+   ],
+   [
+    "nach",
+    "nach"
+   ],
+   [
+    "nebeneinander",
+    "nebeneinand"
+   ],
+   [
+    "nennt",
+    "nennt"
+   ],
+   [
+    "norden",
+    "nord"
+   ],
+   [
+    "nordsee",
+    "nordse"
+   ],
+   [
+    "obst",
+    "obst"
+   ],
+   [
+    "oder",
+    "oder"
+   ],
+   [
+    "oft",
+    "oft"
+   ],
+   [
+    "osten",
+    "ost"
+   ],
+   [
+    "osterreich",
+    "osterreich"
+   ],
+   [
+    "rader",
+    "rad"
+   ],
+   [
+    "rhein",
+    "rhein"
+   ],
+   [
+    "sauer",
+    "sau"
+   ],
+   [
+    "schienen",
+    "schien"
+   ],
+   [
+    "schiffe",
+    "schiff"
+   ],
+   [
+    "schmecken",
+    "schmeck"
+   ],
+   [
+    "schnell",
+    "schnell"
+   ],
+   [
+    "sehr",
+    "sehr"
+   ],
+   [
+    "seinen",
+    "sein"
+   ],
+   [
+    "sichtbares",
+    "sichtbar"
+   ],
+   [
+    "sie",
+    "sie"
+   ],
+   [
+    "sind",
+    "sind"
+   ],
+   [
+    "solche",
+    "solch"
+   ],
+   [
+    "spree",
+    "spree"
+   ],
+   [
+    "stadt",
+    "stadt"
+   ],
+   [
+    "stadten",
+    "stadt"
+   ],
+   [
+    "stadtteile",
+    "stadtteil"
+   ],
+   [
+    "stehen",
+    "steh"
+   ],
+   [
+    "steht",
+    "steht"
+   ],
+   [
+    "stein",
+    "stein"
+   ],
+   [
+    "straße",
+    "strass"
+   ],
+   [
+    "straßen",
+    "strass"
+   ],
+   [
+    "studieren",
+    "studi"
+   ],
+   [
+    "suden",
+    "sud"
+   ],
+   [
+    "suß",
+    "suss"
+   ],
+   [
+    "tal",
+    "tal"
+   ],
+   [
+    "trainiert",
+    "trainiert"
+   ],
+   [
+    "uber",
+    "uber"
+   ],
+   [
+    "und",
+    "und"
+   ],
+   [
+    "universitat",
+    "universitat"
+   ],
+   [
+    "universitaten",
+    "universitat"
+   ],
+   [
+    "venedig",
+    "vened"
+   ],
+   [
+    "verbinden",
+    "verbind"
+   ],
+   [
+    "viele",
+    "viel"
+   ],
+   [
+    "vielen",
+    "viel"
+   ],
+   [
+    "vier",
+    "vier"
+   ],
+   [
+    "von",
+    "von"
+   ],
+   [
+    "vorbei",
+    "vorbei"
+   ],
+   [
+    "wachsen",
+    "wachs"
+   ],
+   [
+    "wande",
+    "wand"
+   ],
+   [
+    "weg",
+    "weg"
+   ],
+   [
+    "welt",
+    "welt"
+   ],
+   [
+    "woche",
+    "woch"
+   ],
+   [
+    "wohnen",
+    "wohn"
+   ],
+   [
+    "zu",
+    "zu"
+   ],
+   [
+    "zug",
+    "zug"
+   ],
+   [
+    "zugspitze",
+    "zugspitz"
+   ],
+   [
+    "zwei",
+    "zwei"
+   ]
+  ],
+  "en": [
+   [
+    "a",
+    "a"
+   ],
+   [
+    "about",
+    "about"
+   ],
+   [
+    "along",
+    "along"
+   ],
+   [
+    "america",
+    "america"
+   ],
+   [
+    "an",
+    "an"
+   ],
+   [
+    "and",
+    "and"
+   ],
+   [
+    "apple",
+    "appl"
+   ],
+   [
+    "apples",
+    "appl"
+   ],
+   [
+    "are",
+    "are"
+   ],
+   [
+    "arms",
+    "arm"
+   ],
+   [
+    "art",
+    "art"
+   ],
+   [
+    "artists",
+    "artist"
+   ],
+   [
+    "as",
+    "as"
+   ],
+   [
+    "at&t",
+    "at&t"
+   ],
+   [
+    "athletes",
+    "athlet"
+   ],
+   [
+    "baked",
+    "bake"
+   ],
+   [
+    "band",
+    "band"
+   ],
+   [
+    "based",
+    "base"
+   ],
+   [
+    "beatles",
+    "beatl"
+   ],
+   [
+    "before",
+    "befor"
+   ],
+   [
+    "between",
+    "between"
+   ],
+   [
+    "bridge",
+    "bridg"
+   ],
+   [
+    "bridges",
+    "bridg"
+   ],
+   [
+    "bright",
+    "bright"
+   ],
+   [
+    "built",
+    "built"
+   ],
+   [
+    "by",
+    "by"
+   ],
+   [
+    "c",
+    "c"
+   ],
+   [
+    "c++",
+    "c++"
+   ],
+   [
+    "cafe",
+    "cafe"
+   ],
+   [
+    "cafes",
+    "cafe"
+   ],
+   [
+    "cakes",
+    "cake"
+   ],
+   [
+    "capital",
+    "capit"
+   ],
+   [
+    "carries",
+    "carri"
+   ],
+   [
+    "check",
+    "check"
+   ],
+   [
+    "city",
+    "citi"
+   ],
+   [
+    "climbers",
+    "climber"
+   ],
+   [
+    "coffee",
+    "coffe"
+   ],
+   [
+    "colours",
+    "colour"
+   ],
+   [
+    "common",
+    "common"
+   ],
+   [
+    "company",
+    "compani"
+   ],
+   [
+    "compete",
+    "compet"
+   ],
+   [
+    "competed",
+    "compet"
+   ],
+   [
+    "computers",
+    "comput"
+   ],
+   [
+    "countries",
+    "countri"
+   ],
+   [
+    "created",
+    "creat"
+   ],
+   [
+    "cross",
+    "cross"
+   ],
+   [
+    "day",
+    "day"
+   ],
+   [
+    "despite",
+    "despit"
+   ],
+   [
+    "dessert",
+    "dessert"
+   ],
+   [
+    "e",
+    "e"
+   ],
+   [
+    "earth",
+    "earth"
+   ],
+   [
+    "east",
+    "east"
+   ],
+   [
+    "email",
+    "email"
+   ],
+   [
+    "engineers",
+    "engin"
+   ],
+   [
+    "england",
+    "england"
+   ],
+   [
+    "enjoy",
+    "enjoy"
+   ],
+   [
+    "everest",
+    "everest"
+   ],
+   [
+    "every",
+    "everi"
+   ],
+   [
+    "famous",
+    "famous"
+   ],
+   [
+    "faster",
+    "faster"
+   ],
+   [
+    "filled",
+    "fill"
+   ],
+   [
+    "flows",
+    "flow"
+   ],
+   [
+    "foot",
+    "foot"
+   ],
+   [
+    "for",
+    "for"
+   ],
+   [
+    "formal",
+    "formal"
+   ],
+   [
+    "forty",
+    "forti"
+   ],
+   [
+    "from",
+    "from"
+   ],
+   [
+    "fruit",
+    "fruit"
+   ],
+   [
+    "games",
+    "game"
+   ],
+   [
+    "generously",
+    "generous"
+   ],
+   [
+    "green",
+    "green"
+   ],
+   [
+    "grows",
+    "grow"
+   ],
+   [
+    "happiness",
+    "happi"
+   ],
+   [
+    "have",
+    "have"
+   ],
+   [
+    "highest",
+    "highest"
+   ],
+   [
+    "in",
+    "in"
+   ],
+   [
+    "ireland",
+    "ireland"
+   ],
+   [
+    "irish",
+    "irish"
+   ],
+   [
+    "is",
+    "is"
+   ],
+   [
+    "it",
+    "it"
+   ],
+   [
+    "its",
+    "it"
+   ],
+   [
+    "kilometres",
+    "kilometr"
+   ],
+   [
+    "kingdom",
+    "kingdom"
+   ],
+   [
+    "language",
+    "languag"
+   ],
+   [
+    "large",
+    "larg"
+   ],
+   [
+    "legs",
+    "leg"
+   ],
+   [
+    "let",
+    "let"
+   ],
+   [
+    "live",
+    "live"
+   ],
+   [
+    "liverpool",
+    "liverpool"
+   ],
+   [
+    "london",
+    "london"
+   ],
+   [
+    "mail",
+    "mail"
+   ],
+   [
+    "many",
+    "mani"
+   ],
+   [
+    "marathon",
+    "marathon"
+   ],
+   [
+    "messages",
+    "messag"
+   ],
+   [
+    "method",
+    "method"
+   ],
+   [
+    "months",
+    "month"
+   ],
+   [
+    "mount",
+    "mount"
+   ],
+   [
+    "mountain",
+    "mountain"
+   ],
+   [
+    "moving",
+    "move"
+   ],
+   [
+    "naive",
+    "naiv"
+   ],
+   [
+    "name",
+    "name"
+   ],
+   [
+    "named",
+    "name"
+   ],
+   [
+    "near",
+    "near"
+   ],
+   [
+    "need",
+    "need"
+   ],
+   [
+    "north",
+    "north"
+   ],
+   [
+    "not",
+    "not"
+   ],
+   [
+    "o'brien",
+    "o'brien"
+   ],
+   [
+    "obstacle",
+    "obstacl"
+   ],
+   [
+    "of",
+    "of"
+   ],
+   [
+    "often",
+    "often"
+   ],
+   [
+    "olympics",
+    "olymp"
+   ],
+   [
+    "on",
+    "on"
+   ],
+   [
+    "opens",
+    "open"
+   ],
+   [
+    "operating",
+    "oper"
+   ],
+   [
+    "or",
+    "or"
+   ],
+   [
+    "organization",
+    "organ"
+   ],
+   [
+    "outside",
+    "outsid"
+   ],
+   [
+    "over",
+    "over"
+   ],
+   [
+    "oxygen",
+    "oxygen"
+   ],
+   [
+    "paintings",
+    "paint"
+   ],
+   [
+    "paris",
+    "pari"
+   ],
+   [
+    "parks",
+    "park"
+   ],
+   [
+    "pass",
+    "pass"
+   ],
+   [
+    "people",
+    "peopl"
+   ],
+   [
+    "pie",
+    "pie"
+   ],
+   [
+    "pineapple",
+    "pineappl"
+   ],
+   [
+    "place",
+    "place"
+   ],
+   [
+    "pools",
+    "pool"
+   ],
+   [
+    "popular",
+    "popular"
+   ],
+   [
+    "programmers",
+    "programm"
+   ],
+   [
+    "programming",
+    "program"
+   ],
+   [
+    "quickly",
+    "quick"
+   ],
+   [
+    "race",
+    "race"
+   ],
+   [
+    "railway",
+    "railway"
+   ],
+   [
+    "red",
+    "red"
+   ],
+   [
+    "related",
+    "relat"
+   ],
+   [
+    "released",
+    "releas"
+   ],
+   [
+    "restaurant",
+    "restaur"
+   ],
+   [
+    "river",
+    "river"
+   ],
+   [
+    "rivers",
+    "river"
+   ],
+   [
+    "road",
+    "road"
+   ],
+   [
+    "rock",
+    "rock"
+   ],
+   [
+    "rough",
+    "rough"
+   ],
+   [
+    "runner",
+    "runner"
+   ],
+   [
+    "runners",
+    "runner"
+   ],
+   [
+    "running",
+    "run"
+   ],
+   [
+    "runs",
+    "run"
+   ],
+   [
+    "sea",
+    "sea"
+   ],
+   [
+    "sending",
+    "send"
+   ],
+   [
+    "serves",
+    "serv"
+   ],
+   [
+    "ships",
+    "ship"
+   ],
+   [
+    "show",
+    "show"
+   ],
+   [
+    "skin",
+    "skin"
+   ],
+   [
+    "small",
+    "small"
+   ],
+   [
+    "songs",
+    "song"
+   ],
+   [
+    "southern",
+    "southern"
+   ],
+   [
+    "started",
+    "start"
+   ],
+   [
+    "states",
+    "state"
+   ],
+   [
+    "steel",
+    "steel"
+   ],
+   [
+    "stone",
+    "stone"
+   ],
+   [
+    "structure",
+    "structur"
+   ],
+   [
+    "sugar",
+    "sugar"
+   ],
+   [
+    "summer",
+    "summer"
+   ],
+   [
+    "summit",
+    "summit"
+   ],
+   [
+    "surname",
+    "surnam"
+   ],
+   [
+    "sweet",
+    "sweet"
+   ],
+   [
+    "swimmers",
+    "swimmer"
+   ],
+   [
+    "swimming",
+    "swim"
+   ],
+   [
+    "systems",
+    "system"
+   ],
+   [
+    "tables",
+    "tabl"
+   ],
+   [
+    "tall",
+    "tall"
+   ],
+   [
+    "telecommunications",
+    "telecommun"
+   ],
+   [
+    "telephone",
+    "telephon"
+   ],
+   [
+    "thames",
+    "thame"
+   ],
+   [
+    "than",
+    "than"
+   ],
+   [
+    "that",
+    "that"
+   ],
+   [
+    "the",
+    "the"
+   ],
+   [
+    "their",
+    "their"
+   ],
+   [
+    "through",
+    "through"
+   ],
+   [
+    "to",
+    "to"
+   ],
+   [
+    "took",
+    "took"
+   ],
+   [
+    "tower",
+    "tower"
+   ],
+   [
+    "train",
+    "train"
+   ],
+   [
+    "training",
+    "train"
+   ],
+   [
+    "trees",
+    "tree"
+   ],
+   [
+    "tropical",
+    "tropic"
+   ],
+   [
+    "two",
+    "two"
+   ],
+   [
+    "united",
+    "unit"
+   ],
+   [
+    "use",
+    "use"
+   ],
+   [
+    "using",
+    "use"
+   ],
+   [
+    "walker",
+    "walker"
+   ],
+   [
+    "water",
+    "water"
+   ],
+   [
+    "way",
+    "way"
+   ],
+   [
+    "were",
+    "were"
+   ],
+   [
+    "with",
+    "with"
+   ],
+   [
+    "without",
+    "without"
+   ],
+   [
+    "wood",
+    "wood"
+   ],
+   [
+    "yellow",
+    "yellow"
+   ]
+  ],
+  "es": [
+   [
+    "canciones",
+    "cancion"
+   ],
+   [
+    "casas",
+    "cas"
+   ],
+   [
+    "nacionalidad",
+    "nacional"
+   ],
+   [
+    "rapidamente",
+    "rapid"
+   ]
+  ],
+  "fr": [
+   [
+    "chevaux",
+    "cheval"
+   ],
+   [
+    "continuellement",
+    "continuel"
+   ],
+   [
+    "ete",
+    "ete"
+   ],
+   [
+    "maisons",
+    "maison"
+   ],
+   [
+    "nationalite",
+    "nationalit"
+   ]
+  ],
+  "it": [
+   [
+    "abbandonata",
+    "abbandon"
+   ],
+   [
+    "case",
+    "cas"
+   ],
+   [
+    "citta",
+    "citt"
+   ],
+   [
+    "nazionalita",
+    "nazional"
+   ]
+  ],
+  "nb": [
+   [
+    "byene",
+    "byen"
+   ],
+   [
+    "bøkene",
+    "bøk"
+   ],
+   [
+    "huset",
+    "hus"
+   ],
+   [
+    "kjærligheten",
+    "kjær"
+   ]
+  ],
+  "nl": [
+   [
+    "fietsen",
+    "fiets"
+   ],
+   [
+    "huizen",
+    "huiz"
+   ],
+   [
+    "kinderen",
+    "kinder"
+   ],
+   [
+    "lichamelijk",
+    "licham"
+   ]
+  ],
+  "no": [
+   [
+    "bøkene",
+    "bøk"
+   ],
+   [
+    "huset",
+    "hus"
+   ],
+   [
+    "kjærlighet",
+    "kjær"
+   ]
+  ],
+  "pt": [
+   [
+    "casas",
+    "cas"
+   ],
+   [
+    "evolucao",
+    "evoluca"
+   ],
+   [
+    "nacionalidade",
+    "nacional"
+   ],
+   [
+    "revolucoes",
+    "revoluco"
+   ]
+  ],
+  "sv": [
+   [
+    "flickorna",
+    "flick"
+   ],
+   [
+    "husen",
+    "hus"
+   ],
+   [
+    "karleken",
+    "karlek"
+   ]
+  ]
+ },
+ "tokenize": [
+  {
+   "terms": {
+    "berlin": {
+     "positions": [
+      3
+     ],
+     "wdf": 1
+    },
+    "hauser": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    },
+    "in": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "hauser in berlin"
+  },
+  {
+   "terms": {
+    "at&t": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "o'brien": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "o'brien at&t"
+  },
+  {
+   "terms": {
+    "and": {
+     "positions": [
+      2,
+      4
+     ],
+     "wdf": 2
+    },
+    "c#": {
+     "positions": [
+      3
+     ],
+     "wdf": 1
+    },
+    "c++": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    },
+    "f+++": {
+     "positions": [
+      5
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "c++ and c# and f+++"
+  },
+  {
+   "terms": {
+    "chips": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "fish": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "fish+chips"
+  },
+  {
+   "terms": {
+    "09": {
+     "positions": [
+      5
+     ],
+     "wdf": 1
+    },
+    "1,000": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "10": {
+     "positions": [
+      4
+     ],
+     "wdf": 1
+    },
+    "2024": {
+     "positions": [
+      3
+     ],
+     "wdf": 1
+    },
+    "3.14": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "3.14 1,000 2024-10-09"
+  },
+  {
+   "terms": {
+    "athen": {
+     "positions": [
+      4
+     ],
+     "wdf": 1
+    },
+    "e": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    },
+    "mail": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "spree": {
+     "positions": [
+      3
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "e-mail spree-athen"
+  },
+  {
+   "terms": {
+    "baz": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "foo_bar": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "foo_bar baz"
+  },
+  {
+   "terms": {
+    "タ": {
+     "positions": [
+      3
+     ],
+     "wdf": 1
+    },
+    "タワ": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ワ": {
+     "positions": [
+      4
+     ],
+     "wdf": 1
+    },
+    "ワー": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ー": {
+     "positions": [
+      5
+     ],
+     "wdf": 1
+    },
+    "京": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "京タ": {
+     "positions": [],
+     "wdf": 1
+    },
+    "東": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    },
+    "東京": {
+     "positions": [],
+     "wdf": 1
+    }
+   },
+   "text": "東京タワー"
+  },
+  {
+   "terms": {
+    "abc": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    },
+    "def": {
+     "positions": [
+      4
+     ],
+     "wdf": 1
+    },
+    "京": {
+     "positions": [
+      3
+     ],
+     "wdf": 1
+    },
+    "東": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "東京": {
+     "positions": [],
+     "wdf": 1
+    }
+   },
+   "text": "abc東京def"
+  },
+  {
+   "terms": {
+    "と": {
+     "positions": [
+      6
+     ],
+     "wdf": 1
+    },
+    "タ": {
+     "positions": [
+      3
+     ],
+     "wdf": 1
+    },
+    "タワ": {
+     "positions": [],
+     "wdf": 1
+    },
+    "メ": {
+     "positions": [
+      9
+     ],
+     "wdf": 1
+    },
+    "メン": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ラ": {
+     "positions": [
+      7
+     ],
+     "wdf": 1
+    },
+    "ラー": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ワ": {
+     "positions": [
+      4
+     ],
+     "wdf": 1
+    },
+    "ワー": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ン": {
+     "positions": [
+      10
+     ],
+     "wdf": 1
+    },
+    "ー": {
+     "positions": [
+      5,
+      8
+     ],
+     "wdf": 2
+    },
+    "ーメ": {
+     "positions": [],
+     "wdf": 1
+    },
+    "京": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "東": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    },
+    "東京": {
+     "positions": [],
+     "wdf": 1
+    }
+   },
+   "text": "東京 タワー と ラーメン"
+  },
+  {
+   "terms": {
+    "국": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "국어": {
+     "positions": [],
+     "wdf": 1
+    },
+    "스": {
+     "positions": [
+      5
+     ],
+     "wdf": 1
+    },
+    "스트": {
+     "positions": [],
+     "wdf": 1
+    },
+    "어": {
+     "positions": [
+      3
+     ],
+     "wdf": 1
+    },
+    "텍": {
+     "positions": [
+      4
+     ],
+     "wdf": 1
+    },
+    "텍스": {
+     "positions": [],
+     "wdf": 1
+    },
+    "트": {
+     "positions": [
+      6
+     ],
+     "wdf": 1
+    },
+    "한": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    },
+    "한국": {
+     "positions": [],
+     "wdf": 1
+    }
+   },
+   "text": "한국어 텍스트"
+  },
+  {
+   "terms": {
+    "中": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    },
+    "中文": {
+     "positions": [],
+     "wdf": 1
+    },
+    "分": {
+     "positions": [
+      3
+     ],
+     "wdf": 1
+    },
+    "分词": {
+     "positions": [],
+     "wdf": 1
+    },
+    "文": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "文分": {
+     "positions": [],
+     "wdf": 1
+    },
+    "测": {
+     "positions": [
+      5
+     ],
+     "wdf": 1
+    },
+    "测试": {
+     "positions": [],
+     "wdf": 1
+    },
+    "词": {
+     "positions": [
+      4
+     ],
+     "wdf": 1
+    },
+    "词测": {
+     "positions": [],
+     "wdf": 1
+    },
+    "试": {
+     "positions": [
+      6
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "中文分词测试"
+  },
+  {
+   "terms": {
+    "wordjoined": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "word​joined"
+  },
+  {
+   "terms": {
+    "don't": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "don’t"
+  },
+  {
+   "terms": {
+    "0posanchor": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    },
+    "berlin": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "0posanchor berlin"
+  },
+  {
+   "terms": {
+    "short": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx short"
+  },
+  {
+   "terms": {
+    "７": {
+     "positions": [
+      10
+     ],
+     "wdf": 1
+    },
+    "ｄ": {
+     "positions": [
+      7
+     ],
+     "wdf": 1
+    },
+    "ｄｔ": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ｆ": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    },
+    "ｆｕ": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ｈ": {
+     "positions": [
+      9
+     ],
+     "wdf": 1
+    },
+    "ｉ": {
+     "positions": [
+      6
+     ],
+     "wdf": 1
+    },
+    "ｉｄ": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ｌ": {
+     "positions": [
+      3,
+      4
+     ],
+     "wdf": 2
+    },
+    "ｌｌ": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ｌｗ": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ｔ": {
+     "positions": [
+      8
+     ],
+     "wdf": 1
+    },
+    "ｔｈ": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ｕ": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "ｕｌ": {
+     "positions": [],
+     "wdf": 1
+    },
+    "ｗ": {
+     "positions": [
+      5
+     ],
+     "wdf": 1
+    },
+    "ｗｉ": {
+     "positions": [],
+     "wdf": 1
+    }
+   },
+   "text": "ｆｕｌｌｗｉｄｔｈ ７"
+  },
+  {
+   "terms": {
+    "cafe": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "naive": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "naive cafe"
+  },
+  {
+   "terms": {
+    "hindi": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    },
+    "हनद": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "hindi हनद"
+  },
+  {
+   "terms": {
+    "1.2.3": {
+     "positions": [
+      2
+     ],
+     "wdf": 1
+    },
+    "a1.2": {
+     "positions": [
+      3
+     ],
+     "wdf": 1
+    },
+    "zahl": {
+     "positions": [
+      1
+     ],
+     "wdf": 1
+    }
+   },
+   "text": "zahl 1.2.3 a1.2"
+  }
+ ]
+}

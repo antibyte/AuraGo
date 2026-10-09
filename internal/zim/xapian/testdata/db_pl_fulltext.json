@@ -1,0 +1,2100 @@
+{
+ "avlength": 15.4375,
+ "data": [
+  [
+   1,
+   "C/Warszawa"
+  ],
+  [
+   2,
+   "C/Kraków"
+  ],
+  [
+   3,
+   "C/Łódź"
+  ],
+  [
+   4,
+   "C/Wisła"
+  ],
+  [
+   5,
+   "C/Gdańsk"
+  ],
+  [
+   6,
+   "C/Poznań"
+  ],
+  [
+   7,
+   "C/Wrocław"
+  ],
+  [
+   8,
+   "C/Zamek_Królewski_w_Warszawie"
+  ],
+  [
+   9,
+   "C/Pierogi"
+  ],
+  [
+   10,
+   "C/Bigos"
+  ],
+  [
+   11,
+   "C/Żubr"
+  ],
+  [
+   12,
+   "C/Bocian"
+  ],
+  [
+   13,
+   "C/Morze_Bałtyckie"
+  ],
+  [
+   14,
+   "C/Tatry"
+  ],
+  [
+   15,
+   "C/Zakopane"
+  ],
+  [
+   16,
+   "C/Fryderyk_Chopin"
+  ]
+ ],
+ "delve": "UUID = 9013c8de-b6ee-4f72-8f1a-2b5b5d23f74e\nnumber of documents = 16\naverage document length = 15.4375\ndocument length lower bound = 13\ndocument length upper bound = 22\nhighest document id ever used = 16\nhas positional information = false\nrevision = 1\ncurrently open for writing = false\n",
+ "doccount": 16,
+ "doclength_lower_bound": 13,
+ "doclength_upper_bound": 22,
+ "doclens": [
+  [
+   1,
+   17
+  ],
+  [
+   2,
+   17
+  ],
+  [
+   3,
+   15
+  ],
+  [
+   4,
+   16
+  ],
+  [
+   5,
+   14
+  ],
+  [
+   6,
+   13
+  ],
+  [
+   7,
+   15
+  ],
+  [
+   8,
+   22
+  ],
+  [
+   9,
+   15
+  ],
+  [
+   10,
+   15
+  ],
+  [
+   11,
+   13
+  ],
+  [
+   12,
+   15
+  ],
+  [
+   13,
+   17
+  ],
+  [
+   14,
+   15
+  ],
+  [
+   15,
+   13
+  ],
+  [
+   16,
+   15
+  ]
+ ],
+ "fixture": "pl",
+ "has_positions": false,
+ "kind": "fulltext",
+ "lastdocid": 16,
+ "metadata": {
+  "data": "fullPath",
+  "kind": "fulltext",
+  "language": "pol",
+  "valuesmap": "title:0;wordcount:1;geo.position:2"
+ },
+ "term_count": 144,
+ "terms": [
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "albo",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     13,
+     3
+    ]
+   ],
+   "term": "bałtyckie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "bałtyckiego",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "bałtyckim",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "białowieskiej",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "biały",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     10,
+     3
+    ]
+   ],
+   "term": "bigos",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     12,
+     3
+    ]
+   ],
+   "term": "bocian",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "bociany",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "buduja",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "był",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "centrum",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     16,
+     3
+    ]
+   ],
+   "term": "chopin",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "cumuja",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "dachach",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "danie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "dawna",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     3,
+     1
+    ],
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "dawniej",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "dniach",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     4,
+     1
+    ],
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "do",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "duze",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "duzym",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "dwa",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     11,
+     1
+    ],
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "europy",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "fabryk",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     16,
+     3
+    ]
+   ],
+   "term": "fryderyk",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     5,
+     3
+    ]
+   ],
+   "term": "gdansk",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "gniazda",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "gory",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "gotowania",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     4,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "i",
+   "tf": 5
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     11,
+     1
+    ],
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "jest",
+   "tf": 5
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "kapuste",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "kapusty",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "kilku",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "kompozytorem",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     2,
+     4
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "krakow",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "krasnali",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     8,
+     3
+    ]
+   ],
+   "term": "krolewski",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "krolowie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "kuchni",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "ladowym",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "lezy",
+   "tf": 5
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "ludzi",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "ma",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "mało",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "małych",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "miastem",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "miasto",
+   "tf": 4
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "miesa",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "miescie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "mieszka",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "mieszkali",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "miliony",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "morza",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     13,
+     3
+    ]
+   ],
+   "term": "morze",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "morzem",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "morzu",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "mostow",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "moze",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "na",
+   "tf": 5
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "nad",
+   "tf": 5
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "nadzienie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "najdłuzsza",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "najlepiej",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "najwiekszym",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "najwyzsze",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "najwyzszym",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "narciarzy",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "niedaleko",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "nim",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "odra",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "pianista",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "piekny",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     9,
+     3
+    ]
+   ],
+   "term": "pierogi",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     10,
+     1
+    ],
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "po",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "polsce",
+   "tf": 1
+  },
+  {
+   "cf": 6,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "polski",
+   "tf": 6
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     9,
+     1
+    ],
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "polskiej",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "polskim",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "porcie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "portowe",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "potrawa",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     6,
+     3
+    ]
+   ],
+   "term": "poznan",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "połnocy",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "prawie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "przez",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "przyjezdza",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "przylatuje",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "puszczy",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "płynie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "ratusz",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "rynku",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "rysy",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     4,
+     2
+    ],
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "rzeka",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "sa",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "ser",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "sie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "smakuje",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "ssakiem",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     6,
+     1
+    ],
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "starym",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "statki",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "stoi",
+   "tf": 3
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "stolica",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "stop",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "stronie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "szczytem",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "słona",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "słupach",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "słyneła",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "słynie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "tatr",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     14,
+     3
+    ]
+   ],
+   "term": "tatry",
+   "tf": 1
+  },
+  {
+   "cf": 6,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     9,
+     1
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     14,
+     1
+    ],
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "to",
+   "tf": 6
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "tradycyjne",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "tu",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "tym",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "u",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "urodził",
+   "tf": 1
+  },
+  {
+   "cf": 10,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     8,
+     4
+    ],
+    [
+     11,
+     1
+    ],
+    [
+     13,
+     1
+    ],
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "w",
+   "tf": 7
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     1,
+     3
+    ]
+   ],
+   "term": "warszawa",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "warszawe",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     8,
+     3
+    ]
+   ],
+   "term": "warszawie",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "warszawy",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "warta",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "wawel",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "wiele",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "wielu",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "wiosna",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     4,
+     3
+    ]
+   ],
+   "term": "wisła",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "woda",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     7,
+     3
+    ]
+   ],
+   "term": "wrocław",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "wzgorzu",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "włokienniczych",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     3,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "z",
+   "tf": 3
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     15,
+     3
+    ]
+   ],
+   "term": "zakopane",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     8,
+     3
+    ]
+   ],
+   "term": "zamek",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "zawierac",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "ziemniaki",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "zima",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     11,
+     3
+    ]
+   ],
+   "term": "zubr",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "zubry",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "zyja",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     3,
+     4
+    ]
+   ],
+   "term": "łodz",
+   "tf": 1
+  }
+ ],
+ "terms_complete": true,
+ "total_length": 247,
+ "values": {
+  "0": [
+   [
+    1,
+    "warszawa"
+   ],
+   [
+    2,
+    "krakow"
+   ],
+   [
+    3,
+    "łodz"
+   ],
+   [
+    4,
+    "wisła"
+   ],
+   [
+    5,
+    "gdansk"
+   ],
+   [
+    6,
+    "poznan"
+   ],
+   [
+    7,
+    "wrocław"
+   ],
+   [
+    8,
+    "zamek krolewski w warszawie"
+   ],
+   [
+    9,
+    "pierogi"
+   ],
+   [
+    10,
+    "bigos"
+   ],
+   [
+    11,
+    "zubr"
+   ],
+   [
+    12,
+    "bocian"
+   ],
+   [
+    13,
+    "morze bałtyckie"
+   ],
+   [
+    14,
+    "tatry"
+   ],
+   [
+    15,
+    "zakopane"
+   ],
+   [
+    16,
+    "fryderyk chopin"
+   ]
+  ],
+  "1": [
+   [
+    1,
+    "16"
+   ],
+   [
+    2,
+    "16"
+   ],
+   [
+    3,
+    "14"
+   ],
+   [
+    4,
+    "15"
+   ],
+   [
+    5,
+    "13"
+   ],
+   [
+    6,
+    "12"
+   ],
+   [
+    7,
+    "14"
+   ],
+   [
+    8,
+    "18"
+   ],
+   [
+    9,
+    "14"
+   ],
+   [
+    10,
+    "14"
+   ],
+   [
+    11,
+    "12"
+   ],
+   [
+    12,
+    "14"
+   ],
+   [
+    13,
+    "15"
+   ],
+   [
+    14,
+    "14"
+   ],
+   [
+    15,
+    "12"
+   ],
+   [
+    16,
+    "13"
+   ]
+  ]
+ }
+}

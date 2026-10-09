@@ -1,0 +1,2830 @@
+{
+ "avlength": 20.526315789473685,
+ "data": [
+  [
+   1,
+   "C/London"
+  ],
+  [
+   2,
+   "C/River_Thames"
+  ],
+  [
+   3,
+   "C/Bridge"
+  ],
+  [
+   4,
+   "C/Tower_Bridge"
+  ],
+  [
+   5,
+   "C/Running"
+  ],
+  [
+   6,
+   "C/Marathon"
+  ],
+  [
+   7,
+   "C/Apple"
+  ],
+  [
+   8,
+   "C/Apple_pie"
+  ],
+  [
+   9,
+   "C/Pineapple"
+  ],
+  [
+   10,
+   "C/Café"
+  ],
+  [
+   11,
+   "C/Naïve_art"
+  ],
+  [
+   12,
+   "C/C++"
+  ],
+  [
+   13,
+   "C/AT&T"
+  ],
+  [
+   14,
+   "C/O'Brien"
+  ],
+  [
+   15,
+   "C/The_Beatles"
+  ],
+  [
+   16,
+   "C/Mount_Everest"
+  ],
+  [
+   17,
+   "C/2024_Summer_Olympics"
+  ],
+  [
+   18,
+   "C/Email"
+  ],
+  [
+   19,
+   "C/Swimming"
+  ]
+ ],
+ "delve": "UUID = edf87f4c-8243-4d9f-8d31-299dbd05612c\nnumber of documents = 19\naverage document length = 20.5263\ndocument length lower bound = 17\ndocument length upper bound = 26\nhighest document id ever used = 19\nhas positional information = false\nrevision = 1\ncurrently open for writing = false\n",
+ "doccount": 19,
+ "doclength_lower_bound": 17,
+ "doclength_upper_bound": 26,
+ "doclens": [
+  [
+   1,
+   26
+  ],
+  [
+   2,
+   21
+  ],
+  [
+   3,
+   25
+  ],
+  [
+   4,
+   22
+  ],
+  [
+   5,
+   24
+  ],
+  [
+   6,
+   20
+  ],
+  [
+   7,
+   19
+  ],
+  [
+   8,
+   22
+  ],
+  [
+   9,
+   22
+  ],
+  [
+   10,
+   20
+  ],
+  [
+   11,
+   19
+  ],
+  [
+   12,
+   18
+  ],
+  [
+   13,
+   18
+  ],
+  [
+   14,
+   17
+  ],
+  [
+   15,
+   21
+  ],
+  [
+   16,
+   18
+  ],
+  [
+   17,
+   23
+  ],
+  [
+   18,
+   18
+  ],
+  [
+   19,
+   17
+  ]
+ ],
+ "fixture": "en",
+ "has_positions": false,
+ "kind": "fulltext",
+ "lastdocid": 19,
+ "metadata": {
+  "data": "fullPath",
+  "kind": "fulltext",
+  "language": "eng",
+  "valuesmap": "title:0;wordcount:1;geo.position:2"
+ },
+ "term_count": 186,
+ "terms": [
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "1960s",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     17,
+     3
+    ]
+   ],
+   "term": "2024",
+   "tf": 1
+  },
+  {
+   "cf": 23,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     3
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     6,
+     3
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     9,
+     2
+    ],
+    [
+     10,
+     2
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     13,
+     2
+    ],
+    [
+     14,
+     1
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "a",
+   "tf": 14
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "about",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "along",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     8,
+     1
+    ],
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "america",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "an",
+   "tf": 1
+  },
+  {
+   "cf": 10,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     8,
+     2
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     14,
+     1
+    ],
+    [
+     17,
+     1
+    ],
+    [
+     19,
+     2
+    ]
+   ],
+   "term": "and",
+   "tf": 8
+  },
+  {
+   "cf": 9,
+   "postings": [
+    [
+     7,
+     4
+    ],
+    [
+     8,
+     4
+    ],
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "appl",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "are",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "arm",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     11,
+     3
+    ]
+   ],
+   "term": "art",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "artist",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "as",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     13,
+     3
+    ]
+   ],
+   "term": "at&t",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "athlet",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "bake",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     15,
+     2
+    ]
+   ],
+   "term": "band",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "base",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     15,
+     3
+    ]
+   ],
+   "term": "beatl",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "befor",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "between",
+   "tf": 1
+  },
+  {
+   "cf": 9,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     4
+    ]
+   ],
+   "term": "bridg",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "bright",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "built",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "by",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "c",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     12,
+     4
+    ]
+   ],
+   "term": "c++",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     10,
+     4
+    ]
+   ],
+   "term": "cafe",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "cake",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "capit",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "carri",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "check",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "citi",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "climber",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "coffe",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "colour",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "common",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     13,
+     2
+    ]
+   ],
+   "term": "compani",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     17,
+     1
+    ],
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "compet",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "comput",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "countri",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "creat",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "cross",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "day",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "despit",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "dessert",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "e",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "earth",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "east",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     18,
+     3
+    ]
+   ],
+   "term": "email",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "engin",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "england",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "enjoy",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     16,
+     3
+    ]
+   ],
+   "term": "everest",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "everi",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     4,
+     1
+    ],
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "famous",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "faster",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "fill",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "flow",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "foot",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     6,
+     1
+    ],
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "for",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "formal",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "forti",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     3,
+     1
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "from",
+   "tf": 3
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     7,
+     1
+    ],
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "fruit",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "game",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "green",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "grow",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     3,
+     1
+    ],
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "have",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "highest",
+   "tf": 1
+  },
+  {
+   "cf": 12,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     13,
+     1
+    ],
+    [
+     14,
+     1
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     17,
+     2
+    ],
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "in",
+   "tf": 11
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "ireland",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "irish",
+   "tf": 1
+  },
+  {
+   "cf": 19,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     8,
+     2
+    ],
+    [
+     9,
+     2
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     11,
+     1
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     13,
+     1
+    ],
+    [
+     14,
+     1
+    ],
+    [
+     16,
+     1
+    ],
+    [
+     18,
+     1
+    ],
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "is",
+   "tf": 17
+  },
+  {
+   "cf": 6,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     9,
+     2
+    ],
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "it",
+   "tf": 5
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "kilometr",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "kingdom",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "languag",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "larg",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "leg",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "let",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "live",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "liverpool",
+   "tf": 1
+  },
+  {
+   "cf": 6,
+   "postings": [
+    [
+     1,
+     4
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "london",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "mail",
+   "tf": 1
+  },
+  {
+   "cf": 6,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     14,
+     1
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "mani",
+   "tf": 6
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     6,
+     4
+    ]
+   ],
+   "term": "marathon",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "messag",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "method",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "month",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     16,
+     3
+    ]
+   ],
+   "term": "mount",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "mountain",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     5,
+     1
+    ],
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "move",
+   "tf": 2
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     11,
+     3
+    ]
+   ],
+   "term": "naiv",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     9,
+     1
+    ],
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "name",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "near",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "need",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "north",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "not",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     14,
+     4
+    ]
+   ],
+   "term": "o'brien",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "obstacl",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "of",
+   "tf": 4
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     7,
+     1
+    ],
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "often",
+   "tf": 2
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     17,
+     3
+    ]
+   ],
+   "term": "olymp",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     5,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "on",
+   "tf": 4
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "open",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "oper",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     3,
+     1
+    ],
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "or",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "outsid",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "over",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "oxygen",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "paint",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     10,
+     1
+    ],
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "pari",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "park",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "pass",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     5,
+     1
+    ],
+    [
+     14,
+     1
+    ],
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "peopl",
+   "tf": 3
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     8,
+     3
+    ]
+   ],
+   "term": "pie",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     9,
+     3
+    ]
+   ],
+   "term": "pineappl",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "place",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "pool",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "popular",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "program",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "programm",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "quick",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "race",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "railway",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "red",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "relat",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "releas",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "restaur",
+   "tf": 1
+  },
+  {
+   "cf": 6,
+   "postings": [
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "river",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "road",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "rock",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "rough",
+   "tf": 1
+  },
+  {
+   "cf": 7,
+   "postings": [
+    [
+     5,
+     5
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "run",
+   "tf": 3
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "runner",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "sea",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "send",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "serv",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "ship",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "show",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "skin",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "small",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "song",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "southern",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "start",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "state",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "steel",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "stone",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "structur",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "sugar",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     17,
+     3
+    ]
+   ],
+   "term": "summer",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "summit",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "surnam",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "sweet",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     17,
+     1
+    ],
+    [
+     19,
+     3
+    ]
+   ],
+   "term": "swim",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "swimmer",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "system",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "tabl",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "tall",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "telecommun",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "telephon",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "thame",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "than",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     3,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "that",
+   "tf": 3
+  },
+  {
+   "cf": 21,
+   "postings": [
+    [
+     1,
+     5
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     9,
+     2
+    ],
+    [
+     11,
+     1
+    ],
+    [
+     13,
+     1
+    ],
+    [
+     15,
+     5
+    ],
+    [
+     16,
+     2
+    ],
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "the",
+   "tf": 10
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "their",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "through",
+   "tf": 3
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "to",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "took",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     4,
+     3
+    ]
+   ],
+   "term": "tower",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     6,
+     1
+    ],
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "train",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "tree",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "tropic",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "two",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "unit",
+   "tf": 2
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     12,
+     1
+    ],
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "use",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "walker",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "water",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "way",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "were",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     8,
+     1
+    ],
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "with",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "without",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "wood",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "yellow",
+   "tf": 1
+  }
+ ],
+ "terms_complete": true,
+ "total_length": 390,
+ "values": {
+  "0": [
+   [
+    1,
+    "london"
+   ],
+   [
+    2,
+    "river thames"
+   ],
+   [
+    3,
+    "bridge"
+   ],
+   [
+    4,
+    "tower bridge"
+   ],
+   [
+    5,
+    "running"
+   ],
+   [
+    6,
+    "marathon"
+   ],
+   [
+    7,
+    "apple"
+   ],
+   [
+    8,
+    "apple pie"
+   ],
+   [
+    9,
+    "pineapple"
+   ],
+   [
+    10,
+    "cafe"
+   ],
+   [
+    11,
+    "naive art"
+   ],
+   [
+    12,
+    "c++"
+   ],
+   [
+    13,
+    "at&t"
+   ],
+   [
+    14,
+    "o'brien"
+   ],
+   [
+    15,
+    "the beatles"
+   ],
+   [
+    16,
+    "mount everest"
+   ],
+   [
+    17,
+    "2024 summer olympics"
+   ],
+   [
+    18,
+    "email"
+   ],
+   [
+    19,
+    "swimming"
+   ]
+  ],
+  "1": [
+   [
+    1,
+    "25"
+   ],
+   [
+    2,
+    "19"
+   ],
+   [
+    3,
+    "24"
+   ],
+   [
+    4,
+    "20"
+   ],
+   [
+    5,
+    "23"
+   ],
+   [
+    6,
+    "18"
+   ],
+   [
+    7,
+    "18"
+   ],
+   [
+    8,
+    "20"
+   ],
+   [
+    9,
+    "21"
+   ],
+   [
+    10,
+    "19"
+   ],
+   [
+    11,
+    "17"
+   ],
+   [
+    12,
+    "17"
+   ],
+   [
+    13,
+    "17"
+   ],
+   [
+    14,
+    "16"
+   ],
+   [
+    15,
+    "19"
+   ],
+   [
+    16,
+    "16"
+   ],
+   [
+    17,
+    "20"
+   ],
+   [
+    18,
+    "16"
+   ],
+   [
+    19,
+    "16"
+   ]
+  ]
+ }
+}

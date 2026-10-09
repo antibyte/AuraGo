@@ -1,0 +1,10 @@
+{
+ "debian_xapian": "1.4.29",
+ "libzim": {
+  "libicu": "73.2.0",
+  "liblzma": "5.2.6",
+  "libxapian": "1.4.23",
+  "libzim": "9.8.2",
+  "libzstd": "1.5.7"
+ }
+}

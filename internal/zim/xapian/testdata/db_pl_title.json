@@ -1,0 +1,711 @@
+{
+ "avlength": 2.3,
+ "data": [
+  [
+   1,
+   "C/Bigos"
+  ],
+  [
+   2,
+   "C/Bocian"
+  ],
+  [
+   3,
+   "C/Chopin"
+  ],
+  [
+   4,
+   "C/Fryderyk_Chopin"
+  ],
+  [
+   5,
+   "C/Gdańsk"
+  ],
+  [
+   6,
+   "C/Krakow"
+  ],
+  [
+   7,
+   "C/Kraków"
+  ],
+  [
+   8,
+   "C/Lodz"
+  ],
+  [
+   9,
+   "C/Morze_Bałtyckie"
+  ],
+  [
+   10,
+   "C/Pierogi"
+  ],
+  [
+   11,
+   "C/Poznań"
+  ],
+  [
+   12,
+   "C/Stolica_Polski"
+  ],
+  [
+   13,
+   "C/Tatry"
+  ],
+  [
+   14,
+   "C/Warszawa"
+  ],
+  [
+   15,
+   "C/Wisła"
+  ],
+  [
+   16,
+   "C/Wrocław"
+  ],
+  [
+   17,
+   "C/Zakopane"
+  ],
+  [
+   18,
+   "C/Zamek_Królewski_w_Warszawie"
+  ],
+  [
+   19,
+   "C/Łódź"
+  ],
+  [
+   20,
+   "C/Żubr"
+  ]
+ ],
+ "delve": "UUID = 086e67f2-61e4-4bfa-969f-c6990a0113e1\nnumber of documents = 20\naverage document length = 2.3\ndocument length lower bound = 2\ndocument length upper bound = 5\nhighest document id ever used = 20\nhas positional information = true\nrevision = 1\ncurrently open for writing = false\n",
+ "doccount": 20,
+ "doclength_lower_bound": 2,
+ "doclength_upper_bound": 5,
+ "doclens": [
+  [
+   1,
+   2
+  ],
+  [
+   2,
+   2
+  ],
+  [
+   3,
+   2
+  ],
+  [
+   4,
+   3
+  ],
+  [
+   5,
+   2
+  ],
+  [
+   6,
+   2
+  ],
+  [
+   7,
+   2
+  ],
+  [
+   8,
+   2
+  ],
+  [
+   9,
+   3
+  ],
+  [
+   10,
+   2
+  ],
+  [
+   11,
+   2
+  ],
+  [
+   12,
+   3
+  ],
+  [
+   13,
+   2
+  ],
+  [
+   14,
+   2
+  ],
+  [
+   15,
+   2
+  ],
+  [
+   16,
+   2
+  ],
+  [
+   17,
+   2
+  ],
+  [
+   18,
+   5
+  ],
+  [
+   19,
+   2
+  ],
+  [
+   20,
+   2
+  ]
+ ],
+ "fixture": "pl",
+ "has_positions": true,
+ "kind": "title",
+ "lastdocid": 20,
+ "metadata": {
+  "data": "fullPath",
+  "kind": "title",
+  "language": "pol",
+  "valuesmap": "title:0;targetPath:1"
+ },
+ "term_count": 25,
+ "terms": [
+  {
+   "cf": 20,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     9,
+     1
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     11,
+     1
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     13,
+     1
+    ],
+    [
+     14,
+     1
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     16,
+     1
+    ],
+    [
+     17,
+     1
+    ],
+    [
+     18,
+     1
+    ],
+    [
+     19,
+     1
+    ],
+    [
+     20,
+     1
+    ]
+   ],
+   "term": "0posanchor",
+   "tf": 20
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "bałtyckie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "bigos",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "bocian",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "chopin",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "fryderyk",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "gdansk",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     6,
+     1
+    ],
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "krakow",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "krolewski",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "lodz",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "morze",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "pierogi",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "polski",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "poznan",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "stolica",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "tatry",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "w",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "warszawa",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "warszawie",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "wisła",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "wrocław",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "zakopane",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "zamek",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     20,
+     1
+    ]
+   ],
+   "term": "zubr",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     19,
+     1
+    ]
+   ],
+   "term": "łodz",
+   "tf": 1
+  }
+ ],
+ "terms_complete": true,
+ "total_length": 46,
+ "values": {
+  "0": [
+   [
+    1,
+    "Bigos"
+   ],
+   [
+    2,
+    "Bocian"
+   ],
+   [
+    3,
+    "Chopin"
+   ],
+   [
+    4,
+    "Fryderyk Chopin"
+   ],
+   [
+    5,
+    "Gdańsk"
+   ],
+   [
+    6,
+    "Krakow"
+   ],
+   [
+    7,
+    "Kraków"
+   ],
+   [
+    8,
+    "Lodz"
+   ],
+   [
+    9,
+    "Morze Bałtyckie"
+   ],
+   [
+    10,
+    "Pierogi"
+   ],
+   [
+    11,
+    "Poznań"
+   ],
+   [
+    12,
+    "Stolica Polski"
+   ],
+   [
+    13,
+    "Tatry"
+   ],
+   [
+    14,
+    "Warszawa"
+   ],
+   [
+    15,
+    "Wisła"
+   ],
+   [
+    16,
+    "Wrocław"
+   ],
+   [
+    17,
+    "Zakopane"
+   ],
+   [
+    18,
+    "Zamek Królewski w Warszawie"
+   ],
+   [
+    19,
+    "Łódź"
+   ],
+   [
+    20,
+    "Żubr"
+   ]
+  ],
+  "1": [
+   [
+    1,
+    "Bigos"
+   ],
+   [
+    2,
+    "Bocian"
+   ],
+   [
+    3,
+    "Fryderyk_Chopin"
+   ],
+   [
+    4,
+    "Fryderyk_Chopin"
+   ],
+   [
+    5,
+    "Gdańsk"
+   ],
+   [
+    6,
+    "Kraków"
+   ],
+   [
+    7,
+    "Kraków"
+   ],
+   [
+    8,
+    "Łódź"
+   ],
+   [
+    9,
+    "Morze_Bałtyckie"
+   ],
+   [
+    10,
+    "Pierogi"
+   ],
+   [
+    11,
+    "Poznań"
+   ],
+   [
+    12,
+    "Warszawa"
+   ],
+   [
+    13,
+    "Tatry"
+   ],
+   [
+    14,
+    "Warszawa"
+   ],
+   [
+    15,
+    "Wisła"
+   ],
+   [
+    16,
+    "Wrocław"
+   ],
+   [
+    17,
+    "Zakopane"
+   ],
+   [
+    18,
+    "Zamek_Królewski_w_Warszawie"
+   ],
+   [
+    19,
+    "Łódź"
+   ],
+   [
+    20,
+    "Żubr"
+   ]
+  ]
+ }
+}

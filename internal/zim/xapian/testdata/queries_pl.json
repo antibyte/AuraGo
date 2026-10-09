@@ -1,0 +1,853 @@
+{
+ "fixture": "pl",
+ "fulltext": [
+  {
+   "and": [
+    [
+     1,
+     3.4592959772522227,
+     "C/Warszawa"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Warszawa"
+    ]
+   },
+   "or": [
+    [
+     1,
+     3.4592959772522227,
+     "C/Warszawa"
+    ]
+   ],
+   "query": "warszawa",
+   "terms": [
+    "warszawa"
+   ]
+  },
+  {
+   "and": [
+    [
+     8,
+     2.5037438095267834,
+     "C/Zamek_Królewski_w_Warszawie"
+    ],
+    [
+     1,
+     1.7144754417983665,
+     "C/Warszawa"
+    ]
+   ],
+   "estimated": 2,
+   "libzim": {
+    "estimated": 2,
+    "paths": [
+     "Zamek_Królewski_w_Warszawie",
+     "Warszawa"
+    ]
+   },
+   "or": [
+    [
+     8,
+     2.5037438095267834,
+     "C/Zamek_Królewski_w_Warszawie"
+    ],
+    [
+     1,
+     1.7144754417983665,
+     "C/Warszawa"
+    ]
+   ],
+   "query": "warszawie",
+   "terms": [
+    "warszawie"
+   ]
+  },
+  {
+   "and": [
+    [
+     2,
+     2.784390577221235,
+     "C/Kraków"
+    ],
+    [
+     4,
+     1.7419895913156922,
+     "C/Wisła"
+    ]
+   ],
+   "estimated": 2,
+   "libzim": {
+    "estimated": 2,
+    "paths": [
+     "Kraków",
+     "Wisła"
+    ]
+   },
+   "or": [
+    [
+     2,
+     2.784390577221235,
+     "C/Kraków"
+    ],
+    [
+     4,
+     1.7419895913156922,
+     "C/Wisła"
+    ]
+   ],
+   "query": "kraków",
+   "terms": [
+    "krakow"
+   ]
+  },
+  {
+   "and": [
+    [
+     2,
+     2.784390577221235,
+     "C/Kraków"
+    ],
+    [
+     4,
+     1.7419895913156922,
+     "C/Wisła"
+    ]
+   ],
+   "estimated": 2,
+   "libzim": {
+    "estimated": 2,
+    "paths": [
+     "Kraków",
+     "Wisła"
+    ]
+   },
+   "or": [
+    [
+     2,
+     2.784390577221235,
+     "C/Kraków"
+    ],
+    [
+     4,
+     1.7419895913156922,
+     "C/Wisła"
+    ]
+   ],
+   "query": "krakow",
+   "terms": [
+    "krakow"
+   ]
+  },
+  {
+   "and": [
+    [
+     3,
+     3.7472195157567714,
+     "C/Łódź"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Łódź"
+    ]
+   },
+   "or": [
+    [
+     3,
+     3.7472195157567714,
+     "C/Łódź"
+    ]
+   ],
+   "query": "łódź",
+   "terms": [
+    "łodz"
+   ]
+  },
+  {
+   "and": [],
+   "estimated": 0,
+   "libzim": {
+    "estimated": 0,
+    "paths": []
+   },
+   "or": [],
+   "query": "lodz",
+   "terms": [
+    "lodz"
+   ]
+  },
+  {
+   "and": [
+    [
+     4,
+     2.015709213620596,
+     "C/Wisła"
+    ],
+    [
+     1,
+     1.3166116449611331,
+     "C/Warszawa"
+    ],
+    [
+     2,
+     1.3166116449611331,
+     "C/Kraków"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "Wisła",
+     "Warszawa",
+     "Kraków"
+    ]
+   },
+   "or": [
+    [
+     4,
+     2.015709213620596,
+     "C/Wisła"
+    ],
+    [
+     1,
+     1.3166116449611331,
+     "C/Warszawa"
+    ],
+    [
+     2,
+     1.3166116449611331,
+     "C/Kraków"
+    ]
+   ],
+   "query": "wisła",
+   "terms": [
+    "wisła"
+   ]
+  },
+  {
+   "and": [],
+   "estimated": 0,
+   "libzim": {
+    "estimated": 0,
+    "paths": []
+   },
+   "or": [],
+   "query": "wisla",
+   "terms": [
+    "wisla"
+   ]
+  },
+  {
+   "and": [
+    [
+     4,
+     2.3296628068970424,
+     "C/Wisła"
+    ],
+    [
+     6,
+     1.8300986538901423,
+     "C/Poznań"
+    ]
+   ],
+   "estimated": 2,
+   "libzim": {
+    "estimated": 2,
+    "paths": [
+     "Wisła",
+     "Poznań"
+    ]
+   },
+   "or": [
+    [
+     4,
+     2.3296628068970424,
+     "C/Wisła"
+    ],
+    [
+     6,
+     1.8300986538901423,
+     "C/Poznań"
+    ]
+   ],
+   "query": "rzeka",
+   "terms": [
+    "rzeka"
+   ]
+  },
+  {
+   "and": [
+    [
+     4,
+     2.3296628068970424,
+     "C/Wisła"
+    ],
+    [
+     6,
+     1.8300986538901423,
+     "C/Poznań"
+    ]
+   ],
+   "estimated": 2,
+   "libzim": {
+    "estimated": 2,
+    "paths": [
+     "Wisła",
+     "Poznań"
+    ]
+   },
+   "or": [
+    [
+     4,
+     2.3296628068970424,
+     "C/Wisła"
+    ],
+    [
+     6,
+     1.8300986538901423,
+     "C/Poznań"
+    ]
+   ],
+   "query": "rzeką",
+   "terms": [
+    "rzeka"
+   ]
+  },
+  {
+   "and": [
+    [
+     1,
+     2.3130493868778137,
+     "C/Warszawa"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Warszawa"
+    ]
+   },
+   "or": [
+    [
+     1,
+     2.3130493868778137,
+     "C/Warszawa"
+    ],
+    [
+     4,
+     2.015709213620596,
+     "C/Wisła"
+    ],
+    [
+     2,
+     1.3166116449611331,
+     "C/Kraków"
+    ],
+    [
+     15,
+     1.063636915238775,
+     "C/Zakopane"
+    ],
+    [
+     5,
+     1.04600148451979,
+     "C/Gdańsk"
+    ],
+    [
+     7,
+     1.02894131759592,
+     "C/Wrocław"
+    ]
+   ],
+   "query": "miasto wisłą",
+   "terms": [
+    "miasto",
+    "wisła"
+   ]
+  },
+  {
+   "and": [
+    [
+     1,
+     2.291915176175774,
+     "C/Warszawa"
+    ],
+    [
+     2,
+     2.291915176175774,
+     "C/Kraków"
+    ]
+   ],
+   "estimated": 2,
+   "libzim": {
+    "estimated": 2,
+    "paths": [
+     "Warszawa",
+     "Kraków"
+    ]
+   },
+   "or": [
+    [
+     1,
+     2.291915176175774,
+     "C/Warszawa"
+    ],
+    [
+     2,
+     2.291915176175774,
+     "C/Kraków"
+    ],
+    [
+     3,
+     0.5962756890156101,
+     "C/Łódź"
+    ],
+    [
+     12,
+     0.5962756890156101,
+     "C/Bocian"
+    ],
+    [
+     4,
+     0.5867065706362222,
+     "C/Wisła"
+    ],
+    [
+     8,
+     0.5351751609554561,
+     "C/Zamek_Królewski_w_Warszawie"
+    ]
+   ],
+   "query": "stolica polski",
+   "terms": [
+    "stolica",
+    "polski"
+   ]
+  },
+  {
+   "and": [
+    [
+     11,
+     3.5735938309146604,
+     "C/Żubr"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Żubr"
+    ]
+   },
+   "or": [
+    [
+     11,
+     3.5735938309146604,
+     "C/Żubr"
+    ]
+   ],
+   "query": "żubr",
+   "terms": [
+    "zubr"
+   ]
+  },
+  {
+   "and": [
+    [
+     11,
+     3.5735938309146604,
+     "C/Żubr"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Żubr"
+    ]
+   },
+   "or": [
+    [
+     11,
+     3.5735938309146604,
+     "C/Żubr"
+    ]
+   ],
+   "query": "zubr",
+   "terms": [
+    "zubr"
+   ]
+  },
+  {
+   "and": [
+    [
+     13,
+     6.918591954504445,
+     "C/Morze_Bałtyckie"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Morze_Bałtyckie"
+    ]
+   },
+   "or": [
+    [
+     13,
+     6.918591954504445,
+     "C/Morze_Bałtyckie"
+    ]
+   ],
+   "query": "morze bałtyckie",
+   "terms": [
+    "morze",
+    "bałtyckie"
+   ]
+  },
+  {
+   "and": [],
+   "estimated": 0,
+   "libzim": {
+    "estimated": 0,
+    "paths": []
+   },
+   "or": [
+    [
+     15,
+     3.5735938309146604,
+     "C/Zakopane"
+    ],
+    [
+     14,
+     3.5155161251811564,
+     "C/Tatry"
+    ]
+   ],
+   "query": "tatry zakopane",
+   "terms": [
+    "tatry",
+    "zakopane"
+   ]
+  }
+ ],
+ "language": "pol",
+ "suggest": [
+  {
+   "libzim": {
+    "paths": [
+     "Zamek_Królewski_w_Warszawie",
+     "Warszawa",
+     "Wisła",
+     "Wrocław"
+    ]
+   },
+   "query": "w",
+   "replica": [
+    [
+     18,
+     6.159891657495121,
+     "C/Zamek_Królewski_w_Warszawie",
+     "Zamek Królewski w Warszawie"
+    ],
+    [
+     14,
+     1.0362269566995932,
+     "C/Warszawa",
+     "Warszawa"
+    ],
+    [
+     15,
+     1.0362269566995932,
+     "C/Wisła",
+     "Wisła"
+    ],
+    [
+     16,
+     1.0362269566995932,
+     "C/Wrocław",
+     "Wrocław"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM w OR w@1) OR w) OR (0posanchor PHRASE 2 w)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Warszawa",
+     "Zamek_Królewski_w_Warszawie"
+    ]
+   },
+   "query": "war",
+   "replica": [
+    [
+     14,
+     2.001740836005112,
+     "C/Warszawa",
+     "Warszawa"
+    ],
+    [
+     18,
+     1.9991355333985978,
+     "C/Zamek_Królewski_w_Warszawie",
+     "Zamek Królewski w Warszawie"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM war OR war@1) OR war) OR (0posanchor PHRASE 2 war)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Warszawa",
+     "Zamek_Królewski_w_Warszawie"
+    ]
+   },
+   "query": "warsz",
+   "replica": [
+    [
+     14,
+     2.001740836005112,
+     "C/Warszawa",
+     "Warszawa"
+    ],
+    [
+     18,
+     1.9991355333985978,
+     "C/Zamek_Królewski_w_Warszawie",
+     "Zamek Królewski w Warszawie"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM warsz OR warsz@1) OR warsz) OR (0posanchor PHRASE 2 warsz)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Krakow"
+    ]
+   },
+   "query": "kra",
+   "replica": [
+    [
+     6,
+     2.001740836005112,
+     "C/Krakow",
+     "Krakow"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM kra OR kra@1) OR kra) OR (0posanchor PHRASE 2 kra)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Krakow"
+    ]
+   },
+   "query": "krak",
+   "replica": [
+    [
+     6,
+     2.001740836005112,
+     "C/Krakow",
+     "Krakow"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM krak OR krak@1) OR krak) OR (0posanchor PHRASE 2 krak)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Łódź"
+    ]
+   },
+   "query": "łó",
+   "replica": [
+    [
+     19,
+     2.5652836254056015,
+     "C/Łódź",
+     "Łódź"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM ło OR ło@1) OR ło) OR (0posanchor PHRASE 2 ło)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Lodz"
+    ]
+   },
+   "query": "lod",
+   "replica": [
+    [
+     8,
+     2.5652836254056015,
+     "C/Lodz",
+     "Lodz"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM lod OR lod@1) OR lod) OR (0posanchor PHRASE 2 lod)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Lodz"
+    ]
+   },
+   "query": "lodz",
+   "replica": [
+    [
+     8,
+     10.273257441828147,
+     "C/Lodz",
+     "Lodz"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM lodz OR lodz@1) OR lodz) OR (0posanchor PHRASE 2 lodz)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Zamek_Królewski_w_Warszawie"
+    ]
+   },
+   "query": "zamek k",
+   "replica": [
+    [
+     18,
+     4.169497532095758,
+     "C/Zamek_Królewski_w_Warszawie",
+     "Zamek Królewski w Warszawie"
+    ]
+   ],
+   "xapian_query": "Query((((zamek@1 AND (WILDCARD SYNONYM k OR k@2)) OR (zamek PHRASE 2 k)) OR (0posanchor PHRASE 3 zamek PHRASE 3 k)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Pierogi"
+    ]
+   },
+   "query": "pie",
+   "replica": [
+    [
+     10,
+     2.5652836254056015,
+     "C/Pierogi",
+     "Pierogi"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM pie OR pie@1) OR pie) OR (0posanchor PHRASE 2 pie)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Żubr"
+    ]
+   },
+   "query": "żu",
+   "replica": [
+    [
+     20,
+     2.5652836254056015,
+     "C/Żubr",
+     "Żubr"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM zu OR zu@1) OR zu) OR (0posanchor PHRASE 2 zu)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Żubr"
+    ]
+   },
+   "query": "zu",
+   "replica": [
+    [
+     20,
+     2.5652836254056015,
+     "C/Żubr",
+     "Żubr"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM zu OR zu@1) OR zu) OR (0posanchor PHRASE 2 zu)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Morze_Bałtyckie"
+    ]
+   },
+   "query": "morze",
+   "replica": [
+    [
+     9,
+     10.268796626612417,
+     "C/Morze_Bałtyckie",
+     "Morze Bałtyckie"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM morze OR morze@1) OR morze) OR (0posanchor PHRASE 2 morze)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Tatry"
+    ]
+   },
+   "query": "tat",
+   "replica": [
+    [
+     13,
+     2.5652836254056015,
+     "C/Tatry",
+     "Tatry"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM tat OR tat@1) OR tat) OR (0posanchor PHRASE 2 tat)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Chopin"
+    ]
+   },
+   "query": "chop",
+   "replica": [
+    [
+     3,
+     2.001740836005112,
+     "C/Chopin",
+     "Chopin"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM chop OR chop@1) OR chop) OR (0posanchor PHRASE 2 chop)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Fryderyk_Chopin"
+    ]
+   },
+   "query": "fryderyk c",
+   "replica": [
+    [
+     4,
+     4.56504138522252,
+     "C/Fryderyk_Chopin",
+     "Fryderyk Chopin"
+    ]
+   ],
+   "xapian_query": "Query((((fryderyk@1 AND (WILDCARD SYNONYM c OR c@2)) OR (fryderyk PHRASE 2 c)) OR (0posanchor PHRASE 3 fryderyk PHRASE 3 c)))"
+  }
+ ]
+}

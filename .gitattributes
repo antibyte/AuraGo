@@ -35,3 +35,6 @@ bin/aurago_linux        binary
 bin/config-merger_linux binary
 bin/aurago_linux_arm64        binary
 bin/config-merger_linux_arm64 binary
+
+# ZIM archives (Local Wikipedia test fixtures)
+*.zim   binary

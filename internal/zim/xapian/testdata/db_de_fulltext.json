@@ -1,0 +1,2534 @@
+{
+ "avlength": 19.944444444444443,
+ "data": [
+  [
+   1,
+   "C/Berlin"
+  ],
+  [
+   2,
+   "C/Hamburg"
+  ],
+  [
+   3,
+   "C/München"
+  ],
+  [
+   4,
+   "C/Köln"
+  ],
+  [
+   5,
+   "C/Spree"
+  ],
+  [
+   6,
+   "C/Elbe"
+  ],
+  [
+   7,
+   "C/Rhein"
+  ],
+  [
+   8,
+   "C/Haus"
+  ],
+  [
+   9,
+   "C/Fachwerkhaus"
+  ],
+  [
+   10,
+   "C/Straße"
+  ],
+  [
+   11,
+   "C/Brücke"
+  ],
+  [
+   12,
+   "C/Bäckerei"
+  ],
+  [
+   13,
+   "C/Apfel"
+  ],
+  [
+   14,
+   "C/Fußball"
+  ],
+  [
+   15,
+   "C/Universität"
+  ],
+  [
+   16,
+   "C/Zug"
+  ],
+  [
+   17,
+   "C/Zugspitze"
+  ],
+  [
+   18,
+   "C/Bayern"
+  ]
+ ],
+ "delve": "UUID = 0af9abc4-0df7-4eca-8b5a-f5e16016293c\nnumber of documents = 18\naverage document length = 19.9444\ndocument length lower bound = 14\ndocument length upper bound = 33\nhighest document id ever used = 18\nhas positional information = false\nrevision = 1\ncurrently open for writing = false\n",
+ "doccount": 18,
+ "doclength_lower_bound": 14,
+ "doclength_upper_bound": 33,
+ "doclens": [
+  [
+   1,
+   33
+  ],
+  [
+   2,
+   22
+  ],
+  [
+   3,
+   24
+  ],
+  [
+   4,
+   27
+  ],
+  [
+   5,
+   21
+  ],
+  [
+   6,
+   17
+  ],
+  [
+   7,
+   17
+  ],
+  [
+   8,
+   28
+  ],
+  [
+   9,
+   18
+  ],
+  [
+   10,
+   18
+  ],
+  [
+   11,
+   17
+  ],
+  [
+   12,
+   18
+  ],
+  [
+   13,
+   17
+  ],
+  [
+   14,
+   14
+  ],
+  [
+   15,
+   15
+  ],
+  [
+   16,
+   21
+  ],
+  [
+   17,
+   18
+  ],
+  [
+   18,
+   14
+  ]
+ ],
+ "fixture": "de",
+ "has_positions": false,
+ "kind": "fulltext",
+ "lastdocid": 18,
+ "metadata": {
+  "data": "fullPath",
+  "kind": "fulltext",
+  "language": "deu",
+  "valuesmap": "title:0;wordcount:1;geo.position:2"
+ },
+ "term_count": 154,
+ "terms": [
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "all",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "alle",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "als",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     9,
+     1
+    ],
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "alt",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "altstadt",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     4,
+     1
+    ],
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "am",
+   "tf": 2
+  },
+  {
+   "cf": 7,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     13,
+     1
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "an",
+   "tf": 7
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     13,
+     4
+    ]
+   ],
+   "term": "apfel",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "auch",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "auf",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "aus",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "autos",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "back",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     12,
+     3
+    ]
+   ],
+   "term": "backerei",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "backt",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     16,
+     2
+    ]
+   ],
+   "term": "bahnhof",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "ballspiel",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "baum",
+   "tf": 1
+  },
+  {
+   "cf": 6,
+   "postings": [
+    [
+     3,
+     1
+    ],
+    [
+     17,
+     1
+    ],
+    [
+     18,
+     4
+    ]
+   ],
+   "term": "bay",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "bekannt",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "beliebt",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "berg",
+   "tf": 1
+  },
+  {
+   "cf": 7,
+   "postings": [
+    [
+     1,
+     4
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     11,
+     1
+    ],
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "berlin",
+   "tf": 4
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "besond",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "besteh",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "bonn",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "breit",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     12,
+     2
+    ]
+   ],
+   "term": "brot",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "brotch",
+   "tf": 1
+  },
+  {
+   "cf": 6,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     11,
+     4
+    ]
+   ],
+   "term": "bruck",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "bundesland",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     8,
+     1
+    ],
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "dem",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "den",
+   "tf": 1
+  },
+  {
+   "cf": 12,
+   "postings": [
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     7,
+     2
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     13,
+     1
+    ],
+    [
+     17,
+     2
+    ]
+   ],
+   "term": "der",
+   "tf": 8
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "des",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "deutschland",
+   "tf": 4
+  },
+  {
+   "cf": 14,
+   "postings": [
+    [
+     1,
+     3
+    ],
+    [
+     3,
+     2
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     17,
+     1
+    ],
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "die",
+   "tf": 9
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     4,
+     2
+    ]
+   ],
+   "term": "dom",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "dort",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "dresd",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "duftet",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "durch",
+   "tf": 2
+  },
+  {
+   "cf": 24,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     8,
+     4
+    ],
+    [
+     9,
+     2
+    ],
+    [
+     10,
+     2
+    ],
+    [
+     11,
+     3
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     13,
+     1
+    ],
+    [
+     14,
+     2
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     16,
+     1
+    ],
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "ein",
+   "tf": 16
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     6,
+     3
+    ]
+   ],
+   "term": "elb",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "er",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "europas",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     9,
+     3
+    ]
+   ],
+   "term": "fachwerkhaus",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "fahr",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "fahrt",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "fast",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "feiern",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "fest",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "findet",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "fliesst",
+   "tf": 3
+  },
+  {
+   "cf": 6,
+   "postings": [
+    [
+     5,
+     3
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "fluss",
+   "tf": 4
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "freistaat",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "frisch",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "fuhrt",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     4,
+     1
+    ],
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "fur",
+   "tf": 2
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     14,
+     3
+    ]
+   ],
+   "term": "fussball",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "fussballverein",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "fussgang",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "gebaud",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "gerust",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "gotisch",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "grenz",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "gross",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "gut",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "haf",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "hafenstadt",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     2,
+     4
+    ],
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "hamburg",
+   "tf": 2
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     4,
+     1
+    ],
+    [
+     9,
+     1
+    ],
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "hat",
+   "tf": 3
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "hauptstadt",
+   "tf": 3
+  },
+  {
+   "cf": 7,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     8,
+     5
+    ],
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "haus",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "havel",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "heidelberg",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "herb",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "hoch",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     8,
+     1
+    ],
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "holz",
+   "tf": 2
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "im",
+   "tf": 4
+  },
+  {
+   "cf": 10,
+   "postings": [
+    [
+     1,
+     2
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     8,
+     2
+    ],
+    [
+     9,
+     1
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "in",
+   "tf": 8
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     3,
+     1
+    ]
+   ],
+   "term": "isar",
+   "tf": 1
+  },
+  {
+   "cf": 15,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     2
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     13,
+     1
+    ],
+    [
+     14,
+     1
+    ],
+    [
+     17,
+     1
+    ],
+    [
+     18,
+     2
+    ]
+   ],
+   "term": "ist",
+   "tf": 13
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "jed",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "jung",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "kirch",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     4,
+     4
+    ],
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "koln",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "kommt",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "lang",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "leb",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "liegt",
+   "tf": 5
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     9,
+     1
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "man",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "mannschaft",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "mehr",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "mensch",
+   "tf": 4
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "million",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     14,
+     1
+    ],
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "mit",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     12,
+     1
+    ]
+   ],
+   "term": "morg",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     3,
+     3
+    ],
+    [
+     16,
+     1
+    ],
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "munch",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "mundet",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     2,
+     1
+    ],
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "nach",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "nebeneinand",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "nennt",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "nord",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     6,
+     1
+    ]
+   ],
+   "term": "nordse",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "obst",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     8,
+     1
+    ],
+    [
+     11,
+     1
+    ],
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "oder",
+   "tf": 3
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "oft",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     5,
+     1
+    ]
+   ],
+   "term": "ost",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "osterreich",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "rad",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     4,
+     2
+    ],
+    [
+     7,
+     3
+    ]
+   ],
+   "term": "rhein",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "sau",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "schien",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "schiff",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "schmeck",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     16,
+     1
+    ]
+   ],
+   "term": "schnell",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "sehr",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     4,
+     1
+    ]
+   ],
+   "term": "sein",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "sichtbar",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "sie",
+   "tf": 3
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "sind",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "solch",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     5,
+     3
+    ]
+   ],
+   "term": "spree",
+   "tf": 2
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "stadt",
+   "tf": 4
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "stadtteil",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "steh",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "steht",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "stein",
+   "tf": 1
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     10,
+     4
+    ]
+   ],
+   "term": "strass",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     15,
+     1
+    ]
+   ],
+   "term": "studi",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "sud",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "suss",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "tal",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "trainiert",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     4,
+     1
+    ],
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "uber",
+   "tf": 2
+  },
+  {
+   "cf": 8,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "und",
+   "tf": 8
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     15,
+     4
+    ]
+   ],
+   "term": "universitat",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     11,
+     1
+    ]
+   ],
+   "term": "vened",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "verbind",
+   "tf": 1
+  },
+  {
+   "cf": 5,
+   "postings": [
+    [
+     1,
+     1
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     8,
+     1
+    ],
+    [
+     9,
+     1
+    ]
+   ],
+   "term": "viel",
+   "tf": 5
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     1,
+     1
+    ]
+   ],
+   "term": "vier",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     16,
+     2
+    ],
+    [
+     18,
+     1
+    ]
+   ],
+   "term": "von",
+   "tf": 2
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     7,
+     1
+    ]
+   ],
+   "term": "vorbei",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     13,
+     1
+    ]
+   ],
+   "term": "wachs",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "wand",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     10,
+     1
+    ]
+   ],
+   "term": "weg",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     2,
+     1
+    ]
+   ],
+   "term": "welt",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "woch",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     8,
+     1
+    ]
+   ],
+   "term": "wohn",
+   "tf": 1
+  },
+  {
+   "cf": 2,
+   "postings": [
+    [
+     16,
+     1
+    ],
+    [
+     17,
+     1
+    ]
+   ],
+   "term": "zu",
+   "tf": 2
+  },
+  {
+   "cf": 4,
+   "postings": [
+    [
+     16,
+     4
+    ]
+   ],
+   "term": "zug",
+   "tf": 1
+  },
+  {
+   "cf": 3,
+   "postings": [
+    [
+     17,
+     3
+    ]
+   ],
+   "term": "zugspitz",
+   "tf": 1
+  },
+  {
+   "cf": 1,
+   "postings": [
+    [
+     14,
+     1
+    ]
+   ],
+   "term": "zwei",
+   "tf": 1
+  }
+ ],
+ "terms_complete": true,
+ "total_length": 359,
+ "values": {
+  "0": [
+   [
+    1,
+    "berlin"
+   ],
+   [
+    2,
+    "hamburg"
+   ],
+   [
+    3,
+    "munchen"
+   ],
+   [
+    4,
+    "koln"
+   ],
+   [
+    5,
+    "spree (fluss)"
+   ],
+   [
+    6,
+    "elbe"
+   ],
+   [
+    7,
+    "rhein"
+   ],
+   [
+    8,
+    "haus"
+   ],
+   [
+    9,
+    "fachwerkhaus"
+   ],
+   [
+    10,
+    "straße"
+   ],
+   [
+    11,
+    "brucke"
+   ],
+   [
+    12,
+    "backerei"
+   ],
+   [
+    13,
+    "apfel"
+   ],
+   [
+    14,
+    "fußball"
+   ],
+   [
+    15,
+    "universitat"
+   ],
+   [
+    16,
+    "zug"
+   ],
+   [
+    17,
+    "zugspitze"
+   ],
+   [
+    18,
+    "bayern"
+   ]
+  ],
+  "1": [
+   [
+    1,
+    "32"
+   ],
+   [
+    2,
+    "21"
+   ],
+   [
+    3,
+    "23"
+   ],
+   [
+    4,
+    "26"
+   ],
+   [
+    5,
+    "19"
+   ],
+   [
+    6,
+    "16"
+   ],
+   [
+    7,
+    "16"
+   ],
+   [
+    8,
+    "27"
+   ],
+   [
+    9,
+    "17"
+   ],
+   [
+    10,
+    "17"
+   ],
+   [
+    11,
+    "16"
+   ],
+   [
+    12,
+    "17"
+   ],
+   [
+    13,
+    "16"
+   ],
+   [
+    14,
+    "13"
+   ],
+   [
+    15,
+    "14"
+   ],
+   [
+    16,
+    "20"
+   ],
+   [
+    17,
+    "17"
+   ],
+   [
+    18,
+    "13"
+   ]
+  ]
+ }
+}

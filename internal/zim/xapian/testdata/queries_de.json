@@ -1,0 +1,1190 @@
+{
+ "fixture": "de",
+ "fulltext": [
+  {
+   "and": [
+    [
+     1,
+     1.7570952353524347,
+     "C/Berlin"
+    ],
+    [
+     11,
+     1.2149112934242703,
+     "C/Brücke"
+    ],
+    [
+     5,
+     1.1547919716878112,
+     "C/Spree"
+    ],
+    [
+     16,
+     1.1547919716878112,
+     "C/Zug"
+    ]
+   ],
+   "estimated": 4,
+   "libzim": {
+    "estimated": 4,
+    "paths": [
+     "Berlin",
+     "Brücke",
+     "Spree",
+     "Zug"
+    ]
+   },
+   "or": [
+    [
+     1,
+     1.7570952353524347,
+     "C/Berlin"
+    ],
+    [
+     11,
+     1.2149112934242703,
+     "C/Brücke"
+    ],
+    [
+     5,
+     1.1547919716878112,
+     "C/Spree"
+    ],
+    [
+     16,
+     1.1547919716878112,
+     "C/Zug"
+    ]
+   ],
+   "query": "berlin",
+   "terms": [
+    "berlin"
+   ]
+  },
+  {
+   "and": [
+    [
+     1,
+     1.7570952353524347,
+     "C/Berlin"
+    ],
+    [
+     11,
+     1.2149112934242703,
+     "C/Brücke"
+    ],
+    [
+     5,
+     1.1547919716878112,
+     "C/Spree"
+    ],
+    [
+     16,
+     1.1547919716878112,
+     "C/Zug"
+    ]
+   ],
+   "estimated": 4,
+   "libzim": {
+    "estimated": 4,
+    "paths": [
+     "Berlin",
+     "Brücke",
+     "Spree",
+     "Zug"
+    ]
+   },
+   "or": [
+    [
+     1,
+     1.7570952353524347,
+     "C/Berlin"
+    ],
+    [
+     11,
+     1.2149112934242703,
+     "C/Brücke"
+    ],
+    [
+     5,
+     1.1547919716878112,
+     "C/Spree"
+    ],
+    [
+     16,
+     1.1547919716878112,
+     "C/Zug"
+    ]
+   ],
+   "query": "Berlin",
+   "terms": [
+    "berlin"
+   ]
+  },
+  {
+   "and": [
+    [
+     8,
+     2.399369696381361,
+     "C/Haus"
+    ],
+    [
+     9,
+     1.5252524279780444,
+     "C/Fachwerkhaus"
+    ],
+    [
+     1,
+     1.278802304965434,
+     "C/Berlin"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "Haus",
+     "Fachwerkhaus",
+     "Berlin"
+    ]
+   },
+   "or": [
+    [
+     8,
+     2.399369696381361,
+     "C/Haus"
+    ],
+    [
+     9,
+     1.5252524279780444,
+     "C/Fachwerkhaus"
+    ],
+    [
+     1,
+     1.278802304965434,
+     "C/Berlin"
+    ]
+   ],
+   "query": "häuser",
+   "terms": [
+    "haus"
+   ]
+  },
+  {
+   "and": [
+    [
+     8,
+     2.399369696381361,
+     "C/Haus"
+    ],
+    [
+     9,
+     1.5252524279780444,
+     "C/Fachwerkhaus"
+    ],
+    [
+     1,
+     1.278802304965434,
+     "C/Berlin"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "Haus",
+     "Fachwerkhaus",
+     "Berlin"
+    ]
+   },
+   "or": [
+    [
+     8,
+     2.399369696381361,
+     "C/Haus"
+    ],
+    [
+     9,
+     1.5252524279780444,
+     "C/Fachwerkhaus"
+    ],
+    [
+     1,
+     1.278802304965434,
+     "C/Berlin"
+    ]
+   ],
+   "query": "hauses",
+   "terms": [
+    "haus"
+   ]
+  },
+  {
+   "and": [
+    [
+     3,
+     2.1767864023061874,
+     "C/München"
+    ],
+    [
+     18,
+     1.6078846136924305,
+     "C/Bayern"
+    ],
+    [
+     16,
+     1.4686451213726737,
+     "C/Zug"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "München",
+     "Bayern",
+     "Zug"
+    ]
+   },
+   "or": [
+    [
+     3,
+     2.1767864023061874,
+     "C/München"
+    ],
+    [
+     18,
+     1.6078846136924305,
+     "C/Bayern"
+    ],
+    [
+     16,
+     1.4686451213726737,
+     "C/Zug"
+    ]
+   ],
+   "query": "münchen",
+   "terms": [
+    "munch"
+   ]
+  },
+  {
+   "and": [
+    [
+     3,
+     2.1767864023061874,
+     "C/München"
+    ],
+    [
+     18,
+     1.6078846136924305,
+     "C/Bayern"
+    ],
+    [
+     16,
+     1.4686451213726737,
+     "C/Zug"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "München",
+     "Bayern",
+     "Zug"
+    ]
+   },
+   "or": [
+    [
+     3,
+     2.1767864023061874,
+     "C/München"
+    ],
+    [
+     18,
+     1.6078846136924305,
+     "C/Bayern"
+    ],
+    [
+     16,
+     1.4686451213726737,
+     "C/Zug"
+    ]
+   ],
+   "query": "MUNCHEN",
+   "terms": [
+    "munch"
+   ]
+  },
+  {
+   "and": [
+    [
+     5,
+     2.8983640769860806,
+     "C/Spree"
+    ],
+    [
+     11,
+     2.4298225868485406,
+     "C/Brücke"
+    ]
+   ],
+   "estimated": 2,
+   "libzim": {
+    "estimated": 2,
+    "paths": [
+     "Spree",
+     "Brücke"
+    ]
+   },
+   "or": [
+    [
+     5,
+     2.8983640769860806,
+     "C/Spree"
+    ],
+    [
+     11,
+     2.4298225868485406,
+     "C/Brücke"
+    ],
+    [
+     1,
+     1.7570952353524347,
+     "C/Berlin"
+    ],
+    [
+     6,
+     1.2149112934242703,
+     "C/Elbe"
+    ],
+    [
+     7,
+     1.2149112934242703,
+     "C/Rhein"
+    ],
+    [
+     16,
+     1.1547919716878112,
+     "C/Zug"
+    ]
+   ],
+   "query": "fluss berlin",
+   "terms": [
+    "fluss",
+    "berlin"
+   ]
+  },
+  {
+   "and": [],
+   "estimated": 0,
+   "libzim": {
+    "estimated": 0,
+    "paths": []
+   },
+   "or": [
+    [
+     2,
+     2.3950255056153376,
+     "C/Hamburg"
+    ],
+    [
+     5,
+     1.7435721052982693,
+     "C/Spree"
+    ],
+    [
+     6,
+     1.2149112934242703,
+     "C/Elbe"
+    ],
+    [
+     7,
+     1.2149112934242703,
+     "C/Rhein"
+    ],
+    [
+     11,
+     1.2149112934242703,
+     "C/Brücke"
+    ]
+   ],
+   "query": "fluss hafen",
+   "terms": [
+    "fluss",
+    "haf"
+   ]
+  },
+  {
+   "and": [
+    [
+     3,
+     1.6363662812303823,
+     "C/München"
+    ],
+    [
+     4,
+     1.4475177313173957,
+     "C/Köln"
+    ],
+    [
+     8,
+     1.431037453541486,
+     "C/Haus"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "München",
+     "Köln",
+     "Haus"
+    ]
+   },
+   "or": [
+    [
+     3,
+     1.6363662812303823,
+     "C/München"
+    ],
+    [
+     4,
+     1.4475177313173957,
+     "C/Köln"
+    ],
+    [
+     8,
+     1.431037453541486,
+     "C/Haus"
+    ],
+    [
+     9,
+     1.199302154750725,
+     "C/Fachwerkhaus"
+    ],
+    [
+     1,
+     0.5621962297167596,
+     "C/Berlin"
+    ],
+    [
+     6,
+     0.5542578726733214,
+     "C/Elbe"
+    ],
+    [
+     5,
+     0.5358931387421297,
+     "C/Spree"
+    ],
+    [
+     18,
+     0.43810977821168096,
+     "C/Bayern"
+    ],
+    [
+     15,
+     0.4322553045607454,
+     "C/Universität"
+    ],
+    [
+     17,
+     0.4155945005305668,
+     "C/Zugspitze"
+    ]
+   ],
+   "query": "die stadt",
+   "terms": [
+    "die",
+    "stadt"
+   ]
+  },
+  {
+   "and": [
+    [
+     10,
+     3.969476871754028,
+     "C/Straße"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Straße"
+    ]
+   },
+   "or": [
+    [
+     10,
+     3.969476871754028,
+     "C/Straße"
+    ]
+   ],
+   "query": "straße",
+   "terms": [
+    "strass"
+   ]
+  },
+  {
+   "and": [
+    [
+     10,
+     3.969476871754028,
+     "C/Straße"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Straße"
+    ]
+   },
+   "or": [
+    [
+     10,
+     3.969476871754028,
+     "C/Straße"
+    ]
+   ],
+   "query": "strasse",
+   "terms": [
+    "strass"
+   ]
+  },
+  {
+   "and": [
+    [
+     11,
+     2.4166001148965117,
+     "C/Brücke"
+    ],
+    [
+     4,
+     1.3671648442720667,
+     "C/Köln"
+    ],
+    [
+     1,
+     1.278802304965434,
+     "C/Berlin"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "Brücke",
+     "Köln",
+     "Berlin"
+    ]
+   },
+   "or": [
+    [
+     11,
+     2.4166001148965117,
+     "C/Brücke"
+    ],
+    [
+     4,
+     1.3671648442720667,
+     "C/Köln"
+    ],
+    [
+     1,
+     1.278802304965434,
+     "C/Berlin"
+    ]
+   ],
+   "query": "brücken",
+   "terms": [
+    "bruck"
+   ]
+  },
+  {
+   "and": [
+    [
+     13,
+     3.989677771864736,
+     "C/Apfel"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Apfel"
+    ]
+   },
+   "or": [
+    [
+     13,
+     3.989677771864736,
+     "C/Apfel"
+    ]
+   ],
+   "query": "äpfel",
+   "terms": [
+    "apfel"
+   ]
+  },
+  {
+   "and": [
+    [
+     16,
+     7.157089709772566,
+     "C/Zug"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Zug"
+    ]
+   },
+   "or": [
+    [
+     16,
+     7.157089709772566,
+     "C/Zug"
+    ]
+   ],
+   "query": "zug bahnhof",
+   "terms": [
+    "zug",
+    "bahnhof"
+   ]
+  },
+  {
+   "and": [
+    [
+     18,
+     4.06195139703695,
+     "C/Bayern"
+    ],
+    [
+     3,
+     2.8321784646749375,
+     "C/München"
+    ]
+   ],
+   "estimated": 2,
+   "libzim": {
+    "estimated": 2,
+    "paths": [
+     "Bayern",
+     "München"
+    ]
+   },
+   "or": [
+    [
+     18,
+     4.06195139703695,
+     "C/Bayern"
+    ],
+    [
+     3,
+     2.8321784646749375,
+     "C/München"
+    ],
+    [
+     17,
+     1.5252524279780444,
+     "C/Zugspitze"
+    ],
+    [
+     1,
+     1.278802304965434,
+     "C/Berlin"
+    ]
+   ],
+   "query": "hauptstadt bayern",
+   "terms": [
+    "hauptstadt",
+    "bay"
+   ]
+  },
+  {
+   "and": [
+    [
+     17,
+     2.518110328173728,
+     "C/Zugspitze"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Zugspitze"
+    ]
+   },
+   "or": [
+    [
+     17,
+     2.518110328173728,
+     "C/Zugspitze"
+    ]
+   ],
+   "query": "Österreich",
+   "terms": [
+    "osterreich"
+   ]
+  },
+  {
+   "and": [
+    [
+     12,
+     5.847862635650266,
+     "C/Bäckerei"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Bäckerei"
+    ]
+   },
+   "or": [
+    [
+     12,
+     5.847862635650266,
+     "C/Bäckerei"
+    ]
+   ],
+   "query": "bäcker brot",
+   "terms": [
+    "back",
+    "brot"
+   ]
+  },
+  {
+   "and": [],
+   "estimated": 0,
+   "libzim": {
+    "estimated": 0,
+    "paths": []
+   },
+   "or": [
+    [
+     5,
+     2.812001400218434,
+     "C/Spree"
+    ],
+    [
+     1,
+     1.6216828342372815,
+     "C/Berlin"
+    ]
+   ],
+   "query": "Spree-Athen",
+   "terms": [
+    "spree",
+    "ath"
+   ]
+  }
+ ],
+ "language": "deu",
+ "suggest": [
+  {
+   "libzim": {
+    "paths": [
+     "Bayern",
+     "Berlin",
+     "Brücke",
+     "Bäckerei"
+    ]
+   },
+   "query": "b",
+   "replica": [
+    [
+     2,
+     1.413811035194385,
+     "C/Bayern",
+     "Bayern"
+    ],
+    [
+     3,
+     1.413811035194385,
+     "C/Berlin",
+     "Berlin"
+    ],
+    [
+     4,
+     1.413811035194385,
+     "C/Brücke",
+     "Brücke"
+    ],
+    [
+     5,
+     1.413811035194385,
+     "C/Bäckerei",
+     "Bäckerei"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM b OR Zb@1) OR b) OR (0posanchor PHRASE 2 b)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Berlin"
+    ]
+   },
+   "query": "ber",
+   "replica": [
+    [
+     3,
+     2.662809506138518,
+     "C/Berlin",
+     "Berlin"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM ber OR Zber@1) OR ber) OR (0posanchor PHRASE 2 ber)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Berlin"
+    ]
+   },
+   "query": "berl",
+   "replica": [
+    [
+     3,
+     2.662809506138518,
+     "C/Berlin",
+     "Berlin"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM berl OR Zberl@1) OR berl) OR (0posanchor PHRASE 2 berl)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Berlin"
+    ]
+   },
+   "query": "Berlin",
+   "replica": [
+    [
+     3,
+     10.662288780717027,
+     "C/Berlin",
+     "Berlin"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM berlin OR Zberlin@1) OR berlin) OR (0posanchor PHRASE 2 berlin)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Hauptstadt_Deutschlands"
+    ]
+   },
+   "query": "haupt",
+   "replica": [
+    [
+     10,
+     2.661184715980841,
+     "C/Hauptstadt_Deutschlands",
+     "Hauptstadt Deutschlands"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM haupt OR Zhaupt@1) OR haupt) OR (0posanchor PHRASE 2 haupt)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Hauptstadt_Deutschlands"
+    ]
+   },
+   "query": "hauptstadt d",
+   "replica": [
+    [
+     10,
+     5.322369431961682,
+     "C/Hauptstadt_Deutschlands",
+     "Hauptstadt Deutschlands"
+    ]
+   ],
+   "xapian_query": "Query((((Zhauptstadt@1 AND (WILDCARD SYNONYM d OR Zd@2)) OR (hauptstadt PHRASE 2 d)) OR (0posanchor PHRASE 3 hauptstadt PHRASE 3 d)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "München"
+    ]
+   },
+   "query": "mün",
+   "replica": [
+    [
+     14,
+     2.662809506138518,
+     "C/München",
+     "München"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM mun OR Zmun@1) OR mun) OR (0posanchor PHRASE 2 mun)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Muenchen"
+    ]
+   },
+   "query": "mue",
+   "replica": [
+    [
+     13,
+     2.662809506138518,
+     "C/Muenchen",
+     "Muenchen"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM mue OR Zmue@1) OR mue) OR (0posanchor PHRASE 2 mue)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Muenchen"
+    ]
+   },
+   "query": "muen",
+   "replica": [
+    [
+     13,
+     2.662809506138518,
+     "C/Muenchen",
+     "Muenchen"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM muen OR Zmuen@1) OR muen) OR (0posanchor PHRASE 2 muen)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Zug",
+     "Zugspitze"
+    ]
+   },
+   "query": "zug",
+   "replica": [
+    [
+     21,
+     10.103788612776306,
+     "C/Zug",
+     "Zug"
+    ],
+    [
+     22,
+     2.104309338197796,
+     "C/Zugspitze",
+     "Zugspitze"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM zug OR Zzug@1) OR zug) OR (0posanchor PHRASE 2 zug)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Zug",
+     "Zugspitze"
+    ]
+   },
+   "query": "zugs",
+   "replica": [
+    [
+     21,
+     2.662809506138518,
+     "C/Zug",
+     "Zug"
+    ],
+    [
+     22,
+     2.662809506138518,
+     "C/Zugspitze",
+     "Zugspitze"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM zugs OR Zzug@1) OR zugs) OR (0posanchor PHRASE 2 zugs)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Strasse"
+    ]
+   },
+   "query": "str",
+   "replica": [
+    [
+     18,
+     2.104309338197796,
+     "C/Strasse",
+     "Strasse"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM str OR Zstr@1) OR str) OR (0posanchor PHRASE 2 str)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Strasse"
+    ]
+   },
+   "query": "strasse",
+   "replica": [
+    [
+     18,
+     10.103788612776306,
+     "C/Strasse",
+     "Strasse"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM strasse OR Zstrass@1) OR strasse) OR (0posanchor PHRASE 2 strasse)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Brücke"
+    ]
+   },
+   "query": "brü",
+   "replica": [
+    [
+     4,
+     2.662809506138518,
+     "C/Brücke",
+     "Brücke"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM bru OR Zbru@1) OR bru) OR (0posanchor PHRASE 2 bru)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Spree",
+     "Spree-Athen"
+    ]
+   },
+   "query": "spree",
+   "replica": [
+    [
+     16,
+     8.423145345442922,
+     "C/Spree",
+     "Spree (Fluss)"
+    ],
+    [
+     17,
+     8.423145345442922,
+     "C/Spree-Athen",
+     "Spree-Athen"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM spree OR Zspree@1) OR spree) OR (0posanchor PHRASE 2 spree)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Spree",
+     "Spree-Athen"
+    ]
+   },
+   "query": "spree-",
+   "replica": [
+    [
+     16,
+     6.320120012388388,
+     "C/Spree",
+     "Spree (Fluss)"
+    ],
+    [
+     17,
+     6.320120012388388,
+     "C/Spree-Athen",
+     "Spree-Athen"
+    ]
+   ],
+   "xapian_query": "Query(((Zspree@1 OR spree) OR (0posanchor PHRASE 2 spree)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Köln"
+    ]
+   },
+   "query": "köln",
+   "replica": [
+    [
+     12,
+     10.662288780717027,
+     "C/Köln",
+     "Köln"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM koln OR Zkoln@1) OR koln) OR (0posanchor PHRASE 2 koln)))"
+  },
+  {
+   "libzim": {
+    "paths": []
+   },
+   "query": "koel",
+   "replica": [],
+   "xapian_query": "Query((((WILDCARD SYNONYM koel OR Zkoel@1) OR koel) OR (0posanchor PHRASE 2 koel)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Fachwerkhaus"
+    ]
+   },
+   "query": "fach",
+   "replica": [
+    [
+     7,
+     2.662809506138518,
+     "C/Fachwerkhaus",
+     "Fachwerkhaus"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM fach OR Zfach@1) OR fach) OR (0posanchor PHRASE 2 fach)))"
+  },
+  {
+   "libzim": {
+    "paths": []
+   },
+   "query": "bayern m",
+   "replica": [],
+   "xapian_query": "Query((((Zbay@1 AND (WILDCARD SYNONYM m OR Zm@2)) OR (bayern PHRASE 2 m)) OR (0posanchor PHRASE 3 bayern PHRASE 3 m)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Zug",
+     "Zugspitze"
+    ]
+   },
+   "query": "zu",
+   "replica": [
+    [
+     21,
+     2.104309338197796,
+     "C/Zug",
+     "Zug"
+    ],
+    [
+     22,
+     2.104309338197796,
+     "C/Zugspitze",
+     "Zugspitze"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM zu OR Zzu@1) OR zu) OR (0posanchor PHRASE 2 zu)))"
+  }
+ ]
+}

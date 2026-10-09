@@ -1,0 +1,1195 @@
+{
+ "fixture": "en",
+ "fulltext": [
+  {
+   "and": [
+    [
+     1,
+     2.416515447913507,
+     "C/London"
+    ],
+    [
+     2,
+     1.5417029721870112,
+     "C/River_Thames"
+    ],
+    [
+     4,
+     1.523256903879988,
+     "C/Tower_Bridge"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "London",
+     "River_Thames",
+     "Tower_Bridge"
+    ]
+   },
+   "or": [
+    [
+     1,
+     2.416515447913507,
+     "C/London"
+    ],
+    [
+     2,
+     1.5417029721870112,
+     "C/River_Thames"
+    ],
+    [
+     4,
+     1.523256903879988,
+     "C/Tower_Bridge"
+    ]
+   ],
+   "query": "london",
+   "terms": [
+    "london"
+   ]
+  },
+  {
+   "and": [
+    [
+     4,
+     2.4632708384535853,
+     "C/Tower_Bridge"
+    ],
+    [
+     3,
+     2.4280371024957796,
+     "C/Bridge"
+    ],
+    [
+     1,
+     1.453685074135469,
+     "C/London"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "Tower_Bridge",
+     "Bridge",
+     "London"
+    ]
+   },
+   "or": [
+    [
+     4,
+     2.4632708384535853,
+     "C/Tower_Bridge"
+    ],
+    [
+     3,
+     2.4280371024957796,
+     "C/Bridge"
+    ],
+    [
+     1,
+     1.453685074135469,
+     "C/London"
+    ]
+   ],
+   "query": "bridges",
+   "terms": [
+    "bridg"
+   ]
+  },
+  {
+   "and": [
+    [
+     4,
+     3.986527742333573,
+     "C/Tower_Bridge"
+    ],
+    [
+     1,
+     3.870200522048976,
+     "C/London"
+    ]
+   ],
+   "estimated": 2,
+   "libzim": {
+    "estimated": 2,
+    "paths": [
+     "Tower_Bridge",
+     "London"
+    ]
+   },
+   "or": [
+    [
+     4,
+     3.986527742333573,
+     "C/Tower_Bridge"
+    ],
+    [
+     1,
+     3.870200522048976,
+     "C/London"
+    ],
+    [
+     3,
+     2.4280371024957796,
+     "C/Bridge"
+    ],
+    [
+     2,
+     1.5417029721870112,
+     "C/River_Thames"
+    ]
+   ],
+   "query": "bridge london",
+   "terms": [
+    "bridg",
+    "london"
+   ]
+  },
+  {
+   "and": [
+    [
+     5,
+     2.548390184746545,
+     "C/Running"
+    ],
+    [
+     6,
+     1.5606012666847873,
+     "C/Marathon"
+    ],
+    [
+     17,
+     1.5052470213823401,
+     "C/2024_Summer_Olympics"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "Running",
+     "Marathon",
+     "2024_Summer_Olympics"
+    ]
+   },
+   "or": [
+    [
+     5,
+     2.548390184746545,
+     "C/Running"
+    ],
+    [
+     6,
+     1.5606012666847873,
+     "C/Marathon"
+    ],
+    [
+     17,
+     1.5052470213823401,
+     "C/2024_Summer_Olympics"
+    ]
+   ],
+   "query": "running",
+   "terms": [
+    "run"
+   ]
+  },
+  {
+   "and": [
+    [
+     5,
+     2.548390184746545,
+     "C/Running"
+    ],
+    [
+     6,
+     1.5606012666847873,
+     "C/Marathon"
+    ],
+    [
+     17,
+     1.5052470213823401,
+     "C/2024_Summer_Olympics"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "Running",
+     "Marathon",
+     "2024_Summer_Olympics"
+    ]
+   },
+   "or": [
+    [
+     5,
+     2.548390184746545,
+     "C/Running"
+    ],
+    [
+     6,
+     1.5606012666847873,
+     "C/Marathon"
+    ],
+    [
+     17,
+     1.5052470213823401,
+     "C/2024_Summer_Olympics"
+    ]
+   ],
+   "query": "runs",
+   "terms": [
+    "run"
+   ]
+  },
+  {
+   "and": [
+    [
+     6,
+     1.9584644080814764,
+     "C/Marathon"
+    ],
+    [
+     5,
+     1.86692486625233,
+     "C/Running"
+    ]
+   ],
+   "estimated": 2,
+   "libzim": {
+    "estimated": 2,
+    "paths": [
+     "Marathon",
+     "Running"
+    ]
+   },
+   "or": [
+    [
+     6,
+     1.9584644080814764,
+     "C/Marathon"
+    ],
+    [
+     5,
+     1.86692486625233,
+     "C/Running"
+    ]
+   ],
+   "query": "runner",
+   "terms": [
+    "runner"
+   ]
+  },
+  {
+   "and": [
+    [
+     7,
+     2.4995421992884737,
+     "C/Apple"
+    ],
+    [
+     8,
+     2.4632708384535853,
+     "C/Apple_pie"
+    ],
+    [
+     9,
+     1.523256903879988,
+     "C/Pineapple"
+    ]
+   ],
+   "estimated": 3,
+   "libzim": {
+    "estimated": 3,
+    "paths": [
+     "Apple",
+     "Apple_pie",
+     "Pineapple"
+    ]
+   },
+   "or": [
+    [
+     7,
+     2.4995421992884737,
+     "C/Apple"
+    ],
+    [
+     8,
+     2.4632708384535853,
+     "C/Apple_pie"
+    ],
+    [
+     9,
+     1.523256903879988,
+     "C/Pineapple"
+    ]
+   ],
+   "query": "apple",
+   "terms": [
+    "appl"
+   ]
+  },
+  {
+   "and": [
+    [
+     8,
+     6.198210584390122,
+     "C/Apple_pie"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Apple_pie"
+    ]
+   },
+   "or": [
+    [
+     8,
+     6.198210584390122,
+     "C/Apple_pie"
+    ],
+    [
+     7,
+     2.4995421992884737,
+     "C/Apple"
+    ],
+    [
+     9,
+     1.523256903879988,
+     "C/Pineapple"
+    ]
+   ],
+   "query": "apples pie",
+   "terms": [
+    "appl",
+    "pie"
+   ]
+  },
+  {
+   "and": [
+    [
+     10,
+     4.030022389103074,
+     "C/Café"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Café"
+    ]
+   },
+   "or": [
+    [
+     10,
+     4.030022389103074,
+     "C/Café"
+    ]
+   ],
+   "query": "cafe",
+   "terms": [
+    "cafe"
+   ]
+  },
+  {
+   "and": [
+    [
+     10,
+     4.030022389103074,
+     "C/Café"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Café"
+    ]
+   },
+   "or": [
+    [
+     10,
+     4.030022389103074,
+     "C/Café"
+    ]
+   ],
+   "query": "café",
+   "terms": [
+    "cafe"
+   ]
+  },
+  {
+   "and": [
+    [
+     12,
+     4.069778580895886,
+     "C/C++"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "C++"
+    ]
+   },
+   "or": [
+    [
+     12,
+     4.069778580895886,
+     "C/C++"
+    ]
+   ],
+   "query": "c++",
+   "terms": [
+    "c++"
+   ]
+  },
+  {
+   "and": [
+    [
+     13,
+     3.8273405990261122,
+     "C/AT&T"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "AT&T"
+    ]
+   },
+   "or": [
+    [
+     13,
+     3.8273405990261122,
+     "C/AT&T"
+    ]
+   ],
+   "query": "at&t",
+   "terms": [
+    "at&t"
+   ]
+  },
+  {
+   "and": [
+    [
+     14,
+     4.089952281140349,
+     "C/O'Brien"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "O'Brien"
+    ]
+   },
+   "or": [
+    [
+     14,
+     4.089952281140349,
+     "C/O'Brien"
+    ]
+   ],
+   "query": "o'brien",
+   "terms": [
+    "o'brien"
+   ]
+  },
+  {
+   "and": [
+    [
+     15,
+     4.3784323548899735,
+     "C/The_Beatles"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "The_Beatles"
+    ]
+   },
+   "or": [
+    [
+     15,
+     4.3784323548899735,
+     "C/The_Beatles"
+    ],
+    [
+     1,
+     0.6084851835162113,
+     "C/London"
+    ],
+    [
+     16,
+     0.5080267221538489,
+     "C/Mount_Everest"
+    ],
+    [
+     2,
+     0.4956991260862587,
+     "C/River_Thames"
+    ],
+    [
+     9,
+     0.49172181046310043,
+     "C/Pineapple"
+    ],
+    [
+     13,
+     0.3850519997277189,
+     "C/AT&T"
+    ],
+    [
+     7,
+     0.3802734314750561,
+     "C/Apple"
+    ],
+    [
+     11,
+     0.3802734314750561,
+     "C/Naïve_art"
+    ],
+    [
+     4,
+     0.36662381838054847,
+     "C/Tower_Bridge"
+    ],
+    [
+     17,
+     0.36228912482159986,
+     "C/2024_Summer_Olympics"
+    ]
+   ],
+   "query": "the beatles",
+   "terms": [
+    "the",
+    "beatl"
+   ]
+  },
+  {
+   "and": [
+    [
+     15,
+     3.7576191499546874,
+     "C/The_Beatles"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "The_Beatles"
+    ]
+   },
+   "or": [
+    [
+     15,
+     3.7576191499546874,
+     "C/The_Beatles"
+    ]
+   ],
+   "query": "beatles",
+   "terms": [
+    "beatl"
+   ]
+  },
+  {
+   "and": [
+    [
+     16,
+     7.6546811980522245,
+     "C/Mount_Everest"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Mount_Everest"
+    ]
+   },
+   "or": [
+    [
+     16,
+     7.6546811980522245,
+     "C/Mount_Everest"
+    ]
+   ],
+   "query": "mount everest",
+   "terms": [
+    "mount",
+    "everest"
+   ]
+  },
+  {
+   "and": [
+    [
+     18,
+     5.184122716141189,
+     "C/Email"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Email"
+    ]
+   },
+   "or": [
+    [
+     18,
+     5.184122716141189,
+     "C/Email"
+    ]
+   ],
+   "query": "e-mail",
+   "terms": [
+    "e",
+    "mail"
+   ]
+  },
+  {
+   "and": [
+    [
+     17,
+     3.7125324661219508,
+     "C/2024_Summer_Olympics"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "2024_Summer_Olympics"
+    ]
+   },
+   "or": [
+    [
+     17,
+     3.7125324661219508,
+     "C/2024_Summer_Olympics"
+    ]
+   ],
+   "query": "2024",
+   "terms": [
+    "2024"
+   ]
+  },
+  {
+   "and": [
+    [
+     2,
+     4.638412202035322,
+     "C/River_Thames"
+    ],
+    [
+     1,
+     3.4331711325327037,
+     "C/London"
+    ]
+   ],
+   "estimated": 2,
+   "libzim": {
+    "estimated": 2,
+    "paths": [
+     "River_Thames",
+     "London"
+    ]
+   },
+   "or": [
+    [
+     2,
+     4.638412202035322,
+     "C/River_Thames"
+    ],
+    [
+     1,
+     3.4331711325327037,
+     "C/London"
+    ],
+    [
+     19,
+     1.6201821589828669,
+     "C/Swimming"
+    ],
+    [
+     4,
+     1.523256903879988,
+     "C/Tower_Bridge"
+    ]
+   ],
+   "query": "river thames",
+   "terms": [
+    "river",
+    "thame"
+   ]
+  },
+  {
+   "and": [
+    [
+     17,
+     3.3942450503346047,
+     "C/2024_Summer_Olympics"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "2024_Summer_Olympics"
+    ]
+   },
+   "or": [
+    [
+     17,
+     3.3942450503346047,
+     "C/2024_Summer_Olympics"
+    ],
+    [
+     19,
+     2.982921551778207,
+     "C/Swimming"
+    ],
+    [
+     5,
+     2.548390184746545,
+     "C/Running"
+    ],
+    [
+     6,
+     1.5606012666847873,
+     "C/Marathon"
+    ]
+   ],
+   "query": "swimming running",
+   "terms": [
+    "swim",
+    "run"
+   ]
+  },
+  {
+   "and": [
+    [
+     11,
+     2.5598933856320962,
+     "C/Naïve_art"
+    ]
+   ],
+   "estimated": 1,
+   "libzim": {
+    "estimated": 1,
+    "paths": [
+     "Naïve_art"
+    ]
+   },
+   "or": [
+    [
+     11,
+     2.5598933856320962,
+     "C/Naïve_art"
+    ]
+   ],
+   "query": "colours",
+   "terms": [
+    "colour"
+   ]
+  }
+ ],
+ "language": "eng",
+ "suggest": [
+  {
+   "libzim": {
+    "paths": [
+     "London"
+    ]
+   },
+   "query": "l",
+   "replica": [
+    [
+     13,
+     2.752109355238758,
+     "C/London",
+     "London"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM l OR Zl@1) OR l) OR (0posanchor PHRASE 2 l)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "London"
+    ]
+   },
+   "query": "lon",
+   "replica": [
+    [
+     13,
+     2.752109355238758,
+     "C/London",
+     "London"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM lon OR Zlon@1) OR lon) OR (0posanchor PHRASE 2 lon)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "London"
+    ]
+   },
+   "query": "london",
+   "replica": [
+    [
+     13,
+     11.01859191046914,
+     "C/London",
+     "London"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM london OR Zlondon@1) OR london) OR (0posanchor PHRASE 2 london)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Tower_Bridge"
+    ]
+   },
+   "query": "tower b",
+   "replica": [
+    [
+     24,
+     4.0159231652043825,
+     "C/Tower_Bridge",
+     "Tower Bridge"
+    ]
+   ],
+   "xapian_query": "Query((((Ztower@1 AND (WILDCARD SYNONYM b OR Zb@2)) OR (tower PHRASE 2 b)) OR (0posanchor PHRASE 3 tower PHRASE 3 b)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Tower_Bridge"
+    ]
+   },
+   "query": "tower bridge",
+   "replica": [
+    [
+     24,
+     17.048229095330065,
+     "C/Tower_Bridge",
+     "Tower Bridge"
+    ]
+   ],
+   "xapian_query": "Query((((Ztower@1 AND (WILDCARD SYNONYM bridge OR Zbridg@2)) OR (tower PHRASE 2 bridge)) OR (0posanchor PHRASE 3 tower PHRASE 3 bridge)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Apple",
+     "Apple_pie"
+    ]
+   },
+   "query": "app",
+   "replica": [
+    [
+     3,
+     2.197682975822795,
+     "C/Apple",
+     "Apple"
+    ],
+    [
+     4,
+     2.1965252850541432,
+     "C/Apple_pie",
+     "Apple pie"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM app OR Zapp@1) OR app) OR (0posanchor PHRASE 2 app)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Apple_pie"
+    ]
+   },
+   "query": "apple p",
+   "replica": [
+    [
+     4,
+     4.3930505701082865,
+     "C/Apple_pie",
+     "Apple pie"
+    ]
+   ],
+   "xapian_query": "Query((((Zappl@1 AND (WILDCARD SYNONYM p OR Zp@2)) OR (apple PHRASE 2 p)) OR (0posanchor PHRASE 3 apple PHRASE 3 p)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Pineapple"
+    ]
+   },
+   "query": "pine",
+   "replica": [
+    [
+     18,
+     2.752109355238758,
+     "C/Pineapple",
+     "Pineapple"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM pine OR Zpine@1) OR pine) OR (0posanchor PHRASE 2 pine)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Cafe"
+    ]
+   },
+   "query": "caf",
+   "replica": [
+    [
+     9,
+     2.197682975822795,
+     "C/Cafe",
+     "Cafe"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM caf OR Zcaf@1) OR caf) OR (0posanchor PHRASE 2 caf)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Cafe"
+    ]
+   },
+   "query": "café",
+   "replica": [
+    [
+     9,
+     8.800886392805289,
+     "C/Cafe",
+     "Cafe"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM cafe OR Zcafe@1) OR cafe) OR (0posanchor PHRASE 2 cafe)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "The_Beatles"
+    ]
+   },
+   "query": "the b",
+   "replica": [
+    [
+     23,
+     4.0159231652043825,
+     "C/The_Beatles",
+     "The Beatles"
+    ]
+   ],
+   "xapian_query": "Query((((Zthe@1 AND (WILDCARD SYNONYM b OR Zb@2)) OR (the PHRASE 2 b)) OR (0posanchor PHRASE 3 the PHRASE 3 b)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Beatles"
+    ]
+   },
+   "query": "beat",
+   "replica": [
+    [
+     5,
+     2.197682975822795,
+     "C/Beatles",
+     "Beatles"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM beat OR Zbeat@1) OR beat) OR (0posanchor PHRASE 2 beat)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "C++"
+    ]
+   },
+   "query": "c+",
+   "replica": [
+    [
+     8,
+     2.752109355238758,
+     "C/C++",
+     "C++"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM c+ OR Zc+@1) OR c+) OR (0posanchor PHRASE 2 c+)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "C++"
+    ]
+   },
+   "query": "c++",
+   "replica": [
+    [
+     8,
+     11.01859191046914,
+     "C/C++",
+     "C++"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM c++ OR Zc++@1) OR c++) OR (0posanchor PHRASE 2 c++)))"
+  },
+  {
+   "libzim": {
+    "paths": []
+   },
+   "query": "at&",
+   "replica": [],
+   "xapian_query": "Query(((Zat@1 OR at) OR (0posanchor PHRASE 2 at)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "O'Brien"
+    ]
+   },
+   "query": "o'b",
+   "replica": [
+    [
+     17,
+     2.752109355238758,
+     "C/O'Brien",
+     "O'Brien"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM o'b OR Zo'b@1) OR o'b) OR (0posanchor PHRASE 2 o'b)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "2024_Summer_Olympics"
+    ]
+   },
+   "query": "2024",
+   "replica": [
+    [
+     1,
+     11.009887677414262,
+     "C/2024_Summer_Olympics",
+     "2024 Summer Olympics"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM 2024 OR 2024@1) OR 2024) OR (0posanchor PHRASE 2 2024)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "2024_Summer_Olympics"
+    ]
+   },
+   "query": "2024 s",
+   "replica": [
+    [
+     1,
+     4.564169682604987,
+     "C/2024_Summer_Olympics",
+     "2024 Summer Olympics"
+    ]
+   ],
+   "xapian_query": "Query((((2024@1 AND (WILDCARD SYNONYM s OR Zs@2)) OR (2024 PHRASE 2 s)) OR (0posanchor PHRASE 3 2024 PHRASE 3 s)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Mount_Everest"
+    ]
+   },
+   "query": "mount e",
+   "replica": [
+    [
+     15,
+     4.565371834409008,
+     "C/Mount_Everest",
+     "Mount Everest"
+    ]
+   ],
+   "xapian_query": "Query((((Zmount@1 AND (WILDCARD SYNONYM e OR Ze@2)) OR (mount PHRASE 2 e)) OR (0posanchor PHRASE 3 mount PHRASE 3 e)))"
+  },
+  {
+   "libzim": {
+    "paths": []
+   },
+   "query": "e-m",
+   "replica": [],
+   "xapian_query": "Query((((e@1 PHRASE 2 m@2) OR (e PHRASE 2 m)) OR (0posanchor PHRASE 3 e PHRASE 3 m)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Email"
+    ]
+   },
+   "query": "em",
+   "replica": [
+    [
+     12,
+     2.752109355238758,
+     "C/Email",
+     "Email"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM em OR Zem@1) OR em) OR (0posanchor PHRASE 2 em)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "River_Thames"
+    ]
+   },
+   "query": "riv",
+   "replica": [
+    [
+     19,
+     2.7506596049199312,
+     "C/River_Thames",
+     "River Thames"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM riv OR Zriv@1) OR riv) OR (0posanchor PHRASE 2 riv)))"
+  },
+  {
+   "libzim": {
+    "paths": [
+     "Thames"
+    ]
+   },
+   "query": "thames",
+   "replica": [
+    [
+     22,
+     8.800886392805289,
+     "C/Thames",
+     "Thames"
+    ]
+   ],
+   "xapian_query": "Query((((WILDCARD SYNONYM thames OR Zthame@1) OR thames) OR (0posanchor PHRASE 2 thames)))"
+  }
+ ]
+}
