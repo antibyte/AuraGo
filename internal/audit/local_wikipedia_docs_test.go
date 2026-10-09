@@ -32,6 +32,7 @@ func TestLocalWikipediaGuideCoversOperatorTopics(t *testing.T) {
 		"## Privacy and network",
 		"## Licenses",
 		"## Limits",
+		"## Acceptance (October 2026)",
 		"`insufficient_disk_space`", "`free_space_unknown`", "`checksum_mismatch`", "`download_failed`",
 		"`catalog_unreachable`", "`zim_unreadable`", "`state_unreadable`", "`fulltext_unsupported`", "`busy`", "`disabled`",
 		"`data_dir_invalid`", "`already_installed`",

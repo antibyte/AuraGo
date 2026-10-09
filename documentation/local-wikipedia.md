@@ -350,3 +350,37 @@ catalog request. For a firewall allowlist, use the hosts above.
   and at most four searches run at once with a five-second limit each.
 - A future Kiwix index format may fall back to title search until AuraGo
   supports it.
+
+## Acceptance (October 2026)
+
+Windows 11 workstation (NVMe SSD, 16 threads, 64 GB RAM), commit `ce058456a`,
+scratch instance (own port and data directory, loopback only):
+
+- Hindi without media, edition 2026-10 (917,954,595 bytes): installed through
+  the config page with one cancel and resume (the existing part was re-verified
+  and the download continued from it) and one hard restart (`interrupted`, no
+  automatic resume); SHA-256 matched Kiwix's metalink; search, suggestions,
+  article view, random and main page worked in the API and the desktop app; HTML
+  content carried the sandbox policy (`script-src 'none'`, `connect-src 'none'`),
+  `X-Frame-Options: SAMEORIGIN`, ETag, Range and `nosniff`, and path traversal
+  was refused.
+- Update: an edition made to look one month older showed the hint on the config
+  page, the dashboard and in the app; updating while four clients searched and
+  read continuously finished with 8,538 requests and no failed request, and the
+  old file was removed.
+- Changing the language did not download anything; Delete removed all files;
+  English with media (127.4 GB) on a volume with 15.3 GB free was refused with
+  `insufficient_disk_space` (128.7 GB needed); relative and system directories
+  were refused with `data_dir_invalid`.
+- Agent tool through chat: run with a scripted OpenAI-compatible stand-in
+  instead of a real model (no provider credentials on the scratch instance). The
+  agent loop offered `local_wikipedia`, ran `search` and `read`, and the results
+  named the article and the edition date. At the default tool caps the tool was
+  not always offered directly; it stayed reachable through `discover_tools`.
+- Performance, German without media, edition 2026-10 (18,585,337,585 bytes,
+  download 3:02 at about 102 MB/s), 100 queries after one warm-up pass: search
+  p50/p95/p99 42.6/86.7/104.1 ms, tool-mode search (5 results, 3 leads) p95
+  79.0 ms, suggestions p50/p95/p99 10.6/33.2/57.2 ms, first article read
+  p50/p95/p99 14.7/39.0/42.0 ms, archive open 21 ms, Go heap 162 MiB, no query
+  without hits. Cold, with the edition dropped from the operating system's file
+  cache: first search p50/p95/p99 58.0/149.2/203.9 ms, first read p95 37.5 ms.
