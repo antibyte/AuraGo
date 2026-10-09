@@ -253,8 +253,11 @@ func (p *postingList) WDF() uint32   { return p.wdf }
 func (p *postingList) Err() error    { return p.err }
 
 // skipTo positions on the first posting with docid >= target. One call does
-// at most one seek and decodes at most one chunk (jumpTo rejects seeks that
-// land anywhere else), so callers polling ctx once per skip stay responsive.
+// at most one seek and reads the headers of at most three chunks (the one
+// after the current chunk, the one the seek lands on and the one after that;
+// jumpTo rejects seeks that land anywhere else), then walks the postings of
+// only the last chunk it read, so callers polling ctx once per skip stay
+// responsive.
 func (p *postingList) skipTo(target uint32) (bool, error) {
 	if p.done || p.err != nil {
 		return false, p.err
