@@ -65,6 +65,8 @@ func (m *Manager) Install(ctx context.Context, req InstallRequest) error {
 
 func (m *Manager) planInstall(ctx context.Context, settings Settings, installed *Edition) (installPlan, error) {
 	plan := installPlan{dir: settings.DataDir}
+	// Before the space check: a leftover restart file would count as used.
+	m.removeStaleRestartFiles(plan.dir)
 	pending, err := readDownload(settings.DataDir, m.catalogBase)
 	if err != nil {
 		m.logger.Warn("[LocalWikipedia] download.json is unreadable; starting a new download", "error", err)
@@ -96,6 +98,22 @@ func (m *Manager) planInstall(ctx context.Context, settings Settings, installed 
 		}
 	}
 	return plan, nil
+}
+
+// removeStaleRestartFiles deletes the restart files a killed download left in
+// dir (see removeRestartFiles). They are never resumed and only occupy space
+// the install's space check would count as used. Like discardPending it acts
+// only while no operation runs, with mu held, so no download that could be
+// writing a restart file starts meanwhile.
+func (m *Manager) removeStaleRestartFiles(dir string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.op != nil || m.deleting {
+		return
+	}
+	if err := removeRestartFiles(dir); err != nil {
+		m.logger.Warn("[LocalWikipedia] A stale restart file could not be removed", "dir", dir, "error", err)
+	}
 }
 
 // discardPending drops an interrupted download (its download.json and partial

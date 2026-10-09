@@ -38,6 +38,32 @@ func requiredBytes(size, alreadyDownloaded int64) int64 {
 	return remaining + margin
 }
 
+// restartRequiredBytes is the free space a restart needs (see downloadJob):
+// the part file keeps its kept bytes until the restart file holds kept+1
+// bytes and replaces it; written bytes of the restart file are already on
+// disk. Before the replacement the restart file needs kept+1-written more
+// bytes next to the part file. The replacement frees the kept bytes, and the
+// rest of the edition then needs size-kept-1 bytes, so from today's free space
+// the whole restart takes size-kept-written. The margin must stay free at
+// both points, so the larger need plus the margin is required. Inputs are
+// clamped to [0, size] and the sum saturates like requiredBytes.
+func restartRequiredBytes(size, kept, written int64) int64 {
+	size = max(size, 0)
+	kept = min(max(kept, 0), size)
+	written = min(max(written, 0), size)
+	beforeSwap := kept - written
+	if beforeSwap < math.MaxInt64 {
+		beforeSwap++
+	}
+	afterSwap := size - kept - written
+	need := max(beforeSwap, afterSwap, 0)
+	margin := diskMargin(size)
+	if need > math.MaxInt64-margin {
+		return math.MaxInt64
+	}
+	return need + margin
+}
+
 // checkDataDirShape validates a storage directory without touching the disk.
 func checkDataDirShape(dir string, sensitive func(string) bool) error {
 	if strings.TrimSpace(dir) == "" || !filepath.IsAbs(dir) {

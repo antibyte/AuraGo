@@ -329,3 +329,69 @@ func TestMirrorListKeepsTheFallbackWithinTheLimit(t *testing.T) {
 		t.Fatalf("a mirror equal to the fallback must not repeat: %v", got)
 	}
 }
+
+// A restart file left by a killed process is removed when the directory is
+// loaded and again before Install checks the free space, so it never causes a
+// false "insufficient space".
+func TestManagerRemovesStaleRestartFilesBeforeTheSpaceCheck(t *testing.T) {
+	const kept = 4096
+	env := newTestEnv(t)
+	data := fixtureZIMBytes(t)
+	served := env.kiwix.addEdition("wikipedia_de_all_nopic_2026-10", data)
+	target := Edition{
+		Language: "de", Variant: VariantNoPic, Date: "2026-10", Name: served.name, FileName: served.name + ".zim",
+		Size: int64(len(data)), SHA256: served.sha256,
+	}
+	if err := os.MkdirAll(env.dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeDownload(env.dir, &downloadFile{Target: target, URLs: env.kiwix.mirrorURLs(served), StartedAt: env.clock.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	partPath := filepath.Join(env.dir, target.FileName+".part")
+	if err := os.WriteFile(partPath, data[:kept], 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restartPath := partPath + restartSuffix
+	plantRestart := func() {
+		t.Helper()
+		if err := os.WriteFile(restartPath, make([]byte, 64<<10), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The disk has room for exactly the resumed download; a restart file
+	// still lying there takes its size away.
+	required := requiredBytes(target.Size, kept)
+	m := NewManager(Deps{
+		HTTPClient: env.kiwix.server.Client(),
+		FreeDiskBytes: func(string) (int64, error) {
+			if info, err := os.Stat(restartPath); err == nil {
+				return required - info.Size(), nil
+			}
+			return required, nil
+		},
+		Now:            env.clock.Now,
+		CatalogBaseURL: env.kiwix.server.URL,
+	})
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = m.Shutdown(ctx)
+	})
+	env.manager = m
+	m.Configure(env.settings())
+
+	plantRestart()
+	env.start()
+	if fileExists(restartPath) {
+		t.Fatal("loading the directory left the stale restart file")
+	}
+	plantRestart()
+	if err := m.Install(context.Background(), InstallRequest{}); err != nil {
+		t.Fatalf("Install = %v, want the resume to fit once the stale restart file is gone", err)
+	}
+	env.waitIdle(StateReady)
+	if fileExists(restartPath) || fileExists(partPath) {
+		t.Fatal("restart or part file left after the install")
+	}
+}

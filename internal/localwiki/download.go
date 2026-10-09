@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -111,6 +112,28 @@ func (j *downloadJob) restartPath() string { return j.partPath + restartSuffix }
 func removePartialDownload(dir, fileName string) error {
 	part := filepath.Join(dir, fileName+".part")
 	return errors.Join(removeIfExists(part), removeIfExists(part+restartSuffix))
+}
+
+// removeRestartFiles deletes every restart file (<edition>.zim.part.restart)
+// in dir. A restart file is never resumed; one that exists while no download
+// runs was left by a killed process. Other files are never touched.
+func removeRestartFiles(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, entry := range entries {
+		name, ok := strings.CutSuffix(entry.Name(), ".part"+restartSuffix)
+		if !ok || !entry.Type().IsRegular() || !zimFileNamePattern.MatchString(name) {
+			continue
+		}
+		errs = append(errs, removeIfExists(filepath.Join(dir, entry.Name())))
+	}
+	return errors.Join(errs...)
 }
 
 // run returns nil once partPath holds exactly size bytes with the expected
@@ -486,7 +509,13 @@ func (j *downloadJob) open(ctx context.Context, rawURL string, full bool) (*http
 
 // beginRestart sets the part file aside (file, hash and offset) and directs
 // the writes into an empty restart file with a fresh hash.
+//
+// The free space is checked first (see restartRequiredBytes), so a restart
+// that cannot fit pauses before it writes anything.
 func (j *downloadJob) beginRestart() error {
+	if err := j.checkSpaceFor(restartRequiredBytes(j.size, j.offset, 0)); err != nil {
+		return err
+	}
 	file, err := os.OpenFile(j.restartPath(), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		return &writeError{err}
@@ -530,7 +559,9 @@ func (j *downloadJob) promoteRestart() error {
 }
 
 // abandonRestart discards a restart that did not replace the part file and
-// continues with the part file's own file, hash and offset.
+// continues with the part file's own file, hash and offset. The phase is
+// reported again before the progress jumps back to the part file's length,
+// so the rate meter starts over instead of showing that jump as throughput.
 func (j *downloadJob) abandonRestart() {
 	if j.kept == nil {
 		return
@@ -541,6 +572,7 @@ func (j *downloadJob) abandonRestart() {
 	}
 	j.file, j.hash, j.offset = j.kept.file, j.kept.hash, j.kept.offset
 	j.kept = nil
+	j.phase(StateDownloading)
 	j.progress(j.offset)
 }
 
@@ -601,7 +633,17 @@ func (j *downloadJob) writeFailure(err error) error {
 	return &writeError{err}
 }
 
+// checkSpace checks the free space the rest of the download needs: missing
+// bytes plus margin (requiredBytes), during a restart the exact need of the
+// restart file next to the kept part file (restartRequiredBytes).
 func (j *downloadJob) checkSpace() error {
+	if j.kept != nil {
+		return j.checkSpaceFor(restartRequiredBytes(j.size, j.kept.offset, j.offset))
+	}
+	return j.checkSpaceFor(requiredBytes(j.size, j.offset))
+}
+
+func (j *downloadJob) checkSpaceFor(required int64) error {
 	if j.freeDisk == nil {
 		return nil
 	}
@@ -610,7 +652,7 @@ func (j *downloadJob) checkSpace() error {
 		// Unknown free space was confirmed by the administrator before the start.
 		return nil
 	}
-	if required := requiredBytes(j.size, j.offset); free < required {
+	if free < required {
 		return &spaceError{required: required, available: free}
 	}
 	return nil

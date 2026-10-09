@@ -262,7 +262,8 @@ func (m *Manager) lockLoad() {
 
 // loadLocked reads dir's state.json and download.json, opens the installed
 // edition and replaces the current one. It never touches the network; the only
-// repair it makes on disk is reconcileDownload's. The caller holds loadMu.
+// repairs it makes on disk are reconcileDownload's and the removal of stale
+// restart files. The caller holds loadMu.
 func (m *Manager) loadLocked(dir string) {
 	var (
 		st          *stateFile
@@ -271,6 +272,9 @@ func (m *Manager) loadLocked(dir string) {
 		interrupted bool
 	)
 	if filepath.IsAbs(dir) {
+		// Restart files are never resumed; a process killed during a
+		// restart leaves one behind.
+		m.removeStaleRestartFiles(dir)
 		var stateErr error
 		if st, stateErr = readState(dir); stateErr != nil {
 			m.logger.Warn("[LocalWikipedia] state.json is unreadable", "dir", dir, "error", stateErr)

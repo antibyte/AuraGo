@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -622,5 +624,173 @@ func TestRemovePartialDownloadsIncludeRestartFiles(t *testing.T) {
 	}
 	if exists(name+".part") || exists(name+".part"+restartSuffix) || exists("wikipedia_de_all_maxi_2026-10.zim.part"+restartSuffix) || !exists(name) || !exists("notes.part"+restartSuffix) {
 		t.Fatal("removePartFiles removed the wrong files")
+	}
+}
+
+func TestRestartRequiredBytes(t *testing.T) {
+	const size, kept = 300_000, 100_000
+	margin := diskMargin(size)
+	for name, tc := range map[string]struct {
+		size, kept, written, want int64
+	}{
+		"start, rest dominates":      {size, kept, 0, size - kept + margin},
+		"halfway":                    {size, kept, 50_000, size - kept - 50_000 + margin},
+		"start, kept dominates":      {size, 250_000, 0, 250_001 + margin},
+		"kept dominates, written":    {size, 250_000, 100_000, 150_001 + margin},
+		"just before the swap":       {size, 250_000, 250_000, 1 + margin},
+		"negative inputs are zero":   {size, -5, -5, size + margin},
+		"inputs beyond size clamp":   {size, size + 5, size + 5, 1 + margin},
+		"nothing left beyond margin": {size, 0, size, margin},
+	} {
+		if got := restartRequiredBytes(tc.size, tc.kept, tc.written); got != tc.want {
+			t.Errorf("%s: restartRequiredBytes(%d, %d, %d) = %d, want %d", name, tc.size, tc.kept, tc.written, got, tc.want)
+		}
+	}
+	if got := restartRequiredBytes(math.MaxInt64, 0, 0); got != math.MaxInt64 {
+		t.Errorf("restartRequiredBytes saturates at %d, want MaxInt64", got)
+	}
+}
+
+// diskModel reports the free space of a disk with capacity bytes on which the
+// job's files are the only data: the part file and, during a restart, the
+// restart file next to it.
+func diskModel(job *downloadJob, capacity int64) func(string) (int64, error) {
+	return func(string) (int64, error) {
+		used := job.offset
+		if job.kept != nil {
+			used += job.kept.offset
+		}
+		return capacity - used, nil
+	}
+}
+
+// The restart's space need is exact: a disk with room for exactly the
+// edition plus the margin completes a restart next to a kept part file, one
+// byte less pauses before the restart writes anything.
+func TestDownloadJobRestartSpaceIsExact(t *testing.T) {
+	const kept = 100_000
+	for _, tc := range []struct {
+		name  string
+		extra int64
+		ok    bool
+	}{{"fits exactly", 0, true}, {"one byte short", -1, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFakeKiwix(t)
+			e := f.addEdition("wikipedia_de_all_nopic_2026-10", testPayload(testPayloadSize))
+			e.setMode("m1", "ignore-range")
+			e.setMode("m2", "fail")
+			job := newTestJob(t, f, e, f.mirrorURLs(e))
+			job.checkEvery = 16 << 10
+			size := int64(len(e.data))
+			job.freeDisk = diskModel(job, size+diskMargin(size)+tc.extra)
+			if err := os.WriteFile(job.partPath, e.data[:kept], 0o644); err != nil {
+				t.Fatal(err)
+			}
+			err := job.run(context.Background())
+			assertNoRestartFile(t, job)
+			if tc.ok {
+				if err != nil {
+					t.Fatalf("run: %v", err)
+				}
+				assertPartEquals(t, job, e.data)
+				return
+			}
+			var space *spaceError
+			if !errors.As(err, &space) || space.required != size-kept+diskMargin(size) {
+				t.Fatalf("run = %v, want a spaceError for %d bytes", err, size-kept+diskMargin(size))
+			}
+			assertPartEquals(t, job, e.data[:kept])
+		})
+	}
+}
+
+// Free space that runs out during a restart pauses the download with the
+// restart's need; the restart file is removed and the part file stays.
+func TestDownloadJobSpacePauseMidRestart(t *testing.T) {
+	const kept = 100_000
+	f := newFakeKiwix(t)
+	e := f.addEdition("wikipedia_de_all_nopic_2026-10", testPayload(testPayloadSize))
+	e.setMode("m1", "ignore-range")
+	e.setMode("m2", "fail")
+	job := newTestJob(t, f, e, f.mirrorURLs(e))
+	job.checkEvery = 32 << 10
+	job.freeDisk = func(string) (int64, error) {
+		if job.kept != nil && job.offset >= 64<<10 {
+			return 10, nil
+		}
+		return 1 << 40, nil
+	}
+	if err := os.WriteFile(job.partPath, e.data[:kept], 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := job.run(context.Background())
+	var space *spaceError
+	size := int64(len(e.data))
+	if !errors.As(err, &space) || space.available != 10 || space.required > size-kept-64<<10+diskMargin(size) {
+		t.Fatalf("run = %v, want a spaceError with the restart's need", err)
+	}
+	assertPartEquals(t, job, e.data[:kept])
+	assertNoRestartFile(t, job)
+}
+
+// Cancelling during a restart keeps the part file; the progress returns to
+// its length after the phase was reported again (which resets the rate).
+func TestDownloadJobCancelMidRestart(t *testing.T) {
+	const kept = 100_000
+	f := newFakeKiwix(t)
+	e := f.addEdition("wikipedia_de_all_nopic_2026-10", testPayload(testPayloadSize))
+	e.setMode("m1", "slow") // answers every request with the whole file, slowly
+	e.setMode("m2", "fail")
+	defer e.unblock()
+	job := newTestJob(t, f, e, f.mirrorURLs(e))
+	if err := os.WriteFile(job.partPath, e.data[:kept], 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	restarting := false
+	var events []string
+	job.onURL = func(string) { restarting = true }
+	job.onPhase = func(phase string) { events = append(events, "phase:"+phase) }
+	job.onProgress = func(done, total int64) {
+		events = append(events, "progress:"+strconv.FormatInt(done, 10))
+		if restarting && done >= 1024 {
+			cancel()
+		}
+	}
+	if err := job.run(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("run = %v, want context.Canceled", err)
+	}
+	assertPartEquals(t, job, e.data[:kept])
+	assertNoRestartFile(t, job)
+	if n := len(events); n < 2 || events[n-2] != "phase:"+StateDownloading || events[n-1] != "progress:100000" {
+		t.Fatalf("events end with %v, want the phase and then the kept length", events[max(0, len(events)-4):])
+	}
+}
+
+// The pause between rounds ends with the context.
+func TestDownloadJobBackoffHonoursTheContext(t *testing.T) {
+	const kept = 100_000
+	f := newFakeKiwix(t)
+	e := f.addEdition("wikipedia_de_all_nopic_2026-10", testPayload(testPayloadSize))
+	e.setMode("m1", "ignore-range")
+	e.setMode("m2", "fail")
+	job := newTestJob(t, f, e, f.mirrorURLs(e))
+	job.roundBackoff = time.Hour
+	if err := os.WriteFile(job.partPath, e.data[:kept], 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if err := job.run(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("run = %v, want context.DeadlineExceeded", err)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("run took %v despite the deadline", elapsed)
+	}
+	assertPartEquals(t, job, e.data[:kept])
+	if got := rangesFor(f, "/m1/"); len(got) != 1 {
+		t.Fatalf("m1 ranges = %v, want one round", got)
 	}
 }
