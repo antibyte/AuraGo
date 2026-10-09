@@ -54,8 +54,12 @@
   matching existing music plays while new fitting music is produced in background.
 - Use one Web Audio clock, bounded PCM windows and two prepared segments for
   initial music playback. A typed opening may play alone before `music_ready`,
-  without priming/bypassing music preparation. Fence asynchronous work by generation and server epoch.
+  without priming/bypassing music preparation. A window that starts late plays
+  from the elapsed offset; a fully elapsed window is dropped. A failed fetch
+  still fails that segment. Fence asynchronous work by generation and server epoch.
   Never claim airtime from a server timer. Expired speech must not resume.
+  A heartbeat rejected as `radio_device_busy` stops the local player, releases
+  the desktop media session and dispatches `personal-radio-stopped`.
 - Blend music into and out of speech on that clock. Keep speech clear above the
   ducked music; every third eligible moderation may retain a quiet outgoing music
   bed for up to 4.5 seconds. During overlaps, the newer segment owns the title

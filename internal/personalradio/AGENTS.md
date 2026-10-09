@@ -34,8 +34,15 @@ User documentation: `documentation/personal-radio.md`.
   Only a fully prepared opening may play before `MusicReady`. It never counts
   toward the music reserve, never promises an ETA and is not repeated while waiting.
   Start normal editorial/news only after music readiness; research news during music.
+  A voice preview uses the broadcast TTS allowance and does not block queue fill
+  or playback of music that is already prepared. Opening speech and new music
+  generation wait until that synthesis returns. The following ten seconds delay
+  only later editorial planning.
 - Use one active owner and epoch. Window disposal does not stop radio. Explicit
   stop and lease expiry cancel production; late completions cannot revive it.
+  A playing listener whose position does not advance for three minutes stops
+  immediately, even while heartbeats continue. Preparing and paused sessions,
+  and heartbeats that report a new position, still renew the lease.
   Duplicated start, stop, skip and playback events cannot consume two tracks or
   count scheduled music as heard. No timer manufactures playback history.
 - Persist production quota reservations before requests, including failed or
@@ -53,7 +60,9 @@ User documentation: `documentation/personal-radio.md`.
   interval. Deduplicate already aired, unchanged sources. A missing bulletin
   does not stop music or assert that no news exists.
 - The browser fetches bounded sample-aligned WAV windows and schedules two
-  music segments plus intervening speech on one Web Audio clock. Initial
+  music segments plus intervening speech on one Web Audio clock. A window that
+  starts late plays from the elapsed offset; a window that has fully elapsed is
+  dropped. A failed fetch still fails that segment. Initial
   music playback requires a prepared next segment, including after an opening.
   The one opening may play alone. Music crossfades; speech and music overlap
   briefly with music ducked beneath speech. Every third eligible moderation

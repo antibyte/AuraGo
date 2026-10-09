@@ -462,6 +462,26 @@ func TestPersonalRadioAudioContinuityBrowser(t *testing.T) {
 	if len(failures) != 1 || failures[0].Str() != "s0" || len(starts) != 2 || starts[0].Str() != "s0" || starts[1].Str() != "s1" || recovery.Get("resumedAt").Num() > 1.5 {
 		t.Fatal("failed audio retained its old transition time", recovery.String())
 	}
+	late := page.MustEval(`async()=>{
+ const rate=8000,ctx=new OfflineAudioContext(1,2*rate,rate),errors=[],failed=[];
+ const frames=rate,wav=new ArrayBuffer(44+frames*2),view=new DataView(wav);
+ view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,rate,true);view.setUint16(34,16,true);view.setUint32(40,frames*2,true);
+ for(let i=44;i<wav.byteLength;i+=2)view.setInt16(i,3000,true);
+ const player=new PersonalRadioPlayer({audio:async()=>wav.slice(0),event:(id,kind)=>{if(kind==='failed')failed.push(id);},error:e=>errors.push(e.message),progress:()=>{}});
+ player.context=new Proxy(ctx,{get(target,key){if(key==='state')return 'running';const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});
+ player.master=ctx.createGain();player.master.connect(ctx.destination);player.running=true;
+ const gain=ctx.createGain();gain.connect(player.master);
+ const slot={segment:{id:'late',asset_id:'late',kind:'music',duration_ms:1000},gain,duration:1,start:0,offset:1000,scheduledTo:0,buffers:new Map(),nodes:new Set()};
+ let scheduled=0;
+ const run=async()=>{await ctx.suspend(0.4);try{slot.buffers.set(0,player.pcm(wav));player.schedule(slot);}catch(e){errors.push(e.message);}scheduled=slot.nodes.size;await ctx.resume();};
+ run();
+ const audio=await ctx.startRendering(),samples=audio.getChannelData(0);
+ let heard=0;for(let i=Math.floor(0.5*rate);i<Math.floor(0.9*rate);i++)if(Math.abs(samples[i])>0.01)heard++;
+ return {errors,failed,scheduled,heard};
+ }`)
+	if late.Get("errors").String() != "[]" || late.Get("failed").String() != "[]" || late.Get("scheduled").Int() != 1 || late.Get("heard").Int() < 1000 {
+		t.Fatal("late audio window failed the segment", late.String())
+	}
 	opening := page.MustEval(`async()=>{
  const ctx=new OfflineAudioContext(1,7*8000,8000),starts=[],errors=[];
  const segments=[{id:'intro',asset_id:'intro',kind:'moderation',opening:true,duration_ms:1000},{id:'m1',asset_id:'m1',kind:'music',duration_ms:2000},{id:'m2',asset_id:'m2',kind:'music',duration_ms:2000}];

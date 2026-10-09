@@ -48,6 +48,8 @@ type Service struct {
 	newsAttempt       time.Time
 	musicActive       bool
 	editorActive      bool
+	previewActive     bool
+	tickMu            sync.Mutex
 	pendingSpeech     []Segment
 	lastStopOwner     string
 	lastStopEpoch     string
@@ -148,14 +150,25 @@ func (s *Service) Start(id, device string, takeover bool) (State, error) {
 	s.plays = 0
 	s.lastSkipped = nil
 	s.lastEditorialPlay = -1
+	previewRetry := time.Time{}
+	if s.previewActive {
+		previewRetry = s.editorRetry
+	}
 	s.newsAttempt = time.Time{}
 	s.musicRetry = time.Time{}
 	s.editorRetry = time.Time{}
 	s.libraryRetry = time.Time{}
 	s.lastMusicPlay = -1
 	s.musicIdea = ""
+	if s.previewActive {
+		s.editorRetry = previewRetry
+		s.state.EditorBusy = true
+	}
 	s.state.NextNews = nextNews(s.now(), p)
-	s.updateBufferLocked(p)
+	epoch := s.state.Epoch
+	if _, ok := s.loadReadyTracks(p, epoch); !ok {
+		return State{}, ErrConflict
+	}
 	return s.snapshotLocked(), nil
 }
 
@@ -182,9 +195,11 @@ func (s *Service) Heartbeat(device, epoch, current string, position int64) error
 		s.lastProgress = s.now()
 		s.lastPosition = position
 	}
-	// A live tab may prepare/pause, but a stalled "playing" client cannot fund
-	// endless generation merely by sending keepalives.
+	// Preparing and paused sessions may keep the lease. A playing client whose
+	// position does not advance cannot fund more generation with keepalives.
 	if s.state.Status == "playing" && s.now().Sub(s.lastProgress) > 3*time.Minute {
+		s.stopLocked()
+		s.state.Code = "radio_listener_gone"
 		return ErrLease
 	}
 	s.leaseUntil = s.now().Add(3 * time.Minute)
@@ -351,31 +366,56 @@ func (s *Service) dropFirstLocked(outcome string) {
 	}
 }
 
-func (s *Service) updateBufferLocked(p Station) []Track {
-	tracks, err := s.tracks(p.ID)
-	if err != nil {
-		s.state.Code = "radio_storage_error"
-		return nil
-	}
-	eligible := []Track{}
-	s.state.BufferMS = 0
+func readyTracks(dir string, tracks []Track, p Station) []Track {
+	eligible := make([]Track, 0, len(tracks))
 	for _, t := range tracks {
 		if !trackAllowed(t, p) {
 			continue
 		}
-		if fi, e := os.Stat(filepath.Join(s.dir, t.ID+".wav")); e != nil || fi.Size() != t.Bytes {
+		fi, err := os.Stat(filepath.Join(dir, t.ID+".wav"))
+		if err != nil || fi.Size() != t.Bytes {
 			continue
 		}
 		eligible = append(eligible, t)
+	}
+	return eligible
+}
+
+// updateBufferLocked publishes an already checked track list. It does not read files.
+func (s *Service) updateBufferLocked(p Station, eligible []Track) {
+	s.state.BufferMS = 0
+	for _, t := range eligible {
 		s.state.BufferMS += t.DurationMS
 	}
 	s.state.TrackCount = len(eligible)
 	s.state.RequiredMS = int64(p.ReserveMinutes) * 60000
 	_ = s.db.QueryRow("SELECT COALESCE(SUM(amount),0) FROM jobs WHERE station=? AND kind='music' AND day=?", p.ID, s.now().UTC().Format("2006-01-02")).Scan(&s.state.GeneratedToday)
-	return eligible
+}
+
+// loadReadyTracks stats outside the mutex. The caller holds s.mu on entry and
+// on return. ok is false when this session ended while the files were checked.
+func (s *Service) loadReadyTracks(p Station, epoch string) ([]Track, bool) {
+	tracks, err := s.tracks(p.ID)
+	if err != nil {
+		s.state.Code = "radio_storage_error"
+		return nil, true
+	}
+	dir := s.dir
+	s.mu.Unlock()
+	eligible := readyTracks(dir, tracks, p)
+	s.mu.Lock()
+	if s.closed || s.state.Epoch != epoch || s.state.Status == "stopped" {
+		return nil, false
+	}
+	s.updateBufferLocked(p, eligible)
+	return eligible, true
 }
 
 func (s *Service) Tick() {
+	// File checks release s.mu. This lock keeps two ticks from scheduling
+	// the same production while those checks are in progress.
+	s.tickMu.Lock()
+	defer s.tickMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed || s.state.Status == "stopped" {
@@ -396,7 +436,10 @@ func (s *Service) Tick() {
 		s.stopLocked()
 		return
 	}
-	tracks := s.updateBufferLocked(p)
+	tracks, ok := s.loadReadyTracks(p, s.state.Epoch)
+	if !ok {
+		return
+	}
 	s.discardExpiredLocked()
 	s.scheduleLibraryLocked(p)
 	if s.openingPendingLocked(p, tracks) {

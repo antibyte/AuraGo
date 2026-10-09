@@ -293,20 +293,7 @@ func (s *Service) Import(ctx context.Context, station string, input io.ReadSeeke
 		}
 	} else {
 		var total int64
-		rows, e := s.db.Query("SELECT body FROM assets")
-		if e != nil {
-			return t, e
-		}
-		for rows.Next() {
-			var b string
-			var a Track
-			if rows.Scan(&b) == nil && json.Unmarshal([]byte(b), &a) == nil {
-				total += a.Bytes
-			}
-		}
-		e = rows.Err()
-		rows.Close()
-		if e != nil {
+		if e := s.db.QueryRow("SELECT COALESCE(SUM(CAST(json_extract(body,'$.bytes') AS INTEGER)),0) FROM assets").Scan(&total); e != nil {
 			return t, e
 		}
 		if total+t.Bytes > int64(profile.LibraryMB)<<20 {

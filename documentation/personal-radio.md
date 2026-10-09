@@ -23,7 +23,9 @@ The four setup pages configure:
 Stop a station before changing or deleting its profile. Revisions prevent a
 second window from silently overwriting an edit. The saved station settings
 include a voice preview using the active TTS, with the same character allowance
-as broadcasts. No microphone permission is required.
+as broadcasts. The preview does not delay playback of music that is already
+prepared. Opening speech and new music generation wait until the preview
+finishes. No microphone permission is required.
 
 ## Music and startup
 
@@ -99,7 +101,9 @@ is active and return to the existing desktop media handler after stopping.
 
 Closing the browser tab, leaving the desktop, losing the listener heartbeat or
 restarting AuraGo ends that session. The server stops new production when its
-three-minute listener lease expires. Reopening never silently starts playback.
+three-minute listener lease expires. A playing session also stops immediately
+when heartbeats continue but the playback position does not move for three
+minutes. Reopening never silently starts playback.
 OS sleep, browser suspension, network loss beyond the loaded audio and an
 unusable library cannot be covered by a finite audio reserve.
 

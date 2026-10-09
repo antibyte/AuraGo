@@ -98,12 +98,17 @@
         schedule(slot) {
             if (slot.start == null) return;
             for (const [offset, buffer] of slot.buffers) {
-                const when = slot.start + offset / 1000;
+                let when = slot.start + offset / 1000;
+                let playOffset = 0;
                 if (when + buffer.duration <= this.context.currentTime) { slot.buffers.delete(offset); continue; }
-                if (when < this.context.currentTime - 0.05) throw Error('radio_buffering');
+                if (when < this.context.currentTime) {
+                    playOffset = this.context.currentTime - when;
+                    if (playOffset >= buffer.duration) { slot.buffers.delete(offset); continue; }
+                    when = this.context.currentTime;
+                }
                 const source = this.context.createBufferSource(); source.buffer = buffer; source.connect(slot.gain);
                 slot.nodes.add(source); source.onended = () => { slot.nodes.delete(source); source.disconnect(); source.buffer = null; };
-                source.start(when); slot.scheduledTo = offset / 1000 + buffer.duration;
+                source.start(when, playOffset); slot.scheduledTo = offset / 1000 + buffer.duration;
                 slot.buffers.delete(offset);
             }
         }

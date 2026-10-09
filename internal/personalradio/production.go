@@ -22,6 +22,11 @@ func (s *Service) openingPendingLocked(p Station, tracks []Track) bool {
 		s.state.OpeningStatus = "off"
 		return false
 	}
+	// A voice preview holds the TTS path. Queue fill and ready music continue;
+	// opening speech starts once the preview returns.
+	if s.previewActive {
+		return false
+	}
 	if s.adapters.Plan == nil || s.adapters.Speak == nil {
 		s.state.OpeningStatus = "failed"
 		s.state.EditorialCode = "radio_tts_unavailable"
@@ -49,7 +54,7 @@ func (s *Service) scheduleProductionLocked(p Station, tracks []Track) {
 	if s.musicActive {
 		s.state.MusicBusy = true
 	}
-	if s.editorActive {
+	if s.editorActive || s.previewActive {
 		s.state.EditorBusy = true
 	}
 	goal := int64(p.LibraryMinutes) * 60000
@@ -58,7 +63,7 @@ func (s *Service) scheduleProductionLocked(p Station, tracks []Track) {
 	}
 	libraryReady := s.state.LibraryStatus == "ready" || s.state.LibraryStatus == "off"
 	freshMusicDue := s.lastMusicPlay < 0 || s.plays-s.lastMusicPlay >= 4
-	if p.Mode != "local" && libraryReady && !s.musicActive && !s.now().Before(s.musicRetry) {
+	if p.Mode != "local" && libraryReady && !s.musicActive && !s.previewActive && !s.now().Before(s.musicRetry) {
 		var pending Production
 		var pendingID, body string
 		if s.db.QueryRow("SELECT id,result FROM jobs WHERE station=? AND kind='music' AND status='ready_to_import' ORDER BY rowid LIMIT 1", p.ID).Scan(&pendingID, &body) == nil && json.Unmarshal([]byte(body), &pending) == nil {
@@ -86,7 +91,7 @@ func (s *Service) scheduleProductionLocked(p Station, tracks []Track) {
 			}
 		}
 	}
-	if s.editorActive || s.now().Before(s.editorRetry) || s.state.Status == "paused" || !s.state.MusicReady || s.adapters.Plan == nil {
+	if s.previewActive || s.editorActive || s.now().Before(s.editorRetry) || s.state.Status == "paused" || !s.state.MusicReady || s.adapters.Plan == nil {
 		return
 	}
 	musicPlaying := slices.ContainsFunc(s.state.Queue, func(x Segment) bool { return x.ID == s.state.Current && x.Kind == "music" })
