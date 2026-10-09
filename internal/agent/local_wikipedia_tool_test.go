@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -98,5 +99,37 @@ func TestDispatchLocalWikipediaHonoursAgentAccess(t *testing.T) {
 	}
 	if got := classifyLegacyToolResult(out); got != ToolResultDenied {
 		t.Fatalf("result status = %v, want denied", got)
+	}
+}
+
+func TestDecodeLocalWikipediaNumbersAreWholeOrText(t *testing.T) {
+	for _, tc := range []struct {
+		section any
+		want    string
+	}{
+		{float64(3), "3"}, {float64(0), "0"}, {2.5, "2.5"}, {1e300, "1e+300"}, {float64(-1), "-1"},
+		{json.Number("4"), "4"}, {7, "7"}, {" Geschichte ", "Geschichte"}, {nil, ""}, {true, ""},
+	} {
+		if got := decodeLocalWikipediaArgs(ToolCall{Params: map[string]interface{}{"section": tc.section}}).Section; got != tc.want {
+			t.Errorf("section %#v decoded as %q, want %q", tc.section, got, tc.want)
+		}
+	}
+	for _, tc := range []struct {
+		offset any
+		want   int
+	}{
+		{float64(8000), 8000}, {2.5, -1}, {1e300, -1}, {float64(-3), -1}, {json.Number("16000"), 16000}, {json.Number("x"), -1},
+	} {
+		if got := decodeLocalWikipediaArgs(ToolCall{Params: map[string]interface{}{"offset": tc.offset}}).Offset; got != tc.want {
+			t.Errorf("offset %#v decoded as %d, want %d", tc.offset, got, tc.want)
+		}
+	}
+	if got := decodeLocalWikipediaArgs(ToolCall{Offset: 24000}).Offset; got != 24000 {
+		t.Errorf("text-mode offset = %d", got)
+	}
+	useAgentWikiSource(t, &agentWikiSource{lib: &agentWikiLibrary{}, open: true})
+	out, _ := dispatchPlatform(context.Background(), ToolCall{Action: "local_wikipedia", Params: map[string]interface{}{"operation": "read", "path": "Berlin", "offset": 2.5}}, &DispatchContext{Cfg: localWikipediaTestConfig(), Logger: testLogger})
+	if !strings.Contains(out, `"code":"invalid_request"`) {
+		t.Fatalf("fractional offset accepted: %s", out)
 	}
 }

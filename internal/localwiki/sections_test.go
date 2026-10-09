@@ -223,3 +223,28 @@ func TestPageTextMatchesTheRuneReference(t *testing.T) {
 		}
 	}
 }
+
+func TestFindEchoedSectionAcceptsIsolatedHeadings(t *testing.T) {
+	a := &renderedArticle{title: "X", sections: []renderedSection{
+		{body: "Lead."},
+		{heading: "Fragen & Antworten", level: 2, body: "A."},
+		{heading: "Literal &amp; entity", level: 2, body: "B."},
+		{heading: "Geschichte der Stadt im Mittelalter", level: 2, body: "C."},
+	}}
+	for spec, want := range map[string]int{
+		"<external_data>\nFragen &amp; Antworten\n</external_data>": 1,
+		"Fragen &amp; Antworten":                                    1,
+		"<external_data>\n2\n</external_data>":                      2,
+		"Literal &amp;amp; entity":                                  2,
+		"Literal &amp; entity":                                      2,
+		"Geschichte der Stadt im Mittel…":                           3,
+	} {
+		if got, err := a.findEchoedSection(context.Background(), spec); err != nil || got != want {
+			t.Fatalf("findEchoedSection(%q) = %d, %v; want %d", spec, got, err, want)
+		}
+	}
+	var notFound *SectionNotFoundError
+	if _, err := a.findEchoedSection(context.Background(), "<external_data>\nWirtschaft\n</external_data>"); !errors.As(err, &notFound) || notFound.Section != "Wirtschaft" {
+		t.Fatalf("err = %v, want SectionNotFoundError for the cleaned request", err)
+	}
+}

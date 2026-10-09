@@ -65,7 +65,7 @@ func (ix searchIndex) read(ctx context.Context, req ReadRequest) (Article, error
 	}
 	text := art.fullMarkdown()
 	if strings.TrimSpace(req.Section) != "" {
-		i, err := art.findSection(ctx, req.Section)
+		i, err := art.findEchoedSection(ctx, req.Section)
 		if err != nil {
 			return Article{}, err
 		}
@@ -172,11 +172,40 @@ func (ix searchIndex) resolveArticle(e zim.Entry) (zim.Entry, string, error) {
 // cleanArticleRef accepts a title or path as the model may echo it from an
 // isolated tool result: wrapper tags and HTML entities are removed.
 func cleanArticleRef(s string) string {
+	return strings.TrimPrefix(cleanEchoedText(s), "/")
+}
+
+// cleanEchoedText removes the isolation wrapper tags and HTML entities a
+// model may echo back from an isolated tool result.
+func cleanEchoedText(s string) string {
 	s = strings.TrimSpace(s)
 	s = strings.TrimPrefix(s, "<external_data>")
 	s = strings.TrimSuffix(s, "</external_data>")
-	s = strings.TrimSpace(html.UnescapeString(s))
-	return strings.TrimPrefix(s, "/")
+	return strings.TrimSpace(html.UnescapeString(s))
+}
+
+// findEchoedSection resolves a section request as a model may echo it from
+// an isolated tool result: cleaned of wrapper tags and entities first (with
+// a trailing "…" of a shortened heading dropped next), then verbatim, so a
+// heading that really contains an entity or the tag text still matches.
+// The error is the one of the cleaned request.
+func (a *renderedArticle) findEchoedSection(ctx context.Context, spec string) (int, error) {
+	cleaned := cleanEchoedText(spec)
+	i, err := a.findSection(ctx, cleaned)
+	if err == nil || !errors.Is(err, ErrSectionNotFound) {
+		return i, err
+	}
+	for _, alt := range []string{strings.TrimSpace(strings.TrimSuffix(cleaned, "…")), strings.TrimSpace(spec)} {
+		if alt == cleaned || alt == "" {
+			continue
+		}
+		if j, altErr := a.findSection(ctx, alt); altErr == nil {
+			return j, nil
+		} else if !errors.Is(altErr, ErrSectionNotFound) {
+			return 0, altErr
+		}
+	}
+	return i, err
 }
 
 // rendered returns the rendered article, from the cache when possible. ctx

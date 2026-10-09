@@ -565,9 +565,6 @@ func adaptiveFamilySeedsForQuery(userQuery string) []string {
 	if isNetworkCameraIntent(q) {
 		add("go2rtc")
 	}
-	if isEncyclopediaIntent(q) {
-		add("local_wikipedia")
-	}
 	if isMCPIntent(q) {
 		add("mcp_call")
 	}
@@ -603,8 +600,29 @@ func isNetworkCameraIntent(normalizedQuery string) bool {
 	return cameraMentioned && mediaAction
 }
 
-// isEncyclopediaIntent keeps the offline Wikipedia tool in the adaptive
-// selection when the user asks for Wikipedia or encyclopedic lookups.
+// adaptiveIntentOnlyTools never take a capped slot in the adaptive selection:
+// the ranking does not pick them (catalog matches such as "die" in
+// "Enzyklopädie" would otherwise let them push out other tools), they are
+// offered beyond the caps when the query matches their intent
+// (adaptiveAdditiveToolsForQuery) and otherwise only when requested as soft
+// tools (session use, discover_tools, always_include). Enabling one of these
+// optional tools therefore never changes which other tools a query gets.
+var adaptiveIntentOnlyTools = []string{"local_wikipedia"}
+
+// adaptiveAdditiveToolsForQuery names the intent-matched tools that the
+// adaptive filter offers on top of its selection (toolSchemaFilterOptions.
+// AdditiveTools). They are not family seeds: a seed takes a slot under the
+// tool and token caps and can push out a tool the query offered before the
+// optional tool existed, while an additive tool never does.
+func adaptiveAdditiveToolsForQuery(userQuery string) []string {
+	if isEncyclopediaIntent(normalizeAdaptiveIntentText(userQuery)) {
+		return []string{"local_wikipedia"}
+	}
+	return nil
+}
+
+// isEncyclopediaIntent offers the offline Wikipedia tool when the user asks
+// for Wikipedia or encyclopedic lookups.
 func isEncyclopediaIntent(normalizedQuery string) bool {
 	for _, term := range []string{"wikipedia", "lexikon", "enzyklop", "encyclop", "kiwix"} {
 		if strings.Contains(normalizedQuery, term) {
@@ -978,6 +996,17 @@ type toolSchemaFilterOptions struct {
 	MaxTotalTools    int
 	MaxSchemaTokens  int
 	DisableAdaptive  bool
+	// AdditiveTools are offered on top of every other class: they are added
+	// last, never count against MaxAdaptiveTools, MaxTotalTools or
+	// MaxSchemaTokens and never take a slot from a hard, soft or adaptive
+	// tool, so enabling an intent-matched optional tool cannot displace what a
+	// query offered before. Being last, they are also the first schemas the
+	// request budget sheds. A hard tool listed here stays hard.
+	AdditiveTools []string
+	// AdaptiveExcludedTools are never picked by the adaptive ranking (neither
+	// as preferred tool nor as filler); they are kept only as hard, soft or
+	// additive tools.
+	AdaptiveExcludedTools []string
 }
 
 type toolSchemaFilterReport struct {
@@ -991,6 +1020,7 @@ type toolSchemaFilterReport struct {
 	KeptHardAlways             int                   `json:"kept_hard_always"`
 	KeptSoftAlways             int                   `json:"kept_soft_always"`
 	KeptAdaptive               int                   `json:"kept_adaptive"`
+	KeptAdditive               int                   `json:"kept_additive,omitempty"`
 	KeptChannelRequired        int                   `json:"kept_channel_required,omitempty"`
 	KeptConfigured             int                   `json:"kept_configured,omitempty"`
 	Dropped                    int                   `json:"dropped"`
@@ -1044,12 +1074,34 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 	}
 	hardSet := stringSet(opts.HardAlwaysTools)
 	softSet := stringSet(opts.SoftAlwaysTools)
+	additiveSet := make(map[string]bool, len(opts.AdditiveTools))
+	for _, t := range opts.AdditiveTools {
+		if t = strings.TrimSpace(t); t != "" && !hardSet[t] {
+			additiveSet[t] = true
+		}
+	}
+	// reservedSet keeps soft, additive and excluded tools out of the adaptive
+	// ranking, so an additive or excluded tool leaves the ranks and slots of
+	// the others untouched.
+	reservedSet := softSet
+	if len(additiveSet) > 0 || len(opts.AdaptiveExcludedTools) > 0 {
+		reservedSet = make(map[string]bool, len(softSet)+len(additiveSet)+len(opts.AdaptiveExcludedTools))
+		for name := range softSet {
+			reservedSet[name] = true
+		}
+		for name := range additiveSet {
+			reservedSet[name] = true
+		}
+		for _, name := range opts.AdaptiveExcludedTools {
+			reservedSet[strings.TrimSpace(name)] = true
+		}
+	}
 
 	preferredOrder := make([]string, 0, len(opts.PreferredTools))
 	preferredSet := make(map[string]bool, len(opts.PreferredTools))
 	for _, t := range opts.PreferredTools {
 		t = strings.TrimSpace(t)
-		if t == "" || hardSet[t] || softSet[t] || preferredSet[t] {
+		if t == "" || hardSet[t] || reservedSet[t] || preferredSet[t] {
 			continue
 		}
 		preferredSet[t] = true
@@ -1074,10 +1126,11 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		if consumed[name] {
 			return false
 		}
-		if class != "hard" && opts.MaxTotalTools > 0 && len(kept) >= opts.MaxTotalTools {
+		capped := class != "hard" && class != "additive"
+		if capped && opts.MaxTotalTools > 0 && len(kept) >= opts.MaxTotalTools {
 			return false
 		}
-		if class != "hard" && opts.MaxSchemaTokens > 0 && keptSchemaTokens+tokens > opts.MaxSchemaTokens {
+		if capped && opts.MaxSchemaTokens > 0 && keptSchemaTokens+tokens > opts.MaxSchemaTokens {
 			return false
 		}
 		consumed[name] = true
@@ -1088,6 +1141,8 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 			report.KeptHardAlways++
 		case "soft":
 			report.KeptSoftAlways++
+		case "additive":
+			report.KeptAdditive++
 		default:
 			report.KeptAdaptive++
 		}
@@ -1128,7 +1183,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		}
 	}
 	for _, name := range schemaOrder {
-		if softSet[name] && !hardSet[name] {
+		if softSet[name] && !hardSet[name] && !additiveSet[name] {
 			add(schemaByName[name], "soft")
 		}
 	}
@@ -1136,13 +1191,18 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 	canAddAdaptive := func() bool {
 		return !opts.DisableAdaptive && (opts.MaxAdaptiveTools <= 0 || report.KeptAdaptive < opts.MaxAdaptiveTools)
 	}
-	adaptiveOrder := buildAdaptiveKnapsackOrder(schemaOrder, preferredOrder, consumed, hardSet, softSet, schemaTokens, opts.MaxSchemaTokens > 0)
+	adaptiveOrder := buildAdaptiveKnapsackOrder(schemaOrder, preferredOrder, consumed, hardSet, reservedSet, schemaTokens, opts.MaxSchemaTokens > 0)
 	for _, name := range adaptiveOrder {
 		schema, ok := schemaByName[name]
 		if !ok || consumed[name] || !canAddAdaptive() {
 			continue
 		}
 		add(schema, "adaptive")
+	}
+	for _, name := range schemaOrder {
+		if additiveSet[name] {
+			add(schemaByName[name], "additive")
+		}
 	}
 
 	finalDropped := len(schemas) - len(kept)
@@ -1166,6 +1226,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 			"kept_hard_always", report.KeptHardAlways,
 			"kept_soft_always", report.KeptSoftAlways,
 			"kept_adaptive", report.KeptAdaptive,
+			"kept_additive", report.KeptAdditive,
 			"dropped", finalDropped,
 			"max_adaptive", opts.MaxAdaptiveTools,
 			"max_total", opts.MaxTotalTools,

@@ -204,6 +204,7 @@ type agentLoopState struct {
 
 	useNativeFunctions       bool
 	adaptiveFilteredTools    []string
+	adaptiveAdditiveTools    []string // intent-matched tools offered beyond the adaptive caps
 	nativeSchemaSnapshot     *nativeToolSchemaSnapshot
 	turnSnapshot             *turnContextSnapshot
 	gameMakerDuplicateBlocks int
@@ -658,6 +659,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				MaxAdaptiveTools: maxAdaptive,
 				MaxTotalTools:    toolingPolicy.EffectiveMaxTotalTools,
 				MaxSchemaTokens:  toolingPolicy.EffectiveMaxSchemaTokens,
+				AdditiveTools:    s.adaptiveAdditiveTools,
 			}, s.currentLogger)
 			req.Tools = filtered.Tools
 		}

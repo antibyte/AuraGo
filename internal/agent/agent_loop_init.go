@@ -344,6 +344,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	}
 
 	adaptiveFilteredTools := make([]string, 0)
+	var adaptiveAdditiveTools []string
 	ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 	if voiceOutputSuppressed || speechLabOwnsAutomaticWebChatOutput(cfg, runCfg) {
 		ff.TTSEnabled = false
@@ -451,6 +452,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			// so the next turn can use native function-calling instead of improvising.
 			alwaysInclude = append(alwaysInclude, ConsumeDiscoverRequestedTools(discoveryRunKey(runCfg))...)
 			alwaysInclude = expandAdaptiveAlwaysInclude(cfg, alwaysInclude)
+			adaptiveAdditiveTools = adaptiveAdditiveToolsForQuery(adaptiveUserContext)
 
 			filterResult := filterToolSchemasWithReport(ntSchemas, toolSchemaFilterOptions{
 				PreferredTools:   prioritized,
@@ -459,6 +461,10 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				MaxAdaptiveTools: maxTools,
 				MaxTotalTools:    toolingPolicy.EffectiveMaxTotalTools,
 				MaxSchemaTokens:  toolingPolicy.EffectiveMaxSchemaTokens,
+				AdditiveTools:    adaptiveAdditiveTools,
+				// Only the first selection ranks the whole catalog; the
+				// per-iteration refresh keeps what was selected here.
+				AdaptiveExcludedTools: adaptiveIntentOnlyTools,
 			}, logger)
 			ntSchemas = filterResult.Tools
 			filterReport = filterResult.Report
@@ -595,6 +601,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.toolGuidesDir = toolGuidesDir
 	s.useNativeFunctions = useNativeFunctions
 	s.adaptiveFilteredTools = adaptiveFilteredTools
+	s.adaptiveAdditiveTools = adaptiveAdditiveTools
 	s.nativeSchemaSnapshot = schemaSnapshot
 	s.isMaintenance = isMaintenance
 	deliverOperationalIssueNotice(&s.operationalIssueNotice, runCfg, broker, logger)
