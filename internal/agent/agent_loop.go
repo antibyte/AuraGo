@@ -28,6 +28,8 @@ const defaultMaxConcurrentAgentLoops = 8
 
 var agentLoopLimiter = make(chan struct{}, defaultMaxConcurrentAgentLoops)
 
+var errServerRunCompleted = errors.New("server completed this run")
+
 // ErrToolLimitFinalResponseInvalid marks a tool call emitted during the
 // tool-free finalization response after the tool-call limit.
 var ErrToolLimitFinalResponseInvalid = errors.New("tool_limit_final_response_invalid")
@@ -324,6 +326,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	}
 	req = s.req
 	defer func() {
+		if errors.Is(retErr, errServerRunCompleted) {
+			retErr = ctx.Err()
+		}
 		if runCfg.Checkpoint == nil {
 			return
 		}

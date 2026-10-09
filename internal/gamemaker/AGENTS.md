@@ -303,6 +303,11 @@ revision publication and standalone export for Phaser and Three.js games.
   require custom cooldowns, spawn clocks and per-run flags to reset in `setup()`;
   class initializers alone cannot reset values against a restarted `elapsed`.
 - Dynamic gameplay checks use bounded `target` steps (move, aim, reach, interact, catch, avoid, select), driven only by normal keys/pointer input and read-only engine geometry. Keep roles/IDs independent of artwork. Never mutate actors, damage, randomness or counters to pass. Target reports require matching steps and physical effects; counter-only changes, missing targets, blocked routes and unsupported controls stay unavailable. Only observed contact/response contradictions fail. `player_distance` is derived from engine positions. Targeted input lives only in the injected preview driver; read-only 3D observations may ship with the common helper. Existing scenario/driver deadlines, lifecycle cleanup, export exclusion and publication gates remain binding.
+- Board selection observes both `scene.marks[index]` and the actual cell object's
+  `opened` state, including cells with a zero mark. Skip occupied/open cells and
+  still require an observed target change plus the scenario's metric change.
+  Verify `TestTargetControlBrowser/occupied_cell` and `/opened_cell*`, including
+  the counter-only rejection.
 - 3D reach/interact steps navigate active targets using live world geometry even
   outside the camera frustum; low FPS pickups leave the viewport before contact.
   Aim/select still require visible targets. Preserve collision/height checks,

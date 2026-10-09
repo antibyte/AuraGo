@@ -173,14 +173,150 @@ func TestRunCompletionPreservesCancellation(t *testing.T) {
 	}
 }
 
+func TestRunCompletionDuringProviderResponsePreservesLateCancellation(t *testing.T) {
+	runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "phase-complete-late-cancel", "game_maker")
+	defer cleanup()
+	runCfg.Config.LLM.UseNativeFunctions = true
+	runCfg.AllowedTools = []string{"game_maker_project"}
+	runCfg.NativeToolSchemas = []openai.Tool{testToolSchema("game_maker_project", "Game Maker project")}
+	runCfg.SuppressTurnSideEffects = true
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	complete := false
+	completionCheckedAfterResponse := false
+	runCfg.RunComplete = func() bool {
+		if complete {
+			completionCheckedAfterResponse = true
+			cancel()
+		}
+		return complete
+	}
+	client := &circuitBreakerSequenceClient{
+		responses: []openai.ChatCompletionResponse{{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{
+			Role: openai.ChatMessageRoleAssistant,
+			ToolCalls: []openai.ToolCall{{ID: "completion-probe", Type: openai.ToolTypeFunction,
+				Function: openai.FunctionCall{Name: "game_maker_project", Arguments: `{"operation":"inspect"}`}}},
+		}, FinishReason: openai.FinishReasonStop}}}},
+		onResponse: func() { complete = true },
+	}
+	runCfg.LLMClient = client
+	_, err := ExecuteAgentLoop(ctx, openai.ChatCompletionRequest{Model: runCfg.Config.LLM.Model,
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "Finish this phase."}},
+	}, runCfg, false, NoopBroker{})
+	if !completionCheckedAfterResponse || !errors.Is(err, context.Canceled) {
+		t.Fatalf("late cancellation was not preserved after completion sentinel: checked=%v error=%v", completionCheckedAfterResponse, err)
+	}
+}
+
+func TestRunCompletionDuringProviderResponseStopsPendingTools(t *testing.T) {
+	for _, mode := range []string{"native", "xml"} {
+		t.Run(mode, func(t *testing.T) {
+			runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "phase-complete-during-response-"+mode, "game_maker")
+			defer cleanup()
+			runCfg.Config.LLM.UseNativeFunctions = true
+			runCfg.AllowedTools = []string{"game_maker_project"}
+			runCfg.NativeToolSchemas = []openai.Tool{testToolSchema("game_maker_project", "Game Maker project")}
+			runCfg.SuppressTurnSideEffects = true
+			runCfg.IsMission = true
+			complete := false
+			runCfg.RunComplete = func() bool { return complete }
+			dispatches := 0
+			runCfg.ExecutionHooks = &ExecutionHooks{BeforeTool: func(context.Context, ToolCall) error {
+				dispatches++
+				return nil
+			}}
+			var checkpoint []openai.ChatCompletionMessage
+			runCfg.Checkpoint = func(messages []openai.ChatCompletionMessage) error {
+				checkpoint = append([]openai.ChatCompletionMessage(nil), messages...)
+				return nil
+			}
+
+			message := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant}
+			if mode == "xml" {
+				message.Content = `<tool_call><function=game_maker_project><parameter=operation>inspect</parameter></function></tool_call>`
+			} else {
+				message.ToolCalls = []openai.ToolCall{{ID: "completion-probe", Type: openai.ToolTypeFunction,
+					Function: openai.FunctionCall{Name: "game_maker_project", Arguments: `{"operation":"inspect"}`}}}
+			}
+			client := &circuitBreakerSequenceClient{
+				responses:  []openai.ChatCompletionResponse{{Choices: []openai.ChatCompletionChoice{{Message: message, FinishReason: openai.FinishReasonStop}}}},
+				onResponse: func() { complete = true },
+			}
+			runCfg.LLMClient = client
+			response, err := ExecuteAgentLoop(context.Background(), openai.ChatCompletionRequest{Model: runCfg.Config.LLM.Model,
+				Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "Finish this phase."}},
+			}, runCfg, false, NoopBroker{})
+			if err != nil || len(response.Choices) != 0 || !complete || len(client.requests) != 1 || dispatches != 0 {
+				t.Fatalf("completion stop response=%+v error=%v complete=%v requests=%d dispatches=%d", response, err, complete, len(client.requests), dispatches)
+			}
+			if mode == "native" {
+				foundSkipped := false
+				for _, msg := range checkpoint {
+					if msg.Role == openai.ChatMessageRoleTool && msg.ToolCallID == "completion-probe" && strings.Contains(msg.Content, "tool_batch_stopped") {
+						foundSkipped = true
+					}
+				}
+				if !foundSkipped {
+					t.Fatalf("native completion did not checkpoint its skipped call: %+v", checkpoint)
+				}
+			}
+		})
+	}
+}
+
+func TestRunCompletionDuringProviderResponsePreservesCheckpointFailure(t *testing.T) {
+	runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "phase-complete-checkpoint-error", "game_maker")
+	defer cleanup()
+	runCfg.Config.LLM.UseNativeFunctions = true
+	runCfg.AllowedTools = []string{"game_maker_project"}
+	runCfg.NativeToolSchemas = []openai.Tool{testToolSchema("game_maker_project", "Game Maker project")}
+	runCfg.SuppressTurnSideEffects = true
+	complete := false
+	runCfg.RunComplete = func() bool { return complete }
+	checkpointErr := errors.New("checkpoint unavailable")
+	checkpointSawSkippedCall := false
+	runCfg.Checkpoint = func(messages []openai.ChatCompletionMessage) error {
+		for _, message := range messages {
+			if message.Role == openai.ChatMessageRoleTool && message.ToolCallID == "completion-probe" {
+				checkpointSawSkippedCall = true
+				return checkpointErr
+			}
+		}
+		return nil
+	}
+	client := &circuitBreakerSequenceClient{
+		responses: []openai.ChatCompletionResponse{{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{
+			Role: openai.ChatMessageRoleAssistant,
+			ToolCalls: []openai.ToolCall{{ID: "completion-probe", Type: openai.ToolTypeFunction,
+				Function: openai.FunctionCall{Name: "game_maker_project", Arguments: `{"operation":"inspect"}`}}},
+		}, FinishReason: openai.FinishReasonStop}}}},
+		onResponse: func() { complete = true },
+	}
+	runCfg.LLMClient = client
+	_, err := ExecuteAgentLoop(context.Background(), openai.ChatCompletionRequest{Model: runCfg.Config.LLM.Model,
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "Finish this phase."}},
+	}, runCfg, false, NoopBroker{})
+	if !checkpointSawSkippedCall {
+		t.Fatal("checkpoint failure was not injected after the skipped native result")
+	}
+	if !errors.Is(err, checkpointErr) {
+		t.Fatalf("completion hid checkpoint failure: %v", err)
+	}
+}
+
 type circuitBreakerSequenceClient struct {
-	responses []openai.ChatCompletionResponse
-	requests  []openai.ChatCompletionRequest
+	responses  []openai.ChatCompletionResponse
+	requests   []openai.ChatCompletionRequest
+	onResponse func()
 }
 
 func (c *circuitBreakerSequenceClient) CreateChatCompletion(_ context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 	c.requests = append(c.requests, req)
-	return c.responses[len(c.requests)-1], nil
+	response := c.responses[len(c.requests)-1]
+	if c.onResponse != nil {
+		c.onResponse()
+	}
+	return response, nil
 }
 
 func (*circuitBreakerSequenceClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {

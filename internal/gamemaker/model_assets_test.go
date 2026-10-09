@@ -18,12 +18,17 @@ import (
 func TestModelPackCatalogIntegrity(t *testing.T) {
 	s := newTestService(t)
 	packs, err := s.ListAssetPacks()
-	if err != nil || len(packs) != 25 {
-		t.Fatalf("catalog: %d, %v", len(packs), err)
+	if err != nil {
+		t.Fatal(err)
 	}
 	m, err := readModelManifest()
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !slices.ContainsFunc(packs, func(p AssetPackSummary) bool {
+		return p.ID == m.ID && p.Kind == "model3d" && p.Version == m.Version
+	}) {
+		t.Fatal("model pack missing from catalog or metadata does not match manifest")
 	}
 	if len(m.Assets) != 220 || m.Version != "1.0.0" {
 		t.Fatal("incomplete 3D catalog")
