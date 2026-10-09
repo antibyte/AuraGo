@@ -47,6 +47,189 @@ func TestValidateLocalWikipediaSettings(t *testing.T) {
 	}
 }
 
+// Common installs keep AuraGo's data directory inside a tree the denylist
+// refuses; the default <data_dir>/wikipedia and other folders below it must
+// stay usable, while the data root itself, its parents, siblings and the
+// spellings Windows reads as the root stay refused.
+func TestLocalWikipediaSensitivePathAllowsDirectoriesBelowTheDataDir(t *testing.T) {
+	type check struct {
+		dir       string
+		sensitive bool
+	}
+	cases := map[string][]check{}
+	if runtime.GOOS == "windows" {
+		cases[`C:\ProgramData\AuraGo\data`] = []check{
+			{`C:\ProgramData\AuraGo\data\wikipedia`, false},
+			{`C:\programdata\aurago\DATA\wikipedia`, false},
+			{`C:\ProgramData\AuraGo\data\nested\wiki`, false},
+			{`C:\ProgramData\AuraGo\data`, true},
+			{`C:\ProgramData\AuraGo\data\`, true},
+			{`c:\programdata\aurago\data`, true},
+			{`C:\ProgramData\AuraGo\data\wiki\..`, true},
+			{`C:\ProgramData\AuraGo\data\..\other`, true},
+			{`C:\ProgramData\AuraGo`, true},
+			{`C:\ProgramData\AuraGo\data2\wikipedia`, true},
+			{`C:\ProgramData\AuraGo\data\. `, true},
+			{`C:\ProgramData\AuraGo\data\wiki.`, true},
+			{`C:\ProgramData\AuraGo\data\.::$INDEX_ALLOCATION`, true},
+			{`C:\Windows\wikipedia`, true},
+			{`D:\wiki`, false},
+		}
+		// A data directory directly below a volume root grants nothing.
+		cases[`C:\Windows`] = []check{{`C:\Windows\wikipedia`, true}}
+		cases[`C:\`] = []check{{`C:\Windows\wikipedia`, true}}
+	} else {
+		for _, root := range []string{
+			"/root/aurago/data",
+			"/usr/local/aurago/data",
+			"/Users/aura/Library/Application Support/aurago/data",
+		} {
+			cases[root] = []check{
+				{root + "/wikipedia", false},
+				{root + "/nested/wiki", false},
+				{root, true},
+				{root + "/", true},
+				{root + "/wiki/..", true},
+				{root + "/../other", true},
+				{root + "2/wikipedia", true},
+				{root + "/wiki.", true},
+				{"/etc/wikipedia", true},
+				{"/srv/wiki", false},
+			}
+		}
+		cases["/usr"] = []check{{"/usr/bin", true}}
+		cases["/"] = []check{{"/etc/wiki", true}}
+	}
+	for root, checks := range cases {
+		sensitive := localWikipediaSensitivePath(root)
+		for _, c := range checks {
+			if got := sensitive(c.dir); got != c.sensitive {
+				t.Errorf("data_dir %q: sensitive(%q) = %v, want %v", root, c.dir, got, c.sensitive)
+			}
+		}
+	}
+	if got := localWikipediaSensitivePath("")(filepath.Join(t.TempDir(), "wiki")); got {
+		t.Error("an empty data_dir refused an ordinary directory")
+	}
+}
+
+// The data directory also counts in its resolved form, so the manager's
+// check of a resolved storage path still sees the data root.
+func TestLocalWikipediaSensitivePathKnowsTheResolvedDataDir(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "real", "data")
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, "link")
+	linkDirForTest(t, filepath.Join(base, "real"), link)
+	resolved, err := localwiki.ResolveDirectory(real)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sensitive := localWikipediaSensitivePath(filepath.Join(link, "data"))
+	if !sensitive(resolved) {
+		t.Fatalf("the resolved data root %s was not refused", resolved)
+	}
+	if !sensitive(filepath.Join(link, "data")) {
+		t.Fatal("the data root as configured was not refused")
+	}
+	if sensitive(filepath.Join(resolved, "wikipedia")) {
+		t.Fatal("a directory below the resolved data root was refused")
+	}
+}
+
+func TestValidateLocalWikipediaSaveChecksOnlyChangedValues(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = t.TempDir()
+	s := &Server{Cfg: cfg}
+	system := "/etc/wikipedia"
+	if runtime.GOOS == "windows" {
+		system = `C:\Windows\wikipedia`
+	}
+	invalid := config.LocalWikipediaConfig{Language: "xx", Variant: "mini", DataDir: system}
+	if err := validateLocalWikipediaSave(s, invalid, invalid, config.Runtime{}); err != nil {
+		t.Fatalf("unchanged hand-edited values blocked the save: %v", err)
+	}
+	unchangedDifferentCase := config.LocalWikipediaConfig{Language: " XX ", Variant: "MINI", DataDir: system + " "}
+	if err := validateLocalWikipediaSave(s, invalid, unchangedDifferentCase, config.Runtime{}); err != nil {
+		t.Fatalf("an unchanged value with different spacing blocked the save: %v", err)
+	}
+	for name, candidate := range map[string]config.LocalWikipediaConfig{
+		"new language": {Language: "yy", Variant: "mini", DataDir: system},
+		"new variant":  {Language: "xx", Variant: "midi", DataDir: system},
+		"new data dir": {Language: "xx", Variant: "mini", DataDir: "relative/wiki"},
+	} {
+		if err := validateLocalWikipediaSave(s, invalid, candidate, config.Runtime{}); err == nil {
+			t.Fatalf("%s: a changed invalid value was accepted", name)
+		}
+	}
+	valid := config.LocalWikipediaConfig{Language: "de", Variant: "maxi", DataDir: filepath.Join(cfg.Directories.DataDir, "wikipedia")}
+	if err := validateLocalWikipediaSave(s, invalid, valid, config.Runtime{}); err != nil {
+		t.Fatalf("valid new values were refused: %v", err)
+	}
+	if got := localWikipediaSectionFromRaw(map[string]interface{}{
+		"local_wikipedia": map[string]interface{}{"language": "xx", "data_dir": system},
+	}); got.Language != "xx" || got.DataDir != system {
+		t.Fatalf("decoded raw section = %+v", got)
+	}
+	if got := localWikipediaSectionFromRaw(map[string]interface{}{}); got != (config.LocalWikipediaConfig{}) {
+		t.Fatalf("missing raw section = %+v, want the zero value", got)
+	}
+}
+
+// A config.yaml whose local_wikipedia values were edited by hand (or became
+// invalid) must not make every other config save fail with 400; a save that
+// changes them to invalid values still does.
+func TestHandleUpdateConfigKeepsSavingWithAnInvalidUnchangedLocalWikipediaSection(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	system := "/etc/wikipedia"
+	if runtime.GOOS == "windows" {
+		system = `C:\Windows\wikipedia`
+	}
+	raw := "agent:\n  system_language: Deutsch\nlocal_wikipedia:\n  enabled: true\n  language: xx\n  variant: mini\n  data_dir: '" + system + "'\n"
+	if err := os.WriteFile(configPath, []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	vault, err := security.NewVault(strings.Repeat("57", 32), filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded.ConfigPath = configPath
+	manager := localwiki.NewManager(localwiki.Deps{})
+	manager.Configure(localwiki.SettingsFromConfig(loaded))
+	s := &Server{Cfg: loaded, Logger: slog.Default(), Vault: vault, LocalWiki: manager}
+	save := func(payload string) *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		handleUpdateConfig(s).ServeHTTP(recorder, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(payload)))
+		return recorder
+	}
+	systemJSON, _ := json.Marshal(system)
+	for _, payload := range []string{
+		`{"local_wikipedia":{"update_check":false}}`,
+		`{"local_wikipedia":{"enabled":true,"language":"xx","variant":"mini","data_dir":` + string(systemJSON) + `}}`,
+		`{"agent":{"system_language":"English"}}`,
+	} {
+		if got := save(payload); got.Code != http.StatusOK {
+			t.Fatalf("save %s = %d %s, want 200", payload, got.Code, got.Body.String())
+		}
+	}
+	for _, payload := range []string{
+		`{"local_wikipedia":{"language":"yy"}}`,
+		`{"local_wikipedia":{"variant":"midi"}}`,
+		`{"local_wikipedia":{"data_dir":"relative/wiki"}}`,
+	} {
+		if got := save(payload); got.Code != http.StatusBadRequest {
+			t.Fatalf("save %s = %d, want 400", payload, got.Code)
+		}
+	}
+}
+
 func TestInjectLocalWikipediaDefaults(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LocalWikipedia = config.LocalWikipediaConfig{AgentAccess: true, Variant: "nopic", UpdateCheck: true}

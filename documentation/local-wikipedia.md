@@ -132,7 +132,7 @@ and the state files. It is refused while a download is running.
 
 | Installation | Directory | Notes |
 |---|---|---|
-| Native Linux, Windows, macOS | `<data_dir>/wikipedia` by default (for example `/home/aurago/aurago/data/wikipedia`), or an absolute directory you choose under **Storage directory** | Must be absolute and writable, not a system or program directory, and not AuraGo's own data directory itself (use a subfolder). |
+| Native Linux, Windows, macOS | `<data_dir>/wikipedia` by default (for example `/home/aurago/aurago/data/wikipedia`, `/root/aurago/data/wikipedia` for a root install or `C:\ProgramData\AuraGo\data\wikipedia`), or an absolute directory you choose under **Storage directory** | Must be absolute and writable, not a system or program directory, and not AuraGo's own data directory itself (use a subfolder). Any subfolder of AuraGo's data directory is fine, even when the data directory lives in a protected place. |
 | Native Linux with the AuraGo systemd service | same | The unit from `install_service_linux.sh` uses `ProtectSystem=strict` and only lets AuraGo write below its install directory (`ReadWritePaths`). To use another disk, mount it below the install directory, or add it with `sudo systemctl edit aurago` (`[Service]` and `ReadWritePaths=/mnt/wiki`) and restart. Otherwise the install fails with `data_dir_invalid`. |
 | Docker | `/app/data/wikipedia` inside the `aurago_data` volume | Fixed; the config field is read-only. Make sure the disk that holds Docker's volumes has room (`docker system df -v`). |
 
@@ -149,6 +149,22 @@ smuggle the edition into a protected place. Refused are, among others:
   such as `\\?\Volume{…}`.
 - WSL: Windows drives under `/mnt/<letter>` are judged like the Windows path
   (`/mnt/c/Windows` is refused).
+
+**Exception: AuraGo's own data directory.** Subfolders of AuraGo's data directory
+(`directories.data_dir`) are always allowed, even when the data directory itself
+lies in one of the places above — for example `/root/aurago/data/wikipedia` (an
+`install.sh` service running as root), `/usr/local/aurago/data/wikipedia`,
+`C:\ProgramData\AuraGo\data\wikipedia` or
+`~/Library/Application Support/aurago/data/wikipedia`. The data directory itself
+stays refused. A subfolder that is a link pointing somewhere else is judged by
+its target. The exception does not apply when the data directory is a drive or
+file system root or a folder directly below one, or to names ending in a dot or
+a space or containing a colon.
+
+If an invalid storage directory ends up in `config.yaml` (for example after
+editing it by hand), saving other settings still works: a save checks only the
+Local Wikipedia values it changes, and the app reports the directory as
+`data_dir_invalid` until you choose a valid one.
 
 AuraGo creates the directory when it is missing and writes a small probe file to
 prove it can write there.

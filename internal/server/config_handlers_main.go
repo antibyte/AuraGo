@@ -493,6 +493,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		// The local_wikipedia values before the merge: the save validates
+		// only the values it changes (validateLocalWikipediaSave).
+		previousLocalWikipedia := localWikipediaSectionFromRaw(rawCfg)
 
 		// Deep merge the patch into the existing config, skipping masked password values.
 		// Before merging, extract any secrets from the patch and write them to the vault
@@ -571,10 +574,6 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := config.ValidateLocalWikipediaConfig(validateCfg.LocalWikipedia); err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
-			return
-		}
 		if workspaceErr := config.ValidateVirtualComputersAgentControl(validateCfg.VirtualComputers.AgentControl); workspaceErr != nil {
 			s.Logger.Error("[Config] Invalid Virtual Computers agent-control settings — save rejected", "error", workspaceErr)
 			jsonError(w, workspaceErr.Error(), http.StatusBadRequest)
@@ -645,7 +644,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 			return
 		}
-		if wikiErr := validateLocalWikipediaSettings(s, validateCfg.LocalWikipedia, runtimeSnapshot); wikiErr != nil {
+		if wikiErr := validateLocalWikipediaSave(s, previousLocalWikipedia, validateCfg.LocalWikipedia, runtimeSnapshot); wikiErr != nil {
 			jsonError(w, wikiErr.Error(), http.StatusBadRequest)
 			return
 		}

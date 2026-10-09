@@ -33,7 +33,7 @@ Through the root routing table this contract also binds `internal/tools/local_wi
 - Integrity: the `.meta4` SHA-256 is computed while downloading; a resumed download re-hashes the existing `.part` first; a mismatch deletes `.part` (`checksum_mismatch`). The archive is opened (header with checksum position, main page; a missing or unsupported full-text index only disables full-text search) before it is published.
 - Publish: atomic rename through `internal/fileutil`, then `state.json`, then a refcounted reader swap: `Manager.Acquire` handles keep the old archive open until released, and the old file is deleted only after the swap.
 - No automatic resume: after a restart an unfinished download is `interrupted` and waits for an explicit Install/Resume. Updates are only checked (daily, with `update_check`) and hinted (config page, dashboard, desktop app), never installed automatically.
-- Docker: `data_dir` is forced to `<data_dir>/wikipedia` inside AuraGo's data mount. Native custom directories must be absolute, writable and not a sensitive system path (`data_dir_invalid` otherwise).
+- Docker: `data_dir` is forced to `<data_dir>/wikipedia` inside AuraGo's data mount. Native custom directories must be absolute, writable and not a sensitive system path (`data_dir_invalid` otherwise); directories strictly below AuraGo's own data directory are always allowed (the data root itself is not), because common installs keep it in a refused tree (`/root/aurago/data`, `/usr/local/aurago/data`, `C:\ProgramData\AuraGo\data`, `~/Library/Application Support/aurago/data`).
 - Reader limits (cluster size, zstd window, cache size, redirect depth, fuzzing) are owned by `internal/zim/AGENTS.md`; the manager opens archives only through `OpenLibrary` (`zim.Open`) and maps every open failure (`zim.ErrUnsupported`, `zim.ErrCorrupt`, I/O errors, a missing main page) to `zim_unreadable`. A missing or unsupported full-text index degrades to title search (`fulltext: false`, `fulltext_unsupported` warning), never to an error.
 - Search limits: at most 4 concurrent searches, 5 s timeout, queries at most 200 characters and 16 terms. Tool output: leads of at most 2,000 characters for the top 3 hits, article chunks of at most 8,000 characters; every text field passes `security.IsolateExternalData`.
 - Content serving: paths are lookup keys in the content namespace (`C`, legacy `A`), never file-system paths. Responses use `http.ServeContent` (Range), an ETag derived from the ZIM UUID and the path, `Cache-Control: private, max-age=86400` and `X-Content-Type-Options: nosniff`; HTML carries the sandbox Content-Security-Policy with `script-src 'none'` so ZIM scripts can never call AuraGo APIs.
@@ -53,12 +53,19 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   `agent.system_language` through `i18n.NormalizeLang`, fallback `en`), `variant` (`nopic`), `data_dir`
   ("" = `<directories.data_dir>/wikipedia`) and `update_check` (true). The loader sets the true defaults
   before unmarshalling, `NormalizeLocalWikipediaConfig` repairs an unknown language or variant at load, and
-  `ValidateLocalWikipediaConfig` rejects them on save (HTTP 400). `GET /api/config` shows the loader defaults
+  `ValidateLocalWikipediaConfig` rejects them on save (HTTP 400) - but only values the save changes compared
+  with `config.yaml` before the save (`validateLocalWikipediaSave`, like `validateMQTTConfigPatch`), so a
+  hand-edited invalid value never blocks saving other sections. `GET /api/config` shows the loader defaults
   for keys an older `config.yaml` lacks (`injectLocalWikipediaDefaults`). No field is secret.
 - Docker forces the storage directory to `<directories.data_dir>/wikipedia` (`data_dir_locked`); the UI field
   is read-only there and the server skips the `data_dir` save validation.
-- Native installs validate a saved `data_dir`: absolute, not a system location, not AuraGo's own data
-  directory root (`validateLocalWikipediaSettings`, same check the manager gets as `Deps.IsSensitivePath`).
+- Native installs validate a saved `data_dir` when the save changes it: absolute, not a system location,
+  not AuraGo's own data directory root (`validateLocalWikipediaSettings`, same check the manager gets as
+  `Deps.IsSensitivePath`, built by `localWikipediaSensitivePath`). Directories strictly below the data
+  directory (absolute and, via `ResolveDirectory`, resolved form) pass before the denylist; the exception
+  needs a data directory at least two levels below its volume root and a relative part without `:` and
+  without components ending in a dot or space, otherwise the denylist decides. An unchanged invalid
+  `data_dir` is reported by the manager as `data_dir_invalid` instead of failing the save.
 
 ### Manager lifecycle and status
 
@@ -155,7 +162,8 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   `insufficient_disk_space` with the needed bytes in `required_bytes`.
 - Storage directory (`prepareDataDir`): absolute, not sensitive, created if missing, writable (probe file).
   The sensitive check (`Deps.IsSensitivePath`; the server passes `tools.IsSensitiveHostDirectory` plus
-  AuraGo's data directory root) runs on the lexical path and on the resolved path (`EvalSymlinks`; on Windows
+  AuraGo's data directory root, with directories below the data root exempt) runs on the lexical path and
+  on the resolved path (`EvalSymlinks`; on Windows
   `GetFinalPathNameByHandle`) - first on the nearest existing ancestor plus the missing components, before
   `MkdirAll`, so nothing is created inside a protected tree, and again on the directory itself. Links,
   junctions and 8.3 short names cannot point the edition into a system location; the macOS aliases `/var`,
