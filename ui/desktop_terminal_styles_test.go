@@ -859,3 +859,47 @@ func TestDesktopTerminalRetroNetEntriesContract(t *testing.T) {
 		}
 	}
 }
+
+// Retro-Net styles: theme-following toolbar controls and dialogs, LED states, the directory cursor and the 80x25
+// letterbox. The dialing blink runs only without reduced motion and with desktop animations on.
+func TestDesktopTerminalRetroNetStylesheet(t *testing.T) {
+	t.Parallel()
+
+	css := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-app-terminal.css"), "\r\n", "\n")
+	for _, want := range []string{
+		".vd-terminal-toolbar select[data-terminal-baud]",
+		`.vd-terminal-toolbar [data-terminal-retronet-action="hangup"]`,
+		`.vd-terminal-app[data-terminal-mode="directory"] .xterm`,
+		`[data-terminal-state="desktop.terminal_connected"] .vd-terminal-led`,
+		`[data-terminal-state="desktop.terminal_directory"] .vd-terminal-led`,
+		`[data-terminal-state="desktop.terminal_dialing"] .vd-terminal-led`,
+		"@keyframes vd-terminal-led-dial",
+		"@media (prefers-reduced-motion: no-preference)",
+		`body:not([data-animations="false"])`,
+		`.vd-terminal-app[data-terminal-geometry="bbs"]:not([data-terminal-style="modern"]) .vd-terminal-screen`,
+		`.vd-terminal-app[data-terminal-geometry="bbs"] .xterm .xterm-viewport`,
+		".vd-terminal-retronet-dialog {",
+		".vd-terminal-retronet-dialog::backdrop",
+		".vd-terminal-retronet-fields label[hidden]",
+		".vd-terminal-retronet-error",
+		".vd-terminal-retronet-primary",
+		".vd-terminal-retronet-danger",
+		"var(--vd-theme-panel-bg",
+		"var(--vd-theme-control-bg",
+		"var(--vd-theme-border",
+		"var(--vd-text",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("desktop-app-terminal.css missing %q", want)
+		}
+	}
+	const blink = "animation: vd-terminal-led-dial"
+	if strings.Count(css, blink) != 1 {
+		t.Fatalf("desktop-app-terminal.css must start the dialing blink exactly once; found %d", strings.Count(css, blink))
+	}
+	at := strings.Index(css, blink)
+	gate := strings.LastIndex(css[:at], "@media (prefers-reduced-motion: no-preference)")
+	if gate < 0 || strings.Contains(css[gate:at], "}\n}") || !strings.Contains(css[gate:at], `body:not([data-animations="false"])`) {
+		t.Fatal("the dialing blink must sit inside @media (prefers-reduced-motion: no-preference) behind body:not([data-animations=\"false\"])")
+	}
+}
