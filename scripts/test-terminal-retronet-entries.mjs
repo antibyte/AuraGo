@@ -122,8 +122,15 @@ function openEditor(options) {
     const host = body.appendChild(new FakeElement('div'));
     const opener = host.appendChild(new FakeElement('textarea'));
     opener.focus();
+    const gets = [];
     const respond = options.respond || (() => Promise.resolve({ ok: true }));
+    // GET directory answers with the stored own entries (`server`, default: the dialog's snapshot) and a catalog entry.
     const api = (url, init) => {
+        if (url === '/api/desktop/retronet/directory') {
+            gets.push(url);
+            if (options.directory) return options.directory();
+            return Promise.resolve({ entries: [CATALOG].concat(options.server || options.own || []), status: {}, stale: false, can_edit: true });
+        }
         calls.push({ url, init, doc: JSON.parse(JSON.parse(init.body).value) });
         return respond(calls.length);
     };
@@ -138,7 +145,15 @@ function openEditor(options) {
     });
     const form = walk(dialog).find((node) => node.tagName === 'FORM');
     const error = find(dialog, 'data-retronet-error');
-    return { dialog, host, opener, calls, saved, field, set, form, error, submit: () => form.dispatch('submit') };
+    return { dialog, host, opener, calls, gets, saved, field, set, form, error, submit: () => form.dispatch('submit') };
+}
+
+async function editWith(options, values) {
+    const editor = openEditor(options);
+    editor.set(values);
+    editor.submit();
+    await flush();
+    return editor;
 }
 
 async function attempt(values, own) {
@@ -358,6 +373,48 @@ async function edit(values) {
     await flush();
     same('a failed delete shows the server text', broken.error.textContent, 'Deleting failed: Retro-Net is disabled.');
     broken.dialog.close();
+}
+
+// 13. Saves start from the stored entries read right before the PUT, not from the dialog's snapshot.
+{
+    const OTHER = { id: 'own-otherwindow01', name: 'Other', protocol: 'telnet', host: 'other.example.net', port: 23, kind: 'bbs', charset: 'cp437', own: true };
+    const created = await editWith({ own: [HOME], server: [HOME, OTHER] }, { name: 'New Board', host: 'bbs.example.net' });
+    same('the directory is read again before saving', created.gets.length, 1);
+    same('an entry created in another window is kept', created.calls[0].doc.entries.map((entry) => entry.id).slice(0, 2), [HOME.id, OTHER.id]);
+    same('the new entry is appended to the stored list', [created.calls[0].doc.entries.length, created.calls[0].doc.entries[2].name], [3, 'New Board']);
+    same('onSaved receives the merged list', created.saved[0].entries.length, 3);
+    const unpinned = { ...HOME };
+    delete unpinned.host_key;
+    const pinned = await editWith({ entry: unpinned, own: [unpinned], server: [HOME] }, { name: 'Renamed' });
+    same('a host key the server pinned meanwhile survives an unrelated edit', pinned.calls[0].doc.entries[0].host_key, HOME.host_key);
+    const moved = await editWith({ entry: unpinned, own: [unpinned], server: [HOME] }, { port: '2223' });
+    check('but not a change of the SSH target', !('host_key' in moved.calls[0].doc.entries[0]), JSON.stringify(moved.calls[0].doc.entries[0]));
+    const elsewhere = await editWith({ entry: HOME, own: [HOME], server: [{ ...HOME, host: 'new.example.org' }] }, { name: 'Renamed' });
+    check('a key pinned for a target changed elsewhere is dropped', !('host_key' in elsewhere.calls[0].doc.entries[0]), JSON.stringify(elsewhere.calls[0].doc.entries[0]));
+    const gone = await editWith({ entry: HOME, own: [HOME, MUD], server: [MUD] }, { name: 'Renamed' });
+    same('editing an entry deleted elsewhere shows an error', gone.error.textContent, english['desktop.terminal_retronet_error_gone']);
+    check('and saves nothing', gone.calls.length === 0 && gone.saved.length === 0 && gone.dialog.open);
+    gone.dialog.close();
+    const goneDelete = openEditor({ remove: true, entry: HOME, own: [HOME], server: [MUD] });
+    goneDelete.submit();
+    await flush();
+    same('deleting an entry deleted elsewhere shows the same error', [goneDelete.error.textContent, goneDelete.calls.length], [english['desktop.terminal_retronet_error_gone'], 0]);
+    goneDelete.dialog.close();
+    const deleted = openEditor({ remove: true, entry: MUD, own: [MUD], server: [OTHER, MUD] });
+    deleted.submit();
+    await flush();
+    same('a delete keeps entries created elsewhere', deleted.calls[0].doc.entries.map((entry) => entry.id), [OTHER.id]);
+    const offline = await editWith({ own: [HOME], directory: () => Promise.reject(new Error('Retro-Net is disabled.')) }, { name: 'Board', host: 'bbs.example.net' });
+    same('a failed re-read shows the server text', offline.error.textContent, 'Saving failed: Retro-Net is disabled.');
+    check('and saves nothing', offline.calls.length === 0 && offline.saved.length === 0 && offline.dialog.open);
+    offline.dialog.close();
+    const malformed = await editWith({ own: [HOME], directory: () => Promise.resolve({ status: {} }) }, { name: 'Board', host: 'bbs.example.net' });
+    same('a reply without entries saves nothing', [malformed.error.textContent, malformed.calls.length], ['Saving failed: ' + english['desktop.request_failed'], 0]);
+    malformed.dialog.close();
+    const stored = Array.from({ length: 64 }, (_, i) => ({ id: 'own-' + String(i).padStart(12, '0'), name: 'E' + i, protocol: 'telnet', host: 'bbs.example.net', port: 23, kind: 'bbs', charset: 'cp437', own: true }));
+    const full = await editWith({ own: stored.slice(0, 63), server: stored }, { name: 'One too many', host: 'bbs.example.net' });
+    same('the limit counts the stored entries', [full.error.textContent, full.calls.length], [english['desktop.terminal_retronet_error_limit'], 0]);
+    full.dialog.close();
 }
 
 // 12. Every visible text is plain text: no element carries markup from user data.

@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "Puoi salvare al massimo 64 voci personali.",
   "desktop.terminal_retronet_error_save": "Salvataggio non riuscito: {{message}}",
   "desktop.terminal_retronet_error_delete": "Eliminazione non riuscita: {{message}}",
+  "desktop.terminal_retronet_error_gone": "Questa voce non esiste più. Potrebbe essere stata eliminata in un'altra finestra.",
   "desktop.terminal_retronet_delete_title": "Elimina voce Retro-Net",
   "desktop.terminal_retronet_delete_confirm": "Eliminare «{{name}}» dalla rubrica?",
   "desktop.terminal_retronet_entry_telehack": "Ricostruzione della prima Internet con host ARPANET, Usenet e giochi",

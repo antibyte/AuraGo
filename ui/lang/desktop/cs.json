@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "Můžeš uložit nejvýše 64 vlastních záznamů.",
   "desktop.terminal_retronet_error_save": "Uložení selhalo: {{message}}",
   "desktop.terminal_retronet_error_delete": "Smazání selhalo: {{message}}",
+  "desktop.terminal_retronet_error_gone": "Tento záznam již neexistuje. Možná byl smazán v jiném okně.",
   "desktop.terminal_retronet_delete_title": "Smazat záznam Retro-Net",
   "desktop.terminal_retronet_delete_confirm": "Smazat „{{name}}“ z adresáře?",
   "desktop.terminal_retronet_entry_telehack": "Rekonstrukce raného internetu s hostiteli ARPANETu, Usenetem a hrami",

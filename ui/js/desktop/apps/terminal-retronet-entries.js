@@ -195,12 +195,57 @@
             draft.charset = CHARSET_VALUES.indexOf(value('charset')) >= 0 ? value('charset') : 'utf8';
         } else {
             draft.user = value('user').trim();
-            const unchanged = entry && entry.protocol === 'ssh' && entry.host_key && HOST_KEY.test(entry.host_key) &&
-                String(entry.host).toLowerCase() === draft.host &&
-                Number(entry.port) === draft.port && entry.user === draft.user;
-            if (unchanged) draft.host_key = entry.host_key;
         }
         return draft;
+    }
+
+    // A pinned key stays valid only while protocol, host, port and user equal the stored entry's.
+    function keepHostKey(draft, entry) {
+        const unchanged = entry && draft.protocol === 'ssh' && entry.protocol === 'ssh' && entry.host_key && HOST_KEY.test(entry.host_key) &&
+            String(entry.host).toLowerCase() === draft.host &&
+            Number(entry.port) === draft.port && entry.user === draft.user;
+        if (unchanged) draft.host_key = entry.host_key;
+        return draft;
+    }
+
+    function localizedError(key) {
+        const err = new Error('');
+        err.key = key;
+        return err;
+    }
+
+    // The own entries as stored right now: other windows may have saved since this dialog opened, and the
+    // server pins SSH host keys on first contact. A reply without an entry list saves nothing.
+    function loadStored(api) {
+        return Promise.resolve().then(function () {
+            return api('/api/desktop/retronet/directory');
+        }).then(function (payload) {
+            if (!payload || !Array.isArray(payload.entries)) throw new Error('');
+            return ownList(payload.entries);
+        });
+    }
+
+    // Applies this dialog's change to the stored list: a new entry is appended, an edit replaces the entry
+    // by ID (keeping the stored host key while the SSH target is unchanged), a delete removes it by ID.
+    function mergeChange(stored, change) {
+        const ids = stored.map(function (item) { return item.id; });
+        const index = change.id ? ids.indexOf(change.id) : -1;
+        if (change.id && index < 0) throw localizedError('desktop.terminal_retronet_error_gone');
+        const next = stored.slice();
+        if (change.remove) {
+            next.splice(index, 1);
+            return { entries: next, saved: null };
+        }
+        const draft = Object.assign({}, change.draft);
+        delete draft.host_key;
+        if (index >= 0) {
+            next[index] = keepHostKey(draft, stored[index]);
+            return { entries: next, saved: next[index] };
+        }
+        if (ids.indexOf(draft.id) >= 0) draft.id = newId(ids);
+        if (next.length >= MAX_ENTRIES) throw localizedError('desktop.terminal_retronet_error_limit');
+        next.push(draft);
+        return { entries: next, saved: draft };
     }
 
     function validate(draft) {
@@ -220,17 +265,21 @@
 
     function saveEntries(api, entries) {
         const value = JSON.stringify({ version: 1, entries: entries });
-        if (new TextEncoder().encode(value).length > MAX_BYTES) {
-            const err = new Error('too large');
-            err.code = 'too_large';
-            return Promise.reject(err);
-        }
+        if (new TextEncoder().encode(value).length > MAX_BYTES) return Promise.reject(localizedError('desktop.terminal_retronet_error_limit'));
         return Promise.resolve().then(function () {
             return api('/api/desktop/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ key: SETTING_KEY, value: value })
             });
+        });
+    }
+
+    // Re-reads the stored entries, applies the change and stores the result; resolves { entries, saved }.
+    function commit(api, change) {
+        return loadStored(api).then(function (stored) {
+            const result = mergeChange(stored, change);
+            return saveEntries(api, result.entries).then(function () { return result; });
         });
     }
 
@@ -398,24 +447,20 @@
                 showError(parts, tr(problem.key), fields[problem.field]);
                 return;
             }
-            const next = own.slice();
-            const index = next.findIndex(function (item) { return item.id === draft.id; });
-            if (index >= 0) next[index] = draft;
-            else next.push(draft);
-            if (next.length > MAX_ENTRIES) {
+            if (!entry && own.length >= MAX_ENTRIES) {
                 showError(parts, tr('desktop.terminal_retronet_error_limit'));
                 return;
             }
             state.busy = true;
             save.disabled = true;
-            saveEntries(opts.api, next).then(function () {
+            commit(opts.api, { id: entry ? entry.id : '', draft: draft }).then(function (result) {
                 state.busy = false;
                 if (parts.dialog.open) parts.dialog.close();
-                onSaved(next, draft);
+                onSaved(result.entries, result.saved);
             }, function (err) {
                 state.busy = false;
                 save.disabled = false;
-                if (err && err.code === 'too_large') showError(parts, tr('desktop.terminal_retronet_error_limit'));
+                if (err && err.key) showError(parts, tr(err.key));
                 else showError(parts, tr('desktop.terminal_retronet_error_save', { message: errorText(err, tr) }));
             });
         });
@@ -442,15 +487,15 @@
             state.busy = true;
             remove.disabled = true;
             clearError(parts);
-            const next = own.filter(function (item) { return item.id !== entry.id; });
-            saveEntries(opts.api, next).then(function () {
+            commit(opts.api, { id: entry.id, remove: true }).then(function (result) {
                 state.busy = false;
                 if (parts.dialog.open) parts.dialog.close();
-                onSaved(next, null);
+                onSaved(result.entries, null);
             }, function (err) {
                 state.busy = false;
                 remove.disabled = false;
-                showError(parts, tr('desktop.terminal_retronet_error_delete', { message: errorText(err, tr) }));
+                if (err && err.key) showError(parts, tr(err.key));
+                else showError(parts, tr('desktop.terminal_retronet_error_delete', { message: errorText(err, tr) }));
             });
         });
         present(parts, state, parts.cancel);

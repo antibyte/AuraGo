@@ -417,6 +417,7 @@ var terminalRetroNetFixedKeys = []string{
 	"desktop.terminal_retronet_error_limit",
 	"desktop.terminal_retronet_error_save",
 	"desktop.terminal_retronet_error_delete",
+	"desktop.terminal_retronet_error_gone",
 	"desktop.terminal_retronet_delete_title",
 	"desktop.terminal_retronet_delete_confirm",
 }
@@ -439,6 +440,7 @@ var terminalRetroNetSentenceKeys = []string{
 	"desktop.terminal_retronet_error_mail_port",
 	"desktop.terminal_retronet_error_user",
 	"desktop.terminal_retronet_error_limit",
+	"desktop.terminal_retronet_error_gone",
 }
 
 func terminalRetroNetI18nKeys(t *testing.T) []string {
@@ -841,6 +843,9 @@ func TestDesktopTerminalRetroNetEntriesContract(t *testing.T) {
 		"const HEX_LABEL = /^0x[0-9a-f]*$/",
 		"const SSH_USER = /^[a-z0-9._-]{1,32}$/",
 		"draft.host_key = entry.host_key",
+		"api('/api/desktop/retronet/directory')",
+		"next[index] = keepHostKey(draft, stored[index])",
+		"localizedError('desktop.terminal_retronet_error_gone')",
 		"'data-terminal-retronet-dialog'",
 		"'data-retronet-error'",
 		".textContent = ",

@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "Du kan spara högst 64 egna poster.",
   "desktop.terminal_retronet_error_save": "Det gick inte att spara: {{message}}",
   "desktop.terminal_retronet_error_delete": "Det gick inte att ta bort: {{message}}",
+  "desktop.terminal_retronet_error_gone": "Den här posten finns inte längre. Den kan ha tagits bort i ett annat fönster.",
   "desktop.terminal_retronet_delete_title": "Ta bort Retro-Net-post",
   "desktop.terminal_retronet_delete_confirm": "Ta bort ”{{name}}” från katalogen?",
   "desktop.terminal_retronet_entry_telehack": "Återskapande av det tidiga internet med ARPANET-värdar, Usenet och spel",

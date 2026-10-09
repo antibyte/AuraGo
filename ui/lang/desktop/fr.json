@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "Vous pouvez enregistrer au maximum 64 entrées personnelles.",
   "desktop.terminal_retronet_error_save": "Échec de l'enregistrement : {{message}}",
   "desktop.terminal_retronet_error_delete": "Échec de la suppression : {{message}}",
+  "desktop.terminal_retronet_error_gone": "Cette entrée n'existe plus. Elle a peut-être été supprimée dans une autre fenêtre.",
   "desktop.terminal_retronet_delete_title": "Supprimer l'entrée Retro-Net",
   "desktop.terminal_retronet_delete_confirm": "Supprimer « {{name}} » de l'annuaire ?",
   "desktop.terminal_retronet_entry_telehack": "Reconstitution des débuts d'Internet avec des hôtes ARPANET, Usenet et des jeux",

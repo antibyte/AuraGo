@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "आप अधिकतम 64 अपनी प्रविष्टियाँ सहेज सकते हैं।",
   "desktop.terminal_retronet_error_save": "सहेजना विफल रहा: {{message}}",
   "desktop.terminal_retronet_error_delete": "हटाना विफल रहा: {{message}}",
+  "desktop.terminal_retronet_error_gone": "यह प्रविष्टि अब मौजूद नहीं है। शायद इसे किसी दूसरी विंडो में हटा दिया गया है।",
   "desktop.terminal_retronet_delete_title": "Retro-Net प्रविष्टि हटाएँ",
   "desktop.terminal_retronet_delete_confirm": "“{{name}}” को निर्देशिका से हटाएँ?",
   "desktop.terminal_retronet_entry_telehack": "ARPANET होस्ट, Usenet और गेम के साथ शुरुआती इंटरनेट का पुनर्निर्माण",

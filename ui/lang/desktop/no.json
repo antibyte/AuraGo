@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "Du kan lagre høyst 64 egne oppføringer.",
   "desktop.terminal_retronet_error_save": "Lagring mislyktes: {{message}}",
   "desktop.terminal_retronet_error_delete": "Sletting mislyktes: {{message}}",
+  "desktop.terminal_retronet_error_gone": "Denne oppføringen finnes ikke lenger. Den kan ha blitt slettet i et annet vindu.",
   "desktop.terminal_retronet_delete_title": "Slett Retro-Net-oppføring",
   "desktop.terminal_retronet_delete_confirm": "Slette «{{name}}» fra katalogen?",
   "desktop.terminal_retronet_entry_telehack": "Gjenskaping av det tidlige internettet med ARPANET-verter, Usenet og spill",

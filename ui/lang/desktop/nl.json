@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "Je kunt maximaal 64 eigen items opslaan.",
   "desktop.terminal_retronet_error_save": "Opslaan mislukt: {{message}}",
   "desktop.terminal_retronet_error_delete": "Verwijderen mislukt: {{message}}",
+  "desktop.terminal_retronet_error_gone": "Dit item bestaat niet meer. Mogelijk is het in een ander venster verwijderd.",
   "desktop.terminal_retronet_delete_title": "Retro-Net-item verwijderen",
   "desktop.terminal_retronet_delete_confirm": "‘{{name}}’ uit de gids verwijderen?",
   "desktop.terminal_retronet_entry_telehack": "Nabootsing van het vroege internet met ARPANET-hosts, Usenet en games",

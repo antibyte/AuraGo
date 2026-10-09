@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "自分のエントリは最大 64 件まで保存できます。",
   "desktop.terminal_retronet_error_save": "保存に失敗しました: {{message}}",
   "desktop.terminal_retronet_error_delete": "削除に失敗しました: {{message}}",
+  "desktop.terminal_retronet_error_gone": "このエントリはもう存在しません。別のウィンドウで削除された可能性があります。",
   "desktop.terminal_retronet_delete_title": "Retro-Net エントリを削除",
   "desktop.terminal_retronet_delete_confirm": "「{{name}}」をディレクトリから削除しますか？",
   "desktop.terminal_retronet_entry_telehack": "ARPANET のホスト、Usenet、ゲームで初期のインターネットを再現",

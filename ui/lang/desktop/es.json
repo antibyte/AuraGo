@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "Puedes guardar como máximo 64 entradas propias.",
   "desktop.terminal_retronet_error_save": "Error al guardar: {{message}}",
   "desktop.terminal_retronet_error_delete": "Error al eliminar: {{message}}",
+  "desktop.terminal_retronet_error_gone": "Esta entrada ya no existe. Puede que se haya eliminado en otra ventana.",
   "desktop.terminal_retronet_delete_title": "Eliminar entrada de Retro-Net",
   "desktop.terminal_retronet_delete_confirm": "¿Eliminar «{{name}}» del directorio?",
   "desktop.terminal_retronet_entry_telehack": "Recreación de los inicios de internet con hosts de ARPANET, Usenet y juegos",

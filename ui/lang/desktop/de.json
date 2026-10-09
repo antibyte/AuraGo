@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "Du kannst höchstens 64 eigene Einträge speichern.",
   "desktop.terminal_retronet_error_save": "Speichern fehlgeschlagen: {{message}}",
   "desktop.terminal_retronet_error_delete": "Löschen fehlgeschlagen: {{message}}",
+  "desktop.terminal_retronet_error_gone": "Dieser Eintrag existiert nicht mehr. Vielleicht wurde er in einem anderen Fenster gelöscht.",
   "desktop.terminal_retronet_delete_title": "Retro-Net-Eintrag löschen",
   "desktop.terminal_retronet_delete_confirm": "„{{name}}“ aus dem Verzeichnis löschen?",
   "desktop.terminal_retronet_entry_telehack": "Nachbau des frühen Internets mit ARPANET-Rechnern, Usenet und Spielen",

@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "Du kan højst gemme 64 egne poster.",
   "desktop.terminal_retronet_error_save": "Lagring mislykkedes: {{message}}",
   "desktop.terminal_retronet_error_delete": "Sletning mislykkedes: {{message}}",
+  "desktop.terminal_retronet_error_gone": "Denne post findes ikke længere. Den er muligvis slettet i et andet vindue.",
   "desktop.terminal_retronet_delete_title": "Slet Retro-Net-post",
   "desktop.terminal_retronet_delete_confirm": "Slet »{{name}}« fra kataloget?",
   "desktop.terminal_retronet_entry_telehack": "Genskabelse af det tidlige internet med ARPANET-værter, Usenet og spil",

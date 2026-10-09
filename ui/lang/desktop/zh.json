@@ -5853,6 +5853,7 @@
   "desktop.terminal_retronet_error_limit": "最多可保存 64 个自己的条目。",
   "desktop.terminal_retronet_error_save": "保存失败：{{message}}",
   "desktop.terminal_retronet_error_delete": "删除失败：{{message}}",
+  "desktop.terminal_retronet_error_gone": "此条目已不存在，可能已在另一个窗口中被删除。",
   "desktop.terminal_retronet_delete_title": "删除 Retro-Net 条目",
   "desktop.terminal_retronet_delete_confirm": "要从目录中删除“{{name}}”吗？",
   "desktop.terminal_retronet_entry_telehack": "重现早期互联网，包含 ARPANET 主机、Usenet 和游戏",
