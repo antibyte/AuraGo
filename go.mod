@@ -1,6 +1,6 @@
 module aurago
 
-go 1.27.1
+go 1.27.2
 
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.2
@@ -61,12 +61,12 @@ require (
 	github.com/ulikunitz/xz v0.5.17
 	github.com/vishen/go-chromecast v0.3.4
 	github.com/xeipuuv/gojsonschema v1.2.0
-	github.com/xuri/excelize/v2 v2.11.0
+	github.com/xuri/excelize/v2 v2.11.1-0.20261003002531-6258dcebc4e2
 	github.com/ysmood/gson v0.7.3
 	go.bug.st/serial v1.8.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/image v0.46.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 	golang.org/x/sync v0.23.0
 	golang.org/x/sys v0.48.0
 	golang.org/x/text v0.42.0

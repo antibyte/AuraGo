@@ -17,7 +17,7 @@
 
 | Component | Technology |
 |-----------|------------|
-| Language | Go 1.27.1+ |
+| Language | Go 1.27.2+ |
 | Web Framework | Standard library `net/http` |
 | Database | SQLite (modernc.org/sqlite - pure Go, no CGO) |
 | Vector DB | chromem-go (embedded) |
@@ -51,7 +51,7 @@
 
 ### Development Build
 ```bash
-# Build main binary (requires Go 1.27.1+)
+# Build main binary (requires Go 1.27.2+)
 go run ./cmd/assetpack -out deploy -stage assets/web
 go build -ldflags="$(cat deploy/web-assets.ldflags)" -o aurago ./cmd/aurago
 
@@ -386,7 +386,7 @@ Every workflow `uses:` ref is pinned to a full commit SHA with a ` # vX.Y.Z` com
 ### Release Process
 1. `./make_deploy.sh` builds cross-platform artifacts; by default it may commit/push `main` (`--no-publish` suppresses that). It does not create a tag or GitHub Release.
 2. On Windows, `make_release.bat` or `make_release.ps1` builds cross-platform artifacts, commits/pushes as needed, creates a versioned GitHub Release with binaries, and cleans up older releases while keeping the latest three.
-3. Release builders pin `GOTOOLCHAIN=go1.27.1`; verify the selected compiler before publishing even when a newer system Go is installed.
+3. Release builders pin `GOTOOLCHAIN=go1.27.2`; verify the selected compiler before publishing even when a newer system Go is installed.
 4. A pushed `v*` tag triggers `docker-publish.yml`; a push to `main` alone does not.
 
 ## Agent Rules & Guidelines
