@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5" //nolint:gosec // ZIM checksum format
 	"encoding/binary"
+	"strings"
 	"testing"
 )
 
@@ -71,18 +72,31 @@ func TestBuildRejectsBrokenInput(t *testing.T) {
 
 	// An empty MIME type would sort first in the MIME list and end it early;
 	// NUL bytes would end the MIME type, path or title early.
-	for name, e := range map[string]Entry{
-		"empty MIME type":      {Namespace: 'C', Path: "A", MimeType: "", Data: []byte("x")},
-		"NUL in MIME":          {Namespace: 'C', Path: "A", MimeType: "text/\x00html", Data: []byte("x")},
-		"NUL in path":          {Namespace: 'C', Path: "A\x00B", MimeType: "text/html", Data: []byte("x")},
-		"NUL in title":         {Namespace: 'C', Path: "A", Title: "A\x00B", MimeType: "text/html", Data: []byte("x")},
-		"NUL in redirect path": {Namespace: 'C', Path: "R\x00", Redirect: "C/A"},
+	for _, tc := range []struct {
+		name   string
+		e      Entry
+		target bool // add the article C/A that a redirect entry points to
+		want   string
+	}{
+		{name: "empty MIME type", e: Entry{Namespace: 'C', Path: "A", MimeType: "", Data: []byte("x")}, want: "empty MIME type"},
+		{name: "NUL in MIME", e: Entry{Namespace: 'C', Path: "A", MimeType: "text/\x00html", Data: []byte("x")}, want: "NUL byte in its MIME type"},
+		{name: "NUL in path", e: Entry{Namespace: 'C', Path: "A\x00B", MimeType: "text/html", Data: []byte("x")}, want: "NUL byte in its path"},
+		{name: "NUL in title", e: Entry{Namespace: 'C', Path: "A", Title: "A\x00B", MimeType: "text/html", Data: []byte("x")}, want: "NUL byte in its title"},
+		// The redirect target exists, so only the NUL check can fail the build.
+		{name: "NUL in redirect path", e: Entry{Namespace: 'C', Path: "R\x00", Redirect: "C/A"}, target: true, want: "NUL byte in its path"},
 	} {
 		b = New()
-		e.Cluster = b.AddCluster(CompressionNone, false)
-		b.Add(e)
-		if _, _, err := b.Build(); err == nil {
-			t.Fatalf("Build accepted an entry with %s", name)
+		tc.e.Cluster = b.AddCluster(CompressionNone, false)
+		if tc.target {
+			b.AddArticle(tc.e.Cluster, 'C', "A", "A", "<p>a</p>")
+		}
+		b.Add(tc.e)
+		_, _, err := b.Build()
+		if err == nil {
+			t.Fatalf("Build accepted an entry with %s", tc.name)
+		}
+		if !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("Build error for %s = %v, want it to mention %q", tc.name, err, tc.want)
 		}
 	}
 

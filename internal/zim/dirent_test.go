@@ -63,6 +63,31 @@ func TestParseDirentDeprecatedEntry(t *testing.T) {
 	}
 }
 
+func TestParseDirentDeletedEntry(t *testing.T) {
+	b := []byte{0xFD, 0xFF, 0, 'A', 0, 0, 0, 0, 'g', 'o', 'n', 'e', 0, 'G', 'o', 'n', 'e', 0}
+	e, err := parseDirent(b, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e.kind != kindDeprecated || e.Namespace != 'A' || e.Path != "gone" || e.Title != "Gone" || e.IsRedirect || e.MimeType != "" {
+		t.Fatalf("entry = %+v", e)
+	}
+}
+
+func TestParseDirentShortRedirect(t *testing.T) {
+	full := redirectDirent('C', 3, "R", "")
+	// 8..11 bytes carry the redirect marker but not yet the target index; 12
+	// bytes lack the path, and the last cut lacks the title terminator.
+	for _, n := range []int{0, 7, 8, 9, 10, 11, 12, len(full) - 1} {
+		if _, err := parseDirent(full[:n], nil); !errors.Is(err, errShortDirent) {
+			t.Fatalf("parseDirent(%d of %d bytes) error = %v, want errShortDirent", n, len(full), err)
+		}
+	}
+	if _, err := parseDirent(full, nil); err != nil {
+		t.Fatalf("parseDirent(complete redirect) error = %v", err)
+	}
+}
+
 func TestParseDirentShortAndInvalid(t *testing.T) {
 	full := contentDirent(0, 'C', 0, 0, "Path", "Title")
 	for _, n := range []int{0, 7, 15, 18, len(full) - 1} {

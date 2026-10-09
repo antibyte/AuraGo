@@ -1,6 +1,7 @@
 package zim
 
 import (
+	"bytes"
 	"encoding/binary"
 	"testing"
 )
@@ -70,6 +71,43 @@ func TestParseHeaderRejectsInvalidHeaders(t *testing.T) {
 	}
 }
 
+// A legacy header ends at byte 72 (mimeListPos == 72): bytes 72..80 belong to
+// the MIME list, so checksumPos must be ignored and the data runs to the end
+// of the file.
+func TestParseHeaderAcceptsLegacyHeaderWithoutChecksum(t *testing.T) {
+	data, layout, err := sampleBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	le := binary.LittleEndian
+	for _, tc := range []struct {
+		name string
+		size int64
+	}{
+		{"file with trailing bytes", int64(len(data))},
+		{"file ending after the data", layout.ChecksumPos},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := append([]byte(nil), data[:headerSize]...)
+			le.PutUint64(h[56:], legacyHeaderSize)
+			copy(h[72:80], "text/htm") // MIME list bytes, not a checksum position
+			got, err := parseHeader(h, tc.size)
+			if err != nil {
+				t.Fatalf("parseHeader() error = %v", err)
+			}
+			if got.hasChecksum() {
+				t.Fatal("hasChecksum() = true for a 72-byte header")
+			}
+			if got.mimeListPos != legacyHeaderSize {
+				t.Fatalf("mimeListPos = %d, want %d", got.mimeListPos, legacyHeaderSize)
+			}
+			if end := got.dataEnd(tc.size); end != tc.size {
+				t.Fatalf("dataEnd = %d, want the file size %d", end, tc.size)
+			}
+		})
+	}
+}
+
 func TestParseHeaderRejectsShortInput(t *testing.T) {
 	_, err := parseHeader(make([]byte, 10), 10)
 	wantErr(t, err, ErrNotZIM)
@@ -98,4 +136,34 @@ func TestParseMimeList(t *testing.T) {
 	if _, err := parseMimeList([]byte("text/html\x00image/png")); err == nil {
 		t.Fatal("parseMimeList accepted an unterminated list")
 	}
+}
+
+func TestParseMimeListEmptyAndUnterminated(t *testing.T) {
+	got, err := parseMimeList([]byte("\x00"))
+	if err != nil {
+		t.Fatalf("parseMimeList(empty list) error = %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("parseMimeList(empty list) = %q, want no types", got)
+	}
+	_, err = parseMimeList(nil)
+	wantErr(t, err, ErrCorrupt)
+	_, err = parseMimeList([]byte("text/html"))
+	wantErr(t, err, ErrCorrupt)
+}
+
+// 0xFFFD..0xFFFF are reserved dirent markers, so a list may hold 0xFFFD types.
+func TestParseMimeListTypeLimit(t *testing.T) {
+	list := func(n int) []byte {
+		return append(bytes.Repeat([]byte("a\x00"), n), 0)
+	}
+	got, err := parseMimeList(list(maxMimeTypes))
+	if err != nil {
+		t.Fatalf("parseMimeList(%d types) error = %v", maxMimeTypes, err)
+	}
+	if len(got) != maxMimeTypes {
+		t.Fatalf("parseMimeList(%d types) returned %d types", maxMimeTypes, len(got))
+	}
+	_, err = parseMimeList(list(maxMimeTypes + 1))
+	wantErr(t, err, ErrCorrupt)
 }
