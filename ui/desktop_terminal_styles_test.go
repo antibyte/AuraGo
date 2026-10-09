@@ -303,16 +303,89 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"/api/code-studio/terminal",
 		"binaryType = 'arraybuffer'",
 		"fonts.load",
+		"function openShell()",
+		"TerminalModem.create(",
+		"TerminalModem.createThrottle(",
+		"TerminalRetroNetDirectory.create(",
+		"TerminalRetroNetDirectory.LOCAL_SHELL_ID",
+		"TerminalRetroNetSession.open(",
+		"TerminalRetroNetEntries.open(",
+		"TerminalRetroNetEntries.confirmDelete(",
+		"'aurago:desktop-policy'",
+		"b.retronet_enabled === true",
+		"typeof detail.retronet_enabled !== 'boolean'",
+		"retroNetOn && !ctx.path",
+		"term.options.convertEol = false",
+		"term.options.convertEol = true",
+		"term.resize(80, 25)",
+		`'"Aura VGA", "Aura Terminal", ui-monospace, monospace'`,
+		"'aurago.desktop.terminal.retronet.last'",
+		`const HANGUP_KEY = '\x1d'`,
+		"'desktop.terminal_directory'",
+		"'desktop.terminal_dialing'",
+		"'desktop.terminal_connected'",
+		"'desktop.terminal_retronet_result_' + reason",
+		"data-terminal-mode",
+		"data-terminal-geometry",
+		`data-terminal-announce aria-live="polite"`,
+		"select[data-terminal-baud]",
+		"[data-terminal-retronet-action]",
+		"window.TerminalText && window.TerminalModem",
+		"window.TerminalText.printable(control.fingerprint)",
+		// Host-key answers use the session module's rule: localized letters first, then ASCII y/n.
+		"window.TerminalRetroNetSession.hostKeyAnswer(data, tr('desktop.terminal_retronet_hostkey_yes'), tr('desktop.terminal_retronet_hostkey_no'))",
+		// Ctrl+] never reaches the session: the dispatcher intercepts it in dialing and retro modes.
+		"if (data.indexOf(HANGUP_KEY) >= 0) {",
+		// Dispose removes own-entry dialogs without close(), which would reopen a dialog with a pending save.
+		"root.querySelectorAll('dialog[data-terminal-retronet-dialog]').forEach(function (dialog) { dialog.remove(); })",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal.js missing %q", want)
 		}
 	}
-	if strings.Count(source, "new WebSocket") != 1 {
-		t.Fatal("style changes must not create extra WebSocket constructors")
+	for _, forbidden := range []string{"function printable", "function cellWidth", "function fitToCells", "key === 'y'", "dialog.close(); dialog.remove()"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("terminal.js must use the shared TerminalText/session helpers; found %q", forbidden)
+		}
+	}
+	if strings.Count(source, "new WebSocket") != 1 || !strings.Contains(source, "new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal')") {
+		t.Fatal("terminal.js must create exactly one WebSocket: the Code Studio shell socket in openShell()")
+	}
+	if strings.Contains(source, "/api/desktop/retronet/connect") {
+		t.Fatal("the Retro-Net socket belongs to terminal-retronet-session.js")
+	}
+	session := readDesktopAssetText(t, "js/desktop/apps/terminal-retronet-session.js")
+	if strings.Count(session, "new WebSocket") != 1 || !strings.Contains(session, "/api/desktop/retronet/connect") {
+		t.Fatal("terminal-retronet-session.js must own exactly one Retro-Net WebSocket")
+	}
+	for _, module := range []string{"terminal-text.js", "terminal-modem.js", "terminal-retronet-directory.js", "terminal-retronet-entries.js", "terminal-styles.js", "terminal-crt.js", "terminal-audio.js"} {
+		if strings.Contains(readDesktopAssetText(t, "js/desktop/apps/"+module), "new WebSocket") {
+			t.Fatalf("%s must not open sockets", module)
+		}
 	}
 	if strings.Contains(source, "onclick=") {
 		t.Fatal("terminal.js must not use inline onclick")
+	}
+}
+
+func TestDesktopTerminalRetroNetSourcesUseKnownKeys(t *testing.T) {
+	t.Parallel()
+
+	known := map[string]bool{}
+	for _, key := range terminalRetroNetI18nKeys(t) {
+		known[key] = true
+	}
+	pattern := regexp.MustCompile(`desktop\.terminal_(?:retronet_[a-z0-9_]+|directory|dialing|connected)\b`)
+	for _, file := range []string{"terminal.js", "terminal-modem.js", "terminal-retronet-directory.js", "terminal-retronet-session.js", "terminal-retronet-entries.js"} {
+		source := readDesktopAssetText(t, "js/desktop/apps/"+file)
+		for _, key := range pattern.FindAllString(source, -1) {
+			if strings.HasSuffix(key, "_") {
+				continue // dynamic prefix such as result_ + reason; all suffixes are in the key list
+			}
+			if !known[key] {
+				t.Errorf("%s uses %s, which is not in the Retro-Net key list", file, key)
+			}
+		}
 	}
 }
 
