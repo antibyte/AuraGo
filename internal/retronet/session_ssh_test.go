@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"errors"
 	"io"
 	"net"
 	"slices"
@@ -392,4 +393,60 @@ func TestManagerSSHStalledServiceHitsWriteTimeout(t *testing.T) {
 	if m.Active() != 0 {
 		t.Fatalf("active = %d after the session ended, want the slot released", m.Active())
 	}
+}
+
+// OnHostKeyAccepted is for first contact with an own entry only: a catalog entry and an own
+// entry that already has a stored key never report a key.
+func TestManagerSSHReportsNoKeyItAlreadyKnows(t *testing.T) {
+	f := startSSHFixture(t, sshFixtureKeyboardInteractive)
+	cases := map[string]Entry{
+		"catalog entry":               f.entry(false, f.fingerprint),
+		"own entry with a stored key": f.entry(true, f.fingerprint),
+	}
+	for name, entry := range cases {
+		t.Run(name, func(t *testing.T) {
+			var calls atomic.Int32
+			m := &Manager{Dialer: Dialer{AllowRestricted: true}, OnHostKeyAccepted: func(context.Context, string, string) error {
+				calls.Add(1)
+				return nil
+			}}
+			c := newSessionTestClient()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			done := sessStart(ctx, m, entry, Size{Cols: 80, Rows: 25}, c)
+			c.waitControl(t, controlConnected)
+			c.waitOutput(t, "welcome to the fixture")
+			cancel()
+			sessExpectResult(t, c, sessAwait(t, done), CodeNoCarrier, ReasonRemoteClosed)
+			if calls.Load() != 0 || len(c.controlsOfType(controlHostKeyPrompt)) != 0 {
+				t.Fatalf("OnHostKeyAccepted calls = %d, controls %s; want none", calls.Load(), sessFormatControls(c.controlLog()))
+			}
+		})
+	}
+}
+
+// A failed save of the accepted key is not fatal: the session runs and delivers the server's
+// output (the next dial asks again).
+func TestManagerSSHSessionSurvivesAFailedHostKeySave(t *testing.T) {
+	f := startSSHFixture(t, sshFixtureKeyboardInteractive)
+	var calls atomic.Int32
+	m := &Manager{Dialer: Dialer{AllowRestricted: true}, OnHostKeyAccepted: func(context.Context, string, string) error {
+		calls.Add(1)
+		return errors.New("disk full")
+	}}
+	c := newSessionTestClient()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := sessStart(ctx, m, f.entry(true, ""), Size{Cols: 80, Rows: 25}, c)
+	c.waitControl(t, controlHostKeyPrompt)
+	c.decide(true)
+	c.waitControl(t, controlConnected)
+	c.waitOutput(t, "welcome to the fixture")
+	c.typeText("ping")
+	c.waitOutput(t, "ping")
+	if calls.Load() != 1 {
+		t.Fatalf("OnHostKeyAccepted calls = %d, want 1", calls.Load())
+	}
+	cancel()
+	sessExpectResult(t, c, sessAwait(t, done), CodeNoCarrier, ReasonRemoteClosed)
 }

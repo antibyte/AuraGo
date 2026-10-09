@@ -48,6 +48,18 @@ type probeDialer struct {
 	calls   atomic.Int64
 	current atomic.Int64
 	peak    atomic.Int64
+	closed  atomic.Int64 // connections handed out and closed again
+}
+
+// probeConn counts Close calls of the connections a probeDialer hands out.
+type probeConn struct {
+	net.Conn
+	d *probeDialer
+}
+
+func (c probeConn) Close() error {
+	c.d.closed.Add(1)
+	return c.Conn.Close()
 }
 
 func newProbeDialer(blocking bool) *probeDialer {
@@ -86,7 +98,7 @@ func (d *probeDialer) dial(ctx context.Context, _, _ string) (net.Conn, error) {
 	}
 	client, server := net.Pipe()
 	_ = server.Close()
-	return client, nil
+	return probeConn{Conn: client, d: d}, nil
 }
 
 func probeEntries(n int) []Entry {
@@ -261,5 +273,53 @@ func TestStatusProberRefreshStopsWaiting(t *testing.T) {
 	p.Refresh(context.Background(), entries, 5*time.Second)
 	if d.calls.Load() != 2 {
 		t.Fatalf("calls = %d, want one probe run", d.calls.Load())
+	}
+}
+
+// A probe that never gets an answer gives up after StatusProber.Timeout (not after the dialer's
+// own 10 s default), reports offline and leaves no dial running.
+func TestStatusProberTimesOutProbesThatNeverAnswer(t *testing.T) {
+	d := newProbeDialer(true) // never released: every dial waits for its context
+	p := &StatusProber{Dialer: d.dialer(), Timeout: 50 * time.Millisecond}
+	entries := probeEntries(3)
+	started := time.Now()
+	statuses := p.Refresh(context.Background(), entries, 5*time.Second)
+	if elapsed := time.Since(started); elapsed < 40*time.Millisecond || elapsed > 2*time.Second {
+		t.Fatalf("probe run took %v, want about the 50ms probe timeout", elapsed)
+	}
+	for _, e := range entries {
+		if st := statuses[e.ID]; st.State != "offline" || st.CheckedAt == nil || st.LastOnlineAt != nil {
+			t.Fatalf("%s = %+v, want offline, checked, never online", e.ID, st)
+		}
+	}
+	if d.calls.Load() != 3 || d.current.Load() != 0 {
+		t.Fatalf("dials started %d, still running %d; want 3 and 0", d.calls.Load(), d.current.Load())
+	}
+}
+
+// Probes that connect close the connection at once, online or not afterwards.
+func TestStatusProberClosesProbeConnections(t *testing.T) {
+	d := newProbeDialer(false)
+	p := &StatusProber{Dialer: d.dialer()}
+	p.Refresh(context.Background(), probeEntries(4), 5*time.Second)
+	if d.calls.Load() != 4 || d.closed.Load() != 4 {
+		t.Fatalf("dials %d, closed connections %d; want 4 and 4", d.calls.Load(), d.closed.Load())
+	}
+}
+
+func TestStatusProberDefaultsMatchTheSpec(t *testing.T) {
+	zero := &StatusProber{}
+	if zero.timeout() != 3*time.Second || zero.concurrency() != 16 || zero.maxAge() != 10*time.Minute || zero.minInterval() != 60*time.Second {
+		t.Errorf("defaults: timeout %v, concurrency %d, max age %v, min interval %v; want 3s, 16, 10m, 60s",
+			zero.timeout(), zero.concurrency(), zero.maxAge(), zero.minInterval())
+	}
+	set := &StatusProber{Timeout: time.Second, Concurrency: 2, MaxAge: time.Minute, MinInterval: time.Hour}
+	if set.timeout() != time.Second || set.concurrency() != 2 || set.maxAge() != time.Minute || set.minInterval() != time.Hour {
+		t.Errorf("configured values ignored: timeout %v, concurrency %d, max age %v, min interval %v",
+			set.timeout(), set.concurrency(), set.maxAge(), set.minInterval())
+	}
+	negative := &StatusProber{Timeout: -1, Concurrency: -1, MaxAge: -1, MinInterval: -1}
+	if negative.timeout() != 3*time.Second || negative.concurrency() != 16 || negative.maxAge() != 10*time.Minute || negative.minInterval() != 60*time.Second {
+		t.Errorf("negative values must fall back to the defaults")
 	}
 }

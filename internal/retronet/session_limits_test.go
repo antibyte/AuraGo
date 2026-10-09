@@ -15,6 +15,8 @@ func TestManagerIdleTimeoutIgnoresServiceOutput(t *testing.T) {
 	c.waitOutput(t, "tick")
 	ticker := time.NewTicker(20 * time.Millisecond)
 	defer ticker.Stop()
+	resizes := time.NewTicker(25 * time.Millisecond)
+	defer resizes.Stop()
 	deadline := time.NewTimer(5 * time.Second)
 	defer deadline.Stop()
 	for {
@@ -27,6 +29,8 @@ func TestManagerIdleTimeoutIgnoresServiceOutput(t *testing.T) {
 			return
 		case <-ticker.C:
 			f.write([]byte(".")) // service output must not keep the session alive
+		case <-resizes.C:
+			c.resize(100, 30) // neither does a window resize: only keystrokes count as activity
 		case <-deadline.C:
 			t.Fatal("idle session did not end")
 		}
@@ -65,5 +69,41 @@ func TestManagerMaxDurationEndsSession(t *testing.T) {
 	sessExpectResult(t, c, res, CodeNoCarrier, ReasonMaxDuration)
 	if res.Duration < 200*time.Millisecond {
 		t.Fatalf("duration = %v, want >= 200ms", res.Duration)
+	}
+}
+
+// The spec limits are the defaults of a zero Manager; a positive setting overrides them and a
+// negative one falls back to the default.
+func TestManagerLimitDefaultsMatchTheSpec(t *testing.T) {
+	zero := &Manager{}
+	defaults := []struct {
+		name string
+		got  time.Duration
+		want time.Duration
+	}{
+		{"idle timeout", zero.idleTimeout(), 30 * time.Minute},
+		{"maximum duration", zero.maxDuration(), 4 * time.Hour},
+		{"host key decision", zero.hostKeyTimeout(), 60 * time.Second},
+		{"write timeout", sessionWriteTimeout, 10 * time.Second},
+		{"ssh handshake", sshHandshakeTimeout, 10 * time.Second},
+	}
+	for _, tc := range defaults {
+		if tc.got != tc.want {
+			t.Errorf("default %s = %v, want %v", tc.name, tc.got, tc.want)
+		}
+	}
+	if zero.maxSessions() != 4 {
+		t.Errorf("default session limit = %d, want 4", zero.maxSessions())
+	}
+
+	set := &Manager{IdleTimeout: 5 * time.Second, MaxDuration: 6 * time.Second, MaxSessions: 2, decisionTimeout: 7 * time.Second}
+	if set.idleTimeout() != 5*time.Second || set.maxDuration() != 6*time.Second || set.hostKeyTimeout() != 7*time.Second || set.maxSessions() != 2 {
+		t.Errorf("configured limits ignored: idle %v, max %v, decision %v, sessions %d",
+			set.idleTimeout(), set.maxDuration(), set.hostKeyTimeout(), set.maxSessions())
+	}
+	negative := &Manager{IdleTimeout: -time.Second, MaxDuration: -time.Second, MaxSessions: -1}
+	if negative.idleTimeout() != 30*time.Minute || negative.maxDuration() != 4*time.Hour || negative.maxSessions() != 4 {
+		t.Errorf("negative limits must fall back to the defaults: idle %v, max %v, sessions %d",
+			negative.idleTimeout(), negative.maxDuration(), negative.maxSessions())
 	}
 }
