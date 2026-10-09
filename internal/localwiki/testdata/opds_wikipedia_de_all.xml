@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"
+      xmlns:dc="http://purl.org/dc/terms/"
+      xmlns:opds="https://specs.opds.io/opds-1.2"
+      xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">
+  <id>08b7b7f0-7c75-2139-67d1-9b766578d9d6</id>
+
+  <link rel="self"
+        href="/catalog/v2/entries?name=wikipedia_de_all&amp;count=-1"
+        type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>
+  <link rel="start"
+        href="/catalog/v2/root.xml"
+        type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
+  <link rel="up"
+        href="/catalog/v2/root.xml"
+        type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
+
+  <title>Filtered Entries (name=wikipedia_de_all&amp;count=-1)</title>
+  <updated>2026-10-08T23:09:12Z</updated>
+  <totalResults>3</totalResults>
+  <startIndex>0</startIndex>
+  <itemsPerPage>3</itemsPerPage>
+  <entry>
+    <id>urn:uuid:f39ec21a-4527-758a-35ce-32584aba0b88</id>
+    <title>Wikipedia</title>
+    <updated>2026-01-15T00:00:00Z</updated>
+    <summary>Die freie Enzyklopädie</summary>
+    <language>deu</language>
+    <name>wikipedia_de_all</name>
+    <flavour>maxi</flavour>
+    <category>wikipedia</category>
+    <tags>wikipedia;_category:wikipedia;_pictures:yes;_videos:no;_details:yes;_ftindex:yes</tags>
+    <articleCount>5041970</articleCount>
+    <mediaCount>4671203</mediaCount>
+    <link type="text/html" href="https://browse.library.kiwix.org/content/wikipedia_de_all_maxi_2026-01" />
+    <author>
+      <name>Wikipedia</name>
+    </author>
+    <publisher>
+      <name>openZIM</name>
+    </publisher>
+    <dc:issued>2026-01-15T00:00:00Z</dc:issued>
+    <link rel="http://opds-spec.org/acquisition/open-access" type="application/x-zim" href="https://lb.download.kiwix.org/zim/wikipedia/wikipedia_de_all_maxi_2026-01.zim.meta4" length="52392226816" />
+  </entry>
+  <entry>
+    <id>urn:uuid:686a626d-a8bc-be9f-a343-d4306fcd5667</id>
+    <title>Wikipedia</title>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary>Die freie Enzyklopädie</summary>
+    <language>deu</language>
+    <name>wikipedia_de_all</name>
+    <flavour>mini</flavour>
+    <category>wikipedia</category>
+    <tags>wikipedia;_category:wikipedia;_pictures:no;_videos:no;_details:no;_ftindex:yes</tags>
+    <articleCount>5033570</articleCount>
+    <mediaCount>18017</mediaCount>
+    <link type="text/html" href="https://browse.library.kiwix.org/content/wikipedia_de_all_mini_2026-10" />
+    <author>
+      <name>Wikipedia</name>
+    </author>
+    <publisher>
+      <name>openZIM</name>
+    </publisher>
+    <dc:issued>2026-10-01T00:00:00Z</dc:issued>
+    <link rel="http://opds-spec.org/acquisition/open-access" type="application/x-zim" href="https://lb.download.kiwix.org/zim/wikipedia/wikipedia_de_all_mini_2026-10.zim.meta4" length="4686161920" />
+  </entry>
+  <entry>
+    <id>urn:uuid:0838a9b9-ab91-54b1-8287-7f124e79beda</id>
+    <title>Wikipedia</title>
+    <updated>2026-10-01T00:00:00Z</updated>
+    <summary>Die freie Enzyklopädie</summary>
+    <language>deu</language>
+    <name>wikipedia_de_all</name>
+    <flavour>nopic</flavour>
+    <category>wikipedia</category>
+    <tags>wikipedia;_category:wikipedia;_pictures:no;_videos:no;_details:yes;_ftindex:yes</tags>
+    <articleCount>5153780</articleCount>
+    <mediaCount>312666</mediaCount>
+    <link type="text/html" href="https://browse.library.kiwix.org/content/wikipedia_de_all_nopic_2026-10" />
+    <author>
+      <name>Wikipedia</name>
+    </author>
+    <publisher>
+      <name>openZIM</name>
+    </publisher>
+    <dc:issued>2026-10-01T00:00:00Z</dc:issued>
+    <link rel="http://opds-spec.org/acquisition/open-access" type="application/x-zim" href="https://lb.download.kiwix.org/zim/wikipedia/wikipedia_de_all_nopic_2026-10.zim.meta4" length="18585337856" />
+  </entry>
+</feed>

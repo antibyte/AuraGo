@@ -484,6 +484,12 @@ func Load(path string) (*Config, error) {
 	cfg.LocalLLM.IdleTimeoutMinutes = 15
 	cfg.LocalLLM.ListenPort = 18081
 
+	// Local Wikipedia is opt-in. Once enabled, the agent may use it and a daily
+	// catalog check runs unless the YAML switches either off.
+	cfg.LocalWikipedia.AgentAccess = true
+	cfg.LocalWikipedia.Variant = "nopic"
+	cfg.LocalWikipedia.UpdateCheck = true
+
 	// Space Agent defaults: disabled by default, managed Docker sidecar when enabled.
 	cfg.SpaceAgent.AutoStart = true
 	cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
@@ -1136,6 +1142,7 @@ func Load(path string) (*Config, error) {
 	if err := ValidateLocalLLMConfig(&cfg); err != nil {
 		return nil, err
 	}
+	NormalizeLocalWikipediaConfig(&cfg.LocalWikipedia)
 	cfg.MusicGeneration.Local = cfg.MusicGeneration.Local.Defaults()
 	if err := ValidateLocalMusicConfig(&cfg); err != nil {
 		return nil, err

@@ -124,6 +124,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectAIGatewayDefaults(rawCfg, s.Cfg)
 		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
 		injectGameMakerDefaults(rawCfg, s.Cfg)
+		injectLocalWikipediaDefaults(rawCfg, s.Cfg)
 		injectHereNowDefaults(rawCfg, s.Cfg)
 		injectMQTTRelayDefaults(rawCfg, s.ConfigSnapshot())
 		injectTregDefaults(rawCfg, s.Cfg)
@@ -570,6 +571,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.ValidateLocalWikipediaConfig(validateCfg.LocalWikipedia); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if workspaceErr := config.ValidateVirtualComputersAgentControl(validateCfg.VirtualComputers.AgentControl); workspaceErr != nil {
 			s.Logger.Error("[Config] Invalid Virtual Computers agent-control settings — save rejected", "error", workspaceErr)
 			jsonError(w, workspaceErr.Error(), http.StatusBadRequest)
@@ -638,6 +643,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				"status":  "error",
 				"message": go2RTCErr.Error(),
 			})
+			return
+		}
+		if wikiErr := validateLocalWikipediaSettings(s, validateCfg.LocalWikipedia, runtimeSnapshot); wikiErr != nil {
+			jsonError(w, wikiErr.Error(), http.StatusBadRequest)
 			return
 		}
 		if localEmbeddingErr := validateLocalGraniteEmbeddingMode(&validateCfg); localEmbeddingErr != nil {

@@ -472,6 +472,14 @@ local_llm:
     context_size: 16384            # Qwen: 16384/32768; Ling: 16384; Spark: 65536 (Thinking on, >=6 GB VRAM)
     idle_timeout_minutes: 15       # 1-1440
     listen_port: 18081             # native AuraGo only; loopback-bound
+# Offline Wikipedia: one Kiwix edition (up to 130 GB), downloaded only when you click Install.
+local_wikipedia:
+    enabled: false
+    agent_access: true             # lets the agent search and read the installed edition
+    language: ""                   # empty = AuraGo system language; cs, da, de, el, en, es, fr, hi, it, ja, nl, no, pl, pt, sv, zh
+    variant: nopic                 # nopic = without media, maxi = with media
+    data_dir: ""                   # empty = <directories.data_dir>/wikipedia; native installs only (fixed in Docker)
+    update_check: true             # daily catalog check; updates start only when you click Update
 home_assistant:
     access_token: ""
     enabled: false

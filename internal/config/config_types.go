@@ -400,6 +400,18 @@ func (c LocalLLMConfig) Endpoint(runningInDocker bool) string {
 	return fmt.Sprintf("http://127.0.0.1:%d/v1", port)
 }
 
+// LocalWikipediaConfig controls the offline Wikipedia integration: one Kiwix
+// ZIM edition that AuraGo downloads on request and reads natively. No field is
+// secret.
+type LocalWikipediaConfig struct {
+	Enabled     bool   `yaml:"enabled" json:"enabled"`
+	AgentAccess bool   `yaml:"agent_access" json:"agent_access"`
+	Language    string `yaml:"language" json:"language"`
+	Variant     string `yaml:"variant" json:"variant"`
+	DataDir     string `yaml:"data_dir" json:"data_dir"`
+	UpdateCheck bool   `yaml:"update_check" json:"update_check"`
+}
+
 // Go2RTCStreamSourceVaultKey returns the per-stream vault key for a go2rtc source.
 func Go2RTCStreamSourceVaultKey(streamID string) string {
 	id := strings.TrimSpace(strings.ToLower(streamID))
@@ -1841,6 +1853,7 @@ type Config struct {
 	Go2RTC         Go2RTCConfig         `yaml:"go2rtc" json:"go2rtc"`
 	RTLSDR         RTLSDRConfig         `yaml:"rtl_sdr" json:"rtl_sdr"`
 	LocalLLM       LocalLLMConfig       `yaml:"local_llm" json:"local_llm"`
+	LocalWikipedia LocalWikipediaConfig `yaml:"local_wikipedia" json:"local_wikipedia"`
 	ThreeDPrinters ThreeDPrintersConfig `yaml:"three_d_printers"`
 	Ollama         struct {
 		Enabled         bool   `yaml:"enabled"`

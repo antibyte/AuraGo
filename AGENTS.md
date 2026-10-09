@@ -276,6 +276,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Fritz!Box Desktop Widget Contract | `internal/fritzbox/AGENTS.md` |
 | Game Maker Studio Contract; Game Maker tool validation contract; Game Maker sprite library contract | `internal/gamemaker/AGENTS.md` |
 | Managed Local Model Contract | `internal/localllm/AGENTS.md` |
+| Local Wikipedia Contract | `internal/localwiki/AGENTS.md` |
 | Memory System | `internal/memory/AGENTS.md` |
 | Newspaper publication, scheduling and delivery | `internal/newspaper/AGENTS.md` |
 | MeshCore Integration Contract | `internal/meshcore/AGENTS.md` |
@@ -607,6 +608,7 @@ Current child AGENTS.md files:
 - `internal/invasion/AGENTS.md` — Egg/nest authentication, connection generations, key rotation and private deployment.
 - `internal/llm/AGENTS.md` — Provider transport trust, URL logging and failover state.
 - `internal/localllm/AGENTS.md` — Local model lifecycle, routing, attestation, and qualification.
+- `internal/localwiki/AGENTS.md` — Offline Wikipedia edition catalog, download, verification, updates and shared reader handle.
 - `internal/memory/AGENTS.md` — Memory retrieval, hygiene, indexing, and maintenance.
 - `internal/meshcore/AGENTS.md` — USB/BLE radio, trust, messaging, and agent replies.
 - `internal/mqtt/AGENTS.md` — Broker configuration, subscriptions, relays, and mission dispatch.
