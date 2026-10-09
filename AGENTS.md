@@ -632,6 +632,7 @@ Current child AGENTS.md files:
 - `internal/virtualcomputers/AGENTS.md` — Workspace lease and managed Garage storage lifecycle.
 - `internal/videostudio/AGENTS.md` — Desktop video project model, local FFmpeg processing and render limits.
 - `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
+- `internal/zim/AGENTS.md` — Read-only ZIM archive reader, cluster cache, decompression limits and test fixtures.
 - `training/needle3/AGENTS.md` — Category-routing experiments, retained manual selector, pinned Needle training/runtime, API budgets and deferred RunPod lifecycle.
 - `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
 
