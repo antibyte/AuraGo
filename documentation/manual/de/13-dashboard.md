@@ -202,7 +202,7 @@ Der Tab **System** bündelt Betrieb, Diagnose und Logs.
 
 | Karte | Inhalt | API |
 |-------|--------|-----|
-| **Betrieb & Dienste** | Missionen, Invasion-Nester, File Indexer, MQTT, Notizen, Vault, Geräte, Kontext-Summary, Cheatsheets, Tunnel | `GET /api/dashboard/overview` |
+| **Betrieb & Dienste** | Missionen, Invasion-Nester, File Indexer, MQTT, Notizen, Vault, Geräte, Kontext-Summary, Cheatsheets, Tunnel, Integrations-Badges (Lokale Wikipedia zeigt **Neue Ausgabe**, wenn ein Update bereitsteht, und führt zur Config-Seite) | `GET /api/dashboard/overview` |
 | **LLM Guardian** | Guardian-Status und Metriken (nur wenn aktiv) | `GET /api/dashboard/guardian` |
 | **Daemon Skills** | Laufende Daemon-Prozesse (wenn vorhanden) | `GET /api/daemons` |
 | **Helper LLM** | Helper-Modell-Status, Metriken, letzte Operationen | `GET /api/dashboard/helper-llm` |

@@ -71,6 +71,7 @@ Die aktuelle Version enthält mehrere leistungsstarke Erweiterungen:
 | **Lokales LLM** | Qwen, Ling, experimentelles Spark — nicht jede GPU-Runtime ist qualifiziert |
 | **Bluetooth** | BlueZ, Just-Works-Pairing, Wiedergabe nur aus dem Workspace |
 | **treg-Katalog** | `treg_catalog`, `treg_call`, `treg_status` — dynamischer API-Katalog mit expliziten Endpoint-Genehmigungen und Kostendeckel |
+| **Lokale Wikipedia** | `local_wikipedia` — eine Offline-Wikipedia-Ausgabe (Kiwix-ZIM) durchsuchen und lesen; nur lesend |
 | **desktop_notes** | Desktop-Notizen lesen, durchsuchen und neu anlegen; bestehende Notizen sind für den Agenten unveränderbar (siehe [Desktop Notes](../../desktop-notes.md)) |
 
 ---

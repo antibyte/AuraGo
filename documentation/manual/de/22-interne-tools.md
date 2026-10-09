@@ -1622,6 +1622,9 @@ Websuche über DuckDuckGo (Instant Answers und HTML-Ergebnisse).
 ### `wikipedia_search`
 Wikipedia-Artikel durchsuchen und auslesen.
 
+### `local_wikipedia`
+Die lokal installierte Wikipedia-Ausgabe durchsuchen (`search`) und Artikel abschnittsweise lesen (`read`) – Integration Lokale Wikipedia. Nur verfügbar, wenn die Integration an ist, **Agent darf die lokale Wikipedia nutzen** aktiviert ist und eine Ausgabe installiert und lesbar ist. Nur lesend; Ergebnisse gelten als externe Daten, Antworten nennen Artikel und Ausgabedatum.
+
 ### `truenas`
 TrueNAS SCALE Storage verwalten (Pools, Datasets, Shares, Snapshots).
 

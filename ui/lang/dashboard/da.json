@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "Avis er deaktiveret i Config.",
   "dashboard.newspaper_latest": "Seneste udgave",
   "dashboard.newspaper_empty": "Endnu ingen udgave. Vælg dine emner for at begynde.",
-  "dashboard.newspaper_next": "Næste måltidspunkt"
+  "dashboard.newspaper_next": "Næste måltidspunkt",
+  "dashboard.integration_local_wikipedia": "Lokal Wikipedia",
+  "dashboard.local_wikipedia_update_hint": "Ny udgave {{date}}",
+  "dashboard.local_wikipedia_update_title": "En nyere Wikipedia-udgave ({{date}}) er tilgængelig. Åbn indstillingerne for at installere den."
 }

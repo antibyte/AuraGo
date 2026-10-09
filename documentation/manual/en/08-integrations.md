@@ -17,6 +17,7 @@ From NAS boxes to radios. Every integration has a switch. The dangerous ones sta
 | Cameras and desk | [go2rtc](#go2rtc-camera-integration), [Frigate](#frigate-integration), [CYD](#cheap-yellow-display) |
 | Make and publish | [Homepage](#homepage-and-site-projects), [Game Maker](#game-maker-studio), [here.now](#herenow-integration), [Virtual Computers](#virtual-computers) |
 | Autopilot | Missions live in [Chapter 11](11-missions.md). Here: [Invasion](#invasion-control-integration), [Heartbeat](#heartbeat-system), [Webhooks](#webhooks) |
+| Knowledge offline | [Local Wikipedia](#local-wikipedia) |
 
 ## Setting Up Integrations via the Web UI
 
@@ -2925,6 +2926,33 @@ evomap:
 ```
 
 The API key and node secret are Vault-only (`evomap_api_key` and `evomap_node_secret`). The current MVP prepares publish, report, and bounty operations but denies them unless a later implementation explicitly enables them.
+
+## Local Wikipedia
+
+One complete Wikipedia edition on your AuraGo host, readable offline by the agent and in the **Wikipedia** desktop app. AuraGo downloads a Kiwix ZIM file and reads it and its search index in pure Go: no container, no sidecar, no kiwix-serve.
+
+### Web UI Setup
+
+1. Open **Config** and select **Local Wikipedia** in the **Agent Tools** group (or search the sidebar for it).
+2. Turn on **Enable Local Wikipedia**, choose the **Language** (default: system language) and the **Variant** (**Without media** or **With media**), and click **Save**.
+3. Check the edition box (date, exact size, articles, free space), click **Install** and confirm. The download runs in the background; you can close the page.
+4. After the checksum and archive checks the status turns **Ready**. The agent tool `local_wikipedia` and the desktop app are now available.
+
+Sizes range from about 0.9 GB (Hindi, without media) to 127 GB (English, with media); German without media is 18.6 GB. AuraGo refuses to start when the free space is below the remaining size plus a margin (at least 1 GiB) and pauses before the disk fills up. **Cancel download** keeps the partial download for **Resume**; after a restart an unfinished download waits for **Resume**. A failed install or update never takes a working edition away. A daily catalog check shows a hint on the config page, as **New edition** on the dashboard badge and in the app; updates install only on click.
+
+### YAML Reference
+
+```yaml
+local_wikipedia:
+    enabled: false
+    agent_access: true
+    language: ""        # empty = AuraGo system language
+    variant: nopic      # nopic (without media) | maxi (with media)
+    data_dir: ""        # empty = <data_dir>/wikipedia; fixed in Docker
+    update_check: true
+```
+
+Sizes per language, directory rules for systemd and Docker, error codes, network hosts and licenses are in [Local Wikipedia](../../local-wikipedia.md). Key reference: [Chapter 7](07-configuration.md#local-wikipedia).
 
 ## Testing Integrations
 

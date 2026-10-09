@@ -608,7 +608,7 @@ Current child AGENTS.md files:
 - `internal/invasion/AGENTS.md` — Egg/nest authentication, connection generations, key rotation and private deployment.
 - `internal/llm/AGENTS.md` — Provider transport trust, URL logging and failover state.
 - `internal/localllm/AGENTS.md` — Local model lifecycle, routing, attestation, and qualification.
-- `internal/localwiki/AGENTS.md` — Offline Wikipedia edition catalog, download, verification, updates and shared reader handle.
+- `internal/localwiki/AGENTS.md` — Offline Wikipedia: edition download/verify/swap, search, tool and content serving (readers: `internal/zim`, `internal/zim/xapian`).
 - `internal/memory/AGENTS.md` — Memory retrieval, hygiene, indexing, and maintenance.
 - `internal/meshcore/AGENTS.md` — USB/BLE radio, trust, messaging, and agent replies.
 - `internal/mqtt/AGENTS.md` — Broker configuration, subscriptions, relays, and mission dispatch.

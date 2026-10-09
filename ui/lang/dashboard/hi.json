@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "कॉन्फ़िग में समाचार पत्र अक्षम है।",
   "dashboard.newspaper_latest": "नवीनतम संस्करण",
   "dashboard.newspaper_empty": "अभी तक कोई संस्करण नहीं। आरंभ करने के लिए अपने विषय चुनें.",
-  "dashboard.newspaper_next": "अगला लक्ष्य समय"
+  "dashboard.newspaper_next": "अगला लक्ष्य समय",
+  "dashboard.integration_local_wikipedia": "स्थानीय विकिपीडिया",
+  "dashboard.local_wikipedia_update_hint": "नया संस्करण {{date}}",
+  "dashboard.local_wikipedia_update_title": "विकिपीडिया का नया संस्करण ({{date}}) उपलब्ध है। इसे इंस्टॉल करने के लिए सेटिंग्स खोलें।"
 }

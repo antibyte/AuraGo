@@ -202,7 +202,7 @@ The **System** tab covers operations, diagnostics, and logs.
 
 | Card | What it shows | API |
 |------|---------------|-----|
-| **Operations & Services** | Missions, invasion nests, file indexer, MQTT, notes, vault, devices, context summary, cheatsheets, tunnel | `GET /api/dashboard/overview` |
+| **Operations & Services** | Missions, invasion nests, file indexer, MQTT, notes, vault, devices, context summary, cheatsheets, tunnel, integration badges (Local Wikipedia shows **New edition** when an update is available and links to its config section) | `GET /api/dashboard/overview` |
 | **LLM Guardian** | Security guardian status and metrics (visible only when enabled) | `GET /api/dashboard/guardian` |
 | **Daemon Skills** | Running daemon processes (visible when daemons exist) | `GET /api/daemons` |
 | **Helper LLM** | Helper model status, metrics, and recent operations | `GET /api/dashboard/helper-llm` |

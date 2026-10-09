@@ -2677,6 +2677,7 @@
                 evomap: dashIcon('globe'),
                 google_workspace: dashIcon('email'), netlify: dashIcon('rocket'), here_now: dashIcon('rocket'),
                 treg: dashIcon('globe'),
+                local_wikipedia: dashIcon('book'),
                 homepage: dashIcon('home'), virustotal: dashIcon('virus'), brave_search: dashIcon('search'),
                 firewall: dashIcon('firewall'), remote_control: dashIcon('device'), web_scraper: dashIcon('spider'),
                 skill_manager: dashIcon('puzzle')
@@ -2712,6 +2713,7 @@
                 google_workspace: t('dashboard.integration_google_workspace'),
                 netlify: t('dashboard.integration_netlify'), here_now: t('dashboard.integration_here_now'),
                 treg: 'treg',
+                local_wikipedia: t('dashboard.integration_local_wikipedia'),
                 homepage: t('dashboard.integration_homepage'), virustotal: t('dashboard.integration_virustotal'),
                 brave_search: t('dashboard.integration_brave_search'), firewall: t('dashboard.integration_firewall'),
                 remote_control: t('dashboard.integration_remote_control'),
@@ -2729,6 +2731,15 @@
                 if (key === 'mqtt' && active && overview.mqtt && overview.mqtt.connected === false) cls = 'active-warning';
                 const content = `${icons[key] || '•'} ${esc(names[key] || key)}`;
                 if (key === 'go2rtc') return `<a class="int-badge ${cls}" href="/desktop?app=network-cameras">${content}</a>`;
+                if (key === 'local_wikipedia') {
+                    const update = active && overview.local_wikipedia && overview.local_wikipedia.update_available;
+                    if (update) {
+                        const hint = t('dashboard.local_wikipedia_update_hint', { date: update.date });
+                        const title = t('dashboard.local_wikipedia_update_title', { date: update.date });
+                        return `<a class="int-badge active-warning" href="/config#local_wikipedia" title="${escAttr(title)}">${content} · ${esc(hint)}</a>`;
+                    }
+                    return `<a class="int-badge ${cls}" href="/config#local_wikipedia">${content}</a>`;
+                }
                 return `<span class="int-badge ${cls}">${content}</span>`;
             }).join('');
         }

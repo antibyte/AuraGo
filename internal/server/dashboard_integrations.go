@@ -66,6 +66,7 @@ func dashboardIntegrationFlags(cfg *config.Config) map[string]bool {
 		"netlify":          cfg.Netlify.Enabled,
 		"here_now":         cfg.HereNow.Enabled,
 		"treg":             cfg.Treg.Enabled,
+		"local_wikipedia":  cfg.LocalWikipedia.Enabled,
 		"homepage":         cfg.Homepage.Enabled,
 		"virustotal":       cfg.VirusTotal.Enabled,
 		"brave_search":     cfg.BraveSearch.Enabled,

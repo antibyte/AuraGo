@@ -19,7 +19,26 @@ ZIM and Xapian formats belong to `internal/zim` and `internal/zim/xapian`. `inte
 import `internal/tools` (the agent tool imports `localwiki`); the server injects the tools-side checks
 through `Deps`.
 
+Through the root routing table this contract also binds `internal/tools/local_wikipedia.go`, the `local_wikipedia` server handlers (admin `/api/local-wikipedia/`, desktop `/api/desktop/local-wikipedia/`), the dashboard badge and `scripts/localwiki/`. The readers keep their own contracts: `internal/zim/AGENTS.md` (ZIM parsing limits, zero-copy blobs, fixtures) and `internal/zim/xapian/AGENTS.md`. The desktop app's UI contract is the Local Wikipedia section of `ui/js/desktop/apps/AGENTS.md`. Operator documentation: `documentation/local-wikipedia.md`.
+
 ## Local Contracts
+
+### Local Wikipedia Contract
+
+- Pure Go only: no Docker, no kiwix-serve, no CGO, no runtime downloads besides the catalog, the `.meta4` and the edition. `CGO_ENABLED=0` builds of `./internal/zim/...` and `./internal/localwiki/...` for linux/amd64, linux/arm64, linux/arm, windows/amd64 and darwin/arm64 must pass. ZIM offsets stay `int64` and reads use `ReadAt`, so 32-bit ARM works.
+- Exactly one edition at a time: the 16 AuraGo UI languages mapped to Kiwix `wikipedia_<code>_all` names (`no` maps to Kiwix `nb`), variants `nopic` and `maxi` only. Changing language or variant never starts a download; status reports `selection_matches_installed: false`.
+- Network: HTTPS only, to `opds.library.kiwix.org`, `download.kiwix.org` (including `lb.download.kiwix.org`) and the mirrors listed in the edition's `.meta4`; redirects to plain HTTP are refused. Searches, reads and content never leave the host. No secrets and no Vault keys.
+- Install, update, cancel, delete and the data directory are admin-only. Search, suggest, read, random, main and content need `desktop:read`. The agent tool is read-only and visible only when `enabled && agent_access` and an edition is open.
+- Disk: start only when `free ≥ (size − .part bytes) + max(1 GiB, 1 % of size)`; unknown free space needs `confirm_unknown_space`; re-check about every 1 GiB and pause with `insufficient_disk_space` before the disk fills. Updates keep the old edition online and need room for both unless the admin picks `delete_old_first`. Free space is read through `fileutil.FreeDiskBytes`, swappable via `Deps.FreeDiskBytes` in tests.
+- Integrity: the `.meta4` SHA-256 is computed while downloading; a resumed download re-hashes the existing `.part` first; a mismatch deletes `.part` (`checksum_mismatch`). The archive is opened (header with checksum position, main page; a missing or unsupported full-text index only disables full-text search) before it is published.
+- Publish: atomic rename through `internal/fileutil`, then `state.json`, then a refcounted reader swap: `Manager.Acquire` handles keep the old archive open until released, and the old file is deleted only after the swap.
+- No automatic resume: after a restart an unfinished download is `interrupted` and waits for an explicit Install/Resume. Updates are only checked (daily, with `update_check`) and hinted (config page, dashboard, desktop app), never installed automatically.
+- Docker: `data_dir` is forced to `<data_dir>/wikipedia` inside AuraGo's data mount. Native custom directories must be absolute, writable and not a sensitive system path (`data_dir_invalid` otherwise).
+- Reader limits (cluster size, zstd window, cache size, redirect depth, fuzzing) are owned by `internal/zim/AGENTS.md`; the manager opens archives only through `OpenLibrary` (`zim.Open`) and maps every open failure (`zim.ErrUnsupported`, `zim.ErrCorrupt`, I/O errors, a missing main page) to `zim_unreadable`. A missing or unsupported full-text index degrades to title search (`fulltext: false`, `fulltext_unsupported` warning), never to an error.
+- Search limits: at most 4 concurrent searches, 5 s timeout, queries at most 200 characters and 16 terms. Tool output: leads of at most 2,000 characters for the top 3 hits, article chunks of at most 8,000 characters; every text field passes `security.IsolateExternalData`.
+- Content serving: paths are lookup keys in the content namespace (`C`, legacy `A`), never file-system paths. Responses use `http.ServeContent` (Range), an ETag derived from the ZIM UUID and the path, `Cache-Control: private, max-age=86400` and `X-Content-Type-Options: nosniff`; HTML carries the sandbox Content-Security-Policy with `script-src 'none'` so ZIM scripts can never call AuraGo APIs.
+- GPL hygiene: libzim, Xapian and Kiwix sources (GPL) may be read to understand formats; never copy their code. python-libzim and the Xapian tools run only in throwaway containers through `scripts/localwiki/fixtures/` to generate fixtures and golden JSON from self-authored text: dev tooling, never runtime or `go test`.
+- Content license: Wikipedia text (CC BY-SA 4.0) is never embedded in the binary and an edition is never committed; the only Wikipedia text in the repository are the two trimmed rendering test pages `internal/localwiki/testdata/render_*.html`, attributed in `THIRD_PARTY_NOTICES.md`. The tool manual makes the agent cite article and edition date.
 
 ### Languages, editions and configuration
 
@@ -266,6 +285,10 @@ through `Deps`.
 
 ## Verification
 
+- `go test ./internal/zim/... ./internal/localwiki/...`, once more with `$env:GOARCH='386'` for the 32-bit offset paths, and `CGO_ENABLED=1 go test -race ./internal/zim/... ./internal/localwiki/...` on a Linux host with gcc.
+- Real-archive checks: `AURAGO_ZIM_REAL_FIXTURE=1 go test ./internal/zim/...`.
+- Tool, server and UI surfaces: `go test ./internal/tools/ ./internal/agent/ ./internal/server/ ./ui/`; desktop app browser smoke: `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test ./ui/ -run '(?i)localwikipedia' -count=1`.
+- Docs and records: `go test ./internal/audit/ -run '(?i)localwikipedia'` and `go test ./ui/ -run '(?i)LocalWikipediaConfigHelp'`.
 - `go test ./internal/localwiki ./internal/config ./cmd/config-merger`
 - `go test ./internal/server -run '(?i)(LocalWikipedia)'`, `go test ./internal/audit -run '(?i)(LocalWikipedia|RouteContract|NetworkClient)'`
   and `go test ./internal/tools -run TestIsSensitiveHostDirectory`

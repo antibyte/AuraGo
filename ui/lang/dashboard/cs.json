@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "Noviny jsou v Config zakázány.",
   "dashboard.newspaper_latest": "Nejnovější vydání",
   "dashboard.newspaper_empty": "Zatím žádné vydání. Začněte výběrem témat.",
-  "dashboard.newspaper_next": "Další cílový čas"
+  "dashboard.newspaper_next": "Další cílový čas",
+  "dashboard.integration_local_wikipedia": "Lokální Wikipedie",
+  "dashboard.local_wikipedia_update_hint": "Nové vydání {{date}}",
+  "dashboard.local_wikipedia_update_title": "Je k dispozici novější vydání Wikipedie ({{date}}). Otevři nastavení a nainstaluj ho."
 }

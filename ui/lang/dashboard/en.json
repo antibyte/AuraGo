@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "Newspaper is disabled in Config.",
   "dashboard.newspaper_latest": "Latest edition",
   "dashboard.newspaper_empty": "No edition yet. Choose your topics to begin.",
-  "dashboard.newspaper_next": "Next target time"
+  "dashboard.newspaper_next": "Next target time",
+  "dashboard.integration_local_wikipedia": "Local Wikipedia",
+  "dashboard.local_wikipedia_update_hint": "New edition {{date}}",
+  "dashboard.local_wikipedia_update_title": "A newer Wikipedia edition ({{date}}) is available. Open the settings to install it."
 }
