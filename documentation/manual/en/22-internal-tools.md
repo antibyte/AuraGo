@@ -1133,7 +1133,7 @@ Look up encyclopedic topics on Wikipedia.
 | `search_query` | string | Optional focused question for summary mode |
 
 ### `local_wikipedia`
-Search and read the locally installed Wikipedia edition (Local Wikipedia integration). Available only when the integration is on, **Agent may use Local Wikipedia** is enabled and an edition is installed and readable. Read-only; results are marked as external data, and answers should cite the article and edition date.
+Search and read the locally installed Wikipedia edition (Local Wikipedia integration). Exists only when the integration is on, **Agent may use Local Wikipedia** is enabled and an edition is installed and readable. With adaptive tool selection (the default) the agent gets it for requests that mention Wikipedia, an encyclopedia (Lexikon, Enzyklopädie) or Kiwix, and otherwise finds it through `discover_tools`; when the tool limit is reached it may take the place of `wikipedia_search` unless the message names the online Wikipedia. Read-only; article text is marked as external data, and answers should cite the article and edition date. `search` returns `title`, `path` and `snippet` per result (the first three also the `lead`); `read` returns Markdown pages of at most 8,000 characters with `sections` (at most 100; `sections_total` gives the full count) and `next_offset`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

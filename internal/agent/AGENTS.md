@@ -102,19 +102,29 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   memory) unless discover_tools requested them. An encyclopedia intent offers
   local_wikipedia as an additive tool: added last, only while
   `max_total_tools` and the schema token cap leave room, and never counted
-  against the adaptive cap. When a cap leaves no room it may take the place of
+  against the adaptive cap. A kept or named tool wins over these rules: an
+  always-included or session-kept local_wikipedia stays a soft tool, one
+  requested via discover_tools (`PinnedTools`) is ranked like any requested
+  tool. When a cap leaves no room it may take the place of
   `wikipedia_search` (same position, net count 0), but only if
-  wikipedia_search was picked by the ranking (not hard, always-included or
-  requested via discover_tools) and the swap keeps the schema token cap;
-  otherwise it is skipped and stays discoverable, like a swapped-out
-  wikipedia_search. The refresh puts a swapped-out tool back before ranking,
-  so it decides the swap on the same candidates. Semantic manual searches
+  wikipedia_search was picked by the ranking (not hard, always-included,
+  requested via discover_tools or, in the refresh, kept from the session),
+  the user message does not name it (`wikipedia_search`, "online wikipedia",
+  "wikipedia.org"; `adaptiveSwapsForQuery`) and the swap keeps the schema
+  token cap; otherwise it is skipped and stays discoverable, like a
+  swapped-out wikipedia_search. The refresh puts a swapped-out tool back
+  before ranking, so it decides the swap on the same candidates. Semantic
+  manual searches
   drop an unusable non-displacing manual before the top-k cut, and the
   local_wikipedia discover aliases only add an exact-name bonus for the
   enabled tool. Verify TestLocalWikipediaOnlyAddsToTheAdaptiveSelection
   (tool off identical, tool on only additions or the swap),
-  TestAdditiveToolTakesOnlyItsRankedSwapPartnersPlace and
-  TestLocalWikipediaManualTakesNoSemanticSlot.
+  TestAdditiveToolTakesOnlyItsRankedSwapPartnersPlace,
+  TestKeptLocalWikipediaStaysOnEncyclopediaQuestions,
+  TestSwapKeepsNamedOrSessionKeptWikipediaSearch and
+  TestLocalWikipediaManualTakesNoSemanticSlot. A disabled local_wikipedia
+  catalog entry can still rank in discover_tools searches; disabled entries
+  are listed by design and there is no per-tool demotion.
 
 - Composio service manuals resolve exact selected service IDs, unique names and
   registered aliases through the enabled, in-scope composio_call manual binding.

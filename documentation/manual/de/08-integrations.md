@@ -2557,10 +2557,10 @@ Eine komplette Wikipedia-Ausgabe auf Deinem AuraGo-Host – offline lesbar für 
 
 1. Öffne **Config** und wähle **Lokale Wikipedia** in der Gruppe **Agent-Tools** (oder suche in der Sidebar danach).
 2. Schalte **Lokale Wikipedia aktivieren** ein, wähle die **Sprache** (Standard: Systemsprache) und die **Variante** (**Ohne Medien** oder **Mit Medien**) und klicke auf **Speichern**.
-3. Prüfe die Infobox (Ausgabedatum, exakte Größe, Artikelzahl, freier Speicher), klicke auf **Installieren** und bestätige. Der Download läuft im Hintergrund; Du kannst die Seite schließen.
+3. Prüfe die Infobox (Ausgabedatum, Größe, Artikelzahl, freier Speicher), klicke auf **Installieren** und bestätige. Der Download läuft im Hintergrund; Du kannst die Seite schließen.
 4. Nach Prüfsumme und Archivprüfung steht der Status auf **Bereit**. Das Agenten-Tool `local_wikipedia` und die Desktop-App sind dann verfügbar.
 
-Die Größen reichen von etwa 0,9 GB (Hindi ohne Medien) bis 127 GB (Englisch mit Medien); Deutsch ohne Medien hat 18,6 GB. AuraGo startet den Download nicht, wenn der freie Speicher unter Restgröße plus Reserve (mindestens 1 GiB) liegt, und pausiert, bevor die Platte vollläuft. **Download abbrechen** behält den Teil-Download für **Fortsetzen**; nach einem Neustart wartet ein unfertiger Download auf **Fortsetzen**. Eine fehlgeschlagene Installation oder ein fehlgeschlagenes Update nimmt Dir nie eine funktionierende Ausgabe weg. Eine tägliche Katalogprüfung zeigt einen Hinweis auf der Config-Seite, im Dashboard (**Neue Ausgabe**) und in der App; Updates installierst Du nur per Klick.
+Die Größen reichen von etwa 0,9 GB (Hindi ohne Medien) bis 127 GB (Englisch mit Medien); Deutsch ohne Medien hat 18,6 GB. AuraGo startet den Download nicht, wenn der freie Speicher unter Restgröße plus Reserve (mindestens 1 GiB) liegt, und pausiert, bevor die Platte vollläuft. **Download abbrechen** behält den Teil-Download für **Fortsetzen**; nach einem Neustart wartet ein unfertiger Download auf **Fortsetzen**. Eine fehlgeschlagene Installation oder ein fehlgeschlagenes Update nimmt Dir nie eine funktionierende Ausgabe weg, außer Du lässt AuraGo die alte Ausgabe vorher löschen. Eine tägliche Katalogprüfung zeigt einen Hinweis auf der Config-Seite, im Dashboard (**Neue Ausgabe**) und in der App; Updates installierst Du nur per Klick.
 
 ### YAML-Referenz
 

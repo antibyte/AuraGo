@@ -2935,10 +2935,10 @@ One complete Wikipedia edition on your AuraGo host, readable offline by the agen
 
 1. Open **Config** and select **Local Wikipedia** in the **Agent Tools** group (or search the sidebar for it).
 2. Turn on **Enable Local Wikipedia**, choose the **Language** (default: system language) and the **Variant** (**Without media** or **With media**), and click **Save**.
-3. Check the edition box (date, exact size, articles, free space), click **Install** and confirm. The download runs in the background; you can close the page.
+3. Check the edition box (date, size, articles, free space), click **Install** and confirm. The download runs in the background; you can close the page.
 4. After the checksum and archive checks the status turns **Ready**. The agent tool `local_wikipedia` and the desktop app are now available.
 
-Sizes range from about 0.9 GB (Hindi, without media) to 127 GB (English, with media); German without media is 18.6 GB. AuraGo refuses to start when the free space is below the remaining size plus a margin (at least 1 GiB) and pauses before the disk fills up. **Cancel download** keeps the partial download for **Resume**; after a restart an unfinished download waits for **Resume**. A failed install or update never takes a working edition away. A daily catalog check shows a hint on the config page, as **New edition** on the dashboard badge and in the app; updates install only on click.
+Sizes range from about 0.9 GB (Hindi, without media) to 127 GB (English, with media); German without media is 18.6 GB. AuraGo does not start the download when the free space is below the remaining size plus a margin (at least 1 GiB) and pauses before the disk fills up. **Cancel download** keeps the partial download for **Resume**; after a restart an unfinished download waits for **Resume**. A failed install or update never takes a working edition away, unless you let AuraGo delete the old edition first. A daily catalog check shows a hint on the config page, as **New edition** on the dashboard badge and in the app; updates install only on click.
 
 ### YAML Reference
 

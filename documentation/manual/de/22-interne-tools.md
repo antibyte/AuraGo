@@ -1623,7 +1623,17 @@ Websuche über DuckDuckGo (Instant Answers und HTML-Ergebnisse).
 Wikipedia-Artikel durchsuchen und auslesen.
 
 ### `local_wikipedia`
-Die lokal installierte Wikipedia-Ausgabe durchsuchen (`search`) und Artikel abschnittsweise lesen (`read`) – Integration Lokale Wikipedia. Nur verfügbar, wenn die Integration an ist, **Agent darf die lokale Wikipedia nutzen** aktiviert ist und eine Ausgabe installiert und lesbar ist. Nur lesend; Ergebnisse gelten als externe Daten, Antworten nennen Artikel und Ausgabedatum.
+Die lokal installierte Wikipedia-Ausgabe durchsuchen (`search`) und Artikel abschnittsweise lesen (`read`) – Integration Lokale Wikipedia. Nur vorhanden, wenn die Integration an ist, **Agent darf die lokale Wikipedia nutzen** aktiviert ist und eine Ausgabe installiert und lesbar ist. Mit adaptiver Tool-Auswahl (Standard) bekommt der Agent das Tool bei Anfragen, die Wikipedia, ein Lexikon (Enzyklopädie) oder Kiwix erwähnen, und findet es sonst über `discover_tools`; ist das Tool-Limit erreicht, kann es den Platz von `wikipedia_search` einnehmen, außer die Nachricht nennt die Online-Wikipedia ausdrücklich. Nur lesend; Artikeltext gilt als externe Daten, Antworten nennen Artikel und Ausgabedatum. `search` liefert je Treffer `title`, `path` und `snippet` (die ersten drei auch den `lead`); `read` liefert Markdown-Seiten mit höchstens 8.000 Zeichen samt `sections` (höchstens 100; `sections_total` nennt die Gesamtzahl) und `next_offset`.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | string | `search` oder `read` |
+| `query` | string | Suchbegriffe oder ein wahrscheinlicher Artikeltitel, höchstens 200 Zeichen und 16 Wörter (`search`, erforderlich) |
+| `limit` | integer | Anzahl der Treffer, 1–10 (Standard 5; `search`) |
+| `title` | string | Artikeltitel (`read`; `title` oder `path` ist erforderlich) |
+| `path` | string | Artikelpfad aus einem Suchtreffer (`read`) |
+| `section` | string | Überschrift oder Abschnittsindex (`read`, optional) |
+| `offset` | integer | Langen Artikel bei `next_offset` fortsetzen (`read`, optional) |
 
 ### `truenas`
 TrueNAS SCALE Storage verwalten (Pools, Datasets, Shares, Snapshots).
