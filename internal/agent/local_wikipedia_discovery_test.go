@@ -421,6 +421,32 @@ func TestAdditiveSwapKeepsTheSchemaTokenCap(t *testing.T) {
 	}
 }
 
+// The live acceptance: the knapsack left 147 tokens of the 6,500 schema token
+// budget (6,353 used, wikipedia_search included), and the swap to the real
+// local_wikipedia schema (358 tokens then) was skipped. With the compact
+// schema it fits that headroom.
+func TestAdditiveSwapFitsTheAcceptanceHeadroom(t *testing.T) {
+	var online openai.Tool
+	for _, s := range builtinToolSchemas(ToolFeatureFlags{}) {
+		if s.Function.Name == "wikipedia_search" {
+			online = s
+		}
+	}
+	if online.Function == nil {
+		t.Fatal("wikipedia_search schema not found")
+	}
+	schemas := []openai.Tool{online, sizedFilterSchema("a", 4000), localWikipediaSchema()}
+	opts := toolSchemaFilterOptions{
+		PreferredTools: []string{"wikipedia_search", "a"}, MaxTotalTools: 2,
+		AdditiveTools: []string{"local_wikipedia"}, AdditiveSwaps: adaptiveAdditiveSwaps,
+		MaxSchemaTokens: estimateSingleToolSchemaTokens(online) + estimateSingleToolSchemaTokens(schemas[1]) + 147,
+	}
+	result := filterToolSchemasWithReport(schemas, opts, nil)
+	if got := strings.Join(toolSchemaNames(result.Tools), ","); got != "local_wikipedia,a" {
+		t.Fatalf("selection = %s, want the swap within the acceptance headroom (report %+v)", got, result.Report)
+	}
+}
+
 func TestRestoreAdaptiveSwapPartnersPutsTheReplacedToolBack(t *testing.T) {
 	all := []openai.Tool{testFilterSchema("a"), testFilterSchema("wikipedia_search"), testFilterSchema("local_wikipedia"), testFilterSchema("b")}
 	selected := []openai.Tool{testFilterSchema("a"), testFilterSchema("local_wikipedia"), testFilterSchema("b")}

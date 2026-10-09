@@ -33,6 +33,32 @@ func TestLocalWikipediaSchemaIsGatedAndReadOnly(t *testing.T) {
 	}
 }
 
+// The live acceptance found the encyclopedia-intent swap skipped at default
+// settings: the knapsack fills the schema token budget to within a few
+// tokens, and local_wikipedia (358) was far larger than wikipedia_search
+// (181). The schema now stays close to wikipedia_search's size.
+func TestLocalWikipediaSchemaStaysCompact(t *testing.T) {
+	got := estimateSingleToolSchemaTokens(localWikipediaSchema())
+	var online int
+	for _, s := range builtinToolSchemas(ToolFeatureFlags{}) {
+		if s.Function.Name == "wikipedia_search" {
+			online = estimateSingleToolSchemaTokens(s)
+		}
+	}
+	if online == 0 {
+		t.Fatal("wikipedia_search schema not found")
+	}
+	if got > 220 || got-online > 40 {
+		t.Fatalf("local_wikipedia schema is %d tokens (wikipedia_search %d); keep it at most 220 and within 40 of wikipedia_search", got, online)
+	}
+	desc := localWikipediaSchema().Function.Description
+	for _, want := range []string{"wikipedia_search", "web search", "edition date"} {
+		if !strings.Contains(desc, want) {
+			t.Fatalf("description lost %q: %s", want, desc)
+		}
+	}
+}
+
 func TestLocalWikipediaFeatureNeedsAnOpenEdition(t *testing.T) {
 	cfg := localWikipediaTestConfig()
 	useAgentWikiSource(t, nil)

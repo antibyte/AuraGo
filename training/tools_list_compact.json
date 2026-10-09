@@ -3671,7 +3671,7 @@
   },
   {
     "name": "local_wikipedia",
-    "description": "Search and read the offline Wikipedia edition installed on this server. Prefer it over wikipedia_search and web search for encyclopedic knowledge; use web search for recent events. search: key terms or a likely article title, not a full question; the first 3 results include the article lead. read: an article by path (from search) or title, optionally one section, paged with next_offset. Cite article title and edition date.",
+    "description": "Offline Wikipedia on this server: search and read articles. Prefer it over wikipedia_search and web search for encyclopedic facts (not recent events). Cite title and edition date.",
     "required": [
       "_todo",
       "limit",

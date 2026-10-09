@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "catalog_sha256": "120ba49c31fbe7a29dc05d6b321bc427c8603483f7f9449d207519b9f2ee78fc",
+  "catalog_sha256": "ea2eb2e4f3d3b51cff26b0aacd10165c4c58123765732e4b4ed597a4662c2060",
   "sources": {
     "prompts/tools_manuals/activate_agent_skill.md": "1cd868f578936cbaaa313ffad3aeb33bcb40e6fa39d5410f578d2246e1da4620",
     "prompts/tools_manuals/address_book.md": "e293e5e4593960f04000ded38ac04eb625b194a6672372d085d8ec294aacc509",
@@ -186,7 +186,7 @@
     "prompts/tools_manuals/xml_editor.md": "70a334eb6e3cb4c798d71ab00e233e75a14bbd41c50398c7a7be4589c6b3077e",
     "prompts/tools_manuals/yaml_editor.md": "3019e5bcda6867a4a5ff6732e690daa77fabc3ab8b1444ef3c8776fce787779b",
     "prompts/tools_manuals/yepapi.md": "da38a9f36c026917a53666302aa3a9b91abec88e0bb86feda62f79b5ff574ca9",
-    "training/operation_contracts.json": "c1541ae1115e1949346eb34fe63867069f82dce9bdfab1bcea5b379c964b7ec2",
+    "training/operation_contracts.json": "cdffc4f418444d419342eea9afd42c454634355344582622f627a362b1f94577",
     "training/tool_tiers.json": "63ac9b550bbae6d29179870f702e4a3f0b3dad82982651aa0a7cf428e1a8b622"
   },
   "tools": [
@@ -40933,7 +40933,7 @@
     },
     {
       "name": "local_wikipedia",
-      "description": "Search and read the offline Wikipedia edition installed on this server. Prefer it over wikipedia_search and web search for encyclopedic knowledge; use web search for recent events. search: key terms or a likely article title, not a full question; the first 3 results include the article lead. read: an article by path (from search) or title, optionally one section, paged with next_offset. Cite article title and edition date.",
+      "description": "Offline Wikipedia on this server: search and read articles. Prefer it over wikipedia_search and web search for encyclopedic facts (not recent events). Cite title and edition date.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -40945,21 +40945,21 @@
             ]
           },
           "limit": {
-            "description": "Number of search results, 1-10; default 5. Only for search.",
+            "description": "search: 1-10, default 5",
             "type": [
               "integer",
               "null"
             ]
           },
           "offset": {
-            "description": "next_offset from the previous read page, counted in characters; default 0. Only for read.",
+            "description": "read: next_offset of the last page",
             "type": [
               "integer",
               "null"
             ]
           },
           "operation": {
-            "description": "search finds articles; read returns an article or one section as Markdown",
+            "description": "search finds articles, read returns one as Markdown",
             "enum": [
               "search",
               "read"
@@ -40967,28 +40967,28 @@
             "type": "string"
           },
           "path": {
-            "description": "Article path from a search result; preferred over title. Only for read.",
+            "description": "read: path from search",
             "type": [
               "string",
               "null"
             ]
           },
           "query": {
-            "description": "Key terms or a likely article title, at most 200 characters and 16 words. Required for search.",
+            "description": "search: key terms or a likely title",
             "type": [
               "string",
               "null"
             ]
           },
           "section": {
-            "description": "Heading text or index from sections; omit to read from the start. Only for read.",
+            "description": "read: heading or index",
             "type": [
               "string",
               "null"
             ]
           },
           "title": {
-            "description": "Article title to read when no path is known. Only for read.",
+            "description": "read: title if no path",
             "type": [
               "string",
               "null"
@@ -41015,15 +41015,15 @@
             "type": "string"
           },
           "limit": {
-            "description": "Number of search results, 1-10; default 5. Only for search.",
+            "description": "search: 1-10, default 5",
             "type": "integer"
           },
           "offset": {
-            "description": "next_offset from the previous read page, counted in characters; default 0. Only for read.",
+            "description": "read: next_offset of the last page",
             "type": "integer"
           },
           "operation": {
-            "description": "search finds articles; read returns an article or one section as Markdown",
+            "description": "search finds articles, read returns one as Markdown",
             "enum": [
               "search",
               "read"
@@ -41031,19 +41031,19 @@
             "type": "string"
           },
           "path": {
-            "description": "Article path from a search result; preferred over title. Only for read.",
+            "description": "read: path from search",
             "type": "string"
           },
           "query": {
-            "description": "Key terms or a likely article title, at most 200 characters and 16 words. Required for search.",
+            "description": "search: key terms or a likely title",
             "type": "string"
           },
           "section": {
-            "description": "Heading text or index from sections; omit to read from the start. Only for read.",
+            "description": "read: heading or index",
             "type": "string"
           },
           "title": {
-            "description": "Article title to read when no path is known. Only for read.",
+            "description": "read: title if no path",
             "type": "string"
           }
         },
@@ -41071,21 +41071,21 @@
           ]
         },
         "limit": {
-          "description": "Number of search results, 1-10; default 5. Only for search.",
+          "description": "search: 1-10, default 5",
           "type": [
             "integer",
             "null"
           ]
         },
         "offset": {
-          "description": "next_offset from the previous read page, counted in characters; default 0. Only for read.",
+          "description": "read: next_offset of the last page",
           "type": [
             "integer",
             "null"
           ]
         },
         "operation": {
-          "description": "search finds articles; read returns an article or one section as Markdown",
+          "description": "search finds articles, read returns one as Markdown",
           "enum": [
             "search",
             "read"
@@ -41093,28 +41093,28 @@
           "type": "string"
         },
         "path": {
-          "description": "Article path from a search result; preferred over title. Only for read.",
+          "description": "read: path from search",
           "type": [
             "string",
             "null"
           ]
         },
         "query": {
-          "description": "Key terms or a likely article title, at most 200 characters and 16 words. Required for search.",
+          "description": "search: key terms or a likely title",
           "type": [
             "string",
             "null"
           ]
         },
         "section": {
-          "description": "Heading text or index from sections; omit to read from the start. Only for read.",
+          "description": "read: heading or index",
           "type": [
             "string",
             "null"
           ]
         },
         "title": {
-          "description": "Article title to read when no path is known. Only for read.",
+          "description": "read: title if no path",
           "type": [
             "string",
             "null"
@@ -78985,7 +78985,7 @@
       "tools": [
         "local_wikipedia"
       ],
-      "description": "Search and read the offline Wikipedia edition installed on this server. Prefer it over wikipedia_search and web search for encyclopedic knowledge; use web search for recent events. search: key terms or a likely article title, not a full question; the first 3 results include the article lead. read: an article by path (from search) or title, optionally one section, paged with next_offset. Cite article title and edition date."
+      "description": "Offline Wikipedia on this server: search and read articles. Prefer it over wikipedia_search and web search for encyclopedic facts (not recent events). Cite title and edition date."
     },
     {
       "id": "mac_lookup",

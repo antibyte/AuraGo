@@ -33424,7 +33424,7 @@
     },
     {
       "name": "local_wikipedia",
-      "description": "Search and read the offline Wikipedia edition installed on this server. Prefer it over wikipedia_search and web search for encyclopedic knowledge; use web search for recent events. search: key terms or a likely article title, not a full question; the first 3 results include the article lead. read: an article by path (from search) or title, optionally one section, paged with next_offset. Cite article title and edition date.",
+      "description": "Offline Wikipedia on this server: search and read articles. Prefer it over wikipedia_search and web search for encyclopedic facts (not recent events). Cite title and edition date.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -33436,21 +33436,21 @@
             ]
           },
           "limit": {
-            "description": "Number of search results, 1-10; default 5. Only for search.",
+            "description": "search: 1-10, default 5",
             "type": [
               "integer",
               "null"
             ]
           },
           "offset": {
-            "description": "next_offset from the previous read page, counted in characters; default 0. Only for read.",
+            "description": "read: next_offset of the last page",
             "type": [
               "integer",
               "null"
             ]
           },
           "operation": {
-            "description": "search finds articles; read returns an article or one section as Markdown",
+            "description": "search finds articles, read returns one as Markdown",
             "enum": [
               "search",
               "read"
@@ -33458,28 +33458,28 @@
             "type": "string"
           },
           "path": {
-            "description": "Article path from a search result; preferred over title. Only for read.",
+            "description": "read: path from search",
             "type": [
               "string",
               "null"
             ]
           },
           "query": {
-            "description": "Key terms or a likely article title, at most 200 characters and 16 words. Required for search.",
+            "description": "search: key terms or a likely title",
             "type": [
               "string",
               "null"
             ]
           },
           "section": {
-            "description": "Heading text or index from sections; omit to read from the start. Only for read.",
+            "description": "read: heading or index",
             "type": [
               "string",
               "null"
             ]
           },
           "title": {
-            "description": "Article title to read when no path is known. Only for read.",
+            "description": "read: title if no path",
             "type": [
               "string",
               "null"
@@ -33506,15 +33506,15 @@
             "type": "string"
           },
           "limit": {
-            "description": "Number of search results, 1-10; default 5. Only for search.",
+            "description": "search: 1-10, default 5",
             "type": "integer"
           },
           "offset": {
-            "description": "next_offset from the previous read page, counted in characters; default 0. Only for read.",
+            "description": "read: next_offset of the last page",
             "type": "integer"
           },
           "operation": {
-            "description": "search finds articles; read returns an article or one section as Markdown",
+            "description": "search finds articles, read returns one as Markdown",
             "enum": [
               "search",
               "read"
@@ -33522,19 +33522,19 @@
             "type": "string"
           },
           "path": {
-            "description": "Article path from a search result; preferred over title. Only for read.",
+            "description": "read: path from search",
             "type": "string"
           },
           "query": {
-            "description": "Key terms or a likely article title, at most 200 characters and 16 words. Required for search.",
+            "description": "search: key terms or a likely title",
             "type": "string"
           },
           "section": {
-            "description": "Heading text or index from sections; omit to read from the start. Only for read.",
+            "description": "read: heading or index",
             "type": "string"
           },
           "title": {
-            "description": "Article title to read when no path is known. Only for read.",
+            "description": "read: title if no path",
             "type": "string"
           }
         },
@@ -33562,21 +33562,21 @@
           ]
         },
         "limit": {
-          "description": "Number of search results, 1-10; default 5. Only for search.",
+          "description": "search: 1-10, default 5",
           "type": [
             "integer",
             "null"
           ]
         },
         "offset": {
-          "description": "next_offset from the previous read page, counted in characters; default 0. Only for read.",
+          "description": "read: next_offset of the last page",
           "type": [
             "integer",
             "null"
           ]
         },
         "operation": {
-          "description": "search finds articles; read returns an article or one section as Markdown",
+          "description": "search finds articles, read returns one as Markdown",
           "enum": [
             "search",
             "read"
@@ -33584,28 +33584,28 @@
           "type": "string"
         },
         "path": {
-          "description": "Article path from a search result; preferred over title. Only for read.",
+          "description": "read: path from search",
           "type": [
             "string",
             "null"
           ]
         },
         "query": {
-          "description": "Key terms or a likely article title, at most 200 characters and 16 words. Required for search.",
+          "description": "search: key terms or a likely title",
           "type": [
             "string",
             "null"
           ]
         },
         "section": {
-          "description": "Heading text or index from sections; omit to read from the start. Only for read.",
+          "description": "read: heading or index",
           "type": [
             "string",
             "null"
           ]
         },
         "title": {
-          "description": "Article title to read when no path is known. Only for read.",
+          "description": "read: title if no path",
           "type": [
             "string",
             "null"

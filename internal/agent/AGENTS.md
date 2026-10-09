@@ -117,7 +117,11 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   "wikipedia.org"; `adaptiveSwapsForQuery`, so a negated mention such as
   "not the online Wikipedia" blocks the swap too, which is conservative) and
   the swap keeps the schema token cap; otherwise it is skipped and stays
-  discoverable, like a swapped-out wikipedia_search. The refresh puts a
+  discoverable, like a swapped-out wikipedia_search. Because the token-aware
+  knapsack fills the budget to within a few tokens, the local_wikipedia schema
+  stays compact (at most 220 estimated tokens, within 40 of wikipedia_search;
+  `TestLocalWikipediaSchemaStaysCompact`) and the manual carries the details.
+  The refresh puts a
   swapped-out tool back before ranking, so it decides the swap on the same
   candidates. Semantic manual searches
   drop an unusable non-displacing manual before the top-k cut, and the
