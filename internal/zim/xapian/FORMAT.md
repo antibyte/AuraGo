@@ -123,7 +123,9 @@ Both parsers get `removeAccents(query)`; libzim attaches an **empty** `Database`
   1. `FLAG_DEFAULT | FLAG_PARTIAL | FLAG_CJK_NGRAM`, `STEM_SOME`, AND of the words: a word becomes `Z`+stem when it starts with an Ll/Lt/Lm/Lo letter, a stemmer exists and the next character is not one of `( / \ @ < > = * [ { "`; words joined by phrase generators become an unstemmed phrase; a CJK run becomes the AND of its n-grams. If the query ends right after the last (non-CJK, non-phrase) word, that word is *partial*: `SYNONYM(the 100 most frequent terms starting with the raw word) OR SYNONYM(the word's normal term)`.
   2. The raw words (`STEM_NONE`, n-grams for CJK) as `OP_PHRASE` with window = number of terms; one term means just that term.
   3. `"0posanchor " + query` parsed the same way, as `OP_PHRASE` (title starts with the words).
-  A query without any word becomes `OP_WILDCARD(query)`. Since bigrams have no positions, phrases containing CJK bigrams never match.
+  A query without any word becomes `OP_WILDCARD(query)` (no expansion limit). Since bigrams have no positions, phrases containing CJK bigrams never match.
+
+  libzim 9.8 never calls `set_max_expansion`, so the partial word uses Xapian 1.4's QueryParser defaults: `max_partial_expansion` 100 with `WILDCARD_LIMIT_MOST_FREQUENT`, i.e. the 100 highest term frequencies among **all** terms with the prefix. In the postlist table a term's later chunks (`term 00 docid`) sort directly after its first chunk; a prefix walk skips them with one seek to `term 00 FF`.
 
 ## 11. Weighting and ordering
 

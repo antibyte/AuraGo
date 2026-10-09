@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestDatabaseGoldenPostings(t *testing.T) {
@@ -239,6 +241,74 @@ func TestPostingsSkipTo(t *testing.T) {
 	slices.Sort(dids)
 	if err != nil || total != 4 || !slices.Equal(dids, []uint32{3, 14, 25, 30}) {
 		t.Errorf("t AND v = %v (total %d), %v; want [3 14 25 30]", dids, total, err)
+	}
+}
+
+// A tree whose branch separators steer seeks too far left keeps every walk in
+// key order. Without the landing check each far skip of "dense" would walk
+// forward from its first chunk (quadratic); it must fail as ErrCorrupt, fast.
+func TestPostingSeeksRejectSeparatorsSteeringLeft(t *testing.T) {
+	const n = 300000
+	lens := make([]uint32, n)
+	var dense, rare [][2]uint32
+	for i := range lens {
+		did := uint32(i + 1)
+		lens[i] = 30
+		switch {
+		case did%2 == 1:
+			dense = append(dense, [2]uint32{did, 1})
+		case did%15000 == 0: // several dense chunks apart: every skip seeks
+			rare = append(rare, [2]uint32{did, 1})
+		}
+	}
+	terms := map[string][][2]uint32{"dense": dense, "rare": rare}
+	later := string(appendSortPreservingString(nil, "dense", false)) // prefix of dense's later chunk keys
+	crafted := synthIndex{blockSize: minBlockSize, docLens: lens, terms: terms,
+		separator: func(_ int, key string) string {
+			if strings.HasPrefix(key, later) {
+				return "dense\xff" // above every key of "dense", below "rare"
+			}
+			return key
+		}}.build(t)
+	honest := synthDB(t, minBlockSize, lens, terms)
+	if crafted.postlist.level < 2 {
+		t.Fatalf("crafted tree has %d levels; want branch levels to steer", crafted.postlist.level+1)
+	}
+	// Walking the list in order still works: nothing in the walk is out of order.
+	it, err := crafted.Postings("dense")
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	for it.Next() {
+		count++
+	}
+	if it.Err() != nil || count != len(dense) {
+		t.Fatalf("walk: %d postings, %v", count, it.Err())
+	}
+	query := []string{"rare", "dense"}
+	if hits, total, err := Search(context.Background(), honest, query, OpAnd, 0, 10); err != nil || total != 0 || hits != nil {
+		t.Fatalf("honest tree: %v, %d, %v", hits, total, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	start := time.Now()
+	_, _, err = Search(ctx, crafted, query, OpAnd, 0, 10)
+	if !errors.Is(err, ErrCorrupt) || time.Since(start) > time.Second {
+		t.Fatalf("crafted tree: %v after %v; want ErrCorrupt at once", err, time.Since(start))
+	}
+	// A single far skip fails the same way.
+	pl, err := crafted.openPostings("dense")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := pl.skipTo(n - 1); ok || !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("skipTo across the list: %v, %v; want ErrCorrupt", ok, err)
+	}
+	// DocLength seeks from the first chunk of the length list; separators
+	// there are honest, so lengths stay readable.
+	if l, err := crafted.DocLength(n); err != nil || l != 30 {
+		t.Fatalf("DocLength(%d) = %d, %v", n, l, err)
 	}
 }
 

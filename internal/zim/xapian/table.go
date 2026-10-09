@@ -70,6 +70,11 @@ type cursor struct {
 	t     *table
 	path  []cursorLevel
 	valid bool
+	// last is the most recently decoded leaf item, at lastAt in the leaf
+	// block lastIn: a step decodes the item it leaves only once.
+	last   leafItem
+	lastIn *block
+	lastAt int
 }
 
 type cursorLevel struct {
@@ -82,13 +87,25 @@ func (t *table) cursor() *cursor {
 }
 
 func (c *cursor) clone() *cursor {
-	cp := &cursor{t: c.t, valid: c.valid, path: make([]cursorLevel, len(c.path))}
+	cp := &cursor{t: c.t, valid: c.valid, path: make([]cursorLevel, len(c.path)),
+		last: c.last, lastIn: c.lastIn, lastAt: c.lastAt}
 	copy(cp.path, c.path)
 	return cp
 }
 
+// item decodes the leaf item the cursor is on (blocks are immutable, so a
+// decoded item stays valid for its block and index).
 func (c *cursor) item() (leafItem, error) {
-	return c.path[0].b.leaf(c.path[0].i)
+	at := c.path[0]
+	if at.b == c.lastIn && at.i == c.lastAt && at.b != nil {
+		return c.last, nil
+	}
+	it, err := at.b.leaf(at.i)
+	if err != nil {
+		return leafItem{}, err
+	}
+	c.last, c.lastIn, c.lastAt = it, at.b, at.i
+	return it, nil
 }
 
 // descend positions the path below level lvl on child items, leftmost when

@@ -15,13 +15,15 @@ func (d *Database) Value(did, slot uint32) (string, error) {
 // valueReader reads one slot's value stream; lookups in ascending docid order
 // reuse the decoded chunk.
 type valueReader struct {
-	db     *Database
-	slot   uint32
-	prefix []byte
-	loaded bool
-	data   []byte // undecoded rest of the chunk
-	did    uint32
-	val    []byte
+	db         *Database
+	slot       uint32
+	prefix     []byte
+	loaded     bool
+	c          *cursor // on the current chunk until checkNextChunk steps past it
+	chunkFirst uint32  // first docid of the current chunk
+	data       []byte  // undecoded rest of the chunk (may alias a cached block)
+	did        uint32
+	val        []byte
 }
 
 func (d *Database) newValueReader(slot uint32) *valueReader {
@@ -29,9 +31,15 @@ func (d *Database) newValueReader(slot uint32) *valueReader {
 	return &valueReader{db: d, slot: slot, prefix: prefix}
 }
 
-// load reads the chunk that may contain did.
-func (v *valueReader) load(did uint32) (bool, error) {
-	v.loaded = false
+// load reads the chunk that may contain did: the last chunk starting at or
+// before did. A forward load, after the reader ran off the end of its chunk,
+// passes that chunk's first docid as notBefore and so can never land earlier
+// than the chunk it just left. Seeks trust the branch separators, and a tree
+// whose separators steer them left keeps every walk in key order, so the
+// cursor cannot notice; without this check such a tree would send a reader
+// that moves forward back to the same early chunk on every lookup.
+func (v *valueReader) load(did, notBefore uint32) (bool, error) {
+	v.loaded, v.c = false, nil
 	c := v.db.postlist.cursor()
 	found, _, err := c.seekLE(valueChunkKey(v.slot, did))
 	if err != nil || !found {
@@ -44,14 +52,14 @@ func (v *valueReader) load(did uint32) (bool, error) {
 	if !bytes.HasPrefix(key, v.prefix) {
 		return false, nil
 	}
-	first, n, err := unpackSortableUint(key[len(v.prefix):])
+	first, err := v.chunkStart(key)
 	if err != nil {
 		return false, err
 	}
-	if len(v.prefix)+n != len(key) || first == 0 || first > 0xffffffff {
-		return false, corruptf("bad value chunk key")
+	if first < notBefore {
+		return false, corruptf("value slot %d: seek for docid %d landed on the chunk at %d, before the current chunk at %d", v.slot, did, first, notBefore)
 	}
-	tag, err := c.tag()
+	tag, err := c.tagView() // read in place: forward readers load chunk after chunk
 	if err != nil {
 		return false, err
 	}
@@ -59,8 +67,54 @@ func (v *valueReader) load(did uint32) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	v.did, v.val, v.data, v.loaded = uint32(first), val, rest, true
+	v.did, v.val, v.data, v.loaded = first, val, rest, true
+	v.c, v.chunkFirst = c, first
 	return true, nil
+}
+
+// chunkStart returns the first docid of the value chunk stored under key,
+// which has the reader's slot prefix.
+func (v *valueReader) chunkStart(key []byte) (uint32, error) {
+	first, n, err := unpackSortableUint(key[len(v.prefix):])
+	if err != nil {
+		return 0, err
+	}
+	if len(v.prefix)+n != len(key) || first == 0 || first > 0xffffffff {
+		return 0, corruptf("bad value chunk key")
+	}
+	return uint32(first), nil
+}
+
+// checkNextChunk is called when a freshly loaded chunk ended before did. A
+// valid tree landed on the last chunk starting at or before did, so the chunk
+// after it, if it belongs to this slot, starts past did. Anything else is a
+// seek that was steered to the wrong chunk (the lookup would answer "unset"
+// for a stored value and, repeated, walk the same chunk again each time).
+func (v *valueReader) checkNextChunk(did uint32) error {
+	c := v.c
+	v.c = nil
+	if c == nil {
+		return nil
+	}
+	ok, err := c.next()
+	if err != nil || !ok {
+		return err
+	}
+	key, err := c.key()
+	if err != nil {
+		return err
+	}
+	if !bytes.HasPrefix(key, v.prefix) {
+		return nil
+	}
+	next, err := v.chunkStart(key)
+	if err != nil {
+		return err
+	}
+	if next <= did {
+		return corruptf("value slot %d: seek for docid %d stopped at the chunk at %d, but the chunk at %d follows", v.slot, did, v.chunkFirst, next)
+	}
+	return nil
 }
 
 // step decodes the next (docid, value) pair of the chunk.
@@ -87,7 +141,7 @@ func (v *valueReader) step() (bool, error) {
 func (v *valueReader) get(did uint32) (string, error) {
 	reloaded := false
 	if !v.loaded || did < v.did {
-		if ok, err := v.load(did); err != nil || !ok {
+		if ok, err := v.load(did, 0); err != nil || !ok {
 			return "", err
 		}
 		reloaded = true
@@ -101,9 +155,10 @@ func (v *valueReader) get(did uint32) (string, error) {
 			continue
 		}
 		if reloaded {
-			return "", nil // the chunk that would hold did ends before it
+			// The chunk that would hold did ends before it.
+			return "", v.checkNextChunk(did)
 		}
-		if ok, err := v.load(did); err != nil || !ok {
+		if ok, err := v.load(did, v.chunkFirst); err != nil || !ok {
 			return "", err
 		}
 		reloaded = true

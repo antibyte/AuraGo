@@ -44,7 +44,7 @@ func TestManagerDoesNotReconcileWithoutAReadableState(t *testing.T) {
 
 	env.start()
 	status := env.manager.Status()
-	if status.ErrorCode != CodeZIMUnreadable || status.Readable {
+	if status.ErrorCode != CodeStateUnreadable || status.Readable || status.Edition != nil || status.State != StateInterrupted {
 		t.Fatalf("status with an unreadable state.json = %+v", status)
 	}
 	if !fileExists(edition) || fileExists(edition+".part") || !fileExists(filepath.Join(env.dir, downloadFileName)) {

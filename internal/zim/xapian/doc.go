@@ -22,8 +22,12 @@
 // Known, deliberate differences from libzim:
 //   - Suggest treats quotes, brackets and +/- prefixes as separators (libzim's
 //     query parser would build phrase, group and love/hate queries from them).
-//   - Suggest scans at most 10,000 prefix terms before keeping the 100 most
-//     frequent; libzim scans every term with the prefix.
+//   - Suggest reads at most 4,194,304 terms (maxPartialScan) per prefix
+//     expansion before keeping the 100 most frequent; libzim reads every term
+//     with the prefix. Real word prefixes have far fewer terms.
+//   - A query without word characters expands to the 100 most frequent terms
+//     starting with it; libzim's OP_WILDCARD takes all of them (such prefixes
+//     match only titles without word characters, a handful at most).
 //   - Phrase checks re-tokenise the stored title (value slot 0) instead of
 //     reading the position table; for libzim-built title indexes this gives
 //     the same positions.

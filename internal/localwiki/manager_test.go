@@ -43,6 +43,7 @@ func TestManagerStatusBeforeAnyInstall(t *testing.T) {
 		t.Fatalf("free/languages/error = %d %d %q", status.FreeBytes, len(status.Languages), status.ErrorCode)
 	}
 	env.freeErr.Store(true)
+	env.reprobeDisk()
 	if env.manager.Status().FreeBytes != -1 {
 		t.Fatal("unknown free space must be reported as -1")
 	}
@@ -165,6 +166,37 @@ func TestManagerReportsUnreadableInstalledEdition(t *testing.T) {
 	}
 	if _, _, ok := env.manager.Acquire(); ok {
 		t.Fatal("Acquire succeeded for an unreadable edition")
+	}
+}
+
+// An unreadable state.json is AuraGo's own file, not an edition: it has its
+// own code (zim_unreadable would tell the administrator that a download was
+// removed), no edition is reported, and Delete clears it.
+func TestManagerReportsAnUnreadableStateFile(t *testing.T) {
+	env := newTestEnv(t)
+	edition := placeEdition(t, env.dir, "de", "wikipedia_de_all_nopic_2026-09")
+	statePath := filepath.Join(env.dir, stateFileName)
+	if err := os.WriteFile(statePath, []byte("{ not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env.start()
+	status := env.manager.Status()
+	if status.State != StateError || status.ErrorCode != CodeStateUnreadable || status.Readable || status.Edition != nil ||
+		status.Recommendation != Recommendation(CodeStateUnreadable) || !strings.Contains(status.Recommendation, "state file") {
+		t.Fatalf("status with an unreadable state.json = %+v", status)
+	}
+	if _, _, ok := env.manager.Acquire(); ok {
+		t.Fatal("Acquire succeeded without a readable state")
+	}
+	if err := env.manager.Delete(); err != nil {
+		t.Fatalf("Delete = %v", err)
+	}
+	status = env.manager.Status()
+	if status.State != StateNotInstalled || status.ErrorCode != "" || fileExists(statePath) {
+		t.Fatalf("after Delete: %+v (state.json kept: %v)", status, fileExists(statePath))
+	}
+	if !fileExists(filepath.Join(env.dir, edition.FileName)) {
+		t.Fatal("Delete removed a file state.json did not name")
 	}
 }
 

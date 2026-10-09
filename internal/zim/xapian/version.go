@@ -153,10 +153,11 @@ func parseVersion(b []byte) (versionInfo, error) {
 	}
 	// Order: doccount, lastdocid-doccount, doclen lower bound, wdf upper bound,
 	// doclen upper bound - wdf upper bound, oldest changeset, total length,
-	// spelling wordfreq upper bound. Xapian reads the first five into 32-bit
-	// types; checking them first also keeps the sums below from wrapping.
-	for i, x := range st[:5] {
-		if x > 0xffffffff {
+	// spelling wordfreq upper bound. Xapian 1.4 reads every statistic except
+	// the total length into a 32-bit type and rejects the file when one does
+	// not fit; checking them first also keeps the sums below from wrapping.
+	for i, x := range st {
+		if i != 6 && x > 0xffffffff {
 			return v, corruptf("version block statistic %d out of range", i)
 		}
 	}

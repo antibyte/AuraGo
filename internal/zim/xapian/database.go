@@ -1,6 +1,7 @@
 package xapian
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -140,6 +141,12 @@ func (d *Database) TermsWithPrefix(prefix string, limit int) ([]string, error) {
 
 // walkTerms calls fn for each term with the given prefix, positioned on the
 // term's first posting chunk. fn returns false to stop.
+//
+// A term's later chunks sort right after its first one (term + 00 + docid);
+// the walk skips them with one seek to term + 00 FF, the first key above
+// them, instead of stepping through a common term's thousands of chunks.
+// Every such seek must move the cursor forward, otherwise the tree is
+// corrupt (crafted separators could otherwise make the walk loop).
 func (d *Database) walkTerms(prefix string, fn func(term string, c *cursor) (bool, error)) error {
 	start := keyFirstTerm
 	if prefix != "" {
@@ -147,25 +154,39 @@ func (d *Database) walkTerms(prefix string, fn func(term string, c *cursor) (boo
 	}
 	c := d.postlist.cursor()
 	ok, err := c.seekGE(start)
-	for ; ok && err == nil; ok, err = c.next() {
+	for ok && err == nil {
 		key, kerr := c.key()
 		if kerr != nil {
 			return kerr
 		}
 		if len(key) >= 2 && key[0] == 0 && key[1] != 0xff {
-			continue // special key; cannot follow keyFirstTerm, but be defensive
+			ok, err = c.next() // special key; cannot follow keyFirstTerm, but be defensive
+			continue
 		}
 		term, _, terminated := unpackSortPreservingString(key)
-		if terminated {
-			continue // later chunk of a posting list
-		}
 		if !strings.HasPrefix(term, prefix) {
 			return nil
+		}
+		if terminated {
+			// A later chunk: skip the rest of this term's chunks.
+			past := append(appendSortPreservingString(nil, term, true), 0x00, 0xff)
+			if ok, err = c.seekGE(past); err != nil || !ok {
+				return err
+			}
+			to, kerr := c.key()
+			if kerr != nil {
+				return kerr
+			}
+			if bytes.Compare(to, key) <= 0 {
+				return corruptf("postlist: seek past the chunks of %q went backwards", term)
+			}
+			continue
 		}
 		more, ferr := fn(term, c)
 		if ferr != nil || !more {
 			return ferr
 		}
+		ok, err = c.next()
 	}
 	return err
 }

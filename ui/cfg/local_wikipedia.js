@@ -7,10 +7,13 @@ const LOCAL_WIKI_LANGUAGES = [
 ];
 const LOCAL_WIKI_STATES = ['not_installed', 'downloading', 'verifying', 'ready', 'interrupted', 'error'];
 const LOCAL_WIKI_ERROR_CODES = ['insufficient_disk_space', 'free_space_unknown', 'checksum_mismatch', 'download_failed',
-    'catalog_unreachable', 'zim_unreadable', 'fulltext_unsupported', 'busy', 'disabled', 'data_dir_invalid',
-    'already_installed', 'no_operation', 'unknown_language'];
+    'catalog_unreachable', 'zim_unreadable', 'state_unreadable', 'fulltext_unsupported', 'busy', 'disabled', 'data_dir_invalid',
+    'already_installed', 'no_operation', 'unknown_language', 'invalid_request', 'localwiki_error', 'localwiki_unavailable'];
 // Codes of an install/update that ended without a new edition.
 const LOCAL_WIKI_OPERATION_ERRORS = ['insufficient_disk_space', 'checksum_mismatch', 'download_failed', 'zim_unreadable'];
+// The action buttons, in the order the actions row shows them. The focus returns
+// to the last one the administrator used once it is enabled again.
+const LOCAL_WIKI_FOCUS_ACTIONS = ['cancel', 'resume', 'install', 'update', 'check', 'delete'];
 const LOCAL_WIKI_MARGIN_BYTES = 1073741824;
 
 let _lwSection = null;
@@ -25,6 +28,7 @@ let _lwMessage = null;
 let _lwPollError = '';
 let _lwRuntimeHTML = '';
 let _lwAnnounced = '';
+let _lwFocusAction = '';
 
 function localWikiEnsureData() {
     if (!configData.local_wikipedia) configData.local_wikipedia = {};
@@ -50,6 +54,7 @@ function renderLocalWikipediaSection(section) {
     _lwMessage = null;
     _lwPollError = '';
     _lwAnnounced = '';
+    _lwFocusAction = '';
     _lwRuntimeHTML = localWikiRuntimeHTML();
 
     let html = '<div class="cfg-section active">';
@@ -202,8 +207,9 @@ function localWikiErrorText(code, data) {
 // sends English text only, so the wording is derived here from the status
 // fields: zim_unreadable is the installed edition (which has to be deleted) when
 // nothing is readable, otherwise the file a download just produced (removed
-// already). A failed update leaves the installed edition online, which the
-// status shows as readable together with the code of the failed operation.
+// already); state_unreadable is AuraGo's own state file. A failed update leaves
+// the installed edition online, which the status shows as readable together
+// with the code of the failed operation.
 function localWikiStatusErrorText(status) {
     const code = status.error_code;
     let text;
@@ -213,10 +219,27 @@ function localWikiStatusErrorText(status) {
     } else {
         text = localWikiErrorText(code, status);
     }
-    if (status.readable === true && LOCAL_WIKI_OPERATION_ERRORS.includes(code)) {
-        text = t('config.local_wikipedia.update_failed') + ' ' + text;
-    }
+    if (localWikiUpdateFailed(status)) text = t('config.local_wikipedia.update_failed') + ' ' + text;
     return text;
+}
+
+// A real update failed: an edition is served, the failed operation targeted its
+// language and variant (an install follows the saved selection), and it did not
+// just pause for disk space (that download is resumed, not failed).
+function localWikiUpdateFailed(status) {
+    const code = status.error_code;
+    if (status.readable !== true || !status.edition || status.selection_matches_installed !== true) return false;
+    if (!LOCAL_WIKI_OPERATION_ERRORS.includes(code)) return false;
+    return !(code === 'insufficient_disk_space' && status.state === 'interrupted');
+}
+
+// Joins the parts of an announcement into sentences, so a screen reader pauses
+// between the state ("Ready") and what follows.
+function localWikiSentences(parts) {
+    return parts.filter(Boolean).map(part => String(part).trim()).reduce((text, part) => {
+        if (!text) return part;
+        return text + (/[.!?…。！？।]$/.test(text) ? ' ' : '. ') + part;
+    }, '');
 }
 
 function localWikiStateOf(status) {
@@ -228,12 +251,13 @@ function localWikiStateOf(status) {
 function localWikiAnnouncement() {
     const status = _lwStatus;
     if (!status) return _lwPollError || t('config.local_wikipedia.loading');
-    if (status.loading === true) return t('config.local_wikipedia.loading_edition');
+    // A poll that fails during the first load is announced too.
+    if (status.loading === true) return localWikiSentences([t('config.local_wikipedia.loading_edition'), _lwPollError]);
     const parts = [t('config.local_wikipedia.state_' + localWikiStateOf(status))];
     if (_lwPollError) parts.push(_lwPollError);
     if (_lwMessage) parts.push(_lwMessage.text);
     if (status.error_code) parts.push(localWikiStatusErrorText(status));
-    return parts.join(' ');
+    return localWikiSentences(parts);
 }
 
 function localWikiAnnounce() {
@@ -338,7 +362,10 @@ function localWikiActionsHTML(status) {
         // An edition that cannot be read has nothing to check an update for;
         // deleting it (and installing again) is the way out.
         if (readable && status.selection_matches_installed !== false) buttons.push(button('check', 'check_update', false, disabled, 'localWikiCheckUpdate()'));
-        if (status.edition || status.state === 'interrupted') buttons.push(button('delete', 'delete', false, deleteDisabled, 'localWikiDelete()'));
+        // An unreadable state file names no edition, but Delete clears it.
+        if (status.edition || status.state === 'interrupted' || status.error_code === 'state_unreadable') {
+            buttons.push(button('delete', 'delete', false, deleteDisabled, 'localWikiDelete()'));
+        }
     }
     let html = '<div class="cfg-actions-row pw-action-row lw-actions">' + buttons.join('') + '</div>';
     if (blocked && !status.operation_in_progress) html += '<div class="field-help">' + escapeHtml(t('config.local_wikipedia.' + blocked)) + '</div>';
@@ -384,13 +411,16 @@ function localWikiRuntimeHTML() {
 }
 
 // Re-renders the status area only when its markup changed. Polling replaces the
-// buttons, so the focus is handed back to the button the user was on; when that
-// one is gone or disabled it moves to the first enabled action, else to the
-// state banner, instead of falling back to the page.
-function localWikiRestoreFocus(target, action, stateFocused) {
-    let next = action ? target.querySelector('[data-lw-action="' + action + '"]:not([disabled])') : null;
-    if (!next && stateFocused) next = target.querySelector('#lw-state');
-    if (!next) next = target.querySelector('[data-lw-action]:not([disabled])') || target.querySelector('#lw-state');
+// buttons, so the focus is handed back to the button the user was on. When that
+// one is gone or disabled (an action is pending) it moves to the first enabled
+// action button, else it waits on the state banner; from there it returns to
+// the last action button used once that is enabled again, or to the first
+// enabled one. It never lands on the catalog's Retry by itself.
+function localWikiRestoreFocus(target, action, parked) {
+    const enabled = name => name ? target.querySelector('[data-lw-action="' + name + '"]:not([disabled])') : null;
+    const firstAction = () => LOCAL_WIKI_FOCUS_ACTIONS.map(enabled).find(Boolean) || null;
+    let next = parked ? null : enabled(action);
+    if (!next) next = enabled(_lwFocusAction) || firstAction() || target.querySelector('#lw-state');
     if (next) next.focus();
 }
 
@@ -403,10 +433,11 @@ function localWikiUpdateRuntimeDOM() {
     const active = document.activeElement;
     const hadFocus = Boolean(active) && target.contains(active);
     const action = hadFocus && active.dataset ? active.dataset.lwAction || '' : '';
-    const stateFocused = hadFocus && active.id === 'lw-state';
+    const parked = hadFocus && active.id === 'lw-state';
+    if (LOCAL_WIKI_FOCUS_ACTIONS.includes(action)) _lwFocusAction = action;
     target.innerHTML = html;
     _lwRuntimeHTML = html;
-    if (hadFocus) localWikiRestoreFocus(target, action, stateFocused);
+    if (hadFocus) localWikiRestoreFocus(target, action, parked);
 }
 
 function localWikiSchedulePolling() {

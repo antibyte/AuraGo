@@ -80,8 +80,8 @@ func (e *testEnv) settings() Settings {
 	return Settings{Enabled: true, AgentAccess: true, Language: "de", SystemLanguage: "de", Variant: VariantNoPic, DataDir: e.dir, UpdateCheck: true}
 }
 
-// start starts the manager and waits for its first load, which runs in the
-// background loop.
+// start starts the manager and waits for its first load and its first
+// free-space measurement, which run in the background.
 func (e *testEnv) start() {
 	e.t.Helper()
 	e.manager.Start(context.Background())
@@ -90,6 +90,36 @@ func (e *testEnv) start() {
 	case <-time.After(15 * time.Second):
 		e.t.Fatal("the first load after Start did not finish")
 	}
+	e.waitDiskProbe(0)
+}
+
+// waitDiskProbe waits until a free-space measurement newer than after was
+// recorded and returns its sequence number.
+func (e *testEnv) waitDiskProbe(after uint64) uint64 {
+	e.t.Helper()
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		e.manager.mu.Lock()
+		seq := e.manager.disk.seq
+		e.manager.mu.Unlock()
+		if seq > after {
+			return seq
+		}
+		if time.Now().After(deadline) {
+			e.t.Fatal("no free-space measurement was recorded")
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+// reprobeDisk measures the free space again and waits for the result.
+func (e *testEnv) reprobeDisk() {
+	e.t.Helper()
+	e.manager.mu.Lock()
+	before := e.manager.disk.seq
+	e.manager.mu.Unlock()
+	e.manager.signalProbe()
+	e.waitDiskProbe(before)
 }
 
 // waitFor polls the status until cond holds (15 s deadline).

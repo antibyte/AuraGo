@@ -155,6 +155,43 @@ const SERVER_ENGLISH = 'Server recommendation that must never be shown.';
   assert.ok(!ctx.html().includes(bundle['config.local_wikipedia.update_failed']));
   ctx.setStatus({ ...ready, error_code: 'checksum_mismatch' });
   assert.ok(ctx.html().includes(bundle['config.local_wikipedia.update_failed'] + ' ' + bundle['config.local_wikipedia.error_checksum_mismatch']));
+
+  // Only a real update failed: not an install of another selection next to the
+  // served edition, and not a download paused for disk space.
+  ctx.setStatus({ ...ready, selection_matches_installed: false, selection: { language: 'fr', variant: 'nopic' }, error_code: 'checksum_mismatch' });
+  html = ctx.html();
+  assert.ok(html.includes(bundle['config.local_wikipedia.error_checksum_mismatch']));
+  assert.ok(!html.includes(bundle['config.local_wikipedia.update_failed']), 'an install of another selection is no update');
+  ctx.setStatus({ ...ready, state: 'interrupted', error_code: 'insufficient_disk_space', required_bytes: 20e9, free_bytes: 5e9 });
+  assert.ok(!ctx.html().includes(bundle['config.local_wikipedia.update_failed']), 'a paused download did not fail');
+}
+
+// An unreadable state file is AuraGo's own file: its own wording, no "update
+// failed", and Install and Delete are offered.
+{
+  const ctx = makeContext();
+  ctx.setStatus({ state: 'error', readable: false, selection_matches_installed: false, error_code: 'state_unreadable', recommendation: SERVER_ENGLISH,
+    selection: { language: 'de', variant: 'nopic' }, free_bytes: 5e9, data_dir: '/d' });
+  let html = ctx.html();
+  assert.ok(html.includes(bundle['config.local_wikipedia.error_state_unreadable']));
+  assert.ok(!html.includes(bundle['config.local_wikipedia.error_download_unreadable']));
+  assert.ok(!html.includes(bundle['config.local_wikipedia.error_zim_unreadable']));
+  assert.ok(!html.includes(bundle['config.local_wikipedia.update_failed']));
+  assert.ok(!html.includes(SERVER_ENGLISH));
+  assert.ok(html.includes('data-lw-action="install"') && html.includes('data-lw-action="delete"'));
+  // With a download.json next to it the state is interrupted.
+  ctx.setStatus({ state: 'interrupted', readable: false, selection_matches_installed: false, error_code: 'state_unreadable' });
+  html = ctx.html();
+  assert.ok(html.includes(bundle['config.local_wikipedia.error_state_unreadable']));
+  assert.ok(html.includes('data-lw-action="resume"') && html.includes('data-lw-action="delete"'));
+}
+
+// Codes without their own advice point to the AuraGo log, in the UI's language.
+for (const code of ['localwiki_error', 'localwiki_unavailable', 'invalid_request']) {
+  const ctx = makeContext();
+  const text = ctx.run('localWikiErrorText(' + JSON.stringify(code) + ', {})');
+  assert.equal(text, bundle['config.local_wikipedia.error_' + code], code);
+  assert.ok(text.includes('AuraGo log'), code);
 }
 
 // loading: neither the not-installed nor the busy view; polling goes on.
@@ -173,6 +210,20 @@ const SERVER_ENGLISH = 'Server recommendation that must never be shown.';
   ctx.setStatus({ ...ready });
   ctx.run('localWikiSchedulePolling()');
   assert.equal(scheduled, 1, 'an idle status must not be polled');
+}
+
+// A poll that fails during the first load is announced, not only shown.
+{
+  const ctx = makeContext();
+  ctx.setStatus({ state: 'not_installed', readable: false, loading: true, error_code: 'busy', selection_matches_installed: false });
+  ctx.run('localWikiUpdateRuntimeDOM()');
+  assert.equal(ctx.announce.text, bundle['config.local_wikipedia.loading_edition']);
+  ctx.state.responses.push(() => { throw new Error('network down'); });
+  await ctx.run('localWikiRefreshStatus()');
+  // "…" already ends the first sentence, so only a space follows it.
+  assert.equal(ctx.announce.text, bundle['config.local_wikipedia.loading_edition'] + ' ' + ctx.run('_lwPollError'));
+  assert.ok(ctx.announce.text.includes('network down'));
+  assert.ok(ctx.runtime.innerHTML.includes('network down'));
 }
 
 // A failed poll is kept apart from the action messages and cleared by the next success.
@@ -239,6 +290,33 @@ const SERVER_ENGLISH = 'Server recommendation that must never be shown.';
   assert.equal(ctx.document.activeElement, outside);
 }
 
+// The focus waits on the state banner while an action is pending (never on the
+// catalog's Retry) and returns to the button used once it is enabled again.
+{
+  const ctx = makeContext();
+  ctx.setStatus({ state: 'not_installed', readable: false, selection_matches_installed: false, free_bytes: 1e9 });
+  ctx.run('localWikiUpdateRuntimeDOM()');
+  ctx.runtime.nodes.find(node => node.dataset.lwAction === 'install').focus();
+  ctx.state.dirty = true;
+  ctx.run('localWikiUpdateRuntimeDOM()');
+  assert.equal(ctx.document.activeElement.kind, 'state');
+  ctx.state.dirty = false;
+  ctx.run('localWikiUpdateRuntimeDOM()');
+  assert.equal(ctx.document.activeElement.dataset.lwAction, 'install', 'the focus returns to the re-enabled button');
+
+  ctx.setStatus({ ...ready });
+  ctx.run("_lwCatalogError = 'catalog_unreachable'");
+  ctx.run('localWikiUpdateRuntimeDOM()');
+  assert.ok(ctx.runtime.nodes.some(node => node.dataset.lwAction === 'retry' && !node.disabled));
+  ctx.runtime.nodes.find(node => node.dataset.lwAction === 'check').focus();
+  ctx.run('_lwActionPending = true');
+  ctx.run('localWikiUpdateRuntimeDOM()');
+  assert.equal(ctx.document.activeElement.kind, 'state', 'a pending action parks the focus on the state, not on Retry');
+  ctx.run('_lwActionPending = false');
+  ctx.run('localWikiUpdateRuntimeDOM()');
+  assert.equal(ctx.document.activeElement.dataset.lwAction, 'check', 'the focus returns to the button used');
+}
+
 // One persistent live region: it announces changes once, never progress, and no banner is a live region.
 {
   const ctx = makeContext();
@@ -257,6 +335,9 @@ const SERVER_ENGLISH = 'Server recommendation that must never be shown.';
   ctx.setStatus({ ...ready, error_code: 'download_failed' });
   ctx.run('localWikiUpdateRuntimeDOM()');
   assert.ok(ctx.announce.text.includes(bundle['config.local_wikipedia.error_download_failed']));
+  // The parts are sentences: the state is followed by '. ', not run into the error.
+  assert.ok(ctx.announce.text.startsWith(bundle['config.local_wikipedia.state_ready'] + '. ' + bundle['config.local_wikipedia.update_failed']),
+    ctx.announce.text);
   assert.ok(!/role="(alert|status)"|aria-live/.test(ctx.runtime.innerHTML), 'the status area holds no live region');
 }
 

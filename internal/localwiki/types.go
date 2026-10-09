@@ -37,11 +37,12 @@ type Edition struct {
 type Deps struct {
 	Logger         *slog.Logger
 	HTTPClient     *http.Client                // nil → default with timeouts, HTTPS-only redirects
-	FreeDiskBytes  func(string) (int64, error) // nil → fileutil.FreeDiskBytes
+	FreeDiskBytes  func(string) (int64, error) // nil → fileutil.FreeDiskBytes; called by Install and the background probe, never by Status
 	Now            func() time.Time            // nil → time.Now
 	CatalogBaseURL string                      // "" → https://opds.library.kiwix.org
 	// IsSensitivePath refuses storage directories AuraGo must never write to.
-	// nil accepts every absolute directory.
+	// nil accepts every absolute directory. It must be lexical (no file
+	// system access): Status calls it on every request.
 	IsSensitivePath func(string) bool
 }
 
@@ -115,6 +116,7 @@ const (
 	CodeDownloadFailed        = "download_failed"
 	CodeCatalogUnreachable    = "catalog_unreachable"
 	CodeZIMUnreadable         = "zim_unreadable"
+	CodeStateUnreadable       = "state_unreadable" // status only: state.json exists but cannot be read
 	CodeFulltextUnsupported   = "fulltext_unsupported"
 	CodeBusy                  = "busy"
 	CodeDisabled              = "disabled"
@@ -178,6 +180,8 @@ func Recommendation(code string) string {
 		return "Check the internet connection and retry. The installed edition keeps working."
 	case CodeZIMUnreadable:
 		return "Delete the edition and install it again."
+	case CodeStateUnreadable:
+		return "The Local Wikipedia state file could not be read. Install the edition again or delete it."
 	case CodeFulltextUnsupported:
 		return "Search uses article titles only for this edition."
 	case CodeBusy:
@@ -230,9 +234,12 @@ type Status struct {
 	Readable bool `json:"readable"`
 	// Loading is true from Start until the background loop has loaded the
 	// storage directory for the first time (normally a fraction of a second;
-	// longer on a slow or hung network share). Meanwhile the state is
-	// not_installed, readable is false, error_code is busy, and Install and
-	// Delete refuse with busy; clients poll the status until it is false.
+	// longer on a slow or hung network share), and while a changed storage
+	// directory is being loaded. Meanwhile error_code is busy and Install and
+	// Delete refuse with busy; clients poll the status until it is false. On
+	// the first load the state is not_installed and readable is false; while
+	// a changed directory loads, state, edition and readable still describe
+	// the previous directory's edition, which stays served.
 	Loading             bool           `json:"loading"`
 	FreeBytes           int64          `json:"free_bytes"`
 	RequiredBytes       int64          `json:"required_bytes"`

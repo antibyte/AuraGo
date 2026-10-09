@@ -56,11 +56,15 @@ func newLocalWikipediaTestServerWithDisk(t *testing.T, enabled bool, freeDisk fu
 		defer cancel()
 		_ = manager.Shutdown(ctx)
 	})
-	// The first load runs in the manager's background loop.
+	// The first load and the free-space measurement run in the background.
+	wantFree := int64(-1)
+	if free, err := freeDisk(cfg.Directories.DataDir); err == nil {
+		wantFree = free
+	}
 	deadline := time.Now().Add(10 * time.Second)
-	for manager.Status().Loading {
+	for status := manager.Status(); status.Loading || status.FreeBytes != wantFree; status = manager.Status() {
 		if time.Now().After(deadline) {
-			t.Fatal("the manager did not finish its first load")
+			t.Fatalf("the manager did not finish its first load and measurement: %+v", status)
 		}
 		time.Sleep(5 * time.Millisecond)
 	}

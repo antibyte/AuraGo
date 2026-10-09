@@ -79,6 +79,7 @@ func TestConfigLocalWikipediaTranslationsCoverAllLocales(t *testing.T) {
 		"error_data_dir_invalid", "error_already_installed", "error_no_operation", "error_unknown_language", "error_unknown",
 		"variant_nopic", "variant_maxi", "enabled", "agent_access", "language", "variant", "update_check", "data_dir",
 		"error_download_unreadable", "update_failed", "loading_edition", "unreadable",
+		"error_state_unreadable", "error_localwiki_error", "error_localwiki_unavailable", "error_invalid_request",
 	} {
 		if _, ok := english["config.local_wikipedia."+suffix]; !ok {
 			t.Fatalf("English bundle lacks the dynamic key config.local_wikipedia.%s", suffix)
@@ -187,7 +188,10 @@ func TestConfigLocalWikipediaTranslationsKeepLocaleConventions(t *testing.T) {
 		t.Fatal("Chinese Local Wikipedia strings must use 代理 for the agent and avoid the mistranslated 放下")
 	}
 	// The button name in the selection hint is quoted.
-	for locale, quoted := range map[string]string{"fr": "« Installer »", "es": "«Instalar»"} {
+	for locale, quoted := range map[string]string{
+		"fr": "« Installer »", "es": "«Instalar»", "it": "«Installa»", "pt": "«Instalar»",
+		"da": "»Installér«", "sv": "”Installera”", "no": "«Installer»", "de": "„Installieren“",
+	} {
 		if value, _ := byLocale[locale]["config.local_wikipedia.selection_mismatch"].(string); !strings.Contains(value, quoted) {
 			t.Fatalf("%s selection_mismatch must quote the button as %s: %q", locale, quoted, value)
 		}
