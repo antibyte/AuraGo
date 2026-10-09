@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/retronet"
 )
 
 // SetSetting stores one validated desktop setting.
@@ -164,6 +166,8 @@ func validateFreeformDesktopSetting(key, value string) error {
 		return validateWallpaperBySpace(value)
 	case SerialProfilesSetting:
 		return validateSerialProfiles(value)
+	case retronet.EntriesSetting:
+		return retronet.ValidateEntriesDocument(value)
 	case "appearance.dock_pins", "files.default_apps", "session.windows":
 		if len(value) > 65536 {
 			return fmt.Errorf("invalid desktop setting value for %s", key)

@@ -5,11 +5,14 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"aurago/internal/retronet"
 )
 
 const (
-	SourceAgent = "agent"
-	SourceUser  = "user"
+	SourceAgent  = "agent"
+	SourceUser   = "user"
+	SourceSystem = "system" // server-owned updates, e.g. Retro-Net first-contact SSH host keys
 
 	AuraDesktopRuntime      = "aura-desktop-sdk@1"
 	BuiltinRuntime          = "builtin"
@@ -296,6 +299,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "phone_gadget.position_y", Default: ""},
 		{Key: "phone_gadget.always_on_top", Default: "false", Values: []string{"true", "false"}},
 		{Key: SerialProfilesSetting, Default: defaultSerialProfiles},
+		{Key: retronet.EntriesSetting, Default: retronet.DefaultEntriesDocument},
 	}
 }
 
