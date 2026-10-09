@@ -333,6 +333,8 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return dispatchNetworkShares(ctx, tc, dc)
 		case "sip_phone":
 			return dispatchSIPPhone(ctx, tc, dc)
+		case "local_wikipedia":
+			return dispatchLocalWikipedia(ctx, tc, dc)
 		case "co_agent", "co_agents":
 			req := decodeCoAgentArgs(tc)
 			if budgetTracker != nil && budgetTracker.IsBlocked("coagent") {
