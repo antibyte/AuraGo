@@ -3,6 +3,7 @@
 
     const TerminalText = window.TerminalText;
     const HISTORY_LIMIT = 50;
+    const FRAME_BYTES = 16 * 1024;
     const PASTE_MARKERS = /\x1b\[20[01]~/g;
 
     // Display width in xterm cells from the shared Unicode 6 table (emoji are one cell, as in xterm).
@@ -10,6 +11,13 @@
         let width = 0;
         for (const ch of String(text || '')) width += TerminalText.cellWidth(ch.codePointAt(0));
         return width;
+    }
+
+    // Bytes TextEncoder writes for one code point (a lone surrogate becomes U+FFFD, three bytes).
+    function utf8Length(code) {
+        if (code < 0x80) return 1;
+        if (code < 0x800) return 2;
+        return code < 0x10000 ? 3 : 4;
     }
 
     function positive(value, fallback) {
@@ -63,9 +71,24 @@
             return !closed && ws.readyState === WebSocket.OPEN;
         }
 
+        // UTF-8 frames of at most FRAME_BYTES, cut between code points: the server reads at most 64 KiB
+        // per message, so a large paste must never become one frame.
         function sendBytes(text) {
             if (!text || !isOpen()) return;
-            ws.send(encoder.encode(text));
+            let start = 0;
+            let index = 0;
+            let bytes = 0;
+            for (const ch of text) {
+                const size = utf8Length(ch.codePointAt(0));
+                if (bytes + size > FRAME_BYTES) {
+                    ws.send(encoder.encode(text.slice(start, index)));
+                    start = index;
+                    bytes = 0;
+                }
+                bytes += size;
+                index += ch.length;
+            }
+            ws.send(encoder.encode(text.slice(start)));
         }
 
         function sendControl(message) {
@@ -150,31 +173,36 @@
             const text = input.replace(PASTE_MARKERS, '');
             if (text.charCodeAt(0) === 0x1b && text.length > 1) return;
             const chars = Array.from(text);
+            let typed = '';
+            // Typed characters are echoed in one write per run, before anything else reaches the screen.
+            const flush = function () {
+                if (!typed) return;
+                echo(typed);
+                typed = '';
+            };
             for (let i = 0; i < chars.length; i += 1) {
                 const ch = chars[i];
                 const code = ch.codePointAt(0);
                 if (ch === '\n' && i > 0 && chars[i - 1] === '\r') continue;
+                if (code >= 0x20 && !(code >= 0x7f && code < 0xa0)) {
+                    line += ch;
+                    typed += ch;
+                    historyIndex = -1;
+                    continue;
+                }
+                flush();
                 if (ch === '\r' || ch === '\n') {
                     submit();
-                    continue;
-                }
-                if (code === 0x7f || code === 0x08) {
+                } else if (code === 0x7f || code === 0x08) {
                     backspace();
-                    continue;
-                }
-                if (code === 0x15) {
+                } else if (code === 0x15) {
                     erase(line);
                     line = '';
-                    continue;
-                }
-                if (code < 0x20 || (code >= 0x80 && code < 0xa0)) {
+                } else {
                     sendBytes(ch);
-                    continue;
                 }
-                line += ch;
-                historyIndex = -1;
-                echo(ch);
             }
+            flush();
         }
 
         function send(input) {

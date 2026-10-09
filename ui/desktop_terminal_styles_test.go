@@ -794,6 +794,7 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 		"if (lineCapable && !remoteEcho)",
 		"entry.protocol === 'telnet' && entry.kind === 'world'",
 		"HISTORY_LIMIT = 50",
+		"FRAME_BYTES = 16 * 1024",
 		`'\x1b[A'`,
 		`sendBytes(text + '\r')`,
 		"function hostKeyAnswer(input, yes, no)",

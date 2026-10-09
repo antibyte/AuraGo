@@ -29,7 +29,10 @@ class FakeSocket {
         this.closeCode = 0;
         sockets.push(this);
     }
-    send(value) { this.sent.push(typeof value === 'string' ? 'txt:' + value : 'bin:' + new TextDecoder().decode(value)); }
+    send(value) {
+        this.sent.push(typeof value === 'string' ? 'txt:' + value : 'bin:' + new TextDecoder().decode(value));
+        this.sizes = (this.sizes || []).concat(typeof value === 'string' ? [] : [value.byteLength]);
+    }
     close(code) { this.readyState = 3; this.closeCode = code; }
 }
 const window = {};
@@ -52,7 +55,7 @@ function check(name, cond, detail) {
     console.log('FAIL ' + name + (detail ? ' - ' + detail : ''));
 }
 const same = (name, actual, expected) => check(name, JSON.stringify(actual) === JSON.stringify(expected), JSON.stringify(actual) + ' !== ' + JSON.stringify(expected));
-const screen = { out: '', write(text) { this.out += text; } };
+const screen = { out: '', writes: 0, write(text) { this.out += text; this.writes += 1; } };
 const control = (socket, message) => socket.onmessage({ data: JSON.stringify(message) });
 const frame = (text) => {
     const bytes = new TextEncoder().encode(text);
@@ -190,7 +193,36 @@ bbs.send('guest\r');
 same('bbs input is character mode without local echo', [bbsSocket.sent, screen.out], [['bin:guest\r'], '']);
 bbs.dispose();
 
-// 11. Host-key answers: localized letters first, then ASCII y/n, case-insensitive; anything else is no answer.
+// 11. Large input stays below the server's 64 KiB read limit: frames of at most 16 KiB, cut between code points.
+const FRAME_LIMIT = 16 * 1024;
+const big = 'aä漢\u{1f600}'.repeat(20000);
+const frames = (socket, from) => socket.sent.slice(from).filter((item) => item.startsWith('bin:')).map((item) => item.slice(4));
+const charMode = Session.open({ term: screen, entry: { id: 'vertrauen', protocol: 'telnet', kind: 'bbs' }, cols: 80, rows: 25 });
+const charSocket = sockets.at(-1);
+charMode.send(big);
+check('a 200 KB paste in character mode goes out in several frames', charSocket.sizes.length > 10, String(charSocket.sizes.length));
+check('every frame is at most 16 KiB', charSocket.sizes.every((size) => size <= FRAME_LIMIT), JSON.stringify(charSocket.sizes));
+check('the frames join to the paste (no code point is cut)', frames(charSocket, 0).join('') === big);
+charMode.dispose();
+const lineMode = Session.open({ term: screen, entry: { id: 'discworld', protocol: 'telnet', kind: 'world' }, cols: 80, rows: 25 });
+const lineSocket = sockets.at(-1);
+screen.out = '';
+screen.writes = 0;
+lineMode.send('look');
+same('typed text is echoed in one write per input chunk', [screen.writes, screen.out], [1, 'look']);
+lineMode.send('\x15');
+screen.writes = 0;
+lineMode.send(big);
+same('a long pasted line is echoed in one write', screen.writes, 1);
+lineMode.send('\r');
+check('the long line goes out in frames of at most 16 KiB', lineSocket.sizes.length > 10 && lineSocket.sizes.every((size) => size <= FRAME_LIMIT), JSON.stringify(lineSocket.sizes));
+check('the frames join to the line and its CR', frames(lineSocket, 0).join('') === big + '\r');
+screen.writes = 0;
+lineMode.send('say one\r\nsay two\r\n');
+same('a multi-line paste writes each line and line break once', screen.writes, 4);
+lineMode.dispose();
+
+// 13. Host-key answers: localized letters first, then ASCII y/n, case-insensitive; anything else is no answer.
 const answer = Session.hostKeyAnswer;
 same('English letters in both cases', [answer('y', 'Y', 'N'), answer('Y', 'Y', 'N'), answer('n', 'Y', 'N'), answer('N\r', 'Y', 'N')], [true, true, false, false]);
 same('German J/N with the ASCII fallback', [answer('j', 'J', 'N'), answer('J', 'J', 'N'), answer('y', 'J', 'N'), answer('n', 'J', 'N')], [true, true, true, false]);
