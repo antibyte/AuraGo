@@ -39,6 +39,7 @@ type Archive struct {
 	contentNS byte
 	lim       limits
 	cache     *clusterCache
+	titles    titleList
 	closed    atomic.Bool
 	loads     atomic.Int64 // decompressed cluster loads, for tests
 }
@@ -99,6 +100,9 @@ func newArchive(r io.ReaderAt, size int64, opts Options, lim limits) (*Archive, 
 		return nil, err
 	}
 	if a.contentNS, err = a.detectContentNamespace(); err != nil {
+		return nil, err
+	}
+	if a.titles, err = a.loadTitleList(); err != nil {
 		return nil, err
 	}
 	return a, nil
