@@ -64,6 +64,9 @@ revision publication and standalone export for Phaser and Three.js games.
   Counter-only reports cannot pass mining, placing, crafting or combat. Preserve
   the 16-check/60-second ceilings and the ordinary input-only driver boundary.
   Pause, inventory, focus loss, touch cancellation and disposal release input.
+  Held input is owned by its keyboard, UI or canvas-pointer source: releasing
+  camera look cannot cancel a separately held Mine action. Verify
+  `TestVoxelTouchMineSurvivesCanvasLookRelease` with `GAMEMAKER_VOXEL_BROWSER=1`.
 
 ### Shared game lifecycle
 

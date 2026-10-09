@@ -507,6 +507,7 @@
                 finishEventBacklog(state);
                 return;
             }
+            if (!eventMatchesJob(state, body)) return;
             if (state.eventCatchup) {
                 if (body.type === 'validation_result') noteGameplay(state, body);
                 if (body.type === 'job_status') {
@@ -529,6 +530,19 @@
         };
     }
 
+    function eventMatchesJob(state, event) {
+        const incoming = event.payload?.job;
+        const id = event.job_id || incoming?.id;
+        if (!id || !state.job?.id || id === state.job.id) return true;
+        // Only a new job's initial event can replace the displayed job. Late
+        // terminal/preview events must also stay isolated during history replay.
+        if (event.type !== 'job_status' || event.payload?.status !== 'queued' || incoming?.id !== id) return false;
+        const currentStart = Date.parse(state.job.created_at);
+        return Number.isFinite(currentStart)
+            ? Date.parse(incoming.created_at) >= currentStart
+            : !state.eventCatchup;
+    }
+
     function noteGameplay(state, event) {
         const status = event.payload?.result?.gameplay_status;
         if (status) state.gameplayStatus = status;
@@ -547,6 +561,7 @@
     }
 
     function handleEvent(state, event) {
+        if (!eventMatchesJob(state, event)) return;
         if (state.reconnecting) {
             state.reconnecting = false;
             updateStatus(state, (state.job && state.job.status) || (state.project && state.project.status) || 'ready');
@@ -632,6 +647,11 @@
     function handleJobStatus(state, payload) {
         if (payload.job) state.job = payload.job;
         if (state.job && payload.status) state.job.status = payload.status;
+        if (state.job && !terminalStatuses.has(payload.status)) {
+            state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase };
+        } else if (state.activeJob?.job_id === state.job?.id) {
+            state.activeJob = null;
+        }
         if (!state.jobStartedAt) {
             state.jobStartedAt = state.job && state.job.started_at ? Date.parse(state.job.started_at) || Date.now() : Date.now();
         }
@@ -642,7 +662,6 @@
         stopElapsed(state);
         const status = payload.status;
         const job = state.job;
-        state.activeJob = null;
         state.repairCount = 0;
         state.lastPhase = '';
         state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, status);

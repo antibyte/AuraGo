@@ -132,6 +132,10 @@ Server-owned HTTP and cross-component integration contracts.
   polling and streams cannot extend sessions. Verify `TestAuthSession*`.
 - Forwarded host, scheme, and client IP count only when `server.https.behind_proxy` is enabled and the immediate peer matches `server.https.trusted_proxy_cidrs`; other forwarding headers are removed before auth and URL construction.
 - An auth-disabled remote listener requires `auth.allow_unauthenticated_remote` before startup, config save or setup save (`applyConfigPatch`). The check uses the effective bind host, including `AURAGO_SERVER_HOST`. This exception never opens `/speech-lab/`.
+- Disabling login retains same-origin checks on writes carrying browser Origin
+  or Referer headers, including opaque Game Maker previews. Headerless native
+  clients and safe asset reads retain their existing access. Verify
+  `TestAuthDisabledBrowserWriteOrigins` and `TestGameMakerPreviewCannotWriteProjectAPI`.
 - Setup writes (`/api/setup`, `/api/setup/test`, `/api/setup/local-llm/probe`) and the first admin password during the lockdown require the one-time bootstrap token in `X-Setup-Token`, checked before the setup CSRF token is consumed. Only loopback peers of a listener without remote ingress are exempt. The token lives in memory, is logged at startup for reachable open setups, is never returned over HTTP and is cleared once an owner exists. Verify `TestSetup*Bootstrap*` and `TestAuthSetPasswordLockdown*`.
 - Changing an existing password, confirming (enrolling or replacing) TOTP and disabling TOTP require a valid browser session plus a credential step-up (`verifyAdminCredentials`): `current_password` and, while TOTP is active, `current_totp_code`. Step-up failures share the `/auth/login` IP and account lockout keys (`adminLoginKeys`). The first-password bootstrap path is unchanged. Verify `TestAuthStepUp*`, `TestAuthSetPassword*` and `TestAuthTOTP*`.
 - A vault that exists but cannot be decrypted keeps setup and the first-password path closed (503 `setup_vault_locked`), even for loopback peers: the lockdown hides an existing owner, not a fresh install. Verify `TestSetupStaysClosedWhenVaultCannotBeDecrypted`.

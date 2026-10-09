@@ -2799,6 +2799,11 @@ registration lives in `internal/desktop/types.go`.
   status text and thumbnails must not squeeze the live game into a narrow band.
   Verify wide/narrow layout and stale-review cleanup with
   `TestGameMakerVisualStripLayoutBrowser` / `TestGameMakerManualVisualLifecycleBrowser`.
+  Manual review renews its credential for the captured revision without replacing
+  the frame or its save/channel grant; changed revisions and late responses fail
+  closed. Replay and live job events may replace the current job only with a newer
+  queued job; old terminal/preview events cannot finish a newer job. Project-only
+  revision events stay valid. Verify `scripts/test-ui-regressions.mjs`.
   No child DOX file needed.
 - `pixel-state.js`, `pixel-view.js`, `pixel-canvas.js`, `pixel-tools.js`,
   `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel.js` -

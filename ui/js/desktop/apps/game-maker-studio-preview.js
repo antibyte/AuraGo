@@ -198,7 +198,11 @@
         state.visualBusy=true;const controller=new AbortController();state.visualAbort=controller;
         const timer=setTimeout(()=>{controller.abort();if(!state.disposed&&state.previewGrant===pending.grant)visualStatus(state,'analysis_failed')},55000);visualStatus(state,'analyzing');
         try{
-            const result=await state.api.reviewVisual(pending.project,{token:pending.grant.token,captures,provider_id:state.job?.provider_id||'',model:state.job?.model||''},controller.signal);
+            // Renew only the review credential; keep the running frame and its captured pose.
+            const grant=await state.api.previewGrant(pending.project);
+            if(state.disposed||state.previewGrant!==pending.grant||controller.signal.aborted)return;
+            if(state.jobActive||grant.validation_id||grant.revision!==pending.grant.revision){visualStatus(state,'analysis_failed');return;}
+            const result=await state.api.reviewVisual(pending.project,{token:grant.token,captures,provider_id:state.job?.provider_id||'',model:state.job?.model||''},controller.signal);
             if(!state.disposed&&state.previewGrant===pending.grant&&!controller.signal.aborted)showReview(state,result);
         }catch(_){if(!state.disposed&&state.previewGrant===pending.grant&&!controller.signal.aborted)visualStatus(state,'analysis_failed')}
         finally{clearTimeout(timer);if(state.visualAbort===controller){state.visualAbort=null;state.visualBusy=false}}

@@ -897,6 +897,15 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
+		// Disabling login must not let opaque previews or foreign browser pages write
+		// to the host. Headerless native clients retain the auth-disabled workflow.
+		if !enabled && !isSafeMethod(r.Method) && (r.Header.Get("Origin") != "" || r.Header.Get("Referer") != "") && !checkCSRFOrigin(r) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":"csrf_check_failed","message":"Request origin does not match server host."}`))
+			return
+		}
+
 		if !enabled || isAuthBypassed(r.URL.Path) || s.isTelnyxWebhookIngress(r.URL.Path) || (isSafeMethod(r.Method) && security.ValidCastMediaTicket(r.URL, time.Now())) {
 			next.ServeHTTP(w, r)
 			return
