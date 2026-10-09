@@ -435,14 +435,22 @@ func TestDesktopRetroNetHostKeyCallbackPersistsFirstContactKey(t *testing.T) {
 		t.Fatal("first-contact host keys are not wired to the desktop service")
 	}
 	fingerprint := "SHA256:" + strings.Repeat("Q", 43)
-	if err := manager.OnHostKeyAccepted(context.Background(), "own-sshgame01", fingerprint); err != nil {
+	for _, unmarked := range []context.Context{context.Background(), withRetroNetHostKeyPersistence(context.Background(), false)} {
+		if err := manager.OnHostKeyAccepted(unmarked, "own-sshgame01", fingerprint); err != nil {
+			t.Fatalf("a skipped store reported %v", err)
+		}
+	}
+	if entries := env.directory(t, env.adminToken).Entries; entries[len(entries)-1].HostKey != "" {
+		t.Fatal("a session without the admin mark pinned a host key")
+	}
+	if err := manager.OnHostKeyAccepted(withRetroNetHostKeyPersistence(context.Background(), true), "own-sshgame01", fingerprint); err != nil {
 		t.Fatalf("store host key: %v", err)
 	}
 	entries := env.directory(t, env.adminToken).Entries
 	if last := entries[len(entries)-1]; last.ID != "own-sshgame01" || last.HostKey != fingerprint {
 		t.Fatalf("own SSH entry after first contact = %+v", last)
 	}
-	if err := manager.OnHostKeyAccepted(context.Background(), "own-sshgame01", "SHA256:"+strings.Repeat("R", 43)); err == nil {
+	if err := manager.OnHostKeyAccepted(withRetroNetHostKeyPersistence(context.Background(), true), "own-sshgame01", "SHA256:"+strings.Repeat("R", 43)); err == nil {
 		t.Fatal("a stored host key was overwritten")
 	}
 }
@@ -481,7 +489,7 @@ func TestDesktopRetroNetHostKeyStoreLogsFailuresAndAnnouncesSettings(t *testing.
 	manager, _ := env.s.retroNet()
 
 	fingerprint := "SHA256:" + strings.Repeat("Q", 43)
-	if err := manager.OnHostKeyAccepted(context.Background(), "own-sshgame01", fingerprint); err != nil {
+	if err := manager.OnHostKeyAccepted(withRetroNetHostKeyPersistence(context.Background(), true), "own-sshgame01", fingerprint); err != nil {
 		t.Fatalf("store host key: %v", err)
 	}
 	select {
@@ -504,7 +512,7 @@ func TestDesktopRetroNetHostKeyStoreLogsFailuresAndAnnouncesSettings(t *testing.
 	}
 
 	rejected := "SHA256:" + strings.Repeat("R", 43)
-	if err := manager.OnHostKeyAccepted(context.Background(), "own-sshgame01", rejected); err == nil {
+	if err := manager.OnHostKeyAccepted(withRetroNetHostKeyPersistence(context.Background(), true), "own-sshgame01", rejected); err == nil {
 		t.Fatal("a stored host key was overwritten")
 	}
 	logged := logs.String()

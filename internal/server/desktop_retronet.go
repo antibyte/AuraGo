@@ -75,12 +75,30 @@ func (s *Server) retroNet() (*retronet.Manager, *retronet.StatusProber) {
 	return s.retroNetManager, s.retroNetStatus
 }
 
+// retroNetHostKeyPersistKey marks a session context whose first-contact SSH
+// host keys may be stored; see withRetroNetHostKeyPersistence.
+type retroNetHostKeyPersistKey struct{}
+
+// withRetroNetHostKeyPersistence records whether the session's caller may pin
+// first-contact host keys. Any write-scope user may accept an unknown key for
+// their own session, but a stored key applies to everyone, so only an
+// administrator's acceptance is persisted.
+func withRetroNetHostKeyPersistence(ctx context.Context, allowed bool) context.Context {
+	return context.WithValue(ctx, retroNetHostKeyPersistKey{}, allowed)
+}
+
 // storeRetroNetHostKey persists a first-contact SSH fingerprint for an own
-// entry. Manager ignores the returned error, so a failure is logged here with
-// the entry ID and the error only. A stored key changes the retronet.entries
-// setting, which is announced like handleDesktopSettings does so open settings
-// views refresh (filterDesktopEvent keeps it from non-admin clients).
+// entry when the session context allows it (fail closed: no mark, no store);
+// the session continues either way. Manager ignores the returned error, so a
+// failure is logged here with the entry ID and the error only. A stored key
+// changes the retronet.entries setting, which is announced like
+// handleDesktopSettings does so open settings views refresh
+// (filterDesktopEvent keeps it from non-admin clients).
 func (s *Server) storeRetroNetHostKey(ctx context.Context, entryID, fingerprint string) error {
+	if allowed, _ := ctx.Value(retroNetHostKeyPersistKey{}).(bool); !allowed {
+		s.retroNetLogger().Info("Retro-Net host key not persisted: non-admin", "entry", entryID)
+		return nil
+	}
 	svc, hub, err := s.getDesktopService(ctx)
 	if err == nil {
 		err = svc.SetRetroNetHostKey(ctx, entryID, fingerprint)
@@ -187,6 +205,7 @@ func (s *Server) handleRetroNetConnect(w http.ResponseWriter, r *http.Request) {
 	defer client.closeSocket()
 	ctx, stop := s.retroNetSessionContext(r)
 	defer stop()
+	ctx = withRetroNetHostKeyPersistence(ctx, desktopRequestIsAdmin(s, r))
 	manager, _ := s.retroNet()
 	result := manager.Run(ctx, entry, size, client)
 	// Run has sent the final result frame: hang up first, then audit.
