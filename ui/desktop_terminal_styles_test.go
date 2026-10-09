@@ -648,3 +648,57 @@ func TestDesktopTerminalModemContract(t *testing.T) {
 		}
 	}
 }
+
+// Behaviour (display-width truncation against the vendored xterm, control-character
+// stripping, layout) is covered by `node scripts/test-terminal-retronet-directory.mjs`.
+func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/terminal-retronet-directory.js")
+	for _, want := range []string{
+		"window.TerminalRetroNetDirectory = { LOCAL_SHELL_ID: LOCAL_SHELL_ID, create: create, cellWidth: cellWidth, fitToCells: fitToCells, printable: printable }",
+		"const LOCAL_SHELL_ID = 'local-shell'",
+		"'aurago.desktop.terminal.retronet.last'",
+		"['classics', 'bbs', 'muds', 'games', 'own']",
+		"online: '[*]'",
+		"offline: '[ ]'",
+		"unknown: '[?]'",
+		"api('/api/desktop/retronet/directory')",
+		"api('/api/desktop/retronet/status', { method: 'POST' })",
+		"payload.can_edit === true",
+		"entry.description_key",
+		"last_online_at",
+		"DOUBLE_TAP_MS = 500",
+		"DIGIT_WINDOW_MS = 1000",
+		`'\x1b[5~'`,
+		`'\x1b[6~'`,
+		`'\x1b[3~'`,
+		`'\x1b[?7l\x1b[?25l'`,
+		"'dblclick'",
+		"'.xterm-screen'",
+		"Intl.RelativeTimeFormat",
+		"announce(printable(tr('desktop.terminal_retronet_announce'",
+		"tr('desktop.terminal_retronet_help_admin')",
+		`/[\u0000-\u001f\u007f-\u009f]/g`,
+		"function cellWidth(code, wide)",
+		"function fitToCells(value, width, wide)",
+		"activeVersion",
+		"load: load",
+		"render: render",
+		"handleData: handleData",
+		"handleMouse: handleMouse",
+		"refreshStatus: refreshStatus",
+		"selected: function",
+		"entries: function",
+		"dispose: dispose",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("terminal-retronet-directory.js missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{"new WebSocket", "innerHTML", "alert(", "window.confirm", "._core", "unicodeService", ".length > width", ".slice(0, width"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("terminal-retronet-directory.js must render only into xterm, measure display cells and avoid private xterm APIs; found %q", forbidden)
+		}
+	}
+}
