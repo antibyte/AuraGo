@@ -231,7 +231,10 @@ body[data-theme=fruity]{--vd-text:#192334;--vd-accent:#0a84ff;--vd-theme-app-bg:
 body[data-theme=fruity][data-fruity-mode=dark]{--vd-text:#f5f5f7;--vd-theme-app-bg:#121419;--vd-theme-panel-bg:#1b1e26;--vd-theme-panel-bg-strong:rgba(26,29,37,.98);--vd-theme-chrome-bg:rgba(30,34,43,.94);--vd-theme-control-bg:rgba(255,255,255,.06);--vd-theme-control-hover:rgba(255,255,255,.11);--vd-theme-border:rgba(200,211,233,.14);--vd-theme-border-strong:rgba(200,211,233,.28);--vd-theme-muted:#aeb7c8}
 #host{height:100%}
 </style></head><body class="desktop-body" data-theme="standard"><div id="host"></div>
-<script>window.errors=[];window.calls=0;addEventListener('error',e=>errors.push(e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));</script>
+<script>window.errors=[];window.calls=0;addEventListener('error',e=>errors.push(e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));
+// The app polls its status every 1 s to 5 min. Long delays run ten times faster so the test does not wait for them;
+// shorter ones, like the 200 ms suggestion debounce, keep their real length.
+{const nativeSetTimeout=window.setTimeout.bind(window);window.setTimeout=(fn,delay,...args)=>nativeSetTimeout(fn,Number(delay)>=1000?Number(delay)/10:delay,...args);}</script>
 <script src="/js/desktop/apps/local-wikipedia-views.js"></script>
 <script src="/js/desktop/apps/local-wikipedia.js"></script>
 <script>window.ready=(async()=>{
@@ -262,8 +265,8 @@ func loadLocalWikipediaLabels(t *testing.T) func(key string, params ...string) s
 	}
 }
 
-// compactJSON marshals without HTML escaping so it can be compared with JSON.stringify output.
-func compactJSON(t *testing.T, value any) string {
+// localWikipediaCompactJSON marshals without HTML escaping so it can be compared with JSON.stringify output.
+func localWikipediaCompactJSON(t *testing.T, value any) string {
 	t.Helper()
 	var buf bytes.Buffer
 	encoder := json.NewEncoder(&buf)
@@ -274,16 +277,16 @@ func compactJSON(t *testing.T, value any) string {
 	return strings.TrimSpace(buf.String())
 }
 
-// assertJSON compares the JSON text a page script returned with the expected
+// localWikipediaAssertJSON compares the JSON text a page script returned with the expected
 // Go value, ignoring key order and white space.
-func assertJSON(t *testing.T, what, got string, want any) {
+func localWikipediaAssertJSON(t *testing.T, what, got string, want any) {
 	t.Helper()
 	canonical := func(raw []byte) string {
 		var value any
 		if err := json.Unmarshal(raw, &value); err != nil {
 			t.Fatalf("%s: invalid JSON %q: %v", what, raw, err)
 		}
-		return compactJSON(t, value)
+		return localWikipediaCompactJSON(t, value)
 	}
 	wantRaw, err := json.Marshal(want)
 	if err != nil {
@@ -460,7 +463,7 @@ banners:document.querySelectorAll('.lw-banner').length,footer:document.querySele
 				if progress == "" {
 					progress = "none"
 				}
-				assertJSON(t, "state "+c.kind, got, map[string]any{
+				localWikipediaAssertJSON(t, "state "+c.kind, got, map[string]any{
 					"title": c.title, "text": c.text, "settings": c.settings, "retry": c.retry, "progress": progress,
 					"tools": true, "input": true, "submit": true, "banners": 0, "footer": "", "view": "state",
 				})
@@ -497,11 +500,19 @@ banners:document.querySelectorAll('.lw-banner').length,footer:document.querySele
 
 	step("a failed status offers a retry that recovers", func(t *testing.T) {
 		fixture.setFailure(http.StatusInternalServerError, map[string]any{"error": "boom", "code": "internal"})
+		fixture.resetRequests()
 		page.MustEval(`()=>window.remount()`)
-		waitFor(t, "failed card", `()=>!!document.querySelector('.lw-state-card[data-state="failed"] [data-action="retry"]')`)
-		before := page.MustEval(`()=>calls`).Int()
-		click(`[data-action="retry"]`)
-		waitFor(t, "second status request", `(before)=>calls>before&&!!document.querySelector('.lw-state-card[data-state="failed"]')`, before)
+		waitFor(t, "failed card", `()=>!document.querySelector('.lw-state').hidden&&!!document.querySelector('.lw-state-card[data-state="failed"] [data-action="retry"]')`)
+		// Retry hides the state view and asks for the status at once.
+		if started := page.MustEval(`()=>{const before=calls;document.querySelector('[data-action="retry"]').click();return {requests:calls-before,stateHidden:document.querySelector('.lw-state').hidden}}`); started.Get("requests").Int() != 1 || !started.Get("stateHidden").Bool() {
+			t.Fatalf("retry click = %v", started)
+		}
+		// The failing answer must bring the error back. The failed card stays in the DOM while it is hidden,
+		// so wait for the state view itself and for the second status request before the status recovers.
+		waitFor(t, "the error again after a failed retry", `()=>!document.querySelector('.lw-state').hidden&&!!document.querySelector('.lw-state-card[data-state="failed"]')`)
+		if got := len(fixture.requests("status")); got < 2 {
+			t.Fatalf("status requests = %d, want at least 2 (mount and retry)", got)
+		}
 		fixture.setStatus(ready)
 		click(`[data-action="retry"]`)
 		waitTitle(t, "Hauptseite")
@@ -530,7 +541,7 @@ banners:document.querySelectorAll('.lw-banner').length,footer:document.querySele
 		} {
 			// The old edition stays readable in every one of these states.
 			mountArticle(t, c.status)
-			assertJSON(t, c.name, banners(), c.want)
+			localWikipediaAssertJSON(t, c.name, banners(), c.want)
 			if page.MustEval(`()=>document.querySelector('.lw-input').disabled`).Bool() {
 				t.Fatalf("%s: search disabled although the edition is readable", c.name)
 			}
@@ -574,7 +585,7 @@ pings:d.querySelectorAll('[ping]').length,attributions:d.querySelectorAll('[attr
 		link := func(href, target, rel any) map[string]any {
 			return map[string]any{"href": href, "target": target, "rel": rel, "ping": false, "attributionsrc": false}
 		}
-		assertJSON(t, "link rewrite", got, map[string]any{
+		localWikipediaAssertJSON(t, "link rewrite", got, map[string]any{
 			"internal": link("Berlin", nil, nil), "redirect": link("Berlin_(Stadt)", nil, nil), "missing": link("Gibt_es_nicht", nil, nil),
 			"outside": link(external, "_blank", "noopener noreferrer"), "mail": link("mailto:info@example.org", nil, nil),
 			"script": link(nil, nil, nil), "data": link(nil, nil, nil), "api": link(nil, nil, nil), "relativeApi": link(nil, nil, nil), "anchor": link(nil, nil, nil),
@@ -686,8 +697,8 @@ pings:d.querySelectorAll('[ping]').length,attributions:d.querySelectorAll('[attr
 
 	step("suggestions are debounced and keyboard selectable", func(t *testing.T) {
 		mountArticle(t, ready)
-		focus(".lw-input")
-		page.Keyboard.MustType(input.KeyB, input.KeyE, input.KeyR)
+		// Three input events in one script run are far less than 200 ms apart on any machine, so exactly one request is due.
+		page.MustEval(`()=>{const el=document.querySelector('.lw-input');el.focus();for(const value of ['b','be','ber']){el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}))}}`)
 		waitFor(t, "two suggestions", `()=>document.querySelectorAll('.lw-option').length===2&&document.querySelector('.lw-input').getAttribute('aria-expanded')==='true'`)
 		if got := fixture.requests("suggest:"); len(got) != 1 || got[0] != "ber" {
 			t.Fatalf("suggest requests = %v, want one for the final text", got)
@@ -700,7 +711,7 @@ active:active===null?null:active.slice(list.id.length+1),selected:[...list.query
 		wantOpen := func(active any, selected string) map[string]any {
 			return map[string]any{"options": []string{"Berlin", "Bern"}, "expanded": "true", "controls": true, "hidden": false, "active": active, "selected": selected}
 		}
-		assertJSON(t, "open suggestions", state(), wantOpen(nil, ""))
+		localWikipediaAssertJSON(t, "open suggestions", state(), wantOpen(nil, ""))
 		for _, move := range []struct {
 			key    input.Key
 			name   string
@@ -713,17 +724,17 @@ active:active===null?null:active.slice(list.id.length+1),selected:[...list.query
 			{input.ArrowUp, "ArrowUp", "0"},
 		} {
 			page.Keyboard.MustType(move.key)
-			assertJSON(t, "after "+move.name, state(), wantOpen(move.active, move.active))
+			localWikipediaAssertJSON(t, "after "+move.name, state(), wantOpen(move.active, move.active))
 		}
 		// Escape closes the list but keeps the text; ArrowDown reopens it on the first option.
 		page.Keyboard.MustType(input.Escape)
-		assertJSON(t, "after Escape", page.MustEval(`()=>JSON.stringify({hidden:document.querySelector('.lw-suggest').hidden,expanded:document.querySelector('.lw-input').getAttribute('aria-expanded'),active:document.querySelector('.lw-input').hasAttribute('aria-activedescendant'),value:document.querySelector('.lw-input').value})`).Str(),
+		localWikipediaAssertJSON(t, "after Escape", page.MustEval(`()=>JSON.stringify({hidden:document.querySelector('.lw-suggest').hidden,expanded:document.querySelector('.lw-input').getAttribute('aria-expanded'),active:document.querySelector('.lw-input').hasAttribute('aria-activedescendant'),value:document.querySelector('.lw-input').value})`).Str(),
 			map[string]any{"hidden": true, "expanded": "false", "active": false, "value": "ber"})
 		page.Keyboard.MustType(input.ArrowDown)
 		waitFor(t, "reopened suggestions", `()=>document.querySelectorAll('.lw-option').length===2&&document.querySelector('.lw-input').getAttribute('aria-activedescendant')?.endsWith('-0')`)
 		page.Keyboard.MustType(input.ArrowDown, input.Enter)
 		waitTitle(t, "Bern")
-		assertJSON(t, "after choosing a suggestion", page.MustEval(`()=>JSON.stringify({hidden:document.querySelector('.lw-suggest').hidden,expanded:document.querySelector('.lw-input').getAttribute('aria-expanded'),value:document.querySelector('.lw-input').value,articleHidden:document.querySelector('.lw-article').hidden,frameFocused:document.activeElement===document.querySelector('.lw-frame')})`).Str(),
+		localWikipediaAssertJSON(t, "after choosing a suggestion", page.MustEval(`()=>JSON.stringify({hidden:document.querySelector('.lw-suggest').hidden,expanded:document.querySelector('.lw-input').getAttribute('aria-expanded'),value:document.querySelector('.lw-input').value,articleHidden:document.querySelector('.lw-article').hidden,frameFocused:document.activeElement===document.querySelector('.lw-frame')})`).Str(),
 			map[string]any{"hidden": true, "expanded": "false", "value": "Bern", "articleHidden": false, "frameFocused": true})
 	})
 
@@ -733,7 +744,7 @@ active:active===null?null:active.slice(list.id.length+1),selected:[...list.query
 		box.MustInput("Hauptstadt")
 		page.Keyboard.MustType(input.Enter)
 		waitFor(t, "two results", `()=>document.querySelectorAll('.lw-result').length===2`)
-		assertJSON(t, "results", page.MustEval(`()=>JSON.stringify({heading:document.querySelector('.lw-results-title').textContent,titles:[...document.querySelectorAll('.lw-result strong')].map(n=>n.textContent),paths:[...document.querySelectorAll('.lw-result')].map(n=>n.dataset.path),
+		localWikipediaAssertJSON(t, "results", page.MustEval(`()=>JSON.stringify({heading:document.querySelector('.lw-results-title').textContent,titles:[...document.querySelectorAll('.lw-result strong')].map(n=>n.textContent),paths:[...document.querySelectorAll('.lw-result')].map(n=>n.dataset.path),
 snippet:document.querySelector('.lw-result span').textContent,scripts:document.querySelectorAll('.lw-results script').length,title:document.querySelector('.lw-title').textContent,suggestHidden:document.querySelector('.lw-suggest').hidden})`).Str(),
 			map[string]any{
 				"heading": label("desktop.local_wikipedia_results_title", "query", "Hauptstadt"), "titles": []string{"Berlin", "Bern"}, "paths": []string{"Berlin_(Stadt)", "Bern"},
@@ -770,7 +781,7 @@ snippet:document.querySelector('.lw-result span').textContent,scripts:document.q
 
 	step("the toolbar is one tab stop with arrow-key navigation", func(t *testing.T) {
 		mountArticle(t, ready)
-		assertJSON(t, "toolbar semantics", page.MustEval(`()=>{const nav=document.querySelector('.lw-nav');return JSON.stringify({role:nav.getAttribute('role'),label:nav.getAttribute('aria-label'),names:[...nav.querySelectorAll('.lw-tool')].map(b=>b.getAttribute('aria-label'))})}`).Str(),
+		localWikipediaAssertJSON(t, "toolbar semantics", page.MustEval(`()=>{const nav=document.querySelector('.lw-nav');return JSON.stringify({role:nav.getAttribute('role'),label:nav.getAttribute('aria-label'),names:[...nav.querySelectorAll('.lw-tool')].map(b=>b.getAttribute('aria-label'))})}`).Str(),
 			map[string]any{"role": "toolbar", "label": label("desktop.local_wikipedia_toolbar"), "names": []string{label("desktop.back"), label("desktop.forward"), label("desktop.local_wikipedia_main_page"), label("desktop.local_wikipedia_random")}})
 		// Back and Forward are disabled on the first article, so the tab stop is the first enabled tool.
 		if got := tools(); got != "back:-1:disabled,forward:-1:disabled,main:0,random:-1" {
@@ -808,7 +819,7 @@ snippet:document.querySelector('.lw-result span').textContent,scripts:document.q
 		}
 		click(`.lw-tool[data-action="back"]`)
 		waitTitle(t, "Hauptseite")
-		assertJSON(t, "focus after Back disabled itself", page.MustEval(`()=>JSON.stringify({tools:[...document.querySelectorAll('.lw-tool')].map(b=>b.dataset.action+':'+b.getAttribute('tabindex')+(b.disabled?':disabled':'')).join(),focus:document.activeElement.dataset.action,focusDisabled:document.activeElement.disabled})`).Str(),
+		localWikipediaAssertJSON(t, "focus after Back disabled itself", page.MustEval(`()=>JSON.stringify({tools:[...document.querySelectorAll('.lw-tool')].map(b=>b.dataset.action+':'+b.getAttribute('tabindex')+(b.disabled?':disabled':'')).join(),focus:document.activeElement.dataset.action,focusDisabled:document.activeElement.disabled})`).Str(),
 			map[string]any{"tools": "back:-1:disabled,forward:0,main:-1,random:-1", "focus": "forward", "focusDisabled": false})
 	})
 
@@ -900,13 +911,11 @@ download:[...document.querySelectorAll('.lw-banner')].some(b=>b.textContent.incl
 		// The next successful poll clears the notice and shows the new progress.
 		fixture.setStatus(localWikipediaFixtureStatus("downloading", true, true, true, 0.75))
 		waitFor(t, "recovered banners", `(stale,progress)=>{const b=[...document.querySelectorAll('.lw-banner')];return !b.some(n=>n.textContent.includes(stale))&&b.some(n=>n.textContent.includes(progress))}`, staleText, label("desktop.local_wikipedia_update_downloading", "percent", "75"))
-		// Polling stops with dispose.
-		before = page.MustEval(`()=>calls`).Int()
-		waitFor(t, "another poll", `(before)=>calls>before`, before)
+		// Polling stops with dispose: requests are counted when they start, so the count taken right after dispose
+		// is final unless a timer survived. The scaled active interval is 300 ms, so 600 ms would show one.
 		page.MustEval(`()=>LocalWikipediaApp.dispose('test')`)
-		time.Sleep(200 * time.Millisecond)
 		after := page.MustEval(`()=>calls`).Int()
-		time.Sleep(3500 * time.Millisecond)
+		time.Sleep(600 * time.Millisecond)
 		if page.MustEval(`()=>calls`).Int() != after {
 			t.Fatal("polling continued after dispose")
 		}
