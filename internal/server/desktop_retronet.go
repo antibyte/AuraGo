@@ -5,13 +5,21 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"aurago/internal/desktop"
 	"aurago/internal/retronet"
+
+	"github.com/gorilla/websocket"
 )
 
-const retroNetStatusWait = 10 * time.Second // POST /status waits at most this long for the probe in flight
+const (
+	retroNetConnectPath     = "/api/desktop/retronet/connect"
+	retroNetStatusWait      = 10 * time.Second // POST /status waits at most this long for the probe in flight
+	retroNetRevalidateEvery = time.Second      // policy and authorization recheck while a session runs
+	retroNetAuditTimeout    = 5 * time.Second
+)
 
 type retroNetDirectoryResponse struct {
 	Entries []retronet.Entry           `json:"entries"`
@@ -23,6 +31,7 @@ type retroNetDirectoryResponse struct {
 func registerDesktopRetroNetRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/desktop/retronet/directory", withDesktopRetroNetGuard(s, http.MethodGet, s.handleRetroNetDirectory))
 	mux.HandleFunc("/api/desktop/retronet/status", withDesktopRetroNetGuard(s, http.MethodPost, s.handleRetroNetStatus))
+	mux.HandleFunc(retroNetConnectPath, withDesktopRetroNetGuard(s, http.MethodGet, s.handleRetroNetConnect))
 }
 
 // withDesktopRetroNetGuard runs the shared gates in contract order, before any
@@ -140,4 +149,117 @@ func writeRetroNetJSON(w http.ResponseWriter, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+// handleRetroNetConnect bridges one browser WebSocket to one catalog or own
+// entry. The browser names only the entry ID; host and port come from the
+// directory. Hijacked sockets are tracked by trackHTTP, so shutdown closes
+// them before draining handlers.
+func (s *Server) handleRetroNetConnect(w http.ResponseWriter, r *http.Request) {
+	svc, catalog, own, err := s.retroNetDirectory(r.Context())
+	if err != nil {
+		jsonError(w, "Retro-Net directory is unavailable.", http.StatusServiceUnavailable)
+		return
+	}
+	entry, ok := retronet.Lookup(catalog, own, strings.TrimSpace(r.URL.Query().Get("entry")))
+	if !ok {
+		jsonError(w, "Unknown Retro-Net entry.", http.StatusNotFound)
+		return
+	}
+	if !desktop.SameHostWebSocketOrigin(r) {
+		jsonError(w, "Same-host origin required.", http.StatusForbidden)
+		return
+	}
+	if !websocket.IsWebSocketUpgrade(r) {
+		jsonError(w, "WebSocket upgrade required.", http.StatusBadRequest)
+		return
+	}
+	size := retroNetSizeFromQuery(r.URL.Query())
+	auditDesktopRemoteAttempt(s, r, "desktop_retronet_connect", entry.ID, "attempt", "")
+	conn, err := retroNetUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	client := newRetroNetWSClient(conn)
+	defer client.closeSocket()
+	ctx, stop := s.retroNetSessionContext(r)
+	defer stop()
+	manager, _ := s.retroNet()
+	result := manager.Run(ctx, entry, size, client)
+	// Run has sent the final result frame: hang up first, then audit.
+	stop()
+	client.closeSocket()
+	auditRetroNetSession(svc, s, r, entry.ID, result)
+}
+
+// retroNetSessionContext detaches the session from request cancellation so the
+// end reason is known through context.Cause: policy or authorization loss ends
+// it with retronet.ErrDisabled, server shutdown with retronet.ErrShutdown. Like
+// withDesktopSerialGuard it rechecks every second, even while no bytes flow.
+func (s *Server) retroNetSessionContext(r *http.Request) (context.Context, func()) {
+	ctx, cancel := context.WithCancelCause(context.WithoutCancel(r.Context()))
+	var shutdown <-chan struct{}
+	if s.integrationCtx != nil {
+		shutdown = s.integrationCtx.Done()
+	}
+	requestDone := r.Context().Done()
+	go func() {
+		tick := time.NewTicker(retroNetRevalidateEvery)
+		defer tick.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-shutdown:
+				cancel(retronet.ErrShutdown)
+				return
+			case <-requestDone:
+				// HTTP drain or a revoked Desktop run grant.
+				cancel(s.retroNetEndCause(r, context.Canceled))
+				return
+			case <-tick.C:
+				if cause := s.retroNetEndCause(r, nil); cause != nil {
+					cancel(cause)
+					return
+				}
+			}
+		}
+	}()
+	return ctx, func() { cancel(context.Canceled) }
+}
+
+// retroNetEndCause returns why a running session must end now, or fallback
+// while the live policy and the caller's authorization still allow it.
+func (s *Server) retroNetEndCause(r *http.Request, fallback error) error {
+	if s.integrationCtx != nil && s.integrationCtx.Err() != nil {
+		return retronet.ErrShutdown
+	}
+	s.httpDrainMu.Lock()
+	draining := s.httpDraining
+	s.httpDrainMu.Unlock()
+	if draining {
+		return retronet.ErrShutdown
+	}
+	if !s.desktopSerialPolicy(r).RetroNetEnabled || !desktopWSAuthorizationValid(s, r, desktopScopeWrite) {
+		return retronet.ErrDisabled
+	}
+	return fallback
+}
+
+// auditRetroNetSession records how a session ended. It never records payload bytes.
+func auditRetroNetSession(svc *desktop.Service, s *Server, r *http.Request, entryID string, result retronet.Result) {
+	if svc == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), retroNetAuditTimeout)
+	defer cancel()
+	details := map[string]interface{}{
+		"code":        result.Code,
+		"reason":      result.Reason,
+		"target":      result.Target,
+		"bytes_in":    result.BytesIn,
+		"bytes_out":   result.BytesOut,
+		"duration_ms": result.Duration.Milliseconds(),
+	}
+	_ = svc.AuditWithRequest(ctx, "desktop_retronet_session", entryID, details, desktop.SourceUser, desktopAuditRequestInfo(s, r))
 }
