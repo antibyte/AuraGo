@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"slices"
 	"strings"
 	"sync"
 	"unicode"
@@ -92,23 +93,31 @@ func (ix searchIndex) read(ctx context.Context, req ReadRequest) (Article, error
 // the same titleKey (qualifier dropped), so "Berlin (Band)" never resolves
 // to "Berlin" while the band's article is among the suggestions. A closed
 // archive (an edition swap in progress) is an error of its own, not a
-// missing article.
+// missing article. Path and title are taken as a model may echo them from an
+// isolated result (echoedForms): every reading is tried as a path, the most
+// decoded title among the suggestions.
 func (ix searchIndex) findArticle(ctx context.Context, path, title string) (zim.Entry, string, error) {
-	path, title = cleanArticleRef(path), cleanArticleRef(title)
 	var candidates []string
-	if path != "" {
-		candidates = append(candidates, path)
-		rest, ok := strings.CutPrefix(path, "C/")
+	for _, form := range echoedForms(path) {
+		p := strings.TrimPrefix(form, "/")
+		if p == "" {
+			continue
+		}
+		candidates = append(candidates, p)
+		rest, ok := strings.CutPrefix(p, "C/")
 		if ok && rest != "" {
 			candidates = append(candidates, rest)
 		} else {
-			rest = path
+			rest = p
 		}
 		if strings.ContainsFunc(rest, unicode.IsSpace) {
 			candidates = append(candidates, strings.ReplaceAll(strings.Join(strings.Fields(rest), " "), " ", "_"))
 		}
 	}
-	candidates = append(candidates, pathCandidates(title)...)
+	for _, form := range echoedForms(title) {
+		candidates = append(candidates, pathCandidates(strings.TrimPrefix(form, "/"))...)
+	}
+	title = cleanArticleRef(title)
 	for _, p := range candidates {
 		e, err := ix.store.lookup(p)
 		if err != nil {
@@ -169,34 +178,73 @@ func (ix searchIndex) resolveArticle(e zim.Entry) (zim.Entry, string, error) {
 	return e, from, nil
 }
 
-// cleanArticleRef accepts a title or path as the model may echo it from an
-// isolated tool result: wrapper tags and HTML entities are removed.
-func cleanArticleRef(s string) string {
-	return strings.TrimPrefix(cleanEchoedText(s), "/")
+// maxEchoUnescapes bounds how often an echoed value is entity-decoded. On
+// the agent path a text field is escaped by its own isolation and again when
+// the Guardian isolates the whole result, so a model sees "Ohm's_law" as
+// "Ohm&amp;#39;s_law" and "AT&T" as "AT&amp;amp;T".
+const maxEchoUnescapes = 3
+
+// echoedForms returns the readings of a title, path or heading as a model may
+// echo it from an isolated tool result, most decoded first: isolation tags
+// (also escaped ones, which a decode pass reveals) are removed and HTML
+// entities decoded until the value stops changing, at most maxEchoUnescapes
+// times. The less decoded readings follow, down to the value as given, so a
+// name that really contains an entity or tag text still matches. Empty and
+// repeated readings are dropped.
+func echoedForms(s string) []string {
+	cur := stripIsolationTags(s)
+	forms := []string{cur}
+	for range maxEchoUnescapes {
+		next := stripIsolationTags(html.UnescapeString(cur))
+		if next == cur {
+			break
+		}
+		forms = append(forms, next)
+		cur = next
+	}
+	slices.Reverse(forms)
+	var out []string
+	for _, f := range forms {
+		if f != "" && !slices.Contains(out, f) {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
-// cleanEchoedText removes the isolation wrapper tags and HTML entities a
-// model may echo back from an isolated tool result.
-func cleanEchoedText(s string) string {
+// stripIsolationTags removes one isolation wrapper around s.
+func stripIsolationTags(s string) string {
 	s = strings.TrimSpace(s)
-	s = strings.TrimPrefix(s, "<external_data>")
-	s = strings.TrimSuffix(s, "</external_data>")
-	return strings.TrimSpace(html.UnescapeString(s))
+	s = strings.TrimSpace(strings.TrimPrefix(s, "<external_data>"))
+	return strings.TrimSpace(strings.TrimSuffix(s, "</external_data>"))
+}
+
+// cleanArticleRef is the most decoded reading of an echoed title or path
+// (see echoedForms) without a leading slash.
+func cleanArticleRef(s string) string {
+	if forms := echoedForms(s); len(forms) > 0 {
+		return strings.TrimPrefix(forms[0], "/")
+	}
+	return ""
 }
 
 // findEchoedSection resolves a section request as a model may echo it from
-// an isolated tool result: cleaned of wrapper tags and entities first (with
-// a trailing "…" of a shortened heading dropped next), then verbatim, so a
-// heading that really contains an entity or the tag text still matches.
-// The error is the one of the cleaned request.
+// an isolated tool result: the most decoded reading first, then it without
+// the trailing "…" of a shortened heading, then the less decoded readings
+// (echoedForms), so a heading that really contains an entity or the tag text
+// still matches. The error is the one of the most decoded reading.
 func (a *renderedArticle) findEchoedSection(ctx context.Context, spec string) (int, error) {
-	cleaned := cleanEchoedText(spec)
-	i, err := a.findSection(ctx, cleaned)
+	forms := echoedForms(spec)
+	if len(forms) == 0 {
+		return a.findSection(ctx, "")
+	}
+	i, err := a.findSection(ctx, forms[0])
 	if err == nil || !errors.Is(err, ErrSectionNotFound) {
 		return i, err
 	}
-	for _, alt := range []string{strings.TrimSpace(strings.TrimSuffix(cleaned, "…")), strings.TrimSpace(spec)} {
-		if alt == cleaned || alt == "" {
+	alts := append([]string{strings.TrimSpace(strings.TrimSuffix(forms[0], "…"))}, forms[1:]...)
+	for _, alt := range alts {
+		if alt == forms[0] || alt == "" {
 			continue
 		}
 		if j, altErr := a.findSection(ctx, alt); altErr == nil {

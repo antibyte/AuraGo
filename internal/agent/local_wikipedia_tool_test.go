@@ -8,7 +8,9 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/localwiki"
+	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/zim/zimtest"
 )
 
 type agentWikiLibrary struct {
@@ -131,5 +133,76 @@ func TestDecodeLocalWikipediaNumbersAreWholeOrText(t *testing.T) {
 	out, _ := dispatchPlatform(context.Background(), ToolCall{Action: "local_wikipedia", Params: map[string]interface{}{"operation": "read", "path": "Berlin", "offset": 2.5}}, &DispatchContext{Cfg: localWikipediaTestConfig(), Logger: testLogger})
 	if !strings.Contains(out, `"code":"invalid_request"`) {
 		t.Fatalf("fractional offset accepted: %s", out)
+	}
+}
+
+type agentLibrarySource struct{ lib *localwiki.Library }
+
+func (s agentLibrarySource) AcquireLibrary() (tools.LocalWikipediaLibrary, func(), bool) {
+	return s.lib, func() {}, true
+}
+
+// escapedTitleLibrary opens a real edition whose paths contain characters
+// that isolation escapes (' and &).
+func escapedTitleLibrary(t *testing.T) *localwiki.Library {
+	t.Helper()
+	b := zimtest.New()
+	c := b.AddCluster(zimtest.CompressionZstd, false)
+	b.AddMetadata(c, "Language", "eng")
+	b.AddArticle(c, 'C', "Ohm's_law", "Ohm's law", `<html><head><title>Ohm's law</title></head><body><p>Ohm's law relates current and voltage.</p></body></html>`)
+	b.AddArticle(c, 'C', "AT&T", "AT&T", `<html><head><title>AT&amp;T</title></head><body><p>AT&amp;T is a telecommunications company.</p></body></html>`)
+	b.AddRedirect('W', "mainPage", "", "C/Ohm's_law")
+	path, _ := b.WriteFile(t)
+	lib, err := localwiki.OpenLibrary(path, localwiki.Edition{Language: "en", Variant: localwiki.VariantNoPic, Date: "2026-10"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = lib.Close() })
+	return lib
+}
+
+// modelVisibleStringField returns a JSON string field as the model sees it in
+// a Guardian-isolated result and would copy it into a tool-call argument.
+func modelVisibleStringField(t *testing.T, output, key string) string {
+	t.Helper()
+	marker := key + "&#34;:&#34;"
+	i := strings.Index(output, marker)
+	if i < 0 {
+		t.Fatalf("no %s field in %s", key, output)
+	}
+	rest := output[i+len(marker):]
+	j := strings.Index(rest, "&#34;")
+	if j < 0 {
+		t.Fatalf("unterminated %s field in %s", key, output)
+	}
+	var value string
+	if err := json.Unmarshal([]byte(`"`+rest[:j]+`"`), &value); err != nil {
+		t.Fatalf("field %q: %v", rest[:j], err)
+	}
+	return value
+}
+
+// The model sees article text escaped twice on the real dispatch path (the
+// per-field isolation, then the Guardian's isolation of the whole result) and
+// must be able to pass a path back exactly as shown.
+func TestDispatchLocalWikipediaReadsThePathTheModelSaw(t *testing.T) {
+	useAgentWikiSource(t, agentLibrarySource{lib: escapedTitleLibrary(t)})
+	dc := &DispatchContext{Cfg: localWikipediaTestConfig(), Logger: testLogger, Guardian: security.NewGuardian(nil), SessionID: t.Name()}
+	ctx := context.Background()
+	for query, want := range map[string]string{"Ohm's law": "relates current and voltage", "AT&T": "telecommunications company"} {
+		search := ToolCall{Action: "local_wikipedia", NativeCallID: "call_search", Params: map[string]interface{}{"operation": "search", "query": query}}
+		found := DispatchToolCallResult(ctx, &search, dc, query)
+		if found.Status != ToolResultSuccess || !strings.HasPrefix(found.Output, "<external_data>\n") {
+			t.Fatalf("%q search: %+v", query, found)
+		}
+		path := modelVisibleStringField(t, found.Output, "path")
+		if !strings.Contains(path, "&amp;") {
+			t.Fatalf("%q: expected the doubly escaped path the model sees, got %q", query, path)
+		}
+		read := ToolCall{Action: "local_wikipedia", NativeCallID: "call_read", Params: map[string]interface{}{"operation": "read", "path": path}}
+		got := DispatchToolCallResult(ctx, &read, dc, query)
+		if got.Status != ToolResultSuccess || !strings.Contains(got.Output, want) {
+			t.Fatalf("%q read of %q: %+v", query, path, got)
+		}
 	}
 }

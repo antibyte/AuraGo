@@ -89,3 +89,72 @@ func TestSearchIndexReportsClosedSyntheticArchive(t *testing.T) {
 		t.Fatalf("lead: err = %v, want zim.ErrClosed", err)
 	}
 }
+
+// escapedTitlesArchive holds articles whose titles carry characters that
+// isolation escapes: ' becomes &#39; and & becomes &amp;, and the agent path
+// escapes field text a second time.
+func escapedTitlesArchive(t *testing.T) *zim.Archive {
+	t.Helper()
+	b := zimtest.New()
+	c := b.AddCluster(zimtest.CompressionZstd, false)
+	b.AddMetadata(c, "Language", "eng")
+	b.AddArticle(c, 'C', "Ohm's_law", "Ohm's law", htmlPage("Ohm's law",
+		`<section data-mw-section-id="0"><p>Ohm's law relates current and voltage.</p></section>`+
+			`<section data-mw-section-id="1"><div class="mw-heading mw-heading2"><h2 id="QA">Q&amp;A</h2></div><p>Questions and answers.</p></section>`))
+	b.AddArticle(c, 'C', "AT&T", "AT&T", htmlPage("AT&amp;T", `<p>AT&amp;T is a telecommunications company.</p>`))
+	path, _ := b.WriteFile(t)
+	a, err := zim.Open(path, zim.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = a.Close() })
+	return a
+}
+
+func TestReadAcceptsDoublyEscapedEchoes(t *testing.T) {
+	useFreshRenderCache(t)
+	ix := searchIndex{store: zimStore{a: escapedTitlesArchive(t)}}
+	ctx := context.Background()
+	for _, req := range []ReadRequest{
+		{Path: "Ohm's_law"},
+		{Path: "Ohm&#39;s_law"},
+		{Path: "Ohm&amp;#39;s_law"},
+		{Path: "&lt;external_data&gt;\nOhm&amp;#39;s_law\n&lt;/external_data&gt;"},
+		{Path: "<external_data>\nOhm&amp;#39;s_law\n</external_data>"},
+		{Title: "Ohm&amp;#39;s law"},
+		{Title: "Ohm&#39;s law"},
+	} {
+		art, err := ix.read(ctx, req)
+		if err != nil || art.Path != "Ohm's_law" {
+			t.Fatalf("%+v: article %+v err %v", req, art.Ref, err)
+		}
+	}
+	for _, req := range []ReadRequest{{Path: "AT&amp;amp;T"}, {Path: "AT&amp;T"}, {Title: "AT&amp;amp;T"}, {Path: "AT&T"}} {
+		art, err := ix.read(ctx, req)
+		if err != nil || art.Path != "AT&T" || art.Title != "AT&T" {
+			t.Fatalf("%+v: article %+v err %v", req, art.Ref, err)
+		}
+	}
+	for _, section := range []string{"Q&A", "Q&amp;A", "Q&amp;amp;A", "&lt;external_data&gt;Q&amp;amp;A&lt;/external_data&gt;", "1"} {
+		art, err := ix.read(ctx, ReadRequest{Path: "Ohm&amp;#39;s_law", Section: section})
+		if err != nil || art.Content != "## Q&A\n\nQuestions and answers." {
+			t.Fatalf("section %q: content %q err %v", section, art.Content, err)
+		}
+	}
+}
+
+func TestEchoedFormsDecodeAtMostThreeTimes(t *testing.T) {
+	for in, want := range map[string][]string{
+		"Berlin": {"Berlin"},
+		" <external_data>\nBerlin\n</external_data> ": {"Berlin"},
+		"AT&amp;amp;T":                    {"AT&T", "AT&amp;T", "AT&amp;amp;T"},
+		"Ohm&amp;#39;s_law":               {"Ohm's_law", "Ohm&#39;s_law", "Ohm&amp;#39;s_law"},
+		"a&amp;amp;amp;amp;b":             {"a&amp;b", "a&amp;amp;b", "a&amp;amp;amp;b", "a&amp;amp;amp;amp;b"},
+		"<external_data></external_data>": nil,
+		"":                                nil,
+	} {
+		if got := echoedForms(in); !reflect.DeepEqual(got, want) {
+			t.Fatalf("echoedForms(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
