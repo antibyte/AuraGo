@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "Krant is uitgeschakeld in Config.",
   "dashboard.newspaper_latest": "Laatste editie",
   "dashboard.newspaper_empty": "Nog geen editie. Kies je onderwerpen om te beginnen.",
-  "dashboard.newspaper_next": "Volgende doeltijd"
+  "dashboard.newspaper_next": "Volgende doeltijd",
+  "dashboard.integration_local_wikipedia": "Lokale Wikipedia",
+  "dashboard.local_wikipedia_update_hint": "Nieuwe editie {{date}}",
+  "dashboard.local_wikipedia_update_title": "Er is een nieuwere Wikipedia-editie ({{date}}) beschikbaar. Open de instellingen om die te installeren."
 }
