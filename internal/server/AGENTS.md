@@ -38,6 +38,37 @@ Server-owned HTTP and cross-component integration contracts.
 
 - Telegram, Discord and Rocket.Chat receive the server-owned budget tracker and the shared isolated context recap formatter. Telegram worker admission, transcription, typing and agent execution inherit the polling owner context; cancellation stops queued work and ongoing model work.
 
+### Retro-Net Terminal
+
+- `GET /api/desktop/retronet/directory`, `POST /api/desktop/retronet/status`
+  and `GET /api/desktop/retronet/connect` (`desktop_retronet*.go`) check, in
+  order and before any WebSocket upgrade: Desktop write scope plus the
+  operation class (connect is Desktop execution), the live `retronet_enabled`
+  grant (`virtual_desktop.retronet_enabled`, default off; false when readonly
+  or without write scope; 403 `retronet_disabled`), the method, then for
+  connect a known entry ID (404), a same-host `Origin` (403, empty refused) and
+  a WebSocket upgrade (400).
+- The browser sends only an entry ID plus `cols`/`rows`; the server looks the
+  entry up in the catalog or `retronet.entries` and runs it through the one
+  lazily created `retronet.Manager` (limits shared by all users) and its
+  guarded `Dialer` (public addresses only). Revalidate policy and
+  authorization every second; revocation ends the session with
+  `NO CARRIER`/`disabled`, integration shutdown or HTTP drain with
+  `server_shutdown`.
+- `directory` returns catalog then own entries, cached status, `stale` and
+  `can_edit` (administrator and not readonly); `status` asks for a probe and
+  waits at most 10 s. Both pass the full directory to the prober.
+- A first-contact SSH key is persisted only when the session's caller is an
+  administrator (`withRetroNetHostKeyPersistence`, fail closed), through
+  `SetRetroNetHostKey`, then announced as a `desktop_changed`/`set_settings`
+  event that `filterDesktopEvent` keeps from non-admin clients.
+- Audit `desktop_retronet_connect` (attempt, plus `blocked`/`upgrade_failed`
+  when the upgrade fails) and `desktop_retronet_session` (code, reason,
+  target, byte counts, duration). Never log or audit payloads.
+- Verify `go test ./internal/server -run RetroNet -count=1`. Engine contracts
+  live in `internal/retronet/AGENTS.md`; operator docs in
+  `documentation/retro-net.md`.
+
 ### HTTP trust and shutdown boundaries
 
 - Desktop agent chat, its stream and log APIs require administrative Desktop access. Log tail/search/stream/download scrub registered secrets and credential fields. Passive media proxies reject active HTML/SVG/XML; every inline Knowledge document uses sandbox CSP. Garage HTTP and WebSocket proxies remove local cookies and authorization headers before forwarding.

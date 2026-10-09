@@ -2816,8 +2816,40 @@ registration lives in `internal/desktop/types.go`.
   and `desktop.file_dialog_webp`. Image-decode failures throw
   `pixel.error_load`. Exposes `window.PixelApp`. No child DOX file
   needed.
-- `terminal.js` - Standalone workspace terminal: one xterm.js session to
-  `/api/code-studio/terminal`. Style catalog in `terminal-styles.js`
+- `terminal.js` - Standalone workspace terminal and Retro-Net dialer. Exactly
+  one live socket per window: the shell (`/api/code-studio/terminal`) **or** a
+  Retro-Net session (`/api/desktop/retronet/connect?entry=<id>&cols&rows`, in
+  `terminal-retronet-session.js`; never a host or port). With `retronet_enabled`
+  (bootstrap, updated by `aurago:desktop-policy`), not read-only and no `path`
+  context, it opens on the directory (`terminal-retronet-directory.js`, drawn
+  on the alternate screen with auto-wrap off; entry `00` = shell, last entry in
+  `aurago.desktop.terminal.retronet.last`); otherwise, and after a directory
+  403, it behaves as the plain shell. `Ctrl+]` (never forwarded to a service)
+  and the toolbar return to the directory. Opening the directory, a dial or the
+  shell calls `resetScreen()` (`term.reset()` plus a queued RIS that shows the
+  cursor); a result keeps the session output and only restores the normal
+  screen, modes and mouse reporting (`PLAIN_SCREEN`).
+  Dialing runs the modem sequence and the optional baud throttle from
+  `terminal-modem.js` (`aurago.desktop.terminal.baud`, default off) in parallel
+  with the socket and shows `CONNECT` only after both finished; results print
+  the Hayes code plus `desktop.terminal_retronet_result_<reason>` (also the
+  browser-only `local_hangup` and `lost`), and keys in the first 400 ms after a
+  result are ignored. `bbs` entries use a fixed 80×25 grid with the vendored
+  `Aura VGA` font (Px437 IBM VGA 8x16, CC BY-SA 4.0, `ui/fonts/Px437-LICENSE.txt`,
+  credited in `THIRD_PARTY_LIBRARIES.md`), a fitted font size instead of the fit
+  addon and no scrollback; `world`/SSH entries fit the window and send
+  `resize`. Retro sessions set `convertEol=false`, the shell restores `true`.
+  `world` entries edit lines locally while `echo.remote` is false and suppress
+  local echo and history while `echo.hidden` is true. Input leaves in UTF-8
+  frames of at most 16 KiB (server read limit 64 KiB). The host-key prompt
+  takes the localized letters first, then ASCII Y/N (Greek uses Latin Y/N).
+  Admins manage own entries in `terminal-retronet-entries.js` (modal,
+  `retronet.entries` setting): it re-reads the directory and merges before
+  saving, and also refuses `localhost` names. `terminal-text.js`
+  (`window.TerminalText`: `cellWidth`, `fitToCells(value, width, pad)`,
+  `printable`) is the single display-width source (vendored xterm's Unicode 6
+  table) and strips control characters from server and translated text before
+  xterm. Modem sounds follow the key-click rules. Style catalog in `terminal-styles.js`
   (`window.TerminalStyles`: `ids`, `normalize`, `load`, `save`, `profile`,
   `applyXterm`, `effectControls`, `loadEffects`, `saveEffects`, `resetEffects`).
   IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
@@ -2831,7 +2863,8 @@ registration lives in `internal/desktop/types.go`.
   CSS bezels, and Web Audio key-clicks in `terminal-audio.js`
   (`window.TerminalAudio.create` → `setProfile`/`setMuted`/`playKey`/`dispose`).
   Load order: xterm.css, desktop-app-terminal.css, xterm, fit, WebGL addon,
-  styles, crt, audio, terminal.js. Scope is this app only. Reduced motion
+  styles, crt, audio, text, modem, retronet-directory, retronet-session,
+  retronet-entries, terminal.js. Scope is this app only. Reduced motion
   and `dataset.animations === 'false'` disable flicker, burn-in, animated grain, and audio.
   The native Effects dialog applies bounded sliders to the existing renderer,
   without recreating xterm or its socket. Preferences live per style in
@@ -2859,7 +2892,11 @@ registration lives in `internal/desktop/types.go`.
   socket status via `data-terminal-state`; Modern stays frameless. Keep compact
   cases inside the app without changing xterm's measured screen padding.
   Browser verification is
-  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopTerminalRetroBrowser -count=1`.
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopTerminalRetro(Net)?Browser' -count=1`
+  (styles/CRT and Retro-Net; both use `ui/desktop_terminal_harness_test.go`,
+  the Retro-Net fixture is `ui/testdata/terminal-retronet-fixture.js`).
+  Retro-Net module behaviour: `npm run test:terminal-retronet` (four Node
+  scripts, also run by `TestDesktopTerminalBehaviourScripts`).
   WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Style
   changes wait for `document.fonts.load` before changing xterm options or
   creating the canvas renderer, then fit once. Ignore stale font completions
@@ -2869,9 +2906,11 @@ registration lives in `internal/desktop/types.go`.
   together on smaller desktops; saved session bounds, user resizing and mobile
   maximization remain unchanged. Browser coverage delays the C64 font on first
   load and checks its measured glyph width as well as constrained opening sizes.
-  Visible strings use `desktop.terminal_*` plus `desktop.terminal_style*` and
-  `desktop.terminal_audio*` in all 16 desktop locales. No child DOX file
-  needed.
+  Visible strings use `desktop.terminal_*` plus `desktop.terminal_style*`,
+  `desktop.terminal_audio*` and `desktop.terminal_retronet_*` (including one
+  description per catalog entry) in all 16 desktop locales. Package contracts:
+  `internal/retronet/AGENTS.md`; operator docs: `documentation/retro-net.md`.
+  No child DOX file needed.
 - Notes uses the compact Autor-style shell with library, outline/info/search/AI panels,
   global Fruity menus and a responsive flowing note surface. Markdown stays authoritative
   under Documents/Notes. notes.js owns each window, versioned /api/desktop/notes I/O,

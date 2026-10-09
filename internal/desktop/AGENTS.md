@@ -48,6 +48,15 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   exact native-enumerator port name; keep frames binary, writes ordered, and
   device bytes out of logs. Its lease is shared with MeshCore and remains held
   until the serial port has closed.
+- Retro-Net own entries live in the Desktop setting `retronet.entries`
+  (validated by `retronet.ValidateEntriesDocument`, admin-only through the
+  settings API). `SetRetroNetHostKey` writes a first-contact SSH key into one
+  own SSH entry (the server calls it only for an administrator's confirmation)
+  with compare-and-set under a package mutex, retried up to 3 times so
+  concurrent settings saves are never overwritten, and refuses unknown,
+  non-SSH or already keyed entries. `SameHostWebSocketOrigin` is the exported
+  strict origin check (empty Origin refused) for server-side WebSocket
+  adapters. Verify `go test ./internal/desktop -run 'RetroNet|CompareAndSetSetting|SameHostWebSocketOrigin' -count=1`.
 
 Keep temporary files private and clean them on failure.
 
