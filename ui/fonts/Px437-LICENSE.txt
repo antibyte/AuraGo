@@ -1,0 +1,15 @@
+Px437 IBM VGA 8x16 web font (ui/fonts/Px437_IBM_VGA_8x16.woff)
+
+From "The Ultimate Oldschool PC Font Pack" by VileR
+https://int10h.org/oldschool-pc-fonts/
+
+Licensed under the Creative Commons Attribution-ShareAlike 4.0
+International License (CC BY-SA 4.0):
+https://creativecommons.org/licenses/by-sa/4.0/
+
+Source archive: oldschool_pc_font_pack_v2.2_web.zip (downloaded 2026-10-09)
+Source archive entry: woff - Web (webfonts)/Web437_IBM_VGA_8x16.woff
+
+The font file is distributed unmodified; only the file name was chosen for
+AuraGo. AuraGo uses it as the "Aura VGA" web font for the Terminal's 80x25
+Retro-Net BBS mode.

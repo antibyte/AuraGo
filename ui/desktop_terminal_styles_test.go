@@ -2,6 +2,8 @@ package ui
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -63,7 +65,7 @@ func TestDesktopTerminalStyleI18n(t *testing.T) {
 		"desktop.terminal_audio":                   "Key click",
 		"desktop.terminal_audio_off":               "Key click off",
 		"desktop.terminal_audio_on":                "Key click on",
-		"desktop.terminal_style":                     "Style",
+		"desktop.terminal_style":                   "Style",
 		"desktop.terminal_style_amber":             "Amber",
 		"desktop.terminal_style_apple2":            "Apple II",
 		"desktop.terminal_style_commodore64":       "Commodore 64",
@@ -269,5 +271,43 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 	}
 	if strings.Contains(source, "onclick=") {
 		t.Fatal("terminal.js must not use inline onclick")
+	}
+}
+
+func TestDesktopTerminalVGAFontIsVendoredWithAttribution(t *testing.T) {
+	t.Parallel()
+
+	font, err := os.ReadFile(filepath.Join("fonts", "Px437_IBM_VGA_8x16.woff"))
+	if err != nil {
+		t.Fatalf("read VGA font: %v", err)
+	}
+	if len(font) < 1024 || string(font[:4]) != "wOFF" {
+		t.Fatalf("Px437_IBM_VGA_8x16.woff is not a WOFF font (%d bytes)", len(font))
+	}
+	license, err := os.ReadFile(filepath.Join("fonts", "Px437-LICENSE.txt"))
+	if err != nil {
+		t.Fatalf("read VGA font license: %v", err)
+	}
+	for _, want := range []string{
+		"VileR",
+		"https://int10h.org/oldschool-pc-fonts/",
+		"CC BY-SA 4.0",
+		"https://creativecommons.org/licenses/by-sa/4.0/",
+		"unmodified",
+		"Source archive entry:",
+	} {
+		if !strings.Contains(string(license), want) {
+			t.Fatalf("Px437-LICENSE.txt missing %q", want)
+		}
+	}
+	css := readDesktopAssetText(t, "css/desktop-app-terminal.css")
+	for _, want := range []string{
+		`font-family: "Aura VGA";`,
+		`url('/fonts/Px437_IBM_VGA_8x16.woff') format('woff')`,
+		`font-display: block;`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("desktop-app-terminal.css missing %q", want)
+		}
 	}
 }
