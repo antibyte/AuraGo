@@ -200,6 +200,13 @@ func TestZimStoreSkipsDeprecatedEntriesAndOversizedArticles(t *testing.T) {
 	if len(hits) != 1 || hits[0].Ref != (Ref{Title: "Riese", Path: "Riese"}) || hits[0].Snippet != "" || hits[0].Lead != "" {
 		t.Fatalf("hits = %+v, want the oversized article by title without snippet or lead", hits)
 	}
+	useFreshRenderCache(t)
+	if _, err := ix.read(context.Background(), ReadRequest{Path: "Riese"}); !errors.Is(err, ErrArticleTooLarge) {
+		t.Fatalf("read(oversized) err = %v, want ErrArticleTooLarge", err)
+	}
+	if _, err := ix.lead(context.Background(), "Riese"); !errors.Is(err, ErrArticleTooLarge) {
+		t.Fatalf("lead(oversized) err = %v, want ErrArticleTooLarge", err)
+	}
 
 	_ = a.Close()
 	if _, err := ix.search(context.Background(), "Berlin", 5, 0); !errors.Is(err, zim.ErrClosed) {

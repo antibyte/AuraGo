@@ -2,6 +2,7 @@ package localwiki
 
 import (
 	"errors"
+	"math/rand/v2"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -129,5 +130,56 @@ func TestSectionListIsACopy(t *testing.T) {
 	list[1].Heading = "changed"
 	if again := a.sectionList(); again[1].Heading != "Geschichte" {
 		t.Fatalf("sectionList shares its slice: %+v", again)
+	}
+}
+
+// pageTextReference is the original rune-slice implementation of pageText.
+func pageTextReference(text string, offset int) (string, *int, error) {
+	runes := []rune(text)
+	if offset < 0 || offset > len(runes) || (offset == len(runes) && offset > 0) {
+		return "", nil, ErrOffsetOutOfRange
+	}
+	end := offset + readPageRunes
+	if end >= len(runes) {
+		return strings.TrimLeft(string(runes[offset:]), "\n"), nil, nil
+	}
+	lo, cut, found := offset+readPageRunes/2, end, false
+	for _, sep := range []func(i int) bool{
+		func(i int) bool { return runes[i-1] == '\n' && runes[i-2] == '\n' },
+		func(i int) bool { return runes[i-1] == '\n' },
+		func(i int) bool { return runes[i-1] == ' ' },
+	} {
+		for i := end; i > lo && !found; i-- {
+			if sep(i) {
+				cut, found = i, true
+			}
+		}
+	}
+	return strings.TrimLeft(strings.TrimRight(string(runes[offset:cut]), " \n"), "\n"), &cut, nil
+}
+
+func TestPageTextMatchesTheRuneReference(t *testing.T) {
+	rng := rand.New(rand.NewPCG(1, 2))
+	pieces := []string{"a", "ü", "日", "😀", " ", "\n", "\n\n", "wort "}
+	for n := range 200 {
+		var b strings.Builder
+		size, runes := rng.IntN(3*readPageRunes), 0
+		for runes < size {
+			p := pieces[rng.IntN(len(pieces))]
+			if n%3 == 0 && strings.ContainsAny(p, " \n") {
+				p = "x" // some texts without breaks: hard cuts
+			}
+			b.WriteString(p)
+			runes += utf8.RuneCountInString(p)
+		}
+		text := b.String()
+		for _, offset := range []int{0, rng.IntN(runes + 1), runes / 2, runes, runes + 1, -1} {
+			got, gotNext, gotErr := pageText(text, offset)
+			want, wantNext, wantErr := pageTextReference(text, offset)
+			if got != want || !errors.Is(gotErr, wantErr) || (gotNext == nil) != (wantNext == nil) || (gotNext != nil && *gotNext != *wantNext) {
+				t.Fatalf("text %d offset %d: got (%d runes, %v, %v), want (%d runes, %v, %v)",
+					n, offset, utf8.RuneCountInString(got), gotNext, gotErr, utf8.RuneCountInString(want), wantNext, wantErr)
+			}
+		}
 	}
 }

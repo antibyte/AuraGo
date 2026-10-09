@@ -2,6 +2,7 @@ package localwiki
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"regexp"
 	"slices"
@@ -27,14 +28,25 @@ const (
 // renderedArticle is an article as model-facing Markdown, split at its
 // headings. sections[0] is the lead (level 0, no heading). A rendered
 // article is shared through the render cache and does not change after
-// renderArticle returns.
+// renderArticle returns: the full Markdown, the place of every section in
+// it and the section list are built once (layout).
 type renderedArticle struct {
 	title    string
 	sections []renderedSection
 
-	listOnce sync.Once
-	list     []Section
+	layoutOnce sync.Once
+	full       string     // fullMarkdown()
+	spans      []textSpan // sectionMarkdown(i) is full[spans[i].start:spans[i].end]
+	list       []Section
+	size       int // approximate memory use in bytes, for the render cache
 }
+
+// textSpan is a byte range of renderedArticle.full.
+type textSpan struct{ start, end int }
+
+// sectionOverhead approximates the memory of one section besides its text
+// (renderedSection, Section, textSpan and slice headers).
+const sectionOverhead = 160
 
 type renderedSection struct {
 	heading string
@@ -91,14 +103,26 @@ func articleRoot(doc *goquery.Document) *goquery.Selection {
 
 // renderArticle converts article HTML to sections of Markdown.
 func renderArticle(raw []byte, title string) (*renderedArticle, error) {
+	return renderArticleContext(context.Background(), raw, title)
+}
+
+// renderArticleContext is renderArticle that stops with ctx.Err() between
+// the conversion of two sections.
+func renderArticleContext(ctx context.Context, raw []byte, title string) (*renderedArticle, error) {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(raw))
 	if err != nil {
 		return nil, fmt.Errorf("parse article html: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	root := articleRoot(doc)
 	cleanArticle(root)
 	art := &renderedArticle{title: title}
 	for _, rs := range splitSections(root.Nodes[0]) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		body, err := nodesToMarkdown(rs.nodes)
 		if err != nil {
 			return nil, err
@@ -106,6 +130,7 @@ func renderArticle(raw []byte, title string) (*renderedArticle, error) {
 		art.sections = append(art.sections, renderedSection{heading: rs.heading, level: rs.level, body: body})
 	}
 	art.dropUnwantedSections()
+	art.layout()
 	return art, nil
 }
 
@@ -249,55 +274,85 @@ func (a *renderedArticle) dropUnwantedSections() {
 	a.sections = kept
 }
 
-// sectionMarkdown renders section i with its heading and all subsections.
-func (a *renderedArticle) sectionMarkdown(i int) string {
-	s := a.sections[i]
-	var parts []string
-	if i > 0 {
-		parts = append(parts, strings.Repeat("#", s.level)+" "+s.heading)
-	}
-	if s.body != "" {
-		parts = append(parts, s.body)
-	}
-	if i == 0 {
-		return strings.Join(parts, "\n\n")
-	}
-	for j := i + 1; j < len(a.sections) && a.sections[j].level > s.level; j++ {
-		sub := a.sections[j]
-		parts = append(parts, strings.Repeat("#", sub.level)+" "+sub.heading)
-		if sub.body != "" {
-			parts = append(parts, sub.body)
-		}
-	}
-	return strings.Join(parts, "\n\n")
-}
-
-// fullMarkdown renders the whole article under its title.
-func (a *renderedArticle) fullMarkdown() string {
-	parts := []string{"# " + a.title}
-	if lead := a.sections[0].body; lead != "" {
-		parts = append(parts, lead)
-	}
-	for _, s := range a.sections[1:] {
-		parts = append(parts, strings.Repeat("#", s.level)+" "+s.heading)
-		if s.body != "" {
-			parts = append(parts, s.body)
-		}
-	}
-	return strings.Join(parts, "\n\n")
-}
-
-// sectionList describes the rendered sections for Article.Sections. It is
-// built on first use (a read or a failed section lookup) and returned as a
-// copy, because cached articles are shared between readers.
-func (a *renderedArticle) sectionList() []Section {
-	a.listOnce.Do(func() {
-		a.list = make([]Section, len(a.sections))
+// layout builds, once, the full Markdown (the title, then every section's
+// heading and body, joined by blank lines), the byte span of every section's
+// Markdown in it (heading, body and all subsections; the lead is its body
+// alone) and the section list. Section bodies become substrings of the full
+// Markdown, so the article holds its text only once.
+func (a *renderedArticle) layout() {
+	a.layoutOnce.Do(func() {
+		n := len(a.sections)
+		var b strings.Builder
+		b.WriteString("# " + a.title)
+		a.spans = make([]textSpan, n)
+		bodyAt := make([]int, n)
+		contentEnd := make([]int, n)
 		for i, s := range a.sections {
-			a.list[i] = Section{Index: i, Heading: s.heading, Level: s.level, Chars: utf8.RuneCountInString(a.sectionMarkdown(i))}
+			if i > 0 {
+				b.WriteString("\n\n")
+				a.spans[i].start = b.Len()
+				b.WriteString(strings.Repeat("#", s.level) + " " + s.heading)
+			}
+			bodyAt[i] = -1
+			if s.body != "" {
+				b.WriteString("\n\n")
+				bodyAt[i] = b.Len()
+				b.WriteString(s.body)
+			}
+			contentEnd[i] = b.Len()
+		}
+		a.full = b.String()
+		a.size = len(a.full)
+		if n > 0 {
+			if bodyAt[0] >= 0 {
+				a.spans[0] = textSpan{bodyAt[0], contentEnd[0]}
+			} else {
+				a.spans[0] = textSpan{contentEnd[0], contentEnd[0]}
+			}
+		}
+		for i := 1; i < n; i++ {
+			j := i
+			for j+1 < n && a.sections[j+1].level > a.sections[i].level {
+				j++
+			}
+			a.spans[i].end = contentEnd[j]
+		}
+		a.list = make([]Section, n)
+		for i, s := range a.sections {
+			if bodyAt[i] >= 0 {
+				a.sections[i].body = a.full[bodyAt[i] : bodyAt[i]+len(s.body)]
+			}
+			span := a.spans[i]
+			a.list[i] = Section{Index: i, Heading: s.heading, Level: s.level, Chars: utf8.RuneCountInString(a.full[span.start:span.end])}
+			a.size += len(s.heading) + sectionOverhead
 		}
 	})
+}
+
+// sectionMarkdown returns section i with its heading and all subsections.
+func (a *renderedArticle) sectionMarkdown(i int) string {
+	a.layout()
+	span := a.spans[i]
+	return a.full[span.start:span.end]
+}
+
+// fullMarkdown returns the whole article under its title.
+func (a *renderedArticle) fullMarkdown() string {
+	a.layout()
+	return a.full
+}
+
+// sectionList describes the rendered sections for Article.Sections, as a
+// copy because cached articles are shared between readers.
+func (a *renderedArticle) sectionList() []Section {
+	a.layout()
 	return slices.Clone(a.list)
+}
+
+// memSize approximates the memory the rendered article holds.
+func (a *renderedArticle) memSize() int {
+	a.layout()
+	return a.size
 }
 
 // leadFromHTML renders the prose before the first heading. It parses at most

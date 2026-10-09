@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"aurago/internal/zim"
@@ -48,7 +49,7 @@ type searchIndex struct {
 // searchView builds the search view of the library. It is the only place that
 // reads the Library fields declared by slice 3.
 func (l *Library) searchView() searchIndex {
-	ix := searchIndex{store: zimStore{a: l.archive}}
+	ix := searchIndex{store: zimStore{a: l.archive, owner: l.cacheID}}
 	if l.title != nil {
 		ix.titles = xapianTitles{db: l.title, analyzer: l.analyzer}
 	}
@@ -58,8 +59,12 @@ func (l *Library) searchView() searchIndex {
 	return ix
 }
 
-// zimStore is the articleStore of an open ZIM archive.
-type zimStore struct{ a *zim.Archive }
+// zimStore is the articleStore of an open ZIM archive. owner is the cache
+// identity of the Library that opened it (0 for a bare archive in tests).
+type zimStore struct {
+	a     *zim.Archive
+	owner uint64
+}
 
 func (s zimStore) lookup(path string) (zim.Entry, error) {
 	return s.a.EntryByPath(s.a.ContentNamespace(), path)
@@ -104,9 +109,13 @@ func (s zimStore) readHTML(e zim.Entry) ([]byte, error) {
 	return raw, nil
 }
 
-func (s zimStore) cacheKey(path string) string {
+// cacheKey keys a rendered article by ZIM UUID, owning Library and path.
+func (s zimStore) cacheKey(path string) string { return s.cachePrefix() + path }
+
+// cachePrefix is the render-cache key prefix of this archive and Library.
+func (s zimStore) cachePrefix() string {
 	uuid := s.a.UUID()
-	return hex.EncodeToString(uuid[:]) + "/" + path
+	return hex.EncodeToString(uuid[:]) + "/" + strconv.FormatUint(s.owner, 10) + "/"
 }
 
 func isHTMLEntry(e zim.Entry) bool {

@@ -3,6 +3,7 @@ package localwiki
 import (
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // readPageRunes is the largest Content a single Read returns.
@@ -54,38 +55,52 @@ func (a *renderedArticle) sectionNotFound(spec string) error {
 
 // pageText returns up to readPageRunes runes of text starting at the rune
 // offset, cut at a paragraph or line break in the second half of the page
-// when possible. next is nil on the last page.
+// when possible. next (a rune offset) is nil on the last page. It works on
+// byte indexes, so a page of a long article costs no copy of the article.
 func pageText(text string, offset int) (string, *int, error) {
-	runes := []rune(text)
-	if offset < 0 || offset > len(runes) || (offset == len(runes) && offset > 0) {
+	if offset < 0 {
 		return "", nil, ErrOffsetOutOfRange
 	}
-	end := offset + readPageRunes
-	if end >= len(runes) {
-		return strings.TrimLeft(string(runes[offset:]), "\n"), nil, nil
+	start, ok := advanceRunes(text, 0, offset)
+	if !ok || (start == len(text) && offset > 0) {
+		return "", nil, ErrOffsetOutOfRange
 	}
-	cut := pageBreak(runes, offset+readPageRunes/2, end)
-	next := cut
-	return strings.TrimLeft(strings.TrimRight(string(runes[offset:cut]), " \n"), "\n"), &next, nil
+	mid, _ := advanceRunes(text, start, readPageRunes/2)
+	end, ok := advanceRunes(text, mid, readPageRunes-readPageRunes/2)
+	if !ok || end == len(text) {
+		return strings.TrimLeft(text[start:], "\n"), nil, nil
+	}
+	cut := pageBreak(text, mid, end)
+	next := offset + utf8.RuneCountInString(text[start:cut])
+	return strings.TrimLeft(strings.TrimRight(text[start:cut], " \n"), "\n"), &next, nil
 }
 
-// pageBreak finds the best cut in runes[min:end]: after a blank line, else
-// after a line break, else after a space, else at end.
-func pageBreak(runes []rune, min, end int) int {
-	for i := end; i > min; i-- {
-		if runes[i-1] == '\n' && runes[i-2] == '\n' {
-			return i
+// advanceRunes returns the byte index n runes after byte index from; ok is
+// false (and the index len(s)) when s ends first.
+func advanceRunes(s string, from, n int) (int, bool) {
+	i := from
+	for ; n > 0; n-- {
+		if i >= len(s) {
+			return len(s), false
 		}
+		_, size := utf8.DecodeRuneInString(s[i:])
+		i += size
 	}
-	for i := end; i > min; i-- {
-		if runes[i-1] == '\n' {
-			return i
-		}
+	return i, true
+}
+
+// pageBreak finds the best cut in the byte range (min, end] of text: after a
+// blank line, else after a line break, else after a space, else at end. The
+// separators are ASCII, so byte positions are rune boundaries; min >= 1.
+func pageBreak(text string, min, end int) int {
+	if i := strings.LastIndex(text[min-1:end], "\n\n"); i >= 0 {
+		return min - 1 + i + 2
 	}
-	for i := end; i > min; i-- {
-		if runes[i-1] == ' ' {
-			return i
-		}
+	if i := strings.LastIndexByte(text[min:end], '\n'); i >= 0 {
+		return min + i + 1
+	}
+	if i := strings.LastIndexByte(text[min:end], ' '); i >= 0 {
+		return min + i + 1
 	}
 	return end
 }

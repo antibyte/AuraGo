@@ -17,7 +17,7 @@ import (
 func useFreshRenderCache(t *testing.T) {
 	t.Helper()
 	saved := renderCache
-	renderCache = &articleCache{max: renderCacheSize, items: map[string]*renderedArticle{}}
+	renderCache = newArticleCache(renderCacheSize, renderCacheBytes)
 	t.Cleanup(func() { renderCache = saved })
 }
 
@@ -172,7 +172,7 @@ func TestReadCachesRenderedArticles(t *testing.T) {
 }
 
 func TestArticleCacheEvictsLeastRecentlyUsed(t *testing.T) {
-	c := &articleCache{max: 2, items: map[string]*renderedArticle{}}
+	c := newArticleCache(2, renderCacheBytes)
 	a, b, d := &renderedArticle{title: "a"}, &renderedArticle{title: "b"}, &renderedArticle{title: "d"}
 	c.put("a", a)
 	c.put("b", b)
