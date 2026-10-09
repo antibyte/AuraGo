@@ -313,7 +313,9 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"TerminalRetroNetEntries.confirmDelete(",
 		"'aurago:desktop-policy'",
 		"b.retronet_enabled === true",
-		"typeof detail.retronet_enabled !== 'boolean'",
+		// Plan decision 16: explicit readonly/enabled/retronet_enabled switch Retro-Net; missing fields change nothing.
+		"const off = detail.readonly === true || detail.enabled === false || detail.retronet_enabled === false",
+		"if (!off && detail.retronet_enabled !== true) return",
 		"retroNetOn && !ctx.path",
 		"term.options.convertEol = false",
 		"term.options.convertEol = true",
@@ -340,6 +342,11 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"if (remote && run.connected && !run.live && !run.hostKey) {",
 		// Dispose removes own-entry dialogs without close(), which would reopen a dialog with a pending save.
 		"root.querySelectorAll('dialog[data-terminal-retronet-dialog]').forEach(function (dialog) { dialog.remove(); })",
+		// BBS fits run one at a time; a request during a fit reruns it once afterwards.
+		"if (bbsFitting) {",
+		"bbsRefit = true;",
+		// A result ignores keys for a moment so keys typed as the service hangs up do not dismiss it.
+		"if (window.performance.now() - resultAt >= RESULT_GRACE_MS) afterResult();",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal.js missing %q", want)
@@ -349,6 +356,10 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal.js must use the shared TerminalText/session helpers; found %q", forbidden)
 		}
+	}
+	// Leaving the directory (also on 403 or a policy switch) and dispose remove own-entry dialogs.
+	if strings.Count(source, "removeEntryDialogs();") != 2 {
+		t.Fatal("terminal.js must remove own-entry dialogs in leaveDirectory() and cleanup()")
 	}
 	// Every transition resets through resetScreen(): RIS behind queued output, then a visible cursor.
 	if strings.Count(source, "term.reset();") != 1 || !strings.Contains(source, `term.write('\x1bc\x1b[?25h')`) {

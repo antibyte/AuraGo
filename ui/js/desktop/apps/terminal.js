@@ -9,6 +9,8 @@
     // Normal screen buffer, then DECSTR (attributes, cursor, scroll region, wrap, insert, focus and paste
     // reporting) and mouse reporting off: after a session only real keys reach the result prompt.
     const PLAIN_SCREEN = '\x1b[?1047l\x1b[!p\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l';
+    // Keys typed while a service hangs up must not dismiss its result before it can be read.
+    const RESULT_GRACE_MS = 400;
     const RESULT_REASONS = [
         'refused', 'limit', 'timeout', 'dns', 'blocked', 'remote_closed', 'idle', 'max_duration',
         'disabled', 'hostkey_mismatch', 'hostkey_rejected', 'server_shutdown', 'local_hangup', 'lost'
@@ -165,7 +167,10 @@
         let bbsMode = false;
         let bbsRevision = 0;
         let bbsFrame = 0;
+        let bbsFitting = false;
+        let bbsRefit = false;
         let bbsFontSize = 16;
+        let resultAt = 0;
         const inst = { root: host };
 
         if (select) select.value = initial;
@@ -384,12 +389,19 @@
                     term.write(PLAIN_SCREEN + '\r\n');
                     writeDim(tr('desktop.terminal_retronet_press_key'));
                     announce(plain(tr('desktop.terminal_retronet_press_key')));
-                    setMode('result');
+                    enterResult();
                 }
             };
         }
 
+        // Own-entry dialogs belong to the directory: removed, not closed (close() reopens a dialog whose save
+        // is pending), whenever the directory goes away, e.g. after HTTP 403 or a policy switch.
+        function removeEntryDialogs() {
+            root.querySelectorAll('dialog[data-terminal-retronet-dialog]').forEach(function (dialog) { dialog.remove(); });
+        }
+
         function leaveDirectory() {
+            removeEntryDialogs();
             if (!directory) return;
             directory.dispose();
             directory = null;
@@ -590,6 +602,11 @@
             goLive(run);
         }
 
+        function enterResult() {
+            resultAt = window.performance.now();
+            setMode('result');
+        }
+
         function showResult(code, reasonCode) {
             if (!term) return;
             const reason = RESULT_REASONS.indexOf(reasonCode) >= 0 ? reasonCode : 'remote_closed';
@@ -600,7 +617,7 @@
             writeDim(explanation);
             term.write('\x1b[2m' + plain(next) + '\x1b[0m');
             announce(plain(hayes + '. ' + explanation + ' ' + next));
-            setMode('result');
+            enterResult();
             setStatus('desktop.terminal_stopped');
         }
 
@@ -667,7 +684,7 @@
                 return;
             }
             if (mode === 'result') {
-                afterResult();
+                if (window.performance.now() - resultAt >= RESULT_GRACE_MS) afterResult();
                 return;
             }
             const run = retro;
@@ -692,12 +709,14 @@
             if (retro && retro.session && !bbsMode) retro.session.resize(size.cols, size.rows);
         }
 
-        // Only an explicit retronet_enabled changes Retro-Net: the desktop-socket close event carries the
-        // serial flags alone and means "unchanged".
+        // Explicit readonly true, enabled false or retronet_enabled false switch Retro-Net off; retronet_enabled
+        // true (merged over the bootstrap) can switch it on. Missing fields mean "unchanged": the desktop-socket
+        // close event carries the serial flags alone.
         function onPolicy(event) {
             const detail = (event && event.detail) || {};
-            if (typeof detail.retronet_enabled !== 'boolean') return;
-            const next = retroNetAllowed(detail);
+            const off = detail.readonly === true || detail.enabled === false || detail.retronet_enabled === false;
+            if (!off && detail.retronet_enabled !== true) return;
+            const next = off ? false : retroNetAllowed(detail);
             if (next === retroNetOn) return;
             retroNetOn = next;
             syncRetroToolbar();
@@ -729,7 +748,7 @@
                 ? document.fonts.load(VGA_FONT_SPEC).catch(function () { return []; })
                 : Promise.resolve([]);
             ready.then(function () {
-                if (bbsMode && revision === bbsRevision) fitBbsFont().catch(function () {});
+                if (bbsMode && revision === bbsRevision) runBbsFit();
             });
         }
 
@@ -753,10 +772,33 @@
         }
 
         function scheduleBbsFit() {
-            if (!bbsMode || bbsFrame) return;
+            if (!bbsMode) return;
+            if (bbsFitting) {
+                bbsRefit = true;
+                return;
+            }
+            if (bbsFrame) return;
             bbsFrame = window.requestAnimationFrame(function () {
                 bbsFrame = 0;
-                fitBbsFont().catch(function () {});
+                runBbsFit();
+            });
+        }
+
+        // One fit at a time: a request during a fit reruns it once afterwards, so an older, slower fit never
+        // leaves its padding behind.
+        function runBbsFit() {
+            if (!bbsMode) return;
+            if (bbsFitting) {
+                bbsRefit = true;
+                return;
+            }
+            bbsFitting = true;
+            bbsRefit = false;
+            fitBbsFont().catch(function () {}).then(function () {
+                bbsFitting = false;
+                if (!bbsRefit) return;
+                bbsRefit = false;
+                scheduleBbsFit();
             });
         }
 
@@ -831,10 +873,11 @@
             motionQuery.removeEventListener('change', syncEffectsMenu);
             if (effectsDialog.open) effectsDialog.close();
             // Removed, not closed: close() reopens an entry dialog whose save is still pending.
-            root.querySelectorAll('dialog[data-terminal-retronet-dialog]').forEach(function (dialog) { dialog.remove(); });
+            removeEntryDialogs();
             if (bbsFrame) window.cancelAnimationFrame(bbsFrame);
             bbsFrame = 0;
             bbsMode = false;
+            bbsRefit = false;
             bbsRevision += 1;
             if (modem) modem.dispose();
             leaveDirectory();
