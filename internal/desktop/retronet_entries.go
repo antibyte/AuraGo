@@ -43,12 +43,15 @@ func (s *Service) retroNetEntriesDocument(ctx context.Context) (string, []retron
 	return document, entries, nil
 }
 
-// SetRetroNetHostKey stores a first-contact fingerprint into the own entry (source SourceSystem).
-// It reads, modifies and compare-and-sets the entries document, so a concurrent user save is
-// never overwritten; after a lost race it starts again from the new document, at most
-// retroNetHostKeyAttempts times. Unknown IDs, non-SSH entries and entries that already have a
-// key return an error.
-func (s *Service) SetRetroNetHostKey(ctx context.Context, entryID, fingerprint string) error {
+// SetRetroNetHostKey stores a first-contact fingerprint into the own entry that was dialed
+// (source SourceSystem). The key belongs to the dialed target: when the stored entry's protocol,
+// host, port or user no longer equal dialed's (the user edited it while the prompt was open),
+// nothing is stored and an error is returned. It reads, modifies and compare-and-sets the
+// entries document, so a concurrent user save is never overwritten; after a lost race it starts
+// again from the new document, at most retroNetHostKeyAttempts times. Unknown IDs, non-SSH
+// entries and entries that already have a key return an error.
+func (s *Service) SetRetroNetHostKey(ctx context.Context, dialed retronet.Entry, fingerprint string) error {
+	entryID := dialed.ID
 	retroNetEntriesMu.Lock()
 	defer retroNetEntriesMu.Unlock()
 	for attempt := 1; ; attempt++ {
@@ -68,6 +71,8 @@ func (s *Service) SetRetroNetHostKey(ctx context.Context, entryID, fingerprint s
 			return fmt.Errorf("unknown retro-net entry %q", entryID)
 		case entries[index].Protocol != retronet.ProtocolSSH:
 			return fmt.Errorf("retro-net entry %q is not an SSH entry", entryID)
+		case !sameRetroNetTarget(entries[index], dialed):
+			return fmt.Errorf("retro-net entry %q changed its target since it was dialed; host key not stored", entryID)
 		case entries[index].HostKey != "":
 			return fmt.Errorf("retro-net entry %q already has a host key", entryID)
 		}
@@ -90,4 +95,10 @@ func (s *Service) SetRetroNetHostKey(ctx context.Context, entryID, fingerprint s
 			return fmt.Errorf("retro-net entries kept changing; host key for %q not stored", entryID)
 		}
 	}
+}
+
+// sameRetroNetTarget reports whether stored still names the service dialed connected to.
+func sameRetroNetTarget(stored, dialed retronet.Entry) bool {
+	return stored.Protocol == dialed.Protocol && stored.Host == dialed.Host &&
+		stored.Port == dialed.Port && stored.User == dialed.User
 }

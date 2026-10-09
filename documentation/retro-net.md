@@ -101,7 +101,9 @@ fingerprint and asks for confirmation; answer with the letters shown (`Y` and
 administrator confirms, the key is stored with the entry and a different key
 later blocks the call; other users' confirmations allow only that one session
 and the question comes back next time. Changing the protocol, host, port or
-user name of an SSH entry drops its stored key.
+user name of an SSH entry drops its stored key, and a key confirmed while the
+entry was changed that way is not stored. To clear a wrong stored key, delete
+and re-create the entry or change its host, port or user.
 
 Own entries are stored in the Desktop setting `retronet.entries`.
 

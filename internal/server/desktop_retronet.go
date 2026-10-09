@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -87,11 +88,23 @@ func withRetroNetHostKeyPersistence(ctx context.Context, allowed bool) context.C
 	return context.WithValue(ctx, retroNetHostKeyPersistKey{}, allowed)
 }
 
+// retroNetDialedEntryKey carries the entry a session dialed; see
+// withRetroNetDialedEntry.
+type retroNetDialedEntryKey struct{}
+
+// withRetroNetDialedEntry records the entry the session dialed, so a
+// first-contact key is stored only while the entry still names that target.
+func withRetroNetDialedEntry(ctx context.Context, entry retronet.Entry) context.Context {
+	return context.WithValue(ctx, retroNetDialedEntryKey{}, entry)
+}
+
 // storeRetroNetHostKey persists a first-contact SSH fingerprint for an own
-// entry when the session context allows it (fail closed: no mark, no store);
-// the session continues either way. Manager ignores the returned error, so a
-// failure is logged here with the entry ID and the error only. A stored key
-// changes the retronet.entries setting, which is announced like
+// entry when the session context allows it (fail closed: no mark, no store)
+// and names the dialed entry (no dialed entry, no store); the session
+// continues either way. SetRetroNetHostKey refuses the key when the entry was
+// pointed elsewhere while the prompt was open. Manager ignores the returned
+// error, so a failure is logged here with the entry ID and the error only. A
+// stored key changes the retronet.entries setting, which is announced like
 // handleDesktopSettings does so open settings views refresh
 // (filterDesktopEvent keeps it from non-admin clients).
 func (s *Server) storeRetroNetHostKey(ctx context.Context, entryID, fingerprint string) error {
@@ -99,9 +112,15 @@ func (s *Server) storeRetroNetHostKey(ctx context.Context, entryID, fingerprint 
 		s.retroNetLogger().Info("Retro-Net host key not persisted: non-admin", "entry", entryID)
 		return nil
 	}
+	dialed, ok := ctx.Value(retroNetDialedEntryKey{}).(retronet.Entry)
+	if !ok || dialed.ID != entryID {
+		err := errors.New("the session does not name the dialed entry")
+		s.retroNetLogger().Warn("Retro-Net host key was not stored", "entry", entryID, "error", err)
+		return err
+	}
 	svc, hub, err := s.getDesktopService(ctx)
 	if err == nil {
-		err = svc.SetRetroNetHostKey(ctx, entryID, fingerprint)
+		err = svc.SetRetroNetHostKey(ctx, dialed, fingerprint)
 	}
 	if err != nil {
 		s.retroNetLogger().Warn("Retro-Net host key was not stored", "entry", entryID, "error", err)
@@ -212,7 +231,7 @@ func (s *Server) handleRetroNetConnect(w http.ResponseWriter, r *http.Request) {
 	defer client.closeSocket()
 	ctx, stop := s.retroNetSessionContext(r)
 	defer stop()
-	ctx = withRetroNetHostKeyPersistence(ctx, desktopRequestIsAdmin(s, r))
+	ctx = withRetroNetDialedEntry(withRetroNetHostKeyPersistence(ctx, desktopRequestIsAdmin(s, r)), entry)
 	manager, _ := s.retroNet()
 	result := manager.Run(ctx, entry, size, client)
 	// Run has sent the final result frame: hang up first, then audit.

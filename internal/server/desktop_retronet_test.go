@@ -435,7 +435,12 @@ func TestDesktopRetroNetHostKeyCallbackPersistsFirstContactKey(t *testing.T) {
 		t.Fatal("first-contact host keys are not wired to the desktop service")
 	}
 	fingerprint := "SHA256:" + strings.Repeat("Q", 43)
-	for _, unmarked := range []context.Context{context.Background(), withRetroNetHostKeyPersistence(context.Background(), false)} {
+	dialed := retroNetDialedTestEntry(t, env, "own-sshgame01")
+	for _, unmarked := range []context.Context{
+		context.Background(),
+		withRetroNetDialedEntry(context.Background(), dialed),
+		withRetroNetDialedEntry(withRetroNetHostKeyPersistence(context.Background(), false), dialed),
+	} {
 		if err := manager.OnHostKeyAccepted(unmarked, "own-sshgame01", fingerprint); err != nil {
 			t.Fatalf("a skipped store reported %v", err)
 		}
@@ -443,16 +448,50 @@ func TestDesktopRetroNetHostKeyCallbackPersistsFirstContactKey(t *testing.T) {
 	if entries := env.directory(t, env.adminToken).Entries; entries[len(entries)-1].HostKey != "" {
 		t.Fatal("a session without the admin mark pinned a host key")
 	}
-	if err := manager.OnHostKeyAccepted(withRetroNetHostKeyPersistence(context.Background(), true), "own-sshgame01", fingerprint); err != nil {
+	// Fail closed: an administrator's session that does not name the dialed entry stores nothing.
+	other := dialed
+	other.ID = "own-sshgame02"
+	for _, unknown := range []context.Context{
+		withRetroNetHostKeyPersistence(context.Background(), true),
+		withRetroNetDialedEntry(withRetroNetHostKeyPersistence(context.Background(), true), other),
+	} {
+		if err := manager.OnHostKeyAccepted(unknown, "own-sshgame01", fingerprint); err == nil {
+			t.Fatal("a store without the dialed entry succeeded")
+		}
+	}
+	if entries := env.directory(t, env.adminToken).Entries; entries[len(entries)-1].HostKey != "" {
+		t.Fatal("a session without the dialed entry pinned a host key")
+	}
+	if err := manager.OnHostKeyAccepted(retroNetAdminHostKeyContext(dialed), "own-sshgame01", fingerprint); err != nil {
 		t.Fatalf("store host key: %v", err)
 	}
 	entries := env.directory(t, env.adminToken).Entries
 	if last := entries[len(entries)-1]; last.ID != "own-sshgame01" || last.HostKey != fingerprint {
 		t.Fatalf("own SSH entry after first contact = %+v", last)
 	}
-	if err := manager.OnHostKeyAccepted(withRetroNetHostKeyPersistence(context.Background(), true), "own-sshgame01", "SHA256:"+strings.Repeat("R", 43)); err == nil {
+	if err := manager.OnHostKeyAccepted(retroNetAdminHostKeyContext(dialed), "own-sshgame01", "SHA256:"+strings.Repeat("R", 43)); err == nil {
 		t.Fatal("a stored host key was overwritten")
 	}
+}
+
+// retroNetDialedTestEntry returns the stored own entry id as a session dials it.
+func retroNetDialedTestEntry(t *testing.T, env *retroNetTestEnv, id string) retronet.Entry {
+	t.Helper()
+	_, own, err := env.s.retroNetDirectory(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, ok := retronet.Lookup(nil, own, id)
+	if !ok {
+		t.Fatalf("own entry %s is not stored", id)
+	}
+	return entry
+}
+
+// retroNetAdminHostKeyContext is the session context of an administrator who
+// dialed entry.
+func retroNetAdminHostKeyContext(entry retronet.Entry) context.Context {
+	return withRetroNetDialedEntry(withRetroNetHostKeyPersistence(context.Background(), true), entry)
 }
 
 // retroNetLogBuffer is a concurrency-safe log sink for slog.
@@ -489,7 +528,8 @@ func TestDesktopRetroNetHostKeyStoreLogsFailuresAndAnnouncesSettings(t *testing.
 	manager, _ := env.s.retroNet()
 
 	fingerprint := "SHA256:" + strings.Repeat("Q", 43)
-	if err := manager.OnHostKeyAccepted(withRetroNetHostKeyPersistence(context.Background(), true), "own-sshgame01", fingerprint); err != nil {
+	dialed := retroNetDialedTestEntry(t, env, "own-sshgame01")
+	if err := manager.OnHostKeyAccepted(retroNetAdminHostKeyContext(dialed), "own-sshgame01", fingerprint); err != nil {
 		t.Fatalf("store host key: %v", err)
 	}
 	select {
@@ -512,7 +552,7 @@ func TestDesktopRetroNetHostKeyStoreLogsFailuresAndAnnouncesSettings(t *testing.
 	}
 
 	rejected := "SHA256:" + strings.Repeat("R", 43)
-	if err := manager.OnHostKeyAccepted(withRetroNetHostKeyPersistence(context.Background(), true), "own-sshgame01", rejected); err == nil {
+	if err := manager.OnHostKeyAccepted(retroNetAdminHostKeyContext(dialed), "own-sshgame01", rejected); err == nil {
 		t.Fatal("a stored host key was overwritten")
 	}
 	logged := logs.String()

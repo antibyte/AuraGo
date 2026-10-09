@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"strings"
 	"sync"
@@ -155,4 +156,41 @@ func TestDesktopRetroNetHostKeyPersistsOnlyForAdmins(t *testing.T) {
 			_ = socket.conn.Close()
 		})
 	}
+}
+
+// The key belongs to the target that was dialed: when an administrator points
+// the entry elsewhere while the prompt is open, the accepted key is not stored
+// for the new target, the failure is logged and the session still runs.
+func TestDesktopRetroNetHostKeyIsNotStoredWhenTheEntryChangedDuringThePrompt(t *testing.T) {
+	service := startRetroNetFakeSSH(t)
+	logs := &retroNetLogBuffer{}
+	env := newRetroNetTestEnv(t, func(s *Server) {
+		s.retroNetManager.Dialer = retroNetTestNetwork{port: service.port()}.dialer()
+		s.Logger = slog.New(slog.NewTextHandler(logs, nil))
+	})
+	const entryID = "own-sshgame01"
+	entry := func(host string) string {
+		return fmt.Sprintf(`{"id":%q,"name":"SSH Game","protocol":"ssh","host":%q,"port":%d,"user":"guest"}`, entryID, host, service.port())
+	}
+	env.saveEntries(t, entry("game.retronet.test"))
+	socket := dialRetroNet(t, env.httpServer.URL, env.adminToken, "entry="+entryID)
+	socket.until(5*time.Second, socket.has("hostkey_prompt"))
+	env.saveEntries(t, entry("moved.retronet.test"))
+	socket.send(websocket.TextMessage, `{"type":"hostkey_decision","accept":true}`)
+	socket.until(5*time.Second, func() bool {
+		_, connected := socket.control("connected")
+		return connected && strings.Contains(socket.data.String(), "WELCOME SSH")
+	})
+	entries := env.directory(t, env.adminToken).Entries
+	if last := entries[len(entries)-1]; last.ID != entryID || last.Host != "moved.retronet.test" || last.HostKey != "" {
+		t.Fatalf("own entry after the prompt = %+v, want the edit kept and no host key", last)
+	}
+	logged := logs.String()
+	if !strings.Contains(logged, "Retro-Net host key was not stored") || !strings.Contains(logged, entryID) || !strings.Contains(logged, "changed its target") {
+		t.Fatalf("the refused store was not logged with entry and reason: %q", logged)
+	}
+	if strings.Contains(logged, service.fingerprint) {
+		t.Fatalf("the failure log carries the fingerprint: %q", logged)
+	}
+	_ = socket.conn.Close()
 }

@@ -69,12 +69,13 @@ func TestRetroNetHostKeyIsStoredOnceForOwnSSHEntries(t *testing.T) {
 	}
 	first := "SHA256:" + strings.Repeat("A", 43)
 	second := "SHA256:" + strings.Repeat("B", 43)
+	dialed := dialedRetroNetEntries(t, svc)
 
-	if err := svc.SetRetroNetHostKey(ctx, "own-sshgame01", "SHA256:short"); err == nil {
+	if err := svc.SetRetroNetHostKey(ctx, dialed["own-sshgame01"], "SHA256:short"); err == nil {
 		t.Fatal("a malformed fingerprint was stored")
 	}
 	svc.SetReadOnly(true)
-	if err := svc.SetRetroNetHostKey(ctx, "own-sshgame01", first); err == nil {
+	if err := svc.SetRetroNetHostKey(ctx, dialed["own-sshgame01"], first); err == nil {
 		t.Fatal("a host key was stored while the desktop is readonly")
 	}
 	svc.SetReadOnly(false)
@@ -85,7 +86,7 @@ func TestRetroNetHostKeyIsStoredOnceForOwnSSHEntries(t *testing.T) {
 		wg.Add(1)
 		go func(id, fingerprint string) {
 			defer wg.Done()
-			errs <- svc.SetRetroNetHostKey(ctx, id, fingerprint)
+			errs <- svc.SetRetroNetHostKey(ctx, dialed[id], fingerprint)
 		}(id, fingerprint)
 	}
 	wg.Wait()
@@ -106,19 +107,113 @@ func TestRetroNetHostKeyIsStoredOnceForOwnSSHEntries(t *testing.T) {
 	if keys["own-sshgame01"] != first || keys["own-sshgame02"] != second || keys["own-telnetbb1"] != "" {
 		t.Fatalf("stored keys = %v (lost update?)", keys)
 	}
-	for _, tc := range []struct{ name, id string }{
-		{"already pinned", "own-sshgame01"},
-		{"unknown entry", "own-missing01"},
-		{"telnet entry", "own-telnetbb1"},
-		{"catalog entry", "telehack-ssh"},
+	catalog, ok := retronet.Lookup(retronet.DefaultCatalog(), nil, "telehack-ssh")
+	if !ok {
+		t.Fatal("catalog entry telehack-ssh is missing")
+	}
+	missing := dialed["own-sshgame02"]
+	missing.ID = "own-missing01"
+	for _, tc := range []struct {
+		name   string
+		dialed retronet.Entry
+	}{
+		{"already pinned", dialed["own-sshgame01"]},
+		{"unknown entry", missing},
+		{"telnet entry", dialed["own-telnetbb1"]},
+		{"catalog entry", catalog},
 	} {
-		if err := svc.SetRetroNetHostKey(ctx, tc.id, second); err == nil {
-			t.Fatalf("%s: SetRetroNetHostKey accepted %s", tc.name, tc.id)
+		if err := svc.SetRetroNetHostKey(ctx, tc.dialed, second); err == nil {
+			t.Fatalf("%s: SetRetroNetHostKey accepted %s", tc.name, tc.dialed.ID)
 		}
 	}
 	entries, _ = svc.RetroNetEntries(ctx)
 	if entries[0].HostKey != first {
 		t.Fatalf("a refused call changed the stored key: %+v", entries[0])
+	}
+}
+
+// dialedRetroNetEntries returns the stored own entries by ID, as a session
+// dials them.
+func dialedRetroNetEntries(t *testing.T, svc *Service) map[string]retronet.Entry {
+	t.Helper()
+	entries, err := svc.RetroNetEntries(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := make(map[string]retronet.Entry, len(entries))
+	for _, entry := range entries {
+		byID[entry.ID] = entry
+	}
+	return byID
+}
+
+// The key belongs to the target that was dialed: an edit of protocol, host,
+// port or user while the prompt was open must not pin it to the new target;
+// other edits of the same entry keep it.
+func TestRetroNetHostKeyIsStoredOnlyForTheDialedTarget(t *testing.T) {
+	const original = `{"id":"own-sshgame01","name":"SSH Game","protocol":"ssh","host":"game.example.com","port":2222,"user":"guest"}`
+	fingerprint := "SHA256:" + strings.Repeat("A", 43)
+	for _, tc := range []struct {
+		name, edited string
+		stored       bool
+	}{
+		{"unchanged", original, true},
+		{"renamed", strings.Replace(original, `"name":"SSH Game"`, `"name":"Renamed Game"`, 1), true},
+		{"described", strings.Replace(original, `"user":"guest"`, `"user":"guest","description":"Now with notes"`, 1), true},
+		{"host", strings.Replace(original, "game.example.com", "other.example.com", 1), false},
+		{"port", strings.Replace(original, `"port":2222`, `"port":2223`, 1), false},
+		{"user", strings.Replace(original, `"user":"guest"`, `"user":"visitor"`, 1), false},
+		{"protocol", `{"id":"own-sshgame01","name":"SSH Game","protocol":"telnet","host":"game.example.com","port":2222,"kind":"world","charset":"utf8"}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := testService(t)
+			ctx := context.Background()
+			if err := svc.SetSetting(ctx, retronet.EntriesSetting, `{"version":1,"entries":[`+original+`]}`, SourceUser); err != nil {
+				t.Fatal(err)
+			}
+			dialed := dialedRetroNetEntries(t, svc)["own-sshgame01"]
+			// The user edits the entry while the host-key prompt is open.
+			if err := svc.SetSetting(ctx, retronet.EntriesSetting, `{"version":1,"entries":[`+tc.edited+`]}`, SourceUser); err != nil {
+				t.Fatal(err)
+			}
+			err := svc.SetRetroNetHostKey(ctx, dialed, fingerprint)
+			stored := dialedRetroNetEntries(t, svc)["own-sshgame01"]
+			if tc.stored {
+				if err != nil || stored.HostKey != fingerprint {
+					t.Fatalf("host key = %q, %v; want it stored", stored.HostKey, err)
+				}
+				return
+			}
+			if err == nil || stored.HostKey != "" {
+				t.Fatalf("host key = %q, %v; want an error and nothing stored for a changed target", stored.HostKey, err)
+			}
+			if strings.Contains(err.Error(), fingerprint) {
+				t.Fatalf("the error carries the fingerprint: %v", err)
+			}
+		})
+	}
+}
+
+// An edit of the target that lands between the read and the compare-and-set
+// is seen on the retry and refuses the key.
+func TestRetroNetHostKeyRefusesATargetChangedDuringTheUpdate(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.SetSetting(ctx, retronet.EntriesSetting, retroNetTestEntries, SourceUser); err != nil {
+		t.Fatal(err)
+	}
+	dialed := dialedRetroNetEntries(t, svc)["own-sshgame01"]
+	moved := strings.Replace(retroNetTestEntries, `"port":2222`, `"port":2223`, 1)
+	raceRetroNetHostKeyWrite(t, func() {
+		if err := svc.SetSetting(ctx, retronet.EntriesSetting, moved, SourceUser); err != nil {
+			t.Errorf("competing edit: %v", err)
+		}
+	})
+	if err := svc.SetRetroNetHostKey(ctx, dialed, "SHA256:"+strings.Repeat("A", 43)); err == nil {
+		t.Fatal("a host key was stored for a target changed during the update")
+	}
+	if stored := dialedRetroNetEntries(t, svc)["own-sshgame01"]; stored.Port != 2223 || stored.HostKey != "" {
+		t.Fatalf("stored entry = %+v, want the edit kept and no key", stored)
 	}
 }
 
@@ -144,7 +239,8 @@ func TestRetroNetHostKeyDoesNotRestoreAConcurrentlyDeletedEntry(t *testing.T) {
 			t.Errorf("competing delete: %v", err)
 		}
 	})
-	if err := svc.SetRetroNetHostKey(ctx, "own-sshgame01", "SHA256:"+strings.Repeat("A", 43)); err == nil {
+	dialed := dialedRetroNetEntries(t, svc)["own-sshgame01"]
+	if err := svc.SetRetroNetHostKey(ctx, dialed, "SHA256:"+strings.Repeat("A", 43)); err == nil {
 		t.Fatal("a host key was stored for an entry deleted during the update")
 	}
 	entries, err := svc.RetroNetEntries(ctx)
@@ -169,7 +265,7 @@ func TestRetroNetHostKeyKeepsAConcurrentUnrelatedEdit(t *testing.T) {
 		}
 	})
 	fingerprint := "SHA256:" + strings.Repeat("A", 43)
-	if err := svc.SetRetroNetHostKey(ctx, "own-sshgame01", fingerprint); err != nil {
+	if err := svc.SetRetroNetHostKey(ctx, dialedRetroNetEntries(t, svc)["own-sshgame01"], fingerprint); err != nil {
 		t.Fatalf("the host key was not stored after a lost race: %v", err)
 	}
 	entries, err := svc.RetroNetEntries(ctx)
@@ -222,6 +318,7 @@ func TestRetroNetHostKeyGivesUpAfterThreeLostRaces(t *testing.T) {
 	if err := svc.SetSetting(ctx, retronet.EntriesSetting, retroNetTestEntries, SourceUser); err != nil {
 		t.Fatal(err)
 	}
+	dialed := dialedRetroNetEntries(t, svc)["own-sshgame01"]
 	races := 0
 	retroNetHostKeyBeforeWrite = func() {
 		races++
@@ -231,7 +328,7 @@ func TestRetroNetHostKeyGivesUpAfterThreeLostRaces(t *testing.T) {
 		}
 	}
 	t.Cleanup(func() { retroNetHostKeyBeforeWrite = nil })
-	if err := svc.SetRetroNetHostKey(ctx, "own-sshgame01", "SHA256:"+strings.Repeat("A", 43)); err == nil {
+	if err := svc.SetRetroNetHostKey(ctx, dialed, "SHA256:"+strings.Repeat("A", 43)); err == nil {
 		t.Fatal("a host key was stored although every attempt lost its race")
 	}
 	if races != retroNetHostKeyAttempts {

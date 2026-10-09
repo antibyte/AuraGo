@@ -60,7 +60,8 @@ Server-owned HTTP and cross-component integration contracts.
   waits at most 10 s. Both pass the full directory to the prober.
 - A first-contact SSH key is persisted only when the session's caller is an
   administrator (`withRetroNetHostKeyPersistence`, fail closed), through
-  `SetRetroNetHostKey`, then announced as a `desktop_changed`/`set_settings`
+  `SetRetroNetHostKey` with the dialed entry from the session context
+  (`withRetroNetDialedEntry`; missing means no store), then announced as a `desktop_changed`/`set_settings`
   event that `filterDesktopEvent` keeps from non-admin clients.
 - Audit `desktop_retronet_connect` (attempt, plus `blocked`/`upgrade_failed`
   when the upgrade fails) and `desktop_retronet_session` (code, reason,

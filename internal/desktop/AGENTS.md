@@ -50,11 +50,12 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   until the serial port has closed.
 - Retro-Net own entries live in the Desktop setting `retronet.entries`
   (validated by `retronet.ValidateEntriesDocument`, admin-only through the
-  settings API). `SetRetroNetHostKey` writes a first-contact SSH key into one
-  own SSH entry (the server calls it only for an administrator's confirmation)
-  with compare-and-set under a package mutex, at most 3 attempts so
-  concurrent settings saves are never overwritten, and refuses unknown,
-  non-SSH or already keyed entries. `SameHostWebSocketOrigin` is the exported
+  settings API). `SetRetroNetHostKey(ctx, dialed, fingerprint)` writes a
+  first-contact SSH key into the own SSH entry that was dialed (the server
+  calls it only for an administrator's confirmation) with compare-and-set
+  under a package mutex, at most 3 attempts so concurrent settings saves are
+  never overwritten, and refuses unknown, non-SSH or already keyed entries and
+  entries whose protocol, host, port or user no longer equal the dialed ones. `SameHostWebSocketOrigin` is the exported
   strict origin check (empty Origin refused) for server-side WebSocket
   adapters. Verify `go test ./internal/desktop -run 'RetroNet|CompareAndSetSetting|SameHostWebSocketOrigin' -count=1`.
 
