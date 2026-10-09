@@ -43,6 +43,15 @@
         return lines;
     }
 
+    // Upper case in the UI language (Greek drops accents); an invalid tag falls back to the default rules.
+    function upper(text) {
+        try {
+            return text.toLocaleUpperCase(window.SYSTEM_LANG || undefined);
+        } catch (e) {
+            return text.toUpperCase();
+        }
+    }
+
     function pad2(number) {
         return number < 10 ? '0' + number : String(number);
     }
@@ -192,7 +201,7 @@
         }
 
         function headingLine(category, width) {
-            return ' \x1b[1;4m' + TerminalText.fitToCells(tr('desktop.terminal_retronet_cat_' + category).toLocaleUpperCase(), width - 1) + RESET;
+            return ' \x1b[1;4m' + TerminalText.fitToCells(upper(tr('desktop.terminal_retronet_cat_' + category)), width - 1) + RESET;
         }
 
         function headerLine(cols) {
@@ -359,6 +368,7 @@
         // Rejects after rendering the error view so the caller can react (403 -> shell).
         function load(preferId) {
             const gen = ++generation;
+            dialing = false;
             const keep = preferId || (loaded ? (list[cursor] && list[cursor].entry.id) : readLast());
             failed = false;
             notice = 'desktop.terminal_retronet_loading';

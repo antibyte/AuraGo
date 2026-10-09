@@ -84,19 +84,29 @@
             return !disposed && !!(profile && profile.retro) && !isMuted() && !silenced();
         }
 
+        // Created synchronously in dial() (the Enter keydown is the user gesture) and resumed
+        // whenever the browser keeps or puts it in the suspended state.
         function context() {
-            if (audio) return audio;
-            const Ctor = window.AudioContext || window.webkitAudioContext;
-            if (!Ctor) return null;
-            try {
-                audio = new Ctor();
-            } catch (e) {
-                audio = null;
+            if (!audio) {
+                const Ctor = window.AudioContext || window.webkitAudioContext;
+                if (!Ctor) return null;
+                try {
+                    audio = new Ctor();
+                } catch (e) {
+                    return null;
+                }
             }
-            if (audio && audio.state === 'suspended' && typeof audio.resume === 'function') {
-                audio.resume().catch(function () {});
+            if (audio.state === 'suspended' && typeof audio.resume === 'function') {
+                const resumed = audio.resume();
+                if (resumed && typeof resumed.catch === 'function') resumed.catch(function () {});
             }
             return audio;
+        }
+
+        // Tones are scheduled only against a running clock; a suspended one would pile them up.
+        function runningContext() {
+            const ctx = context();
+            return ctx && ctx.state === 'running' ? ctx : null;
         }
 
         function remember(node) {
@@ -117,7 +127,7 @@
         }
 
         function tone(freqs, offset, duration, gain) {
-            const ctx = context();
+            const ctx = runningContext();
             if (!ctx) return;
             const start = ctx.currentTime + offset;
             const out = envelope(ctx, start, duration, gain);
@@ -133,7 +143,7 @@
         }
 
         function noise(offset, duration, freq, q, gain) {
-            const ctx = context();
+            const ctx = runningContext();
             if (!ctx) return;
             if (!noiseBuffer) {
                 noiseBuffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate)), ctx.sampleRate);
@@ -239,8 +249,10 @@
         }
 
         // Prints ATZ / OK / ATDT <host>; resolves 'done' after the handshake or 'skipped'.
+        // A new dial() ends a running one as 'skipped' without printing its rest: callers reset the screen.
         function dial(host, entryId) {
             if (run) finish(run, 'skipped', true);
+            if (audible()) context();
             const current = {
                 transcript: 'ATZ\r\nOK\r\nATDT ' + window.TerminalText.printable(host) + '\r\n',
                 written: 0,

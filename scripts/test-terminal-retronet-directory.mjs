@@ -344,6 +344,37 @@ async function mouseDirectory(term, options = {}) {
     real.dispose();
 }
 
+// 6. The dial latch is released by load(); headings upper-case with the UI language.
+{
+    const real = new sandbox.Terminal({ cols: 80, rows: 30 });
+    const { directory, dialed } = await mouseDirectory(clickable(real).term);
+    directory.handleData('\r');
+    directory.handleData('\r');
+    same('a dial latches until the directory reloads', dialed.length, 1);
+    await directory.load();
+    directory.handleData('\r');
+    same('load() releases the dial latch', dialed.length, 2);
+    directory.dispose();
+    real.dispose();
+}
+{
+    const greek = JSON.parse(read('lang/desktop/el.json'));
+    const translate = (key) => (Object.prototype.hasOwnProperty.call(greek, key) ? greek[key] : key);
+    const heading = greek['desktop.terminal_retronet_cat_classics'];
+    sandbox.SYSTEM_LANG = 'el';
+    const { term } = await renderDirectory(80, 30, translate);
+    const shown = [];
+    for (let y = 0; y < 30; y += 1) shown.push(term.buffer.active.getLine(y).translateToString(true));
+    check('Greek headings drop accents when upper-cased (toLocaleUpperCase with SYSTEM_LANG)',
+        heading.toLocaleUpperCase('el') !== heading.toUpperCase() && shown.some((text) => text.includes(heading.toLocaleUpperCase('el'))), shown.slice(0, 6).join(' / '));
+    term.dispose();
+    sandbox.SYSTEM_LANG = 'no such language tag!';
+    const fallback = await renderDirectory(80, 30, translate);
+    check('an invalid SYSTEM_LANG still renders headings', fallback.term.buffer.active.getLine(3).translateToString(true).length > 0);
+    fallback.term.dispose();
+    sandbox.SYSTEM_LANG = 'en';
+}
+
 if (failures) {
     console.log(failures + ' check(s) failed');
     process.exit(1);

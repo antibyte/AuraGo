@@ -638,6 +638,8 @@ func TestDesktopTerminalModemContract(t *testing.T) {
 		"profile.retro",
 		"isMuted()",
 		"window.TerminalText.printable(host)",
+		"if (audible()) context();",
+		"ctx.state === 'running'",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-modem.js missing %q", want)
@@ -710,6 +712,8 @@ func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 		"announce(TerminalText.printable(tr('desktop.terminal_retronet_announce'",
 		"tr('desktop.terminal_retronet_help_admin')",
 		"TerminalText.fitToCells(entry.name, nameWidth, true)",
+		"toLocaleUpperCase(window.SYSTEM_LANG",
+		"dialing = false;",
 		"load: load",
 		"render: render",
 		"handleData: handleData",
