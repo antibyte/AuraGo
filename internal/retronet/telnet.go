@@ -169,6 +169,12 @@ func (t *Telnet) step(b byte, data, reply []byte) ([]byte, []byte) {
 		t.sb = t.sb[:0]
 		t.sbOverflow = false
 		t.state = psSBData
+		if b == telnetIAC {
+			// IAC SB IAC ...: an empty subnegotiation without an option byte.
+			// Let IAC SE end it instead of swallowing the following data.
+			t.sbOpt = 0
+			t.state = psSBIAC
+		}
 	case psSBData:
 		if b == telnetIAC {
 			t.state = psSBIAC
