@@ -43,6 +43,7 @@ import (
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/llm"
 	"aurago/internal/localllm"
+	"aurago/internal/localwiki"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
 	"aurago/internal/networkshares"
@@ -191,6 +192,7 @@ type Server struct {
 	Go2RTC                    *tools.Go2RTCManager
 	LocalLLM                  *localllm.Manager
 	LocalMusic                *acestep.Manager
+	LocalWiki                 *localwiki.Manager
 	localLLMLifecycleCtx      context.Context
 	Go2RTCDiscovery           *onvif.Service
 	MeshCore                  *meshcore.Manager
@@ -671,6 +673,9 @@ func Start(opts StartOptions) error {
 	if s.LocalMusic != nil {
 		s.LocalMusic.Start()
 	}
+	if s.LocalWiki != nil {
+		s.LocalWiki.Start(serverCtx)
+	}
 	defer func() {
 		if s.RTLSDR != nil {
 			tools.SetRTLSDRService(nil)
@@ -694,6 +699,13 @@ func Start(opts StartOptions) error {
 				s.Logger.Warn("[LocalLLM] Shutdown cleanup did not complete", "code", safeLocalLLMErrorCode(err))
 			}
 			shutdownCancel()
+		}
+		if s.LocalWiki != nil {
+			wikiCtx, wikiCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			if err := s.LocalWiki.Shutdown(wikiCtx); err != nil {
+				s.Logger.Warn("[LocalWikipedia] Shutdown did not complete", "error", err)
+			}
+			wikiCancel()
 		}
 		if s.GameMaker != nil {
 			_ = s.GameMaker.Close()
@@ -1657,6 +1669,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	acestep.SetDefault(s.LocalMusic)
 	s.Go2RTCDiscovery = onvif.NewService(cfg.Runtime.BroadcastOK)
 	tools.SetDefaultGo2RTCManager(s.Go2RTC)
+	s.LocalWiki = newLocalWikipediaManager(cfg, logger)
 	return s
 }
 
