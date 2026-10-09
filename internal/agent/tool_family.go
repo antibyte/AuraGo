@@ -16,7 +16,7 @@ func classifyToolFamily(toolName string) string {
 		return "coding"
 	case strings.Contains(name, "memory") || name == "remember" || name == "knowledge_graph" || name == "cheatsheet" || strings.Contains(name, "journal") || strings.Contains(name, "notes"):
 		return "memory"
-	case strings.Contains(name, "web_") || name == "site_crawler" || name == "api_request" || name == "virustotal_scan" || name == "form_automation":
+	case strings.Contains(name, "web_") || name == "site_crawler" || name == "api_request" || name == "virustotal_scan" || name == "form_automation" || name == "local_wikipedia":
 		return "web"
 	case strings.Contains(name, "homepage") || name == "netlify" || strings.HasPrefix(name, "here_now_") || strings.Contains(name, "update") || name == "cloudflare_tunnel":
 		return "deployment"
@@ -71,7 +71,7 @@ func inferToolFamilyFromQuery(query string) string {
 		return "coding"
 	case strings.Contains(q, "memory") || strings.Contains(q, "remember") || strings.Contains(q, "note") || strings.Contains(q, "journal") || strings.Contains(q, "knowledge"):
 		return "memory"
-	case strings.Contains(q, "scrape") || strings.Contains(q, "search") || strings.Contains(q, "web search") || strings.Contains(q, "website audit") || strings.Contains(q, "web capture") || strings.Contains(q, "api") || strings.Contains(q, "form"):
+	case strings.Contains(q, "scrape") || strings.Contains(q, "search") || strings.Contains(q, "wikipedia") || strings.Contains(q, "web search") || strings.Contains(q, "website audit") || strings.Contains(q, "web capture") || strings.Contains(q, "api") || strings.Contains(q, "form"):
 		return "web"
 	case strings.Contains(q, "network") || strings.Contains(q, "dns") || strings.Contains(q, "ping") || strings.Contains(q, "port") || strings.Contains(q, "scan") || strings.Contains(q, "fritz") || strings.Contains(q, "wake on lan"):
 		return "network"

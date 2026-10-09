@@ -565,6 +565,9 @@ func adaptiveFamilySeedsForQuery(userQuery string) []string {
 	if isNetworkCameraIntent(q) {
 		add("go2rtc")
 	}
+	if isEncyclopediaIntent(q) {
+		add("local_wikipedia")
+	}
 	if isMCPIntent(q) {
 		add("mcp_call")
 	}
@@ -598,6 +601,17 @@ func isNetworkCameraIntent(normalizedQuery string) bool {
 	mediaAction := strings.Contains(normalizedQuery, "snapshot") || strings.Contains(normalizedQuery, "live stream") ||
 		strings.Contains(normalizedQuery, "livebild") || strings.Contains(normalizedQuery, "stream anzeigen")
 	return cameraMentioned && mediaAction
+}
+
+// isEncyclopediaIntent keeps the offline Wikipedia tool in the adaptive
+// selection when the user asks for Wikipedia or encyclopedic lookups.
+func isEncyclopediaIntent(normalizedQuery string) bool {
+	for _, term := range []string{"wikipedia", "lexikon", "enzyklop", "encyclop", "kiwix"} {
+		if strings.Contains(normalizedQuery, term) {
+			return true
+		}
+	}
+	return false
 }
 
 func isResourceUsageIntent(normalizedQuery string) bool {
