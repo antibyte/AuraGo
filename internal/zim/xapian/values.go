@@ -19,7 +19,7 @@ type valueReader struct {
 	slot   uint32
 	prefix []byte
 	loaded bool
-	data   []byte // undecoded rest of the chunk
+	data   []byte // undecoded rest of the chunk (may alias a cached block)
 	did    uint32
 	val    []byte
 }
@@ -51,7 +51,7 @@ func (v *valueReader) load(did uint32) (bool, error) {
 	if len(v.prefix)+n != len(key) || first == 0 || first > 0xffffffff {
 		return false, corruptf("bad value chunk key")
 	}
-	tag, err := c.tag()
+	tag, err := c.tagView() // read in place: forward readers load chunk after chunk
 	if err != nil {
 		return false, err
 	}

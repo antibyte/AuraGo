@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -242,5 +243,94 @@ func TestWalkTermsRejectsBackwardSkip(t *testing.T) {
 	})
 	if _, err := db.TermsWithPrefix("st", 0); !errors.Is(err, ErrCorrupt) {
 		t.Fatalf("TermsWithPrefix over a backward skip: %v; want ErrCorrupt", err)
+	}
+}
+
+// The bounded top-k must give exactly what sorting every candidate and
+// collapsing on value slot 1 gives, for any limit, with many score and title
+// ties and keys shared by documents on either side of the cut-off.
+func TestSuggestTopMatchesFullSort(t *testing.T) {
+	const n = 4000
+	rng := uint64(3)
+	next := func(m uint64) uint64 {
+		rng = rng*6364136223846793005 + 1442695040888963407
+		return (rng >> 33) % m
+	}
+	lens := make([]uint32, n)
+	titles := make([]string, n)
+	keys := make([]string, n)
+	data := make([]string, n)
+	for i := range lens {
+		lens[i] = 1
+		titles[i] = fmt.Sprintf("T%02d", next(40)) // many equal titles
+		if next(3) > 0 {
+			keys[i] = fmt.Sprintf("k%03d", next(500)) // keys shared by ~5 documents
+		}
+		data[i] = fmt.Sprintf("C/p%d", i+1)
+	}
+	db := synthIndex{blockSize: minBlockSize, docLens: lens, data: data,
+		values: map[uint32][]string{0: titles, 1: keys}}.build(t)
+	var cands []scored
+	for did := uint32(1); did <= n; did++ {
+		if next(4) > 0 {
+			cands = append(cands, scored{did, float64(next(25))}) // many equal scores
+		}
+	}
+	// Reference: the pre-top-k ranking (sort all, keep the first per key).
+	ref := make([]suggestion, len(cands))
+	for i, c := range cands {
+		ref[i] = suggestion{Hit: Hit{DocID: c.did, Score: c.score, Title: titles[c.did-1]}, key: keys[c.did-1]}
+	}
+	sort.Slice(ref, func(i, j int) bool { return ref[i].better(ref[j]) })
+	var collapsed []Hit
+	seen := map[string]bool{}
+	for _, r := range ref {
+		if r.key != "" {
+			if seen[r.key] {
+				continue
+			}
+			seen[r.key] = true
+		}
+		r.Path = data[r.DocID-1][2:]
+		collapsed = append(collapsed, r.Hit)
+	}
+	for _, limit := range []int{1, 2, 7, 50, 333, len(collapsed) - 1, len(collapsed), n} {
+		top := newSuggestTop(db, limit)
+		for _, c := range cands {
+			if err := top.offer(c); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if len(top.h.byKey) > limit {
+			t.Fatalf("limit %d: %d collapse keys kept", limit, len(top.h.byKey))
+		}
+		p := poller{ctx: context.Background()}
+		got, err := top.hits(&p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := collapsed[:min(limit, len(collapsed))]
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("limit %d: top-k differs from the full sort\n got %v\nwant %v", limit, got[:min(5, len(got))], want[:min(5, len(want))])
+		}
+	}
+}
+
+// A query without word characters expands to the terms starting with it
+// (libzim's OP_WILDCARD); the stream polls ctx like every other loop.
+func TestSuggestWildcardOnly(t *testing.T) {
+	db, _ := termIndex(t, []expansion{{"!a", 300}, {"!b", 400}, {"a", 50}}, nil)
+	en := NewAnalyzer("eng")
+	hits, err := Suggest(context.Background(), db, en, "!", 1000)
+	if err != nil || len(hits) != 700 {
+		t.Fatalf("Suggest(!) = %d hits, %v; want 700", len(hits), err)
+	}
+	for _, h := range hits {
+		if !strings.HasPrefix(h.Title, "!") {
+			t.Fatalf("Suggest(!) returned %q", h.Title)
+		}
+	}
+	if _, err := Suggest(&lateCancel{Context: context.Background()}, db, en, "!", 10); !errors.Is(err, context.Canceled) {
+		t.Fatalf("wildcard stream over 700 documents ignored a cancellation: %v", err)
 	}
 }
