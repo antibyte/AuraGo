@@ -53,6 +53,7 @@ import (
 	"aurago/internal/planner"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
+	"aurago/internal/retronet"
 	"aurago/internal/rocketchat"
 	"aurago/internal/rtlsdr"
 	"aurago/internal/security"
@@ -289,6 +290,9 @@ type Server struct {
 	DesktopMu                 sync.Mutex
 	desktopClosed             bool // shutdown closed Desktop storage; guarded by DesktopMu
 	desktopRuns               desktopRunRegistry
+	retroNetOnce              sync.Once              // guards the lazy Retro-Net engine below
+	retroNetManager           *retronet.Manager      // lazy (see retroNet); tests pre-seed it
+	retroNetStatus            *retronet.StatusProber // lazy (see retroNet); tests pre-seed it
 	videoStudioMu             sync.Mutex
 	videoStudio               *videoStudioManager
 	videoStudioClosed         bool
