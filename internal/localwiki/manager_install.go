@@ -41,7 +41,7 @@ func (m *Manager) Install(ctx context.Context, req InstallRequest) error {
 		edition := *m.state.Edition
 		installed = &edition
 	}
-	busy := !m.started || m.shuttingDown || m.op != nil || settings.DataDir != m.activeDir
+	busy := !m.started || m.shuttingDown || m.op != nil || m.deleting || settings.DataDir != m.activeDir
 	m.mu.Unlock()
 	if !settings.Enabled {
 		return ErrDisabled
@@ -67,7 +67,7 @@ func (m *Manager) Install(ctx context.Context, req InstallRequest) error {
 func (m *Manager) syncDataDir() {
 	m.mu.Lock()
 	dir := m.settings.DataDir
-	need := m.started && !m.shuttingDown && m.op == nil && dir != m.activeDir
+	need := m.started && !m.shuttingDown && m.op == nil && !m.deleting && dir != m.activeDir
 	m.mu.Unlock()
 	if need {
 		m.load(dir)
@@ -169,10 +169,14 @@ func preferURL(urls []string, first string) []string {
 }
 
 // checkInstallSpace requires free >= missing bytes + max(1 GiB, 1 %). Unknown
-// free space needs ConfirmUnknownSpace. CanDeleteOld tells the UI whether the
-// download would fit once the installed edition is gone.
+// free space needs ConfirmUnknownSpace; with ReplaceDeleteOldFirst the
+// installed edition's size counts as free because it is deleted first.
+// CanDeleteOld tells the UI whether the download would fit once the installed
+// edition is gone.
 func (m *Manager) checkInstallSpace(plan *installPlan, req InstallRequest, installed *Edition) error {
 	plan.required = requiredBytes(plan.target.Size, plan.resumeBytes)
+	hasOld := installed != nil && installed.FileName != plan.target.FileName
+	plan.deleteOldFirst = req.ReplaceMode == ReplaceDeleteOldFirst && hasOld
 	free, err := m.freeDisk(plan.dir)
 	if err != nil {
 		if !req.ConfirmUnknownSpace {
@@ -181,16 +185,17 @@ func (m *Manager) checkInstallSpace(plan *installPlan, req InstallRequest, insta
 		m.logger.Warn("[LocalWikipedia] Free space is unknown; the administrator confirmed the download", "dir", plan.dir, "error", err)
 		return nil
 	}
-	if free >= plan.required {
+	fitsWithoutOld := free >= plan.required
+	fitsAfterDelete := hasOld && (fitsWithoutOld || installed.Size >= plan.required-free)
+	if fitsWithoutOld || (plan.deleteOldFirst && fitsAfterDelete) {
 		return nil
 	}
-	canDeleteOld := installed != nil && installed.FileName != plan.target.FileName && free+installed.Size >= plan.required
-	return &InsufficientSpaceError{Required: plan.required, Available: free, CanDeleteOld: canDeleteOld}
+	return &InsufficientSpaceError{Required: plan.required, Available: free, CanDeleteOld: fitsAfterDelete}
 }
 
 func (m *Manager) startOperation(plan installPlan) error {
 	m.mu.Lock()
-	if m.op != nil || m.shuttingDown || plan.dir != m.activeDir {
+	if m.op != nil || m.deleting || m.shuttingDown || plan.dir != m.activeDir {
 		m.mu.Unlock()
 		return ErrBusy
 	}
@@ -220,6 +225,11 @@ func (m *Manager) install(ctx context.Context, op *operation, plan installPlan) 
 	if plan.staleTarget != "" && plan.staleTarget != plan.target.FileName {
 		if err := removeIfExists(filepath.Join(plan.dir, plan.staleTarget+".part")); err != nil {
 			m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", plan.staleTarget, "error", err)
+		}
+	}
+	if plan.deleteOldFirst {
+		if err := m.detachInstalled(plan.dir); err != nil {
+			m.logger.Warn("[LocalWikipedia] state.json could not be updated", "error", err)
 		}
 	}
 	record := &downloadFile{Target: plan.target, URLs: plan.urls, StartedAt: m.now().UTC()}

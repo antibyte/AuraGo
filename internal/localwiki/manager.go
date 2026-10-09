@@ -57,6 +57,7 @@ type Manager struct {
 	settings     Settings
 	started      bool
 	shuttingDown bool
+	deleting     bool       // Delete is running; no operation may start meanwhile
 	activeDir    string     // storage directory the loaded state belongs to
 	state        *stateFile // nil when nothing is installed or pending deletion
 	lib          *libraryRef
@@ -202,10 +203,20 @@ func (m *Manager) loop() {
 		case <-m.reload:
 			m.reloadIfIdle()
 		case <-timer.C:
+			m.retryPendingDeletes()
 			m.maybeCheckUpdate(m.lifecycleCtx)
 			timer.Reset(loopTick)
 		}
 	}
+}
+
+// retryPendingDeletes deletes retired edition files that could not be removed
+// earlier (on Windows a file that something still holds open).
+func (m *Manager) retryPendingDeletes() {
+	m.mu.Lock()
+	dir := m.activeDir
+	m.mu.Unlock()
+	m.processPendingDeletes(dir)
 }
 
 func (m *Manager) signalReload() {
