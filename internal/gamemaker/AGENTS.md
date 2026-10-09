@@ -72,6 +72,9 @@ revision publication and standalone export for Phaser and Three.js games.
   Held input is owned by its keyboard, UI or canvas-pointer source: releasing
   camera look cannot cancel a separately held Mine action. Verify
   `TestVoxelTouchMineSurvivesCanvasLookRelease` with `GAMEMAKER_VOXEL_BROWSER=1`.
+- Canvas input must not request pointer capture while pointer lock owns the mouse.
+  Verify real right-click placement under pointer lock as well as unlocked mouse,
+  keyboard and touch input; keyboard-only placement checks miss browser failures.
 
 ### Shared game lifecycle
 

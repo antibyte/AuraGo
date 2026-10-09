@@ -105,7 +105,9 @@ export function startVoxelGame(definition,hooks={}) {
   const canvas=renderer.domElement;
   canvas.addEventListener('contextmenu',e=>e.preventDefault(),{signal});
   canvas.addEventListener('pointerdown',e=>{
-    if(blocked())return;canvas.focus();canvas.setPointerCapture(e.pointerId);
+    if(blocked())return;canvas.focus();
+    // Pointer capture is forbidden while pointer lock already owns mouse input.
+    if(!document.pointerLockElement)canvas.setPointerCapture(e.pointerId);
     if(e.pointerType==='touch'||e.pointerType==='pen'){look={id:e.pointerId,x:e.clientX,y:e.clientY};return;}
     if(e.button===2){game.place();return;}if(e.button!==0)return;
     action('primary',true,'pointer:'+e.pointerId);look={id:e.pointerId,x:e.clientX,y:e.clientY};
