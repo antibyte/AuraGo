@@ -25,6 +25,9 @@ type clusterCache struct {
 	lru   *list.List // front = most recently used
 	items map[uint32]*list.Element
 	used  int64
+	// closed is set by clear: a load that finishes afterwards is served but
+	// never re-adds its cluster to the emptied cache.
+	closed bool
 
 	group singleflight.Group
 }
@@ -83,6 +86,9 @@ func (c *clusterCache) add(idx uint32, cd *clusterData) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.closed {
+		return
+	}
 	if el, ok := c.items[idx]; ok {
 		c.lru.MoveToFront(el)
 		return
@@ -100,12 +106,16 @@ func (c *clusterCache) add(idx uint32, cd *clusterData) {
 	c.used += cost
 }
 
+// clear empties the cache and stops it from caching anything further. It is
+// called when the archive is closed; clusters still being loaded are returned
+// to their callers but not retained.
 func (c *clusterCache) clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.lru.Init()
 	clear(c.items)
 	c.used = 0
+	c.closed = true
 }
 
 // usage reports the number of cached clusters and their accounted bytes.

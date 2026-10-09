@@ -96,8 +96,43 @@ func TestClusterCacheClearDropsEntries(t *testing.T) {
 	if n, used := c.usage(); n != 0 || used != 0 {
 		t.Fatalf("after clear: usage = %d clusters / %d bytes, want empty", n, used)
 	}
-	if _, err := c.get(1, load); err != nil || loads != 2 {
-		t.Fatalf("after clear: loads = %d, err = %v, want a fresh load", loads, err)
+	// A closed cache still serves clusters but no longer retains them.
+	for range 2 {
+		if _, err := c.get(1, load); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n, used := c.usage(); loads != 3 || n != 0 || used != 0 {
+		t.Fatalf("after clear: loads = %d, usage = %d clusters / %d bytes, want 3 uncached loads", loads, n, used)
+	}
+}
+
+func TestClusterCacheDoesNotRetainLoadFinishingAfterClear(t *testing.T) {
+	c := newClusterCache(0)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	type result struct {
+		cd  *clusterData
+		err error
+	}
+	done := make(chan result, 1)
+	go func() {
+		cd, err := c.get(9, func() (*clusterData, error) {
+			close(started)
+			<-release
+			return fakeCluster(100), nil
+		})
+		done <- result{cd, err}
+	}()
+	<-started
+	c.clear() // the archive is closed while the load is in flight
+	close(release)
+	res := <-done
+	if res.err != nil || res.cd == nil || len(res.cd.data) != 100 {
+		t.Fatalf("in-flight load = %v, %v; the caller must still get its cluster", res.cd, res.err)
+	}
+	if n, used := c.usage(); n != 0 || used != 0 {
+		t.Fatalf("usage after clear = %d clusters / %d bytes, want empty (late load must not be re-added)", n, used)
 	}
 }
 

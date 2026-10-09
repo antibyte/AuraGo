@@ -5,11 +5,13 @@ import (
 	"encoding/binary"
 	"hash/crc32"
 	"io"
+	"math"
 	"math/rand/v2"
 	"runtime"
 	"testing"
 
 	"github.com/ulikunitz/xz"
+	"github.com/ulikunitz/xz/lzma"
 
 	"aurago/internal/zim/zimtest"
 )
@@ -171,9 +173,36 @@ func TestXZContentLargerThanCapIsRejectedWithinCap(t *testing.T) {
 	})
 }
 
+// withStreamHeader returns stream with its 2 stream-flag bytes replaced and
+// the stream header checksum recomputed.
+func withStreamHeader(stream []byte, flags [2]byte) []byte {
+	out := append([]byte(nil), stream...)
+	out[6], out[7] = flags[0], flags[1]
+	binary.LittleEndian.PutUint32(out[8:], crc32.ChecksumIEEE(out[6:8]))
+	return out
+}
+
+// withBlockHeader replaces the first block header of stream with one built
+// from fields (everything after the size byte), zero-padded and sealed.
+func withBlockHeader(stream, fields []byte) []byte {
+	oldLen := (int(stream[xzStreamHeaderLen]) + 1) * 4
+	hdr := make([]byte, 1+len(fields))
+	copy(hdr[1:], fields)
+	for (len(hdr)+4)%4 != 0 || len(hdr)+4 < 8 {
+		hdr = append(hdr, 0)
+	}
+	hdr[0] = byte((len(hdr)+4)/4 - 1)
+	hdr = binary.LittleEndian.AppendUint32(hdr, crc32.ChecksumIEEE(hdr))
+	out := append([]byte(nil), stream[:xzStreamHeaderLen]...)
+	out = append(out, hdr...)
+	return append(out, stream[xzStreamHeaderLen+oldLen:]...)
+}
+
 func TestNewXZReaderRejectsMalformedHeaders(t *testing.T) {
 	valid := xzStream(t, zimtest.ClusterBody([][]byte{[]byte("x")}, false))
 	mutate := func(fn func(body []byte)) []byte { return rewriteXZBlockHeader(t, valid, fn) }
+	// A 10-byte multibyte integer is one byte longer than the xz format allows.
+	tooLong := []byte{0xA1, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00}
 	cases := []struct {
 		name   string
 		stream []byte
@@ -182,6 +211,13 @@ func TestNewXZReaderRejectsMalformedHeaders(t *testing.T) {
 		{"empty input", nil, io.EOF},
 		{"truncated stream header", valid[:8], io.ErrUnexpectedEOF},
 		{"wrong magic", append([]byte("NOTXZ-NOTXZ-"), valid[xzStreamHeaderLen:]...), ErrCorrupt},
+		{"stream flags byte 0", withStreamHeader(valid, [2]byte{1, valid[7]}), ErrCorrupt},
+		{"stream flags reserved check bits", withStreamHeader(valid, [2]byte{0, valid[7] | 0x10}), ErrCorrupt},
+		{"stream header checksum", func() []byte {
+			s := append([]byte(nil), valid...)
+			s[8] ^= 0xFF
+			return s
+		}(), ErrCorrupt},
 		{"index instead of block", append(append([]byte(nil), valid[:xzStreamHeaderLen]...), 0), ErrCorrupt},
 		{"block header checksum", func() []byte {
 			s := append([]byte(nil), valid...)
@@ -194,11 +230,53 @@ func TestNewXZReaderRejectsMalformedHeaders(t *testing.T) {
 		{"non-LZMA2 filter", mutate(func(b []byte) { b[2] = 0x03 }), ErrUnsupported},
 		{"invalid dictionary code", mutate(func(b []byte) { b[4] = 41 }), ErrCorrupt},
 		{"wrong property length", mutate(func(b []byte) { b[3] = 2 }), ErrCorrupt},
+		{"non-zero header padding", mutate(func(b []byte) { b[len(b)-1] = 1 }), ErrCorrupt},
+		{"filter id integer too long", withBlockHeader(valid, append(append([]byte{0x00}, tooLong...), 0x01, 22)), ErrCorrupt},
+		{"size field integer too long", withBlockHeader(valid, append(append([]byte{0x40}, tooLong...), 0x21, 0x01, 22)), ErrCorrupt},
+		{"unterminated integer", withBlockHeader(valid, []byte{0x00, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80}), ErrCorrupt},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := newXZReader(bytes.NewReader(tc.stream), maxClusterBytes)
 			wantErr(t, err, tc.want)
 		})
+	}
+}
+
+func TestNewXZReaderAcceptsRebuiltHeaders(t *testing.T) {
+	// Controls for the crafted-header cases above: the same constructions with
+	// well-formed integers are accepted, so those cases fail for their reason.
+	valid := xzStream(t, zimtest.ClusterBody([][]byte{[]byte("x")}, false))
+	if len(valid) < xzStreamHeaderLen+8 || (int(valid[xzStreamHeaderLen])+1)*4 <= 8 {
+		t.Fatalf("unexpected block header size in %x", valid[:24])
+	}
+	for name, stream := range map[string][]byte{
+		"untouched":            valid,
+		"rebuilt":              withBlockHeader(valid, []byte{0x00, 0x21, 0x01, 22}),
+		"with compressed size": withBlockHeader(valid, []byte{0x40, 0x05, 0x21, 0x01, 22}),
+		"intact stream header": withStreamHeader(valid, [2]byte{valid[6], valid[7]}),
+	} {
+		if _, err := newXZReader(bytes.NewReader(stream), maxClusterBytes); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+}
+
+func TestXZReaderDictCap(t *testing.T) {
+	cases := []struct {
+		name             string
+		declared, maxDic int64
+		want             int
+	}{
+		{"declared below cap", 8 << 20, 32 << 20, 8 << 20},
+		{"declared above cap", 64 << 20, 32 << 20, 32 << 20},
+		{"4 GiB declared, huge cap", 0xFFFFFFFF, math.MaxInt64, math.MaxInt32},
+		{"tiny cap rises to the decoder minimum", 8 << 20, 100, int(lzma.MinDictCap)},
+		{"tiny declared rises to the decoder minimum", 100, 32 << 20, int(lzma.MinDictCap)},
+	}
+	for _, tc := range cases {
+		if got := xzReaderDictCap(tc.declared, tc.maxDic); got != tc.want {
+			t.Errorf("%s: xzReaderDictCap(%d, %d) = %d, want %d", tc.name, tc.declared, tc.maxDic, got, tc.want)
+		}
 	}
 }

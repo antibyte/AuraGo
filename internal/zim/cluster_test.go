@@ -3,7 +3,13 @@ package zim
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"io"
+	"io/fs"
+	"math"
+	"math/rand/v2"
 	"testing"
+	"testing/iotest"
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/ulikunitz/xz"
@@ -134,4 +140,93 @@ func TestXZDictSize(t *testing.T) {
 	}
 	_, err := xzDictSize(41)
 	wantErr(t, err, ErrCorrupt)
+}
+
+func TestReadClusterDataClampsHugeLimits(t *testing.T) {
+	// Extended table announcing a 1 TiB cluster: even an unbounded limit must
+	// not reach make([]byte, n) with it, which could not be sized on 32-bit.
+	table := make([]byte, 16)
+	binary.LittleEndian.PutUint64(table[0:], 16)
+	binary.LittleEndian.PutUint64(table[8:], 1<<40)
+	_, err := readClusterData(bytes.NewReader(table), true, math.MaxInt64, 10)
+	wantErr(t, err, ErrUnsupported)
+
+	small := zimtest.ClusterBody([][]byte{[]byte("ok")}, false)
+	cd, err := readClusterData(bytes.NewReader(small), false, math.MaxInt64, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := cd.blob(0); string(got) != "ok" {
+		t.Fatalf("blob = %q", got)
+	}
+
+	_, err = readClusterData(bytes.NewReader(small), false, -1, 10)
+	wantErr(t, err, ErrUnsupported)
+}
+
+// encodedClusters returns one encoded cluster per supported compression,
+// large enough that half of it still holds a partial stream.
+func encodedClusters(t *testing.T) map[string]struct {
+	comp byte
+	data []byte
+} {
+	t.Helper()
+	rng := rand.New(rand.NewPCG(3, 4))
+	noise := make([]byte, 24<<10)
+	for i := range noise {
+		noise[i] = byte(rng.Uint32())
+	}
+	body := zimtest.ClusterBody([][]byte{noise, []byte("tail")}, false)
+	enc, err := zstd.NewWriter(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zstdData := enc.EncodeAll(body, nil)
+	_ = enc.Close()
+	return map[string]struct {
+		comp byte
+		data []byte
+	}{
+		"none": {compNone, body},
+		"zstd": {compZstd, zstdData},
+		"xz":   {compXZ, xzStream(t, body)},
+	}
+}
+
+func TestDecodeClusterIOErrorsAreNotCorruption(t *testing.T) {
+	errDisk := errors.New("disk on fire")
+	for name, tc := range encodedClusters(t) {
+		for _, cut := range []int{0, len(tc.data) / 2} {
+			src := io.MultiReader(bytes.NewReader(tc.data[:cut]), iotest.ErrReader(errDisk))
+			_, err := decodeCluster(src, clusterInfo{comp: tc.comp}, 1<<20, 10)
+			if !errors.Is(err, errDisk) {
+				t.Fatalf("%s, I/O error after %d bytes: error = %v, want it to wrap the read error", name, cut, err)
+			}
+			if errors.Is(err, ErrCorrupt) {
+				t.Fatalf("%s, I/O error after %d bytes: %v must not be classified as corruption", name, cut, err)
+			}
+		}
+	}
+}
+
+func TestDecodeClusterClosedFileIsErrClosed(t *testing.T) {
+	closed := &fs.PathError{Op: "read", Path: "archive.zim", Err: fs.ErrClosed}
+	for name, tc := range encodedClusters(t) {
+		src := io.MultiReader(bytes.NewReader(tc.data[:len(tc.data)/2]), iotest.ErrReader(closed))
+		_, err := decodeCluster(src, clusterInfo{comp: tc.comp}, 1<<20, 10)
+		if !errors.Is(err, ErrClosed) || errors.Is(err, ErrCorrupt) {
+			t.Fatalf("%s: error = %v, want ErrClosed", name, err)
+		}
+	}
+}
+
+func TestDecodeClusterTruncatedDataIsCorrupt(t *testing.T) {
+	for name, tc := range encodedClusters(t) {
+		for _, cut := range []int{0, 3, len(tc.data) / 2} {
+			_, err := decodeCluster(bytes.NewReader(tc.data[:cut]), clusterInfo{comp: tc.comp}, 1<<20, 10)
+			if !errors.Is(err, ErrCorrupt) {
+				t.Fatalf("%s truncated to %d of %d bytes: error = %v, want ErrCorrupt", name, cut, len(tc.data), err)
+			}
+		}
+	}
 }

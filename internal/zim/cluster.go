@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"sync"
 
 	"github.com/klauspost/compress/zstd"
@@ -82,8 +84,10 @@ func validateFirstOffset(first, width, maxBlobs uint64) error {
 }
 
 // readClusterData reads a complete decompressed cluster from r without ever
-// allocating more than limit bytes.
+// allocating more than limit bytes. The limit is clamped to what a Go slice
+// length can hold on 32-bit platforms.
 func readClusterData(r io.Reader, extended bool, limit int64, maxBlobs uint64) (*clusterData, error) {
+	limit = max(0, min(limit, math.MaxInt32))
 	width := uint64(4)
 	if extended {
 		width = 8
@@ -123,6 +127,10 @@ func readClusterData(r io.Reader, extended bool, limit int64, maxBlobs uint64) (
 	return &clusterData{data: data, width: width, count: first/width - 1}, nil
 }
 
+// zstdDecoders pools stream decoders across clusters and archives. A pooled
+// decoder keeps the history buffers of its last stream, which can grow up to
+// the zstdMaxMemory (64 MiB) window and live outside the cluster cache budget.
+// Real libzim clusters (about 2 MiB, single-segment frames) keep them small.
 var zstdDecoders sync.Pool
 
 // getZstdDecoder returns a pooled synchronous stream decoder (concurrency 1
@@ -142,9 +150,39 @@ func putZstdDecoder(d *zstd.Decoder) {
 	zstdDecoders.Put(d)
 }
 
+// readErrTracker remembers the first genuine I/O error (anything but running
+// out of data) that the decoder saw, so a failing disk read is not mistaken
+// for corrupt cluster data once a decompressor wraps or masks the error.
+type readErrTracker struct {
+	r   io.Reader
+	err error
+}
+
+func (t *readErrTracker) Read(p []byte) (int, error) {
+	n, err := t.r.Read(p)
+	if err != nil && t.err == nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.err = err
+	}
+	return n, err
+}
+
 // decodeCluster decompresses the cluster data that follows the info byte.
+// Short or invalid data yields ErrCorrupt, over-limit data ErrUnsupported; an
+// I/O error from src is returned wrapped (ErrClosed for a closed file) and is
+// never classified as corruption.
 func decodeCluster(src io.Reader, ci clusterInfo, limit int64, maxBlobs uint64) (*clusterData, error) {
-	br := bufio.NewReaderSize(src, clusterReadBuffer)
+	tr := &readErrTracker{r: bufio.NewReaderSize(src, clusterReadBuffer)}
+	cd, err := decodeClusterFrom(tr, ci, limit, maxBlobs)
+	if err != nil && tr.err != nil {
+		if errors.Is(tr.err, fs.ErrClosed) {
+			return nil, ErrClosed
+		}
+		return nil, fmt.Errorf("zim: reading cluster: %w", tr.err)
+	}
+	return cd, err
+}
+
+func decodeClusterFrom(br io.Reader, ci clusterInfo, limit int64, maxBlobs uint64) (*clusterData, error) {
 	switch ci.comp {
 	case compZstd:
 		dec, err := getZstdDecoder()
