@@ -21,6 +21,8 @@ func unpackUint(b []byte) (uint64, int, error) {
 	var shift uint
 	for i, c := range b {
 		if shift == 63 && c > 1 {
+			// The tenth byte holds only bit 63 and must end the varint, so the
+			// loop never shifts past 63.
 			return 0, 0, corruptf("varint overflows 64 bits")
 		}
 		v |= uint64(c&0x7f) << shift
@@ -28,9 +30,6 @@ func unpackUint(b []byte) (uint64, int, error) {
 			return v, i + 1, nil
 		}
 		shift += 7
-		if shift > 63 {
-			return 0, 0, corruptf("varint too long")
-		}
 	}
 	return 0, 0, corruptf("varint runs past end of data")
 }

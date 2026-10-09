@@ -24,7 +24,7 @@ func Open(r io.ReaderAt, size int64) (*Database, error) {
 		return nil, unsupportedf("%d bytes is too small for a single-file glass database", size)
 	}
 	head := make([]byte, minBlockSize)
-	if _, err := r.ReadAt(head, 0); err != nil {
+	if err := readFull(r, head, 0); err != nil {
 		return nil, fmt.Errorf("xapian: read version block: %w", err)
 	}
 	info, err := parseVersion(head)
@@ -41,7 +41,7 @@ func Open(r io.ReaderAt, size int64) (*Database, error) {
 	if nblocks > 0xffffffff {
 		return nil, unsupportedf("database too large")
 	}
-	cache := newBlockCache(defaultCacheBlocks)
+	cache := newBlockCache(defaultCacheBytes / bs)
 	mk := func(t int) *table {
 		ri := info.roots[t]
 		return &table{

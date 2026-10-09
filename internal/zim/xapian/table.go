@@ -34,7 +34,7 @@ func (t *table) readBlock(n uint32, wantLevel int) (*block, error) {
 		return b, nil
 	}
 	buf := make([]byte, t.blockSize)
-	if _, err := t.r.ReadAt(buf, int64(n)*int64(t.blockSize)); err != nil {
+	if err := readFull(t.r, buf, int64(n)*int64(t.blockSize)); err != nil {
 		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 			return nil, corruptf("%s: block %d truncated", t.name, n)
 		}
@@ -49,6 +49,20 @@ func (t *table) readBlock(n uint32, wantLevel int) (*block, error) {
 	}
 	t.cache.put(b)
 	return b, nil
+}
+
+// readFull fills buf from r at off. io.ReaderAt may return io.EOF together
+// with a complete read that ends the input; that is success here. A short read
+// always fails, with io.ErrUnexpectedEOF if r reported no error.
+func readFull(r io.ReaderAt, buf []byte, off int64) error {
+	n, err := r.ReadAt(buf, off)
+	if n == len(buf) && errors.Is(err, io.EOF) {
+		return nil
+	}
+	if err == nil && n < len(buf) {
+		return io.ErrUnexpectedEOF
+	}
+	return err
 }
 
 // cursor walks the leaf items of a table in key order. path[0] is the leaf.
@@ -100,6 +114,47 @@ func (c *cursor) descend(lvl int, first bool) error {
 
 // nextItem moves to the following leaf item; false at the end of the table.
 func (c *cursor) nextItem() (bool, error) {
+	return c.step(true)
+}
+
+// prevItem moves to the preceding leaf item; false at the start of the table.
+func (c *cursor) prevItem() (bool, error) {
+	return c.step(false)
+}
+
+// step moves one leaf item forward or backward and requires the new item to
+// sort strictly after (forward) or before (backward) the item it left, as in
+// every valid B-tree. On untrusted input branch items may share a child block
+// (a DAG instead of a tree); without this check a walk would revisit the same
+// items once per path to them, a count that multiplies with every level. With
+// strictly monotonic order no (key, component) pair repeats, so one walk
+// visits at most as many items as the file holds.
+func (c *cursor) step(forward bool) (bool, error) {
+	from, err := c.item()
+	if err != nil {
+		return false, err
+	}
+	var ok bool
+	if forward {
+		ok, err = c.moveNext()
+	} else {
+		ok, err = c.movePrev()
+	}
+	if err != nil || !ok {
+		return false, err
+	}
+	to, err := c.item()
+	if err != nil {
+		return false, err
+	}
+	order := compareItem(to.key, to.component, from.key, from.component)
+	if (forward && order <= 0) || (!forward && order >= 0) {
+		return false, corruptf("%s: keys out of order at block %d item %d", c.t.name, c.path[0].b.n, c.path[0].i)
+	}
+	return true, nil
+}
+
+func (c *cursor) moveNext() (bool, error) {
 	if c.path[0].i+1 < c.path[0].b.count {
 		c.path[0].i++
 		return true, nil
@@ -112,11 +167,13 @@ func (c *cursor) nextItem() (bool, error) {
 		return false, nil
 	}
 	c.path[lvl].i++
-	return true, c.descend(lvl, true)
+	if err := c.descend(lvl, true); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
-// prevItem moves to the preceding leaf item; false at the start of the table.
-func (c *cursor) prevItem() (bool, error) {
+func (c *cursor) movePrev() (bool, error) {
 	if c.path[0].i > 0 {
 		c.path[0].i--
 		return true, nil
@@ -129,7 +186,10 @@ func (c *cursor) prevItem() (bool, error) {
 		return false, nil
 	}
 	c.path[lvl].i--
-	return true, c.descend(lvl, false)
+	if err := c.descend(lvl, false); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // seekLE positions the cursor on the entry (first component of a tag) with the
@@ -226,17 +286,20 @@ func (c *cursor) seekGE(key []byte) (bool, error) {
 		return true, nil
 	}
 	if !found {
-		// key sorts before every entry: start at the first one.
-		if c.t.empty {
-			return false, nil
-		}
+		// key sorts before every entry (or the table is empty): start at the
+		// first one.
 		return c.first()
 	}
 	return c.next()
 }
 
-// first positions the cursor on the first entry of the table.
+// first positions the cursor on the first entry of the table; false when the
+// table is empty.
 func (c *cursor) first() (bool, error) {
+	c.valid = false
+	if c.t.empty {
+		return false, nil
+	}
 	b, err := c.t.readBlock(c.t.root, c.t.level)
 	if err != nil {
 		return false, err
@@ -256,7 +319,10 @@ func (c *cursor) first() (bool, error) {
 	return true, nil
 }
 
-// key returns the current entry key (valid until the cursor moves).
+// key returns the current entry key. The slice aliases the cached block that
+// all cursors of the database share: callers must not modify it, and should
+// copy it to keep it, since a retained slice also pins the whole block outside
+// the cache budget.
 func (c *cursor) key() ([]byte, error) {
 	it, err := c.item()
 	if err != nil {
