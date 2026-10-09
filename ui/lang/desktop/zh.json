@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "请配置音乐生成服务或选择本地音乐。",
   "personalRadio.radio_generation_failed": "生成失败。已准备的音乐仍可播放，稍后将重试。",
   "personalRadio.radio_tts_unavailable": "请配置语音输出以播报主持内容和新闻。",
+  "personalRadio.radio_llm_unavailable": "请配置 LLM 服务，以便 Personal Radio 规划节目。",
+  "personalRadio.radio_editorial_failed": "节目编辑未能完成策划。请检查 LLM 服务后重试。",
   "personalRadio.radio_unavailable": "Personal Radio 不可用。请启用虚拟桌面并重启 AuraGo。",
   "personalRadio.import_genre": "导入流派",
   "personalRadio.any_genre": "未指定",

@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "音楽生成を設定するか、ローカル音楽を選んでください。",
   "personalRadio.radio_generation_failed": "音楽生成に失敗しました。準備済みの音楽は利用でき、後で再試行します。",
   "personalRadio.radio_tts_unavailable": "ナレーションとニュース用の音声出力を設定してください。",
+  "personalRadio.radio_llm_unavailable": "Personal Radio が番組を編成できるよう、LLM サービスを設定してください。",
+  "personalRadio.radio_editorial_failed": "番組を編成できませんでした。LLM サービスを確認して再試行してください。",
   "personalRadio.radio_unavailable": "Personal Radioを利用できません。仮想デスクトップを有効にしてAuraGoを再起動してください。",
   "personalRadio.import_genre": "取り込む曲のジャンル",
   "personalRadio.any_genre": "未指定",

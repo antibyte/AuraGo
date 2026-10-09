@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "Nastavte generování nebo zvolte místní hudbu.",
   "personalRadio.radio_generation_failed": "Generování selhalo. Připravená hudba zůstává; proběhne další pokus.",
   "personalRadio.radio_tts_unavailable": "Nastavte hlas pro moderování a zprávy.",
+  "personalRadio.radio_llm_unavailable": "Nastavte službu LLM, aby Personal Radio mohlo plánovat vysílání.",
+  "personalRadio.radio_editorial_failed": "Redakce nedokázala naplánovat vysílání. Zkontrolujte službu LLM a zkuste to znovu.",
   "personalRadio.radio_unavailable": "Personal Radio není dostupné. Zapněte virtuální plochu a restartujte AuraGo.",
   "personalRadio.import_genre": "Žánr importu",
   "personalRadio.any_genre": "Neurčeno",

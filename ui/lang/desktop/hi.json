@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "संगीत निर्माण सेट करें या स्थानीय संगीत चुनें।",
   "personalRadio.radio_generation_failed": "निर्माण विफल हुआ। तैयार संगीत उपलब्ध है; फिर कोशिश होगी।",
   "personalRadio.radio_tts_unavailable": "प्रस्तुति और समाचार के लिए वाणी आउटपुट सेट करें।",
+  "personalRadio.radio_llm_unavailable": "Personal Radio के लिए कार्यक्रम की योजना बनाने हेतु LLM सेवा सेट करें।",
+  "personalRadio.radio_editorial_failed": "कार्यक्रम की योजना नहीं बन सकी। LLM सेवा जाँचें और फिर कोशिश करें।",
   "personalRadio.radio_unavailable": "Personal Radio उपलब्ध नहीं है। वर्चुअल डेस्कटॉप चालू करके AuraGo पुनः शुरू करें।",
   "personalRadio.import_genre": "आयात की शैली",
   "personalRadio.any_genre": "अनिर्दिष्ट",

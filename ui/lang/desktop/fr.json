@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "Configurez la génération ou choisissez la musique locale.",
   "personalRadio.radio_generation_failed": "Création échouée. La musique prête reste disponible ; nouvel essai à venir.",
   "personalRadio.radio_tts_unavailable": "Configurez la voix pour l’animation et les actualités.",
+  "personalRadio.radio_llm_unavailable": "Configurez un service LLM pour que Personal Radio puisse planifier l’émission.",
+  "personalRadio.radio_editorial_failed": "La rédaction n’a pas pu préparer l’émission. Vérifiez le service LLM et réessayez.",
   "personalRadio.radio_unavailable": "Personal Radio indisponible. Activez le bureau virtuel et redémarrez AuraGo.",
   "personalRadio.import_genre": "Genre d’importation",
   "personalRadio.any_genre": "Non précisé",

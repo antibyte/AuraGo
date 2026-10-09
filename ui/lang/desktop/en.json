@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "Set up music generation or choose local music.",
   "personalRadio.radio_generation_failed": "Music generation failed. Prepared tracks remain available; another attempt follows.",
   "personalRadio.radio_tts_unavailable": "Set up speech output to hear moderation and news.",
+  "personalRadio.radio_llm_unavailable": "Set up an LLM service so Personal Radio can plan the show.",
+  "personalRadio.radio_editorial_failed": "The show could not be planned. Check the LLM service and try again.",
   "personalRadio.radio_unavailable": "Personal Radio is unavailable. Enable Virtual Desktop and restart AuraGo.",
   "personalRadio.import_genre": "Import genre",
   "personalRadio.any_genre": "Unspecified",
