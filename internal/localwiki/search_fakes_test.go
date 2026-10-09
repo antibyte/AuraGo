@@ -21,6 +21,9 @@ type fakeArticleStore struct {
 	target map[string]string
 	sorted []zim.Entry
 	reads  int
+	// prefixes records the titlePrefix scans; afterRead runs after each readHTML.
+	prefixes  []string
+	afterRead func()
 }
 
 func newFakeArticleStore(articles ...fakeEntry) *fakeArticleStore {
@@ -64,6 +67,7 @@ func (s *fakeArticleStore) resolve(e zim.Entry) (zim.Entry, error) {
 }
 
 func (s *fakeArticleStore) titlePrefix(prefix string, limit int) ([]zim.Entry, error) {
+	s.prefixes = append(s.prefixes, prefix)
 	var out []zim.Entry
 	for _, e := range s.sorted {
 		if strings.HasPrefix(e.Title, prefix) && len(out) < limit {
@@ -75,6 +79,9 @@ func (s *fakeArticleStore) titlePrefix(prefix string, limit int) ([]zim.Entry, e
 
 func (s *fakeArticleStore) readHTML(e zim.Entry) ([]byte, error) {
 	s.reads++
+	if s.afterRead != nil {
+		defer s.afterRead()
+	}
 	if e.IsRedirect || !isHTMLEntry(e) {
 		return nil, ErrNotArticle
 	}

@@ -227,3 +227,74 @@ func TestSuggestSingleCharacterUsesTitlePrefix(t *testing.T) {
 		t.Fatalf("refs = %+v, want %+v (prefix scan as typed and capitalised)", refs, want)
 	}
 }
+
+func TestSearchCapsLeadsAtThree(t *testing.T) {
+	var articles []fakeEntry
+	var and []xapian.Hit
+	for i, name := range []string{"Aachen", "Bonn", "Celle", "Dessau", "Essen"} {
+		articles = append(articles, fakeEntry{path: name, title: name, html: htmlPage(name, `<p>`+name+` ist eine Stadt.</p><h2>Geschichte</h2><p>Alt.</p>`)})
+		and = append(and, xapian.Hit{DocID: uint32(i + 1), Path: name})
+	}
+	ft := &fakeFulltextIndex{freq: map[string]uint32{"stadt": 5}, and: and}
+	ix := searchIndex{store: newFakeArticleStore(articles...), fulltext: ft}
+	hits, err := ix.search(context.Background(), "Stadt", 5, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 5 {
+		t.Fatalf("hits = %+v", hits)
+	}
+	for i, h := range hits {
+		if wantLead := i < maxSearchLeads; (h.Lead != "") != wantLead || h.Snippet == "" {
+			t.Fatalf("hit %d (%s): lead %q snippet %q, want a lead only for the first %d", i, h.Path, h.Lead, h.Snippet, maxSearchLeads)
+		}
+	}
+	if hits[0].Lead != "Aachen ist eine Stadt." {
+		t.Fatalf("lead = %q", hits[0].Lead)
+	}
+}
+
+func TestSearchKeepsHitsWhenTimeRunsOutDuringSnippets(t *testing.T) {
+	store := cityArticles()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	store.afterRead = cancel // the deadline passes while the first snippet is extracted
+	ft := &fakeFulltextIndex{freq: map[string]uint32{"hauptstadt": 2}, and: []xapian.Hit{{DocID: 1, Path: "Berlin"}, {DocID: 3, Path: "Hamburg"}}}
+	ix := searchIndex{store: store, fulltext: ft}
+	hits, err := ix.search(ctx, "Hauptstadt", 5, 3)
+	if err != nil {
+		t.Fatalf("err = %v, want the hits found so far", err)
+	}
+	if got := hitPaths(hits); !reflect.DeepEqual(got, []string{"Berlin", "Hamburg"}) {
+		t.Fatalf("paths = %v", got)
+	}
+	if hits[0].Snippet == "" || hits[0].Lead == "" {
+		t.Fatalf("first hit lost its snippet or lead: %+v", hits[0])
+	}
+	if hits[1].Ref != (Ref{Title: "Hamburg", Path: "Hamburg"}) || hits[1].Snippet != "" || hits[1].Lead != "" {
+		t.Fatalf("second hit = %+v, want title and path without snippet", hits[1])
+	}
+	if store.reads != 1 {
+		t.Fatalf("reads = %d, want no reads after the deadline", store.reads)
+	}
+}
+
+func TestTitlePrefixFallbackScansACapitalisedQueryOnce(t *testing.T) {
+	for _, tc := range []struct {
+		query string
+		want  []string
+	}{
+		{"Ham", []string{"Ham"}},
+		{"ham", []string{"ham", "Ham"}},
+		{"東京", []string{"東京"}},
+	} {
+		store := cityArticles()
+		ix := searchIndex{store: store}
+		if _, err := ix.titleHits(context.Background(), tc.query, 5); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(store.prefixes, tc.want) {
+			t.Fatalf("titleHits(%q) scanned %q, want %q", tc.query, store.prefixes, tc.want)
+		}
+	}
+}

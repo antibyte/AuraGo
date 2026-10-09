@@ -85,3 +85,49 @@ func TestPageTextHardCutWithoutBreaks(t *testing.T) {
 		t.Fatalf("tail %q end %v err %v", tail, end, err)
 	}
 }
+
+func TestFindSectionPrefersTheExactHeading(t *testing.T) {
+	a := &renderedArticle{title: "X", sections: []renderedSection{
+		{body: "Lead."},
+		{heading: "Geschichte (bis 1900)", level: 2, body: "Alt."},
+		{heading: "Geschichte (ab 1900)", level: 2, body: "Neu."},
+		{heading: "C", level: 2, body: "c"},
+		{heading: "C++", level: 2, body: "cpp"},
+		{heading: "C#", level: 2, body: "cs"},
+		{heading: "2020", level: 2, body: "Jahr."},
+	}}
+	for spec, want := range map[string]int{
+		"Geschichte (ab 1900)":    2,
+		"geschichte  (BIS 1900)":  1,
+		"Geschichte":              1, // titleKey: the first heading without its qualifier
+		"Geschichte (ab":          2, // prefix of the folded heading
+		"C":                       3,
+		"C++":                     4,
+		"c#":                      5,
+		"2020":                    6, // not a section index: matched as heading text
+		"6":                       6,
+		"Geschichte (seit 1900)":  1, // no exact heading: titleKey fallback
+		"  Geschichte (ab 1900) ": 2,
+	} {
+		got, err := a.findSection(spec)
+		if err != nil || got != want {
+			t.Fatalf("findSection(%q) = %d, %v; want %d", spec, got, err, want)
+		}
+	}
+	var notFound *SectionNotFoundError
+	if _, err := a.findSection("7"); !errors.As(err, &notFound) || len(notFound.Sections) != len(a.sections) || notFound.Section != "7" {
+		t.Fatalf("findSection(7) err = %v, want SectionNotFoundError listing the sections", err)
+	}
+	if _, err := a.findSection("   "); !errors.Is(err, ErrSectionNotFound) {
+		t.Fatalf("empty section err = %v", err)
+	}
+}
+
+func TestSectionListIsACopy(t *testing.T) {
+	a := sampleRendered()
+	list := a.sectionList()
+	list[1].Heading = "changed"
+	if again := a.sectionList(); again[1].Heading != "Geschichte" {
+		t.Fatalf("sectionList shares its slice: %+v", again)
+	}
+}

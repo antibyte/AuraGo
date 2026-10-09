@@ -60,6 +60,8 @@ func clampLimit(limit, max int) int {
 // via redirects) first, then full-text BM25 hits (all terms, filled up with
 // any term), then further title suggestions. limit is 1..30 (0 or less means
 // 5). The first withLeads results (at most 3) carry their Markdown lead.
+// When the time runs out while snippets are extracted, the hits are returned
+// without the snippets and leads still missing.
 func (l *Library) Search(ctx context.Context, query string, limit int, withLeads int) (SearchResult, error) {
 	hits, err := boundedCall(ctx, func(ctx context.Context) ([]SearchHit, error) {
 		return l.searchView().search(ctx, query, limit, withLeads)
@@ -120,10 +122,14 @@ func (ix searchIndex) search(ctx context.Context, query string, limit, withLeads
 	words := matchWords(query)
 	results := make([]SearchHit, len(m.refs))
 	for i, ref := range m.refs {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
 		results[i].Ref = ref
+	}
+	for i := range results {
+		if ctx.Err() != nil {
+			// Out of time: the hits found so far are still the answer; the
+			// remaining ones keep their titles without snippet or lead.
+			break
+		}
 		raw, err := ix.store.readHTML(m.entries[i])
 		if err != nil {
 			if errors.Is(err, zim.ErrClosed) {
@@ -174,9 +180,13 @@ func (ix searchIndex) titleHits(ctx context.Context, query string, limit int) ([
 			return nil, ctx.Err()
 		}
 	}
+	prefixes := []string{query}
+	if upper := upperFirst(query); upper != query {
+		prefixes = append(prefixes, upper)
+	}
 	var out []xapian.Hit
 	seen := map[string]bool{}
-	for _, prefix := range []string{query, upperFirst(query)} {
+	for _, prefix := range prefixes {
 		entries, err := ix.store.titlePrefix(prefix, limit)
 		if err != nil {
 			return nil, fmt.Errorf("title prefix search: %w", err)

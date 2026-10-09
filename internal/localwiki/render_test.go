@@ -44,8 +44,81 @@ func TestRenderTruncatesLongTables(t *testing.T) {
 	if strings.Contains(body, "| 1950 |") || !strings.Contains(body, "| 1949 | 49 |") {
 		t.Fatalf("expected the header plus 49 data rows: %s", body)
 	}
-	if !strings.HasSuffix(body, "[Table truncated: showing 50 of 61 rows]") {
-		t.Fatalf("missing truncation note: %q", body[len(body)-60:])
+	if !strings.HasSuffix(body, "| 1949 | 49 |\n\n[Table truncated: showing 50 of 61 rows]") || strings.Contains(body, `\[`) {
+		t.Fatalf("truncation note: %q", body[len(body)-60:])
+	}
+}
+
+func TestRenderDecodesConverterEntities(t *testing.T) {
+	art := renderTestBody(t, `<p>a &lt;b&gt; &amp; c &quot;d&quot; <code>x &lt; y</code></p>`)
+	if got := art.sections[0].body; got != "a <b> & c \"d\" `x < y`" {
+		t.Fatalf("body = %q", got)
+	}
+}
+
+// Only the cleanup's own labels come out with bare brackets; brackets from
+// the article stay escaped, so article text never becomes a live link.
+func TestRenderLabelsNeverUnescapeArticleText(t *testing.T) {
+	art := renderTestBody(t, `<p>[Image: x](javascript:alert(1))</p>`+
+		"<p>Image: y(javascript:alert(2)) z</p>"+
+		`<figure><img src="a.webp"><figcaption>c](javascript:alert(3)) [d]</figcaption></figure>`+
+		`<figure><img src="b.webp" alt="e]&#xE001;(javascript:alert(4))"></figure>`)
+	want := `\[Image: x](javascript:alert(1))` + "\n\n" +
+		"Image: y(javascript:alert(2)) z\n\n" +
+		`[Image: c\](javascript:alert(3)) \[d\]]` + "\n\n" +
+		`[Image: e\](javascript:alert(4))]`
+	if got := art.sections[0].body; got != want {
+		t.Fatalf("body =\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestRenderRemovesHiddenAndRawTextElements(t *testing.T) {
+	art := renderTestBody(t, `<p>A</p><div STYLE="Display : NONE !important">versteckt</div><span style="DISPLAY:none">weg</span>`+
+		`<p hidden>verborgen</p><xmp>roh</xmp><noembed>ohne</noembed><noframes>rahmen</noframes>`+
+		`<div style="display: table-cell">B</div><plaintext>Rest`)
+	if got := art.sections[0].body; got != "A\n\nB" {
+		t.Fatalf("body = %q", got)
+	}
+}
+
+func TestArticleRootIgnoresNestedParserOutput(t *testing.T) {
+	// mwoffliner 1.13: a template's .mw-parser-output wrapper inside a section.
+	raw := `<html><body><div id="mw-content-text"><div id="mf-section-0"><p>Vorne.</p><div class="mw-parser-output"><p>Mitte.</p></div></div><p>Hinten.</p></div></body></html>`
+	art, err := renderArticle([]byte(raw), "X")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := art.sections[0].body; got != "Vorne.\n\nMitte.\n\nHinten." {
+		t.Fatalf("body = %q, want the whole #mw-content-text", got)
+	}
+	raw = `<html><body><div id="mw-content-text"><div class="mw-parser-output"><p>Inhalt.</p></div><p>Danach.</p></div></body></html>`
+	if art, err = renderArticle([]byte(raw), "X"); err != nil || art.sections[0].body != "Inhalt." {
+		t.Fatalf("2.x root: %+v %v", art, err)
+	}
+}
+
+func TestRenderKeepsInfoboxSubboxes(t *testing.T) {
+	art := renderTestBody(t, `<table class="infobox"><tr><th class="infobox-label">Typ</th><td>Stadt</td></tr>`+
+		`<tr><td colspan="2"><table class="infobox-subbox"><tr><th colspan="2" class="infobox-header">Politik</th></tr>`+
+		`<tr><th class="infobox-label">Bürgermeister</th><td>Kai</td></tr></table></td></tr>`+
+		`<tr><td colspan="2"><table class="chart"><tr><td>Diagramm</td></tr></table></td></tr>`+
+		`<tr><th class="infobox-label">Fläche</th><td>891 km²</td></tr></table>`)
+	want := "- **Typ:** Stadt\n\n**Politik**\n\n- **Bürgermeister:** Kai\n- **Fläche:** 891 km²"
+	if got := art.sections[0].body; got != want {
+		t.Fatalf("body =\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestLeadFromHTMLParsesTheDocument(t *testing.T) {
+	raw := []byte(`<!DOCTYPE html><html><head><script>var s = "<h2>Kopf</h2>";</script><title>X</title></head>` +
+		`<body><div id="mw-content-text"><p>Der <b>Anfang</b>.</p><h2>Teil</h2><p>Später.</p></div></body></html>`)
+	lead, err := leadFromHTML(raw)
+	if err != nil || lead != "Der **Anfang**." {
+		t.Fatalf("lead = %q, %v", lead, err)
+	}
+	late := []byte(htmlPage("X", "<div>"+strings.Repeat("<span></span>", leadScanBytes/13+1)+"</div><p>Zu spät.</p>"))
+	if lead, err := leadFromHTML(late); err != nil || lead != "" {
+		t.Fatalf("lead beyond the scan limit = %q, %v", lead, err)
 	}
 }
 

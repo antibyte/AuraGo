@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -17,13 +18,22 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-const leadMaxRunes = 2000
+const (
+	leadMaxRunes = 2000
+	// leadScanBytes bounds the HTML that leadFromHTML parses.
+	leadScanBytes = 1 << 20
+)
 
 // renderedArticle is an article as model-facing Markdown, split at its
-// headings. sections[0] is the lead (level 0, no heading).
+// headings. sections[0] is the lead (level 0, no heading). A rendered
+// article is shared through the render cache and does not change after
+// renderArticle returns.
 type renderedArticle struct {
 	title    string
 	sections []renderedSection
+
+	listOnce sync.Once
+	list     []Section
 }
 
 type renderedSection struct {
@@ -67,9 +77,11 @@ var externalLinkHeadings = func() map[string]bool {
 	return m
 }()
 
-// articleRoot returns the element that holds the article body.
+// articleRoot returns the element that holds the article body. Only a
+// .mw-parser-output directly inside #mw-content-text (mwoffliner 2.x) is the
+// body; a nested one in a 1.13 page is merely a template wrapper.
 func articleRoot(doc *goquery.Document) *goquery.Selection {
-	for _, sel := range []string{"#mw-content-text .mw-parser-output", "#mw-content-text", "main", "body"} {
+	for _, sel := range []string{"#mw-content-text > .mw-parser-output", "#mw-content-text", "main", "body"} {
 		if root := doc.Find(sel).First(); root.Length() > 0 {
 			return root
 		}
@@ -183,6 +195,15 @@ func nodesToMarkdown(nodes []*html.Node) (string, error) {
 var (
 	trailingSpace = regexp.MustCompile(`[ \t]+\n`)
 	extraNewlines = regexp.MustCompile(`\n{3,}`)
+	// markdownFinish turns the cleanup's marker sentinels into brackets and
+	// decodes the three entities the converter writes for text ("<", ">",
+	// and a literal "&lt;", "&gt;" or "&amp;"; a plain "&" stays as it is).
+	// Nothing else is decoded: the tool isolates the Markdown afterwards.
+	markdownFinish = strings.NewReplacer(
+		string(markerOpen), "[", string(markerClose), "]",
+		string(markerLeftBracket), `\[`, string(markerRightBracket), `\]`,
+		"&lt;", "<", "&gt;", ">", "&amp;", "&",
+	)
 )
 
 func tidyMarkdown(s string) string {
@@ -190,9 +211,7 @@ func tidyMarkdown(s string) string {
 	s = strings.ReplaceAll(s, " ", " ")
 	s = trailingSpace.ReplaceAllString(s, "\n")
 	s = extraNewlines.ReplaceAllString(s, "\n\n")
-	// Commonmark escapes the bracket of the fixed image label; for the model
-	// the label is plain text.
-	s = strings.ReplaceAll(s, `\[Image: `, "[Image: ")
+	s = markdownFinish.Replace(s)
 	return strings.TrimSpace(s)
 }
 
@@ -268,35 +287,80 @@ func (a *renderedArticle) fullMarkdown() string {
 	return strings.Join(parts, "\n\n")
 }
 
-// sectionList describes the rendered sections for Article.Sections.
+// sectionList describes the rendered sections for Article.Sections. It is
+// built on first use (a read or a failed section lookup) and returned as a
+// copy, because cached articles are shared between readers.
 func (a *renderedArticle) sectionList() []Section {
-	out := make([]Section, len(a.sections))
-	for i, s := range a.sections {
-		out[i] = Section{Index: i, Heading: s.heading, Level: s.level, Chars: utf8.RuneCountInString(a.sectionMarkdown(i))}
-	}
-	return out
+	a.listOnce.Do(func() {
+		a.list = make([]Section, len(a.sections))
+		for i, s := range a.sections {
+			a.list[i] = Section{Index: i, Heading: s.heading, Level: s.level, Chars: utf8.RuneCountInString(a.sectionMarkdown(i))}
+		}
+	})
+	return slices.Clone(a.list)
 }
 
-// leadFromHTML renders the prose before the first heading. Only the HTML up
-// to the first <h2 is parsed, so long articles stay cheap.
+// leadFromHTML renders the prose before the first heading. It parses at most
+// leadScanBytes of HTML and drops the body from its first h2-h6 on before
+// the cleanup, so long articles stay cheap.
 func leadFromHTML(raw []byte) (string, error) {
-	if i := bytes.Index(raw, []byte("<h2")); i > 0 {
-		raw = raw[:i]
-	}
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(raw))
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(cutAtRune(raw, leadScanBytes)))
 	if err != nil {
 		return "", fmt.Errorf("parse article html: %w", err)
 	}
 	root := articleRoot(doc)
-	root.Find("table, figure, .thumb, .gallery").Remove()
-	cleanArticle(root)
 	if len(root.Nodes) == 0 {
 		return "", nil
 	}
+	cutAtFirstHeading(root.Nodes[0])
+	root.Find("table, figure, .thumb, .gallery").Remove()
+	cleanArticle(root)
 	sections := splitSections(root.Nodes[0])
 	md, err := nodesToMarkdown(sections[0].nodes)
 	if err != nil {
 		return "", err
 	}
 	return truncateRunes(md, leadMaxRunes), nil
+}
+
+// cutAtRune returns at most max bytes of raw, cut on a rune boundary.
+func cutAtRune(raw []byte, max int) []byte {
+	if len(raw) <= max {
+		return raw
+	}
+	cut := max
+	for cut > 0 && cut > max-utf8.UTFMax && !utf8.RuneStart(raw[cut]) {
+		cut--
+	}
+	return raw[:cut]
+}
+
+// cutAtFirstHeading removes the first h2-h6 below root and everything that
+// follows it in document order.
+func cutAtFirstHeading(root *html.Node) {
+	first := firstHeading(root)
+	if first == nil {
+		return
+	}
+	for n := first; n != root && n.Parent != nil; n = n.Parent {
+		for s := n.NextSibling; s != nil; {
+			next := s.NextSibling
+			n.Parent.RemoveChild(s)
+			s = next
+		}
+	}
+	first.Parent.RemoveChild(first)
+}
+
+// firstHeading returns the first h2-h6 below n in document order.
+func firstHeading(n *html.Node) *html.Node {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if headingLevel(c) > 0 {
+			return c
+		}
+		if h := firstHeading(c); h != nil {
+			return h
+		}
+	}
+	return nil
 }

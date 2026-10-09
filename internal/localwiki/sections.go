@@ -8,33 +8,48 @@ import (
 // readPageRunes is the largest Content a single Read returns.
 const readPageRunes = 8000
 
-// findSection resolves a section request: a decimal index, else a heading
-// compared case- and accent-insensitively, else the first heading that
-// starts with the request.
+// findSection resolves a section request, in this order: a decimal index of
+// an existing section; the heading itself, folded (case and accents) but
+// with punctuation and qualifiers kept, so "C++" and "C#" or "Geschichte (ab
+// 1900)" and "Geschichte (bis 1900)" stay apart; the heading's titleKey
+// (qualifier and punctuation dropped); the first heading that starts with
+// the request, folded, then as titleKey. A number that is not a section
+// index is matched as heading text ("2020").
 func (a *renderedArticle) findSection(spec string) (int, error) {
 	spec = strings.TrimSpace(spec)
-	notFound := &SectionNotFoundError{Section: spec, Sections: a.sectionList()}
-	if i, err := strconv.Atoi(spec); err == nil {
-		if i < 0 || i >= len(a.sections) {
-			return 0, notFound
-		}
+	if i, err := strconv.Atoi(spec); err == nil && i >= 0 && i < len(a.sections) {
 		return i, nil
 	}
-	want := titleKey(spec)
+	want := foldText(collapseSpace(spec))
 	if want == "" {
-		return 0, notFound
+		return 0, a.sectionNotFound(spec)
 	}
-	for i, s := range a.sections {
-		if i > 0 && titleKey(s.heading) == want {
+	wantKey := titleKey(spec)
+	match := func(ok func(heading, key string) bool) (int, bool) {
+		for i, s := range a.sections {
+			if i > 0 && ok(foldText(collapseSpace(s.heading)), titleKey(s.heading)) {
+				return i, true
+			}
+		}
+		return 0, false
+	}
+	for _, ok := range []func(heading, key string) bool{
+		func(heading, _ string) bool { return heading == want },
+		func(_, key string) bool { return wantKey != "" && key == wantKey },
+		func(heading, _ string) bool { return strings.HasPrefix(heading, want) },
+		func(_, key string) bool { return wantKey != "" && strings.HasPrefix(key, wantKey) },
+	} {
+		if i, found := match(ok); found {
 			return i, nil
 		}
 	}
-	for i, s := range a.sections {
-		if i > 0 && strings.HasPrefix(titleKey(s.heading), want) {
-			return i, nil
-		}
-	}
-	return 0, notFound
+	return 0, a.sectionNotFound(spec)
+}
+
+// sectionNotFound builds the error with the article's section list; it is
+// only built when a request fails.
+func (a *renderedArticle) sectionNotFound(spec string) error {
+	return &SectionNotFoundError{Section: spec, Sections: a.sectionList()}
 }
 
 // pageText returns up to readPageRunes runes of text starting at the rune

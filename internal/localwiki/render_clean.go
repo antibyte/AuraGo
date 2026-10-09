@@ -4,26 +4,77 @@ import (
 	"fmt"
 	"html"
 	"strings"
+	"unicode"
 
 	"github.com/PuerkitoBio/goquery"
 	xhtml "golang.org/x/net/html"
 )
 
 const (
-	maxInfoboxRows = 80
-	maxTableRows   = 50
+	maxInfoboxRows  = 80
+	maxInfoboxDepth = 4 // infobox plus nested subboxes
+	maxTableRows    = 50
 )
+
+// The cleanup writes its own bracketed labels ("[Image: …]", "[Table
+// truncated: …]") with private-use sentinels instead of brackets: the
+// converter would escape a "[" as "\[", and tidyMarkdown must never
+// un-escape brackets that come from the article (that could turn article
+// text into a live link). cleanArticle first strips these runes from the
+// article, so after conversion only the cleanup's labels carry them.
+const (
+	markerOpen         = '' // "[" opening a label
+	markerClose        = '' // "]" closing it
+	markerLeftBracket  = '' // a "[" from the article inside a label, written as `\[`
+	markerRightBracket = '' // a "]" from the article inside a label, written as `\]`
+)
+
+// markerLabel returns text as a bracketed label; brackets inside text stay
+// escaped so article text can neither close the label nor start a link.
+func markerLabel(text string) string {
+	text = strings.NewReplacer("[", string(markerLeftBracket), "]", string(markerRightBracket)).Replace(text)
+	return string(markerOpen) + text + string(markerClose)
+}
+
+func isMarkerRune(r rune) bool { return r >= markerOpen && r <= markerRightBracket }
+
+// stripMarkerRunes removes the label sentinels from the text, comments and
+// attribute values of the article.
+func stripMarkerRunes(n *xhtml.Node) {
+	strip := func(s string) string {
+		if !strings.ContainsFunc(s, isMarkerRune) {
+			return s
+		}
+		return strings.Map(func(r rune) rune {
+			if isMarkerRune(r) {
+				return -1
+			}
+			return r
+		}, s)
+	}
+	if n.Type == xhtml.TextNode || n.Type == xhtml.CommentNode {
+		n.Data = strip(n.Data)
+	}
+	for i := range n.Attr {
+		n.Attr[i].Val = strip(n.Attr[i].Val)
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		stripMarkerRunes(c)
+	}
+}
 
 // removeSelectors match subtrees that never reach the model: page chrome
 // and the article title, edit links and navbars, reference markers and
 // reference lists, navigation boxes and sidebars, maintenance templates,
-// hatnotes, tables of contents, coordinates, categories, the licence footer
-// and hidden elements. The class names cover mwoffliner 1.13 (mobile
-// sections) and 2.x (Parsoid read views) output and the English and German
-// template families; mwoffliner itself already drops noprint, metadata,
-// ambox and navbar.
+// hatnotes, tables of contents, coordinates, categories, the licence footer,
+// raw-text and fallback elements and hidden elements (inline display:none is
+// removed by removeHiddenStyles). The class names cover mwoffliner 1.13
+// (mobile sections) and 2.x (Parsoid read views) output and the English and
+// German template families; mwoffliner itself already drops noprint,
+// metadata, ambox and navbar.
 var removeSelectors = strings.Join([]string{
 	"script", "style", "link", "meta", "noscript", "template", "h1", "input", "map",
+	"xmp", "noembed", "noframes", "plaintext", "[hidden]",
 	".mw-editsection", ".navbox-navbar", ".mw-cite-backlink",
 	"sup.reference", "sup.mw-ref", ".mw-ref", ".mw-reflink-text",
 	"ol.references", ".mw-references-wrap", ".reflist", ".refbegin", ".references",
@@ -35,15 +86,19 @@ var removeSelectors = strings.Join([]string{
 	"#toc", ".toc", ".mw-empty-elt", "#coordinates", ".geo-nondefault", "#normdaten",
 	".Z3988", ".ext-phonos", ".ext-phonos-attribution", ".mw-kartographer-container",
 	"#catlinks", ".catlinks", ".zim-footer",
-	`[style*="display:none"]`, `[style*="display: none"]`,
 }, ", ")
 
 // cleanArticle prepares the content root of a parsed article for conversion.
-// The order matters: math and figures read nodes that the removal step drops.
+// The order matters: math and figures read nodes that the removal step drops,
+// and the label sentinels are stripped before any label is written.
 func cleanArticle(root *goquery.Selection) {
+	for _, n := range root.Nodes {
+		stripMarkerRunes(n)
+	}
 	removeFooter(root)
 	convertMath(root)
 	root.Find(removeSelectors).Remove()
+	removeHiddenStyles(root)
 	convertFigures(root)
 	convertInfoboxes(root)
 	root.Find("img, picture, video, audio, svg").Remove()
@@ -80,6 +135,23 @@ func removeBetweenNoIndex(n *xhtml.Node) {
 		}
 		c = next
 	}
+}
+
+// removeHiddenStyles drops elements hidden by an inline style, whatever the
+// case and spacing ("display:none", "DISPLAY : None !important").
+func removeHiddenStyles(root *goquery.Selection) {
+	root.Find("[style]").Each(func(_ int, el *goquery.Selection) {
+		style, _ := el.Attr("style")
+		compact := strings.Map(func(r rune) rune {
+			if unicode.IsSpace(r) {
+				return -1
+			}
+			return unicode.ToLower(r)
+		}, style)
+		if strings.Contains(compact, "display:none") {
+			el.Remove()
+		}
+	})
 }
 
 // convertMath replaces MediaWiki math with its TeX source as inline code.
@@ -122,108 +194,139 @@ func convertFigures(root *goquery.Selection) {
 		if goquery.NodeName(fig) == "li" {
 			tag = "li"
 		}
-		fig.ReplaceWithHtml("<" + tag + ">" + html.EscapeString("[Image: "+caption+"]") + "</" + tag + ">")
+		fig.ReplaceWithHtml("<" + tag + ">" + html.EscapeString(markerLabel("Image: "+caption)) + "</" + tag + ">")
 	})
 }
 
 // convertInfoboxes turns infobox tables into a key/value list
 // ("- **Einwohner:** 3.878.100"); header rows become bold paragraphs.
+// Embedded subboxes (a nested table.infobox-subbox or table.infobox in a
+// full-width row) continue the same list: their header rows become bold
+// paragraphs and their rows key/value lines, as if they were rows of the
+// outer infobox. Other nested tables (charts, layout) are dropped.
 func convertInfoboxes(root *goquery.Selection) {
 	root.Find("table.infobox").Each(func(_ int, table *goquery.Selection) {
 		if len(table.Nodes) == 0 || table.Nodes[0].Parent == nil {
 			return
 		}
-		var b strings.Builder
-		open := false
-		closeList := func() {
-			if open {
-				b.WriteString("</ul>")
-				open = false
-			}
-		}
-		item := func(text string) {
-			if !open {
-				b.WriteString("<ul>")
-				open = true
-			}
-			b.WriteString("<li>" + text + "</li>")
-		}
-		if caption := collapseSpace(table.ChildrenFiltered("caption").Text()); caption != "" {
-			b.WriteString("<p><strong>" + html.EscapeString(caption) + "</strong></p>")
-		}
-		rows := 0
-		table.Find("tr").Each(func(_ int, tr *goquery.Selection) {
-			if rows >= maxInfoboxRows || !sameNode(tr.Closest("table"), table) {
-				return
-			}
-			cells := tr.ChildrenFiltered("th, td")
-			if cells.Length() > 1 && cells.Length() == cells.Filter("th").Length() {
-				return // a row of column labels, e.g. above coat of arms and map
-			}
-			switch cells.Length() {
-			case 0:
-				return
-			case 1:
-				cell := cells.First()
-				if cell.Find("table").Length() > 0 {
-					return // charts and nested layout tables carry no key/value data
-				}
-				if cell.HasClass("infobox-image") || cell.Find("img").Length() > 0 {
-					if cell.Find("img").Length() == 0 {
-						return
-					}
-					caption := cellText(cell)
-					if caption == "" {
-						caption, _ = cell.Find("img").First().Attr("alt")
-						caption = collapseSpace(caption)
-					}
-					if caption != "" {
-						rows++
-						item(html.EscapeString("[Image: " + caption + "]"))
-					}
-					return
-				}
-				text := cellText(cell)
-				if text == "" {
-					return
-				}
-				rows++
-				if goquery.NodeName(cell) == "th" || cell.HasClass("infobox-header") || cell.HasClass("infobox-above") || cell.HasClass("infobox-title") {
-					closeList()
-					b.WriteString("<p><strong>" + html.EscapeString(text) + "</strong></p>")
-					return
-				}
-				item(html.EscapeString(text))
-			default:
-				key := strings.TrimSpace(strings.TrimSuffix(cellText(cells.First()), ":"))
-				var values []string
-				cells.Slice(1, cells.Length()).Each(func(_ int, c *goquery.Selection) {
-					if v := cellText(c); v != "" {
-						values = append(values, v)
-					}
-				})
-				value := strings.Join(values, " ")
-				switch {
-				case key != "" && value != "":
-					rows++
-					item("<strong>" + html.EscapeString(key) + ":</strong> " + html.EscapeString(value))
-				case value != "":
-					rows++
-					item(html.EscapeString(value))
-				case key != "":
-					rows++
-					closeList()
-					b.WriteString("<p><strong>" + html.EscapeString(key) + "</strong></p>")
-				}
-			}
-		})
-		closeList()
-		if b.Len() == 0 {
+		w := &infoboxWriter{}
+		w.table(table, 1)
+		w.closeList()
+		if w.b.Len() == 0 {
 			table.Remove()
 			return
 		}
-		table.ReplaceWithHtml(b.String())
+		table.ReplaceWithHtml(w.b.String())
 	})
+}
+
+// infoboxWriter collects the HTML that replaces one infobox.
+type infoboxWriter struct {
+	b    strings.Builder
+	open bool
+	rows int
+}
+
+func (w *infoboxWriter) closeList() {
+	if w.open {
+		w.b.WriteString("</ul>")
+		w.open = false
+	}
+}
+
+// item adds a list item; itemHTML is already escaped.
+func (w *infoboxWriter) item(itemHTML string) {
+	if !w.open {
+		w.b.WriteString("<ul>")
+		w.open = true
+	}
+	w.b.WriteString("<li>" + itemHTML + "</li>")
+}
+
+func (w *infoboxWriter) heading(text string) {
+	w.closeList()
+	w.b.WriteString("<p><strong>" + html.EscapeString(text) + "</strong></p>")
+}
+
+// table writes the caption and the own rows of an infobox or subbox.
+func (w *infoboxWriter) table(table *goquery.Selection, depth int) {
+	if caption := collapseSpace(table.ChildrenFiltered("caption").Text()); caption != "" {
+		w.heading(caption)
+	}
+	table.Find("tr").Each(func(_ int, tr *goquery.Selection) {
+		if w.rows >= maxInfoboxRows || !sameNode(tr.Closest("table"), table) {
+			return
+		}
+		w.row(table, tr, depth)
+	})
+}
+
+func (w *infoboxWriter) row(table, tr *goquery.Selection, depth int) {
+	cells := tr.ChildrenFiltered("th, td")
+	if cells.Length() > 1 && cells.Length() == cells.Filter("th").Length() {
+		return // a row of column labels, e.g. above coat of arms and map
+	}
+	switch cells.Length() {
+	case 0:
+		return
+	case 1:
+		cell := cells.First()
+		if cell.Find("table").Length() > 0 {
+			if depth < maxInfoboxDepth {
+				cell.Find("table.infobox-subbox, table.infobox").Each(func(_ int, sub *goquery.Selection) {
+					if sameNode(sub.Parent().Closest("table"), table) {
+						w.table(sub, depth+1)
+					}
+				})
+			}
+			return // charts and nested layout tables carry no key/value data
+		}
+		if cell.HasClass("infobox-image") || cell.Find("img").Length() > 0 {
+			if cell.Find("img").Length() == 0 {
+				return
+			}
+			caption := cellText(cell)
+			if caption == "" {
+				caption, _ = cell.Find("img").First().Attr("alt")
+				caption = collapseSpace(caption)
+			}
+			if caption != "" {
+				w.rows++
+				w.item(html.EscapeString(markerLabel("Image: " + caption)))
+			}
+			return
+		}
+		text := cellText(cell)
+		if text == "" {
+			return
+		}
+		w.rows++
+		if goquery.NodeName(cell) == "th" || cell.HasClass("infobox-header") || cell.HasClass("infobox-above") || cell.HasClass("infobox-title") {
+			w.heading(text)
+			return
+		}
+		w.item(html.EscapeString(text))
+	default:
+		key := strings.TrimSpace(strings.TrimSuffix(cellText(cells.First()), ":"))
+		var values []string
+		cells.Slice(1, cells.Length()).Each(func(_ int, c *goquery.Selection) {
+			if v := cellText(c); v != "" {
+				values = append(values, v)
+			}
+		})
+		value := strings.Join(values, " ")
+		switch {
+		case key != "" && value != "":
+			w.rows++
+			w.item("<strong>" + html.EscapeString(key) + ":</strong> " + html.EscapeString(value))
+		case value != "":
+			w.rows++
+			w.item(html.EscapeString(value))
+		case key != "":
+			w.rows++
+			w.heading(key)
+		}
+	}
 }
 
 // cellText returns the visible text of a table cell, with line breaks and
@@ -271,7 +374,7 @@ func truncateTables(root *goquery.Selection) {
 		for _, tr := range rows[maxTableRows:] {
 			tr.Remove()
 		}
-		table.AfterHtml(fmt.Sprintf("<p>[Table truncated: showing %d of %d rows]</p>", maxTableRows, len(rows)))
+		table.AfterHtml("<p>" + markerLabel(fmt.Sprintf("Table truncated: showing %d of %d rows", maxTableRows, len(rows))) + "</p>")
 	})
 }
 
