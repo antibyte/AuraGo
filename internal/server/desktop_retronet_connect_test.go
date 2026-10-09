@@ -376,3 +376,19 @@ func TestDesktopRetroNetSessionAuditUsesTheCurrentDesktopService(t *testing.T) {
 		t.Fatalf("session audit = %v", session)
 	}
 }
+
+// Shutdown revokes Desktop runs (shutdownDesktopStorage) before the server
+// context or the HTTP drain flag can be observed; the session must still end
+// as a shutdown, not as a remote hang-up.
+func TestDesktopRetroNetRevokedRunEndsAsShutdown(t *testing.T) {
+	env := newRetroNetTestEnv(t)
+	env.saveEntries(t, env.ownTelnetEntry())
+	socket := dialRetroNet(t, env.httpServer.URL, env.writeToken, "entry="+retroNetTestEntryID)
+	socket.until(5*time.Second, socket.has("connected"))
+	env.s.revokeDesktopRuns()
+	socket.until(3*time.Second, socket.has("result"))
+	if result, _ := socket.control("result"); result.Code != retronet.CodeNoCarrier || result.Reason != retronet.ReasonServerShutdown {
+		t.Fatalf("result = %+v, want NO CARRIER/server_shutdown", result)
+	}
+	socket.expectClosed()
+}

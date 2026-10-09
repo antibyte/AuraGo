@@ -103,7 +103,9 @@ func (m *Manager) pump(ctx context.Context, client Client, src io.ReadCloser, st
 			}
 		case ev, ok := <-events:
 			if !ok {
-				return ReasonRemoteClosed
+				// A shutdown closes the browser socket too: an already cancelled ctx names
+				// the real reason.
+				return endReason(ctx, ReasonRemoteClosed)
 			}
 			// The pump is single-threaded on purpose: all protocol state lives on this goroutine
 			// and needs no locks. The trade-off is that while a keystroke write to the service

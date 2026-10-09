@@ -217,8 +217,11 @@ func (s *Server) retroNetSessionContext(r *http.Request) (context.Context, func(
 				cancel(retronet.ErrShutdown)
 				return
 			case <-requestDone:
-				// HTTP drain or a revoked Desktop run grant.
-				cancel(s.retroNetEndCause(r, context.Canceled))
+				// HTTP drain or a revoked Desktop run grant. Readonly and disable
+				// revocations publish the new policy first (ErrDisabled); a grant
+				// revoked by shutdownDesktopStorage can precede the server context
+				// and the drain flag, so the fallback is a shutdown.
+				cancel(s.retroNetEndCause(r, retronet.ErrShutdown))
 				return
 			case <-tick.C:
 				if cause := s.retroNetEndCause(r, nil); cause != nil {
