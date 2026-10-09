@@ -202,6 +202,10 @@ func TestIsLocalHost(t *testing.T) {
 		"10.0.0.1": true, "172.16.5.5": true, "192.168.1.1": true, "100.64.0.1": true, "169.254.1.1": true,
 		"fe80::1": true, "fe80::1%eth0": true, "fc00::1": true, "::ffff:10.0.0.1": true, "224.0.0.1": true, "ff02::1": true,
 		"2130706433": true, "0x7f.1": true, "127.1": true, "": true,
+		// IPv4 inside IPv6: IPv4-compatible, NAT64 and 6to4; site-local fec0::/10.
+		"::a00:1": true, "::127.0.0.1": true, "::c0a8:101": true, "64:ff9b::7f00:1": true, "64:ff9b::10.0.0.1": true,
+		"64:ff9b::a9fe:a9fe": true, "2002:7f00:1::": true, "2002:c0a8:101::1": true, "fec0::1": true, "feff::1": true,
+		"::808:808": false, "64:ff9b::808:808": false, "2002:808:808::1": false,
 		"ftp.fau.de": false, "download.kiwix.org": false, "8.8.8.8": false, "172.32.0.1": false, "100.128.0.1": false,
 		"2606:4700:4700::1111": false, "localhost.example.com": false, "mirror2.example": false,
 	} {

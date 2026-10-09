@@ -16,28 +16,49 @@ import (
 
 var errInsecureRedirect = errors.New("localwiki: redirect to a non-HTTPS URL refused")
 
-// httpsOnlyRedirect follows at most ten redirects and only to HTTPS URLs
-// without credentials, so no mirror can downgrade a download to HTTP.
-func httpsOnlyRedirect(req *http.Request, via []*http.Request) error {
-	if len(via) >= 10 {
-		return errors.New("localwiki: too many redirects")
+// httpsOnlyRedirect returns the redirect policy of every localwiki client: at
+// most ten redirects, only to HTTPS URLs without credentials (no mirror can
+// downgrade a download to HTTP), and never to a local host name or address
+// (isLocalHost) unless it is the host of a trusted URL.
+func httpsOnlyRedirect(trusted []*url.URL) func(*http.Request, []*http.Request) error {
+	return func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return errors.New("localwiki: too many redirects")
+		}
+		if req.URL.Scheme != "https" || req.URL.User != nil {
+			return errInsecureRedirect
+		}
+		if isLocalHost(req.URL.Hostname()) && !isTrustedHost(req.URL, trusted) {
+			return fmt.Errorf("redirect to %s: %w", req.URL.Host, errLocalAddress)
+		}
+		return nil
 	}
-	if req.URL.Scheme != "https" || req.URL.User != nil {
-		return errInsecureRedirect
-	}
-	return nil
 }
 
-// newHTTPClient returns a copy of base with the HTTPS-only redirect policy, or
-// a default client without an overall timeout: downloads take hours, so every
-// request carries its own deadline or stall watchdog instead.
+// isTrustedHost reports whether u names the host and port of a trusted URL.
+func isTrustedHost(u *url.URL, trusted []*url.URL) bool {
+	for _, t := range trusted {
+		if t != nil && strings.EqualFold(u.Host, t.Host) {
+			return true
+		}
+	}
+	return false
+}
+
+// newHTTPClient returns a copy of base with the redirect policy of
+// httpsOnlyRedirect, or a default client without an overall timeout:
+// downloads take hours, so every request carries its own deadline or stall
+// watchdog instead.
 //
 // The default client also refuses to connect to loopback, private, link-local
 // and other local addresses (see dialGuard), so a public mirror name that
-// resolves into the LAN (DNS rebinding) or a redirect to such a name cannot
-// reach it. The hosts of the trusted URLs (the manager passes its catalog URL)
-// and the proxies chosen from the environment are exempt. A caller's base
-// client keeps its own transport and gets no such check.
+// resolves into the LAN (DNS rebinding) cannot reach it. The hosts of the
+// trusted URLs (the manager passes its catalog URL) are exempt, and so are the
+// proxies chosen from the environment (HTTPS_PROXY and friends). A request
+// that goes through such a proxy is resolved and connected by the proxy, so
+// the dial guard never sees the mirror's address; only the lexical checks of
+// mirror URLs and redirects apply then. A caller's base client keeps its own
+// transport and gets no dial guard.
 func newHTTPClient(base *http.Client, trusted ...*url.URL) *http.Client {
 	if base == nil {
 		transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -46,10 +67,10 @@ func newHTTPClient(base *http.Client, trusted ...*url.URL) *http.Client {
 		guard := newDialGuard(transport.Proxy, trusted)
 		transport.Proxy = guard.proxy
 		transport.DialContext = guard.dialContext
-		return &http.Client{Transport: transport, CheckRedirect: httpsOnlyRedirect}
+		return &http.Client{Transport: transport, CheckRedirect: httpsOnlyRedirect(trusted)}
 	}
 	client := *base
-	client.CheckRedirect = httpsOnlyRedirect
+	client.CheckRedirect = httpsOnlyRedirect(trusted)
 	return &client
 }
 

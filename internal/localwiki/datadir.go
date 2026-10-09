@@ -47,11 +47,18 @@ func checkDataDirShape(dir string, sensitive func(string) bool) error {
 }
 
 // prepareDataDir validates the storage directory, creates it and proves that
-// AuraGo can write there. After the directory exists, the sensitive-path check
-// is repeated on the directory with its symbolic links resolved, so a link
-// below an innocent name cannot point the edition into a system location.
+// AuraGo can write there. Besides the lexical check, the sensitive-path check
+// runs on the resolved form of the directory (see resolveExistingDir): before
+// anything is created on its nearest existing ancestor plus the missing
+// components, so no directory is ever created inside a protected tree, and
+// again on the directory itself once it exists. A link, junction, Windows 8.3
+// short name or ignored trailing dot below an innocent name therefore cannot
+// point the edition into a system location.
 func prepareDataDir(dir string, sensitive func(string) bool) error {
 	if err := checkDataDirShape(dir, sensitive); err != nil {
+		return err
+	}
+	if err := checkResolvedAncestor(dir, sensitive); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -73,27 +80,64 @@ func prepareDataDir(dir string, sensitive func(string) bool) error {
 	return nil
 }
 
-// checkResolvedDataDir applies the sensitive-path check to dir after
-// filepath.EvalSymlinks. A directory that resolves to itself was already
-// checked lexically, and so was one whose only difference is an operating
-// system alias (see isSystemPathAlias), which keeps legitimate macOS
-// directories under /var and /tmp (they resolve below /private, a protected
-// tree) usable. Without a sensitive-path check there is nothing to repeat.
-// Limit: Go does not resolve a Windows junction in the last path element, so
-// the lexical check is all that protects against that one form.
+// checkResolvedDataDir applies the sensitive-path check to the existing dir
+// after resolveExistingDir. Without a sensitive-path check there is nothing
+// to repeat.
 func checkResolvedDataDir(dir string, sensitive func(string) bool) error {
 	if sensitive == nil {
 		return nil
 	}
-	resolved, err := filepath.EvalSymlinks(dir)
+	resolved, err := resolveExistingDir(dir)
 	if err != nil {
 		return fmt.Errorf("%w: resolve %s: %v", ErrDataDirInvalid, dir, err)
 	}
-	if strings.EqualFold(filepath.Clean(resolved), filepath.Clean(dir)) || isSystemPathAlias(dir, resolved) {
+	return checkResolvedPath(dir, resolved, sensitive)
+}
+
+// checkResolvedAncestor applies the sensitive-path check to dir as it will
+// resolve once created: its nearest existing ancestor, resolved, joined with
+// the components that do not exist yet.
+func checkResolvedAncestor(dir string, sensitive func(string) bool) error {
+	if sensitive == nil {
+		return nil
+	}
+	existing, missing := nearestExistingAncestor(filepath.Clean(dir))
+	resolved, err := resolveExistingDir(existing)
+	if err != nil {
+		return fmt.Errorf("%w: resolve %s: %v", ErrDataDirInvalid, existing, err)
+	}
+	return checkResolvedPath(dir, filepath.Join(append([]string{resolved}, missing...)...), sensitive)
+}
+
+// nearestExistingAncestor returns the longest existing prefix of the cleaned
+// absolute path dir (dir itself when it exists) and the components below it.
+func nearestExistingAncestor(dir string) (string, []string) {
+	var missing []string
+	current := dir
+	for {
+		if _, err := os.Stat(current); err == nil {
+			return current, missing
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return current, missing
+		}
+		missing = append([]string{filepath.Base(current)}, missing...)
+		current = parent
+	}
+}
+
+// checkResolvedPath runs the sensitive-path check on the resolved form of
+// lexical. A path that resolves to itself was already checked lexically, and
+// so was one whose only difference is an operating system alias (see
+// isSystemPathAlias), which keeps legitimate macOS directories under /var and
+// /tmp (they resolve below /private, a protected tree) usable.
+func checkResolvedPath(lexical, resolved string, sensitive func(string) bool) error {
+	if strings.EqualFold(filepath.Clean(resolved), filepath.Clean(lexical)) || isSystemPathAlias(lexical, resolved) {
 		return nil
 	}
 	if sensitive(resolved) {
-		return fmt.Errorf("%w: %s resolves to %s, a protected system location", ErrDataDirInvalid, dir, resolved)
+		return fmt.Errorf("%w: %s resolves to %s, a protected system location", ErrDataDirInvalid, lexical, resolved)
 	}
 	return nil
 }

@@ -151,13 +151,8 @@ func checkMirrorURL(raw, fileName string, trusted []*url.URL) error {
 	if !strings.HasSuffix(parsed.Path, "/"+fileName) {
 		return fmt.Errorf("localwiki: mirror %q does not serve %s", raw, fileName)
 	}
-	if !isLocalHost(parsed.Hostname()) {
+	if !isLocalHost(parsed.Hostname()) || isTrustedHost(parsed, trusted) {
 		return nil
-	}
-	for _, t := range trusted {
-		if t != nil && strings.EqualFold(parsed.Host, t.Host) {
-			return nil
-		}
 	}
 	return fmt.Errorf("localwiki: mirror %q is a local address", raw)
 }
@@ -168,22 +163,55 @@ var carrierGradeNAT = netip.MustParsePrefix("100.64.0.0/10")
 // thisNetwork is 0.0.0.0/8: "this host" in many stacks.
 var thisNetwork = netip.MustParsePrefix("0.0.0.0/8")
 
+// siteLocal is fec0::/10, the deprecated IPv6 site-local range (RFC 3879).
+var siteLocal = netip.MustParsePrefix("fec0::/10")
+
+// IPv6 ranges that carry an IPv4 address: IPv4-compatible (::a.b.c.d, the
+// last 32 bits), NAT64 (64:ff9b::/96, the last 32 bits) and 6to4 (2002::/16,
+// bits 16 to 47).
+var (
+	ipv4Compatible = netip.MustParsePrefix("::/96")
+	nat64          = netip.MustParsePrefix("64:ff9b::/96")
+	sixToFour      = netip.MustParsePrefix("2002::/16")
+)
+
 // isLocalHost reports hosts a public mirror never has: localhost names, IP
-// literals in loopback, private, link-local, multicast, unspecified or
-// carrier-grade NAT ranges, and numeric spellings of IPv4 addresses
-// ("2130706433", "0x7f.1") that resolvers expand but netip does not parse.
-// It is purely lexical; a DNS name that resolves to a private address is not
-// detected here.
+// literals in loopback, private, link-local, site-local, multicast,
+// unspecified or carrier-grade NAT ranges (also when embedded in an
+// IPv4-compatible, NAT64 or 6to4 IPv6 address), and numeric spellings of IPv4
+// addresses ("2130706433", "0x7f.1") that resolvers expand but netip does not
+// parse. It is purely lexical; the default HTTP client repeats it on the
+// resolved address of every connection (see dialGuard).
 func isLocalHost(host string) bool {
 	host = strings.ToLower(strings.TrimSuffix(host, "."))
 	if host == "" || host == "localhost" || strings.HasSuffix(host, ".localhost") {
 		return true
 	}
 	if addr, err := netip.ParseAddr(host); err == nil {
-		addr = addr.Unmap()
-		return addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsMulticast() ||
-			addr.IsUnspecified() || carrierGradeNAT.Contains(addr) || thisNetwork.Contains(addr)
+		return isLocalAddr(addr)
 	}
 	last := host[strings.LastIndex(host, ".")+1:]
 	return strings.HasPrefix(last, "0x") || strings.Trim(last, "0123456789") == ""
+}
+
+func isLocalAddr(addr netip.Addr) bool {
+	addr = addr.Unmap()
+	if addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsMulticast() ||
+		addr.IsUnspecified() || carrierGradeNAT.Contains(addr) || thisNetwork.Contains(addr) {
+		return true
+	}
+	if !addr.Is6() {
+		return false
+	}
+	if siteLocal.Contains(addr) {
+		return true
+	}
+	b := addr.As16()
+	switch {
+	case ipv4Compatible.Contains(addr), nat64.Contains(addr):
+		return isLocalAddr(netip.AddrFrom4([4]byte{b[12], b[13], b[14], b[15]}))
+	case sixToFour.Contains(addr):
+		return isLocalAddr(netip.AddrFrom4([4]byte{b[2], b[3], b[4], b[5]}))
+	}
+	return false
 }

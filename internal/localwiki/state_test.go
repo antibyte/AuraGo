@@ -189,7 +189,6 @@ func TestDownloadFileValidatesMirrorURLs(t *testing.T) {
 		"other file":       {URLs: []string{"https://bad.example/x.zim"}},
 		"loopback":         {URLs: []string{"https://127.0.0.1:9999/m1/" + stateTestFile}},
 		"private":          {URLs: []string{"https://192.168.1.2/" + stateTestFile}},
-		"bad last url":     {URLs: []string{good}, LastURL: "http://bad.example/" + stateTestFile},
 		"too many mirrors": {URLs: many},
 	} {
 		dir := t.TempDir()
@@ -199,6 +198,17 @@ func TestDownloadFileValidatesMirrorURLs(t *testing.T) {
 		}
 		if _, err := readDownload(dir); err == nil {
 			t.Errorf("%s: download.json accepted", name)
+		}
+	}
+	// An invalid last URL is dropped; the resumable download stays.
+	for _, last := range []string{"http://bad.example/" + stateTestFile, "https://192.168.1.2/" + stateTestFile, "https://good.example/other.zim"} {
+		dir := t.TempDir()
+		d := downloadFile{Target: stateTestEdition(), URLs: []string{good}, LastURL: last}
+		if err := writeDownload(dir, &d); err != nil {
+			t.Fatal(err)
+		}
+		if got, err := readDownload(dir); err != nil || got == nil || got.LastURL != "" || len(got.URLs) != 1 {
+			t.Errorf("last url %q: %+v, %v; want the download without its last URL", last, got, err)
 		}
 	}
 	// The trusted catalog host may be local (the fake Kiwix of the tests), other local ports may not.

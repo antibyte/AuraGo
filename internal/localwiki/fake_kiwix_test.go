@@ -38,10 +38,13 @@ type fakeRequest struct {
 
 // Mirror modes: "" serves with Range support, "fail" answers 503,
 // "http-redirect" redirects to http://, "range-416" refuses every Range request,
+// "range-416-then-fail" refuses Range requests and answers 503 to full ones,
 // "ignore-range" answers 200 to Range requests, "html-200" answers every
-// request with a short HTML page and status 200, "cut" sends cutChunk bytes
-// from the requested offset and then drops the connection, "slow" sends
-// slowChunk bytes and then waits for unblock() or the client to go away.
+// request with a short HTML page and status 200, "chunked-html" does the same
+// without a Content-Length, "gzip" labels the file as gzip-encoded, "cut" sends
+// cutChunk bytes from the requested offset and then drops the connection,
+// "slow" sends slowChunk bytes and then waits for unblock() or the client to
+// go away.
 type fakeEdition struct {
 	name         string
 	kiwix        string
@@ -215,6 +218,23 @@ func (f *fakeKiwix) serveZIM(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusRequestedRangeNotSatisfiable)
 			return
 		}
+		http.ServeContent(w, r, file, time.Time{}, bytes.NewReader(e.data))
+	case "range-416-then-fail":
+		if r.Header.Get("Range") != "" {
+			w.Header().Set("Content-Range", "bytes */"+strconv.Itoa(len(e.data)))
+			w.WriteHeader(http.StatusRequestedRangeNotSatisfiable)
+			return
+		}
+		http.Error(w, "mirror down", http.StatusServiceUnavailable)
+	case "chunked-html":
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		_, _ = io.WriteString(w, "<html>maintenance</html>\n")
+	case "gzip":
+		w.Header().Set("Content-Encoding", "gzip")
 		http.ServeContent(w, r, file, time.Time{}, bytes.NewReader(e.data))
 	case "ignore-range":
 		r.Header.Del("Range")

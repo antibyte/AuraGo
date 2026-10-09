@@ -39,13 +39,23 @@ type writeError struct{ err error }
 func (e *writeError) Error() string { return "write partial edition: " + e.err.Error() }
 func (e *writeError) Unwrap() error { return e.err }
 
+// errRangeRefused marks a mirror that cannot continue at the current offset:
+// it answered 416 or ignored the Range header and offered the whole file. The
+// part file is untouched; the mirror may still serve a restart from byte 0.
+var errRangeRefused = errors.New("mirror cannot continue at the current offset")
+
 // downloadJob fetches one edition into partPath: HTTP Range resume, mirror
 // fallback, SHA-256 while downloading (an existing part is re-hashed first),
-// a free-space re-check every checkEvery bytes and a stall watchdog.
+// a free-space re-check (with an fsync) after every checkEvery written bytes
+// across all attempts, and a stall watchdog.
 //
 // Mirrors are tried in order. A mirror that fails moves on to the next one; a
 // round over all mirrors that moved the download forward is followed by
-// another round, a round without progress ends the job with errDownloadFailed.
+// another round. When a round made no progress and some mirrors could only
+// serve the whole file (416, or 200 to a Range request), the part file is
+// restarted from byte 0 with the first of them that actually delivers the
+// whole file; it is truncated only once that answer has arrived. A round (or
+// restart) without progress ends the job with errDownloadFailed.
 type downloadJob struct {
 	client       *http.Client
 	logger       *slog.Logger
@@ -61,9 +71,11 @@ type downloadJob struct {
 	onProgress   func(done, total int64)
 	onURL        func(finalURL string) // mirror that is answering (after redirects)
 
-	file   *os.File
-	hash   hash.Hash
-	offset int64
+	file      *os.File
+	hash      hash.Hash
+	offset    int64
+	unchecked int64 // bytes written since the last free-space check, across attempts
+	restarts  int   // times the part file was restarted from byte 0
 }
 
 // run returns nil once partPath holds exactly size bytes with the expected
@@ -82,27 +94,18 @@ func (j *downloadJob) run(ctx context.Context) error {
 	var lastErr error
 	for j.offset < j.size {
 		roundStart := j.offset
-		for _, rawURL := range j.urls {
-			if j.offset == j.size {
-				break
-			}
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			attemptErr := j.fetch(ctx, rawURL)
-			if attemptErr == nil {
-				continue
-			}
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			var space *spaceError
-			var write *writeError
-			if errors.As(attemptErr, &space) || errors.As(attemptErr, &write) {
-				return attemptErr
-			}
-			j.logger.Warn("[LocalWikipedia] Mirror failed, trying the next one", "host", hostOf(rawURL), "offset", j.offset, "error", attemptErr)
-			lastErr = attemptErr
+		refused, err := j.round(ctx, &lastErr)
+		if err != nil {
+			return err
+		}
+		if j.offset == j.size || j.offset > roundStart {
+			continue
+		}
+		if len(refused) == 0 {
+			break
+		}
+		if err := j.restartFrom(ctx, refused, &lastErr); err != nil {
+			return err
 		}
 		if j.offset <= roundStart {
 			break
@@ -140,6 +143,9 @@ func (j *downloadJob) validate() error {
 	}
 	if !sha256HexPattern.MatchString(strings.ToLower(j.sha256)) {
 		return errors.New("localwiki: download job without a valid SHA-256")
+	}
+	if len(j.urls) == 0 {
+		return errors.New("localwiki: download job without mirrors")
 	}
 	for _, rawURL := range j.urls {
 		if _, err := requireHTTPS(rawURL); err != nil {
@@ -222,14 +228,84 @@ func (j *downloadJob) rehash(ctx context.Context, length int64) error {
 	return nil
 }
 
-// fetch runs one attempt against one mirror. The stall watchdog covers the
-// wait for the response headers and every read of the body.
-func (j *downloadJob) fetch(ctx context.Context, rawURL string) error {
+// round tries every mirror once at the current offset. It returns the mirrors
+// that could only restart the part file (errRangeRefused) and the error that
+// ends the job (see stopError); other failures move on to the next mirror.
+func (j *downloadJob) round(ctx context.Context, lastErr *error) ([]string, error) {
+	var refused []string
+	for _, rawURL := range j.urls {
+		if j.offset == j.size {
+			break
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		err := j.fetch(ctx, rawURL, false)
+		if err == nil {
+			continue
+		}
+		if stop := stopError(ctx, err); stop != nil {
+			return nil, stop
+		}
+		if errors.Is(err, errRangeRefused) {
+			j.logger.Info("[LocalWikipedia] Mirror cannot continue the partial download, trying the next one", "host", hostOf(rawURL), "offset", j.offset)
+			refused = append(refused, rawURL)
+			continue
+		}
+		j.logger.Warn("[LocalWikipedia] Mirror failed, trying the next one", "host", hostOf(rawURL), "offset", j.offset, "error", err)
+		*lastErr = err
+	}
+	return refused, nil
+}
+
+// restartFrom downloads the whole file again from the first of the mirrors
+// that delivers it. The part file is truncated only once a mirror has answered
+// a full request with the whole file; a mirror that fails before that leaves
+// the part file as it was.
+func (j *downloadJob) restartFrom(ctx context.Context, mirrors []string, lastErr *error) error {
+	for _, rawURL := range mirrors {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		restarts := j.restarts
+		err := j.fetch(ctx, rawURL, true)
+		if err != nil {
+			if stop := stopError(ctx, err); stop != nil {
+				return stop
+			}
+			j.logger.Warn("[LocalWikipedia] Mirror failed to restart the download", "host", hostOf(rawURL), "offset", j.offset, "error", err)
+			*lastErr = err
+		}
+		if j.restarts != restarts || j.offset == j.size {
+			return nil
+		}
+	}
+	return nil
+}
+
+// stopError returns the error that ends the job instead of moving on to the
+// next mirror: cancellation or shutdown, a full disk or a local write failure.
+func stopError(ctx context.Context, err error) error {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	var space *spaceError
+	var write *writeError
+	if errors.As(err, &space) || errors.As(err, &write) {
+		return err
+	}
+	return nil
+}
+
+// fetch runs one attempt against one mirror: the remaining bytes, or with
+// full the whole file from byte 0. The stall watchdog covers the wait for the
+// response headers and every read of the body.
+func (j *downloadJob) fetch(ctx context.Context, rawURL string, full bool) error {
 	attemptCtx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 	watchdog := time.AfterFunc(j.stallTimeout, func() { cancel(errMirrorStalled) })
 	defer watchdog.Stop()
-	resp, err := j.open(attemptCtx, rawURL)
+	resp, err := j.open(attemptCtx, rawURL, full)
 	if err != nil {
 		return attemptError(attemptCtx, err)
 	}
@@ -251,7 +327,7 @@ func attemptError(attemptCtx context.Context, err error) error {
 	return err
 }
 
-func (j *downloadJob) get(ctx context.Context, rawURL string) (*http.Response, error) {
+func (j *downloadJob) get(ctx context.Context, rawURL string, from int64) (*http.Response, error) {
 	if _, err := requireHTTPS(rawURL); err != nil {
 		return nil, err
 	}
@@ -263,38 +339,54 @@ func (j *downloadJob) get(ctx context.Context, rawURL string) (*http.Response, e
 	// The SHA-256 covers the raw file; a transparently decompressed body would
 	// also hide its length.
 	req.Header.Set("Accept-Encoding", "identity")
-	if j.offset > 0 {
-		req.Header.Set("Range", "bytes="+strconv.FormatInt(j.offset, 10)+"-")
+	if from > 0 {
+		req.Header.Set("Range", "bytes="+strconv.FormatInt(from, 10)+"-")
 	}
 	return j.client.Do(req)
 }
 
-// open requests the remaining bytes. 206 continues at the offset; 200 (Range
-// ignored) and 416 (Range not satisfiable) restart the part file from byte 0.
-// A 200 answer restarts only when its length is the edition's size, so an
-// error page served with 200 never discards the bytes already downloaded.
-func (j *downloadJob) open(ctx context.Context, rawURL string) (*http.Response, error) {
-	resp, err := j.get(ctx, rawURL)
+// open requests the remaining bytes (from byte 0 with full) and accepts only
+// an answer that is exactly the edition: no content encoding, a 206 whose
+// Content-Range starts at the offset and names the edition's size, or a 200
+// whose Content-Length is the edition's size. Anything else (an error page, a
+// chunked answer of unknown length) fails before a byte is written.
+//
+// A mirror that cannot continue at the offset (416, or 200 to a Range request)
+// returns errRangeRefused and leaves the part file alone. With full, a 200
+// with the whole file truncates the part file and the download starts over.
+func (j *downloadJob) open(ctx context.Context, rawURL string, full bool) (*http.Response, error) {
+	from := j.offset
+	if full {
+		from = 0
+	}
+	resp, err := j.get(ctx, rawURL, from)
 	if err != nil {
 		return nil, err
 	}
+	if encoding := strings.TrimSpace(resp.Header.Get("Content-Encoding")); encoding != "" && !strings.EqualFold(encoding, "identity") {
+		resp.Body.Close()
+		return nil, fmt.Errorf("mirror sent the file with content encoding %q", encoding)
+	}
 	switch {
-	case resp.StatusCode == http.StatusPartialContent && j.offset > 0:
+	case resp.StatusCode == http.StatusPartialContent && from > 0:
 		start, total, ok := parseContentRange(resp.Header.Get("Content-Range"))
-		if !ok || start != j.offset || (total >= 0 && total != j.size) {
+		if !ok || start != from || (total >= 0 && total != j.size) {
 			resp.Body.Close()
-			return nil, fmt.Errorf("mirror answered range %q for offset %d of %d bytes", resp.Header.Get("Content-Range"), j.offset, j.size)
+			return nil, fmt.Errorf("mirror answered range %q for offset %d of %d bytes", resp.Header.Get("Content-Range"), from, j.size)
 		}
 		return resp, nil
 	case resp.StatusCode == http.StatusOK:
-		if resp.ContentLength >= 0 && resp.ContentLength != j.size {
+		if resp.ContentLength != j.size {
 			resp.Body.Close()
+			if resp.ContentLength < 0 {
+				return nil, fmt.Errorf("mirror sent no length, the edition has %d bytes", j.size)
+			}
 			return nil, fmt.Errorf("mirror serves %d bytes, the edition has %d", resp.ContentLength, j.size)
 		}
 		if j.offset > 0 {
-			if resp.ContentLength < 0 {
+			if !full {
 				resp.Body.Close()
-				return nil, errors.New("mirror ignored the range and sent no length; keeping the downloaded bytes")
+				return nil, errRangeRefused
 			}
 			if err := j.restart(); err != nil {
 				resp.Body.Close()
@@ -302,12 +394,9 @@ func (j *downloadJob) open(ctx context.Context, rawURL string) (*http.Response, 
 			}
 		}
 		return resp, nil
-	case resp.StatusCode == http.StatusRequestedRangeNotSatisfiable && j.offset > 0:
+	case resp.StatusCode == http.StatusRequestedRangeNotSatisfiable && from > 0:
 		resp.Body.Close()
-		if err := j.restart(); err != nil {
-			return nil, err
-		}
-		return j.open(ctx, rawURL)
+		return nil, errRangeRefused
 	default:
 		resp.Body.Close()
 		return nil, fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
@@ -323,13 +412,13 @@ func (j *downloadJob) restart() error {
 	}
 	j.hash.Reset()
 	j.offset = 0
+	j.restarts++
 	j.progress(0)
 	return nil
 }
 
 func (j *downloadJob) copy(body io.Reader, watchdog *time.Timer) error {
 	buf := make([]byte, copyBufferSize)
-	var sinceCheck int64
 	for {
 		n, readErr := body.Read(buf)
 		if n > 0 {
@@ -344,10 +433,10 @@ func (j *downloadJob) copy(body io.Reader, watchdog *time.Timer) error {
 				return j.writeFailure(err)
 			}
 			j.progress(j.offset)
-			sinceCheck += int64(written)
-			if sinceCheck >= j.checkEvery {
-				sinceCheck = 0
-				if err := j.checkSpace(); err != nil {
+			j.unchecked += int64(written)
+			if j.unchecked >= j.checkEvery {
+				j.unchecked = 0
+				if err := j.checkpoint(); err != nil {
 					return err
 				}
 			}
@@ -362,6 +451,14 @@ func (j *downloadJob) copy(body io.Reader, watchdog *time.Timer) error {
 			return readErr
 		}
 	}
+}
+
+// checkpoint flushes the part file to disk and re-checks the free space.
+func (j *downloadJob) checkpoint() error {
+	if err := j.file.Sync(); err != nil {
+		return j.writeFailure(err)
+	}
+	return j.checkSpace()
 }
 
 // writeFailure reports a full disk as a pause, anything else as a write error.

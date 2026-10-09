@@ -268,8 +268,10 @@ func TestDataDirChecksAndDiskMath(t *testing.T) {
 	}
 }
 
-// The sensitive-path check is repeated on the resolved directory, so a link
-// with an innocent name cannot point the edition into a protected tree.
+// The sensitive-path check runs on the resolved directory, so a link (or a
+// Windows junction, also as the last path element) with an innocent name
+// cannot point the edition into a protected tree, and nothing is created there
+// before the check.
 func TestPrepareDataDirChecksResolvedSymlinks(t *testing.T) {
 	base := t.TempDir()
 	protected := filepath.Join(base, "protected-tree")
@@ -277,25 +279,20 @@ func TestPrepareDataDirChecksResolvedSymlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	link := filepath.Join(base, "innocent-link")
-	symlink := makeDirLink(t, link, protected)
+	makeDirLink(t, link, protected)
 	sensitive := func(p string) bool {
 		return strings.Contains(strings.ToLower(filepath.ToSlash(p)), "protected-tree")
 	}
 	cases := map[string]string{"link": link, "below the link": filepath.Join(link, "inner"), "new dir below the link": filepath.Join(link, "new", "wiki")}
-	if !symlink {
-		// Go does not resolve a Windows junction in the last path element.
-		delete(cases, "link")
-	}
 	for name, dir := range cases {
 		if err := prepareDataDir(dir, sensitive); ErrorCode(err) != CodeDataDirInvalid {
 			t.Errorf("%s: prepareDataDir = %v", name, err)
 		}
 	}
-	if entries, _ := os.ReadDir(protected); len(entries) != 1 {
-		for _, e := range entries {
-			if e.Name() != "inner" && e.Name() != "new" {
-				t.Errorf("the write probe was left in the protected tree: %s", e.Name())
-			}
+	entries, _ := os.ReadDir(protected)
+	for _, e := range entries {
+		if e.Name() != "inner" {
+			t.Errorf("prepareDataDir created %s in the protected tree", e.Name())
 		}
 	}
 

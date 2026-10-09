@@ -89,10 +89,11 @@ func TestDownloadJobResumesWithRangeAfterRehash(t *testing.T) {
 	}
 }
 
-func TestDownloadJobRestartsWhenMirrorIgnoresRange(t *testing.T) {
+func TestDownloadJobRestartsWhenNoMirrorHonoursRange(t *testing.T) {
 	f := newFakeKiwix(t)
 	e := f.addEdition("wikipedia_de_all_nopic_2026-10", testPayload(testPayloadSize))
 	e.setMode("m1", "ignore-range")
+	e.setMode("m2", "fail")
 	job := newTestJob(t, f, e, f.mirrorURLs(e))
 	// A wrong prefix proves the restart: the 200 answer replaces it from byte 0.
 	if err := os.WriteFile(job.partPath, make([]byte, 100_000), 0o644); err != nil {
@@ -102,12 +103,42 @@ func TestDownloadJobRestartsWhenMirrorIgnoresRange(t *testing.T) {
 		t.Fatalf("run: %v", err)
 	}
 	assertPartEquals(t, job, e.data)
+	if got := rangesFor(f, "/m1/"); len(got) != 2 || got[0] != "bytes=100000-" || got[1] != "" {
+		t.Fatalf("m1 ranges = %v, want a Range request, then (after m2) a full request", got)
+	}
+}
+
+// A mirror that ignores Range does not restart the download while another
+// mirror continues at the offset.
+func TestDownloadJobPrefersMirrorsThatHonourRange(t *testing.T) {
+	for _, mode := range []string{"ignore-range", "range-416"} {
+		t.Run(mode, func(t *testing.T) {
+			f := newFakeKiwix(t)
+			e := f.addEdition("wikipedia_de_all_nopic_2026-10", testPayload(testPayloadSize))
+			e.setMode("m1", mode)
+			job := newTestJob(t, f, e, f.mirrorURLs(e))
+			if err := os.WriteFile(job.partPath, e.data[:100_000], 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := job.run(context.Background()); err != nil {
+				t.Fatalf("run: %v", err)
+			}
+			assertPartEquals(t, job, e.data)
+			if got := rangesFor(f, "/m1/"); len(got) != 1 || got[0] != "bytes=100000-" {
+				t.Fatalf("m1 ranges = %v", got)
+			}
+			if got := rangesFor(f, "/m2/"); len(got) != 1 || got[0] != "bytes=100000-" {
+				t.Fatalf("m2 ranges = %v, want the resume at the kept offset", got)
+			}
+		})
+	}
 }
 
 func TestDownloadJobRestartsAfter416(t *testing.T) {
 	f := newFakeKiwix(t)
 	e := f.addEdition("wikipedia_de_all_nopic_2026-10", testPayload(testPayloadSize))
 	e.setMode("m1", "range-416")
+	e.setMode("m2", "range-416")
 	job := newTestJob(t, f, e, f.mirrorURLs(e))
 	if err := os.WriteFile(job.partPath, e.data[:50_000], 0o644); err != nil {
 		t.Fatal(err)
@@ -119,10 +150,53 @@ func TestDownloadJobRestartsAfter416(t *testing.T) {
 	if got := rangesFor(f, "/m1/"); len(got) != 2 || got[0] != "bytes=50000-" || got[1] != "" {
 		t.Fatalf("m1 ranges = %v, want a Range request then a full request", got)
 	}
+	if got := rangesFor(f, "/m2/"); len(got) != 1 || got[0] != "bytes=50000-" {
+		t.Fatalf("m2 ranges = %v, want one Range request", got)
+	}
+}
+
+// A 416 never discards the part file by itself: it is truncated only once a
+// full request has delivered the whole file.
+func TestDownloadJobKeepsPartWhen416RestartFails(t *testing.T) {
+	t.Run("next mirror continues", func(t *testing.T) {
+		f := newFakeKiwix(t)
+		e := f.addEdition("wikipedia_de_all_nopic_2026-10", testPayload(testPayloadSize))
+		e.setMode("m1", "range-416-then-fail")
+		job := newTestJob(t, f, e, f.mirrorURLs(e))
+		if err := os.WriteFile(job.partPath, e.data[:50_000], 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := job.run(context.Background()); err != nil {
+			t.Fatalf("run: %v", err)
+		}
+		assertPartEquals(t, job, e.data)
+		if got := rangesFor(f, "/m2/"); len(got) != 1 || got[0] != "bytes=50000-" {
+			t.Fatalf("m2 ranges = %v, want the resume at the kept offset", got)
+		}
+	})
+	t.Run("no mirror delivers", func(t *testing.T) {
+		f := newFakeKiwix(t)
+		e := f.addEdition("wikipedia_de_all_nopic_2026-10", testPayload(testPayloadSize))
+		e.setMode("m1", "range-416-then-fail")
+		e.setMode("m2", "range-416-then-fail")
+		job := newTestJob(t, f, e, f.mirrorURLs(e))
+		if err := os.WriteFile(job.partPath, e.data[:50_000], 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := job.run(context.Background()); !errors.Is(err, errDownloadFailed) {
+			t.Fatalf("run = %v, want errDownloadFailed", err)
+		}
+		assertPartEquals(t, job, e.data[:50_000])
+		for _, mirror := range []string{"/m1/", "/m2/"} {
+			if got := rangesFor(f, mirror); len(got) != 2 || got[0] != "bytes=50000-" || got[1] != "" {
+				t.Fatalf("%s ranges = %v, want a Range request then a full request", mirror, got)
+			}
+		}
+	})
 }
 
 func TestDownloadJobFallsBackToNextMirror(t *testing.T) {
-	for _, mode := range []string{"fail", "http-redirect", "html-200"} {
+	for _, mode := range []string{"fail", "http-redirect", "html-200", "chunked-html", "gzip"} {
 		t.Run(mode, func(t *testing.T) {
 			f := newFakeKiwix(t)
 			e := f.addEdition("wikipedia_de_all_nopic_2026-10", testPayload(testPayloadSize))
@@ -132,8 +206,9 @@ func TestDownloadJobFallsBackToNextMirror(t *testing.T) {
 				t.Fatalf("run: %v", err)
 			}
 			assertPartEquals(t, job, e.data)
-			if len(rangesFor(f, "/m2/")) != 1 {
-				t.Fatalf("m2 was not used: %v", f.requestLog())
+			// m2 starts at byte 0: m1's answer left nothing in the part file.
+			if got := rangesFor(f, "/m2/"); len(got) != 1 || got[0] != "" {
+				t.Fatalf("m2 was not used from byte 0: %v", f.requestLog())
 			}
 		})
 	}
@@ -261,6 +336,40 @@ func TestDownloadJobRefusesInvalidTargets(t *testing.T) {
 	}
 	if got := f.requestLog(); len(got) != 0 {
 		t.Fatalf("invalid targets must not reach a mirror: %v", got)
+	}
+}
+
+// The free-space check counts the bytes written across attempts and mirrors,
+// so mirrors that each deliver less than checkEvery still trigger it.
+func TestDownloadJobChecksDiskAcrossAttempts(t *testing.T) {
+	f := newFakeKiwix(t)
+	e := f.addEdition("wikipedia_de_all_nopic_2026-10", testPayload(testPayloadSize))
+	e.setMode("m1", "cut")
+	e.setMode("m2", "cut")
+	job := newTestJob(t, f, e, f.mirrorURLs(e))
+	job.checkEvery = 100_000
+	checks := 0
+	job.freeDisk = func(string) (int64, error) { checks++; return 10, nil }
+	err := job.run(context.Background())
+	var space *spaceError
+	if !errors.As(err, &space) || checks != 1 {
+		t.Fatalf("run = %v after %d disk checks, want a spaceError after one", err, checks)
+	}
+	info, statErr := os.Stat(job.partPath)
+	if statErr != nil || info.Size() < 100_000 || info.Size() > 2*int64(e.cutChunk) {
+		t.Fatalf("part file after pause: %v, %v", info, statErr)
+	}
+
+	plenty := newTestJob(t, f, e, f.mirrorURLs(e))
+	plenty.checkEvery = 100_000
+	checks = 0
+	plenty.freeDisk = func(string) (int64, error) { checks++; return 1 << 40, nil }
+	if err := plenty.run(context.Background()); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	assertPartEquals(t, plenty, e.data)
+	if checks < 2 {
+		t.Fatalf("%d disk checks for %d bytes in %d-byte attempts, want one per 100000 bytes", checks, len(e.data), e.cutChunk)
 	}
 }
 

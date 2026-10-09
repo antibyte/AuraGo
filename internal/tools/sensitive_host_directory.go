@@ -27,8 +27,10 @@ var sensitiveHostDataTrees = []string{
 // dir must be an absolute path (POSIX, Windows drive, UNC or Windows device
 // form); a relative path is never reported as sensitive, so callers check
 // filepath.IsAbs (or the platform equivalent) themselves. Matching is purely
-// lexical and case-insensitive: "..", repeated and trailing separators are
-// resolved first, symbolic links and junctions are not followed.
+// lexical and case-insensitive: "..", repeated and trailing separators and the
+// trailing dots and spaces Windows ignores in path components are resolved
+// first; symbolic links, junctions and 8.3 short names are not resolved
+// (callers that create the directory check its resolved form as well).
 //
 // The check reuses the Docker bind denylist (sensitiveDockerHostPaths, drive
 // roots and Windows system folders) and adds:
@@ -36,7 +38,8 @@ var sensitiveHostDataTrees = []string{
 //     \\?\UNC\host\share is handled as \\host\share. Device paths that do not
 //     name a drive or a UNC share (\\?\Volume{...}, \\.\PhysicalDrive0) cannot
 //     be classified and are refused. Administrative shares (\\host\C$,
-//     \\host\ADMIN$) are refused; other network shares are allowed.
+//     \\host\ADMIN$, \\host\PRINT$, \\host\IPC$) are refused; other network
+//     shares are allowed.
 //   - /mnt, where Linux hosts mount data disks: directories below it are
 //     allowed and /mnt itself is refused, except WSL's Windows drives
 //     (/mnt/<letter>/... is checked like <LETTER>:\..., so the drive root and
@@ -51,7 +54,11 @@ func IsSensitiveHostDirectory(dir string) bool {
 		p = collapseHostSlashes(p)
 	}
 	p, unclassifiable := stripWindowsNamespacePrefix(p)
-	if unclassifiable || isWindowsAdminShare(p) {
+	if unclassifiable {
+		return true
+	}
+	p = trimWindowsComponentSuffixes(p)
+	if isWindowsAdminShare(p) {
 		return true
 	}
 
@@ -108,9 +115,31 @@ func hasDriveLetter(p string) bool {
 	return len(p) >= 2 && p[0] >= 'a' && p[0] <= 'z' && p[1] == ':' && (len(p) == 2 || p[2] == '/')
 }
 
+// trimWindowsComponentSuffixes removes the trailing dots and spaces Windows
+// ignores in every path component ("c:/windows./wiki" is c:/windows/wiki). A
+// component made only of dots and spaces (other than "." and "..") becomes
+// ".", which the later cleaning drops. Empty components (the leading "//" of a
+// UNC path) are kept. The check is applied on every platform: it can only
+// make a path more sensitive, never less.
+func trimWindowsComponentSuffixes(p string) string {
+	parts := strings.Split(p, "/")
+	for i, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			continue
+		}
+		trimmed := strings.TrimRight(part, ". ")
+		if trimmed == "" {
+			trimmed = "."
+		}
+		parts[i] = trimmed
+	}
+	return strings.Join(parts, "/")
+}
+
 // isWindowsAdminShare reports a UNC path (//host/share/...) whose share is a
-// drive's administrative share (C$) or ADMIN$, which expose the host's system
-// drive and Windows folder. p is lower-cased and slash-normalized.
+// drive's administrative share (C$), ADMIN$ (the Windows folder), PRINT$ (the
+// printer driver folder below System32) or IPC$. p is lower-cased and
+// slash-normalized.
 func isWindowsAdminShare(p string) bool {
 	if !strings.HasPrefix(p, "//") || strings.HasPrefix(p, "///") {
 		return false
@@ -120,7 +149,11 @@ func isWindowsAdminShare(p string) bool {
 		return false
 	}
 	share, _, _ := strings.Cut(afterHost, "/")
-	return share == "admin$" || (len(share) == 2 && share[0] >= 'a' && share[0] <= 'z' && share[1] == '$')
+	switch share {
+	case "admin$", "print$", "ipc$":
+		return true
+	}
+	return len(share) == 2 && share[0] >= 'a' && share[0] <= 'z' && share[1] == '$'
 }
 
 // wslMountIsSensitive decides a cleaned lower-case path below /mnt. rest is the

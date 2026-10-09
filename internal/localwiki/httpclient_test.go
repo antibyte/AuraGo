@@ -10,18 +10,25 @@ import (
 
 func TestHTTPClientRefusesRedirectsToHTTP(t *testing.T) {
 	var server *httptest.Server
+	var sameServerByName string
 	server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/to-http":
 			http.Redirect(w, r, "http://127.0.0.1:9/never", http.StatusFound)
 		case "/to-https":
 			http.Redirect(w, r, server.URL+"/ok", http.StatusFound)
+		case "/to-local":
+			// Same server, but under a name that is not the trusted host.
+			http.Redirect(w, r, sameServerByName+"/ok", http.StatusFound)
+		case "/to-private":
+			http.Redirect(w, r, "https://192.168.1.1/x", http.StatusFound)
 		case "/ok":
 			w.WriteHeader(http.StatusOK)
 		}
 	}))
 	defer server.Close()
-	client := newHTTPClient(server.Client())
+	sameServerByName = "https://localhost:" + mustURL(t, server.URL).Port()
+	client := newHTTPClient(server.Client(), mustURL(t, server.URL))
 
 	if _, err := client.Get(server.URL + "/to-http"); !errors.Is(err, errInsecureRedirect) {
 		t.Fatalf("redirect to http:// = %v, want errInsecureRedirect", err)
@@ -33,6 +40,16 @@ func TestHTTPClientRefusesRedirectsToHTTP(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	// Redirects to local hosts are refused before any connection, also on a
+	// caller's client that has no dial guard.
+	for _, path := range []string{"/to-local", "/to-private"} {
+		if _, err := client.Get(server.URL + path); !errors.Is(err, errLocalAddress) {
+			t.Fatalf("redirect %s = %v, want errLocalAddress", path, err)
+		}
+	}
+	if _, err := newHTTPClient(server.Client()).Get(server.URL + "/to-https"); !errors.Is(err, errLocalAddress) {
+		t.Fatalf("redirect to an untrusted local host = %v, want errLocalAddress", err)
 	}
 	if server.Client().CheckRedirect != nil {
 		t.Fatal("newHTTPClient must not modify the caller's client")
