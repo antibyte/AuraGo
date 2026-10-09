@@ -267,6 +267,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Security primitives, Vault import grants and Cast tickets | `internal/security/AGENTS.md` |
 | Invasion worker protocol and deployment | `internal/invasion/AGENTS.md` |
 | Remote enrollment and connection lifecycle | `internal/remote/AGENTS.md` |
+| Retro-Net Terminal dialing (server, Desktop setting, Terminal app) | `internal/retronet/AGENTS.md` |
 | LLM transport trust and failover | `internal/llm/AGENTS.md` |
 | HTTP stream write budgets | `internal/httpstream/AGENTS.md` |
 | Telnyx call/SMS transport and reconciliation | `internal/telnyx/AGENTS.md` |
@@ -620,6 +621,7 @@ Current child AGENTS.md files:
 - `internal/proxy/AGENTS.md` — Managed Caddy security proxy: Vault Basic Auth, rate-limit image, Docker placement and reload.
 - `internal/rtlsdr/AGENTS.md` — Optional receive-only RTL-SDR runtime, schedules, leases, recordings and ASR.
 - `internal/remote/AGENTS.md` — Remote enrollment, socket ownership and command/result lifecycle.
+- `internal/retronet/AGENTS.md` — Retro-Net dialing directory: catalog, guarded Telnet/SSH dialing, negotiation, charsets, session limits.
 - `internal/sanotts/AGENTS.md` — Pinned local CPU speech runtime, voice selection, licenses and synthesis checks.
 - `internal/server/AGENTS.md` — Server-owned HTTP and cross-component integration contracts.
 - `internal/serialutil/AGENTS.md` — Shared serial enumeration, canonical device reservations and cancellation-safe port leases.
