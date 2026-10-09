@@ -545,3 +545,21 @@ scratch instance (own port and data directory, loopback only):
   p50/p95/p99 14.7/39.0/42.0 ms, archive open 21 ms, Go heap 162 MiB, no query
   without hits. Cold, with the edition dropped from the operating system's file
   cache: first search p50/p95/p99 58.0/149.2/203.9 ms, first read p95 37.5 ms.
+
+Ubuntu x86_64 home-lab server (12 cores, 22 GiB RAM), commit `b3421a699`,
+scratch instance next to the running AuraGo (own directory, port and data, no
+systemd, the live installation untouched):
+
+- Hindi without media: cancel at 314 MB showed `interrupted` with the partial
+  size and resumed after re-verifying; a hard kill (`kill -9`) at 652 MB came
+  back `interrupted` without downloading on its own and finished after
+  **Resume**; SHA-256 matched Kiwix.
+- 45 API checks passed (search 18–49 ms, content headers, ETag, Range, refused
+  traversal, 405 for wrong methods); `readable` and `loading` were correct in
+  every state; the reported free space matched `df` within 41 KB.
+- Search p95 49 ms, first article read p95 36 ms; an update while clients sent
+  8,544 requests finished without a failed request.
+- `/etc/aurago-localwiki`, AuraGo's own data directory, a symbolic link into
+  `/etc` and a relative path were refused with `data_dir_invalid` (the link only
+  when **Install** writes, because the idle check is lexical); a directory below
+  AuraGo's data directory was accepted.
