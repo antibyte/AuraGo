@@ -3,26 +3,19 @@ package ui
 import (
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
-	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
-// Real shell, xterm and CRT; the socket never opens a host shell.
+// Real shell, xterm and CRT; the socket never opens a host shell. Runs after terminalFixturePrelude
+// (fixtureErrors, fixtureTerms, the xterm subclass).
 const terminalRetroFixture = `
-window.fixtureErrors=[];
-addEventListener('error',e=>fixtureErrors.push(e.error?.stack||e.message));
-addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));
-window.fixtureSockets=[];window.fixtureCrt=[];window.fixtureTerms=[];window.fixtureDraws=0;
+window.fixtureSockets=[];window.fixtureCrt=[];window.fixtureDraws=0;
 const draw=WebGLRenderingContext.prototype.drawArrays;
 WebGLRenderingContext.prototype.drawArrays=function(...args){
  fixtureDraws++;const result=draw.apply(this,args);
@@ -42,8 +35,6 @@ HTMLCanvasElement.prototype.getContext=function(kind,...args){
 };
 const createCrt=TerminalCrt.create;
 TerminalCrt.create=function(opts){const crt=createCrt(opts);fixtureCrt.push(crt);return crt;};
-const Xterm=Terminal;
-window.Terminal=class extends Xterm{constructor(opts){super({...opts,cursorBlink:false});fixtureTerms.push(this);}loadAddon(a){try{return super.loadAddon(a);}catch(e){if(!window.fixtureNoGL)fixtureErrors.push('addon: '+e.message);throw e;}}};
 window.WebSocket=class {
  static OPEN=1;static CLOSED=3;
  constructor(){this.readyState=1;this.sent=[];fixtureSockets.push(this);setTimeout(()=>this.onopen?.(),0);}
@@ -82,49 +73,14 @@ window.fixtureStyle=id=>{const s=document.querySelector('select[data-terminal-st
 
 func TestDesktopTerminalRetroBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
-	html := readDesktopAssetText(t, "desktop.html")
-	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
-	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
-	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/xterm.css"><link rel="stylesheet" href="/css/desktop-app-terminal.css"></head>`, 1)
-	scripts := []string{"/terminal-shell.js", "/js/vendor/xterm.min.js", "/js/vendor/xterm-addon-fit.min.js", "/js/vendor/xterm-addon-webgl.min.js", "/js/desktop/apps/terminal-styles.js", "/js/desktop/apps/terminal-crt.js", "/js/desktop/apps/terminal-audio.js", "/js/desktop/apps/terminal-text.js", "/js/desktop/apps/terminal-modem.js", "/js/desktop/apps/terminal-retronet-directory.js", "/js/desktop/apps/terminal-retronet-session.js", "/js/desktop/apps/terminal-retronet-entries.js", "/js/desktop/apps/terminal.js", "/terminal-fixture.js"}
-	var tags strings.Builder
-	for _, src := range scripts {
-		fmt.Fprintf(&tags, `<script src="%s"></script>`, src)
-	}
-	html = strings.Replace(html, "</body>", tags.String()+"</body>", 1)
-	shell := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
-	cut := strings.LastIndex(shell, "    ensureDesktopRadialMenuAnchor();")
-	if cut < 0 {
-		t.Fatal("desktop startup seam missing")
-	}
-	shell = shell[:cut] + `window.terminalTest={state,openApp,loadIconManifest,closeWindow,applyDesktopSettings,renderTaskbar};})();`
-	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.FS(Content)))
-	mux.HandleFunc("/fonts/press-start-2p-latin-400-normal.woff2", func(w http.ResponseWriter, r *http.Request) {
+	srv := newTerminalDesktopServer(t, terminalRetroFixture, map[string]http.HandlerFunc{
 		// Exercise first-open glyph metrics with an uncached, late pixel font.
-		time.Sleep(750 * time.Millisecond)
-		http.FileServer(http.FS(Content)).ServeHTTP(w, r)
+		"/fonts/press-start-2p-latin-400-normal.woff2": func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(750 * time.Millisecond)
+			http.FileServer(http.FS(Content)).ServeHTTP(w, r)
+		},
 	})
-	for route, source := range map[string]string{"/fixture": html, "/terminal-shell.js": shell, "/terminal-fixture.js": terminalRetroFixture} {
-		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-			if route == "/fixture" {
-				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			} else {
-				w.Header().Set("Content-Type", "text/javascript")
-			}
-			fmt.Fprint(w, source)
-		})
-	}
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
-	bin, ok := browserExecutable()
-	if !ok {
-		t.Skip("Chrome or Edge required")
-	}
-	// A real browser scale is needed: CDP emulation alone leaves ResizeObserver's
-	// devicePixelContentBoxSize at the host scale and mis-sizes xterm's canvases.
-	browser := rod.New().ControlURL(launcher.New().Bin(bin).Headless(true).NoSandbox(true).Set("disable-gpu").Set("force-device-scale-factor", "2").MustLaunch()).MustConnect()
-	defer browser.MustClose()
+	browser := newTerminalBrowser(t, "2")
 	page := browser.MustPage().Timeout(120 * time.Second)
 	defer page.Close()
 	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "no-preference"}}}).Call(page); err != nil {
