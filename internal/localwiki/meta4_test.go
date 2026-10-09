@@ -206,6 +206,9 @@ func TestIsLocalHost(t *testing.T) {
 		"::a00:1": true, "::127.0.0.1": true, "::c0a8:101": true, "64:ff9b::7f00:1": true, "64:ff9b::10.0.0.1": true,
 		"64:ff9b::a9fe:a9fe": true, "2002:7f00:1::": true, "2002:c0a8:101::1": true, "fec0::1": true, "feff::1": true,
 		"::808:808": false, "64:ff9b::808:808": false, "2002:808:808::1": false,
+		// IPv4-translated (::ffff:0:a.b.c.d), IPv4-mapped written in hex, local-use NAT64 (RFC 8215).
+		"::ffff:0:a00:1": true, "::ffff:0:127.0.0.1": true, "::ffff:7f00:1": true, "::ffff:0:808:808": false,
+		"64:ff9b:1::808:808": true, "64:ff9b:1:ffff::1": true, "64:ff9b:2::808:808": false,
 		"ftp.fau.de": false, "download.kiwix.org": false, "8.8.8.8": false, "172.32.0.1": false, "100.128.0.1": false,
 		"2606:4700:4700::1111": false, "localhost.example.com": false, "mirror2.example": false,
 	} {

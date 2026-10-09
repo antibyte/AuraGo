@@ -166,11 +166,18 @@ var thisNetwork = netip.MustParsePrefix("0.0.0.0/8")
 // siteLocal is fec0::/10, the deprecated IPv6 site-local range (RFC 3879).
 var siteLocal = netip.MustParsePrefix("fec0::/10")
 
-// IPv6 ranges that carry an IPv4 address: IPv4-compatible (::a.b.c.d, the
-// last 32 bits), NAT64 (64:ff9b::/96, the last 32 bits) and 6to4 (2002::/16,
-// bits 16 to 47).
+// localUseNAT64 is 64:ff9b:1::/48, the local-use IPv4/IPv6 translation prefix
+// (RFC 8215). Where the IPv4 address sits depends on the prefix length a site
+// chose, so the whole range counts as local.
+var localUseNAT64 = netip.MustParsePrefix("64:ff9b:1::/48")
+
+// IPv6 ranges that carry an IPv4 address: IPv4-compatible (::a.b.c.d),
+// IPv4-translated (::ffff:0:a.b.c.d, RFC 2765) and NAT64 (64:ff9b::/96) in
+// the last 32 bits, and 6to4 (2002::/16) in bits 16 to 47. IPv4-mapped
+// addresses (::ffff:a.b.c.d) are unmapped first.
 var (
 	ipv4Compatible = netip.MustParsePrefix("::/96")
+	ipv4Translated = netip.MustParsePrefix("::ffff:0:0:0/96")
 	nat64          = netip.MustParsePrefix("64:ff9b::/96")
 	sixToFour      = netip.MustParsePrefix("2002::/16")
 )
@@ -178,7 +185,8 @@ var (
 // isLocalHost reports hosts a public mirror never has: localhost names, IP
 // literals in loopback, private, link-local, site-local, multicast,
 // unspecified or carrier-grade NAT ranges (also when embedded in an
-// IPv4-compatible, NAT64 or 6to4 IPv6 address), and numeric spellings of IPv4
+// IPv4-mapped, IPv4-compatible, IPv4-translated, NAT64 or 6to4 IPv6 address),
+// the local-use NAT64 range 64:ff9b:1::/48, and numeric spellings of IPv4
 // addresses ("2130706433", "0x7f.1") that resolvers expand but netip does not
 // parse. It is purely lexical; the default HTTP client repeats it on the
 // resolved address of every connection (see dialGuard).
@@ -203,12 +211,12 @@ func isLocalAddr(addr netip.Addr) bool {
 	if !addr.Is6() {
 		return false
 	}
-	if siteLocal.Contains(addr) {
+	if siteLocal.Contains(addr) || localUseNAT64.Contains(addr) {
 		return true
 	}
 	b := addr.As16()
 	switch {
-	case ipv4Compatible.Contains(addr), nat64.Contains(addr):
+	case ipv4Compatible.Contains(addr), ipv4Translated.Contains(addr), nat64.Contains(addr):
 		return isLocalAddr(netip.AddrFrom4([4]byte{b[12], b[13], b[14], b[15]}))
 	case sixToFour.Contains(addr):
 		return isLocalAddr(netip.AddrFrom4([4]byte{b[2], b[3], b[4], b[5]}))

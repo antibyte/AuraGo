@@ -3,6 +3,7 @@
 package localwiki
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,9 +19,10 @@ const finalPathNormalizedDOS = 0
 // Windows opens it: GetFinalPathNameByHandle resolves symbolic links and
 // junctions (also in the last path element, which filepath.EvalSymlinks
 // leaves alone), 8.3 short names, ignored trailing dots and spaces and mapped
-// network drives (as \\server\share). When Windows cannot
-// name the volume with a drive letter or a UNC path, filepath.EvalSymlinks is
-// the fallback.
+// network drives (as \\server\share). Only when Windows cannot name the volume
+// with a drive letter or a UNC path (ERROR_PATH_NOT_FOUND or
+// ERROR_FILE_NOT_FOUND) is filepath.EvalSymlinks the fallback; every other
+// error is returned, so the caller refuses the directory.
 func resolveExistingDir(dir string) (string, error) {
 	f, err := os.Open(dir)
 	if err != nil {
@@ -30,8 +32,12 @@ func resolveExistingDir(dir string) (string, error) {
 	buf := make([]uint16, 512)
 	for {
 		n, err := windows.GetFinalPathNameByHandle(windows.Handle(f.Fd()), &buf[0], uint32(len(buf)), finalPathNormalizedDOS)
-		if err != nil {
+		if errors.Is(err, windows.ERROR_PATH_NOT_FOUND) || errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
+			// The volume has no drive letter or UNC name.
 			return filepath.EvalSymlinks(dir)
+		}
+		if err != nil {
+			return "", err
 		}
 		if int(n) < len(buf) {
 			return stripFinalPathPrefix(windows.UTF16ToString(buf[:n])), nil

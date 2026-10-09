@@ -331,7 +331,7 @@ func (m *Manager) reconcileDownload(dir string, st *stateFile, pending *download
 		if err := removeDownload(dir); err != nil {
 			m.logger.Warn("[LocalWikipedia] download.json could not be removed", "error", err)
 		}
-		if err := removeIfExists(partPath); err != nil {
+		if err := removePartialDownload(dir, target); err != nil {
 			m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", target, "error", err)
 		}
 		return false

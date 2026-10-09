@@ -103,8 +103,9 @@ func (m *Manager) detachInstalled(dir string) error {
 	return err
 }
 
-// removePartFiles deletes every partial edition download (<edition>.zim.part)
-// in dir; other files are never touched.
+// removePartFiles deletes every partial edition download (<edition>.zim.part
+// and an unfinished restart, <edition>.zim.part.restart) in dir; other files
+// are never touched.
 func removePartFiles(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -115,7 +116,7 @@ func removePartFiles(dir string) error {
 	}
 	var first error
 	for _, entry := range entries {
-		name, isPart := strings.CutSuffix(entry.Name(), ".part")
+		name, isPart := strings.CutSuffix(strings.TrimSuffix(entry.Name(), restartSuffix), ".part")
 		if !isPart || !entry.Type().IsRegular() || !zimFileNamePattern.MatchString(name) {
 			continue
 		}

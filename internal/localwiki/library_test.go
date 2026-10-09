@@ -309,6 +309,29 @@ func TestPrepareDataDirChecksResolvedSymlinks(t *testing.T) {
 	}
 }
 
+// The walk up to the nearest existing ancestor passes only missing paths and
+// paths below a file.
+func TestNearestExistingAncestor(t *testing.T) {
+	base := t.TempDir()
+	file := filepath.Join(base, "file")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for name, tc := range map[string]struct {
+		dir, existing string
+		missing       []string
+	}{
+		"existing":     {base, base, nil},
+		"missing tail": {filepath.Join(base, "a", "b"), base, []string{"a", "b"}},
+		"below a file": {filepath.Join(file, "wiki", "x"), file, []string{"wiki", "x"}},
+	} {
+		existing, missing, err := nearestExistingAncestor(tc.dir)
+		if err != nil || existing != tc.existing || strings.Join(missing, "/") != strings.Join(tc.missing, "/") {
+			t.Errorf("%s: nearestExistingAncestor = %s, %v, %v", name, existing, missing, err)
+		}
+	}
+}
+
 // macOS keeps /var, /tmp and /etc as links into /private. A directory that
 // differs from its resolved form only by that alias is the same place.
 func TestIsSystemPathAlias(t *testing.T) {

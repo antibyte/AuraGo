@@ -107,7 +107,7 @@ func (m *Manager) discardPending(dir string, pending *downloadFile) {
 		if err := removeDownload(dir); err != nil {
 			m.logger.Warn("[LocalWikipedia] download.json could not be removed", "error", err)
 		}
-		if err := removeIfExists(filepath.Join(dir, pending.Target.FileName+".part")); err != nil {
+		if err := removePartialDownload(dir, pending.Target.FileName); err != nil {
 			m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", pending.Target.FileName, "error", err)
 		}
 	}
@@ -247,7 +247,7 @@ func (m *Manager) runOperation(ctx context.Context, op *operation, plan installP
 
 func (m *Manager) install(ctx context.Context, op *operation, plan installPlan) error {
 	if plan.staleTarget != "" && plan.staleTarget != plan.target.FileName {
-		if err := removeIfExists(filepath.Join(plan.dir, plan.staleTarget+".part")); err != nil {
+		if err := removePartialDownload(plan.dir, plan.staleTarget); err != nil {
 			m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", plan.staleTarget, "error", err)
 		}
 	}

@@ -76,6 +76,19 @@ func TestResolveExistingDirExpandsShortNames(t *testing.T) {
 	}
 }
 
+// A path that cannot be inspected (here an invalid name, which is not "does
+// not exist") is refused instead of walking past it.
+func TestPrepareDataDirRefusesUninspectablePaths(t *testing.T) {
+	base := t.TempDir()
+	dir := filepath.Join(base, "bad<name", "wiki")
+	if _, _, err := nearestExistingAncestor(dir); err == nil {
+		t.Fatal("nearestExistingAncestor walked past an invalid name")
+	}
+	if err := prepareDataDir(dir, func(string) bool { return false }); ErrorCode(err) != CodeDataDirInvalid {
+		t.Fatalf("prepareDataDir = %v", err)
+	}
+}
+
 func TestStripFinalPathPrefix(t *testing.T) {
 	for in, want := range map[string]string{
 		`\\?\C:\Windows`:             `C:\Windows`,

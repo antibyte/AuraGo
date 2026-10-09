@@ -96,7 +96,8 @@ func writeState(dir string, st *stateFile) error {
 // readDownload loads <dir>/download.json with the same version rule as
 // readState. The target must be a valid edition and every mirror URL must pass
 // the mirror rules of parseMeta4; trusted hosts (the catalog URL) may be local
-// addresses. A last-used URL that fails them is logged and dropped.
+// addresses. A last-used URL that fails them is logged and dropped; a file
+// left without any mirror is refused.
 func readDownload(dir string, trusted ...*url.URL) (*downloadFile, error) {
 	var d downloadFile
 	found, err := readJSONFile(filepath.Join(dir, downloadFileName), &d)
@@ -121,6 +122,11 @@ func readDownload(dir string, trusted ...*url.URL) (*downloadFile, error) {
 			slog.Warn("[LocalWikipedia] Ignoring an invalid last mirror in download.json", "error", err)
 			d.LastURL = ""
 		}
+	}
+	// Without any mirror the download cannot be resumed; a fresh install
+	// fetches the mirrors again.
+	if len(d.URLs) == 0 && d.LastURL == "" {
+		return nil, errors.New("download.json lists no mirror")
 	}
 	return &d, nil
 }

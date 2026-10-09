@@ -11,9 +11,12 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/fileutil"
 )
 
 const (
@@ -22,6 +25,16 @@ const (
 	copyBufferSize                 = 1 << 20
 	rehashChunk                    = 4 << 20
 	userAgent                      = "AuraGo-LocalWikipedia/1"
+
+	// defaultRoundBackoff is the pause before the mirrors are asked again
+	// after a round in which only mirrors that would start over answered.
+	defaultRoundBackoff = 30 * time.Second
+	// restartAfterRounds consecutive rounds without progress are required
+	// before the download starts over from byte 0.
+	restartAfterRounds = 2
+	// restartSuffix names the sibling file a restart downloads into
+	// (<edition>.zim.part.restart) until it holds more than the part file.
+	restartSuffix = ".restart"
 )
 
 var errMirrorStalled = errors.New("mirror stalled")
@@ -51,11 +64,14 @@ var errRangeRefused = errors.New("mirror cannot continue at the current offset")
 //
 // Mirrors are tried in order. A mirror that fails moves on to the next one; a
 // round over all mirrors that moved the download forward is followed by
-// another round. When a round made no progress and some mirrors could only
-// serve the whole file (416, or 200 to a Range request), the part file is
-// restarted from byte 0 with the first of them that actually delivers the
-// whole file; it is truncated only once that answer has arrived. A round (or
-// restart) without progress ends the job with errDownloadFailed.
+// another round, and a round without progress ends the job with
+// errDownloadFailed. The exception are mirrors that could only serve the
+// whole file (416, or 200 to a Range request): after such a round the job
+// waits roundBackoff and asks every mirror again, and only after
+// restartAfterRounds consecutive rounds without progress does it start over.
+// The restart downloads into a sibling file (restartPath) that replaces the
+// part file only once it holds more bytes; a restart that ends earlier is
+// discarded, so the part file never shrinks.
 type downloadJob struct {
 	client       *http.Client
 	logger       *slog.Logger
@@ -67,15 +83,34 @@ type downloadJob struct {
 	freeDisk     func(string) (int64, error)
 	checkEvery   int64
 	stallTimeout time.Duration
+	roundBackoff time.Duration      // pause between rounds before a restart; 0 → defaultRoundBackoff
 	onPhase      func(phase string) // StateVerifying while re-hashing, then StateDownloading
 	onProgress   func(done, total int64)
 	onURL        func(finalURL string) // mirror that is answering (after redirects)
 
+	// file, hash and offset describe the file being written: the part file,
+	// or the restart file while kept holds the part file.
 	file      *os.File
 	hash      hash.Hash
 	offset    int64
+	kept      *keptPart
 	unchecked int64 // bytes written since the last free-space check, across attempts
-	restarts  int   // times the part file was restarted from byte 0
+}
+
+// keptPart is the part file a running restart may replace.
+type keptPart struct {
+	file   *os.File
+	hash   hash.Hash
+	offset int64
+}
+
+func (j *downloadJob) restartPath() string { return j.partPath + restartSuffix }
+
+// removePartialDownload removes the partial file of an edition and the file of
+// an unfinished restart (see downloadJob).
+func removePartialDownload(dir, fileName string) error {
+	part := filepath.Join(dir, fileName+".part")
+	return errors.Join(removeIfExists(part), removeIfExists(part+restartSuffix))
 }
 
 // run returns nil once partPath holds exactly size bytes with the expected
@@ -84,7 +119,7 @@ type downloadJob struct {
 // errDownloadFailed means the mirrors stopped making progress (the part file
 // is kept for a later resume).
 func (j *downloadJob) run(ctx context.Context) error {
-	defer j.closeFile()
+	defer j.cleanup()
 	if err := j.validate(); err != nil {
 		return err
 	}
@@ -92,6 +127,7 @@ func (j *downloadJob) run(ctx context.Context) error {
 		return err
 	}
 	var lastErr error
+	stalled := 0
 	for j.offset < j.size {
 		roundStart := j.offset
 		refused, err := j.round(ctx, &lastErr)
@@ -99,10 +135,20 @@ func (j *downloadJob) run(ctx context.Context) error {
 			return err
 		}
 		if j.offset == j.size || j.offset > roundStart {
+			stalled = 0
 			continue
 		}
 		if len(refused) == 0 {
 			break
+		}
+		// Only mirrors that would start over answered. One round of
+		// transient failures of the others must not cost the kept bytes:
+		// wait and ask every mirror again first.
+		if stalled++; stalled < restartAfterRounds {
+			if err := sleepContext(ctx, j.roundBackoff); err != nil {
+				return err
+			}
+			continue
 		}
 		if err := j.restartFrom(ctx, refused, &lastErr); err != nil {
 			return err
@@ -110,6 +156,7 @@ func (j *downloadJob) run(ctx context.Context) error {
 		if j.offset <= roundStart {
 			break
 		}
+		stalled = 0
 	}
 	if j.offset != j.size {
 		if lastErr == nil {
@@ -164,6 +211,24 @@ func (j *downloadJob) closeFile() error {
 	return err
 }
 
+// cleanup discards an unfinished restart and closes the part file.
+func (j *downloadJob) cleanup() {
+	j.abandonRestart()
+	_ = j.closeFile()
+}
+
+// sleepContext waits d or until ctx ends.
+func sleepContext(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (j *downloadJob) prepare(ctx context.Context) error {
 	if j.checkEvery <= 0 {
 		j.checkEvery = defaultDiskCheckInterval
@@ -171,8 +236,15 @@ func (j *downloadJob) prepare(ctx context.Context) error {
 	if j.stallTimeout <= 0 {
 		j.stallTimeout = defaultStallTimeout
 	}
+	if j.roundBackoff <= 0 {
+		j.roundBackoff = defaultRoundBackoff
+	}
 	if j.logger == nil {
 		j.logger = slog.Default()
+	}
+	// A restart file is never resumed: the part file is the only progress.
+	if err := removeIfExists(j.restartPath()); err != nil {
+		return &writeError{err}
 	}
 	file, err := os.OpenFile(j.partPath, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
@@ -259,24 +331,25 @@ func (j *downloadJob) round(ctx context.Context, lastErr *error) ([]string, erro
 }
 
 // restartFrom downloads the whole file again from the first of the mirrors
-// that delivers it. The part file is truncated only once a mirror has answered
-// a full request with the whole file; a mirror that fails before that leaves
-// the part file as it was.
+// that delivers more of it than the part file holds. Each attempt writes into
+// the restart file, which replaces the part file once it holds more bytes (see
+// promoteRestart); an attempt that ends earlier is discarded and the next
+// mirror is tried, so the part file never shrinks.
 func (j *downloadJob) restartFrom(ctx context.Context, mirrors []string, lastErr *error) error {
+	kept := j.offset
 	for _, rawURL := range mirrors {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		restarts := j.restarts
 		err := j.fetch(ctx, rawURL, true)
 		if err != nil {
 			if stop := stopError(ctx, err); stop != nil {
 				return stop
 			}
-			j.logger.Warn("[LocalWikipedia] Mirror failed to restart the download", "host", hostOf(rawURL), "offset", j.offset, "error", err)
+			j.logger.Warn("[LocalWikipedia] Mirror failed to restart the download", "host", hostOf(rawURL), "kept", kept, "error", err)
 			*lastErr = err
 		}
-		if j.restarts != restarts || j.offset == j.size {
+		if j.offset > kept {
 			return nil
 		}
 	}
@@ -298,9 +371,12 @@ func stopError(ctx context.Context, err error) error {
 }
 
 // fetch runs one attempt against one mirror: the remaining bytes, or with
-// full the whole file from byte 0. The stall watchdog covers the wait for the
-// response headers and every read of the body.
+// full the whole file from byte 0 into the restart file. The stall watchdog
+// covers the wait for the response headers and every read of the body. A
+// restart that has not replaced the part file when the attempt ends is
+// discarded.
 func (j *downloadJob) fetch(ctx context.Context, rawURL string, full bool) error {
+	defer j.abandonRestart()
 	attemptCtx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 	watchdog := time.AfterFunc(j.stallTimeout, func() { cancel(errMirrorStalled) })
@@ -353,7 +429,8 @@ func (j *downloadJob) get(ctx context.Context, rawURL string, from int64) (*http
 //
 // A mirror that cannot continue at the offset (416, or 200 to a Range request)
 // returns errRangeRefused and leaves the part file alone. With full, a 200
-// with the whole file truncates the part file and the download starts over.
+// with the whole file starts a restart (beginRestart); the part file stays
+// until the restart file holds more bytes.
 func (j *downloadJob) open(ctx context.Context, rawURL string, full bool) (*http.Response, error) {
 	from := j.offset
 	if full {
@@ -363,9 +440,13 @@ func (j *downloadJob) open(ctx context.Context, rawURL string, full bool) (*http
 	if err != nil {
 		return nil, err
 	}
-	if encoding := strings.TrimSpace(resp.Header.Get("Content-Encoding")); encoding != "" && !strings.EqualFold(encoding, "identity") {
-		resp.Body.Close()
-		return nil, fmt.Errorf("mirror sent the file with content encoding %q", encoding)
+	for _, value := range resp.Header.Values("Content-Encoding") {
+		for _, encoding := range strings.Split(value, ",") {
+			if encoding = strings.TrimSpace(encoding); encoding != "" && !strings.EqualFold(encoding, "identity") {
+				resp.Body.Close()
+				return nil, fmt.Errorf("mirror sent the file with content encoding %q", encoding)
+			}
+		}
 	}
 	switch {
 	case resp.StatusCode == http.StatusPartialContent && from > 0:
@@ -388,7 +469,7 @@ func (j *downloadJob) open(ctx context.Context, rawURL string, full bool) (*http
 				resp.Body.Close()
 				return nil, errRangeRefused
 			}
-			if err := j.restart(); err != nil {
+			if err := j.beginRestart(); err != nil {
 				resp.Body.Close()
 				return nil, err
 			}
@@ -403,18 +484,64 @@ func (j *downloadJob) open(ctx context.Context, rawURL string, full bool) (*http
 	}
 }
 
-func (j *downloadJob) restart() error {
-	if err := j.file.Truncate(0); err != nil {
+// beginRestart sets the part file aside (file, hash and offset) and directs
+// the writes into an empty restart file with a fresh hash.
+func (j *downloadJob) beginRestart() error {
+	file, err := os.OpenFile(j.restartPath(), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
 		return &writeError{err}
 	}
-	if _, err := j.file.Seek(0, io.SeekStart); err != nil {
-		return &writeError{err}
-	}
-	j.hash.Reset()
-	j.offset = 0
-	j.restarts++
+	j.kept = &keptPart{file: j.file, hash: j.hash, offset: j.offset}
+	j.file, j.hash, j.offset = file, sha256.New(), 0
+	j.logger.Info("[LocalWikipedia] Starting the download over in a separate file", "kept", j.kept.offset)
 	j.progress(0)
 	return nil
+}
+
+// promoteRestart replaces the part file with the restart file, which now
+// holds more bytes, and keeps writing to it. The restart's hash and offset
+// become the job's.
+func (j *downloadJob) promoteRestart() error {
+	kept := j.kept
+	j.kept = nil
+	syncErr := j.file.Sync()
+	closeErr := j.file.Close()
+	j.file = nil
+	_ = kept.file.Close()
+	if err := errors.Join(syncErr, closeErr); err != nil {
+		_ = os.Remove(j.restartPath())
+		return &writeError{fmt.Errorf("finish restarted download: %w", err)}
+	}
+	if err := fileutil.RenameContext(context.Background(), j.restartPath(), j.partPath); err != nil {
+		_ = os.Remove(j.restartPath())
+		return &writeError{fmt.Errorf("replace partial edition: %w", err)}
+	}
+	file, err := os.OpenFile(j.partPath, os.O_RDWR, 0o644)
+	if err != nil {
+		return &writeError{err}
+	}
+	if _, err := file.Seek(j.offset, io.SeekStart); err != nil {
+		_ = file.Close()
+		return &writeError{err}
+	}
+	j.file = file
+	j.logger.Info("[LocalWikipedia] The restarted download replaced the partial file", "bytes", j.offset, "kept", kept.offset)
+	return nil
+}
+
+// abandonRestart discards a restart that did not replace the part file and
+// continues with the part file's own file, hash and offset.
+func (j *downloadJob) abandonRestart() {
+	if j.kept == nil {
+		return
+	}
+	_ = j.file.Close()
+	if err := removeIfExists(j.restartPath()); err != nil {
+		j.logger.Warn("[LocalWikipedia] An unfinished restart file could not be removed", "file", j.restartPath(), "error", err)
+	}
+	j.file, j.hash, j.offset = j.kept.file, j.kept.hash, j.kept.offset
+	j.kept = nil
+	j.progress(j.offset)
 }
 
 func (j *downloadJob) copy(body io.Reader, watchdog *time.Timer) error {
@@ -433,6 +560,11 @@ func (j *downloadJob) copy(body io.Reader, watchdog *time.Timer) error {
 				return j.writeFailure(err)
 			}
 			j.progress(j.offset)
+			if j.kept != nil && j.offset > j.kept.offset {
+				if err := j.promoteRestart(); err != nil {
+					return err
+				}
+			}
 			j.unchecked += int64(written)
 			if j.unchecked >= j.checkEvery {
 				j.unchecked = 0

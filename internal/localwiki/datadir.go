@@ -1,11 +1,14 @@
 package localwiki
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // diskMargin is the reserve kept free: max(1 GiB, 1 % of the edition size).
@@ -101,7 +104,10 @@ func checkResolvedAncestor(dir string, sensitive func(string) bool) error {
 	if sensitive == nil {
 		return nil
 	}
-	existing, missing := nearestExistingAncestor(filepath.Clean(dir))
+	existing, missing, err := nearestExistingAncestor(filepath.Clean(dir))
+	if err != nil {
+		return fmt.Errorf("%w: inspect %s: %v", ErrDataDirInvalid, dir, err)
+	}
 	resolved, err := resolveExistingDir(existing)
 	if err != nil {
 		return fmt.Errorf("%w: resolve %s: %v", ErrDataDirInvalid, existing, err)
@@ -111,16 +117,23 @@ func checkResolvedAncestor(dir string, sensitive func(string) bool) error {
 
 // nearestExistingAncestor returns the longest existing prefix of the cleaned
 // absolute path dir (dir itself when it exists) and the components below it.
-func nearestExistingAncestor(dir string) (string, []string) {
+// It walks up only past paths that do not exist (or name a file as a
+// directory); any other error, such as a denied permission, is returned
+// instead of guessing.
+func nearestExistingAncestor(dir string) (string, []string, error) {
 	var missing []string
 	current := dir
 	for {
-		if _, err := os.Stat(current); err == nil {
-			return current, missing
+		_, err := os.Stat(current)
+		if err == nil {
+			return current, missing, nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) && !errors.Is(err, syscall.ENOTDIR) {
+			return "", nil, err
 		}
 		parent := filepath.Dir(current)
 		if parent == current {
-			return current, missing
+			return current, missing, nil
 		}
 		missing = append([]string{filepath.Base(current)}, missing...)
 		current = parent

@@ -41,10 +41,13 @@ type fakeRequest struct {
 // "range-416-then-fail" refuses Range requests and answers 503 to full ones,
 // "ignore-range" answers 200 to Range requests, "html-200" answers every
 // request with a short HTML page and status 200, "chunked-html" does the same
-// without a Content-Length, "gzip" labels the file as gzip-encoded, "cut" sends
-// cutChunk bytes from the requested offset and then drops the connection,
-// "slow" sends slowChunk bytes and then waits for unblock() or the client to
-// go away.
+// without a Content-Length, "gzip" labels the file as gzip-encoded,
+// "multi-encoding" sends two Content-Encoding headers (identity, gzip), "cut"
+// sends cutChunk bytes from the requested offset and then drops the
+// connection, "ignore-range-cut" answers every request with the whole file
+// (200) but drops the connection after cutChunk bytes, "fail-once" answers the
+// first request with 503 and then serves normally, "slow" sends slowChunk
+// bytes and then waits for unblock() or the client to go away.
 type fakeEdition struct {
 	name         string
 	kiwix        string
@@ -57,6 +60,7 @@ type fakeEdition struct {
 
 	mu          sync.Mutex
 	modes       map[string]string
+	served      map[string]int // requests per mirror
 	release     chan struct{}
 	releaseOnce sync.Once
 }
@@ -78,7 +82,8 @@ func (f *fakeKiwix) addEdition(name string, data []byte) *fakeEdition {
 	sum := sha256.Sum256(data)
 	e := &fakeEdition{
 		name: name, kiwix: parsed.Kiwix, variant: parsed.Variant, data: data, sha256: hex.EncodeToString(sum[:]),
-		articleCount: 42, slowChunk: 1024, cutChunk: 64 << 10, modes: map[string]string{}, release: make(chan struct{}),
+		articleCount: 42, slowChunk: 1024, cutChunk: 64 << 10, modes: map[string]string{}, served: map[string]int{},
+		release: make(chan struct{}),
 	}
 	f.mu.Lock()
 	f.editions[name] = e
@@ -127,6 +132,14 @@ func (e *fakeEdition) mode(mirror string) string {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.modes[mirror]
+}
+
+// request counts a request to mirror and returns its mode and number (from 1).
+func (e *fakeEdition) request(mirror string) (string, int) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.served[mirror]++
+	return e.modes[mirror], e.served[mirror]
 }
 
 func (e *fakeEdition) unblock() {
@@ -207,7 +220,21 @@ func (f *fakeKiwix) serveZIM(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	switch e.mode(mirror) {
+	mode, n := e.request(mirror)
+	switch mode {
+	case "fail-once":
+		if n == 1 {
+			http.Error(w, "mirror busy", http.StatusServiceUnavailable)
+			return
+		}
+		http.ServeContent(w, r, file, time.Time{}, bytes.NewReader(e.data))
+	case "ignore-range-cut":
+		r.Header.Del("Range")
+		e.serveCut(w, r)
+	case "multi-encoding":
+		w.Header().Add("Content-Encoding", "identity")
+		w.Header().Add("Content-Encoding", "gzip")
+		http.ServeContent(w, r, file, time.Time{}, bytes.NewReader(e.data))
 	case "fail":
 		http.Error(w, "mirror down", http.StatusServiceUnavailable)
 	case "http-redirect":

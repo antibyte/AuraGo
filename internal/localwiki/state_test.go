@@ -211,6 +211,25 @@ func TestDownloadFileValidatesMirrorURLs(t *testing.T) {
 			t.Errorf("last url %q: %+v, %v; want the download without its last URL", last, got, err)
 		}
 	}
+	// Without any mirror the download cannot be resumed: a valid last URL is
+	// enough, an empty list without one is refused.
+	for name, tc := range map[string]struct {
+		d    downloadFile
+		want bool
+	}{
+		"no mirrors":                 {downloadFile{URLs: []string{}}, false},
+		"no mirrors, bad last url":   {downloadFile{URLs: []string{}, LastURL: "http://bad.example/" + stateTestFile}, false},
+		"no mirrors, valid last url": {downloadFile{URLs: []string{}, LastURL: good}, true},
+	} {
+		dir := t.TempDir()
+		tc.d.Target = stateTestEdition()
+		if err := writeDownload(dir, &tc.d); err != nil {
+			t.Fatal(err)
+		}
+		if got, err := readDownload(dir); (err == nil && got != nil) != tc.want {
+			t.Errorf("%s: readDownload = %+v, %v; accepted want %v", name, got, err, tc.want)
+		}
+	}
 	// The trusted catalog host may be local (the fake Kiwix of the tests), other local ports may not.
 	dir := t.TempDir()
 	d := downloadFile{Target: stateTestEdition(), URLs: []string{"https://127.0.0.1:8443/m1/" + stateTestFile}, LastURL: good}

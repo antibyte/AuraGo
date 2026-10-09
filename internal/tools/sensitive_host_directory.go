@@ -57,11 +57,18 @@ func IsSensitiveHostDirectory(dir string) bool {
 	if unclassifiable {
 		return true
 	}
-	p = trimWindowsComponentSuffixes(p)
+	// Both spellings are checked: the path as written (POSIX file systems
+	// keep trailing dots, so "/var/run/.../.." is /var/run there) and as
+	// Windows reads it ("c:/windows./wiki" is c:/windows/wiki).
+	return isSensitiveNormalizedHostPath(p) || isSensitiveNormalizedHostPath(trimWindowsComponentSuffixes(p))
+}
+
+// isSensitiveNormalizedHostPath applies the checks of IsSensitiveHostDirectory
+// to a lower-cased, slash-normalized path without namespace prefix.
+func isSensitiveNormalizedHostPath(p string) bool {
 	if isWindowsAdminShare(p) {
 		return true
 	}
-
 	cleaned := cleanDockerHostPath(p)
 	if dockerHostPathIsSensitiveLocation(cleaned) {
 		return true
@@ -119,8 +126,10 @@ func hasDriveLetter(p string) bool {
 // ignores in every path component ("c:/windows./wiki" is c:/windows/wiki). A
 // component made only of dots and spaces (other than "." and "..") becomes
 // ".", which the later cleaning drops. Empty components (the leading "//" of a
-// UNC path) are kept. The check is applied on every platform: it can only
-// make a path more sensitive, never less.
+// UNC path) are kept. Trimming alone can make a path less sensitive (a POSIX
+// directory named "..." is real, so "/var/run/.../.." is /var/run, but trimmed
+// it reads /var), which is why IsSensitiveHostDirectory checks the trimmed
+// and the untrimmed spelling and refuses the path when either is sensitive.
 func trimWindowsComponentSuffixes(p string) string {
 	parts := strings.Split(p, "/")
 	for i, part := range parts {
