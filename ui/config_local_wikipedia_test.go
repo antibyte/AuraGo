@@ -143,3 +143,16 @@ func TestConfigLocalWikipediaModuleUsesAdminAPIAndKnownKeys(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigLocalWikipediaSectionIsRegistered(t *testing.T) {
+	mainJS := string(mustReadUIFile(t, "js/config/main.js"))
+	for _, wanted := range []string{
+		"{ key: 'local_wikipedia', icon: '📚', label: t('config.section.local_wikipedia.label'), desc: t('config.section.local_wikipedia.desc') }",
+		"local_wikipedia: { m: 'local_wikipedia', fn: 'renderLocalWikipediaSection' }",
+		"local_wikipedia: 120",
+	} {
+		if !strings.Contains(mainJS, wanted) {
+			t.Fatalf("config main.js missing %q", wanted)
+		}
+	}
+}

@@ -102,6 +102,7 @@ const SECTIONS = [
             { key: 'info_tools', icon: '🔍', label: t('config.section.info_tools.label'), desc: t('config.section.info_tools.desc') },
             { key: 'network_tools', icon: '📡', label: t('config.section.network_tools.label'), desc: t('config.section.network_tools.desc') },
             { key: 'brave_search', icon: '🦁', label: t('config.section.brave_search.label'), desc: t('config.section.brave_search.desc') },
+            { key: 'local_wikipedia', icon: '📚', label: t('config.section.local_wikipedia.label'), desc: t('config.section.local_wikipedia.desc') },
             { key: 'skill_manager', icon: '🧩', label: t('config.section.skill_manager.label'), desc: t('config.section.skill_manager.desc') },
             { key: 'daemon_skills', icon: '👹', label: t('config.section.daemon_skills.label'), desc: t('config.section.daemon_skills.desc') },
             { key: 'mission_preparation', icon: '🎯', label: t('config.section.mission_preparation.label'), desc: t('config.section.mission_preparation.desc') }
@@ -610,6 +611,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     info_tools: 37,
     network_tools: 38,
     brave_search: 39,
+    local_wikipedia: 120,
     skill_manager: 40,
     daemon_skills: 41,
     mission_preparation: 42,
@@ -691,6 +693,7 @@ const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     treg: '<rect x="27" y="25" width="74" height="78" rx="10" fill="none" stroke="#35c7d3" stroke-width="6"/><path d="M43 46h42M43 64h42M43 82h26" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/>',
     llm_router: '<path d="M32 64h25V34h32M57 64h32M57 64v30h32" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18" y="51" width="26" height="26" rx="6" fill="#7da3c8"/><circle cx="94" cy="34" r="11" fill="#6fca8f"/><circle cx="94" cy="64" r="11" fill="#35c7d3"/><circle cx="94" cy="94" r="11" fill="#4f8ee8"/>',
+    local_wikipedia: '<path d="M24 36c14-7 28-7 40 3v60c-12-9-26-9-40-3z" fill="#7da3c8" opacity=".2"/><path d="M104 36c-14-7-28-7-40 3v60c12-9 26-9 40-3z" fill="#35c7d3" opacity=".2"/><path d="M24 36c14-7 28-7 40 3 12-10 26-10 40-3v60c-14-6-28-6-40 3-12-9-26-9-40-3zM64 39v60" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M33 54l5 18 5-13 5 13 5-18" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>',
     flows: '<rect x="16" y="26" width="34" height="24" rx="6" fill="#7da3c8"/><rect x="16" y="78" width="34" height="24" rx="6" fill="#6fca8f"/><rect x="78" y="52" width="34" height="24" rx="6" fill="#35c7d3"/><path d="M50 38c18 0 12 26 28 26M50 90c18 0 12-26 28-26" fill="none" stroke="#4f8ee8" stroke-width="6" stroke-linecap="round"/>',
     detective: "<circle cx=\"54\" cy=\"52\" r=\"27\" fill=\"#35c7d3\" opacity=\".15\"/><circle cx=\"54\" cy=\"52\" r=\"27\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"7\"/><path d=\"M74 73 103 102\" stroke=\"#7da3c8\" stroke-width=\"10\" stroke-linecap=\"round\"/>",
     newspaper: '<rect x="24" y="26" width="80" height="76" rx="5" fill="#35c7d3" opacity=".16"/><path d="M32 38h64M32 52h64M32 66h29M32 78h29M70 66h26v24H70zM32 90h29" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -3307,6 +3310,7 @@ const SECTION_MODULES = {
     grafana: { m: 'grafana', fn: 'renderGrafanaSection' },
     go2rtc: { m: 'go2rtc', fn: 'renderGo2RTCSection' },
     local_llm: { m: 'local_llm', fn: 'renderLocalLLMSection' },
+    local_wikipedia: { m: 'local_wikipedia', fn: 'renderLocalWikipediaSection' },
     three_d_printers: { m: 'three_d_printers', fn: 'renderThreeDPrintersSection' },
     fritzbox: { m: 'fritzbox', fn: 'renderFritzBoxSection' },
     ldap: { m: 'ldap', fn: 'renderLDAPSection' },
