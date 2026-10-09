@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -123,4 +124,25 @@ func TestLocalWikipediaReadmeMention(t *testing.T) {
 		"- **Wikipedia in your pocket.**",
 		"[Local Wikipedia](documentation/local-wikipedia.md)",
 	})
+}
+
+func TestLocalWikipediaContractIsRouted(t *testing.T) {
+	t.Parallel()
+	root := readRepoFile(t, "AGENTS.md")
+	if got := strings.Count(root, "`internal/localwiki/AGENTS.md`"); got < 2 {
+		t.Errorf("root AGENTS.md must route Local Wikipedia in the contract table and the Child DOX Index, found %d references", got)
+	}
+	requireAll(t, "AGENTS.md", root, []string{"| Local Wikipedia Contract |"})
+	contract := readRepoFile(t, "internal/localwiki/AGENTS.md")
+	requireAll(t, "internal/localwiki/AGENTS.md", contract, []string{
+		"## Purpose", "## Ownership", "## Local Contracts", "### Local Wikipedia Contract", "## Verification", "## Child DOX Index",
+		"no CGO", "HTTPS only", "max(1 GiB, 1 % of size)", "refcounted", "`interrupted`", "Content-Security-Policy",
+		"`security.IsolateExternalData`", "GPL", "internal/zim", "ui/js/desktop/apps/AGENTS.md",
+	})
+	// The app section is slice 5's contract; it is only required once the app exists.
+	if _, err := os.Stat(repoPath("ui", "js", "desktop", "apps", "local-wikipedia.js")); err == nil {
+		if !strings.Contains(readRepoFile(t, "ui/js/desktop/apps/AGENTS.md"), "local-wikipedia") {
+			t.Error("ui/js/desktop/apps/AGENTS.md must carry the Local Wikipedia app section (slice 5)")
+		}
+	}
 }
