@@ -101,23 +101,32 @@ func (m *Manager) planInstall(ctx context.Context, settings Settings, installed 
 // discardPending drops an interrupted download (its download.json and partial
 // file) that the installed edition made pointless, and clears the interrupted
 // marker so the status no longer offers to resume it. pending is nil when
-// there is no readable download.json.
+// there is no readable download.json. Nothing is touched unless the manager is
+// idle: the files are removed with mu held, so no operation can start (and
+// begin to write them) meanwhile, and no running one loses its files.
 func (m *Manager) discardPending(dir string, pending *downloadFile) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.op != nil || m.deleting || m.activeDir != dir {
+		return
+	}
 	if pending != nil {
+		name := pending.Target.FileName
 		if err := removeDownload(dir); err != nil {
 			m.logger.Warn("[LocalWikipedia] download.json could not be removed", "error", err)
 		}
-		if err := removePartialDownload(dir, pending.Target.FileName); err != nil {
-			m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", pending.Target.FileName, "error", err)
+		if err := removePartialDownload(dir, name); err != nil {
+			m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", name, "error", err)
+		}
+		if !m.installedFileLocked(name) {
+			if err := removeRegularFile(filepath.Join(dir, name)); err != nil {
+				m.logger.Warn("[LocalWikipedia] A retired edition could not be removed", "file", name, "error", err)
+			}
 		}
 	}
-	m.mu.Lock()
-	if m.op == nil && m.activeDir == dir {
-		m.interrupted = false
-		m.errCode = ""
-		m.errRequired = 0
-	}
-	m.mu.Unlock()
+	m.interrupted = false
+	m.errCode = ""
+	m.errRequired = 0
 }
 
 // resolveTarget finds the newest edition for the selection and reads its
@@ -249,6 +258,11 @@ func (m *Manager) install(ctx context.Context, op *operation, plan installPlan) 
 	if plan.staleTarget != "" && plan.staleTarget != plan.target.FileName {
 		if err := removePartialDownload(plan.dir, plan.staleTarget); err != nil {
 			m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", plan.staleTarget, "error", err)
+		}
+		// startOperation unlisted a retired edition of that name when the
+		// stale download began; nothing would delete it any more.
+		if err := m.removeUnpublished(plan.dir, plan.staleTarget); err != nil {
+			m.logger.Warn("[LocalWikipedia] A retired edition could not be removed", "file", plan.staleTarget, "error", err)
 		}
 	}
 	if plan.deleteOldFirst {

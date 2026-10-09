@@ -54,6 +54,7 @@ type Manager struct {
 	wg              sync.WaitGroup
 	reload          chan struct{}
 	loadMu          sync.Mutex // serializes load
+	beforeLoadLock  func()     // test seam: runs right before a load waits for loadMu
 	stateMu         sync.Mutex // orders state.json writes; never taken while holding mu
 
 	mu           sync.Mutex
@@ -234,7 +235,7 @@ func (m *Manager) signalReload() {
 // loadMu: a load that finished while this call waited must not be repeated,
 // and a download that started meanwhile must not be reset.
 func (m *Manager) loadIfStale() {
-	m.loadMu.Lock()
+	m.lockLoad()
 	defer m.loadMu.Unlock()
 	m.mu.Lock()
 	dir := m.settings.DataDir
@@ -247,9 +248,16 @@ func (m *Manager) loadIfStale() {
 
 // load makes dir the active storage directory (see loadLocked).
 func (m *Manager) load(dir string) {
-	m.loadMu.Lock()
+	m.lockLoad()
 	defer m.loadMu.Unlock()
 	m.loadLocked(dir)
+}
+
+func (m *Manager) lockLoad() {
+	if m.beforeLoadLock != nil {
+		m.beforeLoadLock()
+	}
+	m.loadMu.Lock()
 }
 
 // loadLocked reads dir's state.json and download.json, opens the installed
@@ -263,10 +271,23 @@ func (m *Manager) loadLocked(dir string) {
 		interrupted bool
 	)
 	if filepath.IsAbs(dir) {
-		var err error
-		if st, err = readState(dir); err != nil {
-			m.logger.Warn("[LocalWikipedia] state.json is unreadable", "dir", dir, "error", err)
+		var stateErr error
+		if st, stateErr = readState(dir); stateErr != nil {
+			m.logger.Warn("[LocalWikipedia] state.json is unreadable", "dir", dir, "error", stateErr)
 			code = CodeZIMUnreadable
+		}
+		// The download is reconciled before the edition is opened: the repair
+		// may put the installed edition's file back in place.
+		pending, err := readDownload(dir, m.catalogBase)
+		switch {
+		case err != nil:
+			m.logger.Warn("[LocalWikipedia] download.json is unreadable; the interrupted download cannot be resumed", "dir", dir, "error", err)
+		case pending != nil && stateErr != nil:
+			// Without a readable state nothing says which files are the
+			// installed edition's, so the directory is left as it is.
+			interrupted = true
+		case pending != nil:
+			interrupted = m.reconcileDownload(dir, st, pending)
 		}
 		if st != nil && st.Edition != nil {
 			lib, err := OpenLibrary(filepath.Join(dir, st.Edition.FileName), *st.Edition)
@@ -279,13 +300,6 @@ func (m *Manager) loadLocked(dir string) {
 					m.logger.Warn("[LocalWikipedia] Full-text search unavailable; title search only", "reason", lib.fulltextNote)
 				}
 			}
-		}
-		pending, err := readDownload(dir, m.catalogBase)
-		switch {
-		case err != nil:
-			m.logger.Warn("[LocalWikipedia] download.json is unreadable; the interrupted download cannot be resumed", "dir", dir, "error", err)
-		case pending != nil:
-			interrupted = m.reconcileDownload(dir, st, pending)
 		}
 	}
 	m.mu.Lock()
@@ -315,10 +329,13 @@ func (m *Manager) loadLocked(dir string) {
 
 // reconcileDownload repairs what a crash during publication leaves behind and
 // reports whether download.json still describes a download that can be
-// resumed. Publication renames <edition>.zim.part to <edition>.zim, writes
-// state.json and then removes download.json:
+// resumed. st is the successfully read state.json (nil when there is none);
+// it must not be called when state.json could not be read. Publication renames
+// <edition>.zim.part to <edition>.zim, writes state.json and then removes
+// download.json:
 //   - a crash after the state was written leaves a download.json for the
-//     installed edition: it and any partial file are dropped;
+//     installed edition: it and any partial file are dropped (see
+//     dropInstalledDownload);
 //   - a crash between the rename and the state write leaves the finished
 //     <edition>.zim unnamed by state.json: it becomes the partial file again,
 //     so Resume only re-hashes it instead of downloading everything.
@@ -327,21 +344,15 @@ func (m *Manager) reconcileDownload(dir string, st *stateFile, pending *download
 	finalPath := filepath.Join(dir, target)
 	partPath := finalPath + ".part"
 	if st != nil && st.Edition != nil && st.Edition.FileName == target {
-		m.logger.Info("[LocalWikipedia] Dropping the download.json of the installed edition", "edition", target)
-		if err := removeDownload(dir); err != nil {
-			m.logger.Warn("[LocalWikipedia] download.json could not be removed", "error", err)
-		}
-		if err := removePartialDownload(dir, target); err != nil {
-			m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", target, "error", err)
-		}
+		m.dropInstalledDownload(dir, st.Edition)
 		return false
 	}
 	if st != nil && slices.Contains(st.PendingDelete, target) {
 		return true // the file is a retired edition, not a finished download
 	}
-	if info, err := os.Stat(finalPath); err == nil && info.Mode().IsRegular() {
-		if _, err := os.Stat(partPath); errors.Is(err, fs.ErrNotExist) {
-			if err := os.Rename(finalPath, partPath); err != nil {
+	if info, err := os.Lstat(finalPath); err == nil && info.Mode().IsRegular() {
+		if _, err := os.Lstat(partPath); errors.Is(err, fs.ErrNotExist) {
+			if err := fileutil.Rename(finalPath, partPath); err != nil {
 				m.logger.Warn("[LocalWikipedia] A finished download could not be set aside for verification", "file", target, "error", err)
 			} else {
 				m.logger.Info("[LocalWikipedia] Recovered a download that was not published; resuming only re-verifies it", "file", target)
@@ -349,6 +360,33 @@ func (m *Manager) reconcileDownload(dir string, st *stateFile, pending *download
 		}
 	}
 	return true
+}
+
+// dropInstalledDownload removes the download.json of the installed edition
+// (the crash happened after state.json was written) and the partial files.
+// If the installed edition's file is missing but a partial file of exactly its
+// size exists, that file is put back: an earlier version of this code, run
+// while state.json was unreadable, set the installed file aside as a partial
+// download. loadLocked opens the edition afterwards and so verifies it.
+func (m *Manager) dropInstalledDownload(dir string, installed *Edition) {
+	finalPath := filepath.Join(dir, installed.FileName)
+	partPath := finalPath + ".part"
+	m.logger.Info("[LocalWikipedia] Dropping the download.json of the installed edition", "edition", installed.FileName)
+	if _, err := os.Lstat(finalPath); errors.Is(err, fs.ErrNotExist) {
+		if info, err := os.Lstat(partPath); err == nil && info.Mode().IsRegular() && info.Size() == installed.Size {
+			if err := fileutil.Rename(partPath, finalPath); err != nil {
+				m.logger.Warn("[LocalWikipedia] The installed edition could not be put back in place", "file", installed.FileName, "error", err)
+			} else {
+				m.logger.Info("[LocalWikipedia] Put the installed edition back in place", "file", installed.FileName)
+			}
+		}
+	}
+	if err := removeDownload(dir); err != nil {
+		m.logger.Warn("[LocalWikipedia] download.json could not be removed", "error", err)
+	}
+	if err := removePartialDownload(dir, installed.FileName); err != nil {
+		m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", installed.FileName, "error", err)
+	}
 }
 
 // saveState writes the in-memory state of dir; state.json is removed when it
@@ -383,14 +421,14 @@ func (m *Manager) processPendingDeletes(dir string) {
 		current = m.state.Edition.FileName
 	}
 	m.mu.Unlock()
-	kept := make([]string, 0)
+	var failed []string
 	for _, name := range pending {
 		if name == current || !zimFileNamePattern.MatchString(name) {
 			continue
 		}
-		if err := removeIfExists(filepath.Join(dir, name)); err != nil {
+		if err := m.deleteListed(dir, name); err != nil {
 			m.logger.Warn("[LocalWikipedia] The previous edition could not be deleted yet", "file", name, "error", err)
-			kept = append(kept, name)
+			failed = append(failed, name)
 		}
 	}
 	m.mu.Lock()
@@ -398,19 +436,40 @@ func (m *Manager) processPendingDeletes(dir string) {
 		m.mu.Unlock()
 		return
 	}
-	for _, name := range m.state.PendingDelete {
-		if !slices.Contains(pending, name) {
-			kept = append(kept, name)
-		}
-	}
-	m.state.PendingDelete = kept
-	if m.state.Edition == nil && len(kept) == 0 {
+	m.state.PendingDelete = mergePendingDeletes(m.state.PendingDelete, pending, failed)
+	if m.state.Edition == nil && len(m.state.PendingDelete) == 0 {
 		m.state = nil
 	}
 	m.mu.Unlock()
 	if err := m.saveState(dir); err != nil {
 		m.logger.Warn("[LocalWikipedia] state.json could not be updated", "error", err)
 	}
+}
+
+// deleteListed deletes a retired edition file, but only while it is still
+// listed: a download that was started for the same file name unlists it.
+func (m *Manager) deleteListed(dir, name string) error {
+	m.mu.Lock()
+	listed := m.state != nil && m.activeDir == dir && slices.Contains(m.state.PendingDelete, name)
+	m.mu.Unlock()
+	if !listed {
+		return nil
+	}
+	return removeIfExists(filepath.Join(dir, name))
+}
+
+// mergePendingDeletes returns what remains listed after a pass: the names in
+// current (the list as it is now) that the pass did not handle or could not
+// delete. Names that were unlisted while the pass ran stay unlisted, and names
+// added meanwhile are kept.
+func mergePendingDeletes(current, snapshot, failed []string) []string {
+	var next []string
+	for _, name := range current {
+		if !slices.Contains(snapshot, name) || slices.Contains(failed, name) {
+			next = append(next, name)
+		}
+	}
+	return next
 }
 
 // Status reports the installed edition, a running download and the selection.
@@ -426,11 +485,13 @@ func (m *Manager) Status() Status {
 		ErrorCode:           m.errCode,
 		FreeBytes:           -1,
 	}
-	// An operation's code outranks the load error of the installed edition.
+	// An operation's code outranks the load error of the installed edition,
+	// which is not shown while an operation runs (its progress is).
 	fromOperation := m.errCode != ""
-	if !fromOperation {
+	if !fromOperation && m.op == nil {
 		status.ErrorCode = m.loadCode
 	}
+	status.Readable = m.lib != nil
 	if m.state != nil && m.state.Edition != nil {
 		edition := *m.state.Edition
 		status.Edition = &edition

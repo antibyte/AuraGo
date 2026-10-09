@@ -59,16 +59,28 @@ func (m *Manager) Delete() error {
 }
 
 // removeUnpublished deletes a finished download that a crash left unnamed by
-// state.json (see reconcileDownload). The installed edition is not touched
-// here: detachInstalled retires it, so readers can finish.
+// state.json (see reconcileDownload), or a retired edition of the same name
+// that a download took over. The installed edition is not touched here:
+// detachInstalled retires it, so readers can finish.
 func (m *Manager) removeUnpublished(dir, fileName string) error {
 	m.mu.Lock()
-	installed := m.state != nil && m.state.Edition != nil && m.state.Edition.FileName == fileName
+	installed := m.installedFileLocked(fileName)
 	m.mu.Unlock()
 	if installed {
 		return nil
 	}
-	path := filepath.Join(dir, fileName)
+	return removeRegularFile(filepath.Join(dir, fileName))
+}
+
+// installedFileLocked reports whether state.json names fileName as the
+// installed edition. The caller holds mu.
+func (m *Manager) installedFileLocked(fileName string) bool {
+	return m.state != nil && m.state.Edition != nil && m.state.Edition.FileName == fileName
+}
+
+// removeRegularFile deletes path if it is a regular file (never a link or a
+// directory).
+func removeRegularFile(path string) error {
 	if info, err := os.Lstat(path); err != nil || !info.Mode().IsRegular() {
 		return nil
 	}

@@ -210,26 +210,33 @@ func operationRecommendation(code string) string {
 // Status is the JSON body of GET /api/local-wikipedia/status. FreeBytes is -1
 // when the free space cannot be measured.
 type Status struct {
-	State                     string         `json:"state"` // not_installed|downloading|verifying|ready|interrupted|error
-	Progress                  float64        `json:"progress"`
-	BytesDone                 int64          `json:"bytes_done"`
-	BytesTotal                int64          `json:"bytes_total"`
-	RateBytesPerSec           int64          `json:"rate"`
-	ETASeconds                int64          `json:"eta_seconds"`
-	Edition                   *Edition       `json:"edition,omitempty"`
-	Selection                 Selection      `json:"selection"`
-	SelectionMatchesInstalled bool           `json:"selection_matches_installed"`
-	UpdateAvailable           *UpdateInfo    `json:"update_available,omitempty"`
-	Fulltext                  bool           `json:"fulltext"`
-	FreeBytes                 int64          `json:"free_bytes"`
-	RequiredBytes             int64          `json:"required_bytes"`
-	DataDir                   string         `json:"data_dir"`
-	DataDirLocked             bool           `json:"data_dir_locked"`
-	OperationInProgress       bool           `json:"operation_in_progress"`
-	ErrorCode                 string         `json:"error_code,omitempty"`
-	Recommendation            string         `json:"recommendation,omitempty"`
-	SystemLanguage            string         `json:"system_language"`
-	Languages                 []LanguageInfo `json:"languages"`
+	State                     string      `json:"state"` // not_installed|downloading|verifying|ready|interrupted|error
+	Progress                  float64     `json:"progress"`
+	BytesDone                 int64       `json:"bytes_done"`
+	BytesTotal                int64       `json:"bytes_total"`
+	RateBytesPerSec           int64       `json:"rate"`
+	ETASeconds                int64       `json:"eta_seconds"`
+	Edition                   *Edition    `json:"edition,omitempty"`
+	Selection                 Selection   `json:"selection"`
+	SelectionMatchesInstalled bool        `json:"selection_matches_installed"`
+	UpdateAvailable           *UpdateInfo `json:"update_available,omitempty"`
+	Fulltext                  bool        `json:"fulltext"`
+	// Readable is true while an installed edition is open and being served, in
+	// every state (ready, interrupted, downloading, verifying). It is false
+	// when the installed edition could not be opened (error_code
+	// zim_unreadable): clients must use it, not "edition != nil" and the state,
+	// to decide whether Wikipedia content is available. It does not include the
+	// enabled switch.
+	Readable            bool           `json:"readable"`
+	FreeBytes           int64          `json:"free_bytes"`
+	RequiredBytes       int64          `json:"required_bytes"`
+	DataDir             string         `json:"data_dir"`
+	DataDirLocked       bool           `json:"data_dir_locked"`
+	OperationInProgress bool           `json:"operation_in_progress"`
+	ErrorCode           string         `json:"error_code,omitempty"`
+	Recommendation      string         `json:"recommendation,omitempty"`
+	SystemLanguage      string         `json:"system_language"`
+	Languages           []LanguageInfo `json:"languages"`
 }
 
 type Selection struct {

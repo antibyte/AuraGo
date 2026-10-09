@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -420,7 +421,9 @@ func TestManagerInstallUnlistsTheTargetFromPendingDeletes(t *testing.T) {
 }
 
 // The conditions of a reload are checked after taking the load lock: a load
-// that finished while the call waited must not be repeated.
+// that finished while the call waited must not be repeated. The hook stops the
+// call right before it waits for the lock; a check made earlier than that
+// would still see the old directory and load it again.
 func TestManagerReloadChecksItsConditionsUnderTheLoadLock(t *testing.T) {
 	env := newTestEnv(t)
 	placeEdition(t, env.dir, "de", "wikipedia_de_all_nopic_2026-09")
@@ -429,23 +432,28 @@ func TestManagerReloadChecksItsConditionsUnderTheLoadLock(t *testing.T) {
 	env.start()
 	m := env.manager
 
-	m.loadMu.Lock() // another load is in progress
-	settings := env.settings()
-	settings.DataDir = other
-	m.Configure(settings) // wakes the background loop, which now waits for the lock
+	m.mu.Lock() // another directory is selected, without waking the background loop
+	m.settings.DataDir = other
+	current := m.lib
+	m.mu.Unlock()
+	reached := make(chan struct{})
+	proceed := make(chan struct{})
+	var once sync.Once
+	m.beforeLoadLock = func() {
+		once.Do(func() { close(reached) })
+		<-proceed
+	}
 	done := make(chan struct{})
 	go func() {
 		m.loadIfStale()
 		close(done)
 	}()
-	time.Sleep(100 * time.Millisecond)
-	m.mu.Lock()
-	m.activeDir = other // the load that held the lock has finished
-	current := m.lib
+	<-reached
+	m.mu.Lock() // the load that held the lock finishes: the directory is active
+	m.activeDir = other
 	m.mu.Unlock()
-	m.loadMu.Unlock()
+	close(proceed)
 	<-done
-	time.Sleep(100 * time.Millisecond)
 	m.mu.Lock()
 	same := m.lib == current
 	m.mu.Unlock()
