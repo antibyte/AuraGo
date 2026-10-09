@@ -217,3 +217,68 @@ func TestManagerSwitchingOnReportsAnUnreadableEdition(t *testing.T) {
 		t.Fatal("the unreadable edition is still pending to be opened")
 	}
 }
+
+// Switching off and on again retries an edition that could not be opened, so
+// a file replaced by hand while the integration was off is served; this holds
+// for a failed open after switching on and for one at load time.
+func TestManagerSwitchingOffAndOnRetriesAnUnreadableEdition(t *testing.T) {
+	for _, startEnabled := range []bool{false, true} {
+		env := newTestEnv(t)
+		edition := placeEdition(t, env.dir, "de", "wikipedia_de_all_nopic_2026-09")
+		file := filepath.Join(env.dir, edition.FileName)
+		good, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte("not a zim"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if !startEnabled {
+			env.manager.Configure(env.disabledSettings())
+		}
+		env.start()
+		if !startEnabled {
+			env.manager.Configure(env.settings())
+		}
+		status := env.waitFor("the failed open", func(s Status) bool { return !s.Loading && s.ErrorCode == CodeZIMUnreadable })
+		if status.Readable {
+			t.Fatalf("start enabled %v: an unreadable edition is readable: %+v", startEnabled, status)
+		}
+
+		env.manager.Configure(env.disabledSettings())
+		if err := os.WriteFile(file, good, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		env.manager.Configure(env.settings())
+		status = env.waitFor("the repaired edition opened", func(s Status) bool { return s.Readable && !s.Loading })
+		if status.State != StateReady || status.ErrorCode != "" || status.Edition == nil || status.Edition.Name != edition.Name {
+			t.Fatalf("start enabled %v: status after switching on again = %+v", startEnabled, status)
+		}
+		lib, release, ok := env.manager.Acquire()
+		if !ok || lib.Edition().Name != edition.Name {
+			t.Fatalf("start enabled %v: Acquire = %v, %v", startEnabled, lib, ok)
+		}
+		release()
+	}
+}
+
+// A setting change that keeps the integration on does not retry an
+// unreadable edition (the loop would otherwise reopen it on every save).
+func TestManagerKeepsAnUnreadableEditionWhileStillOn(t *testing.T) {
+	env := newTestEnv(t)
+	edition := placeEdition(t, env.dir, "de", "wikipedia_de_all_nopic_2026-09")
+	if err := os.WriteFile(filepath.Join(env.dir, edition.FileName), []byte("not a zim"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env.start()
+	env.waitFor("the failed open", func(s Status) bool { return !s.Loading && s.ErrorCode == CodeZIMUnreadable })
+	settings := env.settings()
+	settings.UpdateCheck = !settings.UpdateCheck
+	env.manager.Configure(settings)
+	env.manager.mu.Lock()
+	code, pending := env.manager.loadCode, env.manager.staleLocked()
+	env.manager.mu.Unlock()
+	if code != CodeZIMUnreadable || pending {
+		t.Fatalf("a save while on reset the unreadable edition: code %q, pending %v", code, pending)
+	}
+}

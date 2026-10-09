@@ -111,7 +111,9 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   readers that hold it finish, then it is closed); a load or a publication that ends after the switch-off
   closes its library instead of serving it. Switching on signals the loop, which opens the installed
   edition (`openPendingLocked` -> `openInstalledLocked`, reported as `loading: true` meanwhile; an edition
-  that fails to open becomes `zim_unreadable` and is not retried) and measures the disk again. Status while
+  that fails to open becomes `zim_unreadable` and is not retried until the next off->on switch, where
+  `Configure` clears that code so a file replaced by hand while off is opened) and measures the disk
+  again. Status while
   off: an installed edition stays `state: ready` with `readable: false`, `fulltext: false` and
   `error_code: disabled` (no operation running and no other code); without an edition `not_installed` +
   `disabled`. A download that was running when the integration was switched off is not cancelled; its

@@ -145,7 +145,11 @@ hand (Windows refuses that while a file is open). The edition stays installed; t
 config page shows it with a note that the integration is switched off, and
 **Delete edition** still works. While it is off AuraGo does not open the edition
 file and does not measure the free space. Switching it on again opens the
-installed edition, no download needed.
+installed edition, no download needed; an edition that could not be opened
+before (for example a file you replaced by hand meanwhile) is tried again. A
+download that is already running keeps going and its edition is recorded, but
+it is not served until the integration is switched on again; cancel the
+download first if you want it stopped.
 
 ## Where the files live
 

@@ -155,7 +155,9 @@ func NewManager(deps Deps) *Manager {
 // once: Acquire fails from then on, readers that hold it finish, and the file
 // is closed after the last one released it (so it can be deleted by hand,
 // also on Windows). Switching it on again lets the background loop open the
-// installed edition and resume the free-space probe.
+// installed edition and resume the free-space probe; an edition that could
+// not be opened before is tried again, since the file may have been replaced
+// by hand while the integration was off.
 func (m *Manager) Configure(s Settings) {
 	if s.Variant != VariantMaxi {
 		s.Variant = VariantNoPic
@@ -173,6 +175,9 @@ func (m *Manager) Configure(s Settings) {
 	if !s.Enabled && m.lib != nil {
 		retired = m.lib
 		m.lib = nil
+	}
+	if switchedOn && m.loadCode == CodeZIMUnreadable && m.state != nil && m.state.Edition != nil {
+		m.loadCode = "" // openPendingLocked retries the installed edition
 	}
 	m.settings = s
 	m.mu.Unlock()
@@ -370,7 +375,8 @@ func (m *Manager) staleLocked() bool {
 // directory that is not open although the integration is enabled: it was
 // loaded or published while the integration was off, or the integration was
 // switched off and on again. An edition that failed to open (loadCode set) is
-// not retried. The caller holds mu.
+// not retried until the integration is switched off and on again (Configure
+// clears the code). The caller holds mu.
 func (m *Manager) openPendingLocked() bool {
 	return m.settings.Enabled && m.lib == nil && m.state != nil && m.state.Edition != nil && m.loadCode == ""
 }
