@@ -202,6 +202,14 @@ The `local_wikipedia` tool appears when the integration is on, **Agent may use
 Local Wikipedia** is on and an edition is installed and readable. It is
 read-only.
 
+Some tool lists are built from the configuration alone and do not check whether
+an edition is open: the tool catalogs of Flows and Detective, the tool summaries
+of the rules editor and of mission preparation. They list `local_wikipedia` as
+soon as the integration and **Agent may use Local Wikipedia** are on, even before
+an edition is installed (or while it is loading or unreadable). A call made then
+does not fail hard: it answers `needs_setup` (`local_wikipedia_not_installed`),
+and an administrator installs an edition under **Config > Local Wikipedia**.
+
 - `search` — `query` (required) and `limit` (1–10, default 5). Returns the
   edition (language, variant, date), whether full-text search is available, and
   the results (title, path, snippet). The top three results also carry the lead

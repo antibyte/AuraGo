@@ -143,7 +143,14 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   (`TestLiveAuthorizationIntersectsAgentAccess`). Runtime availability of
   server-owned integrations is applied in `resolveToolFeatureState` (Local
   Wikipedia needs an open edition), so schemas, prompt flags and the prompt
-  cache key agree.
+  cache key agree. The config-only catalogs (`ConfiguredToolSchemas`, used by
+  the Flows and Detective catalogs, and `ToolSummariesFromConfig`, used by the
+  rules editor and mission preparation) go through `buildToolFlagsFromConfig`
+  without that runtime check: they list `local_wikipedia` whenever
+  `local_wikipedia.enabled && agent_access`, also without an open edition. This
+  is accepted: a call then answers `needs_setup` /
+  `local_wikipedia_not_installed` from `tools.ExecuteLocalWikipedia` instead of
+  failing.
 - Dispatch never writes process-wide tool gates. `DispatchToolCallResult` attaches the intersected run permissions with `tools.WithRuntimePermissions`. Tests that exercise context-free gates bind them with `useRuntimePermissionsForTest` and must not use `t.Parallel`.
 - Discovery belongs to an owned run ID, released on completion/cancellation;
   active runs cannot expire through orphan-cache pruning. Refresh the catalog
