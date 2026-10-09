@@ -329,6 +329,15 @@
             if (term) term.write('\x1b[2m' + plain(text) + '\x1b[0m\r\n');
         }
 
+        // term.reset() acts at once, but output written before it is still queued and would land on the
+        // fresh screen (the directory's hidden cursor, wrap off, alternate screen). RIS in the write queue
+        // resets after it; xterm keeps the cursor hidden across resets, so it is shown explicitly.
+        function resetScreen() {
+            if (!term) return;
+            term.reset();
+            term.write('\x1bc\x1b[?25h');
+        }
+
         function closeShell() {
             const sock = ws;
             ws = null;
@@ -392,7 +401,7 @@
             current.load(preferId).catch(function (err) {
                 if (directory !== current || !err || err.status !== 403) return;
                 retroNetOn = false;
-                if (term) term.reset();
+                resetScreen();
                 openShell();
             });
         }
@@ -400,7 +409,7 @@
         function showDirectory() {
             if (!term) return;
             if (!retroNetOn) {
-                term.reset();
+                resetScreen();
                 openShell();
                 return;
             }
@@ -408,7 +417,7 @@
             closeShell();
             leaveDirectory();
             leaveBbsMode();
-            term.reset();
+            resetScreen();
             term.options.convertEol = false;
             setMode('directory');
             setStatus('desktop.terminal_directory');
@@ -467,7 +476,7 @@
             saveLastEntry(entry.id);
             leaveDirectory();
             if (entry.id === window.TerminalRetroNetDirectory.LOCAL_SHELL_ID) {
-                term.reset();
+                resetScreen();
                 openShell();
                 return;
             }
@@ -479,7 +488,7 @@
         function startRetro(entry) {
             stopRetro();
             closeShell();
-            term.reset();
+            resetScreen();
             term.options.convertEol = false;
             const bbs = entry.protocol === 'telnet' && entry.kind === 'bbs';
             if (bbs) enterBbsMode();
@@ -631,7 +640,7 @@
                 return;
             }
             leaveBbsMode();
-            term.reset();
+            resetScreen();
             openShell();
         }
 
@@ -687,7 +696,7 @@
             syncRetroToolbar();
             // Live sessions are ended by the server (NO CARRIER / disabled) within about a second.
             if (!next && term && mode === 'directory') {
-                term.reset();
+                resetScreen();
                 openShell();
             }
         }

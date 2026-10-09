@@ -348,6 +348,10 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 			t.Fatalf("terminal.js must use the shared TerminalText/session helpers; found %q", forbidden)
 		}
 	}
+	// Every transition resets through resetScreen(): RIS behind queued output, then a visible cursor.
+	if strings.Count(source, "term.reset();") != 1 || !strings.Contains(source, `term.write('\x1bc\x1b[?25h')`) {
+		t.Fatal("terminal.js must reset the screen only through resetScreen(), which queues RIS and shows the cursor")
+	}
 	if strings.Count(source, "new WebSocket") != 1 || !strings.Contains(source, "new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal')") {
 		t.Fatal("terminal.js must create exactly one WebSocket: the Code Studio shell socket in openShell()")
 	}
