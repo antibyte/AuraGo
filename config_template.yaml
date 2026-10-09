@@ -1597,16 +1597,16 @@ cloudflare_tunnel:
     enabled: false
     readonly: false
     mode: auto                              # "auto" (docker preferred, native fallback), "docker", "native"
-    auto_start: true                        # start tunnel automatically when AuraGo starts
+    auto_start: true                        # explicit template choice; omitted values are false. Running verified Docker connectors are adopted either way.
     auth_method: token                      # "token" (Connector Token), "named" (credentials.json), "quick" (temporary URL, no account)
     tunnel_name: ""                         # named tunnel: tunnel name from CF dashboard
     account_id: ""                          # Cloudflare account ID (required for named tunnels and API-based noTLSVerify)
     tunnel_id: ""                           # optional: explicit tunnel UUID; used to auto-configure noTLSVerify via API when HTTPS is enabled (leave empty to auto-resolve by tunnel_name)
     loopback_port: 0                        # optional: plain-HTTP port on 127.0.0.1 for cloudflared when HTTPS is active (e.g. 18080). AuraGo also uses a local plain-HTTP loopback for internal jobs to avoid TLS self-call failures; zero uses server.port for that internal listener.
-    expose_web_ui: true                     # route AuraGo web UI through the tunnel
-    expose_homepage: true                   # route Homepage web server through the tunnel
-    custom_ingress: []                      # additional ingress rules: [{hostname: "x.example.com", service: "http://localhost:3000"}]
-    metrics_port: 0                         # cloudflared metrics endpoint (0 = disabled)
+    expose_web_ui: true                     # explicit loopback-target choice; omitted is false. Token routes remain dashboard-managed.
+    expose_homepage: true                   # explicit loopback-target choice; omitted is false. Quick uses its selected Homepage snapshot.
+    custom_ingress: []                      # required for named: explicit hostname/path HTTP(S) routes; one final 404 is automatic
+    metrics_port: 0                         # loopback metrics port: 0 = OS-assigned, otherwise integer 1..65535 (not metrics disabled)
     log_level: info                         # cloudflared log level: info, debug, warn, error
 ansible:
     enabled: false

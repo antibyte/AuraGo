@@ -20,6 +20,7 @@ the consuming library or reintroduces a vulnerability.
 
 | Dependency | Supported version | Reason to retain the bound |
 | --- | --- | --- |
+| cloudflared | 2026.10.0; Docker manifest digest and Linux amd64/arm64 SHA-256 pins | Reviewed release metadata in `internal/tools/cloudflare_install.go` and `cloudflare_tunnel.go`; no moving latest URL or checksum sidecar. Run Cloudflare/HomepageQuick tests when refreshing. See [Cloudflare Tunnel](cloudflare-tunnel.md). |
 | gRPC Go | 1.83.2 | 1.84.0 is affected by GO-2026-6443; use a fixed stable successor when available. |
 | pdfcpu | 0.15.0 | 0.16 changes `MergeRaw`; Maroto 2.4.2 still calls the previous API. |
 | fetchup | 0.2.4 | Rod 0.116.2 still needs its older browser-download API. |

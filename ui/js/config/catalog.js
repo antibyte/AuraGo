@@ -57,6 +57,8 @@
     });
 
     const validationRules = Object.freeze({
+        'cloudflare_tunnel.loopback_port': { type: 'number', min: 0, max: 65535, pattern: '^\\d+$' },
+        'cloudflare_tunnel.metrics_port': { type: 'number', min: 0, max: 65535, pattern: '^\\d+$' },
         'treg.max_call_cost_micro': { type: 'number', min: 0, max: 1000000000000, required: true },
         'server.port': { type: 'number', min: 1, max: 65535, required: true },
         'auth.session_timeout_hours': { type: 'number', min: 1, max: 8760 },

@@ -104,6 +104,7 @@
         if (element.type === 'radio') return element.checked ? element.value : read(draftConfig, element.dataset.path);
         if (element.type === 'number' || element.type === 'range' || element.dataset.type === 'number') {
             if (element.value === '') return 0;
+            if (element.dataset.path?.startsWith('cloudflare_tunnel.')) return Number(element.value);
             return element.step && parseFloat(element.step) < 1 ? parseFloat(element.value) : parseInt(element.value, 10);
         }
         if (element.dataset.type === 'array') {
@@ -217,6 +218,20 @@
                 }
             }
         });
+        const cf = draftConfig.cloudflare_tunnel || {};
+        const server = draftConfig.server || {};
+        const https = server.https || {};
+        const homepage = draftConfig.homepage || {};
+        const listeners = https.enabled ? [https.https_port || 443, https.http_port] : [server.port];
+        if (homepage.webserver_enabled) listeners.push(homepage.webserver_port || 8080);
+        if (https.enabled && !cf.loopback_port && server.port !== https.https_port && server.port !== https.http_port) listeners.push(server.port);
+        ['loopback_port', 'metrics_port'].forEach(key => {
+            const port = cf[key];
+            if (port > 0 && (listeners.includes(port) || key === 'metrics_port' && port === cf.loopback_port)) {
+                errors.push({path: 'cloudflare_tunnel.' + key, code: 'cloudflare_port_conflict', message: window.t?.('config.cloudflare_tunnel.port_conflict') || 'Port conflicts with an active listener.'});
+            }
+        });
+        if (cf.custom_ingress != null && !Array.isArray(cf.custom_ingress)) errors.push(validationMessage('cloudflare_tunnel.custom_ingress', 'pattern'));
         return { valid: errors.length === 0, errors: errors };
     }
 

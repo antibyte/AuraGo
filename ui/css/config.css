@@ -3792,6 +3792,11 @@ transform:none; filter:none;
     display: block;
 }
 
+.pw-page[data-workspace-page="config"] .cft-route-help {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .pw-page[data-workspace-page="config"] .cft-field-caption {
     font-size: 0.78rem;
     color: var(--text-secondary);
