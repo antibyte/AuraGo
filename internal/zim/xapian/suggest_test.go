@@ -2,6 +2,10 @@ package xapian
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -65,4 +69,178 @@ func hitPaths(h []Hit) []string {
 		out[i] = shortPath(h[i].Path)
 	}
 	return out
+}
+
+// prefixIndex holds 250 terms st000..st249 whose term frequency grows with
+// the number in steps of eight (so the most frequent ones sort last and the
+// 100th place is a tie), each document indexing one of them, plus "stz" in
+// 6,000 documents (several posting chunks).
+func prefixIndex(t *testing.T, separator func(int, string) string) (*Database, map[string]uint32) {
+	t.Helper()
+	var spec []expansion
+	for k := 0; k < 250; k++ {
+		spec = append(spec, expansion{fmt.Sprintf("st%03d", k), uint32(1 + (k+1)/8)})
+	}
+	return termIndex(t, append(spec, expansion{"stz", 6000}), separator)
+}
+
+// termIndex indexes each term of spec in tf documents of its own (title =
+// the capitalised term, no collapse key).
+func termIndex(t *testing.T, spec []expansion, separator func(int, string) string) (*Database, map[string]uint32) {
+	t.Helper()
+	terms := map[string][][2]uint32{}
+	tfs := map[string]uint32{}
+	var lens []uint32
+	var titles, data []string
+	add := func(term string) {
+		did := uint32(len(lens) + 1)
+		terms[term] = append(terms[term], [2]uint32{did, 1})
+		terms[anchorTerm] = append(terms[anchorTerm], [2]uint32{did, 1})
+		lens = append(lens, 2)
+		titles = append(titles, strings.ToUpper(term[:1])+term[1:])
+		data = append(data, fmt.Sprintf("C/%s_%d", term, did))
+		tfs[term]++
+	}
+	for _, e := range spec {
+		for i := uint32(0); i < e.tf; i++ {
+			add(e.term)
+		}
+	}
+	db := synthIndex{blockSize: minBlockSize, docLens: lens, terms: terms, data: data,
+		values: map[uint32][]string{0: titles}, separator: separator}.build(t)
+	return db, tfs
+}
+
+// mostFrequent is the expansion oracle: the 100 best of terms (read in byte
+// order) by term frequency, ties to the term that sorts first.
+func mostFrequent(terms []string, tfs map[string]uint32) map[string]bool {
+	var all []expansion
+	for _, term := range terms {
+		all = append(all, expansion{term, tfs[term]})
+	}
+	sort.Slice(all, func(i, j int) bool { return all[i].better(all[j]) })
+	want := map[string]bool{}
+	for _, e := range all[:min(len(all), maxPartialExpansion)] {
+		want[e.term] = true
+	}
+	return want
+}
+
+func checkMembers(t *testing.T, g *partialGroup, want map[string]bool, tfs map[string]uint32) {
+	t.Helper()
+	if len(g.members) != len(want) {
+		t.Fatalf("%d members, want %d", len(g.members), len(want))
+	}
+	for _, l := range g.members {
+		if !want[l.term] {
+			t.Errorf("expansion %q (tf %d) is not one of the most frequent", l.term, tfs[l.term])
+		}
+	}
+}
+
+// The partial word expands to the 100 most frequent of all terms with the
+// prefix, like Xapian's WILDCARD_LIMIT_MOST_FREQUENT, not to the most
+// frequent of the first terms in byte order.
+func TestSuggestPartialUsesMostFrequentOfAllTerms(t *testing.T) {
+	db, tfs := prefixIndex(t, nil)
+	if pl, err := db.openPostings("stz"); err != nil || pl.isLastChunk {
+		t.Fatalf("stz must span several chunks (%v)", err)
+	}
+	terms, err := db.TermsWithPrefix("st", 0)
+	if err != nil || len(terms) != 251 || terms[249] != "st249" || terms[250] != "stz" {
+		t.Fatalf("TermsWithPrefix(st) = %d terms, %v", len(terms), err)
+	}
+	want := mostFrequent(terms, tfs)
+	s := &suggester{p: poller{ctx: context.Background()}, db: db, a: NewAnalyzer("eng"), w: newBM25Params(db, 0.001, 1)}
+	g, err := s.partial("st", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkMembers(t, g, want, tfs)
+	if !want["stz"] || !want["st249"] || want["st000"] {
+		t.Fatalf("oracle: stz %v, st249 %v, st000 %v", want["stz"], want["st249"], want["st000"])
+	}
+	// Suggestions come from the most frequent terms, including the ones that
+	// sort last; the walk lists "stz" once although it has several chunks.
+	hits, err := Suggest(context.Background(), db, NewAnalyzer("eng"), "st", 10000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, h := range hits {
+		seen[strings.ToLower(h.Title)] = true
+	}
+	if !seen["st249"] || !seen["stz"] || seen["st000"] {
+		t.Fatalf("Suggest(st) titles: st249 %v, stz %v, st000 %v", seen["st249"], seen["stz"], seen["st000"])
+	}
+
+	// More than 10,000 terms with the prefix, the most frequent sorting last
+	// (the old scan stopped after 10,000 terms and missed them).
+	var spec []expansion
+	for k := 0; k < 10050; k++ {
+		tf := uint32(1)
+		if k >= 10000 {
+			tf = 3
+		}
+		spec = append(spec, expansion{fmt.Sprintf("sx%05d", k), tf})
+	}
+	big, bigTfs := termIndex(t, spec, nil)
+	terms, err = big.TermsWithPrefix("sx", 0)
+	if err != nil || len(terms) != len(spec) {
+		t.Fatalf("TermsWithPrefix(sx) = %d terms, %v", len(terms), err)
+	}
+	want = mostFrequent(terms, bigTfs)
+	if !want["sx10049"] || !want["sx00049"] || want["sx00050"] {
+		t.Fatalf("oracle: %d terms", len(want))
+	}
+	s = &suggester{p: poller{ctx: context.Background()}, db: big, a: NewAnalyzer("eng"), w: newBM25Params(big, 0.001, 1)}
+	if g, err = s.partial("sx", ""); err != nil {
+		t.Fatal(err)
+	}
+	checkMembers(t, g, want, bigTfs)
+}
+
+// maxPartialScan bounds the terms one expansion reads; past it the
+// expansion keeps the most frequent of the terms read.
+func TestSuggestPartialScanCap(t *testing.T) {
+	db, tfs := prefixIndex(t, nil)
+	defer func(n int) { maxPartialScan = n }(maxPartialScan)
+	maxPartialScan = 120
+	s := &suggester{p: poller{ctx: context.Background()}, db: db, a: NewAnalyzer("eng"), w: newBM25Params(db, 0.001, 1)}
+	g, err := s.partial("st", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read, err := db.TermsWithPrefix("st", 120) // st000..st119
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := mostFrequent(read, tfs)
+	// st015..st022 tie at the cut-off; the first three of them make it.
+	if !want["st119"] || !want["st023"] || !want["st015"] || !want["st017"] || want["st018"] || want["st022"] {
+		t.Fatalf("oracle: cut-off tie not where expected: %v", want)
+	}
+	checkMembers(t, g, want, tfs)
+	// The scan polls ctx (the poller is one call short of a check).
+	done, cancel := context.WithCancel(context.Background())
+	cancel()
+	cancelled := &suggester{p: poller{ctx: done, n: ctxCheckEvery - 1}, db: db, a: NewAnalyzer("eng"), w: s.w}
+	if _, err := cancelled.partial("st", ""); !errors.Is(err, context.Canceled) {
+		t.Fatalf("prefix scan ignored a cancellation: %v", err)
+	}
+}
+
+// Skipping a term's later chunks is a seek, which must move forward: crafted
+// separators that send it back must fail instead of looping.
+func TestWalkTermsRejectsBackwardSkip(t *testing.T) {
+	firstLater := string(appendSortPreservingString(nil, "stz", false))
+	db, _ := prefixIndex(t, func(_ int, key string) string {
+		if key > firstLater {
+			return "\xff" // above every key: seeks past stz's chunks land too far left
+		}
+		return key
+	})
+	if _, err := db.TermsWithPrefix("st", 0); !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("TermsWithPrefix over a backward skip: %v; want ErrCorrupt", err)
+	}
 }

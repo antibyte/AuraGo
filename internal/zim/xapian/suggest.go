@@ -1,6 +1,7 @@
 package xapian
 
 import (
+	"container/heap"
 	"context"
 	"sort"
 	"strings"
@@ -9,9 +10,15 @@ import (
 const (
 	anchorTerm          = "0posanchor" // libzim prefixes every indexed title with "0posanchor "
 	titleMaxWordLength  = 240          // libzim's MAX_INDEXABLE_TITLE_WORD_SIZE
-	maxPartialExpansion = 100          // QueryParser default for FLAG_PARTIAL
-	maxPartialScan      = 10000        // our cap on scanned prefix terms (libzim scans all)
+	maxPartialExpansion = 100          // Xapian 1.4 QueryParser default for FLAG_PARTIAL (WILDCARD_LIMIT_MOST_FREQUENT)
 )
+
+// maxPartialScan caps the terms one prefix expansion reads. libzim (Xapian)
+// reads every term with the prefix and keeps the 100 most frequent; so does
+// Suggest up to this many terms, far more than a word prefix has even in the
+// largest Wikipedia title index. Past the cap the expansion keeps the most
+// frequent of the terms read so far. A variable so tests can lower it.
+var maxPartialScan = 1 << 22
 
 // Suggest queries a title index (X/title/xapian) the way libzim's
 // SuggestionSearcher does: all words but the last must match (stemmed with a
@@ -162,18 +169,18 @@ func (s *suggester) makeTerm(w queryWord) string {
 }
 
 // partial builds the last-word group: the up to 100 most frequent terms
-// starting with word as one synonym, plus the full term ("" = none).
+// starting with word as one synonym, plus the full term ("" = none). Like
+// Xapian's WILDCARD_LIMIT_MOST_FREQUENT the selection runs over every term
+// with the prefix (up to maxPartialScan); ties at the cut-off keep the terms
+// that sort first.
 func (s *suggester) partial(word string, full string) (*partialGroup, error) {
-	type exp struct {
-		term string
-		tf   uint32
-	}
-	var exps []exp
+	top := &expansionHeap{}
+	scanned := 0
 	err := s.db.walkTerms(word, func(term string, c *cursor) (bool, error) {
 		if err := s.p.poll(); err != nil {
 			return false, err
 		}
-		tag, err := c.tag()
+		tag, err := c.tagView()
 		if err != nil {
 			return false, err
 		}
@@ -181,16 +188,22 @@ func (s *suggester) partial(word string, full string) (*partialGroup, error) {
 		if err != nil {
 			return false, err
 		}
-		exps = append(exps, exp{term, tf})
-		return len(exps) < maxPartialScan, nil
+		e := expansion{term, tf}
+		switch {
+		case top.Len() < maxPartialExpansion:
+			heap.Push(top, e)
+		case e.better((*top)[0]):
+			(*top)[0] = e
+			heap.Fix(top, 0)
+		}
+		scanned++
+		return scanned < maxPartialScan, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	if len(exps) > maxPartialExpansion {
-		sort.SliceStable(exps, func(i, j int) bool { return exps[i].tf > exps[j].tf })
-		exps = exps[:maxPartialExpansion]
-	}
+	exps := []expansion(*top)
+	sort.Slice(exps, func(i, j int) bool { return exps[i].term < exps[j].term })
 	g := &partialGroup{}
 	var tfs []uint32
 	for _, e := range exps {
@@ -203,11 +216,40 @@ func (s *suggester) partial(word string, full string) (*partialGroup, error) {
 	}
 	g.synWeight = s.w.termWeight(orTermFreqEstimate(tfs, s.db.DocCount()))
 	if full != "" {
+		var err error
 		if g.full, err = s.leaf(full); err != nil {
 			return nil, err
 		}
 	}
 	return g, nil
+}
+
+// expansion is one candidate term of a prefix expansion.
+type expansion struct {
+	term string
+	tf   uint32
+}
+
+// better orders expansions by term frequency, then term (earlier wins).
+func (e expansion) better(o expansion) bool {
+	if e.tf != o.tf {
+		return e.tf > o.tf
+	}
+	return e.term < o.term
+}
+
+// expansionHeap keeps the best expansions with the worst on top.
+type expansionHeap []expansion
+
+func (h expansionHeap) Len() int           { return len(h) }
+func (h expansionHeap) Less(i, j int) bool { return h[j].better(h[i]) }
+func (h expansionHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *expansionHeap) Push(x any)        { *h = append(*h, x.(expansion)) }
+func (h *expansionHeap) Pop() any {
+	old := *h
+	x := old[len(old)-1]
+	*h = old[:len(old)-1]
+	return x
 }
 
 // rawTerm is a STEM_NONE query term with its positional flag.
