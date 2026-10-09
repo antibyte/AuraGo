@@ -59,6 +59,21 @@ func openLocalWikipediaConfigPage(t *testing.T, locale string, populated bool) *
 	return page
 }
 
+// waitLocalWikipediaJS waits up to timeout for a JavaScript condition; the
+// section's own polls run every 2 s, longer than waitForJSBool may wait on a
+// busy machine.
+func waitLocalWikipediaJS(t *testing.T, page *rod.Page, expr string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if page.MustEval(expr).Bool() {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("condition did not become true within %s: %s", timeout, expr)
+}
+
 // setLocalWikipediaStatus serves the ready edition with the JSON patch applied
 // and polls the status once, as the section's own poll would.
 func setLocalWikipediaStatus(page *rod.Page, patch string) {
@@ -173,9 +188,17 @@ func TestConfigLocalWikipediaStatusesBrowser(t *testing.T) {
 		if !page.MustEval(`() => document.getElementById('lw-announce').textContent === t('config.local_wikipedia.loading_edition')`).Bool() {
 			t.Fatal("the live region does not announce the loading state")
 		}
-		// The page polls on its own until loading is over.
+		// The page polls on its own (every 2 s) until loading is over.
 		page.MustEval(`() => { lwStatus = Object.assign({}, lwReady, {update_available: null}); }`)
-		waitForJSBool(t, page, `() => document.getElementById('lw-runtime').textContent.includes(t('config.local_wikipedia.state_ready'))`)
+		waitLocalWikipediaJS(t, page, `() => document.getElementById('lw-runtime').textContent.includes(t('config.local_wikipedia.state_ready'))`, 10*time.Second)
+	})
+
+	t.Run("state file that cannot be read", func(t *testing.T) {
+		setLocalWikipediaStatus(page, `{"state":"error","readable":false,"edition":null,"update_available":null,"selection_matches_installed":false,"error_code":"state_unreadable","recommendation":"`+sentinel+`"}`)
+		runtimeHas(t, "unreadable state file", `has(t('config.local_wikipedia.error_state_unreadable')) && !has(t('config.local_wikipedia.error_download_unreadable')) && !has(t('config.local_wikipedia.update_failed')) && !has('`+sentinel+`')`)
+		if !page.MustEval(`() => !!document.querySelector('[data-lw-action="install"]') && !!document.querySelector('[data-lw-action="delete"]') && !document.querySelector('[data-lw-action="delete"]').disabled`).Bool() {
+			t.Fatal("an unreadable state file offers Install and Delete")
+		}
 	})
 
 	t.Run("installed edition that cannot be opened", func(t *testing.T) {
@@ -202,7 +225,7 @@ func TestConfigLocalWikipediaStatusesBrowser(t *testing.T) {
 
 	t.Run("interrupted download offers resume", func(t *testing.T) {
 		setLocalWikipediaStatus(page, `{"state":"interrupted","error_code":"insufficient_disk_space","required_bytes":20000000000,"free_bytes":5000000000,"update_available":null}`)
-		runtimeHas(t, "interrupted", `has(t('config.local_wikipedia.state_interrupted')) && has(localWikiErrorText('insufficient_disk_space', {required_bytes: 20000000000, free_bytes: 5000000000}))`)
+		runtimeHas(t, "interrupted", `has(t('config.local_wikipedia.state_interrupted')) && has(localWikiErrorText('insufficient_disk_space', {required_bytes: 20000000000, free_bytes: 5000000000})) && !has(t('config.local_wikipedia.update_failed'))`)
 		if !page.MustEval(`() => !!document.querySelector('[data-lw-action="resume"]') && !document.querySelector('[data-lw-action="resume"]').disabled && !document.querySelector('[data-lw-action="cancel"]')`).Bool() {
 			t.Fatal("an interrupted download offers resume")
 		}

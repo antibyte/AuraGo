@@ -116,6 +116,7 @@ const (
 	CodeDownloadFailed        = "download_failed"
 	CodeCatalogUnreachable    = "catalog_unreachable"
 	CodeZIMUnreadable         = "zim_unreadable"
+	CodeStateUnreadable       = "state_unreadable" // status only: state.json exists but cannot be read
 	CodeFulltextUnsupported   = "fulltext_unsupported"
 	CodeBusy                  = "busy"
 	CodeDisabled              = "disabled"
@@ -179,6 +180,8 @@ func Recommendation(code string) string {
 		return "Check the internet connection and retry. The installed edition keeps working."
 	case CodeZIMUnreadable:
 		return "Delete the edition and install it again."
+	case CodeStateUnreadable:
+		return "The Local Wikipedia state file could not be read. Install the edition again or delete it."
 	case CodeFulltextUnsupported:
 		return "Search uses article titles only for this edition."
 	case CodeBusy:

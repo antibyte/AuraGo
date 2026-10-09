@@ -79,7 +79,7 @@ type Manager struct {
 	lib          *libraryRef
 	op           *operation
 	interrupted  bool   // a download.json describes a download that can be resumed
-	loadCode     string // why the installed edition could not be loaded (set by loadLocked)
+	loadCode     string // why the load failed: zim_unreadable (edition) or state_unreadable (state.json); set by loadLocked
 	errCode      string // why the last operation stopped (set when it ends)
 	errRequired  int64  // bytes the paused download needed (errCode insufficient_disk_space)
 	catalogCache map[string]catalogCacheEntry
@@ -390,8 +390,10 @@ func (m *Manager) loadLocked(dir string) {
 		m.cleanRestartFiles(dir)
 		var stateErr error
 		if st, stateErr = readState(dir); stateErr != nil {
+			// Nothing says which edition is installed: no edition is
+			// reported, and Install or Delete replace the file.
 			m.logger.Warn("[LocalWikipedia] state.json is unreadable", "dir", dir, "error", stateErr)
-			code = CodeZIMUnreadable
+			code = CodeStateUnreadable
 		}
 		// The download is reconciled before the edition is opened: the repair
 		// may put the installed edition's file back in place.

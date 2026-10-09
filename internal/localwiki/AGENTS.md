@@ -76,12 +76,15 @@ through `Deps`.
   Wikipedia content is available from `readable`, never from `edition != nil` or `state`. An edition that
   is being served is never reported as `error`: a failed install, resume or update ends as `ready` (or
   `interrupted`) with the failed operation's `error_code`, and `readable` stays true.
-- Startup problems and operation problems are tracked apart: `loadCode` (why the installed edition could
-  not be loaded: `zim_unreadable`) and `errCode` (why the last operation stopped). An operation's code
-  outranks the load code and a running operation hides it. `zim_unreadable` therefore means the installed
-  edition (delete it) when `readable` is false and an `edition` exists, and the file a download just
-  produced (already removed) otherwise; clients derive their wording from `error_code`, `readable` and
-  `edition`. `recommendation` is English only and never shown by the config UI.
+- Startup problems and operation problems are tracked apart: `loadCode` (why the load failed:
+  `zim_unreadable` for an installed edition that cannot be opened, `state_unreadable` for a `state.json`
+  that cannot be read) and `errCode` (why the last operation stopped). An operation's code outranks the
+  load code and a running operation hides it. `zim_unreadable` therefore means the installed edition
+  (delete it) when `readable` is false and an `edition` exists, and the file a download just produced
+  (already removed) otherwise. `state_unreadable` is a status code only: no `edition` is reported (nothing
+  says which one is installed), the state is `error` (`interrupted` when a `download.json` exists), and
+  `Install` or `Delete` replace or remove the file. Clients derive their wording from `error_code`,
+  `readable` and `edition`. `recommendation` is English only and never shown by the config UI.
 - `error_code` for an idle manager also covers `busy` (first load), `fulltext_unsupported` (informational:
   ready without a full-text index) and `data_dir_invalid` (the configured directory fails the shape
   check).
@@ -164,7 +167,7 @@ through `Deps`.
   a `download.json` of the installed edition: it and the partial files are dropped. A crash between the rename
   and the state write leaves a finished `<edition>.zim` that `state.json` does not name: it becomes the part
   file again, so "Resume" only re-hashes it. Without a readable `state.json` the directory is left as it is
-  and the code is `zim_unreadable`.
+  and the code is `state_unreadable` (see "Manager lifecycle and status").
 
 ### Updates
 
@@ -191,17 +194,25 @@ through `Deps`.
   anything else `localwiki_error` 500. Error codes of `ErrorCode`: `insufficient_disk_space`,
   `free_space_unknown`, `checksum_mismatch`, `download_failed`, `catalog_unreachable`, `zim_unreadable`,
   `fulltext_unsupported` (warning), `busy`, `disabled`, `data_dir_invalid`, `already_installed`,
-  `no_operation`, `unknown_language`, `localwiki_error`.
+  `no_operation`, `unknown_language`, `localwiki_error`; the status alone also reports `state_unreadable`
+  (no request fails with it).
 - Config UI: the section derives every error text from `error_code` plus `readable` and `edition` with its
   own 16-locale strings (`config.local_wikipedia.error_*`, `help.local_wikipedia.*` in
   `ui/lang/config/local_wikipedia/`, German with "Du" and real umlauts) and never shows the server's
-  `recommendation`. It shows a loading view while `loading` is true, polls every 2 s while an operation,
-  the first load or an action is pending, keeps a failed poll apart from action messages, and offers
+  `recommendation`; `localwiki_error`, `localwiki_unavailable` and `invalid_request` have their own texts
+  that point to the AuraGo log. "The update failed" prefixes an operation error only for a real update: an
+  edition is served (`readable`), `selection_matches_installed` (the failed install targeted the served
+  language and variant), and not for a download paused by `insufficient_disk_space`. It shows a loading view
+  while `loading` is true, polls every 2 s while an operation, the first load or an action is pending, keeps
+  a failed poll apart from action messages (and announces it during the first load too), and offers
   Install/Update/Resume/Check/Delete only for saved settings (unsaved changes and a disabled integration
-  block them; Delete needs no enabled integration). Questions to the administrator: install/update
-  confirmation with size and free space, `free_space_unknown`, `can_delete_old`, delete. `#lw-announce` is the
-  section's one live region (state and errors, never progress); re-rendering the status area keeps the focus
-  on the same button. The section uses sprite slot 120 and no inline styles.
+  block them; Delete needs no enabled integration and is also offered for `state_unreadable`). Questions to
+  the administrator: install/update confirmation with size and free space, `free_space_unknown`,
+  `can_delete_old`, delete. `#lw-announce` is the section's one live region (state and errors as sentences
+  joined with ". ", never progress). Re-rendering the status area keeps the focus on the same button; when
+  that one is gone or disabled the focus moves to the first enabled action button, else waits on the state
+  banner (never on the catalog's Retry), and returns to the last action button used once that is enabled
+  again. The section uses sprite slot 120 and no inline styles.
 
 ## Work Guidance
 
