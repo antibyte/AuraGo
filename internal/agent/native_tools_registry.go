@@ -100,7 +100,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		YepAPIScrapingEnabled: true, YepAPIYouTubeEnabled: true,
 		YepAPITikTokEnabled: true, YepAPIInstagramEnabled: true,
 		YepAPIAmazonEnabled: true,
-		DaemonSkillsEnabled: true, PaperlessNGXEnabled: true,
+		DaemonSkillsEnabled: true, PaperlessNGXEnabled: true, LocalWikipediaEnabled: true,
 	}
 }
 
@@ -132,6 +132,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("frigate", ff.FrigateEnabled)
 	appendToolFeatureKeyPart("go2rtc", ff.Go2RTCEnabled)
 	appendToolFeatureKeyPart("rtl_sdr", ff.RTLSDREnabled)
+	appendToolFeatureKeyPart("local_wikipedia", ff.LocalWikipediaEnabled)
 	appendToolFeatureKeyPart("three_d_printer", ff.ThreeDPrinterEnabled)
 	appendToolFeatureKeyPart("ollama", ff.OllamaEnabled)
 	appendToolFeatureKeyPart("tailscale", ff.TailscaleEnabled)

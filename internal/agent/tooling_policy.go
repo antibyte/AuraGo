@@ -369,6 +369,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		FrigateEnabled:             cfg.Frigate.Enabled,
 		Go2RTCEnabled:              cfg.Go2RTC.Enabled && cfg.Go2RTC.AgentAccess,
 		RTLSDREnabled:              cfg.RTLSDR.Enabled && cfg.RTLSDR.AllowAgent && cfg.VirtualDesktop.Enabled,
+		LocalWikipediaEnabled:      cfg.LocalWikipedia.Enabled && cfg.LocalWikipedia.AgentAccess,
 		ThreeDPrinterEnabled:       cfg.ThreeDPrinters.Enabled,
 		OllamaEnabled:              cfg.Ollama.Enabled,
 		TailscaleEnabled:           cfg.Tailscale.Enabled,
@@ -500,6 +501,8 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	toolFlags.PlannerEnabled = cfg.Tools.Planner.Enabled && runCfg.PlannerDB != nil
 	toolFlags.SQLConnectionsEnabled = cfg.SQLConnections.Enabled && runCfg.SQLConnectionsDB != nil && runCfg.SQLConnectionPool != nil
 	toolFlags.MemoryAnalysisEnabled = resolveMemoryAnalysisSettings(cfg, runCfg.ShortTermMem).Enabled
+	// The tool and its prompt hints exist only while an edition is open.
+	toolFlags.LocalWikipediaEnabled = toolFlags.LocalWikipediaEnabled && tools.LocalWikipediaAvailable()
 
 	return resolvedToolFeatureState{
 		ToolFlags:           toolFlags,
@@ -553,6 +556,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		FrigateEnabled:           flags.FrigateEnabled,
 		Go2RTCEnabled:            flags.Go2RTCEnabled,
 		RTLSDREnabled:            flags.RTLSDREnabled,
+		LocalWikipediaEnabled:    flags.LocalWikipediaEnabled,
 		ThreeDPrinterEnabled:     flags.ThreeDPrinterEnabled,
 		OllamaEnabled:            flags.OllamaEnabled,
 		TailscaleEnabled:         flags.TailscaleEnabled,

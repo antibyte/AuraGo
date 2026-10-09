@@ -3022,3 +3022,12 @@ func containsString(values []string, needle string) bool {
 	}
 	return false
 }
+
+func TestBuildEnabledToolsOverview_IncludesLocalWikipedia(t *testing.T) {
+	if overview := buildEnabledToolsOverview(&ContextFlags{LocalWikipediaEnabled: true}); !strings.Contains(overview, "local_wikipedia (offline Wikipedia)") {
+		t.Fatalf("overview = %q", overview)
+	}
+	if overview := buildEnabledToolsOverview(&ContextFlags{LocalWikipediaEnabled: true, SkipIntegrationTools: []string{"local_wikipedia"}}); strings.Contains(overview, "local_wikipedia") {
+		t.Fatalf("skipped integration still listed: %q", overview)
+	}
+}

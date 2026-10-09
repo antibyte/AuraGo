@@ -189,6 +189,7 @@ type ContextFlags struct {
 	FrigateEnabled           bool
 	Go2RTCEnabled            bool
 	RTLSDREnabled            bool
+	LocalWikipediaEnabled    bool
 	ThreeDPrinterEnabled     bool
 	OllamaEnabled            bool
 	TailscaleEnabled         bool
@@ -2571,6 +2572,7 @@ var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
 	{"truenas", "truenas", func(f *ContextFlags) bool { return f.TrueNASEnabled }},
 	{"jellyfin", "jellyfin", func(f *ContextFlags) bool { return f.JellyfinEnabled }},
 	{"obsidian", "obsidian", func(f *ContextFlags) bool { return f.ObsidianEnabled }},
+	{"local_wikipedia", "local_wikipedia (offline Wikipedia)", func(f *ContextFlags) bool { return f.LocalWikipediaEnabled }},
 	{"ollama", "ollama", func(f *ContextFlags) bool { return f.OllamaEnabled }},
 	{"sandbox", "sandbox", func(f *ContextFlags) bool { return f.SandboxEnabled }},
 	{"webhooks", "webhooks", func(f *ContextFlags) bool { return f.WebhooksEnabled }},

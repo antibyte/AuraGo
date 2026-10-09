@@ -453,6 +453,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.Go2RTCEnabled {
 		tools = append(tools, "go2rtc")
 	}
+	if flags.LocalWikipediaEnabled {
+		tools = append(tools, "local_wikipedia")
+	}
 	if flags.ThreeDPrinterEnabled {
 		tools = append(tools, "three_d_printer")
 	}

@@ -1060,6 +1060,9 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.RTLSDREnabled {
 		tools = append(tools, rtlSDRSchema())
 	}
+	if ff.LocalWikipediaEnabled {
+		tools = append(tools, localWikipediaSchema())
+	}
 	if ff.Go2RTCEnabled {
 		tools = append(tools, tool("go2rtc",
 			"Observe configured go2rtc camera streams, create or analyze safe snapshots, and show a same-origin live viewer. This tool never accepts source URLs and cannot change service or stream configuration.",

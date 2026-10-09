@@ -276,7 +276,7 @@ func TestToolSchemaManualSync(t *testing.T) {
 		MemoryMaintenanceEnabled: true, MemoryAnalysisEnabled: true,
 		DocumentCreatorEnabled: true, HomepageAllowLocalServer: true,
 		WebCaptureEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
-		OpenSCADEnabled: true, S3Enabled: true,
+		OpenSCADEnabled: true, S3Enabled: true, LocalWikipediaEnabled: true,
 	}
 	schemas := builtinToolSchemas(ff)
 
