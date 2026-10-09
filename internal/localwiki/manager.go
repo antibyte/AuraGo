@@ -145,6 +145,12 @@ func NewManager(deps Deps) *Manager {
 // starts a download. A changed storage directory is loaded by the background
 // loop once no download runs, and its free space is measured in the
 // background.
+//
+// Switching the integration off takes the open edition out of service at
+// once: Acquire fails from then on, readers that hold it finish, and the file
+// is closed after the last one released it (so it can be deleted by hand,
+// also on Windows). Switching it on again lets the background loop open the
+// installed edition and resume the free-space probe.
 func (m *Manager) Configure(s Settings) {
 	if s.Variant != VariantMaxi {
 		s.Variant = VariantNoPic
@@ -157,12 +163,21 @@ func (m *Manager) Configure(s Settings) {
 	m.mu.Lock()
 	changedDir := m.started && s.DataDir != m.activeDir
 	newProbeDir := m.started && s.DataDir != m.settings.DataDir
+	switchedOn := m.started && s.Enabled && !m.settings.Enabled
+	var retired *libraryRef
+	if !s.Enabled && m.lib != nil {
+		retired = m.lib
+		m.lib = nil
+	}
 	m.settings = s
 	m.mu.Unlock()
-	if changedDir {
+	if retired != nil {
+		retired.retire(nil)
+	}
+	if changedDir || switchedOn {
 		m.signalReload()
 	}
-	if newProbeDir {
+	if newProbeDir || switchedOn {
 		m.signalProbe()
 	}
 }
@@ -335,10 +350,24 @@ func (m *Manager) loadPending() bool {
 	return m.staleLocked()
 }
 
-// staleLocked reports whether the configured storage directory is not the
-// loaded one and nothing else uses the storage directory. The caller holds mu.
+// staleLocked reports whether something needs loading and nothing else uses
+// the storage directory: the configured storage directory is not the loaded
+// one, or the loaded directory's edition waits to be opened (openPendingLocked).
+// The caller holds mu.
 func (m *Manager) staleLocked() bool {
-	return m.started && !m.shuttingDown && m.op == nil && !m.deleting && m.ioToken == 0 && m.settings.DataDir != m.activeDir
+	if !m.started || m.shuttingDown || m.op != nil || m.deleting || m.ioToken != 0 {
+		return false
+	}
+	return m.settings.DataDir != m.activeDir || m.openPendingLocked()
+}
+
+// openPendingLocked reports an installed edition of the loaded storage
+// directory that is not open although the integration is enabled: it was
+// loaded or published while the integration was off, or the integration was
+// switched off and on again. An edition that failed to open (loadCode set) is
+// not retried. The caller holds mu.
+func (m *Manager) openPendingLocked() bool {
+	return m.settings.Enabled && m.lib == nil && m.state != nil && m.state.Edition != nil && m.loadCode == ""
 }
 
 // loadIfStaleLocked is loadIfStale for a caller that holds loadMu.
@@ -346,6 +375,8 @@ func (m *Manager) loadIfStaleLocked() {
 	m.mu.Lock()
 	dir := m.settings.DataDir
 	stale := m.staleLocked()
+	// The loaded directory only needs its edition opened.
+	openOnly := stale && dir == m.activeDir
 	var release func()
 	if stale {
 		release = m.holdStorageIOLocked()
@@ -358,7 +389,52 @@ func (m *Manager) loadIfStaleLocked() {
 	// whose panic net/http recovers, and a mark left behind would refuse every
 	// later load, Install and Delete until a restart.
 	defer release()
+	if openOnly {
+		m.openInstalledLocked(dir)
+		return
+	}
 	m.loadLocked(dir)
+}
+
+// openInstalledLocked opens the installed edition of the loaded storage
+// directory dir that was left closed while the integration was off. It reads
+// nothing but the edition file. The caller holds loadMu and has marked the
+// storage I/O; mu is only taken to read the edition and publish the result,
+// and a result that no longer applies (the integration was switched off
+// again, another edition was published or deleted meanwhile) is closed.
+func (m *Manager) openInstalledLocked(dir string) {
+	m.mu.Lock()
+	if m.activeDir != dir || !m.openPendingLocked() {
+		m.mu.Unlock()
+		return
+	}
+	edition := *m.state.Edition
+	m.mu.Unlock()
+	lib, err := OpenLibrary(filepath.Join(dir, edition.FileName), edition)
+	var ref *libraryRef
+	if err == nil {
+		ref = newLibraryRef(lib)
+	}
+	m.mu.Lock()
+	current := !m.shuttingDown && m.op == nil && m.activeDir == dir && m.openPendingLocked() &&
+		m.state.Edition.FileName == edition.FileName
+	switch {
+	case !current:
+	case err != nil:
+		m.loadCode = CodeZIMUnreadable
+	default:
+		m.lib, ref = ref, nil
+	}
+	m.mu.Unlock()
+	if current && err != nil {
+		m.logger.Warn("[LocalWikipedia] The installed edition cannot be opened", "file", edition.FileName, "error", err)
+	}
+	if current && err == nil && lib.fulltextNote != "" {
+		m.logger.Warn("[LocalWikipedia] Full-text search unavailable; title search only", "reason", lib.fulltextNote)
+	}
+	if ref != nil {
+		ref.retire(nil)
+	}
 }
 
 // holdStorageIOLocked marks the storage directory as used by a load or
@@ -417,11 +493,14 @@ func (m *Manager) lockLoad() {
 }
 
 // loadLocked reads dir's state.json and download.json, opens the installed
-// edition and replaces the current one. It never touches the network; the only
+// edition and replaces the current one. While the integration is off the
+// edition is not opened: the state is still loaded (Status reports the
+// edition, Delete removes it), and openInstalledLocked opens it once the
+// integration is switched on. It never touches the network; the only
 // repairs it makes on disk are reconcileDownload's and the removal of stale
 // restart files. The caller holds loadMu and has marked the storage I/O
-// (loadIfStaleLocked releases the mark afterwards); mu is only taken to
-// publish the result.
+// (loadIfStaleLocked releases the mark afterwards); mu is only taken to read
+// the enabled flag and to publish the result.
 func (m *Manager) loadLocked(dir string) {
 	var (
 		st          *stateFile
@@ -429,6 +508,9 @@ func (m *Manager) loadLocked(dir string) {
 		code        string
 		interrupted bool
 	)
+	m.mu.Lock()
+	enabled := m.settings.Enabled
+	m.mu.Unlock()
 	if filepath.IsAbs(dir) {
 		// Restart files are never resumed; a process killed during a
 		// restart leaves one behind.
@@ -453,7 +535,7 @@ func (m *Manager) loadLocked(dir string) {
 		case pending != nil:
 			interrupted = m.reconcileDownload(dir, st, pending)
 		}
-		if st != nil && st.Edition != nil {
+		if st != nil && st.Edition != nil && enabled {
 			lib, err := OpenLibrary(filepath.Join(dir, st.Edition.FileName), *st.Edition)
 			if err != nil {
 				m.logger.Warn("[LocalWikipedia] The installed edition cannot be opened", "file", st.Edition.FileName, "error", err)
@@ -477,6 +559,11 @@ func (m *Manager) loadLocked(dir string) {
 		return
 	}
 	previous := m.lib
+	var switchedOff *libraryRef
+	if ref != nil && !m.settings.Enabled {
+		// Switched off while the directory was read: not served.
+		switchedOff, ref = ref, nil
+	}
 	m.activeDir = dir
 	m.state = st
 	m.lib = ref
@@ -487,6 +574,9 @@ func (m *Manager) loadLocked(dir string) {
 	m.mu.Unlock()
 	if previous != nil {
 		previous.retire(nil)
+	}
+	if switchedOff != nil {
+		switchedOff.retire(nil)
 	}
 	m.processPendingDeletes(dir)
 }
@@ -660,8 +750,10 @@ func (m *Manager) Status() Status {
 	status.Readable = m.lib != nil
 	// A changed storage directory that is being loaded (it may hang on an
 	// unreachable share) is reported like the first load; the previous
-	// directory's edition stays served meanwhile.
-	status.Loading = m.firstLoadPendingLocked() || (m.ioToken != 0 && settings.DataDir != m.activeDir)
+	// directory's edition stays served meanwhile. So is an installed edition
+	// that waits to be opened after the integration was switched on.
+	status.Loading = m.firstLoadPendingLocked() || (m.ioToken != 0 && settings.DataDir != m.activeDir) ||
+		(m.op == nil && m.openPendingLocked())
 	if m.state != nil && m.state.Edition != nil {
 		edition := *m.state.Edition
 		status.Edition = &edition
@@ -691,13 +783,19 @@ func (m *Manager) Status() Status {
 	if status.ErrorCode == "" && status.Loading {
 		status.ErrorCode = CodeBusy
 	}
-	if status.ErrorCode == "" && status.State == StateReady && !status.Fulltext {
+	// Only an open edition knows whether its full-text index is usable.
+	if status.ErrorCode == "" && status.State == StateReady && status.Readable && !status.Fulltext {
 		status.ErrorCode = CodeFulltextUnsupported
 	}
 	if status.ErrorCode == "" && !status.OperationInProgress {
 		if err := checkDataDirShape(settings.DataDir, m.sensitive); err != nil {
 			status.ErrorCode = CodeDataDirInvalid
 		}
+	}
+	// Nothing is served while the integration is off; an installed edition
+	// stays reported (state ready, readable false) and can be deleted.
+	if status.ErrorCode == "" && !status.OperationInProgress && !settings.Enabled {
+		status.ErrorCode = CodeDisabled
 	}
 	status.Recommendation = Recommendation(status.ErrorCode)
 	if fromOperation {
@@ -710,7 +808,9 @@ func (m *Manager) Status() Status {
 // stateLocked derives the reported state. An edition that is being served is
 // never reported as an error: clients read "error" as "nothing readable", and
 // a failed update leaves the installed edition online. The code of the failed
-// operation is still reported in error_code.
+// operation is still reported in error_code. An installed edition that is not
+// open only because the integration is off (or opening it is pending) is
+// ready as well; readable tells whether it is served.
 func (m *Manager) stateLocked() string {
 	switch {
 	case m.op != nil:
@@ -718,6 +818,8 @@ func (m *Manager) stateLocked() string {
 	case m.interrupted:
 		return StateInterrupted
 	case m.lib != nil:
+		return StateReady
+	case m.state != nil && m.state.Edition != nil && m.loadCode == "":
 		return StateReady
 	case m.errCode != "" || m.loadCode != "":
 		return StateError

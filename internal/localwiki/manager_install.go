@@ -401,10 +401,19 @@ func (m *Manager) publish(ctx context.Context, plan installPlan, partPath string
 	m.mu.Lock()
 	previous := m.lib
 	m.lib = newLibraryRef(lib)
+	var switchedOff *libraryRef
+	if !m.settings.Enabled {
+		// Switched off during the download: the edition is installed but
+		// not served until the integration is switched on again.
+		switchedOff, m.lib = m.lib, nil
+	}
 	m.state = next
 	m.loadCode = "" // a replaced edition that could not be read no longer matters
 	m.mu.Unlock()
 	m.stateMu.Unlock()
+	if switchedOff != nil {
+		switchedOff.retire(nil)
+	}
 
 	if err := removeDownload(plan.dir); err != nil {
 		m.logger.Warn("[LocalWikipedia] download.json could not be removed", "error", err)

@@ -92,7 +92,8 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   (`loadPending`) does not take `loadMu` at all, so a loop wake-up or status poll never makes `Delete` answer
   `ErrBusy`. `Status` never touches the storage directory:
   `free_bytes` comes from a background measurement (`probeLoop`: at start, after a storage directory
-  change, after an operation or `Delete`, every 10 s; a measurement running longer than 5 s reports -1),
+  change, after an operation or `Delete`, when the integration is switched on, every 10 s; nothing is
+  measured while it is off; a measurement running longer than 5 s reports -1),
   and the directory check is lexical (`Deps.IsSensitivePath` must not do I/O). The measuring goroutine is
   not tracked: `Shutdown` never waits for it.
 - Settings reach the manager only through `Configure`. The server calls it from
@@ -103,6 +104,18 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   -> `stateMu` -> `mu`. `Configure` only stores the settings and signals the loops: it never waits for
   `loadMu` or storage I/O and never starts a download; a changed storage directory is loaded by the loop
   once nothing else uses the storage directory (`loadIfStale`).
+- Disabled integration (`enabled: false`): the edition file is never opened (on Windows it could not be
+  deleted by hand while open) and the disk is not probed. Loads still read `state.json` and
+  `download.json` (the config page shows the installed edition and offers Delete, which works while
+  disabled). Switching off in `Configure` takes the open library out of service at once (`Acquire` fails;
+  readers that hold it finish, then it is closed); a load or a publication that ends after the switch-off
+  closes its library instead of serving it. Switching on signals the loop, which opens the installed
+  edition (`openPendingLocked` -> `openInstalledLocked`, reported as `loading: true` meanwhile; an edition
+  that fails to open becomes `zim_unreadable` and is not retried) and measures the disk again. Status while
+  off: an installed edition stays `state: ready` with `readable: false`, `fulltext: false` and
+  `error_code: disabled` (no operation running and no other code); without an edition `not_installed` +
+  `disabled`. A download that was running when the integration was switched off is not cancelled; its
+  edition is recorded but not served until the integration is switched on.
 - `Status` JSON: `state` (`not_installed|downloading|verifying|ready|interrupted|error`), `progress` (0..1
   fraction), `bytes_done`, `bytes_total`, `rate`, `eta_seconds`, `edition`, `selection`,
   `selection_matches_installed`, `update_available`, `fulltext`, `readable`, `loading`, `free_bytes` (the
@@ -121,10 +134,11 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   says which one is installed), the state is `error` (`interrupted` when a `download.json` exists), and
   `Install` or `Delete` replace or remove the file. Clients derive their wording from `error_code`,
   `readable` and `edition`. `recommendation` is English only and never shown by the config UI.
-- `error_code` for an idle manager also covers `busy` (first load), `fulltext_unsupported` (informational:
-  ready without a full-text index) and `data_dir_invalid` (the configured directory fails the shape
-  check).
-- `Acquire` hands out the library only while `enabled` and a readable edition is loaded; callers release
+- `error_code` for an idle manager also covers `busy` (first load, or opening the edition after switching
+  on), `fulltext_unsupported` (informational: an open edition without a full-text index),
+  `data_dir_invalid` (the configured directory fails the shape check) and, last, `disabled` (the
+  integration is off; the config UI shows it as an info note and hides readability and full-text facts).
+- `Acquire` hands out the library only while `enabled` and a readable edition is open; callers release
   exactly once (extra releases are ignored). `libraryRef` closes a retired library after its last reader
   released it, then runs the after-close hook (deleting the retired file, which Windows refuses while open).
 

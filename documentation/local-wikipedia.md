@@ -128,6 +128,15 @@ under the same rules.
 **Delete edition** (with confirmation) removes the ZIM file, any partial download
 and the state files. It is refused while a download is running.
 
+**Switching Local Wikipedia off** (and saving) takes the edition offline at once:
+the agent tool and the desktop app stop using it, searches that are still running
+finish, and AuraGo then closes the file, so you can also delete or move it by
+hand (Windows refuses that while a file is open). The edition stays installed; the
+config page shows it with a note that the integration is switched off, and
+**Delete edition** still works. While it is off AuraGo does not open the edition
+file and does not measure the free space. Switching it on again opens the
+installed edition, no download needed.
+
 ## Where the files live
 
 | Installation | Directory | Notes |
@@ -316,8 +325,8 @@ and never contain paths or host names:
 | `state_unreadable` | The state file `state.json` in the storage directory cannot be read (damaged or invalid), so AuraGo cannot tell which files belong to the installed edition. It touches nothing and offers no edition. | Check the AuraGo log for the reason. AuraGo does not repair the file: stop AuraGo, move the damaged `state.json` out of the storage directory (and delete old `.zim` files you no longer need), start AuraGo and install again. |
 | `fulltext_unsupported` | The edition has no usable full-text index; title search still works. This is a warning. | Nothing to do. Newer index formats may need a newer AuraGo. |
 | `already_installed` | The newest catalog edition of your selection is already installed. | Nothing to do; choose another language or variant to replace it. |
-| `busy` | Another download, verification or delete is running, or AuraGo is still loading the storage directory after its start. | Wait, or cancel the running operation. |
-| `disabled` | The integration is off or the change is not saved. | Turn it on and **Save**. |
+| `busy` | Another download, verification or delete is running, or AuraGo is still loading the storage directory after its start (or opening the edition after you switched the integration on). | Wait, or cancel the running operation. |
+| `disabled` | The integration is off or the change is not saved. In the status it is a note: an installed edition is kept but not opened (`readable` false). | Turn it on and **Save**. |
 | `data_dir_invalid` | The directory is not absolute, not writable or a system or program directory. | Choose another directory; see the systemd note above. In Docker the directory is fixed. |
 
 **Install** stays disabled while the config page has unsaved changes: save first.
