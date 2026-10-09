@@ -38,3 +38,7 @@ bin/config-merger_linux_arm64 binary
 
 # ZIM archives (Local Wikipedia test fixtures)
 *.zim   binary
+
+# Local Wikipedia fixture generators: article texts must stay byte-stable across checkouts
+scripts/localwiki/fixtures/*.py  text eol=lf
+scripts/localwiki/fixtures/*.txt text eol=lf
