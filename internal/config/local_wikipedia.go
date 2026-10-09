@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -48,6 +49,6 @@ func ValidateLocalWikipediaConfig(c LocalWikipediaConfig) error {
 	case "", "nopic", "maxi":
 		return nil
 	default:
-		return fmt.Errorf("local_wikipedia.variant must be nopic or maxi")
+		return errors.New("local_wikipedia.variant must be nopic or maxi")
 	}
 }
