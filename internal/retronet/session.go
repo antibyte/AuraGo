@@ -155,6 +155,8 @@ func (m *Manager) serve(ctx context.Context, e Entry, size Size, client Client, 
 	switch e.Protocol {
 	case ProtocolTelnet:
 		return m.runTelnet(ctx, e, size, client, conn, stats)
+	case ProtocolSSH:
+		return m.runSSH(ctx, e, size, client, conn, stats)
 	default:
 		return ReasonRemoteClosed
 	}
