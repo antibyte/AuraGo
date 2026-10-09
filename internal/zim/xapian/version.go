@@ -78,6 +78,9 @@ func parseVersion(b []byte) (versionInfo, error) {
 	if err != nil {
 		return v, err
 	}
+	if rev > 0xffffffff {
+		return v, corruptf("version block revision out of range")
+	}
 	v.revision = uint32(rev)
 	for t := 0; t < tableCount; t++ {
 		ri := &v.roots[t]
@@ -108,8 +111,17 @@ func parseVersion(b []byte) (versionInfo, error) {
 		if flLen > uint64(len(p)) {
 			return v, corruptf("version block freelist overruns data")
 		}
-		if root > 0xffffffff || bs > 32 || cmin > 0xffffffff {
+		// Range-check every field on its uint64 before narrowing: on 32-bit
+		// platforms int(flags>>2) of a huge value wraps negative and would
+		// pass a later level check.
+		if root > 0xffffffff || cmin > 0xffffffff {
 			return v, corruptf("version block root info out of range for %s", tableNames[t])
+		}
+		if bs > maxBlockSize>>11 {
+			return v, unsupportedf("%s block size field %d", tableNames[t], bs)
+		}
+		if flags>>2 > maxLevel {
+			return v, corruptf("%s B-tree level %d", tableNames[t], flags>>2)
 		}
 		ri.root = uint32(root)
 		ri.level = int(flags >> 2)
@@ -120,11 +132,8 @@ func parseVersion(b []byte) (versionInfo, error) {
 		ri.compressMin = uint32(cmin)
 		ri.freelist = append([]byte(nil), p[:flLen]...)
 		p = p[flLen:]
-		if ri.blockSize < minBlockSize || ri.blockSize > maxBlockSize || ri.blockSize&(ri.blockSize-1) != 0 {
+		if ri.blockSize < minBlockSize || ri.blockSize&(ri.blockSize-1) != 0 {
 			return v, unsupportedf("%s block size %d", tableNames[t], ri.blockSize)
-		}
-		if ri.level > maxLevel {
-			return v, corruptf("%s B-tree level %d", tableNames[t], ri.level)
 		}
 	}
 	// Statistics (all zero for an empty database).
@@ -144,10 +153,16 @@ func parseVersion(b []byte) (versionInfo, error) {
 	}
 	// Order: doccount, lastdocid-doccount, doclen lower bound, wdf upper bound,
 	// doclen upper bound - wdf upper bound, oldest changeset, total length,
-	// spelling wordfreq upper bound.
+	// spelling wordfreq upper bound. Xapian reads the first five into 32-bit
+	// types; checking them first also keeps the sums below from wrapping.
+	for i, x := range st[:5] {
+		if x > 0xffffffff {
+			return v, corruptf("version block statistic %d out of range", i)
+		}
+	}
 	last := st[1] + st[0]
-	if st[0] > 0xffffffff || last > 0xffffffff {
-		return v, corruptf("document count out of range")
+	if last > 0xffffffff || st[4]+st[3] > 0xffffffff {
+		return v, corruptf("version block statistics out of range")
 	}
 	v.docCount = uint32(st[0])
 	v.lastDocID = uint32(last)

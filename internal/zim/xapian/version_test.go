@@ -9,17 +9,17 @@ import (
 
 // versionBlock builds block 0 of a single-file glass database. roots holds
 // (root, level, fake) per table; all tables use 8 KiB blocks.
-func versionBlock(magic string, format uint16, roots [tableCount][3]int, stats [8]uint64) []byte {
+func versionBlock(magic string, format uint16, roots [tableCount][3]uint64, stats [8]uint64) []byte {
 	b := []byte(magic)
 	b = binary.BigEndian.AppendUint16(b, format)
 	b = append(b, bytes.Repeat([]byte{0xab}, 16)...) // UUID
 	b = appendUint(b, 1)                             // revision
 	for _, r := range roots {
-		flags := uint64(r[1]) << 2
+		flags := r[1] << 2
 		if r[2] != 0 {
 			flags |= 1
 		}
-		b = appendUint(b, uint64(r[0]))
+		b = appendUint(b, r[0])
 		b = appendUint(b, flags)
 		b = appendUint(b, 7)        // entries
 		b = appendUint(b, 8192>>11) // block size
@@ -34,7 +34,14 @@ func versionBlock(magic string, format uint16, roots [tableCount][3]int, stats [
 	return out
 }
 
-var liveRoots = [tableCount][3]int{{1, 0, 0}, {2, 0, 0}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}}
+var liveRoots = [tableCount][3]uint64{{1, 0, 0}, {2, 0, 0}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}}
+
+var fakeRoots = [tableCount][3]uint64{{0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}}
+
+// With liveRoots every root info varint is one byte: the block size field of
+// table t sits after the revision byte, t earlier root infos of 6 bytes and
+// the root, flags and entries fields.
+func blockSizeOffset(t int) int { return versionHeaderSize + 1 + 6*t + 3 }
 
 func TestParseVersion(t *testing.T) {
 	// doccount 4, lastdocid 4, doclen bounds 12..16, wdf ub 4, total 56.
@@ -57,8 +64,17 @@ func TestParseVersion(t *testing.T) {
 func TestParseVersionRejects(t *testing.T) {
 	stats := [8]uint64{1, 0, 1, 1, 0, 0, 1, 0}
 	deep := liveRoots
-	deep[tablePostlist] = [3]int{1, 10, 0}
+	deep[tablePostlist] = [3]uint64{1, 10, 0}
+	// flags 0x200000001: level 0x80000000 wraps to a negative int on 32-bit
+	// platforms if it is narrowed before the range check.
+	huge := fakeRoots
+	huge[tablePostlist] = [3]uint64{0, 0x80000000, 1}
 	badBS := versionBlock(glassMagic, glassFormatVersion, liveRoots, stats)
+	bigBS := versionBlock(glassMagic, glassFormatVersion, liveRoots, stats)
+	bigBS[blockSizeOffset(tablePostlist)] = 64 // 128 KiB
+	vb := versionBlock(glassMagic, glassFormatVersion, liveRoots, stats)
+	bigRev := append(append(append([]byte(nil), vb[:versionHeaderSize]...), appendUint(nil, 1<<32)...), vb[versionHeaderSize+1:]...)
+	withStats := func(st [8]uint64) []byte { return versionBlock(glassMagic, glassFormatVersion, liveRoots, st) }
 	cases := []struct {
 		name string
 		b    []byte
@@ -68,6 +84,14 @@ func TestParseVersionRejects(t *testing.T) {
 		{"not xapian", bytes.Repeat([]byte("x"), 64), ErrUnsupportedFormat},
 		{"future glass", versionBlock(glassMagic, glassFormatVersion+1, liveRoots, stats), ErrUnsupportedFormat},
 		{"level", versionBlock(glassMagic, glassFormatVersion, deep, stats), ErrCorrupt},
+		{"level overflows int", versionBlock(glassMagic, glassFormatVersion, huge, [8]uint64{}), ErrCorrupt},
+		{"block size field too large", bigBS, ErrUnsupportedFormat},
+		{"revision beyond 32 bits", bigRev, ErrCorrupt},
+		{"last docid wraps", withStats([8]uint64{1, 1<<64 - 1, 1, 1, 0, 0, 1, 0}), ErrCorrupt},
+		{"last docid beyond 32 bits", withStats([8]uint64{1, 0xffffffff, 1, 1, 0, 0, 1, 0}), ErrCorrupt},
+		{"doclen lower bound beyond 32 bits", withStats([8]uint64{1, 0, 1 << 32, 1, 0, 0, 1, 0}), ErrCorrupt},
+		{"wdf upper bound beyond 32 bits", withStats([8]uint64{1, 0, 1, 1 << 32, 0, 0, 1, 0}), ErrCorrupt},
+		{"doclen upper bound overflows", withStats([8]uint64{1, 0, 1, 1, 0xffffffff, 0, 1, 0}), ErrCorrupt},
 		{"truncated", versionBlock(glassMagic, glassFormatVersion, liveRoots, stats)[:34], ErrCorrupt},
 		{"block size", func() []byte { badBS[versionHeaderSize+1+3] = 3; return badBS }(), ErrUnsupportedFormat},
 	}
@@ -90,5 +114,41 @@ func TestOpenRejectsNonGlass(t *testing.T) {
 	copy(blob, versionBlock(glassMagic, glassFormatVersion, liveRoots, [8]uint64{1, 0, 1, 1, 0, 0, 1, 0}))
 	if _, err := Open(bytes.NewReader(blob), int64(len(blob))); !errors.Is(err, ErrCorrupt) {
 		t.Errorf("empty root block: %v", err)
+	}
+}
+
+func TestOpenRejectsBadRoots(t *testing.T) {
+	open := func(vb []byte) error {
+		blob := make([]byte, 4*8192)
+		copy(blob, vb)
+		_, err := Open(bytes.NewReader(blob), int64(len(blob)))
+		return err
+	}
+	oneDoc := [8]uint64{1, 0, 1, 1, 0, 0, 1, 0}
+	if err := open(versionBlock(glassMagic, glassFormatVersion, fakeRoots, [8]uint64{})); err != nil {
+		t.Fatalf("empty database: %v", err)
+	}
+	mixed := versionBlock(glassMagic, glassFormatVersion, liveRoots, oneDoc)
+	mixed[blockSizeOffset(tableDocdata)] = 4096 >> 11
+	outside, zero := liveRoots, liveRoots
+	outside[tablePostlist] = [3]uint64{9, 0, 0}
+	zero[tablePostlist] = [3]uint64{0, 0, 0}
+	huge := fakeRoots
+	huge[tablePostlist] = [3]uint64{0, 0x80000000, 1}
+	cases := []struct {
+		name string
+		b    []byte
+		want error
+	}{
+		{"mixed block sizes", mixed, ErrUnsupportedFormat},
+		{"documents without postlist", versionBlock(glassMagic, glassFormatVersion, fakeRoots, oneDoc), ErrCorrupt},
+		{"root past the end", versionBlock(glassMagic, glassFormatVersion, outside, oneDoc), ErrCorrupt},
+		{"root block 0", versionBlock(glassMagic, glassFormatVersion, zero, oneDoc), ErrCorrupt},
+		{"level overflows int", versionBlock(glassMagic, glassFormatVersion, huge, [8]uint64{}), ErrCorrupt},
+	}
+	for _, c := range cases {
+		if err := open(c.b); !errors.Is(err, c.want) {
+			t.Errorf("%s: err = %v, want %v", c.name, err, c.want)
+		}
 	}
 }

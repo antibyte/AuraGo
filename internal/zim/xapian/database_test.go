@@ -66,6 +66,6 @@ func TestTermsWithPrefix(t *testing.T) {
 	bulk := openFixture(t, "bulk", "fulltext")
 	got, err = bulk.TermsWithPrefix("05", 0)
 	if err != nil || len(got) != 100 || got[0] != "0500" || got[99] != "0599" {
-		t.Fatalf("bulk TermsWithPrefix(05) = %d terms (%v...), %v", len(got), got[:2], err)
+		t.Fatalf("bulk TermsWithPrefix(05) = %d terms (%v...), %v", len(got), got[:min(2, len(got))], err)
 	}
 }
