@@ -139,9 +139,13 @@ func (m *Manager) session(ctx context.Context, e Entry, size Size, client Client
 }
 
 // serve runs the protocol-specific part of a connected session and returns the end reason.
-// No protocol is wired yet: every connected session ends as remote_closed.
 func (m *Manager) serve(ctx context.Context, e Entry, size Size, client Client, conn net.Conn, stats *sessionStats) string {
-	return ReasonRemoteClosed
+	switch e.Protocol {
+	case ProtocolTelnet:
+		return m.runTelnet(ctx, e, size, client, conn, stats)
+	default:
+		return ReasonRemoteClosed
+	}
 }
 
 // acquire takes a session slot unless MaxSessions are already running.
