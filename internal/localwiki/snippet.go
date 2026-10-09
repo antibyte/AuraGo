@@ -18,28 +18,65 @@ const (
 // snippetSkipTags are subtrees whose text never belongs to a snippet.
 var snippetSkipTags = map[string]bool{
 	"table": true, "figure": true, "style": true, "script": true, "sup": true,
-	"math": true, "noscript": true, "template": true, "figcaption": true,
+	"math": true, "svg": true, "noscript": true, "template": true, "figcaption": true,
 }
 
 // voidTags never have an end tag, so they cannot open a skipped subtree.
 var voidTags = map[string]bool{
-	"area": true, "base": true, "br": true, "col": true, "embed": true, "hr": true, "img": true,
-	"input": true, "link": true, "meta": true, "source": true, "track": true, "wbr": true,
+	"area": true, "base": true, "br": true, "col": true, "embed": true, "frame": true, "hr": true,
+	"img": true, "input": true, "keygen": true, "link": true, "meta": true, "param": true,
+	"source": true, "track": true, "wbr": true,
 }
 
 // snippetSkipClasses mark navigation, reference and maintenance subtrees.
-var snippetSkipClasses = []string{
-	"infobox", "navbox", "navigation-not-searchable", "reference", "noprint",
-	"metadata", "hatnote", "mw-editsection", "ambox", "mwe-math",
+// They match whole class tokens, so "my-reference-list" is not "reference".
+var snippetSkipClasses = map[string]bool{
+	"infobox": true, "navbox": true, "vertical-navbox": true, "navigation-not-searchable": true,
+	"reference": true, "references": true, "reflist": true, "mw-references-wrap": true,
+	"noprint": true, "metadata": true, "hatnote": true, "mw-editsection": true, "ambox": true,
+	"mwe-math-element": true, "mwe-math-mathml-inline": true, "mwe-math-mathml-display": true,
+}
+
+// closesParagraph lists the start tags that implicitly end an open <p>
+// (its end tag is optional in HTML).
+var closesParagraph = map[string]bool{
+	"address": true, "article": true, "aside": true, "blockquote": true, "center": true,
+	"details": true, "dialog": true, "dir": true, "div": true, "dl": true, "dd": true, "dt": true,
+	"fieldset": true, "figcaption": true, "figure": true, "footer": true, "form": true,
+	"h1": true, "h2": true, "h3": true, "h4": true, "h5": true, "h6": true, "header": true,
+	"hgroup": true, "hr": true, "li": true, "listing": true, "main": true, "menu": true, "nav": true,
+	"ol": true, "p": true, "plaintext": true, "pre": true, "search": true, "section": true,
+	"summary": true, "table": true, "ul": true, "xmp": true,
+}
+
+// endsParagraph reports whether the end tag </tag> closes an open <p>: its
+// own, the end of a block it could not be part of, or of its table cell.
+func endsParagraph(tag string) bool {
+	switch tag {
+	case "td", "th", "tr", "tbody", "thead", "tfoot", "caption", "body", "html":
+		return true
+	}
+	return closesParagraph[tag]
+}
+
+// scanWindow returns at most snippetScanBytes of raw, cut on a rune boundary.
+func scanWindow(raw []byte) []byte {
+	if len(raw) <= snippetScanBytes {
+		return raw
+	}
+	cut := snippetScanBytes
+	for cut > snippetScanBytes-utf8.UTFMax && !utf8.RuneStart(raw[cut]) {
+		cut--
+	}
+	return raw[:cut]
 }
 
 // articleParagraphs returns the visible text of the first max <p> elements of
-// an article, scanning at most snippetScanBytes of HTML.
+// an article, scanning at most snippetScanBytes of HTML. A paragraph without
+// end tag (closed by the next block element or by the end of the input) still
+// counts.
 func articleParagraphs(raw []byte, max int) []string {
-	if len(raw) > snippetScanBytes {
-		raw = raw[:snippetScanBytes]
-	}
-	z := html.NewTokenizer(bytes.NewReader(raw))
+	z := html.NewTokenizer(bytes.NewReader(scanWindow(raw)))
 	var (
 		out       []string
 		buf       strings.Builder
@@ -47,10 +84,19 @@ func articleParagraphs(raw []byte, max int) []string {
 		skipTag   string
 		skipDepth int
 	)
+	flush := func() {
+		if inP {
+			if text := collapseSpace(buf.String()); text != "" {
+				out = append(out, text)
+			}
+		}
+		inP = false
+		buf.Reset()
+	}
 	for len(out) < max {
-		tt := z.Next()
-		switch tt {
+		switch z.Next() {
 		case html.ErrorToken:
+			flush()
 			return out
 		case html.TextToken:
 			if inP && skipDepth == 0 {
@@ -64,10 +110,21 @@ func articleParagraphs(raw []byte, max int) []string {
 			name, hasAttr := z.TagName()
 			tag := string(name)
 			if skipDepth > 0 {
-				if tag == skipTag {
-					skipDepth++
+				if skipTag != "p" {
+					if tag == skipTag {
+						skipDepth++
+					}
+					continue
 				}
-				continue
+				// A skipped paragraph may omit its end tag: the next block
+				// element ends it, and is handled like any other tag.
+				if !closesParagraph[tag] {
+					continue
+				}
+				skipTag, skipDepth = "", 0
+			}
+			if inP && closesParagraph[tag] {
+				flush()
 			}
 			if !voidTags[tag] && (snippetSkipTags[tag] || (hasAttr && hasSkipClass(z))) {
 				skipTag, skipDepth = tag, 1
@@ -84,16 +141,17 @@ func articleParagraphs(raw []byte, max int) []string {
 			name, _ := z.TagName()
 			tag := string(name)
 			if skipDepth > 0 {
-				if tag == skipTag {
+				if skipTag == "p" {
+					if endsParagraph(tag) {
+						skipTag, skipDepth = "", 0
+					}
+				} else if tag == skipTag {
 					skipDepth--
 				}
 				continue
 			}
-			if tag == "p" && inP {
-				inP = false
-				if text := collapseSpace(buf.String()); text != "" {
-					out = append(out, text)
-				}
+			if inP && endsParagraph(tag) {
+				flush()
 			}
 		}
 	}
@@ -106,9 +164,8 @@ func hasSkipClass(z *html.Tokenizer) bool {
 	for {
 		key, val, more := z.TagAttr()
 		if string(key) == "class" {
-			class := string(val)
-			for _, c := range snippetSkipClasses {
-				if strings.Contains(class, c) {
+			for _, c := range bytes.Fields(val) {
+				if snippetSkipClasses[string(c)] {
 					return true
 				}
 			}
@@ -127,8 +184,9 @@ var abbreviations = map[string]bool{
 }
 
 // splitSentences splits text after ".", "!" or "?" followed by white space
-// and after the CJK full stops. A period after a single letter, a number or
-// a common abbreviation ("z.", "3.", "ca.") does not end a sentence.
+// and after the CJK full stops and the Devanagari danda, which end a sentence
+// wherever they stand. A period after a single letter, a number or a common
+// abbreviation ("z.", "3.", "ca.") does not end a sentence.
 func splitSentences(text string) []string {
 	var out []string
 	start := 0
@@ -136,7 +194,7 @@ func splitSentences(text string) []string {
 	for i, r := range runes {
 		end := false
 		switch r {
-		case '。', '！', '？':
+		case '。', '！', '？', '।', '॥':
 			end = true
 		case '.', '!', '?':
 			if i+1 < len(runes) && unicode.IsSpace(runes[i+1]) {
@@ -170,7 +228,7 @@ func abbreviationBefore(runes []rune, i int) bool {
 	if strings.IndexFunc(word, func(r rune) bool { return !unicode.IsDigit(r) }) < 0 {
 		return true
 	}
-	return abbreviations[foldText(word)]
+	return abbreviations[strings.ToLower(word)]
 }
 
 // snippetFromHTML returns the first sentence of the article that contains a

@@ -5,31 +5,32 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
+	"aurago/internal/zim/xapian"
 )
 
 const (
 	maxQueryRunes = 200
 	maxQueryWords = 16
+	// maxQueryBytes bounds the input before it is split: 200 runes of up to
+	// four bytes plus the separators of 16 words, with room for padding.
+	maxQueryBytes = 4 * (maxQueryRunes + maxQueryWords)
 )
 
-// foldText lowercases s and removes all combining marks (NFD, drop Mn, Mc
-// and Me, NFC) like libzim's text normalisation, so "Münster" and "munster"
-// compare equal.
+// foldText lowercases s and removes all combining marks (Mn, Mc and Me)
+// exactly like libzim does for titles, article text and queries, so that
+// "Münster" and "munster" compare equal and the result agrees with the
+// terms of the ZIM's search indexes (Greek final sigma included).
 func foldText(s string) string {
-	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.M)), norm.NFC)
-	out, _, err := transform.String(t, s)
-	if err != nil {
-		out = s
-	}
-	return strings.ToLower(out)
+	return xapian.Normalize(s)
 }
 
 // normalizeQuery collapses whitespace and enforces the query limits
 // (at most 200 characters and 16 words).
 func normalizeQuery(query string) (string, error) {
+	query = strings.TrimSpace(query)
+	if len(query) > maxQueryBytes {
+		return "", ErrQueryTooLong
+	}
 	words := strings.Fields(query)
 	if len(words) == 0 {
 		return "", ErrQueryEmpty
@@ -137,22 +138,62 @@ func upperFirst(s string) string {
 // truncateRunes shortens s to at most max runes, preferring a word boundary,
 // and marks a cut with "…".
 func truncateRunes(s string, max int) string {
+	if max < 1 {
+		return ""
+	}
 	s = strings.TrimSpace(s)
 	if utf8.RuneCountInString(s) <= max {
 		return s
 	}
-	r := []rune(s)[:max-1]
+	all := []rune(s)
+	r := all[:max-1]
 	cut := len(r)
+	spaced := false
 	for i := len(r) - 1; i >= len(r)/2; i-- {
 		if unicode.IsSpace(r[i]) {
-			cut = i
+			cut, spaced = i, true
 			break
 		}
 	}
-	return strings.TrimRightFunc(string(r[:cut]), func(c rune) bool {
+	if !spaced {
+		// A cut between two runes of one user-perceived character would leave
+		// a dangling mark, joiner or half a flag.
+		for cut > 0 && splitsCluster(all, cut) {
+			cut--
+		}
+	}
+	return strings.TrimRightFunc(string(all[:cut]), func(c rune) bool {
 		return unicode.IsSpace(c) || c == ',' || c == ';' || c == ':'
 	}) + "…"
 }
+
+// splitsCluster reports whether cutting before rs[i] (0 < i < len(rs))
+// would separate runes of one grapheme cluster: a combining mark, variation
+// selector or emoji modifier after its base, either side of a zero width
+// joiner, or the two halves of a regional-indicator flag.
+func splitsCluster(rs []rune, i int) bool {
+	cur, prev := rs[i], rs[i-1]
+	if cur == zeroWidthJoiner || cur == variationSelector16 || unicode.Is(unicode.M, cur) || isEmojiModifier(cur) || prev == zeroWidthJoiner {
+		return true
+	}
+	if isRegionalIndicator(cur) && isRegionalIndicator(prev) {
+		n := 0
+		for j := i - 1; j >= 0 && isRegionalIndicator(rs[j]); j-- {
+			n++
+		}
+		return n%2 == 1
+	}
+	return false
+}
+
+const (
+	zeroWidthJoiner     rune = 0x200D
+	variationSelector16 rune = 0xFE0F
+)
+
+func isRegionalIndicator(r rune) bool { return r >= 0x1F1E6 && r <= 0x1F1FF }
+
+func isEmojiModifier(r rune) bool { return r >= 0x1F3FB && r <= 0x1F3FF }
 
 // collapseSpace replaces runs of white space with one space and trims.
 func collapseSpace(s string) string {
