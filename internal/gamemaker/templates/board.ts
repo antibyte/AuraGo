@@ -13,7 +13,7 @@ class Board extends GameScene {
       this.paintAsset(cell,90,90,'cell');
       // Keep a transparent hit target when library art replaces the cell.
       if(this.assetRoles('cell').length)cell.setVisible(true).setFillStyle(0,0);
-      cell.on('pointerdown',()=>{this.selected=i;this.action();});this.cells.push(cell);
+      cell.on('pointerdown',()=>this.action(i));this.cells.push(cell);
     }
     this.player=this.add.rectangle(360,180,96,96).setStrokeStyle(3,0xfacc15);
   }
@@ -26,7 +26,10 @@ class Board extends GameScene {
     const won=LINES.some(line=>line.every(i=>this.marks[i]===turn));
     if(won||this.marks.every(Boolean)){this.flow.message(won?(turn===1?'You win the round!':'The machine wins.'):'Draw.',1.6);this.end(won&&turn===1);}
   }
-  action() { if (this.builder) { super.action(); return; }
+  action(index=this.selected) {
+    if(!this.playerUI?.started||this.playerUI.blocked||this.manualPause||!this.previewActive||!this.scene.isActive()||this.state.ended||this.respawnAt)return;
+    this.selected=index;
+    if (this.builder) { super.action(); return; }
     if(this.marks[this.selected]||this.replyAt)return;
     this.feedback('ui',this.cells[this.selected]);this.state.actions++;this.state.hits++;this.state.score++;
     this.place(this.selected,1);

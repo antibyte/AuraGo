@@ -87,9 +87,11 @@ export class VoxelGame {
     const key=target.cell.join(',');if(this.mining?.key!==key)this.mining={key,elapsed:0};this.mining.elapsed+=dt;
     if(this.mining.elapsed<(this.creative ? .12 : block.hardness))return;
     const before=this.count(block.drop);
-    if(!this.credit(block.drop)){this.mining=null;return;}
+    const collected=this.credit(block.drop);
+    if(!collected&&!this.creative){this.mining=null;return;}
     if(!this.world.set(...target.cell,0))throw new Error('Voxel mining transaction lost its target');
-    this.mining=null;this.metrics.mined++;this.metrics.pickups++;this.record('collect',block.drop);
+    this.mining=null;this.metrics.mined++;
+    if(collected){this.metrics.pickups++;this.record('collect',block.drop);}else this.changed();
     this.event('mine',{cell:target.cell,block:target.id,afterBlock:0,item:block.drop,before,after:this.count(block.drop)});
   }
   damage(amount) {

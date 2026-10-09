@@ -75,6 +75,9 @@ revision publication and standalone export for Phaser and Three.js games.
 - Canvas input must not request pointer capture while pointer lock owns the mouse.
   Verify real right-click placement under pointer lock as well as unlocked mouse,
   keyboard and touch input; keyboard-only placement checks miss browser failures.
+- Creative mining may discard drops when inventory is full, but still removes
+  the block and marks the save dirty. Count collection progress only for credited
+  items. Survival mining remains atomic and requires room for the drop.
 
 ### Shared game lifecycle
 
@@ -135,6 +138,15 @@ revision publication and standalone export for Phaser and Three.js games.
   remain authoritative for scene-driven games. Do not double-apply damage.
 - Level contents are authored source or scene data. Helpers select actual levels;
   never claim progression by cloning an empty map or incrementing a label.
+- Restart selects the initially active level, not the first serialized entry;
+  scene serialization sorts IDs. Preserve this in both 2D and 3D helpers.
+- Held FPS/space fire follows the same action hook and scene mechanic routing as
+  a single press, with the firing cooldown. Board pointer actions retain the
+  start, pause, preview activity and end gates before changing selection or state.
+- Scene projectiles resolve swept contacts in travel order and stop on their first
+  hit unless piercing. Remove ended dynamic records and release their IDs; static
+  objects remain available for reset. Runtime projectile IDs stay unique across
+  expiration. Patrol steps cannot overshoot their next waypoint.
 - `design.stages` (0–6, `stages.go`) are commitments, not prose. With at least two
   stages, `required_stages` observes `stage_count`: the 3D helper (three-4+) counts
   distinct layouts (objects, goal, bounds, mode, level_id scene nodes); the 2D
@@ -516,6 +528,11 @@ Do not patch a published game merely because a new starter changed.
   `TestPlayerUIBrowser` covers pre-start freeze, compact desktop/narrow-window HUD,
   menu pause, simultaneous touch input/cancellation, direct board input, FPS
   drag-look without firing, localized labels and restart cleanup in exports.
+- `TestRuntimeInputRegressionBrowser` uses the same experience flag for locked
+  mouse shots, held-action veto/default behavior, board input gates and active
+  3D-level restarts. `TestWorldIsometricExportBrowser` covers the 2D restart.
+  Builder/Voxel Node checks cover patrols, projectile order/retention and full
+  creative inventory, including save dirtiness and unchanged Survival behavior.
 - `GAMEMAKER_TARGET_BROWSER=1`: positive and negative read-only target evidence.
   `TestFPSPickupBrowser` covers normal input, target driving and pickup reset;
   `TestTargetControlBrowser/fps_ground_` covers low/behind, blocked, elevated and

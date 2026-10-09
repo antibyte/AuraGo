@@ -559,6 +559,7 @@ function makeController(scene, host, dimension) {
   const eventBindings = normalizeEventBindings(parseMechanics(mechanicsSource).events);
   let debugListener = null;
   let elapsed = 0;
+  let projectileSequence = 0;
   let debugEnabled = false;
   let debugOverlay = null;
   let disposed = false;
@@ -703,6 +704,10 @@ function makeController(scene, host, dimension) {
   function removeRuntimeNode(node, objectValue, reason, dynamic = false) {
     if (dynamic && typeof host.destroyNode === 'function') host.destroyNode(node, objectValue, reason);
     else host.removeNode?.(node, objectValue, reason);
+    if (dynamic) {
+      records.delete(node.id);
+      usedNodeIDs.delete(node.id);
+    }
   }
 
   function pickup(node, detail = {}) {
@@ -744,16 +749,17 @@ function makeController(scene, host, dimension) {
   }
 
   function projectileHit(projectileID, targetID, detail = {}) {
+    const projectile = records.get(String(projectileID || ''));
+    if (!projectile?.active) return false;
     const target = String(targetID || '');
     if (!target) return false;
     const didHit = hit(target, { ...object(detail), projectile_id: String(projectileID || '') });
     if (!didHit) return false;
-    const projectile = records.get(String(projectileID || ''));
-    if (projectile?.active && behaviorConfig(projectile.node, 'projectile')?.pierce !== true) {
-      projectile.active = false;
+    const consumed = behaviorConfig(projectile.node, 'projectile')?.pierce !== true;
+    if (consumed) projectile.active = false;
+    emit('projectile_hit', projectile.node, { target_id: target });
+    if (consumed && !projectile.active && records.get(projectile.node.id) === projectile)
       removeRuntimeNode(projectile.node, projectile.object, 'projectile_hit', projectile.dynamic);
-    }
-    emit('projectile_hit', projectile?.node || { id: String(projectileID || '') }, { target_id: target });
     return true;
   }
 
@@ -858,7 +864,7 @@ function makeController(scene, host, dimension) {
       const delta = target.map((value, index) => value - current[index]);
       const length = Math.hypot(...delta);
       if (length < .1) record.routeIndex = (record.routeIndex + 1) % points.length;
-      else moveRecord(node, record, delta.map(value => value / length * speed * dt));
+      else moveRecord(node, record, delta.map(value => value / length * Math.min(length, speed * dt)));
     } else if (type === 'chase' || type === 'keepdistance') {
       const player = host.player?.();
       if (!player) return;
@@ -878,19 +884,24 @@ function makeController(scene, host, dimension) {
     }
   }
 
-  function projectileTargetIDs(projectileRecord) {
+  function projectileTargetIDs(projectileRecord, start, end) {
     const result = [];
     const projectileNode = projectileRecord.node;
-    const projectilePosition = actualPosition(projectileRecord, dimension);
+    const travel = end.map((value, index) => value - start[index]);
+    const lengthSquared = travel.reduce((sum, value) => sum + value * value, 0);
     for (const target of records.values()) {
       if (target === projectileRecord || !target.active || target.node.kind === 'player' || target.node.properties?.player === true) continue;
       if (!behaviorConfig(target.node, 'destroy') && !behaviorConfig(target.node, 'health')) continue;
       const targetPosition = actualPosition(target, dimension);
       const radius = finite(projectileNode.properties?.radius, 1) + finite(target.node.properties?.radius, 1);
-      const separation = Math.hypot(...projectilePosition.map((value, index) => value - targetPosition[index]));
-      if (separation <= radius || overlapAABB(target.node, projectilePosition, [0, 0, 0], dimension)) result.push(target.node.id);
+      if (segmentDistance(targetPosition, start, end) > radius) continue;
+      const offset = start.map((value, index) => value - targetPosition[index]);
+      const c = offset.reduce((sum, value) => sum + value * value, 0) - radius * radius;
+      const b = offset.reduce((sum, value, index) => sum + value * travel[index], 0);
+      const entry = c <= 0 || !lengthSquared ? 0 : (-b - Math.sqrt(Math.max(0, b * b - lengthSquared * c))) / lengthSquared;
+      result.push({id: target.node.id, entry});
     }
-    return result;
+    return result.sort((a, b) => a.entry - b.entry).map(hit => hit.id);
   }
 
   function updateProjectile(record, delta) {
@@ -908,10 +919,14 @@ function makeController(scene, host, dimension) {
     const speed = Math.max(0, finite(projectile.speed, 0));
     if (!hitIDs.length && speed > 0 && Math.hypot(...direction) > .001) {
       const length = Math.hypot(...direction);
+      const start = actualPosition(record, dimension);
       moveRecord(record.node, record, direction.map(value => value / length * speed * delta));
-      hitIDs.push(...projectileTargetIDs(record));
+      hitIDs.push(...projectileTargetIDs(record, start, actualPosition(record, dimension)));
     }
-    for (const targetID of hitIDs.slice(0, 16)) projectileHit(record.node.id, targetID, { source: 'projectile' });
+    for (const targetID of [...new Set(hitIDs)].slice(0, 16)) {
+      if (!record.active) break;
+      projectileHit(record.node.id, targetID, { source: 'projectile' });
+    }
   }
   function spawnResults(value) {
     if (Array.isArray(value)) return value;
@@ -934,6 +949,7 @@ function makeController(scene, host, dimension) {
     const made = spawnResults(created);
     if (!made.length) {
       fault('node_spawn_failed:' + node.id);
+      if (dynamic) usedNodeIDs.delete(node.id);
       return [];
     }
     const ids = [];
@@ -973,6 +989,7 @@ function makeController(scene, host, dimension) {
         host.attachVisual?.(recordNode, placement, actual, record, controller);
       }
     }
+    if (dynamic && !ids.length) usedNodeIDs.delete(node.id);
     return ids;
   }
 
@@ -1100,7 +1117,7 @@ function makeController(scene, host, dimension) {
       behavior: { type: 'projectile', ...sourceBehavior },
       properties: object(request.properties),
     };
-    const id = String(request.id || source.id || 'projectile') + '-' + (records.size + 1);
+    const id = String(request.id || source.id || 'projectile') + '-' + (++projectileSequence);
     const node = dynamicNode({ ...source, behavior: source.behavior || 'projectile', properties: { ...object(source.properties), ...request.properties } }, source, id, request.position);
     const projectile = behaviorConfig(node, 'projectile') || { type: 'projectile' };
     const spawned = typeof host.spawnProjectile === 'function'
@@ -1170,27 +1187,7 @@ function makeController(scene, host, dimension) {
         continue;
       }
       if (projectile) {
-        const externalHits = host.stepProjectile?.(record.node, record.object, delta, controller);
-        const hitIDs = typeof externalHits === 'string' ? [externalHits] :
-          Array.isArray(externalHits) ? externalHits :
-          externalHits?.target_id ? [externalHits.target_id, ...array(externalHits.target_ids)] : [];
-        const projectileConfig = behaviorConfig(record.node, 'projectile') || {};
-        const direction = position(projectileConfig.direction || record.node.properties?.direction, dimension);
-        const speed = Math.max(0, finite(projectileConfig.speed, 0));
-        if (!hitIDs.length && speed > 0 && Math.hypot(...direction) > .001) {
-          const length = Math.hypot(...direction);
-          const start = actualPosition(record, dimension);
-          moveRecord(record.node, record, direction.map(value => value / length * speed * delta));
-          const end = actualPosition(record, dimension);
-          for (const target of records.values()) {
-            if (target === record || !target.active || target.node.kind === 'player' || target.node.properties?.player === true) continue;
-            if (!behaviorConfig(target.node, 'destroy') && !behaviorConfig(target.node, 'health')) continue;
-            const targetPoint = actualPosition(target, dimension);
-            const radius = finite(record.node.properties?.radius, 1) + finite(target.node.properties?.radius, 1);
-            if (segmentDistance(targetPoint, start, end) <= radius) hitIDs.push(target.node.id);
-          }
-        }
-        for (const targetID of hitIDs.slice(0, 16)) projectileHit(record.node.id, targetID, { source: 'projectile' });
+        updateProjectile(record, delta);
       } else {
         moveNode(record.node, record, delta);
         const player = host.player?.();
@@ -1231,7 +1228,6 @@ function makeController(scene, host, dimension) {
     for (const record of [...records.values()]) {
       if (record.dynamic) {
         removeRuntimeNode(record.node, record.object, 'reset', true);
-        records.delete(record.node.id);
         continue;
       }
       record.active = true;

@@ -13,7 +13,7 @@ const roles: any = {};
 const T = A.THREE;
 
 export function startGame(config: any) {
-  const campaign=config,levels=levelChoices(scenePlan,config.levels||[]),levelIndex=Math.max(0,Math.min(levels.length-1,Math.floor(config.levelIndex??(scenePlan as any)?.levels?.findIndex((l:any)=>l.active))||0));
+  const campaign=config,levels=levelChoices(scenePlan,config.levels||[]),startLevelIndex=Math.max(0,levels.findIndex((l:any)=>l.active)),levelIndex=Math.max(0,Math.min(levels.length-1,Math.floor(config.levelIndex??startLevelIndex)||0));
   config={...config,...levels[levelIndex]};
   // Distinct stage layouts, never titles: a level without its own objects, goal, bounds or scene nodes repeats another.
   const sceneNodes=(scenePlan as any)?.nodes||[];
@@ -54,7 +54,7 @@ export function startGame(config: any) {
   root.append(hud,crosshair);
   const keys=new Set<string>();let listeners=0, dragging=false;
   const on=(target:any,name:string,fn:any)=>{target.addEventListener(name,fn,{signal});listeners++};
-  let time=0,score=0,hits=0,pickups=0,actions=0,health=100,ammo=8,reloads=0,ended=false,won=false,carrying=false,aim=0,pitch=0,shotAt=-1,reloadAt=0,boostUntil=0,wheelAngle=0;
+  let time=0,score=0,hits=0,pickups=0,actions=0,health=100,ammo=8,reloads=0,ended=false,won=false,carrying=false,aim=0,pitch=0,shotAt=-1,primaryAt=-1,reloadAt=0,boostUntil=0,wheelAngle=0;
   let frame=0,last=0,disposed=false,ready=false,arms:any,weapon:any,avatar:any,paused=false,playerUI:any;
   let builder:any=null, debugGroup:any=null, cameraBounds:any=null,active=true, sceneBounds:any={min:[-45,0,-20],max:[45,30,170]};
   const sceneState:any={score:0,hits:0,actions:0,lives:0,goal_remaining:0,outcome:0,hit_events:0,pickup_events:0,win_events:0,lose_events:0};
@@ -80,7 +80,7 @@ export function startGame(config: any) {
     feedback:(name:string,point:any,normal:any,material:any)=>presentation.event(name,point||player.position.toArray(),normal,material),
     project:(point:any)=>{if(!point)return null;const p=new T.Vector3(...point).project(camera);return p.z>=-1&&p.z<=1?{x:(p.x+1)/2,y:(1-p.y)/2}:null;}});
   function nextLevel(){if(!ended||!won||levelIndex+1>=levels.length)return;dispose();return startGame({...campaign,levelIndex:levelIndex+1});}
-  function restartGame(){if(levelIndex){dispose();return startGame({...campaign,levelIndex:0});}reset();}
+  function restartGame(){if(levelIndex!==startLevelIndex){dispose();return startGame({...campaign,levelIndex:startLevelIndex});}reset();}
   function damagePlayer(amount=25){
     if(builder)throw Error('Scene damage is owned by scene health/contact rules');
     if(ended||paused||playerUI?.blocked||!active||time<invulnerableUntil||respawnAt||!Number.isFinite(amount)||amount<=0)return false;
@@ -99,7 +99,7 @@ export function startGame(config: any) {
   function reset(){
     flow.reset();lives=Math.max(1,Math.floor(config.lives)||3);respawnAt=invulnerableUntil=0;
     presentation?.reset();presentation?.setPaused(false);footstepAt=0;finishReported=false;
-    time=score=hits=pickups=actions=reloads=0;sceneState.score=sceneState.hits=sceneState.actions=0;health=100;ammo=8;ended=won=carrying=paused=false;aim=pitch=reloadAt=boostUntil=wheelAngle=0;shotAt=-1;keys.clear();
+    time=score=hits=pickups=actions=reloads=0;sceneState.score=sceneState.hits=sceneState.actions=0;health=100;ammo=8;ended=won=carrying=paused=false;aim=pitch=reloadAt=boostUntil=wheelAngle=0;shotAt=primaryAt=-1;keys.clear();
     player.position.set(0,config.mode==='flight'?5:config.mode==='space'?4:0,0);player.rotation.set(0,0,0);
     for(const o of objects){o.unit.root.position.copy(o.start);o.unit.root.visible=true;o.attackAt=0}
     if(avatar)clip(avatar,'idle');weaponAction('idle');builder?.reset();cameraUpdate(1);config.reset?.(api);
@@ -132,7 +132,14 @@ export function startGame(config: any) {
     const name=ammo?'reload':'reload_empty';weaponAction(name);
     reloadAt=time+(weapon?.asset.model.animations.find((c:any)=>c.id===name)?.duration||1.5);
   }
-  function primary(){if(ended||!ready||paused||playerUI?.blocked||!active||respawnAt)return;if(config.action?.(api)===false)return;if(builder?.action?.()>0){actions++;return;}if(config.mode==='fps'||config.mode==='space')fire();else if(!ended&&ready&&!paused&&active){boostUntil=time+1.5;actions++}}
+  function primary(){
+    if(ended||!ready||paused||playerUI?.blocked||!active||respawnAt)return;
+    const firing=config.mode==='fps'||config.mode==='space';
+    if(firing){if(time-primaryAt<.22)return;primaryAt=time;}
+    if(config.action?.(api)===false)return;
+    if(builder?.action?.()>0){actions++;return;}
+    if(firing)fire();else if(!ended&&ready&&!paused&&active){boostUntil=time+1.5;actions++}
+  }
   function key(event:KeyboardEvent,down:boolean){
     const name=event.key.toLowerCase();if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(name))event.preventDefault();
     if(down&&(!ready||!active||!playerUI?.started))return;
@@ -146,7 +153,7 @@ export function startGame(config: any) {
   on(window,'blur',()=>{keys.clear();dragging=false;document.exitPointerLock?.()});on(window,'resize',resize);
   let lookPointer:number|null=null,lookX=0,lookY=0;
   renderer.domElement.style.touchAction='none';renderer.domElement.tabIndex=0;
-  on(renderer.domElement,'pointerdown',(e:PointerEvent)=>{if(!ready||playerUI?.blocked||!active||ended)return;dragging=true;lookPointer=e.pointerId;lookX=e.clientX;lookY=e.clientY;if(e.isTrusted)renderer.domElement.setPointerCapture?.(e.pointerId);if(config.mode==='fps'&&e.pointerType!=='touch'&&e.pointerType!=='pen'){primary();if(e.isTrusted)renderer.domElement.requestPointerLock?.()?.catch?.(()=>{})}});
+  on(renderer.domElement,'pointerdown',(e:PointerEvent)=>{if(!ready||playerUI?.blocked||!active||ended)return;dragging=true;lookPointer=e.pointerId;lookX=e.clientX;lookY=e.clientY;if(e.isTrusted&&!document.pointerLockElement)renderer.domElement.setPointerCapture?.(e.pointerId);if(config.mode==='fps'&&e.pointerType!=='touch'&&e.pointerType!=='pen'){primary();if(e.isTrusted)renderer.domElement.requestPointerLock?.()?.catch?.(()=>{})}});
   for(const event of ['pointerup','pointercancel','lostpointercapture'])on(renderer.domElement,event,(e:PointerEvent)=>{if(e.pointerId===lookPointer){dragging=false;lookPointer=null;}});
   on(renderer.domElement,'pointermove',(e:PointerEvent)=>{if(config.mode!=='fps'||playerUI?.blocked||!active||ended)return;const locked=document.pointerLockElement===renderer.domElement;if(!locked&&(!dragging||e.pointerId!==lookPointer))return;const dx=locked?e.movementX:e.clientX-lookX,dy=locked?e.movementY:e.clientY-lookY;lookX=e.clientX;lookY=e.clientY;aim-=dx*.003;pitch=T.MathUtils.clamp(pitch-dy*.003,-1.1,1.1)});
   function instantiate(role:string,at:number[]){
@@ -335,7 +342,7 @@ export function startGame(config: any) {
     if(avatar&&(x||z)&&['exploration','transport'].includes(config.mode))avatar.root.rotation.y=Math.atan2(vector.x,vector.z);
     if(x||z)wheelAngle+=dt*config.speed/0.35;
     if(avatar){clip(avatar,x||z?'walk':'idle');for(const part of avatar.asset.model.moving_parts){if(part.kind==='wheel'||part.kind==='propeller')A.setPart(avatar,part.node,part.kind==='wheel'?wheelAngle:time*28)}}
-    cameraUpdate(dt);if(has(' ')&&(config.mode==='fps'||config.mode==='space'))fire();
+    cameraUpdate(dt);if(has(' ')&&(config.mode==='fps'||config.mode==='space'))primary();
     if(builder)builder.step(dt*1000);else{
     for(const o of objects){
       const mesh=o.unit.root;if(!mesh.visible)continue;

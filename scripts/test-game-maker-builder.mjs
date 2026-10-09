@@ -394,3 +394,94 @@ disposableBuilder.dispose();
 assert.ok(destroyedDynamic.some(id => id.startsWith('projectile-')));
 
 console.log('scene builder movement, health, goals, checkpoints, attachments, actual assets and disposal passed');
+
+for (const create of [createScene2D, createScene3D]) {
+    for (const pierce of [false, true]) {
+        for (const external of [false, true]) {
+            let shots;
+            const shotHost = simpleHost({}, {
+                ...(external ? {stepProjectile: () => ({target_ids: ['near', 'near', 'far']})} : {}),
+                event: (name, node) => {
+                    if (name === 'projectile_hit') assert(shots.nodes.has(node.id), 'hit feedback can read the impact position before cleanup');
+                },
+            });
+            shots = create({nodes: [
+                {id: 'far', kind: 'entity', position: [8, 0, 0], behavior: {type: 'destroy', health: 1}},
+                {id: 'near', kind: 'entity', position: [5, 0, 0], behavior: {type: 'destroy', health: 1}},
+            ]}, shotHost);
+            assert.equal(shots.projectileHit('missing', 'near'), false);
+            const id = shots.spawnProjectile({position: [0, 0, 0], behavior: {direction: [1, 0, 0], speed: 600, ttl: 1, pierce}});
+            shots.step(50);
+            assert.equal(shotHost.state.hits, pierce ? 2 : 1);
+            assert.equal(shots.nodes.get('near').active, false);
+            assert.equal(shots.nodes.get('far').active, !pierce, 'non-piercing shot must stop at the first target');
+            if (!pierce) {
+                assert.equal(shots.nodes.has(id), false);
+                assert.equal(shots.projectileHit(id, 'far'), false, 'consumed shots cannot damage another target');
+            }
+            shots.reset();
+            assert.equal(shots.nodes.size, 2, 'reset retains the static targets only');
+            assert.equal(shots.nodes.get('near').active, true);
+            shots.dispose();
+        }
+    }
+    const wide = create({nodes: [
+        {id: 'small', kind: 'entity', position: [5, 0, 0], properties: {radius: .2}, behavior: 'destroy'},
+        {id: 'wide', kind: 'entity', position: [8, 0, 0], properties: {radius: 7}, behavior: 'destroy'},
+    ]}, simpleHost({}));
+    wide.spawnProjectile({position: [0, 0, 0], properties: {radius: .2}, direction: [1, 0, 0], speed: 600});
+    wide.step(50);
+    assert.equal(wide.nodes.get('wide').active, false, 'sort by first surface contact, not target centre');
+    assert.equal(wide.nodes.get('small').active, true);
+    wide.dispose();
+    let resets, destroyedOnReset = 0;
+    resets = create({nodes: [{id: 'target', kind: 'entity', position: [5, 0, 0], behavior: 'destroy'}]}, simpleHost({}, {
+        destroyNode: () => destroyedOnReset++,
+        event: name => {if (name === 'projectile_hit') resets.reset();},
+    }));
+    resets.spawnProjectile({position: [0, 0, 0], direction: [1, 0, 0], speed: 600});
+    resets.step(50);
+    assert.equal(destroyedOnReset, 1, 'an event-triggered reset cannot destroy a consumed projectile twice');
+    assert.equal(resets.nodes.size, 1);
+    resets.dispose();
+
+    for (const [speed, frame, target] of [[240, 16, 101], [1000, 250, .2]]) {
+        const patrol = create({nodes: [{id: 'guard', kind: 'entity', position: [0, 0, 0],
+            behavior: {type: 'patrol', points: [[target, 0, 0], [0, 0, 0]], speed}}]}, simpleHost({}));
+        const positions = [];
+        for (let i = 0; i < 100; i++) {
+            patrol.step(frame);
+            positions.push(patrol.nodes.get('guard').object.x);
+        }
+        assert(positions.includes(target) && positions.includes(0), 'patrol reaches both waypoints');
+        assert(positions.every(x => x >= 0 && x <= target), 'patrol cannot overshoot its route');
+        patrol.dispose();
+    }
+    const blocked = create({nodes: [{id: 'guard', kind: 'entity', position: [0, 0, 0],
+        behavior: {type: 'patrol', points: [[1, 0, 0], [0, 0, 0]], speed: 1000}}]}, simpleHost({}, {canMove: () => false}));
+    blocked.step(50);
+    assert.equal(blocked.nodes.get('guard').routeIndex, 0, 'blocked movement must not complete a waypoint');
+    blocked.dispose();
+    const stationary = create({nodes: [{id: 'guard', kind: 'entity', position: [0, 0, 0],
+        behavior: {type: 'patrol', points: [[1, 0, 0], [0, 0, 0]], speed: 1000}}]}, simpleHost({}, {move: () => {}}));
+    stationary.step(50);
+    assert.equal(stationary.nodes.get('guard').routeIndex, 0, 'only actual arrival completes a waypoint');
+    stationary.dispose();
+
+    const destroyed = [], ids = new Set();
+    const expires = create({nodes: [{id: 'static', kind: 'entity', position: [50, 0, 0]}]},
+        simpleHost({}, {destroyNode: node => destroyed.push(node.id)}));
+    for (let i = 0; i < 1000; i++) {
+        const id = expires.spawnProjectile({id: 'shot', ttl: .01});
+        assert(!ids.has(id), 'expired projectile IDs must not be reused');
+        ids.add(id);
+        expires.step(50);
+        assert.equal(expires.nodes.size, 1, 'expired dynamic records must be released');
+    }
+    assert.equal(destroyed.length, 1000);
+    expires.reset();
+    assert.equal(expires.nodes.size, 1);
+    expires.dispose();
+    assert.equal(destroyed.length, 1000, 'cleanup must not destroy expired projectiles twice');
+}
+console.log('2D/3D projectile ordering, piercing, cleanup and patrol regressions passed');
