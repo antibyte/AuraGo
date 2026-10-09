@@ -21,6 +21,7 @@ var nonPublicURLPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("172.16.0.0/12"),
 	netip.MustParsePrefix("192.0.0.0/24"),
 	netip.MustParsePrefix("192.0.2.0/24"),
+	netip.MustParsePrefix("192.88.99.0/24"),
 	netip.MustParsePrefix("192.168.0.0/16"),
 	netip.MustParsePrefix("198.18.0.0/15"),
 	netip.MustParsePrefix("198.51.100.0/24"),
@@ -34,11 +35,20 @@ var nonPublicURLPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("64:ff9b:1::/48"),
 	netip.MustParsePrefix("2002::/16"),
 	netip.MustParsePrefix("2001::/32"),
+	netip.MustParsePrefix("2001:2::/48"),
+	netip.MustParsePrefix("2001:10::/28"),
 	netip.MustParsePrefix("fc00::/7"),
 	netip.MustParsePrefix("fe80::/10"),
 	netip.MustParsePrefix("ff00::/8"),
 	netip.MustParsePrefix("2001:db8::/32"),
+	netip.MustParsePrefix("3fff::/20"),
 }
+
+// ipv6GlobalUnicastPrefix is the only IPv6 block IANA allocates for global
+// unicast. Everything outside it is reserved or scoped, for example
+// site-local fec0::/10, discard-only 100::/64, SIIT ::ffff:0:0:0/96 and
+// SRv6 SIDs 5f00::/16.
+var ipv6GlobalUnicastPrefix = netip.MustParsePrefix("2000::/3")
 
 // ValidatePublicHTTPURL accepts only HTTP(S) URLs whose host resolves entirely
 // to publicly routable addresses. Unlike ValidateSSRF, this strict validator
@@ -92,6 +102,9 @@ func isStrictPublicIP(ip net.IP) bool {
 	}
 	addr = addr.Unmap()
 	if !addr.IsGlobalUnicast() {
+		return false
+	}
+	if addr.Is6() && !ipv6GlobalUnicastPrefix.Contains(addr) {
 		return false
 	}
 	for _, prefix := range nonPublicURLPrefixes {
