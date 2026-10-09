@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -118,5 +119,126 @@ func TestRetroNetHostKeyIsStoredOnceForOwnSSHEntries(t *testing.T) {
 	entries, _ = svc.RetroNetEntries(ctx)
 	if entries[0].HostKey != first {
 		t.Fatalf("a refused call changed the stored key: %+v", entries[0])
+	}
+}
+
+// raceRetroNetHostKeyWrite runs competing once between SetRetroNetHostKey's
+// read and its write.
+func raceRetroNetHostKeyWrite(t *testing.T, competing func()) {
+	t.Helper()
+	var once sync.Once
+	retroNetHostKeyBeforeWrite = func() { once.Do(competing) }
+	t.Cleanup(func() { retroNetHostKeyBeforeWrite = nil })
+}
+
+func TestRetroNetHostKeyDoesNotRestoreAConcurrentlyDeletedEntry(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.SetSetting(ctx, retronet.EntriesSetting, retroNetTestEntries, SourceUser); err != nil {
+		t.Fatal(err)
+	}
+	withoutFirst := strings.Replace(retroNetTestEntries,
+		`{"id":"own-sshgame01","name":"SSH Game","protocol":"ssh","host":"game.example.com","port":2222,"user":"guest"},`, "", 1)
+	raceRetroNetHostKeyWrite(t, func() {
+		if err := svc.SetSetting(ctx, retronet.EntriesSetting, withoutFirst, SourceUser); err != nil {
+			t.Errorf("competing delete: %v", err)
+		}
+	})
+	if err := svc.SetRetroNetHostKey(ctx, "own-sshgame01", "SHA256:"+strings.Repeat("A", 43)); err == nil {
+		t.Fatal("a host key was stored for an entry deleted during the update")
+	}
+	entries, err := svc.RetroNetEntries(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 || entries[0].ID != "own-sshgame02" || entries[0].HostKey != "" {
+		t.Fatalf("the concurrent deletion was overwritten: %+v", entries)
+	}
+}
+
+func TestRetroNetHostKeyKeepsAConcurrentUnrelatedEdit(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.SetSetting(ctx, retronet.EntriesSetting, retroNetTestEntries, SourceUser); err != nil {
+		t.Fatal(err)
+	}
+	edited := strings.Replace(retroNetTestEntries, `"name":"Telnet BBS"`, `"name":"Edited BBS"`, 1)
+	raceRetroNetHostKeyWrite(t, func() {
+		if err := svc.SetSetting(ctx, retronet.EntriesSetting, edited, SourceUser); err != nil {
+			t.Errorf("competing edit: %v", err)
+		}
+	})
+	fingerprint := "SHA256:" + strings.Repeat("A", 43)
+	if err := svc.SetRetroNetHostKey(ctx, "own-sshgame01", fingerprint); err != nil {
+		t.Fatalf("the host key was not stored after a lost race: %v", err)
+	}
+	entries, err := svc.RetroNetEntries(ctx)
+	if err != nil || len(entries) != 3 {
+		t.Fatalf("stored entries = %+v, %v", entries, err)
+	}
+	if entries[0].HostKey != fingerprint {
+		t.Fatalf("host key lost: %+v", entries[0])
+	}
+	if entries[2].Name != "Edited BBS" {
+		t.Fatalf("the concurrent edit was reverted: %+v", entries[2])
+	}
+}
+
+func TestCompareAndSetSettingHandlesNeverSavedAndStaleValues(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+	key := retronet.EntriesSetting
+	edited := strings.Replace(retroNetTestEntries, `"name":"Telnet BBS"`, `"name":"Edited BBS"`, 1)
+
+	if ok, err := svc.compareAndSetSetting(ctx, key, retroNetTestEntries, edited, SourceUser); err != nil || ok {
+		t.Fatalf("a never-saved setting matched a non-default old value: %v, %v", ok, err)
+	}
+	if ok, err := svc.compareAndSetSetting(ctx, key, retronet.DefaultEntriesDocument, retroNetTestEntries, SourceUser); err != nil || !ok {
+		t.Fatalf("a never-saved setting did not match its default: %v, %v", ok, err)
+	}
+	if ok, err := svc.compareAndSetSetting(ctx, key, retronet.DefaultEntriesDocument, edited, SourceUser); err != nil || ok {
+		t.Fatalf("a stale default overwrote the saved value: %v, %v", ok, err)
+	}
+	if _, err := svc.compareAndSetSetting(ctx, key, retroNetTestEntries, `not json`, SourceUser); err == nil {
+		t.Fatal("an invalid value was accepted")
+	}
+	svc.SetReadOnly(true)
+	if _, err := svc.compareAndSetSetting(ctx, key, retroNetTestEntries, edited, SourceUser); err == nil {
+		t.Fatal("a readonly desktop accepted a compare-and-set")
+	}
+	svc.SetReadOnly(false)
+	if ok, err := svc.compareAndSetSetting(ctx, key, retroNetTestEntries, edited, SourceUser); err != nil || !ok {
+		t.Fatalf("a current old value did not match: %v, %v", ok, err)
+	}
+	settings, err := svc.listSettings(ctx)
+	if err != nil || settings[key] != edited {
+		t.Fatalf("stored value = %q, %v", settings[key], err)
+	}
+}
+
+func TestRetroNetHostKeyGivesUpAfterThreeLostRaces(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+	if err := svc.SetSetting(ctx, retronet.EntriesSetting, retroNetTestEntries, SourceUser); err != nil {
+		t.Fatal(err)
+	}
+	races := 0
+	retroNetHostKeyBeforeWrite = func() {
+		races++
+		edited := strings.Replace(retroNetTestEntries, `"name":"Telnet BBS"`, fmt.Sprintf(`"name":"Edited BBS %d"`, races), 1)
+		if err := svc.SetSetting(ctx, retronet.EntriesSetting, edited, SourceUser); err != nil {
+			t.Errorf("competing edit: %v", err)
+		}
+	}
+	t.Cleanup(func() { retroNetHostKeyBeforeWrite = nil })
+	if err := svc.SetRetroNetHostKey(ctx, "own-sshgame01", "SHA256:"+strings.Repeat("A", 43)); err == nil {
+		t.Fatal("a host key was stored although every attempt lost its race")
+	}
+	if races != retroNetHostKeyAttempts {
+		t.Fatalf("attempts = %d, want %d", races, retroNetHostKeyAttempts)
+	}
+	entries, err := svc.RetroNetEntries(ctx)
+	if err != nil || entries[0].HostKey != "" || entries[2].Name != "Edited BBS 3" {
+		t.Fatalf("stored entries = %+v, %v", entries, err)
 	}
 }

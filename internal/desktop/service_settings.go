@@ -36,6 +36,52 @@ func (s *Service) SetSetting(ctx context.Context, key, value, source string) err
 	return nil
 }
 
+// compareAndSetSetting stores one validated desktop setting only while its
+// stored value is still old; a never-saved setting matches its default. It
+// reports false without writing when another writer changed the setting first.
+func (s *Service) compareAndSetSetting(ctx context.Context, key, old, value, source string) (bool, error) {
+	if err := s.ensureReady(ctx); err != nil {
+		return false, err
+	}
+	if s.Config().ReadOnly {
+		return false, fmt.Errorf("virtual desktop is read-only")
+	}
+	key = strings.TrimSpace(key)
+	old = strings.TrimSpace(old)
+	value = strings.TrimSpace(value)
+	if err := validateDesktopSetting(key, value); err != nil {
+		return false, err
+	}
+	db := s.getDB()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	result, err := db.ExecContext(ctx, `UPDATE desktop_settings SET value = ?, updated_at = ? WHERE key = ? AND value = ?`, value, now, key, old)
+	if err != nil {
+		return false, fmt.Errorf("save desktop setting: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("save desktop setting: %w", err)
+	}
+	if changed == 0 && old == DesktopSettingDefaults()[key] {
+		// A setting without a row reads as its default: insert only while no row exists.
+		result, err = db.ExecContext(ctx, `INSERT INTO desktop_settings(key, value, updated_at)
+			VALUES(?, ?, ?)
+			ON CONFLICT(key) DO NOTHING`, key, value, now)
+		if err != nil {
+			return false, fmt.Errorf("save desktop setting: %w", err)
+		}
+		if changed, err = result.RowsAffected(); err != nil {
+			return false, fmt.Errorf("save desktop setting: %w", err)
+		}
+	}
+	if changed == 0 {
+		return false, nil
+	}
+	_ = s.Audit(ctx, "set_setting", key, map[string]interface{}{"value": value}, source)
+	s.InvalidateSettings()
+	return true, nil
+}
+
 // SetSettings stores multiple validated desktop settings atomically.
 func (s *Service) SetSettings(ctx context.Context, values map[string]string, source string) error {
 	if err := s.ensureReady(ctx); err != nil {
