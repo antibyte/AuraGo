@@ -263,7 +263,10 @@ count and metalink URL per variant. The install body is one JSON object of at mo
 `confirm_unknown_space` answers the unknown-free-space question. Success is
 `202 {"status":"accepted"}`; cancel answers `{"status":"cancelled"}` and delete
 `{"status":"deleted"}`. Content paths are names inside the ZIM file, never
-file-system paths. HTML content is sent with a sandboxing Content-Security-Policy
+file-system paths. Content answers carry `Cache-Control: private, no-cache`: the
+browser checks every reuse against the ETag (a quick `304` while the edition is
+unchanged), so after an update or a language change it never shows an article of
+the old edition. HTML content is sent with a sandboxing Content-Security-Policy
 that forbids scripts, plugins (`object-src 'none'`), `<base>` elements
 (`base-uri 'none'`), form submissions and fetches, pings and beacons
 (`connect-src 'none'`). Images and stylesheets the article references on AuraGo

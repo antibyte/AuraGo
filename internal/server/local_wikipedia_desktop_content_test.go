@@ -44,7 +44,7 @@ func TestLocalWikiContentHeaders(t *testing.T) {
 		"Content-Security-Policy": localWikipediaContentCSP,
 		"X-Frame-Options":         "SAMEORIGIN",
 		"X-Content-Type-Options":  "nosniff",
-		"Cache-Control":           "private, max-age=86400",
+		"Cache-Control":           "private, no-cache",
 		"Referrer-Policy":         "no-referrer",
 		"Permissions-Policy":      "attribution-reporting=(), browsing-topics=()",
 		"ETag":                    `"fixture-Berlin"`,
@@ -84,8 +84,15 @@ func TestLocalWikiContentRangeAndConditionalRequests(t *testing.T) {
 	if w.Code != http.StatusPartialContent || w.Body.String() != body[:9] || w.Header().Get("Content-Range") != "bytes 0-8/"+strconv.Itoa(len(body)) {
 		t.Fatalf("range = %d %q %q", w.Code, w.Body.String(), w.Header().Get("Content-Range"))
 	}
-	if w := localWikiContentGet(t, s, backend, "Berlin", map[string]string{"If-None-Match": `"fixture-Berlin"`}); w.Code != http.StatusNotModified || w.Header().Get("Content-Security-Policy") != localWikipediaContentCSP {
-		t.Fatalf("If-None-Match = %d csp=%q", w.Code, w.Header().Get("Content-Security-Policy"))
+	if w := localWikiContentGet(t, s, backend, "Berlin", map[string]string{"If-None-Match": `"fixture-Berlin"`}); w.Code != http.StatusNotModified ||
+		w.Header().Get("Content-Security-Policy") != localWikipediaContentCSP || w.Header().Get("Cache-Control") != "private, no-cache" {
+		t.Fatalf("If-None-Match = %d csp=%q cache=%q", w.Code, w.Header().Get("Content-Security-Policy"), w.Header().Get("Cache-Control"))
+	}
+	// A browser revalidating the copy of another edition (its ETag carries
+	// that edition's UUID) gets the current article, never a 304.
+	if w := localWikiContentGet(t, s, backend, "Berlin", map[string]string{"If-None-Match": `"old-edition-Berlin"`}); w.Code != http.StatusOK || w.Body.String() != body ||
+		w.Header().Get("Cache-Control") != "private, no-cache" {
+		t.Fatalf("stale If-None-Match = %d %q cache=%q", w.Code, w.Body.String(), w.Header().Get("Cache-Control"))
 	}
 	w = localWikiContentGet(t, s, backend, "Berlin", map[string]string{"Range": "bytes=0-3", "If-Range": `"stale"`})
 	if w.Code != http.StatusOK || w.Body.String() != body {

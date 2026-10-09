@@ -392,15 +392,22 @@ func (s *Server) serveLocalWikiContent(w http.ResponseWriter, r *http.Request, r
 	header := w.Header()
 	setLocalWikiContentHeaders(header)
 	header.Set("Content-Type", mimeType)
-	// Overrides the authenticated no-store default: the blob cannot change
-	// within an edition, and the ETag carries the edition UUID.
-	header.Set("Cache-Control", "private, max-age=86400")
+	// Overrides the authenticated no-store default, but every reuse
+	// revalidates: the same path can name another blob after an update or a
+	// language change, and a max-age would keep serving the old edition's
+	// article. The ETag carries the edition UUID, so an unchanged edition
+	// answers the revalidation with 304.
+	header.Set("Cache-Control", localWikiContentCacheControl)
 	header.Del("Pragma")
 	if item.ETag != "" {
 		header.Set("ETag", item.ETag)
 	}
 	http.ServeContent(w, r, "", time.Time{}, item.Reader)
 }
+
+// localWikiContentCacheControl lets the browser keep a blob but revalidate it
+// (If-None-Match against the edition-bound ETag) before every reuse.
+const localWikiContentCacheControl = "private, no-cache"
 
 // localWikiContentPermissionsPolicy switches off the ad measurement APIs for
 // ZIM documents; the middleware's hardware policies stay in place.
