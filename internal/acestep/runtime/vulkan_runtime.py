@@ -150,10 +150,19 @@ def render(request):
         if not isinstance(enriched, list) or len(enriched) != 1 or not isinstance(enriched[0], dict):
             raise RuntimeError('acestep_invalid_result')
         # Only generated music content crosses this boundary. Never forward paths/options.
-        for key in ('audio_codes', 'lyrics'):
+        for key in ('audio_codes', 'lyrics', 'bpm', 'keyscale', 'timesignature', 'vocal_language'):
+            if key not in enriched[0]: continue
+            if key != 'audio_codes' and (request.get(key, '').strip() if key != 'bpm' else request.get(key, 0)): continue
             value = enriched[0].get(key, '')
-            if not isinstance(value, str) or len(value) > 100000: raise RuntimeError('acestep_invalid_result')
-            if key == 'audio_codes' or not request['lyrics'].strip(): request[key] = value
+            if key == 'bpm':
+                valid = type(value) is int and (value == 0 or 30 <= value <= 300)
+            elif key == 'vocal_language':
+                valid = isinstance(value, str) and (not value or value == 'unknown' or re.fullmatch(r'[a-z]{2,3}(-[A-Za-z]{2,4})?', value))
+            else:
+                limit = 100000 if key == 'audio_codes' else 32000 if key == 'lyrics' else 32
+                valid = isinstance(value, str) and len(value.encode()) <= limit
+            if not valid: raise RuntimeError('acestep_invalid_result')
+            request[key] = value
     raw, content_type = native_job('/synth', request)
     message = BytesParser(policy=email_policy).parsebytes(('Content-Type: ' + content_type + '\r\n\r\n').encode() + raw)
     if message.get_content_type() != 'multipart/mixed': raise RuntimeError('acestep_invalid_audio_result')
@@ -188,9 +197,14 @@ def stop_worker():
 
 def run_job(job, request):
     try:
+        auto_lyrics = not request['lyrics'].strip()
         path, duration = render(request)
+        lyrics = request['lyrics']
+        instrumental = lyrics.strip() == '[Instrumental]'
         result = json.dumps([{'file': '/v1/audio?' + urlencode({'path': str(path)}),
-                              'status': 1, 'metas': {'duration': duration}}])
+                              'status': 1, 'metas': {'duration': duration, 'lyrics': '' if instrumental else lyrics,
+                                                   'vocal_language': '' if instrumental else request['vocal_language'],
+                                                   'auto_lyrics': auto_lyrics and bool(lyrics.strip()) and not instrumental}}])
         with LOCK: job.update(status=1, result=result, path=str(path)); STATE['state'] = 'ready'
     except Exception:
         stop_worker()  # Do not leave unobserved native inference running after failure.

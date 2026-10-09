@@ -14,6 +14,50 @@ import patch_vulkan
 
 
 class VulkanContract(unittest.TestCase):
+    def test_lm_metadata_reaches_synth_and_private_result(self):
+        generated = {'audio_codes': '1 2 3', 'lyrics': '[Verse]\nHallo Welt', 'bpm': 128,
+                     'keyscale': 'C minor', 'timesignature': '4/4', 'vocal_language': 'de',
+                     'caption': 'model caption', 'duration': 10, 'seed': 42, 'vae': '/evil',
+                     'synth_model': 'foreign', 'inference_steps': 999}
+        for explicit in ({}, {'lyrics': 'Own lyrics', 'bpm': 90, 'vocal_language': 'en'},
+                         {'lyrics': '[Instrumental]', 'bpm': 80, 'vocal_language': 'de'}):
+            with self.subTest(explicit=explicit), tempfile.TemporaryDirectory() as directory:
+                request = runtime.generation_request({'prompt': 'Epic orchestra', 'audio_duration': 120, **explicit}, self.profile())
+                original = request.copy()
+                synth = []
+                def native(path, body):
+                    if path == '/lm': return json.dumps([generated]).encode(), 'application/json'
+                    synth.append(body.copy())
+                    return b'--test\r\nContent-Type: audio/mpeg\r\n\r\nID3fixture\r\n--test--\r\n', 'multipart/mixed; boundary=test'
+                job = {}
+                with patch.object(runtime, 'PROFILE', {'lm_model': 'fixture'}), patch.object(runtime, 'AUDIO', Path(directory)), \
+                     patch.object(runtime, 'native_job', side_effect=native), \
+                     patch.object(runtime.subprocess, 'run', return_value=Mock(returncode=0, stdout=b'120')):
+                    runtime.run_job(job, request)
+                self.assertEqual(job['status'], 1)
+                for key in ('caption', 'duration', 'seed', 'vae', 'synth_model', 'inference_steps'):
+                    self.assertEqual(synth[0][key], original[key])
+                for key in ('lyrics', 'bpm', 'vocal_language'):
+                    self.assertEqual(synth[0][key], explicit.get(key, generated[key]))
+                for key in ('audio_codes', 'keyscale', 'timesignature'):
+                    self.assertEqual(synth[0][key], generated[key])
+                meta = json.loads(job['result'])[0]['metas']
+                instrumental = explicit.get('lyrics') == '[Instrumental]'
+                self.assertEqual(meta['lyrics'], '' if instrumental else explicit.get('lyrics', generated['lyrics']))
+                self.assertEqual(meta['vocal_language'], '' if instrumental else explicit.get('vocal_language', 'de'))
+                self.assertEqual(meta['auto_lyrics'], not explicit)
+
+    def test_lm_rejects_invalid_music_fields(self):
+        for field, value in [('bpm', True), ('bpm', 301), ('bpm', '120'), ('lyrics', 'x' * 32001),
+                             ('audio_codes', []), ('keyscale', {}), ('timesignature', 'x' * 33),
+                             ('vocal_language', '../../de')]:
+            with self.subTest(field=field, value=type(value).__name__), \
+                 patch.object(runtime, 'PROFILE', {'lm_model': 'fixture'}), \
+                 patch.object(runtime, 'native_job', return_value=(json.dumps([{field: value}]).encode(), 'application/json')) as native:
+                request = runtime.generation_request({'prompt': 'Music'}, self.profile())
+                with self.assertRaisesRegex(RuntimeError, 'invalid_result'): runtime.render(request)
+                self.assertEqual(native.call_count, 1)
+
     def profile(self, free=10, conservative=False):
         device = {'id': 'vulkan:0', 'name': 'fixture', 'uuid': '0000:05:00.0', 'driver': 'fixture',
                   'index': 0, 'total_gb': 24, 'free_gb': free, 'verified': True, 'backend': 'vulkan'}
