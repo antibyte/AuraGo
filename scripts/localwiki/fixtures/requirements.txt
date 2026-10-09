@@ -1,0 +1,5 @@
+# python-libzim 3.13.1 bundles libzim 9.8.2 (Xapian 1.4.23, ICU 73.2).
+# Hashes: CPython 3.12 manylinux wheels for x86_64 and aarch64 from PyPI.
+libzim==3.13.1 \
+    --hash=sha256:1f313d5930021efdf1f45ccb4f294a01cfcebcdbba4ae8d1a1aadcea82e8682d \
+    --hash=sha256:53330a5562798627ef0544f804a60e2a168d5f5ffaa25fb59ae78f1e4e5a5873
