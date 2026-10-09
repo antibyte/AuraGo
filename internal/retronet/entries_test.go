@@ -35,6 +35,22 @@ func sshJSON(field, raw string) string {
 	return objectJSON(fields, field, raw)
 }
 
+// jsonEscape returns the JSON escape sequence (backslash, u, four hex digits)
+// of r. Building it at run time keeps escapes out of the source text.
+func jsonEscape(r rune) string {
+	return fmt.Sprintf("\\u%04x", r)
+}
+
+// rawTelnetEntry returns the valid telnet entry with the first occurrence of
+// old (rendered JSON text) replaced, for keys objectJSON cannot render.
+func rawTelnetEntry(old, replacement string) string {
+	base := telnetJSON("", "")
+	if !strings.Contains(base, old) {
+		panic("rawTelnetEntry: " + old + " not in " + base)
+	}
+	return strings.Replace(base, old, replacement, 1)
+}
+
 // objectJSON renders fields in a fixed order; raw "" deletes the field.
 func objectJSON(fields map[string]string, field, raw string) string {
 	if field != "" {
@@ -180,6 +196,31 @@ func TestValidateEntriesDocumentRejectsInvalidDocuments(t *testing.T) {
 		"ssh host key short":          entriesDoc(sshJSON("host_key", `"SHA256:abc"`)),
 		"ssh host key padded":         entriesDoc(sshJSON("host_key", `"SHA256:aOOORrmRW4l88GHLFfyFPI/dJFqpE/iwZs3soZHr5LY="`)),
 		"ssh host key without prefix": entriesDoc(sshJSON("host_key", `"aOOORrmRW4l88GHLFfyFPI/dJFqpE/iwZs3soZHr5LY"`)),
+
+		// Keys must be exact: Go's decoder folds key case, so these would
+		// otherwise validate one value and store another.
+		"duplicate entry key":             entriesDoc(rawTelnetEntry(`"host":"bbs.example.org"`, `"host":"bbs.example.org","host":"other.example.org"`)),
+		"duplicate key hides bad value":   entriesDoc(rawTelnetEntry(`"host":"bbs.example.org"`, `"host":"<img src=x>","host":"bbs.example.org"`)),
+		"uppercase HOST key":              entriesDoc(rawTelnetEntry(`"host":"bbs.example.org"`, `"host":"<img src=x>","HOST":"bbs.example.org"`)),
+		"folded long s key":               entriesDoc(rawTelnetEntry(`"host":"bbs.example.org"`, `"host":"<img src=x>","ho`+string(rune(0x17f))+`t":"bbs.example.org"`)),
+		"mixed case Name key":             entriesDoc(rawTelnetEntry(`"name":"My BBS"`, `"Name":"My BBS"`)),
+		"escaped duplicate entry key":     entriesDoc(rawTelnetEntry(`"host":"bbs.example.org"`, `"host":"bbs.example.org","h`+jsonEscape('o')+`st":"other.example.org"`)),
+		"capitalised Version key":         `{"Version":1,"entries":[]}`,
+		"uppercase ENTRIES key":           `{"version":1,"ENTRIES":[]}`,
+		"duplicate version key":           `{"version":1,"version":1,"entries":[]}`,
+		"duplicate entries key":           `{"version":1,"entries":[],"entries":[]}`,
+		"duplicate entries key non-empty": `{"version":1,"entries":[` + validTelnetJSON + `],"entries":[]}`,
+		"unknown nested key":              entriesDoc(rawTelnetEntry(`"host":"bbs.example.org"`, `"host":"bbs.example.org","unknown":1`)),
+		"object as field value":           entriesDoc(telnetJSON("name", `{"a":"My BBS"}`)),
+		"array as field value":            entriesDoc(telnetJSON("name", `["My BBS"]`)),
+		"object as version":               `{"version":{"a":1},"entries":[]}`,
+		"array as version":                `{"version":[1],"entries":[]}`,
+		"entries is an object":            `{"version":1,"entries":{}}`,
+		"entry is an array":               `{"version":1,"entries":[[]]}`,
+		"entry is a scalar":               `{"version":1,"entries":[1]}`,
+		"nested array of entries":         `{"version":1,"entries":[[` + validTelnetJSON + `]]}`,
+		"document is an array":            `[]`,
+		"document is a scalar":            `1`,
 	}
 	for name, value := range invalid {
 		t.Run(name, func(t *testing.T) {

@@ -109,6 +109,9 @@ func decodeEntriesDocument(value string) ([]storedEntry, error) {
 	if len(value) > MaxEntriesDocumentSize || !utf8.ValidString(value) {
 		return nil, errInvalidEntries
 	}
+	if !hasExactKeys(value) {
+		return nil, errInvalidEntries
+	}
 	dec := json.NewDecoder(strings.NewReader(value))
 	dec.DisallowUnknownFields()
 	var doc entriesDocument
@@ -132,6 +135,109 @@ func decodeEntriesDocument(value string) ([]storedEntry, error) {
 		seen[s.ID] = struct{}{}
 	}
 	return doc.Entries, nil
+}
+
+// Exact field names of the stored document, used by hasExactKeys.
+var (
+	documentKeys = map[string]bool{"version": true, "entries": true}
+	entryKeys    = map[string]bool{
+		"id": true, "name": true, "description": true, "protocol": true, "host": true,
+		"port": true, "kind": true, "charset": true, "user": true, "host_key": true,
+	}
+)
+
+// hasExactKeys walks the first JSON value of value and reports whether every
+// object key is exactly a stored field name, no key repeats within an object,
+// and no object or array appears where the document has none. encoding/json
+// folds key case ("HOST", "hoſt" and "host" are one field there), so without
+// this walk a document could carry one value for the validator and another
+// in the raw string that the browser parses. Syntax errors report false.
+func hasExactKeys(value string) bool {
+	dec := json.NewDecoder(strings.NewReader(value))
+	if !expectDelim(dec, '{') {
+		return false
+	}
+	seen := map[string]bool{}
+	for dec.More() {
+		key, ok := nextKey(dec, documentKeys, seen)
+		if !ok {
+			return false
+		}
+		if key != "entries" {
+			if !scalarValue(dec) {
+				return false
+			}
+			continue
+		}
+		tok, err := dec.Token()
+		if err != nil {
+			return false
+		}
+		if tok == nil {
+			continue // null: the document rules reject it
+		}
+		if d, isDelim := tok.(json.Delim); !isDelim || d != '[' {
+			return false
+		}
+		for dec.More() {
+			if !hasExactEntryKeys(dec) {
+				return false
+			}
+		}
+		if !expectDelim(dec, ']') {
+			return false
+		}
+	}
+	return expectDelim(dec, '}')
+}
+
+// hasExactEntryKeys checks one element of the entries array.
+func hasExactEntryKeys(dec *json.Decoder) bool {
+	if !expectDelim(dec, '{') {
+		return false
+	}
+	seen := map[string]bool{}
+	for dec.More() {
+		if _, ok := nextKey(dec, entryKeys, seen); !ok || !scalarValue(dec) {
+			return false
+		}
+	}
+	return expectDelim(dec, '}')
+}
+
+// nextKey reads an object key and accepts it only if it is in allowed and not
+// yet in seen.
+func nextKey(dec *json.Decoder, allowed, seen map[string]bool) (string, bool) {
+	tok, err := dec.Token()
+	if err != nil {
+		return "", false
+	}
+	key, isString := tok.(string)
+	if !isString || !allowed[key] || seen[key] {
+		return "", false
+	}
+	seen[key] = true
+	return key, true
+}
+
+// scalarValue consumes one value and reports false if it is an object or array.
+func scalarValue(dec *json.Decoder) bool {
+	tok, err := dec.Token()
+	if err != nil {
+		return false
+	}
+	_, isDelim := tok.(json.Delim)
+	return !isDelim
+}
+
+// expectDelim consumes one token and reports whether it is the delimiter want.
+func expectDelim(dec *json.Decoder, want json.Delim) bool {
+	tok, err := dec.Token()
+	if err != nil {
+		return false
+	}
+	d, isDelim := tok.(json.Delim)
+	return isDelim && d == want
 }
 
 // entry converts the stored form into an own Entry.
