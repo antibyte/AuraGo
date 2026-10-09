@@ -6,8 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"time"
 
 	"aurago/internal/fileutil"
@@ -18,6 +22,9 @@ const (
 	downloadFileName = "download.json"
 	stateVersion     = 1
 )
+
+// sha256HexPattern is a lower-case hex SHA-256 digest.
+var sha256HexPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // stateFile is <dir>/state.json: the installed edition and housekeeping.
 type stateFile struct {
@@ -36,15 +43,22 @@ type downloadFile struct {
 	StartedAt time.Time `json:"started_at"`
 }
 
+// readState loads <dir>/state.json. A missing file, or one written by a newer
+// AuraGo (unknown version, logged), reads as no state. The installed edition
+// must name a file of the edition pattern and carry a plausible size and a
+// SHA-256; pending deletes that are not bare edition file names are dropped.
 func readState(dir string) (*stateFile, error) {
 	var st stateFile
 	found, err := readJSONFile(filepath.Join(dir, stateFileName), &st)
 	if err != nil || !found {
 		return nil, err
 	}
-	if st.Edition != nil && !zimFileNamePattern.MatchString(st.Edition.FileName) {
-		return nil, fmt.Errorf("state.json names an unexpected file %q", st.Edition.FileName)
+	if st.Edition != nil {
+		if err := validateEdition(*st.Edition); err != nil {
+			return nil, fmt.Errorf("state.json: %w", err)
+		}
 	}
+	st.PendingDelete = sanitizePendingDeletes(st.PendingDelete)
 	return &st, nil
 }
 
@@ -53,14 +67,30 @@ func writeState(dir string, st *stateFile) error {
 	return writeJSONFile(filepath.Join(dir, stateFileName), st)
 }
 
-func readDownload(dir string) (*downloadFile, error) {
+// readDownload loads <dir>/download.json with the same version rule as
+// readState. The target must be a valid edition and every URL (and the last
+// one used) must pass the mirror rules of parseMeta4; trusted hosts (the
+// catalog URL) may be local addresses.
+func readDownload(dir string, trusted ...*url.URL) (*downloadFile, error) {
 	var d downloadFile
 	found, err := readJSONFile(filepath.Join(dir, downloadFileName), &d)
 	if err != nil || !found {
 		return nil, err
 	}
-	if !zimFileNamePattern.MatchString(d.Target.FileName) {
-		return nil, fmt.Errorf("download.json names an unexpected file %q", d.Target.FileName)
+	if err := validateEdition(d.Target); err != nil {
+		return nil, fmt.Errorf("download.json: %w", err)
+	}
+	if len(d.URLs) > maxMirrors {
+		return nil, fmt.Errorf("download.json lists %d mirrors, at most %d are allowed", len(d.URLs), maxMirrors)
+	}
+	urls := d.URLs
+	if d.LastURL != "" {
+		urls = append(slices.Clone(urls), d.LastURL)
+	}
+	for _, raw := range urls {
+		if err := checkMirrorURL(raw, d.Target.FileName, trusted); err != nil {
+			return nil, fmt.Errorf("download.json: %w", err)
+		}
 	}
 	return &d, nil
 }
@@ -81,6 +111,42 @@ func removeIfExists(path string) error {
 	return nil
 }
 
+// validateEdition checks what a persisted edition record must satisfy before
+// the manager trusts it: the on-disk file name pattern, a size in
+// (0, maxEditionBytes] and a lower-case hex SHA-256.
+func validateEdition(e Edition) error {
+	if !zimFileNamePattern.MatchString(e.FileName) {
+		return fmt.Errorf("names an unexpected file %q", e.FileName)
+	}
+	if e.Size <= 0 || e.Size > maxEditionBytes {
+		return fmt.Errorf("%s has an implausible size of %d bytes", e.FileName, e.Size)
+	}
+	if !sha256HexPattern.MatchString(e.SHA256) {
+		return fmt.Errorf("%s has no valid SHA-256", e.FileName)
+	}
+	return nil
+}
+
+// sanitizePendingDeletes keeps the entries that are bare edition file names
+// (no separators, no "..") once each; the rest is logged and dropped so the
+// manager can never be steered to delete anything else.
+func sanitizePendingDeletes(names []string) []string {
+	var kept []string
+	for _, name := range names {
+		if !zimFileNamePattern.MatchString(name) {
+			slog.Warn("[LocalWikipedia] Ignoring an invalid pending delete in state.json", "entry", name)
+			continue
+		}
+		if !slices.Contains(kept, name) {
+			kept = append(kept, name)
+		}
+	}
+	return kept
+}
+
+// readJSONFile reads path into target. found is false when the file does not
+// exist or was written by a newer AuraGo: a version above stateVersion is
+// logged and ignored without decoding the rest, whose layout may have changed.
 func readJSONFile(path string, target any) (bool, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -88,6 +154,19 @@ func readJSONFile(path string, target any) (bool, error) {
 	}
 	if err != nil {
 		return false, err
+	}
+	var head struct {
+		Version int `json:"version"`
+	}
+	if err := json.Unmarshal(data, &head); err != nil {
+		return false, fmt.Errorf("parse %s: %w", filepath.Base(path), err)
+	}
+	if head.Version < 0 {
+		return false, fmt.Errorf("parse %s: invalid version %d", filepath.Base(path), head.Version)
+	}
+	if head.Version > stateVersion {
+		slog.Warn("[LocalWikipedia] Ignoring a file written by a newer AuraGo", "file", filepath.Base(path), "version", head.Version)
+		return false, nil
 	}
 	if err := json.Unmarshal(data, target); err != nil {
 		return false, fmt.Errorf("parse %s: %w", filepath.Base(path), err)

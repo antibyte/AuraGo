@@ -3,6 +3,7 @@ package localwiki
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -122,8 +123,16 @@ func (r *libraryRef) acquire() bool {
 	return true
 }
 
+// release gives back one acquire. A release without a matching acquire is a
+// caller bug; it is logged and ignored so the count never goes negative (which
+// would stop the library from ever closing).
 func (r *libraryRef) release() {
 	r.mu.Lock()
+	if r.refs <= 0 {
+		r.mu.Unlock()
+		slog.Error("[LocalWikipedia] Library released more often than it was acquired")
+		return
+	}
 	r.refs--
 	closeNow := r.retired && r.refs == 0 && !r.closed
 	if closeNow {

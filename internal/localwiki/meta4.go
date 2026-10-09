@@ -4,12 +4,28 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
+	"net/netip"
+	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
-const meta4BodyLimit = 8 << 20
+const (
+	meta4BodyLimit = 8 << 20
+
+	// maxEditionBytes bounds the size a metalink or a state file may claim.
+	// The largest Kiwix Wikipedia edition is about 127 GB; anything beyond a
+	// terabyte is hostile or corrupt, and the disk-space math must never see it.
+	maxEditionBytes int64 = 1 << 40
+
+	// maxMirrors bounds how many mirror URLs one edition keeps.
+	maxMirrors = 16
+
+	// defaultMirrorPriority sorts mirrors without a usable priority last.
+	defaultMirrorPriority int64 = 1 << 20
+)
 
 // zimFileNamePattern is the only file name an edition may have on disk.
 var zimFileNamePattern = regexp.MustCompile(`^wikipedia_[a-z]{2,3}_all_(maxi|nopic)_\d{4}-\d{2}[a-z]?\.zim$`)
@@ -33,63 +49,141 @@ type metalinkFile struct {
 		Value string `xml:",chardata"`
 	} `xml:"hash"`
 	URLs []struct {
-		Priority int    `xml:"priority,attr"`
+		// Priority is parsed by hand: one unusable value must not abort the
+		// whole metalink (and a 32-bit int cannot hold every valid one).
+		Priority string `xml:"priority,attr"`
 		Value    string `xml:",chardata"`
 	} `xml:"url"`
 }
 
 // parseMeta4 reads the RFC 5854 metalink Kiwix publishes for an edition: exact
-// size, SHA-256 and the mirror URLs (HTTPS only, ascending priority).
-func parseMeta4(data []byte, wantFile string) (meta4File, error) {
+// size (at most maxEditionBytes), SHA-256 and the mirror URLs.
+//
+// A mirror is kept when it is an HTTPS URL without credentials whose path ends
+// in the edition's file name and whose host is not a loopback, private,
+// link-local or otherwise local address. Hosts of the trusted URLs are exempt
+// from the local-address rule: the manager passes the catalog URL, which tests
+// point at a local fake Kiwix. Mirrors are de-duplicated, ordered by ascending
+// priority and capped at maxMirrors. Conflicting SHA-256 values and a file
+// listed twice are rejected.
+func parseMeta4(data []byte, wantFile string, trusted ...*url.URL) (meta4File, error) {
 	var doc metalinkDoc
 	if err := xml.Unmarshal(data, &doc); err != nil {
 		return meta4File{}, fmt.Errorf("parse meta4: %w", err)
 	}
-	for _, file := range doc.Files {
-		name := strings.TrimSpace(file.Name)
-		if name != wantFile {
+	var file *metalinkFile
+	for i := range doc.Files {
+		if strings.TrimSpace(doc.Files[i].Name) != wantFile {
 			continue
 		}
-		if !zimFileNamePattern.MatchString(name) {
-			return meta4File{}, fmt.Errorf("meta4 names an unexpected file %q", name)
+		if file != nil {
+			return meta4File{}, fmt.Errorf("meta4 lists %s more than once", wantFile)
 		}
-		if file.Size <= 0 {
-			return meta4File{}, fmt.Errorf("meta4 for %s has no size", name)
-		}
-		out := meta4File{FileName: name, Size: file.Size}
-		for _, hash := range file.Hashes {
-			if !strings.EqualFold(strings.TrimSpace(hash.Type), "sha-256") {
-				continue
-			}
-			value := strings.ToLower(strings.TrimSpace(hash.Value))
-			if decoded, err := hex.DecodeString(value); err == nil && len(decoded) == 32 {
-				out.SHA256 = value
-			}
-		}
-		if out.SHA256 == "" {
-			return meta4File{}, fmt.Errorf("meta4 for %s has no SHA-256", name)
-		}
-		type mirror struct {
-			priority int
-			url      string
-		}
-		var mirrors []mirror
-		for _, candidate := range file.URLs {
-			value := strings.TrimSpace(candidate.Value)
-			if _, err := requireHTTPS(value); err != nil {
-				continue
-			}
-			priority := candidate.Priority
-			if priority <= 0 {
-				priority = 1 << 20
-			}
-			mirrors = append(mirrors, mirror{priority: priority, url: value})
-		}
-		sort.SliceStable(mirrors, func(i, j int) bool { return mirrors[i].priority < mirrors[j].priority })
-		for _, m := range mirrors {
-			out.URLs = append(out.URLs, m.url)
-		}
-		return out, nil
+		file = &doc.Files[i]
 	}
-	return meta4File{}, fmt.Errorf("meta4 does not describe %s", wantFile)
+	if file == nil {
+		return meta4File{}, fmt.Errorf("meta4 does not describe %s", wantFile)
+	}
+	name := wantFile
+	if !zimFileNamePattern.MatchString(name) {
+		return meta4File{}, fmt.Errorf("meta4 names an unexpected file %q", name)
+	}
+	if file.Size <= 0 {
+		return meta4File{}, fmt.Errorf("meta4 for %s has no size", name)
+	}
+	if file.Size > maxEditionBytes {
+		return meta4File{}, fmt.Errorf("meta4 for %s claims an implausible size of %d bytes", name, file.Size)
+	}
+	out := meta4File{FileName: name, Size: file.Size}
+	for _, hash := range file.Hashes {
+		if !strings.EqualFold(strings.TrimSpace(hash.Type), "sha-256") {
+			continue
+		}
+		value := strings.ToLower(strings.TrimSpace(hash.Value))
+		decoded, err := hex.DecodeString(value)
+		if err != nil || len(decoded) != 32 {
+			continue
+		}
+		if out.SHA256 != "" && out.SHA256 != value {
+			return meta4File{}, fmt.Errorf("meta4 for %s lists conflicting SHA-256 values", name)
+		}
+		out.SHA256 = value
+	}
+	if out.SHA256 == "" {
+		return meta4File{}, fmt.Errorf("meta4 for %s has no SHA-256", name)
+	}
+	type mirror struct {
+		priority int64
+		url      string
+	}
+	var mirrors []mirror
+	seen := make(map[string]bool)
+	for _, candidate := range file.URLs {
+		value := strings.TrimSpace(candidate.Value)
+		if seen[value] || checkMirrorURL(value, name, trusted) != nil {
+			continue
+		}
+		seen[value] = true
+		priority, err := strconv.ParseInt(strings.TrimSpace(candidate.Priority), 10, 64)
+		if err != nil || priority <= 0 {
+			priority = defaultMirrorPriority
+		}
+		mirrors = append(mirrors, mirror{priority: priority, url: value})
+	}
+	sort.SliceStable(mirrors, func(i, j int) bool { return mirrors[i].priority < mirrors[j].priority })
+	if len(mirrors) > maxMirrors {
+		mirrors = mirrors[:maxMirrors]
+	}
+	for _, m := range mirrors {
+		out.URLs = append(out.URLs, m.url)
+	}
+	return out, nil
+}
+
+// checkMirrorURL accepts a download URL for fileName: HTTPS without
+// credentials, a path ending in "/<fileName>" and a public host. Hosts of the
+// trusted URLs may be local addresses (see parseMeta4).
+func checkMirrorURL(raw, fileName string, trusted []*url.URL) error {
+	parsed, err := requireHTTPS(raw)
+	if err != nil {
+		return err
+	}
+	if !strings.HasSuffix(parsed.Path, "/"+fileName) {
+		return fmt.Errorf("localwiki: mirror %q does not serve %s", raw, fileName)
+	}
+	if !isLocalHost(parsed.Hostname()) {
+		return nil
+	}
+	for _, t := range trusted {
+		if t != nil && strings.EqualFold(parsed.Host, t.Host) {
+			return nil
+		}
+	}
+	return fmt.Errorf("localwiki: mirror %q is a local address", raw)
+}
+
+// carrierGradeNAT is 100.64.0.0/10 (RFC 6598), which netip does not count as private.
+var carrierGradeNAT = netip.MustParsePrefix("100.64.0.0/10")
+
+// thisNetwork is 0.0.0.0/8: "this host" in many stacks.
+var thisNetwork = netip.MustParsePrefix("0.0.0.0/8")
+
+// isLocalHost reports hosts a public mirror never has: localhost names, IP
+// literals in loopback, private, link-local, multicast, unspecified or
+// carrier-grade NAT ranges, and numeric spellings of IPv4 addresses
+// ("2130706433", "0x7f.1") that resolvers expand but netip does not parse.
+// It is purely lexical; a DNS name that resolves to a private address is not
+// detected here.
+func isLocalHost(host string) bool {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	if host == "" || host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	if addr, err := netip.ParseAddr(host); err == nil {
+		addr = addr.Unmap()
+		return addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsMulticast() ||
+			addr.IsUnspecified() || carrierGradeNAT.Contains(addr) || thisNetwork.Contains(addr)
+	}
+	last := host[strings.LastIndex(host, ".")+1:]
+	return strings.HasPrefix(last, "0x") || strings.Trim(last, "0123456789") == ""
 }
