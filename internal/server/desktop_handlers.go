@@ -160,6 +160,7 @@ func (s *Server) enrichDesktopBootstrap(payload *desktop.BootstrapPayload) {
 	policy := s.desktopSerialPolicy(nil)
 	payload.SerialBrowserEnabled = policy.SerialBrowserEnabled
 	payload.SerialHostEnabled = policy.SerialHostEnabled
+	payload.RetroNetEnabled = policy.RetroNetEnabled
 	payload.RemoteMaxSessionMinutes = policy.RemoteMaxSessionMinutes
 	payload.RemoteIdleTimeoutMinutes = policy.RemoteIdleTimeoutMinutes
 }

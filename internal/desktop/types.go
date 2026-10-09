@@ -106,6 +106,7 @@ type BootstrapPayload struct {
 	AllowPythonJobs          bool              `json:"allow_python_jobs"`
 	SerialBrowserEnabled     bool              `json:"serial_browser_enabled"`
 	SerialHostEnabled        bool              `json:"serial_host_enabled"`
+	RetroNetEnabled          bool              `json:"retronet_enabled"`
 	RemoteMaxSessionMinutes  int               `json:"remote_max_session_minutes"`
 	RemoteIdleTimeoutMinutes int               `json:"remote_idle_timeout_minutes"`
 	Workspace                WorkspaceInfo     `json:"workspace"`

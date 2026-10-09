@@ -8,13 +8,15 @@ import (
 	"aurago/internal/desktop"
 )
 
-// Serial capabilities are server-owned so changing a grant never recreates the
-// desktop database/service or grants a generated app access to host devices.
+// Serial and Retro-Net capabilities are server-owned so changing a grant never
+// recreates the desktop database/service or grants a generated app access to
+// host devices or outbound dialing.
 type desktopLivePolicy struct {
 	Enabled                  bool `json:"enabled"`
 	ReadOnly                 bool `json:"readonly"`
 	SerialBrowserEnabled     bool `json:"serial_browser_enabled"`
 	SerialHostEnabled        bool `json:"serial_host_enabled"`
+	RetroNetEnabled          bool `json:"retronet_enabled"`
 	RemoteMaxSessionMinutes  int  `json:"remote_max_session_minutes"`
 	RemoteIdleTimeoutMinutes int  `json:"remote_idle_timeout_minutes"`
 }
@@ -30,6 +32,7 @@ func (s *Server) desktopSerialPolicy(r *http.Request) desktopLivePolicy {
 		policy.Enabled, policy.ReadOnly = cfg.Enabled, cfg.ReadOnly
 		policy.SerialBrowserEnabled = cfg.Enabled && !cfg.ReadOnly && cfg.SerialBrowserEnabled
 		policy.SerialHostEnabled = cfg.Enabled && !cfg.ReadOnly && cfg.SerialHostEnabled
+		policy.RetroNetEnabled = cfg.Enabled && !cfg.ReadOnly && cfg.RetroNetEnabled
 		if cfg.RemoteMaxSessionMinutes > 0 {
 			policy.RemoteMaxSessionMinutes = cfg.RemoteMaxSessionMinutes
 		}
@@ -42,6 +45,7 @@ func (s *Server) desktopSerialPolicy(r *http.Request) desktopLivePolicy {
 		policy.SerialBrowserEnabled, policy.SerialHostEnabled = false, false
 		if token, _ := bearerCredential(r.Header.Get("Authorization")); !desktopTokenHasScope(s, token, desktopScopeWrite) {
 			policy.ReadOnly = true
+			policy.RetroNetEnabled = false
 		}
 	}
 	return policy
