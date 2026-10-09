@@ -204,7 +204,9 @@ type agentLoopState struct {
 
 	useNativeFunctions       bool
 	adaptiveFilteredTools    []string
-	adaptiveAdditiveTools    []string // intent-matched tools offered beyond the adaptive caps
+	adaptiveAdditiveTools    []string        // intent-matched tools offered beyond the adaptive ranking
+	adaptiveInitFiltered     bool            // the first selection already ranked the whole catalog
+	discoverRequestedTools   map[string]bool // tools discover_tools requested during this run
 	nativeSchemaSnapshot     *nativeToolSchemaSnapshot
 	turnSnapshot             *turnContextSnapshot
 	gameMakerDuplicateBlocks int
@@ -633,6 +635,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.nativeSchemaSnapshot = BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, s.currentLogger)
 			all := filterSchemasByAllowedTools(s.nativeSchemaSnapshot.FullSchemas(), runCfg.AllowedTools)
 			requested := ConsumeDiscoverRequestedTools(runCfg.DiscoveryRunID)
+			if len(requested) > 0 && s.discoverRequestedTools == nil {
+				s.discoverRequestedTools = make(map[string]bool, len(requested))
+			}
+			for _, name := range requested {
+				s.discoverRequestedTools[name] = true
+			}
 			available := stringSet(toolSchemaNames(all))
 			var retained []openai.Tool
 			for _, schema := range req.Tools {
@@ -653,13 +661,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				maxAdaptive = 0
 			}
 			filtered := filterToolSchemasWithReport(req.Tools, toolSchemaFilterOptions{
-				PreferredTools:   append(requested, toolSchemaNames(req.Tools)...),
-				HardAlwaysTools:  channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff),
-				SoftAlwaysTools:  cfg.Agent.AdaptiveTools.AlwaysInclude,
-				MaxAdaptiveTools: maxAdaptive,
-				MaxTotalTools:    toolingPolicy.EffectiveMaxTotalTools,
-				MaxSchemaTokens:  toolingPolicy.EffectiveMaxSchemaTokens,
-				AdditiveTools:    s.adaptiveAdditiveTools,
+				PreferredTools:        append(requested, toolSchemaNames(req.Tools)...),
+				HardAlwaysTools:       channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff),
+				SoftAlwaysTools:       cfg.Agent.AdaptiveTools.AlwaysInclude,
+				MaxAdaptiveTools:      maxAdaptive,
+				MaxTotalTools:         toolingPolicy.EffectiveMaxTotalTools,
+				MaxSchemaTokens:       toolingPolicy.EffectiveMaxSchemaTokens,
+				AdditiveTools:         s.adaptiveAdditiveTools,
+				AdaptiveExcludedTools: adaptiveRefreshExcludedTools(s.adaptiveInitFiltered, s.discoverRequestedTools),
 			}, s.currentLogger)
 			req.Tools = filtered.Tools
 		}

@@ -345,6 +345,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 
 	adaptiveFilteredTools := make([]string, 0)
 	var adaptiveAdditiveTools []string
+	adaptiveInitFiltered := false
 	ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 	if voiceOutputSuppressed || speechLabOwnsAutomaticWebChatOutput(cfg, runCfg) {
 		ff.TTSEnabled = false
@@ -391,10 +392,14 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		// managed 4B local model instead receives a deterministic kernel so its
 		// llama.cpp prompt prefix remains reusable between unrelated turns.
 		managedLocalContextBudget := toolingPolicy.ProviderToolProfile == "aurago_local_context"
+		// The intent-matched additive tools also apply when no adaptive first
+		// selection runs; the per-iteration refresh then offers them.
+		adaptiveAdditiveTools = adaptiveAdditiveToolsForQuery(adaptiveUserContext)
 		if runCfg.PreparedPrompt != nil {
 			// Explicit profiles keep their complete, ordered schema set. Hard
 			// scope was intersected above; dispatch still checks live grants.
 		} else if managedLocalContextBudget {
+			adaptiveInitFiltered = true
 			filterResult := stableLocalToolSchemas(ntSchemas, cfg, runCfg, ff, voiceOutputSuppressed, logger)
 			ntSchemas = filterResult.Tools
 			filterReport = filterResult.Report
@@ -452,7 +457,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			// so the next turn can use native function-calling instead of improvising.
 			alwaysInclude = append(alwaysInclude, ConsumeDiscoverRequestedTools(discoveryRunKey(runCfg))...)
 			alwaysInclude = expandAdaptiveAlwaysInclude(cfg, alwaysInclude)
-			adaptiveAdditiveTools = adaptiveAdditiveToolsForQuery(adaptiveUserContext)
+			adaptiveInitFiltered = true
 
 			filterResult := filterToolSchemasWithReport(ntSchemas, toolSchemaFilterOptions{
 				PreferredTools:   prioritized,
@@ -602,6 +607,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.useNativeFunctions = useNativeFunctions
 	s.adaptiveFilteredTools = adaptiveFilteredTools
 	s.adaptiveAdditiveTools = adaptiveAdditiveTools
+	s.adaptiveInitFiltered = adaptiveInitFiltered
 	s.nativeSchemaSnapshot = schemaSnapshot
 	s.isMaintenance = isMaintenance
 	deliverOperationalIssueNotice(&s.operationalIssueNotice, runCfg, broker, logger)

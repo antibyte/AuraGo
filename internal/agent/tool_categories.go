@@ -27,10 +27,6 @@ var discoverToolAliases = map[string]string{
 	"evo map":                "evomap",
 	"wikipedia":              "wikipedia_search",
 	"wiki":                   "wikipedia_search",
-	"local wikipedia":        "local_wikipedia",
-	"offline wikipedia":      "local_wikipedia",
-	"lokale wikipedia":       "local_wikipedia",
-	"kiwix":                  "local_wikipedia",
 	"duckduckgo":             "ddg_search",
 	"duck duck go":           "ddg_search",
 	"ddg":                    "ddg_search",
@@ -42,6 +38,18 @@ var discoverToolAliases = map[string]string{
 	"cad":                    "openscad_render",
 }
 
+// discoverToolNameAliases name optional tools. discover_tools resolves them
+// like discoverToolAliases, but catalog search keeps scoring the query text
+// and only gives the alias target its exact-name bonus
+// (discoverToolNameAlias), so a message such as "offline wikipedia" ranks the
+// catalog exactly as before the alias existed while the tool is off.
+var discoverToolNameAliases = map[string]string{
+	"local wikipedia":   "local_wikipedia",
+	"offline wikipedia": "local_wikipedia",
+	"lokale wikipedia":  "local_wikipedia",
+	"kiwix":             "local_wikipedia",
+}
+
 func resolveDiscoverToolName(name string) string {
 	normalized := strings.ToLower(strings.TrimSpace(name))
 	if normalized == "" {
@@ -50,7 +58,16 @@ func resolveDiscoverToolName(name string) string {
 	if alias, ok := discoverToolAliases[normalized]; ok {
 		return alias
 	}
+	if alias, ok := discoverToolNameAliases[normalized]; ok {
+		return alias
+	}
 	return strings.TrimSpace(name)
+}
+
+// discoverToolNameAlias returns the tool a discoverToolNameAliases entry
+// names, "" when the query is not such an alias.
+func discoverToolNameAlias(query string) string {
+	return discoverToolNameAliases[strings.ToLower(strings.TrimSpace(query))]
 }
 
 // ToolCategoryEntry describes a single tool within a category.

@@ -1159,15 +1159,27 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 		if vdb == nil || len(guides) >= limit {
 			return
 		}
-		paths, err := searchDynamicToolGuides(ctx, vdb, userQuery, 2)
+		const semanticTopK = 2
+		// A non-displacing tool's manual that cannot be shown is dropped
+		// before the cut to semanticTopK, so it never costs another guide its
+		// slot; the extra candidates make up for the dropped ones.
+		paths, err := searchDynamicToolGuides(ctx, vdb, userQuery, semanticTopK+len(NonDisplacingTools))
 		if err != nil {
 			if logger != nil {
 				logger.Debug("[DynamicGuides] Semantic tool guide search unavailable", "error", err)
 			}
 			return
 		}
+		considered := 0
 		for _, match := range paths {
 			p := match.Path
+			if tool := extractToolName(p); IsNonDisplacingManual(tool) && (isSkipped(tool) || !nonDisplacingToolEnabled(tool, strategy.Flags)) {
+				continue
+			}
+			if considered == semanticTopK {
+				break
+			}
+			considered++
 			if len(guides) >= limit {
 				break
 			}

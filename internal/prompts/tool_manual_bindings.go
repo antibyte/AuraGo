@@ -1,6 +1,37 @@
 package prompts
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
+
+// NonDisplacingTools are optional tools that must never take a slot from
+// another tool or guide. The adaptive tool selection offers them only beyond
+// its ranking, and every top-k search over the tool manual index drops their
+// manuals before cutting to k while the manual cannot be used (the tool is
+// disabled or its guide is skipped), so the results are exactly those of an
+// index without these manuals.
+var NonDisplacingTools = []string{"local_wikipedia"}
+
+// IsNonDisplacingManual reports whether a manual ID (as ToolManualID returns
+// it, or a manual file name without ".md") belongs to a NonDisplacingTools tool.
+func IsNonDisplacingManual(manual string) bool {
+	return slices.ContainsFunc(NonDisplacingTools, func(tool string) bool { return ToolManualID(tool) == manual })
+}
+
+// nonDisplacingToolEnabled reports whether the prompt flags enable the
+// NonDisplacingTools tool behind a manual; without flags (callers that do not
+// pass them) only the allowlist decides.
+func nonDisplacingToolEnabled(manual string, flags *ContextFlags) bool {
+	if flags == nil {
+		return true
+	}
+	switch manual {
+	case ToolManualID("local_wikipedia"):
+		return flags.LocalWikipediaEnabled
+	}
+	return true
+}
 
 // ToolManualID records family documentation once for both discovery and guides.
 // Tools with dedicated manuals keep their exact ID.

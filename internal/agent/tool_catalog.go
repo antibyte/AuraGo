@@ -224,7 +224,11 @@ func (c *ToolCatalog) Entries() []*ToolCatalogEntry {
 }
 
 func (c *ToolCatalog) Search(query string) []*ToolCatalogEntry {
-	query = strings.ToLower(strings.TrimSpace(resolveDiscoverToolName(query)))
+	nameAlias := discoverToolNameAlias(query)
+	if nameAlias == "" {
+		query = resolveDiscoverToolName(query)
+	}
+	query = strings.ToLower(strings.TrimSpace(query))
 	if query == "" {
 		return nil
 	}
@@ -238,7 +242,7 @@ func (c *ToolCatalog) Search(query string) []*ToolCatalogEntry {
 	for _, entry := range c.Entries() {
 		text := strings.ToLower(toolCatalogSearchText(entry))
 		score := 0
-		if strings.EqualFold(entry.Name, query) {
+		if strings.EqualFold(entry.Name, query) || (entry.Enabled && entry.Name == nameAlias) {
 			score += 10000
 		}
 		for _, alias := range entry.Aliases {

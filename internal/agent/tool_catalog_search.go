@@ -24,7 +24,10 @@ func (c *ToolCatalog) SearchContext(ctx context.Context, query string, source me
 	}
 	bounded, cancel := context.WithTimeout(ctx, 400*time.Millisecond)
 	defer cancel()
-	matches, err := searcher.SearchToolGuideMatchesContext(bounded, query, 5)
+	// A non-displacing tool that is not enabled loses its manual before the
+	// cut to the top five, so it never costs another tool its slot.
+	const semanticTopK = 5
+	matches, err := searcher.SearchToolGuideMatchesContext(bounded, query, semanticTopK+len(prompts.NonDisplacingTools))
 	if err != nil {
 		return lexical
 	}
@@ -32,8 +35,16 @@ func (c *ToolCatalog) SearchContext(ctx context.Context, query string, source me
 	for _, entry := range lexical {
 		seen[entry.Name] = true
 	}
+	considered := 0
 	for _, match := range matches {
 		manual := strings.TrimSuffix(filepath.Base(match.Path), ".md")
+		if prompts.IsNonDisplacingManual(manual) && !c.enabledManual(manual) {
+			continue
+		}
+		if considered == semanticTopK {
+			break
+		}
+		considered++
 		for _, entry := range c.Entries() {
 			if !seen[entry.Name] && prompts.ToolManualID(entry.Name) == manual {
 				lexical = append(lexical, entry)
@@ -42,4 +53,14 @@ func (c *ToolCatalog) SearchContext(ctx context.Context, query string, source me
 		}
 	}
 	return lexical
+}
+
+// enabledManual reports whether an enabled catalog entry uses the manual.
+func (c *ToolCatalog) enabledManual(manual string) bool {
+	for _, entry := range c.Entries() {
+		if entry.Enabled && prompts.ToolManualID(entry.Name) == manual {
+			return true
+		}
+	}
+	return false
 }

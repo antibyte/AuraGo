@@ -51,46 +51,72 @@ func TestLocalWikipediaDiscoverySurfaces(t *testing.T) {
 	}
 }
 
+// adaptiveProbeBudget is one tool budget of the adaptive selection probe.
+// initFiltered=false is a run without an adaptive first selection (adaptive
+// tools disabled, or no short-term memory): the per-iteration refresh then
+// ranks the whole catalog with refreshAdaptive as its adaptive cap.
+type adaptiveProbeBudget struct {
+	name                   string
+	adaptive, total, token int
+	initFiltered           bool
+	refreshAdaptive        int
+}
+
+var adaptiveProbeBudgets = []adaptiveProbeBudget{
+	{name: "default 10/20/6500", adaptive: 10, total: 20, token: 6500, initFiltered: true, refreshAdaptive: 10},
+	{name: "stability 12/24/6500", adaptive: 12, total: 24, token: 6500, initFiltered: true, refreshAdaptive: 12},
+	{name: "roomy 10/40/-", adaptive: 10, total: 40, initFiltered: true, refreshAdaptive: 10},
+	{name: "adaptive off 20/6500", total: 20, token: 6500},
+	{name: "adaptive off 30/6500", total: 30, token: 6500},
+	{name: "adaptive off 400/-", total: 400},
+	{name: "no short-term memory 10/20/6500", adaptive: 10, total: 20, token: 6500, refreshAdaptive: 10},
+}
+
 // adaptiveSelectionProbe mirrors the production adaptive selection for one
-// user message: the initial filter of initAgentLoopState with the default
-// budget (10 adaptive, 20 total, 6500 schema tokens, default always-include)
-// and the per-iteration refresh of ExecuteAgentLoop. Usage history and the
-// semantic guide search are empty.
-func adaptiveSelectionProbe(t *testing.T, query string, ff ToolFeatureFlags) (initial, refreshed []string) {
+// user message: the first selection of initAgentLoopState (when the budget
+// has one) and the per-iteration refresh of ExecuteAgentLoop. Usage history
+// is empty; guides is the semantic manual search (nil: unavailable).
+func adaptiveSelectionProbe(t *testing.T, query string, ff ToolFeatureFlags, b adaptiveProbeBudget, guides toolGuideSearcher) (initial, refreshed []string) {
 	t.Helper()
 	cfg := &config.Config{}
-	cfg.Agent.AdaptiveTools.Enabled = true
-	cfg.Agent.AdaptiveTools.MaxTools = 10
-	cfg.Agent.AdaptiveTools.MaxTotalTools = 20
-	cfg.Agent.AdaptiveTools.MaxSchemaTokens = 6500
-	cfg.Agent.AdaptiveTools.AlwaysInclude = []string{"filesystem", "query_memory", "manage_memory", "execute_shell"}
+	cfg.Agent.AdaptiveTools.Enabled = b.initFiltered || b.refreshAdaptive > 0
+	cfg.Agent.AdaptiveTools.MaxTools = b.adaptive
+	cfg.Agent.AdaptiveTools.MaxTotalTools = b.total
+	cfg.Agent.AdaptiveTools.MaxSchemaTokens = b.token
+	if cfg.Agent.AdaptiveTools.Enabled {
+		cfg.Agent.AdaptiveTools.AlwaysInclude = []string{"filesystem", "query_memory", "manage_memory", "execute_shell"}
+	}
 	runCfg := RunConfig{Config: cfg}
 	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
 	hard := channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff)
-
-	always := append([]string(nil), cfg.Agent.AdaptiveTools.AlwaysInclude...)
-	always = channelAdaptiveAlwaysInclude(runCfg, always, ff)
-	always = cacheAwareAdaptiveAlwaysInclude(query, always, schemas)
-	always = expandAdaptiveAlwaysInclude(cfg, always)
 	additive := adaptiveAdditiveToolsForQuery(query)
-	first := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
-		PreferredTools:        buildAdaptiveToolPriority(schemas, nil, query, nil, nil),
-		HardAlwaysTools:       hard,
-		SoftAlwaysTools:       always,
-		MaxAdaptiveTools:      cfg.Agent.AdaptiveTools.MaxTools,
-		MaxTotalTools:         cfg.Agent.AdaptiveTools.MaxTotalTools,
-		MaxSchemaTokens:       cfg.Agent.AdaptiveTools.MaxSchemaTokens,
-		AdditiveTools:         additive,
-		AdaptiveExcludedTools: adaptiveIntentOnlyTools,
-	}, nil).Tools
+
+	first := schemas
+	if b.initFiltered {
+		always := append([]string(nil), cfg.Agent.AdaptiveTools.AlwaysInclude...)
+		always = channelAdaptiveAlwaysInclude(runCfg, always, ff)
+		always = cacheAwareAdaptiveAlwaysInclude(query, always, schemas)
+		always = expandAdaptiveAlwaysInclude(cfg, always)
+		first = filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+			PreferredTools:        buildAdaptiveToolPriority(schemas, nil, query, guides, nil),
+			HardAlwaysTools:       hard,
+			SoftAlwaysTools:       always,
+			MaxAdaptiveTools:      b.adaptive,
+			MaxTotalTools:         b.total,
+			MaxSchemaTokens:       b.token,
+			AdditiveTools:         additive,
+			AdaptiveExcludedTools: adaptiveIntentOnlyTools,
+		}, nil).Tools
+	}
 	second := filterToolSchemasWithReport(first, toolSchemaFilterOptions{
-		PreferredTools:   toolSchemaNames(first),
-		HardAlwaysTools:  hard,
-		SoftAlwaysTools:  cfg.Agent.AdaptiveTools.AlwaysInclude,
-		MaxAdaptiveTools: cfg.Agent.AdaptiveTools.MaxTools,
-		MaxTotalTools:    cfg.Agent.AdaptiveTools.MaxTotalTools,
-		MaxSchemaTokens:  cfg.Agent.AdaptiveTools.MaxSchemaTokens,
-		AdditiveTools:    additive,
+		PreferredTools:        toolSchemaNames(first),
+		HardAlwaysTools:       hard,
+		SoftAlwaysTools:       cfg.Agent.AdaptiveTools.AlwaysInclude,
+		MaxAdaptiveTools:      b.refreshAdaptive,
+		MaxTotalTools:         b.total,
+		MaxSchemaTokens:       b.token,
+		AdditiveTools:         additive,
+		AdaptiveExcludedTools: adaptiveRefreshExcludedTools(b.initFiltered, nil),
 	}, nil).Tools
 	return sortedToolNames(first), sortedToolNames(second)
 }
@@ -101,41 +127,134 @@ func sortedToolNames(schemas []openai.Tool) []string {
 	return names
 }
 
+// assertOnlyLocalWikipediaAdded checks that enabling local_wikipedia changed
+// a selection only by adding local_wikipedia, and only for an intent query.
+func assertOnlyLocalWikipediaAdded(t *testing.T, label string, baseline, enabled []string, intent bool, total int) {
+	t.Helper()
+	without := slices.DeleteFunc(slices.Clone(enabled), func(name string) bool { return name == "local_wikipedia" })
+	if !slices.Equal(without, baseline) {
+		t.Errorf("%s: enabling local_wikipedia changed the other tools\nenabled  %v\nbaseline %v", label, enabled, baseline)
+	}
+	if !intent && len(without) != len(enabled) {
+		t.Errorf("%s: local_wikipedia offered without an encyclopedia intent", label)
+	}
+	if total > 0 && len(enabled) > total && len(enabled) > len(baseline) {
+		t.Errorf("%s: %d tools exceed the cap of %d", label, len(enabled), total)
+	}
+}
+
+var localWikipediaProbeQueries = map[string]bool{
+	"schick mir den wikipedia artikel über berlin per email": true,
+	"lies mir den wikipedia artikel als audio vor":           true,
+	"wikipedia proxmox":                           true,
+	"ping the wikipedia server":                   true,
+	"schedule a daily wikipedia summary":          true,
+	"Was steht im Lexikon über die Enzyklopädie?": true,
+	"offline wikipedia":                           true,
+	"lokale wikipedia":                            true,
+	"local wikipedia":                             true,
+	"kiwix":                                       true,
+	"zeige mir die cpu auslastung":                false,
+	"read the server logs and summarise them":     false,
+	"starte den docker container neu":             false,
+	"search the web for golang news":              false,
+}
+
 // TestLocalWikipediaOnlyAddsToTheAdaptiveSelection: with local_wikipedia
 // enabled a query is offered exactly the tools it gets without it, plus
-// local_wikipedia when it asks for Wikipedia or an encyclopedia. The
-// baseline does not depend on the flag, so it is the selection before the
-// tool existed; the other queries cover catalog matches on short words
-// ("die" in "Enzyklopädie", "read", "server").
+// local_wikipedia when it asks for Wikipedia or an encyclopedia and the
+// budget has room. The baseline does not depend on the flag, so it is the
+// selection before the tool existed; the other queries cover catalog matches
+// on short words ("die" in "Enzyklopädie", "read", "server").
 func TestLocalWikipediaOnlyAddsToTheAdaptiveSelection(t *testing.T) {
-	enabled := allBuiltinToolFeatureFlags()
-	enabled.LocalWikipediaEnabled = true
-	baseline := enabled
-	baseline.LocalWikipediaEnabled = false
-	for query, offered := range map[string]bool{
-		"schick mir den wikipedia artikel über berlin per email": true,
-		"lies mir den wikipedia artikel als audio vor":           true,
-		"wikipedia proxmox":                           true,
-		"ping the wikipedia server":                   true,
-		"schedule a daily wikipedia summary":          true,
-		"Was steht im Lexikon über die Enzyklopädie?": true,
-		"zeige mir die cpu auslastung":                false,
-		"read the server logs and summarise them":     false,
-		"starte den docker container neu":             false,
-		"search the web for golang news":              false,
-	} {
-		baseInitial, baseRefreshed := adaptiveSelectionProbe(t, query, baseline)
-		initial, refreshed := adaptiveSelectionProbe(t, query, enabled)
-		for stage, pair := range map[string][2][]string{"initial": {baseInitial, initial}, "refreshed": {baseRefreshed, refreshed}} {
-			want := slices.Clone(pair[0])
-			if offered {
-				want = append(want, "local_wikipedia")
-				slices.Sort(want)
-			}
-			if !slices.Equal(pair[1], want) {
-				t.Errorf("%q %s: enabled offers %v\nbaseline offers %v", query, stage, pair[1], pair[0])
+	for flagsName, enabled := range localWikipediaProbeFlagSets() {
+		enabled.LocalWikipediaEnabled = true
+		baseline := enabled
+		baseline.LocalWikipediaEnabled = false
+		for _, b := range adaptiveProbeBudgets {
+			for query, intent := range localWikipediaProbeQueries {
+				label := flagsName + " " + b.name
+				baseInitial, baseRefreshed := adaptiveSelectionProbe(t, query, baseline, b, nil)
+				initial, refreshed := adaptiveSelectionProbe(t, query, enabled, b, nil)
+				if b.initFiltered {
+					assertOnlyLocalWikipediaAdded(t, label+" initial "+query, baseInitial, initial, intent, b.total)
+				}
+				assertOnlyLocalWikipediaAdded(t, label+" refreshed "+query, baseRefreshed, refreshed, intent, b.total)
+				if intent && b.total >= 40 && b.token == 0 && !containsName(refreshed, "local_wikipedia") {
+					t.Errorf("%s %q: local_wikipedia not offered although the budget has room", label, query)
+				}
 			}
 		}
+	}
+}
+
+// localWikipediaProbeFlagSets are the tool sets the probe runs on: every
+// integration, and a small core set in which local_wikipedia sits early in
+// the schema order.
+func localWikipediaProbeFlagSets() map[string]ToolFeatureFlags {
+	return map[string]ToolFeatureFlags{
+		"all":  allBuiltinToolFeatureFlags(),
+		"bare": {},
+		"core": {AllowShell: true, AllowPython: true, AllowFilesystemWrite: true, AllowNetworkRequests: true, MemoryEnabled: true, NotesEnabled: true, SchedulerEnabled: true},
+	}
+}
+
+// TestLocalWikipediaAliasesKeepTheCatalogRanking: an exact alias message such
+// as "offline wikipedia" ranks the catalog as before the alias existed while
+// the tool is off, and ranks local_wikipedia first while it is on.
+func TestLocalWikipediaAliasesKeepTheCatalogRanking(t *testing.T) {
+	off := allBuiltinToolFeatureFlags()
+	off.LocalWikipediaEnabled = false
+	offSchemas := BuildNativeToolSchemas(t.TempDir(), nil, off, nil)
+	onFlags := off
+	onFlags.LocalWikipediaEnabled = true
+	onSchemas := BuildNativeToolSchemas(t.TempDir(), nil, onFlags, nil)
+	aliases := discoverToolNameAliases
+	t.Cleanup(func() { discoverToolNameAliases = aliases })
+	for alias := range aliases {
+		withAlias := catalogNames(BuildToolCatalog(offSchemas, offSchemas, "").Search(alias))
+		discoverToolNameAliases = nil
+		before := catalogNames(BuildToolCatalog(offSchemas, offSchemas, "").Search(alias))
+		discoverToolNameAliases = aliases
+		if !slices.Equal(withAlias, before) {
+			t.Errorf("%q with the tool off: %v, before the alias %v", alias, withAlias, before)
+		}
+		for _, b := range adaptiveProbeBudgets {
+			discoverToolNameAliases = nil
+			_, beforeRefreshed := adaptiveSelectionProbe(t, alias, off, b, nil)
+			discoverToolNameAliases = aliases
+			_, refreshed := adaptiveSelectionProbe(t, alias, off, b, nil)
+			if !slices.Equal(refreshed, beforeRefreshed) {
+				t.Errorf("%s %q with the tool off: %v, before the alias %v", b.name, alias, refreshed, beforeRefreshed)
+			}
+		}
+		if on := catalogNames(BuildToolCatalog(onSchemas, onSchemas, "").Search(alias)); len(on) == 0 || on[0] != "local_wikipedia" {
+			t.Errorf("%q with the tool on ranks %v", alias, on)
+		}
+		if got := resolveDiscoverToolName(alias); got != "local_wikipedia" {
+			t.Errorf("discover_tools resolves %q to %q", alias, got)
+		}
+	}
+	discoverToolNameAliases = aliases
+}
+
+func catalogNames(entries []*ToolCatalogEntry) []string {
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name)
+	}
+	return names
+}
+
+func TestAdaptiveRefreshExcludesIntentOnlyToolsOnlyWithoutAFirstSelection(t *testing.T) {
+	if got := adaptiveRefreshExcludedTools(true, nil); got != nil {
+		t.Fatalf("after a first selection the refresh excludes %v", got)
+	}
+	if got := adaptiveRefreshExcludedTools(false, nil); !slices.Equal(got, adaptiveIntentOnlyTools) {
+		t.Fatalf("without a first selection the refresh excludes %v", got)
+	}
+	if got := adaptiveRefreshExcludedTools(false, map[string]bool{"local_wikipedia": true}); len(got) != 0 {
+		t.Fatalf("a tool discover_tools requested stays excluded: %v", got)
 	}
 }
 
@@ -151,7 +270,7 @@ func TestAdaptiveExcludedToolsComeOnlyAsSoftOrAdditive(t *testing.T) {
 	}
 }
 
-func TestAdditiveToolsBypassTheCapsWithoutTakingASlot(t *testing.T) {
+func TestAdditiveToolsTakeNoSlotAndRespectTheCaps(t *testing.T) {
 	schemas := []openai.Tool{
 		testFilterSchema("hard"), testFilterSchema("soft"), testFilterSchema("extra"),
 		testFilterSchema("a"), testFilterSchema("b"), testFilterSchema("c"),
@@ -168,9 +287,19 @@ func TestAdditiveToolsBypassTheCapsWithoutTakingASlot(t *testing.T) {
 		t.Fatalf("without additive = %s", got)
 	}
 	opts.AdditiveTools = []string{"extra", "missing", "hard"}
+	// A full selection skips the additive tool instead of exceeding the cap
+	// or displacing another tool.
+	if got := strings.Join(toolSchemaNames(filterToolSchemasWithReport(schemas, opts, nil).Tools), ","); got != "hard,soft,a,b" {
+		t.Fatalf("additive at the total cap = %s", got)
+	}
+	opts.MaxTotalTools = 5
 	with := filterToolSchemasWithReport(schemas, opts, nil)
 	if got := strings.Join(toolSchemaNames(with.Tools), ","); got != "hard,soft,a,b,extra" {
 		t.Fatalf("with additive = %s", got)
+	}
+	opts.MaxSchemaTokens = with.Report.FinalSchemaTokens - 1
+	if got := strings.Join(toolSchemaNames(filterToolSchemasWithReport(schemas, opts, nil).Tools), ","); strings.Contains(got, "extra") {
+		t.Fatalf("additive exceeded the schema token cap: %s", got)
 	}
 	if with.Report.KeptAdditive != 1 || with.Report.KeptAdaptive != 2 || with.Report.KeptHardAlways != 1 {
 		t.Fatalf("report = %+v", with.Report)

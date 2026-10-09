@@ -607,7 +607,26 @@ func isNetworkCameraIntent(normalizedQuery string) bool {
 // (adaptiveAdditiveToolsForQuery) and otherwise only when requested as soft
 // tools (session use, discover_tools, always_include). Enabling one of these
 // optional tools therefore never changes which other tools a query gets.
-var adaptiveIntentOnlyTools = []string{"local_wikipedia"}
+var adaptiveIntentOnlyTools = prompts.NonDisplacingTools
+
+// adaptiveRefreshExcludedTools returns the tools the per-iteration refresh
+// keeps out of its ranking. After an adaptive first selection the refresh only
+// re-ranks what that selection offered, so nothing is excluded. Without one
+// (adaptive tools disabled, no short-term memory) the refresh gets the whole
+// catalog and is the first capped ranking, so the adaptiveIntentOnlyTools stay
+// out of it unless discover_tools requested them during this run.
+func adaptiveRefreshExcludedTools(initFiltered bool, requested map[string]bool) []string {
+	if initFiltered {
+		return nil
+	}
+	var out []string
+	for _, name := range adaptiveIntentOnlyTools {
+		if !requested[name] {
+			out = append(out, name)
+		}
+	}
+	return out
+}
 
 // adaptiveAdditiveToolsForQuery names the intent-matched tools that the
 // adaptive filter offers on top of its selection (toolSchemaFilterOptions.
@@ -893,9 +912,21 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 		add(entry.Name)
 	}
 	if guideSearcher != nil && strings.TrimSpace(userQuery) != "" {
-		paths := searchToolGuidesWithTimeout(guideSearcher, userQuery, 4, 400*time.Millisecond, logger)
+		// The manuals of non-displacing tools are dropped before the cut to
+		// the top four: those tools are never ranked, so their manual would
+		// only cost another tool its semantic slot.
+		const semanticTopK = 4
+		paths := searchToolGuidesWithTimeout(guideSearcher, userQuery, semanticTopK+len(prompts.NonDisplacingTools), 400*time.Millisecond, logger)
+		considered := 0
 		for _, path := range paths {
 			name := strings.TrimSuffix(filepath.Base(filepath.Clean(path)), filepath.Ext(path))
+			if prompts.IsNonDisplacingManual(name) {
+				continue
+			}
+			if considered == semanticTopK {
+				break
+			}
+			considered++
 			add(name)
 		}
 	}
@@ -997,10 +1028,11 @@ type toolSchemaFilterOptions struct {
 	MaxSchemaTokens  int
 	DisableAdaptive  bool
 	// AdditiveTools are offered on top of every other class: they are added
-	// last, never count against MaxAdaptiveTools, MaxTotalTools or
-	// MaxSchemaTokens and never take a slot from a hard, soft or adaptive
-	// tool, so enabling an intent-matched optional tool cannot displace what a
-	// query offered before. Being last, they are also the first schemas the
+	// last, only while MaxTotalTools and MaxSchemaTokens leave room (a full
+	// selection skips them; discover_tools still finds them), and never count
+	// against MaxAdaptiveTools. An intent-matched optional tool can therefore
+	// neither displace what a query offered before nor exceed a cap such as a
+	// model's stability limit. Being last, they are also the first schemas the
 	// request budget sheds. A hard tool listed here stays hard.
 	AdditiveTools []string
 	// AdaptiveExcludedTools are never picked by the adaptive ranking (neither
@@ -1126,11 +1158,10 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		if consumed[name] {
 			return false
 		}
-		capped := class != "hard" && class != "additive"
-		if capped && opts.MaxTotalTools > 0 && len(kept) >= opts.MaxTotalTools {
+		if class != "hard" && opts.MaxTotalTools > 0 && len(kept) >= opts.MaxTotalTools {
 			return false
 		}
-		if capped && opts.MaxSchemaTokens > 0 && keptSchemaTokens+tokens > opts.MaxSchemaTokens {
+		if class != "hard" && opts.MaxSchemaTokens > 0 && keptSchemaTokens+tokens > opts.MaxSchemaTokens {
 			return false
 		}
 		consumed[name] = true
@@ -1222,15 +1253,20 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		}
 	}
 	if logger != nil && finalDropped > 0 {
-		logger.Info("[AdaptiveTools] Filtered tool schemas",
+		args := []any{
 			"kept_hard_always", report.KeptHardAlways,
 			"kept_soft_always", report.KeptSoftAlways,
 			"kept_adaptive", report.KeptAdaptive,
-			"kept_additive", report.KeptAdditive,
+		}
+		if report.KeptAdditive > 0 {
+			args = append(args, "kept_additive", report.KeptAdditive)
+		}
+		args = append(args,
 			"dropped", finalDropped,
 			"max_adaptive", opts.MaxAdaptiveTools,
 			"max_total", opts.MaxTotalTools,
 			"dropped_tools", strings.Join(report.DroppedTools, ", "))
+		logger.Info("[AdaptiveTools] Filtered tool schemas", args...)
 	}
 	return toolSchemaFilterResult{Tools: kept, Report: report}
 }
