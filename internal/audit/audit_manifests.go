@@ -151,6 +151,7 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/treg/", Methods: []string{"GET", "POST"}, Auth: "session-admin", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/manus/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/local-llm/", Methods: []string{"GET", "POST"}, Auth: "session-admin", Category: "local-llm", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/local-wikipedia/", Methods: []string{"GET", "POST"}, Auth: "session-admin", Category: "local-wikipedia", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/setup/local-llm/", Methods: []string{"GET", "POST"}, Auth: "public-setup-csrf-or-job-token", Category: "setup", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/mcp", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "mcp", ContentTypes: []string{"application/json"}},
 		{Pattern: "/mcp", Methods: []string{"POST"}, Auth: "bearer-token", Category: "mcp"},

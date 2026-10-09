@@ -15,3 +15,11 @@ func TestLocalWikipediaNetworkClientIsClassified(t *testing.T) {
 		t.Fatal("internal/localwiki/ must be classified as an uncredentialed public HTTPS client")
 	}
 }
+
+func TestLocalWikipediaRoutesHaveAdminContract(t *testing.T) {
+	t.Parallel()
+
+	if !routeContractExists(RouteContractManifest(), "/api/local-wikipedia/", "session-admin") {
+		t.Fatal("/api/local-wikipedia/ must have an explicit session-admin route contract")
+	}
+}
