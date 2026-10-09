@@ -59,7 +59,10 @@ type Control struct {
 }
 
 // Client is the browser side of one session (the server package adapts a WebSocket to it).
-// SendData must not keep p after it returns: the pump reuses the buffer for the next read.
+// SendData must not retain p after it returns: the pump reuses the buffer for the next read.
+// SendData and SendControl must return within a bounded time (the WebSocket adapter uses a
+// 10 s write deadline) and must fail once the browser is gone: while they block, Run cannot
+// observe cancellation or timers.
 type Client interface {
 	Events() <-chan ClientEvent // closed when the browser disconnects
 	SendData(p []byte) error    // UTF-8 terminal output

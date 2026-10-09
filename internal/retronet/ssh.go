@@ -13,12 +13,14 @@ import (
 )
 
 const (
-	// sshHandshakeTimeout bounds the SSH handshake plus PTY and shell setup.
-	sshHandshakeTimeout = 10 * time.Second
-	sshTermType         = "xterm-256color"
-	sshDefaultUser      = "guest"
-	sshTerminalSpeed    = 14400
+	sshTermType      = "xterm-256color"
+	sshDefaultUser   = "guest"
+	sshTerminalSpeed = 14400
 )
+
+// sshHandshakeTimeout bounds the SSH handshake plus PTY and shell setup. It is a variable
+// only so tests can shorten it.
+var sshHandshakeTimeout = 10 * time.Second
 
 // sshHostKeyAlgorithms is the host key algorithm preference offered to servers, in the order
 // OpenSSH prefers plain keys. x/crypto's default order puts ECDSA before ed25519, so a server
@@ -79,8 +81,11 @@ func (s *SSHSession) Resize(cols, rows int) error {
 //
 // The x/crypto client always tries "none" first, then keyboard-interactive with empty
 // answers, then an empty password. Cancellation of ctx closes conn at any point of the
-// handshake; handshake, PTY and shell setup must finish within 10 s (the host-key decision
-// itself is not counted). On every error conn is closed; once ctx is done the error is
+// handshake. Handshake, PTY and shell setup share one deadline of sshHandshakeTimeout (10 s).
+// Only when the host-key decider is asked is that deadline lifted while it runs and then reset
+// to a full timeout: the time the user takes to decide does not eat the remaining budget, and
+// the setup after the decision gets a whole new 10 s (so the total can exceed 10 s by the time
+// spent before the decision). On every error conn is closed; once ctx is done the error is
 // context.Cause(ctx).
 func OpenSSH(ctx context.Context, conn net.Conn, e Entry, cols, rows int, decide HostKeyDecider) (*SSHSession, string, error) {
 	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
@@ -205,7 +210,9 @@ func (v *sshHostKeyVerifier) check(_ string, _ net.Addr, key ssh.PublicKey) erro
 	case v.decide == nil:
 		return v.reject(&DialError{Reason: ReasonHostKeyRejected, Err: errors.New("no host key decider")})
 	}
-	// The decision may take longer than the handshake budget: lift the deadline meanwhile.
+	// The user may take longer than the handshake budget to decide: lift the deadline while
+	// the decider runs, then reset it to a full timeout for the rest of the handshake, PTY and
+	// shell setup. The time spent before the decision is deliberately not subtracted.
 	_ = v.conn.SetDeadline(time.Time{})
 	ok, err := v.decide(v.ctx, key.Type(), fingerprint)
 	_ = v.conn.SetDeadline(time.Now().Add(sshHandshakeTimeout))

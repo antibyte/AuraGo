@@ -83,6 +83,12 @@ func (m *Manager) pump(ctx context.Context, client Client, src io.ReadCloser, st
 			if !ok {
 				return ReasonRemoteClosed
 			}
+			// The pump is single-threaded on purpose: all protocol state lives on this goroutine
+			// and needs no locks. The trade-off is that while a keystroke write to the service
+			// blocks, nothing is read from the service either. That is bounded by the write
+			// deadline (sessionWriteTimeout, 10 s) and by the size of one browser message (the
+			// WebSocket read limit is 64 KiB); a service that never drains its socket ends the
+			// session as remote_closed.
 			if len(ev.Data) > 0 {
 				if err := h.input(ev.Data); err != nil {
 					return endReason(ctx, ReasonRemoteClosed)

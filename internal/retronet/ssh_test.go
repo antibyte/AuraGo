@@ -223,6 +223,52 @@ func TestSSHSessionResizeSendsWindowChange(t *testing.T) {
 	f.waitResize(t, sshWindow{Cols: 120, Rows: 40})
 }
 
+func TestOpenSSHHandshakeTimesOutAgainstSilentServer(t *testing.T) {
+	previous := sshHandshakeTimeout
+	sshHandshakeTimeout = 150 * time.Millisecond
+	t.Cleanup(func() { sshHandshakeTimeout = previous })
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		if conn, err := listener.Accept(); err == nil {
+			accepted <- conn // accepts the TCP connection and never sends a banner
+		}
+	}()
+	conn, err := net.Dial("tcp4", listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	select {
+	case server := <-accepted:
+		defer server.Close()
+	case <-time.After(2 * time.Second):
+		t.Fatal("no connection")
+	}
+	entry := Entry{ID: "own-silent0001", Protocol: ProtocolSSH, Host: "127.0.0.1", Port: listener.Addr().(*net.TCPAddr).Port, User: "guest", Own: true}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	started := time.Now()
+	sess, _, err := OpenSSH(ctx, conn, entry, 80, 25, nil)
+	if err == nil {
+		_ = sess.Close()
+		t.Fatal("OpenSSH succeeded against a server that sends no banner")
+	}
+	if elapsed := time.Since(started); elapsed > 2*time.Second {
+		t.Fatalf("handshake gave up after %v, want about the 150ms timeout", elapsed)
+	}
+	if reason := ReasonOf(err); reason != ReasonTimeout {
+		t.Fatalf("reason = %q (%v), want %q", reason, err, ReasonTimeout)
+	}
+	if _, werr := conn.Write([]byte{0}); !errors.Is(werr, net.ErrClosed) {
+		t.Fatalf("conn still open after the timeout: write error = %v", werr)
+	}
+}
+
 func TestOpenSSHCancelsStalledHandshake(t *testing.T) {
 	errStalledHandshake := errors.New("test cancelled the handshake")
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
