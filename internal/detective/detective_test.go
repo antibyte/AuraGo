@@ -234,6 +234,8 @@ func TestLiveStatusSkipsEvidenceBody(t *testing.T) {
 	c.Run.Phase = "research"
 	c.Run.Usage.ActiveMS = 1500
 	c.Run.Usage.Tools = 3
+	c.Run.Usage.CachedTokens = 42
+	c.Run.Usage.Bytes = 8192
 	c.Run.Profile = Profiles()["normal"]
 	c.Sources = []Source{{ID: "src_live", Title: "Tape", Status: "read", Excerpt: strings.Repeat("x", 50000)}}
 	c.Findings = []Finding{{ID: "ev_live", SourceID: "src_live", Text: "noted", Quote: "xxxxxxxx"}}
@@ -246,7 +248,7 @@ func TestLiveStatusSkipsEvidenceBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if view.Topic != "live view" || view.Status != "running" || view.Usage.ActiveMS != 1500 || view.Usage.Tools != 3 || view.Sources != 1 || view.Findings != 1 || view.LatestSourceID != "src_live" {
+	if view.Topic != "live view" || view.Status != "running" || view.Usage.ActiveMS != 1500 || view.Usage.Tools != 3 || view.Usage.CachedTokens != 42 || view.Usage.Bytes != 8192 || view.Sources != 1 || view.Findings != 1 || view.LatestSourceID != "src_live" {
 		t.Fatalf("%+v", view)
 	}
 	if strings.Contains(fmt.Sprint(view), strings.Repeat("x", 100)) {

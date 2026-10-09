@@ -269,6 +269,8 @@ func (s *Service) Live(key string) (LiveView, error) {
 		COALESCE(json_extract(body,'$.run.usage.requests'),0),
 		COALESCE(json_extract(body,'$.run.usage.prompt_tokens'),0),
 		COALESCE(json_extract(body,'$.run.usage.completion_tokens'),0),
+		COALESCE(json_extract(body,'$.run.usage.cached_tokens'),0),
+		COALESCE(json_extract(body,'$.run.usage.bytes'),0),
 		COALESCE(json_extract(body,'$.run.usage.pages'),0),
 		COALESCE(json_extract(body,'$.run.profile.seconds'),0),
 		COALESCE(json_extract(body,'$.run.profile.tools'),0),
@@ -282,7 +284,7 @@ func (s *Service) Live(key string) (LiveView, error) {
 		FROM detective_cases WHERE id=?`, key).Scan(
 		&v.ID, &updated, &v.Usage.ActiveMS,
 		&v.Status, &v.Phase, &v.Reason, &v.Effort, &v.Topic,
-		&v.Usage.Tools, &v.Usage.Iterations, &v.Usage.Requests, &v.Usage.PromptTokens, &v.Usage.CompletionTokens, &v.Usage.Pages,
+		&v.Usage.Tools, &v.Usage.Iterations, &v.Usage.Requests, &v.Usage.PromptTokens, &v.Usage.CompletionTokens, &v.Usage.CachedTokens, &v.Usage.Bytes, &v.Usage.Pages,
 		&v.Profile.Seconds, &v.Profile.Tools, &v.Profile.Iterations, &v.Profile.Tokens,
 		&v.Sources, &v.Findings, &v.Reports, &v.LatestRevision, &v.LatestSourceID)
 	if errors.Is(err, sql.ErrNoRows) {
