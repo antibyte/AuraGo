@@ -52,7 +52,7 @@ func (m *Manager) Install(ctx context.Context, req InstallRequest) error {
 		edition := *m.state.Edition
 		installed = &edition
 	}
-	busy := !m.started || m.shuttingDown || m.op != nil || m.deleting || m.ioBusy || settings.DataDir != m.activeDir
+	busy := !m.started || m.shuttingDown || m.op != nil || m.deleting || m.ioToken != 0 || settings.DataDir != m.activeDir
 	m.mu.Unlock()
 	if !settings.Enabled {
 		return ErrDisabled
@@ -122,10 +122,11 @@ func (m *Manager) planInstall(ctx context.Context, settings Settings, installed 
 // no download that could be writing a restart file starts meanwhile; mu is not
 // held during the removals.
 func (m *Manager) removeStaleRestartFiles(dir string) {
-	if !m.beginStorageIO(dir) {
+	release, ok := m.beginStorageIO(dir)
+	if !ok {
 		return
 	}
-	defer m.endStorageIO()
+	defer release()
 	m.cleanRestartFiles(dir)
 }
 
@@ -133,18 +134,19 @@ func (m *Manager) removeStaleRestartFiles(dir string) {
 // file) that the installed edition made pointless, and clears the interrupted
 // marker so the status no longer offers to resume it. pending is nil when
 // there is no readable download.json. Nothing is touched unless the manager is
-// idle (beginStorageIO): the cleanup is marked with ioBusy, so no operation can
+// idle (beginStorageIO): the cleanup is marked as storage I/O, so no operation can
 // start (and begin to write the files) meanwhile, no running one loses its
 // files, and no load replaces the loaded state. mu is not held during the
 // removals, which may hang on an unreachable share.
 func (m *Manager) discardPending(dir string, pending *downloadFile) {
-	if !m.beginStorageIO(dir) {
+	release, ok := m.beginStorageIO(dir)
+	if !ok {
 		return
 	}
-	defer m.endStorageIO()
+	defer release()
 	if pending != nil {
 		name := pending.Target.FileName
-		// The installed edition cannot change while ioBusy is set.
+		// The installed edition cannot change while the storage I/O is marked.
 		m.mu.Lock()
 		installed := m.installedFileLocked(name)
 		m.mu.Unlock()
@@ -257,7 +259,7 @@ func (m *Manager) checkInstallSpace(plan *installPlan, req InstallRequest, insta
 
 func (m *Manager) startOperation(plan installPlan) error {
 	m.mu.Lock()
-	if m.op != nil || m.deleting || m.ioBusy || m.shuttingDown || plan.dir != m.activeDir {
+	if m.op != nil || m.deleting || m.ioToken != 0 || m.shuttingDown || plan.dir != m.activeDir {
 		m.mu.Unlock()
 		return ErrBusy
 	}

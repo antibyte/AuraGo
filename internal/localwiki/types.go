@@ -234,9 +234,12 @@ type Status struct {
 	Readable bool `json:"readable"`
 	// Loading is true from Start until the background loop has loaded the
 	// storage directory for the first time (normally a fraction of a second;
-	// longer on a slow or hung network share). Meanwhile the state is
-	// not_installed, readable is false, error_code is busy, and Install and
-	// Delete refuse with busy; clients poll the status until it is false.
+	// longer on a slow or hung network share), and while a changed storage
+	// directory is being loaded. Meanwhile error_code is busy and Install and
+	// Delete refuse with busy; clients poll the status until it is false. On
+	// the first load the state is not_installed and readable is false; while
+	// a changed directory loads, state, edition and readable still describe
+	// the previous directory's edition, which stays served.
 	Loading             bool           `json:"loading"`
 	FreeBytes           int64          `json:"free_bytes"`
 	RequiredBytes       int64          `json:"required_bytes"`
