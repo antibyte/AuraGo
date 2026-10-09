@@ -672,6 +672,12 @@ func Start(opts StartOptions) error {
 		}()
 	}
 	if err := s.initSIP(serverCtx); err != nil {
+		// The shutdown path below is not registered yet: withdraw the tool
+		// source newServerFromOptions published, or the agent tool would keep
+		// a manager that is never started or shut down.
+		if s.LocalWiki != nil {
+			withdrawLocalWikipediaTool(s.LocalWiki)
+		}
 		serverCancel()
 		return err
 	}

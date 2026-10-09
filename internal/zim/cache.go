@@ -15,11 +15,21 @@ const DefaultClusterCacheBytes = 64 << 20
 // clusterOverheadBytes approximates the bookkeeping cost of one cache entry.
 const clusterOverheadBytes = 256
 
+// maxConcurrentClusterLoads bounds the cluster decompressions one archive runs
+// at the same time. Each load holds up to a 32 MiB decompressed cluster plus a
+// pooled zstd decoder (about 33 MiB at the window cap) outside the cache
+// budget, and not every reader is rate-limited upstream (content requests do
+// not pass through the search slots). Loads are short, so a caller simply
+// waits for a free slot; no context is needed.
+const maxConcurrentClusterLoads = 4
+
 // clusterCache is a byte-bounded LRU of decompressed clusters. The mutex only
 // guards the map and list; loads run outside it, deduplicated per cluster by
-// singleflight.
+// singleflight and limited to maxConcurrentClusterLoads at a time.
 type clusterCache struct {
 	maxBytes int64
+	// loadSlots is the semaphore of running loads (maxConcurrentClusterLoads).
+	loadSlots chan struct{}
 
 	mu    sync.Mutex
 	lru   *list.List // front = most recently used
@@ -42,11 +52,17 @@ func newClusterCache(maxBytes int64) *clusterCache {
 	if maxBytes <= 0 {
 		maxBytes = DefaultClusterCacheBytes
 	}
-	return &clusterCache{maxBytes: maxBytes, lru: list.New(), items: make(map[uint32]*list.Element)}
+	return &clusterCache{
+		maxBytes:  maxBytes,
+		loadSlots: make(chan struct{}, maxConcurrentClusterLoads),
+		lru:       list.New(),
+		items:     make(map[uint32]*list.Element),
+	}
 }
 
 // get returns the cached cluster or loads it once, even under concurrent
-// callers. Load errors are not cached.
+// callers. At most maxConcurrentClusterLoads loads run at once; further
+// callers wait for a slot. Load errors are not cached.
 func (c *clusterCache) get(idx uint32, load func() (*clusterData, error)) (*clusterData, error) {
 	if cd := c.lookup(idx); cd != nil {
 		return cd, nil
@@ -55,6 +71,8 @@ func (c *clusterCache) get(idx uint32, load func() (*clusterData, error)) (*clus
 		if cd := c.lookup(idx); cd != nil {
 			return cd, nil
 		}
+		c.loadSlots <- struct{}{}
+		defer func() { <-c.loadSlots }()
 		cd, err := load()
 		if err != nil {
 			return nil, err

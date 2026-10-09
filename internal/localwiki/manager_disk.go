@@ -46,13 +46,15 @@ func (m *Manager) signalProbe() {
 }
 
 // probeDisk starts one measurement of the configured storage directory unless
-// one for that directory is still running. The measuring goroutine is not
-// tracked by wg: it may hang on an unreachable share, and it only records its
-// result, so Shutdown does not wait for it.
+// one for that directory is still running or the integration is off (nothing
+// can be installed then; Configure asks for a measurement when it is switched
+// on). The measuring goroutine is not tracked by wg: it may hang on an
+// unreachable share, and it only records its result, so Shutdown does not
+// wait for it.
 func (m *Manager) probeDisk() {
 	m.mu.Lock()
 	dir := m.settings.DataDir
-	if _, running := m.diskInFlight[dir]; running || m.shuttingDown {
+	if _, running := m.diskInFlight[dir]; running || m.shuttingDown || !m.settings.Enabled {
 		m.mu.Unlock()
 		return
 	}

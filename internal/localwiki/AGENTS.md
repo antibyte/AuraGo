@@ -33,10 +33,10 @@ Through the root routing table this contract also binds `internal/tools/local_wi
 - Integrity: the `.meta4` SHA-256 is computed while downloading; a resumed download re-hashes the existing `.part` first; a mismatch deletes `.part` (`checksum_mismatch`). The archive is opened (header with checksum position, main page; a missing or unsupported full-text index only disables full-text search) before it is published.
 - Publish: atomic rename through `internal/fileutil`, then `state.json`, then a refcounted reader swap: `Manager.Acquire` handles keep the old archive open until released, and the old file is deleted only after the swap.
 - No automatic resume: after a restart an unfinished download is `interrupted` and waits for an explicit Install/Resume. Updates are only checked (daily, with `update_check`) and hinted (config page, dashboard, desktop app), never installed automatically.
-- Docker: `data_dir` is forced to `<data_dir>/wikipedia` inside AuraGo's data mount. Native custom directories must be absolute, writable and not a sensitive system path (`data_dir_invalid` at Install; saving refuses only relative paths, system locations and AuraGo's data directory root).
+- Docker: `data_dir` is forced to `<data_dir>/wikipedia` inside AuraGo's data mount. Native custom directories must be absolute, writable and not a sensitive system path (`data_dir_invalid` at Install; saving a changed directory refuses only relative paths, system locations and AuraGo's data directory root); directories strictly below AuraGo's own data directory are always allowed (the data root itself is not), because common installs keep it in a refused tree (`/root/aurago/data`, `/usr/local/aurago/data`, `C:\ProgramData\AuraGo\data`, `~/Library/Application Support/aurago/data`).
 - Reader limits (cluster size, zstd window, cache size, redirect depth, fuzzing) are owned by `internal/zim/AGENTS.md`; the manager opens archives only through `OpenLibrary` (`zim.Open`) and maps every open failure (`zim.ErrUnsupported`, `zim.ErrCorrupt`, I/O errors, a missing main page) to `zim_unreadable`. A missing or unsupported full-text index degrades to title search (`fulltext: false`, `fulltext_unsupported` warning), never to an error.
 - Search limits: at most 4 concurrent searches, 5 s timeout, queries at most 200 characters and 16 terms. Tool output: leads of at most 2,000 characters for the top 3 hits, article chunks of at most 8,000 characters; every text field passes `security.IsolateExternalData`.
-- Content serving: paths are lookup keys in the content namespace (`C`, legacy `A`), never file-system paths. Responses use `http.ServeContent` (Range), an ETag derived from the ZIM UUID and the path, `Cache-Control: private, max-age=86400` and `X-Content-Type-Options: nosniff`; every content answer (any MIME type, redirects, error pages) carries the sandbox Content-Security-Policy with `script-src 'none'` so ZIM scripts can never call AuraGo APIs.
+- Content serving: paths are lookup keys in the content namespace (`C`, legacy `A`), never file-system paths. Responses use `http.ServeContent` (Range), an ETag derived from the ZIM UUID and the path, `Cache-Control: private, no-cache` (every reuse revalidates; the edition-bound ETag answers 304 while the edition is unchanged, so an update or language change never serves the old article from the browser cache; redirects and error pages are `no-store`) and `X-Content-Type-Options: nosniff`; every content answer (any MIME type, redirects, error pages) carries the sandbox Content-Security-Policy with `script-src 'none'`, `object-src 'none'`, `base-uri 'none'` and `connect-src 'none'` so ZIM scripts can never call AuraGo APIs (same-origin image and stylesheet GETs remain possible; the content is the verified Kiwix edition).
 - GPL hygiene: libzim, Xapian and Kiwix sources (GPL) may be read to understand formats; never copy their code. python-libzim and the Xapian tools run only in throwaway containers through `scripts/localwiki/fixtures/` to generate fixtures and golden JSON from self-authored text: dev tooling, never runtime or `go test`.
 - Content license: Wikipedia text (CC BY-SA 4.0) is never embedded in the binary and an edition is never committed; the only Wikipedia text in the repository are the two trimmed rendering test pages `internal/localwiki/testdata/render_*.html`, attributed in `THIRD_PARTY_NOTICES.md`. The tool manual makes the agent cite article and edition date.
 
@@ -53,12 +53,19 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   `agent.system_language` through `i18n.NormalizeLang`, fallback `en`), `variant` (`nopic`), `data_dir`
   ("" = `<directories.data_dir>/wikipedia`) and `update_check` (true). The loader sets the true defaults
   before unmarshalling, `NormalizeLocalWikipediaConfig` repairs an unknown language or variant at load, and
-  `ValidateLocalWikipediaConfig` rejects them on save (HTTP 400). `GET /api/config` shows the loader defaults
+  `ValidateLocalWikipediaConfig` rejects them on save (HTTP 400) - but only values the save changes compared
+  with `config.yaml` before the save (`validateLocalWikipediaSave`, like `validateMQTTConfigPatch`), so a
+  hand-edited invalid value never blocks saving other sections. `GET /api/config` shows the loader defaults
   for keys an older `config.yaml` lacks (`injectLocalWikipediaDefaults`). No field is secret.
 - Docker forces the storage directory to `<directories.data_dir>/wikipedia` (`data_dir_locked`); the UI field
   is read-only there and the server skips the `data_dir` save validation.
-- Native installs validate a saved `data_dir`: absolute, not a system location, not AuraGo's own data
-  directory root (`validateLocalWikipediaSettings`, same check the manager gets as `Deps.IsSensitivePath`).
+- Native installs validate a saved `data_dir` when the save changes it: absolute, not a system location,
+  not AuraGo's own data directory root (`validateLocalWikipediaSettings`, same check the manager gets as
+  `Deps.IsSensitivePath`, built by `localWikipediaSensitivePath`). Directories strictly below the data
+  directory (absolute and, via `ResolveDirectory`, resolved form) pass before the denylist; the exception
+  needs a data directory at least two levels below its volume root and a relative part without `:` and
+  without components ending in a dot or space, otherwise the denylist decides. An unchanged invalid
+  `data_dir` is reported by the manager as `data_dir_invalid` instead of failing the save.
 
 ### Manager lifecycle and status
 
@@ -85,7 +92,8 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   (`loadPending`) does not take `loadMu` at all, so a loop wake-up or status poll never makes `Delete` answer
   `ErrBusy`. `Status` never touches the storage directory:
   `free_bytes` comes from a background measurement (`probeLoop`: at start, after a storage directory
-  change, after an operation or `Delete`, every 10 s; a measurement running longer than 5 s reports -1),
+  change, after an operation or `Delete`, when the integration is switched on, every 10 s; nothing is
+  measured while it is off; a measurement running longer than 5 s reports -1),
   and the directory check is lexical (`Deps.IsSensitivePath` must not do I/O). The measuring goroutine is
   not tracked: `Shutdown` never waits for it.
 - Settings reach the manager only through `Configure`. The server calls it from
@@ -96,6 +104,18 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   -> `stateMu` -> `mu`. `Configure` only stores the settings and signals the loops: it never waits for
   `loadMu` or storage I/O and never starts a download; a changed storage directory is loaded by the loop
   once nothing else uses the storage directory (`loadIfStale`).
+- Disabled integration (`enabled: false`): the edition file is never opened (on Windows it could not be
+  deleted by hand while open) and the disk is not probed. Loads still read `state.json` and
+  `download.json` (the config page shows the installed edition and offers Delete, which works while
+  disabled). Switching off in `Configure` takes the open library out of service at once (`Acquire` fails;
+  readers that hold it finish, then it is closed); a load or a publication that ends after the switch-off
+  closes its library instead of serving it. Switching on signals the loop, which opens the installed
+  edition (`openPendingLocked` -> `openInstalledLocked`, reported as `loading: true` meanwhile; an edition
+  that fails to open becomes `zim_unreadable` and is not retried) and measures the disk again. Status while
+  off: an installed edition stays `state: ready` with `readable: false`, `fulltext: false` and
+  `error_code: disabled` (no operation running and no other code); without an edition `not_installed` +
+  `disabled`. A download that was running when the integration was switched off is not cancelled; its
+  edition is recorded but not served until the integration is switched on.
 - `Status` JSON: `state` (`not_installed|downloading|verifying|ready|interrupted|error`), `progress` (0..1
   fraction), `bytes_done`, `bytes_total`, `rate`, `eta_seconds`, `edition`, `selection`,
   `selection_matches_installed`, `update_available`, `fulltext`, `readable`, `loading`, `free_bytes` (the
@@ -116,10 +136,12 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   says which one is installed), the state is `error` (`interrupted` when a `download.json` exists), and
   `Install` or `Delete` replace or remove the file. Clients derive their wording from `error_code`,
   `readable` and `edition`. `recommendation` is English only and never shown by the config UI.
-- `error_code` for an idle manager also covers `busy` (first load or a storage-directory change being
-  loaded), `fulltext_unsupported` (informational: ready without a full-text index) and `data_dir_invalid`
-  (the configured directory fails the shape check, even while idle).
-- `Acquire` hands out the library only while `enabled` and a readable edition is loaded; callers release
+- `error_code` for an idle manager also covers `busy` (first load, a storage-directory change being
+  loaded, or opening the edition after switching on), `fulltext_unsupported` (informational: an open
+  edition without a full-text index), `data_dir_invalid` (the configured directory fails the shape check,
+  even while idle) and, last, `disabled` (the integration is off; the config UI shows it as an info note
+  and hides readability and full-text facts).
+- `Acquire` hands out the library only while `enabled` and a readable edition is open; callers release
   exactly once (extra releases are ignored). `libraryRef` closes a retired library after its last reader
   released it, then runs the after-close hook (deleting the retired file, which Windows refuses while open).
 
@@ -157,7 +179,8 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   `insufficient_disk_space` with the needed bytes in `required_bytes`.
 - Storage directory (`prepareDataDir`): absolute, not sensitive, created if missing, writable (probe file).
   The sensitive check (`Deps.IsSensitivePath`; the server passes `tools.IsSensitiveHostDirectory` plus
-  AuraGo's data directory root) runs on the lexical path and on the resolved path (`EvalSymlinks`; on Windows
+  AuraGo's data directory root, with directories below the data root exempt) runs on the lexical path and
+  on the resolved path (`EvalSymlinks`; on Windows
   `GetFinalPathNameByHandle`) - first on the nearest existing ancestor plus the missing components, before
   `MkdirAll`, so nothing is created inside a protected tree, and again on the directory itself. Links,
   junctions and 8.3 short names cannot point the edition into a system location; the macOS aliases `/var`,
@@ -271,12 +294,17 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   errors of the content route are framable HTML pages with the `aurago-local-wikipedia-error` marker.
 - Content paths are lookup keys, never filesystem paths; a redirect answers 302 to the resolved path
   (dot and empty segments refused). Every content answer (blobs, redirects, the framable HTML error pages
-  with the `aurago-local-wikipedia-error` marker) carries `localWikipediaContentCSP` (sandbox without
-  scripts, `connect-src 'none'`, `frame-ancestors 'self'`), `X-Frame-Options: SAMEORIGIN` set by the
+  with the `aurago-local-wikipedia-error` marker) carries `localWikipediaContentCSP` (`sandbox
+  allow-same-origin allow-popups allow-popups-to-escape-sandbox; default-src 'self'; script-src 'none';
+  object-src 'none'; base-uri 'none'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'
+  data:; form-action 'none'; frame-ancestors 'self'`). Same-origin GET subresources (images, stylesheets)
+  stay possible and carry the session (`allow-same-origin`); that is accepted because the content is the
+  verified Kiwix edition, while scripts, plugins, `<base>`, forms and fetches/pings/beacons are blocked.
+  Also `X-Frame-Options: SAMEORIGIN` set by the
   handler (`securityHeadersMiddleware` keeps `DENY` for every path), `nosniff`,
   `Referrer-Policy: no-referrer` and `Permissions-Policy: attribution-reporting=(), browsing-topics=()`.
   Blobs go through `http.ServeContent` (Range, `If-None-Match`, `If-Range`) with
-  `Cache-Control: private, max-age=86400`; the middleware never treats the prefix as a static asset.
+  `Cache-Control: private, no-cache` (revalidated through the ETag, 304 while the edition is unchanged); the middleware never treats the prefix as a static asset.
 - Desktop capability `local_wikipedia` = `local_wikipedia.enabled` and a manager
   (`localWikipediaAvailable`); a config publication that flips `enabled` broadcasts `desktop_changed`
   `app_availability` on its own goroutine, outside the config lock. The app contract lives in
@@ -284,7 +312,7 @@ Through the root routing table this contract also binds `internal/tools/local_wi
 
 ### Search, read and the agent tool
 
-- `Library.Search`, `Suggest`, `Read` and `Lead` run through `boundedCall`: one of four process-wide slots and a 5 s deadline that also covers waiting for the slot (a full pool ends as `ErrSearchBusy`, wrapping the context error). Queries are trimmed, whitespace-collapsed, 1-200 characters and at most 16 words (`ErrQueryEmpty`, `ErrQueryTooLong`). `foldText` is libzim's folding: NFD, all combining marks removed, NFC, lower case. `searchView()` is the only code that reads the `Library` fields; tests use fakes behind `articleStore`, `titleIndex` and `fulltextIndex`.
+- `Library.Search`, `Suggest`, `Read` and `Lead` run through `boundedCall`: one of four process-wide slots and a 5 s deadline that also covers waiting for the slot (a full pool ends as `ErrSearchBusy`, wrapping the context error). `Content` does not; its cluster decompressions are bounded by the archive's own limit of four concurrent loads (`internal/zim`, `maxConcurrentClusterLoads`). Queries are trimmed, whitespace-collapsed, 1-200 characters and at most 16 words (`ErrQueryEmpty`, `ErrQueryTooLong`). `foldText` is libzim's folding: NFD, all combining marks removed, NFC, lower case. `searchView()` is the only code that reads the `Library` fields; tests use fakes behind `articleStore`, `titleIndex` and `fulltextIndex`.
 - Search merge (`hitMerger`), in this order, one result per resolved path, redirects followed, non-HTML entries skipped: typed path candidates (underscores, capital first letter), title-index hits whose `titleKey` equals the query's, full-text BM25 hits (terms without postings dropped through `xapian.ExistingTerms`, AND, then OR fill up to the limit), then the remaining title suggestions. Display titles always come from the resolved ZIM entry, never from an index. Limits: `Search` 1-30 (default 5; the tool narrows to 1-10), `Suggest` 1-10, leads for the first 3 hits. Without `X/title/xapian`, and for one-character queries, the titleOrdered list is searched as typed and with a capital first letter; without a supported full-text index only titles are searched and `Fulltext()` is false. When the deadline ends during snippet extraction the hits come back with the snippets and leads found so far; a damaged or oversized article keeps its title without snippet.
 - Snippet: first sentence of a `<p>` (first 40 paragraphs of the first 512 KiB; tables, figures, infoboxes, references, hatnotes and maintenance boxes skipped) with a folded query word (word prefix, CJK substring), at most 200 runes, else the start of the first paragraph. Lead: the prose before the first heading, without infobox, tables and images, parsed from at most 1 MiB, at most 2,000 runes. Articles above 16 MiB of HTML are `ErrArticleTooLarge`.
 - Rendering (`render_clean.go`, `render.go`) handles mwoffliner 1.13 mobile sections and 2.x Parsoid read views and runs in a fixed order: sentinels stripped, footer and removal selectors (before table conversion), hidden elements, figures, infoboxes, media, nested and truncated tables, links unwrapped. Infoboxes become key/value lists (at most 80 rows, 4 levels); tables are cut after 50 rows with a note; links are plain text; math is TeX in inline code; `[Image: caption]` only for figures that still carry media (nopic editions drop figures); external-link sections (headings in all 16 languages) and sections left empty (reference lists) are dropped. Article text has private-use sentinels (U+E000-U+E004) stripped first, because the cleanup writes its own `[Image: …]` and `[Table truncated: …]` labels with them: the converter would escape real brackets, and article brackets must never become a link. Every `&` of the article text is set aside as a sentinel before conversion, so `tidyMarkdown` decodes only the converter's own `&lt;`, `&gt;` and `&amp;`; a literal `&lt;` of the article (prose, code, pre) stays `&lt;`. `testdata/render_*.html` are trimmed real pages (CC BY-SA 4.0, Wikipedia contributors); update their `.md` goldens together with any selector change.

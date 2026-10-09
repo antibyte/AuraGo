@@ -97,7 +97,7 @@ func TestLocalWikipediaContentFramingSurvivesTheMiddlewareChain(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/desktop/local-wikipedia/content/", func(w http.ResponseWriter, r *http.Request) {
 		setLocalWikiContentHeaders(w.Header())
-		w.Header().Set("Cache-Control", "private, max-age=86400")
+		w.Header().Set("Cache-Control", localWikiContentCacheControl)
 		w.Header().Del("Pragma")
 		w.WriteHeader(http.StatusOK)
 	})
@@ -118,7 +118,7 @@ func TestLocalWikipediaContentFramingSurvivesTheMiddlewareChain(t *testing.T) {
 	for _, path := range []string{"/api/desktop/local-wikipedia/content/Berlin", "/api/desktop/local-wikipedia/content/_assets_/logo.png"} {
 		w := request(path, true)
 		if w.Code != http.StatusOK || w.Header().Get("X-Frame-Options") != "SAMEORIGIN" || w.Header().Get("Content-Security-Policy") != localWikipediaContentCSP ||
-			w.Header().Get("Cache-Control") != "private, max-age=86400" || w.Header().Get("Pragma") != "" {
+			w.Header().Get("Cache-Control") != "private, no-cache" || w.Header().Get("Pragma") != "" {
 			t.Fatalf("%s = %d xfo=%q csp=%q cache=%q pragma=%q", path, w.Code, w.Header().Get("X-Frame-Options"), w.Header().Get("Content-Security-Policy"), w.Header().Get("Cache-Control"), w.Header().Get("Pragma"))
 		}
 		policy := strings.Join(w.Header().Values("Permissions-Policy"), ", ")
@@ -171,7 +171,7 @@ func TestLocalWikiContentSurvivesTheMiddlewareChain(t *testing.T) {
 	for _, path := range []string{"/api/desktop/local-wikipedia/content/Berlin", "/api/desktop/local-wikipedia/content/_assets_/logo.png"} {
 		w := request(path)
 		if w.Code != http.StatusOK || w.Header().Get("X-Frame-Options") != "SAMEORIGIN" || w.Header().Get("Content-Security-Policy") != localWikipediaContentCSP ||
-			w.Header().Get("Cache-Control") != "private, max-age=86400" || w.Header().Get("Pragma") != "" {
+			w.Header().Get("Cache-Control") != "private, no-cache" || w.Header().Get("Pragma") != "" {
 			t.Fatalf("%s = %d xfo=%q csp=%q cache=%q pragma=%q", path, w.Code, w.Header().Get("X-Frame-Options"), w.Header().Get("Content-Security-Policy"), w.Header().Get("Cache-Control"), w.Header().Get("Pragma"))
 		}
 	}

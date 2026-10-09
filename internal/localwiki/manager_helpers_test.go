@@ -90,7 +90,10 @@ func (e *testEnv) start() {
 	case <-time.After(15 * time.Second):
 		e.t.Fatal("the first load after Start did not finish")
 	}
-	e.waitDiskProbe(0)
+	// A disabled integration measures nothing (see probeDisk).
+	if e.manager.Settings().Enabled {
+		e.waitDiskProbe(0)
+	}
 }
 
 // waitDiskProbe waits until a free-space measurement newer than after was

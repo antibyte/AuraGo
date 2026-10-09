@@ -166,6 +166,25 @@ const SERVER_ENGLISH = 'Server recommendation that must never be shown.';
   assert.ok(!ctx.html().includes(bundle['config.local_wikipedia.update_failed']), 'a paused download did not fail');
 }
 
+// A switched-off integration keeps reporting the installed edition (state
+// ready, not readable, error_code disabled): an info note instead of a warning,
+// no success style, no "cannot be read" or full-text facts the server could not
+// check, and only Delete is offered.
+{
+  const ctx = makeContext();
+  ctx.run('configData.local_wikipedia.enabled = false');
+  ctx.setStatus({ ...ready, readable: false, fulltext: false, error_code: 'disabled', recommendation: SERVER_ENGLISH });
+  const html = ctx.html();
+  assert.ok(html.includes('<div class="cfg-note-banner cfg-note-banner-info">' + bundle['config.local_wikipedia.error_disabled'] + '</div>'));
+  assert.ok(!html.includes('cfg-note-banner-success') && !html.includes('cfg-note-banner-warning'));
+  assert.ok(!html.includes(bundle['config.local_wikipedia.unreadable']));
+  assert.ok(!html.includes(bundle['config.local_wikipedia.fulltext_off']) && !html.includes(bundle['config.local_wikipedia.fulltext_on']));
+  assert.ok(!html.includes(bundle['config.local_wikipedia.update_failed']));
+  assert.ok(!html.includes(SERVER_ENGLISH));
+  assert.ok(/data-lw-action="delete"(?![^>]*disabled)/.test(html), 'Delete stays available while switched off');
+  assert.ok(!html.includes('data-lw-action="check"'));
+}
+
 // An unreadable state file is AuraGo's own file: its own wording, no "update
 // failed", and Install and Delete are offered.
 {

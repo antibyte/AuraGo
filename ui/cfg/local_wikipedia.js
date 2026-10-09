@@ -385,7 +385,11 @@ function localWikiRuntimeHTML() {
     }
     const state = localWikiStateOf(status);
     const readable = status.readable === true;
-    const stateClass = state === 'ready' ? ' cfg-note-banner-success' : (state === 'error' || state === 'interrupted') ? ' cfg-note-banner-warning' : '';
+    // While the integration is off an installed edition stays "ready" but is
+    // neither opened nor served: no success style, and no readability or
+    // full-text facts the server could not check.
+    const switchedOff = status.error_code === 'disabled';
+    const stateClass = state === 'ready' && !switchedOff ? ' cfg-note-banner-success' : (state === 'error' || state === 'interrupted') ? ' cfg-note-banner-warning' : '';
     let html = '<div id="lw-state" class="cfg-note-banner' + stateClass + '" tabindex="-1">' +
         escapeHtml(t('config.local_wikipedia.state_' + state)) + '</div>';
     html += pollError;
@@ -393,9 +397,11 @@ function localWikiRuntimeHTML() {
     if (status.error_code) {
         // A failed update leaves the installed edition online (state "ready"),
         // so the code is shown next to the state instead of replacing it.
-        html += localWikiBanner(status.error_code === 'fulltext_unsupported' ? 'info' : 'warning', localWikiStatusErrorText(status));
+        html += localWikiBanner(status.error_code === 'fulltext_unsupported' || switchedOff ? 'info' : 'warning', localWikiStatusErrorText(status));
     }
-    if (status.edition) html += localWikiEditionFacts('installed_title', status.edition, status.fulltext, readable);
+    if (status.edition) {
+        html += localWikiEditionFacts('installed_title', status.edition, switchedOff ? undefined : status.fulltext, switchedOff ? undefined : readable);
+    }
     if (status.edition && status.update_available && status.selection_matches_installed) {
         html += localWikiBanner('info', t('config.local_wikipedia.update_available', {
             date: status.update_available.date, size: localWikiFormatBytes(status.update_available.size)

@@ -109,6 +109,15 @@ func prepareDataDir(dir string, sensitive func(string) bool) error {
 	return nil
 }
 
+// ResolveDirectory returns the real location of an existing directory as the
+// storage directory check resolves it (symbolic links, Windows junctions, 8.3
+// short names; see resolveExistingDir). The server resolves AuraGo's data
+// directory with it, so its Deps.IsSensitivePath recognises the data
+// directory in the form the resolved checks below pass in.
+func ResolveDirectory(dir string) (string, error) {
+	return resolveExistingDir(dir)
+}
+
 // checkResolvedDataDir applies the sensitive-path check to the existing dir
 // after resolveExistingDir. Without a sensitive-path check there is nothing
 // to repeat.

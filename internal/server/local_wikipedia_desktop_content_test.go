@@ -14,14 +14,21 @@ func localWikiContentGet(t *testing.T, s *Server, backend localWikiDesktopBacken
 }
 
 func TestLocalWikiContentCSPMatchesTheSpec(t *testing.T) {
-	// The spec policy plus connect-src 'none': link pings and beacons from a
-	// ZIM document must never reach AuraGo with the session cookie.
-	const spec = "sandbox allow-same-origin allow-popups allow-popups-to-escape-sandbox; default-src 'self'; script-src 'none'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'none'; frame-ancestors 'self'"
+	// The spec policy plus connect-src 'none' (link pings and beacons from a
+	// ZIM document must never reach AuraGo with the session cookie),
+	// object-src 'none' (no plugin content) and base-uri 'none' (no <base>
+	// element re-targets relative URLs).
+	const spec = "sandbox allow-same-origin allow-popups allow-popups-to-escape-sandbox; default-src 'self'; script-src 'none'; object-src 'none'; base-uri 'none'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'none'; frame-ancestors 'self'"
 	if localWikipediaContentCSP != spec {
 		t.Fatalf("content CSP = %q, want the spec value", localWikipediaContentCSP)
 	}
 	if strings.Contains(localWikipediaContentCSP, "allow-scripts") {
 		t.Fatal("ZIM documents must never run scripts")
+	}
+	for _, directive := range []string{"script-src 'none'", "object-src 'none'", "base-uri 'none'", "connect-src 'none'", "form-action 'none'"} {
+		if !strings.Contains(localWikipediaContentCSP, directive) {
+			t.Fatalf("content CSP %q lacks %s", localWikipediaContentCSP, directive)
+		}
 	}
 }
 
@@ -37,7 +44,7 @@ func TestLocalWikiContentHeaders(t *testing.T) {
 		"Content-Security-Policy": localWikipediaContentCSP,
 		"X-Frame-Options":         "SAMEORIGIN",
 		"X-Content-Type-Options":  "nosniff",
-		"Cache-Control":           "private, max-age=86400",
+		"Cache-Control":           "private, no-cache",
 		"Referrer-Policy":         "no-referrer",
 		"Permissions-Policy":      "attribution-reporting=(), browsing-topics=()",
 		"ETag":                    `"fixture-Berlin"`,
@@ -77,8 +84,15 @@ func TestLocalWikiContentRangeAndConditionalRequests(t *testing.T) {
 	if w.Code != http.StatusPartialContent || w.Body.String() != body[:9] || w.Header().Get("Content-Range") != "bytes 0-8/"+strconv.Itoa(len(body)) {
 		t.Fatalf("range = %d %q %q", w.Code, w.Body.String(), w.Header().Get("Content-Range"))
 	}
-	if w := localWikiContentGet(t, s, backend, "Berlin", map[string]string{"If-None-Match": `"fixture-Berlin"`}); w.Code != http.StatusNotModified || w.Header().Get("Content-Security-Policy") != localWikipediaContentCSP {
-		t.Fatalf("If-None-Match = %d csp=%q", w.Code, w.Header().Get("Content-Security-Policy"))
+	if w := localWikiContentGet(t, s, backend, "Berlin", map[string]string{"If-None-Match": `"fixture-Berlin"`}); w.Code != http.StatusNotModified ||
+		w.Header().Get("Content-Security-Policy") != localWikipediaContentCSP || w.Header().Get("Cache-Control") != "private, no-cache" {
+		t.Fatalf("If-None-Match = %d csp=%q cache=%q", w.Code, w.Header().Get("Content-Security-Policy"), w.Header().Get("Cache-Control"))
+	}
+	// A browser revalidating the copy of another edition (its ETag carries
+	// that edition's UUID) gets the current article, never a 304.
+	if w := localWikiContentGet(t, s, backend, "Berlin", map[string]string{"If-None-Match": `"old-edition-Berlin"`}); w.Code != http.StatusOK || w.Body.String() != body ||
+		w.Header().Get("Cache-Control") != "private, no-cache" {
+		t.Fatalf("stale If-None-Match = %d %q cache=%q", w.Code, w.Body.String(), w.Header().Get("Cache-Control"))
 	}
 	w = localWikiContentGet(t, s, backend, "Berlin", map[string]string{"Range": "bytes=0-3", "If-Range": `"stale"`})
 	if w.Code != http.StatusOK || w.Body.String() != body {

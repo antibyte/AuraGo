@@ -56,9 +56,10 @@ func newLocalWikipediaTestServerWithDisk(t *testing.T, enabled bool, freeDisk fu
 		defer cancel()
 		_ = manager.Shutdown(ctx)
 	})
-	// The first load and the free-space measurement run in the background.
+	// The first load and the free-space measurement run in the background; a
+	// disabled integration measures nothing.
 	wantFree := int64(-1)
-	if free, err := freeDisk(cfg.Directories.DataDir); err == nil {
+	if free, err := freeDisk(cfg.Directories.DataDir); err == nil && enabled {
 		wantFree = free
 	}
 	deadline := time.Now().Add(10 * time.Second)

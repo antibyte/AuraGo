@@ -30,13 +30,25 @@ const (
 	localWikiQueryTimeout  = 6 * time.Second
 )
 
-// localWikipediaContentCSP keeps ZIM documents inert: no script runs, forms
-// cannot submit, link pings and beacons cannot reach AuraGo with the session
-// (connect-src 'none') and only the Desktop may frame them. allow-same-origin
-// keeps the session cookie on image and stylesheet requests (SameSite=Strict
-// treats an opaque origin as cross-site) and lets the app read the article
-// title. Every content answer carries it: blobs, redirects and error pages.
-const localWikipediaContentCSP = "sandbox allow-same-origin allow-popups allow-popups-to-escape-sandbox; default-src 'self'; script-src 'none'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'none'; frame-ancestors 'self'"
+// localWikipediaContentCSP restricts what a ZIM document can do: no script
+// runs (script-src 'none', no allow-scripts), no plugin content loads
+// (object-src 'none'), no <base> element redirects relative URLs
+// (base-uri 'none'), forms cannot submit (form-action 'none'), link pings,
+// beacons and fetches cannot reach AuraGo with the session
+// (connect-src 'none'), and only the Desktop may frame the document
+// (frame-ancestors 'self').
+//
+// It does not make the document fully inert: same-origin GET subresources
+// stay possible. allow-same-origin keeps the session cookie on image and
+// stylesheet requests (SameSite=Strict treats an opaque origin as cross-site)
+// and lets the app read the article title, so an <img> or stylesheet URL in
+// the document can send a GET to any AuraGo path with the user's session.
+// That is accepted because the content comes from the Kiwix edition AuraGo
+// downloaded and verified (the SHA-256 of Kiwix's .meta4), not from an
+// arbitrary site; a route that changed state on GET would be reachable this
+// way. Every content answer carries the policy: blobs, redirects and error
+// pages.
+const localWikipediaContentCSP = "sandbox allow-same-origin allow-popups allow-popups-to-escape-sandbox; default-src 'self'; script-src 'none'; object-src 'none'; base-uri 'none'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'none'; frame-ancestors 'self'"
 
 // localWikiReader is what the Desktop API needs from an open edition.
 type localWikiReader interface {
@@ -380,15 +392,22 @@ func (s *Server) serveLocalWikiContent(w http.ResponseWriter, r *http.Request, r
 	header := w.Header()
 	setLocalWikiContentHeaders(header)
 	header.Set("Content-Type", mimeType)
-	// Overrides the authenticated no-store default: the blob cannot change
-	// within an edition, and the ETag carries the edition UUID.
-	header.Set("Cache-Control", "private, max-age=86400")
+	// Overrides the authenticated no-store default, but every reuse
+	// revalidates: the same path can name another blob after an update or a
+	// language change, and a max-age would keep serving the old edition's
+	// article. The ETag carries the edition UUID, so an unchanged edition
+	// answers the revalidation with 304.
+	header.Set("Cache-Control", localWikiContentCacheControl)
 	header.Del("Pragma")
 	if item.ETag != "" {
 		header.Set("ETag", item.ETag)
 	}
 	http.ServeContent(w, r, "", time.Time{}, item.Reader)
 }
+
+// localWikiContentCacheControl lets the browser keep a blob but revalidate it
+// (If-None-Match against the edition-bound ETag) before every reuse.
+const localWikiContentCacheControl = "private, no-cache"
 
 // localWikiContentPermissionsPolicy switches off the ad measurement APIs for
 // ZIM documents; the middleware's hardware policies stay in place.
