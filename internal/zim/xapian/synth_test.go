@@ -2,23 +2,42 @@ package xapian
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 	"testing"
 )
 
-// synthChunkBytes is the posting chunk size Xapian's glass backend aims for.
+// synthChunkBytes is the posting and value chunk size Xapian's glass backend
+// aims for.
 const synthChunkBytes = 2000
 
-// synthDB builds an in-memory glass database whose postlist table holds the
-// document length list (docLens[i] is the length of docid i+1; 0 = no such
-// document) and the given term posting lists ((docid, wdf) pairs in
-// ascending docid order), chunked like Xapian and laid out in blockSize
-// leaves under as many branch levels as needed. docdata and values are
-// empty: hits come back without path and title.
+// synthIndex describes an in-memory glass database for tests and benchmarks.
+type synthIndex struct {
+	blockSize int
+	docLens   []uint32               // length of docid i+1; 0 = no such document
+	terms     map[string][][2]uint32 // term -> (docid, wdf) in ascending docid order
+	values    map[uint32][]string    // slot -> value of docid i+1 ("" = unset)
+	data      []string               // document data of docid i+1 ("" = none)
+	// separator, when set, rewrites the key of a branch item (the first key
+	// of its child) before the block is written, to craft damaged trees.
+	separator func(level int, key string) string
+}
+
+// synthDB builds a database whose postlist table holds the document length
+// list and the given posting lists; docdata and values are empty, so hits come
+// back without path and title.
 func synthDB(tb testing.TB, blockSize int, docLens []uint32, terms map[string][][2]uint32) *Database {
 	tb.Helper()
+	return synthIndex{blockSize: blockSize, docLens: docLens, terms: terms}.build(tb)
+}
+
+// build lays the index out like Xapian: posting and value chunks of about
+// synthChunkBytes, blockSize leaves under as many branch levels as needed,
+// block 0 left for the version block.
+func (s synthIndex) build(tb testing.TB) *Database {
+	tb.Helper()
 	type entry struct{ key, tag []byte }
-	var entries []entry
+	var post []entry
 	addList := func(term string, ps [][2]uint32, tf, cf uint64) {
 		for start := 0; start < len(ps); {
 			end, size := start+1, 0
@@ -28,33 +47,64 @@ func synthDB(tb testing.TB, blockSize int, docLens []uint32, terms map[string][]
 			}
 			last := end == len(ps)
 			if start == 0 {
-				entries = append(entries, entry{postlistKey(term), firstChunk(tf, cf, last, ps[:end]...)})
+				post = append(post, entry{postlistKey(term), firstChunk(tf, cf, last, ps[:end]...)})
 			} else {
-				entries = append(entries, entry{postlistChunkKey(term, ps[start][0]), laterChunk(last, ps[start:end]...)})
+				post = append(post, entry{postlistChunkKey(term, ps[start][0]), laterChunk(last, ps[start:end]...)})
 			}
 			start = end
 		}
 	}
 	var dl [][2]uint32
 	var total uint64
-	for i, l := range docLens {
+	for i, l := range s.docLens {
 		if l > 0 {
 			dl = append(dl, [2]uint32{uint32(i + 1), l})
 			total += uint64(l)
 		}
 	}
 	addList("", dl, 0, 0)
-	for term, ps := range terms {
+	for term, ps := range s.terms {
 		var cf uint64
 		for _, p := range ps {
 			cf += uint64(p[1])
 		}
 		addList(term, ps, uint64(len(ps)), cf)
 	}
-	sort.Slice(entries, func(i, j int) bool { return bytes.Compare(entries[i].key, entries[j].key) < 0 })
+	for slot, vals := range s.values {
+		var tag []byte
+		var first, prev uint32
+		flush := func() {
+			if tag != nil {
+				post = append(post, entry{valueChunkKey(slot, first), tag})
+				tag = nil
+			}
+		}
+		for i, v := range vals {
+			if v == "" {
+				continue
+			}
+			did := uint32(i + 1)
+			if tag == nil {
+				first = did
+			} else {
+				tag = appendUint(tag, uint64(did-prev-1))
+			}
+			tag = append(appendUint(tag, uint64(len(v))), v...)
+			prev = did
+			if len(tag) >= synthChunkBytes {
+				flush()
+			}
+		}
+		flush()
+	}
+	var docs []entry
+	for i, d := range s.data {
+		if d != "" {
+			docs = append(docs, entry{docdataKey(uint32(i + 1)), []byte(d)})
+		}
+	}
 
-	// Pack items into blocks level by level; block 0 is the version block.
-	file := make([]byte, blockSize)
+	file := make([]byte, s.blockSize)
 	next := uint32(1)
 	type ref struct {
 		key   string
@@ -65,39 +115,58 @@ func synthDB(tb testing.TB, blockSize int, docLens []uint32, terms map[string][]
 		var refs []ref
 		for start := 0; start < len(items); {
 			end, used := start, blockHeaderSize
-			for end < len(items) && used+2+itemSize(items[end]) <= blockSize {
+			for end < len(items) && used+2+itemSize(items[end]) <= s.blockSize {
 				used += 2 + itemSize(items[end])
 				end++
 			}
 			if end == start {
-				tb.Fatalf("synthDB: item too large for %d-byte blocks", blockSize)
+				tb.Fatalf("synthIndex: item too large for %d-byte blocks", s.blockSize)
 			}
-			file = append(file, buildBlockSize(blockSize, level, items[start:end])...)
+			file = append(file, buildBlockSize(s.blockSize, level, items[start:end])...)
 			refs = append(refs, ref{items[start].key, items[start].comp, next})
 			next++
 			start = end
 		}
 		return refs
 	}
-	leaves := []tItem{{key: "", comp: 1, last: true}}
-	for _, e := range entries {
-		leaves = append(leaves, tItem{key: string(e.key), comp: 1, last: true, chunk: e.tag})
-	}
-	refs := pack(0, leaves, func(it tItem) int { return 3 + len(it.key) + len(it.chunk) })
-	level := 0
-	for len(refs) > 1 {
-		level++
-		branch := make([]tItem, len(refs))
-		for i, r := range refs {
-			branch[i] = tItem{key: r.key, comp: r.comp, child: r.block}
+	// buildTable writes one B-tree and returns its root and level (nil when
+	// the table is empty).
+	buildTable := func(name string, entries []entry) *table {
+		if len(entries) == 0 {
+			return &table{name: name, empty: true}
 		}
-		refs = pack(level, branch, func(it tItem) int { return 4 + 1 + len(it.key) + 2 })
+		sort.Slice(entries, func(i, j int) bool { return bytes.Compare(entries[i].key, entries[j].key) < 0 })
+		leaves := []tItem{{key: "", comp: 1, last: true}}
+		for _, e := range entries {
+			leaves = append(leaves, tItem{key: string(e.key), comp: 1, last: true, chunk: e.tag})
+		}
+		refs := pack(0, leaves, func(it tItem) int { return 3 + len(it.key) + len(it.chunk) })
+		level := 0
+		for len(refs) > 1 {
+			level++
+			branch := make([]tItem, len(refs))
+			for i, r := range refs {
+				key := r.key
+				if s.separator != nil && i > 0 {
+					key = s.separator(level, key)
+				}
+				branch[i] = tItem{key: key, comp: r.comp, child: r.block}
+			}
+			refs = pack(level, branch, func(it tItem) int { return 4 + 1 + len(it.key) + 2 })
+		}
+		return &table{name: name, blockSize: s.blockSize, root: refs[0].block, level: level}
+	}
+	postlist := buildTable("postlist", post)
+	docdata := buildTable("docdata", docs)
+	cache := newBlockCache(defaultCacheBytes / s.blockSize)
+	r := bytes.NewReader(file)
+	for _, t := range []*table{postlist, docdata} {
+		t.r, t.nblocks, t.cache, t.blockSize = r, next, cache, s.blockSize
 	}
 	db := &Database{
-		postlist: &table{name: "postlist", r: bytes.NewReader(file), blockSize: blockSize, nblocks: next,
-			root: refs[0].block, level: level, cache: newBlockCache(defaultCacheBytes / blockSize)},
-		docdata: &table{name: "docdata", empty: true},
-		info:    versionInfo{docCount: uint32(len(dl)), lastDocID: uint32(len(docLens)), totalLength: total},
+		postlist: postlist,
+		docdata:  docdata,
+		info:     versionInfo{docCount: uint32(len(dl)), lastDocID: uint32(len(s.docLens)), totalLength: total},
 	}
 	if len(dl) > 0 {
 		db.avgLen = float64(total) / float64(len(dl))
@@ -163,5 +232,40 @@ func TestSynthDB(t *testing.T) {
 	}
 	if _, err := db.DocLength(100); err != ErrDocNotFound {
 		t.Fatalf("DocLength(100): %v, want ErrDocNotFound", err)
+	}
+}
+
+// Values and document data survive chunking, and the docdata table gets its
+// own tree in the same file.
+func TestSynthIndexValuesAndData(t *testing.T) {
+	const n = 3000
+	lens := make([]uint32, n)
+	titles := make([]string, n)
+	targets := make([]string, n)
+	data := make([]string, n)
+	for i := range lens {
+		lens[i] = 5
+		titles[i] = fmt.Sprintf("Title %d", i+1)
+		if i%3 != 1 {
+			targets[i] = fmt.Sprintf("Target_%d", i/3)
+		}
+		data[i] = fmt.Sprintf("C/Page_%d", i+1)
+	}
+	db := synthIndex{blockSize: minBlockSize, docLens: lens, data: data,
+		values: map[uint32][]string{0: titles, 1: targets}}.build(t)
+	if db.docdata.empty || db.docdata.level == 0 {
+		t.Fatalf("docdata table: empty %v, level %d", db.docdata.empty, db.docdata.level)
+	}
+	for _, did := range []uint32{1, 2, 3, 150, 1999, n} {
+		i := did - 1
+		if v, err := db.Value(did, 0); err != nil || v != titles[i] {
+			t.Errorf("Value(%d, 0) = %q, %v", did, v, err)
+		}
+		if v, err := db.Value(did, 1); err != nil || v != targets[i] {
+			t.Errorf("Value(%d, 1) = %q, %v; want %q", did, v, err, targets[i])
+		}
+		if d, err := db.Data(did); err != nil || d != data[i] {
+			t.Errorf("Data(%d) = %q, %v", did, d, err)
+		}
 	}
 }

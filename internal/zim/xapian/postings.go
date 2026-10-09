@@ -56,6 +56,7 @@ type postingList struct {
 	data        []byte // undecoded rest of the current chunk (may alias a cached block)
 	did         uint32
 	wdf         uint32
+	chunkFirst  uint32 // first docid of the current chunk
 	lastInChunk uint32
 	isLastChunk bool
 	started     bool
@@ -168,7 +169,7 @@ func (p *postingList) loadChunk() error {
 	if p.started && did <= p.did {
 		return corruptf("posting list for %q: chunk docids not increasing", p.term)
 	}
-	p.lastInChunk = did + inc
+	p.chunkFirst, p.lastInChunk = did, did+inc
 	wdf, n, err := unpackUint32(tag)
 	if err != nil {
 		return err
@@ -251,7 +252,9 @@ func (p *postingList) DocID() uint32 { return p.did }
 func (p *postingList) WDF() uint32   { return p.wdf }
 func (p *postingList) Err() error    { return p.err }
 
-// skipTo positions on the first posting with docid >= target.
+// skipTo positions on the first posting with docid >= target. One call does
+// at most one seek and decodes at most one chunk (jumpTo rejects seeks that
+// land anywhere else), so callers polling ctx once per skip stay responsive.
 func (p *postingList) skipTo(target uint32) (bool, error) {
 	if p.done || p.err != nil {
 		return false, p.err
@@ -304,7 +307,15 @@ func (p *postingList) chunkFor(target uint32) error {
 
 // jumpTo loads the chunk that may contain target: the last chunk starting at
 // or before target, or the one after it when that chunk ends before target.
+//
+// The seek trusts the branch separators. A tree whose separators steer seeks
+// too far left keeps every walk in key order, so the cursor cannot notice,
+// but each skip would then walk forward from an early chunk: quadratic work.
+// A valid tree never lands before the chunk the list is already in, and the
+// chunk after the landing one always starts past target; anything else is
+// ErrCorrupt, which bounds every skip to one seek and one chunk.
 func (p *postingList) jumpTo(target uint32) error {
+	from := p.chunkFirst
 	if _, _, err := p.c.seekLE(postlistChunkKey(p.term, target)); err != nil {
 		return err
 	}
@@ -313,6 +324,9 @@ func (p *postingList) jumpTo(target uint32) error {
 	p.started = true
 	if err != nil {
 		return err
+	}
+	if p.chunkFirst < from || p.chunkFirst > target {
+		return corruptf("posting list for %q: seek for docid %d landed on the chunk at %d (current chunk %d)", p.term, target, p.chunkFirst, from)
 	}
 	if p.lastInChunk >= target || p.isLastChunk {
 		return nil
@@ -324,5 +338,11 @@ func (p *postingList) jumpTo(target uint32) error {
 	if !ok {
 		return corruptf("posting list for %q: missing continuation chunk", p.term)
 	}
-	return p.loadChunk()
+	if err := p.loadChunk(); err != nil {
+		return err
+	}
+	if p.chunkFirst <= target {
+		return corruptf("posting list for %q: seek for docid %d stopped before the chunk at %d", p.term, target, p.chunkFirst)
+	}
+	return nil
 }
