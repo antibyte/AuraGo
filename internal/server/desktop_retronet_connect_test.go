@@ -349,3 +349,30 @@ func TestDesktopRetroNetSessionClosesOnHTTPDrain(t *testing.T) {
 		t.Fatalf("drained session audit = %v", session)
 	}
 }
+
+// A desktop config change replaces (and closes) the Desktop service while a
+// long session runs; the end record must reach the current service.
+func TestDesktopRetroNetSessionAuditUsesTheCurrentDesktopService(t *testing.T) {
+	env := newRetroNetTestEnv(t)
+	env.saveEntries(t, env.ownTelnetEntry())
+	before, _, err := env.s.getDesktopService(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	socket := dialRetroNet(t, env.httpServer.URL, env.writeToken, "entry="+retroNetTestEntryID)
+	socket.until(5*time.Second, socket.has("connected"))
+	env.configure(func(vd *config.VirtualDesktopConfig) { vd.MaxFileSizeMB = 77 })
+	after, _, err := env.s.getDesktopService(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after == before {
+		t.Fatal("the desktop config change did not replace the Desktop service")
+	}
+	env.telnet.hangUp()
+	socket.until(5*time.Second, socket.has("result"))
+	session, _ := waitRetroNetAudit(t, env, "desktop_retronet_session", retroNetTestEntryID)
+	if session["code"] != retronet.CodeNoCarrier || session["reason"] != retronet.ReasonRemoteClosed {
+		t.Fatalf("session audit = %v", session)
+	}
+}

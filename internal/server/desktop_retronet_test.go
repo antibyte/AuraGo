@@ -85,7 +85,24 @@ func newRetroNetTestEnv(t *testing.T, seed ...func(*Server)) *retroNetTestEnv {
 	env.mux = http.NewServeMux()
 	registerDesktopRetroNetRoutes(env.mux, s)
 	env.mux.HandleFunc("/api/desktop/settings", handleDesktopSettings(s))
-	env.httpServer = httptest.NewServer(env.mux)
+	// httptest.Server.Close does not wait for hijacked (WebSocket) handlers.
+	// Wait for them before the Desktop service and temp dirs go away: a session
+	// end audits through the current service and may reopen it.
+	var handlers sync.WaitGroup
+	t.Cleanup(func() {
+		done := make(chan struct{})
+		go func() { handlers.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			t.Error("Retro-Net handlers still running at cleanup")
+		}
+	})
+	env.httpServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlers.Add(1)
+		defer handlers.Done()
+		env.mux.ServeHTTP(w, r)
+	}))
 	t.Cleanup(env.httpServer.Close)
 	return env
 }

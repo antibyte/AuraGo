@@ -86,11 +86,7 @@ func (s *Server) storeRetroNetHostKey(ctx context.Context, entryID, fingerprint 
 		err = svc.SetRetroNetHostKey(ctx, entryID, fingerprint)
 	}
 	if err != nil {
-		logger := s.Logger
-		if logger == nil {
-			logger = slog.Default()
-		}
-		logger.Warn("Retro-Net host key was not stored", "entry", entryID, "error", err)
+		s.retroNetLogger().Warn("Retro-Net host key was not stored", "entry", entryID, "error", err)
 		return err
 	}
 	settings := map[string]string{}
@@ -104,21 +100,28 @@ func (s *Server) storeRetroNetHostKey(ctx context.Context, entryID, fingerprint 
 	return nil
 }
 
+func (s *Server) retroNetLogger() *slog.Logger {
+	if s.Logger != nil {
+		return s.Logger
+	}
+	return slog.Default()
+}
+
 // retroNetDirectory loads the curated catalog and the validated own entries.
-func (s *Server) retroNetDirectory(ctx context.Context) (*desktop.Service, []retronet.Entry, []retronet.Entry, error) {
+func (s *Server) retroNetDirectory(ctx context.Context) ([]retronet.Entry, []retronet.Entry, error) {
 	svc, _, err := s.getDesktopService(ctx)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	own, err := svc.RetroNetEntries(ctx)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	return svc, retronet.DefaultCatalog(), own, nil
+	return retronet.DefaultCatalog(), own, nil
 }
 
 func (s *Server) handleRetroNetDirectory(w http.ResponseWriter, r *http.Request) {
-	_, catalog, own, err := s.retroNetDirectory(r.Context())
+	catalog, own, err := s.retroNetDirectory(r.Context())
 	if err != nil {
 		jsonError(w, "Retro-Net directory is unavailable.", http.StatusServiceUnavailable)
 		return
@@ -135,7 +138,7 @@ func (s *Server) handleRetroNetDirectory(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleRetroNetStatus(w http.ResponseWriter, r *http.Request) {
-	_, catalog, own, err := s.retroNetDirectory(r.Context())
+	catalog, own, err := s.retroNetDirectory(r.Context())
 	if err != nil {
 		jsonError(w, "Retro-Net directory is unavailable.", http.StatusServiceUnavailable)
 		return
@@ -156,7 +159,7 @@ func writeRetroNetJSON(w http.ResponseWriter, payload interface{}) {
 // directory. Hijacked sockets are tracked by trackHTTP, so shutdown closes
 // them before draining handlers.
 func (s *Server) handleRetroNetConnect(w http.ResponseWriter, r *http.Request) {
-	svc, catalog, own, err := s.retroNetDirectory(r.Context())
+	catalog, own, err := s.retroNetDirectory(r.Context())
 	if err != nil {
 		jsonError(w, "Retro-Net directory is unavailable.", http.StatusServiceUnavailable)
 		return
@@ -189,7 +192,7 @@ func (s *Server) handleRetroNetConnect(w http.ResponseWriter, r *http.Request) {
 	// Run has sent the final result frame: hang up first, then audit.
 	stop()
 	client.closeSocket()
-	auditRetroNetSession(svc, s, r, entry.ID, result)
+	s.auditRetroNetSession(r, entry.ID, result)
 }
 
 // retroNetSessionContext detaches the session from request cancellation so the
@@ -246,12 +249,12 @@ func (s *Server) retroNetEndCause(r *http.Request, fallback error) error {
 	return fallback
 }
 
-// auditRetroNetSession records how a session ended. It never records payload bytes.
-func auditRetroNetSession(svc *desktop.Service, s *Server, r *http.Request, entryID string, result retronet.Result) {
-	if svc == nil {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), retroNetAuditTimeout)
+// auditRetroNetSession records how a session ended. It never records payload
+// bytes. A session can outlive the Desktop service it started with (a desktop
+// config change replaces and closes it), so the current service is fetched
+// here, under a short background deadline because the request may be done.
+func (s *Server) auditRetroNetSession(r *http.Request, entryID string, result retronet.Result) {
+	ctx, cancel := context.WithTimeout(context.Background(), retroNetAuditTimeout)
 	defer cancel()
 	details := map[string]interface{}{
 		"code":        result.Code,
@@ -261,5 +264,11 @@ func auditRetroNetSession(svc *desktop.Service, s *Server, r *http.Request, entr
 		"bytes_out":   result.BytesOut,
 		"duration_ms": result.Duration.Milliseconds(),
 	}
-	_ = svc.AuditWithRequest(ctx, "desktop_retronet_session", entryID, details, desktop.SourceUser, desktopAuditRequestInfo(s, r))
+	svc, _, err := s.getDesktopService(ctx)
+	if err == nil {
+		err = svc.AuditWithRequest(ctx, "desktop_retronet_session", entryID, details, desktop.SourceUser, desktopAuditRequestInfo(s, r))
+	}
+	if err != nil {
+		s.retroNetLogger().Warn("Retro-Net session end was not audited", "entry", entryID, "error", err)
+	}
 }
