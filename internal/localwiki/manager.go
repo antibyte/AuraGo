@@ -193,12 +193,17 @@ func (m *Manager) Shutdown(ctx context.Context) error {
 
 func (m *Manager) loop() {
 	defer m.wg.Done()
+	timer := time.NewTimer(m.firstCheck)
+	defer timer.Stop()
 	for {
 		select {
 		case <-m.lifecycleCtx.Done():
 			return
 		case <-m.reload:
 			m.reloadIfIdle()
+		case <-timer.C:
+			m.maybeCheckUpdate(m.lifecycleCtx)
+			timer.Reset(loopTick)
 		}
 	}
 }
