@@ -111,8 +111,7 @@ func (m *Manager) Run(ctx context.Context, e Entry, size Size, client Client) Re
 	started := time.Now()
 	var res Result
 	if m.acquire() {
-		res = m.session(ctx, e, sessionSize(e, size), client)
-		m.active.Add(-1)
+		res = m.sessionInSlot(ctx, e, sessionSize(e, size), client)
 	} else {
 		res.Reason = ReasonLimit
 	}
@@ -120,6 +119,13 @@ func (m *Manager) Run(ctx context.Context, e Entry, size Size, client Client) Re
 	res.Duration = time.Since(started)
 	_ = client.SendControl(Control{Type: controlResult, Code: res.Code, Reason: res.Reason})
 	return res
+}
+
+// sessionInSlot runs one session in a slot that acquire already took. The slot is released
+// even when the session panics (a misbehaving Client), so a panic cannot leak it.
+func (m *Manager) sessionInSlot(ctx context.Context, e Entry, size Size, client Client) Result {
+	defer m.active.Add(-1)
+	return m.session(ctx, e, size, client)
 }
 
 // session dials e and serves it until it ends. The result carries no Code and Duration yet.

@@ -151,3 +151,55 @@ func TestManagerRunMapsCancellationDuringDial(t *testing.T) {
 		})
 	}
 }
+
+// sessPanicClient panics once, on the first "connected" control or the first terminal output.
+type sessPanicClient struct {
+	*sessionTestClient
+	onControl bool
+	onData    bool
+	panicked  atomic.Bool
+}
+
+func (c *sessPanicClient) SendControl(ctl Control) error {
+	if c.onControl && ctl.Type == controlConnected && c.panicked.CompareAndSwap(false, true) {
+		panic("scripted client panic")
+	}
+	return c.sessionTestClient.SendControl(ctl)
+}
+
+func (c *sessPanicClient) SendData(p []byte) error {
+	if c.onData && c.panicked.CompareAndSwap(false, true) {
+		panic("scripted client panic")
+	}
+	return c.sessionTestClient.SendData(p)
+}
+
+func TestManagerRunReleasesTheSlotWhenTheSessionPanics(t *testing.T) {
+	cases := []struct {
+		name   string
+		client *sessPanicClient
+	}{
+		{"before the pump", &sessPanicClient{sessionTestClient: newSessionTestClient(), onControl: true}},
+		{"inside the pump", &sessPanicClient{sessionTestClient: newSessionTestClient(), onData: true}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := startTelnetFixture(t, telnetFixtureScript{greeting: []byte("hi\r\n"), hangUp: true})
+			m := &Manager{MaxSessions: 1, Dialer: Dialer{AllowRestricted: true}}
+			var recovered any
+			func() {
+				defer func() { recovered = recover() }()
+				m.Run(context.Background(), f.entry(KindWorld, CharsetUTF8), Size{Cols: 80, Rows: 25}, tc.client)
+			}()
+			if recovered == nil {
+				t.Fatal("the scripted panic did not reach the caller of Run")
+			}
+			if m.Active() != 0 {
+				t.Fatalf("active = %d after a panicking session, want the slot released", m.Active())
+			}
+			c := newSessionTestClient()
+			res := m.Run(context.Background(), f.entry(KindWorld, CharsetUTF8), Size{Cols: 80, Rows: 25}, c)
+			sessExpectResult(t, c, res, CodeNoCarrier, ReasonRemoteClosed)
+		})
+	}
+}
