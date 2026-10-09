@@ -322,7 +322,7 @@
     }
 
     // Dialog skeleton: header (title + close), caller content, error line, footer (Cancel + action).
-    function buildDialog(host, kind, title, content, action, tr) {
+    function buildDialog(host, kind, title, content, action, tr, confirmable) {
         const id = 'vd-retronet-dialog-' + (++dialogSeq);
         const dialog = document.createElement('dialog');
         dialog.className = 'vd-terminal-retronet-dialog';
@@ -335,12 +335,26 @@
         const form = el('form', { novalidate: '' });
         append(form, [append(el('header'), [el('h2', { id: id + '-title' }, title), close])]);
         append(form, content);
-        append(form, [error, append(el('footer'), [cancel, action])]);
+        const footer = append(el('footer'), [cancel, action]);
+        append(form, [error, footer]);
+        const parts = { dialog: dialog, form: form, error: error, close: close, cancel: cancel, action: action, footer: footer, confirm: null };
+        if (confirmable) {
+            // In-dialog question before unsaved edits are discarded (replaces the footer while shown).
+            parts.keep = el('button', { type: 'button', 'data-retronet-keep': '' }, tr('desktop.terminal_retronet_keep_editing'));
+            parts.discard = el('button', { type: 'button', class: 'vd-terminal-retronet-danger', 'data-retronet-discard': '' }, tr('desktop.terminal_retronet_discard'));
+            parts.confirm = append(el('div', { class: 'vd-terminal-retronet-confirm', role: 'group', 'aria-labelledby': id + '-discard', 'data-retronet-confirm': '' }), [
+                el('p', { id: id + '-discard' }, tr('desktop.terminal_retronet_discard_question')),
+                append(el('div', { class: 'vd-terminal-retronet-confirm-actions' }), [parts.keep, parts.discard])
+            ]);
+            parts.confirm.hidden = true;
+            form.appendChild(parts.confirm);
+        }
         dialog.appendChild(form);
         host.appendChild(dialog);
-        return { dialog: dialog, form: form, error: error, close: close, cancel: cancel, action: action };
+        return parts;
     }
 
+    // Shows the error and moves focus to the invalid field, else back to the dialog's action button.
     function showError(parts, text, field) {
         parts.error.textContent = text;
         parts.error.hidden = false;
@@ -348,6 +362,8 @@
             field.setAttribute('aria-invalid', 'true');
             field.setAttribute('aria-describedby', parts.error.getAttribute('id'));
             field.focus();
+        } else {
+            parts.action.focus();
         }
     }
 
@@ -360,21 +376,60 @@
         });
     }
 
-    // Modal presentation; Escape, Cancel and the close button close it unless a save is pending. Focus returns to the opener.
-    function present(parts, state, focusTarget) {
+    // Modal presentation. Escape, Cancel and the close button do nothing while a save is pending (a forced
+    // close reopens the dialog until it settles) and ask in the dialog before unsaved edits are discarded.
+    // Focus returns to the opener.
+    function present(parts, state, focusTarget, isDirty) {
         const dialog = parts.dialog;
         const previous = document.activeElement;
-        function dismiss() {
-            if (state.busy) return;
+        const dirty = function () { return !!parts.confirm && typeof isDirty === 'function' && isDirty(); };
+        const asking = function () { return !!parts.confirm && !parts.confirm.hidden; };
+        function ask(show) {
+            parts.confirm.hidden = !show;
+            parts.footer.hidden = show;
+            (show ? parts.keep : parts.cancel).focus();
+        }
+        function finish() {
             if (dialog.open) dialog.close();
             else dialog.remove();
         }
+        function dismiss() {
+            if (state.busy) return;
+            if (dirty() && !asking()) ask(true);
+            else finish();
+        }
         parts.close.addEventListener('click', dismiss);
         parts.cancel.addEventListener('click', dismiss);
+        if (parts.confirm) {
+            parts.keep.addEventListener('click', function () { ask(false); });
+            parts.discard.addEventListener('click', finish);
+        }
+        // Escape is handled on keydown: browsers may close a dialog despite a prevented repeated cancel event.
+        dialog.addEventListener('keydown', function (event) {
+            if (event.key !== 'Escape') return;
+            if (state.busy) {
+                event.preventDefault();
+            } else if (asking()) {
+                event.preventDefault();
+                ask(false);
+            } else if (dirty()) {
+                event.preventDefault();
+                ask(true);
+            }
+        });
         dialog.addEventListener('cancel', function (event) {
-            if (state.busy) event.preventDefault();
+            if (state.busy) {
+                event.preventDefault();
+            } else if (dirty() && !asking()) {
+                event.preventDefault();
+                ask(true);
+            }
         });
         dialog.addEventListener('close', function () {
+            if (state.busy && dialog.isConnected) {
+                try { dialog.showModal(); } catch (e) {}
+                return;
+            }
             dialog.remove();
             if (previous && previous.isConnected && typeof previous.focus === 'function') previous.focus();
         });
@@ -416,7 +471,7 @@
         const save = el('button', { type: 'submit', class: 'vd-terminal-retronet-primary', 'data-retronet-save': '' }, tr('desktop.save'));
         const hint = el('p', { class: 'vd-terminal-retronet-hint' }, tr('desktop.terminal_retronet_form_hint'));
         const title = tr(entry ? 'desktop.terminal_retronet_edit_entry' : 'desktop.terminal_retronet_new_entry');
-        const parts = buildDialog(host, entry ? 'edit' : 'new', title, [hint, grid], save, tr);
+        const parts = buildDialog(host, entry ? 'edit' : 'new', title, [hint, grid], save, tr, true);
         const state = { busy: false };
         let charsetTouched = !!entry;
 
@@ -465,7 +520,10 @@
             });
         });
         syncProtocol();
-        present(parts, state, fields.name);
+        // Unsaved edits: any field differs from what the dialog opened with.
+        const values = function () { return JSON.stringify(Object.keys(fields).map(function (name) { return fields[name].value; })); };
+        const opened = values();
+        present(parts, state, fields.name, function () { return values() !== opened; });
         return parts.dialog;
     }
 

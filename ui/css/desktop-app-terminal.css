@@ -563,7 +563,7 @@
     border: 1px solid var(--vd-theme-border, #425066);
     border-radius: var(--vd-theme-radius-modal, 14px);
     box-shadow: var(--vd-theme-shadow-modal, 0 18px 60px #0008);
-    font: 13px/1.5 system-ui, sans-serif;
+    font: 13px/1.5 var(--vd-font-ui, system-ui, sans-serif);
 }
 
 .vd-terminal-retronet-dialog::backdrop { background: var(--vd-theme-overlay-bg, #0004); }
@@ -610,6 +610,21 @@
 
 .vd-terminal-retronet-error[hidden] { display: none; }
 .vd-terminal-retronet-dialog footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.vd-terminal-retronet-dialog footer[hidden] { display: none; }
+
+/* In-dialog question before unsaved edits are discarded; it replaces the footer while shown. */
+.vd-terminal-retronet-confirm {
+    display: grid;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--vd-theme-control-bg, #ffffff0a);
+    border: 1px solid var(--vd-theme-border, #425066);
+    border-radius: 8px;
+}
+
+.vd-terminal-retronet-confirm[hidden] { display: none; }
+.vd-terminal-retronet-confirm p { font-weight: 600; }
+.vd-terminal-retronet-confirm-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 
 .vd-terminal-retronet-dialog button {
     min-height: 36px;
@@ -623,7 +638,8 @@
 }
 
 .vd-terminal-retronet-dialog [data-retronet-close] { min-width: 36px; font-size: 22px; line-height: 1; }
-.vd-terminal-retronet-dialog .vd-terminal-retronet-primary { color: #fff; background: var(--vd-accent, #4c8dff); border-color: var(--vd-accent, #4c8dff); }
+/* Accents are light in several themes: the Save button keeps the theme's text color on an accent wash. */
+.vd-terminal-retronet-dialog .vd-terminal-retronet-primary { color: inherit; font-weight: 600; background: var(--vd-theme-accent-soft, color-mix(in srgb, var(--vd-accent, #4c8dff) 22%, transparent)); border-color: var(--vd-accent, #4c8dff); }
 .vd-terminal-retronet-dialog .vd-terminal-retronet-danger { color: #fff; background: #c4312b; border-color: #c4312b; }
 .vd-terminal-retronet-dialog button:disabled { opacity: 0.55; cursor: progress; }
 .vd-terminal-retronet-dialog :focus-visible { outline: 2px solid var(--vd-accent, #70b9ff); outline-offset: 2px; }

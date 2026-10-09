@@ -418,6 +418,9 @@ var terminalRetroNetFixedKeys = []string{
 	"desktop.terminal_retronet_error_save",
 	"desktop.terminal_retronet_error_delete",
 	"desktop.terminal_retronet_error_gone",
+	"desktop.terminal_retronet_discard_question",
+	"desktop.terminal_retronet_discard",
+	"desktop.terminal_retronet_keep_editing",
 	"desktop.terminal_retronet_delete_title",
 	"desktop.terminal_retronet_delete_confirm",
 }
@@ -441,6 +444,7 @@ var terminalRetroNetSentenceKeys = []string{
 	"desktop.terminal_retronet_error_user",
 	"desktop.terminal_retronet_error_limit",
 	"desktop.terminal_retronet_error_gone",
+	"desktop.terminal_retronet_discard_question",
 }
 
 func terminalRetroNetI18nKeys(t *testing.T) []string {
@@ -855,6 +859,12 @@ func TestDesktopTerminalRetroNetEntriesContract(t *testing.T) {
 		"api('/api/desktop/retronet/directory')",
 		"next[index] = keepHostKey(draft, stored[index])",
 		"localizedError('desktop.terminal_retronet_error_gone')",
+		"dialog.addEventListener('keydown'",
+		"if (state.busy && dialog.isConnected)",
+		"'data-retronet-confirm'",
+		"tr('desktop.terminal_retronet_discard_question')",
+		"tr('desktop.terminal_retronet_keep_editing')",
+		"tr('desktop.terminal_retronet_discard')",
 		"'data-terminal-retronet-dialog'",
 		"'data-retronet-error'",
 		".textContent = ",
@@ -903,10 +913,20 @@ func TestDesktopTerminalRetroNetStylesheet(t *testing.T) {
 		"var(--vd-theme-control-bg",
 		"var(--vd-theme-border",
 		"var(--vd-text",
+		"var(--vd-font-ui",
+		".vd-terminal-retronet-confirm",
+		".vd-terminal-retronet-dialog footer[hidden]",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop-app-terminal.css missing %q", want)
 		}
+	}
+	// Accents differ per theme and several are light, so the Save button keeps the theme's text color on an
+	// accent wash (the Local Wikipedia pattern) instead of white text on the raw accent.
+	primary := css[strings.Index(css, ".vd-terminal-retronet-dialog .vd-terminal-retronet-primary"):]
+	primary = primary[:strings.Index(primary, "}")]
+	if strings.Contains(primary, "#fff") || !strings.Contains(primary, "var(--vd-theme-accent-soft") {
+		t.Fatalf("the Save button must use theme text on --vd-theme-accent-soft, got %q", primary)
 	}
 	const blink = "animation: vd-terminal-led-dial"
 	if strings.Count(css, blink) != 1 {

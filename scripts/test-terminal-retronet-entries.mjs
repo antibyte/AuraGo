@@ -58,8 +58,8 @@ class FakeElement {
         this.parent = null;
     }
     addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
-    dispatch(type) {
-        const event = { type, target: this, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    dispatch(type, init) {
+        const event = Object.assign({ type, target: this, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, init);
         (this.listeners[type] || []).slice().forEach((fn) => fn(event));
         return event;
     }
@@ -344,9 +344,12 @@ async function edit(values) {
     const pending = openEditor({ respond: () => new Promise((resolve) => { release = resolve; }) });
     pending.set({ name: 'Board', host: 'bbs.example.net' });
     pending.submit();
-    check('Escape is ignored while saving', pending.dialog.dispatch('cancel').defaultPrevented);
+    check('the Escape key is held back while saving', pending.dialog.dispatch('keydown', { key: 'Escape' }).defaultPrevented);
+    check('a cancel request is ignored while saving', pending.dialog.dispatch('cancel').defaultPrevented);
     find(pending.dialog, 'data-retronet-cancel').dispatch('click');
     check('Cancel waits for the save', pending.dialog.open);
+    pending.dialog.close();
+    check('a forced close while saving reopens the dialog', pending.dialog.open && !!pending.dialog.parent);
     await flush();
     check('the request is still pending', pending.dialog.open && pending.calls.length === 1);
     release({ ok: true });
@@ -355,6 +358,51 @@ async function edit(values) {
     const idle = openEditor({});
     find(idle.dialog, 'data-retronet-close').dispatch('click');
     check('the close button closes an idle dialog', !idle.dialog.open && !idle.dialog.parent && idle.calls.length === 0);
+}
+
+// 10b. Unsaved edits: Cancel, the close button and Escape ask in the dialog before discarding.
+{
+    const editor = openEditor({ entry: HOME, own: [HOME] });
+    const confirmBox = find(editor.dialog, 'data-retronet-confirm');
+    const footer = walk(editor.dialog).find((node) => node.tagName === 'FOOTER');
+    check('the discard question starts hidden', confirmBox && confirmBox.hidden && !footer.hidden);
+    find(editor.dialog, 'data-retronet-cancel').dispatch('click');
+    check('Cancel without edits closes at once', !editor.dialog.open);
+    const dirty = openEditor({ entry: HOME, own: [HOME] });
+    const ask = find(dirty.dialog, 'data-retronet-confirm');
+    const dirtyFooter = walk(dirty.dialog).find((node) => node.tagName === 'FOOTER');
+    dirty.set({ name: 'Changed' });
+    find(dirty.dialog, 'data-retronet-cancel').dispatch('click');
+    check('Cancel with edits asks first', dirty.dialog.open && !ask.hidden && dirtyFooter.hidden);
+    check('the question is plain translated text', walk(ask).some((node) => node.text === english['desktop.terminal_retronet_discard_question']));
+    check('focus moves to Keep editing', doc.activeElement === find(dirty.dialog, 'data-retronet-keep'));
+    find(dirty.dialog, 'data-retronet-keep').dispatch('click');
+    check('Keep editing returns to the form', dirty.dialog.open && ask.hidden && !dirtyFooter.hidden && doc.activeElement === find(dirty.dialog, 'data-retronet-cancel'));
+    check('Escape with edits asks first', dirty.dialog.dispatch('keydown', { key: 'Escape' }).defaultPrevented && !ask.hidden);
+    check('Escape again keeps editing', dirty.dialog.dispatch('keydown', { key: 'Escape' }).defaultPrevented && ask.hidden && dirty.dialog.open);
+    check('a native cancel request with edits asks too', dirty.dialog.dispatch('cancel').defaultPrevented && !ask.hidden);
+    find(dirty.dialog, 'data-retronet-discard').dispatch('click');
+    check('Discard closes without saving', !dirty.dialog.open && !dirty.dialog.parent && dirty.calls.length === 0 && dirty.gets.length === 0);
+    const closeButton = openEditor({});
+    closeButton.set({ host: 'bbs.example.net' });
+    find(closeButton.dialog, 'data-retronet-close').dispatch('click');
+    check('the close button asks as well', closeButton.dialog.open && !find(closeButton.dialog, 'data-retronet-confirm').hidden);
+    closeButton.dialog.close();
+}
+
+// 10c. Focus after a failed save: the first invalid field, else the action button.
+{
+    const invalid = await attempt({ name: 'Board', host: '10.0.0.1' });
+    check('a rejected field gets focus and is marked invalid', doc.activeElement === invalid.editor.field('host') && invalid.editor.field('host').getAttribute('aria-invalid') === 'true');
+    invalid.editor.dialog.close();
+    const failed = await editWith({ respond: () => Promise.reject(new Error('nope')) }, { name: 'Board', host: 'bbs.example.net' });
+    check('a failed save focuses Save', doc.activeElement === find(failed.dialog, 'data-retronet-save'));
+    failed.dialog.close();
+    const failedDelete = openEditor({ remove: true, entry: MUD, own: [MUD], respond: () => Promise.reject(new Error('nope')) });
+    failedDelete.submit();
+    await flush();
+    check('a failed delete focuses Delete', doc.activeElement === find(failedDelete.dialog, 'data-retronet-delete'));
+    failedDelete.dialog.close();
 }
 
 // 11. Delete: confirmation with the name as text, the entry removed from the stored list, server errors shown.
@@ -417,8 +465,12 @@ async function edit(values) {
     full.dialog.close();
 }
 
-// 12. Every visible text is plain text: no element carries markup from user data.
-check('no dialog text was parsed as markup', walk(body).every((node) => node.tagName !== 'IMG'));
+// 12. Text reaches the DOM only through textContent and value: the module never parses markup.
+{
+    const source = fs.readFileSync(path.join(ui, 'js', 'desktop', 'apps', 'terminal-retronet-entries.js'), 'utf8');
+    const markup = ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'createContextualFragment', 'DOMParser'].filter((api) => source.includes(api));
+    same('no markup-parsing API in the module', markup, []);
+}
 
 if (failures) {
     console.log(failures + ' check(s) failed');
