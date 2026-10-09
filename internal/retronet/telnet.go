@@ -117,6 +117,15 @@ func (t *Telnet) RemoteEcho() bool {
 	return t.him[optEcho] == optYes && t.him[optSGA] == optYes
 }
 
+// ServerEcho reports whether the server has agreed to echo (WILL ECHO), independent of SGA.
+// MUDs hide password prompts with WILL ECHO while never enabling SGA; the browser then keeps
+// line mode but stops echoing locally.
+func (t *Telnet) ServerEcho() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.him[optEcho] == optYes
+}
+
 // step advances the parser by one byte.
 func (t *Telnet) step(b byte, data, reply []byte) ([]byte, []byte) {
 	switch t.state {

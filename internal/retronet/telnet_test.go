@@ -241,6 +241,66 @@ func TestTelnetRemoteEcho(t *testing.T) {
 	}
 }
 
+// TestTelnetServerEchoIsIndependentOfSGA covers MUDs that hide a password
+// prompt with WILL ECHO but never enable SGA: ServerEcho follows the ECHO
+// option alone, RemoteEcho still needs ECHO and SGA.
+func TestTelnetServerEchoIsIndependentOfSGA(t *testing.T) {
+	steps := []struct {
+		name       string
+		in         []byte
+		serverEcho bool
+		remoteEcho bool
+	}{
+		{"after initial", nil, false, false},
+		{"will echo only", iac(telnetWILL, optEcho), true, false},
+		{"will sga", iac(telnetWILL, optSGA), true, true},
+		{"wont echo", iac(telnetWONT, optEcho), false, false},
+		{"will echo again", iac(telnetWILL, optEcho), true, true},
+		{"wont sga", iac(telnetWONT, optSGA), true, false},
+	}
+	run := func(label string, chunk func(in []byte) [][]byte) {
+		t.Helper()
+		tn := NewTelnet(termTypeXterm, 80, 24)
+		tn.Initial()
+		for _, step := range steps {
+			for _, part := range chunk(step.in) {
+				tn.Feed(part)
+			}
+			if got := tn.ServerEcho(); got != step.serverEcho {
+				t.Fatalf("%s, %s: ServerEcho() = %v, want %v", label, step.name, got, step.serverEcho)
+			}
+			if got := tn.RemoteEcho(); got != step.remoteEcho {
+				t.Fatalf("%s, %s: RemoteEcho() = %v, want %v", label, step.name, got, step.remoteEcho)
+			}
+		}
+	}
+	run("whole", func(in []byte) [][]byte { return [][]byte{in} })
+	for split := 0; split <= 3; split++ {
+		run(fmt.Sprintf("split at %d", split), func(in []byte) [][]byte {
+			at := min(split, len(in))
+			return [][]byte{in[:at], in[at:]}
+		})
+	}
+	run("byte by byte", func(in []byte) [][]byte {
+		parts := make([][]byte, len(in))
+		for i := range in {
+			parts[i] = in[i : i+1]
+		}
+		return parts
+	})
+}
+
+func TestTelnetServerEchoWithoutNegotiation(t *testing.T) {
+	tn := NewTelnet(termTypeXterm, 80, 24)
+	if tn.ServerEcho() {
+		t.Fatal("ServerEcho() = true before any negotiation")
+	}
+	tn.Feed(iac(telnetDO, optEcho)) // we refuse to echo for the server; that is not ServerEcho
+	if tn.ServerEcho() {
+		t.Fatal("ServerEcho() = true after DO ECHO (our side refused)")
+	}
+}
+
 func TestTelnetSequencesSplitAtEveryByteBoundary(t *testing.T) {
 	stream := seq(
 		"Hi",
