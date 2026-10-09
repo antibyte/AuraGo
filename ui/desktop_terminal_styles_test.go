@@ -316,7 +316,8 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		// Plan decision 16: explicit readonly/enabled/retronet_enabled switch Retro-Net; missing fields change nothing.
 		"const off = detail.readonly === true || detail.enabled === false || detail.retronet_enabled === false",
 		"if (!off && detail.retronet_enabled !== true) return",
-		"retroNetOn && !ctx.path",
+		// "Open Terminal Here" at the workspace root passes path '' and still means the shell.
+		"retroNetOn && typeof ctx.path !== 'string'",
 		"term.options.convertEol = false",
 		"term.options.convertEol = true",
 		"term.resize(80, 25)",

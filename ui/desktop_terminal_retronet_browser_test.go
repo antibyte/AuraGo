@@ -371,6 +371,13 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 			root.querySelector('[data-terminal-retronet-action]').hidden&&root.querySelector('[data-terminal-baud-label]').hidden;}`)
 
 	// 18. "Open Terminal Here" goes straight to the shell; the toolbar opens the directory; double-click dials.
+	// The workspace root is the empty path: a present path key of any value means "shell here".
+	run(`async()=>{window.fixtureMark=fixtureSockets.length;window.fixtureCallMark=fixtureCalls.length;await fixtureBoot(true,{path:''});}`)
+	wait("the workspace root (empty path) opens the shell directly", `()=>{const created=fixtureSockets.slice(fixtureMark),root=fixtureRoot();
+		return created.length>=1&&created[0].readyState===1&&new URL(created[0].url).pathname==='/api/code-studio/terminal'&&
+			root.dataset.terminalMode==='shell'&&root.dataset.terminalState==='desktop.terminal_running';}`)
+	check("the workspace root makes no Retro-Net calls", `()=>fixtureSockets.length===fixtureMark+1&&fixtureLive().length===1&&
+		!fixtureCalls.slice(fixtureCallMark).some(c=>c.path.startsWith('/api/desktop/retronet'))`)
 	run(`async()=>{window.fixtureMark=fixtureSockets.length;window.fixtureCallMark=fixtureCalls.length;await fixtureBoot(true,{path:'/workspace/projects'});}`)
 	wait("path context opens the shell directly", `()=>{const created=fixtureSockets.slice(fixtureMark),root=fixtureRoot();
 		return created.length>=1&&created[0].readyState===1&&new URL(created[0].url).pathname==='/api/code-studio/terminal'&&

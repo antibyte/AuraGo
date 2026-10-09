@@ -982,7 +982,8 @@
         retroNetOn = retroNetAllowed();
         document.addEventListener('aurago:desktop-policy', onPolicy);
         // Start mode: directory when Retro-Net is on and no path context; otherwise today's shell.
-        if (retroNetOn && !ctx.path) showDirectory();
+        // "Open Terminal Here" always passes a string path, '' for the workspace root.
+        if (retroNetOn && typeof ctx.path !== 'string') showDirectory();
         else openShell();
 
         applyStyle(initial);
