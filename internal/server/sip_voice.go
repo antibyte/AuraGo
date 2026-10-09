@@ -495,7 +495,7 @@ func (r *VoiceActionRunner) buildTelephoneBackendSnapshot(ctx context.Context, s
 	toolSchemas := agent.BuildNativeToolSchemas(
 		serverCfg.Directories.SkillsDir,
 		tools.NewManifest(serverCfg.Directories.ToolsDir),
-		mcpFeatureFlags(r.server),
+		sipToolFeatureFlags(r.server, serverCfg),
 		r.server.Logger,
 	)
 	if err := validateSIPAgentToolScopeWithSchemas(toolSchemas, cfg.AllowedTools); err != nil {

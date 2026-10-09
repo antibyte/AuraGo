@@ -17,6 +17,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/localwiki"
 	"aurago/internal/security"
+	"aurago/internal/tools"
 )
 
 func TestValidateLocalWikipediaSettings(t *testing.T) {
@@ -68,9 +69,13 @@ func TestNewServerFromOptionsConstructsLocalWikipediaManager(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Directories.DataDir = t.TempDir()
 	cfg.Agent.SystemLanguage = "Deutsch"
+	t.Cleanup(func() { tools.SetLocalWikipediaSource(nil) })
 	srv := newServerFromOptions(StartOptions{Cfg: cfg, Logger: slog.Default(), AccessLogger: slog.Default(), ShutdownCh: make(chan struct{})})
 	if srv.LocalWiki == nil {
 		t.Fatal("newServerFromOptions did not construct the Local Wikipedia manager")
+	}
+	if tools.PublishedLocalWikipediaManager() != srv.LocalWiki {
+		t.Fatal("newServerFromOptions did not publish its Local Wikipedia manager to the tool")
 	}
 	settings := srv.LocalWiki.Settings()
 	if settings.DataDir != filepath.Join(cfg.Directories.DataDir, "wikipedia") || settings.Language != "de" {

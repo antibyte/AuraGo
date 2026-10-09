@@ -1,6 +1,8 @@
 package server
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 
 	"aurago/internal/config"
@@ -58,5 +60,36 @@ func TestPythonToolBridgeOffersLocalWikipediaGroup(t *testing.T) {
 	groups := pythonToolBridgeBuildCatalogGroups(map[string]bool{"local_wikipedia": true})
 	if len(groups) != 1 || groups[0].Key != "local_wikipedia" || len(groups[0].Tools) != 1 || groups[0].Tools[0] != "local_wikipedia" {
 		t.Fatalf("groups = %#v", groups)
+	}
+}
+
+// A telephone config that allows local_wikipedia keeps working while no
+// edition is open (first load, data-dir change, deletion): the tool answers
+// needs_setup instead of every call failing the tool-scope check.
+func TestSIPToolScopeAcceptsLocalWikipediaWithoutAnOpenEdition(t *testing.T) {
+	t.Cleanup(func() { tools.SetLocalWikipediaSource(nil) })
+	tools.SetLocalWikipediaSource(nil)
+	cfg := &config.Config{}
+	cfg.Directories.SkillsDir = t.TempDir()
+	cfg.Directories.ToolsDir = t.TempDir()
+	cfg.LocalWikipedia.Enabled = true
+	cfg.LocalWikipedia.AgentAccess = true
+	s := &Server{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	if mcpFeatureFlags(s).LocalWikipediaEnabled {
+		t.Fatal("MCP must still hide local_wikipedia without an open edition")
+	}
+	if err := validateSIPAgentToolScope(s, cfg, []string{"local_wikipedia"}); err != nil {
+		t.Fatalf("configured local_wikipedia rejected while no edition is open: %v", err)
+	}
+	found := false
+	for _, option := range sipAgentToolCatalog(s, cfg) {
+		found = found || option.ID == "local_wikipedia"
+	}
+	if !found {
+		t.Fatal("telephone tool catalog hides an enabled local_wikipedia")
+	}
+	cfg.LocalWikipedia.AgentAccess = false
+	if err := validateSIPAgentToolScope(s, cfg, []string{"local_wikipedia"}); err == nil {
+		t.Fatal("local_wikipedia accepted without agent access")
 	}
 }

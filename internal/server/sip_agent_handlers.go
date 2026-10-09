@@ -317,8 +317,20 @@ func validateSIPAgentToolScope(s *Server, cfg *config.Config, allowed []string) 
 	if s == nil || cfg == nil {
 		return fmt.Errorf("telephone tool catalog is unavailable")
 	}
-	schemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, tools.NewManifest(cfg.Directories.ToolsDir), mcpFeatureFlags(s), s.Logger)
+	schemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, tools.NewManifest(cfg.Directories.ToolsDir), sipToolFeatureFlags(s, cfg), s.Logger)
 	return validateSIPAgentToolScopeWithSchemas(schemas, allowed)
+}
+
+// sipToolFeatureFlags are the MCP tool flags for the telephone agent. A
+// configured local_wikipedia stays in the telephone catalog while no edition
+// is open (first load, data-dir change, deletion): the tool then answers
+// needs_setup instead of every call failing the tool-scope check.
+func sipToolFeatureFlags(s *Server, cfg *config.Config) agent.ToolFeatureFlags {
+	ff := mcpFeatureFlags(s)
+	if cfg != nil {
+		ff.LocalWikipediaEnabled = cfg.LocalWikipedia.Enabled && cfg.LocalWikipedia.AgentAccess
+	}
+	return ff
 }
 
 func validateSIPAgentToolScopeWithSchemas(schemas []openai.Tool, allowed []string) error {
@@ -338,7 +350,7 @@ func sipAgentToolCatalog(s *Server, cfg *config.Config) []sipAgentToolOption {
 	if s == nil || cfg == nil {
 		return nil
 	}
-	schemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, tools.NewManifest(cfg.Directories.ToolsDir), mcpFeatureFlags(s), s.Logger)
+	schemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, tools.NewManifest(cfg.Directories.ToolsDir), sipToolFeatureFlags(s, cfg), s.Logger)
 	return sipAgentToolOptions(schemas)
 }
 

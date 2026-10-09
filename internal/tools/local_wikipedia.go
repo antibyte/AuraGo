@@ -86,6 +86,15 @@ func WithdrawLocalWikipediaManager(m *localwiki.Manager) {
 	}
 }
 
+// PublishedLocalWikipediaManager returns the manager whose source is
+// published to the tool, nil when none is (another source or none at all).
+func PublishedLocalWikipediaManager() *localwiki.Manager {
+	if cur, ok := currentLocalWikipediaSource().(localWikipediaManagerSource); ok {
+		return cur.m
+	}
+	return nil
+}
+
 type localWikipediaManagerSource struct{ m *localwiki.Manager }
 
 // AcquireLibrary turns the manager's no-op release of a failed Acquire

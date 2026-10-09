@@ -313,6 +313,18 @@ func TestLocalWikipediaManagerSourceWithoutEdition(t *testing.T) {
 	}
 }
 
+func TestPublishedLocalWikipediaManagerNamesOnlyAManagerSource(t *testing.T) {
+	m := localwiki.NewManager(localwiki.Deps{})
+	useWikiSource(t, LocalWikipediaManagerSource(m))
+	if PublishedLocalWikipediaManager() != m {
+		t.Fatal("published manager not reported")
+	}
+	SetLocalWikipediaSource(&fakeWikiSource{lib: &fakeWikiLibrary{}, open: true})
+	if PublishedLocalWikipediaManager() != nil {
+		t.Fatal("a non-manager source reported as a manager")
+	}
+}
+
 func TestWithdrawLocalWikipediaManagerClearsOnlyItsOwnSource(t *testing.T) {
 	own := localwiki.NewManager(localwiki.Deps{})
 	other := localwiki.NewManager(localwiki.Deps{})
