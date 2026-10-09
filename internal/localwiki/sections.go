@@ -1,6 +1,8 @@
 package localwiki
 
 import (
+	"context"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -15,8 +17,12 @@ const readPageRunes = 8000
 // 1900)" and "Geschichte (bis 1900)" stay apart; the heading's titleKey
 // (qualifier and punctuation dropped); the first heading that starts with
 // the request, folded, then as titleKey. A number that is not a section
-// index is matched as heading text ("2020").
-func (a *renderedArticle) findSection(spec string) (int, error) {
+// index is matched as heading text ("2020"). The folded headings and keys
+// come precomputed from layout; ctx is checked while scanning, so a lookup in
+// an article with hundreds of thousands of sections still ends at the search
+// timeout.
+func (a *renderedArticle) findSection(ctx context.Context, spec string) (int, error) {
+	a.layout()
 	spec = strings.TrimSpace(spec)
 	if i, err := strconv.Atoi(spec); err == nil && i >= 0 && i < len(a.sections) {
 		return i, nil
@@ -26,31 +32,43 @@ func (a *renderedArticle) findSection(spec string) (int, error) {
 		return 0, a.sectionNotFound(spec)
 	}
 	wantKey := titleKey(spec)
-	match := func(ok func(heading, key string) bool) (int, bool) {
-		for i, s := range a.sections {
-			if i > 0 && ok(foldText(collapseSpace(s.heading)), titleKey(s.heading)) {
-				return i, true
-			}
-		}
-		return 0, false
-	}
-	for _, ok := range []func(heading, key string) bool{
-		func(heading, _ string) bool { return heading == want },
-		func(_, key string) bool { return wantKey != "" && key == wantKey },
-		func(heading, _ string) bool { return strings.HasPrefix(heading, want) },
-		func(_, key string) bool { return wantKey != "" && strings.HasPrefix(key, wantKey) },
+	for _, ok := range []func(i int) bool{
+		func(i int) bool { return a.headingFolded[i] == want },
+		func(i int) bool { return wantKey != "" && a.headingKeys[i] == wantKey },
+		func(i int) bool { return strings.HasPrefix(a.headingFolded[i], want) },
+		func(i int) bool { return wantKey != "" && strings.HasPrefix(a.headingKeys[i], wantKey) },
 	} {
-		if i, found := match(ok); found {
-			return i, nil
+		for i := 1; i < len(a.sections); i++ {
+			if i%sectionScanCheck == 0 {
+				if err := ctx.Err(); err != nil {
+					return 0, err
+				}
+			}
+			if ok(i) {
+				return i, nil
+			}
 		}
 	}
 	return 0, a.sectionNotFound(spec)
 }
 
-// sectionNotFound builds the error with the article's section list; it is
-// only built when a request fails.
+const (
+	// sectionScanCheck is how many headings findSection compares between two
+	// ctx checks.
+	sectionScanCheck = 4096
+	// maxErrorSections bounds the sections a SectionNotFoundError carries.
+	maxErrorSections = 100
+)
+
+// sectionNotFound builds the error with the first maxErrorSections sections
+// and the article's section count; it is only built when a request fails.
 func (a *renderedArticle) sectionNotFound(spec string) error {
-	return &SectionNotFoundError{Section: spec, Sections: a.sectionList()}
+	a.layout()
+	return &SectionNotFoundError{
+		Section:  spec,
+		Sections: slices.Clone(a.list[:min(len(a.list), maxErrorSections)]),
+		Total:    len(a.list),
+	}
 }
 
 // pageText returns up to readPageRunes runes of text starting at the rune

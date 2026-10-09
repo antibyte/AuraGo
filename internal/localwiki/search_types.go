@@ -63,10 +63,13 @@ var (
 )
 
 // SectionNotFoundError reports an unknown section together with the sections
-// the article has, so callers can offer valid choices.
+// the article has, so callers can offer valid choices. Sections holds at most
+// the first 100; Total is the article's section count (0 when unknown, then
+// len(Sections) counts).
 type SectionNotFoundError struct {
 	Section  string
 	Sections []Section
+	Total    int
 }
 
 func (e *SectionNotFoundError) Error() string {

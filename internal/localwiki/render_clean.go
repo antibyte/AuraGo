@@ -20,13 +20,19 @@ const (
 // truncated: …]") with private-use sentinels instead of brackets: the
 // converter would escape a "[" as "\[", and tidyMarkdown must never
 // un-escape brackets that come from the article (that could turn article
-// text into a live link). cleanArticle first strips these runes from the
-// article, so after conversion only the cleanup's labels carry them.
+// text into a live link). Every "&" of the article text becomes markerAmp
+// before conversion: the converter writes a "<" of the text as "&lt;" but
+// leaves a literal "&lt;" of the text as it is, so only with the article's
+// own ampersands set aside can tidyMarkdown decode the converter's entities
+// without corrupting text or code. prepareArticleText strips all sentinels
+// from the article first, so after conversion only the cleanup's labels and
+// the set-aside ampersands carry them.
 const (
-	markerOpen         = '' // "[" opening a label
-	markerClose        = '' // "]" closing it
-	markerLeftBracket  = '' // a "[" from the article inside a label, written as `\[`
-	markerRightBracket = '' // a "]" from the article inside a label, written as `\]`
+	markerOpen         rune = 0xE000 // "[" opening a label
+	markerClose        rune = 0xE001 // "]" closing it
+	markerLeftBracket  rune = 0xE002 // a "[" from the article inside a label, written as `\[`
+	markerRightBracket rune = 0xE003 // a "]" from the article inside a label, written as `\]`
+	markerAmp          rune = 0xE004 // a "&" of the article text, written as "&" after decoding
 )
 
 // markerLabel returns text as a bracketed label; brackets inside text stay
@@ -36,11 +42,16 @@ func markerLabel(text string) string {
 	return string(markerOpen) + text + string(markerClose)
 }
 
-func isMarkerRune(r rune) bool { return r >= markerOpen && r <= markerRightBracket }
+func isMarkerRune(r rune) bool { return r >= markerOpen && r <= markerAmp }
 
-// stripMarkerRunes removes the label sentinels from the text, comments and
-// attribute values of the article.
-func stripMarkerRunes(n *xhtml.Node) {
+// restoreAmp turns set-aside ampersands back into "&" in text that does not
+// pass through tidyMarkdown (headings).
+func restoreAmp(s string) string { return strings.ReplaceAll(s, string(markerAmp), "&") }
+
+// prepareArticleText strips the sentinels from the text, comments and
+// attribute values of the article, then sets aside the ampersands of its
+// text and of alt texts (image captions) as markerAmp.
+func prepareArticleText(n *xhtml.Node) {
 	strip := func(s string) string {
 		if !strings.ContainsFunc(s, isMarkerRune) {
 			return s
@@ -52,29 +63,36 @@ func stripMarkerRunes(n *xhtml.Node) {
 			return r
 		}, s)
 	}
-	if n.Type == xhtml.TextNode || n.Type == xhtml.CommentNode {
+	setAside := func(s string) string { return strings.ReplaceAll(s, "&", string(markerAmp)) }
+	switch n.Type {
+	case xhtml.TextNode:
+		n.Data = setAside(strip(n.Data))
+	case xhtml.CommentNode:
 		n.Data = strip(n.Data)
 	}
 	for i := range n.Attr {
 		n.Attr[i].Val = strip(n.Attr[i].Val)
+		if n.Attr[i].Namespace == "" && n.Attr[i].Key == "alt" {
+			n.Attr[i].Val = setAside(n.Attr[i].Val)
+		}
 	}
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		stripMarkerRunes(c)
+		prepareArticleText(c)
 	}
 }
 
 // removeSelectors match subtrees that never reach the model: page chrome
 // and the article title, edit links and navbars, reference markers and
 // reference lists, navigation boxes and sidebars, maintenance templates,
-// hatnotes, tables of contents, coordinates, categories, the licence footer,
-// raw-text and fallback elements and hidden elements (inline display:none is
-// removed by removeHiddenStyles). The class names cover mwoffliner 1.13
+// hatnotes, tables of contents, coordinates, categories, the licence footer
+// and raw-text and fallback elements (hidden elements are removed by
+// removeHidden). The class names cover mwoffliner 1.13
 // (mobile sections) and 2.x (Parsoid read views) output and the English and
 // German template families; mwoffliner itself already drops noprint,
 // metadata, ambox and navbar.
 var removeSelectors = strings.Join([]string{
 	"script", "style", "link", "meta", "noscript", "template", "h1", "input", "map",
-	"xmp", "noembed", "noframes", "plaintext", "[hidden]",
+	"xmp", "noembed", "noframes", "plaintext",
 	".mw-editsection", ".navbox-navbar", ".mw-cite-backlink",
 	"sup.reference", "sup.mw-ref", ".mw-ref", ".mw-reflink-text",
 	"ol.references", ".mw-references-wrap", ".reflist", ".refbegin", ".references",
@@ -90,15 +108,15 @@ var removeSelectors = strings.Join([]string{
 
 // cleanArticle prepares the content root of a parsed article for conversion.
 // The order matters: math and figures read nodes that the removal step drops,
-// and the label sentinels are stripped before any label is written.
+// and the sentinels are stripped before any label is written.
 func cleanArticle(root *goquery.Selection) {
 	for _, n := range root.Nodes {
-		stripMarkerRunes(n)
+		prepareArticleText(n)
 	}
 	removeFooter(root)
 	convertMath(root)
 	root.Find(removeSelectors).Remove()
-	removeHiddenStyles(root)
+	removeHidden(root)
 	convertFigures(root)
 	convertInfoboxes(root)
 	root.Find("img, picture, video, audio, svg").Remove()
@@ -137,9 +155,16 @@ func removeBetweenNoIndex(n *xhtml.Node) {
 	}
 }
 
-// removeHiddenStyles drops elements hidden by an inline style, whatever the
-// case and spacing ("display:none", "DISPLAY : None !important").
-func removeHiddenStyles(root *goquery.Selection) {
+// removeHidden drops elements with the hidden attribute, except
+// hidden="until-found" (MediaWiki's collapsed sections, whose content is part
+// of the article), and elements hidden by an inline style, whatever the case
+// and spacing ("display:none", "DISPLAY : None !important").
+func removeHidden(root *goquery.Selection) {
+	root.Find("[hidden]").Each(func(_ int, el *goquery.Selection) {
+		if v, _ := el.Attr("hidden"); !strings.EqualFold(strings.TrimSpace(v), "until-found") {
+			el.Remove()
+		}
+	})
 	root.Find("[style]").Each(func(_ int, el *goquery.Selection) {
 		style, _ := el.Attr("style")
 		compact := strings.Map(func(r rune) rune {

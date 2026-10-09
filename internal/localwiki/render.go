@@ -38,7 +38,11 @@ type renderedArticle struct {
 	full       string     // fullMarkdown()
 	spans      []textSpan // sectionMarkdown(i) is full[spans[i].start:spans[i].end]
 	list       []Section
-	size       int // approximate memory use in bytes, for the render cache
+	// headingFolded and headingKeys are the folded heading (punctuation and
+	// qualifier kept) and its titleKey, per section, for findSection.
+	headingFolded []string
+	headingKeys   []string
+	size          int // approximate memory use in bytes, for the render cache
 }
 
 // textSpan is a byte range of renderedArticle.full.
@@ -143,7 +147,7 @@ func splitSections(root *html.Node) []rawSection {
 	walk = func(parent *html.Node) {
 		for c := parent.FirstChild; c != nil; c = c.NextSibling {
 			if level := headingLevel(c); level > 0 {
-				sections = append(sections, rawSection{heading: collapseSpace(nodeText(c)), level: level})
+				sections = append(sections, rawSection{heading: collapseSpace(restoreAmp(nodeText(c))), level: level})
 				continue
 			}
 			if c.Type == html.ElementNode && containsHeading(c) {
@@ -220,14 +224,19 @@ func nodesToMarkdown(nodes []*html.Node) (string, error) {
 var (
 	trailingSpace = regexp.MustCompile(`[ \t]+\n`)
 	extraNewlines = regexp.MustCompile(`\n{3,}`)
-	// markdownFinish turns the cleanup's marker sentinels into brackets and
-	// decodes the three entities the converter writes for text ("<", ">",
-	// and a literal "&lt;", "&gt;" or "&amp;"; a plain "&" stays as it is).
+	// markdownFinish turns the cleanup's sentinels into brackets and
+	// decodes the entities the converter writes for a "<" or ">" of the text
+	// (and "&amp;", should it ever write one). The article's own ampersands
+	// were set aside as markerAmp before conversion, so every entity left in
+	// the converter's output is the converter's: a literal "&lt;" of the
+	// article (in prose, code or pre) arrives here as markerAmp + "lt;" and
+	// comes out as "&lt;". One pass: a restored "&" is never decoded again.
 	// Nothing else is decoded: the tool isolates the Markdown afterwards.
 	markdownFinish = strings.NewReplacer(
 		string(markerOpen), "[", string(markerClose), "]",
 		string(markerLeftBracket), `\[`, string(markerRightBracket), `\]`,
 		"&lt;", "<", "&gt;", ">", "&amp;", "&",
+		string(markerAmp), "&",
 	)
 )
 
@@ -318,13 +327,17 @@ func (a *renderedArticle) layout() {
 			a.spans[i].end = contentEnd[j]
 		}
 		a.list = make([]Section, n)
+		a.headingFolded = make([]string, n)
+		a.headingKeys = make([]string, n)
 		for i, s := range a.sections {
 			if bodyAt[i] >= 0 {
 				a.sections[i].body = a.full[bodyAt[i] : bodyAt[i]+len(s.body)]
 			}
 			span := a.spans[i]
 			a.list[i] = Section{Index: i, Heading: s.heading, Level: s.level, Chars: utf8.RuneCountInString(a.full[span.start:span.end])}
-			a.size += len(s.heading) + sectionOverhead
+			a.headingFolded[i] = foldText(collapseSpace(s.heading))
+			a.headingKeys[i] = titleKey(s.heading)
+			a.size += len(s.heading) + len(a.headingFolded[i]) + len(a.headingKeys[i]) + sectionOverhead
 		}
 	})
 }
