@@ -753,7 +753,7 @@ func TestDesktopTerminalBehaviourScripts(t *testing.T) {
 	if err != nil {
 		t.Skip("node is not installed")
 	}
-	for _, name := range []string{"test-terminal-modem.mjs", "test-terminal-retronet-directory.mjs"} {
+	for _, name := range []string{"test-terminal-modem.mjs", "test-terminal-retronet-directory.mjs", "test-terminal-retronet-session.mjs"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -764,5 +764,53 @@ func TestDesktopTerminalBehaviourScripts(t *testing.T) {
 				t.Fatalf("%s failed: %v\n%s", name, err, output)
 			}
 		})
+	}
+}
+
+// Retro-Net session client (Contract D/E): one socket keyed by entry ID, echo modes, shared TerminalText widths.
+// Behaviour is covered by scripts/test-terminal-retronet-session.mjs.
+func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/terminal-retronet-session.js")
+	for _, want := range []string{
+		"window.TerminalRetroNetSession = { open: open, hostKeyAnswer: hostKeyAnswer }",
+		"const TerminalText = window.TerminalText",
+		"TerminalText.cellWidth(ch.codePointAt(0))",
+		"line = TerminalText.printable(text)",
+		"'/api/desktop/retronet/connect?entry='",
+		"encodeURIComponent(String(entry.id || ''))",
+		"'&cols=' + cols + '&rows=' + rows",
+		"ws.binaryType = 'arraybuffer'",
+		"new TextEncoder()",
+		"event.data instanceof ArrayBuffer",
+		"type: 'resize'",
+		"type: 'hostkey_decision'",
+		"control.type === 'echo'",
+		"setEchoMode(control.remote === true, control.hidden === true)",
+		"if (term && text && !hiddenEcho) term.write(TerminalText.printable(text))",
+		"if (!secret) remember(text)",
+		"if (!hiddenEcho) recall(-1)",
+		"if (lineCapable && !remoteEcho)",
+		"entry.protocol === 'telnet' && entry.kind === 'world'",
+		"HISTORY_LIMIT = 50",
+		`'\x1b[A'`,
+		`sendBytes(text + '\r')`,
+		"function hostKeyAnswer(input, yes, no)",
+		"if (key === 'y') return true",
+		"if (key === 'n') return false",
+		"return { send: send, resize: resize, hostKeyDecision: hostKeyDecision, hangup: shutdown, dispose: shutdown }",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("terminal-retronet-session.js missing %q", want)
+		}
+	}
+	if strings.Count(source, "new WebSocket") != 1 {
+		t.Fatal("terminal-retronet-session.js must create exactly one WebSocket")
+	}
+	for _, forbidden := range []string{"&host=", "&port=", "?host=", "innerHTML", "function cellWidth", "function fitToCells", "function printable", "0x1f300", `\u001f`} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("terminal-retronet-session.js dials by entry ID only and uses the shared TerminalText helpers; found %q", forbidden)
+		}
 	}
 }
