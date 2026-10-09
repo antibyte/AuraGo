@@ -331,3 +331,50 @@ func appendEscaped(dst, p []byte) []byte {
 	}
 	return dst
 }
+
+// Resize stores the size and returns the NAWS subnegotiation to send (nil if NAWS is not active).
+func (t *Telnet) Resize(cols, rows int) []byte {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.cols, t.rows = cols, rows
+	if t.us[optNAWS] != optYes {
+		return nil
+	}
+	return t.appendNAWS(nil)
+}
+
+// EncodeInput escapes 0xFF as IAC IAC and maps Enter. The browser always sends Enter as "\r".
+// KindWorld: "\r" -> "\r\n" (an already following "\n" is not doubled).
+// KindBBS: "\r" -> "\r\x00" unless we transmit BINARY (then "\r").
+// For both kinds an "\n" directly after "\r" in p belongs to that Enter.
+func (t *Telnet) EncodeInput(p []byte, kind Kind) []byte {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	out := make([]byte, 0, len(p)+4)
+	for i := 0; i < len(p); i++ {
+		switch b := p[i]; b {
+		case telnetIAC:
+			out = append(out, telnetIAC, telnetIAC)
+		case '\r':
+			out = t.appendEnter(out, kind)
+			if i+1 < len(p) && p[i+1] == '\n' {
+				i++
+			}
+		default:
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// appendEnter appends the Enter sequence for kind.
+func (t *Telnet) appendEnter(dst []byte, kind Kind) []byte {
+	switch {
+	case kind == KindWorld:
+		return append(dst, '\r', '\n')
+	case t.us[optBinary] == optYes:
+		return append(dst, '\r')
+	default:
+		return append(dst, '\r', 0)
+	}
+}

@@ -294,3 +294,109 @@ func TestTelnetSequencesSplitAtEveryByteBoundary(t *testing.T) {
 	}
 	run("byte by byte", single...)
 }
+
+func TestTelnetNAWSEncoding(t *testing.T) {
+	tests := []struct {
+		name       string
+		cols, rows int
+		want       []byte
+	}{
+		{"80x24", 80, 24, seq(telnetIAC, telnetSB, optNAWS, 0, 80, 0, 24, telnetIAC, telnetSE)},
+		{"width 255 escaped", 255, 25, seq(telnetIAC, telnetSB, optNAWS, 0, 255, 255, 0, 25, telnetIAC, telnetSE)},
+		{"height 255 escaped", 132, 255, seq(telnetIAC, telnetSB, optNAWS, 0, 132, 0, 255, 255, telnetIAC, telnetSE)},
+		{"width 511 escapes low byte", 511, 50, seq(telnetIAC, telnetSB, optNAWS, 1, 255, 255, 0, 50, telnetIAC, telnetSE)},
+		{"clamped to 16 bits", 70000, -3, seq(telnetIAC, telnetSB, optNAWS, 255, 255, 255, 255, 0, 0, telnetIAC, telnetSE)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tn := NewTelnet(termTypeXterm, 80, 24)
+			if got := tn.Resize(tc.cols, tc.rows); got != nil {
+				t.Fatalf("Resize() before NAWS agreement = % X, want nil", got)
+			}
+			_, reply := tn.Feed(iac(telnetDO, optNAWS))
+			if want := append(iac(telnetWILL, optNAWS), tc.want...); !bytes.Equal(reply, want) {
+				t.Fatalf("DO NAWS reply = % X, want % X", reply, want)
+			}
+			if got := tn.Resize(tc.cols, tc.rows); !bytes.Equal(got, tc.want) {
+				t.Fatalf("Resize() = % X, want % X", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTelnetResizeAfterNAWSWithdrawn(t *testing.T) {
+	tn := NewTelnet(termTypeXterm, 80, 24)
+	tn.Initial()
+	tn.Feed(iac(telnetDO, optNAWS))
+	if got := tn.Resize(100, 40); len(got) == 0 {
+		t.Fatal("Resize() while NAWS is active returned nothing")
+	}
+	if _, reply := tn.Feed(iac(telnetDONT, optNAWS)); !bytes.Equal(reply, iac(telnetWONT, optNAWS)) {
+		t.Fatalf("DONT NAWS reply = % X, want IAC WONT NAWS", reply)
+	}
+	if got := tn.Resize(120, 40); got != nil {
+		t.Fatalf("Resize() after DONT NAWS = % X, want nil", got)
+	}
+}
+
+func TestTelnetEncodeInput(t *testing.T) {
+	tests := []struct {
+		name   string
+		kind   Kind
+		binary bool
+		in     string
+		want   string
+	}{
+		{"world enter", KindWorld, false, "\r", "\r\n"},
+		{"world enter with lf not doubled", KindWorld, false, "\r\n", "\r\n"},
+		{"world line", KindWorld, false, "look\r", "look\r\n"},
+		{"world two enters", KindWorld, false, "\r\r", "\r\n\r\n"},
+		{"world ignores binary", KindWorld, true, "\r", "\r\n"},
+		{"world bare lf unchanged", KindWorld, false, "\n", "\n"},
+		{"bbs enter", KindBBS, false, "\r", "\r\x00"},
+		{"bbs enter with lf", KindBBS, false, "\r\n", "\r\x00"},
+		{"bbs enter in binary", KindBBS, true, "\r", "\r"},
+		{"bbs keys", KindBBS, false, "y\x1b[A\x7f", "y\x1b[A\x7f"},
+		{"iac escaped bbs", KindBBS, false, "\xff", "\xff\xff"},
+		{"iac escaped world", KindWorld, false, "x\xffy", "x\xff\xffy"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tn := NewTelnet(termTypeANSI, 80, 25)
+			if tc.binary {
+				if _, reply := tn.Feed(iac(telnetDO, optBinary)); !bytes.Equal(reply, iac(telnetWILL, optBinary)) {
+					t.Fatalf("DO BINARY reply = % X, want IAC WILL BINARY", reply)
+				}
+			}
+			if got := tn.EncodeInput([]byte(tc.in), tc.kind); string(got) != tc.want {
+				t.Fatalf("EncodeInput(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTelnetEnterFollowsBinaryState(t *testing.T) {
+	tn := NewTelnet(termTypeANSI, 80, 25)
+	tn.Feed(iac(telnetDO, optBinary))
+	if got := tn.EncodeInput([]byte("\r"), KindBBS); string(got) != "\r" {
+		t.Fatalf("Enter with BINARY = %q, want CR", got)
+	}
+	if _, reply := tn.Feed(iac(telnetDONT, optBinary)); !bytes.Equal(reply, iac(telnetWONT, optBinary)) {
+		t.Fatalf("DONT BINARY reply = % X, want IAC WONT BINARY", reply)
+	}
+	if got := tn.EncodeInput([]byte("\r"), KindBBS); string(got) != "\r\x00" {
+		t.Fatalf("Enter after BINARY ended = %q, want CR NUL", got)
+	}
+}
+
+func TestTelnetIACIACRoundTrip(t *testing.T) {
+	tn := NewTelnet(termTypeXterm, 80, 24)
+	out := tn.EncodeInput([]byte{0xFF, 'a', 0xFF}, KindWorld)
+	if want := []byte{0xFF, 0xFF, 'a', 0xFF, 0xFF}; !bytes.Equal(out, want) {
+		t.Fatalf("EncodeInput = % X, want % X", out, want)
+	}
+	peer := NewTelnet(termTypeXterm, 80, 24)
+	if data, _ := peer.Feed(out); !bytes.Equal(data, []byte{0xFF, 'a', 0xFF}) {
+		t.Fatalf("Feed(EncodeInput) = % X, want FF 61 FF", data)
+	}
+}
