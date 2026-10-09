@@ -153,5 +153,5 @@
   "config.virtual_desktop.serial_host_label": "Sériové porty na serveru AuraGo",
   "help.virtual_desktop.serial_host_enabled": "Povolit správcům otevírat v Quick Connect sériová zařízení připojená k serveru AuraGo. Kontejnerové instalace vyžadují předání zařízení a oprávnění operačního systému. V režimu jen pro čtení je tato možnost vypnutá.",
   "config.virtual_desktop.retronet_label": "Retro-Net v Terminálu",
-  "help.virtual_desktop.retronet_enabled": "Povolit uživatelům Desktopu s oprávněním k zápisu vytáčet z adresáře Retro-Net v aplikaci Terminál Telnet BBS, MUDy a anonymní hry přes SSH; vlastní položky spravují jen správci. Spojení navazuje server AuraGo, takže provozovatelé služeb vidí jeho veřejnou IP adresu, a Telnet není šifrovaný: nikdy tam nezadávej hesla, která používáš jinde. Ve výchozím stavu vypnuto; v režimu jen pro čtení je tato možnost vypnutá."
+  "help.virtual_desktop.retronet_enabled": "Povolit uživatelům Desktopu s oprávněním k zápisu vytáčet Telnet BBS, MUDy a anonymní hry přes SSH z adresáře Retro-Net v aplikaci Terminál; vlastní položky spravují jen správci. Spojení navazuje server AuraGo, takže provozovatelé služeb vidí jeho veřejnou IP adresu, a Telnet není šifrovaný: nikdy tam nezadávej hesla, která používáš jinde. Ve výchozím stavu vypnuto; v režimu jen pro čtení je tato možnost vypnutá."
 }
