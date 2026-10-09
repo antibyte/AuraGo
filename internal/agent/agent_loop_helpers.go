@@ -601,13 +601,16 @@ func isNetworkCameraIntent(normalizedQuery string) bool {
 	return cameraMentioned && mediaAction
 }
 
-// adaptiveIntentOnlyTools never take a capped slot in the adaptive selection:
-// the ranking does not pick them (catalog matches such as "die" in
-// "Enzyklopädie" would otherwise let them push out other tools), they are
-// offered beyond the caps when the query matches their intent
-// (adaptiveAdditiveToolsForQuery) and otherwise only when requested as soft
-// tools (session use, discover_tools, always_include). Enabling one of these
-// optional tools therefore never changes which other tools a query gets.
+// adaptiveIntentOnlyTools take no capped slot in the adaptive selection on
+// their own: the ranking does not pick them (catalog matches such as "die" in
+// "Enzyklopädie" would otherwise let them push out other tools), and they are
+// offered on top of the selection, room permitting, when the query matches
+// their intent (adaptiveAdditiveToolsForQuery). Only the generic rules of
+// configured, kept and requested tools give them a slot: always_include and
+// session use make them soft in the first selection, and the refresh ranks a
+// kept or requested one like any other kept or requested tool. Enabling one
+// of these optional tools therefore changes which other tools a query gets
+// only through those generic rules.
 var adaptiveIntentOnlyTools = prompts.NonDisplacingTools
 
 // adaptiveAdditiveSwaps name the one tool an intent-matched additive tool may
@@ -687,6 +690,18 @@ func adaptiveSwapsForQuery(userQuery string) map[string]string {
 	return out
 }
 
+// recordRequestedTools adds the tools discover_tools requested to the set the
+// refresh pins for the rest of the run (toolSchemaFilterOptions.PinnedTools).
+func recordRequestedTools(requested map[string]bool, names []string) map[string]bool {
+	for _, name := range names {
+		if requested == nil {
+			requested = make(map[string]bool, len(names))
+		}
+		requested[name] = true
+	}
+	return requested
+}
+
 // pinnedToolNames lists the requested tools in a stable order.
 func pinnedToolNames(requested map[string]bool) []string {
 	if len(requested) == 0 {
@@ -704,6 +719,8 @@ func pinnedToolNames(requested map[string]bool) []string {
 // not swap out besides the pinned ones: after an adaptive first selection,
 // the tools kept from the session, which that selection protected as
 // always-included tools. Without a first selection nothing protected them.
+// A non-displacing tool among them is ranked like the other kept tools
+// (toolSchemaFilterOptions.SwapProtectedTools).
 func refreshSwapProtectedTools(initFiltered bool, sessionUsed map[string]bool, recent []string) []string {
 	if !initFiltered {
 		return nil
@@ -716,27 +733,6 @@ func refreshSwapProtectedTools(initFiltered bool, sessionUsed map[string]bool, r
 		set[name] = true
 	}
 	return pinnedToolNames(set)
-}
-
-// refreshSoftAndAdditiveTools returns the soft and additive tools of the
-// per-iteration refresh. A non-displacing tool kept from the session (kept)
-// or requested through discover_tools during the run was a soft tool in the
-// first selection; it stays soft here and leaves the additive tools, so a
-// full selection cannot cut it. Other tools keep the configured
-// always_include, so nothing changes while no such tool is available.
-func refreshSoftAndAdditiveTools(alwaysInclude, additive, kept []string, requested map[string]bool) (soft, additiveOut []string) {
-	var keptOptional []string
-	for _, name := range adaptiveIntentOnlyTools {
-		if slices.Contains(kept, name) || requested[name] {
-			keptOptional = append(keptOptional, name)
-		}
-	}
-	if len(keptOptional) == 0 {
-		return alwaysInclude, additive
-	}
-	soft = append(slices.Clone(alwaysInclude), keptOptional...)
-	additiveOut = slices.DeleteFunc(slices.Clone(additive), func(name string) bool { return slices.Contains(keptOptional, name) })
-	return soft, additiveOut
 }
 
 // adaptiveRefreshExcludedTools returns the tools the per-iteration refresh
@@ -1179,11 +1175,14 @@ type toolSchemaFilterOptions struct {
 	// mention ("not the online Wikipedia") blocks it too, which is the
 	// conservative choice.
 	AdditiveSwaps map[string]string
-	// PinnedTools are never swapped out and never treated as additive; they
-	// are ranked like any requested tool (tools discover_tools requested).
-	PinnedTools []string
-	// SwapProtectedTools are never swapped out but otherwise keep their class
-	// (in the refresh, the tools kept from the session).
+	// PinnedTools are the tools discover_tools requested during the run; they
+	// are never swapped out. SwapProtectedTools (in the refresh, the tools
+	// kept from the session) are never swapped out either. An additive tool
+	// in one of the two lists is not kept out of the ranking: it is ranked
+	// like any other requested or kept tool, and only when the ranking
+	// leaves it out does the additive rule still offer it (leftover room or
+	// its swap).
+	PinnedTools        []string
 	SwapProtectedTools []string
 }
 
@@ -1254,16 +1253,21 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 	hardSet := stringSet(opts.HardAlwaysTools)
 	softSet := stringSet(opts.SoftAlwaysTools)
 	pinnedSet := stringSet(opts.PinnedTools)
-	// A kept or named tool wins over the additive rule: a hard or soft tool
-	// keeps its class, and a pinned one is ranked like any requested tool.
+	protectedSet := stringSet(opts.SwapProtectedTools)
+	// A kept or named tool follows the generic rules first: a hard or soft
+	// tool keeps its class, and a pinned (requested) or swap-protected (kept)
+	// one takes part in the ranking like any other requested or kept tool;
+	// the additive rule only offers it afterwards when the ranking left it out.
 	additiveSet := make(map[string]bool, len(opts.AdditiveTools))
+	rankedAdditive := make(map[string]bool)
 	for _, t := range opts.AdditiveTools {
-		if t = strings.TrimSpace(t); t != "" && !hardSet[t] && !softSet[t] && !pinnedSet[t] {
+		if t = strings.TrimSpace(t); t != "" && !hardSet[t] && !softSet[t] {
 			additiveSet[t] = true
+			rankedAdditive[t] = pinnedSet[t] || protectedSet[t]
 		}
 	}
-	// reservedSet keeps soft, additive and excluded tools out of the adaptive
-	// ranking, so an additive or excluded tool leaves the ranks and slots of
+	// reservedSet keeps soft, additive (unless ranked) and excluded tools out
+	// of the adaptive ranking, so such a tool leaves the ranks and slots of
 	// the others untouched.
 	reservedSet := softSet
 	if len(additiveSet) > 0 || len(opts.AdaptiveExcludedTools) > 0 {
@@ -1272,7 +1276,9 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 			reservedSet[name] = true
 		}
 		for name := range additiveSet {
-			reservedSet[name] = true
+			if !rankedAdditive[name] {
+				reservedSet[name] = true
+			}
 		}
 		for _, name := range opts.AdaptiveExcludedTools {
 			reservedSet[strings.TrimSpace(name)] = true
@@ -1389,7 +1395,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 		// A cap left no room: the additive tool may only take the place of
 		// its ranked swap partner, never of any other tool.
 		partner := opts.AdditiveSwaps[name]
-		if partner == "" || keptClass[partner] != "adaptive" || pinnedSet[partner] || slices.Contains(opts.SwapProtectedTools, partner) {
+		if partner == "" || keptClass[partner] != "adaptive" || pinnedSet[partner] || protectedSet[partner] {
 			continue
 		}
 		tokens := keptSchemaTokens - schemaTokens[partner] + schemaTokens[name]

@@ -637,12 +637,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.nativeSchemaSnapshot = BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, s.currentLogger)
 			all := filterSchemasByAllowedTools(s.nativeSchemaSnapshot.FullSchemas(), runCfg.AllowedTools)
 			requested := ConsumeDiscoverRequestedTools(runCfg.DiscoveryRunID)
-			if len(requested) > 0 && s.discoverRequestedTools == nil {
-				s.discoverRequestedTools = make(map[string]bool, len(requested))
-			}
-			for _, name := range requested {
-				s.discoverRequestedTools[name] = true
-			}
+			s.discoverRequestedTools = recordRequestedTools(s.discoverRequestedTools, requested)
 			available := stringSet(toolSchemaNames(all))
 			var retained []openai.Tool
 			for _, schema := range req.Tools {
@@ -662,20 +657,19 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if !cfg.Agent.AdaptiveTools.Enabled {
 				maxAdaptive = 0
 			}
-			// Tools kept from the session stay protected, and a kept or
-			// requested non-displacing tool stays soft, as in the first
-			// selection, instead of becoming additive and cut by a full one.
+			// Tools kept from the session are never swapped out; a kept or
+			// requested non-displacing tool is ranked like any other kept or
+			// requested tool (toolSchemaFilterOptions.SwapProtectedTools).
 			kept := refreshSwapProtectedTools(s.adaptiveInitFiltered, s.sessionUsedTools,
 				recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns))
-			softTools, additiveTools := refreshSoftAndAdditiveTools(cfg.Agent.AdaptiveTools.AlwaysInclude, s.adaptiveAdditiveTools, kept, s.discoverRequestedTools)
 			filtered := filterToolSchemasWithReport(req.Tools, toolSchemaFilterOptions{
 				PreferredTools:        append(requested, toolSchemaNames(req.Tools)...),
 				HardAlwaysTools:       channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff),
-				SoftAlwaysTools:       softTools,
+				SoftAlwaysTools:       cfg.Agent.AdaptiveTools.AlwaysInclude,
 				MaxAdaptiveTools:      maxAdaptive,
 				MaxTotalTools:         toolingPolicy.EffectiveMaxTotalTools,
 				MaxSchemaTokens:       toolingPolicy.EffectiveMaxSchemaTokens,
-				AdditiveTools:         additiveTools,
+				AdditiveTools:         s.adaptiveAdditiveTools,
 				AdaptiveExcludedTools: adaptiveRefreshExcludedTools(s.adaptiveInitFiltered, s.discoverRequestedTools),
 				AdditiveSwaps:         s.adaptiveSwaps,
 				PinnedTools:           pinnedToolNames(s.discoverRequestedTools),

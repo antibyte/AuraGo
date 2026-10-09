@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -496,11 +497,13 @@ func TestKeptLocalWikipediaStaysOnEncyclopediaQuestions(t *testing.T) {
 	}
 
 	// local_wikipedia used earlier in the conversation, plus tools requested
-	// through discover_tools during the run: the first selection keeps it as
-	// a soft tool and so does the refresh, which runs before every model
-	// call. Like any session-kept tool it occupies one slot and its schema
-	// tokens; with exactly that room added, the selection is the one without
-	// the tool plus local_wikipedia, so it costs nothing else.
+	// through discover_tools during the run (local_wikipedia among them in
+	// some runs). It follows the generic rules of kept and requested tools:
+	// the first selection keeps it as a soft tool like every session-kept
+	// tool, so it costs exactly its own slot and schema tokens there; the
+	// refresh, which runs before every model call, ranks it like any other
+	// kept or requested tool. The additive rule may only add it on top when
+	// the ranking left it out (leftover room, or the wikipedia_search swap).
 	disabled := enabled
 	disabled.LocalWikipediaEnabled = false
 	lwTokens := 0
@@ -510,6 +513,7 @@ func TestKeptLocalWikipediaStaysOnEncyclopediaQuestions(t *testing.T) {
 		}
 	}
 	history := []string{"local_wikipedia"}
+	ranked, added := 0, 0
 	for _, b := range adaptiveProbeBudgets {
 		if !b.initFiltered {
 			continue
@@ -522,24 +526,37 @@ func TestKeptLocalWikipediaStaysOnEncyclopediaQuestions(t *testing.T) {
 			room.token += lwTokens
 		}
 		for query := range localWikipediaProbeQueries {
-			for _, requested := range [][]string{nil, {"jellyfin"}, {"jellyfin", "proxmox", "truenas", "grafana", "netlify", "github"}} {
-				label := b.name + " " + query
-				initial, refreshed := adaptiveSessionProbe(t, query, enabled, b, history, requested)
-				if !containsName(initial, "local_wikipedia") || !containsName(refreshed, "local_wikipedia") {
-					t.Errorf("%s req=%v: session-kept local_wikipedia cut (initial %v, refreshed %v)", label, requested,
-						containsName(initial, "local_wikipedia"), containsName(refreshed, "local_wikipedia"))
+			for _, requested := range [][]string{nil, {"jellyfin"}, {"local_wikipedia"}, {"jellyfin", "local_wikipedia"}, {"jellyfin", "proxmox", "truenas", "grafana", "netlify", "github"}} {
+				label := fmt.Sprintf("%s %q req=%v", b.name, query, requested)
+				initial, refreshed, ordinary := adaptiveSessionProbe(t, query, enabled, b, history, requested)
+				if !containsName(initial, "local_wikipedia") {
+					t.Errorf("%s: the first selection dropped the session-kept local_wikipedia", label)
 				}
-				offInitial, offRefreshed := adaptiveSessionProbe(t, query, disabled, b, history, requested)
-				roomInitial, roomRefreshed := adaptiveSessionProbe(t, query, enabled, room, history, requested)
-				for stage, pair := range map[string][2][]string{"initial": {offInitial, roomInitial}, "refreshed": {offRefreshed, roomRefreshed}} {
-					want := append(slices.Clone(pair[0]), "local_wikipedia")
-					slices.Sort(want)
-					if !slices.Equal(pair[1], want) {
-						t.Errorf("%s req=%v %s: a session-kept local_wikipedia cost more than its own slot\nwith it %v\nwithout %v", label, requested, stage, pair[1], pair[0])
-					}
+				offInitial, _, _ := adaptiveSessionProbe(t, query, disabled, b, history, requested)
+				roomInitial, _, _ := adaptiveSessionProbe(t, query, enabled, room, history, requested)
+				want := append(slices.Clone(offInitial), "local_wikipedia")
+				slices.Sort(want)
+				if !slices.Equal(roomInitial, want) {
+					t.Errorf("%s: in the first selection local_wikipedia cost more than its own slot\nwith it %v\nwithout %v", label, roomInitial, offInitial)
+				}
+				// The refresh equals the ranking with local_wikipedia as an
+				// ordinary candidate, plus at most local_wikipedia on top.
+				extra := slices.DeleteFunc(slices.Clone(refreshed), func(n string) bool { return slices.Contains(ordinary, n) })
+				missing := slices.DeleteFunc(slices.Clone(ordinary), func(n string) bool { return slices.Contains(refreshed, n) })
+				swap := slices.Equal(extra, []string{"local_wikipedia"}) && slices.Equal(missing, []string{"wikipedia_search"})
+				if !swap && (len(missing) > 0 || len(extra) > 1 || (len(extra) == 1 && extra[0] != "local_wikipedia")) {
+					t.Errorf("%s: the refresh treated local_wikipedia unlike a kept tool\nrefresh %v\nas an ordinary candidate %v", label, refreshed, ordinary)
+				}
+				if containsName(ordinary, "local_wikipedia") {
+					ranked++
+				} else if containsName(refreshed, "local_wikipedia") {
+					added++
 				}
 			}
 		}
+	}
+	if ranked == 0 || added == 0 {
+		t.Errorf("probe did not cover both paths: ranked %d, added on top %d", ranked, added)
 	}
 }
 
@@ -604,7 +621,9 @@ func TestSwapKeepsNamedOrSessionKeptWikipediaSearch(t *testing.T) {
 // adaptiveSelectionProbe, for a conversation whose history used the recent
 // tools and a run in which discover_tools requested further tools before the
 // refresh (the refresh runs before every model call, the first included).
-func adaptiveSessionProbe(t *testing.T, query string, ff ToolFeatureFlags, b adaptiveProbeBudget, recent, requested []string) (initial, refreshed []string) {
+// ordinary is the same refresh without the additive rule and its swaps, i.e.
+// with local_wikipedia treated as an ordinary candidate.
+func adaptiveSessionProbe(t *testing.T, query string, ff ToolFeatureFlags, b adaptiveProbeBudget, recent, requested []string) (initial, refreshed, ordinary []string) {
 	t.Helper()
 	cfg := &config.Config{}
 	cfg.Agent.AdaptiveTools.Enabled = true
@@ -645,20 +664,51 @@ func adaptiveSessionProbe(t *testing.T, query string, ff ToolFeatureFlags, b ada
 			candidates = append(candidates, schema)
 		}
 	}
-	kept := refreshSwapProtectedTools(true, nil, recent)
-	soft, refreshAdditive := refreshSoftAndAdditiveTools(cfg.Agent.AdaptiveTools.AlwaysInclude, additive, kept, requestedSet)
-	second := filterToolSchemasWithReport(candidates, toolSchemaFilterOptions{
+	refresh := toolSchemaFilterOptions{
 		PreferredTools:        append(slices.Clone(requested), toolSchemaNames(candidates)...),
 		HardAlwaysTools:       hard,
-		SoftAlwaysTools:       soft,
+		SoftAlwaysTools:       cfg.Agent.AdaptiveTools.AlwaysInclude,
 		MaxAdaptiveTools:      b.refreshAdaptive,
 		MaxTotalTools:         b.total,
 		MaxSchemaTokens:       b.token,
-		AdditiveTools:         refreshAdditive,
+		AdditiveTools:         additive,
 		AdaptiveExcludedTools: adaptiveRefreshExcludedTools(true, requestedSet),
 		AdditiveSwaps:         swaps,
 		PinnedTools:           pinnedToolNames(requestedSet),
-		SwapProtectedTools:    kept,
-	}, nil)
-	return sortedToolNames(first.Tools), sortedToolNames(second.Tools)
+		SwapProtectedTools:    refreshSwapProtectedTools(true, nil, recent),
+	}
+	second := filterToolSchemasWithReport(candidates, refresh, nil)
+	refresh.AdditiveTools, refresh.AdditiveSwaps = nil, nil
+	plain := filterToolSchemasWithReport(candidates, refresh, nil)
+	return sortedToolNames(first.Tools), sortedToolNames(second.Tools), sortedToolNames(plain.Tools)
+}
+
+// A requested (pinned) or kept (swap-protected) local_wikipedia is ranked like
+// any other requested or kept tool; the additive rule only offers it on top
+// when the ranking left it out and there is room.
+func TestKeptOrRequestedAdditiveToolIsRankedFirst(t *testing.T) {
+	schemas := []openai.Tool{testFilterSchema("hard"), testFilterSchema("a"), testFilterSchema("b"), testFilterSchema("local_wikipedia")}
+	for name, opts := range map[string]toolSchemaFilterOptions{
+		"pinned":         {PinnedTools: []string{"local_wikipedia"}},
+		"swap-protected": {SwapProtectedTools: []string{"local_wikipedia"}},
+	} {
+		opts.HardAlwaysTools = []string{"hard"}
+		opts.AdditiveTools = []string{"local_wikipedia"}
+		opts.MaxAdaptiveTools = 2
+		opts.MaxTotalTools = 4
+		opts.PreferredTools = []string{"local_wikipedia", "a", "b"}
+		result := filterToolSchemasWithReport(schemas, opts, nil)
+		if got := strings.Join(toolSchemaNames(result.Tools), ","); got != "hard,local_wikipedia,a" || result.Report.KeptAdaptive != 2 || result.Report.KeptAdditive != 0 {
+			t.Errorf("%s, ranked first: %s %+v", name, got, result.Report)
+		}
+		opts.PreferredTools = []string{"a", "b", "local_wikipedia"}
+		result = filterToolSchemasWithReport(schemas, opts, nil)
+		if got := strings.Join(toolSchemaNames(result.Tools), ","); got != "hard,a,b,local_wikipedia" || result.Report.KeptAdditive != 1 {
+			t.Errorf("%s, ranked out with room: %s %+v", name, got, result.Report)
+		}
+		opts.MaxTotalTools = 3
+		if got := strings.Join(toolSchemaNames(filterToolSchemasWithReport(schemas, opts, nil).Tools), ","); got != "hard,a,b" {
+			t.Errorf("%s, ranked out without room: %s", name, got)
+		}
+	}
 }
