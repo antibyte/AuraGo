@@ -59,7 +59,7 @@ type Manager struct {
 	diskProbeLimit  time.Duration
 	loadMu          sync.Mutex // serializes loads; request paths only TryLock it
 	beforeLoadLock  func()     // test seam: runs right before a load waits for loadMu
-	beforeStorageIO func()     // test seam: runs when a load or cleanup starts its storage I/O (ioBusy set)
+	beforeStorageIO func()     // test seam: runs when a load or cleanup starts its storage I/O (storage I/O marked)
 	stateMu         sync.Mutex // orders state.json writes; never taken while holding mu
 
 	// mu guards the fields below. It is never held across file system or
@@ -70,10 +70,11 @@ type Manager struct {
 	started      bool
 	shuttingDown bool
 	deleting     bool // Delete is running; no operation may start meanwhile
-	// ioBusy is set while a load or a cleanup reads or changes the storage
-	// directory without holding mu (see beginStorageIO). No operation, Delete,
-	// load or other cleanup starts meanwhile.
-	ioBusy       bool
+	// ioToken is non-zero while a load or a cleanup reads or changes the
+	// storage directory without holding mu (see holdStorageIOLocked). No
+	// operation, Delete, load or other cleanup starts meanwhile.
+	ioToken      uint64
+	ioSeq        uint64     // last token handed out
 	activeDir    string     // storage directory the loaded state belongs to
 	state        *stateFile // nil when nothing is installed or pending deletion
 	lib          *libraryRef
@@ -300,7 +301,7 @@ func (m *Manager) signalReload() {
 // or cleanup). The conditions are checked after taking loadMu: a load that
 // finished while this call waited must not be repeated, and a download that
 // started meanwhile must not be reset. A load held back by a cleanup is
-// retried when the cleanup ends (endStorageIO).
+// retried when the cleanup ends (holdStorageIOLocked's release).
 func (m *Manager) loadIfStale() {
 	m.lockLoad()
 	defer m.loadMu.Unlock()
@@ -321,41 +322,61 @@ func (m *Manager) tryLoadIfStale() {
 func (m *Manager) loadIfStaleLocked() {
 	m.mu.Lock()
 	dir := m.settings.DataDir
-	stale := m.started && !m.shuttingDown && m.op == nil && !m.deleting && !m.ioBusy && dir != m.activeDir
+	stale := m.started && !m.shuttingDown && m.op == nil && !m.deleting && m.ioToken == 0 && dir != m.activeDir
+	var release func()
 	if stale {
-		m.ioBusy = true // loadLocked clears it
+		release = m.holdStorageIOLocked()
 	}
 	m.mu.Unlock()
-	if stale {
-		m.loadLocked(dir)
+	if !stale {
+		return
+	}
+	// Released by a defer: a load can run in a request goroutine (Install),
+	// whose panic net/http recovers, and a mark left behind would refuse every
+	// later load, Install and Delete until a restart.
+	defer release()
+	m.loadLocked(dir)
+}
+
+// holdStorageIOLocked marks the storage directory as used by a load or
+// cleanup that runs without holding mu and returns the function that ends the
+// mark and lets the loop load a storage directory change it held back. The
+// function is meant for a defer, so a panic cannot leave the mark behind; it
+// may be called more than once and never ends a later holder's mark. The
+// caller holds mu and has checked that ioToken is zero.
+func (m *Manager) holdStorageIOLocked() func() {
+	m.ioSeq++
+	token := m.ioSeq
+	m.ioToken = token
+	return func() {
+		m.mu.Lock()
+		released := m.ioToken == token
+		if released {
+			m.ioToken = 0
+		}
+		m.mu.Unlock()
+		if released {
+			m.signalReload()
+		}
 	}
 }
 
-// beginStorageIO marks a cleanup of dir that runs without holding mu. It
-// fails, and the caller skips the cleanup, unless dir is the loaded storage
-// directory and nothing else uses it: no operation, Delete, load or other
-// cleanup. While it is marked, operations, Delete and loads refuse to start.
-func (m *Manager) beginStorageIO(dir string) bool {
+// beginStorageIO marks a cleanup of dir that runs without holding mu and
+// returns the release for a defer. It fails, and the caller skips the
+// cleanup, unless dir is the loaded storage directory and nothing else uses
+// it: no operation, Delete, load or other cleanup. While it is marked,
+// operations, Delete and loads refuse to start.
+func (m *Manager) beginStorageIO(dir string) (func(), bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.op != nil || m.deleting || m.ioBusy || m.shuttingDown || m.activeDir != dir {
-		return false
+	if m.op != nil || m.deleting || m.ioToken != 0 || m.shuttingDown || m.activeDir != dir {
+		return nil, false
 	}
-	m.ioBusy = true
-	return true
-}
-
-// endStorageIO ends a cleanup started by beginStorageIO and lets the loop
-// load a storage directory change it held back.
-func (m *Manager) endStorageIO() {
-	m.mu.Lock()
-	m.ioBusy = false
-	m.mu.Unlock()
-	m.signalReload()
+	return m.holdStorageIOLocked(), true
 }
 
 // cleanRestartFiles removes the restart files of dir (see removeRestartFiles);
-// they are never resumed. The caller has set ioBusy.
+// they are never resumed. The caller has marked the storage I/O.
 func (m *Manager) cleanRestartFiles(dir string) {
 	if m.beforeStorageIO != nil {
 		m.beforeStorageIO()
@@ -375,8 +396,9 @@ func (m *Manager) lockLoad() {
 // loadLocked reads dir's state.json and download.json, opens the installed
 // edition and replaces the current one. It never touches the network; the only
 // repairs it makes on disk are reconcileDownload's and the removal of stale
-// restart files. The caller holds loadMu and has set ioBusy, which loadLocked
-// clears; mu is only taken to publish the result.
+// restart files. The caller holds loadMu and has marked the storage I/O
+// (loadIfStaleLocked releases the mark afterwards); mu is only taken to
+// publish the result.
 func (m *Manager) loadLocked(dir string) {
 	var (
 		st          *stateFile
@@ -422,10 +444,9 @@ func (m *Manager) loadLocked(dir string) {
 		}
 	}
 	m.mu.Lock()
-	m.ioBusy = false
 	if m.op != nil || m.shuttingDown {
 		// The manager closed while the directory was read (no operation can
-		// start while ioBusy is set; the check is defensive).
+		// start while the storage I/O is marked; the check is defensive).
 		m.mu.Unlock()
 		if ref != nil {
 			ref.retire(nil)
@@ -614,7 +635,10 @@ func (m *Manager) Status() Status {
 		status.ErrorCode = m.loadCode
 	}
 	status.Readable = m.lib != nil
-	status.Loading = m.firstLoadPendingLocked()
+	// A changed storage directory that is being loaded (it may hang on an
+	// unreachable share) is reported like the first load; the previous
+	// directory's edition stays served meanwhile.
+	status.Loading = m.firstLoadPendingLocked() || (m.ioToken != 0 && settings.DataDir != m.activeDir)
 	if m.state != nil && m.state.Edition != nil {
 		edition := *m.state.Edition
 		status.Edition = &edition

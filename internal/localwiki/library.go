@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"aurago/internal/zim"
 	"aurago/internal/zim/xapian"
@@ -22,7 +23,13 @@ type Library struct {
 	analyzer xapian.Analyzer
 	// fulltextNote says why full-text search is unavailable ("" when it works).
 	fulltextNote string
+	// cacheID keys this instance's rendered articles in the render cache;
+	// Close purges them.
+	cacheID uint64
 }
+
+// libraryIDs numbers opened libraries for their render-cache keys.
+var libraryIDs atomic.Uint64
 
 // OpenLibrary opens a ZIM and checks what Local Wikipedia needs: a readable
 // header and a main page. A missing or unsupported full-text index is not an
@@ -37,7 +44,7 @@ func OpenLibrary(path string, edition Edition) (*Library, error) {
 		return nil, fmt.Errorf("ZIM main page: %w", err)
 	}
 	language, _ := archive.Metadata("Language")
-	lib := &Library{edition: edition, archive: archive}
+	lib := &Library{edition: edition, archive: archive, cacheID: libraryIDs.Add(1)}
 	lib.fulltext, lib.fulltextNote = openIndex(archive, "fulltext/xapian")
 	lib.title, _ = openIndex(archive, "title/xapian")
 	if lib.fulltext != nil {
@@ -85,12 +92,14 @@ func (l *Library) Edition() Edition { return l.edition }
 // Fulltext reports whether full-text search is available (else title search only).
 func (l *Library) Fulltext() bool { return l.fulltext != nil && l.analyzer.FulltextSupported() }
 
-// Close closes the archive. Libraries obtained from Manager.Acquire are closed
-// by the manager; callers only release them.
+// Close closes the archive and drops its rendered articles from the render
+// cache. Libraries obtained from Manager.Acquire are closed by the manager;
+// callers only release them.
 func (l *Library) Close() error {
 	if l == nil || l.archive == nil {
 		return nil
 	}
+	renderCache.purge(zimStore{a: l.archive, owner: l.cacheID}.cachePrefix())
 	return l.archive.Close()
 }
 

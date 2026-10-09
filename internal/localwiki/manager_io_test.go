@@ -137,11 +137,39 @@ func TestManagerStaysResponsiveWhileAReloadIsStuck(t *testing.T) {
 	promptly(t, "Configure", func() bool { m.Configure(moved); return true })
 	gate.waitEntered(t)
 
+	// The reload is visible: loading, while the previous edition stays served.
 	status := checkResponsive(t, env, moved)
-	if status.Loading || !status.Readable || status.DataDir != other {
+	if !status.Loading || !status.Readable || status.State != StateReady || status.Edition == nil ||
+		status.ErrorCode != CodeBusy || status.DataDir != other {
 		t.Fatalf("status during the stuck reload = %+v", status)
 	}
+	if _, release, ok := m.Acquire(); !ok {
+		t.Fatal("the previous edition went offline during the reload")
+	} else {
+		release()
+	}
 	shutdownHonoursItsDeadline(t, m, gate)
+}
+
+// Once a stuck reload finishes, the status stops reporting it.
+func TestManagerStatusReportsAReloadUntilItFinishes(t *testing.T) {
+	env := newTestEnv(t)
+	placeEdition(t, env.dir, "de", "wikipedia_de_all_nopic_2026-09")
+	env.start()
+	m := env.manager
+	gate := blockStorageIO(t, m)
+	moved := env.settings()
+	moved.DataDir = filepath.Join(t.TempDir(), "elsewhere")
+	m.Configure(moved)
+	gate.waitEntered(t)
+	if status := m.Status(); !status.Loading || !status.Readable {
+		t.Fatalf("status during the reload = %+v", status)
+	}
+	gate.release()
+	status := env.waitFor("the reload", func(s Status) bool { return !s.Loading })
+	if status.State != StateNotInstalled || status.Readable || status.ErrorCode != "" || status.DataDir != moved.DataDir {
+		t.Fatalf("status after the reload = %+v", status)
+	}
 }
 
 // An Install whose own cleanup is stuck holds no lock: the other calls answer,
@@ -155,7 +183,10 @@ func TestManagerStaysResponsiveWhileAnInstallCleanupIsStuck(t *testing.T) {
 	go func() { first <- m.Install(context.Background(), InstallRequest{}) }()
 	gate.waitEntered(t)
 
-	checkResponsive(t, env, env.settings())
+	// A cleanup of the loaded directory is no reload: nothing is loading.
+	if status := checkResponsive(t, env, env.settings()); status.Loading {
+		t.Fatalf("a stuck cleanup was reported as loading: %+v", status)
+	}
 	if err := promptly(t, "Shutdown", func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
@@ -270,4 +301,88 @@ func TestManagerStatusNeverWaitsForAStuckFreeSpaceProbe(t *testing.T) {
 		t.Fatalf("Shutdown must not wait for a hanging free-space measurement: %v", err)
 	}
 	release()
+}
+
+// A load can run in a request goroutine (Install loads a directory changed a
+// moment ago), where net/http recovers a panic. The storage-I/O mark must not
+// survive the panic, or every later load, Install and Delete would answer busy
+// until a restart. The hook panics once, inside the load's first storage I/O;
+// the directory is changed without waking the loop, so that load runs here.
+// The loop may load the directory afterwards (the release wakes it), so
+// Install is retried while it reports busy.
+func TestManagerReleasesTheStorageIOMarkWhenALoadPanics(t *testing.T) {
+	env := newTestEnv(t)
+	env.kiwix.addEdition("wikipedia_de_all_nopic_2026-10", fixtureZIMBytes(t))
+	other := filepath.Join(t.TempDir(), "elsewhere")
+	env.start()
+	m := env.manager
+	var exploded atomic.Bool
+	m.beforeStorageIO = func() {
+		if exploded.CompareAndSwap(false, true) {
+			panic("storage I/O exploded")
+		}
+	}
+	m.mu.Lock()
+	m.settings.DataDir = other
+	m.mu.Unlock()
+	env.dir = other
+
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Fatal("the load did not panic")
+			}
+		}()
+		m.tryLoadIfStale()
+	}()
+
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		err := m.Install(context.Background(), InstallRequest{})
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, ErrBusy) || time.Now().After(deadline) {
+			t.Fatalf("Install after the panic = %v", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if status := env.waitIdle(StateReady); status.Edition == nil || status.DataDir != other || status.Loading {
+		t.Fatalf("status after the install = %+v", status)
+	}
+	if err := m.Delete(); err != nil {
+		t.Fatalf("Delete after the panic = %v", err)
+	}
+}
+
+// A release runs once per mark: a second call, or a call after a later holder
+// took the mark, changes nothing.
+func TestStorageIOReleaseNeverEndsALaterMark(t *testing.T) {
+	env := newTestEnv(t)
+	env.start()
+	m := env.manager
+	first, ok := m.beginStorageIO(env.dir)
+	if !ok {
+		t.Fatal("the idle manager refused a cleanup")
+	}
+	if _, ok := m.beginStorageIO(env.dir); ok {
+		t.Fatal("a second cleanup started while the first one runs")
+	}
+	first()
+	second, ok := m.beginStorageIO(env.dir)
+	if !ok {
+		t.Fatal("the released mark was not cleared")
+	}
+	first() // again, now that another cleanup holds the mark
+	m.mu.Lock()
+	held := m.ioToken != 0
+	m.mu.Unlock()
+	if !held {
+		t.Fatal("a stale release ended a later cleanup's mark")
+	}
+	second()
+	second()
+	if _, ok := m.beginStorageIO(env.dir); !ok {
+		t.Fatal("the mark was not released")
+	}
 }
