@@ -662,19 +662,24 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if !cfg.Agent.AdaptiveTools.Enabled {
 				maxAdaptive = 0
 			}
+			// Tools kept from the session stay protected, and a kept or
+			// requested non-displacing tool stays soft, as in the first
+			// selection, instead of becoming additive and cut by a full one.
+			kept := refreshSwapProtectedTools(s.adaptiveInitFiltered, s.sessionUsedTools,
+				recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns))
+			softTools, additiveTools := refreshSoftAndAdditiveTools(cfg.Agent.AdaptiveTools.AlwaysInclude, s.adaptiveAdditiveTools, kept, s.discoverRequestedTools)
 			filtered := filterToolSchemasWithReport(req.Tools, toolSchemaFilterOptions{
 				PreferredTools:        append(requested, toolSchemaNames(req.Tools)...),
 				HardAlwaysTools:       channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff),
-				SoftAlwaysTools:       cfg.Agent.AdaptiveTools.AlwaysInclude,
+				SoftAlwaysTools:       softTools,
 				MaxAdaptiveTools:      maxAdaptive,
 				MaxTotalTools:         toolingPolicy.EffectiveMaxTotalTools,
 				MaxSchemaTokens:       toolingPolicy.EffectiveMaxSchemaTokens,
-				AdditiveTools:         s.adaptiveAdditiveTools,
+				AdditiveTools:         additiveTools,
 				AdaptiveExcludedTools: adaptiveRefreshExcludedTools(s.adaptiveInitFiltered, s.discoverRequestedTools),
 				AdditiveSwaps:         s.adaptiveSwaps,
 				PinnedTools:           pinnedToolNames(s.discoverRequestedTools),
-				SwapProtectedTools: refreshSwapProtectedTools(s.adaptiveInitFiltered, s.sessionUsedTools,
-					recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns)),
+				SwapProtectedTools:    kept,
 			}, s.currentLogger)
 			req.Tools = filtered.Tools
 			s.adaptiveSwapped = recordAdaptiveSwaps(s.adaptiveSwapped, filtered.Report)

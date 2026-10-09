@@ -105,16 +105,21 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   against the adaptive cap. A kept or named tool wins over these rules: an
   always-included or session-kept local_wikipedia stays a soft tool, one
   requested via discover_tools (`PinnedTools`) is ranked like any requested
-  tool. When a cap leaves no room it may take the place of
+  tool. The per-iteration refresh runs before every model call, the first
+  included; it keeps a session-kept or requested local_wikipedia soft too
+  (`refreshSoftAndAdditiveTools`), so like any session-kept tool it costs
+  exactly its own slot and schema tokens and is never cut. When a cap
+  leaves no room it may take the place of
   `wikipedia_search` (same position, net count 0), but only if
   wikipedia_search was picked by the ranking (not hard, always-included,
   requested via discover_tools or, in the refresh, kept from the session),
   the user message does not name it (`wikipedia_search`, "online wikipedia",
-  "wikipedia.org"; `adaptiveSwapsForQuery`) and the swap keeps the schema
-  token cap; otherwise it is skipped and stays discoverable, like a
-  swapped-out wikipedia_search. The refresh puts a swapped-out tool back
-  before ranking, so it decides the swap on the same candidates. Semantic
-  manual searches
+  "wikipedia.org"; `adaptiveSwapsForQuery`, so a negated mention such as
+  "not the online Wikipedia" blocks the swap too, which is conservative) and
+  the swap keeps the schema token cap; otherwise it is skipped and stays
+  discoverable, like a swapped-out wikipedia_search. The refresh puts a
+  swapped-out tool back before ranking, so it decides the swap on the same
+  candidates. Semantic manual searches
   drop an unusable non-displacing manual before the top-k cut, and the
   local_wikipedia discover aliases only add an exact-name bonus for the
   enabled tool. Verify TestLocalWikipediaOnlyAddsToTheAdaptiveSelection
