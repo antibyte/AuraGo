@@ -115,3 +115,12 @@ func TestLocalWikipediaManualToolDashboardAndAPIEntries(t *testing.T) {
 		requireAll(t, path, readRepoFile(t, path), wants)
 	}
 }
+
+func TestLocalWikipediaReadmeMention(t *testing.T) {
+	t.Parallel()
+	readme := readRepoFile(t, "README.md")
+	requireAll(t, "README.md", readme, []string{
+		"- **Wikipedia in your pocket.**",
+		"[Local Wikipedia](documentation/local-wikipedia.md)",
+	})
+}

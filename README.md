@@ -25,10 +25,11 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 - **MeshCore, over the air.** Trusted direct messages and restricted channel replies over mesh radio.
 - **Your own personal newspaper and radio station.** A daily Newspaper tailored to your interests, plus Personal Radio with imported or generated music, an AI host and optional news bulletins.
 - **Tune into RTL-SDR.** Use a compatible USB receiver for live listening, scheduled recordings and optional speech transcription.
+- **Wikipedia in your pocket.** Grab a whole Wikipedia edition in one of the UI languages, with or without pictures, and the agent searches and reads it offline. There's a little Wikipedia app on the desktop, too. Pure Go: no container, no extra server.
 - **Make things.** Documents, PDFs, images, music, video and websites through configured tools and providers. Connect GitHub, Google Workspace, S3, WebDAV and SQL; play media through Jellyfin or Chromecast.
 - **Plug in the weird stuff.** Klipper/Moonraker and Elegoo 3D printers, go2rtc cameras, Linux Bluetooth audio, and an **ESP32 Cheap Yellow Display** for a tiny desk dashboard. Extend further with Python Skills, Agent Skills and MCP.
 
-[All integrations](documentation/manual/en/08-integrations.md) · [Tool catalog](documentation/manual/en/22-internal-tools.md) · [Game Maker](documentation/game-maker-studio.md) · [Detective](documentation/detective.md) · [MeshCore](documentation/meshcore-en.md) · [Agent Workspaces](documentation/virtual_computers.md)
+[All integrations](documentation/manual/en/08-integrations.md) · [Tool catalog](documentation/manual/en/22-internal-tools.md) · [Game Maker](documentation/game-maker-studio.md) · [Detective](documentation/detective.md) · [MeshCore](documentation/meshcore-en.md) · [Agent Workspaces](documentation/virtual_computers.md) · [Local Wikipedia](documentation/local-wikipedia.md)
 
 ### Yes, there is an actual desktop
 
