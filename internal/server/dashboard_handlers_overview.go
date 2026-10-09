@@ -632,6 +632,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 
 		// ── Integrations (all Enabled flags) ──────────────────
 		integrations := dashboardIntegrationFlags(cfg)
+		localWikipedia := dashboardLocalWikipediaSummary(cfg, s.dashboardLocalWikipediaStatusSource())
 
 		// ── Missions Summary ──────────────────────────────────
 		missionsSummary := map[string]interface{}{
@@ -867,6 +868,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"planner":             plannerSummary,
 			"maintenance":         maintenanceSummary,
 			"memory":              memoryHealth,
+			"local_wikipedia":     localWikipedia,
 		})
 	}
 }
