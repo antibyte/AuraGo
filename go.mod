@@ -34,6 +34,7 @@ require (
 	github.com/huin/goupnp v1.3.0
 	github.com/itlightning/dateparse v0.2.1
 	github.com/johnfercher/maroto/v2 v2.4.2
+	github.com/klauspost/compress v1.20.1
 	github.com/ledongthuc/pdf v0.0.0-20260907135840-6c8c28e0e8a0
 	github.com/lib/pq v1.12.3
 	github.com/mdlayher/vsock v1.3.0
@@ -56,6 +57,7 @@ require (
 	github.com/tidwall/gjson v1.19.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/tiendc/go-deepcopy v1.7.2
+	github.com/ulikunitz/xz v0.5.17
 	github.com/vishen/go-chromecast v0.3.4
 	github.com/xeipuuv/gojsonschema v1.2.0
 	github.com/xuri/excelize/v2 v2.11.0
@@ -120,7 +122,6 @@ require (
 	github.com/johnfercher/go-tree v1.1.0 // indirect
 	github.com/jsimonetti/rtnetlink v1.4.2 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
-	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect

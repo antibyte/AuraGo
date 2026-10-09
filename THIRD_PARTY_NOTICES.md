@@ -12,6 +12,8 @@ AuraGo links the listed Go modules or retrieves the listed optional model/runtim
 | emiago/diago v0.31.0 | Native SIP endpoint and RTP media handling | Mozilla Public License 2.0 |
 | emiago/sipgo v1.4.3 | SIP transport and message processing | BSD 2-Clause License |
 | hajimehoshi/go-mp3 v0.3.4 | Pure-Go MP3 decoding for telephone TTS audio | Apache License 2.0 |
+| klauspost/compress v1.20.1 (`zstd`) | Zstandard decompression of Local Wikipedia ZIM clusters | BSD 3-Clause License (`zstd/internal/xxhash`: MIT License) |
+| ulikunitz/xz v0.5.17 | XZ (LZMA2) decompression of older Local Wikipedia ZIM clusters | BSD 3-Clause License |
 
 The upstream projects and their complete license texts remain authoritative:
 
@@ -23,6 +25,8 @@ The upstream projects and their complete license texts remain authoritative:
 - https://github.com/hajimehoshi/go-mp3
 - https://github.com/ebitengine/purego
 - https://github.com/dlclark/regexp2
+- https://github.com/klauspost/compress
+- https://github.com/ulikunitz/xz
 
 AuraGo's own license remains the MIT License in [LICENSE](LICENSE).
 

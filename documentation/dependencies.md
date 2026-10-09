@@ -30,6 +30,7 @@ the consuming library or reintroduces a vulnerability.
 | KaTeX | 0.18.9 override | Mermaid and micromark-extension-math still request the vulnerable 0.16 line. Share the fixed version already used by Milkdown and rebuild both browser and Notes vendors. |
 | lodash-es | 4.18.1 override | Mermaid's Chevrotain dependency otherwise selects a vulnerable older pin. |
 | argon2id | 1.0.1 exact pin | Desktop Tresor ships its local JS/WASM with the upstream license; cryptographic vector and vendor drift checks gate changes. |
+| ulikunitz/xz | ≥ 0.5.15 | Local Wikipedia decompresses xz clusters from downloaded ZIM files; earlier releases leak memory on corrupted multi-stream LZMA input (GO-2025-3922, CVE-2025-58058). |
 
 ### Outstanding training advisories (2026-10-08)
 

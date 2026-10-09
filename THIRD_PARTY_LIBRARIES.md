@@ -56,6 +56,7 @@ Inventory of external libraries, runtimes, fonts, icons, and other third-party a
 | `github.com/huin/goupnp` | v1.3.0 | BSD-2-Clause | https://github.com/huin/goupnp |
 | `github.com/hajimehoshi/go-mp3` | v0.3.4 | Apache-2.0 | https://github.com/hajimehoshi/go-mp3 |
 | `github.com/johnfercher/maroto/v2` | v2.4.2 | MIT | https://github.com/johnfercher/maroto |
+| `github.com/klauspost/compress` | v1.20.1 | BSD-3-Clause (`zstd/internal/xxhash`: MIT) | https://github.com/klauspost/compress |
 | `github.com/ledongthuc/pdf` | v0.0.0-20260907135840-6c8c28e0e8a0 | BSD-style / MIT-compatible | https://github.com/ledongthuc/pdf |
 | `github.com/lib/pq` | v1.12.3 | MIT | https://github.com/lib/pq |
 | `github.com/miekg/dns` | v1.1.73 | BSD-3-Clause | https://github.com/miekg/dns |
@@ -70,6 +71,7 @@ Inventory of external libraries, runtimes, fonts, icons, and other third-party a
 | `github.com/tailscale/go-winio` | v0.0.0-20231025203758-c4f33415bf55 | MIT | https://github.com/tailscale/go-winio |
 | `github.com/tidwall/gjson` | v1.19.0 | MIT | https://github.com/tidwall/gjson |
 | `github.com/tidwall/sjson` | v1.2.5 | MIT | https://github.com/tidwall/sjson |
+| `github.com/ulikunitz/xz` | v0.5.17 | BSD-3-Clause | https://github.com/ulikunitz/xz |
 | `github.com/vishen/go-chromecast` | v0.3.4 | Apache-2.0 | https://github.com/vishen/go-chromecast |
 | `github.com/xeipuuv/gojsonschema` | v1.2.0 | Apache-2.0 | https://github.com/xeipuuv/gojsonschema |
 | `github.com/xuri/excelize/v2` | v2.11.0 | BSD-3-Clause | https://github.com/qax-os/excelize |
@@ -93,7 +95,6 @@ Selected transitive modules that matter operationally (not exhaustive):
 | `github.com/aws/aws-sdk-go-v2` (+ config/smithy) | Apache-2.0 | https://github.com/aws/aws-sdk-go-v2 |
 | `github.com/golang-jwt/jwt/v5` | v5.3.1 | https://github.com/golang-jwt/jwt |
 | `github.com/google/uuid` | v1.6.0 | https://github.com/google/uuid |
-| `github.com/klauspost/compress` | v1.20.1 | https://github.com/klauspost/compress |
 | `github.com/phpdave11/gofpdf` | v1.4.3 | https://github.com/phpdave11/gofpdf |
 | `github.com/ysmood/*` (rod ecosystem) | MIT | https://github.com/ysmood |
 | `golang.org/x/oauth2` | v0.37.0 | https://pkg.go.dev/golang.org/x/oauth2 |
