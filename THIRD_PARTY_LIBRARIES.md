@@ -217,6 +217,7 @@ Self-hosted under `ui/fonts/` (see `ui/fonts/fonts.css`).
 | Shadows Into Light Two | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Shadows+Into+Light+Two |
 | Press Start 2P | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Press+Start+2P |
 | Datatype | Check upstream (self-hosted specialty face) | Vendor/original foundry for the Datatype files in `ui/fonts/` |
+| Px437 IBM VGA 8x16 (The Ultimate Oldschool PC Font Pack, VileR) | CC BY-SA 4.0 | https://int10h.org/oldschool-pc-fonts/ · `ui/fonts/Px437_IBM_VGA_8x16.woff`, unmodified (attribution: `ui/fonts/Px437-LICENSE.txt`) |
 
 ---
 
@@ -275,6 +276,7 @@ These use strong or network-relevant copyleft licenses. Redistributors should re
 | chromem-go | MPL-2.0 | Embedded vector DB |
 | Eclipse Paho MQTT | EPL-2.0 | MQTT client |
 | noVNC | MPL-2.0 | VNC in virtual computers UI |
+| Px437 IBM VGA 8x16 font | CC BY-SA 4.0 (share-alike) | Terminal Retro-Net 80×25 BBS mode (`ui/fonts/Px437_IBM_VGA_8x16.woff`) |
 
 ---
 

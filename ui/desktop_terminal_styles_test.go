@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -291,13 +293,16 @@ func TestDesktopTerminalVGAFontIsVendoredWithAttribution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read VGA font license: %v", err)
 	}
+	sum := sha256.Sum256(font)
 	for _, want := range []string{
 		"VileR",
+		"Copyright (c) 2016-2020 VileR",
 		"https://int10h.org/oldschool-pc-fonts/",
 		"CC BY-SA 4.0",
 		"https://creativecommons.org/licenses/by-sa/4.0/",
 		"unmodified",
 		"Source archive entry:",
+		"SHA-256: " + hex.EncodeToString(sum[:]),
 	} {
 		if !strings.Contains(string(license), want) {
 			t.Fatalf("Px437-LICENSE.txt missing %q", want)
