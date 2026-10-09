@@ -53,7 +53,7 @@ func desktopRequestOperation(r *http.Request) desktopOperation {
 	if r.Method == http.MethodPost && strings.HasPrefix(path, "/api/desktop/store/apps/") && strings.HasSuffix(path, "/stop") {
 		return desktopStop
 	}
-	if r.Method == http.MethodGet && (strings.HasSuffix(path, "/terminal") || strings.HasSuffix(path, "/vnc") || strings.HasSuffix(path, "/console") || path == "/api/desktop/ssh") {
+	if r.Method == http.MethodGet && (strings.HasSuffix(path, "/terminal") || strings.HasSuffix(path, "/vnc") || strings.HasSuffix(path, "/console") || path == "/api/desktop/ssh" || path == "/api/desktop/retronet/connect") {
 		return desktopExecute
 	}
 	if r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/virtual-computers/tasks/") {
