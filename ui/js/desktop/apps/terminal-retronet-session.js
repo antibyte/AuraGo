@@ -4,13 +4,55 @@
     const TerminalText = window.TerminalText;
     const HISTORY_LIMIT = 50;
     const FRAME_BYTES = 16 * 1024;
-    const PASTE_MARKERS = /\x1b\[20[01]~/g;
+    const KEYS_UP = ['\x1b[A', '\x1bOA'];
+    const KEYS_DOWN = ['\x1b[B', '\x1bOB'];
+    // Cursor and editing keys the line editor has no use for: swallowed.
+    const KEYS_IGNORED = ['\x1b[C', '\x1b[D', '\x1bOC', '\x1bOD', '\x1b[H', '\x1b[F', '\x1bOH', '\x1bOF',
+        '\x1b[1~', '\x1b[2~', '\x1b[3~', '\x1b[4~', '\x1b[5~', '\x1b[6~', '\x1b[7~', '\x1b[8~'];
+    // CSI, OSC/DCS/SOS/PM/APC strings (BEL or ST terminated), SS3 and two-character escapes (Alt+key).
+    const ESCAPES = /\x1b\[[0-?]*[ -/]*[@-~]|\x1b[\]PX^_][\s\S]*?(?:\x07|\x1b\\)|\x1bO[\s\S]|\x1b[\s\S]/g;
 
-    // Display width in xterm cells from the shared Unicode 6 table (emoji are one cell, as in xterm).
+    // Display width in xterm cells from the shared Unicode 6 table (emoji are one cell, as in xterm);
+    // a Tab in the line is shown as one space.
     function cells(text) {
         let width = 0;
-        for (const ch of String(text || '')) width += TerminalText.cellWidth(ch.codePointAt(0));
+        for (const ch of String(text || '')) width += ch === '\t' ? 1 : TerminalText.cellWidth(ch.codePointAt(0));
         return width;
+    }
+
+    function isRegional(code) {
+        return code >= 0x1f1e6 && code <= 0x1f1ff;
+    }
+
+    // Combining marks, variation selectors, ZWJ and skin tones belong to the character before them.
+    function joinsPrevious(ch) {
+        const code = ch.codePointAt(0);
+        return ch !== '\t' && (TerminalText.cellWidth(code) === 0 || (code >= 0x1f3fb && code <= 0x1f3ff));
+    }
+
+    // Index where the last character starts, as xterm draws and TerminalText.fitToCells keeps it together:
+    // a base with its marks and skin tones, ZWJ-joined code points, a regional-indicator pair.
+    function lastCharacterStart(chars) {
+        let start = chars.length - 1;
+        for (;;) {
+            while (start > 0 && joinsPrevious(chars[start])) start -= 1;
+            if (start > 1 && chars[start - 1].codePointAt(0) === 0x200d) {
+                start -= 2;
+                continue;
+            }
+            break;
+        }
+        if (start > 0 && isRegional(chars[start].codePointAt(0))) {
+            let run = 0;
+            for (let i = start; i >= 0 && isRegional(chars[i].codePointAt(0)); i -= 1) run += 1;
+            if (run % 2 === 0) start -= 1;
+        }
+        return start;
+    }
+
+    // Typed text without control characters; Tabs stay in the line.
+    function lineText(text) {
+        return String(text || '').split('\t').map(TerminalText.printable).join('\t');
     }
 
     // Bytes TextEncoder writes for one code point (a lone surrogate becomes U+FFFD, three bytes).
@@ -99,7 +141,7 @@
         // Local echo of typed characters; silent while the server hides the echo. Server text never
         // passes here: it reaches xterm only as the raw data stream through onData.
         function echo(text) {
-            if (term && text && !hiddenEcho) term.write(TerminalText.printable(text));
+            if (term && text && !hiddenEcho) term.write(TerminalText.printable(text.split('\t').join(' ')));
         }
 
         // Moves back over `text`, blanks its cells and moves back again (nothing while hidden).
@@ -110,7 +152,7 @@
 
         function replaceLine(text) {
             erase(line);
-            line = TerminalText.printable(text);
+            line = lineText(text);
             echo(line);
         }
 
@@ -134,9 +176,10 @@
         function backspace() {
             if (!line) return;
             const chars = Array.from(line);
-            const last = chars.pop();
-            line = chars.join('');
-            erase(last);
+            const start = lastCharacterStart(chars);
+            const removed = chars.slice(start).join('');
+            line = chars.slice(0, start).join('');
+            erase(removed);
         }
 
         function recall(direction) {
@@ -162,16 +205,18 @@
         // Local line editing for Telnet world entries outside character mode (echo.remote false).
         // While echo.hidden is true the buffer is edited invisibly and never enters the history.
         function editLine(input) {
-            if (input === '\x1b[A' || input === '\x1bOA') {
+            if (KEYS_UP.indexOf(input) >= 0) {
                 if (!hiddenEcho) recall(-1);
                 return;
             }
-            if (input === '\x1b[B' || input === '\x1bOB') {
+            if (KEYS_DOWN.indexOf(input) >= 0) {
                 if (!hiddenEcho) recall(1);
                 return;
             }
-            const text = input.replace(PASTE_MARKERS, '');
-            if (text.charCodeAt(0) === 0x1b && text.length > 1) return;
+            if (KEYS_IGNORED.indexOf(input) >= 0) return;
+            // A lone Escape goes out as a key; escape sequences inside other input (pasted coloured text,
+            // paste markers, Alt+key) are removed and the remaining text is edited.
+            const text = input === '\x1b' ? input : input.replace(ESCAPES, '');
             const chars = Array.from(text);
             let typed = '';
             // Typed characters are echoed in one write per run, before anything else reaches the screen.
@@ -184,7 +229,7 @@
                 const ch = chars[i];
                 const code = ch.codePointAt(0);
                 if (ch === '\n' && i > 0 && chars[i - 1] === '\r') continue;
-                if (code >= 0x20 && !(code >= 0x7f && code < 0xa0)) {
+                if (ch === '\t' || (code >= 0x20 && !(code >= 0x7f && code < 0xa0))) {
                     line += ch;
                     typed += ch;
                     historyIndex = -1;
@@ -205,8 +250,10 @@
             flush();
         }
 
+        // Keystrokes before the socket is open are dropped: the coordinator forwards keys only after the
+        // connected control, which arrives on an open socket.
         function send(input) {
-            if (closed || typeof input !== 'string' || !input) return;
+            if (!isOpen() || typeof input !== 'string' || !input) return;
             if (lineCapable && !remoteEcho) {
                 editLine(input);
                 return;
@@ -268,11 +315,20 @@
             ws.onclose = null;
         }
 
+        // Once the session ends, typed text (a hidden password buffer included) and the history are dropped.
+        function forget() {
+            line = '';
+            draft = '';
+            historyIndex = -1;
+            history.length = 0;
+        }
+
         // hangup() and dispose(): close the socket; no callbacks fire afterwards.
         function shutdown() {
             if (closed) return;
             closed = true;
             detach();
+            forget();
             if (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN) {
                 try { ws.close(1000); } catch (e) {}
             }
@@ -306,6 +362,7 @@
             if (closed) return;
             closed = true;
             detach();
+            forget();
             onClose(event);
         };
 

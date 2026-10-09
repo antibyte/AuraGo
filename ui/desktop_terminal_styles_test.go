@@ -779,7 +779,12 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 		"window.TerminalRetroNetSession = { open: open, hostKeyAnswer: hostKeyAnswer }",
 		"const TerminalText = window.TerminalText",
 		"TerminalText.cellWidth(ch.codePointAt(0))",
-		"line = TerminalText.printable(text)",
+		"line = lineText(text)",
+		`split('\t').map(TerminalText.printable).join('\t')`,
+		"const start = lastCharacterStart(chars)",
+		"KEYS_IGNORED.indexOf(input) >= 0",
+		"input.replace(ESCAPES, '')",
+		"if (!isOpen() || typeof input !== 'string' || !input) return",
 		"'/api/desktop/retronet/connect?entry='",
 		"encodeURIComponent(String(entry.id || ''))",
 		"'&cols=' + cols + '&rows=' + rows",
@@ -790,7 +795,7 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 		"type: 'hostkey_decision'",
 		"control.type === 'echo'",
 		"setEchoMode(control.remote === true, control.hidden === true)",
-		"if (term && text && !hiddenEcho) term.write(TerminalText.printable(text))",
+		`if (term && text && !hiddenEcho) term.write(TerminalText.printable(text.split('\t').join(' ')))`,
 		"if (!secret) remember(text)",
 		"if (!hiddenEcho) recall(-1)",
 		"if (lineCapable && !remoteEcho)",
@@ -810,6 +815,10 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 	}
 	if strings.Count(source, "new WebSocket") != 1 {
 		t.Fatal("terminal-retronet-session.js must create exactly one WebSocket")
+	}
+	// Typed text and history (a hidden password buffer included) are dropped on hang-up, dispose and remote close.
+	if !strings.Contains(source, "function forget()") || strings.Count(strings.ReplaceAll(source, "\r\n", "\n"), "detach();\n            forget();") != 2 {
+		t.Fatal("terminal-retronet-session.js must forget the line buffer and history in shutdown() and on remote close")
 	}
 	for _, forbidden := range []string{"&host=", "&port=", "?host=", "innerHTML", "function cellWidth", "function fitToCells", "function printable", "0x1f300", `\u001f`} {
 		if strings.Contains(source, forbidden) {

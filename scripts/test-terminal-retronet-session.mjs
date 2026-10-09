@@ -21,9 +21,10 @@ class FakeSocket {
     static OPEN = 1;
     static CLOSING = 2;
     static CLOSED = 3;
+    static initialState = 1;
     constructor(url) {
         this.url = url;
-        this.readyState = 1;
+        this.readyState = FakeSocket.initialState;
         this.binaryType = 'blob';
         this.sent = [];
         this.closeCode = 0;
@@ -222,7 +223,75 @@ lineMode.send('say one\r\nsay two\r\n');
 same('a multi-line paste writes each line and line break once', screen.writes, 4);
 lineMode.dispose();
 
-// 13. Host-key answers: localized letters first, then ASCII y/n, case-insensitive; anything else is no answer.
+// 12. Line editor details: Tab, escape sequences, whole characters.
+const editor = Session.open({ term: screen, entry: { id: 'discworld', protocol: 'telnet', kind: 'world' }, cols: 80, rows: 25 });
+const edSocket = sockets.at(-1);
+const lastSent = () => edSocket.sent.at(-1);
+screen.out = '';
+editor.send('a\tb');
+same('Tab stays in the line and shows as one cell', [screen.out, edSocket.sent.length], ['a b', 0]);
+editor.send('\x7f');
+editor.send('\x7f');
+same('Backspace removes the Tab as one cell', screen.out, 'a b\b \b\b \b');
+editor.send('\t\r');
+same('the line goes out with its Tab', lastSent(), 'bin:a\t\r');
+control(edSocket, { type: 'echo', remote: false, hidden: true });
+screen.out = '';
+editor.send('x\ty\r');
+same('hidden line mode keeps Tab in the line too', [lastSent(), screen.out], ['bin:x\ty\r', '\r\n']);
+control(edSocket, { type: 'echo', remote: false, hidden: false });
+const sentBefore = edSocket.sent.length;
+screen.out = '';
+for (const key of ['\x1b[C', '\x1b[D', '\x1b[H', '\x1b[F', '\x1b[1~', '\x1b[4~', '\x1b[3~', '\x1b[5~', '\x1b[6~', '\x1bOC', '\x1bOD']) editor.send(key);
+same('cursor and editing keys are swallowed', [edSocket.sent.length - sentBefore, screen.out], [0, '']);
+editor.send('\x1b[31mred\x1b[0m and \x1b]0;title\x07plain');
+same('pasted coloured text keeps only its text', screen.out, 'red and plain');
+editor.send('\x1b[200~ pasted\x1b[201~');
+editor.send('\x1bx');
+editor.send('\r');
+same('paste markers and Alt+key leave only the pasted text', lastSent(), 'bin:red and plain pasted\r');
+editor.send('\x1b');
+same('a lone Escape still goes out at once', lastSent(), 'bin:\x1b');
+screen.out = '';
+editor.send('ae\u{301}');
+editor.send('\x7f');
+same('Backspace removes a base with its combining mark', screen.out, 'ae\u{301}\b \b');
+editor.send('\x7f');
+editor.send('\u{1f468}\u{200d}\u{1f469}\u{200d}\u{1f467}');
+screen.out = '';
+editor.send('\x7f');
+same('a ZWJ sequence goes at once (three cells in xterm)', screen.out, '\b\b\b   \b\b\b');
+editor.send('\u{1f1e9}\u{1f1ea}\u{1f44d}\u{1f3fd}');
+screen.out = '';
+editor.send('\x7f');
+editor.send('\x7f');
+same('a skin tone and a flag go with their base', screen.out, '\b\b  \b\b\b\b  \b\b');
+editor.send('\r');
+same('buffer and screen stay in step', lastSent(), 'bin:\r');
+editor.dispose();
+
+// 13. Before the socket opens: resizes wait for open, input is dropped (the coordinator forwards keys only
+// after the connected control, i.e. on an open socket), dispose closes quietly.
+FakeSocket.initialState = 0;
+const early = Session.open({ term: screen, entry: { id: 'discworld', protocol: 'telnet', kind: 'world' }, cols: 80, rows: 25, onClose: () => closes.push('early') });
+const earlySocket = sockets.at(-1);
+screen.out = '';
+early.resize(100, 40);
+early.send('look\r');
+same('nothing is sent or echoed while connecting', [earlySocket.sent, screen.out], [[], '']);
+earlySocket.readyState = 1;
+earlySocket.onopen();
+same('the latest size is sent on open', earlySocket.sent, ['txt:{"type":"resize","cols":100,"rows":40}']);
+early.send('look\r');
+same('input flows once the socket is open', earlySocket.sent.at(-1), 'bin:look\r');
+early.dispose();
+const connecting = Session.open({ term: screen, entry: { id: 'telehack', protocol: 'telnet', kind: 'world' }, cols: 80, rows: 25, onClose: () => closes.push('connecting') });
+const connectingSocket = sockets.at(-1);
+connecting.dispose();
+same('dispose while connecting closes the socket quietly', [connectingSocket.readyState, connectingSocket.closeCode, connectingSocket.onopen, connectingSocket.onclose, closes.includes('connecting')], [3, 1000, null, null, false]);
+FakeSocket.initialState = 1;
+
+// 14. Host-key answers: localized letters first, then ASCII y/n, case-insensitive; anything else is no answer.
 const answer = Session.hostKeyAnswer;
 same('English letters in both cases', [answer('y', 'Y', 'N'), answer('Y', 'Y', 'N'), answer('n', 'Y', 'N'), answer('N\r', 'Y', 'N')], [true, true, false, false]);
 same('German J/N with the ASCII fallback', [answer('j', 'J', 'N'), answer('J', 'J', 'N'), answer('y', 'J', 'N'), answer('n', 'J', 'N')], [true, true, true, false]);
