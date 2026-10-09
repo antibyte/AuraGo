@@ -57,6 +57,7 @@ type localWikiReader interface {
 	Search(ctx context.Context, query string, limit int, withLeads int) (localwiki.SearchResult, error)
 	Suggest(ctx context.Context, query string, limit int) ([]localwiki.Ref, error)
 	Content(path string) (localwiki.ContentItem, error)
+	ContentETag(path string) (etag, resolved string, err error)
 	Random() (localwiki.Ref, error)
 	Main() (localwiki.Ref, error)
 }
@@ -357,6 +358,20 @@ func (s *Server) serveLocalWikiRef(w http.ResponseWriter, pick func() (localwiki
 // serveLocalWikiContent streams one blob of the open edition. Paths are lookup
 // keys in the archive's content namespace, never filesystem paths.
 func (s *Server) serveLocalWikiContent(w http.ResponseWriter, r *http.Request, reader localWikiReader, path string) {
+	if inm := r.Header.Get("If-None-Match"); inm != "" {
+		// A revalidation of the current blob is answered before the blob is
+		// opened, which decompresses its cluster. The 304 carries the headers
+		// http.ServeContent's would; anything else takes the normal path.
+		if etag, resolved, err := reader.ContentETag(path); err == nil && resolved == path && localWikiETagMatches(inm, etag) {
+			header := w.Header()
+			setLocalWikiContentHeaders(header)
+			header.Set("Cache-Control", localWikiContentCacheControl)
+			header.Del("Pragma")
+			header.Set("ETag", etag)
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+	}
 	item, err := reader.Content(path)
 	if err != nil {
 		if errors.Is(err, zim.ErrNotFound) || errors.Is(err, zim.ErrRedirectLoop) || errors.Is(err, localwiki.ErrInvalidPath) {
@@ -403,6 +418,19 @@ func (s *Server) serveLocalWikiContent(w http.ResponseWriter, r *http.Request, r
 		header.Set("ETag", item.ETag)
 	}
 	http.ServeContent(w, r, "", time.Time{}, item.Reader)
+}
+
+// localWikiETagMatches is the weak comparison http.ServeContent applies to
+// If-None-Match: "*" or any listed tag, with or without W/, equal to etag
+// (which never contains a comma or a W/ prefix).
+func localWikiETagMatches(header, etag string) bool {
+	for _, candidate := range strings.Split(header, ",") {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "*" || strings.TrimPrefix(candidate, "W/") == etag {
+			return true
+		}
+	}
+	return false
 }
 
 // localWikiContentCacheControl lets the browser keep a blob but revalidate it

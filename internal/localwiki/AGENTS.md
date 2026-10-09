@@ -311,6 +311,10 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   Chromium reports as an unrecognized feature on every load; the app strips `attributionsrc` from links instead).
   Blobs go through `http.ServeContent` (Range, `If-None-Match`, `If-Range`) with
   `Cache-Control: private, no-cache` (revalidated through the ETag, 304 while the edition is unchanged); the middleware never treats the prefix as a static asset.
+  An `If-None-Match` that matches the current blob's ETag (weak comparison, `*`, lists; `localWikiETagMatches`)
+  is answered 304 before the blob is opened (`Library.ContentETag` resolves the path and builds the same
+  ETag without decompressing the cluster), with the same content headers; a redirect, a missing entry or a
+  stale tag takes the normal path.
 - Desktop capability `local_wikipedia` = `local_wikipedia.enabled` and a manager
   (`localWikipediaAvailable`); a config publication that flips `enabled` broadcasts `desktop_changed`
   `app_availability` on its own goroutine, outside the config lock. The app contract lives in

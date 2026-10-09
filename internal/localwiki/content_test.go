@@ -19,6 +19,7 @@ type fakeContentArchive struct {
 	blobs    map[uint32]string
 	articles []uint32
 	mainIdx  int
+	opens    int
 }
 
 func (f *fakeContentArchive) ContentNamespace() byte { return f.ns }
@@ -48,6 +49,7 @@ func (f *fakeContentArchive) Resolve(entry zim.Entry) (zim.Entry, error) {
 }
 
 func (f *fakeContentArchive) Open(entry zim.Entry) (*io.SectionReader, error) {
+	f.opens++
 	blob, ok := f.blobs[entry.Index]
 	if !ok || entry.IsRedirect {
 		return nil, zim.ErrNotFound
@@ -88,6 +90,28 @@ func newFakeContentArchive() *fakeContentArchive {
 	add(zim.Entry{Namespace: 'C', Path: "Ausbruch", Title: "Ausbruch", IsRedirect: true, RedirectTo: 4}, "")                                      // 7
 	f.articles = []uint32{0, 1, 3, 2}
 	return f
+}
+
+// ContentETag answers what Content would send without opening the blob.
+func TestArchiveContentETagSkipsTheBlob(t *testing.T) {
+	archive := newFakeContentArchive()
+	item, err := archiveContent(archive, "Berlin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	opens := archive.opens
+	etag, resolved, err := archiveContentETag(archive, "Berlin")
+	if err != nil || etag != item.ETag || resolved != "Berlin" || archive.opens != opens {
+		t.Fatalf("etag %q resolved %q err %v opens %d->%d, want %q without opening", etag, resolved, err, opens, archive.opens, item.ETag)
+	}
+	for _, path := range []string{"", "Gibt_es_nicht", "Ausbruch", "Loop_A"} {
+		if _, _, err := archiveContentETag(archive, path); err == nil {
+			t.Fatalf("%q: no error", path)
+		}
+	}
+	if archive.opens != opens {
+		t.Fatal("a failed ETag lookup opened a blob")
+	}
 }
 
 func TestArchiveContentServesTheContentNamespace(t *testing.T) {

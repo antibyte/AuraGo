@@ -36,6 +36,7 @@ type fakeLocalWikiReader struct {
 	gotQuery  string
 	gotLimit  int
 	gotLeads  int
+	opened    int // Content calls (each opens a blob)
 }
 
 func (f *fakeLocalWikiReader) Edition() localwiki.Edition { return f.edition }
@@ -55,7 +56,20 @@ func (f *fakeLocalWikiReader) Suggest(_ context.Context, query string, limit int
 	return f.refs, nil
 }
 
+func (f *fakeLocalWikiReader) ContentETag(path string) (string, string, error) {
+	page, ok := f.pages[path]
+	if !ok {
+		return "", "", zim.ErrNotFound
+	}
+	resolved := page.resolved
+	if resolved == "" {
+		resolved = path
+	}
+	return `"fixture-` + resolved + `"`, resolved, nil
+}
+
 func (f *fakeLocalWikiReader) Content(path string) (localwiki.ContentItem, error) {
+	f.opened++
 	if path == "" {
 		return localwiki.ContentItem{}, localwiki.ErrInvalidPath
 	}

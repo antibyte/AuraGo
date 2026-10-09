@@ -100,6 +100,48 @@ func TestLocalWikiContentRangeAndConditionalRequests(t *testing.T) {
 	}
 }
 
+// A revalidation of the current blob is answered without opening it (a ZIM
+// blob open decompresses its cluster); the 304 keeps the content headers.
+func TestLocalWikiContentRevalidationSkipsTheBlob(t *testing.T) {
+	s, _ := newLocalWikiDesktopTestServer(t)
+	backend := newFakeLocalWikiBackend()
+	for _, inm := range []string{`"fixture-Berlin"`, `W/"fixture-Berlin"`, `"other", "fixture-Berlin"`, `*`} {
+		opened := backend.reader.opened
+		w := localWikiContentGet(t, s, backend, "Berlin", map[string]string{"If-None-Match": inm})
+		if w.Code != http.StatusNotModified || w.Body.Len() != 0 || backend.reader.opened != opened {
+			t.Fatalf("If-None-Match %s = %d body %d, opened %d->%d", inm, w.Code, w.Body.Len(), opened, backend.reader.opened)
+		}
+		for header, want := range map[string]string{
+			"ETag":                    `"fixture-Berlin"`,
+			"Cache-Control":           "private, no-cache",
+			"Content-Security-Policy": localWikipediaContentCSP,
+			"X-Frame-Options":         "SAMEORIGIN",
+			"X-Content-Type-Options":  "nosniff",
+			"Referrer-Policy":         "no-referrer",
+			"Content-Type":            "",
+			"Pragma":                  "",
+		} {
+			if got := w.Header().Get(header); got != want {
+				t.Errorf("If-None-Match %s: %s = %q, want %q", inm, header, got, want)
+			}
+		}
+	}
+	// A stale tag, a redirect and a missing article take the normal path.
+	opened := backend.reader.opened
+	if w := localWikiContentGet(t, s, backend, "Berlin", map[string]string{"If-None-Match": `"old-edition-Berlin"`}); w.Code != http.StatusOK || backend.reader.opened != opened+1 {
+		t.Fatalf("stale tag = %d, opened %d->%d", w.Code, opened, backend.reader.opened)
+	}
+	if w := localWikiContentGet(t, s, backend, "Berlin_(Stadt)", map[string]string{"If-None-Match": `"fixture-Berlin"`}); w.Code != http.StatusFound {
+		t.Fatalf("redirect with a matching tag = %d, want the redirect", w.Code)
+	}
+	if w := localWikiContentGet(t, s, backend, "Gibt_es_nicht", map[string]string{"If-None-Match": `*`}); w.Code != http.StatusNotFound {
+		t.Fatalf("missing article with * = %d", w.Code)
+	}
+	if backend.acquired != backend.released {
+		t.Fatalf("acquire/release = %d/%d", backend.acquired, backend.released)
+	}
+}
+
 func TestLocalWikiContentRedirectsToTheResolvedPath(t *testing.T) {
 	s, _ := newLocalWikiDesktopTestServer(t)
 	backend := newFakeLocalWikiBackend()

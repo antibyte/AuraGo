@@ -63,6 +63,16 @@ func (l *Library) Content(path string) (ContentItem, error) {
 	return archiveContent(l.archive, path)
 }
 
+// ContentETag returns the ETag Content sends for path and the path after
+// redirects, without opening the blob: no cluster is decompressed, so a
+// browser's revalidation can be answered with 304 cheaply.
+func (l *Library) ContentETag(path string) (etag, resolved string, err error) {
+	if l == nil || l.archive == nil {
+		return "", "", fmt.Errorf("content: %w", zim.ErrNotFound)
+	}
+	return archiveContentETag(l.archive, path)
+}
+
 // Random returns a random article of the open edition.
 func (l *Library) Random() (Ref, error) {
 	if l == nil || l.archive == nil {
@@ -79,21 +89,39 @@ func (l *Library) Main() (Ref, error) {
 	return archiveMain(l.archive)
 }
 
-func archiveContent(a contentArchive, path string) (ContentItem, error) {
+// resolveContent finds the entry Content serves for path: redirects
+// followed, never leaving the content namespace.
+func resolveContent(a contentArchive, path string) (zim.Entry, error) {
 	if !validContentPath(path) {
-		return ContentItem{}, ErrInvalidPath
+		return zim.Entry{}, ErrInvalidPath
 	}
 	ns := a.ContentNamespace()
 	entry, err := a.EntryByPath(ns, path)
 	if err != nil {
-		return ContentItem{}, fmt.Errorf("content %q: %w", path, err)
+		return zim.Entry{}, fmt.Errorf("content %q: %w", path, err)
 	}
 	resolved, err := a.Resolve(entry)
 	if err != nil {
-		return ContentItem{}, fmt.Errorf("content %q: %w", path, err)
+		return zim.Entry{}, fmt.Errorf("content %q: %w", path, err)
 	}
 	if resolved.Namespace != ns || resolved.IsRedirect {
-		return ContentItem{}, fmt.Errorf("content %q: %w", path, zim.ErrNotFound)
+		return zim.Entry{}, fmt.Errorf("content %q: %w", path, zim.ErrNotFound)
+	}
+	return resolved, nil
+}
+
+func archiveContentETag(a contentArchive, path string) (string, string, error) {
+	resolved, err := resolveContent(a, path)
+	if err != nil {
+		return "", "", err
+	}
+	return contentETag(a.UUID(), resolved.Path), resolved.Path, nil
+}
+
+func archiveContent(a contentArchive, path string) (ContentItem, error) {
+	resolved, err := resolveContent(a, path)
+	if err != nil {
+		return ContentItem{}, err
 	}
 	section, err := a.Open(resolved)
 	if err != nil {
