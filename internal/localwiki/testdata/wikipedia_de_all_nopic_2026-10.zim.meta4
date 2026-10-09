@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metalink xmlns="urn:ietf:params:xml:ns:metalink">
+  <generator>MirrorBrain/2.19.0</generator>
+  <origin dynamic="true">https://lb.download.kiwix.org/zim/wikipedia/wikipedia_de_all_nopic_2026-10.zim.meta4</origin>
+  <published>2026-10-08T23:09:37Z</published>
+  <publisher>
+    <name>Kiwix project</name>
+    <url>https://kiwix.org</url>
+  </publisher>
+
+  <file name="wikipedia_de_all_nopic_2026-10.zim">
+    <size>18585337585</size>
+
+    <!-- <mtime>1791152471</mtime> -->
+
+    <!-- internal id: 10372 -->
+    <hash type="md5">1782694b8cbba1eba2594609ee89b620</hash>
+    <hash type="sha-1">376adec28c406b49102104ead8d731f1541e5e50</hash>
+    <hash type="sha-256">59af34df2f21e1824d96a534cfef0a7776b589ee215ad2a7f7bb3b6328ca30ba</hash>
+    <pieces length="4194304" type="sha-1">
+      <hash>163af0907890b77011b1f070b4fdcbe29aa86589</hash>
+      <hash>f3a97b9208055eb9ec64056fb49a42dd2db7a7b8</hash>
+      <hash>89d9bc8d45ed644f3688fb9d49c4adb1adcfab6d</hash>
+    </pieces>
+
+
+    <!-- Found 8 mirrors: 0 in the same network prefix, 0 in the same autonomous system,
+         1 handling this country, 4 in the same region, 2 elsewhere -->
+
+    <!-- Mirrors in the same network (unknown): -->
+
+    <!-- Mirrors in the same AS (unknown): -->
+
+    <!-- Mirrors which handle this country (DE): -->
+    <url location="de" priority="1">https://ftp.fau.de/kiwix/zim/wikipedia/wikipedia_de_all_nopic_2026-10.zim</url>
+
+    <!-- Mirrors in the same continent (EU): -->
+    <url location="nl" priority="2">https://ftp.nluug.nl/pub/kiwix/zim/wikipedia/wikipedia_de_all_nopic_2026-10.zim</url>
+    <url location="fr" priority="3">https://mirror.download.kiwix.org/zim/wikipedia/wikipedia_de_all_nopic_2026-10.zim</url>
+    <url location="se" priority="4">https://mirror.accum.se/mirror/kiwix.org/zim/wikipedia/wikipedia_de_all_nopic_2026-10.zim</url>
+    <url location="gb" priority="5">https://www.mirrorservice.org/sites/download.kiwix.org/zim/wikipedia/wikipedia_de_all_nopic_2026-10.zim</url>
+
+    <!-- Mirrors in the rest of the world: -->
+    <url location="us" priority="6">https://wi.mirror.driftle.ss/kiwix/zim/wikipedia/wikipedia_de_all_nopic_2026-10.zim</url>
+    <url location="us" priority="7">https://dumps.wikimedia.org/kiwix/zim/wikipedia/wikipedia_de_all_nopic_2026-10.zim</url>
+  </file>
+</metalink>
