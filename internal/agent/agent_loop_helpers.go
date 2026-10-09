@@ -690,6 +690,18 @@ func adaptiveSwapsForQuery(userQuery string) map[string]string {
 	return out
 }
 
+// recordRequestedTools adds the tools discover_tools requested to the set the
+// refresh pins for the rest of the run (toolSchemaFilterOptions.PinnedTools).
+func recordRequestedTools(requested map[string]bool, names []string) map[string]bool {
+	for _, name := range names {
+		if requested == nil {
+			requested = make(map[string]bool, len(names))
+		}
+		requested[name] = true
+	}
+	return requested
+}
+
 // pinnedToolNames lists the requested tools in a stable order.
 func pinnedToolNames(requested map[string]bool) []string {
 	if len(requested) == 0 {

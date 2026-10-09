@@ -637,12 +637,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.nativeSchemaSnapshot = BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, s.currentLogger)
 			all := filterSchemasByAllowedTools(s.nativeSchemaSnapshot.FullSchemas(), runCfg.AllowedTools)
 			requested := ConsumeDiscoverRequestedTools(runCfg.DiscoveryRunID)
-			if len(requested) > 0 && s.discoverRequestedTools == nil {
-				s.discoverRequestedTools = make(map[string]bool, len(requested))
-			}
-			for _, name := range requested {
-				s.discoverRequestedTools[name] = true
-			}
+			s.discoverRequestedTools = recordRequestedTools(s.discoverRequestedTools, requested)
 			available := stringSet(toolSchemaNames(all))
 			var retained []openai.Tool
 			for _, schema := range req.Tools {

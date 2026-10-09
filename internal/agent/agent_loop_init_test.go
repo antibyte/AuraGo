@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/memory"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -149,5 +150,46 @@ func TestInitAgentLoopStateSuppressesWriterCoAgentToolSchemas(t *testing.T) {
 	}
 	if len(state.flags.EnabledNativeTools) != 0 {
 		t.Fatalf("writer co-agent enabled tools = %v, want none", state.flags.EnabledNativeTools)
+	}
+}
+
+// The first selection consumes discover_tools requests already marked for
+// the run (pre-existing behaviour); the refresh then pins them like the
+// requests it consumes itself.
+func TestInitAgentLoopStateRecordsConsumedDiscoverRequests(t *testing.T) {
+	t.Cleanup(func() {
+		discoverToolsState.mu.Lock()
+		discoverToolsState.snapshots = nil
+		discoverToolsState.requested = nil
+		discoverToolsState.mu.Unlock()
+	})
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	cfg := &config.Config{}
+	cfg.Directories.SkillsDir = t.TempDir()
+	cfg.Directories.PromptsDir = t.TempDir()
+	cfg.LLM.ProviderType = "openai"
+	cfg.LLM.Model = "gpt-4o-mini"
+	cfg.LLM.UseNativeFunctions = true
+	cfg.Agent.AdaptiveTools.Enabled = true
+	cfg.Agent.AdaptiveTools.MaxTools = 10
+	cfg.Agent.AdaptiveTools.MaxTotalTools = 20
+	MarkDiscoverRequestedTool("run:init-consume", "jellyfin")
+	state := initAgentLoopState(openai.ChatCompletionRequest{
+		Model:    "gpt-4o-mini",
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "Was sagt Wikipedia über Berlin?"}},
+	}, RunConfig{Config: cfg, Logger: logger, SessionID: "sess-init-consume", DiscoveryRunID: "run:init-consume", ShortTermMem: stm}, nil, false)
+	if !state.adaptiveInitFiltered {
+		t.Fatal("the adaptive first selection did not run")
+	}
+	if !state.discoverRequestedTools["jellyfin"] {
+		t.Fatalf("consumed request not recorded: %v", state.discoverRequestedTools)
+	}
+	if again := ConsumeDiscoverRequestedTools("run:init-consume"); len(again) != 0 {
+		t.Fatalf("the first selection left the request unconsumed: %v", again)
 	}
 }
