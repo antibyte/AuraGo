@@ -348,8 +348,11 @@ is the Kiwix edition AuraGo verified on download.
 `selection`, `selection_matches_installed`, `update_available`, `fulltext`,
 `readable`, `loading`, `free_bytes` (-1 when unknown), `required_bytes`,
 `data_dir`, `data_dir_locked`, `operation_in_progress`, `error_code`,
-`recommendation`, `system_language` and `languages`. Two fields matter for
-clients:
+`recommendation`, `system_language` and `languages`. While a download runs,
+`progress`, `bytes_done` and `bytes_total` follow it; for an `interrupted`
+download they tell how much is already on disk (the size of the partial file),
+which is where **Resume** continues and what the config page shows. Two fields
+matter for clients:
 
 - `readable` is true whenever an installed edition is open and being served, in
   every state (also while an update downloads or after a failed update). Decide

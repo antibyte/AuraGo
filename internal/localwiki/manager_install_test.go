@@ -129,8 +129,15 @@ func TestManagerCancelResumeAndRestart(t *testing.T) {
 		t.Fatalf("status after cancel = %+v", status)
 	}
 	part := filepath.Join(env.dir, served.name+".zim.part")
-	if info, err := os.Stat(part); err != nil || info.Size() < 1024 {
+	info, err := os.Stat(part)
+	if err != nil || info.Size() < 1024 {
 		t.Fatalf("part file after cancel: %v", err)
+	}
+	// The status tells how much a resume continues from: the .part on disk.
+	if status.BytesDone != info.Size() || status.BytesTotal != int64(len(served.data)) ||
+		status.Progress != float64(info.Size())/float64(int64(len(served.data))) {
+		t.Fatalf("interrupted status bytes %d/%d progress %v, want the part size %d of %d",
+			status.BytesDone, status.BytesTotal, status.Progress, info.Size(), int64(len(served.data)))
 	}
 	if err := env.manager.Cancel(); !errors.Is(err, ErrNoOperation) {
 		t.Fatalf("second Cancel = %v", err)
@@ -149,6 +156,8 @@ func TestManagerCancelResumeAndRestart(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	if status := env.manager.Status(); status.State != StateInterrupted || len(env.kiwix.requestLog()) != requests {
 		t.Fatalf("restart resumed or lost the download: %+v", status)
+	} else if status.BytesDone != info.Size() || status.BytesTotal != int64(len(served.data)) {
+		t.Fatalf("after a restart the interrupted status reports %d/%d bytes, want %d/%d", status.BytesDone, status.BytesTotal, info.Size(), int64(len(served.data)))
 	}
 
 	// Resume continues with a Range request after re-hashing the part file.

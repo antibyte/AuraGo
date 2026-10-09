@@ -164,6 +164,14 @@ const SERVER_ENGLISH = 'Server recommendation that must never be shown.';
   assert.ok(!html.includes(bundle['config.local_wikipedia.update_failed']), 'an install of another selection is no update');
   ctx.setStatus({ ...ready, state: 'interrupted', error_code: 'insufficient_disk_space', required_bytes: 20e9, free_bytes: 5e9 });
   assert.ok(!ctx.html().includes(bundle['config.local_wikipedia.update_failed']), 'a paused download did not fail');
+
+  // An interrupted download shows how much is already downloaded, without rate and ETA.
+  ctx.setStatus({ state: 'interrupted', readable: false, selection_matches_installed: false, bytes_done: 300e6, bytes_total: 900e6, progress: 1 / 3 });
+  html = ctx.html();
+  assert.ok(html.includes('id="lw-progress"') && html.includes('value="333"'), 'interrupted progress bar');
+  assert.ok(!html.includes('/s · '), 'no rate or ETA while interrupted');
+  ctx.setStatus({ state: 'interrupted', readable: false, selection_matches_installed: false });
+  assert.ok(!ctx.html().includes('id="lw-progress"'), 'no progress without a known size');
 }
 
 // A switched-off integration keeps reporting the installed edition (state

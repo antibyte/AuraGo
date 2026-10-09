@@ -212,10 +212,17 @@ func TestManagerReportsInterruptedDownloadWithoutResuming(t *testing.T) {
 	if err := writeDownload(env.dir, &downloadFile{Target: target, URLs: []string{env.kiwix.server.URL + "/m1/" + target.FileName}}); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(env.dir, target.FileName+".part"), []byte("abcd"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	env.start()
 	time.Sleep(100 * time.Millisecond)
-	if status := env.manager.Status(); status.State != StateInterrupted || status.OperationInProgress {
+	status := env.manager.Status()
+	if status.State != StateInterrupted || status.OperationInProgress {
 		t.Fatalf("status = %+v", status)
+	}
+	if status.BytesDone != 4 || status.BytesTotal != 10 || status.Progress != 0.4 {
+		t.Fatalf("interrupted bytes %d/%d progress %v, want the 4-byte part of 10", status.BytesDone, status.BytesTotal, status.Progress)
 	}
 	if len(env.kiwix.requestLog()) != 0 {
 		t.Fatal("an interrupted download was resumed automatically")

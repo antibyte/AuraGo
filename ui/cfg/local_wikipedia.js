@@ -412,7 +412,10 @@ function localWikiRuntimeHTML() {
     html += '<div class="field-help">' + escapeHtml(t('config.local_wikipedia.free_space', {
         path: status.data_dir || '—', free: localWikiFormatBytes(status.free_bytes)
     })) + '</div>';
-    if (status.operation_in_progress) html += localWikiProgressHTML(status);
+    // An interrupted download shows how much a resume continues from.
+    if (status.operation_in_progress || (status.state === 'interrupted' && Number(status.bytes_total) > 0)) {
+        html += localWikiProgressHTML(status);
+    }
     return html + localWikiActionsHTML(status);
 }
 

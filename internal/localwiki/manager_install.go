@@ -453,9 +453,16 @@ func (m *Manager) finishOperation(op *operation, plan installPlan, err error) {
 			m.logger.Warn("[LocalWikipedia] download.json could not be removed", "error", removeErr)
 		}
 	}
+	var partBytes int64
+	if interrupted {
+		// The .part on disk, not the last progress report: a cancel during the
+		// re-hash of a resumed download reports the bytes hashed so far.
+		partBytes = partFileSize(plan.dir, plan.target.FileName)
+	}
 	m.mu.Lock()
 	m.op = nil
 	m.interrupted = interrupted
+	m.partBytes, m.partTotal = partBytes, plan.target.Size
 	m.errCode = code
 	m.errRequired = required
 	if space != nil {

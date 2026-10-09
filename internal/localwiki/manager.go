@@ -87,6 +87,11 @@ type Manager struct {
 	disk         diskReading          // last free-space measurement (see probeDisk)
 	diskSeq      uint64               // orders free-space measurements
 	diskInFlight map[string]time.Time // storage directories being measured, with the start time
+
+	// partBytes and partTotal describe the interrupted download: its .part
+	// size when it stopped or was loaded, and the edition size. Status
+	// reports them without touching the storage directory.
+	partBytes, partTotal int64
 }
 
 // NewManager creates a passive manager: no I/O and no goroutine until Start.
@@ -507,6 +512,8 @@ func (m *Manager) loadLocked(dir string) {
 		ref         *libraryRef
 		code        string
 		interrupted bool
+		partBytes   int64
+		partTotal   int64
 	)
 	m.mu.Lock()
 	enabled := m.settings.Enabled
@@ -534,6 +541,9 @@ func (m *Manager) loadLocked(dir string) {
 			interrupted = true
 		case pending != nil:
 			interrupted = m.reconcileDownload(dir, st, pending)
+		}
+		if interrupted {
+			partBytes, partTotal = partFileSize(dir, pending.Target.FileName), pending.Target.Size
 		}
 		if st != nil && st.Edition != nil && enabled {
 			lib, err := OpenLibrary(filepath.Join(dir, st.Edition.FileName), *st.Edition)
@@ -568,6 +578,7 @@ func (m *Manager) loadLocked(dir string) {
 	m.state = st
 	m.lib = ref
 	m.interrupted = interrupted
+	m.partBytes, m.partTotal = partBytes, partTotal
 	m.loadCode = code
 	m.errCode = ""
 	m.errRequired = 0
@@ -579,6 +590,16 @@ func (m *Manager) loadLocked(dir string) {
 		switchedOff.retire(nil)
 	}
 	m.processPendingDeletes(dir)
+}
+
+// partFileSize returns the size of fileName's partial download in dir (0
+// when there is none).
+func partFileSize(dir, fileName string) int64 {
+	info, err := os.Lstat(filepath.Join(dir, fileName+".part"))
+	if err != nil || !info.Mode().IsRegular() {
+		return 0
+	}
+	return info.Size()
 }
 
 // reconcileDownload repairs what a crash during publication leaves behind and
@@ -774,8 +795,17 @@ func (m *Manager) Status() Status {
 		if op.target.Size > 0 {
 			status.Progress = float64(op.bytesDone) / float64(op.target.Size)
 		}
-	} else if m.errCode == CodeInsufficientDiskSpace {
-		status.RequiredBytes = m.errRequired
+	} else {
+		if m.errCode == CodeInsufficientDiskSpace {
+			status.RequiredBytes = m.errRequired
+		}
+		if m.interrupted {
+			// What a resume continues from.
+			status.BytesDone, status.BytesTotal = m.partBytes, m.partTotal
+			if m.partTotal > 0 {
+				status.Progress = float64(min(m.partBytes, m.partTotal)) / float64(m.partTotal)
+			}
+		}
 	}
 	status.State = m.stateLocked()
 	m.mu.Unlock()

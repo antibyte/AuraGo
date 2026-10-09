@@ -120,7 +120,10 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   fraction), `bytes_done`, `bytes_total`, `rate`, `eta_seconds`, `edition`, `selection`,
   `selection_matches_installed`, `update_available`, `fulltext`, `readable`, `loading`, `free_bytes` (the
   background measurement; -1 when unknown, not measured yet or the measurement hangs), `required_bytes`, `data_dir`, `data_dir_locked`, `operation_in_progress`, `error_code`,
-  `recommendation`, `system_language`, `languages`.
+  `recommendation`, `system_language`, `languages`. `progress`, `bytes_done` and `bytes_total` follow a
+  running operation; for an `interrupted` download they report its `.part` size and the edition size,
+  measured when the download stopped (`finishOperation`) or the directory was loaded (`loadLocked`), never
+  by `Status` itself (`partBytes`, `partTotal`).
 - `readable` is true while an installed edition is open and served, in every state. Clients decide whether
   Wikipedia content is available from `readable`, never from `edition != nil` or `state`. An edition that
   is being served is never reported as `error`: a failed install, resume or update ends as `ready`
