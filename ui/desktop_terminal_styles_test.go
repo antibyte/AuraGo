@@ -601,3 +601,50 @@ func TestDesktopTerminalRetroNetI18n(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopTerminalModemContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/terminal-modem.js")
+	for _, want := range []string{
+		"window.TerminalModem = {",
+		"BAUD_RATES: BAUD_RATES.slice()",
+		"const BAUD_RATES = [0, 300, 1200, 2400, 9600, 14400]",
+		"'aurago.desktop.terminal.baud'",
+		"loadBaud: loadBaud",
+		"saveBaud: saveBaud",
+		"create: create",
+		"createThrottle: createThrottle",
+		"return { dial: dial, skip: skip, connectLine: connectLine, dispose: dispose }",
+		"return { setBaud: setBaud, push: push, flush: flush, dispose: dispose }",
+		`'ATZ\r\nOK\r\nATDT '`,
+		"'CONNECT '",
+		"|| 14400",
+		"createOscillator",
+		"createBiquadFilter",
+		"createBufferSource",
+		"getChannelData",
+		"freq: 2100",
+		"'1': [697, 1209]",
+		"'0': [941, 1336]",
+		"HANDSHAKE_MS = 2500",
+		"Math.imul(hash, 0x01000193)",
+		"requestAnimationFrame(release)",
+		"cancelAnimationFrame(frame)",
+		"(baud / 10)",
+		"shouldSilence",
+		"prefers-reduced-motion: reduce",
+		"dataset.animations === 'false'",
+		"profile.retro",
+		"isMuted()",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("terminal-modem.js missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{"new WebSocket", ".mp3", ".wav", ".ogg", "new Audio("} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("terminal-modem.js must synthesize audio and never open sockets; found %q", forbidden)
+		}
+	}
+}
