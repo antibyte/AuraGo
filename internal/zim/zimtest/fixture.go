@@ -43,7 +43,9 @@ func RealFixture(tb testing.TB) string {
 	if verifyFixture(path) == nil {
 		return path
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	// The whole download must finish well inside go test's default 10 minute
+	// -timeout, so a stalled connection fails the test instead of the binary.
+	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
 	defer cancel()
 	if err := downloadFixture(ctx, dir, path); err != nil {
 		tb.Fatalf("download real ZIM fixture: %v", err)
@@ -71,15 +73,34 @@ func verifyFixture(path string) error {
 	return nil
 }
 
+const (
+	downloadTimeout = 3 * time.Minute
+	tempPattern     = ".zim-fixture-*"
+	// staleTempAge keeps clear of a parallel process that is still downloading:
+	// its temp file is rewritten at least every downloadTimeout.
+	staleTempAge = 2 * downloadTimeout
+)
+
+// removeStaleTempFiles deletes download leftovers of killed test processes.
+func removeStaleTempFiles(dir string) {
+	stale, _ := filepath.Glob(filepath.Join(dir, tempPattern))
+	for _, name := range stale {
+		if info, err := os.Stat(name); err == nil && info.Mode().IsRegular() && time.Since(info.ModTime()) > staleTempAge {
+			_ = os.Remove(name)
+		}
+	}
+}
+
 func downloadFixture(ctx context.Context, dir, path string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
+	removeStaleTempFiles(dir)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, RealFixtureURL, nil)
 	if err != nil {
 		return err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := (&http.Client{Timeout: downloadTimeout}).Do(req)
 	if err != nil {
 		return err
 	}
@@ -87,7 +108,7 @@ func downloadFixture(ctx context.Context, dir, path string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("GET %s: %s", RealFixtureURL, resp.Status)
 	}
-	tmp, err := os.CreateTemp(dir, ".zim-fixture-*")
+	tmp, err := os.CreateTemp(dir, tempPattern)
 	if err != nil {
 		return err
 	}
