@@ -57,9 +57,15 @@ type Analyzer struct {
 
 // NewAnalyzer takes the raw language string (M/Language of the ZIM or the
 // "language" metadata of the index, e.g. "deu" or "deu,eng"; the first code
-// wins, like libzim's indexer).
+// wins, like libzim's indexer). Like ICU's Locale::getLanguage(), only the
+// language subtag counts: region, script, charset and keywords are cut off
+// ("en_US", "nb-NO", "zh-Hans", "de.UTF-8", "de@collation=phonebook").
 func NewAnalyzer(zimLanguage string) Analyzer {
-	code := strings.ToLower(strings.TrimSpace(strings.SplitN(zimLanguage, ",", 2)[0]))
+	code := strings.TrimSpace(strings.SplitN(zimLanguage, ",", 2)[0])
+	if i := strings.IndexAny(code, "-_.@"); i >= 0 {
+		code = code[:i]
+	}
+	code = strings.ToLower(code)
 	if two, ok := iso639Part2[code]; ok {
 		code = two
 	}

@@ -19,8 +19,12 @@ const (
 // prefix (up to 100 most frequent expansions), titles containing the words
 // as a phrase and titles starting with them score extra. Ranking uses
 // BM25(k1=0.001, b=1), ties are broken by title then docid, and redirects to
-// the same target collapse to the best-ranked one (value slot 1).
+// the same target collapse to the best-ranked one (value slot 1). A cancelled
+// ctx stops the search with ctx.Err().
 func Suggest(ctx context.Context, db *Database, a Analyzer, query string, limit int) ([]Hit, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if limit <= 0 {
 		return nil, nil
 	}
@@ -28,7 +32,7 @@ func Suggest(ctx context.Context, db *Database, a Analyzer, query string, limit 
 	if strings.TrimSpace(uq) == "" {
 		return nil, nil
 	}
-	s := &suggester{ctx: ctx, db: db, a: a, w: newBM25Params(db, 0.001, 1)}
+	s := &suggester{p: poller{ctx: ctx}, db: db, a: a, w: newBM25Params(db, 0.001, 1)}
 	words := queryWords(uq)
 	var cands []scored
 	var err error
@@ -44,10 +48,10 @@ func Suggest(ctx context.Context, db *Database, a Analyzer, query string, limit 
 }
 
 type suggester struct {
-	ctx context.Context
-	db  *Database
-	a   Analyzer
-	w   bm25
+	p  poller // ctx polling shared by every loop of one Suggest call
+	db *Database
+	a  Analyzer
+	w  bm25
 }
 
 type scored struct {
@@ -166,6 +170,9 @@ func (s *suggester) partial(word string, full string) (*partialGroup, error) {
 	}
 	var exps []exp
 	err := s.db.walkTerms(word, func(term string, c *cursor) (bool, error) {
+		if err := s.p.poll(); err != nil {
+			return false, err
+		}
 		tag, err := c.tag()
 		if err != nil {
 			return false, err
@@ -299,11 +306,13 @@ func (s *suggester) andPart(streams []stream, plain []*leaf, partials []*partial
 	titles := s.db.newValueReader(0)
 	var out []scored
 	target := uint32(1)
-	n := 0
 	for {
 		agreed := 0
 		for agreed < len(streams) {
 			for _, st := range streams {
+				if err := s.p.poll(); err != nil {
+					return nil, err
+				}
 				ok, err := st.skipTo(target)
 				if err != nil || !ok {
 					return out, err
@@ -347,9 +356,6 @@ func (s *suggester) andPart(streams []stream, plain []*leaf, partials []*partial
 				score += p.score(s.w, did, dl)
 			}
 			out = append(out, scored{did, score})
-		}
-		if n++; n%ctxCheckEvery == 0 && s.ctx.Err() != nil {
-			return nil, s.ctx.Err()
 		}
 		if did == 0xffffffff {
 			return out, nil
@@ -399,7 +405,6 @@ func (s *suggester) phrasePart(raw []rawTerm) ([]scored, error) {
 	}
 	var out []scored
 	target := uint32(1)
-	n := 0
 	words := make([]string, len(raw))
 	for i, r := range raw {
 		words[i] = r.text
@@ -408,6 +413,9 @@ func (s *suggester) phrasePart(raw []rawTerm) ([]scored, error) {
 		agreed := 0
 		for agreed < len(streams) {
 			for _, st := range streams {
+				if err := s.p.poll(); err != nil {
+					return nil, err
+				}
 				ok, err := st.skipTo(target)
 				if err != nil || !ok {
 					return out, err
@@ -455,9 +463,6 @@ func (s *suggester) phrasePart(raw []rawTerm) ([]scored, error) {
 		if score > 0 {
 			out = append(out, scored{did, score})
 		}
-		if n++; n%ctxCheckEvery == 0 && s.ctx.Err() != nil {
-			return nil, s.ctx.Err()
-		}
 		if did == 0xffffffff {
 			return out, nil
 		}
@@ -479,6 +484,9 @@ func (s *suggester) wildcardOnly(uq string) ([]scored, error) {
 	var out []scored
 	target := uint32(1)
 	for {
+		if err := s.p.poll(); err != nil {
+			return nil, err
+		}
 		ok, err := g.skipTo(target)
 		if err != nil || !ok {
 			return out, err
@@ -516,6 +524,9 @@ func (s *suggester) rank(cands []scored, limit int) ([]Hit, error) {
 		}
 		group := make([]Hit, 0, j-i)
 		for _, c := range cands[i:j] {
+			if err := s.p.poll(); err != nil {
+				return nil, err
+			}
 			title, err := s.db.Value(c.did, 0)
 			if err != nil {
 				return nil, err

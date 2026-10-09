@@ -29,6 +29,15 @@
 //     the same positions.
 //   - Search is a faithful Xapian AND/OR; dropping unknown query words is the
 //     caller's job (ExistingTerms).
+//   - Search returns hits only from the MaxSearchWindow (10,000) best-ranked
+//     documents; libzim pages through any number. estimatedTotal is exact.
+//   - Normalisation and tokenisation use Go's Unicode tables (Go 1.27 and
+//     golang.org/x/text: Unicode 17.0), libzim 9.8 uses ICU 73.2 (Unicode
+//     15.0) and Xapian 1.4.23's own tables. Code points added or reclassified
+//     since can lowercase, lose marks or split into words differently, so a
+//     query containing them may miss documents libzim would find. A
+//     comparison over all 1.1M code points found two such differences
+//     (U+0295 and U+1171E).
 //   - When more than 100 terms start with the partial word of a suggestion
 //     query and several tie at the cut-off term frequency, libzim picks among
 //     them with std::nth_element; this package keeps the earliest in term

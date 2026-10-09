@@ -3,6 +3,7 @@ package xapian
 import (
 	"container/heap"
 	"context"
+	"fmt"
 	"sort"
 )
 
@@ -22,8 +23,31 @@ type Hit struct {
 	Title string // value slot 0
 }
 
-// ctxCheckEvery bounds how many documents are scored between ctx checks.
+// ctxCheckEvery bounds the loop iterations (posting-list steps, candidate
+// documents) between two ctx checks. Iterations are counted, not matches, so
+// a merge that skips through long lists without a match stays cancellable.
 const ctxCheckEvery = 256
+
+// MaxSearchWindow caps offset+limit in Search: only the MaxSearchWindow
+// best-ranked documents can be returned, which bounds the top-k heap and the
+// per-hit document lookups whatever the caller asks for. A window reaching
+// past the cap is cut at it (an offset at or beyond it yields no hits);
+// estimatedTotal still counts every match.
+const MaxSearchWindow = 10000
+
+// poller checks ctx once every ctxCheckEvery calls of poll.
+type poller struct {
+	ctx context.Context
+	n   int
+}
+
+func (p *poller) poll() error {
+	if p.n++; p.n < ctxCheckEvery {
+		return nil
+	}
+	p.n = 0
+	return p.ctx.Err()
+}
 
 type searchTerm struct {
 	pl     *postingList
@@ -36,12 +60,23 @@ type searchTerm struct {
 // without postings makes an AND match nothing and is skipped by OR. Repeated
 // terms count once per occurrence, as in Xapian. estimatedTotal is the exact
 // number of matching documents.
+//
+// hits are the ranked documents offset .. offset+limit-1, cut at
+// MaxSearchWindow. A negative offset or limit is an error; limit 0 or no
+// terms return nothing. A cancelled ctx stops the search with ctx.Err().
 func Search(ctx context.Context, db *Database, terms []string, op Op, offset, limit int) (hits []Hit, estimatedTotal int, err error) {
-	if offset < 0 {
-		offset = 0
+	if offset < 0 || limit < 0 {
+		return nil, 0, fmt.Errorf("xapian: negative search window (offset %d, limit %d)", offset, limit)
 	}
-	if limit <= 0 || len(terms) == 0 {
+	if err := ctx.Err(); err != nil {
+		return nil, 0, err
+	}
+	if limit == 0 || len(terms) == 0 {
 		return nil, 0, nil
+	}
+	k := 0 // documents to rank: offset+limit, cut at MaxSearchWindow
+	if offset < MaxSearchWindow {
+		k = offset + min(limit, MaxSearchWindow-offset)
 	}
 	mult := map[string]int{}
 	var order []string
@@ -79,7 +114,7 @@ func Search(ctx context.Context, db *Database, terms []string, op Op, offset, li
 	if err != nil {
 		return nil, 0, err
 	}
-	top := &topK{k: offset + limit}
+	top := &topK{k: k}
 	score := func(did uint32, matched []*searchTerm) error {
 		ok, err := doclens.skipTo(did)
 		if err != nil {
@@ -112,7 +147,11 @@ func Search(ctx context.Context, db *Database, terms []string, op Op, offset, li
 	ranked = ranked[offset:]
 	titles := db.newValueReader(0)
 	sort.Slice(ranked, func(i, j int) bool { return ranked[i].DocID < ranked[j].DocID })
+	p := poller{ctx: ctx}
 	for i := range ranked {
+		if err := p.poll(); err != nil {
+			return nil, 0, err
+		}
 		data, err := db.Data(ranked[i].DocID)
 		if err != nil {
 			return nil, 0, err
@@ -150,15 +189,19 @@ func ExistingTerms(db *Database, terms []string) ([]string, error) {
 	return out, nil
 }
 
-// andMatches calls fn for every docid present in all lists (leapfrog join;
-// srcs[0] should be the rarest term).
+// andMatches calls fn for every docid present in all lists, in ascending
+// docid order (leapfrog join; srcs[0] should be the rarest term). ctx is
+// polled per skip, so lists that rarely agree cannot outrun cancellation.
 func andMatches(ctx context.Context, srcs []*searchTerm, fn func(uint32, []*searchTerm) error) error {
+	p := poller{ctx: ctx}
 	target := uint32(1)
-	n := 0
 	for {
 		agreed := 0
 		for agreed < len(srcs) {
 			for _, st := range srcs {
+				if err := p.poll(); err != nil {
+					return err
+				}
 				ok, err := st.pl.skipTo(target)
 				if err != nil || !ok {
 					return err
@@ -174,9 +217,6 @@ func andMatches(ctx context.Context, srcs []*searchTerm, fn func(uint32, []*sear
 		if err := fn(target, srcs); err != nil {
 			return err
 		}
-		if n++; n%ctxCheckEvery == 0 && ctx.Err() != nil {
-			return ctx.Err()
-		}
 		if target == 0xffffffff {
 			return nil
 		}
@@ -184,8 +224,9 @@ func andMatches(ctx context.Context, srcs []*searchTerm, fn func(uint32, []*sear
 	}
 }
 
-// orMatches calls fn for every docid present in at least one list, with the
-// lists positioned on that docid.
+// orMatches calls fn for every docid present in at least one list, in
+// ascending docid order, with the lists positioned on that docid. ctx is
+// polled once per document.
 func orMatches(ctx context.Context, srcs []*searchTerm, fn func(uint32, []*searchTerm) error) error {
 	live := make([]*searchTerm, 0, len(srcs))
 	for _, st := range srcs {
@@ -195,9 +236,12 @@ func orMatches(ctx context.Context, srcs []*searchTerm, fn func(uint32, []*searc
 			return err
 		}
 	}
-	n := 0
+	p := poller{ctx: ctx}
 	matched := make([]*searchTerm, 0, len(srcs))
 	for len(live) > 0 {
+		if err := p.poll(); err != nil {
+			return err
+		}
 		did := live[0].pl.did
 		for _, st := range live[1:] {
 			if st.pl.did < did {
@@ -224,9 +268,6 @@ func orMatches(ctx context.Context, srcs []*searchTerm, fn func(uint32, []*searc
 			next = append(next, st)
 		}
 		live = next
-		if n++; n%ctxCheckEvery == 0 && ctx.Err() != nil {
-			return ctx.Err()
-		}
 	}
 	return nil
 }

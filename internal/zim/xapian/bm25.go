@@ -51,7 +51,10 @@ func (w bm25) sumPart(termWeight float64, wdf, doclen uint32) float64 {
 
 // orTermFreqEstimate is Xapian's term frequency estimate for an OR of terms
 // (used for synonym weights): repeatedly combine the two smallest estimates
-// l, r into round(l + r - l*r/N) until one remains.
+// l, r into round(l + r - l*r/N) until one remains. Each combined estimate is
+// clamped to [0, N]: valid term frequencies never leave that range, but on
+// damaged data (tf > N, or N = 0) the formula could go negative or past
+// 2^32, and converting such a float to uint32 is implementation-defined.
 func orTermFreqEstimate(tfs []uint32, docCount uint32) uint32 {
 	if len(tfs) == 0 {
 		return 0
@@ -67,6 +70,7 @@ func orTermFreqEstimate(tfs []uint32, docCount uint32) uint32 {
 		if n > 0 {
 			est -= l * r / n
 		}
+		est = math.Min(math.Max(est, 0), n)
 		heap.Push(&h, uint32(est+0.5))
 	}
 	return h[0]

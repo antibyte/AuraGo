@@ -30,6 +30,31 @@ func TestQueryTermsGolden(t *testing.T) {
 	}
 }
 
+// ICU's Locale::getLanguage() keeps only the language subtag; libzim derives
+// the stemmer from it.
+func TestAnalyzerLanguageSubtag(t *testing.T) {
+	words := []string{"running", "connections", "hauser", "kjærligheten", "maisons"}
+	for raw, want := range map[string]string{
+		"en_US": "en", "en-GB": "en", "nb-NO": "nb", "nb_NO": "nb", "zh-Hans": "zh", "zh_Hant_TW": "zh",
+		"pt_BR": "pt", "deu-DE": "de", "DE_at": "de", "de.UTF-8": "de", "de@collation=phonebook": "de",
+		" fr-CA ,eng": "fr", "cat-ES": "ca", "jpn_JP": "ja",
+	} {
+		a, ref := NewAnalyzer(raw), NewAnalyzer(want)
+		if a.Language() != want {
+			t.Errorf("NewAnalyzer(%q).Language() = %q, want %q", raw, a.Language(), want)
+			continue
+		}
+		if a.FulltextSupported() != ref.FulltextSupported() || (a.stem == nil) != (ref.stem == nil) {
+			t.Errorf("NewAnalyzer(%q) differs from NewAnalyzer(%q)", raw, want)
+		}
+		for _, w := range words {
+			if a.Stem(w) != ref.Stem(w) {
+				t.Errorf("NewAnalyzer(%q).Stem(%q) = %q, want %q", raw, w, a.Stem(w), ref.Stem(w))
+			}
+		}
+	}
+}
+
 func TestFulltextSupportedTable(t *testing.T) {
 	cases := map[string]bool{
 		"deu": true, "eng": true, "fra": true, "spa": true, "ita": true, "nld": true, "nor": true,

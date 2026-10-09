@@ -2,6 +2,8 @@ package xapian
 
 import (
 	"context"
+	"errors"
+	"math"
 	"testing"
 )
 
@@ -94,10 +96,108 @@ func TestSearchOffsetLimitAndTitle(t *testing.T) {
 	if err != nil || total != 0 || none != nil {
 		t.Fatalf("AND with absent term: %v %d %v", none, total, err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+}
+
+// lateCancel passes the entry check (its first Err call) and reports
+// cancellation from then on, so only the checks inside the loops can see it.
+type lateCancel struct {
+	context.Context
+	calls int
+}
+
+func (c *lateCancel) Err() error {
+	if c.calls++; c.calls > 1 {
+		return context.Canceled
+	}
+	return nil
+}
+
+func TestSearchHonoursCancellation(t *testing.T) {
+	db := openFixture(t, "bulk", "fulltext")
+	done, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, _, err := Search(ctx, db, []string{"zebra"}, OpOr, 0, 10); err == nil {
-		t.Fatal("cancelled context not reported")
+	for _, c := range []struct {
+		terms []string
+		op    Op
+	}{
+		{[]string{"0550"}, OpAnd}, // one match: no loop runs long enough to poll
+		{[]string{"zebra"}, OpAnd},
+		{[]string{"0550", "g3"}, OpOr},
+		{[]string{"nosuchterm"}, OpAnd},
+	} {
+		if _, _, err := Search(done, db, c.terms, c.op, 0, 10); !errors.Is(err, context.Canceled) {
+			t.Errorf("Search(%q, %v) with a cancelled ctx: %v", c.terms, c.op, err)
+		}
+	}
+	ti := openFixture(t, "bulk", "title")
+	en := NewAnalyzer("eng")
+	if _, err := Suggest(done, ti, en, "bulk item 0550", 10); !errors.Is(err, context.Canceled) {
+		t.Errorf("Suggest with a cancelled ctx: %v", err)
+	}
+	if _, err := Suggest(&lateCancel{Context: context.Background()}, ti, en, "bulk", 10); !errors.Is(err, context.Canceled) {
+		t.Errorf("Suggest over 1,100 titles ignored a cancellation: %v", err)
+	}
+
+	// Two lists that never agree: an AND without a single match must still
+	// notice the cancellation while it skips.
+	lens := make([]uint32, 4000)
+	var odd, even [][2]uint32
+	for i := range lens {
+		did := uint32(i + 1)
+		lens[i] = 10
+		if did%2 == 1 {
+			odd = append(odd, [2]uint32{did, 1})
+		} else {
+			even = append(even, [2]uint32{did, 1})
+		}
+	}
+	disjoint := synthDB(t, 8192, lens, map[string][][2]uint32{"odd": odd, "even": even})
+	terms := []string{"odd", "even"}
+	if hits, total, err := Search(context.Background(), disjoint, terms, OpAnd, 0, 10); err != nil || hits != nil || total != 0 {
+		t.Fatalf("odd AND even = %v, %d, %v", hits, total, err)
+	}
+	for _, op := range []Op{OpAnd, OpOr} {
+		if _, _, err := Search(&lateCancel{Context: context.Background()}, disjoint, terms, op, 0, 10); !errors.Is(err, context.Canceled) {
+			t.Errorf("op %v over 4,000 documents ignored a cancellation: %v", op, err)
+		}
+	}
+}
+
+func TestSearchWindow(t *testing.T) {
+	db := openFixture(t, "bulk", "fulltext")
+	ctx := context.Background()
+	for _, w := range [][2]int{{-1, 10}, {0, -1}, {math.MinInt, math.MaxInt}} {
+		if _, _, err := Search(ctx, db, []string{"zebra"}, OpAnd, w[0], w[1]); err == nil {
+			t.Errorf("offset %d, limit %d accepted", w[0], w[1])
+		}
+	}
+	// offset+limit must not overflow, on 32-bit ints either.
+	hits, total, err := Search(ctx, db, []string{"zebra"}, OpAnd, 5, math.MaxInt)
+	if err != nil || total != 1101 || len(hits) != 1096 {
+		t.Fatalf("offset 5, limit MaxInt: %d hits of %d, %v", len(hits), total, err)
+	}
+
+	// More matches than the window: hits stop at MaxSearchWindow, the total
+	// does not.
+	n := MaxSearchWindow + 500
+	lens := make([]uint32, n)
+	var all [][2]uint32
+	for i := range lens {
+		lens[i] = uint32(10 + i%50)
+		all = append(all, [2]uint32{uint32(i + 1), 1})
+	}
+	big := synthDB(t, 8192, lens, map[string][][2]uint32{"all": all})
+	ref, total, err := Search(ctx, big, []string{"all"}, OpAnd, 0, n)
+	if err != nil || total != n || len(ref) != MaxSearchWindow {
+		t.Fatalf("limit %d: %d hits of %d, %v", n, len(ref), total, err)
+	}
+	tail, total, err := Search(ctx, big, []string{"all"}, OpAnd, MaxSearchWindow-3, 10)
+	if err != nil || total != n || len(tail) != 3 || tail[0] != ref[MaxSearchWindow-3] || tail[2] != ref[MaxSearchWindow-1] {
+		t.Fatalf("last page: %v of %d, %v", tail, total, err)
+	}
+	beyond, total, err := Search(ctx, big, []string{"all"}, OpAnd, MaxSearchWindow, 10)
+	if err != nil || total != n || beyond != nil {
+		t.Fatalf("offset at the cap: %v of %d, %v", beyond, total, err)
 	}
 }
 
@@ -124,6 +224,11 @@ func TestOrTermFreqEstimate(t *testing.T) {
 		{[]uint32{2, 2}, 4, 3},        // 2+2-1 = 3
 		{[]uint32{1, 1, 1, 1}, 4, 3},  // (1,1)->2 (1.75), (1,1)->2, (2,2)->3
 		{[]uint32{10, 1, 1}, 100, 12}, // (1,1)->2, (2,10)->11.8->12
+		{[]uint32{0xffffffff, 0xffffffff}, 0xffffffff, 0xffffffff},
+		// Damaged term frequencies: the estimate stays inside [0, N].
+		{[]uint32{30, 30}, 10, 0},                // 60-90 = -30
+		{[]uint32{20, 1}, 10, 10},                // 21-2 = 19
+		{[]uint32{0xffffffff, 0xffffffff}, 0, 0}, // no documents: 2^33
 	}
 	for _, c := range cases {
 		if got := orTermFreqEstimate(c.tfs, c.n); got != c.want {
