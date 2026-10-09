@@ -57,6 +57,7 @@ func pythonToolBridgeRecommendedGroups() []pythonToolBridgeGroupDef {
 		{Key: "meshcentral", Icon: "🖥️", ToolList: []string{"meshcentral"}},
 		{Key: "truenas", Icon: "💾", ToolList: []string{"truenas"}},
 		{Key: "jellyfin", Icon: "🎬", ToolList: []string{"jellyfin"}},
+		{Key: "local_wikipedia", Icon: "📚", ToolList: []string{"local_wikipedia"}},
 		{Key: "media_conversion", Icon: "🎞️", ToolList: []string{"media_conversion"}},
 	}
 }

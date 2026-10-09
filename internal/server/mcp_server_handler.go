@@ -486,6 +486,7 @@ func mcpFeatureFlags(s *Server) agent.ToolFeatureFlags {
 		VideoDownloadAllowTranscribe: cfg.Tools.VideoDownload.AllowTranscribe && !cfg.Tools.VideoDownload.ReadOnly,
 		SendYouTubeVideoEnabled:      cfg.Tools.SendYouTubeVideo.Enabled,
 		PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
+		LocalWikipediaEnabled:        cfg.LocalWikipedia.Enabled && cfg.LocalWikipedia.AgentAccess && tools.LocalWikipediaAvailable(),
 	}
 }
 

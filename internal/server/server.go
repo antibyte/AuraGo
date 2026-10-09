@@ -704,6 +704,7 @@ func Start(opts StartOptions) error {
 			shutdownCancel()
 		}
 		if s.LocalWiki != nil {
+			publishLocalWikipediaTool(nil)
 			wikiCtx, wikiCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			if err := s.LocalWiki.Shutdown(wikiCtx); err != nil {
 				s.Logger.Warn("[LocalWikipedia] Shutdown did not complete", "error", err)
@@ -1673,6 +1674,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	s.Go2RTCDiscovery = onvif.NewService(cfg.Runtime.BroadcastOK)
 	tools.SetDefaultGo2RTCManager(s.Go2RTC)
 	s.LocalWiki = newLocalWikipediaManager(cfg, logger)
+	publishLocalWikipediaTool(s.LocalWiki)
 	return s
 }
 
