@@ -17389,7 +17389,7 @@ if (appId === 'system-info') {
                 return;
             }
             if (typeof window.TerminalApp.render === 'function') {
-                return window.TerminalApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, iconMarkup, notify: showDesktopNotification, registerWindowCleanup, readonly: desktopReadonly() }));
+                return window.TerminalApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, iconMarkup, notify: showDesktopNotification, registerWindowCleanup, readonly: desktopReadonly(), getBootstrap: () => state.bootstrap || {} }));
             }
         }
         if (appId === 'notes') {

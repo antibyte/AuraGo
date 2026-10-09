@@ -140,7 +140,15 @@ func TestDesktopTerminalAssetsLoadInDependencyOrder(t *testing.T) {
 		`'/js/desktop/apps/terminal-styles.js'`,
 		`'/js/desktop/apps/terminal-crt.js'`,
 		`'/js/desktop/apps/terminal-audio.js'`,
+		`'/js/desktop/apps/terminal-text.js'`,
+		`'/js/desktop/apps/terminal-modem.js'`,
+		`'/js/desktop/apps/terminal-retronet-directory.js'`,
+		`'/js/desktop/apps/terminal-retronet-session.js'`,
+		`'/js/desktop/apps/terminal-retronet-entries.js'`,
 		`'/js/desktop/apps/terminal.js'`,
+	}
+	if got := strings.Count(loader, "'/js/"); got != 12 {
+		t.Fatalf("terminal loader lists %d scripts, want exactly the 12 of Contract E", got)
 	}
 	prev := -1
 	for _, marker := range markers {
@@ -155,6 +163,26 @@ func TestDesktopTerminalAssetsLoadInDependencyOrder(t *testing.T) {
 	}
 	if !strings.Contains(readDesktopAssetText(t, "js/vendor/xterm-addon-webgl.min.js"), "WebglAddon") {
 		t.Fatal("vendored WebGL addon missing WebglAddon export")
+	}
+}
+
+func TestDesktopTerminalReceivesBootstrapAccessor(t *testing.T) {
+	t.Parallel()
+
+	const marker = "registerWindowCleanup, readonly: desktopReadonly(), getBootstrap: () => state.bootstrap || {} }"
+	for _, path := range []string{"js/desktop/core/menus-and-routing.js", "js/desktop/bundles/main.bundle.js"} {
+		source := rawDesktopAssetText(t, path)
+		start := strings.Index(source, "window.TerminalApp.render(")
+		if start < 0 {
+			t.Fatalf("%s does not render the Terminal", path)
+		}
+		line := source[start:]
+		if end := strings.Index(line, "\n"); end >= 0 {
+			line = line[:end]
+		}
+		if !strings.Contains(line, marker) {
+			t.Fatalf("%s must pass getBootstrap to the Terminal context: %s", path, line)
+		}
 	}
 }
 
