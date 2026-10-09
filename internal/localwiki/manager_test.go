@@ -43,6 +43,7 @@ func TestManagerStatusBeforeAnyInstall(t *testing.T) {
 		t.Fatalf("free/languages/error = %d %d %q", status.FreeBytes, len(status.Languages), status.ErrorCode)
 	}
 	env.freeErr.Store(true)
+	env.reprobeDisk()
 	if env.manager.Status().FreeBytes != -1 {
 		t.Fatal("unknown free space must be reported as -1")
 	}

@@ -46,18 +46,31 @@ through `Deps`.
   `readable: false`, `error_code: busy`; `Acquire` returns `ok == false`; `Install` and `Delete` answer
   `ErrBusy` (`Install` answers `ErrDisabled` first when the integration is off). Clients poll until
   `loading` is false. `Shutdown` cancels a running download (its `.part` file stays for "Resume"), stops
-  the loop and closes the library once its readers released it. Nothing ever resumes a download by itself.
+  the loops and closes the library once its readers released it. It honours its context even while a
+  load or download is stuck in storage I/O that cannot be interrupted (an unreachable network share): it
+  then returns `ctx.Err()`, the stuck goroutine finishes on its own and the library is closed after it.
+  Nothing ever resumes a download by itself.
+- A hung storage directory must never stall callers. `Manager.mu` is never held across file system or
+  network I/O. Loads and cleanups (`loadLocked`, `removeStaleRestartFiles`, `discardPending`) run with
+  `ioBusy` set instead (`beginStorageIO`/`endStorageIO`): while it is set no operation, `Delete`, load or
+  other cleanup starts, and `Install` and `Delete` answer `ErrBusy`. Request paths never wait for
+  `loadMu` (`tryLoadIfStale`, `Delete` uses `TryLock`). `Status` never touches the storage directory:
+  `free_bytes` comes from a background measurement (`probeLoop`: at start, after a storage directory
+  change, after an operation or `Delete`, every 10 s; a measurement running longer than 5 s reports -1),
+  and the directory check is lexical (`Deps.IsSensitivePath` must not do I/O). The measuring goroutine is
+  not tracked: `Shutdown` never waits for it.
 - Settings reach the manager only through `Configure`. The server calls it from
   `replaceConfigSnapshot` -> `syncLocalWikipediaSettings` after every published config snapshot (config
   save, backup import, ...), under `localWikiSyncMu`, which covers reading the snapshot and
   configuring, so overlapping publications cannot leave older settings behind. Admin handlers never
   configure. Lock order: `Server.CfgMu` -> `localWikiSyncMu` -> `Manager.mu`; inside the package `loadMu`
-  -> `stateMu` -> `mu`. `Configure` never starts a download; a changed storage directory is loaded by the
-  loop once no operation runs (`loadIfStale`).
+  -> `stateMu` -> `mu`. `Configure` only stores the settings and signals the loops: it never waits for
+  `loadMu` or storage I/O and never starts a download; a changed storage directory is loaded by the loop
+  once nothing else uses the storage directory (`loadIfStale`).
 - `Status` JSON: `state` (`not_installed|downloading|verifying|ready|interrupted|error`), `progress` (0..1
   fraction), `bytes_done`, `bytes_total`, `rate`, `eta_seconds`, `edition`, `selection`,
-  `selection_matches_installed`, `update_available`, `fulltext`, `readable`, `loading`, `free_bytes` (-1
-  when unknown), `required_bytes`, `data_dir`, `data_dir_locked`, `operation_in_progress`, `error_code`,
+  `selection_matches_installed`, `update_available`, `fulltext`, `readable`, `loading`, `free_bytes` (the
+  background measurement; -1 when unknown, not measured yet or the measurement hangs), `required_bytes`, `data_dir`, `data_dir_locked`, `operation_in_progress`, `error_code`,
   `recommendation`, `system_language`, `languages`.
 - `readable` is true while an installed edition is open and served, in every state. Clients decide whether
   Wikipedia content is available from `readable`, never from `edition != nil` or `state`. An edition that
@@ -136,8 +149,9 @@ through `Deps`.
   and is retried after loads, after a swap and hourly (Windows keeps open files locked). Never delete files in
   the storage directory that are not listed there or named by `download.json`; only names matching
   `^wikipedia_[a-z]{2,3}_all_(maxi|nopic)_\d{4}-\d{2}[a-z]?\.zim$` are ever deleted.
-- `Delete` refuses while a download runs (`busy`); it removes `download.json` first, then the `.part` and
-  `.restart` files, an unpublished download, and retires the installed edition (readers finish first).
+- `Delete` refuses while a download, a load or a cleanup runs (`busy`); it removes `download.json` first,
+  then the `.part` and `.restart` files, an unpublished download, and retires the installed edition
+  (readers finish first).
 
 ### Persistence and crash recovery
 
@@ -193,8 +207,12 @@ through `Deps`.
 
 - A change to the status fields, error codes or the `readable`/`loading` semantics updates the manager, the
   server tests, `ui/cfg/local_wikipedia.js`, its Node and browser tests and this file together.
-- Keep new work inside the lock order above; never hold `Manager.mu` across file or network I/O. Operations
-  start only through `startOperation`, which also sets `deleting`/`op` exclusivity.
+- Keep new work inside the lock order above; never hold `Manager.mu` across file or network I/O (mark the
+  section with `beginStorageIO` instead), and never let a request path wait for `loadMu`. Operations start
+  only through `startOperation`, which refuses while `op`, `deleting` or `ioBusy` is set and then sets
+  `op`; `Delete` sets `deleting` itself. The stuck-I/O tests (`manager_io_test.go`) hold the
+  `beforeStorageIO` seam and the free-space measurement and check that `Configure`, `Status`, `Install`,
+  `Delete` and `Shutdown` answer at once.
 - Tests use the fake Kiwix TLS server (`fake_kiwix_test.go`) and the ZIM fixtures of `internal/zim/testdata`; Windows-only behaviour
   (locked files, `GetFinalPathNameByHandle`) is covered by `*_windows_test.go`.
 

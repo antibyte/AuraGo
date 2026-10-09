@@ -11,18 +11,21 @@ import (
 
 // Delete removes the installed edition, partial downloads, download.json and
 // state.json. An edition that is still being read is closed and deleted when
-// its last reader releases it. It refuses to run while a download is active,
-// and no download can start while it runs.
+// its last reader releases it. It refuses to run while a download, a load or
+// a cleanup is active, and no download can start while it runs. It never
+// waits for a load: one may hang on an unreachable share.
 func (m *Manager) Delete() error {
 	// Like Install, Delete does not wait for the first load after Start.
 	if m.firstLoadPending() {
 		return ErrBusy
 	}
 	// A storage-directory reload must not interleave with the deletion.
-	m.loadMu.Lock()
+	if !m.loadMu.TryLock() {
+		return ErrBusy
+	}
 	defer m.loadMu.Unlock()
 	m.mu.Lock()
-	if m.op != nil || m.deleting {
+	if m.op != nil || m.deleting || m.ioBusy {
 		m.mu.Unlock()
 		return ErrBusy
 	}
@@ -34,6 +37,7 @@ func (m *Manager) Delete() error {
 		m.deleting = false
 		m.mu.Unlock()
 		m.signalReload() // apply a storage-directory change made meanwhile
+		m.signalProbe()  // the deletion freed space
 	}()
 	if !filepath.IsAbs(dir) {
 		return nil

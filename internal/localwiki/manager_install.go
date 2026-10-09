@@ -42,7 +42,9 @@ func (m *Manager) Install(ctx context.Context, req InstallRequest) error {
 		}
 		return ErrBusy
 	}
-	m.loadIfStale()
+	// A storage directory changed a moment ago is loaded here, unless a load
+	// already runs: the request never waits for one.
+	m.tryLoadIfStale()
 	m.mu.Lock()
 	settings := m.settings
 	var installed *Edition
@@ -50,10 +52,15 @@ func (m *Manager) Install(ctx context.Context, req InstallRequest) error {
 		edition := *m.state.Edition
 		installed = &edition
 	}
-	busy := !m.started || m.shuttingDown || m.op != nil || m.deleting || settings.DataDir != m.activeDir
+	busy := !m.started || m.shuttingDown || m.op != nil || m.deleting || m.ioBusy || settings.DataDir != m.activeDir
 	m.mu.Unlock()
 	if !settings.Enabled {
 		return ErrDisabled
+	}
+	// The lexical check comes first: an invalid directory is reported even
+	// while it cannot be loaded.
+	if err := checkDataDirShape(settings.DataDir, m.sensitive); err != nil {
+		return err
 	}
 	if busy {
 		return ErrBusy
@@ -111,55 +118,56 @@ func (m *Manager) planInstall(ctx context.Context, settings Settings, installed 
 // removeStaleRestartFiles deletes the restart files a killed download left in
 // dir (see removeRestartFiles). They are never resumed and only occupy space
 // the install's space check would count as used. Like discardPending it acts
-// only while no operation runs, with mu held, so no download that could be
-// writing a restart file starts meanwhile; the same trade-off applies (see
-// discardPending).
+// only while the manager is idle and marks the cleanup with beginStorageIO, so
+// no download that could be writing a restart file starts meanwhile; mu is not
+// held during the removals.
 func (m *Manager) removeStaleRestartFiles(dir string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.op != nil || m.deleting {
+	if !m.beginStorageIO(dir) {
 		return
 	}
-	if err := removeRestartFiles(dir); err != nil {
-		m.logger.Warn("[LocalWikipedia] A stale restart file could not be removed", "dir", dir, "error", err)
-	}
+	defer m.endStorageIO()
+	m.cleanRestartFiles(dir)
 }
 
 // discardPending drops an interrupted download (its download.json and partial
 // file) that the installed edition made pointless, and clears the interrupted
 // marker so the status no longer offers to resume it. pending is nil when
 // there is no readable download.json. Nothing is touched unless the manager is
-// idle: the files are removed with mu held, so no operation can start (and
-// begin to write them) meanwhile, and no running one loses its files.
-//
-// Unlinking under mu is an accepted trade-off: it is a few local file
-// removals that only an administrator's Install triggers, and Status and
-// Acquire wait for them meanwhile. Releasing mu around the removals would need
-// another "no operation may start" marker (like deleting) with interleavings
-// of its own, for no practical gain.
+// idle (beginStorageIO): the cleanup is marked with ioBusy, so no operation can
+// start (and begin to write the files) meanwhile, no running one loses its
+// files, and no load replaces the loaded state. mu is not held during the
+// removals, which may hang on an unreachable share.
 func (m *Manager) discardPending(dir string, pending *downloadFile) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.op != nil || m.deleting || m.activeDir != dir {
+	if !m.beginStorageIO(dir) {
 		return
 	}
+	defer m.endStorageIO()
 	if pending != nil {
 		name := pending.Target.FileName
+		// The installed edition cannot change while ioBusy is set.
+		m.mu.Lock()
+		installed := m.installedFileLocked(name)
+		m.mu.Unlock()
+		if m.beforeStorageIO != nil {
+			m.beforeStorageIO()
+		}
 		if err := removeDownload(dir); err != nil {
 			m.logger.Warn("[LocalWikipedia] download.json could not be removed", "error", err)
 		}
 		if err := removePartialDownload(dir, name); err != nil {
 			m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", name, "error", err)
 		}
-		if !m.installedFileLocked(name) {
+		if !installed {
 			if err := removeRegularFile(filepath.Join(dir, name)); err != nil {
 				m.logger.Warn("[LocalWikipedia] A retired edition could not be removed", "file", name, "error", err)
 			}
 		}
 	}
+	m.mu.Lock()
 	m.interrupted = false
 	m.errCode = ""
 	m.errRequired = 0
+	m.mu.Unlock()
 }
 
 // resolveTarget finds the newest edition for the selection and reads its
@@ -249,7 +257,7 @@ func (m *Manager) checkInstallSpace(plan *installPlan, req InstallRequest, insta
 
 func (m *Manager) startOperation(plan installPlan) error {
 	m.mu.Lock()
-	if m.op != nil || m.deleting || m.shuttingDown || plan.dir != m.activeDir {
+	if m.op != nil || m.deleting || m.ioBusy || m.shuttingDown || plan.dir != m.activeDir {
 		m.mu.Unlock()
 		return ErrBusy
 	}
@@ -439,6 +447,11 @@ func (m *Manager) finishOperation(op *operation, plan installPlan, err error) {
 	m.interrupted = interrupted
 	m.errCode = code
 	m.errRequired = required
+	if space != nil {
+		// The download's own measurement is the newest one.
+		m.diskSeq++
+		m.recordFreeLocked(plan.dir, space.available, m.diskSeq)
+	}
 	m.mu.Unlock()
 	close(op.done)
 	switch {
@@ -449,8 +462,9 @@ func (m *Manager) finishOperation(op *operation, plan installPlan, err error) {
 		m.logger.Warn("[LocalWikipedia] Download did not complete", "edition", plan.target.Name, "code", code, "error", err)
 	}
 	// A storage-directory change made while the operation ran was held back
-	// by loadIfStale; load it now.
+	// by loadIfStale; load it now. The download changed the free space.
 	m.signalReload()
+	m.signalProbe()
 }
 
 func (m *Manager) setPhase(op *operation, phase string) {

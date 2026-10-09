@@ -37,11 +37,12 @@ type Edition struct {
 type Deps struct {
 	Logger         *slog.Logger
 	HTTPClient     *http.Client                // nil → default with timeouts, HTTPS-only redirects
-	FreeDiskBytes  func(string) (int64, error) // nil → fileutil.FreeDiskBytes
+	FreeDiskBytes  func(string) (int64, error) // nil → fileutil.FreeDiskBytes; called by Install and the background probe, never by Status
 	Now            func() time.Time            // nil → time.Now
 	CatalogBaseURL string                      // "" → https://opds.library.kiwix.org
 	// IsSensitivePath refuses storage directories AuraGo must never write to.
-	// nil accepts every absolute directory.
+	// nil accepts every absolute directory. It must be lexical (no file
+	// system access): Status calls it on every request.
 	IsSensitivePath func(string) bool
 }
 
