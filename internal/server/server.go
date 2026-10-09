@@ -1932,7 +1932,7 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			strings.HasPrefix(path, "/api/go2rtc/viewer/") ||
 			strings.HasPrefix(path, "/api/game-maker/preview/") ||
 			// Local Wikipedia articles; the handler sets frame-ancestors 'self'.
-			strings.HasPrefix(path, "/api/desktop/local-wikipedia/content/")
+			strings.HasPrefix(path, localWikiContentPrefix)
 
 		// Always set these headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")

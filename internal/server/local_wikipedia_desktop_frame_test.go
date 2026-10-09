@@ -136,3 +136,40 @@ func TestLocalWikipediaContentFramingSurvivesTheMiddlewareChain(t *testing.T) {
 		t.Fatalf("anonymous content = %d csp=%q, want 401 with frame-ancestors 'none'", w.Code, w.Header().Get("Content-Security-Policy"))
 	}
 }
+
+// The real Desktop handler behind the real middleware chain: article and asset
+// responses are framable with the content CSP and their own cache policy,
+// framable error pages too, while the JSON routes stay DENY and no-store.
+func TestLocalWikiContentSurvivesTheMiddlewareChain(t *testing.T) {
+	s, _ := newLocalWikiDesktopTestServer(t)
+	s.Logger = slog.Default()
+	backend := newFakeLocalWikiBackend()
+	mux := http.NewServeMux()
+	mux.HandleFunc(localWikiDesktopPrefix, func(w http.ResponseWriter, r *http.Request) {
+		s.serveLocalWikipediaDesktop(w, r, backend)
+	})
+	handler := securityHeadersMiddleware(authMiddleware(s, mux), false, false)
+	request := func(path string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodGet, path, nil)
+		r.AddCookie(&http.Cookie{Name: sessionCookieName, Value: createSessionValue(s.Cfg.Auth.SessionSecret, time.Now().Add(time.Hour))})
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		return w
+	}
+	for _, path := range []string{"/api/desktop/local-wikipedia/content/Berlin", "/api/desktop/local-wikipedia/content/_assets_/logo.png"} {
+		w := request(path)
+		if w.Code != http.StatusOK || w.Header().Get("X-Frame-Options") != "" || w.Header().Get("Content-Security-Policy") != localWikipediaContentCSP ||
+			w.Header().Get("Cache-Control") != "private, max-age=86400" || w.Header().Get("Pragma") != "" {
+			t.Fatalf("%s = %d xfo=%q csp=%q cache=%q pragma=%q", path, w.Code, w.Header().Get("X-Frame-Options"), w.Header().Get("Content-Security-Policy"), w.Header().Get("Cache-Control"), w.Header().Get("Pragma"))
+		}
+	}
+	w := request("/api/desktop/local-wikipedia/content/Gibt_es_nicht")
+	if w.Code != http.StatusNotFound || w.Header().Get("X-Frame-Options") != "" || w.Header().Get("Content-Security-Policy") != localWikipediaContentCSP {
+		t.Fatalf("missing article = %d xfo=%q csp=%q", w.Code, w.Header().Get("X-Frame-Options"), w.Header().Get("Content-Security-Policy"))
+	}
+	w = request("/api/desktop/local-wikipedia/status")
+	if w.Code != http.StatusOK || w.Header().Get("X-Frame-Options") != "DENY" || w.Header().Get("Cache-Control") != "no-store" ||
+		strings.Contains(w.Header().Get("Content-Security-Policy"), "frame-ancestors 'self'") {
+		t.Fatalf("status = %d xfo=%q cache=%q csp=%q", w.Code, w.Header().Get("X-Frame-Options"), w.Header().Get("Cache-Control"), w.Header().Get("Content-Security-Policy"))
+	}
+}

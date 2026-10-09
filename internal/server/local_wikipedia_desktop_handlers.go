@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"html"
+	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -16,12 +19,21 @@ import (
 
 const (
 	localWikiDesktopPrefix = "/api/desktop/local-wikipedia/"
+	localWikiContentPrefix = localWikiDesktopPrefix + "content/"
 	localWikiMaxQueryRunes = 200
 	localWikiSuggestLimit  = 10
 	localWikiSearchDefault = 20
 	localWikiSearchMax     = 30
 	localWikiQueryTimeout  = 6 * time.Second
 )
+
+// localWikipediaContentCSP keeps ZIM documents inert: no script runs, forms
+// cannot submit, link pings and beacons cannot reach AuraGo with the session
+// (connect-src 'none') and only the Desktop may frame them. allow-same-origin
+// keeps the session cookie on image and stylesheet requests (SameSite=Strict
+// treats an opaque origin as cross-site) and lets the app read the article
+// title. Every content answer carries it: blobs, redirects and error pages.
+const localWikipediaContentCSP = "sandbox allow-same-origin allow-popups allow-popups-to-escape-sandbox; default-src 'self'; script-src 'none'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'none'; frame-ancestors 'self'"
 
 // localWikiReader is what the Desktop API needs from an open edition.
 type localWikiReader interface {
@@ -142,9 +154,19 @@ func (s *Server) serveLocalWikipediaDesktop(w http.ResponseWriter, r *http.Reque
 	if !authenticateDesktopPermission(s, w, r, desktopScopeRead) {
 		return
 	}
+	route := strings.TrimPrefix(r.URL.Path, localWikiDesktopPrefix)
+	content := strings.HasPrefix(route, "content/")
+	// Content answers land in the article frame, so their errors are framable HTML.
+	fail := func(status int, code, message string) {
+		if content {
+			writeLocalWikiContentError(w, status, code)
+			return
+		}
+		localWikiDesktopError(w, status, code, message)
+	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
-		localWikiDesktopError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		fail(http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
 		return
 	}
 	// Every route reads; the check keeps the shared Desktop admission order.
@@ -153,41 +175,46 @@ func (s *Server) serveLocalWikipediaDesktop(w http.ResponseWriter, r *http.Reque
 	}
 	cfg := s.ConfigSnapshot()
 	if cfg == nil || !cfg.VirtualDesktop.Enabled {
-		localWikiDesktopError(w, http.StatusServiceUnavailable, "desktop_unavailable", "Desktop unavailable")
+		fail(http.StatusServiceUnavailable, "desktop_unavailable", "Desktop unavailable")
 		return
 	}
 	if !cfg.LocalWikipedia.Enabled {
+		if content {
+			writeLocalWikiContentError(w, http.StatusServiceUnavailable, "disabled")
+			return
+		}
 		localWikiDesktopJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "Local Wikipedia is switched off", "code": "disabled", "can_manage": localWikiCanManage(s, r)})
 		return
 	}
 	if backend == nil {
-		localWikiDesktopError(w, http.StatusServiceUnavailable, "unavailable", "Local Wikipedia is not available")
+		fail(http.StatusServiceUnavailable, "unavailable", "Local Wikipedia is not available")
 		return
 	}
-	route := strings.TrimPrefix(r.URL.Path, localWikiDesktopPrefix)
 	if route == "status" {
 		s.writeLocalWikiDesktopStatus(w, r, backend.Status())
 		return
 	}
-	if !localWikiReaderRoute(route) {
+	if !content && !localWikiReaderRoute(route) {
 		localWikiDesktopError(w, http.StatusNotFound, "not_found", "Not found")
 		return
 	}
 	reader, release, ok := backend.AcquireReader()
 	if !ok {
-		localWikiDesktopError(w, http.StatusConflict, "not_ready", "No Wikipedia edition is ready")
+		fail(http.StatusConflict, "not_ready", "No Wikipedia edition is ready")
 		return
 	}
 	defer release()
-	switch route {
-	case "suggest":
+	switch {
+	case route == "suggest":
 		s.serveLocalWikiSuggest(w, r, reader)
-	case "search":
+	case route == "search":
 		s.serveLocalWikiSearch(w, r, reader)
-	case "random":
+	case route == "random":
 		s.serveLocalWikiRef(w, reader.Random)
-	case "main":
+	case route == "main":
 		s.serveLocalWikiRef(w, reader.Main)
+	case content:
+		s.serveLocalWikiContent(w, r, reader, strings.TrimPrefix(route, "content/"))
 	}
 }
 
@@ -310,4 +337,84 @@ func (s *Server) serveLocalWikiRef(w http.ResponseWriter, pick func() (localwiki
 		s.logLocalWikiDesktop("article lookup failed", err)
 		localWikiDesktopError(w, http.StatusInternalServerError, "lookup_failed", "The article could not be found")
 	}
+}
+
+// serveLocalWikiContent streams one blob of the open edition. Paths are lookup
+// keys in the archive's content namespace, never filesystem paths.
+func (s *Server) serveLocalWikiContent(w http.ResponseWriter, r *http.Request, reader localWikiReader, path string) {
+	item, err := reader.Content(path)
+	if err != nil {
+		if errors.Is(err, zim.ErrNotFound) || errors.Is(err, zim.ErrRedirectLoop) || errors.Is(err, localwiki.ErrInvalidPath) {
+			writeLocalWikiContentError(w, http.StatusNotFound, "not_found")
+			return
+		}
+		s.logLocalWikiDesktop("content failed", err)
+		writeLocalWikiContentError(w, http.StatusInternalServerError, "content_failed")
+		return
+	}
+	if item.Path != "" && item.Path != path {
+		target, ok := localWikiContentURL(item.Path)
+		if !ok {
+			writeLocalWikiContentError(w, http.StatusNotFound, "not_found")
+			return
+		}
+		header := w.Header()
+		setLocalWikiContentHeaders(header)
+		header.Set("Location", target)
+		header.Set("Cache-Control", "no-store")
+		w.WriteHeader(http.StatusFound)
+		return
+	}
+	if item.Reader == nil {
+		s.logLocalWikiDesktop("content failed", errors.New("edition returned no reader"))
+		writeLocalWikiContentError(w, http.StatusInternalServerError, "content_failed")
+		return
+	}
+	mimeType := item.MimeType
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+	header := w.Header()
+	setLocalWikiContentHeaders(header)
+	header.Set("Content-Type", mimeType)
+	// Overrides the authenticated no-store default: the blob cannot change
+	// within an edition, and the ETag carries the edition UUID.
+	header.Set("Cache-Control", "private, max-age=86400")
+	header.Del("Pragma")
+	if item.ETag != "" {
+		header.Set("ETag", item.ETag)
+	}
+	http.ServeContent(w, r, "", time.Time{}, item.Reader)
+}
+
+// setLocalWikiContentHeaders sets the headers every content answer carries.
+func setLocalWikiContentHeaders(header http.Header) {
+	header.Set("Content-Security-Policy", localWikipediaContentCSP)
+	header.Set("X-Content-Type-Options", "nosniff")
+	header.Set("Referrer-Policy", "no-referrer")
+}
+
+// localWikiContentURL builds the browser address of a content path. Dot
+// segments are refused: browsers would normalise them out of the content route.
+func localWikiContentURL(path string) (string, bool) {
+	parts := strings.Split(path, "/")
+	for i, part := range parts {
+		if part == "." || part == ".." {
+			return "", false
+		}
+		parts[i] = url.PathEscape(part)
+	}
+	return localWikiContentPrefix + strings.Join(parts, "/"), true
+}
+
+// writeLocalWikiContentError answers inside the article frame with an inert page
+// whose marker tells the Desktop app what went wrong.
+func writeLocalWikiContentError(w http.ResponseWriter, status int, code string) {
+	header := w.Header()
+	setLocalWikiContentHeaders(header)
+	header.Set("Content-Type", "text/html; charset=utf-8")
+	header.Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	escaped := html.EscapeString(code)
+	_, _ = io.WriteString(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="aurago-local-wikipedia-error" content="`+escaped+`"><title>`+escaped+`</title></head><body></body></html>`)
 }
