@@ -310,9 +310,10 @@
     border-color: var(--vd-theme-accent-border, var(--vd-accent));
 }
 
+/* Titles keep the text color: accent colors are too light for text on Fruity light. */
 .lw-result strong {
     font-size: 15px;
-    color: var(--vd-accent);
+    color: inherit;
     overflow-wrap: anywhere;
 }
 
@@ -326,8 +327,9 @@
     color: var(--vd-theme-muted);
 }
 
+/* Mixed with the text color so the error stays readable on light chrome too. */
 .lw-error {
-    color: var(--vd-coral, #e97c75);
+    color: color-mix(in srgb, var(--vd-coral, #e97c75) 60%, var(--vd-text));
 }
 
 .lw-article {
