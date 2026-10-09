@@ -1935,9 +1935,7 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		path := r.URL.Path
 		allowDesktopIframe := strings.HasPrefix(path, "/files/desktop/") ||
 			strings.HasPrefix(path, "/api/go2rtc/viewer/") ||
-			strings.HasPrefix(path, "/api/game-maker/preview/") ||
-			// Local Wikipedia articles; the handler sets frame-ancestors 'self'.
-			strings.HasPrefix(path, localWikiContentPrefix)
+			strings.HasPrefix(path, "/api/game-maker/preview/")
 
 		// Always set these headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -1993,8 +1991,11 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		// Cache control: static assets get public 1-hour cache; everything else no-store.
 		// Files under /files/ are user data behind authentication, never public
 		// static assets: the dedicated media mounts set their own private cache,
-		// everything else there (the workspace mount) stays no-store.
+		// everything else there (the workspace mount) stays no-store. Local
+		// Wikipedia content is authenticated too; its handler sets a private
+		// cache on the blobs it serves.
 		isStaticAsset := !strings.HasPrefix(path, "/files/") &&
+			!strings.HasPrefix(path, localWikiDesktopPrefix) &&
 			(strings.HasSuffix(path, ".js") ||
 				strings.HasSuffix(path, ".css") ||
 				strings.HasSuffix(path, ".png") ||

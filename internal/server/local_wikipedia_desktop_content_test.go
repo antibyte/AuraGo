@@ -35,9 +35,11 @@ func TestLocalWikiContentHeaders(t *testing.T) {
 	for header, want := range map[string]string{
 		"Content-Type":            "text/html; charset=utf-8",
 		"Content-Security-Policy": localWikipediaContentCSP,
+		"X-Frame-Options":         "SAMEORIGIN",
 		"X-Content-Type-Options":  "nosniff",
 		"Cache-Control":           "private, max-age=86400",
 		"Referrer-Policy":         "no-referrer",
+		"Permissions-Policy":      "attribution-reporting=(), browsing-topics=()",
 		"ETag":                    `"fixture-Berlin"`,
 	} {
 		if got := w.Header().Get(header); got != want {
@@ -96,6 +98,14 @@ func TestLocalWikiContentRedirectsToTheResolvedPath(t *testing.T) {
 	if w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), `content="not_found"`) {
 		t.Fatalf("dot-segment redirect = %d %s", w.Code, w.Body.String())
 	}
+	// Targets the mux would clean with its own redirect are unreachable.
+	for name, target := range map[string]string{"Doppelt": "a//b", "Wurzel": "/Berlin"} {
+		backend.reader.pages[name] = fakeLocalWikiPage{resolved: target}
+		w = localWikiContentGet(t, s, backend, name, nil)
+		if w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), `content="not_found"`) {
+			t.Fatalf("redirect to %q = %d %s", target, w.Code, w.Body.String())
+		}
+	}
 }
 
 func TestLocalWikiContentURLEscapesSegments(t *testing.T) {
@@ -103,10 +113,14 @@ func TestLocalWikiContentURLEscapesSegments(t *testing.T) {
 	if !ok || got != "/api/desktop/local-wikipedia/content/Caf%C3%A9%20%28Begriffskl%C3%A4rung%29/Teil%3F1" {
 		t.Fatalf("content URL = %q %v", got, ok)
 	}
-	for _, path := range []string{"..", "a/../b", "./a", "a/."} {
+	for _, path := range []string{"..", "a/../b", "./a", "a/.", "", "/", "/a", "a//b", "a//"} {
 		if _, ok := localWikiContentURL(path); ok {
 			t.Fatalf("%q must not be addressable", path)
 		}
+	}
+	// A trailing slash survives the mux's path cleaning.
+	if got, ok := localWikiContentURL("Ordner/"); !ok || got != "/api/desktop/local-wikipedia/content/Ordner/" {
+		t.Fatalf("trailing slash = %q %v", got, ok)
 	}
 }
 
@@ -116,6 +130,7 @@ func TestLocalWikiContentErrorsAreFramableHTML(t *testing.T) {
 	check := func(name string, w *httptest.ResponseRecorder, status int, code string) {
 		t.Helper()
 		if w.Code != status || !strings.HasPrefix(w.Header().Get("Content-Type"), "text/html") || w.Header().Get("Content-Security-Policy") != localWikipediaContentCSP ||
+			w.Header().Get("X-Frame-Options") != "SAMEORIGIN" ||
 			w.Header().Get("Referrer-Policy") != "no-referrer" || w.Header().Get("Cache-Control") != "no-store" ||
 			!strings.Contains(w.Body.String(), `name="aurago-local-wikipedia-error" content="`+code+`"`) {
 			t.Fatalf("%s = %d %q %s", name, w.Code, w.Header().Get("Content-Type"), w.Body.String())

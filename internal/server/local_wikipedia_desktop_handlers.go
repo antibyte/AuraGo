@@ -390,19 +390,35 @@ func (s *Server) serveLocalWikiContent(w http.ResponseWriter, r *http.Request, r
 	http.ServeContent(w, r, "", time.Time{}, item.Reader)
 }
 
-// setLocalWikiContentHeaders sets the headers every content answer carries.
+// localWikiContentPermissionsPolicy switches off the ad measurement APIs for
+// ZIM documents; the middleware's hardware policies stay in place.
+const localWikiContentPermissionsPolicy = "attribution-reporting=(), browsing-topics=()"
+
+// setLocalWikiContentHeaders sets the headers every content answer of this
+// handler carries. The framing exception lives here, not in the middleware:
+// securityHeadersMiddleware sends X-Frame-Options: DENY for every path, and
+// only answers this handler produces for a content route replace it, so a
+// request the mux routes elsewhere (an escaped "%2F", a path it redirects)
+// stays unframable.
 func setLocalWikiContentHeaders(header http.Header) {
 	header.Set("Content-Security-Policy", localWikipediaContentCSP)
+	header.Set("X-Frame-Options", "SAMEORIGIN")
 	header.Set("X-Content-Type-Options", "nosniff")
 	header.Set("Referrer-Policy", "no-referrer")
+	header.Add("Permissions-Policy", localWikiContentPermissionsPolicy)
 }
 
 // localWikiContentURL builds the browser address of a content path. Dot
-// segments are refused: browsers would normalise them out of the content route.
+// segments, empty segments (a//b) and leading slashes are refused: the mux
+// would clean them out of the content route with a redirect. A trailing slash
+// survives the mux and is kept.
 func localWikiContentURL(path string) (string, bool) {
+	if path == "" {
+		return "", false
+	}
 	parts := strings.Split(path, "/")
 	for i, part := range parts {
-		if part == "." || part == ".." {
+		if part == "." || part == ".." || (part == "" && i < len(parts)-1) {
 			return "", false
 		}
 		parts[i] = url.PathEscape(part)
