@@ -204,6 +204,24 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	if selected := page.MustEval(`()=>document.querySelector('.dt-revision')?.value || ''`).Str(); selected != "1" {
 		t.Fatal("revision select did not follow the visible revision", selected)
 	}
+	mu.Lock()
+	c.Sources = []detective.Source{
+		{ID: "src_a", Title: "Quelle A", URL: "https://example.org/a", Status: "read", Excerpt: "Auszug A", RetrievedAt: time.Now()},
+		{ID: "src_c", Title: "Quelle Neu", URL: "https://example.org/c", Status: "read", Excerpt: "Auszug Neu", RetrievedAt: time.Now()},
+	}
+	mu.Unlock()
+	time.Sleep(4 * time.Second)
+	waitDetectiveQuiet(t, page)
+	switch page.MustEval(`()=>{document.querySelector('[data-tab=sources]').click(); const text=document.querySelector('.dt-content')?.textContent || ''; if (text.includes('Quelle Neu')) return 'early'; if (!text.includes('Quelle B')) return 'missing'; return 'ok'}`).Str() {
+	case "early":
+		t.Fatal("report-tab poll loaded the new source before Sources was opened")
+	case "missing":
+		t.Fatal("sources tab did not keep the previous excerpts")
+	}
+	time.Sleep(4 * time.Second)
+	if !page.MustEval(`()=>(document.querySelector('.dt-content')?.textContent || '').includes('Quelle Neu')`).Bool() {
+		t.Fatal("opening Sources did not load the new source title")
+	}
 	page.MustElement(`[data-tab=sources]`).MustClick()
 	page.MustElement(`.dt-source[data-id="src_a"] summary`).MustClick()
 	if !page.MustEval(`()=>document.querySelector('.dt-source[data-id="src_a"]').open`).Bool() {
@@ -294,6 +312,28 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	time.Sleep(4 * time.Second)
 	if got := page.MustEval(`()=>window.getSelection().toString()`).Str(); got != "Speicher" {
 		t.Fatal("report selection was discarded", got)
+	}
+	if !page.MustEval(`()=>{const s=document.querySelector('.dt-revision'); if(!s) return false; s.value='1'; s.dispatchEvent(new Event('change',{bubbles:true})); return document.querySelector('.dt-revision')?.value==='1'}`).Bool() {
+		t.Fatal("could not select revision 1")
+	}
+	mu.Lock()
+	older := finished.Reports[0]
+	newer := older
+	newer.Revision = 2
+	newer.Summary = "Neuere Fassung bleibt ungewählt"
+	newer.Blocks = []detective.Block{{Type: "paragraph", Text: "Nur die neuere Fassung enthält diesen Satz."}}
+	c.Reports = []detective.Report{older, newer}
+	mu.Unlock()
+	time.Sleep(4 * time.Second)
+	reportText := page.MustElement(`.dt-report`).MustText()
+	if !strings.Contains(reportText, "Speicher") || strings.Contains(reportText, "Neuere Fassung") {
+		t.Fatal("selected revision report was replaced", reportText)
+	}
+	if options := page.MustEval(`()=>[...document.querySelectorAll('.dt-revision option')].map(o=>o.value).join(',')`).Str(); options != "1,2" {
+		t.Fatal("new revision was not listed", options)
+	}
+	if selected := page.MustEval(`()=>document.querySelector('.dt-revision')?.value || ''`).Str(); selected != "1" {
+		t.Fatal("selected revision was cleared", selected)
 	}
 	for _, format := range []string{"md", "pdf", "docx"} {
 		value := page.MustEval(`async(format)=>{const r=await fetch('/api/desktop/detective/cases/case_fixture/export?format='+format+'&revision=1');return r.ok&&(await r.arrayBuffer()).byteLength>100}`, format)

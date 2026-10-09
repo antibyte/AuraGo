@@ -62,10 +62,19 @@
             const match = /[?&]revision=(\d+)/.exec(link.getAttribute('href') || '');
             return match ? Number(match[1]) : 0;
         }
+        function exportRevisionSet() {
+            const select = host.querySelector('.dt-export .dt-revision');
+            if (!select) return '';
+            return [...select.options].map(option => option.value).join(',');
+        }
+        function reportRevisionSet(reports) {
+            return (reports || []).map(report => String(report.revision)).join(',');
+        }
         function syncExport() {
             const bar = host.querySelector('.dt-export');
             if (!bar || !state.current) return;
-            if (linkedExportRevision() === (chosenReport()?.revision || 0)) return;
+            const chosen = chosenReport()?.revision || 0;
+            if (linkedExportRevision() === chosen && exportRevisionSet() === reportRevisionSet(state.current.reports)) return;
             bar.innerHTML = exportHTML(state.current, readOnly());
         }
         function contentHTML() {
@@ -235,7 +244,6 @@
             c.request.topic = live.topic;
             c.request.effort = live.effort;
             if (live.updated_at) { c.run.updated_at = live.updated_at; c.updated_at = live.updated_at; }
-            state.latestSourceID = live.latest_source_id || '';
         }
         let refreshChain = Promise.resolve();
         function refresh(redraw = true) {
@@ -255,14 +263,17 @@
             if (state.disposed || state.current?.id !== id) return;
             const fresh = (data.events || []).filter(ev => ev.id > after);
             state.events = [...state.events, ...fresh].slice(-500);
-            const sourcesChanged = (state.current.sources || []).length !== live.sources || state.latestSourceID !== live.latest_source_id;
+            const liveSourceID = live.latest_source_id || '';
+            const sourcesChanged = (state.current.sources || []).length !== live.sources || state.latestSourceID !== liveSourceID;
             const reportChanged = ((state.current.reports || []).at(-1)?.revision || 0) !== (live.latest_revision || 0);
             applyLive(live);
             if ((state.tab === 'sources' && sourcesChanged) || (state.tab === 'report' && reportChanged) || (state.current.sources == null && state.tab !== 'activity')) {
                 const full = await request('/cases/' + id);
                 if (state.disposed || state.current?.id !== id) return;
                 state.current = full;
-                state.latestSourceID = live.latest_source_id || '';
+                const loaded = full.sources || [];
+                const loadedSourceID = loaded.length ? (loaded[loaded.length - 1].id || '') : '';
+                if (loadedSourceID === liveSourceID) state.latestSourceID = loadedSourceID;
             }
             if (state.disposed || state.current?.id !== id) return;
             if (redraw) paint(sourcesChanged, reportChanged, fresh);
