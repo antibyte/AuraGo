@@ -637,26 +637,54 @@ func TestDesktopTerminalModemContract(t *testing.T) {
 		"dataset.animations === 'false'",
 		"profile.retro",
 		"isMuted()",
+		"window.TerminalText.printable(host)",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("terminal-modem.js missing %q", want)
 		}
 	}
-	for _, forbidden := range []string{"new WebSocket", ".mp3", ".wav", ".ogg", "new Audio("} {
+	for _, forbidden := range []string{"new WebSocket", ".mp3", ".wav", ".ogg", "new Audio(", "function printable", `\u001f`} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal-modem.js must synthesize audio and never open sockets; found %q", forbidden)
 		}
 	}
 }
 
-// Behaviour (display-width truncation against the vendored xterm, control-character
-// stripping, layout) is covered by `node scripts/test-terminal-retronet-directory.mjs`.
+// Shared display-width and control-character helpers (Contract E, terminal-text.js).
+// Behaviour against the vendored xterm is covered by scripts/test-terminal-retronet-directory.mjs.
+func TestDesktopTerminalTextContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/terminal-text.js")
+	for _, want := range []string{
+		"window.TerminalText = { cellWidth: cellWidth, fitToCells: fitToCells, printable: printable }",
+		"function cellWidth(code)",
+		"function fitToCells(value, width, pad)",
+		"function printable(value)",
+		`/[\u0000-\u001f\u007f-\u009f]/g`,
+		"Unicode 6",
+		"0x200b, 0x200f",
+		"0x1100, 0x115f",
+		"0x1f3fb",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("terminal-text.js missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{"WIDE_EMOJI", "activeVersion", "._core", "unicodeService", "new WebSocket", ".length > width", ".slice(0, width"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("terminal-text.js must follow the vendored xterm's Unicode 6 widths without private APIs; found %q", forbidden)
+		}
+	}
+}
+
 func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 	t.Parallel()
 
 	source := readDesktopAssetText(t, "js/desktop/apps/terminal-retronet-directory.js")
 	for _, want := range []string{
-		"window.TerminalRetroNetDirectory = { LOCAL_SHELL_ID: LOCAL_SHELL_ID, create: create, cellWidth: cellWidth, fitToCells: fitToCells, printable: printable }",
+		"window.TerminalRetroNetDirectory = { LOCAL_SHELL_ID: LOCAL_SHELL_ID, create: create }",
+		"const TerminalText = window.TerminalText",
 		"const LOCAL_SHELL_ID = 'local-shell'",
 		"'aurago.desktop.terminal.retronet.last'",
 		"['classics', 'bbs', 'muds', 'games', 'own']",
@@ -677,12 +705,9 @@ func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 		"'dblclick'",
 		"'.xterm-screen'",
 		"Intl.RelativeTimeFormat",
-		"announce(printable(tr('desktop.terminal_retronet_announce'",
+		"announce(TerminalText.printable(tr('desktop.terminal_retronet_announce'",
 		"tr('desktop.terminal_retronet_help_admin')",
-		`/[\u0000-\u001f\u007f-\u009f]/g`,
-		"function cellWidth(code, wide)",
-		"function fitToCells(value, width, wide)",
-		"activeVersion",
+		"TerminalText.fitToCells(entry.name, nameWidth, true)",
 		"load: load",
 		"render: render",
 		"handleData: handleData",
@@ -696,9 +721,10 @@ func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 			t.Fatalf("terminal-retronet-directory.js missing %q", want)
 		}
 	}
-	for _, forbidden := range []string{"new WebSocket", "innerHTML", "alert(", "window.confirm", "._core", "unicodeService", ".length > width", ".slice(0, width"} {
+	for _, forbidden := range []string{"new WebSocket", "innerHTML", "alert(", "window.confirm", "._core", "unicodeService", ".length > width", ".slice(0, width",
+		"function cellWidth", "function fitToCells", "function printable", "ZERO_WIDTH", "WIDE_EMOJI", "activeVersion", `\u001f`} {
 		if strings.Contains(source, forbidden) {
-			t.Fatalf("terminal-retronet-directory.js must render only into xterm, measure display cells and avoid private xterm APIs; found %q", forbidden)
+			t.Fatalf("terminal-retronet-directory.js must render only into xterm and use the shared TerminalText helpers; found %q", forbidden)
 		}
 	}
 }

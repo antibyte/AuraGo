@@ -68,10 +68,6 @@
         return String(1000000 + (hash % 9000000));
     }
 
-    function printable(value) {
-        return String(value == null ? '' : value).replace(/[\u0000-\u001f\u007f-\u009f]/g, '');
-    }
-
     function create(options) {
         const opts = options || {};
         const term = opts.term;
@@ -246,7 +242,7 @@
         function dial(host, entryId) {
             if (run) finish(run, 'skipped', true);
             const current = {
-                transcript: 'ATZ\r\nOK\r\nATDT ' + printable(host) + '\r\n',
+                transcript: 'ATZ\r\nOK\r\nATDT ' + window.TerminalText.printable(host) + '\r\n',
                 written: 0,
                 done: false,
                 wake: null,

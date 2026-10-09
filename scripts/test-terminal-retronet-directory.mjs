@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs ui/js/desktop/apps/terminal-retronet-directory.js against the vendored xterm.js (headless, no DOM, no npm
+// Runs ui/js/desktop/apps/terminal-text.js and terminal-retronet-directory.js against the vendored xterm.js (headless, no DOM, no npm
 // packages) and checks that the Retro-Net directory measures text in terminal cells exactly like xterm (CJK, emoji,
 // ZWJ sequences, combining marks, Devanagari), never cuts a cluster or surrogate pair, strips C0/C1 control
 // characters from server-provided strings and keeps every directory row aligned and inside the screen.
@@ -26,10 +26,11 @@ sandbox.self = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(read('js/vendor/xterm.min.js'), sandbox, { filename: 'xterm.min.js' });
+vm.runInContext(read('js/desktop/apps/terminal-text.js'), sandbox, { filename: 'terminal-text.js' });
 vm.runInContext(read('js/desktop/apps/terminal-retronet-directory.js'), sandbox, { filename: 'terminal-retronet-directory.js' });
 
 const Directory = sandbox.TerminalRetroNetDirectory;
-const { cellWidth, fitToCells, printable } = Directory;
+const { cellWidth, fitToCells, printable } = sandbox.TerminalText;
 const english = JSON.parse(read('lang/desktop/en.json'));
 const t = (key, params) => {
     let text = Object.prototype.hasOwnProperty.call(english, key) ? english[key] : key;
@@ -48,7 +49,7 @@ function check(name, cond, detail) {
     failures += 1;
     console.log('FAIL ' + name + (detail ? ' - ' + detail : ''));
 }
-const width = (text, wide) => [...text].reduce((sum, ch) => sum + cellWidth(ch.codePointAt(0), wide), 0);
+const width = (text) => [...text].reduce((sum, ch) => sum + cellWidth(ch.codePointAt(0)), 0);
 const same = (name, actual, expected) => check(name, actual === expected, JSON.stringify(actual) + ' !== ' + JSON.stringify(expected));
 
 // 1. cellWidth is xterm's own Unicode 6 width for every code point (test-only access to xterm's private service).
@@ -57,7 +58,7 @@ const xtermWidth = probe._core.unicodeService.wcwidth.bind(probe._core.unicodeSe
 const mismatches = [];
 for (let code = 0x20; code <= 0x10ffff; code += 1) {
     if ((code >= 0x7f && code < 0xa0) || (code >= 0xd800 && code <= 0xdfff)) continue;
-    if (cellWidth(code, false) !== xtermWidth(code)) mismatches.push(code.toString(16) + ':' + cellWidth(code, false) + '/' + xtermWidth(code));
+    if (cellWidth(code) !== xtermWidth(code)) mismatches.push(code.toString(16) + ':' + cellWidth(code) + '/' + xtermWidth(code));
 }
 check('cellWidth matches xterm Unicode 6 for all code points', mismatches.length === 0, mismatches.slice(0, 8).join(' '));
 same('vendored xterm uses the Unicode 6 provider (emoji one cell)', probe._core.unicodeService.activeVersion, '6');
@@ -71,14 +72,11 @@ same('width 0 is empty', fitToCells('abc', 0), '');
 same('cjk fits exactly', fitToCells('\u6f22\u5b57\u30c6\u30b9\u30c8', 10), '\u6f22\u5b57\u30c6\u30b9\u30c8');
 same('cjk cut keeps whole wide cells', fitToCells('\u6f22\u5b57\u30c6\u30b9\u30c8', 6), '\u6f22\u5b57\u2026');
 same('cjk cut at odd width', fitToCells('\u6f22\u5b57\u30c6\u30b9\u30c8', 9), '\u6f22\u5b57\u30c6\u30b9\u2026');
-check('cjk counts two cells', width('\u6f22\u5b57', false) === 4);
+check('cjk counts two cells', width('\u6f22\u5b57') === 4);
 same('emoji are one cell in Unicode 6', fitToCells('\u{1F600}\u{1F600}\u{1F600}\u{1F600}', 3), '\u{1F600}\u{1F600}\u2026');
-same('emoji are two cells with a newer provider', fitToCells('\u{1F600}\u{1F600}\u{1F600}\u{1F600}', 5, true), '\u{1F600}\u{1F600}\u2026');
-check('wide emoji width', width('\u{1F600}\u{1F389}', true) === 4 && width('\u{1F600}\u{1F389}', false) === 2);
 const family = '\u{1F468}\u200d\u{1F469}\u200d\u{1F467}';
 same('zwj family is dropped whole', fitToCells('ab' + family + 'cd', 5), 'ab\u2026');
 same('zwj family is kept whole', fitToCells(family + 'xyz', 5), family + 'x\u2026');
-same('zwj family wide mode', fitToCells('ab' + family + 'cd', 8, true), 'ab\u2026');
 same('combining marks stay with their base', fitToCells('e\u0301e\u0301e\u0301e\u0301', 3), 'e\u0301e\u0301\u2026');
 same('flags are never split', fitToCells('\u{1F1E9}\u{1F1EA}\u{1F1EB}\u{1F1F7}\u{1F1EE}\u{1F1F9}', 4), '\u{1F1E9}\u{1F1EA}\u2026');
 same('skin tones stay with their emoji', fitToCells('\u{1F44D}\u{1F3FD}\u{1F44D}\u{1F3FD}', 3), '\u{1F44D}\u{1F3FD}\u2026');
@@ -87,9 +85,9 @@ const samples = ['ab' + family + 'cd' + family, '\u{1F600}x\u{1F600}\u6f22\u{1F4
 let clusterBreaks = [];
 for (const sample of samples) {
     for (let cells = 0; cells <= 14; cells += 1) {
-        for (const wide of [false, true]) {
-            const fitted = fitToCells(sample, cells, wide);
-            if (width(fitted, wide) > cells) clusterBreaks.push('too wide ' + JSON.stringify(fitted) + '@' + cells);
+        {
+            const fitted = fitToCells(sample, cells);
+            if (width(fitted) > cells) clusterBreaks.push('too wide ' + JSON.stringify(fitted) + '@' + cells);
             if (LONE_SURROGATE.test(fitted)) clusterBreaks.push('lone surrogate ' + JSON.stringify(fitted));
             if (/\u200d(\u2026)?$/.test(fitted)) clusterBreaks.push('dangling zwj ' + JSON.stringify(fitted));
             if (fitted.endsWith('\u2026') && !sample.startsWith(fitted.slice(0, -1))) clusterBreaks.push('not a prefix ' + JSON.stringify(fitted));
@@ -97,6 +95,10 @@ for (const sample of samples) {
     }
 }
 check('no cut exceeds its width or splits a pair/sequence', clusterBreaks.length === 0, clusterBreaks.slice(0, 4).join('; '));
+same('pad fills to the width', fitToCells('\u6f22a', 5, true), '\u6f22a  ');
+same('pad after a cut', fitToCells('\u6f22\u5b57\u30c6', 4, true), '\u6f22\u2026 ');
+same('pad of nothing', fitToCells('', 3, true), '   ');
+same('directory exposes only its contract', Object.keys(Directory).join(','), 'LOCAL_SHELL_ID,create');
 same('printable strips C0, DEL and C1', printable('a\u001b[2Jb\u009b31m\u0007c\u007f\u0000d\r\n\u0085e'), 'a[2Jb31mcde');
 same('fitToCells strips control characters', fitToCells('\u001b]0;x\u0007ok', 10), ']0;xok');
 same('printable keeps zwj and text', printable('\u{1F469}\u200d\u{1F4BB} \u00e9'), '\u{1F469}\u200d\u{1F4BB} \u00e9');
@@ -258,7 +260,7 @@ for (const lang of LANGS) {
         const screen = [];
         for (let y = 0; y < rows; y += 1) screen.push(term.buffer.active.getLine(y).translateToString(true));
         const hints = (strings['desktop.terminal_retronet_help'] + ' \u00b7 ' + strings['desktop.terminal_retronet_help_admin']).split(' \u00b7 ');
-        const missing = hints.filter((hint) => width(hint, false) <= cols - 1 && !screen.some((text) => text.includes(hint)));
+        const missing = hints.filter((hint) => width(hint) <= cols - 1 && !screen.some((text) => text.includes(hint)));
         check(label + ' every key hint is shown whole', missing.length === 0, missing.join(' | '));
         check(label + ' announcements carry no control characters', announced.length > 0 && announced.every((text) => !CONTROL.test(text)));
         term.dispose();
