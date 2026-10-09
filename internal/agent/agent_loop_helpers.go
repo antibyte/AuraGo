@@ -718,6 +718,27 @@ func refreshSwapProtectedTools(initFiltered bool, sessionUsed map[string]bool, r
 	return pinnedToolNames(set)
 }
 
+// refreshSoftAndAdditiveTools returns the soft and additive tools of the
+// per-iteration refresh. A non-displacing tool kept from the session (kept)
+// or requested through discover_tools during the run was a soft tool in the
+// first selection; it stays soft here and leaves the additive tools, so a
+// full selection cannot cut it. Other tools keep the configured
+// always_include, so nothing changes while no such tool is available.
+func refreshSoftAndAdditiveTools(alwaysInclude, additive, kept []string, requested map[string]bool) (soft, additiveOut []string) {
+	var keptOptional []string
+	for _, name := range adaptiveIntentOnlyTools {
+		if slices.Contains(kept, name) || requested[name] {
+			keptOptional = append(keptOptional, name)
+		}
+	}
+	if len(keptOptional) == 0 {
+		return alwaysInclude, additive
+	}
+	soft = append(slices.Clone(alwaysInclude), keptOptional...)
+	additiveOut = slices.DeleteFunc(slices.Clone(additive), func(name string) bool { return slices.Contains(keptOptional, name) })
+	return soft, additiveOut
+}
+
 // adaptiveRefreshExcludedTools returns the tools the per-iteration refresh
 // keeps out of its ranking. After an adaptive first selection the refresh only
 // re-ranks what that selection offered, so nothing is excluded. Without one
@@ -1150,9 +1171,13 @@ type toolSchemaFilterOptions struct {
 	AdaptiveExcludedTools []string
 	// AdditiveSwaps maps an additive tool to the one tool it may replace
 	// when a cap leaves it no room: the replaced tool must have been picked
-	// by the adaptive ranking (not hard, soft or pinned), the additive tool
-	// takes its position (net count 0), and the swap is skipped when the
-	// additive schema would then exceed MaxSchemaTokens.
+	// by the adaptive ranking (not hard, soft, pinned or in
+	// SwapProtectedTools), the additive tool takes its position (net count
+	// 0), and the swap is skipped when the additive schema would then exceed
+	// MaxSchemaTokens. The agent loop passes adaptiveSwapsForQuery, which
+	// drops a swap whose replaced tool the user message names; a negated
+	// mention ("not the online Wikipedia") blocks it too, which is the
+	// conservative choice.
 	AdditiveSwaps map[string]string
 	// PinnedTools are never swapped out and never treated as additive; they
 	// are ranked like any requested tool (tools discover_tools requested).

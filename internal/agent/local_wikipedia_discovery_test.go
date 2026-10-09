@@ -468,6 +468,53 @@ func TestKeptLocalWikipediaStaysOnEncyclopediaQuestions(t *testing.T) {
 	if kept == 0 {
 		t.Fatal("no budget exercised")
 	}
+
+	// local_wikipedia used earlier in the conversation, plus tools requested
+	// through discover_tools during the run: the first selection keeps it as
+	// a soft tool and so does the refresh, which runs before every model
+	// call. Like any session-kept tool it occupies one slot and its schema
+	// tokens; with exactly that room added, the selection is the one without
+	// the tool plus local_wikipedia, so it costs nothing else.
+	disabled := enabled
+	disabled.LocalWikipediaEnabled = false
+	lwTokens := 0
+	for _, schema := range BuildNativeToolSchemas(t.TempDir(), nil, enabled, nil) {
+		if schema.Function.Name == "local_wikipedia" {
+			lwTokens = estimateSingleToolSchemaTokens(schema)
+		}
+	}
+	history := []string{"local_wikipedia"}
+	for _, b := range adaptiveProbeBudgets {
+		if !b.initFiltered {
+			continue
+		}
+		room := b
+		if room.total > 0 {
+			room.total++
+		}
+		if room.token > 0 {
+			room.token += lwTokens
+		}
+		for query := range localWikipediaProbeQueries {
+			for _, requested := range [][]string{nil, {"jellyfin"}, {"jellyfin", "proxmox", "truenas", "grafana", "netlify", "github"}} {
+				label := b.name + " " + query
+				initial, refreshed := adaptiveSessionProbe(t, query, enabled, b, history, requested)
+				if !containsName(initial, "local_wikipedia") || !containsName(refreshed, "local_wikipedia") {
+					t.Errorf("%s req=%v: session-kept local_wikipedia cut (initial %v, refreshed %v)", label, requested,
+						containsName(initial, "local_wikipedia"), containsName(refreshed, "local_wikipedia"))
+				}
+				offInitial, offRefreshed := adaptiveSessionProbe(t, query, disabled, b, history, requested)
+				roomInitial, roomRefreshed := adaptiveSessionProbe(t, query, enabled, room, history, requested)
+				for stage, pair := range map[string][2][]string{"initial": {offInitial, roomInitial}, "refreshed": {offRefreshed, roomRefreshed}} {
+					want := append(slices.Clone(pair[0]), "local_wikipedia")
+					slices.Sort(want)
+					if !slices.Equal(pair[1], want) {
+						t.Errorf("%s req=%v %s: a session-kept local_wikipedia cost more than its own slot\nwith it %v\nwithout %v", label, requested, stage, pair[1], pair[0])
+					}
+				}
+			}
+		}
+	}
 }
 
 func TestPinnedOrSoftLocalWikipediaIsNotAdditive(t *testing.T) {
@@ -525,4 +572,67 @@ func TestSwapKeepsNamedOrSessionKeptWikipediaSearch(t *testing.T) {
 	if got := refreshSwapProtectedTools(true, map[string]bool{"wikipedia_search": true}, []string{"docker", "wikipedia_search"}); !slices.Equal(got, []string{"docker", "wikipedia_search"}) {
 		t.Fatalf("protected = %v", got)
 	}
+}
+
+// adaptiveSessionProbe mirrors the first selection and the refresh like
+// adaptiveSelectionProbe, for a conversation whose history used the recent
+// tools and a run in which discover_tools requested further tools before the
+// refresh (the refresh runs before every model call, the first included).
+func adaptiveSessionProbe(t *testing.T, query string, ff ToolFeatureFlags, b adaptiveProbeBudget, recent, requested []string) (initial, refreshed []string) {
+	t.Helper()
+	cfg := &config.Config{}
+	cfg.Agent.AdaptiveTools.Enabled = true
+	cfg.Agent.AdaptiveTools.MaxTools = b.adaptive
+	cfg.Agent.AdaptiveTools.MaxTotalTools = b.total
+	cfg.Agent.AdaptiveTools.MaxSchemaTokens = b.token
+	cfg.Agent.AdaptiveTools.AlwaysInclude = append([]string{"filesystem", "query_memory", "manage_memory", "execute_shell"}, b.alwaysExtra...)
+	runCfg := RunConfig{Config: cfg}
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
+	hard := channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff)
+	additive, swaps := adaptiveAdditiveToolsForQuery(query), adaptiveSwapsForQuery(query)
+
+	always := append([]string(nil), cfg.Agent.AdaptiveTools.AlwaysInclude...)
+	always = channelAdaptiveAlwaysInclude(runCfg, always, ff)
+	always = cacheAwareAdaptiveAlwaysInclude(query, always, schemas)
+	always = append(always, recent...)
+	always = expandAdaptiveAlwaysInclude(cfg, always)
+	first := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+		PreferredTools:        buildAdaptiveToolPriority(schemas, nil, query, nil, nil),
+		HardAlwaysTools:       hard,
+		SoftAlwaysTools:       always,
+		MaxAdaptiveTools:      b.adaptive,
+		MaxTotalTools:         b.total,
+		MaxSchemaTokens:       b.token,
+		AdditiveTools:         additive,
+		AdaptiveExcludedTools: adaptiveIntentOnlyTools,
+		AdditiveSwaps:         swaps,
+	}, nil)
+
+	candidates := restoreAdaptiveSwapPartners(first.Tools, schemas, recordAdaptiveSwaps(nil, first.Report))
+	present := stringSet(toolSchemaNames(candidates))
+	requestedSet := map[string]bool{}
+	for _, name := range requested {
+		requestedSet[name] = true
+	}
+	for _, schema := range schemas {
+		if requestedSet[schema.Function.Name] && !present[schema.Function.Name] {
+			candidates = append(candidates, schema)
+		}
+	}
+	kept := refreshSwapProtectedTools(true, nil, recent)
+	soft, refreshAdditive := refreshSoftAndAdditiveTools(cfg.Agent.AdaptiveTools.AlwaysInclude, additive, kept, requestedSet)
+	second := filterToolSchemasWithReport(candidates, toolSchemaFilterOptions{
+		PreferredTools:        append(slices.Clone(requested), toolSchemaNames(candidates)...),
+		HardAlwaysTools:       hard,
+		SoftAlwaysTools:       soft,
+		MaxAdaptiveTools:      b.refreshAdaptive,
+		MaxTotalTools:         b.total,
+		MaxSchemaTokens:       b.token,
+		AdditiveTools:         refreshAdditive,
+		AdaptiveExcludedTools: adaptiveRefreshExcludedTools(true, requestedSet),
+		AdditiveSwaps:         swaps,
+		PinnedTools:           pinnedToolNames(requestedSet),
+		SwapProtectedTools:    kept,
+	}, nil)
+	return sortedToolNames(first.Tools), sortedToolNames(second.Tools)
 }
