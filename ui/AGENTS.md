@@ -74,6 +74,11 @@ worker. Keep packaging, recovery and offline instructions in
   Embedded apps retain `serial 'none'`. Keep all sixteen serial/profile and
   configuration translations aligned. See `js/desktop/apps/AGENTS.md` and
   `documentation/quick-connect-serial.md` for lifecycle and hardware acceptance.
+- The Config CYD web flasher (`cfg/cyd.js`) needs a secure context,
+  `navigator.serial` and a Permissions-Policy that allows `serial`
+  (`document.permissionsPolicy || document.featurePolicy`). Otherwise it shows
+  `config.cyd.flash_unsupported`, disables flashing and creates no token or ESP
+  Web Tools installer. Verify `TestCYDFlasherDetectsPolicyBlockedWebSerialBrowser`.
 
 - `cfg/llm_router.js` uses the shared saved/draft config path. Empty provider
   clears its model override; missing saved providers remain visible. Preview
