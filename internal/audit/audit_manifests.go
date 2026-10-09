@@ -214,6 +214,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/launchpad/", Classification: "user-requested-icon-fetch", RequiresSSRF: true},
 		{Path: "internal/llm/", Classification: "provider-api", Credentialed: true},
 		{Path: "internal/localllm/", Classification: "fixed-pinned-model-download-docker-control-and-private-loopback-sidecar", AllowsLocalNet: true, Credentialed: true},
+		{Path: "internal/localwiki/", Classification: "fixed-kiwix-catalog-meta4-and-mirror-download-https-only-redirects"},
 		{Path: "internal/manus/", Classification: "fixed-manus-api-and-presigned-file-transfer", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/media/", Classification: "user-requested-media-fetch", RequiresSSRF: true},
 		{Path: "internal/memory/", Classification: "provider-api", Credentialed: true},
