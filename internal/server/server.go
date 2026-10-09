@@ -507,6 +507,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		s.LocalMusic.Configure(cfg)
 	}
 	s.syncLocalWikipediaSettings()
+	if previous != nil && previous.LocalWikipedia.Enabled != cfg.LocalWikipedia.Enabled {
+		// The Wikipedia Desktop app appears or disappears with the switch;
+		// the broadcast runs off this (usually CfgMu-locked) path.
+		s.announceLocalWikipediaAvailability()
+	}
 	if s.WarningsRegistry != nil {
 		// Provider metadata probes may perform bounded network I/O. Keep config
 		// publication non-blocking while still reconciling stale warnings.

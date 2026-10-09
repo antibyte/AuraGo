@@ -6,13 +6,16 @@ import (
 	"errors"
 	"html"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"aurago/internal/desktop"
 	"aurago/internal/localwiki"
 	"aurago/internal/zim"
 )
@@ -417,4 +420,53 @@ func writeLocalWikiContentError(w http.ResponseWriter, status int, code string) 
 	w.WriteHeader(status)
 	escaped := html.EscapeString(code)
 	_, _ = io.WriteString(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="aurago-local-wikipedia-error" content="`+escaped+`"><title>`+escaped+`</title></head><body></body></html>`)
+}
+
+// localWikipediaAvailable reports whether the Desktop shows the Wikipedia app:
+// the integration is switched on and its manager exists (like flowsAvailable,
+// the app never shows when the manager could not be built).
+func (s *Server) localWikipediaAvailable() bool {
+	if s == nil || s.LocalWiki == nil {
+		return false
+	}
+	cfg := s.ConfigSnapshot()
+	return cfg != nil && cfg.LocalWikipedia.Enabled
+}
+
+// publishLocalWikipediaAvailability tells open desktops that the Wikipedia app
+// appeared or disappeared, so start menus refresh at once.
+func (s *Server) publishLocalWikipediaAvailability(available bool) {
+	if s == nil {
+		return
+	}
+	s.DesktopMu.Lock()
+	hub := s.DesktopHub
+	s.DesktopMu.Unlock()
+	broadcastDesktopEvent(s, hub, desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{
+		"operation": "app_availability", "app_id": "local-wikipedia", "available": available,
+	}, CreatedAt: time.Now().UTC()})
+}
+
+// announceLocalWikipediaAvailability runs after a config publication that
+// flipped local_wikipedia.enabled. Publications usually hold CfgMu, so the
+// broadcast (DesktopMu, the Desktop hub and the SSE broadcaster) runs on its
+// own goroutine and announces what the snapshot current by then grants.
+func (s *Server) announceLocalWikipediaAvailability() {
+	if s == nil || s.LocalWiki == nil {
+		return
+	}
+	logger := s.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	go func() {
+		// Nothing else recovers a panic on this goroutine.
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("[LocalWikipedia] Recovered from a panic while announcing the Desktop app",
+					"panic", r, "stack", string(debug.Stack()))
+			}
+		}()
+		s.publishLocalWikipediaAvailability(s.localWikipediaAvailable())
+	}()
 }
