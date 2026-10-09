@@ -112,6 +112,8 @@ func TestGenericEffects(t *testing.T) {
 		{"wake_on_lan", "smart_home", "", []Effect{EffectControlsDevices}},
 		{"fritzbox_smarthome", "smart_home", "get_devices", nil},
 		{"wikipedia_search", "network", "", nil},
+		{"local_wikipedia", "network", "search", nil},
+		{"local_wikipedia", "network", "read", nil},
 	}
 	for _, tc := range cases {
 		if got := genericEffects(tc.tool, tc.category, tc.op); !reflect.DeepEqual(got, tc.want) {
