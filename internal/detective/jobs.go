@@ -240,7 +240,6 @@ func (x *Session) beat() error {
 	if delta <= 0 {
 		return nil
 	}
-	x.last = now
 	res, err := s.db.Exec(`UPDATE detective_cases SET active_ms = active_ms + ? WHERE id=? AND status='running'`, delta, x.CaseID)
 	if err != nil {
 		return err
@@ -249,6 +248,7 @@ func (x *Session) beat() error {
 	if err != nil {
 		return err
 	}
+	x.last = now
 	if n == 0 {
 		return context.Canceled
 	}
