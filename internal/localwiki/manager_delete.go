@@ -25,7 +25,7 @@ func (m *Manager) Delete() error {
 	}
 	defer m.loadMu.Unlock()
 	m.mu.Lock()
-	if m.op != nil || m.deleting || m.ioBusy {
+	if m.op != nil || m.deleting || m.ioToken != 0 {
 		m.mu.Unlock()
 		return ErrBusy
 	}

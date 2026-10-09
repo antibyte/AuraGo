@@ -44,16 +44,22 @@ through `Deps`.
 - `NewManager` is passive and `Start` does no I/O: the first load of the storage directory runs in the
   background loop. Until it finishes, `Status` reports `loading: true`, `state: not_installed`,
   `readable: false`, `error_code: busy`; `Acquire` returns `ok == false`; `Install` and `Delete` answer
-  `ErrBusy` (`Install` answers `ErrDisabled` first when the integration is off). Clients poll until
+  `ErrBusy` (`Install` answers `ErrDisabled` first when the integration is off). A changed storage
+  directory that is being loaded also reports `loading: true` and `error_code: busy` (`Install` and
+  `Delete` answer `ErrBusy`), while `state`, `edition` and `readable` still describe the previous
+  directory's edition, which stays served until the new directory is published. Clients poll until
   `loading` is false. `Shutdown` cancels a running download (its `.part` file stays for "Resume"), stops
   the loops and closes the library once its readers released it. It honours its context even while a
   load or download is stuck in storage I/O that cannot be interrupted (an unreachable network share): it
   then returns `ctx.Err()`, the stuck goroutine finishes on its own and the library is closed after it.
   Nothing ever resumes a download by itself.
 - A hung storage directory must never stall callers. `Manager.mu` is never held across file system or
-  network I/O. Loads and cleanups (`loadLocked`, `removeStaleRestartFiles`, `discardPending`) run with
-  `ioBusy` set instead (`beginStorageIO`/`endStorageIO`): while it is set no operation, `Delete`, load or
-  other cleanup starts, and `Install` and `Delete` answer `ErrBusy`. Request paths never wait for
+  network I/O. Loads and cleanups (`loadLocked`, `removeStaleRestartFiles`, `discardPending`) mark the
+  storage I/O instead (`ioToken`, set by `holdStorageIOLocked` through `loadIfStaleLocked` or
+  `beginStorageIO`): while it is set no operation, `Delete`, load or other cleanup starts, and `Install` and
+  `Delete` answer `ErrBusy`. The mark is always released by a `defer` (a load can run in a request
+  goroutine, where net/http recovers a panic), and a release never ends a later holder's mark. Request
+  paths never wait for
   `loadMu` (`tryLoadIfStale`, `Delete` uses `TryLock`). `Status` never touches the storage directory:
   `free_bytes` comes from a background measurement (`probeLoop`: at start, after a storage directory
   change, after an operation or `Delete`, every 10 s; a measurement running longer than 5 s reports -1),
@@ -219,9 +225,9 @@ through `Deps`.
 - A change to the status fields, error codes or the `readable`/`loading` semantics updates the manager, the
   server tests, `ui/cfg/local_wikipedia.js`, its Node and browser tests and this file together.
 - Keep new work inside the lock order above; never hold `Manager.mu` across file or network I/O (mark the
-  section with `beginStorageIO` instead), and never let a request path wait for `loadMu`. Operations start
-  only through `startOperation`, which refuses while `op`, `deleting` or `ioBusy` is set and then sets
-  `op`; `Delete` sets `deleting` itself. The stuck-I/O tests (`manager_io_test.go`) hold the
+  section with `beginStorageIO` and `defer` its release instead), and never let a request path wait for
+  `loadMu`. Operations start only through `startOperation`, which refuses while `op`, `deleting` or the
+  storage-I/O mark is set and then sets `op`; `Delete` sets `deleting` itself. The stuck-I/O tests (`manager_io_test.go`) hold the
   `beforeStorageIO` seam and the free-space measurement and check that `Configure`, `Status`, `Install`,
   `Delete` and `Shutdown` answer at once.
 - Tests use the fake Kiwix TLS server (`fake_kiwix_test.go`) and the ZIM fixtures of `internal/zim/testdata`; Windows-only behaviour
