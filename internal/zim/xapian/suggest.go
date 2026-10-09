@@ -227,35 +227,10 @@ func (s *suggester) makeTerm(w queryWord) string {
 // with the prefix (up to maxPartialScan); ties at the cut-off keep the terms
 // that sort first.
 func (s *suggester) partial(word string, full string) (*partialGroup, error) {
-	top := &expansionHeap{}
-	scanned := 0
-	err := s.db.walkTerms(word, func(term string, c *cursor) (bool, error) {
-		if err := s.p.poll(); err != nil {
-			return false, err
-		}
-		tag, err := c.tagView()
-		if err != nil {
-			return false, err
-		}
-		tf, _, err := unpackUint32(tag)
-		if err != nil {
-			return false, err
-		}
-		e := expansion{term, tf}
-		switch {
-		case top.Len() < maxPartialExpansion:
-			heap.Push(top, e)
-		case e.better((*top)[0]):
-			(*top)[0] = e
-			heap.Fix(top, 0)
-		}
-		scanned++
-		return scanned < maxPartialScan, nil
-	})
+	exps, err := mostFrequentExpansions(&s.p, s.db, word, maxPartialExpansion)
 	if err != nil {
 		return nil, err
 	}
-	exps := []expansion(*top)
 	sort.Slice(exps, func(i, j int) bool { return exps[i].term < exps[j].term })
 	g := &partialGroup{}
 	var tfs []uint32
@@ -275,6 +250,64 @@ func (s *suggester) partial(word string, full string) (*partialGroup, error) {
 		}
 	}
 	return g, nil
+}
+
+// mostFrequentExpansions returns the n most frequent terms starting with
+// word (in heap order), reading at most maxPartialScan terms.
+func mostFrequentExpansions(p *poller, db *Database, word string, n int) ([]expansion, error) {
+	top := &expansionHeap{}
+	scanned := 0
+	err := db.walkTerms(word, func(term string, c *cursor) (bool, error) {
+		if err := p.poll(); err != nil {
+			return false, err
+		}
+		tag, err := c.tagView()
+		if err != nil {
+			return false, err
+		}
+		tf, _, err := unpackUint32(tag)
+		if err != nil {
+			return false, err
+		}
+		e := expansion{term, tf}
+		switch {
+		case top.Len() < n:
+			heap.Push(top, e)
+		case e.better((*top)[0]):
+			(*top)[0] = e
+			heap.Fix(top, 0)
+		}
+		scanned++
+		return scanned < maxPartialScan, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return []expansion(*top), nil
+}
+
+// MostFrequentTerms returns up to n terms of db that start with prefix, most
+// frequent first (ties in byte order): the completions Suggest weighs for a
+// partial last word, which a type-ahead can offer as whole titles. prefix is
+// matched as given (pass Normalize of a typed word); it reads at most as many
+// terms as one Suggest expansion and checks ctx while scanning.
+func MostFrequentTerms(ctx context.Context, db *Database, prefix string, n int) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if n <= 0 || prefix == "" {
+		return nil, nil
+	}
+	exps, err := mostFrequentExpansions(&poller{ctx: ctx}, db, prefix, min(n, maxPartialExpansion))
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(exps, func(i, j int) bool { return exps[i].better(exps[j]) })
+	terms := make([]string, len(exps))
+	for i, e := range exps {
+		terms[i] = e.term
+	}
+	return terms, nil
 }
 
 // expansion is one candidate term of a prefix expansion.

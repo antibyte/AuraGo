@@ -90,10 +90,20 @@ func (s *fakeArticleStore) readHTML(e zim.Entry) ([]byte, error) {
 
 func (s *fakeArticleStore) cacheKey(path string) string { return "fake/" + path }
 
-// fakeTitleIndex answers suggestions from a fixed table keyed by query.
+// fakeTitleIndex answers suggestions and completions from fixed tables keyed
+// by query and prefix.
 type fakeTitleIndex struct {
-	hits map[string][]xapian.Hit
-	err  error
+	hits  map[string][]xapian.Hit
+	terms map[string][]string
+	err   error
+}
+
+func (t fakeTitleIndex) completions(_ context.Context, prefix string, n int) ([]string, error) {
+	if t.err != nil {
+		return nil, t.err
+	}
+	terms := t.terms[prefix]
+	return terms[:min(n, len(terms))], nil
 }
 
 func (t fakeTitleIndex) suggest(_ context.Context, query string, limit int) ([]xapian.Hit, error) {

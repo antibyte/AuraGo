@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -19,6 +21,9 @@ const (
 	maxSearchLeads        = 3  // only the top results carry their lead
 	maxSuggestions        = 10
 	titleCandidateLimit   = 20
+	// maxCompletions is how many of a typed word's most frequent completions
+	// a suggestion offers as whole titles ("Berl" -> Berlin, Berliner, ...).
+	maxCompletions = 4
 )
 
 // searchSlots bounds concurrent searches, suggestions and reads process-wide;
@@ -73,6 +78,8 @@ func (l *Library) Search(ctx context.Context, query string, limit int, withLeads
 }
 
 // Suggest returns up to limit (at most 10) title suggestions for a typed prefix.
+// For a single word, titles that start with it come first (see
+// prefixSuggestions), then the title index's libzim-style ranking.
 func (l *Library) Suggest(ctx context.Context, query string, limit int) ([]Ref, error) {
 	return boundedCall(ctx, func(ctx context.Context) ([]Ref, error) {
 		return l.searchView().suggest(ctx, query, limit)
@@ -153,6 +160,11 @@ func (ix searchIndex) suggest(ctx context.Context, query string, limit int) ([]R
 		return nil, err
 	}
 	m := newHitMerger(ix.store, clampLimit(limit, maxSuggestions))
+	if !strings.Contains(query, " ") {
+		if err := ix.prefixSuggestions(ctx, m, query); err != nil {
+			return nil, err
+		}
+	}
 	hits, err := ix.titleHits(ctx, query, titleCandidateLimit)
 	if err != nil {
 		return nil, err
@@ -163,6 +175,77 @@ func (ix searchIndex) suggest(ctx context.Context, query string, limit int) ([]R
 		}
 	}
 	return m.refs, nil
+}
+
+// prefixSuggestions adds, for a single typed word, the titles a type-ahead
+// expects before the title index's ranking, which like libzim prefers titles
+// that contain the typed word as a whole word ("Berl" ranks "Berl Broder"
+// and "Antonie Berl" above "Berlin"): a title equal to the word (as typed or
+// with a capital first letter), then the titles of the word's most frequent
+// completions in the title index ("Berlin", "Berliner"), then the other
+// titles that start with it, in title order. Deprecated entries are skipped
+// (zimStore.titlePrefix) and redirects collapse into their targets
+// (hitMerger). Without a title index, or for one character, only the
+// title-ordered part runs.
+func (ix searchIndex) prefixSuggestions(ctx context.Context, m *hitMerger, word string) error {
+	variants := []string{word}
+	if upper := upperFirst(word); upper != word {
+		variants = append(variants, upper)
+	}
+	var listed []zim.Entry
+	for _, v := range variants {
+		entries, err := ix.store.titlePrefix(v, m.limit)
+		if err != nil {
+			return fmt.Errorf("title prefix search: %w", err)
+		}
+		listed = append(listed, entries...)
+	}
+	for _, e := range listed {
+		if e.Title == word || e.Title == variants[len(variants)-1] {
+			if err := m.add(e.Path); err != nil {
+				return err
+			}
+		}
+	}
+	if ix.titles != nil && utf8.RuneCountInString(word) > 1 {
+		terms, err := ix.titles.completions(ctx, foldText(word), maxCompletions)
+		if err != nil && ctx.Err() != nil {
+			return ctx.Err()
+		}
+		// A failing title index only costs the completions.
+		for _, term := range terms {
+			for _, path := range completionPaths(word, term) {
+				if err := m.add(path); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	for _, e := range listed {
+		if err := m.add(e.Path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// completionPaths turns a folded completion of the typed word into likely
+// article paths: the typed text plus the rest of the completion (so "Mün"
+// completes to "München" although the index folds it to "munchen"), also
+// with a capital first letter, then the completion itself capitalised.
+func completionPaths(word, term string) []string {
+	var out []string
+	add := func(p string) {
+		if p != "" && !slices.Contains(out, p) {
+			out = append(out, p)
+		}
+	}
+	if rest, ok := strings.CutPrefix(term, foldText(word)); ok {
+		add(word + rest)
+		add(upperFirst(word + rest))
+	}
+	add(upperFirst(term))
+	return out
 }
 
 // titleHits queries the title index; without one (or when it fails) it

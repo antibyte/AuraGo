@@ -25,9 +25,11 @@ type articleStore interface {
 	cacheKey(path string) string
 }
 
-// titleIndex suggests titles from X/title/xapian.
+// titleIndex suggests titles from X/title/xapian. completions lists the
+// index's most frequent terms that start with a folded prefix.
 type titleIndex interface {
 	suggest(ctx context.Context, query string, limit int) ([]xapian.Hit, error)
+	completions(ctx context.Context, prefix string, n int) ([]string, error)
 }
 
 // fulltextIndex runs BM25 searches over X/fulltext/xapian.
@@ -138,6 +140,10 @@ type xapianTitles struct {
 // callers resolve and deduplicate them.
 func (t xapianTitles) suggest(ctx context.Context, query string, limit int) ([]xapian.Hit, error) {
 	return xapian.Suggest(ctx, t.db, t.analyzer, query, searchWindow(limit))
+}
+
+func (t xapianTitles) completions(ctx context.Context, prefix string, n int) ([]string, error) {
+	return xapian.MostFrequentTerms(ctx, t.db, prefix, n)
 }
 
 type xapianFulltext struct {

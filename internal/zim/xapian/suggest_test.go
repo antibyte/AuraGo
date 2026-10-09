@@ -334,3 +334,58 @@ func TestSuggestWildcardOnly(t *testing.T) {
 		t.Fatalf("wildcard stream over 700 documents ignored a cancellation: %v", err)
 	}
 }
+
+// MostFrequentTerms lists the same expansions Suggest weighs, most frequent
+// first, ties in byte order.
+func TestMostFrequentTerms(t *testing.T) {
+	for _, name := range fixtureNames {
+		db := openFixture(t, name, "title")
+		for _, prefix := range []string{"b", "ha", "s", "z"} {
+			all, err := db.TermsWithPrefix(prefix, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			type termFreq struct {
+				term string
+				tf   uint32
+			}
+			var want []termFreq
+			for _, term := range all {
+				tf, err := db.TermFreq(term)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want = append(want, termFreq{term, tf})
+			}
+			sort.Slice(want, func(i, j int) bool {
+				if want[i].tf != want[j].tf {
+					return want[i].tf > want[j].tf
+				}
+				return want[i].term < want[j].term
+			})
+			for _, n := range []int{1, 3, 200} {
+				got, err := MostFrequentTerms(context.Background(), db, prefix, n)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(got) != min(n, len(want), maxPartialExpansion) {
+					t.Fatalf("%s %q n=%d: %d terms, want %d", name, prefix, n, len(got), min(n, len(want)))
+				}
+				for i, term := range got {
+					if term != want[i].term {
+						t.Fatalf("%s %q n=%d: term %d = %q, want %q (%v)", name, prefix, n, i, term, want[i].term, got)
+					}
+				}
+			}
+		}
+	}
+	db := openFixture(t, "de", "title")
+	if got, err := MostFrequentTerms(context.Background(), db, "", 5); err != nil || got != nil {
+		t.Fatalf("empty prefix = %v, %v", got, err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := MostFrequentTerms(ctx, db, "b", 5); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled ctx: %v", err)
+	}
+}

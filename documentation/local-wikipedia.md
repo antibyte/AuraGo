@@ -278,8 +278,10 @@ Geschichte im Artikel Berlin aus der lokalen Wikipedia."
 ## The desktop app
 
 **Wikipedia** (Office category) appears in the Virtual Desktop while the
-integration is on. Type in the search box for title suggestions, press Enter for
-the result list, and open an article. Articles keep the original light Wikipedia
+integration is on. Type in the search box for title suggestions (for a single
+word, titles that start with it come first, including its most common
+completions: "Berl" suggests Berlin), press Enter for the result list, and open
+an article. Articles keep the original light Wikipedia
 style (with images in *with media* editions); the toolbar has back, forward, main
 page and a random article. The footer shows language, variant and edition date.
 
