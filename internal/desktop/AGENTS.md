@@ -52,7 +52,7 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   (validated by `retronet.ValidateEntriesDocument`, admin-only through the
   settings API). `SetRetroNetHostKey` writes a first-contact SSH key into one
   own SSH entry (the server calls it only for an administrator's confirmation)
-  with compare-and-set under a package mutex, retried up to 3 times so
+  with compare-and-set under a package mutex, at most 3 attempts so
   concurrent settings saves are never overwritten, and refuses unknown,
   non-SSH or already keyed entries. `SameHostWebSocketOrigin` is the exported
   strict origin check (empty Origin refused) for server-side WebSocket

@@ -40,11 +40,11 @@ opens the shell directly, and `Ctrl+]` in the shell returns to the directory.
 | Enter | Dial the selected entry |
 | `R` | Check again which services are reachable (or retry a failed directory load) |
 | `N` / `E` / `Del` | New / edit / delete an own entry (administrators) |
-| `Ctrl+]` | Hang up and return to the directory |
+| `Ctrl+]` | During a call: hang up (`NO CARRIER`, "You hung up"). In the local shell: return to the directory at once |
 
 Click or tap selects an entry; a second click or tap on it, or a double-click,
-dials it. Any key skips the modem sequence; after a call, any key returns to
-the directory. The toolbar offers **Directory** / **Hang up** and a **Modem
+dials it. Any key skips the modem sequence. When a call ends, any key pressed
+after a short pause returns to the directory. The toolbar offers **Directory** / **Hang up** and a **Modem
 speed** selector (Unlimited, 300, 1200, 2400, 9600 or 14400 baud) that slows
 output to the chosen speed; Unlimited is the default and the choice is kept per
 browser. Modem sounds follow the terminal's sound switch and are silent in the
@@ -61,8 +61,9 @@ starts at most once per minute.
 ## Display modes
 
 - **Mailboxes** (type Mailbox, including the door-game boards under Games) use
-  a fixed 80×25 grid with the IBM VGA font, scaled to the window, and the
-  CP437 or Latin-1 character set, like a DOS or Amiga terminal.
+  a fixed 80×25 grid with the IBM VGA font, scaled to the window, like a DOS
+  or Amiga terminal. Catalog mailboxes use CP437 or Latin-1; own Mailbox
+  entries can choose UTF-8, CP437 or Latin-1.
 - **Text worlds** (MUDs, Telehack, MapSCII and the other classics) and SSH
   entries follow the window size and report every resize to the service.
   While a Telnet text world does not echo, you type a whole line locally

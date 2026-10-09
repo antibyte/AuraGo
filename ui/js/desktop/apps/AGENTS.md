@@ -2848,8 +2848,11 @@ registration lives in `internal/desktop/types.go`.
   saving, and also refuses `localhost` names. `terminal-text.js`
   (`window.TerminalText`: `cellWidth`, `fitToCells(value, width, pad)`,
   `printable`) is the single display-width source (vendored xterm's Unicode 6
-  table) and strips control characters from server and translated text before
-  xterm. Modem sounds follow the key-click rules. Style catalog in `terminal-styles.js`
+  table); `printable` strips control characters from API-provided and
+  translated strings (names, descriptions, fingerprints, host, result text)
+  before the coordinator or directory writes them. The service's own byte
+  stream passes unchanged so ANSI works. Modem sounds follow the key-click
+  rules. Style catalog in `terminal-styles.js`
   (`window.TerminalStyles`: `ids`, `normalize`, `load`, `save`, `profile`,
   `applyXterm`, `effectControls`, `loadEffects`, `saveEffects`, `resetEffects`).
   IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
