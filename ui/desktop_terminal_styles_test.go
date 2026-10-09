@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestDesktopTerminalStyleCatalog(t *testing.T) {
@@ -308,6 +311,191 @@ func TestDesktopTerminalVGAFontIsVendoredWithAttribution(t *testing.T) {
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop-app-terminal.css missing %q", want)
+		}
+	}
+}
+
+var terminalRetroNetLocales = []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+
+// Catalog IDs from internal/retronet/catalog.go (slice 1); slice 4 owns the
+// check that each description key exists in all 16 desktop locales.
+var terminalRetroNetCatalogIDs = []string{
+	"telehack", "towel", "mapscii", "fics", "telehack-ssh",
+	"vertrauen", "digital-distortion", "diamond-mine", "diamond-mine-wwiv", "retroboard",
+	"futureland", "vague", "the-dungeon", "funtopia", "imzadi-box", "redghost",
+	"discworld", "aardwolf", "batmud", "mume", "genesis", "alter-aeon", "miriani",
+	"cosmic-rage", "star-conquest", "furrymuck", "spindizzy",
+	"sshtron", "netris", "digital-highway", "digicom", "digital-warfare", "disconnected-by-peer",
+}
+
+var terminalRetroNetReasons = []string{
+	"refused", "limit", "timeout", "dns", "blocked", "remote_closed", "idle", "max_duration",
+	"disabled", "hostkey_mismatch", "hostkey_rejected", "server_shutdown", "local_hangup", "lost",
+}
+
+var terminalRetroNetFixedKeys = []string{
+	"desktop.terminal_directory",
+	"desktop.terminal_dialing",
+	"desktop.terminal_connected",
+	"desktop.terminal_retronet_directory",
+	"desktop.terminal_retronet_hangup",
+	"desktop.terminal_retronet_baud",
+	"desktop.terminal_retronet_baud_off",
+	"desktop.terminal_retronet_baud_rate",
+	"desktop.terminal_retronet_title",
+	"desktop.terminal_retronet_local_shell",
+	"desktop.terminal_retronet_local_shell_desc",
+	"desktop.terminal_retronet_loading",
+	"desktop.terminal_retronet_load_failed",
+	"desktop.terminal_retronet_checking",
+	"desktop.terminal_retronet_status_failed",
+	"desktop.terminal_retronet_not_own",
+	"desktop.terminal_retronet_help",
+	"desktop.terminal_retronet_help_admin",
+	"desktop.terminal_retronet_announce",
+	"desktop.terminal_retronet_hangup_hint",
+	"desktop.terminal_retronet_last_seen",
+	"desktop.terminal_retronet_telnet_notice",
+	"desktop.terminal_retronet_press_key",
+	"desktop.terminal_retronet_press_key_shell",
+	"desktop.terminal_retronet_hostkey_title",
+	"desktop.terminal_retronet_hostkey_fingerprint",
+	"desktop.terminal_retronet_hostkey_question",
+	"desktop.terminal_retronet_hostkey_yes",
+	"desktop.terminal_retronet_hostkey_no",
+	"desktop.terminal_retronet_new_entry",
+	"desktop.terminal_retronet_edit_entry",
+	"desktop.terminal_retronet_form_hint",
+	"desktop.terminal_retronet_field_name",
+	"desktop.terminal_retronet_field_description",
+	"desktop.terminal_retronet_field_protocol",
+	"desktop.terminal_retronet_field_type",
+	"desktop.terminal_retronet_type_bbs",
+	"desktop.terminal_retronet_type_world",
+	"desktop.terminal_retronet_field_charset",
+	"desktop.terminal_retronet_field_host",
+	"desktop.terminal_retronet_field_port",
+	"desktop.terminal_retronet_field_user",
+	"desktop.terminal_retronet_error_name",
+	"desktop.terminal_retronet_error_description",
+	"desktop.terminal_retronet_error_host",
+	"desktop.terminal_retronet_error_private_host",
+	"desktop.terminal_retronet_error_port",
+	"desktop.terminal_retronet_error_mail_port",
+	"desktop.terminal_retronet_error_user",
+	"desktop.terminal_retronet_error_limit",
+	"desktop.terminal_retronet_error_save",
+	"desktop.terminal_retronet_error_delete",
+	"desktop.terminal_retronet_delete_title",
+	"desktop.terminal_retronet_delete_confirm",
+}
+
+// Full sentences that must be translated in every non-English locale.
+var terminalRetroNetSentenceKeys = []string{
+	"desktop.terminal_retronet_load_failed",
+	"desktop.terminal_retronet_not_own",
+	"desktop.terminal_retronet_help",
+	"desktop.terminal_retronet_help_admin",
+	"desktop.terminal_retronet_telnet_notice",
+	"desktop.terminal_retronet_press_key",
+	"desktop.terminal_retronet_press_key_shell",
+	"desktop.terminal_retronet_hostkey_title",
+	"desktop.terminal_retronet_form_hint",
+	"desktop.terminal_retronet_error_name",
+	"desktop.terminal_retronet_error_host",
+	"desktop.terminal_retronet_error_private_host",
+	"desktop.terminal_retronet_error_port",
+	"desktop.terminal_retronet_error_mail_port",
+	"desktop.terminal_retronet_error_user",
+	"desktop.terminal_retronet_error_limit",
+}
+
+func terminalRetroNetI18nKeys() []string {
+	keys := append([]string{}, terminalRetroNetFixedKeys...)
+	for _, category := range []string{"classics", "bbs", "muds", "games", "own"} {
+		keys = append(keys, "desktop.terminal_retronet_cat_"+category)
+	}
+	for _, state := range []string{"online", "offline", "unknown"} {
+		keys = append(keys, "desktop.terminal_retronet_status_"+state)
+	}
+	for _, reason := range terminalRetroNetReasons {
+		keys = append(keys, "desktop.terminal_retronet_result_"+reason)
+	}
+	for _, id := range terminalRetroNetCatalogIDs {
+		keys = append(keys, "desktop.terminal_retronet_entry_"+strings.ReplaceAll(id, "-", "_"))
+	}
+	return keys
+}
+
+func readTerminalDesktopLocale(t *testing.T, lang string) map[string]string {
+	t.Helper()
+	path := filepath.Join("lang", "desktop", lang+".json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	var values map[string]string
+	if err := json.Unmarshal(data, &values); err != nil {
+		t.Fatalf("parse %s: %v", path, err)
+	}
+	return values
+}
+
+func TestDesktopTerminalRetroNetI18n(t *testing.T) {
+	t.Parallel()
+
+	keys := terminalRetroNetI18nKeys()
+	if len(keys) != 109 || len(terminalRetroNetCatalogIDs) != 33 {
+		t.Fatalf("Retro-Net key list has %d keys and %d catalog IDs, want 109 and 33", len(keys), len(terminalRetroNetCatalogIDs))
+	}
+	placeholder := regexp.MustCompile(`\{\{[a-z_]+\}\}`)
+	english := readTerminalDesktopLocale(t, "en")
+	for _, lang := range terminalRetroNetLocales {
+		values := readTerminalDesktopLocale(t, lang)
+		for _, key := range keys {
+			got := strings.TrimSpace(values[key])
+			if got == "" {
+				t.Fatalf("lang/desktop/%s.json missing non-empty %s", lang, key)
+			}
+			want := placeholder.FindAllString(english[key], -1)
+			have := placeholder.FindAllString(got, -1)
+			sort.Strings(want)
+			sort.Strings(have)
+			if strings.Join(want, ",") != strings.Join(have, ",") {
+				t.Fatalf("lang/desktop/%s.json %s placeholders %v, want %v", lang, key, have, want)
+			}
+		}
+		if lang != "en" {
+			for _, key := range append(append([]string{}, terminalRetroNetSentenceKeys...), func() []string {
+				var results []string
+				for _, reason := range terminalRetroNetReasons {
+					results = append(results, "desktop.terminal_retronet_result_"+reason)
+				}
+				return results
+			}()...) {
+				if values[key] == english[key] {
+					t.Fatalf("lang/desktop/%s.json copies the English %s", lang, key)
+				}
+			}
+		}
+		yes := values["desktop.terminal_retronet_hostkey_yes"]
+		no := values["desktop.terminal_retronet_hostkey_no"]
+		if utf8.RuneCountInString(yes) != 1 || utf8.RuneCountInString(no) != 1 || strings.EqualFold(yes, no) {
+			t.Fatalf("lang/desktop/%s.json host-key answers must be two different single letters, got %q/%q", lang, yes, no)
+		}
+	}
+	if english["desktop.terminal_retronet_telnet_notice"] != "Unencrypted Telnet connection – do not use real passwords" {
+		t.Fatalf("English Telnet notice changed: %q", english["desktop.terminal_retronet_telnet_notice"])
+	}
+	german := readTerminalDesktopLocale(t, "de")
+	for key, umlaut := range map[string]string{
+		"desktop.terminal_retronet_cat_own":                 "ä",
+		"desktop.terminal_retronet_telnet_notice":           "ü",
+		"desktop.terminal_retronet_press_key":               "ü",
+		"desktop.terminal_retronet_result_hostkey_mismatch": "ü",
+	} {
+		if !strings.Contains(german[key], umlaut) {
+			t.Fatalf("German %s must use real umlauts, got %q", key, german[key])
 		}
 	}
 }
