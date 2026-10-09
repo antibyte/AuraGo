@@ -28,10 +28,14 @@ window.matchMedia=query=>{
  const matches=motion==='reduce'&&/:\s*reduce\)/.test(query);
  return {matches,media:query,onchange:null,addEventListener(){},removeEventListener(){},addListener(){},removeListener(){},dispatchEvent(){return false;}};
 };
-window.fixtureSockets=[];window.fixtureTerms=[];window.fixtureCalls=[];window.fixtureModemAudio=0;
+window.fixtureSockets=[];window.fixtureTerms=[];window.fixtureCalls=[];window.fixtureOscillators=0;
 window.fixtureCanEdit=true;window.fixtureSettingsError='';window.fixtureDirectoryStatus=0;
-const NativeAudioContext=window.AudioContext;
-if(NativeAudioContext)window.AudioContext=class extends NativeAudioContext{constructor(...args){super(...args);if(String(new Error().stack).includes('terminal-modem.js'))fixtureModemAudio++;}};
+// Synthesized tones: every oscillator started in the page (key clicks only sound on real keydown events,
+// which the modem checks never send).
+if(window.AudioContext){
+ const createOscillator=AudioContext.prototype.createOscillator;
+ AudioContext.prototype.createOscillator=function(...args){fixtureOscillators++;return createOscillator.apply(this,args);};
+}
 const Xterm=Terminal;
 window.Terminal=class extends Xterm{constructor(opts){super({...opts,cursorBlink:false});fixtureTerms.push(this);}};
 window.WebSocket=class{
@@ -114,6 +118,8 @@ window.fixtureReady=(async()=>{
  window.t=(key,params)=>{let s=words[key]||key;if(params)for(const [name,value] of Object.entries(params))s=s.split('{{'+name+'}}').join(String(value));return s;};
  window.i18n={t:window.t};
  const animated=motion==='full';
+ // Subtests share the origin: start every run from the same storage.
+ localStorage.clear();
  localStorage.setItem('aurago.desktop.terminal.style','amber');
  localStorage.setItem('aurago.desktop.terminal.audioMuted','1');
  localStorage.setItem('aurago.desktop.terminal.baud','0');
@@ -286,7 +292,7 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	// 4. Dialing: modem transcript, buffering, CONNECT.
 	check("dial opens one Retro-Net socket keyed by entry ID", `()=>{const s=fixtureSocket(),u=new URL(s.url),term=fixtureTerm(),root=fixtureRoot(),btn=root.querySelector('[data-terminal-retronet-action]');return u.pathname==='/api/desktop/retronet/connect'&&u.searchParams.get('entry')==='telehack'&&u.searchParams.get('cols')===String(term.cols)&&u.searchParams.get('rows')===String(term.rows)&&[...u.searchParams.keys()].sort().join(',')==='cols,entry,rows'&&s.binaryType==='arraybuffer'&&root.dataset.terminalMode==='dialing'&&root.dataset.terminalState==='desktop.terminal_dialing'&&fixtureLive().length===1&&localStorage.getItem('aurago.desktop.terminal.retronet.last')==='telehack'&&!btn.hidden&&btn.textContent===t('desktop.terminal_retronet_hangup');}`)
 	if full {
-		check("the dial line is typed out", `async()=>!(await fixtureText()).includes('ATDT telehack.com')`)
+		check("the dial line is not printed at once", `async()=>!(await fixtureText()).includes('ATDT telehack.com')`)
 	} else {
 		check("reduced motion prints the dial lines at once", `async()=>{const text=await fixtureText();return text.includes('ATZ')&&text.includes('OK')&&text.includes('ATDT telehack.com');}`)
 	}
@@ -298,7 +304,7 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	}
 	wait("CONNECT, Telnet notice, then the buffered data", `async()=>{const text=await fixtureText(),c=text.indexOf('CONNECT 14400'),n=text.indexOf(t('desktop.terminal_retronet_telnet_notice')),b=text.indexOf('EARLY BANNER');return text.includes('ATZ')&&text.includes('ATDT telehack.com')&&c>=0&&n>c&&b>n;}`)
 	check("connected; the skip key stays local", `()=>{const root=fixtureRoot();return fixtureSent(fixtureSocket()).length===0&&root.dataset.terminalMode==='retro'&&root.dataset.terminalState==='desktop.terminal_connected'&&fixtureTerm().options.convertEol===false;}`)
-	check("a muted modem never creates audio", `()=>fixtureModemAudio===0`)
+	check("a muted modem plays no tones", `()=>fixtureOscillators===0`)
 
 	// 5. Local line editing for a world entry, hidden echo (password prompt), then character mode.
 	run(`async()=>{await fixtureInput('look');}`)
@@ -324,18 +330,22 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	// 6. Service data and world resizes.
 	run(`()=>fixtureData('\r\nWillkommen in Überwald\r\n')`)
 	wait("service output reaches xterm", `async()=>(await fixtureText()).includes('Willkommen in Überwald')`)
-	run(`async()=>{const w=document.querySelector('.vd-window');w.style.width='820px';await new Promise(r=>setTimeout(r,300));}`)
+	run(`async()=>{const w=document.querySelector('.vd-window');w.style.width='820px';}`)
 	wait("a world resize goes out as a JSON frame", `()=>fixtureSent(fixtureSocket()).some(f=>{if(!f.startsWith('txt:'))return false;const m=JSON.parse(f.slice(4));return m.type==='resize'&&m.cols===fixtureTerm().cols&&m.rows===fixtureTerm().rows;})`)
 
 	// 7. Baud throttle.
 	run(`()=>{const s=fixtureRoot().querySelector('select[data-terminal-baud]');s.value='300';s.dispatchEvent(new Event('change'));fixtureData('\r\n'+'#'.repeat(600)+'\r\nEND-OF-BLOCK\r\n');}`)
-	check("300 baud holds output back", `async()=>{await new Promise(r=>setTimeout(r,250));return !(await fixtureText()).includes('END-OF-BLOCK')&&localStorage.getItem('aurago.desktop.terminal.baud')==='300';}`)
+	wait("300 baud releases output a few bytes at a time", `async()=>(await fixtureText()).includes('#')&&localStorage.getItem('aurago.desktop.terminal.baud')==='300'`)
+	check("300 baud holds the rest back", `async()=>{const text=await fixtureText();return !text.includes('END-OF-BLOCK')&&(text.match(/#/g)||[]).length<600;}`)
 	run(`()=>{const s=fixtureRoot().querySelector('select[data-terminal-baud]');s.value='0';s.dispatchEvent(new Event('change'));}`)
 	wait("switching the throttle off flushes the queue", `async()=>(await fixtureText()).includes('END-OF-BLOCK')`)
 
 	// 8. Style switch keeps xterm and the socket.
-	run(`async()=>{window.fixtureKeep=fixtureSocket();fixtureStyle('green');await document.fonts.ready;await new Promise(r=>setTimeout(r,200));}`)
-	check("a style switch keeps xterm and the socket", `()=>fixtureSocket()===fixtureKeep&&fixtureKeep.readyState===1&&fixtureTerms.length===1&&fixtureLive().length===1&&fixtureRoot().dataset.terminalMode==='retro'&&fixtureRoot().dataset.terminalStyle==='green'`)
+	run(`()=>{window.fixtureKeep=fixtureSocket();fixtureStyle('green');}`)
+	wait("the green style is applied", `()=>{const root=fixtureRoot(),theme=fixtureTerm().options.theme;
+		return root.dataset.terminalStyle==='green'&&theme.foreground===TerminalStyles.profile('green').theme.foreground;}`)
+	check("a style switch keeps xterm and the socket", `()=>fixtureSocket()===fixtureKeep&&fixtureKeep.readyState===1&&
+		fixtureTerms.length===1&&fixtureLive().length===1&&fixtureRoot().dataset.terminalMode==='retro'`)
 
 	// 9. Ctrl+] hangs up; any key returns to the directory with the last entry selected.
 	run(`async()=>{await fixtureInput('\x1d');}`)
@@ -366,7 +376,18 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	// 11. BBS: fixed 80x25 grid with the VGA font.
 	run(`async()=>{await fixtureInput('0');await fixtureInput('3');await fixtureInput('\r');}`)
 	wait("a BBS dials with a fixed 80x25 grid", `()=>{const s=fixtureSocket(),u=new URL(s.url),term=fixtureTerm();return u.searchParams.get('entry')==='vertrauen'&&u.searchParams.get('cols')==='80'&&u.searchParams.get('rows')==='25'&&term.cols===80&&term.rows===25&&fixtureRoot().dataset.terminalGeometry==='bbs'&&term.options.fontFamily.includes('Aura VGA');}`)
-	wait("the VGA font fills and fits the glass, centered", `async()=>{await document.fonts.load('16px "Aura VGA"');await new Promise(r=>setTimeout(r,300));const term=fixtureTerm(),scr=term.element.querySelector('.xterm-screen').getBoundingClientRect(),glass=fixtureRoot().querySelector('.vd-terminal-screen').getBoundingClientRect();return document.fonts.check('16px "Aura VGA"')&&Number.isInteger(term.options.fontSize*2)&&scr.width<=glass.width+0.5&&scr.height<=glass.height+0.5&&Math.max(scr.width/glass.width,scr.height/glass.height)>0.75&&Math.abs((scr.left-glass.left)-(glass.right-scr.right))<=2&&Math.abs((scr.top-glass.top)-(glass.bottom-scr.bottom))<=2;}`)
+	// The fit settles over two or three frames after the font has loaded.
+	wait("the VGA font fills and fits the glass, centered", `async()=>{
+		const loaded=(await document.fonts.load('16px "Aura VGA"')).some(f=>f.status==='loaded');
+		await new Promise(r=>setTimeout(r,300));
+		const term=fixtureTerm(),scr=term.element.querySelector('.xterm-screen').getBoundingClientRect(),
+			glass=fixtureRoot().querySelector('.vd-terminal-screen').getBoundingClientRect();
+		return loaded&&Number.isInteger(term.options.fontSize*2)&&
+			scr.width<=glass.width+0.5&&scr.height<=glass.height+0.5&&
+			Math.max(scr.width/glass.width,scr.height/glass.height)>0.75&&
+			Math.abs((scr.left-glass.left)-(glass.right-scr.right))<=2&&
+			Math.abs((scr.top-glass.top)-(glass.bottom-scr.bottom))<=2;
+	}`)
 	wait("BBS socket open", `()=>fixtureSocket().readyState===1`)
 	run(`()=>{fixtureControl({type:'connected',protocol:'telnet',kind:'bbs',charset:'cp437'});fixtureControl({type:'echo',remote:false,hidden:false});fixtureData('\x1b[2J\x1b[HVERTRAUEN LOGIN: ');}`)
 	if full {
@@ -375,14 +396,18 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	wait("BBS output arrives", `async()=>(await fixtureText()).includes('VERTRAUEN LOGIN:')`)
 	run(`async()=>{await fixtureInput('guest\r');}`)
 	check("BBS input stays in character mode even without remote echo", `async()=>{const s=fixtureSent(fixtureSocket());return s.length===1&&s[0]==='bin:guest\r'&&!(await fixtureText()).includes('LOGIN: guest');}`)
-	run(`async()=>{window.fixtureBbsFont=fixtureTerm().options.fontSize;const w=document.querySelector('.vd-window');w.style.width='640px';w.style.height='520px';await new Promise(r=>setTimeout(r,600));}`)
+	run(`async()=>{window.fixtureBbsFont=fixtureTerm().options.fontSize;const w=document.querySelector('.vd-window');w.style.width='640px';w.style.height='520px';}`)
 	wait("a resize refits the VGA grid", `()=>{const term=fixtureTerm(),scr=term.element.querySelector('.xterm-screen').getBoundingClientRect(),glass=fixtureRoot().querySelector('.vd-terminal-screen').getBoundingClientRect();return term.cols===80&&term.rows===25&&term.options.fontSize<fixtureBbsFont&&scr.width<=glass.width+0.5&&scr.height<=glass.height+0.5;}`)
 	check("80x25 mode never sends resize frames", `()=>!fixtureSent(fixtureSocket()).some(f=>f.startsWith('txt:'))`)
-	run(`async()=>{fixtureStyle('amber');await document.fonts.ready;await new Promise(r=>setTimeout(r,400));}`)
-	check("a style switch keeps 80x25, the VGA font and the socket", `()=>{const term=fixtureTerm();return term.cols===80&&term.rows===25&&term.options.fontFamily.includes('Aura VGA')&&fixtureLive().length===1&&fixtureSocket().readyState===1&&fixtureTerms.length===1;}`)
+	run(`()=>{window.fixtureKeep=fixtureSocket();fixtureStyle('amber');}`)
+	wait("the amber style is applied in 80x25 mode", `()=>{const root=fixtureRoot(),term=fixtureTerm();
+		return root.dataset.terminalStyle==='amber'&&term.options.theme.foreground===TerminalStyles.profile('amber').theme.foreground&&
+			term.cols===80&&term.rows===25&&term.options.fontFamily.includes('Aura VGA');}`)
+	check("a style switch keeps 80x25 and the socket", `()=>fixtureSocket()===fixtureKeep&&fixtureKeep.readyState===1&&
+		fixtureLive().length===1&&fixtureTerms.length===1&&fixtureRoot().dataset.terminalGeometry==='bbs'`)
 	run(`()=>fixtureRoot().querySelector('[data-terminal-retronet-action]').click()`)
 	wait("the toolbar button hangs up", `async()=>(await fixtureText()).includes('NO CARRIER')&&fixtureRoot().dataset.terminalMode==='result'&&fixtureLive().length===0`)
-	run(`async()=>{const w=document.querySelector('.vd-window');w.style.width='960px';w.style.height='720px';await fixtureDismiss('q');await new Promise(r=>setTimeout(r,300));}`)
+	run(`async()=>{const w=document.querySelector('.vd-window');w.style.width='960px';w.style.height='720px';await fixtureDismiss('q');}`)
 	wait("leaving 80x25 restores the style font and fit", `async()=>{const term=fixtureTerm(),root=fixtureRoot();return root.dataset.terminalMode==='directory'&&(await fixtureText()).includes('Telehack')&&!root.hasAttribute('data-terminal-geometry')&&term.options.fontFamily===TerminalStyles.profile(root.dataset.terminalStyle).fontFamily&&!term.element.style.paddingLeft&&!(term.cols===80&&term.rows===25);}`)
 
 	// 12. SSH first contact for an own entry.
@@ -433,8 +458,9 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	wait("Del asks for confirmation", `()=>{const d=document.querySelector('dialog[data-terminal-retronet-dialog="delete"][open]');return !!d&&d.textContent.includes('New Board');}`)
 	run(`()=>fixtureDialog('delete').querySelector('button[type="submit"]').click()`)
 	wait("delete stores the remaining entries", `async()=>{const doc=fixturePuts().at(-1);return !fixtureDialog('delete')&&doc.entries.length===2&&!doc.entries.some(e=>e.name==='New Board')&&!(await fixtureText()).includes('New Board');}`)
-	run(`async()=>{await fixtureInput('0');await fixtureInput('1');await fixtureInput('e');await new Promise(r=>setTimeout(r,100));}`)
-	check("catalog entries cannot be edited", `async()=>!fixtureDialog('edit')&&(await fixtureText()).includes(t('desktop.terminal_retronet_not_own'))`)
+	run(`async()=>{await fixtureInput('0');await fixtureInput('1');await fixtureInput('e');}`)
+	wait("E on a catalog entry explains why", `async()=>(await fixtureSelectedLine()).startsWith('>01')&&(await fixtureText()).includes(t('desktop.terminal_retronet_not_own'))`)
+	check("catalog entries cannot be edited", `()=>!fixtureDialog('edit')&&!document.querySelector('dialog[data-terminal-retronet-dialog]')`)
 
 	// 14. Local shell 00 (Code Studio socket), Ctrl+] back, non-admin directory.
 	run(`async()=>{window.fixtureCanEdit=false;await fixtureInput('0');await fixtureInput('0');await fixtureInput('\r');}`)
@@ -443,15 +469,20 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	check("shell keystrokes stay text frames", `()=>fixtureSocket().sent.includes('ls')`)
 	run(`async()=>{window.fixtureShell=fixtureSocket();await fixtureInput('\x1d');}`)
 	wait("Ctrl+] leaves the shell for the directory", `async()=>fixtureShell.readyState===3&&!fixtureShell.sent.includes('\x1d')&&fixtureRoot().dataset.terminalMode==='directory'&&(await fixtureText()).includes('Telehack')&&fixtureLive().length===0`)
-	run(`async()=>{await fixtureInput('n');await new Promise(r=>setTimeout(r,100));}`)
-	check("non-admins get no entry editor", `async()=>!fixtureDialog('new')&&!(await fixtureText()).includes(t('desktop.terminal_retronet_help_admin').slice(0,12))`)
+	// Keys are handled in order: once the later jump to 02 shows, N has been processed.
+	run(`async()=>{await fixtureInput('n');await fixtureInput('0');await fixtureInput('2');}`)
+	wait("the keys after N are handled", `async()=>(await fixtureSelectedLine()).startsWith('>02')`)
+	check("non-admins get no entry editor", `async()=>!fixtureDialog('new')&&!document.querySelector('dialog[data-terminal-retronet-dialog]')&&
+		!(await fixtureText()).includes(t('desktop.terminal_retronet_help_admin').slice(0,12))`)
 
 	// 15. Modem sounds follow the key-click rules.
 	run(`async()=>{localStorage.setItem('aurago.desktop.terminal.audioMuted','0');await fixtureInput('0');await fixtureInput('1');await fixtureInput('\r');}`)
 	if full {
-		wait("an unmuted retro dial synthesizes tones", `()=>fixtureModemAudio>0`)
+		wait("an unmuted retro dial synthesizes tones", `()=>fixtureOscillators>0`)
 	} else {
-		check("reduced motion never plays modem tones", `async()=>{await new Promise(r=>setTimeout(r,1500));return fixtureModemAudio===0&&(await fixtureText()).includes('ATDT telehack.com');}`)
+		// Reduced motion prints the whole transcript at once and finishes the dial: no tone can follow.
+		wait("reduced motion prints the dial at once", `async()=>(await fixtureText()).includes('ATDT telehack.com')`)
+		check("reduced motion never plays modem tones", `()=>fixtureOscillators===0`)
 	}
 	run(`async()=>{localStorage.setItem('aurago.desktop.terminal.audioMuted','1');await fixtureInput('\x1d');}`)
 	wait("hang-up while dialing", `async()=>(await fixtureText()).includes('NO CARRIER')&&fixtureLive().length===0&&fixtureRoot().dataset.terminalMode==='result'`)
@@ -467,12 +498,24 @@ func runTerminalRetroNetBrowser(t *testing.T, browser *rod.Browser, base, motion
 	check("with Retro-Net off Ctrl+] reaches the shell", `()=>fixtureSocket().sent.includes('\x1d')&&fixtureRoot().dataset.terminalMode==='shell'`)
 
 	// 17. A new window with the toggle off behaves exactly as today.
-	run(`async()=>{window.fixtureMark=fixtureSockets.length;window.fixtureCallMark=fixtureCalls.length;await fixtureBoot(false);await new Promise(r=>setTimeout(r,150));}`)
-	check("toggle off opens only the Code Studio shell", `()=>{const created=fixtureSockets.slice(fixtureMark),root=fixtureRoot();return created.length===1&&new URL(created[0].url).pathname==='/api/code-studio/terminal'&&fixtureLive().length===1&&!fixtureCalls.slice(fixtureCallMark).some(c=>c.path.startsWith('/api/desktop/retronet'))&&root.dataset.terminalMode==='shell'&&root.querySelector('[data-terminal-retronet-action]').hidden&&root.querySelector('[data-terminal-baud-label]').hidden;}`)
+	run(`async()=>{window.fixtureMark=fixtureSockets.length;window.fixtureCallMark=fixtureCalls.length;await fixtureBoot(false);}`)
+	wait("toggle off opens the Code Studio shell", `()=>{const created=fixtureSockets.slice(fixtureMark);
+		return created.length>=1&&created[0].readyState===1&&new URL(created[0].url).pathname==='/api/code-studio/terminal'&&
+			fixtureRoot().dataset.terminalMode==='shell'&&fixtureRoot().dataset.terminalState==='desktop.terminal_running';}`)
+	check("toggle off opens nothing else", `()=>{const root=fixtureRoot();
+		return fixtureSockets.length===fixtureMark+1&&fixtureLive().length===1&&
+			!fixtureCalls.slice(fixtureCallMark).some(c=>c.path.startsWith('/api/desktop/retronet'))&&
+			root.querySelector('[data-terminal-retronet-action]').hidden&&root.querySelector('[data-terminal-baud-label]').hidden;}`)
 
 	// 18. "Open Terminal Here" goes straight to the shell; the toolbar opens the directory; double-click dials.
-	run(`async()=>{window.fixtureMark=fixtureSockets.length;window.fixtureCallMark=fixtureCalls.length;await fixtureBoot(true,{path:'/workspace/projects'});await new Promise(r=>setTimeout(r,150));}`)
-	check("path context opens the shell directly", `()=>{const created=fixtureSockets.slice(fixtureMark),root=fixtureRoot(),btn=root.querySelector('[data-terminal-retronet-action]');return created.length===1&&new URL(created[0].url).pathname==='/api/code-studio/terminal'&&fixtureLive().length===1&&!fixtureCalls.slice(fixtureCallMark).some(c=>c.path==='/api/desktop/retronet/directory')&&root.dataset.terminalMode==='shell'&&!btn.hidden&&btn.textContent===t('desktop.terminal_retronet_directory');}`)
+	run(`async()=>{window.fixtureMark=fixtureSockets.length;window.fixtureCallMark=fixtureCalls.length;await fixtureBoot(true,{path:'/workspace/projects'});}`)
+	wait("path context opens the shell directly", `()=>{const created=fixtureSockets.slice(fixtureMark),root=fixtureRoot();
+		return created.length>=1&&created[0].readyState===1&&new URL(created[0].url).pathname==='/api/code-studio/terminal'&&
+			root.dataset.terminalMode==='shell'&&root.dataset.terminalState==='desktop.terminal_running';}`)
+	check("path context opens no directory", `()=>{const btn=fixtureRoot().querySelector('[data-terminal-retronet-action]');
+		return fixtureSockets.length===fixtureMark+1&&fixtureLive().length===1&&
+			!fixtureCalls.slice(fixtureCallMark).some(c=>c.path==='/api/desktop/retronet/directory')&&
+			!btn.hidden&&btn.textContent===t('desktop.terminal_retronet_directory');}`)
 	run(`()=>fixtureRoot().querySelector('[data-terminal-retronet-action]').click()`)
 	wait("the toolbar opens the directory", backInDirectory)
 	run(`async()=>{await fixtureFlush();const term=fixtureTerm(),row=fixtureLines().findIndex(l=>l.includes('Telehack')),screen=term.element.querySelector('.xterm-screen'),r=screen.getBoundingClientRect();screen.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,clientX:r.left+20,clientY:r.top+(row+0.5)*r.height/term.rows}));}`)
