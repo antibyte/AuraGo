@@ -19,7 +19,7 @@
     "test:mission-control": "node scripts/test-mission-control-schedule.mjs && node scripts/test-mission-control-flows.mjs",
     "test:dashboard-cron": "node scripts/test-dashboard-cronjobs.mjs",
     "test:missions-page": "node scripts/test-missions-page-flows.mjs",
-    "test:terminal-retronet": "node scripts/test-terminal-modem.mjs && node scripts/test-terminal-retronet-directory.mjs && node scripts/test-terminal-retronet-session.mjs",
+    "test:terminal-retronet": "node scripts/test-terminal-modem.mjs && node scripts/test-terminal-retronet-directory.mjs && node scripts/test-terminal-retronet-session.mjs && node scripts/test-terminal-retronet-entries.mjs",
     "build:ui": "node scripts/build-ui-bundles.js",
     "build:game-maker-3d": "node scripts/build-game-maker-3d.js",
     "test:game-maker-glbs": "node scripts/validate-game-maker-glbs.mjs",

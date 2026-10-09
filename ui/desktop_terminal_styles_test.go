@@ -753,7 +753,7 @@ func TestDesktopTerminalBehaviourScripts(t *testing.T) {
 	if err != nil {
 		t.Skip("node is not installed")
 	}
-	for _, name := range []string{"test-terminal-modem.mjs", "test-terminal-retronet-directory.mjs", "test-terminal-retronet-session.mjs"} {
+	for _, name := range []string{"test-terminal-modem.mjs", "test-terminal-retronet-directory.mjs", "test-terminal-retronet-session.mjs", "test-terminal-retronet-entries.mjs"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -811,6 +811,51 @@ func TestDesktopTerminalRetroNetSessionContract(t *testing.T) {
 	for _, forbidden := range []string{"&host=", "&port=", "?host=", "innerHTML", "function cellWidth", "function fitToCells", "function printable", "0x1f300", `\u001f`} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal-retronet-session.js dials by entry ID only and uses the shared TerminalText helpers; found %q", forbidden)
+		}
+	}
+}
+
+// Own-entry editor (Contract E): native dialogs, text only through textContent/value, the stored document keys
+// and the server's field rules mirrored for UX. Behaviour is covered by scripts/test-terminal-retronet-entries.mjs.
+func TestDesktopTerminalRetroNetEntriesContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/terminal-retronet-entries.js")
+	for _, want := range []string{
+		"window.TerminalRetroNetEntries = { open: open, confirmDelete: confirmDelete }",
+		"document.createElement('dialog')",
+		"dialog.showModal()",
+		"const SETTING_KEY = 'retronet.entries'",
+		"api('/api/desktop/settings', {",
+		"method: 'PUT'",
+		"key: SETTING_KEY",
+		"JSON.stringify({ version: 1, entries: entries })",
+		"window.crypto.getRandomValues",
+		"'own-' + chars.join('')",
+		"const ID_LENGTH = 12",
+		"const MAX_ENTRIES = 64",
+		"const BLOCKED_PORTS = [25, 465, 587]",
+		`const INVISIBLE = /[\p{Cc}\p{Co}\p{Cs}\p{Zl}\p{Zp}\ufffd]|(?!\u200d)\p{Cf}/u`,
+		`const VISIBLE = /[^\p{White_Space}\u200d]/u`,
+		"const HEX_LABEL = /^0x[0-9a-f]*$/",
+		"const SSH_USER = /^[a-z0-9._-]{1,32}$/",
+		"draft.host_key = entry.host_key",
+		"'data-terminal-retronet-dialog'",
+		"'data-retronet-error'",
+		".textContent = ",
+		"tr('desktop.terminal_retronet_error_save', { message: errorText(err, tr) })",
+		"tr('desktop.terminal_retronet_error_delete', { message: errorText(err, tr) })",
+		"tr('desktop.terminal_retronet_delete_confirm', { name: entry.name })",
+		"tr('desktop.terminal_retronet_type_bbs')",
+		"tr('desktop.terminal_retronet_type_world')",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("terminal-retronet-entries.js missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{"alert(", "window.confirm", "prompt(", "new WebSocket", "innerHTML", "outerHTML", "insertAdjacentHTML", "document.write"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("terminal-retronet-entries.js must use desktop dialogs built from DOM nodes only; found %q", forbidden)
 		}
 	}
 }
