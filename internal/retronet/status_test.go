@@ -236,8 +236,9 @@ func TestStatusProberOfflineKeepsLastOnline(t *testing.T) {
 }
 
 func TestStatusProberUnknownForMissingEntries(t *testing.T) {
+	clock := newProbeClock()
 	d := newProbeDialer(false)
-	p := &StatusProber{Dialer: d.dialer()}
+	p := &StatusProber{Dialer: d.dialer(), Now: clock.Now}
 	known := probeEntries(2)
 	p.Refresh(context.Background(), known, 5*time.Second)
 	added := append(probeEntries(2), Entry{ID: "own-newentry1", Protocol: ProtocolTelnet, Host: "new.example", Port: 23, Kind: KindWorld, Charset: CharsetUTF8})
@@ -246,6 +247,10 @@ func TestStatusProberUnknownForMissingEntries(t *testing.T) {
 		t.Fatalf("statuses = %+v", statuses)
 	}
 	if !stale {
+		t.Fatal("an entry that was never probed must make the snapshot stale")
+	}
+	clock.Advance(61 * time.Second) // the refresh floor allows the next run
+	if _, stale = p.Snapshot(added); !stale {
 		t.Fatal("an entry that was never probed must make the snapshot stale")
 	}
 	p.Refresh(context.Background(), added, 5*time.Second) // waits for the probe Snapshot started
@@ -321,5 +326,63 @@ func TestStatusProberDefaultsMatchTheSpec(t *testing.T) {
 	negative := &StatusProber{Timeout: -1, Concurrency: -1, MaxAge: -1, MinInterval: -1}
 	if negative.timeout() != 3*time.Second || negative.concurrency() != 16 || negative.maxAge() != 10*time.Minute || negative.minInterval() != 60*time.Second {
 		t.Errorf("negative values must fall back to the defaults")
+	}
+}
+
+// An entry that was never probed makes a snapshot stale, but it must not bypass the refresh
+// floor: callers that pass different lists would otherwise trigger back-to-back full runs.
+func TestStatusProberMissingEntriesRespectTheRefreshFloor(t *testing.T) {
+	clock := newProbeClock()
+	d := newProbeDialer(false)
+	p := &StatusProber{Dialer: d.dialer(), Now: clock.Now}
+	catalog := probeEntries(3)
+	own := Entry{ID: "own-floor0001", Protocol: ProtocolTelnet, Host: "own.example", Port: 23, Kind: KindWorld, Charset: CharsetUTF8}
+	other := Entry{ID: "own-floor0002", Protocol: ProtocolTelnet, Host: "other.example", Port: 23, Kind: KindWorld, Charset: CharsetUTF8}
+	withOwn := append(probeEntries(3), own)
+	withOther := append(probeEntries(2), other)
+
+	p.Refresh(context.Background(), catalog, 5*time.Second)
+	p.mu.Lock()
+	firstRun := p.started
+	p.mu.Unlock()
+	if d.calls.Load() != 3 {
+		t.Fatalf("first run: calls = %d, want 3", d.calls.Load())
+	}
+
+	clock.Advance(10 * time.Second)
+	lists := []struct {
+		name    string
+		entries []Entry
+		missing string // the entry that was never probed
+	}{
+		{"catalog plus own entry", withOwn, own.ID},
+		{"another list", withOther, other.ID},
+	}
+	for _, tc := range lists {
+		statuses, stale := p.Snapshot(tc.entries)
+		if !stale {
+			t.Fatalf("%s: an entry that was never probed must make the snapshot stale", tc.name)
+		}
+		if st := statuses[tc.missing]; st.State != "unknown" {
+			t.Fatalf("%s: %s = %+v, want unknown", tc.name, tc.missing, st)
+		}
+	}
+	p.mu.Lock()
+	started, running := p.started, p.inflight != nil
+	p.mu.Unlock()
+	if running || !started.Equal(firstRun) || d.calls.Load() != 3 {
+		t.Fatalf("a missing entry started a run within the 60s floor: running %v, started %v (first run %v), calls %d", running, started, firstRun, d.calls.Load())
+	}
+
+	clock.Advance(51 * time.Second) // 61 s after the last run started
+	if _, stale := p.Snapshot(withOwn); !stale {
+		t.Fatal("snapshot with an unprobed entry reported fresh")
+	}
+	p.Refresh(context.Background(), withOwn, 5*time.Second) // waits for the run the snapshot started
+	if d.calls.Load() != 3+4 {
+		t.Fatalf("calls = %d, want one more run over 4 entries (7)", d.calls.Load())
+	}
+	if st := p.Refresh(context.Background(), withOwn, 0)[own.ID]; st.State != "online" {
+		t.Fatalf("own entry after the run = %+v, want online", st)
 	}
 }

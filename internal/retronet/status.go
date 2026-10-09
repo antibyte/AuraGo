@@ -46,28 +46,35 @@ type StatusProber struct {
 }
 
 // Snapshot returns cached status for entries (missing -> "unknown") and whether the cache is
-// stale; when stale it starts one background refresh (never more than one in flight).
+// stale; when stale it starts one background refresh, never more than one in flight and never
+// sooner than MinInterval after the start of the previous run.
 //
 // The cache is stale before the first completed probe, when the last probe finished more than
-// MaxAge ago, and when an entry has never been probed (for example a new own entry).
+// MaxAge ago, and when an entry has never been probed (for example a new own entry); such an
+// entry stays "unknown" until the next run is allowed to start.
+//
+// entries must be the full directory (catalog plus own entries) on every call: a run caches
+// only the entries it was given, so callers that pass different lists evict each other's
+// results.
 func (p *StatusProber) Snapshot(entries []Entry) (map[string]Status, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	now := p.now()
 	statuses, missing := p.statusesLocked(entries)
 	stale := missing || p.finished.IsZero() || now.Sub(p.finished) > p.maxAge()
-	if stale && p.inflight == nil {
+	if stale && p.mayStartLocked(now) {
 		p.startLocked(entries, now)
 	}
 	return statuses, stale
 }
 
 // Refresh forces a probe unless the last one started < MinInterval ago, waits up to wait for
-// the in-flight probe and returns the status map.
+// the in-flight probe and returns the status map. entries must be the full directory, like for
+// Snapshot.
 func (p *StatusProber) Refresh(ctx context.Context, entries []Entry, wait time.Duration) map[string]Status {
 	p.mu.Lock()
 	now := p.now()
-	if p.inflight == nil && (p.started.IsZero() || now.Sub(p.started) >= p.minInterval()) {
+	if p.mayStartLocked(now) {
 		p.startLocked(entries, now)
 	}
 	done := p.inflight
@@ -101,6 +108,13 @@ func (p *StatusProber) statusesLocked(entries []Entry) (map[string]Status, bool)
 		out[e.ID] = cloneStatus(st)
 	}
 	return out, missing
+}
+
+// mayStartLocked reports whether a new probe run may start now: none is in flight and the
+// previous one started at least MinInterval ago. Every trigger (stale cache, missing entry,
+// forced refresh) goes through it.
+func (p *StatusProber) mayStartLocked(now time.Time) bool {
+	return p.inflight == nil && (p.started.IsZero() || now.Sub(p.started) >= p.minInterval())
 }
 
 // startLocked launches one probe run over a copy of entries.
