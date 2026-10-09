@@ -65,7 +65,7 @@ func (ix searchIndex) read(ctx context.Context, req ReadRequest) (Article, error
 	}
 	text := art.fullMarkdown()
 	if strings.TrimSpace(req.Section) != "" {
-		i, err := art.findSection(req.Section)
+		i, err := art.findSection(ctx, req.Section)
 		if err != nil {
 			return Article{}, err
 		}

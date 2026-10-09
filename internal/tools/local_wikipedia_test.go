@@ -284,6 +284,12 @@ func TestLocalWikipediaUnknownSectionListsSections(t *testing.T) {
 	if len(m["sections"].([]any)) != localWikipediaMaxSections || m["sections_truncated"] != true || m["sections_total"] != float64(5000) {
 		t.Fatalf("section_not_found list is not capped: %d entries", len(m["sections"].([]any)))
 	}
+	// The library already caps the list and reports the article's count.
+	lib.readErr = &localwiki.SectionNotFoundError{Section: "X", Sections: manyWikiSections(localWikipediaMaxSections), Total: 250}
+	m = decodeWikiOutput(t, ExecuteLocalWikipedia(context.Background(), wikiConfig(), LocalWikipediaRequest{Operation: "read", Path: "Berlin", Section: "X"}))
+	if len(m["sections"].([]any)) != localWikipediaMaxSections || m["sections_truncated"] != true || m["sections_total"] != float64(250) {
+		t.Fatalf("capped library error: %d entries, total %v", len(m["sections"].([]any)), m["sections_total"])
+	}
 }
 
 func TestLocalWikipediaAvailableReleasesProbe(t *testing.T) {

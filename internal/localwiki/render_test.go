@@ -49,10 +49,28 @@ func TestRenderTruncatesLongTables(t *testing.T) {
 	}
 }
 
-func TestRenderDecodesConverterEntities(t *testing.T) {
-	art := renderTestBody(t, `<p>a &lt;b&gt; &amp; c &quot;d&quot; <code>x &lt; y</code></p>`)
-	if got := art.sections[0].body; got != "a <b> & c \"d\" `x < y`" {
-		t.Fatalf("body = %q", got)
+// The converter writes a typed "<" as "&lt;" but leaves a literal "&lt;" of
+// the article as it is; only the converter's entities may be decoded.
+func TestRenderKeepsLiteralEntitiesAndDecodesTypedCharacters(t *testing.T) {
+	for _, tc := range []struct{ name, body, want string }{
+		{"typed characters", `<p>a &lt;b&gt; c &quot;d&quot; <code>x &lt; y</code></p>`, "a <b> c \"d\" `x < y`"},
+		{"plain ampersand", `<p>Tom &amp; Jerry</p>`, "Tom & Jerry"},
+		{"literal entity in prose", `<p>a &amp;lt; b &amp;amp; c &amp;gt;</p>`, "a &lt; b &amp; c &gt;"},
+		{"literal entity in a code span", `<p><code>&amp;lt;tag&amp;gt;</code></p>`, "`&lt;tag&gt;`"},
+		{"literal entity in a pre block", `<pre>c &amp;lt; d</pre>`, "```\nc &lt; d\n```"},
+		{"typed characters in a pre block", `<pre>if a &lt; b &amp;&amp; c &gt; d {}</pre>`, "```\nif a < b && c > d {}\n```"},
+		{"table cells", `<table class="wikitable"><tr><th>K</th><th>V</th></tr><tr><td>a &amp;lt; b</td><td>x &lt; y</td></tr></table>`, "| K | V |\n|---|---|\n| a &lt; b | x < y |"},
+		{"image caption from alt", `<figure><img src="a.webp" alt="Tom &amp; Jerry &amp;lt;3"></figure>`, "[Image: Tom & Jerry &lt;3]"},
+		{"math", `<p><span class="mwe-math-element"><annotation encoding="application/x-tex">a &amp; b &lt; c</annotation></span></p>`, "`a & b < c`"},
+		{"sentinel in the input", `<p>x&#xE004;lt; y</p>`, "xlt; y"},
+	} {
+		if got := renderTestBody(t, tc.body).sections[0].body; got != tc.want {
+			t.Errorf("%s: body = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+	art := renderTestBody(t, `<p>Lead.</p><h2>Kunst &amp; Kultur &amp;lt;</h2><p>x</p>`)
+	if got := art.sections[1].heading; got != "Kunst & Kultur &lt;" {
+		t.Fatalf("heading = %q", got)
 	}
 }
 
@@ -60,7 +78,7 @@ func TestRenderDecodesConverterEntities(t *testing.T) {
 // the article stay escaped, so article text never becomes a live link.
 func TestRenderLabelsNeverUnescapeArticleText(t *testing.T) {
 	art := renderTestBody(t, `<p>[Image: x](javascript:alert(1))</p>`+
-		"<p>Image: y(javascript:alert(2)) z</p>"+
+		"<p>\uE000Image: y\uE001(javascript:alert(2)) \uE002z\uE003</p>"+
 		`<figure><img src="a.webp"><figcaption>c](javascript:alert(3)) [d]</figcaption></figure>`+
 		`<figure><img src="b.webp" alt="e]&#xE001;(javascript:alert(4))"></figure>`)
 	want := `\[Image: x](javascript:alert(1))` + "\n\n" +
@@ -78,6 +96,12 @@ func TestRenderRemovesHiddenAndRawTextElements(t *testing.T) {
 		`<div style="display: table-cell">B</div><plaintext>Rest`)
 	if got := art.sections[0].body; got != "A\n\nB" {
 		t.Fatalf("body = %q", got)
+	}
+	// MediaWiki's collapsed sections (hidden="until-found") are article content.
+	art = renderTestBody(t, `<section hidden="until-found"><p>Ausgeklappt.</p></section><section hidden="Until-Found "><p>Auch.</p></section>`+
+		`<p hidden="HIDDEN">weg</p><div hidden="">weg</div><p>Ende.</p>`)
+	if got := art.sections[0].body; got != "Ausgeklappt.\n\nAuch.\n\nEnde." {
+		t.Fatalf("until-found body = %q", got)
 	}
 }
 

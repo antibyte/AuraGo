@@ -285,6 +285,10 @@ func localWikipediaErrorFor(err error) string {
 	switch {
 	case errors.As(err, &sectionErr):
 		list := localWikipediaSections(sectionErr.Sections)
+		if sectionErr.Total > len(list.Sections) {
+			// The library error itself carries only the first sections.
+			list.Total, list.Truncated = sectionErr.Total, true
+		}
 		return localWikipediaJSON(localWikipediaFailure{
 			Status: "error", Code: "section_not_found",
 			Message:  "The article has no such section; use a heading or index from sections.",

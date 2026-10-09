@@ -1,7 +1,9 @@
 package localwiki
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"strings"
 	"testing"
@@ -37,13 +39,13 @@ func TestSectionMarkdownIncludesSubsections(t *testing.T) {
 func TestFindSection(t *testing.T) {
 	a := sampleRendered()
 	for spec, want := range map[string]int{"0": 0, "2": 2, "Geschichte": 1, "  mittelalter ": 2, "MUNSTER": 3, "Gesch": 1} {
-		got, err := a.findSection(spec)
+		got, err := a.findSection(context.Background(), spec)
 		if err != nil || got != want {
 			t.Fatalf("findSection(%q) = %d, %v; want %d", spec, got, err, want)
 		}
 	}
 	for _, spec := range []string{"4", "-1", "Wirtschaft", "!!"} {
-		if _, err := a.findSection(spec); !errors.Is(err, ErrSectionNotFound) {
+		if _, err := a.findSection(context.Background(), spec); !errors.Is(err, ErrSectionNotFound) {
 			t.Fatalf("findSection(%q) err = %v", spec, err)
 		}
 	}
@@ -110,17 +112,55 @@ func TestFindSectionPrefersTheExactHeading(t *testing.T) {
 		"Geschichte (seit 1900)":  1, // no exact heading: titleKey fallback
 		"  Geschichte (ab 1900) ": 2,
 	} {
-		got, err := a.findSection(spec)
+		got, err := a.findSection(context.Background(), spec)
 		if err != nil || got != want {
 			t.Fatalf("findSection(%q) = %d, %v; want %d", spec, got, err, want)
 		}
 	}
 	var notFound *SectionNotFoundError
-	if _, err := a.findSection("7"); !errors.As(err, &notFound) || len(notFound.Sections) != len(a.sections) || notFound.Section != "7" {
+	if _, err := a.findSection(context.Background(), "7"); !errors.As(err, &notFound) || len(notFound.Sections) != len(a.sections) || notFound.Section != "7" {
 		t.Fatalf("findSection(7) err = %v, want SectionNotFoundError listing the sections", err)
 	}
-	if _, err := a.findSection("   "); !errors.Is(err, ErrSectionNotFound) {
+	if _, err := a.findSection(context.Background(), "   "); !errors.Is(err, ErrSectionNotFound) {
 		t.Fatalf("empty section err = %v", err)
+	}
+	if notFound.Total != len(a.sections) {
+		t.Fatalf("total = %d, want %d", notFound.Total, len(a.sections))
+	}
+}
+
+func manySections(n int) *renderedArticle {
+	a := &renderedArticle{title: "Viele", sections: []renderedSection{{body: "Lead."}}}
+	for i := 1; i < n; i++ {
+		a.sections = append(a.sections, renderedSection{heading: fmt.Sprintf("Abschnitt %d", i), level: 2, body: "Text."})
+	}
+	return a
+}
+
+func TestSectionNotFoundCarriesAtMostAHundredSections(t *testing.T) {
+	a := manySections(250)
+	var notFound *SectionNotFoundError
+	if _, err := a.findSection(context.Background(), "Gibt es nicht"); !errors.As(err, &notFound) {
+		t.Fatalf("err = %v", err)
+	}
+	if len(notFound.Sections) != maxErrorSections || notFound.Total != 250 || notFound.Sections[99].Heading != "Abschnitt 99" {
+		t.Fatalf("error carries %d sections, total %d", len(notFound.Sections), notFound.Total)
+	}
+	if got, err := a.findSection(context.Background(), "abschnitt 249"); err != nil || got != 249 {
+		t.Fatalf("findSection(abschnitt 249) = %d, %v", got, err)
+	}
+}
+
+func TestFindSectionStopsWhenTheContextEnds(t *testing.T) {
+	a := manySections(3 * sectionScanCheck)
+	a.layout()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := a.findSection(ctx, "Gibt es nicht"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+	if got, err := a.findSection(ctx, "5"); err != nil || got != 5 {
+		t.Fatalf("an index needs no scan: %d, %v", got, err)
 	}
 }
 
