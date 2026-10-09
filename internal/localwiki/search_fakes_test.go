@@ -93,9 +93,10 @@ func (s *fakeArticleStore) cacheKey(path string) string { return "fake/" + path 
 // fakeTitleIndex answers suggestions and completions from fixed tables keyed
 // by query and prefix.
 type fakeTitleIndex struct {
-	hits  map[string][]xapian.Hit
-	terms map[string][]string
-	err   error
+	hits     map[string][]xapian.Hit
+	terms    map[string][]string
+	err      error
+	suggests *int // counts suggest calls when set
 }
 
 func (t fakeTitleIndex) completions(_ context.Context, prefix string, n int) ([]string, error) {
@@ -107,6 +108,9 @@ func (t fakeTitleIndex) completions(_ context.Context, prefix string, n int) ([]
 }
 
 func (t fakeTitleIndex) suggest(_ context.Context, query string, limit int) ([]xapian.Hit, error) {
+	if t.suggests != nil {
+		*t.suggests++
+	}
 	if t.err != nil {
 		return nil, t.err
 	}

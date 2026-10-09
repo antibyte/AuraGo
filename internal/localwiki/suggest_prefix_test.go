@@ -107,17 +107,68 @@ func TestSuggestPrefixTitlesWithoutCompletions(t *testing.T) {
 func TestCompletionPathsKeepTheTypedSpelling(t *testing.T) {
 	for _, tc := range []struct {
 		word, term string
-		want       []string
+		typed      []string
+		folded     string
 	}{
-		{"Berl", "berlin", []string{"Berlin"}},
-		{"berl", "berlin", []string{"berlin", "Berlin"}},
-		{"Mün", "munchen", []string{"München", "Munchen"}},
-		{"BERL", "berlin", []string{"BERLin", "Berlin"}},
-		{"Mün", "other", []string{"Other"}},
+		{"Berl", "berlin", []string{"Berlin"}, ""},
+		{"berl", "berlin", []string{"berlin", "Berlin"}, ""},
+		{"Mün", "munchen", []string{"München"}, "Munchen"},
+		{"BERL", "berlin", []string{"BERLin"}, "Berlin"},
+		{"Mün", "other", nil, "Other"},
 	} {
-		if got := completionPaths(tc.word, tc.term); !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("completionPaths(%q, %q) = %v, want %v", tc.word, tc.term, got, tc.want)
+		typed, folded := completionPaths(tc.word, tc.term)
+		if !reflect.DeepEqual(typed, tc.typed) || folded != tc.folded {
+			t.Errorf("completionPaths(%q, %q) = %v, %q, want %v, %q", tc.word, tc.term, typed, folded, tc.typed, tc.folded)
 		}
+	}
+}
+
+// The folded spelling of a completion is only looked up when the typed one
+// names no article: "Mün" lists München, not the redirect "Munchen" (to a
+// person called Munchen) ahead of real prefix titles; "BERL" still reaches
+// Berlin through it.
+func TestSuggestTriesTheFoldedCompletionOnlyAsAFallback(t *testing.T) {
+	page := func(title string) string { return htmlPage(title, "<p>"+title+".</p>") }
+	store := newFakeArticleStore(
+		fakeEntry{path: "München", title: "München", html: page("München")},
+		fakeEntry{path: "Münster", title: "Münster", html: page("Münster")},
+		fakeEntry{path: "Munchen", title: "Munchen", redirectTo: "Charles_Munchen"},
+		fakeEntry{path: "Charles_Munchen", title: "Charles Munchen", html: page("Charles Munchen")},
+		fakeEntry{path: "Berlin", title: "Berlin", html: page("Berlin")},
+	)
+	index := fakeTitleIndex{terms: map[string][]string{"mun": {"munchen", "munster"}, "berl": {"berlin"}}}
+	ix := searchIndex{store: store, titles: index}
+	refs, err := ix.suggest(context.Background(), "Mün", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := refTitles(refs); !reflect.DeepEqual(got, []string{"München", "Münster"}) {
+		t.Fatalf("suggest(Mün) = %v, want München and Münster without the folded redirect", got)
+	}
+	refs, err = ix.suggest(context.Background(), "BERL", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := refTitles(refs); !reflect.DeepEqual(got, []string{"Berlin"}) {
+		t.Fatalf("suggest(BERL) = %v, want Berlin through the folded completion", got)
+	}
+}
+
+// When the prefix stage fills the list, the title index is not asked.
+func TestSuggestSkipsTheTitleIndexWhenThePrefixStageIsFull(t *testing.T) {
+	var calls int
+	index := berlTitleIndex()
+	index.suggests = &calls
+	ix := searchIndex{store: berlArticles(), titles: index}
+	refs, err := ix.suggest(context.Background(), "Berl", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := refTitles(refs); !reflect.DeepEqual(got, []string{"Berl", "Berlin", "Berliner"}) || calls != 0 {
+		t.Fatalf("limit 3 = %v with %d index searches, want the prefix titles and none", got, calls)
+	}
+	if _, err := ix.suggest(context.Background(), "Berl", 10); err != nil || calls != 1 {
+		t.Fatalf("limit 10: %d index searches, err %v, want one", calls, err)
 	}
 }
 

@@ -93,7 +93,7 @@ func (ix searchIndex) search(ctx context.Context, query string, limit, withLeads
 	}
 	m := newHitMerger(ix.store, clampLimit(limit, maxSearchResults))
 	for _, path := range pathCandidates(query) {
-		if err := m.add(path); err != nil {
+		if _, err := m.add(path); err != nil {
 			return nil, err
 		}
 	}
@@ -104,7 +104,7 @@ func (ix searchIndex) search(ctx context.Context, query string, limit, withLeads
 	key := titleKey(query)
 	for _, h := range titles {
 		if titleKey(h.Title) == key {
-			if err := m.add(h.Path); err != nil {
+			if _, err := m.add(h.Path); err != nil {
 				return nil, err
 			}
 		}
@@ -115,13 +115,13 @@ func (ix searchIndex) search(ctx context.Context, query string, limit, withLeads
 			return nil, err
 		}
 		for _, h := range hits {
-			if err := m.add(h.Path); err != nil {
+			if _, err := m.add(h.Path); err != nil {
 				return nil, err
 			}
 		}
 	}
 	for _, h := range titles {
-		if err := m.add(h.Path); err != nil {
+		if _, err := m.add(h.Path); err != nil {
 			return nil, err
 		}
 	}
@@ -164,13 +164,16 @@ func (ix searchIndex) suggest(ctx context.Context, query string, limit int) ([]R
 		if err := ix.prefixSuggestions(ctx, m, query); err != nil {
 			return nil, err
 		}
+		if len(m.refs) >= m.limit {
+			return m.refs, nil // the title index could add nothing
+		}
 	}
 	hits, err := ix.titleHits(ctx, query, titleCandidateLimit)
 	if err != nil {
 		return nil, err
 	}
 	for _, h := range hits {
-		if err := m.add(h.Path); err != nil {
+		if _, err := m.add(h.Path); err != nil {
 			return nil, err
 		}
 	}
@@ -202,7 +205,7 @@ func (ix searchIndex) prefixSuggestions(ctx context.Context, m *hitMerger, word 
 	}
 	for _, e := range listed {
 		if e.Title == word || e.Title == variants[len(variants)-1] {
-			if err := m.add(e.Path); err != nil {
+			if _, err := m.add(e.Path); err != nil {
 				return err
 			}
 		}
@@ -214,15 +217,26 @@ func (ix searchIndex) prefixSuggestions(ctx context.Context, m *hitMerger, word 
 		}
 		// A failing title index only costs the completions.
 		for _, term := range terms {
-			for _, path := range completionPaths(word, term) {
-				if err := m.add(path); err != nil {
+			typed, folded := completionPaths(word, term)
+			found := false
+			for _, path := range typed {
+				listed, err := m.add(path)
+				if err != nil {
+					return err
+				}
+				found = found || listed
+			}
+			// The folded spelling only stands in when the typed one names no
+			// article: "Mün" must not also reach the redirect "Munchen".
+			if !found && folded != "" {
+				if _, err := m.add(folded); err != nil {
 					return err
 				}
 			}
 		}
 	}
 	for _, e := range listed {
-		if err := m.add(e.Path); err != nil {
+		if _, err := m.add(e.Path); err != nil {
 			return err
 		}
 	}
@@ -230,22 +244,22 @@ func (ix searchIndex) prefixSuggestions(ctx context.Context, m *hitMerger, word 
 }
 
 // completionPaths turns a folded completion of the typed word into likely
-// article paths: the typed text plus the rest of the completion (so "Mün"
-// completes to "München" although the index folds it to "munchen"), also
-// with a capital first letter, then the completion itself capitalised.
-func completionPaths(word, term string) []string {
-	var out []string
-	add := func(p string) {
-		if p != "" && !slices.Contains(out, p) {
-			out = append(out, p)
+// article paths: typed is the typed text plus the rest of the completion (so
+// "Mün" completes to "München" although the index folds it to "munchen"),
+// also with a capital first letter; folded is the completion itself
+// capitalised, for a spelling the typed text cannot give ("BERL" ->
+// "Berlin"), and "" when it is one of typed.
+func completionPaths(word, term string) (typed []string, folded string) {
+	if rest, ok := strings.CutPrefix(term, foldText(word)); ok {
+		typed = append(typed, word+rest)
+		if upper := upperFirst(word + rest); upper != word+rest {
+			typed = append(typed, upper)
 		}
 	}
-	if rest, ok := strings.CutPrefix(term, foldText(word)); ok {
-		add(word + rest)
-		add(upperFirst(word + rest))
+	if folded = upperFirst(term); slices.Contains(typed, folded) {
+		folded = ""
 	}
-	add(upperFirst(term))
-	return out
+	return typed, folded
 }
 
 // titleHits queries the title index; without one (or when it fails) it
@@ -338,27 +352,32 @@ func newHitMerger(store articleStore, limit int) *hitMerger {
 }
 
 // add appends the article behind path unless it is missing, not an HTML
-// article or already listed. Only a closed archive is an error: then every
+// article or already listed. listed reports whether path names an article
+// that is in the list now (added by this call or before); a full list looks
+// nothing up and reports false. Only a closed archive is an error: then every
 // further lookup fails too.
-func (m *hitMerger) add(path string) error {
+func (m *hitMerger) add(path string) (listed bool, err error) {
 	if len(m.refs) >= m.limit || path == "" {
-		return nil
+		return false, nil
 	}
 	e, err := m.store.lookup(path)
 	if err != nil {
-		return closedArchive(err)
+		return false, closedArchive(err)
 	}
 	resolved, err := m.store.resolve(e)
 	if err != nil {
-		return closedArchive(err)
+		return false, closedArchive(err)
 	}
-	if !isHTMLEntry(resolved) || m.seen[resolved.Path] {
-		return nil
+	if !isHTMLEntry(resolved) {
+		return false, nil
+	}
+	if m.seen[resolved.Path] {
+		return true, nil
 	}
 	m.seen[resolved.Path] = true
 	m.refs = append(m.refs, Ref{Title: resolved.Title, Path: resolved.Path})
 	m.entries = append(m.entries, resolved)
-	return nil
+	return true, nil
 }
 
 // closedArchive passes on zim.ErrClosed and drops every other entry error
