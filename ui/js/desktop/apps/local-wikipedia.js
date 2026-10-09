@@ -6,6 +6,7 @@
     const SETTINGS_URL = '/config#local_wikipedia';
     const SUGGEST_DELAY_MS = 200;
     const POLL_LOADING_MS = 1000;
+    const POLL_RETRY_MS = 5000;
     const POLL_ACTIVE_MS = 3000;
     const POLL_IDLE_MS = 15000;
     const POLL_READY_MS = 300000;
@@ -25,7 +26,8 @@
             query: '', results: [], resultsState: 'done', searchGen: 0,
             suggestions: [], active: -1, suggestTimer: 0, suggestAbort: null, suggestGen: 0,
             history: [], index: -1, pending: null, frameLoaded: false, frameFailed: false, focusFrame: false,
-            busy: false, pollTimer: 0, bannersHTML: '', footerHTML: '', stateHTML: ''
+            busy: false, pollTimer: 0, bannersHTML: '', footerHTML: '', stateHTML: '',
+            statusStale: false, failedIndex: -1, toolStop: 'back'
         };
         instances.set(windowId, st);
         host.innerHTML = v.shell(t, { list: listId });
@@ -34,6 +36,7 @@
         const list = $('.lw-suggest');
         const frame = $('.lw-frame');
         const titleNode = $('.lw-title');
+        const nav = $('.lw-nav');
 
         function request(path, options) {
             if (typeof ctx.api !== 'function') return Promise.reject(new Error('Desktop API unavailable'));
@@ -54,16 +57,45 @@
             if (button) button.disabled = disabled;
         }
 
+        function toolButtons() {
+            return Array.from(nav.querySelectorAll('.lw-tool'));
+        }
+
+        // Roving tabindex: exactly one enabled tool is the tab stop and the arrow keys
+        // move between the enabled tools. refocus moves focus to the tab stop when the
+        // focused tool has just been disabled.
+        function syncToolbar(refocus) {
+            const tools = toolButtons();
+            const enabled = tools.filter(button => !button.disabled);
+            const stop = enabled.find(button => button.dataset.action === st.toolStop) || enabled[0] || null;
+            tools.forEach(button => button.setAttribute('tabindex', button === stop ? '0' : '-1'));
+            if (stop) st.toolStop = stop.dataset.action;
+            if (refocus && stop) stop.focus();
+        }
+
+        // backTarget is the history index Back leads to, or -1. From the results or after a
+        // new navigation failed it returns to the last article that loaded; when that entry
+        // itself failed to load it goes one entry further back instead of retrying it.
+        function backTarget() {
+            if (st.index < 0) return -1;
+            if (st.view === 'results') return st.index;
+            if (st.view !== 'article') return -1;
+            if (st.frameFailed && st.failedIndex !== st.index) return st.index;
+            return st.index > 0 ? st.index - 1 : -1;
+        }
+
         function updateNav() {
             const ready = v.readable(st.status);
-            const back = ready && st.index >= 0 && (st.view === 'results' || (st.view === 'article' && (st.index > 0 || st.frameFailed)));
+            const focused = nav.contains(document.activeElement) ? document.activeElement : null;
             const forward = ready && st.view === 'article' && !st.frameFailed && st.index < st.history.length - 1;
-            setDisabled('back', !back);
+            setDisabled('back', !(ready && backTarget() >= 0));
             setDisabled('forward', !forward);
-            setDisabled('main', !ready || st.busy);
-            setDisabled('random', !ready || st.busy);
+            // Main and random stay enabled while a request runs (openRef ignores the extra click), so keyboard focus stays on them.
+            setDisabled('main', !ready);
+            setDisabled('random', !ready);
             input.disabled = !ready;
             $('.lw-submit').disabled = !ready;
+            syncToolbar(!!(focused && focused.disabled));
         }
 
         function showView(name) {
@@ -76,7 +108,7 @@
         // renderChrome rewrites banners and footer only when they change, so polling
         // never steals focus from a banner button.
         function renderChrome() {
-            const banners = v.banners(st.status, t, lang(), st.canManage);
+            const banners = (st.statusStale ? v.staleBanner(t) : '') + v.banners(st.status, t, lang(), st.canManage);
             const footer = v.readable(st.status) ? v.footer(st.status.edition, t, lang()) : '';
             if (banners !== st.bannersHTML) {
                 st.bannersHTML = banners;
@@ -104,13 +136,22 @@
             if (!st.disposed) st.pollTimer = setTimeout(refreshStatus, delay);
         }
 
+        // resumeReading leaves a state screen: after an outage the reader returns to the
+        // article that was open; only a fresh window starts at the main page.
+        function resumeReading() {
+            const path = st.index >= 0 ? st.history[st.index] : '';
+            if (path) navigate(path, 'history', false);
+            else openRef('/main');
+        }
+
         function applyStatus(status) {
             st.status = status;
+            st.statusStale = false;
             st.canManage = !!status.can_manage;
             renderChrome();
             const active = status.state === 'downloading' || status.state === 'verifying';
             if (v.readable(status)) {
-                if (st.view === 'state' || st.view === 'loading') openRef('/main');
+                if (st.view === 'state' || st.view === 'loading') resumeReading();
                 updateNav();
                 schedulePoll(active ? POLL_ACTIVE_MS : POLL_READY_MS);
                 return;
@@ -130,7 +171,15 @@
             } catch (err) {
                 if (st.disposed || isAbort(err)) return;
                 const body = (err && err.body) || {};
+                if (body.code !== 'disabled' && v.readable(st.status) && (st.view === 'article' || st.view === 'results')) {
+                    // One failed poll must not replace what the reader is looking at: keep it and say so.
+                    st.statusStale = true;
+                    renderChrome();
+                    schedulePoll(POLL_RETRY_MS);
+                    return;
+                }
                 st.status = null;
+                st.statusStale = false;
                 if (body.code === 'disabled') {
                     st.canManage = !!body.can_manage;
                     showState('disabled');
@@ -152,6 +201,13 @@
             updateNav();
         }
 
+        // failLoad reports a failed load. A failed back or forward step marks its history
+        // entry, so Back can skip it instead of loading it again.
+        function failLoad(text, mode) {
+            if (mode === 'history') st.failedIndex = st.index;
+            showFrameError(text);
+        }
+
         function hideFrameError() {
             st.frameFailed = false;
             $('.lw-frame-error').hidden = true;
@@ -162,10 +218,11 @@
         // 'history' replaces the current entry (back/forward and redirects).
         function navigate(path, mode, focusFrame) {
             closeSuggestions();
+            st.failedIndex = -1;
             showView('article');
             const url = v.contentURL(path);
             if (!url) {
-                showFrameError(t('desktop.local_wikipedia_article_missing'));
+                failLoad(t('desktop.local_wikipedia_article_missing'), mode);
                 return;
             }
             hideFrameError();
@@ -201,15 +258,10 @@
         }
 
         function goBack() {
-            if (st.index < 0) return;
-            if (st.view !== 'article' || st.frameFailed) {
-                navigate(st.history[st.index], 'history', false);
-                return;
-            }
-            if (st.index > 0) {
-                st.index -= 1;
-                navigate(st.history[st.index], 'history', false);
-            }
+            const target = backTarget();
+            if (target < 0) return;
+            st.index = target;
+            navigate(st.history[st.index], 'history', false);
         }
 
         function goForward() {
@@ -237,29 +289,6 @@
             return text || path.replace(/_/g, ' ');
         }
 
-        // adoptDocument runs in the Desktop realm; ZIM scripts never run (the frame sandbox omits the scripts permission).
-        function adoptDocument(doc) {
-            const origin = window.location.origin;
-            doc.querySelectorAll('a[href]').forEach(anchor => {
-                let target;
-                try {
-                    target = new URL(anchor.getAttribute('href'), doc.baseURI);
-                } catch (_) {
-                    return;
-                }
-                if (target.origin === origin) {
-                    if (!v.isContentPath(target.pathname)) anchor.removeAttribute('href');
-                    return;
-                }
-                if (target.protocol === 'http:' || target.protocol === 'https:') {
-                    anchor.setAttribute('target', '_blank');
-                    anchor.setAttribute('rel', 'noopener noreferrer');
-                } else if (target.protocol !== 'mailto:') {
-                    anchor.removeAttribute('href');
-                }
-            });
-        }
-
         function onFrameLoad() {
             if (st.disposed) return;
             let doc = null;
@@ -274,26 +303,34 @@
             const focusFrame = st.focusFrame;
             st.pending = null;
             st.focusFrame = false;
+            const mode = pending && pending.mode;
             if (!href) {
-                showFrameError(t('desktop.local_wikipedia_article_failed'));
+                failLoad(t('desktop.local_wikipedia_article_failed'), mode);
                 return;
             }
             st.frameLoaded = true;
             const marker = doc.querySelector('meta[name="aurago-local-wikipedia-error"]');
             if (marker) {
-                showFrameError(marker.getAttribute('content') === 'not_found' ? t('desktop.local_wikipedia_article_missing') : t('desktop.local_wikipedia_article_failed'));
+                failLoad(marker.getAttribute('content') === 'not_found' ? t('desktop.local_wikipedia_article_missing') : t('desktop.local_wikipedia_article_failed'), mode);
                 return;
             }
             const path = v.pathFromLocation(doc.location.pathname);
             if (!path) {
-                showFrameError(t('desktop.local_wikipedia_article_failed'));
+                failLoad(t('desktop.local_wikipedia_article_failed'), mode);
                 return;
             }
+            st.failedIndex = -1;
             recordHistory(path, pending);
             hideFrameError();
-            adoptDocument(doc);
+            // ZIM scripts never run (the frame sandbox omits the scripts permission); links are the only active content.
+            v.adoptLinks(doc, window.location.origin);
+            // A load that finishes after the reader moved on (results, a state screen) only
+            // records its history entry; it never takes the view back to the article.
+            if (st.view !== 'article') {
+                updateNav();
+                return;
+            }
             setTitle(readTitle(doc, path));
-            if (st.view !== 'article') showView('article');
             updateNav();
             if (focusFrame) frame.focus();
         }
@@ -340,7 +377,8 @@
             st.suggestTimer = setTimeout(() => loadSuggestions(query), SUGGEST_DELAY_MS);
         }
 
-        async function loadSuggestions(query) {
+        async function loadSuggestions(query, activateFirst) {
+            clearTimeout(st.suggestTimer);
             if (st.suggestAbort) st.suggestAbort.abort();
             const local = new AbortController();
             st.suggestAbort = local;
@@ -349,7 +387,7 @@
                 const data = await request('/suggest?q=' + encodeURIComponent(query), { signal: local.signal });
                 if (st.disposed || generation !== st.suggestGen || input.value.trim() !== query) return;
                 st.suggestions = Array.isArray(data && data.results) ? data.results.slice(0, 10) : [];
-                st.active = -1;
+                st.active = activateFirst && st.suggestions.length ? 0 : -1;
                 drawSuggestions();
             } catch (err) {
                 if (st.disposed || local.signal.aborted || isAbort(err) || generation !== st.suggestGen) return;
@@ -393,7 +431,15 @@
 
         function onInputKeydown(event) {
             const open = !list.hidden && st.suggestions.length > 0;
-            if (!open) return;
+            if (!open) {
+                // ArrowDown reopens suggestions that were closed with Escape or by leaving the field.
+                const query = input.value.trim();
+                if (event.key === 'ArrowDown' && query && !input.disabled) {
+                    event.preventDefault();
+                    loadSuggestions(query, true);
+                }
+                return;
+            }
             if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                 event.preventDefault();
                 const count = st.suggestions.length;
@@ -439,6 +485,23 @@
             case 'settings': window.open(SETTINGS_URL, '_blank', 'noopener'); break;
             default: break;
             }
+        }, { signal: controller.signal });
+        nav.addEventListener('focusin', event => {
+            const button = event.target.closest('.lw-tool');
+            if (button && !button.disabled) {
+                st.toolStop = button.dataset.action;
+                syncToolbar(false);
+            }
+        }, { signal: controller.signal });
+        nav.addEventListener('keydown', event => {
+            if (event.ctrlKey || event.altKey || event.metaKey) return;
+            const tools = toolButtons().filter(button => !button.disabled);
+            const next = v.toolbarTarget(event.key, tools.indexOf(event.target.closest('.lw-tool')), tools.length, window.getComputedStyle(host).direction === 'rtl');
+            if (next < 0) return;
+            event.preventDefault();
+            st.toolStop = tools[next].dataset.action;
+            syncToolbar(false);
+            tools[next].focus();
         }, { signal: controller.signal });
         frame.addEventListener('load', onFrameLoad, { signal: controller.signal });
         setTitle('');

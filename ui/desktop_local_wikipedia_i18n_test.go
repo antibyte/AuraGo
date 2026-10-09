@@ -13,8 +13,8 @@ func TestLocalWikipediaTranslations(t *testing.T) {
 			keys = append(keys, key)
 		}
 	}
-	if len(keys) != 51 {
-		t.Fatalf("english has %d desktop.local_wikipedia_* keys, want 51", len(keys))
+	if len(keys) != 53 {
+		t.Fatalf("english has %d desktop.local_wikipedia_* keys, want 53", len(keys))
 	}
 	keys = append(keys, "desktop.app_local_wikipedia")
 	placeholders := []string{"{query}", "{date}", "{percent}", "{title}"}

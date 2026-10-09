@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "Die installierte Ausgabe ist beschädigt oder nicht lesbar. Installiere sie in den Einstellungen neu.",
   "desktop.local_wikipedia_error_user": "Die installierte Ausgabe ist beschädigt oder nicht lesbar. Ein Administrator muss sie neu installieren.",
   "desktop.local_wikipedia_disabled_title": "Lokale Wikipedia ist ausgeschaltet",
-  "desktop.local_wikipedia_disabled_text": "Du kannst sie in den Einstellungen wieder einschalten.",
+  "desktop.local_wikipedia_disabled_admin": "Du kannst sie in den Einstellungen wieder einschalten.",
   "desktop.local_wikipedia_failed_title": "Wikipedia ist nicht erreichbar",
   "desktop.local_wikipedia_failed_text": "Der Status konnte nicht geladen werden. Prüf die Verbindung und versuch es erneut.",
   "desktop.local_wikipedia_retry": "Erneut versuchen",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "Der Download oder die Installation ist fehlgeschlagen. Prüf die Details in den Einstellungen und versuch es erneut.",
   "desktop.local_wikipedia_install_failed_user": "Der Download oder die Installation ist fehlgeschlagen. Ein Administrator muss es erneut versuchen.",
   "desktop.local_wikipedia_update_failed": "Das letzte Update konnte nicht installiert werden. Die installierte Ausgabe funktioniert weiterhin.",
-  "desktop.local_wikipedia_update_interrupted": "Der Download einer neueren Ausgabe wurde unterbrochen. Die installierte Ausgabe funktioniert weiterhin."
+  "desktop.local_wikipedia_update_interrupted": "Der Download einer neueren Ausgabe wurde unterbrochen. Die installierte Ausgabe funktioniert weiterhin.",
+  "desktop.local_wikipedia_disabled_user": "Ein Administrator kann sie wieder einschalten.",
+  "desktop.local_wikipedia_status_stale": "Die Verbindung wurde unterbrochen. Die App versucht es automatisch erneut."
 }

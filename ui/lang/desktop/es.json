@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "La edición instalada está dañada o no se puede leer. Vuelve a instalarla en los ajustes.",
   "desktop.local_wikipedia_error_user": "La edición instalada está dañada o no se puede leer. Un administrador tiene que reinstalarla.",
   "desktop.local_wikipedia_disabled_title": "La Wikipedia local está desactivada",
-  "desktop.local_wikipedia_disabled_text": "Puedes volver a activarla en los ajustes.",
+  "desktop.local_wikipedia_disabled_admin": "Puedes volver a activarla en los ajustes.",
   "desktop.local_wikipedia_failed_title": "Wikipedia no está disponible",
   "desktop.local_wikipedia_failed_text": "No se pudo cargar el estado. Comprueba la conexión e inténtalo de nuevo.",
   "desktop.local_wikipedia_retry": "Reintentar",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "La descarga o la instalación falló. Revisa los detalles en los ajustes e inténtalo de nuevo.",
   "desktop.local_wikipedia_install_failed_user": "La descarga o la instalación falló. Un administrador tiene que intentarlo de nuevo.",
   "desktop.local_wikipedia_update_failed": "No se pudo instalar la última actualización. La edición instalada sigue funcionando.",
-  "desktop.local_wikipedia_update_interrupted": "Se interrumpió la descarga de una edición más reciente. La edición instalada sigue funcionando."
+  "desktop.local_wikipedia_update_interrupted": "Se interrumpió la descarga de una edición más reciente. La edición instalada sigue funcionando.",
+  "desktop.local_wikipedia_disabled_user": "Un administrador puede volver a activarla.",
+  "desktop.local_wikipedia_status_stale": "Se interrumpió la conexión. La aplicación lo intentará de nuevo automáticamente."
 }

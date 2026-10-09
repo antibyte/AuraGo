@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "Den installerade utgåvan är skadad eller oläslig. Installera om den i inställningarna.",
   "desktop.local_wikipedia_error_user": "Den installerade utgåvan är skadad eller oläslig. En administratör måste installera om den.",
   "desktop.local_wikipedia_disabled_title": "Lokal Wikipedia är avstängd",
-  "desktop.local_wikipedia_disabled_text": "Du kan slå på den igen i inställningarna.",
+  "desktop.local_wikipedia_disabled_admin": "Du kan slå på den igen i inställningarna.",
   "desktop.local_wikipedia_failed_title": "Wikipedia går inte att nå",
   "desktop.local_wikipedia_failed_text": "Statusen kunde inte läsas in. Kontrollera anslutningen och försök igen.",
   "desktop.local_wikipedia_retry": "Försök igen",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "Nedladdningen eller installationen misslyckades. Kontrollera detaljerna i inställningarna och försök igen.",
   "desktop.local_wikipedia_install_failed_user": "Nedladdningen eller installationen misslyckades. En administratör måste försöka igen.",
   "desktop.local_wikipedia_update_failed": "Den senaste uppdateringen kunde inte installeras. Den installerade utgåvan fungerar fortfarande.",
-  "desktop.local_wikipedia_update_interrupted": "Nedladdningen av en nyare utgåva avbröts. Den installerade utgåvan fungerar fortfarande."
+  "desktop.local_wikipedia_update_interrupted": "Nedladdningen av en nyare utgåva avbröts. Den installerade utgåvan fungerar fortfarande.",
+  "desktop.local_wikipedia_disabled_user": "En administratör kan slå på den igen.",
+  "desktop.local_wikipedia_status_stale": "Anslutningen avbröts. Appen försöker igen automatiskt."
 }

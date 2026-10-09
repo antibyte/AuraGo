@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "L’edizione installata è danneggiata o illeggibile. Reinstallala nelle impostazioni.",
   "desktop.local_wikipedia_error_user": "L’edizione installata è danneggiata o illeggibile. Un amministratore deve reinstallarla.",
   "desktop.local_wikipedia_disabled_title": "La Wikipedia locale è disattivata",
-  "desktop.local_wikipedia_disabled_text": "Puoi riattivarla nelle impostazioni.",
+  "desktop.local_wikipedia_disabled_admin": "Puoi riattivarla nelle impostazioni.",
   "desktop.local_wikipedia_failed_title": "Wikipedia non è raggiungibile",
   "desktop.local_wikipedia_failed_text": "Impossibile caricare lo stato. Controlla la connessione e riprova.",
   "desktop.local_wikipedia_retry": "Riprova",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "Il download o l’installazione non è riuscito. Controlla i dettagli nelle impostazioni e riprova.",
   "desktop.local_wikipedia_install_failed_user": "Il download o l’installazione non è riuscito. Un amministratore deve riprovare.",
   "desktop.local_wikipedia_update_failed": "Non è stato possibile installare l’ultimo aggiornamento. L’edizione installata continua a funzionare.",
-  "desktop.local_wikipedia_update_interrupted": "Il download di un’edizione più recente è stato interrotto. L’edizione installata continua a funzionare."
+  "desktop.local_wikipedia_update_interrupted": "Il download di un’edizione più recente è stato interrotto. L’edizione installata continua a funzionare.",
+  "desktop.local_wikipedia_disabled_user": "Un amministratore può riattivarla.",
+  "desktop.local_wikipedia_status_stale": "La connessione è stata interrotta. L’app riprova automaticamente."
 }

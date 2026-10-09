@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "इंस्टॉल किया गया संस्करण क्षतिग्रस्त है या पढ़ा नहीं जा सकता। इसे सेटिंग्स में फिर से इंस्टॉल करें।",
   "desktop.local_wikipedia_error_user": "इंस्टॉल किया गया संस्करण क्षतिग्रस्त है या पढ़ा नहीं जा सकता। किसी व्यवस्थापक को इसे फिर से इंस्टॉल करना होगा।",
   "desktop.local_wikipedia_disabled_title": "स्थानीय विकिपीडिया बंद है",
-  "desktop.local_wikipedia_disabled_text": "आप इसे सेटिंग्स में फिर से चालू कर सकते हैं।",
+  "desktop.local_wikipedia_disabled_admin": "आप इसे सेटिंग्स में फिर से चालू कर सकते हैं।",
   "desktop.local_wikipedia_failed_title": "विकिपीडिया तक पहुँच नहीं हो पा रही",
   "desktop.local_wikipedia_failed_text": "स्थिति लोड नहीं हो सकी। कनेक्शन जाँचें और फिर से कोशिश करें।",
   "desktop.local_wikipedia_retry": "फिर से कोशिश करें",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "डाउनलोड या इंस्टॉलेशन विफल रहा। सेटिंग्स में विवरण जाँचें और फिर से कोशिश करें।",
   "desktop.local_wikipedia_install_failed_user": "डाउनलोड या इंस्टॉलेशन विफल रहा। किसी व्यवस्थापक को फिर से कोशिश करनी होगी।",
   "desktop.local_wikipedia_update_failed": "पिछला अपडेट इंस्टॉल नहीं हो सका। इंस्टॉल किया गया संस्करण काम करता रहेगा।",
-  "desktop.local_wikipedia_update_interrupted": "नए संस्करण का डाउनलोड बाधित हो गया। इंस्टॉल किया गया संस्करण काम करता रहेगा।"
+  "desktop.local_wikipedia_update_interrupted": "नए संस्करण का डाउनलोड बाधित हो गया। इंस्टॉल किया गया संस्करण काम करता रहेगा।",
+  "desktop.local_wikipedia_disabled_user": "कोई व्यवस्थापक इसे फिर से चालू कर सकता है।",
+  "desktop.local_wikipedia_status_stale": "कनेक्शन बाधित हो गया। ऐप अपने आप फिर से कोशिश करेगा।"
 }

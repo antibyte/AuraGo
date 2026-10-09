@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "Den installerede udgave er beskadiget eller ulæselig. Geninstallér den i indstillingerne.",
   "desktop.local_wikipedia_error_user": "Den installerede udgave er beskadiget eller ulæselig. En administrator skal geninstallere den.",
   "desktop.local_wikipedia_disabled_title": "Lokal Wikipedia er slået fra",
-  "desktop.local_wikipedia_disabled_text": "Du kan slå den til igen i indstillingerne.",
+  "desktop.local_wikipedia_disabled_admin": "Du kan slå den til igen i indstillingerne.",
   "desktop.local_wikipedia_failed_title": "Wikipedia kan ikke nås",
   "desktop.local_wikipedia_failed_text": "Status kunne ikke indlæses. Kontrollér forbindelsen, og prøv igen.",
   "desktop.local_wikipedia_retry": "Prøv igen",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "Overførslen eller installationen mislykkedes. Tjek detaljerne i indstillingerne, og prøv igen.",
   "desktop.local_wikipedia_install_failed_user": "Overførslen eller installationen mislykkedes. En administrator skal prøve igen.",
   "desktop.local_wikipedia_update_failed": "Den seneste opdatering kunne ikke installeres. Den installerede udgave fungerer stadig.",
-  "desktop.local_wikipedia_update_interrupted": "Overførslen af en nyere udgave blev afbrudt. Den installerede udgave fungerer stadig."
+  "desktop.local_wikipedia_update_interrupted": "Overførslen af en nyere udgave blev afbrudt. Den installerede udgave fungerer stadig.",
+  "desktop.local_wikipedia_disabled_user": "En administrator kan slå den til igen.",
+  "desktop.local_wikipedia_status_stale": "Forbindelsen blev afbrudt. Appen prøver igen automatisk."
 }

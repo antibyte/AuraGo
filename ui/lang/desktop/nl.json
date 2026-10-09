@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "De geïnstalleerde editie is beschadigd of onleesbaar. Installeer deze opnieuw in de instellingen.",
   "desktop.local_wikipedia_error_user": "De geïnstalleerde editie is beschadigd of onleesbaar. Een beheerder moet deze opnieuw installeren.",
   "desktop.local_wikipedia_disabled_title": "Lokale Wikipedia is uitgeschakeld",
-  "desktop.local_wikipedia_disabled_text": "Je kunt deze in de instellingen weer inschakelen.",
+  "desktop.local_wikipedia_disabled_admin": "Je kunt deze in de instellingen weer inschakelen.",
   "desktop.local_wikipedia_failed_title": "Wikipedia is niet bereikbaar",
   "desktop.local_wikipedia_failed_text": "De status kon niet worden geladen. Controleer de verbinding en probeer het opnieuw.",
   "desktop.local_wikipedia_retry": "Opnieuw proberen",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "De download of de installatie is mislukt. Controleer de details in de instellingen en probeer het opnieuw.",
   "desktop.local_wikipedia_install_failed_user": "De download of de installatie is mislukt. Een beheerder moet het opnieuw proberen.",
   "desktop.local_wikipedia_update_failed": "De laatste update kon niet worden geïnstalleerd. De geïnstalleerde editie blijft werken.",
-  "desktop.local_wikipedia_update_interrupted": "De download van een nieuwere editie is onderbroken. De geïnstalleerde editie blijft werken."
+  "desktop.local_wikipedia_update_interrupted": "De download van een nieuwere editie is onderbroken. De geïnstalleerde editie blijft werken.",
+  "desktop.local_wikipedia_disabled_user": "Een beheerder kan deze weer inschakelen.",
+  "desktop.local_wikipedia_status_stale": "De verbinding is onderbroken. De app probeert het automatisch opnieuw."
 }

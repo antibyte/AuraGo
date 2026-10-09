@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "Nainstalované vydání je poškozené nebo nečitelné. Nainstalujte ho znovu v nastavení.",
   "desktop.local_wikipedia_error_user": "Nainstalované vydání je poškozené nebo nečitelné. Administrátor ho musí nainstalovat znovu.",
   "desktop.local_wikipedia_disabled_title": "Místní Wikipedie je vypnutá",
-  "desktop.local_wikipedia_disabled_text": "V nastavení ji můžete znovu zapnout.",
+  "desktop.local_wikipedia_disabled_admin": "V nastavení ji můžete znovu zapnout.",
   "desktop.local_wikipedia_failed_title": "Wikipedie není dostupná",
   "desktop.local_wikipedia_failed_text": "Stav se nepodařilo načíst. Zkontrolujte připojení a zkuste to znovu.",
   "desktop.local_wikipedia_retry": "Zkusit znovu",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "Stahování nebo instalace selhaly. Zkontrolujte podrobnosti v nastavení a zkuste to znovu.",
   "desktop.local_wikipedia_install_failed_user": "Stahování nebo instalace selhaly. Administrátor to musí zkusit znovu.",
   "desktop.local_wikipedia_update_failed": "Poslední aktualizaci se nepodařilo nainstalovat. Nainstalované vydání dál funguje.",
-  "desktop.local_wikipedia_update_interrupted": "Stahování novějšího vydání bylo přerušeno. Nainstalované vydání dál funguje."
+  "desktop.local_wikipedia_update_interrupted": "Stahování novějšího vydání bylo přerušeno. Nainstalované vydání dál funguje.",
+  "desktop.local_wikipedia_disabled_user": "Administrátor ji může znovu zapnout.",
+  "desktop.local_wikipedia_status_stale": "Spojení bylo přerušeno. Aplikace to automaticky zkusí znovu."
 }

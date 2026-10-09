@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "Zainstalowane wydanie jest uszkodzone lub nieczytelne. Zainstaluj je ponownie w ustawieniach.",
   "desktop.local_wikipedia_error_user": "Zainstalowane wydanie jest uszkodzone lub nieczytelne. Administrator musi zainstalować je ponownie.",
   "desktop.local_wikipedia_disabled_title": "Lokalna Wikipedia jest wyłączona",
-  "desktop.local_wikipedia_disabled_text": "Możesz ją ponownie włączyć w ustawieniach.",
+  "desktop.local_wikipedia_disabled_admin": "Możesz ją ponownie włączyć w ustawieniach.",
   "desktop.local_wikipedia_failed_title": "Wikipedia jest niedostępna",
   "desktop.local_wikipedia_failed_text": "Nie udało się wczytać stanu. Sprawdź połączenie i spróbuj ponownie.",
   "desktop.local_wikipedia_retry": "Spróbuj ponownie",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "Pobieranie lub instalacja nie powiodły się. Sprawdź szczegóły w ustawieniach i spróbuj ponownie.",
   "desktop.local_wikipedia_install_failed_user": "Pobieranie lub instalacja nie powiodły się. Administrator musi spróbować ponownie.",
   "desktop.local_wikipedia_update_failed": "Nie udało się zainstalować ostatniej aktualizacji. Zainstalowane wydanie nadal działa.",
-  "desktop.local_wikipedia_update_interrupted": "Pobieranie nowszego wydania zostało przerwane. Zainstalowane wydanie nadal działa."
+  "desktop.local_wikipedia_update_interrupted": "Pobieranie nowszego wydania zostało przerwane. Zainstalowane wydanie nadal działa.",
+  "desktop.local_wikipedia_disabled_user": "Administrator może ją ponownie włączyć.",
+  "desktop.local_wikipedia_status_stale": "Połączenie zostało przerwane. Aplikacja automatycznie spróbuje ponownie."
 }

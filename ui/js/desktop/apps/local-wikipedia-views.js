@@ -153,7 +153,7 @@
             error: [t('desktop.local_wikipedia_error_title'), canManage ? t('desktop.local_wikipedia_error_admin') : t('desktop.local_wikipedia_error_user')],
             state_unreadable: [t('desktop.local_wikipedia_error_title'), canManage ? t('desktop.local_wikipedia_state_error_admin') : t('desktop.local_wikipedia_state_error_user')],
             install_failed: [t('desktop.local_wikipedia_install_failed_title'), canManage ? t('desktop.local_wikipedia_install_failed_admin') : t('desktop.local_wikipedia_install_failed_user')],
-            disabled: [t('desktop.local_wikipedia_disabled_title'), t('desktop.local_wikipedia_disabled_text')],
+            disabled: [t('desktop.local_wikipedia_disabled_title'), canManage ? t('desktop.local_wikipedia_disabled_admin') : t('desktop.local_wikipedia_disabled_user')],
             failed: [t('desktop.local_wikipedia_failed_title'), t('desktop.local_wikipedia_failed_text')]
         };
         const known = Object.prototype.hasOwnProperty.call(texts, kind) ? kind : 'failed';
@@ -177,6 +177,12 @@
 
     function banner(kind, text, action) {
         return '<div class="lw-banner" data-kind="' + esc(kind) + '" role="status"><span>' + esc(text) + '</span>' + (action || '') + '</div>';
+    }
+
+    // staleBanner tells the reader that the status could not be refreshed while an
+    // article stays on screen.
+    function staleBanner(t) {
+        return banner('warn', t('desktop.local_wikipedia_status_stale'), '');
     }
 
     function banners(status, t, lang, canManage) {
@@ -217,5 +223,52 @@
         return '<span class="lw-footer-label">' + esc(t('desktop.local_wikipedia_edition')) + '</span><span>' + esc(parts.filter(Boolean).join(' · ')) + '</span>';
     }
 
-    window.LocalWikipediaViews = { CONTENT_PREFIX, esc, icon, contentURL, isContentPath, pathFromLocation, percent, readable, stateKind, monthLabel, shell, stateView, banners, results, suggestions, footer };
+    // toolbarTarget maps an arrow, Home or End key to the index of the toolbar
+    // button that takes focus next (-1 when the key does not move focus). `current`
+    // is the index of the focused button among `count` enabled buttons, or -1.
+    function toolbarTarget(key, current, count, rtl) {
+        if (!(count > 0)) return -1;
+        if (key === 'Home') return 0;
+        if (key === 'End') return count - 1;
+        const next = rtl ? 'ArrowLeft' : 'ArrowRight';
+        const previous = rtl ? 'ArrowRight' : 'ArrowLeft';
+        if (key === next) return (current + 1) % count;
+        if (key === previous) return (current <= 0 ? count : current) - 1;
+        return -1;
+    }
+
+    // adoptLinks applies the reader's link rules to a loaded article. The frame
+    // sandbox has no scripts, so links are the only active content left:
+    //  - ping and attributionsrc make the browser send a request on click, to any
+    //    address and with the session cookie, so they are removed from every link;
+    //  - links into the article route stay, other links of this origin lose their href;
+    //  - http(s) links open in a new tab without opener or referrer, mailto stays,
+    //    every other scheme (javascript:, data:, ...) and unparsable links lose their href.
+    function adoptLinks(doc, origin) {
+        doc.querySelectorAll('a, area').forEach(link => {
+            link.removeAttribute('ping');
+            link.removeAttribute('attributionsrc');
+            const href = link.getAttribute('href');
+            if (href === null || href === undefined) return;
+            let target;
+            try {
+                target = new URL(href, doc.baseURI);
+            } catch (_) {
+                link.removeAttribute('href');
+                return;
+            }
+            if (target.origin === origin) {
+                if (!isContentPath(target.pathname)) link.removeAttribute('href');
+                return;
+            }
+            if (target.protocol === 'http:' || target.protocol === 'https:') {
+                link.setAttribute('target', '_blank');
+                link.setAttribute('rel', 'noopener noreferrer');
+            } else if (target.protocol !== 'mailto:') {
+                link.removeAttribute('href');
+            }
+        });
+    }
+
+    window.LocalWikipediaViews = { CONTENT_PREFIX, esc, icon, contentURL, isContentPath, pathFromLocation, percent, readable, stateKind, monthLabel, shell, stateView, banners, staleBanner, results, suggestions, footer, toolbarTarget, adoptLinks };
 })();

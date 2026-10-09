@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "已安装的版本已损坏或无法读取。请在设置中重新安装。",
   "desktop.local_wikipedia_error_user": "已安装的版本已损坏或无法读取。需要管理员重新安装。",
   "desktop.local_wikipedia_disabled_title": "本地维基百科已关闭",
-  "desktop.local_wikipedia_disabled_text": "可以在设置中重新开启。",
+  "desktop.local_wikipedia_disabled_admin": "可以在设置中重新开启。",
   "desktop.local_wikipedia_failed_title": "无法访问维基百科",
   "desktop.local_wikipedia_failed_text": "无法加载状态。请检查连接后重试。",
   "desktop.local_wikipedia_retry": "重试",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "下载或安装失败。请在设置中查看详情后重试。",
   "desktop.local_wikipedia_install_failed_user": "下载或安装失败。需要管理员重试。",
   "desktop.local_wikipedia_update_failed": "上次更新未能安装。已安装的版本仍可正常使用。",
-  "desktop.local_wikipedia_update_interrupted": "较新版本的下载已中断。已安装的版本仍可正常使用。"
+  "desktop.local_wikipedia_update_interrupted": "较新版本的下载已中断。已安装的版本仍可正常使用。",
+  "desktop.local_wikipedia_disabled_user": "管理员可以重新开启。",
+  "desktop.local_wikipedia_status_stale": "连接已中断。应用会自动重试。"
 }

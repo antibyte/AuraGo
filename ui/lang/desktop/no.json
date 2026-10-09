@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "Den installerte utgaven er skadet eller uleselig. Installer den på nytt i innstillingene.",
   "desktop.local_wikipedia_error_user": "Den installerte utgaven er skadet eller uleselig. En administrator må installere den på nytt.",
   "desktop.local_wikipedia_disabled_title": "Lokal Wikipedia er slått av",
-  "desktop.local_wikipedia_disabled_text": "Du kan slå den på igjen i innstillingene.",
+  "desktop.local_wikipedia_disabled_admin": "Du kan slå den på igjen i innstillingene.",
   "desktop.local_wikipedia_failed_title": "Wikipedia er ikke tilgjengelig",
   "desktop.local_wikipedia_failed_text": "Statusen kunne ikke lastes. Kontroller tilkoblingen og prøv igjen.",
   "desktop.local_wikipedia_retry": "Prøv igjen",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "Nedlastingen eller installasjonen mislyktes. Sjekk detaljene i innstillingene og prøv igjen.",
   "desktop.local_wikipedia_install_failed_user": "Nedlastingen eller installasjonen mislyktes. En administrator må prøve igjen.",
   "desktop.local_wikipedia_update_failed": "Den siste oppdateringen kunne ikke installeres. Den installerte utgaven fungerer fortsatt.",
-  "desktop.local_wikipedia_update_interrupted": "Nedlastingen av en nyere utgave ble avbrutt. Den installerte utgaven fungerer fortsatt."
+  "desktop.local_wikipedia_update_interrupted": "Nedlastingen av en nyere utgave ble avbrutt. Den installerte utgaven fungerer fortsatt.",
+  "desktop.local_wikipedia_disabled_user": "En administrator kan slå den på igjen.",
+  "desktop.local_wikipedia_status_stale": "Tilkoblingen ble brutt. Appen prøver på nytt automatisk."
 }

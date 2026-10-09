@@ -98,6 +98,65 @@ assert(!V.stateView('install_failed', {}, t, false).includes('data-action="setti
 const shell = V.shell(t, {list: 'lw-suggest-w1'});
 assert(shell.includes('sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"') && !shell.includes('allow-scripts'));
 assert(shell.includes('aria-controls="lw-suggest-w1"') && shell.includes('role="combobox"') && shell.includes('role="toolbar"'));
+const admin = V.stateView('disabled', {}, t, true);
+const reader = V.stateView('disabled', {}, t, false);
+assert(admin.includes(labels['desktop.local_wikipedia_disabled_admin']) && admin.includes('data-action="settings"'));
+assert(reader.includes(labels['desktop.local_wikipedia_disabled_user']) && !reader.includes(labels['desktop.local_wikipedia_disabled_admin']) && !reader.includes('data-action="settings"'), 'readers are not told to switch it on themselves');
+assert(V.staleBanner(t).includes(labels['desktop.local_wikipedia_status_stale']) && V.staleBanner(t).includes('role="status"'));
+
+assert.equal(V.toolbarTarget('ArrowRight', 0, 4, false), 1);
+assert.equal(V.toolbarTarget('ArrowRight', 3, 4, false), 0, 'wraps forwards');
+assert.equal(V.toolbarTarget('ArrowLeft', 0, 4, false), 3, 'wraps backwards');
+assert.equal(V.toolbarTarget('ArrowLeft', 2, 4, false), 1);
+assert.equal(V.toolbarTarget('ArrowLeft', 0, 4, true), 1, 'right-to-left swaps the arrows');
+assert.equal(V.toolbarTarget('ArrowRight', 0, 4, true), 3);
+assert.equal(V.toolbarTarget('Home', 2, 4, false), 0);
+assert.equal(V.toolbarTarget('End', 0, 4, false), 3);
+assert.equal(V.toolbarTarget('ArrowRight', -1, 3, false), 0);
+assert.equal(V.toolbarTarget('ArrowLeft', -1, 3, false), 2);
+assert.equal(V.toolbarTarget('Tab', 0, 4, false), -1);
+assert.equal(V.toolbarTarget('ArrowRight', 0, 0, false), -1);
+
+function fakeLink(tag, attrs) {
+  const a = Object.assign({}, attrs);
+  return {tag, getAttribute: n => (Object.prototype.hasOwnProperty.call(a, n) ? a[n] : null), setAttribute: (n, value) => { a[n] = String(value); }, removeAttribute: n => { delete a[n]; }};
+}
+const links = [
+  fakeLink('a', {href: 'Wedding', ping: '/api/vault/delete', attributionsrc: '/api/x'}),
+  fakeLink('a', {href: 'https://example.org/x', ping: '/api/config'}),
+  fakeLink('a', {ping: 'https://tracker.example/p'}),
+  fakeLink('area', {href: '../../status', ping: '/api/desktop/local-wikipedia/status'}),
+  fakeLink('area', {href: 'https://example.org/map', ping: '/api/a', attributionsrc: ''}),
+  fakeLink('a', {href: 'javascript:alert(1)', ping: '/api/b'}),
+  fakeLink('a', {href: 'mailto:a@example.org', ping: '/api/c'}),
+  fakeLink('a', {href: '//cdn.example.org/y', ping: '/api/d'}),
+  fakeLink('a', {href: '#history', ping: '/api/e'}),
+  fakeLink('a', {href: 'http://[bad', ping: '/api/f'}),
+  fakeLink('a', {href: '/api/vault', ping: '/api/vault'}),
+];
+const image = fakeLink('img', {src: 'x', ping: 'untouched'});
+V.adoptLinks({baseURI: 'http://aura.test/api/desktop/local-wikipedia/content/Berlin/Mitte', querySelectorAll(selector) {
+  const tags = selector.split(',').map(part => part.trim());
+  return links.concat([image]).filter(link => tags.includes(link.tag));
+}}, 'http://aura.test');
+for (const link of links) {
+  assert.equal(link.getAttribute('ping'), null, 'ping is removed from every link and area');
+  assert.equal(link.getAttribute('attributionsrc'), null, 'attributionsrc is removed from every link and area');
+}
+assert.equal(image.getAttribute('ping'), 'untouched', 'only links and areas are touched');
+assert.equal(links[0].getAttribute('href'), 'Wedding');
+assert.equal(links[0].getAttribute('target'), null);
+assert.equal(links[1].getAttribute('target'), '_blank');
+assert.equal(links[1].getAttribute('rel'), 'noopener noreferrer');
+assert.equal(links[3].getAttribute('href'), null, 'an area outside the article route loses its href like a link does');
+assert.equal(links[4].getAttribute('target'), '_blank');
+assert.equal(links[4].getAttribute('rel'), 'noopener noreferrer');
+assert.equal(links[5].getAttribute('href'), null, 'javascript: links lose their href');
+assert.equal(links[6].getAttribute('href'), 'mailto:a@example.org');
+assert.equal(links[7].getAttribute('target'), '_blank', 'protocol-relative links are external');
+assert.equal(links[8].getAttribute('href'), '#history');
+assert.equal(links[9].getAttribute('href'), null, 'unparsable links lose their href');
+assert.equal(links[10].getAttribute('href'), null, 'API paths of this origin lose their href');
 `
 	cmd := exec.Command(node, "-e", script)
 	if output, err := cmd.CombinedOutput(); err != nil {

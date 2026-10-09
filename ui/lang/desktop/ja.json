@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "インストール済みの版が破損しているか読み取れません。設定で再インストールしてください。",
   "desktop.local_wikipedia_error_user": "インストール済みの版が破損しているか読み取れません。管理者が再インストールする必要があります。",
   "desktop.local_wikipedia_disabled_title": "ローカルのウィキペディアはオフです",
-  "desktop.local_wikipedia_disabled_text": "設定で再びオンにできます。",
+  "desktop.local_wikipedia_disabled_admin": "設定で再びオンにできます。",
   "desktop.local_wikipedia_failed_title": "ウィキペディアに接続できません",
   "desktop.local_wikipedia_failed_text": "状態を読み込めませんでした。接続を確認して、もう一度お試しください。",
   "desktop.local_wikipedia_retry": "再試行",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "ダウンロードまたはインストールに失敗しました。設定で詳細を確認して、もう一度お試しください。",
   "desktop.local_wikipedia_install_failed_user": "ダウンロードまたはインストールに失敗しました。管理者がもう一度試す必要があります。",
   "desktop.local_wikipedia_update_failed": "前回の更新をインストールできませんでした。インストール済みの版は引き続き利用できます。",
-  "desktop.local_wikipedia_update_interrupted": "新しい版のダウンロードが中断されました。インストール済みの版は引き続き利用できます。"
+  "desktop.local_wikipedia_update_interrupted": "新しい版のダウンロードが中断されました。インストール済みの版は引き続き利用できます。",
+  "desktop.local_wikipedia_disabled_user": "管理者が再びオンにできます。",
+  "desktop.local_wikipedia_status_stale": "接続が中断されました。アプリが自動的に再試行します。"
 }

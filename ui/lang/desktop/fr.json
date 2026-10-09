@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "L’édition installée est endommagée ou illisible. Réinstallez-la dans les paramètres.",
   "desktop.local_wikipedia_error_user": "L’édition installée est endommagée ou illisible. Un administrateur doit la réinstaller.",
   "desktop.local_wikipedia_disabled_title": "La Wikipédia locale est désactivée",
-  "desktop.local_wikipedia_disabled_text": "Vous pouvez la réactiver dans les paramètres.",
+  "desktop.local_wikipedia_disabled_admin": "Vous pouvez la réactiver dans les paramètres.",
   "desktop.local_wikipedia_failed_title": "Wikipédia est inaccessible",
   "desktop.local_wikipedia_failed_text": "Impossible de charger l’état. Vérifiez la connexion et réessayez.",
   "desktop.local_wikipedia_retry": "Réessayer",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "Le téléchargement ou l’installation a échoué. Vérifiez les détails dans les paramètres et réessayez.",
   "desktop.local_wikipedia_install_failed_user": "Le téléchargement ou l’installation a échoué. Un administrateur doit réessayer.",
   "desktop.local_wikipedia_update_failed": "La dernière mise à jour n’a pas pu être installée. L’édition installée continue de fonctionner.",
-  "desktop.local_wikipedia_update_interrupted": "Le téléchargement d’une édition plus récente a été interrompu. L’édition installée continue de fonctionner."
+  "desktop.local_wikipedia_update_interrupted": "Le téléchargement d’une édition plus récente a été interrompu. L’édition installée continue de fonctionner.",
+  "desktop.local_wikipedia_disabled_user": "Un administrateur peut la réactiver.",
+  "desktop.local_wikipedia_status_stale": "La connexion a été interrompue. L’application réessaie automatiquement."
 }

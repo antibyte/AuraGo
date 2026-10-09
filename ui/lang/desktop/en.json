@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "The installed edition is damaged or unreadable. Reinstall it in the settings.",
   "desktop.local_wikipedia_error_user": "The installed edition is damaged or unreadable. An administrator has to reinstall it.",
   "desktop.local_wikipedia_disabled_title": "Local Wikipedia is switched off",
-  "desktop.local_wikipedia_disabled_text": "It can be switched on again in the settings.",
+  "desktop.local_wikipedia_disabled_admin": "It can be switched on again in the settings.",
   "desktop.local_wikipedia_failed_title": "Wikipedia is not reachable",
   "desktop.local_wikipedia_failed_text": "The status could not be loaded. Check the connection and try again.",
   "desktop.local_wikipedia_retry": "Try again",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "The download or the installation failed. Check the details in the settings and try again.",
   "desktop.local_wikipedia_install_failed_user": "The download or the installation failed. An administrator has to try again.",
   "desktop.local_wikipedia_update_failed": "The last update could not be installed. The installed edition keeps working.",
-  "desktop.local_wikipedia_update_interrupted": "The download of a newer edition was interrupted. The installed edition keeps working."
+  "desktop.local_wikipedia_update_interrupted": "The download of a newer edition was interrupted. The installed edition keeps working.",
+  "desktop.local_wikipedia_disabled_user": "An administrator can switch it on again.",
+  "desktop.local_wikipedia_status_stale": "The connection was interrupted. The app tries again automatically."
 }

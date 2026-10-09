@@ -5754,7 +5754,7 @@
   "desktop.local_wikipedia_error_admin": "Η εγκατεστημένη έκδοση είναι κατεστραμμένη ή μη αναγνώσιμη. Εγκαταστήστε την ξανά από τις ρυθμίσεις.",
   "desktop.local_wikipedia_error_user": "Η εγκατεστημένη έκδοση είναι κατεστραμμένη ή μη αναγνώσιμη. Ένας διαχειριστής πρέπει να την εγκαταστήσει ξανά.",
   "desktop.local_wikipedia_disabled_title": "Η τοπική Βικιπαίδεια είναι απενεργοποιημένη",
-  "desktop.local_wikipedia_disabled_text": "Μπορείτε να την ενεργοποιήσετε ξανά στις ρυθμίσεις.",
+  "desktop.local_wikipedia_disabled_admin": "Μπορείτε να την ενεργοποιήσετε ξανά στις ρυθμίσεις.",
   "desktop.local_wikipedia_failed_title": "Η Βικιπαίδεια δεν είναι προσβάσιμη",
   "desktop.local_wikipedia_failed_text": "Δεν ήταν δυνατή η φόρτωση της κατάστασης. Ελέγξτε τη σύνδεση και δοκιμάστε ξανά.",
   "desktop.local_wikipedia_retry": "Δοκιμάστε ξανά",
@@ -5774,5 +5774,7 @@
   "desktop.local_wikipedia_install_failed_admin": "Η λήψη ή η εγκατάσταση απέτυχε. Ελέγξτε τις λεπτομέρειες στις ρυθμίσεις και δοκιμάστε ξανά.",
   "desktop.local_wikipedia_install_failed_user": "Η λήψη ή η εγκατάσταση απέτυχε. Ένας διαχειριστής πρέπει να δοκιμάσει ξανά.",
   "desktop.local_wikipedia_update_failed": "Η τελευταία ενημέρωση δεν μπόρεσε να εγκατασταθεί. Η εγκατεστημένη έκδοση συνεχίζει να λειτουργεί.",
-  "desktop.local_wikipedia_update_interrupted": "Η λήψη μιας νεότερης έκδοσης διακόπηκε. Η εγκατεστημένη έκδοση συνεχίζει να λειτουργεί."
+  "desktop.local_wikipedia_update_interrupted": "Η λήψη μιας νεότερης έκδοσης διακόπηκε. Η εγκατεστημένη έκδοση συνεχίζει να λειτουργεί.",
+  "desktop.local_wikipedia_disabled_user": "Ένας διαχειριστής μπορεί να την ενεργοποιήσει ξανά.",
+  "desktop.local_wikipedia_status_stale": "Η σύνδεση διακόπηκε. Η εφαρμογή θα δοκιμάσει ξανά αυτόματα."
 }
