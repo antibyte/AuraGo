@@ -1104,6 +1104,22 @@ treg:
 
 Every endpoint needs an explicit grant with the operation class `read`, `create`, `update`, or `delete` (at most 256 entries). The cost ceiling covers treg fees only. Results separate reserved and settled amounts; status polling uses server-owned references bound to token and session (valid for 24 hours). Administrative `/api/treg/` routes expose status, catalog, endpoint details, balance, and connection test only. Details: [treg integration](../../treg.md).
 
+### Local Wikipedia
+
+`local_wikipedia` downloads one Kiwix Wikipedia edition (ZIM) and reads it offline in pure Go for the `local_wikipedia` agent tool and the **Wikipedia** desktop app. It is off by default; nothing downloads until an administrator clicks **Install** under **Config → Local Wikipedia**.
+
+```yaml
+local_wikipedia:
+    enabled: false
+    agent_access: true        # offer the read-only local_wikipedia tool
+    language: ""              # cs da de el en es fr hi it ja nl no pl pt sv zh; empty = system language
+    variant: nopic            # nopic (without media) or maxi (with media)
+    data_dir: ""              # empty = <data_dir>/wikipedia; native only, ignored in Docker
+    update_check: true        # daily catalog check; updates still need a click
+```
+
+Changing `language` or `variant` never starts a download; the status reports that the selection differs from the installed edition. A custom `data_dir` must be absolute, writable by the AuraGo service (systemd `ReadWritePaths`) and not a system or program directory; saving such a path is refused. There are no Vault keys. See [Local Wikipedia](../../local-wikipedia.md).
+
 ## Compact YAML Reference
 
 The blocks below are available for advanced and headless setups. Most can be configured more easily in the **Web UI under Config → Integrations, Config → Security, and Config → Tools**.
@@ -1168,6 +1184,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `model_catalog` | Bundled provider/model catalog for UI and capability detection. | `model_catalog:`<br>`  enabled: true`<br>`  disabled_providers: []`<br>`  catalog_only_visible: true` |
 | `detective` | Bounded desktop research cases (effort profiles). | `detective:`<br>`  enabled: true`<br>`  readonly: false`<br>`  profiles:`<br>`    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}` |
 | `flows` | EasyDrag visual flows: missions with their own engine ([chapter 11](11-missions.md#flow-missions-easydrag)). Limits: runs 1–32, branches per run 1–16, retention 1–365 days, 10–5000 runs per flow; `ai_provider` empty = main model. Changing `enabled` or a limit needs a restart. | `flows:`<br>`  enabled: true`<br>`  max_parallel_runs: 8`<br>`  max_parallel_nodes_per_run: 4`<br>`  run_retention_days: 30`<br>`  max_runs_per_flow: 200`<br>`  ai_provider: ""` |
+| `local_wikipedia` | Offline Wikipedia edition (Kiwix ZIM), agent tool and desktop app. | `local_wikipedia:`<br>`  enabled: false`<br>`  agent_access: true`<br>`  language: ""`<br>`  variant: nopic`<br>`  data_dir: ""`<br>`  update_check: true` |
 
 ---
 

@@ -70,3 +70,25 @@ func TestLocalWikipediaManualIntegrationSections(t *testing.T) {
 		t.Error("German Lokale Wikipedia section must come before Integrationen testen")
 	}
 }
+
+func TestLocalWikipediaManualConfigurationReference(t *testing.T) {
+	t.Parallel()
+	en := readRepoFile(t, "documentation/manual/en/07-configuration.md")
+	requireAll(t, "manual/en/07-configuration.md", en, []string{
+		"### Local Wikipedia",
+		"| `local_wikipedia` | Offline Wikipedia edition (Kiwix ZIM), agent tool and desktop app. |",
+		"update_check: true        # daily catalog check; updates still need a click",
+	})
+	de := readRepoFile(t, "documentation/manual/de/07-konfiguration.md")
+	requireAll(t, "manual/de/07-konfiguration.md", de, []string{
+		"### Lokale Wikipedia",
+		"| `local_wikipedia` | Offline-Wikipedia (Kiwix-ZIM), Agenten-Tool und Desktop-App |",
+		"update_check: true        # tägliche Katalogprüfung; Updates nur per Klick",
+	})
+	if got := strings.Count(de, "| `local_wikipedia` |"); got != 2 {
+		t.Errorf("German chapter 7 must list local_wikipedia in both block tables, found %d rows", got)
+	}
+	if !strings.Contains(readRepoFile(t, "config_template.yaml"), "\nlocal_wikipedia:\n") {
+		t.Error("config_template.yaml must contain the local_wikipedia block (slice 3)")
+	}
+}
