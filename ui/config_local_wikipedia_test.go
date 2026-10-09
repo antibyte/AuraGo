@@ -94,3 +94,52 @@ func TestConfigLocalWikipediaTranslationsCoverAllLocales(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigLocalWikipediaModuleUsesAdminAPIAndKnownKeys(t *testing.T) {
+	module := string(mustReadUIFile(t, "cfg/local_wikipedia.js"))
+	for _, wanted := range []string{
+		"function renderLocalWikipediaSection(",
+		"'/api/local-wikipedia/status'",
+		"'/api/local-wikipedia/catalog?lang='",
+		"'/api/local-wikipedia/install'",
+		"'/api/local-wikipedia/cancel'",
+		"'/api/local-wikipedia/delete'",
+		"'/api/local-wikipedia/check-update'",
+		"hasUnsavedConfigChanges()",
+		"isDockerRuntime()",
+		"status.data_dir_locked",
+		"showConfirm(",
+		"setTimeout(localWikiRefreshStatus, 2000)",
+		"confirm_unknown_space: true",
+		"replace_mode: 'delete_old_first'",
+		"data.can_delete_old === true",
+		`<progress id="lw-progress"`,
+		"aurago:config-saved",
+		"cfg:section-leave",
+		"['no', 'Norsk']",
+		// The status error text prefers the server's operation-specific
+		// recommendation, and "edition available" follows the readable flag.
+		"function localWikiStatusErrorText(",
+		"status.recommendation",
+		"status.readable === true",
+	} {
+		if !strings.Contains(module, wanted) {
+			t.Fatalf("Local Wikipedia config module missing %q", wanted)
+		}
+	}
+	for _, forbidden := range []string{"alert(", "confirm(", "prompt(", `style="`, "130 GB"} {
+		if strings.Contains(module, forbidden) {
+			t.Fatalf("Local Wikipedia config module contains forbidden %q", forbidden)
+		}
+	}
+	byLocale, _ := readLocalWikipediaBundles(t)
+	for _, match := range regexp.MustCompile(`'((?:config|help)\.local_wikipedia\.[a-z_]+)'`).FindAllStringSubmatch(module, -1) {
+		key := match[1]
+		if strings.HasSuffix(key, ".") || strings.HasSuffix(key, "_") {
+			continue
+		}
+		if _, ok := byLocale["en"][key]; !ok {
+			t.Fatalf("module uses %s, which the English bundle lacks", key)
+		}
+	}
+}
