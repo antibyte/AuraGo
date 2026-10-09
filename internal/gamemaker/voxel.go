@@ -123,19 +123,26 @@ func (v *VoxelDefinition) Validate() error {
 	if v == nil || v.Version != VoxelVersion {
 		return bad("version must be 1")
 	}
+	var issues []string
+	add := func(message string) {
+		if len(issues) < 8 {
+			runes := []rune(message)
+			issues = append(issues, string(runes[:min(600, len(runes))]))
+		}
+	}
 	if !slices.Contains([]string{"survival", "creative"}, v.Mode) {
-		return bad("mode must be survival or creative")
+		add("mode must be survival or creative")
 	}
 	if len(v.Seed) < 1 || len(v.Seed) > 128 {
-		return bad("seed must contain 1–128 bytes")
+		add("seed must contain 1–128 bytes")
 	}
 	for i, n := range v.Size {
 		if limit := [3]int{128, 64, 128}[i]; n < 16 || n%16 != 0 || n > limit {
-			return bad(fmt.Sprintf("size[%d] (%s) %d must be a multiple of 16 from 16 to %d", i, [3]string{"x", "height", "z"}[i], n, limit))
+			add(fmt.Sprintf("size[%d] (%s) %d must be a multiple of 16 from 16 to %d", i, [3]string{"x", "height", "z"}[i], n, limit))
 		}
 	}
 	if !slices.Contains([]string{"flat", "hills", "island"}, v.Terrain) {
-		return bad("terrain must be flat, hills or island")
+		add("terrain must be flat, hills or island")
 	}
 	if len(v.Blocks) < 1 || len(v.Blocks) > 64 || len(v.Items) < 1 || len(v.Items) > 64 || len(v.Recipes) < 1 || len(v.Recipes) > 64 {
 		return bad(fmt.Sprintf("1–64 blocks, items and recipes required (got %d, %d, %d)", len(v.Blocks), len(v.Items), len(v.Recipes)))
@@ -151,47 +158,65 @@ func (v *VoxelDefinition) Validate() error {
 	for _, i := range order {
 		b := v.Blocks[i]
 		if issue := voxelBlockIssue(b, blocks, keys); issue != "" {
-			return bad(fmt.Sprintf("blocks[%d] %s", i, issue))
+			add(fmt.Sprintf("blocks[%d] %s", i, issue))
 		}
 		if !materials[b.Material] {
 			generated[b.ID] = true
 		}
 		blocks[b.ID], keys[b.Key], materials[b.Material] = true, true, true
 	}
-	for _, material := range []string{"grass", "dirt", "stone", "wood", "leaves", "ore", "sand"} {
+	var missing []string
+	for _, material := range strings.Split(voxelTerrainMaterials, ", ") {
 		if !materials[material] {
-			return bad("terrain requires a block with material " + material)
+			missing = append(missing, material)
 		}
+	}
+	if len(missing) > 0 {
+		add("blocks are missing terrain materials: " + strings.Join(missing, ", ") + ". Terrain requires " + voxelTerrainMaterials + " in both survival and creative modes. Restore matching palette blocks and drop items from inspect.design_example.voxel; keep their material identities")
 	}
 	items := map[string]VoxelItem{}
 	for i, item := range v.Items {
 		if issue := voxelItemIssue(item, items, blocks); issue != "" {
-			return bad(fmt.Sprintf("items[%d] %q %s", i, item.ID, issue))
+			add(fmt.Sprintf("items[%d] %q %s", i, item.ID, issue))
 		}
 		items[item.ID] = item
 	}
 	for i, b := range v.Blocks {
 		if _, ok := items[b.Drop]; !ok {
-			return bad(fmt.Sprintf("blocks[%d] drop %q references no declared item", i, b.Drop))
+			add(fmt.Sprintf("blocks[%d] drop %q references no declared item", i, b.Drop))
 		}
 	}
 	recipes := map[string]bool{}
 	for i, r := range v.Recipes {
 		if issue := voxelRecipeIssue(r, recipes, items); issue != "" {
-			return bad(fmt.Sprintf("recipes[%d] %q %s", i, r.ID, issue))
+			add(fmt.Sprintf("recipes[%d] %q %s", i, r.ID, issue))
 		}
 		recipes[r.ID] = true
 	}
 	enemies, total := map[string]bool{}, 0
 	for i, e := range v.Enemies {
 		if issue := voxelEnemyIssue(e, enemies, items); issue != "" {
-			return bad(fmt.Sprintf("enemies[%d] %q %s", i, e.ID, issue))
+			add(fmt.Sprintf("enemies[%d] %q %s", i, e.ID, issue))
 		}
 		enemies[e.ID] = true
 		total += e.Count
 	}
 	if total > 24 {
-		return bad(fmt.Sprintf("at most 24 enemies in total (got %d)", total))
+		add(fmt.Sprintf("at most 24 enemies in total (got %d)", total))
+	}
+	goals := map[string]bool{}
+	if len(v.Goals) > 8 {
+		add(fmt.Sprintf("at most 8 goals (got %d)", len(v.Goals)))
+	}
+	for i, g := range v.Goals {
+		if issue := voxelGoalIssue(g, goals, items); issue != "" {
+			add(fmt.Sprintf("goals[%d] %q %s", i, g.ID, issue))
+		}
+		goals[g.ID] = true
+	}
+	// Report independent corrections together, but only evaluate a valid rule graph.
+	if len(issues) > 0 {
+		return bad(strings.Join(issues, "; "))
 	}
 	// Reject circular progressions (for example stone requiring a stone tool).
 	reachable, crafted, collectible := map[string]bool{}, map[string]bool{}, map[string]bool{}
@@ -244,37 +269,34 @@ func (v *VoxelDefinition) Validate() error {
 		}
 	}
 	if len(crafted) == 0 {
-		return bad("provide a craftable recipe reachable from terrain resources")
+		add("provide a craftable recipe reachable from terrain resources")
 	}
 	for _, b := range v.Blocks {
 		if (b.Material == "stone" || b.Material == "ore") && v.Mode == "survival" && b.Tier > tier {
-			return bad("stone and ore require a reachable tool progression")
+			add("stone and ore require a reachable tool progression")
+			break
 		}
-	}
-	goals := map[string]bool{}
-	if len(v.Goals) > 8 {
-		return bad(fmt.Sprintf("at most 8 goals (got %d)", len(v.Goals)))
 	}
 	for i, g := range v.Goals {
-		issue := voxelGoalIssue(g, goals, items)
-		if issue == "" {
-			switch {
-			case g.Kind == "craft" && !crafted[g.Item]:
-				issue = fmt.Sprintf("craft %q is unreachable: no recipe producing it can be completed from terrain resources", g.Item)
-			case g.Kind == "collect" && !collectible[g.Item]:
-				issue = fmt.Sprintf("collect %q is unreachable: it is neither a terrain block drop nor an enemy drop", g.Item)
-			case g.Kind == "place" && items[g.Item].Block == 0:
-				issue = fmt.Sprintf("place %q needs an item whose block is a declared block ID", g.Item)
-			case g.Kind == "place" && !reachable[g.Item]:
-				issue = fmt.Sprintf("place %q is unreachable: the player can never obtain it", g.Item)
-			case g.Kind == "defeat" && g.Count > total:
-				issue = fmt.Sprintf("defeat count %d exceeds the %d enemies declared", g.Count, total)
-			}
+		var issue string
+		switch {
+		case g.Kind == "craft" && !crafted[g.Item]:
+			issue = fmt.Sprintf("craft %q is unreachable: no recipe producing it can be completed from terrain resources", g.Item)
+		case g.Kind == "collect" && !collectible[g.Item]:
+			issue = fmt.Sprintf("collect %q is unreachable: it is neither a terrain block drop nor an enemy drop", g.Item)
+		case g.Kind == "place" && items[g.Item].Block == 0:
+			issue = fmt.Sprintf("place %q needs an item whose block is a declared block ID", g.Item)
+		case g.Kind == "place" && !reachable[g.Item]:
+			issue = fmt.Sprintf("place %q is unreachable: the player can never obtain it", g.Item)
+		case g.Kind == "defeat" && g.Count > total:
+			issue = fmt.Sprintf("defeat count %d exceeds the %d enemies declared", g.Count, total)
 		}
 		if issue != "" {
-			return bad(fmt.Sprintf("goals[%d] %q %s", i, g.ID, issue))
+			add(fmt.Sprintf("goals[%d] %q %s", i, g.ID, issue))
 		}
-		goals[g.ID] = true
+	}
+	if len(issues) > 0 {
+		return bad(strings.Join(issues, "; "))
 	}
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil || len(data) > 64*1024 {
@@ -283,7 +305,9 @@ func (v *VoxelDefinition) Validate() error {
 	return nil
 }
 
-var voxelMaterials = []string{"grass", "dirt", "stone", "wood", "leaves", "ore", "sand", "planks", "brick"}
+const voxelTerrainMaterials = "grass, dirt, stone, wood, leaves, ore, sand"
+
+var voxelMaterials = strings.Split(voxelTerrainMaterials+", planks, brick", ", ")
 
 const voxelIDRule = "must be lowercase snake_case (a-z first, then a-z, 0-9 or _, at most 40 characters)"
 

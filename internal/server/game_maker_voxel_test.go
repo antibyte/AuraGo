@@ -67,6 +67,24 @@ func TestGameMakerVoxelPromptProfiles(t *testing.T) {
 	}
 }
 
+func TestGameMakerVoxelProfilesDiscloseRequiredTerrainPalette(t *testing.T) {
+	for _, phase := range []string{"planning", "building", "repair"} {
+		profile, err := gameMakerPromptProfile(phase, "3d", "voxel")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, requirement := range []string{
+			"Both modes require terrain blocks with materials grass, dirt, stone, wood, leaves, ore, sand",
+			"retain its drop items",
+			"creative mode does not remove terrain materials",
+		} {
+			if !strings.Contains(profile.SystemPrompt(), requirement) {
+				t.Errorf("%s profile omits %q", phase, requirement)
+			}
+		}
+	}
+}
+
 func TestGameMakerVoxelPlayStateHTTPBoundary(t *testing.T) {
 	const path = "/api/game-maker/projects/p/play-state"
 	if isAuthBypassed(path) || isAuthBypassed("/api/game-maker/projects/p/play") {

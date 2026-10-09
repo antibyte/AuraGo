@@ -4,6 +4,7 @@ package gamemaker
 const voxelDefinitionRules = `## Voxel definition
 - Voxel v1 is a finite first-person sandbox driven by src/voxel.json. The mode, survival (default) or creative, is chosen from the request and fixed during play. Size defaults to [96,48,96], at most [128,64,128], in multiples of 16; terrain is flat, hills or island with a bounded seed.
 - Preserve valid defaults unless the request changes them. For an explicitly peaceful request, remove all enemies; keep the wood→stone→metal mining and crafting progression unless asked to change it.
+- Both modes require terrain blocks with materials ` + voxelTerrainMaterials + `. Optional materials are planks and brick; do not invent material names. Start from the complete example palette and retain its drop items. Creative inventory supplies declared items freely; creative mode does not remove terrain materials.
 - At most 64 block/item/recipe identities and 24 enemies. IDs and materials are storage identities. Plan acceptance and file edits validate the same definition.
 - The definition is an implementation: keep concrete requested recipes, enemies and goals executable, not prose or renamed labels. Optional goals use collect/craft/place with an item, or defeat without an item. No forced timer, combat or victory for peaceful sandboxes.`
 

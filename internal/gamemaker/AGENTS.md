@@ -47,6 +47,11 @@ revision publication and standalone export for Phaser and Three.js games.
   element index/ID, the field and its accepted values. Grid mutation owns collision,
   geometry invalidation and saves; inventory/crafting transactions are atomic.
   Hooks use the public API and dispose their scene additions on reload/disposal.
+- Both modes require the seven `voxelTerrainMaterials` used by terrain generation.
+  Planning/editing guidance names them; creative supply does not remove them.
+  Definition validation reports bounded independent corrections together before
+  checking reachability. Native JSON-string and object designs retain the same
+  failed draft for partial corrections; acceptance and file-write gates stay strict.
 - Voxel prepared profiles keep three planning/four editing tools and fixed
   schemas; repair shares editing. Only compact definitions/API and bounded file
   observations enter prompts. Saves and chunk arrays never enter agent context.
