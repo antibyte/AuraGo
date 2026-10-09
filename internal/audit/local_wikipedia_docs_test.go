@@ -2,6 +2,7 @@ package audit
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -143,6 +144,49 @@ func TestLocalWikipediaContractIsRouted(t *testing.T) {
 	if _, err := os.Stat(repoPath("ui", "js", "desktop", "apps", "local-wikipedia.js")); err == nil {
 		if !strings.Contains(readRepoFile(t, "ui/js/desktop/apps/AGENTS.md"), "local-wikipedia") {
 			t.Error("ui/js/desktop/apps/AGENTS.md must carry the Local Wikipedia app section (slice 5)")
+		}
+	}
+}
+
+func TestLocalWikipediaThirdPartyRecords(t *testing.T) {
+	t.Parallel()
+	notices := readRepoFile(t, "THIRD_PARTY_NOTICES.md")
+	requireAll(t, "THIRD_PARTY_NOTICES.md", notices, []string{
+		"| klauspost/compress", "| ulikunitz/xz", "| blevesearch/snowballstem",
+		"https://github.com/ulikunitz/xz", "https://github.com/blevesearch/snowballstem", "https://github.com/klauspost/compress",
+		"## Local Wikipedia content and formats", "CC BY-SA 4.0", "Wikimedia Foundation",
+		"internal/zim/testdata/", "scripts/localwiki/fixtures/", "internal/localwiki/testdata/",
+	})
+	for _, dir := range []string{"internal/zim/testdata", "scripts/localwiki/fixtures", "internal/localwiki/testdata"} {
+		if _, err := os.Stat(repoPath(filepath.FromSlash(dir))); err != nil {
+			t.Errorf("THIRD_PARTY_NOTICES.md names %s, which must exist: %v", dir, err)
+		}
+	}
+	libraries := readRepoFile(t, "THIRD_PARTY_LIBRARIES.md")
+	requireAll(t, "THIRD_PARTY_LIBRARIES.md", libraries, []string{
+		"| `github.com/blevesearch/snowballstem` |", "| `github.com/klauspost/compress` |", "| `github.com/ulikunitz/xz` |",
+		"Kiwix Wikipedia ZIM edition",
+	})
+	section2 := libraries[strings.Index(libraries, "## 2. Go"):strings.Index(libraries, "## 3. Frontend")]
+	if strings.Contains(section2, "klauspost/compress") {
+		t.Error("klauspost/compress is a direct dependency now and must leave section 2")
+	}
+	requireAll(t, "documentation/dependencies.md", readRepoFile(t, "documentation/dependencies.md"), []string{
+		"| ulikunitz/xz |", "GO-2025-3922",
+	})
+	gomod := readRepoFile(t, "go.mod")
+	for _, module := range []string{"github.com/klauspost/compress ", "github.com/ulikunitz/xz ", "github.com/blevesearch/snowballstem "} {
+		found := false
+		for _, line := range strings.Split(gomod, "\n") {
+			if strings.Contains(line, module) {
+				found = true
+				if strings.Contains(line, "// indirect") {
+					t.Errorf("go.mod lists %s as indirect; Local Wikipedia imports it directly", strings.TrimSpace(module))
+				}
+			}
+		}
+		if !found {
+			t.Errorf("go.mod does not require %s", strings.TrimSpace(module))
 		}
 	}
 }

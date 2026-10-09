@@ -3,7 +3,7 @@
 Inventory of external libraries, runtimes, fonts, icons, and other third-party assets used by **AuraGo**.
 
 - **AuraGo project license:** [MIT](LICENSE)
-- **Reviewed:** 2026-09-29
+- **Reviewed:** 2026-10-09
 - **Sources:** `go.mod`, root `package.json`, `browser_automation_sidecar/package.json`, `ui/js/vendor/`, `ui/fonts/`, `ui/img/`, `THIRD_PARTY_NOTICES.md`
 
 > **Note:** Upstream license texts are authoritative. This document is an attribution inventory. Versions may drift; check `go.mod` / `package.json` / vendored file headers for the exact pin in your checkout.
@@ -247,7 +247,7 @@ Not third-party, listed for completeness:
 
 ## 8. On-demand / optional runtimes
 
-Documented in `THIRD_PARTY_NOTICES.md`. **Not** embedded in the default source tree/binary; downloaded when `embeddings.provider` is `local-granite` (verified by size + SHA-256).
+Documented in `THIRD_PARTY_NOTICES.md`. **Not** embedded in the default source tree/binary. The embedding runtime is downloaded when `embeddings.provider` is `local-granite`; a Wikipedia edition is downloaded only when an administrator installs one under Local Wikipedia. Both are verified by size + SHA-256.
 
 | Component | Use | License | Project |
 |---|---|---|---|
@@ -256,6 +256,7 @@ Documented in `THIRD_PARTY_NOTICES.md`. **Not** embedded in the default source t
 | llama.cpp (pinned build) | GGUF embedding server / sidecars | MIT | https://github.com/ggml-org/llama.cpp |
 | Ebitengine PureGo | CGO-free native calls | Apache-2.0 | https://github.com/ebitengine/purego |
 | dlclark/regexp2 | Tokenizer regex | MIT | https://github.com/dlclark/regexp2 |
+| Kiwix Wikipedia ZIM edition (one, administrator-selected) | Local Wikipedia content | CC BY-SA 4.0 (text); media under individual licenses | https://library.kiwix.org |
 
 ---
 
@@ -297,7 +298,7 @@ cd browser_automation_sidecar && npm ls --all
 Related docs:
 
 - `LICENSE` — AuraGo MIT license
-- `THIRD_PARTY_NOTICES.md` — local embedding runtime attributions
+- `THIRD_PARTY_NOTICES.md` — local embedding runtime, SIP, Local Wikipedia and other attributions
 - `documentation/third_party/realtime_speech_browser_runtime.md` — Silero + ORT web pins
 
 ---
