@@ -1,6 +1,7 @@
 package zim
 
 import (
+	"bytes"
 	"encoding/binary"
 	"testing"
 
@@ -184,8 +185,9 @@ func TestCorruptTitleListPositionsAreRejected(t *testing.T) {
 		{"metadata entry", func(d []byte, l *zimtest.Layout) { point(d, l, l.EntryIndex["M/Language"]) }},
 		{"redirect outside the content namespace", func(d []byte, l *zimtest.Layout) { point(d, l, l.EntryIndex["W/mainPage"]) }},
 		{"deprecated entry in the content namespace", func(d []byte, l *zimtest.Layout) {
-			// "Hamburg" becomes a deprecated "deleted" entry (MIME index 0xFFFD).
-			le.PutUint16(d[l.DirentOffset["C/Hamburg"]:], mimeDeleted)
+			// "Hamburg" becomes a well-formed deprecated "deleted" entry, so the
+			// case fails on the v1 list's article check, not on a garbled dirent.
+			deprecateDirent(d, l.DirentOffset["C/Hamburg"], mimeDeleted)
 		}},
 	}
 	for _, tc := range cases {
@@ -285,6 +287,25 @@ func mustBuild(t *testing.T, b *zimtest.Builder) *zimtest.Layout {
 	return layout
 }
 
+// deprecateDirent rewrites the content directory entry at off in place into a
+// well-formed deprecated one: an 8-byte header (MIME index mime, no parameter
+// bytes, same namespace, revision 0) followed by the path and the title at
+// offset 8, as old archives store "deleted" and "link target" entries. The
+// entry becomes eight bytes shorter; the tail of its slot is zero padding that
+// no pointer addresses.
+func deprecateDirent(d []byte, off int64, mime uint16) {
+	slot := d[off:]
+	ns := slot[3]
+	strs := slot[16:] // path\0 title\0 of a content entry
+	pathEnd := bytes.IndexByte(strs, 0)
+	titleEnd := pathEnd + 1 + bytes.IndexByte(strs[pathEnd+1:], 0)
+	names := append([]byte(nil), strs[:titleEnd+1]...)
+	clear(slot[:16+len(names)])
+	binary.LittleEndian.PutUint16(slot, mime)
+	slot[3] = ns
+	copy(slot[8:], names)
+}
+
 func TestV0TitleListAllowsDeprecatedEntries(t *testing.T) {
 	// Old archives keep deprecated ("deleted"/"link target") entries inside the
 	// content namespace block that the v0 list covers; they are listed, not corrupt.
@@ -295,7 +316,7 @@ func TestV0TitleListAllowsDeprecatedEntries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	binary.LittleEndian.PutUint16(data[layout.DirentOffset["C/Hamburg"]:], mimeDeleted)
+	deprecateDirent(data, layout.DirentOffset["C/Hamburg"], mimeDeleted)
 	a := openPath(t, zimtest.WriteBytes(t, data))
 	if a.titles.v1 {
 		t.Fatal("test needs the v0 list")
@@ -316,9 +337,17 @@ func TestV0TitleListAllowsDeprecatedEntries(t *testing.T) {
 	if deprecated != 1 {
 		t.Fatalf("listed %d deprecated entries, want 1", deprecated)
 	}
-	if e, err := a.ArticleAt(3); err != nil || e.kind != kindDeprecated {
+	// Callers (random article, suggestions) see an entry that is neither a
+	// redirect nor has a MIME type, and Open rejects it: they must skip it.
+	e, err := a.ArticleAt(3)
+	if err != nil || e.kind != kindDeprecated {
 		t.Fatalf("ArticleAt(3) = %+v, %v; want the deprecated entry", e, err)
 	}
+	if e.Namespace != 'C' || e.Path != "Hamburg" || e.Title != "Hamburg" || e.IsRedirect || e.MimeType != "" {
+		t.Fatalf("deprecated entry = %+v, want C/Hamburg without MIME type or redirect", e)
+	}
+	_, err = a.Open(e)
+	wantErr(t, err, ErrNotFound)
 
 	// The namespace check still applies to v0: a pointer into X/ is corrupt.
 	binary.LittleEndian.PutUint32(data[layout.TitlePtrPos+4*3:], layout.EntryIndex["X/fulltext/xapian"])

@@ -25,10 +25,12 @@ const (
 
 	// maxClusterBytes caps one decompressed cluster (libzim writes 2 MiB clusters).
 	maxClusterBytes = 32 << 20
-	// zstdMaxMemory caps the zstd window (and the decoded size of one frame) of
-	// a streaming decoder. A cluster that decompresses to at most maxClusterBytes
-	// never needs a larger window, and libzim itself writes level-19 frames with
-	// an 8 MiB window.
+	// zstdMaxMemory caps what a streaming zstd decoder may allocate for history:
+	// the frame's window and, for a single-segment frame (whose window is its
+	// content size), that size. It does not bound the total decoded size of a
+	// multi-segment frame; readClusterData's maxClusterBytes check does. A
+	// cluster that decompresses to at most maxClusterBytes never needs a larger
+	// window, and libzim itself writes level-19 frames with an 8 MiB window.
 	zstdMaxMemory     = maxClusterBytes
 	clusterReadBuffer = 64 << 10
 )
@@ -131,9 +133,11 @@ func readClusterData(r io.Reader, extended bool, limit int64, maxBlobs uint64) (
 }
 
 // zstdDecoders pools stream decoders across clusters and archives. A pooled
-// decoder keeps the history buffers of its last stream, which can grow up to
-// the zstdMaxMemory (32 MiB) window and live outside the cluster cache budget.
-// Real libzim clusters (about 2 MiB, single-segment frames) keep them small.
+// decoder keeps the history buffer of its last stream alive outside the
+// cluster cache budget. klauspost allocates the frame's window plus about
+// 1 MiB, so a decoder costs up to about 33 MiB at the zstdMaxMemory (32 MiB)
+// cap. The real fixture's libzim clusters are not single-segment frames; they
+// declare 8 MiB windows, which costs about 9 MiB per pooled decoder.
 var zstdDecoders sync.Pool
 
 // getZstdDecoder returns a pooled synchronous stream decoder (concurrency 1

@@ -233,6 +233,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/updater/", Classification: "github-release-check", Credentialed: false},
 		{Path: "internal/virtualcomputers/", Classification: "configured-private-boringd-control-plane", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/webhooks/", Classification: "user-configured-outgoing-webhook", RequiresSSRF: true, Credentialed: true},
+		{Path: "internal/zim/zimtest/fixture.go", Classification: "opt-in-pinned-test-fixture-download-sha256-verified"},
 		{Path: "scripts/", Classification: "developer-helper-download", RequiresSSRF: true},
 	}
 }
