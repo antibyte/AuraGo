@@ -96,20 +96,23 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   TestExecuteSkillGoBuiltinStillWorksWithoutPython.
 
 - Non-displacing tools (`prompts.NonDisplacingTools`, today local_wikipedia)
-  never change which other tools a query gets. No capped ranking picks them:
-  the first adaptive selection excludes them, and so does the per-iteration
-  refresh when it is the first ranking (adaptive tools off, no short-term
-  memory) unless discover_tools requested them. An encyclopedia intent offers
-  local_wikipedia as an additive tool: added last, only while
-  `max_total_tools` and the schema token cap leave room, and never counted
-  against the adaptive cap. A kept or named tool wins over these rules: an
-  always-included or session-kept local_wikipedia stays a soft tool, one
-  requested via discover_tools (`PinnedTools`) is ranked like any requested
-  tool. The per-iteration refresh runs before every model call, the first
-  included; it keeps a session-kept or requested local_wikipedia soft too
-  (`refreshSoftAndAdditiveTools`), so like any session-kept tool it costs
-  exactly its own slot and schema tokens and is never cut. When a cap
-  leaves no room it may take the place of
+  never change which other tools a query gets, except where they follow the
+  generic rules of configured, kept or requested tools. Otherwise no capped
+  ranking picks them: the first adaptive selection excludes them, and so does
+  the per-iteration refresh when it is the first ranking (adaptive tools off,
+  no short-term memory) unless discover_tools requested them. An
+  encyclopedia intent offers local_wikipedia as an additive tool: added last,
+  only while `max_total_tools` and the schema token cap leave room, and not
+  counted against the adaptive cap. Generic rules first: an always-included
+  local_wikipedia is soft; a session-kept one is soft in the first selection
+  like every session-kept tool (it costs its own slot and schema tokens) and
+  in the refresh, which runs before every model call, it is ranked like any
+  other kept tool (`SwapProtectedTools`); one requested via discover_tools
+  (`PinnedTools`) is ranked like any requested tool. When that ranking leaves
+  a kept or requested local_wikipedia out, the additive rule may still offer
+  it in leftover room or through the swap. Like every tool it stays bounded
+  by the total and token caps and by the request-budget shedder. When a cap
+  leaves no room the additive local_wikipedia may take the place of
   `wikipedia_search` (same position, net count 0), but only if
   wikipedia_search was picked by the ranking (not hard, always-included,
   requested via discover_tools or, in the refresh, kept from the session),
@@ -119,13 +122,13 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   the swap keeps the schema token cap; otherwise it is skipped and stays
   discoverable, like a swapped-out wikipedia_search. The refresh puts a
   swapped-out tool back before ranking, so it decides the swap on the same
-  candidates. Semantic manual searches
-  drop an unusable non-displacing manual before the top-k cut, and the
-  local_wikipedia discover aliases only add an exact-name bonus for the
-  enabled tool. Verify TestLocalWikipediaOnlyAddsToTheAdaptiveSelection
-  (tool off identical, tool on only additions or the swap),
-  TestAdditiveToolTakesOnlyItsRankedSwapPartnersPlace,
+  candidates. Semantic manual searches drop an unusable non-displacing manual
+  before the top-k cut, and the local_wikipedia discover aliases only add an
+  exact-name bonus for the enabled tool. Verify
+  TestLocalWikipediaOnlyAddsToTheAdaptiveSelection (tool off identical, tool
+  on only additions or the swap), TestAdditiveToolTakesOnlyItsRankedSwapPartnersPlace,
   TestKeptLocalWikipediaStaysOnEncyclopediaQuestions,
+  TestKeptOrRequestedAdditiveToolIsRankedFirst,
   TestSwapKeepsNamedOrSessionKeptWikipediaSearch and
   TestLocalWikipediaManualTakesNoSemanticSlot. A disabled local_wikipedia
   catalog entry can still rank in discover_tools searches; disabled entries

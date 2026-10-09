@@ -347,7 +347,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	var adaptiveAdditiveTools []string
 	var adaptiveSwapped map[string]string
 	var adaptiveSwaps map[string]string
-	var adaptiveRequested map[string]bool // discover_tools requests the first selection consumed
 	adaptiveInitFiltered := false
 	ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 	if voiceOutputSuppressed || speechLabOwnsAutomaticWebChatOutput(cfg, runCfg) {
@@ -456,16 +455,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			}
 			for _, tool := range recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns) {
 				alwaysInclude = append(alwaysInclude, tool)
-			}
-			// Re-include hidden tools the agent explicitly inspected via discover_tools
-			// so the next turn can use native function-calling instead of improvising.
-			initRequested := ConsumeDiscoverRequestedTools(discoveryRunKey(runCfg))
-			alwaysInclude = append(alwaysInclude, initRequested...)
-			for _, name := range initRequested {
-				if adaptiveRequested == nil {
-					adaptiveRequested = make(map[string]bool, len(initRequested))
-				}
-				adaptiveRequested[name] = true
 			}
 			alwaysInclude = expandAdaptiveAlwaysInclude(cfg, alwaysInclude)
 			adaptiveInitFiltered = true
@@ -623,7 +612,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.adaptiveInitFiltered = adaptiveInitFiltered
 	s.adaptiveSwapped = adaptiveSwapped
 	s.adaptiveSwaps = adaptiveSwaps
-	s.discoverRequestedTools = adaptiveRequested
 	s.nativeSchemaSnapshot = schemaSnapshot
 	s.isMaintenance = isMaintenance
 	deliverOperationalIssueNotice(&s.operationalIssueNotice, runCfg, broker, logger)
