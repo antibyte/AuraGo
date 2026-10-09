@@ -34,9 +34,13 @@
         }
         function actionsHTML(c, ro) {
             const r = c.run || {};
-            if (active(c)) return `<button data-do="finish" ${ro ? 'disabled' : ''}>${e(tr('finish'))}</button><button data-do="stop" ${ro ? 'disabled' : ''}>${e(tr('stop'))}</button>`;
+            const caps = state.caps || {};
+            const canStop = !!caps.enabled && !!caps.ready;
+            if (active(c)) return `<button data-do="finish" ${ro ? 'disabled' : ''}>${e(tr('finish'))}</button><button data-do="stop" ${canStop ? '' : 'disabled'}>${e(tr('stop'))}</button>`;
             const lead = r.status === 'draft' ? `<button data-do="start" ${ro ? 'disabled' : ''}>${e(tr('start'))}</button>` : r.status !== 'completed' ? `<button data-do="continue" ${ro ? 'disabled' : ''}>${e(tr('continue'))}</button>` : '';
-            return `${lead}<select class="dt-effort" aria-label="${e(tr('effort'))}">${['quick', 'normal', 'maximum'].map(x => `<option value="${x}" ${c.request.effort === x ? 'selected' : ''}>${e(tr(x))}</option>`).join('')}</select><button data-do="deepen" ${ro ? 'disabled' : ''}>${e(tr('deepen'))}</button><button data-do="delete" ${ro ? 'disabled' : ''}>${e(tr('delete'))}</button>`;
+            const effort = `<select class="dt-effort" aria-label="${e(tr('effort'))}">${['quick', 'normal', 'maximum'].map(x => `<option value="${x}" ${c.request.effort === x ? 'selected' : ''}>${e(tr(x))}</option>`).join('')}</select>`;
+            const deepen = r.status === 'draft' ? '' : `<button data-do="deepen" ${ro ? 'disabled' : ''}>${e(tr('deepen'))}</button>`;
+            return `${lead}${effort}${deepen}<button data-do="delete" ${ro ? 'disabled' : ''}>${e(tr('delete'))}</button>`;
         }
         function reasonText(reason) {
             if (!reason) return '';
@@ -161,7 +165,11 @@
             }
             if (freshEvents && freshEvents.length) {
                 const list = host.querySelector('.dt-activity');
-                if (list) list.insertAdjacentHTML('beforeend', v.activityItems(freshEvents, tr));
+                if (list) {
+                    const present = new Set([...list.querySelectorAll('[data-event]')].map(node => node.dataset.event));
+                    const missing = freshEvents.filter(ev => !present.has(String(ev.id)));
+                    if (missing.length) list.insertAdjacentHTML('beforeend', v.activityItems(missing, tr));
+                }
             }
         }
         function rewriteStatus(answerValue, answerFocused) {
@@ -271,7 +279,8 @@
                 const full = await request('/cases/' + id);
                 if (state.disposed || state.current?.id !== id) return;
                 state.current = full;
-                const loaded = full.sources || [];
+                if (!Array.isArray(state.current.sources)) state.current.sources = [];
+                const loaded = state.current.sources;
                 const loadedSourceID = loaded.length ? (loaded[loaded.length - 1].id || '') : '';
                 if (loadedSourceID === liveSourceID) state.latestSourceID = loadedSourceID;
             }
@@ -369,7 +378,8 @@
                     const result = await request('/cases/' + state.current.id + '/autor?revision=' + revision, {method: 'POST'});
                     ctx.openApp?.('writer', {path: result.path});
                 } else {
-                    const body = {action, idempotency_key: key(), effort: host.querySelector('.dt-effort')?.value || state.current.request.effort};
+                    const body = {action, idempotency_key: key()};
+                    if (action === 'start' || action === 'deepen') body.effort = host.querySelector('.dt-effort')?.value || state.current.request.effort;
                     if (state.current.run.status === 'waiting_for_user') body.answer = host.querySelector('.dt-answer')?.value || '';
                     await request('/cases/' + state.current.id + '/run', {method: 'POST', body});
                 }

@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -52,6 +53,8 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	failExport := false
 	failNextStart := false
 	pendingEvent := false
+	readOnlyCaps := false
+	lastRunBody := ""
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(".")))
 	mux.HandleFunc("/api/desktop/detective/", func(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +64,7 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/desktop/detective/")
 		switch path {
 		case "capabilities":
-			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "ready": true, "profiles": detective.Profiles(), "tools": []string{"ddg_search", "web_scraper"}, "providers": []any{map[string]string{"id": "p", "name": "Fixture", "model": "model"}}, "provider_id": "p"})
+			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "ready": true, "read_only": readOnlyCaps, "profiles": detective.Profiles(), "tools": []string{"ddg_search", "web_scraper"}, "providers": []any{map[string]string{"id": "p", "name": "Fixture", "model": "model"}}, "provider_id": "p"})
 		case "cases":
 			if r.Method == "POST" {
 				exists = true
@@ -93,8 +96,10 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 		case "cases/case_fixture/live":
 			json.NewEncoder(w).Encode(fixtureLive(c))
 		case "cases/case_fixture/run":
+			raw, _ := io.ReadAll(r.Body)
+			lastRunBody = string(raw)
 			var data map[string]string
-			json.NewDecoder(r.Body).Decode(&data)
+			_ = json.Unmarshal(raw, &data)
 			if data["action"] == "start" && failNextStart {
 				failNextStart = false
 				w.WriteHeader(http.StatusInternalServerError)
@@ -371,6 +376,49 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	page.MustElement(`[data-case="case_fixture"]`).MustClick()
 	waitDetectiveQuiet(t, page)
 	page.MustElement(`.dt-report`)
+	mu.Lock()
+	readOnlyCaps = true
+	c.Run.Status = "running"
+	c.Run.Phase = "research"
+	mu.Unlock()
+	page.MustEval(`()=>{DetectiveApp.dispose('test');DetectiveApp.render(document.querySelector('#host'),'test',ctx)}`)
+	waitDetectiveQuiet(t, page)
+	page.MustElement(`[data-do=stop]:not([disabled])`)
+	if page.MustEval(`()=>!!document.querySelector('[data-do=finish]')?.disabled`).Bool() == false {
+		t.Fatal("finish stayed enabled while read-only")
+	}
+	page.MustElement(`[data-do=stop]`).MustClick()
+	waitDetectiveQuiet(t, page)
+	mu.Lock()
+	readOnlyCaps = false
+	c.Run.Status = "draft"
+	c.Reports = nil
+	mu.Unlock()
+	page.MustEval(`()=>{DetectiveApp.dispose('test');DetectiveApp.render(document.querySelector('#host'),'test',ctx)}`)
+	waitDetectiveQuiet(t, page)
+	page.MustElement(`[data-do=start]`)
+	if page.MustEval(`()=>!!document.querySelector('[data-do=deepen]')`).Bool() {
+		t.Fatal("draft offered deepen")
+	}
+	mu.Lock()
+	c.Run.Status = "cancelled"
+	c.Request.Effort = "quick"
+	mu.Unlock()
+	page.MustEval(`()=>{DetectiveApp.dispose('test');DetectiveApp.render(document.querySelector('#host'),'test',ctx)}`)
+	waitDetectiveQuiet(t, page)
+	page.MustEval(`()=>{const effort=document.querySelector('.dt-effort'); if(effort) effort.value='maximum'}`)
+	page.MustElement(`[data-do=continue]`).MustClick()
+	waitDetectiveQuiet(t, page)
+	mu.Lock()
+	posted := lastRunBody
+	c = finished
+	mu.Unlock()
+	if strings.Contains(posted, `"effort"`) {
+		t.Fatal("continue posted an effort", posted)
+	}
+	page.MustEval(`()=>{DetectiveApp.dispose('test');DetectiveApp.render(document.querySelector('#host'),'test',ctx)}`)
+	waitDetectiveQuiet(t, page)
+	page.MustElement(`.dt-report`)
 	page.MustElement(`[data-tab=report]`).MustClick()
 	dir := filepath.Join("..", "reports", "detective")
 	os.MkdirAll(dir, 0755)
@@ -402,7 +450,7 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if starts != 2 {
+	if starts != 3 {
 		t.Fatal("unexpected starts", starts)
 	}
 }

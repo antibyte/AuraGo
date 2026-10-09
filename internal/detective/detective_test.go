@@ -430,3 +430,59 @@ func TestResearchCancellationCheckpointAndRestart(t *testing.T) {
 		t.Fatal("private continuation leaked through case")
 	}
 }
+
+func TestContinueKeepsEffortAndDraftRejectsDeepen(t *testing.T) {
+	s := newTestService(t)
+	s.SetRunner(testRunner(func(ctx context.Context, _ *Session) error {
+		<-ctx.Done()
+		return ctx.Err()
+	}))
+	c, err := s.Create(Request{Topic: "effort", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Start(c.ID, "deepen", "maximum", "deepen-draft"); err != ErrConflict {
+		t.Fatalf("draft deepen: %v", err)
+	}
+	s.mu.Lock()
+	c.Run = Run{ID: "run_keep", Status: "cancelled", Reason: "user_stopped", Profile: Profiles()["quick"], Usage: Usage{ActiveMS: 1000}}
+	if err = s.saveLocked(&c); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	next, err := s.Start(c.ID, "continue", "maximum", "continue-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.Request.Effort != "quick" || next.Run.ID != "run_keep" || next.Run.Profile.Seconds != Profiles()["quick"].Seconds || next.Run.Usage.ActiveMS != 1000 || next.Run.Status != "queued" {
+		t.Fatalf("continue replaced the budget: %+v effort=%s", next.Run, next.Request.Effort)
+	}
+}
+
+func TestFindingQuoteRejectsParticles(t *testing.T) {
+	s := newTestService(t)
+	c, err := s.Create(Request{Topic: "quotes", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	c.Run.Status = "running"
+	if err = s.saveLocked(&c); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	x := &Session{service: s, CaseID: c.ID}
+	src, err := x.RecordSource("https://example.test/g", "Gauge", "web_scraper", "The measurement was 42 units.", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = x.AddFinding(Finding{SourceID: src.ID, Text: "particle", Quote: "The"}); err == nil {
+		t.Fatal("accepted a 3-rune quote")
+	}
+	got, err := x.AddFinding(Finding{SourceID: src.ID, Text: "measurement", Quote: "42 units"})
+	if err != nil || got.Quote != "42 units" {
+		t.Fatalf("short exact measurement: %v %+v", err, got)
+	}
+}

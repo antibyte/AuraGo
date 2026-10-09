@@ -58,6 +58,9 @@ func (s *Service) Start(key, action, effort, requestKey string, answers ...strin
 			return c, ErrBudget
 		}
 	case "deepen":
+		if c.Run.Status == "draft" || activeStatus(c.Run.Status) {
+			return c, ErrConflict
+		}
 		if len(c.Reports) >= 30 {
 			return c, errors.New("report revision limit reached")
 		}

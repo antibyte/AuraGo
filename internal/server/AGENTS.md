@@ -291,7 +291,9 @@ Server-owned HTTP and cross-component integration contracts.
   revokes background owner contexts and rejects late local publication.
 - Stop/pause/cancel routes require the normal authenticated scope but bypass
   readonly write admission. Body-selected actions (Detective) are decoded and
-  classified once; finish/resume/new execution remain writes.
+  classified once; finish/resume/new execution remain writes. Turning Detective
+  from allowed to denied revokes in-flight desktop runs on that transition.
+  A later save while research is already denied does not cancel other desktop runs.
 - Game Maker policy publication and agent phases, Detective reports, queued
   local missions, mission preparation and Virtual Computer tasks retain this
   ownership across HTTP completion. Server cancellation drains before stores close.

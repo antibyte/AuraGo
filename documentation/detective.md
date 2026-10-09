@@ -24,11 +24,21 @@ remain subject to the iteration, time and optional token limits. Existing global
 provider/spending limits still apply.
 
 - **Finish now** ends new retrieval and asks for a report from existing findings.
+  It stays unavailable while Detective or Virtual Desktop is read-only.
 - **Stop** cancels the current run and retains its sources, findings and private
   continuation. Available findings produce a clearly marked partial revision.
-- **Continue** resumes with the remaining budget, including after a restart.
-- **Deepen** explicitly grants a new effort budget to the existing case.
+  Stop stays available when Detective or Virtual Desktop is read-only, as long
+  as Detective is enabled and ready. Start, Continue, Deepen, Delete and New
+  do not.
+- **Continue** resumes with the remaining recorded budget, including after a
+  restart. It does not apply a new effort.
+- **Deepen** explicitly grants a new effort budget to an existing case that has
+  already left draft. A draft offers Start and the effort control, not Deepen.
+  The effort control next to Deepen applies only to Deepen and to the first
+  Start of a draft.
 - Closing the window leaves the server job running. Reopening restores the case.
+  An open window polls live status and new activity, and reloads source text or
+  the report only when that list changes.
 
 One case runs at a time; additional cases queue. The app shows actual tool,
 source and time counters, concise plans, retrieved sources and recorded findings.
@@ -39,9 +49,12 @@ Private model continuation never appears in the activity feed or exports.
 The bundled `aurago-detective` skill is embedded, hash-verified and supplied at
 run start, together with the actual tool schemas. It covers search, reading,
 primary sources, contradictions, stopping criteria, evidence and report format.
-Search snippets are marked as search hits. Findings require an exact supporting
-quote in a source the server recorded as retrieved. Reports reference these
-findings; model-invented source IDs are rejected.
+Search snippets are marked as search hits. Findings require a quote of at least
+eight characters that is an exact contiguous substring of a source the server
+recorded as retrieved. Reports reference these findings; model-invented source
+IDs are rejected. The continuation prompt receives every stored finding, with
+each finding text limited to 500 characters and each quote to 240. The case
+keeps the full quotes.
 
 These checks establish retrieval and reference integrity. They do not prove that
 an interpretation is correct, that two publishers are independent, or that every

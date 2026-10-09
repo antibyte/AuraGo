@@ -20,7 +20,7 @@
         return `<article class="dt-report">${r.partial ? `<p class="dt-notice">${esc(tr('partial'))}</p>` : ''}<h1>${esc(r.title)}</h1><small>${esc(new Date(r.created_at).toLocaleDateString())} · ${esc(tr('revision'))} ${r.revision}</small><p class="dt-lead">${esc(r.summary)}</p>${blocks}${r.limitations ? `<h3>${esc(tr('limitations'))}</h3><p>${esc(r.limitations)}</p>` : ''}<h3>${esc(tr('sources'))}</h3><ol>${cited.map(s => `<li>${url(s.url) ? `<a href="${url(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title || s.url)}</a>` : esc(s.title || s.locator || s.url)}</li>`).join('')}</ol></article>`;
     }
     function activityItems(events, tr) {
-        return (events || []).map(e => `<li><time>${esc(new Date(e.at).toLocaleTimeString())}</time><strong>${esc(tr(e.kind))}</strong><span>${esc(['status', 'phase', 'model', 'recovery'].includes(e.kind) ? tr(e.text) : e.text)}</span></li>`).join('');
+        return (events || []).map(e => `<li data-event="${esc(String(e.id))}"><time>${esc(new Date(e.at).toLocaleTimeString())}</time><strong>${esc(tr(e.kind))}</strong><span>${esc(['status', 'phase', 'model', 'recovery'].includes(e.kind) ? tr(e.text) : e.text)}</span></li>`).join('');
     }
     function activity(events, tr) {
         return `<ol class="dt-activity">${activityItems(events, tr)}</ol>`;

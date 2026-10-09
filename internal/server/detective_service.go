@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"unicode/utf8"
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
@@ -203,7 +204,13 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 	run.ExecutionHooks = &agent.ExecutionHooks{
 		OnAcquire:       job.Activate,
 		BeforeIteration: func(context.Context) error { return job.Iterate() },
-		BeforeRequest: func(_ context.Context, req *openai.ChatCompletionRequest, prompt int) error {
+		BeforeRequest: func(ctx context.Context, req *openai.ChatCompletionRequest, prompt int) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if !detectiveResearchAllowed(s.ConfigSnapshot()) {
+				return errors.New("research permission revoked")
+			}
 			limit, err := job.BeforeRequest(prompt, req.MaxTokens)
 			if err == nil {
 				req.MaxTokens = limit
@@ -307,10 +314,7 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 	for i := range sources {
 		sources[i].Excerpt = ""
 	}
-	findings := c.Findings
-	if len(findings) > 40 {
-		findings = findings[len(findings)-40:]
-	}
+	findings := promptFindings(c.Findings)
 	readOperations := map[string][]string{}
 	for name, ops := range cfg.Detective.ExtraReadOperations {
 		if detectiveSelected(c.Request, name) {
@@ -372,4 +376,31 @@ func (b *detectiveBroker) Send(event, message string) {
 }
 func (b *detectiveBroker) SendLLMStreamDone(reason string) {
 	b.Session.Event("model", "response_received")
+}
+
+func detectiveResearchAllowed(cfg *config.Config) bool {
+	return cfg != nil && cfg.Detective.Enabled && !cfg.Detective.ReadOnly &&
+		cfg.VirtualDesktop.Enabled && !cfg.VirtualDesktop.ReadOnly && cfg.VirtualDesktop.AllowAgentControl
+}
+
+func promptFindings(in []detective.Finding) []detective.Finding {
+	out := make([]detective.Finding, len(in))
+	for i, f := range in {
+		f.Text = runeLimit(f.Text, 500)
+		f.Quote = runeLimit(f.Quote, 240)
+		out[i] = f
+	}
+	return out
+}
+
+func runeLimit(s string, n int) string {
+	if utf8.RuneCountInString(s) <= n {
+		return s
+	}
+	i := 0
+	for count := 0; count < n && i < len(s); count++ {
+		_, size := utf8.DecodeRuneInString(s[i:])
+		i += size
+	}
+	return s[:i]
 }

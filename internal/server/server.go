@@ -444,6 +444,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.Enabled {
 		s.revokeDesktopRuns()
 	}
+	if previous != nil && detectiveResearchAllowed(previous) && !detectiveResearchAllowed(cfg) {
+		s.revokeDesktopRuns()
+	}
 	if s.GameMaker != nil {
 		s.GameMaker.UpdatePolicy(gameMakerPolicy(cfg.GameMaker, cfg.VirtualDesktop.ReadOnly))
 	}
