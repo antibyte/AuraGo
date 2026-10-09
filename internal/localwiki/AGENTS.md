@@ -302,7 +302,8 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   verified Kiwix edition, while scripts, plugins, `<base>`, forms and fetches/pings/beacons are blocked.
   Also `X-Frame-Options: SAMEORIGIN` set by the
   handler (`securityHeadersMiddleware` keeps `DENY` for every path), `nosniff`,
-  `Referrer-Policy: no-referrer` and `Permissions-Policy: attribution-reporting=(), browsing-topics=()`.
+  `Referrer-Policy: no-referrer` and `Permissions-Policy: browsing-topics=()` (not `attribution-reporting`, which
+  Chromium reports as an unrecognized feature on every load; the app strips `attributionsrc` from links instead).
   Blobs go through `http.ServeContent` (Range, `If-None-Match`, `If-Range`) with
   `Cache-Control: private, no-cache` (revalidated through the ETag, 304 while the edition is unchanged); the middleware never treats the prefix as a static asset.
 - Desktop capability `local_wikipedia` = `local_wikipedia.enabled` and a manager

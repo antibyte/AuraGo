@@ -122,10 +122,15 @@ func TestLocalWikipediaContentFramingSurvivesTheMiddlewareChain(t *testing.T) {
 			t.Fatalf("%s = %d xfo=%q csp=%q cache=%q pragma=%q", path, w.Code, w.Header().Get("X-Frame-Options"), w.Header().Get("Content-Security-Policy"), w.Header().Get("Cache-Control"), w.Header().Get("Pragma"))
 		}
 		policy := strings.Join(w.Header().Values("Permissions-Policy"), ", ")
-		for _, want := range []string{"serial=()", "midi=()", "attribution-reporting=()", "browsing-topics=()"} {
+		for _, want := range []string{"serial=()", "midi=()", "browsing-topics=()"} {
 			if !strings.Contains(policy, want) {
 				t.Fatalf("%s Permissions-Policy = %q, want %s", path, policy, want)
 			}
+		}
+		// Chromium logs "Unrecognized feature" for attribution-reporting on
+		// every load; the app strips attributionsrc instead.
+		if strings.Contains(policy, "attribution-reporting") {
+			t.Fatalf("%s Permissions-Policy = %q names attribution-reporting", path, policy)
 		}
 	}
 	w := request("/api/desktop/local-wikipedia/status", true)

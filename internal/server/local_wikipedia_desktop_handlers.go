@@ -409,9 +409,12 @@ func (s *Server) serveLocalWikiContent(w http.ResponseWriter, r *http.Request, r
 // (If-None-Match against the edition-bound ETag) before every reuse.
 const localWikiContentCacheControl = "private, no-cache"
 
-// localWikiContentPermissionsPolicy switches off the ad measurement APIs for
-// ZIM documents; the middleware's hardware policies stay in place.
-const localWikiContentPermissionsPolicy = "attribution-reporting=(), browsing-topics=()"
+// localWikiContentPermissionsPolicy switches off the Topics API for ZIM
+// documents; the middleware's hardware policies stay in place. It does not
+// name attribution-reporting: Chromium logs "Unrecognized feature" for it on
+// every load (the API is deprecated), and the app strips attributionsrc from
+// every link anyway.
+const localWikiContentPermissionsPolicy = "browsing-topics=()"
 
 // setLocalWikiContentHeaders sets the headers every content answer of this
 // handler carries. The framing exception lives here, not in the middleware:

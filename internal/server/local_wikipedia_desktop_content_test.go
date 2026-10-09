@@ -46,7 +46,7 @@ func TestLocalWikiContentHeaders(t *testing.T) {
 		"X-Content-Type-Options":  "nosniff",
 		"Cache-Control":           "private, no-cache",
 		"Referrer-Policy":         "no-referrer",
-		"Permissions-Policy":      "attribution-reporting=(), browsing-topics=()",
+		"Permissions-Policy":      "browsing-topics=()",
 		"ETag":                    `"fixture-Berlin"`,
 	} {
 		if got := w.Header().Get(header); got != want {
