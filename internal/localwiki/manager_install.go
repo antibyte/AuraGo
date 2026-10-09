@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,7 +34,7 @@ type installPlan struct {
 // download is resumed. The background work is bound to the manager's
 // lifetime, not to ctx.
 func (m *Manager) Install(ctx context.Context, req InstallRequest) error {
-	m.syncDataDir()
+	m.loadIfStale()
 	m.mu.Lock()
 	settings := m.settings
 	var installed *Edition
@@ -62,18 +63,6 @@ func (m *Manager) Install(ctx context.Context, req InstallRequest) error {
 	return m.startOperation(plan)
 }
 
-// syncDataDir loads a changed storage directory before an install, so the
-// install never acts on the previous directory's state.
-func (m *Manager) syncDataDir() {
-	m.mu.Lock()
-	dir := m.settings.DataDir
-	need := m.started && !m.shuttingDown && m.op == nil && !m.deleting && dir != m.activeDir
-	m.mu.Unlock()
-	if need {
-		m.load(dir)
-	}
-}
-
 func (m *Manager) planInstall(ctx context.Context, settings Settings, installed *Edition) (installPlan, error) {
 	plan := installPlan{dir: settings.DataDir}
 	pending, err := readDownload(settings.DataDir, m.catalogBase)
@@ -90,14 +79,15 @@ func (m *Manager) planInstall(ctx context.Context, settings Settings, installed 
 		}
 		target, urls, err := m.resolveTarget(ctx, settings, installed)
 		if err != nil {
+			if errors.Is(err, ErrAlreadyInstalled) {
+				m.discardPending(plan.dir, pending)
+			}
 			return installPlan{}, err
 		}
 		plan.target, plan.urls = target, urls
 	}
 	if installed != nil && installed.Name == plan.target.Name {
-		if pending != nil && plan.staleTarget == "" {
-			_ = removeDownload(plan.dir)
-		}
+		m.discardPending(plan.dir, pending)
 		return installPlan{}, ErrAlreadyInstalled
 	}
 	if plan.staleTarget == "" {
@@ -106,6 +96,28 @@ func (m *Manager) planInstall(ctx context.Context, settings Settings, installed 
 		}
 	}
 	return plan, nil
+}
+
+// discardPending drops an interrupted download (its download.json and partial
+// file) that the installed edition made pointless, and clears the interrupted
+// marker so the status no longer offers to resume it. pending is nil when
+// there is no readable download.json.
+func (m *Manager) discardPending(dir string, pending *downloadFile) {
+	if pending != nil {
+		if err := removeDownload(dir); err != nil {
+			m.logger.Warn("[LocalWikipedia] download.json could not be removed", "error", err)
+		}
+		if err := removeIfExists(filepath.Join(dir, pending.Target.FileName+".part")); err != nil {
+			m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", pending.Target.FileName, "error", err)
+		}
+	}
+	m.mu.Lock()
+	if m.op == nil && m.activeDir == dir {
+		m.interrupted = false
+		m.errCode = ""
+		m.errRequired = 0
+	}
+	m.mu.Unlock()
 }
 
 // resolveTarget finds the newest edition for the selection and reads its
@@ -208,8 +220,20 @@ func (m *Manager) startOperation(plan installPlan) error {
 	m.interrupted = false
 	m.errCode = ""
 	m.errRequired = 0
+	// A retired edition of the same name still waiting for its deletion must
+	// not be deleted once the download is published under that name.
+	unlisted := false
+	if m.state != nil && slices.Contains(m.state.PendingDelete, plan.target.FileName) {
+		m.state.PendingDelete = slices.DeleteFunc(m.state.PendingDelete, func(name string) bool { return name == plan.target.FileName })
+		unlisted = true
+	}
 	m.wg.Add(1)
 	m.mu.Unlock()
+	if unlisted {
+		if err := m.saveState(plan.dir); err != nil {
+			m.logger.Warn("[LocalWikipedia] state.json could not be updated", "error", err)
+		}
+	}
 	go m.runOperation(ctx, op, plan)
 	return nil
 }
@@ -298,8 +322,12 @@ func (m *Manager) publish(ctx context.Context, plan installPlan, partPath string
 	m.mu.Lock()
 	next := &stateFile{Edition: &edition, LastUpdateCheck: edition.InstalledAt}
 	if m.state != nil {
-		next.PendingDelete = append(next.PendingDelete, m.state.PendingDelete...)
-		if m.state.Edition != nil && m.state.Edition.FileName != edition.FileName {
+		for _, name := range m.state.PendingDelete {
+			if name != edition.FileName { // never schedule the file just published
+				next.PendingDelete = append(next.PendingDelete, name)
+			}
+		}
+		if m.state.Edition != nil && m.state.Edition.FileName != edition.FileName && !slices.Contains(next.PendingDelete, m.state.Edition.FileName) {
 			next.PendingDelete = append(next.PendingDelete, m.state.Edition.FileName)
 		}
 	}
@@ -317,7 +345,7 @@ func (m *Manager) publish(ctx context.Context, plan installPlan, partPath string
 	previous := m.lib
 	m.lib = newLibraryRef(lib)
 	m.state = next
-	m.update = nil
+	m.loadCode = "" // a replaced edition that could not be read no longer matters
 	m.mu.Unlock()
 	m.stateMu.Unlock()
 
@@ -374,7 +402,7 @@ func (m *Manager) finishOperation(op *operation, plan installPlan, err error) {
 		m.logger.Warn("[LocalWikipedia] Download did not complete", "edition", plan.target.Name, "code", code, "error", err)
 	}
 	// A storage-directory change made while the operation ran was held back
-	// by reloadIfIdle; load it now.
+	// by loadIfStale; load it now.
 	m.signalReload()
 }
 

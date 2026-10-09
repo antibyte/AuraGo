@@ -197,6 +197,16 @@ func Recommendation(code string) string {
 	}
 }
 
+// operationRecommendation is the hint for a code that ended an install, resume
+// or update. It differs from Recommendation where the code means something
+// else for a download than for the installed edition.
+func operationRecommendation(code string) string {
+	if code == CodeZIMUnreadable {
+		return "The downloaded file could not be read and was removed. Install again."
+	}
+	return Recommendation(code)
+}
+
 // Status is the JSON body of GET /api/local-wikipedia/status. FreeBytes is -1
 // when the free space cannot be measured.
 type Status struct {

@@ -108,16 +108,16 @@ func (m *Manager) CheckUpdate(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	var update *UpdateInfo
+	var update *stateUpdate
 	if latest, ok := info.Variants[installed.Variant]; ok && editionNewer(latest.Name, installed.Name) {
-		update = &UpdateInfo{Date: latest.Date, Size: latest.Size}
+		update = applicableUpdate(&installed, &stateUpdate{Name: latest.Name, Date: latest.Date, Size: latest.Size})
 	}
 	m.mu.Lock()
 	if m.activeDir != dir || m.state == nil || m.state.Edition == nil || m.state.Edition.Name != installed.Name {
 		m.mu.Unlock()
 		return nil
 	}
-	m.update = update
+	m.state.Update = update
 	m.state.LastUpdateCheck = m.now().UTC()
 	m.mu.Unlock()
 	if err := m.saveState(dir); err != nil {

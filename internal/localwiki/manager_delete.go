@@ -34,16 +34,45 @@ func (m *Manager) Delete() error {
 	if !filepath.IsAbs(dir) {
 		return nil
 	}
-	if err := removePartFiles(dir); err != nil {
-		return fmt.Errorf("remove partial download: %w", err)
+	// download.json goes first: without it the leftovers below are never
+	// mistaken for a resumable download if Delete stops half way.
+	pending, err := readDownload(dir, m.catalogBase)
+	if err != nil {
+		m.logger.Warn("[LocalWikipedia] download.json is unreadable; only partial files are removed", "error", err)
+		pending = nil
 	}
 	if err := removeDownload(dir); err != nil {
 		return fmt.Errorf("remove download.json: %w", err)
+	}
+	if err := removePartFiles(dir); err != nil {
+		return fmt.Errorf("remove partial download: %w", err)
+	}
+	if pending != nil {
+		if err := m.removeUnpublished(dir, pending.Target.FileName); err != nil {
+			return fmt.Errorf("remove unpublished download: %w", err)
+		}
 	}
 	if err := m.detachInstalled(dir); err != nil {
 		return fmt.Errorf("update state.json: %w", err)
 	}
 	return nil
+}
+
+// removeUnpublished deletes a finished download that a crash left unnamed by
+// state.json (see reconcileDownload). The installed edition is not touched
+// here: detachInstalled retires it, so readers can finish.
+func (m *Manager) removeUnpublished(dir, fileName string) error {
+	m.mu.Lock()
+	installed := m.state != nil && m.state.Edition != nil && m.state.Edition.FileName == fileName
+	m.mu.Unlock()
+	if installed {
+		return nil
+	}
+	path := filepath.Join(dir, fileName)
+	if info, err := os.Lstat(path); err != nil || !info.Mode().IsRegular() {
+		return nil
+	}
+	return removeIfExists(path)
 }
 
 // detachInstalled takes the installed edition out of service and schedules its
@@ -58,9 +87,10 @@ func (m *Manager) detachInstalled(dir string) error {
 	if m.state != nil && m.state.Edition != nil {
 		m.state.PendingDelete = append(m.state.PendingDelete, m.state.Edition.FileName)
 		m.state.Edition = nil
+		m.state.Update = nil
 	}
-	m.update = nil
 	m.interrupted = false
+	m.loadCode = ""
 	m.errCode = ""
 	m.errRequired = 0
 	m.mu.Unlock()

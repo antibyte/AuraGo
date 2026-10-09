@@ -2,9 +2,12 @@ package localwiki
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -62,10 +65,10 @@ type Manager struct {
 	state        *stateFile // nil when nothing is installed or pending deletion
 	lib          *libraryRef
 	op           *operation
-	interrupted  bool
-	errCode      string
-	errRequired  int64
-	update       *UpdateInfo
+	interrupted  bool   // a download.json describes a download that can be resumed
+	loadCode     string // why the installed edition could not be loaded (set by load)
+	errCode      string // why the last operation stopped (set when it ends)
+	errRequired  int64  // bytes the paused download needed (errCode insufficient_disk_space)
 	catalogCache map[string]catalogCacheEntry
 }
 
@@ -201,7 +204,7 @@ func (m *Manager) loop() {
 		case <-m.lifecycleCtx.Done():
 			return
 		case <-m.reload:
-			m.reloadIfIdle()
+			m.loadIfStale()
 		case <-timer.C:
 			m.retryPendingDeletes()
 			m.maybeCheckUpdate(m.lifecycleCtx)
@@ -226,21 +229,33 @@ func (m *Manager) signalReload() {
 	}
 }
 
-func (m *Manager) reloadIfIdle() {
+// loadIfStale loads the configured storage directory when it differs from the
+// loaded one and no operation runs. The conditions are checked after taking
+// loadMu: a load that finished while this call waited must not be repeated,
+// and a download that started meanwhile must not be reset.
+func (m *Manager) loadIfStale() {
+	m.loadMu.Lock()
+	defer m.loadMu.Unlock()
 	m.mu.Lock()
 	dir := m.settings.DataDir
-	idle := m.op == nil && !m.shuttingDown && dir != m.activeDir
+	stale := m.started && !m.shuttingDown && m.op == nil && dir != m.activeDir
 	m.mu.Unlock()
-	if idle {
-		m.load(dir)
+	if stale {
+		m.loadLocked(dir)
 	}
 }
 
-// load reads dir's state.json and download.json, opens the installed edition
-// and replaces the current one. It never touches the network.
+// load makes dir the active storage directory (see loadLocked).
 func (m *Manager) load(dir string) {
 	m.loadMu.Lock()
 	defer m.loadMu.Unlock()
+	m.loadLocked(dir)
+}
+
+// loadLocked reads dir's state.json and download.json, opens the installed
+// edition and replaces the current one. It never touches the network; the only
+// repair it makes on disk is reconcileDownload's. The caller holds loadMu.
+func (m *Manager) loadLocked(dir string) {
 	var (
 		st          *stateFile
 		ref         *libraryRef
@@ -270,23 +285,70 @@ func (m *Manager) load(dir string) {
 		case err != nil:
 			m.logger.Warn("[LocalWikipedia] download.json is unreadable; the interrupted download cannot be resumed", "dir", dir, "error", err)
 		case pending != nil:
-			interrupted = true
+			interrupted = m.reconcileDownload(dir, st, pending)
 		}
 	}
 	m.mu.Lock()
+	if m.op != nil || m.shuttingDown {
+		// A download started, or the manager closed, while the directory was
+		// read. The operation's end signals another reload.
+		m.mu.Unlock()
+		if ref != nil {
+			ref.retire(nil)
+		}
+		return
+	}
 	previous := m.lib
 	m.activeDir = dir
 	m.state = st
 	m.lib = ref
 	m.interrupted = interrupted
-	m.errCode = code
+	m.loadCode = code
+	m.errCode = ""
 	m.errRequired = 0
-	m.update = nil
 	m.mu.Unlock()
 	if previous != nil {
 		previous.retire(nil)
 	}
 	m.processPendingDeletes(dir)
+}
+
+// reconcileDownload repairs what a crash during publication leaves behind and
+// reports whether download.json still describes a download that can be
+// resumed. Publication renames <edition>.zim.part to <edition>.zim, writes
+// state.json and then removes download.json:
+//   - a crash after the state was written leaves a download.json for the
+//     installed edition: it and any partial file are dropped;
+//   - a crash between the rename and the state write leaves the finished
+//     <edition>.zim unnamed by state.json: it becomes the partial file again,
+//     so Resume only re-hashes it instead of downloading everything.
+func (m *Manager) reconcileDownload(dir string, st *stateFile, pending *downloadFile) bool {
+	target := pending.Target.FileName
+	finalPath := filepath.Join(dir, target)
+	partPath := finalPath + ".part"
+	if st != nil && st.Edition != nil && st.Edition.FileName == target {
+		m.logger.Info("[LocalWikipedia] Dropping the download.json of the installed edition", "edition", target)
+		if err := removeDownload(dir); err != nil {
+			m.logger.Warn("[LocalWikipedia] download.json could not be removed", "error", err)
+		}
+		if err := removeIfExists(partPath); err != nil {
+			m.logger.Warn("[LocalWikipedia] A stale partial download could not be removed", "file", target, "error", err)
+		}
+		return false
+	}
+	if st != nil && slices.Contains(st.PendingDelete, target) {
+		return true // the file is a retired edition, not a finished download
+	}
+	if info, err := os.Stat(finalPath); err == nil && info.Mode().IsRegular() {
+		if _, err := os.Stat(partPath); errors.Is(err, fs.ErrNotExist) {
+			if err := os.Rename(finalPath, partPath); err != nil {
+				m.logger.Warn("[LocalWikipedia] A finished download could not be set aside for verification", "file", target, "error", err)
+			} else {
+				m.logger.Info("[LocalWikipedia] Recovered a download that was not published; resuming only re-verifies it", "file", target)
+			}
+		}
+	}
+	return true
 }
 
 // saveState writes the in-memory state of dir; state.json is removed when it
@@ -364,17 +426,21 @@ func (m *Manager) Status() Status {
 		ErrorCode:           m.errCode,
 		FreeBytes:           -1,
 	}
+	// An operation's code outranks the load error of the installed edition.
+	fromOperation := m.errCode != ""
+	if !fromOperation {
+		status.ErrorCode = m.loadCode
+	}
 	if m.state != nil && m.state.Edition != nil {
 		edition := *m.state.Edition
 		status.Edition = &edition
 		status.SelectionMatchesInstalled = edition.Language == settings.Language && edition.Variant == settings.Variant
+		if update := m.state.Update; update != nil {
+			status.UpdateAvailable = &UpdateInfo{Date: update.Date, Size: update.Size}
+		}
 	}
 	if m.lib != nil {
 		status.Fulltext = m.lib.lib.Fulltext()
-	}
-	if m.update != nil {
-		update := *m.update
-		status.UpdateAvailable = &update
 	}
 	if op := m.op; op != nil {
 		status.BytesDone = op.bytesDone
@@ -400,6 +466,9 @@ func (m *Manager) Status() Status {
 		}
 	}
 	status.Recommendation = Recommendation(status.ErrorCode)
+	if fromOperation {
+		status.Recommendation = operationRecommendation(status.ErrorCode)
+	}
 	if free, err := m.freeDisk(settings.DataDir); err == nil {
 		status.FreeBytes = free
 	}
@@ -407,16 +476,20 @@ func (m *Manager) Status() Status {
 	return status
 }
 
+// stateLocked derives the reported state. An edition that is being served is
+// never reported as an error: clients read "error" as "nothing readable", and
+// a failed update leaves the installed edition online. The code of the failed
+// operation is still reported in error_code.
 func (m *Manager) stateLocked() string {
 	switch {
 	case m.op != nil:
 		return m.op.phase
 	case m.interrupted:
 		return StateInterrupted
-	case m.errCode != "":
-		return StateError
 	case m.lib != nil:
 		return StateReady
+	case m.errCode != "" || m.loadCode != "":
+		return StateError
 	default:
 		return StateNotInstalled
 	}

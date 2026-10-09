@@ -31,7 +31,17 @@ type stateFile struct {
 	Version         int       `json:"version"`
 	Edition         *Edition  `json:"edition,omitempty"`
 	LastUpdateCheck time.Time `json:"last_update_check,omitzero"`
-	PendingDelete   []string  `json:"pending_delete,omitempty"`
+	// Update is the newer edition the last update check found; it is kept so
+	// the notice survives a restart until the next check.
+	Update        *stateUpdate `json:"update,omitempty"`
+	PendingDelete []string     `json:"pending_delete,omitempty"`
+}
+
+// stateUpdate names a newer edition of the installed language and variant.
+type stateUpdate struct {
+	Name string `json:"name"`
+	Date string `json:"date"`
+	Size int64  `json:"size"`
 }
 
 // downloadFile is <dir>/download.json: the edition a resumable download fetches.
@@ -58,8 +68,24 @@ func readState(dir string) (*stateFile, error) {
 			return nil, fmt.Errorf("state.json: %w", err)
 		}
 	}
+	st.Update = applicableUpdate(st.Edition, st.Update)
 	st.PendingDelete = sanitizePendingDeletes(st.PendingDelete)
 	return &st, nil
+}
+
+// applicableUpdate keeps a recorded update only while it still applies: the
+// installed edition exists and the update is a newer edition of the same Kiwix
+// language and variant. The date is taken from the edition name.
+func applicableUpdate(installed *Edition, update *stateUpdate) *stateUpdate {
+	if update == nil || installed == nil || update.Size < 0 || update.Size > maxEditionBytes {
+		return nil
+	}
+	next, ok := parseEditionName(update.Name)
+	current, okCurrent := parseEditionName(installed.Name)
+	if !ok || !okCurrent || next.Kiwix != current.Kiwix || next.Variant != current.Variant || !editionNewer(update.Name, installed.Name) {
+		return nil
+	}
+	return &stateUpdate{Name: update.Name, Date: next.Date, Size: update.Size}
 }
 
 func writeState(dir string, st *stateFile) error {
@@ -194,6 +220,10 @@ func cloneState(st *stateFile) *stateFile {
 	if st.Edition != nil {
 		edition := *st.Edition
 		out.Edition = &edition
+	}
+	if st.Update != nil {
+		update := *st.Update
+		out.Update = &update
 	}
 	out.PendingDelete = append([]string(nil), st.PendingDelete...)
 	return &out
