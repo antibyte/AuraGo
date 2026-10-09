@@ -25,7 +25,7 @@
         R.init(ctx).catch(err=>notice(s,err));
         if(ctx.setWindowMenus) ctx.setWindowMenus(id,[{label:t('station'),items:[{label:t('new_station'),action:()=>edit(s,true)},{label:t('settings'),action:()=>edit(s,false)},{label:t('stop'),action:()=>R.control('stop').catch(err=>notice(s,err))}]}]);
     }
-    function notice(s,err,persist=true) { const el=s.q('notice'); if(!el)return; el.hidden=false; const code=String(err.message||''); if(persist) s.error = code; const known=['radio_more_music_needed','radio_limit','radio_device_busy','radio_audio_unlock','radio_invalid_genres','radio_region_required','radio_conflict','radio_format_unsupported','radio_production_too_slow','radio_music_unavailable','radio_registry_unavailable','radio_generation_failed','radio_tts_unavailable','radio_unavailable']; el.textContent=s.t(known.includes(code)?code:'error'); }
+    function notice(s,err,persist=true) { const el=s.q('notice'); if(!el)return; el.hidden=false; const code=String(err.message||''); if(persist) s.error = code; const known=['radio_more_music_needed','radio_limit','radio_device_busy','radio_audio_unlock','radio_invalid_genres','radio_region_required','radio_conflict','radio_format_unsupported','radio_production_too_slow','radio_music_unavailable','radio_registry_unavailable','radio_generation_failed','radio_editorial_failed','radio_tts_unavailable','radio_llm_unavailable','radio_unavailable']; el.textContent=s.t(known.includes(code)?code:'error'); }
     function station(s) { return s.data && (s.data.stations||[]).find(x=>x.id===s.selected); }
     function draw(s,force) {
         if(!s.data)return;

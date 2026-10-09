@@ -233,3 +233,118 @@ func TestOpeningWithWarmLibraryAndExpiredPause(t *testing.T) {
 		t.Fatal("expired welcome replayed", got)
 	}
 }
+
+func TestPreviewDoesNotBlockReadyMusic(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var plans, generations atomic.Int32
+	s, _ := testService(t, Adapters{
+		Plan: func(context.Context, EditorialRequest) (Plan, error) {
+			plans.Add(1)
+			return Plan{Moderation: "Welcome."}, nil
+		},
+		Speak: func(ctx context.Context, _ Station, _ string) (Audio, error) {
+			close(started)
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return Audio{}, ctx.Err()
+			}
+			return Audio{Data: testWave(1, 4), Extension: "wav"}, nil
+		},
+		Generate: func(context.Context, Station, string, string) (Production, error) {
+			generations.Add(1)
+			return Production{}, errors.New("provider unavailable")
+		},
+	})
+	p := testProfile(t, s, "local")
+	p.Moderation = "balanced"
+	p, err := s.SaveStation(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testImport(t, s, p, 1)
+	testImport(t, s, p, 2)
+	errc := make(chan error, 1)
+	go func() {
+		_, err := s.Preview(context.Background(), p.ID, "Preview line")
+		errc <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("preview did not start")
+	}
+	if _, err = s.Preview(context.Background(), p.ID, "Again"); !errors.Is(err, ErrConflict) {
+		t.Fatal(err)
+	}
+	if _, err = s.Start(p.ID, testDevice, false); err != nil {
+		t.Fatal(err)
+	}
+	s.Tick()
+	got := s.Snapshot()
+	music := 0
+	for _, segment := range got.Queue {
+		if segment.Kind == "music" {
+			music++
+		}
+	}
+	if !got.MusicReady || got.Status != "ready" || music < 2 || !got.EditorBusy || got.OpeningStatus != "" || plans.Load() != 0 || generations.Load() != 0 {
+		t.Fatalf("preview blocked ready music: %+v plans=%d generations=%d", got, plans.Load(), generations.Load())
+	}
+	close(release)
+	if err = <-errc; err != nil {
+		t.Fatal(err)
+	}
+	if s.Snapshot().EditorBusy {
+		t.Fatal("preview left the editor busy")
+	}
+}
+
+func TestPreviewBlocksNewMusicGeneration(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var generations atomic.Int32
+	s, _ := testService(t, Adapters{
+		Speak: func(ctx context.Context, _ Station, _ string) (Audio, error) {
+			close(started)
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return Audio{}, ctx.Err()
+			}
+			return Audio{Data: testWave(1, 5), Extension: "wav"}, nil
+		},
+		Generate: func(context.Context, Station, string, string) (Production, error) {
+			generations.Add(1)
+			return Production{}, errors.New("provider unavailable")
+		},
+	})
+	p := testProfile(t, s, "generated")
+	errc := make(chan error, 1)
+	go func() {
+		_, err := s.Preview(context.Background(), p.ID, "Preview line")
+		errc <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("preview did not start")
+	}
+	if _, err := s.Start(p.ID, testDevice, false); err != nil {
+		t.Fatal(err)
+	}
+	s.Tick()
+	if generations.Load() != 0 || !s.Snapshot().EditorBusy {
+		t.Fatalf("generation started during preview: %d %+v", generations.Load(), s.Snapshot())
+	}
+	close(release)
+	if err := <-errc; err != nil {
+		t.Fatal(err)
+	}
+	s.Tick()
+	s.wg.Wait()
+	if generations.Load() != 1 {
+		t.Fatal("music generation stayed blocked after preview", generations.Load())
+	}
+}

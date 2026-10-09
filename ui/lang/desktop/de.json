@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "Richte die Musikerzeugung ein oder wähle lokale Musik.",
   "personalRadio.radio_generation_failed": "Musikerzeugung fehlgeschlagen. Vorbereitete Titel bleiben verfügbar; ein weiterer Versuch folgt.",
   "personalRadio.radio_tts_unavailable": "Richte die Sprachausgabe ein, um Moderation und Nachrichten zu hören.",
+  "personalRadio.radio_llm_unavailable": "Richte einen LLM-Dienst ein, damit Personal Radio die Sendung planen kann.",
+  "personalRadio.radio_editorial_failed": "Die Redaktion konnte die Sendung nicht planen. Prüfe den LLM-Dienst und versuche es erneut.",
   "personalRadio.radio_unavailable": "Personal Radio ist nicht verfügbar. Aktiviere den virtuellen Desktop und starte AuraGo neu.",
   "personalRadio.import_genre": "Musikrichtung für Import",
   "personalRadio.any_genre": "Nicht zugeordnet",

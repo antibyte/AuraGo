@@ -105,7 +105,17 @@
                 }
                 if (Date.now() - heartbeatAt > 15000) {
                     const position = player.position();
-                    await request('heartbeat','POST',{ device, epoch: st.epoch, current: position.current, position: position.position }); heartbeatAt = Date.now();
+                    try {
+                        await request('heartbeat','POST',{ device, epoch: st.epoch, current: position.current, position: position.position });
+                        heartbeatAt = Date.now();
+                    } catch (err) {
+                        if (err.message === 'radio_device_busy') {
+                            wanted = false; player.stop();
+                            window.AuraDesktopMediaSession?.release(device);
+                            window.dispatchEvent(new CustomEvent('personal-radio-stopped'));
+                        }
+                        throw err;
+                    }
                 }
                 mediaSession();
             }

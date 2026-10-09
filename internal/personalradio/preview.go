@@ -8,7 +8,7 @@ import (
 // Preview uses the same provider adapter and durable TTS allowance as airtime.
 func (s *Service) Preview(ctx context.Context, id, text string) (Audio, error) {
 	s.mu.Lock()
-	if s.closed || s.editorActive || s.state.Status != "stopped" || s.adapters.Speak == nil || s.now().Before(s.editorRetry) {
+	if s.closed || s.editorActive || s.previewActive || s.state.Status != "stopped" || s.adapters.Speak == nil || s.now().Before(s.editorRetry) {
 		s.mu.Unlock()
 		return Audio{}, ErrConflict
 	}
@@ -22,7 +22,8 @@ func (s *Service) Preview(ctx context.Context, id, text string) (Audio, error) {
 		s.mu.Unlock()
 		return Audio{}, err
 	}
-	s.editorActive = true
+	s.previewActive = true
+	s.state.EditorBusy = true
 	s.editorRetry = s.now().Add(10 * time.Second)
 	s.wg.Add(1)
 	s.mu.Unlock()
@@ -33,7 +34,10 @@ func (s *Service) Preview(ctx context.Context, id, text string) (Audio, error) {
 	defer stop()
 	audio, err := s.adapters.Speak(ctx, p, text)
 	s.mu.Lock()
-	s.editorActive = false
+	s.previewActive = false
+	if !s.editorActive {
+		s.state.EditorBusy = false
+	}
 	s.finishJob(job, err, "")
 	s.mu.Unlock()
 	return audio, err

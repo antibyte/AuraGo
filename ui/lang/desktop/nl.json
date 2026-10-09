@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "Stel muziekgeneratie in of kies lokale muziek.",
   "personalRadio.radio_generation_failed": "Generatie mislukt. Voorbereide muziek blijft beschikbaar; een nieuwe poging volgt.",
   "personalRadio.radio_tts_unavailable": "Stel spraak in voor presentatie en nieuws.",
+  "personalRadio.radio_llm_unavailable": "Stel een LLM-dienst in zodat Personal Radio het programma kan plannen.",
+  "personalRadio.radio_editorial_failed": "De redactie kon het programma niet plannen. Controleer de LLM-dienst en probeer het opnieuw.",
   "personalRadio.radio_unavailable": "Personal Radio niet beschikbaar. Activeer Virtual Desktop en herstart AuraGo.",
   "personalRadio.import_genre": "Genre voor import",
   "personalRadio.any_genre": "Niet opgegeven",

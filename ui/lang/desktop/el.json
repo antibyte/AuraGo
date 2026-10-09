@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "Ρυθμίστε δημιουργία ή επιλέξτε τοπική μουσική.",
   "personalRadio.radio_generation_failed": "Η δημιουργία απέτυχε. Η έτοιμη μουσική παραμένει· θα γίνει νέα προσπάθεια.",
   "personalRadio.radio_tts_unavailable": "Ρυθμίστε ομιλία για παρουσίαση και ειδήσεις.",
+  "personalRadio.radio_llm_unavailable": "Ρυθμίστε μια υπηρεσία LLM, ώστε το Personal Radio να μπορεί να σχεδιάζει το πρόγραμμα.",
+  "personalRadio.radio_editorial_failed": "Η σύνταξη δεν μπόρεσε να σχεδιάσει την εκπομπή. Ελέγξτε την υπηρεσία LLM και δοκιμάστε ξανά.",
   "personalRadio.radio_unavailable": "Το Personal Radio δεν είναι διαθέσιμο. Ενεργοποιήστε την εικονική επιφάνεια και επανεκκινήστε το AuraGo.",
   "personalRadio.import_genre": "Είδος εισαγωγής",
   "personalRadio.any_genre": "Απροσδιόριστο",

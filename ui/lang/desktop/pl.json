@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "Skonfiguruj generowanie lub wybierz lokalną muzykę.",
   "personalRadio.radio_generation_failed": "Generowanie nieudane. Gotowa muzyka pozostaje; nastąpi kolejna próba.",
   "personalRadio.radio_tts_unavailable": "Skonfiguruj mowę dla prowadzenia i wiadomości.",
+  "personalRadio.radio_llm_unavailable": "Skonfiguruj usługę LLM, aby Personal Radio mogło zaplanować program.",
+  "personalRadio.radio_editorial_failed": "Redakcja nie mogła zaplanować programu. Sprawdź usługę LLM i spróbuj ponownie.",
   "personalRadio.radio_unavailable": "Personal Radio niedostępne. Włącz wirtualny pulpit i uruchom AuraGo ponownie.",
   "personalRadio.import_genre": "Gatunek importu",
   "personalRadio.any_genre": "Nieokreślony",

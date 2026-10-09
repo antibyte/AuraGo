@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "Konfigurera generering eller välj lokal musik.",
   "personalRadio.radio_generation_failed": "Genereringen misslyckades. Förberedd musik finns kvar; ett nytt försök följer.",
   "personalRadio.radio_tts_unavailable": "Konfigurera tal för presentation och nyheter.",
+  "personalRadio.radio_llm_unavailable": "Konfigurera en LLM-tjänst så att Personal Radio kan planera programmet.",
+  "personalRadio.radio_editorial_failed": "Redaktionen kunde inte planera programmet. Kontrollera LLM-tjänsten och försök igen.",
   "personalRadio.radio_unavailable": "Personal Radio är inte tillgänglig. Aktivera virtuellt skrivbord och starta om AuraGo.",
   "personalRadio.import_genre": "Importgenre",
   "personalRadio.any_genre": "Ospecificerad",

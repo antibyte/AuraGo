@@ -4683,6 +4683,8 @@
   "personalRadio.radio_music_unavailable": "Konfigurér generering eller vælg lokal musik.",
   "personalRadio.radio_generation_failed": "Generering mislykkedes. Klar musik bevares; et nyt forsøg følger.",
   "personalRadio.radio_tts_unavailable": "Konfigurér tale til præsentation og nyheder.",
+  "personalRadio.radio_llm_unavailable": "Konfigurér en LLM-tjeneste, så Personal Radio kan planlægge udsendelsen.",
+  "personalRadio.radio_editorial_failed": "Redaktionen kunne ikke planlægge udsendelsen. Kontrollér LLM-tjenesten, og prøv igen.",
   "personalRadio.radio_unavailable": "Personal Radio er utilgængelig. Aktivér virtuelt skrivebord og genstart AuraGo.",
   "personalRadio.import_genre": "Importgenre",
   "personalRadio.any_genre": "Ikke angivet",

@@ -393,3 +393,84 @@ func TestNewsDeadlinesExpiryAndUntrustedSourceIDs(t *testing.T) {
 		t.Fatal("expired bulletin remained")
 	}
 }
+
+func TestStalledPlaybackStopsImmediately(t *testing.T) {
+	s, clock := testService(t, Adapters{})
+	p := testProfile(t, s, "local")
+	testImport(t, s, p, 1)
+	testImport(t, s, p, 2)
+	st, err := s.Start(p.ID, testDevice, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Tick()
+	q := s.Snapshot().Queue
+	if len(q) < 2 || s.Snapshot().Status != "ready" {
+		t.Fatal(s.Snapshot())
+	}
+	if err = s.Heartbeat(testDevice, st.Epoch, "", 0); err != nil {
+		t.Fatal(err)
+	}
+	clock.Add(int64(2 * time.Minute))
+	if err = s.Heartbeat(testDevice, st.Epoch, "", 0); err != nil {
+		t.Fatal(err)
+	}
+	clock.Add(int64(2 * time.Minute))
+	if err = s.Heartbeat(testDevice, st.Epoch, "", 0); err != nil {
+		t.Fatal(err)
+	}
+	if s.Snapshot().Status != "ready" {
+		t.Fatal("ready session stopped on an unchanged position")
+	}
+	if err = s.Playback(testDevice, st.Epoch, q[0].ID, "started"); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Heartbeat(testDevice, st.Epoch, q[0].ID, 1000); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Control(testDevice, st.Epoch, "pause", ""); err != nil {
+		t.Fatal(err)
+	}
+	clock.Add(int64(2 * time.Minute))
+	if err = s.Heartbeat(testDevice, st.Epoch, q[0].ID, 1000); err != nil {
+		t.Fatal(err)
+	}
+	clock.Add(int64(2 * time.Minute))
+	if err = s.Heartbeat(testDevice, st.Epoch, q[0].ID, 1000); err != nil {
+		t.Fatal(err)
+	}
+	if s.Snapshot().Status != "paused" {
+		t.Fatal("paused session stopped on an unchanged position")
+	}
+	if err = s.Control(testDevice, st.Epoch, "resume", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Heartbeat(testDevice, st.Epoch, q[0].ID, 5000); err != nil {
+		t.Fatal(err)
+	}
+	// Heartbeats stay inside the lease, as the 15-second client does. A new
+	// position refreshes progress; the same position does not.
+	clock.Add(int64(2 * time.Minute))
+	if err = s.Heartbeat(testDevice, st.Epoch, q[0].ID, 5000); err != nil {
+		t.Fatal(err)
+	}
+	clock.Add(int64(2 * time.Minute))
+	if err = s.Heartbeat(testDevice, st.Epoch, q[0].ID, 9000); err != nil {
+		t.Fatal(err)
+	}
+	if s.Snapshot().Status != "playing" {
+		t.Fatal("a new position stopped playback")
+	}
+	clock.Add(int64(2 * time.Minute))
+	if err = s.Heartbeat(testDevice, st.Epoch, q[0].ID, 9000); err != nil {
+		t.Fatal(err)
+	}
+	clock.Add(int64(2 * time.Minute))
+	if err = s.Heartbeat(testDevice, st.Epoch, q[0].ID, 9000); !errors.Is(err, ErrLease) {
+		t.Fatal(err)
+	}
+	got := s.Snapshot()
+	if got.Status != "stopped" || got.Code != "radio_listener_gone" {
+		t.Fatalf("%+v", got)
+	}
+}

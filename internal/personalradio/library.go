@@ -43,7 +43,11 @@ func (s *Service) prepareLibrary(parent context.Context, epoch string, p Station
 			s.mu.Unlock()
 			return context.Canceled
 		}
-		tracks := s.updateBufferLocked(p)
+		tracks, ok := s.loadReadyTracks(p, epoch)
+		if !ok {
+			s.mu.Unlock()
+			return context.Canceled
+		}
 		if s.state.BufferMS >= int64(p.LibraryMinutes)*60000 && len(tracks) >= max(p.MinTracks, p.RepeatTracks+1) {
 			s.mu.Unlock()
 			return errLibraryFull
@@ -63,19 +67,24 @@ func (s *Service) prepareLibrary(parent context.Context, epoch string, p Station
 			s.mu.Unlock()
 			return err
 		}
-		cached := false
+		cachedID := ""
+		var cachedBytes int64
 		if err == nil {
 			var track Track
 			if err = json.Unmarshal([]byte(body), &track); err != nil {
 				s.mu.Unlock()
 				return err
 			}
-			if info, e := os.Stat(filepath.Join(s.dir, track.ID+".wav")); e == nil && info.Size() == track.Bytes {
-				cached = true
-			}
+			cachedID, cachedBytes = track.ID, track.Bytes
 		}
 		s.state.LibraryStatus = "importing"
 		s.mu.Unlock()
+		cached := false
+		if cachedID != "" {
+			if info, e := os.Stat(filepath.Join(s.dir, cachedID+".wav")); e == nil && info.Size() == cachedBytes {
+				cached = true
+			}
+		}
 		if ignored || blocked || cached {
 			return nil
 		}
@@ -108,5 +117,7 @@ func (s *Service) prepareLibrary(parent context.Context, epoch string, p Station
 	if s.state.Code == "radio_registry_unavailable" {
 		s.state.Code = ""
 	}
-	s.updateBufferLocked(p)
+	if _, ok := s.loadReadyTracks(p, epoch); !ok {
+		return
+	}
 }
