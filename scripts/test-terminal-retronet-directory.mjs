@@ -267,6 +267,83 @@ for (const lang of LANGS) {
     }
 }
 
+// 5. Mouse rows: the directory lives on the alternate screen (no scrollback); a scrolled viewport is still mapped.
+const NUMBERED_IDS = [Directory.LOCAL_SHELL_ID, 'telehack', 'ascii', 'cjk', 'emoji', 'zwj', 'combining', 'hindi', 'evil', 'old'];
+const flush = (term) => new Promise((resolve) => term.write('', resolve));
+
+function clickable(real, bufferOverride) {
+    const listeners = {};
+    const element = {
+        addEventListener: (type, fn) => { listeners[type] = fn; },
+        removeEventListener: (type) => { delete listeners[type]; },
+        querySelector: (selector) => (selector === '.xterm-screen'
+            ? { getBoundingClientRect: () => ({ top: 100, bottom: 100 + real.rows * 16, height: real.rows * 16 }) }
+            : null)
+    };
+    const term = {
+        get cols() { return real.cols; },
+        get rows() { return real.rows; },
+        get buffer() { return bufferOverride || real.buffer; },
+        write: (data, callback) => real.write(data, callback),
+        element
+    };
+    const click = (screenRow, type = 'click', offset = 8) => {
+        if (listeners[type]) listeners[type]({ clientY: 100 + screenRow * 16 + offset });
+    };
+    return { term, click, listeners };
+}
+
+async function mouseDirectory(term, options = {}) {
+    const dialed = [];
+    const directory = Directory.create({
+        term, t, announce() {}, canEdit: () => true, onEdit() {}, onDelete() {},
+        api: async () => JSON.parse(JSON.stringify(options.data || payload)),
+        onDial: (entry) => dialed.push(entry.id)
+    });
+    await directory.load();
+    return { directory, dialed };
+}
+
+{
+    const real = new sandbox.Terminal({ cols: 80, rows: 30, scrollback: 1000 });
+    real.write('shell output\r\n'.repeat(60));
+    await flush(real);
+    const { term, click } = clickable(real);
+    const { directory, dialed } = await mouseDirectory(term);
+    real.resize(80, 12);
+    directory.render();
+    await flush(real);
+    real.scrollLines(-5);
+    const active = real.buffer.active;
+    check('directory renders on the alternate screen', active.type === 'alternate' && active.baseY === 0 && active.viewportY === 0, active.type + ' base ' + active.baseY + ' viewport ' + active.viewportY);
+    const rowsWithEntries = [];
+    for (let row = 0; row < real.rows; row += 1) {
+        const match = /^[> ](\d\d) /.exec(active.getLine(active.viewportY + row).translateToString(true));
+        if (match) rowsWithEntries.push(row);
+    }
+    const wrong = [];
+    for (const row of rowsWithEntries.slice(1).reverse()) {
+        const shown = /^[> ](\d\d) /.exec(real.buffer.active.getLine(real.buffer.active.viewportY + row).translateToString(true));
+        click(row);
+        await flush(real);
+        const want = shown && NUMBERED_IDS[Number(shown[1])];
+        if (!want || directory.selected().id !== want) wrong.push('row ' + row + ' shows ' + (shown && shown[1]) + ' selected ' + directory.selected().id);
+    }
+    check('clicks after shrinking and scrolling select the entry under the pointer', rowsWithEntries.length > 2 && wrong.length === 0 && dialed.length === 0, wrong.join('; ') || String(rowsWithEntries.length));
+    directory.dispose();
+    real.dispose();
+}
+
+{
+    const real = new sandbox.Terminal({ cols: 80, rows: 12 });
+    const { term, click } = clickable(real, { active: { type: 'alternate', viewportY: 2, baseY: 4 } });
+    const { directory } = await mouseDirectory(term);
+    click(6);
+    same('a viewport scrolled into scrollback is mapped back to the drawn row', directory.selected().id, 'telehack');
+    directory.dispose();
+    real.dispose();
+}
+
 if (failures) {
     console.log(failures + ' check(s) failed');
     process.exit(1);

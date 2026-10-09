@@ -237,8 +237,11 @@
             const footerRows = help.length ? help.length + 1 : 0;
             visibleRows = Math.max(1, rows - HEADER_ROWS - footerRows);
             scrollToCursor();
+            // The alternate screen has no scrollback, so screen rows are list rows (term.reset() leaves it).
+            const active = term.buffer && term.buffer.active;
+            const enter = active && active.type === 'alternate' ? '' : '\x1b[?1049h';
             // Auto-wrap off: overlong lines are clipped instead of scrolling the screen.
-            let out = '\x1b[?7l\x1b[?25l' + RESET + at(0) + headerLine(cols) + at(1) + DIM + RULE.repeat(cols) + RESET;
+            let out = enter + '\x1b[?7l\x1b[?25l' + RESET + at(0) + headerLine(cols) + at(1) + DIM + RULE.repeat(cols) + RESET;
             for (let i = 0; i < visibleRows; i += 1) {
                 const row = HEADER_ROWS + i;
                 out += at(row) + lineText(lines[offset + i], cols - 1);
@@ -420,7 +423,10 @@
             if (!screenEl || !term.rows) return -1;
             const rect = screenEl.getBoundingClientRect();
             if (!rect.height || event.clientY < rect.top || event.clientY >= rect.bottom) return -1;
-            return Math.floor((event.clientY - rect.top) / (rect.height / term.rows));
+            const row = Math.floor((event.clientY - rect.top) / (rect.height / term.rows));
+            // Safety net: a viewport scrolled into scrollback shows rows above the drawn screen.
+            const active = term.buffer && term.buffer.active;
+            return active ? row + (active.viewportY - active.baseY) : row;
         }
 
         function onClick(event) {

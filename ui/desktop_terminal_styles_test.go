@@ -702,6 +702,8 @@ func TestDesktopTerminalRetroNetDirectoryContract(t *testing.T) {
 		`'\x1b[6~'`,
 		`'\x1b[3~'`,
 		`'\x1b[?7l\x1b[?25l'`,
+		`'\x1b[?1049h'`,
+		"active.viewportY - active.baseY",
 		"'dblclick'",
 		"'.xterm-screen'",
 		"Intl.RelativeTimeFormat",
