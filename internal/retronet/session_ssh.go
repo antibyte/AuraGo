@@ -28,13 +28,19 @@ func (m *Manager) runSSH(ctx context.Context, e Entry, size Size, client Client,
 	if err := client.SendControl(connected); err != nil {
 		return endReason(ctx, ReasonRemoteClosed)
 	}
+	// An SSH channel has no write deadline: a server that stops reading blocks writes inside
+	// x/crypto. Closing the connection after sessionWriteTimeout fails the blocked call and
+	// ends the session as remote_closed, like the Telnet write deadline does.
+	out := sessionWriter{w: sess, abort: func() { _ = conn.Close() }, stats: stats}
+	resize := func(s Size) error {
+		return out.bounded(func() error { return sess.Resize(s.Cols, s.Rows) })
+	}
 	if latest := pending.Load(); latest != nil && *latest != size {
-		if err := sess.Resize(latest.Cols, latest.Rows); err != nil {
+		if err := resize(*latest); err != nil {
 			return endReason(ctx, ReasonRemoteClosed)
 		}
 	}
 	codec := NewCodec(e.EffectiveCharset())
-	out := sessionWriter{w: sess, stats: stats}
 	var text []byte // decode buffer, reused for every read
 	return m.pump(ctx, client, sess, stats, pumpHandlers{
 		remote: func(p []byte) error {
@@ -47,9 +53,7 @@ func (m *Manager) runSSH(ctx context.Context, e Entry, size Size, client Client,
 		input: func(p []byte) error {
 			return out.write(codec.Encode(nil, p))
 		},
-		resize: func(s Size) error {
-			return sess.Resize(s.Cols, s.Rows)
-		},
+		resize: resize,
 	})
 }
 

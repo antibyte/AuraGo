@@ -1,7 +1,11 @@
 package retronet
 
 import (
+	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"io"
 	"net"
 	"slices"
 	"strings"
@@ -9,6 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 func TestManagerSSHPinnedSessionPumpsData(t *testing.T) {
@@ -266,4 +272,124 @@ func TestManagerSSHHandshakeDeadlineIsRestoredAfterHostKeyDecision(t *testing.T)
 	}
 	cancel()
 	sessExpectResult(t, c, sessAwait(t, done), CodeNoCarrier, ReasonRemoteClosed)
+}
+
+// startSSHStallFixture is an SSH service with anonymous login whose shell greets once and then
+// never reads the channel: client input fills the 2 MiB channel window, after which a write
+// blocks inside x/crypto until the connection dies. It returns a pinned catalog entry.
+func startSSHStallFixture(t *testing.T) Entry {
+	t.Helper()
+	_, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := ssh.NewSignerFromKey(private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := &ssh.ServerConfig{NoClientAuth: true}
+	config.AddHostKey(signer)
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var (
+		wg    sync.WaitGroup
+		mu    sync.Mutex
+		conns []net.Conn
+	)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			raw, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			conns = append(conns, raw)
+			mu.Unlock()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				serveSSHStalled(raw, config)
+			}()
+		}
+	}()
+	t.Cleanup(func() {
+		_ = listener.Close()
+		mu.Lock()
+		for _, conn := range conns {
+			_ = conn.Close()
+		}
+		mu.Unlock()
+		wg.Wait()
+	})
+	return Entry{
+		ID: "sshstall", Name: "SSH Stall", Category: CategoryGames, Protocol: ProtocolSSH,
+		Host: "127.0.0.1", Port: listener.Addr().(*net.TCPAddr).Port, User: "guest",
+		HostKey: ssh.FingerprintSHA256(signer.PublicKey()),
+	}
+}
+
+func serveSSHStalled(raw net.Conn, config *ssh.ServerConfig) {
+	defer raw.Close()
+	conn, channels, requests, err := ssh.NewServerConn(raw, config)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+	go ssh.DiscardRequests(requests)
+	for newChannel := range channels {
+		channel, channelRequests, err := newChannel.Accept()
+		if err != nil {
+			continue
+		}
+		go func() {
+			for req := range channelRequests {
+				if req.WantReply {
+					_ = req.Reply(true, nil)
+				}
+				if req.Type == "shell" {
+					_, _ = io.WriteString(channel, "welcome to the stall\r\n")
+				}
+			}
+		}()
+	}
+}
+
+// A service that stops reading its channel blocks the keystroke write inside x/crypto. The
+// write timeout closes the connection, so the session ends as NO CARRIER and frees its slot
+// instead of holding it until the maximum duration.
+func TestManagerSSHStalledServiceHitsWriteTimeout(t *testing.T) {
+	previous := sessionWriteTimeout
+	sessionWriteTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { sessionWriteTimeout = previous })
+	entry := startSSHStallFixture(t)
+	m := &Manager{Dialer: Dialer{AllowRestricted: true}}
+	c := newSessionTestClient()
+	done := sessStart(context.Background(), m, entry, Size{Cols: 80, Rows: 25}, c)
+	c.waitControl(t, controlConnected)
+	c.waitOutput(t, "welcome to the stall")
+
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() {
+		chunk := bytes.Repeat([]byte("x"), 64<<10)
+		for {
+			select {
+			case c.events <- ClientEvent{Data: chunk}:
+			case <-stop:
+				return
+			}
+		}
+	}()
+	res := sessAwait(t, done)
+	sessExpectResult(t, c, res, CodeNoCarrier, ReasonRemoteClosed)
+	if res.BytesOut < 1<<20 {
+		t.Fatalf("bytes out = %d, want the channel window (2 MiB) filled before the write stalled", res.BytesOut)
+	}
+	if m.Active() != 0 {
+		t.Fatalf("active = %d after the session ended, want the slot released", m.Active())
+	}
 }

@@ -29,10 +29,14 @@ type serviceRead struct {
 	err  error
 }
 
-// sessionWriter writes to the service under a write deadline (when available) and counts bytes.
+// sessionWriter writes to the service and counts bytes. Every write is bounded by
+// sessionWriteTimeout: through a write deadline when the writer has one (a TCP connection),
+// or through abort for writers that have none (an SSH channel blocks inside x/crypto while the
+// server does not read). abort must unblock the write, normally by closing the connection.
 type sessionWriter struct {
 	w        io.Writer
 	deadline interface{ SetWriteDeadline(time.Time) error }
+	abort    func()
 	stats    *sessionStats
 }
 
@@ -43,9 +47,23 @@ func (w sessionWriter) write(p []byte) error {
 	if w.deadline != nil {
 		_ = w.deadline.SetWriteDeadline(time.Now().Add(sessionWriteTimeout))
 	}
+	if w.abort != nil {
+		watchdog := time.AfterFunc(sessionWriteTimeout, w.abort)
+		defer watchdog.Stop()
+	}
 	n, err := w.w.Write(p)
 	w.stats.bytesOut += int64(n)
 	return err
+}
+
+// bounded runs f, a call that writes to the service without going through write (an SSH
+// window change), and calls abort when it takes longer than sessionWriteTimeout.
+func (w sessionWriter) bounded(f func() error) error {
+	if w.abort != nil {
+		watchdog := time.AfterFunc(sessionWriteTimeout, w.abort)
+		defer watchdog.Stop()
+	}
+	return f()
 }
 
 // pump moves bytes between src and the browser until the session ends and returns the
@@ -89,10 +107,12 @@ func (m *Manager) pump(ctx context.Context, client Client, src io.ReadCloser, st
 			}
 			// The pump is single-threaded on purpose: all protocol state lives on this goroutine
 			// and needs no locks. The trade-off is that while a keystroke write to the service
-			// blocks, nothing is read from the service either. That is bounded by the write
-			// deadline (sessionWriteTimeout, 10 s) and by the size of one browser message (the
-			// WebSocket read limit is 64 KiB); a service that never drains its socket ends the
-			// session as remote_closed.
+			// blocks, nothing is read from the service either. That is bounded by
+			// sessionWriteTimeout (10 s) for both protocols and by the size of one browser
+			// message (the WebSocket read limit is 64 KiB): Telnet writes carry a write
+			// deadline on the TCP connection, SSH writes and window changes are watched and
+			// close the connection when they stall (sessionWriter.abort). A service that never
+			// drains its socket or channel ends the session as remote_closed.
 			if len(ev.Data) > 0 {
 				idle.Reset(m.idleTimeout())
 				if err := h.input(ev.Data); err != nil {
