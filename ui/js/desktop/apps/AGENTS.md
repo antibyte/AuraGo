@@ -135,6 +135,40 @@
 - Verify `TestDetectiveTranslations`, `TestDesktopDetectiveBrowser` and the
   Detective config section. Backend contracts: `internal/detective/AGENTS.md`.
 
+## Local Wikipedia
+- `local-wikipedia-views.js` precedes `local-wikipedia.js`; both use
+  `desktop-app-local-wikipedia.css` and `--vd-theme-*` tokens (no per-theme
+  overrides). The builtin `local-wikipedia` app ("Wikipedia", icon `book`,
+  category `office`) requires the `local_wikipedia` capability. All sixteen
+  locales own `desktop.app_local_wikipedia` and `desktop.local_wikipedia_*`;
+  views use literal keys.
+- `LocalWikipediaApp` keeps one instance per window with an `AbortController`;
+  disposal aborts requests, clears the 200 ms suggestion debounce and the status
+  poll (1 s while the edition loads, 3 s while downloading/verifying, 15 s while
+  unavailable, 5 s after a failed poll while reading, 5 min while readable) and
+  blanks the frame. Only `status.readable` decides whether content is shown.
+- The article iframe loads `/api/desktop/local-wikipedia/content/<path>` with
+  `sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"`,
+  matching the server CSP: no ZIM script runs. Same-origin access only reads the
+  title and the `aurago-local-wikipedia-error` marker and adopts links: `ping`
+  and `attributionsrc` go, external `http(s)` links get `target="_blank"
+  rel="noopener noreferrer"`, `mailto:` stays, other schemes and same-origin
+  links outside the content route lose their `href`. The app owns back/forward
+  history (200 entries; app navigations use `location.replace`, entries are
+  recorded on `load`, a redirect leaves one entry); paths with `.`/`..` segments
+  are never addressed.
+- Results and suggestions render escaped text only; Enter without an active
+  suggestion searches; the toolbar is one tab stop (arrows, Home, End). Admin
+  actions open `/config#local_wikipedia` in a new tab only when the status
+  reports `can_manage`. Result titles and error text keep text contrast: no
+  plain accent or coral text (too light on Fruity light).
+- Verify `TestLocalWikipediaTranslations`, `TestLocalWikipediaViewHelpers`,
+  `TestDesktopLocalWikipediaModuleContract`, `TestDesktopLocalWikipediaRegistration`
+  and, with `AURAGO_RUN_BROWSER_SMOKE=1`, `TestDesktopLocalWikipediaBrowser` (fake
+  API) and `TestDesktopLocalWikipediaShellBrowser` (real shell through
+  `desktopAuditBrowserWithAPI`, 4.5:1 text contrast; screenshots in
+  `reports/local-wikipedia*/`). Server contract: `internal/localwiki/AGENTS.md`.
+
 ## Looper
 - `looper-monitor.js` precedes `looper.js`. The monitor owns the run view
   (`createRunView`), the log-delta merge (`mergeStatus`) and the history views;
@@ -1111,6 +1145,8 @@ buttons and menu popovers remain excluded from those gestures.
   surface. Warn/danger/good stay semantic.
 - Nasscad shell uses `--vd-theme-app-bg`; the bundled iframe viewport stays
   `#111318`.
+- Wikipedia (`local-wikipedia`) chrome reads `--vd-theme-*`; the article iframe
+  stays a white reading surface (`#ffffff`, light color scheme) in every theme.
 - Sysworld HUD uses `--sw-*` aliases mapped to `--vd-theme-*`. The 3D canvas
   and vignette stay a dark work surface (`#020208`). Brand cyan
   (`--sw-accent`), event/tone semantics, and `.sw-btn.active` stay. Do not put

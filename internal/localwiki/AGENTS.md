@@ -220,6 +220,35 @@ through `Deps`.
   banner (never on the catalog's Retry), and returns to the last action button used once that is enabled
   again. The section uses sprite slot 120 and no inline styles.
 
+### Desktop content and API
+
+- `Library.Content/Random/Main` (`content.go`) read only the archive's content namespace
+  (`ContentNamespace()`); redirects resolve with the archive's depth limit and must stay in that
+  namespace. `ContentItem.Path` is the resolved path (callers redirect when it differs), the ETag is the
+  archive UUID plus a SHA-256 prefix of the path, text MIME types gain `charset=utf-8`. Random skips
+  non-HTML title-list entries (8 attempts).
+- `/api/desktop/local-wikipedia/{status,suggest,search,random,main,content/<path>}`
+  (`internal/server/local_wikipedia_desktop_handlers.go`): `desktop:read`, GET/HEAD only (405 otherwise,
+  so no Origin check). Virtual Desktop off 503 `desktop_unavailable`, integration off 503 `disabled`
+  (+ `can_manage`), no manager 503 `unavailable`, no open edition 409 `not_ready`. `status` is the
+  non-admin subset (state, progress, readable, loading, edition language/variant/date/article count,
+  fulltext, update_available, error_code) plus `can_manage` (browser session or `admin` bearer); never
+  paths, file names, hashes or free space. Queries <= 200 runes with a 6 s deadline; suggest <= 10 refs,
+  search default 20 and at most 30 hits, never leads; `query_too_long`/`query_empty`/`bad_limit` 400,
+  `busy` 503 (+ `Retry-After`), `timeout` 504, `search_failed` 500.
+- Content paths are lookup keys, never filesystem paths; a redirect answers 302 to the resolved path
+  (dot and empty segments refused). Every content answer (blobs, redirects, the framable HTML error pages
+  with the `aurago-local-wikipedia-error` marker) carries `localWikipediaContentCSP` (sandbox without
+  scripts, `connect-src 'none'`, `frame-ancestors 'self'`), `X-Frame-Options: SAMEORIGIN` set by the
+  handler (`securityHeadersMiddleware` keeps `DENY` for every path), `nosniff`,
+  `Referrer-Policy: no-referrer` and `Permissions-Policy: attribution-reporting=(), browsing-topics=()`.
+  Blobs go through `http.ServeContent` (Range, `If-None-Match`, `If-Range`) with
+  `Cache-Control: private, max-age=86400`; the middleware never treats the prefix as a static asset.
+- Desktop capability `local_wikipedia` = `local_wikipedia.enabled` and a manager
+  (`localWikipediaAvailable`); a config publication that flips `enabled` broadcasts `desktop_changed`
+  `app_availability` on its own goroutine, outside the config lock. The app contract lives in
+  `ui/js/desktop/apps/AGENTS.md` (Local Wikipedia).
+
 ## Work Guidance
 
 - A change to the status fields, error codes or the `readable`/`loading` semantics updates the manager, the
@@ -243,6 +272,10 @@ through `Deps`.
   `TestConfigRefreshRealSectionsBrowser/local_wikipedia`, `TestConfigRefreshRealSectionsBrowser/matrix/local_wikipedia` and
   `TestConfigRefreshPopulatedBrowser/local_wikipedia` (same variable) cover the topic layout and the width/theme/density matrix
 - `npm run build:ui && npm run check:ui` (the config modules are lazy-loaded raw files; no bundle changes)
+- Desktop: `go test ./internal/localwiki -run '(?i)(TestArchive|TestContentMimeType|TestLibraryContent)'`,
+  `go test ./internal/server -run '(?i)(LocalWiki|LocalWikipedia)'`,
+  `go test ./internal/desktop -run TestBuiltinLocalWikipediaAppRequiresCapability` and the UI tests listed in
+  `ui/js/desktop/apps/AGENTS.md` (Local Wikipedia)
 
 ## Child DOX Index
 
