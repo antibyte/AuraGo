@@ -2,7 +2,9 @@ package retronet
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
 	"io"
@@ -35,8 +37,10 @@ type sshFixture struct {
 	port        int
 	fingerprint string
 	keyType     string
-	listener    net.Listener
-	wg          sync.WaitGroup
+	// ecdsaFingerprint is the second host key's fingerprint (startSSHFixtureKeys withECDSA).
+	ecdsaFingerprint string
+	listener         net.Listener
+	wg               sync.WaitGroup
 
 	mu      sync.Mutex
 	conns   []net.Conn
@@ -47,6 +51,13 @@ type sshFixture struct {
 }
 
 func startSSHFixture(t *testing.T, auth sshFixtureAuth) *sshFixture {
+	t.Helper()
+	return startSSHFixtureKeys(t, auth, false)
+}
+
+// startSSHFixtureKeys is startSSHFixture; with withECDSA it also offers an ECDSA P-256 host
+// key. fingerprint and keyType always describe the ed25519 key, ecdsaFingerprint the other.
+func startSSHFixtureKeys(t *testing.T, auth sshFixtureAuth, withECDSA bool) *sshFixture {
 	t.Helper()
 	_, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -81,6 +92,18 @@ func startSSHFixture(t *testing.T, auth sshFixtureAuth) *sshFixture {
 		}
 	}
 	config.AddHostKey(signer)
+	if withECDSA {
+		ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ecSigner, err := ssh.NewSignerFromKey(ecKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.ecdsaFingerprint = ssh.FingerprintSHA256(ecSigner.PublicKey())
+		config.AddHostKey(ecSigner)
+	}
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)

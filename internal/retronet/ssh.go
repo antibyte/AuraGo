@@ -20,6 +20,21 @@ const (
 	sshTerminalSpeed    = 14400
 )
 
+// sshHostKeyAlgorithms is the host key algorithm preference offered to servers, in the order
+// OpenSSH prefers plain keys. x/crypto's default order puts ECDSA before ed25519, so a server
+// with both keys would negotiate ECDSA and the stored or first-contact fingerprint would
+// differ from what ssh and known_hosts show for the same server. Certificate algorithms are
+// not offered: host certificates are not supported.
+var sshHostKeyAlgorithms = []string{
+	ssh.KeyAlgoED25519,
+	ssh.KeyAlgoECDSA256,
+	ssh.KeyAlgoECDSA384,
+	ssh.KeyAlgoECDSA521,
+	ssh.KeyAlgoRSASHA512,
+	ssh.KeyAlgoRSASHA256,
+	ssh.KeyAlgoRSA,
+}
+
 // HostKeyDecider is asked on first contact with an own SSH entry that has no stored key.
 type HostKeyDecider func(ctx context.Context, keyType, fingerprint string) (bool, error)
 
@@ -92,8 +107,9 @@ func OpenSSH(ctx context.Context, conn net.Conn, e Entry, cols, rows int, decide
 			ssh.KeyboardInteractive(sshEmptyAnswers),
 			ssh.Password(""),
 		},
-		HostKeyCallback: verifier.check,
-		Timeout:         sshHandshakeTimeout,
+		HostKeyCallback:   verifier.check,
+		HostKeyAlgorithms: sshHostKeyAlgorithms,
+		Timeout:           sshHandshakeTimeout,
 	}
 	clientConn, channels, requests, err := ssh.NewClientConn(conn, e.Address(), config)
 	if err != nil {

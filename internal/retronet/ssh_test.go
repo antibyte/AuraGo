@@ -181,6 +181,33 @@ func TestOpenSSHHostKeyRules(t *testing.T) {
 	}
 }
 
+func TestOpenSSHPrefersTheEd25519HostKey(t *testing.T) {
+	f := startSSHFixtureKeys(t, sshFixtureKeyboardInteractive, true)
+	if f.ecdsaFingerprint == "" || f.ecdsaFingerprint == f.fingerprint {
+		t.Fatalf("fixture keys: ed25519 %q, ecdsa %q", f.fingerprint, f.ecdsaFingerprint)
+	}
+	var asked []string
+	decide := func(_ context.Context, keyType, fingerprint string) (bool, error) {
+		asked = append(asked, keyType+" "+fingerprint)
+		return true, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	sess, fingerprint, err := OpenSSH(ctx, f.dial(t), f.entry(true, ""), 80, 25, decide)
+	if err != nil {
+		t.Fatalf("OpenSSH: %v", err)
+	}
+	defer sess.Close()
+	// The first-contact fingerprint must be the one ssh and known_hosts show for the server's
+	// preferred key (ed25519), not whichever algorithm the library negotiates by default.
+	if want := f.keyType + " " + f.fingerprint; len(asked) != 1 || asked[0] != want {
+		t.Fatalf("decider asked about %q, want [%q]", asked, want)
+	}
+	if fingerprint != f.fingerprint {
+		t.Fatalf("fingerprint = %q, want the ed25519 key %q", fingerprint, f.fingerprint)
+	}
+}
+
 func TestSSHSessionResizeSendsWindowChange(t *testing.T) {
 	f := startSSHFixture(t, sshFixtureKeyboardInteractive)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
