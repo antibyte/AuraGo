@@ -42,3 +42,31 @@ func TestLocalWikipediaGuideCoversOperatorTopics(t *testing.T) {
 		"`readable`", "`loading`",
 	})
 }
+
+func TestLocalWikipediaManualIntegrationSections(t *testing.T) {
+	t.Parallel()
+	en := readRepoFile(t, "documentation/manual/en/08-integrations.md")
+	requireAll(t, "manual/en/08-integrations.md", en, []string{
+		"| Knowledge offline | [Local Wikipedia](#local-wikipedia) |",
+		"## Local Wikipedia",
+		"### Web UI Setup",
+		"local_wikipedia:",
+		"(../../local-wikipedia.md)",
+		"(07-configuration.md#local-wikipedia)",
+	})
+	de := readRepoFile(t, "documentation/manual/de/08-integrations.md")
+	requireAll(t, "manual/de/08-integrations.md", de, []string{
+		"| Wissen offline | [Lokale Wikipedia](#lokale-wikipedia) |",
+		"## Lokale Wikipedia",
+		"### Einrichtung in der Web-UI",
+		"local_wikipedia:",
+		"(../../local-wikipedia.md)",
+		"(07-konfiguration.md#lokale-wikipedia)",
+	})
+	if strings.Index(en, "## Local Wikipedia") > strings.Index(en, "## Testing Integrations") {
+		t.Error("English Local Wikipedia section must come before Testing Integrations")
+	}
+	if strings.Index(de, "## Lokale Wikipedia") > strings.Index(de, "## Integrationen testen") {
+		t.Error("German Lokale Wikipedia section must come before Integrationen testen")
+	}
+}
