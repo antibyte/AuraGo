@@ -98,9 +98,10 @@ JSON, admin auth where it hurts, SSE at `GET /events`. No public chat `/ws`. Def
 84. [Noisemaker API](#noisemaker-api)
 85. [System World API](#system-world-api)
 86. [Radio Browser API](#radio-browser-api)
-87. [SSE Events](#sse-events)
-88. [Error Handling](#error-handling)
-89. [Related Links](#related-links)
+87. [Local Wikipedia API](#local-wikipedia-api)
+88. [SSE Events](#sse-events)
+89. [Error Handling](#error-handling)
+90. [Related Links](#related-links)
 
 ---
 
@@ -2752,6 +2753,27 @@ Read-only proxy to the public radio-browser.info station database for the radio 
 ```http
 GET /api/radio-browser/{...}
 ```
+
+## Local Wikipedia API
+
+Administrator routes manage the edition; desktop routes need `desktop:read`. Content paths are names inside the ZIM file, never file-system paths.
+
+```http
+GET  /api/local-wikipedia/catalog?lang=de          # Kiwix catalog for one language (cached 6 h)
+GET  /api/local-wikipedia/status                   # state, progress, edition, update hint, disk numbers
+POST /api/local-wikipedia/install                  # 202; {"replace_mode":"keep_old","confirm_unknown_space":false}
+POST /api/local-wikipedia/cancel                   # keeps the partial download
+POST /api/local-wikipedia/delete                   # removes ZIM, partial download and state
+POST /api/local-wikipedia/check-update
+GET  /api/desktop/local-wikipedia/status           # state, progress (0..1), edition, fulltext, update_available, error_code, can_manage
+GET  /api/desktop/local-wikipedia/suggest?q=       # up to 10 titles
+GET  /api/desktop/local-wikipedia/search?q=&limit= # up to 30 results (default 20)
+GET  /api/desktop/local-wikipedia/random
+GET  /api/desktop/local-wikipedia/main
+GET  /api/desktop/local-wikipedia/content/{path}   # original ZIM content with Range and ETag
+```
+
+Refusals answer `{"error","error_code","recommendation"}` without paths or host names: 409 for `busy`, `disabled`, `free_space_unknown`, `already_installed` and `no_operation`; 422 for `insufficient_disk_space` (with `required_bytes`, `free_bytes`, `can_delete_old`) and `data_dir_invalid`; 502 for `catalog_unreachable`; 400 for `unknown_language` and `invalid_request`. `GET /api/local-wikipedia/status` reports `readable` (an installed edition is open and served; use it rather than `state` to decide whether content is available) and `loading` (the first load after startup is still running; poll until it is false). HTML content carries a sandboxing Content-Security-Policy without scripts. See [Local Wikipedia](../../local-wikipedia.md).
 
 ## SSE Events
 

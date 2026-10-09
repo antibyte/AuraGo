@@ -92,3 +92,26 @@ func TestLocalWikipediaManualConfigurationReference(t *testing.T) {
 		t.Error("config_template.yaml must contain the local_wikipedia block (slice 3)")
 	}
 }
+
+func TestLocalWikipediaManualToolDashboardAndAPIEntries(t *testing.T) {
+	t.Parallel()
+	cases := map[string][]string{
+		"documentation/manual/en/06-tools.md":          {"| **Local Wikipedia** | `local_wikipedia`"},
+		"documentation/manual/de/06-tools.md":          {"| **Lokale Wikipedia** | `local_wikipedia`"},
+		"documentation/manual/en/13-dashboard.md":      {"Local Wikipedia shows **New edition**"},
+		"documentation/manual/de/13-dashboard.md":      {"Lokale Wikipedia zeigt **Neue Ausgabe**"},
+		"documentation/manual/en/22-internal-tools.md": {"### `local_wikipedia`", "| `offset` | integer |"},
+		"documentation/manual/de/22-interne-tools.md":  {"### `local_wikipedia`"},
+		"documentation/manual/en/21-api-reference.md": {
+			"87. [Local Wikipedia API](#local-wikipedia-api)", "88. [SSE Events](#sse-events)",
+			"## Local Wikipedia API", "POST /api/local-wikipedia/install", "GET  /api/desktop/local-wikipedia/content/{path}",
+		},
+		"documentation/manual/de/21-api-reference.md": {
+			"87. [Local Wikipedia API](#local-wikipedia-api)", "88. [SSE Events](#sse-events)",
+			"## Local Wikipedia API", "POST /api/local-wikipedia/install", "GET  /api/desktop/local-wikipedia/content/{path}",
+		},
+	}
+	for path, wants := range cases {
+		requireAll(t, path, readRepoFile(t, path), wants)
+	}
+}
