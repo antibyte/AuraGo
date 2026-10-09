@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -54,9 +55,49 @@ func TestCloudflareAPIExceptionAppliesOnlyToAuraGoOrigin(t *testing.T) {
 	}
 }
 
+func TestCloudflareTLSWarningsHaveStableSanitizedCodes(t *testing.T) {
+	old := cfHTTPClient
+	defer func() { cfHTTPClient = old }()
+	for _, failure := range []string{"tls_prerequisites", "tls_lookup", "tls_get", "tls_put", "tls_timeout", "tls_origin"} {
+		t.Run(failure, func(t *testing.T) {
+			cfg := CloudflareTunnelConfig{AccountID: "fixture", TunnelID: "fixture", HTTPSEnabled: true, HTTPSPort: 8443}
+			ctx := context.Background()
+			if failure == "tls_lookup" {
+				cfg.TunnelID, cfg.TunnelName = "", "fixture"
+			}
+			if failure == "tls_prerequisites" {
+				cfg.AccountID = ""
+			}
+			if failure == "tls_timeout" {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+			cfHTTPClient = &http.Client{Transport: cloudflareAuditTransport(func(r *http.Request) (*http.Response, error) {
+				if ctx.Err() != nil {
+					return nil, ctx.Err()
+				}
+				if failure == "tls_get" || failure == "tls_lookup" || failure == "tls_put" && r.Method == http.MethodPut {
+					return nil, fmt.Errorf("fixture-secret-token provider detail")
+				}
+				service := "https://localhost:8443"
+				if failure == "tls_origin" {
+					service = "https://remote.example:8443"
+				}
+				body := fmt.Sprintf(`{"success":true,"result":{"config":{"ingress":[{"hostname":"ui.example","service":%q},{"service":"http_status:404"}]}}}`, service)
+				return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}, nil
+			})}
+			warning := applyNoTLSVerifyViaAPI(ctx, cfg, "fixture-secret-token", slogDiscard())
+			if warning == nil || warning.Code != failure || strings.Contains(warning.Message, "fixture-secret") {
+				t.Fatalf("warning = %+v", warning)
+			}
+		})
+	}
+}
+
 func TestCloudflareNamedExceptionAppliesOnlyToAuraGoOrigin(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yml")
-	cfg := CloudflareTunnelConfig{TunnelName: "fixture", HTTPSEnabled: true, HTTPSPort: 8443, ExposeWebUI: true, WebUIPort: 8080, CustomIngress: []CloudflareIngress{{Hostname: "other.example", Service: "https://remote.example:8443"}}}
+	cfg := CloudflareTunnelConfig{TunnelName: "fixture", HTTPSEnabled: true, HTTPSPort: 8443, ExposeWebUI: true, WebUIPort: 8080, CustomIngress: []CloudflareIngress{{Hostname: "other.example", Service: "https://remote.example:8443"}, {Hostname: "ui.example", Service: "https://localhost:8443"}}}
 	if err := writeNamedTunnelConfig(cfg, "credentials.json", path); err != nil {
 		t.Fatal(err)
 	}

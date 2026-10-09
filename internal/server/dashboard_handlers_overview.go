@@ -784,10 +784,9 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 		}
 
 		// ── Tunnel Status ─────────────────────────────────────
-		tunnelInfo := map[string]interface{}{
-			"running": tools.IsTunnelRunning(),
-		}
-		if url := tools.GetTunnelURL(); url != "" {
+		tunnelInfo := map[string]interface{}{}
+		_ = json.Unmarshal([]byte(tools.CloudflareTunnelStatus(s.buildTunnelConfig(), s.Registry, s.Logger)), &tunnelInfo)
+		if url, ok := tunnelInfo["tunnel_url"].(string); ok {
 			tunnelInfo["url"] = url
 		}
 

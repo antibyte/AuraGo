@@ -60,6 +60,7 @@ func TestCloudflareQuickUncertainDockerStartStopsOriginalDaemon(t *testing.T) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/containers/create"):
 			w.WriteHeader(201)
+			_, _ = io.WriteString(w, `{"Id":"`+strings.Repeat("a", 64)+`"}`)
 		case strings.HasSuffix(r.URL.Path, "/start"):
 			w.WriteHeader(504) // the daemon may already have accepted the start
 		case strings.HasSuffix(r.URL.Path, "/stop"):

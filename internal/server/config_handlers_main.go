@@ -530,8 +530,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Safety net: validate that the marshaled YAML can still be loaded
-		// into a Config struct. If not, reject the save and keep the old file.
+		if err := config.ValidateCloudflareTunnelPortYAML(out); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		// Reject YAML that cannot load into Config and keep the previous file.
 		// Validation must not share slices or pointers with a published snapshot.
 		validateCfg := *s.ConfigSnapshot().Clone()
 		if valErr := yaml.Unmarshal(out, &validateCfg); valErr != nil {
@@ -542,6 +545,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				"status":  "error",
 				"message": "Config validation failed. Save rejected — your existing config is unchanged.",
 			})
+			return
+		}
+		if err := config.ValidateCloudflareTunnelConfig(&validateCfg); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		if err := config.ValidateToolDisclosureSettings(&validateCfg); err != nil {
@@ -749,6 +756,13 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 		}
 
+		_, cfExplicit := patch["cloudflare_tunnel"]
+		cfFinish, cfErr := prepareCloudflareConfigSave(s, &validateCfg, cfExplicit)
+		if cfErr != nil {
+			jsonError(w, cfErr.Error(), http.StatusConflict)
+			return
+		}
+		defer cfFinish(false)
 		meshCorePrevious := s.ConfigSnapshot()
 		meshCoreChanged := s.MeshCore != nil && !reflect.DeepEqual(meshCorePrevious.MeshCore, validateCfg.MeshCore)
 		if meshCoreChanged {
@@ -911,6 +925,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Apply hot-reload by publishing a new immutable config snapshot after
 			// all synchronous auto-detection adjustments are complete.
 			s.replaceConfigSnapshot(newCfg)
+			cfFinish(true)
 			tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(newCfg))
 			if s.DaemonSupervisor != nil {
 				s.DaemonSupervisor.SetRequireSandbox(newCfg.Tools.SkillManager.RequireSandbox)
@@ -1365,54 +1380,17 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
-			// Revocation closes managed publication before acknowledging configuration changes.
-			if !newCfg.CloudflareTunnel.Enabled || newCfg.CloudflareTunnel.ReadOnly || !newCfg.Homepage.Enabled ||
-				oldCfg.CloudflareTunnel.QuickProjectDir != newCfg.CloudflareTunnel.QuickProjectDir ||
-				oldCfg.Homepage.WorkspacePath != newCfg.Homepage.WorkspacePath ||
-				oldCfg.SQLite.HomepageRegistryPath != newCfg.SQLite.HomepageRegistryPath {
-				tools.CloudflareTunnelShutdown(cloudflareTunnelRuntimeConfig(&oldCfg), s.Registry, s.Logger, true)
-			}
-
-			// Hot-reload Cloudflare Tunnel: stop immediately when disabled, start when enabled.
+			// Config revocation completed before publishing the new permission snapshot.
 			cfEnabledChanged := oldCfg.CloudflareTunnel.Enabled != newCfg.CloudflareTunnel.Enabled
-			if cfEnabledChanged {
-				cfBaseCfg := cloudflareTunnelRuntimeConfig(newCfg)
-				vault := s.Vault
-				reg := s.Registry
-				log := s.Logger
-				if !newCfg.CloudflareTunnel.Enabled {
-					// Disabled → stop the tunnel immediately (security: no tunnel without explicit enable).
-					go func() {
-						result := tools.CloudflareTunnelShutdown(cfBaseCfg, reg, log, false)
-						log.Info("[CloudflareTunnel] Hot-reload: tunnel stopped because cloudflare_tunnel.enabled=false", "result", result)
-					}()
-				} else if cloudflareTunnelAutoStartAllowed(newCfg) {
-					// Enabled with auto_start → start immediately.
-					go func() {
-						result := tools.CloudflareTunnelStart(cfBaseCfg, vault, reg, log)
-						log.Info("[CloudflareTunnel] Hot-reload: tunnel started because cloudflare_tunnel.enabled=true", "result", result)
-					}()
-				} else if newCfg.CloudflareTunnel.AutoStart && !newCfg.Docker.Enabled {
-					log.Info("[CloudflareTunnel] Hot-reload: Docker is disabled; skipping Docker-mode start")
-				}
-			}
-
-			// Hot-reload Cloudflare Tunnel: restart when the expose target (web UI vs. homepage)
-			// changes so the dynamic loopback proxy picks up the new setting immediately.
-			cfExposeChanged := oldCfg.CloudflareTunnel.ExposeWebUI != newCfg.CloudflareTunnel.ExposeWebUI ||
-				oldCfg.CloudflareTunnel.ExposeHomepage != newCfg.CloudflareTunnel.ExposeHomepage
-			if cfExposeChanged && newCfg.CloudflareTunnel.Enabled {
-				cfTunnelCfg := cloudflareTunnelRuntimeConfig(newCfg)
-				vault := s.Vault
-				reg := s.Registry
-				log := s.Logger
-				if cloudflareTunnelRuntimeAllowed(newCfg) {
-					go func() {
-						result := tools.CloudflareTunnelRestart(cfTunnelCfg, vault, reg, log)
-						log.Info("[CloudflareTunnel] Hot-reload: tunnel restarted due to expose target change", "result", result)
-					}()
-				} else if !newCfg.Docker.Enabled {
-					log.Info("[CloudflareTunnel] Hot-reload: Docker is disabled; skipping Docker-mode restart")
+			cfExposeChanged := oldCfg.CloudflareTunnel.ExposeWebUI != newCfg.CloudflareTunnel.ExposeWebUI || oldCfg.CloudflareTunnel.ExposeHomepage != newCfg.CloudflareTunnel.ExposeHomepage
+			if newCfg.CloudflareTunnel.Enabled && !newCfg.CloudflareTunnel.ReadOnly && cloudflareTunnelRuntimeAllowed(newCfg) {
+				cfCfg := cloudflareTunnelRuntimeConfig(newCfg)
+				if cfEnabledChanged && cloudflareTunnelAutoStartAllowed(newCfg) {
+					result := tools.CloudflareTunnelStart(cfCfg, s.Vault, s.Registry, s.Logger)
+					s.Logger.Info("[CloudflareTunnel] Hot-reload start", "result", result)
+				} else if cfExposeChanged && tools.IsTunnelRunning() {
+					result := tools.CloudflareTunnelRestart(cfCfg, s.Vault, s.Registry, s.Logger)
+					s.Logger.Info("[CloudflareTunnel] Hot-reload restart", "result", result)
 				}
 			}
 

@@ -183,11 +183,3 @@ func (o *homepageQuickOrigin) recordPublication(publicURL string) error {
 		Metadata: map[string]interface{}{"ephemeral": true, "immutable_snapshot": true},
 	})
 }
-
-// closeQuickOriginLocked requires tunnelMu; all tunnel generations share it.
-func closeQuickOriginLocked() {
-	if tunnelQuickOrigin != nil {
-		tunnelQuickOrigin.Close()
-		tunnelQuickOrigin = nil
-	}
-}

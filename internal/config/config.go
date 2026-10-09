@@ -951,6 +951,9 @@ func Load(path string) (*Config, error) {
 	cfg.LLMRouter = DefaultLLMRouterConfig()
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.
+	if err := ValidateCloudflareTunnelPortYAML(data); err != nil {
+		return nil, err
+	}
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		// Try to provide helpful context for the error
 		lines := string(data)
@@ -1011,6 +1014,9 @@ func Load(path string) (*Config, error) {
 	}
 
 	NormalizeAIGatewayConfig(&cfg)
+	if err := ValidateCloudflareTunnelConfig(&cfg); err != nil {
+		return nil, err
+	}
 	NormalizeCloudflareTunnelConfig(&cfg)
 	NormalizeRealtimeSpeechConfig(&cfg.RealtimeSpeech)
 	if err := ValidateRealtimeSpeechConfig(cfg.RealtimeSpeech); err != nil {

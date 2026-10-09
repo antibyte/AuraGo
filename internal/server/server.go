@@ -1347,15 +1347,21 @@ func Start(opts StartOptions) error {
 		})
 	}
 
-	// Start Cloudflare Tunnel if enabled and auto_start is true
-	if cloudflareTunnelAutoStartAllowed(cfg) {
-		go func() {
-			tunnelCfg := cloudflareTunnelRuntimeConfig(cfg)
-			result := tools.CloudflareTunnelStart(tunnelCfg, vault, registry, logger)
-			logger.Info("[CloudflareTunnel] Auto-start result", "result", result)
-		}()
-	} else if cfg.CloudflareTunnel.Enabled && cfg.CloudflareTunnel.AutoStart && !cfg.Docker.Enabled {
-		logger.Info("[CloudflareTunnel] Docker is disabled; skipping Docker-mode auto-start")
+	// Discovery precedes auto-start, including when auto_start is disabled.
+	tunnelCfg := cloudflareTunnelRuntimeConfig(cfg)
+	reconcile := tools.CloudflareTunnelReconcile(tunnelCfg, logger)
+	logger.Info("[CloudflareTunnel] Startup reconciliation", "result", reconcile)
+	reconcileState := map[string]interface{}{}
+	_ = json.Unmarshal([]byte(reconcile), &reconcileState)
+	if reconcileState["status"] == "ok" && cloudflareTunnelAutoStartAllowed(cfg) && !cfg.CloudflareTunnel.ReadOnly {
+		state := map[string]interface{}{}
+		_ = json.Unmarshal([]byte(tools.CloudflareTunnelStatus(tunnelCfg, registry, logger)), &state)
+		if state["state_known"] == true && state["running"] == false {
+			go func() {
+				result := tools.CloudflareTunnelStart(tunnelCfg, vault, registry, logger)
+				logger.Info("[CloudflareTunnel] Auto-start result", "result", result)
+			}()
+		}
 	}
 
 	if cfg.Docker.Enabled {
@@ -1896,11 +1902,9 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		shutdownLooper()
 		// Shut down Discord bot
 		discord.StopBot(s.Logger)
-		// Shut down Cloudflare Tunnel (Docker containers won't be killed by KillAll)
-		if tools.IsTunnelRunning() {
-			tunnelCfg := tools.CloudflareTunnelConfig{DockerHost: s.Cfg.Docker.Host}
-			tools.CloudflareTunnelShutdown(tunnelCfg, s.Registry, s.Logger, false)
-		}
+		// Shutdown discovers surviving managed containers even after state loss.
+		result := tools.CloudflareTunnelShutdown(cloudflareTunnelRuntimeConfig(s.ConfigSnapshot()), s.Registry, s.Logger, false)
+		s.Logger.Info("[CloudflareTunnel] Shutdown result", "result", result)
 
 		s.closeRuntimeResources()
 
