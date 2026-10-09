@@ -87,6 +87,7 @@
     "koofr",
     "ldap",
     "list_agent_skills",
+    "local_wikipedia",
     "mac_lookup",
     "manage_appointments",
     "manage_daemon",

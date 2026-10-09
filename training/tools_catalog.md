@@ -2,8 +2,8 @@
 
 Generated deterministically from `BuildNativeToolSchemaSnapshot(...).StrictSchemas()` with all feature flags enabled.
 
-- Tools: **216**
-- Enumerated operations: **1163**
+- Tools: **217**
+- Enumerated operations: **1165**
 - Native format: assistant `tool_calls` followed by adjacent `role=tool` messages with matching `tool_call_id`.
 - Hidden format: `discover_tools`, then the returned binding `call_method` such as `invoke_tool`.
 
@@ -1876,6 +1876,26 @@ List available pre-built skills and integrations that can be executed via execut
 | Parameter | Type | Description |
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
+
+## `local_wikipedia`
+
+Search and read the offline Wikipedia edition installed on this server. Prefer it over wikipedia_search and web search for encyclopedic knowledge; use web search for recent events. search: key terms or a likely article title, not a full question; the first 3 results include the article lead. read: an article by path (from search) or title, optionally one section, paged with next_offset. Cite article title and edition date.
+
+- Tier: `extended`
+- Required: `_todo`, `limit`, `offset`, `operation`, `path`, `query`, `section`, `title`
+- Operations: 2
+- Manual: `prompts/tools_manuals/local_wikipedia.md`
+
+| Parameter | Type | Description |
+|---|---|---|
+| `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
+| `limit` | `integer` | Number of search results, 1-10; default 5. Only for search. |
+| `offset` | `integer` | next_offset from the previous read page, counted in characters; default 0. Only for read. |
+| `operation` | `string` | search finds articles; read returns an article or one section as Markdown |
+| `path` | `string` | Article path from a search result; preferred over title. Only for read. |
+| `query` | `string` | Key terms or a likely article title, at most 200 characters and 16 words. Required for search. |
+| `section` | `string` | Heading text or index from sections; omit to read from the start. Only for read. |
+| `title` | `string` | Article title to read when no path is known. Only for read. |
 
 ## `mac_lookup`
 

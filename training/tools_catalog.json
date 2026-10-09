@@ -1,8 +1,8 @@
 {
   "schema_version": "2.0",
   "source": "aurago internal/agent.BuildNativeToolSchemaSnapshot.StrictSchemas (all feature flags enabled)",
-  "tool_count": 216,
-  "operation_count": 1163,
+  "tool_count": 217,
+  "operation_count": 1165,
   "call_format": "OpenAI-compatible native function calling with assistant tool_calls and role=tool results linked by tool_call_id.",
   "tools": [
     {
@@ -8846,7 +8846,7 @@
       },
       "tier": "extended",
       "manual_path": "prompts/tools_manuals/execute_sudo.md",
-      "manual_snippet": "## Tool: Privileged Shell Execution (`execute_sudo`)\n\nRun a shell command with root privileges via `sudo`. The sudo password is stored in the vault and injected securely at the Go layer — it is **never passed as a tool parameter** and never appears in tool output.\n\n### Schema\n\n| Parameter | Type | Required | Description |\n|---|---|---|---|\n| `command` | string | yes | Shell command to run as root (e.g. `iptables -L -n`, `cat /etc/shadow`) |\n\n### Behavior\n\n- Reads `sudo_password` from the vault automatically — you do **not** need to fetch it yourself.\n- Executes the command via `sudo -S` with the password supplied via stdin.\n- Returns combined stdout/stderr output.\n- Timeout: 30 seconds.\n\n### When to use\n\nUse `execute_sudo` whenever a command requires root privileges:\n\n- Reading privile…"
+      "manual_snippet": "## Tool: Privileged Shell Execution (`execute_sudo`)\n\nRun a shell command with root privileges via `sudo`. The sudo password is stored in the vault and injected securely at the Go layer — it is **never passed as a tool parameter** and never appears in tool output.\n\n### Schema\n\n| Parameter | Type | Required | Description |\n|---|---|---|---|\n| `command` | string | yes | Shell command to run as root (e.g. `iptables -L -n`, `cat /etc/shadow`) |\n\n### Behavior\n\n- Reads `sudo_password` from the vault automatically — you do **not** need to fetch it yourself.\n- The password only ever reaches `sudo -v`, which checks it and runs no command. The command itself then runs with `sudo -n` and a closed stdin, so it can never read the password.\n- Prerequisite: sudo timestamp caching enabled (`timestamp_…"
     },
     {
       "name": "explore_kg",
@@ -33423,6 +33423,210 @@
       "tier": "rare"
     },
     {
+      "name": "local_wikipedia",
+      "description": "Search and read the offline Wikipedia edition installed on this server. Prefer it over wikipedia_search and web search for encyclopedic knowledge; use web search for recent events. search: key terms or a likely article title, not a full question; the first 3 results include the article lead. read: an article by path (from search) or title, optionally one section, paged with next_offset. Cite article title and edition date.",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "_todo": {
+            "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "limit": {
+            "description": "Number of search results, 1-10; default 5. Only for search.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "offset": {
+            "description": "next_offset from the previous read page, counted in characters; default 0. Only for read.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "operation": {
+            "description": "search finds articles; read returns an article or one section as Markdown",
+            "enum": [
+              "search",
+              "read"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "description": "Article path from a search result; preferred over title. Only for read.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "query": {
+            "description": "Key terms or a likely article title, at most 200 characters and 16 words. Required for search.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "section": {
+            "description": "Heading text or index from sections; omit to read from the start. Only for read.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "description": "Article title to read when no path is known. Only for read.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "_todo",
+          "limit",
+          "offset",
+          "operation",
+          "path",
+          "query",
+          "section",
+          "title"
+        ],
+        "type": "object"
+      },
+      "argument_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "_todo": {
+            "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Number of search results, 1-10; default 5. Only for search.",
+            "type": "integer"
+          },
+          "offset": {
+            "description": "next_offset from the previous read page, counted in characters; default 0. Only for read.",
+            "type": "integer"
+          },
+          "operation": {
+            "description": "search finds articles; read returns an article or one section as Markdown",
+            "enum": [
+              "search",
+              "read"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "description": "Article path from a search result; preferred over title. Only for read.",
+            "type": "string"
+          },
+          "query": {
+            "description": "Key terms or a likely article title, at most 200 characters and 16 words. Required for search.",
+            "type": "string"
+          },
+          "section": {
+            "description": "Heading text or index from sections; omit to read from the start. Only for read.",
+            "type": "string"
+          },
+          "title": {
+            "description": "Article title to read when no path is known. Only for read.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "type": "object"
+      },
+      "required": [
+        "_todo",
+        "limit",
+        "offset",
+        "operation",
+        "path",
+        "query",
+        "section",
+        "title"
+      ],
+      "properties": {
+        "_todo": {
+          "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "description": "Number of search results, 1-10; default 5. Only for search.",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "offset": {
+          "description": "next_offset from the previous read page, counted in characters; default 0. Only for read.",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "operation": {
+          "description": "search finds articles; read returns an article or one section as Markdown",
+          "enum": [
+            "search",
+            "read"
+          ],
+          "type": "string"
+        },
+        "path": {
+          "description": "Article path from a search result; preferred over title. Only for read.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "query": {
+          "description": "Key terms or a likely article title, at most 200 characters and 16 words. Required for search.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "section": {
+          "description": "Heading text or index from sections; omit to read from the start. Only for read.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "description": "Article title to read when no path is known. Only for read.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "tier": "extended",
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "read"
+        },
+        {
+          "selector": "operation",
+          "value": "search"
+        }
+      ],
+      "manual_path": "prompts/tools_manuals/local_wikipedia.md",
+      "manual_snippet": "# Local Wikipedia (offline)\n\nUse `local_wikipedia` to search and read the Wikipedia edition installed on this AuraGo server (a Kiwix ZIM file, fully offline). Prefer it over `wikipedia_search` and web search for encyclopedic knowledge: people, places, history, science, definitions. The knowledge is only as current as the edition date in every result (`edition.date`); use web search for recent events, prices, schedules and anything after that date.\n\n## Operations\n\n- `search` with `query` (required, at most 200 characters and 16 words) and optional `limit` (1-10, default 5). Search with key terms or a likely article title, not a whole question: `Brandenburger Tor Geschichte`, not `When was the Brandenburg Gate built?`. Exact title matches (also through redirects) come first, then full-text r…"
+    },
+    {
       "name": "mac_lookup",
       "description": "Look up the MAC (hardware) address of a device on the local network using the OS ARP table. Does NOT require root/admin privileges and works in Docker without NET_RAW. The device must be reachable and recently active (present in the ARP cache). Use this after an mDNS scan or network ping to enrich device records with MAC addresses.",
       "parameters": {
@@ -46983,7 +47187,7 @@
       },
       "tier": "extended",
       "manual_path": "prompts/tools_manuals/request_vault_secret.md",
-      "manual_snippet": "# request_vault_secret\n\nUse `request_vault_secret` when an interactive user must provide an API key,\ntoken, password, or other secret. The client opens a secure masked dialog and\nstores the value directly in AuraGo's encrypted Vault. The value is never\nreturned to you.\n\n## Parameters\n\n| Parameter | Required | Description |\n|-----------|----------|-------------|\n| `prompt` | yes | Plain-text explanation shown to the user. Maximum 2,000 characters. |\n| `vault_key` | yes | Named reference matching `[A-Z0-9_]{1,64}`. Lowercase input is normalized to uppercase. |\n| `replace` | no | Replace an existing value. Defaults to `true`. |\n\nThe prefixes `provider_`, `oauth_`, `remote_shared_key_`, and AuraGo's internal\nmetadata namespace are reserved.\n\n## Results\n\nThe result is intentionally value-free:\n…"
+      "manual_snippet": "# request_vault_secret\n\nUse `request_vault_secret` when an interactive user must provide an API key,\ntoken, password, or other secret. The client opens a secure masked dialog and\nstores the value directly in AuraGo's encrypted Vault. The value is never\nreturned to you.\n\n## Parameters\n\n| Parameter | Required | Description |\n|-----------|----------|-------------|\n| `prompt` | yes | Plain-text explanation shown to the user. Maximum 2,000 characters. |\n| `vault_key` | yes | Named reference matching `[A-Z0-9_]{1,64}`. Lowercase input is normalized to uppercase. |\n| `replace` | no | Replace an existing value. Defaults to `true`. |\n\nThe prefixes `provider_`, `oauth_`, `remote_shared_key_`, `remote_enroll_key_`,\nand AuraGo's internal metadata namespace are reserved.\n\n## Results\n\nThe result is inte…"
     },
     {
       "name": "retrieve_original_output",

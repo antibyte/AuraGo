@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "d7f311654cc275abd86bc04c0778a14db829cc68af236ebbd021ca879890e858",
+  "schema_sha256": "6d7cd650c9a605af53a703d59ac4a0699c53ffcd8e2d3209892d1a87aeedb98d",
   "tools": {
     "treg_call": {
       "default_arguments": {
@@ -7377,6 +7377,47 @@
     },
     "list_skills": {
       "default_arguments": {}
+    },
+    "local_wikipedia": {
+      "default_arguments": {
+        "operation": "search",
+        "query": "Albert Einstein"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "read",
+          "arguments": {
+            "operation": "read",
+            "title": "Albert Einstein"
+          },
+          "required_fields": [
+            "operation",
+            "title"
+          ],
+          "excluded_fields": [
+            "limit"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "search",
+          "arguments": {
+            "operation": "search",
+            "query": "Albert Einstein"
+          },
+          "required_fields": [
+            "operation",
+            "query"
+          ],
+          "excluded_fields": [
+            "offset",
+            "path",
+            "section",
+            "title"
+          ]
+        }
+      ]
     },
     "mac_lookup": {
       "default_arguments": {
