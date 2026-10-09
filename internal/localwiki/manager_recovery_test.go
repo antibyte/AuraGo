@@ -462,6 +462,30 @@ func TestManagerReloadChecksItsConditionsUnderTheLoadLock(t *testing.T) {
 	}
 }
 
+// A wake-up of the loop after an operation or cleanup usually has nothing to
+// load. It must not take the load lock then: Delete only TryLocks it and would
+// answer ErrBusy for as long as the loop holds it.
+func TestManagerReloadWithNothingToLoadLeavesTheLoadLockAlone(t *testing.T) {
+	env := newTestEnv(t)
+	placeEdition(t, env.dir, "de", "wikipedia_de_all_nopic_2026-09")
+	env.start()
+	m := env.manager
+
+	m.loadMu.Lock() // a load or a Delete is running
+	done := make(chan struct{})
+	go func() {
+		m.loadIfStale()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("loadIfStale waited for the load lock although the directory is loaded")
+	}
+	m.loadMu.Unlock()
+	<-done
+}
+
 func TestRateMeterThrottlesItsSamples(t *testing.T) {
 	var meter rateMeter
 	start := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)

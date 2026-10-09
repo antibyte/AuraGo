@@ -81,7 +81,9 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   `Delete` answer `ErrBusy`. The mark is always released by a `defer` (a load can run in a request
   goroutine, where net/http recovers a panic), and a release never ends a later holder's mark. Request
   paths never wait for
-  `loadMu` (`tryLoadIfStale`, `Delete` uses `TryLock`). `Status` never touches the storage directory:
+  `loadMu` (`tryLoadIfStale`, `Delete` uses `TryLock`); a reload check that finds nothing to load
+  (`loadPending`) does not take `loadMu` at all, so a loop wake-up or status poll never makes `Delete` answer
+  `ErrBusy`. `Status` never touches the storage directory:
   `free_bytes` comes from a background measurement (`probeLoop`: at start, after a storage directory
   change, after an operation or `Delete`, every 10 s; a measurement running longer than 5 s reports -1),
   and the directory check is lexical (`Deps.IsSensitivePath` must not do I/O). The measuring goroutine is

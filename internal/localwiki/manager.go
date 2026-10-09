@@ -301,8 +301,14 @@ func (m *Manager) signalReload() {
 // or cleanup). The conditions are checked after taking loadMu: a load that
 // finished while this call waited must not be repeated, and a download that
 // started meanwhile must not be reset. A load held back by a cleanup is
-// retried when the cleanup ends (holdStorageIOLocked's release).
+// retried when the cleanup ends (holdStorageIOLocked's release). A call that
+// finds nothing to load does not take loadMu at all (loadPending): Delete only
+// TryLocks it, and a wake-up after every operation or cleanup must not make it
+// answer ErrBusy while it looks.
 func (m *Manager) loadIfStale() {
+	if !m.loadPending() {
+		return
+	}
 	m.lockLoad()
 	defer m.loadMu.Unlock()
 	m.loadIfStaleLocked()
@@ -311,6 +317,9 @@ func (m *Manager) loadIfStale() {
 // tryLoadIfStale is loadIfStale for request paths: it never waits for a load
 // that is already running, which may hang on an unreachable share.
 func (m *Manager) tryLoadIfStale() {
+	if !m.loadPending() {
+		return
+	}
 	if !m.loadMu.TryLock() {
 		return
 	}
@@ -318,11 +327,25 @@ func (m *Manager) tryLoadIfStale() {
 	m.loadIfStaleLocked()
 }
 
+// loadPending reports whether a load looks needed right now. It is only a
+// shortcut for the callers above; they check again under loadMu.
+func (m *Manager) loadPending() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.staleLocked()
+}
+
+// staleLocked reports whether the configured storage directory is not the
+// loaded one and nothing else uses the storage directory. The caller holds mu.
+func (m *Manager) staleLocked() bool {
+	return m.started && !m.shuttingDown && m.op == nil && !m.deleting && m.ioToken == 0 && m.settings.DataDir != m.activeDir
+}
+
 // loadIfStaleLocked is loadIfStale for a caller that holds loadMu.
 func (m *Manager) loadIfStaleLocked() {
 	m.mu.Lock()
 	dir := m.settings.DataDir
-	stale := m.started && !m.shuttingDown && m.op == nil && !m.deleting && m.ioToken == 0 && dir != m.activeDir
+	stale := m.staleLocked()
 	var release func()
 	if stale {
 		release = m.holdStorageIOLocked()
