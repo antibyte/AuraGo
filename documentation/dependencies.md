@@ -31,6 +31,7 @@ the consuming library or reintroduces a vulnerability.
 | lodash-es | 4.18.1 override | Mermaid's Chevrotain dependency otherwise selects a vulnerable older pin. |
 | argon2id | 1.0.1 exact pin | Desktop Tresor ships its local JS/WASM with the upstream license; cryptographic vector and vendor drift checks gate changes. |
 | ulikunitz/xz | ≥ 0.5.15 | Local Wikipedia decompresses xz clusters from downloaded ZIM files; earlier releases leak memory on corrupted multi-stream LZMA input (GO-2025-3922, CVE-2025-58058). |
+| blevesearch/snowballstem | 0.9.0 exact pin | Local Wikipedia must stem query words exactly like the Xapian index inside a downloaded ZIM file; its output was verified against Xapian 1.4 on the Snowball vocabularies of ten languages. Re-run the stemmer parity tests before bumping it. |
 
 ### Outstanding training advisories (2026-10-08)
 

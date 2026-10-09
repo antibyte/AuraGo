@@ -39,6 +39,7 @@ Inventory of external libraries, runtimes, fonts, icons, and other third-party a
 | `github.com/SherClockHolmes/webpush-go` | v1.4.0 | MIT | https://github.com/SherClockHolmes/webpush-go |
 | `github.com/a2aproject/a2a-go/v2` | v2.6.0 | Apache-2.0 | https://github.com/a2aproject/a2a-go |
 | `github.com/beevik/etree` | v1.8.1 | BSD-2-Clause | https://github.com/beevik/etree |
+| `github.com/blevesearch/snowballstem` | v0.9.0 | BSD-3-Clause | https://github.com/blevesearch/snowballstem |
 | `github.com/bwmarrin/discordgo` | v0.29.0 | BSD-3-Clause | https://github.com/bwmarrin/discordgo |
 | `github.com/danielthedm/promptsec` | v0.1.0 | Apache-2.0 | https://github.com/danielthedm/promptsec |
 | `github.com/emiago/diago` | v0.40.0 | MPL-2.0 | https://github.com/emiago/diago |

@@ -10,6 +10,7 @@ require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/a2aproject/a2a-go/v2 v2.6.0
 	github.com/beevik/etree v1.8.1
+	github.com/blevesearch/snowballstem v0.9.0
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/chromedp/cdproto v0.0.0-20260922220944-a19bff23514f
 	github.com/chromedp/chromedp v0.16.0

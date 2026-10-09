@@ -14,6 +14,7 @@ AuraGo links the listed Go modules or retrieves the listed optional model/runtim
 | hajimehoshi/go-mp3 v0.3.4 | Pure-Go MP3 decoding for telephone TTS audio | Apache License 2.0 |
 | klauspost/compress v1.20.1 (`zstd`) | Zstandard decompression of Local Wikipedia ZIM clusters | BSD 3-Clause License (`zstd/internal/xxhash`: MIT License) |
 | ulikunitz/xz v0.5.17 | XZ (LZMA2) decompression of older Local Wikipedia ZIM clusters | BSD 3-Clause License |
+| blevesearch/snowballstem v0.9.0 | Snowball word stemming that matches the Xapian full-text index inside Local Wikipedia ZIM files | BSD 3-Clause License |
 
 The upstream projects and their complete license texts remain authoritative:
 
@@ -27,6 +28,7 @@ The upstream projects and their complete license texts remain authoritative:
 - https://github.com/dlclark/regexp2
 - https://github.com/klauspost/compress
 - https://github.com/ulikunitz/xz
+- https://github.com/blevesearch/snowballstem
 
 AuraGo's own license remains the MIT License in [LICENSE](LICENSE).
 
