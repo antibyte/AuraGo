@@ -225,6 +225,76 @@ func (s *Service) List() ([]Case, error) {
 // ListSummaries avoids loading report revisions and source bodies on every poll.
 func (s *Service) ListSummaries() ([]Case, error) { return s.list(true) }
 
+type LiveView struct {
+	ID             string    `json:"id"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	Status         string    `json:"status"`
+	Phase          string    `json:"phase"`
+	Reason         string    `json:"reason"`
+	Effort         string    `json:"effort"`
+	Topic          string    `json:"topic"`
+	Usage          Usage     `json:"usage"`
+	Profile        Profile   `json:"profile"`
+	Sources        int       `json:"sources"`
+	Findings       int       `json:"findings"`
+	Reports        int       `json:"reports"`
+	LatestRevision int       `json:"latest_revision"`
+	LatestSourceID string    `json:"latest_source_id"`
+}
+
+func (s *Service) Exists(key string) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var one int
+	err := s.db.QueryRow("SELECT 1 FROM detective_cases WHERE id=?", key).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+func (s *Service) Live(key string) (LiveView, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var v LiveView
+	var updated string
+	err := s.db.QueryRow(`SELECT id, updated, active_ms,
+		COALESCE(json_extract(body,'$.run.status'),''),
+		COALESCE(json_extract(body,'$.run.phase'),''),
+		COALESCE(json_extract(body,'$.run.reason'),''),
+		COALESCE(json_extract(body,'$.request.effort'),''),
+		COALESCE(json_extract(body,'$.request.topic'),''),
+		COALESCE(json_extract(body,'$.run.usage.tools'),0),
+		COALESCE(json_extract(body,'$.run.usage.iterations'),0),
+		COALESCE(json_extract(body,'$.run.usage.requests'),0),
+		COALESCE(json_extract(body,'$.run.usage.prompt_tokens'),0),
+		COALESCE(json_extract(body,'$.run.usage.completion_tokens'),0),
+		COALESCE(json_extract(body,'$.run.usage.pages'),0),
+		COALESCE(json_extract(body,'$.run.profile.seconds'),0),
+		COALESCE(json_extract(body,'$.run.profile.tools'),0),
+		COALESCE(json_extract(body,'$.run.profile.iterations'),0),
+		COALESCE(json_extract(body,'$.run.profile.tokens'),0),
+		COALESCE(json_array_length(body,'$.sources'),0),
+		COALESCE(json_array_length(body,'$.findings'),0),
+		COALESCE(json_array_length(body,'$.reports'),0),
+		COALESCE(json_extract(body,'$.reports[#-1].revision'),0),
+		COALESCE(json_extract(body,'$.sources[#-1].id'),'')
+		FROM detective_cases WHERE id=?`, key).Scan(
+		&v.ID, &updated, &v.Usage.ActiveMS,
+		&v.Status, &v.Phase, &v.Reason, &v.Effort, &v.Topic,
+		&v.Usage.Tools, &v.Usage.Iterations, &v.Usage.Requests, &v.Usage.PromptTokens, &v.Usage.CompletionTokens, &v.Usage.Pages,
+		&v.Profile.Seconds, &v.Profile.Tools, &v.Profile.Iterations, &v.Profile.Tokens,
+		&v.Sources, &v.Findings, &v.Reports, &v.LatestRevision, &v.LatestSourceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return LiveView{}, ErrNotFound
+	}
+	if err != nil {
+		return LiveView{}, err
+	}
+	v.UpdatedAt, err = time.Parse(time.RFC3339Nano, updated)
+	return v, err
+}
+
 func (s *Service) list(summary bool) ([]Case, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

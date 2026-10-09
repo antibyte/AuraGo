@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
@@ -219,6 +220,37 @@ func TestHeartbeatDoesNotRewriteEvidence(t *testing.T) {
 	}
 	if got.UpdatedAt.Format(time.RFC3339Nano) != updated {
 		t.Fatal("heartbeat changed case updated_at")
+	}
+}
+
+func TestLiveStatusSkipsEvidenceBody(t *testing.T) {
+	s := newTestService(t)
+	c, err := s.Create(Request{Topic: "live view", Effort: "normal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	c.Run.Status = "running"
+	c.Run.Phase = "research"
+	c.Run.Usage.ActiveMS = 1500
+	c.Run.Usage.Tools = 3
+	c.Run.Profile = Profiles()["normal"]
+	c.Sources = []Source{{ID: "src_live", Title: "Tape", Status: "read", Excerpt: strings.Repeat("x", 50000)}}
+	c.Findings = []Finding{{ID: "ev_live", SourceID: "src_live", Text: "noted", Quote: "xxxxxxxx"}}
+	if err = s.saveLocked(&c); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	view, err := s.Live(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.Topic != "live view" || view.Status != "running" || view.Usage.ActiveMS != 1500 || view.Usage.Tools != 3 || view.Sources != 1 || view.Findings != 1 || view.LatestSourceID != "src_live" {
+		t.Fatalf("%+v", view)
+	}
+	if strings.Contains(fmt.Sprint(view), strings.Repeat("x", 100)) {
+		t.Fatal("live view included the excerpt")
 	}
 }
 

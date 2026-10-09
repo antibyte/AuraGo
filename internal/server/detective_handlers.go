@@ -184,8 +184,13 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "Method not allowed", 405)
 			return
 		}
-		if _, err := s.Detective.Get(key); err != nil {
+		ok, err := s.Detective.Exists(key)
+		if err != nil {
 			detectiveError(w, err)
+			return
+		}
+		if !ok {
+			detectiveError(w, detective.ErrNotFound)
 			return
 		}
 		after, _ := strconv.ParseInt(r.URL.Query().Get("after"), 10, 64)
@@ -195,6 +200,17 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		detectiveJSON(w, 200, map[string]any{"events": events})
+	case "live":
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", 405)
+			return
+		}
+		view, err := s.Detective.Live(key)
+		if err != nil {
+			detectiveError(w, err)
+			return
+		}
+		detectiveJSON(w, 200, view)
 	case "run":
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", 405)

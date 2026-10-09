@@ -180,6 +180,19 @@ func TestDetectiveHTTPGates(t *testing.T) {
 	if strings.Contains(w.Body.String(), "private-fixture") {
 		t.Fatal("private context leaked")
 	}
+	r = httptest.NewRequest("GET", "/api/desktop/detective/cases/"+c.ID+"/live", nil)
+	w = httptest.NewRecorder()
+	s.handleDetective(w, r)
+	if w.Code != 200 {
+		t.Fatalf("live: %d %s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `"topic":"test"`) {
+		t.Fatalf("live topic missing: %s", body)
+	}
+	if strings.Contains(body, "private-fixture") {
+		t.Fatal("live leaked private context")
+	}
 	if _, err := svc.ExportRevision(context.Background(), c.ID, 0, "md"); err == nil {
 		t.Fatal("invalid revision exported")
 	}
