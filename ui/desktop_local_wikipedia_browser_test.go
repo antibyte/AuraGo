@@ -21,8 +21,9 @@ import (
 )
 
 // localWikipediaFixtureCSP is the policy the real content route sends
-// (localWikipediaContentCSP in internal/server), including connect-src 'none'.
-const localWikipediaFixtureCSP = "sandbox allow-same-origin allow-popups allow-popups-to-escape-sandbox; default-src 'self'; script-src 'none'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'none'; frame-ancestors 'self'"
+// (localWikipediaContentCSP in internal/server), including connect-src 'none',
+// object-src 'none' and base-uri 'none'.
+const localWikipediaFixtureCSP = "sandbox allow-same-origin allow-popups allow-popups-to-escape-sandbox; default-src 'self'; script-src 'none'; object-src 'none'; base-uri 'none'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'none'; frame-ancestors 'self'"
 
 // {{EXTERNAL}} is replaced by an origin that differs from the page's (localhost
 // instead of 127.0.0.1) and still reaches the fixture server's sinks.

@@ -14,14 +14,21 @@ func localWikiContentGet(t *testing.T, s *Server, backend localWikiDesktopBacken
 }
 
 func TestLocalWikiContentCSPMatchesTheSpec(t *testing.T) {
-	// The spec policy plus connect-src 'none': link pings and beacons from a
-	// ZIM document must never reach AuraGo with the session cookie.
-	const spec = "sandbox allow-same-origin allow-popups allow-popups-to-escape-sandbox; default-src 'self'; script-src 'none'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'none'; frame-ancestors 'self'"
+	// The spec policy plus connect-src 'none' (link pings and beacons from a
+	// ZIM document must never reach AuraGo with the session cookie),
+	// object-src 'none' (no plugin content) and base-uri 'none' (no <base>
+	// element re-targets relative URLs).
+	const spec = "sandbox allow-same-origin allow-popups allow-popups-to-escape-sandbox; default-src 'self'; script-src 'none'; object-src 'none'; base-uri 'none'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'none'; frame-ancestors 'self'"
 	if localWikipediaContentCSP != spec {
 		t.Fatalf("content CSP = %q, want the spec value", localWikipediaContentCSP)
 	}
 	if strings.Contains(localWikipediaContentCSP, "allow-scripts") {
 		t.Fatal("ZIM documents must never run scripts")
+	}
+	for _, directive := range []string{"script-src 'none'", "object-src 'none'", "base-uri 'none'", "connect-src 'none'", "form-action 'none'"} {
+		if !strings.Contains(localWikipediaContentCSP, directive) {
+			t.Fatalf("content CSP %q lacks %s", localWikipediaContentCSP, directive)
+		}
 	}
 }
 

@@ -36,7 +36,7 @@ Through the root routing table this contract also binds `internal/tools/local_wi
 - Docker: `data_dir` is forced to `<data_dir>/wikipedia` inside AuraGo's data mount. Native custom directories must be absolute, writable and not a sensitive system path (`data_dir_invalid` otherwise); directories strictly below AuraGo's own data directory are always allowed (the data root itself is not), because common installs keep it in a refused tree (`/root/aurago/data`, `/usr/local/aurago/data`, `C:\ProgramData\AuraGo\data`, `~/Library/Application Support/aurago/data`).
 - Reader limits (cluster size, zstd window, cache size, redirect depth, fuzzing) are owned by `internal/zim/AGENTS.md`; the manager opens archives only through `OpenLibrary` (`zim.Open`) and maps every open failure (`zim.ErrUnsupported`, `zim.ErrCorrupt`, I/O errors, a missing main page) to `zim_unreadable`. A missing or unsupported full-text index degrades to title search (`fulltext: false`, `fulltext_unsupported` warning), never to an error.
 - Search limits: at most 4 concurrent searches, 5 s timeout, queries at most 200 characters and 16 terms. Tool output: leads of at most 2,000 characters for the top 3 hits, article chunks of at most 8,000 characters; every text field passes `security.IsolateExternalData`.
-- Content serving: paths are lookup keys in the content namespace (`C`, legacy `A`), never file-system paths. Responses use `http.ServeContent` (Range), an ETag derived from the ZIM UUID and the path, `Cache-Control: private, max-age=86400` and `X-Content-Type-Options: nosniff`; HTML carries the sandbox Content-Security-Policy with `script-src 'none'` so ZIM scripts can never call AuraGo APIs.
+- Content serving: paths are lookup keys in the content namespace (`C`, legacy `A`), never file-system paths. Responses use `http.ServeContent` (Range), an ETag derived from the ZIM UUID and the path, `Cache-Control: private, max-age=86400` and `X-Content-Type-Options: nosniff`; HTML carries the sandbox Content-Security-Policy with `script-src 'none'`, `object-src 'none'`, `base-uri 'none'` and `connect-src 'none'` so ZIM scripts can never call AuraGo APIs (same-origin image and stylesheet GETs remain possible; the content is the verified Kiwix edition).
 - GPL hygiene: libzim, Xapian and Kiwix sources (GPL) may be read to understand formats; never copy their code. python-libzim and the Xapian tools run only in throwaway containers through `scripts/localwiki/fixtures/` to generate fixtures and golden JSON from self-authored text: dev tooling, never runtime or `go test`.
 - Content license: Wikipedia text (CC BY-SA 4.0) is never embedded in the binary and an edition is never committed; the only Wikipedia text in the repository are the two trimmed rendering test pages `internal/localwiki/testdata/render_*.html`, attributed in `THIRD_PARTY_NOTICES.md`. The tool manual makes the agent cite article and edition date.
 
@@ -269,8 +269,13 @@ Through the root routing table this contract also binds `internal/tools/local_wi
   `busy` 503 (+ `Retry-After`), `timeout` 504, `search_failed` 500.
 - Content paths are lookup keys, never filesystem paths; a redirect answers 302 to the resolved path
   (dot and empty segments refused). Every content answer (blobs, redirects, the framable HTML error pages
-  with the `aurago-local-wikipedia-error` marker) carries `localWikipediaContentCSP` (sandbox without
-  scripts, `connect-src 'none'`, `frame-ancestors 'self'`), `X-Frame-Options: SAMEORIGIN` set by the
+  with the `aurago-local-wikipedia-error` marker) carries `localWikipediaContentCSP` (`sandbox
+  allow-same-origin allow-popups allow-popups-to-escape-sandbox; default-src 'self'; script-src 'none';
+  object-src 'none'; base-uri 'none'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'
+  data:; form-action 'none'; frame-ancestors 'self'`). Same-origin GET subresources (images, stylesheets)
+  stay possible and carry the session (`allow-same-origin`); that is accepted because the content is the
+  verified Kiwix edition, while scripts, plugins, `<base>`, forms and fetches/pings/beacons are blocked.
+  Also `X-Frame-Options: SAMEORIGIN` set by the
   handler (`securityHeadersMiddleware` keeps `DENY` for every path), `nosniff`,
   `Referrer-Policy: no-referrer` and `Permissions-Policy: attribution-reporting=(), browsing-topics=()`.
   Blobs go through `http.ServeContent` (Range, `If-None-Match`, `If-Range`) with

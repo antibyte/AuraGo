@@ -149,7 +149,8 @@
   blanks the frame. Only `status.readable` decides whether content is shown.
 - The article iframe loads `/api/desktop/local-wikipedia/content/<path>` with
   `sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"`,
-  matching the server CSP: no ZIM script runs. Same-origin access only reads the
+  matching the server CSP (`script-src 'none'`, `object-src 'none'`, `base-uri 'none'`,
+  `connect-src 'none'`): no ZIM script runs. Same-origin access only reads the
   title and the `aurago-local-wikipedia-error` marker and adopts links: `ping`
   and `attributionsrc` go, external `http(s)` links get `target="_blank"
   rel="noopener noreferrer"`, `mailto:` stays, other schemes and same-origin

@@ -264,7 +264,11 @@ count and metalink URL per variant. The install body is one JSON object of at mo
 `202 {"status":"accepted"}`; cancel answers `{"status":"cancelled"}` and delete
 `{"status":"deleted"}`. Content paths are names inside the ZIM file, never
 file-system paths. HTML content is sent with a sandboxing Content-Security-Policy
-that forbids scripts.
+that forbids scripts, plugins (`object-src 'none'`), `<base>` elements
+(`base-uri 'none'`), form submissions and fetches, pings and beacons
+(`connect-src 'none'`). Images and stylesheets the article references on AuraGo
+itself still load with your session; that is accepted because the content is the
+Kiwix edition AuraGo verified on download.
 
 **Status.** `GET /api/local-wikipedia/status` answers `state`
 (`not_installed`, `downloading`, `verifying`, `ready`, `interrupted`, `error`),
