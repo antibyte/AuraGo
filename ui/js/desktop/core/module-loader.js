@@ -390,6 +390,10 @@
             styles: appStyles('/css/desktop-app-newspaper.css'),
             scripts: ['/js/desktop/apps/newspaper.js']
         },
+        'local-wikipedia': {
+            styles: appStyles('/css/desktop-app-local-wikipedia.css'),
+            scripts: ['/js/desktop/apps/local-wikipedia-views.js', '/js/desktop/apps/local-wikipedia.js']
+        },
         'homepage-studio': {
             styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
             scripts: [

@@ -844,6 +844,7 @@
             'homepage-studio': 'HomepageStudioApp',
             'detective': 'DetectiveApp',
             'newspaper': 'NewspaperApp',
+            'local-wikipedia': 'LocalWikipediaApp',
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
             'live-speech': 'LiveSpeechApp',
@@ -6450,7 +6451,8 @@
             'pet-picker': { width: 760, height: 620 },
             'system-world': { width: 1440, height: 900 },
             noisemaker: { width: 1120, height: 740 },
-            'homepage-studio': { width: 1240, height: 760 }
+            'homepage-studio': { width: 1240, height: 760 },
+            'local-wikipedia': { width: 1080, height: 760 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
@@ -17544,6 +17546,13 @@ if (appId === 'pixel') {
                 return;
             }
             return window.NewspaperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog }));
+        }
+        if (appId === 'local-wikipedia') {
+            if (!window.LocalWikipediaApp) {
+                window.AuraDesktopModules.loadAppScript('local-wikipedia').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.LocalWikipediaApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, openApp }));
         }
         if (appId === 'homepage-studio') {
             if (!window.HomepageStudioApp) {

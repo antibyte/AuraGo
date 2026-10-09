@@ -1291,7 +1291,8 @@
             'pet-picker': { width: 760, height: 620 },
             'system-world': { width: 1440, height: 900 },
             noisemaker: { width: 1120, height: 740 },
-            'homepage-studio': { width: 1240, height: 760 }
+            'homepage-studio': { width: 1240, height: 760 },
+            'local-wikipedia': { width: 1080, height: 760 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
