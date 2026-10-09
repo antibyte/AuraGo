@@ -177,6 +177,16 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	waitDetectiveQuiet(t, page)
 	page.MustElement(`.dt-case`).MustClick()
 	waitDetectiveQuiet(t, page)
+	page.MustElement(`[data-tab=report]`).MustClick()
+	waitDetectiveQuiet(t, page)
+	page.MustEval(`()=>{const n=document.querySelector('.dt-content');if(n)n.dataset.mark='stay'}`)
+	mu.Lock()
+	c.Run.Usage.ActiveMS = 2000
+	mu.Unlock()
+	time.Sleep(4 * time.Second)
+	if !page.MustEval(`()=>{const n=document.querySelector('.dt-content');return !!(n&&n.dataset.mark==='stay')}`).Bool() {
+		t.Fatal("empty report content was replaced during live poll")
+	}
 	page.MustElement(`[data-tab=sources]`).MustClick()
 	page.MustElement(`.dt-source[data-id="src_a"] summary`).MustClick()
 	if !page.MustEval(`()=>document.querySelector('.dt-source[data-id="src_a"]').open`).Bool() {

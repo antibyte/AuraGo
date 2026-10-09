@@ -206,7 +206,7 @@
             const fresh = (data.events || []).filter(ev => ev.id > after);
             state.events = [...state.events, ...fresh].slice(-500);
             const sourcesChanged = (state.current.sources || []).length !== live.sources || state.latestSourceID !== live.latest_source_id;
-            const reportChanged = (state.current.reports || []).at(-1)?.revision !== live.latest_revision;
+            const reportChanged = ((state.current.reports || []).at(-1)?.revision || 0) !== (live.latest_revision || 0);
             applyLive(live);
             if ((state.tab === 'sources' && sourcesChanged) || (state.tab === 'report' && reportChanged) || (state.current.sources == null && state.tab !== 'activity')) {
                 const full = await request('/cases/' + id);
