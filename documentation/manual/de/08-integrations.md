@@ -17,6 +17,7 @@ Vom NAS bis zum Funkgerät. Jede Integration hat einen Schalter. Die gefährlich
 | Kameras und Schreibtisch | [go2rtc](#go2rtc-kameraintegration), [Frigate](#frigate-integration), [CYD](#cheap-yellow-display) |
 | Bauen und veröffentlichen | [Homepage](#homepage--und-website-projekte), [Game Maker](#game-maker-studio), [here.now](#herenow-integration), [Virtual Computers](#virtual-computers) |
 | Autopilot | Missionen sind [Kapitel 11](11-missions.md). Hier: [Invasion](#invasion-control), [Heartbeat](#heartbeat-system), [Webhooks](#webhooks) |
+| Wissen offline | [Lokale Wikipedia](#lokale-wikipedia) |
 
 ## Integrationen über die Web-UI einrichten
 
@@ -2547,6 +2548,33 @@ evomap:
 ```
 
 API-Key und Node-Secret sind Vault-only (`evomap_api_key` und `evomap_node_secret`). Der aktuelle MVP bereitet Publish-, Report- und Bounty-Operationen vor, verweigert sie aber, solange keine spätere Implementierung sie ausdrücklich aktiviert.
+
+## Lokale Wikipedia
+
+Eine komplette Wikipedia-Ausgabe auf Deinem AuraGo-Host – offline lesbar für den Agenten und in der Desktop-App **Wikipedia**. AuraGo lädt eine Kiwix-ZIM-Datei herunter und liest sie samt Suchindex in reinem Go: ohne Container, ohne Sidecar, ohne kiwix-serve.
+
+### Einrichtung in der Web-UI
+
+1. Öffne **Config** und wähle **Lokale Wikipedia** in der Gruppe **Agent-Tools** (oder suche in der Sidebar danach).
+2. Schalte **Lokale Wikipedia aktivieren** ein, wähle die **Sprache** (Standard: Systemsprache) und die **Variante** (**Ohne Medien** oder **Mit Medien**) und klicke auf **Speichern**.
+3. Prüfe die Infobox (Ausgabedatum, exakte Größe, Artikelzahl, freier Speicher), klicke auf **Installieren** und bestätige. Der Download läuft im Hintergrund; Du kannst die Seite schließen.
+4. Nach Prüfsumme und Archivprüfung steht der Status auf **Bereit**. Das Agenten-Tool `local_wikipedia` und die Desktop-App sind dann verfügbar.
+
+Die Größen reichen von etwa 0,9 GB (Hindi ohne Medien) bis 127 GB (Englisch mit Medien); Deutsch ohne Medien hat 18,6 GB. AuraGo startet den Download nicht, wenn der freie Speicher unter Restgröße plus Reserve (mindestens 1 GiB) liegt, und pausiert, bevor die Platte vollläuft. **Download abbrechen** behält den Teil-Download für **Fortsetzen**; nach einem Neustart wartet ein unfertiger Download auf **Fortsetzen**. Eine fehlgeschlagene Installation oder ein fehlgeschlagenes Update nimmt Dir nie eine funktionierende Ausgabe weg. Eine tägliche Katalogprüfung zeigt einen Hinweis auf der Config-Seite, im Dashboard (**Neue Ausgabe**) und in der App; Updates installierst Du nur per Klick.
+
+### YAML-Referenz
+
+```yaml
+local_wikipedia:
+  enabled: false
+  agent_access: true
+  language: ""        # leer = AuraGo-Systemsprache
+  variant: nopic      # nopic (ohne Medien) | maxi (mit Medien)
+  data_dir: ""        # leer = <data_dir>/wikipedia; in Docker fest
+  update_check: true
+```
+
+Größen je Sprache, Verzeichnisregeln für systemd und Docker, Fehlercodes, Netzwerk-Hosts und Lizenzen stehen im englischen Leitfaden [Local Wikipedia](../../local-wikipedia.md). Schlüssel: [Kapitel 7](07-konfiguration.md#lokale-wikipedia).
 
 ## Integrationen testen
 

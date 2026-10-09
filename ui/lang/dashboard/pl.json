@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "Gazeta jest wyłączona w konfiguracji.",
   "dashboard.newspaper_latest": "Najnowsze wydanie",
   "dashboard.newspaper_empty": "Nie ma jeszcze wydania. Na początek wybierz tematy.",
-  "dashboard.newspaper_next": "Następny docelowy czas"
+  "dashboard.newspaper_next": "Następny docelowy czas",
+  "dashboard.integration_local_wikipedia": "Lokalna Wikipedia",
+  "dashboard.local_wikipedia_update_hint": "Nowe wydanie {{date}}",
+  "dashboard.local_wikipedia_update_title": "Dostępne jest nowsze wydanie Wikipedii ({{date}}). Otwórz ustawienia, aby je zainstalować."
 }

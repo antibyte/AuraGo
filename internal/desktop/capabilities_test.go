@@ -143,3 +143,31 @@ func TestBootstrapHidesEasyDragUntilFlowsArePresent(t *testing.T) {
 		t.Fatal("easydrag must appear once flows are available")
 	}
 }
+
+func TestBuiltinLocalWikipediaAppRequiresCapability(t *testing.T) {
+	app := testFindApp(t, BuiltinApps(), "local-wikipedia")
+	if app.Entry != "builtin://local-wikipedia" || app.Name != "Wikipedia" || app.Icon != "book" || app.Category != "office" {
+		t.Fatalf("local-wikipedia manifest = %+v", app)
+	}
+	if len(app.Requires) != 1 || app.Requires[0] != "local_wikipedia" {
+		t.Fatalf("local-wikipedia requires = %v, want [local_wikipedia]", app.Requires)
+	}
+	if !app.StartVisible || !app.Builtin {
+		t.Fatalf("local-wikipedia must be a visible builtin: %+v", app)
+	}
+	iconKnown := false
+	for _, name := range desktopPreferredIconNames {
+		if name == app.Icon {
+			iconKnown = true
+		}
+	}
+	if !iconKnown {
+		t.Fatalf("icon %q is not a preferred desktop icon", app.Icon)
+	}
+	if got := FilterAvailableApps([]AppManifest{app}, staticCapabilities{}); len(got) != 0 {
+		t.Fatalf("without the capability the app must stay hidden: %+v", got)
+	}
+	if got := FilterAvailableApps([]AppManifest{app}, staticCapabilities{"local_wikipedia": true}); len(got) != 1 {
+		t.Fatalf("with the capability the app must show: %+v", got)
+	}
+}

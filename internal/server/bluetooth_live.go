@@ -20,6 +20,8 @@ func (c desktopCapabilities) HasCapability(name string) bool {
 		return c.s.Bluetooth != nil && c.s.Bluetooth.Present()
 	case "flows":
 		return c.s.flowsAvailable()
+	case "local_wikipedia":
+		return c.s.localWikipediaAvailable()
 	default:
 		return false
 	}

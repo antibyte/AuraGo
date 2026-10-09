@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "Η εφημερίδα είναι απενεργοποιημένη στο Config.",
   "dashboard.newspaper_latest": "Τελευταία έκδοση",
   "dashboard.newspaper_empty": "Καμία έκδοση ακόμα. Επιλέξτε τα θέματά σας για να ξεκινήσετε.",
-  "dashboard.newspaper_next": "Επόμενος χρόνος στόχος"
+  "dashboard.newspaper_next": "Επόμενος χρόνος στόχος",
+  "dashboard.integration_local_wikipedia": "Τοπική Βικιπαίδεια",
+  "dashboard.local_wikipedia_update_hint": "Νέα έκδοση {{date}}",
+  "dashboard.local_wikipedia_update_title": "Υπάρχει νεότερη έκδοση της Βικιπαίδειας ({{date}}). Άνοιξε τις ρυθμίσεις για να την εγκαταστήσεις."
 }

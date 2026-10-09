@@ -19,6 +19,14 @@ import (
 // Keep the real desktop runtime and DOM, exposing only test entry points.
 func desktopAuditBrowser(t *testing.T) *rod.Page {
 	t.Helper()
+	return desktopAuditBrowserWithAPI(t, nil)
+}
+
+// desktopAuditBrowserWithAPI is desktopAuditBrowser with extra API handlers. A
+// more specific pattern (for example "/api/desktop/local-wikipedia/") wins over
+// the generic "/api/" fixture answers.
+func desktopAuditBrowserWithAPI(t *testing.T, handlers map[string]http.Handler) *rod.Page {
+	t.Helper()
 	requirePrecisionBrowserSmoke(t)
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "desktop.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
@@ -49,6 +57,9 @@ func desktopAuditBrowser(t *testing.T) *rod.Page {
 			fmt.Fprint(w, `{"status":"ok","files":[],"pets":[],"settings":{},"enabled":false}`)
 		}
 	})
+	for pattern, handler := range handlers {
+		mux.Handle(pattern, handler)
+	}
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	page := newSmokeBrowser(t).MustPage().Timeout(30 * time.Second)

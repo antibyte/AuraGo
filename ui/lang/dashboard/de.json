@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "Newspaper ist in der Konfiguration deaktiviert.",
   "dashboard.newspaper_latest": "Neueste Ausgabe",
   "dashboard.newspaper_empty": "Noch keine Ausgabe. Wähle zuerst Deine Themen.",
-  "dashboard.newspaper_next": "Nächste Wunschzeit"
+  "dashboard.newspaper_next": "Nächste Wunschzeit",
+  "dashboard.integration_local_wikipedia": "Lokale Wikipedia",
+  "dashboard.local_wikipedia_update_hint": "Neue Ausgabe {{date}}",
+  "dashboard.local_wikipedia_update_title": "Eine neuere Wikipedia-Ausgabe ({{date}}) ist verfügbar. Öffne die Einstellungen, um sie zu installieren."
 }

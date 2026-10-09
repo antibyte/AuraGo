@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "Tidningen är inaktiverad i Config.",
   "dashboard.newspaper_latest": "Senaste upplagan",
   "dashboard.newspaper_empty": "Ingen upplaga ännu. Välj dina ämnen för att börja.",
-  "dashboard.newspaper_next": "Nästa måltid"
+  "dashboard.newspaper_next": "Nästa måltid",
+  "dashboard.integration_local_wikipedia": "Lokal Wikipedia",
+  "dashboard.local_wikipedia_update_hint": "Ny utgåva {{date}}",
+  "dashboard.local_wikipedia_update_title": "En nyare Wikipedia-utgåva ({{date}}) finns. Öppna inställningarna för att installera den."
 }

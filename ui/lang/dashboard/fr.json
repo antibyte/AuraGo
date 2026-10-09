@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "Le journal est désactivé dans Config.",
   "dashboard.newspaper_latest": "Dernière édition",
   "dashboard.newspaper_empty": "Pas encore d'édition. Choisissez vos sujets pour commencer.",
-  "dashboard.newspaper_next": "Prochaine heure cible"
+  "dashboard.newspaper_next": "Prochaine heure cible",
+  "dashboard.integration_local_wikipedia": "Wikipédia locale",
+  "dashboard.local_wikipedia_update_hint": "Nouvelle édition {{date}}",
+  "dashboard.local_wikipedia_update_title": "Une édition plus récente de Wikipédia ({{date}}) est disponible. Ouvrir les paramètres pour l'installer."
 }

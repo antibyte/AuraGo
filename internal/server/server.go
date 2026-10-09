@@ -507,6 +507,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		s.LocalMusic.Configure(cfg)
 	}
 	s.syncLocalWikipediaSettings()
+	if previous != nil && previous.LocalWikipedia.Enabled != cfg.LocalWikipedia.Enabled {
+		// The Wikipedia Desktop app appears or disappears with the switch;
+		// the broadcast runs off this (usually CfgMu-locked) path.
+		s.announceLocalWikipediaAvailability()
+	}
 	if s.WarningsRegistry != nil {
 		// Provider metadata probes may perform bounded network I/O. Keep config
 		// publication non-blocking while still reconciling stale warnings.
@@ -1988,8 +1993,11 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		// Cache control: static assets get public 1-hour cache; everything else no-store.
 		// Files under /files/ are user data behind authentication, never public
 		// static assets: the dedicated media mounts set their own private cache,
-		// everything else there (the workspace mount) stays no-store.
+		// everything else there (the workspace mount) stays no-store. Local
+		// Wikipedia content is authenticated too; its handler sets a private
+		// cache on the blobs it serves.
 		isStaticAsset := !strings.HasPrefix(path, "/files/") &&
+			!strings.HasPrefix(path, localWikiDesktopPrefix) &&
 			(strings.HasSuffix(path, ".js") ||
 				strings.HasSuffix(path, ".css") ||
 				strings.HasSuffix(path, ".png") ||

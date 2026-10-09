@@ -612,6 +612,7 @@
             'homepage-studio': 'HomepageStudioApp',
             'detective': 'DetectiveApp',
             'newspaper': 'NewspaperApp',
+            'local-wikipedia': 'LocalWikipediaApp',
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
             'live-speech': 'LiveSpeechApp',

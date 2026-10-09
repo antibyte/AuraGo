@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "报纸在配置中被禁用。",
   "dashboard.newspaper_latest": "最新版本",
   "dashboard.newspaper_empty": "还没有版本。选择您的主题开始。",
-  "dashboard.newspaper_next": "下一个目标时间"
+  "dashboard.newspaper_next": "下一个目标时间",
+  "dashboard.integration_local_wikipedia": "本地维基百科",
+  "dashboard.local_wikipedia_update_hint": "新版本 {{date}}",
+  "dashboard.local_wikipedia_update_title": "有更新的维基百科版本（{{date}}）。打开设置即可安装。"
 }

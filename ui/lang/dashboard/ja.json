@@ -956,5 +956,8 @@
   "dashboard.newspaper_disabled": "新聞は設定で無効になっています。",
   "dashboard.newspaper_latest": "最新版",
   "dashboard.newspaper_empty": "エディションはまだありません。始めるトピックを選択してください。",
-  "dashboard.newspaper_next": "次の目標タイム"
+  "dashboard.newspaper_next": "次の目標タイム",
+  "dashboard.integration_local_wikipedia": "ローカル Wikipedia",
+  "dashboard.local_wikipedia_update_hint": "新しい版 {{date}}",
+  "dashboard.local_wikipedia_update_title": "新しい Wikipedia の版（{{date}}）があります。設定を開いてインストールしてください。"
 }

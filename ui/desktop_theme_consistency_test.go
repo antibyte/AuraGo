@@ -169,6 +169,9 @@ func TestDesktopEverydayAppsUseThemeBridge(t *testing.T) {
 		{"css/desktop-app-common.css", ".vd-sysinfo-hero"},
 		{"css/desktop-app-common.css", ".vd-pet-picker-card"},
 		{"css/pixel.css", "background: #0e1117"},
+		{"css/desktop-app-local-wikipedia.css", ".lw-app"},
+		{"css/desktop-app-local-wikipedia.css", "var(--vd-theme-app-bg)"},
+		{"css/desktop-app-local-wikipedia.css", "background: #ffffff"},
 	} {
 		css := readDesktopAssetText(t, tc.file)
 		if !strings.Contains(css, tc.marker) {

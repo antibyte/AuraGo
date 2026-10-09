@@ -1132,6 +1132,19 @@ Look up encyclopedic topics on Wikipedia.
 | `language` | string | Optional Wikipedia language code such as de, en, fr, or ja |
 | `search_query` | string | Optional focused question for summary mode |
 
+### `local_wikipedia`
+Search and read the locally installed Wikipedia edition (Local Wikipedia integration). Available only when the integration is on, **Agent may use Local Wikipedia** is enabled and an edition is installed and readable. Read-only; results are marked as external data, and answers should cite the article and edition date.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | string | `search` or `read` |
+| `query` | string | Key terms or a likely article title, at most 200 characters and 16 words (`search`, required) |
+| `limit` | integer | Number of results, 1–10 (default 5; `search`) |
+| `title` | string | Article title (`read`; `title` or `path` is required) |
+| `path` | string | Article path from a search result (`read`) |
+| `section` | string | Heading text or section index (`read`, optional) |
+| `offset` | integer | Continue a long article at `next_offset` (`read`, optional) |
+
 ### `brave_search`
 Search the web with Brave Search.
 
