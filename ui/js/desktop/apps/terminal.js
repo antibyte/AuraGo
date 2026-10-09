@@ -606,6 +606,13 @@
 
         function endRetro(run, code, reason, remote) {
             if (retro !== run || run.ended) return;
+            // A service that answers and hangs up during the dial (a short "all nodes busy" banner): the
+            // dial is skipped and the buffered output shown before the result, as live data would be.
+            if (remote && run.connected && !run.live && !run.hostKey) {
+                if (modem) modem.skip();
+                run.animationDone = true;
+                goLive(run);
+            }
             run.ended = true;
             if (modem) modem.skip();
             if (remote) run.session.dispose();

@@ -336,6 +336,8 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"window.TerminalRetroNetSession.hostKeyAnswer(data, tr('desktop.terminal_retronet_hostkey_yes'), tr('desktop.terminal_retronet_hostkey_no'))",
 		// Ctrl+] never reaches the session: the dispatcher intercepts it in dialing and retro modes.
 		"if (data.indexOf(HANGUP_KEY) >= 0) {",
+		// Output buffered during the dial is shown when the service hangs up before the dial ends.
+		"if (remote && run.connected && !run.live && !run.hostKey) {",
 		// Dispose removes own-entry dialogs without close(), which would reopen a dialog with a pending save.
 		"root.querySelectorAll('dialog[data-terminal-retronet-dialog]').forEach(function (dialog) { dialog.remove(); })",
 	} {
