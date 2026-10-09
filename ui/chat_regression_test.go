@@ -2502,6 +2502,7 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 		"tool-icon-custom-asset",
 		"'virtual_desktop'",
 		"'send_youtube_video'",
+		"'local_wikipedia'",
 		"key: 'generic_tool'",
 		"window.AuraToolIcons",
 		"createIcon(toolName",

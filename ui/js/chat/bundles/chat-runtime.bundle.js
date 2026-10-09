@@ -6435,7 +6435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         { slot: 58, key: 'browser_automation', label: 'Browser', row: 5, col: 8, aliases: Object.freeze(['space_agent', 'virtual_desktop']) },
         { slot: 59, key: 'api_request', label: 'API request', row: 5, col: 9, aliases: Object.freeze(['call_webhook', 'manage_webhooks', 'manage_outgoing_webhooks']) },
         { slot: 60, key: 'brave_search', label: 'Search', row: 6, col: 0, aliases: Object.freeze(['ddg_search']) },
-        { slot: 61, key: 'wikipedia_search', label: 'Wikipedia', row: 6, col: 1, aliases: Object.freeze([]) },
+        { slot: 61, key: 'wikipedia_search', label: 'Wikipedia', row: 6, col: 1, aliases: Object.freeze(['local_wikipedia']) },
         { slot: 62, key: 'github', label: 'GitHub', row: 6, col: 2, aliases: Object.freeze([]) },
         { slot: 63, key: 'netlify', label: 'Netlify', row: 6, col: 3, aliases: Object.freeze([]) },
         { slot: 64, key: 'vercel', label: 'Vercel', row: 6, col: 4, aliases: Object.freeze([]) },
