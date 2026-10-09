@@ -179,13 +179,30 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	waitDetectiveQuiet(t, page)
 	page.MustElement(`[data-tab=report]`).MustClick()
 	waitDetectiveQuiet(t, page)
-	page.MustEval(`()=>{const n=document.querySelector('.dt-content');if(n)n.dataset.mark='stay'}`)
+	page.MustEval(`()=>{const n=document.querySelector('.dt-content');const mark=document.createElement('i');mark.id='dt-stay';n.appendChild(mark);const bar=document.querySelector('.dt-export');const pin=document.createElement('i');pin.id='dt-export-stay';bar.appendChild(pin)}`)
 	mu.Lock()
 	c.Run.Usage.ActiveMS = 2000
 	mu.Unlock()
 	time.Sleep(4 * time.Second)
-	if !page.MustEval(`()=>{const n=document.querySelector('.dt-content');return !!(n&&n.dataset.mark==='stay')}`).Bool() {
+	if !page.MustEval(`()=>!!document.querySelector('.dt-content > #dt-stay')`).Bool() {
 		t.Fatal("empty report content was replaced during live poll")
+	}
+	if !page.MustEval(`()=>!!document.querySelector('.dt-export > #dt-export-stay')`).Bool() {
+		t.Fatal("export bar was rebuilt without a revision change")
+	}
+	mu.Lock()
+	c.Reports = finished.Reports
+	c.Findings = finished.Findings
+	mu.Unlock()
+	time.Sleep(4 * time.Second)
+	for _, format := range []string{"md", "pdf", "docx"} {
+		href := page.MustEval(`format => document.querySelector('a.dt-download[href*="format='+format+'"]')?.getAttribute('href') || ''`, format).Str()
+		if !strings.Contains(href, "revision=1") {
+			t.Fatal("export link did not follow the visible revision", format, href)
+		}
+	}
+	if selected := page.MustEval(`()=>document.querySelector('.dt-revision')?.value || ''`).Str(); selected != "1" {
+		t.Fatal("revision select did not follow the visible revision", selected)
 	}
 	page.MustElement(`[data-tab=sources]`).MustClick()
 	page.MustElement(`.dt-source[data-id="src_a"] summary`).MustClick()
@@ -193,7 +210,27 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 		t.Fatal("src_a did not expand")
 	}
 	mu.Lock()
+	c.Run.Status = "waiting_for_user"
+	c.Run.Reason = "budget_exhausted"
+	mu.Unlock()
+	time.Sleep(4 * time.Second)
+	if !page.MustEval(`()=>!!document.querySelector('.dt-answer')`).Bool() {
+		t.Fatal("answer field missing while waiting for the user")
+	}
+	if reason := page.MustElement(`.dt-status > p`).MustText(); reason != "Budget aufgebraucht" {
+		t.Fatal("reason did not follow the run", reason)
+	}
+	page.MustEval(`()=>{const box=document.querySelector('.dt-answer');box.focus();box.value='Regenfass'}`)
+	mu.Lock()
+	c.Run.Usage.ActiveMS = 3500
+	mu.Unlock()
+	time.Sleep(4 * time.Second)
+	if !page.MustEval(`()=>{const box=document.querySelector('.dt-answer');return !!(box&&document.activeElement===box&&box.value==='Regenfass')}`).Bool() {
+		t.Fatal("focused answer was replaced while still waiting")
+	}
+	mu.Lock()
 	c.Run.Status = "cancelled"
+	c.Run.Reason = "user_stopped"
 	c.Run.Usage.ActiveMS = 5000
 	pendingEvent = true
 	mu.Unlock()
@@ -204,6 +241,12 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	}
 	if page.MustEval(`()=>!!document.querySelector('[data-do=stop]')`).Bool() {
 		t.Fatal("stop remained after the run was cancelled")
+	}
+	if page.MustEval(`()=>!!document.querySelector('.dt-answer')`).Bool() {
+		t.Fatal("answer field remained after the run left waiting_for_user")
+	}
+	if reason := page.MustElement(`.dt-status > p`).MustText(); reason != "Vom Nutzer gestoppt" {
+		t.Fatal("reason did not follow the run", reason)
 	}
 	if sources := page.MustEval(`()=>document.querySelectorAll('.dt-source').length`).Int(); sources != 2 {
 		t.Fatal("sources were discarded", sources)

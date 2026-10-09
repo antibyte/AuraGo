@@ -38,14 +38,35 @@
             const lead = r.status === 'draft' ? `<button data-do="start" ${ro ? 'disabled' : ''}>${e(tr('start'))}</button>` : r.status !== 'completed' ? `<button data-do="continue" ${ro ? 'disabled' : ''}>${e(tr('continue'))}</button>` : '';
             return `${lead}<select class="dt-effort" aria-label="${e(tr('effort'))}">${['quick', 'normal', 'maximum'].map(x => `<option value="${x}" ${c.request.effort === x ? 'selected' : ''}>${e(tr(x))}</option>`).join('')}</select><button data-do="deepen" ${ro ? 'disabled' : ''}>${e(tr('deepen'))}</button><button data-do="delete" ${ro ? 'disabled' : ''}>${e(tr('delete'))}</button>`;
         }
+        function reasonText(reason) {
+            if (!reason) return '';
+            const translated = tr(reason);
+            return translated === 'desktop.detective_' + reason ? reason : translated;
+        }
+        function answerFieldHTML() {
+            return `<label>${e(tr('answer'))}<textarea class="dt-answer" maxlength="8000"></textarea></label>`;
+        }
         function statusInner(c, ro) {
             const r = c.run || {}, usage = r.usage || {}, p = r.profile || {};
-            return `<h2>${e(c.request.topic)}</h2><div><strong>${e(tr(r.status))}</strong><span>${e(tr(r.phase || 'research'))}</span><span>${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}</span></div>${r.reason ? `<p>${e(tr(r.reason) === 'desktop.detective_' + r.reason ? r.reason : tr(r.reason))}</p>` : ''}<div class="dt-actions">${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? `<label>${e(tr('answer'))}<textarea class="dt-answer" maxlength="8000"></textarea></label>` : ''}`;
+            const reason = reasonText(r.reason);
+            return `<h2>${e(c.request.topic)}</h2><div><strong>${e(tr(r.status))}</strong><span>${e(tr(r.phase || 'research'))}</span><span>${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}</span></div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions">${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
         }
         function exportHTML(c, ro) {
             const revisions = c.reports || [], chosen = chosenReport();
             if (!revisions.length) return '';
             return `<label>${e(tr('revision'))}<select class="dt-revision">${revisions.map(x => `<option value="${x.revision}" ${x === chosen ? 'selected' : ''}>${x.revision}${x.partial ? ' · ' + e(tr('partial')) : ''}</option>`).join('')}</select></label>${['md', 'pdf', 'docx'].map(format => `<a class="dt-download" href="${base}/cases/${encodeURIComponent(c.id)}/export?revision=${chosen.revision}&format=${format}">${format === 'md' ? 'Markdown' : format === 'docx' ? 'Word' : 'PDF'}</a>`).join('')}<button data-do="autor" ${ro ? 'disabled' : ''}>${e(tr('autor'))}</button>`;
+        }
+        function linkedExportRevision() {
+            const link = host.querySelector('.dt-export a.dt-download');
+            if (!link) return 0;
+            const match = /[?&]revision=(\d+)/.exec(link.getAttribute('href') || '');
+            return match ? Number(match[1]) : 0;
+        }
+        function syncExport() {
+            const bar = host.querySelector('.dt-export');
+            if (!bar || !state.current) return;
+            if (linkedExportRevision() === (chosenReport()?.revision || 0)) return;
+            bar.innerHTML = exportHTML(state.current, readOnly());
         }
         function contentHTML() {
             if (state.tab === 'sources') return v.sources(state.current.sources, tr);
@@ -123,6 +144,7 @@
                 content.innerHTML = v.report(chosenReport(), tr);
             }
             if (content) content.scrollTop = scroll;
+            syncExport();
             const sourceBtn = host.querySelector('[data-tab=sources]');
             if (sourceBtn) {
                 const label = `${tr('sources')} (${(state.current.sources || []).length})`;
@@ -150,8 +172,36 @@
             if (spans[1] && spans[1].textContent !== usageText) spans[1].textContent = usageText;
             const actions = section.querySelector('.dt-actions');
             if (actions) rewriteActions(actions, c, readOnly());
-            const box = section.querySelector('.dt-answer');
-            if (box) { box.value = answerValue || ''; if (answerFocused) box.focus(); }
+            syncReason(section, r.reason);
+            syncAnswer(section, r.status, answerValue, answerFocused);
+        }
+        function syncReason(section, reason) {
+            const text = reasonText(reason);
+            let para = section.querySelector(':scope > p');
+            if (!text) {
+                if (para) para.remove();
+                return;
+            }
+            if (!para) {
+                para = document.createElement('p');
+                section.insertBefore(para, section.querySelector('.dt-actions'));
+            }
+            if (para.textContent !== text) para.textContent = text;
+        }
+        function syncAnswer(section, status, answerValue, answerFocused) {
+            let box = section.querySelector('.dt-answer');
+            if (status === 'waiting_for_user') {
+                if (!box) {
+                    section.insertAdjacentHTML('beforeend', answerFieldHTML());
+                    box = section.querySelector('.dt-answer');
+                    if (box && answerValue) box.value = answerValue;
+                    if (box && answerFocused) box.focus();
+                } else if (answerFocused && host.ownerDocument.activeElement !== box) {
+                    box.focus();
+                }
+                return;
+            }
+            if (box) (box.closest('label') || box).remove();
         }
         function rewriteActions(actions, c, ro) {
             const desired = actionsHTML(c, ro);
