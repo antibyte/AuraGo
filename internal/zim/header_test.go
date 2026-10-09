@@ -56,6 +56,8 @@ func TestParseHeaderRejectsInvalidHeaders(t *testing.T) {
 		{"path pointers beyond end", func(h []byte) { le.PutUint64(h[32:], uint64(len(data))) }, 0, ErrCorrupt},
 		{"cluster pointers beyond end", func(h []byte) { le.PutUint64(h[48:], ^uint64(0)-4) }, 0, ErrCorrupt},
 		{"title pointers inside header", func(h []byte) { le.PutUint64(h[40:], 8) }, 0, ErrCorrupt},
+		{"main page at entry count", func(h []byte) { le.PutUint32(h[64:], le.Uint32(h[24:])) }, 0, ErrCorrupt},
+		{"main page far beyond entries", func(h []byte) { le.PutUint32(h[64:], 0xFFFFFFFE) }, 0, ErrCorrupt},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -2,10 +2,15 @@ package zim
 
 import (
 	"bytes"
+	"errors"
 	"io"
+	"io/fs"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+
+	"aurago/internal/zim/zimtest"
 )
 
 func readEntry(t *testing.T, a *Archive, e Entry) string {
@@ -138,5 +143,123 @@ func TestCloseStopsReads(t *testing.T) {
 	_, err = a.Open(e)
 	wantErr(t, err, ErrClosed)
 	_, err = a.EntryByPath('C', "Berlin")
+	wantErr(t, err, ErrClosed)
+}
+
+func TestSectionsFailWithErrClosedAfterClose(t *testing.T) {
+	path, _ := sampleBuilder().WriteFile(t)
+	a, err := Open(path, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	sections := map[string]*io.SectionReader{}
+	for name, e := range map[string]Entry{
+		"uncompressed": mustEntry(t, a, 'X', "title/xapian"),
+		"zstd":         mustEntry(t, a, 'C', "Berlin"),
+		"xz":           mustEntry(t, a, 'C', "Hamburg"),
+	} {
+		r, err := a.Open(e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := r.ReadAt(make([]byte, 4), 0); err != nil {
+			t.Fatalf("%s: read before Close: %v", name, err)
+		}
+		sections[name] = r
+	}
+	if err := a.Close(); err != nil {
+		t.Fatal(err)
+	}
+	for name, r := range sections {
+		buf := make([]byte, 4)
+		_, err := r.ReadAt(buf, 0)
+		wantErr(t, err, ErrClosed)
+		_, err = r.Read(buf)
+		wantErr(t, err, ErrClosed)
+		_, err = io.ReadAll(r)
+		wantErr(t, err, ErrClosed)
+		var pathErr *fs.PathError
+		if errors.As(err, &pathErr) {
+			t.Fatalf("%s: read after Close leaks the file error %v", name, err)
+		}
+	}
+}
+
+// scriptedReaderAt returns a fixed result; onRead runs first.
+type scriptedReaderAt struct {
+	n      int
+	err    error
+	onRead func()
+}
+
+func (s scriptedReaderAt) ReadAt([]byte, int64) (int, error) {
+	if s.onRead != nil {
+		s.onRead()
+	}
+	return s.n, s.err
+}
+
+func TestGuardedReaderAt(t *testing.T) {
+	var closed atomic.Bool
+	guard := func(r io.ReaderAt) guardedReaderAt { return guardedReaderAt{r: r, closed: &closed} }
+	buf := make([]byte, 8)
+	diskErr := errors.New("disk on fire")
+
+	// The file was closed underneath a read (Close racing a read).
+	_, err := guard(scriptedReaderAt{err: &fs.PathError{Op: "read", Path: "x.zim", Err: fs.ErrClosed}}).ReadAt(buf, 0)
+	wantErr(t, err, ErrClosed)
+
+	// io.EOF and ordinary I/O errors pass through while the archive is open.
+	if n, err := guard(scriptedReaderAt{n: 3, err: io.EOF}).ReadAt(buf, 0); n != 3 || err != io.EOF {
+		t.Fatalf("EOF read = %d, %v; want 3, io.EOF", n, err)
+	}
+	if _, err := guard(scriptedReaderAt{err: diskErr}).ReadAt(buf, 0); !errors.Is(err, diskErr) || errors.Is(err, ErrClosed) {
+		t.Fatalf("I/O error = %v, want the original error", err)
+	}
+
+	// A failure that happens while the archive is being closed is a close error.
+	_, err = guard(scriptedReaderAt{err: diskErr, onRead: func() { closed.Store(true) }}).ReadAt(buf, 0)
+	wantErr(t, err, ErrClosed)
+
+	// Once closed, even a read that would succeed is refused; EOF is not special-cased.
+	_, err = guard(scriptedReaderAt{n: len(buf)}).ReadAt(buf, 0)
+	wantErr(t, err, ErrClosed)
+	_, err = guard(scriptedReaderAt{n: 1, err: io.EOF}).ReadAt(buf, 0)
+	wantErr(t, err, ErrClosed)
+}
+
+// failLenReaderAt simulates the file being closed underneath reads of one length.
+type failLenReaderAt struct {
+	r       io.ReaderAt
+	failLen int
+}
+
+func (f failLenReaderAt) ReadAt(p []byte, off int64) (int, error) {
+	if len(p) == f.failLen {
+		return 0, &fs.PathError{Op: "read", Path: "race.zim", Err: fs.ErrClosed}
+	}
+	return f.r.ReadAt(p, off)
+}
+
+func TestMetadataReadRacingCloseReportsErrClosed(t *testing.T) {
+	value := strings.Repeat("v", 300) // no other read in this archive has this length
+	b := zimtest.New()
+	b.AddMetadata(b.AddCluster(zimtest.CompressionNone, false), "Blob", value)
+	data, _, err := b.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	open := func(r io.ReaderAt) *Archive {
+		a, err := newArchive(r, int64(len(data)), Options{}, defaultLimits())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return a
+	}
+	if got, err := open(bytes.NewReader(data)).Metadata("Blob"); err != nil || got != value {
+		t.Fatalf("Metadata without a failing reader = %d bytes, %v", len(got), err)
+	}
+	_, err = open(failLenReaderAt{r: bytes.NewReader(data), failLen: len(value)}).Metadata("Blob")
 	wantErr(t, err, ErrClosed)
 }

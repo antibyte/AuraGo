@@ -45,14 +45,15 @@ type Archive struct {
 
 // Open opens the ZIM file at path and validates its header and indexes.
 func Open(path string, opts Options) (*Archive, error) {
+	// The *fs.PathError from os.Open and Stat already names the operation and path.
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("zim: open %s: %w", path, err)
+		return nil, fmt.Errorf("zim: %w", err)
 	}
 	info, err := f.Stat()
 	if err != nil {
 		_ = f.Close()
-		return nil, fmt.Errorf("zim: stat %s: %w", path, err)
+		return nil, fmt.Errorf("zim: %w", err)
 	}
 	if !info.Mode().IsRegular() {
 		_ = f.Close()
@@ -74,7 +75,8 @@ func newArchive(r io.ReaderAt, size int64, opts Options, lim limits) (*Archive, 
 	if size < headerSize {
 		return nil, fmt.Errorf("%w: file too small for a ZIM header", ErrNotZIM)
 	}
-	a := &Archive{r: r, size: size, lim: lim, cache: newClusterCache(opts.ClusterCacheBytes)}
+	a := &Archive{size: size, lim: lim, cache: newClusterCache(opts.ClusterCacheBytes)}
+	a.r = a.guard(r)
 	head := make([]byte, headerSize)
 	if err := a.readAt(head, 0); err != nil {
 		return nil, err
@@ -123,8 +125,8 @@ func (a *Archive) detectContentNamespace() (byte, error) {
 	return 'C', nil
 }
 
-// Close releases the file and the cluster cache. Readers returned by Open
-// for uncompressed blobs fail after Close.
+// Close releases the file and the cluster cache. Section readers returned by
+// Open fail with ErrClosed afterwards.
 func (a *Archive) Close() error {
 	if a.closed.Swap(true) {
 		return nil
@@ -148,6 +150,29 @@ func (a *Archive) EntryCount() uint32 { return a.hdr.entryCount }
 // ContentNamespace is 'C' for new-scheme archives and 'A' for legacy ones.
 func (a *Archive) ContentNamespace() byte { return a.contentNS }
 
+// guardedReaderAt reports ErrClosed for every read once the archive is closed
+// and maps the file's own closed-file error (a read that races Close) to
+// ErrClosed. io.EOF and other errors pass through unchanged.
+type guardedReaderAt struct {
+	r      io.ReaderAt
+	closed *atomic.Bool
+}
+
+func (a *Archive) guard(r io.ReaderAt) io.ReaderAt {
+	return guardedReaderAt{r: r, closed: &a.closed}
+}
+
+func (g guardedReaderAt) ReadAt(p []byte, off int64) (int, error) {
+	if g.closed.Load() {
+		return 0, ErrClosed
+	}
+	n, err := g.r.ReadAt(p, off)
+	if err != nil && !errors.Is(err, io.EOF) && (g.closed.Load() || errors.Is(err, fs.ErrClosed)) {
+		return n, ErrClosed
+	}
+	return n, err
+}
+
 // readAt fills p from offset off or reports a classified error.
 func (a *Archive) readAt(p []byte, off int64) error {
 	if a.closed.Load() {
@@ -158,7 +183,7 @@ func (a *Archive) readAt(p []byte, off int64) error {
 		return nil
 	}
 	switch {
-	case a.closed.Load() || errors.Is(err, fs.ErrClosed):
+	case a.closed.Load() || errors.Is(err, ErrClosed):
 		return ErrClosed
 	case err == nil || errors.Is(err, io.EOF):
 		return errCorrupt("unexpected end of file at offset %d", off)
@@ -283,8 +308,12 @@ func (a *Archive) EntryByPath(ns byte, path string) (Entry, error) {
 	return Entry{}, fmt.Errorf("%w: %c/%s", ErrNotFound, ns, path)
 }
 
-// Resolve follows redirects (at most maxRedirectDepth hops).
+// Resolve follows redirects (at most maxRedirectDepth hops). The zero Entry
+// (one that no Archive returned) is rejected with ErrNotFound.
 func (a *Archive) Resolve(e Entry) (Entry, error) {
+	if e.kind == kindInvalid {
+		return Entry{}, fmt.Errorf("%w: entry %c/%s was not returned by an archive", ErrNotFound, e.Namespace, e.Path)
+	}
 	for hops := 0; e.IsRedirect; hops++ {
 		if hops == maxRedirectDepth {
 			return Entry{}, fmt.Errorf("%w: %c/%s", ErrRedirectLoop, e.Namespace, e.Path)

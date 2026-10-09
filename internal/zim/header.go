@@ -93,6 +93,9 @@ func parseHeader(b []byte, fileSize int64) (header, error) {
 	if h.clusterCount > h.entryCount {
 		return header{}, errCorrupt("cluster count %d exceeds entry count %d", h.clusterCount, h.entryCount)
 	}
+	if h.mainPage != noMainPage && h.mainPage >= h.entryCount {
+		return header{}, errCorrupt("main page index %d is outside the %d entries", h.mainPage, h.entryCount)
+	}
 	if !tableFits(h.pathPtrPos, uint64(h.entryCount), 8, h.mimeListPos, end) {
 		return header{}, errCorrupt("path pointer list at %d outside the archive", h.pathPtrPos)
 	}

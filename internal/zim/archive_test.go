@@ -1,10 +1,13 @@
 package zim
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/zim/zimtest"
@@ -193,5 +196,71 @@ func TestContentNamespaceDetection(t *testing.T) {
 		if got := openPath(t, path).ContentNamespace(); got != tc.want {
 			t.Fatalf("minor %d with %c entries: ContentNamespace = %c, want %c", tc.minor, tc.ns, got, tc.want)
 		}
+	}
+}
+
+func TestOpenErrorsNameThePathOnce(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "absent.zim")
+	_, err := Open(missing, Options{})
+	if err == nil || !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("Open(missing) error = %v, want not-exist", err)
+	}
+	notZIM := zimtest.WriteBytes(t, []byte("hello"))
+	_, notZIMErr := Open(notZIM, Options{})
+	wantErr(t, notZIMErr, ErrNotZIM)
+	for path, err := range map[string]error{missing: err, notZIM: notZIMErr} {
+		if got := strings.Count(err.Error(), path); got != 1 {
+			t.Fatalf("error %q names %q %d times, want once", err, path, got)
+		}
+	}
+}
+
+func TestOpenRejectsMainPageOutsideArchive(t *testing.T) {
+	data, layout, err := sampleBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := uint32(len(layout.EntryIndex))
+	for _, tc := range []struct {
+		name     string
+		mainPage uint32
+		want     error
+	}{
+		{"first index past the end", entries, ErrCorrupt},
+		{"far past the end", 0xFFFFFFFE, ErrCorrupt},
+		{"last entry", entries - 1, nil},
+		{"no main page sentinel", 0xFFFFFFFF, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			patched := append([]byte(nil), data...)
+			binary.LittleEndian.PutUint32(patched[64:], tc.mainPage)
+			a, err := Open(zimtest.WriteBytes(t, patched), Options{})
+			if tc.want != nil {
+				wantErr(t, err, tc.want)
+				return
+			}
+			if err != nil {
+				t.Fatalf("Open() error = %v", err)
+			}
+			_ = a.Close()
+		})
+	}
+}
+
+func TestZeroEntryIsRejected(t *testing.T) {
+	a := openSample(t)
+	_, err := a.Open(Entry{})
+	wantErr(t, err, ErrNotFound)
+	_, err = a.Resolve(Entry{})
+	wantErr(t, err, ErrNotFound)
+	_, err = a.Resolve(Entry{IsRedirect: true, RedirectTo: 1})
+	wantErr(t, err, ErrNotFound)
+	if got := a.loads.Load(); got != 0 {
+		t.Fatalf("a zero Entry loaded %d clusters, want 0", got)
+	}
+	// A copy of a real entry is still fine.
+	copied := mustEntry(t, a, 'C', "Berlin")
+	if got := readEntry(t, a, copied); !strings.Contains(got, "Berlin") {
+		t.Fatalf("copied entry content = %q", got)
 	}
 }

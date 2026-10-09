@@ -11,12 +11,17 @@ const maxMetadataBytes = 1 << 20
 // Open returns the content of a non-redirect entry. Blobs in uncompressed
 // clusters (images, X/ indexes) are sections directly on the file; blobs in
 // compressed clusters are sections over the cached decompressed cluster.
+// Reading from either kind of section after Close fails with ErrClosed. The
+// zero Entry (one that no Archive returned) is rejected with ErrNotFound.
 func (a *Archive) Open(e Entry) (*io.SectionReader, error) {
 	switch e.kind {
+	case kindContent:
 	case kindRedirect:
 		return nil, fmt.Errorf("%w: %c/%s", ErrIsRedirect, e.Namespace, e.Path)
 	case kindDeprecated:
 		return nil, fmt.Errorf("%w: %c/%s has no content", ErrNotFound, e.Namespace, e.Path)
+	default:
+		return nil, fmt.Errorf("%w: entry %c/%s was not returned by an archive", ErrNotFound, e.Namespace, e.Path)
 	}
 	r, err := a.openBlob(e.cluster, e.blob)
 	if err != nil {
@@ -45,7 +50,7 @@ func (a *Archive) openBlob(cluster, blob uint32) (*io.SectionReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b))), nil
+	return io.NewSectionReader(a.guard(bytes.NewReader(b)), 0, int64(len(b))), nil
 }
 
 func (a *Archive) clusterInfo(idx uint32) (clusterInfo, error) {

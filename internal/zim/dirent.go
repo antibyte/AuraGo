@@ -15,13 +15,17 @@ const (
 type direntKind uint8
 
 const (
-	kindContent direntKind = iota
+	// kindInvalid is the zero value: an Entry that did not come from an
+	// Archive (for example Entry{}) must never be mistaken for content.
+	kindInvalid direntKind = iota
+	kindContent
 	kindRedirect
 	kindDeprecated
 )
 
 // Entry is one directory entry. Values are only meaningful for the Archive
-// that returned them.
+// that returned them; Archive.Open and Archive.Resolve reject the zero Entry
+// with ErrNotFound.
 type Entry struct {
 	Index      uint32
 	Namespace  byte // 'C', 'M', 'W', 'X', or legacy 'A', 'I', '-'
