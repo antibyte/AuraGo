@@ -27,15 +27,6 @@ const (
 // randomIndex picks a title-list position; tests replace it.
 var randomIndex = rand.IntN
 
-// contentRef is this slice's stand-in for the overview's Ref ({Title, Path}),
-// which slice 4 declares in search_types.go. Library.Random and Library.Main
-// return it until the slices are merged; the merge then replaces contentRef
-// with Ref in content.go and content_test.go and deletes this declaration.
-type contentRef struct {
-	Title string `json:"title"`
-	Path  string `json:"path"`
-}
-
 // ContentItem is one blob of the open edition, ready for http.ServeContent.
 type ContentItem struct {
 	Reader   io.ReadSeeker
@@ -73,17 +64,17 @@ func (l *Library) Content(path string) (ContentItem, error) {
 }
 
 // Random returns a random article of the open edition.
-func (l *Library) Random() (contentRef, error) {
+func (l *Library) Random() (Ref, error) {
 	if l == nil || l.archive == nil {
-		return contentRef{}, fmt.Errorf("random article: %w", zim.ErrNotFound)
+		return Ref{}, fmt.Errorf("random article: %w", zim.ErrNotFound)
 	}
 	return archiveRandom(l.archive, randomIndex)
 }
 
 // Main returns the main page of the open edition.
-func (l *Library) Main() (contentRef, error) {
+func (l *Library) Main() (Ref, error) {
 	if l == nil || l.archive == nil {
-		return contentRef{}, fmt.Errorf("main page: %w", zim.ErrNotFound)
+		return Ref{}, fmt.Errorf("main page: %w", zim.ErrNotFound)
 	}
 	return archiveMain(l.archive)
 }
@@ -117,16 +108,16 @@ func archiveContent(a contentArchive, path string) (ContentItem, error) {
 	}, nil
 }
 
-func archiveRandom(a contentArchive, pick func(int) int) (contentRef, error) {
+func archiveRandom(a contentArchive, pick func(int) int) (Ref, error) {
 	n := a.ArticleCount()
 	if n <= 0 {
-		return contentRef{}, fmt.Errorf("random article: %w", zim.ErrNotFound)
+		return Ref{}, fmt.Errorf("random article: %w", zim.ErrNotFound)
 	}
 	ns := a.ContentNamespace()
 	for attempt := 0; attempt < randomAttempts; attempt++ {
 		entry, err := a.ArticleAt(pick(n))
 		if err != nil {
-			return contentRef{}, fmt.Errorf("random article: %w", err)
+			return Ref{}, fmt.Errorf("random article: %w", err)
 		}
 		resolved, err := a.Resolve(entry)
 		// A v0 title list may hold deprecated entries (no redirect, no MIME type);
@@ -134,20 +125,20 @@ func archiveRandom(a contentArchive, pick func(int) int) (contentRef, error) {
 		if err != nil || resolved.Namespace != ns || resolved.IsRedirect || !isHTMLMime(resolved.MimeType) {
 			continue
 		}
-		return contentRef{Title: resolved.Title, Path: resolved.Path}, nil
+		return Ref{Title: resolved.Title, Path: resolved.Path}, nil
 	}
-	return contentRef{}, fmt.Errorf("random article: %w", zim.ErrNotFound)
+	return Ref{}, fmt.Errorf("random article: %w", zim.ErrNotFound)
 }
 
-func archiveMain(a contentArchive) (contentRef, error) {
+func archiveMain(a contentArchive) (Ref, error) {
 	entry, err := a.MainEntry()
 	if err != nil {
-		return contentRef{}, fmt.Errorf("main page: %w", err)
+		return Ref{}, fmt.Errorf("main page: %w", err)
 	}
 	if entry.Namespace != a.ContentNamespace() || entry.IsRedirect {
-		return contentRef{}, fmt.Errorf("main page: %w", zim.ErrNotFound)
+		return Ref{}, fmt.Errorf("main page: %w", zim.ErrNotFound)
 	}
-	return contentRef{Title: entry.Title, Path: entry.Path}, nil
+	return Ref{Title: entry.Title, Path: entry.Path}, nil
 }
 
 func validContentPath(path string) bool {

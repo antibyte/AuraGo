@@ -178,7 +178,7 @@ func TestArchiveRandomSkipsEntriesThatAreNotArticles(t *testing.T) {
 		calls++
 		return pick
 	})
-	if err != nil || ref != (contentRef{Title: "Berlin", Path: "Berlin"}) || calls != 2 {
+	if err != nil || ref != (Ref{Title: "Berlin", Path: "Berlin"}) || calls != 2 {
 		t.Fatalf("random = %+v, %v after %d picks", ref, err, calls)
 	}
 }
@@ -198,7 +198,7 @@ func TestArchiveRandomGivesUpWithoutArticles(t *testing.T) {
 
 func TestArchiveMain(t *testing.T) {
 	archive := newFakeContentArchive()
-	if ref, err := archiveMain(archive); err != nil || ref != (contentRef{Title: "Hauptseite", Path: "Hauptseite"}) {
+	if ref, err := archiveMain(archive); err != nil || ref != (Ref{Title: "Hauptseite", Path: "Hauptseite"}) {
 		t.Fatalf("main = %+v, %v", ref, err)
 	}
 	archive.mainIdx = 4
