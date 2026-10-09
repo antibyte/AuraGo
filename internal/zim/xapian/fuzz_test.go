@@ -3,6 +3,7 @@ package xapian
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"testing"
 )
@@ -43,7 +44,8 @@ func FuzzParseVersion(f *testing.F) {
 }
 
 // FuzzDatabase mutates real libzim-built indexes and drives every read path.
-// Any error is fine; panics, hangs and unbounded allocations are not.
+// Errors must belong to the package's classes (ErrCorrupt, ErrDocNotFound,
+// ErrUnsupportedFormat); panics, hangs and unbounded allocations are bugs.
 func FuzzDatabase(f *testing.F) {
 	for _, src := range [][2]string{{"de", "fulltext"}, {"de", "title"}, {"ja", "title"}} {
 		_, sr := openFixtureBlob(f, src[0], src[1])
@@ -54,31 +56,63 @@ func FuzzDatabase(f *testing.F) {
 		f.Add(blob)
 	}
 	f.Fuzz(func(t *testing.T, blob []byte) {
+		check := func(what string, err error) {
+			t.Helper()
+			if err != nil && !errors.Is(err, ErrCorrupt) && !errors.Is(err, ErrDocNotFound) && !errors.Is(err, ErrUnsupportedFormat) {
+				t.Fatalf("%s: unclassified error %v", what, err)
+			}
+		}
 		db, err := Open(bytes.NewReader(blob), int64(len(blob)))
 		if err != nil {
+			check("Open", err)
 			return
 		}
 		ctx := context.Background()
-		terms, _ := db.TermsWithPrefix("", 40)
+		terms, err := db.TermsWithPrefix("", 40)
+		check("TermsWithPrefix", err)
 		for _, term := range terms {
-			if it, err := db.Postings(term); err == nil {
+			it, err := db.Postings(term)
+			check("Postings", err)
+			if err == nil {
 				for i := 0; i < 2000 && it.Next(); i++ {
 					_ = it.DocID()
 				}
+				check("Postings.Next", it.Err())
 			}
 		}
 		for did := uint32(1); did <= 3; did++ {
-			_, _ = db.DocLength(did)
-			_, _ = db.Data(did)
-			_, _ = db.Value(did, 0)
-			_, _ = db.Value(did, 1)
+			_, err := db.DocLength(did)
+			check("DocLength", err)
+			_, err = db.Data(did)
+			check("Data", err)
+			_, err = db.Value(did, 0)
+			check("Value 0", err)
+			_, err = db.Value(did, 1)
+			check("Value 1", err)
 		}
-		_, _ = db.Metadata("language")
-		_, _, _ = Search(ctx, db, terms, OpOr, 0, 5)
+		_, err = db.Metadata("language")
+		check("Metadata", err)
+		_, _, err = Search(ctx, db, terms, OpOr, 0, 5)
+		check("Search OR", err)
 		if len(terms) > 1 {
-			_, _, _ = Search(ctx, db, terms[:2], OpAnd, 0, 5)
+			_, _, err = Search(ctx, db, terms[:2], OpAnd, 0, 5)
+			check("Search AND", err)
 		}
-		_, _ = Suggest(ctx, db, NewAnalyzer("deu"), "b", 5)
-		_, _ = Suggest(ctx, db, NewAnalyzer("jpn"), "東京", 5)
+		de, ja := NewAnalyzer("deu"), NewAnalyzer("jpn")
+		for _, q := range []struct {
+			a     Analyzer
+			query string
+		}{
+			{de, "b"},            // partial word
+			{de, "berlin"},       // single word: phrase and anchor checks
+			{de, "berlin mitte"}, // phrase and anchored phrase
+			{de, "spree-ufer b"}, // AND-part phrase plus partial word
+			{de, "!"},            // no word characters: wildcard only
+			{de, "-"},            // no word characters: wildcard only
+			{ja, "東京"},           // CJK n-grams
+		} {
+			_, err := Suggest(ctx, db, q.a, q.query, 5)
+			check("Suggest "+q.query, err)
+		}
 	})
 }

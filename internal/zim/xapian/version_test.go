@@ -59,6 +59,10 @@ func TestParseVersion(t *testing.T) {
 	if !v.roots[tableTermlist].rootIsFake {
 		t.Fatal("termlist should be fake (libzim uses DB_NO_TERMLIST)")
 	}
+	// The total length is the one 64-bit statistic.
+	if v, err := parseVersion(versionBlock(glassMagic, glassFormatVersion, liveRoots, [8]uint64{4, 0, 12, 4, 12, 0, 1 << 40, 0})); err != nil || v.totalLength != 1<<40 {
+		t.Fatalf("total length 2^40: %d, %v", v.totalLength, err)
+	}
 }
 
 func TestParseVersionRejects(t *testing.T) {
@@ -92,6 +96,8 @@ func TestParseVersionRejects(t *testing.T) {
 		{"doclen lower bound beyond 32 bits", withStats([8]uint64{1, 0, 1 << 32, 1, 0, 0, 1, 0}), ErrCorrupt},
 		{"wdf upper bound beyond 32 bits", withStats([8]uint64{1, 0, 1, 1 << 32, 0, 0, 1, 0}), ErrCorrupt},
 		{"doclen upper bound overflows", withStats([8]uint64{1, 0, 1, 1, 0xffffffff, 0, 1, 0}), ErrCorrupt},
+		{"oldest changeset beyond 32 bits", withStats([8]uint64{1, 0, 1, 1, 0, 1 << 32, 1, 0}), ErrCorrupt},
+		{"spelling bound beyond 32 bits", withStats([8]uint64{1, 0, 1, 1, 0, 0, 1, 1 << 32}), ErrCorrupt},
 		{"truncated", versionBlock(glassMagic, glassFormatVersion, liveRoots, stats)[:34], ErrCorrupt},
 		{"block size", func() []byte { badBS[versionHeaderSize+1+3] = 3; return badBS }(), ErrUnsupportedFormat},
 	}

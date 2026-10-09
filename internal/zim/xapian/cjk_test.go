@@ -14,10 +14,13 @@ import (
 // following the plan's Format notes, set cjkFulltext to false in analyzer.go
 // (ja and zh then degrade to title search) and record the reason in doc.go.
 func TestCJKFulltextDecision(t *testing.T) {
-	for _, lang := range []string{"jpn", "zho", "ja", "zh"} {
-		if !NewAnalyzer(lang).FulltextSupported() {
-			t.Fatalf("%s full-text disabled; decision says enabled", lang)
+	for _, lang := range []string{"jpn", "zho", "kor", "ja", "zh", "ko"} {
+		if got := NewAnalyzer(lang).FulltextSupported(); got != cjkFulltext {
+			t.Fatalf("%s: FulltextSupported() = %v, cjkFulltext = %v", lang, got, cjkFulltext)
 		}
+	}
+	if !cjkFulltext {
+		t.Skip("CJK full-text disabled (cjkFulltext); the parity checks below justify enabling it")
 	}
 	a := NewAnalyzer("jpn")
 	if got := a.QueryTerms("東京タワー"); len(got) != 9 || got[0] != "東" || got[1] != "東京" {
