@@ -1113,6 +1113,7 @@ virtual_desktop:
     max_ws_clients: 8
     serial_browser_enabled: false                         # Quick Connect: devices attached to the browser computer
     serial_host_enabled: false                            # Quick Connect: administrator access to AuraGo host serial ports
+    retronet_enabled: false                               # Terminal Retro-Net: dial public Telnet BBSes, MUDs and SSH games through this server (operators see its public IP; Telnet is unencrypted; off in readonly)
     remote_max_session_minutes: 60                         # max SSH/VNC/serial session duration
     remote_idle_timeout_minutes: 5                          # close idle SSH/VNC/serial sessions after this many minutes
     code_studio:
