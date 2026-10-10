@@ -80,41 +80,50 @@ function styleBox() {
 // xterm 6 (WebGL) cell for C64 Pro Mono in Chrome, as measured in headless Chrome at DPR 1 to 3: the advance is
 // truncated to 1/65536 px and floored in device px, the font box is the rounded ascent (7/8 em) plus the rounded
 // descent (1/8 em) in CSS px, ceiled in device px; the line height multiplies it (floored), letter spacing adds
-// whole device px, and the canvas size is rounded back to CSS px. `slack` adds device px per row.
-function c64Box(term, slack) {
+// whole device px, and the canvas size is rounded back to CSS px. `slack` adds device px per row. The DOM renderer
+// (`dom`, after a lost WebGL context) does not floor the advance.
+function c64Box(term, slack, dom) {
     const o = term.options;
     const dpr = window.devicePixelRatio;
     const round = (x) => Math.floor(x + 0.5);
-    const w = Math.floor(Math.floor(o.fontSize * 65536) / 65536 * dpr) + Math.round(o.letterSpacing || 0);
+    const advance = Math.floor(o.fontSize * 65536) / 65536 * dpr;
+    const w = (dom ? advance : Math.floor(advance)) + Math.round(o.letterSpacing || 0);
     const h = Math.floor(Math.ceil((round(o.fontSize * 7 / 8) + round(o.fontSize / 8)) * dpr) * o.lineHeight) + slack;
     return { width: Math.round(term.cols * w / dpr), height: Math.round(term.rows * h / dpr) };
 }
 
 // xterm stand-in: the C64 font per c64Box; other fonts measure cols x cell width and rows x line height of the
-// current font size, with `slack` pixels per row, like a font whose measured cell is taller than its em.
+// current font size, with `slack` pixels per row, like a font whose measured cell is taller than its em. The
+// module reads offsetWidth/Height; getBoundingClientRect is scaled by `transform` (a window animation).
 function setup() {
     const attrs = new Map();
     const root = { setAttribute: (name, value) => attrs.set(name, String(value)), removeAttribute: (name) => attrs.delete(name) };
     const screen = { clientWidth: 1000, clientHeight: 600 };
-    const grid = { style: styleBox(), slack: 0 };
+    const grid = { style: styleBox(), slack: 0, dom: false, transform: 1 };
     const term = {
         cols: 100,
         rows: 30,
         resizes: [],
         sizes: [],
+        spacings: [],
         options: { fontFamily: 'ui-monospace', lineHeight: 1.2, scrollback: 1000, allowTransparency: false, theme: { background: '#123456' } },
         resize(cols, rows) { this.cols = cols; this.rows = rows; this.resizes.push(cols + 'x' + rows); },
         element: { style: styleBox(), querySelector: (selector) => (selector === '.xterm-screen' ? grid : null) }
     };
-    // Every font size written, in order (xterm measures the cell again on each change).
+    // Every font size and letter spacing written, in order (xterm measures or rebuilds on each change).
     let fontSize = 13;
+    let letterSpacing = 0;
     Object.defineProperty(term.options, 'fontSize', { enumerable: true, get: () => fontSize, set: (value) => { fontSize = value; term.sizes.push(value); } });
-    grid.getBoundingClientRect = () => {
+    Object.defineProperty(term.options, 'letterSpacing', { enumerable: true, get: () => letterSpacing, set: (value) => { letterSpacing = value; term.spacings.push(value); } });
+    const box = () => {
         const family = term.options.fontFamily;
-        if (family.startsWith('"Aura C64"')) return c64Box(term, grid.slack);
+        if (family.startsWith('"Aura C64"')) return c64Box(term, grid.slack, grid.dom);
         const em = family.startsWith('"Aura VGA"') ? 0.5 : 0.6;
         return { width: term.cols * em * term.options.fontSize, height: term.rows * (term.options.fontSize * term.options.lineHeight + grid.slack) };
     };
+    Object.defineProperty(grid, 'offsetWidth', { get: () => Math.round(box().width) });
+    Object.defineProperty(grid, 'offsetHeight', { get: () => Math.round(box().height) });
+    grid.getBoundingClientRect = () => ({ width: box().width * grid.transform, height: box().height * grid.transform });
     const fitAddon = { calls: 0, fit() { this.calls += 1; } };
     const events = { fitted: 0 };
     const geometry = Geometry.create({
@@ -188,6 +197,11 @@ same('the module exposes only its contract', Object.keys(Geometry), ['MODES', 'c
     await settle();
     same('entering again refits; a cell xterm makes taller falls back to the 0.5 px loop', term.options.fontSize, 21);
     same('the fallback grid is centred again', padding(term.element.style), ['25px', '80px', '25px', '80px']);
+    grid.slack = -1;
+    geometry.set('c64');
+    await settle();
+    same('a cell one device px short in height is not nudged by line height (glyphs would drop a px): 0.5 px loop', [term.options.fontSize, term.options.lineHeight], [22, 1]);
+    grid.slack = 0;
     geometry.set('bbs');
     same('switching pinned modes clears the old letterbox first', [attrs.get('data-terminal-geometry'), term.cols, term.rows], ['bbs', 80, 25]);
     await settle();
@@ -223,9 +237,10 @@ const whole = (fit, dpr, cell) => Math.abs(fit.size * dpr - cell) < 1e-9 && cell
     fit = await c64Fit(1.25, 1000, 700);
     check('1000x700 at DPR 1.25: 19.2 px = 24 device px', whole(fit, 1.25, 24), JSON.stringify(fit));
     same('xterm floors the advance to 23 device px: one px of letter spacing restores 24', [fit.lineHeight, fit.letterSpacing], [1, 1]);
+    fit = await c64Fit(1.5, 750, 473);
+    check('750x473 at DPR 1.5: 16 px = 24 device px (k = 3)', fit.size === 16 && fit.letterSpacing === 0 && whole(fit, 1.5, 24), JSON.stringify(fit));
     fit = await c64Fit(1.5, 500, 300);
-    check('500x300 at DPR 1.5: 16 device px', whole(fit, 1.5, 16), JSON.stringify(fit));
-    same('a 15 px font box gets line height 16.5/15 and the advance one px of spacing', [fit.lineHeight, fit.letterSpacing], [16.5 / 15, 1]);
+    same('500x300 at DPR 1.5: k = 2 gets a 15 px font box (never nudged), k = 1 a 9 px one: the 0.5 px loop', [fit.size, fit.lineHeight, fit.letterSpacing], [11.5, 1, 0]);
     fit = await c64Fit(2, 750, 473);
     check('750x473 at DPR 2: 16 px = 32 device px (k = 4)', fit.size === 16 && whole(fit, 2, 32), JSON.stringify(fit));
     fit = await c64Fit(2, 900, 560);
@@ -254,6 +269,44 @@ const whole = (fit, dpr, cell) => Math.abs(fit.size * dpr - cell) < 1e-9 && cell
     same('the old query is released, the new ratio watched', [first.listeners.size, second.query, second.listeners.size], [0, '(resolution: 1.25dppx)', 1]);
     geometry.dispose();
     same('dispose stops watching', second.listeners.size, 0);
+    window.devicePixelRatio = 1;
+}
+
+// 4d. The letter spacing at DPR 1.25: a refit at the same k never passes through other cells, the measure ignores
+// CSS transforms, the DOM renderer (lost WebGL context) gets its spacing back to 0, and no other grid inherits it.
+{
+    window.devicePixelRatio = 1.25;
+    const { geometry, term, grid } = setup();
+    geometry.set('c64');
+    await settle();
+    same('960x560 at DPR 1.25: 19.2 px with one px of spacing', [term.options.fontSize, term.options.letterSpacing], [19.2, 1]);
+    term.sizes.length = 0;
+    term.spacings.length = 0;
+    grid.transform = 0.5;
+    geometry.refit();
+    await settle();
+    check('a refit at the same k (mid window animation) writes only the fitted size and spacing', term.sizes.every((n) => n === 19.2) && term.spacings.every((n) => n === 1),
+        JSON.stringify([term.sizes, term.spacings]));
+    grid.transform = 1;
+    grid.dom = true;
+    geometry.refit();
+    await settle();
+    const dom = c64Box(term, 0, true);
+    same('the DOM renderer does not floor the advance: spacing 0, cells still 24 device px', [term.options.fontSize, term.options.letterSpacing, Math.round(dom.width * 1.25 / 40)], [19.2, 0, 24]);
+    grid.dom = false;
+    geometry.refit();
+    await settle();
+    same('back on WebGL the spacing returns', term.options.letterSpacing, 1);
+    geometry.set('bbs');
+    same('switching to bbs drops the C64 spacing at once', term.options.letterSpacing, 0);
+    await settle();
+    geometry.set('c64');
+    await settle();
+    geometry.set('fit');
+    geometry.set('bbs');
+    same('leaving C64 for fit and then entering bbs starts without spacing', term.options.letterSpacing, 0);
+    await settle();
+    geometry.dispose();
     window.devicePixelRatio = 1;
 }
 

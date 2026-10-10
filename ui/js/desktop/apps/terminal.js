@@ -252,6 +252,8 @@
                         if (canvasAddon) canvasAddon.dispose();
                         canvasAddon = null;
                         root.setAttribute('data-terminal-fallback', 'css');
+                        // The DOM renderer measures cells differently: a pinned grid fits its font again.
+                        refitScreen();
                     });
                 } catch (e) {
                     canvasAddon = null;

@@ -44,22 +44,24 @@
         let frame = 0;
         let fitting = false;
         let again = false;
-        let fitted = { fontSize: 16, lineHeight: 1, letterSpacing: 0 };
+        let fitted = { fontSize: 16, letterSpacing: 0 };
         let disposed = false;
         let dprQuery = null;
 
-        // Font, scrollback and glyph atlas of the pinned grid; the fitted size, line height and letter spacing only
-        // outside a running fit, which owns them (line height 1 and no spacing meanwhile). Pixel fonts get xterm's
-        // alpha atlas: the opaque one antialiases for LCD, and each glyph's colour fringe overwrites the edge column
-        // of the cell before it, a dark seam in solid blocks. xterm applies it with the next font change.
+        // Font, line height 1, scrollback and glyph atlas of the pinned grid; the fitted size and letter spacing only
+        // outside a running fit, which owns them. Pixel fonts get xterm's alpha atlas: the opaque one antialiases
+        // for LCD, and each glyph's colour fringe overwrites the edge column of the cell before it, a dark seam in
+        // solid blocks. xterm rebuilds its atlas on any option change but redraws the rows only on font changes,
+        // which always follow here (the family, and the size change once the font has loaded).
         function pin(withSize) {
             const spec = MODES[current];
             term.options.allowTransparency = !!spec.pixels;
             term.options.fontFamily = spec.font;
-            term.options.lineHeight = withSize ? fitted.lineHeight : 1;
-            term.options.letterSpacing = withSize ? fitted.letterSpacing : 0;
+            term.options.lineHeight = 1;
             term.options.scrollback = 0;
-            if (withSize) term.options.fontSize = fitted.fontSize;
+            if (!withSize) return;
+            term.options.fontSize = fitted.fontSize;
+            term.options.letterSpacing = fitted.letterSpacing;
         }
 
         function cancelFrame() {
@@ -92,11 +94,13 @@
         }
 
         // A grid with `pixels` takes the largest k whose grid of (pixels * k) device px cells fits: font size
-        // pixels * k / dpr, so every font pixel is k device px. xterm floors the measured advance and ceils the
-        // rounded font box in device px; a cell one px short gets it back through letter spacing and line height,
-        // any other cell tries the next smaller k. Without such a k (a tiny glass, or a DPR at which xterm's cell
-        // cannot match) and for other grids: the largest size in 0.5 px steps that fits. Centred via padding,
-        // written only when it changes.
+        // pixels * k / dpr, so every font pixel is k device px. The WebGL renderer floors the measured advance in
+        // device px, often one px short: one px of letter spacing restores it (the DOM renderer, after a lost WebGL
+        // context, does not floor, so the spacing goes back to 0). The rounded font box is ceiled and never
+        // corrected: a line height above 1 moves every glyph a device px down, a seam per row; such a k is skipped.
+        // Without an exact k (a tiny glass; some DPRs) and for other grids: the largest size in 0.5 px steps that
+        // fits. Sizes come from offsetWidth/Height (CSS transforms of window animations do not count). Centred via
+        // padding, written only when it changes.
         async function fitFont() {
             const spec = MODES[current];
             if (!spec || !term.element) return;
@@ -111,34 +115,36 @@
             const dpr = window.devicePixelRatio || 1;
             const fits = function (box) { return box.width <= room.width + 0.5 && box.height <= room.height + 0.5; };
             const cellOf = function (box) { return [Math.round(box.width * dpr / spec.cols), Math.round(box.height * dpr / spec.rows)]; };
-            async function measure(size, lineHeight, letterSpacing) {
+            // Unchanged options (a refit at the same k) change nothing in xterm: no atlas rebuild, no frame of other cells.
+            async function measure(size, letterSpacing) {
                 term.options.fontSize = size;
-                term.options.lineHeight = lineHeight;
                 term.options.letterSpacing = letterSpacing;
                 await nextFrame();
-                return screenEl.getBoundingClientRect();
+                return { width: screenEl.offsetWidth, height: screenEl.offsetHeight };
             }
             let rect = null;
             for (let k = spec.pixels ? Math.floor(ems * dpr / spec.pixels) : 0; k >= 1 && !rect; k -= 1) {
                 const cell = spec.pixels * k;
-                let box = await measure(cell / dpr, 1, 0);
+                const spacing = term.options.letterSpacing || 0;
+                let box = await measure(cell / dpr, spacing);
                 if (disposed || mine !== revision) return;
-                const got = cellOf(box);
-                if (got.some(function (n) { return n !== cell && n !== cell - 1; })) continue;
-                if (got[0] !== cell || got[1] !== cell) {
-                    box = await measure(cell / dpr, got[1] < cell ? (cell + 0.5) / got[1] : 1, cell - got[0]);
+                let got = cellOf(box);
+                const nudged = spacing + cell - got[0];
+                if (got[1] === cell && got[0] !== cell && (nudged === 0 || nudged === 1)) {
+                    box = await measure(cell / dpr, nudged);
                     if (disposed || mine !== revision) return;
+                    got = cellOf(box);
                 }
-                if (cellOf(box).every(function (n) { return n === cell; }) && fits(box)) rect = box;
+                if (got[0] === cell && got[1] === cell && fits(box)) rect = box;
             }
             let size = Math.max(MIN_FONT_SIZE, Math.floor(ems * 2) / 2);
             for (let attempt = 0; attempt < FIT_ATTEMPTS && !rect; attempt += 1) {
-                const box = await measure(size, 1, 0);
+                const box = await measure(size, 0);
                 if (disposed || mine !== revision) return;
                 if (fits(box) || size <= MIN_FONT_SIZE || attempt === FIT_ATTEMPTS - 1) rect = box;
                 size -= 0.5;
             }
-            const now = { fontSize: term.options.fontSize, lineHeight: term.options.lineHeight, letterSpacing: term.options.letterSpacing };
+            const now = { fontSize: term.options.fontSize, letterSpacing: term.options.letterSpacing };
             const resized = Object.keys(now).some(function (key) { return now[key] !== fitted[key]; });
             fitted = now;
             const extraX = Math.max(0, (room.width - rect.width) / 2);
@@ -193,6 +199,8 @@
         function enter(mode) {
             const spec = MODES[mode];
             if (current !== 'fit') clearLetterbox();
+            // Another grid's letter spacing never carries over (the VGA grid has none).
+            if (mode !== current) fitted.letterSpacing = 0;
             current = mode;
             revision += 1;
             const mine = revision;
@@ -208,7 +216,7 @@
                 // xterm measured the cell and built its atlas when the family was set, maybe before the font had
                 // loaded, and does neither again for an unchanged size: a size change makes it do both now.
                 term.options.fontSize = fitted.fontSize + 1;
-                pin(true);
+                pin(!fitting);
                 runFit();
             });
         }
@@ -219,6 +227,7 @@
             cancelFrame();
             root.removeAttribute('data-terminal-geometry');
             clearLetterbox();
+            fitted.letterSpacing = 0;
             term.options.scrollback = FIT_SCROLLBACK;
             term.options.letterSpacing = 0;
             term.options.allowTransparency = false;

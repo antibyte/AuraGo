@@ -16,9 +16,9 @@ import (
 //go:embed testdata/terminal-retronet-c64-fixture.js
 var terminalRetroNetC64Fixture string
 
-// A C64 call in the real Terminal (Contract C): 40x25 with the C64 font scaled by whole pixels (also at DPR 1.25),
-// the temporary commodore64 look, the key hint and its hold, colour keys, the bell and the restore on every way
-// out; fake sockets and a fake API.
+// A C64 call in the real Terminal (Contract C): 40x25 with the C64 font scaled by whole pixels without seams (also
+// at DPR 1.25 and 1.5), the temporary commodore64 look, the key hint and its hold, colour keys, the bell and the
+// restore on every way out; fake sockets and a fake API.
 func TestDesktopTerminalRetroNetC64Browser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	srv := newTerminalDesktopServer(t, terminalRetroNetFixture+"\n"+terminalRetroNetC64Fixture, nil)
@@ -28,39 +28,91 @@ func TestDesktopTerminalRetroNetC64Browser(t *testing.T) {
 			runTerminalRetroNetC64Browser(t, browser, srv.URL, motion)
 		})
 	}
-	// A fractional DPR, where xterm's measured C64 cell comes out one device px short and needs correcting.
-	t.Run("dpr-1.25", func(t *testing.T) {
-		page := newTerminalBrowser(t, "1.25").MustPage().Timeout(120 * time.Second)
-		defer page.Close()
-		page.MustSetViewport(1280, 850, 1.25, false)
-		page.MustNavigate(srv.URL + "/fixture?motion=reduce").MustWaitLoad()
-		page.MustEval(`async()=>{await fixtureReady;}`)
-		c := terminalChecks{t: t, page: page}
-		c.wait("directory rendered", `async()=>(await fixtureText()).includes(t('desktop.terminal_retronet_title'))`)
-		c.run(`async()=>{fixtureTerm().focus();await fixtureInput('3');await fixtureInput('6');await fixtureInput('\r');}`)
-		c.wait("the C64 board dials", `()=>fixtureRoot().dataset.terminalGeometry==='c64'&&fixtureSocket().readyState===1`)
-		c.wait("the C64 grid takes whole pixels at DPR 1.25", terminalC64WholePixels)
-		c.check("no browser errors", `()=>fixtureErrors.length===0`)
-	})
+	// Fractional DPRs: at 1.25 xterm's advance comes out one device px short (letter spacing restores it), at 1.5
+	// the 960x720 window gets k = 3 (24 px cells) with no correction.
+	for _, dpr := range []string{"1.25", "1.5"} {
+		t.Run("dpr-"+dpr, func(t *testing.T) {
+			scale, _ := strconv.ParseFloat(dpr, 64)
+			page := newTerminalBrowser(t, dpr).MustPage().Timeout(120 * time.Second)
+			defer page.Close()
+			page.MustSetViewport(1280, 850, scale, false)
+			page.MustNavigate(srv.URL + "/fixture?motion=reduce").MustWaitLoad()
+			page.MustEval(`async()=>{await fixtureReady;}`)
+			c := terminalChecks{t: t, page: page}
+			c.wait("directory rendered", `async()=>(await fixtureText()).includes(t('desktop.terminal_retronet_title'))`)
+			c.run(`async()=>{fixtureTerm().focus();await fixtureInput('3');await fixtureInput('6');await fixtureInput('\r');}`)
+			c.wait("the C64 board dials", `()=>fixtureRoot().dataset.terminalGeometry==='c64'&&fixtureSocket().readyState===1`)
+			c.wait("the C64 grid takes whole pixels at DPR "+dpr, terminalC64WholePixels(24))
+			c.run(`()=>{fixtureExpectHold(true);fixtureControl({type:'connected',protocol:'telnet',kind:'c64',charset:'petscii'});}`)
+			c.wait("CONNECT holds the board output", `()=>fixtureRoot().dataset.terminalMode==='retro'&&fixtureHolds.length===1`)
+			c.run(`async()=>{await fixtureInput('A');await fixtureFlush();}`)
+			c.run(`()=>fixtureData(` + terminalC64SeamScreen + `)`)
+			c.check("half blocks show no seam at any cell edge at DPR "+dpr, terminalC64Seams)
+			c.check("no browser errors", `()=>fixtureErrors.length===0`)
+		})
+	}
 }
 
+// Two bands of PETSCII half blocks in white on red, drawn as the PETSCII engine draws them (CUP, truecolour SGR,
+// glyph): rows 1-3 the lower half block (U+EE62), rows 4-6 the left half block (U+EE61), all 40 columns.
+const terminalC64SeamScreen = `(()=>{const E='\x1b[',band=(row,glyph)=>E+row+';1H'+E+'38;2;255;255;255m'+E+'48;2;136;0;0m'+String.fromCharCode(glyph).repeat(40);
+	return band(1,0xee62)+band(2,0xee62)+band(3,0xee62)+band(4,0xee61)+band(5,0xee61)+band(6,0xee61)+E+'0m'+E+'25;1H';})()`
+
+// Reads terminalC64SeamScreen back from xterm's WebGL canvas (preserveDrawingBuffer; test-only access to the device
+// cell) in device px. The grid starts at the canvas top, or one row lower when the canvas is a px taller (WebGL
+// anchors at the bottom); found from the red top half of the first cell, which a moved glyph cannot change.
+// G is 255 on white and 0 on red; R below 120 is neither (a dark or colour-fringed pixel). Lower half band: each pixel
+// row of the cell is all red above the middle and all white below, and no column is dimmer (a seam column). Left
+// half band: all pixel rows of the cell alike (a glyph moved down shows as a different row); columns fully lit up
+// to the middle and red after it, the edge columns at the cell edges and the middle only antialiased (lit side at
+// least 75 %, unlit side at most 60 %: the browser's greyscale antialiasing softens vertical glyph edges). Problems
+// are added to fixtureErrors so a failure prints them.
+const terminalC64Seams = `async()=>{
+	await fixtureFlush();
+	await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,100))));
+	const term=fixtureTerm(),dev=term._core._renderService.dimensions.device.cell,w=dev.width,h=dev.height,W=40*w,problems=[];
+	const gl=[...term.element.querySelectorAll('.xterm-screen canvas')].find(c=>!c.classList.contains('xterm-link-layer'));
+	const copy=document.createElement('canvas');copy.width=gl.width;copy.height=gl.height;
+	const ctx=copy.getContext('2d');ctx.drawImage(gl,0,0);
+	const data=ctx.getImageData(0,0,gl.width,gl.height).data,at=(x,y)=>(y*gl.width+x)*4;
+	let y0=0;while(y0<gl.height&&!(data[at(2,y0)]>120&&data[at(2,y0)+1]<20))y0++;
+	if(y0!==0&&y0!==gl.height-25*h)problems.push('grid top at '+y0+' of '+gl.height);
+	const G=(x,y)=>data[at(x,y0+y)+1],range=(a,b)=>Array.from({length:b-a},(_,i)=>a+i),cols=range(0,W);
+	const mean=(xs,ys)=>{let s=0;for(const y of ys)for(const x of xs)s+=G(x,y);return s/(xs.length*ys.length);};
+	let dark=0;for(let y=0;y<6*h;y++)for(let x=0;x<W;x++)if(data[at(x,y0+y)]<120)dark++;
+	if(dark)problems.push(dark+' dark px');
+	const lower=range(0,3*h),upperRows=lower.filter(y=>y%h<h/2),lowerRows=lower.filter(y=>y%h>=h/2);
+	for(let r=0;r<h;r++){const g=mean(cols,lower.filter(y=>y%h===r));if(r<h/2?g>8:g<247)problems.push('lower half block row '+r+': '+g.toFixed(1));}
+	for(let x=1;x<W-1;x++){const top=mean([x],upperRows),bottom=mean([x],lowerRows);
+		if(top>8||bottom<235)problems.push('lower half block column '+x+': '+top.toFixed(1)+'/'+bottom.toFixed(1));}
+	const left=range(3*h,6*h),rows=range(0,h).map(r=>mean(cols,left.filter(y=>y%h===r)));
+	if(Math.max(...rows)-Math.min(...rows)>6)problems.push('left half block rows '+rows.map(g=>g.toFixed(0)).join(','));
+	for(let c=0;c<w;c++){const g=mean(cols.filter(x=>x%w===c),left);
+		const ok=c===0||c===w/2-1?g>=191:c===w/2||c===w-1?g<=153:c<w/2?g>=247:g<=8;
+		if(!ok)problems.push('left half block column '+c+': '+g.toFixed(1));}
+	if(problems.length)fixtureErrors.push('C64 seams at DPR '+devicePixelRatio+', '+w+'x'+h+' cells: '+problems.slice(0,8).join('; '));
+	return problems.length===0;
+}`
+
 // After a C64 dial the grid is scaled by whole device pixels (Contract C): xterm's cell (test-only access to its
-// render dimensions) is 8k device px square, equals the font size times the DPR and, in CSS px times the DPR, a
-// multiple of 8; the next k would not fit the glass; the grid is centred in the C64 border colour on a black
-// screen and drawn from xterm's alpha glyph atlas (no LCD fringe over the neighbouring cell).
-const terminalC64WholePixels = `async()=>{
+// render dimensions) is `cell` device px square (the largest exact k for the fixture's 960x720 window: 16 at DPR 1,
+// 24 at 1.25 and at 1.5, where k = 4 gets a 33 px font box), equals the font size times the DPR and, in CSS px times
+// the DPR, a multiple of 8, with line height 1; the grid is centred in the C64 border colour on a black screen and
+// drawn from xterm's alpha glyph atlas (no LCD fringe over the neighbouring cell).
+func terminalC64WholePixels(cell int) string {
+	return `async()=>{
 	const loaded=(await document.fonts.load('16px "Aura C64"')).some(f=>f.status==='loaded');
 	await new Promise(r=>setTimeout(r,300));
 	const term=fixtureTerm(),dims=term._core._renderService.dimensions,dpr=devicePixelRatio,css=dims.css.cell,dev=dims.device.cell,
 		grid=term.element.querySelector('.xterm-screen'),scr=grid.getBoundingClientRect(),
-		glass=fixtureRoot().querySelector('.vd-terminal-screen'),g=glass.getBoundingClientRect(),next=dev.width+8;
-	return loaded&&dev.width===dev.height&&dev.width%8===0&&Math.abs(term.options.fontSize*dpr-dev.width)<1e-6&&
+		glass=fixtureRoot().querySelector('.vd-terminal-screen'),g=glass.getBoundingClientRect();
+	return loaded&&dev.width===` + strconv.Itoa(cell) + `&&dev.height===dev.width&&dev.width%8===0&&Math.abs(term.options.fontSize*dpr-dev.width)<1e-6&&
 		Math.abs(css.width*dpr-dev.width)<0.05&&Math.abs(css.height*dpr-dev.height)<0.05&&Math.round(css.width*dpr)%8===0&&
-		term.options.allowTransparency===true&&scr.width<=g.width+0.5&&scr.height<=g.height+0.5&&
-		(40*next/dpr>g.width||25*next/dpr>g.height)&&
+		term.options.lineHeight===1&&term.options.allowTransparency===true&&scr.width<=g.width+0.5&&scr.height<=g.height+0.5&&
 		Math.abs((scr.left-g.left)-(g.right-scr.right))<=2&&Math.abs((scr.top-g.top)-(g.bottom-scr.bottom))<=2&&
 		getComputedStyle(glass).backgroundColor==='rgb(112, 109, 235)'&&grid.style.background==='rgb(0, 0, 0)';
 }`
+}
 
 // The C64 colour keys (Contract C) in the order the test presses them and the PETSCII code each one sends.
 var terminalC64ColourKeys = []struct {
@@ -158,7 +210,7 @@ func runTerminalRetroNetC64Browser(t *testing.T, browser *rod.Browser, base, mot
 			term.options.theme.background==='#000000'&&term.options.cursorStyle==='block'&&term.options.cursorBlink===true&&
 			fixtureCrtBackgrounds.at(-1)==='#706DEB';}`)
 	// The fit settles over two or three frames after the font has loaded.
-	c.wait("the C64 grid takes whole pixels, centred in the C64 border colour, on a black screen", terminalC64WholePixels)
+	c.wait("the C64 grid takes whole pixels, centred in the C64 border colour, on a black screen", terminalC64WholePixels(16))
 
 	// 3. A colour key while dialling stays local. Board output buffered before CONNECT waits while CONNECT, the Telnet
 	// notice and the key hint (packed into 40 columns) stay readable; a key ends that hold at once and still goes out.
@@ -187,6 +239,9 @@ func runTerminalRetroNetC64Browser(t *testing.T, browser *rod.Browser, base, mot
 	c.wait("board glyphs land where the PETSCII engine put them once the block ends", `async()=>{await fixtureFlush();const lines=fixtureLines();
 		return fixtureTerm().modes.synchronizedOutputMode===false&&lines[0]===String.fromCharCode(0xef08,0xef05,0xef0c,0xef0c,0xef0f)&&
 			lines[2]==='    '+String.fromCharCode(0xee01)&&lines[1]===''&&lines.slice(3,24).every(l=>l==='')&&lines[24]==='BOARD ONE';}`)
+	// Block graphics as the board draws them, read back from the canvas: no seam at any cell edge.
+	c.run(`()=>fixtureData(` + terminalC64SeamScreen + `)`)
+	c.check("half blocks show no seam at any cell edge", terminalC64Seams)
 
 	// 5. Keys: plain keys go out unchanged; all 18 colour keys only as the private sequence, nothing else.
 	c.run(`async()=>{window.fixtureSentMark=fixtureSent(fixtureSocket()).length;fixtureTerm().focus();await fixtureInput('A');await fixtureInput('\x7f');}`)

@@ -462,6 +462,9 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 		"term.options.allowTransparency = !!spec.pixels;",
 		"term.options.allowTransparency = false;",
 		"window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)')",
+		// Line height stays 1 (a nudge moves glyphs); sizes ignore the CSS transforms of window animations.
+		"term.options.lineHeight = 1;",
+		"return { width: screenEl.offsetWidth, height: screenEl.offsetHeight };",
 		"set: set,",
 		"mode: function () { return current; },",
 		"refit: refit,",
@@ -485,10 +488,14 @@ func TestDesktopTerminalGeometryContract(t *testing.T) {
 			t.Fatalf("terminal-geometry.js missing %q", want)
 		}
 	}
-	for _, forbidden := range []string{"new WebSocket", "innerHTML", "localStorage", "ctx.t(", "TerminalRetroNet"} {
+	for _, forbidden := range []string{"new WebSocket", "innerHTML", "localStorage", "ctx.t(", "TerminalRetroNet", "getBoundingClientRect", "lineHeight = withSize"} {
 		if strings.Contains(source, forbidden) {
-			t.Fatalf("terminal-geometry.js only sizes the grid; found %q", forbidden)
+			t.Fatalf("terminal-geometry.js only sizes the grid, by offset sizes and with line height 1; found %q", forbidden)
 		}
+	}
+	// A lost WebGL context switches xterm to the DOM renderer, whose cells differ: the pinned grid fits again.
+	if !regexp.MustCompile(`(?s)onContextLoss\(\(\) => \{.*?refitScreen\(\);\s*\}\);`).MatchString(readDesktopAssetText(t, "js/desktop/apps/terminal.js")) {
+		t.Fatal("terminal.js must refit the screen when the WebGL context is lost")
 	}
 }
 

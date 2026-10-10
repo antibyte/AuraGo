@@ -2852,13 +2852,22 @@ registration lives in `internal/desktop/types.go`.
   the grid with letterbox padding and keep no scrollback; `bbs` takes the
   largest size in 0.5 px steps that fits the glass. `c64` (`pixels: 8`) scales
   by whole device pixels: font size 8k/DPR for the largest k whose grid fits,
-  so a C64 pixel is k device px. xterm floors the measured advance and ceils
-  the rounded font box in device px; a cell one px short is corrected through
-  `letterSpacing`/`lineHeight`, any other mismatch tries k−1; with no exact k
-  (tiny glass; DPR 1.25 below 24 px cells) it falls back to the 0.5 px steps.
+  so a C64 pixel is k device px. The WebGL renderer floors the measured
+  advance in device px: a width one px short gets `letterSpacing` 1 (the DOM
+  renderer after a lost WebGL context does not floor; its refit drops it
+  again). The rounded font box (ceiled) is never corrected: `lineHeight`
+  stays 1, any height mismatch tries k−1. At DPR 2 odd k always fails (cells
+  of 42/26 px), so a 960×720 window gets a 640×400 C64 screen at DPR 1 and 2;
+  with no exact k (tiny glass; DPR 1.25 below 24 px, DPR 1.5 below 24 px
+  cells) it falls back to the 0.5 px steps. Sizes come from
+  `offsetWidth`/`offsetHeight` (window animations transform the box); a refit
+  at the same k keeps the spacing, so it changes no xterm option.
   `c64` uses xterm's alpha glyph atlas (`allowTransparency`; the opaque atlas
   antialiases for LCD and a glyph's fringe overwrites the previous cell's edge
   column) and refits on a DPR change (`matchMedia('(resolution: …dppx)')`).
+  Known limitation: the browser's greyscale antialiasing (seen in Chrome on
+  Windows, also on a plain canvas) softens vertical glyph edges with a faint
+  one-px halo on each side; block art stays seamless.
   `fit` uses the fit addon. `world`/SSH entries fit the window and
   send `resize`. Retro sessions set `convertEol=false`, the shell restores `true`.
   C64 calls put on the `commodore64` style with `persist=false`
@@ -2958,7 +2967,8 @@ registration lives in `internal/desktop/types.go`.
   Browser verification is
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopTerminalRetro(Net(C64)?)?Browser' -count=1 -v`
   (styles/CRT, Retro-Net and the C64 call, each in both motion modes, the C64
-  grid also at DPR 1.25; all use
+  grid also at DPR 1.25 and 1.5, each with a pixel readback of half-block art
+  from xterm's WebGL canvas that fails on seams; all use
   `ui/desktop_terminal_harness_test.go`, the Retro-Net fixture is
   `ui/testdata/terminal-retronet-fixture.js` plus
   `ui/testdata/terminal-retronet-c64-fixture.js`, which keeps the C64 hint
