@@ -220,3 +220,97 @@ func TestRetroNetWSClientFailsWritesAfterClose(t *testing.T) {
 		t.Fatal("closeSocket did not close Events")
 	}
 }
+
+// shortenRetroNetKeepalive sets the WebSocket keepalive intervals for one test;
+// adapters read them when they are created.
+func shortenRetroNetKeepalive(t *testing.T, ping, read time.Duration) {
+	t.Helper()
+	previousPing, previousRead := retroNetPingInterval, retroNetReadTimeout
+	retroNetPingInterval, retroNetReadTimeout = ping, read
+	t.Cleanup(func() { retroNetPingInterval, retroNetReadTimeout = previousPing, previousRead })
+}
+
+// drainRetroNetBrowser reads (and so answers pings with pongs) until the socket closes.
+func drainRetroNetBrowser(browser *websocket.Conn) {
+	go func() {
+		for {
+			if _, _, err := browser.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+}
+
+func TestRetroNetWSClientPingsTheBrowser(t *testing.T) {
+	shortenRetroNetKeepalive(t, 40*time.Millisecond, 5*time.Second)
+	browser, _ := startRetroNetWSPair(t)
+	pings := make(chan struct{}, 8)
+	browser.SetPingHandler(func(data string) error {
+		select {
+		case pings <- struct{}{}:
+		default:
+		}
+		return browser.WriteControl(websocket.PongMessage, []byte(data), time.Now().Add(time.Second))
+	})
+	drainRetroNetBrowser(browser)
+	for i := 1; i <= 3; i++ {
+		select {
+		case <-pings:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("ping %d did not arrive", i)
+		}
+	}
+}
+
+// A browser that answers pings stays connected without sending anything.
+func TestRetroNetWSClientKeepsABrowserThatAnswersPings(t *testing.T) {
+	shortenRetroNetKeepalive(t, 30*time.Millisecond, 200*time.Millisecond)
+	browser, client := startRetroNetWSPair(t)
+	drainRetroNetBrowser(browser)
+	select {
+	case event, ok := <-client.Events():
+		t.Fatalf("Events delivered %+v (open %v) while the browser only answered pings", event, ok)
+	case <-client.browserGone():
+		t.Fatal("a browser that answers pings was dropped")
+	case <-time.After(800 * time.Millisecond):
+	}
+}
+
+// Every browser frame extends the read deadline, even without pings.
+func TestRetroNetWSClientFramesExtendTheReadDeadline(t *testing.T) {
+	shortenRetroNetKeepalive(t, time.Hour, 200*time.Millisecond)
+	browser, client := startRetroNetWSPair(t)
+	for until := time.Now().Add(800 * time.Millisecond); time.Now().Before(until); time.Sleep(50 * time.Millisecond) {
+		if err := browser.WriteMessage(websocket.BinaryMessage, []byte("k")); err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case _, ok := <-client.Events():
+			if !ok {
+				t.Fatal("Events closed although frames kept arriving")
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("a keystroke frame was not delivered")
+		}
+	}
+}
+
+// A half-open browser (no frames, no pongs) ends the reader within the read
+// timeout: Events closes and browserGone fires.
+func TestRetroNetWSClientDropsASilentBrowser(t *testing.T) {
+	shortenRetroNetKeepalive(t, 30*time.Millisecond, 200*time.Millisecond)
+	_, client := startRetroNetWSPair(t) // the browser never reads, so it never answers a ping
+	select {
+	case _, ok := <-client.Events():
+		if ok {
+			t.Fatal("an event arrived from a silent browser")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("a silent browser kept the socket open")
+	}
+	select {
+	case <-client.browserGone():
+	case <-time.After(time.Second):
+		t.Fatal("browserGone did not fire after the reader ended")
+	}
+}

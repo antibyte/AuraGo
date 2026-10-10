@@ -229,7 +229,7 @@ func (s *Server) handleRetroNetConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	client := newRetroNetWSClient(conn)
 	defer client.closeSocket()
-	ctx, stop := s.retroNetSessionContext(r)
+	ctx, stop := s.retroNetSessionContext(r, client.browserGone())
 	defer stop()
 	ctx = withRetroNetDialedEntry(withRetroNetHostKeyPersistence(ctx, desktopRequestIsAdmin(s, r)), entry)
 	manager, _ := s.retroNet()
@@ -242,9 +242,11 @@ func (s *Server) handleRetroNetConnect(w http.ResponseWriter, r *http.Request) {
 
 // retroNetSessionContext detaches the session from request cancellation so the
 // end reason is known through context.Cause: policy or authorization loss ends
-// it with retronet.ErrDisabled, server shutdown with retronet.ErrShutdown. Like
-// withDesktopSerialGuard it rechecks every second, even while no bytes flow.
-func (s *Server) retroNetSessionContext(r *http.Request) (context.Context, func()) {
+// it with retronet.ErrDisabled, server shutdown with retronet.ErrShutdown, and
+// the browser leaving (gone closes) with retronet.ErrClientGone, also while the
+// session still dials or runs the SSH handshake, where nothing reads Events.
+// Like withDesktopSerialGuard it rechecks every second, even while no bytes flow.
+func (s *Server) retroNetSessionContext(r *http.Request, gone <-chan struct{}) (context.Context, func()) {
 	ctx, cancel := context.WithCancelCause(context.WithoutCancel(r.Context()))
 	var shutdown <-chan struct{}
 	if s.integrationCtx != nil {
@@ -260,6 +262,10 @@ func (s *Server) retroNetSessionContext(r *http.Request) (context.Context, func(
 				return
 			case <-shutdown:
 				cancel(retronet.ErrShutdown)
+				return
+			case <-gone:
+				// A drain or shutdown closes the socket too: the live end cause wins.
+				cancel(s.retroNetEndCause(r, retronet.ErrClientGone))
 				return
 			case <-requestDone:
 				// HTTP drain or a revoked Desktop run grant. Readonly and disable

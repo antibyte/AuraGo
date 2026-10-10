@@ -290,6 +290,65 @@ func TestDesktopRetroNetSessionEndsWhenTheBrowserLeaves(t *testing.T) {
 	}
 }
 
+// Nothing reads Events while the session dials: the adapter's reader ending
+// must still cancel the session at once (retronet.ErrClientGone).
+func TestDesktopRetroNetSessionEndsWhenTheBrowserLeavesDuringTheDial(t *testing.T) {
+	entered := make(chan struct{}, 1)
+	env := newRetroNetTestEnv(t, func(s *Server) {
+		dialer := s.retroNetManager.Dialer
+		dialer.Timeout = 10 * time.Second
+		dialer.Dial = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			select {
+			case entered <- struct{}{}:
+			default:
+			}
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		s.retroNetManager.Dialer = dialer
+	})
+	env.saveEntries(t, env.ownTelnetEntry())
+	socket := dialRetroNet(t, env.httpServer.URL, env.writeToken, "entry="+retroNetTestEntryID)
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the session never started dialing")
+	}
+	if active := env.s.retroNetManager.Active(); active != 1 {
+		t.Fatalf("active sessions while dialing = %d, want 1", active)
+	}
+	started := time.Now()
+	_ = socket.conn.Close()
+	session, _ := waitRetroNetAudit(t, env, "desktop_retronet_session", retroNetTestEntryID)
+	if elapsed := time.Since(started); elapsed > 1500*time.Millisecond {
+		t.Fatalf("the session ended %v after the browser left, want about at once", elapsed)
+	}
+	if session["code"] != retronet.CodeNoCarrier || session["reason"] != retronet.ReasonRemoteClosed {
+		t.Fatalf("session audit after the browser left during the dial = %v", session)
+	}
+	if active := env.s.retroNetManager.Active(); active != 0 {
+		t.Fatalf("active sessions after the browser left = %d, want 0", active)
+	}
+}
+
+// A half-open browser answers no ping: the read deadline ends the reader and
+// with it the session.
+func TestDesktopRetroNetSessionEndsWhenTheBrowserGoesSilent(t *testing.T) {
+	shortenRetroNetKeepalive(t, 50*time.Millisecond, 300*time.Millisecond)
+	env := newRetroNetTestEnv(t)
+	env.saveEntries(t, env.ownTelnetEntry())
+	socket := dialRetroNet(t, env.httpServer.URL, env.writeToken, "entry="+retroNetTestEntryID)
+	socket.until(5*time.Second, socket.has("connected"))
+	// From here on the browser reads nothing: it answers no ping and sends no frame.
+	session, _ := waitRetroNetAudit(t, env, "desktop_retronet_session", retroNetTestEntryID)
+	if session["code"] != retronet.CodeNoCarrier || session["reason"] != retronet.ReasonRemoteClosed {
+		t.Fatalf("session audit after the browser went silent = %v", session)
+	}
+	if active := env.s.retroNetManager.Active(); active != 0 {
+		t.Fatalf("active sessions after the browser went silent = %d, want 0", active)
+	}
+}
+
 func TestDesktopRetroNetSessionEndsWhenRevoked(t *testing.T) {
 	for _, tc := range []struct{ name, reason string }{
 		{"grant off", retronet.ReasonDisabled},

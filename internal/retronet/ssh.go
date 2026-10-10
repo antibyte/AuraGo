@@ -124,6 +124,11 @@ func OpenSSH(ctx context.Context, conn net.Conn, e Entry, cols, rows int, decide
 		return fail(fmt.Errorf("retronet: ssh handshake: %w", err))
 	}
 	client := ssh.NewClient(clientConn, channels, requests)
+	if ctx.Err() != nil {
+		// Cancelled (for example the browser left) during the handshake: request no PTY or shell.
+		_ = client.Close()
+		return fail(context.Cause(ctx))
+	}
 	session, err := openSSHShell(client, cols, rows)
 	if err != nil {
 		_ = client.Close()

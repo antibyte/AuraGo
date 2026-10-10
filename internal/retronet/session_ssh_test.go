@@ -208,6 +208,34 @@ func TestManagerSSHStalledPinnedHandshakeTimesOut(t *testing.T) {
 	}
 }
 
+// A browser that leaves during the SSH handshake ends the session at once with NO CARRIER,
+// long before the handshake deadline; the half-open handshake is abandoned, so no PTY or
+// shell is requested for a browser that is gone.
+func TestManagerSSHClientGoneDuringHandshakeEndsPromptly(t *testing.T) {
+	stalled := startTelnetFixture(t, telnetFixtureScript{}) // accepts, reads, never sends an SSH banner
+	entry := Entry{
+		ID: "sshstalled", Name: "SSH Stalled", Category: CategoryGames, Protocol: ProtocolSSH,
+		Host: "127.0.0.1", Port: stalled.listener.Addr().(*net.TCPAddr).Port, User: "guest",
+		HostKey: "SHA256:" + strings.Repeat("A", 43),
+	}
+	m := &Manager{Dialer: Dialer{AllowRestricted: true}}
+	c := newSessionTestClient()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(nil)
+	done := sessStart(ctx, m, entry, Size{Cols: 80, Rows: 25}, c)
+	stalled.waitReceived(t, []byte("SSH-2.0-"))
+	started := time.Now()
+	cancel(ErrClientGone)
+	res := sessAwait(t, done)
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("session ended %v after the browser left, want promptly (handshake timeout is %v)", elapsed, sshHandshakeTimeout)
+	}
+	sessExpectResult(t, c, res, CodeNoCarrier, ReasonRemoteClosed)
+	if res.Target != stalled.target() || len(c.controlsOfType(controlConnected)) != 0 || m.Active() != 0 {
+		t.Fatalf("target %q, controls %s, active %d", res.Target, sessFormatControls(c.controlLog()), m.Active())
+	}
+}
+
 // sessDeadlineConn records every SetDeadline call of the connection.
 type sessDeadlineConn struct {
 	net.Conn

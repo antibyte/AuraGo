@@ -64,7 +64,10 @@ Operator docs: `documentation/retro-net.md`.
   Manager per server, shared by all users): 4 concurrent sessions (`limit`
   without dialing), 30 min without user input (only browser keystrokes reset
   it), 4 h maximum. Context causes `ErrDisabled`/`ErrShutdown` map to
-  `disabled`/`server_shutdown`. BBS sessions stay 80x25; other sizes clamp to
+  `disabled`/`server_shutdown`; `ErrClientGone` (the server's adapter noticed
+  the browser left, also during the dial or SSH handshake) maps to
+  `remote_closed`, and cancellation closes the connection at once, so no PTY
+  or shell is requested for a browser that is gone. BBS sessions stay 80x25; other sizes clamp to
   cols 20-400, rows 5-200. Every write to the service is bounded by 10 s:
   Telnet through the TCP write deadline, SSH writes and window changes through
   an abort timer that closes the connection.

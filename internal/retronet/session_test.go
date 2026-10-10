@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 )
 
 // sessResolver answers every lookup with ips, or fails with err.
@@ -134,6 +135,7 @@ func TestManagerRunMapsCancellationDuringDial(t *testing.T) {
 	}{
 		{"disabled", ErrDisabled, ReasonDisabled},
 		{"shutdown", ErrShutdown, ReasonServerShutdown},
+		{"client gone", ErrClientGone, ReasonRemoteClosed},
 		{"plain cancel", nil, ReasonRemoteClosed},
 	}
 	for _, tc := range cases {
@@ -149,6 +151,33 @@ func TestManagerRunMapsCancellationDuringDial(t *testing.T) {
 			res := sessAwait(t, done)
 			sessExpectResult(t, c, res, CodeNoCarrier, tc.reason)
 		})
+	}
+}
+
+// A browser that leaves while the TCP connect is still pending ends the session at once: the
+// server cancels with ErrClientGone, which is a hang-up (NO CARRIER), not a dial failure.
+func TestManagerRunEndsPromptlyWhenTheClientLeavesDuringTheDial(t *testing.T) {
+	entered := make(chan struct{}, 1)
+	blocking := func(ctx context.Context, _, _ string) (net.Conn, error) {
+		entered <- struct{}{}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	m := &Manager{Dialer: Dialer{AllowRestricted: true, Timeout: 30 * time.Second, Resolver: sessResolver{ips: []string{"203.0.113.9"}}, Dial: blocking}}
+	c := newSessionTestClient()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(nil)
+	done := sessStart(ctx, m, sessTelnetEntry("slow-connect.example"), Size{Cols: 80, Rows: 25}, c)
+	<-entered
+	started := time.Now()
+	cancel(ErrClientGone)
+	res := sessAwait(t, done)
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("session ended %v after the browser left, want promptly", elapsed)
+	}
+	sessExpectResult(t, c, res, CodeNoCarrier, ReasonRemoteClosed)
+	if len(c.controlsOfType(controlConnected)) != 0 || m.Active() != 0 {
+		t.Fatalf("controls %s, active %d", sessFormatControls(c.controlLog()), m.Active())
 	}
 }
 

@@ -29,6 +29,10 @@ var (
 	ErrDisabled = errors.New("retronet disabled")
 	// ErrShutdown is the context cause that ends a session because the server shuts down.
 	ErrShutdown = errors.New("server shutting down")
+	// ErrClientGone is the context cause that ends a session because the browser disconnected.
+	// The Client adapter cancels with it as soon as it notices, also while Run is still dialing
+	// or in the SSH handshake, where nothing reads Events; it maps to remote_closed.
+	ErrClientGone = errors.New("browser disconnected")
 
 	// errSessionTooLong is the context cause installed for Manager.MaxDuration.
 	errSessionTooLong = &DialError{Reason: ReasonMaxDuration, Err: errors.New("maximum session length reached")}
@@ -105,7 +109,9 @@ func (m *Manager) Active() int { return int(m.active.Load()) }
 // Run dials and pumps one session until it ends. It sends "connected", "echo" (telnet),
 // "hostkey_prompt" (when needed) and always exactly one final "result" control, then returns.
 // Context cancellation maps to ReasonDisabled when ctx carries ErrDisabled as cause
-// (context.Cause), to ReasonServerShutdown when the cause is ErrShutdown, else remote_closed.
+// (context.Cause), to ReasonServerShutdown when the cause is ErrShutdown, else remote_closed
+// (ErrClientGone included). Cancellation closes the connection at once, during the dial and
+// the SSH handshake too, so a session whose browser left requests no PTY or shell.
 //
 // A session over the MaxSessions limit ends with BUSY/limit without dialing. Every goroutine
 // Run starts has exited and the connection is closed when Run returns. Payload bytes are
@@ -219,13 +225,16 @@ func endReason(ctx context.Context, fallback string) string {
 }
 
 // cancelReason maps a context cause: ErrDisabled -> disabled, ErrShutdown -> server_shutdown,
-// a *DialError (for example the max-duration cause) -> its reason, anything else -> remote_closed.
+// ErrClientGone -> remote_closed, a *DialError (for example the max-duration cause) -> its
+// reason, anything else -> remote_closed.
 func cancelReason(cause error) string {
 	switch {
 	case errors.Is(cause, ErrDisabled):
 		return ReasonDisabled
 	case errors.Is(cause, ErrShutdown):
 		return ReasonServerShutdown
+	case errors.Is(cause, ErrClientGone):
+		return ReasonRemoteClosed
 	}
 	var dialErr *DialError
 	if errors.As(cause, &dialErr) {

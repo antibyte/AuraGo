@@ -23,6 +23,16 @@ const (
 	retroNetMinRows, retroNetMaxRows, retroNetDefaultRows = 5, 200, 25
 )
 
+// WebSocket keepalive. They are variables only so tests can shorten them; an
+// adapter reads them once when it is created.
+var (
+	// retroNetPingInterval is how often the server pings the browser.
+	retroNetPingInterval = 30 * time.Second
+	// retroNetReadTimeout ends the reader (the browser counts as gone) when
+	// neither a frame nor a pong arrived for this long.
+	retroNetReadTimeout = 75 * time.Second
+)
+
 // retroNetUpgrader uses the strict same-host Origin check (an empty Origin is
 // refused) rather than the lenient Desktop event-socket upgrader.
 var retroNetUpgrader = websocket.Upgrader{
@@ -33,32 +43,49 @@ var retroNetUpgrader = websocket.Upgrader{
 
 // retroNetWSClient adapts one browser WebSocket to retronet.Client: binary
 // frames are keystrokes, text frames are JSON controls. One reader goroutine
-// feeds Events and closes it when the browser disconnects or a read fails; a
-// hijacked connection keeps its request context until the handler returns, so
-// that close is how Manager.Run learns the browser is gone. Writes are
-// synchronous, serialized and bounded by a deadline, so a stalled browser
-// cannot block the pump forever and no payload is retained after a send.
+// feeds Events and closes it (and browserGone) when the browser disconnects, a
+// read fails or the read deadline passes; a hijacked connection keeps its
+// request context until the handler returns, so that close is how the session
+// learns the browser is gone. The server pings every retroNetPingInterval and
+// every frame or pong extends the read deadline by retroNetReadTimeout, so a
+// half-open browser is noticed too. Writes are synchronous, serialized and
+// bounded by a deadline, so a stalled browser cannot block the pump forever
+// and no payload is retained after a send.
 type retroNetWSClient struct {
-	conn      *websocket.Conn
-	events    chan retronet.ClientEvent
-	done      chan struct{}
-	closeOnce sync.Once
-	writeMu   sync.Mutex
+	conn         *websocket.Conn
+	events       chan retronet.ClientEvent
+	done         chan struct{} // closed by closeSocket
+	gone         chan struct{} // closed when the reader has ended
+	closeOnce    sync.Once
+	writeMu      sync.Mutex
+	pingInterval time.Duration
+	readTimeout  time.Duration
 }
 
 func newRetroNetWSClient(conn *websocket.Conn) *retroNetWSClient {
 	client := &retroNetWSClient{
-		conn:   conn,
-		events: make(chan retronet.ClientEvent, retroNetEventQueue),
-		done:   make(chan struct{}),
+		conn:         conn,
+		events:       make(chan retronet.ClientEvent, retroNetEventQueue),
+		done:         make(chan struct{}),
+		gone:         make(chan struct{}),
+		pingInterval: retroNetPingInterval,
+		readTimeout:  retroNetReadTimeout,
 	}
 	conn.SetReadLimit(retroNetReadLimit)
+	conn.SetPongHandler(func(string) error { return client.extendReadDeadline() })
 	go client.readLoop()
+	go client.keepalive()
 	return client
 }
 
 // Events is closed when the browser disconnects or the socket is closed.
 func (c *retroNetWSClient) Events() <-chan retronet.ClientEvent { return c.events }
+
+// browserGone is closed once the reader has ended: the browser left, went
+// silent past the read deadline, or the socket was closed. Unlike Events it
+// can be watched without consuming events, so the handler cancels the session
+// with retronet.ErrClientGone also while it dials.
+func (c *retroNetWSClient) browserGone() <-chan struct{} { return c.gone }
 
 // SendData writes UTF-8 terminal output as one binary frame.
 func (c *retroNetWSClient) SendData(p []byte) error { return c.write(websocket.BinaryMessage, p) }
@@ -82,8 +109,13 @@ func (c *retroNetWSClient) write(messageType int, payload []byte) error {
 }
 
 func (c *retroNetWSClient) readLoop() {
+	defer close(c.gone)
 	defer close(c.events)
 	for {
+		// Time spent handing the previous event to the session does not count.
+		if err := c.extendReadDeadline(); err != nil {
+			return
+		}
 		messageType, payload, err := c.conn.ReadMessage()
 		if err != nil {
 			return
@@ -110,6 +142,39 @@ func (c *retroNetWSClient) readLoop() {
 			return
 		}
 	}
+}
+
+// extendReadDeadline gives the browser another read timeout to send a frame or
+// answer a ping.
+func (c *retroNetWSClient) extendReadDeadline() error {
+	return c.conn.SetReadDeadline(time.Now().Add(c.readTimeout))
+}
+
+// keepalive pings the browser until the socket closes or the reader ends. A
+// ping that cannot be written ends nothing by itself: the missing pong lets
+// the read deadline pass, which ends the reader.
+func (c *retroNetWSClient) keepalive() {
+	ticker := time.NewTicker(c.pingInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-c.done:
+			return
+		case <-c.gone:
+			return
+		case <-ticker.C:
+			if err := c.ping(); err != nil {
+				return
+			}
+		}
+	}
+}
+
+// ping writes one ping frame under the write lock, bounded like data writes.
+func (c *retroNetWSClient) ping() error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	return c.conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(retroNetWriteTimeout))
 }
 
 // closeSocket sends a normal close frame (best effort) and closes the socket.

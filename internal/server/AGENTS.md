@@ -54,7 +54,12 @@ Server-owned HTTP and cross-component integration contracts.
   guarded `Dialer` (public addresses only). Revalidate policy and
   authorization every second; revocation ends the session with
   `NO CARRIER`/`disabled`, integration shutdown or HTTP drain with
-  `server_shutdown`.
+  `server_shutdown`. When the adapter's reader ends (`browserGone`) the
+  session context is cancelled with `retronet.ErrClientGone`
+  (`remote_closed`) at once, also while it still dials or runs the SSH
+  handshake. Keepalive: a ping every 30 s under the write lock, a 75 s read
+  deadline extended by every frame and pong (`retroNetPingInterval`,
+  `retroNetReadTimeout`), so a half-open browser ends the session too.
 - `directory` returns catalog then own entries, cached status, `stale` and
   `can_edit` (administrator and not readonly); `status` asks for a probe and
   waits at most 10 s. Both pass the full directory to the prober.
