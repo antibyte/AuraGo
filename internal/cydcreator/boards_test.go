@@ -155,6 +155,21 @@ func profileSection(m map[string]any, keys ...string) map[string]any {
 	return m
 }
 
+// capacitiveTouch turns the verified profile's resistive touch into a GT911 on
+// pins that no other role uses, so offset_rotation rules can be checked on a
+// capacitive controller.
+func capacitiveTouch(offsetRotation int) func(m map[string]any) {
+	return func(m map[string]any) {
+		touch := profileSection(m, "touch")
+		touch["driver"], touch["bus"] = "GT911", "i2c"
+		touch["pins"] = map[string]any{"sda": 33, "scl": 32}
+		touch["i2c_addr"] = 93
+		touch["needs_calibration"] = false
+		touch["offset_rotation"] = offsetRotation
+		delete(touch, "calibration")
+	}
+}
+
 func TestValidateBoardRejects(t *testing.T) {
 	cases := []struct {
 		name string
@@ -207,7 +222,9 @@ func TestValidateBoardRejects(t *testing.T) {
 		{"inverted calibration", func(m map[string]any) { profileSection(m, "touch", "calibration")["x_min"] = 4000 }, "touch.calibration must"},
 		{"i2c addr on spi touch", func(m map[string]any) { profileSection(m, "touch")["i2c_addr"] = 93 }, "i2c_addr is only allowed"},
 		{"display offset rotation", func(m map[string]any) { profileSection(m, "display")["offset_rotation"] = 8 }, "display.offset_rotation 8"},
+		{"display offset rotation negative", func(m map[string]any) { profileSection(m, "display")["offset_rotation"] = -1 }, "display.offset_rotation -1"},
 		{"xpt2046 offset rotation", func(m map[string]any) { profileSection(m, "touch")["offset_rotation"] = 2 }, "must be 0 for XPT2046"},
+		{"capacitive touch offset rotation", capacitiveTouch(8), "touch.offset_rotation 8"},
 		{"draw buffer zero", func(m map[string]any) { profileSection(m, "lvgl")["draw_buffer_lines"] = 0 }, "draw_buffer_lines 0"},
 		{"draw buffer too big", func(m map[string]any) { profileSection(m, "lvgl")["draw_buffer_lines"] = 80 }, "boards without PSRAM allow"},
 		{"double buffer too big", func(m map[string]any) {
@@ -254,6 +271,7 @@ func TestValidateBoardAccepts(t *testing.T) {
 				"arduino.memory_type": "qio_qspi", "flash_mode": "qio", "f_flash": "80000000L", "f_cpu": "240000000L"}
 		}},
 		{"ldr on another ADC1 pin", func(m map[string]any) { profileSection(m, "extras")["ldr"] = 35 }},
+		{"capacitive touch with offset rotation", capacitiveTouch(2)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

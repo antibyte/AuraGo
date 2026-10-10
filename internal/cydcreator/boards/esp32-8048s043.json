@@ -38,7 +38,7 @@
   "touch": {
     "driver": "GT911",
     "bus": "i2c",
-    "pins": { "sda": 19, "scl": 20, "int": -1, "rst": 38 },
+    "pins": { "sda": 19, "scl": 20, "int": 18, "rst": 38 },
     "i2c_addr": 93,
     "needs_calibration": false
   },

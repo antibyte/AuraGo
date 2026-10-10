@@ -57,7 +57,7 @@ type BoardDisplay struct {
 	Height            int            `json:"height"`
 	NativeOrientation string         `json:"native_orientation"` // landscape | portrait
 	Invert            bool           `json:"invert"`
-	BGR               bool           `json:"bgr"`
+	BGR               bool           `json:"bgr"`  // LovyanGFX rgb_order: true = BGR panel colour order
 	Pins              map[string]int `json:"pins"` // bus specific keys; "bl" backlight; -1 = not connected
 	Hz                int            `json:"hz"`
 	BacklightPWM      bool           `json:"bl_pwm"`
