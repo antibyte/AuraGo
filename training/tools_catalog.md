@@ -2,8 +2,8 @@
 
 Generated deterministically from `BuildNativeToolSchemaSnapshot(...).StrictSchemas()` with all feature flags enabled.
 
-- Tools: **217**
-- Enumerated operations: **1165**
+- Tools: **218**
+- Enumerated operations: **1215**
 - Native format: assistant `tool_calls` followed by adjacent `role=tool` messages with matching `tool_call_id`.
 - Hidden format: `discover_tools`, then the returned binding `call_method` such as `invoke_tool`.
 
@@ -1795,6 +1795,22 @@ Manage files in Koofr cloud storage: list directory contents, read text files, d
 | `local_path` | `string` | Existing local file path to upload (for 'upload' operation), e.g. a generated image path. Must resolve inside the AuraGo project/workspace and must not be empty. |
 | `operation` | `string` | File operation to perform |
 | `path` | `string` | File or directory path in Koofr. For upload/write, use the target directory (e.g. '/aurgo/pictures'); if a filename is included by mistake AuraGo will split it into directory and destination filename. |
+
+## `layerling`
+
+Control an open Layerling 3D CAD editor in the authenticated Desktop session. List editors, then use an explicit editor_id. Describe an operation before using its JSON arguments. No headless CAD.
+
+- Tier: `extended`
+- Required: `_todo`, `arguments`, `editor_id`, `operation`
+- Operations: 50
+- Manual: `prompts/tools_manuals/layerling.md`
+
+| Parameter | Type | Description |
+|---|---|---|
+| `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
+| `arguments` | `string` | JSON object matching the operation schema. describe: {"operation":"create_shape"}; list_editors: {} |
+| `editor_id` | `string` | Exact editor_id from list_editors or this window context; never guess the active editor |
+| `operation` | `string` | CAD or Desktop file operation; describe returns its pinned parameter schema |
 
 ## `ldap`
 

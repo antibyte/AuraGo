@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "catalog_sha256": "3186057fd20baeda68ee813ba3fba9d7a404cce928206587dca4480360334d1b",
+  "catalog_sha256": "eacfd846109d19728c91e0cd9330167d461ce43e646d34ff0c4fc7121ca75c71",
   "sources": {
     "prompts/tools_manuals/activate_agent_skill.md": "1cd868f578936cbaaa313ffad3aeb33bcb40e6fa39d5410f578d2246e1da4620",
     "prompts/tools_manuals/address_book.md": "e293e5e4593960f04000ded38ac04eb625b194a6672372d085d8ec294aacc509",
@@ -81,6 +81,7 @@
     "prompts/tools_manuals/json_editor.md": "c921c08dbd4c93fd495e55aa729d1c096093ac14497327cabada1ee9c00be42f",
     "prompts/tools_manuals/knowledge_graph.md": "9243afa65313b557fb61961bac150784b3e4f8eb80dffa1dfc9fda086c4a2236",
     "prompts/tools_manuals/koofr.md": "ba6ff963e60a74525987206478699b5bc609ecffbc9509efa312aecbc73e8fc0",
+    "prompts/tools_manuals/layerling.md": "4147206861a29f9bf9b93e784bb4d0f17fed3367131942f1c2556d4d7c4a4c2f",
     "prompts/tools_manuals/ldap.md": "f92df808b956e4e6232ac200b3047c16d074b41d2192365047bee6e765aad497",
     "prompts/tools_manuals/list_agent_skills.md": "4b1adecc9795a98f0927cc37bd33c32bb755d62139472b26479c6b6c3f6345d6",
     "prompts/tools_manuals/local_wikipedia.md": "8849b7efaade60a3ce38c49de6a6dade996df1b82c13edb72074136286483824",
@@ -186,8 +187,8 @@
     "prompts/tools_manuals/xml_editor.md": "70a334eb6e3cb4c798d71ab00e233e75a14bbd41c50398c7a7be4589c6b3077e",
     "prompts/tools_manuals/yaml_editor.md": "3019e5bcda6867a4a5ff6732e690daa77fabc3ab8b1444ef3c8776fce787779b",
     "prompts/tools_manuals/yepapi.md": "da38a9f36c026917a53666302aa3a9b91abec88e0bb86feda62f79b5ff574ca9",
-    "training/operation_contracts.json": "cdffc4f418444d419342eea9afd42c454634355344582622f627a362b1f94577",
-    "training/tool_tiers.json": "63ac9b550bbae6d29179870f702e4a3f0b3dad82982651aa0a7cf428e1a8b622"
+    "training/operation_contracts.json": "23ea888f7c3f0fda972ed5fd264ebfe9108d2537e3ccfe498f9f0a0aff76ec06",
+    "training/tool_tiers.json": "1fd8776ce2c0cc878e0e1d39f9b04f4cd6333b7325da7d855704352632021ce4"
   },
   "tools": [
     {
@@ -40124,6 +40125,1231 @@
       "category": "files"
     },
     {
+      "name": "layerling",
+      "description": "Control an open Layerling 3D CAD editor in the authenticated Desktop session. List editors, then use an explicit editor_id. Describe an operation before using its JSON arguments. No headless CAD.",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "_todo": {
+            "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "arguments": {
+            "description": "JSON object matching the operation schema. describe: {\"operation\":\"create_shape\"}; list_editors: {}",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "editor_id": {
+            "description": "Exact editor_id from list_editors or this window context; never guess the active editor",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "description": "CAD or Desktop file operation; describe returns its pinned parameter schema",
+            "enum": [
+              "add_reference_points",
+              "align_objects",
+              "apply_edge_treatment",
+              "array_objects",
+              "boolean_cut",
+              "bundle_objects",
+              "capture_image",
+              "close_group",
+              "create_shape",
+              "delete_custom_shape",
+              "delete_objects",
+              "describe",
+              "estimate_print",
+              "export_model",
+              "export_section_svg",
+              "get_scene",
+              "group_objects",
+              "hollow_object",
+              "import_mesh",
+              "import_model",
+              "insert_custom_shape",
+              "inspect_errors",
+              "intersect_objects",
+              "lay_flat",
+              "list_custom_shapes",
+              "list_edges",
+              "list_editors",
+              "list_objects",
+              "list_reference_points",
+              "mate_faces",
+              "measure_section",
+              "open_group",
+              "open_project",
+              "place_on_face",
+              "remove_reference_points",
+              "save_custom_shape",
+              "save_project",
+              "scale_objects",
+              "select_objects",
+              "separate_parts",
+              "set_history_view",
+              "set_section_view",
+              "set_workplane",
+              "show_overhangs",
+              "show_workplane",
+              "simplify_mesh",
+              "split_objects",
+              "ungroup_objects",
+              "update_object",
+              "wrap_around_cylinder"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "_todo",
+          "arguments",
+          "editor_id",
+          "operation"
+        ],
+        "type": "object"
+      },
+      "argument_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "_todo": {
+            "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": "string"
+          },
+          "arguments": {
+            "description": "JSON object matching the operation schema. describe: {\"operation\":\"create_shape\"}; list_editors: {}",
+            "type": "string"
+          },
+          "editor_id": {
+            "description": "Exact editor_id from list_editors or this window context; never guess the active editor",
+            "type": "string"
+          },
+          "operation": {
+            "description": "CAD or Desktop file operation; describe returns its pinned parameter schema",
+            "enum": [
+              "add_reference_points",
+              "align_objects",
+              "apply_edge_treatment",
+              "array_objects",
+              "boolean_cut",
+              "bundle_objects",
+              "capture_image",
+              "close_group",
+              "create_shape",
+              "delete_custom_shape",
+              "delete_objects",
+              "describe",
+              "estimate_print",
+              "export_model",
+              "export_section_svg",
+              "get_scene",
+              "group_objects",
+              "hollow_object",
+              "import_mesh",
+              "import_model",
+              "insert_custom_shape",
+              "inspect_errors",
+              "intersect_objects",
+              "lay_flat",
+              "list_custom_shapes",
+              "list_edges",
+              "list_editors",
+              "list_objects",
+              "list_reference_points",
+              "mate_faces",
+              "measure_section",
+              "open_group",
+              "open_project",
+              "place_on_face",
+              "remove_reference_points",
+              "save_custom_shape",
+              "save_project",
+              "scale_objects",
+              "select_objects",
+              "separate_parts",
+              "set_history_view",
+              "set_section_view",
+              "set_workplane",
+              "show_overhangs",
+              "show_workplane",
+              "simplify_mesh",
+              "split_objects",
+              "ungroup_objects",
+              "update_object",
+              "wrap_around_cylinder"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "type": "object"
+      },
+      "required": [
+        "_todo",
+        "arguments",
+        "editor_id",
+        "operation"
+      ],
+      "properties": {
+        "_todo": {
+          "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "arguments": {
+          "description": "JSON object matching the operation schema. describe: {\"operation\":\"create_shape\"}; list_editors: {}",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "editor_id": {
+          "description": "Exact editor_id from list_editors or this window context; never guess the active editor",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "operation": {
+          "description": "CAD or Desktop file operation; describe returns its pinned parameter schema",
+          "enum": [
+            "add_reference_points",
+            "align_objects",
+            "apply_edge_treatment",
+            "array_objects",
+            "boolean_cut",
+            "bundle_objects",
+            "capture_image",
+            "close_group",
+            "create_shape",
+            "delete_custom_shape",
+            "delete_objects",
+            "describe",
+            "estimate_print",
+            "export_model",
+            "export_section_svg",
+            "get_scene",
+            "group_objects",
+            "hollow_object",
+            "import_mesh",
+            "import_model",
+            "insert_custom_shape",
+            "inspect_errors",
+            "intersect_objects",
+            "lay_flat",
+            "list_custom_shapes",
+            "list_edges",
+            "list_editors",
+            "list_objects",
+            "list_reference_points",
+            "mate_faces",
+            "measure_section",
+            "open_group",
+            "open_project",
+            "place_on_face",
+            "remove_reference_points",
+            "save_custom_shape",
+            "save_project",
+            "scale_objects",
+            "select_objects",
+            "separate_parts",
+            "set_history_view",
+            "set_section_view",
+            "set_workplane",
+            "show_overhangs",
+            "show_workplane",
+            "simplify_mesh",
+            "split_objects",
+            "ungroup_objects",
+            "update_object",
+            "wrap_around_cylinder"
+          ],
+          "type": "string"
+        }
+      },
+      "tier": "extended",
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "add_reference_points"
+        },
+        {
+          "selector": "operation",
+          "value": "align_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "apply_edge_treatment"
+        },
+        {
+          "selector": "operation",
+          "value": "array_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "boolean_cut"
+        },
+        {
+          "selector": "operation",
+          "value": "bundle_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "capture_image"
+        },
+        {
+          "selector": "operation",
+          "value": "close_group"
+        },
+        {
+          "selector": "operation",
+          "value": "create_shape"
+        },
+        {
+          "selector": "operation",
+          "value": "delete_custom_shape"
+        },
+        {
+          "selector": "operation",
+          "value": "delete_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "describe"
+        },
+        {
+          "selector": "operation",
+          "value": "estimate_print"
+        },
+        {
+          "selector": "operation",
+          "value": "export_model"
+        },
+        {
+          "selector": "operation",
+          "value": "export_section_svg"
+        },
+        {
+          "selector": "operation",
+          "value": "get_scene"
+        },
+        {
+          "selector": "operation",
+          "value": "group_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "hollow_object"
+        },
+        {
+          "selector": "operation",
+          "value": "import_mesh"
+        },
+        {
+          "selector": "operation",
+          "value": "import_model"
+        },
+        {
+          "selector": "operation",
+          "value": "insert_custom_shape"
+        },
+        {
+          "selector": "operation",
+          "value": "inspect_errors"
+        },
+        {
+          "selector": "operation",
+          "value": "intersect_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "lay_flat"
+        },
+        {
+          "selector": "operation",
+          "value": "list_custom_shapes"
+        },
+        {
+          "selector": "operation",
+          "value": "list_edges"
+        },
+        {
+          "selector": "operation",
+          "value": "list_editors"
+        },
+        {
+          "selector": "operation",
+          "value": "list_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "list_reference_points"
+        },
+        {
+          "selector": "operation",
+          "value": "mate_faces"
+        },
+        {
+          "selector": "operation",
+          "value": "measure_section"
+        },
+        {
+          "selector": "operation",
+          "value": "open_group"
+        },
+        {
+          "selector": "operation",
+          "value": "open_project"
+        },
+        {
+          "selector": "operation",
+          "value": "place_on_face"
+        },
+        {
+          "selector": "operation",
+          "value": "remove_reference_points"
+        },
+        {
+          "selector": "operation",
+          "value": "save_custom_shape"
+        },
+        {
+          "selector": "operation",
+          "value": "save_project"
+        },
+        {
+          "selector": "operation",
+          "value": "scale_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "select_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "separate_parts"
+        },
+        {
+          "selector": "operation",
+          "value": "set_history_view"
+        },
+        {
+          "selector": "operation",
+          "value": "set_section_view"
+        },
+        {
+          "selector": "operation",
+          "value": "set_workplane"
+        },
+        {
+          "selector": "operation",
+          "value": "show_overhangs"
+        },
+        {
+          "selector": "operation",
+          "value": "show_workplane"
+        },
+        {
+          "selector": "operation",
+          "value": "simplify_mesh"
+        },
+        {
+          "selector": "operation",
+          "value": "split_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "ungroup_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "update_object"
+        },
+        {
+          "selector": "operation",
+          "value": "wrap_around_cylinder"
+        }
+      ],
+      "manual_path": "prompts/tools_manuals/layerling.md",
+      "manual_id": "layerling",
+      "contract": {
+        "default_arguments": {
+          "arguments": "{}",
+          "operation": "list_editors"
+        },
+        "operations": [
+          {
+            "selector": "operation",
+            "value": "add_reference_points",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\"],\"at\":\"center\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "add_reference_points"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "align_objects",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\",\"body-2\"],\"axis\":\"x\",\"target\":\"center\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "align_objects"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "apply_edge_treatment",
+            "arguments": {
+              "arguments": "{\"id\":\"body-1\",\"kind\":\"fillet\",\"edgeIds\":\"top\",\"amount\":0.5}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "apply_edge_treatment"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "array_objects",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\"],\"mode\":\"row\",\"count\":3,\"spacing\":10}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "array_objects"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "boolean_cut",
+            "arguments": {
+              "arguments": "{\"solidIds\":[\"body-1\"],\"holeIds\":[\"hole-1\"]}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "boolean_cut"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "bundle_objects",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\",\"body-2\"]}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "bundle_objects"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "capture_image",
+            "arguments": {
+              "arguments": "{}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "capture_image"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "close_group",
+            "arguments": {
+              "arguments": "{}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "close_group"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "create_shape",
+            "arguments": {
+              "arguments": "{\"kind\":\"box\",\"name\":\"Bracket\",\"width\":30,\"depth\":20,\"height\":10}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "create_shape"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "delete_custom_shape",
+            "arguments": {
+              "arguments": "{\"id\":\"custom-1\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "delete_custom_shape"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "delete_objects",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\"]}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "delete_objects"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "describe",
+            "arguments": {
+              "arguments": "{\"operation\":\"create_shape\"}",
+              "operation": "describe"
+            },
+            "required_fields": [
+              "operation",
+              "arguments"
+            ],
+            "excluded_fields": [
+              "editor_id"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "estimate_print",
+            "arguments": {
+              "arguments": "{}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "estimate_print"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "export_model",
+            "arguments": {
+              "arguments": "{\"path\":\"Documents/Layerling/bracket.stl\",\"format\":\"stl\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "export_model"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "export_section_svg",
+            "arguments": {
+              "arguments": "{}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "export_section_svg"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "get_scene",
+            "arguments": {
+              "arguments": "{}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "get_scene"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "group_objects",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\",\"body-2\"]}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "group_objects"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "hollow_object",
+            "arguments": {
+              "arguments": "{\"id\":\"body-1\",\"thickness\":2}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "hollow_object"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "import_mesh",
+            "arguments": {
+              "arguments": "{\"positions\":[0,0,0,10,0,0,0,10,0]}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "import_mesh"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "import_model",
+            "arguments": {
+              "arguments": "{\"path\":\"Documents/Layerling/bracket.stl\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "import_model"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "insert_custom_shape",
+            "arguments": {
+              "arguments": "{\"id\":\"custom-1\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "insert_custom_shape"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "inspect_errors",
+            "arguments": {
+              "arguments": "{}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "inspect_errors"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "intersect_objects",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\",\"body-2\"]}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "intersect_objects"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "lay_flat",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\"],\"face\":\"bottom\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "lay_flat"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "list_custom_shapes",
+            "arguments": {
+              "arguments": "{}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "list_custom_shapes"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "list_edges",
+            "arguments": {
+              "arguments": "{\"id\":\"body-1\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "list_edges"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "list_editors",
+            "arguments": {
+              "arguments": "{}",
+              "operation": "list_editors"
+            },
+            "required_fields": [
+              "operation",
+              "arguments"
+            ],
+            "excluded_fields": [
+              "editor_id"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "list_objects",
+            "arguments": {
+              "arguments": "{}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "list_objects"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "list_reference_points",
+            "arguments": {
+              "arguments": "{}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "list_reference_points"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "mate_faces",
+            "arguments": {
+              "arguments": "{\"id\":\"body-1\",\"face\":\"bottom\",\"targetId\":\"body-2\",\"targetFace\":\"top\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "mate_faces"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "measure_section",
+            "arguments": {
+              "arguments": "{\"from\":{\"x\":0,\"y\":0},\"to\":{\"x\":10,\"y\":10}}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "measure_section"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "open_group",
+            "arguments": {
+              "arguments": "{\"id\":\"group-1\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "open_group"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "open_project",
+            "arguments": {
+              "arguments": "{\"path\":\"Documents/Layerling/bracket.lyl\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "open_project"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "place_on_face",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\"],\"targetId\":\"body-2\",\"targetFace\":\"top\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "place_on_face"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "remove_reference_points",
+            "arguments": {
+              "arguments": "{\"ids\":[\"point-1\"]}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "remove_reference_points"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "save_custom_shape",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\"],\"name\":\"Bracket\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "save_custom_shape"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "save_project",
+            "arguments": {
+              "arguments": "{\"path\":\"Documents/Layerling/bracket-copy.lyl\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "save_project"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "scale_objects",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\"],\"percent\":125}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "scale_objects"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "select_objects",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\"]}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "select_objects"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "separate_parts",
+            "arguments": {
+              "arguments": "{\"id\":\"body-1\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "separate_parts"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "set_history_view",
+            "arguments": {
+              "arguments": "{\"open\":false}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "set_history_view"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "set_section_view",
+            "arguments": {
+              "arguments": "{\"enabled\":true,\"axis\":\"x\",\"offset\":5}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "set_section_view"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "set_workplane",
+            "arguments": {
+              "arguments": "{\"reset\":true}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "set_workplane"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "show_overhangs",
+            "arguments": {
+              "arguments": "{\"enabled\":true}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "show_overhangs"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "show_workplane",
+            "arguments": {
+              "arguments": "{\"visible\":true}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "show_workplane"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "simplify_mesh",
+            "arguments": {
+              "arguments": "{\"id\":\"body-1\",\"keepPercent\":80}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "simplify_mesh"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "split_objects",
+            "arguments": {
+              "arguments": "{\"ids\":[\"body-1\"],\"axis\":\"x\",\"position\":5}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "split_objects"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "ungroup_objects",
+            "arguments": {
+              "arguments": "{\"id\":\"group-1\"}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "ungroup_objects"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "update_object",
+            "arguments": {
+              "arguments": "{\"id\":\"body-1\",\"width\":32}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "update_object"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "wrap_around_cylinder",
+            "arguments": {
+              "arguments": "{\"id\":\"body-1\",\"diameter\":40}",
+              "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef",
+              "operation": "wrap_around_cylinder"
+            },
+            "required_fields": [
+              "operation",
+              "arguments",
+              "editor_id"
+            ],
+            "excluded_fields": []
+          }
+        ]
+      },
+      "aliases": [
+        "3D CAD",
+        "Layerling",
+        "Modell konstruieren",
+        "edit 3D model"
+      ],
+      "category": "infrastructure"
+    },
+    {
       "name": "ldap",
       "description": "Query and authenticate against an LDAP/Active Directory server. Search for users and groups, retrieve user/group details, list all users or groups, authenticate credentials, and manage entries when LDAP read-only mode is disabled. Supports LDAP (port 389) and LDAPS (port 636).",
       "parameters": {
@@ -78956,6 +80182,16 @@
         "koofr"
       ],
       "description": "Manage files in Koofr cloud storage: list directory contents, read text files, download files to the workspace, write text files, upload existing local files, create directories, delete files/directories, rename/move, and copy files inside Koofr."
+    },
+    {
+      "id": "layerling",
+      "path": "prompts/tools_manuals/layerling.md",
+      "sha256": "4147206861a29f9bf9b93e784bb4d0f17fed3367131942f1c2556d4d7c4a4c2f",
+      "body": "# Layerling — an open Desktop CAD editor\n\nUse `layerling` for interactive 3D CAD in the user's open browser editor.\nThis tool needs an authenticated Desktop chat context, an enabled Layerling\nintegration, Desktop agent access, and `agent_access: read` or `write`.\nIt cannot start a headless editor or work after the browser disconnects.\n\n1. Call `list_editors`. Match the exact `editor_id` supplied by the window chat\n   context, or ask the user to select an editor when several are eligible.\n   Never choose the most recently active window. IDs expire with connections.\n2. Call `describe` with `arguments: \"{\\\"operation\\\":\\\"create_shape\\\"}\"` for the\n   operation's pinned Layerling 1.57.0 parameter schema. Pass these parameters as\n   the JSON string `arguments`, and the editor ID separately as `editor_id`.\n3. Inspect with `get_scene` or `list_objects` before editing. Use real object IDs\n   from that editor. Examples of editing operations are `create_shape`,\n   `update_object`, `boolean_cut`, and `apply_edge_treatment`.\n4. Inspect again and, when requested, save or export through Desktop paths.\n\nRead access permits scene inspection, edge/error/reference/custom-shape lists,\nprint estimates and `capture_image`. Images are returned as bounded, expiring\nartifact references, not base64 in the conversation. All other operations\nrequire write access and a writable Desktop. Commands are sequential per editor.\nAn uncertain timeout or disconnection must never be retried automatically:\nreconnect, inspect the scene and reconcile the user's intent first.\n\nDesktop operations:\n\n- `open_project`: `{\"path\":\"Documents/Layerling/part.lyl\"}`. Refuses unsaved changes.\n- `save_project`: the same path shape. Saves the open project using its observed\n  ETag; a different target is create-only. A conflict requires user resolution.\n- `import_model`: `{\"path\":\"Documents/Layerling/model.stl\"}`; accepts STL, OBJ,\n  3MF, STEP/STP and SVG through the existing importer.\n- `export_model`: `{\"path\":\"Documents/Layerling/part.step\",\"format\":\"step\"}`.\n  Formats: `stl`, `obj`, `3mf`, `step`, `png`. The destination is create-only.\n\nDo not place mesh/image payloads in messages. Use Desktop paths and file\noperations for larger data. Arguments are bounded to 64 KiB and inline results\nto 32 KiB. Request a narrower inspection if a result is too large. The upstream\nHTTP MCP bridge, arbitrary remote URLs, direct printer control and automatic\nskill installation are not part of this integration.\n",
+      "tools": [
+        "layerling"
+      ],
+      "description": "Control an open Layerling 3D CAD editor in the authenticated Desktop session. List editors, then use an explicit editor_id. Describe an operation before using its JSON arguments. No headless CAD."
     },
     {
       "id": "ldap",

@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "启用Layerling",
+  "config.layerling.help": "浏览器中的本地3D CAD。编辑器语言：德语和英语。",
+  "config.layerling.access": "代理访问权限",
+  "config.layerling.access_help": "适用于此桌面会话中打开的编辑器，同时受桌面权限限制。",
+  "config.layerling.off": "关闭",
+  "config.layerling.read": "读取",
+  "config.layerling.write": "读写",
   "config.agent.output_compression.reversible.enabled_label": "归档原始输出",
   "config.agent.output_compression.reversible.max_age_hours_label": "归档保留时间（小时）",
   "config.agent.output_compression.reversible.primary_output_vault_label": "归档大型输出",

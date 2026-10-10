@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Selecting and arranging - layerling user guide</title>
+    <meta name="description" content="Selecting shapes, finding them in the object list, aligning, mirroring, rotating, laying flat on a face and multiplying in patterns.">
+    <link rel="canonical" href="https://layerling.com/guide/select-and-arrange.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/select-and-arrange.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/auswaehlen-und-anordnen.html">
+    <meta property="og:title" content="Selecting and arranging - layerling user guide">
+    <meta property="og:description" content="Selecting shapes, finding them in the object list, aligning, mirroring, rotating, laying flat on a face and multiplying in patterns.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-left: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-left: auto; text-align: right; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/guide/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">User guide</span></span></a>
+      <a class="lang" href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html" hreflang="de" title="Auf Deutsch lesen">Deutsch</a>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Open the editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>The editor is already open in another tab - just switch to it.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Chapters"><h2>Chapters</h2><ol><li><a href="/api/desktop/layerling/ui/guide/getting-started.html">Getting started</a></li><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html">View and workplane</a></li><li><a href="/api/desktop/layerling/ui/guide/shapes.html">Placing and adjusting shapes</a></li><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html" aria-current="page">Selecting and arranging</a></li><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html">Solids and holes</a></li><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html">Breaking edges and hollowing bodies</a></li><li><a href="/api/desktop/layerling/ui/guide/sketches.html">Sketches: from outline to body</a></li><li><a href="/api/desktop/layerling/ui/guide/text.html">Text and curved lettering</a></li><li><a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html">Threads, gears and other parts</a></li><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html">Measuring and notes</a></li><li><a href="/api/desktop/layerling/ui/guide/printing.html">Preparing for 3D printing</a></li><li><a href="/api/desktop/layerling/ui/guide/files-and-saving.html">Files, saving and sharing</a></li><li><a href="/api/desktop/layerling/ui/guide/shortcuts.html">Keyboard shortcuts</a></li><li><a href="/api/desktop/layerling/ui/guide/ai-with-mcp.html">Building with an AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guide/offline-and-install.html">Installing as an app, working offline and self-hosting</a></li><li><a href="/api/desktop/layerling/ui/guide/videos.html">Videos about layerling</a></li></ol></nav>
+      <main>
+<h1>Selecting and arranging</h1>
+<p class="lead">Selecting shapes, finding them in the object list, aligning, mirroring, rotating, laying flat on a face and multiplying in patterns.</p>
+<div class="toc"><b>On this page</b><ul><li><a href="#selecting">Selecting</a></li><li><a href="#the-object-list">The object list</a></li><li><a href="#typing-a-position">Typing a position</a></li><li><a href="#parking-parts-beside-the-plate">Parking parts beside the plate</a></li><li><a href="#snapping-while-moving">Snapping while moving</a></li><li><a href="#aligning">Aligning</a></li><li><a href="#mirroring">Mirroring</a></li><li><a href="#rotating-and-setting-the-pivot">Rotating and setting the pivot</a></li><li><a href="#laying-flat-on-a-face">Laying flat on a face</a></li><li><a href="#patterns-row-and-circle">Patterns: row and circle</a></li><li><a href="#changing-several-parts-at-once">Changing several parts at once</a></li><li><a href="#scaling-by-percent">Scaling by percent</a></li><li><a href="#undoing">Undoing</a></li><li><a href="#looking-back-the-history-view">Looking back: the history view</a></li></ul></div>
+<h2 id="selecting">Selecting</h2>
+<p>A click on a shape selects it. With <kbd>Shift</kbd> you add more or take them away again. A click on empty space clears the selection, and so does <kbd>Esc</kbd>. Drag a frame on the empty workplane to select everything it touches; with <kbd>Shift</kbd> held, the frame adds what was not selected and takes away what was. And <kbd>Ctrl</kbd>+<kbd>A</kbd> selects all visible bodies.</p>
+<p>What is in your way you hide (<strong class="ui">“Hide selected”</strong>, <kbd>Ctrl</kbd>+<kbd>H</kbd>). Hidden shapes stay in the design, they are just not visible and stay out of the export; the export window says beforehand how many there are. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> brings them all back. What should stay put you lock with the padlock at the top of the settings or with <kbd>Ctrl</kbd>+<kbd>L</kbd>. Locked shapes can neither be moved nor deleted by accident.</p>
+<h2 id="the-object-list">The object list</h2>
+<p>With many parts it is easy to lose track in the view. The object list (<strong class="ui">“Show object list”</strong> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>) shows all shapes as a list.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/object-list.webp" alt="The object list: the group &quot;Group&quot; with two parts and a sphere beside it. A folder icon opens the group." width="1280" height="800" loading="lazy"><figcaption>The object list: the group &quot;Group&quot; with two parts and a sphere beside it. A folder icon opens the group.</figcaption></figure>
+<ul><li>A click on an entry selects the shape, including parts inside a group. With <kbd>Shift</kbd> held you add more entries or take them away again, just as in the view. The arrows fold groups open and shut.</li><li>The label shows whether a part is <strong class="ui">“Solid”</strong> or <strong class="ui">“Hole”</strong>.</li><li>Padlock and eye lock and hide single parts.</li><li><strong class="ui">“Rename”</strong> gives a part a name of its own; the pencil beside the name at the top of the settings does the same for the selected shape. Sensible names help enormously in larger designs.</li><li>The search field finds shapes by name and by kind, so also &quot;cylinder&quot; or &quot;hole&quot;. It also looks inside groups, however deeply nested: a group holding a match stays in the list and folds open to show the matching parts and the groups that lead to them. A group found by its own name shows all its parts when you open it.</li><li>The arrow on the far left of the title bar folds the list down to its title bar and back.</li></ul>
+<p>The list sits docked just right of the view cube. Drag it by its title bar to put it anywhere on the workplane; it passes underneath the view cube and the camera bar. Drop it back beside the view cube, or double-click the title bar, and it docks again. Where it was and whether it was folded are remembered in this browser.</p>
+<h2 id="typing-a-position">Typing a position</h2>
+<p>The card <strong class="ui">“Position”</strong> in the properties panel shows where the selected body stands, and you can type it: <strong class="ui">“X”</strong> and <strong class="ui">“Y”</strong> are the middle of its box on the plate, with the same signs as the distances shown on the workplane, and <strong class="ui">“Z (height)”</strong> is the height of its underside. X counts to the right, Y towards the back and Z up, by the right-hand rule as in Tinkercad and CAD programs; the axis arrows on the plate show the directions. The values go in the unit you set, and the sliders reach as far as dragging does.</p>
+<h2 id="parking-parts-beside-the-plate">Parking parts beside the plate</h2>
+<p>You can drag a shape past the edge of the plate and leave it there, about one plate width beyond each side, to keep it for later. The arrow keys move it as far as you like. A parked part still belongs to the design and goes into the export with everything else. To leave it out, hide it or export only the selection. If you have picked a printer, layerling warns at export when something sits outside its plate.</p>
+<h2 id="snapping-while-moving">Snapping while moving</h2>
+<p>When you drag a shape across the workplane, it snaps to other shapes: its left, right, front or back edge or its centre lands exactly on an edge or centre of another shape. A pink guide line shows what it is holding on to. That way two parts sit flush side by side or centred one behind the other without typing numbers. It works with the grid switched off, too.</p>
+<p>Hold <kbd>Shift</kbd> while dragging to keep the move on one axis: the shape follows whichever direction, X or Y, you have dragged further in, and leaves the other alone. Best press <kbd>Shift</kbd> once you are already dragging; on a shape that is not selected yet, a click with <kbd>Shift</kbd> only adds it to the selection.</p>
+<p>With <kbd>Alt</kbd> already held when the drag begins, you drag a copy, as in Tinkercad: the shape stays where it is and the copy lands where you let go. Pressing <kbd>Alt</kbd> only on the way pauses snapping; the shape then follows the grid only. A copy, too, snaps only once you let go of <kbd>Alt</kbd> on the way. To switch snapping off for good, use the grid menu in the bottom right (<strong class="ui">“Snap to shapes”</strong>) or the settings. For now only moving on the normal workplane snaps, not lifting and not resizing.</p>
+<h2 id="aligning">Aligning</h2>
+<p>Two or more selected shapes are lined up with <strong class="ui">“Align”</strong>: points appear around the selection for left, centre and right, front, centre and back, and top, centre and bottom. A click on a point moves all shapes there. If you first click one of the selected shapes, it stays in place and the others line up with it.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/align.webp" alt="Align shows the possible targets as dots around the selection." width="1280" height="800" loading="lazy"><figcaption>Align shows the possible targets as dots around the selection.</figcaption></figure>
+<p>The key is <kbd>L</kbd>. <kbd>Esc</kbd> cancels.</p>
+<h2 id="mirroring">Mirroring</h2>
+<p><strong class="ui">“Mirror”</strong> (<kbd>M</kbd>) flips the selection across a plane: <strong class="ui">“left-right”</strong>, <strong class="ui">“front-back”</strong> or <strong class="ui">“top-bottom”</strong>. Click the matching axis arrow. That is handy for symmetric parts: build one half, copy it and mirror the copy.</p>
+<h2 id="rotating-and-setting-the-pivot">Rotating and setting the pivot</h2>
+<p>You rotate with the curved arrows on the shape, with the numbers in the settings or with <kbd>R</kbd> in 45° steps. Normally the selection turns about its centre. Sometimes it should not, for example when a tilted tube is to be turned further at its end. For that there is <strong class="ui">“Set rotation pivot”</strong>: afterwards click on a face. A flat face supplies its centre, for example the axis of a tube end. The selection now turns about that point. A second click on the tool removes it again.</p>
+<p>The angles stay with the body. In its settings, <strong class="ui">“Rotation”</strong> shows them as <strong class="ui">“About X”</strong>, <strong class="ui">“About Y”</strong> and <strong class="ui">“About Z (height)”</strong>, named like the position: Y runs across the plate, Z is up. Type an angle there and the body turns to it - about its centre, or about its own pivot if it has one. While a turned body is selected, its angles also show below it on the workplane; <strong class="ui">“Show the angles of turned bodies”</strong> in the settings switches that off.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/rotation-card.webp" alt="A body turned about two axes: its angles stand under it, and the Rotation card in its settings takes them as numbers." width="1280" height="800" loading="lazy"><figcaption>A body turned about two axes: its angles stand under it, and the Rotation card in its settings takes them as numbers.</figcaption></figure>
+<p>With <strong>one body</strong> selected, the pivot belongs to that body: select other parts and come back, and it is still there. It moves, turns and scales with the body, is saved in the project and comes back with Undo. Under <strong class="ui">“Position”</strong> the pivot has its own X, Y and Z, which you can type or nudge, and <strong class="ui">“Remove”</strong> takes it away. You can also drag the pivot's red marker with the mouse: it slides over the surface of the bodies and snaps to corners, edge midpoints and edges, so a hinge pin lands exactly on a corner. With several bodies selected the pivot is only for that selection, and a new selection removes it.</p>
+<h2 id="laying-flat-on-a-face">Laying flat on a face</h2>
+<p>Should a part lie on its best side for printing? Select it, click <strong class="ui">“Lay flat on face”</strong> and then the face that should go down. While you move the pointer over the part, the face under it lights up, so you see which one you are about to pick; turn the view to check the other sides. The part turns so that this face rests on the workplane.</p>
+<p>Two parts should meet face to face, or line up flush? Select the part that should move, click <strong class="ui">“Align faces”</strong>, then click its face and after that the face of the other part. In the panel, <strong class="ui">“Face to face”</strong> puts the faces against each other (back to back, touching), <strong class="ui">“Flush”</strong> lays them in one plane side by side; <strong class="ui">“Gap”</strong> leaves room between them, for example for clearance. <strong class="ui">“Align”</strong> moves the part: it turns the shortest way until the faces are parallel - not at all if they already are - and then slides only towards the other face, so it keeps its place sideways. The other part stays where it is, and one Undo takes it all back.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/mate-faces.webp" alt="The Align faces panel: the part that moves is picked, a face of the other part comes next, then face to face or flush, and an optional gap." width="1280" height="800" loading="lazy"><figcaption>The Align faces panel: the part that moves is picked, a face of the other part comes next, then face to face or flush, and an optional gap.</figcaption></figure>
+<p>Just as simple are <strong class="ui">“Drop to workplane”</strong> (<kbd>D</kbd>), which drops the selection onto the workplane, and <strong class="ui">“Center on workplane”</strong>.</p>
+<p><kbd>C</kbd> picks the selection up, like Cruise in Tinkercad: it follows the mouse pointer and lies down on the face of another body you are over, sloped ones too. A click sets it down there, <kbd>Esc</kbd> leaves it where it was. Its underside then rests on the face, lined up with the face's edges as a new shape would be; it keeps its own turn about its up axis. Several parts travel together and keep their spacing. Over the empty plate, <kbd>C</kbd> stands a tilted part upright on the workplane again.</p>
+<h2 id="patterns-row-and-circle">Patterns: row and circle</h2>
+<p>For hole grids, bolt circles and rings of teeth there is the <strong class="ui">“Pattern”</strong>. Select the shapes to be multiplied and click it in the ribbon.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-tool.webp" alt="The pattern in &quot;Circle&quot; mode: the copies first appear as a preview." width="1280" height="800" loading="lazy"><figcaption>The pattern in &quot;Circle&quot; mode: the copies first appear as a preview.</figcaption></figure>
+<ul><li><strong><strong class="ui">“Row”</strong>:</strong> The selection is repeated at equal distances. The row steps along all three axes at once, with <strong class="ui">“Spacing X”</strong>, <strong class="ui">“Spacing Y”</strong> and <strong class="ui">“Spacing Z (height)”</strong>: one of them gives a straight row, two or three a diagonal row or a staircase. A negative spacing lays the row the other way.</li><li><strong><strong class="ui">“Circle”</strong>:</strong> The selection is spread around a centre. How many copies there are you set under <strong class="ui">“Count (with original)”</strong>, and the <strong class="ui">“Total angle”</strong> is 360° for a full circle. Choose whether the copies turn along. <strong class="ui">“Rise per copy”</strong> lifts every copy a little more than the one before (a screw or an ascending spiral), and <strong class="ui">“Radius change per copy”</strong> moves it further from the centre or closer to it (a flat spiral); together they give a conical spiral.</li></ul>
+<p>Tip: first set the pivot on a face with <strong class="ui">“Set rotation pivot”</strong>, then the centre of the circle lies exactly there.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-spiral.webp" alt="The pattern in &quot;Circle&quot; mode with a rise and a radius change per copy: the copies climb and widen like a spiral." width="1280" height="800" loading="lazy"><figcaption>The pattern in &quot;Circle&quot; mode with a rise and a radius change per copy: the copies climb and widen like a spiral.</figcaption></figure>
+<p>The copies first appear as a preview. Only <strong class="ui">“Create”</strong> creates them. If the copies are holes, group them afterwards with the body they should cut into.</p>
+<h2 id="changing-several-parts-at-once">Changing several parts at once</h2>
+<p>With several parts selected, the properties panel on the right shows how many there are and offers what applies to all of them together: <strong class="ui">“Solid”</strong> or <strong class="ui">“Hole”</strong>, one colour for all (a click on <strong class="ui">“Solid”</strong> opens the colours) and the lock. With a mixed selection, one click makes them all solids or all holes. Locked parts stay as they are. Sizes are changed on a single part, with the handles or with <strong class="ui">“Scale by percent”</strong>. Solid and hole also work with a right-click or the <kbd>S</kbd> and <kbd>H</kbd> keys.</p>
+<h2 id="scaling-by-percent">Scaling by percent</h2>
+<p>To make one or several parts larger or smaller by the same share, say all the parts of a print file by 20 %, use <strong class="ui">“Scale by percent”</strong>. Select the parts, right-click them and choose <strong class="ui">“Scale by percent”</strong>, or search for it with <kbd>Ctrl</kbd>+<kbd>K</kbd>.</p>
+<p>Under <strong class="ui">“New size”</strong> you type the new size as a percentage of the current one: 120 % is a fifth larger, 50 % half the size. Width, depth and height change alike, so the proportions stay. The bottom stays where it is, so nothing sinks into the plate.</p>
+<p>With several parts you choose how they grow:</p>
+<ul><li><strong><strong class="ui">“Together”</strong>:</strong> The parts grow around their common centre, and the gaps grow with them. The whole becomes larger as if it were one part.</li><li><strong><strong class="ui">“Each in place”</strong>:</strong> Every part grows where it stands, and the gaps between them stay the same.</li></ul>
+<p>Only <strong class="ui">“Scale”</strong> changes the design, and one step back undoes it. Locked parts stay as they are.</p>
+<h2 id="undoing">Undoing</h2>
+<p><strong class="ui">“Undo”</strong> (<kbd>Ctrl</kbd>+<kbd>Z</kbd>) and <strong class="ui">“Redo”</strong> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> or <kbd>Ctrl</kbd>+<kbd>Y</kbd>) step through your history. How many steps travel with the saved design you set in the settings under <strong class="ui">“History”</strong>.</p>
+<h2 id="looking-back-the-history-view">Looking back: the history view</h2>
+<p><strong class="ui">“History”</strong>, next to undo and redo, opens a view of your history without changing anything. The work area shows the design as it was, and a slider at the bottom runs through every undo step: all the way to the right is the current state, each step to the left is one undo earlier, and states you have undone sit to the right of the current one. The arrow keys step through the states, <kbd>Esc</kbd> returns to the current state. You can turn and zoom the view meanwhile, but nothing can be selected or moved; the design itself stays exactly as it is. If the bar covers something, drag it away by its title bar; a double-click on it brings it back.</p>
+<p>Two things you can take along from an earlier state. <strong class="ui">“New project from this state”</strong> puts that state into a new design in the overview, named after this one with the time of that state in brackets - a design saved before layerling recorded times says &quot;copy&quot; instead - and with the history up to that point, so undo keeps working there. <strong class="ui">“Export this state”</strong> opens the usual export with that state as the design, so you can save it as STL, 3MF, STEP, a picture or a LYL file with the history up to that state.</p>
+<div class="pager"><a href="/api/desktop/layerling/ui/guide/shapes.html"><small>Previous chapter</small>Placing and adjusting shapes</a><a class="next" href="/api/desktop/layerling/ui/guide/solids-and-holes.html"><small>Next chapter</small>Solids and holes</a></div>
+      </main>
+    </div>
+    <footer class="note">This guide grows with the program. If something is missing or wrong, tell us in the <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.57.0</a></div></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Back to the editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Open the editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+  </body>
+</html>

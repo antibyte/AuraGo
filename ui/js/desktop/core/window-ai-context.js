@@ -42,6 +42,11 @@
             guide: 'Use this window context to interpret references to the open app. If app-specific data is not included, ask for the missing detail instead of guessing.',
             resources: []
         };
+        if (item.appId === 'layerling') {
+            const editorId = window.LayerlingApp?.editorId(item.id);
+            base.guide = editorId ? 'Use the layerling tool with editor_id=' + editorId + '. This exact editor belongs to this window. Never use another editor automatically.' : 'Layerling is not connected. Wait for the editor before using the layerling tool.';
+            if (item.context?.path) base.resources.push({ kind: 'desktop_file', path: item.context.path, label: 'Layerling project' });
+        }
         if (storeAppId === 'olivetin') return oliveTinWindowAIContext(base);
         return base;
     }

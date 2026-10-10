@@ -216,7 +216,7 @@
     function defaultAppForExtension(ext) {
         const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
         const map = parseDefaultAppsMap();
-        return map[normalized] || '';
+        return map[normalized] || (normalized === 'lyl' ? 'layerling' : '');
     }
 
     const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v2';

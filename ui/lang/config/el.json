@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "Ενεργοποίηση Layerling",
+  "config.layerling.help": "Τοπικό 3D CAD στον περιηγητή. Γλώσσες επεξεργαστή: γερμανικά και αγγλικά.",
+  "config.layerling.access": "Πρόσβαση πράκτορα",
+  "config.layerling.access_help": "Ισχύει για ανοιχτούς επεξεργαστές αυτής της συνεδρίας. Ισχύουν και τα δικαιώματα επιφάνειας εργασίας.",
+  "config.layerling.off": "Ανενεργό",
+  "config.layerling.read": "Ανάγνωση",
+  "config.layerling.write": "Ανάγνωση και εγγραφή",
   "config.agent.output_compression.reversible.enabled_label": "Αρχειοθέτηση αρχικών εξόδων",
   "config.agent.output_compression.reversible.max_age_hours_label": "Διατήρηση αρχείου (ώρες)",
   "config.agent.output_compression.reversible.primary_output_vault_label": "Αρχειοθέτηση μεγάλων εξόδων",

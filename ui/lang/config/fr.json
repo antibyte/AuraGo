@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "Activer Layerling",
+  "config.layerling.help": "CAO 3D locale dans le navigateur. Langues de l’éditeur : allemand et anglais.",
+  "config.layerling.access": "Accès de l’agent",
+  "config.layerling.access_help": "Concerne les éditeurs ouverts dans cette session. Les permissions du bureau s’appliquent aussi.",
+  "config.layerling.off": "Désactivé",
+  "config.layerling.read": "Lecture",
+  "config.layerling.write": "Lecture et écriture",
   "config.agent.output_compression.reversible.enabled_label": "Archiver les sorties d'origine",
   "config.agent.output_compression.reversible.max_age_hours_label": "Conservation des archives (heures)",
   "config.agent.output_compression.reversible.primary_output_vault_label": "Archiver les sorties volumineuses",

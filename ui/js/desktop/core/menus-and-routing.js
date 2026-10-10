@@ -116,6 +116,8 @@
         } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
             apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (/\.lyl$/i.test(name)) {
+            apps.push({ label: 'Layerling', appId: 'layerling' });
         } else if (/\.aurasynth$/i.test(name)) {
             apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
@@ -131,6 +133,7 @@
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
         const ext = desktopFileExtension(name);
+        if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });
         const openItems = apps.map(app => ({
             label: app.label,
             action: () => {
@@ -1564,6 +1567,12 @@
         if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.path ? context.content : '');
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
             return window.WriterApp.render(contentEl(id), id, officeAppContext(context));
+        }
+        if (appId === 'layerling') {
+            return window.LayerlingApp.render(contentEl(id), id, Object.assign(officeAppContext(context), {
+                windowId: id, sessionKey: state.windows.get(id)?.sessionKey || id, modalDialog,
+                makeFrame: () => makeSandboxedFrame(addDesktopSDKChannelFragment('/api/desktop/layerling/ui/'), 'layerling', '', id, 'vd-generated-frame vd-layerling-frame', 'Layerling', { allowSameOrigin: true, allowDownloads: true }),
+            }));
         }
         if (appId === 'synth-studio') {
             if (!window.SynthStudioApp) {

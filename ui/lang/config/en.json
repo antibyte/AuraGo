@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "Enable Layerling",
+  "config.layerling.help": "Local 3D CAD in the browser. Editor languages: German and English.",
+  "config.layerling.access": "Agent access",
+  "config.layerling.access_help": "Applies to open editors in this Desktop session. Desktop permissions also apply.",
+  "config.layerling.off": "Off",
+  "config.layerling.read": "Read",
+  "config.layerling.write": "Read and write",
   "config.agent.output_compression.reversible.enabled_label": "Archive original outputs",
   "config.agent.output_compression.reversible.max_age_hours_label": "Archive retention (hours)",
   "config.agent.output_compression.reversible.primary_output_vault_label": "Archive large outputs",

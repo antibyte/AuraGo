@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "Povolit Layerling",
+  "config.layerling.help": "Lokální 3D CAD v prohlížeči. Jazyky editoru: němčina a angličtina.",
+  "config.layerling.access": "Přístup agenta",
+  "config.layerling.access_help": "Platí pro otevřené editory v této relaci plochy. Platí také oprávnění plochy.",
+  "config.layerling.off": "Vypnuto",
+  "config.layerling.read": "Čtení",
+  "config.layerling.write": "Čtení a zápis",
   "config.tool_policy.effective_help": "Hodnoty backendu pro primárního poskytovatele; jednotlivé požadavky mohou být dále sníženy podle role, rozsahu a rozpočtu trasy. Po uložení obnovte.",
   "config.tool_policy.output_bytes": "Výstupní bajty",
   "config.tool_policy.guides": "Návody",

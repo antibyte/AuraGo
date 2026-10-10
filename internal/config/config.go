@@ -583,6 +583,7 @@ func Load(path string) (*Config, error) {
 	// Virtual Desktop defaults: disabled by default, first-party browser desktop
 	// with a project-local persistent workspace when explicitly enabled.
 	cfg.VirtualDesktop.WorkspaceDir = "agent_workspace/virtual_desktop"
+	cfg.VirtualDesktop.Layerling.AgentAccess = "off"
 	cfg.VirtualDesktop.MaxFileSizeMB = 50
 	cfg.VirtualDesktop.MaxWSClients = 8
 	cfg.VirtualDesktop.RemoteMaxSessionMinutes = 60

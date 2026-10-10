@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "Activar Layerling",
+  "config.layerling.help": "CAD 3D local en el navegador. Idiomas del editor: alemán e inglés.",
+  "config.layerling.access": "Acceso del agente",
+  "config.layerling.access_help": "Se aplica a los editores abiertos en esta sesión. También se aplican los permisos del escritorio.",
+  "config.layerling.off": "Desactivado",
+  "config.layerling.read": "Lectura",
+  "config.layerling.write": "Lectura y escritura",
   "config.agent.output_compression.reversible.enabled_label": "Archivar salidas originales",
   "config.agent.output_compression.reversible.max_age_hours_label": "Retención del archivado (horas)",
   "config.agent.output_compression.reversible.primary_output_vault_label": "Archivar salidas grandes",

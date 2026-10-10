@@ -1,8 +1,8 @@
 {
   "schema_version": "2.0",
   "source": "aurago internal/agent.BuildNativeToolSchemaSnapshot.StrictSchemas (all feature flags enabled)",
-  "tool_count": 217,
-  "operation_count": 1165,
+  "tool_count": 218,
+  "operation_count": 1215,
   "call_format": "OpenAI-compatible native function calling with assistant tool_calls and role=tool results linked by tool_call_id.",
   "tools": [
     {
@@ -32814,6 +32814,466 @@
       ],
       "manual_path": "prompts/tools_manuals/koofr.md",
       "manual_snippet": "# Koofr (`koofr`)\n\nInteract with Koofr Cloud Storage. Read, write, and manage folders and files in the primary Koofr storage mount.\n\n## Operations\n\n| Operation | Description |\n|-----------|-------------|\n| `list` | List files in a directory |\n| `read` | Read text file content |\n| `download` | Download a file into the local workspace |\n| `write` | Upload a non-empty text file from the `content` parameter |\n| `upload` | Upload an existing local file, including binary files such as generated images |\n| `mkdir` | Create a new folder |\n| `delete` | Delete a file or folder |\n| `rename` | Rename a file or folder |\n| `move` | Move or rename a file or folder |\n| `copy` | Copy a file or folder inside Koofr |\n\n## Parameters\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------…"
+    },
+    {
+      "name": "layerling",
+      "description": "Control an open Layerling 3D CAD editor in the authenticated Desktop session. List editors, then use an explicit editor_id. Describe an operation before using its JSON arguments. No headless CAD.",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "_todo": {
+            "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "arguments": {
+            "description": "JSON object matching the operation schema. describe: {\"operation\":\"create_shape\"}; list_editors: {}",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "editor_id": {
+            "description": "Exact editor_id from list_editors or this window context; never guess the active editor",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "description": "CAD or Desktop file operation; describe returns its pinned parameter schema",
+            "enum": [
+              "add_reference_points",
+              "align_objects",
+              "apply_edge_treatment",
+              "array_objects",
+              "boolean_cut",
+              "bundle_objects",
+              "capture_image",
+              "close_group",
+              "create_shape",
+              "delete_custom_shape",
+              "delete_objects",
+              "describe",
+              "estimate_print",
+              "export_model",
+              "export_section_svg",
+              "get_scene",
+              "group_objects",
+              "hollow_object",
+              "import_mesh",
+              "import_model",
+              "insert_custom_shape",
+              "inspect_errors",
+              "intersect_objects",
+              "lay_flat",
+              "list_custom_shapes",
+              "list_edges",
+              "list_editors",
+              "list_objects",
+              "list_reference_points",
+              "mate_faces",
+              "measure_section",
+              "open_group",
+              "open_project",
+              "place_on_face",
+              "remove_reference_points",
+              "save_custom_shape",
+              "save_project",
+              "scale_objects",
+              "select_objects",
+              "separate_parts",
+              "set_history_view",
+              "set_section_view",
+              "set_workplane",
+              "show_overhangs",
+              "show_workplane",
+              "simplify_mesh",
+              "split_objects",
+              "ungroup_objects",
+              "update_object",
+              "wrap_around_cylinder"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "_todo",
+          "arguments",
+          "editor_id",
+          "operation"
+        ],
+        "type": "object"
+      },
+      "argument_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "_todo": {
+            "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": "string"
+          },
+          "arguments": {
+            "description": "JSON object matching the operation schema. describe: {\"operation\":\"create_shape\"}; list_editors: {}",
+            "type": "string"
+          },
+          "editor_id": {
+            "description": "Exact editor_id from list_editors or this window context; never guess the active editor",
+            "type": "string"
+          },
+          "operation": {
+            "description": "CAD or Desktop file operation; describe returns its pinned parameter schema",
+            "enum": [
+              "add_reference_points",
+              "align_objects",
+              "apply_edge_treatment",
+              "array_objects",
+              "boolean_cut",
+              "bundle_objects",
+              "capture_image",
+              "close_group",
+              "create_shape",
+              "delete_custom_shape",
+              "delete_objects",
+              "describe",
+              "estimate_print",
+              "export_model",
+              "export_section_svg",
+              "get_scene",
+              "group_objects",
+              "hollow_object",
+              "import_mesh",
+              "import_model",
+              "insert_custom_shape",
+              "inspect_errors",
+              "intersect_objects",
+              "lay_flat",
+              "list_custom_shapes",
+              "list_edges",
+              "list_editors",
+              "list_objects",
+              "list_reference_points",
+              "mate_faces",
+              "measure_section",
+              "open_group",
+              "open_project",
+              "place_on_face",
+              "remove_reference_points",
+              "save_custom_shape",
+              "save_project",
+              "scale_objects",
+              "select_objects",
+              "separate_parts",
+              "set_history_view",
+              "set_section_view",
+              "set_workplane",
+              "show_overhangs",
+              "show_workplane",
+              "simplify_mesh",
+              "split_objects",
+              "ungroup_objects",
+              "update_object",
+              "wrap_around_cylinder"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "type": "object"
+      },
+      "required": [
+        "_todo",
+        "arguments",
+        "editor_id",
+        "operation"
+      ],
+      "properties": {
+        "_todo": {
+          "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "arguments": {
+          "description": "JSON object matching the operation schema. describe: {\"operation\":\"create_shape\"}; list_editors: {}",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "editor_id": {
+          "description": "Exact editor_id from list_editors or this window context; never guess the active editor",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "operation": {
+          "description": "CAD or Desktop file operation; describe returns its pinned parameter schema",
+          "enum": [
+            "add_reference_points",
+            "align_objects",
+            "apply_edge_treatment",
+            "array_objects",
+            "boolean_cut",
+            "bundle_objects",
+            "capture_image",
+            "close_group",
+            "create_shape",
+            "delete_custom_shape",
+            "delete_objects",
+            "describe",
+            "estimate_print",
+            "export_model",
+            "export_section_svg",
+            "get_scene",
+            "group_objects",
+            "hollow_object",
+            "import_mesh",
+            "import_model",
+            "insert_custom_shape",
+            "inspect_errors",
+            "intersect_objects",
+            "lay_flat",
+            "list_custom_shapes",
+            "list_edges",
+            "list_editors",
+            "list_objects",
+            "list_reference_points",
+            "mate_faces",
+            "measure_section",
+            "open_group",
+            "open_project",
+            "place_on_face",
+            "remove_reference_points",
+            "save_custom_shape",
+            "save_project",
+            "scale_objects",
+            "select_objects",
+            "separate_parts",
+            "set_history_view",
+            "set_section_view",
+            "set_workplane",
+            "show_overhangs",
+            "show_workplane",
+            "simplify_mesh",
+            "split_objects",
+            "ungroup_objects",
+            "update_object",
+            "wrap_around_cylinder"
+          ],
+          "type": "string"
+        }
+      },
+      "tier": "extended",
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "add_reference_points"
+        },
+        {
+          "selector": "operation",
+          "value": "align_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "apply_edge_treatment"
+        },
+        {
+          "selector": "operation",
+          "value": "array_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "boolean_cut"
+        },
+        {
+          "selector": "operation",
+          "value": "bundle_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "capture_image"
+        },
+        {
+          "selector": "operation",
+          "value": "close_group"
+        },
+        {
+          "selector": "operation",
+          "value": "create_shape"
+        },
+        {
+          "selector": "operation",
+          "value": "delete_custom_shape"
+        },
+        {
+          "selector": "operation",
+          "value": "delete_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "describe"
+        },
+        {
+          "selector": "operation",
+          "value": "estimate_print"
+        },
+        {
+          "selector": "operation",
+          "value": "export_model"
+        },
+        {
+          "selector": "operation",
+          "value": "export_section_svg"
+        },
+        {
+          "selector": "operation",
+          "value": "get_scene"
+        },
+        {
+          "selector": "operation",
+          "value": "group_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "hollow_object"
+        },
+        {
+          "selector": "operation",
+          "value": "import_mesh"
+        },
+        {
+          "selector": "operation",
+          "value": "import_model"
+        },
+        {
+          "selector": "operation",
+          "value": "insert_custom_shape"
+        },
+        {
+          "selector": "operation",
+          "value": "inspect_errors"
+        },
+        {
+          "selector": "operation",
+          "value": "intersect_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "lay_flat"
+        },
+        {
+          "selector": "operation",
+          "value": "list_custom_shapes"
+        },
+        {
+          "selector": "operation",
+          "value": "list_edges"
+        },
+        {
+          "selector": "operation",
+          "value": "list_editors"
+        },
+        {
+          "selector": "operation",
+          "value": "list_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "list_reference_points"
+        },
+        {
+          "selector": "operation",
+          "value": "mate_faces"
+        },
+        {
+          "selector": "operation",
+          "value": "measure_section"
+        },
+        {
+          "selector": "operation",
+          "value": "open_group"
+        },
+        {
+          "selector": "operation",
+          "value": "open_project"
+        },
+        {
+          "selector": "operation",
+          "value": "place_on_face"
+        },
+        {
+          "selector": "operation",
+          "value": "remove_reference_points"
+        },
+        {
+          "selector": "operation",
+          "value": "save_custom_shape"
+        },
+        {
+          "selector": "operation",
+          "value": "save_project"
+        },
+        {
+          "selector": "operation",
+          "value": "scale_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "select_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "separate_parts"
+        },
+        {
+          "selector": "operation",
+          "value": "set_history_view"
+        },
+        {
+          "selector": "operation",
+          "value": "set_section_view"
+        },
+        {
+          "selector": "operation",
+          "value": "set_workplane"
+        },
+        {
+          "selector": "operation",
+          "value": "show_overhangs"
+        },
+        {
+          "selector": "operation",
+          "value": "show_workplane"
+        },
+        {
+          "selector": "operation",
+          "value": "simplify_mesh"
+        },
+        {
+          "selector": "operation",
+          "value": "split_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "ungroup_objects"
+        },
+        {
+          "selector": "operation",
+          "value": "update_object"
+        },
+        {
+          "selector": "operation",
+          "value": "wrap_around_cylinder"
+        }
+      ],
+      "manual_path": "prompts/tools_manuals/layerling.md",
+      "manual_snippet": "# Layerling — an open Desktop CAD editor\n\nUse `layerling` for interactive 3D CAD in the user's open browser editor.\nThis tool needs an authenticated Desktop chat context, an enabled Layerling\nintegration, Desktop agent access, and `agent_access: read` or `write`.\nIt cannot start a headless editor or work after the browser disconnects.\n\n1. Call `list_editors`. Match the exact `editor_id` supplied by the window chat\n   context, or ask the user to select an editor when several are eligible.\n   Never choose the most recently active window. IDs expire with connections.\n2. Call `describe` with `arguments: \"{\\\"operation\\\":\\\"create_shape\\\"}\"` for the\n   operation's pinned Layerling 1.57.0 parameter schema. Pass these parameters as\n   the JSON string `arguments`, and the editor ID separately as `…"
     },
     {
       "name": "ldap",

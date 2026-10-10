@@ -1710,7 +1710,7 @@
     function desktopSDKChannelFromURL(src) {
         try {
             const url = new URL(src, window.location.origin);
-            if (url.origin !== window.location.origin || !url.pathname.includes('/files/desktop/')) return '';
+            if (url.origin !== window.location.origin || (!url.pathname.includes('/files/desktop/') && url.pathname !== '/api/desktop/layerling/ui/')) return '';
             const params = new URLSearchParams(url.hash.slice(1));
             const capability = params.get(SDK_CHANNEL_FRAGMENT_KEY) || '';
             return /^[0-9a-f]{64}$/.test(capability) ? capability : '';
@@ -1824,7 +1824,9 @@
         const client = frame && sdkFrameClients.get(frame);
         const challenge = client && client.challenge;
         const port = event.ports && event.ports.length === 1 ? event.ports[0] : null;
-        if (!frame || !client || event.origin !== 'null' || !port ||
+        const trustedLayerling = frame?.dataset.appId === 'layerling' && event.origin === location.origin &&
+            new URL(frame.src, location.href).pathname === '/api/desktop/layerling/ui/';
+        if (!frame || !client || (event.origin !== 'null' && !trustedLayerling) || !port ||
             message.capability !== frame.dataset.sdkChannel ||
             !challenge || message.challenge !== challenge ||
             String(frame.dataset.sdkChallenge || '') !== String(challenge)) {
@@ -1845,6 +1847,7 @@
         delete frame.dataset.sdkChallenge;
         const generation = client.generation;
         port.addEventListener('message', messageEvent => handleSDKMessage(client, messageEvent, port, generation));
+        if (trustedLayerling) window.LayerlingApp?.connect(client.windowId, port, client.abortController.signal);
         port.start();
     }
 

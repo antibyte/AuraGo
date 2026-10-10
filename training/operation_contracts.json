@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "a7a0d8b2bb5517d737a45971c1498a0c3e9e1929a5730d9f10a9f7e062beb863",
+  "schema_sha256": "808344514e3dea1ecc13bd87ddfff9ecd74312854eba420796089d3348b35d02",
   "tools": {
     "treg_call": {
       "default_arguments": {
@@ -15944,6 +15944,764 @@
           "required_fields": [
             "operation",
             "video_id"
+          ],
+          "excluded_fields": []
+        }
+      ]
+    },
+    "layerling": {
+      "default_arguments": {
+        "operation": "list_editors",
+        "arguments": "{}"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "add_reference_points",
+          "arguments": {
+            "operation": "add_reference_points",
+            "arguments": "{\"ids\":[\"body-1\"],\"at\":\"center\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "align_objects",
+          "arguments": {
+            "operation": "align_objects",
+            "arguments": "{\"ids\":[\"body-1\",\"body-2\"],\"axis\":\"x\",\"target\":\"center\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "apply_edge_treatment",
+          "arguments": {
+            "operation": "apply_edge_treatment",
+            "arguments": "{\"id\":\"body-1\",\"kind\":\"fillet\",\"edgeIds\":\"top\",\"amount\":0.5}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "array_objects",
+          "arguments": {
+            "operation": "array_objects",
+            "arguments": "{\"ids\":[\"body-1\"],\"mode\":\"row\",\"count\":3,\"spacing\":10}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "boolean_cut",
+          "arguments": {
+            "operation": "boolean_cut",
+            "arguments": "{\"solidIds\":[\"body-1\"],\"holeIds\":[\"hole-1\"]}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "bundle_objects",
+          "arguments": {
+            "operation": "bundle_objects",
+            "arguments": "{\"ids\":[\"body-1\",\"body-2\"]}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "capture_image",
+          "arguments": {
+            "operation": "capture_image",
+            "arguments": "{}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "close_group",
+          "arguments": {
+            "operation": "close_group",
+            "arguments": "{}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "create_shape",
+          "arguments": {
+            "operation": "create_shape",
+            "arguments": "{\"kind\":\"box\",\"name\":\"Bracket\",\"width\":30,\"depth\":20,\"height\":10}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "delete_custom_shape",
+          "arguments": {
+            "operation": "delete_custom_shape",
+            "arguments": "{\"id\":\"custom-1\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "delete_objects",
+          "arguments": {
+            "operation": "delete_objects",
+            "arguments": "{\"ids\":[\"body-1\"]}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "describe",
+          "arguments": {
+            "operation": "describe",
+            "arguments": "{\"operation\":\"create_shape\"}"
+          },
+          "required_fields": [
+            "operation",
+            "arguments"
+          ],
+          "excluded_fields": [
+            "editor_id"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "estimate_print",
+          "arguments": {
+            "operation": "estimate_print",
+            "arguments": "{}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "export_model",
+          "arguments": {
+            "operation": "export_model",
+            "arguments": "{\"path\":\"Documents/Layerling/bracket.stl\",\"format\":\"stl\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "export_section_svg",
+          "arguments": {
+            "operation": "export_section_svg",
+            "arguments": "{}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "get_scene",
+          "arguments": {
+            "operation": "get_scene",
+            "arguments": "{}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "group_objects",
+          "arguments": {
+            "operation": "group_objects",
+            "arguments": "{\"ids\":[\"body-1\",\"body-2\"]}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "hollow_object",
+          "arguments": {
+            "operation": "hollow_object",
+            "arguments": "{\"id\":\"body-1\",\"thickness\":2}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "import_mesh",
+          "arguments": {
+            "operation": "import_mesh",
+            "arguments": "{\"positions\":[0,0,0,10,0,0,0,10,0]}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "import_model",
+          "arguments": {
+            "operation": "import_model",
+            "arguments": "{\"path\":\"Documents/Layerling/bracket.stl\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "insert_custom_shape",
+          "arguments": {
+            "operation": "insert_custom_shape",
+            "arguments": "{\"id\":\"custom-1\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "inspect_errors",
+          "arguments": {
+            "operation": "inspect_errors",
+            "arguments": "{}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "intersect_objects",
+          "arguments": {
+            "operation": "intersect_objects",
+            "arguments": "{\"ids\":[\"body-1\",\"body-2\"]}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "lay_flat",
+          "arguments": {
+            "operation": "lay_flat",
+            "arguments": "{\"ids\":[\"body-1\"],\"face\":\"bottom\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_custom_shapes",
+          "arguments": {
+            "operation": "list_custom_shapes",
+            "arguments": "{}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_edges",
+          "arguments": {
+            "operation": "list_edges",
+            "arguments": "{\"id\":\"body-1\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_editors",
+          "arguments": {
+            "operation": "list_editors",
+            "arguments": "{}"
+          },
+          "required_fields": [
+            "operation",
+            "arguments"
+          ],
+          "excluded_fields": [
+            "editor_id"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "list_objects",
+          "arguments": {
+            "operation": "list_objects",
+            "arguments": "{}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "list_reference_points",
+          "arguments": {
+            "operation": "list_reference_points",
+            "arguments": "{}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "mate_faces",
+          "arguments": {
+            "operation": "mate_faces",
+            "arguments": "{\"id\":\"body-1\",\"face\":\"bottom\",\"targetId\":\"body-2\",\"targetFace\":\"top\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "measure_section",
+          "arguments": {
+            "operation": "measure_section",
+            "arguments": "{\"from\":{\"x\":0,\"y\":0},\"to\":{\"x\":10,\"y\":10}}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "open_group",
+          "arguments": {
+            "operation": "open_group",
+            "arguments": "{\"id\":\"group-1\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "open_project",
+          "arguments": {
+            "operation": "open_project",
+            "arguments": "{\"path\":\"Documents/Layerling/bracket.lyl\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "place_on_face",
+          "arguments": {
+            "operation": "place_on_face",
+            "arguments": "{\"ids\":[\"body-1\"],\"targetId\":\"body-2\",\"targetFace\":\"top\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "remove_reference_points",
+          "arguments": {
+            "operation": "remove_reference_points",
+            "arguments": "{\"ids\":[\"point-1\"]}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "save_custom_shape",
+          "arguments": {
+            "operation": "save_custom_shape",
+            "arguments": "{\"ids\":[\"body-1\"],\"name\":\"Bracket\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "save_project",
+          "arguments": {
+            "operation": "save_project",
+            "arguments": "{\"path\":\"Documents/Layerling/bracket-copy.lyl\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "scale_objects",
+          "arguments": {
+            "operation": "scale_objects",
+            "arguments": "{\"ids\":[\"body-1\"],\"percent\":125}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "select_objects",
+          "arguments": {
+            "operation": "select_objects",
+            "arguments": "{\"ids\":[\"body-1\"]}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "separate_parts",
+          "arguments": {
+            "operation": "separate_parts",
+            "arguments": "{\"id\":\"body-1\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "set_history_view",
+          "arguments": {
+            "operation": "set_history_view",
+            "arguments": "{\"open\":false}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "set_section_view",
+          "arguments": {
+            "operation": "set_section_view",
+            "arguments": "{\"enabled\":true,\"axis\":\"x\",\"offset\":5}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "set_workplane",
+          "arguments": {
+            "operation": "set_workplane",
+            "arguments": "{\"reset\":true}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "show_overhangs",
+          "arguments": {
+            "operation": "show_overhangs",
+            "arguments": "{\"enabled\":true}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "show_workplane",
+          "arguments": {
+            "operation": "show_workplane",
+            "arguments": "{\"visible\":true}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "simplify_mesh",
+          "arguments": {
+            "operation": "simplify_mesh",
+            "arguments": "{\"id\":\"body-1\",\"keepPercent\":80}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "split_objects",
+          "arguments": {
+            "operation": "split_objects",
+            "arguments": "{\"ids\":[\"body-1\"],\"axis\":\"x\",\"position\":5}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "ungroup_objects",
+          "arguments": {
+            "operation": "ungroup_objects",
+            "arguments": "{\"id\":\"group-1\"}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "update_object",
+          "arguments": {
+            "operation": "update_object",
+            "arguments": "{\"id\":\"body-1\",\"width\":32}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "wrap_around_cylinder",
+          "arguments": {
+            "operation": "wrap_around_cylinder",
+            "arguments": "{\"id\":\"body-1\",\"diameter\":40}",
+            "editor_id": "1234567890abcdef1234567890abcdef1234567890abcdef"
+          },
+          "required_fields": [
+            "operation",
+            "arguments",
+            "editor_id"
           ],
           "excluded_fields": []
         }

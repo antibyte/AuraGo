@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Sketches: from outline to body - layerling user guide</title>
+    <meta name="description" content="Draw a flat outline, round or chamfer its corners and pull or spin it into a body.">
+    <link rel="canonical" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <meta property="og:title" content="Sketches: from outline to body - layerling user guide">
+    <meta property="og:description" content="Draw a flat outline, round or chamfer its corners and pull or spin it into a body.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-left: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-left: auto; text-align: right; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/guide/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">User guide</span></span></a>
+      <a class="lang" href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" title="Auf Deutsch lesen">Deutsch</a>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Open the editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>The editor is already open in another tab - just switch to it.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Chapters"><h2>Chapters</h2><ol><li><a href="/api/desktop/layerling/ui/guide/getting-started.html">Getting started</a></li><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html">View and workplane</a></li><li><a href="/api/desktop/layerling/ui/guide/shapes.html">Placing and adjusting shapes</a></li><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html">Selecting and arranging</a></li><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html">Solids and holes</a></li><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html">Breaking edges and hollowing bodies</a></li><li><a href="/api/desktop/layerling/ui/guide/sketches.html" aria-current="page">Sketches: from outline to body</a></li><li><a href="/api/desktop/layerling/ui/guide/text.html">Text and curved lettering</a></li><li><a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html">Threads, gears and other parts</a></li><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html">Measuring and notes</a></li><li><a href="/api/desktop/layerling/ui/guide/printing.html">Preparing for 3D printing</a></li><li><a href="/api/desktop/layerling/ui/guide/files-and-saving.html">Files, saving and sharing</a></li><li><a href="/api/desktop/layerling/ui/guide/shortcuts.html">Keyboard shortcuts</a></li><li><a href="/api/desktop/layerling/ui/guide/ai-with-mcp.html">Building with an AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guide/offline-and-install.html">Installing as an app, working offline and self-hosting</a></li><li><a href="/api/desktop/layerling/ui/guide/videos.html">Videos about layerling</a></li></ol></nav>
+      <main>
+<h1>Sketches: from outline to body</h1>
+<p class="lead">Draw a flat outline, round or chamfer its corners and pull or spin it into a body.</p>
+<div class="toc"><b>On this page</b><ul><li><a href="#starting-a-sketch">Starting a sketch</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#lines-by-numbers">Lines by numbers</a></li><li><a href="#curving-a-straight-side">Curving a straight side</a></li><li><a href="#reading-and-typing-angles">Reading and typing angles</a></li><li><a href="#rounding-or-chamfering-corners">Rounding or chamfering corners</a></li><li><a href="#making-a-body-from-it">Making a body from it</a></li><li><a href="#building-as-a-stroke">Building as a stroke</a></li><li><a href="#fill-and-silhouette">Fill and silhouette</a></li><li><a href="#a-picture-as-template">A picture as template</a></li><li><a href="#keys-in-sketch-mode">Keys in sketch mode</a></li></ul></div>
+<p>Not everything can be put together from basic shapes. For parts with a contour of their own, such as a bracket, a tooth profile or a vase, you first draw the <strong>outline</strong> and then make a body from it. That is what sketch mode is for.</p>
+<h2 id="starting-a-sketch">Starting a sketch</h2>
+<p>At the top, switch from <strong class="ui">“3D editor”</strong> to <strong class="ui">“Sketch”</strong>. Click <strong class="ui">“Sketch to 3D”</strong> in the ribbon and choose what the outline should become:</p>
+<ul><li><strong><strong class="ui">“Extrude sketch”</strong>:</strong> The outline is pulled upward, like a cookie cutter.</li><li><strong><strong class="ui">“Revolve sketch”</strong>:</strong> The outline is spun about an axis, as on a lathe. That gives vases, cups, cones and everything round.</li></ul>
+<p>The editor then shows a sheet with a grid. That is your drawing surface.</p>
+<h2 id="drawing">Drawing</h2>
+<p>The ribbon in sketch mode is divided into areas:</p>
+<ul><li><strong>Draw:</strong> <strong class="ui">“Line”</strong> makes straight sections: click points one after another; holding <kbd>Shift</kbd> snaps the new line in 15° steps, horizontal and vertical included. The length and angle of the new line show at the pointer. You can also type how long it should be, see <a href="#lines-by-numbers">Lines by numbers</a>. The <strong class="ui">“Bezier Curve”</strong> is shaped with its handles: click a point and drag in the direction the line should carry on, as with the pen tool in Illustrator or Inkscape. The further you drag, the more it bends; the stretch to the new point bends along while you drag, so you see what you get. Dragging while you place a point bends the curve; if you come from Tinkercad and just want to click points, take the <strong class="ui">“Smooth Curve”</strong>. The <strong class="ui">“Smooth Curve”</strong> lays a flowing path through the points you click. To close the outline, click the first point again at the end.</li><li><strong>Shapes:</strong> <strong class="ui">“Add sketch shape”</strong> offers ready-made outlines: <strong class="ui">“Rectangle”</strong>, <strong class="ui">“Circle”</strong>, <strong class="ui">“Oval”</strong>, <strong class="ui">“Half circle”</strong>, <strong class="ui">“Pie slice”</strong>, <strong class="ui">“Bolt circle”</strong> (a disc with holes), <strong class="ui">“Triangle”</strong> and <strong class="ui">“Hexagon”</strong>. Pick one and drag a frame.</li><li><strong>Selection:</strong> <strong class="ui">“Select”</strong> moves points and lines. A click inside a closed outline selects the whole outline, so you can drag or resize it straight away; inside a hole it picks the hole. The frame around the selection has eight handles: the corners change width and height together, keeping the proportions while you hold <kbd>Shift</kbd>. The ones on the sides change one direction only. Click the width or height pill to type a new size, also as a sum (&quot;60+12.5&quot;) or in percent (&quot;150%&quot;). With <kbd>Shift</kbd> held, a click on a point or line adds it to the selection or takes it away again, so you can pick several and move them together. Drag a box over empty space to select everything in it. A line can be dragged too (it moves by its two ends, or all of the selection if it is part of one). The arrow keys move the selection by one grid step, <kbd>Shift</kbd> with them by a larger one, and <kbd>Shift</kbd> held while you drag keeps the move on one axis. <strong class="ui">“Add or Remove Points”</strong>: a click on a section adds a point, a click on a point removes it. Also there are <strong class="ui">“Erase”</strong> and inserting a template image (<strong class="ui">“Add Image”</strong>).</li><li><strong>Clipboard:</strong> <strong class="ui">“Copy”</strong>, <strong class="ui">“Paste”</strong>, <strong class="ui">“Duplicate”</strong> and <strong class="ui">“Delete”</strong> work on the selected points, lines and images, as in the 3D editor; <kbd>Ctrl</kbd>+<kbd>X</kbd> cuts. Pasted and duplicated geometry lands next to the original with a 10 mm gap, on a free spot where it touches no existing line, so it never gets joined to what is already there. It stays selected, so you can drag it straight into place.</li><li><strong>History:</strong> <strong class="ui">“Sketch undo”</strong> and <strong class="ui">“Sketch redo”</strong>.</li><li><strong>View:</strong> <kbd>F</kbd> fits the whole sketch in the view, <kbd>Shift</kbd>+<kbd>F</kbd> zooms to the selection, as in the 3D editor. The <strong class="ui">“Tape measure”</strong> on the side bar measures the distance between two points. The sketch also shows dimensions as soon as you click something: the length of a line, or for a point the lengths of the lines that meet there. The <strong class="ui">“Show measurements”</strong> button on the side bar hides and shows these dimensions when they get in the way, for example while shaping curves; the tape measure keeps working. On a straight line you can click the dimension pill and type the length in millimetres; <kbd>Enter</kbd> applies it, <kbd>Esc</kbd> cancels. The line keeps its direction, its start point stays where it is, and the lines at the other end follow. With an end point selected, that one moves. <kbd>Alt</kbd>+<kbd>Enter</kbd> grows the line to both sides around its middle. On curves the pill only shows the length.</li></ul>
+<p>A body comes only from a <strong>closed</strong> outline.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-outline.webp" alt="An L-shaped outline. At the selected corner point, top left, the lengths of the two lines are shown in millimetres, and the angle between them in degrees." width="1280" height="800" loading="lazy"><figcaption>An L-shaped outline. At the selected corner point, top left, the lengths of the two lines are shown in millimetres, and the angle between them in degrees.</figcaption></figure>
+<h2 id="lines-by-numbers">Lines by numbers</h2>
+<p>Once you have set the first point with <strong class="ui">“Line”</strong> or <strong class="ui">“Smooth Curve”</strong>, just type a number: two fields open next to the line, <strong class="ui">“Length”</strong> in millimetres and <strong class="ui">“Angle”</strong> in degrees. <kbd>&lt;</kbd> or <kbd>Tab</kbd> moves to the angle, so &quot;50&lt;30&quot; gives a line 50 mm long at 30°, as in AutoCAD. <kbd>Enter</kbd> sets the point, and you can type the next line straight away; <kbd>Esc</kbd> closes the fields without ending the line chain.</p>
+<p>The angle counts counterclockwise from the right: 0° to the right, 90° up, 180° to the left, 270° down. Leave it empty and the line follows the pointer, so you give only the length and show the direction with the mouse. Sums like &quot;40+12.5&quot; work in both fields. If the point would land off the plate, the field says so and waits for another value.</p>
+<h2 id="curving-a-straight-side">Curving a straight side</h2>
+<p>Select a straight line and click <strong class="ui">“Curve line”</strong> in the bar that appears: the side bows out into a curve, as in Tinkercad, and shows its two handles. Drag them to shape the curve; the further out a handle stands, the stronger the bend. <strong class="ui">“Straight line”</strong> makes the side straight again. A point you select can be made round with <strong class="ui">“Smooth Curve”</strong>: it gets handles of its own and the lines next to it become curves.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-curve.webp" alt="The bottom side of the L-shaped outline bent into a curve, with its two handles at the ends." width="1280" height="800" loading="lazy"><figcaption>The bottom side of the L-shaped outline bent into a curve, with its two handles at the ends.</figcaption></figure>
+<h2 id="reading-and-typing-angles">Reading and typing angles</h2>
+<p>Click a corner point where <strong>two straight lines</strong> meet: next to the lengths, layerling shows the <strong>angle</strong> between them in degrees, with a small arc. On a closed outline it is the angle inside the shape, so a dent reads above 180°. Click the value and type a new angle. One of the two lines then turns about the corner and keeps its length, and the other stays where it is. The line that turns is drawn dashed; <kbd>Tab</kbd> switches to the other one, <kbd>Enter</kbd> applies and <kbd>Esc</kbd> cancels. What hangs at the far end of the turned line goes with it.</p>
+<p>Moving a point changes three angles: at the point itself and at the two neighbouring corners at the far ends of its lines. So layerling shows those two as well, and each can be clicked and typed. That way you set, say, the bottom left corner to 75.5° while the top left point, which moves for it, is selected. You can calculate here too, e.g. &quot;90-14.5&quot;.</p>
+<p>A corner shows no angle where a curve meets it, or where more than two lines meet. The <strong class="ui">“Show measurements”</strong> button on the side bar hides the angle together with the lengths.</p>
+<h2 id="rounding-or-chamfering-corners">Rounding or chamfering corners</h2>
+<p>Click a corner point and choose <strong class="ui">“Fillet corner”</strong> or <strong class="ui">“Chamfer corner”</strong>. A small field appears for the <strong class="ui">“Radius”</strong> or the <strong class="ui">“Distance”</strong>. Enter the size and confirm with the check mark. This works for corners between two straight lines.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-fillet.webp" alt="The corner at the top left is rounded with a 12 mm radius." width="1280" height="800" loading="lazy"><figcaption>The corner at the top left is rounded with a 12 mm radius.</figcaption></figure>
+<h2 id="making-a-body-from-it">Making a body from it</h2>
+<p>Click <strong class="ui">“Finish sketch”</strong>. The outline stands as a body on the workplane. In its settings you change the height, the colour and everything else as with any other shape. When you resize it, layerling builds it again from the sketch a moment later, and the sketch grows with it. So it stays an exact body that takes chamfers and fillets, and the next time you edit it the sketch has the size the body has.</p>
+<p>If the workplane lies on the side of a body, you draw the way you look at that side: up in the sketch is up on the finished body too. The faint outline of the body in the sketch view shows where it stands. If the workplane cuts through a body, the sketch view shows the outline of that cut instead, so a hollow body appears as a ring and you can line the sketch up with its walls. A point you set or drag close to a corner of these outlines snaps exactly onto it; a small blue ring shows it. That way you take edges of other bodies into the sketch, even when the workplane does not lie exactly on them.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-result.webp" alt="The outline has become a body. The corner is rounded." width="1280" height="800" loading="lazy"><figcaption>The outline has become a body. The corner is rounded.</figcaption></figure>
+<p>With <strong class="ui">“Edit sketch”</strong> you can return to the sketch at any time to change it. A double click on the body does the same, as in Tinkercad (a locked body stays closed); <strong class="ui">“Double-click opens the sketch”</strong> in the settings switches that off. Edge treatments you already made on the body are lost, though, because the edges are created anew.</p>
+<h3 id="revolving">Revolving</h3>
+<p>When revolving, you draw half the cross-section <strong>to the left of the axis</strong> shown in the sketch. Next to it you see a 3D preview of the revolve. It shows at once what the body will look like. The outline must be closed. At the end click <strong class="ui">“Finish revolve”</strong>.</p>
+<p>A revolved body is an exact body, like an extruded one: it takes chamfers and fillets, and you can hollow it, for a cup or a vase. A body revolved with an older layerling is a mesh; open <strong class="ui">“Edit sketch”</strong> and finish it again to make it exact. A profile that reaches across the axis cannot be built exactly and becomes a mesh, as before.</p>
+<h2 id="building-as-a-stroke">Building as a stroke</h2>
+<p>Normally the area inside a closed outline becomes the body. With <strong class="ui">“Stroke”</strong> in the <strong class="ui">“Finish”</strong> section you build the line itself instead, with a width you set. Tick <strong class="ui">“Build as a stroke”</strong> in the panel; the sketch shows straight away what comes out.</p>
+<ul><li>A <strong>closed outline</strong> becomes a frame. <strong class="ui">“Position”</strong> says where the wall lies: <strong class="ui">“Centred”</strong> on the drawn line, <strong class="ui">“Inside”</strong> within it or <strong class="ui">“Outside”</strong> outside it. Outside is handy for a tolerance: draw the outline of a hole, a dovetail for instance, and give it a 0.2 mm stroke outside to get the gap the print needs.</li><li>An <strong>open line</strong> becomes a stripe, centred on the line. <strong class="ui">“Ends”</strong> sets how its ends look: <strong class="ui">“Flat”</strong>, <strong class="ui">“Square”</strong> (longer by half the width) or <strong class="ui">“Round”</strong>.</li><li><strong class="ui">“Corners”</strong> applies to both: <strong class="ui">“Sharp”</strong>, <strong class="ui">“Round”</strong> or <strong class="ui">“Bevel”</strong>.</li></ul>
+<p>The sketch keeps the drawn line. Open it again and you go on changing line and stroke; untick the box and the area is built again. Curves are broken into short straight pieces for it. A revolve has no stroke.</p>
+<h2 id="fill-and-silhouette">Fill and silhouette</h2>
+<p>You can set the stroke without opening the sketch too: in the properties of a sketch body, choose <strong class="ui">“Area”</strong>, <strong class="ui">“Stroke Outside”</strong>, <strong class="ui">“Stroke Inside”</strong> or <strong class="ui">“Stroke Centred”</strong> under <strong class="ui">“Fill”</strong>, with <strong class="ui">“Line Width”</strong> and <strong class="ui">“Corners”</strong>. The body is built again straight away, where it stands. These match the fill modes of Tinkercad's SVG import: default, outer line and inner line.</p>
+<p><strong class="ui">“Silhouette (No Holes)”</strong> leaves out every outline lying inside another: holes and whatever lies in them. Only the outer outline stays. Together with <strong class="ui">“Stroke Outside”</strong> it makes a cookie cutter: import an SVG twice, once with the silhouette as an area for the base and once with the silhouette and 1 to 2 mm of stroke outside as the wall. The switch is in the <strong class="ui">“Stroke”</strong> panel in sketch mode as well.</p>
+<p>Fillets and chamfers on the edges go when the body is built again, as when the sketch is edited.</p>
+<h2 id="a-picture-as-template">A picture as template</h2>
+<p>With <strong class="ui">“Add Image”</strong> you put a photo or a drawing under the sketch and trace it. You can set its size, opacity and position. Once the picture sits right, lock it with <kbd>L</kbd> so you do not move it by accident while drawing. A locked image is out of the way: clicks go through it, so you can pick lines and points on top of it and drag a frame over them. To select it again, for example to unlock it, <kbd>Alt</kbd>+click it. If its settings at the right edge cover the picture, drag them away by their title bar; a double-click on it docks them again.</p>
+<h2 id="keys-in-sketch-mode">Keys in sketch mode</h2>
+<div class="table-scroll"><table><thead><tr><th>Key</th><th>Effect</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>end the line chain, clear the selection</td></tr><tr><td><kbd>Delete</kbd></td><td>delete the selected element</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>copy the selection</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>X</kbd></td><td>cut the selection</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>paste</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>duplicate the selection</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>undo</td></tr><tr><td><kbd>Shift</kbd></td><td>while drawing: snap the line in 15° steps; while dragging: keep movement on one axis</td></tr><tr><td>digit, <kbd>&lt;</kbd>, <kbd>Tab</kbd>, <kbd>Enter</kbd></td><td>while drawing: type and set the length and angle of the next line</td></tr><tr><td><kbd>R</kbd></td><td>rotate the closed sketch by 45°</td></tr><tr><td><kbd>L</kbd></td><td>lock or unlock the template image</td></tr></tbody></table></div>
+<aside class="tip"><p><strong>Tip:</strong> Draw as few points as needed. An outline with a few well-placed points gives a smoother body than a tangle of many.</p></aside>
+<div class="pager"><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html"><small>Previous chapter</small>Breaking edges and hollowing bodies</a><a class="next" href="/api/desktop/layerling/ui/guide/text.html"><small>Next chapter</small>Text and curved lettering</a></div>
+      </main>
+    </div>
+    <footer class="note">This guide grows with the program. If something is missing or wrong, tell us in the <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.57.0</a></div></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Back to the editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Open the editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+  </body>
+</html>

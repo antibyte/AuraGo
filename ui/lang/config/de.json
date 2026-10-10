@@ -1,4 +1,11 @@
 {
+  "config.layerling.enabled": "Layerling aktivieren",
+  "config.layerling.help": "Lokales 3D-CAD im Browser. Editorsprachen: Deutsch und Englisch.",
+  "config.layerling.access": "Agentenzugriff",
+  "config.layerling.access_help": "Gilt für geöffnete Editoren dieser Desktop-Sitzung. Die Desktop-Rechte gelten zusätzlich.",
+  "config.layerling.off": "Aus",
+  "config.layerling.read": "Lesen",
+  "config.layerling.write": "Lesen und Schreiben",
   "config.tool_policy.effective_help": "Backendwerte für den primären Provider; Rolle, Berechtigungen und Routenbudget können einzelne Requests weiter begrenzen. Nach dem Speichern neu laden.",
   "config.tool_policy.output_bytes": "Ausgabe-Bytes",
   "config.tool_policy.guides": "Anleitungen",

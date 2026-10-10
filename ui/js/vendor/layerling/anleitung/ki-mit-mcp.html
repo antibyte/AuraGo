@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Mit einer KI bauen (MCP) - layerling Anleitung</title>
+    <meta name="description" content="Wie ein KI-Assistent wie Claude oder Codex in deinem geöffneten Editor Formen anlegt, ändert, gruppiert und Bilder der Ansicht aufnimmt.">
+    <link rel="canonical" href="https://layerling.com/anleitung/ki-mit-mcp.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ki-mit-mcp.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/ai-with-mcp.html">
+    <meta property="og:title" content="Mit einer KI bauen (MCP) - layerling Anleitung">
+    <meta property="og:description" content="Wie ein KI-Assistent wie Claude oder Codex in deinem geöffneten Editor Formen anlegt, ändert, gruppiert und Bilder der Ansicht aufnimmt.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-left: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-left: auto; text-align: right; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
+      <a class="lang" href="/api/desktop/layerling/ui/guide/ai-with-mcp.html" hreflang="en" title="Read this in English">English</a>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html" aria-current="page">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li></ol></nav>
+      <main>
+<h1>Mit einer KI bauen (MCP)</h1>
+<p class="lead">Wie ein KI-Assistent wie Claude oder Codex in deinem geöffneten Editor Formen anlegt, ändert, gruppiert und Bilder der Ansicht aufnimmt.</p>
+<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#einrichten">Einrichten</a></li><li><a href="#eine-kopie-auf-nas-oder-server">Eine Kopie auf NAS oder Server</a></li><li><a href="#was-die-ki-kann">Was die KI kann</a></li><li><a href="#ein-beispiel">Ein Beispiel</a></li></ul></div>
+<p>layerling bringt einen MCP-Server mit. MCP ist ein Standard, über den ein KI-Assistent Werkzeuge in anderen Programmen benutzen kann. Damit sieht ein KI-Client wie Claude oder Codex einen offenen Editor-Tab und arbeitet darin: Er legt Formen an, ändert Maße, gruppiert, schneidet, rundet Kanten, liest die Szene aus und nimmt Bilder der Ansicht auf. Du beschreibst das Teil, die KI baut es, du siehst zu und greifst jederzeit ein.</p>
+<p>Die Brücke zwischen KI-Client und Editor läuft <strong>lokal auf deinem Rechner</strong>. Bedenke aber: Was die KI liest, also die Szene und die Bilder der Ansicht, geht an den Anbieter deines KI-Clients, so wie jede andere Eingabe dort auch.</p>
+<aside class="tip"><p><strong>Wichtig:</strong> Die MCP-Brücke gibt es im Entwicklungsserver, den du selbst auf deinem Rechner startest. Auf layerling.com und in Installationen mit statischem Hosting ist sie abgeschaltet. Eine Kopie, die du selbst betreibst, etwa das Docker-Image auf einer NAS, kann sie mit einem Zugriffsschlüssel einschalten; siehe „Eine Kopie auf NAS oder Server“ unten.</p></aside>
+<h2 id="einrichten">Einrichten</h2>
+<ol><li>Lade layerling von <a href="https://github.com/henmedia/layerling" rel="noopener">GitHub</a> und starte es im Projektordner mit <code>npm run dev</code>. Node.js muss installiert sein. Unter Windows erledigt das die Schnellstart-Zeile in der README.</li><li>Öffne einen Editor-Tab, zum Beispiel <code>http://127.0.0.1:3000/?editor=1</code>.</li><li>Verbinde deinen KI-Client mit dem MCP-Server. Er wird vom Client selbst mit <code>node scripts/layerling-mcp-server.mjs</code> gestartet.</li></ol>
+<h3 id="claude-code">Claude Code</h3>
+<p>Nichts zu installieren: Das Projekt bringt eine <code>.mcp.json</code> mit, die den Server einträgt, und den Skill unter <code>.claude/skills/layerling-mcp-skill</code>. Öffne den layerling-Ordner in Claude Code und bitte zum Beispiel: „Nutze die layerling-MCP-Werkzeuge, liste meine offenen Editoren auf und sieh dir die Szene an.“</p>
+<h3 id="claude-desktop">Claude Desktop</h3>
+<p>Claude Desktop liest keine Projektdateien. Trage den Server in seiner eigenen Konfiguration ein. Als Vorlage dient <code>docs/mcp/claude-desktop-config.example.json</code> im Projekt, in der du den Skriptpfad durch den absoluten Pfad auf deinem Rechner ersetzt. Danach Claude Desktop neu starten.</p>
+<h3 id="codex">Codex</h3>
+<p>Kopiere den Skill aus <code>docs/skills/layerling-mcp-skill</code> in deinen Codex-Skill-Ordner, trage den Server anhand von <code>docs/mcp/codex-config.example.toml</code> in deine Codex-Konfiguration ein und starte Codex neu.</p>
+<p>Die ausführliche Anleitung für alle drei steht in der <a href="https://github.com/henmedia/layerling/blob/main/README.de.md#layerling-mcp-skill" rel="noopener">README auf GitHub</a>.</p>
+<h2 id="eine-kopie-auf-nas-oder-server">Eine Kopie auf NAS oder Server</h2>
+<p>Eine Kopie, die du selbst betreibst, kann einen KI-Client ihre offenen Editoren übers Netz steuern lassen. Das ist standardmäßig aus, denn wer die Brücke steuern kann, kann die offenen Entwürfe lesen und ändern. Setze auf dem Server <code>LAYERLING_MCP_REMOTE</code> auf <code>true</code> und <code>LAYERLING_MCP_TOKEN</code> auf ein Geheimnis von mindestens 16 Zeichen (beim Docker-Image unter <code>environment:</code> der Compose-Datei; ein Neubau ist nicht nötig). Öffne einen Editor-Tab dieser Kopie und lass ihn offen, und gib dem MCP-Client die Adresse und denselben Schlüssel: <code>LAYERLING_URL=http://nas:3000</code> und <code>LAYERLING_MCP_TOKEN=&lt;der Schlüssel&gt;</code>.</p>
+<p>Nur ein Client mit dem Schlüssel kann die Editoren auflisten oder steuern. Die Editor-Seiten brauchen keinen, zählen aber nur unter einer Adresse oder einem Namen, den nur dein eigenes Netz benutzen kann (eine IP-Adresse, ein Name ohne Punkt oder einer auf <code>.local</code> oder <code>.lan</code>); eine echte Domain hinter einem Reverse-Proxy kommt in <code>LAYERLING_MCP_ALLOWED_HOSTS</code>. Nutze es in einem Netz, dem du vertraust, und HTTPS darüber hinaus. Die Einzelheiten stehen in der README.</p>
+<h2 id="was-die-ki-kann">Was die KI kann</h2>
+<p>Die KI arbeitet mit denselben Funktionen wie du, sie läuft über denselben Weg wie deine Bedienung im Editor. Neue Funktionen von layerling bekommen ihre MCP-Aktion gleich mit. Die Werkzeuge:</p>
+<div class="table-scroll"><table><thead><tr><th>Werkzeug</th><th>Was es tut</th></tr></thead><tbody><tr><td><code>layerling_list_editors</code></td><td>listet die offenen Editor-Tabs auf</td></tr><tr><td><code>layerling_read_scene</code></td><td>liest Szene, Auswahl, Einheiten und die genauen Maße aller Objekte</td></tr><tr><td><code>layerling_list_objects</code></td><td>listet alle Objekte mit Maßen, Lage, Drehung und Kennung</td></tr><tr><td><code>layerling_select_objects</code></td><td>wählt Objekte aus</td></tr><tr><td><code>layerling_delete_objects</code></td><td>löscht Objekte</td></tr><tr><td><code>layerling_create_shape</code></td><td>legt eine Form an: Quader, Zylinder, Text (auch gebogen), Gewinde, Zahnrad, Skizzenkörper und alle anderen</td></tr><tr><td><code>layerling_import_file</code></td><td>importiert eine Datei wie das Importfenster, eine farbige OBJ oder 3MF als ein Körper je Farbe, eine 3MF mit mehreren Objekten als ein Körper je Objekt</td></tr><tr><td><code>layerling_import_mesh</code></td><td>bringt ein Dreiecksnetz in den Entwurf</td></tr><tr><td><code>layerling_update_object</code></td><td>ändert Maße, Lage, Farbe, Name, Körper oder Aussparung und alles, was die Form sonst ausmacht</td></tr><tr><td><code>layerling_align_objects</code></td><td>richtet Objekte aneinander aus</td></tr><tr><td><code>layerling_scale_objects</code></td><td>skaliert Objekte um einen Prozentwert, zusammen oder jedes für sich</td></tr><tr><td><code>layerling_lay_flat</code></td><td>legt ein Objekt mit einer Fläche auf die Platte</td></tr><tr><td><code>layerling_place_on_face</code></td><td>setzt Objekte auf eine Fläche eines anderen, auch schräg, wie die Taste C</td></tr><tr><td><code>layerling_mate_faces</code></td><td>legt eine Fläche eines Objekts an die Fläche eines anderen, gegeneinander oder bündig</td></tr><tr><td><code>layerling_open_group</code></td><td>öffnet eine Gruppe, damit ihre Teile einzeln änderbar sind, auch eine Gruppe in einer geöffneten</td></tr><tr><td><code>layerling_close_group</code></td><td>schließt sie wieder („Fertig“) oder bricht ab</td></tr><tr><td><code>layerling_group_objects</code></td><td>gruppiert Objekte</td></tr><tr><td><code>layerling_ungroup_objects</code></td><td>löst Gruppen auf</td></tr><tr><td><code>layerling_boolean_cut</code></td><td>schneidet Körper mit Aussparungen</td></tr><tr><td><code>layerling_intersect_objects</code></td><td>behält nur, was die Objekte gemeinsam haben (Schnittmenge)</td></tr><tr><td><code>layerling_separate_parts</code></td><td>zerlegt eine Form mit losen Teilen</td></tr><tr><td><code>layerling_split_objects</code></td><td>teilt Körper oder Aussparungen mit einer Ebene in zwei</td></tr><tr><td><code>layerling_list_edges</code></td><td>listet die echten CAD-Kanten eines Objekts</td></tr><tr><td><code>layerling_apply_edge_treatment</code></td><td>fast oder verrundet ausgewählte Kanten</td></tr><tr><td><code>layerling_hollow_object</code></td><td>höhlt einen Körper mit gleichmäßiger Wand aus</td></tr><tr><td><code>layerling_array_objects</code></td><td>vervielfältigt in einer Reihe oder auf einem Kreis</td></tr><tr><td><code>layerling_bundle_objects</code></td><td>bündelt Objekte wie Strg+B: sie bewegen sich zusammen, behalten Farbe und Art und gehen einzeln in den Export</td></tr><tr><td><code>layerling_measure_section</code></td><td>misst auf einer Schnittebene zwischen zwei Punkten, die am Umriss einrasten – Wandstärken, Spalte, Passungen</td></tr><tr><td><code>layerling_show_overhangs</code></td><td>schaltet die Überhang-Schraffur ein oder aus, setzt den Winkel und nennt je Körper die Fläche, die Stützen bräuchte</td></tr><tr><td><code>layerling_estimate_print</code></td><td>schätzt Volumen, Gewicht und Filament für die Auswahl oder den ganzen Entwurf, massiv gerechnet wie im Exportfenster</td></tr><tr><td><code>layerling_add_reference_points</code></td><td>setzt Bezugspunkte - auf Mitte, Ecken oder Kantenmitten von Objekten oder an genauen Stellen -, an denen Formen einrasten</td></tr><tr><td><code>layerling_list_reference_points</code></td><td>listet die Bezugspunkte mit Kennung und Lage auf</td></tr><tr><td><code>layerling_remove_reference_points</code></td><td>löscht Bezugspunkte nach Kennung oder alle</td></tr><tr><td><code>layerling_inspect_errors</code></td><td>zeigt die letzte Meldung und den letzten Fehler, dazu die Meldungen und Fehler der Sitzung</td></tr><tr><td><code>layerling_wrap_around_cylinder</code></td><td>wickelt einen flach liegenden Körper, etwa ein SVG oder Text, um einen Zylinder, nach außen oder als Gravur nach innen</td></tr><tr><td><code>layerling_simplify_mesh</code></td><td>verringert die Dreieckszahl eines importierten Netzes, auf einen Anteil in Prozent oder auf eine Anzahl Dreiecke</td></tr><tr><td><code>layerling_save_custom_shape</code></td><td>legt Körper als eigene Form ab, auf dem Server oder im Browser, um sie in andere Entwürfe einzusetzen</td></tr><tr><td><code>layerling_list_custom_shapes</code></td><td>listet die eigenen Formen auf dem Server und im Browser</td></tr><tr><td><code>layerling_insert_custom_shape</code></td><td>setzt eine eigene Form in den offenen Entwurf, wahlweise an eine Stelle x/z</td></tr><tr><td><code>layerling_delete_custom_shape</code></td><td>entfernt eine eigene Form; eingesetzte Körper bleiben</td></tr><tr><td><code>layerling_show_workplane</code></td><td>blendet die Platte mit ihrem Gitter aus und wieder ein, etwa für ein Bild der Unterseite (nur die Ansicht)</td></tr><tr><td><code>layerling_set_section_view</code></td><td>schneidet die Ansicht entlang einer Ebene auf, um ins Innere zu sehen (nur die Ansicht, nichts wird zerteilt)</td></tr><tr><td><code>layerling_set_history_view</code></td><td>schaut auf einen früheren Stand des Projekts zurück, wie die Verlaufsansicht (der echte Entwurf bleibt unberührt; ändernde Werkzeuge warten, bis sie geschlossen ist)</td></tr><tr><td><code>layerling_export_section_svg</code></td><td>liefert die Umrisse auf einer Schnittebene als SVG im Maßstab 1:1, aus denselben Körpern wie der Export</td></tr><tr><td><code>layerling_set_workplane</code></td><td>legt die Arbeitsebene auf eine Seite eines Körpers, setzt sie auf die Grundplatte zurück oder blendet sie aus und ein</td></tr><tr><td><code>layerling_capture_image</code></td><td>nimmt ein Bild der Ansicht auf, von vorn, oben, seitlich, schräg von einer Ecke und mehr</td></tr></tbody></table></div>
+<p>Die KI kann sich damit selbst kontrollieren: Sie legt etwas an, macht ein Bild, sieht nach und verbessert.</p>
+<h2 id="ein-beispiel">Ein Beispiel</h2>
+<p>Du sagst: „Baue mir eine runde Dose mit 60 mm Durchmesser, 40 mm Höhe und 2,5 mm Wand, oben offen, dazu einen flachen Deckel, auf dem ‚Tee‘ im Bogen steht.“ Die KI legt Zylinder an, höhlt einen aus, setzt den gebogenen Text auf den Deckel und nimmt zum Schluss Bilder auf, damit sie sieht, ob es passt.</p>
+<aside class="tip"><p><strong>Tipp:</strong> Gib der KI konkrete Maße und sag ihr, wofür das Teil gedacht ist („Halter für eine 12-mm-Stange, passt auf ein Bambu Lab A1“). Dann trifft sie sinnvollere Entscheidungen. Und schau ihr beim Bauen zu: Du kannst jederzeit selbst eingreifen, denn es ist derselbe Editor.</p></aside>
+<div class="pager"><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html"><small>Vorheriges Kapitel</small>Tastenkürzel</a><a class="next" href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html"><small>Nächstes Kapitel</small>Als App installieren, ohne Internet arbeiten und selbst hosten</a></div>
+      </main>
+    </div>
+    <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.57.0</a></div></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+  </body>
+</html>

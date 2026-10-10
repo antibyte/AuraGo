@@ -1,0 +1,41 @@
+{
+  "id": "/",
+  "name": "layerling - Easy 3D CAD for 3D printing",
+  "short_name": "layerling",
+  "description": "Easy 3D CAD for 3D printing, right in your browser",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "launch_handler": { "client_mode": ["navigate-existing", "auto"] },
+  "orientation": "any",
+  "background_color": "#fafafa",
+  "theme_color": "#fafaf9",
+  "categories": ["graphics", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "assets/layerling/layerling-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/layerling/layerling-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/layerling/layerling-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/layerling/layerling-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

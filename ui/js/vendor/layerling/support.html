@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="index, follow" />
+    <title>Support layerling</title>
+    <meta name="description" content="layerling is a free open-source project. Three ways to chip in if it saves you time." />
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" />
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #231a11;
+        --muted: #7a6650;
+        --ground: #fbf8f0;
+        --card: #ffffff;
+        --edge: #ede4d4;
+        --accent: #ad6206;
+        --accent-ink: #ffffff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 0 16px 64px;
+        background: var(--ground);
+        color: var(--ink);
+        font: 15px/1.65 "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 18px 0;
+        border-bottom: 1px solid var(--edge);
+      }
+      header img { width: 40px; height: 40px; }
+      header a { color: inherit; text-decoration: none; }
+      .brand { flex: 1; }
+      .name { font-size: 21px; font-weight: 800; letter-spacing: -0.035em; }
+      .claim { color: var(--muted); font-size: 12px; font-weight: 600; }
+      .lang { display: flex; gap: 4px; }
+      .lang button {
+        font: inherit; font-size: 13px; font-weight: 700; padding: 4px 10px;
+        color: var(--muted); background: transparent; border: 1px solid var(--edge); border-radius: 6px; cursor: pointer;
+      }
+      .lang button[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+      main {
+        max-width: 720px;
+        margin: 28px auto 0;
+        padding: 26px 28px;
+        background: var(--card);
+        border: 1px solid var(--edge);
+        border-radius: 10px;
+      }
+      h1 { margin: 0 0 14px; font-size: 27px; letter-spacing: -0.02em; text-wrap: balance; }
+      p { margin: 0 0 12px; }
+      a { color: var(--accent); }
+      .ways { display: grid; gap: 10px; margin: 22px 0 6px; padding: 0; list-style: none; }
+      .way {
+        display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 16px;
+        padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px;
+      }
+      .way strong { font-size: 16px; }
+      .way span { grid-column: 1; color: var(--muted); font-size: 13px; line-height: 1.5; }
+      .way .go {
+        grid-column: 2; grid-row: 1 / span 2; justify-self: end;
+        padding: 8px 16px; font-weight: 700; text-decoration: none; white-space: nowrap;
+        color: var(--accent-ink); background: var(--accent); border-radius: 6px;
+      }
+      .go:hover { filter: brightness(1.08); }
+      a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+      .small { color: var(--muted); font-size: 13px; }
+      footer { max-width: 720px; margin: 20px auto 0; color: var(--muted); font-size: 13px; }
+      footer a { color: var(--muted); }
+      [data-l] { display: none; }
+      html[lang="en"] [data-l="en"], html[lang="de"] [data-l="de"] { display: block; }
+      @media (max-width: 520px) {
+        main { padding: 22px 18px; }
+        .way { grid-template-columns: 1fr; }
+        .way .go { grid-column: 1; grid-row: auto; justify-self: stretch; text-align: center; margin-top: 8px; }
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          color-scheme: dark;
+          --ink: #f3ede3;
+          --muted: #a89179;
+          --ground: #1b140d;
+          --card: #2d2217;
+          --edge: #514130;
+          --accent: #f3a452;
+          --accent-ink: #1b140d;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a href="/api/desktop/layerling/ui/"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt="" /></a>
+      <a class="brand" href="/api/desktop/layerling/ui/">
+        <div class="name">layerling</div>
+        <div class="claim">Easy 3D CAD for 3D printing</div>
+      </a>
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-set="en" aria-pressed="true">EN</button>
+        <button type="button" data-set="de" aria-pressed="false">DE</button>
+      </div>
+    </header>
+
+    <main>
+      <div data-l="en">
+        <h1>Keep layerling free</h1>
+        <p>layerling is free, needs no account and shows no ads. Everything runs in your browser, so there is no company behind it and no income from it.</p>
+        <p>If it saved you an evening of fighting with a CAD program, or you simply like it, a small contribution helps to cover the server costs and the development of new features. Pick whatever suits you.</p>
+        <ul class="ways">
+          <li class="way"><strong>PayPal</strong><span>Donation in euros, one-time or monthly. Any amount; paying by card works without a PayPal account.</span><a class="go" href="https://www.paypal.com/donate?business=TX5T9PET4XKWN&amp;item_name=layerling&amp;currency_code=EUR" rel="noopener">Donate</a></li>
+          <li class="way"><strong>Ko-fi</strong><span>Buy a coffee, one-time or monthly.</span><a class="go" href="https://ko-fi.com/henmedia" rel="noopener">Open Ko-fi</a></li>
+          <li class="way"><strong>GitHub Sponsors</strong><span>Support monthly or once through your GitHub account, where the source code lives.</span><a class="go" href="https://github.com/sponsors/henmedia" rel="noopener">Open Sponsors</a></li>
+        </ul>
+        <p class="small">No pressure: layerling stays free either way. Telling others about it or sharing a design you made with it helps just as much. Thank you!</p>
+      </div>
+
+      <div data-l="de">
+        <h1>layerling kostenlos halten</h1>
+        <p>layerling ist kostenlos, braucht kein Konto und zeigt keine Werbung. Alles läuft in deinem Browser; hinter dem Projekt steht keine Firma, und es bringt auch nichts ein.</p>
+        <p>Wenn dir layerling einen Abend Kampf mit einem CAD-Programm erspart hat oder es dir einfach gefällt, hilft ein kleiner Beitrag, die Serverkosten und die Entwicklung neuer Funktionen zu finanzieren. Such dir den Weg aus, der dir passt.</p>
+        <ul class="ways">
+          <li class="way"><strong>PayPal</strong><span>Spende in Euro, einmalig oder monatlich. Beliebiger Betrag; mit Kartenzahlung geht es auch ohne PayPal-Konto.</span><a class="go" href="https://www.paypal.com/donate?business=TX5T9PET4XKWN&amp;item_name=layerling&amp;currency_code=EUR" rel="noopener">Spenden</a></li>
+          <li class="way"><strong>Ko-fi</strong><span>Einen Kaffee ausgeben, einmalig oder monatlich.</span><a class="go" href="https://ko-fi.com/henmedia" rel="noopener">Ko-fi öffnen</a></li>
+          <li class="way"><strong>GitHub Sponsors</strong><span>Monatlich oder einmalig über dein GitHub-Konto, dort liegt auch der Quelltext.</span><a class="go" href="https://github.com/sponsors/henmedia" rel="noopener">Sponsors öffnen</a></li>
+        </ul>
+        <p class="small">Kein Druck: layerling bleibt in jedem Fall kostenlos. Genauso hilft es, wenn du davon erzählst oder ein damit gebautes Design zeigst. Danke!</p>
+      </div>
+    </main>
+
+    <footer>
+      <a href="/api/desktop/layerling/ui/">layerling</a> ·
+      <a href="/api/desktop/layerling/ui/impressum.html">Impressum / Legal notice</a> ·
+      <a href="/api/desktop/layerling/ui/datenschutz.html">Datenschutz / Privacy</a>
+    </footer>
+
+    <script>
+      (function () {
+        var root = document.documentElement;
+        var buttons = document.querySelectorAll(".lang button");
+        function set(lang) {
+          root.lang = lang;
+          document.title = lang === "de" ? "layerling unterstützen" : "Support layerling";
+          buttons.forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-set") === lang)); });
+        }
+        buttons.forEach(function (b) { b.addEventListener("click", function () { set(b.getAttribute("data-set")); }); });
+        /* The language of the page that linked here (?lang=), then the app's own setting, then the browser's. */
+        var wanted = (/[?&]lang=(de|en)/.exec(location.search) || [])[1] || null;
+        try { wanted = wanted || localStorage.getItem("layerling.language"); } catch (e) {}
+        if (wanted !== "de" && wanted !== "en") wanted = (navigator.language || "").toLowerCase().indexOf("de") === 0 ? "de" : "en";
+        set(wanted);
+      })();
+    </script>
+  </body>
+</html>

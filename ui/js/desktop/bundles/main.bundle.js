@@ -403,6 +403,7 @@
         zipper: 'zipper',
         pixel: 'pixel',
         'galaxa-deluxe': 'galaxa-deluxe',
+        layerling: 'layerling',
         nasscad: 'nasscad',
         'store-quakejs-rootless': 'quakejs',
         people: 'users',
@@ -438,6 +439,7 @@
         ogg: 'audio',
         m4a: 'audio',
         opus: 'audio',
+        lyl: 'layerling',
         aurasynth: 'synth-studio',
         mp4: 'video',
         webm: 'video',
@@ -839,6 +841,7 @@
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
+            layerling: 'LayerlingApp',
             nasscad: 'NasscadApp',
             people: 'PeopleApp',
             'homepage-studio': 'HomepageStudioApp',
@@ -6445,6 +6448,7 @@
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
             chess: { width: 980, height: 680 },
+            layerling: { width: 1280, height: 850 },
             nasscad: { width: 1280, height: 850 },
             people: { width: 1020, height: 700 },
             'mission-control': { width: 1100, height: 750 },
@@ -6520,11 +6524,11 @@
 
     function matchesExistingAppWindow(win, appId, context) {
         if (win.appId !== appId || appId === 'quick-connect') return false;
-        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio') && context && context.path != null) {
+        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio' || appId === 'layerling') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }
-        return !['editor', 'writer', 'sheets', 'synth-studio'].includes(appId);
+        return !['editor', 'writer', 'sheets', 'synth-studio', 'layerling'].includes(appId);
     }
 
     function findExistingAppWindow(appId, context) {
@@ -7946,6 +7950,11 @@ function wireWindow(win, id) {
             guide: 'Use this window context to interpret references to the open app. If app-specific data is not included, ask for the missing detail instead of guessing.',
             resources: []
         };
+        if (item.appId === 'layerling') {
+            const editorId = window.LayerlingApp?.editorId(item.id);
+            base.guide = editorId ? 'Use the layerling tool with editor_id=' + editorId + '. This exact editor belongs to this window. Never use another editor automatically.' : 'Layerling is not connected. Wait for the editor before using the layerling tool.';
+            if (item.context?.path) base.resources.push({ kind: 'desktop_file', path: item.context.path, label: 'Layerling project' });
+        }
         if (storeAppId === 'olivetin') return oliveTinWindowAIContext(base);
         return base;
     }
@@ -9073,7 +9082,7 @@ function wireWindow(win, id) {
     function defaultAppForExtension(ext) {
         const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
         const map = parseDefaultAppsMap();
-        return map[normalized] || '';
+        return map[normalized] || (normalized === 'lyl' ? 'layerling' : '');
     }
 
     const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v2';
@@ -15820,6 +15829,8 @@ function updateTaskbarSystemButtonsForMobile() {
         } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
             apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (/\.lyl$/i.test(name)) {
+            apps.push({ label: 'Layerling', appId: 'layerling' });
         } else if (/\.aurasynth$/i.test(name)) {
             apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
@@ -15835,6 +15846,7 @@ function updateTaskbarSystemButtonsForMobile() {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
         const ext = desktopFileExtension(name);
+        if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });
         const openItems = apps.map(app => ({
             label: app.label,
             action: () => {
@@ -17269,6 +17281,12 @@ function updateTaskbarSystemButtonsForMobile() {
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
             return window.WriterApp.render(contentEl(id), id, officeAppContext(context));
         }
+        if (appId === 'layerling') {
+            return window.LayerlingApp.render(contentEl(id), id, Object.assign(officeAppContext(context), {
+                windowId: id, sessionKey: state.windows.get(id)?.sessionKey || id, modalDialog,
+                makeFrame: () => makeSandboxedFrame(addDesktopSDKChannelFragment('/api/desktop/layerling/ui/'), 'layerling', '', id, 'vd-generated-frame vd-layerling-frame', 'Layerling', { allowSameOrigin: true, allowDownloads: true }),
+            }));
+        }
         if (appId === 'synth-studio') {
             if (!window.SynthStudioApp) {
                 window.AuraDesktopModules.loadAppScript('synth-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
@@ -17633,6 +17651,7 @@ if (appId === 'pixel') {
                 wireContextMenuBoundary,
                 openFile: (entry) => {
                     if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
+                    if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
                     if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path }); if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
@@ -17819,6 +17838,7 @@ if (appId === 'pixel') {
             mime_type: row.dataset.mimeType
         };
         if (fileExtension(entry.name || entry.path) === 'zip') return openApp('zipper', { path: entry.path });
+        if (/\.lyl$/i.test(entry.name || entry.path)) return openApp('layerling', { path: entry.path });
         if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
         if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
         if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
@@ -20343,7 +20363,7 @@ if (appId === 'pixel') {
     function desktopSDKChannelFromURL(src) {
         try {
             const url = new URL(src, window.location.origin);
-            if (url.origin !== window.location.origin || !url.pathname.includes('/files/desktop/')) return '';
+            if (url.origin !== window.location.origin || (!url.pathname.includes('/files/desktop/') && url.pathname !== '/api/desktop/layerling/ui/')) return '';
             const params = new URLSearchParams(url.hash.slice(1));
             const capability = params.get(SDK_CHANNEL_FRAGMENT_KEY) || '';
             return /^[0-9a-f]{64}$/.test(capability) ? capability : '';
@@ -20457,7 +20477,9 @@ if (appId === 'pixel') {
         const client = frame && sdkFrameClients.get(frame);
         const challenge = client && client.challenge;
         const port = event.ports && event.ports.length === 1 ? event.ports[0] : null;
-        if (!frame || !client || event.origin !== 'null' || !port ||
+        const trustedLayerling = frame?.dataset.appId === 'layerling' && event.origin === location.origin &&
+            new URL(frame.src, location.href).pathname === '/api/desktop/layerling/ui/';
+        if (!frame || !client || (event.origin !== 'null' && !trustedLayerling) || !port ||
             message.capability !== frame.dataset.sdkChannel ||
             !challenge || message.challenge !== challenge ||
             String(frame.dataset.sdkChallenge || '') !== String(challenge)) {
@@ -20478,6 +20500,7 @@ if (appId === 'pixel') {
         delete frame.dataset.sdkChallenge;
         const generation = client.generation;
         port.addEventListener('message', messageEvent => handleSDKMessage(client, messageEvent, port, generation));
+        if (trustedLayerling) window.LayerlingApp?.connect(client.windowId, port, client.abortController.signal);
         port.start();
     }
 

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Für den 3D-Druck vorbereiten - layerling Anleitung</title>
+    <meta name="description" content="Den eigenen Drucker wählen, gewarnt werden, wenn etwas nicht passt, und das Teil richtig hinlegen.">
+    <link rel="canonical" href="https://layerling.com/anleitung/drucken.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/drucken.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/printing.html">
+    <meta property="og:title" content="Für den 3D-Druck vorbereiten - layerling Anleitung">
+    <meta property="og:description" content="Den eigenen Drucker wählen, gewarnt werden, wenn etwas nicht passt, und das Teil richtig hinlegen.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-left: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-left: auto; text-align: right; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
+      <a class="lang" href="/api/desktop/layerling/ui/guide/printing.html" hreflang="en" title="Read this in English">English</a>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html" aria-current="page">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li></ol></nav>
+      <main>
+<h1>Für den 3D-Druck vorbereiten</h1>
+<p class="lead">Den eigenen Drucker wählen, gewarnt werden, wenn etwas nicht passt, und das Teil richtig hinlegen.</p>
+<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#den-drucker-waehlen">Den Drucker wählen</a></li><li><a href="#wenn-etwas-nicht-passt">Wenn etwas nicht passt</a></li><li><a href="#das-teil-richtig-hinlegen">Das Teil richtig hinlegen</a></li><li><a href="#ueberhaenge-finden">Überhänge finden</a></li><li><a href="#wandstaerke-spiel-und-fasen">Wandstärke, Spiel und Fasen</a></li><li><a href="#wenn-es-losgehen-soll">Wenn es losgehen soll</a></li></ul></div>
+<h2 id="den-drucker-waehlen">Den Drucker wählen</h2>
+<p>Öffne die Einstellungen (das Zahnrad im Menüband, <strong class="ui">„Arbeitsbereich-Einstellungen“</strong>) und wechsle zum Bereich <strong class="ui">„Arbeitsebene“</strong>. Bei <strong class="ui">„Drucker“</strong> suchst du deinen Drucker aus einer Liste von über fünfzig gängigen Modellen aus, darunter Bambu Lab, Prusa, Creality, Anycubic, Elegoo und viele mehr.</p>
+<figure><img src="/api/desktop/layerling/ui/anleitung/img/settings-workplane.webp" alt="Die Einstellungen der Arbeitsebene mit gewähltem Drucker. Druckbett und maximale Druckhöhe stammen aus dem Slicer-Profil." width="1280" height="800" loading="lazy"><figcaption>Die Einstellungen der Arbeitsebene mit gewähltem Drucker. Druckbett und maximale Druckhöhe stammen aus dem Slicer-Profil.</figcaption></figure>
+<p>Damit passiert dreierlei:</p>
+<ul><li>Die Arbeitsebene bekommt die Größe des Druckbetts.</li><li>In der Ecke der Arbeitsfläche stehen der Name des Druckers und sein Bauraum. Wen die Beschriftung stört, schaltet sie unter <strong class="ui">„Arbeitsebene“</strong> mit <strong class="ui">„Beschriftung der Platte“</strong> ab; das gilt auch für den Namen des Entwurfs vorne links.</li><li>layerling <strong>warnt</strong>, wenn etwas nicht passt.</li></ul>
+<p>Die Druckerprofile stammen aus OrcaSlicer, sie sind also dieselben, die auch dein Slicer kennt. Möchtest du ohne Drucker arbeiten, wählst du <strong class="ui">„Kein Drucker – freie Größe“</strong>. Die Größe der Arbeitsebene kannst du auch von Hand einstellen.</p>
+<h2 id="wenn-etwas-nicht-passt">Wenn etwas nicht passt</h2>
+<p>Ein Körper, der über den Rand der Druckplatte hinausragt, wird markiert. Dazu erscheint eine Meldung, welche Seiten wie weit überstehen. Genauso ist es, wenn das Teil <strong>zu hoch</strong> ist: Die Höhe zählt vom untersten Körper aus, so wie der Slicer das Modell absetzt.</p>
+<figure><img src="/api/desktop/layerling/ui/anleitung/img/printer-overhang.webp" alt="Der Quader ist breiter als das Druckbett des Bambu Lab A1 mini. Die Meldung unten sagt, um wie viel." width="1280" height="800" loading="lazy"><figcaption>Der Quader ist breiter als das Druckbett des Bambu Lab A1 mini. Die Meldung unten sagt, um wie viel.</figcaption></figure>
+<p>Die Warnung hindert dich nicht am Weiterarbeiten. Sie ist ein Hinweis, damit du nicht erst im Slicer feststellst, dass das Teil zu groß ist. Ein zu großes Teil lässt sich oft aufteilen: schneide es mit <strong class="ui">„Teilen“</strong> in zwei Hälften und drucke beide getrennt.</p>
+<h2 id="das-teil-richtig-hinlegen">Das Teil richtig hinlegen</h2>
+<p>Wie ein Teil auf der Platte liegt, entscheidet über Festigkeit und Aussehen. Dabei helfen zwei Werkzeuge im Bereich <strong class="ui">„Anordnen“</strong>:</p>
+<ul><li><strong class="ui">„Auf Fläche legen“</strong>: eine Fläche anklicken, und das Teil liegt mit dieser Seite unten. Die beste Druckrichtung mit einem Klick.</li><li><strong class="ui">„Auf die Arbeitsebene fallen lassen“</strong> (<kbd>D</kbd>): setzt das Teil auf die Arbeitsebene, wenn es irgendwo in der Luft hängt.</li></ul>
+<p>Ein paar Faustregeln für die Richtung:</p>
+<ul><li>Flache, große Flächen nach unten. Sie haften am besten.</li><li>Lange Teile, die belastet werden, so legen, dass die Schichten nicht senkrecht zur Belastung verlaufen. Schichten sind die schwächste Richtung.</li><li>Überhänge über 45° vermeiden oder mit Stützen im Slicer versehen.</li></ul>
+<h2 id="ueberhaenge-finden">Überhänge finden</h2>
+<p>Im Menü neben dem Auge (<strong class="ui">„Sichtbarkeit“</strong>) schaltet <strong>Überhänge zeigen</strong> die Überhänge ein. Jede Fläche, die steiler als 45° nach unten zeigt, erscheint dann rot-weiß schraffiert – dort bräuchte der Drucker Stützen. Was auf der Platte aufliegt, bleibt frei. So siehst du schon beim Konstruieren, ob eine Kugel, ein Bogen oder eine waagerechte Bohrung ohne Stützen geht; die <a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Tropfenbohrung</a> ist genau dafür da. Drehst du das Teil oder legst es mit <strong class="ui">„Auf Fläche legen“</strong> anders hin, wandert die Schraffur sofort mit.</p>
+<p>Wie steil dein Drucker schafft, stellst du in den Einstellungen unter <strong class="ui">„Darstellung“</strong> ein: von 30° (vorsichtig) bis 70° (für Drucker mit guter Bauteilkühlung). Eine Fläche, die auf einem anderen Körper aufliegt, wird trotzdem markiert – layerling sieht nur die Fläche selbst.</p>
+<h2 id="wandstaerke-spiel-und-fasen">Wandstärke, Spiel und Fasen</h2>
+<ul><li>Wände sollten mindestens zwei Druckbahnen breit sein, bei einer 0,4-mm-Düse also 0,8 mm. Robuste Teile brauchen 1,2 bis 2 mm.</li><li>Wo zwei Teile ineinanderpassen, brauchst du Spiel: meist 0,2 bis 0,4 mm, je nach Drucker. Baue ein kleines Test-Paar, bevor du das große Teil druckst.</li><li>Die untere Kante, die auf der Platte aufliegt, fasen viele Leute leicht. Das verhindert, dass sich die erste Schicht ausbreitet („Elefantenfuß“).</li></ul>
+<h2 id="wenn-es-losgehen-soll">Wenn es losgehen soll</h2>
+<p>Wähle <strong class="ui">„Exportieren“</strong> und dann <strong>STL</strong> oder <strong>3MF</strong>. STL ist das einfachste Format. 3MF behält Namen und Farben der einzelnen Körper und ist deshalb praktisch, wenn du mehrere Farben druckst. Im Exportfenster siehst du dabei auch, wie viel Gramm und Meter Filament das Teil massiv bräuchte. Mehr im Kapitel <a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien und Speichern</a>.</p>
+<div class="pager"><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html"><small>Vorheriges Kapitel</small>Messen und Notizen</a><a class="next" href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html"><small>Nächstes Kapitel</small>Dateien, Speichern und Weitergeben</a></div>
+      </main>
+    </div>
+    <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.57.0</a></div></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+  </body>
+</html>

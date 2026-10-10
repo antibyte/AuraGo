@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>layerling Anleitung</title>
+    <meta name="description" content="Alles, was layerling kann, Schritt für Schritt. Die Bilder entstehen aus dem laufenden Programm und werden mit jeder Fassung neu aufgenommen.">
+    <link rel="canonical" href="https://layerling.com/anleitung/index.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/index.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/index.html">
+    <meta property="og:title" content="layerling Anleitung">
+    <meta property="og:description" content="Alles, was layerling kann, Schritt für Schritt. Die Bilder entstehen aus dem laufenden Programm und werden mit jeder Fassung neu aufgenommen.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-left: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-left: auto; text-align: right; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
+      <a class="lang" href="/api/desktop/layerling/ui/guide/index.html" hreflang="en" title="Read this in English">English</a>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li></ol></nav>
+      <main>
+<h1>layerling Anleitung</h1>
+<p class="lead">Alles, was layerling kann, Schritt für Schritt. Die Bilder entstehen aus dem laufenden Programm und werden mit jeder Fassung neu aufgenommen.</p>
+<ul class="cards"><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html"><b>Erste Schritte</b><span>Vom leeren Blatt zum ersten Teil für den 3D-Drucker – in fünf Minuten, ohne Konto und ohne Installation.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html"><b>Ansicht und Arbeitsebene</b><span>Sich in der Szene bewegen, gerade von vorn schauen und neue Formen auf jede beliebige Fläche setzen.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html"><b>Formen setzen und einstellen</b><span>Die Formenbibliothek, Maße per Zahl und per Griff, Farbe, Drehen, Verjüngen und Verdrehen.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html"><b>Auswählen und Anordnen</b><span>Formen auswählen, in der Objektliste finden, ausrichten, spiegeln, drehen, auf eine Fläche legen und in Mustern vervielfachen.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html"><b>Körper und Aussparungen</b><span>Wie aus einfachen Formen Bohrungen, Nuten und Taschen werden – und wie du eine Gruppe später noch einmal ändern kannst.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html"><b>Kanten brechen und Körper aushöhlen</b><span>Fase und Verrundung an ausgewählten Kanten, Wände gleicher Stärke für Dosen, Becher und Gehäuse.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html"><b>Skizzen: vom Umriss zum Körper</b><span>Einen flachen Umriss zeichnen, Ecken runden oder fasen und daraus einen Körper ziehen oder drehen.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html"><b>Text und gebogene Schrift</b><span>Beschriftungen erhaben oder vertieft, mit sieben Schriftarten – und auf Wunsch entlang eines Kreisbogens, etwa auf einer Münze, einem Deckel oder einem Ring.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html"><b>Gewinde, Zahnräder und andere Bauteile</b><span>Schrauben, Muttern und Gewindelöcher, die zusammenpassen, dazu Zahnrad, Feder, gebogenes Rohr, Wabengitter, Schwalbenschwanz, Tropfenbohrung sowie Stufen- und Senkbohrung.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html"><b>Messen und Notizen</b><span>Maßband, Lineal und Winkellineal, Abstände zum Nullpunkt – und Notizen, die an einem Teil hängen.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html"><b>Für den 3D-Druck vorbereiten</b><span>Den eigenen Drucker wählen, gewarnt werden, wenn etwas nicht passt, und das Teil richtig hinlegen.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html"><b>Dateien, Speichern und Weitergeben</b><span>Wo deine Entwürfe liegen, wie du sie sicherst, welche Formate layerling importiert und exportiert und was auf einem gemeinsamen Server möglich ist.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html"><b>Tastenkürzel</b><span>Alle Tasten auf einen Blick – direkt aus dem Programm übernommen, damit die Liste immer stimmt.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html"><b>Mit einer KI bauen (MCP)</b><span>Wie ein KI-Assistent wie Claude oder Codex in deinem geöffneten Editor Formen anlegt, ändert, gruppiert und Bilder der Ansicht aufnimmt.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html"><b>Als App installieren, ohne Internet arbeiten und selbst hosten</b><span>layerling wie ein normales Programm starten, auch ohne Netz – und wie du es auf einem eigenen Rechner betreibst.</span></a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html"><b>Videos über layerling</b><span>Videos, die andere über layerling gemacht haben.</span></a></li></ul>
+      </main>
+    </div>
+    <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.57.0</a></div></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+  </body>
+</html>

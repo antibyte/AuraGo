@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Placing and adjusting shapes - layerling user guide</title>
+    <meta name="description" content="The shape library, dimensions by number and by handle, colour, rotating, tapering and twisting.">
+    <link rel="canonical" href="https://layerling.com/guide/shapes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/shapes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/formen.html">
+    <meta property="og:title" content="Placing and adjusting shapes - layerling user guide">
+    <meta property="og:description" content="The shape library, dimensions by number and by handle, colour, rotating, tapering and twisting.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar a.lang { color: var(--muted); font-size: 14px; font-weight: 600; text-decoration: none; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-left: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-left: auto; text-align: right; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/guide/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">User guide</span></span></a>
+      <a class="lang" href="/api/desktop/layerling/ui/anleitung/formen.html" hreflang="de" title="Auf Deutsch lesen">Deutsch</a>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Open the editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>The editor is already open in another tab - just switch to it.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Chapters"><h2>Chapters</h2><ol><li><a href="/api/desktop/layerling/ui/guide/getting-started.html">Getting started</a></li><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html">View and workplane</a></li><li><a href="/api/desktop/layerling/ui/guide/shapes.html" aria-current="page">Placing and adjusting shapes</a></li><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html">Selecting and arranging</a></li><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html">Solids and holes</a></li><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html">Breaking edges and hollowing bodies</a></li><li><a href="/api/desktop/layerling/ui/guide/sketches.html">Sketches: from outline to body</a></li><li><a href="/api/desktop/layerling/ui/guide/text.html">Text and curved lettering</a></li><li><a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html">Threads, gears and other parts</a></li><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html">Measuring and notes</a></li><li><a href="/api/desktop/layerling/ui/guide/printing.html">Preparing for 3D printing</a></li><li><a href="/api/desktop/layerling/ui/guide/files-and-saving.html">Files, saving and sharing</a></li><li><a href="/api/desktop/layerling/ui/guide/shortcuts.html">Keyboard shortcuts</a></li><li><a href="/api/desktop/layerling/ui/guide/ai-with-mcp.html">Building with an AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guide/offline-and-install.html">Installing as an app, working offline and self-hosting</a></li><li><a href="/api/desktop/layerling/ui/guide/videos.html">Videos about layerling</a></li></ol></nav>
+      <main>
+<h1>Placing and adjusting shapes</h1>
+<p class="lead">The shape library, dimensions by number and by handle, colour, rotating, tapering and twisting.</p>
+<div class="toc"><b>On this page</b><ul><li><a href="#adding-a-shape">Adding a shape</a></li><li><a href="#the-shape-s-settings">The shape's settings</a></li><li><a href="#how-round-is-round-the-side-count">How round is round? The side count</a></li><li><a href="#working-with-the-handles">Working with the handles</a></li><li><a href="#copying-and-duplicating">Copying and duplicating</a></li><li><a href="#custom-shapes">Custom shapes</a></li><li><a href="#wrapping-around-a-cylinder">Wrapping around a cylinder</a></li></ul></div>
+<p>Every part in layerling starts with a shape. From them you build everything else: shapes complement each other, cut each other out or are joined into a new shape.</p>
+<h2 id="adding-a-shape">Adding a shape</h2>
+<p>Click <strong class="ui">“Add shape”</strong> in the ribbon. The shape library opens.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/shape-menu.webp" alt="The shape library. Every little picture is rendered from the shape's real geometry." width="1280" height="800" loading="lazy"><figcaption>The shape library. Every little picture is rendered from the shape's real geometry.</figcaption></figure>
+<p>Pick a shape. It now hangs on the mouse pointer and lands where you click. Move it over a body and it lies down on the face under the pointer, sloped ones too, like Cruise in Tinkercad; over the empty plate it lands on the workplane. <kbd>Esc</kbd> cancels placing. A tool that waits for a click, such as the tape measure, the framing square, a note, <strong class="ui">“Place workplane”</strong>, <strong class="ui">“Lay flat on face”</strong> or the edge tools, is switched off when you pick a shape, so the click places the shape. The other way round, switching one of those tools on puts the shape down again. If you would rather have the shape appear in the middle of the plate, you can switch off placing by click in the settings (area <strong class="ui">“Appearance”</strong>, switch <strong class="ui">“Cruise when adding new shapes”</strong>).</p>
+<p>What the library offers:</p>
+<ul><li><strong>Basic shapes:</strong> <strong class="ui">“Box”</strong>, <strong class="ui">“Rounded Box”</strong>, <strong class="ui">“Cylinder”</strong>, <strong class="ui">“Capsule”</strong>, <strong class="ui">“Ellipse”</strong>, <strong class="ui">“Polygon”</strong> (three to twenty-four sides), <strong class="ui">“Sphere”</strong>, <strong class="ui">“Cone”</strong>, <strong class="ui">“Pyramid”</strong> (with three to twenty-four sides, so three-sided too), <strong class="ui">“Wedge”</strong>, <strong class="ui">“Round Roof”</strong>, <strong class="ui">“Half Sphere”</strong> and <strong class="ui">“Torus”</strong>.</li><li><strong>Tubes:</strong> <strong class="ui">“Tube”</strong> and <strong class="ui">“Bent Tube”</strong>, made of up to twelve straight pieces with bends in between, and the <strong class="ui">“Loft”</strong> from one outline to another, say from square to round.</li><li><strong>Decorative shapes:</strong> <strong class="ui">“Star”</strong>, <strong class="ui">“Heart”</strong> and <strong class="ui">“Crescent”</strong>.</li><li><strong>Lettering:</strong> <strong class="ui">“Text”</strong>, also along a circular arc. More in <a href="/api/desktop/layerling/ui/guide/text.html">Text</a>.</li><li><strong>Mechanics:</strong> <strong class="ui">“Thread”</strong> (threaded rod, screw, nut and tapped hole), <strong class="ui">“Spring”</strong>, <strong class="ui">“Gear”</strong> and the <strong class="ui">“Knurl”</strong> for grips. More in <a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html">Threads and mechanics</a>.</li><li><strong>For constructions:</strong> <strong class="ui">“Honeycomb”</strong>, the print-in-place <strong class="ui">“Hinge”</strong>, <strong class="ui">“Dovetail”</strong>, the <strong class="ui">“Teardrop hole”</strong> for horizontal holes, the <strong class="ui">“Counterbore”</strong> and <strong class="ui">“Countersink”</strong> for screw heads and the <strong class="ui">“Ruler”</strong>, which is only a measuring tool and never shows up in an export.</li></ul>
+<p>You get a triangle in two ways: the <strong class="ui">“Polygon”</strong> with three sides is an isosceles triangle, the &quot;Roof&quot; of Tinkercad, and the <strong class="ui">“Wedge”</strong> is a right triangle. Both are true triangular prisms. For a triangular hole, copy the shape, make the copy smaller, mark it as a hole and line it up with <strong class="ui">“Center on workplane”</strong> or <strong class="ui">“Align”</strong>. Both work with the shape's bounding box, the smallest box that encloses it, so a halved square still counts as a whole square. The command search (<kbd>Ctrl</kbd>+<kbd>K</kbd>) also finds both shapes under &quot;triangle&quot; or &quot;roof&quot;.</p>
+<p>The <strong class="ui">“Capsule”</strong> can be narrower at one end than at the other, say for a guard over a belt between two pulleys. Under <strong class="ui">“Properties”</strong> set <strong class="ui">“Small End (Diameter)”</strong>; the large end is as wide as the capsule, and the sides run straight from one arc to the other. <strong class="ui">“Centre Distance”</strong> is the distance between the two arcs' centres, that is how far apart the pulleys are. Change the small end and the centre distance stays, the capsule getting longer or shorter. The tapered capsule stays an exact body too, for fillets and STEP.</p>
+<h2 id="the-shape-s-settings">The shape's settings</h2>
+<p>As soon as a shape is selected, its settings appear on the right. At the top is the name; the pencil beside it (<strong class="ui">“Rename”</strong>) lets you type a new one. <kbd>Enter</kbd> keeps it, <kbd>Esc</kbd> cancels, and an empty name brings back the shape's default name. Further right, the padlock locks the shape against accidental moving and the eye hides it. The arrow on the far left folds the settings down to their title bar.</p>
+<p>The settings sit docked at the right edge. If they cover something you want to see, drag them by their title bar and they float wherever you drop them; they stay there for the next shape too. Drop them back at the top right, or double-click the title bar, and they dock again. While they float or are folded down, the snap step moves from the bottom of the settings to the bottom right of the workplane.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/editor-overview.webp" alt="The settings of a cylinder: solid or hole, diameter and height as a number and as a slider." width="1280" height="800" loading="lazy"><figcaption>The settings of a cylinder: solid or hole, diameter and height as a number and as a slider.</figcaption></figure>
+<ul><li><strong><strong class="ui">“Solid”</strong> or <strong class="ui">“Hole”</strong>:</strong> A solid stays, a hole takes material away. A click on <strong class="ui">“Solid”</strong> opens the colours; colours of your own that you mix there wait under <strong class="ui">“Recently used”</strong> afterwards, the last eight. More in <a href="/api/desktop/layerling/ui/guide/solids-and-holes.html">Solids and holes</a>.</li><li><strong><strong class="ui">“Transparent”</strong>:</strong> Lets you see through the body, for example to spot a shape behind it.</li><li><strong><strong class="ui">“Multicolor”</strong>:</strong> For a group only. Switched on, every part of the group shows in its own colour, also in a group that was cut with holes into one body (the walls a hole leaves take the colour of the body they were cut into). Picking a colour for the group switches it off and colours the whole group. Bundles always keep their parts' colours. In a 3MF export every part keeps its colour, so the slicer can map the parts onto filaments; OBJ carries the colours on its points, so the border between two colours is a little rougher there.</li><li><strong><strong class="ui">“Properties”</strong>:</strong> The dimensions and everything that belongs to this shape. For a cylinder the diameter, the height and the number of sides. For a gear the teeth, for a spring the turns. A value you have moved away from its default gets a small arrow next to its name: a click takes just that value back, whatever else you did since, unlike Undo. <strong class="ui">“Save as default”</strong> at the bottom makes the current values the start values of this kind of shape (the same as <strong class="ui">“Shape defaults”</strong> in the settings), and <strong class="ui">“Reset defaults”</strong> goes back to the app's own.</li><li><strong><strong class="ui">“Taper”</strong>:</strong> Different sizes at the top and bottom, for example for a slope or a funnel.</li><li><strong><strong class="ui">“Twist &amp; Lean”</strong>:</strong> Twists the top against the bottom or shifts it sideways. That gives twisted columns and leaning towers.</li></ul>
+<figure><img src="/api/desktop/layerling/ui/guide/img/group-multicolor.webp" alt="A group of an orange block, a blue peg and a hole, cut into one body. With Multicolor switched on, the peg stays blue, the block orange, and the walls of the hole take the block's colour." width="1280" height="800" loading="lazy"><figcaption>A group of an orange block, a blue peg and a hole, cut into one body. With Multicolor switched on, the peg stays blue, the block orange, and the walls of the hole take the block's colour.</figcaption></figure>
+<p>Taper and twist work on almost every shape. Only the gear, thread, spring, knurl, hinge, pyramid, bent tube, teardrop, the screw-head cutters and the ruler leave them out: they have fixed measures of their own or, like the pyramid, a top of their own already.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/property-reset.webp" alt="A cone whose top radius and height were changed: a small arrow next to each takes the value back, and the two buttons at the bottom save or reset the defaults of the shape." width="1280" height="1180" loading="lazy"><figcaption>A cone whose top radius and height were changed: a small arrow next to each takes the value back, and the two buttons at the bottom save or reset the defaults of the shape.</figcaption></figure>
+<p>A tapered or leaning box, cylinder, ellipse, polygon, tube or ring keeps its exact shape, and so do the capsule, star, heart, crescent, honeycomb, dovetail and a rounded box without rounded top and bottom edges: chamfers and fillets work on it as on the plain shape, and the STEP export writes it. The same holds for a twisted shape: its section turns exactly as it rises, and the sides wind evenly from bottom to top.</p>
+<p>Typing is more exact than dragging. All number fields take millimetres, but also percentages: type &quot;50 %&quot; into a width of 40 mm and you get 20 mm. They calculate too: &quot;15*3&quot;, &quot;120-2*4&quot; or &quot;(40+2)/2&quot; give 45, 112 and 21; x works instead of *.</p>
+<h2 id="how-round-is-round-the-side-count">How round is round? The side count</h2>
+<p>Round shapes such as cylinder, cone, tube, ellipse or the bores have the switch <strong class="ui">“Sides follow the size”</strong> and the slider <strong class="ui">“Sides”</strong> in their properties. The reason: for the view and for STL, 3MF and OBJ, layerling draws a circle as a polygon of many small sides. The more sides, the smoother it is, and the more triangles it takes.</p>
+<p><strong>Where the side count matters</strong></p>
+<ul><li><strong>In the export for the slicer</strong> (STL, 3MF, OBJ). A cylinder with few sides arrives there as a polygon.</li><li><strong>When bodies and holes are combined.</strong> A bore cut by a hole with few sides is angular in the finished part. That includes screw holes.</li><li><strong>In the view.</strong> Many very fine shapes slow the editor down.</li></ul>
+<p><strong>Where it does not matter</strong></p>
+<ul><li><strong>For the STEP export.</strong> It writes the round shape, not the polygon.</li><li><strong>For chamfers and fillets</strong> (<strong class="ui">“Chamfer”</strong>, <strong class="ui">“Fillet”</strong>) as long as the shape stays round. That is the case when you have not set a side count, when the count is at least the shape's default, or when the polygon strays at most 0.05 mm from the circle. The default is 96 sides for cylinder, ellipse, tube and cone, 64 for the <strong class="ui">“Round Roof”</strong>, 24 steps for the <strong class="ui">“Sphere”</strong>, 32 for the <strong class="ui">“Half Sphere”</strong>, and a <strong class="ui">“Quality”</strong> of 32 for a round <strong class="ui">“Bent Tube”</strong>.</li><li><strong>For a thread, a spring or a helical gear.</strong> The edge tool and the STEP export take its exact body; its <strong class="ui">“Quality”</strong> only sets how finely it is drawn.</li></ul>
+<p><strong>Where it matters again</strong></p>
+<ul><li><strong>For chamfers and fillets on a shape with few sides.</strong> If you set the side count below the default, the edge tool takes the shape as it is drawn: a cylinder with 6 sides stays a hexagonal bar, and the fillet runs round its six edges. That is how you can build, for instance, a nut pocket with rounded corners. For a round shape, leave <strong class="ui">“Sides follow the size”</strong> on.</li></ul>
+<p><strong>How to use it</strong></p>
+<ul><li><strong>Leave <strong class="ui">“Sides follow the size”</strong> on.</strong> Then layerling picks the side count from the diameter so that the polygon strays at most 0.005 mm from the true circle, far below what a printer resolves. Small shapes get at least 24 sides, large ones more.</li><li><strong>Fewer sides</strong> you take when you want a polygon on purpose (but there is the <strong class="ui">“Polygon”</strong> for that) or when the editor gets slow with very many round shapes.</li><li><strong>More sides</strong> you hardly ever need. Only on very large round parts, when you see edges in the STL.</li><li><strong>For parts you only treat with edges or hand on as STEP,</strong> the side count does not matter.</li></ul>
+<h2 id="working-with-the-handles">Working with the handles</h2>
+<p>Besides the settings there are handles on the shape itself:</p>
+<ul><li>The <strong>corners and edges</strong> make the shape larger or smaller. Hold <kbd>Shift</kbd> while dragging a corner to scale width, depth and height together and keep the proportions; hold <kbd>Alt</kbd> to scale from the center instead of the opposite corner. Without a keyboard, or if you do not want to hold a key, switch on <strong class="ui">“Keep proportions”</strong> at the top of the properties: then the corners always keep the proportions, and typing one of width, depth or height scales the other two by the same factor. The setting is remembered.</li><li>The <strong>arrow on top</strong> changes the height, the handle <strong>in the middle</strong> lifts or lowers the shape.</li><li>The <strong>curved arrows</strong> rotate it.</li><li>The <strong>numbers</strong> beside the shape show the dimensions. A click on one opens a field in which you type the number you want.</li><li>A <strong>click on a corner</strong> (without dragging) opens width and depth together. Type the first, press <kbd>Tab</kbd> for the second and <kbd>Enter</kbd> to apply both. <kbd>Esc</kbd> cancels.</li></ul>
+<p>Without the mouse, use the keyboard: the arrow keys move the selection by one snap step, with <kbd>Shift</kbd> by five. They follow the view: <kbd>→</kbd> moves to where the screen's right is, <kbd>↑</kbd> away from you, even after turning the plate. Push a shape out of the picture and the view moves along. <kbd>Ctrl</kbd>+<kbd>↑</kbd> and <kbd>Ctrl</kbd>+<kbd>↓</kbd> raise and lower it. <kbd>R</kbd> rotates by 45°, <kbd>Shift</kbd>+<kbd>R</kbd> by 22.5°. <kbd>D</kbd> drops the selection onto the workplane.</p>
+<p>The handles pull a shape as large as your plate, at least 220 mm wide and deep. Typing a number in the properties goes beyond that, and a shape made that large does not shrink back when you grab it again. A ceiling of your own per shape is set in the settings under <strong class="ui">“Shape defaults”</strong> with <strong class="ui">“Custom size limit”</strong>.</p>
+<p>The snap step is at the bottom right of the editor and can be changed at any time.</p>
+<h2 id="copying-and-duplicating">Copying and duplicating</h2>
+<p><strong class="ui">“Copy”</strong>, <strong class="ui">“Paste”</strong> and <strong class="ui">“Duplicate”</strong> are in the ribbon (<strong class="ui">“Clipboard”</strong>). <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicates a selection. layerling remembers how you last moved or rotated the copy and applies the same again on the next duplicate. That produces a row of holes or steps in a few key presses. For regular arrangements there is also the pattern, described in <a href="/api/desktop/layerling/ui/guide/select-and-arrange.html">Selecting and arranging</a>.</p>
+<aside class="tip"><p><strong>Tip:</strong> If a shape refuses to take the size you want, it is often the limits for new shapes. Under <strong class="ui">“Shape defaults”</strong> in the settings you decide how each shape starts and how large it may get.</p></aside>
+<h2 id="custom-shapes">Custom shapes</h2>
+<p>A holder, a grip or a base plate you need again and again goes into the <strong class="ui">“Custom shapes”</strong>. They sit at the top of the shape library, above the <strong class="ui">“Basic shapes”</strong>, and fold away with their arrow.</p>
+<ol><li>Select one or more bodies, holes, groups or an imported model included.</li><li>Open the shape library and click <strong class="ui">“Save selection”</strong>. Enter a name and confirm with <strong class="ui">“Save”</strong>.</li><li>In any design, a click on the tile inserts the shape, like any other shape. You can also drag the tile onto the workplane; it then lands where you let go.</li></ol>
+<p>Several bodies come back together, placed as they stood to each other, and stay selectable one by one. The pencil on a tile renames it, the bin removes it after asking. Shapes already inserted into designs stay as they are.</p>
+<p>The <strong class="ui">“Custom shapes”</strong> live in this browser, apart from the designs, and are there again the next time you start. <strong class="ui">“Back up all”</strong> on the start page backs them up with the designs, and opening the backup brings both back. To take only the shapes to another browser, <strong class="ui">“Back up custom shapes”</strong> (the arrow pointing down) saves them as a ZIP file and <strong class="ui">“Load shapes”</strong> (the arrow pointing up) brings them back there. <strong class="ui">“Load shapes”</strong> also takes single <code>.lyl</code> designs; each one becomes a shape. Shapes already there are not added twice.</p>
+<h3 id="custom-shapes-on-the-server">Custom shapes on the server</h3>
+<p>With the <a href="/api/desktop/layerling/ui/guide/files-and-saving.html">shared server store</a> switched on, the section shows two groups: <strong class="ui">“On the server”</strong> and <strong class="ui">“In this browser”</strong>. When saving you choose where the shape goes; the server is chosen to start with. There it lives in the folder <code>Custom shapes</code>, as a <code>.lyl</code> file of its own with a picture, ready on every device that reaches the server. The cloud on a browser tile puts that shape on the server; it is then no longer kept twice.</p>
+<p>The <code>Custom shapes</code> folder shows on the start page as well. Open a shape there like a design, change it, and it is saved automatically like any design on the server; the next insert takes the new version. As the server store has no login, everyone who reaches the server sees the same shapes.</p>
+<h2 id="wrapping-around-a-cylinder">Wrapping around a cylinder</h2>
+<p>Should a pattern, a logo or lettering go onto a cup, a can or a tube? First lay it flat on the plate, as an imported SVG or as text for example, the way it should look from above. Then wrap it around a cylinder in the shape's settings under <strong class="ui">“Wrap around a cylinder”</strong>:</p>
+<ol><li>Open <strong class="ui">“Wrap around a cylinder”</strong> and enter the <strong class="ui">“Diameter”</strong> of the cylinder wall, such as the outside diameter of your cup.</li><li>Click <strong class="ui">“Wrap”</strong>. What ran from left to right now runs around the cylinder, the back edge becomes the top, and the thickness stands out of the wall.</li><li>Select the wrapped shape and the cylinder and centre both, left to right and front to back. The middle of the wrapped shape is the cylinder's axis, so it then sits right on its wall.</li></ol>
+<p>For an engraving, switch on <strong class="ui">“Inward (engraving)”</strong>: the thickness then goes into the wall. Make the shape a hole, centre it and group it with the cylinder.</p>
+<p>The result is a mesh like an imported model. Undo lays the shape flat again; for another diameter, undo first and wrap again. It cannot go further than once around the cylinder; then layerling names the smallest diameter that fits.</p>
+<div class="pager"><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html"><small>Previous chapter</small>View and workplane</a><a class="next" href="/api/desktop/layerling/ui/guide/select-and-arrange.html"><small>Next chapter</small>Selecting and arranging</a></div>
+      </main>
+    </div>
+    <footer class="note">This guide grows with the program. If something is missing or wrong, tell us in the <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.57.0</a></div></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Back to the editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Open the editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+  </body>
+</html>
