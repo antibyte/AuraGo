@@ -2618,9 +2618,14 @@ registration lives in `internal/desktop/types.go`.
   Clear their persisted path only on confirmed 404s, retaining temporary failures
   for Retry. Verify `TestDesktopFileLoadRecoveryBrowser`.
 - `planning-gallery-music.js` - Planner/todo, gallery and Webamp music.
-  Bundled in the main shell. Todo and Gallery empty-state load failures
-  use `desktop.load_failed`. Webamp unsupported-browser errors use
-  `desktop.winamp_unsupported`; launcher `notifyError` maps the
+  Bundled in the main shell. The date field shows the civil day and omits
+  an unchanged `due_date`. Loads keep a generation and refresh every 60
+  seconds while the window is visible. Read-only mode disables edits and
+  shows `desktop.todo_readonly`. An empty filter uses `desktop.todo_empty`.
+  The three columns stack on the todo frame's inline size, not the viewport.
+  Mutation errors use `desktop.request_failed`. Todo and Gallery empty-state
+  load failures use `desktop.load_failed`. Webamp unsupported-browser errors
+  use `desktop.winamp_unsupported`; launcher `notifyError` maps the
   English sentinel and reuses `desktop.load_failed` for other
   load failures. Leave the Webamp skin unchanged. No child DOX
   file needed.
