@@ -304,9 +304,11 @@ func validHost(host string) bool {
 // letters, digits and hyphens without a leading or trailing hyphen. A final
 // all-numeric label or one in hexadecimal form (0x7f000001, 1.0x7f) is
 // rejected because resolvers may read such names as IPv4 shorthand
-// (inet_aton).
+// (inet_aton). localhost and *.localhost are rejected too (any case, with or
+// without a trailing dot): they resolve to the loopback interface and can
+// never be dialed.
 func validHostname(host string) bool {
-	if host == "" || len(host) > maxHostnameLength {
+	if host == "" || len(host) > maxHostnameLength || isLocalhostName(host) {
 		return false
 	}
 	labels := strings.Split(host, ".")
@@ -323,6 +325,13 @@ func validHostname(host string) bool {
 	}
 	last := labels[len(labels)-1]
 	return strings.Trim(last, "0123456789") != "" && !hexLabelPattern.MatchString(last)
+}
+
+// isLocalhostName reports localhost and every name below it, ignoring case and
+// one trailing dot.
+func isLocalhostName(host string) bool {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	return host == "localhost" || strings.HasSuffix(host, ".localhost")
 }
 
 // zeroWidthJoiner (U+200D) is the one invisible rune allowed in display text:

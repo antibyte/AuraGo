@@ -36,8 +36,10 @@ Operator docs: `documentation/retro-net.md`.
   case folding must not let the browser see another value). Name 1-40 and
   description up to 80 runes reject Unicode Cc/Cf/Co/Zl/Zp and U+FFFD (ZWJ
   allowed). Hosts are public IP literals or RFC 1123 names whose last label is
-  neither all digits nor `0x` hex. Every validation error is the same
-  non-echoing message.
+  neither all digits nor `0x` hex; `localhost` and `*.localhost` are refused
+  (any case, trailing dot included) like the editor does, so a direct settings
+  write cannot store them. Every validation error is the same non-echoing
+  message.
 - Telnet accepts BINARY, ECHO and SGA from the server and BINARY, SGA, TTYPE
   (`ANSI` for `bbs`, `XTERM-256COLOR` for `world`) and NAWS on our side; it
   refuses every other option once, including COMPRESS2, GMCP, MSDP, MSSP,

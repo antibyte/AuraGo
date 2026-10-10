@@ -91,8 +91,10 @@ Administrators can add up to 64 own entries (`N` in the directory): name (1 to
 public IP address and port; for Telnet also the type (Mailbox or MUD/text
 world) and character set (UTF-8, CP437, ISO 8859-1); for SSH a user name (up to
 32 characters: a–z, 0–9, dot, hyphen, underscore). The form refuses private,
-local and reserved addresses, `localhost` and the mail ports. Saving re-reads
-the stored entries first, so changes made in another window are kept.
+local and reserved addresses, `localhost` (and any `*.localhost` name) and the
+mail ports, and AuraGo checks the same rules again when the entries are stored,
+so a direct settings call cannot save them either. Saving re-reads the stored
+entries first, so changes made in another window are kept.
 
 SSH entries log in anonymously only (no password or key); use Quick Connect for
 real SSH logins. The first call to an own SSH entry shows the server's key
