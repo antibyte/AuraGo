@@ -241,6 +241,18 @@ int layout_views() {
     }
   }
 
+  // An open network joins right away: no field, no keyboard, the status shows.
+  // (The next view change cancels this attempt against a missing network.)
+  detail::wifi_ui_test(detail::WifiUiTest::OpenNetwork, kMissingSsid);
+  pump_until([] { return probe().view == 3; }, 3000);
+  {
+    int n = check_status("password-open", CYD_S_WIFI_CONNECTING);
+    detail::WifiUiProbe q = probe();
+    if (!q.connecting || q.kb != nullptr || q.ta_pass != nullptr) n += fail("password-open", "no direct join");
+    n += check_view("password-open");
+    fails += n;
+  }
+
   detail::wifi_ui_test(detail::WifiUiTest::Hidden);
   pump_until([] { return probe().view == 3 && probe().ta_ssid != nullptr; }, 3000);
   fails += check_view("password-hidden");

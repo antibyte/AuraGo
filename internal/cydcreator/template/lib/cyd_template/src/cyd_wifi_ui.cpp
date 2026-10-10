@@ -491,6 +491,7 @@ void build_password() {
   if (!g_ui->hidden && !g_ui->sel_locked) {  // open network: nothing to type, join right away
     g_ui->status = prose(c, "", t.font_small, t.text_muted);
     start_connect();
+    detail::layout_check(g_ui->scr, "password-open", nullptr, nullptr, true);
     return;
   }
   if (g_ui->hidden) g_ui->ta_ssid = make_textarea(c, CYD_S_WIFI_SSID, false);
@@ -748,6 +749,10 @@ void wifi_ui_test(WifiUiTest action, const char* ssid) {
       break;
     case WifiUiTest::Network:  // on_network() for any SSID, also one the scan did not list
       select_network(ssid != nullptr ? ssid : "");
+      break;
+    case WifiUiTest::OpenNetwork:  // as for an open network of the scan list
+      select_network(ssid != nullptr ? ssid : "");
+      g_ui->sel_locked = false;
       break;
     case WifiUiTest::PhoneFailed:  // as after a failed phone-path join
       g_ui->phone_failed = true;
