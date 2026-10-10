@@ -1,4 +1,17 @@
 /* desktop-app-planning.css - todo and music player (calendar: desktop-app-calendar.css) */
+.vd-todo-frame {
+    container-type: inline-size;
+    container-name: todo;
+    height: 100%;
+    min-height: 0;
+}
+
+@container todo (max-width: 760px) {
+    .vd-todo {
+        grid-template-columns: 1fr;
+    }
+}
+
 .vd-todo {
     display: grid;
     grid-template-columns: 150px minmax(260px, 1fr) minmax(280px, 0.9fr);
@@ -128,7 +141,7 @@
     height: 5px;
     margin-top: 9px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--vd-text) 12%, transparent);
     overflow: hidden;
 }
 
@@ -253,9 +266,6 @@
 }
 
 @media (max-width: 760px) {
-.vd-todo {
-        grid-template-columns: 1fr;
-    }
 .vd-webamp-launcher-actions {
         grid-template-columns: 1fr;
     }

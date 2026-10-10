@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "説明",
   "desktop.todo_done": "完了",
   "desktop.todo_due_date": "期限",
+  "desktop.todo_empty": "この表示にはタスクがありません。",
   "desktop.todo_in_progress": "進行中",
   "desktop.todo_items": "チェックリスト",
   "desktop.todo_open": "未着手",

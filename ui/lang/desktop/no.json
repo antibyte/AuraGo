@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "Beskrivelse",
   "desktop.todo_done": "Ferdige",
   "desktop.todo_due_date": "Forfallsdato",
+  "desktop.todo_empty": "Ingen oppgaver i denne visningen.",
   "desktop.todo_in_progress": "Pågår",
   "desktop.todo_items": "Sjekkliste",
   "desktop.todo_open": "Åpne",

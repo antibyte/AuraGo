@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "Beschrijving",
   "desktop.todo_done": "Klaar",
   "desktop.todo_due_date": "Vervaldatum",
+  "desktop.todo_empty": "Geen taken in deze weergave.",
   "desktop.todo_in_progress": "Bezig",
   "desktop.todo_items": "Checklist",
   "desktop.todo_open": "Openen",

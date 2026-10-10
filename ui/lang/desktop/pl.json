@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "Opis",
   "desktop.todo_done": "Gotowe",
   "desktop.todo_due_date": "Termin",
+  "desktop.todo_empty": "Brak zadań w tym widoku.",
   "desktop.todo_in_progress": "W toku",
   "desktop.todo_items": "Lista kontrolna",
   "desktop.todo_open": "Otwarte",

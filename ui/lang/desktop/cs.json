@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "Popis",
   "desktop.todo_done": "Hotovo",
   "desktop.todo_due_date": "Termín",
+  "desktop.todo_empty": "V tomto zobrazení nejsou žádné úkoly.",
   "desktop.todo_in_progress": "Probíhá",
   "desktop.todo_items": "Kontrolní seznam",
   "desktop.todo_open": "Otevřené",

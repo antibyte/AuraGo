@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "Beschreibung",
   "desktop.todo_done": "Erledigt",
   "desktop.todo_due_date": "Fälligkeitsdatum",
+  "desktop.todo_empty": "In dieser Ansicht gibt es keine Aufgaben.",
   "desktop.todo_in_progress": "In Arbeit",
   "desktop.todo_items": "Checkliste",
   "desktop.todo_open": "Offen",

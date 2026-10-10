@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "描述",
   "desktop.todo_done": "已完成",
   "desktop.todo_due_date": "截止日期",
+  "desktop.todo_empty": "此视图中没有任务。",
   "desktop.todo_in_progress": "进行中",
   "desktop.todo_items": "清单",
   "desktop.todo_open": "未开始",

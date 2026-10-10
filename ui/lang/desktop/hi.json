@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "विवरण",
   "desktop.todo_done": "पूर्ण",
   "desktop.todo_due_date": "नियत तिथि",
+  "desktop.todo_empty": "इस दृश्य में कोई कार्य नहीं है.",
   "desktop.todo_in_progress": "प्रगति में",
   "desktop.todo_items": "चेकलिस्ट",
   "desktop.todo_open": "खुले",

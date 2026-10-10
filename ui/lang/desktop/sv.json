@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "Beskrivning",
   "desktop.todo_done": "Klara",
   "desktop.todo_due_date": "Förfallodatum",
+  "desktop.todo_empty": "Inga uppgifter i den här vyn.",
   "desktop.todo_in_progress": "Pågår",
   "desktop.todo_items": "Checklista",
   "desktop.todo_open": "Öppna",

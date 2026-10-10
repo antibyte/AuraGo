@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "Descrizione",
   "desktop.todo_done": "Completate",
   "desktop.todo_due_date": "Scadenza",
+  "desktop.todo_empty": "Nessuna attività in questa vista.",
   "desktop.todo_in_progress": "In corso",
   "desktop.todo_items": "Lista di controllo",
   "desktop.todo_open": "Aperte",

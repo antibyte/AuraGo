@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "Descrição",
   "desktop.todo_done": "Concluídas",
   "desktop.todo_due_date": "Data limite",
+  "desktop.todo_empty": "Não há tarefas nesta vista.",
   "desktop.todo_in_progress": "Em andamento",
   "desktop.todo_items": "Lista de verificação",
   "desktop.todo_open": "Abertas",

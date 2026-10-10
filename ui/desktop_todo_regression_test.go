@@ -123,3 +123,33 @@ func TestDesktopTodoDueDateRoundTripUsesTheCivilDay(t *testing.T) {
 		t.Fatal("knowledge date helpers still convert a civil day through toISOString")
 	}
 }
+
+func TestDesktopTodoMutationsKeepTheFormAndReportFailure(t *testing.T) {
+	t.Parallel()
+	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
+	for _, marker := range []string{
+		"function runTodoAction(",
+		"function detailIsDirty(",
+		"t('desktop.request_failed')",
+		"replaceDetail",
+		"desktop.todo_empty",
+		"card.classList.toggle('active'",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("todo mutation marker missing %q", marker)
+		}
+	}
+	if strings.Contains(source, "desktop.empty_folder") && strings.Contains(source, "vd-todo-list") {
+		t.Fatal("todo empty list still uses the folder string")
+	}
+	css := readDesktopAssetText(t, "css/desktop-app-planning.css")
+	for _, marker := range []string{
+		"container-type: inline-size",
+		"@container todo (max-width: 760px)",
+		"color-mix(in srgb, var(--vd-text) 12%, transparent)",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("todo layout marker missing %q", marker)
+		}
+	}
+}

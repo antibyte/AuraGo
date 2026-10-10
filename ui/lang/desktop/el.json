@@ -3060,6 +3060,7 @@
   "desktop.todo_description": "Περιγραφή",
   "desktop.todo_done": "Ολοκληρωμένες",
   "desktop.todo_due_date": "Προθεσμία",
+  "desktop.todo_empty": "Δεν υπάρχουν εργασίες σε αυτή την προβολή.",
   "desktop.todo_in_progress": "Σε εξέλιξη",
   "desktop.todo_items": "Λίστα ελέγχου",
   "desktop.todo_open": "Ανοιχτές",
