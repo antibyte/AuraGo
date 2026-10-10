@@ -3,6 +3,8 @@ package retronet
 import (
 	"bytes"
 	"context"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -84,6 +86,42 @@ func TestManagerC64SwitchesToTelnetWhenTheBoardOpensWithIAC(t *testing.T) {
 	}
 	if bytes.Contains(received, []byte{0x0D, 0x00}) || bytes.Contains(received, []byte{0x0D, 0x0A}) {
 		t.Fatalf("Enter must be a bare CR in Telnet mode too; board received % x", received)
+	}
+	if len(c.controlsOfType(controlEcho)) != 0 {
+		t.Fatalf("controls = %s, want no echo control for a C64 board", sessFormatControls(c.controlLog()))
+	}
+}
+
+// Only the first chunk decides. A board that starts raw and later sends IAC WILL/DO bytes stays
+// raw for the whole call: those bytes are PETSCII data (0xFF is pi), and the board gets neither
+// Initial() nor a negotiation reply.
+func TestManagerC64LaterIACStaysData(t *testing.T) {
+	greeting := []byte{'H', 'I', 0x0D}
+	later := []byte{tfIAC, tfWILL, tfECHO, tfIAC, tfDO, tfTTYPE} // written once the first key arrived
+	f := startTelnetFixture(t, telnetFixtureScript{greeting: greeting, afterInput: later})
+	m := &Manager{Dialer: Dialer{AllowRestricted: true}}
+	c := newSessionTestClient()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := sessStart(ctx, m, f.entry(KindC64, CharsetPETSCII), Size{Cols: 80, Rows: 25}, c)
+
+	pi := string(C64Glyph(true, 0x5E)) // the lower/upper set is active from the start
+	c.waitOutput(t, string(NewCodec(CharsetPETSCII).Decode(nil, greeting)))
+	if strings.Contains(c.output(), pi) {
+		t.Fatalf("output %q shows pi before the board sent 0xFF", c.output())
+	}
+	c.typeText("a")
+	sessWaitFor(t, func() bool { return strings.Count(c.output(), pi) == 2 }, func() string {
+		return "both later 0xFF bytes decoded as pi; output so far: " + strconv.Quote(c.output())
+	})
+	c.typeText("\r")
+	keys := []byte{0x41, 0x0D} // PETSCII a, RETURN
+	f.waitReceived(t, keys)
+
+	cancel()
+	sessExpectResult(t, c, sessAwait(t, done), CodeNoCarrier, ReasonRemoteClosed)
+	if got := f.receivedBytes(); !bytes.Equal(got, keys) {
+		t.Fatalf("board received % x, want only the keys % x (no Initial(), no negotiation reply)", got, keys)
 	}
 	if len(c.controlsOfType(controlEcho)) != 0 {
 		t.Fatalf("controls = %s, want no echo control for a C64 board", sessFormatControls(c.controlLog()))

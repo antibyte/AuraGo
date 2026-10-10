@@ -36,8 +36,9 @@ func tfTTypeIs(term string) []byte {
 
 // telnetFixtureScript is what the fake service does with every accepted connection.
 type telnetFixtureScript struct {
-	greeting []byte // written right after accept
-	hangUp   bool   // half-close (FIN) after the greeting, then drain until the client closes
+	greeting   []byte // written right after accept
+	hangUp     bool   // half-close (FIN) after the greeting, then drain until the client closes
+	afterInput []byte // written once, as soon as the first bytes from the client arrived
 }
 
 // telnetFixture is a fake Telnet service on 127.0.0.1 that records every byte it receives.
@@ -90,12 +91,17 @@ func (f *telnetFixture) serve(conn net.Conn) {
 		_ = conn.(*net.TCPConn).CloseWrite()
 	}
 	buf := make([]byte, 4096)
+	answered := false
 	for {
 		n, err := conn.Read(buf)
 		if n > 0 {
 			f.mu.Lock()
 			f.received = append(f.received, buf[:n]...)
 			f.mu.Unlock()
+			if !answered && len(f.script.afterInput) > 0 {
+				answered = true
+				_, _ = conn.Write(f.script.afterInput)
+			}
 		}
 		if err != nil {
 			return

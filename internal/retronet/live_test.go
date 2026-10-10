@@ -124,12 +124,15 @@ func (c *liveClient) stop() {
 
 // livePETSCIICount counts what a C64 board sends on the wire, before the codec: printable
 // PETSCII characters, and whether a BUSY banner arrived. enough ends the session once the board
-// has proved itself. Telnet negotiation would be counted too; no catalog board negotiates
-// (probe of 2026-10-10).
+// has proved itself. It decides like runC64: when the first chunk opens Telnet, its own Telnet
+// strips the negotiation and only the board's data counts (the session answers the board), so
+// negotiation alone never passes; otherwise every byte is PETSCII data.
 type livePETSCIICount struct {
 	enough context.CancelFunc
 
 	mu        sync.Mutex
+	started   bool    // the first chunk has been seen
+	telnet    *Telnet // set when the first chunk opened Telnet
 	printable int
 	letters   []byte // the board's bytes, PETSCII letters folded to lower-case ASCII
 	busy      bool
@@ -149,6 +152,15 @@ func (c *livePETSCIICount) dial(ctx context.Context, network, address string) (n
 func (c *livePETSCIICount) add(p []byte) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if !c.started {
+		c.started = true
+		if opensTelnet(p) {
+			c.telnet = NewTelnet(termTypePETSCII, c64Cols, c64Rows)
+		}
+	}
+	if c.telnet != nil {
+		p, _ = c.telnet.Feed(p) // replies are the session's job; count the board's data only
+	}
 	for _, b := range p {
 		if livePrintablePETSCII(b) {
 			c.printable++
@@ -415,6 +427,35 @@ func TestLiveC64RuleCountsPETSCIIOnTheWire(t *testing.T) {
 		if got := tc.row.passed(); got != tc.want {
 			t.Errorf("%+v passed = %v, want %v", tc.row, got, tc.want)
 		}
+	}
+}
+
+// The count decides like the session: when the first chunk opens Telnet, only the data left
+// after negotiation counts, so a board that only negotiates cannot pass; a raw board's later
+// IAC bytes are PETSCII data and count.
+func TestLivePETSCIICountStripsTelnetNegotiation(t *testing.T) {
+	negotiation := []byte{
+		tfIAC, tfDO, tfTTYPE, tfIAC, tfDO, tfNAWS, tfIAC, tfWILL, tfECHO, tfIAC, tfWILL, tfSGA,
+		tfIAC, tfSB, tfTTYPE, 1, tfIAC, tfSE,
+	} // 12 bytes in the printable PETSCII ranges
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	telnet := &livePETSCIICount{enough: cancel}
+	telnet.add(negotiation)
+	telnet.add([]byte{tfIAC, tfDO, tfNAWS}) // still Telnet for the rest of the call
+	if printable, busy := telnet.result(); printable != 0 || busy || ctx.Err() != nil {
+		t.Fatalf("negotiation only: printable %d, busy %v, ended %v; want nothing counted", printable, busy, ctx.Err() != nil)
+	}
+	telnet.add([]byte{'H', 'I', tfIAC, tfIAC, 0x0D, tfIAC, tfWILL, tfECHO, 'B', 'U', 'S', 'Y'})
+	if printable, busy := telnet.result(); printable != 7 || !busy {
+		t.Fatalf("Telnet data: printable %d, busy %v; want 7 (H, I, pi from IAC IAC, BUSY) and busy", printable, busy)
+	}
+
+	raw := &livePETSCIICount{}
+	raw.add([]byte{0xFF, 'A'})            // pi first: no Telnet
+	raw.add([]byte{tfIAC, tfDO, tfTTYPE}) // later IAC bytes are data: 0xFF and 0xFD count, 0x18 not
+	if printable, _ := raw.result(); printable != 4 {
+		t.Fatalf("raw board: printable %d, want 4 (pi, A, pi, 0xFD)", printable)
 	}
 }
 
