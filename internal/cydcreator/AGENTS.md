@@ -4,7 +4,9 @@
 
 `internal/cydcreator` owns the CYD Creator domain: board profiles, device themes, the widget catalog, the
 `cyd.project.json` model with validation and layout patch ops, partition tables, the `cydcc` config blob and the
-build diagnostics parser. Later CYD Creator plans add the template and toolchain, the generator, storage and the
+build diagnostics parser, plus (plan 1b) the embedded device template `cyd_template`, the reference generated
+project and, outside the package, the builder image (`deploy/docker/Dockerfile.cyd-builder`,
+`deploy/docker/cyd-builder/`, `.github/workflows/cyd-builder.yml`). Later plans add the generator, storage and the
 service to this same package.
 
 ## Ownership
@@ -16,6 +18,13 @@ service to this same package.
 - `partitions.go`, `configblob.go`, `diagnostics.go` (`ParseDiagnostics`, `IsGeneratedPath`, `IsEditablePath`).
 - `testdata/diagnostics/*.txt`: PlatformIO/gcc/ld log fixtures (`.txt`, because `*.log` is git-ignored).
   `.gitattributes` keeps `testdata/**` and the template/builder paths LF on every platform.
+- `template.go` + `template/`: `TemplateVersion`, `DeviceLanguages`, `TemplateFS()`, `TemplateStrings(lang)`, device
+  strings (`template/strings.json` is the source; `config/cyd_strings.h` is rendered from it), the C++ runtime
+  `template/lib/cyd_template/**` and the app scaffold `template/scaffold/src/app/app_main.cpp`.
+- `testdata/reference/basic/`: hand-written generator output for every board profile (golden target of the
+  generator, prewarm and smoke project of the builder image).
+- `deploy/docker/Dockerfile.cyd-builder`, `deploy/docker/cyd-builder/{cyd-build,cyd-addr2line,cyd-selftest,requirements.*}`
+  and `.github/workflows/cyd-builder.yml`.
 
 ## Local Contracts
 
@@ -38,7 +47,8 @@ service to this same package.
 - Board profiles are strict JSON (unknown keys and trailing data fail), the file name equals the id, and
   `Boards()` loads them once and returns deep copies. A broken profile fails `TestEveryEmbeddedBoardLoads`, never
   the running server. `display.width/height` describe the board's designed orientation, not the controller's RAM
-  orientation; the template maps project orientation to a rotation per driver.
+  orientation; `display.offset_rotation` (LovyanGFX semantics, 0-7) turns the controller frame into that
+  orientation (classic CYD: 5) and `touch.offset_rotation` corrects capacitive touch layers (XPT2046: always 0).
 - Pin keys per bus: display spi `sclk mosi cs dc` (optional `miso rst bl`), qspi `cs sclk d0 d1 d2 d3` (optional
   `rst bl`), rgb `de vsync hsync pclk r0..r4 g0..g5 b0..b4` (optional `bl disp`) plus `timing` (`pclk_hz`,
   `hsync_polarity hsync_front_porch hsync_pulse_width hsync_back_porch`, the same four for vsync,
@@ -146,6 +156,87 @@ service to this same package.
   the part before the first dot, so `aux/x.cpp` and `con.h` are rejected while `console.cpp` and `com10.cpp` pass).
   Generated paths are never writable.
 
+### Device template
+
+- `cyd_template` is configured only by `include/board_config.h` (the macro contract is the reference
+  `testdata/reference/basic/profiles/<board>/include/board_config.h`; every macro is always emitted) and the
+  platformio.ini contract (`-Iinclude -Ilib/cyd_template/config -Isrc/generated`,
+  `-DLV_CONF_INCLUDE_SIMPLE`, `-DWM_STRINGS_FILE=\"cyd_wm_strings.h\"`, `-DWM_NODEBUG`). LVGL is called only from
+  the loop task; other tasks use `cyd::ui_async`. `library.json` keeps `libArchive: false` (strong
+  `verifyRollbackLater()` and weak-hook overrides) and no dependencies (builds are offline).
+- A change to any template file is a template version bump (`TemplateVersion`, `library.json`); projects are never
+  migrated automatically. Device strings: edit `template/strings.json`, then
+  `CYD_UPDATE_STRINGS=1 go test ./internal/cydcreator/ -run TestTemplateStringsHeaderUpToDate`.
+- Setup portal: the SoftAP `CYD-Setup-XXXX` is WPA2 with a fresh random 8-character password. WiFiManager's menu is
+  `wifi` only, and its admin routes (`/update /u /erase /restart /info /param /paramsave /exit /close`) answer 404:
+  `block_admin_routes` registers them from WiFiManager's web-server callback, before WiFiManager's own routes, and the
+  first matching handler wins. Keep that list in step with the WiFiManager version pin.
+- Token origin: the AuraGo bearer token is sent only to `g_cfg.url + path` (the `cydcc` URL; https is pinned by
+  `cert_sha256` before any token leaves the device). An update offer's `url` is honoured only when empty, a `/path`
+  or absolute below the configured URL (printable ASCII, at most 256 bytes, no `//`); anything else falls back to
+  `/api/cyd-creator/device/firmware/<build_id>`. The offered `sha256` is lowercased and must be 64 hex, `build_id`
+  must match `[A-Za-z0-9._-]{1,64}`, and heartbeat/ota-result answers are capped at 4 KiB. The server must therefore
+  send `update.url` empty or as a `/path`. App code gets a separate worker (`cyd_http.cpp`) whose https requests are
+  not certificate-verified: never route secrets through it.
+- Rollback has two guards. The RTC boot counter counts only crash resets (`PANIC`, `INT_WDT`, `TASK_WDT`, `WDT`) and
+  is cleared on power-on, after the first successful heartbeat or after 120 s of uptime. At 3 unstable boots the other
+  slot is booted only if (a) it holds an app that is not marked INVALID/ABORTED, (b) its ELF SHA-256 equals `prev_elf`
+  and (c) the running image's ELF SHA-256 equals `ota_new_elf`; both are written by `rollback_remember_update` right
+  before an OTA switch. So a rollback only ever returns an image this device installed by OTA to the image it came
+  from, never to a stale build of another project left in the slot after a USB flash. The bootloader rollback
+  (`verifyRollbackLater()`) is the second guard for an OTA image that resets before it proves stable.
+- Touch calibration (XPT2046) is stored with a `board_key` (FNV-1a of board id, panel offset rotation and native
+  size), so a different board or profile offers a fresh calibration instead of using a foreign one. The flow
+  gives up without storing after 60 s idle or a touch held 10 s, uses a relative pivot, and rejects a fit with a
+  residual above 10 px (retry).
+- Link and worker state: the worker task only talks to the server and hands results to the loop task (mutex slot,
+  progress atomics, 15-minute busy watchdog); it never touches LVGL. Holding BOOT for 5 s during the splash erases
+  the Wi-Fi credentials, including the IDF driver's own store.
+
+### Builder image
+
+- The builder image pins PlatformIO Core 6.1.19 (hash-pinned `requirements.txt`, generated from
+  `requirements.in`), the platform `espressif32@6.13.0`, every platform package at an exact version
+  (framework-arduinoespressif32 3.20017.241212 = Arduino-ESP32 2.0.17, tool-esptoolpy, tool-scons and the
+  8.4.0+2021r2-patch5 toolchains), the template libraries (LVGL 9.5.0, LovyanGFX 1.2.30, WiFiManager 2.0.17,
+  ArduinoJson 7.4.3) and every `Libraries()` spec. The packages are installed before the platform so PlatformIO never
+  resolves a range against the registry of the day, and a drift check after the prewarm fails the image build when
+  the installed platform/package set differs from the pinned one. A pin change touches the Dockerfile, `Libraries()`,
+  the reference `platformio.ini` files and the version tag `CYD_BUILDER_VERSION`.
+- `cyd-build` passes `CYD_BUILD_ID` through `include/cyd_build_id.h` (never a `-D` flag: flag changes wipe the
+  PlatformIO build cache) and keeps the PlatformIO project checksum stable across work directories. It passes
+  `--jobs` (the allowed CPUs, capped by the CPU quota and by one compiler per 512 MiB of the container memory limit
+  after 512 MiB for PlatformIO and the linker): without it the compilers are OOM-killed in the 2 GiB container.
+- Exit codes are the contract with the service: `0` ok; `1` compile error (a compiler/linker diagnostic with a source
+  location and no killed compiler, so the agent can repair `src/app`); `2` tooling or internal error (a compiler
+  killed by the OOM killer, PlatformIO failing without a code diagnostic, a missing package or `cannot find -l`, a
+  cancel, a symlink or special file in the work tree, an invalid `fonts.json`, a bootloader whose chip differs from
+  `board_config.h`); `3` flash budget exceeded. `2` is never agent-repairable. `out/result.json` is always written
+  (also when the log reader hangs up), and `files`/`fonts` are empty on a non-zero exit.
+- Cache layout: PlatformIO build directory `/cache/build/<builder version>/<cache key>` (the version comes from
+  `/opt/cyd/builder-version`, so a new image never reuses objects of an older toolchain), converted fonts in
+  `/cache/fonts/<sha256>.c` (key: converter id, the `fonts.json` entry and the SHA-256 of the font files; a hit
+  refreshes the mtime, so the oldest entries are the ones to evict), locks in `/cache/locks/<cache key>.lock` and
+  `/tmp/cyd-build.lock`. Builds are serialized per cache key across all containers sharing `/cache` and to one
+  build at a time per container (a waiting build says so); the service must not start parallel builds in one
+  container. Any eviction code works on this layout.
+- Fonts are reproducible: a `fonts.json` entry is validated before conversion (symbol `ui_font_[a-z0-9_]{1,48}`,
+  a family the image ships, size 8-96, at most 16 ranges, `chars` at most 4096 and nothing below U+007F or in
+  control/surrogate classes) and the converter's `Opts` header line, which would leak the command line, is replaced
+  by a fixed one (`converter id v2`), so the same entry converts to the same bytes. `firmware.bin` is not
+  byte-reproducible.
+- Trust boundary: the arguments and the image are trusted, the build tree is not. `platformio.ini`, `partitions.csv`,
+  `include/`, `lib/` and `src/generated/` come from the generator only (`platformio.ini` could run Python through
+  `extra_scripts`). `cyd-build` refuses symlinks and special files anywhere in the tree, gives PlatformIO, the compiler
+  and `lv_font_conv` an allowlisted environment and runs offline on a read-only root file system as uid 1000
+  (writes only `/work`, `/cache`, `/tmp`). Compiling untrusted C++ can still read every file the container can read:
+  keep secrets out of the image, `/work` and `/cache`.
+- Publishing: `.github/workflows/cyd-builder.yml` builds each architecture natively and smoke-tests it offline
+  (amd64 all profiles, arm64 one). Pushes to `main` and `v*` tags (or a manual dispatch with `publish`) push by
+  digest, then one job creates the multi-arch `:1` and, only when it does not exist yet, the immutable
+  `:<CYD_BUILDER_VERSION>`, and signs the manifest with cosign. A changed image under an unchanged
+  `CYD_BUILDER_VERSION` therefore moves only `:1`: bump the version for every pin, template or builder-script change.
+
 ## Work Guidance
 
 - Table-driven tests live beside the source; golden files belong to the generator under `testdata/golden/`.
@@ -155,6 +246,10 @@ service to this same package.
 
 - `go test ./internal/cydcreator/...`
 - `go vet ./internal/cydcreator/...`
+- Template or builder changes: build the image
+  (`docker build -f deploy/docker/Dockerfile.cyd-builder --build-context cydcreator=internal/cydcreator -t aurago-cyd-builder:dev deploy/docker/cyd-builder`,
+  about 10 minutes: the prewarm compiles all nine profiles) and run
+  `docker run --rm --network none --read-only --tmpfs /tmp:rw,exec,size=1g -e HOME=/tmp --user 1000:1000 -v <work volume>:/work -v <cache volume>:/cache <image> cyd-selftest --all`.
 - `gofmt -l internal/cydcreator` prints nothing; `-race` needs gcc (run it on aurago-test).
 
 ## Child DOX Index
