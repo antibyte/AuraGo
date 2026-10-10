@@ -16,11 +16,15 @@ var templateFiles = []string{
 	"lib/cyd_template/config/lv_conf.h",
 	"lib/cyd_template/library.json",
 	"lib/cyd_template/src/cyd.h",
+	"lib/cyd_template/src/cyd_board.cpp",
 	"lib/cyd_template/src/cyd_build_info.cpp",
 	"lib/cyd_template/src/cyd_config.h",
+	"lib/cyd_template/src/cyd_display.cpp",
 	"lib/cyd_template/src/cyd_log.cpp",
 	"lib/cyd_template/src/cyd_private.h",
+	"lib/cyd_template/src/cyd_screens.cpp",
 	"lib/cyd_template/src/cyd_storage.cpp",
+	"lib/cyd_template/src/cyd_touchcal.cpp",
 	"strings.json",
 }
 
