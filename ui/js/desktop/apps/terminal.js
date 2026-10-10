@@ -4,6 +4,13 @@
     const instances = new Map();
     const LAST_ENTRY_KEY = 'aurago.desktop.terminal.retronet.last';
     const HANGUP_KEY = '\x1d';
+    // C64 sessions (Contract C): black screen, cursor and border in C64 light blue (colour 14, the power-on text).
+    const C64_THEME = { background: '#000000', cursor: '#706DEB', cursorAccent: '#000000' };
+    const C64_BORDER = '#706DEB';
+    // Written once, right before the first board byte of a C64 call: the server's PETSCII engine owns the 40x25
+    // screen from then on and its model starts blank with the cursor at row 25, column 1. The coordinator writes its
+    // own lines (dial, CONNECT, key hint) only before this point and nothing during the call.
+    const C64_FRESH_SCREEN = '\x1b[0m\x1b[2J\x1b[25;1H';
     // Normal screen buffer, then DECSTR (attributes, cursor, scroll region, wrap, insert, focus and paste
     // reporting) and mouse reporting off: after a session only real keys reach the result prompt.
     const PLAIN_SCREEN = '\x1b[?1047l\x1b[!p\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l';
@@ -134,6 +141,7 @@
         const screen = host.querySelector('[data-terminal-screen]');
         const status = host.querySelector('[data-terminal-status]');
         const select = host.querySelector('select[data-terminal-style]');
+        const styleBox = host.querySelector('.vd-terminal-style-label');
         const audioBtn = host.querySelector('[data-terminal-audio]');
         const effectsBtn = host.querySelector('[data-terminal-effects]');
         const effectsDialog = host.querySelector('[data-terminal-effects-dialog]');
@@ -157,6 +165,7 @@
         let modem = null;
         let retro = null;
         let geometry = null;
+        let c64Look = null;
         let resultAt = 0;
         const inst = { root: host };
 
@@ -171,6 +180,12 @@
 
         function currentProfile() {
             return styles.profile(root.getAttribute('data-terminal-style'), effectValues);
+        }
+
+        // What the CRT paints around the grid: the C64 border colour while the C64 look is on.
+        function crtProfile(profile) {
+            if (!c64Look) return profile;
+            return Object.assign({}, profile, { theme: Object.assign({}, profile.theme, { background: C64_BORDER }) });
         }
 
         // The fit of the current geometry: the fit addon, or the pinned grid's font fit.
@@ -207,7 +222,7 @@
             root.style.setProperty('--vd-term-bloom-color', c.bloom * strength ? 'var(--vd-term-ink)' : 'transparent');
             root.style.setProperty('--vd-term-scan', c.scan * strength * 0.23);
             root.style.setProperty('--vd-term-vignette', c.vignette * strength);
-            if (crt) crt.setProfile(profile);
+            if (crt) crt.setProfile(crtProfile(profile));
             syncEffectsMenu();
         }
 
@@ -241,10 +256,12 @@
             }
         }
 
-        async function applyStyle(id) {
+        // persist false: the temporary C64 look and its undo never change the saved style.
+        async function applyStyle(id, persist) {
             const revision = ++styleRevision;
-            const next = styles.save(id);
+            const next = persist === false ? styles.normalize(id) : styles.save(id);
             effectValues = styles.loadEffects(next);
+            if (select) select.value = next;
             root.setAttribute('data-terminal-style', next);
             root.removeAttribute('data-terminal-fallback');
             let profile = currentProfile();
@@ -258,6 +275,7 @@
             if (!term || revision !== styleRevision) return;
             profile = currentProfile();
             styles.applyXterm(term, profile);
+            if (c64Look) term.options.theme = Object.assign({}, profile.theme, C64_THEME);
             // A pinned grid gets its font back at once; the fit itself follows below.
             if (geometry && geometry.mode() !== 'fit') geometry.refit();
             ensureCanvas(profile.retro);
@@ -271,7 +289,7 @@
                     });
                 }
                 if (crt) {
-                    crt.setProfile(profile);
+                    crt.setProfile(crtProfile(profile));
                     crt.setEnabled(true);
                     crt.resize();
                     if (typeof crt.usesFallback === 'function' && crt.usesFallback()) {
@@ -495,7 +513,8 @@
             closeShell();
             resetScreen();
             term.options.convertEol = false;
-            const pinned = entry.protocol === 'telnet' && entry.kind === 'bbs' ? 'bbs' : 'fit';
+            const c64 = entry.kind === 'c64';
+            const pinned = c64 ? 'c64' : entry.protocol === 'telnet' && entry.kind === 'bbs' ? 'bbs' : 'fit';
             setGeometry(pinned);
             const grid = window.TerminalGeometry.MODES[pinned];
             setMode('dialing');
@@ -508,10 +527,15 @@
                     isMuted: function () { return window.TerminalAudio ? window.TerminalAudio.loadMuted() : true; }
                 });
             }
-            const run = { entry: entry, buffer: [], buffered: 0, connected: null, animationDone: false, live: false, ended: false, hostKey: false, session: null, throttle: null };
+            const run = { entry: entry, c64: c64, fresh: c64, buffer: [], buffered: 0, connected: null, animationDone: false, live: false, ended: false, hostKey: false, session: null, throttle: null };
             retro = run;
             run.throttle = window.TerminalModem.createThrottle(function (bytes) {
-                if (term && retro === run) term.write(bytes);
+                if (!term || retro !== run) return;
+                if (run.fresh) {
+                    run.fresh = false;
+                    term.write(C64_FRESH_SCREEN);
+                }
+                term.write(bytes);
             });
             run.session = window.TerminalRetroNetSession.open({
                 term: term,
@@ -571,7 +595,8 @@
             run.throttle.setBaud(baud);
             modem.connectLine(baud);
             if ((run.connected.protocol || run.entry.protocol) === 'telnet') writeDim(tr('desktop.terminal_retronet_telnet_notice'));
-            announce(plain(tr('desktop.terminal_retronet_hangup_hint')));
+            if (run.c64) window.TerminalText.wrapHints(tr('desktop.terminal_retronet_c64_keys'), term.cols - 1).forEach(writeDim);
+            announce(plain(tr('desktop.terminal_retronet_hangup_hint') + (run.c64 ? ' ' + tr('desktop.terminal_retronet_c64_keys') : '')));
             setMode('retro');
             setStatus('desktop.terminal_connected');
             const pending = run.buffer;
@@ -709,6 +734,23 @@
             if (run.session) run.session.send(data);
         }
 
+        // C64 colour keys (Contract C), only during a live C64 call: the private sequence goes to the board, and
+        // neither xterm nor the page (browser shortcuts) sees the key.
+        function onTermKey(event) {
+            const run = retro;
+            if (!run || !run.c64 || mode !== 'retro') return true;
+            const sequence = window.TerminalRetroNetSession.c64ColorKey(event);
+            if (!sequence) return true;
+            event.preventDefault();
+            if (event.type === 'keydown' && !event.repeat) run.session.send(sequence);
+            return false;
+        }
+
+        // BEL from a C64 board: a short beep under the key-click rules (retro style, not muted, motion allowed).
+        function onTermBell() {
+            if (audio && retro && retro.c64 && mode === 'retro') audio.beep();
+        }
+
         function onTermResize(size) {
             if (mode === 'directory' && directory) {
                 directory.render();
@@ -735,11 +777,47 @@
             }
         }
 
-        // ---- Screen geometry: fitted, 80x25 BBS or 40x25 C64 (terminal-geometry.js) ----
+        // ---- Screen geometry (terminal-geometry.js) and the temporary C64 look ----
 
-        // 'fit' | 'bbs' | 'c64' for the next screen.
+        // The style select is locked while the C64 look is on; the tooltip says why.
+        function lockStyle(locked) {
+            [select, styleBox].forEach(function (node) {
+                if (!node) return;
+                if (locked) node.title = ctx.t('desktop.terminal_retronet_style_locked');
+                else node.removeAttribute('title');
+            });
+            if (select) select.disabled = locked;
+        }
+
+        // The commodore64 style without saving it, a black screen and a blinking block cursor.
+        function enterC64Look() {
+            if (c64Look || !term) return;
+            c64Look = { style: root.getAttribute('data-terminal-style'), cursorStyle: term.options.cursorStyle, cursorBlink: term.options.cursorBlink };
+            lockStyle(true);
+            term.options.cursorStyle = 'block';
+            term.options.cursorBlink = true;
+            term.options.theme = Object.assign({}, styles.profile('commodore64').theme, C64_THEME);
+            applyStyle('commodore64', false);
+        }
+
+        // Back to the user's style (still the saved one), cursor and an unlocked style select.
+        function leaveC64Look() {
+            const look = c64Look;
+            if (!look) return;
+            c64Look = null;
+            lockStyle(false);
+            if (term) {
+                term.options.cursorStyle = look.cursorStyle;
+                term.options.cursorBlink = look.cursorBlink;
+            }
+            applyStyle(look.style, false);
+        }
+
+        // 'fit' | 'bbs' | 'c64' for the next screen; the C64 look belongs to 'c64' only.
         function setGeometry(next) {
+            if (next !== 'c64') leaveC64Look();
             if (geometry) geometry.set(next);
+            if (next === 'c64') enterC64Look();
         }
 
         function cleanup() {
@@ -752,6 +830,8 @@
             // Removed, not closed: close() reopens an entry dialog whose save is still pending.
             removeEntryDialogs();
             if (geometry) geometry.dispose();
+            // The C64 look is never saved: dropping it leaves the stored style untouched.
+            c64Look = null;
             if (modem) modem.dispose();
             leaveDirectory();
             stopRetro();
@@ -862,6 +942,8 @@
         }
         term.onData(onTermData);
         term.onResize(onTermResize);
+        term.onBell(onTermBell);
+        term.attachCustomKeyEventHandler(onTermKey);
         retroNetOn = retroNetAllowed();
         document.addEventListener('aurago:desktop-policy', onPolicy);
         // Start mode: directory when Retro-Net is on and no path context; otherwise today's shell.

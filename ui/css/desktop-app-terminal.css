@@ -556,9 +556,16 @@
     background: var(--vd-term-bezel);
 }
 
-.vd-terminal-app[data-terminal-geometry="bbs"] .xterm .xterm-viewport {
+.vd-terminal-app[data-terminal-geometry="bbs"] .xterm .xterm-viewport,
+.vd-terminal-app[data-terminal-geometry="c64"] .xterm .xterm-viewport {
     background-color: transparent !important;
     scrollbar-width: none;
+}
+
+/* 40x25 C64 letterbox: the black C64 screen sits in the C64 border colour (light blue); with the WebGL CRT the
+   same colour comes from terminal.js (crtProfile). */
+.vd-terminal-app[data-terminal-geometry="c64"] .vd-terminal-screen {
+    background: #706DEB;
 }
 
 /* Own-entry dialogs (native <dialog>, desktop theme). */

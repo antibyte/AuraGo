@@ -140,3 +140,58 @@ func newTerminalBrowser(t *testing.T, scale string) *rod.Browser {
 	t.Cleanup(func() { _ = browser.Close() })
 	return browser
 }
+
+// terminalChecks evaluates boolean JavaScript checks on a terminal fixture page; a failure prints the visible
+// terminal rows and the collected browser errors.
+type terminalChecks struct {
+	t    *testing.T
+	page *rod.Page
+}
+
+func (c terminalChecks) eval(js string) (bool, error) {
+	res, err := c.page.Eval(js)
+	if err != nil {
+		return false, err
+	}
+	return res.Value.Bool(), nil
+}
+
+func (c terminalChecks) fail(name string, err error) {
+	c.t.Helper()
+	screen, errs := "", ""
+	if res, evalErr := c.page.Eval(`()=>fixtureLines().join('\n')`); evalErr == nil {
+		screen = res.Value.Str()
+	}
+	if res, evalErr := c.page.Eval(`()=>JSON.stringify(fixtureErrors)`); evalErr == nil {
+		errs = res.Value.Str()
+	}
+	c.t.Fatalf("%s (%v)\nscreen:\n%s\nbrowser errors: %s", name, err, screen, errs)
+}
+
+// check evaluates once; wait polls for up to 8 seconds; run evaluates for its side effects.
+func (c terminalChecks) check(name, js string) {
+	c.t.Helper()
+	if ok, err := c.eval(js); err != nil || !ok {
+		c.fail(name, err)
+	}
+}
+
+func (c terminalChecks) wait(name, js string) {
+	c.t.Helper()
+	var lastErr error
+	for deadline := time.Now().Add(8 * time.Second); time.Now().Before(deadline); time.Sleep(40 * time.Millisecond) {
+		ok, err := c.eval(js)
+		if err == nil && ok {
+			return
+		}
+		lastErr = err
+	}
+	c.fail(name, lastErr)
+}
+
+func (c terminalChecks) run(js string) {
+	c.t.Helper()
+	if _, err := c.page.Eval(js); err != nil {
+		c.fail("run "+js, err)
+	}
+}

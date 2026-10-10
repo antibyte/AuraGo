@@ -358,8 +358,30 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"getProfile: currentProfile,",
 		"if (geometry) geometry.set(next);",
 		"setGeometry(pinned);",
+		"const c64 = entry.kind === 'c64';",
 		"cols: grid ? grid.cols : term.cols,",
 		"if (retro && retro.session && (!geometry || geometry.mode() === 'fit')) retro.session.resize(size.cols, size.rows);",
+		// C64 sessions: the commodore64 style without saving it, a locked style select, cursor, screen and border.
+		"const next = persist === false ? styles.normalize(id) : styles.save(id);",
+		"applyStyle('commodore64', false);",
+		"applyStyle(look.style, false);",
+		"node.title = ctx.t('desktop.terminal_retronet_style_locked');",
+		"if (select) select.disabled = locked;",
+		"term.options.cursorStyle = 'block';",
+		"term.options.cursorBlink = true;",
+		"const C64_THEME = { background: '#000000', cursor: '#706DEB', cursorAccent: '#000000' };",
+		"const C64_BORDER = '#706DEB';",
+		"crt.setProfile(crtProfile(profile));",
+		"term.write(C64_FRESH_SCREEN);",
+		`const C64_FRESH_SCREEN = '\x1b[0m\x1b[2J\x1b[25;1H';`,
+		// Key hint after CONNECT, colour keys and the bell (C64 calls only).
+		"window.TerminalText.wrapHints(tr('desktop.terminal_retronet_c64_keys'), term.cols - 1).forEach(writeDim);",
+		"term.attachCustomKeyEventHandler(onTermKey);",
+		"const sequence = window.TerminalRetroNetSession.c64ColorKey(event);",
+		"if (!run || !run.c64 || mode !== 'retro') return true;",
+		"if (event.type === 'keydown' && !event.repeat) run.session.send(sequence);",
+		"term.onBell(onTermBell);",
+		"if (audio && retro && retro.c64 && mode === 'retro') audio.beep();",
 		// A result ignores keys for a moment so keys typed as the service hangs up do not dismiss it.
 		"if (window.performance.now() - resultAt >= RESULT_GRACE_MS) afterResult();",
 		// Placeholders are filled here, never by the shared t(), whose replaceAll treats $ in server text as a pattern.
@@ -370,7 +392,7 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		}
 	}
 	for _, forbidden := range []string{"function printable", "function cellWidth", "function fitToCells", "key === 'y'", "dialog.close(); dialog.remove()", "ctx.t(key, params)",
-		"bbsMode", "fitBbsFont", "VGA_FONT"} {
+		"bbsMode", "fitBbsFont", "VGA_FONT", "function wrapHints", "styles.save('commodore64')"} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("terminal.js must use the shared TerminalText/session helpers; found %q", forbidden)
 		}
@@ -400,6 +422,10 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 	}
 	if strings.Contains(source, "onclick=") {
 		t.Fatal("terminal.js must not use inline onclick")
+	}
+	// The temporary C64 look is entered and left only through setGeometry(), so every exit path restores it.
+	if strings.Count(source, "enterC64Look()") != 2 || strings.Count(source, "leaveC64Look()") != 2 {
+		t.Fatal("terminal.js must enter and leave the C64 look only in setGeometry()")
 	}
 }
 
@@ -1144,6 +1170,8 @@ func TestDesktopTerminalRetroNetStylesheet(t *testing.T) {
 		`body:not([data-animations="false"])`,
 		`.vd-terminal-app[data-terminal-geometry="bbs"]:not([data-terminal-style="modern"]) .vd-terminal-screen`,
 		`.vd-terminal-app[data-terminal-geometry="bbs"] .xterm .xterm-viewport`,
+		`.vd-terminal-app[data-terminal-geometry="c64"] .xterm .xterm-viewport`,
+		".vd-terminal-app[data-terminal-geometry=\"c64\"] .vd-terminal-screen {\n    background: #706DEB;\n}",
 		".vd-terminal-retronet-dialog {",
 		".vd-terminal-retronet-dialog::backdrop",
 		".vd-terminal-retronet-fields label[hidden]",
