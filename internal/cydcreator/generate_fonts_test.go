@@ -1,6 +1,8 @@
 package cydcreator
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -152,5 +154,150 @@ func TestRenderFontsJSONCharLimit(t *testing.T) {
 	_, err := renderFontsJSON(p, th)
 	if ErrorCode(err) != CodeInvalidLayout || !strings.Contains(err.Error(), "4096") {
 		t.Fatalf("err = %v, want CYD_INVALID_LAYOUT about the 4096 character limit", err)
+	}
+}
+
+// uniqueGlyph returns a distinct CJK ideograph per index: never inside the
+// font ranges and never part of a template string.
+func uniqueGlyph(i int) rune { return rune(0x4E00 + i) }
+
+// addGlyphLabels appends labels to the second screen that together carry n
+// distinct code points starting at uniqueGlyph(0).
+func addGlyphLabels(p *Project, n int) {
+	const perLabel = 340
+	for next, id := 0, 0; next < n; id++ {
+		var b strings.Builder
+		for j := 0; j < perLabel && next < n; j++ {
+			b.WriteRune(uniqueGlyph(next))
+			next++
+		}
+		p.Screens[1].Widgets = append(p.Screens[1].Widgets, Widget{ID: fmt.Sprintf("w_%04d", 1000+id),
+			Type: "label", W: 10, H: 10, Props: map[string]any{"text": b.String()}})
+	}
+}
+
+// The 4096 limit is inclusive: exactly 4096 extra characters render, one more
+// is a layout error.
+func TestRenderFontsJSONCharLimitBoundary(t *testing.T) {
+	th, _ := ThemeByID("night")
+	base := loadReferenceProject(t)
+	strs, err := TemplateStrings(base.Language)
+	if err != nil {
+		t.Fatal(err)
+	}
+	have := len(glyphChars(base, strs))
+	for _, tc := range []struct {
+		total int
+		ok    bool
+	}{{maxFontChars, true}, {maxFontChars + 1, false}} {
+		p := loadReferenceProject(t)
+		addGlyphLabels(&p, tc.total-have)
+		if got := len(glyphChars(p, strs)); got != tc.total {
+			t.Fatalf("fixture holds %d extra characters, want %d", got, tc.total)
+		}
+		raw, err := renderFontsJSON(p, th)
+		if !tc.ok {
+			if ErrorCode(err) != CodeInvalidLayout || !strings.Contains(err.Error(), "4096") {
+				t.Errorf("%d characters: err = %v, want CYD_INVALID_LAYOUT about the 4096 limit", tc.total, err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("%d characters: %v", tc.total, err)
+		}
+		var doc struct {
+			Fonts []struct {
+				Chars string `json:"chars"`
+			} `json:"fonts"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			t.Fatal(err)
+		}
+		if len(doc.Fonts) == 0 {
+			t.Fatal("no fonts")
+		}
+		for _, f := range doc.Fonts {
+			if n := len([]rune(f.Chars)); n != maxFontChars {
+				t.Errorf("fonts.json chars hold %d code points, want %d", n, maxFontChars)
+			}
+		}
+	}
+}
+
+// Every string, text and list prop of every widget feeds the glyph set, so a
+// new catalog prop that shows text cannot silently miss its characters. A QR
+// code's text is encoded into the matrix and is the one exception.
+func TestGlyphCharsCoversEveryTextProp(t *testing.T) {
+	covered := map[string]int{}
+	n := 0
+	for _, spec := range WidgetCatalog() {
+		for _, ps := range spec.Props {
+			if ps.Kind != PropString && ps.Kind != PropText && ps.Kind != PropList {
+				continue
+			}
+			if spec.Type == "qrcode" && ps.Name == "text" {
+				continue
+			}
+			n++
+			covered[ps.Kind]++
+			r := uniqueGlyph(n)
+			t.Run(spec.Type+"."+ps.Name, func(t *testing.T) {
+				p := loadReferenceProject(t)
+				var val any = string(r)
+				if ps.Kind == PropList {
+					val = []any{string(r)}
+				}
+				p.Screens[1].Widgets = append(p.Screens[1].Widgets, Widget{ID: "w_0900", Type: spec.Type, W: 10, H: 10,
+					Props: map[string]any{ps.Name: val}})
+				if got := glyphChars(p, nil); !slices.Contains(got, r) {
+					t.Errorf("glyphChars = %U, lacks %U from %s.%s", got, r, spec.Type, ps.Name)
+				}
+			})
+		}
+	}
+	for _, kind := range []string{PropString, PropText, PropList} {
+		if covered[kind] == 0 {
+			t.Errorf("the catalog has no %s prop to cover", kind)
+		}
+	}
+}
+
+func TestGlyphCharsIgnoresQRCodeText(t *testing.T) {
+	p := loadReferenceProject(t)
+	qr := Widget{ID: "w_0900", Type: "qrcode", W: 100, H: 100, Props: map[string]any{"text": "https://例え.example/☀?q=ü€"}}
+	p.Screens[1].Widgets = append(p.Screens[1].Widgets, qr)
+	if got := glyphChars(p, nil); len(got) != 0 {
+		t.Fatalf("a QR code text added glyphs %U", got)
+	}
+	// The same text in a label is drawn and counts.
+	label := Widget{ID: "w_0901", Type: "label", W: 100, H: 20, Props: map[string]any{"text": "例€"}}
+	p.Screens[1].Widgets = append(p.Screens[1].Widgets, label)
+	if got, want := glyphChars(p, nil), []rune("€例"); !slices.Equal(got, want) {
+		t.Fatalf("glyphChars = %U, want %U", got, want)
+	}
+}
+
+// genPropList hands out a copy: the catalog default and a caller's own slice
+// must survive a sort or edit of the result.
+func TestGenPropListReturnsCopy(t *testing.T) {
+	spec, ok := widgetSpecRef("dropdown")
+	if !ok {
+		t.Fatal("no dropdown spec")
+	}
+	def := genPropList(&Widget{Type: "dropdown"}, spec, "options")
+	if len(def) < 2 {
+		t.Fatalf("default options = %q", def)
+	}
+	want := slices.Clone(def)
+	slices.Reverse(def)
+	def[0] = "changed"
+	if again := genPropList(&Widget{Type: "dropdown"}, spec, "options"); !slices.Equal(again, want) {
+		t.Fatalf("the catalog default changed: %q, want %q", again, want)
+	}
+	own := []string{"b", "a"}
+	got := genPropList(&Widget{Type: "dropdown", Props: map[string]any{"options": own}}, spec, "options")
+	slices.Sort(got)
+	if !slices.Equal(own, []string{"b", "a"}) {
+		t.Fatalf("the caller's slice was modified: %q", own)
 	}
 }

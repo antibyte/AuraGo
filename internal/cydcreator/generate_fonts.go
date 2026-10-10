@@ -112,7 +112,9 @@ func needsExtraGlyph(r rune) bool {
 // glyphChars collects every code point outside genFontRanges that the device
 // can show: project name (splash), screen titles, every string/text/list prop
 // (effective values, so catalog defaults count) and the template strings of
-// the device language. The result is sorted by code point.
+// the device language. A QR code's text is encoded into the QR matrix and
+// never drawn as glyphs, so it does not count. The result is sorted by code
+// point.
 func glyphChars(p Project, templateStrings []string) []rune {
 	set := map[rune]bool{}
 	add := func(s string) {
@@ -132,6 +134,9 @@ func glyphChars(p Project, templateStrings []string) []rune {
 			return true
 		}
 		for _, ps := range spec.Props {
+			if w.Type == "qrcode" && ps.Name == "text" {
+				continue
+			}
 			switch ps.Kind {
 			case PropString, PropText:
 				add(genPropString(w, spec, ps.Name))

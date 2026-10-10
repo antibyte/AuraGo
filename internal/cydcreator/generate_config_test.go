@@ -113,3 +113,85 @@ func TestGenRotation(t *testing.T) {
 		}
 	}
 }
+
+// Selected libraries land in lib_deps after the template dependencies, each
+// spec once (shared Depends entries are not repeated), sorted, unknown ids
+// ignored.
+func TestRenderPlatformIOIniWithLibraries(t *testing.T) {
+	p := loadReferenceProject(t)
+	p.Settings.Libraries = []string{"bme280", "dht", "bme280", "unknown"}
+	b, err := BoardByID("esp32-2432s028r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ini := renderPlatformIOIni(p, b)
+	const head, tail = "lib_deps =\n", "build_flags =\n"
+	start, end := strings.Index(ini, head), strings.Index(ini, tail)
+	if start < 0 || end < start {
+		t.Fatalf("platformio.ini has no lib_deps section:\n%s", ini)
+	}
+	var got []string
+	for _, line := range strings.Split(strings.TrimSuffix(ini[start+len(head):end], "\n"), "\n") {
+		got = append(got, strings.TrimPrefix(line, "  "))
+	}
+	want := []string{
+		"lvgl/lvgl@9.5.0", "lovyan03/LovyanGFX@1.2.30", "tzapu/WiFiManager@2.0.17", "bblanchon/ArduinoJson@7.4.3",
+		"adafruit/Adafruit BME280 Library@2.3.0", "adafruit/Adafruit BusIO@1.17.4", "adafruit/Adafruit Unified Sensor@1.1.15",
+		"adafruit/DHT sensor library@1.4.7",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("lib_deps =\n%q\nwant\n%q", got, want)
+	}
+}
+
+// libDepConflicts lists the specs of deps that pin a second version of an
+// owner/name already listed (case-insensitive; PlatformIO would not resolve
+// two versions of one library).
+func libDepConflicts(deps []string) []string {
+	seen := map[string]string{}
+	var out []string
+	for _, spec := range deps {
+		at := strings.LastIndex(spec, "@")
+		if at <= 0 {
+			out = append(out, spec+" (no @version)")
+			continue
+		}
+		name := strings.ToLower(spec[:at])
+		if prev, ok := seen[name]; ok {
+			out = append(out, prev+" vs "+spec)
+			continue
+		}
+		seen[name] = spec
+	}
+	return out
+}
+
+func TestLibDepConflictsDetectsSecondVersion(t *testing.T) {
+	if got := libDepConflicts([]string{"a/b@1", "c/d@2", "A/B@3"}); len(got) != 1 {
+		t.Fatalf("conflicts = %q, want the second a/b version", got)
+	}
+	if got := libDepConflicts([]string{"a/b@1", "a/b@1"}); len(got) != 1 {
+		t.Fatalf("conflicts = %q, want the repeated spec", got)
+	}
+	if got := libDepConflicts([]string{"a/b@1", "a/c@1"}); len(got) != 0 {
+		t.Fatalf("conflicts = %q, want none", got)
+	}
+}
+
+// No selection of curated libraries may produce two lib_deps entries for one
+// owner/name: alone, and all of them together with the template dependencies.
+func TestGenLibDepsHaveNoVersionConflicts(t *testing.T) {
+	var all []string
+	for _, lib := range Libraries() {
+		all = append(all, lib.ID)
+		if c := libDepConflicts(genLibDeps([]string{lib.ID})); len(c) != 0 {
+			t.Errorf("%s: conflicting lib_deps %q", lib.ID, c)
+		}
+	}
+	if len(all) == 0 {
+		t.Fatal("no curated libraries")
+	}
+	if c := libDepConflicts(genLibDeps(all)); len(c) != 0 {
+		t.Errorf("all libraries together: conflicting lib_deps %q", c)
+	}
+}

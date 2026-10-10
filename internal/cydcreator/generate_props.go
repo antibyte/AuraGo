@@ -1,5 +1,7 @@
 package cydcreator
 
+import "slices"
+
 // genPropValue returns a widget's prop or the catalog default.
 func genPropValue(w *Widget, spec *WidgetSpec, name string) any {
 	if v, ok := w.Props[name]; ok {
@@ -28,7 +30,9 @@ func genPropBool(w *Widget, spec *WidgetSpec, name string) bool {
 	return b
 }
 
+// genPropList returns a copy of the list prop: the catalog default slice is
+// shared read-only data, so callers may sort or edit the result freely.
 func genPropList(w *Widget, spec *WidgetSpec, name string) []string {
 	l, _ := propList(genPropValue(w, spec, name))
-	return l
+	return slices.Clone(l)
 }
