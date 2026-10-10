@@ -65,7 +65,7 @@ func TestVerifiedCYDProfile(t *testing.T) {
 			Driver: "ILI9341", Bus: "spi", Width: 320, Height: 240, NativeOrientation: "landscape",
 			Invert: true, BGR: false,
 			Pins: map[string]int{"sclk": 14, "mosi": 13, "miso": 12, "cs": 15, "dc": 2, "rst": -1, "bl": 21},
-			Hz:   40000000, BacklightPWM: true,
+			Hz:   40000000, BacklightPWM: true, OffsetRotation: 5,
 		},
 		Touch: BoardTouch{
 			Driver: "XPT2046", Bus: "spi",
@@ -206,6 +206,8 @@ func TestValidateBoardRejects(t *testing.T) {
 		{"missing calibration", func(m map[string]any) { delete(profileSection(m, "touch"), "calibration") }, "default calibration"},
 		{"inverted calibration", func(m map[string]any) { profileSection(m, "touch", "calibration")["x_min"] = 4000 }, "touch.calibration must"},
 		{"i2c addr on spi touch", func(m map[string]any) { profileSection(m, "touch")["i2c_addr"] = 93 }, "i2c_addr is only allowed"},
+		{"display offset rotation", func(m map[string]any) { profileSection(m, "display")["offset_rotation"] = 8 }, "display.offset_rotation 8"},
+		{"xpt2046 offset rotation", func(m map[string]any) { profileSection(m, "touch")["offset_rotation"] = 2 }, "must be 0 for XPT2046"},
 		{"draw buffer zero", func(m map[string]any) { profileSection(m, "lvgl")["draw_buffer_lines"] = 0 }, "draw_buffer_lines 0"},
 		{"draw buffer too big", func(m map[string]any) { profileSection(m, "lvgl")["draw_buffer_lines"] = 80 }, "boards without PSRAM allow"},
 		{"double buffer too big", func(m map[string]any) {

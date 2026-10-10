@@ -19,7 +19,8 @@
     "bgr": false,
     "pins": { "sclk": 14, "mosi": 13, "miso": 12, "cs": 15, "dc": 2, "rst": -1, "bl": 21 },
     "hz": 40000000,
-    "bl_pwm": true
+    "bl_pwm": true,
+    "offset_rotation": 5
   },
   "touch": {
     "driver": "XPT2046",

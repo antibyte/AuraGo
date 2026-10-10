@@ -62,6 +62,10 @@ type BoardDisplay struct {
 	Hz                int            `json:"hz"`
 	BacklightPWM      bool           `json:"bl_pwm"`
 	Timing            map[string]int `json:"timing,omitempty"` // rgb panels only
+	// OffsetRotation is LovyanGFX's panel offset_rotation (0-3 rotate, 4-7
+	// mirrored): it turns the controller-RAM frame into the board's native
+	// orientation, so rotation 0 shows the board as described by Width/Height.
+	OffsetRotation int `json:"offset_rotation,omitempty"`
 }
 
 // BoardTouch describes the touch controller.
@@ -72,6 +76,10 @@ type BoardTouch struct {
 	I2CAddr          int               `json:"i2c_addr,omitempty"`
 	Calibration      *TouchCalibration `json:"calibration,omitempty"`
 	NeedsCalibration bool              `json:"needs_calibration"`
+	// OffsetRotation is LovyanGFX's touch offset_rotation for capacitive
+	// controllers whose touch layer is turned or mirrored against the panel's
+	// controller-RAM frame. XPT2046 boards keep 0 (the calibration carries it).
+	OffsetRotation int `json:"offset_rotation,omitempty"`
 }
 
 // TouchCalibration holds raw XPT2046 ADC bounds, in the panel's native orientation.
@@ -338,6 +346,9 @@ func validateBoard(b Board) error {
 	if rule, ok := displayPinRules[d.Bus]; ok {
 		probs = append(probs, checkPins(b, "display", d.Pins, rule)...)
 	}
+	if d.OffsetRotation < 0 || d.OffsetRotation > 7 {
+		bad("display.offset_rotation %d must be within 0..7", d.OffsetRotation)
+	}
 
 	t := b.Touch
 	if bus, ok := touchDriverBus[t.Driver]; !ok {
@@ -347,6 +358,11 @@ func validateBoard(b Board) error {
 	}
 	if rule, ok := touchPinRules[t.Bus]; ok {
 		probs = append(probs, checkPins(b, "touch", t.Pins, rule)...)
+	}
+	if t.OffsetRotation < 0 || t.OffsetRotation > 7 {
+		bad("touch.offset_rotation %d must be within 0..7", t.OffsetRotation)
+	} else if t.Driver == "XPT2046" && t.OffsetRotation != 0 {
+		bad("touch.offset_rotation must be 0 for XPT2046 (the calibration carries the orientation)")
 	}
 	switch t.Driver {
 	case "XPT2046":
