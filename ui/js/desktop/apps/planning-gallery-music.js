@@ -271,7 +271,7 @@
                 const due = todoDueFieldValue(todo.due_date, form.due_date.value);
                 if (!due.omit) body.due_date = due.value;
                 await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', body);
-                await reload(todo.id);
+                await reload(todo.id, { replaceDetail: true });
             });
         });
         pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { if (todoReadonly) return; await runTodoAction(async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id, { preserveEdits: true }); }); });
