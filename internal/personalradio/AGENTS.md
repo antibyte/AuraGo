@@ -30,7 +30,10 @@ User documentation: `documentation/personal-radio.md`.
 - Attempt one opening moderation per start epoch unless moderation is off.
   Pass registry preparation status, actual eligible track count and music duration/requirements to the
   tool-free planner. Give opening planning/TTS up to 45 seconds before scheduling
-  long music work on the shared accelerator; a failure releases music production.
+  long music work on the shared accelerator. The opening LLM request uses only
+  the station profile and startup snapshot, omitting track listings and prior scripts;
+  it requests only a short theme and welcome, not the later broadcast plan. An opening
+  failure releases music production.
   Only a fully prepared opening may play before `MusicReady`. It never counts
   toward the music reserve, never promises an ETA and is not repeated while waiting.
   Start normal editorial/news only after music readiness; research news during music.

@@ -56,7 +56,9 @@ With moderation enabled, each start first prepares one short spoken welcome
 using the station's LLM and active TTS. It introduces the station and explains
 any missing music using the actual available track count and duration. While the
 registry scan is pending, the planner is told that existing music is being prepared
-and must not claim the library is empty. In local mode it asks for imports only
+and must not claim the library is empty. The welcome request uses only the station
+profile and current preparation status; track listings and earlier scripts are
+used for later programme planning. In local mode it asks for imports only
 when needed instead of claiming to generate music. Opening
 preparation has a 45-second limit before music generation takes priority; a
 speech failure does not block music preparation. The welcome can play before

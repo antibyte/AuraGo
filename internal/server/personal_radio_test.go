@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -167,6 +168,49 @@ func TestPersonalRadioEditorialRetryIsToolFree(t *testing.T) {
 		if !strings.Contains(html.UnescapeString(r.Messages[1].Content), `"opening":{"track_count":1,"min_tracks":8,"buffer_ms":180000,"required_ms":1800000}`) {
 			t.Fatal("opening facts lost on the LLM route")
 		}
+	}
+}
+
+func TestPersonalRadioOpeningKeepsStartupFactsWithoutLibraryAndHistory(t *testing.T) {
+	for _, opening := range []bool{true, false} {
+		t.Run(fmt.Sprint(opening), func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.VirtualDesktop.Enabled = true
+			cfg.LLM.Model = "radio-fixture"
+			cfg.Agent.ContextWindow = 32768
+			fake := &personalRadioChatFake{}
+			s := &Server{Cfg: cfg, LLMClient: fake, Logger: slog.Default()}
+			req := personalradio.EditorialRequest{Station: personalradio.DefaultStation()}
+			for i := range 39 {
+				req.Tracks = append(req.Tracks, personalradio.Track{ID: fmt.Sprintf("%032x", i), Title: strings.Repeat("Library title ", 10), Genre: "Jazz", DurationMS: 120000, Hash: strings.Repeat("a", 64)})
+			}
+			for range 8 {
+				req.Recent = append(req.Recent, strings.Repeat("Earlier moderation. ", 25))
+			}
+			if opening {
+				req.Opening = &personalradio.OpeningContext{LibraryPending: true, TrackCount: 39, MinTracks: 2, BufferMS: 4680000, RequiredMS: 300000}
+			}
+			if _, err := s.personalRadioPlan(context.Background(), req); err != nil {
+				t.Fatal(err)
+			}
+			for attempt, r := range fake.requests {
+				raw := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(html.UnescapeString(r.Messages[1].Content), "<external_data>"), "</external_data>"))
+				var sent personalradio.EditorialRequest
+				if err := json.Unmarshal([]byte(raw), &sent); err != nil {
+					t.Fatal(err)
+				}
+				if opening {
+					if len(r.Messages[1].Content) > 4096 || len(sent.Tracks) != 0 || len(sent.Recent) != 0 || sent.Opening == nil || *sent.Opening != *req.Opening || !reflect.DeepEqual(sent.Station, req.Station) {
+						t.Fatalf("opening sent library/history or lost startup facts: bytes=%d tracks=%d recent=%d", len(r.Messages[1].Content), len(sent.Tracks), len(sent.Recent))
+					}
+				} else if attempt == 0 && (len(sent.Tracks) != 39 || len(sent.Recent) != 8) {
+					t.Fatal("normal editorial lost candidates or recent scripts")
+				}
+			}
+			if len(req.Tracks) != 39 || len(req.Recent) != 8 {
+				t.Fatal("caller request changed")
+			}
+		})
 	}
 }
 
